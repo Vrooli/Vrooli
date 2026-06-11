@@ -21,6 +21,7 @@ class FindingSource(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     FINDING_SOURCE_SECURITY: _ClassVar[FindingSource]
     FINDING_SOURCE_MEASURES: _ClassVar[FindingSource]
     FINDING_SOURCE_BUSINESS: _ClassVar[FindingSource]
+    FINDING_SOURCE_PROTO: _ClassVar[FindingSource]
 
 class FindingSeverity(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -49,6 +50,7 @@ FINDING_SOURCE_COVERAGE: FindingSource
 FINDING_SOURCE_SECURITY: FindingSource
 FINDING_SOURCE_MEASURES: FindingSource
 FINDING_SOURCE_BUSINESS: FindingSource
+FINDING_SOURCE_PROTO: FindingSource
 FINDING_SEVERITY_UNSPECIFIED: FindingSeverity
 FINDING_SEVERITY_INFO: FindingSeverity
 FINDING_SEVERITY_WARNING: FindingSeverity

@@ -77,6 +77,49 @@ func TestRunSchemaValidationRejectsParentTraversalPath(t *testing.T) {
 	}
 }
 
+func TestRunSchemaValidationRejectsInvalidRuntimeHomeEntryPaths(t *testing.T) {
+	tests := []struct {
+		name      string
+		path      string
+		wantError string
+	}{
+		{name: "absolute", path: "/tmp/vrooli", wantError: "must be repository-relative"},
+		{name: "windows drive", path: "C:/vrooli", wantError: "must not use a Windows drive prefix"},
+		{name: "parent traversal", path: "state/../secrets", wantError: "must not contain '..' segments"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fixture := testkitgo.NewRepoFixture(t)
+			fixture.WriteRepoContract(t)
+			copyContractSchemas(t, fixture.Root)
+
+			contractPath := filepath.Join(fixture.Root, ".vrooli", "repo-contract.json")
+			data, err := os.ReadFile(contractPath)
+			if err != nil {
+				t.Fatalf("read contract: %v", err)
+			}
+
+			var doc map[string]any
+			if err := json.Unmarshal(data, &doc); err != nil {
+				t.Fatalf("unmarshal contract: %v", err)
+			}
+			entries := doc["runtime_home"].(map[string]any)["entries"].(map[string]any)
+			state := entries["state"].(map[string]any)
+			state["path"] = tt.path
+			testkitgo.WriteJSON(t, contractPath, doc)
+
+			message, ok := RunSchemaValidation(fixture.Root)
+			if ok {
+				t.Fatal("expected invalid runtime home entry path to fail schema validation")
+			}
+			if !strings.Contains(message, "runtime_home.entries.state.path") || !strings.Contains(message, tt.wantError) {
+				t.Fatalf("validation message = %q", message)
+			}
+		})
+	}
+}
+
 func copyContractSchemas(t *testing.T, dstRoot string) {
 	t.Helper()
 

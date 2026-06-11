@@ -52,6 +52,16 @@ func sourceToken(s architecturev1.FindingSource) string {
 		return "architecture"
 	case architecturev1.FindingSource_FINDING_SOURCE_TIDINESS:
 		return "tidiness"
+	case architecturev1.FindingSource_FINDING_SOURCE_COVERAGE:
+		return "coverage"
+	case architecturev1.FindingSource_FINDING_SOURCE_SECURITY:
+		return "security"
+	case architecturev1.FindingSource_FINDING_SOURCE_MEASURES:
+		return "measures"
+	case architecturev1.FindingSource_FINDING_SOURCE_BUSINESS:
+		return "business"
+	case architecturev1.FindingSource_FINDING_SOURCE_PROTO:
+		return "proto"
 	default:
 		return "unspecified"
 	}

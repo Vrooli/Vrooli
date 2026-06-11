@@ -1,160 +1,269 @@
 # Protocol Buffer Style Guide
 
-This guide establishes documentation and naming standards for Vrooli proto schemas.
-Following these standards ensures consistency, improves agent/tool parseability, and
-makes schemas self-documenting.
+This guide defines the source-of-truth structure for Vrooli proto schemas in
+`packages/proto/schemas/`. Protos are fleet contracts: they must be easy for
+agents to place, inspect, regenerate, and consume without guessing which
+transport or ownership pattern applies.
+
+The current standard is domain organization. The old numeric layer taxonomy is
+retired; do not add new layer metadata.
 
 ## Table of Contents
 
-- [File Structure](#file-structure)
+- [Directory Standard](#directory-standard)
+- [Where Does This Proto Go?](#where-does-this-proto-go)
+- [Import Rules](#import-rules)
+- [File Header](#file-header)
 - [Documentation Annotations](#documentation-annotations)
+- [Version Directories](#version-directories)
 - [Naming Conventions](#naming-conventions)
+- [Validation](#validation)
 - [Field Documentation](#field-documentation)
 - [Enum Documentation](#enum-documentation)
 - [Deprecation Patterns](#deprecation-patterns)
-- [Layer Architecture](#layer-architecture)
+- [Generation Workflow](#generation-workflow)
+- [Validation Checklist](#validation-checklist)
 
 ---
 
-## File Structure
+## Directory Standard
 
-### File Header Template
+Scenario-owned schemas live under:
 
-Every proto file MUST start with a header block:
+```text
+packages/proto/schemas/<scenario-slug>/v<n>/<domain>/<file>.proto
+```
+
+The domain folder is the architecture signal. It should mirror the product or
+implementation domain an engineer would expect to find in the scenario code:
+`validation`, `health`, `search`, `scoring`, `settings`, `runs`, `inventory`,
+and similar names.
+
+Use this shape for new and migrated schema files:
+
+```text
+schemas/proto-health/
+`-- v1/
+    |-- validation/
+    |   `-- validation.proto
+    |-- protosurface/
+    |   `-- protosurface.proto
+    |-- shared/
+    |   |-- errors.proto
+    |   `-- health.proto
+    `-- health/
+        `-- health.proto
+```
+
+### Scenario Shared Types
+
+Use `v<n>/shared/` for types shared by multiple domains inside one scenario.
+Examples:
+
+- shared request/response fragments.
+- cross-domain enums used by the same scenario.
+- reusable validation error types.
+- scenario-local `health.proto` or `errors.proto` when those messages are
+  reused beyond the health/errors service file.
+
+If a type is only used by one domain, keep it in that domain. Do not create
+shared buckets preemptively.
+
+### Fleet Shared Types
+
+Cross-scenario shared contracts do not belong in a scenario's `shared/`
+directory. They belong in the top-level shared packages such as:
+
+- `schemas/common/`
+- `schemas/measures/`
+- `schemas/architecture/`
+
+Adding or changing a fleet shared package is a broader interoperability
+decision. Keep scenario-local convenience types local.
+
+### Legacy Layouts
+
+Some existing schemas still use legacy folders such as `api/`, `domain/`,
+`base/`, or numeric-layer annotations. Treat those as migration targets, not
+patterns for new work. The validator should warn on legacy metadata and
+cross-domain drift without turning the whole fleet red on day one.
+
+---
+
+## Where Does This Proto Go?
+
+Use this decision tree before creating or moving a proto file:
+
+```text
+Is the contract shared across scenarios?
+|-- Yes -> place it in the appropriate top-level shared package
+|          (`common`, `measures`, `architecture`, or another reviewed shared
+|          package).
+`-- No
+   Is the type used by more than one domain inside the same scenario?
+   |-- Yes -> place it under schemas/<scenario>/v<n>/shared/.
+   `-- No
+      Is it the public RPC surface for a domain?
+      |-- Yes -> place service and request/response messages in that domain
+      |          folder, unless a message is reused elsewhere and belongs in
+      |          shared/.
+      `-- No -> place it in the domain that owns the concept.
+```
+
+If two domain folders need to import each other, that is a design smell. Move
+the shared concept to `shared/`, or split the responsibility so each domain owns
+its own contract.
+
+---
+
+## Import Rules
+
+These rules are intra-scenario rules. Fleet-wide dependency graphs,
+declared-vs-actual `service.json` drift, and cross-scenario encapsulation are
+owned by scenario dependency analysis, not this style guide.
+
+1. Import cycles are forbidden.
+2. Domain folders must not import other domain folders from the same scenario.
+3. Domain folders may import their scenario's `shared/` package.
+4. Domain folders may import top-level cross-scenario shared packages.
+5. Cross-scenario imports are allowed when the scenario intentionally consumes
+   another contract; record them as facts for downstream dependency analysis.
+6. Do not encode import policy in comments. The file path and import graph are
+   the machine-readable source of truth.
+
+Examples:
+
+```protobuf
+// OK: validation domain imports scenario-local shared types.
+import "proto-health/v1/shared/findings.proto";
+
+// OK: a scenario imports a reviewed fleet shared package.
+import "architecture/v1/findings.proto";
+
+// Not OK: validation imports another local product domain directly.
+import "proto-health/v1/protosurface/protosurface.proto";
+```
+
+When a direct domain import feels unavoidable, prefer making the dependency
+explicit through `shared/` and documenting why that shared concept exists.
+
+---
+
+## File Header
+
+Every proto file must start with a concise header block:
 
 ```protobuf
 syntax = "proto3";
 
-package scenario_name.v1;
+package proto_health.v1.validation;
 
-import "...";
+import "buf/validate/validate.proto";
 
-option go_package = "...";
+option go_package = "github.com/matthalloran/Vrooli/packages/proto/gen/go/proto-health/v1/validation;validationv1";
 
 // =============================================================================
-// [DOMAIN NAME IN CAPS]
+// VALIDATION
 // =============================================================================
 //
-// @layer [0-5]
-// @domain [domain-name]
-// @imports [comma-separated list of imported domains, or "none"]
-// @stability [stable|beta|experimental]
+// @stability experimental
 //
-// [1-3 sentence description of what this file contains and why]
+// Validates one scenario's proto contract structure and reports actionable
+// findings for the quality loop.
 //
 // USAGE CONTEXTS:
-//   - [Context 1]: [Description]
-//   - [Context 2]: [Description]
+//   - test-genie: runs this validator as the proto phase.
+//   - ecosystem-manager: consumes proto findings as an R2 maturity signal.
 //
 // =============================================================================
 ```
 
-### @stability Annotation
-
-Every file MUST include a `@stability` annotation in the header to indicate API maturity:
-
-| Value | Meaning | Compatibility Guarantee |
-|-------|---------|------------------------|
-| `stable` | Production-ready, widely used | Breaking changes require deprecation cycle |
-| `beta` | Feature-complete, may have rough edges | Breaking changes with notice |
-| `experimental` | Early development, subject to change | No compatibility guarantee |
-
-```protobuf
-// @stability stable
-// Core types used throughout the system
-
-// @stability beta
-// New feature being validated in production
-
-// @stability experimental
-// Prototype types, expect changes
-```
-
-### @version Annotation (Optional)
-
-For tracking schema evolution, you may add `@version` annotations to document when types were added or changed:
-
-```protobuf
-// @version 1.0 - Initial release
-// @version 1.1 - Added metadata_typed field
-// @version 1.2 - Deprecated old_field, added new_field
-message PricingTier {
-  ...
-}
-```
-
-### Section Separators
-
-Use consistent separators to group related types:
-
-```protobuf
-// =============================================================================
-// SECTION NAME
-// =============================================================================
-```
+The header must explain ownership and usage. It must not duplicate facts that
+the path or imports already expose.
 
 ---
 
 ## Documentation Annotations
 
-Use `@` annotations for machine-parseable metadata. These MUST appear at the
-start of a line within a comment block.
+Annotations are machine-parseable metadata that appear at the start of a comment
+line. Keep the registry small and stable.
 
-## Validation (Protovalidate)
+### Supported File-Level Annotation
 
-Use Protovalidate rules as the canonical, machine-readable source of truth for validation constraints.
+Every file must include `@stability`:
 
-- Prefer `buf/validate/validate.proto` rules (e.g., required, bounds, formats, CEL) over documenting constraints purely in comments.
-- Keep comments for semantics and context (why the field exists, units, API behavior, defaults), even when Protovalidate rules exist.
-- Treat `@constraint` as a documentation aid only; when a constraint is enforceable, encode it with Protovalidate.
+| Value | Meaning | Compatibility Guarantee |
+|-------|---------|-------------------------|
+| `stable` | Production-ready, relied on by consumers | Breaking changes require a deprecation cycle |
+| `beta` | Feature-complete but still hardening | Breaking changes require notice |
+| `experimental` | Early or intentionally volatile | No compatibility guarantee |
 
-### Standard Annotations
+Use exactly these values. Avoid synonyms such as `unstable`.
 
-| Annotation | Purpose | Example |
-|------------|---------|---------|
-| `@layer` | Import hierarchy level (0-5) | `@layer 2` |
-| `@domain` | Domain category | `@domain actions` |
-| `@imports` | Dependencies | `@imports base, domain` |
-| `@usage` | Where this type is used | `@usage Execution.status` |
-| `@see` | Related types/docs | `@see WorkflowNodeV2` |
-| `@deprecated` | Deprecation notice | `@deprecated Use TimelineEntry instead` |
-| `@constraint` | Validation rules | `@constraint Must be unique` |
-| `@default` | Default value | `@default 30000` |
-| `@unit` | Measurement unit | `@unit milliseconds` |
-| `@format` | Data format | `@format uuid` |
-| `@example` | Example value | `@example "https://example.com"` |
+### Supported Documentation Annotations
 
-### Message-Level Documentation
+| Annotation | Scope | Purpose | Example |
+|------------|-------|---------|---------|
+| `@stability` | file | API maturity | `@stability beta` |
+| `@deprecated` | message, field, enum, value | Human-readable migration note paired with proto deprecation options where available | `@deprecated Use TimelineEntry instead` |
+| `@example` | field, message | Concrete value or payload sketch | `@example "https://example.com"` |
+| `@see` | message, field, enum | Related contract or documentation | `@see WorkflowNode.id` |
+| `@format` | field | Parseable scalar format when not expressed by type | `@format uuid` |
+| `@unit` | field | Unit for numeric values | `@unit milliseconds` |
+| `@default` | field | Non-obvious default behavior | `@default 30000` |
 
-```protobuf
-// Brief one-line description of the message.
-//
-// Extended description explaining purpose, behavior, and context.
-// Can span multiple lines.
-//
-// @usage Where/how this type is used
-// @see Related types
-message ExampleMessage {
-  ...
-}
+Validation constraints belong in Protovalidate rules whenever they are
+enforceable. Use prose for semantics, not as the only source of truth for a
+machine-checkable constraint.
+
+### Deprecated Annotations
+
+Do not add these annotations to new files:
+
+- `@layer`
+- `@domain`
+- `@imports`
+
+They are deprecated because the same facts are now derived from directory
+structure and imports. Existing uses may remain until the owning scenario is
+migrated; validators should report them as maturity warnings, not correctness
+errors.
+
+Unsupported annotations should be treated as warnings so authors can either
+remove them or deliberately propose expanding this registry.
+
+---
+
+## Version Directories
+
+Version directories must match:
+
+```text
+^v[1-9][0-9]*$
 ```
 
-### Field-Level Documentation
+Rules:
+
+1. A scenario's schema versions start at `v1`.
+2. Versions are contiguous: `v1`, `v2`, `v3`, with no gaps.
+3. New scenarios start with `v1`.
+4. Do not create a new version directory for routine additive changes.
+5. A new version directory means a deliberate wire-contract versioning decision.
+
+Package names must include the version:
 
 ```protobuf
-message Example {
-  // Brief description of the field.
-  // Additional context if needed.
-  // @format uuid
-  // @constraint Must be non-empty
-  string id = 1;
-
-  // Description with unit information.
-  // @unit milliseconds
-  // @default 30000
-  optional int32 timeout_ms = 2;
-}
+package proto_health.v1.validation;
 ```
+
+The package should correspond to the path:
+
+```text
+schemas/proto-health/v1/validation/validation.proto
+        -> proto_health.v1.validation
+```
+
+Use underscores in proto packages for scenario slugs that contain hyphens.
 
 ---
 
@@ -162,41 +271,66 @@ message Example {
 
 ### Package Names
 
-- Use `snake_case` for package names
-- Include version suffix: `scenario_name.v1`
-- Match directory structure
+- Use `snake_case`.
+- Include the version segment.
+- Include the domain segment for scenario-owned domain folders.
+- Match the scenario slug after converting hyphens to underscores.
+
+### File Names
+
+- Use `snake_case`.
+- Prefer one primary file per domain named after the domain.
+- Split files when a domain has distinct subcontracts that are easier to own and
+  review separately.
+
+### Service Names
+
+- Use `PascalCase`.
+- Suffix scenario services with `Service`.
+- Prefer one scenario service per cohesive API surface.
+
+```protobuf
+service ProtoHealthService {
+  rpc ValidateScenario(ValidateScenarioRequest) returns (ValidateScenarioResponse);
+  rpc DescribeScenarioProtos(DescribeScenarioProtosRequest) returns (DescribeScenarioProtosResponse);
+}
+```
 
 ### Message Names
 
-- Use `PascalCase`
-- Be descriptive but concise
-- Suffix with purpose when helpful: `*Request`, `*Response`, `*Config`, `*Params`
+- Use `PascalCase`.
+- Be descriptive but concise.
+- Suffix RPC envelopes with `Request` and `Response`.
+- Suffix configuration and parameter types with `Config`, `Options`, or
+  `Params` only when that describes their role.
 
 ### Field Names
 
-- Use `snake_case`
-- Use consistent suffixes for common patterns:
+- Use `snake_case`.
+- Use consistent suffixes:
 
 | Suffix | Meaning | Example |
 |--------|---------|---------|
-| `_id` | Identifier field | `workflow_id`, `project_id` |
-| `_at` | Timestamp field | `created_at`, `started_at` |
-| `_ms` | Duration in milliseconds | `timeout_ms`, `delay_ms` |
-| `_count` | Count/quantity | `workflow_count`, `retry_count` |
-| `_url` | URL string | `storage_url`, `callback_url` |
-| `_path` | Filesystem path | `folder_path`, `workflow_path` |
+| `_id` | Identifier field | `scenario_id` |
+| `_at` | Timestamp field | `created_at` |
+| `_ms` | Duration in milliseconds | `timeout_ms` |
+| `_count` | Count or quantity | `finding_count` |
+| `_url` | URL string | `callback_url` |
+| `_path` | Filesystem or repo path | `proto_path` |
 
 ### Enum Names
 
-- Use `SCREAMING_SNAKE_CASE`
-- Prefix all values with enum name: `ENUM_NAME_VALUE`
-- First value MUST be `ENUM_NAME_UNSPECIFIED = 0`
+- Use `PascalCase` for enum type names.
+- Use `SCREAMING_SNAKE_CASE` for enum values.
+- Prefix all values with the enum type name.
+- First value must be `*_UNSPECIFIED = 0`.
 
 ```protobuf
-enum ExampleStatus {
-  EXAMPLE_STATUS_UNSPECIFIED = 0;
-  EXAMPLE_STATUS_ACTIVE = 1;
-  EXAMPLE_STATUS_INACTIVE = 2;
+enum ProtoFindingSeverity {
+  PROTO_FINDING_SEVERITY_UNSPECIFIED = 0;
+  PROTO_FINDING_SEVERITY_ERROR = 1;
+  PROTO_FINDING_SEVERITY_WARNING = 2;
+  PROTO_FINDING_SEVERITY_INFO = 3;
 }
 ```
 
@@ -206,171 +340,124 @@ Use these standard suffixes:
 
 | Suffix | When to Use |
 |--------|-------------|
-| `created_at` | Resource creation time (immutable) |
+| `created_at` | Resource creation time |
 | `updated_at` | Last modification time |
-| `started_at` | Operation/execution start time |
-| `completed_at` | Operation/execution end time |
+| `started_at` | Operation start time |
+| `completed_at` | Operation completion time |
 | `timestamp` | Generic event occurrence time |
 
 ### UUID Fields
 
-Fields containing UUIDs MUST include the `@format uuid` annotation for machine parseability:
+Fields containing UUIDs must include `@format uuid`:
 
 ```protobuf
-// Unique identifier for the workflow.
+// Unique run identifier.
 // @format uuid
-string workflow_id = 1;
+string run_id = 1;
 ```
 
-For common ID field patterns, use this standard format:
+Do not use inline prose such as `(UUID format)` when an annotation is available.
+
+---
+
+## Validation
+
+Use Protovalidate as the canonical, machine-readable source of truth for
+boundary constraints.
+
+- Prefer `buf/validate/validate.proto` rules for required fields, bounds,
+  formats, and CEL expressions.
+- Keep comments focused on semantics, units, defaults, and user-visible behavior.
+- Validate at API ingress and cross-scenario ingress/egress.
+- Do not rely on comments alone for constraints that can be mechanically
+  enforced.
+
+Example:
 
 ```protobuf
-// Unique workflow identifier.
-// @format uuid
-string workflow_id = 1;
-
-// Project this workflow belongs to.
-// @format uuid
-string project_id = 2;
-
-// Node ID from the workflow definition.
-// @format uuid
-// @see WorkflowNodeV2.id
-optional string node_id = 3;
-```
-
-**IMPORTANT**: Do NOT use the older `(UUID format)` inline style. Always use `@format uuid` annotation:
-
-```protobuf
-// CORRECT - machine parseable
-// Unique execution identifier.
-// @format uuid
-string execution_id = 1;
-
-// DEPRECATED - avoid this style
-// Unique execution identifier (UUID format).
-string execution_id = 1;
+message ValidateScenarioRequest {
+  // Scenario slug to validate.
+  string scenario = 1 [(buf.validate.field).string = {
+    pattern: "^[a-z0-9][a-z0-9-]*[a-z0-9]$"
+  }];
+}
 ```
 
 ---
 
 ## Field Documentation
 
-### Required Documentation
+Every field must have a comment that includes:
 
-Every field MUST have a comment that includes:
-
-1. Brief description of what the field contains
-2. Any constraints or validation rules
-3. Default value if optional and non-obvious
-4. Unit of measurement for numeric fields
-
-### Optional vs Required
-
-- Use `optional` when distinguishing "unset" from zero/empty matters
-- Document the semantic difference in comments
+1. What the field contains.
+2. Non-obvious constraints or defaults.
+3. Unit of measurement for numeric fields.
+4. Ordering semantics for repeated fields.
+5. Key/value semantics for map fields.
 
 ```protobuf
-// Maximum timeout. If unset, uses system default (30000ms).
-// @unit milliseconds
-// @default 30000
-optional int32 timeout_ms = 1;
+message ProtoSurface {
+  // Scenario slug this surface describes.
+  string scenario = 1;
 
-// User ID who created this resource. Always populated.
-string created_by = 2;
+  // Proto files owned by the scenario, ordered by repo path.
+  repeated ProtoFile files = 2;
+
+  // Counts by finding severity.
+  // Key: severity token such as "error" or "warning".
+  // Value: number of findings at that severity.
+  map<string, int32> finding_counts = 3;
+}
 ```
 
-### Map Fields
-
-Document both key and value meanings:
-
-```protobuf
-// Variables injected into workflow execution.
-// Key: Variable name (e.g., "username")
-// Value: Variable value (supports string interpolation)
-map<string, string> variables = 1;
-```
-
-### Repeated Fields
-
-Document ordering semantics:
-
-```protobuf
-// Captured timeline entries, ordered by sequence_num ascending.
-repeated TimelineEntry entries = 1;
-```
+Use `optional` only when distinguishing unset from zero or empty matters, and
+document that distinction.
 
 ---
 
 ## Enum Documentation
 
-### Enum-Level Documentation
+Every enum and enum value must be documented. Lifecycle enums should include a
+short state machine when valid transitions matter.
 
 ```protobuf
-// Brief description of what this enum represents.
+// Status for a validation run.
 //
-// Extended context about usage and behavior.
-// Include state machine diagrams for lifecycle enums.
-//
-// @usage Where this enum is used
-enum ExampleStatus {
-  ...
-}
-```
-
-### Value Documentation
-
-Every enum value MUST have a comment explaining:
-
-1. What this value represents
-2. When it occurs / conditions
-3. What actions are valid in this state (for lifecycle enums)
-
-```protobuf
-enum ExecutionStatus {
-  // Default/unknown state. Should never appear in valid data.
-  // Indicates missing or corrupted status field.
-  EXECUTION_STATUS_UNSPECIFIED = 0;
-
-  // Execution is queued and waiting for an available executor.
-  // Valid transitions: → RUNNING, → CANCELLED
-  EXECUTION_STATUS_PENDING = 1;
-
-  // Execution is actively running.
-  // Valid transitions: → COMPLETED, → FAILED, → CANCELLED
-  EXECUTION_STATUS_RUNNING = 2;
-
-  // Terminal state: Execution finished successfully.
-  EXECUTION_STATUS_COMPLETED = 3;
-}
-```
-
-### State Machine Documentation
-
-For lifecycle enums, include ASCII state diagram:
-
-```protobuf
 // State machine:
-//   PENDING → RUNNING → COMPLETED|FAILED|CANCELLED
-//                  ↓
-//              RETRYING → RUNNING
+//   QUEUED -> RUNNING -> PASSED|FAILED
+//                    \-> CANCELLED
+enum ValidationRunStatus {
+  // Default value. Should not appear in valid persisted runs.
+  VALIDATION_RUN_STATUS_UNSPECIFIED = 0;
+
+  // Run is queued and waiting for execution.
+  VALIDATION_RUN_STATUS_QUEUED = 1;
+
+  // Run is actively executing.
+  VALIDATION_RUN_STATUS_RUNNING = 2;
+
+  // Terminal state: no error findings were produced.
+  VALIDATION_RUN_STATUS_PASSED = 3;
+}
 ```
 
 ---
 
 ## Deprecation Patterns
 
+Deprecation must be explicit and migration-oriented.
+
 ### Deprecating Messages
 
 ```protobuf
 // DEPRECATED: Use NewMessage instead.
 //
-// @deprecated Use NewMessage from new_file.proto
+// @deprecated Use NewMessage from new_file.proto.
 // @see NewMessage
 message OldMessage {
   option deprecated = true;
 
-  // Delegate to new type for migration period.
+  // Replacement payload for the migration period.
   NewMessage delegate = 1;
 }
 ```
@@ -380,7 +467,7 @@ message OldMessage {
 ```protobuf
 message Example {
   // DEPRECATED: Use new_field instead.
-  // @deprecated Replaced by new_field in v1.2
+  // @deprecated Replaced by new_field in v2.
   string old_field = 1 [deprecated = true];
 
   // Replacement for old_field with improved semantics.
@@ -390,119 +477,53 @@ message Example {
 
 ### Reserved Fields
 
-When removing fields entirely, you MUST document what was removed and why:
+When removing fields, reserve both the number and name and explain why:
 
 ```protobuf
 message Example {
   // Reserved fields from migrations:
-  // - 3: old_field_name (removed in v1.2, replaced by new_field)
-  // - 5: another_field (removed in v1.3, no longer needed)
+  // - 3: old_field_name (removed in v2, replaced by new_field)
+  // - 5: abandoned_flag (removed in v2, no longer used)
   reserved 3, 5;
-  reserved "old_field_name", "another_field";
+  reserved "old_field_name", "abandoned_flag";
 }
 ```
 
-**Required format for reserved field comments:**
+Never reuse field numbers or enum values.
 
-```protobuf
-// Reserved: field [N] was '[field_name]' ([reason for removal])
-reserved N;
+### Deprecated File Organization
 
-// Or for multiple fields:
-// Reserved fields from migrations:
-// - [N]: [field_name] ([reason])
-// - [M]: [field_name] ([reason])
-reserved N, M;
+If compatibility requires keeping deprecated types, place them in a
+`_deprecated/` subdirectory under the owning domain:
+
+```text
+validation/
+|-- validation.proto
+`-- _deprecated/
+    `-- old_validation.proto
 ```
 
-**Common removal reasons:**
-- `removed in vX.Y, replaced by [new_field]` - field was superseded
-- `removed in vX.Y, migrated to [new_type]` - data moved to different type
-- `removed in vX.Y, no longer needed` - feature removed
-- `removed in vX.Y, use [alternative] instead` - different approach taken
-
-**Examples from codebase:**
-
-```protobuf
-// GOOD - clear explanation
-// Reserved: field 5 was timeout_seconds (migrated to timeout_ms for consistency)
-reserved 5;
-
-// GOOD - multiple fields with context
-// Reserved fields from migrations:
-// - 6: trigger_data (migrated to trigger_metadata)
-// - 7: source (migrated to trigger_type)
-// - 12: result_data (migrated to result)
-reserved 6, 7, 12;
-
-// BAD - no explanation
-reserved 5;  // Why was this removed?
-```
-
-### Deprecation File Organization
-
-Place deprecated types in `_deprecated/` subdirectory:
-
-```
-domain/
-├── current_types.proto
-└── _deprecated/
-    └── old_types.proto   # Re-exports for backwards compat
-```
+Greenfield schemas should not create compatibility shims.
 
 ---
 
-## Layer Architecture
+## Generation Workflow
 
-### Layer Definitions
+After any schema change:
 
-| Layer | Directory | Purpose | Can Import |
-|-------|-----------|---------|------------|
-| 0 | `base/` | Fundamental types, enums | External only |
-| 1 | `domain/` | Domain primitives | Layer 0 |
-| 2 | `actions/`, `workflows/` | Action/workflow definitions | Layers 0-1 |
-| 3 | `timeline/`, `recording/` | Execution history | Layers 0-2 |
-| 4 | `execution/` | Runtime state | Layers 0-3 |
-| 5 | `api/`, `projects/` | Service definitions | Layers 0-4 |
-
-### Import Rules
-
-1. Types MUST only import from lower layers
-2. Circular imports are FORBIDDEN
-3. Intra-layer imports ARE allowed (e.g., `domain/telemetry.proto` can import `domain/selectors.proto`)
-4. Document layer in file header with `@layer` annotation
-5. Document imports with `@imports` annotation using domain names (not file paths)
-
-### @imports Annotation Format
-
-The `@imports` annotation lists **domain names** that are imported, not file paths:
-
-```protobuf
-// CORRECT - list domain names
-// @imports base, domain
-
-// INCORRECT - don't use file paths or subdirectories
-// @imports base/shared, domain/selectors
-// @imports timeline/entry
+```bash
+cd packages/proto
+make generate
+make lint
+make breaking
+make check
 ```
 
-For intra-layer imports within the same domain, you may omit them or note them explicitly:
+`gen/` and `gen/descriptor/image.binpb` are committed artifacts. They must stay
+in sync with `schemas/`. Do not hand-edit generated code.
 
-```protobuf
-// Option 1: Omit intra-domain imports (preferred for simplicity)
-// @imports base
-
-// Option 2: Note intra-domain imports explicitly
-// @imports base (also: domain/selectors within same layer)
-```
-
-### Adding New Types
-
-1. Identify the appropriate layer based on dependencies
-2. Place in the correct directory matching that layer
-3. Add `@layer`, `@domain`, `@imports`, and `@stability` annotations to file header
-4. Run `make lint` to verify no circular dependencies
-5. Update domain README if adding new domain
+`make check` is the sync gate: it regenerates code and fails if committed
+generated artifacts drift from schema sources.
 
 ---
 
@@ -510,15 +531,24 @@ For intra-layer imports within the same domain, you may omit them or note them e
 
 Before committing proto changes:
 
-- [ ] File header includes `@layer`, `@domain`, `@imports`, `@stability` annotations
-- [ ] `@imports` uses domain names (not file paths)
-- [ ] All messages have description comments
-- [ ] All fields have description comments
-- [ ] UUID fields have `@format uuid` annotation (not inline "(UUID format)")
-- [ ] Timestamp fields use standard `_at` suffixes
-- [ ] Duration fields include unit (prefer `_ms` suffix)
-- [ ] All enum values have description comments
-- [ ] Deprecated items have `@deprecated` annotation AND `option deprecated = true`
-- [ ] Reserved fields have comment explaining what was removed and why
-- [ ] `make lint` passes
-- [ ] `make generate` produces no unexpected changes
+- [ ] File path follows `schemas/<scenario>/v<n>/<domain>/<file>.proto`, or the
+      file is in a reviewed top-level shared package.
+- [ ] Version directory matches `^v[1-9][0-9]*$`; scenario versions start at
+      `v1` and are contiguous.
+- [ ] Package name matches scenario, version, and domain.
+- [ ] File header includes `@stability` with `stable`, `beta`, or
+      `experimental`.
+- [ ] New files do not include deprecated `@layer`, `@domain`, or `@imports`
+      annotations.
+- [ ] Domain files do not import other local domain folders directly.
+- [ ] Shared local types live in `v<n>/shared/`; fleet shared types live in
+      reviewed top-level shared packages.
+- [ ] All messages, fields, enums, and enum values have useful comments.
+- [ ] UUID fields use `@format uuid`.
+- [ ] Timestamp and duration fields use standard suffixes and units.
+- [ ] Enforceable constraints use Protovalidate.
+- [ ] Deprecated items include `@deprecated` and proto deprecation options where
+      available.
+- [ ] Reserved fields explain what was removed and why.
+- [ ] `make lint` passes.
+- [ ] `make generate` and `make check` leave generated artifacts in sync.

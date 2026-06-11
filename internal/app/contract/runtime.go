@@ -254,6 +254,15 @@ func validateRepoRelativePaths(payload any) error {
 			return fmt.Errorf("resource.well_known_paths.%s: %w", key, err)
 		}
 	}
+	for key, rawEntry := range mapAt(doc, "runtime_home", "entries") {
+		entry, _ := rawEntry.(map[string]any)
+		if entry == nil {
+			continue
+		}
+		if err := validateRepoRelativePath(stringAt(entry, "path")); err != nil {
+			return fmt.Errorf("runtime_home.entries.%s.path: %w", key, err)
+		}
+	}
 
 	profiles := mapAt(doc, "profiles")
 	for profileName, rawProfile := range profiles {

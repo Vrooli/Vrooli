@@ -67,6 +67,11 @@ const (
 	// Advisory in v1: severities capped at ERROR, never BLOCKER. Feeds the
 	// ecosystem-manager `business` ladder dimension.
 	FindingSource_FINDING_SOURCE_BUSINESS FindingSource = 11
+	// PROTO: test-genie `proto` phase — delegates to the proto-health
+	// scenario (domain organization, generated-artifact sync, transport
+	// world, and proto-surface facts) and emits normalized findings. Feeds
+	// the ecosystem-manager soft `proto-health` R2 ladder dimension.
+	FindingSource_FINDING_SOURCE_PROTO FindingSource = 12
 )
 
 // Enum value maps for FindingSource.
@@ -84,6 +89,7 @@ var (
 		9:  "FINDING_SOURCE_SECURITY",
 		10: "FINDING_SOURCE_MEASURES",
 		11: "FINDING_SOURCE_BUSINESS",
+		12: "FINDING_SOURCE_PROTO",
 	}
 	FindingSource_value = map[string]int32{
 		"FINDING_SOURCE_UNSPECIFIED":  0,
@@ -98,6 +104,7 @@ var (
 		"FINDING_SOURCE_SECURITY":     9,
 		"FINDING_SOURCE_MEASURES":     10,
 		"FINDING_SOURCE_BUSINESS":     11,
+		"FINDING_SOURCE_PROTO":        12,
 	}
 )
 
@@ -614,7 +621,7 @@ const file_architecture_v1_findings_proto_rawDesc = "" +
 	"\bevidence\x18\n" +
 	" \x03(\v2 .vrooli.architecture.v1.EvidenceR\bevidence\x12M\n" +
 	"\x0fsuggested_fixes\x18\v \x03(\v2$.vrooli.architecture.v1.SuggestedFixR\x0esuggestedFixes\x12:\n" +
-	"\x06effort\x18\f \x01(\x0e2\".vrooli.architecture.v1.EffortHintR\x06effort*\xe5\x02\n" +
+	"\x06effort\x18\f \x01(\x0e2\".vrooli.architecture.v1.EffortHintR\x06effort*\xff\x02\n" +
 	"\rFindingSource\x12\x1e\n" +
 	"\x1aFINDING_SOURCE_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18FINDING_SOURCE_STRUCTURE\x10\x01\x12\x16\n" +
@@ -628,7 +635,8 @@ const file_architecture_v1_findings_proto_rawDesc = "" +
 	"\x17FINDING_SOURCE_SECURITY\x10\t\x12\x1b\n" +
 	"\x17FINDING_SOURCE_MEASURES\x10\n" +
 	"\x12\x1b\n" +
-	"\x17FINDING_SOURCE_BUSINESS\x10\v*\xa6\x01\n" +
+	"\x17FINDING_SOURCE_BUSINESS\x10\v\x12\x18\n" +
+	"\x14FINDING_SOURCE_PROTO\x10\f*\xa6\x01\n" +
 	"\x0fFindingSeverity\x12 \n" +
 	"\x1cFINDING_SEVERITY_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15FINDING_SEVERITY_INFO\x10\x01\x12\x1c\n" +

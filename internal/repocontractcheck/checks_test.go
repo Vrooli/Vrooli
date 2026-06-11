@@ -340,6 +340,24 @@ func TestRunFailsWhenScenarioContainsRawOllamaEmbeddingsLiteral(t *testing.T) {
 	}
 }
 
+func TestRunFailsWhenKnownScenarioDebtContainsRawOllamaChatLiteral(t *testing.T) {
+	fixture := newValidationFixtureRepo(t)
+	writeValidationScenarioSource(t, fixture, "audio-tools", "api/internal/summarize/summarizer.go",
+		"package summarize\n\nconst path = \"/api/chat\"\n")
+
+	report, err := Run(fixture.Root)
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Success {
+		t.Fatalf("expected failure, got success: %+v", report.Checks)
+	}
+	message := failedCheckMessage(report, "ollama_gateway_only")
+	if !strings.Contains(message, "audio-tools/api/internal/summarize/summarizer.go") || !strings.Contains(message, "/api/chat") {
+		t.Fatalf("expected known raw caller path to fail, got %q", message)
+	}
+}
+
 func TestRunPassesWhenScenarioStaysOffRawOllamaEndpoints(t *testing.T) {
 	fixture := newValidationFixtureRepo(t)
 	writeValidationScenarioSource(t, fixture, "swarm-manager", "api/internal/aisearch/embedder.go",
@@ -358,8 +376,8 @@ func TestRunPassesWhenScenarioStaysOffRawOllamaEndpoints(t *testing.T) {
 
 func TestRunFailsWhenScenarioDefinesLocalOllamaVectorSize(t *testing.T) {
 	fixture := newValidationFixtureRepo(t)
-	writeValidationScenarioSource(t, fixture, "swarm-manager", "api/internal/aisearch/vectorstore.go",
-		"package aisearch\n\nconst DefaultVectorSize = 768\n")
+	writeValidationScenarioSource(t, fixture, "fresh-search", "api/internal/aisearch/vectorstore_test.go",
+		"package aisearch\n\nfunc TestVector(t *testing.T) {\n\t_ = CollectionSpec{DenseSize: 768}\n}\n")
 
 	report, err := Run(fixture.Root)
 	if err != nil {
@@ -372,8 +390,110 @@ func TestRunFailsWhenScenarioDefinesLocalOllamaVectorSize(t *testing.T) {
 		t.Fatalf("expected ollama_policy_facts failure, got %+v", report.Checks)
 	}
 	message := failedCheckMessage(report, "ollama_policy_facts")
-	if !strings.Contains(message, "DefaultVectorSize") {
-		t.Fatalf("expected message to mention DefaultVectorSize, got %q", message)
+	if !strings.Contains(message, "DenseSize") {
+		t.Fatalf("expected message to mention DenseSize, got %q", message)
+	}
+}
+
+func TestRunAllowsClearlyNamedFixtureOllamaVectorSize(t *testing.T) {
+	fixture := newValidationFixtureRepo(t)
+	writeValidationScenarioSource(t, fixture, "fresh-search", "api/internal/aisearch/vectorstore_test.go",
+		"package aisearch\n\nconst fixtureEmbeddingDimensions = 768\n")
+
+	report, err := Run(fixture.Root)
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if hasFailedCheck(report, "ollama_policy_facts") {
+		t.Fatalf("fixture-labeled test dimension should pass, got %+v", report.Checks)
+	}
+}
+
+func TestRunFailsWhenScenarioSQLDefinesPgvectorDimension(t *testing.T) {
+	fixture := newValidationFixtureRepo(t)
+	testkitgo.WriteRelativeFile(t, fixture.Root, "scenarios/fresh-search/initialization/storage/postgres/schema.sql",
+		"CREATE TABLE tasks (embedding VECTOR(768));\n")
+
+	report, err := Run(fixture.Root)
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Success {
+		t.Fatalf("expected failure, got success: %+v", report.Checks)
+	}
+	message := failedCheckMessage(report, "ollama_policy_facts")
+	if !strings.Contains(message, "schema.sql") || !strings.Contains(message, "vector") {
+		t.Fatalf("expected message to mention SQL vector dimension, got %q", message)
+	}
+}
+
+func TestRunFailsWhenScenarioTestNamesPhysicalOllamaModel(t *testing.T) {
+	fixture := newValidationFixtureRepo(t)
+	writeValidationScenarioSource(t, fixture, "prompt-manager", "api/aisearch/embedder_test.go",
+		"package aisearch\n\nconst model = \"nomic-embed-text:latest\"\n")
+
+	report, err := Run(fixture.Root)
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Success {
+		t.Fatalf("expected failure, got success: %+v", report.Checks)
+	}
+	message := failedCheckMessage(report, "ollama_policy_facts")
+	if !strings.Contains(message, "physical Ollama model literal") {
+		t.Fatalf("expected physical-model message, got %q", message)
+	}
+}
+
+func TestRunDoesNotFlagNonOllamaModelNameSubstrings(t *testing.T) {
+	fixture := newValidationFixtureRepo(t)
+	writeValidationScenarioSource(t, fixture, "agent-inbox", "api/integrations/openrouter_types.go",
+		"package integrations\n\nconst engine = \"mistral/ocr\"\nconst task = \"pdf-text or mistral-ocr\"\n")
+	writeValidationScenarioSource(t, fixture, "data-tools", "initialization/configuration/app-config.json",
+		`{"vision":["llama3.2-vision:11b"]}`)
+
+	report, err := Run(fixture.Root)
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if hasFailedCheck(report, "ollama_policy_facts") {
+		t.Fatalf("non-Ollama substrings should not trip ollama_policy_facts, got %q", failedCheckMessage(report, "ollama_policy_facts"))
+	}
+}
+
+func TestRunFailsWhenScenarioNamesDecimalPhysicalOllamaModel(t *testing.T) {
+	fixture := newValidationFixtureRepo(t)
+	writeValidationScenarioSource(t, fixture, "audio-tools", "api/internal/summarize/summarizer_test.go",
+		"package summarize\n\nconst model = \"qwen3:1.7b\"\n")
+
+	report, err := Run(fixture.Root)
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Success {
+		t.Fatalf("expected failure, got success: %+v", report.Checks)
+	}
+	message := failedCheckMessage(report, "ollama_policy_facts")
+	if !strings.Contains(message, "physical Ollama model literal") {
+		t.Fatalf("expected physical-model message, got %q", message)
+	}
+}
+
+func TestRunFailsWhenMigratedInitializationStoresQdrantVectorSize(t *testing.T) {
+	fixture := newValidationFixtureRepo(t)
+	testkitgo.WriteRelativeFile(t, fixture.Root, "scenarios/seo-optimizer/initialization/qdrant/collections.json",
+		`{"collections":[{"name":"seo_content","config":{"vectors":{"size":768,"distance":"Cosine"}}}]}`)
+
+	report, err := Run(fixture.Root)
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Success {
+		t.Fatalf("expected failure, got success: %+v", report.Checks)
+	}
+	message := failedCheckMessage(report, "ollama_policy_facts")
+	if !strings.Contains(message, "seo-optimizer/initialization/qdrant/collections.json") {
+		t.Fatalf("expected message to mention initialization payload, got %q", message)
 	}
 }
 

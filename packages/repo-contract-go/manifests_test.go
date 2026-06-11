@@ -29,6 +29,18 @@ func TestScenarioCLIManifestPath(t *testing.T) {
 	}
 }
 
+func TestScenarioServiceManifestPath(t *testing.T) {
+	root := fixtureRoot(t)
+	got, err := ScenarioServiceManifestPath(root, "test-genie")
+	if err != nil {
+		t.Fatalf("ScenarioServiceManifestPath() error = %v", err)
+	}
+	want := filepath.Join(root, filepath.FromSlash("scenarios/test-genie/.vrooli/service.json"))
+	if got != want {
+		t.Fatalf("ScenarioServiceManifestPath() = %q, want %q", got, want)
+	}
+}
+
 func TestScenarioManifestPathFallback(t *testing.T) {
 	// No fixture: LoadDefault fails, helpers fall back to canonical defaults.
 	docs, err := ScenarioDocsManifestPath("/nonexistent/repo", "demo")
@@ -45,6 +57,13 @@ func TestScenarioManifestPathFallback(t *testing.T) {
 	if want := filepath.Join("/nonexistent/repo", "scenarios", "demo", "cli", "manifest.json"); cli != want {
 		t.Fatalf("cli fallback = %q, want %q", cli, want)
 	}
+	service, err := ScenarioServiceManifestPath("/nonexistent/repo", "demo")
+	if err != nil {
+		t.Fatalf("ScenarioServiceManifestPath() error = %v", err)
+	}
+	if want := filepath.Join("/nonexistent/repo", filepath.FromSlash("scenarios/demo/.vrooli/service.json")); service != want {
+		t.Fatalf("service fallback = %q, want %q", service, want)
+	}
 }
 
 func TestScenarioManifestPathRejectsEmpty(t *testing.T) {
@@ -52,6 +71,9 @@ func TestScenarioManifestPathRejectsEmpty(t *testing.T) {
 		t.Fatalf("expected error for empty scenario")
 	}
 	if _, err := ScenarioCLIManifestPath("/repo", ""); err == nil {
+		t.Fatalf("expected error for empty scenario")
+	}
+	if _, err := ScenarioServiceManifestPath("/repo", ""); err == nil {
 		t.Fatalf("expected error for empty scenario")
 	}
 }
@@ -71,6 +93,13 @@ func TestScenarioManifestRel(t *testing.T) {
 	}
 	if cli != "cli/manifest.json" {
 		t.Fatalf("ScenarioCLIManifestRel() = %q", cli)
+	}
+	service, err := ScenarioServiceManifestRel(root)
+	if err != nil {
+		t.Fatalf("ScenarioServiceManifestRel() error = %v", err)
+	}
+	if service != ".vrooli/service.json" {
+		t.Fatalf("ScenarioServiceManifestRel() = %q", service)
 	}
 }
 

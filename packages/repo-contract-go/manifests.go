@@ -20,7 +20,15 @@ const (
 	// as the single source of truth.
 	defaultDocsManifestRel = "docs/manifest.json"
 	defaultCLIManifestRel  = "cli/manifest.json"
+	defaultServiceRel      = ".vrooli/service.json"
 )
+
+// ScenarioServiceManifestRel returns the slash-normalized scenario-relative
+// path at which the service manifest is expected (e.g.,
+// ".vrooli/service.json").
+func ScenarioServiceManifestRel(repoRoot string) (string, error) {
+	return scenarioWellKnownRel(repoRoot, "service", defaultServiceRel)
+}
 
 // ScenarioDocsManifestRel returns the slash-normalized scenario-relative path
 // at which the docs manifest is expected (e.g., "docs/manifest.json"). Use
@@ -61,6 +69,14 @@ func ScenarioDocsManifestPath(repoRoot, scenario string) (string, error) {
 // the canonical default if the contract cannot be loaded.
 func ScenarioCLIManifestPath(repoRoot, scenario string) (string, error) {
 	return scenarioManifestPath(repoRoot, scenario, "cli_manifest", "cli/manifest.json")
+}
+
+// ScenarioServiceManifestPath returns the absolute path to a scenario's service
+// manifest (`.vrooli/service.json` by default), resolved through the repo
+// contract's `scenario.well_known_paths.service` entry. Falls back to the
+// canonical default if the contract cannot be loaded.
+func ScenarioServiceManifestPath(repoRoot, scenario string) (string, error) {
+	return scenarioManifestPath(repoRoot, scenario, "service", defaultServiceRel)
 }
 
 // SchemaPath returns the absolute path to a shared JSON Schema file under the

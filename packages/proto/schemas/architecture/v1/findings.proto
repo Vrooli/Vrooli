@@ -84,6 +84,11 @@ enum FindingSource {
   // Advisory in v1: severities capped at ERROR, never BLOCKER. Feeds the
   // ecosystem-manager `business` ladder dimension.
   FINDING_SOURCE_BUSINESS = 11;
+  // PROTO: test-genie `proto` phase — delegates to the proto-health
+  // scenario (domain organization, generated-artifact sync, transport
+  // world, and proto-surface facts) and emits normalized findings. Feeds
+  // the ecosystem-manager soft `proto-health` R2 ladder dimension.
+  FINDING_SOURCE_PROTO = 12;
 }
 
 // FindingSeverity is the normalized severity ladder. Every producer maps

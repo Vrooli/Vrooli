@@ -612,14 +612,10 @@ func checkDocsAlignment(contract *repocontract.Contract, root string, raw string
 // with a host-wide cross-process semaphore; any code that constructs
 // /api/embeddings, /api/generate, or /api/chat directly bypasses that
 // throttle and re-introduces the OOM/cascade risk this contract guards.
-//
-// Initial scope is the two scenarios that have been migrated. Additional
-// scenarios are expected to fold in as their migrations land.
 func checkOllamaGatewayOnly(contract *repocontract.Contract, root string, raw string) error {
 	bannedPaths := []string{"/api/embeddings", "/api/generate", "/api/chat"}
 	scopes := []string{
-		"scenarios/swarm-manager/api",
-		"scenarios/prompt-manager/api",
+		"scenarios",
 	}
 
 	var violations []string
@@ -644,9 +640,23 @@ func checkOllamaGatewayOnly(contract *repocontract.Contract, root string, raw st
 				if name == "node_modules" || name == "vendor" || name == ".git" {
 					return filepath.SkipDir
 				}
+				rel, relErr := filepath.Rel(root, path)
+				if relErr != nil {
+					return relErr
+				}
+				rel = filepath.ToSlash(rel)
+				if rel == "scenarios" {
+					return nil
+				}
+				if strings.Count(rel, "/") == 1 && strings.HasPrefix(rel, "scenarios/") {
+					return nil
+				}
+				if strings.HasPrefix(rel, "scenarios/") && !isScenarioOllamaSurface(rel) {
+					return filepath.SkipDir
+				}
 				return nil
 			}
-			if filepath.Ext(path) != ".go" {
+			if !isOllamaGatewayScanFile(path) {
 				return nil
 			}
 			rel, relErr := filepath.Rel(root, path)
@@ -681,18 +691,16 @@ func checkOllamaGatewayOnly(contract *repocontract.Contract, root string, raw st
 func checkOllamaPolicyFacts(contract *repocontract.Contract, root string, raw string) error {
 	var violations []string
 	scenarioScopes := []string{
-		"scenarios/swarm-manager/api",
-		"scenarios/prompt-manager/api",
-		"scenarios/cli-health/api",
-		"scenarios/ui-health/api",
-		"scenarios/knowledge-observatory/api",
+		"scenarios",
 	}
 	dimensionPatterns := []*regexp.Regexp{
 		regexp.MustCompile(`\bDefaultVectorSize\b`),
 		regexp.MustCompile(`\b(vectorSize|DenseSize|EmbedDimensions)\s*[:=]\s*(768|1024|1536)\b`),
 		regexp.MustCompile(`"size"\s*:\s*(768|1024|1536)\b`),
 		regexp.MustCompile(`\bvector_size\s*[:=]\s*(768|1024|1536)\b`),
+		regexp.MustCompile(`(?i)\bvector\s*\(\s*(768|1024|1536)\s*\)`),
 	}
+	modelPattern := regexp.MustCompile(`\b(nomic-embed-text(?::latest)?|qwen3:[0-9]+(?:\.[0-9]+)?b|llama3\.2(?::[0-9]+b)?|qwen2\.5(?::[0-9]+b)?|codellama(?::[0-9]+b)?|mistral(?::[0-9]+b)?)\b`)
 	for _, scope := range scenarioScopes {
 		base := filepath.Join(root, filepath.FromSlash(scope))
 		err := filepath.WalkDir(base, func(path string, d os.DirEntry, err error) error {
@@ -707,9 +715,23 @@ func checkOllamaPolicyFacts(contract *repocontract.Contract, root string, raw st
 				case "node_modules", "vendor", ".git":
 					return filepath.SkipDir
 				}
+				rel, relErr := filepath.Rel(root, path)
+				if relErr != nil {
+					return relErr
+				}
+				rel = filepath.ToSlash(rel)
+				if rel == "scenarios" {
+					return nil
+				}
+				if strings.Count(rel, "/") == 1 && strings.HasPrefix(rel, "scenarios/") {
+					return nil
+				}
+				if strings.HasPrefix(rel, "scenarios/") && !isScenarioOllamaSurface(rel) {
+					return filepath.SkipDir
+				}
 				return nil
 			}
-			if strings.HasSuffix(path, "_test.go") || !isPolicyFactScanFile(path) {
+			if !isPolicyFactScanFile(path) {
 				return nil
 			}
 			rel, relErr := filepath.Rel(root, path)
@@ -722,12 +744,18 @@ func checkOllamaPolicyFacts(contract *repocontract.Contract, root string, raw st
 				return readErr
 			}
 			text := string(data)
-			for _, pattern := range dimensionPatterns {
-				if pattern.FindStringIndex(text) != nil {
-					violations = append(violations, fmt.Sprintf("%s contains local Ollama embedding dimension fact matching %q", rel, pattern.String()))
-				}
-			}
 			for lineNo, line := range strings.Split(text, "\n") {
+				if isAllowedOllamaPolicyFactLine(rel, line) {
+					continue
+				}
+				for _, pattern := range dimensionPatterns {
+					if pattern.FindStringIndex(line) != nil {
+						violations = append(violations, fmt.Sprintf("%s:%d contains local Ollama embedding dimension fact matching %q", rel, lineNo+1, pattern.String()))
+					}
+				}
+				if containsOllamaPhysicalModelLiteral(modelPattern, line) && !isAllowedOllamaModelLiteral(rel) {
+					violations = append(violations, fmt.Sprintf("%s:%d contains physical Ollama model literal; use role/policy resolution", rel, lineNo+1))
+				}
 				if strings.Contains(line, "resource-ollama gateway") && strings.Contains(line, "--model") {
 					violations = append(violations, fmt.Sprintf("%s:%d calls resource-ollama gateway with --model; use --role outside documented direct-model exceptions", rel, lineNo+1))
 				}
@@ -803,10 +831,71 @@ func checkOllamaPolicyFacts(contract *repocontract.Contract, root string, raw st
 
 func isPolicyFactScanFile(path string) bool {
 	switch filepath.Ext(path) {
-	case ".go", ".json", ".yaml", ".yml", ".sh":
+	case ".go", ".json", ".yaml", ".yml", ".sh", ".sql":
 		return true
 	default:
 		return false
+	}
+}
+
+func isOllamaGatewayScanFile(path string) bool {
+	switch filepath.Ext(path) {
+	case ".go", ".json", ".yaml", ".yml", ".sh", ".sql":
+		return true
+	default:
+		return false
+	}
+}
+
+func isScenarioOllamaSurface(rel string) bool {
+	parts := strings.Split(rel, "/")
+	if len(parts) < 3 || parts[0] != "scenarios" {
+		return false
+	}
+	switch parts[2] {
+	case "api", "cli", "initialization":
+		return true
+	default:
+		return false
+	}
+}
+
+func isAllowedOllamaPolicyFactLine(rel, line string) bool {
+	if strings.Contains(line, "fixture") || strings.Contains(line, "Fixture") {
+		return true
+	}
+	return isAllowedOllamaModelLiteral(rel)
+}
+
+func isAllowedOllamaModelLiteral(rel string) bool {
+	if rel == "resources/ollama/model-policy.json" || strings.HasPrefix(rel, "resources/ollama/cli/internal/policy/") {
+		return true
+	}
+	return false
+}
+
+func containsOllamaPhysicalModelLiteral(pattern *regexp.Regexp, line string) bool {
+	matches := pattern.FindAllStringIndex(line, -1)
+	for _, match := range matches {
+		if len(match) != 2 {
+			continue
+		}
+		if isPhysicalModelBoundary(line, match[0]-1) && isPhysicalModelBoundary(line, match[1]) {
+			return true
+		}
+	}
+	return false
+}
+
+func isPhysicalModelBoundary(s string, idx int) bool {
+	if idx < 0 || idx >= len(s) {
+		return true
+	}
+	switch s[idx] {
+	case '/', '-', '.', ':':
+		return false
+	default:
+		return true
 	}
 }
 
