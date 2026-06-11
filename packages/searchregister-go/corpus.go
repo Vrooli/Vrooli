@@ -33,6 +33,8 @@ func SuiteToProto(providerID string, ts aisearch.TestSuite) *evalv1.EvalSuite {
 		cases = append(cases, &evalv1.EvalCase{
 			CaseId:            c.ID,
 			Query:             c.Query,
+			Scope:             c.Scope,
+			Status:            c.Status,
 			Tags:              cloneStrings(c.Tags),
 			ExpectIds:         cloneStrings(c.ExpectIDs),
 			ExpectWithinTopK:  int32(c.ExpectWithinTopK),
@@ -74,6 +76,8 @@ func SuiteFromProto(s *evalv1.EvalSuite) aisearch.TestSuite {
 		cases = append(cases, aisearch.TestCase{
 			ID:                c.GetCaseId(),
 			Query:             c.GetQuery(),
+			Scope:             c.GetScope(),
+			Status:            c.GetStatus(),
 			Tags:              cloneStrings(c.GetTags()),
 			ExpectIDs:         cloneStrings(c.GetExpectIds()),
 			ExpectWithinTopK:  int(c.GetExpectWithinTopK()),

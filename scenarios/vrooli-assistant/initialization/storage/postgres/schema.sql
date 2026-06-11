@@ -7,6 +7,23 @@
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+-- Embedding metadata records the policy facts used to generate each vector.
+-- Retargeting compares these rows with the current embedding role before
+-- re-embedding or cutting over shadow storage.
+CREATE TABLE IF NOT EXISTS embedding_metadata (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    owner_table TEXT NOT NULL,
+    owner_id TEXT NOT NULL,
+    embedding_column TEXT NOT NULL,
+    embedding_role TEXT NOT NULL,
+    embedding_model TEXT NOT NULL,
+    embedding_dimensions INTEGER NOT NULL CHECK (embedding_dimensions > 0),
+    embedding_policy_schema_version TEXT NOT NULL,
+    source_content_hash TEXT NOT NULL,
+    generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(owner_table, owner_id, embedding_column)
+);
+
 -- Issues table - stores all captured issues
 CREATE TABLE IF NOT EXISTS issues (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -48,7 +65,7 @@ CREATE TABLE IF NOT EXISTS patterns (
     frequency INTEGER DEFAULT 1,
     affected_scenarios TEXT[],
     suggested_fix TEXT,
-    embedding VECTOR(1536), -- For similarity search with qdrant
+    embedding VECTOR,
     first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -88,6 +105,7 @@ CREATE TABLE IF NOT EXISTS user_settings (
 -- Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_issues_status ON issues(status);
 CREATE INDEX IF NOT EXISTS idx_issues_scenario ON issues(scenario_name);
+CREATE INDEX IF NOT EXISTS idx_embedding_metadata_owner ON embedding_metadata(owner_table, owner_id, embedding_column);
 CREATE INDEX IF NOT EXISTS idx_issues_timestamp ON issues(timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_issues_tags ON issues USING GIN(tags);
 CREATE INDEX IF NOT EXISTS idx_issues_context ON issues USING GIN(context_data);

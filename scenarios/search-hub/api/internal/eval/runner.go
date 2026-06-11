@@ -121,7 +121,7 @@ func (r *Runner) RunWith(ctx context.Context, suite *evalv1.EvalSuite, tag strin
 			results = append(results, cr)
 			continue
 		}
-		cr.Outcome, cr.ExpectedRank, cr.ObservedTopScore = labelCase(c, top)
+		cr.Outcome, cr.ExpectedRank, cr.ObservedTopScore = labelCase(c, top, effLimit)
 		results = append(results, cr)
 	}
 
@@ -175,59 +175,51 @@ func toScoredHits(hits []*routingv1.SearchHit) []*evalv1.ScoredHit {
 //     band (for whichever bounds are set); "below_expectation" when the id is
 //     missing/too low or the score is under min; "above_expectation" when the
 //     score exceeds a set max.
-func labelCase(c *evalv1.EvalCase, top []*evalv1.ScoredHit) (outcome string, expectedRank int32, observedTop float64) {
+func labelCase(c *evalv1.EvalCase, top []*evalv1.ScoredHit, limit int32) (outcome string, expectedRank int32, observedTop float64) {
 	if len(top) > 0 {
 		observedTop = top[0].GetScore()
 	}
-	if len(c.GetExpectIds()) > 0 {
-		want := make(map[string]struct{}, len(c.GetExpectIds()))
-		for _, id := range c.GetExpectIds() {
-			want[id] = struct{}{}
-		}
-		for i, h := range top {
-			if _, ok := want[h.GetId()]; ok {
-				expectedRank = int32(i + 1)
-				break
-			}
-		}
+	results := scoredToSearchResults(top)
+	tc := protoCaseToSearchCase(c)
+	expectedRank = int32(aisearch.ExpectedRank(results, tc.ExpectIDs))
+	policy := aisearch.DefaultScoringPolicy
+	if limit > 0 {
+		policy.GateK = int(limit)
+		policy.DeepK = int(limit)
 	}
-
-	if c.GetExpectNoStrongHit() {
-		for _, h := range top {
-			if h.GetScore() > c.GetExpectMaxScore() {
-				return "unexpected_hit", expectedRank, observedTop
-			}
-		}
+	switch aisearch.GradeCase(results, tc, policy) {
+	case aisearch.CaseOutcomeHit, aisearch.CaseOutcomeJunkRejected:
 		return "met", expectedRank, observedTop
-	}
-
-	hasExpectation := len(c.GetExpectIds()) > 0 || c.GetExpectWithinTopK() > 0 ||
-		c.GetExpectMinScore() > 0 || c.GetExpectMaxScore() > 0
-	if !hasExpectation {
+	case aisearch.CaseOutcomeMiss:
+		return "below_expectation", expectedRank, observedTop
+	case aisearch.CaseOutcomeJunkLeaked:
+		return "unexpected_hit", expectedRank, observedTop
+	default:
 		return "n/a", expectedRank, observedTop
 	}
+}
 
-	// Rank check: an expected id must appear, and within K when K is set.
-	if len(c.GetExpectIds()) > 0 {
-		if expectedRank == 0 {
-			return "below_expectation", expectedRank, observedTop
-		}
-		if k := c.GetExpectWithinTopK(); k > 0 && expectedRank > k {
-			return "below_expectation", expectedRank, observedTop
-		}
-	} else if c.GetExpectWithinTopK() > 0 && len(top) == 0 {
-		// No specific id, but the query should have returned *something*.
-		return "below_expectation", expectedRank, observedTop
+func protoCaseToSearchCase(c *evalv1.EvalCase) aisearch.TestCase {
+	return aisearch.TestCase{
+		ID:                c.GetCaseId(),
+		Query:             c.GetQuery(),
+		Scope:             c.GetScope(),
+		Tags:              append([]string(nil), c.GetTags()...),
+		ExpectIDs:         append([]string(nil), c.GetExpectIds()...),
+		ExpectWithinTopK:  int(c.GetExpectWithinTopK()),
+		ExpectMinScore:    c.GetExpectMinScore(),
+		ExpectMaxScore:    c.GetExpectMaxScore(),
+		ExpectNoStrongHit: c.GetExpectNoStrongHit(),
+		Note:              c.GetNote(),
 	}
+}
 
-	// Score band on the observed top score.
-	if min := c.GetExpectMinScore(); min > 0 && observedTop < min {
-		return "below_expectation", expectedRank, observedTop
+func scoredToSearchResults(top []*evalv1.ScoredHit) []aisearch.SearchResult {
+	out := make([]aisearch.SearchResult, 0, len(top))
+	for _, h := range top {
+		out = append(out, aisearch.SearchResult{ID: h.GetId(), Score: h.GetScore()})
 	}
-	if max := c.GetExpectMaxScore(); max > 0 && observedTop > max {
-		return "above_expectation", expectedRank, observedTop
-	}
-	return "met", expectedRank, observedTop
+	return out
 }
 
 // aggregate rolls up per-case outcomes for the trend/compare views. It is a

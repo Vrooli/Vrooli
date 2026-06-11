@@ -25,7 +25,7 @@ Use this document to answer:
 | SQLite | embedded storage | yes | API (findings/briefs/audit) | `SQLITE_PATH` lifecycle env var | API reports unhealthy if unreachable. |
 | SearXNG | resource | optional (try_start) | livesearch (L0/L1), research (L2 source) | JSON search API (`SEARXNG_URL`) | `web-search.live` degrades to unavailable; learnings unaffected. |
 | Qdrant | resource | optional (try_start) | findings (semantic index) | aisearch-go collection `web-search-findings` | Findings recall falls back to text matching; reindex deferred. |
-| Ollama | resource | optional (try_start) | findings (embeddings), livesearch/research (synthesis, distillation) | `nomic-embed-text` + small chat model | Embeddings/synthesis unavailable; raw hits still returned. |
+| Ollama | resource | optional (try_start) | findings (embeddings), livesearch/research (synthesis, distillation) | `embedding.default` + small chat role | Embeddings/synthesis unavailable; raw hits still returned. |
 | reranker | resource | optional (try_start) | findings (ranking) | TEI cross-encoder (bge-reranker-v2-m3) | Falls back to raw dense order. |
 | browserless | resource | optional, **P1** (disabled) | research (L2 fetch/extract) | headless browser fetch | L2/L3 fall back to snippet-only (L1) synthesis. |
 | search-hub | scenario | optional (try_start) | federation (registration) | RegistryService self-registration from `.vrooli/search.json` | Retries briefly then serves locally; re-registers next boot. |

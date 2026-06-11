@@ -57,6 +57,11 @@
       "endpoint_id": "evals_run_suite"
     },
     {
+      "name": "evals validate",
+      "description": "Re-probe reviewed positive labels and classify expect_ids as live, hard, stale, or inconclusive",
+      "endpoint_id": "evals_validate_corpus"
+    },
+    {
       "name": "evals runs",
       "description": "List a suite's run history, newest first (--tag, --limit filters)",
       "endpoint_id": "evals_list_runs"
@@ -80,6 +85,11 @@
       "name": "evals generate",
       "description": "Grow a suite's corpus by sampling + inverting the provider's index (+ hard negatives); --apply appends the deduped proposals",
       "endpoint_id": "evals_generate"
+    },
+    {
+      "name": "evals promote",
+      "description": "Promote reviewed candidate cases into the acceptance recall denominator",
+      "endpoint_id": "evals_promote_cases"
     }
   ]
 }

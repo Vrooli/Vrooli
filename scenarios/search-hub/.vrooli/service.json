@@ -220,6 +220,7 @@
         "degraded_behavior": "Reranker down -> by-provider grouping + degraded flag; classifier down -> explicit --type/--all still works. Both swappable behind interfaces.",
         "model_roles": [
           "classify.routing",
+          "chat.default",
           "rerank.llm_fallback"
         ]
       }

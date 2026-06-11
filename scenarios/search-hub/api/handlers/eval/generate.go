@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
+	"strings"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/proto"
@@ -81,6 +83,54 @@ func (h *connectHandler) Generate(ctx context.Context, req *connect.Request[eval
 	return connect.NewResponse(resp), nil
 }
 
+// PromoteCases flips reviewed candidate cases into the acceptance denominator.
+// The mutation goes through the provider's search.json control plane, matching
+// generate --apply, so the provider file remains the corpus source of truth and
+// search-hub only mirrors the effective corpus returned by the provider.
+func (h *connectHandler) PromoteCases(ctx context.Context, req *connect.Request[evalv1.PromoteCasesRequest]) (*connect.Response[evalv1.PromoteCasesResponse], error) {
+	if req.Msg.GetAll() && len(req.Msg.GetCaseIds()) > 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("use either --all or --case, not both"))
+	}
+	if !req.Msg.GetAll() && len(req.Msg.GetCaseIds()) == 0 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("provide at least one case id or set all=true"))
+	}
+
+	suiteID := req.Msg.GetSuiteId()
+	suite, err := h.deps.Store.GetSuite(ctx, suiteID)
+	if err != nil {
+		return nil, h.logged("eval.PromoteCases.getSuite", suiteID, err)
+	}
+	desc, err := h.deps.Providers.Get(ctx, suite.GetProviderId())
+	if err != nil {
+		h.deps.Logger.Printf("eval.PromoteCases(%q) resolve provider %q: %v", suiteID, suite.GetProviderId(), err)
+		return nil, connect.NewError(connect.CodeFailedPrecondition,
+			fmt.Errorf("provider %q is not registered (register it before promoting cases)", suite.GetProviderId()))
+	}
+
+	resulting, promoted, already, err := promoteCases(suite, req.Msg.GetCaseIds(), req.Msg.GetAll())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	resp := &evalv1.PromoteCasesResponse{
+		SuiteId:                suiteID,
+		ProviderId:             suite.GetProviderId(),
+		PromotedCaseIds:        promoted,
+		AlreadyReviewedCaseIds: already,
+	}
+	if len(promoted) == 0 {
+		resp.Suite = proto.Clone(suite).(*evalv1.EvalSuite)
+		return connect.NewResponse(resp), nil
+	}
+
+	applied, effective, aerr := h.applyCorpus(ctx, desc, resulting)
+	if aerr != nil {
+		return nil, aerr
+	}
+	resp.Applied = applied
+	resp.Suite = effective
+	return connect.NewResponse(resp), nil
+}
+
 // applyCorpus persists the grown corpus to the provider's search.json SSOT through
 // the token-gated WriteCorpus control RPC, then re-registers the returned,
 // now-authoritative corpus into the eval store so the store mirror re-syncs with
@@ -149,4 +199,63 @@ func mergeProposals(suite *evalv1.EvalSuite, res *corpusgen.Result) *evalv1.Eval
 		merged.Cases = append(merged.Cases, proto.Clone(p.Case).(*evalv1.EvalCase))
 	}
 	return merged
+}
+
+func promoteCases(suite *evalv1.EvalSuite, caseIDs []string, all bool) (*evalv1.EvalSuite, []string, []string, error) {
+	merged := proto.Clone(suite).(*evalv1.EvalSuite)
+	want := normalizeCaseIDs(caseIDs)
+	if !all {
+		if len(want) == 0 {
+			return nil, nil, nil, errors.New("provide at least one non-empty case id")
+		}
+		for id := range want {
+			if !suiteHasCase(merged, id) {
+				return nil, nil, nil, fmt.Errorf("case %q is not in suite %q", id, suite.GetSuiteId())
+			}
+		}
+	}
+
+	promoted := []string{}
+	already := []string{}
+	for _, c := range merged.GetCases() {
+		if c == nil || (!all && !want[c.GetCaseId()]) {
+			continue
+		}
+		switch strings.TrimSpace(c.GetStatus()) {
+		case "", "reviewed":
+			if !all {
+				already = append(already, c.GetCaseId())
+			}
+		case "candidate":
+			c.Status = "reviewed"
+			promoted = append(promoted, c.GetCaseId())
+		default:
+			return nil, nil, nil, fmt.Errorf("case %q has invalid status %q", c.GetCaseId(), c.GetStatus())
+		}
+	}
+	sort.Strings(promoted)
+	sort.Strings(already)
+	return merged, promoted, already, nil
+}
+
+func normalizeCaseIDs(ids []string) map[string]bool {
+	out := make(map[string]bool, len(ids))
+	for _, raw := range ids {
+		for _, part := range strings.Split(raw, ",") {
+			id := strings.TrimSpace(part)
+			if id != "" {
+				out[id] = true
+			}
+		}
+	}
+	return out
+}
+
+func suiteHasCase(suite *evalv1.EvalSuite, id string) bool {
+	for _, c := range suite.GetCases() {
+		if c.GetCaseId() == id {
+			return true
+		}
+	}
+	return false
 }

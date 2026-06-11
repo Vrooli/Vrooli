@@ -28,11 +28,13 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 		{Name: "evals list", Description: "List eval suites", EndpointID: "evals_list_suites"},
 		{Name: "evals show", Description: "Show an eval suite", EndpointID: "evals_get_suite"},
 		{Name: "evals run", Description: "Run an eval suite", EndpointID: "evals_run_suite"},
+		{Name: "evals validate", Description: "Validate eval corpus labels", EndpointID: "evals_validate_corpus"},
 		{Name: "evals runs", Description: "List eval runs", EndpointID: "evals_list_runs"},
 		{Name: "evals show-run", Description: "Show an eval run", EndpointID: "evals_get_run"},
 		{Name: "evals compare", Description: "Compare two eval runs", EndpointID: "evals_compare_runs"},
 		{Name: "evals sweep", Description: "Overfit-safe tuning sweep", EndpointID: "evals_sweep"},
 		{Name: "evals generate", Description: "Generate golden cases by index inversion", EndpointID: "evals_generate"},
+		{Name: "evals promote", Description: "Promote reviewed candidate cases", EndpointID: "evals_promote_cases"},
 	})
 
 	if err := run(output, seed); err != nil {
@@ -63,8 +65,8 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	if len(got.Endpoints) == 0 {
 		t.Error("manifest must include at least one endpoint")
 	}
-	if len(got.CLICommands) != 16 {
-		t.Errorf("cli_commands count = %d, want 16", len(got.CLICommands))
+	if len(got.CLICommands) != 18 {
+		t.Errorf("cli_commands count = %d, want 18", len(got.CLICommands))
 	}
 
 	// Trailing newline so editors don't get angry about diff noise.

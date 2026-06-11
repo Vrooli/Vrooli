@@ -72,6 +72,21 @@ var Endpoints = []module.EndpointDescriptor{
 		CLIMapping: &module.CLIMapping{Command: "search-hub evals run", Args: []string{"<suite_id>", "--tag", "<tag>"}},
 	},
 	{
+		ID:          "evals_validate_corpus",
+		Path:        evalconnect.EvalServiceValidateCorpusProcedure,
+		Method:      "POST",
+		Summary:     "Validate an eval corpus",
+		Description: "Re-probes reviewed positive cases through the provider search endpoint and classifies expect_ids as live, hard, stale, or inconclusive. Advisory only — stale labels warn and are excluded by shared gates; they never fail a run.",
+		Category:    "eval",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"suite_id": "string (required)", "deep_k": "int (probe depth; optional)"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"cases": "array<CorpusValidationCase>", "rollup": "CorpusValidationRollup"}},
+		Errors: []module.ErrorDesc{
+			{Status: 404, Code: "not_found", Description: "No such suite"},
+			{Status: 400, Code: "failed_precondition", Description: "Suite's provider is not registered/reachable"},
+		},
+		CLIMapping: &module.CLIMapping{Command: "search-hub evals validate", Args: []string{"<suite_id>", "--deep-k", "<n>"}},
+	},
+	{
 		ID:          "evals_list_runs",
 		Path:        evalconnect.EvalServiceListRunsProcedure,
 		Method:      "POST",
@@ -142,5 +157,21 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 400, Code: "failed_precondition", Description: "Provider unregistered / index could not be sampled / proposals failed validation"},
 		},
 		CLIMapping: &module.CLIMapping{Command: "search-hub evals generate", Args: []string{"<suite_id>", "--count", "<n>", "--negatives", "--apply"}},
+	},
+	{
+		ID:          "evals_promote_cases",
+		Path:        evalconnect.EvalServicePromoteCasesProcedure,
+		Method:      "POST",
+		Summary:     "Promote reviewed candidate eval cases",
+		Description: "Flips selected candidate cases to reviewed so the shared grading gate includes them in acceptance recall. The mutation writes through the provider control plane into search.json, then mirrors the effective corpus back into search-hub's suite cache. Re-running the same promotion is an idempotent no-op.",
+		Category:    "eval",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"suite_id": "string (required)", "case_ids": "array<string> (selected case ids)", "all": "bool (promote every candidate)"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"promoted_case_ids": "array<string>", "already_reviewed_case_ids": "array<string>", "suite": "EvalSuite", "applied": "bool"}},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "No case selection, both all and case_ids provided, or an unknown/invalid case"},
+			{Status: 404, Code: "not_found", Description: "No such suite"},
+			{Status: 400, Code: "failed_precondition", Description: "Provider unregistered / declares no control plane / corpus write-back unavailable"},
+		},
+		CLIMapping: &module.CLIMapping{Command: "search-hub evals promote", Args: []string{"<suite_id>", "--case", "<case_id>", "--all"}},
 	},
 }

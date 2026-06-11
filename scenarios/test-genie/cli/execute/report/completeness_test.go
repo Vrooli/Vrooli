@@ -27,6 +27,7 @@ const sampleScoreJSON = `{
   "category": "utility",
   "maturity": {"workingRung": "R1 Safe & standards-clean", "satisfiedThrough": "R0 Runnable & green", "buildPassing": true},
   "composite": {"score": 82, "classification": "mostly_complete", "classificationLabel": "Mostly complete"},
+  "trend": {"previousScore": 76, "previousCalculatedAt": "2026-06-08T12:00:00Z", "delta": 6},
   "freshness": {
     "currentDigest": "td:abc",
     "phases": [
@@ -58,6 +59,7 @@ func TestCompletenessSupplement_RendersScorePayload(t *testing.T) {
 		"COMPLETENESS (scenario-completeness-scoring):",
 		"82/100 (mostly_complete)",
 		"working rung: R1 Safe & standards-clean",
+		"Trend: ↑6 since 2026-06-08 (previous 76/100)",
 		"1. [high] Fix the 2 standards errors blocking R1. (+6 pts)",
 		"Stale evidence: smoke, structure",
 		"refresh: vrooli scenario test demo-scenario --phases smoke,structure",
@@ -68,6 +70,22 @@ func TestCompletenessSupplement_RendersScorePayload(t *testing.T) {
 	}
 	if strings.Contains(out, "A fourth rec that must be capped.") {
 		t.Errorf("recommendations not capped at %d:\n%s", maxCompletenessRecommendations, out)
+	}
+}
+
+func TestCompletenessSupplement_RendersWithoutTrend(t *testing.T) {
+	out := renderCompleteness(t, func(context.Context, string) ([]byte, error) {
+		return []byte(`{
+		  "maturity": {"workingRung": "R1 Safe & standards-clean"},
+		  "composite": {"score": 82, "classification": "mostly_complete"},
+		  "freshness": {"phases": [{"phase": "unit", "verdict": "fresh"}]}
+		}`), nil
+	})
+	if strings.Contains(out, "Trend:") {
+		t.Errorf("trend line must be absent when payload omits trend:\n%s", out)
+	}
+	if !strings.Contains(out, "82/100 (mostly_complete)") {
+		t.Errorf("score line missing:\n%s", out)
 	}
 }
 

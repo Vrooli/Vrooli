@@ -42,6 +42,9 @@ const (
 	EvalServiceGetSuiteProcedure = "/vrooli.search_hub.v1.eval.EvalService/GetSuite"
 	// EvalServiceRunSuiteProcedure is the fully-qualified name of the EvalService's RunSuite RPC.
 	EvalServiceRunSuiteProcedure = "/vrooli.search_hub.v1.eval.EvalService/RunSuite"
+	// EvalServiceValidateCorpusProcedure is the fully-qualified name of the EvalService's
+	// ValidateCorpus RPC.
+	EvalServiceValidateCorpusProcedure = "/vrooli.search_hub.v1.eval.EvalService/ValidateCorpus"
 	// EvalServiceListRunsProcedure is the fully-qualified name of the EvalService's ListRuns RPC.
 	EvalServiceListRunsProcedure = "/vrooli.search_hub.v1.eval.EvalService/ListRuns"
 	// EvalServiceGetRunProcedure is the fully-qualified name of the EvalService's GetRun RPC.
@@ -52,6 +55,9 @@ const (
 	EvalServiceSweepProcedure = "/vrooli.search_hub.v1.eval.EvalService/Sweep"
 	// EvalServiceGenerateProcedure is the fully-qualified name of the EvalService's Generate RPC.
 	EvalServiceGenerateProcedure = "/vrooli.search_hub.v1.eval.EvalService/Generate"
+	// EvalServicePromoteCasesProcedure is the fully-qualified name of the EvalService's PromoteCases
+	// RPC.
+	EvalServicePromoteCasesProcedure = "/vrooli.search_hub.v1.eval.EvalService/PromoteCases"
 )
 
 // EvalServiceClient is a client for the vrooli.search_hub.v1.eval.EvalService service.
@@ -62,6 +68,9 @@ type EvalServiceClient interface {
 	GetSuite(context.Context, *connect.Request[eval.GetSuiteRequest]) (*connect.Response[eval.GetSuiteResponse], error)
 	// Execute a suite against its provider and store an immutable, tagged run.
 	RunSuite(context.Context, *connect.Request[eval.RunSuiteRequest]) (*connect.Response[eval.RunSuiteResponse], error)
+	// Re-probe positive labels and classify whether expect_ids still refer to
+	// live provider results. Advisory only: stale labels warn, never fail a run.
+	ValidateCorpus(context.Context, *connect.Request[eval.ValidateCorpusRequest]) (*connect.Response[eval.ValidateCorpusResponse], error)
 	// History, optionally filtered by tag.
 	ListRuns(context.Context, *connect.Request[eval.ListRunsRequest]) (*connect.Response[eval.ListRunsResponse], error)
 	GetRun(context.Context, *connect.Request[eval.GetRunRequest]) (*connect.Response[eval.GetRunResponse], error)
@@ -78,6 +87,10 @@ type EvalServiceClient interface {
 	// each marked tags:["generated"] so the sweep holds them out of tuning. See
 	// GenerateRequest/GenerateResponse.
 	Generate(context.Context, *connect.Request[eval.GenerateRequest]) (*connect.Response[eval.GenerateResponse], error)
+	// Promote reviewed candidate cases into the acceptance denominator. Mutates
+	// the provider's search.json through the control plane, then mirrors the
+	// authoritative file corpus back into search-hub's suite cache.
+	PromoteCases(context.Context, *connect.Request[eval.PromoteCasesRequest]) (*connect.Response[eval.PromoteCasesResponse], error)
 }
 
 // NewEvalServiceClient constructs a client for the vrooli.search_hub.v1.eval.EvalService service.
@@ -115,6 +128,12 @@ func NewEvalServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(evalServiceMethods.ByName("RunSuite")),
 			connect.WithClientOptions(opts...),
 		),
+		validateCorpus: connect.NewClient[eval.ValidateCorpusRequest, eval.ValidateCorpusResponse](
+			httpClient,
+			baseURL+EvalServiceValidateCorpusProcedure,
+			connect.WithSchema(evalServiceMethods.ByName("ValidateCorpus")),
+			connect.WithClientOptions(opts...),
+		),
 		listRuns: connect.NewClient[eval.ListRunsRequest, eval.ListRunsResponse](
 			httpClient,
 			baseURL+EvalServiceListRunsProcedure,
@@ -145,20 +164,28 @@ func NewEvalServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(evalServiceMethods.ByName("Generate")),
 			connect.WithClientOptions(opts...),
 		),
+		promoteCases: connect.NewClient[eval.PromoteCasesRequest, eval.PromoteCasesResponse](
+			httpClient,
+			baseURL+EvalServicePromoteCasesProcedure,
+			connect.WithSchema(evalServiceMethods.ByName("PromoteCases")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // evalServiceClient implements EvalServiceClient.
 type evalServiceClient struct {
-	registerSuite *connect.Client[eval.RegisterSuiteRequest, eval.RegisterSuiteResponse]
-	listSuites    *connect.Client[eval.ListSuitesRequest, eval.ListSuitesResponse]
-	getSuite      *connect.Client[eval.GetSuiteRequest, eval.GetSuiteResponse]
-	runSuite      *connect.Client[eval.RunSuiteRequest, eval.RunSuiteResponse]
-	listRuns      *connect.Client[eval.ListRunsRequest, eval.ListRunsResponse]
-	getRun        *connect.Client[eval.GetRunRequest, eval.GetRunResponse]
-	compareRuns   *connect.Client[eval.CompareRunsRequest, eval.CompareRunsResponse]
-	sweep         *connect.Client[eval.SweepRequest, eval.SweepResponse]
-	generate      *connect.Client[eval.GenerateRequest, eval.GenerateResponse]
+	registerSuite  *connect.Client[eval.RegisterSuiteRequest, eval.RegisterSuiteResponse]
+	listSuites     *connect.Client[eval.ListSuitesRequest, eval.ListSuitesResponse]
+	getSuite       *connect.Client[eval.GetSuiteRequest, eval.GetSuiteResponse]
+	runSuite       *connect.Client[eval.RunSuiteRequest, eval.RunSuiteResponse]
+	validateCorpus *connect.Client[eval.ValidateCorpusRequest, eval.ValidateCorpusResponse]
+	listRuns       *connect.Client[eval.ListRunsRequest, eval.ListRunsResponse]
+	getRun         *connect.Client[eval.GetRunRequest, eval.GetRunResponse]
+	compareRuns    *connect.Client[eval.CompareRunsRequest, eval.CompareRunsResponse]
+	sweep          *connect.Client[eval.SweepRequest, eval.SweepResponse]
+	generate       *connect.Client[eval.GenerateRequest, eval.GenerateResponse]
+	promoteCases   *connect.Client[eval.PromoteCasesRequest, eval.PromoteCasesResponse]
 }
 
 // RegisterSuite calls vrooli.search_hub.v1.eval.EvalService.RegisterSuite.
@@ -179,6 +206,11 @@ func (c *evalServiceClient) GetSuite(ctx context.Context, req *connect.Request[e
 // RunSuite calls vrooli.search_hub.v1.eval.EvalService.RunSuite.
 func (c *evalServiceClient) RunSuite(ctx context.Context, req *connect.Request[eval.RunSuiteRequest]) (*connect.Response[eval.RunSuiteResponse], error) {
 	return c.runSuite.CallUnary(ctx, req)
+}
+
+// ValidateCorpus calls vrooli.search_hub.v1.eval.EvalService.ValidateCorpus.
+func (c *evalServiceClient) ValidateCorpus(ctx context.Context, req *connect.Request[eval.ValidateCorpusRequest]) (*connect.Response[eval.ValidateCorpusResponse], error) {
+	return c.validateCorpus.CallUnary(ctx, req)
 }
 
 // ListRuns calls vrooli.search_hub.v1.eval.EvalService.ListRuns.
@@ -206,6 +238,11 @@ func (c *evalServiceClient) Generate(ctx context.Context, req *connect.Request[e
 	return c.generate.CallUnary(ctx, req)
 }
 
+// PromoteCases calls vrooli.search_hub.v1.eval.EvalService.PromoteCases.
+func (c *evalServiceClient) PromoteCases(ctx context.Context, req *connect.Request[eval.PromoteCasesRequest]) (*connect.Response[eval.PromoteCasesResponse], error) {
+	return c.promoteCases.CallUnary(ctx, req)
+}
+
 // EvalServiceHandler is an implementation of the vrooli.search_hub.v1.eval.EvalService service.
 type EvalServiceHandler interface {
 	// Upsert a suite (keyed by suite_id).
@@ -214,6 +251,9 @@ type EvalServiceHandler interface {
 	GetSuite(context.Context, *connect.Request[eval.GetSuiteRequest]) (*connect.Response[eval.GetSuiteResponse], error)
 	// Execute a suite against its provider and store an immutable, tagged run.
 	RunSuite(context.Context, *connect.Request[eval.RunSuiteRequest]) (*connect.Response[eval.RunSuiteResponse], error)
+	// Re-probe positive labels and classify whether expect_ids still refer to
+	// live provider results. Advisory only: stale labels warn, never fail a run.
+	ValidateCorpus(context.Context, *connect.Request[eval.ValidateCorpusRequest]) (*connect.Response[eval.ValidateCorpusResponse], error)
 	// History, optionally filtered by tag.
 	ListRuns(context.Context, *connect.Request[eval.ListRunsRequest]) (*connect.Response[eval.ListRunsResponse], error)
 	GetRun(context.Context, *connect.Request[eval.GetRunRequest]) (*connect.Response[eval.GetRunResponse], error)
@@ -230,6 +270,10 @@ type EvalServiceHandler interface {
 	// each marked tags:["generated"] so the sweep holds them out of tuning. See
 	// GenerateRequest/GenerateResponse.
 	Generate(context.Context, *connect.Request[eval.GenerateRequest]) (*connect.Response[eval.GenerateResponse], error)
+	// Promote reviewed candidate cases into the acceptance denominator. Mutates
+	// the provider's search.json through the control plane, then mirrors the
+	// authoritative file corpus back into search-hub's suite cache.
+	PromoteCases(context.Context, *connect.Request[eval.PromoteCasesRequest]) (*connect.Response[eval.PromoteCasesResponse], error)
 }
 
 // NewEvalServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -263,6 +307,12 @@ func NewEvalServiceHandler(svc EvalServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(evalServiceMethods.ByName("RunSuite")),
 		connect.WithHandlerOptions(opts...),
 	)
+	evalServiceValidateCorpusHandler := connect.NewUnaryHandler(
+		EvalServiceValidateCorpusProcedure,
+		svc.ValidateCorpus,
+		connect.WithSchema(evalServiceMethods.ByName("ValidateCorpus")),
+		connect.WithHandlerOptions(opts...),
+	)
 	evalServiceListRunsHandler := connect.NewUnaryHandler(
 		EvalServiceListRunsProcedure,
 		svc.ListRuns,
@@ -293,6 +343,12 @@ func NewEvalServiceHandler(svc EvalServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(evalServiceMethods.ByName("Generate")),
 		connect.WithHandlerOptions(opts...),
 	)
+	evalServicePromoteCasesHandler := connect.NewUnaryHandler(
+		EvalServicePromoteCasesProcedure,
+		svc.PromoteCases,
+		connect.WithSchema(evalServiceMethods.ByName("PromoteCases")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.search_hub.v1.eval.EvalService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case EvalServiceRegisterSuiteProcedure:
@@ -303,6 +359,8 @@ func NewEvalServiceHandler(svc EvalServiceHandler, opts ...connect.HandlerOption
 			evalServiceGetSuiteHandler.ServeHTTP(w, r)
 		case EvalServiceRunSuiteProcedure:
 			evalServiceRunSuiteHandler.ServeHTTP(w, r)
+		case EvalServiceValidateCorpusProcedure:
+			evalServiceValidateCorpusHandler.ServeHTTP(w, r)
 		case EvalServiceListRunsProcedure:
 			evalServiceListRunsHandler.ServeHTTP(w, r)
 		case EvalServiceGetRunProcedure:
@@ -313,6 +371,8 @@ func NewEvalServiceHandler(svc EvalServiceHandler, opts ...connect.HandlerOption
 			evalServiceSweepHandler.ServeHTTP(w, r)
 		case EvalServiceGenerateProcedure:
 			evalServiceGenerateHandler.ServeHTTP(w, r)
+		case EvalServicePromoteCasesProcedure:
+			evalServicePromoteCasesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -338,6 +398,10 @@ func (UnimplementedEvalServiceHandler) RunSuite(context.Context, *connect.Reques
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.search_hub.v1.eval.EvalService.RunSuite is not implemented"))
 }
 
+func (UnimplementedEvalServiceHandler) ValidateCorpus(context.Context, *connect.Request[eval.ValidateCorpusRequest]) (*connect.Response[eval.ValidateCorpusResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.search_hub.v1.eval.EvalService.ValidateCorpus is not implemented"))
+}
+
 func (UnimplementedEvalServiceHandler) ListRuns(context.Context, *connect.Request[eval.ListRunsRequest]) (*connect.Response[eval.ListRunsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.search_hub.v1.eval.EvalService.ListRuns is not implemented"))
 }
@@ -356,4 +420,8 @@ func (UnimplementedEvalServiceHandler) Sweep(context.Context, *connect.Request[e
 
 func (UnimplementedEvalServiceHandler) Generate(context.Context, *connect.Request[eval.GenerateRequest]) (*connect.Response[eval.GenerateResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.search_hub.v1.eval.EvalService.Generate is not implemented"))
+}
+
+func (UnimplementedEvalServiceHandler) PromoteCases(context.Context, *connect.Request[eval.PromoteCasesRequest]) (*connect.Response[eval.PromoteCasesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.search_hub.v1.eval.EvalService.PromoteCases is not implemented"))
 }

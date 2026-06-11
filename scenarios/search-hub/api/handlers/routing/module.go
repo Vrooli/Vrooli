@@ -15,7 +15,9 @@ import (
 	"context"
 	"log"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"search-hub/internal/clock"
 	"search-hub/internal/httpc"
@@ -44,13 +46,19 @@ import (
 func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger, recorder internalrouting.TelemetryRecorder) module.Module {
 	store := internalregistry.NewSQLiteStore(db, clk)
 	router := internalrouting.NewRouter(internalrouting.Deps{
-		Lister:            store,
-		Resolver:          newScenarioResolver(),
-		Doer:              httpc.NewDefault(),
-		Classifier:        internalrouting.NewOllamaClassifier(),
-		Reranker:          internalrouting.NewOllamaReranker(),
-		Recorder:          recorder,
-		Logger:            logger,
+		Lister:        store,
+		Resolver:      newScenarioResolver(),
+		Doer:          httpc.NewDefault(),
+		Classifier:    internalrouting.NewOllamaClassifier(),
+		Reranker:      internalrouting.NewOllamaReranker(),
+		Recorder:      recorder,
+		Logger:        logger,
+		QueryTimeout:  durationEnv(logger, "SEARCH_HUB_QUERY_TIMEOUT", 25*time.Second, time.Second, 29*time.Second),
+		RerankTimeout: durationEnv(logger, "SEARCH_HUB_RERANK_TIMEOUT", 5*time.Second, 100*time.Millisecond, 20*time.Second),
+		RerankBreaker: internalrouting.RerankBreakerConfig{
+			FailureThreshold: intEnv(logger, "SEARCH_HUB_RERANK_BREAKER_FAILURES", 3, 1, 20),
+			Cooldown:         durationEnv(logger, "SEARCH_HUB_RERANK_BREAKER_COOLDOWN", 60*time.Second, time.Second, 10*time.Minute),
+		},
 		AutoRouteExternal: autoRouteExternalEnabled(),
 	})
 	connectPath, connectHandler := routingconnect.NewRoutingServiceHandler(NewConnectHandler(Deps{
@@ -78,6 +86,47 @@ func autoRouteExternalEnabled() bool {
 	default:
 		return false
 	}
+}
+
+func durationEnv(logger *log.Logger, key string, fallback, min, max time.Duration) time.Duration {
+	raw := strings.TrimSpace(os.Getenv(key))
+	if raw == "" {
+		return fallback
+	}
+	v, err := time.ParseDuration(raw)
+	if err != nil {
+		logConfigFallback(logger, key, raw, fallback, "invalid duration")
+		return fallback
+	}
+	if v < min || v > max {
+		logConfigFallback(logger, key, raw, fallback, "outside supported range")
+		return fallback
+	}
+	return v
+}
+
+func intEnv(logger *log.Logger, key string, fallback, min, max int) int {
+	raw := strings.TrimSpace(os.Getenv(key))
+	if raw == "" {
+		return fallback
+	}
+	v, err := strconv.Atoi(raw)
+	if err != nil {
+		logConfigFallback(logger, key, raw, fallback, "invalid integer")
+		return fallback
+	}
+	if v < min || v > max {
+		logConfigFallback(logger, key, raw, fallback, "outside supported range")
+		return fallback
+	}
+	return v
+}
+
+func logConfigFallback(logger *log.Logger, key, raw string, fallback any, reason string) {
+	if logger == nil {
+		logger = log.Default()
+	}
+	logger.Printf("routing config: ignoring %s=%q (%s); using default %v", key, raw, reason, fallback)
 }
 
 // scenarioResolver adapts api-core/discovery's Resolver to the router's

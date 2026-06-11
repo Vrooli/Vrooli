@@ -7,8 +7,10 @@ import (
 	"search-hub/internal/corpusgen"
 	internaleval "search-hub/internal/eval"
 
+	aisearch "github.com/vrooli/ai-go/search"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
+	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
 )
 
 // CorpusGenerator is the generation seam the connect handler depends on: given a
@@ -52,10 +54,50 @@ func (g liveCorpusGenerator) Generate(ctx context.Context, suite *evalv1.EvalSui
 		perProbe: g.perProbe,
 	}
 	return corpusgen.New(corpusgen.Deps{
-		Sampler:  sampler,
-		Inverter: g.inverter,
-		Deduper:  g.deduper,
+		Sampler:   sampler,
+		Inverter:  g.inverter,
+		Deduper:   g.deduper,
+		Validator: liveReferentialValidator{client: g.client, desc: desc},
 	}, opts).Generate(ctx, suite)
+}
+
+type liveReferentialValidator struct {
+	client internaleval.ProviderClient
+	desc   *registryv1.ProviderDescriptor
+}
+
+func (v liveReferentialValidator) ValidPositive(ctx context.Context, it corpusgen.Item, query string, topK int) (bool, error) {
+	policy := aisearch.DefaultScoringPolicy
+	if topK > 0 {
+		policy.GateK = topK
+	}
+	if policy.DeepK < policy.GateK {
+		policy.DeepK = policy.GateK
+	}
+	hits, err := v.client.Search(ctx, v.desc, query, int32(policy.DeepK), internaleval.SearchCallOptions{})
+	if err != nil {
+		return false, err
+	}
+	tc := aisearch.TestCase{
+		ID:               positiveCaseIDForQuery(query),
+		Query:            query,
+		ExpectIDs:        []string{it.ID},
+		ExpectWithinTopK: topK,
+	}
+	ref := aisearch.ClassifyExpectID(searchHitsToResults(hits), tc, policy)
+	return ref == aisearch.ReferentialLive || ref == aisearch.ReferentialHard, nil
+}
+
+func positiveCaseIDForQuery(query string) string {
+	return "gen-validation:" + strings.ToLower(strings.Join(strings.Fields(query), " "))
+}
+
+func searchHitsToResults(hits []*routingv1.SearchHit) []aisearch.SearchResult {
+	out := make([]aisearch.SearchResult, 0, len(hits))
+	for _, h := range hits {
+		out = append(out, aisearch.SearchResult{ID: h.GetId(), Score: h.GetScore()})
+	}
+	return out
 }
 
 // corpusSampler discovers index items by issuing PROBE queries against the

@@ -32,10 +32,27 @@ for the full policy.
 | `SQLITE_PATH` | `${SCENARIO_DATA_DIR}/search-hub.db` | Override SQLite file location. The default routes through `api-core/storage` and resolves to a writable per-scenario data directory. |
 | `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth (only enforce in production deployments). |
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
+| `SEARCH_HUB_QUERY_TIMEOUT` | `25s` | Total router budget for listing providers, fan-out, optional external escalation, and reranking. Supported range: `1s`-`29s`. Keep this below the CLI HTTP timeout so degraded responses can return before clients give up. |
+| `SEARCH_HUB_RERANK_TIMEOUT` | `5s` | Maximum reranker call duration. Supported range: `100ms`-`20s`; the router also clips it to the remaining query budget minus a response cushion. |
+| `SEARCH_HUB_RERANK_BREAKER_FAILURES` | `3` | Consecutive reranker failures/timeouts before the router opens the reranker circuit and skips rerank. Supported range: `1`-`20`. |
+| `SEARCH_HUB_RERANK_BREAKER_COOLDOWN` | `60s` | How long an open reranker circuit stays open before one half-open probe is allowed. Supported range: `1s`-`10m`. |
+| `SEARCH_HUB_AUTO_ROUTE_EXTERNAL` | `false` | Allow automatic/classifier routing to reach external providers when a query is confidently web-shaped, and allow fallback escalation when project results are weak. Truthy values: `1`, `true`, `yes`, `on`. |
 
 The browser UI does not read `API_PORT` directly. It resolves API calls through
 the UI origin, and `ui/server.js` proxies `/api/*` plus the scenario's Connect
 RPC namespace to the API process using the lifecycle-provided `API_PORT`.
+
+### Reranker degradation behavior
+
+Unified reranking remains enabled when the reranker is healthy and there are at
+least two candidates. The router skips rerank for zero or one candidate because
+there is no ordering value to add.
+
+When the reranker times out, exits, or returns invalid output, Search Hub keeps
+the by-provider groups, marks the query response degraded, and adds a
+`routing_explanation` line when `--explain` is used. After repeated reranker
+failures, the circuit breaker opens and later allows a single half-open probe;
+a successful probe closes the circuit.
 
 ### Scenario-prefixed CLI variables
 

@@ -86,9 +86,10 @@ func randomSuite(rng *rand.Rand, providerID string, n int) aisearch.TestSuite {
 	cases := rng.Intn(6)
 	for i := 0; i < cases; i++ {
 		c := aisearch.TestCase{
-			ID:    fmt.Sprintf("c%d", i),
-			Query: pick(rng, "restart a scenario", "view logs", "asdf qwer"),
-			Note:  pick(rng, "", "calibration note"),
+			ID:     fmt.Sprintf("c%d", i),
+			Query:  pick(rng, "restart a scenario", "view logs", "asdf qwer"),
+			Status: pick(rng, "", aisearch.CaseStatusReviewed, aisearch.CaseStatusCandidate),
+			Note:   pick(rng, "", "calibration note"),
 		}
 		if rng.Intn(4) == 0 { // a negative
 			c.Tags = []string{"gibberish"}

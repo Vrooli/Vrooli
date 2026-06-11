@@ -40,6 +40,21 @@ func (f fakeInverter) InvertNegative(ctx context.Context, it Item) (string, erro
 	return f.neg[it.ID], nil
 }
 
+type fakeReferentialValidator struct {
+	valid map[string]bool
+	err   error
+}
+
+func (f fakeReferentialValidator) ValidPositive(_ context.Context, it Item, _ string, _ int) (bool, error) {
+	if f.err != nil {
+		return false, f.err
+	}
+	if f.valid == nil {
+		return true, nil
+	}
+	return f.valid[it.ID], nil
+}
+
 func items(n int, typ string) []Item {
 	out := make([]Item, n)
 	for i := 0; i < n; i++ {
@@ -118,6 +133,66 @@ func TestGenerate_DedupesAgainstExistingCorpusAndItself(t *testing.T) {
 	require.Equal(t, "restart the api service", res.Proposed[0].Case.GetQuery())
 	require.Equal(t, 2, res.Deduped)
 	require.Equal(t, 3, res.Inverted)
+}
+
+func TestGenerate_DropsEchoQueries(t *testing.T) {
+	inv := fakeInverter{pos: map[string]string{
+		"cmd-0": "start all",
+		"cmd-1": "how do I run security scan",
+		"cmd-2": "how do I run security scan for dependencies",
+	}}
+	sample := []Item{
+		{ID: "cmd-0", Title: "start-all", Type: "command"},
+		{ID: "cmd-1", Title: "security scan", Type: "command"},
+		{ID: "cmd-2", Title: "security scan", Type: "command"},
+	}
+	g := New(Deps{
+		Sampler:  fakeSampler{items: sample},
+		Inverter: inv,
+		Deduper:  JaccardDeduper{},
+	}, Options{Count: 5})
+
+	res, err := g.Generate(context.Background(), suiteWith())
+	require.NoError(t, err)
+	require.Len(t, res.Proposed, 1)
+	require.Equal(t, "how do I run security scan for dependencies", res.Proposed[0].Case.GetQuery())
+	require.Equal(t, 2, res.Rejected, "bare title echoes are rejected before proposal")
+}
+
+func TestGenerate_DropsReferentiallyInvalidPositive(t *testing.T) {
+	g := New(Deps{
+		Sampler:   fakeSampler{items: items(3, "command")},
+		Inverter:  fakeInverter{pos: invMap(3)},
+		Deduper:   JaccardDeduper{},
+		Validator: fakeReferentialValidator{valid: map[string]bool{"cmd-0": true, "cmd-1": false, "cmd-2": true}},
+	}, Options{Count: 5})
+
+	res, err := g.Generate(context.Background(), suiteWith())
+	require.NoError(t, err)
+	require.Len(t, res.Proposed, 2)
+	require.Equal(t, []string{"cmd-0"}, res.Proposed[0].Case.GetExpectIds())
+	require.Equal(t, []string{"cmd-2"}, res.Proposed[1].Case.GetExpectIds())
+	require.Equal(t, 1, res.Rejected)
+}
+
+func TestIsEchoQuery(t *testing.T) {
+	tests := []struct {
+		name  string
+		title string
+		query string
+		want  bool
+	}{
+		{name: "exact punctuation normalized", title: "start-all", query: "start all", want: true},
+		{name: "filler only", title: "security scan", query: "how do I run security scan", want: true},
+		{name: "has added intent", title: "security scan", query: "how do I run security scan for dependencies", want: false},
+		{name: "title substring", title: "execution circuit-breaker reset", query: "circuit breaker", want: true},
+		{name: "unrelated", title: "scenario status", query: "restart failed service", want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, isEchoQuery(tt.query, Item{Title: tt.title}))
+		})
+	}
 }
 
 func TestGenerate_FailedInversionIsSkippedNotFatal(t *testing.T) {

@@ -50,6 +50,11 @@ type completenessPayload struct {
 		Score          int32  `json:"score"`
 		Classification string `json:"classification"`
 	} `json:"composite"`
+	Trend *struct {
+		PreviousScore        int32  `json:"previousScore"`
+		PreviousCalculatedAt string `json:"previousCalculatedAt"`
+		Delta                int32  `json:"delta"`
+	} `json:"trend"`
 	Freshness struct {
 		Phases []struct {
 			Phase   string `json:"phase"`
@@ -101,6 +106,17 @@ func (p *Printer) printCompletenessSummary() {
 	fmt.Fprintf(p.w, "  • Score: %s (%s) · working rung: %s\n",
 		p.color.Bold(fmt.Sprintf("%d/100", payload.Composite.Score)),
 		payload.Composite.Classification, rung)
+	if payload.Trend != nil {
+		when := "unknown"
+		if parsed, err := time.Parse(time.RFC3339Nano, payload.Trend.PreviousCalculatedAt); err == nil {
+			when = parsed.Format("2006-01-02")
+		}
+		fmt.Fprintf(p.w, "  • Trend: %s since %s (previous %d/100)\n",
+			formatCompletenessDelta(payload.Trend.Delta),
+			when,
+			payload.Trend.PreviousScore,
+		)
+	}
 
 	for i, rec := range payload.Recommendations {
 		if i >= maxCompletenessRecommendations {
@@ -128,4 +144,15 @@ func (p *Printer) printCompletenessSummary() {
 		fmt.Fprintln(p.w, p.color.Yellow(line))
 	}
 	fmt.Fprintln(p.w)
+}
+
+func formatCompletenessDelta(delta int32) string {
+	switch {
+	case delta > 0:
+		return fmt.Sprintf("↑%d", delta)
+	case delta < 0:
+		return fmt.Sprintf("↓%d", -delta)
+	default:
+		return "0"
+	}
 }

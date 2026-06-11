@@ -49,12 +49,21 @@ const (
 	defaultConcurrency = 6
 	// defaultLimit is the per-provider result cap when the request omits one.
 	defaultLimit = 10
+	// defaultQueryTimeout keeps the server-side routing path comfortably below
+	// the scenario CLI's default 30s HTTP timeout, so degraded responses can be
+	// returned instead of surfacing as transport timeouts.
+	defaultQueryTimeout = 25 * time.Second
 	// defaultRerankTimeout bounds the single reranker round-trip so a slow or
 	// thinky model degrades to honest grouping fast instead of hanging the whole
 	// query (the reranker sits on the hot path, unlike per-provider fan-out which
 	// is already bounded). The underlying gateway has its own ~60s cap; this is
 	// the tighter, router-owned bound.
-	defaultRerankTimeout = 30 * time.Second
+	defaultRerankTimeout = 5 * time.Second
+	// defaultResponseCushion reserves a small tail of the query budget for
+	// response construction, telemetry stamping, and Connect header write-out.
+	defaultResponseCushion       = 500 * time.Millisecond
+	defaultRerankBreakerFailures = 3
+	defaultRerankBreakerCooldown = 60 * time.Second
 	// maxResponseBytes caps how much of a provider response the router reads,
 	// so a misbehaving leaf cannot exhaust memory.
 	maxResponseBytes = 8 << 20 // 8 MiB
@@ -104,7 +113,10 @@ type Deps struct {
 	Logger             *log.Logger
 	Concurrency        int
 	PerProviderTimeout time.Duration
+	QueryTimeout       time.Duration
 	RerankTimeout      time.Duration
+	RerankBreaker      RerankBreakerConfig
+	Now                func() time.Time
 	// AutoRouteExternal gates OT-P2-002: when true, the automatic (classifier)
 	// path may fold SCOPE_EXTERNAL providers back into the fan-out — either
 	// because the classifier judged the query web-shaped (above
@@ -115,9 +127,17 @@ type Deps struct {
 	AutoRouteExternal bool
 }
 
+// RerankBreakerConfig controls the generic circuit breaker guarding the
+// reranker hot path.
+type RerankBreakerConfig struct {
+	FailureThreshold int
+	Cooldown         time.Duration
+}
+
 // Router executes federated queries across registered providers.
 type Router struct {
-	deps Deps
+	deps          Deps
+	rerankBreaker *rerankBreaker
 }
 
 // NewRouter constructs a Router, applying defaults for the optional Deps
@@ -133,10 +153,28 @@ func NewRouter(d Deps) *Router {
 	if d.PerProviderTimeout <= 0 {
 		d.PerProviderTimeout = defaultPerProviderTimeout
 	}
+	if d.QueryTimeout <= 0 {
+		d.QueryTimeout = defaultQueryTimeout
+	}
 	if d.RerankTimeout <= 0 {
 		d.RerankTimeout = defaultRerankTimeout
 	}
-	return &Router{deps: d}
+	if d.Now == nil {
+		d.Now = time.Now
+	}
+	if d.RerankBreaker.FailureThreshold <= 0 {
+		d.RerankBreaker.FailureThreshold = defaultRerankBreakerFailures
+	}
+	if d.RerankBreaker.Cooldown <= 0 {
+		d.RerankBreaker.Cooldown = defaultRerankBreakerCooldown
+	}
+	return &Router{
+		deps: d,
+		rerankBreaker: newRerankBreaker(rerankBreakerConfig{
+			FailureThreshold: d.RerankBreaker.FailureThreshold,
+			Cooldown:         d.RerankBreaker.Cooldown,
+		}),
+	}
 }
 
 // Query fans out text to the providers selected by req (explicit types, --all,
@@ -149,7 +187,13 @@ func NewRouter(d Deps) *Router {
 // It returns an error only for caller mistakes (ErrInvalidQuery) or a registry
 // read failure — never for an individual provider's runtime failure.
 func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routingv1.QueryResponse, error) {
-	start := time.Now()
+	start := r.deps.Now()
+	qctx := ctx
+	cancelQuery := func() {}
+	if r.deps.QueryTimeout > 0 {
+		qctx, cancelQuery = context.WithTimeout(ctx, r.deps.QueryTimeout)
+	}
+	defer cancelQuery()
 
 	query := strings.TrimSpace(req.GetQuery())
 	if query == "" {
@@ -168,7 +212,7 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 
 	// Only ACTIVE leaves are callable; capability_gap stubs carry no endpoint
 	// and are intentionally excluded from fan-out.
-	active, err := r.deps.Lister.List(ctx, internalregistry.ListFilter{
+	active, err := r.deps.Lister.List(qctx, internalregistry.ListFilter{
 		State: int32(registryv1.ProviderState_PROVIDER_STATE_ACTIVE),
 	})
 	if err != nil {
@@ -194,7 +238,7 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		// External providers always stay reachable via the explicit path above.
 		autoCandidates, withheldExternal := partitionByScope(active)
 		var webShaped bool
-		targets, autoExplain, classifierError, webShaped = r.autoSelect(ctx, autoCandidates, query)
+		targets, autoExplain, classifierError, webShaped = r.autoSelect(qctx, autoCandidates, query)
 		pendingExternal = withheldExternal
 		switch {
 		case r.deps.AutoRouteExternal && webShaped && len(withheldExternal) > 0:
@@ -210,7 +254,7 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		}
 	}
 
-	groups := r.fanOut(ctx, targets, query, limit)
+	groups := r.fanOut(qctx, targets, query, limit)
 
 	// OT-P2-002 fallback escalation: if the project corpus returned nothing —
 	// or only hits below the weakness threshold — and the operator opted in,
@@ -219,7 +263,7 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 	// did not already auto-route external above).
 	if !hasExplicit && r.deps.AutoRouteExternal && !autoRoutedExternal && len(pendingExternal) > 0 {
 		if weakReason := resultsWeakness(groups, autoExternalThreshold()); weakReason != "" {
-			escalationGroups := r.fanOut(ctx, pendingExternal, query, limit)
+			escalationGroups := r.fanOut(qctx, pendingExternal, query, limit)
 			groups = append(groups, escalationGroups...)
 			targets = append(targets, pendingExternal...)
 			escalated = true
@@ -227,7 +271,7 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		}
 	}
 
-	ranked, reranked, rerankDegraded, rerankExplain := r.maybeRerank(ctx, query, groups)
+	ranked, reranked, rerankDegraded, rerankExplain := r.maybeRerank(qctx, query, groups)
 
 	resp := &routingv1.QueryResponse{
 		Ranked:   ranked,
@@ -249,7 +293,7 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		}
 		resp.RoutingExplanation = append(resp.RoutingExplanation, rerankExplain...)
 	}
-	resp.LatencyMs = time.Since(start).Milliseconds()
+	resp.LatencyMs = r.deps.Now().Sub(start).Milliseconds()
 
 	// Phase-7 telemetry: record the query's outcome (best-effort; the recorder
 	// swallows its own errors so a telemetry failure never affects the query).
@@ -258,7 +302,7 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		sample := buildSample(query, targets, resp)
 		sample.AutoRoutedExternal = autoRoutedExternal
 		sample.Escalated = escalated
-		r.deps.Recorder.Record(ctx, sample)
+		r.deps.Recorder.Record(qctx, sample)
 	}
 	return resp, nil
 }
@@ -282,18 +326,47 @@ func (r *Router) maybeRerank(ctx context.Context, query string, groups []*routin
 	if len(candidates) == 0 {
 		return nil, false, false, nil
 	}
-	rctx, cancel := context.WithTimeout(ctx, r.deps.RerankTimeout)
+	if len(candidates) == 1 {
+		return nil, false, false, []string{"reranker skipped (single candidate)"}
+	}
+	if ok, line := r.rerankBreaker.allow(r.deps.Now()); !ok {
+		return nil, false, true, []string{line}
+	}
+
+	timeout, ok := r.rerankBudget(ctx)
+	if !ok {
+		return nil, false, true, []string{
+			"reranker skipped (query budget nearly exhausted) — showing honest by-provider grouping",
+		}
+	}
+	rctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	ranked, err := r.deps.Reranker.Rerank(rctx, query, candidates)
 	if err != nil {
+		r.rerankBreaker.recordFailure(r.deps.Now())
 		r.deps.Logger.Printf("routing.maybeRerank: reranker failed, keeping by-provider grouping: %v", err)
 		return nil, false, true, []string{
 			fmt.Sprintf("reranker unavailable (%s) — showing honest by-provider grouping", oneLine(err.Error())),
 		}
 	}
+	r.rerankBreaker.recordSuccess()
 	return ranked, true, false, []string{
 		fmt.Sprintf("reranked %d candidate(s) into one unified cross-provider list", len(ranked)),
 	}
+}
+
+func (r *Router) rerankBudget(ctx context.Context) (time.Duration, bool) {
+	timeout := r.deps.RerankTimeout
+	if deadline, ok := ctx.Deadline(); ok {
+		remaining := time.Until(deadline) - defaultResponseCushion
+		if remaining <= 0 {
+			return 0, false
+		}
+		if timeout <= 0 || remaining < timeout {
+			timeout = remaining
+		}
+	}
+	return timeout, timeout > 0
 }
 
 // autoSelect runs the classifier over the active providers' descriptions and

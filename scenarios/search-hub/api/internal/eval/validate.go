@@ -27,6 +27,7 @@ func Normalize(s *evalv1.EvalSuite) {
 		}
 		c.CaseId = strings.TrimSpace(c.CaseId)
 		c.Query = strings.TrimSpace(c.Query)
+		c.Status = strings.TrimSpace(c.Status)
 	}
 }
 
@@ -36,7 +37,8 @@ func Normalize(s *evalv1.EvalSuite) {
 //   - suite_id, provider_id are required (the runner resolves the provider).
 //   - at least one case, each with a case_id and a non-empty query.
 //   - case_ids must be unique within the suite (runs key per-case results on them).
-//   - a case is either positive (expects ids / a rank / a min score) or a
+//   - status is empty/"reviewed"/"candidate".
+//   - a case is either positive (expects ids) or a
 //     negative gibberish case (expect_no_strong_hit). A negative case with an
 //     expect_id is contradictory and rejected.
 //
@@ -69,6 +71,11 @@ func Validate(s *evalv1.EvalSuite) error {
 		if c.Query == "" {
 			return ErrInvalidSuite{Field: "cases.query", Reason: "required for case " + c.CaseId}
 		}
+		switch c.GetStatus() {
+		case "", "reviewed", "candidate":
+		default:
+			return ErrInvalidSuite{Field: "cases.status", Reason: "must be reviewed or candidate: " + c.CaseId}
+		}
 		if c.ExpectNoStrongHit {
 			if len(c.ExpectIds) > 0 {
 				return ErrInvalidSuite{Field: "cases.expect_ids", Reason: "a gibberish case (expect_no_strong_hit) must not also expect ids: " + c.CaseId}
@@ -76,6 +83,10 @@ func Validate(s *evalv1.EvalSuite) error {
 			if c.ExpectMaxScore <= 0 {
 				return ErrInvalidSuite{Field: "cases.expect_max_score", Reason: "a gibberish case must set expect_max_score (the junk-rejection ceiling): " + c.CaseId}
 			}
+			continue
+		}
+		if (c.ExpectWithinTopK > 0 || c.ExpectMinScore > 0) && len(c.ExpectIds) == 0 {
+			return ErrInvalidSuite{Field: "cases.expect_ids", Reason: "a positive case must set expect_ids: " + c.CaseId}
 		}
 		_ = i
 	}

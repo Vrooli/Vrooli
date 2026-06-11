@@ -99,6 +99,15 @@ func genSuite() *evalv1.EvalSuite {
 	}
 }
 
+func genSuiteWithCandidates() *evalv1.EvalSuite {
+	s := genSuite()
+	s.Cases = append(s.Cases,
+		&evalv1.EvalCase{CaseId: "gen-1", Query: "candidate one", Status: "candidate", ExpectIds: []string{"x"}, ExpectWithinTopK: 5},
+		&evalv1.EvalCase{CaseId: "gen-2", Query: "candidate two", Status: "candidate", ExpectIds: []string{"y"}, ExpectWithinTopK: 5},
+	)
+	return s
+}
+
 func genProviders() fakeResolver {
 	return fakeResolver{descs: map[string]*registryv1.ProviderDescriptor{
 		"cli-health.commands": {ProviderId: "cli-health.commands", Type: "command", ProviderGroup: "cli-health"},
@@ -246,4 +255,91 @@ func TestGenerateUnconfiguredUnimplemented(t *testing.T) {
 	_, err := client.Generate(context.Background(), connect.NewRequest(&evalv1.GenerateRequest{SuiteId: "cli-health.commands.primary"}))
 	require.Error(t, err)
 	require.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err))
+}
+
+func TestPromoteCasesWritesFileThenMirrorsStore(t *testing.T) {
+	store := newFakeStore()
+	_, _ = store.UpsertSuite(context.Background(), genSuiteWithCandidates())
+	ctrl := &fakeCorpusControl{written: true}
+	client := newGenerateClientFull(t, store, genProviders(), &fakeGenerator{res: oneProposal()}, ctrl, fakeTokens{token: "tok-123"})
+
+	resp, err := client.PromoteCases(context.Background(), connect.NewRequest(&evalv1.PromoteCasesRequest{
+		SuiteId: "cli-health.commands.primary",
+		CaseIds: []string{"gen-1"},
+	}))
+	require.NoError(t, err)
+	require.True(t, resp.Msg.GetApplied())
+	require.Equal(t, []string{"gen-1"}, resp.Msg.GetPromotedCaseIds())
+	require.Empty(t, resp.Msg.GetAlreadyReviewedCaseIds())
+
+	require.NotNil(t, ctrl.gotCorpus, "promotion must write through WriteCorpus")
+	require.Equal(t, "tok-123", ctrl.gotToken)
+	require.Equal(t, "reviewed", statusOf(ctrl.gotCorpus, "gen-1"))
+	require.Equal(t, "candidate", statusOf(ctrl.gotCorpus, "gen-2"))
+
+	stored, _ := store.GetSuite(context.Background(), "cli-health.commands.primary")
+	require.Equal(t, "reviewed", statusOf(stored, "gen-1"), "store mirrors the provider's effective corpus")
+}
+
+func TestPromoteCasesAllAndIdempotentReplay(t *testing.T) {
+	store := newFakeStore()
+	s := genSuiteWithCandidates()
+	s.Cases[1].Status = "reviewed"
+	_, _ = store.UpsertSuite(context.Background(), s)
+	ctrl := &fakeCorpusControl{written: true}
+	client := newGenerateClientFull(t, store, genProviders(), &fakeGenerator{res: oneProposal()}, ctrl, fakeTokens{token: "tok-123"})
+
+	resp, err := client.PromoteCases(context.Background(), connect.NewRequest(&evalv1.PromoteCasesRequest{
+		SuiteId: "cli-health.commands.primary",
+		All:     true,
+	}))
+	require.NoError(t, err)
+	require.True(t, resp.Msg.GetApplied())
+	require.Equal(t, []string{"gen-2"}, resp.Msg.GetPromotedCaseIds())
+	require.Empty(t, resp.Msg.GetAlreadyReviewedCaseIds())
+
+	resp, err = client.PromoteCases(context.Background(), connect.NewRequest(&evalv1.PromoteCasesRequest{
+		SuiteId: "cli-health.commands.primary",
+		All:     true,
+	}))
+	require.NoError(t, err)
+	require.False(t, resp.Msg.GetApplied(), "second replay has no candidates left to mutate")
+	require.Empty(t, resp.Msg.GetPromotedCaseIds())
+	require.Empty(t, resp.Msg.GetAlreadyReviewedCaseIds())
+}
+
+func TestPromoteCasesRejectsAmbiguousSelection(t *testing.T) {
+	store := newFakeStore()
+	_, _ = store.UpsertSuite(context.Background(), genSuiteWithCandidates())
+	client := newGenerateClient(t, store, genProviders(), &fakeGenerator{res: oneProposal()})
+
+	_, err := client.PromoteCases(context.Background(), connect.NewRequest(&evalv1.PromoteCasesRequest{
+		SuiteId: "cli-health.commands.primary",
+		CaseIds: []string{"gen-1"},
+		All:     true,
+	}))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+}
+
+func TestPromoteCasesRejectsUnknownCase(t *testing.T) {
+	store := newFakeStore()
+	_, _ = store.UpsertSuite(context.Background(), genSuiteWithCandidates())
+	client := newGenerateClient(t, store, genProviders(), &fakeGenerator{res: oneProposal()})
+
+	_, err := client.PromoteCases(context.Background(), connect.NewRequest(&evalv1.PromoteCasesRequest{
+		SuiteId: "cli-health.commands.primary",
+		CaseIds: []string{"missing"},
+	}))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+}
+
+func statusOf(s *evalv1.EvalSuite, id string) string {
+	for _, c := range s.GetCases() {
+		if c.GetCaseId() == id {
+			return c.GetStatus()
+		}
+	}
+	return ""
 }

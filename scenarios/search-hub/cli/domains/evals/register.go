@@ -21,15 +21,17 @@ const GroupName = "evals"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"EvalService.RegisterSuite": h.register,
-		"EvalService.ListSuites":    h.list,
-		"EvalService.GetSuite":      h.show,
-		"EvalService.RunSuite":      h.run,
-		"EvalService.ListRuns":      h.runs,
-		"EvalService.GetRun":        h.showRun,
-		"EvalService.CompareRuns":   h.compare,
-		"EvalService.Sweep":         h.sweep,
-		"EvalService.Generate":      h.generate,
+		"EvalService.RegisterSuite":  h.register,
+		"EvalService.ListSuites":     h.list,
+		"EvalService.GetSuite":       h.show,
+		"EvalService.RunSuite":       h.run,
+		"EvalService.ValidateCorpus": h.validate,
+		"EvalService.ListRuns":       h.runs,
+		"EvalService.GetRun":         h.showRun,
+		"EvalService.CompareRuns":    h.compare,
+		"EvalService.Sweep":          h.sweep,
+		"EvalService.Generate":       h.generate,
+		"EvalService.PromoteCases":   h.promote,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

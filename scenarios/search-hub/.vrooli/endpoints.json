@@ -187,6 +187,48 @@
       }
     },
     {
+      "id": "evals_validate_corpus",
+      "path": "/vrooli.search_hub.v1.eval.EvalService/ValidateCorpus",
+      "method": "POST",
+      "summary": "Validate an eval corpus",
+      "description": "Re-probes reviewed positive cases through the provider search endpoint and classifies expect_ids as live, hard, stale, or inconclusive. Advisory only — stale labels warn and are excluded by shared gates; they never fail a run.",
+      "category": "eval",
+      "request": {
+        "type": "object",
+        "properties": {
+          "deep_k": "int (probe depth; optional)",
+          "suite_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "cases": "array<CorpusValidationCase>",
+          "rollup": "CorpusValidationRollup"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such suite"
+        },
+        {
+          "status": 400,
+          "code": "failed_precondition",
+          "description": "Suite's provider is not registered/reachable"
+        }
+      ],
+      "cli_mapping": {
+        "command": "search-hub evals validate",
+        "args": [
+          "<suite_id>",
+          "--deep-k",
+          "<n>"
+        ]
+      }
+    },
+    {
       "id": "evals_list_runs",
       "path": "/vrooli.search_hub.v1.eval.EvalService/ListRuns",
       "method": "POST",
@@ -389,6 +431,57 @@
           "<n>",
           "--negatives",
           "--apply"
+        ]
+      }
+    },
+    {
+      "id": "evals_promote_cases",
+      "path": "/vrooli.search_hub.v1.eval.EvalService/PromoteCases",
+      "method": "POST",
+      "summary": "Promote reviewed candidate eval cases",
+      "description": "Flips selected candidate cases to reviewed so the shared grading gate includes them in acceptance recall. The mutation writes through the provider control plane into search.json, then mirrors the effective corpus back into search-hub's suite cache. Re-running the same promotion is an idempotent no-op.",
+      "category": "eval",
+      "request": {
+        "type": "object",
+        "properties": {
+          "all": "bool (promote every candidate)",
+          "case_ids": "array<string> (selected case ids)",
+          "suite_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "already_reviewed_case_ids": "array<string>",
+          "applied": "bool",
+          "promoted_case_ids": "array<string>",
+          "suite": "EvalSuite"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "No case selection, both all and case_ids provided, or an unknown/invalid case"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such suite"
+        },
+        {
+          "status": 400,
+          "code": "failed_precondition",
+          "description": "Provider unregistered / declares no control plane / corpus write-back unavailable"
+        }
+      ],
+      "cli_mapping": {
+        "command": "search-hub evals promote",
+        "args": [
+          "<suite_id>",
+          "--case",
+          "<case_id>",
+          "--all"
         ]
       }
     },
@@ -718,6 +811,11 @@
       "endpoint_id": "evals_run_suite"
     },
     {
+      "name": "evals validate",
+      "description": "Re-probe reviewed positive labels and classify expect_ids as live, hard, stale, or inconclusive",
+      "endpoint_id": "evals_validate_corpus"
+    },
+    {
       "name": "evals runs",
       "description": "List a suite's run history, newest first (--tag, --limit filters)",
       "endpoint_id": "evals_list_runs"
@@ -741,6 +839,11 @@
       "name": "evals generate",
       "description": "Grow a suite's corpus by sampling + inverting the provider's index (+ hard negatives); --apply appends the deduped proposals",
       "endpoint_id": "evals_generate"
+    },
+    {
+      "name": "evals promote",
+      "description": "Promote reviewed candidate cases into the acceptance recall denominator",
+      "endpoint_id": "evals_promote_cases"
     }
   ]
 }

@@ -68,6 +68,11 @@ message EvalCase {
   // exceed expect_max_score (the "junk should be rejected" case).
   bool expect_no_strong_hit = 8;
   string note = 9;
+  // "reviewed" | "candidate". Empty means reviewed for hand-authored cases.
+  // Candidates are excluded from acceptance recall until promoted.
+  string status = 10;
+  // Optional provider-native query scope: ""|"global"|"scenario:<id>"|"path:<prefix>".
+  string scope = 11;
 }
 
 // An immutable execution of a suite. The TAG is the experimentation lever.
@@ -146,6 +151,9 @@ service EvalService {
   rpc GetSuite(GetSuiteRequest) returns (GetSuiteResponse);
   // Execute a suite against its provider and store an immutable, tagged run.
   rpc RunSuite(RunSuiteRequest) returns (RunSuiteResponse);
+  // Re-probe positive labels and classify whether expect_ids still refer to
+  // live provider results. Advisory only: stale labels warn, never fail a run.
+  rpc ValidateCorpus(ValidateCorpusRequest) returns (ValidateCorpusResponse);
   // History, optionally filtered by tag.
   rpc ListRuns(ListRunsRequest) returns (ListRunsResponse);
   rpc GetRun(GetRunRequest) returns (GetRunResponse);
@@ -162,6 +170,10 @@ service EvalService {
   // each marked tags:["generated"] so the sweep holds them out of tuning. See
   // GenerateRequest/GenerateResponse.
   rpc Generate(GenerateRequest) returns (GenerateResponse);
+  // Promote reviewed candidate cases into the acceptance denominator. Mutates
+  // the provider's search.json through the control plane, then mirrors the
+  // authoritative file corpus back into search-hub's suite cache.
+  rpc PromoteCases(PromoteCasesRequest) returns (PromoteCasesResponse);
 }
 
 message RegisterSuiteRequest {
@@ -211,6 +223,45 @@ message RunSuiteResponse {
   // operator running a suite sees, alongside the result, whether the corpus the
   // result rests on is thin/negative-less. Never affects the run or its labels.
   repeated AdequacyWarning adequacy = 2;
+}
+
+enum ReferentialOutcome {
+  REFERENTIAL_OUTCOME_UNSPECIFIED = 0;
+  REFERENTIAL_OUTCOME_LIVE = 1;
+  REFERENTIAL_OUTCOME_HARD = 2;
+  REFERENTIAL_OUTCOME_STALE = 3;
+  REFERENTIAL_OUTCOME_INCONCLUSIVE = 4;
+}
+
+message ValidateCorpusRequest {
+  string suite_id = 1;
+  // Probe depth; 0 uses the shared default.
+  int32 deep_k = 2;
+}
+
+message CorpusValidationCase {
+  string case_id = 1;
+  ReferentialOutcome referential = 2;
+  // 1-based rank of the first expect_id in the deepest successful probe.
+  int32 observed_rank = 3;
+  repeated string probed_queries = 4;
+  string message = 5;
+}
+
+message CorpusValidationRollup {
+  int32 positives = 1;
+  int32 live = 2;
+  int32 hard = 3;
+  int32 stale = 4;
+  int32 inconclusive = 5;
+  int32 candidate = 6;
+}
+
+message ValidateCorpusResponse {
+  string suite_id = 1;
+  string provider_id = 2;
+  repeated CorpusValidationCase cases = 3;
+  CorpusValidationRollup rollup = 4;
 }
 
 message ListRunsRequest {
@@ -444,4 +495,26 @@ message GenerateResponse {
   // Human-readable summary, e.g. "sampled 24 items across 3 strata → 24 inverted
   // → 6 deduped → 18 proposed (15 positive, 3 negative)".
   string summary = 7;
+}
+
+message PromoteCasesRequest {
+  string suite_id = 1;
+  // Case ids to promote. Empty is allowed only with all=true.
+  repeated string case_ids = 2;
+  // Promote every candidate case in the suite.
+  bool all = 3;
+}
+
+message PromoteCasesResponse {
+  string suite_id = 1;
+  string provider_id = 2;
+  // Cases whose status changed from candidate to reviewed.
+  repeated string promoted_case_ids = 3;
+  // Candidate ids selected by the request that were already reviewed.
+  repeated string already_reviewed_case_ids = 4;
+  // The effective suite returned by the provider after WriteCorpus.
+  EvalSuite suite = 5;
+  // True when the provider's search.json was written. False for idempotent
+  // no-op promotions.
+  bool applied = 6;
 }

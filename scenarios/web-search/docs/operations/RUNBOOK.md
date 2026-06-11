@@ -43,7 +43,7 @@ dependencies to confirm during any incident:
   issue.**
 - **Qdrant** — semantic index `web-search-findings` for
   `web-search.learnings`.
-- **Ollama** — embeddings (`nomic-embed-text`) + chat model for L1/L2/L3
+- **Ollama** — embeddings (`embedding.default`) + chat model for L1/L2/L3
   synthesis and distillation.
 - **search-hub** — provider registration target for both providers.
 - **SQLite** (`web-search.db`) — findings/briefs/audit store; if its

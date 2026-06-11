@@ -48,6 +48,7 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 	resolver := internalregistry.NewSQLiteStore(db, clk)
 	client := newHTTPProviderClient(newScenarioResolver(), httpc.NewDefault())
 	runner := internaleval.NewRunner(resolver, client, clk, uuid.NewString)
+	validator := internaleval.NewValidator(resolver, client)
 
 	// One registry-side control client drives BOTH the sweep's index-time tier +
 	// tuning write-back AND the eval handler's corpus write-back (generate --apply).
@@ -70,6 +71,7 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 		Store:     store,
 		Providers: resolver,
 		Runner:    runner,
+		Validator: validator,
 		Sweeper:   sweeper,
 		// The corpus generator samples the provider through the SAME client the
 		// runner/sweep use (its index is reached only via its search endpoint) and

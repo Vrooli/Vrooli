@@ -1,10 +1,24 @@
 from google.protobuf.internal import containers as _containers
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Iterable as _Iterable, Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
+
+class ReferentialOutcome(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    REFERENTIAL_OUTCOME_UNSPECIFIED: _ClassVar[ReferentialOutcome]
+    REFERENTIAL_OUTCOME_LIVE: _ClassVar[ReferentialOutcome]
+    REFERENTIAL_OUTCOME_HARD: _ClassVar[ReferentialOutcome]
+    REFERENTIAL_OUTCOME_STALE: _ClassVar[ReferentialOutcome]
+    REFERENTIAL_OUTCOME_INCONCLUSIVE: _ClassVar[ReferentialOutcome]
+REFERENTIAL_OUTCOME_UNSPECIFIED: ReferentialOutcome
+REFERENTIAL_OUTCOME_LIVE: ReferentialOutcome
+REFERENTIAL_OUTCOME_HARD: ReferentialOutcome
+REFERENTIAL_OUTCOME_STALE: ReferentialOutcome
+REFERENTIAL_OUTCOME_INCONCLUSIVE: ReferentialOutcome
 
 class EvalSuite(_message.Message):
     __slots__ = ("suite_id", "provider_id", "name", "description", "cases", "state", "created_at", "updated_at")
@@ -27,7 +41,7 @@ class EvalSuite(_message.Message):
     def __init__(self, suite_id: _Optional[str] = ..., provider_id: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., cases: _Optional[_Iterable[_Union[EvalCase, _Mapping]]] = ..., state: _Optional[str] = ..., created_at: _Optional[str] = ..., updated_at: _Optional[str] = ...) -> None: ...
 
 class EvalCase(_message.Message):
-    __slots__ = ("case_id", "query", "tags", "expect_ids", "expect_within_top_k", "expect_min_score", "expect_max_score", "expect_no_strong_hit", "note")
+    __slots__ = ("case_id", "query", "tags", "expect_ids", "expect_within_top_k", "expect_min_score", "expect_max_score", "expect_no_strong_hit", "note", "status", "scope")
     CASE_ID_FIELD_NUMBER: _ClassVar[int]
     QUERY_FIELD_NUMBER: _ClassVar[int]
     TAGS_FIELD_NUMBER: _ClassVar[int]
@@ -37,6 +51,8 @@ class EvalCase(_message.Message):
     EXPECT_MAX_SCORE_FIELD_NUMBER: _ClassVar[int]
     EXPECT_NO_STRONG_HIT_FIELD_NUMBER: _ClassVar[int]
     NOTE_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    SCOPE_FIELD_NUMBER: _ClassVar[int]
     case_id: str
     query: str
     tags: _containers.RepeatedScalarFieldContainer[str]
@@ -46,7 +62,9 @@ class EvalCase(_message.Message):
     expect_max_score: float
     expect_no_strong_hit: bool
     note: str
-    def __init__(self, case_id: _Optional[str] = ..., query: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., expect_ids: _Optional[_Iterable[str]] = ..., expect_within_top_k: _Optional[int] = ..., expect_min_score: _Optional[float] = ..., expect_max_score: _Optional[float] = ..., expect_no_strong_hit: _Optional[bool] = ..., note: _Optional[str] = ...) -> None: ...
+    status: str
+    scope: str
+    def __init__(self, case_id: _Optional[str] = ..., query: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., expect_ids: _Optional[_Iterable[str]] = ..., expect_within_top_k: _Optional[int] = ..., expect_min_score: _Optional[float] = ..., expect_max_score: _Optional[float] = ..., expect_no_strong_hit: _Optional[bool] = ..., note: _Optional[str] = ..., status: _Optional[str] = ..., scope: _Optional[str] = ...) -> None: ...
 
 class EvalRun(_message.Message):
     __slots__ = ("run_id", "suite_id", "tag", "created_at", "config", "results", "aggregate")
@@ -185,6 +203,56 @@ class RunSuiteResponse(_message.Message):
     run: EvalRun
     adequacy: _containers.RepeatedCompositeFieldContainer[AdequacyWarning]
     def __init__(self, run: _Optional[_Union[EvalRun, _Mapping]] = ..., adequacy: _Optional[_Iterable[_Union[AdequacyWarning, _Mapping]]] = ...) -> None: ...
+
+class ValidateCorpusRequest(_message.Message):
+    __slots__ = ("suite_id", "deep_k")
+    SUITE_ID_FIELD_NUMBER: _ClassVar[int]
+    DEEP_K_FIELD_NUMBER: _ClassVar[int]
+    suite_id: str
+    deep_k: int
+    def __init__(self, suite_id: _Optional[str] = ..., deep_k: _Optional[int] = ...) -> None: ...
+
+class CorpusValidationCase(_message.Message):
+    __slots__ = ("case_id", "referential", "observed_rank", "probed_queries", "message")
+    CASE_ID_FIELD_NUMBER: _ClassVar[int]
+    REFERENTIAL_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_RANK_FIELD_NUMBER: _ClassVar[int]
+    PROBED_QUERIES_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    case_id: str
+    referential: ReferentialOutcome
+    observed_rank: int
+    probed_queries: _containers.RepeatedScalarFieldContainer[str]
+    message: str
+    def __init__(self, case_id: _Optional[str] = ..., referential: _Optional[_Union[ReferentialOutcome, str]] = ..., observed_rank: _Optional[int] = ..., probed_queries: _Optional[_Iterable[str]] = ..., message: _Optional[str] = ...) -> None: ...
+
+class CorpusValidationRollup(_message.Message):
+    __slots__ = ("positives", "live", "hard", "stale", "inconclusive", "candidate")
+    POSITIVES_FIELD_NUMBER: _ClassVar[int]
+    LIVE_FIELD_NUMBER: _ClassVar[int]
+    HARD_FIELD_NUMBER: _ClassVar[int]
+    STALE_FIELD_NUMBER: _ClassVar[int]
+    INCONCLUSIVE_FIELD_NUMBER: _ClassVar[int]
+    CANDIDATE_FIELD_NUMBER: _ClassVar[int]
+    positives: int
+    live: int
+    hard: int
+    stale: int
+    inconclusive: int
+    candidate: int
+    def __init__(self, positives: _Optional[int] = ..., live: _Optional[int] = ..., hard: _Optional[int] = ..., stale: _Optional[int] = ..., inconclusive: _Optional[int] = ..., candidate: _Optional[int] = ...) -> None: ...
+
+class ValidateCorpusResponse(_message.Message):
+    __slots__ = ("suite_id", "provider_id", "cases", "rollup")
+    SUITE_ID_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
+    CASES_FIELD_NUMBER: _ClassVar[int]
+    ROLLUP_FIELD_NUMBER: _ClassVar[int]
+    suite_id: str
+    provider_id: str
+    cases: _containers.RepeatedCompositeFieldContainer[CorpusValidationCase]
+    rollup: CorpusValidationRollup
+    def __init__(self, suite_id: _Optional[str] = ..., provider_id: _Optional[str] = ..., cases: _Optional[_Iterable[_Union[CorpusValidationCase, _Mapping]]] = ..., rollup: _Optional[_Union[CorpusValidationRollup, _Mapping]] = ...) -> None: ...
 
 class ListRunsRequest(_message.Message):
     __slots__ = ("suite_id", "tag", "limit")
@@ -381,3 +449,29 @@ class GenerateResponse(_message.Message):
     adequacy: _containers.RepeatedCompositeFieldContainer[AdequacyWarning]
     summary: str
     def __init__(self, suite_id: _Optional[str] = ..., provider_id: _Optional[str] = ..., proposed: _Optional[_Iterable[_Union[GeneratedCase, _Mapping]]] = ..., suite: _Optional[_Union[EvalSuite, _Mapping]] = ..., applied: _Optional[bool] = ..., adequacy: _Optional[_Iterable[_Union[AdequacyWarning, _Mapping]]] = ..., summary: _Optional[str] = ...) -> None: ...
+
+class PromoteCasesRequest(_message.Message):
+    __slots__ = ("suite_id", "case_ids", "all")
+    SUITE_ID_FIELD_NUMBER: _ClassVar[int]
+    CASE_IDS_FIELD_NUMBER: _ClassVar[int]
+    ALL_FIELD_NUMBER: _ClassVar[int]
+    suite_id: str
+    case_ids: _containers.RepeatedScalarFieldContainer[str]
+    all: bool
+    def __init__(self, suite_id: _Optional[str] = ..., case_ids: _Optional[_Iterable[str]] = ..., all: _Optional[bool] = ...) -> None: ...
+
+class PromoteCasesResponse(_message.Message):
+    __slots__ = ("suite_id", "provider_id", "promoted_case_ids", "already_reviewed_case_ids", "suite", "applied")
+    SUITE_ID_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
+    PROMOTED_CASE_IDS_FIELD_NUMBER: _ClassVar[int]
+    ALREADY_REVIEWED_CASE_IDS_FIELD_NUMBER: _ClassVar[int]
+    SUITE_FIELD_NUMBER: _ClassVar[int]
+    APPLIED_FIELD_NUMBER: _ClassVar[int]
+    suite_id: str
+    provider_id: str
+    promoted_case_ids: _containers.RepeatedScalarFieldContainer[str]
+    already_reviewed_case_ids: _containers.RepeatedScalarFieldContainer[str]
+    suite: EvalSuite
+    applied: bool
+    def __init__(self, suite_id: _Optional[str] = ..., provider_id: _Optional[str] = ..., promoted_case_ids: _Optional[_Iterable[str]] = ..., already_reviewed_case_ids: _Optional[_Iterable[str]] = ..., suite: _Optional[_Union[EvalSuite, _Mapping]] = ..., applied: _Optional[bool] = ...) -> None: ...

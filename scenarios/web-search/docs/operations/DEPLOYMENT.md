@@ -49,7 +49,7 @@ degraded-behavior matrix.
   findings/briefs/audit, applied on startup via `api-core/database`.
 - **Resources (P0, `try_start`):** SearXNG (`SEARXNG_URL`) for live web;
   Qdrant for the `web-search-findings` semantic index; Ollama
-  (`nomic-embed-text` + a small chat model) for embeddings, L1/L2/L3
+  (`embedding.default` + a small chat role) for embeddings, L1/L2/L3
   synthesis, and distillation; reranker (TEI cross-encoder) for findings
   ranking. All `try_start` — web-search degrades rather than fails if any
   are missing.

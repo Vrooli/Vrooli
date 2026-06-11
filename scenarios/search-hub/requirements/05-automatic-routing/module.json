@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-10T13:22:10-04:00"
+    "last_validated_at": "2026-06-11T11:12:43-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P0-010",
       "title": "Description-driven classification",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-005",
       "category": "core",
       "description": "The classifier ranks provider types using only the registry's NL descriptions and the query — no provider-specific routing code. It is swappable behind a Classifier interface.",
@@ -14,13 +14,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Against testdata/routing_queries.json (query -\u003e expected types), routing recall \u003e= 0.85; precision reported."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Adding a new registry row changes routing with no classifier code change."
         }
       ]
@@ -28,7 +28,7 @@
     {
       "id": "REQ-P0-011",
       "title": "Widen-on-uncertainty + override",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-005",
       "category": "core",
       "description": "When the classifier is uncertain it widens (more provider types) rather than dropping; explicit --type/--all always override the classifier; --explain returns the routing rationale.",
@@ -36,13 +36,13 @@
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "An ambiguous query routes to a wider set, not an empty/narrow set."
         },
         {
           "type": "test",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "--type overrides classifier output exactly."
         }
       ]

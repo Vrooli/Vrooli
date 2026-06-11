@@ -21,6 +21,10 @@ type Runner interface {
 	Run(ctx context.Context, suite *evalv1.EvalSuite, tag string, limit int32) (*evalv1.EvalRun, error)
 }
 
+type Validator interface {
+	ValidateCorpus(ctx context.Context, suite *evalv1.EvalSuite, deepK int32) (*evalv1.ValidateCorpusResponse, error)
+}
+
 // Sweeper is the optimization seam: it runs the two-tier, overfit-safe parameter
 // sweep for a suite and (optionally) writes back a winner. internal/sweep.
 // Orchestrator satisfies it; it persists one tagged run per arm itself (through
@@ -51,6 +55,7 @@ type Deps struct {
 	// provider's index; the corpus generator needs its endpoint + facets).
 	Providers internaleval.ProviderResolver
 	Runner    Runner
+	Validator Validator
 	Sweeper   Sweeper
 	// Generator proposes machine-generated cases for a suite (Generate RPC).
 	Generator CorpusGenerator
@@ -84,11 +89,13 @@ var _ = func() any {
 		ListSuites(context.Context, *connect.Request[evalv1.ListSuitesRequest]) (*connect.Response[evalv1.ListSuitesResponse], error)
 		GetSuite(context.Context, *connect.Request[evalv1.GetSuiteRequest]) (*connect.Response[evalv1.GetSuiteResponse], error)
 		RunSuite(context.Context, *connect.Request[evalv1.RunSuiteRequest]) (*connect.Response[evalv1.RunSuiteResponse], error)
+		ValidateCorpus(context.Context, *connect.Request[evalv1.ValidateCorpusRequest]) (*connect.Response[evalv1.ValidateCorpusResponse], error)
 		ListRuns(context.Context, *connect.Request[evalv1.ListRunsRequest]) (*connect.Response[evalv1.ListRunsResponse], error)
 		GetRun(context.Context, *connect.Request[evalv1.GetRunRequest]) (*connect.Response[evalv1.GetRunResponse], error)
 		CompareRuns(context.Context, *connect.Request[evalv1.CompareRunsRequest]) (*connect.Response[evalv1.CompareRunsResponse], error)
 		Sweep(context.Context, *connect.Request[evalv1.SweepRequest]) (*connect.Response[evalv1.SweepResponse], error)
 		Generate(context.Context, *connect.Request[evalv1.GenerateRequest]) (*connect.Response[evalv1.GenerateResponse], error)
+		PromoteCases(context.Context, *connect.Request[evalv1.PromoteCasesRequest]) (*connect.Response[evalv1.PromoteCasesResponse], error)
 	}
 	var _ evalServiceHandler = (*connectHandler)(nil)
 	return nil
@@ -148,6 +155,23 @@ func (h *connectHandler) RunSuite(ctx context.Context, req *connect.Request[eval
 		Run:      run,
 		Adequacy: internaleval.CheckAdequacy(suite, nil),
 	}), nil
+}
+
+func (h *connectHandler) ValidateCorpus(ctx context.Context, req *connect.Request[evalv1.ValidateCorpusRequest]) (*connect.Response[evalv1.ValidateCorpusResponse], error) {
+	if h.deps.Validator == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("corpus validation is not configured on this server"))
+	}
+	suiteID := req.Msg.GetSuiteId()
+	suite, err := h.deps.Store.GetSuite(ctx, suiteID)
+	if err != nil {
+		return nil, h.logged("eval.ValidateCorpus.getSuite", suiteID, err)
+	}
+	resp, err := h.deps.Validator.ValidateCorpus(ctx, suite, req.Msg.GetDeepK())
+	if err != nil {
+		h.deps.Logger.Printf("eval.ValidateCorpus(%q): %v", suiteID, err)
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	return connect.NewResponse(resp), nil
 }
 
 func (h *connectHandler) ListRuns(ctx context.Context, req *connect.Request[evalv1.ListRunsRequest]) (*connect.Response[evalv1.ListRunsResponse], error) {

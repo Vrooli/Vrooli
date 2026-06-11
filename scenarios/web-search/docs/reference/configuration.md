@@ -53,7 +53,7 @@ lifecycle injects each resource's endpoint from its
 |---|---|---|---|
 | `SEARXNG_URL` | livesearch (L0/L1), research (L2 source) | local SearXNG resource endpoint | Live web search JSON API. If unreachable, `web-search.live` degrades to unavailable; learnings unaffected. |
 | `QDRANT_URL` | findings | local Qdrant resource endpoint | Semantic index (collection `web-search-findings`) via aisearch-go. If unreachable, recall falls back to text matching. |
-| `OLLAMA_URL` | findings (embeddings), livesearch/research (synthesis, distillation) | local Ollama resource endpoint | `nomic-embed-text` embeddings + small chat model. If unreachable, no embeddings/synthesis; raw hits still returned. |
+| `OLLAMA_URL` | findings (embeddings), livesearch/research (synthesis, distillation) | local Ollama resource endpoint | `embedding.default` embeddings + small chat role. If unreachable, no embeddings/synthesis; raw hits still returned. |
 | `RERANKER_URL` | findings (ranking) | local reranker resource endpoint | TEI cross-encoder (bge-reranker-v2-m3). Falls back to raw dense order. |
 | browser-automation-studio discovery | research (L2 browser escalation) | scenario discovery (`discovery.ResolveScenarioURLDefault`) | Browser leg of the L2 fetch stack: `CaptureService.Capture` (Connect-RPC, `inline_dom=true`) for pages the HTTP leg cannot read. If unreachable, L2 degrades to HTTP-only fetch; L0/L1 unaffected. |
 | search-hub registration target | federation | lifecycle / search-hub discovery | Self-registers `web-search.live` + `web-search.learnings` from `.vrooli/search.json`; control token gates mutating verbs (reindex/config/query-overrides). |

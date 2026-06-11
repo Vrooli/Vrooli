@@ -36,7 +36,7 @@ func validSuite() *evalv1.EvalSuite {
 		ProviderId: "cli-health.commands",
 		Name:       "CLI command discovery — primary",
 		Cases: []*evalv1.EvalCase{
-			{CaseId: "restart", Query: "how do I restart a scenario", Tags: []string{"strong"}, ExpectWithinTopK: 5, ExpectMinScore: 0.65},
+			{CaseId: "restart", Query: "how do I restart a scenario", Tags: []string{"strong"}, ExpectIds: []string{"restart"}, ExpectWithinTopK: 5, ExpectMinScore: 0.65},
 			{CaseId: "gibberish-1", Query: "asdfqwer zxcvbnm", Tags: []string{"gibberish"}, ExpectNoStrongHit: true, ExpectMaxScore: 0.4},
 		},
 	}

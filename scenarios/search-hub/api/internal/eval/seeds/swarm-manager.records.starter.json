@@ -2,29 +2,23 @@
   "suite_id": "swarm-manager.records.starter",
   "provider_id": "swarm-manager.records",
   "name": "Swarm-manager records — starter baseline",
-  "description": "STARTER baseline (loose bands) for the swarm-manager records corpus (engineering learnings / work records) — a few topical queries plus a junk-rejection case. Tighten thresholds and add expect_ids once the swarm-manager owner pins canonical record ids; for now this exists to populate the run-history view.",
+  "description": "STARTER baseline for the swarm-manager records corpus (engineering learnings / work records) — a few informational topical queries plus a junk-rejection case. Add reviewed expect_ids once the swarm-manager owner pins canonical record ids.",
   "state": "active",
   "cases": [
     {
       "case_id": "rerank-enablement",
       "query": "enabling the cross-encoder reranker for search",
-      "tags": ["strong"],
-      "expect_within_top_k": 5,
-      "expect_min_score": 0.4
+      "tags": ["informational"]
     },
     {
       "case_id": "session-recovery",
       "query": "web console session recovery and data loss",
-      "tags": ["strong"],
-      "expect_within_top_k": 5,
-      "expect_min_score": 0.4
+      "tags": ["informational"]
     },
     {
       "case_id": "voice-auto-stop",
       "query": "voice auto-stop silence race fix",
-      "tags": ["weak-real"],
-      "expect_within_top_k": 8,
-      "expect_min_score": 0.35
+      "tags": ["informational"]
     },
     {
       "case_id": "gibberish-1",

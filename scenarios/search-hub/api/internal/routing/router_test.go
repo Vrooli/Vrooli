@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -475,17 +476,24 @@ func groupsByID(groups []*routingv1.ProviderResultGroup) map[string]*routingv1.P
 // score map keyed on hit id (or errors). It lets the router's rerank wiring be
 // tested without a model.
 type fakeReranker struct {
-	scoreByID map[string]float64
-	err       error
-	called    bool
-	gotQuery  string
-	gotCount  int
+	scoreByID        map[string]float64
+	err              error
+	blockUntilCancel bool
+	called           bool
+	calls            int
+	gotQuery         string
+	gotCount         int
 }
 
-func (f *fakeReranker) Rerank(_ context.Context, query string, candidates []*routingv1.SearchHit) ([]*routingv1.SearchHit, error) {
+func (f *fakeReranker) Rerank(ctx context.Context, query string, candidates []*routingv1.SearchHit) ([]*routingv1.SearchHit, error) {
 	f.called = true
+	f.calls++
 	f.gotQuery = query
 	f.gotCount = len(candidates)
+	if f.blockUntilCancel {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -548,7 +556,7 @@ func TestRerankProducesUnifiedRankedList(t *testing.T) {
 func TestRerankDegradesToGroupingOnError(t *testing.T) {
 	rr := &fakeReranker{err: errors.New("model unreachable")}
 	r := routing.NewRouter(routing.Deps{
-		Lister:   &fakeLister{providers: []*registryv1.ProviderDescriptor{cliHealthCommands()}},
+		Lister:   &fakeLister{providers: []*registryv1.ProviderDescriptor{cliHealthCommands(), swarmRecords()}},
 		Resolver: threeProviderResolver(),
 		Doer:     threeProviderDoer(),
 		Reranker: rr,
@@ -561,6 +569,113 @@ func TestRerankDegradesToGroupingOnError(t *testing.T) {
 	require.True(t, resp.GetDegraded(), "reranker failure flags the response degraded")
 	require.NotEmpty(t, resp.GetGroups(), "the grouping is still returned")
 	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "reranker unavailable")
+}
+
+func TestRerankSkippedForSingleCandidate(t *testing.T) {
+	rr := &fakeReranker{err: errors.New("should not be called")}
+	r := routing.NewRouter(routing.Deps{
+		Lister:   &fakeLister{providers: []*registryv1.ProviderDescriptor{cliHealthCommands()}},
+		Resolver: threeProviderResolver(),
+		Doer:     threeProviderDoer(),
+		Reranker: rr,
+	})
+
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "x", All: true, Explain: true})
+	require.NoError(t, err)
+	require.False(t, rr.called, "one candidate cannot benefit from reranking")
+	require.False(t, resp.GetReranked())
+	require.False(t, resp.GetDegraded())
+	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "reranker skipped (single candidate)")
+}
+
+func TestRerankTimeoutDegradesBeforeQueryTimeout(t *testing.T) {
+	rr := &fakeReranker{blockUntilCancel: true}
+	r := routing.NewRouter(routing.Deps{
+		Lister:        &fakeLister{providers: []*registryv1.ProviderDescriptor{cliHealthCommands(), swarmRecords()}},
+		Resolver:      threeProviderResolver(),
+		Doer:          threeProviderDoer(),
+		Reranker:      rr,
+		QueryTimeout:  2 * time.Second,
+		RerankTimeout: 10 * time.Millisecond,
+	})
+
+	start := time.Now()
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "x", All: true, Explain: true})
+	elapsed := time.Since(start)
+	require.NoError(t, err)
+	require.Less(t, elapsed, 150*time.Millisecond, "rerank timeout should not consume the whole query budget")
+	require.True(t, resp.GetDegraded())
+	require.False(t, resp.GetReranked())
+	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "reranker unavailable")
+	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "context deadline exceeded")
+}
+
+func TestRerankBreakerOpensAfterRepeatedFailures(t *testing.T) {
+	rr := &fakeReranker{err: errors.New("model killed")}
+	r := routing.NewRouter(routing.Deps{
+		Lister:   &fakeLister{providers: []*registryv1.ProviderDescriptor{cliHealthCommands(), swarmRecords()}},
+		Resolver: threeProviderResolver(),
+		Doer:     threeProviderDoer(),
+		Reranker: rr,
+		RerankBreaker: routing.RerankBreakerConfig{
+			FailureThreshold: 2,
+			Cooldown:         time.Minute,
+		},
+	})
+
+	for i := 0; i < 2; i++ {
+		resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "x", All: true, Explain: true})
+		require.NoError(t, err)
+		require.True(t, resp.GetDegraded())
+		require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "reranker unavailable")
+	}
+
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "x", All: true, Explain: true})
+	require.NoError(t, err)
+	require.True(t, resp.GetDegraded())
+	require.False(t, resp.GetReranked())
+	require.Equal(t, 2, rr.calls, "open circuit skips the reranker call")
+	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "reranker circuit open")
+}
+
+func TestRerankBreakerHalfOpenSuccessClosesBreaker(t *testing.T) {
+	now := time.Date(2026, 6, 11, 12, 0, 0, 0, time.UTC)
+	rr := &fakeReranker{err: errors.New("model killed"), scoreByID: map[string]float64{
+		"scenario restart": 0.8,
+		"pt-1":             0.9,
+	}}
+	r := routing.NewRouter(routing.Deps{
+		Lister:   &fakeLister{providers: []*registryv1.ProviderDescriptor{cliHealthCommands(), swarmRecords()}},
+		Resolver: threeProviderResolver(),
+		Doer:     threeProviderDoer(),
+		Reranker: rr,
+		Now:      func() time.Time { return now },
+		RerankBreaker: routing.RerankBreakerConfig{
+			FailureThreshold: 1,
+			Cooldown:         time.Minute,
+		},
+	})
+
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "x", All: true, Explain: true})
+	require.NoError(t, err)
+	require.True(t, resp.GetDegraded())
+
+	resp, err = r.Query(context.Background(), &routingv1.QueryRequest{Query: "x", All: true, Explain: true})
+	require.NoError(t, err)
+	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "reranker circuit open")
+	require.Equal(t, 1, rr.calls)
+
+	rr.err = nil
+	now = now.Add(61 * time.Second)
+	resp, err = r.Query(context.Background(), &routingv1.QueryRequest{Query: "x", All: true, Explain: true})
+	require.NoError(t, err)
+	require.True(t, resp.GetReranked(), "half-open successful probe reranks")
+	require.False(t, resp.GetDegraded())
+
+	resp, err = r.Query(context.Background(), &routingv1.QueryRequest{Query: "x", All: true, Explain: true})
+	require.NoError(t, err)
+	require.True(t, resp.GetReranked(), "success closes the breaker for following queries")
+	require.Equal(t, 3, rr.calls)
 }
 
 func TestNoRerankerKeepsGroupingOnly(t *testing.T) {

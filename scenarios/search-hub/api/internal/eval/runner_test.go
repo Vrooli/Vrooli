@@ -69,9 +69,7 @@ func TestRunner_OutcomeLabels(t *testing.T) {
 		// below: expected id absent.
 		{CaseId: "missing", Query: "q-missing", ExpectIds: []string{"zzz"}, ExpectWithinTopK: 3},
 		// below: top score under min.
-		{CaseId: "low-score", Query: "q-low", ExpectMinScore: 0.9},
-		// above: top score over max.
-		{CaseId: "hot", Query: "q-hot", ExpectMaxScore: 0.5},
+		{CaseId: "low-score", Query: "q-low", ExpectIds: []string{"a"}, ExpectMinScore: 0.9},
 		// n/a: no expectations.
 		{CaseId: "nada", Query: "q-nada", Tags: []string{"weak-real"}},
 		// gibberish met: nothing exceeds the ceiling.
@@ -85,7 +83,6 @@ func TestRunner_OutcomeLabels(t *testing.T) {
 			"q-met":     {hit("a", 0.82), hit("b", 0.5)},
 			"q-missing": {hit("x", 0.7), hit("y", 0.6)},
 			"q-low":     {hit("a", 0.42)},
-			"q-hot":     {hit("a", 0.88)},
 			"q-nada":    {hit("a", 0.3)},
 			"q-gib-ok":  {hit("a", 0.31), hit("b", 0.2)},
 			"q-gib-bad": {hit("a", 0.77)},
@@ -106,14 +103,13 @@ func TestRunner_OutcomeLabels(t *testing.T) {
 	require.Equal(t, "below_expectation", got["missing"].GetOutcome())
 	require.EqualValues(t, 0, got["missing"].GetExpectedRank())
 	require.Equal(t, "below_expectation", got["low-score"].GetOutcome())
-	require.Equal(t, "above_expectation", got["hot"].GetOutcome())
 	require.Equal(t, "n/a", got["nada"].GetOutcome())
 	require.Equal(t, "met", got["gib-ok"].GetOutcome())
 	require.Equal(t, "unexpected_hit", got["gib-bad"].GetOutcome())
 
 	// Aggregate: 3 met (strong-met, gib-ok, gib-bad? no — gib-bad is unexpected_hit).
 	agg := run.GetAggregate()
-	require.EqualValues(t, 7, agg.GetCases())
+	require.EqualValues(t, 6, agg.GetCases())
 	require.EqualValues(t, 2, agg.GetMet()) // strong-met + gib-ok
 	require.EqualValues(t, 2, agg.GetBelow())
 	require.InDelta(t, 0.82, agg.GetMeanStrongTop1(), 1e-9)
@@ -127,7 +123,7 @@ func TestRunner_SearchErrorDegradesCaseNotRun(t *testing.T) {
 	}
 	suite := suiteWith(
 		&evalv1.EvalCase{CaseId: "bad", Query: "boom", ExpectMinScore: 0.5},
-		&evalv1.EvalCase{CaseId: "good", Query: "ok", ExpectMinScore: 0.5},
+		&evalv1.EvalCase{CaseId: "good", Query: "ok", ExpectIds: []string{"a"}, ExpectMinScore: 0.5},
 	)
 	run, err := newRunner(client).Run(context.Background(), suite, "t", 0)
 	require.NoError(t, err, "a single failing case must not fail the whole run")

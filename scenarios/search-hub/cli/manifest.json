@@ -173,6 +173,22 @@
           }
         },
         {
+          "name": "validate",
+          "description": "Re-probe reviewed positive labels and classify expect_ids as live, hard, stale, or inconclusive",
+          "positionals": [
+            { "name": "suite_id", "required": true, "description": "Suite id to validate" }
+          ],
+          "flags": [
+            { "name": "deep-k", "description": "Probe depth (0 = shared default)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "EvalService", "method": "ValidateCorpus" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
           "name": "runs",
           "description": "List a suite's run history (newest first; --tag/--limit filters)",
           "positionals": [
@@ -246,6 +262,23 @@
             { "name": "apply", "bool": true, "description": "Append the proposals to the suite (each marked generated); default: preview only" }
           ],
           "binding": { "kind": "connect-rpc", "service": "EvalService", "method": "Generate" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "promote",
+          "description": "Promote reviewed candidate cases into the acceptance recall denominator",
+          "positionals": [
+            { "name": "suite_id", "required": true, "description": "Suite id to update, e.g. cli-health.commands.primary" }
+          ],
+          "flags": [
+            { "name": "case", "description": "Case id to promote; comma-separate multiple ids" },
+            { "name": "all", "bool": true, "description": "Promote every candidate case in the suite" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "EvalService", "method": "PromoteCases" },
           "governance": {
             "effect": "write",
             "run_eligible": true,

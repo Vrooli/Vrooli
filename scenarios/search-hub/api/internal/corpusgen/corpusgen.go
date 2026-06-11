@@ -39,9 +39,17 @@ type Sampler interface {
 
 // Deps are the three seams the Generator composes.
 type Deps struct {
-	Sampler  Sampler
-	Inverter Inverter
-	Deduper  Deduper
+	Sampler   Sampler
+	Inverter  Inverter
+	Deduper   Deduper
+	Validator ReferentialValidator
+}
+
+// ReferentialValidator re-confirms that a generated positive query can still
+// retrieve the sampled item it points at. It is optional for pure offline tests,
+// but production wires it so generation cannot emit phantom labels.
+type ReferentialValidator interface {
+	ValidPositive(ctx context.Context, it Item, query string, topK int) (bool, error)
 }
 
 // Options tune one generation run. Zero values fall back to the Default* below.
@@ -101,6 +109,7 @@ type Result struct {
 	Sampled  int
 	Inverted int // candidate queries the inverter produced (pre-dedup)
 	Deduped  int // candidates dropped as near-duplicates
+	Rejected int // candidates dropped by quality/referential filters
 	Strata   []string
 }
 
@@ -146,6 +155,17 @@ func (g *Generator) Generate(ctx context.Context, suite *evalv1.EvalSuite) (*Res
 			continue // a failed inversion is skipped, never fatal
 		}
 		res.Inverted++
+		if isEchoQuery(q, it) {
+			res.Rejected++
+			continue
+		}
+		if g.deps.Validator != nil {
+			ok, err := g.deps.Validator.ValidPositive(ctx, it, q, g.opts.TopK)
+			if err != nil || !ok {
+				res.Rejected++
+				continue
+			}
+		}
 		if g.deps.Deduper.IsDuplicate(q, seen) {
 			res.Deduped++
 			continue
@@ -207,8 +227,8 @@ func (r *Result) Summary() string {
 			pos++
 		}
 	}
-	return fmt.Sprintf("sampled %d item(s) across %d strata → %d inverted → %d deduped → %d proposed (%d positive, %d negative)",
-		r.Sampled, len(r.Strata), r.Inverted, r.Deduped, len(r.Proposed), pos, neg)
+	return fmt.Sprintf("sampled %d item(s) across %d strata → %d inverted → %d rejected → %d deduped → %d proposed (%d positive, %d negative)",
+		r.Sampled, len(r.Strata), r.Inverted, r.Rejected, r.Deduped, len(r.Proposed), pos, neg)
 }
 
 // --- case construction ------------------------------------------------------
@@ -217,6 +237,7 @@ func positiveCase(id, query string, it Item, topK int) *evalv1.EvalCase {
 	return &evalv1.EvalCase{
 		CaseId:           id,
 		Query:            query,
+		Status:           "candidate",
 		Tags:             []string{"generated", it.Stratum()},
 		ExpectIds:        []string{it.ID},
 		ExpectWithinTopK: int32(topK),
@@ -228,6 +249,7 @@ func negativeCase(id, query string, it Item, ceiling float64) *evalv1.EvalCase {
 	return &evalv1.EvalCase{
 		CaseId:            id,
 		Query:             query,
+		Status:            "candidate",
 		Tags:              []string{"generated", "gibberish", it.Stratum()},
 		ExpectNoStrongHit: true,
 		ExpectMaxScore:    ceiling,
@@ -305,4 +327,73 @@ func distinctStrata(items []Item) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+func isEchoQuery(query string, it Item) bool {
+	titleTokens := contentTokenSet(it.Title)
+	if len(titleTokens) == 0 {
+		return false
+	}
+	queryTokens := contentTokenSet(query)
+	if len(queryTokens) == 0 {
+		return true
+	}
+	querySubsetTitle, titleSubsetQuery := true, true
+	for tok := range queryTokens {
+		if _, ok := titleTokens[tok]; !ok {
+			querySubsetTitle = false
+			break
+		}
+	}
+	for tok := range titleTokens {
+		if _, ok := queryTokens[tok]; !ok {
+			titleSubsetQuery = false
+			break
+		}
+	}
+	if !querySubsetTitle && !titleSubsetQuery {
+		return false
+	}
+	return !hasAddedIntentToken(query, titleTokens)
+}
+
+func hasAddedIntentToken(query string, titleTokens map[string]struct{}) bool {
+	for _, tok := range normalizedTokens(query) {
+		if _, inTitle := titleTokens[tok]; inTitle {
+			continue
+		}
+		if _, stop := echoStopWords[tok]; !stop {
+			return true
+		}
+	}
+	return false
+}
+
+func contentTokenSet(s string) map[string]struct{} {
+	out := map[string]struct{}{}
+	for _, tok := range normalizedTokens(s) {
+		if _, stop := echoStopWords[tok]; stop {
+			continue
+		}
+		out[tok] = struct{}{}
+	}
+	return out
+}
+
+func normalizedTokens(s string) []string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(s) {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+			continue
+		}
+		b.WriteByte(' ')
+	}
+	return strings.Fields(b.String())
+}
+
+var echoStopWords = map[string]struct{}{
+	"a": {}, "an": {}, "and": {}, "as": {}, "can": {}, "do": {}, "for": {}, "how": {},
+	"i": {}, "in": {}, "is": {}, "me": {}, "of": {}, "on": {}, "please": {}, "run": {}, "the": {},
+	"to": {}, "use": {}, "what": {}, "with": {},
 }

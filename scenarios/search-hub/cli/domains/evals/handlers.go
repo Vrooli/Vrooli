@@ -192,6 +192,45 @@ func failingCases(r *evalv1.EvalRun) []string {
 	return out
 }
 
+// validate re-probes reviewed positive labels and reports whether expect_ids
+// still point at live provider results.
+func (h *handlers) validate(ctx cliapp.RunContext) error {
+	id := ctx.Positional("suite_id")
+	deepK, err := parseLimit(ctx.Flag("deep-k"))
+	if err != nil {
+		return fmt.Errorf("invalid --deep-k: %w", err)
+	}
+	resp, err := h.client.ValidateCorpus(context.Background(), connect.NewRequest(&evalv1.ValidateCorpusRequest{
+		SuiteId: id,
+		DeepK:   deepK,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("validate corpus %q", id), err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no validation response")
+	}
+	msg := resp.Msg
+	results := make([]string, 0, len(msg.GetCases()))
+	for _, c := range msg.GetCases() {
+		results = append(results, formatValidationCase(c))
+	}
+	r := msg.GetRollup()
+	return cliapp.RenderProtoList(ctx, msg, cliapp.ListReport{
+		Summary: []string{
+			fmt.Sprintf("Validated %s [provider=%s]", msg.GetSuiteId(), msg.GetProviderId()),
+			fmt.Sprintf("positives=%d live=%d hard=%d stale=%d inconclusive=%d candidate=%d",
+				r.GetPositives(), r.GetLive(), r.GetHard(), r.GetStale(), r.GetInconclusive(), r.GetCandidate()),
+		},
+		ResultsHeading: "Reviewed positives",
+		Results:        results,
+		RetrievalHints: []string{
+			fmt.Sprintf("`evals show %s` — inspect the corpus labels", id),
+			fmt.Sprintf("`evals run %s --tag baseline` — run the suite after label fixes", id),
+		},
+	})
+}
+
 // sweep runs the two-tier overfit-safe tuning sweep and renders the ranked arms
 // + the promotion verdict. --apply gates the write-back; default is preview.
 func (h *handlers) sweep(ctx cliapp.RunContext) error {
@@ -280,6 +319,48 @@ func (h *handlers) generate(ctx cliapp.RunContext) error {
 	return cliapp.RenderProtoList(ctx, msg, cliapp.ListReport{
 		Summary:        summary,
 		ResultsHeading: "Proposed cases",
+		Results:        results,
+		RetrievalHints: next,
+	})
+}
+
+// promote flips reviewed candidate cases to reviewed status through the
+// provider's corpus write-back control plane. Re-running the same command is an
+// idempotent no-op reported via already_reviewed_case_ids.
+func (h *handlers) promote(ctx cliapp.RunContext) error {
+	id := ctx.Positional("suite_id")
+	caseIDs := splitCaseIDs(ctx.Flag("case"))
+	resp, err := h.client.PromoteCases(context.Background(), connect.NewRequest(&evalv1.PromoteCasesRequest{
+		SuiteId: id,
+		CaseIds: caseIDs,
+		All:     ctx.BoolFlag("all"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("promote cases for %q", id), err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no promote response")
+	}
+	msg := resp.Msg
+	summary := []string{
+		fmt.Sprintf("Promote %s [provider=%s]", msg.GetSuiteId(), msg.GetProviderId()),
+		fmt.Sprintf("promoted=%d already_reviewed=%d applied=%t",
+			len(msg.GetPromotedCaseIds()), len(msg.GetAlreadyReviewedCaseIds()), msg.GetApplied()),
+	}
+	results := []string{}
+	if len(msg.GetPromotedCaseIds()) > 0 {
+		results = append(results, "promoted: "+strings.Join(msg.GetPromotedCaseIds(), ", "))
+	}
+	if len(msg.GetAlreadyReviewedCaseIds()) > 0 {
+		results = append(results, "already reviewed: "+strings.Join(msg.GetAlreadyReviewedCaseIds(), ", "))
+	}
+	next := []string{
+		fmt.Sprintf("`evals show %s` — inspect case statuses", id),
+		fmt.Sprintf("`evals run %s --tag baseline` — run the promoted corpus", id),
+	}
+	return cliapp.RenderProtoList(ctx, msg, cliapp.ListReport{
+		Summary:        summary,
+		ResultsHeading: "Promotion result",
 		Results:        results,
 		RetrievalHints: next,
 	})
@@ -390,6 +471,17 @@ func parseLimit(raw string) (int32, error) {
 	return int32(n), nil
 }
 
+func splitCaseIDs(raw string) []string {
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if id := strings.TrimSpace(part); id != "" {
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
 func formatSuite(s *evalv1.EvalSuite) string {
 	if s == nil {
 		return "(nil)"
@@ -417,6 +509,9 @@ func formatCase(c *evalv1.EvalCase) string {
 	}
 	if c.GetExpectNoStrongHit() {
 		exp = append(exp, "no-strong-hit")
+	}
+	if c.GetStatus() != "" {
+		exp = append(exp, "status="+c.GetStatus())
 	}
 	expectation := ""
 	if len(exp) > 0 {
@@ -461,6 +556,34 @@ func formatDelta(d *evalv1.CaseDelta) string {
 	return fmt.Sprintf("%-16s %-18s → %-18s  top %.3f → %.3f  rank %d → %d",
 		d.GetCaseId(), emptyDash(d.GetOutcomeA()), emptyDash(d.GetOutcomeB()),
 		d.GetTopScoreA(), d.GetTopScoreB(), d.GetExpectedRankA(), d.GetExpectedRankB())
+}
+
+func formatValidationCase(c *evalv1.CorpusValidationCase) string {
+	rank := "-"
+	if c.GetObservedRank() > 0 {
+		rank = strconv.Itoa(int(c.GetObservedRank()))
+	}
+	msg := ""
+	if c.GetMessage() != "" {
+		msg = " — " + c.GetMessage()
+	}
+	return fmt.Sprintf("%-16s %-14s rank=%s probes=%s%s",
+		c.GetCaseId(), referentialLabel(c.GetReferential()), rank, strings.Join(c.GetProbedQueries(), "|"), msg)
+}
+
+func referentialLabel(r evalv1.ReferentialOutcome) string {
+	switch r {
+	case evalv1.ReferentialOutcome_REFERENTIAL_OUTCOME_LIVE:
+		return "live"
+	case evalv1.ReferentialOutcome_REFERENTIAL_OUTCOME_HARD:
+		return "hard"
+	case evalv1.ReferentialOutcome_REFERENTIAL_OUTCOME_STALE:
+		return "stale"
+	case evalv1.ReferentialOutcome_REFERENTIAL_OUTCOME_INCONCLUSIVE:
+		return "inconclusive"
+	default:
+		return "unknown"
+	}
 }
 
 func emptyDash(s string) string {
