@@ -17,11 +17,11 @@
     "qdrant": {
       "url": "http://localhost:6333",
       "collection": "prompts",
-      "vector_size": 384
+      "embedding_role": "embedding.default"
     },
     "ollama": {
       "url": "http://localhost:11434",
-      "embedding_model": "embedding.default",
+      "embedding_role": "embedding.default",
       "chat_model": "chat.small"
     }
   },

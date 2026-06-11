@@ -26,23 +26,40 @@
     },
     {
       "id": "PROTO-SURFACES-002",
-      "title": "Wire proto findings into quality loop",
+      "title": "Wire proto findings into test-genie",
       "status": "planned",
-      "prd_ref": "OT-P1-001, OT-P1-002",
+      "prd_ref": "OT-P1-001",
       "category": "integration",
       "criticality": "P1",
-      "description": "test-genie receives FINDING_SOURCE_PROTO findings and ecosystem-manager maps them to an R2 proto-health maturity dimension.",
-      "tags": ["test-genie", "ecosystem-manager", "maturity"],
+      "description": "test-genie receives FINDING_SOURCE_PROTO findings from the optional proto phase and preserves stable finding IDs.",
+      "tags": ["test-genie", "findings", "proto-phase"],
       "validation": [
         {
           "type": "integration",
           "status": "planned",
-          "notes": "Add test-genie phase tests and maturity map anti-drift tests."
+          "notes": "Add test-genie phase tests that parse proto-health output and map findings to FINDING_SOURCE_PROTO."
         }
       ]
     },
     {
       "id": "PROTO-SURFACES-003",
+      "title": "Map proto findings to maturity",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "integration",
+      "criticality": "P1",
+      "description": "ecosystem-manager maps FINDING_SOURCE_PROTO and the proto test-genie phase to an R2 proto-health maturity dimension.",
+      "tags": ["ecosystem-manager", "maturity", "r2"],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Add maturity map anti-drift tests for source and phase mappings."
+        }
+      ]
+    },
+    {
+      "id": "PROTO-SURFACES-004",
       "title": "Ship direct UI inspection surface",
       "status": "planned",
       "prd_ref": "OT-P1-003",
@@ -55,6 +72,40 @@
           "type": "ui",
           "status": "planned",
           "notes": "Vitest + a11y coverage for loading/error/empty and populated states."
+        }
+      ]
+    },
+    {
+      "id": "PROTO-SURFACES-005",
+      "title": "Publish proto contract audit skill",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "skill",
+      "criticality": "P1",
+      "description": "proto-contract-audit loads through prompt-manager and delegates broader API/interoperability decisions to existing steer skills.",
+      "tags": ["prompt-manager", "skill", "audit"],
+      "validation": [
+        {
+          "type": "cli",
+          "status": "planned",
+          "notes": "Run `prompt-manager skill read proto-contract-audit` and skill validation checks."
+        }
+      ]
+    },
+    {
+      "id": "PROTO-SURFACES-006",
+      "title": "Verify generated proto artifacts in CI",
+      "status": "planned",
+      "prd_ref": "OT-P1-005",
+      "category": "ci",
+      "criticality": "P1",
+      "description": "CI runs the packages/proto generated-artifact check so committed generated files cannot drift from schema sources.",
+      "tags": ["ci", "proto", "generated-artifacts"],
+      "validation": [
+        {
+          "type": "ci",
+          "status": "planned",
+          "notes": "Workflow includes `cd packages/proto && make check`."
         }
       ]
     }

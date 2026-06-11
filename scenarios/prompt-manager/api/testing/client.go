@@ -41,7 +41,7 @@ func (c *OllamaClient) IsEnabled() bool {
 }
 
 // Generate runs a skill through Ollama and returns the response.
-func (c *OllamaClient) Generate(model, prompt string, maxTokens int, temperature float64) (*OllamaResponse, float64, error) {
+func (c *OllamaClient) Generate(role, prompt string, maxTokens int, temperature float64) (*OllamaResponse, float64, error) {
 	if !c.IsEnabled() {
 		return nil, 0, fmt.Errorf("ollama not configured")
 	}
@@ -53,7 +53,7 @@ func (c *OllamaClient) Generate(model, prompt string, maxTokens int, temperature
 		c.bin,
 		"gateway",
 		"generate",
-		"--model", model,
+		"--role", role,
 		"--json",
 		"--prompt-stdin",
 	}

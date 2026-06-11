@@ -8,6 +8,7 @@
   "layout": {
     "sidebarLabel": "メインサイドバーナビゲーション",
     "bottomNavLabel": "メインモバイルナビゲーション",
+    "mainLabel": "メインコンテンツ",
     "nav": {
       "dashboard": "ダッシュボード",
       "notes": "ノート",
@@ -45,6 +46,47 @@
     "statusLabel": "ステータス:",
     "serviceLabel": "サービス:",
     "timestampLabel": "タイムスタンプ:"
+  },
+  "protoHealth": {
+    "scenarioLabel": "シナリオ",
+    "run": "実行",
+    "loading": "proto サーフェスを読み込み中...",
+    "validation": "検証",
+    "status": {
+      "passed": "合格",
+      "blocked": "ブロック"
+    },
+    "metrics": {
+      "errors": "エラー",
+      "warnings": "警告",
+      "info": "情報"
+    },
+    "empty": "検出事項はありません。",
+    "surfaceFacts": "サーフェス情報",
+    "facts": {
+      "files": "ファイル",
+      "services": "サービス",
+      "transport": "トランスポート"
+    },
+    "table": {
+      "domain": "ドメイン",
+      "service": "サービス",
+      "rpcs": "RPC"
+    },
+    "noServices": "サービスは見つかりません。",
+    "severity": {
+      "error": "エラー",
+      "warning": "警告",
+      "info": "情報",
+      "unspecified": "未指定"
+    },
+    "transport": {
+      "connect": "Connect",
+      "handRolled": "手書き",
+      "mixed": "混在",
+      "none": "なし",
+      "unknown": "不明"
+    }
   },
   "notifications": {
     "summary": "{{count}} 件の通知"

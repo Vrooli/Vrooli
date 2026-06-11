@@ -89,8 +89,8 @@ Severity rule: severity is **the reporter's claim**. The investigator may overru
 
    ```bash
    prompt-manager team knowledge-add scenario-qa \
-     --by=<your-agent-id> \
      --topic="bug-inbox/<signal-type>/<slug>" \
+     --caller-note="filed via report-bug skill" \
      --content="$(cat <<'EOF'
    ---
    <front-matter from step 4>

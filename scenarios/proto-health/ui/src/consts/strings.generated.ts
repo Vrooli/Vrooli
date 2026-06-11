@@ -20,6 +20,7 @@ export const strings = {
   layout: {
     sidebarLabel: "layout.sidebarLabel",
     bottomNavLabel: "layout.bottomNavLabel",
+    mainLabel: "layout.mainLabel",
     nav: {
       dashboard: "layout.nav.dashboard",
       notes: "layout.nav.notes",
@@ -58,6 +59,47 @@ export const strings = {
     statusLabel: "health.statusLabel",
     serviceLabel: "health.serviceLabel",
     timestampLabel: "health.timestampLabel",
+  },
+  protoHealth: {
+    scenarioLabel: "protoHealth.scenarioLabel",
+    run: "protoHealth.run",
+    loading: "protoHealth.loading",
+    validation: "protoHealth.validation",
+    status: {
+      passed: "protoHealth.status.passed",
+      blocked: "protoHealth.status.blocked",
+    },
+    metrics: {
+      errors: "protoHealth.metrics.errors",
+      warnings: "protoHealth.metrics.warnings",
+      info: "protoHealth.metrics.info",
+    },
+    empty: "protoHealth.empty",
+    surfaceFacts: "protoHealth.surfaceFacts",
+    facts: {
+      files: "protoHealth.facts.files",
+      services: "protoHealth.facts.services",
+      transport: "protoHealth.facts.transport",
+    },
+    table: {
+      domain: "protoHealth.table.domain",
+      service: "protoHealth.table.service",
+      rpcs: "protoHealth.table.rpcs",
+    },
+    noServices: "protoHealth.noServices",
+    severity: {
+      error: "protoHealth.severity.error",
+      warning: "protoHealth.severity.warning",
+      info: "protoHealth.severity.info",
+      unspecified: "protoHealth.severity.unspecified",
+    },
+    transport: {
+      connect: "protoHealth.transport.connect",
+      handRolled: "protoHealth.transport.handRolled",
+      mixed: "protoHealth.transport.mixed",
+      none: "protoHealth.transport.none",
+      unknown: "protoHealth.transport.unknown",
+    },
   },
   notifications: {
     summary: "notifications.summary",

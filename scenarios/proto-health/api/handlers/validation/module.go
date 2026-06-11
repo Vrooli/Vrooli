@@ -25,7 +25,11 @@ func Module(logger *log.Logger, repoRoot string) module.Module {
 	if err != nil {
 		logger.Fatalf("proto descriptor loader: %v", err)
 	}
-	validator := internal.New(internal.Deps{Loader: loader, RepoRoot: repoRoot})
+	validator := internal.New(internal.Deps{
+		Loader:         loader,
+		GenSyncChecker: internal.NewGeneratedArtifactChecker(repoRoot),
+		RepoRoot:       repoRoot,
+	})
 	connectPath, connectHandler := validationconnect.NewProtoHealthServiceHandler(NewConnectHandler(Deps{
 		Logger:    logger,
 		Validator: validator,

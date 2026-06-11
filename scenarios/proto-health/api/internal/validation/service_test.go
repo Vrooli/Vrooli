@@ -18,6 +18,15 @@ func (f fakeLoader) LoadScenario(string) (protosurface.Surface, error) {
 	return f.surface, f.err
 }
 
+type fakeGenSyncChecker struct {
+	status GenSyncStatus
+	err    error
+}
+
+func (f fakeGenSyncChecker) CheckScenario(context.Context, string) (GenSyncStatus, error) {
+	return f.status, f.err
+}
+
 func TestValidateScenarioCleanSurfacePasses(t *testing.T) {
 	svc := New(Deps{Loader: fakeLoader{surface: cleanSurface()}})
 
@@ -26,6 +35,22 @@ func TestValidateScenarioCleanSurfacePasses(t *testing.T) {
 	require.True(t, report.Passed)
 	require.Empty(t, report.Findings)
 	require.Zero(t, report.Summary.Errors)
+}
+
+func TestValidateScenarioFindsGeneratedArtifactDrift(t *testing.T) {
+	svc := New(Deps{
+		Loader: fakeLoader{surface: cleanSurface()},
+		GenSyncChecker: fakeGenSyncChecker{status: GenSyncStatus{
+			InSync: false,
+			Drift:  []string{"packages/proto/gen/go/demo"},
+			Detail: "1 generated slice differs after regeneration",
+		}},
+	})
+
+	report, err := svc.ValidateScenario(context.Background(), "demo")
+	require.NoError(t, err)
+	require.False(t, report.Passed)
+	requireFinding(t, report, CodeGenOutOfSync, SeverityError)
 }
 
 func TestValidateScenarioFindsPolicyViolations(t *testing.T) {

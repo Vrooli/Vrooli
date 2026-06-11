@@ -8,6 +8,7 @@
   "layout": {
     "sidebarLabel": "Primary sidebar navigation",
     "bottomNavLabel": "Primary mobile navigation",
+    "mainLabel": "Main content",
     "nav": {
       "dashboard": "Dashboard",
       "notes": "Notes",
@@ -46,6 +47,47 @@
     "statusLabel": "Status:",
     "serviceLabel": "Service:",
     "timestampLabel": "Timestamp:"
+  },
+  "protoHealth": {
+    "scenarioLabel": "Scenario",
+    "run": "Run",
+    "loading": "Loading proto surface...",
+    "validation": "Validation",
+    "status": {
+      "passed": "Passed",
+      "blocked": "Blocked"
+    },
+    "metrics": {
+      "errors": "Errors",
+      "warnings": "Warnings",
+      "info": "Info"
+    },
+    "empty": "No findings.",
+    "surfaceFacts": "Surface Facts",
+    "facts": {
+      "files": "Files",
+      "services": "Services",
+      "transport": "Transport"
+    },
+    "table": {
+      "domain": "Domain",
+      "service": "Service",
+      "rpcs": "RPCs"
+    },
+    "noServices": "No services found.",
+    "severity": {
+      "error": "Error",
+      "warning": "Warning",
+      "info": "Info",
+      "unspecified": "Unspecified"
+    },
+    "transport": {
+      "connect": "Connect",
+      "handRolled": "Hand-rolled",
+      "mixed": "Mixed",
+      "none": "None",
+      "unknown": "Unknown"
+    }
   },
   "notifications": {
     "summary": "{{count}} notifications",

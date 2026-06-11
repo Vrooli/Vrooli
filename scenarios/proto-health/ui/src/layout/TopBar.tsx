@@ -4,6 +4,11 @@ import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTra
 import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
+const THEME_LABEL_KEYS = {
+  light: strings.theme.choice.light,
+  dark: strings.theme.choice.dark,
+  system: strings.theme.choice.system,
+};
 
 /**
  * Top app bar — title, locale switcher, theme toggle. Visible at every viewport
@@ -64,7 +69,7 @@ export function TopBar() {
           >
             {THEME_CHOICES.map((c) => (
               <option key={c} value={c}>
-                {t(strings.theme.choice[c])}
+                {t(THEME_LABEL_KEYS[c])}
               </option>
             ))}
           </select>

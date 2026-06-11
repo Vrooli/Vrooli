@@ -100,13 +100,13 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | Temp-directory or in-memory fixtures that expose only the scenario under test. |
 | **Why it exists** | `proto-health` validates one scenario. A locator seam keeps that boundary explicit and prevents checker tests from accidentally walking the whole fleet. |
 
-### Planned: GenSyncChecker (generated artifact drift)
+### GenSyncChecker (generated artifact drift)
 
 | | |
 |---|---|
 | **Seam** | Scenario-scoped generated proto sync check |
-| **Interface** | Planned `internal/validation::GenSyncChecker`, returning whether generated artifacts for one scenario match schema source. |
-| **Production wiring** | Production shells to the existing proto generation/check workflow or consumes its output; it does not re-implement `buf generate`. |
+| **Interface** | `internal/validation::GenSyncChecker`, returning whether generated artifacts for one scenario match schema source. |
+| **Production wiring** | `handlers/validation.Module` constructs `internal/validation.NewGeneratedArtifactChecker(repoRoot)`. The checker copies `packages/proto` to a temp workspace, runs `make generate` there, and byte-compares only the target scenario's generated Go, TypeScript, JS, and Python slices. |
 | **Test fake** | A fake checker returns clean or drifted results for `proto.gen_out_of_sync` tests. |
 | **Why it exists** | `buf` already owns generation. The validator owns translating drift into a stable finding without making every unit test run codegen. |
 

@@ -71,51 +71,6 @@ replacement pattern is green.
 **Refs:** `docs/concepts/DOMAINS.md`, `api/internal/notes/`,
 `packages/proto/schemas/proto-health/v1/notes/`.
 
-### 2026-06-11 - Descriptor source-info must be verified early
-
-**Symptom:** `@stability` and other leading-comment annotations are
-only available if descriptor source info is present.
-
-**Root cause:** The planned reader consumes
-`packages/proto/gen/descriptor/image.binpb`; if that image ever omits
-source info, annotation-based checks would silently lose evidence.
-
-**Workaround:** During the descriptor reader implementation, add a
-fixture or smoke test that proves leading comments are readable for at
-least one known proto file.
-
-**Real fix:** If committed `image.binpb` lacks source info, build the
-descriptor with `buf build --include-source-info` or generate a
-scenario-scoped descriptor with source info inside the reader.
-
-**Owner:** protosurface implementer.
-
-**Refs:** `packages/proto/Makefile`, `packages/measures-go/paramschema.go`.
-
-### 2026-06-11 - Generated sync finding is still a planned seam
-
-**Symptom:** `internal/validation` defines the stable
-`proto.gen_out_of_sync` code, but the production validator does not yet
-run a scenario-scoped generated-artifact sync check.
-
-**Root cause:** `packages/proto make check` currently regenerates and
-diffs the whole committed `gen/` tree. The validator needs a
-scenario-scoped seam before it can translate drift into a finding
-without turning every API request into a fleet-wide generation pass.
-
-**Workaround:** Continue running `cd packages/proto && make check`
-manually or in CI until the `GenSyncChecker` seam is wired.
-
-**Real fix:** Implement `internal/validation::GenSyncChecker` with a
-fakeable interface and production wiring that shells to the existing
-buf workflow or consumes its output, then emit `proto.gen_out_of_sync`
-from `ValidateScenario`.
-
-**Owner:** proto-health implementer.
-
-**Refs:** `docs/internal/SEAMS.md`, `packages/proto/Makefile`,
-`api/internal/validation/types.go`.
-
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

@@ -93,32 +93,10 @@
             "effect": "read",
             "run_eligible": true,
             "permissions": ["network:internal"]
-          },
-          "measure": {
-            "intent": "How many notes were created in a given time window.",
-            "questions": [
-              "how many notes were created this week",
-              "notes created last month",
-              "how many notes did we add in the last 7 days"
-            ],
-            "params": {
-              "window": { "type": "time_window", "default": "this_week" }
-            },
-            "result": {
-              "kind": "scalar",
-              "value_field": "count",
-              "unit": "notes",
-              "summary_template": "{count} notes created ({window})"
-            }
           }
         }
       ]
     }
   ],
-  "measures": {
-    "domains": [
-      { "domain": "notes", "stateful": true, "reason": "Notes are countable persisted rows; the notes count measure covers this domain at full tier." }
-    ]
-  },
   "omitted": []
 }

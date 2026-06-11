@@ -95,8 +95,8 @@ Gather before invoking the writer:
 
    ```bash
    prompt-manager team knowledge-add meta-optimization \
-     --by=<your-agent-id> \
      --topic="friction-inbox/<scope>/<slug>" \
+     --caller-note="filed via report-friction skill" \
      --content="$(cat <<'EOF'
    ---
    <front-matter from step 4>

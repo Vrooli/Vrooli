@@ -16,20 +16,22 @@ import (
 var versionDirRE = regexp.MustCompile(`^v[1-9][0-9]*$`)
 
 type Service struct {
-	loader   SurfaceLoader
-	repoRoot string
+	loader         SurfaceLoader
+	genSyncChecker GenSyncChecker
+	repoRoot       string
 }
 
 type Deps struct {
-	Loader   SurfaceLoader
-	RepoRoot string
+	Loader         SurfaceLoader
+	GenSyncChecker GenSyncChecker
+	RepoRoot       string
 }
 
 func New(d Deps) *Service {
-	return &Service{loader: d.Loader, repoRoot: d.RepoRoot}
+	return &Service{loader: d.Loader, genSyncChecker: d.GenSyncChecker, repoRoot: d.RepoRoot}
 }
 
-func (s *Service) ValidateScenario(_ context.Context, scenario string) (Report, error) {
+func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report, error) {
 	scenario = strings.TrimSpace(scenario)
 	if scenario == "" {
 		return Report{}, fmt.Errorf("scenario name is required")
@@ -44,6 +46,7 @@ func (s *Service) ValidateScenario(_ context.Context, scenario string) (Report, 
 
 	var findings []Finding
 	findings = append(findings, checkCycles(surface)...)
+	findings = append(findings, s.checkGeneratedArtifacts(ctx, scenario)...)
 	findings = append(findings, checkPackages(scenario, surface)...)
 	findings = append(findings, checkVersions(surface)...)
 	findings = append(findings, checkUnsupportedAnnotations(surface)...)
@@ -56,6 +59,40 @@ func (s *Service) ValidateScenario(_ context.Context, scenario string) (Report, 
 	findings = append(findings, s.checkDomainMismatch(surface)...)
 	sortFindings(findings)
 	return finalize(scenario, findings), nil
+}
+
+func (s *Service) checkGeneratedArtifacts(ctx context.Context, scenario string) []Finding {
+	if s.genSyncChecker == nil {
+		return nil
+	}
+	status, err := s.genSyncChecker.CheckScenario(ctx, scenario)
+	if err != nil {
+		return []Finding{{
+			Severity:   SeverityError,
+			Code:       CodeGenOutOfSync,
+			Location:   "packages/proto/gen",
+			Message:    "generated proto artifact sync check failed: " + err.Error(),
+			Suggestion: "run cd packages/proto && make generate, then rerun proto-health validation",
+		}}
+	}
+	if status.InSync {
+		return nil
+	}
+	location := "packages/proto/gen"
+	if len(status.Drift) > 0 {
+		location = status.Drift[0]
+	}
+	message := "generated proto artifacts are out of sync with schemas"
+	if status.Detail != "" {
+		message += ": " + status.Detail
+	}
+	return []Finding{{
+		Severity:   SeverityError,
+		Code:       CodeGenOutOfSync,
+		Location:   location,
+		Message:    message,
+		Suggestion: "run cd packages/proto && make generate and commit the generated artifacts",
+	}}
 }
 
 func (s *Service) DescribeScenarioProtos(_ context.Context, scenario string) (protosurface.Surface, error) {

@@ -89,6 +89,16 @@ Use this decision flow to keep outputs consistent:
 
 ### 5. Plan Authoring Workflow
 
+#### Step 0: Recall prior work (before discovery)
+
+Before authoring, run the AGENTS.md §4 "Recall prior work first" beat, scoped to planning:
+
+```bash
+search-hub query "<one-sentence plan intent>" --type record,backlog,initiative,skill,doc
+```
+
+Read the top hits. A `record` hit shows how prior work was actually *executed* — its trigger and approach — which is exactly the decision context a plan wants (not just code). Three exits: no prior art → author fresh; related prior work → cite it in §5 Current Technical Context and build on it; a near-duplicate of an already-shipped plan → stop and reconcile (supersede or extend it) rather than re-authoring. If search-hub is unavailable, fall back to `swarm-manager records search "<intent>"`.
+
 #### Step A: Establish canonical context
 
 Discover the skills that apply to *this* plan rather than reading a fixed list. Follow `plan-skill-discovery`:
@@ -170,7 +180,7 @@ Quality checks:
 While authoring, you will spot defects unrelated to the plan's surface. Use this three-part heuristic:
 
 1. **Cheap + confident + adjacent** → fix in the plan with a one-line note in §11 Risks or §5 Current Technical Context. Criteria: ≤1 file, no API change, no new tests beyond an obvious assertion, and you can name the root cause without further investigation.
-2. **Any of**: needs investigation, unrelated files, new tests, API change, unknown ripple → file via `report-bug` (routes to scenario-qa).
+2. **Any of**: needs investigation, unrelated files, new tests, API change, unknown ripple → load `prompt-manager skill read report-bug` and file through its `prompt-manager team knowledge-add scenario-qa --topic="bug-inbox/<signal-type>/<slug>" ...` workflow.
 3. **Defect is the actual plan trigger** → don't sidebar it; fold it into §3 Problem Statement.
 
 When the plan itself reaches Definition of Done (executor finishes §10 checklist), write a `kind: execute` record describing the substantive decisions:

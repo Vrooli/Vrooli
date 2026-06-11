@@ -8,6 +8,7 @@
   "layout": {
     "sidebarLabel": "تنقل الشريط الجانبي الرئيسي",
     "bottomNavLabel": "تنقل الهاتف الرئيسي",
+    "mainLabel": "المحتوى الرئيسي",
     "nav": {
       "dashboard": "لوحة التحكم",
       "notes": "الملاحظات",
@@ -46,6 +47,47 @@
     "statusLabel": "الحالة:",
     "serviceLabel": "الخدمة:",
     "timestampLabel": "الطابع الزمني:"
+  },
+  "protoHealth": {
+    "scenarioLabel": "السيناريو",
+    "run": "تشغيل",
+    "loading": "جارٍ تحميل سطح proto...",
+    "validation": "التحقق",
+    "status": {
+      "passed": "ناجح",
+      "blocked": "محظور"
+    },
+    "metrics": {
+      "errors": "الأخطاء",
+      "warnings": "التحذيرات",
+      "info": "المعلومات"
+    },
+    "empty": "لا توجد نتائج.",
+    "surfaceFacts": "حقائق السطح",
+    "facts": {
+      "files": "الملفات",
+      "services": "الخدمات",
+      "transport": "النقل"
+    },
+    "table": {
+      "domain": "النطاق",
+      "service": "الخدمة",
+      "rpcs": "RPCs"
+    },
+    "noServices": "لم يتم العثور على خدمات.",
+    "severity": {
+      "error": "خطأ",
+      "warning": "تحذير",
+      "info": "معلومة",
+      "unspecified": "غير محدد"
+    },
+    "transport": {
+      "connect": "Connect",
+      "handRolled": "يدوي",
+      "mixed": "مختلط",
+      "none": "لا شيء",
+      "unknown": "غير معروف"
+    }
   },
   "notifications": {
     "summary": "{{count}} إشعارات",

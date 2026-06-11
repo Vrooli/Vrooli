@@ -9,6 +9,7 @@ import { describeScenarioProtos, validateScenario } from "../../api/protoHealth"
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { selectors } from "../../consts/selectors";
+import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { errorMessage } from "../../lib/errorMessage";
 
@@ -49,14 +50,13 @@ export function ProtoHealthPanel() {
       <div className="flex flex-col gap-3 rounded-panel border border-app-border bg-app-surface p-4">
         <div className="flex flex-col gap-1">
           <p className="text-xs font-semibold uppercase text-app-muted-foreground">
-            Contract validator
+            {t(strings.app.eyebrow)}
           </p>
           <h3 id="proto-health-heading" className="text-xl font-semibold text-app-foreground">
-            Proto Health
+            {t(strings.app.title)}
           </h3>
           <p className="max-w-3xl text-sm text-app-muted-foreground">
-            Validate one scenario's proto contract and inspect the surface facts consumed by
-            downstream quality-loop tools.
+            {t(strings.app.description)}
           </p>
         </div>
 
@@ -69,14 +69,14 @@ export function ProtoHealthPanel() {
         >
           <Input
             data-testid={selectors.protoHealth.scenarioInput}
-            aria-label="Scenario"
+            aria-label={t(strings.protoHealth.scenarioLabel)}
             value={scenario}
             onChange={(event) => setScenario(event.currentTarget.value)}
             className="min-w-0 flex-1"
           />
           <Button data-testid={selectors.protoHealth.runButton} type="submit">
             <RefreshCcw aria-hidden="true" className="me-2 h-4 w-4" />
-            Run
+            {t(strings.protoHealth.run)}
           </Button>
         </form>
 
@@ -104,7 +104,7 @@ export function ProtoHealthPanel() {
 
       {loading && (
         <p data-testid={selectors.protoHealth.loading} className="text-sm text-app-muted-foreground">
-          Loading proto surface...
+          {t(strings.protoHealth.loading)}
         </p>
       )}
 
@@ -120,7 +120,7 @@ export function ProtoHealthPanel() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase text-app-muted-foreground">
-                  Validation
+                  {t(strings.protoHealth.validation)}
                 </p>
                 <h4 className="text-lg font-semibold">{report.scenario}</h4>
               </div>
@@ -132,18 +132,18 @@ export function ProtoHealthPanel() {
                     : "rounded-control bg-red-100 px-3 py-1 text-sm font-semibold text-red-800"
                 }
               >
-                {report.passed ? "Passed" : "Blocked"}
+                {report.passed ? t(strings.protoHealth.status.passed) : t(strings.protoHealth.status.blocked)}
               </span>
             </div>
             <dl className="mt-4 grid grid-cols-3 gap-2 text-sm">
-              <Metric label="Errors" value={report.summary?.errors ?? 0} />
-              <Metric label="Warnings" value={report.summary?.warnings ?? 0} />
-              <Metric label="Info" value={report.summary?.infos ?? 0} />
+              <Metric label={t(strings.protoHealth.metrics.errors)} value={report.summary?.errors ?? 0} />
+              <Metric label={t(strings.protoHealth.metrics.warnings)} value={report.summary?.warnings ?? 0} />
+              <Metric label={t(strings.protoHealth.metrics.info)} value={report.summary?.infos ?? 0} />
             </dl>
             <div className="mt-4 flex flex-col gap-2">
               {report.findings.length === 0 ? (
                 <p data-testid={selectors.protoHealth.empty} className="text-sm text-app-muted-foreground">
-                  No findings.
+                  {t(strings.protoHealth.empty)}
                 </p>
               ) : (
                 report.findings.slice(0, 8).map((finding) => (
@@ -154,7 +154,7 @@ export function ProtoHealthPanel() {
                   >
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs font-semibold uppercase text-app-muted-foreground">
-                        {severityLabel(finding.severity)}
+                        {t(severityLabelKey(finding.severity))}
                       </span>
                       <span className="font-mono text-xs text-app-foreground">{finding.code}</span>
                     </div>
@@ -172,31 +172,39 @@ export function ProtoHealthPanel() {
 
           <div className="rounded-panel border border-app-border bg-app-surface p-4">
             <p className="text-xs font-semibold uppercase text-app-muted-foreground">
-              Surface Facts
+              {t(strings.protoHealth.surfaceFacts)}
             </p>
             <div className="mt-3 grid gap-3 sm:grid-cols-3">
-              <Fact icon={<FileCode2 aria-hidden="true" />} label="Files" value={protoSurface.files.length} />
-              <Fact icon={<Activity aria-hidden="true" />} label="Services" value={protoSurface.services.length} />
+              <Fact
+                icon={<FileCode2 aria-hidden="true" />}
+                label={t(strings.protoHealth.facts.files)}
+                value={protoSurface.files.length}
+              />
+              <Fact
+                icon={<Activity aria-hidden="true" />}
+                label={t(strings.protoHealth.facts.services)}
+                value={protoSurface.services.length}
+              />
               <Fact
                 icon={<GitBranch aria-hidden="true" />}
-                label="Transport"
-                value={transportWorldLabel(protoSurface.transportWorld)}
+                label={t(strings.protoHealth.facts.transport)}
+                value={t(transportWorldLabelKey(protoSurface.transportWorld))}
               />
             </div>
             <div className="mt-4 overflow-hidden rounded-panel border border-app-border">
               <table className="w-full table-fixed text-left text-sm">
                 <thead className="bg-app-surface-muted text-xs uppercase text-app-muted-foreground">
                   <tr>
-                    <th className="px-3 py-2">Domain</th>
-                    <th className="px-3 py-2">Service</th>
-                    <th className="px-3 py-2">RPCs</th>
+                    <th className="px-3 py-2">{t(strings.protoHealth.table.domain)}</th>
+                    <th className="px-3 py-2">{t(strings.protoHealth.table.service)}</th>
+                    <th className="px-3 py-2">{t(strings.protoHealth.table.rpcs)}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {protoSurface.services.length === 0 ? (
                     <tr>
                       <td className="px-3 py-3 text-app-muted-foreground" colSpan={3}>
-                        No services found.
+                        {t(strings.protoHealth.noServices)}
                       </td>
                     </tr>
                   ) : (
@@ -237,30 +245,30 @@ function Fact({ icon, label, value }: { icon: ReactNode; label: string; value: n
   );
 }
 
-function severityLabel(severity: Severity): string {
+function severityLabelKey(severity: Severity) {
   switch (severity) {
     case Severity.ERROR:
-      return "Error";
+      return strings.protoHealth.severity.error;
     case Severity.WARNING:
-      return "Warning";
+      return strings.protoHealth.severity.warning;
     case Severity.INFO:
-      return "Info";
+      return strings.protoHealth.severity.info;
     default:
-      return "Unspecified";
+      return strings.protoHealth.severity.unspecified;
   }
 }
 
-function transportWorldLabel(world: TransportWorld): string {
+function transportWorldLabelKey(world: TransportWorld) {
   switch (world) {
     case TransportWorld.CONNECT:
-      return "Connect";
+      return strings.protoHealth.transport.connect;
     case TransportWorld.HAND_ROLLED:
-      return "Hand-rolled";
+      return strings.protoHealth.transport.handRolled;
     case TransportWorld.MIXED:
-      return "Mixed";
+      return strings.protoHealth.transport.mixed;
     case TransportWorld.NONE:
-      return "None";
+      return strings.protoHealth.transport.none;
     default:
-      return "Unknown";
+      return strings.protoHealth.transport.unknown;
   }
 }

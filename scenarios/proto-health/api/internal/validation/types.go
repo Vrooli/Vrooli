@@ -2,7 +2,11 @@
 // surface. It does not compute fleet graphs or dependency drift.
 package validation
 
-import "proto-health/internal/protosurface"
+import (
+	"context"
+
+	"proto-health/internal/protosurface"
+)
 
 type Severity string
 
@@ -50,6 +54,16 @@ type Report struct {
 
 type SurfaceLoader interface {
 	LoadScenario(scenario string) (protosurface.Surface, error)
+}
+
+type GenSyncStatus struct {
+	InSync bool
+	Drift  []string
+	Detail string
+}
+
+type GenSyncChecker interface {
+	CheckScenario(ctx context.Context, scenario string) (GenSyncStatus, error)
 }
 
 func summarize(findings []Finding) Summary {
