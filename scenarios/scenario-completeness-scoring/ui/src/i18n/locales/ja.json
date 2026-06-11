@@ -89,6 +89,18 @@
       "noEvidence": "証跡なし",
       "refreshLabel": "更新コマンド:"
     },
+    "importance": {
+      "title": "重要度",
+      "scoreLabel": "派生スコア",
+      "systemRequired": "システム必須",
+      "dependents": "依存元",
+      "required": "必須",
+      "core": "コア",
+      "coreDistance": "{{seed}} まで距離 {{distance}}",
+      "coreUnknown": "到達不可",
+      "recentActivity": "最近の活動",
+      "partial": "一部のみ: {{sources}}"
+    },
     "recommendations": {
       "title": "推奨事項",
       "impact": "+{{points}} pt",

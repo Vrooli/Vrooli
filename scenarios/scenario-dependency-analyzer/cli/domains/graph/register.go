@@ -3,8 +3,9 @@ package graph
 import (
 	"fmt"
 	"os"
-	"scenario-dependency-analyzer/cli/internal/support"
 	"strings"
+
+	"scenario-dependency-analyzer/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -26,6 +27,10 @@ func Register(core *cliapp.ScenarioApp) cliapp.CommandGroup {
 }
 
 func run(core *cliapp.ScenarioApp, args []string) error {
+	if len(args) > 0 && strings.EqualFold(strings.TrimSpace(args[0]), "centrality") {
+		return runCentrality(core, args[1:])
+	}
+
 	fs := support.NewFlagSet("graph")
 	var graphType string
 	var format string
@@ -100,6 +105,86 @@ func run(core *cliapp.ScenarioApp, args []string) error {
 		},
 	}
 	return support.PrintList(false, report, nil)
+}
+
+func runCentrality(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("graph centrality")
+	var scenario string
+	var jsonOutput bool
+	fs.StringVar(&scenario, "scenario", "", "Limit centrality to one scenario")
+	fs.BoolVar(&jsonOutput, "json", false, "Output raw JSON")
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+	positionals := fs.Args()
+	if len(positionals) > 1 {
+		return fmt.Errorf("usage: %s graph centrality [scenario] [--scenario name] [--json]", support.AppName)
+	}
+	if len(positionals) == 1 {
+		if strings.TrimSpace(scenario) != "" {
+			return fmt.Errorf("provide scenario either positionally or with --scenario, not both")
+		}
+		scenario = positionals[0]
+	}
+
+	query := support.BuildQuery(map[string]string{"scenario": scenario})
+	body, err := core.Get("/graph/centrality", query)
+	if err != nil {
+		return err
+	}
+	if jsonOutput {
+		return support.PrintAPIJSON(body)
+	}
+
+	var resp map[string]interface{}
+	if err := support.Decode(body, &resp); err != nil {
+		return err
+	}
+	nodes := support.Maps(resp["nodes"])
+	summary := []string{
+		fmt.Sprintf("Centrality rows: %d", len(nodes)),
+		fmt.Sprintf("Graph type: %s", support.String(resp["graph_type"])),
+	}
+	if scenario := support.String(resp["scenario"]); scenario != "" {
+		summary = append(summary, fmt.Sprintf("Scenario filter: %s", scenario))
+	}
+	hints := []string{fmt.Sprintf("%s graph centrality --json", support.AppName)}
+	if strings.TrimSpace(scenario) != "" {
+		hints = append(hints, fmt.Sprintf("%s graph centrality --scenario %s --json", support.AppName, strings.TrimSpace(scenario)))
+	}
+	report := cliapp.ListReport{
+		Summary:        summary,
+		ResultsHeading: "Centrality",
+		Results:        centralityRows(nodes),
+		RetrievalHints: hints,
+	}
+	return support.PrintList(false, report, nil)
+}
+
+func centralityRows(nodes []map[string]interface{}) []string {
+	limit := 10
+	if len(nodes) < limit {
+		limit = len(nodes)
+	}
+	out := make([]string, 0, limit)
+	for _, node := range nodes[:limit] {
+		nearest := support.String(node["nearest_core_seed"])
+		distance := support.Int(node["distance_to_core_seed"])
+		coreText := "unreachable from core seed"
+		if distance >= 0 && nearest != "" {
+			coreText = fmt.Sprintf("core distance %d via %s", distance, nearest)
+		}
+		out = append(out, fmt.Sprintf(
+			"%s: reverse=%d transitive=%d required=%d weighted=%.1f, %s",
+			support.String(node["scenario"]),
+			support.Int(node["direct_reverse_dependency_count"]),
+			support.Int(node["transitive_reverse_dependency_count"]),
+			support.Int(node["required_reverse_dependency_count"]),
+			support.Float(node["required_edge_weighted_score"]),
+			coreText,
+		))
+	}
+	return out
 }
 
 func convert(body []byte, format string) (string, error) {

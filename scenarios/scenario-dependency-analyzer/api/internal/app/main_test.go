@@ -5,9 +5,10 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"scenario-dependency-analyzer/internal/deployment"
 	"testing"
 	"time"
+
+	"scenario-dependency-analyzer/internal/deployment"
 
 	"github.com/vrooli/api-core/storage"
 	appoptimization "scenario-dependency-analyzer/internal/app/optimization"
@@ -132,6 +133,32 @@ func TestGetGraphHandler(t *testing.T) {
 		suite := NewHandlerTestSuite(t, router)
 		suite.TestErrorPatterns(patterns)
 	})
+}
+
+func TestGetGraphCentralityHandler(t *testing.T) {
+	cleanup := setupTestLogger()
+	defer cleanup()
+
+	router := setupTestRouter()
+
+	recorder := makeHTTPRequest(t, router, "GET", "/api/v1/graph/centrality?scenario=consumer", nil)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d. Body: %s", recorder.Code, recorder.Body.String())
+	}
+
+	var response types.GraphCentralityReport
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
+	if response.Scenario != "consumer" {
+		t.Fatalf("scenario filter = %q, want consumer", response.Scenario)
+	}
+	if got := len(response.Nodes); got != 1 {
+		t.Fatalf("expected one centrality row, got %d", got)
+	}
+	if response.Nodes[0].Scenario != "consumer" {
+		t.Fatalf("row scenario = %q, want consumer", response.Nodes[0].Scenario)
+	}
 }
 
 // TestAnalyzeProposedHandler tests the proposed scenario analysis endpoint

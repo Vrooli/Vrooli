@@ -23,6 +23,7 @@ type ScanService interface {
 // GraphService generates dependency graph exports.
 type GraphService interface {
 	GenerateGraph(graphType string) (*types.DependencyGraph, error)
+	GraphCentrality(coreSeeds []string, scenario string) (*types.GraphCentralityReport, error)
 }
 
 // OptimizationService coordinates optimization recommendation workflows.

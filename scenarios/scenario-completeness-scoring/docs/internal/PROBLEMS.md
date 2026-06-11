@@ -119,16 +119,6 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Refs:** `scenarios/test-genie/api/internal/orchestrator/phases/phase_pointers.go`.
 
-### 2026-06-10 — Importance enrichment not yet wired (P1)
-
-**Symptom:** No importance line in score output.
-
-**Root cause:** Depends on scenario-dependency-analyzer's `graph centrality` endpoint (plan Phase 3, not yet built).
-
-**Real fix:** Implement `internal/importance` (1s combined budget, silent omission) once centrality + swarm-manager recency inputs exist.
-
-**Owner:** unassigned (scenario-status-layer plan Phase 3).
-
 ### 2026-06-10 — No BAS proof for the routed test-database path
 
 **Symptom:** `bas/cases/` is empty; the template's `routed-database/proves-test-pool-routing.json` example was deleted at Gate 7.

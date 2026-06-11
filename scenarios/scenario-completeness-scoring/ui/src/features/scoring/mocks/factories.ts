@@ -21,6 +21,9 @@ import {
   DimensionCountSchema,
   FreshnessBlockSchema,
   GetScoreResponseSchema,
+  ImportanceComponentsSchema,
+  ImportanceSignalsSchema,
+  ImportanceSummarySchema,
   MaturityHeadlineSchema,
   MetricLineSchema,
   PhaseFreshnessSchema,
@@ -31,6 +34,7 @@ import {
   type CompositeScore,
   type FreshnessBlock,
   type GetScoreResponse,
+  type ImportanceSummary,
   type MaturityHeadline,
   type PhaseFreshness,
   type Recommendation,
@@ -42,6 +46,7 @@ export type {
   CompositeScore,
   FreshnessBlock,
   GetScoreResponse,
+  ImportanceSummary,
   MaturityHeadline,
   PhaseFreshness,
   Recommendation,
@@ -126,6 +131,30 @@ export const makeRecommendation = (
     ...overrides,
   });
 
+export const makeImportanceSummary = (
+  overrides: MessageInitShape<typeof ImportanceSummarySchema> = {},
+): ImportanceSummary =>
+  create(ImportanceSummarySchema, {
+    score: 0.82,
+    systemRequired: true,
+    components: create(ImportanceComponentsSchema, {
+      centrality: 0.8,
+      coreProximity: 0.5,
+      recency: 0.4,
+    }),
+    signals: create(ImportanceSignalsSchema, {
+      directReverseDependencyCount: 2,
+      transitiveReverseDependencyCount: 5,
+      requiredReverseDependencyCount: 3,
+      requiredEdgeWeightedScore: 8,
+      distanceToCoreSeed: 1,
+      nearestCoreSeed: "test-genie",
+      recentActivityCount: 2,
+    }),
+    degraded: ["recency:not_configured"],
+    ...overrides,
+  });
+
 export const makeActionPhase = (
   overrides: MessageInitShape<typeof ActionPhaseSchema> = {},
 ): ActionPhase =>
@@ -155,6 +184,7 @@ export const makeGetScoreResponse = (
     maturity: makeMaturityHeadline(),
     composite: makeCompositeScore(),
     freshness: makeFreshnessBlock(),
+    importance: makeImportanceSummary(),
     recommendations: [makeRecommendation()],
     actionPlan: [makeActionPhase()],
     degradations: [],

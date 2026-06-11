@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"math"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -141,5 +142,37 @@ func resultToProto(r internalscoring.Result) *scoringv1.GetScoreResponse {
 		})
 	}
 
+	if r.Importance != nil {
+		out.Importance = &scoringv1.ImportanceSummary{
+			Score:          r.Importance.Score,
+			SystemRequired: r.Importance.SystemRequired,
+			Components: &scoringv1.ImportanceComponents{
+				Centrality:    r.Importance.Components.Centrality,
+				CoreProximity: r.Importance.Components.CoreProximity,
+				Recency:       r.Importance.Components.Recency,
+			},
+			Signals: &scoringv1.ImportanceSignals{
+				DirectReverseDependencyCount:     boundedInt32(r.Importance.Signals.DirectReverseDependencyCount),
+				TransitiveReverseDependencyCount: boundedInt32(r.Importance.Signals.TransitiveReverseDependencyCount),
+				RequiredReverseDependencyCount:   boundedInt32(r.Importance.Signals.RequiredReverseDependencyCount),
+				RequiredEdgeWeightedScore:        r.Importance.Signals.RequiredEdgeWeightedScore,
+				DistanceToCoreSeed:               boundedInt32(r.Importance.Signals.DistanceToCoreSeed),
+				NearestCoreSeed:                  r.Importance.Signals.NearestCoreSeed,
+				RecentActivityCount:              boundedInt32(r.Importance.Signals.RecentActivityCount),
+			},
+			Degraded: append([]string(nil), r.Importance.Degraded...),
+		}
+	}
+
 	return out
+}
+
+func boundedInt32(value int) int32 {
+	if value > math.MaxInt32 {
+		return math.MaxInt32
+	}
+	if value < math.MinInt32 {
+		return math.MinInt32
+	}
+	return int32(value)
 }

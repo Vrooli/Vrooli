@@ -14,6 +14,7 @@ import { errorMessage } from "../../lib/errorMessage";
 
 import { CompositeCard } from "./CompositeCard";
 import { FreshnessCard } from "./FreshnessCard";
+import { ImportanceCard } from "./ImportanceCard";
 import { MaturityCard } from "./MaturityCard";
 import { RecommendationsCard } from "./RecommendationsCard";
 
@@ -111,6 +112,7 @@ export function ScoreDashboard() {
               />
             )}
             {data.freshness && <FreshnessCard freshness={data.freshness} />}
+            {data.importance && <ImportanceCard importance={data.importance} />}
             {data.recommendations.length > 0 && data.composite && (
               <RecommendationsCard
                 recommendations={data.recommendations}

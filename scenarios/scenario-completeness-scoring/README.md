@@ -8,7 +8,8 @@ scenario-completeness-scoring score get <scenario> [--json]
 
 One command answers "what is the current state of scenario X and what
 should I focus on next?" in under a second, from cached on-disk artifacts
-only — it never runs tests and never blocks on other services:
+on the core path — it never runs tests, and optional service enrichment is
+hard-budgeted and omitted on miss:
 
 - **Maturity rung** R0–R4 via the shared `packages/maturity-go` ladder
   gates, labeled **"as of digest td:…"** — never presented as
@@ -22,6 +23,9 @@ only — it never runs tests and never blocks on other services:
   `packages/freshness-go` digest + run-index contract) with a
   copy-pastable refresh command. Never-tested scenarios read "unknown",
   not fake-fresh.
+- **Optional importance enrichment** from scenario-dependency-analyzer
+  centrality and swarm-manager recent activity, shown only when at least
+  one source responds inside the budget.
 - **Degradation honesty:** every signal collector runs behind a circuit
   breaker; malformed artifacts disable that collector and surface in the
   output instead of crashing the read.
@@ -36,7 +40,8 @@ This scenario was generated from the `react-vite` template and packages
 the standard full-stack Vrooli scenario shape:
 
 - Go API (`api/`) — domains `signals` (cached-artifact collectors),
-  `freshness` (digest + verdicts), `scoring` (assembly + ScoreService)
+  `freshness` (digest + verdicts), `importance` (optional enrichment),
+  `scoring` (assembly + ScoreService)
 - React + TypeScript + Vite UI (`ui/`)
 - CLI wrapper (`cli/`)
 - Lifecycle + health wiring (`.vrooli/service.json`)

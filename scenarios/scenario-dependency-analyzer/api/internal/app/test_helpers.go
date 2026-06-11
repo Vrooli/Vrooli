@@ -57,7 +57,24 @@ type TestEnvironment struct {
 type mockGraphService struct{}
 
 func (mockGraphService) GenerateGraph(graphType string) (*types.DependencyGraph, error) {
-	return &types.DependencyGraph{Type: graphType}, nil
+	return &types.DependencyGraph{
+		Type: graphType,
+		Nodes: []types.GraphNode{
+			{ID: "core-a", Type: "scenario", Group: "scenarios"},
+			{ID: "consumer", Type: "scenario", Group: "scenarios"},
+		},
+		Edges: []types.GraphEdge{
+			{Source: "consumer", Target: "core-a", Type: "scenario", Required: true, Weight: 2},
+		},
+	}, nil
+}
+
+func (mockGraphService) GraphCentrality(coreSeeds []string, scenario string) (*types.GraphCentralityReport, error) {
+	graph, err := mockGraphService{}.GenerateGraph("combined")
+	if err != nil {
+		return nil, err
+	}
+	return calculateGraphCentrality(graph, coreSeeds, scenario), nil
 }
 
 // setupTestDirectory creates an isolated test environment with proper cleanup
@@ -309,6 +326,7 @@ func setupTestRouter() *gin.Engine {
 	{
 		api.GET("/analyze/:scenario", h.analyzeScenario)
 		api.GET("/scenarios/:scenario/dependencies", h.getDependencies)
+		api.GET("/graph/centrality", h.getGraphCentrality)
 		api.GET("/graph/:type", h.getGraph)
 		api.POST("/analyze/proposed", h.analyzeProposed)
 	}

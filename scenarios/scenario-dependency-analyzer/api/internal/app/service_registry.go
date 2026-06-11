@@ -4,12 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"scenario-dependency-analyzer/internal/app/services"
-	"scenario-dependency-analyzer/internal/deployment"
-	"scenario-dependency-analyzer/internal/store"
 	"sort"
 	"strings"
 	"time"
+
+	"scenario-dependency-analyzer/internal/app/services"
+	"scenario-dependency-analyzer/internal/deployment"
+	"scenario-dependency-analyzer/internal/store"
 
 	appconfig "scenario-dependency-analyzer/internal/config"
 
@@ -113,6 +114,17 @@ func (g *graphService) GenerateGraph(graphType string) (*types.DependencyGraph, 
 		return nil, fmt.Errorf("analyzer not initialized")
 	}
 	return g.analyzer.GenerateGraph(graphType)
+}
+
+func (g *graphService) GraphCentrality(coreSeeds []string, scenario string) (*types.GraphCentralityReport, error) {
+	if g == nil || g.analyzer == nil {
+		return nil, fmt.Errorf("analyzer not initialized")
+	}
+	graph, err := g.analyzer.GenerateGraph("combined")
+	if err != nil {
+		return nil, err
+	}
+	return calculateGraphCentrality(graph, coreSeeds, scenario), nil
 }
 
 type optimizationService struct {

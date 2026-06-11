@@ -43,6 +43,20 @@ func sampleResponse() *scoringv1.GetScoreResponse {
 				{Phase: "unit", Verdict: "unknown"},
 			},
 		},
+		Importance: &scoringv1.ImportanceSummary{
+			Score:          0.82,
+			SystemRequired: true,
+			Signals: &scoringv1.ImportanceSignals{
+				DirectReverseDependencyCount:     2,
+				TransitiveReverseDependencyCount: 5,
+				RequiredReverseDependencyCount:   3,
+				RequiredEdgeWeightedScore:        8,
+				DistanceToCoreSeed:               1,
+				NearestCoreSeed:                  "test-genie",
+				RecentActivityCount:              2,
+			},
+			Degraded: []string{"recency:not_configured"},
+		},
 		Recommendations: []*scoringv1.Recommendation{
 			{Priority: "high", Description: "Fix failing test phases", ImpactPoints: 3},
 		},
@@ -69,6 +83,13 @@ func TestFormatReportSections(t *testing.T) {
 		"📊 COMPLETENESS SCORE: 72/100 (mostly_complete)",
 		"Quality (40/50):",
 		"Requirements: 34 total, 30 passing (88%) → 17.6/20 pts",
+		"📍 IMPORTANCE",
+		"Derived score: 0.8/1.0",
+		"System required: yes",
+		"Dependents: direct 2, transitive 5, required 3 (weighted 8)",
+		"Core proximity: distance 1 via test-genie",
+		"Recent activity: 2 operation(s)",
+		"Partial: recency:not_configured",
 		"⏱  FRESHNESS",
 		"structure",
 		"standards",
@@ -100,6 +121,7 @@ func TestFormatReportCleanLadderAndNoRecs(t *testing.T) {
 	msg.Recommendations = nil
 	msg.ActionPlan = nil
 	msg.Degradations = nil
+	msg.Importance = nil
 	msg.Freshness.SuggestedCommand = ""
 
 	out := FormatReport(msg)

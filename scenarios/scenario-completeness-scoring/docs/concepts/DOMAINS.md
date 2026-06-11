@@ -24,7 +24,7 @@ belong in [`DATA.md`](DATA.md).
 | signals | Collect raw completeness signals from a target scenario's cached on-disk artifacts (requirements registry, sync metadata, phase results, service manifest, UI sources) behind circuit-breaker-guarded collectors. | Collection / read model | No persisted data; in-memory signal snapshot per request. | internal (consumed by scoring) | OT-P0-006 (resilient collection), feeds OT-P0-002/003. | `api/internal/signals/` |
 | freshness | Compute the target scenario's current tree digest and per-phase fresh/stale/unknown verdicts from `coverage/runs.index.json` via `packages/freshness-go`. | Reporting / query | No persisted data. | internal (consumed by scoring) | OT-P0-005 (staleness honesty). | `api/internal/freshness/` |
 | scoring | Assemble signals into the maturity rung (maturity-go ladder), 0–100 composite, classification, recommendations with point impact, and the action plan; owns the ScoreService wire contract. | Reporting / query | No persisted data; scores computed on demand. | API, CLI, UI | OT-P0-001..006, OT-P1-002/003, OT-P2-001/002. | `api/internal/scoring/`, `api/handlers/scoring/`, `cli/domains/scores/`, `ui/src/features/scoring/`, `packages/proto/schemas/scenario-completeness-scoring/v1/scoring/` |
-| importance | Best-effort importance enrichment from scenario-dependency-analyzer centrality and swarm-manager recency under a hard 1s combined budget; silently omitted on miss. | Integration / enrichment | No persisted data. | internal (consumed by scoring output) | OT-P1-001. | `api/internal/importance/` (deferred to the importance pass) |
+| importance | Best-effort importance enrichment from scenario-dependency-analyzer centrality and swarm-manager recency under a hard 1s combined budget; silently omitted on miss. | Integration / enrichment | No persisted data. | internal (consumed by scoring output) | OT-P1-001. | `api/internal/importance/` |
 | health | Report runtime readiness and dependency reachability. | Reporting / query | No product data. | API, UI | Starter scaffold health. | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/scenario-completeness-scoring/v1/health/` |
 
 The template's `notes` worked example was removed at Gate 7 (orientation
@@ -91,12 +91,20 @@ exit criterion); only health plus real product domains remain.
 - Tests: scoring table tests pinning rung derivation and classification
   boundaries, CLI golden-output test, perf assertion (<1s warm).
 
-### importance (deferred to the importance pass)
+### importance
 
 - Purpose: optional one-line enrichment (reverse-dependency centrality,
   core-set proximity, recent activity) appended to score output.
 - Constraint: the ONLY network touch in the scenario; hard 1s combined
   budget; silently omitted on any miss. Core score path stays zero-network.
+- Owns: resolving optional scenario API URLs, reading dep-analyzer
+  centrality and swarm-manager operations, neutral defaults for partial
+  data, and derived score presentation fields.
+- Does not own: the centrality graph, swarm operations history, static
+  service importance fields, or queue scheduling decisions.
+- API: `api/internal/importance/` (internal enrichment consumed by
+  scoring).
+- UI/CLI: rendered as the optional importance section when present.
 
 ### health
 
@@ -131,7 +139,6 @@ are real enough to affect architecture or requirements.
 
 | Candidate Domain | Why Deferred | Revisit Trigger |
 |---|---|---|
-| importance | P1 enrichment; depends on the dep-analyzer centrality endpoint shipping (separate plan phase). | dep-analyzer `graph centrality` lands. |
 | history / trends | Explicit v1 non-goal (no score persistence). | A consumer demonstrates need for trend data. |
 | what-if analysis | P2; port from legacy only if cheap on the new signal set. | Demand from an agent workflow. |
 

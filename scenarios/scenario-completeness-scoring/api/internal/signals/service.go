@@ -29,7 +29,8 @@ func (serviceCollector) Collect(snap *Snapshot) error {
 	}
 
 	var cfg struct {
-		Category string `json:"category"`
+		Category       string `json:"category"`
+		SystemRequired bool   `json:"system_required"`
 	}
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return fmt.Errorf("decode service.json: %w", err)
@@ -38,5 +39,6 @@ func (serviceCollector) Collect(snap *Snapshot) error {
 		cfg.Category = defaultCategory
 	}
 	snap.Category = cfg.Category
+	snap.SystemRequired = cfg.SystemRequired
 	return nil
 }

@@ -92,6 +92,18 @@
       "noEvidence": "no evidence",
       "refreshLabel": "Refresh:"
     },
+    "importance": {
+      "title": "Importance",
+      "scoreLabel": "Derived score",
+      "systemRequired": "System required",
+      "dependents": "Dependents",
+      "required": "Required",
+      "core": "Core",
+      "coreDistance": "distance {{distance}} via {{seed}}",
+      "coreUnknown": "unreachable",
+      "recentActivity": "Recent activity",
+      "partial": "Partial: {{sources}}"
+    },
     "recommendations": {
       "title": "Recommendations",
       "impact": "+{{points}} pts",

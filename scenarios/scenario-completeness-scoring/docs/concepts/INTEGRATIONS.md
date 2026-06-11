@@ -38,8 +38,8 @@ optional enrichment only and must never gate or slow the core path.
 
 | Scenario | Status | Reason | Contract |
 |---|---|---|---|
-| scenario-dependency-analyzer | optional / best-effort (P1, deferred to the importance pass) | Importance line: reverse-dependency centrality + distance-to-core. | `graph centrality` Connect endpoint; shares a hard 1s combined budget with swarm-manager; on miss the importance line is silently omitted. |
-| swarm-manager | optional / best-effort (P1, deferred to the importance pass) | Importance line: recent-activity window per scenario. | `GET /api/v1/operations?window=...`; same 1s combined budget and silent omission. |
+| scenario-dependency-analyzer | optional / best-effort | Importance line: reverse-dependency centrality + distance-to-core. | `GET /api/v1/graph/centrality`; shares a hard 1s combined budget with swarm-manager; on miss the importance line is silently omitted. |
+| swarm-manager | optional / best-effort | Importance line: recent-activity window per scenario. | `GET /api/v1/operations?window=...`; same 1s combined budget and silent omission. |
 | test-genie | upstream producer (no runtime call) | Writes the artifacts this scenario reads: `coverage/phase-results/*.json`, `coverage/runs.index.json`. | Read-side contract pinned by `packages/freshness-go` (runindex types) and the phase-results decoder fixtures. test-genie is never invoked by this scenario. |
 
 ## Shared Packages (code, not services)

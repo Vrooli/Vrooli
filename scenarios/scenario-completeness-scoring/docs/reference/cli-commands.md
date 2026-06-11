@@ -96,8 +96,9 @@ The product surface: fast cached status for any scenario. Calls the
 generated Connect-RPC `ScoreService/GetScore` method and renders the
 full report — maturity rung "as of digest td:…", composite score with
 per-group metric lines, per-phase freshness verdicts with the refresh
-command, recommendations with point impact, the action plan, and any
-collector degradations. Uses the **data-retrieval contract**:
+command, optional importance enrichment, recommendations with point
+impact, the action plan, and any collector degradations. Uses the
+**data-retrieval contract**:
 `Summary → Results → Retrieval Hints`.
 
 ```bash

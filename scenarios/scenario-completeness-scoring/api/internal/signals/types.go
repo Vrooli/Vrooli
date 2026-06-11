@@ -25,7 +25,8 @@ type Snapshot struct {
 	Root     string
 
 	// Category from .vrooli/service.json ("utility" when undeclared).
-	Category string
+	Category       string
+	SystemRequired bool
 
 	Requirements RequirementsSignals
 	Phases       PhaseSignals

@@ -104,6 +104,18 @@ export const strings = {
       noEvidence: "scoring.freshness.noEvidence",
       refreshLabel: "scoring.freshness.refreshLabel",
     },
+    importance: {
+      title: "scoring.importance.title",
+      scoreLabel: "scoring.importance.scoreLabel",
+      systemRequired: "scoring.importance.systemRequired",
+      dependents: "scoring.importance.dependents",
+      required: "scoring.importance.required",
+      core: "scoring.importance.core",
+      coreDistance: "scoring.importance.coreDistance",
+      coreUnknown: "scoring.importance.coreUnknown",
+      recentActivity: "scoring.importance.recentActivity",
+      partial: "scoring.importance.partial",
+    },
     recommendations: {
       title: "scoring.recommendations.title",
       impact: "scoring.recommendations.impact",

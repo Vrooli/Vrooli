@@ -260,6 +260,27 @@ type GraphEdge struct {
 	Metadata map[string]interface{} `json:"metadata"`
 }
 
+// GraphCentralityReport summarizes scenario centrality over the combined graph.
+type GraphCentralityReport struct {
+	GraphType string                  `json:"graph_type"`
+	Scenario  string                  `json:"scenario,omitempty"`
+	Nodes     []GraphCentralityMetric `json:"nodes"`
+	Metadata  map[string]interface{}  `json:"metadata,omitempty"`
+}
+
+// GraphCentralityMetric captures one scenario's centrality and core proximity.
+type GraphCentralityMetric struct {
+	Scenario                         string   `json:"scenario"`
+	DirectReverseDependencyCount     int      `json:"direct_reverse_dependency_count"`
+	TransitiveReverseDependencyCount int      `json:"transitive_reverse_dependency_count"`
+	RequiredReverseDependencyCount   int      `json:"required_reverse_dependency_count"`
+	RequiredEdgeWeightedScore        float64  `json:"required_edge_weighted_score"`
+	DistanceToCoreSeed               int      `json:"distance_to_core_seed"`
+	NearestCoreSeed                  string   `json:"nearest_core_seed,omitempty"`
+	DirectDependents                 []string `json:"direct_dependents,omitempty"`
+	TransitiveDependents             []string `json:"transitive_dependents,omitempty"`
+}
+
 // AnalysisRequest wraps a request for dependency analysis.
 type AnalysisRequest struct {
 	ScenarioName      string `json:"scenario_name"`

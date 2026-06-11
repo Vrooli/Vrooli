@@ -92,6 +92,18 @@
       "noEvidence": "لا يوجد دليل",
       "refreshLabel": "أمر التحديث:"
     },
+    "importance": {
+      "title": "الأهمية",
+      "scoreLabel": "الدرجة المشتقة",
+      "systemRequired": "مطلوب للنظام",
+      "dependents": "المعتمدون",
+      "required": "مطلوب",
+      "core": "النواة",
+      "coreDistance": "المسافة {{distance}} عبر {{seed}}",
+      "coreUnknown": "غير قابل للوصول",
+      "recentActivity": "النشاط الأخير",
+      "partial": "جزئي: {{sources}}"
+    },
     "recommendations": {
       "title": "التوصيات",
       "impact": "+{{points}} نقطة",

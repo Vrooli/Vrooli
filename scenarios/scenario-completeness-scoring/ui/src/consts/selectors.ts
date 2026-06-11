@@ -334,6 +334,11 @@ const literalSelectors = {
       card: "scoring-freshness-card",
       refreshCommand: "scoring-freshness-refresh-command",
     },
+    importance: {
+      card: "scoring-importance-card",
+      score: "scoring-importance-score",
+      signals: "scoring-importance-signals",
+    },
     recommendations: {
       card: "scoring-recommendations-card",
     },

@@ -60,14 +60,16 @@ Compute the full cached status payload for one scenario: maturity rung
 "as of digest td:…", 0–100 composite with classification and per-group
 breakdown, prioritized recommendations with point impact, the phased
 action plan, per-phase freshness verdicts with a copy-pastable refresh
-command, and any collector degradations. Zero network on the server's
-read path; warm latency budget is <1s.
+command, optional best-effort importance enrichment, and any collector
+degradations. Zero network on the server's core score path; importance
+is the only optional network touch and is omitted on miss. Warm latency
+budget is <1s.
 
 | | |
 |---|---|
 | **Auth** | None |
 | **Request** | `GetScoreRequest { scenario: string }` — directory name under the scenarios root |
-| **Response** | `GetScoreResponse { scenario, category, maturity, composite, freshness, recommendations[], action_plan[], degradations[], calculated_at }` |
+| **Response** | `GetScoreResponse { scenario, category, maturity, composite, freshness, recommendations[], action_plan[], degradations[], calculated_at, importance? }` |
 | **Errors** | `not_found` — unknown scenario<br>`internal` — unexpected assembly failure (collector failures degrade instead of erroring) |
 | **CLI** | `scenario-completeness-scoring score get <scenario> [--json]` |
 

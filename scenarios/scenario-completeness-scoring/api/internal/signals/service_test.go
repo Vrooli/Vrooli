@@ -4,12 +4,14 @@ import "testing"
 
 func TestServiceCollectorCategory(t *testing.T) {
 	tests := []struct {
-		name         string
-		manifest     string // empty = no file
-		wantCategory string
-		wantErr      bool
+		name               string
+		manifest           string // empty = no file
+		wantCategory       string
+		wantSystemRequired bool
+		wantErr            bool
 	}{
 		{name: "declared category", manifest: `{"category":"ai_tools"}`, wantCategory: "ai_tools"},
+		{name: "system required", manifest: `{"category":"platform","system_required":true}`, wantCategory: "platform", wantSystemRequired: true},
 		{name: "undeclared category defaults", manifest: `{"version":"1.0.0"}`, wantCategory: "utility"},
 		{name: "missing manifest defaults", manifest: "", wantCategory: "utility"},
 		{name: "malformed manifest errors", manifest: `{`, wantCategory: "", wantErr: true},
@@ -35,6 +37,9 @@ func TestServiceCollectorCategory(t *testing.T) {
 			}
 			if snap.Category != tt.wantCategory {
 				t.Fatalf("category = %q, want %q", snap.Category, tt.wantCategory)
+			}
+			if snap.SystemRequired != tt.wantSystemRequired {
+				t.Fatalf("system_required = %v, want %v", snap.SystemRequired, tt.wantSystemRequired)
 			}
 		})
 	}

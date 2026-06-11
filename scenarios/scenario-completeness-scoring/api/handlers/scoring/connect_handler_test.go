@@ -10,6 +10,7 @@ import (
 	scoringv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-completeness-scoring/v1/scoring"
 
 	"scenario-completeness-scoring/internal/freshness"
+	"scenario-completeness-scoring/internal/importance"
 	internalscoring "scenario-completeness-scoring/internal/scoring"
 	"scenario-completeness-scoring/internal/signals"
 )
@@ -55,6 +56,25 @@ func TestGetScoreConvertsDomainResult(t *testing.T) {
 				{Phase: "unit", Verdict: "stale", LastRunID: "run-1", LastRunAt: now, LastDigest: "td:old", LastStatus: "passed"},
 			},
 		},
+		Importance: &importance.Summary{
+			Score:          0.82,
+			SystemRequired: true,
+			Components: importance.Components{
+				Centrality:    0.7,
+				CoreProximity: 0.5,
+				Recency:       0.4,
+			},
+			Signals: importance.Signals{
+				DirectReverseDependencyCount:     2,
+				TransitiveReverseDependencyCount: 5,
+				RequiredReverseDependencyCount:   3,
+				RequiredEdgeWeightedScore:        8,
+				DistanceToCoreSeed:               1,
+				NearestCoreSeed:                  "test-genie",
+				RecentActivityCount:              2,
+			},
+			Degraded: []string{"recency:not_configured"},
+		},
 		Recommends: []internalscoring.Recommendation{
 			{Priority: "high", Description: "Fix failing test phases", Impact: 5},
 		},
@@ -92,6 +112,12 @@ func TestGetScoreConvertsDomainResult(t *testing.T) {
 	}
 	if msg.GetFreshness().GetCurrentDigest() != "td:abc" || len(msg.GetFreshness().GetPhases()) != 1 {
 		t.Fatalf("freshness wrong: %v", msg.GetFreshness())
+	}
+	if msg.GetImportance().GetScore() != 0.82 || !msg.GetImportance().GetSystemRequired() {
+		t.Fatalf("importance wrong: %v", msg.GetImportance())
+	}
+	if msg.GetImportance().GetSignals().GetTransitiveReverseDependencyCount() != 5 {
+		t.Fatalf("importance signals wrong: %v", msg.GetImportance().GetSignals())
 	}
 	pf := msg.GetFreshness().GetPhases()[0]
 	if pf.GetVerdict() != "stale" || pf.GetLastDigest() != "td:old" || pf.GetLastRunAt().AsTime() != now {

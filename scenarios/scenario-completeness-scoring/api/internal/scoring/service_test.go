@@ -98,7 +98,7 @@ func TestGetScoreStalenessLoop(t *testing.T) {
 
 	svc, err := New(WithScenariosRoot(scenariosRoot), WithClock(func() time.Time {
 		return time.Date(2026, 6, 10, 12, 0, 0, 0, time.UTC)
-	}))
+	}), WithImportance(nil))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -162,7 +162,7 @@ func TestGetScoreAssemblesAllSections(t *testing.T) {
 	root := writeFixtureScenario(t, scenariosRoot, "fixture")
 	stampRunIndex(t, root)
 
-	svc, err := New(WithScenariosRoot(scenariosRoot))
+	svc, err := New(WithScenariosRoot(scenariosRoot), WithImportance(nil))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,7 +193,7 @@ func TestGetScoreAssemblesAllSections(t *testing.T) {
 }
 
 func TestGetScoreUnknownScenario(t *testing.T) {
-	svc, err := New(WithScenariosRoot(t.TempDir()))
+	svc, err := New(WithScenariosRoot(t.TempDir()), WithImportance(nil))
 	if err != nil {
 		t.Fatal(err)
 	}

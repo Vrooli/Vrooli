@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"scenario-completeness-scoring/internal/freshness"
+	"scenario-completeness-scoring/internal/importance"
 	"scenario-completeness-scoring/internal/signals"
 )
 
@@ -21,6 +22,7 @@ type Result struct {
 	Maturity     Maturity
 	Composite    Composite
 	Freshness    freshness.Result
+	Importance   *importance.Summary
 	Recommends   []Recommendation
 	ActionPlan   []ActionPhase
 	Degradations []signals.Degradation

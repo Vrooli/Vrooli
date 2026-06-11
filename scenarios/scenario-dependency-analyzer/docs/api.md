@@ -340,6 +340,30 @@ Detect circular dependencies in the dependency graph.
 }
 ```
 
+### `GET /api/v1/graph/centrality`
+Calculate scenario centrality over the combined dependency graph.
+
+**Parameters**:
+- `scenario` (query, optional): Limit output to one scenario
+
+**Response**:
+```json
+{
+  "graph_type": "combined",
+  "nodes": [
+    {
+      "scenario": "test-genie",
+      "direct_reverse_dependency_count": 2,
+      "transitive_reverse_dependency_count": 5,
+      "required_reverse_dependency_count": 3,
+      "required_edge_weighted_score": 9,
+      "distance_to_core_seed": 1,
+      "nearest_core_seed": "ecosystem-manager"
+    }
+  ]
+}
+```
+
 ---
 
 ## Impact Analysis

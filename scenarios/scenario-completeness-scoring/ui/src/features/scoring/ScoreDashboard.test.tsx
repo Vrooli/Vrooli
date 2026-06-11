@@ -68,6 +68,10 @@ describe("ScoreDashboard", () => {
     expect(screen.getByTestId(selectors.scoring.freshness.refreshCommand).textContent).toBe(
       "vrooli scenario test web-search --phases smoke",
     );
+    expect(screen.getByTestId(selectors.scoring.importance.score).textContent).toContain("0.8 / 1.0");
+    expect(screen.getByTestId(selectors.scoring.importance.signals).textContent).toContain(
+      "test-genie",
+    );
     expect(screen.getByTestId(selectors.scoring.recommendations.card).textContent).toContain(
       "Fix the 2 standards errors blocking R1.",
     );

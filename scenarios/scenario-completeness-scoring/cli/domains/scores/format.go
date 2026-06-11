@@ -69,6 +69,31 @@ func FormatReport(msg *scoringv1.GetScoreResponse) string {
 		}
 	}
 
+	// ── Optional importance enrichment ───────────────────────────────
+	if imp := msg.GetImportance(); imp != nil {
+		b.WriteString("\n📍 IMPORTANCE\n" + rule + "\n")
+		fmt.Fprintf(&b, "  Derived score: %s/1.0\n", trimFloat(imp.GetScore()))
+		if imp.GetSystemRequired() {
+			b.WriteString("  System required: yes\n")
+		}
+		signals := imp.GetSignals()
+		fmt.Fprintf(&b, "  Dependents: direct %d, transitive %d, required %d (weighted %s)\n",
+			signals.GetDirectReverseDependencyCount(),
+			signals.GetTransitiveReverseDependencyCount(),
+			signals.GetRequiredReverseDependencyCount(),
+			trimFloat(signals.GetRequiredEdgeWeightedScore()),
+		)
+		core := "unreachable from core seed"
+		if signals.GetDistanceToCoreSeed() >= 0 && signals.GetNearestCoreSeed() != "" {
+			core = fmt.Sprintf("distance %d via %s", signals.GetDistanceToCoreSeed(), signals.GetNearestCoreSeed())
+		}
+		fmt.Fprintf(&b, "  Core proximity: %s\n", core)
+		fmt.Fprintf(&b, "  Recent activity: %d operation(s)\n", signals.GetRecentActivityCount())
+		if len(imp.GetDegraded()) > 0 {
+			fmt.Fprintf(&b, "  Partial: %s\n", strings.Join(imp.GetDegraded(), "; "))
+		}
+	}
+
 	// ── Freshness ────────────────────────────────────────────────────
 	fresh := msg.GetFreshness()
 	b.WriteString("\n⏱  FRESHNESS\n" + rule + "\n")

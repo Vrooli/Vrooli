@@ -5,10 +5,11 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"scenario-dependency-analyzer/internal/app/services"
 	"strconv"
 	"strings"
 	"time"
+
+	"scenario-dependency-analyzer/internal/app/services"
 
 	"github.com/gin-gonic/gin"
 
@@ -200,6 +201,23 @@ func (h *handler) getGraph(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, graph)
+}
+
+func (h *handler) getGraphCentrality(c *gin.Context) {
+	graphSvc := h.graphService()
+	if graphSvc == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Graph service unavailable"})
+		return
+	}
+
+	coreSet := coresetpkg.Compute(h.scenariosDir())
+	report, err := graphSvc.GraphCentrality(coreSet.Seed, c.Query("scenario"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate graph centrality: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, report)
 }
 
 func (h *handler) detectCycles(c *gin.Context) {

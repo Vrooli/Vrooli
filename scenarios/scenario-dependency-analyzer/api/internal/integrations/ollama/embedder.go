@@ -14,31 +14,29 @@ import (
 // daemon traffic is funnelled through that CLI so the host-wide semaphore can
 // bound fleet-wide parallelism — never call Ollama HTTP directly.
 type Embedder struct {
-	model string
+	role string
 
 	// Runner is an optional seam for tests. Production callers leave it nil and
 	// the default exec-based runner is used.
 	Runner func(ctx context.Context, args []string, stdin string) ([]byte, error)
 }
 
-// NewEmbedder constructs an Embedder with an explicit model.
-func NewEmbedder(model string) *Embedder {
-	model = strings.TrimSpace(model)
-	if model == "" {
-		model = "nomic-embed-text"
+// NewEmbedder constructs an Embedder with an explicit model role.
+func NewEmbedder(role string) *Embedder {
+	role = strings.TrimSpace(role)
+	if role == "" {
+		role = "embedding.default"
 	}
-	return &Embedder{model: model}
+	return &Embedder{role: role}
 }
 
-// NewEmbedderFromEnv constructs an Embedder picking the model from env vars in
-// priority order.
+// NewEmbedderFromEnv constructs an Embedder picking the role from env vars.
 func NewEmbedderFromEnv() *Embedder {
-	model := firstEnv(
-		"OLLAMA_EMBEDDING_MODEL",
-		"QDRANT_EMBEDDING_MODEL_OVERRIDE",
-		"QDRANT_EMBEDDING_MODEL",
+	role := firstEnv(
+		"OLLAMA_EMBEDDING_ROLE",
+		"QDRANT_EMBEDDING_ROLE",
 	)
-	return NewEmbedder(model)
+	return NewEmbedder(role)
 }
 
 func (e *Embedder) Embed(ctx context.Context, text string) ([]float64, error) {
@@ -50,7 +48,7 @@ func (e *Embedder) Embed(ctx context.Context, text string) ([]float64, error) {
 		return nil, fmt.Errorf("text required for embedding")
 	}
 
-	args := []string{"gateway", "embed", "--model", e.model, "--json", "--input-stdin"}
+	args := []string{"gateway", "embed", "--role", e.role, "--json", "--input-stdin"}
 	out, err := e.run(ctx, args, text)
 	if err != nil {
 		return nil, fmt.Errorf("resource-ollama gateway embed failed: %w", err)

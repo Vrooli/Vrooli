@@ -248,6 +248,12 @@ scenario-dependency-analyzer graph scenario --format mermaid
 
 # Save JSON to file
 scenario-dependency-analyzer graph --type combined --output graph.json
+
+# Rank scenario centrality for ecosystem-manager scheduling inputs
+scenario-dependency-analyzer graph centrality
+
+# Read one scenario's centrality as JSON
+scenario-dependency-analyzer graph centrality --scenario test-genie --json
 ```
 
 **Output (DOT format):**
@@ -269,6 +275,12 @@ dot -Tpng deps.dot -o graph.png
 # View in browser (macOS)
 dot -Tsvg deps.dot | open -f -a Safari
 ```
+
+**Centrality output:**
+`graph centrality` reports each scenario's direct and transitive reverse
+dependency counts, required-edge weighted score, and distance to the nearest
+core seed. Ecosystem Manager consumes this as one input to derived scenario
+importance.
 
 ---
 

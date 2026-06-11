@@ -1,6 +1,7 @@
 package scoring
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -11,6 +12,7 @@ import (
 	repocontract "github.com/vrooli/repo-contract-go"
 
 	"scenario-completeness-scoring/internal/freshness"
+	"scenario-completeness-scoring/internal/importance"
 	"scenario-completeness-scoring/internal/signals"
 )
 
@@ -24,6 +26,7 @@ type Service struct {
 	scenariosRoot string
 	signals       *signals.Service
 	freshness     *freshness.Service
+	importance    *importance.Service
 	now           func() time.Time
 }
 
@@ -40,6 +43,12 @@ func WithClock(now func() time.Time) Option {
 	return func(s *Service) { s.now = now }
 }
 
+// WithImportance overrides optional importance enrichment (tests). Passing
+// nil disables the enrichment.
+func WithImportance(reader *importance.Service) Option {
+	return func(s *Service) { s.importance = reader }
+}
+
 // New builds a Service. When no root override is given it resolves the
 // Vrooli repo root the same way the legacy implementation did: VROOLI_ROOT
 // env override, else repo-contract discovery from the working directory.
@@ -47,7 +56,10 @@ func New(opts ...Option) (*Service, error) {
 	s := &Service{
 		signals:   signals.NewService(),
 		freshness: freshness.New(),
-		now:       time.Now,
+		importance: importance.New(importance.Config{
+			Timeout: time.Second,
+		}),
+		now: time.Now,
 	}
 	for _, o := range opts {
 		o(s)
@@ -84,6 +96,10 @@ func (s *Service) GetScore(scenario string) (Result, error) {
 	comp := computeComposite(snap)
 	mat := deriveMaturity(snap)
 	fresh := s.freshness.Check(scenario, root)
+	var imp *importance.Summary
+	if s.importance != nil {
+		imp = s.importance.Fetch(context.Background(), scenario, snap.SystemRequired)
+	}
 	recs := buildRecommendations(snap, comp, mat)
 
 	return Result{
@@ -92,6 +108,7 @@ func (s *Service) GetScore(scenario string) (Result, error) {
 		Maturity:     mat,
 		Composite:    comp,
 		Freshness:    fresh,
+		Importance:   imp,
 		Recommends:   recs,
 		ActionPlan:   buildActionPlan(comp, recs),
 		Degradations: snap.Degradations,
