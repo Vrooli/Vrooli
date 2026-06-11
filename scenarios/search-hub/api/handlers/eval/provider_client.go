@@ -55,7 +55,7 @@ func (c *httpProviderClient) Search(ctx context.Context, d *registryv1.ProviderD
 	if err != nil {
 		return nil, fmt.Errorf("resolve %q: %w", hj.GetScenarioId(), err)
 	}
-	body, err := providers.RenderBody(hj.GetBodyTemplate(), query, limit, d.GetType())
+	body, err := providers.RenderBodyWithScope(hj.GetBodyTemplate(), query, limit, d.GetType(), opts.Scope)
 	if err != nil {
 		return nil, fmt.Errorf("render body: %w", err)
 	}

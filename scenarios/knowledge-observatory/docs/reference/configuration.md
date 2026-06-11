@@ -86,10 +86,10 @@ hybrid engine from it; `server.go` self-registers the file with `search-hub`
 > drift hash byte-identical for the empty recipe) and rerank-off. Any sweep that
 > proposes an index-time change must re-run the accuracy gate
 > (`KO_AISEARCH_LIVE=1 go test ./internal/aisearch/ -run TestAccuracyCorpus`) and
-> confirm recall@5 stays ≥ 0.818 before the tuning is written back. The
-> `testdata/search_queries.json` corpus (186 cases) is the per-build smoke gate;
-> the golden `tests` corpus in `search.json` is what the search-hub sweep
-> optimizes against.
+> confirm recall@5 stays ≥ 0.8 before the tuning is written back. The 22-case
+> golden corpus and its scoring policy now live in `.vrooli/search.json`; the
+> local gate calls the shared `ai-go/search.GradeSuite`, and search-hub mirrors
+> the same suite for `evals run`, `evals validate`, and `evals sweep`.
 
 [CODE: api/server.go]
 [CODE: .vrooli/search.json]

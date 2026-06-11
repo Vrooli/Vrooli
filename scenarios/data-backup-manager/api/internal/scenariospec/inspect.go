@@ -78,8 +78,12 @@ func (i *Inspector) Inspect(_ context.Context, scenario string) (Facts, error) {
 		return Facts{}, errors.New("cannot resolve repository root to read the scenario manifest")
 	}
 
+	servicePath, err := repocontract.ScenarioServiceManifestPath(root, scenario)
+	if err != nil {
+		return Facts{}, err
+	}
 	facts := Facts{
-		UsesPostgres: declaresEnabledPostgres(filepath.Join(root, "scenarios", scenario, ".vrooli", "service.json")),
+		UsesPostgres: declaresEnabledPostgres(servicePath),
 	}
 
 	if dataDir, ok := i.scenarioDataDir(scenario); ok {

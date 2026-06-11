@@ -308,7 +308,27 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Interface** | `internal/eval/runner.go::Runner.RunWith(ctx, suite, tag, limit, opts)`; `Run` delegates to it with the zero `opts` (exactly the baseline). |
 | **Production wiring** | The sweep's `armRunner` adapter (above) calls `RunWith` with the arm's overrides, then persists. |
 | **Test fake** | Covered by `internal/eval/runner_test.go` (override forwarding) and the sweep fakes. |
-| **Why it exists** | The sweep must vary query-time factors per arm through the SAME execution + labeling path the baseline uses, so an arm's result is comparable to the incumbent's; `RunWith` is the one method that threads overrides without forking the runner. |
+| **Why it exists** | The sweep must vary query-time factors per arm through the SAME execution + labeling path the baseline uses, so an arm's result is comparable to the incumbent's; `RunWith` is the one method that threads overrides without forking the runner. Case-level corpus scope is carried through `SearchCallOptions.Scope`, so scoped suites (for example doc path/scenario corpora) are not silently flattened during eval runs. |
+
+### eval.Validator (corpus referential validation)
+
+| | |
+|---|---|
+| **Seam** | Advisory re-probing of positive corpus labels through the registered provider endpoint. |
+| **Interface** | `internal/eval/corpus_validate.go::Validator.ValidateCorpus(ctx, suite, deepK)`. |
+| **Production wiring** | `handlers/eval/module.go` constructs `eval.NewValidator(registryStore, providerClient)`. The Connect handler exposes it as `EvalService.ValidateCorpus`, and the CLI wraps it as `search-hub evals validate`. |
+| **Test fake** | `internal/eval/corpus_validate_test.go` injects fake provider descriptors and a fake provider client returning canned `SearchHit`s / errors. |
+| **Why it exists** | Stale-label detection is heuristic under the no-list-all search contract, so the validator is deliberately advisory: deep query probe plus confirm probes classify LIVE/HARD/STALE/INCONCLUSIVE, while provider errors become inconclusive rows rather than failed builds. |
+
+### providers.RenderBodyWithScope (scoped eval calls)
+
+| | |
+|---|---|
+| **Seam** | Generic request-body placeholder rendering for provider calls that accept scoped queries. |
+| **Interface** | `internal/providers/call.go::RenderBodyWithScope(tmpl, query, limit, type, scope)` supports `{{scope}}`, `{{scope_kind}}`, and `{{scope_value}}` in addition to the baseline `{{query}}`/`{{limit}}`/`{{type}}`. |
+| **Production wiring** | The eval provider client uses `RenderBodyWithScope`; the router still uses `RenderBody` for unscoped free search. A provider opts in by declaring the placeholders in its `search.json` endpoint body template. |
+| **Test fake** | `handlers/eval/provider_client_test.go::TestSearchRendersScopePlaceholders` records the outgoing request body through the fake HTTP doer. |
+| **Why it exists** | Scoped test cases belong in the shared corpus contract, not in scenario-local harnesses. Rendering scope generically lets KO-style document suites preserve scenario/path filters without adding provider-specific code to search-hub. |
 
 ### corpusgen.Deps (the generator's seam bundle)
 
@@ -523,7 +543,8 @@ an actionable diff showing exactly which entries diverged.
 search-hub's eval store is a CACHE of each provider's `search.json` `tests` block,
 never an independent authority. Each is tagged `// INVARIANT: <name>` at its site.
 
-1. **`corpusMutationsGoThroughFile`.** A corpus mutation (`evals generate --apply`)
+1. **`corpusMutationsGoThroughFile`.** A corpus mutation (`evals generate --apply`
+   or `evals promote`)
    is written to the owning scenario's `search.json` via the token-gated
    `WriteCorpus` control RPC, then re-registered into the eval store — never
    upserted into the store directly. The file stays authoritative; no reverse

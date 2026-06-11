@@ -9,11 +9,11 @@
       "dependencies": [
         "REQ-P0-007"
       ],
-      "description": "The `cli-health search \"\u003cquery\u003e\"` command (default mode) must embed the query using the `nomic-embed-text` model via Ollama, query the Qdrant vector store for the top-K nearest command embeddings across all indexed scenarios, and return results ranked by cosine similarity. Results must include at minimum: command name, scenario name, short description, and similarity score. The command must achieve recall@5 ≥ 0.8 on the labelled query corpus stored in the scenario-owned SSOT `scenarios/cli-health/.vrooli/search.json` (provider `cli-health.commands`, `tests` block).",
+      "description": "The `cli-health search \"\u003cquery\u003e\"` command (default mode) must embed the query using the Ollama `embedding.default` role, query the Qdrant vector store for the top-K nearest command embeddings across all indexed scenarios, and return results ranked by cosine similarity. Results must include at minimum: command name, scenario name, short description, and similarity score. The command must achieve recall@5 ≥ 0.8 on the labelled query corpus stored in the scenario-owned SSOT `scenarios/cli-health/.vrooli/search.json` (provider `cli-health.commands`, `tests` block).",
       "id": "REQ-P0-004",
       "prd_ref": "OT-P0-002",
       "status": "implemented",
-      "title": "AI Semantic Search via Qdrant and nomic-embed-text",
+      "title": "AI Semantic Search via Qdrant and Ollama Role Policy",
       "validation": [
         {
           "notes": "Given a mocked Ollama embed response and mocked Qdrant search response, search returns results sorted descending by similarity score",

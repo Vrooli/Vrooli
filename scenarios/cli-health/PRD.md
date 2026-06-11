@@ -31,14 +31,14 @@ Operational targets are measurable outcomes; checkboxes may auto-update based on
 ## 🧱 Tech Direction Snapshot
 Preferred stacks: Go API with Connect-RPC and proto contracts; Go CLI built on `packages/cli-core`; React + Vite UI from the `vrooli-default` design kit.
 
-Preferred storage: Qdrant collection `cli-health-commands` (768-dimensional vectors, cosine similarity, payload-hash drift detection) for vector search; Ollama serving `nomic-embed-text` for embedding generation. No scenario-local relational store is required in v1.
+Preferred storage: Qdrant collection `cli-health-commands` (role-resolved dense vectors, cosine similarity, payload-hash drift detection) for vector search; Ollama embeddings resolved through the `embedding.default` policy role. No scenario-local relational store is required in v1.
 
 Integration strategy: All cross-scenario invocation from `test-genie` is via the `cli-health` CLI subprocess — never raw HTTP. The AI search pipeline is duplicated verbatim from `prompt-manager/api/aisearch/` for v1; extraction to a shared package is deferred per the duplicate-before-extract policy and tracked under OT-P2-002.
 
 Non-goals: No natural-language-to-command UI (`prompt-manager` owns that surface). No runnable command snippet execution. No new fields added to `cli-manifest.schema.json` — the existing `omitted[]` field at lines 26–30 covers all v1 validation needs. No git mutations during validation. No raw HTTP calls from `test-genie` to `cli-health`. No extraction to a shared package on day 1. No backwards-compatibility shims for pre-manifest scenarios beyond the `manifest_missing` warning severity.
 
 ## 🤝 Dependencies & Launch Plan
-Required resources: Ollama (serving `nomic-embed-text`); Qdrant (`cli-health-commands` collection). Both must be available in the Tier 1 local stack before Phase 3 work begins.
+Required resources: Ollama (with the `embedding.default` role available); Qdrant (`cli-health-commands` collection). Both must be available in the Tier 1 local stack before Phase 3 work begins.
 
 Scenario dependencies: `prompt-manager` (source code reference only for AI search pipeline duplication; not a runtime dependency); `test-genie` (downstream consumer of the Contracts phase integration delivered in Phase 5).
 

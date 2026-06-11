@@ -72,7 +72,8 @@ func (v *Validator) ValidateCorpus(ctx context.Context, suite *evalv1.EvalSuite,
 
 func (v *Validator) validateCase(ctx context.Context, desc *registryv1.ProviderDescriptor, c *evalv1.EvalCase, deepK int32, policy aisearch.ScoringPolicy) *evalv1.CorpusValidationCase {
 	probes := []string{c.GetQuery()}
-	hits, err := v.client.Search(ctx, desc, c.GetQuery(), deepK, SearchCallOptions{})
+	opts := SearchCallOptions{Scope: c.GetScope()}
+	hits, err := v.client.Search(ctx, desc, c.GetQuery(), deepK, opts)
 	if err != nil {
 		return inconclusiveCase(c, probes, err)
 	}
@@ -83,7 +84,7 @@ func (v *Validator) validateCase(ctx context.Context, desc *registryv1.ProviderD
 
 	for _, id := range c.GetExpectIds() {
 		probes = append(probes, id)
-		confirmHits, confirmErr := v.client.Search(ctx, desc, id, deepK, SearchCallOptions{})
+		confirmHits, confirmErr := v.client.Search(ctx, desc, id, deepK, opts)
 		if confirmErr != nil {
 			return inconclusiveCase(c, probes, confirmErr)
 		}

@@ -21,17 +21,43 @@ import (
 // (internal/eval) so both reach a provider's registered endpoint identically —
 // no per-domain copy of the placeholder contract.
 func RenderBody(tmpl, query string, limit int32, typ string) (string, error) {
+	return RenderBodyWithScope(tmpl, query, limit, typ, "")
+}
+
+// RenderBodyWithScope additionally substitutes {{scope}}, {{scope_kind}}, and
+// {{scope_value}} for providers whose public search surface accepts scoped
+// queries. Scope values use the shared corpus syntax:
+// ""|"global"|"scenario:<id>"|"path:<prefix>".
+func RenderBodyWithScope(tmpl, query string, limit int32, typ, scope string) (string, error) {
 	if strings.TrimSpace(tmpl) == "" {
 		return "", fmt.Errorf("empty body_template")
 	}
+	scopeKind, scopeValue := splitScope(scope)
 	out := tmpl
 	out = strings.ReplaceAll(out, "{{query}}", jsonStringInner(query))
 	out = strings.ReplaceAll(out, "{{limit}}", strconv.FormatInt(int64(limit), 10))
 	out = strings.ReplaceAll(out, "{{type}}", jsonStringInner(typ))
+	out = strings.ReplaceAll(out, "{{scope}}", jsonStringInner(strings.TrimSpace(scope)))
+	out = strings.ReplaceAll(out, "{{scope_kind}}", jsonStringInner(scopeKind))
+	out = strings.ReplaceAll(out, "{{scope_value}}", jsonStringInner(scopeValue))
 	if !json.Valid([]byte(out)) {
 		return "", fmt.Errorf("rendered body is not valid JSON")
 	}
 	return out, nil
+}
+
+func splitScope(scope string) (kind, value string) {
+	scope = strings.TrimSpace(scope)
+	switch {
+	case scope == "", scope == "global":
+		return "global", ""
+	case strings.HasPrefix(scope, "scenario:"):
+		return "scenario", strings.TrimSpace(strings.TrimPrefix(scope, "scenario:"))
+	case strings.HasPrefix(scope, "path:"):
+		return "path", strings.TrimSpace(strings.TrimPrefix(scope, "path:"))
+	default:
+		return "global", ""
+	}
 }
 
 // jsonStringInner returns s JSON-escaped with the surrounding quotes stripped,

@@ -12,15 +12,16 @@ document below, update that document and link it here.
 ## The load-bearing invariant: thin router
 
 Search Hub is a **federated search router**, not a search engine. It
-owns only the registry, classifier, fan-out, reranker, and metrics. It
-stores **no vectors and no corpus content** — every searchable corpus
-stays authoritative in its owning scenario (a *provider*) and is reached
-only through a declarative, self-registered descriptor. Two boundaries
+owns only the registry, classifier, fan-out, reranker, metrics, and eval
+mirrors. It stores **no vectors and no authoritative corpus content** —
+every searchable corpus and its `search.json` tests stay authoritative in
+the owning scenario (a *provider*) and are reached only through a
+declarative, self-registered descriptor. Two boundaries
 follow and are mechanically guarded (plan §6 Validation #4/#5):
 
 - **No data accretion.** The router imports no qdrant client and has no
-  corpus-content tables — only `providers` (registry) and
-  `query_telemetry` (metrics) in embedded SQLite.
+  authoritative corpus-content tables — only provider descriptors, telemetry,
+  and eval suite/run mirrors in embedded SQLite.
 - **No conditional monolith.** There is zero provider-specific code:
   one generic adapter driven by each descriptor's `ResultMapping`.
   Adding a provider is a registry row, never router code.
@@ -213,17 +214,19 @@ seams):
 | Domain | Role | Owns | Seams (test-injection boundaries) |
 |---|---|---|---|
 | `api/internal/sweep/` | The two-tier, overfit-safe optimizer. Pure functions: enumerate arms (query-time full-factorial, index-time coordinate-ascent), score each immutable run, apply the four guards, pick a winner. | The algorithm + the four overfit guards (significance, held-out, constraints, complexity tie-break). | suite reader, provider reader, arm runner, config controller, clock — satisfied in `handlers/eval` by the real eval Runner/store, the registry store, and the `control` client. |
-| `api/internal/corpusgen/` | Grow a provider's golden corpus from its own index (sample → invert → negatives → de-dup). Transport- and store-free. | The generation orchestration; every proposal marked `tags:["generated", …]`. | `Sampler` (reach the index), `Inverter` (LLM query inversion, via `ollama`), `Deduper` (near-duplicate judgement). |
+| `api/internal/corpusgen/` | Grow a provider's golden corpus from its own index (sample → invert → validate → negatives → de-dup). Transport- and store-free. | The generation orchestration; every proposal marked `tags:["generated", …]` and `status:"candidate"` until promoted. | `Sampler` (reach the index), `Inverter` (LLM query inversion, via `ollama`), `Deduper` (near-duplicate judgement), provider search prober (referential validation). |
 | `api/internal/control/` | Registry-side client for a provider's **token-gated** control plane (`SearchControlService` reindex + config-write). The mutating counterpart to the eval read path. | Call-time URL resolution via discovery, control-token presentation, transient-only retry. | the outbound HTTP/Connect seam; resolves base URL per call (never client-computed). |
 
-The `eval` domain expands too: it remains the suite store + run tracker,
-but now also hosts the `Sweep` and `Generate` handlers (wiring the
-`sweep`/`corpusgen` cores to the live seams) and the **adequacy** grader
-(`eval/adequacy.go`, warn-level — distinct from `eval/validate.go`, the
-hard gate). The shared `api/internal/ollama/` client is the single path
-to the local Ollama daemon (query classifier, reranker, and corpusgen
-inverter all route through `resource-ollama gateway`, so daemon load
-stays governed in one place).
+The `eval` domain expands too: it remains the suite mirror + run tracker,
+but now also hosts `Sweep`, `Generate`, `ValidateCorpus`, and `PromoteCases`.
+`ValidateCorpus` re-probes positive labels and classifies them LIVE/HARD/STALE
+advisory-only; `PromoteCases` flips reviewed candidates by writing through the
+provider's `search.json` before refreshing the eval mirror. The domain also
+hosts the **adequacy** grader (`eval/adequacy.go`, warn-level — distinct from
+`eval/validate.go`, the hard structural gate). The shared
+`api/internal/ollama/` client is the single path to the local Ollama daemon
+(query classifier, reranker, and corpusgen inverter all route through
+`resource-ollama gateway`, so daemon load stays governed in one place).
 
 Both new factor-bearing contracts are **consumed, not redefined**: the
 factor taxonomy and the `search.json` schema are owned by

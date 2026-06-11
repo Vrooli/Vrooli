@@ -307,10 +307,60 @@ func newRecord(origin string, path []string) CommandRecord {
 	return rec
 }
 
-// helpDescription returns the help body trimmed to start at its first non-empty
-// line. The body already leads with the command's summary line, so it is used
-// verbatim — prepending firstNonEmptyLine again (the old behavior) duplicated
-// the summary in both the embedded vector and the displayed snippet.
+// helpDescription returns the human-facing prose of a leaf command's --help
+// body: the summary line plus any description paragraphs, with the Usage block,
+// flag/option/example sections, and bare flag lines stripped. Genuine leaf
+// commands (reached when a subcommand's --help reveals no further subcommands)
+// embed their FULL --help output; without this cleanup the scaffolding that
+// every cli-core help shares — "Usage:" lines and the ubiquitous
+// "--help, -h  Show help for this command" flag — lands in every leaf's vector,
+// diluting the real per-command vocabulary and turning generic queries like
+// "show help" into a magnet that matches arbitrary commands. Stripping noise
+// (not adding synthetic text — the inverse of the enriched-text experiment that
+// HURT recall) keeps embeddings anchored to what each command actually does.
 func helpDescription(helpOut []byte) string {
-	return truncateForEmbedding(strings.TrimLeft(string(helpOut), " \t\r\n"), 1800)
+	return truncateForEmbedding(cleanHelpBody(string(helpOut)), 1800)
+}
+
+// cleanHelpBody removes Usage blocks, flag/option/example sections, and bare
+// flag lines from a raw --help body, leaving the prose. It walks section by
+// section (reusing the same header / skip-section classification as the
+// subcommand parser) and drops any line that is a flag definition wherever it
+// appears, since some CLIs list flags without a section header. Falls back to
+// the trimmed raw body when cleaning would empty it (a command whose help is
+// pure scaffolding still needs *some* description).
+func cleanHelpBody(raw string) string {
+	lines := strings.Split(raw, "\n")
+	out := make([]string, 0, len(lines))
+	skipSection := false
+	for _, l := range lines {
+		line := strings.TrimRight(l, "\r")
+		trimmed := strings.TrimSpace(line)
+		// A section header toggles skip state and is itself dropped (scaffolding).
+		if m := sectionHeaderRE.FindStringSubmatch(line); m != nil {
+			skipSection = isSkipSection(m[1])
+			continue
+		}
+		if trimmed == "" {
+			// A blank line ends an implicit usage/flag run; collapse repeats.
+			skipSection = false
+			if len(out) > 0 && out[len(out)-1] != "" {
+				out = append(out, "")
+			}
+			continue
+		}
+		if skipSection {
+			continue
+		}
+		// Bare flag definition (e.g. "--help, -h  Show help for this command").
+		if strings.HasPrefix(trimmed, "-") {
+			continue
+		}
+		out = append(out, trimmed)
+	}
+	cleaned := strings.TrimSpace(strings.Join(out, "\n"))
+	if cleaned == "" {
+		return strings.TrimSpace(raw)
+	}
+	return cleaned
 }

@@ -2,7 +2,9 @@ package eval
 
 import (
 	"context"
+	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -78,6 +80,24 @@ func TestSearchBaselineSendsNoOverrideHeaders(t *testing.T) {
 	require.Empty(t, req.Header.Get(aisearch.ControlTokenHeader), "baseline call must not leak a token header")
 }
 
+func TestSearchRendersScopePlaceholders(t *testing.T) {
+	doer := &mocks.FakeDoer{}
+	doer.AddResponse(http.StatusOK, []byte(`{"results":[]}`))
+	c := newHTTPProviderClient(staticResolver{url: "http://provider.test"}, doer)
+	desc := httpJSONDescriptor()
+	desc.Endpoint.GetHttpJson().BodyTemplate = `{"query":"{{query}}","limit":{{limit}},"scope":"{{scope_kind}}","target":"{{scope_value}}"}`
+
+	_, err := c.Search(context.Background(), desc, "architecture", 10,
+		internaleval.SearchCallOptions{Scope: "scenario:cli-health"})
+	require.NoError(t, err)
+	require.Len(t, doer.Requests, 1)
+
+	require.JSONEq(t,
+		`{"query":"architecture","limit":10,"scope":"scenario","target":"cli-health"}`,
+		readRequestBody(t, doer.Requests[0]),
+	)
+}
+
 func TestApplyOverrideHeadersTokenOmittedWhenEmpty(t *testing.T) {
 	// Overrides present but no token: the override header rides, the token header
 	// does not (the provider gate will then reject — by design).
@@ -99,4 +119,18 @@ func TestApplyOverrideHeadersNoopForZeroOverrides(t *testing.T) {
 	// explicitly-zero overrides.
 	require.NoError(t, applyOverrideHeaders(req, internaleval.SearchCallOptions{Overrides: &aisearch.SearchOverrides{}, ControlToken: "tok"}))
 	require.Empty(t, req.Header.Get(aisearch.OverridesHeader))
+}
+
+func readRequestBody(t *testing.T, req *http.Request) string {
+	t.Helper()
+	raw, err := req.GetBody()
+	if err != nil {
+		t.Fatalf("GetBody: %v", err)
+	}
+	defer raw.Close()
+	buf := new(strings.Builder)
+	if _, err := io.Copy(buf, raw); err != nil {
+		t.Fatalf("read body: %v", err)
+	}
+	return buf.String()
 }

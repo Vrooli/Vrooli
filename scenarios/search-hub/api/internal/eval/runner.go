@@ -29,6 +29,9 @@ type ProviderResolver interface {
 // ControlToken with the provider's token (looked up via registry Store.Token).
 // Defined at the consumer (seam-discovery) so a fake never depends on transport.
 type SearchCallOptions struct {
+	// Scope is the optional case-level scope string from the shared corpus
+	// contract: ""|"global"|"scenario:<id>"|"path:<prefix>".
+	Scope string
 	// Overrides, when non-nil and non-zero, are forwarded to the provider as the
 	// query-time override header; the provider honors them only past its own
 	// token + experiment-flag gate.
@@ -110,7 +113,9 @@ func (r *Runner) RunWith(ctx context.Context, suite *evalv1.EvalSuite, tag strin
 	latencies := make([]int64, 0, len(suite.GetCases()))
 	for _, c := range suite.GetCases() {
 		start := r.clock.Now()
-		hits, searchErr := r.client.Search(ctx, desc, c.GetQuery(), effLimit, opts)
+		caseOpts := opts
+		caseOpts.Scope = c.GetScope()
+		hits, searchErr := r.client.Search(ctx, desc, c.GetQuery(), effLimit, caseOpts)
 		latencies = append(latencies, r.clock.Now().Sub(start).Milliseconds())
 
 		top := toScoredHits(hits)

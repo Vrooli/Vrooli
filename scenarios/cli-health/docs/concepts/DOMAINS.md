@@ -26,7 +26,7 @@ belong in [`DATA.md`](DATA.md).
 |---|---|---|---|---|---|---|
 | health | Report runtime readiness and dependency reachability. | Reporting / query | No product data. | API, UI | Starter scaffold health. | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/cli-health/v1/health/` |
 | validation | Validate every adopting scenario's `cli/manifest.json` against the schema and proto descriptors; emit findings for schema errors, unresolved bindings, orphan proto methods, and stale omission entries. | Query / report | Per-run validation reports (transient; not persisted in v1). | API, CLI, UI | OT-P0-001 | `api/internal/validation/`, `api/handlers/validation/`, `cli/domains/validate/`, `ui/src/features/validation/`, `packages/proto/schemas/cli-health/v1/validation/` |
-| search | Cross-scenario semantic and text search for CLI commands; indexes manifest entries plus `--help` fallback parses. | Search / index | Qdrant collection `cli-health-commands` (768-dim, cosine); transient indexed-record cache. | API, CLI, UI | OT-P0-002, OT-P0-003 | `api/internal/search/`, `api/internal/aisearch/`, `api/handlers/search/`, `cli/domains/search/`, `ui/src/features/search/`, `packages/proto/schemas/cli-health/v1/search/` |
+| search | Cross-scenario semantic and text search for CLI commands; indexes manifest entries plus `--help` fallback parses. | Search / index | Qdrant collection `cli-health-commands` (role-resolved dense vectors, cosine); transient indexed-record cache. | API, CLI, UI | OT-P0-002, OT-P0-003 | `api/internal/search/`, `api/internal/aisearch/`, `api/handlers/search/`, `cli/domains/search/`, `ui/src/features/search/`, `packages/proto/schemas/cli-health/v1/search/` |
 | reindex | On-demand and scheduled rebuild of the search index; reconciler plus 5-minute sync loop. | Job / orchestration | Reindex job state (in-memory). | API, CLI, UI | OT-P0-004 | `api/internal/reindex/`, `api/handlers/reindex/`, `cli/domains/reindex/`, `ui/src/features/reindex/`, `packages/proto/schemas/cli-health/v1/reindex/` |
 | notes | Worked CRUD reference; removed in Gate 7. | CRUD / entity (template only) | Notes and attachment metadata. | API, CLI, UI | None (template starter). | `api/internal/notes/`, `api/handlers/notes/`, `cli/domains/notes/`, `ui/src/features/notes/`, `packages/proto/schemas/cli-health/v1/notes/` |
 
@@ -71,7 +71,7 @@ belong in [`DATA.md`](DATA.md).
 - API: `api/internal/search/`, `api/internal/aisearch/`, `api/handlers/search/`.
 - CLI: `cli/domains/search/`.
 - UI: `ui/src/features/search/`.
-- Storage: Qdrant collection `cli-health-commands` (768-dim, cosine, payload-hash drift detection).
+- Storage: Qdrant collection `cli-health-commands` (dimensions resolved from `embedding.default`, cosine, payload-hash drift detection).
 - Requirements: OT-P0-002, OT-P0-003.
 - Tests: discovery-source unit tests (manifest scan, `--help` fallback parser), embedding-stub stability test, integration test with real Qdrant, text-fallback test, recall@5 ≥ 0.8 on a hand-labeled query corpus at `testdata/search_queries.json`.
 
