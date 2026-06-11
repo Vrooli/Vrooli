@@ -1,0 +1,62 @@
+{
+  "_metadata": {
+    "module": "surfaces-and-integrations",
+    "description": "Requirements for CLI, UI, and quality-loop integration.",
+    "prd_ref": "PRD.md",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PROTO-SURFACES-001",
+      "title": "Provide CLI validation and describe commands",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "cli",
+      "criticality": "P0",
+      "description": "CLI manifest declares validate scenario and describe scenario commands with read/run_eligible governance and generated Connect bindings.",
+      "tags": ["cli", "manifest", "connect"],
+      "validation": [
+        {
+          "type": "scenario-test",
+          "status": "planned",
+          "notes": "Run `vrooli scenario test proto-health` and cli-health once commands are implemented."
+        }
+      ]
+    },
+    {
+      "id": "PROTO-SURFACES-002",
+      "title": "Wire proto findings into quality loop",
+      "status": "planned",
+      "prd_ref": "OT-P1-001, OT-P1-002",
+      "category": "integration",
+      "criticality": "P1",
+      "description": "test-genie receives FINDING_SOURCE_PROTO findings and ecosystem-manager maps them to an R2 proto-health maturity dimension.",
+      "tags": ["test-genie", "ecosystem-manager", "maturity"],
+      "validation": [
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Add test-genie phase tests and maturity map anti-drift tests."
+        }
+      ]
+    },
+    {
+      "id": "PROTO-SURFACES-003",
+      "title": "Ship direct UI inspection surface",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "ui",
+      "criticality": "P1",
+      "description": "UI shows fleet proto-health status and per-scenario finding/surface details with loading, error, and empty states.",
+      "tags": ["ui", "accessibility", "direct-ui"],
+      "validation": [
+        {
+          "type": "ui",
+          "status": "planned",
+          "notes": "Vitest + a11y coverage for loading/error/empty and populated states."
+        }
+      ]
+    }
+  ]
+}

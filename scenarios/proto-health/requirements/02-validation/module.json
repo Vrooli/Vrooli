@@ -1,0 +1,45 @@
+{
+  "_metadata": {
+    "module": "validation",
+    "description": "Requirements for per-scenario proto validation.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PROTO-VAL-001",
+      "title": "Validate one scenario at a time",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "api",
+      "criticality": "P0",
+      "description": "ValidateScenario accepts one scenario slug and returns pass/fail, summary, and stable findings without computing fleet graphs or dependency drift.",
+      "tags": ["validation", "boundary", "connect"],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Use fake descriptor/repo loaders to assert per-scenario filtering and no cross-scenario graph traversal."
+        }
+      ]
+    },
+    {
+      "id": "PROTO-VAL-002",
+      "title": "Emit stable proto finding taxonomy",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "api",
+      "criticality": "P0",
+      "description": "Findings include severity, code, location, message, and suggestion for correctness errors, maturity warnings, and advisory info.",
+      "tags": ["findings", "severity", "test-genie"],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Table-drive each planned finding code: cycle, gen_out_of_sync, package_mismatch, stability_dishonest, cross_domain_import, unsupported_annotation, not_adopted, hand_rolled_transport, version_naming, domain_mismatch, missing_health_proto, possibly_unused."
+        }
+      ]
+    }
+  ]
+}

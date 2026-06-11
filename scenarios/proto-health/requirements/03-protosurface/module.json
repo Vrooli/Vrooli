@@ -1,0 +1,45 @@
+{
+  "_metadata": {
+    "module": "protosurface",
+    "description": "Requirements for the reusable proto-surface fact RPC.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PROTO-SURF-001",
+      "title": "Describe scenario proto surface",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "api",
+      "criticality": "P0",
+      "description": "DescribeScenarioProtos returns a structured inventory of scenario-owned files, versions, domains, services, RPCs, messages, fields, imports, annotations, adoption signals, and transport world.",
+      "tags": ["protosurface", "descriptor", "connect"],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Assert deterministic ordering and exact ProtoSurface output from descriptor fixtures."
+        }
+      ]
+    },
+    {
+      "id": "PROTO-SURF-002",
+      "title": "Expose descriptor loading as a seam",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "seam",
+      "criticality": "P0",
+      "description": "Descriptor and scenario filesystem loading are behind interfaces so validation tests can inject fixtures without mutating the real fleet descriptor.",
+      "tags": ["seams", "fixtures", "descriptor"],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "notes": "Service tests use fake descriptor loaders and scenario locators."
+        }
+      ]
+    }
+  ]
+}

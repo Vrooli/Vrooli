@@ -1,0 +1,118 @@
+syntax = "proto3";
+
+package vrooli.proto_health.v1.shared;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/shared;shared_v1";
+
+// =============================================================================
+// SHARED DOMAIN - proto surface facts
+// =============================================================================
+//
+// @stability experimental
+//
+// Shared wire shapes for proto-health's validation and proto-surface RPCs.
+// These messages describe one scenario's Protocol Buffer contract only; any
+// fleet graph or dependency interpretation belongs to downstream consumers.
+// =============================================================================
+
+// ProtoSurface is the per-scenario inventory emitted by proto-health.
+message ProtoSurface {
+  string scenario = 1;
+  repeated ProtoFile files = 2;
+  repeated ProtoService services = 3;
+  repeated ProtoMessage messages = 4;
+  repeated ProtoImport intra_scenario_imports = 5;
+  repeated ProtoImport cross_scenario_imports = 6;
+  repeated AdoptionSignal adoption_signals = 7;
+  TransportWorld transport_world = 8;
+}
+
+// ProtoFile describes one .proto file owned by the scenario.
+message ProtoFile {
+  string path = 1;
+  string package = 2;
+  string version = 3;
+  string domain = 4;
+  string stability = 5;
+  repeated Annotation annotations = 6;
+}
+
+// Annotation is a supported or unsupported header annotation parsed from
+// leading comments, without assigning policy to it.
+message Annotation {
+  string name = 1;
+  string value = 2;
+}
+
+// ProtoService describes one service and its RPC methods.
+message ProtoService {
+  string file_path = 1;
+  string package = 2;
+  string name = 3;
+  string full_name = 4;
+  string domain = 5;
+  repeated ProtoRpc rpcs = 6;
+}
+
+// ProtoRpc describes one service method.
+message ProtoRpc {
+  string name = 1;
+  string input = 2;
+  string output = 3;
+  TransportKind transport = 4;
+}
+
+// ProtoMessage describes one message and its fields.
+message ProtoMessage {
+  string file_path = 1;
+  string package = 2;
+  string name = 3;
+  string full_name = 4;
+  string domain = 5;
+  repeated ProtoField fields = 6;
+}
+
+// ProtoField describes one message field.
+message ProtoField {
+  string name = 1;
+  string type = 2;
+  string message_type = 3;
+  string enum_type = 4;
+  bool repeated = 5;
+  bool optional = 6;
+  int32 number = 7;
+}
+
+// ProtoImport is an import edge recorded as a fact.
+message ProtoImport {
+  string from_file = 1;
+  string to_file = 2;
+  string from_domain = 3;
+  string to_domain = 4;
+}
+
+// AdoptionSignal records whether this scenario appears to consume its own
+// generated proto artifacts.
+message AdoptionSignal {
+  string name = 1;
+  bool present = 2;
+  string detail = 3;
+}
+
+// TransportWorld summarizes how the scenario exposes proto-owned methods.
+enum TransportWorld {
+  TRANSPORT_WORLD_UNSPECIFIED = 0;
+  TRANSPORT_WORLD_CONNECT = 1;
+  TRANSPORT_WORLD_HAND_ROLLED = 2;
+  TRANSPORT_WORLD_MIXED = 3;
+  TRANSPORT_WORLD_NONE = 4;
+}
+
+// TransportKind describes one RPC's discovered transport.
+enum TransportKind {
+  TRANSPORT_KIND_UNSPECIFIED = 0;
+  TRANSPORT_KIND_CONNECT = 1;
+  TRANSPORT_KIND_REST = 2;
+  TRANSPORT_KIND_HAND_ROLLED = 3;
+  TRANSPORT_KIND_NOT_SERVED = 4;
+}
