@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	pkg "github.com/vrooli/aisearch-go"
+	pkg "github.com/vrooli/ai-go/search"
 )
 
 // TestLiveSearchServiceHybridRerank is the Phase-5 end-to-end live proof: it

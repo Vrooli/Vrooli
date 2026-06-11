@@ -8,7 +8,7 @@ import (
 
 	"cli-health/handlers/searchcontrol"
 
-	aisearchpkg "github.com/vrooli/aisearch-go"
+	aisearchpkg "github.com/vrooli/ai-go/search"
 	controlv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/control"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"

@@ -212,19 +212,19 @@ spec:
   # Default collections for Vrooli ecosystem
   default_collections:
     agent_memory:
-      vector_size: 1536
+      embedding_role: "embedding.default"
       distance: "Cosine"
       description: "AI agent conversation memory and context"
     code_embeddings:
-      vector_size: 768
+      embedding_role: "embedding.default"
       distance: "Dot"
       description: "Source code semantic embeddings"
     document_chunks:
-      vector_size: 1536
+      embedding_role: "embedding.default"
       distance: "Cosine"
       description: "Document chunks for RAG systems"
     conversation_history:
-      vector_size: 1536
+      embedding_role: "embedding.default"
       distance: "Cosine"
       description: "Chat history and user interactions"
   

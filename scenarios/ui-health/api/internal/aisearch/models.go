@@ -1,11 +1,11 @@
 // Package aisearch is ui-health's thin consumer of the shared retrieval engine
-// in packages/aisearch-go. It owns only the ui-health-specific concerns: surface
+// in packages/ai-go/search. It owns only the ui-health-specific concerns: surface
 // discovery (discovery.go — dispatching to InventoryService on per-framework
 // component-library scenarios), the source adapter + result projection
 // (surface_index.go), and the search/reindex orchestration surface the Connect
 // handlers call (service.go). The index/store/reconcile core — embedding, the
 // Qdrant vector store, drift reconciliation, the sync loop, and env config —
-// lives in github.com/vrooli/aisearch-go, driven by the scenario-owned
+// lives in github.com/vrooli/ai-go/search, driven by the scenario-owned
 // .vrooli/search.json (the SSOT). Mirrors the cli-health adopter shape.
 package aisearch
 

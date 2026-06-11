@@ -7,15 +7,17 @@ import (
 	"sync"
 	"testing"
 
-	pkg "github.com/vrooli/aisearch-go"
+	pkg "github.com/vrooli/ai-go/search"
 )
 
 // fakeEmbedder returns a fixed-length deterministic dense vector.
 type fakeEmbedder struct{ calls int }
 
+const testEmbeddingDimensions = 3
+
 func (f *fakeEmbedder) Embed(_ context.Context, _ string) ([]float64, error) {
 	f.calls++
-	return make([]float64, pkg.DefaultVectorSize), nil
+	return make([]float64, testEmbeddingDimensions), nil
 }
 func (f *fakeEmbedder) Available(context.Context) bool { return true }
 
@@ -99,7 +101,15 @@ func newTestIndexer(t *testing.T) (*Indexer, *fakeStore, *fakeEmbedder, string) 
 	_, scenariosRoot := buildFixtureRepo(t)
 	store := newFakeStore()
 	emb := &fakeEmbedder{}
-	idx, err := NewIndexer(Options{Embedder: emb, VectorStore: store, ScenariosRoot: scenariosRoot})
+	idx, err := NewIndexer(Options{
+		Embedder:      emb,
+		VectorStore:   store,
+		ScenariosRoot: scenariosRoot,
+		Embedding: pkg.EmbeddingPolicy{
+			Model:      "test-embed",
+			Dimensions: testEmbeddingDimensions,
+		},
+	})
 	if err != nil {
 		t.Fatalf("NewIndexer: %v", err)
 	}
@@ -118,8 +128,8 @@ func TestIndexerCollectionSpecIsHybrid(t *testing.T) {
 	if !spec.Sparse || spec.SparseModifier != pkg.DefaultSparseModifier {
 		t.Errorf("expected hybrid collection (sparse + idf), got sparse=%v modifier=%q", spec.Sparse, spec.SparseModifier)
 	}
-	if spec.DenseSize != pkg.DefaultVectorSize {
-		t.Errorf("dense size = %d, want %d", spec.DenseSize, pkg.DefaultVectorSize)
+	if spec.DenseSize != testEmbeddingDimensions {
+		t.Errorf("dense size = %d, want %d", spec.DenseSize, testEmbeddingDimensions)
 	}
 }
 

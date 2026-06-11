@@ -118,11 +118,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("scoring service init failed: %v", err)
 	}
+	snapshots := internalscoring.NewSQLiteSnapshotRepository(db.Primary())
 
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "scenario-completeness-scoring-api", "1.0.0"),
-		scoringH.Module(scorer, log.Default()),
+		scoringH.Module(scorer, snapshots, log.Default()),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

@@ -71,7 +71,7 @@ aisearch-adoption-hardening work:
   `go.mod`) — bump toolchain to ≥1.25.11; repo-wide, toolchain-level.
 
 **Workaround:** The actual code gates are green — `gofumpt`, `go build`,
-`golangci-lint`, `go test` (api + cli + packages/aisearch-go), and the UI
+`golangci-lint`, `go test` (api + cli + packages/ai-go/search), and the UI
 `eslint` / `tsc` / `vitest` all pass. Track the standards debt as a campaign.
 
 **Real fix:** `architecture-cartographer campaign create cli-health
@@ -173,13 +173,13 @@ plus `newAuthorityDecorator`/`CanonicalOriginBoost`/`canonicalOrigin` and the
 now-producerless `Options.Decorate` passthrough. `enrichment_test.go` (tested
 only the deleted code) was removed; the recall-experiment harnesses kept only
 their live-lever arms (task-prefix, hybrid, rerank, floor). The generic
-`Compose`/`Decorate` seams remain in `packages/aisearch-go`; the hybrid
+`Compose`/`Decorate` seams remain in `packages/ai-go/search`; the hybrid
 sparse leg (`Options.Sparse`) is retained as a genuine live lever. Findings
-preserved in `packages/aisearch-go/docs/graduation-retrospective.md`. Surface
+preserved in `packages/ai-go/search/docs/graduation-retrospective.md`. Surface
 shrank (one fewer test file, ~150 fewer LOC); `go build`/`go vet`/`gofumpt`/unit
 tests green.
 
-**Refs:** `packages/aisearch-go/docs/graduation-retrospective.md` ("Things that
+**Refs:** `packages/ai-go/search/docs/graduation-retrospective.md` ("Things that
 sounded right and measured WRONG"); Search Self-Tuning System plan §0/§Phase 0.
 
 ### 2026-06-08 — Self-registers `cli-health.commands` with search-hub at boot
@@ -252,7 +252,7 @@ process — no restart**:
 aisearch-go's `Service.ReindexStatus` returns the live `*ReindexJob` pointer and
 the test helper `waitJob` (plus `ServiceAdapter`/`JobExport`) read `.State`/`.Plan`
 outside the package's job mutex while `runReindex` writes them under it. The
-racing accesses are entirely in `packages/aisearch-go` + the test helper, not in
+racing accesses are entirely in `packages/ai-go/search` + the test helper, not in
 the engine-swap code (which is correctly RWMutex-guarded); plain `go test` is
 green. The clean fix is for `ReindexStatus` to return a snapshot copy taken under
 the lock — an aisearch-go change that ripples to KO/swarm-manager, so it is left
@@ -267,7 +267,7 @@ control plane (binds e.g. `SearchControlService.Reindex`) is not flagged
 orphan.
 
 **Refs:** `handlers/searchcontrol/`, `api/main.go`, `cli/domains/reindex/`,
-`cli/manifest.json`, `.vrooli/search.json`, `packages/aisearch-go/searchjson_write.go`,
+`cli/manifest.json`, `.vrooli/search.json`, `packages/ai-go/search/searchjson_write.go`,
 `internal/services/manifestvalidation/{seams,protoloader}.go`; plan §7 Phase 5.
 
 ## Architecture Drift

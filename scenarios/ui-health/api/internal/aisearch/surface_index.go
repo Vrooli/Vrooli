@@ -8,7 +8,7 @@ import (
 	"log"
 	"strings"
 
-	pkg "github.com/vrooli/aisearch-go"
+	pkg "github.com/vrooli/ai-go/search"
 )
 
 // idPrefix namespaces ui-health's point IDs inside the shared engine so its

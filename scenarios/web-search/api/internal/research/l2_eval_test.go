@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	aisearch "github.com/vrooli/aisearch-go"
+	aisearch "github.com/vrooli/ai-go/search"
 
 	"web-search/internal/livesearch"
 	"web-search/internal/research"

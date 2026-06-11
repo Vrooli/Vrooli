@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	pkg "github.com/vrooli/aisearch-go"
+	pkg "github.com/vrooli/ai-go/search"
 )
 
 // TestDocSearchHitFederationContract freezes the JSON shape search-hub federates

@@ -9,7 +9,7 @@ import (
 
 	"connectrpc.com/connect"
 
-	aisearch "github.com/vrooli/aisearch-go"
+	aisearch "github.com/vrooli/ai-go/search"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/retry"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"

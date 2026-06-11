@@ -268,7 +268,7 @@ qdrant::create_default_collections() {
     for collection_config in "${QDRANT_COLLECTION_CONFIGS[@]}"; do
         IFS=':' read -r collection_name vector_size distance_metric <<< "$collection_config"
         
-        log::info "Creating collection: $collection_name (size: $vector_size, distance: $distance_metric)"
+        log::info "Creating collection: $collection_name (embedding ref: $vector_size, distance: $distance_metric)"
         
         if ! qdrant::collections::create "$collection_name" "$vector_size" "$distance_metric"; then
             log::warn "Failed to create collection: $collection_name"
@@ -970,7 +970,7 @@ qdrant::install::create_default_collections() {
     local total_count=${#QDRANT_COLLECTION_CONFIGS[@]}
     
     for config in "${QDRANT_COLLECTION_CONFIGS[@]}"; do
-        # Parse config: name:vector_size:distance_metric
+        # Parse config: name:embedding_role_or_vector_size:distance_metric
         local name
         local vector_size
         local distance_metric

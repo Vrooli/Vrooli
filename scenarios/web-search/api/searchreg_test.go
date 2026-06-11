@@ -22,7 +22,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 
-	aisearch "github.com/vrooli/aisearch-go"
+	aisearch "github.com/vrooli/ai-go/search"
 	"github.com/vrooli/api-core/retry"
 	searchregister "github.com/vrooli/searchregister-go"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"

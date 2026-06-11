@@ -13,7 +13,7 @@ import (
 	"sort"
 	"strings"
 
-	pkg "github.com/vrooli/aisearch-go"
+	pkg "github.com/vrooli/ai-go/search"
 
 	"knowledge-observatory/internal/doccontract"
 )
@@ -50,7 +50,7 @@ var prunedDirs = map[string]struct{}{
 // docs/manifest.json across the repo (root + scenarios + template scenarios),
 // emits one SourceDoc per documentation file with manifest metadata, and
 // supplements scenario/project README.md and PRD.md files not registered in a
-// manifest. It implements github.com/vrooli/aisearch-go.Source.
+// manifest. It implements github.com/vrooli/ai-go/search.Source.
 type DocSource struct {
 	repoRoot      string
 	scenariosRoot string

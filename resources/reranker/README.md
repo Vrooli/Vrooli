@@ -7,7 +7,7 @@ each candidate passage answers a query. No custom inference code: TEI is the
 engine; the model is auto-pulled from the HuggingFace Hub on first start.
 
 This resource is the `CrossEncoderReranker` backend for
-[`packages/aisearch-go`](../../packages/aisearch-go) and the shared reranker for
+[`packages/ai-go/search`](../../packages/ai-go/search) and the shared reranker for
 the `search-hub` router. It is a **soft** dependency everywhere — search degrades
 to an LLM reranker (`qwen3:4b` via Ollama) and then to fused (RRF) order when the
 reranker is unavailable.

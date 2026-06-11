@@ -11,7 +11,7 @@ import (
 
 	repocontract "github.com/vrooli/repo-contract-go"
 
-	pkg "github.com/vrooli/aisearch-go"
+	pkg "github.com/vrooli/ai-go/search"
 )
 
 // experiment_test.go is the recall-gap exploration harness (NOT the gate — that
@@ -25,7 +25,7 @@ import (
 //
 // The enriched-embedding-text (H5) and canonical-origin authority (H4) arms
 // were measured to HURT recall (0.70→0.40 and 0.70→0.65) and have been removed;
-// their verdicts live in packages/aisearch-go/docs/graduation-retrospective.md.
+// their verdicts live in packages/ai-go/search/docs/graduation-retrospective.md.
 //
 // It prints a comparison table so the productionized config is chosen from data.
 // Expensive (several full re-indexes + many reranked searches), so it is gated

@@ -76,7 +76,7 @@ qdrant::collections::verify_init() {
 # Create a new collection
 # Arguments:
 #   $1 - Collection name
-#   $2 - Vector size (default: 1536)
+#   $2 - Vector size or Ollama embedding role/model (default: embedding.default)
 #   $3 - Distance metric (default: Cosine)
 # Returns: 0 on success, 1 on failure
 #######################################
@@ -85,12 +85,27 @@ qdrant::collections::create() {
     qdrant::collections::ensure_api_client || return 1
     
     local collection_name="$1"
-    local vector_size="${2:-1536}"
+    local vector_size="${2:-embedding.default}"
     local distance_metric="${3:-Cosine}"
     
     if [[ -z "$collection_name" ]]; then
         log::error "Collection name is required"
         return 1
+    fi
+
+    if [[ ! "$vector_size" =~ ^[0-9]+$ ]]; then
+        if ! command -v qdrant::models::get_model_dimensions >/dev/null 2>&1; then
+            # shellcheck disable=SC1091
+            source "${QDRANT_COLLECTIONS_DIR}/models.sh"
+        fi
+        local resolved_size
+        resolved_size=$(qdrant::models::get_model_dimensions "$vector_size")
+        if [[ ! "$resolved_size" =~ ^[0-9]+$ ]]; then
+            log::error "Cannot determine dimensions for embedding policy ref: $vector_size"
+            return 1
+        fi
+        log::info "Resolved embedding policy ref '$vector_size' to $resolved_size dimensions"
+        vector_size="$resolved_size"
     fi
     
     # Validate distance metric
@@ -606,8 +621,8 @@ qdrant::collections::create_parsed() {
     if [[ -n "${PARSED_MODEL:-}" ]]; then
         qdrant::collections::create_from_model "$PARSED_NAME" "$PARSED_MODEL" "$PARSED_DISTANCE"
     else
-        # Use traditional creation with dimensions
-        local vector_size="${PARSED_DIMENSIONS:-1536}"
+        # Use traditional creation with dimensions or embedding policy ref
+        local vector_size="${PARSED_DIMENSIONS:-embedding.default}"
         qdrant::collections::create "$PARSED_NAME" "$vector_size" "$PARSED_DISTANCE"
     fi
 }

@@ -3,7 +3,7 @@ package sweep
 import (
 	"fmt"
 
-	aisearch "github.com/vrooli/aisearch-go"
+	aisearch "github.com/vrooli/ai-go/search"
 )
 
 // taxonomy.go enumerates the candidate configurations ("arms") the sweep tries.

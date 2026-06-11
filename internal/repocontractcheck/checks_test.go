@@ -356,6 +356,98 @@ func TestRunPassesWhenScenarioStaysOffRawOllamaEndpoints(t *testing.T) {
 	}
 }
 
+func TestRunFailsWhenScenarioDefinesLocalOllamaVectorSize(t *testing.T) {
+	fixture := newValidationFixtureRepo(t)
+	writeValidationScenarioSource(t, fixture, "swarm-manager", "api/internal/aisearch/vectorstore.go",
+		"package aisearch\n\nconst DefaultVectorSize = 768\n")
+
+	report, err := Run(fixture.Root)
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Success {
+		t.Fatalf("expected failure, got success: %+v", report.Checks)
+	}
+	if !hasFailedCheck(report, "ollama_policy_facts") {
+		t.Fatalf("expected ollama_policy_facts failure, got %+v", report.Checks)
+	}
+	message := failedCheckMessage(report, "ollama_policy_facts")
+	if !strings.Contains(message, "DefaultVectorSize") {
+		t.Fatalf("expected message to mention DefaultVectorSize, got %q", message)
+	}
+}
+
+func TestRunFailsWhenScenarioUsesGatewayDirectModel(t *testing.T) {
+	fixture := newValidationFixtureRepo(t)
+	writeValidationScenarioSource(t, fixture, "prompt-manager", "api/internal/embed.sh",
+		"resource-ollama gateway embed --model nomic-embed-text:latest --input hi\n")
+
+	report, err := Run(fixture.Root)
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Success {
+		t.Fatalf("expected failure, got success: %+v", report.Checks)
+	}
+	message := failedCheckMessage(report, "ollama_policy_facts")
+	if !strings.Contains(message, "--model") {
+		t.Fatalf("expected message to mention --model, got %q", message)
+	}
+}
+
+func TestRunFailsWhenResourceMaintainsOllamaDimensionMap(t *testing.T) {
+	fixture := newValidationFixtureRepo(t)
+	testkitgo.WriteRelativeFile(t, fixture.Root, "resources/qdrant/lib/models.sh",
+		"declare -A KNOWN_MODEL_DIMENSIONS=([nomic]=768)\n")
+
+	report, err := Run(fixture.Root)
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Success {
+		t.Fatalf("expected failure, got success: %+v", report.Checks)
+	}
+	message := failedCheckMessage(report, "ollama_policy_facts")
+	if !strings.Contains(message, "model-dimension map") {
+		t.Fatalf("expected message to mention model-dimension map, got %q", message)
+	}
+}
+
+func TestRunFailsWhenLocalHostProbeAppearsOutsideHostInventory(t *testing.T) {
+	fixture := newValidationFixtureRepo(t)
+	writeValidationScenarioSource(t, fixture, "example", "api/internal/metrics/memory.go",
+		"package metrics\n\nimport \"os\"\n\nfunc readMemory() ([]byte, error) {\n\treturn os.ReadFile(\"/proc/meminfo\")\n}\n")
+
+	report, err := Run(fixture.Root)
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Success {
+		t.Fatalf("expected failure, got success: %+v", report.Checks)
+	}
+	if !hasFailedCheck(report, "host_inventory_authority") {
+		t.Fatalf("expected host_inventory_authority failure, got %+v", report.Checks)
+	}
+	message := failedCheckMessage(report, "host_inventory_authority")
+	if !strings.Contains(message, "scenarios/example/api/internal/metrics/memory.go:6") || !strings.Contains(message, "proc_meminfo") {
+		t.Fatalf("expected message to identify proc_meminfo violation, got %q", message)
+	}
+}
+
+func TestRunAllowsMarkedRemoteHostSnapshotParser(t *testing.T) {
+	fixture := newValidationFixtureRepo(t)
+	writeValidationScenarioSource(t, fixture, "example", "api/internal/vps/metrics.go",
+		"package vps\n\nfunc remoteCommands() []string {\n\t// hostinventory:remote-snapshot-parser\n\treturn []string{\"cat /proc/meminfo 2>/dev/null\", \"cat /proc/loadavg 2>/dev/null\"}\n}\n")
+
+	report, err := Run(fixture.Root)
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if hasFailedCheck(report, "host_inventory_authority") {
+		t.Fatalf("marked remote parser should pass host_inventory_authority: %+v", report.Checks)
+	}
+}
+
 func newValidationFixtureRepo(t *testing.T) testkitgo.RepoFixture {
 	t.Helper()
 

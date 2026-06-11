@@ -29,6 +29,7 @@ import (
 const (
 	defaultParallel  = 4
 	defaultAcquire   = 60 * time.Second
+	charsPerToken    = 4
 	envNumParallel   = "OLLAMA_NUM_PARALLEL"
 	envAcquireTO     = "OLLAMA_GATEWAY_ACQUIRE_TIMEOUT"
 	envLockDir       = "OLLAMA_GATEWAY_LOCK_DIR"
@@ -105,7 +106,7 @@ func (h *Handlers) Embed(args []string) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	selectedModel, err := h.resolveModel(*model, *role, "embedding")
+	selected, err := h.resolveModelSelection(*model, *role, "embedding")
 	if err != nil {
 		return err
 	}
@@ -120,7 +121,7 @@ func (h *Handlers) Embed(args []string) error {
 	}
 	defer release()
 
-	vec, err := h.NewClient().Embed(ctx, selectedModel, text)
+	vec, err := h.NewClient().Embed(ctx, selected.Ref, text)
 	if err != nil {
 		return err
 	}
@@ -152,12 +153,15 @@ func (h *Handlers) Generate(args []string) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	selectedModel, err := h.resolveModel(*model, *role, "generate")
+	selected, err := h.resolveModelSelection(*model, *role, "generate")
 	if err != nil {
 		return err
 	}
 	text, err := h.resolveInput(*prompt, *fromStdin, "prompt")
 	if err != nil {
+		return err
+	}
+	if err := validateContextWindow(text, *maxTokens, selected); err != nil {
 		return err
 	}
 
@@ -167,7 +171,7 @@ func (h *Handlers) Generate(args []string) error {
 	}
 	defer release()
 
-	req := ensure.GenerateRequest{Model: selectedModel, Prompt: text}
+	req := ensure.GenerateRequest{Model: selected.Ref, Prompt: text}
 	if *maxTokens > 0 {
 		req.NumPredict = maxTokens
 	}
@@ -190,41 +194,83 @@ func (h *Handlers) Generate(args []string) error {
 
 // --- shared -------------------------------------------------------------------
 
-func (h *Handlers) resolveModel(model, role, requiredCapability string) (string, error) {
+type selectedModel struct {
+	Ref                 string
+	Source              string
+	ContextWindowTokens int
+}
+
+func (h *Handlers) resolveModelSelection(model, role, requiredCapability string) (selectedModel, error) {
 	model = strings.TrimSpace(model)
 	role = strings.TrimSpace(role)
 	if model == "" && role == "" {
-		return "", fmt.Errorf("--role or --model is required")
+		return selectedModel{}, fmt.Errorf("--role or --model is required")
 	}
 	if model != "" && role != "" {
-		return "", fmt.Errorf("--role and --model are mutually exclusive")
+		return selectedModel{}, fmt.Errorf("--role and --model are mutually exclusive")
 	}
 	if model != "" {
-		return model, nil
+		selected := selectedModel{Ref: model, Source: "model"}
+		p, _, err := policy.LoadDefaultFile(h.GetEnv)
+		if err != nil {
+			return selected, nil
+		}
+		resolved, err := p.ResolveModel(model)
+		if err != nil {
+			return selected, nil
+		}
+		if !hasCapability(resolved.Capabilities, requiredCapability) {
+			return selectedModel{}, fmt.Errorf("model %q does not declare %s capability", model, requiredCapability)
+		}
+		selected.ContextWindowTokens = resolved.ContextWindowTokens
+		return selected, nil
 	}
 
 	p, _, err := policy.LoadDefaultFile(h.GetEnv)
 	if err != nil {
-		return "", err
+		return selectedModel{}, err
 	}
 	resolution, err := p.Resolve(policy.ResolveRequest{
 		ModelRoles: []policy.RoleRequest{{Role: role}},
 	})
 	if err != nil {
-		return "", err
+		return selectedModel{}, err
 	}
 	if len(resolution.Models) == 0 {
-		return "", fmt.Errorf("role %q resolved no models", role)
+		return selectedModel{}, fmt.Errorf("role %q resolved no models", role)
 	}
 	ref := resolution.Models[0].Ref
 	modelPolicy, ok := p.Models[ref]
 	if !ok {
-		return "", fmt.Errorf("role %q resolved unknown model %q", role, ref)
+		return selectedModel{}, fmt.Errorf("role %q resolved unknown model %q", role, ref)
 	}
 	if !hasCapability(modelPolicy.Capabilities, requiredCapability) {
-		return "", fmt.Errorf("role %q resolves to %q without %s capability", role, ref, requiredCapability)
+		return selectedModel{}, fmt.Errorf("role %q resolves to %q without %s capability", role, ref, requiredCapability)
 	}
-	return ref, nil
+	return selectedModel{
+		Ref:                 ref,
+		Source:              "role",
+		ContextWindowTokens: modelPolicy.ContextWindowTokens,
+	}, nil
+}
+
+func validateContextWindow(prompt string, maxTokens int, selected selectedModel) error {
+	if selected.ContextWindowTokens <= 0 || maxTokens <= 0 {
+		return nil
+	}
+	estimatedPromptTokens := estimatePromptTokens(prompt)
+	requestedTokens := estimatedPromptTokens + maxTokens
+	if requestedTokens <= selected.ContextWindowTokens {
+		return nil
+	}
+	return fmt.Errorf("request exceeds context window for %s: estimated prompt tokens %d + max_tokens %d = %d, context_window_tokens %d", selected.Ref, estimatedPromptTokens, maxTokens, requestedTokens, selected.ContextWindowTokens)
+}
+
+func estimatePromptTokens(text string) int {
+	if text == "" {
+		return 0
+	}
+	return (len([]rune(text)) + charsPerToken - 1) / charsPerToken
 }
 
 func hasCapability(capabilities []string, want string) bool {

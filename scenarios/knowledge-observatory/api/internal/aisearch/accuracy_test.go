@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	pkg "github.com/vrooli/aisearch-go"
+	pkg "github.com/vrooli/ai-go/search"
 
 	"knowledge-observatory/internal/services/docsearch"
 )

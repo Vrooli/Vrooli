@@ -25,7 +25,7 @@ import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/discovery"
 
-	aisearch "github.com/vrooli/aisearch-go"
+	aisearch "github.com/vrooli/ai-go/search"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 	evalconnect "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval/eval_v1connect"
 

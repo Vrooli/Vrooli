@@ -165,7 +165,7 @@ live in `.vrooli/search.json` — the scenario-owned SSOT for the search descrip
 the tuning block, and the golden test corpus. The old `CLI_HEALTH_RERANK_*` /
 `CLI_HEALTH_EMBED_TASK_PREFIX` env reads and the `NewDenseEngine(...)` code literal
 are gone; the schema + per-knob dashboard live in the engine package
-[`packages/aisearch-go/docs/reference/search-json.md`](../../../../packages/aisearch-go/docs/reference/search-json.md).
+[`packages/ai-go/search/docs/reference/search-json.md`](../../../../packages/ai-go/search/docs/reference/search-json.md).
 
 | What | Value | Notes |
 |---|---|---|

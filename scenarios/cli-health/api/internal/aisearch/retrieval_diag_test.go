@@ -9,7 +9,7 @@ import (
 
 	repocontract "github.com/vrooli/repo-contract-go"
 
-	pkg "github.com/vrooli/aisearch-go"
+	pkg "github.com/vrooli/ai-go/search"
 )
 
 // retrieval_diag_test.go isolates RETRIEVAL quality from RERANK. For each corpus

@@ -99,7 +99,7 @@ the protos (additive-only; `buf breaking` exit 0 vs a pre-change baseline image)
 
 - **`registry.proto`** — new `Tuning` + `FloorConfig` messages (wire carrier for the
   `search.json` `tuning` block; the *authoritative* factor taxonomy stays in
-  `packages/aisearch-go`, this only transports values, each factor tagged
+  `packages/ai-go/search`, this only transports values, each factor tagged
   INDEX-TIME vs QUERY-TIME). `ProviderDescriptor` gains `reindex_endpoint (13)`,
   `config_endpoint (14)`, `tuning (15)`. `RegisterProvider` request/response gain
   `control_token` (minted on first registration, echoed thereafter, presented as
@@ -213,7 +213,7 @@ gofumpt-clean; `search-hub/api` full `go test ./...` green; `cli-health/api`
 build+vet + `handlers/search` (incl. `-race`) + `internal/aisearch` tests green;
 `knowledge-observatory/api` build+vet+`go test ./...` green.
 
-**Refs:** `packages/aisearch-go/{override,override_transport}.go`;
+**Refs:** `packages/ai-go/search/{override,override_transport}.go`;
 `scenarios/cli-health/api/handlers/search/`; plan §7 Phase 4 + §8 Contract Decisions.
 
 ### Search Self-Tuning System — Phase 5 (reindex/config-write contract end-to-end) DONE
@@ -264,7 +264,7 @@ build+vet+test green; `buf lint` + `buf build` clean on the affected schemas. NO
 §0) — expected, not a regression.
 
 **Refs:** `internal/control/`; `scenarios/cli-health/api/handlers/searchcontrol/`;
-`packages/aisearch-go/searchjson_write.go`; `packages/searchregister-go/descriptor.go`;
+`packages/ai-go/search/searchjson_write.go`; `packages/searchregister-go/descriptor.go`;
 `packages/proto/schemas/search-hub/v1/control/`; plan §7 Phase 5.
 
 ### Search Self-Tuning System — Phase 6 (sweep orchestrator + overfit guards + write-back) DONE
@@ -307,7 +307,7 @@ item the Phase-7/8 agent must land before an attended index-time sweep.**
 
 **Verification (all green):** `search-hub/api` + `cli` build+vet+test (`internal/sweep`
 `-race`, gofumpt-clean); `.vrooli/endpoints.json` regenerated (`evals_sweep` + CLI seed);
-`packages/aisearch-go`, `searchregister-go`, `cli-health/api`, `knowledge-observatory/api`
+`packages/ai-go/search`, `searchregister-go`, `cli-health/api`, `knowledge-observatory/api`
 build+test green (additive eval.proto change is contained to search-hub — no other Go
 module imports `search-hub/v1/eval`); `buf lint` clean. NOTE: `make breaking` reports a
 git-workspace image-count artifact in this environment, not a real break — the eval.proto
@@ -381,7 +381,7 @@ image-count artifact in this environment, not a real break.
 
 **What landed (docs deliverable, the plan §13 DoD doc item):**
 - The control-surface **dashboard** is now documented as the canonical engine
-  reference: `packages/aisearch-go/docs/reference/search-json.md` (NEW) carries
+  reference: `packages/ai-go/search/docs/reference/search-json.md` (NEW) carries
   the `.vrooli/search.json` schema + the per-knob factor table (key / tier /
   kind / default / decision rule) + presets + the read/write lifecycle.
   `configuration.md` and `README.md` in `aisearch-go` were **de-staled**: the
@@ -489,8 +489,8 @@ substrate itself (storage-steer §6) for when a scenario crosses to real users.
 2. On plan completion, write the `kind: execute` record
    (`swarm-manager records create`) per plan §13.
 
-**Refs:** `packages/aisearch-go/docs/reference/{search-json,configuration}.md`,
-`packages/aisearch-go/README.md`; `scenarios/{search-hub,cli-health,
+**Refs:** `packages/ai-go/search/docs/reference/{search-json,configuration}.md`,
+`packages/ai-go/search/README.md`; `scenarios/{search-hub,cli-health,
 knowledge-observatory}/docs/`; bug `knw-1780935292042898963`; plan §7 Phase 8 +
 §13 DoD.
 

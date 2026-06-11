@@ -9,7 +9,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/stretchr/testify v1.10.0
-	github.com/vrooli/aisearch-go v0.0.0
+	github.com/vrooli/ai-go v0.0.0
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/cli-core v0.0.0
 	github.com/vrooli/measures-go v0.0.0
@@ -39,7 +39,7 @@ require (
 	modernc.org/memory v1.11.0 // indirect
 )
 
-replace github.com/vrooli/aisearch-go => ../../../packages/aisearch-go
+replace github.com/vrooli/ai-go => ../../../packages/ai-go
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
 

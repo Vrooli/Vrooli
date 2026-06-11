@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	pkg "github.com/vrooli/aisearch-go"
+	pkg "github.com/vrooli/ai-go/search"
 )
 
 func writeFile(t *testing.T, path, content string) {

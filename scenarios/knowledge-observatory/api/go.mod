@@ -8,7 +8,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/lib/pq v1.10.9
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
-	github.com/vrooli/aisearch-go v0.0.0
+	github.com/vrooli/ai-go v0.0.0
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/searchregister-go v0.0.0
@@ -26,7 +26,7 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 )
 
-replace github.com/vrooli/aisearch-go => ../../../packages/aisearch-go
+replace github.com/vrooli/ai-go => ../../../packages/ai-go
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
 

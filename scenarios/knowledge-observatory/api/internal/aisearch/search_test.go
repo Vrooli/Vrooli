@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	pkg "github.com/vrooli/aisearch-go"
+	pkg "github.com/vrooli/ai-go/search"
 )
 
 // searchEmbedder returns a fixed vector and a controllable availability.

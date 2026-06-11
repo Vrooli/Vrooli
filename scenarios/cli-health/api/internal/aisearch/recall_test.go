@@ -10,7 +10,7 @@ import (
 
 	repocontract "github.com/vrooli/repo-contract-go"
 
-	pkg "github.com/vrooli/aisearch-go"
+	pkg "github.com/vrooli/ai-go/search"
 )
 
 // recall_test.go is cli-health's REQ-P0-004 acceptance gate: command search must

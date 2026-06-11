@@ -8,7 +8,7 @@ import (
 
 	repocontract "github.com/vrooli/repo-contract-go"
 
-	pkg "github.com/vrooli/aisearch-go"
+	pkg "github.com/vrooli/ai-go/search"
 )
 
 // bvariants_test.go pins down the production config on the winning index

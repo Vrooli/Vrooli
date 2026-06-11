@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	pkg "github.com/vrooli/aisearch-go"
+	pkg "github.com/vrooli/ai-go/search"
 )
 
 // SearchMode tags how Search should retrieve results. It is the proto-facing
@@ -93,6 +93,9 @@ type Options struct {
 	// Used by the recall experiment to index alternative strategies into scratch
 	// collections without disturbing the live index.
 	Collection string
+	// Embedding carries resolved Ollama policy metadata for scratch/test engine
+	// assembly. Production NewTunedService obtains this through EngineDeps.
+	Embedding pkg.EmbeddingPolicy
 	// Compose overrides the per-command embedding-text strategy (nil =>
 	// composeCommandEmbeddingText, the measured-best production strategy). The
 	// seam is retained for measurement; an enriched variant was tried and removed
@@ -178,9 +181,9 @@ func buildEngineFromBase(base pkg.ServiceOptions, opts Options) *engine {
 
 	spec := pkg.CollectionSpec{
 		Name:          collection,
-		DenseSize:     pkg.DefaultVectorSize,
+		DenseSize:     opts.Embedding.Dimensions,
 		DenseDistance: pkg.DefaultDenseDistance,
-		Model:         pkg.DefaultEmbedModel,
+		Model:         opts.Embedding.Model,
 	}
 	if hybrid {
 		spec.Sparse = true
@@ -226,13 +229,15 @@ func NewTunedService(tuning pkg.TuningConfig, opts TunedOptions) *Service {
 		// tuning factor (RerankEnabled/RerankBlend/Shortlist/Floor) derived from the
 		// resolved tuning — no factor is forwarded by hand here. opts supplies only
 		// the structural command-domain wiring.
-		return buildEngineFromBase(te.ServiceOptions(), Options{
+		eng := buildEngineFromBase(te.ServiceOptions(), Options{
 			Discovery:        opts.Discovery,
 			Parallelism:      opts.Parallelism,
 			MaxEmbedsPerTick: opts.MaxEmbedsPerTick,
 			Compose:          opts.Compose,
 			Collection:       opts.Collection,
 		})
+		eng.spec = te.Spec
+		return eng
 	}
 	return &Service{eng: build(tuning), rebuild: build}
 }

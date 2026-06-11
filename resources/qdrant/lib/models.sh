@@ -20,10 +20,14 @@ source "${var_LIB_UTILS_DIR}/log.sh"
 # Source configuration
 # shellcheck disable=SC1091
 source "${RESOURCE_DIR}/config/defaults.sh"
+if [[ -z "${QDRANT_CONFIG_EXPORTED:-}" ]]; then
+    qdrant::export_config 2>/dev/null || true
+fi
 
 # Model cache file location
 QDRANT_MODEL_CACHE="${QDRANT_DATA_DIR:-/var/lib/qdrant}/.model_cache.json"
 QDRANT_MODEL_CACHE_TTL=3600  # 1 hour cache TTL
+QDRANT_DEFAULT_EMBEDDING_ROLE="${QDRANT_DEFAULT_EMBEDDING_ROLE:-embedding.default}"
 
 # Known embedding model patterns
 declare -A EMBEDDING_MODEL_PATTERNS=(
@@ -33,19 +37,6 @@ declare -A EMBEDDING_MODEL_PATTERNS=(
     ["gte"]="embedding model"
     ["instructor"]="embedding model"
     ["sentence-transformers"]="embedding model"
-)
-
-# Model dimension registry (fallback for known models)
-declare -A KNOWN_MODEL_DIMENSIONS=(
-    ["nomic-embed-text"]="768"
-    ["nomic-embed-text:latest"]="768"
-    ["mxbai-embed-large"]="1024"
-    ["mxbai-embed-large:latest"]="1024"
-    ["all-minilm"]="384"
-    ["all-minilm:latest"]="384"
-    ["bge-small"]="384"
-    ["bge-base"]="768"
-    ["bge-large"]="1024"
 )
 
 #######################################
@@ -64,12 +55,67 @@ qdrant::models::check_ollama() {
 }
 
 #######################################
+# Resolve Ollama policy metadata for a role.
+# Arguments:
+#   $1 - Role name
+# Outputs: policy JSON
+# Returns: 0 on success, 1 on failure
+#######################################
+qdrant::models::policy_resolve_role() {
+    local role="${1:-$QDRANT_DEFAULT_EMBEDDING_ROLE}"
+
+    if ! command -v resource-ollama >/dev/null 2>&1; then
+        log::error "resource-ollama is required for Ollama model policy resolution"
+        return 1
+    fi
+
+    resource-ollama policy resolve --role "$role" --json
+}
+
+#######################################
+# Resolve Ollama policy metadata for a catalog model.
+# Arguments:
+#   $1 - Model reference
+# Outputs: policy JSON
+# Returns: 0 on success, 1 on failure
+#######################################
+qdrant::models::policy_resolve_model() {
+    local model="$1"
+
+    if [[ -z "$model" ]]; then
+        log::error "Model name is required"
+        return 1
+    fi
+    if ! command -v resource-ollama >/dev/null 2>&1; then
+        log::error "resource-ollama is required for Ollama model policy resolution"
+        return 1
+    fi
+
+    resource-ollama policy resolve --model "$model" --json
+}
+
+#######################################
+# Resolve role or model metadata. Roles are preferred when both could parse.
+# Arguments:
+#   $1 - Role or model reference
+# Outputs: policy JSON
+# Returns: 0 on success, 1 on failure
+#######################################
+qdrant::models::policy_resolve_ref() {
+    local ref="${1:-$QDRANT_DEFAULT_EMBEDDING_ROLE}"
+
+    if qdrant::models::policy_resolve_role "$ref" 2>/dev/null; then
+        return 0
+    fi
+    qdrant::models::policy_resolve_model "$ref"
+}
+
+#######################################
 # Discover all available Ollama models
 # Outputs: JSON array of model information
 # Returns: 0 on success, 1 on failure
 #######################################
 qdrant::models::discover_ollama() {
-    local ollama_url="${OLLAMA_BASE_URL:-http://localhost:11434}"
     local use_cache="${1:-true}"
     
     # Check cache if enabled
@@ -84,81 +130,32 @@ qdrant::models::discover_ollama() {
         fi
     fi
     
-    # Check if Ollama is available
-    if ! qdrant::models::check_ollama; then
-        log::error "Ollama is not available. Please ensure it's running."
+    if ! command -v resource-ollama >/dev/null 2>&1; then
+        log::error "resource-ollama is required for model policy discovery"
         echo "[]"
         return 1
     fi
-    
-    log::debug "Discovering Ollama models..."
-    
-    # Get all models from Ollama
-    local models_response
-    models_response=$(curl -s "${ollama_url}/api/tags" 2>/dev/null)
-    
-    if [[ -z "$models_response" ]]; then
-        log::error "Failed to retrieve models from Ollama"
+
+    log::debug "Discovering Ollama embedding models from resource policy..."
+
+    local policy_models
+    if ! policy_models=$(resource-ollama policy models --json 2>/dev/null); then
+        log::error "Failed to retrieve Ollama policy models"
         echo "[]"
         return 1
     fi
-    
-    # Extract model names
-    local model_names
-    model_names=$(echo "$models_response" | jq -r '.models[]?.name // empty' 2>/dev/null)
-    
-    if [[ -z "$model_names" ]]; then
-        log::warn "No models found in Ollama"
-        echo "[]"
-        return 0
-    fi
-    
-    # Build model information array
-    local models_info="[]"
-    
-    while IFS= read -r model_name; do
-        if [[ -n "$model_name" ]]; then
-            # Check if it's likely an embedding model
-            local is_embedding="false"
-            local model_type="general"
-            
-            for pattern in "${!EMBEDDING_MODEL_PATTERNS[@]}"; do
-                if [[ "$model_name" == *"$pattern"* ]]; then
-                    is_embedding="true"
-                    model_type="embedding"
-                    break
-                fi
-            done
-            
-            # Try to get dimensions if it's an embedding model
-            local dimensions="unknown"
-            if [[ "$is_embedding" == "true" ]]; then
-                # Check known dimensions first
-                if [[ -n "${KNOWN_MODEL_DIMENSIONS[$model_name]:-}" ]]; then
-                    dimensions="${KNOWN_MODEL_DIMENSIONS[$model_name]}"
-                else
-                    # Try to detect dimensions by testing the model
-                    dimensions=$(qdrant::models::detect_dimensions "$model_name")
-                fi
-            fi
-            
-            # Add model to array
-            local model_info
-            model_info=$(jq -n \
-                --arg name "$model_name" \
-                --arg type "$model_type" \
-                --arg dimensions "$dimensions" \
-                --arg is_embedding "$is_embedding" \
-                '{
-                    name: $name,
-                    type: $type,
-                    dimensions: ($dimensions | tonumber? // $dimensions),
-                    is_embedding: ($is_embedding | test("true"))
-                }')
-            
-            models_info=$(echo "$models_info" | jq ". += [$model_info]")
-        fi
-    done <<< "$model_names"
+
+    local models_info
+    models_info=$(echo "$policy_models" | jq '
+        [.models[]?
+        | select((.capabilities // []) | index("embedding"))
+        | {
+            name: .model,
+            type: "embedding",
+            dimensions: (.embedding_dimensions // "unknown"),
+            is_embedding: true
+        }]'
+    )
     
     # Cache the results
     mkdir -p "${QDRANT_MODEL_CACHE%/*}"
@@ -177,73 +174,19 @@ qdrant::models::discover_ollama() {
 #######################################
 qdrant::models::detect_dimensions() {
     local model_name="$1"
-    local ollama_url="${OLLAMA_BASE_URL:-http://localhost:11434}"
-    
-    # First check known dimensions
-    if [[ -n "${KNOWN_MODEL_DIMENSIONS[$model_name]:-}" ]]; then
-        echo "${KNOWN_MODEL_DIMENSIONS[$model_name]}"
-        return 0
-    fi
-    
-    log::debug "Detecting dimensions for model: $model_name"
-    
-    # First, check if the model exists at all
-    local models_response
-    models_response=$(timeout 3 curl -s "${ollama_url}/api/tags" 2>/dev/null || echo "")
-    
-    if [[ -z "$models_response" ]]; then
-        log::error "Cannot connect to Ollama at $ollama_url"
-        echo "unknown"
-        return 1
-    fi
-    
-    # Check if model is in the list
-    local model_exists
-    model_exists=$(echo "$models_response" | jq -r ".models[]? | select(.name == \"$model_name\") | .name" 2>/dev/null || echo "")
-    
-    if [[ -z "$model_exists" ]]; then
-        log::error "Model '$model_name' not found in Ollama"
-        log::info "Available models: $(echo "$models_response" | jq -r '.models[]?.name' 2>/dev/null | head -3 | tr '\n' ' ')"
-        echo "unknown"
-        return 1
-    fi
-    
-    # Try to generate a test embedding with timeout
-    local test_text="test"
-    local request_body
-    request_body=$(jq -n \
-        --arg model "$model_name" \
-        --arg prompt "$test_text" \
-        '{model: $model, prompt: $prompt}')
-    
-    local response
-    # Use timeout command to prevent hanging (5 seconds should be enough for a simple test)
-    response=$(timeout 5 curl -s -X POST "${ollama_url}/api/embeddings" \
-        -H "Content-Type: application/json" \
-        -d "$request_body" 2>/dev/null || echo "")
-    
-    if [[ -n "$response" ]]; then
-        # Check if response contains an error
-        local error_msg
-        error_msg=$(echo "$response" | jq -r '.error // empty' 2>/dev/null)
-        
-        if [[ -n "$error_msg" ]]; then
-            log::debug "Model $model_name error: $error_msg"
-            echo "unknown"
-            return 1
-        fi
-        
-        # Extract dimensions from successful response
+
+    log::debug "Resolving embedding dimensions from Ollama policy: $model_name"
+
+    local resolved
+    if resolved=$(qdrant::models::policy_resolve_ref "$model_name" 2>/dev/null); then
         local dimensions
-        dimensions=$(echo "$response" | jq '.embedding | length' 2>/dev/null || echo "unknown")
-        
+        dimensions=$(echo "$resolved" | jq -r '.embedding_dimensions // "unknown"' 2>/dev/null || echo "unknown")
         if [[ "$dimensions" =~ ^[0-9]+$ ]]; then
-            log::debug "Model $model_name has $dimensions dimensions"
             echo "$dimensions"
             return 0
         fi
     fi
-    
+
     echo "unknown"
     return 1
 }
@@ -401,6 +344,14 @@ qdrant::models::auto_select() {
         log::warn "Preferred model '$preferred_model' is not compatible"
     fi
     
+    local default_policy
+    if ! default_policy=$(qdrant::models::policy_resolve_role "$QDRANT_DEFAULT_EMBEDDING_ROLE" 2>/dev/null); then
+        log::error "Cannot resolve default embedding role: $QDRANT_DEFAULT_EMBEDDING_ROLE"
+        return 1
+    fi
+    local default_dims
+    default_dims=$(echo "$default_policy" | jq -r '.embedding_dimensions // "unknown"')
+
     # Determine required dimensions
     local required_dims
     if [[ "$collection_or_dims" =~ ^[0-9]+$ ]]; then
@@ -409,11 +360,15 @@ qdrant::models::auto_select() {
         required_dims=$(qdrant::collections::get_dimensions "$collection_or_dims" 2>/dev/null || echo "")
         
         if [[ -z "$required_dims" ]] || [[ "$required_dims" == "unknown" ]]; then
-            # If collection doesn't exist, prefer 1024d model for better compatibility
-            log::debug "Collection not found, using default 1024d model"
-            echo "mxbai-embed-large:latest"
+            log::debug "Collection not found, using default embedding role"
+            echo "$QDRANT_DEFAULT_EMBEDDING_ROLE"
             return 0
         fi
+    fi
+
+    if [[ "$required_dims" == "$default_dims" ]]; then
+        echo "$QDRANT_DEFAULT_EMBEDDING_ROLE"
+        return 0
     fi
     
     # Get compatible models
@@ -421,35 +376,10 @@ qdrant::models::auto_select() {
     compatible_models=$(qdrant::models::list_compatible "$required_dims" 2>/dev/null)
     
     if [[ -z "$compatible_models" ]]; then
-        log::debug "No compatible models found for $required_dims dimensions, using fallback" >&2
-        if [[ "$required_dims" == "1024" ]]; then
-            echo "mxbai-embed-large:latest"
-        else
-            echo "nomic-embed-text:latest"
-        fi
-        return 0
+        log::error "No policy-known embedding model found for $required_dims dimensions" >&2
+        return 1
     fi
-    
-    # Select the best compatible model based on dimensions
-    if [[ "$required_dims" == "1024" ]]; then
-        # For 1024d collections, prefer mxbai-embed-large
-        while IFS= read -r model; do
-            if [[ "$model" == *"mxbai-embed-large"* ]]; then
-                echo "$model"
-                return 0
-            fi
-        done <<< "$compatible_models"
-    elif [[ "$required_dims" == "768" ]]; then
-        # For 768d collections, prefer nomic-embed-text
-        while IFS= read -r model; do
-            if [[ "$model" == *"nomic-embed"* ]]; then
-                echo "$model"
-                return 0
-            fi
-        done <<< "$compatible_models"
-    fi
-    
-    # Return first available model
+
     echo "$compatible_models" | head -n1
 }
 
@@ -499,7 +429,7 @@ qdrant::models::info() {
         
         if [[ $(echo "$embedding_models" | jq 'length') -eq 0 ]]; then
             log::warn "No embedding models found"
-            log::info "Install embedding models with: ollama pull nomic-embed-text"
+            log::info "Install the model resolved by: resource-ollama policy resolve --role $QDRANT_DEFAULT_EMBEDDING_ROLE --field model"
             return 0
         fi
         
@@ -578,24 +508,9 @@ qdrant::models::ensure_embedding_model() {
     embedding_models=$(qdrant::models::get_embedding_models)
     
     if [[ $(echo "$embedding_models" | jq 'length') -eq 0 ]]; then
-        log::info "No embedding models found. Installing nomic-embed-text..."
-        
-        # Try to pull the model using Ollama
-        if command -v ollama >/dev/null 2>&1; then
-            if ollama pull nomic-embed-text:latest; then
-                log::success "Successfully installed nomic-embed-text embedding model"
-                # Clear cache to refresh model list
-                qdrant::models::clear_cache
-                return 0
-            else
-                log::error "Failed to install embedding model"
-                return 1
-            fi
-        else
-            log::error "Ollama CLI not found. Please install embedding models manually."
-            log::info "Run: ollama pull nomic-embed-text"
-            return 1
-        fi
+        log::error "No embedding models found in Ollama policy"
+        log::info "Check: resource-ollama policy resolve --role $QDRANT_DEFAULT_EMBEDDING_ROLE --json"
+        return 1
     fi
     
     return 0

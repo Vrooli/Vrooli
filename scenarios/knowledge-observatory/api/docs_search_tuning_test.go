@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	pkg "github.com/vrooli/aisearch-go"
+	pkg "github.com/vrooli/ai-go/search"
 )
 
 // repoRootForTuningTest walks up from the test's working directory until it finds

@@ -78,12 +78,12 @@ qdrant::export_config() {
 
     # Collection configuration templates
     if [[ -z "${QDRANT_COLLECTION_CONFIGS:-}" ]]; then
-        # Format: collection_name:vector_size:distance_metric
+        # Format: collection_name:embedding_role_or_vector_size:distance_metric
         readonly QDRANT_COLLECTION_CONFIGS=(
-            "agent_memory:1536:Cosine"
-            "code_embeddings:768:Dot"
-            "document_chunks:1536:Cosine"
-            "conversation_history:1536:Cosine"
+            "agent_memory:embedding.default:Cosine"
+            "code_embeddings:embedding.default:Dot"
+            "document_chunks:embedding.default:Cosine"
+            "conversation_history:embedding.default:Cosine"
         )
     fi
 

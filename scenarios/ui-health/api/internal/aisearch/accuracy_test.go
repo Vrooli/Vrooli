@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	pkg "github.com/vrooli/aisearch-go"
+	pkg "github.com/vrooli/ai-go/search"
 )
 
 // accuracy_test.go is ui-health's search gate, mirroring the cli-health / KO

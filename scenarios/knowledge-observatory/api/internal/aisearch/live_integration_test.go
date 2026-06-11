@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	pkg "github.com/vrooli/aisearch-go"
+	pkg "github.com/vrooli/ai-go/search"
 )
 
 // TestLiveReindexAndHybridQuery indexes a bounded slice of the real repo into a

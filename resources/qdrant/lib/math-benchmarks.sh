@@ -320,7 +320,7 @@ qdrant::math::test_dot_product() {
 #######################################
 qdrant::math::test_high_dimensional() {
     local collection="highdim-test-$(date +%s)"
-    local dimensions=1536  # Common embedding size
+    local dimensions=1536  # Synthetic benchmark vector size, unrelated to Ollama policy.
     
     # Create collection with high dimensions
     local create_payload="{

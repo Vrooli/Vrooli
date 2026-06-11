@@ -10,6 +10,16 @@
       "name": "score get",
       "description": "Fast cached status for a scenario: maturity rung as of tree digest, 0-100 composite with breakdown, recommendations with point impact, action plan, per-phase freshness verdicts (--json for machine output)",
       "endpoint_id": "scoring_get"
+    },
+    {
+      "name": "score trend",
+      "description": "Show persisted score history for a scenario (--json for machine output)",
+      "endpoint_id": "scoring_trend"
+    },
+    {
+      "name": "score list",
+      "description": "List latest persisted scenario scores with server-side sort, filter, and pagination (--json for machine output)",
+      "endpoint_id": "scoring_list"
     }
   ]
 }

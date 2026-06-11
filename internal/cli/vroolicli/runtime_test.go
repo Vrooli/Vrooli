@@ -15,6 +15,7 @@ import (
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cliinstall"
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioexec"
 	testkitgo "github.com/vrooli/vrooli/packages/testkit-go"
@@ -35,6 +36,47 @@ func newRuntimeTestApp(t *testing.T, root string) *App {
 		},
 		DebugLogFn: func(*slog.Logger, string, ...any) {},
 	})
+}
+
+func TestHostInventoryField(t *testing.T) {
+	snapshot := hostinventory.Snapshot{
+		CPU:    hostinventory.CPU{Cores: 12},
+		Memory: hostinventory.Memory{TotalBytes: 32 * 1024 * 1024, AvailableBytes: 12 * 1024 * 1024},
+		DockerGPU: hostinventory.DockerGPU{
+			NvidiaRuntime: true,
+		},
+		GPUs: []hostinventory.GPU{{
+			Name:          "NVIDIA RTX 4090",
+			Source:        "nvidia-smi",
+			VRAMBytes:     24 * 1024 * 1024,
+			VRAMUsedBytes: 4 * 1024 * 1024,
+		}},
+	}
+
+	cases := map[string]string{
+		"has_nvidia_gpu":                    "true",
+		"has_docker_nvidia_runtime":         "true",
+		"has_docker_addressable_nvidia_gpu": "true",
+		"gpu_count":                         "1",
+		"cpu_cores":                         "12",
+		"memory_total_mb":                   "32",
+		"memory_available_mb":               "12",
+		"first_gpu_summary":                 "NVIDIA RTX 4090,4,24",
+	}
+
+	for field, want := range cases {
+		got, err := hostInventoryField(snapshot, field)
+		if err != nil {
+			t.Fatalf("hostInventoryField(%q) error = %v", field, err)
+		}
+		if got != want {
+			t.Fatalf("hostInventoryField(%q) = %q, want %q", field, got, want)
+		}
+	}
+
+	if _, err := hostInventoryField(snapshot, "bogus"); err == nil {
+		t.Fatalf("expected unknown field error")
+	}
 }
 
 func TestWriteVersionHumanOutput(t *testing.T) {

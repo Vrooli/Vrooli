@@ -28,7 +28,7 @@ require (
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
-	github.com/vrooli/aisearch-go v0.0.0
+	github.com/vrooli/ai-go v0.0.0
 	github.com/vrooli/cli-core v0.0.0 // indirect
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/searchregister-go v0.0.0
@@ -44,7 +44,7 @@ replace github.com/vrooli/api-core => ../../../packages/api-core
 
 replace github.com/vrooli/measures-go => ../../../packages/measures-go
 
-replace github.com/vrooli/aisearch-go => ../../../packages/aisearch-go
+replace github.com/vrooli/ai-go => ../../../packages/ai-go
 
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 

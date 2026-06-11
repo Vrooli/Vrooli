@@ -515,7 +515,7 @@ Example configuration:
       {"key": "category", "match": {"value": "technology"}}
     ]
   },
-  "model": "nomic-embed-text"       // Embedding model (auto-detect if not specified)
+  "model": "embedding.default"      // Embedding role/model (auto-detect if not specified)
 }
 EOF
         return 1

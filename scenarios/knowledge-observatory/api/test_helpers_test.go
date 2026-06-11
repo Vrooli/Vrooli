@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
-	pkg "github.com/vrooli/aisearch-go"
+	pkg "github.com/vrooli/ai-go/search"
 
 	"knowledge-observatory/internal/ports"
 	"knowledge-observatory/internal/services/graph"

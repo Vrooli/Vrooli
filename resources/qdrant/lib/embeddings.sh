@@ -152,10 +152,10 @@ qdrant::embeddings::generate() {
         return 1
     fi
     
-    # Auto-select model if not provided
+    # Auto-select embedding role if not provided
     if [[ -z "$model" ]]; then
-        model=$(qdrant::models::auto_select "1024" 2>/dev/null || echo "mxbai-embed-large:latest")
-        log::debug "Auto-selected model: $model"
+        model=$(qdrant::models::auto_select "$QDRANT_DEFAULT_EMBEDDING_ROLE" 2>/dev/null || echo "$QDRANT_DEFAULT_EMBEDDING_ROLE")
+        log::debug "Auto-selected embedding policy ref: $model"
     fi
     
     # Check cache first
@@ -186,17 +186,7 @@ qdrant::embeddings::generate() {
         return 1
     fi
     
-    # Generate embedding via Ollama with retry mechanism
-    local ollama_url="${OLLAMA_BASE_URL:-http://localhost:11434}"
-    local request_body
-    request_body=$(jq -n \
-        --arg model "$model" \
-        --arg prompt "$text" \
-        '{model: $model, prompt: $prompt}')
-    
-    log::debug "Generating embedding with model: $model"
-    log::debug "Request body: $request_body"
-    log::debug "Ollama URL: ${ollama_url}/api/embeddings"
+    log::debug "Generating embedding with policy ref: $model"
     
     # Retry logic for resilient embedding generation
     local response
@@ -207,11 +197,13 @@ qdrant::embeddings::generate() {
     while [[ $attempt -le $max_retries ]]; do
         log::debug "Embedding generation attempt $attempt/$max_retries"
         
-        # Use curl directly with timeout instead of non-existent http::request
         local timeout="${EMBEDDING_PROCESSING_TIMEOUT:-300}"
-        response=$(timeout "$timeout" curl -s -X POST "${ollama_url}/api/embeddings" \
-            -H "Content-Type: application/json" \
-            -d "$request_body" 2>/dev/null)
+        local selector_flag="--model"
+        if qdrant::models::policy_resolve_role "$model" >/dev/null 2>&1; then
+            selector_flag="--role"
+        fi
+
+        response=$(printf '%s' "$text" | timeout "$timeout" resource-ollama gateway embed "$selector_flag" "$model" --json --input-stdin 2>/dev/null)
         local http_exit_code=$?
         
         log::debug "HTTP response: ${response:0:200}..."  # Only log first 200 chars
@@ -296,10 +288,10 @@ qdrant::embeddings::batch() {
         return 1
     fi
     
-    # Auto-select model if not provided
+    # Auto-select embedding role if not provided
     if [[ -z "$model" ]]; then
-        model=$(qdrant::models::auto_select "1024" 2>/dev/null || echo "mxbai-embed-large:latest")
-        log::info "Using model: $model for batch embedding"
+        model=$(qdrant::models::auto_select "$QDRANT_DEFAULT_EMBEDDING_ROLE" 2>/dev/null || echo "$QDRANT_DEFAULT_EMBEDDING_ROLE")
+        log::info "Using embedding policy ref: $model for batch embedding"
     fi
     
     log::info "Processing $count texts in batches using real batch API..." >&2
@@ -360,17 +352,16 @@ qdrant::embeddings::batch() {
 }
 
 #######################################
-# Generate embeddings for multiple texts in ONE API call
-# Uses Ollama's batch endpoint /api/embed (not /api/embeddings)
+# Generate embeddings for multiple texts through the Ollama gateway
 # Arguments:
 #   $1 - JSON array of texts
-#   $2 - Model name (optional, defaults to mxbai-embed-large)
+#   $2 - Role or model name (optional, defaults to QDRANT_DEFAULT_EMBEDDING_ROLE)
 # Outputs: JSON array of embedding vectors
 # Returns: 0 on success, 1 on failure
 #######################################
 qdrant::embeddings::generate_batch() {
     local texts_json="$1"
-    local model="${2:-mxbai-embed-large}"
+    local model="${2:-$QDRANT_DEFAULT_EMBEDDING_ROLE}"
     
     # Validate input
     if ! echo "$texts_json" | jq -e 'type == "array"' >/dev/null 2>&1; then
@@ -386,42 +377,21 @@ qdrant::embeddings::generate_batch() {
         return 0
     fi
     
-    log::debug "Generating batch embeddings for $text_count texts with model: $model"
-    
-    # Build request body for /api/embed endpoint (NOT /api/embeddings)
-    local request_body
-    request_body=$(jq -n \
-        --arg model "$model" \
-        --argjson input "$texts_json" \
-        '{model: $model, input: $input}')
-    
-    # Make single API call for entire batch
-    local response
-    local timeout="${EMBEDDING_PROCESSING_TIMEOUT:-300}"
-    response=$(curl -s -X POST "http://localhost:11434/api/embed" \
-        -H "Content-Type: application/json" \
-        -d "$request_body" \
-        --max-time "$timeout" 2>/dev/null) || {
-        log::error "Batch embedding API call failed (timeout: ${timeout}s)"
-        return 1
-    }
-    
-    # Extract embeddings from response
-    local embeddings
-    embeddings=$(echo "$response" | jq '.embeddings' 2>/dev/null)
-    
-    if [[ -z "$embeddings" ]] || [[ "$embeddings" == "null" ]]; then
-        log::error "Failed to extract embeddings from response"
-        return 1
-    fi
-    
-    local embedding_count
-    embedding_count=$(echo "$embeddings" | jq 'length')
-    
-    if [[ "$embedding_count" -ne "$text_count" ]]; then
-        log::warn "Expected $text_count embeddings, got $embedding_count"
-    fi
-    
+    log::debug "Generating batch embeddings for $text_count texts with policy ref: $model"
+
+    local embeddings="[]"
+    local i
+    for ((i=0; i<text_count; i++)); do
+        local text
+        text=$(echo "$texts_json" | jq -r ".[$i]")
+        local embedding
+        if ! embedding=$(qdrant::embeddings::generate "$text" "$model"); then
+            log::error "Failed to generate embedding for batch item $i"
+            return 1
+        fi
+        embeddings=$(echo "$embeddings" | jq --argjson embedding "$embedding" '. + [$embedding]')
+    done
+
     echo "$embeddings"
     return 0
 }
@@ -574,9 +544,9 @@ qdrant::embeddings::clear_cache() {
 qdrant::embeddings::info() {
     local model="${1:-}"
     
-    # Auto-select model if not provided
+    # Auto-select embedding role if not provided
     if [[ -z "$model" ]]; then
-        model=$(qdrant::models::auto_select "1024" 2>/dev/null || echo "mxbai-embed-large:latest")
+        model=$(qdrant::models::auto_select "$QDRANT_DEFAULT_EMBEDDING_ROLE" 2>/dev/null || echo "$QDRANT_DEFAULT_EMBEDDING_ROLE")
     fi
     
     echo "=== Embedding Information ==="
@@ -707,29 +677,15 @@ qdrant::embeddings::validate_dimensions() {
 #######################################
 qdrant::embeddings::recommend_model() {
     local text_type="${1:-general}"
-    local preferred_dims="${2:-768}"
+    local preferred_dims="${2:-}"
     
     # Model recommendations based on use case
     case "$text_type" in
-        code)
-            # Prefer code-specific models
-            if qdrant::models::get_model_dimensions "codellama:7b" >/dev/null 2>&1; then
-                echo "codellama:7b"
-            else
-                qdrant::models::auto_select "$preferred_dims"
-            fi
-            ;;
-        document|long)
-            # Prefer larger models for documents
-            if qdrant::models::get_model_dimensions "mxbai-embed-large:latest" >/dev/null 2>&1; then
-                echo "mxbai-embed-large:latest"
-            else
-                qdrant::models::auto_select "1024"
-            fi
+        code|document|long)
+            qdrant::models::auto_select "${preferred_dims:-$QDRANT_DEFAULT_EMBEDDING_ROLE}"
             ;;
         short|general|*)
-            # Default to efficient general model
-            qdrant::models::auto_select "$preferred_dims"
+            qdrant::models::auto_select "${preferred_dims:-$QDRANT_DEFAULT_EMBEDDING_ROLE}"
             ;;
     esac
 }

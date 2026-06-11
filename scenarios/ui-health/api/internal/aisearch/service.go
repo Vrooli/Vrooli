@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	pkg "github.com/vrooli/aisearch-go"
+	pkg "github.com/vrooli/ai-go/search"
 )
 
 // DefaultCollection is the Qdrant collection ui-health indexes its surfaces
@@ -73,13 +73,7 @@ func NewSearchService(tuning pkg.TuningConfig, opts Options) *Service {
 	base.TextFallback = surfaceTextFallback(opts.Discovery)
 	svc := pkg.NewService(base)
 
-	spec := pkg.CollectionSpec{
-		Name:          opts.EngineDeps.Collection,
-		DenseSize:     pkg.DefaultVectorSize,
-		DenseDistance: pkg.DefaultDenseDistance,
-		Model:         pkg.DefaultEmbedModel,
-	}
-	return &Service{svc: svc, vectorStore: base.VectorStore, spec: spec}
+	return &Service{svc: svc, vectorStore: base.VectorStore, spec: te.Spec}
 }
 
 // Reconciler exposes the engine's reconciler (the sync loop resolves it each

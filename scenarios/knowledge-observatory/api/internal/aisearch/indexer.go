@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	pkg "github.com/vrooli/aisearch-go"
+	pkg "github.com/vrooli/ai-go/search"
 )
 
 // Options configure a documentation Indexer. Embedder and VectorStore are
@@ -13,6 +13,7 @@ type Options struct {
 	Embedder      pkg.Embedder
 	VectorStore   pkg.VectorStore
 	ScenariosRoot string
+	Embedding     pkg.EmbeddingPolicy
 	// Parallelism bounds concurrent embeds (defaults applied by the engine).
 	Parallelism int
 	// MaxEmbedsPerTick caps embeds per reconcile pass; 0 = unlimited. The first
@@ -53,6 +54,13 @@ func NewIndexer(opts Options) (*Indexer, error) {
 		pkg.NewMarkdownChunker(), pkg.NewContextualComposer(), pkg.NewBM25SparseEncoder())
 	rec := pkg.NewReconciler(opts.Embedder, []pkg.SourceBinding{binding}, opts.Parallelism)
 	rec.MaxEmbedsPerTick = opts.MaxEmbedsPerTick
+	embedding := opts.Embedding
+	if embedding.Dimensions <= 0 {
+		return nil, fmt.Errorf("aisearch: resolved embedding dimensions are required")
+	}
+	if embedding.Model == "" {
+		return nil, fmt.Errorf("aisearch: resolved embedding model is required")
+	}
 
 	return &Indexer{
 		embedder:    opts.Embedder,
@@ -61,11 +69,11 @@ func NewIndexer(opts Options) (*Indexer, error) {
 		reconciler:  rec,
 		spec: pkg.CollectionSpec{
 			Name:           DefaultCollection,
-			DenseSize:      pkg.DefaultVectorSize,
+			DenseSize:      embedding.Dimensions,
 			DenseDistance:  pkg.DefaultDenseDistance,
 			Sparse:         true,
 			SparseModifier: pkg.DefaultSparseModifier,
-			Model:          pkg.DefaultEmbedModel,
+			Model:          embedding.Model,
 		},
 	}, nil
 }

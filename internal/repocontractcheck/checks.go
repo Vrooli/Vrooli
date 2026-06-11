@@ -70,6 +70,8 @@ func Run(root string) (Report, error) {
 		{name: "adoption_rules_alignment", fn: checkAdoptionRulesAlignment},
 		{name: "resource_schema_artifacts", fn: checkResourceSchemaArtifacts},
 		{name: "ollama_gateway_only", fn: checkOllamaGatewayOnly},
+		{name: "ollama_policy_facts", fn: checkOllamaPolicyFacts},
+		{name: "host_inventory_authority", fn: checkHostInventoryAuthority},
 	}
 
 	report := Report{
@@ -628,6 +630,13 @@ func checkOllamaGatewayOnly(contract *repocontract.Contract, root string, raw st
 				if os.IsNotExist(err) {
 					return filepath.SkipDir
 				}
+				if os.IsPermission(err) {
+					rel := filepath.ToSlash(path)
+					if strings.Contains(rel, "/instances/") || strings.Contains(rel, "/data/") || (d != nil && d.IsDir()) {
+						return filepath.SkipDir
+					}
+					return nil
+				}
 				return err
 			}
 			if d.IsDir() {
@@ -667,6 +676,150 @@ func checkOllamaGatewayOnly(contract *repocontract.Contract, root string, raw st
 	}
 	sort.Strings(violations)
 	return fmt.Errorf("ollama-gateway-only violations: %s", strings.Join(violations, "; "))
+}
+
+func checkOllamaPolicyFacts(contract *repocontract.Contract, root string, raw string) error {
+	var violations []string
+	scenarioScopes := []string{
+		"scenarios/swarm-manager/api",
+		"scenarios/prompt-manager/api",
+		"scenarios/cli-health/api",
+		"scenarios/ui-health/api",
+		"scenarios/knowledge-observatory/api",
+	}
+	dimensionPatterns := []*regexp.Regexp{
+		regexp.MustCompile(`\bDefaultVectorSize\b`),
+		regexp.MustCompile(`\b(vectorSize|DenseSize|EmbedDimensions)\s*[:=]\s*(768|1024|1536)\b`),
+		regexp.MustCompile(`"size"\s*:\s*(768|1024|1536)\b`),
+		regexp.MustCompile(`\bvector_size\s*[:=]\s*(768|1024|1536)\b`),
+	}
+	for _, scope := range scenarioScopes {
+		base := filepath.Join(root, filepath.FromSlash(scope))
+		err := filepath.WalkDir(base, func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				if os.IsNotExist(err) {
+					return filepath.SkipDir
+				}
+				return err
+			}
+			if d.IsDir() {
+				switch d.Name() {
+				case "node_modules", "vendor", ".git":
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if strings.HasSuffix(path, "_test.go") || !isPolicyFactScanFile(path) {
+				return nil
+			}
+			rel, relErr := filepath.Rel(root, path)
+			if relErr != nil {
+				return relErr
+			}
+			rel = filepath.ToSlash(rel)
+			data, readErr := os.ReadFile(path)
+			if readErr != nil {
+				return readErr
+			}
+			text := string(data)
+			for _, pattern := range dimensionPatterns {
+				if pattern.FindStringIndex(text) != nil {
+					violations = append(violations, fmt.Sprintf("%s contains local Ollama embedding dimension fact matching %q", rel, pattern.String()))
+				}
+			}
+			for lineNo, line := range strings.Split(text, "\n") {
+				if strings.Contains(line, "resource-ollama gateway") && strings.Contains(line, "--model") {
+					violations = append(violations, fmt.Sprintf("%s:%d calls resource-ollama gateway with --model; use --role outside documented direct-model exceptions", rel, lineNo+1))
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return fmt.Errorf("scan Ollama policy facts under %s: %w", scope, err)
+		}
+	}
+
+	resourceBase := filepath.Join(root, "resources")
+	err := filepath.WalkDir(resourceBase, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			if os.IsNotExist(err) {
+				return filepath.SkipDir
+			}
+			if os.IsPermission(err) {
+				if d != nil && d.IsDir() {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			return err
+		}
+		if d.IsDir() {
+			rel, relErr := filepath.Rel(root, path)
+			if relErr != nil {
+				return relErr
+			}
+			rel = filepath.ToSlash(rel)
+			switch {
+			case rel == "resources/ollama" || strings.HasPrefix(rel, "resources/ollama/"):
+				return filepath.SkipDir
+			case strings.Contains(rel, "/instances/") || strings.Contains(rel, "/data/"):
+				return filepath.SkipDir
+			case d.Name() == "node_modules" || d.Name() == "vendor" || d.Name() == ".git":
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if filepath.Ext(path) != ".sh" {
+			return nil
+		}
+		rel, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			return relErr
+		}
+		rel = filepath.ToSlash(rel)
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		text := string(data)
+		if strings.Contains(text, "KNOWN_MODEL_DIMENSIONS") || regexp.MustCompile(`declare\s+-A\s+.*MODEL.*DIM`).FindStringIndex(text) != nil {
+			violations = append(violations, fmt.Sprintf("%s maintains an Ollama model-dimension map; use resource-ollama policy", rel))
+		}
+		if strings.Contains(text, "/api/embeddings") || strings.Contains(text, "/api/embed") {
+			violations = append(violations, fmt.Sprintf("%s calls raw Ollama embedding endpoints; use resource-ollama gateway embed", rel))
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("scan resource Ollama policy facts: %w", err)
+	}
+
+	if len(violations) == 0 {
+		return nil
+	}
+	sort.Strings(violations)
+	return fmt.Errorf("ollama policy fact violations: %s", strings.Join(violations, "; "))
+}
+
+func isPolicyFactScanFile(path string) bool {
+	switch filepath.Ext(path) {
+	case ".go", ".json", ".yaml", ".yml", ".sh":
+		return true
+	default:
+		return false
+	}
+}
+
+func checkHostInventoryAuthority(contract *repocontract.Contract, root string, raw string) error {
+	violations, err := scanHostInventoryViolations(root)
+	if err != nil {
+		return err
+	}
+	if len(violations) == 0 {
+		return nil
+	}
+	sort.Strings(violations)
+	return fmt.Errorf("host-inventory authority violations (use internal/hostinventory, or mark remote SSH parsers with hostinventory:remote-snapshot-parser): %s", strings.Join(violations, "; "))
 }
 
 func checkAdoptionRulesAlignment(contract *repocontract.Contract, root string, raw string) error {
@@ -993,6 +1146,152 @@ func scanAdoptionViolations(root string) ([]string, error) {
 		}
 	}
 	return violations, nil
+}
+
+type hostInventoryRule struct {
+	Name        string
+	Description string
+	Pattern     *regexp.Regexp
+}
+
+const hostInventoryRemoteSnapshotAllowComment = "hostinventory:remote-snapshot-parser"
+
+func scanHostInventoryViolations(root string) ([]string, error) {
+	rules := []hostInventoryRule{
+		{
+			Name:        "proc_meminfo",
+			Description: "local Linux memory facts must come from internal/hostinventory",
+			Pattern:     regexp.MustCompile(`/proc/meminfo`),
+		},
+		{
+			Name:        "proc_loadavg",
+			Description: "local Linux load facts must come from internal/hostinventory",
+			Pattern:     regexp.MustCompile(`/proc/loadavg`),
+		},
+		{
+			Name:        "nvidia_smi_inventory",
+			Description: "local NVIDIA GPU inventory must come from internal/hostinventory",
+			Pattern:     regexp.MustCompile(`(?i)(LookPath\("nvidia-smi"\)|\bnvidia-smi\b[^\n]*(--query-gpu|--query-compute-apps)|--query-compute-apps)`),
+		},
+		{
+			Name:        "system_profiler_gpu_inventory",
+			Description: "local macOS GPU inventory must come from internal/hostinventory",
+			Pattern:     regexp.MustCompile(`system_profiler[^\n]*SPDisplaysDataType|SPDisplaysDataType[^\n]*system_profiler`),
+		},
+		{
+			Name:        "wmic_gpu_inventory",
+			Description: "local Windows GPU inventory must come from internal/hostinventory",
+			Pattern:     regexp.MustCompile(`(?i)\bwmic\b[^\n]*(VideoController|win32_VideoController)|VideoController[^\n]*\bwmic\b`),
+		},
+		{
+			Name:        "docker_info_nvidia_probe",
+			Description: "Docker NVIDIA-runtime probing must come from internal/hostinventory",
+			Pattern:     regexp.MustCompile(`(?i)docker\s+info[^\n]*(nvidia|runtime)|nvidia[^\n]*docker\s+info`),
+		},
+	}
+
+	var violations []string
+	for _, topLevel := range []string{"cmd", "internal", "packages", "resources", "scenarios", "scripts/lib"} {
+		base := filepath.Join(root, filepath.FromSlash(topLevel))
+		err := filepath.WalkDir(base, func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				if os.IsNotExist(err) {
+					return filepath.SkipDir
+				}
+				return err
+			}
+			rel, relErr := filepath.Rel(root, path)
+			if relErr != nil {
+				return relErr
+			}
+			rel = filepath.ToSlash(rel)
+			if d.IsDir() {
+				if shouldSkipHostInventoryScan(rel, true) {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if shouldSkipHostInventoryScan(rel, false) || !isHostInventoryScannableFile(rel) {
+				return nil
+			}
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			if isBinary(data) {
+				return nil
+			}
+			lines := strings.Split(string(data), "\n")
+			for lineNo, line := range lines {
+				if strings.HasPrefix(strings.TrimSpace(line), "//") {
+					continue
+				}
+				if lineAllowsRemoteHostInventorySnapshot(lines, lineNo) {
+					continue
+				}
+				for _, rule := range rules {
+					if !rule.Pattern.MatchString(line) {
+						continue
+					}
+					violations = append(violations, fmt.Sprintf("%s:%d (%s)", rel, lineNo+1, rule.Name))
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, fmt.Errorf("scan host inventory authority under %s: %w", topLevel, err)
+		}
+	}
+	return violations, nil
+}
+
+func shouldSkipHostInventoryScan(rel string, isDir bool) bool {
+	rel = filepath.ToSlash(rel)
+	base := pathBase(rel)
+	if strings.HasPrefix(rel, "internal/hostinventory/") || strings.HasPrefix(rel, "internal/repocontractcheck/") {
+		return true
+	}
+	if isDir {
+		switch base {
+		case ".git", "node_modules", "vendor", "gen", "dist", "build", "coverage", ".cache", ".gocache", "assets", "data", "investigations":
+			return true
+		}
+		if strings.Contains(rel, "/platforms/electron/renderer/assets") {
+			return true
+		}
+	}
+	if strings.HasSuffix(rel, "_test.go") || strings.Contains(rel, "/testdata/") || strings.Contains(rel, "/tests/") {
+		return true
+	}
+	if strings.Contains(rel, "/docs/") || strings.HasPrefix(rel, "docs/") || strings.EqualFold(filepath.Ext(rel), ".md") {
+		return true
+	}
+	if strings.Contains(rel, "/gen/") || strings.Contains(rel, "/generated/") || strings.HasPrefix(rel, "packages/proto/gen/") {
+		return true
+	}
+	return false
+}
+
+func isHostInventoryScannableFile(rel string) bool {
+	switch strings.ToLower(filepath.Ext(rel)) {
+	case ".go", ".sh", ".bash":
+		return true
+	default:
+		return false
+	}
+}
+
+func lineAllowsRemoteHostInventorySnapshot(lines []string, idx int) bool {
+	start := idx - 8
+	if start < 0 {
+		start = 0
+	}
+	for i := start; i <= idx && i < len(lines); i++ {
+		if strings.Contains(lines[i], hostInventoryRemoteSnapshotAllowComment) {
+			return true
+		}
+	}
+	return false
 }
 
 func shouldSkipAdoptionScan(rel string) bool {

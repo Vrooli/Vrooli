@@ -193,6 +193,39 @@ func TestGenerateRoleResolvesModel(t *testing.T) {
 	}
 }
 
+func TestGenerateRejectsExplicitContextWindowOverflow(t *testing.T) {
+	var called bool
+	client := &fakeClient{
+		generate: func(context.Context, ensure.GenerateRequest) (ensure.GenerateResponse, error) {
+			called = true
+			return ensure.GenerateResponse{}, nil
+		},
+	}
+	h, _, _ := newHandlers(t, client, policyEnv(t))
+	err := h.Generate([]string{"--role", "chat.default", "--prompt", "hi", "--max-tokens", "40000"})
+	if err == nil || !strings.Contains(err.Error(), "exceeds context window") {
+		t.Fatalf("expected context window error, got %v", err)
+	}
+	if called {
+		t.Fatal("Generate called upstream after context window rejection")
+	}
+}
+
+func TestGenerateAllowsUnknownDirectModelWithoutPolicyWindow(t *testing.T) {
+	client := &fakeClient{
+		generate: func(_ context.Context, in ensure.GenerateRequest) (ensure.GenerateResponse, error) {
+			if in.Model != "local-test-model:latest" {
+				t.Errorf("model = %q", in.Model)
+			}
+			return ensure.GenerateResponse{Response: "ok"}, nil
+		},
+	}
+	h, _, _ := newHandlers(t, client, policyEnv(t))
+	if err := h.Generate([]string{"--model", "local-test-model:latest", "--prompt", "hi", "--max-tokens", "40000"}); err != nil {
+		t.Fatalf("Generate: %v", err)
+	}
+}
+
 func TestEmbedStdinInput(t *testing.T) {
 	client := &fakeClient{
 		embed: func(_ context.Context, _, input string) ([]float64, error) {

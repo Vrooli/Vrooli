@@ -16,7 +16,7 @@
 - **Thin router.** It owns only registry · classifier · fan-out · reranker · metrics. It stores **no vectors and no corpus content** — only the provider registry + query telemetry (SQLite). Architectural test asserts: no qdrant import, no corpus-content tables.
 - **No conditional monolith.** Zero provider-specific code in the router. A new provider = one declarative registry row (descriptor + `ResultMapping`), no router source change.
 - **Non-destructive federation.** Registering a corpus never removes, replaces, or degrades that scenario's own in-scenario search (per-type or group-unified). Two layers coexist permanently.
-- **Retrieval lives in providers / `packages/aisearch-go`, not here.** The router federates providers' existing search endpoints as-is; it never indexes on a provider's behalf.
+- **Retrieval lives in providers / `packages/ai-go/search`, not here.** The router federates providers' existing search endpoints as-is; it never indexes on a provider's behalf.
 
 ## 🎯 Operational Targets
 
@@ -45,7 +45,7 @@
 - Data + storage expectations: **SQLite** (modernc.org/sqlite) for registry + metrics (no qdrant — the router holds no vectors). SQLite is the permanent, intentional choice: it keeps the router dependency-free from external database services and suits a federation-router whose data (registry rows + query telemetry) is local and append-friendly.
 - Integration strategy: federate providers over **HTTP + JSON only** (Connect RPCs are reachable via `POST {service}/{method}` with `application/json`; plain REST likewise) plus a CLI fallback. The router links **zero** provider Go clients; cross-scenario base URLs resolve at call-time via the backend resolver (never client-computed).
 - Models: classifier `qwen3:1.7b`, reranker = LLM-as-reranker via `qwen3:4b` (both already pulled), each behind a swappable interface — drop in a true cross-encoder later without changing the contract.
-- Non-goals / guardrails: does NOT index/cache corpus content, does NOT create `packages/aisearch-go` (the KO cutover plan does), does NOT build the gap providers themselves (their home scenarios do), does NOT remove or alter any scenario's existing search.
+- Non-goals / guardrails: does NOT index/cache corpus content, does NOT create `packages/ai-go/search` (the KO cutover plan does), does NOT build the gap providers themselves (their home scenarios do), does NOT remove or alter any scenario's existing search.
 
 ## 🤝 Dependencies & Launch Plan
 - Required resources: `ollama` (classifier + reranker). Storage is SQLite (embedded, no external database service required).
@@ -62,4 +62,4 @@
 ## 📎 Appendix
 - Plan: `docs/plans/unified-search-hub-plan.md` (Appendix A = the locked contract: endpoint survey, result-mapping spec, proto draft, per-provider adapter rows, gap stubs).
 - Taxonomy: `docs/reference/ai-search-routing.md` (corpus→intent→provider map this scenario operationalizes).
-- Companion: `docs/plans/knowledge-observatory-search-cutover-plan.md` (creates `packages/aisearch-go`, the shared retrieval library; Track B).
+- Companion: `docs/plans/knowledge-observatory-search-cutover-plan.md` (creates `packages/ai-go/search`, the shared retrieval library; Track B).

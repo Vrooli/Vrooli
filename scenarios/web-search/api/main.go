@@ -15,7 +15,7 @@ import (
 	"web-search/internal/modules"
 	"web-search/internal/server"
 
-	aisearchpkg "github.com/vrooli/aisearch-go"
+	aisearchpkg "github.com/vrooli/ai-go/search"
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"

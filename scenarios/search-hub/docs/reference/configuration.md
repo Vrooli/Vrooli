@@ -165,7 +165,7 @@ authority**: it sweeps a provider's tuning factors against that provider's golde
 corpus and writes the winner back, and it grows + grades the corpus itself. This
 is the operator recipe; the factor schema (`tuning` block of `.vrooli/search.json`)
 and the per-knob dashboard live in the engine package
-[`packages/aisearch-go/docs/reference/search-json.md`](../../../../packages/aisearch-go/docs/reference/search-json.md).
+[`packages/ai-go/search/docs/reference/search-json.md`](../../../../packages/ai-go/search/docs/reference/search-json.md).
 
 ### The closed loop
 

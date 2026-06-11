@@ -25,7 +25,7 @@ registry row, never router code. See
 > `ui-health.widgets` returns empty-not-degraded). Every product interface
 > (programmatic / CLI / UI) now exists. The plan delivered **axis ① for
 > currently-live providers**; Tracks A (federate the 10 gap corpora) and B
-> (deduplicate onto `packages/aisearch-go`) remain — see plan §9.
+> (deduplicate onto `packages/ai-go/search`) remain — see plan §9.
 >
 > **Domain status (Phase 8).** All five product
 > domains are implemented and **all currently-live providers are
@@ -282,7 +282,7 @@ query ─▶ [routing: classifier picks provider types]  (or explicit --type / -
 | Candidate Domain | Why Deferred | Revisit Trigger |
 |---|---|---|
 | External providers (web / papers / inventory) | Contract carries `scope = EXTERNAL` from day one; none registered in v1. | A paid/external corpus wants to federate. |
-| Hub-assisted provider indexing | Out of scope for v1 to protect the thin-router boundary (router indexes nothing on a provider's behalf). | Re-open only if a provider has no search of its own *and* `packages/aisearch-go` adoption (Track B) does not cover it. |
+| Hub-assisted provider indexing | Out of scope for v1 to protect the thin-router boundary (router indexes nothing on a provider's behalf). | Re-open only if a provider has no search of its own *and* `packages/ai-go/search` adoption (Track B) does not cover it. |
 | `--group` unified search through the hub | Optional; each scenario keeps its own group-local unified search regardless (non-destructive invariant). | Demand for reproducing a group's `--entity both` through the hub. |
 
 ## Non-Domains

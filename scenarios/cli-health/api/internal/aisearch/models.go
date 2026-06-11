@@ -1,10 +1,10 @@
 // Package aisearch is cli-health's thin consumer of the shared retrieval engine
-// in packages/aisearch-go. This package owns only the cli-health-specific
+// in packages/ai-go/search. This package owns only the cli-health-specific
 // concerns: command discovery (discovery.go / helpparser.go), the Source adapter
 // + result projection (command_index.go), and the search/reindex orchestration
 // surface the Connect handlers call (service.go). The index/store/reconcile core
 // — embedding, the Qdrant vector store, drift reconciliation, the sync loop, and
-// env config — lives in github.com/vrooli/aisearch-go.
+// env config — lives in github.com/vrooli/ai-go/search.
 package aisearch
 
 // DefaultCollection is the Qdrant collection cli-health indexes its commands
@@ -70,7 +70,7 @@ type MeasureParamRecord struct {
 
 // Read-path adoption status (WS5): SearchHit / SearchResponse / StatusReport
 // here — and SearchMode in service.go — are cli-health's command-domain
-// *projection* of the generic read-path in github.com/vrooli/aisearch-go
+// *projection* of the generic read-path in github.com/vrooli/ai-go/search
 // (pkg.SearchHit / pkg.SearchResponse / pkg.StatusReport / pkg.SearchMode).
 // They are kept local on purpose, not by drift:
 //   - SearchHit carries command fields the generic type lacks (Origin, Group,

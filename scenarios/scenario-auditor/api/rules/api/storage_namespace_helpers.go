@@ -31,7 +31,7 @@ treated as adopted for that engine. See storage-steer §4.2/§4.3/§4.5.
   <input language="go"><![CDATA[
 package notes
 
-import "github.com/vrooli/aisearch-go"
+import "github.com/vrooli/ai-go/search"
 
 const NotesCollection = "swarm-manager_notes_embeddings"
 

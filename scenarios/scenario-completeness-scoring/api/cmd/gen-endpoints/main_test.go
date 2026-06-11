@@ -19,6 +19,8 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	writeSeed(t, seed, []CLICommand{
 		{Name: "status", Description: "Health check", EndpointID: "health"},
 		{Name: "score get", Description: "Get scenario score", EndpointID: "scoring_get"},
+		{Name: "score trend", Description: "Get scenario score trend", EndpointID: "scoring_trend"},
+		{Name: "score list", Description: "List latest scenario scores", EndpointID: "scoring_list"},
 	})
 
 	if err := run(output, seed); err != nil {
@@ -49,8 +51,8 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	if len(got.Endpoints) == 0 {
 		t.Error("manifest must include at least one endpoint")
 	}
-	if len(got.CLICommands) != 2 {
-		t.Errorf("cli_commands count = %d, want 2", len(got.CLICommands))
+	if len(got.CLICommands) != 4 {
+		t.Errorf("cli_commands count = %d, want 4", len(got.CLICommands))
 	}
 
 	// Trailing newline so editors don't get angry about diff noise.

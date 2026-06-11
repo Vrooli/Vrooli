@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	aisearch "github.com/vrooli/aisearch-go"
+	aisearch "github.com/vrooli/ai-go/search"
 )
 
 // corpus_test.go enforces corpusRoundTripsLossless: a file-authored corpus must

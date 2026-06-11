@@ -7,13 +7,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"ui-health/internal/aisearch"
 	"ui-health/internal/clock"
 	"ui-health/internal/modules"
 	"ui-health/internal/server"
 
-	aisearchpkg "github.com/vrooli/aisearch-go"
+	aisearchpkg "github.com/vrooli/ai-go/search"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
@@ -99,13 +100,25 @@ func main() {
 
 	// AI search wiring: the scenario-owned `.vrooli/search.json` is the SSOT for
 	// the surface-search tuning factors (engine shape, embed recipe, rerank policy,
-	// floor band) — read here at boot. The shared engine (packages/aisearch-go)
+	// floor band) — read here at boot. The shared engine (packages/ai-go/search)
 	// provides the embedder + vector store + reconciler + sync loop; LoadConfig
 	// supplies only the OPERATIONAL wiring (Qdrant address, sync cadence,
 	// parallelism). The surfaces corpus is dense single-chunk; NewSearchService
 	// picks the engine shape from the tuning DATA.
 	searchJSONPath := filepath.Join(repoRoot, "scenarios", "ui-health", ".vrooli", "search.json")
 	searchCfg := aisearchpkg.LoadConfig("UI_HEALTH")
+	engineDeps := aisearchpkg.EngineDeps{
+		QdrantURL:    searchCfg.QdrantURL,
+		QdrantAPIKey: searchCfg.QdrantAPIKey,
+		Collection:   aisearch.DefaultCollection,
+		EmbedRole:    searchCfg.EmbedRole,
+	}
+	policyCtx, cancelPolicy := context.WithTimeout(context.Background(), 5*time.Second)
+	engineDeps, err = aisearchpkg.ResolveEngineDepsEmbedding(policyCtx, engineDeps)
+	cancelPolicy()
+	if err != nil {
+		log.Fatalf("resolve ui-health embedding policy: %v", err)
+	}
 	tuning := loadSearchTuning(searchJSONPath, surfacesProviderID)
 	discovery := aisearch.NewFilesystemDiscoverySource(repoRoot)
 	aiService := aisearch.NewSearchService(tuning, aisearch.Options{
@@ -113,11 +126,7 @@ func main() {
 		Parallelism:      searchCfg.ReconcileParallelism,
 		MaxEmbedsPerTick: searchCfg.MaxEmbedsPerTick,
 		Threshold:        aisearch.DefaultSearchThreshold,
-		EngineDeps: aisearchpkg.EngineDeps{
-			QdrantURL:    searchCfg.QdrantURL,
-			QdrantAPIKey: searchCfg.QdrantAPIKey,
-			Collection:   aisearch.DefaultCollection,
-		},
+		EngineDeps:       engineDeps,
 	})
 
 	if err := aiService.EnsureCollection(context.Background()); err != nil {

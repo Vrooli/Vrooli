@@ -19,7 +19,7 @@ replace github.com/vrooli/api-core => {{PACKAGES_REL_FROM_API}}/api-core
 
 replace github.com/vrooli/measures-go => {{PACKAGES_REL_FROM_API}}/measures-go
 
-replace github.com/vrooli/aisearch-go => {{PACKAGES_REL_FROM_API}}/aisearch-go
+replace github.com/vrooli/ai-go => {{PACKAGES_REL_FROM_API}}/ai-go
 
 replace github.com/vrooli/vrooli/packages/proto => {{PACKAGES_REL_FROM_API}}/proto
 

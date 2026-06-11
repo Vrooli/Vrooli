@@ -9,7 +9,7 @@ import (
 
 	repocontract "github.com/vrooli/repo-contract-go"
 
-	pkg "github.com/vrooli/aisearch-go"
+	pkg "github.com/vrooli/ai-go/search"
 )
 
 // final_test.go is the deciding run: on the winning index (prefix+terse+dense)

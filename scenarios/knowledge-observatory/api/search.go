@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	pkg "github.com/vrooli/aisearch-go"
+	pkg "github.com/vrooli/ai-go/search"
 )
 
 const (

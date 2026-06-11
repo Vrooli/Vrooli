@@ -129,8 +129,8 @@
         },
         {
           "name": "test-ollama-models",
-          "run": "resource-ollama content pull llama3.2 && resource-ollama content pull mistral && resource-ollama content pull nomic-embed-text",
-          "description": "Ensure required AI models are available"
+          "run": "resource-ollama status",
+          "description": "Verify the Ollama resource is reachable; declared model roles are provisioned by resource-ollama ensure"
         },
         {
           "name": "validate-unstructured-io",
@@ -207,8 +207,8 @@
         "enabled": true,
         "required": true,
         "purpose": "AI interpretation for content analysis and schema mapping",
-        "models": [
-          "llama3.2"
+        "model_roles": [
+          "chat.small"
         ]
       },
       "unstructured-io": {

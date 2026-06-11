@@ -9,7 +9,7 @@ import (
 	"connectrpc.com/connect"
 
 	"cli-health/internal/aisearch"
-	pkg "github.com/vrooli/aisearch-go"
+	pkg "github.com/vrooli/ai-go/search"
 	searchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli-health/v1/search"
 )
 

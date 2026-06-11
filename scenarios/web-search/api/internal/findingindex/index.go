@@ -15,7 +15,7 @@ import (
 
 	"web-search/internal/findings"
 
-	pkg "github.com/vrooli/aisearch-go"
+	pkg "github.com/vrooli/ai-go/search"
 )
 
 const (

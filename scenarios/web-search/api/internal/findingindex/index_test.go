@@ -16,7 +16,7 @@ import (
 	testdb "web-search/internal/testutil/db"
 
 	"github.com/stretchr/testify/require"
-	pkg "github.com/vrooli/aisearch-go"
+	pkg "github.com/vrooli/ai-go/search"
 	apidb "github.com/vrooli/api-core/database"
 )
 

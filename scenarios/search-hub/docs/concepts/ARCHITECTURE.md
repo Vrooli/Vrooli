@@ -227,7 +227,7 @@ stays governed in one place).
 
 Both new factor-bearing contracts are **consumed, not redefined**: the
 factor taxonomy and the `search.json` schema are owned by
-`packages/aisearch-go` (`tuning.go`, `searchjson.go`); the control plane
+`packages/ai-go/search` (`tuning.go`, `searchjson.go`); the control plane
 is the shared `search-hub.v1.control` proto. See
 [`../reference/configuration.md`](../reference/configuration.md#search-tuning-control-surface)
 for the operator recipe and [`../internal/SEAMS.md`](../internal/SEAMS.md)

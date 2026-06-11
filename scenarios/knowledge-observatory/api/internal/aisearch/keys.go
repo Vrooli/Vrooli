@@ -1,5 +1,5 @@
 // Package aisearch is knowledge-observatory's documentation consumer of the
-// shared retrieval engine (github.com/vrooli/aisearch-go). It supplies the
+// shared retrieval engine (github.com/vrooli/ai-go/search). It supplies the
 // KO-local pieces the generic engine is parameterized over: a manifest-driven
 // documentation Source, a markdown-header-aware Chunker, and a contextual
 // EmbeddingTextComposer. The embed/sparse/vectorstore/reconcile core lives in
@@ -11,7 +11,7 @@
 // the Indexer exposed here.
 package aisearch
 
-import pkg "github.com/vrooli/aisearch-go"
+import pkg "github.com/vrooli/ai-go/search"
 
 // DocKind is the logical collection/entity these sources belong to. One Source
 // emits a single Kind (the shared SourceBinding.Kind).

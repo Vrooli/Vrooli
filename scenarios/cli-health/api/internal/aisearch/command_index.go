@@ -8,7 +8,7 @@ import (
 	"log"
 	"strings"
 
-	pkg "github.com/vrooli/aisearch-go"
+	pkg "github.com/vrooli/ai-go/search"
 )
 
 // idPrefix namespaces cli-health's point IDs inside the shared engine so its
@@ -104,7 +104,7 @@ func commandContentHash(r CommandRecord) string {
 // compose function is injectable so the embedding-text strategy stays a
 // measurable seam (production uses composeCommandEmbeddingText; an enriched
 // variant was measured to HURT recall 0.70→0.40 and was removed — see
-// packages/aisearch-go/docs/graduation-retrospective.md).
+// packages/ai-go/search/docs/graduation-retrospective.md).
 func commandToSourceDoc(r CommandRecord, compose func(CommandRecord) string) pkg.SourceDoc {
 	return pkg.SourceDoc{
 		ID:          r.FullPath,

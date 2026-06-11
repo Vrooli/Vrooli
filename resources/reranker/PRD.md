@@ -29,7 +29,7 @@ A dedicated, compose-backed resource wrapping the prebuilt HuggingFace
 
 ## Consumers
 
-- **`packages/aisearch-go`** — `CrossEncoderReranker` (Phase 5 of the KO search
+- **`packages/ai-go/search`** — `CrossEncoderReranker` (Phase 5 of the KO search
   cutover). Default-on when the resource is healthy.
 - **`search-hub`** — same resource backs its reranker once it lands.
 - Any scenario doing retrieval (cli-health, ui-health, security-health,

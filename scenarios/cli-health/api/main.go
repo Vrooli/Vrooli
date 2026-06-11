@@ -7,13 +7,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"cli-health/internal/aisearch"
 	"cli-health/internal/clock"
 	"cli-health/internal/modules"
 	"cli-health/internal/server"
 
-	aisearchpkg "github.com/vrooli/aisearch-go"
+	aisearchpkg "github.com/vrooli/ai-go/search"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
@@ -118,7 +119,7 @@ func main() {
 
 	// AI search wiring: the scenario-owned `.vrooli/search.json` is the SSOT for
 	// the search tuning factors (engine shape, embed recipe, rerank policy, floor
-	// band) — read here at boot. The shared engine (packages/aisearch-go) provides
+	// band) — read here at boot. The shared engine (packages/ai-go/search) provides
 	// the embedder + vector store + reconciler + sync loop; LoadConfig supplies
 	// only the OPERATIONAL wiring (Qdrant address, sync cadence, parallelism,
 	// reranker resource endpoints), not the tuning. NewServiceForTuning picks dense
@@ -126,6 +127,21 @@ func main() {
 	// literal. The CLI_HEALTH_{RERANK_*,EMBED_TASK_PREFIX,RELEVANCE_*} tuning env
 	// vars are no longer consulted — search.json replaces them.
 	searchCfg := aisearchpkg.LoadConfig("CLI_HEALTH")
+	engineDeps := aisearchpkg.EngineDeps{
+		QdrantURL:     searchCfg.QdrantURL,
+		QdrantAPIKey:  searchCfg.QdrantAPIKey,
+		Collection:    aisearch.DefaultCollection,
+		EmbedRole:     searchCfg.EmbedRole,
+		RerankerURL:   searchCfg.RerankerURL,
+		RerankerModel: searchCfg.RerankerModel,
+		RerankRole:    searchCfg.RerankRole,
+	}
+	policyCtx, cancelPolicy := context.WithTimeout(context.Background(), 5*time.Second)
+	engineDeps, err = aisearchpkg.ResolveEngineDepsEmbedding(policyCtx, engineDeps)
+	cancelPolicy()
+	if err != nil {
+		log.Fatalf("resolve cli-health embedding policy: %v", err)
+	}
 	tuning := loadSearchTuning(searchJSONPath, commandsProviderID)
 	discovery := aisearch.NewFilesystemDiscoverySource(repoRoot)
 	// Index the top-level vrooli CLI alongside scenario CLIs. The
@@ -141,14 +157,7 @@ func main() {
 		Discovery:        discovery,
 		Parallelism:      searchCfg.ReconcileParallelism,
 		MaxEmbedsPerTick: searchCfg.MaxEmbedsPerTick,
-		EngineDeps: aisearchpkg.EngineDeps{
-			QdrantURL:     searchCfg.QdrantURL,
-			QdrantAPIKey:  searchCfg.QdrantAPIKey,
-			Collection:    aisearch.DefaultCollection,
-			RerankerURL:   searchCfg.RerankerURL,
-			RerankerModel: searchCfg.RerankerModel,
-			RerankRole:    searchCfg.RerankRole,
-		},
+		EngineDeps:       engineDeps,
 	})
 
 	// EnsureCollection is best-effort: if qdrant is unreachable at boot, the

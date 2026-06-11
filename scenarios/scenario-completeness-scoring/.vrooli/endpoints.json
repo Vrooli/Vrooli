@@ -82,6 +82,108 @@
           "<scenario>"
         ]
       }
+    },
+    {
+      "id": "scoring_trend",
+      "path": "/vrooli.scenario_completeness_scoring.v1.scoring.ScoreService/GetScoreTrend",
+      "method": "POST",
+      "summary": "Get a scenario's score trend",
+      "description": "Reads digest-deduplicated score snapshots for one scenario from the persisted score history store, newest first.",
+      "category": "scoring",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int32 (optional)",
+          "scenario": "string (required, scenario directory name)",
+          "since": "Timestamp (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "scenario": "string",
+          "snapshots": "array<ScoreSnapshot>"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Trend read failure"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "Snapshot repository unavailable"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Trend for a scenario",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_completeness_scoring.v1.scoring.ScoreService/GetScoreTrend -H 'Content-Type: application/json' -d '{\"scenario\":\"cli-health\",\"limit\":10}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "scenario-completeness-scoring score trend",
+        "args": [
+          "<scenario>"
+        ]
+      }
+    },
+    {
+      "id": "scoring_list",
+      "path": "/vrooli.scenario_completeness_scoring.v1.scoring.ScoreService/ListScores",
+      "method": "POST",
+      "summary": "List latest scenario scores",
+      "description": "Reads the latest persisted score snapshot per scenario with server-side sort, filter, and pagination. This path is O(query) over score_snapshots and never recomputes the fleet.",
+      "category": "scoring",
+      "request": {
+        "type": "object",
+        "properties": {
+          "category": "string (optional)",
+          "max_score": "int32 (optional)",
+          "min_score": "int32 (optional)",
+          "order": "SortOrder",
+          "page_size": "int32",
+          "page_token": "string",
+          "recompute": "bool (optional, page-bounded later phase)",
+          "rung": "string (optional)",
+          "sort_by": "ScoreSortBy"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "next_page_token": "string",
+          "scores": "array<ScoreRow>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Bad page_token"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "List read failure"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "Snapshot repository unavailable"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List lowest scores",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_completeness_scoring.v1.scoring.ScoreService/ListScores -H 'Content-Type: application/json' -d '{\"sort_by\":\"SCORE_SORT_BY_COMPOSITE\",\"order\":\"SORT_ORDER_ASC\",\"page_size\":10}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "scenario-completeness-scoring score list"
+      }
     }
   ],
   "cli_commands": [
@@ -94,6 +196,16 @@
       "name": "score get",
       "description": "Fast cached status for a scenario: maturity rung as of tree digest, 0-100 composite with breakdown, recommendations with point impact, action plan, per-phase freshness verdicts (--json for machine output)",
       "endpoint_id": "scoring_get"
+    },
+    {
+      "name": "score trend",
+      "description": "Show persisted score history for a scenario (--json for machine output)",
+      "endpoint_id": "scoring_trend"
+    },
+    {
+      "name": "score list",
+      "description": "List latest persisted scenario scores with server-side sort, filter, and pagination (--json for machine output)",
+      "endpoint_id": "scoring_list"
     }
   ]
 }

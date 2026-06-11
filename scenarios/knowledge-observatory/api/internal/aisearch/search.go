@@ -3,7 +3,7 @@ package aisearch
 import (
 	"strings"
 
-	pkg "github.com/vrooli/aisearch-go"
+	pkg "github.com/vrooli/ai-go/search"
 )
 
 // search.go is KO's documentation read path. The query -> rerank -> floor ->

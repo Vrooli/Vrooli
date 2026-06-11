@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	connectrpc.com/connect v1.19.2
 	github.com/stretchr/testify v1.10.0
-	github.com/vrooli/aisearch-go v0.0.0
+	github.com/vrooli/ai-go v0.0.0
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	google.golang.org/protobuf v1.36.11
@@ -21,7 +21,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/vrooli/aisearch-go => ../aisearch-go
+replace github.com/vrooli/ai-go => ../ai-go
 
 replace github.com/vrooli/api-core => ../api-core
 

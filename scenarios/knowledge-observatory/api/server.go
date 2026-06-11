@@ -21,7 +21,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
-	pkg "github.com/vrooli/aisearch-go"
+	pkg "github.com/vrooli/ai-go/search"
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
@@ -199,7 +199,7 @@ func (s *Server) setupServices() {
 	}
 
 	// Documentation hybrid search (Phase 6 cutover). The shared engine
-	// (packages/aisearch-go) supplies the embedder, vector store, reconciler,
+	// (packages/ai-go/search) supplies the embedder, vector store, reconciler,
 	// env config, and sync loop; the KO-local internal/aisearch package supplies
 	// the manifest-driven doc source, markdown chunker, hybrid read path, and
 	// reranker chain. The grep fallback reuses docSearchService; the unified
@@ -222,64 +222,82 @@ func (s *Server) setupServices() {
 		// that plus the symmetric-embedder / rerank-off baseline that preserves the
 		// guarded recall@5=0.818.
 		docsTuning := s.loadDocsTuning()
-		docEmbedder := pkg.NewEmbedderForConfig(pkg.Config{
-			EmbedModel:      docsTuning.EmbedModel,
+		policyCtx, cancelPolicy := context.WithTimeout(context.Background(), s.config.ResourceCommandTimeout)
+		docSearchCfg, err := pkg.ResolveEmbeddingConfig(policyCtx, pkg.Config{
+			EmbedRole:       docCfg.EmbedRole,
 			EmbedTaskPrefix: docsTuning.EmbedTaskPrefix,
 		})
-		docStore := pkg.NewVectorStore(s.qdrantURL(), s.qdrantAPIKey(), aisearch.DefaultCollection)
-		indexer, err := aisearch.NewIndexer(aisearch.Options{
-			Embedder:         docEmbedder,
-			VectorStore:      docStore,
-			ScenariosRoot:    s.config.ScenariosRoot,
-			Parallelism:      docCfg.ReconcileParallelism,
-			MaxEmbedsPerTick: maxEmbeds,
-		})
+		cancelPolicy()
 		if err != nil {
-			s.log("documentation indexer disabled", map[string]interface{}{"error": err.Error()})
-		} else {
-			s.docIndexer = indexer
-			// EnsureCollection is best-effort: if qdrant is down at boot the
-			// scenario still serves grep-fallback search and a degraded status.
-			if cerr := indexer.EnsureCollection(context.Background()); cerr != nil {
-				s.log("vrooli-docs collection ensure failed (degraded search)", map[string]interface{}{"error": cerr.Error()})
+			s.log("documentation search disabled; embedding policy resolution failed", map[string]interface{}{"error": err.Error()})
+		}
+		if err == nil {
+			embeddingPolicy := pkg.EmbeddingPolicy{
+				Role:       docSearchCfg.EmbedRole,
+				Model:      docSearchCfg.EmbedModel,
+				Dimensions: docSearchCfg.EmbedDimensions,
 			}
-			var fallback aisearch.TextFallback
-			if s.docSearchService != nil {
-				fallback = aisearch.NewDocsearchFallback(s.docSearchService)
+			if embeddingPolicy.Model == "" || embeddingPolicy.Dimensions <= 0 {
+				s.log("documentation search disabled; embedding policy was invalid", map[string]interface{}{"model": embeddingPolicy.Model, "dimensions": embeddingPolicy.Dimensions})
+			} else {
+				docEmbedder := pkg.NewEmbedderForConfig(docSearchCfg)
+				docStore := pkg.NewVectorStore(s.qdrantURL(), s.qdrantAPIKey(), aisearch.DefaultCollection)
+				indexer, err := aisearch.NewIndexer(aisearch.Options{
+					Embedder:         docEmbedder,
+					VectorStore:      docStore,
+					ScenariosRoot:    s.config.ScenariosRoot,
+					Embedding:        embeddingPolicy,
+					Parallelism:      docCfg.ReconcileParallelism,
+					MaxEmbedsPerTick: maxEmbeds,
+				})
+				if err != nil {
+					s.log("documentation indexer disabled", map[string]interface{}{"error": err.Error()})
+				} else {
+					s.docIndexer = indexer
+					// EnsureCollection is best-effort: if qdrant is down at boot the
+					// scenario still serves grep-fallback search and a degraded status.
+					if cerr := indexer.EnsureCollection(context.Background()); cerr != nil {
+						s.log("vrooli-docs collection ensure failed (degraded search)", map[string]interface{}{"error": cerr.Error()})
+					}
+					var fallback aisearch.TextFallback
+					if s.docSearchService != nil {
+						fallback = aisearch.NewDocsearchFallback(s.docSearchService)
+					}
+					// Rerank on docs is a tuning decision, now owned by search.json (plan §5).
+					// Default OFF: the validated finding is that hybrid RRF + authority boost
+					// ties the cross-encoder and beats the LLM reranker on recall for this
+					// corpus — reranking buys ordering parity, not recall. Set
+					// tuning.rerank_enabled=true in search.json (and re-run the search-hub
+					// eval A/B) to enable. The flag is passed explicitly (shared convention);
+					// the chain is only built when enabled.
+					var docReranker *pkg.RerankerChain
+					if docsTuning.RerankEnabled {
+						docReranker = aisearch.NewDefaultReranker()
+					}
+					searchSvc := aisearch.NewSearchService(aisearch.ServiceOptions{
+						Embedder:        docEmbedder,
+						VectorStore:     docStore,
+						RerankEnabled:   docsTuning.RerankEnabled,
+						RerankBlend:     docsTuning.RerankBlend,
+						RerankShortlist: docsTuning.RerankShortlist,
+						Floor:           docsTuning.Floor.Config(),
+						Reranker:        docReranker,
+						TextFallback:    fallback,
+						Reconciler:      indexer.Reconciler(),
+					})
+					s.docSearch = searchSvc
+					if s.docSearchService != nil {
+						s.docSearchService.Semantic = docSemanticAdapter{engine: searchSvc}
+					}
+					s.docSyncLoop = pkg.NewSyncLoop("knowledge-observatory", indexer.Reconciler(), docCfg)
+					// Self-register the docs provider with search-hub from the same
+					// `.vrooli/search.json` SSOT (descriptor mapped to the registry
+					// contract). search-hub is an OPTIONAL dependency: this runs in the
+					// background with bounded retry and degrades gracefully, so KO serves
+					// docs search whether or not the hub is up. The upsert is idempotent.
+					go s.selfRegisterSearch()
+				}
 			}
-			// Rerank on docs is a tuning decision, now owned by search.json (plan §5).
-			// Default OFF: the validated finding is that hybrid RRF + authority boost
-			// ties the cross-encoder and beats the LLM reranker on recall for this
-			// corpus — reranking buys ordering parity, not recall. Set
-			// tuning.rerank_enabled=true in search.json (and re-run the search-hub
-			// eval A/B) to enable. The flag is passed explicitly (shared convention);
-			// the chain is only built when enabled.
-			var docReranker *pkg.RerankerChain
-			if docsTuning.RerankEnabled {
-				docReranker = aisearch.NewDefaultReranker()
-			}
-			searchSvc := aisearch.NewSearchService(aisearch.ServiceOptions{
-				Embedder:        docEmbedder,
-				VectorStore:     docStore,
-				RerankEnabled:   docsTuning.RerankEnabled,
-				RerankBlend:     docsTuning.RerankBlend,
-				RerankShortlist: docsTuning.RerankShortlist,
-				Floor:           docsTuning.Floor.Config(),
-				Reranker:        docReranker,
-				TextFallback:    fallback,
-				Reconciler:      indexer.Reconciler(),
-			})
-			s.docSearch = searchSvc
-			if s.docSearchService != nil {
-				s.docSearchService.Semantic = docSemanticAdapter{engine: searchSvc}
-			}
-			s.docSyncLoop = pkg.NewSyncLoop("knowledge-observatory", indexer.Reconciler(), docCfg)
-			// Self-register the docs provider with search-hub from the same
-			// `.vrooli/search.json` SSOT (descriptor mapped to the registry
-			// contract). search-hub is an OPTIONAL dependency: this runs in the
-			// background with bounded retry and degrades gracefully, so KO serves
-			// docs search whether or not the hub is up. The upsert is idempotent.
-			go s.selfRegisterSearch()
 		}
 	}
 	if s.config != nil && s.config.ScenariosRoot != "" {

@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	aisearchpkg "github.com/vrooli/aisearch-go"
+	aisearchpkg "github.com/vrooli/ai-go/search"
 )
 
 // defaultFindingsTuning is the dense search recipe for the findings corpus:

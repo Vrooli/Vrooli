@@ -26,7 +26,7 @@ import (
 
 	"cli-health/internal/aisearch"
 
-	aisearchpkg "github.com/vrooli/aisearch-go"
+	aisearchpkg "github.com/vrooli/ai-go/search"
 	searchregister "github.com/vrooli/searchregister-go"
 	controlv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/control"
 )

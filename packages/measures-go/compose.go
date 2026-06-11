@@ -3,7 +3,7 @@ package measures
 import (
 	"strings"
 
-	aisearch "github.com/vrooli/aisearch-go"
+	aisearch "github.com/vrooli/ai-go/search"
 )
 
 // Meta keys the central measures index sets on each SourceDoc/Chunk so the

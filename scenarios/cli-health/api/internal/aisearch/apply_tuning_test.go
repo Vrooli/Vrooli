@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	pkg "github.com/vrooli/aisearch-go"
+	pkg "github.com/vrooli/ai-go/search"
 )
 
 // errEnsureStore wraps a fake store but fails EnsureCollection — modelling the

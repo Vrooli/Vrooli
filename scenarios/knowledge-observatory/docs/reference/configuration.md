@@ -66,7 +66,7 @@ Config directory overrides:
 The docs-search tuning factors live in the scenario-owned SSOT
 `.vrooli/search.json`, not in env vars. KO is the **docs** consumer of the shared
 search-tuning contract; the schema + per-knob dashboard live in the engine package
-[`packages/aisearch-go/docs/reference/search-json.md`](../../../../packages/aisearch-go/docs/reference/search-json.md).
+[`packages/ai-go/search/docs/reference/search-json.md`](../../../../packages/ai-go/search/docs/reference/search-json.md).
 
 | What | Value | Notes |
 |---|---|---|

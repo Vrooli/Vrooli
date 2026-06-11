@@ -8,7 +8,7 @@ import (
 	"sync"
 	"testing"
 
-	pkg "github.com/vrooli/aisearch-go"
+	pkg "github.com/vrooli/ai-go/search"
 )
 
 // staticDiscovery is a deterministic DiscoverySource for tests.
@@ -616,7 +616,7 @@ func waitJob(t *testing.T, svc *Service, jobID string) {
 			return
 		}
 		// Yield without a real sleep (the reconcile goroutine is CPU-bound and
-		// fast), mirroring packages/aisearch-go service_test.go waitJob.
+		// fast), mirroring packages/ai-go/search service_test.go waitJob.
 		runtime.Gosched()
 	}
 	t.Fatalf("job %s never terminated", jobID)

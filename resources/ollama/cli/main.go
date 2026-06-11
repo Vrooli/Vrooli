@@ -7,6 +7,7 @@ import (
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/capacity"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/ensure"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/gateway"
+	"github.com/vrooli/vrooli/resources/ollama/cli/internal/policycmd"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -51,7 +52,7 @@ func newApp() (*cliapp.ResourceApp, error) {
 	}
 	app.SetCommandsWithSubgroups(
 		append(app.StandardLifecycleCommands(), ensure.CommandGroup()),
-		[]cliapp.SubcommandGroup{gateway.Commands(nil), capacity.Commands(nil)},
+		[]cliapp.SubcommandGroup{gateway.Commands(nil), capacity.Commands(nil), policycmd.Commands(nil)},
 	)
 	return app, nil
 }
