@@ -1,0 +1,309 @@
+{
+  "executionId": "00000000-0000-0000-0000-000000000001",
+  "scenarioName": "fixture-scenario",
+  "success": false,
+  "verdict": "FAIL",
+  "preset": "comprehensive",
+  "plannedPhases": [
+    "structure",
+    "contracts",
+    "ui-health",
+    "standards",
+    "architecture",
+    "dependencies",
+    "lint",
+    "docs",
+    "smoke",
+    "unit",
+    "integration",
+    "playbooks",
+    "business",
+    "performance",
+    "coverage",
+    "tidiness",
+    "security",
+    "measures",
+    "proto"
+  ],
+  "phases": [
+    {
+      "name": "structure",
+      "status": "fail",
+      "findings": [
+        {
+          "scenario": "fixture-scenario",
+          "source": 1,
+          "code": "PKG_MISLOCATION",
+          "severity": 3,
+          "locations": [
+            "api/pkg/foo/bar.go"
+          ],
+          "message": "package mislocated",
+          "stable_id": "afid:0000000000000001"
+        }
+      ]
+    },
+    {
+      "name": "contracts",
+      "status": "fail",
+      "findings": [
+        {
+          "scenario": "fixture-scenario",
+          "source": 2,
+          "code": "CLI_BINDING_MISSING",
+          "severity": 2,
+          "locations": [
+            "cli/manifest.json"
+          ],
+          "message": "cli binding gap",
+          "stable_id": "afid:0000000000000002"
+        }
+      ]
+    },
+    {
+      "name": "ui-health",
+      "status": "fail",
+      "findings": [
+        {
+          "scenario": "fixture-scenario",
+          "source": 3,
+          "code": "UI_SLOT_UNBOUND",
+          "severity": 2,
+          "locations": [
+            "ui/manifest.json"
+          ],
+          "message": "ui slot unbound",
+          "stable_id": "afid:0000000000000003"
+        }
+      ]
+    },
+    {
+      "name": "standards",
+      "status": "fail",
+      "findings": [
+        {
+          "scenario": "fixture-scenario",
+          "source": 5,
+          "code": "TYPE_SAFETY",
+          "severity": 3,
+          "locations": [
+            "api/pkg/x.go:10"
+          ],
+          "message": "type-safety violation",
+          "stable_id": "afid:0000000000000005"
+        },
+        {
+          "scenario": "fixture-scenario",
+          "source": 5,
+          "code": "LINT_RULE",
+          "severity": 2,
+          "locations": [
+            "ui/src/y.tsx:3"
+          ],
+          "message": "lint rule",
+          "stable_id": "afid:0000000000000006"
+        }
+      ]
+    },
+    {
+      "name": "architecture",
+      "status": "fail",
+      "findings": [
+        {
+          "scenario": "fixture-scenario",
+          "source": 6,
+          "code": "IMPORT_CYCLE",
+          "severity": 4,
+          "locations": [
+            "api/pkg/a",
+            "api/pkg/b"
+          ],
+          "message": "import cycle",
+          "stable_id": "afid:0000000000000007"
+        }
+      ]
+    },
+    {
+      "name": "dependencies",
+      "status": "pass",
+      "findings": []
+    },
+    {
+      "name": "lint",
+      "status": "fail",
+      "findings": [
+        {
+          "scenario": "fixture-scenario",
+          "source": 5,
+          "code": "GOFUMPT",
+          "severity": 2,
+          "locations": [
+            "api/pkg/z.go"
+          ],
+          "message": "not gofumpt-clean",
+          "stable_id": "afid:0000000000000008"
+        },
+        {
+          "scenario": "fixture-scenario",
+          "source": 7,
+          "code": "LONG_FUNCTION",
+          "severity": 1,
+          "locations": [
+            "api/pkg/z.go:40"
+          ],
+          "message": "function exceeds tidiness threshold",
+          "stable_id": "afid:000000000000000a"
+        }
+      ]
+    },
+    {
+      "name": "docs",
+      "status": "fail",
+      "findings": [
+        {
+          "scenario": "fixture-scenario",
+          "source": 4,
+          "code": "BROKEN_LINK",
+          "severity": 1,
+          "locations": [
+            "docs/README.md"
+          ],
+          "message": "broken reference",
+          "stable_id": "afid:0000000000000009"
+        }
+      ]
+    },
+    {
+      "name": "smoke",
+      "status": "fail",
+      "findings": []
+    },
+    {
+      "name": "unit",
+      "status": "fail",
+      "findings": []
+    },
+    {
+      "name": "integration",
+      "status": "pass",
+      "findings": []
+    },
+    {
+      "name": "playbooks",
+      "status": "pass",
+      "findings": []
+    },
+    {
+      "name": "business",
+      "status": "fail",
+      "findings": [
+        {
+          "scenario": "fixture-scenario",
+          "source": 11,
+          "code": "business_req_no_validation:REQ-P0-001",
+          "severity": 3,
+          "locations": [
+            "requirements/core.json"
+          ],
+          "message": "Requirement REQ-P0-001 (P0) declares no validation — nothing ties it to evidence.",
+          "stable_id": "afid:0000000000000011"
+        }
+      ]
+    },
+    {
+      "name": "performance",
+      "status": "pass",
+      "findings": []
+    },
+    {
+      "name": "coverage",
+      "status": "fail",
+      "findings": [
+        {
+          "scenario": "fixture-scenario",
+          "source": 8,
+          "code": "low_coverage:go:api",
+          "severity": 3,
+          "locations": [
+            "coverage/go/go-api.coverage.out"
+          ],
+          "message": "coverage 42.0% below target",
+          "stable_id": "afid:000000000000000b"
+        }
+      ]
+    },
+    {
+      "name": "tidiness",
+      "status": "fail",
+      "findings": [
+        {
+          "scenario": "fixture-scenario",
+          "source": 7,
+          "code": "TS_DANGEROUS_PATTERNS",
+          "severity": 2,
+          "locations": [
+            "ui/src/y.tsx"
+          ],
+          "message": "dangerous TypeScript patterns",
+          "stable_id": "afid:000000000000000c"
+        }
+      ]
+    },
+    {
+      "name": "security",
+      "status": "fail",
+      "findings": [
+        {
+          "scenario": "fixture-scenario",
+          "source": 9,
+          "code": "gitleaks.aws-access-token",
+          "severity": 3,
+          "locations": [
+            "api/config.go:12"
+          ],
+          "message": "leaked AWS credential",
+          "stable_id": "afid:000000000000000d"
+        }
+      ]
+    },
+    {
+      "name": "measures",
+      "status": "failed",
+      "findings": [
+        {
+          "scenario": "fixture-scenario",
+          "source": 10,
+          "code": "measures.uncovered-domain",
+          "severity": 3,
+          "locations": [
+            "cli/manifest.json"
+          ],
+          "message": "stateful domain captures has no measure",
+          "stable_id": "afid:0000000000000010"
+        }
+      ]
+    },
+    {
+      "name": "proto",
+      "status": "failed",
+      "findings": [
+        {
+          "scenario": "fixture-scenario",
+          "source": 12,
+          "code": "proto.cross_domain_import",
+          "severity": 2,
+          "locations": [
+            "packages/proto/schemas/fixture-scenario/v1/orders/orders.proto"
+          ],
+          "message": "domain proto imports another domain directly",
+          "stable_id": "afid:0000000000000012"
+        }
+      ]
+    }
+  ],
+  "phaseSummary": {
+    "total": 18,
+    "passed": 4,
+    "failed": 14
+  }
+}

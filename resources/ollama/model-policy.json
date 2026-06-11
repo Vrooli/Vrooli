@@ -1,0 +1,418 @@
+{
+  "schema_version": "2026-06-10",
+  "roles": {
+    "embedding.default": {
+      "model": "nomic-embed-text:latest",
+      "fallbacks": [],
+      "required_capabilities": ["embedding"],
+      "description": "Default local embedding model for 768-dimensional Qdrant collections and semantic search indexes.",
+      "preference": 10,
+      "provenance": {
+        "source_kind": "manual_policy",
+        "confidence": "high",
+        "source": "resources/ollama/docs/EMBEDDING_MODELS.md",
+        "observed_at": "2026-06-10",
+        "sample_count": 0
+      }
+    },
+    "chat.small": {
+      "model": "llama3.2:3b",
+      "fallbacks": ["llama3.2:1b"],
+      "required_capabilities": ["generate", "chat"],
+      "description": "Small local chat/generation role for low-latency or low-memory scenario paths.",
+      "preference": 20,
+      "provenance": {
+        "source_kind": "manual_policy",
+        "confidence": "medium",
+        "source": "resources/ollama/docs/MODELS.md and scenario manifest inventory",
+        "observed_at": "2026-06-10",
+        "sample_count": 0
+      }
+    },
+    "chat.default": {
+      "model": "qwen3:4b",
+      "fallbacks": ["llama3.2:3b", "llama3.1:8b"],
+      "required_capabilities": ["generate", "chat", "summarize"],
+      "description": "Default local generation role for synthesis, summarization, and lightweight agent workflows.",
+      "preference": 30,
+      "provenance": {
+        "source_kind": "manual_policy",
+        "confidence": "medium",
+        "source": "scenario manifest inventory and existing qwen3 usage in web-search/knowledge-observatory",
+        "observed_at": "2026-06-10",
+        "sample_count": 0
+      }
+    },
+    "summarize.default": {
+      "model": "qwen3:4b",
+      "fallbacks": ["llama3.2:3b"],
+      "required_capabilities": ["generate", "chat", "summarize"],
+      "description": "Default summarization and distillation role for text-heavy scenario outputs.",
+      "preference": 40,
+      "provenance": {
+        "source_kind": "manual_policy",
+        "confidence": "medium",
+        "source": "scenario manifest inventory",
+        "observed_at": "2026-06-10",
+        "sample_count": 0
+      }
+    },
+    "rerank.llm_fallback": {
+      "model": "qwen3:4b",
+      "fallbacks": ["qwen3:1.7b"],
+      "required_capabilities": ["generate", "rerank"],
+      "description": "LLM fallback reranking role used when the dedicated reranker resource is unavailable.",
+      "preference": 50,
+      "provenance": {
+        "source_kind": "manual_policy",
+        "confidence": "medium",
+        "source": "cli-health/web-search/knowledge-observatory manifests and reranker degradation notes",
+        "observed_at": "2026-06-10",
+        "sample_count": 0
+      }
+    },
+    "classify.routing": {
+      "model": "qwen3:1.7b",
+      "fallbacks": ["qwen3:4b"],
+      "required_capabilities": ["generate", "classify"],
+      "description": "Small local generation role for structured routing/classification decisions.",
+      "preference": 55,
+      "provenance": {
+        "source_kind": "scenario_pin",
+        "confidence": "medium",
+        "source": "search-hub classifier manifest and routing implementation inventory",
+        "observed_at": "2026-06-10",
+        "sample_count": 0
+      }
+    },
+    "code.local": {
+      "model": "qwen2.5-coder:14b",
+      "fallbacks": ["qwen2.5-coder:7b", "codellama:7b"],
+      "required_capabilities": ["generate", "code"],
+      "description": "Local code-assistance role for scenarios that explicitly need code-specialized generation.",
+      "preference": 60,
+      "provenance": {
+        "source_kind": "manual_policy",
+        "confidence": "medium",
+        "source": "agent-manager manifest inventory and resources/ollama/docs/MODELS.md",
+        "observed_at": "2026-06-10",
+        "sample_count": 0
+      }
+    }
+  },
+  "models": {
+    "nomic-embed-text:latest": {
+      "family": "nomic-embed-text",
+      "tags": ["latest"],
+      "capabilities": ["embedding"],
+      "context_window_tokens": 8192,
+      "embedding_dimensions": 768,
+      "disk_size_gb_estimate": 0.3,
+      "ram_gb_estimate": 0.8,
+      "vram_gb_estimate": 0.8,
+      "default_eligible": true,
+      "use_case_notes": "Primary local embedding model for current 768-dimensional Qdrant collections.",
+      "caveats": ["Do not use chat models for 768-dimensional collection embeddings."],
+      "provenance": {
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "high",
+          "source": "resources/ollama/docs/EMBEDDING_MODELS.md",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        },
+        "embedding_dimensions": {
+          "source_kind": "manual_policy",
+          "confidence": "high",
+          "source": "resources/ollama/docs/EMBEDDING_MODELS.md",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        },
+        "capacity_estimates": {
+          "source_kind": "static_estimate",
+          "confidence": "medium",
+          "source": "manual estimate pending Ollama /api/show and measured profile ingestion",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        }
+      }
+    },
+    "llama3.2:1b": {
+      "family": "llama",
+      "tags": ["3.2", "1b"],
+      "capabilities": ["generate", "chat", "summarize"],
+      "context_window_tokens": 8192,
+      "disk_size_gb_estimate": 1.3,
+      "ram_gb_estimate": 2.0,
+      "vram_gb_estimate": 2.0,
+      "default_eligible": true,
+      "use_case_notes": "Very small generation fallback for constrained hosts.",
+      "caveats": ["Use only when latency or memory pressure matters more than answer quality."],
+      "provenance": {
+        "identity": {
+          "source_kind": "scenario_pin",
+          "confidence": "medium",
+          "source": "scenario manifest inventory",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        },
+        "capacity_estimates": {
+          "source_kind": "static_estimate",
+          "confidence": "medium",
+          "source": "manual parameter-size estimate pending measured profile ingestion",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        }
+      }
+    },
+    "llama3.2:3b": {
+      "family": "llama",
+      "tags": ["3.2", "3b"],
+      "capabilities": ["generate", "chat", "summarize"],
+      "context_window_tokens": 8192,
+      "disk_size_gb_estimate": 2.0,
+      "ram_gb_estimate": 4.0,
+      "vram_gb_estimate": 4.0,
+      "default_eligible": true,
+      "use_case_notes": "Small balanced general-purpose model for local chat/generation.",
+      "caveats": ["Prefer qwen3:4b for default synthesis when host capacity permits."],
+      "provenance": {
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "resources/ollama/docs/MODELS.md and scenario manifest inventory",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        },
+        "capacity_estimates": {
+          "source_kind": "static_estimate",
+          "confidence": "medium",
+          "source": "resources/ollama/docs/MODELS.md hardware guidance; pending measured profile ingestion",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        }
+      }
+    },
+    "llama3.1:8b": {
+      "family": "llama",
+      "tags": ["3.1", "8b"],
+      "capabilities": ["generate", "chat", "summarize"],
+      "context_window_tokens": 8192,
+      "disk_size_gb_estimate": 4.7,
+      "ram_gb_estimate": 8.0,
+      "vram_gb_estimate": 8.0,
+      "default_eligible": true,
+      "use_case_notes": "Larger general-purpose fallback for hosts that can keep an 8B model resident.",
+      "caveats": ["May exceed the default 12 GiB Ollama container budget when loaded with other models."],
+      "provenance": {
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "resources/ollama/docs/MODELS.md",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        },
+        "capacity_estimates": {
+          "source_kind": "static_estimate",
+          "confidence": "medium",
+          "source": "resources/ollama/docs/MODELS.md download-size guidance; pending measured profile ingestion",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        }
+      }
+    },
+    "qwen3:1.7b": {
+      "family": "qwen",
+      "tags": ["3", "1.7b"],
+      "capabilities": ["generate", "chat", "summarize", "rerank"],
+      "context_window_tokens": 32768,
+      "disk_size_gb_estimate": 1.4,
+      "ram_gb_estimate": 3.0,
+      "vram_gb_estimate": 3.0,
+      "default_eligible": false,
+      "use_case_notes": "Small LLM rerank fallback candidate observed in health/search manifests.",
+      "caveats": ["Prior search quality notes report weak discrimination for some reranking workloads."],
+      "provenance": {
+        "identity": {
+          "source_kind": "scenario_pin",
+          "confidence": "medium",
+          "source": "scenario manifest inventory and reranker degradation notes",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        },
+        "capacity_estimates": {
+          "source_kind": "static_estimate",
+          "confidence": "low",
+          "source": "manual estimate pending Ollama /api/show and measured profile ingestion",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        }
+      }
+    },
+    "qwen3:4b": {
+      "family": "qwen",
+      "tags": ["3", "4b"],
+      "capabilities": ["generate", "chat", "summarize", "rerank"],
+      "context_window_tokens": 32768,
+      "disk_size_gb_estimate": 2.6,
+      "ram_gb_estimate": 5.0,
+      "vram_gb_estimate": 5.0,
+      "default_eligible": true,
+      "use_case_notes": "Default local synthesis and LLM-rerank fallback model for search-heavy scenarios.",
+      "caveats": ["LLM reranking is a fallback; prefer the dedicated reranker resource for production quality."],
+      "provenance": {
+        "identity": {
+          "source_kind": "scenario_pin",
+          "confidence": "high",
+          "source": "web-search and knowledge-observatory manifests",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        },
+        "capacity_estimates": {
+          "source_kind": "static_estimate",
+          "confidence": "low",
+          "source": "manual estimate pending Ollama /api/show and measured profile ingestion",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        }
+      }
+    },
+    "qwen2.5-coder:7b": {
+      "family": "qwen-coder",
+      "tags": ["2.5", "7b"],
+      "capabilities": ["generate", "chat", "code"],
+      "context_window_tokens": 32768,
+      "disk_size_gb_estimate": 4.2,
+      "ram_gb_estimate": 8.0,
+      "vram_gb_estimate": 8.0,
+      "default_eligible": false,
+      "use_case_notes": "Code-specialized fallback for hosts that cannot carry the 14B coder role target.",
+      "caveats": ["Direct use should explain why general chat/code role defaults are insufficient."],
+      "provenance": {
+        "identity": {
+          "source_kind": "manual_policy",
+          "confidence": "medium",
+          "source": "resources/ollama/docs/MODELS.md",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        },
+        "capacity_estimates": {
+          "source_kind": "static_estimate",
+          "confidence": "medium",
+          "source": "resources/ollama/docs/MODELS.md download-size guidance; pending measured profile ingestion",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        }
+      }
+    },
+    "qwen2.5-coder:14b": {
+      "family": "qwen-coder",
+      "tags": ["2.5", "14b"],
+      "capabilities": ["generate", "chat", "code"],
+      "context_window_tokens": 32768,
+      "disk_size_gb_estimate": 9.0,
+      "ram_gb_estimate": 16.0,
+      "vram_gb_estimate": 16.0,
+      "default_eligible": false,
+      "use_case_notes": "Higher-quality local code model for explicit code-generation scenarios.",
+      "caveats": ["Usually too large for the default 12 GiB Ollama container budget; capacity planner should flag this unless the runtime budget is raised."],
+      "provenance": {
+        "identity": {
+          "source_kind": "scenario_pin",
+          "confidence": "medium",
+          "source": "agent-manager manifest inventory",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        },
+        "capacity_estimates": {
+          "source_kind": "static_estimate",
+          "confidence": "low",
+          "source": "manual 14B model estimate pending Ollama /api/show and measured profile ingestion",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        }
+      }
+    },
+    "codellama:7b": {
+      "family": "codellama",
+      "tags": ["7b"],
+      "capabilities": ["generate", "chat", "code"],
+      "context_window_tokens": 4096,
+      "disk_size_gb_estimate": 3.8,
+      "ram_gb_estimate": 8.0,
+      "vram_gb_estimate": 8.0,
+      "default_eligible": false,
+      "use_case_notes": "Legacy code-specialized fallback retained for existing model-orchestration manifests.",
+      "caveats": ["Prefer qwen2.5-coder role targets for new code workflows."],
+      "provenance": {
+        "identity": {
+          "source_kind": "scenario_pin",
+          "confidence": "medium",
+          "source": "ai-model-orchestra-controller manifest inventory",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        },
+        "capacity_estimates": {
+          "source_kind": "static_estimate",
+          "confidence": "low",
+          "source": "manual estimate pending Ollama /api/show and measured profile ingestion",
+          "observed_at": "2026-06-10",
+          "sample_count": 0
+        }
+      }
+    }
+  },
+  "constraints": {
+    "resident_model_budget_percent": 70,
+    "minimum_host_memory_headroom_percent": 20,
+    "minimum_host_disk_headroom_gb": 20,
+    "max_loaded_models_policy": 3,
+    "default_parallel_requests": 4,
+    "role_preference_order": [
+      "embedding.default",
+      "chat.small",
+      "chat.default",
+      "summarize.default",
+      "rerank.llm_fallback",
+      "classify.routing",
+      "code.local"
+    ],
+    "direct_model_exception_required_fields": ["reason", "owner", "review_after"],
+    "provenance_required": true,
+    "provenance_source_kinds": [
+      "manual_policy",
+      "operator_override",
+      "ollama_tags",
+      "ollama_show",
+      "ollama_ps",
+      "host_probe",
+      "static_estimate",
+      "derived_estimate",
+      "measured_profile",
+      "scenario_pin"
+    ]
+  },
+  "provenance": {
+    "policy": {
+      "source_kind": "manual_policy",
+      "confidence": "medium",
+      "source": "ollama-model-roles-and-shared-host-inventory implementation plan Phase 4",
+      "observed_at": "2026-06-10",
+      "sample_count": 0
+    },
+    "scenario_inventory": {
+      "source_kind": "scenario_pin",
+      "confidence": "medium",
+      "source": "search-hub result rec-ac9698550e18b144 and current scenario manifest scan",
+      "observed_at": "2026-06-10",
+      "sample_count": 0
+    },
+    "capacity_defaults": {
+      "source_kind": "static_estimate",
+      "confidence": "medium",
+      "source": "resources/ollama/resource.json runtime defaults and manual model-size estimates",
+      "observed_at": "2026-06-10",
+      "sample_count": 0
+    }
+  }
+}
