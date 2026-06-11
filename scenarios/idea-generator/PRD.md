@@ -66,7 +66,7 @@
 
 **AI/ML Integration**:
 - Ollama via shared workflow for LLM inference across all six agent types
-- nomic-embed-text model for 768-dimensional vector embeddings
+- Ollama `embedding.default` role for vector embeddings
 - Multi-agent orchestration via n8n workflows
 
 **Integration Strategy**:

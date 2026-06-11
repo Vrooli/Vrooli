@@ -28,7 +28,7 @@ knowledge-observatory configure api_base http://localhost:<API_PORT>
 
 ## Embedding failures
 - Ollama must be reachable if embeddings are enabled (`resource-ollama status` should succeed).
-- Confirm `OLLAMA_EMBEDDING_MODEL` is set.
+- Confirm `OLLAMA_EMBEDDING_ROLE` is set or that `embedding.default` resolves.
 
 [CODE: api/internal/adapters/embedder/ollama.go]
 

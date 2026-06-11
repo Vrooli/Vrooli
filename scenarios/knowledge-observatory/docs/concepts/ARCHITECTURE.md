@@ -98,7 +98,7 @@ Document / Text
        │
        ▼
 ┌──────────────┐
-│  Embed via   │  768-dim vectors (nomic-embed-text)
+│  Embed via   │  dimensions from `embedding.default`
 │   Ollama     │
 └──────┬───────┘
        │
@@ -457,10 +457,10 @@ Quick search, documentation health, scenario coverage, and activity feed are sur
 │      │  │      │  │        │  │prompt-manager│
 └──────┘  └──────┘  └────────┘  └──────────────┘
  vectors   embed     metadata    AI agent runs
- search    768-dim   jobs        skill retrieval
- upsert    nomic-    metrics     deep search
- delete    embed-    history     doc healing
-           text      relations
+ search    role      jobs        skill retrieval
+ upsert    policy    metrics     deep search
+ delete              history     doc healing
+                     relations
 ```
 
 - **Qdrant**: Vector storage + similarity search. [CODE: api/internal/adapters/vectorstore/qdrant.go]

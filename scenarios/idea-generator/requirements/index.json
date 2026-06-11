@@ -129,7 +129,7 @@
       "category": "embeddings.ai",
       "prd_ref": "Operational Targets > P0 > OT-P0-008",
       "title": "Vector embeddings for semantic connections",
-      "description": "Store and query idea embeddings in Qdrant using nomic-embed-text model",
+      "description": "Store and query idea embeddings in Qdrant using the Ollama `embedding.default` role",
       "status": "blocked",
       "validation": [
         {

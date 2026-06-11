@@ -74,8 +74,9 @@ belong in [`DATA.md`](DATA.md). Resource contracts belong in
   [--name]`, `security-health deps status` (`cli/domains/deps/`).
 - UI: `ui/src/features/dependencies/` — searchable SBOM with AI/TEXT toggle and
   filters; plus the embeddable posture-badge widget.
-- Storage: structured dependency table (SQLite) + Qdrant vectors (768-dim
-  cosine); degrades to TEXT when Qdrant/Ollama are down.
+- Storage: structured dependency table (SQLite) + Qdrant vectors (dimensions
+  resolved from `embedding.default`, cosine); degrades to TEXT when
+  Qdrant/Ollama are down.
 - Requirements: MOD-P1-007, MOD-P1-008 (and the P1-010 badge surface).
 - Tests: lockfile-parser unit tests, search AI/TEXT mode unit tests, filter
   integration tests, status reporting tests.

@@ -5,6 +5,23 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 CREATE EXTENSION IF NOT EXISTS "vector";
 
+-- Embedding metadata records the policy facts used to generate each vector.
+-- Retargeting compares these rows with the current embedding role before
+-- re-embedding or cutting over shadow storage.
+CREATE TABLE embedding_metadata (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    owner_table TEXT NOT NULL,
+    owner_id TEXT NOT NULL,
+    embedding_column TEXT NOT NULL,
+    embedding_role TEXT NOT NULL,
+    embedding_model TEXT NOT NULL,
+    embedding_dimensions INTEGER NOT NULL CHECK (embedding_dimensions > 0),
+    embedding_policy_schema_version TEXT NOT NULL,
+    source_content_hash TEXT NOT NULL,
+    generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(owner_table, owner_id, embedding_column)
+);
+
 -- Enum types
 CREATE TYPE issue_status AS ENUM ('open', 'active', 'completed', 'failed', 'archived', 'wont_fix', 'duplicate');
 CREATE TYPE issue_priority AS ENUM ('critical', 'high', 'medium', 'low');
@@ -97,7 +114,7 @@ CREATE TABLE issues (
     assigned_at TIMESTAMP,
     
     -- Semantic search and similarity
-    embedding VECTOR(1536),
+    embedding VECTOR,
     embedding_generated_at TIMESTAMP,
     
     -- Investigation data
@@ -248,6 +265,7 @@ CREATE INDEX idx_issues_created ON issues(created_at DESC);
 CREATE INDEX idx_issues_pattern_group ON issues(pattern_group_id);
 CREATE INDEX idx_issues_external_id ON issues(app_id, external_id);
 CREATE INDEX idx_issues_embedding ON issues USING ivfflat (embedding vector_cosine_ops);
+CREATE INDEX idx_embedding_metadata_owner ON embedding_metadata(owner_table, owner_id, embedding_column);
 CREATE INDEX idx_issues_title_trgm ON issues USING gin (title gin_trgm_ops);
 CREATE INDEX idx_issues_description_trgm ON issues USING gin (description gin_trgm_ops);
 CREATE INDEX idx_issues_tags ON issues USING gin (tags);

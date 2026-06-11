@@ -8,7 +8,11 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	sharedsearch "github.com/vrooli/ai-go/search"
 )
+
+const defaultEmbeddingRole = "embedding.default"
 
 // QdrantClient handles vector database operations
 type QdrantClient struct {
@@ -156,7 +160,7 @@ func (q *QdrantClient) SearchSimilar(collectionName string, vector []float32, li
 func GenerateEmbedding(text string) ([]float32, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	vec, err := ollamaGatewayEmbed(ctx, "embedding.default", text)
+	vec, err := ollamaGatewayEmbed(ctx, defaultEmbeddingRole, text)
 	if err != nil {
 		return nil, err
 	}
@@ -171,8 +175,15 @@ func GenerateEmbedding(text string) ([]float32, error) {
 func InitializeVectorSearch() error {
 	client := NewQdrantClient()
 
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	policy, err := sharedsearch.ResolveEmbeddingPolicy(ctx, defaultEmbeddingRole)
+	if err != nil {
+		return fmt.Errorf("resolve embedding policy %s: %w", defaultEmbeddingRole, err)
+	}
+
 	// Create collection if it doesn't exist
-	err := client.CreateCollection("injection_techniques", 768) // nomic-embed-text produces 768-dim vectors
+	err = client.CreateCollection("injection_techniques", policy.Dimensions)
 	if err != nil {
 		logger.Warn("Collection creation issue", map[string]interface{}{
 			"collection": "injection_techniques",

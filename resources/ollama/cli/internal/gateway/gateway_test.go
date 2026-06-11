@@ -22,6 +22,7 @@ import (
 type fakeClient struct {
 	embed    func(ctx context.Context, model, input string) ([]float64, error)
 	generate func(ctx context.Context, in ensure.GenerateRequest) (ensure.GenerateResponse, error)
+	chat     func(ctx context.Context, in ensure.ChatRequest) (ensure.ChatResponse, error)
 }
 
 func (f *fakeClient) Embed(ctx context.Context, model, input string) ([]float64, error) {
@@ -30,6 +31,10 @@ func (f *fakeClient) Embed(ctx context.Context, model, input string) ([]float64,
 
 func (f *fakeClient) Generate(ctx context.Context, in ensure.GenerateRequest) (ensure.GenerateResponse, error) {
 	return f.generate(ctx, in)
+}
+
+func (f *fakeClient) Chat(ctx context.Context, in ensure.ChatRequest) (ensure.ChatResponse, error) {
+	return f.chat(ctx, in)
 }
 
 func newHandlers(t *testing.T, client *fakeClient, env map[string]string) (*Handlers, *bytes.Buffer, *bytes.Buffer) {
@@ -223,6 +228,62 @@ func TestGenerateAllowsUnknownDirectModelWithoutPolicyWindow(t *testing.T) {
 	h, _, _ := newHandlers(t, client, policyEnv(t))
 	if err := h.Generate([]string{"--model", "local-test-model:latest", "--prompt", "hi", "--max-tokens", "40000"}); err != nil {
 		t.Fatalf("Generate: %v", err)
+	}
+}
+
+func TestChatRoleResolvesModelAndForwardsControls(t *testing.T) {
+	client := &fakeClient{
+		chat: func(_ context.Context, in ensure.ChatRequest) (ensure.ChatResponse, error) {
+			if in.Model != "qwen3:4b" {
+				t.Errorf("model = %q", in.Model)
+			}
+			if len(in.Messages) != 2 {
+				t.Fatalf("messages len = %d, want 2", len(in.Messages))
+			}
+			if in.Messages[0].Role != "system" || in.Messages[0].Content != "be concise" {
+				t.Errorf("system message = %+v", in.Messages[0])
+			}
+			if in.Messages[1].Role != "user" || in.Messages[1].Content != "hello" {
+				t.Errorf("user message = %+v", in.Messages[1])
+			}
+			if in.NumPredict == nil || *in.NumPredict != 123 {
+				t.Errorf("num_predict = %v, want 123", in.NumPredict)
+			}
+			if in.Temperature == nil || *in.Temperature != 0.25 {
+				t.Errorf("temperature = %v, want 0.25", in.Temperature)
+			}
+			if in.Think == nil || *in.Think != false {
+				t.Errorf("think = %v, want false", in.Think)
+			}
+			var out ensure.ChatResponse
+			out.Message.Content = "summary"
+			out.DoneReason = "stop"
+			out.EvalCount = 7
+			return out, nil
+		},
+	}
+	h, stdout, _ := newHandlers(t, client, policyEnv(t))
+	if err := h.Chat([]string{"--role", "summarize.default", "--system", "be concise", "--prompt", "hello", "--max-tokens", "123", "--temperature", "0.25", "--json"}); err != nil {
+		t.Fatalf("Chat: %v", err)
+	}
+	var got struct {
+		Response   string `json:"response"`
+		DoneReason string `json:"done_reason"`
+		EvalCount  int    `json:"eval_count"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
+		t.Fatalf("decode: %v (raw=%q)", err, stdout.String())
+	}
+	if got.Response != "summary" || got.DoneReason != "stop" || got.EvalCount != 7 {
+		t.Fatalf("unexpected JSON: %+v", got)
+	}
+}
+
+func TestChatRejectsEmbeddingRole(t *testing.T) {
+	h, _, _ := newHandlers(t, &fakeClient{}, policyEnv(t))
+	err := h.Chat([]string{"--role", "embedding.default", "--prompt", "hello"})
+	if err == nil || !strings.Contains(err.Error(), "without chat capability") {
+		t.Fatalf("expected capability error, got %v", err)
 	}
 }
 

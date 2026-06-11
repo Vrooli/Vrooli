@@ -6,7 +6,7 @@
   "requirements": [
     {
       "category": "ai",
-      "description": "Use Ollama llama3.2:latest for advanced pattern analysis.",
+      "description": "Use the Ollama chat.default role for advanced pattern analysis.",
       "id": "REQ-P2-001",
       "prd_ref": "OT-P2-001",
       "status": "passed",

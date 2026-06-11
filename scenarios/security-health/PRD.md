@@ -34,7 +34,7 @@
 
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks / frameworks: Go API on Connect-RPC, React + Vite + TypeScript + Tailwind UI, Go CLI on `cli-core` — cloning the `cli-health` / `ui-health` family verbatim.
-- Data + storage expectations: SQLite (`${SCENARIO_DATA_DIR}/security-health.db`) for scan history and the structured dependency table; Qdrant (`security-health-deps`, 768-dim cosine) + Ollama (`nomic-embed-text`) for the semantic dependency index, both optional with TEXT fallback.
+- Data + storage expectations: SQLite (`${SCENARIO_DATA_DIR}/security-health.db`) for scan history and the structured dependency table; Qdrant (`security-health-deps`, dimensions resolved from `embedding.default`, cosine) + Ollama role-policy embeddings for the semantic dependency index, both optional with TEXT fallback.
 - Integration strategy: shell out to scanner CLIs (gitleaks, gosec, govulncheck, pnpm audit, osv-scanner) behind a `Scanner` interface; test-genie consumes us via CLI `--json` (matching cli/ui-health), not HTTP.
 - Non-goals / guardrails: no stack-specific scanner baked into test-genie; no auto-remediation or auto-PR; no secret rotation in v1; no Python/semgrep scanners in v1; no committed `migrations/` folder; no `make breaking` on this branch.
 

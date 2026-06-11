@@ -126,7 +126,13 @@ func main() {
 	// index so the service's nil-check (TEXT-only) stays correct (avoid the
 	// typed-nil interface trap). When attached, search ranks MODE_AI by vector
 	// similarity and degrades to TEXT if the backends are down.
-	if idx := aisearch.NewFromConfig(aisearch.LoadConfigFromEnv()); idx != nil {
+	aiCfg := aisearch.LoadConfigFromEnv()
+	resolveCtx, resolveCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	resolvedAICfg, err := aisearch.ResolveConfigEmbedding(resolveCtx, aiCfg)
+	resolveCancel()
+	if err != nil {
+		logger.Printf("[security-health] semantic index policy resolution failed (search on TEXT): %v", err)
+	} else if idx := aisearch.NewFromConfig(resolvedAICfg); idx != nil {
 		depDeps.Index = idx
 	}
 	depService := dependencies.NewService(depDeps)

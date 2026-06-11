@@ -119,7 +119,7 @@
 5. **Standards violations reduced**: 384 → 374 (10 violations resolved)
 
 ### ✅ Previously Fixed (2025-10-13 Session 3)
-1. **Qdrant Vector Dimensions**: Fixed collections.json to use 768 dimensions (nomic-embed-text) instead of 1536 (OpenAI)
+1. **Qdrant Vector Dimensions**: Fixed collections.json to use `embedding.default` instead of a static OpenAI-era dimension
 2. **Go Test Build Tags**: Removed `// +build testing` tags from all test files so tests run normally
 3. **Test Structure References**: Fixed HealthResponse.Services → HealthResponse.Dependencies in tests
 4. **Makefile help target**: Changed "Available Commands" to "Commands" to match standards
@@ -182,16 +182,16 @@
 [WARNING] Added 0 of 1 items to qdrant
 ```
 
-**Root Cause**: Vector dimension mismatch - collections.json specified 1536 dimensions (OpenAI embedding size) but scenario uses Ollama's nomic-embed-text model which produces 768-dimensional vectors.
+**Root Cause**: Vector dimension mismatch - collections.json stored a physical embedding dimension instead of resolving the active Ollama embedding role.
 
 **Resolution**: Updated all collection configurations in `initialization/storage/qdrant/collections.json`:
-- Changed vector size from 1536 → 768 for all 4 collections (ideas, documents, campaigns, chat_messages)
-- Verified nomic-embed-text produces 768-dim embeddings: `curl http://localhost:11434/api/embeddings -d '{"model":"nomic-embed-text","prompt":"test"}' | jq '.embedding | length'` returns 768
+- Replaced stored vector dimensions with the `embedding.default` role for all 4 collections (ideas, documents, campaigns, chat_messages)
+- Verify the active role dimension with `resource-ollama policy resolve --role embedding.default --field embedding_dimensions`
 
-**Verification**: Manual collection creation now succeeds:
+**Verification**: Policy resolution now exposes the collection dimension:
 ```bash
-curl -X PUT "http://localhost:6333/collections/ideas" -H 'Content-Type: application/json' -d '{"vectors": {"size": 768, "distance": "Cosine"}}'
-# Returns: {"result":true,"status":"ok"}
+resource-ollama policy resolve --role embedding.default --field embedding_dimensions
+# Returns the active embedding dimension.
 ```
 
 **Note**: The populate script may still fail due to JSON parsing issues in the resource-qdrant CLI, but collections can be created programmatically using the correct dimensions.
@@ -746,7 +746,7 @@ This scenario has achieved a stable, well-tested, and secure foundation:
   - buildEnrichedPrompt: Describes composition (combines campaign, documents, and existing ideas)
   - generateWithOllama: Notes JSON structured output format
   - generateWithOllamaRaw: Specifies use case (refinement and conversational responses)
-  - generateEmbedding: Documents vector dimensions (768-dim from nomic-embed-text)
+  - generateEmbedding: Documents role-resolved vector dimensions
   - storeIdea: Explains persistence (PostgreSQL with UUID and timestamps)
   - storeInVectorDB: Details indexing (Qdrant campaign-specific collections)
   - updateVectorDB: Describes update mechanism (regenerate embedding for refined ideas)

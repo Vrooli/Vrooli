@@ -51,11 +51,11 @@ func TestConvertOllamaModelsToCapabilities(t *testing.T) {
 	// Test with mock Ollama models
 	ollamaModels := []OllamaModel{
 		{
-			Name: "llama3.2:1b",
+			Name: "fixture-chat-small",
 			Size: 1024 * 1024 * 1024, // 1GB
 		},
 		{
-			Name: "codellama:7b",
+			Name: "fixture-code-large",
 			Size: 7 * 1024 * 1024 * 1024, // 7GB
 		},
 	}
@@ -66,14 +66,14 @@ func TestConvertOllamaModelsToCapabilities(t *testing.T) {
 
 	// Check first model (small model)
 	smallModel := capabilities[0]
-	assert.Equal(t, "llama3.2:1b", smallModel.ModelName)
+	assert.Equal(t, "fixture-chat-small", smallModel.ModelName)
 	assert.Equal(t, "fast", smallModel.Speed)
 	assert.Equal(t, "basic", smallModel.QualityTier)
 	assert.Equal(t, 1.0, smallModel.RamRequiredGB)
 
 	// Check second model (large model)
 	largeModel := capabilities[1]
-	assert.Equal(t, "codellama:7b", largeModel.ModelName)
+	assert.Equal(t, "fixture-code-large", largeModel.ModelName)
 	assert.Equal(t, "slow", largeModel.Speed)
 	assert.Equal(t, "high", largeModel.QualityTier)
 	assert.Equal(t, 7.0, largeModel.RamRequiredGB)
@@ -248,10 +248,10 @@ func BenchmarkGetSystemMetrics(b *testing.B) {
 
 func BenchmarkConvertOllamaModelsToCapabilities(b *testing.B) {
 	ollamaModels := []OllamaModel{
-		{Name: "llama3.2:1b", Size: 1024 * 1024 * 1024},
-		{Name: "llama3.2:3b", Size: 3 * 1024 * 1024 * 1024},
-		{Name: "llama3.2:8b", Size: 8 * 1024 * 1024 * 1024},
-		{Name: "codellama:7b", Size: 7 * 1024 * 1024 * 1024},
+		{Name: "fixture-chat-small", Size: 1024 * 1024 * 1024},
+		{Name: "fixture-chat-medium", Size: 3 * 1024 * 1024 * 1024},
+		{Name: "fixture-chat-large", Size: 8 * 1024 * 1024 * 1024},
+		{Name: "fixture-code-large", Size: 7 * 1024 * 1024 * 1024},
 	}
 
 	b.ResetTimer()

@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	sharedsearch "github.com/vrooli/ai-go/search"
 )
 
 // VectorSearchResult represents a single vector search hit.
@@ -54,18 +56,33 @@ type qdrantVectorStore struct {
 }
 
 // NewVectorStore creates a new Qdrant-backed VectorStore.
+//
+// Deprecated: production callers should use NewVectorStoreForPolicy so
+// collection dimensions stay attached to the resolved embedding policy.
 func NewVectorStore(baseURL, apiKey, collection string, vectorSize int) VectorStore {
 	if collection == "" {
 		collection = DefaultCollection
-	}
-	if vectorSize <= 0 {
-		vectorSize = DefaultVectorSize
 	}
 	return &qdrantVectorStore{
 		baseURL:    baseURL,
 		apiKey:     apiKey,
 		collection: collection,
 		vectorSize: vectorSize,
+		client:     &http.Client{Timeout: httpTimeout},
+	}
+}
+
+// NewVectorStoreForPolicy creates a Qdrant-backed VectorStore from an embedding
+// policy that was already resolved during startup preflight.
+func NewVectorStoreForPolicy(baseURL, apiKey, collection string, policy sharedsearch.EmbeddingPolicy) VectorStore {
+	if collection == "" {
+		collection = DefaultCollection
+	}
+	return &qdrantVectorStore{
+		baseURL:    baseURL,
+		apiKey:     apiKey,
+		collection: collection,
+		vectorSize: policy.Dimensions,
 		client:     &http.Client{Timeout: httpTimeout},
 	}
 }

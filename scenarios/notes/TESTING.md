@@ -140,7 +140,7 @@ $ ./test/phases/test-dependencies.sh
 ✅ Qdrant is running
 ✅ Qdrant collection 'notes' exists
 ✅ Ollama is running
-✅ Ollama model 'nomic-embed-text' available
+✅ Ollama embedding role `embedding.default` resolves
 ⚠️  n8n not running (optional)
 ✅ All required dependencies available!
 ```
@@ -148,14 +148,14 @@ $ ./test/phases/test-dependencies.sh
 **Common Failures**:
 - PostgreSQL not running → `vrooli resource postgres start`
 - Qdrant not running → `vrooli resource qdrant start`
-- Missing Ollama model → `ollama pull nomic-embed-text`
+- Missing Ollama embedding role → `resource-ollama ensure --role embedding.default`
 - Database doesn't exist → Run `vrooli scenario setup notes`
 
 **Manual Test Equivalent**:
 ```bash
 psql -h localhost -U postgres -lqt | grep notes
 curl -sf http://localhost:6333/collections/notes
-curl -sf http://localhost:11434/api/tags | jq '.models[] | select(.name | contains("nomic-embed-text"))'
+resource-ollama policy resolve --role embedding.default --json
 ```
 
 ---
@@ -453,8 +453,8 @@ vrooli resource postgres start
 vrooli resource qdrant start
 vrooli resource ollama start
 
-# 2. Verify Ollama model
-ollama pull nomic-embed-text
+# 2. Verify Ollama embedding role
+resource-ollama ensure --role embedding.default
 
 # 3. Setup scenario (first time only)
 cd scenarios/notes
@@ -598,12 +598,11 @@ vrooli scenario setup notes --force
 # List models
 ollama list
 
-# Pull required model
-ollama pull nomic-embed-text
+# Ensure required embedding role
 
 # Test embedding
-curl http://localhost:11434/api/embeddings \
-  -d '{"model": "nomic-embed-text", "prompt": "test"}'
+resource-ollama ensure --role embedding.default
+printf 'test' | resource-ollama gateway embed --role embedding.default --json --input-stdin
 ```
 
 #### Issue: Tests pass individually but fail in suite
@@ -773,9 +772,7 @@ psql -h localhost -U postgres -d notes -c "TRUNCATE notes, folders, tags CASCADE
 
 # Reset Qdrant collection
 curl -X DELETE http://localhost:6333/collections/notes
-curl -X PUT http://localhost:6333/collections/notes \
-  -H "Content-Type: application/json" \
-  -d '{"vectors": {"size": 768, "distance": "Cosine"}}'
+resource-qdrant collection create notes embedding.default Cosine
 
 # Kill stuck processes
 pkill -f notes-api

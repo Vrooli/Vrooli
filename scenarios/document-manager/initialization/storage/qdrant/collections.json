@@ -4,7 +4,7 @@
       "description": "Vector embeddings of documentation content for semantic search and similarity analysis",
       "config": {
         "vectors": {
-          "size": 768,
+          "embedding_role": "embedding.default",
           "distance": "Cosine"
         },
         "shard_number": 2,

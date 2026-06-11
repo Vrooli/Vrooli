@@ -28,7 +28,11 @@ func TestLive_EmbedUpsertSearch(t *testing.T) {
 	if !emb.Available(ctx) {
 		t.Fatal("ollama embedder unavailable — start the ollama resource")
 	}
-	vs := NewVectorStore(DefaultQdrantURL, "", collection, DefaultVectorSize)
+	cfg, err := ResolveConfigEmbedding(ctx, Config{EmbedRole: DefaultEmbedRole})
+	if err != nil {
+		t.Fatalf("resolve embedding config: %v", err)
+	}
+	vs := NewVectorStoreForPolicy(DefaultQdrantURL, "", collection, cfg.EmbeddingPolicy)
 	if !vs.Available(ctx) {
 		t.Fatal("qdrant unavailable — start the qdrant resource")
 	}

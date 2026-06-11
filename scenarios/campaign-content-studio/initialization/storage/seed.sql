@@ -226,7 +226,7 @@ INSERT INTO campaign_content_studio.resource_metrics (
     
     ('storage', 'qdrant', 'vector_search', 85, true, null, 0.0001,
      (SELECT id FROM campaign_content_studio.user_sessions WHERE session_id = 'demo-session-001'),
-     '{"collection": "campaign_documents", "query_vector_size": 384, "results": 5}'::jsonb),
+     '{"collection": "campaign_documents", "embedding_role": "embedding.default", "results": 5}'::jsonb),
     
     ('storage', 'minio', 'file_upload', 320, true, null, 0.0001,
      (SELECT id FROM campaign_content_studio.user_sessions WHERE session_id = 'demo-session-001'),

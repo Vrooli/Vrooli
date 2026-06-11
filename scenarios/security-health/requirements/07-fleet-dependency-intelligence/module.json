@@ -22,7 +22,7 @@
       "prd_ref": "OT-P1-001",
       "category": "core",
       "status": "draft",
-      "description": "A 5-minute reconcile loop must upsert/delete dependency records in the Qdrant collection (security-health-deps, 768-dim cosine) based on a payload hash, and annotate vuln_ids/max_severity from the Phase C scanners (osv-scanner/govulncheck/pnpm audit).",
+      "description": "A 5-minute reconcile loop must upsert/delete dependency records in the Qdrant collection (security-health-deps, dimensions resolved from `embedding.default`, cosine) based on a payload hash, and annotate vuln_ids/max_severity from the Phase C scanners (osv-scanner/govulncheck/pnpm audit).",
       "validation": [
         { "type": "test", "phase": "unit", "status": "pending", "notes": "A changed dependency version produces a planned upsert; an unchanged one produces no write." },
         { "type": "test", "phase": "integration", "status": "pending", "notes": "A dependency with a known CVE gets vuln_ids populated and max_severity set." }

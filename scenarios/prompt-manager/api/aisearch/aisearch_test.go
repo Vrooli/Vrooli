@@ -6,10 +6,13 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
-	"prompt-manager/search"
-	"prompt-manager/skills"
 	"strings"
 	"testing"
+
+	sharedsearch "github.com/vrooli/ai-go/search"
+
+	"prompt-manager/search"
+	"prompt-manager/skills"
 )
 
 // --- Mock implementations ---
@@ -158,15 +161,51 @@ func TestVectorStore_NewVectorStore_Defaults_CreateUsesDefaults(t *testing.T) {
 	}))
 	defer server.Close()
 
-	vs := NewVectorStore(server.URL, "", "", 0)
+	vs := NewVectorStore(server.URL, "", "", 3)
 	if err := vs.EnsureCollection(context.Background()); err != nil {
 		t.Fatalf("EnsureCollection: %v", err)
 	}
 	if !strings.HasSuffix(gotPath, "/collections/prompt-manager-skills") {
 		t.Errorf("expected default collection 'prompt-manager-skills' in path, got %q", gotPath)
 	}
-	if gotSize != 768 {
-		t.Errorf("expected default vector size 768, got %d", gotSize)
+	if gotSize != 3 {
+		t.Errorf("expected resolved vector size 3, got %d", gotSize)
+	}
+}
+
+func TestVectorStoreForRole_CreateUsesResolvedPolicyDimensions(t *testing.T) {
+	old := resolveEmbeddingPolicy
+	t.Cleanup(func() { resolveEmbeddingPolicy = old })
+	resolveEmbeddingPolicy = func(_ context.Context, role string) (sharedsearch.EmbeddingPolicy, error) {
+		if role != "embedding.default" {
+			t.Fatalf("role = %q, want embedding.default", role)
+		}
+		return sharedsearch.EmbeddingPolicy{
+			Role:       role,
+			Model:      "fixture-embed-model:latest",
+			Dimensions: 1234,
+		}, nil
+	}
+
+	var gotSize int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		var req createCollectionRequest
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		gotSize = req.Vectors.Size
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	vs := NewVectorStoreForRole(server.URL, "", "", "")
+	if err := vs.EnsureCollection(context.Background()); err != nil {
+		t.Fatalf("EnsureCollection: %v", err)
+	}
+	if gotSize != 1234 {
+		t.Errorf("expected resolved vector size 1234, got %d", gotSize)
 	}
 }
 

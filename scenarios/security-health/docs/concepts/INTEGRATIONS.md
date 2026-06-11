@@ -19,8 +19,8 @@ Use this document to answer:
 |---|---|---|---|---|---|
 | SQLite | embedded storage | yes | validation (scan history), dependencies (structured dep table) | `SQLITE_PATH` lifecycle env var | API reports unhealthy if unreachable. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario should be started through lifecycle commands. |
-| qdrant | Vrooli resource | no (try_start) | dependencies | `dependencies.resources.qdrant` (collection `security-health-deps`, 768-dim cosine) | Dependency search degrades to TEXT mode; reindex deferred. |
-| ollama | Vrooli resource | no (try_start) | dependencies | `dependencies.resources.ollama` (model `nomic-embed-text`) | Embedding unavailable; TEXT-mode search still works. |
+| qdrant | Vrooli resource | no (try_start) | dependencies | `dependencies.resources.qdrant` (collection `security-health-deps`, dimensions resolved from `embedding.default`, cosine) | Dependency search degrades to TEXT mode; reindex deferred. |
+| ollama | Vrooli resource | no (try_start) | dependencies | `dependencies.resources.ollama` (`embedding.default` role) | Embedding unavailable; TEXT-mode search still works. |
 | gitleaks | host CLI | present | validation | shelled `gitleaks detect --report-format json --redact` | Absent ⇒ secrets scanner emits INFO observation, not failure. |
 | gosec | host CLI | present | validation | shelled `gosec -fmt=json` | Absent ⇒ Go SAST scanner emits INFO observation. |
 | govulncheck | host CLI | optional (absent) | validation, dependencies | `go install golang.org/x/vuln/cmd/govulncheck@latest` (install-gated) | Absent ⇒ Go vuln scanner emits INFO observation. |
@@ -37,7 +37,7 @@ cli-health / ui-health AI-search substrate exactly.
 | Resource | Status | Reason | Revisit Trigger |
 |---|---|---|---|
 | qdrant | active (optional) | Vector index for the fleet dependency intelligence search (collection `security-health-deps`). | Required only if semantic search becomes load-bearing. |
-| ollama | active (optional) | `nomic-embed-text` embeddings for the dependency index. | — |
+| ollama | active (optional) | `embedding.default` embeddings for the dependency index. | — |
 
 ## Scenario Dependencies
 

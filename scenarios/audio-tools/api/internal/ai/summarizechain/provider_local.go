@@ -30,7 +30,7 @@ func NewLocalProviderWith(summarizer *summarize.Summarizer, defaultModel string,
 func (p *LocalProvider) Type() ProviderTier { return TierLocal }
 
 func (p *LocalProvider) IsAvailable(ctx context.Context) bool {
-	return p != nil && p.summarizer != nil && p.summarizer.BaseURL != ""
+	return p != nil && p.summarizer != nil && (p.summarizer.Runner != nil || p.summarizer.Bin != "")
 }
 
 func (p *LocalProvider) Summarize(ctx context.Context, req Request) (*Result, error) {

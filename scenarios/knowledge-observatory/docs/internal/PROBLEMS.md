@@ -104,13 +104,13 @@ cmd := exec.CommandContext(ctx, s.config.ResourceCLI, args...)
 ## 2025-09-28: Missing Ollama Models
 
 ### Problem
-Health check reported missing required models: `llama3.2` and `nomic-embed-text`
+Health check reported a missing generation model and embedding role.
 
 ### Solution
 Installed the models using:
 ```bash
 ollama pull llama3.2
-ollama pull nomic-embed-text
+resource-ollama ensure --role embedding.default
 ```
 
 ### Impact

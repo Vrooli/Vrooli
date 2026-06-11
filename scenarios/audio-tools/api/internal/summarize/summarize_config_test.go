@@ -53,7 +53,7 @@ func TestSummarizeConfig_ClampsUndersizedTimeout(t *testing.T) {
 	// clamps anything below the minimum up to the default.
 	dir := t.TempDir()
 	path := filepath.Join(dir, "tts-summarize-config.json")
-	if err := os.WriteFile(path, []byte(`{"enabled":true,"charThreshold":500,"level":"moderate","model":"llama3.2:1b","timeoutSeconds":5}`), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(`{"enabled":true,"charThreshold":500,"level":"moderate","model":"fixture-safe-model","timeoutSeconds":5}`), 0o644); err != nil {
 		t.Fatalf("seed config: %v", err)
 	}
 
@@ -69,7 +69,7 @@ func TestSummarizeConfig_ClampsUndersizedTimeout(t *testing.T) {
 func TestSummarizeConfig_ReplacesReasoningModelOnLoad(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "tts-summarize-config.json")
-	if err := os.WriteFile(path, []byte(`{"enabled":true,"charThreshold":500,"level":"moderate","model":"qwen3:4b","timeoutSeconds":120}`), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(`{"enabled":true,"charThreshold":500,"level":"moderate","model":"fixture-reasoning-model","timeoutSeconds":120}`), 0o644); err != nil {
 		t.Fatalf("seed config: %v", err)
 	}
 
@@ -118,7 +118,7 @@ func TestSummarizeConfig_PatchSemantics(t *testing.T) {
 
 func TestSummarizeConfig_PatchAllowsExplicitReasoningModel(t *testing.T) {
 	base := DefaultSummarizeConfig()
-	model := "qwen3:4b"
+	model := "fixture-reasoning-model"
 	result := (SummarizeConfigPatch{Model: &model}).Apply(base)
 
 	if result.Model != model {
@@ -173,10 +173,10 @@ func TestDefaultSummarizeConfig_TimeoutSufficientForColdStart(t *testing.T) {
 // envx.Reader seam: a fake env serves WC_TTS_SUMMARIZE_MODEL without
 // mutating process state, and the read is observable via FakeEnv.Reads().
 func TestDefaultSummarizeConfigWith_ReadsModelFromInjectedEnv(t *testing.T) {
-	env := mocks.NewFakeEnv(map[string]string{"WC_TTS_SUMMARIZE_MODEL": "llama3.2:3b"})
+	env := mocks.NewFakeEnv(map[string]string{"WC_TTS_SUMMARIZE_MODEL": "fixture-safe-model"})
 	cfg := DefaultSummarizeConfigWith(env)
-	if cfg.Model != "llama3.2:3b" {
-		t.Errorf("Model = %q, want %q", cfg.Model, "llama3.2:3b")
+	if cfg.Model != "fixture-safe-model" {
+		t.Errorf("Model = %q, want %q", cfg.Model, "fixture-safe-model")
 	}
 	reads := env.Reads()
 	if len(reads) != 1 || reads[0] != "WC_TTS_SUMMARIZE_MODEL" {
@@ -193,7 +193,7 @@ func TestDefaultSummarizeConfigWith_DefaultsWhenUnset(t *testing.T) {
 }
 
 func TestDefaultSummarizeConfigWith_ReplacesReasoningEnvModel(t *testing.T) {
-	env := mocks.NewFakeEnv(map[string]string{"WC_TTS_SUMMARIZE_MODEL": "qwen3:4b"})
+	env := mocks.NewFakeEnv(map[string]string{"WC_TTS_SUMMARIZE_MODEL": "fixture-reasoning-model"})
 	cfg := DefaultSummarizeConfigWith(env)
 	if cfg.Model != DefaultSummarizeModel {
 		t.Errorf("reasoning env model should default to %q, got %q", DefaultSummarizeModel, cfg.Model)

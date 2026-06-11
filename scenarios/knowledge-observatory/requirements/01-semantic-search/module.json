@@ -33,7 +33,7 @@
           "ref": "api/search_test.go"
         }
       ],
-      "notes": "Use nomic-embed-text model for consistent embedding dimension",
+      "notes": "Use the Ollama embedding role for consistent role-resolved dimensions",
       "status": "complete"
     },
     {

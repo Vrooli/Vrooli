@@ -689,7 +689,7 @@ func TestVectorSearchHandler(t *testing.T) {
 
 	t.Run("InvalidJSON", func(t *testing.T) {
 		router := setupTestRouter()
-		
+
 		w := makeHTTPRequest(router, HTTPTestRequest{
 			Method: "POST",
 			Path:   "/api/search",
@@ -703,7 +703,7 @@ func TestVectorSearchHandler(t *testing.T) {
 
 	t.Run("EmptyQuery", func(t *testing.T) {
 		router := setupTestRouter()
-		
+
 		reqBody := `{"query": "", "limit": 5}`
 		w := makeHTTPRequest(router, HTTPTestRequest{
 			Method: "POST",
@@ -718,7 +718,7 @@ func TestVectorSearchHandler(t *testing.T) {
 
 	t.Run("MethodNotAllowed", func(t *testing.T) {
 		router := setupTestRouter()
-		
+
 		w := makeHTTPRequest(router, HTTPTestRequest{
 			Method: "GET",
 			Path:   "/api/search",
@@ -843,10 +843,8 @@ func TestGenerateOllamaEmbedding(t *testing.T) {
 			t.Error("Expected non-empty embedding vector")
 		}
 
-		// nomic-embed-text typically returns 768-dimensional embeddings
-		if len(embedding) != 768 {
-			t.Logf("Note: Expected 768 dimensions, got %d (model may vary)", len(embedding))
-		}
+		// The concrete dimension is owned by resource-ollama policy and may
+		// change when `embedding.default` is intentionally retargeted.
 
 		// Verify embedding values are in reasonable range
 		for i, val := range embedding {
@@ -1022,7 +1020,7 @@ func TestIndexDocuments(t *testing.T) {
 
 	t.Run("EmptyDocumentsList", func(t *testing.T) {
 		config = Config{
-			
+
 			QdrantURL: "http://localhost:6333",
 		}
 
@@ -1042,7 +1040,7 @@ func TestIndexDocuments(t *testing.T) {
 
 	t.Run("WithDocuments", func(t *testing.T) {
 		config = Config{
-			
+
 			QdrantURL: "http://localhost:6333",
 		}
 

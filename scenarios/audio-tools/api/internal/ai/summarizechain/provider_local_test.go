@@ -2,8 +2,8 @@ package summarizechain_test
 
 import (
 	"context"
-	"net/http"
-	"net/http/httptest"
+	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -13,12 +13,10 @@ import (
 )
 
 func TestLocalProvider_HappyPath(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{"message":{"content":"summary"},"done_reason":"stop","eval_count":7}`))
-	}))
-	defer srv.Close()
-	s := summarize.NewSummarizer(srv.URL, srv.Client())
-	p := summarizechain.NewLocalProvider(s, "qwen3")
+	s := summarize.NewSummarizerWithRunner("resource-ollama-test", func(context.Context, []string, string) ([]byte, error) {
+		return json.Marshal(map[string]any{"response": "summary", "done_reason": "stop", "eval_count": 7})
+	})
+	p := summarizechain.NewLocalProvider(s, summarize.DefaultSummarizeModel)
 	require.True(t, p.IsAvailable(context.Background()))
 	res, err := p.Summarize(context.Background(), summarizechain.Request{Text: "hello", Level: "light"})
 	require.NoError(t, err)
@@ -33,11 +31,9 @@ func TestLocalProvider_HappyPath(t *testing.T) {
 }
 
 func TestLocalProvider_ErrorPath(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "boom", http.StatusInternalServerError)
-	}))
-	defer srv.Close()
-	s := summarize.NewSummarizer(srv.URL, srv.Client())
+	s := summarize.NewSummarizerWithRunner("resource-ollama-test", func(context.Context, []string, string) ([]byte, error) {
+		return nil, errors.New("boom")
+	})
 	p := summarizechain.NewLocalProvider(s, "m")
 	_, err := p.Summarize(context.Background(), summarizechain.Request{Text: "hi"})
 	require.Error(t, err)

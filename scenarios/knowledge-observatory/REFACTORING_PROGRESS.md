@@ -49,7 +49,7 @@ The knowledge-observatory scenario has been migrated from an outdated tech stack
        - qdrant (required) - Primary vector database for semantic knowledge
        - postgres (required) - Metadata, metrics, search history storage
        - n8n (optional) - Automated quality monitoring workflows
-       - ollama (optional) - Enhanced semantic analysis (llama3.2, nomic-embed-text)
+       - ollama (optional) - Enhanced semantic analysis (generation model plus `embedding.default`)
      - Updated health checks with qdrant connection monitoring
      - Enhanced setup steps with data population
      - Proper lifecycle configuration (setup, develop, test, stop)

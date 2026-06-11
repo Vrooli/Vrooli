@@ -31,7 +31,7 @@ make stop
 
 ### ✅ Advanced Features (P1 - 100% Complete)
 - **Vector Search**: ✅ Production-ready similarity search with Ollama embeddings (`/api/search` endpoint)
-- **AI Integration**: ✅ Ollama nomic-embed-text model integrated for semantic embeddings (768 dimensions)
+- **AI Integration**: ✅ Ollama `embedding.default` role integrated for semantic embeddings
 - **Document Indexing**: ✅ POST `/api/index` endpoint for batch document indexing
 - **Data Management**: ✅ DELETE endpoints for applications, agents, and queue items
 - **Real-time Updates**: ✅ Redis pub/sub for live event notifications (graceful degradation if Redis unavailable)
@@ -170,7 +170,7 @@ make stop
 ```
 
 **Features:**
-- **Production AI Integration**: Uses Ollama's nomic-embed-text model for 768-dimensional semantic embeddings
+- **Production AI Integration**: Uses Ollama's `embedding.default` role for semantic embeddings
 - **Automatic Collection Management**: Creates Qdrant collections automatically
 - **Deterministic Document IDs**: Uses UUID v5 for consistent document identification
 - **Batch Indexing**: Index multiple documents in a single request

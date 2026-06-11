@@ -4,34 +4,64 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net/http"
-	"net/http/httptest"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 )
 
-func TestSummarizer_Summarize(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/chat" {
-			t.Errorf("expected /api/chat, got %s", r.URL.Path)
+func testSummarizer(t *testing.T, response string, inspect func(args []string, stdin string)) *Summarizer {
+	t.Helper()
+	return NewSummarizerWithRunner("resource-ollama-test", func(_ context.Context, args []string, stdin string) ([]byte, error) {
+		if inspect != nil {
+			inspect(args, stdin)
 		}
-		var body map[string]any
-		_ = json.NewDecoder(r.Body).Decode(&body)
-		messages := body["messages"].([]any)
-		sysMsg := messages[0].(map[string]any)
-		if !strings.Contains(sysMsg["content"].(string), "Tighten") {
-			t.Errorf("expected light-level prompt, got %q", sysMsg["content"])
-		}
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"message": map[string]string{"content": "summarized output"},
+		out, err := json.Marshal(map[string]any{
+			"response":    response,
+			"done_reason": "stop",
+			"eval_count":  42,
 		})
-	}))
-	defer ts.Close()
+		if err != nil {
+			t.Fatalf("marshal fake response: %v", err)
+		}
+		return out, nil
+	})
+}
 
-	s := NewSummarizer(ts.URL, ts.Client())
-	result, err := s.Summarize(context.Background(), "long text input", "test-model", "light")
+func argValue(args []string, flag string) string {
+	for i, arg := range args {
+		if arg == flag && i+1 < len(args) {
+			return args[i+1]
+		}
+	}
+	return ""
+}
+
+func hasArg(args []string, want string) bool {
+	for _, arg := range args {
+		if arg == want {
+			return true
+		}
+	}
+	return false
+}
+
+func TestSummarizer_Summarize(t *testing.T) {
+	s := testSummarizer(t, "summarized output", func(args []string, stdin string) {
+		if strings.Join(args[:2], " ") != "gateway chat" {
+			t.Fatalf("args prefix = %v", args[:2])
+		}
+		if argValue(args, "--role") != "test-role" {
+			t.Errorf("--role = %q", argValue(args, "--role"))
+		}
+		if !strings.Contains(argValue(args, "--system"), "Tighten") {
+			t.Errorf("expected light-level prompt, got %q", argValue(args, "--system"))
+		}
+		if stdin != "long text input" {
+			t.Errorf("stdin = %q", stdin)
+		}
+	})
+	result, err := s.Summarize(context.Background(), "long text input", "test-role", "light")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -41,23 +71,12 @@ func TestSummarizer_Summarize(t *testing.T) {
 }
 
 func TestSummarizer_UnknownLevel(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var body map[string]any
-		_ = json.NewDecoder(r.Body).Decode(&body)
-		messages := body["messages"].([]any)
-		sysMsg := messages[0].(map[string]any)
-		if !strings.Contains(sysMsg["content"].(string), "Rewrite") {
-			t.Errorf("expected moderate-level prompt for unknown level, got %q", sysMsg["content"])
+	s := testSummarizer(t, "ok", func(args []string, _ string) {
+		if !strings.Contains(argValue(args, "--system"), "Rewrite") {
+			t.Errorf("expected moderate-level prompt for unknown level, got %q", argValue(args, "--system"))
 		}
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"message": map[string]string{"content": "ok"},
-		})
-	}))
-	defer ts.Close()
-
-	s := NewSummarizer(ts.URL, ts.Client())
-	_, err := s.Summarize(context.Background(), "text", "model", "unknown_level")
-	if err != nil {
+	})
+	if _, err := s.Summarize(context.Background(), "text", "model", "unknown_level"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -70,23 +89,12 @@ func TestSummarizer_EachLevel(t *testing.T) {
 	}
 	for level, expected := range levels {
 		t.Run(level, func(t *testing.T) {
-			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				var body map[string]any
-				_ = json.NewDecoder(r.Body).Decode(&body)
-				messages := body["messages"].([]any)
-				sysMsg := messages[0].(map[string]any)
-				if !strings.Contains(sysMsg["content"].(string), expected) {
-					t.Errorf("level %s: expected prompt containing %q, got %q", level, expected, sysMsg["content"])
+			s := testSummarizer(t, "ok", func(args []string, _ string) {
+				if !strings.Contains(argValue(args, "--system"), expected) {
+					t.Errorf("level %s: expected prompt containing %q, got %q", level, expected, argValue(args, "--system"))
 				}
-				_ = json.NewEncoder(w).Encode(map[string]any{
-					"message": map[string]string{"content": "ok"},
-				})
-			}))
-			defer ts.Close()
-
-			s := NewSummarizer(ts.URL, ts.Client())
-			_, err := s.Summarize(context.Background(), "text", "model", level)
-			if err != nil {
+			})
+			if _, err := s.Summarize(context.Background(), "text", "model", level); err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 		})
@@ -94,27 +102,19 @@ func TestSummarizer_EachLevel(t *testing.T) {
 }
 
 func TestSummarizer_ServerError(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = w.Write([]byte("internal error"))
-	}))
-	defer ts.Close()
-
-	s := NewSummarizer(ts.URL, ts.Client())
+	s := NewSummarizerWithRunner("resource-ollama-test", func(context.Context, []string, string) ([]byte, error) {
+		return nil, errors.New("chat: HTTP 500: internal error")
+	})
 	_, err := s.Summarize(context.Background(), "text", "model", "moderate")
 	if err == nil {
-		t.Error("expected error for 500 response")
+		t.Error("expected error for gateway failure")
 	}
 }
 
 func TestSummarizer_ModelNotInstalled(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-		_, _ = w.Write([]byte(`{"error":"model \"missing:latest\" not found, try pulling it first"}`))
-	}))
-	defer ts.Close()
-
-	s := NewSummarizer(ts.URL, ts.Client())
+	s := NewSummarizerWithRunner("resource-ollama-test", func(context.Context, []string, string) ([]byte, error) {
+		return nil, errors.New(`chat: HTTP 404: {"error":"model \"missing:latest\" not found, try pulling it first"}`)
+	})
 	_, err := s.Summarize(context.Background(), "text", "missing:latest", "moderate")
 	if !errors.Is(err, ErrSummarizeModelNotInstalled) {
 		t.Fatalf("error = %v, want ErrSummarizeModelNotInstalled", err)
@@ -130,7 +130,7 @@ func TestStripThinkTags(t *testing.T) {
 		{"unclosed tag", "<think>partial reasoning", ""},
 		{"multiple blocks", "<think>a</think>first<think>b</think>second", "firstsecond"},
 		{"empty think", "<think></think>answer", "answer"},
-		{"prefilled think (qwen3)", "reasoning text without opener\n</think>\nactual answer", "actual answer"},
+		{"prefilled think", "reasoning text without opener\n</think>\nactual answer", "actual answer"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -143,17 +143,8 @@ func TestStripThinkTags(t *testing.T) {
 }
 
 func TestSummarizer_StripsThinkTags(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"message": map[string]string{
-				"content": "<think>\nlong reasoning\n</think>\nThe quick summary.",
-			},
-		})
-	}))
-	defer ts.Close()
-
-	s := NewSummarizer(ts.URL, ts.Client())
-	result, err := s.Summarize(context.Background(), "text", "qwen3:1.7b", "moderate")
+	s := testSummarizer(t, "<think>\nlong reasoning\n</think>\nThe quick summary.", nil)
+	result, err := s.Summarize(context.Background(), "text", "fixture-reasoning-model", "moderate")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -174,35 +165,17 @@ func TestSummarizer_SendsTokenAndTemperatureOptions(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.level+"/"+strconv.Itoa(len(tc.inputText)), func(t *testing.T) {
-			var captured map[string]any
-			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				_ = json.NewDecoder(r.Body).Decode(&captured)
-				_ = json.NewEncoder(w).Encode(map[string]any{
-					"message": map[string]string{"content": "ok"},
-				})
-			}))
-			defer ts.Close()
-
-			s := NewSummarizer(ts.URL, ts.Client())
-			if _, err := s.Summarize(context.Background(), tc.inputText, "llama3.2:1b", tc.level); err != nil {
+			s := testSummarizer(t, "ok", func(args []string, _ string) {
+				if got := argValue(args, "--temperature"); got != "0.2" {
+					t.Errorf("temperature = %q, want 0.2", got)
+				}
+				want := strconv.Itoa(summarizeTokenBudget(tc.level, len(tc.inputText)))
+				if got := argValue(args, "--max-tokens"); got != want {
+					t.Errorf("max tokens = %q, want %s", got, want)
+				}
+			})
+			if _, err := s.Summarize(context.Background(), tc.inputText, "fixture-safe-model", tc.level); err != nil {
 				t.Fatalf("summarize: %v", err)
-			}
-
-			opts, ok := captured["options"].(map[string]any)
-			if !ok {
-				t.Fatalf("expected options in request body, got %#v", captured)
-			}
-			temp, _ := opts["temperature"].(float64)
-			if temp != 0.2 {
-				t.Errorf("expected temperature=0.2, got %v", opts["temperature"])
-			}
-			numPredict, _ := opts["num_predict"].(float64)
-			want := summarizeTokenBudget(tc.level, len(tc.inputText))
-			if int(numPredict) != want {
-				t.Errorf("num_predict: got %v, want %d", opts["num_predict"], want)
-			}
-			if numPredict <= 0 {
-				t.Errorf("num_predict must be positive, got %v", opts["num_predict"])
 			}
 		})
 	}
@@ -213,29 +186,20 @@ func TestSummarizer_AddsReasoningHeadroomOnlyForReasoningModels(t *testing.T) {
 		model string
 		want  int
 	}{
-		{"llama3.2:1b", summarizeTokenBudget("moderate", len("hello"))},
-		{"qwen3:4b", summarizeTokenBudget("moderate", len("hello")) + reasoningHeadroomTokens},
-		{"deepseek-r1:8b", summarizeTokenBudget("moderate", len("hello")) + reasoningHeadroomTokens},
+		{"fixture-safe-model", summarizeTokenBudget("moderate", len("hello"))},
+		{"fixture-reasoning-model", summarizeTokenBudget("moderate", len("hello")) + reasoningHeadroomTokens},
+		{"fixture-reasoning-alt-model", summarizeTokenBudget("moderate", len("hello")) + reasoningHeadroomTokens},
 	}
 	for _, tc := range cases {
 		t.Run(tc.model, func(t *testing.T) {
-			var captured map[string]any
-			ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				_ = json.NewDecoder(r.Body).Decode(&captured)
-				_ = json.NewEncoder(w).Encode(map[string]any{
-					"message": map[string]string{"content": "ok"},
-				})
-			}))
-			defer ts.Close()
-
-			s := NewSummarizer(ts.URL, ts.Client())
+			s := testSummarizer(t, "ok", func(args []string, _ string) {
+				got, _ := strconv.Atoi(argValue(args, "--max-tokens"))
+				if got != tc.want {
+					t.Errorf("max tokens: got %d, want %d", got, tc.want)
+				}
+			})
 			if _, err := s.Summarize(context.Background(), "hello", tc.model, "moderate"); err != nil {
 				t.Fatalf("summarize: %v", err)
-			}
-			opts := captured["options"].(map[string]any)
-			numPredict, _ := opts["num_predict"].(float64)
-			if int(numPredict) != tc.want {
-				t.Errorf("num_predict: got %v, want %d", opts["num_predict"], tc.want)
 			}
 		})
 	}
@@ -269,42 +233,33 @@ func TestSummarizeTokenBudget_LevelShape(t *testing.T) {
 }
 
 func TestSummarizer_SendsThinkFalse(t *testing.T) {
-	var captured map[string]any
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewDecoder(r.Body).Decode(&captured)
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"message": map[string]string{"content": "ok"},
-		})
-	}))
-	defer ts.Close()
-
-	s := NewSummarizer(ts.URL, ts.Client())
-	if _, err := s.Summarize(context.Background(), "text", "qwen3:1.7b", "moderate"); err != nil {
+	s := testSummarizer(t, "ok", func(args []string, _ string) {
+		if !hasArg(args, "--think=false") {
+			t.Fatalf("expected --think=false in argv, got %v", args)
+		}
+	})
+	if _, err := s.Summarize(context.Background(), "text", "fixture-reasoning-model", "moderate"); err != nil {
 		t.Fatalf("summarize: %v", err)
 	}
+}
 
-	think, present := captured["think"]
-	if !present {
-		t.Fatalf("expected think field in request body, got %#v", captured)
-	}
-	b, ok := think.(bool)
-	if !ok || b != false {
-		t.Errorf("expected think=false, got %#v", think)
+func TestSummarizer_UsesDirectModelFlagOnlyForExplicitModelSelectors(t *testing.T) {
+	s := testSummarizer(t, "ok", func(args []string, _ string) {
+		if argValue(args, "--model") != "custom:latest" {
+			t.Fatalf("--model = %q, args=%v", argValue(args, "--model"), args)
+		}
+		if hasArg(args, "--role") {
+			t.Fatalf("did not expect --role for direct selector: %v", args)
+		}
+	})
+	if _, err := s.Summarize(context.Background(), "text", "custom:latest", "moderate"); err != nil {
+		t.Fatalf("summarize: %v", err)
 	}
 }
 
 func TestSummarizer_ReturnsDiagnostics(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"message":     map[string]string{"content": "<think>\ndropped\n</think>\nkept"},
-			"done_reason": "stop",
-			"eval_count":  42,
-		})
-	}))
-	defer ts.Close()
-
-	s := NewSummarizer(ts.URL, ts.Client())
-	result, err := s.Summarize(context.Background(), "text", "qwen3:1.7b", "moderate")
+	s := testSummarizer(t, "<think>\ndropped\n</think>\nkept", nil)
+	result, err := s.Summarize(context.Background(), "text", "fixture-reasoning-model", "moderate")
 	if err != nil {
 		t.Fatalf("summarize: %v", err)
 	}
@@ -323,23 +278,10 @@ func TestSummarizer_ReturnsDiagnostics(t *testing.T) {
 }
 
 func TestSummarizer_Timeout(t *testing.T) {
-	// Server blocks until the test's release channel closes, so the
-	// 50ms client-side context deadline below is what fires. No bare
-	// sleep in the handler; t.Cleanup signals release after the assert
-	// so ts.Close drains immediately rather than hanging on the handler.
-	release := make(chan struct{})
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		select {
-		case <-release:
-		case <-r.Context().Done():
-		}
-	}))
-	// LIFO defer order: close(release) runs FIRST so the handler exits
-	// before ts.Close() waits on it.
-	defer ts.Close()
-	defer close(release)
-
-	s := NewSummarizer(ts.URL, ts.Client())
+	s := NewSummarizerWithRunner("resource-ollama-test", func(ctx context.Context, _ []string, _ string) ([]byte, error) {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	})
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 

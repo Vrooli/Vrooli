@@ -90,11 +90,11 @@
                 "configuration": {
                   "label": "Primary AI Model",
                   "options": [
-                    {"value": "llama3.2", "label": "Llama 3.2 (Balanced reasoning)"},
-                    {"value": "mistral", "label": "Mistral (Strategic analysis)"},
-                    {"value": "codellama", "label": "CodeLlama (Technical/systematic)"}
+                    {"value": "chat.default", "label": "Default chat role (Balanced reasoning)"},
+                    {"value": "chat.small", "label": "Small chat role (Strategic analysis)"},
+                    {"value": "code.local", "label": "Code role (Technical/systematic)"}
                   ],
-                  "defaultValue": "llama3.2",
+                  "defaultValue": "chat.default",
                   "style": {
                     "marginBottom": "15px"
                   }

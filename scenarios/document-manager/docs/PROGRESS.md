@@ -144,13 +144,13 @@ This file tracks the detailed implementation history and milestones for the Docu
 **Focus**: Completed production AI integration
 
 **Completed**:
-- ✅ Integrated Ollama nomic-embed-text model for production embeddings
+- ✅ Integrated Ollama `embedding.default` role for production embeddings
 - ✅ Implemented generateOllamaEmbedding() with 30s timeout and error handling
 - ✅ Added graceful fallback to mock embeddings when Ollama unavailable
 - ✅ Comprehensive test coverage: 3 new subtests validating Ollama integration
 - ✅ All tests passing: 90 total (69 Go unit + 6 CLI + 15 integration = 100% pass rate)
 - ✅ Test coverage improved: 40.5% → 42.0%
-- ✅ Verified production embedding generation: 768-dimensional vectors from nomic-embed-text
+- ✅ Verified production embedding generation through the Ollama role policy
 
 **Feature Status**: AI Integration complete, vector search now uses real semantic embeddings
 
@@ -160,7 +160,7 @@ This file tracks the detailed implementation history and milestones for the Docu
 
 **Completed**:
 - ✅ Implemented POST `/api/index` endpoint for indexing documents into Qdrant
-- ✅ Automatic Qdrant collection creation with 768-dimensional vectors (nomic-embed-text)
+- ✅ Automatic Qdrant collection creation with dimensions resolved from `embedding.default`
 - ✅ Replaced mock queryQdrantSimilarity with real Qdrant REST API integration
 - ✅ Batch document indexing with per-document error tracking
 - ✅ UUID v5 deterministic document IDs for consistent Qdrant point identification

@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	sharedsearch "github.com/vrooli/ai-go/search"
 )
 
 // SearchResult represents a single vector search result.
@@ -48,20 +50,23 @@ type VectorStore interface {
 
 // qdrantVectorStore is the qdrant-backed VectorStore. Unexported by design.
 type qdrantVectorStore struct {
-	baseURL    string
-	apiKey     string
-	collection string
-	vectorSize int
-	client     *http.Client
+	baseURL       string
+	apiKey        string
+	collection    string
+	embeddingRole string
+	vectorSize    int
+	client        *http.Client
 }
 
+var resolveEmbeddingPolicy = sharedsearch.ResolveEmbeddingPolicy
+
 // NewVectorStore creates a new Qdrant-backed VectorStore.
+//
+// Deprecated: production callers should use NewVectorStoreForRole so collection
+// dimensions stay owned by resource-ollama policy metadata.
 func NewVectorStore(baseURL, apiKey, collection string, vectorSize int) VectorStore {
 	if collection == "" {
 		collection = "prompt-manager-skills"
-	}
-	if vectorSize <= 0 {
-		vectorSize = 768 // nomic-embed-text default
 	}
 	return &qdrantVectorStore{
 		baseURL:    baseURL,
@@ -69,6 +74,26 @@ func NewVectorStore(baseURL, apiKey, collection string, vectorSize int) VectorSt
 		collection: collection,
 		vectorSize: vectorSize,
 		client:     &http.Client{Timeout: 15 * time.Second},
+	}
+}
+
+// NewVectorStoreForRole creates a Qdrant-backed VectorStore whose collection
+// dimensions are resolved from the configured Ollama embedding role at
+// EnsureCollection time.
+func NewVectorStoreForRole(baseURL, apiKey, collection, embeddingRole string) VectorStore {
+	if collection == "" {
+		collection = "prompt-manager-skills"
+	}
+	embeddingRole = strings.TrimSpace(embeddingRole)
+	if embeddingRole == "" {
+		embeddingRole = "embedding.default"
+	}
+	return &qdrantVectorStore{
+		baseURL:       baseURL,
+		apiKey:        apiKey,
+		collection:    collection,
+		embeddingRole: embeddingRole,
+		client:        &http.Client{Timeout: 15 * time.Second},
 	}
 }
 
@@ -104,10 +129,11 @@ func (v *qdrantVectorStore) EnsureCollection(ctx context.Context) error {
 	if collection == "" {
 		return fmt.Errorf("collection is required")
 	}
-	if v.vectorSize <= 0 {
-		return fmt.Errorf("vectorSize must be > 0")
-	}
 	base, err := v.base()
+	if err != nil {
+		return err
+	}
+	vectorSize, err := v.resolvedVectorSize(ctx)
 	if err != nil {
 		return err
 	}
@@ -135,7 +161,7 @@ func (v *qdrantVectorStore) EnsureCollection(ctx context.Context) error {
 	}
 
 	var create createCollectionRequest
-	create.Vectors.Size = v.vectorSize
+	create.Vectors.Size = vectorSize
 	create.Vectors.Distance = "Cosine"
 	body, err := json.Marshal(create)
 	if err != nil {
@@ -157,6 +183,24 @@ func (v *qdrantVectorStore) EnsureCollection(ctx context.Context) error {
 		return fmt.Errorf("qdrant create collection returned status %d: %s", putResp.StatusCode, strings.TrimSpace(string(raw)))
 	}
 	return nil
+}
+
+func (v *qdrantVectorStore) resolvedVectorSize(ctx context.Context) (int, error) {
+	if v.vectorSize > 0 {
+		return v.vectorSize, nil
+	}
+	role := strings.TrimSpace(v.embeddingRole)
+	if role == "" {
+		role = "embedding.default"
+	}
+	policy, err := resolveEmbeddingPolicy(ctx, role)
+	if err != nil {
+		return 0, fmt.Errorf("resolve embedding policy for %s: %w", role, err)
+	}
+	if policy.Dimensions <= 0 {
+		return 0, fmt.Errorf("embedding role %s resolved without dimensions", role)
+	}
+	return policy.Dimensions, nil
 }
 
 type upsertRequest struct {

@@ -322,3 +322,78 @@ func (c *Client) Generate(ctx context.Context, in GenerateRequest) (GenerateResp
 	}
 	return parsed, nil
 }
+
+// ChatMessage is one Ollama /api/chat message.
+type ChatMessage struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
+// ChatRequest mirrors the relevant subset of POST /api/chat. Stream is always
+// false at this layer.
+type ChatRequest struct {
+	Model       string
+	Messages    []ChatMessage
+	NumPredict  *int
+	Temperature *float64
+	Think       *bool
+}
+
+// ChatResponse captures the buffered (stream=false) chat response shape.
+type ChatResponse struct {
+	Message struct {
+		Content string `json:"content"`
+	} `json:"message"`
+	DoneReason string `json:"done_reason,omitempty"`
+	EvalCount  int    `json:"eval_count,omitempty"`
+}
+
+// Chat calls /api/chat with stream=false and returns the full response.
+func (c *Client) Chat(ctx context.Context, in ChatRequest) (ChatResponse, error) {
+	options := map[string]any{}
+	if in.NumPredict != nil {
+		options["num_predict"] = *in.NumPredict
+	}
+	if in.Temperature != nil {
+		options["temperature"] = *in.Temperature
+	}
+	requestBody := struct {
+		Model    string         `json:"model"`
+		Messages []ChatMessage  `json:"messages"`
+		Stream   bool           `json:"stream"`
+		Think    *bool          `json:"think,omitempty"`
+		Options  map[string]any `json:"options,omitempty"`
+	}{
+		Model:    in.Model,
+		Messages: in.Messages,
+		Stream:   false,
+		Think:    in.Think,
+		Options:  options,
+	}
+	if len(options) == 0 {
+		requestBody.Options = nil
+	}
+	body, err := json.Marshal(requestBody)
+	if err != nil {
+		return ChatResponse{}, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+"/api/chat", bytes.NewReader(body))
+	if err != nil {
+		return ChatResponse{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return ChatResponse{}, fmt.Errorf("chat: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		return ChatResponse{}, fmt.Errorf("chat: HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(respBody)))
+	}
+	var parsed ChatResponse
+	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
+		return ChatResponse{}, fmt.Errorf("decode chat response: %w", err)
+	}
+	return parsed, nil
+}

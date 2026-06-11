@@ -3,7 +3,7 @@
     {
       "name": "notes",
       "vectors": {
-        "size": 768,
+        "embedding_role": "embedding.default",
         "distance": "Cosine"
       },
       "payload_schema": {
@@ -50,7 +50,7 @@
     {
       "name": "note_chunks",
       "vectors": {
-        "size": 768,
+        "embedding_role": "embedding.default",
         "distance": "Cosine"
       },
       "payload_schema": {

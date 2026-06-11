@@ -42,6 +42,7 @@ const (
 type Client interface {
 	Embed(ctx context.Context, model, input string) ([]float64, error)
 	Generate(ctx context.Context, in ensure.GenerateRequest) (ensure.GenerateResponse, error)
+	Chat(ctx context.Context, in ensure.ChatRequest) (ensure.ChatResponse, error)
 }
 
 // Handlers owns the runtime dependencies for the gateway subcommand group.
@@ -88,6 +89,12 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 				Description: "Generate a completion for --prompt (or stdin) using --role or --model",
 				Usage:       "resource-ollama gateway generate --role chat.default [--json] [--max-tokens <n>] [--temperature <f>] [--prompt <text> | --prompt-stdin]",
 				Run:         h.Generate,
+			},
+			{
+				Name:        "chat",
+				Description: "Generate a chat response for --prompt (or stdin) using --role or --model",
+				Usage:       "resource-ollama gateway chat --role summarize.default --system <text> [--json] [--think=false] [--max-tokens <n>] [--temperature <f>] [--prompt <text> | --prompt-stdin]",
+				Run:         h.Chat,
 			},
 		},
 	}
@@ -189,6 +196,69 @@ func (h *Handlers) Generate(args []string) error {
 		}{Response: out.Response, EvalCount: out.EvalCount})
 	}
 	_, err = fmt.Fprint(h.Stdout, out.Response)
+	return err
+}
+
+// --- chat ---------------------------------------------------------------------
+
+func (h *Handlers) Chat(args []string) error {
+	fs := flag.NewFlagSet("gateway chat", flag.ContinueOnError)
+	fs.SetOutput(h.Stderr)
+	model := fs.String("model", "", "Ollama model reference")
+	role := fs.String("role", "", "Ollama model role from model-policy.json (e.g. summarize.default)")
+	system := fs.String("system", "", "System message content")
+	prompt := fs.String("prompt", "", "Inline user prompt text")
+	fromStdin := fs.Bool("prompt-stdin", false, "Read user prompt from stdin")
+	maxTokens := fs.Int("max-tokens", 0, "Maximum tokens to generate; omitted when <= 0")
+	temperature := fs.Float64("temperature", -1, "Sampling temperature; omitted when < 0")
+	think := fs.Bool("think", false, "Allow model thinking output when supported")
+	asJSON := fs.Bool("json", false, "Emit a single JSON object {\"response\":\"...\",\"done_reason\":\"...\",\"eval_count\":0} on stdout")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	selected, err := h.resolveModelSelection(*model, *role, "chat")
+	if err != nil {
+		return err
+	}
+	text, err := h.resolveInput(*prompt, *fromStdin, "prompt")
+	if err != nil {
+		return err
+	}
+	if err := validateContextWindow(*system+"\n"+text, *maxTokens, selected); err != nil {
+		return err
+	}
+
+	ctx, release, err := h.acquire(context.Background())
+	if err != nil {
+		return err
+	}
+	defer release()
+
+	messages := make([]ensure.ChatMessage, 0, 2)
+	if strings.TrimSpace(*system) != "" {
+		messages = append(messages, ensure.ChatMessage{Role: "system", Content: *system})
+	}
+	messages = append(messages, ensure.ChatMessage{Role: "user", Content: text})
+	req := ensure.ChatRequest{Model: selected.Ref, Messages: messages, Think: think}
+	if *maxTokens > 0 {
+		req.NumPredict = maxTokens
+	}
+	if *temperature >= 0 {
+		req.Temperature = temperature
+	}
+	out, err := h.NewClient().Chat(ctx, req)
+	if err != nil {
+		return err
+	}
+	response := out.Message.Content
+	if *asJSON {
+		return json.NewEncoder(h.Stdout).Encode(struct {
+			Response   string `json:"response"`
+			DoneReason string `json:"done_reason"`
+			EvalCount  int    `json:"eval_count"`
+		}{Response: response, DoneReason: out.DoneReason, EvalCount: out.EvalCount})
+	}
+	_, err = fmt.Fprint(h.Stdout, response)
 	return err
 }
 

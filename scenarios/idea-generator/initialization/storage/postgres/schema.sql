@@ -7,6 +7,23 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 CREATE EXTENSION IF NOT EXISTS "vector";
 
+-- Embedding metadata records the policy facts used to generate each vector.
+-- Retargeting compares these rows with the current embedding role before
+-- re-embedding or cutting over shadow storage.
+CREATE TABLE embedding_metadata (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    owner_table TEXT NOT NULL,
+    owner_id TEXT NOT NULL,
+    embedding_column TEXT NOT NULL,
+    embedding_role TEXT NOT NULL,
+    embedding_model TEXT NOT NULL,
+    embedding_dimensions INTEGER NOT NULL CHECK (embedding_dimensions > 0),
+    embedding_policy_schema_version TEXT NOT NULL,
+    source_content_hash TEXT NOT NULL,
+    generated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(owner_table, owner_id, embedding_column)
+);
+
 -- Users table (for session and ownership management)
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -25,7 +42,7 @@ CREATE TABLE campaigns (
     color VARCHAR(7) DEFAULT '#3B82F6', -- Hex color for UI theming
     context JSONB DEFAULT '{}',
     settings JSONB DEFAULT '{}',
-    embedding vector(1536), -- Campaign context embeddings
+    embedding vector,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     owner_id UUID REFERENCES users(id),
@@ -42,7 +59,7 @@ CREATE TABLE documents (
     file_size BIGINT NOT NULL,
     storage_path TEXT NOT NULL, -- MinIO path
     extracted_text TEXT, -- Text extracted by Unstructured-IO
-    embedding vector(1536), -- Document embeddings
+    embedding vector,
     processing_status VARCHAR(50) DEFAULT 'pending', -- pending, processing, completed, failed
     metadata JSONB DEFAULT '{}',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -60,7 +77,7 @@ CREATE TABLE ideas (
     metadata JSONB DEFAULT '{}',
     generation_prompt TEXT,
     generation_model VARCHAR(100),
-    embedding vector(1536),
+    embedding vector,
     score DECIMAL(5,2),
     status VARCHAR(50) DEFAULT 'draft', -- draft, refined, archived, finalized
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -113,7 +130,7 @@ CREATE TABLE search_queries (
     user_id UUID REFERENCES users(id),
     campaign_id UUID REFERENCES campaigns(id),
     query_text TEXT NOT NULL,
-    query_embedding vector(1536),
+    query_embedding vector,
     results_count INTEGER,
     clicked_results UUID[], -- Array of idea/document IDs clicked
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -127,7 +144,7 @@ CREATE TABLE idea_versions (
     version_number INTEGER NOT NULL,
     title VARCHAR(500),
     content TEXT,
-    embedding vector(1536),
+    embedding vector,
     changed_by VARCHAR(50), -- 'user' or 'agent:type'
     change_summary TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -141,6 +158,7 @@ CREATE INDEX idx_users_last_active ON users(last_active);
 CREATE INDEX idx_campaigns_owner ON campaigns(owner_id);
 CREATE INDEX idx_campaigns_active ON campaigns(is_active);
 CREATE INDEX idx_campaigns_embedding ON campaigns USING ivfflat (embedding vector_cosine_ops);
+CREATE INDEX idx_embedding_metadata_owner ON embedding_metadata(owner_table, owner_id, embedding_column);
 
 CREATE INDEX idx_documents_campaign ON documents(campaign_id);
 CREATE INDEX idx_documents_status ON documents(processing_status);
@@ -194,7 +212,7 @@ CREATE TRIGGER update_chat_sessions_updated_at BEFORE UPDATE ON chat_sessions
 
 -- Function for semantic search across ideas and documents
 CREATE OR REPLACE FUNCTION search_ideas_and_documents(
-    query_embedding vector(1536),
+    query_embedding vector,
     campaign_filter UUID DEFAULT NULL,
     limit_results INTEGER DEFAULT 20
 ) RETURNS TABLE (

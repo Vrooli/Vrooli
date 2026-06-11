@@ -98,10 +98,24 @@ postgis::integration::create_ollama_embeddings_table() {
     
     docker exec "${container}" psql -U vrooli -d spatial <<'EOF'
 -- Create table for storing Ollama embeddings with spatial context
+CREATE TABLE IF NOT EXISTS embedding_metadata (
+    id SERIAL PRIMARY KEY,
+    owner_table TEXT NOT NULL,
+    owner_id TEXT NOT NULL,
+    embedding_column TEXT NOT NULL,
+    embedding_role TEXT NOT NULL,
+    embedding_model TEXT NOT NULL,
+    embedding_dimensions INTEGER NOT NULL CHECK (embedding_dimensions > 0),
+    embedding_policy_schema_version TEXT NOT NULL,
+    source_content_hash TEXT NOT NULL,
+    generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(owner_table, owner_id, embedding_column)
+);
+
 CREATE TABLE IF NOT EXISTS ollama_spatial_embeddings (
     id SERIAL PRIMARY KEY,
     content TEXT NOT NULL,
-    embedding vector(768),  -- Assuming 768-dim embeddings
+    embedding vector,
     location GEOGRAPHY(Point, 4326),
     metadata JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -114,9 +128,12 @@ ON ollama_spatial_embeddings USING ivfflat (embedding vector_cosine_ops);
 CREATE INDEX IF NOT EXISTS idx_ollama_embeddings_location 
 ON ollama_spatial_embeddings USING GIST (location);
 
+CREATE INDEX IF NOT EXISTS idx_embedding_metadata_owner
+ON embedding_metadata(owner_table, owner_id, embedding_column);
+
 -- Create function for combined semantic + spatial search
 CREATE OR REPLACE FUNCTION search_embeddings_spatial(
-    query_embedding vector(768),
+    query_embedding vector,
     query_location geography,
     max_distance_meters float DEFAULT 10000,
     limit_results int DEFAULT 10

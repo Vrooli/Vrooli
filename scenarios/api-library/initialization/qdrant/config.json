@@ -1,7 +1,7 @@
 {
   "collection_name": "api_embeddings",
   "vector_config": {
-    "size": 768,
+    "embedding_role": "embedding.default",
     "distance": "Cosine",
     "hnsw_config": {
       "m": 16,

@@ -11,9 +11,13 @@
 package aisearch
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"strings"
 	"time"
+
+	sharedsearch "github.com/vrooli/ai-go/search"
 )
 
 // Env vars tune the embedder / vector store. The SECURITY_HEALTH_ prefix keeps
@@ -25,7 +29,6 @@ const (
 	EnvDisabled     = "SECURITY_HEALTH_AISEARCH_DISABLED"
 
 	DefaultCollection = "security-health-deps"
-	DefaultVectorSize = 768
 	DefaultEmbedRole  = "embedding.default"
 	DefaultQdrantURL  = "http://127.0.0.1:6333"
 
@@ -36,13 +39,15 @@ const (
 
 // Config holds the embedder/vector-store tunables read from environment.
 type Config struct {
-	Disabled   bool
-	QdrantURL  string
-	QdrantKey  string
-	EmbedRole  string
-	Collection string
-	VectorSize int
+	Disabled        bool
+	QdrantURL       string
+	QdrantKey       string
+	EmbedRole       string
+	Collection      string
+	EmbeddingPolicy sharedsearch.EmbeddingPolicy
 }
+
+var resolveEmbeddingPolicy = sharedsearch.ResolveEmbeddingPolicy
 
 // LoadConfigFromEnv reads tunables from the environment, falling back to
 // defaults (with a warning log) when values are absent or malformed.
@@ -53,8 +58,29 @@ func LoadConfigFromEnv() Config {
 		QdrantKey:  envString(EnvQdrantAPIKey, ""),
 		EmbedRole:  envString(EnvOllamaRole, DefaultEmbedRole),
 		Collection: DefaultCollection,
-		VectorSize: DefaultVectorSize,
 	}
+}
+
+// ResolveConfigEmbedding resolves the configured Ollama embedding role once at
+// boot so Qdrant collection creation uses the policy-owned dimensions.
+func ResolveConfigEmbedding(ctx context.Context, cfg Config) (Config, error) {
+	if cfg.Disabled {
+		return cfg, nil
+	}
+	role := strings.TrimSpace(cfg.EmbedRole)
+	if role == "" {
+		role = DefaultEmbedRole
+	}
+	policy, err := resolveEmbeddingPolicy(ctx, role)
+	if err != nil {
+		return Config{}, err
+	}
+	if policy.Dimensions <= 0 {
+		return Config{}, fmt.Errorf("embedding role %s resolved without dimensions", role)
+	}
+	cfg.EmbedRole = policy.Role
+	cfg.EmbeddingPolicy = policy
+	return cfg, nil
 }
 
 func envBool(name string) bool {

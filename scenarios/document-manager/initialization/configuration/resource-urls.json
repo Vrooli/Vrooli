@@ -45,13 +45,13 @@
       "grpc_port": 6334,
       "collections": {
         "documentation_embeddings": {
-          "vector_size": 768,
+          "embedding_role": "embedding.default",
           "distance": "Cosine",
           "shard_number": 1,
           "replication_factor": 1
         },
         "agent_memory": {
-          "vector_size": 384,
+          "embedding_role": "embedding.default",
           "distance": "Cosine", 
           "shard_number": 1,
           "replication_factor": 1

@@ -11,7 +11,7 @@ import (
 	"audio-tools/internal/httpc"
 )
 
-const DefaultSummarizeModel = "llama3.2:3b"
+const DefaultSummarizeModel = "summarize.default"
 
 type ModelDecisionReason string
 
@@ -52,99 +52,22 @@ type SummarizeModelInfo struct {
 
 var knownSummarizeModels = []SummarizeModelInfo{
 	{
-		ID:              "gemma3:4b",
-		DisplayName:     "Gemma 3 4B",
-		Family:          "gemma3",
-		ParameterSize:   "4B",
+		ID:              DefaultSummarizeModel,
+		DisplayName:     "Default summarization role",
+		Family:          "resource-ollama-role",
 		Recommended:     true,
 		DefaultEligible: true,
-		SourceURL:       "https://ollama.com/library/gemma3",
-		Notes:           "Current efficient instruction model; benchmark locally before making it the default.",
+		SourceURL:       "resources/ollama/model-policy.json",
+		Notes:           "Central policy role for text summarization. The concrete model is resolved by resource-ollama.",
 	},
 	{
-		ID:              "gemma3n:e2b",
-		DisplayName:     "Gemma 3n E2B",
-		Family:          "gemma3n",
-		ParameterSize:   "effective 2B",
+		ID:              "chat.small",
+		DisplayName:     "Small chat role",
+		Family:          "resource-ollama-role",
 		Recommended:     true,
 		DefaultEligible: true,
-		SourceURL:       "https://ollama.com/library/gemma3n",
-		Notes:           "Designed for efficient execution on everyday devices; requires local benchmark evidence.",
-	},
-	{
-		ID:              "llama3.2:3b",
-		DisplayName:     "Llama 3.2 3B",
-		Family:          "llama3.2",
-		ParameterSize:   "3B",
-		Recommended:     true,
-		DefaultEligible: true,
-		SourceURL:       "https://ollama.com/library/llama3.2",
-		Notes:           "Installed fallback validated for fast local TTS summarization.",
-	},
-	{
-		ID:              "llama3.2:1b",
-		DisplayName:     "Llama 3.2 1B",
-		Family:          "llama3.2",
-		ParameterSize:   "1B",
-		Recommended:     true,
-		DefaultEligible: true,
-		SourceURL:       "https://ollama.com/library/llama3.2",
-		Notes:           "Very small fallback candidate; verify quality before preferring it.",
-	},
-	{
-		ID:              "qwen2.5:3b",
-		DisplayName:     "Qwen 2.5 3B",
-		Family:          "qwen2.5",
-		ParameterSize:   "3B",
-		Recommended:     true,
-		DefaultEligible: true,
-		SourceURL:       "https://ollama.com/library/qwen2.5",
-		Notes:           "Non-reasoning local candidate to include in latency and quality benchmarks.",
-	},
-	{
-		ID:          "mistral:latest",
-		DisplayName: "Mistral",
-		Family:      "mistral",
-		Recommended: false,
-		SourceURL:   "https://ollama.com/library/mistral",
-		Notes:       "Installed benchmark candidate; not preferred as a default without local evidence.",
-	},
-	{
-		ID:              "phi4-mini:3.8b",
-		DisplayName:     "Phi-4 Mini 3.8B",
-		Family:          "phi4-mini",
-		ParameterSize:   "3.8B",
-		Recommended:     true,
-		DefaultEligible: true,
-		SourceURL:       "https://ollama.com/library/phi4-mini",
-		Notes:           "Latency-constrained candidate; benchmark locally before enabling as default.",
-	},
-	{
-		ID:            "qwen3:4b",
-		DisplayName:   "Qwen3 4B",
-		Family:        "qwen3",
-		ParameterSize: "4B",
-		Reasoning:     true,
-		SourceURL:     "https://ollama.com/library/qwen3:4b",
-		Notes:         "Reasoning-capable; too slow/noisy for default TTS summaries.",
-	},
-	{
-		ID:            "qwen3:1.7b",
-		DisplayName:   "Qwen3 1.7B",
-		Family:        "qwen3",
-		ParameterSize: "1.7B",
-		Reasoning:     true,
-		SourceURL:     "https://ollama.com/library/qwen3",
-		Notes:         "Reasoning-capable; only use explicitly after benchmark validation.",
-	},
-	{
-		ID:            "deepseek-r1:8b",
-		DisplayName:   "DeepSeek R1 8B",
-		Family:        "deepseek-r1",
-		ParameterSize: "8B",
-		Reasoning:     true,
-		SourceURL:     "https://ollama.com/library/deepseek-r1",
-		Notes:         "Reasoning model; excluded from fast TTS defaults.",
+		SourceURL:       "resources/ollama/model-policy.json",
+		Notes:           "Lower-latency fallback role resolved by resource-ollama.",
 	},
 }
 
@@ -156,9 +79,7 @@ func KnownSummarizeModels() []SummarizeModelInfo {
 
 func IsReasoningModel(id string) bool {
 	n := normalizeModelID(id)
-	return strings.HasPrefix(n, "qwen3:") ||
-		strings.HasPrefix(n, "deepseek-r1:") ||
-		strings.Contains(n, "reasoning")
+	return strings.Contains(n, "reasoning")
 }
 
 func IsDefaultEligibleSummarizeModel(id string) bool {
@@ -186,14 +107,6 @@ func CoerceUnsafeStoredModel(id string, installed []OllamaModel) ModelDecision {
 }
 
 func ResolveDefaultSummarizeModel(installed []OllamaModel) string {
-	if len(installed) == 0 {
-		return DefaultSummarizeModel
-	}
-	for _, candidate := range []string{"gemma3:4b", "gemma3n:e2b", DefaultSummarizeModel, "llama3.2:1b", "qwen2.5:3b", "phi4-mini:3.8b"} {
-		if modelInstalled(candidate, installed) {
-			return candidate
-		}
-	}
 	return DefaultSummarizeModel
 }
 
@@ -207,7 +120,7 @@ func MergeSummarizeModels(installed []OllamaModel) []SummarizeModelInfo {
 	order := make([]string, 0, len(knownSummarizeModels)+len(installed))
 	for _, m := range knownSummarizeModels {
 		m.ID = normalizeModelID(m.ID)
-		m.PullCommand = "ollama pull " + m.ID
+		m.PullCommand = "resource-ollama ensure --role " + m.ID
 		m.StatusLabel = "Recommended, not installed"
 		if m.Reasoning {
 			m.DefaultEligible = false

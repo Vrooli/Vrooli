@@ -168,7 +168,7 @@
             "prompt_name": "Basic Pros and Cons Analysis",
             "prompt_pattern": "pros_cons_analysis",
             "collection": "analytical_prompts",
-            "best_models": ["mistral", "llama3.2"],
+            "best_models": ["chat.default", "chat.small"],
             "temperature_range": [0.3, 0.6],
             "usage_count": 0,
             "avg_effectiveness": 0.0
@@ -181,7 +181,7 @@
             "prompt_name": "Comprehensive SWOT Analysis",
             "prompt_pattern": "swot_analysis",
             "collection": "analytical_prompts",
-            "best_models": ["llama3.2", "mistral"],
+            "best_models": ["chat.default", "chat.small"],
             "temperature_range": [0.4, 0.7],
             "usage_count": 0,
             "avg_effectiveness": 0.0
@@ -194,7 +194,7 @@
             "prompt_name": "Risk Assessment with Mitigation",
             "prompt_pattern": "risk_assessment",
             "collection": "analytical_prompts",
-            "best_models": ["llama3.2", "codellama"],
+            "best_models": ["chat.default", "code.local"],
             "temperature_range": [0.2, 0.5],
             "usage_count": 0,
             "avg_effectiveness": 0.0

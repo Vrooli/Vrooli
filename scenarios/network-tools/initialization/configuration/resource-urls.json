@@ -5,8 +5,10 @@
     "ollama": {
       "base_url": "http://localhost:11434",
       "health_endpoint": "/api/tags",
-      "generate_endpoint": "/api/generate",
-      "embeddings_endpoint": "/api/embeddings",
+      "generate_role": "chat.default",
+      "generate_command": "resource-ollama gateway generate --role chat.default --json",
+      "embedding_role": "embedding.default",
+      "embed_command": "resource-ollama gateway embed --role embedding.default --json",
       "timeout_seconds": 30
     },
     {% endif %

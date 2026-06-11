@@ -1,8 +1,7 @@
 {
   "semantic_search": {
     "enabled": true,
-    "embedding_model": "text-embedding-ada-002",
-    "embedding_dimensions": 1536,
+    "embedding_role": "embedding.default",
     "similarity_threshold": 0.7,
     "max_results": 20,
     "boost_factors": {

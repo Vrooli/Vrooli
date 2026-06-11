@@ -131,7 +131,7 @@ func TestStoreOrchestratorRequest(t *testing.T) {
 		db,
 		"test-request-id",
 		"completion",
-		"llama3.2:1b",
+		"fixture-chat-small",
 		false,
 		150,
 		true,
@@ -184,16 +184,16 @@ func TestUpdateModelMetrics(t *testing.T) {
 	defer cleanup()
 
 	// Insert initial metrics
-	err := updateModelMetrics(db, "llama3.2:1b", 1, 1, 0, 150.0, 0.5, 2048.0, true)
+	err := updateModelMetrics(db, "fixture-chat-small", 1, 1, 0, 150.0, 0.5, 2048.0, true)
 	assert.NoError(t, err)
 
 	// Update metrics
-	err = updateModelMetrics(db, "llama3.2:1b", 1, 1, 0, 200.0, 0.6, 2048.0, true)
+	err = updateModelMetrics(db, "fixture-chat-small", 1, 1, 0, 200.0, 0.6, 2048.0, true)
 	assert.NoError(t, err)
 
 	// Verify the record was updated
 	var requestCount int
-	err = db.QueryRow("SELECT request_count FROM model_metrics WHERE model_name = $1", "llama3.2:1b").Scan(&requestCount)
+	err = db.QueryRow("SELECT request_count FROM model_metrics WHERE model_name = $1", "fixture-chat-small").Scan(&requestCount)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, requestCount) // Should be incremented
 }

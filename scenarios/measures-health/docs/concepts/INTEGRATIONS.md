@@ -29,7 +29,7 @@ Declared in `.vrooli/service.json`. Both are optional (`required: false`,
 | Resource | Status | Reason | Revisit Trigger |
 |---|---|---|---|
 | qdrant | optional | Vector store for the central measures index (collection `measures-health-measures`). Used by the `index` domain. | Required once the `index` provider ships. |
-| ollama | optional | `nomic-embed-text` embeddings for the measures index + a small chat model for constrained param extraction (the engine `Completer`). | Required once the `index` provider ships. |
+| ollama | optional | `embedding.default` embeddings for the measures index + a small chat role for constrained param extraction (the engine `Completer`). | Required once the `index` provider ships. |
 
 ## Scenario Dependencies
 

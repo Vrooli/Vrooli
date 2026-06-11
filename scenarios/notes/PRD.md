@@ -59,7 +59,7 @@ Future scenarios enabled by SmartNotes:
 **Required:**
 - **PostgreSQL**: Primary storage for notes, folders, tags, metadata (Direct SQL connection)
 - **Qdrant**: Vector database for semantic search (Direct API + Ollama embeddings)
-- **Ollama**: AI embeddings via nomic-embed-text model (Orchestrated by the scenario's automation modules)
+- **Ollama**: AI embeddings via the `embedding.default` role (orchestrated by the scenario's automation modules)
 
 Automation orchestration is implemented inside the SmartNotes API, so no external workflow engine is required.
 
@@ -176,7 +176,7 @@ These automation modules execute inside the SmartNotes API, so no external workf
 
 ### Improvements Made (2025-01-24)
 - ✅ Implemented semantic search with Qdrant vector database
-- ✅ Added vector embeddings using Ollama's nomic-embed-text model
+- ✅ Added vector embeddings using Ollama's `embedding.default` role
 - ✅ Created indexing pipeline for automatic note vectorization
 - ✅ Verified all API endpoints (notes, folders, tags, templates)
 - ✅ Added comprehensive test infrastructure (smoke, integration tests)
@@ -496,7 +496,7 @@ vrooli scenario test notes
 
 ### External Documentation
 - [Qdrant Vector Database](https://qdrant.tech/documentation/)
-- [Ollama Embeddings API](https://ollama.ai/library/nomic-embed-text)
+- Ollama embeddings are accessed through `resource-ollama gateway embed --role embedding.default`
 - [PostgreSQL Full-Text Search](https://www.postgresql.org/docs/current/textsearch.html)
 
 ### Internal References

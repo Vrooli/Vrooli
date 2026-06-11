@@ -280,7 +280,7 @@ func TestConvertOllamaModels_EdgeCases(t *testing.T) {
 	t.Run("EmbeddingModel", func(t *testing.T) {
 		models := []OllamaModel{
 			{
-				Name: "nomic-embed-text",
+				Name: "fixture-embed-model",
 				Size: 2 * 1024 * 1024 * 1024, // 2GB
 			},
 		}

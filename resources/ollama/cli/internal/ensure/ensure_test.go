@@ -338,3 +338,71 @@ func TestGeneratePassesOptionsAndReturnsEvalCount(t *testing.T) {
 		t.Fatalf("temperature = %#v, want 0.25", got.Options["temperature"])
 	}
 }
+
+func TestChatSendsMessagesOptionsAndThink(t *testing.T) {
+	var got struct {
+		Model    string `json:"model"`
+		Messages []struct {
+			Role    string `json:"role"`
+			Content string `json:"content"`
+		} `json:"messages"`
+		Stream  bool           `json:"stream"`
+		Think   *bool          `json:"think"`
+		Options map[string]any `json:"options"`
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/chat" {
+			t.Errorf("path = %q, want /api/chat", r.URL.Path)
+		}
+		if r.Method != http.MethodPost {
+			t.Errorf("method = %s, want POST", r.Method)
+		}
+		if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
+			t.Errorf("decode request: %v", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"message":     map[string]string{"content": "summary"},
+			"done_reason": "stop",
+			"eval_count":  17,
+		})
+	}))
+	defer srv.Close()
+
+	maxTokens := 123
+	temperature := 0.25
+	think := false
+	client := &Client{BaseURL: srv.URL, HTTP: http.DefaultClient}
+	resp, err := client.Chat(context.Background(), ChatRequest{
+		Model: "chat-model",
+		Messages: []ChatMessage{
+			{Role: "system", Content: "be concise"},
+			{Role: "user", Content: "hello"},
+		},
+		NumPredict:  &maxTokens,
+		Temperature: &temperature,
+		Think:       &think,
+	})
+	if err != nil {
+		t.Fatalf("Chat: %v", err)
+	}
+	if resp.Message.Content != "summary" || resp.DoneReason != "stop" || resp.EvalCount != 17 {
+		t.Fatalf("response = %+v", resp)
+	}
+	if got.Model != "chat-model" || got.Stream {
+		t.Fatalf("request model/stream = %q/%v", got.Model, got.Stream)
+	}
+	if len(got.Messages) != 2 || got.Messages[0].Role != "system" || got.Messages[1].Content != "hello" {
+		t.Fatalf("messages = %+v", got.Messages)
+	}
+	if got.Think == nil || *got.Think != false {
+		t.Fatalf("think = %v, want false", got.Think)
+	}
+	if got.Options["num_predict"] != float64(123) {
+		t.Fatalf("num_predict = %#v, want 123", got.Options["num_predict"])
+	}
+	if got.Options["temperature"] != 0.25 {
+		t.Fatalf("temperature = %#v, want 0.25", got.Options["temperature"])
+	}
+}

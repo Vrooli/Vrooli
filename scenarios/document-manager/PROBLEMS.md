@@ -223,7 +223,7 @@
 - **Batch indexing**: Index multiple documents in a single request with per-document error tracking
 - **Deterministic IDs**: UUID v5 generation ensures consistent document identification
 - **Rich metadata**: Store application_id, application_name, path, content, and custom fields
-- **Production embeddings**: All documents indexed with Ollama nomic-embed-text (768 dimensions)
+- **Production embeddings**: All documents indexed through the Ollama `embedding.default` role
 
 **Implementation details**:
 - `ensureQdrantCollection()`: Creates collection if it doesn't exist
@@ -260,7 +260,7 @@
 **Implementation details**:
 - Search endpoint validates input (non-empty query, limit 1-100)
 - Returns structured results with scores (0-1), document IDs, content, and metadata
-- Currently uses mock embeddings for demonstration; production version will integrate Ollama's nomic-embed-text model
+- Currently uses mock embeddings for demonstration; production version will integrate the Ollama embedding role
 - Gracefully handles Qdrant unavailability with empty results
 
 **Results**:
@@ -270,7 +270,7 @@
 - Foundation in place for production embedding integration
 
 **Next steps for production readiness**:
-1. Integrate Ollama's nomic-embed-text model for real embeddings
+1. Integrate Ollama's `embedding.default` role for real embeddings
 2. Index actual documentation content into Qdrant collections
 3. Replace mock results with actual Qdrant REST API calls
 4. Add pagination support for large result sets
@@ -482,7 +482,7 @@
 
 ### P1 Requirements (100% Complete)
 - ✅ **Vector Search**: Production-ready with real Qdrant queries and semantic similarity scoring (verified 2025-10-12)
-- ✅ **AI Integration**: Ollama nomic-embed-text integrated for 768-dimensional embeddings (verified 2025-10-12)
+- ✅ **AI Integration**: Ollama `embedding.default` integrated for semantic embeddings (verified 2025-10-12)
 - ✅ **Document Indexing**: POST /api/index endpoint functional with batch indexing support (verified 2025-10-12)
 - ✅ **Data Management**: DELETE endpoints fully implemented and tested (verified 2025-10-12)
   - Applications: Cascading delete to agents and queue items

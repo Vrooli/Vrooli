@@ -80,7 +80,7 @@
     
     "vector_search": {
       "enabled": {{ "true" if "qdrant" in resources.required else "false" }},
-      "embedding_dimensions": 384,
+      "embedding_role": "embedding.default",
       "similarity_threshold": 0.7,
       "max_results": 100
     },

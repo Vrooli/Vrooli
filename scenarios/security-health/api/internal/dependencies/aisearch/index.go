@@ -65,7 +65,7 @@ func NewFromConfig(cfg Config) *Indexer {
 	}
 	return NewIndexer(
 		NewEmbedder(cfg.EmbedRole),
-		NewVectorStore(cfg.QdrantURL, cfg.QdrantKey, cfg.Collection, cfg.VectorSize),
+		NewVectorStoreForPolicy(cfg.QdrantURL, cfg.QdrantKey, cfg.Collection, cfg.EmbeddingPolicy),
 	)
 }
 

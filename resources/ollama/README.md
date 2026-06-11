@@ -61,7 +61,7 @@ instead of hard-coding concrete model names:
 
 | Role | Current model | Purpose |
 |---|---|---|
-| `embedding.default` | `nomic-embed-text:latest` | 768-dimensional semantic search embeddings |
+| `embedding.default` | `nomic-embed-text:latest` | semantic search embeddings |
 | `chat.small` | `llama3.2:3b` | low-memory local generation |
 | `chat.default` | `qwen3:4b` | default local chat/synthesis |
 | `summarize.default` | `qwen3:4b` | text distillation and summaries |
@@ -128,6 +128,59 @@ resource-ollama ensure --config-base64 $(echo -n '{"model_roles":["chat.default"
 All log lines from the ensure path are prefixed with `ollama-ensure:` so
 `grep` over `vrooli logs` surfaces the auto-provisioning flow cleanly.
 
+## Policy metadata
+
+`resource-ollama policy` is the programmatic interface for role and model facts
+stored in `model-policy.json`. Use it from scripts and shared helpers instead
+of copying dimensions, context windows, or capacity estimates into consumers.
+
+```bash
+resource-ollama policy resolve --role embedding.default --json
+resource-ollama policy resolve --role embedding.default --field embedding_dimensions
+resource-ollama policy resolve --model nomic-embed-text:latest --json
+resource-ollama policy roles --json
+resource-ollama policy models --json
+resource-ollama policy constraints --json
+```
+
+The JSON form is the stable contract. A resolved role includes the selected
+model, required and provided capabilities, embedding dimensions when the model
+supports embeddings, context-window tokens when the model supports generation,
+capacity estimates, provenance, schema version, and the policy file path. The
+scalar `--field` form is only for simple shell paths.
+
+### Embedding retargeting
+
+Embedding roles are stable inputs; resolved model names and dimensions are
+policy facts. When an embedding role changes, stored vectors must be treated as
+stale even if the new model has the same dimension, because equal dimensions do
+not imply the same vector space.
+
+Use the dry-run planner before changing production stores:
+
+```bash
+resource-ollama policy retarget-plan \
+  --role embedding.default \
+  --old-model <previous-resolved-model> \
+  --old-dimensions <previous-dimensions> \
+  --old-schema-version <previous-policy-schema-version> \
+  --store qdrant:<collection> \
+  --store postgres:<table>.<embedding_column> \
+  --json
+```
+
+The planner classifies the change as no-op, same-shape re-embed, or
+incompatible shape. Incompatible changes require shadow storage with the new
+dimension, regeneration, validation, and cutover. The command is intentionally
+dry-run only; destructive apply requires store-specific backups and validation.
+
+Postgres-backed pgvector tables should pair each embedding column with
+`embedding_metadata` rows carrying `embedding_role`, `embedding_model`,
+`embedding_dimensions`, `embedding_policy_schema_version`,
+`source_content_hash`, and `generated_at`. SQL schemas must not hard-code
+current Ollama dimensions; the metadata records what generated existing rows
+and lets the retarget planner find stale vectors.
+
 ## Resource limits and concurrency
 
 Defaults are tuned for a single-host workstation:
@@ -172,6 +225,7 @@ forget to bound their own fan-out:
 ```bash
 resource-ollama gateway embed    --role embedding.default --json --input "hello"
 resource-ollama gateway generate --role chat.default      --json --prompt "say hi"
+resource-ollama gateway chat     --role summarize.default --json --system "Be concise" --prompt "summarize this"
 ```
 
 `--role` and `--model` are mutually exclusive. Use `--role` for normal

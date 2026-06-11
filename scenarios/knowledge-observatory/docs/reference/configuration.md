@@ -12,7 +12,7 @@ Ports are assigned by the scenario lifecycle and exposed as environment variable
 Environment variables consumed by the API:
 
 - `QDRANT_URL` / `QDRANT_API_KEY`
-- `OLLAMA_EMBEDDING_MODEL` (model name; daemon traffic goes through `resource-ollama gateway`)
+- `OLLAMA_EMBEDDING_ROLE` (embedding role; daemon traffic goes through `resource-ollama gateway`)
 - `OLLAMA_STRUCTURED_OUTPUT_MODEL` (optional, used to coerce deep search output to JSON)
 - `RESOURCE_QDRANT_CLI` (path to resource wrapper)
 - `CORS_ALLOWED_ORIGINS` (comma-separated list)

@@ -16,6 +16,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	sharedsearch "github.com/vrooli/ai-go/search"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
@@ -28,9 +29,9 @@ const (
 	serviceName = "agent-metareasoning-manager"
 
 	// Defaults
-	defaultEmbeddingModel = "nomic-embed-text"
-	defaultWorkspace      = "demo"
-	defaultPort           = "8090"
+	defaultEmbeddingRole = "embedding.default"
+	defaultWorkspace     = "demo"
+	defaultPort          = "8090"
 
 	// Timeouts
 	httpTimeout         = 30 * time.Second
@@ -163,50 +164,18 @@ func (d *DiscoveryService) initializeQdrantCollection() error {
 		return nil
 	}
 
-	// Get embedding dimensions from the model
-	// nomic-embed-text produces 768-dimensional embeddings
-	// mxbai-embed-large produces 1024-dimensional embeddings
-	// all-minilm produces 384-dimensional embeddings
-	embeddingModel := os.Getenv("EMBEDDING_MODEL")
-	if embeddingModel == "" {
-		embeddingModel = defaultEmbeddingModel
-	}
-
-	embeddingSize := 384 // Default for most models (vector workflow uses 384)
-	switch embeddingModel {
-	case "mxbai-embed-large":
-		embeddingSize = 1024
-	case "all-minilm":
-		embeddingSize = 384
-	case "nomic-embed-text":
-		embeddingSize = 768
-	case "llama3.2":
-		embeddingSize = 384 // Default for the vector workflow
-	default:
-		// Try to detect by generating a test embedding via workflow
-		testMetadata := map[string]interface{}{
-			"point_id":     "test_embedding_size_detection",
-			"pattern_type": "test",
-			"pattern_name": "size detection",
-		}
-		testResp, err := d.generateEmbeddingWithWorkflow("test", "workflow_embeddings", testMetadata)
-		if err == nil && testResp.EmbeddingDimension > 0 {
-			embeddingSize = testResp.EmbeddingDimension
-			d.logger.Info(fmt.Sprintf("Detected embedding size: %d for model %s via workflow", embeddingSize, embeddingModel))
-
-			// Clean up test embedding
-			deleteURL := fmt.Sprintf("%s/collections/workflow_embeddings/points/%s", d.qdrantURL, testResp.PointID)
-			deleteReq, _ := http.NewRequest("DELETE", deleteURL, nil)
-			d.httpClient.Do(deleteReq) // Best effort cleanup
-		} else {
-			d.logger.Warn("Failed to detect embedding size via workflow, using default 384", err)
-		}
+	embeddingRole := embeddingRoleFromEnv()
+	policyCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	policy, err := sharedsearch.ResolveEmbeddingPolicy(policyCtx, embeddingRole)
+	if err != nil {
+		return fmt.Errorf("resolve embedding policy %s: %w", embeddingRole, err)
 	}
 
 	// Create collection
 	collectionConfig := map[string]interface{}{
 		"vectors": map[string]interface{}{
-			"size":     embeddingSize, // Match actual embedding dimension
+			"size":     policy.Dimensions,
 			"distance": "Cosine",
 		},
 	}
@@ -533,10 +502,7 @@ type VectorWorkflowResponse struct {
 // generateEmbeddingWithWorkflow delegates embedding generation to vector conversion workflow
 func (d *DiscoveryService) generateEmbeddingWithWorkflow(text string, collection string, metadata map[string]interface{}) (*VectorWorkflowResponse, error) {
 	// Delegate to vector conversion workflow instead of direct Ollama calls
-	embeddingModel := os.Getenv("EMBEDDING_MODEL")
-	if embeddingModel == "" {
-		embeddingModel = defaultEmbeddingModel
-	}
+	embeddingRole := embeddingRoleFromEnv()
 
 	// Get n8n port for workflow delegation
 	n8nPort := getResourcePort("n8n")
@@ -544,9 +510,9 @@ func (d *DiscoveryService) generateEmbeddingWithWorkflow(text string, collection
 
 	// Prepare workflow request
 	workflowReq := map[string]interface{}{
-		"text":            text,
-		"collection":      collection,
-		"embedding_model": embeddingModel,
+		"text":           text,
+		"collection":     collection,
+		"embedding_role": embeddingRole,
 	}
 
 	// Add metadata based on collection type
@@ -585,6 +551,14 @@ func (d *DiscoveryService) generateEmbeddingWithWorkflow(text string, collection
 		workflowResp.EmbeddingDimension, workflowResp.ExecutionTimeMS))
 
 	return &workflowResp, nil
+}
+
+func embeddingRoleFromEnv() string {
+	role := strings.TrimSpace(os.Getenv("EMBEDDING_ROLE"))
+	if role == "" {
+		role = defaultEmbeddingRole
+	}
+	return role
 }
 
 // generateEmbedding creates a text embedding using vector conversion workflow (legacy API)

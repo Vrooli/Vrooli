@@ -18,6 +18,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
+	sharedsearch "github.com/vrooli/ai-go/search"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
@@ -34,6 +35,8 @@ type Config struct {
 	UnstructuredURL string
 	CORSOrigins     string
 }
+
+const defaultEmbeddingRole = "embedding.default"
 
 type Application struct {
 	ID                string    `json:"id"`
@@ -734,7 +737,7 @@ func vectorSearchHandler(w http.ResponseWriter, r *http.Request) {
 		limit = 10
 	}
 
-	// Generate embedding using Ollama's nomic-embed-text model
+	// Generate embedding using the configured Ollama embedding role.
 	embedding, err := generateOllamaEmbedding(searchReq.Query)
 	if err != nil {
 		log.Printf("Error generating embedding: %v, falling back to mock", err)
@@ -835,7 +838,7 @@ func generateOllamaEmbedding(text string) ([]float64, error) {
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "embed",
-		"--role", "embedding.default", "--json", "--input-stdin")
+		"--role", defaultEmbeddingRole, "--json", "--input-stdin")
 	cmd.Stdin = strings.NewReader(text)
 	out, err := cmd.Output()
 	if err != nil {
@@ -886,10 +889,16 @@ func ensureQdrantCollection() error {
 		resp.Body.Close()
 	}
 
-	// Create collection with 768 dimensions (nomic-embed-text model)
+	policyCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	policy, err := sharedsearch.ResolveEmbeddingPolicy(policyCtx, defaultEmbeddingRole)
+	if err != nil {
+		return fmt.Errorf("resolve embedding policy %s: %w", defaultEmbeddingRole, err)
+	}
+
 	createReq := map[string]interface{}{
 		"vectors": map[string]interface{}{
-			"size":     768,
+			"size":     policy.Dimensions,
 			"distance": "Cosine",
 		},
 	}

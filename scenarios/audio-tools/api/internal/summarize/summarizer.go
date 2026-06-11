@@ -1,32 +1,47 @@
 package summarize
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
+	"os/exec"
+	"strconv"
 	"strings"
-
-	"audio-tools/internal/httpc"
 )
 
 var ErrSummarizeModelNotInstalled = errors.New("summarize model is not installed")
 
-// Summarizer calls Ollama to summarize text for TTS consumption.
+const defaultOllamaGatewayBin = "resource-ollama"
+
+// GatewayRunner runs resource-ollama gateway commands. Tests inject a fake
+// runner; production uses exec.CommandContext.
+type GatewayRunner func(ctx context.Context, args []string, stdin string) ([]byte, error)
+
+// Summarizer calls the resource-ollama gateway to summarize text for TTS
+// consumption.
 type Summarizer struct {
-	BaseURL string
-	Doer    httpc.Doer
+	Bin    string
+	Runner GatewayRunner
 }
 
-// NewSummarizer creates a summarizer that talks to the Ollama /api/chat endpoint.
-func NewSummarizer(baseURL string, doer httpc.Doer) *Summarizer {
+// NewSummarizer creates a summarizer backed by the resource-ollama gateway.
+// The legacy parameters are ignored; they are retained so existing bootstrap
+// call sites can migrate without a wider constructor churn.
+func NewSummarizer(_ string, _ any) *Summarizer {
 	return &Summarizer{
-		BaseURL: baseURL,
-		Doer:    doer,
+		Bin:    defaultOllamaGatewayBin,
+		Runner: nil,
 	}
+}
+
+// NewSummarizerWithRunner creates a gateway-backed summarizer with an injected
+// runner for tests.
+func NewSummarizerWithRunner(bin string, runner GatewayRunner) *Summarizer {
+	if strings.TrimSpace(bin) == "" {
+		bin = defaultOllamaGatewayBin
+	}
+	return &Summarizer{Bin: bin, Runner: runner}
 }
 
 // summarizeSystemPrompts maps summarization levels to system prompts.
@@ -86,81 +101,88 @@ type SummarizerResponse struct {
 	EvalCount int
 }
 
-// Summarize sends text to Ollama with a level-appropriate system prompt and
+// Summarize sends text to resource-ollama with a level-appropriate system prompt and
 // returns the stripped summary plus diagnostic fields. We pass `think: false`
-// at the request top level so reasoning models (qwen3 family) skip their
-// <think> block entirely — otherwise the reasoning alone blows past our
-// num_predict budget, Ollama truncates mid-thought, and StripThinkTags wipes
-// the unclosed block leaving an empty summary.
-func (s *Summarizer) Summarize(ctx context.Context, text, model, level string) (SummarizerResponse, error) {
+// through the gateway so reasoning models skip their <think> block entirely.
+func (s *Summarizer) Summarize(ctx context.Context, text, selector, level string) (SummarizerResponse, error) {
+	if s == nil {
+		return SummarizerResponse{}, fmt.Errorf("summarizer is nil")
+	}
 	systemPrompt, ok := summarizeSystemPrompts[level]
 	if !ok {
 		systemPrompt = summarizeSystemPrompts["moderate"]
 	}
 	numPredict := summarizeTokenBudget(level, len(text))
-	if isReasoningModel(model) {
+	if isReasoningModel(selector) {
 		numPredict += reasoningHeadroomTokens
 	}
 
-	// Reasoning models may still emit <think> blocks despite think:false.
-	// Keep stripping support for explicit overrides, but default configs use
-	// non-reasoning models so normal summaries do not pay this latency cost.
-	body := map[string]any{
-		"model": model,
-		"messages": []map[string]string{
-			{"role": "system", "content": systemPrompt},
-			{"role": "user", "content": text},
-		},
-		"stream": false,
-		"think":  false,
-		"options": map[string]any{
-			"num_predict": numPredict,
-			"temperature": 0.2,
-		},
+	selector = strings.TrimSpace(selector)
+	if selector == "" {
+		selector = DefaultSummarizeModel
 	}
-	jsonBody, err := json.Marshal(body)
-	if err != nil {
-		return SummarizerResponse{}, fmt.Errorf("marshal request: %w", err)
+	selectorFlag := "--role"
+	if strings.Contains(selector, ":") {
+		selectorFlag = "--model"
+	}
+	args := []string{
+		"gateway", "chat",
+		selectorFlag, selector,
+		"--system", systemPrompt,
+		"--max-tokens", strconv.Itoa(numPredict),
+		"--temperature", "0.2",
+		"--think=false",
+		"--json",
+		"--prompt-stdin",
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.BaseURL+"/api/chat", bytes.NewReader(jsonBody))
-	if err != nil {
-		return SummarizerResponse{}, fmt.Errorf("create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := s.Doer.Do(req)
-	if err != nil {
-		return SummarizerResponse{}, fmt.Errorf("request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
-		if resp.StatusCode == http.StatusNotFound && looksLikeMissingOllamaModel(string(respBody)) {
-			return SummarizerResponse{}, fmt.Errorf("%w: %s", ErrSummarizeModelNotInstalled, string(respBody))
+	runner := s.Runner
+	if runner == nil {
+		bin := strings.TrimSpace(s.Bin)
+		if bin == "" {
+			bin = defaultOllamaGatewayBin
 		}
-		return SummarizerResponse{}, fmt.Errorf("ollama returned %d: %s", resp.StatusCode, string(respBody))
+		runner = func(ctx context.Context, args []string, stdin string) ([]byte, error) {
+			return runGatewayCLI(ctx, bin, args, stdin)
+		}
+	}
+	out, err := runner(ctx, args, text)
+	if err != nil {
+		if looksLikeMissingOllamaModel(err.Error()) {
+			return SummarizerResponse{}, fmt.Errorf("%w: %s", ErrSummarizeModelNotInstalled, err.Error())
+		}
+		return SummarizerResponse{}, fmt.Errorf("resource-ollama gateway chat: %w", err)
 	}
 
 	var result struct {
-		Message struct {
-			Content string `json:"content"`
-		} `json:"message"`
+		Response   string `json:"response"`
 		DoneReason string `json:"done_reason"`
 		EvalCount  int    `json:"eval_count"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err := json.Unmarshal(out, &result); err != nil {
 		return SummarizerResponse{}, fmt.Errorf("decode response: %w", err)
 	}
 
-	raw := strings.TrimSpace(result.Message.Content)
+	raw := strings.TrimSpace(result.Response)
 	return SummarizerResponse{
 		Content:    StripThinkTags(raw),
 		RawContent: raw,
 		DoneReason: result.DoneReason,
 		EvalCount:  result.EvalCount,
 	}, nil
+}
+
+func runGatewayCLI(ctx context.Context, bin string, args []string, stdin string) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, bin, args...)
+	cmd.Stdin = strings.NewReader(stdin)
+	out, err := cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok && len(exitErr.Stderr) > 0 {
+			return nil, fmt.Errorf("%w: %s", err, strings.TrimSpace(string(exitErr.Stderr)))
+		}
+		return nil, err
+	}
+	return out, nil
 }
 
 func isReasoningModel(model string) bool {

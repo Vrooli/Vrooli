@@ -170,7 +170,7 @@
                     }
                   },
                   {
-                    "id": "model_mistral",
+                    "id": "model_chat_small",
                     "type": "checkboxcomponent",
                     "configuration": {
                       "label": "Mistral",
@@ -178,7 +178,7 @@
                     }
                   },
                   {
-                    "id": "model_codellama",
+                    "id": "model_code_local",
                     "type": "checkboxcomponent",
                     "configuration": {
                       "label": "CodeLlama",
@@ -247,8 +247,8 @@
                 "type": "tabscomponent",
                 "tabs": [
                   {"id": "llama_result", "value": "Llama 3.2"},
-                  {"id": "mistral_result", "value": "Mistral"}, 
-                  {"id": "codellama_result", "value": "CodeLlama"},
+                  {"id": "chat_small_result", "value": "Small Chat"}, 
+                  {"id": "code_local_result", "value": "Code Role"},
                   {"id": "comparison", "value": "Comparison"}
                 ],
                 "configuration": {
@@ -271,14 +271,14 @@
                       }
                     ]
                   },
-                  "mistral_result": {
+                  "chat_small_result": {
                     "type": "containercomponent",
                     "components": [
                       {
-                        "id": "mistral_response",
+                        "id": "chat_small_response",
                         "type": "textcomponent",
                         "configuration": {
-                          "text": "**Response from Mistral:**\n\n*Results will appear here after testing...*\n\n**Metrics:**\n- Response time: -- ms\n- Token count: --\n- Estimated confidence: --%",
+                          "text": "**Response from Small Chat Role:**\n\n*Results will appear here after testing...*\n\n**Metrics:**\n- Response time: -- ms\n- Token count: --\n- Estimated confidence: --%",
                           "style": {
                             "backgroundColor": "#f8f9fa",
                             "padding": "15px",
@@ -290,14 +290,14 @@
                       }
                     ]
                   },
-                  "codellama_result": {
+                  "code_local_result": {
                     "type": "containercomponent",
                     "components": [
                       {
-                        "id": "codellama_response",
+                        "id": "code_local_response",
                         "type": "textcomponent",
                         "configuration": {
-                          "text": "**Response from CodeLlama:**\n\n*Results will appear here after testing...*\n\n**Metrics:**\n- Response time: -- ms\n- Token count: --\n- Estimated confidence: --%",
+                          "text": "**Response from Code Role:**\n\n*Results will appear here after testing...*\n\n**Metrics:**\n- Response time: -- ms\n- Token count: --\n- Estimated confidence: --%",
                           "style": {
                             "backgroundColor": "#f8f9fa",
                             "padding": "15px",

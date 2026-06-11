@@ -43,7 +43,7 @@ func TestSemanticSearch(t *testing.T) {
 			t.Error("Expected non-empty embedding vector")
 		}
 
-		// Typical embedding dimensions for nomic-embed-text
+		// The concrete dimension is owned by resource-ollama policy.
 		if len(embedding) < 100 {
 			t.Errorf("Expected embedding dimension > 100, got %d", len(embedding))
 		}

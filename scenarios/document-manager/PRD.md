@@ -35,7 +35,7 @@
 ### 🟠 P1 – Should have post-launch
 
 - [x] OT-P1-001 | Vector Search | Qdrant integration for documentation similarity analysis
-- [x] OT-P1-002 | AI Integration | Ollama nomic-embed-text model for semantic embeddings
+- [x] OT-P1-002 | AI Integration | Ollama `embedding.default` role for semantic embeddings
 - [x] OT-P1-003 | Document Indexing | API endpoint to index documents into Qdrant with metadata
 - [x] OT-P1-004 | Data Management | DELETE endpoints for applications, agents, and queue items
 - [x] OT-P1-005 | Real-time Updates | Redis pub/sub for live notifications
@@ -58,7 +58,7 @@
 - RESTful architecture with JSON payloads
 
 **AI & Vector Search**:
-- Ollama for local AI embeddings (nomic-embed-text model, 768 dimensions)
+- Ollama for local AI embeddings resolved through `embedding.default`
 - Qdrant for vector similarity search
 - Semantic search for finding related documentation issues
 

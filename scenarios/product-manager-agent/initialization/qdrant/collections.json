@@ -3,7 +3,7 @@
     {
       "name": "product_features",
       "vectors": {
-        "size": 1536,
+        "embedding_role": "embedding.default",
         "distance": "Cosine"
       },
       "payload_schema": {
@@ -19,7 +19,7 @@
     {
       "name": "product_decisions",
       "vectors": {
-        "size": 1536,
+        "embedding_role": "embedding.default",
         "distance": "Cosine"
       },
       "payload_schema": {
@@ -35,7 +35,7 @@
     {
       "name": "market_research",
       "vectors": {
-        "size": 1536,
+        "embedding_role": "embedding.default",
         "distance": "Cosine"
       },
       "payload_schema": {
@@ -51,7 +51,7 @@
     {
       "name": "user_feedback",
       "vectors": {
-        "size": 1536,
+        "embedding_role": "embedding.default",
         "distance": "Cosine"
       },
       "payload_schema": {

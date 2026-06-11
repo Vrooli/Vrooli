@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS reasoning_results (
     scores JSONB,  -- Calculated scores (e.g. pros_total, cons_total, net_score)
     confidence DECIMAL(3,2),  -- Confidence level 0.0-1.0
     recommendation_strength DECIMAL(3,2),  -- How strong the recommendation is
-    model VARCHAR(100) NOT NULL,  -- AI model used (e.g. llama3.2)
+    model VARCHAR(100) NOT NULL,  -- AI policy role used (e.g. chat.default)
     execution_time_ms INTEGER NOT NULL,
     success BOOLEAN NOT NULL DEFAULT true,
     error_message TEXT,

@@ -2,9 +2,8 @@ package summarize
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -14,19 +13,24 @@ import (
 	"audio-tools/internal/testutil/mocks"
 )
 
-func mkServiceRuntime(t *testing.T, handler http.HandlerFunc) *SummarizationService {
-	srv := httptest.NewServer(handler)
-	t.Cleanup(srv.Close)
-	s := NewSummarizer(srv.URL, srv.Client())
+func mkServiceRuntime(t *testing.T, response map[string]any) *SummarizationService {
+	t.Helper()
+	s := NewSummarizerWithRunner("resource-ollama-test", func(context.Context, []string, string) ([]byte, error) {
+		out, err := json.Marshal(response)
+		require.NoError(t, err)
+		return out, nil
+	})
 	cfg := DefaultSummarizeConfig()
 	cfg.Level = "moderate"
-	cfg.Model = "qwen3"
+	cfg.Model = DefaultSummarizeModel
 	return NewSummarizationServiceWith(s, func() SummarizeConfig { return cfg }, clock.System{})
 }
 
 func TestSummarizationService_HappyPath(t *testing.T) {
-	svc := mkServiceRuntime(t, func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{"message":{"content":"summary text"},"done_reason":"stop","eval_count":7}`))
+	svc := mkServiceRuntime(t, map[string]any{
+		"response":    "summary text",
+		"done_reason": "stop",
+		"eval_count":  7,
 	})
 	res, err := svc.Summarize(context.Background(), SummarizeRequest{EventID: "e1", Path: "manual", Text: "hello world"})
 	require.NoError(t, err)
@@ -34,17 +38,17 @@ func TestSummarizationService_HappyPath(t *testing.T) {
 }
 
 func TestSummarizationService_EmptySummary_Classified(t *testing.T) {
-	svc := mkServiceRuntime(t, func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{"message":{"content":""},"done_reason":"length","eval_count":3}`))
+	svc := mkServiceRuntime(t, map[string]any{
+		"response":    "",
+		"done_reason": "length",
+		"eval_count":  3,
 	})
 	_, err := svc.Summarize(context.Background(), SummarizeRequest{EventID: "e2", Path: "manual", Text: "hello"})
 	require.ErrorIs(t, err, ErrSummarizeTruncated)
 }
 
 func TestSummarizationService_EmptyText(t *testing.T) {
-	svc := mkServiceRuntime(t, func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{"message":{"content":""}}`))
-	})
+	svc := mkServiceRuntime(t, map[string]any{"response": ""})
 	_, err := svc.Summarize(context.Background(), SummarizeRequest{Text: "   "})
 	require.Error(t, err)
 }
@@ -57,13 +61,12 @@ func TestSummarizationService_NilSummarizer(t *testing.T) {
 
 func TestSummarizationService_AutoBackoffPath(t *testing.T) {
 	clk := mocks.NewFakeClock(time.Unix(1000, 0))
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "timeout", http.StatusGatewayTimeout)
-	}))
-	t.Cleanup(srv.Close)
 	cfg := DefaultSummarizeConfig()
 	cfg.TimeoutSeconds = 1
-	svc := NewSummarizationServiceWith(NewSummarizer(srv.URL, srv.Client()), func() SummarizeConfig { return cfg }, clk)
+	s := NewSummarizerWithRunner("resource-ollama-test", func(context.Context, []string, string) ([]byte, error) {
+		return nil, context.DeadlineExceeded
+	})
+	svc := NewSummarizationServiceWith(s, func() SummarizeConfig { return cfg }, clk)
 	_, _ = svc.Summarize(context.Background(), SummarizeRequest{EventID: "e3", Path: "auto", Text: "hi"})
 	_, _ = svc.Summarize(context.Background(), SummarizeRequest{EventID: "e3", Path: "auto", Text: "hi"})
 }

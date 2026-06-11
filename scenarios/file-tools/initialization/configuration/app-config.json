@@ -48,7 +48,7 @@
     "retry_attempts": 3,
     "models": {
       "text": ["chat.default", "code.local"],
-      "vision": ["llava:7b", "llama3.2-vision:11b"],
+      "vision": ["vision.local"],
       "embedding": ["embedding.default"]
     }
   },

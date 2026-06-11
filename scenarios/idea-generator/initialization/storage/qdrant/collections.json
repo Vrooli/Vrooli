@@ -4,7 +4,7 @@
       "name": "ideas",
       "config": {
         "vectors": {
-          "size": 768,
+          "embedding_role": "embedding.default",
           "distance": "Cosine"
         },
         "optimizers_config": {
@@ -32,7 +32,7 @@
       "name": "documents",
       "config": {
         "vectors": {
-          "size": 768,
+          "embedding_role": "embedding.default",
           "distance": "Cosine"
         },
         "optimizers_config": {
@@ -59,7 +59,7 @@
       "name": "campaigns",
       "config": {
         "vectors": {
-          "size": 768,
+          "embedding_role": "embedding.default",
           "distance": "Cosine"
         },
         "optimizers_config": {
@@ -85,7 +85,7 @@
       "name": "chat_messages",
       "config": {
         "vectors": {
-          "size": 768,
+          "embedding_role": "embedding.default",
           "distance": "Cosine"
         },
         "optimizers_config": {

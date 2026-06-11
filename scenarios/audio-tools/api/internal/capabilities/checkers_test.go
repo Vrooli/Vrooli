@@ -87,18 +87,18 @@ func TestOllamaChecker_VerifiesConfiguredSummarizeModel(t *testing.T) {
 			return
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"models": []map[string]string{{"name": "llama3.2:1b"}},
+			"models": []map[string]string{{"name": "fixture-summarize-model"}},
 		})
 	}))
 	defer srv.Close()
 
-	checker := &OllamaChecker{BaseURL: srv.URL, Doer: srv.Client(), Model: "llama3.2:1b"}
+	checker := &OllamaChecker{BaseURL: srv.URL, Doer: srv.Client(), Model: "fixture-summarize-model"}
 	status, msg := checker.Check(context.Background())
 
 	if status != StatusAvailable {
 		t.Errorf("status = %q, want %q", status, StatusAvailable)
 	}
-	if msg != `Ollama is running and summarize model "llama3.2:1b" is available` {
+	if msg != `Ollama is running and summarize model "fixture-summarize-model" is available` {
 		t.Errorf("message = %q", msg)
 	}
 }
@@ -106,18 +106,18 @@ func TestOllamaChecker_VerifiesConfiguredSummarizeModel(t *testing.T) {
 func TestOllamaChecker_ModelMissing(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"models": []map[string]string{{"name": "qwen3:4b"}},
+			"models": []map[string]string{{"name": "fixture-other-model"}},
 		})
 	}))
 	defer srv.Close()
 
-	checker := &OllamaChecker{BaseURL: srv.URL, Doer: srv.Client(), Model: "llama3.2:1b"}
+	checker := &OllamaChecker{BaseURL: srv.URL, Doer: srv.Client(), Model: "fixture-summarize-model"}
 	status, msg := checker.Check(context.Background())
 
 	if status != StatusUnavailable {
 		t.Errorf("status = %q, want %q", status, StatusUnavailable)
 	}
-	if msg != `Ollama is running but summarize model "llama3.2:1b" is not installed` {
+	if msg != `Ollama is running but summarize model "fixture-summarize-model" is not installed` {
 		t.Errorf("message = %q", msg)
 	}
 }

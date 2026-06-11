@@ -198,9 +198,11 @@ func main() {
 		}
 	}
 
-	// Initialize AI search components
-	embedder := aisearch.NewEmbedder("nomic-embed-text")
-	vectorStore := aisearch.NewVectorStore(qdrantURL, qdrantAPIKey, aiSearchCollection, 768)
+	// Initialize AI search components. Qdrant collection dimensions resolve from
+	// the embedding role when each collection is ensured.
+	embeddingRole := "embedding.default"
+	embedder := aisearch.NewEmbedder(embeddingRole)
+	vectorStore := aisearch.NewVectorStoreForRole(qdrantURL, qdrantAPIKey, aiSearchCollection, embeddingRole)
 	aiSearchService := aisearch.NewService(embedder, vectorStore, skillStoreAdapter, searchService, aiSearchThreshold)
 	aiSearchHandlers := aisearch.NewHandlers(aiSearchService)
 
@@ -219,25 +221,25 @@ func main() {
 	if agentAICollection == "" {
 		agentAICollection = "prompt-manager-agents"
 	}
-	agentVectorStore := aisearch.NewVectorStore(qdrantURL, qdrantAPIKey, agentAICollection, 768)
+	agentVectorStore := aisearch.NewVectorStoreForRole(qdrantURL, qdrantAPIKey, agentAICollection, embeddingRole)
 
 	teamAICollection := os.Getenv("AI_SEARCH_TEAM_COLLECTION")
 	if teamAICollection == "" {
 		teamAICollection = "prompt-manager-teams"
 	}
-	teamVectorStore := aisearch.NewVectorStore(qdrantURL, qdrantAPIKey, teamAICollection, 768)
+	teamVectorStore := aisearch.NewVectorStoreForRole(qdrantURL, qdrantAPIKey, teamAICollection, embeddingRole)
 
 	topicAICollection := os.Getenv("AI_SEARCH_TOPIC_COLLECTION")
 	if topicAICollection == "" {
 		topicAICollection = "prompt-manager-topics"
 	}
-	topicVectorStore := aisearch.NewVectorStore(qdrantURL, qdrantAPIKey, topicAICollection, 768)
+	topicVectorStore := aisearch.NewVectorStoreForRole(qdrantURL, qdrantAPIKey, topicAICollection, embeddingRole)
 
 	actionAICollection := os.Getenv("AI_SEARCH_ACTION_COLLECTION")
 	if actionAICollection == "" {
 		actionAICollection = "prompt-manager-actions"
 	}
-	actionVectorStore := aisearch.NewVectorStore(qdrantURL, qdrantAPIKey, actionAICollection, 768)
+	actionVectorStore := aisearch.NewVectorStoreForRole(qdrantURL, qdrantAPIKey, actionAICollection, embeddingRole)
 
 	// Wire agent/team/topic AI search into the service
 	aiSearchService.SetAgentSearch(agentVectorStore, fileStore.Agents().(*store.FileAgentStore), agentSearchService)
