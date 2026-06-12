@@ -133,8 +133,8 @@ func TestOrphanCheckExecuteActionList(t *testing.T) {
 	if result.Message != "Found 1 orphan processes" {
 		t.Fatalf("Message = %q", result.Message)
 	}
-	if !strings.Contains(result.Output, `"command":"alpha"`) {
-		t.Fatalf("Output = %q, want raw JSON to include alpha", result.Output)
+	if !strings.Contains(result.Output, "alpha") {
+		t.Fatalf("Output = %q, want diagnostic JSON to include the orphan command alpha", result.Output)
 	}
 }
 

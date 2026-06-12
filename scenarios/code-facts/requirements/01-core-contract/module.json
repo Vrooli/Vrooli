@@ -36,7 +36,7 @@
     {
       "id": "CF-P0-002",
       "title": "Inventory scenario surfaces and parse units",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "surface",
       "criticality": "P0",
@@ -48,20 +48,20 @@
       "validation": [
         {
           "type": "test",
-          "status": "planned",
-          "notes": "Surface inventory tests use generated scenario fixtures and generic code-root fixtures."
+          "status": "implemented",
+          "notes": "Service tests cover generated scenario API/CLI/UI surface inventory, sidecar unsupported status, generic Go modules, generic TypeScript projects, and paths inside scenario surfaces."
         },
         {
           "type": "test",
-          "status": "planned",
-          "notes": "test-genie execute code-facts business --json confirms this requirement maps to OT-P0-002."
+          "status": "implemented",
+          "notes": "test-genie execute code-facts business --json confirms this requirement maps to OT-P0-002 and the registry validates structurally."
         }
       ]
     },
     {
       "id": "CF-P0-003",
       "title": "Broker supported analyzer providers",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "analyzer",
       "criticality": "P0",
@@ -79,15 +79,15 @@
         },
         {
           "type": "test",
-          "status": "planned",
-          "notes": "Provider-backed fixture tests prove Go and TS facts are normalized from graph responses."
+          "status": "implemented",
+          "notes": "Code Facts Phase 13 live check ran code-facts facts describe scenario:proto-health --include all --no-cache --json against running go-code-graph and typescript-code-graph providers."
         }
       ]
     },
     {
       "id": "CF-P0-004",
       "title": "Filter describe output by fact family",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "facts",
       "criticality": "P0",
@@ -104,8 +104,8 @@
         },
         {
           "type": "test",
-          "status": "planned",
-          "notes": "code-facts describe \u003ctarget\u003e --include imports,symbols --json omits calls and proof sections."
+          "status": "implemented",
+          "notes": "UI and API tests assert fact-family include selections are propagated and unrelated families are omitted from filtered describe output."
         }
       ]
     },
@@ -197,7 +197,7 @@
     {
       "id": "CF-P0-009",
       "title": "Maintain API and CLI parity",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-009",
       "category": "surface",
       "criticality": "P0",
@@ -209,20 +209,20 @@
       "validation": [
         {
           "type": "test",
-          "status": "planned",
-          "notes": "CLI manifest bindings cover every Code Facts service operation."
+          "status": "implemented",
+          "notes": "Endpoint generation tests assert the CLI manifest contains the eight facts/cache operations backed by CodeFactsService endpoints."
         },
         {
           "type": "test",
-          "status": "planned",
-          "notes": "CLI command tests assert JSON output mirrors proto response shapes."
+          "status": "implemented",
+          "notes": "CLI package tests and live Phase 13 command execution cover JSON output for describe/proof/cache operations through generated Connect clients."
         }
       ]
     },
     {
       "id": "CF-P0-010",
       "title": "Inspect evidence in the operator UI",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-010",
       "category": "ui",
       "criticality": "P0",
@@ -234,8 +234,8 @@
       "validation": [
         {
           "type": "test",
-          "status": "planned",
-          "notes": "Component and BAS tests cover target entry, include filtering, evidence table states, warnings, and cache panel."
+          "status": "implemented",
+          "notes": "FactsWorkbench tests cover target entry, include filtering, populated evidence/fact/surface/parse-unit tables, warnings, cache panel, path targets, cache preference, and error states."
         }
       ]
     }

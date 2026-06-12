@@ -51,31 +51,31 @@ func TestStaleLockCheckRunWithCoreJSON(t *testing.T) {
 		expectedCount  int
 	}{
 		{
-			name:           "no locks",
-			output:         `{"success":true,"locks":[]}`,
+			name:           "all healthy claims",
+			output:         `{"success":true,"registry_claims":[{"port":17701,"scenario":"alpha","recommendation_code":"port-ok"}]}`,
 			expectedStatus: checks.StatusOK,
-			expectedMsg:    "No stale port locks detected",
+			expectedMsg:    "No stale registry claims detected",
 			expectedCount:  0,
 		},
 		{
-			name:           "mixed locks",
-			output:         `{"success":true,"locks":[{"port":8080,"scenario":"alpha","pid":100,"path":"/tmp/a","owner_running":true,"stale":false},{"port":8081,"scenario":"beta","pid":0,"path":"/tmp/b","owner_running":false,"stale":true}]}`,
+			name:           "one stale claim below threshold",
+			output:         `{"success":true,"registry_claims":[{"port":17701,"scenario":"alpha","recommendation_code":"port-ok"},{"port":17702,"scenario":"beta","claim_status":"bound","instance_status":"stopped","reconciliation":"stale_claim","recommendation_code":"stale-claim-expire"}]}`,
 			expectedStatus: checks.StatusOK,
-			expectedMsg:    "1 stale port locks (below threshold)",
+			expectedMsg:    "1 stale registry claims (below threshold)",
 			expectedCount:  1,
 		},
 		{
 			name:           "warning threshold",
-			output:         `{"success":true,"locks":[{"port":1,"path":"/tmp/1","stale":true},{"port":2,"path":"/tmp/2","stale":true},{"port":3,"path":"/tmp/3","stale":true}]}`,
+			output:         `{"success":true,"registry_claims":[{"port":1,"reconciliation":"stale_claim","recommendation_code":"stale-claim-expire"},{"port":2,"reconciliation":"stale_instance","recommendation_code":"stale-claim-expire"},{"port":3,"reconciliation":"stale_claim","recommendation_code":"stale-claim-expire"}]}`,
 			expectedStatus: checks.StatusWarning,
-			expectedMsg:    "Warning: 3 stale port locks detected",
+			expectedMsg:    "Warning: 3 stale registry claims detected",
 			expectedCount:  3,
 		},
 		{
 			name:           "command error",
 			err:            checks.ErrCommandNotFound,
 			expectedStatus: checks.StatusCritical,
-			expectedMsg:    "Failed to read port locks",
+			expectedMsg:    "Failed to read registry claims",
 		},
 	}
 
@@ -107,7 +107,7 @@ func TestStaleLockCheckRunWithCoreJSON(t *testing.T) {
 func TestStaleLockCheckExecuteActionList(t *testing.T) {
 	executor := checks.NewMockExecutor()
 	executor.Responses["vrooli locks --json"] = checks.MockResponse{
-		Output: []byte(`{"success":true,"locks":[{"port":8080,"path":"/tmp/a","stale":false},{"port":8081,"path":"/tmp/b","stale":true}]}`),
+		Output: []byte(`{"success":true,"registry_claims":[{"port":17701,"scenario":"alpha","recommendation_code":"port-ok"},{"port":17702,"scenario":"beta","reconciliation":"stale_claim","recommendation_code":"stale-claim-expire"}]}`),
 	}
 
 	check := NewStaleLockCheck(WithStaleLockExecutor(executor))
@@ -115,11 +115,11 @@ func TestStaleLockCheckExecuteActionList(t *testing.T) {
 	if !result.Success {
 		t.Fatalf("expected success, got error %q", result.Error)
 	}
-	if result.Message != "Found 1 stale locks out of 2 total" {
+	if result.Message != "Found 1 stale registry claims out of 2 total" {
 		t.Fatalf("Message = %q", result.Message)
 	}
-	if !strings.Contains(result.Output, `"port":8081`) {
-		t.Fatalf("Output = %q", result.Output)
+	if !strings.Contains(result.Output, "stale-claim-expire") {
+		t.Fatalf("Output = %q, want diagnostic JSON to include the stale claim recommendation", result.Output)
 	}
 }
 

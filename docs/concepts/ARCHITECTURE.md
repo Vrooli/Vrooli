@@ -104,6 +104,29 @@ A scenario may include:
 
 Some scenarios are user-facing products. Others are meta-scenarios that improve the platform itself.
 
+## Dependency & Isolation Model
+
+Scenarios are isolated at the dependency layer so that upgrading one scenario never forces a migration in another, and so a scenario can in principle be built with any language, framework, or package manager — the platform contract is **process-level** (`.vrooli/service.json`, Makefile lifecycle targets, health endpoints), not package-level.
+
+There are two deliberately different dependency classes:
+
+### Third-party dependencies — fully isolated
+
+- Every scenario UI is a **standalone pnpm project**: its own `package.json`, its own committed `pnpm-lock.yaml`, its own `node_modules`. Bumping React (or anything else) in one scenario touches nothing else. pnpm's content-addressable store keeps this cheap — identical versions are hard-linked once on disk, not duplicated per scenario.
+- Every scenario API is its own Go module (`go.mod` per scenario) with independently pinned third-party versions.
+- The repo-root pnpm workspace exists **only** for the shared JS packages under `packages/*` (plus eslint/prettier hoisting for editor tooling). Scenarios never join it. Mechanically: pnpm discovers its workspace by walking *up* the directory tree, so scenario UIs carry a local `pnpm-workspace.yaml` boundary file (react-vite template ≥ 1.1.0) that stops the walk; older scenarios install with `pnpm install --ignore-workspace`. This isolation policy is enforced by `vrooli hygiene` (root workspace settings, no `workspace:*` deps in scenario UIs, committed scenario lockfiles).
+
+### First-party shared packages — deliberately source-coupled
+
+Shared Vrooli packages are consumed **by source path**, not by published version:
+
+- JS: `"@vrooli/api-base": "file:../../../packages/api-base"` in scenario UIs
+- Go: `replace github.com/vrooli/api-core => ../../../packages/api-core` in scenario `go.mod`s
+
+This means every scenario builds against HEAD of `packages/*`. A breaking change there propagates fleet-wide at the next build/install — the opposite of the third-party isolation above. **This is an accepted tradeoff, not an oversight**: source coupling is what makes the compounding loop cheap (one improvement to a shared package is instantly available to every scenario, with no release ceremony), and the fleet is small enough that conformance discipline is cheaper than version management. The guards are additive-evolution discipline on shared package APIs (see the API surface manifest & conformance work) and buf breaking-change checks on the shared proto contracts.
+
+**Revisit trigger:** if fleet-wide breakage from shared-package changes starts costing more than release ceremony would (recurring multi-scenario build breaks of the kind conformance checks don't catch), move `packages/*` to versioned releases that scenarios pin and upgrade deliberately.
+
 ## Meta-Systems
 
 Vrooli increasingly relies on scenarios that improve other scenarios, operator workflows, and governance loops.

@@ -78,25 +78,34 @@ func (c *StaleLockCheck) Run(ctx context.Context) checks.Result {
 		Details: make(map[string]interface{}),
 	}
 
-	locks, output, err := c.client.ListLocks(ctx)
+	claims, output, err := c.client.ListRegistryClaims(ctx)
 	result.Details["output"] = string(output)
 	if err != nil {
 		result.Status = checks.StatusCritical
-		result.Message = "Failed to read port locks"
+		result.Message = "Failed to read registry claims"
 		result.Details["error"] = err.Error()
 		return result
 	}
 
-	staleLocks := make([]integration.LockInfo, 0)
-	for _, lock := range locks {
-		if lock.Stale {
-			staleLocks = append(staleLocks, lock)
+	// Allocation authority lives in the registry. A claim is "stale" when core
+	// reconciliation recommends expiring it (non-authoritative); orphan-listener
+	// claims are a distinct problem that `vrooli cleanup locks` does not resolve,
+	// so they are surfaced separately rather than counted as cleanable.
+	staleClaims := make([]integration.RegistryClaim, 0)
+	orphanListeners := 0
+	for _, claim := range claims {
+		switch {
+		case claim.StaleExpireRecommended():
+			staleClaims = append(staleClaims, claim)
+		case claim.OrphanListenerSuspected():
+			orphanListeners++
 		}
 	}
 
-	staleCount := len(staleLocks)
+	staleCount := len(staleClaims)
 	result.Details["staleCount"] = staleCount
-	result.Details["totalLocks"] = len(locks)
+	result.Details["totalClaims"] = len(claims)
+	result.Details["orphanListenerCount"] = orphanListeners
 	result.Details["warningThreshold"] = c.warningThreshold
 	result.Details["criticalThreshold"] = c.criticalThreshold
 	if staleCount > 0 {
@@ -104,7 +113,7 @@ func (c *StaleLockCheck) Run(ctx context.Context) checks.Result {
 		if staleCount < limit {
 			limit = staleCount
 		}
-		result.Details["staleLocks"] = staleLocks[:limit]
+		result.Details["staleClaims"] = staleClaims[:limit]
 	}
 
 	score := 100
@@ -118,9 +127,9 @@ func (c *StaleLockCheck) Run(ctx context.Context) checks.Result {
 		Score: &score,
 		SubChecks: []checks.SubCheck{
 			{
-				Name:   "stale-lock-count",
+				Name:   "stale-claim-count",
 				Passed: staleCount < c.criticalThreshold,
-				Detail: fmt.Sprintf("%d stale port locks detected", staleCount),
+				Detail: fmt.Sprintf("%d registry claims recommended for expiry", staleCount),
 			},
 		},
 	}
@@ -128,16 +137,16 @@ func (c *StaleLockCheck) Run(ctx context.Context) checks.Result {
 	switch {
 	case staleCount >= c.criticalThreshold:
 		result.Status = checks.StatusCritical
-		result.Message = fmt.Sprintf("Critical: %d stale port locks detected", staleCount)
+		result.Message = fmt.Sprintf("Critical: %d stale registry claims detected", staleCount)
 	case staleCount >= c.warningThreshold:
 		result.Status = checks.StatusWarning
-		result.Message = fmt.Sprintf("Warning: %d stale port locks detected", staleCount)
+		result.Message = fmt.Sprintf("Warning: %d stale registry claims detected", staleCount)
 	case staleCount > 0:
 		result.Status = checks.StatusOK
-		result.Message = fmt.Sprintf("%d stale port locks (below threshold)", staleCount)
+		result.Message = fmt.Sprintf("%d stale registry claims (below threshold)", staleCount)
 	default:
 		result.Status = checks.StatusOK
-		result.Message = "No stale port locks detected"
+		result.Message = "No stale registry claims detected"
 	}
 
 	return result
@@ -197,7 +206,7 @@ func (c *StaleLockCheck) executeList(ctx context.Context, start time.Time) check
 		Timestamp: start,
 	}
 
-	locks, output, err := c.client.ListLocks(ctx)
+	claims, output, err := c.client.ListRegistryClaims(ctx)
 	result.Duration = time.Since(start)
 	result.Output = string(output)
 	if err != nil {
@@ -207,13 +216,13 @@ func (c *StaleLockCheck) executeList(ctx context.Context, start time.Time) check
 	}
 
 	staleCount := 0
-	for _, lock := range locks {
-		if lock.Stale {
+	for _, claim := range claims {
+		if claim.StaleExpireRecommended() {
 			staleCount++
 		}
 	}
 	result.Success = true
-	result.Message = fmt.Sprintf("Found %d stale locks out of %d total", staleCount, len(locks))
+	result.Message = fmt.Sprintf("Found %d stale registry claims out of %d total", staleCount, len(claims))
 	return result
 }
 

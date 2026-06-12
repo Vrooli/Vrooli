@@ -76,7 +76,46 @@ skill)" beats "modernize the API layer".
 
 ---
 
-## 1.0.1 — 2026-05-14
+## 1.1.0 — 2026-06-12
+
+Makes scenario UI dependency isolation structural instead of
+flag-discipline-dependent, and trues up the template's own lockfile.
+
+### Added
+- `ui/pnpm-workspace.yaml` — a **workspace boundary file**. pnpm resolves
+  its workspace by walking up the directory tree to the first
+  `pnpm-workspace.yaml`; without a boundary, a plain `pnpm install` run in
+  a scenario's `ui/` silently joins the repo-root `packages/*` workspace
+  (wrong scope, ignored overrides, stray root lockfile). The boundary file
+  stops the walk, so plain `pnpm install` is always scoped to the UI.
+  `--ignore-workspace` keeps working unchanged and remains in the
+  lifecycle commands; the boundary removes the failure mode when the flag
+  is forgotten.
+
+### Changed
+- `ui/pnpm-lock.yaml` regenerated so it matches `ui/package.json` again
+  (added `react-router-dom` and `@types/node`, which had drifted in
+  without a lockfile update). `pnpm install --frozen-lockfile` now passes
+  at generated-scenario depth. Note the template UI is **not installable
+  in place** under `templates/` — its `file:../../../packages/*`
+  references resolve relative to the *generated* location
+  (`scenarios/<id>/ui`); refresh the lockfile from a generated scenario
+  (or a temporary copy at `scenarios/<tmp>/ui` depth) and copy it back.
+- `docs/guides/troubleshooting.md` pnpm section updated for the boundary
+  file.
+
+### Migration (for agents updating older scenarios)
+- [ ] Copy `ui/pnpm-workspace.yaml` from the template into the scenario's
+      `ui/` directory (content is scenario-agnostic; keep the comment).
+- [ ] Verify isolation: from the scenario's `ui/`, run
+      `corepack pnpm install --frozen-lockfile` **without**
+      `--ignore-workspace`; it must scope to the UI only (no
+      "Scope: N workspace projects" banner) and create no
+      `pnpm-lock.yaml` at the repo root.
+- [ ] Update `.vrooli/service.json::generation.template.version` to
+      `1.1.0`.
+
+
 
 Adds baseline PWA install metadata and placeholder icons to generated
 React/Vite scenarios.

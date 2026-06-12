@@ -324,9 +324,11 @@ func proofEvidenceFromFact(fact *factsv1.GenericFact, status factsv1.EvidenceSta
 func matchingProtoImports(scenario, surfaceID, surfacePath string, facts []*factsv1.GenericFact) []*factsv1.GenericFact {
 	var out []*factsv1.GenericFact
 	for _, fact := range facts {
-		importPath := unquote(firstNonEmpty(fact.GetAttributes()["import_path"], fact.GetSubject()))
+		importPath := normalizedImportPath(fact)
 		if importPath == "" || !strings.Contains(importPath, "github.com/vrooli/vrooli/packages/proto/gen/") {
-			continue
+			if !strings.Contains(importPath, "@vrooli/proto-types/") {
+				continue
+			}
 		}
 		if surfacePath != "" && factFile(fact) != "" && !isWithinPath(factFile(fact), surfacePath) {
 			continue
@@ -337,7 +339,9 @@ func matchingProtoImports(scenario, surfaceID, surfacePath string, facts []*fact
 				out = append(out, fact)
 			}
 		case "ui":
-			if strings.Contains(importPath, "/gen/typescript/"+scenario+"/") || strings.Contains(importPath, "/gen/typescript/js/"+scenario+"/") {
+			if strings.Contains(importPath, "/gen/typescript/"+scenario+"/") ||
+				strings.Contains(importPath, "/gen/typescript/js/"+scenario+"/") ||
+				strings.Contains(importPath, "@vrooli/proto-types/"+scenario+"/") {
 				out = append(out, fact)
 			}
 		}
@@ -350,7 +354,7 @@ func protoImportClassification(scenario string, matches []*factsv1.GenericFact) 
 	if len(matches) == 0 {
 		return "missing"
 	}
-	importPath := unquote(firstNonEmpty(matches[0].GetAttributes()["import_path"], matches[0].GetSubject()))
+	importPath := normalizedImportPath(matches[0])
 	if strings.Contains(importPath, "/"+scenario+"/v") {
 		return "scenario_owned"
 	}
@@ -362,12 +366,20 @@ func protoImportClassification(scenario string, matches []*factsv1.GenericFact) 
 
 func importPresent(importPath string, facts []*factsv1.GenericFact) bool {
 	for _, fact := range factsByFamily(facts, factsv1.FactFamily_FACT_FAMILY_IMPORTS) {
-		got := unquote(firstNonEmpty(fact.GetAttributes()["import_path"], fact.GetSubject()))
+		got := normalizedImportPath(fact)
 		if got == importPath {
 			return true
 		}
 	}
 	return false
+}
+
+func normalizedImportPath(fact *factsv1.GenericFact) string {
+	return unquote(firstNonEmpty(
+		fact.GetAttributes()["import_path"],
+		fact.GetAttributes()["source_module"],
+		fact.GetSubject(),
+	))
 }
 
 func scenarioFromImportPath(importPath string) string {

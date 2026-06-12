@@ -71,3 +71,22 @@ Next phase: Phase 11 operator UI.
 - Added UI coverage for empty state, analysis request options, populated evidence rendering, cache preference, path targets, and API errors.
 
 Next phase: Phase 12 proto-health adoption.
+
+## 2026-06-12 — Phase 12 Proto-Health Adoption
+
+- Supported `proto-health` as the first external consumer of Code Facts proof evidence.
+- Fixed proof normalization for current Go graph kind casing and TypeScript generated proto imports.
+- Confirmed `proto-health` can consume Code Facts proto adoption and REST endpoint proof through its validation seam instead of parsing source directly.
+- Marked the Code Facts service stable in the proto contract and regenerated descriptors.
+
+Next phase: Phase 13 cross-scenario hardening and documentation closeout.
+
+## 2026-06-12 — Phase 13 Cross-Scenario Hardening And Closeout
+
+- Restarted `go-code-graph`, `typescript-code-graph`, `code-facts`, and `proto-health`; all four reported healthy through the scenario lifecycle.
+- Ran the live provider-backed path: `code-facts facts describe scenario:proto-health --include all --no-cache --json`.
+- Confirmed `proto-health validate scenario proto-health --json` and `test-genie execute proto-health proto --json` pass with six warnings: two endpoint-proof unknown warnings and four template-source warnings.
+- Confirmed `vrooli scenario test code-facts`, `vrooli scenario test proto-health`, requirements validation, requirements reporting, and business validation pass.
+- Updated the P0 requirement registry to mark implemented target/surface/provider/filtering/API-CLI/UI scope complete.
+
+Plan status: Code Facts is ready as the shared code-evidence substrate. Remaining work is future consumer adoption and the deferred proof families listed in `PROBLEMS.md`.

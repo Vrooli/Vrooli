@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	vroolicli "github.com/vrooli/vrooli-cli-go"
 )
 
 var errCLITrackedProcessesUnavailable = errors.New("vrooli cli state reader does not expose tracked process records")
@@ -70,6 +72,7 @@ type RealVrooliStateReader struct {
 
 type VrooliCLIStateReader struct {
 	runner CommandRunner
+	cli    *vroolicli.Client
 }
 
 type FallbackVrooliStateReader struct {
@@ -89,7 +92,28 @@ func NewVrooliCLIStateReader(runner CommandRunner) *VrooliCLIStateReader {
 	if runner == nil {
 		runner = execCommandRunner{}
 	}
-	return &VrooliCLIStateReader{runner: runner}
+	return &VrooliCLIStateReader{
+		runner: runner,
+		// The runner already governs vrooli execution; suppress the client's own
+		// --no-stale-check so the typed locks read issues exactly the invocation
+		// this reader has always used.
+		cli: vroolicli.New(
+			vroolicli.WithRunner(commandRunnerAdapter{runner: runner}),
+			vroolicli.WithStaleCheck(true),
+		),
+	}
+}
+
+// commandRunnerAdapter bridges the local combined-output-only CommandRunner to
+// vroolicli.Runner.
+type commandRunnerAdapter struct{ runner CommandRunner }
+
+func (a commandRunnerAdapter) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
+	return a.runner.CombinedOutput(ctx, name, args...)
+}
+
+func (a commandRunnerAdapter) RunCombined(ctx context.Context, name string, args ...string) ([]byte, error) {
+	return a.runner.CombinedOutput(ctx, name, args...)
 }
 
 func NewFallbackVrooliStateReader(primary, fallback VrooliStateReader) *FallbackVrooliStateReader {
@@ -256,61 +280,38 @@ func (r *RealVrooliStateReader) RemovePortLock(lock PortLock) error {
 	return os.Remove(lock.FilePath)
 }
 
-type cliLocksEnvelope struct {
-	Success        bool               `json:"success"`
-	Locks          []cliLegacyLock    `json:"locks"`
-	RegistryClaims []cliRegistryClaim `json:"registry_claims"`
-}
-
-type cliLegacyLock struct {
-	Port      int       `json:"port"`
-	Scenario  string    `json:"scenario"`
-	PID       int       `json:"pid"`
-	Timestamp time.Time `json:"timestamp"`
-	Path      string    `json:"path"`
-}
-
-type cliRegistryClaim struct {
-	ClaimID        string `json:"claim_id"`
-	InstanceID     string `json:"instance_id"`
-	Scenario       string `json:"scenario"`
-	Port           int    `json:"port"`
-	ClaimStatus    string `json:"claim_status"`
-	InstanceStatus string `json:"instance_status"`
-}
-
 func (r *VrooliCLIStateReader) ListTrackedProcesses() ([]TrackedProcess, error) {
 	return nil, errCLITrackedProcessesUnavailable
 }
 
 func (r *VrooliCLIStateReader) ListPortLocks() ([]PortLock, error) {
-	output, err := r.runner.CombinedOutput(context.Background(), "vrooli", "locks", "--json")
+	resp, err := r.cli.Locks(context.Background())
 	if err != nil {
 		return nil, err
 	}
-	var envelope cliLocksEnvelope
-	if err := json.Unmarshal(output, &envelope); err != nil {
-		return nil, err
-	}
-	locks := make([]PortLock, 0, len(envelope.RegistryClaims)+len(envelope.Locks))
-	for _, claim := range envelope.RegistryClaims {
+	locks := make([]PortLock, 0, len(resp.GetRegistryClaims())+len(resp.GetLocks()))
+	for _, claim := range resp.GetRegistryClaims() {
 		locks = append(locks, PortLock{
-			Port:           claim.Port,
-			Scenario:       claim.Scenario,
+			Port:           int(claim.GetPort()),
+			Scenario:       claim.GetScenario(),
 			Source:         "registry_claim",
-			ClaimID:        claim.ClaimID,
-			InstanceID:     claim.InstanceID,
-			ClaimStatus:    claim.ClaimStatus,
-			InstanceStatus: claim.InstanceStatus,
+			ClaimID:        claim.GetClaimId(),
+			InstanceID:     claim.GetInstanceId(),
+			ClaimStatus:    claim.GetClaimStatus(),
+			InstanceStatus: claim.GetInstanceStatus(),
 		})
 	}
-	for _, lock := range envelope.Locks {
+	for _, lock := range resp.GetLocks() {
+		var timestamp int64
+		if ts, err := time.Parse(time.RFC3339, lock.GetTimestamp()); err == nil {
+			timestamp = ts.Unix()
+		}
 		locks = append(locks, PortLock{
-			Port:      lock.Port,
-			Scenario:  lock.Scenario,
-			PID:       lock.PID,
-			Timestamp: lock.Timestamp.Unix(),
-			FilePath:  lock.Path,
+			Port:      int(lock.GetPort()),
+			Scenario:  lock.GetScenario(),
+			PID:       int(lock.GetPid()),
+			Timestamp: timestamp,
+			FilePath:  lock.GetPath(),
 			Source:    "legacy_lock",
 		})
 	}

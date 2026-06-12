@@ -59,24 +59,26 @@ func (n normalizer) familyForNode(language string, node *commonv1.CodeGraphNode)
 	switch language {
 	case "go":
 		switch kind {
-		case "GO_NODE_KIND_IMPORT_SPEC":
+		case "GO_NODE_KIND_IMPORT_SPEC", "go_import_spec":
 			return factsv1.FactFamily_FACT_FAMILY_IMPORTS, true
-		case "GO_NODE_KIND_REFERENCE", "GO_NODE_KIND_TYPE_USAGE":
+		case "GO_NODE_KIND_REFERENCE", "GO_NODE_KIND_TYPE_USAGE", "go_reference", "go_type_usage":
 			return factsv1.FactFamily_FACT_FAMILY_REFERENCES, true
-		case "GO_NODE_KIND_CALL":
+		case "GO_NODE_KIND_CALL", "go_call":
 			return factsv1.FactFamily_FACT_FAMILY_CALLS, true
-		case "GO_NODE_KIND_TYPE", "GO_NODE_KIND_FUNC", "GO_NODE_KIND_VAR", "GO_NODE_KIND_CONST", "GO_NODE_KIND_INTERFACE", "GO_NODE_KIND_METHOD":
+		case "GO_NODE_KIND_TYPE", "GO_NODE_KIND_FUNC", "GO_NODE_KIND_VAR", "GO_NODE_KIND_CONST", "GO_NODE_KIND_INTERFACE", "GO_NODE_KIND_METHOD",
+			"go_type", "go_func", "go_var", "go_const", "go_interface", "go_method":
 			return factsv1.FactFamily_FACT_FAMILY_SYMBOLS, true
 		}
 	case "typescript":
 		switch kind {
-		case "TS_NODE_KIND_IMPORT_BINDING":
+		case "TS_NODE_KIND_IMPORT_BINDING", "ts_import_binding":
 			return factsv1.FactFamily_FACT_FAMILY_IMPORTS, true
-		case "TS_NODE_KIND_REFERENCE":
+		case "TS_NODE_KIND_REFERENCE", "ts_reference":
 			return factsv1.FactFamily_FACT_FAMILY_REFERENCES, true
-		case "TS_NODE_KIND_CALL", "TS_NODE_KIND_JSX_USAGE":
+		case "TS_NODE_KIND_CALL", "TS_NODE_KIND_JSX_USAGE", "ts_call", "ts_jsx_usage":
 			return factsv1.FactFamily_FACT_FAMILY_CALLS, true
-		case "TS_NODE_KIND_COMPONENT", "TS_NODE_KIND_HOOK", "TS_NODE_KIND_CLASS", "TS_NODE_KIND_INTERFACE", "TS_NODE_KIND_TYPE", "TS_NODE_KIND_FUNCTION", "TS_NODE_KIND_VAR", "TS_NODE_KIND_CONST", "TS_NODE_KIND_EXPORT", "TS_NODE_KIND_RE_EXPORT":
+		case "TS_NODE_KIND_COMPONENT", "TS_NODE_KIND_HOOK", "TS_NODE_KIND_CLASS", "TS_NODE_KIND_INTERFACE", "TS_NODE_KIND_TYPE", "TS_NODE_KIND_FUNCTION", "TS_NODE_KIND_VAR", "TS_NODE_KIND_CONST", "TS_NODE_KIND_EXPORT", "TS_NODE_KIND_RE_EXPORT",
+			"ts_component", "ts_hook", "ts_class", "ts_interface", "ts_type", "ts_function", "ts_var", "ts_const", "ts_export", "ts_re_export":
 			return factsv1.FactFamily_FACT_FAMILY_SYMBOLS, true
 		}
 	}

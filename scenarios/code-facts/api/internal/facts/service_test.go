@@ -127,7 +127,7 @@ func TestDescribeNormalizesGoProviderFacts(t *testing.T) {
 				Name: "fmt",
 				Path: "main.go",
 				Attributes: map[string]string{
-					"kind":        "GO_NODE_KIND_IMPORT_SPEC",
+					"kind":        "go_import_spec",
 					"import_path": `"fmt"`,
 					"start_line":  "3",
 				},
@@ -137,7 +137,7 @@ func TestDescribeNormalizesGoProviderFacts(t *testing.T) {
 				Name: "fmt.Println",
 				Path: "main.go",
 				Attributes: map[string]string{
-					"kind":   "GO_NODE_KIND_CALL",
+					"kind":   "go_call",
 					"callee": "fmt.Println",
 				},
 			},
@@ -207,6 +207,35 @@ func TestDescribeNormalizesTypeScriptProviderFacts(t *testing.T) {
 	if got := report.GetFacts()[0].GetAttributes()["enclosing_declaration"]; got != "UsageCard" {
 		t.Fatalf("enclosing_declaration = %q, want UsageCard", got)
 	}
+}
+
+func TestProtoAdoptionRecognizesGeneratedProtoTypeScriptAlias(t *testing.T) {
+	repo, _ := writeScenarioFixture(t, "proto-health")
+	provider := fakeProvider{
+		language: "typescript",
+		analyzer: "typescript-code-graph",
+		result: &GraphResult{Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+			{
+				Id:   "ts_import_binding:src/api/health.ts:1:1:ResponseSchema",
+				Name: "ResponseSchema",
+				Path: "src/api/health.ts",
+				Attributes: map[string]string{
+					"kind":          "ts_import_binding",
+					"source_module": "@vrooli/proto-types/proto-health/v1/health/health_pb",
+					"import_kind":   "named",
+				},
+			},
+		}}},
+	}
+
+	report, err := NewService(WithBroker(NewBroker(provider))).ProtoAdoption(context.Background(), &factsv1.CheckProtoAdoptionRequest{
+		Target:   &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_SCENARIO, Scenario: "proto-health", RepoRoot: repo},
+		Surfaces: []string{"ui"},
+	})
+	if err != nil {
+		t.Fatalf("ProtoAdoption() error = %v", err)
+	}
+	requireProofFact(t, report.GetFacts(), "ui", factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN)
 }
 
 func TestDescribeProviderUnavailableIsTypedWarning(t *testing.T) {
