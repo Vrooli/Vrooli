@@ -13,12 +13,6 @@
       "operational_targets_pct": 0
     }
   },
-  "allowed_skills": [
-    "ux",
-    "refactor",
-    "screaming-architecture-audit",
-    "polish"
-  ],
   "budget": {
     "max_iterations": 40,
     "diminishing_returns_floor": 0.02,

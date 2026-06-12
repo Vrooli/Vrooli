@@ -18,8 +18,8 @@ var validMaxOpenSeverity = map[string]struct{}{
 }
 
 // ValidateProfile validates an objective-function profile in place (normalizing
-// the allowed-skill list). The phase-list schema is gone; a profile is now an
-// objective + allow-set + budget.
+// local restriction masks). Catalog-aware mask reconciliation lives in
+// ReconcileProfile.
 func ValidateProfile(profile *AutoSteerProfile) error {
 	if profile == nil {
 		return fmt.Errorf("profile is required")
@@ -28,24 +28,16 @@ func ValidateProfile(profile *AutoSteerProfile) error {
 		return fmt.Errorf("profile name is required")
 	}
 
-	// Allowed-skill set: at least one, no empties.
-	if len(profile.AllowedSkills) == 0 {
-		return fmt.Errorf("profile must allow at least one skill")
+	normalizedAllowed, err := normalizeSkillIDsStrict(profile.AllowedSkills, "allowed_skills")
+	if err != nil {
+		return err
 	}
-	normalized := make([]string, 0, len(profile.AllowedSkills))
-	seen := make(map[string]struct{}, len(profile.AllowedSkills))
-	for _, raw := range profile.AllowedSkills {
-		id := strings.TrimSpace(raw)
-		if id == "" {
-			return fmt.Errorf("allowed_skills contains an empty skill id")
-		}
-		if _, dup := seen[id]; dup {
-			continue
-		}
-		seen[id] = struct{}{}
-		normalized = append(normalized, id)
+	profile.AllowedSkills = normalizedAllowed
+	normalizedDenied, err := normalizeSkillIDsStrict(profile.DeniedSkills, "denied_skills")
+	if err != nil {
+		return err
 	}
-	profile.AllowedSkills = normalized
+	profile.DeniedSkills = normalizedDenied
 
 	// Dimension weights must reference the canonical vocabulary and be non-negative.
 	for dim, weight := range profile.Objective.DimensionWeights {
@@ -93,6 +85,9 @@ func ValidateProfile(profile *AutoSteerProfile) error {
 		if l.StructureMaxCount < 0 {
 			return fmt.Errorf("ladder.structure_max_count must be non-negative")
 		}
+	}
+	if len(profile.Objective.DimensionWeights) == 0 && !profile.ladderEnabled() {
+		return fmt.Errorf("profile must declare at least one objective.dimension_weights entry or enable ladder")
 	}
 
 	// Baseline Modes promote block (optional). Normalizes the mode in place so an

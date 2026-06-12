@@ -19,18 +19,6 @@
       "operational_targets_pct": 100
     }
   },
-  "allowed_skills": [
-    "progress",
-    "ux",
-    "refactor",
-    "test",
-    "security",
-    "performance",
-    "polish",
-    "documentation-health",
-    "screaming-architecture-audit",
-    "measures-adoption"
-  ],
   "budget": {
     "max_iterations": 60,
     "diminishing_returns_floor": 0.01,

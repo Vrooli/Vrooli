@@ -46,6 +46,12 @@ type HistoryServiceAPI interface {
 	GetProfileAnalytics(profileID string) (*ProfileAnalytics, error)
 }
 
+// CoverageReporterAPI defines the coverage doctor/preflight report builder used
+// by HTTP handlers.
+type CoverageReporterAPI interface {
+	Report(profileID, scenario string) (CoverageReport, error)
+}
+
 // writeError writes a structured JSON error response
 func writeError(w http.ResponseWriter, statusCode int, message string) {
 	w.Header().Set("Content-Type", "application/json")
@@ -73,6 +79,17 @@ type AutoSteerHandlers struct {
 	profileService  ProfileServiceAPI
 	executionEngine ExecutionEngineAPI
 	historyService  HistoryServiceAPI
+	coverage        CoverageReporterAPI
+}
+
+// AutoSteerHandlerOption configures optional handler surfaces.
+type AutoSteerHandlerOption func(*AutoSteerHandlers)
+
+// WithCoverageReporter wires the coverage doctor/preflight endpoint.
+func WithCoverageReporter(reporter CoverageReporterAPI) AutoSteerHandlerOption {
+	return func(h *AutoSteerHandlers) {
+		h.coverage = reporter
+	}
 }
 
 // NewAutoSteerHandlers creates new Auto Steer handlers
@@ -80,12 +97,19 @@ func NewAutoSteerHandlers(
 	profileService ProfileServiceAPI,
 	executionEngine ExecutionEngineAPI,
 	historyService HistoryServiceAPI,
+	opts ...AutoSteerHandlerOption,
 ) *AutoSteerHandlers {
-	return &AutoSteerHandlers{
+	h := &AutoSteerHandlers{
 		profileService:  profileService,
 		executionEngine: executionEngine,
 		historyService:  historyService,
 	}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(h)
+		}
+	}
+	return h
 }
 
 // CreateProfile handles POST /api/auto-steer/profiles
@@ -203,6 +227,26 @@ func (h *AutoSteerHandlers) GetDimensions(w http.ResponseWriter, _ *http.Request
 		"dimensions": out,
 		"count":      len(out),
 	})
+}
+
+// GetCoverage handles GET /api/auto-steer/coverage?profile=<id>. It surfaces
+// profile/catalog eligibility before an auto-steer run is launched.
+func (h *AutoSteerHandlers) GetCoverage(w http.ResponseWriter, r *http.Request) {
+	if h.coverage == nil {
+		writeError(w, http.StatusServiceUnavailable, "coverage reporter is not configured")
+		return
+	}
+	profileID := r.URL.Query().Get("profile")
+	if profileID == "" {
+		writeError(w, http.StatusBadRequest, "profile query parameter is required")
+		return
+	}
+	report, err := h.coverage.Report(profileID, r.URL.Query().Get("scenario"))
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "Failed to build coverage report: "+err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, report)
 }
 
 // StartExecution handles POST /api/auto-steer/execution/start

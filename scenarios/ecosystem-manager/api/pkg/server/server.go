@@ -338,6 +338,15 @@ func (a *Application) initializeComponents() error {
 
 	// Initialize unified steering registry
 	promptEnhancer := autosteer.NewPromptEnhancer()
+	coveragePolicy, err := autosteer.LoadCoveragePolicy(filepath.Join(profilesDir, "coverage-policy.json"))
+	if err != nil {
+		return fmt.Errorf("auto steer coverage policy unavailable: %w", err)
+	}
+	coverageReporter := autosteer.NewCoverageReporter(
+		a.autoSteerProfileService,
+		autosteer.NewPromptLoaderCatalog(promptEnhancer.GetPromptLoader()),
+		coveragePolicy,
+	)
 	queueStateRepo := steering.NewSQLiteQueueStateRepository(a.db)
 	steeringRegistry := steering.NewRegistry(map[steering.SteeringStrategy]steering.SteeringProvider{
 		steering.StrategyProfile: steering.NewProfileProvider(autoSteerIntegration),
@@ -371,7 +380,12 @@ func (a *Application) initializeComponents() error {
 	a.insightHandlers = handlers.NewInsightHandlers(a.processor, filepath.Dir(a.scenarioRoot))
 	a.visitedTrackerHandlers = handlers.NewVisitedTrackerHandlers(a.projectRoot)
 	a.importanceHandlers = handlers.NewImportanceHandlers(importanceService)
-	a.autoSteerHandlers = autosteer.NewAutoSteerHandlers(a.autoSteerProfileService, a.autoSteerExecutionEngine, a.autoSteerHistoryService)
+	a.autoSteerHandlers = autosteer.NewAutoSteerHandlers(
+		a.autoSteerProfileService,
+		a.autoSteerExecutionEngine,
+		a.autoSteerHistoryService,
+		autosteer.WithCoverageReporter(coverageReporter),
+	)
 	a.skillsSyncHandlers = handlers.NewSkillsSyncHandlers(promptEnhancer.GetPromptLoader())
 	log.Println("✅ HTTP handlers initialized")
 
@@ -535,6 +549,7 @@ func (a *Application) registerInsightRoutes(api *mux.Router) {
 func (a *Application) registerAutoSteerRoutes(api *mux.Router) {
 	api.HandleFunc("/auto-steer/profiles", a.autoSteerHandlers.CreateProfile).Methods("POST")
 	api.HandleFunc("/auto-steer/profiles", a.autoSteerHandlers.ListProfiles).Methods("GET")
+	api.HandleFunc("/auto-steer/coverage", a.autoSteerHandlers.GetCoverage).Methods("GET")
 	api.HandleFunc("/auto-steer/profiles/{id}", a.autoSteerHandlers.GetProfile).Methods("GET")
 	api.HandleFunc("/auto-steer/profiles/{id}", a.autoSteerHandlers.UpdateProfile).Methods("PUT")
 	api.HandleFunc("/auto-steer/profiles/{id}", a.autoSteerHandlers.DeleteProfile).Methods("DELETE")

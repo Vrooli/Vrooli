@@ -496,6 +496,7 @@ func cloneProfile(profile *AutoSteerProfile) *AutoSteerProfile {
 	clone := *profile
 	clone.Tags = append([]string(nil), profile.Tags...)
 	clone.AllowedSkills = append([]string(nil), profile.AllowedSkills...)
+	clone.DeniedSkills = append([]string(nil), profile.DeniedSkills...)
 	if profile.Objective.DimensionWeights != nil {
 		weights := make(map[string]float64, len(profile.Objective.DimensionWeights))
 		for k, v := range profile.Objective.DimensionWeights {

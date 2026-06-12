@@ -19,17 +19,6 @@
       "operational_targets_pct": 90
     }
   },
-  "allowed_skills": [
-    "progress",
-    "ux",
-    "refactor",
-    "test",
-    "security",
-    "performance",
-    "polish",
-    "documentation-health",
-    "measures-adoption"
-  ],
   "budget": {
     "max_iterations": 40,
     "diminishing_returns_floor": 0.02,

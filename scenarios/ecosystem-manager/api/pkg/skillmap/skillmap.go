@@ -143,6 +143,16 @@ func (r *Resolver) DimensionsForSkill(skillID string) []dimensions.Dimension {
 	return append([]dimensions.Dimension(nil), r.dimsBySkill[skillID]...)
 }
 
+// AllSkills returns every selectable skill ID in deterministic order.
+func (r *Resolver) AllSkills() []string {
+	out := make([]string, 0, len(r.dimsBySkill))
+	for id := range r.dimsBySkill {
+		out = append(out, id)
+	}
+	sort.Strings(out)
+	return out
+}
+
 // Excluded returns the skill IDs dropped for declaring no valid dimension.
 func (r *Resolver) Excluded() []string {
 	return append([]string(nil), r.excluded...)

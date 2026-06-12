@@ -16,11 +16,9 @@ import (
 // SkillResolver is the subset of skillmap.Resolver the selector needs. It is an
 // interface so selection can be unit-tested without a full catalog.
 //
-// seam: SkillResolver maps a dimension to the skills (intersected with the
-// profile allow-set) that can close it.
-type SkillResolver interface {
-	EligibleSkills(dim dimensions.Dimension, allow []string) []string
-}
+// seam: SkillResolver maps profile-valued dimensions to the effective allow-set,
+// then resolves skills that can close a concrete dimension.
+type SkillResolver = SkillCatalogResolver
 
 var _ SkillResolver = (*skillmap.Resolver)(nil)
 
@@ -257,10 +255,7 @@ func (s *Selector) SelectNextSkill(state findings.FindingsState, profile *AutoSt
 	// ranked dimensions toward the lowest unsatisfied rung. No-op without a ladder.
 	ranked, currentRung := s.applyRung(ranked, state, profile)
 
-	var allow []string
-	if profile != nil {
-		allow = profile.AllowedSkills
-	}
+	allow := effectiveAllow(profile, s.resolver)
 
 	skipped := make([]string, 0)
 	for _, wd := range ranked {
@@ -295,6 +290,9 @@ func (s *Selector) SelectNextSkill(state findings.FindingsState, profile *AutoSt
 		}
 		if len(skipped) > 0 {
 			rationale += fmt.Sprintf(" (skipped %v — no eligible skill in allow-set)", skipped)
+		}
+		if profile != nil && (len(profile.AllowedSkills) > 0 || len(profile.DeniedSkills) > 0) {
+			rationale += fmt.Sprintf(" (effective allow-set size %d after profile restrictions)", len(allow))
 		}
 		return Selection{
 			SkillID:            chosen,

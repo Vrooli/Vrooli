@@ -29,6 +29,7 @@ type Profile struct {
 	Description   string   `json:"description,omitempty"`
 	Tags          []string `json:"tags,omitempty"`
 	AllowedSkills []string `json:"allowed_skills,omitempty"`
+	DeniedSkills  []string `json:"denied_skills,omitempty"`
 	AuditPreset   string   `json:"audit_preset,omitempty"`
 	Objective     struct {
 		DimensionWeights map[string]float64 `json:"dimension_weights,omitempty"`
@@ -127,6 +128,34 @@ type TraceEntry struct {
 	DTVDegraded     bool              `json:"dtv_degraded"`
 }
 
+// CoverageReport is the auto-steer coverage doctor/preflight response.
+type CoverageReport struct {
+	ProfileID              string                 `json:"profile_id"`
+	ProfileName            string                 `json:"profile_name"`
+	Scenario               string                 `json:"scenario,omitempty"`
+	EffectiveAllowSet      []string               `json:"effective_allow_set"`
+	RelevantDimensions     []string               `json:"relevant_dimensions"`
+	GatedUncovered         []CoverageDimensionGap `json:"gated_uncovered"`
+	WeightedUnactionable   []CoverageDimensionGap `json:"weighted_unactionable"`
+	ExcludedSkills         []string               `json:"excluded_skills"`
+	KnownUncoveredInPlay   []CoverageKnownEntry   `json:"known_uncovered_in_play"`
+	ReconciliationWarnings []string               `json:"reconciliation_warnings,omitempty"`
+}
+
+// CoverageDimensionGap describes a dimension that has no eligible skill.
+type CoverageDimensionGap struct {
+	Dimension   string `json:"dimension"`
+	Reason      string `json:"reason,omitempty"`
+	TrackingRef string `json:"tracking_ref,omitempty"`
+}
+
+// CoverageKnownEntry is a known-uncovered policy entry in play for this report.
+type CoverageKnownEntry struct {
+	Dimension   string `json:"dimension"`
+	Reason      string `json:"reason"`
+	TrackingRef string `json:"tracking_ref"`
+}
+
 // Commands returns the steer command group.
 func Commands(ctx appctx.Context) cliapp.CommandGroup {
 	return cliapp.CommandGroup{
@@ -138,6 +167,14 @@ func Commands(ctx appctx.Context) cliapp.CommandGroup {
 				Description: "Manage auto-steer profiles (profiles|templates|show|effectiveness|trace)",
 				Run: func(args []string) error {
 					return route(ctx, args)
+				},
+			},
+			{
+				Name:        "coverage",
+				NeedsAPI:    true,
+				Description: "Run auto-steer profile coverage preflight",
+				Run: func(args []string) error {
+					return cmdCoverage(ctx, args)
 				},
 			},
 		},
@@ -190,7 +227,37 @@ Examples:
   ecosystem-manager steer templates --json
   ecosystem-manager steer show balanced
   ecosystem-manager steer effectiveness --dimension standards
-  ecosystem-manager steer trace <task-id>`
+  ecosystem-manager steer trace <task-id>
+  ecosystem-manager coverage --profile production-ready`
+}
+
+func cmdCoverage(ctx appctx.Context, args []string) error {
+	fs := flag.NewFlagSet("coverage", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	profileID := fs.String("profile", "", "Profile ID to inspect")
+	scenario := fs.String("scenario", "", "Optional scenario name for launch context")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if *profileID == "" && fs.NArg() > 0 {
+		*profileID = fs.Arg(0)
+	}
+	if *profileID == "" {
+		return fmt.Errorf("usage: ecosystem-manager coverage --profile <profile-id>")
+	}
+
+	query := url.Values{"profile": []string{*profileID}}
+	if *scenario != "" {
+		query.Set("scenario", *scenario)
+	}
+	var report CoverageReport
+	if err := ctx.GetWithQuery("/auto-steer/coverage", query, &report); err != nil {
+		return format.WrapAPIError("Failed to build coverage report", err)
+	}
+	if *jsonOut {
+		return cliapp.PrintReportJSON(os.Stdout, report)
+	}
+	return renderCoverageReport(report)
 }
 
 func cmdProfiles(ctx appctx.Context, args []string) error {
@@ -223,8 +290,12 @@ func cmdProfiles(ctx appctx.Context, args []string) error {
 		if p.Description != "" {
 			desc = fmt.Sprintf(" - %s", p.Description)
 		}
-		results = append(results, fmt.Sprintf("%s (%d skills, max %d iters)%s [%s]",
-			p.Name, len(p.AllowedSkills), p.Budget.MaxIterations, desc, p.ID))
+		skills := "derived skills"
+		if len(p.AllowedSkills) > 0 {
+			skills = fmt.Sprintf("%d-skill mask", len(p.AllowedSkills))
+		}
+		results = append(results, fmt.Sprintf("%s (%s, max %d iters)%s [%s]",
+			p.Name, skills, p.Budget.MaxIterations, desc, p.ID))
 	}
 	return cliapp.RenderListReport(os.Stdout, cliapp.ListReport{
 		Summary:        []string{fmt.Sprintf("Auto-steer profiles available: %d", resp.Count)},
@@ -301,7 +372,12 @@ func cmdShow(ctx appctx.Context, args []string) error {
 	}
 	results := []string{}
 	if len(profile.AllowedSkills) > 0 {
-		results = append(results, fmt.Sprintf("Allowed skills: %v", profile.AllowedSkills))
+		results = append(results, fmt.Sprintf("Allowed skill mask: %v", profile.AllowedSkills))
+	} else {
+		results = append(results, "Allowed skill mask: <derived from dimensions>")
+	}
+	if len(profile.DeniedSkills) > 0 {
+		results = append(results, fmt.Sprintf("Denied skills: %v", profile.DeniedSkills))
 	}
 	if len(profile.Objective.DimensionWeights) > 0 {
 		results = append(results, fmt.Sprintf("Dimension weights: %v", profile.Objective.DimensionWeights))
@@ -486,6 +562,94 @@ func dtvTraceClause(e TraceEntry) string {
 		clause += " [DTV degraded → P1]"
 	}
 	return clause
+}
+
+func renderCoverageReport(report CoverageReport) error {
+	status := []string{
+		fmt.Sprintf("Profile: %s [%s]", report.ProfileName, report.ProfileID),
+		fmt.Sprintf("Effective allow-set: %d skill(s)", len(report.EffectiveAllowSet)),
+		fmt.Sprintf("Relevant dimensions: %d", len(report.RelevantDimensions)),
+	}
+	if report.Scenario != "" {
+		status = append(status, fmt.Sprintf("Scenario: %s", report.Scenario))
+	}
+	if len(report.GatedUncovered) == 0 && len(report.WeightedUnactionable) == 0 && len(report.ReconciliationWarnings) == 0 {
+		status = append(status, "Coverage preflight: no untracked gaps")
+	}
+
+	triage := []cliapp.TriageGroup{
+		{Heading: "Effective Skills", Items: compactList(report.EffectiveAllowSet, "none")},
+		{Heading: "Relevant Dimensions", Items: compactList(report.RelevantDimensions, "none")},
+	}
+	if len(report.GatedUncovered) > 0 {
+		triage = append(triage, cliapp.TriageGroup{
+			Heading: "Gated Dimensions Without Eligible Skills",
+			Items:   gapLines(report.GatedUncovered),
+		})
+	}
+	if len(report.WeightedUnactionable) > 0 {
+		triage = append(triage, cliapp.TriageGroup{
+			Heading: "Weighted Dimensions Without Eligible Skills",
+			Items:   gapLines(report.WeightedUnactionable),
+		})
+	}
+	if len(report.ExcludedSkills) > 0 {
+		triage = append(triage, cliapp.TriageGroup{
+			Heading: "Catalog Skills Excluded By Vocabulary",
+			Items:   compactList(report.ExcludedSkills, "none"),
+		})
+	}
+	if len(report.KnownUncoveredInPlay) > 0 {
+		triage = append(triage, cliapp.TriageGroup{
+			Heading: "Known Uncovered Entries",
+			Items:   knownEntryLines(report.KnownUncoveredInPlay),
+		})
+	}
+	if len(report.ReconciliationWarnings) > 0 {
+		triage = append(triage, cliapp.TriageGroup{
+			Heading: "Profile Reconciliation",
+			Items:   report.ReconciliationWarnings,
+		})
+	}
+
+	return cliapp.RenderOperationalReport(os.Stdout, cliapp.OperationalReport{
+		Status: status,
+		Triage: triage,
+		NextSteps: []string{
+			fmt.Sprintf("ecosystem-manager coverage --profile %s --json", report.ProfileID),
+			"ecosystem-manager steer show " + report.ProfileID,
+		},
+	})
+}
+
+func compactList(values []string, empty string) []string {
+	if len(values) == 0 {
+		return []string{empty}
+	}
+	return []string{strings.Join(values, ", ")}
+}
+
+func gapLines(gaps []CoverageDimensionGap) []string {
+	lines := make([]string, 0, len(gaps))
+	for _, gap := range gaps {
+		line := gap.Dimension
+		if gap.TrackingRef != "" {
+			line += fmt.Sprintf(" — known uncovered (%s)", gap.TrackingRef)
+		}
+		if gap.Reason != "" {
+			line += ": " + gap.Reason
+		}
+		lines = append(lines, line)
+	}
+	return lines
+}
+
+func knownEntryLines(entries []CoverageKnownEntry) []string {
+	lines := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		lines = append(lines, fmt.Sprintf("%s — %s: %s", entry.Dimension, entry.TrackingRef, entry.Reason))
+	}
+	return lines
 }
 
 func sumCounts(m map[string]int) int {

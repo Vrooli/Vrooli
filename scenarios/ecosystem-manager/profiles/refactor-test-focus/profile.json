@@ -14,12 +14,6 @@
       "operational_targets_pct": 0
     }
   },
-  "allowed_skills": [
-    "refactor",
-    "test",
-    "screaming-architecture-audit",
-    "documentation-health"
-  ],
   "budget": {
     "max_iterations": 40,
     "diminishing_returns_floor": 0.02,

@@ -39,8 +39,12 @@ func TestValidateProfile_Invalid(t *testing.T) {
 		mutate func(*AutoSteerProfile)
 	}{
 		{"nil name", func(p *AutoSteerProfile) { p.Name = "" }},
-		{"no allowed skills", func(p *AutoSteerProfile) { p.AllowedSkills = nil }},
 		{"empty allowed skill", func(p *AutoSteerProfile) { p.AllowedSkills = []string{"  "} }},
+		{"empty denied skill", func(p *AutoSteerProfile) { p.DeniedSkills = []string{"  "} }},
+		{"values nothing", func(p *AutoSteerProfile) {
+			p.Objective.DimensionWeights = nil
+			p.Ladder = nil
+		}},
 		{"unknown dimension weight", func(p *AutoSteerProfile) {
 			p.Objective.DimensionWeights = map[string]float64{"not-a-dimension": 1.0}
 		}},
@@ -70,6 +74,14 @@ func TestValidateProfile_Invalid(t *testing.T) {
 				t.Fatalf("expected validation error for %s", tc.name)
 			}
 		})
+	}
+}
+
+func TestValidateProfile_EmptyAllowedSkillsDerives(t *testing.T) {
+	p := validObjectiveProfile()
+	p.AllowedSkills = nil
+	if err := ValidateProfile(p); err != nil {
+		t.Fatalf("empty allowed_skills should derive from catalog later: %v", err)
 	}
 }
 

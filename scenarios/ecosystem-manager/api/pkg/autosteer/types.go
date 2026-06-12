@@ -355,12 +355,16 @@ func (p *AutoSteerProfile) BaselinePromoteCadence() int {
 // run. (The type name is retained across the API/CLI/UI surfaces; its shape is
 // the greenfield objective model.)
 type AutoSteerProfile struct {
-	ID            string    `json:"id"`
-	Name          string    `json:"name"`
-	Description   string    `json:"description"`
-	Objective     Objective `json:"objective"`
-	AllowedSkills []string  `json:"allowed_skills"`
-	Budget        Budget    `json:"budget"`
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	Objective   Objective `json:"objective"`
+	// AllowedSkills is an optional restriction mask over catalog-derived
+	// eligibility. Empty means "derive from objective dimensions and ladder."
+	AllowedSkills []string `json:"allowed_skills,omitempty"`
+	// DeniedSkills subtracts specific catalog-derived skills from eligibility.
+	DeniedSkills []string `json:"denied_skills,omitempty"`
+	Budget       Budget   `json:"budget"`
 	// DTV is the optional development-toolchain-validator objective-block (P2).
 	DTV *DTVObjective `json:"dtv,omitempty"`
 	// Ladder is the optional maturity-ladder objective-block. When enabled the

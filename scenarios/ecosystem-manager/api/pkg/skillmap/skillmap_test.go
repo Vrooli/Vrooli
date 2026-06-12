@@ -105,3 +105,15 @@ func TestDeduplicatesDeclaredDimensions(t *testing.T) {
 		t.Errorf("dims = %v, want [tests coverage]", dims)
 	}
 }
+
+func TestAllSkillsSortedExcludesInvalid(t *testing.T) {
+	src := &FakeCatalog{Declarations: []SkillDeclaration{
+		{ID: "zeta", Dimensions: []string{"tests"}},
+		{ID: "empty", Dimensions: nil},
+		{ID: "alpha", Dimensions: []string{"standards"}},
+	}}
+	r := newSilentResolver(src)
+	if got := r.AllSkills(); !reflect.DeepEqual(got, []string{"alpha", "zeta"}) {
+		t.Errorf("AllSkills = %v, want [alpha zeta]", got)
+	}
+}

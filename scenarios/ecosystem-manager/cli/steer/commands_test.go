@@ -1,6 +1,9 @@
 package steer
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func TestBuildQuery(t *testing.T) {
 	tests := []struct {
@@ -33,5 +36,26 @@ func TestOrNone(t *testing.T) {
 	}
 	if orNone("refactor") != "refactor" {
 		t.Fatal("non-empty should pass through")
+	}
+}
+
+func TestGapLinesIncludesKnownUncoveredTracking(t *testing.T) {
+	got := gapLines([]CoverageDimensionGap{{
+		Dimension:   "dependencies",
+		Reason:      "no skill exists yet",
+		TrackingRef: "knw-test",
+	}})
+	want := []string{"dependencies — known uncovered (knw-test): no skill exists yet"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("gapLines = %v, want %v", got, want)
+	}
+}
+
+func TestCompactList(t *testing.T) {
+	if got := compactList(nil, "none"); !reflect.DeepEqual(got, []string{"none"}) {
+		t.Fatalf("compactList empty = %v", got)
+	}
+	if got := compactList([]string{"a", "b"}, "none"); !reflect.DeepEqual(got, []string{"a, b"}) {
+		t.Fatalf("compactList values = %v", got)
 	}
 }

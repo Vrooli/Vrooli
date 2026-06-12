@@ -8,8 +8,11 @@ func validBaselineProfile() *AutoSteerProfile {
 	return &AutoSteerProfile{
 		Name:          "p",
 		AllowedSkills: []string{"progress"},
-		Objective:     Objective{Targets: ObjectiveTargets{MaxOpenSeverity: "warning"}},
-		Budget:        Budget{MaxIterations: 5},
+		Objective: Objective{
+			DimensionWeights: map[string]float64{"operational-targets": 1},
+			Targets:          ObjectiveTargets{MaxOpenSeverity: "warning"},
+		},
+		Budget: Budget{MaxIterations: 5},
 	}
 }
 

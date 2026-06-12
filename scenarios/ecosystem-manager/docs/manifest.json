@@ -891,6 +891,27 @@
           }
         },
         {
+          "path": "../profiles/coverage-policy.json",
+          "docType": "profile-coverage-policy",
+          "title": "Profile Coverage Policy",
+          "description": "Known uncovered dimensions that are intentionally tracked while skill coverage is incomplete",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "profile-coverage-policy",
+            "known-uncovered-dimensions"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "required",
+          "validation": {}
+        },
+        {
           "path": "reference/ui-manifest.md",
           "docType": "ui-manifest-reference",
           "title": "UI Manifest",

@@ -93,6 +93,67 @@ func (s *stubHistoryService) GetProfileAnalytics(profileID string) (*ProfileAnal
 	return nil, nil
 }
 
+type stubCoverageReporter struct {
+	report CoverageReport
+	err    error
+}
+
+func (s stubCoverageReporter) Report(profileID, scenario string) (CoverageReport, error) {
+	if s.err != nil {
+		return CoverageReport{}, s.err
+	}
+	s.report.ProfileID = profileID
+	s.report.Scenario = scenario
+	return s.report, nil
+}
+
+func TestGetCoverage_ReturnsReport(t *testing.T) {
+	handlers := NewAutoSteerHandlers(
+		&stubProfileService{},
+		&stubExecutionEngine{},
+		&stubHistoryService{},
+		WithCoverageReporter(stubCoverageReporter{report: CoverageReport{
+			ProfileName:       "Production Ready",
+			EffectiveAllowSet: []string{"lint-fix"},
+		}}),
+	)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/auto-steer/coverage?profile=production-ready&scenario=demo", nil)
+	w := httptest.NewRecorder()
+	handlers.GetCoverage(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d (%s)", w.Code, w.Body.String())
+	}
+	var resp CoverageReport
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp.ProfileID != "production-ready" || resp.Scenario != "demo" {
+		t.Fatalf("unexpected report identity: %+v", resp)
+	}
+	if len(resp.EffectiveAllowSet) != 1 || resp.EffectiveAllowSet[0] != "lint-fix" {
+		t.Fatalf("unexpected allow set: %+v", resp.EffectiveAllowSet)
+	}
+}
+
+func TestGetCoverage_RequiresProfile(t *testing.T) {
+	handlers := NewAutoSteerHandlers(
+		&stubProfileService{},
+		&stubExecutionEngine{},
+		&stubHistoryService{},
+		WithCoverageReporter(stubCoverageReporter{}),
+	)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/auto-steer/coverage", nil)
+	w := httptest.NewRecorder()
+	handlers.GetCoverage(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", w.Code)
+	}
+}
+
 func TestGetEffectiveness_ReturnsLedgerWithDerivedEfficacy(t *testing.T) {
 	engine := &stubExecutionEngine{effStats: []effectiveness.Stat{
 		{SkillID: "lint-fix", Dimension: "standards", ClosedCount: 20, IntroducedCount: 0, TotalRuns: 5, TotalTokens: 5000},

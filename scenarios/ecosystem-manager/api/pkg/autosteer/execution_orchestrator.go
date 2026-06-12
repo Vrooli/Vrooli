@@ -262,9 +262,10 @@ func (o *ExecutionOrchestrator) fitnessSnapshot(state *ProfileExecutionState, pr
 // fetchFitness pulls fitness for every allowed skill. Each read fails open: a
 // per-skill error yields an UNKNOWN fitness and flips the degraded flag.
 func (o *ExecutionOrchestrator) fetchFitness(ctx context.Context, profile *AutoSteerProfile) (FitnessSnapshot, bool) {
-	fits := make(map[string]dtv.Fitness, len(profile.AllowedSkills))
+	allow := effectiveAllow(profile, o.resolver())
+	fits := make(map[string]dtv.Fitness, len(allow))
 	degraded := false
-	for _, skill := range profile.AllowedSkills {
+	for _, skill := range allow {
 		f, err := o.fitnessProvider.Fitness(ctx, skill)
 		if err != nil {
 			degraded = true
@@ -356,6 +357,13 @@ func (o *ExecutionOrchestrator) StartExecution(taskID, profileID, scenarioName s
 	if err != nil {
 		return nil, fmt.Errorf("failed to get profile: %w", err)
 	}
+	resolver := o.resolver()
+	if err := ReconcileProfile(profile, resolver); err != nil {
+		return nil, fmt.Errorf("profile/catalog mismatch: %w", err)
+	}
+	allowCount, relevantCount, uncovered := coverageSummary(profile, resolver)
+	log.Printf("Auto Steer: coverage preflight for profile %s — effective_allow=%d relevant_dimensions=%d uncovered_dimensions=%v",
+		profileID, allowCount, relevantCount, uncovered)
 
 	fs, err := o.fullAudit(context.Background(), scenarioName, profile)
 	if err != nil {
@@ -395,6 +403,9 @@ func (o *ExecutionOrchestrator) EvaluateStart(taskID, scenarioName string) (proc
 	profile, err := o.profileService.GetProfile(state.ProfileID)
 	if err != nil {
 		return false, "", fmt.Errorf("failed to get profile: %w", err)
+	}
+	if err := ReconcileProfile(profile, o.resolver()); err != nil {
+		return false, "", fmt.Errorf("profile/catalog mismatch: %w", err)
 	}
 
 	// Only objective-met is meaningful before the first run. The Layer-2 thrashing
@@ -539,6 +550,9 @@ func (o *ExecutionOrchestrator) EvaluateIteration(taskID, scenarioName string) (
 	profile, err := o.profileService.GetProfile(state.ProfileID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get profile: %w", err)
+	}
+	if err := ReconcileProfile(profile, o.resolver()); err != nil {
+		return nil, fmt.Errorf("profile/catalog mismatch: %w", err)
 	}
 
 	// MEASURE — re-audit, diff against the prior open set, and merge.
