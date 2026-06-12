@@ -2,13 +2,13 @@ package discovery
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"os"
 	"sort"
 	"strings"
 
 	"github.com/ecosystem-manager/api/pkg/tasks"
+	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
 
 // DiscoverScenarios gets all available scenarios from vrooli CLI
@@ -29,28 +29,24 @@ func discoverScenarios(runner commandRunner) ([]tasks.ScenarioInfo, error) {
 		return scenarios, err
 	}
 
-	var vrooliResponse struct {
-		Scenarios []map[string]any `json:"scenarios"`
-	}
-
-	if err := json.Unmarshal(output, &vrooliResponse); err != nil {
+	var resp cliv1.ScenarioListResponse
+	if err := cliJSONUnmarshal.Unmarshal(output, &resp); err != nil {
 		log.Printf("Error: Failed to parse vrooli scenario list output: %v", err)
 		return scenarios, err
 	}
 
-	for _, vs := range vrooliResponse.Scenarios {
-		scenarioName := getStringField(vs, "name")
-		if scenarioName != "" {
-			scenario := tasks.ScenarioInfo{
-				Name:        scenarioName,
-				Path:        getStringField(vs, "path"),
-				Category:    inferScenarioCategory(scenarioName), // Still infer category from name
-				Description: getStringField(vs, "description"),
-				Version:     getStringField(vs, "version"),
-				Status:      getStringField(vs, "status"),
-			}
-			scenarios = append(scenarios, scenario)
+	for _, vs := range resp.GetScenarios() {
+		if vs.GetName() == "" {
+			continue
 		}
+		scenarios = append(scenarios, tasks.ScenarioInfo{
+			Name:        vs.GetName(),
+			Path:        vs.GetPath(),
+			Category:    inferScenarioCategory(vs.GetName()), // Still infer category from name
+			Description: vs.GetDescription(),
+			Version:     vs.GetVersion(),
+			Status:      vs.GetStatus(),
+		})
 	}
 
 	// Sort scenarios alphabetically by name

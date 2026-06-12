@@ -1,0 +1,556 @@
+syntax = "proto3";
+
+package vrooli.cli.v1;
+
+import "cli/v1/common.proto";
+import "cli/v1/scenario_list.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1";
+
+// =============================================================================
+// VROOLI CLI — scenario runtime/status output contracts
+// =============================================================================
+//
+// @stability experimental
+//
+// Canonical wire shapes for the runtime-facing `vrooli scenario` --json
+// commands: `status` (list + single), `info`, `port`/`ports`, `setup`,
+// the lifecycle batch report (`start`/`stop`/`restart`/`stop-all`), and
+// `validate-env`. Marshaled by the root vrooli CLI with protojson
+// (UseProtoNames=true, EmitUnpopulated=true). Reuses the ScenarioPort message
+// from cli/v1/scenario_list.proto where the runtime port shape matches.
+//
+// Bump @stability to `stable` once consumers are migrated and the golden locks.
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// `scenario status` (list form)
+// -----------------------------------------------------------------------------
+
+// ScenarioStatusListResponse is the envelope of `vrooli scenario status --json`
+// when no single scenario was named (cliout.WriteSuccessFields).
+message ScenarioStatusListResponse {
+  // True when discovery completed; standard CLI success envelope.
+  bool success = 1;
+
+  // Rollup counts over the returned scenarios.
+  ScenarioStatusSummary summary = 2;
+
+  // All scenarios with their runtime status.
+  repeated ScenarioStatusItem scenarios = 3;
+
+  // Scenarios skipped due to discovery errors; omitted (absent) on a clean
+  // sweep in the legacy output — emitted as [] under the typed contract.
+  repeated DiscoveryFailure discovery_failures = 4;
+}
+
+// ScenarioStatusSummary is the count rollup in the `summary` envelope key.
+message ScenarioStatusSummary {
+  // Total scenarios discovered.
+  int32 total_scenarios = 1;
+
+  // How many are currently running.
+  int32 running = 2;
+
+  // How many are not running (total - running).
+  int32 stopped = 3;
+}
+
+// ScenarioStatusItem is one scenario's runtime status row (StatusItemOutput).
+message ScenarioStatusItem {
+  // Scenario slug.
+  string name = 1;
+
+  // Human-readable display name; empty if unset.
+  string display_name = 2;
+
+  // Description from the manifest; empty if unset.
+  string description = 3;
+
+  // Free-form tags; empty list when none declared.
+  repeated string tags = 4;
+
+  // Lifecycle status (e.g. "running", "stopped").
+  string status = 5;
+
+  // Number of live processes for the scenario.
+  int32 processes = 6;
+
+  // Runtime kind label (e.g. "process", "docker"); empty if unknown.
+  string runtime = 7;
+
+  // Start time as RFC3339Nano; empty when not running / unknown.
+  string started_at = 8;
+
+  // Allocated ports keyed by role (e.g. "API_PORT" -> 5329); empty when none.
+  map<string, int32> ports = 9;
+
+  // Detailed runtime port bindings; omitted in legacy output when empty,
+  // emitted as [] under the typed contract.
+  repeated ScenarioPort port_bindings = 10;
+
+  // Health status; arbitrary JSON value (string when set, null when unset).
+  google.protobuf.Value health_status = 11;
+
+  // Health probe error detail; empty on success.
+  string health_error = 12;
+}
+
+// -----------------------------------------------------------------------------
+// `scenario status <name>` (single form) and `scenario info`
+// -----------------------------------------------------------------------------
+
+// ScenarioStatusSingle is the bare payload of `vrooli scenario status <name>
+// --json` (cliout.WriteJSON of StatusSingleOutput, no envelope wrapper key).
+message ScenarioStatusSingle {
+  // Standard success flag carried inside the payload.
+  bool success = 1;
+
+  // Runtime status row for the scenario.
+  ScenarioStatusItem scenario = 2;
+
+  // Static scenario descriptor (manifest-derived).
+  ScenarioInfoData info = 3;
+
+  // Live runtime detail (processes, ports, etc.).
+  ScenarioRuntimeData runtime = 4;
+}
+
+// ScenarioInfoResponse is the bare payload of `vrooli scenario info --json`
+// (cliout.WriteJSON of InfoOutput, no envelope wrapper key).
+message ScenarioInfoResponse {
+  // Standard success flag carried inside the payload.
+  bool success = 1;
+
+  // Static scenario descriptor (manifest-derived).
+  ScenarioInfoData scenario = 2;
+
+  // Live runtime detail.
+  ScenarioRuntimeData runtime = 3;
+}
+
+// ScenarioInfoData is the manifest-derived descriptor (InfoScenarioData).
+message ScenarioInfoData {
+  // Scenario slug.
+  string name = 1;
+
+  // Human-readable display name; empty if unset.
+  string display_name = 2;
+
+  // Description; empty if unset.
+  string description = 3;
+
+  // Version string; empty if unset.
+  string version = 4;
+
+  // Scenario type label; empty if unset.
+  string type = 5;
+
+  // Category label; empty if unset.
+  string category = 6;
+
+  // Free-form tags; empty list when none.
+  repeated string tags = 7;
+
+  // Absolute scenario directory path.
+  string path = 8;
+
+  // Absolute path to the service manifest directory.
+  string service_path = 9;
+
+  // True when the path was redirected by sandbox mode.
+  bool sandbox_redirected = 10;
+
+  // Manifest schema version; empty if unset.
+  string config_version = 11;
+
+  // Lifecycle contract version; empty if unset.
+  string lifecycle_version = 12;
+
+  // Configured ports declared in the manifest.
+  repeated ScenarioInfoPortSummary ports = 13;
+
+  // Lifecycle phase summaries.
+  repeated ScenarioInfoPhaseSummary phases = 14;
+
+  // Generation provenance; absent when the scenario was not template-generated.
+  ScenarioGenerationMetadata generation = 15;
+
+  // True when the scenario has drifted from its source template.
+  bool template_drifted = 16;
+}
+
+// ScenarioInfoPortSummary is one configured port from the manifest (PortSummary).
+message ScenarioInfoPortSummary {
+  // Port role name.
+  string name = 1;
+
+  // Environment variable that carries the allocated port.
+  string env_var = 2;
+
+  // Description; empty if unset.
+  string description = 3;
+
+  // Port range expression (e.g. "5000-5999"); empty when a fixed port is used.
+  string range = 4;
+
+  // Fixed port number; 0 when unset (the source is a *int that is nil when
+  // a range is used instead).
+  int32 fixed_port = 5;
+}
+
+// ScenarioInfoPhaseSummary is one lifecycle phase summary (PhaseSummary).
+message ScenarioInfoPhaseSummary {
+  // Phase name (e.g. "setup", "develop").
+  string name = 1;
+
+  // Phase description; empty if unset.
+  string description = 2;
+
+  // Number of steps defined in the phase.
+  int32 steps = 3;
+
+  // True when the scenario defines this phase.
+  bool defined = 4;
+}
+
+// ScenarioGenerationMetadata captures template/design provenance
+// (GenerationMetadata).
+message ScenarioGenerationMetadata {
+  // Source template reference.
+  ScenarioGenerationTemplate template = 1;
+
+  // Generation timestamp (already a formatted string in the source); empty
+  // if unset.
+  string generated_at = 2;
+
+  // Source design reference.
+  ScenarioGenerationDesign design = 3;
+
+  // SHA of the recorded manifest at generation time; empty if unset.
+  string manifest_sha = 4;
+
+  // SHA of the recorded content at generation time; empty if unset.
+  string content_sha = 5;
+}
+
+// ScenarioGenerationTemplate is a template id/version reference
+// (GenerationTemplate).
+message ScenarioGenerationTemplate {
+  // Template identifier; empty if unset.
+  string id = 1;
+
+  // Template version; empty if unset.
+  string version = 2;
+}
+
+// ScenarioGenerationDesign is a design kit id/version/adapter reference
+// (GenerationDesign).
+message ScenarioGenerationDesign {
+  // Design kit identifier; empty if unset.
+  string id = 1;
+
+  // Design kit version; empty if unset.
+  string version = 2;
+
+  // Design adapter identifier; empty if unset.
+  string adapter = 3;
+}
+
+// ScenarioRuntimeData is live runtime detail (InfoRuntimeData).
+message ScenarioRuntimeData {
+  // Runtime status (e.g. "running", "stopped").
+  string status = 1;
+
+  // Number of live processes.
+  int32 processes = 2;
+
+  // Runtime kind label; empty if unknown.
+  string runtime = 3;
+
+  // Start time as RFC3339Nano; empty when not running / unknown.
+  string started_at = 4;
+
+  // Allocated ports keyed by role; empty when none.
+  map<string, int32> ports = 5;
+
+  // Live process records backing the scenario.
+  repeated ScenarioProcessRecord process_records = 6;
+
+  // Detailed runtime port bindings.
+  repeated ScenarioPort list_ports = 7;
+
+  // Health probe error detail; empty on success.
+  string health_error = 8;
+}
+
+// ScenarioProcessRecord mirrors a tracked OS process record (process.Record).
+message ScenarioProcessRecord {
+  // OS process id.
+  int32 pid = 1;
+
+  // OS process group id; 0 when unset.
+  int32 pgid = 2;
+
+  // Internal process identifier; empty if unset.
+  string process_id = 3;
+
+  // Lifecycle phase that spawned the process; empty if unset.
+  string phase = 4;
+
+  // Owning scenario slug; empty if unset.
+  string scenario = 5;
+
+  // Lifecycle step that spawned the process; empty if unset.
+  string step = 6;
+
+  // Launch command; empty if unset.
+  string command = 7;
+
+  // Working directory; empty if unset.
+  string working_dir = 8;
+
+  // Log file path; empty if unset.
+  string log_file = 9;
+
+  // Bound port; 0 when the process has no port.
+  int32 port = 10;
+
+  // Process start time as RFC3339Nano; empty when zero.
+  string started_at = 11;
+
+  // Process status; empty if unset.
+  string status = 12;
+}
+
+// -----------------------------------------------------------------------------
+// `scenario port` / `scenario ports`
+// -----------------------------------------------------------------------------
+
+// ScenarioPortSingle is the bare payload of `vrooli scenario port <name> <port>
+// --json` (cliout.WriteJSON of PortSingleOutput, no envelope wrapper key).
+message ScenarioPortSingle {
+  // True when the port was resolved.
+  bool success = 1;
+
+  // Scenario slug.
+  string scenario = 2;
+
+  // Requested port role name.
+  string port_name = 3;
+
+  // Lifecycle step that owns the port; empty if unset.
+  string step = 4;
+
+  // Resolved port number; 0 when unresolved.
+  int32 port = 5;
+
+  // Error detail; empty on success.
+  string error = 6;
+}
+
+// ScenarioPortList is the bare payload of `vrooli scenario ports <name> --json`
+// (cliout.WriteJSON of PortListOutput, no envelope wrapper key).
+message ScenarioPortList {
+  // True when the ports were resolved.
+  bool success = 1;
+
+  // Scenario slug.
+  string scenario = 2;
+
+  // Resolved port bindings.
+  repeated ScenarioPort ports = 3;
+
+  // Extra port metadata keyed by name; empty when none.
+  map<string, int32> metadata = 4;
+
+  // Error detail; empty on success.
+  string error = 5;
+}
+
+// -----------------------------------------------------------------------------
+// `scenario setup`
+// -----------------------------------------------------------------------------
+
+// ScenarioSetupResponse is the envelope of `vrooli scenario setup --json`
+// (cliout.WriteSuccessFields).
+message ScenarioSetupResponse {
+  // Standard success flag.
+  bool success = 1;
+
+  // Lifecycle phase name; always "setup".
+  string phase = 2;
+
+  // Phase execution status (e.g. "completed", "skipped").
+  string status = 3;
+
+  // True when the scenario defines a setup phase.
+  bool defined = 4;
+
+  // Step execution counts.
+  ScenarioSetupSteps steps = 5;
+}
+
+// ScenarioSetupSteps is the step-count rollup in the `steps` envelope key.
+message ScenarioSetupSteps {
+  // Steps that ran.
+  int32 executed = 1;
+
+  // Steps skipped.
+  int32 skipped = 2;
+}
+
+// -----------------------------------------------------------------------------
+// lifecycle batch report (`scenario stop-all` / multi-scenario start/stop)
+// -----------------------------------------------------------------------------
+
+// ScenarioBatchResponse is the envelope of the lifecycle batch report
+// (cliout.WriteSuccessJSON under the "data" key).
+message ScenarioBatchResponse {
+  // Standard success flag.
+  bool success = 1;
+
+  // Batch result payload.
+  ScenarioBatchData data = 2;
+}
+
+// ScenarioBatchData is the payload under the "data" envelope key. In the legacy
+// output `started`/`stopped` are present only when non-empty; under the typed
+// contract they are always emitted ([] when empty).
+message ScenarioBatchData {
+  // Scenarios that were started/restarted (lifecycle items).
+  repeated ScenarioLifecycleItem started = 1;
+
+  // Slugs of scenarios that were stopped.
+  repeated string stopped = 2;
+
+  // Per-scenario failures.
+  repeated ScenarioBatchFailure failed = 3;
+}
+
+// ScenarioBatchFailure is one failed scenario in a batch operation.
+message ScenarioBatchFailure {
+  // Scenario slug.
+  string name = 1;
+
+  // Failure detail.
+  string error = 2;
+}
+
+// -----------------------------------------------------------------------------
+// lifecycle items (`scenario start`/`stop`/`restart` summary)
+// -----------------------------------------------------------------------------
+
+// ScenarioLifecycleResponse is the envelope of the lifecycle items report
+// (cliout.WriteSuccessJSON under the "scenarios" key).
+message ScenarioLifecycleResponse {
+  // Standard success flag.
+  bool success = 1;
+
+  // Per-scenario lifecycle results.
+  repeated ScenarioLifecycleItem scenarios = 2;
+}
+
+// ScenarioLifecycleItem is one scenario's lifecycle result (LifecycleItemOutput).
+message ScenarioLifecycleItem {
+  // Scenario slug.
+  string name = 1;
+
+  // Lifecycle status (e.g. "started", "restarted", "stopped",
+  // "already_running").
+  string status = 2;
+
+  // Health label (e.g. "healthy"); empty if unset.
+  string health = 3;
+
+  // Allocated ports keyed by role; empty when none.
+  map<string, int32> ports = 4;
+
+  // Reachable endpoints for the scenario; empty when none.
+  repeated ScenarioEndpoint endpoints = 5;
+
+  // Dependency scenarios that failed to come up; empty when none.
+  repeated string failed_dependencies = 6;
+
+  // Resources that failed to come up; empty when none.
+  repeated string failed_resources = 7;
+}
+
+// ScenarioEndpoint is one reachable endpoint for a running scenario
+// (EndpointOutput).
+message ScenarioEndpoint {
+  // Endpoint display name.
+  string name = 1;
+
+  // Endpoint key (e.g. port role name).
+  string key = 2;
+
+  // Description; empty if unset.
+  string description = 3;
+
+  // Bound port number.
+  int32 port = 4;
+
+  // Full URL to reach the endpoint.
+  string url = 5;
+}
+
+// -----------------------------------------------------------------------------
+// `scenario validate-env`
+// -----------------------------------------------------------------------------
+
+// ScenarioEnvValidationResponse is the envelope of `vrooli scenario
+// validate-env --json` (cliout.WriteFieldsWithSuccess; success mirrors
+// report.passed).
+message ScenarioEnvValidationResponse {
+  // True when validation passed (mirrors report.passed).
+  bool success = 1;
+
+  // The validation report under the "report" envelope key.
+  ScenarioEnvValidationReport report = 2;
+}
+
+// ScenarioEnvValidationReport is the env-validation result
+// (resources.ScenarioEnvValidationReport).
+message ScenarioEnvValidationReport {
+  // Scenario slug.
+  string scenario = 1;
+
+  // Resolved environment values keyed by variable name.
+  map<string, string> values = 2;
+
+  // Validation issues (warnings + errors); empty when fully clean.
+  repeated ScenarioValidationIssue issues = 3;
+
+  // Per-resource resolution reports; empty when none.
+  repeated ScenarioResourceReport resource_reports = 4;
+
+  // True when no error-severity issues were found.
+  bool passed = 5;
+}
+
+// ScenarioValidationIssue is one validation finding (resources.ValidationIssue).
+message ScenarioValidationIssue {
+  // Severity (e.g. "warning", "error").
+  string severity = 1;
+
+  // Human-readable issue message.
+  string message = 2;
+}
+
+// ScenarioResourceReport is one resource's env resolution report
+// (resources/env.ResourceReport).
+message ScenarioResourceReport {
+  // Resource slug.
+  string name = 1;
+
+  // Path to the resource manifest; empty if unset.
+  string manifest_path = 2;
+
+  // Resolved values keyed by variable name; empty when none.
+  map<string, string> values = 3;
+
+  // Resolution warnings; empty when none.
+  repeated string warnings = 4;
+}

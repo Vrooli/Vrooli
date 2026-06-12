@@ -1,0 +1,341 @@
+syntax = "proto3";
+
+package vrooli.cli.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1";
+
+// =============================================================================
+// VROOLI CLI — runtime / version output contracts
+// =============================================================================
+//
+// @stability experimental
+//
+// Canonical wire shapes for the cli-runtime domain of the root vrooli CLI:
+//   - `vrooli --version --json`                       -> CliVersion
+//   - `vrooli runtime supervisor status --json`       -> CliSupervisorStatus
+//   - `vrooli runtime supervisor install --json`      -> CliSupervisorServiceResult
+//   - `vrooli runtime supervisor uninstall --json`    -> CliSupervisorServiceResult
+//
+// All sites emit the payload directly (cliout.WriteJSON, no success envelope).
+// Marshaled with protojson (UseProtoNames=true, EmitUnpopulated=true).
+// =============================================================================
+
+// CliVersion is the shape of `vrooli --version --json`. The producer emits this
+// inline versionOutput struct directly (no success envelope).
+message CliVersion {
+  // CLI binary semantic version (e.g. "1.4.2").
+  string cli_version = 1;
+
+  // Platform semantic version (e.g. "1.4.2").
+  string platform_version = 2;
+
+  // Resolved Vrooli source root the CLI is bound to.
+  string root = 3;
+}
+
+// CliSupervisorStatus is the shape of `vrooli runtime supervisor status --json`.
+// It mirrors runtimesupervisor.StatusReport (no success envelope).
+message CliSupervisorStatus {
+  // Supervisor instance identifier; empty when no supervisor has run.
+  string supervisor_id = 1;
+
+  // Lifecycle status string (e.g. "running", "stopped").
+  string status = 2;
+
+  // Human-readable reason for the current status; empty when unset (omitempty).
+  string status_reason = 3;
+
+  // Host boot identifier the supervisor session is bound to.
+  string host_boot_id = 4;
+
+  // Host session identifier the supervisor session is bound to.
+  string host_session_id = 5;
+
+  // Supervisor process PID; 0 when not running / unknown (source *int, omitempty).
+  int32 pid = 6;
+
+  // Last heartbeat timestamp, RFC3339Nano; "" when zero.
+  string last_heartbeat_at = 7;
+
+  // Heartbeat lease deadline timestamp, RFC3339Nano; "" when zero.
+  string heartbeat_deadline_at = 8;
+
+  // Count of running instances under supervision.
+  int32 supervised_instance_count = 9;
+
+  // Count of running instances not yet verified by the supervisor.
+  int32 unverified_instance_count = 10;
+
+  // Effective heartbeat renew interval, in nanoseconds (time.Duration; int64 —
+  // nanosecond durations exceed int32).
+  int64 effective_renew_interval = 11;
+
+  // Effective runtime lease TTL, in nanoseconds (time.Duration; int64).
+  int64 effective_lease_ttl = 12;
+
+  // Effective health refresh interval, in nanoseconds (time.Duration; int64).
+  int64 effective_health_interval = 13;
+
+  // Effective maximum concurrent health probes.
+  int32 effective_max_health_concurrency = 14;
+
+  // Effective lease-renewal batch size.
+  int32 effective_batch_size = 15;
+
+  // Most recent reconcile tick summary; always present (zero-valued if no tick).
+  CliSupervisorTick last_tick = 16;
+}
+
+// CliSupervisorTick is one reconcile-tick summary embedded in
+// CliSupervisorStatus.last_tick (mirrors runtimesupervisor.TickReport).
+message CliSupervisorTick {
+  // Supervisor instance identifier that produced the tick.
+  string supervisor_id = 1;
+
+  // Number of leases renewed on the tick.
+  int32 renewed = 2;
+
+  // Number of leases expired on the tick.
+  int32 expired = 3;
+
+  // Number of instances left unverified after the tick.
+  int32 unverified = 4;
+
+  // Number of health probes issued on the tick.
+  int32 health_probe_count = 5;
+}
+
+// CliSupervisorServiceResult is the shape of `vrooli runtime supervisor install
+// --json` and `... uninstall --json` (both emit runtimesupervisor.
+// ServiceInstallResult directly, no success envelope).
+message CliSupervisorServiceResult {
+  // systemd unit name (e.g. "vrooli-runtime-supervisor.service").
+  string unit_name = 1;
+
+  // Filesystem path of the installed/uninstalled unit file.
+  string unit_path = 2;
+
+  // Service scope (e.g. "user", "system"); empty if unset.
+  string scope = 3;
+
+  // True when the service unit is active after the operation.
+  bool active = 4;
+}
+
+// =============================================================================
+// VROOLI CLI — `host inventory --json` output contract
+// =============================================================================
+//
+// Canonical wire shape of `vrooli host inventory --json`. The command emits the
+// snapshot directly (cliout.WriteJSON, no success envelope). Mirrors
+// hostinventory.Snapshot. All `Cli*` prefixed to stay globally unique within
+// the shared cliv1 package. NOTE: Snapshot.FieldProvenance has NO json tag in
+// Go (default key "FieldProvenance"); the producer maps it to the snake_case
+// field_provenance map below.
+// =============================================================================
+
+// CliHostSnapshot is the shape of `vrooli host inventory --json`
+// (hostinventory.Snapshot).
+message CliHostSnapshot {
+  // Operating system identifier (GOOS).
+  string os = 1;
+
+  // CPU architecture identifier (GOARCH).
+  string arch = 2;
+
+  // CPU summary.
+  CliHostCPU cpu = 3;
+
+  // System load averages and process counts; zero-valued if unavailable.
+  CliHostLoad load = 4;
+
+  // Memory totals.
+  CliHostMemory memory = 5;
+
+  // Swap totals.
+  CliHostSwap swap = 6;
+
+  // Detected GPUs.
+  repeated CliHostGPU gpus = 7;
+
+  // Per-GPU processes; empty if none.
+  repeated CliHostGPUProcess gpu_processes = 8;
+
+  // Runtime tool presence keyed by tool name.
+  map<string, CliHostTool> runtime_tools = 9;
+
+  // Docker GPU configuration.
+  CliHostDockerGPU docker_gpu = 10;
+
+  // Collection warnings; empty if none.
+  repeated string warnings = 11;
+
+  // Per-probe status strings keyed by probe name.
+  map<string, string> probe_statuses = 12;
+
+  // Per-field provenance keyed by field name (Go field "FieldProvenance", no
+  // json tag; normalized to snake_case here).
+  map<string, CliHostProvenance> field_provenance = 13;
+}
+
+// CliHostCPU mirrors hostinventory.CPU.
+message CliHostCPU {
+  // Logical CPU core count.
+  int32 cores = 1;
+}
+
+// CliHostLoad mirrors hostinventory.Load.
+message CliHostLoad {
+  // 1-minute load average.
+  double load1 = 1;
+
+  // 5-minute load average.
+  double load5 = 2;
+
+  // 15-minute load average.
+  double load15 = 3;
+
+  // Currently running processes.
+  int32 running_procs = 4;
+
+  // Total processes.
+  int32 total_procs = 5;
+
+  // Most recently assigned PID.
+  int32 last_pid = 6;
+
+  // 1-minute load normalized by core count.
+  double normalized_load1 = 7;
+
+  // 5-minute load normalized by core count.
+  double normalized_load5 = 8;
+}
+
+// CliHostMemory mirrors hostinventory.Memory. Byte totals are int64: physical
+// memory legitimately exceeds the int32 range.
+message CliHostMemory {
+  // Total physical memory, in bytes.
+  int64 total_bytes = 1;
+
+  // Available memory, in bytes.
+  int64 available_bytes = 2;
+
+  // Buffer memory, in bytes.
+  int64 buffers_bytes = 3;
+
+  // Cached memory, in bytes.
+  int64 cached_bytes = 4;
+}
+
+// CliHostSwap mirrors hostinventory.Swap. Byte totals are int64 (can exceed
+// int32).
+message CliHostSwap {
+  // Total swap, in bytes.
+  int64 total_bytes = 1;
+
+  // Free swap, in bytes.
+  int64 free_bytes = 2;
+}
+
+// CliHostGPU mirrors hostinventory.GPU. Optional Go *float64 fields are emitted
+// as doubles (0 when nil).
+message CliHostGPU {
+  // GPU index.
+  int32 index = 1;
+
+  // GPU UUID; empty if unknown.
+  string uuid = 2;
+
+  // GPU name.
+  string name = 3;
+
+  // Driver version; empty if unknown.
+  string driver_version = 4;
+
+  // Total VRAM, in bytes.
+  int64 vram_bytes = 5;
+
+  // Used VRAM, in bytes.
+  int64 vram_used_bytes = 6;
+
+  // GPU utilization percentage.
+  double utilization_percent = 7;
+
+  // Memory utilization percentage.
+  double memory_utilization_percent = 8;
+
+  // GPU temperature in Celsius; 0 when unavailable (source *float64).
+  double temperature_c = 9;
+
+  // Fan speed percentage; 0 when unavailable (source *float64).
+  double fan_speed_percent = 10;
+
+  // Power draw in watts; 0 when unavailable (source *float64).
+  double power_draw_w = 11;
+
+  // Power limit in watts; 0 when unavailable (source *float64).
+  double power_limit_w = 12;
+
+  // SM clock in MHz; 0 when unavailable (source *float64).
+  double sm_clock_mhz = 13;
+
+  // Memory clock in MHz; 0 when unavailable (source *float64).
+  double memory_clock_mhz = 14;
+
+  // Data source (e.g. "nvidia-smi").
+  string source = 15;
+}
+
+// CliHostGPUProcess mirrors hostinventory.GPUProcess.
+message CliHostGPUProcess {
+  // Index of the GPU the process is using.
+  int32 gpu_index = 1;
+
+  // UUID of the GPU the process is using; empty if unknown.
+  string gpu_uuid = 2;
+
+  // Process PID.
+  int32 pid = 3;
+
+  // Process name.
+  string process_name = 4;
+
+  // GPU memory used by the process, in bytes.
+  int64 used_bytes = 5;
+}
+
+// CliHostDockerGPU mirrors hostinventory.DockerGPU.
+message CliHostDockerGPU {
+  // True when the Docker nvidia runtime is configured.
+  bool nvidia_runtime = 1;
+}
+
+// CliHostTool mirrors hostinventory.Tool.
+message CliHostTool {
+  // True when the tool is present.
+  bool present = 1;
+
+  // Filesystem path of the tool; empty if unknown.
+  string path = 2;
+}
+
+// CliHostProvenance mirrors hostinventory.Provenance.
+message CliHostProvenance {
+  // Source kind (e.g. "command", "file", "runtime", "derived").
+  string source_kind = 1;
+
+  // Source identifier.
+  string source = 2;
+
+  // Observation timestamp, RFC3339Nano; "" when zero.
+  string observed_at = 3;
+
+  // Confidence label.
+  string confidence = 4;
+
+  // Originating command; empty if unset.
+  string command = 5;
+
+  // Originating file; empty if unset.
+  string file = 6;
+}

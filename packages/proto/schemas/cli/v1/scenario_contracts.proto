@@ -1,0 +1,802 @@
+syntax = "proto3";
+
+package vrooli.cli.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1";
+
+// =============================================================================
+// VROOLI CLI — scenario template / design / orientation output contracts
+// =============================================================================
+//
+// @stability experimental
+//
+// Canonical wire shapes for the authoring-facing `vrooli scenario` --json
+// commands: `template list`, `template drift`, `template validate`,
+// `template cleanup`, `design list`/`show`/`validate`, and `orient`.
+// Marshaled by the root vrooli CLI with protojson (UseProtoNames=true,
+// EmitUnpopulated=true).
+//
+// Bump @stability to `stable` once consumers are migrated and the golden locks.
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// `scenario template list`
+// -----------------------------------------------------------------------------
+
+// ScenarioTemplateListResponse is the envelope of `vrooli scenario template
+// list --json` (cliout.WriteSuccessJSON under the "templates" key).
+message ScenarioTemplateListResponse {
+  // Standard success flag.
+  bool success = 1;
+
+  // Discovered scenario templates.
+  repeated ScenarioTemplateInfo templates = 2;
+}
+
+// ScenarioTemplateInfo is one discovered template (TemplateInfo). Note: only
+// the exported JSON-tagged fields of TemplateInfo (Name/Path/Manifest/Missing)
+// are emitted by encoding/json; this contract preserves them.
+message ScenarioTemplateInfo {
+  // Template slug.
+  string name = 1;
+
+  // Absolute path to the template directory.
+  string path = 2;
+
+  // Parsed template manifest.
+  ScenarioTemplateManifest manifest = 3;
+
+  // True when the template.json manifest is missing.
+  bool missing = 4;
+}
+
+// ScenarioTemplateManifest is a template's manifest (TemplateManifest).
+message ScenarioTemplateManifest {
+  // Template name; empty if unset.
+  string name = 1;
+
+  // Template version; empty if unset.
+  string version = 2;
+
+  // Human-readable display name; empty if unset.
+  string display_name = 3;
+
+  // Description; empty if unset.
+  string description = 4;
+
+  // Tech-stack labels; empty when none.
+  repeated string stack = 5;
+
+  // Path to the start document; empty if unset.
+  string start_document = 6;
+
+  // Design defaults for the template.
+  ScenarioTemplateDesign design = 7;
+
+  // Orientation flow definition; absent when the template has no orientation.
+  ScenarioTemplateOrientation orientation = 8;
+
+  // Required generator variables keyed by variable name; empty when none.
+  map<string, ScenarioTemplateVar> required_vars = 9;
+
+  // Optional generator variables keyed by variable name; empty when none.
+  map<string, ScenarioTemplateVar> optional_vars = 10;
+
+  // Doc links keyed by label; empty when none.
+  map<string, string> docs = 11;
+
+  // Copy-exclude globs; empty when none.
+  repeated string copy_excludes = 12;
+
+  // Post-generation hooks; empty when none.
+  repeated ScenarioTemplateHook post_hooks = 13;
+
+  // Out-of-tree relocations; empty when none.
+  repeated ScenarioTemplateRelocation relocations = 14;
+}
+
+// ScenarioTemplateVar is one generator variable declaration (TemplateVar).
+message ScenarioTemplateVar {
+  // CLI flag name (without the leading --); empty if unset.
+  string flag = 1;
+
+  // Description; empty if unset.
+  string description = 2;
+
+  // Default value; empty if unset.
+  string default = 3;
+}
+
+// ScenarioTemplateHook is one generator hook command (TemplateHook).
+message ScenarioTemplateHook {
+  // Description; empty if unset.
+  string description = 1;
+
+  // Command to run; empty if unset.
+  string cmd = 2;
+
+  // Working directory; empty if unset.
+  string cwd = 3;
+}
+
+// ScenarioTemplateDesign is the design defaults block (TemplateDesign).
+message ScenarioTemplateDesign {
+  // Design adapter id; empty if unset.
+  string adapter = 1;
+
+  // Default design kit id; empty if unset.
+  string default = 2;
+
+  // True when a design selection is required.
+  bool required = 3;
+}
+
+// ScenarioTemplateRelocation declares an out-of-tree placement (TemplateRelocation).
+message ScenarioTemplateRelocation {
+  // Description; empty if unset.
+  string description = 1;
+
+  // Template-relative source directory.
+  string from = 2;
+
+  // Repo-root-relative destination (may contain placeholders).
+  string to = 3;
+
+  // Post commands run after the relocation; empty when none.
+  repeated ScenarioTemplateHook post = 4;
+}
+
+// ScenarioTemplateOrientation is the orientation flow definition (TemplateOrientation).
+message ScenarioTemplateOrientation {
+  // Orientation schema version; empty if unset.
+  string version = 1;
+
+  // Destination the orientation tracker is copied to; empty if unset.
+  string copy_to = 2;
+
+  // Start document path; empty if unset.
+  string start_document = 3;
+
+  // Finalization config.
+  ScenarioTemplateOrientationFinalize finalize = 4;
+
+  // Orientation steps; empty when none.
+  repeated ScenarioTemplateOrientationStep steps = 5;
+}
+
+// ScenarioTemplateOrientationFinalize is the finalize block
+// (TemplateOrientationFinalize).
+message ScenarioTemplateOrientationFinalize {
+  // Paths to clean up on finalize; empty when none.
+  repeated string cleanup = 1;
+
+  // Completion message; empty if unset.
+  string message = 2;
+}
+
+// ScenarioTemplateOrientationStep is one orientation step definition
+// (TemplateOrientationStep).
+message ScenarioTemplateOrientationStep {
+  // Step id.
+  string id = 1;
+
+  // Title; empty if unset.
+  string title = 2;
+
+  // Description; empty if unset.
+  string description = 3;
+
+  // Doc links; empty when none.
+  repeated string docs = 4;
+
+  // Whether the step is required; false when the source pointer is nil or
+  // explicitly false (the source is a *bool defaulting to nil).
+  bool required = 5;
+
+  // Checks attached to the step; empty when none.
+  repeated ScenarioTemplateOrientationCheck checks = 6;
+}
+
+// ScenarioTemplateOrientationCheck is one orientation check definition
+// (TemplateOrientationCheck).
+message ScenarioTemplateOrientationCheck {
+  // Check kind.
+  string kind = 1;
+
+  // Path to inspect; empty if unset.
+  string path = 2;
+
+  // Pattern to match; empty if unset.
+  string pattern = 3;
+
+  // Query expression; empty if unset.
+  string query = 4;
+
+  // Text to match; empty if unset.
+  string text = 5;
+
+  // Command to run; empty if unset.
+  string run = 6;
+
+  // Timeout expression; empty if unset.
+  string timeout = 7;
+
+  // True when the check is optional.
+  bool optional = 8;
+}
+
+// -----------------------------------------------------------------------------
+// `scenario template drift`
+// -----------------------------------------------------------------------------
+
+// ScenarioTemplateDriftResponse is the envelope of `vrooli scenario template
+// drift --json` (cliout.WriteSuccessJSON under the "drift" key).
+message ScenarioTemplateDriftResponse {
+  // Standard success flag.
+  bool success = 1;
+
+  // The drift report under the "drift" envelope key.
+  ScenarioTemplateDriftReport drift = 2;
+}
+
+// ScenarioTemplateDriftReport aggregates per-scenario drift (TemplateDriftReport).
+message ScenarioTemplateDriftReport {
+  // Per-scenario drift reports.
+  repeated ScenarioTemplateDriftScenario scenarios = 1;
+}
+
+// ScenarioTemplateDriftScenario is one scenario's drift report
+// (TemplateDriftScenarioReport).
+message ScenarioTemplateDriftScenario {
+  // Scenario slug.
+  string scenario = 1;
+
+  // Source template id; empty if unset.
+  string template_id = 2;
+
+  // Template version recorded at generation; empty if unset.
+  string recorded_version = 3;
+
+  // Current template version; empty if unset.
+  string current_version = 4;
+
+  // Recorded manifest SHA; empty if unset.
+  string recorded_manifest_sha = 5;
+
+  // Current manifest SHA; empty if unset.
+  string current_manifest_sha = 6;
+
+  // Recorded content SHA; empty if unset.
+  string recorded_content_sha = 7;
+
+  // Current content SHA; empty if unset.
+  string current_content_sha = 8;
+
+  // True when the manifest drifted.
+  bool manifest_drifted = 9;
+
+  // True when inherited content drifted.
+  bool content_drifted = 10;
+
+  // Drift status (e.g. "ok", "drifted", "no_recorded_hashes",
+  // "template_not_found", "no_provenance", "hash_error").
+  string status = 11;
+
+  // Explanatory message; empty if unset.
+  string message = 12;
+
+  // Per-file diffs; populated only with --verbose. Empty otherwise.
+  repeated ScenarioTemplateDriftFileDiff file_diffs = 13;
+}
+
+// ScenarioTemplateDriftFileDiff is one drifted inherited file
+// (TemplateDriftFileDiff).
+message ScenarioTemplateDriftFileDiff {
+  // File path.
+  string path = 1;
+
+  // Reason (e.g. "modified", "added_in_template", "removed_from_scenario").
+  string reason = 2;
+}
+
+// -----------------------------------------------------------------------------
+// `scenario template validate`
+// -----------------------------------------------------------------------------
+
+// ScenarioTemplateValidateResponse is the envelope of `vrooli scenario template
+// validate --json` (cliout.WriteFieldsWithSuccess; success mirrors
+// len(issues)==0).
+message ScenarioTemplateValidateResponse {
+  // True when no issues were found (mirrors report having zero issues).
+  bool success = 1;
+
+  // The validation report under the "report" envelope key.
+  ScenarioTemplateValidationReport report = 2;
+}
+
+// ScenarioTemplateValidationReport is the validate result
+// (TemplateValidationReport).
+message ScenarioTemplateValidationReport {
+  // Validation mode ("shallow" | "deep"); empty if unset.
+  string mode = 1;
+
+  // Template name when a single template was validated; empty if unset.
+  string template_name = 2;
+
+  // Test preset used for deep validation; empty if unset.
+  string test_preset = 3;
+
+  // Warning policy ("ignore" | "report" | "fail"); empty if unset.
+  string warning_policy = 4;
+
+  // Aggregate warning summary.
+  ScenarioTemplateValidationWarningSummary warning_summary = 5;
+
+  // Number of templates checked.
+  int32 count = 6;
+
+  // Per-template deep-validation runs; empty for shallow mode.
+  repeated ScenarioTemplateValidationDeepRun deep_runs = 7;
+
+  // Validation issues; empty when valid.
+  repeated ScenarioTemplateValidationIssue issues = 8;
+}
+
+// ScenarioTemplateValidationIssue is one validation failure
+// (TemplateValidationIssue).
+message ScenarioTemplateValidationIssue {
+  // Template name.
+  string template = 1;
+
+  // Path the issue relates to; empty if unset.
+  string path = 2;
+
+  // Issue message.
+  string message = 3;
+}
+
+// ScenarioTemplateValidationWarning is one validation warning
+// (TemplateValidationWarning).
+message ScenarioTemplateValidationWarning {
+  // Warning message.
+  string message = 1;
+
+  // Source phase/step; empty if unset.
+  string source = 2;
+
+  // Path to the relevant log; empty if unset.
+  string log_path = 3;
+
+  // Path to a relevant artifact; empty if unset.
+  string artifact_path = 4;
+}
+
+// ScenarioTemplateValidationPhaseWarningSummary rolls warnings up by phase
+// (TemplateValidationPhaseWarningSummary).
+message ScenarioTemplateValidationPhaseWarningSummary {
+  // Phase name.
+  string name = 1;
+
+  // Number of warnings in the phase.
+  int32 count = 2;
+
+  // The warnings; empty when none.
+  repeated ScenarioTemplateValidationWarning warnings = 3;
+}
+
+// ScenarioTemplateValidationWarningSummary is the aggregate warning rollup
+// (TemplateValidationWarningSummary).
+message ScenarioTemplateValidationWarningSummary {
+  // Total warnings across all phases.
+  int32 total = 1;
+
+  // Per-phase warning summaries; empty when none.
+  repeated ScenarioTemplateValidationPhaseWarningSummary phases = 2;
+}
+
+// ScenarioTemplateValidationDeepRun is one deep-validation run
+// (TemplateValidationDeepRun).
+message ScenarioTemplateValidationDeepRun {
+  // Template name.
+  string template = 1;
+
+  // Validation run id; empty if unset.
+  string run_id = 2;
+
+  // Generated scenario id; empty if unset.
+  string scenario_id = 3;
+
+  // Generated scenario path; empty if unset.
+  string scenario_path = 4;
+
+  // Temporary workspace root; empty if unset.
+  string temp_root = 5;
+
+  // Test preset used; empty if unset.
+  string test_preset = 6;
+
+  // Warning summary for the run.
+  ScenarioTemplateValidationWarningSummary warning_summary = 7;
+
+  // True when the temp workspace was retained.
+  bool retained_temp = 8;
+
+  // Cleanup status; empty if unset.
+  string cleanup_status = 9;
+
+  // Relocation artifact paths; empty when none.
+  repeated string relocation_artifacts = 10;
+
+  // Suggested cleanup command; empty if unset.
+  string cleanup_command = 11;
+}
+
+// -----------------------------------------------------------------------------
+// `scenario template cleanup`
+// -----------------------------------------------------------------------------
+
+// ScenarioTemplateCleanupResponse is the envelope of `vrooli scenario template
+// cleanup --json` (cliout.WriteFieldsWithSuccess; success mirrors
+// len(failures)==0).
+message ScenarioTemplateCleanupResponse {
+  // True when no failures occurred (mirrors result having zero failures).
+  bool success = 1;
+
+  // The cleanup result under the "cleanup" envelope key.
+  ScenarioTemplateCleanupResult cleanup = 2;
+}
+
+// ScenarioTemplateCleanupResult is the cleanup result
+// (templatevalidation.CleanupResult, which embeds CleanupPlan).
+message ScenarioTemplateCleanupResult {
+  // True when this was a dry run.
+  bool dry_run = 1;
+
+  // Age threshold in nanoseconds (time.Duration; encoding/json emits the raw
+  // nanosecond count, which can exceed int32, hence int64).
+  int64 older_than = 2;
+
+  // True when retained runs were included.
+  bool include_retained = 3;
+
+  // Run id filter; empty when unfiltered.
+  string run_id = 4;
+
+  // Runs eligible for cleanup; empty when none.
+  repeated ScenarioTemplateCleanupRun eligible = 5;
+
+  // Runs skipped; empty when none.
+  repeated ScenarioTemplateCleanupSkippedRun skipped = 6;
+
+  // Runs that failed to clean up; empty when none.
+  repeated ScenarioTemplateCleanupFailedRun failures = 7;
+
+  // Runs that were removed; empty when none.
+  repeated ScenarioTemplateCleanupRun removed = 8;
+
+  // True when proto artifacts still need regeneration.
+  bool needs_proto_generate = 9;
+
+  // True when proto regeneration was run.
+  bool proto_generate_ran = 10;
+
+  // Status message; empty if unset.
+  string message = 11;
+}
+
+// ScenarioTemplateCleanupRun is one validation run on disk (templatevalidation.Run).
+message ScenarioTemplateCleanupRun {
+  // Path to the run marker file.
+  string marker_path = 1;
+
+  // The run marker.
+  ScenarioTemplateCleanupRunMarker marker = 2;
+
+  // Human-readable age; empty if unset.
+  string age = 3;
+}
+
+// ScenarioTemplateCleanupRunMarker is a validation run marker
+// (templatevalidation.RunMarker).
+message ScenarioTemplateCleanupRunMarker {
+  // Marker schema version.
+  string version = 1;
+
+  // Run id.
+  string run_id = 2;
+
+  // Repo root the run targeted.
+  string repo_root = 3;
+
+  // Template name.
+  string template = 4;
+
+  // Generated scenario id.
+  string scenario_id = 5;
+
+  // Generated scenario path.
+  string scenario_path = 6;
+
+  // Temporary workspace root.
+  string temp_root = 7;
+
+  // Creation time as RFC3339Nano; empty when zero.
+  string created_at = 8;
+
+  // True when the run is retained.
+  bool retained = 9;
+
+  // Creator process id.
+  int32 creator_pid = 10;
+
+  // True when the run completed.
+  bool completed = 11;
+
+  // Cleanup status; empty if unset.
+  string cleanup_status = 12;
+
+  // Relocation artifact paths; empty when none.
+  repeated string relocation_artifacts = 13;
+}
+
+// ScenarioTemplateCleanupSkippedRun is one skipped run (templatevalidation.SkippedRun).
+message ScenarioTemplateCleanupSkippedRun {
+  // The run, when one was resolved; absent for path-only skips.
+  ScenarioTemplateCleanupRun run = 1;
+
+  // Path that was skipped when no run was resolved; empty otherwise.
+  string path = 2;
+
+  // Skip reason.
+  string reason = 3;
+}
+
+// ScenarioTemplateCleanupFailedRun is one failed run (templatevalidation.FailedRun).
+message ScenarioTemplateCleanupFailedRun {
+  // The run, when one was resolved; absent for path-only failures.
+  ScenarioTemplateCleanupRun run = 1;
+
+  // Path that failed when no run was resolved; empty otherwise.
+  string path = 2;
+
+  // Failure detail.
+  string error = 3;
+}
+
+// -----------------------------------------------------------------------------
+// `scenario design list`
+// -----------------------------------------------------------------------------
+
+// ScenarioDesignListResponse is the envelope of `vrooli scenario design list
+// --json` (cliout.WriteSuccessJSON under the "designKits" key).
+message ScenarioDesignListResponse {
+  // Standard success flag.
+  bool success = 1;
+
+  // Discovered design kits.
+  repeated ScenarioDesignKitInfo design_kits = 2;
+}
+
+// ScenarioDesignShowResponse is the envelope of `vrooli scenario design show
+// --json` (cliout.WriteSuccessJSON under the "designKit" key).
+message ScenarioDesignShowResponse {
+  // Standard success flag.
+  bool success = 1;
+
+  // The requested design kit.
+  ScenarioDesignKitInfo design_kit = 2;
+}
+
+// ScenarioDesignKitInfo is one discovered design kit (DesignKitInfo). Only the
+// exported JSON-tagged fields (ID/Path/Manifest/Missing) are emitted.
+message ScenarioDesignKitInfo {
+  // Design kit id.
+  string id = 1;
+
+  // Absolute path to the kit directory.
+  string path = 2;
+
+  // Parsed kit manifest.
+  ScenarioDesignKitManifest manifest = 3;
+
+  // True when the kit manifest is missing.
+  bool missing = 4;
+}
+
+// ScenarioDesignKitManifest is a design kit's manifest (DesignKitManifest).
+message ScenarioDesignKitManifest {
+  // Kit id.
+  string id = 1;
+
+  // Kit name.
+  string name = 2;
+
+  // Kit version.
+  string version = 3;
+
+  // True when this kit is the default.
+  bool default = 4;
+
+  // Description; empty if unset.
+  string description = 5;
+
+  // Tags; empty when none.
+  repeated string tags = 6;
+
+  // Adapters keyed by adapter id; empty when none.
+  map<string, ScenarioDesignKitAdapter> adapters = 7;
+}
+
+// ScenarioDesignKitAdapter is one design kit adapter (DesignKitAdapter).
+message ScenarioDesignKitAdapter {
+  // Path to the adapter directory.
+  string path = 1;
+
+  // Stack/target labels the adapter supports; empty when none.
+  repeated string supports = 2;
+}
+
+// -----------------------------------------------------------------------------
+// `scenario design validate`
+// -----------------------------------------------------------------------------
+
+// ScenarioDesignValidateResponse is the envelope of `vrooli scenario design
+// validate --json` (cliout.WriteSuccessJSON under the "designValidation" key).
+message ScenarioDesignValidateResponse {
+  // Standard success flag.
+  bool success = 1;
+
+  // The validation report under the "designValidation" envelope key.
+  ScenarioDesignValidationReport design_validation = 2;
+}
+
+// ScenarioDesignValidationReport is the design validate result
+// (DesignValidationReport).
+message ScenarioDesignValidationReport {
+  // Number of kits checked.
+  int32 count = 1;
+
+  // Validation issues; empty when valid.
+  repeated ScenarioDesignValidationIssue issues = 2;
+}
+
+// ScenarioDesignValidationIssue is one design validation finding
+// (DesignValidationIssue).
+message ScenarioDesignValidationIssue {
+  // Kit id the issue relates to; empty if unset.
+  string kit = 1;
+
+  // Adapter id the issue relates to; empty if unset.
+  string adapter = 2;
+
+  // Path the issue relates to; empty if unset.
+  string path = 3;
+
+  // Issue message.
+  string message = 4;
+}
+
+// -----------------------------------------------------------------------------
+// `scenario orient`
+// -----------------------------------------------------------------------------
+
+// ScenarioOrientationResponse is the envelope of `vrooli scenario orient
+// --json` (cliout.WriteFieldsWithSuccess; success is always true).
+message ScenarioOrientationResponse {
+  // Standard success flag (always true for this command).
+  bool success = 1;
+
+  // The orientation report under the "orientation" envelope key.
+  ScenarioOrientationReport orientation = 2;
+}
+
+// ScenarioOrientationReport is the orientation status report (OrientationReport).
+message ScenarioOrientationReport {
+  // Scenario slug.
+  string scenario = 1;
+
+  // Absolute scenario path; empty if unset.
+  string scenario_path = 2;
+
+  // Path to the orientation tracker; empty if unset.
+  string orientation_path = 3;
+
+  // True when orientation was finalized.
+  bool finalized = 4;
+
+  // Source template reference.
+  ScenarioGenerationTemplateRef template = 5;
+
+  // Source design reference.
+  ScenarioGenerationDesignRef design = 6;
+
+  // Start document path; empty if unset.
+  string start_document = 7;
+
+  // Number of required steps completed.
+  int32 completed = 8;
+
+  // Number of required steps.
+  int32 required = 9;
+
+  // Per-step reports; empty when none.
+  repeated ScenarioOrientationStep steps = 10;
+
+  // The next incomplete step; absent when orientation is complete.
+  ScenarioOrientationStep next_step = 11;
+
+  // Status message; empty if unset.
+  string message = 12;
+
+  // True when a finalize action is required.
+  bool finalize_required = 13;
+}
+
+// ScenarioGenerationTemplateRef is a template id/version reference
+// (scenariocli.GenerationTemplate). Distinct from the status-domain
+// ScenarioGenerationTemplate to keep one message per Go source type.
+message ScenarioGenerationTemplateRef {
+  // Template id; empty if unset.
+  string id = 1;
+
+  // Template version; empty if unset.
+  string version = 2;
+}
+
+// ScenarioGenerationDesignRef is a design id/version/adapter reference
+// (scenariocli.GenerationDesign).
+message ScenarioGenerationDesignRef {
+  // Design id; empty if unset.
+  string id = 1;
+
+  // Design version; empty if unset.
+  string version = 2;
+
+  // Design adapter; empty if unset.
+  string adapter = 3;
+}
+
+// ScenarioOrientationStep is one orientation step report (OrientationStepReport).
+message ScenarioOrientationStep {
+  // Step id.
+  string id = 1;
+
+  // Title; empty if unset.
+  string title = 2;
+
+  // Description; empty if unset.
+  string description = 3;
+
+  // Doc links; empty when none.
+  repeated string docs = 4;
+
+  // True when the step is required.
+  bool required = 5;
+
+  // True when the step is complete.
+  bool complete = 6;
+
+  // Per-check reports; empty when none.
+  repeated ScenarioOrientationCheck checks = 7;
+}
+
+// ScenarioOrientationCheck is one orientation check report (OrientationCheckReport).
+message ScenarioOrientationCheck {
+  // Check kind.
+  string kind = 1;
+
+  // Check label; empty if unset.
+  string label = 2;
+
+  // True when the check passed.
+  bool passed = 3;
+
+  // True when the check was skipped.
+  bool skipped = 4;
+
+  // Check message; empty if unset.
+  string message = 5;
+
+  // True when the check is optional.
+  bool optional = 6;
+}

@@ -117,16 +117,6 @@ func TestDiscoverResourcesParsesWrappedObjectAndDerivesStatus(t *testing.T) {
 	}
 }
 
-func TestUnmarshalResourceListAcceptsBareArray(t *testing.T) {
-	got, err := unmarshalResourceList([]byte(`[{"name":"redis"}]`))
-	if err != nil {
-		t.Fatalf("bare array should parse: %v", err)
-	}
-	if len(got) != 1 || got[0]["name"] != "redis" {
-		t.Fatalf("unexpected parse: %+v", got)
-	}
-}
-
 func TestDiscoverScenariosHonorsCommandTimeout(t *testing.T) {
 	originalTimeout := commandTimeout
 	commandTimeout = 10 * time.Millisecond

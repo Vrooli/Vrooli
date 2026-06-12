@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package vrooli.cli.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1";
+
+// =============================================================================
+// VROOLI CLI — `check-shared-drift` output contract
+// =============================================================================
+//
+// @stability experimental
+//
+// Canonical wire shape of `vrooli check-shared-drift --json`. The command emits
+// the report directly (cliout.WriteJSON, no success envelope). Marshaled with
+// protojson (UseProtoNames=true, EmitUnpopulated=true). Reused by the hygiene
+// report, which embeds a shared-drift report.
+// =============================================================================
+
+// SharedDriftReport is the top-level shape of `check-shared-drift --json`.
+message SharedDriftReport {
+  // True when no shared-package drift was detected.
+  bool clean = 1;
+
+  // Repo root the check ran against.
+  string root = 2;
+
+  // Per-scenario drift results.
+  repeated SharedDriftScenario scenarios = 3;
+
+  // Touched package paths considered; empty unless --only-touched narrowed it.
+  repeated string touched_packages = 4;
+
+  // True when the run was narrowed to touched packages.
+  bool only_touched = 5;
+
+  // True when scenario builds were checked.
+  bool build_checked = 6;
+
+  // True when a fix was applied.
+  bool fix_applied = 7;
+
+  // True when modified tracked files remained after the run.
+  bool modified_tracked_files = 8;
+
+  // Wall-clock duration in milliseconds.
+  int32 elapsed_ms = 9;
+}
+
+// SharedDriftScenario is one scenario's shared-drift result.
+message SharedDriftScenario {
+  // Scenario directory path.
+  string path = 1;
+
+  // API directory inspected within the scenario.
+  string api_dir = 2;
+
+  // Drift status (e.g. "clean", "stale-modules", "stale-build", "error", "skipped").
+  string status = 3;
+
+  // Paths that differ; empty when clean.
+  repeated string diff_paths = 4;
+
+  // Build error detail; empty unless a build failed.
+  string build_error = 5;
+
+  // General error detail; empty on success.
+  string error = 6;
+
+  // Replace directives involved; empty if none.
+  repeated string replaces = 7;
+}

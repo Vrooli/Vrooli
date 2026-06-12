@@ -1,0 +1,259 @@
+syntax = "proto3";
+
+package vrooli.cli.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1";
+
+// =============================================================================
+// VROOLI CLI — `contract ...` output contracts
+// =============================================================================
+//
+// @stability experimental
+//
+// Canonical wire shapes of the `vrooli contract` command family --json output:
+// `contract validate` (ContractValidationOutput), `contract show`
+// (ContractShowOutput), `contract resolve scenario` (ContractResolveScenarioOutput),
+// and `contract match-glob` (ContractMatchGlobOutput). Each command emits its
+// payload directly (cliout.WriteJSON, no success envelope; `success` is a plain
+// field). Marshaled with protojson (UseProtoNames=true, EmitUnpopulated=true).
+// ContractValidationOutput is reused by the hygiene report (see hygiene.proto).
+// =============================================================================
+
+// ContractValidationOutput is the shape of `vrooli contract validate --json`.
+message ContractValidationOutput {
+  // True when the schema check and every repo-contract check passed.
+  bool success = 1;
+
+  // Repo root the validation ran against.
+  string root = 2;
+
+  // Result of the JSON-schema validation of the contract document.
+  ContractValidationCheck schema = 3;
+
+  // Detailed repo-contract check report.
+  ContractCheckReport report = 4;
+}
+
+// ContractValidationCheck is one pass/fail check with a human-readable message.
+message ContractValidationCheck {
+  // True when the check passed.
+  bool passed = 1;
+
+  // Human-readable detail; "ok" or empty when passed, error text when failed.
+  string message = 2;
+}
+
+// ContractCheckReport is the repo-contract check report (internal/repocontractcheck).
+message ContractCheckReport {
+  // Repo root the checks ran against.
+  string root = 1;
+
+  // Absolute path to the repo-contract.json document checked.
+  string contract_path = 2;
+
+  // True when every check passed.
+  bool success = 3;
+
+  // Per-check results, in declaration order.
+  repeated ContractCheckResult checks = 4;
+}
+
+// ContractCheckResult is one named repo-contract check outcome.
+message ContractCheckResult {
+  // Check identifier (e.g. "phase1_semantics", "docs_alignment").
+  string name = 1;
+
+  // True when this check passed.
+  bool passed = 2;
+
+  // "ok" when passed; the error detail when failed.
+  string message = 3;
+}
+
+// ContractShowOutput is the shape of `vrooli contract show --json`.
+message ContractShowOutput {
+  // Always true on a successful show.
+  bool success = 1;
+
+  // Repo root the contract was loaded from.
+  string root = 2;
+
+  // Absolute path to the contract document.
+  string contract_path = 3;
+
+  // Contract $schema reference string.
+  string schema = 4;
+
+  // Contract version string.
+  string version = 5;
+
+  // Platform policy block.
+  ContractPlatform platform = 6;
+
+  // Root marker requirements (required dirs/files).
+  ContractRootMarkers markers = 7;
+
+  // Canonical directory layout.
+  ContractLayout layout = 8;
+
+  // Scenario spec (required files + well-known paths).
+  ContractScenarioSpec scenario = 9;
+
+  // Resource spec (manifest name + well-known paths).
+  ContractResourceSpec resource = 10;
+
+  // Glob policy.
+  ContractGlobSpec globs = 11;
+
+  // Environment variable name mapping (logical key -> env var name); empty if none.
+  map<string, string> environment = 12;
+
+  // Sandbox scope policy.
+  ContractShowSandbox sandbox = 13;
+
+  // Bundle/build profiles keyed by profile name; empty if none.
+  map<string, ContractProfile> profiles = 14;
+}
+
+// ContractPlatform mirrors the contract platform policy block.
+message ContractPlatform {
+  // Platform mode (e.g. "cross_platform_go_native").
+  string mode = 1;
+
+  // True when legacy project-bash tooling is supported (expected false).
+  bool legacy_project_bash_supported = 2;
+}
+
+// ContractRootMarkers lists the dirs/files that mark a valid repo root.
+message ContractRootMarkers {
+  // Directories that must exist at the repo root.
+  repeated string required_dirs = 1;
+
+  // Files that must exist at the repo root (e.g. "go.mod").
+  repeated string required_files = 2;
+}
+
+// ContractLayout is the canonical repo directory layout.
+message ContractLayout {
+  // Project config dir (e.g. ".vrooli").
+  string project_config_dir = 1;
+
+  // Scenario dir (e.g. "scenarios").
+  string scenario_dir = 2;
+
+  // Resource dir (e.g. "resources").
+  string resource_dir = 3;
+
+  // Template dir (e.g. "templates").
+  string template_dir = 4;
+
+  // Package dir (e.g. "packages").
+  string package_dir = 5;
+
+  // Command dir (e.g. "cmd").
+  string command_dir = 6;
+
+  // Internal dir (e.g. "internal").
+  string internal_dir = 7;
+
+  // Docs dir (e.g. "docs").
+  string docs_dir = 8;
+}
+
+// ContractScenarioSpec describes scenario layout invariants.
+message ContractScenarioSpec {
+  // Files every scenario must provide (e.g. ".vrooli/service.json").
+  repeated string required_files = 1;
+
+  // Well-known logical path -> relative path within a scenario.
+  map<string, string> well_known_paths = 2;
+}
+
+// ContractResourceSpec describes resource layout invariants.
+message ContractResourceSpec {
+  // Resource manifest filename (e.g. "resource.json").
+  string manifest = 1;
+
+  // Well-known logical path -> relative path within a resource.
+  map<string, string> well_known_paths = 2;
+}
+
+// ContractGlobSpec is the glob-matching policy.
+message ContractGlobSpec {
+  // Glob syntax (e.g. "doublestar").
+  string syntax = 1;
+
+  // True when patterns are interpreted root-relative.
+  bool root_relative = 2;
+
+  // True when matching is case-sensitive.
+  bool case_sensitive = 3;
+
+  // True when absolute patterns are allowed.
+  bool allow_absolute = 4;
+
+  // Path normalization format (e.g. "slash_normalized").
+  string path_format = 5;
+}
+
+// ContractShowSandbox is the sandbox scope policy reported by `contract show`.
+message ContractShowSandbox {
+  // Scope strings granting full-repo access (e.g. "", ".", "/").
+  repeated string full_repo_scopes = 1;
+
+  // Prefix that scopes a sandbox to a single scenario (e.g. "scenarios/").
+  string scenario_scope_prefix = 2;
+}
+
+// ContractProfile is one bundle/build profile.
+message ContractProfile {
+  // Human-readable description; empty if unset.
+  string description = 1;
+
+  // Placeholder parameter names the profile expands (e.g. "scenario").
+  repeated string parameters = 2;
+
+  // Required include roots.
+  repeated string include = 3;
+
+  // Optional include roots.
+  repeated string optional_include = 4;
+
+  // Exclude globs.
+  repeated string exclude = 5;
+}
+
+// ContractResolveScenarioOutput is the shape of
+// `vrooli contract resolve scenario <name> --file <file> --json`.
+message ContractResolveScenarioOutput {
+  // Always true on a successful resolve.
+  bool success = 1;
+
+  // Repo root used for resolution.
+  string root = 2;
+
+  // Scenario name that was resolved.
+  string scenario = 3;
+
+  // Well-known file key requested (e.g. "service").
+  string file = 4;
+
+  // Resolved absolute (or repo-relative) path for the requested file.
+  string path = 5;
+}
+
+// ContractMatchGlobOutput is the shape of
+// `vrooli contract match-glob <pattern> <path> --json`.
+message ContractMatchGlobOutput {
+  // Always true (the match itself is reported in `matched`).
+  bool success = 1;
+
+  // Glob pattern evaluated.
+  string pattern = 2;
+
+  // Path tested against the pattern.
+  string path = 3;
+
+  // True when the path matched the pattern.
+  bool matched = 4;
+}

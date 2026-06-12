@@ -2,13 +2,20 @@ package discovery
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"sort"
 	"strings"
 
+	"google.golang.org/protobuf/encoding/protojson"
+
 	"github.com/ecosystem-manager/api/pkg/tasks"
+	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
+
+// cliJSONUnmarshal decodes `vrooli … --json` output into its vrooli.cli.v1 wire
+// contract. DiscardUnknown keeps EM forward-compatible: a field added by a
+// future CLI is ignored, not an error.
+var cliJSONUnmarshal = protojson.UnmarshalOptions{DiscardUnknown: true}
 
 // DiscoverResources gets all available resources from vrooli CLI
 func DiscoverResources() ([]tasks.ResourceInfo, error) {
@@ -32,28 +39,23 @@ func discoverResources(runner commandRunner) ([]tasks.ResourceInfo, error) {
 		}
 	}
 
-	vrooliResources, err := unmarshalResourceList(output)
-	if err != nil {
+	var resp cliv1.ResourceListResponse
+	if err := cliJSONUnmarshal.Unmarshal(output, &resp); err != nil {
 		log.Printf("Error: Failed to parse vrooli resource list output: %v", err)
 		return resources, err
 	}
 
-	for _, vr := range vrooliResources {
-		resourceName := getStringField(vr, "name")
-		if resourceName != "" {
-			resource := tasks.ResourceInfo{
-				Name:        resourceName,
-				Path:        getStringField(vr, "path"),
-				Port:        getIntField(vr, "port"),
-				Category:    inferResourceCategory(resourceName), // Still infer category from name
-				Description: getStringField(vr, "description"),
-				Version:     getStringField(vr, "version"),
-				Healthy:     getBoolField(vr, "enabled"),
-				Status:      resourceStatus(vr),
-			}
-
-			resources = append(resources, resource)
+	for _, vr := range resp.GetResources() {
+		if vr.GetName() == "" {
+			continue
 		}
+		resources = append(resources, tasks.ResourceInfo{
+			Name:     vr.GetName(),
+			Path:     vr.GetPath(),
+			Category: inferResourceCategory(vr.GetName()), // Still infer category from name
+			Healthy:  vr.GetEnabled(),
+			Status:   resourceStatus(vr),
+		})
 	}
 
 	// Sort resources alphabetically by name
@@ -65,71 +67,19 @@ func discoverResources(runner commandRunner) ([]tasks.ResourceInfo, error) {
 	return resources, nil
 }
 
-// unmarshalResourceList parses `vrooli resource list --json` output. The CLI
-// emits a wrapped object `{"resources": [...]}`; older builds emitted a bare
-// array. Accept either so a CLI format change does not silently empty the
-// create-task picker.
-func unmarshalResourceList(output []byte) ([]map[string]any, error) {
-	var wrapped struct {
-		Resources []map[string]any `json:"resources"`
-	}
-	if err := json.Unmarshal(output, &wrapped); err == nil && wrapped.Resources != nil {
-		return wrapped.Resources, nil
-	}
-
-	var bare []map[string]any
-	if err := json.Unmarshal(output, &bare); err != nil {
-		return nil, err
-	}
-	return bare, nil
-}
-
-// resourceStatus derives a human-facing status string from the registration
-// flags the CLI reports (it no longer emits a literal status field).
-func resourceStatus(vr map[string]any) string {
-	if exists, ok := vr["exists"]; ok {
-		if b, _ := exists.(bool); !b {
-			return "[MISSING]"
-		}
-	}
-	if !getBoolField(vr, "registered") {
+// resourceStatus derives a human-facing status string from the typed resource's
+// registration flags (the CLI reports flags, not a literal status field).
+func resourceStatus(vr *cliv1.Resource) string {
+	switch {
+	case !vr.GetExists():
+		return "[MISSING]"
+	case !vr.GetRegistered():
 		return "[UNREGISTERED]"
-	}
-	if !getBoolField(vr, "enabled") {
+	case !vr.GetEnabled():
 		return "disabled"
+	default:
+		return "enabled"
 	}
-	return "enabled"
-}
-
-// Helper functions for safe field extraction
-func getStringField(m map[string]any, key string) string {
-	if val, ok := m[key]; ok {
-		if str, ok := val.(string); ok {
-			return str
-		}
-	}
-	return ""
-}
-
-func getIntField(m map[string]any, key string) int {
-	if val, ok := m[key]; ok {
-		switch v := val.(type) {
-		case float64:
-			return int(v)
-		case int:
-			return v
-		}
-	}
-	return 0
-}
-
-func getBoolField(m map[string]any, key string) bool {
-	if val, ok := m[key]; ok {
-		if b, ok := val.(bool); ok {
-			return b
-		}
-	}
-	return false
 }
 
 // inferResourceCategory attempts to categorize a resource based on its name

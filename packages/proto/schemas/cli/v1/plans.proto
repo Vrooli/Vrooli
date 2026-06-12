@@ -1,0 +1,129 @@
+syntax = "proto3";
+
+package vrooli.cli.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1";
+
+// =============================================================================
+// VROOLI CLI — `plans` output contract
+// =============================================================================
+//
+// @stability experimental
+//
+// Canonical wire shapes of the `vrooli plans` command family in --json mode:
+// `plans add`, `plans list`, `plans show`, `plans path`, `plans archive`,
+// `plans import`, and `plans export`. Each command emits its output struct
+// directly (cliout.WriteJSON, no extra envelope wrapping), though every payload
+// already carries its own `success` field. Marshaled with protojson
+// (UseProtoNames=true, EmitUnpopulated=true).
+// =============================================================================
+
+// PlansRecord is one plan entry, shared across every plans command payload.
+// Field order mirrors the legacy JSON struct so the migration is additive only.
+message PlansRecord {
+  // Stable plan identifier.
+  string id = 1;
+
+  // Human-readable plan title.
+  string title = 2;
+
+  // URL/file-safe slug derived from the title.
+  string slug = 3;
+
+  // Absolute path to the plan file on disk.
+  string path = 4;
+
+  // Creation timestamp, RFC3339Nano; "" if zero-valued.
+  string created_at = 5;
+
+  // Last-update timestamp, RFC3339Nano; "" if zero-valued.
+  string updated_at = 6;
+
+  // True when the plan is archived.
+  bool archived = 7;
+
+  // Archive timestamp, RFC3339Nano; "" when not archived / zero-valued.
+  string archived_at = 8;
+
+  // Original source path when the plan was imported; "" if not imported.
+  string source_path = 9;
+
+  // Content hash of the plan body; "" if unset.
+  string content_hash = 10;
+}
+
+// PlansAddOutput is the shape of `vrooli plans add --json`.
+message PlansAddOutput {
+  // True when the plan was added successfully.
+  bool success = 1;
+
+  // The newly added plan.
+  PlansRecord plan = 2;
+}
+
+// PlansListOutput is the shape of `vrooli plans list --json`.
+message PlansListOutput {
+  // True when the listing completed successfully.
+  bool success = 1;
+
+  // All matched plans; empty when none found.
+  repeated PlansRecord plans = 2;
+}
+
+// PlansShowOutput is the shape of `vrooli plans show --json`.
+message PlansShowOutput {
+  // True when the plan was resolved successfully.
+  bool success = 1;
+
+  // The resolved plan.
+  PlansRecord plan = 2;
+
+  // Full plan body content; "" when not requested / empty.
+  string content = 3;
+}
+
+// PlansPathOutput is the shape of `vrooli plans path --json`.
+message PlansPathOutput {
+  // True when the path was resolved successfully.
+  bool success = 1;
+
+  // Resolved plan identifier.
+  string id = 2;
+
+  // Absolute path to the plan file on disk.
+  string path = 3;
+}
+
+// PlansArchiveOutput is the shape of `vrooli plans archive --json`.
+message PlansArchiveOutput {
+  // True when the plan was archived successfully.
+  bool success = 1;
+
+  // The archived plan (with archived/archived_at updated).
+  PlansRecord plan = 2;
+}
+
+// PlansImportOutput is the shape of `vrooli plans import --json`.
+message PlansImportOutput {
+  // True when the plan was imported successfully.
+  bool success = 1;
+
+  // The imported plan.
+  PlansRecord plan = 2;
+
+  // True when the import source file was deleted (--delete-source).
+  // JSON key is "deleted_source" (proto field name preserves it).
+  bool deleted_source = 3;
+}
+
+// PlansExportOutput is the shape of `vrooli plans export --json`.
+message PlansExportOutput {
+  // True when the plan was exported successfully.
+  bool success = 1;
+
+  // Exported plan identifier.
+  string id = 2;
+
+  // Destination path the plan was exported to.
+  string path = 3;
+}

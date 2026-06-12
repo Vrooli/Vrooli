@@ -1,0 +1,667 @@
+syntax = "proto3";
+
+package vrooli.cli.v1;
+
+import "cli/v1/resource_list.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1";
+
+// =============================================================================
+// VROOLI CLI — project / maintenance output contracts
+// =============================================================================
+//
+// @stability experimental
+//
+// Canonical wire shapes for the root project/maintenance CLI commands:
+//   `vrooli status`, `vrooli doctor`, `vrooli stop`, `vrooli orphans`,
+//   `vrooli locks` (+ clean), `vrooli template-validation cleanup`, and
+//   `vrooli diagnose-port`. Each --json variant is marshaled with protojson
+//   (UseProtoNames=true, EmitUnpopulated=true) so every consumer decodes the
+//   generated type instead of re-deriving the shape. Reuses Resource /
+//   ResourceConfig from cli/v1/resource_list.proto (the same catalog.Resource /
+//   ConfigEntry Go types back both contracts).
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// `vrooli status --json` — WriteSuccessJSON(w, "status", report)
+// -----------------------------------------------------------------------------
+
+// ProjectStatusResponse is the envelope of `vrooli status --json`.
+message ProjectStatusResponse {
+  // True when the status sweep completed (standard CLI success envelope).
+  bool success = 1;
+
+  // The status report payload (carried under the "status" envelope key).
+  ProjectStatusReport status = 2;
+}
+
+// ProjectStatusReport is the combined resource/scenario/maintenance status view.
+message ProjectStatusReport {
+  // Per-resource status entries; empty when --scenarios-only or none discovered.
+  repeated ProjectResourceStatus resources = 1;
+
+  // Per-scenario status entries; empty when --resources-only or none discovered.
+  repeated ProjectScenarioStatus scenarios = 2;
+
+  // Host process-table snapshot; absent (null) when not collected.
+  ProjectProcessSnapshot maintenance = 3;
+
+  // Aggregate counts keyed by metric name (e.g. "resources_total"); always present.
+  map<string, int32> summary = 4;
+}
+
+// ProjectResourceStatus is one resource's runtime status (resources.Status).
+message ProjectResourceStatus {
+  // Catalog metadata for the resource (reuses resource_list.proto Resource).
+  Resource resource = 1;
+
+  // True when the resource is installed on disk.
+  bool installed = 2;
+
+  // True when the resource is currently running.
+  bool running = 3;
+
+  // Health tri-state: null when unknown, else true=healthy / false=unhealthy.
+  google.protobuf.Value healthy = 4;
+
+  // Human-readable health label; empty if unset.
+  string health = 5;
+
+  // Probe outcome code (e.g. "ok", "timeout"); empty if unset.
+  string status_code = 6;
+
+  // Human-readable status message; empty if unset.
+  string message = 7;
+
+  // Probe error detail; empty when the probe succeeded.
+  string probe_error = 8;
+
+  // Raw probe payload as returned by the resource; null when none. Arbitrary JSON.
+  google.protobuf.Value raw = 9;
+}
+
+// ProjectScenarioStatus is one scenario's runtime view (orchestrator.ScenarioView).
+message ProjectScenarioStatus {
+  // Scenario slug.
+  string name = 1;
+
+  // Human-readable display name; empty if unset.
+  string display_name = 2;
+
+  // Scenario description; empty if unset.
+  string description = 3;
+
+  // Scenario tags; empty if none.
+  repeated string tags = 4;
+
+  // Lifecycle status (e.g. "running", "stopped").
+  string status = 5;
+
+  // Count of tracked processes for the scenario.
+  int32 processes = 6;
+
+  // Start time (RFC3339Nano); empty when not running / unknown.
+  string started_at = 7;
+
+  // Runtime backend label (e.g. "native", "docker").
+  string runtime = 8;
+
+  // Allocated ports keyed by port name; empty if none.
+  map<string, int32> ports = 9;
+
+  // Arbitrary health payload (JSON value under "health_status"); null when unset.
+  google.protobuf.Value health_status = 10;
+}
+
+// ProjectProcessSnapshot mirrors maintenance.ProcessSnapshot (host process health).
+message ProjectProcessSnapshot {
+  // Count of Vrooli-tracked processes.
+  int32 tracked_processes = 1;
+
+  // Count of tracked processes currently running.
+  int32 running_tracked = 2;
+
+  // Count of non-tracked child processes.
+  int32 child_processes = 3;
+
+  // Total processes in the process table.
+  int32 total_processes = 4;
+
+  // Count of zombie-state processes.
+  int32 zombie_processes = 5;
+
+  // Count of orphaned Vrooli processes.
+  int32 orphan_processes = 6;
+
+  // The orphaned processes themselves; empty if none.
+  repeated ProjectSystemProcess orphans = 7;
+}
+
+// ProjectSystemProcess is one host process entry (maintenance.SystemProcess).
+message ProjectSystemProcess {
+  // Process ID.
+  int32 pid = 1;
+
+  // Parent process ID.
+  int32 ppid = 2;
+
+  // Command line / executable label.
+  string command = 3;
+}
+
+// -----------------------------------------------------------------------------
+// `vrooli doctor --json` — WriteSuccessJSON(w, "checks", report.Checks)
+// -----------------------------------------------------------------------------
+
+// ProjectDoctorResponse is the envelope of `vrooli doctor --json`.
+message ProjectDoctorResponse {
+  // True when the doctor run completed (standard CLI success envelope).
+  bool success = 1;
+
+  // Individual diagnostic checks (carried under the "checks" envelope key).
+  repeated ProjectDoctorCheck checks = 2;
+}
+
+// ProjectDoctorCheck is one diagnostic check result (project.DoctorCheck).
+message ProjectDoctorCheck {
+  // Check name.
+  string name = 1;
+
+  // Check status (e.g. "ok", "warn", "fail").
+  string status = 2;
+
+  // Human-readable detail; empty if unset.
+  string message = 3;
+}
+
+// -----------------------------------------------------------------------------
+// `vrooli stop --json`, `vrooli orphans` (kill report), `vrooli locks --clean`
+//   — WriteSuccessJSON(w, "data", report)  (control.StopReport)
+// -----------------------------------------------------------------------------
+
+// ProjectStopResponse is the envelope of the stop/clean reports (key "data").
+message ProjectStopResponse {
+  // True when the operation completed (standard CLI success envelope).
+  bool success = 1;
+
+  // The stop/clean report payload (carried under the "data" envelope key).
+  ProjectStopReport data = 2;
+}
+
+// ProjectStopReport mirrors control.StopReport.
+message ProjectStopReport {
+  // Items that were stopped/removed; empty if none.
+  repeated ProjectStopItem stopped = 1;
+
+  // Items that failed to stop/remove; empty if none.
+  repeated ProjectStopItem failed = 2;
+
+  // Summary message; empty if unset.
+  string message = 3;
+}
+
+// ProjectStopItem is one stop/clean result row (control.ResultItem).
+message ProjectStopItem {
+  // Item identifier (resource/scenario name, PID, or port depending on caller).
+  string name = 1;
+
+  // Human-readable detail; empty if unset.
+  string message = 2;
+
+  // Error detail; empty on success.
+  string error = 3;
+}
+
+// -----------------------------------------------------------------------------
+// `vrooli orphans --json` (list mode) — two shapes depending on --dry-run.
+// -----------------------------------------------------------------------------
+
+// ProjectOrphansResponse is the envelope of `vrooli orphans --json` when not a
+// dry-run — WriteSuccessJSON(w, "orphans", list).
+message ProjectOrphansResponse {
+  // True when the listing completed (standard CLI success envelope).
+  bool success = 1;
+
+  // Orphaned Vrooli processes (carried under the "orphans" envelope key); empty if none.
+  repeated ProjectSystemProcess orphans = 2;
+}
+
+// ProjectOrphansDryRunResponse is the envelope of `vrooli orphans --json --dry-run`
+// — WriteSuccessJSON(w, "dry_run", {orphans}). The payload nests the list under a
+// "dry_run.orphans" key.
+message ProjectOrphansDryRunResponse {
+  // True when the dry-run planning completed (standard CLI success envelope).
+  bool success = 1;
+
+  // The dry-run payload (carried under the "dry_run" envelope key).
+  ProjectOrphansDryRun dry_run = 2;
+}
+
+// ProjectOrphansDryRun is the dry-run payload (anonymous struct with one field).
+message ProjectOrphansDryRun {
+  // Orphaned processes that would be killed; empty if none.
+  repeated ProjectSystemProcess orphans = 1;
+}
+
+// -----------------------------------------------------------------------------
+// `vrooli locks --json` — WriteSuccessFields(w, {locks, registry_claims})
+// -----------------------------------------------------------------------------
+
+// ProjectLocksResponse is the envelope of `vrooli locks --json` (list mode).
+// WriteSuccessFields sets success=true and merges the two fields in.
+message ProjectLocksResponse {
+  // Always true for this list-mode envelope (WriteSuccessFields).
+  bool success = 1;
+
+  // Legacy port-lock artifacts (diagnostic only); empty if none.
+  repeated ProjectLockInfo locks = 2;
+
+  // Authoritative runtime registry claims; empty if none.
+  repeated ProjectRuntimeClaim registry_claims = 3;
+}
+
+// ProjectLockInfo mirrors network.LockInfo (a legacy port-lock artifact).
+message ProjectLockInfo {
+  // Claimed port.
+  int32 port = 1;
+
+  // Owning scenario; empty if unset.
+  string scenario = 2;
+
+  // Owning process ID; 0 if unset.
+  int32 pid = 3;
+
+  // Lock creation time (RFC3339Nano); empty if unset.
+  string timestamp = 4;
+
+  // Path to the lock file.
+  string path = 5;
+
+  // True when the recorded owner process is still running.
+  bool owner_running = 6;
+
+  // True when the lock is considered stale.
+  bool stale = 7;
+}
+
+// ProjectRuntimeClaim mirrors maintenance.RuntimeClaimInfo (a registry claim).
+message ProjectRuntimeClaim {
+  // Claim identifier.
+  string claim_id = 1;
+
+  // Owning instance identifier.
+  string instance_id = 2;
+
+  // Owning scenario.
+  string scenario = 3;
+
+  // Claim generation counter; 0 if unset. int64: monotonically increasing, may exceed int32.
+  int64 generation = 4;
+
+  // Logical port name within the scenario.
+  string port_name = 5;
+
+  // Environment variable the port is exposed under; empty if unset.
+  string env_var = 6;
+
+  // Claimed port number.
+  int32 port = 7;
+
+  // Bind host address.
+  string bind_host = 8;
+
+  // Resolved URL for the claim; empty if unset.
+  string url = 9;
+
+  // Claim lifecycle status.
+  string claim_status = 10;
+
+  // Owning instance status; empty if unset.
+  string instance_status = 11;
+
+  // Supervising agent identifier; empty if unset.
+  string supervisor_id = 12;
+
+  // Supervisor status; empty if unset.
+  string supervisor_status = 13;
+
+  // Supervisor-freshness tri-state; null when unknown.
+  google.protobuf.Value supervisor_fresh = 14;
+
+  // Lease-freshness tri-state; null when unknown.
+  google.protobuf.Value lease_fresh = 15;
+
+  // Heartbeat deadline (RFC3339Nano); empty if unset.
+  string heartbeat_deadline = 16;
+
+  // Supervisor heartbeat deadline (RFC3339Nano); empty if unset.
+  string supervisor_heartbeat_deadline = 17;
+
+  // Health status label; empty if unset.
+  string health_status = 18;
+
+  // Health-readiness tri-state; null when unknown.
+  google.protobuf.Value health_ready = 19;
+
+  // Reconciliation classification (string enum); empty if unset.
+  string reconciliation = 20;
+
+  // Reconciliation reason detail; empty if unset.
+  string reconcile_reason = 21;
+
+  // Authoritative tri-state; null when unknown.
+  google.protobuf.Value authoritative = 22;
+
+  // Claim creation time (RFC3339Nano).
+  string created_at = 23;
+
+  // Claim last-update time (RFC3339Nano).
+  string updated_at = 24;
+
+  // Claim expiry time (RFC3339Nano); empty if unset.
+  string expires_at = 25;
+
+  // Last successful bind time (RFC3339Nano); empty if unset.
+  string last_bound_at = 26;
+
+  // Last listener-check time (RFC3339Nano); empty if unset.
+  string last_listener_check_at = 27;
+
+  // Last listener-seen time (RFC3339Nano); empty if unset.
+  string last_listener_seen_at = 28;
+
+  // First unbound time (RFC3339Nano); empty if unset.
+  string first_unbound_at = 29;
+
+  // Consecutive listener-check misses.
+  int32 consecutive_listener_misses = 30;
+
+  // Listener status label; empty if unset.
+  string listener_status = 31;
+
+  // Listener process ID; null when unknown.
+  google.protobuf.Value listener_pid = 32;
+
+  // Listener process label; empty if unset.
+  string listener_process_label = 33;
+
+  // Recommendation code; empty if unset.
+  string recommendation_code = 34;
+
+  // Recommendation confidence; empty if unset.
+  string recommendation_confidence = 35;
+
+  // Recommendation rationale; empty if unset.
+  string recommendation_rationale = 36;
+}
+
+// -----------------------------------------------------------------------------
+// `vrooli template-validation cleanup --json`
+//   — WriteFieldsWithSuccess(success, {cleanup})
+// -----------------------------------------------------------------------------
+
+// ProjectTemplateCleanupResponse is the envelope of the template-validation
+// cleanup command. success is len(Failures)==0, passed through by the producer.
+message ProjectTemplateCleanupResponse {
+  // True when the cleanup had no failures (producer-supplied).
+  bool success = 1;
+
+  // The cleanup result payload (carried under the "cleanup" envelope key).
+  ProjectTemplateCleanupResult cleanup = 2;
+}
+
+// ProjectTemplateCleanupResult mirrors templatevalidation.CleanupResult, which
+// embeds CleanupPlan (fields flattened here to match the JSON output).
+message ProjectTemplateCleanupResult {
+  // --- embedded CleanupPlan fields ---
+  // NOTE: the templatevalidation Go structs use camelCase JSON tags. The
+  // proto field names are snake_case (lint), but json_name pins the exact
+  // wire key. The producer for these messages must marshal with protojson's
+  // default name policy (json_name honored, NOT UseProtoNames) so the emitted
+  // keys stay camelCase — this is the one exception to the package-wide
+  // UseProtoNames=true convention.
+
+  // True when this was a dry-run (no removals performed).
+  bool dry_run = 1 [json_name = "dryRun"];
+
+  // Age threshold in nanoseconds (time.Duration). int64: nanosecond durations exceed int32.
+  int64 older_than = 2 [json_name = "olderThan"];
+
+  // True when retained runs were included in the sweep.
+  bool include_retained = 3 [json_name = "includeRetained"];
+
+  // Specific run ID targeted; empty when sweeping all.
+  string run_id = 4 [json_name = "runId"];
+
+  // Runs eligible for removal; empty if none.
+  repeated ProjectTemplateRun eligible = 5;
+
+  // Runs skipped with a reason; empty if none.
+  repeated ProjectTemplateSkippedRun skipped = 6;
+
+  // Runs that failed during planning; empty if none.
+  repeated ProjectTemplateFailedRun failures = 7;
+
+  // --- CleanupResult-only fields ---
+
+  // Runs actually removed; empty on dry-run or when none removed.
+  repeated ProjectTemplateRun removed = 8;
+
+  // True when proto artifacts remain and a regenerate is needed.
+  bool needs_proto_generate = 9 [json_name = "needsProtoGenerate"];
+
+  // True when the proto regenerate was executed.
+  bool proto_generate_ran = 10 [json_name = "protoGenerateRan"];
+
+  // Summary message; empty if unset.
+  string message = 11;
+}
+
+// ProjectTemplateRun is one template-validation run marker (templatevalidation.Run).
+message ProjectTemplateRun {
+  // Path to the run marker file.
+  string marker_path = 1 [json_name = "markerPath"];
+
+  // The decoded run marker.
+  ProjectTemplateRunMarker marker = 2;
+
+  // Human-readable run age; empty if unset.
+  string age = 3;
+}
+
+// ProjectTemplateRunMarker mirrors templatevalidation.RunMarker.
+message ProjectTemplateRunMarker {
+  // Marker schema version.
+  string version = 1;
+
+  // Run identifier.
+  string run_id = 2 [json_name = "runId"];
+
+  // Repo root the run executed against.
+  string repo_root = 3 [json_name = "repoRoot"];
+
+  // Template the run was generated from.
+  string template = 4;
+
+  // Generated scenario identifier.
+  string scenario_id = 5 [json_name = "scenarioId"];
+
+  // Generated scenario path.
+  string scenario_path = 6 [json_name = "scenarioPath"];
+
+  // Temp root holding the run's artifacts.
+  string temp_root = 7 [json_name = "tempRoot"];
+
+  // Marker creation time (RFC3339Nano).
+  string created_at = 8 [json_name = "createdAt"];
+
+  // True when the run's artifacts are retained (excluded from cleanup).
+  bool retained = 9;
+
+  // PID of the process that created the marker.
+  int32 creator_pid = 10 [json_name = "creatorPid"];
+
+  // True when the run completed.
+  bool completed = 11;
+
+  // Cleanup status label; empty if unset.
+  string cleanup_status = 12 [json_name = "cleanupStatus"];
+
+  // Proto relocation artifact paths; empty if none.
+  repeated string relocation_artifacts = 13 [json_name = "relocationArtifacts"];
+}
+
+// ProjectTemplateSkippedRun is one skipped run (templatevalidation.SkippedRun).
+message ProjectTemplateSkippedRun {
+  // The associated run, when one was decoded; absent (null) otherwise.
+  ProjectTemplateRun run = 1;
+
+  // Path involved when no run was decoded; empty otherwise.
+  string path = 2;
+
+  // Reason the run was skipped.
+  string reason = 3;
+}
+
+// ProjectTemplateFailedRun is one failed run (templatevalidation.FailedRun).
+message ProjectTemplateFailedRun {
+  // The associated run, when one was decoded; absent (null) otherwise.
+  ProjectTemplateRun run = 1;
+
+  // Path involved when no run was decoded; empty otherwise.
+  string path = 2;
+
+  // Failure detail.
+  string error = 3;
+}
+
+// -----------------------------------------------------------------------------
+// `vrooli diagnose-port --json` — WriteSuccessJSON(w, "diagnostic", diagnostic)
+// -----------------------------------------------------------------------------
+
+// ProjectPortDiagnosticResponse is the envelope of `vrooli diagnose-port --json`.
+message ProjectPortDiagnosticResponse {
+  // True when the diagnostic completed (standard CLI success envelope).
+  bool success = 1;
+
+  // The port diagnostic payload (carried under the "diagnostic" envelope key).
+  ProjectPortDiagnostic diagnostic = 2;
+}
+
+// ProjectPortDiagnostic mirrors maintenance.PortDiagnostic.
+message ProjectPortDiagnostic {
+  // Inspected port.
+  int32 port = 1;
+
+  // Scenario associated with the port; empty if unset.
+  string scenario = 2;
+
+  // True when a listener currently holds the port.
+  bool in_use = 3;
+
+  // Listeners on the port; empty if none.
+  repeated ProjectPortListener listeners = 4;
+
+  // Whether OS-level listener inspection was available.
+  ProjectListenerInspection listener_inspection = 5;
+
+  // Legacy lock artifact for the port; absent (null) if none.
+  ProjectLockInfo lock = 6;
+
+  // Runtime registry claims for the port; empty if none.
+  repeated ProjectRuntimeClaim registry_claims = 7;
+
+  // Runtime process references for the port; empty if none.
+  repeated ProjectRuntimeProcessRef registry_processes = 8;
+
+  // Count of host-level orphaned Vrooli processes.
+  int32 host_orphan_count = 9;
+
+  // Recommended remediation actions; empty if none.
+  repeated string recommendations = 10;
+
+  // Ephemeral-range / canonical-band policy check; always present.
+  ProjectPortPolicy port_policy = 11;
+}
+
+// ProjectPortListener mirrors network.PortListener.
+message ProjectPortListener {
+  // Listener process ID.
+  int32 pid = 1;
+
+  // Command line; empty if unset.
+  string command = 2;
+
+  // True when the listener process is a zombie.
+  bool zombie = 3;
+}
+
+// ProjectListenerInspection mirrors network.ListenerInspection.
+message ProjectListenerInspection {
+  // True when listener inspection was available.
+  bool available = 1;
+
+  // Inspection tool used (e.g. "ss", "lsof"); empty if unset.
+  string tool = 2;
+
+  // Reason inspection was unavailable; empty when available.
+  string reason = 3;
+}
+
+// ProjectRuntimeProcessRef mirrors maintenance.RuntimeProcessRefInfo.
+message ProjectRuntimeProcessRef {
+  // Process-reference identifier.
+  string ref_id = 1;
+
+  // Owning instance identifier.
+  string instance_id = 2;
+
+  // Owning scenario; empty if unset.
+  string scenario = 3;
+
+  // Owning instance status; empty if unset.
+  string instance_status = 4;
+
+  // Process ID; null when unknown.
+  google.protobuf.Value pid = 5;
+
+  // Process group ID; null when unknown.
+  google.protobuf.Value pgid = 6;
+
+  // Process identifier string; empty if unset.
+  string process_id = 7;
+
+  // Lifecycle step; empty if unset.
+  string step = 8;
+
+  // Command line; empty if unset.
+  string command = 9;
+
+  // Status label; empty if unset.
+  string status = 10;
+
+  // PID-running tri-state; null when unknown.
+  google.protobuf.Value pid_running = 11;
+}
+
+// ProjectPortPolicy mirrors maintenance.PortPolicyReport.
+message ProjectPortPolicy {
+  // Lower bound of the OS ephemeral port range.
+  int32 ephemeral_min = 1;
+
+  // Upper bound of the OS ephemeral port range.
+  int32 ephemeral_max = 2;
+
+  // Source of the ephemeral-range values (e.g. "sysctl"); empty if unset.
+  string ephemeral_source = 3;
+
+  // True when the port lies inside the OS ephemeral range.
+  bool inside_ephemeral_range = 4;
+
+  // Canonical Vrooli band ("api", "ui", "ws", "headroom"); empty if outside.
+  string canonical_band = 5;
+
+  // True when the port is above the canonical maximum.
+  bool above_canonical_max = 6;
+}
