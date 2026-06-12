@@ -18,13 +18,43 @@ export function scenarioTarget(scenario: string): CodeTarget {
   return create(CodeTargetSchema, { kind: TargetKind.SCENARIO, scenario });
 }
 
-export async function describeScenario(scenario = "code-facts"): Promise<CodeFactsReport> {
+export function pathTarget(path: string): CodeTarget {
+  return create(CodeTargetSchema, { kind: TargetKind.PATH, path });
+}
+
+export function moduleTarget(path: string): CodeTarget {
+  return create(CodeTargetSchema, { kind: TargetKind.MODULE, path });
+}
+
+export function projectTarget(path: string): CodeTarget {
+  return create(CodeTargetSchema, { kind: TargetKind.PROJECT, path });
+}
+
+export interface DescribeCodeFactsOptions {
+  target: CodeTarget;
+  include: FactFamily[];
+  useCache: boolean;
+}
+
+export async function describeCodeFacts({
+  target,
+  include,
+  useCache,
+}: DescribeCodeFactsOptions): Promise<CodeFactsReport> {
   return factsClient.describeCodeFacts({
-    target: scenarioTarget(scenario),
-    include: [FactFamily.SURFACES, FactFamily.PARSE_UNITS, FactFamily.PROTO_ADOPTION],
+    target,
+    include,
     endpointIds: [],
     commandIds: [],
     widgetIds: [],
+    useCache,
+  });
+}
+
+export async function describeScenario(scenario = "code-facts"): Promise<CodeFactsReport> {
+  return describeCodeFacts({
+    target: scenarioTarget(scenario),
+    include: [FactFamily.SURFACES, FactFamily.PARSE_UNITS, FactFamily.PROTO_ADOPTION],
     useCache: true,
   });
 }

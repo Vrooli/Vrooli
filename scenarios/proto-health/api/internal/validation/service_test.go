@@ -2,11 +2,14 @@ package validation
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"proto-health/internal/protosurface"
+
+	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 )
 
 type fakeLoader struct {
@@ -25,6 +28,29 @@ type fakeGenSyncChecker struct {
 
 func (f fakeGenSyncChecker) CheckScenario(context.Context, string) (GenSyncStatus, error) {
 	return f.status, f.err
+}
+
+type fakeCodeFactsClient struct {
+	adoptionReport *factsv1.ProofReport
+	adoptionErr    error
+	endpointReport *factsv1.ProofReport
+	endpointErr    error
+	endpointIDs    []string
+}
+
+func (f *fakeCodeFactsClient) CheckProtoAdoption(context.Context, string) (*factsv1.ProofReport, error) {
+	if f.adoptionErr != nil {
+		return nil, f.adoptionErr
+	}
+	return f.adoptionReport, nil
+}
+
+func (f *fakeCodeFactsClient) CheckEndpointProof(_ context.Context, _ string, endpointIDs []string) (*factsv1.ProofReport, error) {
+	f.endpointIDs = append([]string{}, endpointIDs...)
+	if f.endpointErr != nil {
+		return nil, f.endpointErr
+	}
+	return f.endpointReport, nil
 }
 
 func TestValidateScenarioCleanSurfacePasses(t *testing.T) {
@@ -51,6 +77,115 @@ func TestValidateScenarioFindsGeneratedArtifactDrift(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, report.Passed)
 	requireFinding(t, report, CodeGenOutOfSync, SeverityError)
+}
+
+func TestValidateScenarioFindsMissingCodeFactsProtoAdoption(t *testing.T) {
+	svc := New(Deps{
+		Loader: fakeLoader{surface: cleanSurface()},
+		CodeFacts: &fakeCodeFactsClient{
+			adoptionReport: proofReport(factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION,
+				proofFact("proto_adoption:api", factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION, "api", factsv1.EvidenceStatus_EVIDENCE_STATUS_MISSING, "api generated proto import missing"),
+			),
+		},
+	})
+
+	report, err := svc.ValidateScenario(context.Background(), "demo")
+	require.NoError(t, err)
+	require.False(t, report.Passed)
+	requireFinding(t, report, CodeProtoAdoptionMissing, SeverityError)
+}
+
+func TestValidateScenarioWarnsWhenCodeFactsUnavailable(t *testing.T) {
+	svc := New(Deps{
+		Loader: fakeLoader{surface: cleanSurface()},
+		CodeFacts: &fakeCodeFactsClient{
+			adoptionErr: errors.New("code-facts not running"),
+		},
+	})
+
+	report, err := svc.ValidateScenario(context.Background(), "demo")
+	require.NoError(t, err)
+	require.True(t, report.Passed)
+	requireFinding(t, report, CodeCodeFactsUnavailable, SeverityWarning)
+}
+
+func TestValidateScenarioFindsContradictedEndpointProof(t *testing.T) {
+	client := &fakeCodeFactsClient{
+		adoptionReport: proofReport(factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION,
+			proofFact("proto_adoption:api", factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION, "api", factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, "api imports generated proto"),
+		),
+		endpointReport: proofReport(factsv1.FactFamily_FACT_FAMILY_ENDPOINT_PROOFS,
+			proofFact("endpoint_proof:health", factsv1.FactFamily_FACT_FAMILY_ENDPOINT_PROOFS, "health", factsv1.EvidenceStatus_EVIDENCE_STATUS_CONTRADICTED, "health writes a different response proto"),
+		),
+	}
+	svc := New(Deps{Loader: fakeLoader{surface: surfaceWithRESTException()}, CodeFacts: client})
+
+	report, err := svc.ValidateScenario(context.Background(), "demo")
+	require.NoError(t, err)
+	require.False(t, report.Passed)
+	require.Equal(t, []string{"health"}, client.endpointIDs)
+	requireFinding(t, report, CodeEndpointProofContradicted, SeverityError)
+}
+
+func TestValidateScenarioFindsMissingEndpointProof(t *testing.T) {
+	svc := New(Deps{
+		Loader: fakeLoader{surface: surfaceWithRESTException()},
+		CodeFacts: &fakeCodeFactsClient{
+			adoptionReport: proofReport(factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION),
+			endpointReport: proofReport(factsv1.FactFamily_FACT_FAMILY_ENDPOINT_PROOFS,
+				proofFact("endpoint_proof:health", factsv1.FactFamily_FACT_FAMILY_ENDPOINT_PROOFS, "health", factsv1.EvidenceStatus_EVIDENCE_STATUS_MISSING, "no payload writer found"),
+			),
+		},
+	})
+
+	report, err := svc.ValidateScenario(context.Background(), "demo")
+	require.NoError(t, err)
+	require.False(t, report.Passed)
+	requireFinding(t, report, CodeEndpointProofMissing, SeverityError)
+}
+
+func TestValidateScenarioWarnsForUnsupportedEndpointProof(t *testing.T) {
+	svc := New(Deps{
+		Loader: fakeLoader{surface: surfaceWithRESTException()},
+		CodeFacts: &fakeCodeFactsClient{
+			adoptionReport: proofReport(factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION),
+			endpointReport: proofReport(factsv1.FactFamily_FACT_FAMILY_ENDPOINT_PROOFS,
+				proofFact("endpoint_proof:health", factsv1.FactFamily_FACT_FAMILY_ENDPOINT_PROOFS, "health", factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED, "surface missing"),
+			),
+		},
+	})
+
+	report, err := svc.ValidateScenario(context.Background(), "demo")
+	require.NoError(t, err)
+	require.True(t, report.Passed)
+	requireFinding(t, report, CodeEndpointProofUnsupported, SeverityWarning)
+}
+
+func TestValidateScenarioAcceptsProvenCodeFactsEvidence(t *testing.T) {
+	svc := New(Deps{
+		Loader: fakeLoader{surface: surfaceWithRESTException()},
+		CodeFacts: &fakeCodeFactsClient{
+			adoptionReport: proofReport(factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION,
+				proofFact("proto_adoption:api", factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION, "api", factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, "api imports generated proto"),
+			),
+			endpointReport: proofReport(factsv1.FactFamily_FACT_FAMILY_ENDPOINT_PROOFS,
+				proofFact("endpoint_proof:health", factsv1.FactFamily_FACT_FAMILY_ENDPOINT_PROOFS, "health", factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, "health writes declared payload"),
+			),
+		},
+	})
+
+	report, err := svc.ValidateScenario(context.Background(), "demo")
+	require.NoError(t, err)
+	require.True(t, report.Passed)
+	for _, finding := range report.Findings {
+		require.NotContains(t, []string{
+			CodeProtoAdoptionMissing,
+			CodeProtoAdoptionContradicted,
+			CodeEndpointProofMissing,
+			CodeEndpointProofContradicted,
+			CodeEndpointProofUnsupported,
+		}, finding.Code)
+	}
 }
 
 func TestValidateScenarioFindsPolicyViolations(t *testing.T) {
@@ -393,6 +528,56 @@ func cleanSurface() protosurface.Surface {
 			Domain:      "shared",
 			Stability:   "stable",
 			Annotations: []protosurface.Annotation{{Name: "stability", Value: "stable"}},
+		}},
+	}
+}
+
+func surfaceWithRESTException() protosurface.Surface {
+	surface := cleanSurface()
+	surface.RESTExceptions = []protosurface.RESTExceptionEndpoint{{
+		EndpointID:             "health",
+		Path:                   "/health",
+		Method:                 "GET",
+		Domain:                 "health",
+		Reason:                 "ops_probe",
+		HasPayloadDeclarations: true,
+	}}
+	surface.RESTExceptionPayloads = []protosurface.RESTExceptionPayloadRef{
+		{EndpointID: "health", Path: "/health", Method: "GET", Domain: "health", Role: protosurface.RESTPayloadRoleRequest, Transport: "none", Conformance: "none", ProofStatus: protosurface.RESTPayloadProofNotEvaluated},
+		{EndpointID: "health", Path: "/health", Method: "GET", Domain: "health", Role: protosurface.RESTPayloadRoleResponse, ProtoFullName: "vrooli.demo.v1.shared.HealthResponse", Transport: "json", Conformance: "protojson", ProofStatus: protosurface.RESTPayloadProofNotEvaluated},
+		{EndpointID: "health", Path: "/health", Method: "GET", Domain: "health", Role: protosurface.RESTPayloadRoleError, Transport: "json", Conformance: "external_shape", ProofStatus: protosurface.RESTPayloadProofNotEvaluated},
+	}
+	surface.Messages = append(surface.Messages, protosurface.Message{
+		FilePath: "demo/v1/shared/health.proto",
+		Package:  "vrooli.demo.v1.shared",
+		Name:     "HealthResponse",
+		FullName: "vrooli.demo.v1.shared.HealthResponse",
+		Domain:   "shared",
+	})
+	surface.RESTExceptionRefs = []protosurface.RESTExceptionRef{{
+		EndpointID: "health",
+		Path:       "/health",
+		Method:     "GET",
+		Domain:     "health",
+		Message:    "HealthResponse",
+		FullName:   "vrooli.demo.v1.shared.HealthResponse",
+	}}
+	return surface
+}
+
+func proofReport(family factsv1.FactFamily, facts ...*factsv1.GenericFact) *factsv1.ProofReport {
+	return &factsv1.ProofReport{Family: family, Facts: facts}
+}
+
+func proofFact(id string, family factsv1.FactFamily, subject string, status factsv1.EvidenceStatus, message string) *factsv1.GenericFact {
+	return &factsv1.GenericFact{
+		Id:      id,
+		Family:  family,
+		Subject: subject,
+		Evidence: []*factsv1.Evidence{{
+			Status:  status,
+			Message: message,
+			Range:   &factsv1.SourceRange{File: "scenarios/demo/.vrooli/endpoints.json"},
 		}},
 	}
 }

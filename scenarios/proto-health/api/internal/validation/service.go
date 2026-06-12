@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	"proto-health/internal/protosurface"
+
+	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 )
 
 var versionDirRE = regexp.MustCompile(`^v[1-9][0-9]*$`)
@@ -18,17 +20,19 @@ var versionDirRE = regexp.MustCompile(`^v[1-9][0-9]*$`)
 type Service struct {
 	loader         SurfaceLoader
 	genSyncChecker GenSyncChecker
+	codeFacts      CodeFactsClient
 	repoRoot       string
 }
 
 type Deps struct {
 	Loader         SurfaceLoader
 	GenSyncChecker GenSyncChecker
+	CodeFacts      CodeFactsClient
 	RepoRoot       string
 }
 
 func New(d Deps) *Service {
-	return &Service{loader: d.Loader, genSyncChecker: d.GenSyncChecker, repoRoot: d.RepoRoot}
+	return &Service{loader: d.Loader, genSyncChecker: d.GenSyncChecker, codeFacts: d.CodeFacts, repoRoot: d.RepoRoot}
 }
 
 func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report, error) {
@@ -60,8 +64,188 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 	findings = append(findings, checkMissingHealth(surface)...)
 	findings = append(findings, checkPossiblyUnused(surface)...)
 	findings = append(findings, s.checkDomainMismatch(surface)...)
+	findings = append(findings, s.checkCodeFacts(ctx, scenario, surface)...)
 	sortFindings(findings)
 	return finalize(scenario, findings), nil
+}
+
+func (s *Service) checkCodeFacts(ctx context.Context, scenario string, surface protosurface.Surface) []Finding {
+	if s.codeFacts == nil {
+		return nil
+	}
+	findings := s.checkProtoAdoptionFacts(ctx, scenario)
+	if len(surface.RESTExceptions) == 0 {
+		return findings
+	}
+	endpointIDs := make([]string, 0, len(surface.RESTExceptions))
+	for _, endpoint := range surface.RESTExceptions {
+		endpointIDs = append(endpointIDs, endpoint.EndpointID)
+	}
+	sort.Strings(endpointIDs)
+	findings = append(findings, s.checkEndpointProofFacts(ctx, scenario, endpointIDs)...)
+	return findings
+}
+
+func (s *Service) checkProtoAdoptionFacts(ctx context.Context, scenario string) []Finding {
+	report, err := s.codeFacts.CheckProtoAdoption(ctx, scenario)
+	if err != nil {
+		return []Finding{codeFactsUnavailableFinding("proto adoption", err)}
+	}
+	var findings []Finding
+	for _, warning := range report.GetWarnings() {
+		if warning.GetStatus() == factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED || warning.GetStatus() == factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN {
+			findings = append(findings, Finding{
+				Severity:   SeverityWarning,
+				Code:       CodeProtoAdoptionUnsupported,
+				Location:   "scenarios/" + scenario,
+				Message:    "code-facts proto adoption analyzer warning: " + warning.GetMessage(),
+				Suggestion: "start code-facts and its graph providers, or inspect the unsupported analyzer warning before treating adoption as proven",
+			})
+		}
+	}
+	for _, fact := range report.GetFacts() {
+		if fact.GetFamily() != factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION {
+			continue
+		}
+		status := factStatus(fact)
+		switch status {
+		case factsv1.EvidenceStatus_EVIDENCE_STATUS_MISSING:
+			findings = append(findings, Finding{
+				Severity:   SeverityError,
+				Code:       CodeProtoAdoptionMissing,
+				Location:   codeFactLocation(fact, "scenarios/"+scenario),
+				Message:    fmt.Sprintf("surface %q has no code-facts evidence for generated proto adoption", fact.GetSubject()),
+				Suggestion: "import and use generated proto clients/types on the surface, then rerun code-facts and proto-health",
+			})
+		case factsv1.EvidenceStatus_EVIDENCE_STATUS_CONTRADICTED:
+			findings = append(findings, Finding{
+				Severity:   SeverityError,
+				Code:       CodeProtoAdoptionContradicted,
+				Location:   codeFactLocation(fact, "scenarios/"+scenario),
+				Message:    fmt.Sprintf("surface %q has contradictory code-facts proto adoption evidence", fact.GetSubject()),
+				Suggestion: "align the surface with generated proto artifacts and remove hand-written contract drift",
+			})
+		case factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED, factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN:
+			findings = append(findings, Finding{
+				Severity:   SeverityWarning,
+				Code:       CodeProtoAdoptionUnsupported,
+				Location:   codeFactLocation(fact, "scenarios/"+scenario),
+				Message:    fmt.Sprintf("surface %q proto adoption proof is %s", fact.GetSubject(), evidenceStatusLabel(status)),
+				Suggestion: "treat the surface as unproven until code-facts can analyze it",
+			})
+		}
+	}
+	return findings
+}
+
+func (s *Service) checkEndpointProofFacts(ctx context.Context, scenario string, endpointIDs []string) []Finding {
+	report, err := s.codeFacts.CheckEndpointProof(ctx, scenario, endpointIDs)
+	if err != nil {
+		return []Finding{codeFactsUnavailableFinding("endpoint proof", err)}
+	}
+	var findings []Finding
+	for _, warning := range report.GetWarnings() {
+		if warning.GetStatus() == factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED || warning.GetStatus() == factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN {
+			findings = append(findings, Finding{
+				Severity:   SeverityWarning,
+				Code:       CodeEndpointProofUnsupported,
+				Location:   "scenarios/" + scenario + "/.vrooli/endpoints.json",
+				Message:    "code-facts endpoint analyzer warning: " + warning.GetMessage(),
+				Suggestion: "start code-facts and graph providers, or inspect unsupported analyzer output before treating REST exception implementation as proven",
+			})
+		}
+	}
+	for _, fact := range report.GetFacts() {
+		if fact.GetFamily() != factsv1.FactFamily_FACT_FAMILY_ENDPOINT_PROOFS {
+			continue
+		}
+		status := factStatus(fact)
+		switch status {
+		case factsv1.EvidenceStatus_EVIDENCE_STATUS_MISSING:
+			findings = append(findings, Finding{
+				Severity:   SeverityError,
+				Code:       CodeEndpointProofMissing,
+				Location:   codeFactLocation(fact, "scenarios/"+scenario+"/.vrooli/endpoints.json"),
+				Message:    fmt.Sprintf("REST exception endpoint %q has declarations but no code-facts implementation proof", fact.GetSubject()),
+				Suggestion: "implement the declared proto payload with generated helpers/types, or change the declaration if the endpoint is not proto-backed",
+			})
+		case factsv1.EvidenceStatus_EVIDENCE_STATUS_CONTRADICTED:
+			findings = append(findings, Finding{
+				Severity:   SeverityError,
+				Code:       CodeEndpointProofContradicted,
+				Location:   codeFactLocation(fact, "scenarios/"+scenario+"/.vrooli/endpoints.json"),
+				Message:    fmt.Sprintf("REST exception endpoint %q implementation contradicts its declared proto payload", fact.GetSubject()),
+				Suggestion: "make the handler write the declared proto payload type or update the endpoint declaration",
+			})
+		case factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED, factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN:
+			findings = append(findings, Finding{
+				Severity:   SeverityWarning,
+				Code:       CodeEndpointProofUnsupported,
+				Location:   codeFactLocation(fact, "scenarios/"+scenario+"/.vrooli/endpoints.json"),
+				Message:    fmt.Sprintf("REST exception endpoint %q implementation proof is %s", fact.GetSubject(), evidenceStatusLabel(status)),
+				Suggestion: "treat the endpoint implementation as unproven until code-facts can analyze it",
+			})
+		}
+	}
+	return findings
+}
+
+func codeFactsUnavailableFinding(scope string, err error) Finding {
+	return Finding{
+		Severity:   SeverityWarning,
+		Code:       CodeCodeFactsUnavailable,
+		Location:   "code-facts",
+		Message:    fmt.Sprintf("code-facts %s evidence is unavailable: %v", scope, err),
+		Suggestion: "start code-facts through the Vrooli lifecycle and rerun proto-health validation",
+	}
+}
+
+func factStatus(fact *factsv1.GenericFact) factsv1.EvidenceStatus {
+	status := factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSPECIFIED
+	for _, ev := range fact.GetEvidence() {
+		switch ev.GetStatus() {
+		case factsv1.EvidenceStatus_EVIDENCE_STATUS_CONTRADICTED:
+			return ev.GetStatus()
+		case factsv1.EvidenceStatus_EVIDENCE_STATUS_MISSING:
+			status = ev.GetStatus()
+		case factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN:
+			if status != factsv1.EvidenceStatus_EVIDENCE_STATUS_MISSING {
+				status = ev.GetStatus()
+			}
+		case factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED:
+			if status == factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSPECIFIED || status == factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN {
+				status = ev.GetStatus()
+			}
+		case factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN:
+			if status == factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSPECIFIED {
+				status = ev.GetStatus()
+			}
+		}
+	}
+	return status
+}
+
+func codeFactLocation(fact *factsv1.GenericFact, fallback string) string {
+	for _, ev := range fact.GetEvidence() {
+		if file := ev.GetRange().GetFile(); file != "" {
+			return file
+		}
+	}
+	if path := fact.GetAttributes()["path"]; path != "" {
+		return path
+	}
+	return fallback
+}
+
+func evidenceStatusLabel(status factsv1.EvidenceStatus) string {
+	switch status {
+	case factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED:
+		return "unsupported"
+	case factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN:
+		return "unknown"
+	default:
+		return status.String()
+	}
 }
 
 func (s *Service) checkGeneratedArtifacts(ctx context.Context, scenario string) []Finding {

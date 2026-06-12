@@ -62,3 +62,12 @@ Next phase: Phase 10 proto adoption and endpoint proof facts.
 - Added API unit coverage for generated proto import adoption, missing adoption, valid REST payload proof, and wrong response type contradiction.
 
 Next phase: Phase 11 operator UI.
+
+## 2026-06-12 — Phase 11 Operator UI
+
+- Replaced the fixed `code-facts` query panel with a target-aware operator workbench.
+- Added scenario/path/module/project target controls, cache toggle, and fact-family segmented controls.
+- Added scan-friendly target context, cache behavior, surface inventory, parse-unit inventory, facts, evidence, warnings, and raw JSON panels.
+- Added UI coverage for empty state, analysis request options, populated evidence rendering, cache preference, path targets, and API errors.
+
+Next phase: Phase 12 proto-health adoption.

@@ -2,11 +2,13 @@ package validation
 
 import (
 	"log"
+	"net/http"
 	"path/filepath"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 
+	"proto-health/internal/codefacts"
 	"proto-health/internal/module"
 	"proto-health/internal/protosurface"
 	internal "proto-health/internal/validation"
@@ -29,6 +31,7 @@ func Module(logger *log.Logger, repoRoot string) module.Module {
 		Loader:         loader,
 		GenSyncChecker: internal.NewGeneratedArtifactChecker(repoRoot),
 		RepoRoot:       repoRoot,
+		CodeFacts:      codefacts.NewClient(nil, http.DefaultClient),
 	})
 	connectPath, connectHandler := validationconnect.NewProtoHealthServiceHandler(NewConnectHandler(Deps{
 		Logger:    logger,

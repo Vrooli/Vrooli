@@ -28,6 +28,20 @@ ui/src/
 └── theme/          # theme-token slot — ThemeProvider + tokens.css
 ```
 
+## Code Facts Operator Workbench
+
+The `features/facts/FactsWorkbench.tsx` feature is the primary operator UI for
+this scenario. It is intentionally first-screen usable: operators can choose a
+scenario/path/module/project target, toggle cache use, select fact families, run
+analysis, and inspect target context, surface inventory, parse units, facts,
+evidence, warnings/degraded providers, cache metadata, and raw JSON.
+
+Keep this surface operational rather than decorative. New evidence families
+should appear as additional fact-family controls and table columns only when the
+underlying API contract returns durable fields; provider-specific details should
+stay in `GenericFact.attributes` or raw JSON unless they become shared Code
+Facts concepts.
+
 ## Slots Are A Contract
 
 Every directory above maps to a named slot in `ui/manifest.json`. The manifest

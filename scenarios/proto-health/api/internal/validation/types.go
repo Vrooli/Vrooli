@@ -6,6 +6,8 @@ import (
 	"context"
 
 	"proto-health/internal/protosurface"
+
+	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 )
 
 type Severity string
@@ -35,6 +37,13 @@ const (
 	CodeStabilityDependencyMismatch   = "proto.stability_dependency_mismatch"
 	CodeSharedTypeMisplaced           = "proto.shared_type_misplaced"
 	CodeImportKindUnknown             = "proto.import_kind_unknown"
+	CodeCodeFactsUnavailable          = "proto.code_facts_unavailable"
+	CodeProtoAdoptionMissing          = "proto.proto_adoption_missing"
+	CodeProtoAdoptionUnsupported      = "proto.proto_adoption_unsupported"
+	CodeProtoAdoptionContradicted     = "proto.proto_adoption_contradicted"
+	CodeEndpointProofMissing          = "proto.endpoint_proof_missing"
+	CodeEndpointProofUnsupported      = "proto.endpoint_proof_unsupported"
+	CodeEndpointProofContradicted     = "proto.endpoint_proof_contradicted"
 )
 
 type Finding struct {
@@ -70,6 +79,11 @@ type GenSyncStatus struct {
 
 type GenSyncChecker interface {
 	CheckScenario(ctx context.Context, scenario string) (GenSyncStatus, error)
+}
+
+type CodeFactsClient interface {
+	CheckProtoAdoption(ctx context.Context, scenario string) (*factsv1.ProofReport, error)
+	CheckEndpointProof(ctx context.Context, scenario string, endpointIDs []string) (*factsv1.ProofReport, error)
 }
 
 func summarize(findings []Finding) Summary {
