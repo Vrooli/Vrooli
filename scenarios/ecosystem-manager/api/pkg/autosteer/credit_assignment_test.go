@@ -66,7 +66,7 @@ func creditOrchestrator(runner findings.AuditRunner) (*ExecutionOrchestrator, *e
 	return orch, store
 }
 
-func TestCreditAssignment_ClosedAndCollateral(t *testing.T) {
+func TestCreditAssignment_ClosedAndCollateral(t *testing.T) { // [REQ:EM-P1-003]
 	// Diagnose: standards {a,b}. After iter 1: standards {a} (b closed),
 	// tests {t1} introduced as collateral damage from the standards skill.
 	runner := &shrinkingRunner{audits: []*findings.Audit{

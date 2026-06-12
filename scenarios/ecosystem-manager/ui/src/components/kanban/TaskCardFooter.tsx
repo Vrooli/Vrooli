@@ -20,6 +20,7 @@ export function TaskCardFooter({ task, onViewDetails, onDelete }: TaskCardFooter
   const executionCount = task.execution_count || 0;
   const completionCount = task.completion_count ?? 0;
   const showCooldown = (task.status === 'completed' || task.status === 'failed') && !!task.cooldown_until;
+  const cooldownUntil = showCooldown ? task.cooldown_until : undefined;
   const showAutoRequeueDisabled =
     task.status !== 'pending' &&
     task.status !== 'in-progress' &&
@@ -33,7 +34,7 @@ export function TaskCardFooter({ task, onViewDetails, onDelete }: TaskCardFooter
         {isInProgress && hasProcess && task.current_process?.start_time && (
           <ElapsedTimer startTime={task.current_process.start_time} />
         )}
-        {showCooldown && <CooldownCountdown until={task.cooldown_until!} />}
+        {cooldownUntil && <CooldownCountdown until={cooldownUntil} />}
         {showAutoRequeueDisabled && <AutoRequeueLocked />}
         <div
           className="flex items-center gap-1.5 text-xs text-muted-foreground"

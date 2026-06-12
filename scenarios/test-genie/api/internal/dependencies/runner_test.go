@@ -81,6 +81,21 @@ func (m *mockResourceChecker) Check(ctx context.Context) resources.HealthResult 
 	return m.result
 }
 
+type mockCommandRunner struct {
+	outputs map[string]string
+	errs    map[string]error
+}
+
+func (m mockCommandRunner) Run(ctx context.Context, dir string, name string, args ...string) (string, error) {
+	if err := m.errs[name]; err != nil {
+		return "", err
+	}
+	if out := m.outputs[name]; out != "" {
+		return out, nil
+	}
+	return "1.99.0\n", nil
+}
+
 // Ensure mock types satisfy interfaces at compile time.
 var (
 	_ commands.Checker             = (*mockCommandChecker)(nil)
@@ -88,7 +103,21 @@ var (
 	_ packages.Detector            = (*mockPackageDetector)(nil)
 	_ resources.ExpectationsLoader = (*mockResourceLoader)(nil)
 	_ resources.HealthChecker      = (*mockResourceChecker)(nil)
+	_ CommandRunner                = (*mockCommandRunner)(nil)
 )
+
+func versionRunner() CommandRunner {
+	return &mockCommandRunner{
+		outputs: map[string]string{
+			"go":      "go version go1.25.0 linux/amd64\n",
+			"node":    "v22.0.0\n",
+			"python3": "Python 3.13.0\n",
+			"pnpm":    "10.0.0\n",
+			"npm":     "11.0.0\n",
+			"yarn":    "1.22.22\n",
+		},
+	}
+}
 
 func TestRunnerRunSuccess(t *testing.T) {
 	config := Config{
@@ -112,6 +141,7 @@ func TestRunnerRunSuccess(t *testing.T) {
 		WithResourceLoader(&mockResourceLoader{
 			resources: []string{"postgres"},
 		}),
+		WithCommandRunner(versionRunner()),
 	)
 
 	result := runner.Run(context.Background())
@@ -314,6 +344,7 @@ func TestRunnerRunTracksValidationSummary(t *testing.T) {
 		WithResourceLoader(&mockResourceLoader{
 			resources: []string{"postgres", "redis"},
 		}),
+		WithCommandRunner(versionRunner()),
 	)
 
 	result := runner.Run(context.Background())

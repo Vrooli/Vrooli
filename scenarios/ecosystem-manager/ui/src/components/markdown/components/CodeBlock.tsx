@@ -2,7 +2,7 @@ import { memo, useEffect, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import { useCodeCopy } from '../hooks/useCodeCopy';
 import { detectLanguage, isSupportedLanguage, normalizeLanguage } from '../utils/languageDetection';
-import { useTheme } from '@/contexts/ThemeContext';
+import { useTheme } from '@/contexts/useTheme';
 
 interface CodeBlockProps {
   code: string;
@@ -97,7 +97,7 @@ export const CodeBlock = memo(function CodeBlock({
       <div className="flex items-center justify-between border-b border-white/10 bg-slate-900/80 px-3 py-2">
         <span className="font-mono text-xs text-slate-400">{displayLanguage}</span>
         <button
-          onClick={copyCode}
+          onClick={() => void copyCode()}
           className="flex items-center gap-1.5 text-xs text-slate-300 transition-colors hover:text-slate-100"
           aria-label={copied ? 'Copied' : 'Copy code'}
           type="button"

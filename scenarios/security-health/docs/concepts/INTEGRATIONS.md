@@ -21,8 +21,8 @@ Use this document to answer:
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario should be started through lifecycle commands. |
 | qdrant | Vrooli resource | no (try_start) | dependencies | `dependencies.resources.qdrant` (collection `security-health-deps`, dimensions resolved from `embedding.default`, cosine) | Dependency search degrades to TEXT mode; reindex deferred. |
 | ollama | Vrooli resource | no (try_start) | dependencies | `dependencies.resources.ollama` (`embedding.default` role) | Embedding unavailable; TEXT-mode search still works. |
-| gitleaks | host CLI | present | validation | shelled `gitleaks detect --report-format json --redact` | Absent ⇒ secrets scanner emits INFO observation, not failure. |
-| gosec | host CLI | present | validation | shelled `gosec -fmt=json` | Absent ⇒ Go SAST scanner emits INFO observation. |
+| gitleaks | host CLI | present | validation | shelled `gitleaks detect --report-format json --redact`; matches in untracked gitignored files (via `git check-ignore` + `git ls-files`) are downgraded to INFO — they cannot be committed, so they never gate | Absent ⇒ secrets scanner emits INFO observation, not failure. |
+| gosec | host CLI | present | validation | shelled `gosec -fmt=json`; issues whose flagged line carries a covering `//nolint`/`//nolint:gosec` directive are dropped — standalone gosec only honors `#nosec`, but the repo lints Go through golangci-lint | Absent ⇒ Go SAST scanner emits INFO observation. |
 | govulncheck | host CLI | optional (absent) | validation, dependencies | `go install golang.org/x/vuln/cmd/govulncheck@latest` (install-gated) | Absent ⇒ Go vuln scanner emits INFO observation. |
 | osv-scanner | host CLI | optional (absent) | validation, dependencies | `go install github.com/google/osv-scanner/cmd/osv-scanner@latest` (install-gated) | Absent ⇒ CVE scanner emits INFO observation. |
 | pnpm audit | host CLI | ships with pnpm | validation, dependencies | shelled `pnpm audit --json` | Absent ⇒ JS deps scanner emits INFO observation. |

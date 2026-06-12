@@ -213,7 +213,7 @@ func TestRecycleRespectsCooldownAndLock(t *testing.T) {
 	}
 }
 
-func TestLifecycleTransitionMatrix(t *testing.T) {
+func TestLifecycleTransitionMatrix(t *testing.T) { // [REQ:EM-FLOW-002]
 	now := time.Unix(0, 0)
 	makeCtx := func(manual, override bool) TransitionContext {
 		intent := IntentAuto
@@ -291,7 +291,7 @@ func TestLifecycleTransitionMatrix(t *testing.T) {
 	}
 }
 
-func TestApplyTransitionSideEffects(t *testing.T) {
+func TestApplyTransitionSideEffects(t *testing.T) { // [REQ:EM-QUEUE-003]
 	store := newMockStorage()
 	task := TaskItem{ID: "t-side", Status: StatusInProgress, ProcessorAutoRequeue: true}
 	store.items[StatusInProgress][task.ID] = task
@@ -406,7 +406,7 @@ func TestPendingMoveFromTerminalReEnablesAutoRequeue(t *testing.T) {
 	ensureSingleBucket(t, store, task.ID)
 }
 
-func TestLifecycleRuleMatrix(t *testing.T) {
+func TestLifecycleRuleMatrix(t *testing.T) { // [REQ:EM-FLOW-002]
 	now := time.Unix(0, 0)
 	tests := []struct {
 		name          string

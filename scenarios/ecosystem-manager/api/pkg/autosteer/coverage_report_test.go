@@ -22,7 +22,7 @@ func (r coverageProfileRepo) GetProfile(id string) (*AutoSteerProfile, error) {
 func (r coverageProfileRepo) UpdateProfile(id string, updates *AutoSteerProfile) error { return nil }
 func (r coverageProfileRepo) DeleteProfile(id string) error                            { return nil }
 
-func TestCoverageReporterReportsKnownUncoveredDependencyGap(t *testing.T) {
+func TestCoverageReporterReportsKnownUncoveredDependencyGap(t *testing.T) { // [REQ:EM-FLEET-003]
 	profile := &AutoSteerProfile{
 		ID:   "production-ready",
 		Name: "Production Ready",

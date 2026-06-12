@@ -8,7 +8,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/vrooli/cli-core v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
-	github.com/vrooli/vrooli/packages/proto v0.0.0-00010101000000-000000000000
+	github.com/vrooli/vrooli/packages/proto v0.0.0
 	golang.org/x/term v0.37.0
 	google.golang.org/protobuf v1.36.11
 	modernc.org/sqlite v1.50.1
@@ -63,6 +63,7 @@ require (
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/vrooli/api-core v0.0.0 // indirect
 	github.com/vrooli/freshness-go v0.0.0 // indirect
+	github.com/vrooli/vrooli-cli-go v0.0.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.49.0 // indirect
@@ -87,6 +88,8 @@ replace github.com/vrooli/cli-core => ../../../packages/cli-core
 replace github.com/vrooli/freshness-go => ../../../packages/freshness-go
 
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
+
+replace github.com/vrooli/vrooli-cli-go => ../../../packages/vrooli-cli-go
 
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 

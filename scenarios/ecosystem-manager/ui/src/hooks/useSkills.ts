@@ -20,12 +20,12 @@ export function useSkills() {
 export function useSyncSkills() {
   const queryClient = useQueryClient();
 
-  return useMutation<SkillsSyncResult>({
-    mutationFn: () => api.syncSkills(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.skills.list() });
-    },
-  });
+	return useMutation<SkillsSyncResult>({
+		mutationFn: () => api.syncSkills(),
+		onSuccess: () => {
+			void queryClient.invalidateQueries({ queryKey: queryKeys.skills.list() });
+		},
+	});
 }
 
 /**
@@ -34,7 +34,7 @@ export function useSyncSkills() {
 export function useSteerSkills() {
   const { data: skills, ...rest } = useSkills();
 
-  const steerSkills = skills?.filter((skill) => skill.modes?.[0]?.toLowerCase() === 'steer');
+	const steerSkills = skills?.filter((skill) => skill.modes[0]?.toLowerCase() === 'steer');
 
   return {
     data: steerSkills,

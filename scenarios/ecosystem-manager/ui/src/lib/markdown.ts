@@ -9,7 +9,7 @@ export function markdownToHtml(markdown: string | undefined | null): string {
   if (!markdown) return '';
 
   const codeBlocks: string[] = [];
-  let working = markdown.replace(/```([\s\S]*?)```/g, (_match, code) => {
+  let working = markdown.replace(/```([\s\S]*?)```/g, (_match: string, code: string) => {
     const index = codeBlocks.length;
     codeBlocks.push(escapeHtml(code.trim()));
     return `__CODE_BLOCK_${index}__`;
@@ -26,7 +26,7 @@ export function markdownToHtml(markdown: string | undefined | null): string {
   const lines = working.split(/\r?\n/);
   const htmlLines: string[] = [];
   let inList = false;
-  lines.forEach((line) => {
+  for (const line of lines) {
     if (line.trim().startsWith('- ')) {
       if (!inList) {
         htmlLines.push('<ul class="list-disc pl-4 mb-2">');
@@ -40,7 +40,7 @@ export function markdownToHtml(markdown: string | undefined | null): string {
       }
       htmlLines.push(line);
     }
-  });
+  }
   if (inList) {
     htmlLines.push('</ul>');
   }

@@ -125,7 +125,7 @@ export function ProcessMonitor({ onSelectTask }: ProcessMonitorProps) {
                   <ProcessCard
                     key={process.process_id}
                     process={process}
-                    onSelect={loadingTaskId ? undefined : () => handleOpenTask(process.task_id)}
+                    onSelect={loadingTaskId ? undefined : () => void handleOpenTask(process.task_id)}
                   />
                 ))
               )}

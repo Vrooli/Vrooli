@@ -194,7 +194,7 @@ cd packages/proto
 make generate
 make lint
 make breaking
-make check
+make verify-committed-gen
 ```
 
 Breaking-change guidance:
@@ -415,7 +415,7 @@ rg "as [A-Z][a-zA-Z]+|as any|: any" scenarios/{{TARGET}}/ui/src --type ts --glob
 rg "fromJson|fetch|axios|useQuery|useMutation" scenarios/{{TARGET}}/ui/src --type ts
 
 # Proto generation sync
-cd packages/proto && make check
+cd packages/proto && make verify-committed-gen
 ```
 
 #### 14.2 Red Flags Checklist
@@ -571,4 +571,3 @@ Use this brief ladder to identify the next concrete move. Each surface (UI↔API
 | 5 | Codegen drift gate | `validateTransport` (or equivalent) fails the build on hand-authored REST paths without exceptions; parity tests assert UI/CLI ↔ RPC mapping; envelope/status normalization is centralized and tested. |
 
 Last updated: 2026-05-12
-

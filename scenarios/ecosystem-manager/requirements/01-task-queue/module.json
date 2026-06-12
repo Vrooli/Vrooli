@@ -1,0 +1,167 @@
+{
+  "_metadata": {
+    "module": "task-queue",
+    "description": "Unified task queue: CRUD, processor lifecycle, state transitions, execution tracking, and the formally verified queue/task state machine (OT-P0-001, OT-P1-004).",
+    "prd_ref": "OT-P0-001",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "EM-QUEUE-001",
+      "category": "task-queue",
+      "title": "Task CRUD via API",
+      "description": "Tasks for all four operation types can be created, updated, and deleted through the HTTP API, with validation preventing invalid configurations.",
+      "prd_ref": "OT-P0-001",
+      "status": "complete",
+      "tags": ["task-queue", "api"],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/handlers/handlers_test.go::TestTaskHandlers_CreateTask",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/pkg/handlers/handlers_test.go::TestTaskHandlers_UpdateTask",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/pkg/handlers/handlers_test.go::TestTaskHandlers_DeleteTask",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "EM-QUEUE-002",
+      "category": "task-queue",
+      "title": "Queue processor lifecycle and concurrency",
+      "description": "The queue processor starts/stops cleanly, processes pending tasks under the configured slot limits, and pauses on rate-limit signals.",
+      "prd_ref": "OT-P0-001",
+      "status": "complete",
+      "tags": ["task-queue", "processor"],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/queue/processor_test.go::TestProcessor_StartStop",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/pkg/queue/processor_test.go::TestProcessor_RateLimitPause",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/pkg/queue/processor_test.go::TestProcessor_WithPendingTask",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "EM-QUEUE-003",
+      "category": "task-queue",
+      "title": "Task lifecycle transitions are enforced",
+      "description": "Task status transitions follow the lifecycle rule matrix, side-effects fire on transition, and manual terminal-to-pending transitions re-enable auto-requeue.",
+      "prd_ref": "OT-P0-001",
+      "status": "complete",
+      "tags": ["task-queue", "lifecycle"],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/tasks/storage_test.go::TestMoveTaskTo",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/pkg/tasks/lifecycle_test.go::TestApplyTransitionSideEffects",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/pkg/handlers/tasks_transition_test.go::TestManualTransitionFromTerminalToPendingEnablesAutoRequeue",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "EM-QUEUE-004",
+      "category": "task-queue",
+      "title": "Execution tracking and history",
+      "description": "Each agent execution is reserved, tracked through its lifecycle, and persisted to a loadable execution history.",
+      "prd_ref": "OT-P0-001",
+      "status": "complete",
+      "tags": ["task-queue", "executions"],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/queue/execution_test.go::TestExecutionLifecycle",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/pkg/queue/execution_history_test.go::TestLoadAllExecutionHistory",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/pkg/queue/processor_internal_test.go::TestReserveExecutionCreatesEntry",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "EM-FLOW-001",
+      "category": "temporal-flow",
+      "title": "Queue/task state machine formally verified",
+      "description": "The task lifecycle state machine is modeled in Quint and the implementation replays the formal model's traces for conformance (flow-verifier toolchain).",
+      "prd_ref": "OT-P1-004",
+      "status": "complete",
+      "tags": ["temporal-flow", "quint"],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/tasks/flow/flow_test.go::TestLifecycleFormalReplay",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "EM-FLOW-002",
+      "category": "temporal-flow",
+      "title": "Lifecycle transition matrix conformance",
+      "description": "Every allowed and disallowed task lifecycle transition is enumerated and asserted against the lifecycle rule matrix.",
+      "prd_ref": "OT-P1-004",
+      "status": "complete",
+      "tags": ["temporal-flow", "lifecycle"],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/tasks/lifecycle_test.go::TestLifecycleTransitionMatrix",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/pkg/tasks/lifecycle_test.go::TestLifecycleRuleMatrix",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    }
+  ]
+}

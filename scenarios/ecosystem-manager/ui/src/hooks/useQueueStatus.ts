@@ -20,20 +20,19 @@ export function useQueueStatus() {
 export function useToggleProcessor() {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: async (action: 'start' | 'stop') => {
-      if (action === 'start') {
-        return api.startProcessor();
-      } else {
-        return api.stopProcessor();
-      }
-    },
-    onSuccess: () => {
-      // Invalidate queue status to reflect new state
-      queryClient.invalidateQueries({ queryKey: queryKeys.queue.status() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.settings.get() });
-    },
-  });
+	return useMutation({
+		mutationFn: async (action: 'start' | 'stop') => {
+			if (action === 'start') {
+				return api.startProcessor();
+			}
+			return api.stopProcessor();
+		},
+		onSuccess: () => {
+			// Invalidate queue status to reflect new state
+			void queryClient.invalidateQueries({ queryKey: queryKeys.queue.status() });
+			void queryClient.invalidateQueries({ queryKey: queryKeys.settings.get() });
+		},
+	});
 }
 
 /**
@@ -42,13 +41,13 @@ export function useToggleProcessor() {
 export function useTriggerQueue() {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: () => api.triggerQueue(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.queue.status() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
-    },
-  });
+	return useMutation({
+		mutationFn: () => api.triggerQueue(),
+		onSuccess: () => {
+			void queryClient.invalidateQueries({ queryKey: queryKeys.queue.status() });
+			void queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
+		},
+	});
 }
 
 /**
@@ -57,10 +56,10 @@ export function useTriggerQueue() {
 export function useResetRateLimit() {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: () => api.resetRateLimit(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.queue.status() });
-    },
-  });
+	return useMutation({
+		mutationFn: () => api.resetRateLimit(),
+		onSuccess: () => {
+			void queryClient.invalidateQueries({ queryKey: queryKeys.queue.status() });
+		},
+	});
 }

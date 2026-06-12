@@ -36,7 +36,7 @@ func TestGetScenarioEmptyNameRejected(t *testing.T) {
 	}
 }
 
-func TestListCategoriesReturnsGroupings(t *testing.T) {
+func TestListCategoriesReturnsGroupings(t *testing.T) { // [REQ:EM-CONN-001]
 	resp, err := newHandler().ListCategories(
 		context.Background(),
 		connect.NewRequest(&discoveryv1.ListCategoriesRequest{}),

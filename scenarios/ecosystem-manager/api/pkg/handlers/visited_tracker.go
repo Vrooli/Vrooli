@@ -50,8 +50,12 @@ func (h *VisitedTrackerHandlers) proxyToVisitedTracker(w http.ResponseWriter, r 
 		targetURL += "?" + r.URL.RawQuery
 	}
 
-	// Create proxy request
-	proxyReq, err := http.NewRequest(r.Method, targetURL, r.Body)
+	// Create proxy request. The outbound URL is not attacker-steerable: the
+	// host comes from discovery resolution (trusted local registry, not
+	// request input) and every caller passes a fixed path with
+	// url.PathEscape'd identifiers, so only the query string is forwarded
+	// verbatim — and it can only reach the resolved visited-tracker instance.
+	proxyReq, err := http.NewRequest(r.Method, targetURL, r.Body) // #nosec G704 -- host is discovery-resolved, paths are fixed constants with escaped IDs
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to create proxy request: %v", err), http.StatusInternalServerError)
 		return
@@ -68,7 +72,7 @@ func (h *VisitedTrackerHandlers) proxyToVisitedTracker(w http.ResponseWriter, r 
 	}
 
 	// Execute request using shared client (with timeout)
-	resp, err := h.client.Do(proxyReq)
+	resp, err := h.client.Do(proxyReq) // #nosec G704 -- same constrained URL as above; internal scenario-to-scenario proxy
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to proxy request to visited-tracker: %v", err), http.StatusBadGateway)
 		return

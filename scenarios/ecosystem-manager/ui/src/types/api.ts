@@ -91,6 +91,7 @@ export interface CreateTaskInput {
 }
 
 export interface UpdateTaskInput {
+  status?: TaskStatus;
   priority?: Priority;
   notes?: string;
   steer_set?: string[];
@@ -457,10 +458,12 @@ export interface ProfilePerformance {
   feedback_entries?: ExecutionFeedbackEntry[];
 }
 
+type OpenString<T extends string> = T | (string & {});
+
 export interface ExecutionFeedbackEntry {
   id: string;
   category: string;
-  severity: 'low' | 'medium' | 'high' | 'critical' | string;
+  severity: OpenString<'low' | 'medium' | 'high' | 'critical'>;
   suggested_action?: string;
   comments?: string;
   metadata?: Record<string, unknown>;
@@ -469,7 +472,7 @@ export interface ExecutionFeedbackEntry {
 
 export interface ExecutionFeedbackEntryPayload {
   category: string;
-  severity: 'low' | 'medium' | 'high' | 'critical' | string;
+  severity: OpenString<'low' | 'medium' | 'high' | 'critical'>;
   suggested_action?: string;
   comments?: string;
   metadata?: Record<string, unknown>;
@@ -606,7 +609,7 @@ export type WebSocketMessageType =
   | 'rate_limit_hit'
   | 'execution_limit_reached'
   | 'log_entry'
-  | string;
+  | (string & {});
 
 export interface WebSocketMessage {
   type: WebSocketMessageType;
@@ -877,6 +880,23 @@ export interface SystemInsightReport {
   system_suggestions: Suggestion[];
   by_task_type: Record<string, TaskTypeStats>;
   by_operation: Record<string, TaskTypeStats>;
+}
+
+export interface SystemInsightsSummary {
+  total_reports: number;
+  unique_tasks: number;
+  total_executions: number;
+  patterns_by_type: Record<string, number>;
+  suggestions_by_type: Record<string, number>;
+}
+
+export interface SystemInsightsResponse {
+  time_window: {
+    since: string;
+    days: number;
+  };
+  summary: SystemInsightsSummary;
+  reports: InsightReport[];
 }
 
 export interface GenerateInsightOptions {

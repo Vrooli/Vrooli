@@ -4,7 +4,7 @@ import { cn, formatSkillSetLabel, getQueueStepDisplay } from '@/lib/utils';
 import { useAllAutoSteerProfiles } from '@/hooks/useAutoSteer';
 import { useMergedSkillNames } from '@/hooks/usePromptFiles';
 import { SteeringConfigDialog } from './SteeringConfigDialog';
-import type { SteeringConfig, SteeringStrategy, AutoSteerProfile } from '@/types/api';
+import type { SteeringConfig, AutoSteerProfile } from '@/types/api';
 
 interface SteeringConfigPickerProps {
   value: SteeringConfig;
@@ -30,9 +30,9 @@ function getStrategyDisplay(
   skillNames: { id: string; name: string }[]
 ): StrategyDisplay {
   switch (config.strategy) {
-    case 'profile': {
-      const profile = profiles.find((p) => p.id === config.profileId);
-      const skillCount = profile?.allowed_skills?.length || 0;
+	case 'profile': {
+		const profile = profiles.find((p) => p.id === config.profileId);
+		const skillCount = profile?.allowed_skills.length || 0;
       return {
         label: profile?.name || 'Unknown Profile',
         sublabel: skillCount > 0 ? `${skillCount} skill${skillCount === 1 ? '' : 's'}` : undefined,
@@ -91,8 +91,8 @@ export function SteeringConfigPicker({
   pendingQueuePosition,
 }: SteeringConfigPickerProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const { data: allProfiles = [], isLoading: isLoadingProfiles } = useAllAutoSteerProfiles();
-  const { data: skillNames = [], isLoading: isLoadingSkills } = useMergedSkillNames();
+  const { data: allProfiles, isLoading: isLoadingProfiles } = useAllAutoSteerProfiles();
+  const { data: skillNames, isLoading: isLoadingSkills } = useMergedSkillNames();
 
   const display = getStrategyDisplay(value, allProfiles, skillNames);
   const Icon = display.icon;
@@ -136,66 +136,4 @@ export function SteeringConfigPicker({
       />
     </>
   );
-}
-
-export function deriveSteeringConfig(task: {
-  auto_steer_profile_id?: string;
-  steering_queue?: string[][];
-  steer_set?: string[];
-}): SteeringConfig {
-  if (task.auto_steer_profile_id) {
-    return {
-      strategy: 'profile',
-      profileId: task.auto_steer_profile_id,
-    };
-  }
-  if (task.steering_queue && task.steering_queue.length > 0) {
-    return {
-      strategy: 'queue',
-      queue: task.steering_queue,
-    };
-  }
-  if (task.steer_set && task.steer_set.length > 0) {
-    return {
-      strategy: 'manual',
-      manualSet: task.steer_set,
-    };
-  }
-  return {
-    strategy: 'none',
-  };
-}
-
-export function extractSteeringFields(config: SteeringConfig): {
-  steer_set?: string[];
-  auto_steer_profile_id?: string;
-  steering_queue?: string[][];
-} {
-  switch (config.strategy) {
-    case 'profile':
-      return {
-        auto_steer_profile_id: config.profileId,
-        steer_set: undefined,
-        steering_queue: undefined,
-      };
-    case 'queue':
-      return {
-        steering_queue: config.queue,
-        steer_set: undefined,
-        auto_steer_profile_id: undefined,
-      };
-    case 'manual':
-      return {
-        steer_set: config.manualSet,
-        auto_steer_profile_id: undefined,
-        steering_queue: undefined,
-      };
-    case 'none':
-    default:
-      return {
-        steer_set: undefined,
-        auto_steer_profile_id: undefined,
-        steering_queue: undefined,
-      };
-  }
 }

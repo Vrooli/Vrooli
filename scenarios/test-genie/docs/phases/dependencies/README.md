@@ -5,7 +5,7 @@
 **Optional**: No
 **Requires Runtime**: No
 
-The dependencies phase verifies that all required tools, runtimes, and resources are available before running tests. It prevents cryptic failures later by catching missing dependencies upfront.
+The dependencies phase is a read-only preflight. It verifies that required tools, runtimes, package state, Go module metadata, resources, and scenario dependencies are ready before later phases run. It does not install packages, start resources, start scenarios, or mutate `go.mod` / `go.sum`.
 
 ## What Gets Checked
 
@@ -15,19 +15,29 @@ graph TB
         BASELINE[Baseline Commands<br/>bash, curl, jq]
         RUNTIMES[Language Runtimes<br/>Go, Node.js, Python]
         PKGMGRS[Package Managers<br/>pnpm, npm, yarn]
+        GOMOD[Go Modules<br/>tidy diff + local replaces]
+        NODESTATE[Node Package State<br/>lockfiles + node_modules]
         RESOURCES[Resources<br/>From service.json]
+        SCENARIOS[Scenario Dependencies<br/>From service.json]
     end
 
     START[Start] --> BASELINE
     BASELINE --> RUNTIMES
     RUNTIMES --> PKGMGRS
-    PKGMGRS --> RESOURCES
-    RESOURCES --> DONE[Complete]
+    RUNTIMES --> GOMOD
+    PKGMGRS --> NODESTATE
+    NODESTATE --> RESOURCES
+    GOMOD --> RESOURCES
+    RESOURCES --> SCENARIOS
+    SCENARIOS --> DONE[Complete]
 
     BASELINE -.->|missing| FAIL[Fail]
     RUNTIMES -.->|missing| FAIL
     PKGMGRS -.->|missing| FAIL
+    GOMOD -.->|stale| FAIL
+    NODESTATE -.->|stale| FAIL
     RESOURCES -.->|unavailable| FAIL
+    SCENARIOS -.->|unavailable| FAIL
 
     style BASELINE fill:#e8f5e9
     style RUNTIMES fill:#fff3e0
@@ -51,9 +61,11 @@ Detected based on scenario structure:
 
 | Language | Detection | Minimum Version |
 |----------|-----------|-----------------|
-| Go | `api/go.mod` exists | 1.21+ |
-| Node.js | `ui/package.json` exists | 18+ |
-| Python | `pytest.ini` or `test_*.py` | 3.10+ |
+| Go | `api/go.mod` exists or Go module CLI adapter exists | `>=1.21` |
+| Node.js | `package.json` or `ui/package.json` exists | `>=18.0.0` |
+| Python | `requirements.txt` or `pyproject.toml` exists | `>=3.10.0` |
+
+Version constraints use `>=` comparisons. Package manager versions can also be configured for `pnpm`, `npm`, and `yarn`.
 
 ## Package Managers
 
@@ -64,6 +76,36 @@ For Node.js scenarios:
 | pnpm | `pnpm-lock.yaml` exists | 1 (preferred) |
 | npm | `package-lock.json` exists | 2 |
 | yarn | `yarn.lock` exists | 3 |
+
+## Go Module State
+
+When `api/go.mod` exists, the phase checks:
+
+- local `replace` targets exist
+- `GOWORK=off go mod tidy -diff` reports no `go.mod` / `go.sum` drift
+- optional `go build ./...` when `dependencies.go_modules.build=true`
+
+If drift is detected, the phase fails with `go_module_drift` and recommends:
+
+```bash
+cd scenarios/<name>/api && GOWORK=off go mod tidy
+```
+
+This catches the stale shared-package state that can otherwise make a scenario fail to restart after shared package changes.
+
+## JavaScript Package State
+
+For each detected Node workspace (`.` or `ui`), the phase checks:
+
+- exactly one lockfile when lockfiles are required
+- lockfile manager coherence (`pnpm-lock.yaml`, `package-lock.json`, or `yarn.lock`)
+- `node_modules` exists when `require_node_modules=true`
+
+If install state is stale, the phase fails with `node_install_state_stale` and recommends installing dependencies in the reported workspace, for example:
+
+```bash
+pnpm install --ignore-workspace
+```
 
 ## Resource Dependencies
 
@@ -80,8 +122,12 @@ Resources declared in `.vrooli/service.json` are checked:
 
 The phase verifies:
 - Required resources are running and healthy
-- Optional resources are noted if missing
 - Scenarios using embedded SQLite may declare no external resources at all
+- Unknown health can pass when the resource is running and `allow_unknown_health_when_running=true`
+
+## Scenario Dependencies
+
+Required entries under `.vrooli/service.json` `dependencies.scenarios` are checked with typed `vrooli scenario status <name> --json`. Required dependencies must be running and, when health is known, healthy. The phase reports `required_scenario_unhealthy` with start/restart remediation; it does not start dependencies itself.
 
 ## Exit Codes
 
@@ -96,7 +142,10 @@ The phase verifies:
 |-------|-------|----------|
 | "go: command not found" | Go not installed | Install Go from golang.org |
 | "pnpm: command not found" | pnpm not installed | `npm install -g pnpm` |
+| `go_module_drift` | `api/go.mod` or `api/go.sum` stale after shared package change | `cd scenarios/<name>/api && GOWORK=off go mod tidy` |
+| `node_install_state_stale` | Missing `node_modules` or conflicting lockfiles | Run the matching package-manager install in the workspace |
 | "Resource <name> not running" | Required resource not started | `vrooli resource start <name>` |
+| `required_scenario_unhealthy` | Required scenario dependency stopped or unhealthy | `vrooli scenario start <name>` or `vrooli scenario restart <name>` |
 | "Node.js version too old" | Outdated Node.js | Install Node.js 18+ |
 
 ## Configuration
@@ -106,19 +155,32 @@ Override dependency checks in `.vrooli/testing.json`:
 ```json
 {
   "dependencies": {
-    "go": {
-      "required": true,
-      "minVersion": "1.21"
+    "strict": true,
+    "runtime_versions": {
+      "go": ">=1.21",
+      "node": ">=18.0.0",
+      "python3": ">=3.10.0",
+      "pnpm": ""
     },
-    "node": {
-      "required": true,
-      "minVersion": "18"
+    "go_modules": {
+      "enabled": true,
+      "tidy_diff": true,
+      "build": false,
+      "local_replace_resolution": true
     },
-    "python": {
-      "required": false
+    "node_packages": {
+      "enabled": true,
+      "require_node_modules": true,
+      "lockfile_required": true
     },
     "resources": {
-      "skip": ["browserless"]
+      "health_policy": "fail",
+      "allow_unknown_health_when_running": true,
+      "skip": []
+    },
+    "scenarios": {
+      "enabled": true,
+      "health_policy": "fail"
     }
   }
 }

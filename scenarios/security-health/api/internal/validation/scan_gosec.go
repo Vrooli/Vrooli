@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -13,6 +14,13 @@ import (
 // gates R1 while MEDIUM/LOW stay advisory — the false-positive mitigation
 // from the plan (gosec is FP-prone; don't let a medium-confidence medium
 // finding fail a scenario).
+//
+// Suppressions: standalone gosec honors only its own `#nosec` tag, but this
+// repo lints Go through golangci-lint, where `//nolint:gosec` is the reviewed
+// suppression idiom. Issues whose flagged source line carries a covering
+// nolint directive are dropped here, mirroring what golangci-lint's gosec
+// integration would do — otherwise every already-reviewed suppression
+// re-fires as a fresh finding.
 type gosecScanner struct {
 	cmd Commander
 }
@@ -33,6 +41,10 @@ type gosecIssue struct {
 	Details  string `json:"details"`
 	File     string `json:"file"`
 	Line     string `json:"line"`
+	// Code is gosec's numbered source snippet around the flagged line
+	// ("463: …\n464: …\n465: …"); used to honor //nolint suppressions
+	// without re-reading the file.
+	Code string `json:"code"`
 }
 
 func (g *gosecScanner) Scan(ctx context.Context, scenarioDir string, sub Substrate) ([]Finding, error) {
@@ -68,6 +80,9 @@ func (g *gosecScanner) Scan(ctx context.Context, scenarioDir string, sub Substra
 		}
 		parsedAny = true
 		for _, issue := range report.Issues {
+			if nolintSuppressesGosec(flaggedSourceLine(issue.Code, issue.Line)) {
+				continue
+			}
 			loc := relPath(scenarioDir, issue.File)
 			if issue.Line != "" {
 				loc = fmt.Sprintf("%s:%s", loc, strings.SplitN(issue.Line, "-", 2)[0])
@@ -77,7 +92,7 @@ func (g *gosecScanner) Scan(ctx context.Context, scenarioDir string, sub Substra
 				Severity:    gosecSeverity(issue.RuleID, issue.Severity),
 				Title:       fmt.Sprintf("gosec %s", nonEmpty(issue.RuleID, "finding")),
 				Description: strings.TrimSpace(issue.Details),
-				Remediation: "Review the flagged code; apply the gosec rule's documented fix (e.g. validate inputs, avoid unsafe APIs, use crypto/rand). Suppress with a reviewed #nosec comment only when proven safe.",
+				Remediation: "Review the flagged code; apply the gosec rule's documented fix (e.g. validate inputs, avoid unsafe APIs, use crypto/rand). Suppress with a reviewed #nosec or //nolint:gosec comment only when proven safe.",
 				FilePath:    loc,
 				Scanner:     g.Name(),
 			})
@@ -122,4 +137,45 @@ func gosecSeverity(ruleID, native string) Severity {
 		return capped
 	}
 	return sev
+}
+
+// flaggedSourceLine extracts the flagged line's source text from gosec's
+// numbered code snippet. line may be a range ("54-58"); the first line is the
+// one the directive must sit on. Returns "" when the snippet is absent or the
+// line isn't in it — the issue then keeps its native severity (fail closed).
+func flaggedSourceLine(code, line string) string {
+	target := strings.TrimSpace(strings.SplitN(line, "-", 2)[0])
+	if target == "" || code == "" {
+		return ""
+	}
+	for _, l := range strings.Split(code, "\n") {
+		num, src, ok := strings.Cut(l, ":")
+		if ok && strings.TrimSpace(num) == target {
+			return src
+		}
+	}
+	return ""
+}
+
+// nolintDirective matches golangci-lint suppression comments: bare `//nolint`
+// or `//nolint:linter1,linter2`, optionally followed by an explanation.
+var nolintDirective = regexp.MustCompile(`//\s*nolint\b(?::([a-zA-Z0-9_, \t-]+))?`)
+
+// nolintSuppressesGosec reports whether src carries a nolint directive that
+// covers gosec — either the bare form (all linters) or a linter list
+// containing "gosec".
+func nolintSuppressesGosec(src string) bool {
+	m := nolintDirective.FindStringSubmatch(src)
+	if m == nil {
+		return false
+	}
+	if strings.TrimSpace(m[1]) == "" {
+		return true // bare //nolint suppresses every linter
+	}
+	for _, name := range strings.Split(m[1], ",") {
+		if strings.EqualFold(strings.TrimSpace(name), "gosec") {
+			return true
+		}
+	}
+	return false
 }

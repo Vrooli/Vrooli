@@ -126,7 +126,7 @@ func TestSelectPendingTask_DefaultUsesExistingPriorityOrdering(t *testing.T) {
 	}
 }
 
-func TestSelectPendingTask_ImportanceAwareUsesImportanceTimesMaturityGap(t *testing.T) {
+func TestSelectPendingTask_ImportanceAwareUsesImportanceTimesMaturityGap(t *testing.T) { // [REQ:EM-FLEET-001]
 	processor, _ := newGuardrailProcessor(t)
 	processor.SetSchedulingSignalProviders(
 		mockImportanceProvider{scores: map[string]float64{"low-importance": 0.2, "high-importance": 0.9}},

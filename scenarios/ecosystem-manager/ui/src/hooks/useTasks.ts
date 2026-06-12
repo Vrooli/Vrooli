@@ -77,6 +77,6 @@ function applyClientFilters(tasks: Task[], filters: TaskFilters) {
  * useTasksByStatus Hook
  * Convenience hook for fetching tasks by a specific status
  */
-export function useTasksByStatus(status: string) {
-  return useTasks({ status: status as any });
+export function useTasksByStatus(status: TaskStatus) {
+	return useTasks({ status });
 }

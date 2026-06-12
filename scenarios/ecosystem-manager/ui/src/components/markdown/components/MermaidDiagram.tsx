@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { Check, Code, Copy, Eye, Loader2 } from 'lucide-react';
 import { useCodeCopy } from '../hooks/useCodeCopy';
-import { useTheme } from '@/contexts/ThemeContext';
+import { useTheme } from '@/contexts/useTheme';
 
 interface MermaidDiagramProps {
   code: string;
@@ -72,7 +72,6 @@ export const MermaidDiagram = memo(function MermaidDiagram({ code }: MermaidDiag
 
           const id = `mermaid-${crypto.randomUUID()}`;
           const { svg } = await mermaid.render(id, code);
-          if (cancelled) return;
 
           setSvgHtml(svg);
           setError(null);
@@ -132,7 +131,7 @@ export const MermaidDiagram = memo(function MermaidDiagram({ code }: MermaidDiag
             )}
           </button>
           <button
-            onClick={copyCode}
+            onClick={() => void copyCode()}
             className="flex items-center gap-1.5 text-xs text-slate-300 transition-colors hover:text-slate-100"
             aria-label={copied ? 'Copied' : 'Copy code'}
             type="button"

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { prioritizeSelectedSkills } from './SkillPickerDialog';
+import { prioritizeSelectedSkills } from './SkillPickerDialog.helpers';
 import type { SkillInfo } from '@/types/api';
 
 describe('SkillPickerDialog ordering', () => {

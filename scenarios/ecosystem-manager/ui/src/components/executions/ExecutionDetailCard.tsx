@@ -22,47 +22,6 @@ const STATUS_STYLES: Record<ExecutionStatus, string> = {
   rate_limited: 'bg-orange-500/15 text-orange-100 border-orange-400/60',
 };
 
-const stripLogLine = (line: string) => {
-  const trimmed = line.trim();
-  const match = trimmed.match(/^[0-9T:.\-+]+ \[[^\]]+\] \([^)]+\)\s+(.*)$/);
-  if (match && match[1]) {
-    return match[1].trim();
-  }
-  return trimmed;
-};
-
-export const extractExecutionFinalMessage = (output?: string, maxLength = 600) => {
-  if (!output) return '';
-  const lines = output
-    .split('\n')
-    .map(stripLogLine)
-    .filter(Boolean);
-
-  if (lines.length === 0) return '';
-
-  for (let i = lines.length - 1; i >= 0; i -= 1) {
-    const line = (lines[i] ?? '').toLowerCase();
-    const isSummaryHeading = /^#+\s+(task\s+)?(completion\s+)?summary/.test(line);
-    const isFinalHeading = line.startsWith('final response') || line.startsWith('final message');
-    if (isSummaryHeading || isFinalHeading) {
-      const summaryLines = lines.slice(i + 1);
-      if (summaryLines.length > 0) {
-        const message = summaryLines.join(' ');
-        if (message.length > maxLength) {
-          return `${message.slice(0, maxLength)}…`;
-        }
-        return message;
-      }
-    }
-  }
-
-  const tailLines = lines.slice(-5).join(' ');
-  if (tailLines.length > maxLength) {
-    return tailLines.slice(tailLines.length - maxLength);
-  }
-  return tailLines;
-};
-
 const formatDateTime = (value?: string) => {
   if (!value) return '—';
   const parsed = new Date(value);

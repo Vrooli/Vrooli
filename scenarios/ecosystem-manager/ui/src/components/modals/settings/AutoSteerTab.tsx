@@ -132,13 +132,12 @@ export function AutoSteerTab() {
                       </p>
                     )}
                     <div className="flex items-center gap-3 mt-2 text-xs text-slate-500">
-                      <span>
-                        {profile.allowed_skills?.length ?? 0} skill{profile.allowed_skills?.length === 1 ? '' : 's'}
-                      </span>
-                      {profile.objective?.dimension_weights &&
-                        Object.keys(profile.objective.dimension_weights).length > 0 && (
-                          <span>
-                            • {Object.keys(profile.objective.dimension_weights).length} weighted dimension
+	                      <span>
+	                        {profile.allowed_skills.length} skill{profile.allowed_skills.length === 1 ? '' : 's'}
+	                      </span>
+	                      {Object.keys(profile.objective.dimension_weights).length > 0 && (
+	                          <span>
+	                            • {Object.keys(profile.objective.dimension_weights).length} weighted dimension
                             {Object.keys(profile.objective.dimension_weights).length === 1 ? '' : 's'}
                           </span>
                         )}

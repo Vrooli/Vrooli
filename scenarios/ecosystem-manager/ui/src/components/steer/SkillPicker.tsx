@@ -43,7 +43,7 @@ export function SkillPicker({
   const [dialogOpen, setDialogOpen] = useState(false);
   const isCompact = variant === 'compact';
 
-  const { data: internalSkillNames = [], isLoading: internalLoading } = useMergedSkillNames();
+  const { data: internalSkillNames, isLoading: internalLoading } = useMergedSkillNames();
 
   const skillNames = externalSkillNames ?? internalSkillNames;
   const isLoading = externalLoading ?? internalLoading;

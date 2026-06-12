@@ -7,7 +7,7 @@ import (
 	"github.com/ecosystem-manager/api/pkg/settings"
 )
 
-func TestReserveExecutionCreatesEntry(t *testing.T) {
+func TestReserveExecutionCreatesEntry(t *testing.T) { // [REQ:EM-QUEUE-004]
 	qp := &Processor{registry: NewExecutionRegistry()}
 
 	startedAt := time.Unix(1_700_000_000, 0)

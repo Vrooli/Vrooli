@@ -51,22 +51,67 @@ type checker struct {
 	requiredResources []string
 	fetcher           ResourceStatusFetcher
 	logWriter         io.Writer
+	allowUnknown      bool
+	skip              map[string]struct{}
 }
 
 // NewChecker creates a resource health checker. requiredResources is the set of
 // resource names the scenario declares as required; fetcher supplies live
 // resource health from the Vrooli CLI.
-func NewChecker(requiredResources []string, fetcher ResourceStatusFetcher, logWriter io.Writer) HealthChecker {
-	return &checker{
+func NewChecker(requiredResources []string, fetcher ResourceStatusFetcher, logWriter io.Writer, opts ...Option) HealthChecker {
+	c := &checker{
 		requiredResources: requiredResources,
 		fetcher:           fetcher,
 		logWriter:         logWriter,
+		allowUnknown:      true,
 	}
+	for _, opt := range opts {
+		opt(c)
+	}
+	return c
+}
+
+type Option func(*checker)
+
+func WithAllowUnknownHealthWhenRunning(allow bool) Option {
+	return func(c *checker) {
+		c.allowUnknown = allow
+	}
+}
+
+func WithSkippedResources(skip []string) Option {
+	return func(c *checker) {
+		if len(skip) == 0 {
+			return
+		}
+		c.skip = make(map[string]struct{}, len(skip))
+		for _, name := range skip {
+			name = strings.TrimSpace(name)
+			if name != "" {
+				c.skip[name] = struct{}{}
+			}
+		}
+	}
+}
+
+func (c *checker) effectiveRequiredResources() []string {
+	if len(c.skip) == 0 {
+		return c.requiredResources
+	}
+	var out []string
+	for _, name := range c.requiredResources {
+		if _, skipped := c.skip[name]; skipped {
+			continue
+		}
+		out = append(out, name)
+	}
+	return out
 }
 
 // Check implements HealthChecker.
 func (c *checker) Check(ctx context.Context) HealthResult {
-	if len(c.requiredResources) == 0 {
+	requiredResources := c.effectiveRequiredResources()
+	if len(requiredResources) == 0 {
 		return HealthResult{
 			Success: true,
 			Observations: []types.Observation{
@@ -99,7 +144,7 @@ func (c *checker) Check(ctx context.Context) HealthResult {
 
 	var observations []types.Observation
 	var failures []string
-	for _, name := range c.requiredResources {
+	for _, name := range requiredResources {
 		rs, ok := byName[name]
 		if !ok {
 			failures = append(failures, fmt.Sprintf("%s (not found)", name))
@@ -113,9 +158,11 @@ func (c *checker) Check(ctx context.Context) HealthResult {
 			failures = append(failures, fmt.Sprintf("%s (running=false)", name))
 		case known && !healthy:
 			failures = append(failures, fmt.Sprintf("%s (running=true healthy=false)", name))
-		case !known:
+		case !known && c.allowUnknown:
 			observations = append(observations, types.NewSuccessObservation(
 				fmt.Sprintf("resource running (health not probed): %s", name)))
+		case !known:
+			failures = append(failures, fmt.Sprintf("%s (health unknown)", name))
 		default:
 			observations = append(observations, types.NewSuccessObservation(
 				fmt.Sprintf("resource healthy: %s", name)))

@@ -48,7 +48,7 @@ func TestServiceScenarioEmptyName(t *testing.T) {
 	}
 }
 
-func TestServiceResourcesDegradesToLastGoodOnFailure(t *testing.T) {
+func TestServiceResourcesDegradesToLastGoodOnFailure(t *testing.T) { // [REQ:EM-CONN-001]
 	s := NewService(nil)
 	good := []tasks.ResourceInfo{{Name: "redis"}, {Name: "vault"}}
 	s.discoverResources = func() ([]tasks.ResourceInfo, error) { return good, nil }

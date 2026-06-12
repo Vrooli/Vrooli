@@ -1,7 +1,7 @@
 // DOC: docs/concepts/ARCHITECTURE.md
 // DOC: docs/reference/api-endpoints.md
 import { useState } from "react";
-import { useAppState } from "./contexts/AppStateContext";
+import { useAppState } from "./contexts/useAppState";
 import { KanbanBoard } from "./components/kanban/KanbanBoard";
 import { CreateTaskModal } from "./components/modals/CreateTaskModal";
 import { TaskDetailsModal } from "./components/modals/TaskDetailsModal";
@@ -42,7 +42,7 @@ export default function App() {
   };
 
   useEffect(() => {
-    ensureDiscoveryLoaded();
+    void ensureDiscoveryLoaded();
   }, []);
 
   const handleCloseTaskModal = (open: boolean) => {

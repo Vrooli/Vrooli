@@ -36,7 +36,7 @@ func banditSelector(res SkillResolver, store effectiveness.Store, epsilon float6
 }
 
 // (a) With no evidence, the bandit reproduces v0 greedy ordering exactly.
-func TestBandit_ColdStartEqualsGreedy(t *testing.T) {
+func TestBandit_ColdStartEqualsGreedy(t *testing.T) { // [REQ:EM-P1-004]
 	res := standardsResolver("refactor", "lint-fix")
 	profile := &AutoSteerProfile{AllowedSkills: []string{"refactor", "lint-fix"}}
 	state := standardsState()
@@ -53,7 +53,7 @@ func TestBandit_ColdStartEqualsGreedy(t *testing.T) {
 }
 
 // (b) A proven high-efficacy skill beats the first-alphabetical/allow-order one.
-func TestBandit_HighEfficacyWins(t *testing.T) {
+func TestBandit_HighEfficacyWins(t *testing.T) { // [REQ:EM-P1-004]
 	res := standardsResolver("refactor", "lint-fix")
 	profile := &AutoSteerProfile{AllowedSkills: []string{"refactor", "lint-fix"}}
 	store := effectiveness.NewMemoryStore()

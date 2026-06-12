@@ -52,8 +52,6 @@ import type {
   SettingsConstraints,
   ConstraintRange,
   ExecutionHistory,
-  Resource,
-  Scenario,
   ActiveTarget,
   TaskStatus,
 } from "../types/api";
@@ -73,6 +71,46 @@ function isJsonValue(value: unknown): value is JsonValue {
   if (Array.isArray(value)) return value.every(isJsonValue);
   if (t === "object") return Object.values(value as Record<string, unknown>).every(isJsonValue);
   return false;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function stringValue(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+function numberValue(value: unknown): number | undefined {
+  return typeof value === "number" ? value : undefined;
+}
+
+function booleanValue(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
+}
+
+function firstString(record: Record<string, unknown>, keys: string[]): string | undefined {
+  for (const key of keys) {
+    const value = stringValue(record[key]);
+    if (value !== undefined) return value;
+  }
+  return undefined;
+}
+
+function firstNumber(record: Record<string, unknown>, keys: string[]): number | undefined {
+  for (const key of keys) {
+    const value = numberValue(record[key]);
+    if (value !== undefined) return value;
+  }
+  return undefined;
+}
+
+function firstBoolean(record: Record<string, unknown>, keys: string[]): boolean | undefined {
+  for (const key of keys) {
+    const value = booleanValue(record[key]);
+    if (value !== undefined) return value;
+  }
+  return undefined;
 }
 
 function createProtoSchema<Shape extends Message>(
@@ -227,6 +265,7 @@ function mapProtoProcessInfoToTaskProcess(proto: ProtoProcessInfo): ProcessInfo 
  * Replaces normalizeQueueStatus().
  */
 export function mapProtoQueueStatus(proto: ProtoQueueStatus): QueueStatus {
+  const extras = proto as unknown as Record<string, unknown>;
   return {
     active: proto.isActive,
     slots_used: proto.maxSlots - proto.availableSlots,
@@ -237,9 +276,9 @@ export function mapProtoQueueStatus(proto: ProtoQueueStatus): QueueStatus {
     rate_limited: proto.isRateLimitPaused,
     rate_limit_retry_after: 0,
     rate_limit_pause_until: proto.rateLimitResumeAt || undefined,
-    executions_completed: (proto as any).executionsCompleted ?? 0,
-    execution_limit: (proto as any).executionLimit ?? 0,
-    execution_limit_reached: (proto as any).executionLimitReached ?? false,
+    executions_completed: numberValue(extras.executionsCompleted) ?? 0,
+    execution_limit: numberValue(extras.executionLimit) ?? 0,
+    execution_limit_reached: booleanValue(extras.executionLimitReached) ?? false,
   };
 }
 
@@ -341,11 +380,12 @@ const DEFAULT_SETTINGS: Settings = {
  */
 export function mapProtoSettings(proto: ProtoSettings): Settings {
   const recycler = proto.recycler;
+  const extras = proto as unknown as Record<string, unknown>;
   return {
     processor: {
       concurrent_slots: proto.slots || DEFAULT_SETTINGS.processor.concurrent_slots,
       cooldown_seconds: proto.cooldownSeconds || DEFAULT_SETTINGS.processor.cooldown_seconds,
-      execution_limit: (proto as any).executionLimit ?? DEFAULT_SETTINGS.processor.execution_limit,
+      execution_limit: numberValue(extras.executionLimit) ?? DEFAULT_SETTINGS.processor.execution_limit,
       active: proto.active,
     },
     agent: {
@@ -510,21 +550,24 @@ export function parseTaskResponse(raw: unknown): Task {
     const task = mapProtoTask(result.data);
     // Proto parsing ignores runtime fields (current_process, execution_count, etc.)
     // that the Go handler injects beyond the proto schema. Merge them from raw data.
-    const r = raw as any;
+    const r = raw as Record<string, unknown>;
     const rawProcess = r.current_process ?? r.currentProcess;
-    if (rawProcess && typeof rawProcess === "object") {
-      task.current_process = {
-        process_id: rawProcess.process_id ?? rawProcess.run_id ?? rawProcess.processId ?? rawProcess.runId ?? "",
-        agent_id: rawProcess.agent_id ?? rawProcess.agent_tag ?? rawProcess.agentId ?? rawProcess.agentTag ?? "",
-        start_time: rawProcess.start_time ?? rawProcess.started_at ?? rawProcess.startTime ?? rawProcess.startedAt ?? "",
-      };
+    const process = normalizeProcessInfo(rawProcess);
+    if (process) {
+      task.current_process = process;
     }
-    if (r.execution_count != null) task.execution_count = r.execution_count;
-    if (r.steering_queue_index != null) task.steering_queue_index = r.steering_queue_index;
-    if (r.steering_queue_set_label != null) task.steering_queue_set_label = r.steering_queue_set_label;
-    if (r.steering_queue_total != null) task.steering_queue_total = r.steering_queue_total;
-    if (r.steering_queue_exhausted != null) task.steering_queue_exhausted = r.steering_queue_exhausted;
-    if (r.auto_steer_phase_index != null) task.auto_steer_phase_index = r.auto_steer_phase_index;
+    const executionCount = numberValue(r.execution_count);
+    const queueIndex = numberValue(r.steering_queue_index);
+    const queueLabel = stringValue(r.steering_queue_set_label);
+    const queueTotal = numberValue(r.steering_queue_total);
+    const queueExhausted = booleanValue(r.steering_queue_exhausted);
+    const phaseIndex = numberValue(r.auto_steer_phase_index);
+    if (executionCount !== undefined) task.execution_count = executionCount;
+    if (queueIndex !== undefined) task.steering_queue_index = queueIndex;
+    if (queueLabel !== undefined) task.steering_queue_set_label = queueLabel;
+    if (queueTotal !== undefined) task.steering_queue_total = queueTotal;
+    if (queueExhausted !== undefined) task.steering_queue_exhausted = queueExhausted;
+    if (phaseIndex !== undefined) task.auto_steer_phase_index = phaseIndex;
     return task;
   }
   // Fallback: minimal normalization for responses with extra runtime fields
@@ -535,12 +578,12 @@ export function parseTaskResponse(raw: unknown): Task {
  * Minimal fallback normalization when proto parse fails.
  * Handles extra runtime fields the Go handler injects beyond the proto schema.
  */
-function normalizeProcessInfo(raw: any): ProcessInfo | undefined {
-  if (!raw || typeof raw !== "object") return undefined;
+function normalizeProcessInfo(raw: unknown): ProcessInfo | undefined {
+  if (!isRecord(raw)) return undefined;
   return {
-    process_id: raw.process_id ?? raw.run_id ?? raw.processId ?? raw.runId ?? "",
-    agent_id: raw.agent_id ?? raw.agent_tag ?? raw.agentId ?? raw.agentTag ?? "",
-    start_time: raw.start_time ?? raw.started_at ?? raw.startTime ?? raw.startedAt ?? "",
+    process_id: firstString(raw, ["process_id", "run_id", "processId", "runId"]) ?? "",
+    agent_id: firstString(raw, ["agent_id", "agent_tag", "agentId", "agentTag"]) ?? "",
+    start_time: firstString(raw, ["start_time", "started_at", "startTime", "startedAt"]) ?? "",
   };
 }
 
@@ -567,31 +610,37 @@ function parseSteeringQueue(value: unknown): string[][] | undefined {
   return queue.length > 0 ? queue : undefined;
 }
 
-function fallbackNormalizeTask(raw: any): Task {
+function fallbackNormalizeTask(raw: unknown): Task {
+  if (!isRecord(raw)) {
+    throw new Error("Invalid task response");
+  }
+  const rawTarget = raw.target;
   const targets = Array.isArray(raw.targets) ? raw.targets
-    : Array.isArray(raw.target) ? raw.target
-    : raw.target ? [raw.target]
+    : Array.isArray(rawTarget) ? rawTarget
+    : typeof rawTarget === "string" ? [rawTarget]
     : [];
 
   return {
-    id: raw.id ?? "",
-    title: raw.title ?? "",
-    type: raw.type ?? "resource",
-    operation: raw.operation ?? "generator",
-    priority: raw.priority ?? "medium",
+    id: stringValue(raw.id) ?? "",
+    title: stringValue(raw.title) ?? "",
+    type: raw.type === "scenario" ? "scenario" : "resource",
+    operation: raw.operation === "improver" ? "improver" : "generator",
+    priority: raw.priority === "critical" || raw.priority === "high" || raw.priority === "medium" || raw.priority === "low"
+      ? raw.priority
+      : "medium",
     status: isTaskStatus(raw.status) ? raw.status : "pending",
-    target: targets.filter(Boolean),
-    notes: raw.notes,
+    target: targets.filter((target): target is string => typeof target === "string" && target.length > 0),
+    notes: stringValue(raw.notes),
     steer_set: parseSkillSet(raw.steer_set ?? raw.steerSet),
-    auto_steer_profile_id: raw.auto_steer_profile_id ?? raw.autoSteerProfileId,
-    auto_steer_phase_index: raw.auto_steer_phase_index ?? raw.autoSteerPhaseIndex,
+    auto_steer_profile_id: firstString(raw, ["auto_steer_profile_id", "autoSteerProfileId"]),
+    auto_steer_phase_index: firstNumber(raw, ["auto_steer_phase_index", "autoSteerPhaseIndex"]),
     steering_queue: parseSteeringQueue(raw.steering_queue ?? raw.steeringQueue),
-    auto_requeue: raw.auto_requeue ?? raw.processor_auto_requeue ?? raw.processorAutoRequeue ?? true,
-    created_at: raw.created_at ?? raw.createdAt ?? "",
-    updated_at: raw.updated_at ?? raw.updatedAt ?? "",
-    completion_count: raw.completion_count ?? raw.completionCount ?? 0,
-    last_completed_at: raw.last_completed_at ?? raw.lastCompletedAt,
-    cooldown_until: raw.cooldown_until ?? raw.cooldownUntil,
+    auto_requeue: firstBoolean(raw, ["auto_requeue", "processor_auto_requeue", "processorAutoRequeue"]) ?? true,
+    created_at: firstString(raw, ["created_at", "createdAt"]) ?? "",
+    updated_at: firstString(raw, ["updated_at", "updatedAt"]) ?? "",
+    completion_count: firstNumber(raw, ["completion_count", "completionCount"]) ?? 0,
+    last_completed_at: firstString(raw, ["last_completed_at", "lastCompletedAt"]),
+    cooldown_until: firstString(raw, ["cooldown_until", "cooldownUntil"]),
     current_process: normalizeProcessInfo(raw.current_process ?? raw.currentProcess),
   };
 }
@@ -611,14 +660,17 @@ export function parseExecutionResponse(raw: unknown): ExecutionHistory {
   return fallbackNormalizeExecution(raw);
 }
 
-function fallbackNormalizeExecution(raw: any): ExecutionHistory {
-  const id = raw?.id ?? raw?.execution_id ?? raw?.executionId ?? raw?.start_time ?? "";
-  const startTime = raw?.start_time ?? raw?.startTime ?? "";
-  const endTime = raw?.end_time ?? raw?.endTime;
-  const exitReason = raw?.exit_reason ?? raw?.exitReason;
-  const rateLimited = raw?.rate_limited ?? raw?.rateLimited ?? exitReason === "rate_limited";
-  const success = raw?.success;
-  const rawStatus = typeof raw?.status === "string" ? raw.status.toLowerCase() : raw?.status;
+function fallbackNormalizeExecution(raw: unknown): ExecutionHistory {
+  if (!isRecord(raw)) {
+    throw new Error("Invalid execution response");
+  }
+  const id = firstString(raw, ["id", "execution_id", "executionId", "start_time"]) ?? "";
+  const startTime = firstString(raw, ["start_time", "startTime"]) ?? "";
+  const endTime = firstString(raw, ["end_time", "endTime"]);
+  const exitReason = firstString(raw, ["exit_reason", "exitReason"]);
+  const rateLimited = firstBoolean(raw, ["rate_limited", "rateLimited"]) ?? exitReason === "rate_limited";
+  const success = booleanValue(raw.success);
+  const rawStatus = stringValue(raw.status)?.toLowerCase();
 
   const status: ExecutionHistory["status"] =
     rawStatus === "rate_limited" || rateLimited ? "rate_limited"
@@ -627,35 +679,35 @@ function fallbackNormalizeExecution(raw: any): ExecutionHistory {
     : "running";
 
   return {
-    id: String(id),
-    task_id: raw?.task_id ?? raw?.taskId ?? "",
-    task_title: raw?.task_title ?? raw?.taskTitle,
-    task_type: raw?.task_type ?? raw?.taskType,
-    task_operation: raw?.task_operation ?? raw?.taskOperation,
-    agent_tag: raw?.agent_tag ?? raw?.agentTag,
-    process_id: raw?.process_id ?? raw?.processId,
+    id,
+    task_id: firstString(raw, ["task_id", "taskId"]) ?? "",
+    task_title: firstString(raw, ["task_title", "taskTitle"]),
+    task_type: raw.task_type === "resource" || raw.task_type === "scenario" ? raw.task_type : undefined,
+    task_operation: raw.task_operation === "generator" || raw.task_operation === "improver" ? raw.task_operation : undefined,
+    agent_tag: firstString(raw, ["agent_tag", "agentTag"]),
+    process_id: firstNumber(raw, ["process_id", "processId"]),
     start_time: startTime,
     end_time: endTime,
-    duration: raw?.duration,
+    duration: stringValue(raw.duration),
     status,
-    exit_code: raw?.exit_code ?? raw?.exitCode,
+    exit_code: firstNumber(raw, ["exit_code", "exitCode"]),
     exit_reason: exitReason,
-    prompt_size: raw?.prompt_size ?? raw?.promptSize,
-    prompt_path: raw?.prompt_path ?? raw?.promptPath,
-    output_path: raw?.output_path ?? raw?.outputPath,
-    clean_output_path: raw?.clean_output_path ?? raw?.cleanOutputPath,
-    last_message_path: raw?.last_message_path ?? raw?.lastMessagePath,
-    transcript_path: raw?.transcript_path ?? raw?.transcriptPath,
-    auto_steer_profile_id: raw?.auto_steer_profile_id ?? raw?.autoSteerProfileId,
-    auto_steer_iteration: raw?.auto_steer_iteration ?? raw?.autoSteerIteration,
-    steer_skill_ids: parseSkillSet(raw?.steer_skill_ids ?? raw?.steerSkillIds),
-    steer_set_label: raw?.steer_set_label ?? raw?.steerSetLabel,
-    steer_phase_index: raw?.steer_phase_index ?? raw?.steerPhaseIndex,
-    steer_phase_iteration: raw?.steer_phase_iteration ?? raw?.steerPhaseIteration,
-    steering_source: raw?.steering_source ?? raw?.steeringSource,
-    timeout_allowed: raw?.timeout_allowed ?? raw?.timeoutAllowed,
+    prompt_size: firstNumber(raw, ["prompt_size", "promptSize"]),
+    prompt_path: firstString(raw, ["prompt_path", "promptPath"]),
+    output_path: firstString(raw, ["output_path", "outputPath"]),
+    clean_output_path: firstString(raw, ["clean_output_path", "cleanOutputPath"]),
+    last_message_path: firstString(raw, ["last_message_path", "lastMessagePath"]),
+    transcript_path: firstString(raw, ["transcript_path", "transcriptPath"]),
+    auto_steer_profile_id: firstString(raw, ["auto_steer_profile_id", "autoSteerProfileId"]),
+    auto_steer_iteration: firstNumber(raw, ["auto_steer_iteration", "autoSteerIteration"]),
+    steer_skill_ids: parseSkillSet(raw.steer_skill_ids ?? raw.steerSkillIds),
+    steer_set_label: firstString(raw, ["steer_set_label", "steerSetLabel"]),
+    steer_phase_index: firstNumber(raw, ["steer_phase_index", "steerPhaseIndex"]),
+    steer_phase_iteration: firstNumber(raw, ["steer_phase_iteration", "steerPhaseIteration"]),
+    steering_source: firstString(raw, ["steering_source", "steeringSource"]),
+    timeout_allowed: firstString(raw, ["timeout_allowed", "timeoutAllowed"]),
     rate_limited: rateLimited,
-    retry_after: raw?.retry_after ?? raw?.retryAfter,
+    retry_after: firstNumber(raw, ["retry_after", "retryAfter"]),
     success,
   };
 }
@@ -682,22 +734,25 @@ export function parseQueueStatusResponse(raw: unknown): QueueStatus {
     return status;
   }
   // Fallback: direct field mapping for snake_case responses
-  const r = raw as any;
-  const maxSlots = r.max_slots ?? r.max_concurrent ?? 1;
-  const availableSlots = r.available_slots ?? maxSlots;
+  const r = raw as Record<string, unknown>;
+  const maxSlots = firstNumber(r, ["max_slots", "max_concurrent"]) ?? 1;
+  const availableSlots = numberValue(r.available_slots) ?? maxSlots;
+  const pendingCount = numberValue(r.pending_count) ?? 0;
+  const inProgressCount = numberValue(r.in_progress_count) ?? 0;
+  const rateLimitInfo = isRecord(r.rate_limit_info) ? r.rate_limit_info : {};
   return {
-    active: r.is_active ?? r.active ?? r.processor_active ?? r.settings_active ?? false,
-    slots_used: r.slots_used ?? r.executing_count ?? r.running_count ?? (maxSlots - availableSlots),
+    active: firstBoolean(r, ["is_active", "active", "processor_active", "settings_active"]) ?? false,
+    slots_used: firstNumber(r, ["slots_used", "executing_count", "running_count"]) ?? (maxSlots - availableSlots),
     max_concurrent: maxSlots,
     available_slots: availableSlots,
-    tasks_remaining: r.tasks_remaining ?? (r.pending_count ?? 0) + (r.in_progress_count ?? 0),
-    cooldown_seconds: r.cooldown_seconds ?? 30,
-    rate_limited: r.is_rate_limit_paused ?? r.rate_limited ?? r.rate_limit_info?.paused ?? false,
-    rate_limit_retry_after: r.rate_limit_retry_after ?? r.rate_limit_info?.remaining_secs ?? 0,
-    rate_limit_pause_until: r.rate_limit_resume_at ?? r.rate_limit_pause_until ?? r.rate_limit_info?.pause_until,
-    executions_completed: r.executions_completed ?? 0,
-    execution_limit: r.execution_limit ?? 0,
-    execution_limit_reached: r.execution_limit_reached ?? false,
+    tasks_remaining: numberValue(r.tasks_remaining) ?? pendingCount + inProgressCount,
+    cooldown_seconds: numberValue(r.cooldown_seconds) ?? 30,
+    rate_limited: firstBoolean(r, ["is_rate_limit_paused", "rate_limited"]) ?? booleanValue(rateLimitInfo.paused) ?? false,
+    rate_limit_retry_after: numberValue(r.rate_limit_retry_after) ?? numberValue(rateLimitInfo.remaining_secs) ?? 0,
+    rate_limit_pause_until: firstString(r, ["rate_limit_resume_at", "rate_limit_pause_until"]) ?? stringValue(rateLimitInfo.pause_until),
+    executions_completed: numberValue(r.executions_completed) ?? 0,
+    execution_limit: numberValue(r.execution_limit) ?? 0,
+    execution_limit_reached: booleanValue(r.execution_limit_reached) ?? false,
   };
 }
 
@@ -711,17 +766,18 @@ export function parseRunningProcessResponse(raw: unknown): RunningProcess {
       process_type: "task", agent_id: "", start_time: "", elapsed_seconds: 0,
     };
   }
-  const r = raw as any;
-  const startTime = r.started_at ?? r.start_time ?? "";
+  const r = raw as Record<string, unknown>;
+  const startTime = firstString(r, ["started_at", "start_time"]) ?? "";
   const startMs = startTime ? new Date(startTime).getTime() : 0;
-  const elapsed = r.elapsed_seconds ?? (startMs > 0 ? Math.floor((Date.now() - startMs) / 1000) : 0);
+  const elapsed = numberValue(r.elapsed_seconds) ?? (startMs > 0 ? Math.floor((Date.now() - startMs) / 1000) : 0);
+  const processType = stringValue(r.process_type ?? r.processType);
 
   return {
-    task_id: r.task_id ?? r.taskId ?? "",
-    task_title: r.task_title ?? r.taskTitle ?? "",
-    process_id: r.run_id ?? r.process_id ?? r.runId ?? r.processId ?? r.task_id ?? "",
-    process_type: (r.process_type ?? r.processType ?? "task") as RunningProcess["process_type"],
-    agent_id: r.agent_tag ?? r.agent_id ?? r.agentTag ?? r.agentId ?? "",
+    task_id: firstString(r, ["task_id", "taskId"]) ?? "",
+    task_title: firstString(r, ["task_title", "taskTitle"]) ?? "",
+    process_id: firstString(r, ["run_id", "process_id", "runId", "processId", "task_id"]) ?? "",
+    process_type: processType === "insight" ? "insight" : "task",
+    agent_id: firstString(r, ["agent_tag", "agent_id", "agentTag", "agentId"]) ?? "",
     start_time: startTime,
     elapsed_seconds: elapsed,
   };
@@ -736,18 +792,17 @@ export function parseRunningProcessResponse(raw: unknown): RunningProcess {
  * Parse a raw active target JSON entry with proto validation fallback.
  */
 export function parseActiveTargetResponse(raw: unknown): ActiveTarget | null {
-  if (!raw || typeof raw !== "object") return null;
-  const r = raw as Record<string, unknown>;
-  const target = String(r.target ?? "");
-  const taskId = String(r.task_id ?? r.taskId ?? "");
-  const status = String(r.status ?? "");
+  if (!isRecord(raw)) return null;
+  const target = stringValue(raw.target) ?? "";
+  const taskId = firstString(raw, ["task_id", "taskId"]) ?? "";
+  const status = stringValue(raw.status) ?? "";
   if (!target || !taskId || !status) return null;
 
   return {
     target,
     task_id: taskId,
     status: isTaskStatus(status) ? status : "pending",
-    title: r.title != null ? String(r.title) : undefined,
+    title: stringValue(raw.title),
   };
 }
 

@@ -1,0 +1,141 @@
+{
+  "_metadata": {
+    "module": "baseline-modes",
+    "description": "Shadow-safe improvement: baseline engagement lifecycle, shadow environment routing, self-scenario guard, and measurement isolation (OT-P0-006).",
+    "prd_ref": "OT-P0-006",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "EM-BASE-001",
+      "category": "baseline-modes",
+      "title": "Engagement lifecycle: start, promote, abandon",
+      "description": "When a profile enables baseline promote, the first agent run opens a git-control-tower engagement (--mode auto); objective-met terminates with promote, other halts abandon, and checkpoint_on_green promotes early at cadence boundaries.",
+      "prd_ref": "OT-P0-006",
+      "status": "complete",
+      "tags": ["baseline-modes", "engagement"],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/queue/baseline_engagement_test.go::TestMaybeStartEngagement_Enabled_Shadow",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/pkg/queue/baseline_engagement_test.go::TestMaybeFinishEngagement_ObjectiveMet_Promotes",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/pkg/queue/baseline_engagement_test.go::TestMaybeCheckpointPromote_Green_Promotes",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "EM-BASE-002",
+      "category": "baseline-modes",
+      "title": "Shadow environment routing to agent runs",
+      "description": "Agent executions for an engaged task receive VROOLI_SHADOW_SCENARIOS (ambient env unioned with the engaged scenario) so nested CLI calls route to the shadow instance; live-mode engagements add no routing.",
+      "prd_ref": "OT-P0-006",
+      "status": "complete",
+      "tags": ["baseline-modes", "shadow-routing"],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/agentmanager/baseline_env_engaged_test.go::TestWithEngagedShadowScenario",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/pkg/agentmanager/baseline_env_test.go::TestShadowRoutingKeysSatisfyAgentManagerContract",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/pkg/queue/baseline_engagement_test.go::TestMaybeStartEngagement_LiveMode_NoShadowRouting",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "EM-BASE-003",
+      "category": "baseline-modes",
+      "title": "Self-scenario engagements are externalized",
+      "description": "Ecosystem-manager never opens a baseline engagement on itself (self-deadlock guard); improving EM is handled externally.",
+      "prd_ref": "OT-P0-006",
+      "status": "complete",
+      "tags": ["baseline-modes", "guard"],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/queue/baseline_engagement_test.go::TestMaybeStartEngagement_SelfScenario_Externalized",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "EM-BASE-004",
+      "category": "baseline-modes",
+      "title": "Profile block validates and defaults OFF",
+      "description": "The baseline_promote profile block (enabled, mode, cadence_iter) validates its mode enum, defaults to end_of_engagement, and the feature is fully inert when absent or disabled.",
+      "prd_ref": "OT-P0-006",
+      "status": "complete",
+      "tags": ["baseline-modes", "profile"],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/autosteer/baseline_promote_test.go::TestValidateProfile_BaselinePromote",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/pkg/autosteer/baseline_promote_test.go::TestBaselinePromoteHelpers_Defaults",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "EM-BASE-005",
+      "category": "baseline-modes",
+      "title": "Measurement isolation: audits run against the shadow",
+      "description": "When a task is in a shadow engagement, the controller's MEASURE step (test-genie audit) must route to the shadow instance — shadow-resolved scenario target and VROOLI_SHADOW_SCENARIOS on the audit subprocess — so termination and promote decisions reflect the shadow state, never the live instance. Known gap: findings/runner.go currently audits the live scenario.",
+      "prd_ref": "OT-P0-006",
+      "status": "planned",
+      "tags": ["baseline-modes", "isolation", "known-gap"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "To be written with the fix (test under api/pkg/findings/): assert the audit subprocess receives the shadow scenario target and shadow env when an engagement is active, then convert this entry to type=test."
+        }
+      ]
+    },
+    {
+      "id": "EM-BASE-006",
+      "category": "baseline-modes",
+      "title": "Engagement cleanup on profile change/reset",
+      "description": "When InitializeAutoSteer resets execution state (profile swap) or a task is cancelled mid-engagement, any open engagement is closed (abandoned) rather than left dangling.",
+      "prd_ref": "OT-P0-006",
+      "status": "planned",
+      "tags": ["baseline-modes", "lifecycle", "known-gap"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "To be written with the fix (test in api/pkg/queue/autosteer_integration_test.go): profile reset path closes any open engagement, then convert this entry to type=test."
+        }
+      ]
+    }
+  ]
+}

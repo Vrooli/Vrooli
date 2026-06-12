@@ -38,9 +38,9 @@ export function RateLimitsTab({ settings, onChange, constraints }: RateLimitsTab
   const slotsUsed = queueStatus?.slots_used ?? 0;
   const availableSlots = queueStatus?.available_slots ?? Math.max(maxConcurrent - slotsUsed, 0);
   const tasksRemaining = queueStatus?.tasks_remaining ?? 0;
-  const cooldownSeconds = queueStatus?.cooldown_seconds ?? settings.cooldown_seconds ?? 0;
+  const cooldownSeconds = queueStatus?.cooldown_seconds ?? settings.cooldown_seconds;
 
-  const executionLimit = queueStatus?.execution_limit ?? settings.execution_limit ?? 0;
+  const executionLimit = queueStatus?.execution_limit ?? settings.execution_limit;
   const executionsCompleted = queueStatus?.executions_completed ?? 0;
 
   const utilization = useMemo(() => {
@@ -345,15 +345,15 @@ export function RateLimitsTab({ settings, onChange, constraints }: RateLimitsTab
             <Input
               id="limit-execution"
               type="number"
-              min={constraints?.execution_limit?.min ?? 0}
-              max={constraints?.execution_limit?.max ?? 10000}
+              min={constraints?.execution_limit.min ?? 0}
+              max={constraints?.execution_limit.max ?? 10000}
               step={1}
               value={settings.execution_limit}
               onChange={(e) => {
                 const val = Number(e.target.value);
                 if (Number.isNaN(val)) return;
-                const min = constraints?.execution_limit?.min ?? 0;
-                const max = constraints?.execution_limit?.max ?? 10000;
+                const min = constraints?.execution_limit.min ?? 0;
+                const max = constraints?.execution_limit.max ?? 10000;
                 onChange({ execution_limit: Math.max(min, Math.min(max, val)) });
               }}
               className="bg-slate-950/70"

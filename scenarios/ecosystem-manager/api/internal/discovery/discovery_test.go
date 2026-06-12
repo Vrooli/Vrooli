@@ -53,6 +53,12 @@ func (s *stubRunner) Run(ctx context.Context, name string, args ...string) ([]by
 	return resp.output, nil
 }
 
+// RunCombined satisfies vroolicli.Runner. Discovery only uses the JSON methods
+// (which call Run), so this simply delegates.
+func (s *stubRunner) RunCombined(ctx context.Context, name string, args ...string) ([]byte, error) {
+	return s.Run(ctx, name, args...)
+}
+
 func TestDiscoverResourcesFallsBackOnVerboseFailure(t *testing.T) {
 	runner := &stubRunner{
 		responses: []stubResponse{

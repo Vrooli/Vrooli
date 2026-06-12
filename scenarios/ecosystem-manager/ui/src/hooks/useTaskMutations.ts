@@ -14,13 +14,13 @@ import type { CreateTaskInput, UpdateTaskInput, TaskStatus, Task } from '../type
 export function useCreateTask() {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: (data: CreateTaskInput) => api.createTask(data),
-    onSuccess: () => {
-      // Invalidate all task queries to refetch
-      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
-    },
-  });
+	return useMutation({
+		mutationFn: (data: CreateTaskInput) => api.createTask(data),
+		onSuccess: () => {
+			// Invalidate all task queries to refetch
+			void queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
+		},
+	});
 }
 
 /**
@@ -32,11 +32,11 @@ export function useUpdateTask() {
   return useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: UpdateTaskInput }) =>
       api.updateTask(id, updates),
-    onSuccess: (updatedTask) => {
-      // Invalidate specific task and all lists
-      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail(updatedTask.id) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.lists() });
-    },
+	onSuccess: (updatedTask) => {
+		// Invalidate specific task and all lists
+		void queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail(updatedTask.id) });
+		void queryClient.invalidateQueries({ queryKey: queryKeys.tasks.lists() });
+	},
   });
 }
 
@@ -74,10 +74,10 @@ export function useUpdateTaskStatus() {
         });
       }
     },
-    onSettled: () => {
-      // Always refetch after error or success
-      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.lists() });
-    },
+	onSettled: () => {
+		// Always refetch after error or success
+		void queryClient.invalidateQueries({ queryKey: queryKeys.tasks.lists() });
+	},
   });
 }
 
@@ -108,8 +108,8 @@ export function useDeleteTask() {
         });
       }
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.lists() });
-    },
+	onSettled: () => {
+		void queryClient.invalidateQueries({ queryKey: queryKeys.tasks.lists() });
+	},
   });
 }

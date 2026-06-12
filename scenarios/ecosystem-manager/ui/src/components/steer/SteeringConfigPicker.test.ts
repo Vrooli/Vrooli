@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveSteeringConfig, extractSteeringFields } from './SteeringConfigPicker';
+import { deriveSteeringConfig, extractSteeringFields } from './SteeringConfigPicker.helpers';
 
 describe('SteeringConfigPicker helpers', () => {
   it('derives profile strategy first', () => {

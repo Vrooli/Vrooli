@@ -154,7 +154,7 @@ func TestGetCoverage_RequiresProfile(t *testing.T) {
 	}
 }
 
-func TestGetEffectiveness_ReturnsLedgerWithDerivedEfficacy(t *testing.T) {
+func TestGetEffectiveness_ReturnsLedgerWithDerivedEfficacy(t *testing.T) { // [REQ:EM-P1-006]
 	engine := &stubExecutionEngine{effStats: []effectiveness.Stat{
 		{SkillID: "lint-fix", Dimension: "standards", ClosedCount: 20, IntroducedCount: 0, TotalRuns: 5, TotalTokens: 5000},
 	}}

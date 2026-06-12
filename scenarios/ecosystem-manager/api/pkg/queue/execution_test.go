@@ -235,7 +235,7 @@ func TestInternalRunningTasksAccuracy(t *testing.T) {
 }
 
 // TestExecutionLifecycle verifies execution registry lifecycle
-func TestExecutionLifecycle(t *testing.T) {
+func TestExecutionLifecycle(t *testing.T) { // [REQ:EM-QUEUE-004]
 	processor, _, _ := setupExecutionTestProcessor(t)
 
 	taskID := "lifecycle-test-task"
@@ -532,7 +532,7 @@ func TestExecutionCleanup_UnregistersExecution(t *testing.T) {
 
 // TestReconciliation_DoesNotMoveTasksWithVerifiedCleanup tests that the new
 // cleanup pattern prevents reconciliation from moving tasks incorrectly
-func TestReconciliation_DoesNotMoveTasksWithVerifiedCleanup(t *testing.T) {
+func TestReconciliation_DoesNotMoveTasksWithVerifiedCleanup(t *testing.T) { // [REQ:EM-HLTH-002]
 	processor, storage, _ := setupExecutionTestProcessor(t)
 
 	taskID := "test-reconcile-verified"

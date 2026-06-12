@@ -117,7 +117,7 @@ func setupTestServer(t *testing.T) (http.Handler, string, func()) {
 	return router, queueDir, cleanup
 }
 
-func TestSetupRoutesHealthUsesDynamicPath(t *testing.T) {
+func TestSetupRoutesHealthUsesDynamicPath(t *testing.T) { // [REQ:EM-HLTH-001]
 	router, _, cleanup := setupTestServer(t)
 	defer cleanup()
 

@@ -13,7 +13,7 @@ func stateWithFindings(fs []findings.Finding) *ProfileExecutionState {
 	return &ProfileExecutionState{Findings: st, ScoreHistory: []float64{st.TotalScore}}
 }
 
-func TestTerminator_ObjectiveMet_NoFindingsAboveSeverity(t *testing.T) {
+func TestTerminator_ObjectiveMet_NoFindingsAboveSeverity(t *testing.T) { // [REQ:EM-CTRL-001]
 	term := NewTerminator()
 	// Only an INFO finding remains; max_open_severity "warning" tolerates it.
 	state := stateWithFindings([]findings.Finding{
@@ -78,7 +78,7 @@ func TestTerminator_ObjectiveMet_NoOperationalTargetsIsVacuouslySatisfied(t *tes
 	}
 }
 
-func TestTerminator_BudgetExhausted(t *testing.T) {
+func TestTerminator_BudgetExhausted(t *testing.T) { // [REQ:EM-CTRL-001]
 	term := NewTerminator()
 	state := stateWithFindings([]findings.Finding{
 		finding("a", "standards", architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR),
@@ -94,7 +94,7 @@ func TestTerminator_BudgetExhausted(t *testing.T) {
 	}
 }
 
-func TestTerminator_DiminishingReturns(t *testing.T) {
+func TestTerminator_DiminishingReturns(t *testing.T) { // [REQ:EM-CTRL-001]
 	term := NewTerminator()
 	state := stateWithFindings([]findings.Finding{
 		finding("a", "standards", architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR),

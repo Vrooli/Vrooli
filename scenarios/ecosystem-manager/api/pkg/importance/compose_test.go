@@ -2,7 +2,7 @@ package importance
 
 import "testing"
 
-func TestComposeNormalizesAndAppliesSystemRequiredFloor(t *testing.T) {
+func TestComposeNormalizesAndAppliesSystemRequiredFloor(t *testing.T) { // [REQ:EM-FLEET-001]
 	report := Compose(
 		[]ScenarioFact{
 			{Name: "core", SystemRequired: true},
@@ -37,7 +37,7 @@ func TestComposeNormalizesAndAppliesSystemRequiredFloor(t *testing.T) {
 	}
 }
 
-func TestComposeMarksMissingInputsDegraded(t *testing.T) {
+func TestComposeMarksMissingInputsDegraded(t *testing.T) { // [REQ:EM-FLEET-002]
 	report := Compose(
 		[]ScenarioFact{{Name: "demo"}},
 		nil,

@@ -13,10 +13,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SystemInsightsDeepView } from './SystemInsightsDeepView';
 import { api } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
-import type { InsightReport } from '@/types/api';
-
 export function SystemInsightsTab() {
-  const [sinceDays, setSinceDays] = useState(7);
+  const sinceDays = 7;
   const [activeView, setActiveView] = useState<'summary' | 'deep'>('summary');
 
   const { data, isLoading, refetch, error } = useQuery({
@@ -24,15 +22,6 @@ export function SystemInsightsTab() {
     queryFn: () => api.getSystemInsights(sinceDays),
     staleTime: 30000,
   });
-
-  const formatDateTime = (value?: string) => {
-    if (!value) return '--';
-    try {
-      return new Date(value).toLocaleString();
-    } catch {
-      return value;
-    }
-  };
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
@@ -69,7 +58,7 @@ export function SystemInsightsTab() {
       <div className="flex flex-col items-center justify-center h-full gap-4 text-slate-400">
         <AlertTriangle className="h-12 w-12 text-red-400" />
         <p>Failed to load system insights</p>
-        <Button variant="outline" size="sm" onClick={() => refetch()}>
+        <Button variant="outline" size="sm" onClick={() => void refetch()}>
           Retry
         </Button>
       </div>
@@ -95,32 +84,29 @@ export function SystemInsightsTab() {
     );
   }
 
-  const summary = (data as any).summary || {};
-  const reports = ((data as any).reports || []) as InsightReport[];
-  const timeWindow = (data as any).time_window || {};
+  const { summary, reports } = data;
 
   // Aggregate patterns and suggestions across all reports
-  const allPatterns = reports.flatMap(r => r.patterns || []);
-  const allSuggestions = reports.flatMap(r => r.suggestions || []);
+  const allPatterns = reports.flatMap(r => r.patterns);
+  const allSuggestions = reports.flatMap(r => r.suggestions);
 
   // Group patterns by type
-  const patternsByType = allPatterns.reduce((acc, pattern) => {
-    const type = pattern.type || 'unknown';
+  const patternsByType = allPatterns.reduce<Record<string, typeof allPatterns>>((acc, pattern) => {
+    const type = pattern.type;
     if (!acc[type]) acc[type] = [];
     acc[type].push(pattern);
     return acc;
-  }, {} as Record<string, typeof allPatterns>);
+  }, {});
 
   // Group suggestions by priority
-  const suggestionsByPriority = allSuggestions.reduce((acc, suggestion) => {
-    const priority = suggestion.priority || 'low';
+  const suggestionsByPriority = allSuggestions.reduce<Record<string, typeof allSuggestions>>((acc, suggestion) => {
+    const priority = suggestion.priority;
     if (!acc[priority]) acc[priority] = [];
     acc[priority].push(suggestion);
     return acc;
-  }, {} as Record<string, typeof allSuggestions>);
-
-  // Calculate success rate (if we have that data)
-  const successRate = summary.success_rate ?? null;
+  }, {});
+  const patternDistribution = Object.entries(summary.patterns_by_type)
+    .filter(([, count]) => count > 0);
 
   return (
     <div className="flex flex-col gap-4 flex-1">
@@ -131,12 +117,12 @@ export function SystemInsightsTab() {
           <div>
             <h3 className="text-lg font-semibold text-white">System-Wide Insights</h3>
             <p className="text-xs text-slate-400">
-              Last {sinceDays} days • {summary.total_reports || 0} reports analyzed
+              Last {sinceDays} days • {summary.total_reports} reports analyzed
             </p>
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isLoading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+        <Button variant="outline" size="sm" onClick={() => void refetch()} disabled={isLoading}>
+          <RefreshCw className="h-4 w-4 mr-2" />
           Refresh
         </Button>
       </div>
@@ -160,11 +146,11 @@ export function SystemInsightsTab() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <Card className="bg-slate-900/70 border-white/5 p-4">
                 <div className="text-xs uppercase text-slate-400 mb-1">Unique Tasks</div>
-                <div className="text-2xl font-semibold text-white">{summary.unique_tasks || 0}</div>
+                <div className="text-2xl font-semibold text-white">{summary.unique_tasks}</div>
               </Card>
               <Card className="bg-slate-900/70 border-white/5 p-4">
                 <div className="text-xs uppercase text-slate-400 mb-1">Total Executions</div>
-                <div className="text-2xl font-semibold text-white">{summary.total_executions || 0}</div>
+                <div className="text-2xl font-semibold text-white">{summary.total_executions}</div>
               </Card>
               <Card className="bg-slate-900/70 border-white/5 p-4">
                 <div className="text-xs uppercase text-slate-400 mb-1">Patterns Identified</div>
@@ -271,9 +257,7 @@ export function SystemInsightsTab() {
                                 <Badge variant="outline" className="text-xs">
                                   {suggestion.type}
                                 </Badge>
-                                {suggestion.impact?.confidence && (
-                                  <span>Confidence: {suggestion.impact.confidence}</span>
-                                )}
+                                <span>Confidence: {suggestion.impact.confidence}</span>
                               </div>
                             </div>
                           ))}
@@ -285,14 +269,14 @@ export function SystemInsightsTab() {
             </div>
 
             {/* Pattern Type Breakdown */}
-            {summary.patterns_by_type && Object.keys(summary.patterns_by_type).length > 0 && (
+            {patternDistribution.length > 0 && (
               <Card className="bg-slate-900/70 border-white/5 p-4">
                 <h4 className="font-semibold text-white mb-3 flex items-center gap-2">
                   <TrendingUp className="h-4 w-4 text-blue-400" />
                   Pattern Distribution
                 </h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {Object.entries(summary.patterns_by_type as Record<string, number>).map(([type, count]) => (
+                  {patternDistribution.map(([type, count]) => (
                     <div key={type} className="flex items-center justify-between p-2 bg-slate-800/50 rounded border border-white/5">
                       <span className="text-sm text-slate-300">{type.replace('_', ' ')}</span>
                       <Badge variant="outline">{count}</Badge>

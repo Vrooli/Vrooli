@@ -81,12 +81,12 @@ export function getApiErrorMessage(error: unknown): string {
     try {
       const match = error.message.match(/API Error \(\d+\): (.+)/);
       if (match?.[1]) {
-        const parsed = JSON.parse(match[1]);
+        const parsed: unknown = JSON.parse(match[1]);
         if (typeof parsed === 'string') {
           return parsed;
         }
-        if (parsed && typeof parsed === 'object') {
-          return parsed.message || parsed.error || error.message;
+        if (isErrorPayload(parsed)) {
+          return parsed.message ?? parsed.error ?? error.message;
         }
       }
     } catch {
@@ -95,10 +95,25 @@ export function getApiErrorMessage(error: unknown): string {
     return error.message;
   }
 
-  if (typeof error === 'object' && error !== null) {
-    const maybeError = error as { message?: string; error?: string };
-    return maybeError.message || maybeError.error || 'Unknown error';
+  if (isErrorPayload(error)) {
+    return error.message ?? error.error ?? 'Unknown error';
   }
 
-  return String(error);
+  if (typeof error === 'string') {
+    return error;
+  }
+  if (typeof error === 'number' || typeof error === 'boolean' || typeof error === 'bigint' || typeof error === 'symbol') {
+    return String(error);
+  }
+
+  return 'Unknown error';
+}
+
+function isErrorPayload(value: unknown): value is { message?: string; error?: string } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    (!('message' in value) || typeof value.message === 'string') &&
+    (!('error' in value) || typeof value.error === 'string')
+  );
 }

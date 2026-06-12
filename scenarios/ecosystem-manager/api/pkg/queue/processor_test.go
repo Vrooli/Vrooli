@@ -91,7 +91,7 @@ func TestProcessor_GetQueueStatus(t *testing.T) {
 	}
 }
 
-func TestProcessor_StartStop(t *testing.T) {
+func TestProcessor_StartStop(t *testing.T) { // [REQ:EM-QUEUE-002]
 	processor, _, cleanup := setupTestProcessor(t)
 	defer cleanup()
 
@@ -193,7 +193,7 @@ func TestProcessor_AvailableSlots(t *testing.T) {
 	}
 }
 
-func TestProcessor_WithPendingTask(t *testing.T) {
+func TestProcessor_WithPendingTask(t *testing.T) { // [REQ:EM-QUEUE-002]
 	processor, tempDir, cleanup := setupTestProcessor(t)
 	defer cleanup()
 
@@ -295,7 +295,7 @@ func TestProcessor_GetResumeDiagnostics(t *testing.T) {
 	_ = diagnostics
 }
 
-func TestProcessor_RateLimitPause(t *testing.T) {
+func TestProcessor_RateLimitPause(t *testing.T) { // [REQ:EM-QUEUE-002]
 	processor, _, cleanup := setupTestProcessor(t)
 	defer cleanup()
 
@@ -351,7 +351,7 @@ func TestProcessor_RateLimitPause(t *testing.T) {
 	})
 }
 
-func TestProcessor_ReconcileInProgressTasks(t *testing.T) {
+func TestProcessor_ReconcileInProgressTasks(t *testing.T) { // [REQ:EM-HLTH-002]
 	processor, tempDir, cleanup := setupTestProcessor(t)
 	defer cleanup()
 

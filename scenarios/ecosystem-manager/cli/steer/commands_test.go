@@ -39,7 +39,7 @@ func TestOrNone(t *testing.T) {
 	}
 }
 
-func TestGapLinesIncludesKnownUncoveredTracking(t *testing.T) {
+func TestGapLinesIncludesKnownUncoveredTracking(t *testing.T) { // [REQ:EM-P1-006]
 	got := gapLines([]CoverageDimensionGap{{
 		Dimension:   "dependencies",
 		Reason:      "no skill exists yet",

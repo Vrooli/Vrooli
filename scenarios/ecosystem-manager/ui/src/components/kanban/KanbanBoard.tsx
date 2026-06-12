@@ -24,7 +24,7 @@ import { useTasks } from '../../hooks/useTasks';
 import { useUpdateTaskStatus } from '../../hooks/useTaskMutations';
 import { useTaskUpdates } from '../../hooks/useTaskUpdates';
 import { useAllAutoSteerProfiles } from '../../hooks/useAutoSteer';
-import { useAppState } from '../../contexts/AppStateContext';
+import { useAppState } from '../../contexts/useAppState';
 import type { AutoSteerProfile, Task, TaskStatus } from '../../types/api';
 
 // Column definitions with display labels
@@ -49,9 +49,10 @@ export function KanbanBoard({ onViewTaskDetails, onDeleteTask }: KanbanBoardProp
   const scrollLockRef = useRef<{ timeout: number | null }>({ timeout: null });
 
   const { columnVisibility, toggleColumnVisibility, filters } = useAppState();
-  const { data: tasks = [], isLoading, error } = useTasks(filters);
+  const { data: taskData, isLoading, error } = useTasks(filters);
   const updateTaskStatus = useUpdateTaskStatus();
-  const { data: autoSteerProfiles = [] } = useAllAutoSteerProfiles();
+  const { data: autoSteerProfiles } = useAllAutoSteerProfiles();
+  const tasks = useMemo(() => taskData ?? [], [taskData]);
 
   const autoSteerProfileMap = useMemo<Record<string, AutoSteerProfile>>(() => {
     const map: Record<string, AutoSteerProfile> = {};
@@ -95,9 +96,7 @@ export function KanbanBoard({ onViewTaskDetails, onDeleteTask }: KanbanBoardProp
     };
 
     tasks.forEach(task => {
-      if (grouped[task.status]) {
-        grouped[task.status].push(task);
-      }
+      grouped[task.status].push(task);
     });
 
     return grouped;
@@ -118,14 +117,15 @@ export function KanbanBoard({ onViewTaskDetails, onDeleteTask }: KanbanBoardProp
     if (!over) return;
 
     const taskId = active.id as string;
-    const overType = over.data.current?.type;
+    const overData = over.data.current as { type?: 'column' | 'task'; status?: TaskStatus; task?: Task } | undefined;
+    const overType = overData?.type;
     let newStatus: TaskStatus | null = null;
 
     if (overType === 'column') {
-      newStatus = over.data.current?.status as TaskStatus | null;
+      newStatus = overData?.status ?? null;
     } else if (overType === 'task') {
       // Dropped onto another task - infer status from that task
-      const overTask = over.data.current?.task as Task | undefined;
+      const overTask = overData?.task;
       newStatus = overTask?.status ?? null;
       if (!newStatus) {
         const targetTask = tasks.find(t => t.id === over.id);

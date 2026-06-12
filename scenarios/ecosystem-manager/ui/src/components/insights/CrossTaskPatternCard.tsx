@@ -93,7 +93,7 @@ export function CrossTaskPatternCard({ pattern, className }: CrossTaskPatternCar
         </div>
 
         {/* Task Types */}
-        {pattern.task_types && pattern.task_types.length > 0 && (
+        {pattern.task_types.length > 0 && (
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <span>Task types:</span>
             {pattern.task_types.map((type) => (
@@ -105,7 +105,7 @@ export function CrossTaskPatternCard({ pattern, className }: CrossTaskPatternCar
         )}
 
         {/* Evidence */}
-        {pattern.evidence && pattern.evidence.length > 0 && (
+        {pattern.evidence.length > 0 && (
           <details className="group">
             <summary className="text-xs text-slate-400 cursor-pointer hover:text-slate-300 transition-colors">
               View evidence ({pattern.evidence.length} items)

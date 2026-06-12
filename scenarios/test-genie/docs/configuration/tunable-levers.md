@@ -91,6 +91,51 @@ Some behavior is expressed in `bas/registry.json` rather than environment variab
 
 The registry should be generated via `test-genie registry build`, not hand-maintained.
 
+## Dependencies Phase
+
+The `dependencies` section in `.vrooli/testing.json` controls the read-only dependency preflight. Defaults are strict and fail when required readiness cannot be proven.
+
+```json
+{
+  "dependencies": {
+    "strict": true,
+    "runtime_versions": {
+      "go": ">=1.21",
+      "node": ">=18.0.0",
+      "python3": ">=3.10.0"
+    },
+    "go_modules": {
+      "enabled": true,
+      "tidy_diff": true,
+      "build": false,
+      "local_replace_resolution": true
+    },
+    "node_packages": {
+      "enabled": true,
+      "require_node_modules": true,
+      "lockfile_required": true
+    },
+    "resources": {
+      "health_policy": "fail",
+      "allow_unknown_health_when_running": true
+    },
+    "scenarios": {
+      "enabled": true,
+      "health_policy": "fail"
+    }
+  }
+}
+```
+
+Common remediation:
+
+| Finding | Typical command |
+|---------|-----------------|
+| `go_module_drift` | `cd scenarios/<name>/api && GOWORK=off go mod tidy` |
+| `node_install_state_stale` | `cd scenarios/<name>/ui && pnpm install --ignore-workspace` |
+| `required_resource_unhealthy` | `vrooli resource start <name>` |
+| `required_scenario_unhealthy` | `vrooli scenario start <name>` or `vrooli scenario restart <name>` |
+
 ## Advanced infrastructure levers
 
 Test Genie also participates in broader Vrooli infrastructure concerns:

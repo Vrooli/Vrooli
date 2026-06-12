@@ -63,7 +63,7 @@ export class ErrorBoundary extends Component<Props, State> {
       this.state.errorInfo?.componentStack || 'No component stack available',
     ].join('\n');
 
-    navigator.clipboard.writeText(errorText).then(() => {
+    void navigator.clipboard.writeText(errorText).then(() => {
       this.setState({ copied: true });
       setTimeout(() => this.setState({ copied: false }), 2000);
     });

@@ -24,13 +24,13 @@ export function useRunningProcesses() {
 export function useTerminateProcess() {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: (processId: string) => api.terminateProcess(processId),
-    onSuccess: () => {
-      // Invalidate processes to update the list
-      queryClient.invalidateQueries({ queryKey: queryKeys.processes.running() });
-      // Also invalidate tasks in case status changed
-      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
-    },
-  });
+	return useMutation({
+		mutationFn: (processId: string) => api.terminateProcess(processId),
+		onSuccess: () => {
+			// Invalidate processes to update the list
+			void queryClient.invalidateQueries({ queryKey: queryKeys.processes.running() });
+			// Also invalidate tasks in case status changed
+			void queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
+		},
+	});
 }

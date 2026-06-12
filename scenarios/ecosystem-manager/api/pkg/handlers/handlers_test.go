@@ -275,7 +275,7 @@ func (f *fakeProcessor) GenerateSystemInsightReport(sinceTime time.Time) (*insig
 var _ ProcessorAPI = (*fakeProcessor)(nil)
 
 // TestHealthCheckHandler tests the health check endpoint
-func TestHealthCheckHandler(t *testing.T) {
+func TestHealthCheckHandler(t *testing.T) { // [REQ:EM-HLTH-001]
 	tempDir, cleanup := setupTestEnv(t)
 	defer cleanup()
 
@@ -463,7 +463,7 @@ func TestTaskHandlers_GetTasks(t *testing.T) {
 }
 
 // TestTaskHandlers_CreateTask tests the create task endpoint
-func TestTaskHandlers_CreateTask(t *testing.T) {
+func TestTaskHandlers_CreateTask(t *testing.T) { // [REQ:EM-QUEUE-001]
 	tempDir, cleanup := setupTestEnv(t)
 	defer cleanup()
 
@@ -964,7 +964,7 @@ func TestTaskHandlers_GetActiveTargets(t *testing.T) {
 	})
 }
 
-func TestTaskHandlers_UpdateTask(t *testing.T) {
+func TestTaskHandlers_UpdateTask(t *testing.T) { // [REQ:EM-QUEUE-001]
 	tempDir, cleanup := setupTestEnv(t)
 	defer cleanup()
 
@@ -1187,7 +1187,7 @@ func TestTaskHandlers_UpdateTaskStatus_CooldownConflict(t *testing.T) {
 	}
 }
 
-func TestTaskHandlers_DeleteTask(t *testing.T) {
+func TestTaskHandlers_DeleteTask(t *testing.T) { // [REQ:EM-QUEUE-001]
 	tempDir, cleanup := setupTestEnv(t)
 	defer cleanup()
 

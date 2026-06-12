@@ -1,4 +1,4 @@
-import { useAppState } from '../../contexts/AppStateContext';
+import { useAppState } from '../../contexts/useAppState';
 import { Button } from '../ui/button';
 import { ScrollText } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';

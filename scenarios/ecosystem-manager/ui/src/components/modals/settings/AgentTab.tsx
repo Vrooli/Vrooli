@@ -33,9 +33,9 @@ export function AgentTab({ settings, onChange, constraints }: AgentTabProps) {
     <div className="space-y-6">
       {/* AI Runner Type */}
       <div className="space-y-3">
-        <Label htmlFor="runner-type">AI Runner</Label>
-        <Select
-          value={settings.runner_type || 'claude-code'}
+	        <Label htmlFor="runner-type">AI Runner</Label>
+	        <Select
+	          value={settings.runner_type}
           onValueChange={(value) => onChange({ runner_type: value as AgentSettings['runner_type'] })}
         >
           <SelectTrigger id="runner-type" className="w-full">

@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useTheme } from '@/contexts/ThemeContext';
+import { useTheme } from '@/contexts/useTheme';
 import { useEditorPreferences } from '@/hooks/useEditorPreferences';
 import type { DisplaySettings } from '@/types/api';
 

@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 import type { Pattern, PatternSeverity, PatternType } from '@/types/api';
-import { AlertCircle, AlertTriangle, Clock, Info, Zap } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Clock, Zap } from 'lucide-react';
 
 interface PatternCardProps {
   pattern: Pattern;
@@ -48,11 +48,7 @@ const SEVERITY_BADGE_STYLES: Record<PatternSeverity, string> = {
 };
 
 export function PatternCard({ pattern, className }: PatternCardProps) {
-  const typeInfo = PATTERN_TYPE_INFO[pattern.type] || {
-    icon: Info,
-    label: pattern.type,
-    color: 'text-slate-400',
-  };
+  const typeInfo = PATTERN_TYPE_INFO[pattern.type];
   const Icon = typeInfo.icon;
 
   return (
@@ -84,7 +80,7 @@ export function PatternCard({ pattern, className }: PatternCardProps) {
         </div>
       </div>
 
-      {pattern.evidence && pattern.evidence.length > 0 && (
+      {pattern.evidence.length > 0 && (
         <div className="mt-3 pt-3 border-t border-slate-700/50">
           <div className="text-xs text-slate-400 mb-2">Evidence:</div>
           <div className="space-y-1">
@@ -105,7 +101,7 @@ export function PatternCard({ pattern, className }: PatternCardProps) {
         </div>
       )}
 
-      {pattern.examples && pattern.examples.length > 0 && (
+      {pattern.examples.length > 0 && (
         <div className="mt-2 pt-2 border-t border-slate-700/30">
           <div className="text-xs text-slate-400">
             Examples: {pattern.examples.slice(0, 3).join(', ')}

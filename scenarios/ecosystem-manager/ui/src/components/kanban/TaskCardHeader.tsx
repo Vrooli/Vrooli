@@ -32,7 +32,7 @@ export function TaskCardHeader({ task }: TaskCardHeaderProps) {
           <button
             onClick={(event) => {
               event.stopPropagation();
-              copyTaskId();
+              void copyTaskId();
             }}
             className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
             title={`Click to copy task ID (${task.id})`}

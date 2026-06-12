@@ -379,3 +379,202 @@ func TestService_DegradedScannerIsInfo(t *testing.T) {
 		t.Error("expected a degraded INFO observation for gosec")
 	}
 }
+
+// gitAwareCommander scripts gitleaks output plus distinct `git check-ignore`
+// and `git ls-files` responses so the gitignore downgrade can be exercised.
+type gitAwareCommander struct {
+	gitleaks    []byte
+	checkIgnore []byte
+	lsFiles     []byte
+}
+
+func (c gitAwareCommander) LookPath(name string) (string, error) { return "/usr/bin/" + name, nil }
+
+func (c gitAwareCommander) Run(_ context.Context, _ string, name string, args ...string) ([]byte, []byte, int, error) {
+	switch {
+	case name == "gitleaks":
+		return c.gitleaks, nil, 1, nil
+	case name == "git" && len(args) > 0 && args[0] == "check-ignore":
+		return c.checkIgnore, nil, 0, nil
+	case name == "git" && len(args) > 0 && args[0] == "ls-files":
+		return c.lsFiles, nil, 0, nil
+	}
+	return nil, nil, 0, nil
+}
+
+func TestGitleaksScanner_GitignoredDowngradedToInfo(t *testing.T) {
+	// Three matches: a gitignored .env, a gitignored build artifact, and a
+	// tracked source file. Only the tracked file may gate.
+	cmd := gitAwareCommander{
+		gitleaks: []byte(`[
+			{"Description":"Generic API Key","StartLine":5,"File":".env","RuleID":"generic-api-key"},
+			{"Description":"Generic API Key","StartLine":21,"File":".build-fingerprint.json","RuleID":"generic-api-key"},
+			{"Description":"AWS","StartLine":2,"File":"api/cfg.go","RuleID":"aws-access-token"}
+		]`),
+		checkIgnore: []byte(".env\n.build-fingerprint.json\n"),
+		lsFiles:     []byte("api/cfg.go\x00"),
+	}
+	sc := newGitleaksScanner(cmd)
+	findings, err := sc.Scan(context.Background(), "/tmp/x", Substrate{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(findings) != 3 {
+		t.Fatalf("want 3 findings (downgraded, not dropped), got %d", len(findings))
+	}
+	sev := map[string]Severity{}
+	for _, f := range findings {
+		sev[f.FilePath] = f.Severity
+	}
+	if sev[".env:5"] != SeverityInfo {
+		t.Errorf("gitignored .env should be INFO, got %v", sev[".env:5"])
+	}
+	if sev[".build-fingerprint.json:21"] != SeverityInfo {
+		t.Errorf("gitignored build artifact should be INFO, got %v", sev[".build-fingerprint.json:21"])
+	}
+	if sev["api/cfg.go:2"] != SeverityError {
+		t.Errorf("tracked file must stay ERROR, got %v", sev["api/cfg.go:2"])
+	}
+}
+
+func TestGitleaksScanner_TrackedDespiteIgnoreRuleStaysError(t *testing.T) {
+	// A file force-added past .gitignore matches the ignore rules AND is
+	// tracked: committed content must keep gating.
+	cmd := gitAwareCommander{
+		gitleaks:    []byte(`[{"Description":"AWS","StartLine":3,"File":".env","RuleID":"aws-access-token"}]`),
+		checkIgnore: []byte(".env\n"),
+		lsFiles:     []byte(".env\x00"),
+	}
+	sc := newGitleaksScanner(cmd)
+	findings, err := sc.Scan(context.Background(), "/tmp/x", Substrate{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(findings) != 1 || findings[0].Severity != SeverityError {
+		t.Fatalf("tracked-but-ignore-matched secret must stay ERROR, got %+v", findings)
+	}
+}
+
+func TestGitleaksScanner_GitUnavailableFailsOpen(t *testing.T) {
+	// stubCommander has no "git" entry: empty output. All findings must keep
+	// their native ERROR severity (fail open).
+	cmd := stubCommander{
+		present: map[string]bool{"gitleaks": true},
+		out: map[string]stubOut{
+			"gitleaks": {stdout: []byte(`[{"Description":"AWS","StartLine":2,"File":".env","RuleID":"aws-access-token"}]`)},
+		},
+	}
+	sc := newGitleaksScanner(cmd)
+	findings, err := sc.Scan(context.Background(), "/tmp/x", Substrate{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(findings) != 1 || findings[0].Severity != SeverityError {
+		t.Fatalf("without git the finding must stay ERROR, got %+v", findings)
+	}
+}
+
+func TestGosecScanner_NolintGosecSuppressed(t *testing.T) {
+	// Two issues: one whose flagged line carries //nolint:gosec (reviewed,
+	// must be dropped — standalone gosec only honors #nosec), one bare.
+	report := `{"Issues":[
+		{"severity":"HIGH","rule_id":"G404","details":"weak rng","file":"/x/api/sel.go","line":"464",
+		 "code":"463: func pick() {\n464: \trng := rand.New(rand.NewSource(1)) //nolint:gosec // deterministic exploration\n465: }"},
+		{"severity":"HIGH","rule_id":"G404","details":"weak rng","file":"/x/api/other.go","line":"10",
+		 "code":"9: func roll() {\n10: \tn := rand.Intn(6)\n11: }"}
+	]}`
+	cmd := stubCommander{
+		present: map[string]bool{"gosec": true},
+		out:     map[string]stubOut{"gosec": {stdout: []byte(report)}},
+	}
+	sc := newGosecScanner(cmd)
+	findings, err := sc.Scan(context.Background(), "/x", Substrate{Go: true, GoModDirs: []string{"api"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(findings) != 1 {
+		t.Fatalf("want 1 finding (nolint:gosec suppressed), got %d: %+v", len(findings), findings)
+	}
+	if findings[0].FilePath != "api/other.go:10" {
+		t.Errorf("surviving finding = %q, want api/other.go:10", findings[0].FilePath)
+	}
+}
+
+func TestNolintSuppressesGosec(t *testing.T) {
+	cases := map[string]bool{
+		"x := rand.Intn(6) //nolint:gosec":           true,
+		"x := rand.Intn(6) //nolint:gosec // reason": true,
+		"x := rand.Intn(6) //nolint:errcheck,gosec":  true,
+		"x := rand.Intn(6) //nolint":                 true,
+		"x := rand.Intn(6) // nolint:gosec":          true,
+		"x := rand.Intn(6) //nolint:errcheck":        false,
+		"x := rand.Intn(6)":                          false,
+		"x := rand.Intn(6) // no lint here":          false,
+	}
+	for src, want := range cases {
+		if got := nolintSuppressesGosec(src); got != want {
+			t.Errorf("nolintSuppressesGosec(%q) = %v, want %v", src, got, want)
+		}
+	}
+}
+
+func TestFlaggedSourceLine(t *testing.T) {
+	code := "9: a\n10: \tflagged()\n11: c"
+	if got := flaggedSourceLine(code, "10"); !containsSub(got, "flagged()") {
+		t.Errorf("line 10 = %q, want flagged()", got)
+	}
+	if got := flaggedSourceLine(code, "10-12"); !containsSub(got, "flagged()") {
+		t.Errorf("range 10-12 should resolve to first line, got %q", got)
+	}
+	if got := flaggedSourceLine(code, "99"); got != "" {
+		t.Errorf("missing line should return empty, got %q", got)
+	}
+	if got := flaggedSourceLine("", "10"); got != "" {
+		t.Errorf("empty snippet should return empty, got %q", got)
+	}
+}
+
+func containsSub(s, sub string) bool {
+	for i := 0; i+len(sub) <= len(s); i++ {
+		if s[i:i+len(sub)] == sub {
+			return true
+		}
+	}
+	return false
+}
+
+// TestGitIgnoredSet_RealGit exercises gitIgnoredSet against a real git
+// work tree — the stubbed tests cannot catch git CLI contract errors (e.g.
+// `check-ignore -z` being invalid without `--stdin`).
+func TestGitIgnoredSet_RealGit(t *testing.T) {
+	if _, err := NewExecCommander().LookPath("git"); err != nil {
+		t.Skip("git not on PATH")
+	}
+	dir := t.TempDir()
+	run := func(args ...string) {
+		t.Helper()
+		if _, _, code, err := NewExecCommander().Run(context.Background(), dir, "git", args...); err != nil || code != 0 {
+			t.Fatalf("git %v: code=%d err=%v", args, code, err)
+		}
+	}
+	run("init", "-q")
+	writeFile(t, filepath.Join(dir, ".gitignore"), ".env\nforced.txt\n")
+	writeFile(t, filepath.Join(dir, ".env"), "SECRET=x\n")
+	writeFile(t, filepath.Join(dir, "tracked.go"), "package x\n")
+	writeFile(t, filepath.Join(dir, "forced.txt"), "SECRET=y\n")
+	run("add", ".gitignore", "tracked.go")
+	run("add", "-f", "forced.txt") // tracked despite matching .gitignore
+
+	sc := &gitleaksScanner{cmd: NewExecCommander()}
+	raw := []gitleaksFinding{{File: ".env"}, {File: "tracked.go"}, {File: "forced.txt"}}
+	ignored := sc.gitIgnoredSet(context.Background(), dir, raw)
+	if !ignored[".env"] {
+		t.Error("untracked gitignored .env must be in the ignored set")
+	}
+	if ignored["tracked.go"] {
+		t.Error("tracked file must not be in the ignored set")
+	}
+	if ignored["forced.txt"] {
+		t.Error("force-added file matching .gitignore must not be in the ignored set (it is committed content)")
+	}
+}

@@ -18,7 +18,7 @@ func openStandards(id string) findings.FindingsState {
 }
 
 // (1) A recurring open-findings fingerprint halts on the first repeat.
-func TestThrashing_FingerprintCycleHalts(t *testing.T) {
+func TestThrashing_FingerprintCycleHalts(t *testing.T) { // [REQ:EM-P1-005]
 	fs := openStandards("x")
 	state := &ProfileExecutionState{
 		Iteration: 2,
@@ -126,7 +126,7 @@ func TestThrashing_CooldownSkipsRegressor(t *testing.T) {
 }
 
 // (4) A regression sets the trace flag, and the veto flag surfaces it.
-func TestThrashing_RegressionFlagAndVeto(t *testing.T) {
+func TestThrashing_RegressionFlagAndVeto(t *testing.T) { // [REQ:EM-P1-005]
 	orch := &ExecutionOrchestrator{traceStore: NewTraceStore(nil)}
 
 	withVeto := &ProfileExecutionState{Trace: []DecisionTraceEntry{{Iteration: 1}}}

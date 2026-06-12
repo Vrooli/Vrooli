@@ -30,6 +30,17 @@ type Config struct {
 	// SkipResourceHealthWhenNoRequired avoids runtime status telemetry when the
 	// manifest declares no required resources.
 	SkipResourceHealthWhenNoRequired bool
+
+	// Settings optionally overrides dependency policy loaded from testing.json.
+	Settings *Settings
+
+	// ScenarioStatusFetcher reads typed scenario runtime status when scenario
+	// dependency checks are enabled.
+	ScenarioStatusFetcher ScenarioStatusFetcher
+
+	// ResourceStatusFetcher reads typed resource runtime status when resource
+	// health checks are enabled.
+	ResourceStatusFetcher resources.ResourceStatusFetcher
 }
 
 // Runner orchestrates dependency validation across commands, runtime, packages, and resources.
@@ -42,6 +53,12 @@ type Runner struct {
 	packageDetector packages.Detector
 	resourceLoader  resources.ExpectationsLoader
 	resourceChecker resources.HealthChecker
+	goModuleChecker GoModuleChecker
+	nodeChecker     NodePackageChecker
+	scenarioChecker ScenarioDependencyChecker
+	commandRunner   CommandRunner
+	settings        Settings
+	settingsErr     error
 
 	logWriter io.Writer
 }
@@ -76,6 +93,29 @@ func New(config Config, opts ...Option) *Runner {
 	}
 	if r.resourceLoader == nil {
 		r.resourceLoader = resources.NewLoader(config.ScenarioDir, r.logWriter)
+	}
+	if config.Settings != nil {
+		r.settings = *config.Settings
+	} else {
+		settings, err := LoadSettings(config.ScenarioDir)
+		if err != nil {
+			r.settings = DefaultSettings()
+			r.settingsErr = err
+		} else {
+			r.settings = settings
+		}
+	}
+	if r.commandRunner == nil {
+		r.commandRunner = execCommandRunner{}
+	}
+	if r.goModuleChecker == nil {
+		r.goModuleChecker = NewGoModuleChecker(config.ScenarioDir, r.settings.GoModules)
+	}
+	if r.nodeChecker == nil {
+		r.nodeChecker = NewNodePackageChecker(config.ScenarioDir, r.settings.NodePackages)
+	}
+	if r.scenarioChecker == nil && config.ScenarioStatusFetcher != nil {
+		r.scenarioChecker = NewScenarioDependencyChecker(config.ScenarioDir, r.settings.Scenarios, config.ScenarioStatusFetcher)
 	}
 	// resourceChecker is intentionally nil by default - it requires a StatusFetcher
 	// which depends on runtime context
@@ -125,6 +165,34 @@ func WithResourceChecker(c resources.HealthChecker) Option {
 	}
 }
 
+// WithGoModuleChecker sets a custom Go module checker (for testing).
+func WithGoModuleChecker(c GoModuleChecker) Option {
+	return func(r *Runner) {
+		r.goModuleChecker = c
+	}
+}
+
+// WithNodePackageChecker sets a custom Node package checker (for testing).
+func WithNodePackageChecker(c NodePackageChecker) Option {
+	return func(r *Runner) {
+		r.nodeChecker = c
+	}
+}
+
+// WithScenarioDependencyChecker sets a custom scenario dependency checker (for testing).
+func WithScenarioDependencyChecker(c ScenarioDependencyChecker) Option {
+	return func(r *Runner) {
+		r.scenarioChecker = c
+	}
+}
+
+// WithCommandRunner sets a custom command runner for version probes (for testing).
+func WithCommandRunner(c CommandRunner) Option {
+	return func(r *Runner) {
+		r.commandRunner = c
+	}
+}
+
 // Run executes all dependency validations and returns the aggregated result.
 func (r *Runner) Run(ctx context.Context) *RunResult {
 	if err := ctx.Err(); err != nil {
@@ -132,6 +200,14 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 			Success:      false,
 			Error:        err,
 			FailureClass: FailureClassSystem,
+		}
+	}
+	if r.settingsErr != nil {
+		return &RunResult{
+			Success:      false,
+			Error:        r.settingsErr,
+			FailureClass: FailureClassMisconfiguration,
+			Remediation:  "Fix the dependencies section in .vrooli/testing.json.",
 		}
 	}
 
@@ -177,7 +253,30 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		if !runtimeResult.Success {
 			return r.failFromCommandResult(runtimeResult, observations)
 		}
+		for _, rt := range runtimes {
+			if failed := r.checkVersion(ctx, rt.Command, r.settings.RuntimeVersions[rt.Command], &observations, summary); failed != nil {
+				return failed
+			}
+		}
 		shared.LogSuccess(r.logWriter, "All required runtimes available (%d)", len(runtimes))
+	}
+
+	// Section: Go Module Freshness
+	if r.goModuleChecker != nil {
+		observations = append(observations, NewSectionObservation("🧩", "Checking Go module state..."))
+		goResult := r.goModuleChecker.Check(ctx)
+		summary.GoModulesChecked += goResult.Checked
+		observations = append(observations, goResult.Observations...)
+		if !goResult.Success {
+			return &RunResult{
+				Success:      false,
+				Error:        goResult.Error,
+				FailureClass: FailureClassMissingDependency,
+				Remediation:  goResult.Remediation,
+				Observations: observations,
+				Summary:      summary,
+			}
+		}
 	}
 
 	// Section: Package Managers
@@ -206,7 +305,30 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		if !managerResult.Success {
 			return r.failFromCommandResult(managerResult, observations)
 		}
+		for _, manager := range managers {
+			if failed := r.checkVersion(ctx, manager.Name, r.settings.RuntimeVersions[manager.Name], &observations, summary); failed != nil {
+				return failed
+			}
+		}
 		shared.LogSuccess(r.logWriter, "All required package managers available (%d)", len(managers))
+	}
+
+	// Section: JavaScript Package State
+	if r.nodeChecker != nil {
+		observations = append(observations, NewSectionObservation("📚", "Checking JavaScript package state..."))
+		nodeResult := r.nodeChecker.Check()
+		summary.NodePackagesChecked += nodeResult.Checked
+		observations = append(observations, nodeResult.Observations...)
+		if !nodeResult.Success {
+			return &RunResult{
+				Success:      false,
+				Error:        nodeResult.Error,
+				FailureClass: nodeResult.FailureClass,
+				Remediation:  nodeResult.Remediation,
+				Observations: observations,
+				Summary:      summary,
+			}
+		}
 	}
 
 	// Section: Resource Expectations
@@ -224,7 +346,34 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		}
 	}
 
+	// Section: Scenario Dependencies
+	if r.scenarioChecker != nil {
+		observations = append(observations, NewSectionObservation("🧭", "Checking scenario dependencies..."))
+		scenarioResult := r.scenarioChecker.Check(ctx)
+		summary.ScenariosChecked += scenarioResult.Checked
+		observations = append(observations, scenarioResult.Observations...)
+		if !scenarioResult.Success {
+			return &RunResult{
+				Success:      false,
+				Error:        scenarioResult.Error,
+				FailureClass: scenarioResult.FailureClass,
+				Remediation:  scenarioResult.Remediation,
+				Observations: observations,
+				Summary:      summary,
+			}
+		}
+	}
+
 	summary.ResourcesChecked = len(requiredResources)
+	if r.resourceChecker == nil && r.config.ResourceStatusFetcher != nil {
+		r.resourceChecker = resources.NewChecker(
+			requiredResources,
+			r.config.ResourceStatusFetcher,
+			r.logWriter,
+			resources.WithAllowUnknownHealthWhenRunning(r.settings.Resources.AllowUnknownHealthWhenRunning),
+			resources.WithSkippedResources(r.settings.Resources.Skip),
+		)
+	}
 
 	if len(requiredResources) == 0 {
 		observations = append(observations, NewInfoObservation("manifest declares no required resources"))
@@ -237,7 +386,9 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 	}
 
 	// Section: Resource Health (if checker is configured)
-	if r.resourceChecker != nil && r.config.SkipResourceHealthWhenNoRequired && len(requiredResources) == 0 {
+	if r.settings.Resources.HealthPolicy == "skip" {
+		observations = append(observations, NewSkipObservation("resource health checks skipped via .vrooli/testing.json"))
+	} else if r.resourceChecker != nil && r.config.SkipResourceHealthWhenNoRequired && len(requiredResources) == 0 {
 		observations = append(observations, NewInfoObservation("resource health telemetry not applicable without required resources"))
 	} else if r.resourceChecker != nil {
 		observations = append(observations, NewSectionObservation("💚", "Checking resource health..."))
@@ -246,7 +397,9 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		healthResult := r.resourceChecker.Check(ctx)
 		observations = append(observations, healthResult.Observations...)
 
-		if !healthResult.Success {
+		if !healthResult.Success && r.settings.Resources.HealthPolicy == "warn" {
+			observations = append(observations, NewWarningObservation(fmt.Sprintf("resource health check did not pass: %v", healthResult.Error)))
+		} else if !healthResult.Success {
 			return &RunResult{
 				Success:      false,
 				Error:        healthResult.Error,

@@ -38,15 +38,16 @@ export function useAutoSteerProfile(id: string) {
  * Fetch Auto Steer execution state for a task
  */
 export function useAutoSteerExecutionState(taskId?: string) {
-  return useQuery({
-    queryKey: queryKeys.autoSteer.executionState(taskId ?? 'none'),
-    queryFn: async (): Promise<AutoSteerExecutionState | undefined> => {
-      try {
-        return await api.getAutoSteerExecutionState(taskId as string);
-      } catch (err: any) {
-        // Treat missing state as undefined instead of leaving stale data around.
-        if (err instanceof ApiError && err.status === 404) return undefined;
-        throw err;
+	return useQuery({
+		queryKey: queryKeys.autoSteer.executionState(taskId ?? 'none'),
+		queryFn: async (): Promise<AutoSteerExecutionState | undefined> => {
+			if (!taskId) return undefined;
+			try {
+				return await api.getAutoSteerExecutionState(taskId);
+			} catch (err: unknown) {
+				// Treat missing state as undefined instead of leaving stale data around.
+				if (err instanceof ApiError && err.status === 404) return undefined;
+				throw err;
       }
     },
     enabled: !!taskId,
@@ -59,14 +60,15 @@ export function useAutoSteerExecutionState(taskId?: string) {
  * Fetch the controller's decision trace for a task (survives finalization).
  */
 export function useAutoSteerDecisionTrace(taskId?: string) {
-  return useQuery({
-    queryKey: queryKeys.autoSteer.decisionTrace(taskId ?? 'none'),
-    queryFn: async () => {
-      const resp = await api.getAutoSteerDecisionTrace(taskId as string);
-      return resp?.trace ?? [];
-    },
-    enabled: !!taskId,
-    staleTime: 15000,
+	return useQuery({
+		queryKey: queryKeys.autoSteer.decisionTrace(taskId ?? 'none'),
+		queryFn: async () => {
+			if (!taskId) return [];
+			const resp = await api.getAutoSteerDecisionTrace(taskId);
+			return resp.trace;
+		},
+		enabled: !!taskId,
+		staleTime: 15000,
   });
 }
 
@@ -75,14 +77,14 @@ export function useAutoSteerDecisionTrace(taskId?: string) {
  * optionally filtered by skill and/or dimension.
  */
 export function useAutoSteerEffectiveness(filters: { skill?: string; dimension?: string } = {}) {
-  return useQuery({
-    queryKey: queryKeys.autoSteer.effectiveness(filters.skill, filters.dimension),
-    queryFn: async () => {
-      const resp = await api.getAutoSteerEffectiveness(filters);
-      return resp?.effectiveness ?? [];
-    },
-    staleTime: 15000,
-  });
+	return useQuery({
+		queryKey: queryKeys.autoSteer.effectiveness(filters.skill, filters.dimension),
+		queryFn: async () => {
+			const resp = await api.getAutoSteerEffectiveness(filters);
+			return resp.effectiveness;
+		},
+		staleTime: 15000,
+	});
 }
 
 /**
@@ -91,13 +93,13 @@ export function useAutoSteerEffectiveness(filters: { skill?: string; dimension?:
 export function useResetAutoSteerExecution() {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: (taskId: string) => api.resetAutoSteerExecution(taskId),
-    onSuccess: (_, taskId) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.autoSteer.executionState(taskId ?? 'none') });
-      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.executions(taskId ?? '') });
-    },
-  });
+	return useMutation({
+		mutationFn: (taskId: string) => api.resetAutoSteerExecution(taskId),
+		onSuccess: (_, taskId) => {
+			void queryClient.invalidateQueries({ queryKey: queryKeys.autoSteer.executionState(taskId) });
+			void queryClient.invalidateQueries({ queryKey: queryKeys.tasks.executions(taskId) });
+		},
+	});
 }
 
 /**
@@ -119,7 +121,7 @@ export function useStartAutoSteerExecution() {
       scenarioName: string;
     }) => api.startAutoSteerExecution(taskId, profileId, scenarioName),
     onSuccess: (state) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.autoSteer.executionState(state?.task_id ?? 'none') });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.autoSteer.executionState(state.task_id) });
     },
   });
 }
@@ -145,7 +147,7 @@ export function useCreateAutoSteerProfile() {
     mutationFn: (profile: Omit<AutoSteerProfile, 'id' | 'created_at' | 'updated_at'>) =>
       api.createAutoSteerProfile(profile),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.autoSteer.profiles() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.autoSteer.profiles() });
     },
   });
 }
@@ -160,8 +162,8 @@ export function useUpdateAutoSteerProfile() {
     mutationFn: ({ id, updates }: { id: string; updates: Partial<AutoSteerProfile> }) =>
       api.updateAutoSteerProfile(id, updates),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.autoSteer.profile(variables.id) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.autoSteer.profiles() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.autoSteer.profile(variables.id) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.autoSteer.profiles() });
     },
   });
 }
@@ -172,12 +174,12 @@ export function useUpdateAutoSteerProfile() {
 export function useDeleteAutoSteerProfile() {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: (id: string) => api.deleteAutoSteerProfile(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.autoSteer.profiles() });
-    },
-  });
+	return useMutation({
+		mutationFn: (id: string) => api.deleteAutoSteerProfile(id),
+		onSuccess: () => {
+			void queryClient.invalidateQueries({ queryKey: queryKeys.autoSteer.profiles() });
+		},
+	});
 }
 
 /**

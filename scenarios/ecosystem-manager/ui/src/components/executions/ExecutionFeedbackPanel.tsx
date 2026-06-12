@@ -9,7 +9,6 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import type {
   ExecutionFeedbackEntry,
-  ExecutionFeedbackEntryPayload,
   ProfilePerformance,
 } from '@/types/api';
 
@@ -253,7 +252,7 @@ export function ExecutionFeedbackPanel({
 
           <Button
             size="sm"
-            onClick={handleSubmit}
+            onClick={() => void handleSubmit()}
             disabled={formDisabled || isSubmitting}
           >
             {isSubmitting ? 'Submitting...' : 'Report issue'}
@@ -326,7 +325,7 @@ export function ExecutionFeedbackDialog({
           executionId={executionId ?? undefined}
           entries={data?.feedback_entries ?? []}
           onSubmitted={() => {
-            refetch();
+            void refetch();
             onOpenChange(false);
           }}
           disabled={!executionId}

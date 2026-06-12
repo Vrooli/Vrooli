@@ -22,7 +22,7 @@ export function TaskTypeStatsCard({ label, stats, className }: TaskTypeStatsCard
     return 'text-red-400';
   };
 
-  const successRate = stats.success_rate ?? 0;
+  const successRate = stats.success_rate;
   const failureRate = 100 - successRate;
 
   return (

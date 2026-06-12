@@ -48,7 +48,7 @@ func TestSelector_UnactionableHeaviestFallsThrough(t *testing.T) {
 // TestSelector_AllUnactionableStalls confirms the honest terminal case: when
 // EVERY open dimension is unactionable, selection returns no skill (the caller
 // halts with nothing_actionable) — not a panic or a wrong pick.
-func TestSelector_AllUnactionableStalls(t *testing.T) {
+func TestSelector_AllUnactionableStalls(t *testing.T) { // [REQ:EM-FLEET-003]
 	state := findings.BuildState([]findings.Finding{
 		finding("biz", "business", architecturev1.FindingSeverity_FINDING_SEVERITY_BLOCKER),
 		finding("dep", "dependencies", architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR),

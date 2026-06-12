@@ -8,7 +8,6 @@ import { useQuery } from '@tanstack/react-query';
 import { Activity, ChevronsDown, Clock3, History, LineChart, RefreshCw } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
-import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Input } from '../ui/input';
@@ -21,8 +20,9 @@ import { useMergedSkillNames } from '@/hooks/usePromptFiles';
 import { api } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 import { formatSkillSetLabel, formatSkillSetTooltip } from '@/lib/utils';
-import type { ExecutionHistory, LogEntry, ProfilePerformance } from '@/types/api';
-import { SteerFocusBadge, getExecutionSteerFocus } from '@/components/steer/SteerFocusBadge';
+import type { ExecutionHistory, MetricsSnapshot, ProfilePerformance } from '@/types/api';
+import { SteerFocusBadge } from '@/components/steer/SteerFocusBadge';
+import { getExecutionSteerFocus } from '@/components/steer/SteerFocusBadge.helpers';
 
 interface SystemLogsModalProps {
   open: boolean;
@@ -76,15 +76,15 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
       staleTime: 15000,
     });
 
-  const { data: profiles = [] } = useAllAutoSteerProfiles();
-  const { data: skillNames = [] } = useMergedSkillNames();
+  const { data: profiles } = useAllAutoSteerProfiles();
+  const { data: skillNames } = useMergedSkillNames();
 
   const profileNameMap = useMemo(
-    () => Object.fromEntries((profiles ?? []).map((p) => [p.id, p.name])),
+    () => Object.fromEntries(profiles.map((p) => [p.id, p.name])),
     [profiles],
   );
   const autoSteerProfilesById = useMemo(
-    () => Object.fromEntries((profiles ?? []).map((p) => [p.id, p])),
+    () => Object.fromEntries(profiles.map((p) => [p.id, p])),
     [profiles],
   );
 
@@ -206,20 +206,20 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
   };
 
   const computeImprovement = (perf: ProfilePerformance) => {
-    const start = perf.start_metrics?.operational_targets_percentage ?? 0;
-    const end = perf.end_metrics?.operational_targets_percentage ?? start;
+    const start = perf.start_metrics.operational_targets_percentage;
+    const end = perf.end_metrics.operational_targets_percentage;
     return end - start;
   };
 
   const filteredExecutions = useMemo(() => {
     const search = executionSearch.trim().toLowerCase();
-    return (executions ?? [])
+    return executions
       .filter((exec) => (executionStatus === 'all' ? true : exec.status === executionStatus))
       .filter((exec) => {
         if (!search) return true;
         return (
-          exec.id?.toLowerCase().includes(search) ||
-          exec.task_id?.toLowerCase().includes(search)
+          exec.id.toLowerCase().includes(search) ||
+          exec.task_id.toLowerCase().includes(search)
         );
       })
       .sort(
@@ -248,17 +248,23 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
 
   const selectedExecution =
     filteredExecutions.find((exec) => exec.id === selectedExecutionId) ?? null;
+  const selectedExecutionTaskId = selectedExecution?.task_id;
+  const selectedExecutionRunId = selectedExecution?.id;
 
   const { data: selectedExecutionPrompt, isFetching: isFetchingPrompt } = useQuery({
     queryKey:
-      selectedExecution && selectedExecution.task_id && selectedExecution.id
-        ? queryKeys.executions.prompt(selectedExecution.task_id, selectedExecution.id)
+      selectedExecutionTaskId && selectedExecutionRunId
+        ? queryKeys.executions.prompt(selectedExecutionTaskId, selectedExecutionRunId)
         : ['executions', 'prompt', 'inactive'],
-    queryFn: () => api.getExecutionPrompt(selectedExecution!.task_id, selectedExecution!.id),
+    queryFn: () => {
+      if (!selectedExecutionTaskId || !selectedExecutionRunId) {
+        throw new Error('Cannot load execution prompt without a selected execution');
+      }
+      return api.getExecutionPrompt(selectedExecutionTaskId, selectedExecutionRunId);
+    },
     enabled:
-      !!selectedExecution &&
-      !!selectedExecution.task_id &&
-      !!selectedExecution.id &&
+      !!selectedExecutionTaskId &&
+      !!selectedExecutionRunId &&
       open &&
       activeTab === 'executions',
     staleTime: 15000,
@@ -266,34 +272,38 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
 
   const { data: selectedExecutionOutput, isFetching: isFetchingSelectedOutput } = useQuery({
     queryKey:
-      selectedExecution && selectedExecution.task_id && selectedExecution.id
-        ? queryKeys.executions.output(selectedExecution.task_id, selectedExecution.id)
+      selectedExecutionTaskId && selectedExecutionRunId
+        ? queryKeys.executions.output(selectedExecutionTaskId, selectedExecutionRunId)
         : ['executions', 'output', 'inactive'],
-    queryFn: () => api.getExecutionOutput(selectedExecution!.task_id, selectedExecution!.id),
+    queryFn: () => {
+      if (!selectedExecutionTaskId || !selectedExecutionRunId) {
+        throw new Error('Cannot load execution output without a selected execution');
+      }
+      return api.getExecutionOutput(selectedExecutionTaskId, selectedExecutionRunId);
+    },
     enabled:
-      !!selectedExecution &&
-      !!selectedExecution.task_id &&
-      !!selectedExecution.id &&
+      !!selectedExecutionTaskId &&
+      !!selectedExecutionRunId &&
       open &&
       activeTab === 'executions',
     staleTime: 15000,
   });
 
   const selectedPromptText =
-    (selectedExecutionPrompt as any)?.content ??
-    (selectedExecutionPrompt as any)?.prompt ??
+    selectedExecutionPrompt?.content ??
+    selectedExecutionPrompt?.prompt ??
     '';
   const selectedOutputText =
-    (selectedExecutionOutput as any)?.output ??
-    (selectedExecutionOutput as any)?.content ??
+    selectedExecutionOutput?.output ??
+    selectedExecutionOutput?.content ??
     '';
 
   const filteredPerformance = useMemo(() => {
     const scenarioTerm = scenarioFilter.trim().toLowerCase();
-    return (performanceHistory ?? []).filter((perf) => {
+    return performanceHistory.filter((perf) => {
       const matchesProfile = profileFilter === 'all' ? true : perf.profile_id === profileFilter;
       const matchesScenario = scenarioTerm
-        ? perf.scenario_name?.toLowerCase().includes(scenarioTerm)
+        ? perf.scenario_name.toLowerCase().includes(scenarioTerm)
         : true;
       return matchesProfile && matchesScenario;
     });
@@ -301,12 +311,9 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
 
   useEffect(() => {
     if (filteredPerformance.length > 0 && !selectedPerformanceId) {
-      const firstId =
-        filteredPerformance[0]?.execution_id ||
-        (filteredPerformance[0] as any)?.id ||
-        null;
+      const firstId = filteredPerformance[0]?.id;
       if (firstId) {
-        setSelectedPerformanceId(String(firstId));
+        setSelectedPerformanceId(firstId);
       }
     } else if (filteredPerformance.length === 0 && selectedPerformanceId) {
       setSelectedPerformanceId(null);
@@ -314,11 +321,7 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
   }, [filteredPerformance, selectedPerformanceId]);
 
   const selectedPerformance =
-    filteredPerformance.find(
-      (perf) =>
-        String(perf.execution_id ?? (perf as any).id ?? '') ===
-        String(selectedPerformanceId ?? ''),
-    ) ?? null;
+    filteredPerformance.find((perf) => perf.id === selectedPerformanceId) ?? null;
 
   const averageImprovement =
     filteredPerformance.length === 0
@@ -387,7 +390,7 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => refetchLogs()}
+                    onClick={() => void refetchLogs()}
                     disabled={isLoadingLogs}
                   >
                     <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingLogs ? 'animate-spin' : ''}`} />
@@ -400,7 +403,7 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => refetchExecutions()}
+                  onClick={() => void refetchExecutions()}
                   disabled={isLoadingExecutions}
                 >
                   <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingExecutions ? 'animate-spin' : ''}`} />
@@ -412,7 +415,7 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => refetchPerformance()}
+                  onClick={() => void refetchPerformance()}
                   disabled={isLoadingPerformance}
                 >
                   <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingPerformance ? 'animate-spin' : ''}`} />
@@ -460,7 +463,7 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
                   </div>
                 ) : (
                   logs.map((log, index) => {
-                    const normalizedLevel = normalizeLevel((log as any)?.level);
+                    const normalizedLevel = normalizeLevel(log.level);
                     const levelStyles = getLevelStyles(normalizedLevel);
                     const badgeText =
                       typeof log.level === 'string' && log.level.trim().length > 0
@@ -481,7 +484,7 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
                           <span
                             className={`text-xs font-semibold px-2 py-1 rounded border uppercase ${levelStyles.badge}`}
                           >
-                            {String(badgeText).toUpperCase()}
+                            {badgeText.toUpperCase()}
                           </span>
                         </div>
 
@@ -628,7 +631,7 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All profiles</SelectItem>
-                  {(profiles ?? []).map((profile) => (
+                  {profiles.map((profile) => (
                     <SelectItem key={profile.id} value={profile.id}>
                       {profile.name}
                     </SelectItem>
@@ -682,7 +685,7 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
                     const improvement = computeImprovement(perf);
                     const durationText = formatDurationMs(perf.total_duration);
                     const rating = perf.user_feedback?.rating;
-                    const perfId = String(perf.execution_id ?? (perf as any).id ?? '');
+                    const perfId = perf.id;
                     return (
                       <button
                         key={perfId || perf.scenario_name || `perf-${perf.executed_at}`}
@@ -765,20 +768,18 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
                         <div className="px-3 py-2">End</div>
                       </div>
                       <div className="divide-y divide-white/5 text-sm">
-                        {['operational_targets_percentage', 'operational_targets_passing', 'build_status'].map((key) => {
-                          const start = (selectedPerformance.start_metrics as any)?.[key];
-                          const end = (selectedPerformance.end_metrics as any)?.[key];
-                          const label =
-                            key === 'operational_targets_percentage'
-                              ? 'Operational targets %'
-                              : key === 'operational_targets_passing'
-                                ? 'Targets passing'
-                                : 'Build status';
+                        {([
+                          ['operational_targets_percentage', 'Operational targets %'],
+                          ['operational_targets_passing', 'Targets passing'],
+                          ['build_status', 'Build status'],
+                        ] satisfies Array<[keyof MetricsSnapshot, string]>).map(([key, label]) => {
+                          const start = selectedPerformance.start_metrics[key];
+                          const end = selectedPerformance.end_metrics[key];
                           return (
                             <div key={key} className="grid grid-cols-3 px-3 py-2">
                               <div className="text-slate-200">{label}</div>
-                              <div className="text-slate-300">{start ?? '—'}</div>
-                              <div className="text-slate-300">{end ?? '—'}</div>
+                              <div className="text-slate-300">{start}</div>
+                              <div className="text-slate-300">{end}</div>
                             </div>
                           );
                         })}
@@ -833,7 +834,7 @@ export function SystemLogsModal({ open, onOpenChange }: SystemLogsModalProps) {
                       executionId={selectedPerformance.execution_id}
                       entries={selectedPerformance.feedback_entries ?? []}
                       onSubmitted={() => {
-                        refetchPerformance();
+                        void refetchPerformance();
                       }}
                     />
                   </div>

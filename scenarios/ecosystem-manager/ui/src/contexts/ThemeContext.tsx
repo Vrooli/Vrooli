@@ -3,18 +3,8 @@
  * Manages light/dark/auto theme state with localStorage persistence
  */
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
-
-export type Theme = 'light' | 'dark' | 'auto';
-export type ResolvedTheme = 'light' | 'dark';
-
-interface ThemeContextValue {
-  theme: Theme;
-  resolvedTheme: ResolvedTheme;
-  setTheme: (theme: Theme) => void;
-}
-
-const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
+import React, { useEffect, useState } from 'react';
+import { ThemeContext, type ResolvedTheme, type Theme } from './ThemeContext.value';
 
 const THEME_STORAGE_KEY = 'ecosystem-manager-theme';
 
@@ -76,12 +66,4 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       {children}
     </ThemeContext.Provider>
   );
-}
-
-export function useTheme() {
-  const context = useContext(ThemeContext);
-  if (!context) {
-    throw new Error('useTheme must be used within a ThemeProvider');
-  }
-  return context;
 }

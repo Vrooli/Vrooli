@@ -20,10 +20,11 @@ interface ProfilePanelProps {
 
 export function ProfilePanel({ value, onChange, profiles, isLoading }: ProfilePanelProps) {
   const selectedProfile = profiles.find((p) => p.id === value);
-  const { data: skillNames = [] } = useMergedSkillNames();
+  const { data: skillNames } = useMergedSkillNames();
 
-  const weightedDimensions = Object.entries(selectedProfile?.objective?.dimension_weights ?? {})
-    .sort(([, a], [, b]) => b - a);
+  const weightedDimensions = selectedProfile
+    ? Object.entries(selectedProfile.objective.dimension_weights).sort(([, a], [, b]) => b - a)
+    : [];
   const allowedSkills = selectedProfile?.allowed_skills ?? [];
 
   return (

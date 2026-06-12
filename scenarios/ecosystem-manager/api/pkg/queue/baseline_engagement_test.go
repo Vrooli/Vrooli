@@ -135,7 +135,7 @@ func TestMaybeStartEngagement_DisabledProfile_NoEngagement(t *testing.T) {
 	}
 }
 
-func TestMaybeStartEngagement_Enabled_Shadow(t *testing.T) {
+func TestMaybeStartEngagement_Enabled_Shadow(t *testing.T) { // [REQ:EM-BASE-001]
 	integration, fake, task := enabledIntegration(t, &autosteer.BaselinePromoteObjective{Enabled: true})
 	integration.maybeStartEngagement(task, "test-scenario")
 	if len(fake.started) != 1 || fake.started[0] != "test-scenario" {
@@ -151,7 +151,7 @@ func TestMaybeStartEngagement_Enabled_Shadow(t *testing.T) {
 	}
 }
 
-func TestMaybeStartEngagement_SelfScenario_Externalized(t *testing.T) {
+func TestMaybeStartEngagement_SelfScenario_Externalized(t *testing.T) { // [REQ:EM-BASE-003]
 	integration, fake, task := enabledIntegration(t, &autosteer.BaselinePromoteObjective{Enabled: true})
 	// Treat the canned scenario as "self" so the externalize guard fires.
 	integration.selfScenario = "test-scenario"
@@ -181,7 +181,7 @@ func TestMaybeStartEngagement_RunnerError_DegradesInPlace(t *testing.T) {
 	}
 }
 
-func TestMaybeStartEngagement_LiveMode_NoShadowRouting(t *testing.T) {
+func TestMaybeStartEngagement_LiveMode_NoShadowRouting(t *testing.T) { // [REQ:EM-BASE-002]
 	integration, fake, task := enabledIntegration(t, &autosteer.BaselinePromoteObjective{Enabled: true})
 	fake.startEng = BaselineEngagement{Mode: "live"}
 	integration.maybeStartEngagement(task, "test-scenario")
@@ -215,7 +215,7 @@ func activeShadowEngagement(mode string, cadence int) *taskEngagement {
 	}
 }
 
-func TestMaybeFinishEngagement_ObjectiveMet_Promotes(t *testing.T) {
+func TestMaybeFinishEngagement_ObjectiveMet_Promotes(t *testing.T) { // [REQ:EM-BASE-001]
 	a, fake := seededIntegration(activeShadowEngagement(autosteer.BaselinePromoteEndOfEngagement, 0))
 	a.maybeFinishEngagement("t", autosteer.StopObjectiveMet)
 	if len(fake.promoted) != 1 {
@@ -271,7 +271,7 @@ func TestMaybeCheckpointPromote_EndOfEngagement_Noop(t *testing.T) {
 	}
 }
 
-func TestMaybeCheckpointPromote_Green_Promotes(t *testing.T) {
+func TestMaybeCheckpointPromote_Green_Promotes(t *testing.T) { // [REQ:EM-BASE-001]
 	a, fake := seededIntegration(activeShadowEngagement(autosteer.BaselinePromoteCheckpointOnGreen, 0))
 	got := a.maybeCheckpointPromote("t", &autosteer.IterationEvaluation{ObjectiveMet: true, Iteration: 1})
 	if !got {

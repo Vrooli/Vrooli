@@ -695,6 +695,9 @@
         }
       }
     },
+    "dependencies": {
+      "$ref": "#/definitions/dependencies_config"
+    },
     "presets": {
       "type": "object",
       "description": "Named phase presets for the test runner",
@@ -740,6 +743,84 @@
           "type": "boolean",
           "default": false,
           "description": "Whether this phase requires the scenario runtime to be running"
+        }
+      }
+    },
+    "dependencies_config": {
+      "type": "object",
+      "description": "Read-only dependency preflight policy",
+      "additionalProperties": false,
+      "properties": {
+        "strict": {
+          "type": "boolean",
+          "default": true,
+          "description": "Fail instead of warning when dependency readiness cannot be proven."
+        },
+        "runtime_versions": {
+          "type": "object",
+          "description": "Minimum runtime/tool versions keyed by command name. Only >= constraints are supported.",
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^$|^>=\\s*[0-9]+(\\.[0-9]+){0,2}$"
+          },
+          "properties": {
+            "go": { "type": "string", "default": ">=1.21" },
+            "node": { "type": "string", "default": ">=18.0.0" },
+            "python3": { "type": "string", "default": ">=3.10.0" },
+            "pnpm": { "type": "string" },
+            "npm": { "type": "string" },
+            "yarn": { "type": "string" }
+          }
+        },
+        "go_modules": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean", "default": true },
+            "tidy_diff": { "type": "boolean", "default": true },
+            "build": { "type": "boolean", "default": false },
+            "local_replace_resolution": { "type": "boolean", "default": true }
+          }
+        },
+        "node_packages": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean", "default": true },
+            "require_node_modules": { "type": "boolean", "default": true },
+            "lockfile_required": { "type": "boolean", "default": true }
+          }
+        },
+        "resources": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "health_policy": {
+              "type": "string",
+              "enum": ["fail", "warn", "skip"],
+              "default": "fail"
+            },
+            "allow_unknown_health_when_running": {
+              "type": "boolean",
+              "default": true
+            },
+            "skip": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        },
+        "scenarios": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean", "default": true },
+            "health_policy": {
+              "type": "string",
+              "enum": ["fail", "warn", "skip"],
+              "default": "fail"
+            }
+          }
         }
       }
     },

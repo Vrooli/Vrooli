@@ -5,18 +5,18 @@
 
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useWebSocket } from '../contexts/WebSocketContext';
+import { useWebSocket } from '../contexts/useWebSocket';
 import { queryKeys } from '../lib/queryKeys';
 
 export function useTaskUpdates() {
   const { lastMessage } = useWebSocket();
   const queryClient = useQueryClient();
 
-  useEffect(() => {
-    if (!lastMessage) return;
+	useEffect(() => {
+		if (!lastMessage) return;
 
-    const { type, data } = lastMessage;
-    const payload = (data ?? {}) as Record<string, unknown>;
+		const { type, data } = lastMessage;
+		const payload = data ?? {};
     const taskId =
       typeof payload.task_id === 'string'
         ? payload.task_id
@@ -24,23 +24,23 @@ export function useTaskUpdates() {
           ? payload.id
           : undefined;
 
-    const invalidateTasks = () => {
-      if (taskId) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail(taskId) });
-      }
-      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.lists() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.queue.status() });
-    };
+	const invalidateTasks = () => {
+		if (taskId) {
+			void queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail(taskId) });
+		}
+		void queryClient.invalidateQueries({ queryKey: queryKeys.tasks.lists() });
+		void queryClient.invalidateQueries({ queryKey: queryKeys.queue.status() });
+	};
 
-    const invalidateProcesses = () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.processes.running() });
-    };
+	const invalidateProcesses = () => {
+		void queryClient.invalidateQueries({ queryKey: queryKeys.processes.running() });
+	};
 
-    const invalidateAutoSteerState = () => {
-      if (taskId) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.autoSteer.executionState(taskId) });
-      }
-    };
+	const invalidateAutoSteerState = () => {
+		if (taskId) {
+			void queryClient.invalidateQueries({ queryKey: queryKeys.autoSteer.executionState(taskId) });
+		}
+	};
 
     // Handle different WebSocket message types
     switch (type) {
@@ -68,29 +68,29 @@ export function useTaskUpdates() {
         invalidateAutoSteerState();
         break;
 
-      case 'task_progress':
-        if (taskId) {
-          queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail(taskId) });
-        }
-        break;
+	case 'task_progress':
+		if (taskId) {
+			void queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail(taskId) });
+		}
+		break;
 
       case 'log_entry':
         // High-volume streaming event; UI components subscribe directly elsewhere.
         break;
 
-      case 'settings_updated':
-      case 'settings_reset':
-        queryClient.invalidateQueries({ queryKey: queryKeys.settings.get() });
-        queryClient.invalidateQueries({ queryKey: queryKeys.queue.status() });
-        break;
+	case 'settings_updated':
+	case 'settings_reset':
+		void queryClient.invalidateQueries({ queryKey: queryKeys.settings.get() });
+		void queryClient.invalidateQueries({ queryKey: queryKeys.queue.status() });
+		break;
 
       case 'rate_limit_pause':
       case 'rate_limit_pause_started':
       case 'rate_limit_resume':
-      case 'rate_limit_manual_reset':
-      case 'rate_limit_hit':
-        queryClient.invalidateQueries({ queryKey: queryKeys.queue.status() });
-        break;
+	case 'rate_limit_manual_reset':
+	case 'rate_limit_hit':
+		void queryClient.invalidateQueries({ queryKey: queryKeys.queue.status() });
+		break;
 
       case 'connected':
         // Initial handshake event; no invalidation needed

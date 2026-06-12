@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/vrooli/api-core/database"
+	// Register the sqlite driver used by database.Connect in tests.
 	_ "modernc.org/sqlite"
 )
 

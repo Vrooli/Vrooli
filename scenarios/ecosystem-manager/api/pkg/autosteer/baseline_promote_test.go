@@ -16,7 +16,7 @@ func validBaselineProfile() *AutoSteerProfile {
 	}
 }
 
-func TestValidateProfile_BaselinePromote(t *testing.T) {
+func TestValidateProfile_BaselinePromote(t *testing.T) { // [REQ:EM-BASE-004]
 	cases := []struct {
 		name      string
 		bp        *BaselinePromoteObjective
@@ -57,7 +57,7 @@ func TestValidateProfile_BaselinePromote(t *testing.T) {
 	}
 }
 
-func TestBaselinePromoteHelpers_Defaults(t *testing.T) {
+func TestBaselinePromoteHelpers_Defaults(t *testing.T) { // [REQ:EM-BASE-004]
 	// nil block: disabled, default mode, zero cadence.
 	p := validBaselineProfile()
 	if p.BaselinePromoteEnabled() {

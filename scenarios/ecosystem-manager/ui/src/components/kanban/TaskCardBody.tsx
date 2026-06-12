@@ -8,7 +8,7 @@ import type { Task, AutoSteerProfile } from '../../types/api';
 import { SteerFocusBadge } from '@/components/steer/SteerFocusBadge';
 import { useMergedSkillNames } from '@/hooks/usePromptFiles';
 import { formatSkillSetLabel, formatSkillSetTooltip, getQueueStepDisplay } from '@/lib/utils';
-import { useAppState } from '../../contexts/AppStateContext';
+import { useAppState } from '../../contexts/useAppState';
 
 interface TaskCardBodyProps {
   task: Task;
@@ -17,8 +17,8 @@ interface TaskCardBodyProps {
 
 export function TaskCardBody({ task, autoSteerProfile }: TaskCardBodyProps) {
   const { cachedSettings } = useAppState();
-  const condensedMode = cachedSettings?.display?.condensed_mode ?? false;
-  const { data: skillNames = [] } = useMergedSkillNames();
+  const condensedMode = cachedSettings?.display.condensed_mode ?? false;
+  const { data: skillNames } = useMergedSkillNames();
 
   const hasNotes = task.notes && task.notes.trim().length > 0;
   const hasAutoSteer = !!task.auto_steer_profile_id || !!autoSteerProfile;
@@ -37,7 +37,8 @@ export function TaskCardBody({ task, autoSteerProfile }: TaskCardBodyProps) {
   const derivedTitle = `${task.operation === 'improver' ? 'Improve' : 'Generate'} ${primaryTarget || task.type}`;
   const displayTitle = derivedTitle.trim() || task.title;
 
-  const truncatedNotes = hasNotes ? task.notes!.slice(0, 150) + (task.notes!.length > 150 ? '...' : '') : '';
+  const notes = task.notes ?? '';
+  const truncatedNotes = hasNotes ? notes.slice(0, 150) + (notes.length > 150 ? '...' : '') : '';
   const spacingClass = condensedMode ? 'space-y-1.5' : 'space-y-2';
   const showNotesPreview = hasNotes && !condensedMode;
 

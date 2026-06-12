@@ -269,7 +269,7 @@ func TestLoadExecutionHistory(t *testing.T) {
 }
 
 // TestLoadAllExecutionHistory verifies loading history for all tasks
-func TestLoadAllExecutionHistory(t *testing.T) {
+func TestLoadAllExecutionHistory(t *testing.T) { // [REQ:EM-QUEUE-004]
 	processor, cleanup := setupTestExecutionProcessor(t)
 	defer cleanup()
 

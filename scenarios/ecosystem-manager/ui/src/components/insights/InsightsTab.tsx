@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
-import type { Task, InsightReport } from '@/types/api';
+import type { Task } from '@/types/api';
 import { Button } from '@/components/ui/button';
 import { Loader2, TrendingUp, AlertCircle, Plus, Eye, Info, XCircle, RefreshCw } from 'lucide-react';
 import { InsightReportViewer } from './InsightReportViewer';
@@ -52,17 +52,17 @@ export function InsightsTab({ task }: InsightsTabProps) {
   });
 
   // Generate insight report mutation
-  const generateMutation = useMutation({
+	const generateMutation = useMutation({
     mutationFn: () =>
       api.generateInsightReport(task.id, {
         limit: parseInt(generateLimit, 10),
         status_filter: generateStatusFilter,
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.insights.task(task.id) });
-      refetch();
-    },
-  });
+		}),
+		onSuccess: () => {
+			void queryClient.invalidateQueries({ queryKey: queryKeys.insights.task(task.id) });
+			void refetch();
+		},
+	});
 
   // Preview prompt mutation
   const previewMutation = useMutation({
@@ -79,19 +79,19 @@ export function InsightsTab({ task }: InsightsTabProps) {
   });
 
   // Generate with custom prompt mutation
-  const generateWithPromptMutation = useMutation({
+	const generateWithPromptMutation = useMutation({
     mutationFn: (customPrompt: string) =>
       api.generateInsightReportWithPrompt(task.id, {
         limit: parseInt(generateLimit, 10),
         status_filter: generateStatusFilter,
         custom_prompt: customPrompt,
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.insights.task(task.id) });
-      setPreviewDialogOpen(false);
-      refetch();
-    },
-  });
+		}),
+		onSuccess: () => {
+			void queryClient.invalidateQueries({ queryKey: queryKeys.insights.task(task.id) });
+			setPreviewDialogOpen(false);
+			void refetch();
+		},
+	});
 
   // Apply suggestion mutation
   const [applyingId, setApplyingId] = useState<string | null>(null);
@@ -106,16 +106,16 @@ export function InsightsTab({ task }: InsightsTabProps) {
     onMutate: ({ suggestionId }) => {
       setApplyingId(suggestionId);
     },
-    onSuccess: (_, { reportId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.insights.task(task.id) });
-      // Refresh the selected report
-      if (selectedReportId === reportId) {
-        refetch();
-      }
-    },
-    onError: (error, { suggestionId }) => {
-      alert(`Failed to apply suggestion: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    },
+	onSuccess: (_, { reportId }) => {
+		void queryClient.invalidateQueries({ queryKey: queryKeys.insights.task(task.id) });
+		// Refresh the selected report
+		if (selectedReportId === reportId) {
+			void refetch();
+		}
+	},
+	onError: (error) => {
+		alert(`Failed to apply suggestion: ${error instanceof Error ? error.message : 'Unknown error'}`);
+	},
     onSettled: () => {
       setApplyingId(null);
     },
@@ -248,7 +248,7 @@ export function InsightsTab({ task }: InsightsTabProps) {
           <p className="text-xs text-slate-500 mt-1">
             {error instanceof Error ? error.message : 'Unknown error'}
           </p>
-          <Button onClick={() => refetch()} variant="outline" size="sm" className="mt-4">
+	<Button onClick={() => void refetch()} variant="outline" size="sm" className="mt-4">
             Retry
           </Button>
         </div>

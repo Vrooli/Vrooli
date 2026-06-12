@@ -33,21 +33,18 @@ import { api, ApiError } from '@/lib/api';
 import { queryKeys } from '@/lib/queryKeys';
 import { ExecutionDetailCard } from '@/components/executions/ExecutionDetailCard';
 import { ExecutionFeedbackDialog } from '@/components/executions/ExecutionFeedbackPanel';
-import { SteerFocusBadge, getExecutionSteerFocus } from '@/components/steer/SteerFocusBadge';
-import type { SteerFocusInfo } from '@/components/steer/SteerFocusBadge';
+import { SteerFocusBadge } from '@/components/steer/SteerFocusBadge';
+import { getExecutionSteerFocus, type SteerFocusInfo } from '@/components/steer/SteerFocusBadge.helpers';
 import { MarkdownDisplay } from '@/components/shared/MarkdownDisplay';
-import {
-  SteeringConfigPicker,
-  deriveSteeringConfig,
-  extractSteeringFields,
-} from '@/components/steer/SteeringConfigPicker';
+import { SteeringConfigPicker } from '@/components/steer/SteeringConfigPicker';
+import { deriveSteeringConfig, extractSteeringFields } from '@/components/steer/SteeringConfigPicker.helpers';
 import { AutoSteerProfileEditorModal } from '@/components/modals/AutoSteerProfileEditorModal';
 import { DecisionTracePanel, EffectivenessPanel } from '@/components/steer/DecisionTracePanel';
 import { InsightsTab } from '@/components/insights/InsightsTab';
 import { QueuePanel } from '@/components/steer/panels/QueuePanel';
 import { useMergedSkillNames } from '@/hooks/usePromptFiles';
 import { formatSkillSetLabel } from '@/lib/utils';
-import type { Task, Priority, ExecutionHistory, UpdateTaskInput, Campaign, SteeringConfig } from '@/types/api';
+import type { Task, Priority, ExecutionHistory, UpdateTaskInput, SteeringConfig } from '@/types/api';
 
 interface TaskDetailsModalProps {
   task: Task | null;
@@ -62,7 +59,7 @@ const DEFAULT_STEERING_CONFIG: SteeringConfig = { strategy: 'none' };
 
 // Campaigns Tab Component
 function CampaignsTab({ task }: { task: Task }) {
-  const targetPath = Array.isArray(task?.target) && task.target.length > 0 ? task.target[0] : '';
+  const targetPath = Array.isArray(task.target) && task.target.length > 0 ? task.target[0] : '';
 
   const { data: rawCampaigns, isLoading, error, refetch } = useQuery({
     queryKey: ['campaigns', targetPath],
@@ -79,7 +76,7 @@ function CampaignsTab({ task }: { task: Task }) {
 
     try {
       await api.deleteCampaign(campaignId);
-      refetch();
+      void refetch();
     } catch (err) {
       alert(`Failed to delete campaign: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
@@ -90,7 +87,7 @@ function CampaignsTab({ task }: { task: Task }) {
 
     try {
       await api.resetCampaign(campaignId);
-      refetch();
+      void refetch();
     } catch (err) {
       alert(`Failed to reset campaign: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
@@ -119,7 +116,7 @@ function CampaignsTab({ task }: { task: Task }) {
       <div className="text-center py-12 text-slate-400">
         <AlertCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />
         <p className="text-sm mb-4">Failed to load campaigns</p>
-        <Button size="sm" variant="outline" onClick={() => refetch()}>
+        <Button size="sm" variant="outline" onClick={() => void refetch()}>
           <RefreshCw className="h-4 w-4 mr-2" />
           Retry
         </Button>
@@ -131,7 +128,7 @@ function CampaignsTab({ task }: { task: Task }) {
     try {
       const { url } = await api.getVisitedTrackerUIPort();
       window.open(url, '_blank');
-    } catch (err) {
+    } catch {
       alert('Failed to open visited-tracker. Make sure the scenario is running.');
     }
   };
@@ -152,7 +149,7 @@ function CampaignsTab({ task }: { task: Task }) {
           <Button
             size="sm"
             variant="outline"
-            onClick={handleOpenVisitedTracker}
+            onClick={() => void handleOpenVisitedTracker()}
             className="flex-shrink-0"
           >
             <ExternalLink className="h-4 w-4 mr-2" />
@@ -192,7 +189,7 @@ function CampaignsTab({ task }: { task: Task }) {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handleReset(campaign.id)}
+                    onClick={() => void handleReset(campaign.id)}
                     className="text-amber-400 hover:text-amber-300 border-amber-400/30 hover:border-amber-400/50"
                   >
                     <RotateCcw className="h-4 w-4 mr-1.5" />
@@ -201,7 +198,7 @@ function CampaignsTab({ task }: { task: Task }) {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handleDelete(campaign.id)}
+                    onClick={() => void handleDelete(campaign.id)}
                     className="text-red-400 hover:text-red-300 border-red-400/30 hover:border-red-400/50"
                   >
                     <Trash2 className="h-4 w-4 mr-1.5" />
@@ -271,9 +268,9 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
 
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
-  const { data: profiles = [] } = useAllAutoSteerProfiles();
+  const { data: profiles } = useAllAutoSteerProfiles();
   const autoSteerProfilesById = useMemo(
-    () => Object.fromEntries((profiles ?? []).map((profile) => [profile.id, profile])),
+    () => Object.fromEntries(profiles.map((profile) => [profile.id, profile])),
     [profiles],
   );
   const hasAutoSteerProfile = autoSteerProfileId !== AUTO_STEER_NONE;
@@ -286,37 +283,43 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   } = useAutoSteerExecutionState(task && hasAutoSteerProfile ? task.id : undefined);
   const resetAutoSteer = useResetAutoSteerExecution();
   const startAutoSteer = useStartAutoSteerExecution();
-  const { data: skillNames = [] } = useMergedSkillNames();
+  const { data: skillNames } = useMergedSkillNames();
 
   // Fetch task prompt
+  const taskId = task?.id;
   const { data: promptData } = useQuery({
-    queryKey: queryKeys.tasks.prompt(task?.id ?? ''),
-    queryFn: () => api.getAssembledPrompt(task!.id),
-    enabled: !!task && activeTab === 'prompt',
+    queryKey: taskId ? queryKeys.tasks.prompt(taskId) : ['tasks', 'prompt', 'inactive'],
+    queryFn: () => {
+      if (!taskId) {
+        throw new Error('Cannot load prompt without a selected task');
+      }
+      return api.getAssembledPrompt(taskId);
+    },
+    enabled: !!taskId && activeTab === 'prompt',
   });
   const assembledPrompt =
     typeof promptData === 'string'
       ? promptData
-      : promptData
-        ? JSON.stringify(promptData, null, 2)
-        : '';
+      : '';
 
   // Fetch task executions
   const { data: rawExecutions = [], isFetching: isFetchingExecutions, refetch: refetchExecutions } = useQuery({
-    queryKey: queryKeys.tasks.executions(task?.id ?? ''),
-    queryFn: () => api.getExecutionHistory(task!.id),
-    enabled: !!task,
+    queryKey: taskId ? queryKeys.tasks.executions(taskId) : ['tasks', 'executions', 'inactive'],
+    queryFn: () => {
+      if (!taskId) {
+        throw new Error('Cannot load executions without a selected task');
+      }
+      return api.getExecutionHistory(taskId);
+    },
+    enabled: !!taskId,
     staleTime: 10000,
   });
   const sortedExecutions = useMemo(() => {
-    const executions = Array.isArray(rawExecutions)
-      ? rawExecutions
-      : (rawExecutions as any)?.executions ?? [];
-    return [...executions].sort((a, b) => {
-      const aTime = a?.start_time ? new Date(a.start_time).getTime() : 0;
-      const bTime = b?.start_time ? new Date(b.start_time).getTime() : 0;
+    return [...rawExecutions].sort((a, b) => {
+      const aTime = new Date(a.start_time).getTime();
+      const bTime = new Date(b.start_time).getTime();
       if (aTime === bTime) {
-        return (b?.id ?? '').localeCompare(a?.id ?? '');
+        return b.id.localeCompare(a.id);
       }
       return bTime - aTime;
     });
@@ -377,7 +380,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
 
   useEffect(() => {
     if (task && autoSteerProfileId !== AUTO_STEER_NONE) {
-      refetchAutoSteerState();
+      void refetchAutoSteerState();
     }
   }, [task, autoSteerProfileId, refetchAutoSteerState]);
 
@@ -425,16 +428,23 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   }, [sortedExecutions, selectedExecutionId]);
 
   const latestExecutionId = latestExecution?.id ?? null;
+  const selectedQueryTaskId = taskId;
+  const selectedQueryExecutionId = selectedExecutionId;
 
   const {
     data: selectedExecutionOutput,
     isLoading: isLoadingSelectedOutput,
   } = useQuery({
-    queryKey: selectedExecutionId
-      ? queryKeys.executions.output(task?.id ?? '', selectedExecutionId)
-      : ['executions', 'output', 'inactive', task?.id ?? ''],
-    queryFn: () => api.getExecutionOutput(task!.id, selectedExecutionId!),
-    enabled: !!task && !!selectedExecutionId,
+    queryKey: selectedQueryTaskId && selectedQueryExecutionId
+      ? queryKeys.executions.output(selectedQueryTaskId, selectedQueryExecutionId)
+      : ['executions', 'output', 'inactive', selectedQueryTaskId ?? ''],
+    queryFn: () => {
+      if (!selectedQueryTaskId || !selectedQueryExecutionId) {
+        throw new Error('Cannot load execution output without a selected execution');
+      }
+      return api.getExecutionOutput(selectedQueryTaskId, selectedQueryExecutionId);
+    },
+    enabled: !!selectedQueryTaskId && !!selectedQueryExecutionId,
     staleTime: 15000,
   });
 
@@ -442,11 +452,16 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
     data: selectedExecutionPrompt,
     isLoading: isLoadingSelectedPrompt,
   } = useQuery({
-    queryKey: selectedExecutionId
-      ? queryKeys.executions.prompt(task?.id ?? '', selectedExecutionId)
-      : ['executions', 'prompt', 'inactive', task?.id ?? ''],
-    queryFn: () => api.getExecutionPrompt(task!.id, selectedExecutionId!),
-    enabled: !!task && !!selectedExecutionId,
+    queryKey: selectedQueryTaskId && selectedQueryExecutionId
+      ? queryKeys.executions.prompt(selectedQueryTaskId, selectedQueryExecutionId)
+      : ['executions', 'prompt', 'inactive', selectedQueryTaskId ?? ''],
+    queryFn: () => {
+      if (!selectedQueryTaskId || !selectedQueryExecutionId) {
+        throw new Error('Cannot load execution prompt without a selected execution');
+      }
+      return api.getExecutionPrompt(selectedQueryTaskId, selectedQueryExecutionId);
+    },
+    enabled: !!selectedQueryTaskId && !!selectedQueryExecutionId,
     staleTime: 15000,
   });
 
@@ -454,11 +469,16 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
     data: latestExecutionOutput,
     isLoading: isLoadingLatestOutput,
   } = useQuery({
-    queryKey: latestExecutionId
-      ? queryKeys.executions.output(task?.id ?? '', latestExecutionId)
-      : ['executions', 'output', 'latest', task?.id ?? ''],
-    queryFn: () => api.getExecutionOutput(task!.id, latestExecutionId!),
-    enabled: !!task && !!latestExecutionId,
+    queryKey: taskId && latestExecutionId
+      ? queryKeys.executions.output(taskId, latestExecutionId)
+      : ['executions', 'output', 'latest', taskId ?? ''],
+    queryFn: () => {
+      if (!taskId || !latestExecutionId) {
+        throw new Error('Cannot load latest execution output without a selected task');
+      }
+      return api.getExecutionOutput(taskId, latestExecutionId);
+    },
+    enabled: !!taskId && !!latestExecutionId,
     staleTime: 15000,
   });
 
@@ -543,16 +563,16 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   };
 
   const selectedOutputText =
-    (selectedExecutionOutput as any)?.output ??
-    (selectedExecutionOutput as any)?.content ??
+    selectedExecutionOutput?.output ??
+    selectedExecutionOutput?.content ??
     '';
   const selectedPromptText =
-    (selectedExecutionPrompt as any)?.prompt ??
-    (selectedExecutionPrompt as any)?.content ??
+    selectedExecutionPrompt?.prompt ??
+    selectedExecutionPrompt?.content ??
     '';
   const latestOutputText =
-    (latestExecutionOutput as any)?.output ??
-    (latestExecutionOutput as any)?.content ??
+    latestExecutionOutput?.output ??
+    latestExecutionOutput?.content ??
     '';
 
   const activeProfile = profiles.find(profile => profile.id === autoSteerProfileId);
@@ -571,7 +591,8 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
     .filter(([, score]) => score > 0)
     .sort(([, a], [, b]) => b - a)
     .slice(0, 5);
-  const openFindingsCount = findings?.findings?.length ?? 0;
+  const heaviestMaxScore = Math.max(1, ...heaviestDimensions.map(([, score]) => score));
+  const openFindingsCount = findings ? findings.findings.length : 0;
 
   const autoSteerStateMissing =
     hasAutoSteerProfile && !autoSteerState && !isAutoSteerStateLoading && !isAutoSteerStateError;
@@ -602,7 +623,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   };
 
   const initializeAutoSteerIfMissing = async () => {
-    if (!task || !hasAutoSteerProfile || autoSteerState) return false;
+    if (!hasAutoSteerProfile || autoSteerState) return false;
     if (autoSteerProfileId === AUTO_STEER_NONE) return false;
     const scenarioName = resolveScenarioName();
     if (!scenarioName) {
@@ -627,13 +648,11 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   };
 
   const handleResetAutoSteer = async () => {
-    if (!task) return;
     await resetAutoSteer.mutateAsync(task.id);
     await refetchAutoSteerState();
   };
 
   const handleSave = async () => {
-    if (!task) return;
     if (canEditTarget && !normalizedTarget) {
       return;
     }
@@ -687,7 +706,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
   const handleArchive = () => {
     updateTask.mutate({
       id: task.id,
-      updates: { status: 'archived' } as any,
+      updates: { status: 'archived' },
     }, {
       onSuccess: () => {
         onOpenChange(false);
@@ -695,8 +714,21 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
     });
   };
 
-  const canEditTarget = task?.operation === 'generator' && task?.status === 'pending';
+  const canEditTarget = task.operation === 'generator' && task.status === 'pending';
   const normalizedTarget = targetName.trim();
+  const handleQueuePositionChange = async (position: number) => {
+    setPendingQueuePosition(position);
+    try {
+      await api.setQueuePosition(task.id, position);
+      // Set expected position - pending will clear when task data updates
+      expectedQueuePositionRef.current = position;
+    } catch (err) {
+      console.error('Failed to set queue position:', err);
+      alert(`Failed to set queue position: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      // Only clear pending on error - success waits for task data update
+      setPendingQueuePosition(null);
+    }
+  };
 
   return (
     <>
@@ -771,7 +803,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
             </div>
 
             {/* Steering Configuration */}
-            {task?.type === 'scenario' && task?.operation === 'improver' && (
+            {task.type === 'scenario' && task.operation === 'improver' && (
               <div className="space-y-2">
                 <Label>Steering Configuration</Label>
                 <SteeringConfigPicker
@@ -779,26 +811,14 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                   onChange={setSteeringConfig}
                   queueIndex={task.steering_queue_index}
                   queueExhausted={task.steering_queue_exhausted}
-                  onQueuePositionChange={async (position) => {
-                    setPendingQueuePosition(position);
-                    try {
-                      await api.setQueuePosition(task.id, position);
-                      // Set expected position - pending will clear when task data updates
-                      expectedQueuePositionRef.current = position;
-                    } catch (err) {
-                      console.error('Failed to set queue position:', err);
-                      alert(`Failed to set queue position: ${err instanceof Error ? err.message : 'Unknown error'}`);
-                      // Only clear pending on error - success waits for task data update
-                      setPendingQueuePosition(null);
-                    }
-                  }}
+                  onQueuePositionChange={(position: number) => void handleQueuePositionChange(position)}
                   pendingQueuePosition={pendingQueuePosition}
                 />
               </div>
             )}
 
             {/* Queue Progress - show when task has a steering queue */}
-            {task?.steering_queue && task.steering_queue.length > 0 && (
+            {task.steering_queue && task.steering_queue.length > 0 && (
               <div className="space-y-2">
                 <Label>Queue Progress</Label>
                 <QueuePanel
@@ -808,19 +828,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                   currentIndex={task.steering_queue_index}
                   isExhausted={task.steering_queue_exhausted}
                   readOnly
-                  onPositionChange={async (position) => {
-                    setPendingQueuePosition(position);
-                    try {
-                      await api.setQueuePosition(task.id, position);
-                      // Set expected position - pending will clear when task data updates
-                      expectedQueuePositionRef.current = position;
-                    } catch (err) {
-                      console.error('Failed to set queue position:', err);
-                      alert(`Failed to set queue position: ${err instanceof Error ? err.message : 'Unknown error'}`);
-                      // Only clear pending on error - success waits for task data update
-                      setPendingQueuePosition(null);
-                    }
-                  }}
+                  onPositionChange={(position) => void handleQueuePositionChange(position)}
                   pendingPosition={pendingQueuePosition}
                 />
               </div>
@@ -859,19 +867,15 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                           size="sm"
                           variant="ghost"
                           className="p-2"
-                          onClick={async () => {
-                            if (!task) {
-                              await refetchAutoSteerState();
-                              return;
-                            }
+                          onClick={() => void (async () => {
                             if (autoSteerStateMissing) {
                               await initializeAutoSteerIfMissing();
                             }
                             await Promise.allSettled([
                               refetchAutoSteerState(),
-                              refetchExecutions?.(),
+                              refetchExecutions(),
                             ]);
-                          }}
+                          })()}
                           disabled={isAutoSteerStateLoading || isFetchingExecutions || startAutoSteer.isPending}
                           aria-label="Refresh Auto Steer status"
                         >
@@ -927,9 +931,8 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                           ) : (
                             <div className="space-y-1.5">
                               {heaviestDimensions.map(([dim, score]) => {
-                                const max = heaviestDimensions[0]?.[1] || 1;
-                                const width = Math.max(4, Math.round((score / max) * 100));
-                                const count = findings?.dimensionCount?.[dim];
+                                const width = Math.max(4, Math.round((score / heaviestMaxScore) * 100));
+                                const count = findings?.dimensionCount[dim];
                                 return (
                                   <div key={dim}>
                                     <div className="flex items-center justify-between text-[11px] text-slate-300">
@@ -950,12 +953,12 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                           <Button
                             size="sm"
                             variant="ghost"
-                            disabled={resetAutoSteer.isPending || !task}
-                            onClick={handleResetAutoSteer}
+                            disabled={resetAutoSteer.isPending}
+                            onClick={() => void handleResetAutoSteer()}
                           >
                             Reset controller
                           </Button>
-                          {autoSteerState?.last_updated && (
+                          {autoSteerState.last_updated && (
                             <span className="text-[11px] text-slate-500">
                               Updated {new Date(autoSteerState.last_updated).toLocaleString()}
                             </span>
@@ -978,12 +981,12 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                           variant="outline"
                           className="h-6 px-2 text-[11px]"
                           disabled={startAutoSteer.isPending}
-                          onClick={async () => {
+                          onClick={() => void (async () => {
                             const initialized = await initializeAutoSteerIfMissing();
                             if (!initialized) {
                               alert('Auto Steer did not initialize. Check system logs for details.');
                             }
-                          }}
+                          })()}
                         >
                           Initialize now
                         </Button>
@@ -994,12 +997,10 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
                         Auto Steer initialization failed: {autoSteerInitError}
                       </div>
                     )}
-                    {task && (
-                      <div className="mt-3 border-t border-border/40 pt-3 space-y-3">
-                        <DecisionTracePanel taskId={task.id} />
-                        <EffectivenessPanel />
-                      </div>
-                    )}
+                    <div className="mt-3 border-t border-border/40 pt-3 space-y-3">
+                      <DecisionTracePanel taskId={task.id} />
+                      <EffectivenessPanel />
+                    </div>
                   </div>
                 )}
 
@@ -1120,7 +1121,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
             ) : (
               <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
                 <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
-                  {sortedExecutions.map((exec, idx) => {
+                  {sortedExecutions.map((exec) => {
                     const isSelected = exec.id === selectedExecutionId;
                     const steerFocus = getExecutionSteerFocus(exec, autoSteerProfilesById, skillNames);
                     const summaryLabel = formatExecutionSummary(exec, steerFocus);
@@ -1260,7 +1261,7 @@ export function TaskDetailsModal({ task, open, onOpenChange, initialTab = 'detai
             Cancel
           </Button>
           <Button
-            onClick={handleSave}
+            onClick={() => void handleSave()}
             disabled={updateTask.isPending || (canEditTarget && !normalizedTarget)}
           >
             {updateTask.isPending ? (

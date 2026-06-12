@@ -25,16 +25,15 @@ export function useSettings() {
 export function useSaveSettings() {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: (settings: Settings) => api.updateSettings(settings),
-    onSuccess: (result) => {
-      // Update the cache with the new settings (preserve constraints from last fetch)
-      queryClient.setQueryData(queryKeys.settings.get(), (prev: { settings: Settings; constraints: unknown } | undefined) => ({
-        settings: result.settings,
-        constraints: result.constraints ?? prev?.constraints ?? result.constraints,
-      }));
-    },
-  });
+	return useMutation({
+		mutationFn: (settings: Settings) => api.updateSettings(settings),
+		onSuccess: (result) => {
+			queryClient.setQueryData(queryKeys.settings.get(), () => ({
+				settings: result.settings,
+				constraints: result.constraints,
+			}));
+		},
+	});
 }
 
 /**
@@ -43,16 +42,15 @@ export function useSaveSettings() {
 export function useResetSettings() {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: () => api.resetSettings(),
-    onSuccess: (result) => {
-      // Update the cache with the reset settings (preserve constraints from last fetch)
-      queryClient.setQueryData(queryKeys.settings.get(), (prev: { settings: Settings; constraints: unknown } | undefined) => ({
-        settings: result.settings,
-        constraints: result.constraints ?? prev?.constraints ?? result.constraints,
-      }));
-    },
-  });
+	return useMutation({
+		mutationFn: () => api.resetSettings(),
+		onSuccess: (result) => {
+			queryClient.setQueryData(queryKeys.settings.get(), () => ({
+				settings: result.settings,
+				constraints: result.constraints,
+			}));
+		},
+	});
 }
 
 /**

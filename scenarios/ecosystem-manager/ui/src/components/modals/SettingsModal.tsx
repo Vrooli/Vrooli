@@ -23,8 +23,8 @@ import { PromptTesterTab } from './settings/PromptTesterTab';
 import { RateLimitsTab } from './settings/RateLimitsTab';
 import { RecyclerTab } from './settings/RecyclerTab';
 import { AutoSteerTab } from './settings/AutoSteerTab';
-import type { Settings, SettingsConstraints } from '@/types/api';
-import { useAppState } from '@/contexts/AppStateContext';
+import type { Settings } from '@/types/api';
+import { useAppState } from '@/contexts/useAppState';
 
 interface SettingsModalProps {
   open: boolean;
@@ -45,7 +45,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   // Initialize local settings when modal opens or settings load
   useEffect(() => {
     if (open && settings) {
-      setLocalSettings(JSON.parse(JSON.stringify(settings))); // Deep clone
+      setLocalSettings(structuredClone(settings));
     }
   }, [open, settings]);
 
@@ -63,7 +63,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const handleReset = () => {
     resetSettings.mutate(undefined, {
       onSuccess: (result) => {
-        setLocalSettings(JSON.parse(JSON.stringify(result.settings)));
+        setLocalSettings(structuredClone(result.settings));
         setCachedSettings(result.settings);
       },
     });

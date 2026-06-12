@@ -82,7 +82,7 @@ func TestClientFitness_MapsProto(t *testing.T) {
 	}
 }
 
-func TestClientFitness_FailsOpenOnRPCError(t *testing.T) {
+func TestClientFitness_FailsOpenOnRPCError(t *testing.T) { // [REQ:EM-P2-002]
 	c := newStubClient(t, &stubReportHandler{err: connect.NewError(connect.CodeInternal, errors.New("boom"))})
 	got, err := c.Fitness(context.Background(), "ux")
 	if err == nil {

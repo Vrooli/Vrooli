@@ -3,17 +3,9 @@
  * Manages real-time WebSocket connection for task updates
  */
 
-import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import type { WebSocketMessage } from '../types/api';
-
-interface WebSocketContextValue {
-  isConnected: boolean;
-  lastMessage: WebSocketMessage | null;
-  send: (message: unknown) => void;
-  reconnect: () => void;
-}
-
-const WebSocketContext = createContext<WebSocketContextValue | undefined>(undefined);
+import { WebSocketContext, type WebSocketContextValue } from './WebSocketContext.value';
 
 const MAX_RECONNECT_ATTEMPTS = 5;
 const INITIAL_RECONNECT_DELAY = 1000;
@@ -80,6 +72,9 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
 
       ws.onmessage = (event) => {
         try {
+          if (typeof event.data !== 'string') {
+            throw new Error(`Unsupported WebSocket payload type: ${typeof event.data}`);
+          }
           const message = JSON.parse(event.data) as WebSocketMessage;
           console.log('[WebSocket] Message received:', message);
           setLastMessage(message);
@@ -160,12 +155,4 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   };
 
   return <WebSocketContext.Provider value={value}>{children}</WebSocketContext.Provider>;
-}
-
-export function useWebSocket() {
-  const context = useContext(WebSocketContext);
-  if (!context) {
-    throw new Error('useWebSocket must be used within a WebSocketProvider');
-  }
-  return context;
 }

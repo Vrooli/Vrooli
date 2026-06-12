@@ -13,11 +13,14 @@ export function usePromptFiles() {
 }
 
 export function usePromptFile(id?: string) {
-  return useQuery<PromptFile>({
-    queryKey: queryKeys.prompts.file(id || 'none'),
-    queryFn: () => api.getPromptFile(id as string),
-    enabled: !!id,
-  });
+	return useQuery<PromptFile>({
+		queryKey: queryKeys.prompts.file(id || 'none'),
+		queryFn: () => {
+			if (!id) throw new Error('Prompt file id is required');
+			return api.getPromptFile(id);
+		},
+		enabled: !!id,
+	});
 }
 
 export function useSavePromptFile() {
@@ -34,13 +37,13 @@ export function useSavePromptFile() {
 export function useCreatePromptFile() {
   const queryClient = useQueryClient();
 
-  return useMutation({
-    mutationFn: ({ path, content }: { path: string; content: string }) => api.createPromptFile(path, content),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.prompts.list() });
-      queryClient.setQueryData(queryKeys.prompts.file(data.id), data);
-    },
-  });
+	return useMutation({
+		mutationFn: ({ path, content }: { path: string; content: string }) => api.createPromptFile(path, content),
+		onSuccess: (data) => {
+			void queryClient.invalidateQueries({ queryKey: queryKeys.prompts.list() });
+			queryClient.setQueryData(queryKeys.prompts.file(data.id), data);
+		},
+	});
 }
 
 /**
@@ -56,10 +59,10 @@ export function useMergedSkillNames() {
   const skills = useMemo<SkillInfo[]>(() => {
     const raw = skillsQuery.data ?? [];
 
-    return raw
-      .filter((skill) => normalizeSkillId(skill.modes?.[0]) === 'steer')
-      .map((skill) => {
-        const modes = (skill.modes ?? []).slice(1).map((mode) => mode.trim()).filter(Boolean);
+	return raw
+		.filter((skill) => normalizeSkillId(skill.modes[0]) === 'steer')
+		.map((skill) => {
+			const modes = skill.modes.slice(1).map((mode) => mode.trim()).filter(Boolean);
         return {
           id: normalizeSkillId(skill.id),
           name: skill.name,

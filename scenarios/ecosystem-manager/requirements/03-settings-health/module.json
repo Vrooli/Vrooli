@@ -1,0 +1,148 @@
+{
+  "_metadata": {
+    "module": "settings-health",
+    "description": "Persisted settings with validated partial updates and processor side-effects, plus health endpoint and stale-task recovery (OT-P0-003, OT-P0-004).",
+    "prd_ref": "OT-P0-003",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "EM-SET-001",
+      "category": "settings",
+      "title": "Settings persist across restarts",
+      "description": "Slots/cooldown/agent settings are persisted to disk and reloaded on startup; reads return the persisted state.",
+      "prd_ref": "OT-P0-003",
+      "status": "complete",
+      "tags": ["settings", "persistence"],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/settings/settings_test.go::TestSaveAndLoadToDisk",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/pkg/settings/settings_test.go::TestGetSettings",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "EM-SET-002",
+      "category": "settings",
+      "title": "Validated partial updates",
+      "description": "Partial settings updates are validated and normalized before being applied; invalid values are rejected and UI-range constraints are honored.",
+      "prd_ref": "OT-P0-003",
+      "status": "complete",
+      "tags": ["settings", "validation"],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/settings/settings_test.go::TestUpdateSettings",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/pkg/settings/settings_test.go::TestValidateAndNormalize",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/pkg/settings/settings_test.go::TestMaxTurnsAcceptsUIRange",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "EM-SET-003",
+      "category": "settings",
+      "title": "Reset to defaults and concurrent access safety",
+      "description": "Settings can be reset to defaults, and concurrent reads/writes are safe.",
+      "prd_ref": "OT-P0-003",
+      "status": "complete",
+      "tags": ["settings", "concurrency"],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/settings/settings_test.go::TestResetSettings",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/pkg/settings/settings_test.go::TestConcurrentAccess",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "EM-HLTH-001",
+      "category": "health",
+      "title": "/health endpoint on the root router",
+      "description": "The /health endpoint responds on the dynamically configured path, reports database connectivity state, and serves over the real HTTP server.",
+      "prd_ref": "OT-P0-004",
+      "status": "complete",
+      "tags": ["health", "api"],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/handlers/handlers_test.go::TestHealthCheckHandler",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/pkg/server/server_test.go::TestSetupRoutesHealthUsesDynamicPath",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "EM-HLTH-002",
+      "category": "health",
+      "title": "Stale-task recovery on startup",
+      "description": "On startup the processor reconciles in-progress tasks left behind by a crash, without moving tasks whose cleanup is already verified.",
+      "prd_ref": "OT-P0-004",
+      "status": "complete",
+      "tags": ["health", "recovery"],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/pkg/queue/processor_test.go::TestProcessor_ReconcileInProgressTasks",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/pkg/queue/execution_test.go::TestReconciliation_DoesNotMoveTasksWithVerifiedCleanup",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "EM-HLTH-003",
+      "category": "health",
+      "title": "Automatic WebSocket reconnection",
+      "description": "The UI WebSocket client reconnects automatically after a dropped connection and resumes live task updates without a page reload.",
+      "prd_ref": "OT-P0-004",
+      "status": "in_progress",
+      "tags": ["health", "websocket", "ui"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Reconnect logic exists in the UI but has no automated evidence yet; write a vitest (e.g. ui/src hooks WebSocket reconnect test) covering backoff + resubscribe, then convert this entry to type=test."
+        }
+      ]
+    }
+  ]
+}

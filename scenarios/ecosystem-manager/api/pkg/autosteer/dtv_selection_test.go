@@ -14,7 +14,7 @@ func snapshotOf(fits map[string]dtv.Fitness) FitnessSnapshot { return NewFitness
 
 // ── Phase 3: DTVEligibilityFilter (Layer-1 gate) ────────────────────────────
 
-func TestDTVEligibilityFilter_DeniesOnlyRed(t *testing.T) {
+func TestDTVEligibilityFilter_DeniesOnlyRed(t *testing.T) { // [REQ:EM-P2-002]
 	snap := snapshotOf(map[string]dtv.Fitness{
 		"red":    {Verdict: dtv.VerdictRed},
 		"green":  {Verdict: dtv.VerdictGreen},
@@ -52,7 +52,7 @@ func TestSelector_GatesRedSkillBeforeRanking(t *testing.T) {
 	}
 }
 
-func TestSelector_AllRedDoesNotStall(t *testing.T) {
+func TestSelector_AllRedDoesNotStall(t *testing.T) { // [REQ:EM-P2-002]
 	res := standardsResolver("refactor", "lint-fix")
 	profile := &AutoSteerProfile{AllowedSkills: []string{"refactor", "lint-fix"}}
 	snap := snapshotOf(map[string]dtv.Fitness{
@@ -92,7 +92,7 @@ func TestSelector_GateDisabledAllowsAll(t *testing.T) {
 
 // ── Phase 4: DTVPriorProvider (trust/cost prior) ────────────────────────────
 
-func TestDTVPriorProvider_MappingTable(t *testing.T) {
+func TestDTVPriorProvider_MappingTable(t *testing.T) { // [REQ:EM-P2-001]
 	cfg := DTVPriorConfig{} // defaults: weight 1, base 1, minRuns 2, convK 1, stale 0.5
 	prov := func(f dtv.Fitness) float64 {
 		return NewDTVPriorProvider(snapshotOf(map[string]dtv.Fitness{"s": f}), cfg).Prior("s", "standards")
@@ -133,7 +133,7 @@ func TestDTVPriorProvider_WeightAndTrustFloor(t *testing.T) {
 	}
 }
 
-func TestSelector_DTVPriorReordersColdStart(t *testing.T) {
+func TestSelector_DTVPriorReordersColdStart(t *testing.T) { // [REQ:EM-P2-001]
 	res := standardsResolver("refactor", "lint-fix")
 	profile := &AutoSteerProfile{AllowedSkills: []string{"refactor", "lint-fix"}}
 	// lint-fix is DTV-mature (green), refactor unknown — lint-fix must win at n=0

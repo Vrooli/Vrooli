@@ -14,7 +14,7 @@ func newStore(t *testing.T) *SQLiteStore {
 	return NewSQLiteStore(testdb.NewSQLite(t, Schema()))
 }
 
-func TestSQLiteStoreRoundTrip(t *testing.T) {
+func TestSQLiteStoreRoundTrip(t *testing.T) { // [REQ:EM-P1-002]
 	store := newStore(t)
 
 	if err := store.Record(CreditEvent{

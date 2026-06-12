@@ -58,7 +58,7 @@ Assess the scenario by verifiable artifacts, not by intent.
 | Level | Name | What exists | When to stop here |
 |---|---|---|---|
 | 0 | Hand-rolled or absent | No scenario proto, or API/CLI/UI rely on ad hoc JSON and hand-written DTOs. | Only acceptable for a prototype not yet exposing a reusable surface. |
-| 1 | Generated baseline | Schema exists under `packages/proto/schemas/{{TARGET}}/`, `packages/proto/gen/` artifacts are current, and `make check` can verify sync. | Stop when the immediate risk is stale generated code. |
+| 1 | Generated baseline | Schema exists under `packages/proto/schemas/{{TARGET}}/`, `packages/proto/gen/` artifacts are current, and `make verify-committed-gen` can verify committed-artifact sync. | Stop when the immediate risk is stale generated code. |
 | 2 | Domain-organized | Files follow `schemas/{{TARGET}}/v<n>/<domain>/<domain>.proto`, `v1/shared/` holds scenario-local shared types, and version dirs are contiguous. | Stop when placement is clear but adoption remains incomplete. |
 | 3 | Adopted generated contracts | API/CLI/UI import generated types or clients instead of parallel hand-written shapes. | Stop when contract consumption is type-safe but transport is still mixed. |
 | 4 | Transport-clear and stability-honest | Generated Connect handlers serve proto-owned calls, REST exceptions are explicit, and `@stability` matches implementation reality. | Stop when proto-health is warning-only or clean. |
@@ -72,15 +72,18 @@ Walk these rows in order.
 
 | Signal | Primary action | Handoff |
 |---|---|---|
-| `proto.gen_out_of_sync` | Run `cd packages/proto && make generate`, then re-run `make check`. | None |
+| `proto.gen_out_of_sync` | Run `cd packages/proto && make generate`, then re-run `make verify-committed-gen` when preparing the commit/CI gate. | None |
 | `proto.package_mismatch` or `proto.version_naming` | Move/rename schema files to match `packages/proto/STYLE_GUIDE.md`; regenerate. | None |
 | `proto.cross_domain_import` | Move shared message(s) into `v1/shared/` or reconsider the domain boundary. | `screaming-architecture-audit` if code domains are also blurred |
 | `proto.unsupported_annotation` | Remove deprecated `@layer`, `@domain`, `@imports`, or unsupported tags; keep only registry-backed annotations. | None |
-| `proto.not_adopted` | Replace hand-written DTO/client use with generated Go/TS/Python artifacts. | `interoperability-steer` for UI/API casing and serialization details |
 | `proto.hand_rolled_transport` | Migrate proto-owned calls to generated Connect handlers unless a REST exception applies. | `api-steer` for exception review |
 | `proto.stability_dishonest` | Align `@stability` with implementation and serving reality. | None |
 | `proto.template_source` | Keep the marker while the file is scaffold reference code; remove it only when the contract is intentionally adopted or replaced. | Template maintenance if new generated scenarios inherit the wrong marker |
 | `proto.possibly_unused` | Treat as advisory; confirm locally and document if intentionally reserved. | scenario-dependency-analyzer for fleet-aware dead-proto decisions |
+
+Generated-contract adoption is still part of the manual audit ladder above.
+Automated proof belongs to the future `surface-code-facts` layer, not to a
+declaration-only proto-health finding.
 
 ---
 
@@ -95,7 +98,7 @@ Walk these rows in order.
 ```bash
 cd packages/proto
 make generate
-make check
+make verify-committed-gen
 ```
 
 6. Update durable docs:
@@ -111,7 +114,7 @@ make check
 |---|---|---|---|
 | `proto-health validate scenario {{TARGET}} --json` cannot find or reach proto-health | `cd scenarios/proto-health && make status` | The producer scenario is stopped or unhealthy. | Start it through lifecycle with `cd scenarios/proto-health && make start`, then rerun validation. |
 | `proto.gen_out_of_sync` appears after schema edits | `cd packages/proto && make generate` | Generated artifacts under `packages/proto/gen/` do not match `packages/proto/schemas/`. | Regenerate, inspect the scoped `gen/` diff, and rerun `proto-health validate scenario {{TARGET}} --json`. |
-| `cd packages/proto && make check` fails while schema/generated changes are intentionally uncommitted | `git diff --stat -- packages/proto/gen packages/proto/schemas` | The check compares generated artifacts against the git index; it is a commit/CI gate, not a substitute for reviewing uncommitted generated diffs. | Confirm `make generate` is idempotent, include the generated artifacts in the same commit as schema changes, then rerun `make check` from a clean or staged state. |
+| `cd packages/proto && make verify-committed-gen` fails while schema/generated changes are intentionally uncommitted | `git diff --stat -- packages/proto/gen packages/proto/schemas` | The check compares generated artifacts against the git index; it is a commit/CI gate, not a substitute for reviewing uncommitted generated diffs. | Confirm `make generate` is idempotent, include the generated artifacts in the same commit as schema changes, then rerun `make verify-committed-gen` from a clean or staged state. |
 | Only `proto.possibly_unused` or other WARNING/INFO findings remain | Inspect `scenarios/{{TARGET}}/docs/internal/PROBLEMS.md` | The scenario may be intentionally carrying advisory migration debt. | Document the reason and owner in durable docs; do not turn warning-tier maturity findings into blockers without a plan update. |
 
 Keep this section short. If the same failure recurs across scenarios, prefer improving `proto-health` CLI output or creating a prompt-manager Action over expanding this prose.

@@ -42,7 +42,7 @@ func TestObservedEfficacyPerToken(t *testing.T) {
 	}
 }
 
-func TestExpectedEfficacyShrinksTowardPrior(t *testing.T) {
+func TestExpectedEfficacyShrinksTowardPrior(t *testing.T) { // [REQ:EM-P1-002]
 	// With n=k the blend is exactly halfway between observed and prior.
 	s := Stat{ClosedCount: 4, IntroducedCount: 0, TotalRuns: 3, TotalTokens: 0} // observed = 4/3
 	prior := 0.0

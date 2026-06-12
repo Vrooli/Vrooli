@@ -25,7 +25,8 @@ import {
 import { usePromptPreview } from '@/hooks/usePromptTester';
 import { markdownToHtml } from '@/lib/markdown';
 import { PromptLibraryPanel } from './PromptLibraryPanel';
-import { SteeringConfigPicker, extractSteeringFields } from '@/components/steer/SteeringConfigPicker';
+import { SteeringConfigPicker } from '@/components/steer/SteeringConfigPicker';
+import { extractSteeringFields } from '@/components/steer/SteeringConfigPicker.helpers';
 import type { TaskType, OperationType, Priority, SteeringConfig } from '@/types/api';
 
 const PRIORITIES: Priority[] = ['critical', 'high', 'medium', 'low'];
@@ -66,10 +67,10 @@ export function PromptTesterTab() {
     });
   };
 
-  const handleCopy = () => {
-    if (promptData?.prompt) {
-      navigator.clipboard.writeText(promptData.prompt);
-      setCopied(true);
+	  const handleCopy = () => {
+	    if (promptData?.prompt) {
+	      void navigator.clipboard.writeText(promptData.prompt);
+	      setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
   };

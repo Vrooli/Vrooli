@@ -8,7 +8,7 @@ import (
 )
 
 // TestGetSettings verifies that GetSettings returns current settings safely
-func TestGetSettings(t *testing.T) {
+func TestGetSettings(t *testing.T) { // [REQ:EM-SET-001]
 	// Reset to known state
 	ResetSettings()
 
@@ -48,7 +48,7 @@ func TestGetSettings(t *testing.T) {
 }
 
 // TestUpdateSettings verifies that UpdateSettings correctly updates settings
-func TestUpdateSettings(t *testing.T) {
+func TestUpdateSettings(t *testing.T) { // [REQ:EM-SET-002]
 	// Reset to known state
 	ResetSettings()
 
@@ -130,7 +130,7 @@ func TestUpdateSettings(t *testing.T) {
 }
 
 // TestResetSettings verifies that ResetSettings restores defaults
-func TestResetSettings(t *testing.T) {
+func TestResetSettings(t *testing.T) { // [REQ:EM-SET-003]
 	// Modify settings
 	UpdateSettings(Settings{
 		Theme:                     "dark",
@@ -261,7 +261,7 @@ func TestGetRecyclerSettings(t *testing.T) {
 }
 
 // TestConcurrentAccess verifies thread safety of settings operations
-func TestConcurrentAccess(t *testing.T) {
+func TestConcurrentAccess(t *testing.T) { // [REQ:EM-SET-003]
 	// Reset to known state
 	ResetSettings()
 
@@ -385,7 +385,7 @@ func TestSettingsAreIndependent(t *testing.T) {
 }
 
 // TestValidateAndNormalize ensures defaults are carried forward and constraints enforced.
-func TestValidateAndNormalize(t *testing.T) {
+func TestValidateAndNormalize(t *testing.T) { // [REQ:EM-SET-002]
 	previous := newDefaultSettings()
 	previous.IdleTimeoutCap = 45
 	previous.Recycler.IntervalSeconds = 120
@@ -436,7 +436,7 @@ func TestValidateAndNormalize(t *testing.T) {
 
 // TestMaxTurnsAcceptsUIRange ensures the API accepts the full range of max_turns
 // values that the UI slider allows (up to 500).
-func TestMaxTurnsAcceptsUIRange(t *testing.T) {
+func TestMaxTurnsAcceptsUIRange(t *testing.T) { // [REQ:EM-SET-002]
 	previous := newDefaultSettings()
 
 	for _, turns := range []int{MinMaxTurns, 100, 200, 500, MaxMaxTurns} {
@@ -461,7 +461,7 @@ func TestMaxTurnsAcceptsUIRange(t *testing.T) {
 }
 
 // TestSaveAndLoadToDisk ensures settings persist across calls and never persist Active=true.
-func TestSaveAndLoadToDisk(t *testing.T) {
+func TestSaveAndLoadToDisk(t *testing.T) { // [REQ:EM-SET-001]
 	ResetSettings()
 	tempDir := t.TempDir()
 	SetPersistencePath(filepath.Join(tempDir, "settings.json"))

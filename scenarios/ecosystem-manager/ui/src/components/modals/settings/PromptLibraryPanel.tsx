@@ -173,18 +173,18 @@ export function PromptLibraryPanel() {
     savePrompt.mutate(
       { id: selectedId, content: draft },
       {
-        onSuccess: () => {
-          refetch();
-        },
+	        onSuccess: () => {
+	          void refetch();
+	        },
       }
     );
   };
 
   const handleReset = () => {
-    if (file) {
-      setDraft(file.content);
-      refetch();
-    }
+	    if (file) {
+	      setDraft(file.content);
+	      void refetch();
+	    }
   };
 
   const modifiedLabel = currentLocalFile?.modified_at
@@ -281,13 +281,13 @@ export function PromptLibraryPanel() {
                   <span className="text-slate-400">Name</span>
                   <span className="text-slate-100">{selectedSkill.name}</span>
                 </div>
-                {selectedSkill.modes && selectedSkill.modes.length > 0 && (
+	                {selectedSkill.modes.length > 0 && (
                   <div className="flex items-center justify-between">
                     <span className="text-slate-400">Modes</span>
                     <span className="text-slate-100">{selectedSkill.modes.join(', ')}</span>
                   </div>
                 )}
-                {selectedSkill.tags && selectedSkill.tags.length > 0 && (
+	                {selectedSkill.tags.length > 0 && (
                   <div className="flex items-center justify-between">
                     <span className="text-slate-400">Tags</span>
                     <span className="text-slate-100">{selectedSkill.tags.join(', ')}</span>
@@ -325,7 +325,7 @@ export function PromptLibraryPanel() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigator.clipboard.writeText(isSkillSelected ? (selectedSkill?.name || '') : (currentLocalFile?.path || ''))}
+	              onClick={() => void navigator.clipboard.writeText(isSkillSelected ? (selectedSkill?.name || '') : (currentLocalFile?.path || ''))}
               disabled={!currentLocalFile && !selectedSkill}
             >
               <FolderOpen className="h-4 w-4 mr-2" />
@@ -334,7 +334,7 @@ export function PromptLibraryPanel() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigator.clipboard.writeText(draft || '')}
+	              onClick={() => void navigator.clipboard.writeText(draft || '')}
               disabled={!draft}
             >
               <Copy className="h-4 w-4 mr-2" />

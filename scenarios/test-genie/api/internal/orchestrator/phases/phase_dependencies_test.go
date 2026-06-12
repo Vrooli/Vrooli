@@ -36,6 +36,9 @@ func TestRunDependenciesPhaseDetectsRuntimesAndManagers(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(uiDir, "pnpm-lock.yaml"), []byte("lockfileVersion: '9'\n"), 0o644); err != nil {
 		t.Fatalf("failed to seed pnpm lock file: %v", err)
 	}
+	if err := os.MkdirAll(filepath.Join(uiDir, "node_modules"), 0o755); err != nil {
+		t.Fatalf("failed to seed node_modules: %v", err)
+	}
 
 	lookups := make(map[string]int)
 	stubCommandLookup(t, func(name string) (string, error) {

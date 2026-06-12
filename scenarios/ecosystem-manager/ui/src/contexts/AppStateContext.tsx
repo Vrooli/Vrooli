@@ -3,50 +3,10 @@
  * Manages global UI state (filters, column visibility, modals)
  */
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import type { TaskFilters, TaskStatus, Settings } from '../types/api';
 import { useSettings } from '../hooks/useSettings';
-
-interface ColumnVisibility {
-  pending: boolean;
-  'in-progress': boolean;
-  completed: boolean;
-  'completed-finalized': boolean;
-  failed: boolean;
-  'failed-blocked': boolean;
-  archived: boolean;
-}
-
-interface AppState {
-  // Filter state
-  filters: TaskFilters;
-  setFilters: (filters: TaskFilters) => void;
-  updateFilter: <K extends keyof TaskFilters>(key: K, value: TaskFilters[K]) => void;
-  clearFilters: () => void;
-
-  // Column visibility (archived column hidden by default)
-  columnVisibility: ColumnVisibility;
-  setColumnVisibility: (status: TaskStatus, visible: boolean) => void;
-  toggleColumnVisibility: (status: TaskStatus) => void;
-
-  // UI state
-  isFilterPanelOpen: boolean;
-  setFilterPanelOpen: (open: boolean) => void;
-  setIsFilterPanelOpen: (open: boolean) => void; // Alias for consistency
-  toggleFilterPanel: () => void;
-
-  // Active modal tracking
-  activeModal: string | null;
-  setActiveModal: (modalId: string | null) => void;
-  openModal: (modalId: string) => void;
-  closeModal: () => void;
-
-  // Cached settings (for quick access without query)
-  cachedSettings: Settings | null;
-  setCachedSettings: React.Dispatch<React.SetStateAction<Settings | null>>;
-}
-
-const AppStateContext = createContext<AppState | undefined>(undefined);
+import { AppStateContext, type AppState, type ColumnVisibility } from './AppStateContext.value';
 
 // Default column visibility (archived column is hidden by default)
 const defaultColumnVisibility: ColumnVisibility = {
@@ -140,12 +100,4 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   };
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
-}
-
-export function useAppState() {
-  const context = useContext(AppStateContext);
-  if (!context) {
-    throw new Error('useAppState must be used within an AppStateProvider');
-  }
-  return context;
 }

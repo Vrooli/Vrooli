@@ -72,7 +72,7 @@ func TestAmbientShadowEnv_ProcessEnv(t *testing.T) {
 // against agent-manager's validateCustomEnvironment allowlist (VROOLI_ prefix,
 // ≤20 entries) so a future addition to shadowRoutingEnvKeys can never produce a
 // run-rejecting environment.
-func TestShadowRoutingKeysSatisfyAgentManagerContract(t *testing.T) {
+func TestShadowRoutingKeysSatisfyAgentManagerContract(t *testing.T) { // [REQ:EM-BASE-002]
 	if len(shadowRoutingEnvKeys) > 20 {
 		t.Fatalf("shadowRoutingEnvKeys has %d entries; agent-manager rejects >20", len(shadowRoutingEnvKeys))
 	}

@@ -9,7 +9,7 @@ import (
 )
 
 // Manual move from a terminal state to pending should re-enable auto-requeue and respect cooldown.
-func TestManualTransitionFromTerminalToPendingEnablesAutoRequeue(t *testing.T) {
+func TestManualTransitionFromTerminalToPendingEnablesAutoRequeue(t *testing.T) { // [REQ:EM-QUEUE-003]
 	queueDir := t.TempDir()
 	storage := tasks.NewStorage(queueDir)
 	if err := os.MkdirAll(filepath.Join(queueDir, tasks.StatusCompleted), 0o755); err != nil {

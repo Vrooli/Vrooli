@@ -1,15 +1,15 @@
 {
   "_metadata": {
-    "description": "Operational requirements registry for ecosystem-manager scenario.",
+    "description": "Operational requirements registry for ecosystem-manager. Thin index over per-target modules; requirements live in NN-domain/module.json files keyed to PRD operational targets (OT-Px-NNN).",
     "schema_version": "1.0.0",
-    "auto_sync_enabled": false,
-    "last_validated_at": "2026-05-31",
-    "last_synced_at": "2026-05-31"
+    "auto_sync_enabled": true,
+    "last_validated_at": "2026-06-12",
+    "last_synced_at": "2026-06-12"
   },
   "meta": {
     "scenario": "ecosystem-manager",
-    "version": "2026.05",
-    "generated": "2026-05-31",
+    "version": "2026.06",
+    "generated": "2026-06-12",
     "owners": [
       {
         "team": "Vrooli Platform",
@@ -17,200 +17,13 @@
       }
     ]
   },
-  "imports": [],
-  "requirements": [
-    {
-      "id": "EM-P1-001",
-      "category": "auto-steer",
-      "title": "Capture per-iteration agent token cost",
-      "description": "The controller captures each agent run's token cost from agent-manager's run summary (RunCost) and threads it into credit assignment; an unreported cost is recorded as an explicit unknown, never treated as free.",
-      "prd_ref": "Auto-Steer Controller (v1)",
-      "status": "complete",
-      "tags": [
-        "auto-steer",
-        "v1",
-        "learning"
-      ],
-      "validation": [
-        {
-          "type": "test",
-          "ref": "api/pkg/queue/run_cost_test.go",
-          "phase": "unit",
-          "status": "implemented"
-        },
-        {
-          "type": "test",
-          "ref": "api/pkg/autosteer/run_cost_test.go",
-          "phase": "unit",
-          "status": "implemented"
-        }
-      ]
-    },
-    {
-      "id": "EM-P1-002",
-      "category": "auto-steer",
-      "title": "Per-(skill, dimension) effectiveness ledger",
-      "description": "A SQLite-backed effectiveness ledger (skill_dimension_effectiveness) tracks lifetime closed/introduced findings, runs, and token cost per (skill, dimension), with a derived shrinkage-blended efficacy computed on read.",
-      "prd_ref": "Auto-Steer Controller (v1)",
-      "status": "complete",
-      "tags": [
-        "auto-steer",
-        "v1",
-        "learning",
-        "storage"
-      ],
-      "validation": [
-        {
-          "type": "test",
-          "ref": "api/pkg/effectiveness/effectiveness_test.go",
-          "phase": "unit",
-          "status": "implemented"
-        },
-        {
-          "type": "test",
-          "ref": "api/pkg/effectiveness/sqlite_store_test.go",
-          "phase": "unit",
-          "status": "implemented"
-        }
-      ]
-    },
-    {
-      "id": "EM-P1-003",
-      "category": "auto-steer",
-      "title": "Credit assignment closes the learn loop",
-      "description": "After each iteration the controller diffs the open-findings set by stable ID, buckets closed/introduced by dimension (collateral included), and records a credit event to the effectiveness ledger and the decision trace.",
-      "prd_ref": "Auto-Steer Controller (v1)",
-      "status": "complete",
-      "tags": [
-        "auto-steer",
-        "v1",
-        "learning"
-      ],
-      "validation": [
-        {
-          "type": "test",
-          "ref": "api/pkg/findings/diff_test.go",
-          "phase": "unit",
-          "status": "implemented"
-        },
-        {
-          "type": "test",
-          "ref": "api/pkg/autosteer/credit_assignment_test.go",
-          "phase": "unit",
-          "status": "implemented"
-        }
-      ]
-    },
-    {
-      "id": "EM-P1-004",
-      "category": "auto-steer",
-      "title": "Effectiveness-weighted skill selection (bandit)",
-      "description": "Within the heaviest open dimension, eligible skills are ranked by expected reduction-per-token (shrinkage toward a uniform prior, n=0 reproduces v0 greedy order) with deterministic epsilon-greedy exploration seeded by (task, iteration).",
-      "prd_ref": "Auto-Steer Controller (v1)",
-      "status": "complete",
-      "tags": [
-        "auto-steer",
-        "v1",
-        "selection"
-      ],
-      "validation": [
-        {
-          "type": "test",
-          "ref": "api/pkg/autosteer/selector_bandit_test.go",
-          "phase": "unit",
-          "status": "implemented"
-        }
-      ]
-    },
-    {
-      "id": "EM-P1-005",
-      "category": "auto-steer",
-      "title": "Layer-2 runtime thrashing defense",
-      "description": "The controller halts on a recurring open-findings fingerprint (thrashing_cycle) or a zero net-progress window (no_net_progress), applies a hysteresis cooldown to skills that regressed their own target dimension, and flags/vetoes regressing iterations.",
-      "prd_ref": "Auto-Steer Controller (v1)",
-      "status": "complete",
-      "tags": [
-        "auto-steer",
-        "v1",
-        "thrashing"
-      ],
-      "validation": [
-        {
-          "type": "test",
-          "ref": "api/pkg/autosteer/thrashing_test.go",
-          "phase": "unit",
-          "status": "implemented"
-        }
-      ]
-    },
-    {
-      "id": "EM-P1-006",
-      "category": "auto-steer",
-      "title": "Surface the new control signals (API/CLI/UI)",
-      "description": "The decision trace exposes per-iteration token cost, per-dimension findings flow, and regression/veto/halt; a new GET /api/auto-steer/effectiveness endpoint, 'steer effectiveness'/'steer trace' CLI commands, and a UI effectiveness table render the learned efficacy.",
-      "prd_ref": "Auto-Steer Controller (v1)",
-      "status": "complete",
-      "tags": [
-        "auto-steer",
-        "v1",
-        "transparency"
-      ],
-      "validation": [
-        {
-          "type": "test",
-          "ref": "api/pkg/autosteer/handlers_error_shape_test.go",
-          "phase": "unit",
-          "status": "implemented"
-        },
-        {
-          "type": "test",
-          "ref": "cli/steer/commands_test.go",
-          "phase": "unit",
-          "status": "implemented"
-        },
-        {
-          "type": "test",
-          "ref": "ui/src/components/steer/DecisionTracePanel.render.test.tsx",
-          "phase": "unit",
-          "status": "implemented"
-        }
-      ]
-    },
-    {
-      "id": "EM-P2-001",
-      "category": "auto-steer",
-      "title": "DTV-primed trust/cost selection priors",
-      "description": "Replace the uniform cold-start prior with development-toolchain-validator-derived trust/cost priors via the injected prior seam in the selector.",
-      "prd_ref": "Auto-Steer Controller (v1)",
-      "status": "implemented",
-      "tags": [
-        "auto-steer",
-        "p2",
-        "dtv"
-      ],
-      "validation": [
-        "api/pkg/autosteer/dtv_selection_test.go::TestDTVPriorProvider_MappingTable",
-        "api/pkg/autosteer/dtv_selection_test.go::TestSelector_DTVPriorReordersColdStart",
-        "api/pkg/autosteer/dtv_selection_test.go::TestSelector_AbsentFitnessReproducesP1"
-      ]
-    },
-    {
-      "id": "EM-P2-002",
-      "category": "auto-steer",
-      "title": "DTV Layer-1 eligibility gate",
-      "description": "Wire a development-toolchain-validator-backed EligibilityFilter so skills that cannot run in the target toolchain are hard-gated out of selection (Layer-1 thrashing prevention).",
-      "prd_ref": "Auto-Steer Controller (v1)",
-      "status": "implemented",
-      "tags": [
-        "auto-steer",
-        "p2",
-        "dtv"
-      ],
-      "validation": [
-        "api/pkg/autosteer/dtv_selection_test.go::TestDTVEligibilityFilter_DeniesOnlyRed",
-        "api/pkg/autosteer/dtv_selection_test.go::TestSelector_GatesRedSkillBeforeRanking",
-        "api/pkg/autosteer/dtv_selection_test.go::TestSelector_AllRedDoesNotStall"
-      ]
-    }
-  ]
+  "imports": [
+    "01-task-queue/module.json",
+    "02-autosteer/module.json",
+    "03-settings-health/module.json",
+    "04-template-conformance/module.json",
+    "05-baseline-modes/module.json",
+    "06-fleet-autosteer/module.json"
+  ],
+  "requirements": []
 }

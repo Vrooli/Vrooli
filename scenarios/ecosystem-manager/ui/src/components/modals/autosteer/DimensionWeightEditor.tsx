@@ -44,8 +44,7 @@ export function DimensionWeightEditor({
   };
 
   const removeDimension = (id: string) => {
-    const next = { ...weights };
-    delete next[id];
+    const { [id]: _removed, ...next } = weights;
     onChange(next);
   };
 

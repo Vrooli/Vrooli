@@ -122,6 +122,37 @@ func TestCheckerRunningWithUnprobedHealthPasses(t *testing.T) {
 	}
 }
 
+func TestCheckerRunningWithUnprobedHealthFailsWhenPolicyRequiresKnownHealth(t *testing.T) {
+	fetcher := &mockStatusFetcher{resp: statusesResp(status("postgres", true, nil))}
+
+	result := NewChecker(
+		[]string{"postgres"},
+		fetcher,
+		io.Discard,
+		WithAllowUnknownHealthWhenRunning(false),
+	).Check(context.Background())
+	if result.Success {
+		t.Fatalf("expected failure for unknown health when policy disallows it")
+	}
+	if !strings.Contains(result.Error.Error(), "health unknown") {
+		t.Fatalf("expected health unknown error, got %v", result.Error)
+	}
+}
+
+func TestCheckerSkippedResourcesAreNotChecked(t *testing.T) {
+	fetcher := &mockStatusFetcher{resp: statusesResp(status("postgres", true, boolPtr(true)))}
+
+	result := NewChecker(
+		[]string{"postgres", "redis"},
+		fetcher,
+		io.Discard,
+		WithSkippedResources([]string{"redis"}),
+	).Check(context.Background())
+	if !result.Success {
+		t.Fatalf("expected skipped missing resource to pass, got %v", result.Error)
+	}
+}
+
 func TestCheckerMultipleFailuresListed(t *testing.T) {
 	fetcher := &mockStatusFetcher{resp: statusesResp(
 		status("postgres", false, boolPtr(false)),

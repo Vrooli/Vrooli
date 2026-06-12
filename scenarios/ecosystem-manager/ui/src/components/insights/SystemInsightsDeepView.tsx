@@ -22,11 +22,11 @@ export function SystemInsightsDeepView({ sinceDays }: SystemInsightsDeepViewProp
 
   const generateMutation = useMutation({
     mutationFn: () => api.generateSystemInsights(sinceDays),
-    onSuccess: (report) => {
-      // Cache the generated report
-      queryClient.setQueryData(['system-insight-report', sinceDays], report);
-      queryClient.invalidateQueries({ queryKey: queryKeys.insights.system(sinceDays) });
-    },
+	onSuccess: (report) => {
+		// Cache the generated report
+		queryClient.setQueryData(['system-insight-report', sinceDays], report);
+		void queryClient.invalidateQueries({ queryKey: queryKeys.insights.system(sinceDays) });
+	},
   });
 
   const generatedReport = queryClient.getQueryData<SystemInsightReport>([
@@ -100,8 +100,8 @@ export function SystemInsightsDeepView({ sinceDays }: SystemInsightsDeepViewProp
     return null;
   }
 
-  const hasTaskTypeStats = generatedReport.by_task_type && Object.keys(generatedReport.by_task_type).length > 0;
-  const hasOperationStats = generatedReport.by_operation && Object.keys(generatedReport.by_operation).length > 0;
+	const hasTaskTypeStats = Object.keys(generatedReport.by_task_type).length > 0;
+	const hasOperationStats = Object.keys(generatedReport.by_operation).length > 0;
 
   return (
     <div className="space-y-6">
@@ -128,7 +128,7 @@ export function SystemInsightsDeepView({ sinceDays }: SystemInsightsDeepViewProp
       </div>
 
       {/* Cross-Task Patterns */}
-      {generatedReport.cross_task_patterns && generatedReport.cross_task_patterns.length > 0 && (
+	{generatedReport.cross_task_patterns.length > 0 && (
         <div>
           <h4 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
             <Users className="h-4 w-4 text-amber-400" />
@@ -173,7 +173,7 @@ export function SystemInsightsDeepView({ sinceDays }: SystemInsightsDeepViewProp
       )}
 
       {/* System-Level Suggestions */}
-      {generatedReport.system_suggestions && generatedReport.system_suggestions.length > 0 && (
+	{generatedReport.system_suggestions.length > 0 && (
         <Card className="bg-slate-900/70 border-white/5 p-4">
           <h4 className="text-sm font-semibold text-white mb-3">
             System-Wide Recommendations ({generatedReport.system_suggestions.length})

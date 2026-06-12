@@ -17,7 +17,19 @@ const defaultUsageData: SkillUsageData = {
 
 // In-memory cache for the current value
 let cachedData: SkillUsageData | null = null;
-let listeners: Set<() => void> = new Set();
+const listeners: Set<() => void> = new Set();
+
+function isSkillUsageData(value: unknown): value is SkillUsageData {
+	if (!value || typeof value !== 'object') return false;
+	const candidate = value as Record<string, unknown>;
+	return (
+		Array.isArray(candidate.recent) &&
+		candidate.recent.every((item) => typeof item === 'string') &&
+		typeof candidate.frequency === 'object' &&
+		candidate.frequency !== null &&
+		typeof candidate.lastUpdated === 'string'
+	);
+}
 
 function notifyListeners() {
   listeners.forEach((listener) => listener());
@@ -26,13 +38,16 @@ function notifyListeners() {
 function loadFromStorage(): SkillUsageData {
   if (cachedData) return cachedData;
 
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      cachedData = JSON.parse(stored);
-      return cachedData!;
-    }
-  } catch {
+	try {
+		const stored = localStorage.getItem(STORAGE_KEY);
+		if (stored) {
+			const parsed: unknown = JSON.parse(stored);
+			if (isSkillUsageData(parsed)) {
+				cachedData = parsed;
+				return parsed;
+			}
+		}
+	} catch {
     // Ignore parse errors
   }
 

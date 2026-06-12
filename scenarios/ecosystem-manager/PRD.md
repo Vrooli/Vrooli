@@ -18,17 +18,18 @@
 - [ ] OT-P0-003 | Settings control | Persisted slots/cooldown/agent settings governing queue concurrency, with validated partial updates and side-effects on the processor.
 - [ ] OT-P0-004 | Health + recovery | `/health` on the root router, stale-task recovery on startup, automatic WebSocket reconnection.
 - [ ] OT-P0-005 | Template conformance | EM itself passes the react-vite template standards/docs gates so it can be the migration reference for the rest of the fleet.
+- [ ] OT-P0-006 | Shadow-safe improvement | Autosteer engagements run against a baseline shadow (start/promote/abandon via git-control-tower), routing agent runs **and measurement** to the shadow so edits and audits never leak to the live instance.
 
 ### 🟠 P1 – Should have post-launch
-- [ ] OT-P1-001 | Connect-RPC transport | Migrate domains off hand-rolled REST/Zod onto proto-first Connect-RPC, one domain at a time (settings is the reference).
+- [ ] OT-P1-001 | Connect-RPC transport | Migrate domains off hand-rolled REST/Zod onto proto-first Connect-RPC, one domain at a time (discovery is the reference).
 - [ ] OT-P1-002 | Cross-type intelligence | Dependency analysis flags affected scenarios/resources and feeds smart prioritization.
 - [ ] OT-P1-003 | Effectiveness transparency | Per-(skill, dimension) ledger + decision trace exposed via API/CLI/UI as a glass box.
 - [ ] OT-P1-004 | Temporal-flow verification | Model the queue/task state machine with `flow-verifier` (Quint) and gate transitions.
+- [ ] OT-P1-005 | Toolchain trust/cost priors | development-toolchain-validator fitness snapshots seed selection priors and a Layer-1 eligibility gate vetoes red skills, failing open when DTV is degraded.
+- [ ] OT-P1-006 | Fleet autosteer | Point EM's loop at other old-template scenarios and have it steer them to maturity unattended, with importance-aware scheduling across the fleet.
 
 ### 🟢 P2 – Future / expansion
-- [ ] OT-P2-001 | Toolchain trust/cost priors | Wire development-toolchain-validator priors + a Layer-1 eligibility gate (seams exist).
-- [ ] OT-P2-002 | Fleet autosteer | Point EM's loop at other old-template scenarios and have it migrate them automatically.
-- [ ] OT-P2-003 | Advanced analytics | Reporting dashboard, task templates/automation, external-tool integration.
+- [ ] OT-P2-001 | Advanced analytics | Reporting dashboard, task templates/automation, external-tool integration.
 
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks / frameworks: Go API (`api-core`/`cli-core`/`connectrpc.com/connect`), React + Vite + Tailwind UI, proto-first contracts under `packages/proto`.
@@ -40,7 +41,7 @@
 - Required resources: `agent-manager` (agent execution), `scenario-auditor` (standards), `test-genie` (finding producers), `flow-verifier` (temporal verification), `git-control-tower` (regression baselines).
 - Scenario dependencies: consumes the broader Vrooli fleet as both targets (scenarios it improves) and producers (test-genie phases feeding the ladder).
 - Operational risks: external-agent availability (Claude Code), transport-migration state-tracking drift, pre-existing UI type-safety backlog under strict lint.
-- Launch sequencing: (1) R0/R1 + standards/docs conformance; (2) Connect-RPC foundation; (3) settings reference domain; (4) temporal-flow reference; (5) incremental per-domain migration of the remaining seven domains.
+- Launch sequencing: (1) R0/R1 + standards/docs conformance; (2) Connect-RPC foundation; (3) discovery reference domain (settings proved too entangled to lead); (4) temporal-flow reference; (5) incremental per-domain migration of the remaining seven domains.
 
 ## 🎨 UX & Branding
 - Look & feel: dense operator dashboard — kanban task board (Pending/In Progress/Review/Completed/Failed), insights panels, light/dark/system theme.
@@ -91,7 +92,7 @@ The Ecosystem Manager consolidates four separate management tools (resource-gene
 - **Scalability**: 10,000+ tasks; up to 10 concurrent agent executions; linear memory growth.
 
 ### Auto-Steer Controller (v1, effectiveness-weighted)
-Drives a target scenario toward an objective profile: diagnose open findings → select the skill most likely to close the heaviest dimension → execute via agent-manager → re-measure → terminate on objective-met / diminishing returns / runtime thrashing / budget cap. Conceptual spec: [`docs/concepts/CONTROL-MODEL.md`](docs/concepts/CONTROL-MODEL.md); targets tracked in [`requirements/index.json`](requirements/index.json). Includes token-cost capture, a per-(skill, dimension) effectiveness ledger, credit assignment, effectiveness-weighted selection (shrinkage prior + epsilon-greedy), Layer-2 thrashing defense, and a decision-trace glass box. P2: development-toolchain-validator priors + Layer-1 eligibility gate (seams present, not yet wired).
+Drives a target scenario toward an objective profile: diagnose open findings → select the skill most likely to close the heaviest dimension → execute via agent-manager → re-measure → terminate on objective-met / diminishing returns / runtime thrashing / budget cap. Conceptual spec: [`docs/concepts/CONTROL-MODEL.md`](docs/concepts/CONTROL-MODEL.md); targets tracked in [`requirements/index.json`](requirements/index.json). Includes token-cost capture, a per-(skill, dimension) effectiveness ledger, credit assignment, effectiveness-weighted selection (shrinkage prior + epsilon-greedy), Layer-2 thrashing defense, and a decision-trace glass box. Development-toolchain-validator trust/cost priors and the Layer-1 eligibility gate are wired (fail open on DTV degradation).
 
 ### Risk Assessment
 - **High** — external AI-service dependency (mitigation: robust error handling, fallback, monitoring).
@@ -100,6 +101,6 @@ Drives a target scenario toward an objective profile: diagnose open findings →
 
 ---
 
-**Document Version**: 2.0
-**Last Updated**: 2026-06-08
+**Document Version**: 2.1
+**Last Updated**: 2026-06-12
 **Owner**: Ecosystem Manager Development Team

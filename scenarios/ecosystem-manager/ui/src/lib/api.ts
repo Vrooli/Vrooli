@@ -19,10 +19,6 @@ import type {
   RunningProcess,
   Settings,
   SettingsConstraints,
-  Resource,
-  Scenario,
-  Operation,
-  Category,
   LogEntry,
   ExecutionHistory,
   ExecutionPrompt,
@@ -47,6 +43,7 @@ import type {
   Campaign,
   InsightReport,
   SystemInsightReport,
+  SystemInsightsResponse,
   GenerateInsightOptions,
   ApplySuggestionResult,
 } from '../types/api';
@@ -62,6 +59,27 @@ import {
 
 // API base resolution (synchronous, matches standard pattern used by all other scenarios)
 const API_BASE = resolveApiBase({ appendSuffix: false });
+
+type JsonObject = Record<string, unknown>;
+
+function isRecord(value: unknown): value is JsonObject {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function getArrayField(value: unknown, field: string): unknown[] {
+  return isRecord(value) && Array.isArray(value[field]) ? value[field] : [];
+}
+
+function getStringField(value: unknown, field: string): string | undefined {
+  return isRecord(value) && typeof value[field] === 'string' ? value[field] : undefined;
+}
+
+function normalizeHeaders(headers: HeadersInit | undefined): Record<string, string> {
+  if (!headers) return {};
+  if (headers instanceof Headers) return Object.fromEntries(headers.entries());
+  if (Array.isArray(headers)) return Object.fromEntries(headers);
+  return headers;
+}
 
 export class ApiError extends Error {
   status: number;
@@ -82,12 +100,13 @@ class ApiClient {
   private async fetchJSON<T>(url: string, options: RequestInit = {}): Promise<T> {
     const fullUrl = url.startsWith('http') ? url : `${API_BASE}${url}`;
 
+    const { headers, ...requestOptions } = options;
     const response = await fetch(fullUrl, {
       headers: {
         'Content-Type': 'application/json',
-        ...options.headers,
+        ...normalizeHeaders(headers),
       },
-      ...options,
+      ...requestOptions,
     });
 
     if (!response.ok) {
@@ -98,7 +117,8 @@ class ApiClient {
       throw new ApiError(response.status, message, errorText);
     }
 
-    return response.json();
+    const data: unknown = await response.json();
+    return data as T;
   }
 
   // ==================== Health ====================
@@ -122,12 +142,12 @@ class ApiClient {
     const url = `/api/tasks${queryString ? '?' + queryString : ''}`;
 
     const response = await this.fetchJSON<{ tasks: unknown[]; count: number }>(url);
-    const tasks = response.tasks || [];
+    const tasks = response.tasks;
     return tasks.map(task => {
       const normalized = parseTaskResponse(task);
       // Trust the directory we fetched (query status) over stale file metadata
       if (filters.status) {
-        normalized.status = filters.status as TaskStatus;
+        normalized.status = filters.status;
       }
       return normalized;
     });
@@ -148,11 +168,9 @@ class ApiClient {
     if (Array.isArray(taskData.target)) {
       payload.targets = taskData.target;
       payload.target = taskData.target[0] ?? '';
-    } else if (taskData.target) {
-      payload.target = taskData.target;
     }
 
-    delete (payload as any).auto_requeue;
+    delete payload.auto_requeue;
 
     const raw = await this.fetchJSON<unknown>(`/api/tasks`, {
       method: 'POST',
@@ -167,19 +185,19 @@ class ApiClient {
       processor_auto_requeue: updates.auto_requeue,
     };
 
-    if (Array.isArray((updates as any).target)) {
-      payload.targets = (updates as any).target;
-      payload.target = (updates as any).target[0] ?? '';
+    if (Array.isArray(updates.target)) {
+      payload.targets = updates.target;
+      payload.target = updates.target[0] ?? '';
     }
 
-    delete (payload as any).auto_requeue;
+    delete payload.auto_requeue;
 
     const response = await this.fetchJSON<Record<string, unknown>>(`/api/tasks/${taskId}`, {
       method: 'PUT',
       body: JSON.stringify(payload),
     });
 
-    const raw = (response as any)?.task ?? response;
+    const raw = response.task ?? response;
     return parseTaskResponse(raw);
   }
 
@@ -208,8 +226,8 @@ class ApiClient {
     );
   }
 
-  async deleteTask(taskId: string): Promise<void> {
-    return this.fetchJSON<void>(`/api/tasks/${taskId}`, {
+  async deleteTask(taskId: string): Promise<unknown> {
+    return this.fetchJSON<unknown>(`/api/tasks/${taskId}`, {
       method: 'DELETE',
     });
   }
@@ -223,8 +241,8 @@ class ApiClient {
       return response;
     }
 
-    if (response && Array.isArray((response as any).entries)) {
-      return (response as any).entries as LogEntry[];
+    if (Array.isArray(response.entries)) {
+      return response.entries;
     }
 
     return [];
@@ -243,11 +261,11 @@ class ApiClient {
       return response;
     }
 
-    if (response && typeof (response as any).prompt === 'string') {
-      return (response as any).prompt as string;
+    if (typeof response.prompt === 'string') {
+      return response.prompt;
     }
 
-    return JSON.stringify(response ?? {}, null, 2);
+    return JSON.stringify(response, null, 2);
   }
 
   async getActiveTargets(type?: string, operation?: string): Promise<ActiveTarget[]> {
@@ -271,38 +289,38 @@ class ApiClient {
     return parseQueueStatusResponse(raw);
   }
 
-  async triggerQueueProcessing(): Promise<void> {
-    return this.fetchJSON<void>(`/api/queue/trigger`, {
+  async triggerQueueProcessing(): Promise<unknown> {
+    return this.fetchJSON<unknown>(`/api/queue/trigger`, {
       method: 'POST',
     });
   }
 
-  async startQueueProcessor(): Promise<void> {
-    return this.fetchJSON<void>(`/api/queue/start`, {
+  async startQueueProcessor(): Promise<unknown> {
+    return this.fetchJSON<unknown>(`/api/queue/start`, {
       method: 'POST',
     });
   }
 
-  async stopQueueProcessor(): Promise<void> {
-    return this.fetchJSON<void>(`/api/queue/stop`, {
+  async stopQueueProcessor(): Promise<unknown> {
+    return this.fetchJSON<unknown>(`/api/queue/stop`, {
       method: 'POST',
     });
   }
 
-  async resetRateLimit(): Promise<void> {
-    return this.fetchJSON<void>(`/api/queue/reset-rate-limit`, {
+  async resetRateLimit(): Promise<unknown> {
+    return this.fetchJSON<unknown>(`/api/queue/reset-rate-limit`, {
       method: 'POST',
     });
   }
 
   async getRunningProcesses(): Promise<RunningProcess[]> {
     const response = await this.fetchJSON<{ processes: unknown[]; count: number }>(`/api/processes/running`);
-    const processes = response.processes || [];
+    const processes = response.processes;
     return processes.map(parseRunningProcessResponse);
   }
 
-  async terminateProcess(taskId: string): Promise<void> {
-    return this.fetchJSON<void>(`/api/queue/processes/terminate`, {
+  async terminateProcess(taskId: string): Promise<unknown> {
+    return this.fetchJSON<unknown>(`/api/queue/processes/terminate`, {
       method: 'POST',
       body: JSON.stringify({ task_id: taskId }),
     });
@@ -350,8 +368,8 @@ class ApiClient {
       return response;
     }
 
-    if (response && Array.isArray((response as any).entries)) {
-      return (response as any).entries as LogEntry[];
+    if (Array.isArray(response.entries)) {
+      return response.entries;
     }
 
     return [];
@@ -364,11 +382,7 @@ class ApiClient {
       `/api/executions`,
     );
 
-    const list = Array.isArray(response)
-      ? response
-      : Array.isArray((response as any)?.executions)
-        ? (response as any).executions
-        : [];
+    const list = Array.isArray(response) ? response : getArrayField(response, 'executions');
 
     return list.map(parseExecutionResponse);
   }
@@ -378,34 +392,30 @@ class ApiClient {
       `/api/tasks/${taskId}/executions`,
     );
 
-    const list = Array.isArray(response)
-      ? response
-      : Array.isArray((response as any)?.executions)
-        ? (response as any).executions
-        : [];
+    const list = Array.isArray(response) ? response : getArrayField(response, 'executions');
 
     return list.map(parseExecutionResponse);
   }
 
   async getExecutionPrompt(taskId: string, executionId: string): Promise<ExecutionPrompt> {
-    const response = await this.fetchJSON<any>(
+    const response = await this.fetchJSON<unknown>(
       `/api/tasks/${taskId}/executions/${executionId}/prompt`
     );
-    const prompt = response?.prompt ?? response?.content ?? '';
+    const prompt = getStringField(response, 'prompt') ?? getStringField(response, 'content') ?? '';
     return {
-      ...response,
+      ...(isRecord(response) ? response : {}),
       prompt,
       content: prompt,
     };
   }
 
   async getExecutionOutput(taskId: string, executionId: string): Promise<ExecutionOutput> {
-    const response = await this.fetchJSON<any>(
+    const response = await this.fetchJSON<unknown>(
       `/api/tasks/${taskId}/executions/${executionId}/output`
     );
-    const output = response?.output ?? response?.content ?? '';
+    const output = getStringField(response, 'output') ?? getStringField(response, 'content') ?? '';
     return {
-      ...response,
+      ...(isRecord(response) ? response : {}),
       output,
       content: output,
     };
@@ -472,7 +482,7 @@ class ApiClient {
   async getAutoSteerProfiles(): Promise<AutoSteerProfile[]> {
     const response = await this.fetchJSON<AutoSteerProfile[] | { profiles?: AutoSteerProfile[]; count?: number }>(`/api/auto-steer/profiles`);
     if (Array.isArray(response)) return response;
-    if (response && Array.isArray(response.profiles)) return response.profiles;
+    if (Array.isArray(response.profiles)) return response.profiles;
     return [];
   }
 
@@ -510,8 +520,8 @@ class ApiClient {
     });
   }
 
-  async deleteAutoSteerProfile(id: string): Promise<void> {
-    return this.fetchJSON<void>(`/api/auto-steer/profiles/${id}`, {
+  async deleteAutoSteerProfile(id: string): Promise<unknown> {
+    return this.fetchJSON<unknown>(`/api/auto-steer/profiles/${id}`, {
       method: 'DELETE',
     });
   }
@@ -519,7 +529,7 @@ class ApiClient {
   async getAutoSteerTemplates(): Promise<AutoSteerTemplate[]> {
     const response = await this.fetchJSON<AutoSteerTemplate[] | { templates?: AutoSteerTemplate[]; count?: number }>(`/api/auto-steer/templates`);
     if (Array.isArray(response)) return response;
-    if (response && Array.isArray(response.templates)) return response.templates;
+    if (Array.isArray(response.templates)) return response.templates;
     return [];
   }
 
@@ -537,8 +547,8 @@ class ApiClient {
       return response;
     }
 
-    if (response && Array.isArray((response as any).history)) {
-      return (response as any).history as ProfilePerformance[];
+    if (Array.isArray(response.history)) {
+      return response.history;
     }
 
     return [];
@@ -585,7 +595,7 @@ class ApiClient {
   async getAutoSteerDimensions(): Promise<DimensionInfo[]> {
     const response = await this.fetchJSON<DimensionInfo[] | { dimensions?: DimensionInfo[]; count?: number }>(`/api/auto-steer/dimensions`);
     if (Array.isArray(response)) return response;
-    if (response && Array.isArray(response.dimensions)) return response.dimensions;
+    if (Array.isArray(response.dimensions)) return response.dimensions;
     return [];
   }
 
@@ -600,8 +610,8 @@ class ApiClient {
 
   // ==================== Maintenance ====================
 
-  async setMaintenanceState(active: boolean): Promise<void> {
-    return this.fetchJSON<void>(`/api/maintenance/state`, {
+  async setMaintenanceState(active: boolean): Promise<unknown> {
+    return this.fetchJSON<unknown>(`/api/maintenance/state`, {
       method: 'POST',
       body: JSON.stringify({ active }),
     });
@@ -622,14 +632,14 @@ class ApiClient {
     return this.fetchJSON<Campaign>(`/api/visited-tracker/campaigns/${campaignId}`);
   }
 
-  async deleteCampaign(campaignId: string): Promise<void> {
-    return this.fetchJSON<void>(`/api/visited-tracker/campaigns/${campaignId}`, {
+  async deleteCampaign(campaignId: string): Promise<unknown> {
+    return this.fetchJSON<unknown>(`/api/visited-tracker/campaigns/${campaignId}`, {
       method: 'DELETE',
     });
   }
 
-  async resetCampaign(campaignId: string): Promise<void> {
-    return this.fetchJSON<void>(`/api/visited-tracker/campaigns/${campaignId}/reset`, {
+  async resetCampaign(campaignId: string): Promise<unknown> {
+    return this.fetchJSON<unknown>(`/api/visited-tracker/campaigns/${campaignId}/reset`, {
       method: 'POST',
     });
   }
@@ -640,7 +650,7 @@ class ApiClient {
     const response = await this.fetchJSON<{ insights: InsightReport[]; count: number }>(
       `/api/tasks/${taskId}/insights`
     );
-    return response.insights || [];
+    return response.insights;
   }
 
   async getInsightReport(taskId: string, reportId: string): Promise<InsightReport> {
@@ -650,7 +660,7 @@ class ApiClient {
   async generateInsightReport(
     taskId: string,
     options: GenerateInsightOptions = {}
-  ): Promise<void> {
+  ): Promise<unknown> {
     const params = new URLSearchParams();
     if (options.limit) params.append('limit', options.limit.toString());
     if (options.status_filter) params.append('status_filter', options.status_filter);
@@ -659,7 +669,7 @@ class ApiClient {
     const queryString = params.toString();
     const url = `/api/tasks/${taskId}/insights/generate${queryString ? '?' + queryString : ''}`;
 
-    return this.fetchJSON<void>(url, {
+    return this.fetchJSON<unknown>(url, {
       method: 'POST',
     });
   }
@@ -677,11 +687,11 @@ class ApiClient {
     );
   }
 
-  async getSystemInsights(sinceDays: number = 7): Promise<SystemInsightReport> {
+  async getSystemInsights(sinceDays: number = 7): Promise<SystemInsightsResponse> {
     const params = new URLSearchParams();
     params.append('since_days', sinceDays.toString());
 
-    return this.fetchJSON<SystemInsightReport>(
+    return this.fetchJSON<SystemInsightsResponse>(
       `/api/insights/system?${params.toString()}`
     );
   }
@@ -717,7 +727,7 @@ class ApiClient {
   async generateInsightReportWithPrompt(
     taskId: string,
     options: GenerateInsightOptions & { custom_prompt: string }
-  ): Promise<void> {
+  ): Promise<unknown> {
     const params = new URLSearchParams();
     if (options.limit) params.append('limit', options.limit.toString());
     if (options.status_filter) params.append('status_filter', options.status_filter);
@@ -726,7 +736,7 @@ class ApiClient {
     const queryString = params.toString();
     const url = `/api/tasks/${taskId}/insights/generate${queryString ? '?' + queryString : ''}`;
 
-    return this.fetchJSON<void>(url, {
+    return this.fetchJSON<unknown>(url, {
       method: 'POST',
       body: JSON.stringify({ custom_prompt: options.custom_prompt }),
     });
@@ -735,15 +745,15 @@ class ApiClient {
   // ==================== Aliases for consistency ====================
 
   // Queue management aliases (for hook compatibility)
-  async startProcessor(): Promise<void> {
+  async startProcessor(): Promise<unknown> {
     return this.startQueueProcessor();
   }
 
-  async stopProcessor(): Promise<void> {
+  async stopProcessor(): Promise<unknown> {
     return this.stopQueueProcessor();
   }
 
-  async triggerQueue(): Promise<void> {
+  async triggerQueue(): Promise<unknown> {
     return this.triggerQueueProcessing();
   }
 }

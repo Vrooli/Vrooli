@@ -77,7 +77,7 @@ func TestCleanupDuplicatesKeepsNewestCopy(t *testing.T) {
 	}
 }
 
-func TestMoveTaskTo(t *testing.T) {
+func TestMoveTaskTo(t *testing.T) { // [REQ:EM-QUEUE-003]
 	tmp := t.TempDir()
 	for _, status := range queueStatuses {
 		if err := os.MkdirAll(filepath.Join(tmp, status), 0o755); err != nil {

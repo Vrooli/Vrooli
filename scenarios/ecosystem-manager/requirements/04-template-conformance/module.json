@@ -1,0 +1,114 @@
+{
+  "_metadata": {
+    "module": "template-conformance",
+    "description": "EM's own migration to the react-vite template contract: validation gates, screaming architecture, CLI manifest/measures, proto conventions, and the per-domain Connect-RPC migration (OT-P0-005, OT-P1-001).",
+    "prd_ref": "OT-P0-005",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "EM-TPL-001",
+      "category": "template-conformance",
+      "title": "Requirements registry conforms to the template contract",
+      "description": "requirements/index.json is a thin imports-only registry over per-target module files, every prd_ref matches a PRD operational target, and the test-genie business phase discovers and validates the registry without findings.",
+      "prd_ref": "OT-P0-005",
+      "status": "in_progress",
+      "tags": ["template", "requirements"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Evidence: test-genie business phase green with >0 modules discovered (vrooli scenario test ecosystem-manager business)."
+        }
+      ]
+    },
+    {
+      "id": "EM-TPL-002",
+      "category": "template-conformance",
+      "title": "Screaming architecture by domain",
+      "description": "Business logic lives in api/internal/<domain>/, UI features under ui/src/features/<domain>/, CLI commands under cli/domains/<domain>/; cross-domain code goes through seams declared in docs/internal/SEAMS.md.",
+      "prd_ref": "OT-P0-005",
+      "status": "planned",
+      "tags": ["template", "architecture"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Evidence: test-genie structure phase green after the domain reorg, verified by the screaming-architecture-audit skill."
+        }
+      ]
+    },
+    {
+      "id": "EM-TPL-003",
+      "category": "template-conformance",
+      "title": "CLI manifest with measures coverage",
+      "description": "cli/manifest.json declares every domain's commands on proto-first bindings, and every stateful domain declares a measure or an explicit waiver so the test-genie measures phase passes.",
+      "prd_ref": "OT-P0-005",
+      "status": "planned",
+      "tags": ["template", "cli", "measures"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Evidence: test-genie measures phase green (measures-health validate scenario ecosystem-manager reports no uncovered domains)."
+        }
+      ]
+    },
+    {
+      "id": "EM-TPL-004",
+      "category": "template-conformance",
+      "title": "Proto packages follow the fleet convention",
+      "description": "Every proto file under packages/proto/schemas/ecosystem-manager/ uses the vrooli.ecosystem_manager.v1.<domain> package convention with per-domain go_package, and shared types live in their canonical locations.",
+      "prd_ref": "OT-P0-005",
+      "status": "planned",
+      "tags": ["template", "proto"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Evidence: test-genie proto phase green (no package_mismatch or shared_type_misplaced errors)."
+        }
+      ]
+    },
+    {
+      "id": "EM-CONN-001",
+      "category": "transport",
+      "title": "Discovery is the Connect-RPC reference domain",
+      "description": "The discovery domain serves a proto-defined DiscoveryService over Connect-RPC end-to-end (proto schema, generated handlers, generated clients), demonstrating the migration shape for the remaining domains.",
+      "prd_ref": "OT-P1-001",
+      "status": "complete",
+      "tags": ["transport", "connect-rpc"],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/handlers/discovery/connect_handler_test.go::TestListCategoriesReturnsGroupings",
+          "phase": "unit",
+          "status": "implemented"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/discovery/service_test.go::TestServiceResourcesDegradesToLastGoodOnFailure",
+          "phase": "unit",
+          "status": "implemented"
+        }
+      ]
+    },
+    {
+      "id": "EM-CONN-002",
+      "category": "transport",
+      "title": "Remaining domains migrate to Connect-RPC per-domain",
+      "description": "The seven REST domains (tasks, queue, autosteer, settings, prompts, insights, skills/importance) gain proto service definitions and Connect handlers/clients, one domain at a time per docs/internal/MIGRATION-GUIDE.md, with no REST/Connect coexistence within a migrated domain.",
+      "prd_ref": "OT-P1-001",
+      "status": "planned",
+      "tags": ["transport", "connect-rpc"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Evidence: per-domain Connect tests + green contracts/proto phases after each domain migration (docs/internal/MIGRATION-GUIDE.md)."
+        }
+      ]
+    }
+  ]
+}

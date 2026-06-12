@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from '../ui/select';
 import { Checkbox } from '../ui/checkbox';
-import { useAppState } from '../../contexts/AppStateContext';
+import { useAppState } from '../../contexts/useAppState';
 import { useDebounce } from '../../hooks/useDebounce';
 import { useQueryParams } from '../../hooks/useQueryParams';
 import { useState, useEffect, useLayoutEffect, useRef, type PointerEvent as ReactPointerEvent } from 'react';
@@ -56,9 +56,11 @@ export function FilterPanel() {
 
   // Sync filters with URL
   useQueryParams(filters, (newFilters) => {
-    Object.entries(newFilters).forEach(([key, value]) => {
-      updateFilter(key as keyof typeof filters, value as string);
-    });
+    if ('search' in newFilters) updateFilter('search', newFilters.search ?? '');
+    if ('type' in newFilters) updateFilter('type', newFilters.type ?? '');
+    if ('operation' in newFilters) updateFilter('operation', newFilters.operation ?? '');
+    if ('priority' in newFilters) updateFilter('priority', newFilters.priority ?? '');
+    if ('sort' in newFilters) updateFilter('sort', newFilters.sort ?? 'updated_desc');
   });
 
   // Initialize starting position once panel dimensions are known (useLayoutEffect to avoid flicker)

@@ -72,7 +72,7 @@ func loopOrchestrator(runner findings.AuditRunner) (*ExecutionOrchestrator, *Moc
 	return orch, stateRepo, profileRepo
 }
 
-func TestController_MiniLoop_ShrinksAndTerminates(t *testing.T) {
+func TestController_MiniLoop_ShrinksAndTerminates(t *testing.T) { // [REQ:EM-CTRL-002]
 	runner := &shrinkingRunner{audits: []*findings.Audit{
 		standardsAudit(2), // initial diagnose: score 8
 		standardsAudit(1), // after iter 1: score 4
@@ -269,7 +269,7 @@ func (r *growingRunner) Audit(_ context.Context, _ findings.AuditRequest) (*find
 	return standardsAudit(r.call + 1), nil // call 1 → {a,b}, call 2 → {a,b,c}, …
 }
 
-func TestController_BudgetCapHalts(t *testing.T) {
+func TestController_BudgetCapHalts(t *testing.T) { // [REQ:EM-CTRL-002]
 	// A target that keeps growing: not a cycle, not a net-progress stall, never
 	// meets the objective → only the budget cap stops it.
 	runner := &growingRunner{}

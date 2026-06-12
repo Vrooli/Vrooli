@@ -28,10 +28,8 @@ import {
 import { useCreateTask } from '@/hooks/useTaskMutations';
 import { useActiveTargets } from '@/hooks/useActiveTargets';
 import { useDiscoveryStore, refreshDiscovery } from '@/stores/discoveryStore';
-import {
-  SteeringConfigPicker,
-  extractSteeringFields,
-} from '@/components/steer/SteeringConfigPicker';
+import { SteeringConfigPicker } from '@/components/steer/SteeringConfigPicker';
+import { extractSteeringFields } from '@/components/steer/SteeringConfigPicker.helpers';
 import type { TaskType, OperationType, Priority, CreateTaskInput, SteeringConfig } from '@/types/api';
 
 interface CreateTaskModalProps {
@@ -63,14 +61,14 @@ export function CreateTaskModal({ open, onOpenChange }: CreateTaskModalProps) {
   const { data: activeImproverTargets = [] } = useActiveTargets(activeType, 'improver');
   const { data: activeGeneratorTargets = [] } = useActiveTargets(activeType, 'generator');
 
-  const occupiedTargetSet = useMemo(() => {
-    const combined = [...(activeImproverTargets || []), ...(activeGeneratorTargets || [])];
-    const set = new Set<string>();
-    combined.forEach(t => {
-      if (t?.target) {
-        set.add(t.target.toLowerCase());
-      }
-    });
+	const occupiedTargetSet = useMemo(() => {
+		const combined = [...activeImproverTargets, ...activeGeneratorTargets];
+		const set = new Set<string>();
+		combined.forEach(t => {
+			if (t.target) {
+				set.add(t.target.toLowerCase());
+			}
+		});
     return set;
   }, [activeGeneratorTargets, activeImproverTargets]);
 
@@ -134,11 +132,11 @@ export function CreateTaskModal({ open, onOpenChange }: CreateTaskModalProps) {
     }
   }, [operation, type]);
 
-  useEffect(() => {
-    if (open) {
-      refreshDiscovery();
-    }
-  }, [open, type, operation]);
+	useEffect(() => {
+		if (open) {
+			void refreshDiscovery();
+		}
+	}, [open, type, operation]);
 
   // Clear steering choices when task shape changes away from scenario improver
   useEffect(() => {
@@ -197,10 +195,10 @@ export function CreateTaskModal({ open, onOpenChange }: CreateTaskModalProps) {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="type">Type</Label>
-              <Select value={type} onValueChange={(val: string) => {
-                setType(val as TaskType);
-                refreshDiscovery();
-              }}>
+	<Select value={type} onValueChange={(val: string) => {
+		setType(val as TaskType);
+		void refreshDiscovery();
+	}}>
                 <SelectTrigger id="type">
                   <SelectValue />
                 </SelectTrigger>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Editor, { type OnChange } from '@monaco-editor/react';
 import { Eye, PanelLeftOpen, PencilLine } from 'lucide-react';
-import { useTheme } from '@/contexts/ThemeContext';
+import { useTheme } from '@/contexts/useTheme';
 import { cn } from '@/lib/utils';
 import { useResizableSplitPanel } from '@/hooks/useResizableSplitPanel';
 import { useEditorPreferences } from '@/hooks/useEditorPreferences';

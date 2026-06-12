@@ -59,41 +59,50 @@ const SEVERITY_OPTIONS: Array<{ value: string; label: string }> = [
   { value: 'info', label: 'Info (allow info findings)' },
   { value: 'warning', label: 'Warning (allow warnings)' },
   { value: 'error', label: 'Error (allow errors)' },
-  { value: 'blocker', label: 'Blocker (allow blockers)' },
+	{ value: 'blocker', label: 'Blocker (allow blockers)' },
 ];
 
+const DEFAULT_OBJECTIVE: AutoSteerProfile['objective'] = {
+	dimension_weights: {},
+	targets: { max_open_severity: 'warning', operational_targets_pct: 0 },
+};
+
+const DEFAULT_BUDGET: AutoSteerProfile['budget'] = {
+	max_iterations: 40,
+	diminishing_returns_floor: 0.02,
+	reaudit_cadence: 5,
+};
+
 function emptyProfile(): Partial<AutoSteerProfile> {
-  return {
-    name: '',
-    description: '',
-    tags: [],
-    objective: {
-      dimension_weights: {},
-      targets: { max_open_severity: 'warning', operational_targets_pct: 0 },
-    },
-    allowed_skills: [],
-    budget: { max_iterations: 40, diminishing_returns_floor: 0.02, reaudit_cadence: 5 },
-    audit_preset: 'comprehensive',
-  };
+	return {
+		name: '',
+		description: '',
+		tags: [],
+		objective: structuredClone(DEFAULT_OBJECTIVE),
+		allowed_skills: [],
+		budget: { ...DEFAULT_BUDGET },
+		audit_preset: 'comprehensive',
+	};
 }
 
 function hydrate(source: Partial<AutoSteerProfile>): Partial<AutoSteerProfile> {
-  const base = emptyProfile();
-  const clone = JSON.parse(JSON.stringify(source)) as Partial<AutoSteerProfile>;
-  return {
-    ...base,
-    ...clone,
-    objective: {
-      dimension_weights: clone.objective?.dimension_weights ?? {},
-      targets: {
-        max_open_severity: clone.objective?.targets?.max_open_severity ?? base.objective!.targets.max_open_severity,
-        operational_targets_pct: clone.objective?.targets?.operational_targets_pct ?? 0,
-      },
-    },
-    allowed_skills: (clone.allowed_skills ?? []).map((s) => normalizeSkillId(s)).filter(Boolean),
-    budget: { ...base.budget!, ...(clone.budget ?? {}) },
-    tags: clone.tags ?? [],
-  };
+	const base = emptyProfile();
+	const clone = JSON.parse(JSON.stringify(source)) as Partial<AutoSteerProfile>;
+	const sourceObjective = clone.objective ?? DEFAULT_OBJECTIVE;
+	return {
+		...base,
+		...clone,
+		objective: {
+			dimension_weights: sourceObjective.dimension_weights,
+			targets: {
+				max_open_severity: sourceObjective.targets.max_open_severity ?? DEFAULT_OBJECTIVE.targets.max_open_severity,
+				operational_targets_pct: sourceObjective.targets.operational_targets_pct ?? 0,
+			},
+		},
+		allowed_skills: (clone.allowed_skills ?? []).map((s) => normalizeSkillId(s)).filter(Boolean),
+		budget: { ...DEFAULT_BUDGET, ...clone.budget },
+		tags: clone.tags ?? [],
+	};
 }
 
 export function AutoSteerProfileEditorModal({
@@ -103,9 +112,9 @@ export function AutoSteerProfileEditorModal({
   prefillData,
 }: AutoSteerProfileEditorModalProps) {
   const createProfile = useCreateAutoSteerProfile();
-  const updateProfile = useUpdateAutoSteerProfile();
-  const { data: dimensions = [], isLoading: dimensionsLoading } = useAutoSteerDimensions();
-  const { data: skillOptions = [], isLoading: skillsLoading } = useMergedSkillNames();
+	const updateProfile = useUpdateAutoSteerProfile();
+	const { data: dimensions = [], isLoading: dimensionsLoading } = useAutoSteerDimensions();
+	const { data: skillOptions, isLoading: skillsLoading } = useMergedSkillNames();
 
   const [local, setLocal] = useState<Partial<AutoSteerProfile>>(emptyProfile());
   const [saveError, setSaveError] = useState<SaveError | null>(null);
@@ -122,44 +131,45 @@ export function AutoSteerProfileEditorModal({
     setSaveError(null);
   }, [open, profile, prefillData]);
 
-  const objective = local.objective ?? emptyProfile().objective!;
-  const budget = local.budget ?? emptyProfile().budget!;
+	const objective = local.objective ?? DEFAULT_OBJECTIVE;
+	const budget = local.budget ?? DEFAULT_BUDGET;
 
   const skillPickerOptions = useMemo(
     () => skillOptions.map((s) => ({ id: s.id, name: s.name })),
     [skillOptions],
   );
 
-  const setObjective = (next: Partial<AutoSteerProfile['objective']>) => {
-    setLocal((prev) => ({
-      ...prev,
-      objective: { ...(prev.objective ?? emptyProfile().objective!), ...next },
-    }));
-    if (saveError) setSaveError(null);
-  };
+	const setObjective = (next: Partial<AutoSteerProfile['objective']>) => {
+		setLocal((prev) => ({
+			...prev,
+			objective: { ...(prev.objective ?? DEFAULT_OBJECTIVE), ...next },
+		}));
+		if (saveError) setSaveError(null);
+	};
 
   const setTargets = (next: Partial<AutoSteerProfile['objective']['targets']>) => {
     setObjective({ targets: { ...objective.targets, ...next } });
   };
 
-  const setBudget = (next: Partial<AutoSteerProfile['budget']>) => {
-    setLocal((prev) => ({
-      ...prev,
-      budget: { ...(prev.budget ?? emptyProfile().budget!), ...next },
-    }));
-    if (saveError) setSaveError(null);
-  };
+	const setBudget = (next: Partial<AutoSteerProfile['budget']>) => {
+		setLocal((prev) => ({
+			...prev,
+			budget: { ...(prev.budget ?? DEFAULT_BUDGET), ...next },
+		}));
+		if (saveError) setSaveError(null);
+	};
 
   const updateField = (field: keyof AutoSteerProfile, value: unknown) => {
     setLocal((prev) => ({ ...prev, [field]: value }));
     if (saveError) setSaveError(null);
   };
 
-  const buildPayload = (): AutoSteerProfile => {
-    const allowed = (local.allowed_skills ?? []).map((s) => normalizeSkillId(s)).filter(Boolean);
-    return {
-      ...(local as AutoSteerProfile),
-      name: local.name!.trim(),
+	const buildPayload = (): AutoSteerProfile => {
+		const allowed = (local.allowed_skills ?? []).map((s) => normalizeSkillId(s)).filter(Boolean);
+		const name = local.name?.trim() ?? '';
+		return {
+			...(local as AutoSteerProfile),
+			name,
       description: local.description?.trim() ?? '',
       tags: local.tags ?? [],
       allowed_skills: Array.from(new Set(allowed)),

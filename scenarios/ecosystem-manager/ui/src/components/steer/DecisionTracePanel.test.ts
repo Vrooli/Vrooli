@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatRealizedDelta, sumCounts, topDimensions } from './DecisionTracePanel';
+import { formatRealizedDelta, sumCounts, topDimensions } from './DecisionTracePanel.helpers';
 import type { DecisionTraceEntry } from '@/types/api';
 
 function entry(overrides: Partial<DecisionTraceEntry> = {}): DecisionTraceEntry {

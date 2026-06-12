@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-func TestTraceStore_PersistsCreditSplit(t *testing.T) {
+func TestTraceStore_PersistsCreditSplit(t *testing.T) { // [REQ:EM-P1-006]
 	pg, cleanup := SetupTestDatabase(t)
 	if pg == nil {
 		return // Docker unavailable; SetupTestDatabase skipped.

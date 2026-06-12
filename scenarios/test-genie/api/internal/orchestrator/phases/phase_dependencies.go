@@ -4,14 +4,11 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"path/filepath"
 
 	vroolicli "github.com/vrooli/vrooli-cli-go"
 
 	"test-genie/internal/dependencies"
-	"test-genie/internal/dependencies/resources"
 	"test-genie/internal/orchestrator/workspace"
-	"test-genie/internal/shared"
 )
 
 // cliClient is the shared typed Vrooli CLI client used to read live resource
@@ -31,16 +28,12 @@ func runDependenciesPhase(ctx context.Context, env workspace.Environment, logWri
 				AppRoot:                          env.AppRoot,
 				CommandLookup:                    commandLookup,
 				SkipResourceHealthWhenNoRequired: env.Mapping.HasLogicalPlacement(),
+				ScenarioStatusFetcher:            cliClient,
+				ResourceStatusFetcher:            cliClient,
 			}
 
 			opts := []dependencies.Option{
 				dependencies.WithLogger(logWriter),
-			}
-
-			// Try to set up resource health checking if vrooli CLI is available
-			resourceChecker := createResourceChecker(env, logWriter)
-			if resourceChecker != nil {
-				opts = append(opts, dependencies.WithResourceChecker(resourceChecker))
 			}
 
 			runner := dependencies.New(config, opts...)
@@ -64,24 +57,4 @@ func runDependenciesPhase(ctx context.Context, env workspace.Environment, logWri
 
 	writePhasePointer(env, "dependencies", report, map[string]any{"summary": summary}, logWriter)
 	return report
-}
-
-// createResourceChecker builds a resource health checker when the vrooli CLI is
-// available. The scenario's required resources come from its service manifest;
-// live health comes from `vrooli resource status --json` via the shared client.
-// Returns nil (health check skipped) when the CLI or manifest is unavailable.
-func createResourceChecker(env workspace.Environment, logWriter io.Writer) resources.HealthChecker {
-	if err := EnsureCommandAvailable("vrooli"); err != nil {
-		shared.LogWarn(logWriter, "vrooli CLI unavailable, skipping resource health checks: %v", err)
-		return nil
-	}
-
-	manifestPath := filepath.Join(env.ScenarioDir, ".vrooli", "service.json")
-	manifest, err := workspace.LoadServiceManifest(manifestPath)
-	if err != nil {
-		shared.LogWarn(logWriter, "could not load service manifest, skipping resource health checks: %v", err)
-		return nil
-	}
-
-	return resources.NewChecker(manifest.RequiredResources(), cliClient, logWriter)
 }

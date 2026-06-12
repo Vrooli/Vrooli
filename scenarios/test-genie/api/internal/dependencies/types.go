@@ -52,15 +52,18 @@ type RunResult = shared.RunResult[ValidationSummary]
 
 // ValidationSummary tracks validation counts by category.
 type ValidationSummary struct {
-	CommandsChecked  int
-	RuntimesDetected int
-	ManagersDetected int
-	ResourcesChecked int
+	CommandsChecked     int
+	RuntimesDetected    int
+	ManagersDetected    int
+	GoModulesChecked    int
+	NodePackagesChecked int
+	ResourcesChecked    int
+	ScenariosChecked    int
 }
 
 // TotalChecks returns the total number of items checked.
 func (s ValidationSummary) TotalChecks() int {
-	return s.CommandsChecked + s.RuntimesDetected + s.ManagersDetected + s.ResourcesChecked
+	return s.CommandsChecked + s.RuntimesDetected + s.ManagersDetected + s.GoModulesChecked + s.NodePackagesChecked + s.ResourcesChecked + s.ScenariosChecked
 }
 
 // String returns a human-readable summary of validation counts.
@@ -75,8 +78,17 @@ func (s ValidationSummary) String() string {
 	if s.ManagersDetected > 0 {
 		parts = append(parts, fmt.Sprintf("%d managers", s.ManagersDetected))
 	}
+	if s.GoModulesChecked > 0 {
+		parts = append(parts, fmt.Sprintf("%d Go modules", s.GoModulesChecked))
+	}
+	if s.NodePackagesChecked > 0 {
+		parts = append(parts, fmt.Sprintf("%d Node workspaces", s.NodePackagesChecked))
+	}
 	if s.ResourcesChecked > 0 {
 		parts = append(parts, fmt.Sprintf("%d resources", s.ResourcesChecked))
+	}
+	if s.ScenariosChecked > 0 {
+		parts = append(parts, fmt.Sprintf("%d scenario dependencies", s.ScenariosChecked))
 	}
 	if len(parts) == 0 {
 		return "no checks performed"

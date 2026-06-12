@@ -14,7 +14,7 @@ func TestRunCostKnown(t *testing.T) {
 	}
 }
 
-func TestOrchestratorRunCostStash(t *testing.T) {
+func TestOrchestratorRunCostStash(t *testing.T) { // [REQ:EM-P1-001]
 	o := &ExecutionOrchestrator{pendingCost: make(map[string]RunCost)}
 
 	// Unknown costs are not stashed.

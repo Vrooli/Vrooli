@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestWithEngagedShadowScenario(t *testing.T) {
+func TestWithEngagedShadowScenario(t *testing.T) { // [REQ:EM-BASE-002]
 	cases := []struct {
 		name     string
 		base     map[string]string
