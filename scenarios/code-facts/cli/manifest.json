@@ -1,0 +1,71 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "code-facts",
+  "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "groups": [
+    {
+      "name": "notes",
+      "description": "Manage notes (CRUD reference)",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List all notes",
+          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "ListNotes" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a note",
+          "flags": [
+            { "name": "title", "required": true, "description": "Note title" },
+            { "name": "body", "description": "Note body" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "CreateNote" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get a note by id",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Note id" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "GetNote" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "count",
+          "description": "Count notes created in a time window (template reference command)",
+          "flags": [
+            { "name": "window", "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "CountNotes" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": [
+      { "domain": "notes", "stateful": true, "reason": "Template reference domain only; Code Facts product measures will be declared when real fact/cache domains are implemented." }
+    ],
+    "omitted": [
+      { "domain": "notes", "reason": "Template reference domain only; not part of the Code Facts product contract." }
+    ]
+  }
+}
