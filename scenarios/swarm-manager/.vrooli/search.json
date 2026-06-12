@@ -1,0 +1,36 @@
+{
+  "$schema": "../../../scripts/scenarios/schemas/search.schema.json",
+  "version": "1.0.0",
+  "providers": [
+    {
+      "provider_id": "swarm-manager.records",
+      "provider_group": "swarm-manager",
+      "bucket": "BUCKET_KNOW",
+      "type": "record",
+      "description": "Swarm-manager work records — durable narrative write-ups of completed fixes, features, refactors, and investigations across every scenario (the recursive-learning loop's memory). Route here to learn how a prior agent solved a problem: each hit carries the trigger that prompted the work and the approach that was taken, not just an id.",
+      "scope": "SCOPE_PROJECT",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "swarm-manager",
+          "path": "/api/v1/records/search",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}}}",
+          "headers": { "Content-Type": "application/json" }
+        }
+      },
+      "result_mapping": {
+        "results_path": "hits",
+        "id_field": "record.id",
+        "title_field": "record.trigger",
+        "snippet_field": "record.approach",
+        "score_field": "score",
+        "path_field": "record.id",
+        "score_scale": "SCORE_SCALE_COSINE_0_1"
+      },
+      "tuning": {
+        "engine": "dense",
+        "embed_model": "nomic-embed-text"
+      }
+    }
+  ]
+}

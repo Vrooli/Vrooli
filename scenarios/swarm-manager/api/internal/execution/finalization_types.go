@@ -46,7 +46,6 @@ const (
 	finalizationWarningRestartRetry              = "restart_retry"
 	finalizationWarningHealthRetry               = "health_retry"
 	finalizationWarningHealthSchemaInvalid       = "health_schema_invalid"
-	finalizationWarningHealthChecksMissing       = "health_checks_missing"
 	finalizationWarningReviewSkipped             = "review_skipped"
 	finalizationWarningFinalizationInfra         = "finalization_infrastructure"
 	finalizationWarningBaselineScopeExpanded     = "baseline_scope_expanded_no_baseline"

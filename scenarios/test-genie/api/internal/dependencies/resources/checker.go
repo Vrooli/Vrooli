@@ -2,17 +2,20 @@ package resources
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
+
+	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	"test-genie/internal/structure/types"
 )
 
-// HealthChecker validates that required resources are healthy.
+// HealthChecker validates that a scenario's required resources are healthy.
 type HealthChecker interface {
-	// Check verifies all required resources are running and healthy.
+	// Check verifies every required resource is running and healthy.
 	Check(ctx context.Context) HealthResult
 }
 
@@ -34,124 +37,99 @@ type HealthResult struct {
 	Observations []types.Observation
 }
 
-// StatusFetcher abstracts scenario status fetching for testing.
-type StatusFetcher interface {
-	// Fetch retrieves the scenario status report.
-	Fetch(ctx context.Context) (*ScenarioStatus, error)
+// ResourceStatusFetcher abstracts live resource-health retrieval — the typed
+// `vrooli resource status --json` contract — so the checker is unit-testable.
+// *vroolicli.Client satisfies this directly.
+type ResourceStatusFetcher interface {
+	ResourceStatuses(ctx context.Context) (*cliv1.ResourceStatusesResponse, error)
 }
 
-// ScenarioStatus represents the scenario status from vrooli CLI.
-type ScenarioStatus struct {
-	Diagnostics Diagnostics `json:"diagnostics"`
-	Insights    Insights    `json:"insights"`
-}
-
-// Diagnostics contains health check diagnostics.
-type Diagnostics struct {
-	HealthChecks map[string]HealthCheckDiagnostics `json:"health_checks"`
-}
-
-// HealthCheckDiagnostics contains health check status for a component.
-type HealthCheckDiagnostics struct {
-	Status       string                      `json:"status"`
-	Available    bool                        `json:"available"`
-	Dependencies map[string]DependencyStatus `json:"dependencies"`
-}
-
-// DependencyStatus represents a dependency's connection status.
-type DependencyStatus struct {
-	Connected bool `json:"connected"`
-}
-
-// Insights contains resource insights.
-type Insights struct {
-	Resources ResourceInsights `json:"resources"`
-}
-
-// ResourceInsights contains resource telemetry.
-type ResourceInsights struct {
-	Items []ResourceTelemetry `json:"items"`
-}
-
-// ResourceTelemetry contains telemetry for a single resource.
-type ResourceTelemetry struct {
-	Name     string `json:"name"`
-	Required bool   `json:"required"`
-	Running  bool   `json:"running"`
-	Healthy  bool   `json:"healthy"`
-	Enabled  bool   `json:"enabled"`
-}
-
-// checker is the default implementation of HealthChecker.
+// checker is the default implementation of HealthChecker. It cross-references
+// the scenario's declared required resources (from its service manifest)
+// against live health reported by the Vrooli CLI.
 type checker struct {
-	statusFetcher StatusFetcher
-	logWriter     io.Writer
+	requiredResources []string
+	fetcher           ResourceStatusFetcher
+	logWriter         io.Writer
 }
 
-// NewChecker creates a new health checker.
-func NewChecker(statusFetcher StatusFetcher, logWriter io.Writer) HealthChecker {
+// NewChecker creates a resource health checker. requiredResources is the set of
+// resource names the scenario declares as required; fetcher supplies live
+// resource health from the Vrooli CLI.
+func NewChecker(requiredResources []string, fetcher ResourceStatusFetcher, logWriter io.Writer) HealthChecker {
 	return &checker{
-		statusFetcher: statusFetcher,
-		logWriter:     logWriter,
+		requiredResources: requiredResources,
+		fetcher:           fetcher,
+		logWriter:         logWriter,
 	}
 }
 
 // Check implements HealthChecker.
 func (c *checker) Check(ctx context.Context) HealthResult {
-	status, err := c.statusFetcher.Fetch(ctx)
-	if err != nil {
-		c.logWarn("resource telemetry unavailable: %v", err)
-		// Not a failure - telemetry may be unavailable if scenario isn't running
+	if len(c.requiredResources) == 0 {
 		return HealthResult{
 			Success: true,
 			Observations: []types.Observation{
-				types.NewInfoObservation("resource telemetry unavailable (scenario may not be running)"),
+				types.NewInfoObservation("scenario declares no required resources; skipping resource health check"),
 			},
+		}
+	}
+
+	resp, err := c.fetcher.ResourceStatuses(ctx)
+	if err != nil {
+		// A read failure is a real gate failure: we cannot confirm that the
+		// scenario's required resources are up, so we must not pass. (This is the
+		// correctness fix — the previous implementation parsed scenario-status
+		// fields the CLI no longer emits and silently always passed.)
+		c.logWarn("resource status unavailable: %v", err)
+		return HealthResult{
+			Success:      false,
+			Error:        fmt.Errorf("unable to read resource status: %w", err),
+			FailureClass: types.FailureClass("missing_dependency"),
+			Remediation:  "Ensure the vrooli CLI is available and resources are installed, then rerun the dependency phase.",
+		}
+	}
+
+	byName := make(map[string]*cliv1.ResourceStatus, len(resp.GetResources()))
+	for _, rs := range resp.GetResources() {
+		if name := rs.GetResource().GetName(); name != "" {
+			byName[name] = rs
 		}
 	}
 
 	var observations []types.Observation
 	var failures []string
+	for _, name := range c.requiredResources {
+		rs, ok := byName[name]
+		if !ok {
+			failures = append(failures, fmt.Sprintf("%s (not found)", name))
+			continue
+		}
 
-	// Check resource health
-	for _, resource := range status.Insights.Resources.Items {
-		if !resource.Required {
-			continue
-		}
-		if resource.Running && resource.Healthy {
+		running := rs.GetRunning()
+		healthy, known := resourceHealthy(rs)
+		switch {
+		case !running:
+			failures = append(failures, fmt.Sprintf("%s (running=false)", name))
+		case known && !healthy:
+			failures = append(failures, fmt.Sprintf("%s (running=true healthy=false)", name))
+		case !known:
 			observations = append(observations, types.NewSuccessObservation(
-				fmt.Sprintf("resource healthy: %s", resource.Name),
-			))
-			continue
+				fmt.Sprintf("resource running (health not probed): %s", name)))
+		default:
+			observations = append(observations, types.NewSuccessObservation(
+				fmt.Sprintf("resource healthy: %s", name)))
 		}
-		failures = append(failures, fmt.Sprintf(
-			"%s (running=%t healthy=%t)",
-			resource.Name, resource.Running, resource.Healthy,
-		))
 	}
 
 	if len(failures) > 0 {
+		sort.Strings(failures)
 		return HealthResult{
 			Success:      false,
 			Error:        fmt.Errorf("required resources unhealthy: %s", strings.Join(failures, ", ")),
-			FailureClass: "missing_dependency",
-			Remediation:  "Start the missing resources (see `vrooli resources status`) or restart the scenario before rerunning tests.",
+			FailureClass: types.FailureClass("missing_dependency"),
+			Remediation:  "Start the missing resources (see `vrooli resource status`) or restart the scenario before rerunning tests.",
 			Observations: observations,
-		}
-	}
-
-	// Check API dependencies
-	if apiHealth, ok := status.Diagnostics.HealthChecks["api"]; ok {
-		for name, dependency := range apiHealth.Dependencies {
-			if !dependency.Connected {
-				return HealthResult{
-					Success:      false,
-					Error:        fmt.Errorf("API dependency '%s' is not connected", name),
-					FailureClass: "missing_dependency",
-					Remediation:  fmt.Sprintf("Ensure %s is running and reachable, then restart the API.", name),
-					Observations: observations,
-				}
-			}
 		}
 	}
 
@@ -159,6 +137,21 @@ func (c *checker) Check(ctx context.Context) HealthResult {
 		Success:      true,
 		Observations: observations,
 	}
+}
+
+// resourceHealthy reads the tri-state `healthy` probe from a resource status
+// (a bool when the probe was evaluated, null when it was not). known is false
+// when the resource has no evaluated health probe, in which case the caller
+// treats a running resource as acceptable rather than failing on absent data.
+func resourceHealthy(rs *cliv1.ResourceStatus) (healthy bool, known bool) {
+	v := rs.GetHealthy()
+	if v == nil {
+		return false, false
+	}
+	if b, ok := v.GetKind().(*structpb.Value_BoolValue); ok {
+		return b.BoolValue, true
+	}
+	return false, false
 }
 
 // logWarn writes a warning message to the log.
@@ -170,39 +163,4 @@ func (c *checker) logWarn(format string, args ...interface{}) {
 	fmt.Fprintf(c.logWriter, "[WARNING] %s\n", msg)
 }
 
-// CLIStatusFetcher fetches status by executing vrooli CLI.
-type CLIStatusFetcher struct {
-	ScenarioName  string
-	AppRoot       string
-	CommandRunner CommandRunner
-	LogWriter     io.Writer
-}
-
-// CommandRunner abstracts command execution for testing.
-type CommandRunner interface {
-	// Run executes a command and returns its output.
-	Run(ctx context.Context, dir string, name string, args ...string) (string, error)
-}
-
-// Fetch implements StatusFetcher.
-func (f *CLIStatusFetcher) Fetch(ctx context.Context) (*ScenarioStatus, error) {
-	if f.CommandRunner == nil {
-		return nil, fmt.Errorf("command runner not configured")
-	}
-
-	if f.LogWriter != nil {
-		fmt.Fprintf(f.LogWriter, "collecting scenario status via 'vrooli scenario status %s --json'\n", f.ScenarioName)
-	}
-
-	output, err := f.CommandRunner.Run(ctx, f.AppRoot, "vrooli", "scenario", "status", f.ScenarioName, "--json")
-	if err != nil {
-		return nil, fmt.Errorf("vrooli scenario status failed: %w", err)
-	}
-
-	var status ScenarioStatus
-	if err := json.Unmarshal([]byte(output), &status); err != nil {
-		return nil, fmt.Errorf("failed to parse scenario status JSON: %w", err)
-	}
-
-	return &status, nil
-}
+var _ HealthChecker = (*checker)(nil)

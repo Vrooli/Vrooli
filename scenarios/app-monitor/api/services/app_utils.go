@@ -2,11 +2,9 @@ package services
 
 import (
 	"app-monitor-api/repository"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os/exec"
 	"sort"
 	"strconv"
 	"strings"
@@ -623,22 +621,7 @@ func buildLocalAPIURL(port int, path string) string {
 // =============================================================================
 // CLI Command Execution Utilities
 // =============================================================================
-
-// executeVrooliCommand wraps vrooli CLI execution with consistent timeouts and error handling.
-// This provides a single point for all vrooli command invocations, making it easier to:
-// - Add logging/metrics for CLI calls
-// - Mock commands in tests
-// - Ensure consistent error messages
-// - Change timeout strategies globally
-func executeVrooliCommand(ctx context.Context, timeout time.Duration, args ...string) ([]byte, error) {
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", args...)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return nil, fmt.Errorf("vrooli %s failed: %w (output: %s)",
-			strings.Join(args, " "), err, strings.TrimSpace(string(output)))
-	}
-	return output, nil
-}
+//
+// Vrooli CLI execution now goes through the shared typed client (cliClient,
+// see app_resources.go). Typed `--json` commands use its decode methods;
+// fire-and-forget commands use cliClient.Output().

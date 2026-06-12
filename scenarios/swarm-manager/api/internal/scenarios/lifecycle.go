@@ -12,6 +12,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	vroolicli "github.com/vrooli/vrooli-cli-go"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/swarm-manager/v1/api"
 )
 
@@ -33,6 +34,7 @@ type Lifecycle interface {
 
 // CLILifecycle executes lifecycle actions via the Vrooli CLI.
 type CLILifecycle struct {
+	client         *vroolicli.Client
 	startTimeout   time.Duration
 	stopTimeout    time.Duration
 	restartTimeout time.Duration
@@ -41,40 +43,41 @@ type CLILifecycle struct {
 // NewCLILifecycle creates a CLI-backed lifecycle controller.
 func NewCLILifecycle() *CLILifecycle {
 	return &CLILifecycle{
+		client:         vroolicli.New(),
 		startTimeout:   defaultStartTimeout,
 		stopTimeout:    defaultStopTimeout,
 		restartTimeout: defaultRestartTimeout,
 	}
 }
 
-// Start starts a scenario using the Vrooli CLI.
-func (c *CLILifecycle) Start(ctx context.Context, name string) error {
+// run executes a lifecycle verb under a per-action timeout. The bounded context
+// is honored by the client (which only applies its own default when the caller
+// supplies no deadline), so each verb keeps its distinct budget. OutputCombined
+// surfaces any stderr text the CLI prints as part of the error.
+func (c *CLILifecycle) run(ctx context.Context, timeout time.Duration, name, verb string) error {
 	trimmed := strings.TrimSpace(name)
 	if trimmed == "" {
 		return errScenarioNameRequired
 	}
-	_, err := executeVrooliCommand(ctx, c.startTimeout, "scenario", "start", trimmed)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	_, err := c.client.OutputCombined(ctx, "scenario", verb, trimmed)
 	return err
+}
+
+// Start starts a scenario using the Vrooli CLI.
+func (c *CLILifecycle) Start(ctx context.Context, name string) error {
+	return c.run(ctx, c.startTimeout, name, "start")
 }
 
 // Stop stops a scenario using the Vrooli CLI.
 func (c *CLILifecycle) Stop(ctx context.Context, name string) error {
-	trimmed := strings.TrimSpace(name)
-	if trimmed == "" {
-		return errScenarioNameRequired
-	}
-	_, err := executeVrooliCommand(ctx, c.stopTimeout, "scenario", "stop", trimmed)
-	return err
+	return c.run(ctx, c.stopTimeout, name, "stop")
 }
 
 // Restart restarts a scenario using the Vrooli CLI.
 func (c *CLILifecycle) Restart(ctx context.Context, name string) error {
-	trimmed := strings.TrimSpace(name)
-	if trimmed == "" {
-		return errScenarioNameRequired
-	}
-	_, err := executeVrooliCommand(ctx, c.restartTimeout, "scenario", "restart", trimmed)
-	return err
+	return c.run(ctx, c.restartTimeout, name, "restart")
 }
 
 // Start starts a scenario via the Vrooli CLI.

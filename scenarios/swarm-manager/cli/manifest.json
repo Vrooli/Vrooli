@@ -1,0 +1,161 @@
+{
+  "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "swarm-manager",
+  "description": "swarm-manager declared measures surface. This manifest is the SSOT for the scenario's analytical measures (the granular replacement for the monolithic /stats blob); it is consumed by measures-health (coverage + behavioral probe) and the search-hub central index. swarm-manager's broader CLI is hand-registered (not yet manifest-driven); only the measures contract is modeled here.",
+  "groups": [
+    {
+      "name": "backlog",
+      "description": "Backlog work-item measures.",
+      "commands": [
+        {
+          "name": "completed",
+          "description": "Count backlog items completed in a time window.",
+          "flags": [
+            { "name": "window", "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)." }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "MeasuresService", "method": "CountBacklogCompleted" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "measure": {
+            "domain": "backlog",
+            "intent": "How many backlog items were completed in a time window.",
+            "questions": [
+              "how many backlog items did we complete this week",
+              "backlog items closed last month",
+              "how many work items were finished in the last 7 days"
+            ],
+            "params": { "window": { "type": "time_window", "default": "this_week" } },
+            "result": { "kind": "scalar", "value_field": "count", "unit": "items", "summary_template": "{count} backlog items completed ({window})" }
+          }
+        },
+        {
+          "name": "created",
+          "description": "Count backlog items created in a time window.",
+          "flags": [
+            { "name": "window", "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)." }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "MeasuresService", "method": "CountBacklogCreated" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "measure": {
+            "domain": "backlog",
+            "intent": "How many backlog items were created in a time window.",
+            "questions": [
+              "how many backlog items were created this week",
+              "new work items added last month",
+              "how many backlog items did we add in the last 30 days"
+            ],
+            "params": { "window": { "type": "time_window", "default": "this_week" } },
+            "result": { "kind": "scalar", "value_field": "count", "unit": "items", "summary_template": "{count} backlog items created ({window})" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "execution",
+      "description": "Execution lifecycle measures.",
+      "commands": [
+        {
+          "name": "completed",
+          "description": "Count executions completed in a time window.",
+          "flags": [
+            { "name": "window", "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)." }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "MeasuresService", "method": "CountExecutionsCompleted" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "measure": {
+            "domain": "execution",
+            "intent": "How many executions completed in a time window.",
+            "questions": [
+              "how many executions completed this week",
+              "agent executions finished last month",
+              "how many runs completed in the last 7 days"
+            ],
+            "params": { "window": { "type": "time_window", "default": "this_week" } },
+            "result": { "kind": "scalar", "value_field": "count", "unit": "executions", "summary_template": "{count} executions completed ({window})" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "initiative",
+      "description": "Initiative measures.",
+      "commands": [
+        {
+          "name": "created",
+          "description": "Count initiatives created in a time window.",
+          "flags": [
+            { "name": "window", "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)." }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "MeasuresService", "method": "CountInitiativesCreated" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "measure": {
+            "domain": "initiative",
+            "intent": "How many initiatives were created in a time window.",
+            "questions": [
+              "how many initiatives were created this week",
+              "new initiatives started last month",
+              "how many initiatives did we open this quarter"
+            ],
+            "params": { "window": { "type": "time_window", "default": "this_week" } },
+            "result": { "kind": "scalar", "value_field": "count", "unit": "initiatives", "summary_template": "{count} initiatives created ({window})" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "agent_session",
+      "description": "Native agent-session measures.",
+      "commands": [
+        {
+          "name": "created",
+          "description": "Count agent sessions created in a time window.",
+          "flags": [
+            { "name": "window", "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)." }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "MeasuresService", "method": "CountAgentSessionsCreated" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] },
+          "measure": {
+            "domain": "agent_session",
+            "intent": "How many agent sessions were created in a time window.",
+            "questions": [
+              "how many agent sessions were created this week",
+              "new conversations started last month",
+              "how many agent sessions did we open in the last 7 days"
+            ],
+            "params": { "window": { "type": "time_window", "default": "this_week" } },
+            "result": { "kind": "scalar", "value_field": "count", "unit": "sessions", "summary_template": "{count} agent sessions created ({window})" }
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "omitted": [
+      {
+        "domain": "capture",
+        "reason": "Captures are an ephemeral pre-triage inbox: they are converted into backlog items and initiatives (counted there) and emit no creation event of their own, so they carry no durable historical value to measure independently."
+      }
+    ],
+    "domains": [
+      {
+        "domain": "agent_activity",
+        "stateful": false,
+        "reason": "agent_activity is a live, derived view of in-flight agent-manager runs (a polling projection), not a persisted swarm-manager entity; it has no event-log presence and no countable historical rows."
+      },
+      {
+        "domain": "graph",
+        "stateful": false,
+        "reason": "graph holds structural/presentation node positions for the workspace canvas, not historical countable rows."
+      },
+      {
+        "domain": "operations",
+        "stateful": false,
+        "reason": "operations is a computed operations-briefing summary derived on read from other domains, not a persisted entity with its own rows."
+      },
+      {
+        "domain": "scenario",
+        "stateful": false,
+        "reason": "scenario is a read-through catalog of the scenarios/ directory (configuration metadata), not swarm-manager-owned persisted state."
+      }
+    ]
+  }
+}

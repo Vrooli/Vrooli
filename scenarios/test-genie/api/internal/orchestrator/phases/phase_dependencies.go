@@ -4,12 +4,19 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"path/filepath"
+
+	vroolicli "github.com/vrooli/vrooli-cli-go"
 
 	"test-genie/internal/dependencies"
 	"test-genie/internal/dependencies/resources"
 	"test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/shared"
 )
+
+// cliClient is the shared typed Vrooli CLI client used to read live resource
+// health for the dependency phase.
+var cliClient = vroolicli.New()
 
 // runDependenciesPhase validates runtime/tool requirements using the dependencies package.
 // This includes baseline commands, language runtimes, package managers, and resources.
@@ -31,7 +38,7 @@ func runDependenciesPhase(ctx context.Context, env workspace.Environment, logWri
 			}
 
 			// Try to set up resource health checking if vrooli CLI is available
-			resourceChecker := createResourceChecker(ctx, env, logWriter)
+			resourceChecker := createResourceChecker(env, logWriter)
 			if resourceChecker != nil {
 				opts = append(opts, dependencies.WithResourceChecker(resourceChecker))
 			}
@@ -59,55 +66,22 @@ func runDependenciesPhase(ctx context.Context, env workspace.Environment, logWri
 	return report
 }
 
-// createResourceChecker creates a resource health checker if the vrooli CLI is available.
-func createResourceChecker(ctx context.Context, env workspace.Environment, logWriter io.Writer) resources.HealthChecker {
-	// Check if vrooli CLI is available
+// createResourceChecker builds a resource health checker when the vrooli CLI is
+// available. The scenario's required resources come from its service manifest;
+// live health comes from `vrooli resource status --json` via the shared client.
+// Returns nil (health check skipped) when the CLI or manifest is unavailable.
+func createResourceChecker(env workspace.Environment, logWriter io.Writer) resources.HealthChecker {
 	if err := EnsureCommandAvailable("vrooli"); err != nil {
 		shared.LogWarn(logWriter, "vrooli CLI unavailable, skipping resource health checks: %v", err)
 		return nil
 	}
 
-	// Determine app root
-	appRoot := env.AppRoot
-	if appRoot == "" {
-		appRoot = workspace.AppRootFromScenario(env.ScenarioDir)
-	}
-
-	// Create CLI-based status fetcher
-	fetcher := &cliStatusFetcher{
-		scenarioName: env.ScenarioName,
-		appRoot:      appRoot,
-		logWriter:    logWriter,
-	}
-
-	return resources.NewChecker(fetcher, logWriter)
-}
-
-// cliStatusFetcher implements resources.StatusFetcher using the vrooli CLI.
-type cliStatusFetcher struct {
-	scenarioName string
-	appRoot      string
-	logWriter    io.Writer
-}
-
-// Fetch implements resources.StatusFetcher.
-func (f *cliStatusFetcher) Fetch(ctx context.Context) (*resources.ScenarioStatus, error) {
-	return fetchScenarioStatusForResources(ctx, f.scenarioName, f.appRoot, f.logWriter)
-}
-
-// fetchScenarioStatusForResources fetches scenario status and converts to resources types.
-func fetchScenarioStatusForResources(ctx context.Context, scenarioName, appRoot string, logWriter io.Writer) (*resources.ScenarioStatus, error) {
-	shared.LogStep(logWriter, "collecting scenario status via 'vrooli scenario status %s --json'", scenarioName)
-	output, err := phaseCommandCapture(ctx, appRoot, nil, "vrooli", "scenario", "status", scenarioName, "--json")
+	manifestPath := filepath.Join(env.ScenarioDir, ".vrooli", "service.json")
+	manifest, err := workspace.LoadServiceManifest(manifestPath)
 	if err != nil {
-		return nil, fmt.Errorf("vrooli scenario status failed: %w", err)
+		shared.LogWarn(logWriter, "could not load service manifest, skipping resource health checks: %v", err)
+		return nil
 	}
 
-	// Parse directly into resources.ScenarioStatus using shared helper
-	var status resources.ScenarioStatus
-	if err := ParseJSON(output, &status); err != nil {
-		return nil, fmt.Errorf("failed to parse scenario status JSON: %w", err)
-	}
-
-	return &status, nil
+	return resources.NewChecker(manifest.RequiredResources(), cliClient, logWriter)
 }

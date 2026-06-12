@@ -3,7 +3,6 @@ package services
 import (
 	"app-monitor-api/logger"
 	"context"
-	"encoding/json"
 	"fmt"
 	"os/exec"
 	"strconv"
@@ -188,25 +187,16 @@ func (s *MetricsService) getMemoryUsage(ctx context.Context) (float64, error) {
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", "--no-stale-check", "host", "inventory", "--json")
-	output, err := cmd.Output()
+	inv, err := cliClient.HostInventory(ctxWithTimeout)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get host inventory: %w", err)
 	}
-
-	var snapshot struct {
-		Memory struct {
-			TotalBytes     uint64 `json:"total_bytes"`
-			AvailableBytes uint64 `json:"available_bytes"`
-		} `json:"memory"`
-	}
-	if err := json.Unmarshal(output, &snapshot); err != nil {
-		return 0, fmt.Errorf("failed to parse host inventory: %w", err)
-	}
-	if snapshot.Memory.TotalBytes == 0 {
+	memory := inv.GetMemory()
+	if memory.GetTotalBytes() == 0 {
 		return 0, fmt.Errorf("host inventory did not report total memory")
 	}
-	mem := (float64(snapshot.Memory.TotalBytes-snapshot.Memory.AvailableBytes) / float64(snapshot.Memory.TotalBytes)) * 100
+	used := memory.GetTotalBytes() - memory.GetAvailableBytes()
+	mem := (float64(used) / float64(memory.GetTotalBytes())) * 100
 
 	// Ensure value is within valid range
 	if mem < 0 {

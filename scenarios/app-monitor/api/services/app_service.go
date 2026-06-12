@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -229,8 +228,9 @@ func (s *AppService) UpdateAppStatus(ctx context.Context, id string, status stri
 // StartApp starts an application using vrooli commands
 func (s *AppService) StartApp(ctx context.Context, appName string) error {
 	// Add timeout to prevent hanging (60s for start as it can take time)
-	_, err := executeVrooliCommand(ctx, 60*time.Second, "scenario", "run", appName)
-	if err != nil {
+	runCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+	if _, err := cliClient.Output(runCtx, "scenario", "run", appName); err != nil {
 		return fmt.Errorf("failed to start app %s: %w", appName, err)
 	}
 
@@ -249,8 +249,9 @@ func (s *AppService) StartApp(ctx context.Context, appName string) error {
 // StopApp stops an application using vrooli commands
 func (s *AppService) StopApp(ctx context.Context, appName string) error {
 	// Add timeout to prevent hanging (20s for stop to allow graceful shutdown)
-	_, err := executeVrooliCommand(ctx, 20*time.Second, "scenario", "stop", appName)
-	if err != nil {
+	stopCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	if _, err := cliClient.Output(stopCtx, "scenario", "stop", appName); err != nil {
 		return fmt.Errorf("failed to stop app %s: %w", appName, err)
 	}
 
@@ -269,8 +270,9 @@ func (s *AppService) StopApp(ctx context.Context, appName string) error {
 // RestartApp restarts an application using vrooli commands
 func (s *AppService) RestartApp(ctx context.Context, appName string) error {
 	// Restart may take longer due to stop + start sequencing
-	_, err := executeVrooliCommand(ctx, 90*time.Second, "scenario", "restart", appName)
-	if err != nil {
+	restartCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
+	defer cancel()
+	if _, err := cliClient.Output(restartCtx, "scenario", "restart", appName); err != nil {
 		return fmt.Errorf("failed to restart app %s: %w", appName, err)
 	}
 
@@ -540,15 +542,14 @@ func (s *AppService) runScenarioLogsCommand(ctx context.Context, appName string,
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", args...)
-	output, err := cmd.CombinedOutput()
+	output, err := cliClient.OutputCombined(ctxWithTimeout, args...)
 	if err != nil {
 		outStr := string(output)
 		lower := strings.ToLower(outStr)
 		if strings.Contains(lower, "not found") || strings.Contains(lower, "no such") {
 			return outStr, nil
 		}
-		return "", fmt.Errorf("failed to execute %s: %w (output: %s)", strings.Join(cmd.Args, " "), err, strings.TrimSpace(outStr))
+		return "", fmt.Errorf("failed to execute vrooli %s: %w (output: %s)", strings.Join(args, " "), err, strings.TrimSpace(outStr))
 	}
 
 	return string(output), nil

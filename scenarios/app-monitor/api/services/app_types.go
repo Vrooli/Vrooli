@@ -220,66 +220,6 @@ type AppService struct {
 // Orchestrator Types
 // =============================================================================
 
-// OrchestratorResponse represents the response from vrooli scenario status --json
-type OrchestratorResponse struct {
-	Success bool `json:"success"`
-	Summary struct {
-		TotalScenarios int `json:"total_scenarios"`
-		Running        int `json:"running"`
-		Stopped        int `json:"stopped"`
-	} `json:"summary"`
-	Scenarios []OrchestratorApp `json:"scenarios"`
-}
-
-// scenarioStatusDetailedResponse represents a detailed single-scenario status response
-type scenarioStatusDetailedResponse struct {
-	Success      bool   `json:"success"`
-	ScenarioName string `json:"scenario_name"`
-	Insights     struct {
-		Stack struct {
-			Components []string `json:"components"`
-			Tags       []string `json:"tags"`
-		} `json:"stack"`
-		Resources struct {
-			Items []scenarioResourceItem `json:"items"`
-		} `json:"resources"`
-	} `json:"insights"`
-}
-
-// scenarioResourceItem represents a single resource dependency
-type scenarioResourceItem struct {
-	Name        string  `json:"name"`
-	Type        string  `json:"type"`
-	Description string  `json:"description"`
-	Required    bool    `json:"required"`
-	Enabled     bool    `json:"enabled"`
-	Status      string  `json:"status"`
-	Running     bool    `json:"running"`
-	Healthy     bool    `json:"healthy"`
-	Installed   bool    `json:"installed"`
-	Note        *string `json:"note"`
-}
-
-// OrchestratorApp represents an app from the orchestrator
-type OrchestratorApp struct {
-	Name         string         `json:"name"`
-	DisplayName  string         `json:"display_name"`
-	Description  string         `json:"description"`
-	Status       string         `json:"status"`
-	HealthStatus *string        `json:"health_status"`
-	Ports        map[string]int `json:"ports"`
-	Processes    int            `json:"processes"`
-	Runtime      string         `json:"runtime"`
-	StartedAt    string         `json:"started_at,omitempty"`
-	Tags         []string       `json:"tags,omitempty"`
-}
-
-// scenarioListResponse represents the output from `vrooli scenario list --json`
-type scenarioListResponse struct {
-	Success   bool               `json:"success"`
-	Scenarios []scenarioMetadata `json:"scenarios"`
-}
-
 // scenarioMetadata captures static scenario details such as description and filesystem path
 type scenarioMetadata struct {
 	Name        string         `json:"name"`
@@ -411,40 +351,6 @@ type AppScenarioStatus struct {
 	Ports           map[string]int         `json:"ports,omitempty"`
 	Recommendations []string               `json:"recommendations,omitempty"`
 	Details         []string               `json:"details"`
-}
-
-// scenarioStatusCLIResponse represents the parsed JSON output from `vrooli scenario status --json`
-type scenarioStatusCLIResponse struct {
-	Success      bool   `json:"success"`
-	ScenarioName string `json:"scenario_name"`
-	ScenarioData struct {
-		Status         string                  `json:"status"`
-		Runtime        string                  `json:"runtime"`
-		StartedAt      string                  `json:"started_at"`
-		AllocatedPorts map[string]int          `json:"allocated_ports"`
-		Processes      []scenarioStatusProcess `json:"processes"`
-	} `json:"scenario_data"`
-	Diagnostics struct {
-		HealthChecks map[string]scenarioStatusHealthCheck `json:"health_checks"`
-	} `json:"diagnostics"`
-	TestInfrastructure scenarioStatusTestInfrastructure `json:"test_infrastructure"`
-	Recommendations    []string                         `json:"recommendations"`
-	Metadata           struct {
-		Timestamp string `json:"timestamp"`
-	} `json:"metadata"`
-	RawResponse struct {
-		Data struct {
-			Status string `json:"status"`
-		} `json:"data"`
-	} `json:"raw_response"`
-}
-
-type scenarioStatusProcess struct {
-	PID      int               `json:"pid"`
-	Status   string            `json:"status"`
-	StepName string            `json:"step_name"`
-	Ports    map[string]int    `json:"ports"`
-	Meta     map[string]string `json:"meta"`
 }
 
 type scenarioStatusConnectivity struct {
@@ -732,14 +638,29 @@ type IssueReportResult struct {
 // Completeness Score Types
 // =============================================================================
 
-// CompletenessResponse represents the raw output from `vrooli scenario completeness --json`
+// CompletenessResponse represents the output from
+// `vrooli scenario completeness score get <name> --json`. This data is owned by
+// the scenario-completeness-scoring scenario (which has its own proto contract);
+// app-monitor only needs the composite score + classification, so this maps that
+// subset. Full typing belongs to that scenario's proto, not vrooli.cli.v1.
 type CompletenessResponse struct {
-	Scenario        string   `json:"scenario"`
-	Category        string   `json:"category"`
-	Score           int      `json:"score"`
-	Classification  string   `json:"classification"`
-	Warnings        []string `json:"warnings,omitempty"`
-	Recommendations []string `json:"recommendations,omitempty"`
+	Scenario        string                       `json:"scenario"`
+	Category        string                       `json:"category"`
+	Composite       CompletenessComposite        `json:"composite"`
+	Recommendations []CompletenessRecommendation `json:"recommendations,omitempty"`
+}
+
+// CompletenessComposite is the rolled-up score block.
+type CompletenessComposite struct {
+	Score          int    `json:"score"`
+	Classification string `json:"classification"`
+}
+
+// CompletenessRecommendation is one prioritized improvement suggestion.
+type CompletenessRecommendation struct {
+	Priority     string  `json:"priority"`
+	Description  string  `json:"description"`
+	ImpactPoints float64 `json:"impact_points"`
 }
 
 // CompletenessScore represents human-readable completeness output for display

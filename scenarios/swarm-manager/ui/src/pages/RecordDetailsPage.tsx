@@ -5,13 +5,17 @@
 
 import { useCallback, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { recordsService } from "../services/records-service";
 import { RecordNarrativeEditor } from "../components/records/RecordNarrativeEditor";
 import { SupersedeChainView } from "../components/records/SupersedeChainView";
 import { PageLoadingState } from "../components/ui/loading-states";
 import { ErrorState } from "../components/ui/error-state";
 import type { RecordNarrativeInput } from "../types";
+
+// Shared style for the in-app reference links (backlog / initiative / supersede
+// chain), mirroring the emerald accent used elsewhere on this page.
+const refLinkClass = "text-emerald-400 underline-offset-4 hover:underline";
 
 export function RecordDetailsPage() {
   const { recordId } = useParams<{ recordId: string }>();
@@ -64,7 +68,25 @@ export function RecordDetailsPage() {
         {record.backlogRef ? (
           <>
             <dt className="text-slate-400">Backlog</dt>
-            <dd className="text-slate-100">{record.backlogRef}</dd>
+            <dd>
+              <Link to={`/backlog/${record.backlogRef}`} className={refLinkClass} data-testid="record-backlog-link">
+                {record.backlogRef}
+              </Link>
+            </dd>
+          </>
+        ) : null}
+        {record.initiativeId ? (
+          <>
+            <dt className="text-slate-400">Initiative</dt>
+            <dd>
+              <Link
+                to={`/initiatives/${record.initiativeId}`}
+                className={refLinkClass}
+                data-testid="record-initiative-link"
+              >
+                {record.initiativeId}
+              </Link>
+            </dd>
           </>
         ) : null}
         {record.commit ? (
@@ -82,13 +104,25 @@ export function RecordDetailsPage() {
         {record.supersedes ? (
           <>
             <dt className="text-slate-400">Supersedes</dt>
-            <dd className="text-slate-100">{record.supersedes}</dd>
+            <dd>
+              <Link to={`/records/${record.supersedes}`} className={refLinkClass} data-testid="record-supersedes-link">
+                {record.supersedes}
+              </Link>
+            </dd>
           </>
         ) : null}
         {record.supersededBy ? (
           <>
             <dt className="text-slate-400">Superseded by</dt>
-            <dd className="text-slate-100">{record.supersededBy}</dd>
+            <dd>
+              <Link
+                to={`/records/${record.supersededBy}`}
+                className={refLinkClass}
+                data-testid="record-superseded-by-link"
+              >
+                {record.supersededBy}
+              </Link>
+            </dd>
           </>
         ) : null}
       </dl>

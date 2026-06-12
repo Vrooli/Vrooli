@@ -102,11 +102,13 @@ func (s *Service) runScenarioRestartAndHealth(ctx context.Context, executionID s
 			return err
 		}
 
+		// SchemaValid is false only when the scenario status probe itself
+		// errored (the CLI command failed), so it stands in for "health could
+		// not be assessed". A typed probe can no longer report a parse/shape
+		// mismatch, so the former "health checks missing" code is gone.
 		warningCode := finalizationWarningHealthRetry
 		if !healthSnapshot.SchemaValid {
 			warningCode = finalizationWarningHealthSchemaInvalid
-		} else if strings.Contains(strings.ToLower(healthSnapshot.Details), "no health checks") {
-			warningCode = finalizationWarningHealthChecksMissing
 		}
 		if attempt < s.finalizationCfg.MaxRestartAttempts {
 			if err := s.appendFinalizationWarning(executionID, newFinalizationWarning(

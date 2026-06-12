@@ -57,14 +57,8 @@ func (s *AppService) GetAppScenarioStatus(ctx context.Context, appID string) (*A
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, 45*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", "scenario", "status", commandIdentifier)
-	cmd.Env = append(os.Environ(), "TERM=dumb")
-	output, cmdErr := cmd.CombinedOutput()
+	output, cmdErr := cliClient.OutputCombined(ctxWithTimeout, "scenario", "status", commandIdentifier)
 	if cmdErr != nil {
-		trimmed := strings.TrimSpace(string(output))
-		if trimmed != "" {
-			return nil, fmt.Errorf("failed to execute vrooli scenario status: %s", trimmed)
-		}
 		return nil, fmt.Errorf("failed to execute vrooli scenario status: %w", cmdErr)
 	}
 
@@ -72,12 +66,11 @@ func (s *AppService) GetAppScenarioStatus(ctx context.Context, appID string) (*A
 	rawOutput := strings.TrimSpace(string(output))
 	details := strings.Split(rawOutput, "\n")
 
-	// Also fetch JSON for metadata extraction (ports, severity, etc)
-	cmdJSON := exec.CommandContext(ctxWithTimeout, "vrooli", "scenario", "status", commandIdentifier, "--json")
-	cmdJSON.Env = append(os.Environ(), "TERM=dumb")
-	jsonOutput, jsonErr := cmdJSON.CombinedOutput()
-
-	// Default values in case JSON parsing fails
+	// Fetch typed JSON status for structured metadata (status, ports, runtime).
+	// Recommendations / test-infrastructure / a capture timestamp are not part of
+	// the `scenario status` contract (cliv1.ScenarioStatusSingle = scenario +
+	// info + runtime); the prior code parsed an imagined shape and therefore
+	// always defaulted these. They are intentionally left empty now.
 	statusLabel := "UNKNOWN"
 	severity := ScenarioStatusSeverityWarn
 	ports := make(map[string]int)
@@ -86,42 +79,33 @@ func (s *AppService) GetAppScenarioStatus(ctx context.Context, appID string) (*A
 	runtime := ""
 	processCount := 0
 
-	// Parse JSON if available for structured metadata
-	if jsonErr == nil {
-		cleanJSON, extractErr := extractFirstJSONDocument(jsonOutput)
-		if extractErr == nil {
-			var resp scenarioStatusCLIResponse
-			if err := json.Unmarshal(cleanJSON, &resp); err == nil {
-				statusValue := strings.TrimSpace(resp.ScenarioData.Status)
-				if statusValue == "" {
-					statusValue = strings.TrimSpace(resp.RawResponse.Data.Status)
-				}
-				statusLabel, severity = formatScenarioStatusLabel(statusValue)
-				processCount = len(resp.ScenarioData.Processes)
-				if processCount == 0 && severity == ScenarioStatusSeverityOK {
-					severity = ScenarioStatusSeverityWarn
-				}
+	if statusResp, jsonErr := cliClient.ScenarioStatus(ctxWithTimeout, commandIdentifier); jsonErr == nil {
+		scenario := statusResp.GetScenario()
+		rt := statusResp.GetRuntime()
 
-				for key, value := range resp.ScenarioData.AllocatedPorts {
-					ports[strings.ToUpper(strings.TrimSpace(key))] = value
-				}
-
-				runtime = strings.TrimSpace(resp.ScenarioData.Runtime)
-
-				recs = resp.Recommendations
-				if resp.TestInfrastructure.Overall != nil {
-					recs = append(recs, resp.TestInfrastructure.Overall.Recommendations...)
-					if resp.TestInfrastructure.Overall.Recommendation != "" {
-						recs = append(recs, resp.TestInfrastructure.Overall.Recommendation)
-					}
-				}
-				recs = dedupeStrings(filterNonEmptyStrings(recs))
-
-				if ts := strings.TrimSpace(resp.Metadata.Timestamp); ts != "" {
-					capturedAt = ts
-				}
-			}
+		statusValue := strings.TrimSpace(scenario.GetStatus())
+		if statusValue == "" {
+			statusValue = strings.TrimSpace(rt.GetStatus())
 		}
+		statusLabel, severity = formatScenarioStatusLabel(statusValue)
+
+		processCount = int(rt.GetProcesses())
+		if processCount == 0 {
+			processCount = int(scenario.GetProcesses())
+		}
+		if processCount == 0 && severity == ScenarioStatusSeverityOK {
+			severity = ScenarioStatusSeverityWarn
+		}
+
+		portSource := rt.GetPorts()
+		if len(portSource) == 0 {
+			portSource = scenario.GetPorts()
+		}
+		for key, value := range portSource {
+			ports[strings.ToUpper(strings.TrimSpace(key))] = int(value)
+		}
+
+		runtime = strings.TrimSpace(rt.GetRuntime())
 	}
 
 	return &AppScenarioStatus{
@@ -172,60 +156,6 @@ func resolveScenarioCommandIdentifier(app *repository.App, fallback string) stri
 	}
 
 	return ""
-}
-
-func extractFirstJSONDocument(output []byte) ([]byte, error) {
-	trimmed := bytes.TrimSpace(output)
-	if len(trimmed) == 0 {
-		return nil, errors.New("empty response")
-	}
-
-	start := -1
-	for i, b := range trimmed {
-		if b == '{' || b == '[' {
-			start = i
-			break
-		}
-	}
-	if start == -1 {
-		return nil, errors.New("no JSON document found")
-	}
-
-	data := trimmed[start:]
-	depth := 0
-	inString := false
-	escaped := false
-
-	for i, b := range data {
-		if escaped {
-			escaped = false
-			continue
-		}
-
-		if inString {
-			switch b {
-			case '\\':
-				escaped = true
-			case '"':
-				inString = false
-			}
-			continue
-		}
-
-		switch b {
-		case '"':
-			inString = true
-		case '{', '[':
-			depth++
-		case '}', ']':
-			depth--
-			if depth == 0 {
-				return data[:i+1], nil
-			}
-		}
-	}
-
-	return nil, errors.New("incomplete JSON document")
 }
 
 // =============================================================================
@@ -1279,18 +1209,13 @@ func (s *AppService) GetAppCompleteness(ctx context.Context, appID string) (*Com
 		commandIdentifier = scenarioName
 	}
 
-	// Execute vrooli scenario completeness (without --json for human-readable output)
+	// Execute vrooli scenario completeness score get (without --json for
+	// human-readable output).
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctxWithTimeout, "vrooli", "scenario", "completeness", commandIdentifier)
-	cmd.Env = append(os.Environ(), "TERM=dumb")
-	output, cmdErr := cmd.CombinedOutput()
+	output, cmdErr := cliClient.OutputCombined(ctxWithTimeout, "scenario", "completeness", "score", "get", commandIdentifier)
 	if cmdErr != nil {
-		trimmed := strings.TrimSpace(string(output))
-		if trimmed != "" {
-			return nil, fmt.Errorf("failed to execute vrooli scenario completeness: %s", trimmed)
-		}
 		return nil, fmt.Errorf("failed to execute vrooli scenario completeness: %w", cmdErr)
 	}
 

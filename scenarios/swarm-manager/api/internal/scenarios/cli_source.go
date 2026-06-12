@@ -2,11 +2,12 @@ package scenarios
 
 import (
 	"context"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	vroolicli "github.com/vrooli/vrooli-cli-go"
 )
 
 // DOC: docs/concepts/ARCHITECTURE.md#integration-strategy
@@ -37,7 +38,7 @@ type CLIProviderOptions struct {
 
 // CLIProvider lists scenarios via the Vrooli CLI.
 type CLIProvider struct {
-	timeout      time.Duration
+	client       *vroolicli.Client
 	includePorts bool
 }
 
@@ -66,7 +67,7 @@ func NewCLIProviderWithOptions(options CLIProviderOptions) *CLIProvider {
 	}
 
 	return &CLIProvider{
-		timeout:      timeout,
+		client:       vroolicli.New(vroolicli.WithTimeout(timeout)),
 		includePorts: options.IncludePorts,
 	}
 }
@@ -77,32 +78,33 @@ func NewDirectoryProvider(scenariosDir string) *DirectoryProvider {
 }
 
 // List retrieves scenarios using `vrooli scenario list --json`, optionally
-// including port metadata when configured.
+// including port metadata when configured. It decodes the typed
+// vrooli.cli.v1 contract, so a CLI output change is a compile error here rather
+// than a silently empty or mis-shaped result.
 func (p *CLIProvider) List(ctx context.Context) ([]ScenarioSource, error) {
-	args := []string{"scenario", "list", "--json"}
+	var opts []vroolicli.ListScenariosOption
 	if p.includePorts {
-		args = append(args, "--include-ports")
+		opts = append(opts, vroolicli.WithPorts())
 	}
 
-	output, err := executeVrooliCommand(ctx, p.timeout, args...)
+	resp, err := p.client.ListScenarios(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	var resp scenarioListResponse
-	if err := json.Unmarshal(output, &resp); err != nil {
-		return nil, err
-	}
-
-	scenarios := make([]ScenarioSource, 0, len(resp.Scenarios))
-	for _, item := range resp.Scenarios {
+	scenarios := make([]ScenarioSource, 0, len(resp.GetScenarios()))
+	for _, item := range resp.GetScenarios() {
+		name := strings.TrimSpace(item.GetName())
+		if name == "" {
+			continue
+		}
 		scenarios = append(scenarios, ScenarioSource{
-			Name:        strings.TrimSpace(item.Name),
-			Description: strings.TrimSpace(item.Description),
-			Path:        strings.TrimSpace(item.Path),
-			Status:      strings.TrimSpace(item.Status),
-			Tags:        item.Tags,
-			Version:     strings.TrimSpace(item.Version),
+			Name:        name,
+			Description: strings.TrimSpace(item.GetDescription()),
+			Path:        strings.TrimSpace(item.GetPath()),
+			Status:      strings.TrimSpace(item.GetStatus()),
+			Tags:        item.GetTags(),
+			Version:     strings.TrimSpace(item.GetVersion()),
 		})
 	}
 
@@ -138,28 +140,4 @@ func (p *DirectoryProvider) List(_ context.Context) ([]ScenarioSource, error) {
 		})
 	}
 	return scenarios, nil
-}
-
-// scenarioListResponse represents `vrooli scenario list --json` output.
-type scenarioListResponse struct {
-	Success   bool               `json:"success"`
-	Scenarios []scenarioMetadata `json:"scenarios"`
-}
-
-// scenarioMetadata captures fields returned by the CLI.
-type scenarioMetadata struct {
-	Name        string         `json:"name"`
-	Description string         `json:"description"`
-	Path        string         `json:"path"`
-	Version     string         `json:"version"`
-	Status      string         `json:"status"`
-	Tags        []string       `json:"tags"`
-	Ports       []scenarioPort `json:"ports"`
-}
-
-// scenarioPort captures port details from the CLI.
-type scenarioPort struct {
-	Key  string      `json:"key"`
-	Step string      `json:"step"`
-	Port interface{} `json:"port"`
 }

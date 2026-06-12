@@ -31,6 +31,7 @@ export interface RecordItem {
   kind: RecordKind;
   scenario: string;
   backlogRef?: string;
+  initiativeId?: string;
   supersedes?: string;
   supersededBy?: string;
   trigger: string;
@@ -72,6 +73,7 @@ export interface RecordCreateInput extends RecordNarrativeInput {
   kind: RecordKind;
   scenario: string;
   backlogRef?: string;
+  initiativeId?: string;
   supersedes?: string;
   createdBy?: string;
 }

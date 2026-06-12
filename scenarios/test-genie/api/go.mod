@@ -13,7 +13,8 @@ require (
 	github.com/testcontainers/testcontainers-go v0.31.0
 	github.com/vrooli/freshness-go v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
-	github.com/vrooli/vrooli/packages/proto v0.0.0-00010101000000-000000000000
+	github.com/vrooli/vrooli-cli-go v0.0.0
+	github.com/vrooli/vrooli/packages/proto v0.0.0
 	google.golang.org/protobuf v1.36.11
 	modernc.org/sqlite v1.50.1
 )
@@ -37,6 +38,8 @@ require (
 replace github.com/vrooli/freshness-go => ../../../packages/freshness-go
 
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
+
+replace github.com/vrooli/vrooli-cli-go => ../../../packages/vrooli-cli-go
 
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 
