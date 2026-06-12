@@ -12,6 +12,23 @@ CREATE EXTENSION IF NOT EXISTS "pgvector"; -- For semantic search vectors
 CREATE SCHEMA IF NOT EXISTS text_tools;
 SET search_path TO text_tools, public;
 
+-- Embedding metadata records the policy facts used to generate each vector.
+-- Retargeting compares these rows with the current embedding role before
+-- re-embedding or cutting over shadow storage.
+CREATE TABLE IF NOT EXISTS embedding_metadata (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    owner_table TEXT NOT NULL,
+    owner_id TEXT NOT NULL,
+    embedding_column TEXT NOT NULL,
+    embedding_role TEXT NOT NULL,
+    embedding_model TEXT NOT NULL,
+    embedding_dimensions INTEGER NOT NULL CHECK (embedding_dimensions > 0),
+    embedding_policy_schema_version TEXT NOT NULL,
+    source_content_hash TEXT NOT NULL,
+    generated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(owner_table, owner_id, embedding_column)
+);
+
 -- Text Documents table
 CREATE TABLE IF NOT EXISTS text_documents (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -119,7 +136,7 @@ CREATE TABLE IF NOT EXISTS text_embeddings (
     document_id UUID REFERENCES text_documents(id) ON DELETE CASCADE,
     chunk_index INTEGER NOT NULL, -- For documents split into chunks
     chunk_text TEXT,
-    embedding vector(1536), -- OpenAI/Ollama embedding dimension
+    embedding vector,
     model_name VARCHAR(100),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT unique_document_chunk UNIQUE(document_id, chunk_index)
@@ -128,6 +145,7 @@ CREATE TABLE IF NOT EXISTS text_embeddings (
 -- Create indexes for text_embeddings
 CREATE INDEX idx_text_embeddings_document ON text_embeddings(document_id);
 CREATE INDEX idx_text_embeddings_vector ON text_embeddings USING ivfflat (embedding vector_cosine_ops);
+CREATE INDEX idx_embedding_metadata_owner ON embedding_metadata(owner_table, owner_id, embedding_column);
 
 -- Text Processing Pipelines table
 CREATE TABLE IF NOT EXISTS text_pipelines (

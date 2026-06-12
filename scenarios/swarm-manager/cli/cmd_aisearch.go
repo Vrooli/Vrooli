@@ -158,7 +158,7 @@ func renderAISearchStatus(st AISearchStatus) error {
 		report.NextSteps = append(report.NextSteps, "swarm-manager ai-search reconcile")
 	}
 	if !st.Ollama {
-		report.NextSteps = append(report.NextSteps, "ollama pull nomic-embed-text")
+		report.NextSteps = append(report.NextSteps, "resource-ollama ensure --role embedding.default")
 	}
 	if !st.Qdrant {
 		report.NextSteps = append(report.NextSteps, "vrooli scenario restart qdrant")

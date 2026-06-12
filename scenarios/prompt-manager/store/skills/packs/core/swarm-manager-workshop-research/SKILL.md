@@ -145,6 +145,16 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager **research**
 
 ### Processing Steps
 
+0. **Recall prior work first** (AGENTS.md §4)
+
+   Before exploring, search what the system has already investigated or learned:
+
+   ```bash
+   search-hub query "<the research question in one sentence>" --type record,doc,backlog,initiative
+   ```
+
+   A `record` hit carries a prior investigation's trigger + approach; a `doc` hit, the written explanation. Three exits: nothing relevant → proceed; related prior work → build on it and cite it; the question is already answered → point at the prior conclusion/record instead of redoing the investigation. Fall back to `swarm-manager records search "<intent>"` if search-hub is unavailable.
+
 1. **Read all available context**
 
    ```bash

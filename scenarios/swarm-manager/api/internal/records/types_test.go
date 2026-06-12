@@ -72,6 +72,70 @@ func TestParseKindCaseInsensitive(t *testing.T) {
 	}
 }
 
+// TestParseKindAliases asserts the curated alias map resolves common improvised
+// kind names to the right canonical kind, case-insensitively and trimmed.
+func TestParseKindAliases(t *testing.T) {
+	cases := map[string]RecordKind{
+		"improvement":          KindExecute,
+		"scenario-improvement": KindExecute,
+		"implementation":       KindExecute,
+		"feature":              KindExecute,
+		"feat":                 KindExecute,
+		"refactor":             KindExecute,
+		"build":                KindExecute,
+		"bug":                  KindFix,
+		"bugfix":               KindFix,
+		"bug-fix":              KindFix,
+		"fixup":                KindFix,
+		"hotfix":               KindFix,
+		"investigation":        KindResearch,
+		"spike":                KindResearch,
+		"explore":              KindResearch,
+		"task":                 KindChore,
+		"maintenance":          KindChore,
+		"cleanup":              KindChore,
+		// case/whitespace tolerance reuses the same lowercase+trim path:
+		"  Feature ": KindExecute,
+		"BUGFIX":     KindFix,
+	}
+	for raw, want := range cases {
+		got, err := ParseKind(raw)
+		if err != nil {
+			t.Errorf("ParseKind(%q): unexpected error %v", raw, err)
+			continue
+		}
+		if got != want {
+			t.Errorf("ParseKind(%q) = %q, want %q", raw, got, want)
+		}
+	}
+}
+
+// TestParseKindSuggestion asserts the error is self-correcting: a near miss
+// suggests the nearest canonical kind, while garbage gets no misleading hint
+// (but is still rejected).
+func TestParseKindSuggestion(t *testing.T) {
+	// "improvment" is one edit from the "improvement" alias → execute.
+	_, err := ParseKind("improvment")
+	if err == nil {
+		t.Fatalf("ParseKind(improvment) accepted invalid value")
+	}
+	if !strings.Contains(err.Error(), `did you mean "execute"?`) {
+		t.Errorf("ParseKind(improvment) error %q lacks execute suggestion", err)
+	}
+	// The valid-kinds list is always present.
+	if !strings.Contains(err.Error(), "idea, research, fix, execute, chore") {
+		t.Errorf("ParseKind(improvment) error %q lacks valid-kinds list", err)
+	}
+	// Garbage is rejected without a misleading suggestion.
+	garbageErr := func() error { _, e := ParseKind("xyzzy-not-a-kind"); return e }()
+	if garbageErr == nil {
+		t.Fatalf("ParseKind(garbage) accepted invalid value")
+	}
+	if strings.Contains(garbageErr.Error(), "did you mean") {
+		t.Errorf("ParseKind(garbage) error %q has a misleading suggestion", garbageErr)
+	}
+}
+
 func TestParseOutcomeCaseInsensitive(t *testing.T) {
 	for _, raw := range []string{"SHIPPED", " shipped ", "Shipped"} {
 		o, err := ParseOutcome(raw)

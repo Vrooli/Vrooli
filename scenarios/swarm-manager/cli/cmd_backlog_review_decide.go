@@ -69,6 +69,7 @@ func (a *App) cmdBacklogReviewDecide(args []string) error {
 		Status    string `json:"status"`
 		Rationale string `json:"rationale,omitempty"`
 		DecidedAt string `json:"decided_at"`
+		RecordID  string `json:"record_id,omitempty"`
 	}
 	if err := json.Unmarshal(body, &response); err != nil {
 		return fmt.Errorf("decode response: %w", err)
@@ -82,5 +83,13 @@ func (a *App) cmdBacklogReviewDecide(args []string) error {
 		fmt.Printf("  Reason:   %s\n", response.Rationale)
 	}
 	fmt.Printf("  At:       %s\n", response.DecidedAt)
+	// A terminal accept/fail auto-captures a filled, searchable record of the
+	// work (the recursive-learning write-side). Surface its id with the enrich
+	// path so the agent can improve the narrative — records are born immutable,
+	// so enrichment is via `records supersede`, not `records edit`.
+	if response.RecordID != "" {
+		fmt.Printf("  Record:   %s (auto-captured; enrich via `swarm-manager records supersede %s`)\n",
+			response.RecordID, response.RecordID)
+	}
 	return nil
 }

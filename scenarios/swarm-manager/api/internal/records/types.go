@@ -10,6 +10,7 @@ package records
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 )
@@ -29,25 +30,133 @@ const (
 // AllKinds is the canonical enumeration.
 var AllKinds = []RecordKind{KindIdea, KindResearch, KindFix, KindExecute, KindChore}
 
-// ParseKind validates a raw kind string against AllKinds (case-insensitive).
+// kindAliases maps common improvised kind names onto a canonical RecordKind.
+// ParseKind consults this after an exact match fails but before erroring, so an
+// agent that types "feature", "bugfix", or "investigation" still lands on the
+// right kind instead of getting a 400. Keep this list curated and finite — it
+// is not meant to absorb arbitrary input (that is what the nearest-match
+// suggestion in the error is for).
+var kindAliases = map[string]RecordKind{
+	"improvement":          KindExecute,
+	"scenario-improvement": KindExecute,
+	"implementation":       KindExecute,
+	"feature":              KindExecute,
+	"feat":                 KindExecute,
+	"refactor":             KindExecute,
+	"build":                KindExecute,
+	"bug":                  KindFix,
+	"bugfix":               KindFix,
+	"bug-fix":              KindFix,
+	"fixup":                KindFix,
+	"hotfix":               KindFix,
+	"investigation":        KindResearch,
+	"spike":                KindResearch,
+	"explore":              KindResearch,
+	"task":                 KindChore,
+	"maintenance":          KindChore,
+	"cleanup":              KindChore,
+}
+
+// ParseKind resolves a raw kind string to a canonical RecordKind. It accepts
+// the canonical kinds (case-insensitive), a curated set of aliases
+// (kindAliases), and otherwise returns a self-correcting error that names the
+// valid kinds and suggests the nearest known one.
 func ParseKind(raw string) (RecordKind, error) {
-	candidate := RecordKind(strings.ToLower(strings.TrimSpace(raw)))
+	candidate := strings.ToLower(strings.TrimSpace(raw))
 	for _, k := range AllKinds {
-		if candidate == k {
+		if candidate == string(k) {
 			return k, nil
 		}
 	}
-	return "", fmt.Errorf("invalid record kind %q (expected one of %v)", raw, AllKinds)
+	if canon, ok := kindAliases[candidate]; ok {
+		return canon, nil
+	}
+	return "", fmt.Errorf("invalid record kind %q; valid kinds: %s%s",
+		raw, joinKinds(AllKinds), suggestKind(candidate))
+}
+
+// joinKinds renders the canonical kinds as a comma-separated lowercase list.
+func joinKinds(kinds []RecordKind) string {
+	parts := make([]string, len(kinds))
+	for i, k := range kinds {
+		parts[i] = string(k)
+	}
+	return strings.Join(parts, ", ")
+}
+
+// suggestKind returns a ` (did you mean "x"?)` fragment when candidate is a
+// near miss of a canonical kind or alias, or "" when nothing is close enough.
+// Alias keys are scanned in sorted order so the suggestion is deterministic.
+func suggestKind(candidate string) string {
+	if candidate == "" {
+		return ""
+	}
+	type token struct {
+		text  string
+		canon RecordKind
+	}
+	tokens := make([]token, 0, len(AllKinds)+len(kindAliases))
+	for _, k := range AllKinds {
+		tokens = append(tokens, token{string(k), k})
+	}
+	aliasKeys := make([]string, 0, len(kindAliases))
+	for a := range kindAliases {
+		aliasKeys = append(aliasKeys, a)
+	}
+	sort.Strings(aliasKeys)
+	for _, a := range aliasKeys {
+		tokens = append(tokens, token{a, kindAliases[a]})
+	}
+	best := RecordKind("")
+	bestDist := -1
+	for _, t := range tokens {
+		if d := levenshtein(candidate, t.text); bestDist == -1 || d < bestDist {
+			bestDist = d
+			best = t.canon
+		}
+	}
+	// Only suggest for genuine near-misses; garbage like "nope" gets no hint.
+	if bestDist > 2 {
+		return ""
+	}
+	return fmt.Sprintf(" (did you mean %q?)", best)
+}
+
+// levenshtein is a small edit-distance helper backing the nearest-kind
+// suggestion. It is only ever run on the short kind vocabulary, so the simple
+// two-row implementation is more than fast enough.
+func levenshtein(a, b string) int {
+	if a == b {
+		return 0
+	}
+	ra, rb := []rune(a), []rune(b)
+	prev := make([]int, len(rb)+1)
+	curr := make([]int, len(rb)+1)
+	for j := range prev {
+		prev[j] = j
+	}
+	for i := 1; i <= len(ra); i++ {
+		curr[0] = i
+		for j := 1; j <= len(rb); j++ {
+			cost := 1
+			if ra[i-1] == rb[j-1] {
+				cost = 0
+			}
+			curr[j] = min(prev[j]+1, curr[j-1]+1, prev[j-1]+cost)
+		}
+		prev, curr = curr, prev
+	}
+	return prev[len(rb)]
 }
 
 // Outcome classifies how the work concluded.
 type Outcome string
 
 const (
-	OutcomeShipped    Outcome = "shipped"
-	OutcomePartial    Outcome = "partial"
-	OutcomeAbandoned  Outcome = "abandoned"
-	OutcomeDuplicate  Outcome = "duplicate"
+	OutcomeShipped   Outcome = "shipped"
+	OutcomePartial   Outcome = "partial"
+	OutcomeAbandoned Outcome = "abandoned"
+	OutcomeDuplicate Outcome = "duplicate"
 )
 
 // AllOutcomes is the canonical enumeration.
@@ -72,6 +181,7 @@ type Record struct {
 	Kind         RecordKind `json:"kind"`
 	Scenario     string     `json:"scenario"`
 	BacklogRef   string     `json:"backlog_ref,omitempty"`
+	InitiativeID string     `json:"initiative_id,omitempty"`
 	Supersedes   string     `json:"supersedes,omitempty"`
 	SupersededBy string     `json:"superseded_by,omitempty"`
 	Trigger      string     `json:"trigger"`

@@ -25,6 +25,7 @@ import (
 	"swarm-manager/handlers/audio_admin"
 	"swarm-manager/handlers/audio_runtime"
 	"swarm-manager/handlers/discovery"
+	measureshandler "swarm-manager/handlers/measures"
 	"swarm-manager/integrations/audiotools"
 	"swarm-manager/internal/agentactivity"
 	"swarm-manager/internal/agentmanager"
@@ -55,9 +56,11 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	aisearchpkg "github.com/vrooli/ai-go/search"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	searchregister "github.com/vrooli/searchregister-go"
 	_ "modernc.org/sqlite"
 )
 
@@ -97,6 +100,7 @@ type Server struct {
 	eventDB             *sql.DB
 	emitter             *eventlog.Emitter
 	statsEngine         *stats.Engine
+	eventRepo           *eventlog.SQLiteRepository
 	aiSearchSvc         *aisearch.Service
 	aiSearchReconciler  *aisearch.Reconciler
 	aiSearchSyncLoop    *aisearch.SyncLoop
@@ -288,11 +292,17 @@ func (s *Server) setupRoutes() {
 // attached so index operations queue correctly once resources come online.
 func (s *Server) registerAISearchRoutes(backlogHandler *backlog.Handler, initService *initiatives.Service) {
 	cfg := aisearch.LoadConfigFromEnv()
+	policyCtx, cancelPolicy := context.WithTimeout(context.Background(), 5*time.Second)
+	embeddingPolicy, err := aisearchpkg.ResolveEmbeddingPolicy(policyCtx, "embedding.default")
+	cancelPolicy()
+	if err != nil {
+		log.Fatalf("resolve swarm-manager embedding policy: %v", err)
+	}
 
-	embedder := aisearch.NewEmbedder(cfg.EmbeddingModel)
-	backlogVS := aisearch.NewVectorStore(cfg.QdrantURL, cfg.QdrantAPIKey, cfg.BacklogCollection, cfg.VectorDimensions)
-	initVS := aisearch.NewVectorStore(cfg.QdrantURL, cfg.QdrantAPIKey, cfg.InitiativeCollection, cfg.VectorDimensions)
-	recordVS := aisearch.NewVectorStore(cfg.QdrantURL, cfg.QdrantAPIKey, cfg.RecordCollection, cfg.VectorDimensions)
+	embedder := aisearch.NewEmbedder(embeddingPolicy.Role)
+	backlogVS := aisearch.NewVectorStoreForPolicy(cfg.QdrantURL, cfg.QdrantAPIKey, cfg.BacklogCollection, embeddingPolicy)
+	initVS := aisearch.NewVectorStoreForPolicy(cfg.QdrantURL, cfg.QdrantAPIKey, cfg.InitiativeCollection, embeddingPolicy)
+	recordVS := aisearch.NewVectorStoreForPolicy(cfg.QdrantURL, cfg.QdrantAPIKey, cfg.RecordCollection, embeddingPolicy)
 
 	backlogReader := aisearch.NewBacklogStoreAdapter(backlogHandler.Store())
 	initReader := aisearch.NewInitiativeStoreAdapter(s.initStore)
@@ -418,11 +428,12 @@ func (s *Server) registerRecordsRoutes(dataRoot string) {
 	s.recordsService = svc
 	s.recordsHandler = handler
 	s.recordsStore = store
-	// Soft-prompt hook: auto-create stub records on backlog terminal transitions.
-	// Backlog must already be registered (it is — registerBacklogRoutes runs
-	// before registerRecordsRoutes); guard defensively anyway.
+	// Capture hook: auto-write a filled, indexed record on backlog terminal
+	// transitions (the recursive-learning write-side). Backlog must already be
+	// registered (it is — registerBacklogRoutes runs before
+	// registerRecordsRoutes); guard defensively anyway.
 	if s.backlogHandler != nil {
-		s.backlogHandler.SetRecordStubCreator(newRecordStubAdapter(svc))
+		s.backlogHandler.SetRecordCreator(newRecordCaptureAdapter(svc))
 	}
 }
 
@@ -537,6 +548,21 @@ func main() {
 		statsHandler.RegisterRoutes(srv.router)
 	}
 
+	// Register the granular measures surface (requires the event log): the
+	// measures-go serve registry at /measures (GET /declarations, POST /execute)
+	// — consumed by the measures-health behavioral probe and the search-hub
+	// central index — plus the typed Connect MeasuresService. Both share one
+	// compute path so a measure and its RPC can never report different numbers.
+	if srv.eventRepo != nil {
+		measuresHandler, err := measureshandler.MeasuresHandler(srv.eventRepo, nil)
+		if err != nil {
+			slog.Error("measures registry init error", "error", err)
+		} else {
+			srv.router.PathPrefix("/measures/").Handler(http.StripPrefix("/measures", measuresHandler))
+			measureshandler.RegisterRoutes(srv.router, srv.eventRepo, nil)
+		}
+	}
+
 	if srv.executionHandler != nil {
 		go srv.executionHandler.StartBackgroundWorker(srv.executionStopChan)
 	}
@@ -561,6 +587,7 @@ func main() {
 	}
 
 	srv.startAISearchBackground()
+	srv.startSearchRegistration()
 
 	if err := server.Run(server.Config{
 		Handler:      srv.Handler(),
@@ -629,6 +656,29 @@ func (s *Server) startAISearchBackground() {
 		cancel()
 	}()
 	go s.aiSearchSyncLoop.Start(syncCtx)
+}
+
+// startSearchRegistration self-registers swarm-manager's search provider(s)
+// with search-hub from the `.vrooli/search.json` SSOT. Today that is the
+// `records` leaf, mapped to the rich POST /api/v1/records/search endpoint so a
+// federated hit carries the record's trigger/approach lesson (not just an id —
+// the thin /search/ai entity payload it used to be reachable through).
+//
+// search-hub is an OPTIONAL dependency, so this runs in a background goroutine
+// with bounded retry and degrades gracefully: the scenario keeps serving
+// records search whether or not the hub is up, and the registry upsert is
+// idempotent, so re-registering on every boot is safe. The bounded retry means
+// the goroutine terminates on its own, so a plain Background context is fine.
+func (s *Server) startSearchRegistration() {
+	searchJSONPath := filepath.Join(s.scenarioRoot, ".vrooli", "search.json")
+	if _, err := os.Stat(searchJSONPath); err != nil {
+		// No search.json on this root (e.g. a test temp dir) — nothing to register.
+		return
+	}
+	go searchregister.Register(context.Background(), searchregister.Config{
+		ScenarioID:     "swarm-manager",
+		SearchFilePath: searchJSONPath,
+	})
 }
 
 func getEnvDefault(key, fallback string) string {

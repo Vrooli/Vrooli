@@ -8,14 +8,14 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	sharedsearch "github.com/vrooli/ai-go/search"
 )
 
-func TestVectorStore_Defaults(t *testing.T) {
-	// The constructor's "empty collection means DefaultCollectionName, zero
-	// vectorSize means DefaultVectorSize" rule is observed via the wire: the
-	// PUT-create body Qdrant receives must carry the default size, and the
-	// HTTP path must include the default collection name. Behavior, not
-	// internal field state, so the seam stays substitutable.
+func TestVectorStore_DefaultCollectionRequiresResolvedVectorSize(t *testing.T) {
+	// Empty collection still means DefaultCollectionName, but vector dimensions
+	// must be resolved from Ollama policy by startup wiring before this store is
+	// constructed.
 	var observedPath string
 	var createBody createCollectionRequest
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -32,15 +32,45 @@ func TestVectorStore_Defaults(t *testing.T) {
 	}))
 	defer server.Close()
 
-	vs := NewVectorStore(server.URL, "", "", 0)
+	vs := NewVectorStore(server.URL, "", "", 3)
 	if err := vs.EnsureCollection(context.Background()); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !strings.HasSuffix(observedPath, "/collections/"+DefaultCollectionName) {
 		t.Errorf("expected default collection %q in path, got %q", DefaultCollectionName, observedPath)
 	}
-	if createBody.Vectors.Size != DefaultVectorSize {
-		t.Errorf("expected default vector size %d on the wire, got %d", DefaultVectorSize, createBody.Vectors.Size)
+	if createBody.Vectors.Size != 3 {
+		t.Errorf("expected resolved vector size 3 on the wire, got %d", createBody.Vectors.Size)
+	}
+}
+
+func TestVectorStoreForPolicyCreateUsesPolicyDimensions(t *testing.T) {
+	var gotSize int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			w.WriteHeader(http.StatusNotFound)
+		case http.MethodPut:
+			var req createCollectionRequest
+			_ = json.NewDecoder(r.Body).Decode(&req)
+			gotSize = req.Vectors.Size
+			w.WriteHeader(http.StatusOK)
+		default:
+			t.Errorf("unexpected method %s", r.Method)
+		}
+	}))
+	defer server.Close()
+
+	vs := NewVectorStoreForPolicy(server.URL, "", "", sharedsearch.EmbeddingPolicy{
+		Role:       "embedding.default",
+		Model:      "fixture-embed-model:latest",
+		Dimensions: 1234,
+	})
+	if err := vs.EnsureCollection(context.Background()); err != nil {
+		t.Fatalf("EnsureCollection: %v", err)
+	}
+	if gotSize != 1234 {
+		t.Errorf("expected policy dimensions 1234, got %d", gotSize)
 	}
 }
 

@@ -121,6 +121,89 @@ func (r *SQLiteRepository) MaxID(ctx context.Context) (int64, error) {
 	return maxID, nil
 }
 
+// CountEventsInRange returns how many events of eventType have a Timestamp in
+// the half-open range [from, to) — from inclusive, to exclusive, matching the
+// packages/measures-go time-window resolver. It is the substrate the granular
+// measures (api/handlers/measures) compute against.
+//
+// The event_type filter is pushed to SQL (the idx_events_type index), but the
+// time-window comparison is applied in Go on parsed time.Time values rather
+// than as a SQL string range: timestamps are stored as RFC3339Nano, whose
+// variable-width fractional seconds make lexical comparison unsafe at
+// sub-second boundaries. Scanning one event-type's rows is bounded and exact.
+func (r *SQLiteRepository) CountEventsInRange(ctx context.Context, eventType EventType, from, to time.Time) (int, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT timestamp FROM events WHERE event_type = ?`,
+		string(eventType),
+	)
+	if err != nil {
+		return 0, fmt.Errorf("eventlog count %s: %w", eventType, err)
+	}
+	defer rows.Close()
+
+	count := 0
+	for rows.Next() {
+		var tsStr string
+		if err := rows.Scan(&tsStr); err != nil {
+			return 0, fmt.Errorf("eventlog count scan: %w", err)
+		}
+		t, err := time.Parse(time.RFC3339Nano, tsStr)
+		if err != nil {
+			return 0, fmt.Errorf("eventlog count parse timestamp %q: %w", tsStr, err)
+		}
+		if inRange(t, from, to) {
+			count++
+		}
+	}
+	return count, rows.Err()
+}
+
+// CountStatusTransitionsInRange counts events of eventType for which the typed
+// StatusChangePayload's `to` equals toStatus and whose Timestamp is in
+// [from, to). It backs status-transition measures such as
+// "backlog items completed this week" (backlog.status_changed → to=completed),
+// which a bare event-type count cannot express. Malformed metadata is skipped
+// (never counted), never an error — the measure abstains rather than over-counts.
+func (r *SQLiteRepository) CountStatusTransitionsInRange(ctx context.Context, eventType EventType, toStatus string, from, to time.Time) (int, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT timestamp, metadata FROM events WHERE event_type = ?`,
+		string(eventType),
+	)
+	if err != nil {
+		return 0, fmt.Errorf("eventlog count transitions %s: %w", eventType, err)
+	}
+	defer rows.Close()
+
+	count := 0
+	for rows.Next() {
+		var tsStr string
+		var metaStr sql.NullString
+		if err := rows.Scan(&tsStr, &metaStr); err != nil {
+			return 0, fmt.Errorf("eventlog count transitions scan: %w", err)
+		}
+		t, err := time.Parse(time.RFC3339Nano, tsStr)
+		if err != nil {
+			return 0, fmt.Errorf("eventlog count transitions parse timestamp %q: %w", tsStr, err)
+		}
+		if !inRange(t, from, to) || !metaStr.Valid {
+			continue
+		}
+		var p StatusChangePayload
+		if err := json.Unmarshal([]byte(metaStr.String), &p); err != nil {
+			continue // malformed payload — abstain, do not over-count
+		}
+		if p.To == toStatus {
+			count++
+		}
+	}
+	return count, rows.Err()
+}
+
+// inRange reports whether t is in the half-open range [from, to).
+func inRange(t, from, to time.Time) bool {
+	return !t.Before(from) && t.Before(to)
+}
+
 func scanEvents(rows *sql.Rows) ([]Event, error) {
 	var events []Event
 	for rows.Next() {

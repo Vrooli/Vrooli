@@ -14,12 +14,13 @@ import (
 // Handler provides REST endpoints for records.
 //
 // REST surface (see PROBLEMS.md for the proto-conversion deferral):
-//   POST   /api/v1/records
-//   GET    /api/v1/records
-//   GET    /api/v1/records/{id}
-//   PATCH  /api/v1/records/{id}/narrative
-//   POST   /api/v1/records/{id}/supersede
-//   POST   /api/v1/records/search
+//
+//	POST   /api/v1/records
+//	GET    /api/v1/records
+//	GET    /api/v1/records/{id}
+//	PATCH  /api/v1/records/{id}/narrative
+//	POST   /api/v1/records/{id}/supersede
+//	POST   /api/v1/records/search
 type Handler struct {
 	svc    *Service
 	search Searcher
@@ -76,6 +77,7 @@ type createRequest struct {
 	Kind         string   `json:"kind"`
 	Scenario     string   `json:"scenario"`
 	BacklogRef   string   `json:"backlog_ref"`
+	InitiativeID string   `json:"initiative_id"`
 	Supersedes   string   `json:"supersedes"`
 	Trigger      string   `json:"trigger"`
 	Approach     string   `json:"approach"`
@@ -106,6 +108,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		Kind:         kind,
 		Scenario:     req.Scenario,
 		BacklogRef:   req.BacklogRef,
+		InitiativeID: req.InitiativeID,
 		Supersedes:   req.Supersedes,
 		Trigger:      req.Trigger,
 		Approach:     req.Approach,

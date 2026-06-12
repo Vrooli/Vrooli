@@ -142,6 +142,16 @@ You are running workshop round {{ROUND_NUMBER}} for a swarm-manager backlog item
 
 ### Processing Steps
 
+0. **Recall prior work first** (AGENTS.md §4)
+
+   Before refining, search what the system has already learned or planned for this kind of work:
+
+   ```bash
+   search-hub query "<the item's intent in one sentence>" --type record,backlog,initiative,skill,doc
+   ```
+
+   Each `record` hit shows how a prior agent actually solved a similar item (its trigger + approach). Three exits: nothing relevant → proceed; related prior work → fold it into the plan and cite it; a near-duplicate of an already-shipped item → surface it as a Decision Item to reconcile (supersede/extend) instead of re-planning from zero. Fall back to `swarm-manager records search "<intent>"` if search-hub is unavailable.
+
 1. **Read all available context**
 
    ```bash

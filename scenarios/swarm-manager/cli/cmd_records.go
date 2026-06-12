@@ -17,6 +17,7 @@ type Record struct {
 	Kind         string   `json:"kind"`
 	Scenario     string   `json:"scenario"`
 	BacklogRef   string   `json:"backlog_ref,omitempty"`
+	InitiativeID string   `json:"initiative_id,omitempty"`
 	Supersedes   string   `json:"supersedes,omitempty"`
 	SupersededBy string   `json:"superseded_by,omitempty"`
 	Trigger      string   `json:"trigger"`
@@ -234,6 +235,7 @@ func (a *App) cmdRecordsCreate(args []string) error {
 	var files stringSlice
 	fs.Var(&files, "files", "Repo-relative file path (repeatable)")
 	backlogRefFlag := fs.String("backlog-ref", "", "Backlog reference (kind/name)")
+	initiativeIDFlag := fs.String("initiative-id", "", "Initiative this work belongs to (links the record back to the initiative)")
 	supersedesFlag := fs.String("supersedes", "", "Record ID this record supersedes")
 	outcomeFlag := fs.String("outcome", "shipped", "Outcome (shipped|partial|abandoned|duplicate)")
 	createdByFlag := fs.String("created-by", "", "Author identifier (agent id or human)")
@@ -242,13 +244,14 @@ func (a *App) cmdRecordsCreate(args []string) error {
 		return err
 	}
 	if err := requireFlags("kind", *kindFlag, "scenario", *scenarioFlag, "trigger", *triggerFlag); err != nil {
-		return fmt.Errorf("usage: records create --kind K --scenario X --trigger '...' [--approach '...'] [--ruled-out '...']... [--commit SHA] [--files PATH]... [--backlog-ref kind/name] [--supersedes ID] [--outcome ...] [--json]\n\n%s", err)
+		return fmt.Errorf("usage: records create --kind K --scenario X --trigger '...' [--approach '...'] [--ruled-out '...']... [--commit SHA] [--files PATH]... [--backlog-ref kind/name] [--initiative-id ID] [--supersedes ID] [--outcome ...] [--json]\n\n%s", err)
 	}
 
 	payload, err := json.Marshal(map[string]any{
 		"kind":          *kindFlag,
 		"scenario":      *scenarioFlag,
 		"backlog_ref":   *backlogRefFlag,
+		"initiative_id": *initiativeIDFlag,
 		"supersedes":    *supersedesFlag,
 		"trigger":       *triggerFlag,
 		"approach":      *approachFlag,

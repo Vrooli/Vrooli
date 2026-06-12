@@ -25,6 +25,7 @@ Prior rounds:
 
 Rules:
 
+- **Recall prior work first** (AGENTS.md §4): before implementing the next slice, `search-hub query "<slice intent>" --type record,skill,doc`. A `record` hit carries how a prior agent solved a similar slice (trigger + approach) — build on it and cite it, or stop and reconcile a near-duplicate rather than redo it. Fall back to `swarm-manager records search "<intent>"` if search-hub is unavailable.
 - Do not edit member backlog `spec.json` files directly.
 - Use existing project commands and lifecycle rules.
 - Run focused validation for the files/components you touch.

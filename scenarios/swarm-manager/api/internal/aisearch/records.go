@@ -42,6 +42,7 @@ func buildRecordPayload(r records.Record, payloadHash string) map[string]interfa
 		"kind":          string(r.Kind),
 		"scenario":      r.Scenario,
 		"backlog_ref":   r.BacklogRef,
+		"initiative_id": r.InitiativeID,
 		"supersedes":    r.Supersedes,
 		"superseded_by": r.SupersededBy,
 		"outcome":       string(r.Outcome),
@@ -84,6 +85,16 @@ func (s *Service) IndexRecord(ctx context.Context, r records.Record) error {
 	}
 
 	id := recordPointID(r.ID)
+	// Records have NO reconciler coverage — the aisearch Reconciler ensures only
+	// the backlog + initiative collections (reconciler.go), so this write-through
+	// is the sole path that populates the records collection. Ensure it exists
+	// before the upsert; otherwise the first record upsert hits a non-existent
+	// collection (404) and, because records.Service swallows index errors, records
+	// search silently 500s forever (the collection is never born). EnsureCollection
+	// is idempotent and cheap — a GET when the collection already exists.
+	if err := s.recordStore.EnsureCollection(ctx); err != nil {
+		return fmt.Errorf("ensure records collection for %s: %w", r.ID, err)
+	}
 	if err := s.recordStore.Upsert(ctx, id, vector, payload); err != nil {
 		return fmt.Errorf("upsert record %s: %w", r.ID, err)
 	}

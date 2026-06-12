@@ -68,7 +68,7 @@ func (f *fakeTextSearcher) Search(_ context.Context, _ string, _ EntityType, _ i
 // Replaces the old httptest fake-ollama; the production embedder shells out to
 // resource-ollama, so tests inject a runner stub instead.
 func fakeEmbedderOK() Embedder {
-	return newEmbedderWithRunner("nomic-embed-text", func(_ context.Context, _ []string, _ []byte) ([]byte, error) {
+	return newEmbedderWithRunner("embedding.default", func(_ context.Context, _ []string, _ []byte) ([]byte, error) {
 		return []byte(`{"embedding":[0.1,0.2,0.3]}`), nil
 	})
 }
@@ -76,7 +76,7 @@ func fakeEmbedderOK() Embedder {
 // fakeEmbedderErr returns an Embedder whose every Embed call fails. Replaces
 // the old "broken httptest server" pattern.
 func fakeEmbedderErr() Embedder {
-	return newEmbedderWithRunner("nomic-embed-text", func(_ context.Context, _ []string, _ []byte) ([]byte, error) {
+	return newEmbedderWithRunner("embedding.default", func(_ context.Context, _ []string, _ []byte) ([]byte, error) {
 		return nil, fmt.Errorf("HTTP 500: ollama down")
 	})
 }

@@ -10,7 +10,7 @@ require (
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
-	github.com/vrooli/aisearch-go v0.0.0
+	github.com/vrooli/ai-go v0.0.0
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/cli-core v0.0.0
 	github.com/vrooli/measures-go v0.0.0
@@ -50,7 +50,7 @@ replace github.com/vrooli/cli-core => ../../../packages/cli-core
 
 replace github.com/vrooli/measures-go => ../../../packages/measures-go
 
-replace github.com/vrooli/aisearch-go => ../../../packages/aisearch-go
+replace github.com/vrooli/ai-go => ../../../packages/ai-go
 
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 

@@ -2,14 +2,15 @@
   "kind": "topic",
   "schemaVersion": 1,
   "id": "finishing-spec-hygiene",
-  "name": "Finishing \u0026 spec hygiene",
+  "name": "Finishing & spec hygiene",
   "description": "Finishing and spec hygiene: syncing spec to implementation, final polish, progress tracking, and reference-pattern fitness.",
   "parentTopicId": "development",
   "skills": [
     "spec-sync",
     "polish",
     "progress",
-    "reference-pattern-fitness"
+    "reference-pattern-fitness",
+    "requirements-traceability-steer"
   ],
   "status": "active",
   "revision": 1,

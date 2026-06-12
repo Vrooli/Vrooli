@@ -19,7 +19,6 @@ const (
 	EnvQdrantBaseURL          = "QDRANT_BASE_URL"
 	EnvQdrantPort             = "QDRANT_PORT"
 	EnvQdrantAPIKey           = "QDRANT_API_KEY"
-	EnvAISearchModel          = "AI_SEARCH_MODEL"
 	EnvAISearchThreshold      = "AI_SEARCH_THRESHOLD"
 	EnvAISearchBacklogColl    = "AI_SEARCH_BACKLOG_COLLECTION"
 	EnvAISearchInitiativeColl = "AI_SEARCH_INITIATIVE_COLLECTION"
@@ -39,9 +38,7 @@ const (
 	// to [1, MaxReconcileParallelism].
 	EnvAISearchReconcileParallelism = "AI_SEARCH_RECONCILE_PARALLELISM"
 
-	DefaultEmbeddingModel   = "nomic-embed-text"
-	DefaultVectorDimensions = 768
-	DefaultThreshold        = 0.5
+	DefaultThreshold = 0.5
 
 	// Qdrant collection DOMAINS (Baseline Modes P5). The actual collection
 	// names are composed variant-awarely by storage.Collection(domain), which
@@ -155,8 +152,6 @@ type Config struct {
 	OllamaURL            string
 	QdrantURL            string
 	QdrantAPIKey         string
-	EmbeddingModel       string
-	VectorDimensions     int
 	Threshold            float64
 	BacklogCollection    string
 	InitiativeCollection string
@@ -172,15 +167,10 @@ func LoadConfigFromEnv() Config {
 		OllamaURL:            ResolveOllamaURL(),
 		QdrantURL:            ResolveQdrantURL(),
 		QdrantAPIKey:         strings.TrimSpace(os.Getenv(EnvQdrantAPIKey)),
-		EmbeddingModel:       DefaultEmbeddingModel,
-		VectorDimensions:     DefaultVectorDimensions,
 		Threshold:            DefaultThreshold,
 		BacklogCollection:    resolveCollection(EnvAISearchBacklogColl, CollectionDomainBacklog),
 		InitiativeCollection: resolveCollection(EnvAISearchInitiativeColl, CollectionDomainInitiative),
 		RecordCollection:     resolveCollection(EnvAISearchRecordColl, CollectionDomainRecord),
-	}
-	if v := strings.TrimSpace(os.Getenv(EnvAISearchModel)); v != "" {
-		cfg.EmbeddingModel = v
 	}
 	if v := strings.TrimSpace(os.Getenv(EnvAISearchThreshold)); v != "" {
 		if parsed, err := strconv.ParseFloat(v, 64); err == nil && parsed > 0 {

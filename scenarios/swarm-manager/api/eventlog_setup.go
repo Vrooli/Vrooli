@@ -52,6 +52,7 @@ func (s *Server) initEventLog() {
 		return
 	}
 	s.eventDB = eventDB
+	s.eventRepo = repo
 	s.emitter = eventlog.NewEmitter(repo)
 	s.statsEngine = stats.NewEngine(repo)
 	if err := s.statsEngine.Rebuild(context.Background()); err != nil {

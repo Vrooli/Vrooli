@@ -44,6 +44,7 @@ func TestBuildRecordPayload_FieldsAndEntityDiscriminator(t *testing.T) {
 		Kind:         records.KindFix,
 		Scenario:     "audio-tools",
 		BacklogRef:   "fix/voice-auto-stop",
+		InitiativeID: "voice-reliability",
 		Supersedes:   "rec-prev",
 		SupersededBy: "",
 		Outcome:      records.OutcomeShipped,
@@ -66,6 +67,9 @@ func TestBuildRecordPayload_FieldsAndEntityDiscriminator(t *testing.T) {
 	}
 	if p["backlog_ref"] != "fix/voice-auto-stop" {
 		t.Errorf("backlog_ref = %v", p["backlog_ref"])
+	}
+	if p["initiative_id"] != "voice-reliability" {
+		t.Errorf("initiative_id = %v", p["initiative_id"])
 	}
 	if p["supersedes"] != "rec-prev" {
 		t.Errorf("supersedes = %v", p["supersedes"])
@@ -166,6 +170,12 @@ func TestIndexRecord_EmbedsAndUpserts(t *testing.T) {
 	}
 	if emb.callCount() != 1 {
 		t.Errorf("expected 1 embed call, got %d", emb.callCount())
+	}
+	// Records have no reconciler coverage, so the write-through MUST ensure its
+	// own collection before upserting — otherwise the first upsert 404s on a
+	// non-existent collection and records search silently breaks. Guard the fix.
+	if vs.ensureCalls < 1 {
+		t.Errorf("expected IndexRecord to EnsureCollection before upsert, got %d ensure calls", vs.ensureCalls)
 	}
 	expectedID := recordPointID("rec-1")
 	if _, ok := vs.points[expectedID]; !ok {

@@ -662,6 +662,55 @@ briefing alone.
 assert ranking order, readiness classification, downstream-unblocks counts, and
 cache hit/expiry behavior.
 
+### Measures Serve Boundary
+
+`api/handlers/measures/measures.go` exposes swarm-manager's declared analytical
+**measures** — the granular, individually addressable layer for analytical
+questions ("how many backlog items were completed this week"), parameterized by
+the shared canonical `vrooli.measures.v1.TimeWindow`. It is the dogfood adopter
+of `packages/measures-go` (plan: measures-federated-metrics-layer, Phase 6).
+
+- **`Counter` interface**: the narrow event-log substrate the compute funcs
+  depend on — `CountEventsInRange` (bare event-type count in `[from, to)`) and
+  `CountStatusTransitionsInRange` (status_changed events whose `to` matches,
+  for the "completed" family). The production `*eventlog.SQLiteRepository`
+  satisfies it; tests inject a fake. Counts are real SQL aggregates filtered by
+  the indexed `event_type`, with the `[from, to)` window applied on parsed
+  `time.Time` (RFC3339Nano fractional seconds make SQL lexical range unsafe).
+- **`spec` table** (`specs()`): the SSOT measure set. Each entry pairs a
+  `measures.MeasureDeclaration` (name `<domain>.<verb>`, a single canonical
+  `time_window` param → full tier, read + run-eligible) with a `computeFn`.
+  The declaration `Name` MUST equal the manifest `domain.command` so the
+  measures-health behavioral probe's `/measures/execute` call resolves it.
+- **Two surfaces, one compute path**: `NewRegistry`/`MeasuresHandler` builds the
+  `measures-go` serve registry (mounted at `/measures`: `GET /declarations`,
+  `POST /execute`) consumed by the measures-health probe + the search-hub
+  central index; `NewHandler`/`RegisterRoutes` mounts the typed Connect
+  `MeasuresService`. Both dispatch through the same `computeFn`, so a measure
+  and its RPC can never report different numbers.
+- **Coverage contract** (`cli/manifest.json` `measures{}`): the manifest is the
+  measures SSOT consumed by `measures-health validate scenario swarm-manager`.
+  Covered stateful domains: `backlog` (completed, created), `execution`,
+  `initiative`, `agent_session`. Waived: `capture` (ephemeral pre-triage inbox,
+  no creation event). Overridden non-stateful: `agent_activity` (live derived
+  feed), `graph` (positions), `operations` (computed briefing), `scenario`
+  (fs catalog). `settings` is auto-filtered.
+
+**Wired via**: `main()` mounts both surfaces from `srv.eventRepo` (the
+`*eventlog.SQLiteRepository` captured in `initEventLog`) when the event log is
+available. **Proto**: `packages/proto/schemas/swarm-manager/v1/measures/measures.proto`.
+
+**Testing at the seam**: inject a fake `Counter` with canned per-event-type
+counts + a fixed clock; assert declaration validity/tier, serve round-trip
+(value + mandatory provenance), Connect-RPC parity, and window resolution.
+
+> **Not yet migrated (Phase 6b):** the legacy monolithic `internal/stats` engine
+> + `GET /api/v1/stats` blob and its ~22 UI consumers still stand. The measures
+> layer is additive; deleting `/stats` requires first expanding the measure set
+> to cover the dashboards' rate/median/series/by-dimension analytics (the count
+> measures here cover only the stateful-domain question-families needed for
+> measures-health full-tier coverage), then migrating the UI. See PROBLEMS.md.
+
 ### Entity Reference Resolution Boundary
 
 `api/internal/sessioncontext/bulk.go` resolves typed entity-reference

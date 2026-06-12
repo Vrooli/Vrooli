@@ -17,6 +17,7 @@ work lands, not while work is still speculative.
 | 2026-06-11 | codex | done | Implemented the Phase 6 quality-loop integration slice: `FINDING_SOURCE_PROTO`, test-genie's optional `proto` phase, the maturity `proto-health` R2 dimension, CI proto generated-artifact verification, and the `proto-contract-audit` steer skill. |
 | 2026-06-11 | codex | done | Completed the Phase 7 self-validation slice: synchronized proto-health PRD/requirements shape, removed the temporary `notes` measure declaration, moved proto-health UI copy onto generated i18n keys, fixed the theme media-query fallback for jsdom, and brought `vrooli scenario test proto-health` to green. |
 | 2026-06-11 | codex | done | Closed the generated-artifact validation gap by adding a fakeable `GenSyncChecker`, production temp-workspace codegen comparison for scenario generated slices, `proto.gen_out_of_sync` service coverage, and sibling smoke checks for `cli-health`, `measures-health`, and `agent-manager`. |
+| 2026-06-11 | codex | done | Hardened the `proto-contract-audit` skill with troubleshooting guidance, created late regression baselines for test-genie/ecosystem-manager, revalidated the proto/test-genie/maturity surfaces, and confirmed `proto-health` health, UI, direct validation, test-genie proto phase, and full scenario test remain green. |
 
 ## Entry Template
 

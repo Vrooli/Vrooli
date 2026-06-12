@@ -88,7 +88,7 @@ func NewHandler(scenariosDir string) *Handler {
 		scenariosDir,
 		NewCLIProvider(defaultCLITimeout),
 		NewCLILifecycle(),
-		NewCLICompletenessSource(defaultCompletenessTimeout),
+		NewSCSCompletenessSource(defaultCompletenessTimeout),
 	)
 }
 
@@ -98,7 +98,7 @@ func NewHandlerWithSource(scenariosDir string, source Source) *Handler {
 		scenariosDir,
 		source,
 		NewCLILifecycle(),
-		NewCLICompletenessSource(defaultCompletenessTimeout),
+		NewSCSCompletenessSource(defaultCompletenessTimeout),
 	)
 }
 
@@ -114,7 +114,7 @@ func NewHandlerWithDeps(scenariosDir string, source Source, lifecycle Lifecycle,
 		lifecycle = NewCLILifecycle()
 	}
 	if completeness == nil {
-		completeness = NewCLICompletenessSource(defaultCompletenessTimeout)
+		completeness = NewSCSCompletenessSource(defaultCompletenessTimeout)
 	}
 	return &Handler{
 		scenariosDir: scenariosDir,

@@ -624,3 +624,38 @@ side proto change is needed for the audio-tools-owned settings.
 **Follow-up:** When a richer client-side preferences slice is
 introduced (Zustand persist or similar), migrate this pref or
 formalise it as `Settings.audio.autoSpeak`.
+
+## Measures: monolithic /stats + UI not yet migrated (Phase 6b)
+
+*Added: 2026-06-08 (measures-federated-metrics-layer Phase 6 — dogfood)*
+
+Phase 6 added the granular **measures** layer (`api/handlers/measures/`, proto
+`MeasuresService`, `cli/manifest.json`) over the event log, and swarm-manager
+now passes `measures-health validate scenario swarm-manager` (static + probe)
+at **full tier** with the marquee question answered end-to-end through
+search-hub. That work is **additive** — the legacy monolithic
+`internal/stats` engine + `GET /api/v1/stats` blob and its consumers still
+stand.
+
+**Remaining (Phase 6b), in order:**
+1. **Expand the measure set to dashboard parity.** The five Phase-6 measures are
+   windowed *counts* (the stateful-domain question-families measures-health
+   grades). The `/stats` blob also serves rates, medians, velocity series,
+   and by-mode/by-kind/by-initiative breakdowns. Deleting `/stats` without
+   these would regress the OperationsCenter / Execution dashboards. Add
+   `table`/`series` measures + rate measures (each: a `MeasuresService` RPC with
+   a `TimeWindow` request → descriptor regen → manifest block → compute over the
+   event log / the existing `stats` aggregateState as a read-model).
+2. **Migrate the UI** (~22 files: `pages/OperationsCenterPage`, `ExecutionPage`,
+   `surfaces/graph/components/StatsPanel` + HUD, `services/stats-service`,
+   `hooks/useStats`, `types/stats`, `lib/stats-format-utils`, `consts/selectors`,
+   and their tests) onto the new measures (via `/measures/execute` or the
+   Connect client) or the search-hub central index.
+3. **Delete** `internal/stats/`, `stats.NewHandler`/`RegisterRoutes`, the
+   `GET /api/v1/stats` route, and the CLI `stats` group (greenfield — no shim).
+4. **Add a `measures` CLI group.** Phase 6 left the CLI untouched: the manifest's
+   command declarations are the intended surface, but the hand-rolled CLI is
+   REST-only (`core` prepends `/api/v1`, no Connect-client infra), so wiring
+   `swarm-manager measures backlog-completed --window …` needs either a
+   Connect-client (preferred) or a raw-HTTP helper to reach root-mounted
+   `/measures/execute`. Pairs naturally with the UI migration.

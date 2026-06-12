@@ -11,6 +11,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	sharedsearch "github.com/vrooli/ai-go/search"
 )
 
 // Default values applied by NewVectorStore when callers pass empty/zero. Kept
@@ -19,7 +21,6 @@ import (
 // state.
 const (
 	DefaultCollectionName = "swarm-manager"
-	DefaultVectorSize     = 768
 
 	// MaxDeleteBatch caps the number of point IDs sent in a single
 	// /points/delete request. Qdrant accepts arbitrary-size batches; the cap
@@ -71,22 +72,36 @@ type qdrantVectorStore struct {
 	Client     *http.Client
 }
 
-// NewVectorStore creates a Qdrant-backed VectorStore. Empty collection and
-// non-positive vectorSize fall back to DefaultCollectionName and
-// DefaultVectorSize respectively. The returned value implements VectorStore;
-// callers should hold it as VectorStore at consumption sites.
+// NewVectorStore creates a Qdrant-backed VectorStore. Empty collection falls
+// back to DefaultCollectionName. The vector size must be resolved from Ollama
+// policy by the caller before constructing the store.
+//
+// Deprecated: production callers should use NewVectorStoreForPolicy so
+// collection dimensions stay attached to the resolved embedding policy.
 func NewVectorStore(baseURL, apiKey, collection string, vectorSize int) VectorStore {
 	if collection == "" {
 		collection = DefaultCollectionName
-	}
-	if vectorSize <= 0 {
-		vectorSize = DefaultVectorSize
 	}
 	return &qdrantVectorStore{
 		BaseURL:    baseURL,
 		APIKey:     apiKey,
 		Collection: collection,
 		VectorSize: vectorSize,
+		Client:     &http.Client{Timeout: 15 * time.Second},
+	}
+}
+
+// NewVectorStoreForPolicy creates a Qdrant-backed VectorStore from an embedding
+// policy that was already resolved during startup preflight.
+func NewVectorStoreForPolicy(baseURL, apiKey, collection string, policy sharedsearch.EmbeddingPolicy) VectorStore {
+	if collection == "" {
+		collection = DefaultCollectionName
+	}
+	return &qdrantVectorStore{
+		BaseURL:    baseURL,
+		APIKey:     apiKey,
+		Collection: collection,
+		VectorSize: policy.Dimensions,
 		Client:     &http.Client{Timeout: 15 * time.Second},
 	}
 }

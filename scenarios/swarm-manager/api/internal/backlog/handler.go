@@ -59,16 +59,34 @@ type AgentActivityChecker interface {
 // be cheap or self-gate expensive work to a goroutine.
 type ItemTerminalHandler func(ctx context.Context, kind, name string, status BacklogStatus)
 
-// RecordStubCreator is the records soft-prompt seam: when a backlog item
-// reaches a terminal status (and the client did not pass --no-record), the
-// review-decide endpoint asks the implementation to create a thin record
-// stub linking back to the item. Returned id is surfaced to the client so
-// the agent can fill it via `records edit`. Errors are logged and dropped;
-// stub creation must never block or fail the terminal transition.
+// BacklogRecordRequest carries the context the review-decide hook hands to the
+// records capture seam so it can write a FILLED, searchable record (not an empty
+// stub): the item's own title/description seed the record's trigger/approach,
+// the acceptance globs derive the target scenario, and the initiative links it
+// back. The hook already has the item loaded, so passing it here costs nothing
+// and lets the record be born indexed instead of an empty stub nobody fills.
+type BacklogRecordRequest struct {
+	Kind            string
+	Name            string
+	Title           string
+	Description     string
+	AcceptanceAllow []string
+	Initiative      string
+	Status          BacklogStatus
+	DecidedBy       string
+}
+
+// RecordCreator is the records capture seam: when a backlog item reaches a
+// terminal status (and the client did not pass --no-record), the review-decide
+// endpoint asks the implementation to write a record capturing the work, drawn
+// from the item itself. The returned id is surfaced to the client so the agent
+// can enrich it via `records supersede` (the record is born filled+immutable, so
+// `records edit` is not the amend path). Errors are logged and dropped; capture
+// must never block or fail the terminal transition.
 //
-// seam: backlog.RecordStubCreator
-type RecordStubCreator interface {
-	CreateBacklogStub(ctx context.Context, kind, name string, status BacklogStatus, decidedBy string) (recordID string, err error)
+// seam: backlog.RecordCreator
+type RecordCreator interface {
+	CreateBacklogRecord(ctx context.Context, req BacklogRecordRequest) (recordID string, err error)
 }
 
 // Handler provides HTTP handlers for backlog operations.
@@ -93,7 +111,7 @@ type Handler struct {
 	eventLogger          EventLogger
 	workshopTicker       *WorkshopTicker
 	itemTerminalHandler  ItemTerminalHandler
-	recordStubCreator    RecordStubCreator
+	recordCreator        RecordCreator
 	reviewRoundInspector ReviewRoundInspector
 }
 
@@ -221,11 +239,11 @@ func (h *Handler) SetItemTerminalHandler(f ItemTerminalHandler) {
 	h.itemTerminalHandler = f
 }
 
-// SetRecordStubCreator wires the records soft-prompt seam. main.go installs
-// this after both backlog and records services are constructed. Nil resets to
-// no-op (review-decide will not create stubs).
-func (h *Handler) SetRecordStubCreator(c RecordStubCreator) {
-	h.recordStubCreator = c
+// SetRecordCreator wires the records capture seam. main.go installs this after
+// both backlog and records services are constructed. Nil resets to no-op
+// (review-decide will not capture a record).
+func (h *Handler) SetRecordCreator(c RecordCreator) {
+	h.recordCreator = c
 }
 
 // AddItemTerminalHandler appends a callback to the terminal-status chain. All

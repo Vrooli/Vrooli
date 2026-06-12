@@ -90,6 +90,7 @@ type CreateInput struct {
 	Kind         RecordKind
 	Scenario     string
 	BacklogRef   string
+	InitiativeID string
 	Supersedes   string
 	Trigger      string
 	Approach     string
@@ -117,6 +118,7 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (Record, error) {
 		Kind:         in.Kind,
 		Scenario:     in.Scenario,
 		BacklogRef:   strings.TrimSpace(in.BacklogRef),
+		InitiativeID: strings.TrimSpace(in.InitiativeID),
 		Supersedes:   strings.TrimSpace(in.Supersedes),
 		Trigger:      strings.TrimSpace(in.Trigger),
 		Approach:     strings.TrimSpace(in.Approach),
