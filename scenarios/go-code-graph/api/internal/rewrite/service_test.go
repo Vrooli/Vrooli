@@ -27,7 +27,7 @@ func TestServicePlanIsDeterministic(t *testing.T) {
 	svc1 := newSvc(t, &recordingExec{})
 	svc2 := newSvc(t, &recordingExec{})
 	in := PlanInput{
-		ScenarioPath: "/tmp/x",
+		ModulePath: "/tmp/x",
 		Operations: []Operation{
 			FileMove{From: "a.go", To: "b.go"},
 			ImportRewrite{Old: "foo", New: "bar"},
@@ -52,7 +52,7 @@ func TestServicePlanIsDeterministic(t *testing.T) {
 func TestServicePlanRejectsEmpty(t *testing.T) {
 	t.Parallel()
 	svc := newSvc(t, &recordingExec{})
-	_, err := svc.Plan(context.Background(), PlanInput{ScenarioPath: "/tmp/x"})
+	_, err := svc.Plan(context.Background(), PlanInput{ModulePath: "/tmp/x"})
 	if err == nil {
 		t.Fatal("expected error for empty ops")
 	}
@@ -66,9 +66,9 @@ func TestServiceApplyUnknownPlanIsPlanNotFound(t *testing.T) {
 	t.Parallel()
 	svc := newSvc(t, &recordingExec{})
 	_, err := svc.Apply(context.Background(), ApplyInput{
-		ScenarioPath: "/tmp/x",
-		PlanID:       "nope",
-		Apply:        true,
+		ModulePath: "/tmp/x",
+		PlanID:     "nope",
+		Apply:      true,
 	})
 	if err == nil {
 		t.Fatal("expected error for unknown plan")
@@ -83,9 +83,9 @@ func TestServiceApplyApplyFalseIsApplyNotSet(t *testing.T) {
 	t.Parallel()
 	svc := newSvc(t, &recordingExec{})
 	_, err := svc.Apply(context.Background(), ApplyInput{
-		ScenarioPath: "/tmp/x",
-		PlanID:       "x",
-		Apply:        false,
+		ModulePath: "/tmp/x",
+		PlanID:     "x",
+		Apply:      false,
 	})
 	if err == nil {
 		t.Fatal("expected error for apply=false")
@@ -101,17 +101,17 @@ func TestServiceApplyDryRunSkipsExecutor(t *testing.T) {
 	exec := &recordingExec{}
 	svc := newSvc(t, exec)
 	plan, err := svc.Plan(context.Background(), PlanInput{
-		ScenarioPath: "/tmp/x",
-		Operations:   []Operation{FileMove{From: "a.go", To: "b.go"}},
+		ModulePath: "/tmp/x",
+		Operations: []Operation{FileMove{From: "a.go", To: "b.go"}},
 	})
 	if err != nil {
 		t.Fatalf("plan: %v", err)
 	}
 	res, err := svc.Apply(context.Background(), ApplyInput{
-		ScenarioPath: "/tmp/x",
-		PlanID:       plan.ID,
-		Apply:        true,
-		DryRun:       true,
+		ModulePath: "/tmp/x",
+		PlanID:     plan.ID,
+		Apply:      true,
+		DryRun:     true,
 	})
 	if err != nil {
 		t.Fatalf("apply: %v", err)
@@ -132,16 +132,16 @@ func TestServiceApplyHappyPath(t *testing.T) {
 	exec := &recordingExec{}
 	svc := newSvc(t, exec)
 	plan, err := svc.Plan(context.Background(), PlanInput{
-		ScenarioPath: "/tmp/x",
-		Operations:   []Operation{FileMove{From: "a.go", To: "b.go"}},
+		ModulePath: "/tmp/x",
+		Operations: []Operation{FileMove{From: "a.go", To: "b.go"}},
 	})
 	if err != nil {
 		t.Fatalf("plan: %v", err)
 	}
 	res, err := svc.Apply(context.Background(), ApplyInput{
-		ScenarioPath: "/tmp/x",
-		PlanID:       plan.ID,
-		Apply:        true,
+		ModulePath: "/tmp/x",
+		PlanID:     plan.ID,
+		Apply:      true,
 	})
 	if err != nil {
 		t.Fatalf("apply: %v", err)

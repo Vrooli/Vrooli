@@ -36,7 +36,7 @@ func domainToProtoGraph(g intgraph.Graph) *commonv1.CodeGraph {
 	return out
 }
 
-// nodeKindToProto folds Go-specific symbol kinds onto the common
+// nodeKindToProto folds Go-specific fact kinds onto the common
 // envelope's primary NodeKind, recording the typed Go kind via the
 // "kind" attribute (see common/v1/code_graph.proto comments).
 func nodeKindToProto(k intgraph.NodeKind) commonv1.NodeKind {
@@ -48,7 +48,7 @@ func nodeKindToProto(k intgraph.NodeKind) commonv1.NodeKind {
 	case intgraph.NodeKindModule:
 		return commonv1.NodeKind_NODE_KIND_MODULE
 	default:
-		// Go-specific symbol kinds (go_type, go_func, ...) are
+		// Go-specific symbol/fact kinds (go_type, go_call, ...) are
 		// represented as PACKAGE-scoped attributes; we still need a
 		// primary NodeKind, and per the envelope contract they ride
 		// under the package-scoped node family.
@@ -57,7 +57,7 @@ func nodeKindToProto(k intgraph.NodeKind) commonv1.NodeKind {
 }
 
 // cloneAttributes returns a defensive copy of attrs with the Go-typed
-// node kind merged in when nodeKind is a Go-specific symbol kind.
+// node kind merged in when nodeKind is a Go-specific fact kind.
 // Returning nil for empty input keeps proto-zero-value semantics.
 func cloneAttributes(attrs map[string]string, nodeKind intgraph.NodeKind) map[string]string {
 	if len(attrs) == 0 && !isGoSymbolKind(nodeKind) {
@@ -76,7 +76,9 @@ func cloneAttributes(attrs map[string]string, nodeKind intgraph.NodeKind) map[st
 func isGoSymbolKind(k intgraph.NodeKind) bool {
 	switch k {
 	case intgraph.NodeKindType, intgraph.NodeKindFunc, intgraph.NodeKindVar,
-		intgraph.NodeKindConst, intgraph.NodeKindInterface, intgraph.NodeKindMethod:
+		intgraph.NodeKindConst, intgraph.NodeKindInterface, intgraph.NodeKindMethod,
+		intgraph.NodeKindImportSpec, intgraph.NodeKindReference, intgraph.NodeKindCall,
+		intgraph.NodeKindTypeUsage:
 		return true
 	}
 	return false
@@ -116,6 +118,8 @@ func warningKindToProto(k intgraph.WarningKind) commonv1.CodeGraphWarningKind {
 		return commonv1.CodeGraphWarningKind_CODE_GRAPH_WARNING_KIND_UNRESOLVED_IMPORT
 	case intgraph.WarningKindTypeCheckFailure:
 		return commonv1.CodeGraphWarningKind_CODE_GRAPH_WARNING_KIND_TYPE_CHECK_FAILURE
+	case intgraph.WarningKindUnresolvedSymbol:
+		return commonv1.CodeGraphWarningKind_CODE_GRAPH_WARNING_KIND_AMBIGUOUS_DECLARATION
 	default:
 		return commonv1.CodeGraphWarningKind_CODE_GRAPH_WARNING_KIND_UNSPECIFIED
 	}

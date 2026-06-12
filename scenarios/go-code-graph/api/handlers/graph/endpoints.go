@@ -24,12 +24,12 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        graph_v1connect.GoCodeGraphServiceExtractProcedure,
 		Method:      "POST",
 		Summary:     "Extract a deterministic Go graph",
-		Description: "Loads the Go module rooted at scenario_path and returns the normalized graph + warnings + extraction time + graph hash.",
+		Description: "Loads the Go module rooted at module_path and returns the normalized graph + warnings + extraction time + graph hash.",
 		Category:    "graph",
 		Request: &module.Schema{
 			Type: "object",
 			Properties: map[string]string{
-				"scenario_path":  "string (required, absolute or scenario-relative module root)",
+				"module_path":    "string (required, absolute or scenario-relative module root)",
 				"include_vendor": "boolean (default false)",
 			},
 		},
@@ -43,8 +43,8 @@ var Endpoints = []module.EndpointDescriptor{
 			},
 		},
 		Errors: []module.ErrorDesc{
-			{Status: 400, Code: "invalid_argument", Description: "Missing or invalid scenario_path; no/multiple go.mod"},
-			{Status: 404, Code: "not_found", Description: "scenario_path unreadable"},
+			{Status: 400, Code: "invalid_argument", Description: "Missing or invalid module_path; no/multiple go.mod"},
+			{Status: 404, Code: "not_found", Description: "module_path unreadable"},
 			{Status: 501, Code: "unimplemented", Description: "go.work multi-module workspaces are not supported in v1"},
 			{Status: 500, Code: "internal", Description: "Loader failure"},
 		},

@@ -61,14 +61,37 @@ func TestDescriptorLoaderLoadScenario(t *testing.T) {
 	require.True(t, sawRPC)
 
 	require.Contains(t, surface.CrossScenarioImports, Import{
-		FromFile:   "proto-health/v1/notes/notes.proto",
-		ToFile:     "measures/v1/measures.proto",
-		FromDomain: "notes",
+		FromFile:     "proto-health/v1/notes/notes.proto",
+		ToFile:       "measures/v1/measures.proto",
+		FromScenario: "proto-health",
+		ToScenario:   "measures",
+		FromPackage:  "vrooli.proto_health.v1.notes",
+		ToPackage:    "vrooli.measures.v1",
+		FromVersion:  "v1",
+		ToVersion:    "v1",
+		FromDomain:   "notes",
+		ToDomain:     "measures",
+		Kind:         ImportKindCrossScenario,
 	})
-	require.Contains(t, surface.AdoptionSignals, AdoptionSignal{
-		Name:    "api_go_mod_replace",
-		Present: true,
-		Detail:  "api/go.mod references the shared packages/proto module",
+	require.Contains(t, surface.RESTExceptions, RESTExceptionEndpoint{
+		EndpointID:             "notes_attach",
+		Path:                   "/api/v1/notes/{id}/attachments",
+		Method:                 "POST",
+		Domain:                 "notes",
+		Reason:                 "multipart_upload",
+		HasPayloadDeclarations: true,
+	})
+	require.Contains(t, surface.RESTExceptionPayloads, RESTExceptionPayloadRef{
+		EndpointID:    "notes_attach",
+		Path:          "/api/v1/notes/{id}/attachments",
+		Method:        "POST",
+		Domain:        "notes",
+		Reason:        "multipart_upload",
+		Role:          RESTPayloadRoleResponse,
+		ProtoFullName: "vrooli.proto_health.v1.notes.UploadAttachmentResponse",
+		Transport:     "json",
+		Conformance:   "protojson",
+		ProofStatus:   RESTPayloadProofNotEvaluated,
 	})
 	require.Contains(t, surface.RESTExceptionRefs, RESTExceptionRef{
 		EndpointID: "notes_attach",

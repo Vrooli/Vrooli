@@ -9,7 +9,7 @@
       "dependencies": [
         "REQ-P0-001"
       ],
-      "description": "Both Extract and Rewrite must operate on exactly one tsconfig.json per invocation. The scenario must implement discovery logic that identifies the applicable tsconfig.json from the provided scenario_path. Any ambiguous input must be rejected with a structured, typed error that identifies the ambiguity and instructs the caller which file path to specify. Ambiguous conditions include: no tsconfig.json discoverable in or above the path, multiple tsconfig.json files at the same directory level, and pnpm workspace roots where multiple packages each have a tsconfig.json.",
+      "description": "Both Extract and Rewrite must operate on exactly one tsconfig.json per invocation. The scenario must implement discovery logic that identifies the applicable tsconfig.json from the provided project_path. project_path may be a project root directory or an explicit tsconfig.json file. Any ambiguous input must be rejected with a structured, typed error that identifies the ambiguity and instructs the caller which file path to specify. Ambiguous conditions include: no tsconfig.json discoverable in or above the path, multiple tsconfig.json files at the same directory level, and pnpm workspace roots where multiple packages each have a tsconfig.json.",
       "id": "REQ-P0-005",
       "prd_ref": "OT-P0-005",
       "status": "draft",

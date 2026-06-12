@@ -42,13 +42,13 @@ External storage resources (Postgres, Qdrant, Ollama, etc.) are **not** required
 CREATE TABLE IF NOT EXISTS operation_log (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   plan_id     TEXT    NOT NULL,
-  scenario_path TEXT  NOT NULL,
+  module_path TEXT  NOT NULL,
   applied_at  INTEGER NOT NULL, -- unix epoch seconds
   ops_json    TEXT    NOT NULL, -- normalized operation list with per-op status
   succeeded   INTEGER NOT NULL  -- 1 = all ops applied; 0 = partial or full failure
 );
 
-CREATE INDEX IF NOT EXISTS operation_log_path_idx ON operation_log(scenario_path, applied_at DESC);
+CREATE INDEX IF NOT EXISTS operation_log_path_idx ON operation_log(module_path, applied_at DESC);
 ```
 
 ## Migrations And Compatibility

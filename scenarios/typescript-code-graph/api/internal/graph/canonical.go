@@ -136,6 +136,16 @@ func nodeKindToWire(k NodeKind) int32 {
 		return 208
 	case NodeKindReExport:
 		return 209
+	case NodeKindImportBinding:
+		return 210
+	case NodeKindReference:
+		return 211
+	case NodeKindCall:
+		return 212
+	case NodeKindJsxUsage:
+		return 213
+	case NodeKindExport:
+		return 214
 	default:
 		return 0
 	}

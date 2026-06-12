@@ -22,6 +22,11 @@ class TsNodeKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TS_NODE_KIND_VAR: _ClassVar[TsNodeKind]
     TS_NODE_KIND_CONST: _ClassVar[TsNodeKind]
     TS_NODE_KIND_RE_EXPORT: _ClassVar[TsNodeKind]
+    TS_NODE_KIND_IMPORT_BINDING: _ClassVar[TsNodeKind]
+    TS_NODE_KIND_REFERENCE: _ClassVar[TsNodeKind]
+    TS_NODE_KIND_CALL: _ClassVar[TsNodeKind]
+    TS_NODE_KIND_JSX_USAGE: _ClassVar[TsNodeKind]
+    TS_NODE_KIND_EXPORT: _ClassVar[TsNodeKind]
 TS_NODE_KIND_UNSPECIFIED: TsNodeKind
 TS_NODE_KIND_MODULE: TsNodeKind
 TS_NODE_KIND_COMPONENT: TsNodeKind
@@ -33,12 +38,17 @@ TS_NODE_KIND_FUNCTION: TsNodeKind
 TS_NODE_KIND_VAR: TsNodeKind
 TS_NODE_KIND_CONST: TsNodeKind
 TS_NODE_KIND_RE_EXPORT: TsNodeKind
+TS_NODE_KIND_IMPORT_BINDING: TsNodeKind
+TS_NODE_KIND_REFERENCE: TsNodeKind
+TS_NODE_KIND_CALL: TsNodeKind
+TS_NODE_KIND_JSX_USAGE: TsNodeKind
+TS_NODE_KIND_EXPORT: TsNodeKind
 
 class ExtractRequest(_message.Message):
-    __slots__ = ("scenario_path",)
-    SCENARIO_PATH_FIELD_NUMBER: _ClassVar[int]
-    scenario_path: str
-    def __init__(self, scenario_path: _Optional[str] = ...) -> None: ...
+    __slots__ = ("project_path",)
+    PROJECT_PATH_FIELD_NUMBER: _ClassVar[int]
+    project_path: str
+    def __init__(self, project_path: _Optional[str] = ...) -> None: ...
 
 class ExtractResponse(_message.Message):
     __slots__ = ("graph", "warnings", "extraction_ms", "graph_hash", "sidecar_request_id")
@@ -55,12 +65,12 @@ class ExtractResponse(_message.Message):
     def __init__(self, graph: _Optional[_Union[_code_graph_pb2.CodeGraph, _Mapping]] = ..., warnings: _Optional[_Iterable[_Union[_code_graph_pb2.CodeGraphWarning, _Mapping]]] = ..., extraction_ms: _Optional[int] = ..., graph_hash: _Optional[str] = ..., sidecar_request_id: _Optional[str] = ...) -> None: ...
 
 class RewritePlanRequest(_message.Message):
-    __slots__ = ("scenario_path", "operations")
-    SCENARIO_PATH_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ("project_path", "operations")
+    PROJECT_PATH_FIELD_NUMBER: _ClassVar[int]
     OPERATIONS_FIELD_NUMBER: _ClassVar[int]
-    scenario_path: str
+    project_path: str
     operations: _containers.RepeatedCompositeFieldContainer[_rewrite_pb2.Operation]
-    def __init__(self, scenario_path: _Optional[str] = ..., operations: _Optional[_Iterable[_Union[_rewrite_pb2.Operation, _Mapping]]] = ...) -> None: ...
+    def __init__(self, project_path: _Optional[str] = ..., operations: _Optional[_Iterable[_Union[_rewrite_pb2.Operation, _Mapping]]] = ...) -> None: ...
 
 class RewritePlanResponse(_message.Message):
     __slots__ = ("plan_id", "normalized_operations")
@@ -71,14 +81,14 @@ class RewritePlanResponse(_message.Message):
     def __init__(self, plan_id: _Optional[str] = ..., normalized_operations: _Optional[_Iterable[_Union[_rewrite_pb2.Operation, _Mapping]]] = ...) -> None: ...
 
 class RewriteApplyRequest(_message.Message):
-    __slots__ = ("scenario_path", "plan_id", "apply")
-    SCENARIO_PATH_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ("project_path", "plan_id", "apply")
+    PROJECT_PATH_FIELD_NUMBER: _ClassVar[int]
     PLAN_ID_FIELD_NUMBER: _ClassVar[int]
     APPLY_FIELD_NUMBER: _ClassVar[int]
-    scenario_path: str
+    project_path: str
     plan_id: str
     apply: bool
-    def __init__(self, scenario_path: _Optional[str] = ..., plan_id: _Optional[str] = ..., apply: _Optional[bool] = ...) -> None: ...
+    def __init__(self, project_path: _Optional[str] = ..., plan_id: _Optional[str] = ..., apply: _Optional[bool] = ...) -> None: ...
 
 class RewriteApplyResponse(_message.Message):
     __slots__ = ("plan_id", "results", "dry_run")

@@ -30,9 +30,8 @@ const (
 // lives here so consumers can validate the value without parsing
 // strings.
 //
-// Reserved-but-unused values exist so future additions stay
-// backward-compatible (consumers ignore unknown string values rather
-// than failing).
+// Usage-fact values remain generic TypeScript evidence. They are not
+// endpoint, proto-health, or Vrooli policy facts.
 type TsNodeKind int32
 
 const (
@@ -59,6 +58,16 @@ const (
 	TsNodeKind_TS_NODE_KIND_CONST TsNodeKind = 208
 	// A re-export site (`export * from`, `export { X } from`).
 	TsNodeKind_TS_NODE_KIND_RE_EXPORT TsNodeKind = 209
+	// One import binding from an import declaration.
+	TsNodeKind_TS_NODE_KIND_IMPORT_BINDING TsNodeKind = 210
+	// One identifier reference with enclosing declaration context.
+	TsNodeKind_TS_NODE_KIND_REFERENCE TsNodeKind = 211
+	// One call expression.
+	TsNodeKind_TS_NODE_KIND_CALL TsNodeKind = 212
+	// One JSX component/tag usage.
+	TsNodeKind_TS_NODE_KIND_JSX_USAGE TsNodeKind = 213
+	// One exported declaration or re-export summary entry.
+	TsNodeKind_TS_NODE_KIND_EXPORT TsNodeKind = 214
 )
 
 // Enum value maps for TsNodeKind.
@@ -75,19 +84,29 @@ var (
 		207: "TS_NODE_KIND_VAR",
 		208: "TS_NODE_KIND_CONST",
 		209: "TS_NODE_KIND_RE_EXPORT",
+		210: "TS_NODE_KIND_IMPORT_BINDING",
+		211: "TS_NODE_KIND_REFERENCE",
+		212: "TS_NODE_KIND_CALL",
+		213: "TS_NODE_KIND_JSX_USAGE",
+		214: "TS_NODE_KIND_EXPORT",
 	}
 	TsNodeKind_value = map[string]int32{
-		"TS_NODE_KIND_UNSPECIFIED": 0,
-		"TS_NODE_KIND_MODULE":      200,
-		"TS_NODE_KIND_COMPONENT":   201,
-		"TS_NODE_KIND_HOOK":        202,
-		"TS_NODE_KIND_CLASS":       203,
-		"TS_NODE_KIND_INTERFACE":   204,
-		"TS_NODE_KIND_TYPE":        205,
-		"TS_NODE_KIND_FUNCTION":    206,
-		"TS_NODE_KIND_VAR":         207,
-		"TS_NODE_KIND_CONST":       208,
-		"TS_NODE_KIND_RE_EXPORT":   209,
+		"TS_NODE_KIND_UNSPECIFIED":    0,
+		"TS_NODE_KIND_MODULE":         200,
+		"TS_NODE_KIND_COMPONENT":      201,
+		"TS_NODE_KIND_HOOK":           202,
+		"TS_NODE_KIND_CLASS":          203,
+		"TS_NODE_KIND_INTERFACE":      204,
+		"TS_NODE_KIND_TYPE":           205,
+		"TS_NODE_KIND_FUNCTION":       206,
+		"TS_NODE_KIND_VAR":            207,
+		"TS_NODE_KIND_CONST":          208,
+		"TS_NODE_KIND_RE_EXPORT":      209,
+		"TS_NODE_KIND_IMPORT_BINDING": 210,
+		"TS_NODE_KIND_REFERENCE":      211,
+		"TS_NODE_KIND_CALL":           212,
+		"TS_NODE_KIND_JSX_USAGE":      213,
+		"TS_NODE_KIND_EXPORT":         214,
 	}
 )
 
@@ -120,10 +139,10 @@ func (TsNodeKind) EnumDescriptor() ([]byte, []int) {
 
 type ExtractRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Absolute or scenario-relative path to the TS project root. Must
-	// contain exactly one tsconfig.json (or have one resolvable per
-	// ts-morph's standard discovery).
-	ScenarioPath  string `protobuf:"bytes,1,opt,name=scenario_path,json=scenarioPath,proto3" json:"scenario_path,omitempty"`
+	// Absolute path to a TS project root directory or to a concrete
+	// tsconfig.json file. Directory inputs must contain exactly one
+	// tsconfig.json; explicit file inputs select that project directly.
+	ProjectPath   string `protobuf:"bytes,1,opt,name=project_path,json=projectPath,proto3" json:"project_path,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -158,9 +177,9 @@ func (*ExtractRequest) Descriptor() ([]byte, []int) {
 	return file_typescript_code_graph_v1_graph_graph_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *ExtractRequest) GetScenarioPath() string {
+func (x *ExtractRequest) GetProjectPath() string {
 	if x != nil {
-		return x.ScenarioPath
+		return x.ProjectPath
 	}
 	return ""
 }
@@ -254,9 +273,11 @@ func (x *ExtractResponse) GetSidecarRequestId() string {
 }
 
 type RewritePlanRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ScenarioPath  string                 `protobuf:"bytes,1,opt,name=scenario_path,json=scenarioPath,proto3" json:"scenario_path,omitempty"`
-	Operations    []*rewrite.Operation   `protobuf:"bytes,2,rep,name=operations,proto3" json:"operations,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Absolute path to a TS project root directory or to a concrete
+	// tsconfig.json file. The value scopes the stored rewrite plan.
+	ProjectPath   string               `protobuf:"bytes,1,opt,name=project_path,json=projectPath,proto3" json:"project_path,omitempty"`
+	Operations    []*rewrite.Operation `protobuf:"bytes,2,rep,name=operations,proto3" json:"operations,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -291,9 +312,9 @@ func (*RewritePlanRequest) Descriptor() ([]byte, []int) {
 	return file_typescript_code_graph_v1_graph_graph_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *RewritePlanRequest) GetScenarioPath() string {
+func (x *RewritePlanRequest) GetProjectPath() string {
 	if x != nil {
-		return x.ScenarioPath
+		return x.ProjectPath
 	}
 	return ""
 }
@@ -363,9 +384,11 @@ func (x *RewritePlanResponse) GetNormalizedOperations() []*rewrite.Operation {
 }
 
 type RewriteApplyRequest struct {
-	state        protoimpl.MessageState `protogen:"open.v1"`
-	ScenarioPath string                 `protobuf:"bytes,1,opt,name=scenario_path,json=scenarioPath,proto3" json:"scenario_path,omitempty"`
-	PlanId       string                 `protobuf:"bytes,2,opt,name=plan_id,json=planId,proto3" json:"plan_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Absolute path to the same TS project root directory or tsconfig.json
+	// file used when the plan was authored.
+	ProjectPath string `protobuf:"bytes,1,opt,name=project_path,json=projectPath,proto3" json:"project_path,omitempty"`
+	PlanId      string `protobuf:"bytes,2,opt,name=plan_id,json=planId,proto3" json:"plan_id,omitempty"`
 	// Must be true. False is rejected with InvalidArgument so dry-run
 	// callers never accidentally mutate the working tree. Dry-run is
 	// signaled via the X-Dry-Run: true header instead.
@@ -404,9 +427,9 @@ func (*RewriteApplyRequest) Descriptor() ([]byte, []int) {
 	return file_typescript_code_graph_v1_graph_graph_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *RewriteApplyRequest) GetScenarioPath() string {
+func (x *RewriteApplyRequest) GetProjectPath() string {
 	if x != nil {
-		return x.ScenarioPath
+		return x.ProjectPath
 	}
 	return ""
 }
@@ -761,26 +784,26 @@ var File_typescript_code_graph_v1_graph_graph_proto protoreflect.FileDescriptor
 
 const file_typescript_code_graph_v1_graph_graph_proto_rawDesc = "" +
 	"\n" +
-	"*typescript-code-graph/v1/graph/graph.proto\x12%vrooli.typescript_code_graph.v1.graph\x1a\x1acommon/v1/code_graph.proto\x1a.typescript-code-graph/v1/rewrite/rewrite.proto\"5\n" +
-	"\x0eExtractRequest\x12#\n" +
-	"\rscenario_path\x18\x01 \x01(\tR\fscenarioPath\"\xe8\x01\n" +
+	"*typescript-code-graph/v1/graph/graph.proto\x12%vrooli.typescript_code_graph.v1.graph\x1a\x1acommon/v1/code_graph.proto\x1a.typescript-code-graph/v1/rewrite/rewrite.proto\"3\n" +
+	"\x0eExtractRequest\x12!\n" +
+	"\fproject_path\x18\x01 \x01(\tR\vprojectPath\"\xe8\x01\n" +
 	"\x0fExtractResponse\x12*\n" +
 	"\x05graph\x18\x01 \x01(\v2\x14.common.v1.CodeGraphR\x05graph\x127\n" +
 	"\bwarnings\x18\x02 \x03(\v2\x1b.common.v1.CodeGraphWarningR\bwarnings\x12#\n" +
 	"\rextraction_ms\x18\x03 \x01(\x03R\fextractionMs\x12\x1d\n" +
 	"\n" +
 	"graph_hash\x18\x04 \x01(\tR\tgraphHash\x12,\n" +
-	"\x12sidecar_request_id\x18\x05 \x01(\tR\x10sidecarRequestId\"\x8d\x01\n" +
-	"\x12RewritePlanRequest\x12#\n" +
-	"\rscenario_path\x18\x01 \x01(\tR\fscenarioPath\x12R\n" +
+	"\x12sidecar_request_id\x18\x05 \x01(\tR\x10sidecarRequestId\"\x8b\x01\n" +
+	"\x12RewritePlanRequest\x12!\n" +
+	"\fproject_path\x18\x01 \x01(\tR\vprojectPath\x12R\n" +
 	"\n" +
 	"operations\x18\x02 \x03(\v22.vrooli.typescript_code_graph.v1.rewrite.OperationR\n" +
 	"operations\"\x97\x01\n" +
 	"\x13RewritePlanResponse\x12\x17\n" +
 	"\aplan_id\x18\x01 \x01(\tR\x06planId\x12g\n" +
-	"\x15normalized_operations\x18\x02 \x03(\v22.vrooli.typescript_code_graph.v1.rewrite.OperationR\x14normalizedOperations\"i\n" +
-	"\x13RewriteApplyRequest\x12#\n" +
-	"\rscenario_path\x18\x01 \x01(\tR\fscenarioPath\x12\x17\n" +
+	"\x15normalized_operations\x18\x02 \x03(\v22.vrooli.typescript_code_graph.v1.rewrite.OperationR\x14normalizedOperations\"g\n" +
+	"\x13RewriteApplyRequest\x12!\n" +
+	"\fproject_path\x18\x01 \x01(\tR\vprojectPath\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12\x14\n" +
 	"\x05apply\x18\x03 \x01(\bR\x05apply\"\x9c\x01\n" +
 	"\x14RewriteApplyResponse\x12\x17\n" +
@@ -802,7 +825,7 @@ const file_typescript_code_graph_v1_graph_graph_proto_rawDesc = "" +
 	"\x0eexpected_bytes\x18\x03 \x01(\x03R\rexpectedBytes\x12!\n" +
 	"\factual_bytes\x18\x04 \x01(\x03R\vactualBytes\x12\x1d\n" +
 	"\n" +
-	"graph_hash\x18\x05 \x01(\tR\tgraphHash*\xb0\x02\n" +
+	"graph_hash\x18\x05 \x01(\tR\tgraphHash*\xbe\x03\n" +
 	"\n" +
 	"TsNodeKind\x12\x1c\n" +
 	"\x18TS_NODE_KIND_UNSPECIFIED\x10\x00\x12\x18\n" +
@@ -815,7 +838,12 @@ const file_typescript_code_graph_v1_graph_graph_proto_rawDesc = "" +
 	"\x15TS_NODE_KIND_FUNCTION\x10\xce\x01\x12\x15\n" +
 	"\x10TS_NODE_KIND_VAR\x10\xcf\x01\x12\x17\n" +
 	"\x12TS_NODE_KIND_CONST\x10\xd0\x01\x12\x1b\n" +
-	"\x16TS_NODE_KIND_RE_EXPORT\x10\xd1\x012\xce\x05\n" +
+	"\x16TS_NODE_KIND_RE_EXPORT\x10\xd1\x01\x12 \n" +
+	"\x1bTS_NODE_KIND_IMPORT_BINDING\x10\xd2\x01\x12\x1b\n" +
+	"\x16TS_NODE_KIND_REFERENCE\x10\xd3\x01\x12\x16\n" +
+	"\x11TS_NODE_KIND_CALL\x10\xd4\x01\x12\x1b\n" +
+	"\x16TS_NODE_KIND_JSX_USAGE\x10\xd5\x01\x12\x18\n" +
+	"\x13TS_NODE_KIND_EXPORT\x10\xd6\x012\xce\x05\n" +
 	"\x1aTypeScriptCodeGraphService\x12z\n" +
 	"\aExtract\x125.vrooli.typescript_code_graph.v1.graph.ExtractRequest\x1a6.vrooli.typescript_code_graph.v1.graph.ExtractResponse\"\x00\x12\x86\x01\n" +
 	"\vRewritePlan\x129.vrooli.typescript_code_graph.v1.graph.RewritePlanRequest\x1a:.vrooli.typescript_code_graph.v1.graph.RewritePlanResponse\"\x00\x12\x89\x01\n" +

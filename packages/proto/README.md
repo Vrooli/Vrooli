@@ -190,8 +190,8 @@ make lint
 # Check for breaking changes (against master)
 make breaking
 
-# Ensure generated code is in sync
-make check
+# Ensure committed generated code is in sync
+make verify-committed-gen
 ```
 
 ### 5. Import in your scenario
@@ -254,7 +254,7 @@ message CreatePlanRequest {
 make clean && make generate
 
 # Verify generated code is committed
-make check
+make verify-committed-gen
 ```
 
 ### TypeScript import issues

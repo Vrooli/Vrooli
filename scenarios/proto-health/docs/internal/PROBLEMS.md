@@ -76,6 +76,29 @@ replacement pattern is green.
 **Refs:** `docs/concepts/DOMAINS.md`, `api/internal/notes/`,
 `packages/proto/schemas/proto-health/v1/notes/`.
 
+### 2026-06-12 - Implementation proof tier is deferred
+
+**Symptom:** REST exception payload declarations report proof status as
+not evaluated even when the current handlers do marshal the declared
+proto payloads.
+
+**Root cause:** The current validator intentionally uses descriptor and
+scenario metadata facts only. It no longer scans Go/API source for
+handler behavior, and the graph scenarios do not yet expose enough
+handler/call/payload construction facts for deterministic proof.
+
+**Workaround:** Treat proto-health results as declaration and static
+contract validation. Use handler tests for implementation behavior in
+the owning scenario.
+
+**Real fix:** Add a separate surface-code-facts layer backed by
+go-code-graph / typescript-code-graph adapters, then consume those
+facts through a new proto-health proof seam.
+
+**Owner:** unassigned.
+
+**Refs:** `api/internal/protosurface/`, `docs/internal/SEAMS.md`.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

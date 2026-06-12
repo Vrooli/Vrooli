@@ -25,7 +25,7 @@ const TAB_REWRITE = "rewrite";
 const TAB_FIXTURES = "fixtures";
 
 /** Join an optional base directory with the target into a single project path. */
-function resolveScenarioPath(target: string, projectDir: string): string {
+function resolveProjectPath(target: string, projectDir: string): string {
   const t = target.trim();
   const base = projectDir.trim().replace(/\/+$/, "");
   if (base.length === 0) return t;
@@ -63,12 +63,12 @@ export function WorkbenchPage() {
   const [submittedPath, setSubmittedPath] = React.useState<string | null>(null);
   const [activeTab, setActiveTab] = React.useState<string>(TAB_GRAPH);
 
-  const params = submittedPath ? { scenarioPath: submittedPath } : null;
+  const params = submittedPath ? { projectPath: submittedPath } : null;
   const extract = useExtract(params);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const resolved = resolveScenarioPath(target, projectDir);
+    const resolved = resolveProjectPath(target, projectDir);
     if (resolved.length === 0) return;
     setSubmittedPath(resolved);
   };
@@ -124,7 +124,7 @@ export function WorkbenchPage() {
         <Button
           type="submit"
           data-testid={selectors.workbench.extractBar.submit}
-          disabled={resolveScenarioPath(target, projectDir).length === 0 || extract.isFetching}
+          disabled={resolveProjectPath(target, projectDir).length === 0 || extract.isFetching}
         >
           {extract.isFetching
             ? t(strings.workbench.extract.submitting)
@@ -194,7 +194,7 @@ export function WorkbenchPage() {
               <WarningsTab warnings={warnings} />
             </TabsPanel>
             <TabsPanel value={TAB_REWRITE}>
-              <RewriteTab scenarioPath={submittedPath} />
+              <RewriteTab projectPath={submittedPath} />
             </TabsPanel>
             <TabsPanel value={TAB_FIXTURES}>
               <FixturesTab />

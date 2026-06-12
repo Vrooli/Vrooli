@@ -33,21 +33,21 @@ var loadMode = packages.NeedFiles |
 	packages.NeedName |
 	packages.NeedDeps
 
-// Load runs packages.Load with the fixed mode rooted at scenarioPath.
+// Load runs packages.Load with the fixed mode rooted at modulePath.
 // IncludeVendor is honored by Service.Extract via a post-load directory
 // filter (filterVendorPackages); the packages loader itself runs with
 // its default vendor behavior so the wire shape of returned packages is
 // uniform across both branches.
-func (l *PackagesLoaderImpl) Load(ctx context.Context, scenarioPath string, opts LoadOptions) ([]*packages.Package, error) {
+func (l *PackagesLoaderImpl) Load(ctx context.Context, modulePath string, opts LoadOptions) ([]*packages.Package, error) {
 	cfg := &packages.Config{
 		Context: ctx,
 		Mode:    loadMode,
-		Dir:     scenarioPath,
+		Dir:     modulePath,
 		Tests:   false,
 	}
 	pkgs, err := packages.Load(cfg, "./...")
 	if err != nil {
-		return nil, fmt.Errorf("packages.Load(%q): %w", scenarioPath, err)
+		return nil, fmt.Errorf("packages.Load(%q): %w", modulePath, err)
 	}
 	return pkgs, nil
 }

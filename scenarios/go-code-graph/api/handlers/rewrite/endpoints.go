@@ -39,8 +39,8 @@ var Endpoints = []module.EndpointDescriptor{
 		Request: &module.Schema{
 			Type: "object",
 			Properties: map[string]string{
-				"scenario_path": "string (required)",
-				"operations":    "array<Operation> (required, ≥1)",
+				"module_path": "string (required)",
+				"operations":  "array<Operation> (required, ≥1)",
 			},
 		},
 		Response: &module.Schema{
@@ -69,9 +69,9 @@ var Endpoints = []module.EndpointDescriptor{
 		Request: &module.Schema{
 			Type: "object",
 			Properties: map[string]string{
-				"scenario_path": "string (required)",
-				"plan_id":       "string (required)",
-				"apply":         "boolean (must be true)",
+				"module_path": "string (required)",
+				"plan_id":     "string (required)",
+				"apply":       "boolean (must be true)",
 			},
 		},
 		Response: &module.Schema{
@@ -84,7 +84,7 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Errors: []module.ErrorDesc{
 			{Status: 400, Code: "invalid_argument", Description: "Unknown plan_id, apply=false, or malformed input"},
-			{Status: 412, Code: "failed_precondition", Description: "Plan was created for a different scenario_path"},
+			{Status: 412, Code: "failed_precondition", Description: "Plan was created for a different module_path"},
 			{Status: 500, Code: "internal", Description: "Executor or persistence failure"},
 		},
 		CLIMapping: &module.CLIMapping{

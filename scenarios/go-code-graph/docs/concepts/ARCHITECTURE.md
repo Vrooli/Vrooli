@@ -209,6 +209,7 @@ Every product path lives in exactly one of these layers. Add a row when a new di
 | `cli/internal/...` | CLI infrastructure | shared | Manifest embed, dispatcher glue, testutil. |
 | `bas/fixtures/go-cycles` | Test fixtures | graph | Cyclic-import Go module + `expected-graph.json` for byte-stable determinism gate. |
 | `bas/fixtures/go-mislocated` | Test fixtures | graph | Mislocated-file Go module + `expected-graph.json` for the same gate. |
+| `bas/fixtures/go-usage-facts` | Test fixtures | graph | Generic Go usage-fact module covering import aliases, dot/blank imports, selector calls, interface calls, composite literals, and address-of payload construction. |
 
 ## API Surface
 
@@ -216,7 +217,7 @@ Every public method on `GoCodeGraphService`. Maturity follows the standard scale
 
 | Method | Domain | Maturity | Notes |
 |---|---|---|---|
-| `Extract` | graph | L3 | Deterministic graph from a Go module. `ExtractRequest{scenario_path, include_vendor}` → `ExtractResponse{graph, warnings, extraction_ms, graph_hash}`. Per-file parse failures surface as `Warning`s, never errors. |
+| `Extract` | graph | L3 | Deterministic graph from a Go module. `ExtractRequest{module_path, include_vendor}` → `ExtractResponse{graph, warnings, extraction_ms, graph_hash}`. The graph includes files, packages, declarations, import specs, references, calls, type usages, and import edges. Per-file parse failures surface as `Warning`s, never errors. |
 | `RewritePlan` | rewrite | L3 | Validate + normalize operations and return a deterministic `plan_id`. No disk mutation. |
 | `RewriteApply` | rewrite | L3 | Execute a previously planned set of operations. Honors `X-Dry-Run: true` (mapped to `apply: false`-style synthetic result). Never invokes `git` or `go build`. |
 

@@ -191,6 +191,168 @@ func TestValidateScenarioTreatsRESTExceptionResponseAsReachable(t *testing.T) {
 	}
 }
 
+func TestValidateScenarioRequiresRESTExceptionPayloadDeclarations(t *testing.T) {
+	surface := cleanSurface()
+	surface.RESTExceptions = []protosurface.RESTExceptionEndpoint{{
+		EndpointID: "health",
+		Path:       "/health",
+		Method:     "GET",
+		Domain:     "system",
+		Reason:     "ops_probe",
+	}}
+
+	svc := New(Deps{Loader: fakeLoader{surface: surface}})
+	report, err := svc.ValidateScenario(context.Background(), "demo")
+	require.NoError(t, err)
+	require.False(t, report.Passed)
+	requireFinding(t, report, CodeRESTPayloadMissingDeclaration, SeverityError)
+}
+
+func TestValidateScenarioFindsUnknownRESTExceptionPayloadMessage(t *testing.T) {
+	surface := cleanSurface()
+	surface.RESTExceptions = []protosurface.RESTExceptionEndpoint{{
+		EndpointID:             "health",
+		Path:                   "/health",
+		Method:                 "GET",
+		Domain:                 "system",
+		Reason:                 "ops_probe",
+		HasPayloadDeclarations: true,
+	}}
+	surface.RESTExceptionPayloads = []protosurface.RESTExceptionPayloadRef{
+		{EndpointID: "health", Path: "/health", Method: "GET", Role: protosurface.RESTPayloadRoleRequest, Transport: "none", Conformance: "none", ProofStatus: protosurface.RESTPayloadProofNotEvaluated},
+		{EndpointID: "health", Path: "/health", Method: "GET", Role: protosurface.RESTPayloadRoleResponse, ProtoFullName: "vrooli.demo.v1.health.Missing", Transport: "json", Conformance: "protojson", ProofStatus: protosurface.RESTPayloadProofNotEvaluated},
+		{EndpointID: "health", Path: "/health", Method: "GET", Role: protosurface.RESTPayloadRoleError, Transport: "json", Conformance: "external_shape", ProofStatus: protosurface.RESTPayloadProofNotEvaluated},
+	}
+
+	svc := New(Deps{Loader: fakeLoader{surface: surface}})
+	report, err := svc.ValidateScenario(context.Background(), "demo")
+	require.NoError(t, err)
+	require.False(t, report.Passed)
+	requireFinding(t, report, CodeRESTPayloadUnknownMessage, SeverityError)
+}
+
+func TestValidateScenarioFindsInvalidRESTExceptionConformance(t *testing.T) {
+	surface := cleanSurface()
+	surface.RESTExceptions = []protosurface.RESTExceptionEndpoint{{
+		EndpointID:             "health",
+		Path:                   "/health",
+		Method:                 "GET",
+		Domain:                 "system",
+		Reason:                 "ops_probe",
+		HasPayloadDeclarations: true,
+	}}
+	surface.RESTExceptionPayloads = []protosurface.RESTExceptionPayloadRef{
+		{EndpointID: "health", Path: "/health", Method: "GET", Role: protosurface.RESTPayloadRoleRequest, Transport: "none", Conformance: "none", ProofStatus: protosurface.RESTPayloadProofNotEvaluated},
+		{EndpointID: "health", Path: "/health", Method: "GET", Role: protosurface.RESTPayloadRoleResponse, Transport: "json", Conformance: "best_effort", ProofStatus: protosurface.RESTPayloadProofNotEvaluated},
+		{EndpointID: "health", Path: "/health", Method: "GET", Role: protosurface.RESTPayloadRoleError, Transport: "json", Conformance: "external_shape", ProofStatus: protosurface.RESTPayloadProofNotEvaluated},
+	}
+
+	svc := New(Deps{Loader: fakeLoader{surface: surface}})
+	report, err := svc.ValidateScenario(context.Background(), "demo")
+	require.NoError(t, err)
+	require.False(t, report.Passed)
+	requireFinding(t, report, CodeRESTPayloadInvalidConformance, SeverityError)
+}
+
+func TestValidateScenarioFindsUnknownImportKind(t *testing.T) {
+	surface := cleanSurface()
+	surface.IntraScenarioImports = []protosurface.Import{{
+		FromFile:   "demo/v1/notes/notes.proto",
+		ToFile:     "demo/v1/shared/errors.proto",
+		FromDomain: "notes",
+		ToDomain:   "shared",
+	}}
+
+	svc := New(Deps{Loader: fakeLoader{surface: surface}})
+	report, err := svc.ValidateScenario(context.Background(), "demo")
+	require.NoError(t, err)
+	requireFinding(t, report, CodeImportKindUnknown, SeverityWarning)
+}
+
+func TestValidateScenarioFindsStableTransitiveDependencyMismatch(t *testing.T) {
+	surface := cleanSurface()
+	surface.Files = append(surface.Files,
+		protosurface.File{
+			Path:      "demo/v1/notes/notes.proto",
+			Package:   "vrooli.demo.v1.notes",
+			Version:   "v1",
+			Domain:    "notes",
+			Stability: "stable",
+		},
+		protosurface.File{
+			Path:      "demo/v1/shared/draft.proto",
+			Package:   "vrooli.demo.v1.shared",
+			Version:   "v1",
+			Domain:    "shared",
+			Stability: "experimental",
+		},
+	)
+	surface.Services = []protosurface.Service{{
+		FilePath: "demo/v1/notes/notes.proto",
+		Package:  "vrooli.demo.v1.notes",
+		Name:     "NotesService",
+		FullName: "vrooli.demo.v1.notes.NotesService",
+		Domain:   "notes",
+		RPCs: []protosurface.RPC{{
+			Name:      "GetNote",
+			Input:     "vrooli.demo.v1.notes.GetNoteRequest",
+			Output:    "vrooli.demo.v1.notes.GetNoteResponse",
+			Transport: protosurface.TransportKindConnect,
+		}},
+	}}
+	surface.Messages = []protosurface.Message{
+		{FilePath: "demo/v1/notes/notes.proto", Package: "vrooli.demo.v1.notes", Name: "GetNoteRequest", FullName: "vrooli.demo.v1.notes.GetNoteRequest", Domain: "notes"},
+		{
+			FilePath: "demo/v1/notes/notes.proto",
+			Package:  "vrooli.demo.v1.notes",
+			Name:     "GetNoteResponse",
+			FullName: "vrooli.demo.v1.notes.GetNoteResponse",
+			Domain:   "notes",
+			Fields: []protosurface.Field{{
+				Name:        "draft",
+				Type:        "message",
+				MessageType: "vrooli.demo.v1.shared.DraftMetadata",
+				Number:      1,
+			}},
+		},
+		{FilePath: "demo/v1/shared/draft.proto", Package: "vrooli.demo.v1.shared", Name: "DraftMetadata", FullName: "vrooli.demo.v1.shared.DraftMetadata", Domain: "shared"},
+	}
+
+	svc := New(Deps{Loader: fakeLoader{surface: surface}})
+	report, err := svc.ValidateScenario(context.Background(), "demo")
+	require.NoError(t, err)
+	require.False(t, report.Passed)
+	requireFinding(t, report, CodeStabilityDependencyMismatch, SeverityError)
+}
+
+func TestValidateScenarioFindsReusableTypeOutsideSharedDomain(t *testing.T) {
+	surface := cleanSurface()
+	surface.Files = append(surface.Files, protosurface.File{
+		Path:      "demo/v1/errors/errors.proto",
+		Package:   "vrooli.demo.v1.errors",
+		Version:   "v1",
+		Domain:    "errors",
+		Stability: "stable",
+	})
+	surface.Messages = append(surface.Messages, protosurface.Message{
+		FilePath: "demo/v1/errors/errors.proto",
+		Package:  "vrooli.demo.v1.errors",
+		Name:     "ErrorEnvelope",
+		FullName: "vrooli.demo.v1.errors.ErrorEnvelope",
+		Domain:   "errors",
+	})
+	surface.RESTExceptionPayloads = []protosurface.RESTExceptionPayloadRef{
+		{EndpointID: "health", Domain: "health", Role: protosurface.RESTPayloadRoleError, ProtoFullName: "vrooli.demo.v1.errors.ErrorEnvelope", Conformance: "protojson"},
+		{EndpointID: "notes_attach", Domain: "notes", Role: protosurface.RESTPayloadRoleError, ProtoFullName: "vrooli.demo.v1.errors.ErrorEnvelope", Conformance: "protojson"},
+	}
+
+	svc := New(Deps{Loader: fakeLoader{surface: surface}})
+	report, err := svc.ValidateScenario(context.Background(), "demo")
+	require.NoError(t, err)
+	require.False(t, report.Passed)
+	requireFinding(t, report, CodeSharedTypeMisplaced, SeverityError)
+}
+
 func TestValidateScenarioFindsImportCycle(t *testing.T) {
 	surface := cleanSurface()
 	surface.IntraScenarioImports = []protosurface.Import{
@@ -232,10 +394,6 @@ func cleanSurface() protosurface.Surface {
 			Stability:   "stable",
 			Annotations: []protosurface.Annotation{{Name: "stability", Value: "stable"}},
 		}},
-		AdoptionSignals: []protosurface.AdoptionSignal{
-			{Name: "api_go_mod_replace", Present: true, Detail: "api/go.mod references the shared packages/proto module"},
-			{Name: "api_generated_go_import", Present: true, Detail: "api code imports this scenario's generated Go proto package"},
-		},
 	}
 }
 

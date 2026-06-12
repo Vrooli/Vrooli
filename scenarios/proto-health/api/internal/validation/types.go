@@ -17,19 +17,24 @@ const (
 )
 
 const (
-	CodeCycle                 = "proto.cycle"
-	CodeGenOutOfSync          = "proto.gen_out_of_sync"
-	CodePackageMismatch       = "proto.package_mismatch"
-	CodeStabilityDishonest    = "proto.stability_dishonest"
-	CodeCrossDomainImport     = "proto.cross_domain_import"
-	CodeUnsupportedAnnotation = "proto.unsupported_annotation"
-	CodeTemplateSource        = "proto.template_source"
-	CodeNotAdopted            = "proto.not_adopted"
-	CodeHandRolledTransport   = "proto.hand_rolled_transport"
-	CodeVersionNaming         = "proto.version_naming"
-	CodeDomainMismatch        = "proto.domain_mismatch"
-	CodeMissingHealthProto    = "proto.missing_health_proto"
-	CodePossiblyUnused        = "proto.possibly_unused"
+	CodeCycle                         = "proto.cycle"
+	CodeGenOutOfSync                  = "proto.gen_out_of_sync"
+	CodePackageMismatch               = "proto.package_mismatch"
+	CodeStabilityDishonest            = "proto.stability_dishonest"
+	CodeCrossDomainImport             = "proto.cross_domain_import"
+	CodeUnsupportedAnnotation         = "proto.unsupported_annotation"
+	CodeTemplateSource                = "proto.template_source"
+	CodeHandRolledTransport           = "proto.hand_rolled_transport"
+	CodeVersionNaming                 = "proto.version_naming"
+	CodeDomainMismatch                = "proto.domain_mismatch"
+	CodeMissingHealthProto            = "proto.missing_health_proto"
+	CodePossiblyUnused                = "proto.possibly_unused"
+	CodeRESTPayloadMissingDeclaration = "proto.rest_payload_missing_declaration"
+	CodeRESTPayloadUnknownMessage     = "proto.rest_payload_unknown_message"
+	CodeRESTPayloadInvalidConformance = "proto.rest_payload_invalid_conformance"
+	CodeStabilityDependencyMismatch   = "proto.stability_dependency_mismatch"
+	CodeSharedTypeMisplaced           = "proto.shared_type_misplaced"
+	CodeImportKindUnknown             = "proto.import_kind_unknown"
 )
 
 type Finding struct {

@@ -24,14 +24,14 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/go-code-grap
 // =============================================================================
 
 // FileMove relocates a single file from from_path to to_path. Both paths are
-// expressed relative to the scenario root (no leading slash, no ".." segments).
+// expressed relative to the module root (no leading slash, no ".." segments).
 message FileMove {
   string from_path = 1;
   string to_path = 2;
 }
 
 // ImportRewrite replaces import path old_path with new_path across every .go
-// file under the scenario root.
+// file under the module root.
 message ImportRewrite {
   string old_path = 1;
   string new_path = 2;

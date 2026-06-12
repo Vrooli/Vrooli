@@ -56,7 +56,7 @@ func (h *connectHandler) Extract(ctx context.Context, req *connect.Request[graph
 	out, err := h.deps.GraphService.Extract(ctx, in)
 	elapsedMs := time.Since(start).Milliseconds()
 	if err != nil {
-		return nil, h.toClientError(in.ScenarioPath, err)
+		return nil, h.toClientError(in.ProjectPath, err)
 	}
 
 	resp := &graphv1.ExtractResponse{
@@ -87,10 +87,10 @@ func (h *connectHandler) RewriteApply(ctx context.Context, req *connect.Request[
 // toClientError translates a domain error into a connect.Error and
 // logs internal failures (client-attributable codes are not logged so
 // a buggy caller cannot spam the operator's log).
-func (h *connectHandler) toClientError(scenarioPath string, err error) error {
+func (h *connectHandler) toClientError(projectPath string, err error) error {
 	connectErr := intgraph.ToConnectError(err)
 	if connect.CodeOf(connectErr) == connect.CodeInternal {
-		h.deps.Logger.Printf("graph.Extract(%q): %v", scenarioPath, err)
+		h.deps.Logger.Printf("graph.Extract(%q): %v", projectPath, err)
 	}
 	return connectErr
 }

@@ -1,6 +1,6 @@
 // Per-path Promise-chain serialization. ts-morph Project state is not
 // safe across parallel invocations on the same project, so even though
-// the Go supervisor already serializes per scenario_path, the sidecar
+// the Go supervisor already serializes per project_path, the sidecar
 // serializes as defense-in-depth: a direct sidecar caller (e.g. an
 // integration test) is still safe.
 

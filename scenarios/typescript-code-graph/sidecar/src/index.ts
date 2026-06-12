@@ -49,8 +49,8 @@ async function handleExtract(req: ExtractRequest): Promise<void> {
   inFlight.set(req.request_id, entry);
   activeWork++;
   try {
-    const result = await withPathLock(req.scenario_path, async () => {
-      return extract({ scenarioPath: req.scenario_path });
+    const result = await withPathLock(req.project_path, async () => {
+      return extract({ projectPath: req.project_path });
     });
     if (entry.cancelled) {
       logger.debug("discarding result of cancelled extract", { request_id: req.request_id });
@@ -77,9 +77,9 @@ async function handleRewriteApply(req: RewriteApplyRequest): Promise<void> {
   inFlight.set(req.request_id, entry);
   activeWork++;
   try {
-    const results = await withPathLock(req.scenario_path, async () => {
+    const results = await withPathLock(req.project_path, async () => {
       return applyRewrite({
-        scenarioPath: req.scenario_path,
+        projectPath: req.project_path,
         operations: req.operations,
       });
     });

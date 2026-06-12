@@ -13,9 +13,13 @@
     },
     {
       "attributes": {
+        "end_column": "2",
+        "end_line": "4",
         "exported": "true",
         "kind": "TS_NODE_KIND_COMPONENT",
-        "language": "typescript"
+        "language": "typescript",
+        "start_column": "1",
+        "start_line": "2"
       },
       "id": "ts_component:src/widget.tsx:FeaturedCard",
       "kind": 201,
@@ -27,9 +31,13 @@
     },
     {
       "attributes": {
+        "end_column": "2",
+        "end_line": "9",
         "exported": "true",
         "kind": "TS_NODE_KIND_COMPONENT",
-        "language": "typescript"
+        "language": "typescript",
+        "start_column": "1",
+        "start_line": "7"
       },
       "id": "ts_component:src/widget.tsx:Heading",
       "kind": 201,
@@ -41,9 +49,13 @@
     },
     {
       "attributes": {
+        "end_column": "40",
+        "end_line": "17",
         "exported": "true",
         "kind": "TS_NODE_KIND_CONST",
-        "language": "typescript"
+        "language": "typescript",
+        "start_column": "14",
+        "start_line": "17"
       },
       "id": "ts_const:src/widget.tsx:CONFIG",
       "kind": 208,
@@ -55,9 +67,87 @@
     },
     {
       "attributes": {
+        "declaration_node_id": "ts_function:src/widget.tsx:plainHelper",
+        "end_column": "2",
+        "end_line": "14",
+        "export_kind": "declaration",
+        "kind": "TS_NODE_KIND_EXPORT",
+        "language": "typescript",
+        "start_column": "1",
+        "start_line": "12"
+      },
+      "id": "ts_export:src/widget.tsx:12:1:plainHelper",
+      "kind": 214,
+      "leading_comments": [
+        "// single-line"
+      ],
+      "name": "plainHelper",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "declaration_node_id": "ts_const:src/widget.tsx:CONFIG",
+        "end_column": "40",
+        "end_line": "17",
+        "export_kind": "declaration",
+        "kind": "TS_NODE_KIND_EXPORT",
+        "language": "typescript",
+        "start_column": "14",
+        "start_line": "17"
+      },
+      "id": "ts_export:src/widget.tsx:17:14:CONFIG",
+      "kind": 214,
+      "leading_comments": [],
+      "name": "CONFIG",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "declaration_node_id": "ts_component:src/widget.tsx:FeaturedCard",
+        "end_column": "2",
+        "end_line": "4",
+        "export_kind": "declaration",
+        "kind": "TS_NODE_KIND_EXPORT",
+        "language": "typescript",
+        "start_column": "1",
+        "start_line": "2"
+      },
+      "id": "ts_export:src/widget.tsx:2:1:FeaturedCard",
+      "kind": 214,
+      "leading_comments": [
+        "/** @vrooliWidget kind=card */"
+      ],
+      "name": "FeaturedCard",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "declaration_node_id": "ts_component:src/widget.tsx:Heading",
+        "end_column": "2",
+        "end_line": "9",
+        "export_kind": "declaration",
+        "kind": "TS_NODE_KIND_EXPORT",
+        "language": "typescript",
+        "start_column": "1",
+        "start_line": "7"
+      },
+      "id": "ts_export:src/widget.tsx:7:1:Heading",
+      "kind": 214,
+      "leading_comments": [
+        "/** @vrooliComponent name=Heading */"
+      ],
+      "name": "Heading",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "end_column": "2",
+        "end_line": "14",
         "exported": "true",
         "kind": "TS_NODE_KIND_FUNCTION",
-        "language": "typescript"
+        "language": "typescript",
+        "start_column": "1",
+        "start_line": "12"
       },
       "id": "ts_function:src/widget.tsx:plainHelper",
       "kind": 206,
@@ -65,6 +155,42 @@
         "// single-line"
       ],
       "name": "plainHelper",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "component_name": "div",
+        "enclosing_declaration": "FeaturedCard",
+        "end_column": "15",
+        "end_line": "3",
+        "kind": "TS_NODE_KIND_JSX_USAGE",
+        "language": "typescript",
+        "props_summary": "",
+        "start_column": "10",
+        "start_line": "3"
+      },
+      "id": "ts_jsx_usage:src/widget.tsx:3:10:div",
+      "kind": 213,
+      "leading_comments": [],
+      "name": "div",
+      "path": "src/widget.tsx"
+    },
+    {
+      "attributes": {
+        "component_name": "h1",
+        "enclosing_declaration": "Heading",
+        "end_column": "14",
+        "end_line": "8",
+        "kind": "TS_NODE_KIND_JSX_USAGE",
+        "language": "typescript",
+        "props_summary": "",
+        "start_column": "10",
+        "start_line": "8"
+      },
+      "id": "ts_jsx_usage:src/widget.tsx:8:10:h1",
+      "kind": 213,
+      "leading_comments": [],
+      "name": "h1",
       "path": "src/widget.tsx"
     },
     {

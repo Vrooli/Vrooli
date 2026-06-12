@@ -18,6 +18,10 @@ class GoNodeKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     GO_NODE_KIND_CONST: _ClassVar[GoNodeKind]
     GO_NODE_KIND_INTERFACE: _ClassVar[GoNodeKind]
     GO_NODE_KIND_METHOD: _ClassVar[GoNodeKind]
+    GO_NODE_KIND_IMPORT_SPEC: _ClassVar[GoNodeKind]
+    GO_NODE_KIND_REFERENCE: _ClassVar[GoNodeKind]
+    GO_NODE_KIND_CALL: _ClassVar[GoNodeKind]
+    GO_NODE_KIND_TYPE_USAGE: _ClassVar[GoNodeKind]
 GO_NODE_KIND_UNSPECIFIED: GoNodeKind
 GO_NODE_KIND_TYPE: GoNodeKind
 GO_NODE_KIND_FUNC: GoNodeKind
@@ -25,14 +29,18 @@ GO_NODE_KIND_VAR: GoNodeKind
 GO_NODE_KIND_CONST: GoNodeKind
 GO_NODE_KIND_INTERFACE: GoNodeKind
 GO_NODE_KIND_METHOD: GoNodeKind
+GO_NODE_KIND_IMPORT_SPEC: GoNodeKind
+GO_NODE_KIND_REFERENCE: GoNodeKind
+GO_NODE_KIND_CALL: GoNodeKind
+GO_NODE_KIND_TYPE_USAGE: GoNodeKind
 
 class ExtractRequest(_message.Message):
-    __slots__ = ("scenario_path", "include_vendor")
-    SCENARIO_PATH_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ("module_path", "include_vendor")
+    MODULE_PATH_FIELD_NUMBER: _ClassVar[int]
     INCLUDE_VENDOR_FIELD_NUMBER: _ClassVar[int]
-    scenario_path: str
+    module_path: str
     include_vendor: bool
-    def __init__(self, scenario_path: _Optional[str] = ..., include_vendor: _Optional[bool] = ...) -> None: ...
+    def __init__(self, module_path: _Optional[str] = ..., include_vendor: _Optional[bool] = ...) -> None: ...
 
 class ExtractResponse(_message.Message):
     __slots__ = ("graph", "warnings", "extraction_ms", "graph_hash")
@@ -47,12 +55,12 @@ class ExtractResponse(_message.Message):
     def __init__(self, graph: _Optional[_Union[_code_graph_pb2.CodeGraph, _Mapping]] = ..., warnings: _Optional[_Iterable[_Union[_code_graph_pb2.CodeGraphWarning, _Mapping]]] = ..., extraction_ms: _Optional[int] = ..., graph_hash: _Optional[str] = ...) -> None: ...
 
 class RewritePlanRequest(_message.Message):
-    __slots__ = ("scenario_path", "operations")
-    SCENARIO_PATH_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ("module_path", "operations")
+    MODULE_PATH_FIELD_NUMBER: _ClassVar[int]
     OPERATIONS_FIELD_NUMBER: _ClassVar[int]
-    scenario_path: str
+    module_path: str
     operations: _containers.RepeatedCompositeFieldContainer[_rewrite_pb2.Operation]
-    def __init__(self, scenario_path: _Optional[str] = ..., operations: _Optional[_Iterable[_Union[_rewrite_pb2.Operation, _Mapping]]] = ...) -> None: ...
+    def __init__(self, module_path: _Optional[str] = ..., operations: _Optional[_Iterable[_Union[_rewrite_pb2.Operation, _Mapping]]] = ...) -> None: ...
 
 class RewritePlanResponse(_message.Message):
     __slots__ = ("plan_id", "normalized_operations")
@@ -63,14 +71,14 @@ class RewritePlanResponse(_message.Message):
     def __init__(self, plan_id: _Optional[str] = ..., normalized_operations: _Optional[_Iterable[_Union[_rewrite_pb2.Operation, _Mapping]]] = ...) -> None: ...
 
 class RewriteApplyRequest(_message.Message):
-    __slots__ = ("scenario_path", "plan_id", "apply")
-    SCENARIO_PATH_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ("module_path", "plan_id", "apply")
+    MODULE_PATH_FIELD_NUMBER: _ClassVar[int]
     PLAN_ID_FIELD_NUMBER: _ClassVar[int]
     APPLY_FIELD_NUMBER: _ClassVar[int]
-    scenario_path: str
+    module_path: str
     plan_id: str
     apply: bool
-    def __init__(self, scenario_path: _Optional[str] = ..., plan_id: _Optional[str] = ..., apply: _Optional[bool] = ...) -> None: ...
+    def __init__(self, module_path: _Optional[str] = ..., plan_id: _Optional[str] = ..., apply: _Optional[bool] = ...) -> None: ...
 
 class RewriteApplyResponse(_message.Message):
     __slots__ = ("plan_id", "results", "dry_run")

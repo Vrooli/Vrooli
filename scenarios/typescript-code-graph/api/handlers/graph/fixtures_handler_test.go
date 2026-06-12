@@ -50,7 +50,7 @@ func TestListFixtures(t *testing.T) {
 	for _, f := range resp.Msg.GetFixtures() {
 		byName[f.GetName()] = f
 	}
-	for _, want := range []string{"ts-junk-drawer", "ts-jsdoc-tags"} {
+	for _, want := range []string{"ts-junk-drawer", "ts-jsdoc-tags", "ts-usage-facts"} {
 		f, ok := byName[want]
 		if !ok {
 			t.Fatalf("expected fixture %q in list, got %v", want, byName)

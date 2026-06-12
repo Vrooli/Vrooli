@@ -274,9 +274,9 @@ The full proto-typed product surface (excluding template `/health` REST probe). 
 
 | RPC | Request | Response | Errors | CLI binding |
 |---|---|---|---|---|
-| `TypeScriptCodeGraphService.Extract` | `ExtractRequest{scenario_path}` | `ExtractResponse{graph, warnings, extraction_ms, graph_hash, sidecar_request_id}` | `InvalidArgument` (no tsconfig, multiple tsconfig), `NotFound` (path unreadable), `Unimplemented` (pnpm workspace), `Unavailable` (sidecar down), `DeadlineExceeded`, `Internal` | `typescript-code-graph graph extract <path>` |
-| `TypeScriptCodeGraphService.RewritePlan` | `RewritePlanRequest{scenario_path, operations[]}` | `RewritePlanResponse{plan_id, normalized_operations}` | `InvalidArgument` (no ops, conflicting ops), `Internal` | `typescript-code-graph rewrite plan <ops.json>` |
-| `TypeScriptCodeGraphService.RewriteApply` | `RewriteApplyRequest{scenario_path, plan_id, apply}` | `RewriteApplyResponse{plan_id, results[], dry_run}` | `InvalidArgument`, `FailedPrecondition` (plan unknown / expired), `Unavailable`, `Internal` | `typescript-code-graph rewrite apply <plan_id>` (honours `X-Dry-Run: true`) |
+| `TypeScriptCodeGraphService.Extract` | `ExtractRequest{project_path}` | `ExtractResponse{graph, warnings, extraction_ms, graph_hash, sidecar_request_id}` | `InvalidArgument` (no tsconfig, multiple tsconfig), `NotFound` (path unreadable), `Unimplemented` (pnpm workspace), `Unavailable` (sidecar down), `DeadlineExceeded`, `Internal` | `typescript-code-graph graph extract <path>` |
+| `TypeScriptCodeGraphService.RewritePlan` | `RewritePlanRequest{project_path, operations[]}` | `RewritePlanResponse{plan_id, normalized_operations}` | `InvalidArgument` (no ops, conflicting ops), `Internal` | `typescript-code-graph rewrite plan <ops.json> --project-path <path>` |
+| `TypeScriptCodeGraphService.RewriteApply` | `RewriteApplyRequest{project_path, plan_id, apply}` | `RewriteApplyResponse{plan_id, results[], dry_run}` | `InvalidArgument`, `FailedPrecondition` (plan unknown / expired), `Unavailable`, `Internal` | `typescript-code-graph rewrite apply <plan_id> --project-path <path>` (honours `X-Dry-Run: true`) |
 | `HealthService.Check` | `CheckRequest{}` | `CheckResponse{status, sidecar_status, ...}` | `Internal` | `typescript-code-graph status` |
 
 Template-inherited REST exception: `GET /health` carries `RESTReasonOpsProbe`. There are no other REST endpoints.
@@ -311,7 +311,7 @@ Boundary contracts:
 
 - **One spawn point.** `internal/sidecar.Supervisor` is the only place that imports `os/exec`. Drift is caught by `internal/{graph,rewrite}/no_prod_import_test.go` and `internal/rewrite/no_external_command_test.go`.
 - **One IPC contract.** `sidecar/src/protocol.ts` defines every message type; every request carries a UUID-v4 `request_id`; every response echoes it. Cancellation is best-effort: `{type:"cancel", request_id}` resolves the local future immediately, sidecar discards any late completion.
-- **Two-layer per-path serialization.** Go-side `graph.PathMutex` and sidecar-side `Map<scenarioPath, Promise<void>>` chain both serialize. Defense in depth; a future caller that bypasses the Go side still sees correct semantics.
+- **Two-layer per-path serialization.** Go-side `graph.PathMutex` and sidecar-side `Map<projectPath, Promise<void>>` chain both serialize. Defense in depth; a future caller that bypasses the Go side still sees correct semantics.
 - **Stderr-only logging.** `console.log` to stdout would corrupt the framer. `sidecar/src/logger.ts` redirects all sidecar logs to stderr; the Go side reads stderr on a separate goroutine.
 - **Shutdown order.** `Supervisor.Shutdown(ctx)` sends `{type:"shutdown"}`, waits up to the context deadline, then `cmd.Process.Kill()` if the child hasn't exited. **Footgun** (see `../internal/PROBLEMS.md`): the context passed to `Supervisor.Start` must not be cancelled before `Shutdown` runs — `exec.CommandContext` will kill the child as soon as the start context is cancelled, racing the orderly shutdown path.
 

@@ -9,9 +9,9 @@ func TestMemoryStoreRoundTrip(t *testing.T) {
 	t.Parallel()
 	s := NewMemoryStore()
 	p := Plan{
-		ID:           "abc",
-		ScenarioPath: "/tmp/x",
-		Operations:   []Operation{FileMove{From: "a.go", To: "b.go"}},
+		ID:         "abc",
+		ModulePath: "/tmp/x",
+		Operations: []Operation{FileMove{From: "a.go", To: "b.go"}},
 	}
 	if err := s.Save(context.Background(), p); err != nil {
 		t.Fatalf("Save: %v", err)
@@ -20,7 +20,7 @@ func TestMemoryStoreRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	if got.ID != p.ID || got.ScenarioPath != p.ScenarioPath || len(got.Operations) != 1 {
+	if got.ID != p.ID || got.ModulePath != p.ModulePath || len(got.Operations) != 1 {
 		t.Fatalf("round-trip mismatch: %+v", got)
 	}
 }

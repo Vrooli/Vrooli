@@ -56,7 +56,7 @@ describe("no external command", () => {
       `/** doc */ export const A = 1;`,
     );
     const out = extract({
-      scenarioPath: "/proj",
+      projectPath: "/proj",
       _project: project,
       _rootDirOverride: "/proj",
     });
@@ -87,7 +87,7 @@ describe("no external command", () => {
       );
 
       const results = await applyRewrite({
-        scenarioPath: tmp,
+        projectPath: tmp,
         operations: [
           { import_rewrite: { old_path: "./util", new_path: "./renamed" } },
         ],

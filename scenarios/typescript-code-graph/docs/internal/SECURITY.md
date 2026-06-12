@@ -21,7 +21,7 @@ TypeScript Code Graph reads source code from target TS projects. The graph respo
 | Leading-comment metadata | **conditional, potentially high** | extracted graph | `leading_comments: string[]` is verbatim from source. A developer's `@example` JSDoc snippet showing usage of an internal API may contain credentials or hostnames. This is load-bearing for `react-component-library` (see PRD OT-P0-003) but is the largest privacy surface of this scenario. |
 | Declaration names | varies (typically low) | extracted graph | Names like `apiKey`, `dbPassword` appear verbatim. |
 | File paths | varies (typically low) | extracted graph | Absolute paths to source files appear in node `location` fields. |
-| Operation Log (P1) | low | rewrite domain | Records `scenario_path` + normalized ops + per-op status. |
+| Operation Log (P1) | low | rewrite domain | Records `project_path` + normalized ops + per-op status. |
 | Plan registry | low | rewrite domain | Same content as Operation Log entries; ephemeral. |
 | Sidecar IPC traffic | varies | sidecar domain | All `Extract` and `Rewrite` payloads flow through the sidecar IPC channel. JSON-over-stdio means the data lives transiently in the Node child's memory. |
 

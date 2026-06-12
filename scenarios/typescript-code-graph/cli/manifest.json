@@ -11,7 +11,7 @@
           "name": "extract",
           "description": "Extract a deterministic graph for a TypeScript project",
           "positionals": [
-            { "name": "path", "required": true, "description": "Path to TypeScript project root (contains tsconfig.json)" }
+            { "name": "path", "required": true, "description": "Path to TypeScript project root or tsconfig.json" }
           ],
           "binding": { "kind": "connect-rpc", "service": "TypeScriptCodeGraphService", "method": "Extract" },
           "governance": {
@@ -57,7 +57,7 @@
             { "name": "ops-file", "required": true, "description": "Path to JSON file describing operations" }
           ],
           "flags": [
-            { "name": "scenario-path", "required": true, "description": "TypeScript project root the ops target" }
+            { "name": "project-path", "required": true, "description": "TypeScript project root or tsconfig.json the ops target" }
           ],
           "binding": { "kind": "connect-rpc", "service": "TypeScriptCodeGraphService", "method": "RewritePlan" },
           "governance": {
@@ -73,7 +73,7 @@
             { "name": "plan-id", "required": true, "description": "Plan id returned by `rewrite plan`" }
           ],
           "flags": [
-            { "name": "scenario-path", "required": true, "description": "TypeScript project root the plan was authored against" }
+            { "name": "project-path", "required": true, "description": "TypeScript project root or tsconfig.json the plan was authored against" }
           ],
           "binding": { "kind": "connect-rpc", "service": "TypeScriptCodeGraphService", "method": "RewriteApply" },
           "governance": {

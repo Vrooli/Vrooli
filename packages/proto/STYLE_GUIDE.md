@@ -205,6 +205,7 @@ Use exactly these values. Avoid synonyms such as `unstable`.
 | Annotation | Scope | Purpose | Example |
 |------------|-------|---------|---------|
 | `@stability` | file | API maturity | `@stability beta` |
+| `@template` | file | Marks schema copied from a scenario template example; keep until intentionally adopted or replaced | `@template react-vite/example` |
 | `@deprecated` | message, field, enum, value | Human-readable migration note paired with proto deprecation options where available | `@deprecated Use TimelineEntry instead` |
 | `@example` | field, message | Concrete value or payload sketch | `@example "https://example.com"` |
 | `@see` | message, field, enum | Related contract or documentation | `@see WorkflowNode.id` |
@@ -215,6 +216,11 @@ Use exactly these values. Avoid synonyms such as `unstable`.
 Validation constraints belong in Protovalidate rules whenever they are
 enforceable. Use prose for semantics, not as the only source of truth for a
 machine-checkable constraint.
+
+`@template` is a maturity marker, not ownership. It lets validators distinguish
+legitimate scenario-owned concepts from scaffold examples with generic names
+such as `notes`. Remove it only when the contract is deliberately adopted as
+scenario-owned surface or replaced by the scenario's real domain contract.
 
 ### Deprecated Annotations
 
@@ -516,14 +522,33 @@ cd packages/proto
 make generate
 make lint
 make breaking
-make check
+make verify-committed-gen
 ```
 
 `gen/` and `gen/descriptor/image.binpb` are committed artifacts. They must stay
 in sync with `schemas/`. Do not hand-edit generated code.
 
-`make check` is the sync gate: it regenerates code and fails if committed
-generated artifacts drift from schema sources.
+`make verify-committed-gen` is the CI-style sync gate: it regenerates code and
+fails if committed generated artifacts drift from schema sources.
+
+---
+
+## Endpoint Declaration Rules
+
+Deliberate REST exceptions must declare payload intent in endpoint metadata,
+even when a role has no proto payload. Declare request, response, and error
+roles with full proto message names where proto JSON is used, and use explicit
+non-proto conformance modes such as `none`, `transport_only`, or
+`external_shape` where no proto payload exists.
+
+Stable public services may not depend on less-stable transitive message
+payloads. If a stable RPC accepts or returns a message, every scenario-local
+message reachable through its fields must also be stable.
+
+Reusable scenario-local support messages belong in `v<n>/shared/`. A message
+used by multiple domains, including REST exception error envelopes shared by
+health and product endpoints, is misplaced if it lives in a domain-specific
+folder such as `errors/`.
 
 ---
 
@@ -543,6 +568,10 @@ Before committing proto changes:
 - [ ] Domain files do not import other local domain folders directly.
 - [ ] Shared local types live in `v<n>/shared/`; fleet shared types live in
       reviewed top-level shared packages.
+- [ ] REST exception endpoint metadata declares request, response, and error
+      payload intent explicitly.
+- [ ] Stable public services depend only on stable scenario-local transitive
+      payload messages.
 - [ ] All messages, fields, enums, and enum values have useful comments.
 - [ ] UUID fields use `@format uuid`.
 - [ ] Timestamp and duration fields use standard suffixes and units.
@@ -551,4 +580,5 @@ Before committing proto changes:
       available.
 - [ ] Reserved fields explain what was removed and why.
 - [ ] `make lint` passes.
-- [ ] `make generate` and `make check` leave generated artifacts in sync.
+- [ ] `make generate` and `make verify-committed-gen` leave generated artifacts
+      in sync.

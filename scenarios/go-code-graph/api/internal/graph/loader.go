@@ -23,5 +23,5 @@ type LoadOptions struct {
 // graph/mocks.FakeLoader. Single method; do not extend without lifting
 // a corresponding test fake in lockstep.
 type PackagesLoader interface {
-	Load(ctx context.Context, scenarioPath string, opts LoadOptions) ([]*packages.Package, error)
+	Load(ctx context.Context, modulePath string, opts LoadOptions) ([]*packages.Package, error)
 }

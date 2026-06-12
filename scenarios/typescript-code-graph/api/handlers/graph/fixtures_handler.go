@@ -108,7 +108,7 @@ func (h *connectHandler) ValidateFixture(ctx context.Context, req *connect.Reque
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("resolve fixture path: %w", err))
 	}
 
-	out, err := h.deps.GraphService.Extract(ctx, intgraph.ExtractInput{ScenarioPath: abs})
+	out, err := h.deps.GraphService.Extract(ctx, intgraph.ExtractInput{ProjectPath: abs})
 	if err != nil {
 		connectErr := intgraph.ToConnectError(err)
 		if connect.CodeOf(connectErr) == connect.CodeInternal {

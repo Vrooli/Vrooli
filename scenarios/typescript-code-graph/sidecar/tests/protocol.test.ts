@@ -30,10 +30,10 @@ describe("protocol round-trip", () => {
     const req: ExtractRequest = {
       type: "extract",
       request_id: "ex1",
-      scenario_path: "/tmp/x",
+      project_path: "/tmp/x",
     };
     const parsed = parseMessage(JSON.stringify(req)) as ExtractRequest;
-    expect(parsed.scenario_path).toBe("/tmp/x");
+    expect(parsed.project_path).toBe("/tmp/x");
     expect(isRequest(parsed)).toBe(true);
   });
 
@@ -41,7 +41,7 @@ describe("protocol round-trip", () => {
     const req: RewriteApplyRequest = {
       type: "rewrite_apply",
       request_id: "rw1",
-      scenario_path: "/tmp/x",
+      project_path: "/tmp/x",
       operations: [
         { file_move: { from_path: "a.ts", to_path: "b.ts" } },
         { import_rewrite: { old_path: "./a", new_path: "./b" } },

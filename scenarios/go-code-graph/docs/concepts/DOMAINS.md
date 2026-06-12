@@ -20,7 +20,7 @@ System-level architecture belongs in [`ARCHITECTURE.md`](ARCHITECTURE.md). Workf
 |---|---|---|---|---|---|---|
 | graph | Build the ground-truth code graph for a target Go module by loading `golang.org/x/tools/go/packages` and normalizing the result into the shared envelope. | Service / parser | No data in v1 (graph is returned, not persisted). | API, CLI, UI | REQ-P0-001, REQ-P0-002, REQ-P0-004, REQ-P0-005, REQ-P0-006 | `api/internal/graph/`, `api/handlers/graph/`, `cli/domains/graph/`, `ui/src/features/graph/`, `packages/proto/schemas/go-code-graph/v1/graph/`, `packages/proto/schemas/common/v1/code_graph.proto` |
 | rewrite | Plan and execute mechanical Go refactors (file moves + import rewrites) as a two-step `plan → apply` operation. | Mutator / executor | Optional Operation Log (P1) in SQLite. | API, CLI, UI | REQ-P0-003 | `api/internal/rewrite/`, `api/handlers/rewrite/`, `cli/domains/rewrite/`, `ui/src/features/rewrite/`, `packages/proto/schemas/go-code-graph/v1/rewrite/` |
-| explorer | UI surface for human debugging: paste a scenario path, view extracted nodes/edges/warnings, inspect recent calls. (P1) Fixture validator. | UI / inspection | None. | UI (primary), API (read-only telemetry endpoints) | REQ-P0-009, REQ-P1-001 | `ui/src/features/explorer/`, `ui/src/features/fixtures/`, `api/handlers/explorer/` |
+| explorer | UI surface for human debugging: paste a module path, view extracted nodes/edges/warnings, inspect recent calls. (P1) Fixture validator. | UI / inspection | None. | UI (primary), API (read-only telemetry endpoints) | REQ-P0-009, REQ-P1-001 | `ui/src/features/explorer/`, `ui/src/features/fixtures/`, `api/handlers/explorer/` |
 | health | Report runtime readiness and dependency reachability. | Reporting / query | No product data. | API, UI | Starter scaffold health. | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/go-code-graph/v1/health/` |
 
 The four domains map one-to-one onto the operational targets in [`../../PRD.md`](../../PRD.md): `graph` owns extraction; `rewrite` owns the two-step refactor surface; `explorer` owns the UI debug path; `health` is template-inherited infrastructure.
@@ -94,7 +94,7 @@ The four domains map one-to-one onto the operational targets in [`../../PRD.md`]
 | NodeKind / EdgeKind | Extensible enums on the shared envelope. Go-specific kinds (`go_type`, `go_func`, `go_var`, `go_const`, `go_interface`, `go_method`) live in the go-code-graph proto extension. | `common/v1/code_graph.proto` + `go-code-graph/v1/` |
 | Warning | `{file, kind, message}` structured entry on partial graphs. Kinds are an enum: `parse_error`, `unresolved_import`, `type_check_failure`, `ambiguous_declaration`. | `common/v1/code_graph.proto` |
 | Plan ID | Deterministic content hash of a normalized operation list returned by `RewritePlan`. Apply requires the matching plan ID. | `rewrite` |
-| Per-path mutex | An in-process lock keyed by absolute `scenario_path`. Serializes extraction and apply for the same path; parallel across paths. | `graph` (extraction) + `rewrite` (apply) |
+| Per-path mutex | An in-process lock keyed by absolute `module_path`. Serializes extraction and apply for the same path; parallel across paths. | `graph` (extraction) + `rewrite` (apply) |
 | Seam | Test-substitutable boundary wired once in production. | [`../internal/SEAMS.md`](../internal/SEAMS.md) |
 | Requirement | Implementation-facing measurement tied back to the PRD. | `requirements/` |
 

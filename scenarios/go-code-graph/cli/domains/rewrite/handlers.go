@@ -67,7 +67,7 @@ type opsImportRewriteBody struct {
 // surfacing the returned plan_id and the normalized operation list.
 func (h *handlers) plan(ctx cliapp.RunContext) error {
 	opsFile := ctx.Positional("ops-file")
-	scenarioPath := ctx.Flag("scenario-path")
+	modulePath := ctx.Flag("module-path")
 
 	ops, err := loadOperations(opsFile)
 	if err != nil {
@@ -75,8 +75,8 @@ func (h *handlers) plan(ctx cliapp.RunContext) error {
 	}
 
 	resp, err := h.client.RewritePlan(context.Background(), connect.NewRequest(&graphv1.RewritePlanRequest{
-		ScenarioPath: scenarioPath,
-		Operations:   ops,
+		ModulePath: modulePath,
+		Operations: ops,
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("rewrite plan", err, nil)
@@ -98,8 +98,8 @@ func (h *handlers) plan(ctx cliapp.RunContext) error {
 		Changes: changes,
 		NextCommand: []string{
 			fmt.Sprintf(
-				"`rewrite apply %s --scenario-path %s` — apply this plan",
-				resp.Msg.GetPlanId(), scenarioPath,
+				"`rewrite apply %s --module-path %s` — apply this plan",
+				resp.Msg.GetPlanId(), modulePath,
 			),
 		},
 	})
@@ -110,12 +110,12 @@ func (h *handlers) plan(ctx cliapp.RunContext) error {
 // returns dry_run=true in the response when that header was present.
 func (h *handlers) apply(ctx cliapp.RunContext) error {
 	planID := ctx.Positional("plan-id")
-	scenarioPath := ctx.Flag("scenario-path")
+	modulePath := ctx.Flag("module-path")
 
 	resp, err := h.client.RewriteApply(context.Background(), connect.NewRequest(&graphv1.RewriteApplyRequest{
-		ScenarioPath: scenarioPath,
-		PlanId:       planID,
-		Apply:        true,
+		ModulePath: modulePath,
+		PlanId:     planID,
+		Apply:      true,
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError(fmt.Sprintf("rewrite apply %q", planID), err, nil)

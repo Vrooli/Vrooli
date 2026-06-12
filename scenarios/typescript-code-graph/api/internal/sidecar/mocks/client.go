@@ -18,8 +18,8 @@ import (
 type FakeSidecarClient struct {
 	mu sync.Mutex
 
-	ExtractFn      func(ctx context.Context, scenarioPath string) (sidecar.ExtractResult, error)
-	RewriteApplyFn func(ctx context.Context, scenarioPath string, ops []sidecar.Operation) ([]sidecar.OperationResult, error)
+	ExtractFn      func(ctx context.Context, projectPath string) (sidecar.ExtractResult, error)
+	RewriteApplyFn func(ctx context.Context, projectPath string, ops []sidecar.Operation) ([]sidecar.OperationResult, error)
 	ShutdownFn     func(ctx context.Context) error
 	StatusValue    sidecar.Status
 
@@ -29,7 +29,7 @@ type FakeSidecarClient struct {
 }
 
 // Extract records the call and dispatches to ExtractFn.
-func (f *FakeSidecarClient) Extract(ctx context.Context, scenarioPath string) (sidecar.ExtractResult, error) {
+func (f *FakeSidecarClient) Extract(ctx context.Context, projectPath string) (sidecar.ExtractResult, error) {
 	f.mu.Lock()
 	f.ExtractCalls++
 	fn := f.ExtractFn
@@ -37,11 +37,11 @@ func (f *FakeSidecarClient) Extract(ctx context.Context, scenarioPath string) (s
 	if fn == nil {
 		return sidecar.ExtractResult{}, nil
 	}
-	return fn(ctx, scenarioPath)
+	return fn(ctx, projectPath)
 }
 
 // RewriteApply records the call and dispatches to RewriteApplyFn.
-func (f *FakeSidecarClient) RewriteApply(ctx context.Context, scenarioPath string, ops []sidecar.Operation) ([]sidecar.OperationResult, error) {
+func (f *FakeSidecarClient) RewriteApply(ctx context.Context, projectPath string, ops []sidecar.Operation) ([]sidecar.OperationResult, error) {
 	f.mu.Lock()
 	f.RewriteApplyCalls++
 	fn := f.RewriteApplyFn
@@ -49,7 +49,7 @@ func (f *FakeSidecarClient) RewriteApply(ctx context.Context, scenarioPath strin
 	if fn == nil {
 		return nil, nil
 	}
-	return fn(ctx, scenarioPath, ops)
+	return fn(ctx, projectPath, ops)
 }
 
 // Status returns the configured status (defaults to READY).

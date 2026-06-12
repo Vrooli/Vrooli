@@ -40,17 +40,22 @@ const (
 type NodeKind string
 
 const (
-	NodeKindFile      NodeKind = "file"
-	NodeKindModule    NodeKind = "ts_module"
-	NodeKindComponent NodeKind = "ts_component"
-	NodeKindHook      NodeKind = "ts_hook"
-	NodeKindClass     NodeKind = "ts_class"
-	NodeKindInterface NodeKind = "ts_interface"
-	NodeKindType      NodeKind = "ts_type"
-	NodeKindFunction  NodeKind = "ts_function"
-	NodeKindVar       NodeKind = "ts_var"
-	NodeKindConst     NodeKind = "ts_const"
-	NodeKindReExport  NodeKind = "ts_re_export"
+	NodeKindFile          NodeKind = "file"
+	NodeKindModule        NodeKind = "ts_module"
+	NodeKindComponent     NodeKind = "ts_component"
+	NodeKindHook          NodeKind = "ts_hook"
+	NodeKindClass         NodeKind = "ts_class"
+	NodeKindInterface     NodeKind = "ts_interface"
+	NodeKindType          NodeKind = "ts_type"
+	NodeKindFunction      NodeKind = "ts_function"
+	NodeKindVar           NodeKind = "ts_var"
+	NodeKindConst         NodeKind = "ts_const"
+	NodeKindReExport      NodeKind = "ts_re_export"
+	NodeKindImportBinding NodeKind = "ts_import_binding"
+	NodeKindReference     NodeKind = "ts_reference"
+	NodeKindCall          NodeKind = "ts_call"
+	NodeKindJsxUsage      NodeKind = "ts_jsx_usage"
+	NodeKindExport        NodeKind = "ts_export"
 )
 
 // EdgeKind enumerates the directed-edge families this scenario emits.
@@ -151,10 +156,10 @@ type Graph struct {
 }
 
 // ExtractInput is the validated request payload threaded from handler
-// to Service. ScenarioPath is the absolute path to the project root
-// (the directory containing tsconfig.json).
+// to Service. ProjectPath is the absolute path to the project root or a
+// concrete tsconfig.json file.
 type ExtractInput struct {
-	ScenarioPath string
+	ProjectPath string
 }
 
 // ExtractOutput bundles everything the handler needs to project onto
@@ -176,19 +181,19 @@ type ExtractErrorKind string
 
 const (
 	// ExtractErrorNoTsConfig means no tsconfig.json was found at
-	// ScenarioPath.
+	// ProjectPath.
 	ExtractErrorNoTsConfig ExtractErrorKind = "no_tsconfig_found"
 	// ExtractErrorMultipleTsConfig means more than one tsconfig.json
-	// exists under ScenarioPath; the scenario boundary is ambiguous.
+	// exists under ProjectPath; the project boundary is ambiguous.
 	ExtractErrorMultipleTsConfig ExtractErrorKind = "multiple_tsconfig_files"
 	// ExtractErrorWorkspaceUnsupported means a pnpm/yarn workspace was
 	// detected; multi-project workspaces are out of scope for v1.
 	ExtractErrorWorkspaceUnsupported ExtractErrorKind = "workspace_unsupported"
-	// ExtractErrorPathUnreadable means the scenario path could not be
+	// ExtractErrorPathUnreadable means the project path could not be
 	// stat'd or read.
 	ExtractErrorPathUnreadable ExtractErrorKind = "path_unreadable"
 	// ExtractErrorInvalidInput means the request payload itself was
-	// malformed (empty ScenarioPath, etc.).
+	// malformed (empty ProjectPath, etc.).
 	ExtractErrorInvalidInput ExtractErrorKind = "invalid_input"
 	// ExtractErrorSidecarUnavailable means the Node sidecar is not in a
 	// state to accept requests.

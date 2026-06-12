@@ -52,9 +52,11 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 	findings = append(findings, checkUnsupportedAnnotations(surface)...)
 	findings = append(findings, checkTemplateSource(surface)...)
 	findings = append(findings, checkCrossDomainImports(surface)...)
-	findings = append(findings, checkAdoption(surface)...)
+	findings = append(findings, checkImportClassification(surface)...)
 	findings = append(findings, checkTransport(surface)...)
+	findings = append(findings, checkRESTPayloadDeclarations(surface)...)
 	findings = append(findings, checkStability(surface)...)
+	findings = append(findings, checkSharedTypePlacement(surface)...)
 	findings = append(findings, checkMissingHealth(surface)...)
 	findings = append(findings, checkPossiblyUnused(surface)...)
 	findings = append(findings, s.checkDomainMismatch(surface)...)
@@ -307,18 +309,18 @@ func checkCrossDomainImports(surface protosurface.Surface) []Finding {
 	return findings
 }
 
-func checkAdoption(surface protosurface.Surface) []Finding {
+func checkImportClassification(surface protosurface.Surface) []Finding {
 	var findings []Finding
-	for _, sig := range surface.AdoptionSignals {
-		if sig.Present {
+	for _, imp := range append(append([]protosurface.Import{}, surface.IntraScenarioImports...), surface.CrossScenarioImports...) {
+		if imp.Kind != protosurface.ImportKindUnspecified && imp.Kind != "" {
 			continue
 		}
 		findings = append(findings, Finding{
 			Severity:   SeverityWarning,
-			Code:       CodeNotAdopted,
-			Location:   "scenarios/" + surface.Scenario,
-			Message:    sig.Detail + " is missing",
-			Suggestion: "consume the scenario's generated proto artifacts instead of parallel hand-written types",
+			Code:       CodeImportKindUnknown,
+			Location:   imp.FromFile,
+			Message:    fmt.Sprintf("proto import %s -> %s has no classified import kind", imp.FromFile, imp.ToFile),
+			Suggestion: "ensure proto-health can classify imports as scenario-local, cross-scenario, or external from descriptor metadata",
 		})
 	}
 	return findings
@@ -335,6 +337,89 @@ func checkTransport(surface protosurface.Surface) []Finding {
 		Message:    fmt.Sprintf("scenario proto transport world is %s", surface.TransportWorld),
 		Suggestion: "prefer generated Connect handlers for proto-owned RPCs; keep REST only for documented transport exceptions",
 	}}
+}
+
+func checkRESTPayloadDeclarations(surface protosurface.Surface) []Finding {
+	messageByName := map[string]protosurface.Message{}
+	for _, m := range surface.Messages {
+		messageByName[m.FullName] = m
+	}
+	payloadsByEndpoint := map[string][]protosurface.RESTExceptionPayloadRef{}
+	for _, ref := range surface.RESTExceptionPayloads {
+		payloadsByEndpoint[ref.EndpointID] = append(payloadsByEndpoint[ref.EndpointID], ref)
+	}
+
+	var findings []Finding
+	for _, endpoint := range surface.RESTExceptions {
+		payloads := payloadsByEndpoint[endpoint.EndpointID]
+		if !endpoint.HasPayloadDeclarations || len(payloads) == 0 {
+			findings = append(findings, Finding{
+				Severity:   SeverityError,
+				Code:       CodeRESTPayloadMissingDeclaration,
+				Location:   endpoint.Path,
+				Message:    fmt.Sprintf("REST exception endpoint %q does not declare request, response, and error proto payload intent", endpoint.EndpointID),
+				Suggestion: "add rest_exception.proto_payloads with explicit request, response, and error declarations",
+			})
+			continue
+		}
+		seenRoles := map[protosurface.RESTPayloadRole]bool{}
+		for _, ref := range payloads {
+			seenRoles[ref.Role] = true
+			if !validRESTPayloadConformance(ref.Conformance) {
+				findings = append(findings, Finding{
+					Severity:   SeverityError,
+					Code:       CodeRESTPayloadInvalidConformance,
+					Location:   ref.Path,
+					Message:    fmt.Sprintf("REST exception endpoint %q %s conformance %q is unsupported", ref.EndpointID, ref.Role, ref.Conformance),
+					Suggestion: "use one of none, transport_only, external_shape, or protojson",
+				})
+			}
+			if ref.Conformance == "protojson" && ref.ProtoFullName == "" {
+				findings = append(findings, Finding{
+					Severity:   SeverityError,
+					Code:       CodeRESTPayloadMissingDeclaration,
+					Location:   ref.Path,
+					Message:    fmt.Sprintf("REST exception endpoint %q %s declares protojson without proto_full_name", ref.EndpointID, ref.Role),
+					Suggestion: "set proto_full_name to the fully qualified proto message name, or use a non-proto conformance mode",
+				})
+				continue
+			}
+			if ref.ProtoFullName == "" {
+				continue
+			}
+			if _, ok := messageByName[ref.ProtoFullName]; !ok {
+				findings = append(findings, Finding{
+					Severity:   SeverityError,
+					Code:       CodeRESTPayloadUnknownMessage,
+					Location:   ref.Path,
+					Message:    fmt.Sprintf("REST exception endpoint %q %s declares unknown proto message %q", ref.EndpointID, ref.Role, ref.ProtoFullName),
+					Suggestion: "use a full proto message name present in the descriptor image",
+				})
+			}
+		}
+		for _, role := range []protosurface.RESTPayloadRole{protosurface.RESTPayloadRoleRequest, protosurface.RESTPayloadRoleResponse, protosurface.RESTPayloadRoleError} {
+			if seenRoles[role] {
+				continue
+			}
+			findings = append(findings, Finding{
+				Severity:   SeverityError,
+				Code:       CodeRESTPayloadMissingDeclaration,
+				Location:   endpoint.Path,
+				Message:    fmt.Sprintf("REST exception endpoint %q is missing %s payload intent", endpoint.EndpointID, role),
+				Suggestion: "declare every REST payload role explicitly, even when the role has no proto payload",
+			})
+		}
+	}
+	return findings
+}
+
+func validRESTPayloadConformance(v string) bool {
+	switch v {
+	case "none", "transport_only", "external_shape", "protojson":
+		return true
+	default:
+		return false
+	}
 }
 
 func checkStability(surface protosurface.Surface) []Finding {
@@ -368,7 +453,97 @@ func checkStability(surface protosurface.Surface) []Finding {
 			})
 		}
 	}
+	findings = append(findings, checkStabilityDependencies(surface)...)
 	return findings
+}
+
+func checkStabilityDependencies(surface protosurface.Surface) []Finding {
+	fileStability := map[string]string{}
+	for _, f := range surface.Files {
+		fileStability[f.Path] = f.Stability
+	}
+	messageByName := map[string]protosurface.Message{}
+	for _, m := range surface.Messages {
+		messageByName[m.FullName] = m
+	}
+
+	reported := map[string]bool{}
+	var findings []Finding
+	for _, svc := range surface.Services {
+		if stabilityRank(fileStability[svc.FilePath]) < stabilityRank("stable") {
+			continue
+		}
+		for _, rpc := range svc.RPCs {
+			if rpc.Transport != protosurface.TransportKindConnect && rpc.Transport != protosurface.TransportKindREST && rpc.Transport != protosurface.TransportKindHandRolled {
+				continue
+			}
+			for _, root := range []string{rpc.Input, rpc.Output} {
+				for _, dep := range transitiveMessages(root, messageByName) {
+					depStability := fileStability[dep.FilePath]
+					if stabilityRank(depStability) >= stabilityRank("stable") {
+						continue
+					}
+					key := svc.FullName + "|" + rpc.Name + "|" + dep.FullName
+					if reported[key] {
+						continue
+					}
+					reported[key] = true
+					findings = append(findings, Finding{
+						Severity:   SeverityError,
+						Code:       CodeStabilityDependencyMismatch,
+						Location:   dep.FilePath + "#" + dep.Name,
+						Message:    fmt.Sprintf("stable RPC %s/%s depends on less-stable message %s (%s)", svc.FullName, rpc.Name, dep.FullName, stabilityLabel(depStability)),
+						Suggestion: "mark the transitive payload stable before serving it from a stable contract, or lower the serving contract stability",
+					})
+				}
+			}
+		}
+	}
+	return findings
+}
+
+func transitiveMessages(root string, messages map[string]protosurface.Message) []protosurface.Message {
+	seen := map[string]bool{}
+	var out []protosurface.Message
+	var walk func(string)
+	walk = func(name string) {
+		if seen[name] {
+			return
+		}
+		seen[name] = true
+		msg, ok := messages[name]
+		if !ok {
+			return
+		}
+		out = append(out, msg)
+		for _, field := range msg.Fields {
+			if field.MessageType != "" {
+				walk(field.MessageType)
+			}
+		}
+	}
+	walk(root)
+	return out
+}
+
+func stabilityRank(stability string) int {
+	switch stability {
+	case "stable":
+		return 3
+	case "beta":
+		return 2
+	case "experimental":
+		return 1
+	default:
+		return 0
+	}
+}
+
+func stabilityLabel(stability string) string {
+	if stability == "" {
+		return "unspecified"
+	}
+	return stability
 }
 
 func fileHasService(surface protosurface.Surface, path string) bool {
@@ -393,6 +568,58 @@ func checkMissingHealth(surface protosurface.Surface) []Finding {
 		Message:    "scenario has no health proto",
 		Suggestion: "add v1/shared/health.proto for health payloads, or document why the scenario has no proto-owned health surface",
 	}}
+}
+
+func checkSharedTypePlacement(surface protosurface.Surface) []Finding {
+	referenceDomains := map[string]map[string]bool{}
+	addRef := func(fullName, domain string) {
+		if fullName == "" || domain == "" {
+			return
+		}
+		if referenceDomains[fullName] == nil {
+			referenceDomains[fullName] = map[string]bool{}
+		}
+		referenceDomains[fullName][domain] = true
+	}
+	for _, svc := range surface.Services {
+		for _, rpc := range svc.RPCs {
+			addRef(rpc.Input, svc.Domain)
+			addRef(rpc.Output, svc.Domain)
+		}
+	}
+	for _, msg := range surface.Messages {
+		for _, field := range msg.Fields {
+			addRef(field.MessageType, msg.Domain)
+		}
+	}
+	for _, ref := range surface.RESTExceptionPayloads {
+		addRef(ref.ProtoFullName, ref.Domain)
+	}
+
+	var findings []Finding
+	for _, msg := range surface.Messages {
+		domains := sortedDomains(referenceDomains[msg.FullName])
+		if len(domains) < 2 || msg.Domain == "shared" {
+			continue
+		}
+		findings = append(findings, Finding{
+			Severity:   SeverityError,
+			Code:       CodeSharedTypeMisplaced,
+			Location:   msg.FilePath + "#" + msg.Name,
+			Message:    fmt.Sprintf("message %s is reused across domains (%s) but lives in %q", msg.FullName, strings.Join(domains, ", "), msg.Domain),
+			Suggestion: "move reusable scenario-local support messages into v1/shared/ and update imports/declarations",
+		})
+	}
+	return findings
+}
+
+func sortedDomains(domains map[string]bool) []string {
+	out := make([]string, 0, len(domains))
+	for domain := range domains {
+		out = append(out, domain)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func checkPossiblyUnused(surface protosurface.Surface) []Finding {
@@ -465,7 +692,7 @@ func (s *Service) checkDomainMismatch(surface protosurface.Surface) []Finding {
 	}
 	protoDomains := map[string]bool{}
 	for _, f := range surface.Files {
-		if f.Domain != "shared" && f.Domain != "errors" {
+		if f.Domain != "shared" {
 			protoDomains[f.Domain] = true
 		}
 	}

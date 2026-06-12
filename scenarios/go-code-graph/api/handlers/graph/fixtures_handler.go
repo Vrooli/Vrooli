@@ -36,7 +36,7 @@ func (h *connectHandler) fixturesDir() string {
 	if env := strings.TrimSpace(os.Getenv("GO_CODE_GRAPH_FIXTURES_DIR")); env != "" {
 		return env
 	}
-	// The lifecycle launches the server from api/ (not the scenario root), so
+	// The lifecycle launches the server from api/ (not the module root), so
 	// resolve fixtures against the scenario directory it injects. Falls back to
 	// a cwd-relative path for ad-hoc local runs / tests.
 	for _, envVar := range []string{"VROOLI_SCENARIO_DIR", "SCENARIO_PATH"} {
@@ -107,7 +107,7 @@ func (h *connectHandler) ValidateFixture(ctx context.Context, req *connect.Reque
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("resolve fixture path: %w", err))
 	}
 
-	g, _, err := h.deps.GraphService.Extract(ctx, intgraph.ExtractInput{ScenarioPath: abs})
+	g, _, err := h.deps.GraphService.Extract(ctx, intgraph.ExtractInput{ModulePath: abs})
 	if err != nil {
 		connectErr := intgraph.ToConnectError(err)
 		if connect.CodeOf(connectErr) == connect.CodeInternal {

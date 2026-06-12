@@ -9,16 +9,17 @@ import "context"
 // mocks.FakeSidecarClient. Domain code MUST take this interface, never
 // the concrete supervisor.
 type SidecarClient interface {
-	// Extract requests a graph for the project rooted at scenarioPath.
+	// Extract requests a graph for the project rooted at projectPath or
+	// selected by an explicit tsconfig.json path.
 	// ctx.Done() triggers a best-effort cancel IPC and resolves the
 	// pending future locally with ctx.Err(). The returned
 	// ExtractResult.RequestID is the supervisor-minted UUID for the
 	// underlying IPC request (non-empty whenever the sidecar was reached).
-	Extract(ctx context.Context, scenarioPath string) (ExtractResult, error)
+	Extract(ctx context.Context, projectPath string) (ExtractResult, error)
 
 	// RewriteApply executes the given operations against the project at
-	// scenarioPath. The result slice matches ops 1:1.
-	RewriteApply(ctx context.Context, scenarioPath string, ops []Operation) ([]OperationResult, error)
+	// projectPath. The result slice matches ops 1:1.
+	RewriteApply(ctx context.Context, projectPath string, ops []Operation) ([]OperationResult, error)
 
 	// Status reports the supervisor's view of the child process. It is
 	// safe to call concurrently and never blocks.

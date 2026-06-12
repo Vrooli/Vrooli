@@ -14,7 +14,7 @@ export const file_typescript_code_graph_v1_rewrite_rewrite: GenFile = /*@__PURE_
 
 /**
  * FileMove relocates a single file from from_path to to_path. Both
- * paths are relative to the scenario root (no leading slash, no ".."
+ * paths are relative to the project root (no leading slash, no ".."
  * segments). The sidecar uses `SourceFile.move(toPath)`, which both
  * moves the file on disk and rewrites every import/export specifier in
  * the project that resolves to it.

@@ -1,5 +1,5 @@
 {
-  "description": "Implement `Extract(ExtractRequest{scenario_path}) → Graph` against `ts-morph` using a fixed Project configuration that returns files, modules, top-level declarations (components, hooks, classes, interfaces, types, functions, vars, consts), and import edges plus intra-module symbol references; byte-stable serialization for identical inputs.",
+  "description": "Implement `Extract(ExtractRequest{project_path}) → Graph` against `ts-morph` using a fixed Project configuration that returns files, modules, top-level declarations (components, hooks, classes, interfaces, types, functions, vars, consts), and import edges plus intra-module symbol references; byte-stable serialization for identical inputs.",
   "module_id": "MOD-P0-001",
   "prd_ref": "OT-P0-001",
   "priority": "P0",
@@ -10,7 +10,7 @@
         "REQ-P0-002",
         "REQ-P0-009"
       ],
-      "description": "Implement the Extract(ExtractRequest{scenario_path}) → Graph function using ts-morph with a fixed, reproducible Project configuration. The extracted graph must include all source files, module boundaries, top-level declarations (React components, hooks, classes, interfaces, types, functions, variables, and constants), import edges, and intra-module symbol references. Serialization of the resulting graph must be byte-stable: identical inputs always produce byte-for-byte identical outputs regardless of invocation time, process ID, or environment ordering.",
+      "description": "Implement the Extract(ExtractRequest{project_path}) → Graph function using ts-morph with a fixed, reproducible Project configuration. The extracted graph must include all source files, module boundaries, top-level declarations (React components, hooks, classes, interfaces, types, functions, variables, and constants), import edges, and intra-module symbol references. Serialization of the resulting graph must be byte-stable: identical inputs always produce byte-for-byte identical outputs regardless of invocation time, process ID, or environment ordering.",
       "id": "REQ-P0-001",
       "prd_ref": "OT-P0-001",
       "status": "draft",

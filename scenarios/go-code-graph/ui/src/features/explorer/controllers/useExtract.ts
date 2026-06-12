@@ -11,29 +11,29 @@ import type { ExtractResponse } from "../../../api/graph";
  */
 export const extractKeys = {
   all: () => ["extract"] as const,
-  result: (scenarioPath: string, includeVendor: boolean) =>
-    [...extractKeys.all(), scenarioPath, includeVendor] as const,
+  result: (modulePath: string, includeVendor: boolean) =>
+    [...extractKeys.all(), modulePath, includeVendor] as const,
 };
 
 export interface ExtractParams {
   /** Resolved Go module root (scenario-relative or absolute). */
-  readonly scenarioPath: string;
+  readonly modulePath: string;
   /** When true, the loader descends into vendor/ and the module cache. */
   readonly includeVendor: boolean;
 }
 
 /**
  * Run GoCodeGraphService.Extract for the given params. The query stays
- * disabled until a non-empty `scenarioPath` is supplied (i.e. after the user
+ * disabled until a non-empty `modulePath` is supplied (i.e. after the user
  * submits the extract bar), so the workbench renders its idle state first.
  */
 export function useExtract(params: ExtractParams | null): UseQueryResult<ExtractResponse> {
-  const scenarioPath = params?.scenarioPath ?? "";
+  const modulePath = params?.modulePath ?? "";
   const includeVendor = params?.includeVendor ?? false;
   return useQuery({
-    queryKey: extractKeys.result(scenarioPath, includeVendor),
+    queryKey: extractKeys.result(modulePath, includeVendor),
     queryFn: () =>
-      goCodeGraphClient.extract({ scenarioPath, includeVendor }),
-    enabled: scenarioPath.length > 0,
+      goCodeGraphClient.extract({ modulePath, includeVendor }),
+    enabled: modulePath.length > 0,
   });
 }

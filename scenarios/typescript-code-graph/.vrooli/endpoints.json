@@ -28,7 +28,23 @@
       },
       "rest_exception": {
         "reason": "ops_probe",
-        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client."
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.typescript_code_graph.v1.health.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.typescript_code_graph.v1.errors.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
       }
     },
     {
@@ -36,12 +52,12 @@
       "path": "/vrooli.typescript_code_graph.v1.graph.TypeScriptCodeGraphService/Extract",
       "method": "POST",
       "summary": "Extract a deterministic TypeScript graph",
-      "description": "Loads the TypeScript project rooted at scenario_path via the Node sidecar (ts-morph) and returns the normalized graph + warnings + extraction time + graph hash. Declaration nodes carry their leading_comments[] verbatim — REQ-P0-003.",
+      "description": "Loads the TypeScript project selected by project_path via the Node sidecar (ts-morph) and returns the normalized graph + warnings + extraction time + graph hash. Declaration nodes carry their leading_comments[] verbatim — REQ-P0-003.",
       "category": "graph",
       "request": {
         "type": "object",
         "properties": {
-          "scenario_path": "string (required, absolute path to the project root containing tsconfig.json)"
+          "project_path": "string (required, absolute path to the project root or tsconfig.json)"
         }
       },
       "response": {
@@ -58,12 +74,12 @@
         {
           "status": 400,
           "code": "invalid_argument",
-          "description": "Missing or non-absolute scenario_path; no/multiple tsconfig.json"
+          "description": "Missing or non-absolute project_path; no/multiple tsconfig.json"
         },
         {
           "status": 404,
           "code": "not_found",
-          "description": "scenario_path unreadable"
+          "description": "project_path unreadable"
         },
         {
           "status": 501,
@@ -174,13 +190,13 @@
       "path": "/vrooli.typescript_code_graph.v1.graph.TypeScriptCodeGraphService/RewritePlan",
       "method": "POST",
       "summary": "Plan a TypeScript rewrite",
-      "description": "Validates and normalizes a list of FileMove / ImportRewrite operations and returns a deterministic plan_id. Identical normalized inputs produce identical plan_ids; the (scenario_path, plan_id) composite scopes plans per project.",
+      "description": "Validates and normalizes a list of FileMove / ImportRewrite operations and returns a deterministic plan_id. Identical normalized inputs produce identical plan_ids; the (project_path, plan_id) composite scopes plans per project.",
       "category": "rewrite",
       "request": {
         "type": "object",
         "properties": {
           "operations": "array<rewrite.v1.Operation> (>=1; each must set exactly one of file_move / import_rewrite)",
-          "scenario_path": "string (required, absolute path)"
+          "project_path": "string (required, absolute path to project root or tsconfig.json)"
         }
       },
       "response": {
@@ -194,7 +210,7 @@
         {
           "status": 400,
           "code": "invalid_argument",
-          "description": "Missing scenario_path, empty operations, absolute/parent path, or both/neither oneof arm set"
+          "description": "Missing project_path, empty operations, absolute/parent path, or both/neither oneof arm set"
         },
         {
           "status": 500,
@@ -214,14 +230,14 @@
       "path": "/vrooli.typescript_code_graph.v1.graph.TypeScriptCodeGraphService/RewriteApply",
       "method": "POST",
       "summary": "Apply a TypeScript rewrite plan",
-      "description": "Executes the operations recorded under plan_id against the project at scenario_path. The apply flag must be true; X-Dry-Run: true header short-circuits before the sidecar call and returns synthetic OK results.",
+      "description": "Executes the operations recorded under plan_id against the project at project_path. The apply flag must be true; X-Dry-Run: true header short-circuits before the sidecar call and returns synthetic OK results.",
       "category": "rewrite",
       "request": {
         "type": "object",
         "properties": {
           "apply": "bool (must be true; false is rejected with InvalidArgument)",
           "plan_id": "string (required, returned by RewritePlan)",
-          "scenario_path": "string (required, absolute path; must match the plan's scenario)"
+          "project_path": "string (required, absolute path; must match the planned project)"
         }
       },
       "response": {
@@ -236,12 +252,12 @@
         {
           "status": 400,
           "code": "invalid_argument",
-          "description": "Missing scenario_path / plan_id, or apply=false"
+          "description": "Missing project_path / plan_id, or apply=false"
         },
         {
           "status": 412,
           "code": "failed_precondition",
-          "description": "Plan not found for this scenario (mismatched scenario_path or unknown plan_id)"
+          "description": "Plan not found for this project (mismatched project_path or unknown plan_id)"
         },
         {
           "status": 503,

@@ -84,7 +84,7 @@ func TestExtract_RendersSummary(t *testing.T) {
 
 	require.NoError(t, h.extract(ctx))
 	require.Len(t, svc.extractReqs, 1)
-	require.Equal(t, "/tmp/mod", svc.extractReqs[0].GetScenarioPath())
+	require.Equal(t, "/tmp/mod", svc.extractReqs[0].GetModulePath())
 	require.False(t, svc.extractReqs[0].GetIncludeVendor())
 
 	body := out.String()

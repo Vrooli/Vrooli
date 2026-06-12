@@ -28,7 +28,23 @@
       },
       "rest_exception": {
         "reason": "ops_probe",
-        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client."
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.go_code_graph.v1.health.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.go_code_graph.v1.errors.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
       }
     },
     {
@@ -36,13 +52,13 @@
       "path": "/vrooli.go_code_graph.v1.graph.GoCodeGraphService/Extract",
       "method": "POST",
       "summary": "Extract a deterministic Go graph",
-      "description": "Loads the Go module rooted at scenario_path and returns the normalized graph + warnings + extraction time + graph hash.",
+      "description": "Loads the Go module rooted at module_path and returns the normalized graph + warnings + extraction time + graph hash.",
       "category": "graph",
       "request": {
         "type": "object",
         "properties": {
           "include_vendor": "boolean (default false)",
-          "scenario_path": "string (required, absolute or scenario-relative module root)"
+          "module_path": "string (required, absolute or scenario-relative module root)"
         }
       },
       "response": {
@@ -58,12 +74,12 @@
         {
           "status": 400,
           "code": "invalid_argument",
-          "description": "Missing or invalid scenario_path; no/multiple go.mod"
+          "description": "Missing or invalid module_path; no/multiple go.mod"
         },
         {
           "status": 404,
           "code": "not_found",
-          "description": "scenario_path unreadable"
+          "description": "module_path unreadable"
         },
         {
           "status": 501,
@@ -170,8 +186,8 @@
       "request": {
         "type": "object",
         "properties": {
-          "operations": "array<Operation> (required, ≥1)",
-          "scenario_path": "string (required)"
+          "module_path": "string (required)",
+          "operations": "array<Operation> (required, ≥1)"
         }
       },
       "response": {
@@ -211,8 +227,8 @@
         "type": "object",
         "properties": {
           "apply": "boolean (must be true)",
-          "plan_id": "string (required)",
-          "scenario_path": "string (required)"
+          "module_path": "string (required)",
+          "plan_id": "string (required)"
         }
       },
       "response": {
@@ -232,7 +248,7 @@
         {
           "status": 412,
           "code": "failed_precondition",
-          "description": "Plan was created for a different scenario_path"
+          "description": "Plan was created for a different module_path"
         },
         {
           "status": 500,
@@ -272,12 +288,12 @@
     },
     {
       "name": "rewrite plan",
-      "description": "Validate and normalize a list of rewrite operations (<ops.json> --scenario-path PATH)",
+      "description": "Validate and normalize a list of rewrite operations (<ops.json> --module-path PATH)",
       "endpoint_id": "rewrite_plan"
     },
     {
       "name": "rewrite apply",
-      "description": "Execute a previously-planned set of operations (<plan_id> --scenario-path PATH)",
+      "description": "Execute a previously-planned set of operations (<plan_id> --module-path PATH)",
       "endpoint_id": "rewrite_apply"
     }
   ]

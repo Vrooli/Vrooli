@@ -22,7 +22,7 @@ const TAB_REWRITE = "rewrite";
 const TAB_FIXTURES = "fixtures";
 
 /** Join an optional base directory with the target into a single module path. */
-function resolveScenarioPath(target: string, projectDir: string): string {
+function resolveModulePath(target: string, projectDir: string): string {
   const t = target.trim();
   const base = projectDir.trim().replace(/\/+$/, "");
   if (base.length === 0) return t;
@@ -61,13 +61,13 @@ export function WorkbenchPage() {
   const [activeTab, setActiveTab] = React.useState<string>(TAB_GRAPH);
 
   const params = submittedPath
-    ? { scenarioPath: submittedPath, includeVendor }
+    ? { modulePath: submittedPath, includeVendor }
     : null;
   const extract = useExtract(params);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const resolved = resolveScenarioPath(target, projectDir);
+    const resolved = resolveModulePath(target, projectDir);
     if (resolved.length === 0) return;
     setSubmittedPath(resolved);
   };
@@ -132,7 +132,7 @@ export function WorkbenchPage() {
         <Button
           type="submit"
           data-testid={selectors.workbench.extractBar.submit}
-          disabled={resolveScenarioPath(target, projectDir).length === 0 || extract.isFetching}
+          disabled={resolveModulePath(target, projectDir).length === 0 || extract.isFetching}
         >
           {extract.isFetching
             ? t(strings.workbench.extract.submitting)
@@ -204,7 +204,7 @@ export function WorkbenchPage() {
               />
             </TabsPanel>
             <TabsPanel value={TAB_REWRITE}>
-              <RewriteTab scenarioPath={submittedPath} />
+              <RewriteTab modulePath={submittedPath} />
             </TabsPanel>
             <TabsPanel value={TAB_FIXTURES}>
               <FixturesTab />

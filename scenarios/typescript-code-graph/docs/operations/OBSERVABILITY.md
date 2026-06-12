@@ -32,7 +32,7 @@ Use this document to answer:
 
 | Log | Source | How To Read | Notes |
 |---|---|---|---|
-| API logs | lifecycle-managed API process | `make logs` | Per-call entries include `request_id`, `scenario_path`, `op_kind` (extract/rewrite_plan/rewrite_apply), `duration_ms`, `warning_count`, `error_kind`. |
+| API logs | lifecycle-managed API process | `make logs` | Per-call entries include `request_id`, `project_path`, `op_kind` (extract/rewrite_plan/rewrite_apply), `duration_ms`, `warning_count`, `error_kind`. |
 | Sidecar logs | API process (inherits sidecar stderr) | `make logs` | Sidecar logs are tagged with `[sidecar]` prefix for grep-ability. Captures `ts-morph` errors and IPC framing errors. |
 | Supervisor logs | API process | `make logs` | Spawn/restart events tagged `[supervisor]`: `spawn_attempted`, `handshake_succeeded`, `sidecar_exited`, `restart_scheduled`, `permanently_unhealthy`. |
 | UI logs | lifecycle-managed UI server | `make logs` | Production bundle server logs only. |

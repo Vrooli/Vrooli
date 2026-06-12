@@ -6,6 +6,19 @@ import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/notes;notes_v1";
 
+// =============================================================================
+// NOTES DOMAIN - multipart attachment REST exception
+// =============================================================================
+//
+// @stability stable
+// @template react-vite/example
+//
+// Response contract for the notes multipart upload REST exception. The request
+// body is intentionally multipart/form-data, but the response stays proto-typed
+// so CLI and UI callers can consume generated artifacts instead of parallel
+// hand-written DTOs.
+// =============================================================================
+
 // Attachment is metadata for a file uploaded through the notes multipart REST
 // sub-resource. The opaque file bytes stay outside Connect-RPC; this proto
 // describes the typed response shape and repository record.

@@ -55,7 +55,7 @@ This file ships empty in newly generated scenarios. Append entries as they appea
 
 ### 2026-05-23 — Deferred: Fixture Validator UI (REQ-P1-001)
 
-**Symptom:** No UI surface for browsing or validating extraction fixtures (`bas/fixtures/ts-junk-drawer`, `ts-jsdoc-tags`). Fixture drift is caught only by `internal/graph/integration_test.go` byte-for-byte comparison.
+**Symptom:** No UI surface for browsing or validating extraction fixtures (`bas/fixtures/ts-junk-drawer`, `ts-jsdoc-tags`, `ts-usage-facts`). Fixture drift is caught only by `internal/graph/integration_test.go` byte-for-byte comparison.
 
 **Root cause:** Out of scope for this plan. The debug graph explorer covers per-scenario extraction; a dedicated fixture-validator surface is P1.
 

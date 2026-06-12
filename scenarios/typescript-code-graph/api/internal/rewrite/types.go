@@ -21,12 +21,12 @@ import (
 
 // PlanID is the sha256-hex digest over the normalized operation list.
 // Two identical normalized lists always produce the same PlanID; the
-// store scopes plans by (scenario_path, PlanID) so two scenarios with
-// the same operation list cannot replay each other's plans.
+// store scopes plans by (project_path, PlanID) so two projects with the
+// same operation list cannot replay each other's plans.
 type PlanID string
 
 // FileMove relocates a TypeScript source file inside the project. Both
-// paths are scenario-relative (canonicalized by Normalize); absolute
+// paths are project-relative (canonicalized by Normalize); absolute
 // paths and "../" escape sequences are rejected during validation.
 type FileMove struct {
 	FromPath string
@@ -35,7 +35,7 @@ type FileMove struct {
 
 // ImportRewrite changes every import / export specifier referring to
 // OldPath so it refers to NewPath instead. As with FileMove, paths are
-// scenario-relative.
+// project-relative.
 type ImportRewrite struct {
 	OldPath string
 	NewPath string
@@ -97,19 +97,19 @@ func (o Operation) SecondaryPath() string {
 }
 
 // Plan is what the store holds after Service.Plan succeeds. The
-// ScenarioPath is captured at plan time and re-checked at apply time
-// to prevent cross-scenario plan replay.
+// ProjectPath is captured at plan time and re-checked at apply time to
+// prevent cross-project plan replay.
 type Plan struct {
-	ID           PlanID
-	ScenarioPath string
-	Operations   []Operation
+	ID          PlanID
+	ProjectPath string
+	Operations  []Operation
 }
 
 // PlanInput is the validated request payload threaded from handler to
 // Service.Plan.
 type PlanInput struct {
-	ScenarioPath string
-	Operations   []Operation
+	ProjectPath string
+	Operations  []Operation
 }
 
 // PlanOutput bundles the assigned PlanID and the normalized operation
@@ -123,9 +123,9 @@ type PlanOutput struct {
 // ApplyInput is the validated request payload threaded from handler to
 // Service.Apply.
 type ApplyInput struct {
-	ScenarioPath string
-	PlanID       PlanID
-	DryRun       bool
+	ProjectPath string
+	PlanID      PlanID
+	DryRun      bool
 }
 
 // ApplyResult is one row of the per-op apply log. The Status string
@@ -160,12 +160,12 @@ type RewriteErrorKind string
 
 const (
 	// RewriteErrorInvalidInput means the request payload itself was
-	// malformed (empty scenario_path, empty operations, etc.).
+	// malformed (empty project_path, empty operations, etc.).
 	RewriteErrorInvalidInput RewriteErrorKind = "invalid_input"
 	// RewriteErrorInvalidOperation means at least one Operation was
 	// malformed: wrong number of oneof arms set, invalid paths, etc.
 	RewriteErrorInvalidOperation RewriteErrorKind = "invalid_operation"
-	// RewriteErrorPlanNotFound means the (scenario_path, plan_id)
+	// RewriteErrorPlanNotFound means the (project_path, plan_id)
 	// composite key did not match a stored plan.
 	RewriteErrorPlanNotFound RewriteErrorKind = "plan_not_found"
 	// RewriteErrorSidecarUnavailable means the Node sidecar is not in a

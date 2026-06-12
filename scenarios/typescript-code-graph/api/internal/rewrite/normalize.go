@@ -166,7 +166,7 @@ func (e pathErr) Error() string { return string(e) }
 
 const (
 	errPathEmpty        = pathErr("path is empty")
-	errPathAbsolute     = pathErr("path must be scenario-relative, not absolute")
+	errPathAbsolute     = pathErr("path must be project-relative, not absolute")
 	errPathParentEscape = pathErr("path must not contain .. segments")
 )
 

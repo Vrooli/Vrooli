@@ -24,7 +24,7 @@ External storage resources (Postgres, Qdrant, Ollama, etc.) are **not** required
 
 | Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
 |---|---|---|---|---|---|
-| Extracted Graph | graph | In-memory (returned in the response) | The target TS project's source code | Not retained; computed fresh each call | The graph is derived from source, not persisted. Consumers cache at their layer. |
+| Extracted Graph | graph | In-memory (returned in the response) | The target TS project's source code | Not retained; computed fresh each call | The graph is derived from source, not persisted. It includes declarations, import bindings, references, calls, JSX usage, export summaries, source ranges, and dependency edges. Consumers cache at their layer. |
 | Leading-comment metadata | graph | In-memory (embedded in graph response) | Source comments in the target project | Not retained | Per declaration; verbatim from source. Load-bearing for `react-component-library`'s migration. |
 | Plan registry | rewrite | In-process map keyed by `plan_id` | The normalized operation list | 5-minute TTL, lost on restart | Deliberately ephemeral. |
 | Operation Log (P1) | rewrite | SQLite | `api/internal/rewrite/schema.sql` | Indefinite (audit trail) | Append-only. |
@@ -45,13 +45,13 @@ External storage resources (Postgres, Qdrant, Ollama, etc.) are **not** required
 CREATE TABLE IF NOT EXISTS operation_log (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   plan_id     TEXT    NOT NULL,
-  scenario_path TEXT  NOT NULL,
+  project_path TEXT  NOT NULL,
   applied_at  INTEGER NOT NULL, -- unix epoch seconds
   ops_json    TEXT    NOT NULL, -- normalized operation list with per-op status
   succeeded   INTEGER NOT NULL  -- 1 = all ops applied; 0 = partial or full failure
 );
 
-CREATE INDEX IF NOT EXISTS operation_log_path_idx ON operation_log(scenario_path, applied_at DESC);
+CREATE INDEX IF NOT EXISTS operation_log_path_idx ON operation_log(project_path, applied_at DESC);
 ```
 
 ## Migrations And Compatibility

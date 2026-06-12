@@ -83,7 +83,7 @@ func TestExtract_RendersSummary(t *testing.T) {
 
 	require.NoError(t, h.extract(ctx))
 	require.Len(t, svc.extractReqs, 1)
-	require.Equal(t, "/tmp/proj", svc.extractReqs[0].GetScenarioPath())
+	require.Equal(t, "/tmp/proj", svc.extractReqs[0].GetProjectPath())
 
 	body := out.String()
 	require.Contains(t, body, "Extracted 3 node(s), 0 edge(s), 0 warning(s) in 42ms")

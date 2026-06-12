@@ -48,7 +48,7 @@ async function addFileMove(user: ReturnType<typeof userEvent.setup>) {
 describe("RewriteTab", () => {
   it("adds a typed operation row", async () => {
     const user = userEvent.setup();
-    renderWithProviders(<RewriteTab scenarioPath="/repo" />);
+    renderWithProviders(<RewriteTab modulePath="/repo" />);
     expect(screen.getByTestId(selectors.features.rewrite.opsEditor.empty)).toBeInTheDocument();
     await user.click(screen.getByTestId(selectors.features.rewrite.opsEditor.addFileMove));
     expect(screen.getByTestId(selectors.features.rewrite.opRow({ index: 0 }))).toBeInTheDocument();
@@ -62,7 +62,7 @@ describe("RewriteTab", () => {
         normalizedOperations: [makeFileMoveOp("old/a.go", "new/a.go")],
       }),
     );
-    renderWithProviders(<RewriteTab scenarioPath="/repo" />);
+    renderWithProviders(<RewriteTab modulePath="/repo" />);
     await addFileMove(user);
     await user.click(screen.getByTestId(selectors.features.rewrite.plan.button));
 
@@ -87,7 +87,7 @@ describe("RewriteTab", () => {
         results: [{ status: OperationStatus.OK, message: "" }],
       }),
     );
-    renderWithProviders(<RewriteTab scenarioPath="/repo" />);
+    renderWithProviders(<RewriteTab modulePath="/repo" />);
     await addFileMove(user);
     await user.click(screen.getByTestId(selectors.features.rewrite.plan.button));
     await waitFor(() => screen.getByTestId(selectors.features.rewrite.apply.button));

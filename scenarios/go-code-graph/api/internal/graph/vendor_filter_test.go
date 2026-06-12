@@ -46,9 +46,9 @@ func TestFilterVendorPackages(t *testing.T) {
 	}
 
 	wantKept := map[string]bool{
-		"example.com/app":                     true,
-		"example.com/app/internal/util":       true,
-		"example.com/app/myvendorthing":       true,
+		"example.com/app":               true,
+		"example.com/app/internal/util": true,
+		"example.com/app/myvendorthing": true,
 	}
 	wantDropped := map[string]bool{
 		"github.com/foo/bar": true,

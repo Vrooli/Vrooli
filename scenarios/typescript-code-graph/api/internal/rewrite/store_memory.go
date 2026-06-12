@@ -12,8 +12,8 @@ type MemoryPlanStore struct {
 }
 
 type memoryKey struct {
-	scenarioPath string
-	id           PlanID
+	projectPath string
+	id          PlanID
 }
 
 // NewMemoryPlanStore returns a ready-to-use store with zero entries.
@@ -21,19 +21,19 @@ func NewMemoryPlanStore() *MemoryPlanStore {
 	return &MemoryPlanStore{plans: make(map[memoryKey]Plan)}
 }
 
-// Save stores plan under (plan.ScenarioPath, plan.ID).
+// Save stores plan under (plan.ProjectPath, plan.ID).
 func (s *MemoryPlanStore) Save(plan Plan) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.plans[memoryKey{scenarioPath: plan.ScenarioPath, id: plan.ID}] = plan
+	s.plans[memoryKey{projectPath: plan.ProjectPath, id: plan.ID}] = plan
 	return nil
 }
 
 // Get returns the plan or ErrPlanNotFound.
-func (s *MemoryPlanStore) Get(scenarioPath string, id PlanID) (Plan, error) {
+func (s *MemoryPlanStore) Get(projectPath string, id PlanID) (Plan, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	p, ok := s.plans[memoryKey{scenarioPath: scenarioPath, id: id}]
+	p, ok := s.plans[memoryKey{projectPath: projectPath, id: id}]
 	if !ok {
 		return Plan{}, ErrPlanNotFound
 	}

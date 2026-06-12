@@ -62,7 +62,7 @@
             { "name": "ops-file", "required": true, "description": "Path to JSON file describing operations" }
           ],
           "flags": [
-            { "name": "scenario-path", "required": true, "description": "Go module root the ops target" }
+            { "name": "module-path", "required": true, "description": "Go module root the ops target" }
           ],
           "binding": { "kind": "connect-rpc", "service": "GoCodeGraphService", "method": "RewritePlan" },
           "governance": {
@@ -78,7 +78,7 @@
             { "name": "plan-id", "required": true, "description": "Plan id returned by `rewrite plan`" }
           ],
           "flags": [
-            { "name": "scenario-path", "required": true, "description": "Go module root the plan was authored against" }
+            { "name": "module-path", "required": true, "description": "Go module root the plan was authored against" }
           ],
           "binding": { "kind": "connect-rpc", "service": "GoCodeGraphService", "method": "RewriteApply" },
           "governance": {

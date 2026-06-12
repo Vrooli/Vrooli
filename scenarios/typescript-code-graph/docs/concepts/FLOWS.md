@@ -19,9 +19,9 @@ Plain query operations (`/health`, `extract` for a single quiet path) do not nee
 | Flow | Domain | Trigger | Outcome | Statefulness | Validation |
 |---|---|---|---|---|---|
 | Sidecar lifecycle | sidecar | API process boot, or sidecar crash | Sidecar process running and reachable; status visible on `/health`. | Long-running supervisor; spawn-with-backoff; restart on crash. | Level 1 (inventory) — Level 2 model planned alongside chaos tests. |
-| Extract | graph | Consumer calls `Extract(scenario_path)`. | Returns a partial-or-complete Graph + Warnings[], or a typed catastrophic error. | Per-path serialization mutex (Go side + sidecar side); idempotent for the same source state. | Level 1 (inventory) — Level 2 (workflow model) planned. |
-| Rewrite plan | rewrite | Consumer calls `RewritePlan(scenario_path, operations)`. | Returns `plan_id` + normalized operation log. No disk change. | Plan store is in-process; plan IDs derived deterministically. | Level 1 (inventory). Plan-ID stability tested. |
-| Rewrite apply | rewrite | Consumer calls `RewriteApply(scenario_path, plan_id)`. | Executes file moves + import rewrites in order via `ts-morph`'s Project APIs, mutates the filesystem, returns operation log with per-op status. | Per-path serialization mutex; **non-atomic on partial failure**. | Level 1 (inventory). Partial-failure semantics intentionally not rolled back. |
+| Extract | graph | Consumer calls `Extract(project_path)`. | Returns a partial-or-complete Graph + Warnings[], or a typed catastrophic error. | Per-path serialization mutex (Go side + sidecar side); idempotent for the same source state. | Level 1 (inventory) — Level 2 (workflow model) planned. |
+| Rewrite plan | rewrite | Consumer calls `RewritePlan(project_path, operations)`. | Returns `plan_id` + normalized operation log. No disk change. | Plan store is in-process; plan IDs derived deterministically. | Level 1 (inventory). Plan-ID stability tested. |
+| Rewrite apply | rewrite | Consumer calls `RewriteApply(project_path, plan_id)`. | Executes file moves + import rewrites in order via `ts-morph`'s Project APIs, mutates the filesystem, returns operation log with per-op status. | Per-path serialization mutex; **non-atomic on partial failure**. | Level 1 (inventory). Partial-failure semantics intentionally not rolled back. |
 
 ## Flow Details
 
@@ -51,13 +51,13 @@ Plain query operations (`/health`, `extract` for a single quiet path) do not nee
 ### Extract
 
 - **Owner domain**: `graph`.
-- **Trigger**: Connect-RPC `Extract(ExtractRequest{scenario_path})` call.
+- **Trigger**: Connect-RPC `Extract(ExtractRequest{project_path})` call.
 - **Inputs**: absolute filesystem path that contains exactly one `tsconfig.json` and is not inside a pnpm workspace.
 - **Steps**:
-  1. Acquire per-path mutex (Go side) keyed by `filepath.Abs(scenario_path)`.
+  1. Acquire per-path mutex (Go side) keyed by `filepath.Abs(project_path)`.
   2. Validate input: reject if no `tsconfig.json` discoverable, multiple `tsconfig.json` files, or pnpm workspace detected.
   3. Verify sidecar is `ready`. If not, return `SidecarUnavailable`.
-  4. Send `{type: "extract", request_id, scenario_path, options: {...}}` over IPC.
+  4. Send `{type: "extract", request_id, project_path, options: {...}}` over IPC.
   5. Sidecar acquires its own per-path mutex (because `ts-morph` Project state is not safe to share).
   6. Sidecar constructs a `ts-morph` Project against the `tsconfig.json`, walks source files, emits nodes/edges/leading-comments/warnings.
   7. Sidecar responds with `{type: "extract_result", request_id, graph, warnings}` or `{type: "error", request_id, kind, message}`.
@@ -78,12 +78,12 @@ Plain query operations (`/health`, `extract` for a single quiet path) do not nee
 ### Rewrite plan
 
 - **Owner domain**: `rewrite`.
-- **Trigger**: Connect-RPC `RewritePlan(RewriteRequest{scenario_path, operations})`.
-- **Inputs**: `scenario_path` plus a list of `FileMove{from, to}` and/or `ImportRewrite{old_path, new_path}` operations.
+- **Trigger**: Connect-RPC `RewritePlan(RewriteRequest{project_path, operations})`.
+- **Inputs**: `project_path` plus a list of `FileMove{from, to}` and/or `ImportRewrite{old_path, new_path}` operations.
 - **Steps**:
-  1. Validate scenario_path is a valid single-project TS source tree (same validation as Extract).
+  1. Validate project_path is a valid single-project TS source tree or explicit `tsconfig.json` (same validation as Extract).
   2. Normalize operations: deduplicate, sort by `(kind, from, old_path)`, reject self-moves and cycles.
-  3. Compute `plan_id` as a deterministic content hash over the normalized ops + scenario_path.
+  3. Compute `plan_id` as a deterministic content hash over the normalized operations. The plan store scopes by `project_path`.
   4. Validate operations: every `FileMove.from` must exist; every `ImportRewrite.old_path` must be imported by at least one source file. Verify by asking the sidecar (`{type: "validate_plan", ...}`).
   5. Validate path traversal: every `FileMove.to` and `ImportRewrite.new_path` must resolve inside the target project's root.
   6. Store the plan in an in-process plan registry keyed by `plan_id` (5-minute TTL).
@@ -101,8 +101,8 @@ Plain query operations (`/health`, `extract` for a single quiet path) do not nee
 ### Rewrite apply
 
 - **Owner domain**: `rewrite`.
-- **Trigger**: Connect-RPC `RewriteApply(RewriteRequest{scenario_path, plan_id})`.
-- **Inputs**: `scenario_path` and a `plan_id` returned by a previous `RewritePlan` call.
+- **Trigger**: Connect-RPC `RewriteApply(RewriteRequest{project_path, plan_id})`.
+- **Inputs**: `project_path` and a `plan_id` returned by a previous `RewritePlan` call.
 - **Steps**:
   1. Acquire per-path mutex (same lock as Extract).
   2. Look up plan by `plan_id`. Reject if missing/expired.

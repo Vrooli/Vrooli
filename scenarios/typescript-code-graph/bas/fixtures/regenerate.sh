@@ -21,7 +21,7 @@ if [ ! -f "$DIST" ]; then
   exit 2
 fi
 
-FIXTURES=(ts-junk-drawer ts-jsdoc-tags)
+FIXTURES=(ts-junk-drawer ts-jsdoc-tags ts-usage-facts)
 
 for name in "${FIXTURES[@]}"; do
   fix="$HERE/$name"
@@ -30,7 +30,7 @@ for name in "${FIXTURES[@]}"; do
     exit 2
   fi
   out="$(mktemp)"
-  printf '{"type":"handshake","request_id":"1","protocol_version":1}\n{"type":"extract","request_id":"2","scenario_path":"%s"}\n{"type":"shutdown"}\n' "$fix" \
+  printf '{"type":"handshake","request_id":"1","protocol_version":1}\n{"type":"extract","request_id":"2","project_path":"%s"}\n{"type":"shutdown"}\n' "$fix" \
     | node "$DIST" 2>/dev/null \
     | sed -n '2p' \
     | jq -S '.graph' > "$out"

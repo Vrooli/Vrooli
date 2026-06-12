@@ -19,7 +19,7 @@ func newService(t *testing.T, client sidecar.SidecarClient) *graph.Service {
 
 func TestService_Extract_RejectsEmptyPath(t *testing.T) {
 	svc := newService(t, &sidecarmocks.FakeSidecarClient{StatusValue: sidecar.StatusReady})
-	_, err := svc.Extract(context.Background(), graph.ExtractInput{ScenarioPath: "   "})
+	_, err := svc.Extract(context.Background(), graph.ExtractInput{ProjectPath: "   "})
 	require.Error(t, err)
 
 	var ee graph.ExtractError
@@ -29,7 +29,7 @@ func TestService_Extract_RejectsEmptyPath(t *testing.T) {
 
 func TestService_Extract_RejectsRelativePath(t *testing.T) {
 	svc := newService(t, &sidecarmocks.FakeSidecarClient{StatusValue: sidecar.StatusReady})
-	_, err := svc.Extract(context.Background(), graph.ExtractInput{ScenarioPath: "relative/path"})
+	_, err := svc.Extract(context.Background(), graph.ExtractInput{ProjectPath: "relative/path"})
 	require.Error(t, err)
 	var ee graph.ExtractError
 	require.ErrorAs(t, err, &ee)
@@ -38,7 +38,7 @@ func TestService_Extract_RejectsRelativePath(t *testing.T) {
 
 func TestService_Extract_SidecarUnavailable(t *testing.T) {
 	svc := newService(t, &sidecarmocks.FakeSidecarClient{StatusValue: sidecar.StatusUnhealthy})
-	_, err := svc.Extract(context.Background(), graph.ExtractInput{ScenarioPath: "/abs/path"})
+	_, err := svc.Extract(context.Background(), graph.ExtractInput{ProjectPath: "/abs/path"})
 	require.Error(t, err)
 
 	var ee graph.ExtractError
@@ -48,7 +48,7 @@ func TestService_Extract_SidecarUnavailable(t *testing.T) {
 
 func TestService_Extract_PermanentlyUnhealthy(t *testing.T) {
 	svc := newService(t, &sidecarmocks.FakeSidecarClient{StatusValue: sidecar.StatusPermanentlyUnhealthy})
-	_, err := svc.Extract(context.Background(), graph.ExtractInput{ScenarioPath: "/abs/path"})
+	_, err := svc.Extract(context.Background(), graph.ExtractInput{ProjectPath: "/abs/path"})
 	require.Error(t, err)
 	var ee graph.ExtractError
 	require.ErrorAs(t, err, &ee)
@@ -63,7 +63,7 @@ func TestService_Extract_SidecarExtractError_NoTsConfig(t *testing.T) {
 		},
 	}
 	svc := newService(t, fake)
-	_, err := svc.Extract(context.Background(), graph.ExtractInput{ScenarioPath: "/abs"})
+	_, err := svc.Extract(context.Background(), graph.ExtractInput{ProjectPath: "/abs"})
 	var ee graph.ExtractError
 	require.ErrorAs(t, err, &ee)
 	require.Equal(t, graph.ExtractErrorNoTsConfig, ee.Kind)
@@ -77,7 +77,7 @@ func TestService_Extract_SidecarExtractError_Workspace(t *testing.T) {
 		},
 	}
 	svc := newService(t, fake)
-	_, err := svc.Extract(context.Background(), graph.ExtractInput{ScenarioPath: "/abs"})
+	_, err := svc.Extract(context.Background(), graph.ExtractInput{ProjectPath: "/abs"})
 	var ee graph.ExtractError
 	require.ErrorAs(t, err, &ee)
 	require.Equal(t, graph.ExtractErrorWorkspaceUnsupported, ee.Kind)
@@ -91,7 +91,7 @@ func TestService_Extract_SidecarUnavailableSentinel(t *testing.T) {
 		},
 	}
 	svc := newService(t, fake)
-	_, err := svc.Extract(context.Background(), graph.ExtractInput{ScenarioPath: "/abs"})
+	_, err := svc.Extract(context.Background(), graph.ExtractInput{ProjectPath: "/abs"})
 	var ee graph.ExtractError
 	require.ErrorAs(t, err, &ee)
 	require.Equal(t, graph.ExtractErrorSidecarUnavailable, ee.Kind)
@@ -118,7 +118,7 @@ func TestService_Extract_HappyPath_NormalizesAndHashes(t *testing.T) {
 		},
 	}
 	svc := newService(t, fake)
-	out, err := svc.Extract(context.Background(), graph.ExtractInput{ScenarioPath: "/abs/proj"})
+	out, err := svc.Extract(context.Background(), graph.ExtractInput{ProjectPath: "/abs/proj"})
 	require.NoError(t, err)
 	require.Len(t, out.Graph.Nodes, 2)
 	require.Equal(t, "a", out.Graph.Nodes[0].ID, "nodes must be sorted by id")
@@ -140,7 +140,7 @@ func TestService_Extract_PropagatesContextCancel(t *testing.T) {
 	svc := newService(t, fake)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	_, err := svc.Extract(ctx, graph.ExtractInput{ScenarioPath: "/abs"})
+	_, err := svc.Extract(ctx, graph.ExtractInput{ProjectPath: "/abs"})
 	require.Error(t, err)
 	require.True(t, errors.Is(err, context.Canceled) || isExtractInternal(err))
 }

@@ -56,7 +56,7 @@ func (l *DescriptorLoader) LoadScenario(scenario string) (Surface, error) {
 		if !strings.HasPrefix(path, prefix) {
 			return true
 		}
-		meta := fileMeta(scenario, path)
+		meta := fileMeta(path)
 		annotations := annotationsForFile(fd)
 		s.Files = append(s.Files, File{
 			Path:        path,
@@ -78,22 +78,27 @@ func (l *DescriptorLoader) LoadScenario(scenario string) (Surface, error) {
 		return s, fmt.Errorf("no proto files found for scenario %q", scenario)
 	}
 	l.applyTransportFacts(&s)
-	l.applyAdoptionSignals(&s)
 	return s, nil
 }
 
 type meta struct {
-	version string
-	domain  string
+	scenario string
+	version  string
+	domain   string
 }
 
-func fileMeta(scenario, path string) meta {
+func fileMeta(path string) meta {
 	parts := strings.Split(path, "/")
 	m := meta{}
-	if len(parts) >= 2 && parts[0] == scenario {
+	if len(parts) >= 1 {
+		m.scenario = parts[0]
+	}
+	if len(parts) >= 2 {
 		m.version = parts[1]
 	}
-	if len(parts) >= 3 && parts[0] == scenario {
+	if len(parts) == 3 && strings.HasSuffix(parts[2], ".proto") {
+		m.domain = strings.TrimSuffix(parts[2], ".proto")
+	} else if len(parts) >= 3 {
 		m.domain = parts[2]
 	}
 	return m
@@ -233,22 +238,32 @@ func importsForFile(scenario string, fd protoreflect.FileDescriptor, fromDomain 
 	var intra []Import
 	var cross []Import
 	imports := fd.Imports()
+	fromMeta := fileMeta(fd.Path())
 	for i := 0; i < imports.Len(); i++ {
 		imp := imports.Get(i)
 		toPath := imp.Path()
-		entry := Import{
-			FromFile:   fd.Path(),
-			ToFile:     toPath,
-			FromDomain: fromDomain,
-			ToDomain:   fileMeta(scenario, toPath).domain,
-		}
-		if strings.HasPrefix(toPath, scenario+"/") {
-			intra = append(intra, entry)
-			continue
-		}
 		if isExternalWellKnown(toPath) {
 			continue
 		}
+		toMeta := fileMeta(toPath)
+		entry := Import{
+			FromFile:     fd.Path(),
+			ToFile:       toPath,
+			FromScenario: fromMeta.scenario,
+			ToScenario:   toMeta.scenario,
+			FromPackage:  string(fd.Package()),
+			ToPackage:    string(imp.FileDescriptor.Package()),
+			FromVersion:  fromMeta.version,
+			ToVersion:    toMeta.version,
+			FromDomain:   fromDomain,
+			ToDomain:     toMeta.domain,
+		}
+		if strings.HasPrefix(toPath, scenario+"/") {
+			entry.Kind = ImportKindScenarioLocal
+			intra = append(intra, entry)
+			continue
+		}
+		entry.Kind = ImportKindCrossScenario
 		cross = append(cross, entry)
 	}
 	return intra, cross
@@ -268,10 +283,8 @@ func (l *DescriptorLoader) applyTransportFacts(s *Surface) {
 	if err != nil {
 		return
 	}
-	hasHandRolled := hasHandRolledTransport(filepath.Join(l.repoRoot, "scenarios", s.Scenario, "api"))
 	messageIndex := messageIndex(s.Messages)
 	connectCount := 0
-	handRolledCount := 0
 	servedCount := 0
 	for i := range s.Services {
 		for j := range s.Services[i].RPCs {
@@ -282,43 +295,62 @@ func (l *DescriptorLoader) applyTransportFacts(s *Surface) {
 				servedCount++
 				continue
 			}
-			if hasHandRolled {
-				s.Services[i].RPCs[j].Transport = TransportKindHandRolled
-				handRolledCount++
-				servedCount++
-			}
 		}
 	}
 	switch {
 	case servedCount == 0:
 		s.TransportWorld = TransportWorldNone
-	case handRolledCount > 0 && connectCount == 0:
-		s.TransportWorld = TransportWorldHandRolled
-	case handRolledCount > 0 && connectCount > 0:
-		s.TransportWorld = TransportWorldMixed
 	case connectCount == servedCount:
 		s.TransportWorld = TransportWorldConnect
 	default:
 		s.TransportWorld = TransportWorldMixed
 	}
 	for _, endpoint := range facts.restExceptions {
-		for _, name := range endpoint.responseTypeNames() {
-			msg, ok := resolveEndpointMessage(messageIndex, endpoint, name)
-			if !ok {
-				continue
-			}
-			appendRESTExceptionRef(s, endpoint, msg)
+		s.RESTExceptions = append(s.RESTExceptions, RESTExceptionEndpoint{
+			EndpointID:             endpoint.ID,
+			Path:                   endpoint.Path,
+			Method:                 endpoint.Method,
+			Domain:                 endpoint.Category,
+			Reason:                 endpoint.RESTException.Reason,
+			HasPayloadDeclarations: endpoint.RESTException.ProtoPayloads != nil,
+		})
+		appendRESTExceptionPayloads(s, endpoint, messageIndex)
+	}
+	sortRESTFacts(s)
+}
+
+func appendRESTExceptionPayloads(s *Surface, endpoint endpointFact, index map[string]Message) {
+	if endpoint.RESTException.ProtoPayloads == nil {
+		return
+	}
+	payloads := []struct {
+		role RESTPayloadRole
+		ref  endpointPayloadDeclaration
+	}{
+		{role: RESTPayloadRoleRequest, ref: endpoint.RESTException.ProtoPayloads.Request},
+		{role: RESTPayloadRoleResponse, ref: endpoint.RESTException.ProtoPayloads.Response},
+		{role: RESTPayloadRoleError, ref: endpoint.RESTException.ProtoPayloads.Error},
+	}
+	for _, payload := range payloads {
+		s.RESTExceptionPayloads = append(s.RESTExceptionPayloads, RESTExceptionPayloadRef{
+			EndpointID:    endpoint.ID,
+			Path:          endpoint.Path,
+			Method:        endpoint.Method,
+			Domain:        endpoint.Category,
+			Reason:        endpoint.RESTException.Reason,
+			Role:          payload.role,
+			ProtoFullName: strings.TrimSpace(payload.ref.ProtoFullName),
+			Transport:     strings.TrimSpace(payload.ref.Transport),
+			Conformance:   strings.TrimSpace(payload.ref.Conformance),
+			ProofStatus:   RESTPayloadProofNotEvaluated,
+		})
+		if payload.ref.ProtoFullName == "" {
+			continue
 		}
-		if msg, ok := messageIndex[messageKey("errors", "ErrorEnvelope")]; ok {
+		if msg, ok := index[payload.ref.ProtoFullName]; ok {
 			appendRESTExceptionRef(s, endpoint, msg)
 		}
 	}
-	sort.Slice(s.RESTExceptionRefs, func(i, j int) bool {
-		if s.RESTExceptionRefs[i].Path != s.RESTExceptionRefs[j].Path {
-			return s.RESTExceptionRefs[i].Path < s.RESTExceptionRefs[j].Path
-		}
-		return s.RESTExceptionRefs[i].FullName < s.RESTExceptionRefs[j].FullName
-	})
 }
 
 func appendRESTExceptionRef(s *Surface, endpoint endpointFact, msg Message) {
@@ -337,64 +369,18 @@ func appendRESTExceptionRef(s *Surface, endpoint endpointFact, msg Message) {
 	})
 }
 
-func resolveEndpointMessage(index map[string]Message, endpoint endpointFact, name string) (Message, bool) {
-	candidates := []string{endpoint.Category}
-	if endpoint.ID == "health" || strings.Contains(endpoint.Path, "health") {
-		candidates = append(candidates, "health")
-	}
-	for _, domain := range candidates {
-		if msg, ok := index[messageKey(domain, name)]; ok {
-			return msg, true
-		}
-	}
-	msg, ok := index[messageKey("", name)]
-	return msg, ok
-}
-
-func hasHandRolledTransport(apiRoot string) bool {
-	found := false
-	_ = filepath.WalkDir(apiRoot, func(path string, d os.DirEntry, err error) error {
-		if err != nil || found {
-			return nil
-		}
-		if d.IsDir() {
-			switch d.Name() {
-			case ".git", "node_modules", "vendor":
-				return filepath.SkipDir
-			default:
-				return nil
-			}
-		}
-		if filepath.Ext(path) != ".go" {
-			return nil
-		}
-		b, err := os.ReadFile(path)
-		if err != nil {
-			return nil
-		}
-		text := string(b)
-		if strings.Contains(text, "protojson.") ||
-			strings.Contains(text, "RegisterRoutes") ||
-			strings.Contains(text, ".HandleFunc(") && strings.Contains(text, "/api/") {
-			found = true
-		}
-		return nil
-	})
-	return found
-}
-
 type endpointsFacts struct {
 	connectPaths   map[string]bool
 	restExceptions []endpointFact
 }
 
 type endpointFact struct {
-	ID            string          `json:"id"`
-	Path          string          `json:"path"`
-	Method        string          `json:"method"`
-	Category      string          `json:"category"`
-	Response      endpointSchema  `json:"response"`
-	RESTException json.RawMessage `json:"rest_exception"`
+	ID            string            `json:"id"`
+	Path          string            `json:"path"`
+	Method        string            `json:"method"`
+	Category      string            `json:"category"`
+	Response      endpointSchema    `json:"response"`
+	RESTException restExceptionFact `json:"rest_exception"`
 }
 
 type endpointSchema struct {
@@ -402,32 +388,22 @@ type endpointSchema struct {
 	Properties map[string]string `json:"properties"`
 }
 
-func (e endpointFact) responseTypeNames() []string {
-	seen := map[string]bool{}
-	var out []string
-	add := func(name string) {
-		name = strings.TrimSpace(name)
-		if name == "" || isPrimitiveSchemaType(name) || seen[name] {
-			return
-		}
-		seen[name] = true
-		out = append(out, name)
-	}
-	add(e.Response.Type)
-	for _, name := range e.Response.Properties {
-		add(name)
-	}
-	sort.Strings(out)
-	return out
+type restExceptionFact struct {
+	Reason        string                 `json:"reason"`
+	Note          string                 `json:"note"`
+	ProtoPayloads *endpointProtoPayloads `json:"proto_payloads"`
 }
 
-func isPrimitiveSchemaType(name string) bool {
-	switch strings.ToLower(strings.TrimSpace(name)) {
-	case "", "object", "array", "string", "number", "integer", "boolean", "multipart/form-data", "file":
-		return true
-	default:
-		return false
-	}
+type endpointProtoPayloads struct {
+	Request  endpointPayloadDeclaration `json:"request"`
+	Response endpointPayloadDeclaration `json:"response"`
+	Error    endpointPayloadDeclaration `json:"error"`
+}
+
+type endpointPayloadDeclaration struct {
+	ProtoFullName string `json:"proto_full_name"`
+	Transport     string `json:"transport"`
+	Conformance   string `json:"conformance"`
 }
 
 func endpointFacts(path string) (endpointsFacts, error) {
@@ -443,11 +419,11 @@ func endpointFacts(path string) (endpointsFacts, error) {
 	}
 	out := endpointsFacts{connectPaths: make(map[string]bool, len(doc.Endpoints))}
 	for _, e := range doc.Endpoints {
-		if strings.HasPrefix(e.Path, "/") && len(e.RESTException) == 0 {
+		if strings.HasPrefix(e.Path, "/") && e.RESTException.Reason == "" {
 			out.connectPaths[e.Path] = true
 			continue
 		}
-		if len(e.RESTException) > 0 {
+		if e.RESTException.Reason != "" {
 			out.restExceptions = append(out.restExceptions, e)
 		}
 	}
@@ -457,56 +433,9 @@ func endpointFacts(path string) (endpointsFacts, error) {
 func messageIndex(messages []Message) map[string]Message {
 	out := map[string]Message{}
 	for _, m := range messages {
-		out[messageKey(m.Domain, m.Name)] = m
-		if _, exists := out[messageKey("", m.Name)]; !exists {
-			out[messageKey("", m.Name)] = m
-		}
+		out[m.FullName] = m
 	}
 	return out
-}
-
-func messageKey(domain, name string) string {
-	return domain + "\x00" + name
-}
-
-func (l *DescriptorLoader) applyAdoptionSignals(s *Surface) {
-	if l.repoRoot == "" {
-		return
-	}
-	genImport := "github.com/vrooli/vrooli/packages/proto/gen/go/" + s.Scenario
-	apiRoot := filepath.Join(l.repoRoot, "scenarios", s.Scenario, "api")
-	s.AdoptionSignals = append(s.AdoptionSignals, AdoptionSignal{
-		Name:    "api_go_mod_replace",
-		Present: fileContains(filepath.Join(apiRoot, "go.mod"), "github.com/vrooli/vrooli/packages/proto"),
-		Detail:  "api/go.mod references the shared packages/proto module",
-	})
-	s.AdoptionSignals = append(s.AdoptionSignals, AdoptionSignal{
-		Name:    "api_generated_go_import",
-		Present: dirContains(apiRoot, genImport),
-		Detail:  "api code imports this scenario's generated Go proto package",
-	})
-}
-
-func fileContains(path, needle string) bool {
-	b, err := os.ReadFile(path)
-	return err == nil && strings.Contains(string(b), needle)
-}
-
-func dirContains(root, needle string) bool {
-	found := false
-	_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
-		if err != nil || found || d.IsDir() {
-			if d != nil && d.IsDir() && (d.Name() == ".git" || d.Name() == "node_modules") {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if fileContains(path, needle) {
-			found = true
-		}
-		return nil
-	})
-	return found
 }
 
 func sortSurface(s *Surface) {
@@ -515,6 +444,25 @@ func sortSurface(s *Surface) {
 	sort.Slice(s.Messages, func(i, j int) bool { return s.Messages[i].FullName < s.Messages[j].FullName })
 	sort.Slice(s.IntraScenarioImports, lessImport(s.IntraScenarioImports))
 	sort.Slice(s.CrossScenarioImports, lessImport(s.CrossScenarioImports))
+	sortRESTFacts(s)
+}
+
+func sortRESTFacts(s *Surface) {
+	sort.Slice(s.RESTExceptions, func(i, j int) bool {
+		if s.RESTExceptions[i].Path != s.RESTExceptions[j].Path {
+			return s.RESTExceptions[i].Path < s.RESTExceptions[j].Path
+		}
+		return s.RESTExceptions[i].EndpointID < s.RESTExceptions[j].EndpointID
+	})
+	sort.Slice(s.RESTExceptionPayloads, func(i, j int) bool {
+		if s.RESTExceptionPayloads[i].Path != s.RESTExceptionPayloads[j].Path {
+			return s.RESTExceptionPayloads[i].Path < s.RESTExceptionPayloads[j].Path
+		}
+		if s.RESTExceptionPayloads[i].Role != s.RESTExceptionPayloads[j].Role {
+			return s.RESTExceptionPayloads[i].Role < s.RESTExceptionPayloads[j].Role
+		}
+		return s.RESTExceptionPayloads[i].ProtoFullName < s.RESTExceptionPayloads[j].ProtoFullName
+	})
 	sort.Slice(s.RESTExceptionRefs, func(i, j int) bool {
 		if s.RESTExceptionRefs[i].Path != s.RESTExceptionRefs[j].Path {
 			return s.RESTExceptionRefs[i].Path < s.RESTExceptionRefs[j].Path

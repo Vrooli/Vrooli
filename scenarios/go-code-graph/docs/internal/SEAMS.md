@@ -86,8 +86,8 @@ The authoritative quick-reference table. Detailed rows for each seam follow belo
 |---|---|---|---|---|
 | `clock.Clock` | `internal/clock/clock.go::Clock` (`Now() time.Time`) | `clock.System{}` constructed in `api/main.go`; passed via `server.Deps`. | `internal/testutil/mocks::FakeClock` (`Now`, `Advance`, `SetNow`). | `internal/clock` |
 | `httpc.Doer` | `internal/httpc/doer.go::Doer` (`Do(*http.Request) (*http.Response, error)`) | Production `*http.Client` (satisfies `Doer` directly); first outbound consumer wires it from `main.go`. | `internal/testutil/mocks::FakeDoer` (canned response queue, recorded request log). | `internal/httpc` |
-| `graph.PackagesLoader` | `internal/graph/loader.go::PackagesLoader` (`Load(ctx, scenarioPath string, opts LoadOptions) ([]*packages.Package, error)`) | `PackagesLoaderImpl` constructed via `graph.NewPackagesLoader()` in `main.go` with the fixed load mode `NeedFiles \| NeedImports \| NeedTypes \| NeedSyntax \| NeedTypesInfo \| NeedName \| NeedDeps`. | `internal/graph/mocks::FakeLoader` (canned `[]*packages.Package` from `bas/fixtures/`). | `internal/graph` |
-| `rewrite.RewriteExecutor` | `internal/rewrite/executor.go::RewriteExecutor` (`Execute(ctx context.Context, scenarioRoot string, op Operation) error`) | `FSExecutor` constructed via `rewrite.NewFSExecutor()` in `main.go`; uses `os.Rename` for `FileMove` and `go/parser` + `go/printer` for `ImportRewrite`. | `internal/rewrite/mocks::FakeExecutor` (records ops, optional panic-after-N for partial-failure tests). | `internal/rewrite` |
+| `graph.PackagesLoader` | `internal/graph/loader.go::PackagesLoader` (`Load(ctx, modulePath string, opts LoadOptions) ([]*packages.Package, error)`) | `PackagesLoaderImpl` constructed via `graph.NewPackagesLoader()` in `main.go` with the fixed load mode `NeedFiles \| NeedImports \| NeedTypes \| NeedSyntax \| NeedTypesInfo \| NeedName \| NeedDeps`. | `internal/graph/mocks::FakeLoader` (canned `[]*packages.Package` from `bas/fixtures/`). | `internal/graph` |
+| `rewrite.RewriteExecutor` | `internal/rewrite/executor.go::RewriteExecutor` (`Execute(ctx context.Context, moduleRoot string, op Operation) error`) | `FSExecutor` constructed via `rewrite.NewFSExecutor()` in `main.go`; uses `os.Rename` for `FileMove` and `go/parser` + `go/printer` for `ImportRewrite`. | `internal/rewrite/mocks::FakeExecutor` (records ops, optional panic-after-N for partial-failure tests). | `internal/rewrite` |
 | `rewrite.PlanStore` | `internal/rewrite/store.go::PlanStore` (`Save(ctx, Plan) error`, `Load(ctx, PlanID) (Plan, bool, error)`) | `MemoryStore` constructed via `rewrite.NewMemoryStore()` in `main.go`. In-memory `sync.Map`; plans do not persist across restarts (see [`PROBLEMS.md`](PROBLEMS.md)). | `internal/rewrite/mocks::FakeStore` (deterministic, no TTL). | `internal/rewrite` |
 
 ## Current seams
@@ -207,7 +207,7 @@ The authoritative quick-reference table. Detailed rows for each seam follow belo
 | | |
 |---|---|
 | **Seam** | The single point where `golang.org/x/tools/go/packages.Load` is invoked. Hides the parser library from the rest of the `graph` domain so tests substitute deterministic graph fixtures without spinning up real `go/packages` loads. |
-| **Interface** | `internal/graph/loader.go::PackagesLoader` (`Load(ctx, scenarioPath string, opts LoadOptions) ([]*packages.Package, error)`). |
+| **Interface** | `internal/graph/loader.go::PackagesLoader` (`Load(ctx, modulePath string, opts LoadOptions) ([]*packages.Package, error)`). |
 | **Production wiring** | `main.go` constructs `graph.NewPackagesLoader()` (returns `*PackagesLoaderImpl`) with the fixed load mode `NeedFiles \| NeedImports \| NeedTypes \| NeedSyntax \| NeedTypesInfo \| NeedName \| NeedDeps`. Compile-time check: `var _ PackagesLoader = (*PackagesLoaderImpl)(nil)`. |
 | **Test fake** | `internal/graph/mocks::FakeLoader` (returns canned `[]*packages.Package` fixtures from `bas/fixtures/`). |
 | **Why it exists** | Real `go/packages.Load` is slow and requires an on-disk module. Unit tests that exercise normalization, warning aggregation, and graph-hash determinism must not spin it up. The seam also fixes the load mode in production so consumers can rely on byte-stable output. |
@@ -217,7 +217,7 @@ The authoritative quick-reference table. Detailed rows for each seam follow belo
 | | |
 |---|---|
 | **Seam** | The point where file moves and AST-level import rewrites mutate disk. Substituted in tests so apply semantics (per-op status, partial-failure surfacing) can be exercised without dirtying a real filesystem. |
-| **Interface** | `internal/rewrite/executor.go::RewriteExecutor` (`Execute(ctx context.Context, scenarioRoot string, op Operation) error`). |
+| **Interface** | `internal/rewrite/executor.go::RewriteExecutor` (`Execute(ctx context.Context, moduleRoot string, op Operation) error`). |
 | **Production wiring** | `main.go` constructs `rewrite.NewFSExecutor()` (returns `*FSExecutor`). `FileMove` uses `os.Rename`; `ImportRewrite` walks `.go` files with `go/parser` + `go/printer`. Never invokes `git` or `go build` (enforced by `internal/rewrite/no_external_command_test.go`). |
 | **Test fake** | `internal/rewrite/mocks::FakeExecutor` (records ops, optional error-after-N injection for partial-failure tests). |
 | **Why it exists** | Apply semantics intentionally leave disk torn on mid-op failure; verifying that contract requires a substitutable executor that can fail deterministically. Real filesystem races would also flake tests. |
@@ -236,9 +236,9 @@ The authoritative quick-reference table. Detailed rows for each seam follow belo
 
 | | |
 |---|---|
-| **Seam** | The registry of per-path mutexes that serializes concurrent extraction and apply on the same `scenario_path`. Lives inside the `graph` package; both `graph.Service` and `rewrite.Service` consume the same instance via `server.Deps` so cross-domain calls for the same path serialize. |
+| **Seam** | The registry of per-path mutexes that serializes concurrent extraction and apply on the same `module_path`. Lives inside the `graph` package; both `graph.Service` and `rewrite.Service` consume the same instance via `server.Deps` so cross-domain calls for the same path serialize. |
 | **Interface** | `internal/graph/mutex.go::PathMutex` (concrete type, not interface — `Lock(path string) (unlock func())`). Substitution happens at the consumer level: tests construct their own `*PathMutex` (or no mutex at all) per case rather than mocking the type. |
-| **Production wiring** | `main.go` constructs a single `graph.NewPathMutex()` and passes it into both `graph.NewService(...)` and `rewrite.NewService(...)`. Keyed by `filepath.Abs(scenarioPath)`. |
+| **Production wiring** | `main.go` constructs a single `graph.NewPathMutex()` and passes it into both `graph.NewService(...)` and `rewrite.NewService(...)`. Keyed by `filepath.Abs(modulePath)`. |
 | **Test fake** | None. Concurrency tests (`internal/graph/mutex_test.go`) drive the real type with controlled goroutine interleavings via `testing.T.Parallel()` + channel sync. |
 | **Why it exists** | `go/packages.Load` is CPU-heavy and not safe to run concurrently against the same module; `Rewrite apply` mutating the same files concurrently with `Extract` is incoherent. The mutex makes the serialization invariant mechanical. The memory-leak risk (unbounded map growth) is recorded in [`PROBLEMS.md`](PROBLEMS.md). |
 
@@ -335,7 +335,7 @@ the goal is the same: production wires once, tests substitute.
 |---|---|
 | **Seam** | UI ↔ API per-domain endpoints |
 | **Module** | `ui/src/api/graph.ts` (planned) exports the generated `GoCodeGraphService` client via `createClient(GoCodeGraphService, transport)`. UI is out of scope for v1; this row records the contract for the eventual Graph Explorer (REQ-P0-009). |
-| **Production wiring** | Feature components wire generated client methods through `useQuery` / `useMutation` (e.g. `graphClient.extract({ scenarioPath })`). |
+| **Production wiring** | Feature components wire generated client methods through `useQuery` / `useMutation` (e.g. `graphClient.extract({ modulePath })`). |
 | **Test fake** | Component tests use inline `vi.mock("./api/graph", async (importOriginal) => ...)` and replace client methods. Factories build generated proto types. |
 | **Why it exists** | The canonical per-domain client pattern. Export the generated Connect client and let components consume typed results rather than hand-written response interfaces. |
 

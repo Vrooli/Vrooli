@@ -23,12 +23,12 @@
     },
     {
       "name": "rewrite plan",
-      "description": "Validate and normalize a list of rewrite operations (<ops.json> --scenario-path PATH)",
+      "description": "Validate and normalize a list of rewrite operations (<ops.json> --module-path PATH)",
       "endpoint_id": "rewrite_plan"
     },
     {
       "name": "rewrite apply",
-      "description": "Execute a previously-planned set of operations (<plan_id> --scenario-path PATH)",
+      "description": "Execute a previously-planned set of operations (<plan_id> --module-path PATH)",
       "endpoint_id": "rewrite_apply"
     }
   ]

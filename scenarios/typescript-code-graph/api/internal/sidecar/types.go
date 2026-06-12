@@ -53,7 +53,7 @@ type ExtractResult struct {
 
 // RawNode is a single graph node as emitted by the sidecar. Kind is the
 // numeric common.v1.NodeKind enum value (1=FILE, 2=PACKAGE, 3=MODULE,
-// 200..209 for TS-specific). The TS-specific enum *name* (e.g.
+// 200..299 for TS-specific). The TS-specific enum *name* (e.g.
 // "TS_NODE_KIND_COMPONENT") rides on Attributes["kind"] per the proto
 // envelope contract (see common/v1/code_graph.proto NodeKind comment).
 type RawNode struct {

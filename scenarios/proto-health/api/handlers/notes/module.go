@@ -264,6 +264,22 @@ var Endpoints = []module.EndpointDescriptor{
 		RESTException: &module.RESTException{
 			Reason: module.RESTReasonMultipartUpload,
 			Note:   "Multipart/form-data request transport cannot be expressed in proto. The response payload is still the proto-typed UploadAttachmentResponse message.",
+			ProtoPayloads: &module.RESTExceptionProtoPayloads{
+				Request: module.RESTExceptionPayload{
+					Transport:   "multipart/form-data",
+					Conformance: "transport_only",
+				},
+				Response: module.RESTExceptionPayload{
+					ProtoFullName: "vrooli.proto_health.v1.notes.UploadAttachmentResponse",
+					Transport:     "json",
+					Conformance:   "protojson",
+				},
+				Error: module.RESTExceptionPayload{
+					ProtoFullName: "vrooli.proto_health.v1.shared.ErrorEnvelope",
+					Transport:     "json",
+					Conformance:   "protojson",
+				},
+			},
 		},
 	},
 }

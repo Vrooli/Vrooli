@@ -30,15 +30,19 @@ const (
 type NodeKind string
 
 const (
-	NodeKindFile      NodeKind = "file"
-	NodeKindPackage   NodeKind = "package"
-	NodeKindModule    NodeKind = "module"
-	NodeKindType      NodeKind = "go_type"
-	NodeKindFunc      NodeKind = "go_func"
-	NodeKindVar       NodeKind = "go_var"
-	NodeKindConst     NodeKind = "go_const"
-	NodeKindInterface NodeKind = "go_interface"
-	NodeKindMethod    NodeKind = "go_method"
+	NodeKindFile       NodeKind = "file"
+	NodeKindPackage    NodeKind = "package"
+	NodeKindModule     NodeKind = "module"
+	NodeKindType       NodeKind = "go_type"
+	NodeKindFunc       NodeKind = "go_func"
+	NodeKindVar        NodeKind = "go_var"
+	NodeKindConst      NodeKind = "go_const"
+	NodeKindInterface  NodeKind = "go_interface"
+	NodeKindMethod     NodeKind = "go_method"
+	NodeKindImportSpec NodeKind = "go_import_spec"
+	NodeKindReference  NodeKind = "go_reference"
+	NodeKindCall       NodeKind = "go_call"
+	NodeKindTypeUsage  NodeKind = "go_type_usage"
 )
 
 // EdgeKind enumerates the directed-edge families this scenario emits.
@@ -115,6 +119,7 @@ const (
 	WarningKindParseError       WarningKind = "parse_error"
 	WarningKindUnresolvedImport WarningKind = "unresolved_import"
 	WarningKindTypeCheckFailure WarningKind = "type_check_failure"
+	WarningKindUnresolvedSymbol WarningKind = "unresolved_symbol"
 )
 
 // Warning is a non-fatal issue surfaced alongside an otherwise-valid
@@ -139,9 +144,9 @@ type Graph struct {
 }
 
 // ExtractInput is the validated request payload threaded from handler
-// to Service. ScenarioPath is the absolute path to the module root.
+// to Service. ModulePath is the absolute path to the module root.
 type ExtractInput struct {
-	ScenarioPath  string
+	ModulePath    string
 	IncludeVendor bool
 }
 
@@ -151,19 +156,19 @@ type ExtractInput struct {
 type ExtractErrorKind string
 
 const (
-	// ExtractErrorNoGoMod means no go.mod was found at ScenarioPath.
+	// ExtractErrorNoGoMod means no go.mod was found at ModulePath.
 	ExtractErrorNoGoMod ExtractErrorKind = "no_go_mod_found"
 	// ExtractErrorMultipleGoMod means more than one go.mod exists
-	// under ScenarioPath; the scenario boundary is ambiguous.
+	// under ModulePath; the scenario boundary is ambiguous.
 	ExtractErrorMultipleGoMod ExtractErrorKind = "multiple_go_mod_files"
 	// ExtractErrorWorkspaceUnsupported means a go.work file was
 	// detected; multi-module workspaces are out of scope for v1.
 	ExtractErrorWorkspaceUnsupported ExtractErrorKind = "workspace_unsupported"
-	// ExtractErrorPathUnreadable means the scenario path could not be
+	// ExtractErrorPathUnreadable means the module path could not be
 	// stat'd or read.
 	ExtractErrorPathUnreadable ExtractErrorKind = "path_unreadable"
 	// ExtractErrorInvalidInput means the request payload itself was
-	// malformed (empty ScenarioPath, etc.).
+	// malformed (empty ModulePath, etc.).
 	ExtractErrorInvalidInput ExtractErrorKind = "invalid_input"
 	// ExtractErrorInternal means the loader returned an unexpected
 	// error; the caller sees CodeInternal.

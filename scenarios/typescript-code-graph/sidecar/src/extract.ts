@@ -9,7 +9,7 @@
 //   - declarations within a file: stable sort by (line, column)
 //   - edges: stable sort by (from_node_id, to_node_id)
 //
-// Workspace detection: if a pnpm-workspace.yaml exists at scenario_path or
+// Workspace detection: if a pnpm-workspace.yaml exists at the project root or
 // any parent up to (and including) the dir containing tsconfig.json, throw
 // WorkspaceUnsupportedError. The Go side maps this to ErrorKind
 // "workspace_unsupported".
@@ -36,7 +36,7 @@ import type {
 // common.v1.NodeKind
 const NK_UNSPECIFIED = 0;
 const NK_FILE = 1;
-// Reserved tag values for TS-specific kinds (200..209). These ride on
+// Reserved tag values for TS-specific kinds (200..299). These ride on
 // attributes["kind"] per the typescript-code-graph proto; the top-level
 // CodeGraphNode.kind for declarations is NK_MODULE-adjacent. We emit
 // FILE for file nodes and use the TS_NODE_KIND_* numeric value on
@@ -51,6 +51,11 @@ const TS_NODE_KIND_FUNCTION = 206;
 const TS_NODE_KIND_VAR = 207;
 const TS_NODE_KIND_CONST = 208;
 const TS_NODE_KIND_RE_EXPORT = 209;
+const TS_NODE_KIND_IMPORT_BINDING = 210;
+const TS_NODE_KIND_REFERENCE = 211;
+const TS_NODE_KIND_CALL = 212;
+const TS_NODE_KIND_JSX_USAGE = 213;
+const TS_NODE_KIND_EXPORT = 214;
 
 // common.v1.EdgeKind
 const EK_IMPORT = 1;
@@ -74,6 +79,11 @@ const KIND_SHORT: Record<number, string> = {
   [TS_NODE_KIND_VAR]: "ts_var",
   [TS_NODE_KIND_CONST]: "ts_const",
   [TS_NODE_KIND_RE_EXPORT]: "ts_re_export",
+  [TS_NODE_KIND_IMPORT_BINDING]: "ts_import_binding",
+  [TS_NODE_KIND_REFERENCE]: "ts_reference",
+  [TS_NODE_KIND_CALL]: "ts_call",
+  [TS_NODE_KIND_JSX_USAGE]: "ts_jsx_usage",
+  [TS_NODE_KIND_EXPORT]: "ts_export",
 };
 
 // String name used in attributes["kind"] (matches TsNodeKind enum names).
@@ -88,6 +98,11 @@ const KIND_ATTR: Record<number, string> = {
   [TS_NODE_KIND_VAR]: "TS_NODE_KIND_VAR",
   [TS_NODE_KIND_CONST]: "TS_NODE_KIND_CONST",
   [TS_NODE_KIND_RE_EXPORT]: "TS_NODE_KIND_RE_EXPORT",
+  [TS_NODE_KIND_IMPORT_BINDING]: "TS_NODE_KIND_IMPORT_BINDING",
+  [TS_NODE_KIND_REFERENCE]: "TS_NODE_KIND_REFERENCE",
+  [TS_NODE_KIND_CALL]: "TS_NODE_KIND_CALL",
+  [TS_NODE_KIND_JSX_USAGE]: "TS_NODE_KIND_JSX_USAGE",
+  [TS_NODE_KIND_EXPORT]: "TS_NODE_KIND_EXPORT",
 };
 
 // --- Typed errors -------------------------------------------------------------
@@ -111,7 +126,7 @@ export class ParseFailureError extends Error {
 // --- Public API ---------------------------------------------------------------
 
 export interface ExtractInput {
-  scenarioPath: string;
+  projectPath: string;
   /**
    * Test seam: skip the on-disk tsconfig / workspace detection and use the
    * provided pre-built ts-morph Project instead. Production callers do not
@@ -120,7 +135,7 @@ export interface ExtractInput {
   _project?: Project;
   /**
    * Test seam: when `_project` is set, this provides the rootDir to relativize
-   * paths against. Defaults to scenarioPath.
+   * paths against. Defaults to the resolved project root.
    */
   _rootDirOverride?: string;
 }
@@ -131,8 +146,11 @@ export interface ExtractOutput {
 }
 
 export function extract(input: ExtractInput): ExtractOutput {
-  const project = input._project ?? buildProject(input.scenarioPath);
-  const rootDir = input._rootDirOverride ?? input.scenarioPath;
+  const resolved = input._project
+    ? { project: input._project, rootDir: input._rootDirOverride ?? input.projectPath }
+    : buildProject(input.projectPath);
+  const project = resolved.project;
+  const rootDir = input._rootDirOverride ?? resolved.rootDir;
 
   const sourceFiles = [...project.getSourceFiles()].sort((a, b) =>
     a.getFilePath().localeCompare(b.getFilePath()),
@@ -172,10 +190,12 @@ export function extract(input: ExtractInput): ExtractOutput {
 
     // Declarations
     const decls = collectDeclarations(sf);
+    const declarationNodeIds = new Map<Node, string>();
     for (const d of decls) {
       const tsKind = classify(d);
       const shortKind = KIND_SHORT[tsKind] ?? "ts_function";
       const id = `${shortKind}:${relPath}:${d.name}`;
+      declarationNodeIds.set(d.node, id);
       nodes.push({
         id,
         kind: tsKind,
@@ -185,14 +205,21 @@ export function extract(input: ExtractInput): ExtractOutput {
           language: "typescript",
           kind: KIND_ATTR[tsKind] ?? KIND_ATTR[TS_NODE_KIND_FUNCTION]!,
           exported: d.exported ? "true" : "false",
+          ...sourceRangeAttrs(d.node),
         },
         leading_comments: d.leadingComments,
       });
+      if (d.exported) {
+        nodes.push(exportFactNode(relPath, d.name, "declaration", d.node, id));
+      }
     }
 
     // Imports + Re-exports
     for (const imp of sf.getImportDeclarations()) {
       const spec = imp.getModuleSpecifierValue();
+      for (const binding of importBindingFacts(relPath, imp)) {
+        nodes.push(binding);
+      }
       const res = resolveSpecifier(rootDir, sf, spec);
       if (!res.target) continue;
       // The guessed edge is still emitted so consumers see the
@@ -229,9 +256,11 @@ export function extract(input: ExtractInput): ExtractOutput {
           language: "typescript",
           kind: KIND_ATTR[TS_NODE_KIND_RE_EXPORT]!,
           specifier: spec,
+          ...sourceRangeAttrs(exp),
         },
         leading_comments: leadingCommentsOf(exp),
       });
+      nodes.push(exportFactNode(relPath, spec, "re_export", exp, reExpId));
       edges.push({
         id: `re_export:${moduleId}->${target}`,
         kind: EK_RE_EXPORT,
@@ -240,6 +269,9 @@ export function extract(input: ExtractInput): ExtractOutput {
         attributes: { specifier: spec },
       });
     }
+
+    const symbolIndex = buildSymbolIndex(decls, declarationNodeIds);
+    nodes.push(...usageFactNodes(relPath, sf, symbolIndex));
 
     // Diagnostics → warnings
     for (const diag of sf.getPreEmitDiagnostics()) {
@@ -258,16 +290,16 @@ export function extract(input: ExtractInput): ExtractOutput {
   }
 
   // Stable sort
-  nodes.sort((a, b) => a.id.localeCompare(b.id));
+  nodes.sort((a, b) => compareStable(a.id, b.id));
   edges.sort((a, b) => {
-    const fc = a.from_node_id.localeCompare(b.from_node_id);
+    const fc = compareStable(a.from_node_id, b.from_node_id);
     if (fc !== 0) return fc;
-    return a.to_node_id.localeCompare(b.to_node_id);
+    return compareStable(a.to_node_id, b.to_node_id);
   });
   warnings.sort((a, b) => {
-    const f = a.file.localeCompare(b.file);
+    const f = compareStable(a.file, b.file);
     if (f !== 0) return f;
-    return a.message.localeCompare(b.message);
+    return compareStable(a.message, b.message);
   });
 
   return { graph: { nodes, edges }, warnings };
@@ -275,37 +307,54 @@ export function extract(input: ExtractInput): ExtractOutput {
 
 // --- Project construction -----------------------------------------------------
 
-function buildProject(scenarioPath: string): Project {
+interface ResolvedProject {
+  project: Project;
+  rootDir: string;
+}
+
+function buildProject(projectPath: string): ResolvedProject {
   let stat: fs.Stats;
   try {
-    stat = fs.statSync(scenarioPath);
+    stat = fs.statSync(projectPath);
   } catch (err) {
-    throw new PathUnreadableError(`cannot stat scenario_path: ${(err as Error).message}`);
+    throw new PathUnreadableError(`cannot stat project_path: ${(err as Error).message}`);
   }
-  if (!stat.isDirectory()) {
-    throw new PathUnreadableError(`scenario_path is not a directory: ${scenarioPath}`);
+
+  let projectRoot = projectPath;
+  let explicitTsconfigPath: string | null = null;
+  if (stat.isFile()) {
+    if (path.basename(projectPath) !== "tsconfig.json") {
+      throw new PathUnreadableError(`project_path file is not tsconfig.json: ${projectPath}`);
+    }
+    explicitTsconfigPath = projectPath;
+    projectRoot = path.dirname(projectPath);
+  } else if (!stat.isDirectory()) {
+    throw new PathUnreadableError(`project_path is not a directory or tsconfig.json: ${projectPath}`);
   }
 
   // Locate tsconfig.json
-  const direct = path.join(scenarioPath, "tsconfig.json");
+  const direct = path.join(projectRoot, "tsconfig.json");
   let tsconfigPath: string | null = null;
   const matches: string[] = [];
   try {
-    if (fs.existsSync(direct)) {
+    if (explicitTsconfigPath) {
+      tsconfigPath = explicitTsconfigPath;
+      matches.push(explicitTsconfigPath);
+    } else if (fs.existsSync(direct)) {
       tsconfigPath = direct;
       matches.push(direct);
     } else {
       // shallow scan for siblings (e.g. tsconfig.app.json AND tsconfig.json)
-      const entries = fs.readdirSync(scenarioPath);
+      const entries = fs.readdirSync(projectRoot);
       for (const e of entries) {
-        if (e === "tsconfig.json") matches.push(path.join(scenarioPath, e));
+        if (e === "tsconfig.json") matches.push(path.join(projectRoot, e));
       }
     }
   } catch (err) {
-    throw new PathUnreadableError(`cannot read scenario_path: ${(err as Error).message}`);
+    throw new PathUnreadableError(`cannot read project_path: ${(err as Error).message}`);
   }
   if (matches.length === 0) {
-    throw new NoTsConfigError(`no tsconfig.json found at ${scenarioPath}`);
+    throw new NoTsConfigError(`no tsconfig.json found at ${projectPath}`);
   }
   if (matches.length > 1) {
     throw new MultipleTsConfigError(
@@ -314,10 +363,10 @@ function buildProject(scenarioPath: string): Project {
   }
   tsconfigPath = matches[0]!;
 
-  // Workspace check: pnpm-workspace.yaml at scenarioPath or any parent up to
+  // Workspace check: pnpm-workspace.yaml at projectRoot or any parent up to
   // and including the tsconfig's dir.
   const tsconfigDir = path.dirname(tsconfigPath);
-  let cursor = scenarioPath;
+  let cursor = projectRoot;
   // Walk upward but bounded.
   for (let i = 0; i < 64; i++) {
     if (fs.existsSync(path.join(cursor, "pnpm-workspace.yaml"))) {
@@ -332,10 +381,11 @@ function buildProject(scenarioPath: string): Project {
   }
 
   try {
-    return new Project({
+    const project = new Project({
       tsConfigFilePath: tsconfigPath,
       skipAddingFilesFromTsConfig: false,
     });
+    return { project, rootDir: tsconfigDir };
   } catch (err) {
     throw new ParseFailureError(
       `ts-morph project construction failed: ${(err as Error).message}`,
@@ -499,6 +549,304 @@ function containsJsx(root: Node): boolean {
     }
   });
   return found;
+}
+
+// --- Generic usage facts ------------------------------------------------------
+
+interface SymbolInfo {
+  name: string;
+  nodeId: string;
+}
+
+function buildSymbolIndex(
+  decls: CollectedDecl[],
+  declarationNodeIds: Map<Node, string>,
+): Map<ts.Symbol, SymbolInfo> {
+  const out = new Map<ts.Symbol, SymbolInfo>();
+  for (const d of decls) {
+    const sym = symbolOfDeclaration(d.node);
+    const id = declarationNodeIds.get(d.node);
+    if (sym && id) out.set(sym, { name: d.name, nodeId: id });
+  }
+  return out;
+}
+
+function symbolOfDeclaration(node: Node): ts.Symbol | undefined {
+  if (
+    Node.isFunctionDeclaration(node) ||
+    Node.isClassDeclaration(node) ||
+    Node.isInterfaceDeclaration(node) ||
+    Node.isTypeAliasDeclaration(node) ||
+    Node.isEnumDeclaration(node)
+  ) {
+    return node.getNameNode()?.getSymbol()?.compilerSymbol;
+  }
+  if (Node.isVariableDeclaration(node)) {
+    return node.getNameNode().getSymbol()?.compilerSymbol;
+  }
+  return undefined;
+}
+
+function importBindingFacts(relPath: string, imp: import("ts-morph").ImportDeclaration): CodeGraphNode[] {
+  const sourceModule = imp.getModuleSpecifierValue();
+  const typeOnly = imp.isTypeOnly() ? "true" : "false";
+  const nodes: CodeGraphNode[] = [];
+  const defaultImport = imp.getDefaultImport();
+  if (defaultImport) {
+    nodes.push(importBindingNode(relPath, imp, sourceModule, "default", "default", defaultImport.getText(), typeOnly));
+  }
+  const namespaceImport = imp.getNamespaceImport();
+  if (namespaceImport) {
+    nodes.push(importBindingNode(relPath, imp, sourceModule, "namespace", "*", namespaceImport.getText(), typeOnly));
+  }
+  for (const named of imp.getNamedImports()) {
+    const imported = named.getName();
+    const alias = named.getAliasNode()?.getText() ?? imported;
+    nodes.push(importBindingNode(
+      relPath,
+      named,
+      sourceModule,
+      "named",
+      imported,
+      alias,
+      named.isTypeOnly() || imp.isTypeOnly() ? "true" : "false",
+    ));
+  }
+  return nodes;
+}
+
+function importBindingNode(
+  relPath: string,
+  node: Node,
+  sourceModule: string,
+  importKind: string,
+  importedName: string,
+  localName: string,
+  typeOnly: string,
+): CodeGraphNode {
+  return {
+    id: `${KIND_SHORT[TS_NODE_KIND_IMPORT_BINDING]}:${relPath}:${stableLocation(node)}:${localName}`,
+    kind: TS_NODE_KIND_IMPORT_BINDING,
+    name: localName,
+    path: relPath,
+    attributes: {
+      language: "typescript",
+      kind: KIND_ATTR[TS_NODE_KIND_IMPORT_BINDING]!,
+      source_module: sourceModule,
+      import_kind: importKind,
+      imported_name: importedName,
+      local_name: localName,
+      type_only: typeOnly,
+      ...sourceRangeAttrs(node),
+    },
+    leading_comments: [],
+  };
+}
+
+function exportFactNode(
+  relPath: string,
+  name: string,
+  exportKind: string,
+  node: Node,
+  declarationNodeId: string,
+): CodeGraphNode {
+  return {
+    id: `${KIND_SHORT[TS_NODE_KIND_EXPORT]}:${relPath}:${stableLocation(node)}:${name}`,
+    kind: TS_NODE_KIND_EXPORT,
+    name,
+    path: relPath,
+    attributes: {
+      language: "typescript",
+      kind: KIND_ATTR[TS_NODE_KIND_EXPORT]!,
+      export_kind: exportKind,
+      declaration_node_id: declarationNodeId,
+      ...sourceRangeAttrs(node),
+    },
+    leading_comments: leadingCommentsOf(node),
+  };
+}
+
+function usageFactNodes(
+  relPath: string,
+  sf: SourceFile,
+  symbolIndex: Map<ts.Symbol, SymbolInfo>,
+): CodeGraphNode[] {
+  const nodes: CodeGraphNode[] = [];
+  sf.forEachDescendant((child) => {
+    if (Node.isImportDeclaration(child) || Node.isExportDeclaration(child)) return;
+    if (Node.isCallExpression(child)) {
+      nodes.push(callFactNode(relPath, child));
+      return;
+    }
+    if (Node.isJsxSelfClosingElement(child)) {
+      nodes.push(jsxFactNode(relPath, child, child.getTagNameNode().getText(), child.getAttributes().map((a) => a.getText())));
+      return;
+    }
+    if (Node.isJsxOpeningElement(child)) {
+      nodes.push(jsxFactNode(relPath, child, child.getTagNameNode().getText(), child.getAttributes().map((a) => a.getText())));
+      return;
+    }
+    if (!Node.isIdentifier(child)) return;
+    if (
+      isDeclarationName(child) ||
+      isImportOrExportIdentifier(child) ||
+      isPropertyAccessName(child) ||
+      isJsxTagIdentifier(child) ||
+      isObjectLiteralPropertyName(child)
+    ) return;
+    nodes.push(referenceFactNode(relPath, child, symbolIndex));
+  });
+  return nodes;
+}
+
+function callFactNode(relPath: string, call: import("ts-morph").CallExpression): CodeGraphNode {
+  const expr = call.getExpression();
+  const signature = call.getType().getText(call);
+  return {
+    id: `${KIND_SHORT[TS_NODE_KIND_CALL]}:${relPath}:${stableLocation(call)}:${sanitizeId(expr.getText())}`,
+    kind: TS_NODE_KIND_CALL,
+    name: expr.getText(),
+    path: relPath,
+    attributes: {
+      language: "typescript",
+      kind: KIND_ATTR[TS_NODE_KIND_CALL]!,
+      callee: expr.getText(),
+      enclosing_declaration: enclosingDeclarationName(call),
+      argument_count: String(call.getArguments().length),
+      argument_summary: call.getArguments().map((a) => a.getType().getText(a)).join(","),
+      return_type: signature,
+      ...sourceRangeAttrs(call),
+    },
+    leading_comments: [],
+  };
+}
+
+function jsxFactNode(
+  relPath: string,
+  node: Node,
+  componentName: string,
+  props: string[],
+): CodeGraphNode {
+  return {
+    id: `${KIND_SHORT[TS_NODE_KIND_JSX_USAGE]}:${relPath}:${stableLocation(node)}:${sanitizeId(componentName)}`,
+    kind: TS_NODE_KIND_JSX_USAGE,
+    name: componentName,
+    path: relPath,
+    attributes: {
+      language: "typescript",
+      kind: KIND_ATTR[TS_NODE_KIND_JSX_USAGE]!,
+      component_name: componentName,
+      props_summary: props.join(","),
+      enclosing_declaration: enclosingDeclarationName(node),
+      ...sourceRangeAttrs(node),
+    },
+    leading_comments: [],
+  };
+}
+
+function referenceFactNode(
+  relPath: string,
+  ident: import("ts-morph").Identifier,
+  symbolIndex: Map<ts.Symbol, SymbolInfo>,
+): CodeGraphNode {
+  const symbol = ident.getSymbol()?.compilerSymbol;
+  const resolved = symbol ? symbolIndex.get(symbol) : undefined;
+  return {
+    id: `${KIND_SHORT[TS_NODE_KIND_REFERENCE]}:${relPath}:${stableLocation(ident)}:${ident.getText()}`,
+    kind: TS_NODE_KIND_REFERENCE,
+    name: ident.getText(),
+    path: relPath,
+    attributes: {
+      language: "typescript",
+      kind: KIND_ATTR[TS_NODE_KIND_REFERENCE]!,
+      referenced_name: ident.getText(),
+      enclosing_declaration: enclosingDeclarationName(ident),
+      resolved_node_id: resolved?.nodeId ?? "",
+      resolved_name: resolved?.name ?? "",
+      ...sourceRangeAttrs(ident),
+    },
+    leading_comments: [],
+  };
+}
+
+function enclosingDeclarationName(node: Node): string {
+  const executableOwner = node.getFirstAncestor((a) =>
+    Node.isFunctionDeclaration(a) ||
+    Node.isClassDeclaration(a) ||
+    Node.isMethodDeclaration(a),
+  );
+  if (executableOwner) {
+    return executableOwner.getName() ?? "";
+  }
+  const variableOwner = node.getFirstAncestor((a) => Node.isVariableDeclaration(a) && isFunctionLikeVar(a));
+  if (!variableOwner || !Node.isVariableDeclaration(variableOwner)) return "";
+  return variableOwner.getName();
+}
+
+function isDeclarationName(ident: import("ts-morph").Identifier): boolean {
+  const parent = ident.getParent();
+  return (
+    (Node.isFunctionDeclaration(parent) && parent.getNameNode() === ident) ||
+    (Node.isClassDeclaration(parent) && parent.getNameNode() === ident) ||
+    (Node.isInterfaceDeclaration(parent) && parent.getNameNode() === ident) ||
+    (Node.isTypeAliasDeclaration(parent) && parent.getNameNode() === ident) ||
+    (Node.isVariableDeclaration(parent) && parent.getNameNode() === ident) ||
+    (Node.isEnumDeclaration(parent) && parent.getNameNode() === ident) ||
+    (Node.isMethodDeclaration(parent) && parent.getNameNode() === ident)
+  );
+}
+
+function isImportOrExportIdentifier(ident: import("ts-morph").Identifier): boolean {
+  return ident.getFirstAncestor((a) =>
+    Node.isImportDeclaration(a) || Node.isImportSpecifier(a) || Node.isExportDeclaration(a) || Node.isExportSpecifier(a),
+  ) !== undefined;
+}
+
+function isPropertyAccessName(ident: import("ts-morph").Identifier): boolean {
+  const parent = ident.getParent();
+  return Node.isPropertyAccessExpression(parent) && parent.getNameNode() === ident;
+}
+
+function isJsxTagIdentifier(ident: import("ts-morph").Identifier): boolean {
+  const parent = ident.getParent();
+  const kind = parent.getKind();
+  return (
+    kind === SyntaxKind.JsxOpeningElement ||
+    kind === SyntaxKind.JsxClosingElement ||
+    kind === SyntaxKind.JsxSelfClosingElement
+  );
+}
+
+function isObjectLiteralPropertyName(ident: import("ts-morph").Identifier): boolean {
+  const parent = ident.getParent();
+  return Node.isPropertyAssignment(parent) && parent.getNameNode() === ident;
+}
+
+function sourceRangeAttrs(node: Node): Record<string, string> {
+  const sf = node.getSourceFile();
+  const start = sf.getLineAndColumnAtPos(node.getStart());
+  const end = sf.getLineAndColumnAtPos(node.getEnd());
+  return {
+    start_line: String(start.line),
+    start_column: String(start.column),
+    end_line: String(end.line),
+    end_column: String(end.column),
+  };
+}
+
+function stableLocation(node: Node): string {
+  const start = node.getSourceFile().getLineAndColumnAtPos(node.getStart());
+  return `${start.line}:${start.column}`;
+}
+
+function sanitizeId(value: string): string {
+  return value.replace(/[^A-Za-z0-9_$.-]+/g, "_");
+}
+
+function compareStable(a: string, b: string): number {
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
 }
 
 // --- Leading comments — verbatim source slices --------------------------------

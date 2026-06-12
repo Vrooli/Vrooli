@@ -16,7 +16,7 @@ import (
 )
 
 // FSExecutor is the production RewriteExecutor. It performs operations
-// directly against the filesystem under scenarioRoot using stdlib
+// directly against the filesystem under moduleRoot using stdlib
 // primitives: os.Rename for FileMove and go/parser + go/format for
 // ImportRewrite. It NEVER invokes git, go, or any subprocess —
 // no_external_command_test.go enforces this at the test level.
@@ -25,16 +25,16 @@ type FSExecutor struct{}
 // NewFSExecutor returns a ready-to-use FSExecutor.
 func NewFSExecutor() *FSExecutor { return &FSExecutor{} }
 
-// Execute applies op against scenarioRoot. It rejects operations that
-// would escape scenarioRoot (path traversal, absolute paths) before
+// Execute applies op against moduleRoot. It rejects operations that
+// would escape moduleRoot (path traversal, absolute paths) before
 // touching disk.
-func (e *FSExecutor) Execute(ctx context.Context, scenarioRoot string, op Operation) error {
+func (e *FSExecutor) Execute(ctx context.Context, moduleRoot string, op Operation) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	absRoot, err := filepath.Abs(scenarioRoot)
+	absRoot, err := filepath.Abs(moduleRoot)
 	if err != nil {
-		return fmt.Errorf("resolve scenario root: %w", err)
+		return fmt.Errorf("resolve module root: %w", err)
 	}
 	switch o := op.(type) {
 	case FileMove:
@@ -143,7 +143,7 @@ func joinWithinRoot(root, rel string) (string, error) {
 		return "", fmt.Errorf("path is empty")
 	}
 	if filepath.IsAbs(rel) {
-		return "", fmt.Errorf("path %q must be scenario-root-relative", rel)
+		return "", fmt.Errorf("path %q must be module-root-relative", rel)
 	}
 	joined := filepath.Join(root, rel)
 	abs, err := filepath.Abs(joined)
@@ -152,7 +152,7 @@ func joinWithinRoot(root, rel string) (string, error) {
 	}
 	rootWithSep := root + string(filepath.Separator)
 	if abs != root && !strings.HasPrefix(abs, rootWithSep) {
-		return "", fmt.Errorf("path %q escapes scenario root", rel)
+		return "", fmt.Errorf("path %q escapes module root", rel)
 	}
 	return abs, nil
 }

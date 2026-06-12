@@ -15,7 +15,7 @@ import (
 // OR dry-run short-circuit) on Apply.
 //
 // The Service reuses graph.PathMutex (not its own) so Extract and
-// Apply serialize on the same per-scenario_path lock — OT-P0-007.
+// Apply serialize on the same per-project_path lock — OT-P0-007.
 //
 // Substrate rule: this file does NOT import time, os, net/http, or
 // os/exec. Wall-clock timing belongs to the handler; filesystem
@@ -34,14 +34,14 @@ func NewService(store PlanStore, client sidecar.SidecarClient, mu *intgraph.Path
 }
 
 // Plan validates the input, normalizes the operations, derives the
-// PlanID, and persists the (ScenarioPath, PlanID) → Plan mapping.
+// PlanID, and persists the (ProjectPath, PlanID) → Plan mapping.
 //
-// Empty / non-absolute scenario_path, empty operations, or any
+// Empty / non-absolute project_path, empty operations, or any
 // individual invalid operation surface as
 // RewriteError{Kind:RewriteErrorInvalidInput|RewriteErrorInvalidOperation}
 // — both map to InvalidArgument at the handler.
 func (s *Service) Plan(ctx context.Context, in PlanInput) (PlanOutput, error) {
-	abs, err := validateScenarioPath(in.ScenarioPath)
+	abs, err := validateProjectPath(in.ProjectPath)
 	if err != nil {
 		return PlanOutput{}, err
 	}
@@ -57,7 +57,7 @@ func (s *Service) Plan(ctx context.Context, in PlanInput) (PlanOutput, error) {
 		return PlanOutput{}, err
 	}
 	id := DerivePlanID(normalized)
-	if err := s.store.Save(Plan{ID: id, ScenarioPath: abs, Operations: normalized}); err != nil {
+	if err := s.store.Save(Plan{ID: id, ProjectPath: abs, Operations: normalized}); err != nil {
 		return PlanOutput{}, RewriteError{
 			Kind:    RewriteErrorInternal,
 			Path:    abs,
@@ -74,7 +74,7 @@ func (s *Service) Plan(ctx context.Context, in PlanInput) (PlanOutput, error) {
 // results (dry-run, no IPC call per §8.6) or delegates to
 // sidecar.RewriteApply for real execution.
 func (s *Service) Apply(ctx context.Context, in ApplyInput) (ApplyOutput, error) {
-	abs, err := validateScenarioPath(in.ScenarioPath)
+	abs, err := validateProjectPath(in.ProjectPath)
 	if err != nil {
 		return ApplyOutput{}, err
 	}
@@ -139,22 +139,22 @@ func (s *Service) Apply(ctx context.Context, in ApplyInput) (ApplyOutput, error)
 	}, nil
 }
 
-// validateScenarioPath enforces the same discipline as the graph
+// validateProjectPath enforces the same discipline as the graph
 // domain — non-empty, absolute, filepath.Clean'd. Symbolic links and
 // existence checks belong to the sidecar (it owns the filesystem).
-func validateScenarioPath(p string) (string, error) {
+func validateProjectPath(p string) (string, error) {
 	p = strings.TrimSpace(p)
 	if p == "" {
 		return "", RewriteError{
 			Kind:    RewriteErrorInvalidInput,
-			Message: "scenario_path is required",
+			Message: "project_path is required",
 		}
 	}
 	if !filepath.IsAbs(p) {
 		return "", RewriteError{
 			Kind:    RewriteErrorInvalidInput,
 			Path:    p,
-			Message: "scenario_path must be absolute",
+			Message: "project_path must be absolute",
 		}
 	}
 	return filepath.Clean(p), nil

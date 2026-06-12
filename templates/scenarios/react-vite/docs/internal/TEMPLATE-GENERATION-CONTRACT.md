@@ -145,6 +145,8 @@ generated so scenario authors can copy the pattern before deleting it.
 When maintaining the example, preserve these properties:
 
 - proto is the canonical wire contract
+- template example proto files keep `@template react-vite/example` until a
+  generated scenario intentionally adopts or replaces that contract
 - API business logic lives in `api/internal/notes`
 - Connect handler methods stay thin
 - domain schema is owned by the domain folder

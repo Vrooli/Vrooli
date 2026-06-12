@@ -1,5 +1,5 @@
 {
-  "description": "Ship a UI surface that lets an operator paste a scenario path, see the extracted nodes/edges/leading comments/warnings, view server health (including Node sidecar status), and inspect recent extraction calls.",
+  "description": "Ship a UI surface that lets an operator paste a TS project root or tsconfig path, see the extracted nodes/edges/leading comments/warnings, view server health (including Node sidecar status), and inspect recent extraction calls.",
   "module_id": "MOD-P0-011",
   "prd_ref": "OT-P0-011",
   "priority": "P0",
@@ -12,7 +12,7 @@
         "REQ-P0-008",
         "REQ-P0-009"
       ],
-      "description": "Ship a UI surface that provides operators with interactive graph exploration and system diagnostics. The UI must support: (1) accepting a scenario path input and triggering extraction, (2) displaying extracted nodes with their kinds, names, and leading_comments, (3) displaying edges with their kinds and endpoints, (4) displaying structured Warnings[] from partial extraction, (5) showing server health status including Node sidecar state from /health, and (6) displaying a log of recent extraction calls with timestamps and outcome. The UI must use Connect-RPC clients exclusively (no direct REST calls).",
+      "description": "Ship a UI surface that provides operators with interactive graph exploration and system diagnostics. The UI must support: (1) accepting a TS project root or tsconfig path input and triggering extraction, (2) displaying extracted nodes with their kinds, names, and leading_comments, (3) displaying edges with their kinds and endpoints, (4) displaying structured Warnings[] from partial extraction, (5) showing server health status including Node sidecar state from /health, and (6) displaying a log of recent extraction calls with timestamps and outcome. The UI must use Connect-RPC clients exclusively (no direct REST calls).",
       "id": "REQ-P0-011",
       "prd_ref": "OT-P0-011",
       "status": "draft",

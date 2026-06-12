@@ -32,17 +32,17 @@ func TestServiceApply_DryRunSkipsSidecar(t *testing.T) {
 		{ImportRewrite: &rewrite.ImportRewrite{OldPath: "./old", NewPath: "./new"}},
 	}
 	planOut, err := svc.Plan(context.Background(), rewrite.PlanInput{
-		ScenarioPath: "/abs/proj",
-		Operations:   ops,
+		ProjectPath: "/abs/proj",
+		Operations:  ops,
 	})
 	if err != nil {
 		t.Fatalf("Plan: %v", err)
 	}
 
 	out, err := svc.Apply(context.Background(), rewrite.ApplyInput{
-		ScenarioPath: "/abs/proj",
-		PlanID:       planOut.PlanID,
-		DryRun:       true,
+		ProjectPath: "/abs/proj",
+		PlanID:      planOut.PlanID,
+		DryRun:      true,
 	})
 	if err != nil {
 		t.Fatalf("Apply: %v", err)

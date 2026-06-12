@@ -36,6 +36,14 @@ func fixtureAbsPath(t *testing.T, name string) string {
 	return abs
 }
 
+func repoRootAbsPath(t *testing.T) string {
+	t.Helper()
+	p := filepath.Join(thisFileDir(t), "..", "..", "..", "..", "..")
+	abs, err := filepath.Abs(p)
+	require.NoError(t, err)
+	return abs
+}
+
 // sidecarDistPath returns the absolute path to the bundled sidecar entry.
 func sidecarDistPath(t *testing.T) string {
 	t.Helper()
@@ -44,6 +52,34 @@ func sidecarDistPath(t *testing.T) string {
 	abs, err := filepath.Abs(p)
 	require.NoError(t, err)
 	return abs
+}
+
+func TestExtractIntegration_ExplicitTsconfigPath(t *testing.T) {
+	sup := startRealSupervisor(t)
+	svc := graph.NewService(sup, graph.NewPathMutex())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	tsconfigPath := filepath.Join(fixtureAbsPath(t, "ts-junk-drawer"), "tsconfig.json")
+	out, err := svc.Extract(ctx, graph.ExtractInput{ProjectPath: tsconfigPath})
+	require.NoError(t, err)
+	require.NotEmpty(t, out.Graph.Nodes)
+	require.NotEmpty(t, out.GraphHash)
+}
+
+func TestExtractIntegration_ScenarioUIProjectPath(t *testing.T) {
+	sup := startRealSupervisor(t)
+	svc := graph.NewService(sup, graph.NewPathMutex())
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	uiProject := filepath.Join(repoRootAbsPath(t), "scenarios", "typescript-code-graph", "ui")
+	out, err := svc.Extract(ctx, graph.ExtractInput{ProjectPath: uiProject})
+	require.NoError(t, err)
+	require.NotEmpty(t, out.Graph.Nodes)
+	require.NotEmpty(t, out.GraphHash)
 }
 
 // requireRealSidecar skips the test when prerequisites are missing
@@ -132,7 +168,7 @@ func startRealSupervisor(t *testing.T) *sidecar.Supervisor {
 // byte-for-byte. UPDATE_FIXTURES=1 rewrites the committed files in dev
 // mode.
 func TestExtractIntegration(t *testing.T) {
-	for _, name := range []string{"ts-junk-drawer", "ts-jsdoc-tags"} {
+	for _, name := range []string{"ts-junk-drawer", "ts-jsdoc-tags", "ts-usage-facts"} {
 		name := name
 		t.Run(name, func(t *testing.T) {
 			sup := startRealSupervisor(t)
@@ -142,7 +178,7 @@ func TestExtractIntegration(t *testing.T) {
 			defer cancel()
 
 			fixDir := fixtureAbsPath(t, name)
-			out, err := svc.Extract(ctx, graph.ExtractInput{ScenarioPath: fixDir})
+			out, err := svc.Extract(ctx, graph.ExtractInput{ProjectPath: fixDir})
 			require.NoError(t, err)
 
 			got, err := graph.CanonicalJSON(out.Graph)

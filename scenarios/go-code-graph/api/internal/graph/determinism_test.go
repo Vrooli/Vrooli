@@ -20,7 +20,7 @@ func TestExtractDeterministic(t *testing.T) {
 	var firstBytes []byte
 	var firstHash string
 	for i := 0; i < N; i++ {
-		g, _, err := svc.Extract(context.Background(), graph.ExtractInput{ScenarioPath: abs})
+		g, _, err := svc.Extract(context.Background(), graph.ExtractInput{ModulePath: abs})
 		if err != nil {
 			t.Fatalf("iteration %d Extract: %v", i, err)
 		}

@@ -10,7 +10,7 @@
         "REQ-P0-002",
         "REQ-P0-004"
       ],
-      "description": "When source files fail to parse or imports are unresolvable, Extract must return the partial graph built from successfully processed files/packages along with a Warnings[] list. Each warning entry must be a structured object with fields: file (string), kind (enum: PARSE_ERROR | UNRESOLVABLE_IMPORT | MISSING_TYPE_INFO), and message (string). Hard failures must only occur for catastrophic project-level errors: missing go.mod, unreadable scenario_path, or complete package load failure. Mid-migration scenarios with broken imports or partially valid files are explicitly first-class inputs and must not hard-fail.",
+      "description": "When source files fail to parse or imports are unresolvable, Extract must return the partial graph built from successfully processed files/packages along with a Warnings[] list. Each warning entry must be a structured object with fields: file (string), kind (enum: PARSE_ERROR | UNRESOLVABLE_IMPORT | MISSING_TYPE_INFO), and message (string). Hard failures must only occur for catastrophic project-level errors: missing go.mod, unreadable module_path, or complete package load failure. Mid-migration scenarios with broken imports or partially valid files are explicitly first-class inputs and must not hard-fail.",
       "id": "REQ-P0-005",
       "prd_ref": "OT-P0-005",
       "status": "draft",
@@ -38,7 +38,7 @@
           "type": "test"
         },
         {
-          "notes": "Test that an unreadable scenario_path produces a hard failure (not a warning)",
+          "notes": "Test that an unreadable module_path produces a hard failure (not a warning)",
           "phase": "unit",
           "ref": "",
           "status": "pending",

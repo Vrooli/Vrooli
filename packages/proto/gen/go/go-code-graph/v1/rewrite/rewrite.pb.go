@@ -71,7 +71,7 @@ func (OperationStatus) EnumDescriptor() ([]byte, []int) {
 }
 
 // FileMove relocates a single file from from_path to to_path. Both paths are
-// expressed relative to the scenario root (no leading slash, no ".." segments).
+// expressed relative to the module root (no leading slash, no ".." segments).
 type FileMove struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	FromPath      string                 `protobuf:"bytes,1,opt,name=from_path,json=fromPath,proto3" json:"from_path,omitempty"`
@@ -125,7 +125,7 @@ func (x *FileMove) GetToPath() string {
 }
 
 // ImportRewrite replaces import path old_path with new_path across every .go
-// file under the scenario root.
+// file under the module root.
 type ImportRewrite struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	OldPath       string                 `protobuf:"bytes,1,opt,name=old_path,json=oldPath,proto3" json:"old_path,omitempty"`

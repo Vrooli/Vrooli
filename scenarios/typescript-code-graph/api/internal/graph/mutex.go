@@ -4,7 +4,7 @@ import "sync"
 
 // PathMutex is a registry of per-absolute-path locks. It implements
 // OT-P0-007: two concurrent Extract / Apply operations targeting the
-// same scenario_path serialize; two targeting different paths run in
+// same project_path serialize; two targeting different paths run in
 // parallel.
 //
 // The map is unbounded in v1 (one entry per ever-seen path). For a

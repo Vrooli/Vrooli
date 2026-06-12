@@ -25,7 +25,7 @@ let ROW_KEY = 0;
 const newKey = () => `op-${++ROW_KEY}`;
 
 export interface RewriteTabProps {
-  scenarioPath: string;
+  projectPath: string;
 }
 
 function rowToOperation(row: OpRow): Operation | null {
@@ -43,7 +43,7 @@ function rowToOperation(row: OpRow): Operation | null {
  * dialog. The producer's own guardrail (dry-run first, then explicit apply) is
  * surfaced directly in the UI.
  */
-export function RewriteTab({ scenarioPath }: RewriteTabProps) {
+export function RewriteTab({ projectPath }: RewriteTabProps) {
   const { t } = useTranslation();
   const [rows, setRows] = React.useState<Array<OpRow & { key: string }>>([]);
   const [confirming, setConfirming] = React.useState(false);
@@ -82,17 +82,17 @@ export function RewriteTab({ scenarioPath }: RewriteTabProps) {
   const runPlan = () => {
     apply.reset();
     setConfirming(false);
-    plan.mutate({ scenarioPath, operations });
+    plan.mutate({ projectPath, operations });
   };
   const runApply = () => {
     const planId = plan.data?.planId;
     if (planId === undefined) return;
     setConfirming(false);
-    apply.mutate({ scenarioPath, planId });
+    apply.mutate({ projectPath, planId });
   };
 
   const planId = plan.data?.planId;
-  const canPlan = scenarioPath.length > 0 && operations.length > 0 && !plan.isPending;
+  const canPlan = projectPath.length > 0 && operations.length > 0 && !plan.isPending;
   const canApply = planId !== undefined && planId.length > 0 && !apply.isPending;
 
   return (
@@ -280,7 +280,7 @@ export function RewriteTab({ scenarioPath }: RewriteTabProps) {
             {t(strings.rewrite.apply.confirmTitle)}
           </p>
           <p className="text-sm text-app-foreground">
-            {t(strings.rewrite.apply.confirmMessage, { target: scenarioPath })}
+            {t(strings.rewrite.apply.confirmMessage, { target: projectPath })}
           </p>
           <div className="flex gap-2">
             <Button

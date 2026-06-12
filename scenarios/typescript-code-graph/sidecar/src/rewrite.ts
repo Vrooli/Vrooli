@@ -1,6 +1,7 @@
 // Filesystem rewrites via ts-morph. Never spawns git/tsc/pnpm — asserted
 // by tests/no-external-command.test.ts.
 
+import * as fs from "node:fs";
 import * as path from "node:path";
 
 import { Project } from "ts-morph";
@@ -20,14 +21,15 @@ export class NoTsConfigForRewriteError extends Error {
  * still called on it.
  */
 export async function applyRewrite(args: {
-  scenarioPath: string;
+  projectPath: string;
   operations: RewriteOperation[];
   _project?: Project;
 }): Promise<OperationResult[]> {
+  const resolved = resolveProjectPath(args.projectPath);
   const project =
     args._project ??
     new Project({
-      tsConfigFilePath: path.join(args.scenarioPath, "tsconfig.json"),
+      tsConfigFilePath: resolved.tsconfigPath,
       skipAddingFilesFromTsConfig: false,
     });
 
@@ -35,7 +37,7 @@ export async function applyRewrite(args: {
 
   for (const op of args.operations) {
     if (op.file_move) {
-      results.push(applyFileMove(project, args.scenarioPath, op.file_move));
+      results.push(applyFileMove(project, resolved.rootDir, op.file_move));
     } else if (op.import_rewrite) {
       results.push(
         applyImportRewrite(project, op.import_rewrite),
@@ -53,18 +55,37 @@ export async function applyRewrite(args: {
   return results;
 }
 
+function resolveProjectPath(projectPath: string): { rootDir: string; tsconfigPath: string } {
+  let stat: fs.Stats;
+  try {
+    stat = fs.statSync(projectPath);
+  } catch (err) {
+    throw new NoTsConfigForRewriteError(`cannot stat project_path: ${(err as Error).message}`);
+  }
+  if (stat.isFile()) {
+    if (path.basename(projectPath) !== "tsconfig.json") {
+      throw new NoTsConfigForRewriteError(`project_path file is not tsconfig.json: ${projectPath}`);
+    }
+    return { rootDir: path.dirname(projectPath), tsconfigPath: projectPath };
+  }
+  if (!stat.isDirectory()) {
+    throw new NoTsConfigForRewriteError(`project_path is not a directory or tsconfig.json: ${projectPath}`);
+  }
+  return { rootDir: projectPath, tsconfigPath: path.join(projectPath, "tsconfig.json") };
+}
+
 function applyFileMove(
   project: Project,
-  scenarioPath: string,
+  projectRoot: string,
   op: { from_path: string; to_path: string },
 ): OperationResult {
   try {
     const absFrom = path.isAbsolute(op.from_path)
       ? op.from_path
-      : path.resolve(scenarioPath, op.from_path);
+      : path.resolve(projectRoot, op.from_path);
     const absTo = path.isAbsolute(op.to_path)
       ? op.to_path
-      : path.resolve(scenarioPath, op.to_path);
+      : path.resolve(projectRoot, op.to_path);
     const sf = project.getSourceFile(absFrom);
     if (!sf) {
       return {

@@ -17,13 +17,13 @@ import (
 // ExecuteFunc to the behaviour the test wants; the zero value returns
 // nil (success) for every op.
 type FakeExecutor struct {
-	ExecuteFunc func(ctx context.Context, scenarioRoot string, op intrewrite.Operation) error
+	ExecuteFunc func(ctx context.Context, moduleRoot string, op intrewrite.Operation) error
 }
 
 // Execute satisfies intrewrite.RewriteExecutor.
-func (f *FakeExecutor) Execute(ctx context.Context, scenarioRoot string, op intrewrite.Operation) error {
+func (f *FakeExecutor) Execute(ctx context.Context, moduleRoot string, op intrewrite.Operation) error {
 	if f.ExecuteFunc != nil {
-		return f.ExecuteFunc(ctx, scenarioRoot, op)
+		return f.ExecuteFunc(ctx, moduleRoot, op)
 	}
 	return nil
 }

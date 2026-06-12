@@ -14,7 +14,7 @@ export const file_go_code_graph_v1_rewrite_rewrite: GenFile = /*@__PURE__*/
 
 /**
  * FileMove relocates a single file from from_path to to_path. Both paths are
- * expressed relative to the scenario root (no leading slash, no ".." segments).
+ * expressed relative to the module root (no leading slash, no ".." segments).
  *
  * @generated from message vrooli.go_code_graph.v1.rewrite.FileMove
  */
@@ -39,7 +39,7 @@ export const FileMoveSchema: GenMessage<FileMove> = /*@__PURE__*/
 
 /**
  * ImportRewrite replaces import path old_path with new_path across every .go
- * file under the scenario root.
+ * file under the module root.
  *
  * @generated from message vrooli.go_code_graph.v1.rewrite.ImportRewrite
  */

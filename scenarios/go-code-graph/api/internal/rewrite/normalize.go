@@ -14,7 +14,7 @@ import (
 // identical input multisets always produce identical output orderings —
 // which is what makes PlanID derivation stable.
 //
-// Path canonicalization for FileMove (paths are scenario-root-relative):
+// Path canonicalization for FileMove (paths are module-root-relative):
 // trailing slashes trimmed, "./" prefixes collapsed, internal "//"
 // collapsed. ".." segments and absolute paths are rejected up the call
 // stack in validate(); Normalize assumes its input has already passed
@@ -63,7 +63,7 @@ func canonicalKey(op Operation) string {
 
 // canonicalPath collapses "./" prefixes, internal "//", and trailing
 // slashes. It uses path.Clean which is the right tool for
-// forward-slash, relative scenario-root paths.
+// forward-slash, relative module-root paths.
 func canonicalPath(p string) string {
 	p = strings.TrimSpace(p)
 	if p == "" {
@@ -143,7 +143,7 @@ func validateRelPath(kind, field, p string, _ int) error {
 	if strings.HasPrefix(trimmed, "/") {
 		return RewriteError{
 			Kind:    RewriteErrorMalformedOperation,
-			Message: kind + " " + field + " must be scenario-root-relative, not absolute",
+			Message: kind + " " + field + " must be module-root-relative, not absolute",
 		}
 	}
 	for _, seg := range strings.Split(trimmed, "/") {

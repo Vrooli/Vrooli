@@ -532,9 +532,9 @@ func (s *Supervisor) Shutdown(ctx context.Context) error {
 
 // extractRequest / extractResponse mirror plan §8.4 wire shapes.
 type extractRequest struct {
-	Type         string `json:"type"`
-	RequestID    string `json:"request_id"`
-	ScenarioPath string `json:"scenario_path"`
+	Type        string `json:"type"`
+	RequestID   string `json:"request_id"`
+	ProjectPath string `json:"project_path"`
 }
 
 type extractResponse struct {
@@ -546,10 +546,10 @@ type extractResponse struct {
 
 // rewriteApplyRequest / rewriteApplyResponse mirror plan §8.4 wire shapes.
 type rewriteApplyRequest struct {
-	Type         string      `json:"type"`
-	RequestID    string      `json:"request_id"`
-	ScenarioPath string      `json:"scenario_path"`
-	Operations   []Operation `json:"operations"`
+	Type        string      `json:"type"`
+	RequestID   string      `json:"request_id"`
+	ProjectPath string      `json:"project_path"`
+	Operations  []Operation `json:"operations"`
 }
 
 type rewriteApplyResponse struct {
@@ -563,7 +563,7 @@ type cancelRequest struct {
 }
 
 // Extract implements SidecarClient.
-func (s *Supervisor) Extract(ctx context.Context, scenarioPath string) (ExtractResult, error) {
+func (s *Supervisor) Extract(ctx context.Context, projectPath string) (ExtractResult, error) {
 	if st := s.Status(); st != StatusReady {
 		return ExtractResult{}, s.statusErr(st)
 	}
@@ -579,7 +579,7 @@ func (s *Supervisor) Extract(ctx context.Context, scenarioPath string) (ExtractR
 	if w == nil {
 		return ExtractResult{}, ErrSidecarUnavailable
 	}
-	if err := w.Write(extractRequest{Type: "extract", RequestID: reqID, ScenarioPath: scenarioPath}); err != nil {
+	if err := w.Write(extractRequest{Type: "extract", RequestID: reqID, ProjectPath: projectPath}); err != nil {
 		return ExtractResult{}, fmt.Errorf("%w: %v", ErrSidecarUnavailable, err)
 	}
 
@@ -616,7 +616,7 @@ func (s *Supervisor) decodeExtractResponse(reqID string, resp rawResponse) (Extr
 }
 
 // RewriteApply implements SidecarClient.
-func (s *Supervisor) RewriteApply(ctx context.Context, scenarioPath string, ops []Operation) ([]OperationResult, error) {
+func (s *Supervisor) RewriteApply(ctx context.Context, projectPath string, ops []Operation) ([]OperationResult, error) {
 	if st := s.Status(); st != StatusReady {
 		return nil, s.statusErr(st)
 	}
@@ -631,10 +631,10 @@ func (s *Supervisor) RewriteApply(ctx context.Context, scenarioPath string, ops 
 		return nil, ErrSidecarUnavailable
 	}
 	if err := w.Write(rewriteApplyRequest{
-		Type:         "rewrite_apply",
-		RequestID:    reqID,
-		ScenarioPath: scenarioPath,
-		Operations:   ops,
+		Type:        "rewrite_apply",
+		RequestID:   reqID,
+		ProjectPath: projectPath,
+		Operations:  ops,
 	}); err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrSidecarUnavailable, err)
 	}

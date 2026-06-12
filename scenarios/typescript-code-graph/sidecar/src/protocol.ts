@@ -35,7 +35,7 @@ export interface HeartbeatRequest {
 export interface ExtractRequest {
   type: "extract";
   request_id: string;
-  scenario_path: string;
+  project_path: string;
 }
 
 export interface RewriteOperation {
@@ -53,7 +53,7 @@ export interface RewriteOperation {
 export interface RewriteApplyRequest {
   type: "rewrite_apply";
   request_id: string;
-  scenario_path: string;
+  project_path: string;
   operations: RewriteOperation[];
 }
 
@@ -94,7 +94,7 @@ export interface HeartbeatResponse {
 export interface CodeGraphNode {
   id: string;
   // Numeric NodeKind from common/v1/code_graph.proto. FILE=1, PACKAGE=2,
-  // MODULE=3. TS-specific kinds (200-209) ride on attributes["kind"].
+  // MODULE=3. TS-specific kinds (200-299) ride on attributes["kind"].
   kind: number;
   name: string;
   path: string;

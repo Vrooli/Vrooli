@@ -10,7 +10,7 @@
 -- of operations in the plan.
 CREATE TABLE IF NOT EXISTS rewrite_plans (
     id            TEXT PRIMARY KEY,
-    scenario_path TEXT NOT NULL,
+    module_path TEXT NOT NULL,
     operations    TEXT NOT NULL,
     created_at    INTEGER NOT NULL
 );

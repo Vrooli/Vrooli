@@ -1,5 +1,5 @@
 {
-  "description": "Implement `Extract(ExtractRequest{scenario_path}) → Graph` against `golang.org/x/tools/go/packages` using a fixed load mode that returns files, packages, top-level declarations (types, funcs, vars, consts, interfaces, methods), and import edges plus intra-package symbol references; byte-stable serialization for identical inputs.",
+  "description": "Implement `Extract(ExtractRequest{module_path}) → Graph` against `golang.org/x/tools/go/packages` using a fixed load mode that returns files, packages, top-level declarations (types, funcs, vars, consts, interfaces, methods), and import edges plus intra-package symbol references; byte-stable serialization for identical inputs.",
   "module_id": "MOD-P0-001",
   "prd_ref": "OT-P0-001",
   "priority": "P0",
@@ -11,7 +11,7 @@
         "REQ-P0-004",
         "REQ-P0-005"
       ],
-      "description": "Implement the Extract(ExtractRequest{scenario_path}) → Graph operation using golang.org/x/tools/go/packages with a fixed load mode (NeedFiles | NeedImports | NeedTypes | NeedSyntax | NeedTypesInfo | NeedName | NeedDeps). The operation must return all files, packages, top-level declarations (types, funcs, vars, consts, interfaces, methods), import edges, and intra-package symbol references. Output serialization must be byte-stable: identical inputs must always produce byte-for-byte identical output regardless of execution order or timing.",
+      "description": "Implement the Extract(ExtractRequest{module_path}) → Graph operation using golang.org/x/tools/go/packages with a fixed load mode (NeedFiles | NeedImports | NeedTypes | NeedSyntax | NeedTypesInfo | NeedName | NeedDeps). The operation must return all files, packages, top-level declarations (types, funcs, vars, consts, interfaces, methods), import edges, and intra-package symbol references. Output serialization must be byte-stable: identical inputs must always produce byte-for-byte identical output regardless of execution order or timing.",
       "id": "REQ-P0-001",
       "prd_ref": "OT-P0-001",
       "status": "draft",

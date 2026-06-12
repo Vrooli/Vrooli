@@ -38,7 +38,7 @@ func (h *handlers) extract(ctx cliapp.RunContext) error {
 	includeVendor := ctx.BoolFlag("include-vendor")
 
 	resp, err := h.client.Extract(context.Background(), connect.NewRequest(&graphv1.ExtractRequest{
-		ScenarioPath:  path,
+		ModulePath:    path,
 		IncludeVendor: includeVendor,
 	}))
 	if err != nil {
@@ -80,7 +80,7 @@ func (h *handlers) extract(ctx cliapp.RunContext) error {
 		ResultsHeading: "Top-level packages",
 		Results:        packages,
 		RetrievalHints: []string{
-			fmt.Sprintf("`rewrite plan <ops.json> --scenario-path %s` — plan a rewrite for this module", path),
+			fmt.Sprintf("`rewrite plan <ops.json> --module-path %s` — plan a rewrite for this module", path),
 		},
 	})
 }

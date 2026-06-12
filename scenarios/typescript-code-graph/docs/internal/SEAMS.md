@@ -264,8 +264,8 @@ and use matrix/trace helpers from the relevant testutil package.
 
 | | |
 |---|---|
-| **Seam** | The in-process map holding `RewritePlan` results keyed by `(scenario_path, plan_id)`. Composite-keyed to prevent cross-scenario replay if two scenarios derive the same hash-based `PlanID`. |
-| **Interface** | `internal/rewrite/store.go::PlanStore` (`Save(plan) error`, `Get(scenarioPath, id) (Plan, error)` returning `ErrPlanNotFound`). |
+| **Seam** | The in-process map holding `RewritePlan` results keyed by `(project_path, plan_id)`. Composite-keyed to prevent cross-project replay if two projects derive the same hash-based `PlanID`. |
+| **Interface** | `internal/rewrite/store.go::PlanStore` (`Save(plan) error`, `Get(projectPath, id) (Plan, error)` returning `ErrPlanNotFound`). |
 | **Production wiring** | `main.go` constructs `rewrite.NewMemoryPlanStore()` and passes it into `rewrite.NewService(...)`. |
 | **Test fake** | `internal/rewrite/mocks::FakePlanStore` (per-method error knobs + recorded calls). Production `*MemoryPlanStore` is also used directly in tests when failure injection isn't needed. |
 | **Why it exists** | (1) Apply semantics must be exercisable without depending on Save side effects from a prior Plan call (`FailedPrecondition` paths need an empty store). (2) Persistence is deferred (see `PROBLEMS.md` REQ-P1-002); when SQLite-backed persistence lands, only the production wiring in `main.go` changes — domain code stays put. |
@@ -274,7 +274,7 @@ and use matrix/trace helpers from the relevant testutil package.
 
 | | |
 |---|---|
-| **Seam** | The registry of per-absolute-path locks that serializes concurrent `Extract` and `RewriteApply` on the same `scenario_path` at the Go layer. (The sidecar also serializes internally — defense in depth.) **Shared** between the `graph` and `rewrite` domains: there is one `PathMutex` per API process, wired into both services. |
+| **Seam** | The registry of per-absolute-path locks that serializes concurrent `Extract` and `RewriteApply` on the same `project_path` at the Go layer. (The sidecar also serializes internally — defense in depth.) **Shared** between the `graph` and `rewrite` domains: there is one `PathMutex` per API process, wired into both services. |
 | **Interface** | `internal/graph/pathmutex.go::PathMutex` (concrete type, not interface). Constructor `NewPathMutex()`; method `Lock(absPath string) func()` returns an unlock closure. |
 | **Production wiring** | `main.go` constructs one `intgraph.NewPathMutex()` and passes the same instance to both `graph.NewService(...)` and `rewrite.NewService(...)`. |
 | **Test fake** | **None.** This is substrate — the concrete type is correct and fast; tests use the real `PathMutex` directly (see `mutex_test.go`). Substitution would lose the property under test (real per-path serialization). |

@@ -18,19 +18,19 @@ Plain query operations (`/health`, `extract` for a single quiet path) do not nee
 
 | Flow | Domain | Trigger | Outcome | Statefulness | Validation |
 |---|---|---|---|---|---|
-| Extract | graph | Consumer calls `Extract(scenario_path)`. | Returns a partial-or-complete Graph + Warnings[], or a typed catastrophic error. | Per-path serialization mutex; idempotent for the same source state. | Level 1 (inventory) — Level 2 (workflow model) planned alongside concurrent-extraction tests. |
-| Rewrite plan | rewrite | Consumer calls `RewritePlan(scenario_path, operations)`. | Returns `plan_id` + normalized operation log. No disk change. | Plan store is in-process; plan IDs derived deterministically from normalized op list. | Level 1 (inventory). Plan-ID stability tested. |
-| Rewrite apply | rewrite | Consumer calls `RewriteApply(scenario_path, plan_id)`. | Executes file moves + import rewrites in order, mutates the filesystem, returns operation log with per-op status. | Per-path serialization mutex; **non-atomic on partial failure** — operator recovers via git. | Level 1 (inventory). Partial-failure semantics intentionally not rolled back. |
+| Extract | graph | Consumer calls `Extract(module_path)`. | Returns a partial-or-complete Graph + Warnings[], or a typed catastrophic error. | Per-path serialization mutex; idempotent for the same source state. | Level 1 (inventory) — Level 2 (workflow model) planned alongside concurrent-extraction tests. |
+| Rewrite plan | rewrite | Consumer calls `RewritePlan(module_path, operations)`. | Returns `plan_id` + normalized operation log. No disk change. | Plan store is in-process; plan IDs derived deterministically from normalized op list. | Level 1 (inventory). Plan-ID stability tested. |
+| Rewrite apply | rewrite | Consumer calls `RewriteApply(module_path, plan_id)`. | Executes file moves + import rewrites in order, mutates the filesystem, returns operation log with per-op status. | Per-path serialization mutex; **non-atomic on partial failure** — operator recovers via git. | Level 1 (inventory). Partial-failure semantics intentionally not rolled back. |
 
 ## Flow Details
 
 ### Extract
 
 - **Owner domain**: `graph`.
-- **Trigger**: Connect-RPC `Extract(ExtractRequest{scenario_path})` call from cartographer, CLI, or UI explorer.
+- **Trigger**: Connect-RPC `Extract(ExtractRequest{module_path})` call from cartographer, CLI, or UI explorer.
 - **Inputs**: absolute filesystem path that contains exactly one `go.mod` and is not inside a `go.work` workspace.
 - **Steps**:
-  1. Acquire per-path mutex keyed by `filepath.Abs(scenario_path)`.
+  1. Acquire per-path mutex keyed by `filepath.Abs(module_path)`.
   2. Validate input: reject if no `go.mod` discoverable, multiple `go.mod` files, or `go.work` workspace detected.
   3. Configure `packages.Config` with load mode `NeedFiles | NeedImports | NeedTypes | NeedSyntax | NeedTypesInfo | NeedName | NeedDeps`, exclude `vendor/` by default (REQ-P1-003).
   4. Call `packages.Load(...)`. Capture both `Packages` and per-package `Errors`.
@@ -54,12 +54,12 @@ Plain query operations (`/health`, `extract` for a single quiet path) do not nee
 ### Rewrite plan
 
 - **Owner domain**: `rewrite`.
-- **Trigger**: Connect-RPC `RewritePlan(RewriteRequest{scenario_path, operations})`.
-- **Inputs**: `scenario_path` plus a list of `FileMove{from, to}` and/or `ImportRewrite{old_path, new_path}` operations.
+- **Trigger**: Connect-RPC `RewritePlan(RewriteRequest{module_path, operations})`.
+- **Inputs**: `module_path` plus a list of `FileMove{from, to}` and/or `ImportRewrite{old_path, new_path}` operations.
 - **Steps**:
-  1. Validate scenario_path is a valid single-module Go project (same validation as Extract).
+  1. Validate module_path is a valid single-module Go project (same validation as Extract).
   2. Normalize operations: deduplicate, sort by `(kind, from, old_path)`, reject self-moves and cycles.
-  3. Compute `plan_id` as a deterministic content hash over the normalized ops + scenario_path.
+  3. Compute `plan_id` as a deterministic content hash over the normalized ops + module_path.
   4. Validate operations against the current filesystem: every `FileMove.from` must exist; every `ImportRewrite.old_path` must be present in at least one `.go` file under the module.
   5. Store the plan in an in-process plan registry keyed by `plan_id` (5-minute TTL).
   6. Return `RewriteResponse{plan_id, operations: <normalized>, dry_run: true}`.
@@ -74,8 +74,8 @@ Plain query operations (`/health`, `extract` for a single quiet path) do not nee
 ### Rewrite apply
 
 - **Owner domain**: `rewrite`.
-- **Trigger**: Connect-RPC `RewriteApply(RewriteRequest{scenario_path, plan_id})`.
-- **Inputs**: `scenario_path` and a `plan_id` returned by a previous `RewritePlan` call.
+- **Trigger**: Connect-RPC `RewriteApply(RewriteRequest{module_path, plan_id})`.
+- **Inputs**: `module_path` and a `plan_id` returned by a previous `RewritePlan` call.
 - **Steps**:
   1. Acquire per-path mutex (same lock as Extract — only one mutation in flight per path).
   2. Look up plan by `plan_id`. Reject if missing/expired.

@@ -7,6 +7,25 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class ImportKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    IMPORT_KIND_UNSPECIFIED: _ClassVar[ImportKind]
+    IMPORT_KIND_SCENARIO_LOCAL: _ClassVar[ImportKind]
+    IMPORT_KIND_CROSS_SCENARIO: _ClassVar[ImportKind]
+    IMPORT_KIND_EXTERNAL: _ClassVar[ImportKind]
+
+class RestPayloadRole(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    REST_PAYLOAD_ROLE_UNSPECIFIED: _ClassVar[RestPayloadRole]
+    REST_PAYLOAD_ROLE_REQUEST: _ClassVar[RestPayloadRole]
+    REST_PAYLOAD_ROLE_RESPONSE: _ClassVar[RestPayloadRole]
+    REST_PAYLOAD_ROLE_ERROR: _ClassVar[RestPayloadRole]
+
+class RestPayloadProofStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    REST_PAYLOAD_PROOF_STATUS_UNSPECIFIED: _ClassVar[RestPayloadProofStatus]
+    REST_PAYLOAD_PROOF_STATUS_NOT_EVALUATED: _ClassVar[RestPayloadProofStatus]
+
 class TransportWorld(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     TRANSPORT_WORLD_UNSPECIFIED: _ClassVar[TransportWorld]
@@ -22,6 +41,16 @@ class TransportKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TRANSPORT_KIND_REST: _ClassVar[TransportKind]
     TRANSPORT_KIND_HAND_ROLLED: _ClassVar[TransportKind]
     TRANSPORT_KIND_NOT_SERVED: _ClassVar[TransportKind]
+IMPORT_KIND_UNSPECIFIED: ImportKind
+IMPORT_KIND_SCENARIO_LOCAL: ImportKind
+IMPORT_KIND_CROSS_SCENARIO: ImportKind
+IMPORT_KIND_EXTERNAL: ImportKind
+REST_PAYLOAD_ROLE_UNSPECIFIED: RestPayloadRole
+REST_PAYLOAD_ROLE_REQUEST: RestPayloadRole
+REST_PAYLOAD_ROLE_RESPONSE: RestPayloadRole
+REST_PAYLOAD_ROLE_ERROR: RestPayloadRole
+REST_PAYLOAD_PROOF_STATUS_UNSPECIFIED: RestPayloadProofStatus
+REST_PAYLOAD_PROOF_STATUS_NOT_EVALUATED: RestPayloadProofStatus
 TRANSPORT_WORLD_UNSPECIFIED: TransportWorld
 TRANSPORT_WORLD_CONNECT: TransportWorld
 TRANSPORT_WORLD_HAND_ROLLED: TransportWorld
@@ -34,24 +63,28 @@ TRANSPORT_KIND_HAND_ROLLED: TransportKind
 TRANSPORT_KIND_NOT_SERVED: TransportKind
 
 class ProtoSurface(_message.Message):
-    __slots__ = ("scenario", "files", "services", "messages", "intra_scenario_imports", "cross_scenario_imports", "adoption_signals", "transport_world")
+    __slots__ = ("scenario", "files", "services", "messages", "intra_scenario_imports", "cross_scenario_imports", "transport_world", "rest_exception_refs", "rest_exceptions", "rest_exception_payloads")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     FILES_FIELD_NUMBER: _ClassVar[int]
     SERVICES_FIELD_NUMBER: _ClassVar[int]
     MESSAGES_FIELD_NUMBER: _ClassVar[int]
     INTRA_SCENARIO_IMPORTS_FIELD_NUMBER: _ClassVar[int]
     CROSS_SCENARIO_IMPORTS_FIELD_NUMBER: _ClassVar[int]
-    ADOPTION_SIGNALS_FIELD_NUMBER: _ClassVar[int]
     TRANSPORT_WORLD_FIELD_NUMBER: _ClassVar[int]
+    REST_EXCEPTION_REFS_FIELD_NUMBER: _ClassVar[int]
+    REST_EXCEPTIONS_FIELD_NUMBER: _ClassVar[int]
+    REST_EXCEPTION_PAYLOADS_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     files: _containers.RepeatedCompositeFieldContainer[ProtoFile]
     services: _containers.RepeatedCompositeFieldContainer[ProtoService]
     messages: _containers.RepeatedCompositeFieldContainer[ProtoMessage]
     intra_scenario_imports: _containers.RepeatedCompositeFieldContainer[ProtoImport]
     cross_scenario_imports: _containers.RepeatedCompositeFieldContainer[ProtoImport]
-    adoption_signals: _containers.RepeatedCompositeFieldContainer[AdoptionSignal]
     transport_world: TransportWorld
-    def __init__(self, scenario: _Optional[str] = ..., files: _Optional[_Iterable[_Union[ProtoFile, _Mapping]]] = ..., services: _Optional[_Iterable[_Union[ProtoService, _Mapping]]] = ..., messages: _Optional[_Iterable[_Union[ProtoMessage, _Mapping]]] = ..., intra_scenario_imports: _Optional[_Iterable[_Union[ProtoImport, _Mapping]]] = ..., cross_scenario_imports: _Optional[_Iterable[_Union[ProtoImport, _Mapping]]] = ..., adoption_signals: _Optional[_Iterable[_Union[AdoptionSignal, _Mapping]]] = ..., transport_world: _Optional[_Union[TransportWorld, str]] = ...) -> None: ...
+    rest_exception_refs: _containers.RepeatedCompositeFieldContainer[RestExceptionRef]
+    rest_exceptions: _containers.RepeatedCompositeFieldContainer[RestExceptionEndpoint]
+    rest_exception_payloads: _containers.RepeatedCompositeFieldContainer[RestExceptionPayloadRef]
+    def __init__(self, scenario: _Optional[str] = ..., files: _Optional[_Iterable[_Union[ProtoFile, _Mapping]]] = ..., services: _Optional[_Iterable[_Union[ProtoService, _Mapping]]] = ..., messages: _Optional[_Iterable[_Union[ProtoMessage, _Mapping]]] = ..., intra_scenario_imports: _Optional[_Iterable[_Union[ProtoImport, _Mapping]]] = ..., cross_scenario_imports: _Optional[_Iterable[_Union[ProtoImport, _Mapping]]] = ..., transport_world: _Optional[_Union[TransportWorld, str]] = ..., rest_exception_refs: _Optional[_Iterable[_Union[RestExceptionRef, _Mapping]]] = ..., rest_exceptions: _Optional[_Iterable[_Union[RestExceptionEndpoint, _Mapping]]] = ..., rest_exception_payloads: _Optional[_Iterable[_Union[RestExceptionPayloadRef, _Mapping]]] = ...) -> None: ...
 
 class ProtoFile(_message.Message):
     __slots__ = ("path", "package", "version", "domain", "stability", "annotations")
@@ -140,23 +173,83 @@ class ProtoField(_message.Message):
     def __init__(self, name: _Optional[str] = ..., type: _Optional[str] = ..., message_type: _Optional[str] = ..., enum_type: _Optional[str] = ..., repeated: _Optional[bool] = ..., optional: _Optional[bool] = ..., number: _Optional[int] = ...) -> None: ...
 
 class ProtoImport(_message.Message):
-    __slots__ = ("from_file", "to_file", "from_domain", "to_domain")
+    __slots__ = ("from_file", "to_file", "from_scenario", "to_scenario", "from_package", "to_package", "from_version", "to_version", "from_domain", "to_domain", "kind")
     FROM_FILE_FIELD_NUMBER: _ClassVar[int]
     TO_FILE_FIELD_NUMBER: _ClassVar[int]
+    FROM_SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    TO_SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    FROM_PACKAGE_FIELD_NUMBER: _ClassVar[int]
+    TO_PACKAGE_FIELD_NUMBER: _ClassVar[int]
+    FROM_VERSION_FIELD_NUMBER: _ClassVar[int]
+    TO_VERSION_FIELD_NUMBER: _ClassVar[int]
     FROM_DOMAIN_FIELD_NUMBER: _ClassVar[int]
     TO_DOMAIN_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
     from_file: str
     to_file: str
+    from_scenario: str
+    to_scenario: str
+    from_package: str
+    to_package: str
+    from_version: str
+    to_version: str
     from_domain: str
     to_domain: str
-    def __init__(self, from_file: _Optional[str] = ..., to_file: _Optional[str] = ..., from_domain: _Optional[str] = ..., to_domain: _Optional[str] = ...) -> None: ...
+    kind: ImportKind
+    def __init__(self, from_file: _Optional[str] = ..., to_file: _Optional[str] = ..., from_scenario: _Optional[str] = ..., to_scenario: _Optional[str] = ..., from_package: _Optional[str] = ..., to_package: _Optional[str] = ..., from_version: _Optional[str] = ..., to_version: _Optional[str] = ..., from_domain: _Optional[str] = ..., to_domain: _Optional[str] = ..., kind: _Optional[_Union[ImportKind, str]] = ...) -> None: ...
 
-class AdoptionSignal(_message.Message):
-    __slots__ = ("name", "present", "detail")
-    NAME_FIELD_NUMBER: _ClassVar[int]
-    PRESENT_FIELD_NUMBER: _ClassVar[int]
-    DETAIL_FIELD_NUMBER: _ClassVar[int]
-    name: str
-    present: bool
-    detail: str
-    def __init__(self, name: _Optional[str] = ..., present: _Optional[bool] = ..., detail: _Optional[str] = ...) -> None: ...
+class RestExceptionRef(_message.Message):
+    __slots__ = ("endpoint_id", "path", "method", "domain", "message", "full_name")
+    ENDPOINT_ID_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    METHOD_FIELD_NUMBER: _ClassVar[int]
+    DOMAIN_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    FULL_NAME_FIELD_NUMBER: _ClassVar[int]
+    endpoint_id: str
+    path: str
+    method: str
+    domain: str
+    message: str
+    full_name: str
+    def __init__(self, endpoint_id: _Optional[str] = ..., path: _Optional[str] = ..., method: _Optional[str] = ..., domain: _Optional[str] = ..., message: _Optional[str] = ..., full_name: _Optional[str] = ...) -> None: ...
+
+class RestExceptionEndpoint(_message.Message):
+    __slots__ = ("endpoint_id", "path", "method", "domain", "reason", "has_payload_declarations")
+    ENDPOINT_ID_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    METHOD_FIELD_NUMBER: _ClassVar[int]
+    DOMAIN_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    HAS_PAYLOAD_DECLARATIONS_FIELD_NUMBER: _ClassVar[int]
+    endpoint_id: str
+    path: str
+    method: str
+    domain: str
+    reason: str
+    has_payload_declarations: bool
+    def __init__(self, endpoint_id: _Optional[str] = ..., path: _Optional[str] = ..., method: _Optional[str] = ..., domain: _Optional[str] = ..., reason: _Optional[str] = ..., has_payload_declarations: _Optional[bool] = ...) -> None: ...
+
+class RestExceptionPayloadRef(_message.Message):
+    __slots__ = ("endpoint_id", "path", "method", "domain", "reason", "role", "proto_full_name", "transport", "conformance", "proof_status")
+    ENDPOINT_ID_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    METHOD_FIELD_NUMBER: _ClassVar[int]
+    DOMAIN_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    ROLE_FIELD_NUMBER: _ClassVar[int]
+    PROTO_FULL_NAME_FIELD_NUMBER: _ClassVar[int]
+    TRANSPORT_FIELD_NUMBER: _ClassVar[int]
+    CONFORMANCE_FIELD_NUMBER: _ClassVar[int]
+    PROOF_STATUS_FIELD_NUMBER: _ClassVar[int]
+    endpoint_id: str
+    path: str
+    method: str
+    domain: str
+    reason: str
+    role: RestPayloadRole
+    proto_full_name: str
+    transport: str
+    conformance: str
+    proof_status: RestPayloadProofStatus
+    def __init__(self, endpoint_id: _Optional[str] = ..., path: _Optional[str] = ..., method: _Optional[str] = ..., domain: _Optional[str] = ..., reason: _Optional[str] = ..., role: _Optional[_Union[RestPayloadRole, str]] = ..., proto_full_name: _Optional[str] = ..., transport: _Optional[str] = ..., conformance: _Optional[str] = ..., proof_status: _Optional[_Union[RestPayloadProofStatus, str]] = ...) -> None: ...

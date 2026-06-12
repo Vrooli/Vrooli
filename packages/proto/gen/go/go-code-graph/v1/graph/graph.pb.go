@@ -27,7 +27,8 @@ const (
 // 100..199 range. Producers attach the typed kind via attributes["kind"] =
 // "<GoNodeKind>" on each CodeGraphNode whose primary NodeKind is FILE,
 // PACKAGE, or MODULE; the typed-kind enum lives here so consumers can
-// validate the value without parsing strings.
+// validate the value without parsing strings. Usage facts are generic Go
+// language facts, not endpoint/proto-health policy.
 type GoNodeKind int32
 
 const (
@@ -38,6 +39,10 @@ const (
 	GoNodeKind_GO_NODE_KIND_CONST       GoNodeKind = 103
 	GoNodeKind_GO_NODE_KIND_INTERFACE   GoNodeKind = 104
 	GoNodeKind_GO_NODE_KIND_METHOD      GoNodeKind = 105
+	GoNodeKind_GO_NODE_KIND_IMPORT_SPEC GoNodeKind = 106
+	GoNodeKind_GO_NODE_KIND_REFERENCE   GoNodeKind = 107
+	GoNodeKind_GO_NODE_KIND_CALL        GoNodeKind = 108
+	GoNodeKind_GO_NODE_KIND_TYPE_USAGE  GoNodeKind = 109
 )
 
 // Enum value maps for GoNodeKind.
@@ -50,6 +55,10 @@ var (
 		103: "GO_NODE_KIND_CONST",
 		104: "GO_NODE_KIND_INTERFACE",
 		105: "GO_NODE_KIND_METHOD",
+		106: "GO_NODE_KIND_IMPORT_SPEC",
+		107: "GO_NODE_KIND_REFERENCE",
+		108: "GO_NODE_KIND_CALL",
+		109: "GO_NODE_KIND_TYPE_USAGE",
 	}
 	GoNodeKind_value = map[string]int32{
 		"GO_NODE_KIND_UNSPECIFIED": 0,
@@ -59,6 +68,10 @@ var (
 		"GO_NODE_KIND_CONST":       103,
 		"GO_NODE_KIND_INTERFACE":   104,
 		"GO_NODE_KIND_METHOD":      105,
+		"GO_NODE_KIND_IMPORT_SPEC": 106,
+		"GO_NODE_KIND_REFERENCE":   107,
+		"GO_NODE_KIND_CALL":        108,
+		"GO_NODE_KIND_TYPE_USAGE":  109,
 	}
 )
 
@@ -91,9 +104,10 @@ func (GoNodeKind) EnumDescriptor() ([]byte, []int) {
 
 type ExtractRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Absolute or scenario-relative path to a Go module root. Must contain
-	// exactly one go.mod.
-	ScenarioPath string `protobuf:"bytes,1,opt,name=scenario_path,json=scenarioPath,proto3" json:"scenario_path,omitempty"`
+	// Absolute or repo-relative path to a Go module root. Must contain exactly
+	// one go.mod. Scenario API modules are supported by pointing at their module
+	// root, e.g. scenarios/<name>/api.
+	ModulePath string `protobuf:"bytes,1,opt,name=module_path,json=modulePath,proto3" json:"module_path,omitempty"`
 	// When false (default) the loader skips vendor/ directories and module
 	// cache paths. REQ-P1-003.
 	IncludeVendor bool `protobuf:"varint,2,opt,name=include_vendor,json=includeVendor,proto3" json:"include_vendor,omitempty"`
@@ -131,9 +145,9 @@ func (*ExtractRequest) Descriptor() ([]byte, []int) {
 	return file_go_code_graph_v1_graph_graph_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *ExtractRequest) GetScenarioPath() string {
+func (x *ExtractRequest) GetModulePath() string {
 	if x != nil {
-		return x.ScenarioPath
+		return x.ModulePath
 	}
 	return ""
 }
@@ -221,9 +235,11 @@ func (x *ExtractResponse) GetGraphHash() string {
 }
 
 type RewritePlanRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ScenarioPath  string                 `protobuf:"bytes,1,opt,name=scenario_path,json=scenarioPath,proto3" json:"scenario_path,omitempty"`
-	Operations    []*rewrite.Operation   `protobuf:"bytes,2,rep,name=operations,proto3" json:"operations,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Absolute or repo-relative path to the Go module root that owns the rewrite
+	// operation paths.
+	ModulePath    string               `protobuf:"bytes,1,opt,name=module_path,json=modulePath,proto3" json:"module_path,omitempty"`
+	Operations    []*rewrite.Operation `protobuf:"bytes,2,rep,name=operations,proto3" json:"operations,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -258,9 +274,9 @@ func (*RewritePlanRequest) Descriptor() ([]byte, []int) {
 	return file_go_code_graph_v1_graph_graph_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *RewritePlanRequest) GetScenarioPath() string {
+func (x *RewritePlanRequest) GetModulePath() string {
 	if x != nil {
-		return x.ScenarioPath
+		return x.ModulePath
 	}
 	return ""
 }
@@ -330,9 +346,11 @@ func (x *RewritePlanResponse) GetNormalizedOperations() []*rewrite.Operation {
 }
 
 type RewriteApplyRequest struct {
-	state        protoimpl.MessageState `protogen:"open.v1"`
-	ScenarioPath string                 `protobuf:"bytes,1,opt,name=scenario_path,json=scenarioPath,proto3" json:"scenario_path,omitempty"`
-	PlanId       string                 `protobuf:"bytes,2,opt,name=plan_id,json=planId,proto3" json:"plan_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Absolute or repo-relative path to the same Go module root used for the
+	// corresponding RewritePlan request.
+	ModulePath string `protobuf:"bytes,1,opt,name=module_path,json=modulePath,proto3" json:"module_path,omitempty"`
+	PlanId     string `protobuf:"bytes,2,opt,name=plan_id,json=planId,proto3" json:"plan_id,omitempty"`
 	// Must be true. False is rejected with InvalidArgument so dry-run callers
 	// never accidentally mutate the working tree.
 	Apply         bool `protobuf:"varint,3,opt,name=apply,proto3" json:"apply,omitempty"`
@@ -370,9 +388,9 @@ func (*RewriteApplyRequest) Descriptor() ([]byte, []int) {
 	return file_go_code_graph_v1_graph_graph_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *RewriteApplyRequest) GetScenarioPath() string {
+func (x *RewriteApplyRequest) GetModulePath() string {
 	if x != nil {
-		return x.ScenarioPath
+		return x.ModulePath
 	}
 	return ""
 }
@@ -726,26 +744,29 @@ var File_go_code_graph_v1_graph_graph_proto protoreflect.FileDescriptor
 
 const file_go_code_graph_v1_graph_graph_proto_rawDesc = "" +
 	"\n" +
-	"\"go-code-graph/v1/graph/graph.proto\x12\x1dvrooli.go_code_graph.v1.graph\x1a\x1acommon/v1/code_graph.proto\x1a&go-code-graph/v1/rewrite/rewrite.proto\"\\\n" +
-	"\x0eExtractRequest\x12#\n" +
-	"\rscenario_path\x18\x01 \x01(\tR\fscenarioPath\x12%\n" +
+	"\"go-code-graph/v1/graph/graph.proto\x12\x1dvrooli.go_code_graph.v1.graph\x1a\x1acommon/v1/code_graph.proto\x1a&go-code-graph/v1/rewrite/rewrite.proto\"X\n" +
+	"\x0eExtractRequest\x12\x1f\n" +
+	"\vmodule_path\x18\x01 \x01(\tR\n" +
+	"modulePath\x12%\n" +
 	"\x0einclude_vendor\x18\x02 \x01(\bR\rincludeVendor\"\xba\x01\n" +
 	"\x0fExtractResponse\x12*\n" +
 	"\x05graph\x18\x01 \x01(\v2\x14.common.v1.CodeGraphR\x05graph\x127\n" +
 	"\bwarnings\x18\x02 \x03(\v2\x1b.common.v1.CodeGraphWarningR\bwarnings\x12#\n" +
 	"\rextraction_ms\x18\x03 \x01(\x03R\fextractionMs\x12\x1d\n" +
 	"\n" +
-	"graph_hash\x18\x04 \x01(\tR\tgraphHash\"\x85\x01\n" +
-	"\x12RewritePlanRequest\x12#\n" +
-	"\rscenario_path\x18\x01 \x01(\tR\fscenarioPath\x12J\n" +
+	"graph_hash\x18\x04 \x01(\tR\tgraphHash\"\x81\x01\n" +
+	"\x12RewritePlanRequest\x12\x1f\n" +
+	"\vmodule_path\x18\x01 \x01(\tR\n" +
+	"modulePath\x12J\n" +
 	"\n" +
 	"operations\x18\x02 \x03(\v2*.vrooli.go_code_graph.v1.rewrite.OperationR\n" +
 	"operations\"\x8f\x01\n" +
 	"\x13RewritePlanResponse\x12\x17\n" +
 	"\aplan_id\x18\x01 \x01(\tR\x06planId\x12_\n" +
-	"\x15normalized_operations\x18\x02 \x03(\v2*.vrooli.go_code_graph.v1.rewrite.OperationR\x14normalizedOperations\"i\n" +
-	"\x13RewriteApplyRequest\x12#\n" +
-	"\rscenario_path\x18\x01 \x01(\tR\fscenarioPath\x12\x17\n" +
+	"\x15normalized_operations\x18\x02 \x03(\v2*.vrooli.go_code_graph.v1.rewrite.OperationR\x14normalizedOperations\"e\n" +
+	"\x13RewriteApplyRequest\x12\x1f\n" +
+	"\vmodule_path\x18\x01 \x01(\tR\n" +
+	"modulePath\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12\x14\n" +
 	"\x05apply\x18\x03 \x01(\bR\x05apply\"\x94\x01\n" +
 	"\x14RewriteApplyResponse\x12\x17\n" +
@@ -767,7 +788,7 @@ const file_go_code_graph_v1_graph_graph_proto_rawDesc = "" +
 	"\x0eexpected_bytes\x18\x03 \x01(\x03R\rexpectedBytes\x12!\n" +
 	"\factual_bytes\x18\x04 \x01(\x03R\vactualBytes\x12\x1d\n" +
 	"\n" +
-	"graph_hash\x18\x05 \x01(\tR\tgraphHash*\xbb\x01\n" +
+	"graph_hash\x18\x05 \x01(\tR\tgraphHash*\xa9\x02\n" +
 	"\n" +
 	"GoNodeKind\x12\x1c\n" +
 	"\x18GO_NODE_KIND_UNSPECIFIED\x10\x00\x12\x15\n" +
@@ -776,7 +797,11 @@ const file_go_code_graph_v1_graph_graph_proto_rawDesc = "" +
 	"\x10GO_NODE_KIND_VAR\x10f\x12\x16\n" +
 	"\x12GO_NODE_KIND_CONST\x10g\x12\x1a\n" +
 	"\x16GO_NODE_KIND_INTERFACE\x10h\x12\x17\n" +
-	"\x13GO_NODE_KIND_METHOD\x10i2\xf3\x04\n" +
+	"\x13GO_NODE_KIND_METHOD\x10i\x12\x1c\n" +
+	"\x18GO_NODE_KIND_IMPORT_SPEC\x10j\x12\x1a\n" +
+	"\x16GO_NODE_KIND_REFERENCE\x10k\x12\x15\n" +
+	"\x11GO_NODE_KIND_CALL\x10l\x12\x1b\n" +
+	"\x17GO_NODE_KIND_TYPE_USAGE\x10m2\xf3\x04\n" +
 	"\x12GoCodeGraphService\x12j\n" +
 	"\aExtract\x12-.vrooli.go_code_graph.v1.graph.ExtractRequest\x1a..vrooli.go_code_graph.v1.graph.ExtractResponse\"\x00\x12v\n" +
 	"\vRewritePlan\x121.vrooli.go_code_graph.v1.graph.RewritePlanRequest\x1a2.vrooli.go_code_graph.v1.graph.RewritePlanResponse\"\x00\x12y\n" +

@@ -52,6 +52,53 @@ and mirrors `api-core/health.Response` field-for-field.
 
 ---
 
+## Graph
+
+### `POST /vrooli.typescript_code_graph.v1.graph.TypeScriptCodeGraphService/Extract`
+
+Extract a deterministic TypeScript graph through the generated Connect-RPC service.
+
+| | |
+|---|---|
+| **Auth** | None |
+| **Request** | `ExtractRequest { project_path: string }` where `project_path` is an absolute TS project root or explicit `tsconfig.json` path |
+| **Response** | `ExtractResponse { graph, warnings[], extraction_ms, graph_hash, sidecar_request_id }` |
+| **Errors** | `invalid_argument` — missing/non-absolute project path, no tsconfig, multiple tsconfigs<br>`not_found` — unreadable project path<br>`unimplemented` — workspace root unsupported<br>`unavailable` — sidecar unavailable<br>`deadline_exceeded` — sidecar timeout |
+| **CLI** | `typescript-code-graph graph extract <path>` |
+
+```bash
+typescript-code-graph graph extract /repo/scenarios/example/ui --json
+typescript-code-graph graph extract /repo/scenarios/example/ui/tsconfig.json --json
+```
+
+## Rewrite
+
+### `POST /vrooli.typescript_code_graph.v1.graph.TypeScriptCodeGraphService/RewritePlan`
+
+Validate and normalize file-move/import-rewrite operations without changing the filesystem.
+
+| | |
+|---|---|
+| **Auth** | None |
+| **Request** | `RewritePlanRequest { project_path: string, operations: Operation[] }` |
+| **Response** | `RewritePlanResponse { plan_id, normalized_operations[] }` |
+| **Errors** | `invalid_argument` — missing project path, empty operations, invalid path, or invalid oneof |
+| **CLI** | `typescript-code-graph rewrite plan <ops.json> --project-path <path>` |
+
+### `POST /vrooli.typescript_code_graph.v1.graph.TypeScriptCodeGraphService/RewriteApply`
+
+Apply a previously planned rewrite. `apply=true` is required; dry-run callers use the `X-Dry-Run: true` header.
+
+| | |
+|---|---|
+| **Auth** | None |
+| **Request** | `RewriteApplyRequest { project_path: string, plan_id: string, apply: true }` |
+| **Response** | `RewriteApplyResponse { plan_id, results[], dry_run }` |
+| **Errors** | `invalid_argument` — missing project path / plan id, or `apply=false`<br>`failed_precondition` — plan id not found for this project path<br>`unavailable` — sidecar unavailable |
+| **CLI** | `typescript-code-graph rewrite apply <plan-id> --project-path <path>` |
+
+---
+
 ## Notes (CRUD reference)
 
 The `notes` domain is the canonical worked example. Copy its layering

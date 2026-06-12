@@ -12,6 +12,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/proto-health
 // =============================================================================
 //
 // @stability stable
+// @template react-vite/example
 //
 // Wire contract for the NotesService Connect-RPC service. Ships as the
 // canonical CRUD reference: every layer downstream of this proto (handler,

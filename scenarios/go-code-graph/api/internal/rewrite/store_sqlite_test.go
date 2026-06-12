@@ -32,8 +32,8 @@ func TestSQLiteStore_RoundTrip(t *testing.T) {
 	ctx := context.Background()
 
 	plan := intrewrite.Plan{
-		ID:           "abc",
-		ScenarioPath: "/tmp/x",
+		ID:         "abc",
+		ModulePath: "/tmp/x",
 		Operations: []intrewrite.Operation{
 			intrewrite.FileMove{From: "old/a.go", To: "new/a.go"},
 			intrewrite.ImportRewrite{Old: "example.com/x", New: "example.com/y"},
@@ -44,7 +44,7 @@ func TestSQLiteStore_RoundTrip(t *testing.T) {
 	got, err := s.Load(ctx, "abc")
 	require.NoError(t, err)
 	require.Equal(t, plan.ID, got.ID)
-	require.Equal(t, plan.ScenarioPath, got.ScenarioPath)
+	require.Equal(t, plan.ModulePath, got.ModulePath)
 	require.Len(t, got.Operations, 2)
 
 	fm, ok := got.Operations[0].(intrewrite.FileMove)
@@ -75,9 +75,9 @@ func TestSQLiteStore_SaveIsIdempotent(t *testing.T) {
 	s := newSchemaDB(t)
 	ctx := context.Background()
 	plan := intrewrite.Plan{
-		ID:           "same",
-		ScenarioPath: "/tmp/x",
-		Operations:   []intrewrite.Operation{intrewrite.FileMove{From: "a.go", To: "b.go"}},
+		ID:         "same",
+		ModulePath: "/tmp/x",
+		Operations: []intrewrite.Operation{intrewrite.FileMove{From: "a.go", To: "b.go"}},
 	}
 	require.NoError(t, s.Save(ctx, plan))
 	require.NoError(t, s.Save(ctx, plan))

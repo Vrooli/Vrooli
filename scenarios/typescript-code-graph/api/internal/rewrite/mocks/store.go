@@ -19,15 +19,15 @@ type FakePlanStore struct {
 	mu     sync.Mutex
 	plans  map[fakeKey]rewrite.Plan
 	SaveFn func(plan rewrite.Plan) error
-	GetFn  func(scenarioPath string, id rewrite.PlanID) (rewrite.Plan, error)
+	GetFn  func(projectPath string, id rewrite.PlanID) (rewrite.Plan, error)
 
 	SaveCalls int
 	GetCalls  int
 }
 
 type fakeKey struct {
-	scenarioPath string
-	id           rewrite.PlanID
+	projectPath string
+	id          rewrite.PlanID
 }
 
 // NewFakePlanStore returns a ready-to-use fake.
@@ -47,23 +47,23 @@ func (f *FakePlanStore) Save(plan rewrite.Plan) error {
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.plans[fakeKey{scenarioPath: plan.ScenarioPath, id: plan.ID}] = plan
+	f.plans[fakeKey{projectPath: plan.ProjectPath, id: plan.ID}] = plan
 	return nil
 }
 
 // Get records the call and dispatches to GetFn if set; otherwise
 // returns from the in-memory map (or ErrPlanNotFound).
-func (f *FakePlanStore) Get(scenarioPath string, id rewrite.PlanID) (rewrite.Plan, error) {
+func (f *FakePlanStore) Get(projectPath string, id rewrite.PlanID) (rewrite.Plan, error) {
 	f.mu.Lock()
 	f.GetCalls++
 	fn := f.GetFn
 	f.mu.Unlock()
 	if fn != nil {
-		return fn(scenarioPath, id)
+		return fn(projectPath, id)
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	p, ok := f.plans[fakeKey{scenarioPath: scenarioPath, id: id}]
+	p, ok := f.plans[fakeKey{projectPath: projectPath, id: id}]
 	if !ok {
 		return rewrite.Plan{}, rewrite.ErrPlanNotFound
 	}

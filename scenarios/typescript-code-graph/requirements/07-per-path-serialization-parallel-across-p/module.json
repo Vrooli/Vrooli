@@ -1,5 +1,5 @@
 {
-  "description": "Two concurrent `Extract` calls for the same `scenario_path` serialize through an in-process queue (additionally enforced at the Node sidecar layer because `ts-morph` Project state is not safe to share across parallel invocations). Calls for different paths run in parallel.",
+  "description": "Two concurrent `Extract` calls for the same `project_path` serialize through an in-process queue (additionally enforced at the Node sidecar layer because `ts-morph` Project state is not safe to share across parallel invocations). Calls for different paths run in parallel.",
   "module_id": "MOD-P0-007",
   "prd_ref": "OT-P0-007",
   "priority": "P0",
@@ -10,7 +10,7 @@
         "REQ-P0-001",
         "REQ-P0-009"
       ],
-      "description": "Concurrent Extract calls targeting the same scenario_path must serialize through an in-process mutex/queue on the Go API layer, preventing concurrent ts-morph Project state access for the same project. Concurrent Extract calls targeting different scenario_paths must execute in parallel without artificial serialization. The per-path serialization must be implemented at both the Go API layer (mutex keyed by canonical path) and enforced within the Node sidecar (ts-morph Project state is not thread-safe). The queuing mechanism must not deadlock, must not leak goroutines, and must respect context cancellation.",
+      "description": "Concurrent Extract calls targeting the same project_path must serialize through an in-process mutex/queue on the Go API layer, preventing concurrent ts-morph Project state access for the same project. Concurrent Extract calls targeting different project_paths must execute in parallel without artificial serialization. The per-path serialization must be implemented at both the Go API layer (mutex keyed by canonical path) and enforced within the Node sidecar (ts-morph Project state is not thread-safe). The queuing mechanism must not deadlock, must not leak goroutines, and must respect context cancellation.",
       "id": "REQ-P0-007",
       "prd_ref": "OT-P0-007",
       "status": "draft",

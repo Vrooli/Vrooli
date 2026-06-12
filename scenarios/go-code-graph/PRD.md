@@ -2,7 +2,7 @@
 
 ## 🎯 Overview
 
-Purpose: Go Code Graph extracts a deterministic, reproducible graph of files, packages, top-level declarations, and import edges from any Go module and executes mechanical Go refactors (file moves and import rewrites) on behalf of consumer scenarios. It wraps `golang.org/x/tools/go/packages` so that no other Vrooli scenario has to parse Go source itself.
+Purpose: Go Code Graph extracts a deterministic, reproducible graph of files, packages, declarations, import edges, and generic Go usage facts from any Go module and executes mechanical Go refactors (file moves and import rewrites) on behalf of consumer scenarios. It wraps `golang.org/x/tools/go/packages` so that no other Vrooli scenario has to parse Go source itself.
 
 Target users: Vrooli scenario maintainers and migration agents working through architecture-cartographer; future Go-static-analysis scenarios that need a typed graph instead of grep-based heuristics; template authors evaluating screaming-architecture compliance for Go scenarios.
 
@@ -16,15 +16,15 @@ Operational targets are measurable outcomes; checkboxes may auto-update based on
 
 ### 🔴 P0 – Must ship for viability
 
-- [ ] OT-P0-001 | Deterministic Graph Extraction | Implement `Extract(ExtractRequest{scenario_path}) → Graph` against `golang.org/x/tools/go/packages` using a fixed load mode that returns files, packages, top-level declarations (types, funcs, vars, consts, interfaces, methods), and import edges plus intra-package symbol references; byte-stable serialization for identical inputs.
+- [ ] OT-P0-001 | Deterministic Graph Extraction | Implement `Extract(ExtractRequest{module_path}) → Graph` against `golang.org/x/tools/go/packages` using a fixed load mode that returns files, packages, top-level declarations (types, funcs, vars, consts, interfaces, methods), import specs, symbol references, call expressions, type usages, and import edges; byte-stable serialization for identical inputs.
 - [ ] OT-P0-002 | Shared Code-Graph Proto Envelope | Define `packages/proto/schemas/common/v1/code_graph.proto` with a language-agnostic Graph envelope plus extensible `NodeKind` / `EdgeKind` enums, and reference it from both `go-code-graph` and (later) `typescript-code-graph`; never duplicate the envelope.
 - [ ] OT-P0-003 | Two-Step Rewrite (Plan + Apply) | Implement `Rewrite(plan_id?, operations: []FileMove|ImportRewrite) → RewriteResponse`. First call returns a `plan_id` plus a normalized operation log and no disk change. A second call with the `plan_id` and explicit `--apply` flag mutates the filesystem. The scenario never invokes git and never invokes `go build`.
 - [ ] OT-P0-004 | Single-Module Project Resolution | `Extract` and `Rewrite` operate on exactly one `go.mod` per call. Reject ambiguous inputs (no `go.mod` discoverable, multiple `go.mod` files, or `go.work` workspace) with a typed error explaining which file to point at.
 - [ ] OT-P0-005 | Partial Graph + Structured Warnings | When source files fail to parse or imports are unresolvable, return a partial graph plus a `Warnings[]` list of `{file, kind, message}` entries. Hard fail only on catastrophic project errors (missing `go.mod`, unreadable path). Mid-migration scenarios are first-class inputs.
-- [ ] OT-P0-006 | Per-Path Serialization, Parallel Across Paths | Two concurrent `Extract` calls for the same `scenario_path` serialize through an in-process queue. Calls for different paths run in parallel. The same rule applies to `Rewrite` apply operations on the same path.
+- [ ] OT-P0-006 | Per-Path Serialization, Parallel Across Paths | Two concurrent `Extract` calls for the same `module_path` serialize through an in-process queue. Calls for different paths run in parallel. The same rule applies to `Rewrite` apply operations on the same path.
 - [ ] OT-P0-007 | Connect-RPC + CLI + UI Parity | Every capability is exposed through proto + Connect-RPC. The CLI (`go-code-graph extract`, `go-code-graph rewrite plan`, `go-code-graph rewrite apply`) is a translation layer over Connect clients; the UI is the same. No REST/JSON workarounds.
 - [ ] OT-P0-008 | Golden-Fixture Determinism Gate | Ship at minimum two fixture Go modules under `bas/fixtures/` (`go-cycles/` and `go-mislocated/`) each with hand-curated `expected-graph.json`. CI fails if any fixture's extracted graph diverges byte-for-byte from the expected file. This is the trust anchor for every consumer.
-- [ ] OT-P0-009 | Graph Explorer + Diagnostics UI | Ship a UI surface that lets an operator paste a scenario path, see the extracted nodes/edges/warnings, view server health, and inspect recent extraction calls. The graph explorer is the human debug path when an automated consumer reports unexpected results.
+- [ ] OT-P0-009 | Graph Explorer + Diagnostics UI | Ship a UI surface that lets an operator paste a module path, see the extracted nodes/edges/warnings, view server health, and inspect recent extraction calls. The graph explorer is the human debug path when an automated consumer reports unexpected results.
 - [ ] OT-P0-010 | Performance SLA | Extraction completes in <5 seconds for any scenario with ≤200 files and <30 seconds for any scenario with ≤2000 files, measured end-to-end including Connect-RPC transport. Performance regression tests live in CI.
 
 ### 🟠 P1 – Should have post-launch
@@ -37,10 +37,10 @@ Operational targets are measurable outcomes; checkboxes may auto-update based on
 
 ### 🟢 P2 – Future / expansion
 
-- [ ] OT-P2-001 | FindReferences RPC | `FindReferences(symbol_id) → []Reference` — LSP-style symbol reference search across the loaded module.
+- [ ] OT-P2-001 | FindReferences RPC | `FindReferences(symbol_id) → []Reference` — LSP-style query API over the reference facts emitted by `Extract`.
 - [ ] OT-P2-002 | DiffGraphs RPC | `DiffGraphs(graph_a, graph_b) → GraphDiff` — structured comparison for migration before/after verification.
 - [ ] OT-P2-003 | PublicAPI RPC | `PublicAPI(module) → APIDigest` — exported declarations only, suitable for breaking-change detection between commits.
-- [ ] OT-P2-004 | ParseDiagnostics RPC | `ParseDiagnostics(scenario_path) → []Diagnostic` — structured Go compiler errors and warnings as first-class data.
+- [ ] OT-P2-004 | ParseDiagnostics RPC | `ParseDiagnostics(module_path) → []Diagnostic` — structured Go compiler errors and warnings as first-class data.
 - [ ] OT-P2-005 | Workspace (go.work) Support | Optional second mode that follows a `go.work` file and returns a multi-module graph. Out of v1 because Vrooli scenarios are single-module by convention.
 
 ## 🧱 Tech Direction Snapshot
@@ -51,11 +51,11 @@ Parser dependency: `golang.org/x/tools/go/packages` with load mode `NeedFiles | 
 
 Storage: SQLite for the optional Operation Log audit trail (P1). Nothing else is persisted. v1 ships without any cache layer — `Extract` re-parses on every call. Consumers (cartographer) cache snapshots at their own layer.
 
-Concurrency model: per-path serialization, parallel across paths. An in-process mutex keyed by absolute `scenario_path` serializes `Extract` calls for the same path; different paths run in parallel goroutines. Apply operations on the same path serialize through the same lock.
+Concurrency model: per-path serialization, parallel across paths. An in-process mutex keyed by absolute `module_path` serializes `Extract` calls for the same path; different paths run in parallel goroutines. Apply operations on the same path serialize through the same lock.
 
 Integration strategy: consumers shell out to the Go CLI for one-off interactive use, but production callers (cartographer, react-component-library, future siblings) hold a long-lived Connect-RPC client against the running scenario. No HTTP routing, no REST endpoints, no per-call process spawn for the typical path.
 
-Non-goals: No source-code parsing outside `golang.org/x/tools/go/packages`. No git operations of any kind — never `git mv`, `git commit`, `git status`, or `git diff`. No build invocation — never `go build` or `go test`. No automatic rollback on partial Rewrite failure; the operator owns rollback via git. No internal extraction cache in v1. No call-site granularity in v1 (top-level declarations + intra-package references only). No support for parsing non-Go languages — that belongs in sibling scenarios.
+Non-goals: No source-code parsing outside `golang.org/x/tools/go/packages`. No git operations of any kind — never `git mv`, `git commit`, `git status`, or `git diff`. No build invocation — never `go build` or `go test`. No automatic rollback on partial Rewrite failure; the operator owns rollback via git. No internal extraction cache in v1. No endpoint, proto-health, or Vrooli-surface policy in graph facts; consumers interpret generic imports, references, calls, and type usages at their own layer. No support for parsing non-Go languages — that belongs in sibling scenarios.
 
 ## 🤝 Dependencies & Launch Plan
 

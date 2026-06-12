@@ -8,9 +8,8 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_I
 // HEALTH DOMAIN
 // =============================================================================
 //
-// @layer 5  (api surface)
-// @domain health
 // @stability stable
+// @template react-vite/example
 //
 // Wire contract for the API's /health and /api/v1/health endpoints. Health is
 // an operational REST exception: it is intentionally fetchable by load

@@ -12,7 +12,7 @@ import (
 const DefaultPathMutexCapacity = 10_000
 
 // PathMutex is a registry of per-absolute-path locks. It implements
-// OT-P0-006: two concurrent operations targeting the same scenario_path
+// OT-P0-006: two concurrent operations targeting the same module_path
 // serialize; two targeting different paths run in parallel.
 //
 // The registry is bounded: idle entries are tracked in an LRU list and

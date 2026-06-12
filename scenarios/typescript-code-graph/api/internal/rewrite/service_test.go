@@ -24,7 +24,7 @@ func newSvc(t *testing.T, fake *sidecarmocks.FakeSidecarClient) (*rewrite.Servic
 func TestServicePlan_HappyPath(t *testing.T) {
 	svc, store := newSvc(t, nil)
 	out, err := svc.Plan(context.Background(), rewrite.PlanInput{
-		ScenarioPath: "/abs/proj",
+		ProjectPath: "/abs/proj",
 		Operations: []rewrite.Operation{
 			{FileMove: &rewrite.FileMove{FromPath: "./src/a.ts", ToPath: "src/b.ts"}},
 		},
@@ -40,11 +40,11 @@ func TestServicePlan_HappyPath(t *testing.T) {
 	}
 }
 
-func TestServicePlan_RejectsRelativeScenarioPath(t *testing.T) {
+func TestServicePlan_RejectsRelativeProjectPath(t *testing.T) {
 	svc, _ := newSvc(t, nil)
 	_, err := svc.Plan(context.Background(), rewrite.PlanInput{
-		ScenarioPath: "relative/path",
-		Operations:   []rewrite.Operation{{FileMove: &rewrite.FileMove{FromPath: "a", ToPath: "b"}}},
+		ProjectPath: "relative/path",
+		Operations:  []rewrite.Operation{{FileMove: &rewrite.FileMove{FromPath: "a", ToPath: "b"}}},
 	})
 	var re rewrite.RewriteError
 	if !errors.As(err, &re) || re.Kind != rewrite.RewriteErrorInvalidInput {
@@ -54,7 +54,7 @@ func TestServicePlan_RejectsRelativeScenarioPath(t *testing.T) {
 
 func TestServicePlan_RejectsEmptyOps(t *testing.T) {
 	svc, _ := newSvc(t, nil)
-	_, err := svc.Plan(context.Background(), rewrite.PlanInput{ScenarioPath: "/abs/p", Operations: nil})
+	_, err := svc.Plan(context.Background(), rewrite.PlanInput{ProjectPath: "/abs/p", Operations: nil})
 	var re rewrite.RewriteError
 	if !errors.As(err, &re) || re.Kind != rewrite.RewriteErrorInvalidInput {
 		t.Errorf("want RewriteErrorInvalidInput, got %v", err)
@@ -80,13 +80,13 @@ func TestServiceApply_RejectsNonCanonicalStatus(t *testing.T) {
 		}
 		svc, _ := newSvc(t, fake)
 		planOut, err := svc.Plan(context.Background(), rewrite.PlanInput{
-			ScenarioPath: "/abs/proj",
-			Operations:   []rewrite.Operation{{FileMove: &rewrite.FileMove{FromPath: "a.ts", ToPath: "b.ts"}}},
+			ProjectPath: "/abs/proj",
+			Operations:  []rewrite.Operation{{FileMove: &rewrite.FileMove{FromPath: "a.ts", ToPath: "b.ts"}}},
 		})
 		if err != nil {
 			t.Fatalf("Plan: %v", err)
 		}
-		out, err := svc.Apply(context.Background(), rewrite.ApplyInput{ScenarioPath: "/abs/proj", PlanID: planOut.PlanID})
+		out, err := svc.Apply(context.Background(), rewrite.ApplyInput{ProjectPath: "/abs/proj", PlanID: planOut.PlanID})
 		if err != nil {
 			t.Fatalf("Apply: %v", err)
 		}
@@ -109,7 +109,7 @@ func TestServiceApply_HappyPath(t *testing.T) {
 	}
 	svc, _ := newSvc(t, fake)
 	planOut, err := svc.Plan(context.Background(), rewrite.PlanInput{
-		ScenarioPath: "/abs/proj",
+		ProjectPath: "/abs/proj",
 		Operations: []rewrite.Operation{
 			{FileMove: &rewrite.FileMove{FromPath: "a.ts", ToPath: "b.ts"}},
 		},
@@ -119,8 +119,8 @@ func TestServiceApply_HappyPath(t *testing.T) {
 	}
 
 	out, err := svc.Apply(context.Background(), rewrite.ApplyInput{
-		ScenarioPath: "/abs/proj",
-		PlanID:       planOut.PlanID,
+		ProjectPath: "/abs/proj",
+		PlanID:      planOut.PlanID,
 	})
 	if err != nil {
 		t.Fatalf("Apply: %v", err)
@@ -139,8 +139,8 @@ func TestServiceApply_HappyPath(t *testing.T) {
 func TestServiceApply_PlanNotFound(t *testing.T) {
 	svc, _ := newSvc(t, nil)
 	_, err := svc.Apply(context.Background(), rewrite.ApplyInput{
-		ScenarioPath: "/abs/proj",
-		PlanID:       "no-such-plan",
+		ProjectPath: "/abs/proj",
+		PlanID:      "no-such-plan",
 	})
 	var re rewrite.RewriteError
 	if !errors.As(err, &re) || re.Kind != rewrite.RewriteErrorPlanNotFound {
@@ -148,21 +148,21 @@ func TestServiceApply_PlanNotFound(t *testing.T) {
 	}
 }
 
-func TestServiceApply_PlanScenarioMismatch(t *testing.T) {
+func TestServiceApply_PlanProjectMismatch(t *testing.T) {
 	svc, _ := newSvc(t, nil)
 	planOut, err := svc.Plan(context.Background(), rewrite.PlanInput{
-		ScenarioPath: "/abs/one",
-		Operations:   []rewrite.Operation{{FileMove: &rewrite.FileMove{FromPath: "a", ToPath: "b"}}},
+		ProjectPath: "/abs/one",
+		Operations:  []rewrite.Operation{{FileMove: &rewrite.FileMove{FromPath: "a", ToPath: "b"}}},
 	})
 	if err != nil {
 		t.Fatalf("Plan: %v", err)
 	}
-	// Try to apply against a different scenario_path — must surface
-	// as PlanNotFound (the (scenario_path, plan_id) composite is the
+	// Try to apply against a different project_path — must surface
+	// as PlanNotFound (the (project_path, plan_id) composite is the
 	// store's lookup key).
 	_, err = svc.Apply(context.Background(), rewrite.ApplyInput{
-		ScenarioPath: "/abs/two",
-		PlanID:       planOut.PlanID,
+		ProjectPath: "/abs/two",
+		PlanID:      planOut.PlanID,
 	})
 	var re rewrite.RewriteError
 	if !errors.As(err, &re) || re.Kind != rewrite.RewriteErrorPlanNotFound {
@@ -176,15 +176,15 @@ func TestServiceApply_SidecarUnavailable(t *testing.T) {
 	// Even an unhealthy sidecar accepts plan(), since plan never talks
 	// to the sidecar.
 	planOut, err := svc.Plan(context.Background(), rewrite.PlanInput{
-		ScenarioPath: "/abs/proj",
-		Operations:   []rewrite.Operation{{FileMove: &rewrite.FileMove{FromPath: "a", ToPath: "b"}}},
+		ProjectPath: "/abs/proj",
+		Operations:  []rewrite.Operation{{FileMove: &rewrite.FileMove{FromPath: "a", ToPath: "b"}}},
 	})
 	if err != nil {
 		t.Fatalf("Plan: %v", err)
 	}
 	_, err = svc.Apply(context.Background(), rewrite.ApplyInput{
-		ScenarioPath: "/abs/proj",
-		PlanID:       planOut.PlanID,
+		ProjectPath: "/abs/proj",
+		PlanID:      planOut.PlanID,
 	})
 	var re rewrite.RewriteError
 	if !errors.As(err, &re) || re.Kind != rewrite.RewriteErrorSidecarUnavailable {

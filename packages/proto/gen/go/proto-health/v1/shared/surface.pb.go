@@ -21,6 +21,159 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// ImportKind classifies an import edge from the scenario's point of view.
+type ImportKind int32
+
+const (
+	ImportKind_IMPORT_KIND_UNSPECIFIED    ImportKind = 0
+	ImportKind_IMPORT_KIND_SCENARIO_LOCAL ImportKind = 1
+	ImportKind_IMPORT_KIND_CROSS_SCENARIO ImportKind = 2
+	ImportKind_IMPORT_KIND_EXTERNAL       ImportKind = 3
+)
+
+// Enum value maps for ImportKind.
+var (
+	ImportKind_name = map[int32]string{
+		0: "IMPORT_KIND_UNSPECIFIED",
+		1: "IMPORT_KIND_SCENARIO_LOCAL",
+		2: "IMPORT_KIND_CROSS_SCENARIO",
+		3: "IMPORT_KIND_EXTERNAL",
+	}
+	ImportKind_value = map[string]int32{
+		"IMPORT_KIND_UNSPECIFIED":    0,
+		"IMPORT_KIND_SCENARIO_LOCAL": 1,
+		"IMPORT_KIND_CROSS_SCENARIO": 2,
+		"IMPORT_KIND_EXTERNAL":       3,
+	}
+)
+
+func (x ImportKind) Enum() *ImportKind {
+	p := new(ImportKind)
+	*p = x
+	return p
+}
+
+func (x ImportKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ImportKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_health_v1_shared_surface_proto_enumTypes[0].Descriptor()
+}
+
+func (ImportKind) Type() protoreflect.EnumType {
+	return &file_proto_health_v1_shared_surface_proto_enumTypes[0]
+}
+
+func (x ImportKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ImportKind.Descriptor instead.
+func (ImportKind) EnumDescriptor() ([]byte, []int) {
+	return file_proto_health_v1_shared_surface_proto_rawDescGZIP(), []int{0}
+}
+
+// RestPayloadRole identifies which REST payload role a declaration describes.
+type RestPayloadRole int32
+
+const (
+	RestPayloadRole_REST_PAYLOAD_ROLE_UNSPECIFIED RestPayloadRole = 0
+	RestPayloadRole_REST_PAYLOAD_ROLE_REQUEST     RestPayloadRole = 1
+	RestPayloadRole_REST_PAYLOAD_ROLE_RESPONSE    RestPayloadRole = 2
+	RestPayloadRole_REST_PAYLOAD_ROLE_ERROR       RestPayloadRole = 3
+)
+
+// Enum value maps for RestPayloadRole.
+var (
+	RestPayloadRole_name = map[int32]string{
+		0: "REST_PAYLOAD_ROLE_UNSPECIFIED",
+		1: "REST_PAYLOAD_ROLE_REQUEST",
+		2: "REST_PAYLOAD_ROLE_RESPONSE",
+		3: "REST_PAYLOAD_ROLE_ERROR",
+	}
+	RestPayloadRole_value = map[string]int32{
+		"REST_PAYLOAD_ROLE_UNSPECIFIED": 0,
+		"REST_PAYLOAD_ROLE_REQUEST":     1,
+		"REST_PAYLOAD_ROLE_RESPONSE":    2,
+		"REST_PAYLOAD_ROLE_ERROR":       3,
+	}
+)
+
+func (x RestPayloadRole) Enum() *RestPayloadRole {
+	p := new(RestPayloadRole)
+	*p = x
+	return p
+}
+
+func (x RestPayloadRole) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (RestPayloadRole) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_health_v1_shared_surface_proto_enumTypes[1].Descriptor()
+}
+
+func (RestPayloadRole) Type() protoreflect.EnumType {
+	return &file_proto_health_v1_shared_surface_proto_enumTypes[1]
+}
+
+func (x RestPayloadRole) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use RestPayloadRole.Descriptor instead.
+func (RestPayloadRole) EnumDescriptor() ([]byte, []int) {
+	return file_proto_health_v1_shared_surface_proto_rawDescGZIP(), []int{1}
+}
+
+// RestPayloadProofStatus states whether implementation conformance was proven.
+type RestPayloadProofStatus int32
+
+const (
+	RestPayloadProofStatus_REST_PAYLOAD_PROOF_STATUS_UNSPECIFIED   RestPayloadProofStatus = 0
+	RestPayloadProofStatus_REST_PAYLOAD_PROOF_STATUS_NOT_EVALUATED RestPayloadProofStatus = 1
+)
+
+// Enum value maps for RestPayloadProofStatus.
+var (
+	RestPayloadProofStatus_name = map[int32]string{
+		0: "REST_PAYLOAD_PROOF_STATUS_UNSPECIFIED",
+		1: "REST_PAYLOAD_PROOF_STATUS_NOT_EVALUATED",
+	}
+	RestPayloadProofStatus_value = map[string]int32{
+		"REST_PAYLOAD_PROOF_STATUS_UNSPECIFIED":   0,
+		"REST_PAYLOAD_PROOF_STATUS_NOT_EVALUATED": 1,
+	}
+)
+
+func (x RestPayloadProofStatus) Enum() *RestPayloadProofStatus {
+	p := new(RestPayloadProofStatus)
+	*p = x
+	return p
+}
+
+func (x RestPayloadProofStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (RestPayloadProofStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_health_v1_shared_surface_proto_enumTypes[2].Descriptor()
+}
+
+func (RestPayloadProofStatus) Type() protoreflect.EnumType {
+	return &file_proto_health_v1_shared_surface_proto_enumTypes[2]
+}
+
+func (x RestPayloadProofStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use RestPayloadProofStatus.Descriptor instead.
+func (RestPayloadProofStatus) EnumDescriptor() ([]byte, []int) {
+	return file_proto_health_v1_shared_surface_proto_rawDescGZIP(), []int{2}
+}
+
 // TransportWorld summarizes how the scenario exposes proto-owned methods.
 type TransportWorld int32
 
@@ -61,11 +214,11 @@ func (x TransportWorld) String() string {
 }
 
 func (TransportWorld) Descriptor() protoreflect.EnumDescriptor {
-	return file_proto_health_v1_shared_surface_proto_enumTypes[0].Descriptor()
+	return file_proto_health_v1_shared_surface_proto_enumTypes[3].Descriptor()
 }
 
 func (TransportWorld) Type() protoreflect.EnumType {
-	return &file_proto_health_v1_shared_surface_proto_enumTypes[0]
+	return &file_proto_health_v1_shared_surface_proto_enumTypes[3]
 }
 
 func (x TransportWorld) Number() protoreflect.EnumNumber {
@@ -74,7 +227,7 @@ func (x TransportWorld) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use TransportWorld.Descriptor instead.
 func (TransportWorld) EnumDescriptor() ([]byte, []int) {
-	return file_proto_health_v1_shared_surface_proto_rawDescGZIP(), []int{0}
+	return file_proto_health_v1_shared_surface_proto_rawDescGZIP(), []int{3}
 }
 
 // TransportKind describes one RPC's discovered transport.
@@ -117,11 +270,11 @@ func (x TransportKind) String() string {
 }
 
 func (TransportKind) Descriptor() protoreflect.EnumDescriptor {
-	return file_proto_health_v1_shared_surface_proto_enumTypes[1].Descriptor()
+	return file_proto_health_v1_shared_surface_proto_enumTypes[4].Descriptor()
 }
 
 func (TransportKind) Type() protoreflect.EnumType {
-	return &file_proto_health_v1_shared_surface_proto_enumTypes[1]
+	return &file_proto_health_v1_shared_surface_proto_enumTypes[4]
 }
 
 func (x TransportKind) Number() protoreflect.EnumNumber {
@@ -130,22 +283,24 @@ func (x TransportKind) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use TransportKind.Descriptor instead.
 func (TransportKind) EnumDescriptor() ([]byte, []int) {
-	return file_proto_health_v1_shared_surface_proto_rawDescGZIP(), []int{1}
+	return file_proto_health_v1_shared_surface_proto_rawDescGZIP(), []int{4}
 }
 
 // ProtoSurface is the per-scenario inventory emitted by proto-health.
 type ProtoSurface struct {
-	state                protoimpl.MessageState `protogen:"open.v1"`
-	Scenario             string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	Files                []*ProtoFile           `protobuf:"bytes,2,rep,name=files,proto3" json:"files,omitempty"`
-	Services             []*ProtoService        `protobuf:"bytes,3,rep,name=services,proto3" json:"services,omitempty"`
-	Messages             []*ProtoMessage        `protobuf:"bytes,4,rep,name=messages,proto3" json:"messages,omitempty"`
-	IntraScenarioImports []*ProtoImport         `protobuf:"bytes,5,rep,name=intra_scenario_imports,json=intraScenarioImports,proto3" json:"intra_scenario_imports,omitempty"`
-	CrossScenarioImports []*ProtoImport         `protobuf:"bytes,6,rep,name=cross_scenario_imports,json=crossScenarioImports,proto3" json:"cross_scenario_imports,omitempty"`
-	AdoptionSignals      []*AdoptionSignal      `protobuf:"bytes,7,rep,name=adoption_signals,json=adoptionSignals,proto3" json:"adoption_signals,omitempty"`
-	TransportWorld       TransportWorld         `protobuf:"varint,8,opt,name=transport_world,json=transportWorld,proto3,enum=vrooli.proto_health.v1.shared.TransportWorld" json:"transport_world,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	state                 protoimpl.MessageState     `protogen:"open.v1"`
+	Scenario              string                     `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Files                 []*ProtoFile               `protobuf:"bytes,2,rep,name=files,proto3" json:"files,omitempty"`
+	Services              []*ProtoService            `protobuf:"bytes,3,rep,name=services,proto3" json:"services,omitempty"`
+	Messages              []*ProtoMessage            `protobuf:"bytes,4,rep,name=messages,proto3" json:"messages,omitempty"`
+	IntraScenarioImports  []*ProtoImport             `protobuf:"bytes,5,rep,name=intra_scenario_imports,json=intraScenarioImports,proto3" json:"intra_scenario_imports,omitempty"`
+	CrossScenarioImports  []*ProtoImport             `protobuf:"bytes,6,rep,name=cross_scenario_imports,json=crossScenarioImports,proto3" json:"cross_scenario_imports,omitempty"`
+	TransportWorld        TransportWorld             `protobuf:"varint,8,opt,name=transport_world,json=transportWorld,proto3,enum=vrooli.proto_health.v1.shared.TransportWorld" json:"transport_world,omitempty"`
+	RestExceptionRefs     []*RestExceptionRef        `protobuf:"bytes,9,rep,name=rest_exception_refs,json=restExceptionRefs,proto3" json:"rest_exception_refs,omitempty"`
+	RestExceptions        []*RestExceptionEndpoint   `protobuf:"bytes,10,rep,name=rest_exceptions,json=restExceptions,proto3" json:"rest_exceptions,omitempty"`
+	RestExceptionPayloads []*RestExceptionPayloadRef `protobuf:"bytes,11,rep,name=rest_exception_payloads,json=restExceptionPayloads,proto3" json:"rest_exception_payloads,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *ProtoSurface) Reset() {
@@ -220,18 +375,32 @@ func (x *ProtoSurface) GetCrossScenarioImports() []*ProtoImport {
 	return nil
 }
 
-func (x *ProtoSurface) GetAdoptionSignals() []*AdoptionSignal {
-	if x != nil {
-		return x.AdoptionSignals
-	}
-	return nil
-}
-
 func (x *ProtoSurface) GetTransportWorld() TransportWorld {
 	if x != nil {
 		return x.TransportWorld
 	}
 	return TransportWorld_TRANSPORT_WORLD_UNSPECIFIED
+}
+
+func (x *ProtoSurface) GetRestExceptionRefs() []*RestExceptionRef {
+	if x != nil {
+		return x.RestExceptionRefs
+	}
+	return nil
+}
+
+func (x *ProtoSurface) GetRestExceptions() []*RestExceptionEndpoint {
+	if x != nil {
+		return x.RestExceptions
+	}
+	return nil
+}
+
+func (x *ProtoSurface) GetRestExceptionPayloads() []*RestExceptionPayloadRef {
+	if x != nil {
+		return x.RestExceptionPayloads
+	}
+	return nil
 }
 
 // ProtoFile describes one .proto file owned by the scenario.
@@ -710,8 +879,15 @@ type ProtoImport struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	FromFile      string                 `protobuf:"bytes,1,opt,name=from_file,json=fromFile,proto3" json:"from_file,omitempty"`
 	ToFile        string                 `protobuf:"bytes,2,opt,name=to_file,json=toFile,proto3" json:"to_file,omitempty"`
-	FromDomain    string                 `protobuf:"bytes,3,opt,name=from_domain,json=fromDomain,proto3" json:"from_domain,omitempty"`
-	ToDomain      string                 `protobuf:"bytes,4,opt,name=to_domain,json=toDomain,proto3" json:"to_domain,omitempty"`
+	FromScenario  string                 `protobuf:"bytes,3,opt,name=from_scenario,json=fromScenario,proto3" json:"from_scenario,omitempty"`
+	ToScenario    string                 `protobuf:"bytes,4,opt,name=to_scenario,json=toScenario,proto3" json:"to_scenario,omitempty"`
+	FromPackage   string                 `protobuf:"bytes,5,opt,name=from_package,json=fromPackage,proto3" json:"from_package,omitempty"`
+	ToPackage     string                 `protobuf:"bytes,6,opt,name=to_package,json=toPackage,proto3" json:"to_package,omitempty"`
+	FromVersion   string                 `protobuf:"bytes,7,opt,name=from_version,json=fromVersion,proto3" json:"from_version,omitempty"`
+	ToVersion     string                 `protobuf:"bytes,8,opt,name=to_version,json=toVersion,proto3" json:"to_version,omitempty"`
+	FromDomain    string                 `protobuf:"bytes,9,opt,name=from_domain,json=fromDomain,proto3" json:"from_domain,omitempty"`
+	ToDomain      string                 `protobuf:"bytes,10,opt,name=to_domain,json=toDomain,proto3" json:"to_domain,omitempty"`
+	Kind          ImportKind             `protobuf:"varint,11,opt,name=kind,proto3,enum=vrooli.proto_health.v1.shared.ImportKind" json:"kind,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -760,6 +936,48 @@ func (x *ProtoImport) GetToFile() string {
 	return ""
 }
 
+func (x *ProtoImport) GetFromScenario() string {
+	if x != nil {
+		return x.FromScenario
+	}
+	return ""
+}
+
+func (x *ProtoImport) GetToScenario() string {
+	if x != nil {
+		return x.ToScenario
+	}
+	return ""
+}
+
+func (x *ProtoImport) GetFromPackage() string {
+	if x != nil {
+		return x.FromPackage
+	}
+	return ""
+}
+
+func (x *ProtoImport) GetToPackage() string {
+	if x != nil {
+		return x.ToPackage
+	}
+	return ""
+}
+
+func (x *ProtoImport) GetFromVersion() string {
+	if x != nil {
+		return x.FromVersion
+	}
+	return ""
+}
+
+func (x *ProtoImport) GetToVersion() string {
+	if x != nil {
+		return x.ToVersion
+	}
+	return ""
+}
+
 func (x *ProtoImport) GetFromDomain() string {
 	if x != nil {
 		return x.FromDomain
@@ -774,31 +992,41 @@ func (x *ProtoImport) GetToDomain() string {
 	return ""
 }
 
-// AdoptionSignal records whether this scenario appears to consume its own
-// generated proto artifacts.
-type AdoptionSignal struct {
+func (x *ProtoImport) GetKind() ImportKind {
+	if x != nil {
+		return x.Kind
+	}
+	return ImportKind_IMPORT_KIND_UNSPECIFIED
+}
+
+// RestExceptionRef records a proto message used by a documented REST
+// exception endpoint, such as a multipart upload response.
+type RestExceptionRef struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Present       bool                   `protobuf:"varint,2,opt,name=present,proto3" json:"present,omitempty"`
-	Detail        string                 `protobuf:"bytes,3,opt,name=detail,proto3" json:"detail,omitempty"`
+	EndpointId    string                 `protobuf:"bytes,1,opt,name=endpoint_id,json=endpointId,proto3" json:"endpoint_id,omitempty"`
+	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	Method        string                 `protobuf:"bytes,3,opt,name=method,proto3" json:"method,omitempty"`
+	Domain        string                 `protobuf:"bytes,4,opt,name=domain,proto3" json:"domain,omitempty"`
+	Message       string                 `protobuf:"bytes,5,opt,name=message,proto3" json:"message,omitempty"`
+	FullName      string                 `protobuf:"bytes,6,opt,name=full_name,json=fullName,proto3" json:"full_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *AdoptionSignal) Reset() {
-	*x = AdoptionSignal{}
+func (x *RestExceptionRef) Reset() {
+	*x = RestExceptionRef{}
 	mi := &file_proto_health_v1_shared_surface_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *AdoptionSignal) String() string {
+func (x *RestExceptionRef) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*AdoptionSignal) ProtoMessage() {}
+func (*RestExceptionRef) ProtoMessage() {}
 
-func (x *AdoptionSignal) ProtoReflect() protoreflect.Message {
+func (x *RestExceptionRef) ProtoReflect() protoreflect.Message {
 	mi := &file_proto_health_v1_shared_surface_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -810,46 +1038,275 @@ func (x *AdoptionSignal) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use AdoptionSignal.ProtoReflect.Descriptor instead.
-func (*AdoptionSignal) Descriptor() ([]byte, []int) {
+// Deprecated: Use RestExceptionRef.ProtoReflect.Descriptor instead.
+func (*RestExceptionRef) Descriptor() ([]byte, []int) {
 	return file_proto_health_v1_shared_surface_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *AdoptionSignal) GetName() string {
+func (x *RestExceptionRef) GetEndpointId() string {
 	if x != nil {
-		return x.Name
+		return x.EndpointId
 	}
 	return ""
 }
 
-func (x *AdoptionSignal) GetPresent() bool {
+func (x *RestExceptionRef) GetPath() string {
 	if x != nil {
-		return x.Present
+		return x.Path
+	}
+	return ""
+}
+
+func (x *RestExceptionRef) GetMethod() string {
+	if x != nil {
+		return x.Method
+	}
+	return ""
+}
+
+func (x *RestExceptionRef) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
+}
+
+func (x *RestExceptionRef) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *RestExceptionRef) GetFullName() string {
+	if x != nil {
+		return x.FullName
+	}
+	return ""
+}
+
+// RestExceptionEndpoint records a documented REST exception endpoint whose
+// payload intent should be explicitly declared.
+type RestExceptionEndpoint struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	EndpointId             string                 `protobuf:"bytes,1,opt,name=endpoint_id,json=endpointId,proto3" json:"endpoint_id,omitempty"`
+	Path                   string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	Method                 string                 `protobuf:"bytes,3,opt,name=method,proto3" json:"method,omitempty"`
+	Domain                 string                 `protobuf:"bytes,4,opt,name=domain,proto3" json:"domain,omitempty"`
+	Reason                 string                 `protobuf:"bytes,5,opt,name=reason,proto3" json:"reason,omitempty"`
+	HasPayloadDeclarations bool                   `protobuf:"varint,6,opt,name=has_payload_declarations,json=hasPayloadDeclarations,proto3" json:"has_payload_declarations,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *RestExceptionEndpoint) Reset() {
+	*x = RestExceptionEndpoint{}
+	mi := &file_proto_health_v1_shared_surface_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RestExceptionEndpoint) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RestExceptionEndpoint) ProtoMessage() {}
+
+func (x *RestExceptionEndpoint) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_health_v1_shared_surface_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RestExceptionEndpoint.ProtoReflect.Descriptor instead.
+func (*RestExceptionEndpoint) Descriptor() ([]byte, []int) {
+	return file_proto_health_v1_shared_surface_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *RestExceptionEndpoint) GetEndpointId() string {
+	if x != nil {
+		return x.EndpointId
+	}
+	return ""
+}
+
+func (x *RestExceptionEndpoint) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *RestExceptionEndpoint) GetMethod() string {
+	if x != nil {
+		return x.Method
+	}
+	return ""
+}
+
+func (x *RestExceptionEndpoint) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
+}
+
+func (x *RestExceptionEndpoint) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *RestExceptionEndpoint) GetHasPayloadDeclarations() bool {
+	if x != nil {
+		return x.HasPayloadDeclarations
 	}
 	return false
 }
 
-func (x *AdoptionSignal) GetDetail() string {
+// RestExceptionPayloadRef records one declared request/response/error payload
+// role for a REST exception endpoint. Proof status is explicit because
+// proto-health does not prove handler implementation conformance in this tier.
+type RestExceptionPayloadRef struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EndpointId    string                 `protobuf:"bytes,1,opt,name=endpoint_id,json=endpointId,proto3" json:"endpoint_id,omitempty"`
+	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	Method        string                 `protobuf:"bytes,3,opt,name=method,proto3" json:"method,omitempty"`
+	Domain        string                 `protobuf:"bytes,4,opt,name=domain,proto3" json:"domain,omitempty"`
+	Reason        string                 `protobuf:"bytes,5,opt,name=reason,proto3" json:"reason,omitempty"`
+	Role          RestPayloadRole        `protobuf:"varint,6,opt,name=role,proto3,enum=vrooli.proto_health.v1.shared.RestPayloadRole" json:"role,omitempty"`
+	ProtoFullName string                 `protobuf:"bytes,7,opt,name=proto_full_name,json=protoFullName,proto3" json:"proto_full_name,omitempty"`
+	Transport     string                 `protobuf:"bytes,8,opt,name=transport,proto3" json:"transport,omitempty"`
+	Conformance   string                 `protobuf:"bytes,9,opt,name=conformance,proto3" json:"conformance,omitempty"`
+	ProofStatus   RestPayloadProofStatus `protobuf:"varint,10,opt,name=proof_status,json=proofStatus,proto3,enum=vrooli.proto_health.v1.shared.RestPayloadProofStatus" json:"proof_status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RestExceptionPayloadRef) Reset() {
+	*x = RestExceptionPayloadRef{}
+	mi := &file_proto_health_v1_shared_surface_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RestExceptionPayloadRef) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RestExceptionPayloadRef) ProtoMessage() {}
+
+func (x *RestExceptionPayloadRef) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_health_v1_shared_surface_proto_msgTypes[10]
 	if x != nil {
-		return x.Detail
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RestExceptionPayloadRef.ProtoReflect.Descriptor instead.
+func (*RestExceptionPayloadRef) Descriptor() ([]byte, []int) {
+	return file_proto_health_v1_shared_surface_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *RestExceptionPayloadRef) GetEndpointId() string {
+	if x != nil {
+		return x.EndpointId
 	}
 	return ""
+}
+
+func (x *RestExceptionPayloadRef) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *RestExceptionPayloadRef) GetMethod() string {
+	if x != nil {
+		return x.Method
+	}
+	return ""
+}
+
+func (x *RestExceptionPayloadRef) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
+}
+
+func (x *RestExceptionPayloadRef) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *RestExceptionPayloadRef) GetRole() RestPayloadRole {
+	if x != nil {
+		return x.Role
+	}
+	return RestPayloadRole_REST_PAYLOAD_ROLE_UNSPECIFIED
+}
+
+func (x *RestExceptionPayloadRef) GetProtoFullName() string {
+	if x != nil {
+		return x.ProtoFullName
+	}
+	return ""
+}
+
+func (x *RestExceptionPayloadRef) GetTransport() string {
+	if x != nil {
+		return x.Transport
+	}
+	return ""
+}
+
+func (x *RestExceptionPayloadRef) GetConformance() string {
+	if x != nil {
+		return x.Conformance
+	}
+	return ""
+}
+
+func (x *RestExceptionPayloadRef) GetProofStatus() RestPayloadProofStatus {
+	if x != nil {
+		return x.ProofStatus
+	}
+	return RestPayloadProofStatus_REST_PAYLOAD_PROOF_STATUS_UNSPECIFIED
 }
 
 var File_proto_health_v1_shared_surface_proto protoreflect.FileDescriptor
 
 const file_proto_health_v1_shared_surface_proto_rawDesc = "" +
 	"\n" +
-	"$proto-health/v1/shared/surface.proto\x12\x1dvrooli.proto_health.v1.shared\"\xf2\x04\n" +
+	"$proto-health/v1/shared/surface.proto\x12\x1dvrooli.proto_health.v1.shared\"\xe0\x06\n" +
 	"\fProtoSurface\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12>\n" +
 	"\x05files\x18\x02 \x03(\v2(.vrooli.proto_health.v1.shared.ProtoFileR\x05files\x12G\n" +
 	"\bservices\x18\x03 \x03(\v2+.vrooli.proto_health.v1.shared.ProtoServiceR\bservices\x12G\n" +
 	"\bmessages\x18\x04 \x03(\v2+.vrooli.proto_health.v1.shared.ProtoMessageR\bmessages\x12`\n" +
 	"\x16intra_scenario_imports\x18\x05 \x03(\v2*.vrooli.proto_health.v1.shared.ProtoImportR\x14intraScenarioImports\x12`\n" +
-	"\x16cross_scenario_imports\x18\x06 \x03(\v2*.vrooli.proto_health.v1.shared.ProtoImportR\x14crossScenarioImports\x12X\n" +
-	"\x10adoption_signals\x18\a \x03(\v2-.vrooli.proto_health.v1.shared.AdoptionSignalR\x0fadoptionSignals\x12V\n" +
-	"\x0ftransport_world\x18\b \x01(\x0e2-.vrooli.proto_health.v1.shared.TransportWorldR\x0etransportWorld\"\xd6\x01\n" +
+	"\x16cross_scenario_imports\x18\x06 \x03(\v2*.vrooli.proto_health.v1.shared.ProtoImportR\x14crossScenarioImports\x12V\n" +
+	"\x0ftransport_world\x18\b \x01(\x0e2-.vrooli.proto_health.v1.shared.TransportWorldR\x0etransportWorld\x12_\n" +
+	"\x13rest_exception_refs\x18\t \x03(\v2/.vrooli.proto_health.v1.shared.RestExceptionRefR\x11restExceptionRefs\x12]\n" +
+	"\x0frest_exceptions\x18\n" +
+	" \x03(\v24.vrooli.proto_health.v1.shared.RestExceptionEndpointR\x0erestExceptions\x12n\n" +
+	"\x17rest_exception_payloads\x18\v \x03(\v26.vrooli.proto_health.v1.shared.RestExceptionPayloadRefR\x15restExceptionPayloadsJ\x04\b\a\x10\bR\x10adoption_signals\"\xd6\x01\n" +
 	"\tProtoFile\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x18\n" +
 	"\apackage\x18\x02 \x01(\tR\apackage\x12\x18\n" +
@@ -888,17 +1345,67 @@ const file_proto_health_v1_shared_surface_proto_rawDesc = "" +
 	"\tenum_type\x18\x04 \x01(\tR\benumType\x12\x1a\n" +
 	"\brepeated\x18\x05 \x01(\bR\brepeated\x12\x1a\n" +
 	"\boptional\x18\x06 \x01(\bR\boptional\x12\x16\n" +
-	"\x06number\x18\a \x01(\x05R\x06number\"\x81\x01\n" +
+	"\x06number\x18\a \x01(\x05R\x06number\"\x8a\x03\n" +
 	"\vProtoImport\x12\x1b\n" +
 	"\tfrom_file\x18\x01 \x01(\tR\bfromFile\x12\x17\n" +
-	"\ato_file\x18\x02 \x01(\tR\x06toFile\x12\x1f\n" +
-	"\vfrom_domain\x18\x03 \x01(\tR\n" +
+	"\ato_file\x18\x02 \x01(\tR\x06toFile\x12#\n" +
+	"\rfrom_scenario\x18\x03 \x01(\tR\ffromScenario\x12\x1f\n" +
+	"\vto_scenario\x18\x04 \x01(\tR\n" +
+	"toScenario\x12!\n" +
+	"\ffrom_package\x18\x05 \x01(\tR\vfromPackage\x12\x1d\n" +
+	"\n" +
+	"to_package\x18\x06 \x01(\tR\ttoPackage\x12!\n" +
+	"\ffrom_version\x18\a \x01(\tR\vfromVersion\x12\x1d\n" +
+	"\n" +
+	"to_version\x18\b \x01(\tR\ttoVersion\x12\x1f\n" +
+	"\vfrom_domain\x18\t \x01(\tR\n" +
 	"fromDomain\x12\x1b\n" +
-	"\tto_domain\x18\x04 \x01(\tR\btoDomain\"V\n" +
-	"\x0eAdoptionSignal\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
-	"\apresent\x18\x02 \x01(\bR\apresent\x12\x16\n" +
-	"\x06detail\x18\x03 \x01(\tR\x06detail*\xa4\x01\n" +
+	"\tto_domain\x18\n" +
+	" \x01(\tR\btoDomain\x12=\n" +
+	"\x04kind\x18\v \x01(\x0e2).vrooli.proto_health.v1.shared.ImportKindR\x04kind\"\xae\x01\n" +
+	"\x10RestExceptionRef\x12\x1f\n" +
+	"\vendpoint_id\x18\x01 \x01(\tR\n" +
+	"endpointId\x12\x12\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\x12\x16\n" +
+	"\x06method\x18\x03 \x01(\tR\x06method\x12\x16\n" +
+	"\x06domain\x18\x04 \x01(\tR\x06domain\x12\x18\n" +
+	"\amessage\x18\x05 \x01(\tR\amessage\x12\x1b\n" +
+	"\tfull_name\x18\x06 \x01(\tR\bfullName\"\xce\x01\n" +
+	"\x15RestExceptionEndpoint\x12\x1f\n" +
+	"\vendpoint_id\x18\x01 \x01(\tR\n" +
+	"endpointId\x12\x12\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\x12\x16\n" +
+	"\x06method\x18\x03 \x01(\tR\x06method\x12\x16\n" +
+	"\x06domain\x18\x04 \x01(\tR\x06domain\x12\x16\n" +
+	"\x06reason\x18\x05 \x01(\tR\x06reason\x128\n" +
+	"\x18has_payload_declarations\x18\x06 \x01(\bR\x16hasPayloadDeclarations\"\x9c\x03\n" +
+	"\x17RestExceptionPayloadRef\x12\x1f\n" +
+	"\vendpoint_id\x18\x01 \x01(\tR\n" +
+	"endpointId\x12\x12\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\x12\x16\n" +
+	"\x06method\x18\x03 \x01(\tR\x06method\x12\x16\n" +
+	"\x06domain\x18\x04 \x01(\tR\x06domain\x12\x16\n" +
+	"\x06reason\x18\x05 \x01(\tR\x06reason\x12B\n" +
+	"\x04role\x18\x06 \x01(\x0e2..vrooli.proto_health.v1.shared.RestPayloadRoleR\x04role\x12&\n" +
+	"\x0fproto_full_name\x18\a \x01(\tR\rprotoFullName\x12\x1c\n" +
+	"\ttransport\x18\b \x01(\tR\ttransport\x12 \n" +
+	"\vconformance\x18\t \x01(\tR\vconformance\x12X\n" +
+	"\fproof_status\x18\n" +
+	" \x01(\x0e25.vrooli.proto_health.v1.shared.RestPayloadProofStatusR\vproofStatus*\x83\x01\n" +
+	"\n" +
+	"ImportKind\x12\x1b\n" +
+	"\x17IMPORT_KIND_UNSPECIFIED\x10\x00\x12\x1e\n" +
+	"\x1aIMPORT_KIND_SCENARIO_LOCAL\x10\x01\x12\x1e\n" +
+	"\x1aIMPORT_KIND_CROSS_SCENARIO\x10\x02\x12\x18\n" +
+	"\x14IMPORT_KIND_EXTERNAL\x10\x03*\x90\x01\n" +
+	"\x0fRestPayloadRole\x12!\n" +
+	"\x1dREST_PAYLOAD_ROLE_UNSPECIFIED\x10\x00\x12\x1d\n" +
+	"\x19REST_PAYLOAD_ROLE_REQUEST\x10\x01\x12\x1e\n" +
+	"\x1aREST_PAYLOAD_ROLE_RESPONSE\x10\x02\x12\x1b\n" +
+	"\x17REST_PAYLOAD_ROLE_ERROR\x10\x03*p\n" +
+	"\x16RestPayloadProofStatus\x12)\n" +
+	"%REST_PAYLOAD_PROOF_STATUS_UNSPECIFIED\x10\x00\x12+\n" +
+	"'REST_PAYLOAD_PROOF_STATUS_NOT_EVALUATED\x10\x01*\xa4\x01\n" +
 	"\x0eTransportWorld\x12\x1f\n" +
 	"\x1bTRANSPORT_WORLD_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17TRANSPORT_WORLD_CONNECT\x10\x01\x12\x1f\n" +
@@ -924,38 +1431,48 @@ func file_proto_health_v1_shared_surface_proto_rawDescGZIP() []byte {
 	return file_proto_health_v1_shared_surface_proto_rawDescData
 }
 
-var file_proto_health_v1_shared_surface_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_proto_health_v1_shared_surface_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_proto_health_v1_shared_surface_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
+var file_proto_health_v1_shared_surface_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_proto_health_v1_shared_surface_proto_goTypes = []any{
-	(TransportWorld)(0),    // 0: vrooli.proto_health.v1.shared.TransportWorld
-	(TransportKind)(0),     // 1: vrooli.proto_health.v1.shared.TransportKind
-	(*ProtoSurface)(nil),   // 2: vrooli.proto_health.v1.shared.ProtoSurface
-	(*ProtoFile)(nil),      // 3: vrooli.proto_health.v1.shared.ProtoFile
-	(*Annotation)(nil),     // 4: vrooli.proto_health.v1.shared.Annotation
-	(*ProtoService)(nil),   // 5: vrooli.proto_health.v1.shared.ProtoService
-	(*ProtoRpc)(nil),       // 6: vrooli.proto_health.v1.shared.ProtoRpc
-	(*ProtoMessage)(nil),   // 7: vrooli.proto_health.v1.shared.ProtoMessage
-	(*ProtoField)(nil),     // 8: vrooli.proto_health.v1.shared.ProtoField
-	(*ProtoImport)(nil),    // 9: vrooli.proto_health.v1.shared.ProtoImport
-	(*AdoptionSignal)(nil), // 10: vrooli.proto_health.v1.shared.AdoptionSignal
+	(ImportKind)(0),                 // 0: vrooli.proto_health.v1.shared.ImportKind
+	(RestPayloadRole)(0),            // 1: vrooli.proto_health.v1.shared.RestPayloadRole
+	(RestPayloadProofStatus)(0),     // 2: vrooli.proto_health.v1.shared.RestPayloadProofStatus
+	(TransportWorld)(0),             // 3: vrooli.proto_health.v1.shared.TransportWorld
+	(TransportKind)(0),              // 4: vrooli.proto_health.v1.shared.TransportKind
+	(*ProtoSurface)(nil),            // 5: vrooli.proto_health.v1.shared.ProtoSurface
+	(*ProtoFile)(nil),               // 6: vrooli.proto_health.v1.shared.ProtoFile
+	(*Annotation)(nil),              // 7: vrooli.proto_health.v1.shared.Annotation
+	(*ProtoService)(nil),            // 8: vrooli.proto_health.v1.shared.ProtoService
+	(*ProtoRpc)(nil),                // 9: vrooli.proto_health.v1.shared.ProtoRpc
+	(*ProtoMessage)(nil),            // 10: vrooli.proto_health.v1.shared.ProtoMessage
+	(*ProtoField)(nil),              // 11: vrooli.proto_health.v1.shared.ProtoField
+	(*ProtoImport)(nil),             // 12: vrooli.proto_health.v1.shared.ProtoImport
+	(*RestExceptionRef)(nil),        // 13: vrooli.proto_health.v1.shared.RestExceptionRef
+	(*RestExceptionEndpoint)(nil),   // 14: vrooli.proto_health.v1.shared.RestExceptionEndpoint
+	(*RestExceptionPayloadRef)(nil), // 15: vrooli.proto_health.v1.shared.RestExceptionPayloadRef
 }
 var file_proto_health_v1_shared_surface_proto_depIdxs = []int32{
-	3,  // 0: vrooli.proto_health.v1.shared.ProtoSurface.files:type_name -> vrooli.proto_health.v1.shared.ProtoFile
-	5,  // 1: vrooli.proto_health.v1.shared.ProtoSurface.services:type_name -> vrooli.proto_health.v1.shared.ProtoService
-	7,  // 2: vrooli.proto_health.v1.shared.ProtoSurface.messages:type_name -> vrooli.proto_health.v1.shared.ProtoMessage
-	9,  // 3: vrooli.proto_health.v1.shared.ProtoSurface.intra_scenario_imports:type_name -> vrooli.proto_health.v1.shared.ProtoImport
-	9,  // 4: vrooli.proto_health.v1.shared.ProtoSurface.cross_scenario_imports:type_name -> vrooli.proto_health.v1.shared.ProtoImport
-	10, // 5: vrooli.proto_health.v1.shared.ProtoSurface.adoption_signals:type_name -> vrooli.proto_health.v1.shared.AdoptionSignal
-	0,  // 6: vrooli.proto_health.v1.shared.ProtoSurface.transport_world:type_name -> vrooli.proto_health.v1.shared.TransportWorld
-	4,  // 7: vrooli.proto_health.v1.shared.ProtoFile.annotations:type_name -> vrooli.proto_health.v1.shared.Annotation
-	6,  // 8: vrooli.proto_health.v1.shared.ProtoService.rpcs:type_name -> vrooli.proto_health.v1.shared.ProtoRpc
-	1,  // 9: vrooli.proto_health.v1.shared.ProtoRpc.transport:type_name -> vrooli.proto_health.v1.shared.TransportKind
-	8,  // 10: vrooli.proto_health.v1.shared.ProtoMessage.fields:type_name -> vrooli.proto_health.v1.shared.ProtoField
-	11, // [11:11] is the sub-list for method output_type
-	11, // [11:11] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	6,  // 0: vrooli.proto_health.v1.shared.ProtoSurface.files:type_name -> vrooli.proto_health.v1.shared.ProtoFile
+	8,  // 1: vrooli.proto_health.v1.shared.ProtoSurface.services:type_name -> vrooli.proto_health.v1.shared.ProtoService
+	10, // 2: vrooli.proto_health.v1.shared.ProtoSurface.messages:type_name -> vrooli.proto_health.v1.shared.ProtoMessage
+	12, // 3: vrooli.proto_health.v1.shared.ProtoSurface.intra_scenario_imports:type_name -> vrooli.proto_health.v1.shared.ProtoImport
+	12, // 4: vrooli.proto_health.v1.shared.ProtoSurface.cross_scenario_imports:type_name -> vrooli.proto_health.v1.shared.ProtoImport
+	3,  // 5: vrooli.proto_health.v1.shared.ProtoSurface.transport_world:type_name -> vrooli.proto_health.v1.shared.TransportWorld
+	13, // 6: vrooli.proto_health.v1.shared.ProtoSurface.rest_exception_refs:type_name -> vrooli.proto_health.v1.shared.RestExceptionRef
+	14, // 7: vrooli.proto_health.v1.shared.ProtoSurface.rest_exceptions:type_name -> vrooli.proto_health.v1.shared.RestExceptionEndpoint
+	15, // 8: vrooli.proto_health.v1.shared.ProtoSurface.rest_exception_payloads:type_name -> vrooli.proto_health.v1.shared.RestExceptionPayloadRef
+	7,  // 9: vrooli.proto_health.v1.shared.ProtoFile.annotations:type_name -> vrooli.proto_health.v1.shared.Annotation
+	9,  // 10: vrooli.proto_health.v1.shared.ProtoService.rpcs:type_name -> vrooli.proto_health.v1.shared.ProtoRpc
+	4,  // 11: vrooli.proto_health.v1.shared.ProtoRpc.transport:type_name -> vrooli.proto_health.v1.shared.TransportKind
+	11, // 12: vrooli.proto_health.v1.shared.ProtoMessage.fields:type_name -> vrooli.proto_health.v1.shared.ProtoField
+	0,  // 13: vrooli.proto_health.v1.shared.ProtoImport.kind:type_name -> vrooli.proto_health.v1.shared.ImportKind
+	1,  // 14: vrooli.proto_health.v1.shared.RestExceptionPayloadRef.role:type_name -> vrooli.proto_health.v1.shared.RestPayloadRole
+	2,  // 15: vrooli.proto_health.v1.shared.RestExceptionPayloadRef.proof_status:type_name -> vrooli.proto_health.v1.shared.RestPayloadProofStatus
+	16, // [16:16] is the sub-list for method output_type
+	16, // [16:16] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_proto_health_v1_shared_surface_proto_init() }
@@ -968,8 +1485,8 @@ func file_proto_health_v1_shared_surface_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_health_v1_shared_surface_proto_rawDesc), len(file_proto_health_v1_shared_surface_proto_rawDesc)),
-			NumEnums:      2,
-			NumMessages:   9,
+			NumEnums:      5,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

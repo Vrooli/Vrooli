@@ -107,7 +107,7 @@ func main() {
 
 	// Wire the production seams once. graph and rewrite share a single
 	// per-path mutex so concurrent Extract / Apply calls for the same
-	// scenario_path serialize against each other (OT-P0-006).
+	// module_path serialize against each other (OT-P0-006).
 	pathMutex := intgraph.NewPathMutex()
 	loader := intgraph.NewPackagesLoader()
 	graphSvc := intgraph.NewService(loader, pathMutex)
@@ -142,4 +142,3 @@ func main() {
 		log.Fatalf("Server error: %v", err)
 	}
 }
-

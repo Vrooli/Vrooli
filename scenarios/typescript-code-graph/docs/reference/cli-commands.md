@@ -139,6 +139,51 @@ is proto-typed attachment metadata.
 typescript-code-graph notes attach abc123 --file ./example.png
 ```
 
+## Scenario commands — `graph`
+
+### `typescript-code-graph graph extract <path>`
+
+Extract a deterministic TypeScript graph. `<path>` may be an absolute TS project root or an explicit `tsconfig.json` path.
+
+```bash
+typescript-code-graph graph extract /repo/scenarios/example/ui
+typescript-code-graph graph extract /repo/scenarios/example/ui/tsconfig.json --json
+```
+
+### `typescript-code-graph graph list-fixtures`
+
+List golden determinism fixtures shipped under `bas/fixtures/`.
+
+```bash
+typescript-code-graph graph list-fixtures
+```
+
+### `typescript-code-graph graph validate-fixture <name>`
+
+Re-extract a fixture and byte-compare its graph against `expected-graph.json`.
+
+```bash
+typescript-code-graph graph validate-fixture ts-junk-drawer
+```
+
+## Scenario commands — `rewrite`
+
+### `typescript-code-graph rewrite plan <ops.json> --project-path <path>`
+
+Validate and normalize file-move/import-rewrite operations without changing the filesystem. `<path>` may be a TS project root or explicit `tsconfig.json`.
+
+```bash
+typescript-code-graph rewrite plan ./ops.json --project-path /repo/scenarios/example/ui
+```
+
+### `typescript-code-graph rewrite apply <plan-id> --project-path <path>`
+
+Apply a previously planned rewrite for the same project path.
+
+```bash
+typescript-code-graph rewrite apply <plan-id> --project-path /repo/scenarios/example/ui
+```
+
 ## Output contracts
 
 Every scenario command should render through one of three human

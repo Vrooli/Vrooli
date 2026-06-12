@@ -37,7 +37,7 @@ type Operation interface {
 }
 
 // FileMove relocates a single file from From to To. Both paths are
-// relative to the scenario root, no leading slash, no ".." segments.
+// relative to the module root, no leading slash, no ".." segments.
 type FileMove struct {
 	From string
 	To   string
@@ -48,7 +48,7 @@ func (FileMove) Kind() OperationKind { return OperationKindFileMove }
 func (FileMove) isOperation()        {}
 
 // ImportRewrite replaces import path Old with New across every .go
-// file under the scenario root.
+// file under the module root.
 type ImportRewrite struct {
 	Old string
 	New string
@@ -59,19 +59,19 @@ func (ImportRewrite) Kind() OperationKind { return OperationKindImportRewrite }
 func (ImportRewrite) isOperation()        {}
 
 // Plan is the immutable record persisted in the PlanStore between Plan
-// and Apply. ScenarioPath is recorded so Apply can reject mismatched
+// and Apply. ModulePath is recorded so Apply can reject mismatched
 // requests with PathMismatch.
 type Plan struct {
-	ID           PlanID
-	ScenarioPath string
-	Operations   []Operation
+	ID         PlanID
+	ModulePath string
+	Operations []Operation
 }
 
 // PlanInput is the validated payload threaded from handler to
 // Service.Plan.
 type PlanInput struct {
-	ScenarioPath string
-	Operations   []Operation
+	ModulePath string
+	Operations []Operation
 }
 
 // ApplyInput is the validated payload threaded from handler to
@@ -79,10 +79,10 @@ type PlanInput struct {
 // header through so the Service short-circuits before invoking the
 // executor.
 type ApplyInput struct {
-	ScenarioPath string
-	PlanID       PlanID
-	Apply        bool
-	DryRun       bool
+	ModulePath string
+	PlanID     PlanID
+	Apply      bool
+	DryRun     bool
 }
 
 // OperationStatus mirrors the proto enum for the apply log.
@@ -124,7 +124,7 @@ const (
 	// RewriteErrorPlanNotFound means the caller asked Apply for an
 	// unknown plan_id.
 	RewriteErrorPlanNotFound RewriteErrorKind = "plan_not_found"
-	// RewriteErrorPathMismatch means the apply request's scenario_path
+	// RewriteErrorPathMismatch means the apply request's module_path
 	// differs from the path the plan was authored against.
 	RewriteErrorPathMismatch RewriteErrorKind = "path_mismatch"
 	// RewriteErrorApplyNotSet means the caller forgot to set apply=true

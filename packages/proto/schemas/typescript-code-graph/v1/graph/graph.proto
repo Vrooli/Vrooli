@@ -69,9 +69,8 @@ service TypeScriptCodeGraphService {
 // lives here so consumers can validate the value without parsing
 // strings.
 //
-// Reserved-but-unused values exist so future additions stay
-// backward-compatible (consumers ignore unknown string values rather
-// than failing).
+// Usage-fact values remain generic TypeScript evidence. They are not
+// endpoint, proto-health, or Vrooli policy facts.
 enum TsNodeKind {
   TS_NODE_KIND_UNSPECIFIED = 0;
   // A TS source module (one .ts/.tsx file's namespace).
@@ -96,6 +95,16 @@ enum TsNodeKind {
   TS_NODE_KIND_CONST = 208;
   // A re-export site (`export * from`, `export { X } from`).
   TS_NODE_KIND_RE_EXPORT = 209;
+  // One import binding from an import declaration.
+  TS_NODE_KIND_IMPORT_BINDING = 210;
+  // One identifier reference with enclosing declaration context.
+  TS_NODE_KIND_REFERENCE = 211;
+  // One call expression.
+  TS_NODE_KIND_CALL = 212;
+  // One JSX component/tag usage.
+  TS_NODE_KIND_JSX_USAGE = 213;
+  // One exported declaration or re-export summary entry.
+  TS_NODE_KIND_EXPORT = 214;
 }
 
 // -----------------------------------------------------------------------------
@@ -103,10 +112,10 @@ enum TsNodeKind {
 // -----------------------------------------------------------------------------
 
 message ExtractRequest {
-  // Absolute or scenario-relative path to the TS project root. Must
-  // contain exactly one tsconfig.json (or have one resolvable per
-  // ts-morph's standard discovery).
-  string scenario_path = 1;
+  // Absolute path to a TS project root directory or to a concrete
+  // tsconfig.json file. Directory inputs must contain exactly one
+  // tsconfig.json; explicit file inputs select that project directly.
+  string project_path = 1;
 }
 
 message ExtractResponse {
@@ -134,7 +143,9 @@ message ExtractResponse {
 // -----------------------------------------------------------------------------
 
 message RewritePlanRequest {
-  string scenario_path = 1;
+  // Absolute path to a TS project root directory or to a concrete
+  // tsconfig.json file. The value scopes the stored rewrite plan.
+  string project_path = 1;
   repeated vrooli.typescript_code_graph.v1.rewrite.Operation operations = 2;
 }
 
@@ -149,7 +160,9 @@ message RewritePlanResponse {
 }
 
 message RewriteApplyRequest {
-  string scenario_path = 1;
+  // Absolute path to the same TS project root directory or tsconfig.json
+  // file used when the plan was authored.
+  string project_path = 1;
   string plan_id = 2;
   // Must be true. False is rejected with InvalidArgument so dry-run
   // callers never accidentally mutate the working tree. Dry-run is

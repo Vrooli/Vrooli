@@ -10,9 +10,9 @@ import (
 // DerivePlanID returns the canonical PlanID for an already-normalized
 // operation list. Identical inputs always produce identical IDs.
 //
-// Hash inputs deliberately exclude scenario_path and any timestamp —
-// the PlanStore scopes plans by (scenario_path, PlanID) so two
-// scenarios with the same operation list cannot replay each other's
+// Hash inputs deliberately exclude project_path and any timestamp —
+// the PlanStore scopes plans by (project_path, PlanID) so two
+// projects with the same operation list cannot replay each other's
 // plans even though they share an ID.
 func DerivePlanID(ops []Operation) PlanID {
 	buf := &bytes.Buffer{}

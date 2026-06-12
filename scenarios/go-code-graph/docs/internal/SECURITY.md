@@ -21,7 +21,7 @@ Go Code Graph reads source code from target Go modules. The graph response conta
 | Declaration names | varies (typically low) | extracted graph | Names like `apiKey`, `dbPassword`, `internalAPIToken` appear verbatim in node labels. Acceptable for a local operator but would leak if the API were exposed beyond a single-operator install. |
 | File paths | varies (typically low) | extracted graph | Absolute paths to source files appear in node `location` fields. Same exposure profile as declaration names. |
 | Leading-comment metadata | conditional | extracted graph (P1 method-set coverage) | If/when the Go scenario surfaces leading comments (it doesn't in v1; TS scenario does from day one), credentials accidentally pasted into comments would be exposed. |
-| Operation Log (P1) | low | rewrite domain | Records `scenario_path` + normalized ops + per-op status. Same path-exposure profile as declaration names. |
+| Operation Log (P1) | low | rewrite domain | Records `module_path` + normalized ops + per-op status. Same path-exposure profile as declaration names. |
 | Plan registry | low | rewrite domain | Same content as Operation Log entries; ephemeral (5-min TTL, in-process). |
 
 ## Auth And Authorization
@@ -41,7 +41,7 @@ If go-code-graph is ever exposed beyond a single-host local install (e.g. as a h
 | Risk | Impact | Mitigation | Status |
 |---|---|---|---|
 | Source containing secrets is parsed and surfaced in graph node names | A node label could carry a credential literal (e.g. an exported `const APIKey = "..."`). The graph is shared with consumers (cartographer). | Acceptable for local-operator use because secrets in source are a worse problem than secrets in graph nodes — secrets in source are the upstream bug. Document this in the response: every consumer's display surface should treat node labels as "may contain code-as-data". | accepted-for-local-use |
-| Malicious symlinks in target module escape into other filesystem trees | `packages.Load` follows symlinks. A crafted module could symlink to a system directory and surface system files in the graph. | `packages.Config.Dir` is set to the absolute scenario_path; we reject paths outside the user's home directory by default (planned check). | planned mitigation |
+| Malicious symlinks in target module escape into other filesystem trees | `packages.Load` follows symlinks. A crafted module could symlink to a system directory and surface system files in the graph. | `packages.Config.Dir` is set to the absolute module_path; we reject paths outside the user's home directory by default (planned check). | planned mitigation |
 | Path traversal via `ImportRewrite.new_path` | A consumer could attempt to write outside the target module by passing a relative path with parent-directory escapes. | `RewritePlan` validates every `new_path` resolves inside the target module's root. Reject otherwise. | required at implementation |
 | Path traversal via `FileMove.to` | Same as above for file moves. | `RewritePlan` validates every `to` resolves inside the target module's root. Reject otherwise. | required at implementation |
 | Race between plan and apply (TOCTOU) | Source code changes between `RewritePlan` and `RewriteApply`; apply mutates a different graph than was planned. | Apply recomputes the content hash from the current ops and compares to the supplied `plan_id`. Mismatch → `plan_content_mismatch` error. | required at implementation |

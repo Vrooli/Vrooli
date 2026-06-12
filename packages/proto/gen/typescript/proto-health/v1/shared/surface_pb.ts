@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file proto-health/v1/shared/surface.proto.
  */
 export const file_proto_health_v1_shared_surface: GenFile = /*@__PURE__*/
-  fileDesc("CiRwcm90by1oZWFsdGgvdjEvc2hhcmVkL3N1cmZhY2UucHJvdG8SHXZyb29saS5wcm90b19oZWFsdGgudjEuc2hhcmVkIoAECgxQcm90b1N1cmZhY2USEAoIc2NlbmFyaW8YASABKAkSNwoFZmlsZXMYAiADKAsyKC52cm9vbGkucHJvdG9faGVhbHRoLnYxLnNoYXJlZC5Qcm90b0ZpbGUSPQoIc2VydmljZXMYAyADKAsyKy52cm9vbGkucHJvdG9faGVhbHRoLnYxLnNoYXJlZC5Qcm90b1NlcnZpY2USPQoIbWVzc2FnZXMYBCADKAsyKy52cm9vbGkucHJvdG9faGVhbHRoLnYxLnNoYXJlZC5Qcm90b01lc3NhZ2USSgoWaW50cmFfc2NlbmFyaW9faW1wb3J0cxgFIAMoCzIqLnZyb29saS5wcm90b19oZWFsdGgudjEuc2hhcmVkLlByb3RvSW1wb3J0EkoKFmNyb3NzX3NjZW5hcmlvX2ltcG9ydHMYBiADKAsyKi52cm9vbGkucHJvdG9faGVhbHRoLnYxLnNoYXJlZC5Qcm90b0ltcG9ydBJHChBhZG9wdGlvbl9zaWduYWxzGAcgAygLMi0udnJvb2xpLnByb3RvX2hlYWx0aC52MS5zaGFyZWQuQWRvcHRpb25TaWduYWwSRgoPdHJhbnNwb3J0X3dvcmxkGAggASgOMi0udnJvb2xpLnByb3RvX2hlYWx0aC52MS5zaGFyZWQuVHJhbnNwb3J0V29ybGQingEKCVByb3RvRmlsZRIMCgRwYXRoGAEgASgJEg8KB3BhY2thZ2UYAiABKAkSDwoHdmVyc2lvbhgDIAEoCRIOCgZkb21haW4YBCABKAkSEQoJc3RhYmlsaXR5GAUgASgJEj4KC2Fubm90YXRpb25zGAYgAygLMikudnJvb2xpLnByb3RvX2hlYWx0aC52MS5zaGFyZWQuQW5ub3RhdGlvbiIpCgpBbm5vdGF0aW9uEgwKBG5hbWUYASABKAkSDQoFdmFsdWUYAiABKAkimgEKDFByb3RvU2VydmljZRIRCglmaWxlX3BhdGgYASABKAkSDwoHcGFja2FnZRgCIAEoCRIMCgRuYW1lGAMgASgJEhEKCWZ1bGxfbmFtZRgEIAEoCRIOCgZkb21haW4YBSABKAkSNQoEcnBjcxgGIAMoCzInLnZyb29saS5wcm90b19oZWFsdGgudjEuc2hhcmVkLlByb3RvUnBjIngKCFByb3RvUnBjEgwKBG5hbWUYASABKAkSDQoFaW5wdXQYAiABKAkSDgoGb3V0cHV0GAMgASgJEj8KCXRyYW5zcG9ydBgEIAEoDjIsLnZyb29saS5wcm90b19oZWFsdGgudjEuc2hhcmVkLlRyYW5zcG9ydEtpbmQingEKDFByb3RvTWVzc2FnZRIRCglmaWxlX3BhdGgYASABKAkSDwoHcGFja2FnZRgCIAEoCRIMCgRuYW1lGAMgASgJEhEKCWZ1bGxfbmFtZRgEIAEoCRIOCgZkb21haW4YBSABKAkSOQoGZmllbGRzGAYgAygLMikudnJvb2xpLnByb3RvX2hlYWx0aC52MS5zaGFyZWQuUHJvdG9GaWVsZCKFAQoKUHJvdG9GaWVsZBIMCgRuYW1lGAEgASgJEgwKBHR5cGUYAiABKAkSFAoMbWVzc2FnZV90eXBlGAMgASgJEhEKCWVudW1fdHlwZRgEIAEoCRIQCghyZXBlYXRlZBgFIAEoCBIQCghvcHRpb25hbBgGIAEoCBIOCgZudW1iZXIYByABKAUiWQoLUHJvdG9JbXBvcnQSEQoJZnJvbV9maWxlGAEgASgJEg8KB3RvX2ZpbGUYAiABKAkSEwoLZnJvbV9kb21haW4YAyABKAkSEQoJdG9fZG9tYWluGAQgASgJIj8KDkFkb3B0aW9uU2lnbmFsEgwKBG5hbWUYASABKAkSDwoHcHJlc2VudBgCIAEoCBIOCgZkZXRhaWwYAyABKAkqpAEKDlRyYW5zcG9ydFdvcmxkEh8KG1RSQU5TUE9SVF9XT1JMRF9VTlNQRUNJRklFRBAAEhsKF1RSQU5TUE9SVF9XT1JMRF9DT05ORUNUEAESHwobVFJBTlNQT1JUX1dPUkxEX0hBTkRfUk9MTEVEEAISGQoVVFJBTlNQT1JUX1dPUkxEX01JWEVEEAMSGAoUVFJBTlNQT1JUX1dPUkxEX05PTkUQBCqjAQoNVHJhbnNwb3J0S2luZBIeChpUUkFOU1BPUlRfS0lORF9VTlNQRUNJRklFRBAAEhoKFlRSQU5TUE9SVF9LSU5EX0NPTk5FQ1QQARIXChNUUkFOU1BPUlRfS0lORF9SRVNUEAISHgoaVFJBTlNQT1JUX0tJTkRfSEFORF9ST0xMRUQQAxIdChlUUkFOU1BPUlRfS0lORF9OT1RfU0VSVkVEEARCUVpPZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9wcm90by1oZWFsdGgvdjEvc2hhcmVkO3NoYXJlZF92MWIGcHJvdG8z");
+  fileDesc("CiRwcm90by1oZWFsdGgvdjEvc2hhcmVkL3N1cmZhY2UucHJvdG8SHXZyb29saS5wcm90b19oZWFsdGgudjEuc2hhcmVkIsUFCgxQcm90b1N1cmZhY2USEAoIc2NlbmFyaW8YASABKAkSNwoFZmlsZXMYAiADKAsyKC52cm9vbGkucHJvdG9faGVhbHRoLnYxLnNoYXJlZC5Qcm90b0ZpbGUSPQoIc2VydmljZXMYAyADKAsyKy52cm9vbGkucHJvdG9faGVhbHRoLnYxLnNoYXJlZC5Qcm90b1NlcnZpY2USPQoIbWVzc2FnZXMYBCADKAsyKy52cm9vbGkucHJvdG9faGVhbHRoLnYxLnNoYXJlZC5Qcm90b01lc3NhZ2USSgoWaW50cmFfc2NlbmFyaW9faW1wb3J0cxgFIAMoCzIqLnZyb29saS5wcm90b19oZWFsdGgudjEuc2hhcmVkLlByb3RvSW1wb3J0EkoKFmNyb3NzX3NjZW5hcmlvX2ltcG9ydHMYBiADKAsyKi52cm9vbGkucHJvdG9faGVhbHRoLnYxLnNoYXJlZC5Qcm90b0ltcG9ydBJGCg90cmFuc3BvcnRfd29ybGQYCCABKA4yLS52cm9vbGkucHJvdG9faGVhbHRoLnYxLnNoYXJlZC5UcmFuc3BvcnRXb3JsZBJMChNyZXN0X2V4Y2VwdGlvbl9yZWZzGAkgAygLMi8udnJvb2xpLnByb3RvX2hlYWx0aC52MS5zaGFyZWQuUmVzdEV4Y2VwdGlvblJlZhJNCg9yZXN0X2V4Y2VwdGlvbnMYCiADKAsyNC52cm9vbGkucHJvdG9faGVhbHRoLnYxLnNoYXJlZC5SZXN0RXhjZXB0aW9uRW5kcG9pbnQSVwoXcmVzdF9leGNlcHRpb25fcGF5bG9hZHMYCyADKAsyNi52cm9vbGkucHJvdG9faGVhbHRoLnYxLnNoYXJlZC5SZXN0RXhjZXB0aW9uUGF5bG9hZFJlZkoECAcQCFIQYWRvcHRpb25fc2lnbmFscyKeAQoJUHJvdG9GaWxlEgwKBHBhdGgYASABKAkSDwoHcGFja2FnZRgCIAEoCRIPCgd2ZXJzaW9uGAMgASgJEg4KBmRvbWFpbhgEIAEoCRIRCglzdGFiaWxpdHkYBSABKAkSPgoLYW5ub3RhdGlvbnMYBiADKAsyKS52cm9vbGkucHJvdG9faGVhbHRoLnYxLnNoYXJlZC5Bbm5vdGF0aW9uIikKCkFubm90YXRpb24SDAoEbmFtZRgBIAEoCRINCgV2YWx1ZRgCIAEoCSKaAQoMUHJvdG9TZXJ2aWNlEhEKCWZpbGVfcGF0aBgBIAEoCRIPCgdwYWNrYWdlGAIgASgJEgwKBG5hbWUYAyABKAkSEQoJZnVsbF9uYW1lGAQgASgJEg4KBmRvbWFpbhgFIAEoCRI1CgRycGNzGAYgAygLMicudnJvb2xpLnByb3RvX2hlYWx0aC52MS5zaGFyZWQuUHJvdG9ScGMieAoIUHJvdG9ScGMSDAoEbmFtZRgBIAEoCRINCgVpbnB1dBgCIAEoCRIOCgZvdXRwdXQYAyABKAkSPwoJdHJhbnNwb3J0GAQgASgOMiwudnJvb2xpLnByb3RvX2hlYWx0aC52MS5zaGFyZWQuVHJhbnNwb3J0S2luZCKeAQoMUHJvdG9NZXNzYWdlEhEKCWZpbGVfcGF0aBgBIAEoCRIPCgdwYWNrYWdlGAIgASgJEgwKBG5hbWUYAyABKAkSEQoJZnVsbF9uYW1lGAQgASgJEg4KBmRvbWFpbhgFIAEoCRI5CgZmaWVsZHMYBiADKAsyKS52cm9vbGkucHJvdG9faGVhbHRoLnYxLnNoYXJlZC5Qcm90b0ZpZWxkIoUBCgpQcm90b0ZpZWxkEgwKBG5hbWUYASABKAkSDAoEdHlwZRgCIAEoCRIUCgxtZXNzYWdlX3R5cGUYAyABKAkSEQoJZW51bV90eXBlGAQgASgJEhAKCHJlcGVhdGVkGAUgASgIEhAKCG9wdGlvbmFsGAYgASgIEg4KBm51bWJlchgHIAEoBSKSAgoLUHJvdG9JbXBvcnQSEQoJZnJvbV9maWxlGAEgASgJEg8KB3RvX2ZpbGUYAiABKAkSFQoNZnJvbV9zY2VuYXJpbxgDIAEoCRITCgt0b19zY2VuYXJpbxgEIAEoCRIUCgxmcm9tX3BhY2thZ2UYBSABKAkSEgoKdG9fcGFja2FnZRgGIAEoCRIUCgxmcm9tX3ZlcnNpb24YByABKAkSEgoKdG9fdmVyc2lvbhgIIAEoCRITCgtmcm9tX2RvbWFpbhgJIAEoCRIRCgl0b19kb21haW4YCiABKAkSNwoEa2luZBgLIAEoDjIpLnZyb29saS5wcm90b19oZWFsdGgudjEuc2hhcmVkLkltcG9ydEtpbmQieQoQUmVzdEV4Y2VwdGlvblJlZhITCgtlbmRwb2ludF9pZBgBIAEoCRIMCgRwYXRoGAIgASgJEg4KBm1ldGhvZBgDIAEoCRIOCgZkb21haW4YBCABKAkSDwoHbWVzc2FnZRgFIAEoCRIRCglmdWxsX25hbWUYBiABKAkijAEKFVJlc3RFeGNlcHRpb25FbmRwb2ludBITCgtlbmRwb2ludF9pZBgBIAEoCRIMCgRwYXRoGAIgASgJEg4KBm1ldGhvZBgDIAEoCRIOCgZkb21haW4YBCABKAkSDgoGcmVhc29uGAUgASgJEiAKGGhhc19wYXlsb2FkX2RlY2xhcmF0aW9ucxgGIAEoCCK4AgoXUmVzdEV4Y2VwdGlvblBheWxvYWRSZWYSEwoLZW5kcG9pbnRfaWQYASABKAkSDAoEcGF0aBgCIAEoCRIOCgZtZXRob2QYAyABKAkSDgoGZG9tYWluGAQgASgJEg4KBnJlYXNvbhgFIAEoCRI8CgRyb2xlGAYgASgOMi4udnJvb2xpLnByb3RvX2hlYWx0aC52MS5zaGFyZWQuUmVzdFBheWxvYWRSb2xlEhcKD3Byb3RvX2Z1bGxfbmFtZRgHIAEoCRIRCgl0cmFuc3BvcnQYCCABKAkSEwoLY29uZm9ybWFuY2UYCSABKAkSSwoMcHJvb2Zfc3RhdHVzGAogASgOMjUudnJvb2xpLnByb3RvX2hlYWx0aC52MS5zaGFyZWQuUmVzdFBheWxvYWRQcm9vZlN0YXR1cyqDAQoKSW1wb3J0S2luZBIbChdJTVBPUlRfS0lORF9VTlNQRUNJRklFRBAAEh4KGklNUE9SVF9LSU5EX1NDRU5BUklPX0xPQ0FMEAESHgoaSU1QT1JUX0tJTkRfQ1JPU1NfU0NFTkFSSU8QAhIYChRJTVBPUlRfS0lORF9FWFRFUk5BTBADKpABCg9SZXN0UGF5bG9hZFJvbGUSIQodUkVTVF9QQVlMT0FEX1JPTEVfVU5TUEVDSUZJRUQQABIdChlSRVNUX1BBWUxPQURfUk9MRV9SRVFVRVNUEAESHgoaUkVTVF9QQVlMT0FEX1JPTEVfUkVTUE9OU0UQAhIbChdSRVNUX1BBWUxPQURfUk9MRV9FUlJPUhADKnAKFlJlc3RQYXlsb2FkUHJvb2ZTdGF0dXMSKQolUkVTVF9QQVlMT0FEX1BST09GX1NUQVRVU19VTlNQRUNJRklFRBAAEisKJ1JFU1RfUEFZTE9BRF9QUk9PRl9TVEFUVVNfTk9UX0VWQUxVQVRFRBABKqQBCg5UcmFuc3BvcnRXb3JsZBIfChtUUkFOU1BPUlRfV09STERfVU5TUEVDSUZJRUQQABIbChdUUkFOU1BPUlRfV09STERfQ09OTkVDVBABEh8KG1RSQU5TUE9SVF9XT1JMRF9IQU5EX1JPTExFRBACEhkKFVRSQU5TUE9SVF9XT1JMRF9NSVhFRBADEhgKFFRSQU5TUE9SVF9XT1JMRF9OT05FEAQqowEKDVRyYW5zcG9ydEtpbmQSHgoaVFJBTlNQT1JUX0tJTkRfVU5TUEVDSUZJRUQQABIaChZUUkFOU1BPUlRfS0lORF9DT05ORUNUEAESFwoTVFJBTlNQT1JUX0tJTkRfUkVTVBACEh4KGlRSQU5TUE9SVF9LSU5EX0hBTkRfUk9MTEVEEAMSHQoZVFJBTlNQT1JUX0tJTkRfTk9UX1NFUlZFRBAEQlFaT2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vcHJvdG8taGVhbHRoL3YxL3NoYXJlZDtzaGFyZWRfdjFiBnByb3RvMw");
 
 /**
  * ProtoSurface is the per-scenario inventory emitted by proto-health.
@@ -49,14 +49,24 @@ export type ProtoSurface = Message<"vrooli.proto_health.v1.shared.ProtoSurface">
   crossScenarioImports: ProtoImport[];
 
   /**
-   * @generated from field: repeated vrooli.proto_health.v1.shared.AdoptionSignal adoption_signals = 7;
-   */
-  adoptionSignals: AdoptionSignal[];
-
-  /**
    * @generated from field: vrooli.proto_health.v1.shared.TransportWorld transport_world = 8;
    */
   transportWorld: TransportWorld;
+
+  /**
+   * @generated from field: repeated vrooli.proto_health.v1.shared.RestExceptionRef rest_exception_refs = 9;
+   */
+  restExceptionRefs: RestExceptionRef[];
+
+  /**
+   * @generated from field: repeated vrooli.proto_health.v1.shared.RestExceptionEndpoint rest_exceptions = 10;
+   */
+  restExceptions: RestExceptionEndpoint[];
+
+  /**
+   * @generated from field: repeated vrooli.proto_health.v1.shared.RestExceptionPayloadRef rest_exception_payloads = 11;
+   */
+  restExceptionPayloads: RestExceptionPayloadRef[];
 };
 
 /**
@@ -323,14 +333,49 @@ export type ProtoImport = Message<"vrooli.proto_health.v1.shared.ProtoImport"> &
   toFile: string;
 
   /**
-   * @generated from field: string from_domain = 3;
+   * @generated from field: string from_scenario = 3;
+   */
+  fromScenario: string;
+
+  /**
+   * @generated from field: string to_scenario = 4;
+   */
+  toScenario: string;
+
+  /**
+   * @generated from field: string from_package = 5;
+   */
+  fromPackage: string;
+
+  /**
+   * @generated from field: string to_package = 6;
+   */
+  toPackage: string;
+
+  /**
+   * @generated from field: string from_version = 7;
+   */
+  fromVersion: string;
+
+  /**
+   * @generated from field: string to_version = 8;
+   */
+  toVersion: string;
+
+  /**
+   * @generated from field: string from_domain = 9;
    */
   fromDomain: string;
 
   /**
-   * @generated from field: string to_domain = 4;
+   * @generated from field: string to_domain = 10;
    */
   toDomain: string;
+
+  /**
+   * @generated from field: vrooli.proto_health.v1.shared.ImportKind kind = 11;
+   */
+  kind: ImportKind;
 };
 
 /**
@@ -341,34 +386,249 @@ export const ProtoImportSchema: GenMessage<ProtoImport> = /*@__PURE__*/
   messageDesc(file_proto_health_v1_shared_surface, 7);
 
 /**
- * AdoptionSignal records whether this scenario appears to consume its own
- * generated proto artifacts.
+ * RestExceptionRef records a proto message used by a documented REST
+ * exception endpoint, such as a multipart upload response.
  *
- * @generated from message vrooli.proto_health.v1.shared.AdoptionSignal
+ * @generated from message vrooli.proto_health.v1.shared.RestExceptionRef
  */
-export type AdoptionSignal = Message<"vrooli.proto_health.v1.shared.AdoptionSignal"> & {
+export type RestExceptionRef = Message<"vrooli.proto_health.v1.shared.RestExceptionRef"> & {
   /**
-   * @generated from field: string name = 1;
+   * @generated from field: string endpoint_id = 1;
    */
-  name: string;
+  endpointId: string;
 
   /**
-   * @generated from field: bool present = 2;
+   * @generated from field: string path = 2;
    */
-  present: boolean;
+  path: string;
 
   /**
-   * @generated from field: string detail = 3;
+   * @generated from field: string method = 3;
    */
-  detail: string;
+  method: string;
+
+  /**
+   * @generated from field: string domain = 4;
+   */
+  domain: string;
+
+  /**
+   * @generated from field: string message = 5;
+   */
+  message: string;
+
+  /**
+   * @generated from field: string full_name = 6;
+   */
+  fullName: string;
 };
 
 /**
- * Describes the message vrooli.proto_health.v1.shared.AdoptionSignal.
- * Use `create(AdoptionSignalSchema)` to create a new message.
+ * Describes the message vrooli.proto_health.v1.shared.RestExceptionRef.
+ * Use `create(RestExceptionRefSchema)` to create a new message.
  */
-export const AdoptionSignalSchema: GenMessage<AdoptionSignal> = /*@__PURE__*/
+export const RestExceptionRefSchema: GenMessage<RestExceptionRef> = /*@__PURE__*/
   messageDesc(file_proto_health_v1_shared_surface, 8);
+
+/**
+ * RestExceptionEndpoint records a documented REST exception endpoint whose
+ * payload intent should be explicitly declared.
+ *
+ * @generated from message vrooli.proto_health.v1.shared.RestExceptionEndpoint
+ */
+export type RestExceptionEndpoint = Message<"vrooli.proto_health.v1.shared.RestExceptionEndpoint"> & {
+  /**
+   * @generated from field: string endpoint_id = 1;
+   */
+  endpointId: string;
+
+  /**
+   * @generated from field: string path = 2;
+   */
+  path: string;
+
+  /**
+   * @generated from field: string method = 3;
+   */
+  method: string;
+
+  /**
+   * @generated from field: string domain = 4;
+   */
+  domain: string;
+
+  /**
+   * @generated from field: string reason = 5;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: bool has_payload_declarations = 6;
+   */
+  hasPayloadDeclarations: boolean;
+};
+
+/**
+ * Describes the message vrooli.proto_health.v1.shared.RestExceptionEndpoint.
+ * Use `create(RestExceptionEndpointSchema)` to create a new message.
+ */
+export const RestExceptionEndpointSchema: GenMessage<RestExceptionEndpoint> = /*@__PURE__*/
+  messageDesc(file_proto_health_v1_shared_surface, 9);
+
+/**
+ * RestExceptionPayloadRef records one declared request/response/error payload
+ * role for a REST exception endpoint. Proof status is explicit because
+ * proto-health does not prove handler implementation conformance in this tier.
+ *
+ * @generated from message vrooli.proto_health.v1.shared.RestExceptionPayloadRef
+ */
+export type RestExceptionPayloadRef = Message<"vrooli.proto_health.v1.shared.RestExceptionPayloadRef"> & {
+  /**
+   * @generated from field: string endpoint_id = 1;
+   */
+  endpointId: string;
+
+  /**
+   * @generated from field: string path = 2;
+   */
+  path: string;
+
+  /**
+   * @generated from field: string method = 3;
+   */
+  method: string;
+
+  /**
+   * @generated from field: string domain = 4;
+   */
+  domain: string;
+
+  /**
+   * @generated from field: string reason = 5;
+   */
+  reason: string;
+
+  /**
+   * @generated from field: vrooli.proto_health.v1.shared.RestPayloadRole role = 6;
+   */
+  role: RestPayloadRole;
+
+  /**
+   * @generated from field: string proto_full_name = 7;
+   */
+  protoFullName: string;
+
+  /**
+   * @generated from field: string transport = 8;
+   */
+  transport: string;
+
+  /**
+   * @generated from field: string conformance = 9;
+   */
+  conformance: string;
+
+  /**
+   * @generated from field: vrooli.proto_health.v1.shared.RestPayloadProofStatus proof_status = 10;
+   */
+  proofStatus: RestPayloadProofStatus;
+};
+
+/**
+ * Describes the message vrooli.proto_health.v1.shared.RestExceptionPayloadRef.
+ * Use `create(RestExceptionPayloadRefSchema)` to create a new message.
+ */
+export const RestExceptionPayloadRefSchema: GenMessage<RestExceptionPayloadRef> = /*@__PURE__*/
+  messageDesc(file_proto_health_v1_shared_surface, 10);
+
+/**
+ * ImportKind classifies an import edge from the scenario's point of view.
+ *
+ * @generated from enum vrooli.proto_health.v1.shared.ImportKind
+ */
+export enum ImportKind {
+  /**
+   * @generated from enum value: IMPORT_KIND_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: IMPORT_KIND_SCENARIO_LOCAL = 1;
+   */
+  SCENARIO_LOCAL = 1,
+
+  /**
+   * @generated from enum value: IMPORT_KIND_CROSS_SCENARIO = 2;
+   */
+  CROSS_SCENARIO = 2,
+
+  /**
+   * @generated from enum value: IMPORT_KIND_EXTERNAL = 3;
+   */
+  EXTERNAL = 3,
+}
+
+/**
+ * Describes the enum vrooli.proto_health.v1.shared.ImportKind.
+ */
+export const ImportKindSchema: GenEnum<ImportKind> = /*@__PURE__*/
+  enumDesc(file_proto_health_v1_shared_surface, 0);
+
+/**
+ * RestPayloadRole identifies which REST payload role a declaration describes.
+ *
+ * @generated from enum vrooli.proto_health.v1.shared.RestPayloadRole
+ */
+export enum RestPayloadRole {
+  /**
+   * @generated from enum value: REST_PAYLOAD_ROLE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: REST_PAYLOAD_ROLE_REQUEST = 1;
+   */
+  REQUEST = 1,
+
+  /**
+   * @generated from enum value: REST_PAYLOAD_ROLE_RESPONSE = 2;
+   */
+  RESPONSE = 2,
+
+  /**
+   * @generated from enum value: REST_PAYLOAD_ROLE_ERROR = 3;
+   */
+  ERROR = 3,
+}
+
+/**
+ * Describes the enum vrooli.proto_health.v1.shared.RestPayloadRole.
+ */
+export const RestPayloadRoleSchema: GenEnum<RestPayloadRole> = /*@__PURE__*/
+  enumDesc(file_proto_health_v1_shared_surface, 1);
+
+/**
+ * RestPayloadProofStatus states whether implementation conformance was proven.
+ *
+ * @generated from enum vrooli.proto_health.v1.shared.RestPayloadProofStatus
+ */
+export enum RestPayloadProofStatus {
+  /**
+   * @generated from enum value: REST_PAYLOAD_PROOF_STATUS_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: REST_PAYLOAD_PROOF_STATUS_NOT_EVALUATED = 1;
+   */
+  NOT_EVALUATED = 1,
+}
+
+/**
+ * Describes the enum vrooli.proto_health.v1.shared.RestPayloadProofStatus.
+ */
+export const RestPayloadProofStatusSchema: GenEnum<RestPayloadProofStatus> = /*@__PURE__*/
+  enumDesc(file_proto_health_v1_shared_surface, 2);
 
 /**
  * TransportWorld summarizes how the scenario exposes proto-owned methods.
@@ -406,7 +666,7 @@ export enum TransportWorld {
  * Describes the enum vrooli.proto_health.v1.shared.TransportWorld.
  */
 export const TransportWorldSchema: GenEnum<TransportWorld> = /*@__PURE__*/
-  enumDesc(file_proto_health_v1_shared_surface, 0);
+  enumDesc(file_proto_health_v1_shared_surface, 3);
 
 /**
  * TransportKind describes one RPC's discovered transport.
@@ -444,5 +704,5 @@ export enum TransportKind {
  * Describes the enum vrooli.proto_health.v1.shared.TransportKind.
  */
 export const TransportKindSchema: GenEnum<TransportKind> = /*@__PURE__*/
-  enumDesc(file_proto_health_v1_shared_surface, 1);
+  enumDesc(file_proto_health_v1_shared_surface, 4);
 

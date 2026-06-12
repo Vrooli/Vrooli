@@ -41,7 +41,7 @@ func TestLeadingCommentsPassThroughVerbatim(t *testing.T) {
 	}
 
 	svc := graph.NewService(fake, graph.NewPathMutex())
-	out, err := svc.Extract(context.Background(), graph.ExtractInput{ScenarioPath: "/abs/proj"})
+	out, err := svc.Extract(context.Background(), graph.ExtractInput{ProjectPath: "/abs/proj"})
 	require.NoError(t, err)
 	require.Len(t, out.Graph.Nodes, 1)
 
@@ -79,7 +79,7 @@ func TestLeadingComments_RealSidecar_JsdocTags(t *testing.T) {
 	defer cancel()
 
 	fixDir := fixtureAbsPath(t, "ts-jsdoc-tags")
-	out, err := svc.Extract(ctx, graph.ExtractInput{ScenarioPath: fixDir})
+	out, err := svc.Extract(ctx, graph.ExtractInput{ProjectPath: fixDir})
 	require.NoError(t, err)
 
 	wantByID := map[string][]string{

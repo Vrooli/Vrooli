@@ -5,15 +5,16 @@ package protosurface
 // Surface is the per-scenario proto inventory that validation and the public
 // DescribeScenarioProtos RPC reason over.
 type Surface struct {
-	Scenario             string
-	Files                []File
-	Services             []Service
-	Messages             []Message
-	IntraScenarioImports []Import
-	CrossScenarioImports []Import
-	RESTExceptionRefs    []RESTExceptionRef
-	AdoptionSignals      []AdoptionSignal
-	TransportWorld       TransportWorld
+	Scenario              string
+	Files                 []File
+	Services              []Service
+	Messages              []Message
+	IntraScenarioImports  []Import
+	CrossScenarioImports  []Import
+	RESTExceptions        []RESTExceptionEndpoint
+	RESTExceptionPayloads []RESTExceptionPayloadRef
+	RESTExceptionRefs     []RESTExceptionRef
+	TransportWorld        TransportWorld
 }
 
 type File struct {
@@ -66,11 +67,27 @@ type Field struct {
 }
 
 type Import struct {
-	FromFile   string
-	ToFile     string
-	FromDomain string
-	ToDomain   string
+	FromFile     string
+	ToFile       string
+	FromScenario string
+	ToScenario   string
+	FromPackage  string
+	ToPackage    string
+	FromVersion  string
+	ToVersion    string
+	FromDomain   string
+	ToDomain     string
+	Kind         ImportKind
 }
+
+type ImportKind string
+
+const (
+	ImportKindUnspecified   ImportKind = "unspecified"
+	ImportKindScenarioLocal ImportKind = "scenario_local"
+	ImportKindCrossScenario ImportKind = "cross_scenario"
+	ImportKindExternal      ImportKind = "external"
+)
 
 type RESTExceptionRef struct {
 	EndpointID string
@@ -81,10 +98,40 @@ type RESTExceptionRef struct {
 	FullName   string
 }
 
-type AdoptionSignal struct {
-	Name    string
-	Present bool
-	Detail  string
+type RESTExceptionEndpoint struct {
+	EndpointID             string
+	Path                   string
+	Method                 string
+	Domain                 string
+	Reason                 string
+	HasPayloadDeclarations bool
+}
+
+type RESTPayloadRole string
+
+const (
+	RESTPayloadRoleRequest  RESTPayloadRole = "request"
+	RESTPayloadRoleResponse RESTPayloadRole = "response"
+	RESTPayloadRoleError    RESTPayloadRole = "error"
+)
+
+type RESTPayloadProofStatus string
+
+const (
+	RESTPayloadProofNotEvaluated RESTPayloadProofStatus = "not_evaluated"
+)
+
+type RESTExceptionPayloadRef struct {
+	EndpointID    string
+	Path          string
+	Method        string
+	Domain        string
+	Reason        string
+	Role          RESTPayloadRole
+	ProtoFullName string
+	Transport     string
+	Conformance   string
+	ProofStatus   RESTPayloadProofStatus
 }
 
 type TransportWorld string

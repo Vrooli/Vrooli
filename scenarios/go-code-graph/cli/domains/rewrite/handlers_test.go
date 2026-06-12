@@ -95,15 +95,15 @@ func TestPlan_ParsesOpsAndRenders(t *testing.T) {
 
 	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "ops-file", Required: true}},
-		Flags:       []cliapp.Flag{{Name: "scenario-path", Required: true}},
+		Flags:       []cliapp.Flag{{Name: "module-path", Required: true}},
 	}, cliapptest.TestRunContextOptions{
 		Positionals: map[string]string{"ops-file": opsPath},
-		Flags:       map[string]string{"scenario-path": "/tmp/mod"},
+		Flags:       map[string]string{"module-path": "/tmp/mod"},
 	})
 
 	require.NoError(t, h.plan(ctx))
 	require.Len(t, svc.planReqs, 1)
-	require.Equal(t, "/tmp/mod", svc.planReqs[0].GetScenarioPath())
+	require.Equal(t, "/tmp/mod", svc.planReqs[0].GetModulePath())
 	require.Len(t, svc.planReqs[0].GetOperations(), 2)
 	require.Equal(t, "a.go", svc.planReqs[0].GetOperations()[0].GetFileMove().GetFromPath())
 	require.Equal(t, "x", svc.planReqs[0].GetOperations()[1].GetImportRewrite().GetOldPath())
@@ -112,7 +112,7 @@ func TestPlan_ParsesOpsAndRenders(t *testing.T) {
 	require.Contains(t, body, "Plan plan-123 ready (2 op(s))")
 	require.Contains(t, body, "file_move: a.go -> b.go")
 	require.Contains(t, body, "import_rewrite: x -> y")
-	require.Contains(t, body, "rewrite apply plan-123 --scenario-path /tmp/mod")
+	require.Contains(t, body, "rewrite apply plan-123 --module-path /tmp/mod")
 }
 
 func TestPlan_RejectsEmptyOpsFile(t *testing.T) {
@@ -121,10 +121,10 @@ func TestPlan_RejectsEmptyOpsFile(t *testing.T) {
 	opsPath := writeOpsFile(t, `[]`)
 	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "ops-file", Required: true}},
-		Flags:       []cliapp.Flag{{Name: "scenario-path", Required: true}},
+		Flags:       []cliapp.Flag{{Name: "module-path", Required: true}},
 	}, cliapptest.TestRunContextOptions{
 		Positionals: map[string]string{"ops-file": opsPath},
-		Flags:       map[string]string{"scenario-path": "/tmp/mod"},
+		Flags:       map[string]string{"module-path": "/tmp/mod"},
 	})
 	err := h.plan(ctx)
 	require.Error(t, err)
@@ -137,10 +137,10 @@ func TestPlan_RejectsUnknownKind(t *testing.T) {
 	opsPath := writeOpsFile(t, `[{"kind":"bogus"}]`)
 	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "ops-file", Required: true}},
-		Flags:       []cliapp.Flag{{Name: "scenario-path", Required: true}},
+		Flags:       []cliapp.Flag{{Name: "module-path", Required: true}},
 	}, cliapptest.TestRunContextOptions{
 		Positionals: map[string]string{"ops-file": opsPath},
-		Flags:       map[string]string{"scenario-path": "/tmp/mod"},
+		Flags:       map[string]string{"module-path": "/tmp/mod"},
 	})
 	err := h.plan(ctx)
 	require.Error(t, err)
@@ -162,16 +162,16 @@ func TestApply_RendersResultsAndDryRun(t *testing.T) {
 	h := newHandlers(core)
 	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "plan-id", Required: true}},
-		Flags:       []cliapp.Flag{{Name: "scenario-path", Required: true}},
+		Flags:       []cliapp.Flag{{Name: "module-path", Required: true}},
 	}, cliapptest.TestRunContextOptions{
 		Positionals: map[string]string{"plan-id": "plan-123"},
-		Flags:       map[string]string{"scenario-path": "/tmp/mod"},
+		Flags:       map[string]string{"module-path": "/tmp/mod"},
 	})
 
 	require.NoError(t, h.apply(ctx))
 	require.Len(t, svc.applyReqs, 1)
 	require.Equal(t, "plan-123", svc.applyReqs[0].GetPlanId())
-	require.Equal(t, "/tmp/mod", svc.applyReqs[0].GetScenarioPath())
+	require.Equal(t, "/tmp/mod", svc.applyReqs[0].GetModulePath())
 	require.True(t, svc.applyReqs[0].GetApply(), "apply must be true; dry-run is threaded via X-Dry-Run header")
 
 	body := out.String()
@@ -196,10 +196,10 @@ func TestApply_SurfacesFailures(t *testing.T) {
 	h := newHandlers(core)
 	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
 		Positionals: []cliapp.Positional{{Name: "plan-id", Required: true}},
-		Flags:       []cliapp.Flag{{Name: "scenario-path", Required: true}},
+		Flags:       []cliapp.Flag{{Name: "module-path", Required: true}},
 	}, cliapptest.TestRunContextOptions{
 		Positionals: map[string]string{"plan-id": "plan-9"},
-		Flags:       map[string]string{"scenario-path": "/tmp/mod"},
+		Flags:       map[string]string{"module-path": "/tmp/mod"},
 	})
 
 	require.NoError(t, h.apply(ctx))

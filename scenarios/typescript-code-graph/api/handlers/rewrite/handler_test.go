@@ -27,7 +27,7 @@ func newSvc(t *testing.T, fake *sidecarmocks.FakeSidecarClient) *rewritedom.Serv
 func TestRewritePlan_HappyPath(t *testing.T) {
 	svc := newSvc(t, nil)
 	req := connect.NewRequest(&graphv1.RewritePlanRequest{
-		ScenarioPath: "/abs/proj",
+		ProjectPath: "/abs/proj",
 		Operations: []*rewritepb.Operation{
 			{Op: &rewritepb.Operation_FileMove{FileMove: &rewritepb.FileMove{FromPath: "a.ts", ToPath: "b.ts"}}},
 		},
@@ -46,7 +46,7 @@ func TestRewritePlan_HappyPath(t *testing.T) {
 
 func TestRewritePlan_InvalidArgument(t *testing.T) {
 	svc := newSvc(t, nil)
-	req := connect.NewRequest(&graphv1.RewritePlanRequest{ScenarioPath: ""})
+	req := connect.NewRequest(&graphv1.RewritePlanRequest{ProjectPath: ""})
 	_, err := RewritePlan(context.Background(), req, svc)
 	if err == nil {
 		t.Fatal("expected error")
@@ -59,9 +59,9 @@ func TestRewritePlan_InvalidArgument(t *testing.T) {
 func TestRewriteApply_RejectsApplyFalse(t *testing.T) {
 	svc := newSvc(t, nil)
 	req := connect.NewRequest(&graphv1.RewriteApplyRequest{
-		ScenarioPath: "/abs/proj",
-		PlanId:       "any",
-		Apply:        false,
+		ProjectPath: "/abs/proj",
+		PlanId:      "any",
+		Apply:       false,
 	})
 	_, err := RewriteApply(context.Background(), req, svc, false)
 	if err == nil {
@@ -75,9 +75,9 @@ func TestRewriteApply_RejectsApplyFalse(t *testing.T) {
 func TestRewriteApply_PlanNotFound(t *testing.T) {
 	svc := newSvc(t, nil)
 	req := connect.NewRequest(&graphv1.RewriteApplyRequest{
-		ScenarioPath: "/abs/proj",
-		PlanId:       "missing",
-		Apply:        true,
+		ProjectPath: "/abs/proj",
+		PlanId:      "missing",
+		Apply:       true,
 	})
 	_, err := RewriteApply(context.Background(), req, svc, false)
 	if err == nil {
@@ -94,7 +94,7 @@ func TestRewriteApply_DryRunSkipsSidecar(t *testing.T) {
 
 	// Plan first.
 	planReq := connect.NewRequest(&graphv1.RewritePlanRequest{
-		ScenarioPath: "/abs/proj",
+		ProjectPath: "/abs/proj",
 		Operations: []*rewritepb.Operation{
 			{Op: &rewritepb.Operation_FileMove{FileMove: &rewritepb.FileMove{FromPath: "a.ts", ToPath: "b.ts"}}},
 		},
@@ -105,9 +105,9 @@ func TestRewriteApply_DryRunSkipsSidecar(t *testing.T) {
 	}
 
 	applyReq := connect.NewRequest(&graphv1.RewriteApplyRequest{
-		ScenarioPath: "/abs/proj",
-		PlanId:       planResp.Msg.GetPlanId(),
-		Apply:        true,
+		ProjectPath: "/abs/proj",
+		PlanId:      planResp.Msg.GetPlanId(),
+		Apply:       true,
 	})
 	applyResp, err := RewriteApply(context.Background(), applyReq, svc, true)
 	if err != nil {
@@ -138,7 +138,7 @@ func TestRewriteApply_RealApplyHitsSidecar(t *testing.T) {
 	svc := newSvc(t, fake)
 
 	planReq := connect.NewRequest(&graphv1.RewritePlanRequest{
-		ScenarioPath: "/abs/proj",
+		ProjectPath: "/abs/proj",
 		Operations: []*rewritepb.Operation{
 			{Op: &rewritepb.Operation_FileMove{FileMove: &rewritepb.FileMove{FromPath: "a.ts", ToPath: "b.ts"}}},
 		},
@@ -149,9 +149,9 @@ func TestRewriteApply_RealApplyHitsSidecar(t *testing.T) {
 	}
 
 	applyReq := connect.NewRequest(&graphv1.RewriteApplyRequest{
-		ScenarioPath: "/abs/proj",
-		PlanId:       planResp.Msg.GetPlanId(),
-		Apply:        true,
+		ProjectPath: "/abs/proj",
+		PlanId:      planResp.Msg.GetPlanId(),
+		Apply:       true,
 	})
 	applyResp, err := RewriteApply(context.Background(), applyReq, svc, false)
 	if err != nil {

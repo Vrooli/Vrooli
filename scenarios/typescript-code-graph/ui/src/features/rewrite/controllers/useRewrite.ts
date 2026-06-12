@@ -8,7 +8,7 @@ import type {
 } from "../../../api/rewrite";
 
 export interface PlanArgs {
-  readonly scenarioPath: string;
+  readonly projectPath: string;
   readonly operations: readonly Operation[];
 }
 
@@ -19,13 +19,13 @@ export interface PlanArgs {
  */
 export function useRewritePlan(): UseMutationResult<RewritePlanResponse, Error, PlanArgs> {
   return useMutation({
-    mutationFn: ({ scenarioPath, operations }: PlanArgs) =>
-      tsCodeGraphClient.rewritePlan({ scenarioPath, operations: [...operations] }),
+    mutationFn: ({ projectPath, operations }: PlanArgs) =>
+      tsCodeGraphClient.rewritePlan({ projectPath, operations: [...operations] }),
   });
 }
 
 export interface ApplyArgs {
-  readonly scenarioPath: string;
+  readonly projectPath: string;
   readonly planId: string;
 }
 
@@ -37,7 +37,7 @@ export interface ApplyArgs {
  */
 export function useRewriteApply(): UseMutationResult<RewriteApplyResponse, Error, ApplyArgs> {
   return useMutation({
-    mutationFn: ({ scenarioPath, planId }: ApplyArgs) =>
-      tsCodeGraphClient.rewriteApply({ scenarioPath, planId, apply: true }),
+    mutationFn: ({ projectPath, planId }: ApplyArgs) =>
+      tsCodeGraphClient.rewriteApply({ projectPath, planId, apply: true }),
   });
 }

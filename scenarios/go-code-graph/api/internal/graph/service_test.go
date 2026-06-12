@@ -36,9 +36,9 @@ func writeScenario(t *testing.T, files map[string]string) string {
 func TestServiceExtractInvalidInput(t *testing.T) {
 	t.Parallel()
 	svc := intgraph.NewService(&graphmocks.FakeLoader{}, intgraph.NewPathMutex())
-	_, _, err := svc.Extract(context.Background(), intgraph.ExtractInput{ScenarioPath: "   "})
+	_, _, err := svc.Extract(context.Background(), intgraph.ExtractInput{ModulePath: "   "})
 	if err == nil {
-		t.Fatal("want error for empty scenario_path, got nil")
+		t.Fatal("want error for empty module_path, got nil")
 	}
 	var ex intgraph.ExtractError
 	if !errors.As(err, &ex) || ex.Kind != intgraph.ExtractErrorInvalidInput {
@@ -52,7 +52,7 @@ func TestServiceExtractInvalidInput(t *testing.T) {
 func TestServiceExtractPathUnreadable(t *testing.T) {
 	t.Parallel()
 	svc := intgraph.NewService(&graphmocks.FakeLoader{}, intgraph.NewPathMutex())
-	_, _, err := svc.Extract(context.Background(), intgraph.ExtractInput{ScenarioPath: "/definitely/does/not/exist/xyz"})
+	_, _, err := svc.Extract(context.Background(), intgraph.ExtractInput{ModulePath: "/definitely/does/not/exist/xyz"})
 	if err == nil {
 		t.Fatal("want error for missing path, got nil")
 	}
@@ -71,7 +71,7 @@ func TestServiceExtractNoGoMod(t *testing.T) {
 		"README.md": "no go.mod here",
 	})
 	svc := intgraph.NewService(&graphmocks.FakeLoader{}, intgraph.NewPathMutex())
-	_, _, err := svc.Extract(context.Background(), intgraph.ExtractInput{ScenarioPath: root})
+	_, _, err := svc.Extract(context.Background(), intgraph.ExtractInput{ModulePath: root})
 	var ex intgraph.ExtractError
 	if !errors.As(err, &ex) || ex.Kind != intgraph.ExtractErrorNoGoMod {
 		t.Fatalf("want ExtractErrorNoGoMod, got %#v", err)
@@ -88,7 +88,7 @@ func TestServiceExtractMultipleGoMod(t *testing.T) {
 		"nested/go.mod": "module nested\n\ngo 1.25\n",
 	})
 	svc := intgraph.NewService(&graphmocks.FakeLoader{}, intgraph.NewPathMutex())
-	_, _, err := svc.Extract(context.Background(), intgraph.ExtractInput{ScenarioPath: root})
+	_, _, err := svc.Extract(context.Background(), intgraph.ExtractInput{ModulePath: root})
 	var ex intgraph.ExtractError
 	if !errors.As(err, &ex) || ex.Kind != intgraph.ExtractErrorMultipleGoMod {
 		t.Fatalf("want ExtractErrorMultipleGoMod, got %#v", err)
@@ -102,7 +102,7 @@ func TestServiceExtractWorkspaceUnsupported(t *testing.T) {
 		"go.mod":  "module a\n\ngo 1.25\n",
 	})
 	svc := intgraph.NewService(&graphmocks.FakeLoader{}, intgraph.NewPathMutex())
-	_, _, err := svc.Extract(context.Background(), intgraph.ExtractInput{ScenarioPath: root})
+	_, _, err := svc.Extract(context.Background(), intgraph.ExtractInput{ModulePath: root})
 	var ex intgraph.ExtractError
 	if !errors.As(err, &ex) || ex.Kind != intgraph.ExtractErrorWorkspaceUnsupported {
 		t.Fatalf("want ExtractErrorWorkspaceUnsupported, got %#v", err)
@@ -125,7 +125,7 @@ func TestServiceExtractLoaderError(t *testing.T) {
 		},
 	}
 	svc := intgraph.NewService(loader, intgraph.NewPathMutex())
-	_, _, err := svc.Extract(context.Background(), intgraph.ExtractInput{ScenarioPath: root})
+	_, _, err := svc.Extract(context.Background(), intgraph.ExtractInput{ModulePath: root})
 	var ex intgraph.ExtractError
 	if !errors.As(err, &ex) || ex.Kind != intgraph.ExtractErrorInternal {
 		t.Fatalf("want ExtractErrorInternal, got %#v", err)
@@ -150,7 +150,7 @@ func TestServiceExtractHappyPath(t *testing.T) {
 		},
 	}
 	svc := intgraph.NewService(loader, intgraph.NewPathMutex())
-	g, warnings, err := svc.Extract(context.Background(), intgraph.ExtractInput{ScenarioPath: root})
+	g, warnings, err := svc.Extract(context.Background(), intgraph.ExtractInput{ModulePath: root})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

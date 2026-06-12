@@ -41,13 +41,13 @@ func (s *SQLiteStore) Save(ctx context.Context, plan Plan) error {
 		return fmt.Errorf("encode operations: %w", err)
 	}
 	_, err = s.db.ExecContext(ctx, `
-        INSERT INTO rewrite_plans(id, scenario_path, operations, created_at)
+        INSERT INTO rewrite_plans(id, module_path, operations, created_at)
         VALUES (?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
-            scenario_path = excluded.scenario_path,
+            module_path = excluded.module_path,
             operations    = excluded.operations,
             created_at    = excluded.created_at
-    `, string(plan.ID), plan.ScenarioPath, ops, s.clock.Now().Unix())
+    `, string(plan.ID), plan.ModulePath, ops, s.clock.Now().Unix())
 	if err != nil {
 		return fmt.Errorf("save plan: %w", err)
 	}
@@ -57,12 +57,12 @@ func (s *SQLiteStore) Save(ctx context.Context, plan Plan) error {
 // Load returns the stored plan or RewriteError{Kind: PlanNotFound}.
 func (s *SQLiteStore) Load(ctx context.Context, id PlanID) (Plan, error) {
 	row := s.db.QueryRowContext(ctx, `
-        SELECT scenario_path, operations
+        SELECT module_path, operations
         FROM rewrite_plans
         WHERE id = ?
     `, string(id))
-	var scenarioPath, opsJSON string
-	if err := row.Scan(&scenarioPath, &opsJSON); err != nil {
+	var modulePath, opsJSON string
+	if err := row.Scan(&modulePath, &opsJSON); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return Plan{}, RewriteError{
 				Kind:    RewriteErrorPlanNotFound,
@@ -75,7 +75,7 @@ func (s *SQLiteStore) Load(ctx context.Context, id PlanID) (Plan, error) {
 	if err != nil {
 		return Plan{}, fmt.Errorf("decode operations: %w", err)
 	}
-	return Plan{ID: id, ScenarioPath: scenarioPath, Operations: ops}, nil
+	return Plan{ID: id, ModulePath: modulePath, Operations: ops}, nil
 }
 
 // RecordApply appends per-op results to the operation log. Returns the

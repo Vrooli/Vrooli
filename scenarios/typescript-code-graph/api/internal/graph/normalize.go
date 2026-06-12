@@ -72,7 +72,7 @@ func sortGraph(nodes []Node, edges []Edge) {
 
 // decodeNodeKind maps a numeric common.v1.NodeKind enum value to the
 // domain NodeKind. Values 1..3 are the common envelope (FILE, PACKAGE,
-// MODULE); 200..209 are TS-specific (TsNodeKind). Unknown values fall
+// MODULE); 200..299 are TS-specific (TsNodeKind). Unknown values fall
 // back to NodeKindFile.
 func decodeNodeKind(k int32) NodeKind {
 	switch k {
@@ -98,6 +98,16 @@ func decodeNodeKind(k int32) NodeKind {
 		return NodeKindConst
 	case 209:
 		return NodeKindReExport
+	case 210:
+		return NodeKindImportBinding
+	case 211:
+		return NodeKindReference
+	case 212:
+		return NodeKindCall
+	case 213:
+		return NodeKindJsxUsage
+	case 214:
+		return NodeKindExport
 	default:
 		return NodeKindFile
 	}

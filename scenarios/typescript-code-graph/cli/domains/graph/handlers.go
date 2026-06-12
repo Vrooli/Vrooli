@@ -37,7 +37,7 @@ func (h *handlers) extract(ctx cliapp.RunContext) error {
 	path := ctx.Positional("path")
 
 	resp, err := h.client.Extract(context.Background(), connect.NewRequest(&graphv1.ExtractRequest{
-		ScenarioPath: path,
+		ProjectPath: path,
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError(fmt.Sprintf("extract %q", path), err, nil)
@@ -76,7 +76,7 @@ func (h *handlers) extract(ctx cliapp.RunContext) error {
 		ResultsHeading: "Top-level packages",
 		Results:        packages,
 		RetrievalHints: []string{
-			fmt.Sprintf("`rewrite plan <ops.json> --scenario-path %s` — plan a rewrite for this project", path),
+			fmt.Sprintf("`rewrite plan <ops.json> --project-path %s` — plan a rewrite for this project", path),
 		},
 	})
 }

@@ -42,7 +42,7 @@ describe("applyRewrite", () => {
     write("src/main.ts", `import { U } from "./util";\nexport const M = U;\n`);
 
     const results = await applyRewrite({
-      scenarioPath: tmpDir,
+      projectPath: tmpDir,
       operations: [
         {
           file_move: {
@@ -70,7 +70,7 @@ describe("applyRewrite", () => {
     write("src/b.ts", `import { U } from "./util";\nexport const B = U;\n`);
 
     const results = await applyRewrite({
-      scenarioPath: tmpDir,
+      projectPath: tmpDir,
       operations: [
         { import_rewrite: { old_path: "./util", new_path: "./util-renamed" } },
       ],
@@ -89,7 +89,7 @@ describe("applyRewrite", () => {
   it("returns FAILED for a move whose source file is not in the project", async () => {
     write("src/main.ts", `export const M = 1;\n`);
     const results = await applyRewrite({
-      scenarioPath: tmpDir,
+      projectPath: tmpDir,
       operations: [
         {
           file_move: {
@@ -106,7 +106,7 @@ describe("applyRewrite", () => {
   it("returns FAILED when neither file_move nor import_rewrite is set", async () => {
     write("src/main.ts", `export const M = 1;\n`);
     const results = await applyRewrite({
-      scenarioPath: tmpDir,
+      projectPath: tmpDir,
       operations: [{}],
     });
     expect(results[0]!.status).toBe("OPERATION_STATUS_FAILED");

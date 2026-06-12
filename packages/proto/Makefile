@@ -1,7 +1,7 @@
 BUF_BASE_BRANCH ?= master
 DESCRIPTOR_DIR ?= gen/descriptor
 
-.PHONY: generate descriptor lint format breaking check clean refresh-vendor
+.PHONY: generate descriptor lint format breaking verify-committed-gen clean refresh-vendor
 
 generate: descriptor
 	buf generate
@@ -35,12 +35,12 @@ breaking:
 	fi
 	buf breaking --against ".git#branch=$(BUF_BASE_BRANCH),subdir=packages/proto"
 
-check: lint
+verify-committed-gen: lint
 	buf generate
 	@mkdir -p $(DESCRIPTOR_DIR)
 	buf build -o $(DESCRIPTOR_DIR)/image.binpb
 	@if ! git diff --quiet gen/; then \
-		echo "ERROR: Generated code (or descriptor) is out of date. Run 'make generate' and commit.'"; \
+		echo "ERROR: Committed generated code (or descriptor) does not match schemas. Run 'make generate' and commit the generated artifacts.'"; \
 		git diff --stat gen/; \
 		exit 1; \
 	fi
@@ -52,7 +52,8 @@ clean:
 # into vendor/ so codegen continues to resolve transitive imports without
 # contacting BSR. This is the single code path that requires BSR access;
 # see docs/configuration/integrations/buf-bsr.md for the optional login.
-# After refresh, run `make check` to confirm gen/ remains consistent.
+# After refresh, run `make verify-committed-gen` to confirm committed gen/
+# remains consistent.
 refresh-vendor:
 	buf export buf.build/googleapis/googleapis -o vendor/googleapis
 	buf export buf.build/bufbuild/protovalidate -o vendor/protovalidate

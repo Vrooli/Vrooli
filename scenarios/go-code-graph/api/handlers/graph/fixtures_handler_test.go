@@ -46,7 +46,7 @@ func TestListFixtures(t *testing.T) {
 	for _, f := range resp.Msg.GetFixtures() {
 		byName[f.GetName()] = f
 	}
-	for _, want := range []string{"go-cycles", "go-mislocated"} {
+	for _, want := range []string{"go-cycles", "go-mislocated", "go-usage-facts"} {
 		f, ok := byName[want]
 		if !ok {
 			t.Fatalf("expected fixture %q in list, got %v", want, byName)
@@ -66,7 +66,7 @@ func TestListFixtures(t *testing.T) {
 
 func TestValidateFixturePasses(t *testing.T) {
 	client := newFixtureClient(t)
-	for _, name := range []string{"go-cycles", "go-mislocated"} {
+	for _, name := range []string{"go-cycles", "go-mislocated", "go-usage-facts"} {
 		name := name
 		t.Run(name, func(t *testing.T) {
 			resp, err := client.ValidateFixture(context.Background(), connect.NewRequest(&graphv1.ValidateFixtureRequest{Name: name}))

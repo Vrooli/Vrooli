@@ -27,6 +27,13 @@ import generated Go and TypeScript types immediately.
   not from a directory inside `proto/` — matching the convention used
   by every existing scenario in `packages/proto/schemas/`.
 
+Every proto file in this template carries `@template react-vite/example`.
+That annotation is intentional. It lets proto-health distinguish scaffold
+reference contracts from scenario-owned contracts without guessing based on
+generic domain names such as `notes`. Generated scenarios should remove the
+annotation only when the contract is intentionally adopted as real scenario
+surface or replaced by the scenario's own domain proto.
+
 ## Adding a new schema
 
 After the scenario is generated, add new `.proto` files under

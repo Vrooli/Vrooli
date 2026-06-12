@@ -29,23 +29,23 @@ func NewService(loader PackagesLoader, mu *PathMutex) *Service {
 	return &Service{loader: loader, mu: mu}
 }
 
-// Extract validates the input, locks the absolute scenario path,
+// Extract validates the input, locks the absolute module path,
 // invokes the loader, and normalizes the result. Errors are typed
 // ExtractError so handlers can map them to Connect codes via
 // ErrorToConnectCode.
 func (s *Service) Extract(ctx context.Context, in ExtractInput) (Graph, []Warning, error) {
-	if strings.TrimSpace(in.ScenarioPath) == "" {
+	if strings.TrimSpace(in.ModulePath) == "" {
 		return Graph{}, nil, ExtractError{
 			Kind:    ExtractErrorInvalidInput,
-			Message: "scenario_path is required",
+			Message: "module_path is required",
 		}
 	}
 
-	abs, err := filepath.Abs(in.ScenarioPath)
+	abs, err := filepath.Abs(in.ModulePath)
 	if err != nil {
 		return Graph{}, nil, ExtractError{
 			Kind:    ExtractErrorPathUnreadable,
-			Path:    in.ScenarioPath,
+			Path:    in.ModulePath,
 			Message: "resolve absolute path",
 			Cause:   err,
 		}
@@ -77,7 +77,7 @@ func (s *Service) Extract(ctx context.Context, in ExtractInput) (Graph, []Warnin
 }
 
 // filterVendorPackages drops packages whose loaded source directory sits
-// inside a `vendor/` subtree of the scenario root. This implements
+// inside a `vendor/` subtree of the module root. This implements
 // REQ-P1-003: with IncludeVendor=false (the default) vendored packages
 // must not appear in the extracted graph even when the host module
 // vendored its dependencies.
@@ -85,7 +85,7 @@ func (s *Service) Extract(ctx context.Context, in ExtractInput) (Graph, []Warnin
 // Filtering is directory-based, not import-path-based, because Go modules
 // rewrite vendored imports back to their original paths
 // (e.g. github.com/foo/bar) while keeping the source under
-// scenarioRoot/vendor/github.com/foo/bar/. PkgPath alone is therefore
+// moduleRoot/vendor/github.com/foo/bar/. PkgPath alone is therefore
 // not sufficient.
 func filterVendorPackages(pkgs []*packages.Package) []*packages.Package {
 	vendorSeg := string(filepath.Separator) + "vendor" + string(filepath.Separator)
@@ -120,7 +120,7 @@ func packageDir(p *packages.Package) string {
 	return ""
 }
 
-// preflightProject inspects the scenario path BEFORE the loader runs
+// preflightProject inspects the module path BEFORE the loader runs
 // so we can return precise typed errors for the catastrophic cases
 // (no go.mod, multiple go.mod, go.work, path unreadable). The loader
 // itself would fail with a generic error.
@@ -133,7 +133,7 @@ func preflightProject(abs string) error {
 		return ExtractError{Kind: ExtractErrorPathUnreadable, Path: abs, Cause: err}
 	}
 	if !info.IsDir() {
-		return ExtractError{Kind: ExtractErrorPathUnreadable, Path: abs, Message: "scenario_path is not a directory"}
+		return ExtractError{Kind: ExtractErrorPathUnreadable, Path: abs, Message: "module_path is not a directory"}
 	}
 
 	if _, err := os.Stat(filepath.Join(abs, "go.work")); err == nil {
@@ -146,7 +146,7 @@ func preflightProject(abs string) error {
 	}
 	switch len(goMods) {
 	case 0:
-		return ExtractError{Kind: ExtractErrorNoGoMod, Path: abs, Message: "no go.mod under scenario_path"}
+		return ExtractError{Kind: ExtractErrorNoGoMod, Path: abs, Message: "no go.mod under module_path"}
 	case 1:
 		// Common case.
 	default:

@@ -1,5 +1,5 @@
 {
-  "description": "Two concurrent `Extract` calls for the same `scenario_path` serialize through an in-process queue. Calls for different paths run in parallel. The same rule applies to `Rewrite` apply operations on the same path.",
+  "description": "Two concurrent `Extract` calls for the same `module_path` serialize through an in-process queue. Calls for different paths run in parallel. The same rule applies to `Rewrite` apply operations on the same path.",
   "module_id": "MOD-P0-006",
   "prd_ref": "OT-P0-006",
   "priority": "P0",
@@ -10,7 +10,7 @@
         "REQ-P0-001",
         "REQ-P0-003"
       ],
-      "description": "The system must enforce that two concurrent Extract calls for the same scenario_path are serialized through an in-process per-path mutex/queue, ensuring only one extraction runs at a time per path. Concurrent Extract calls for different paths must run in parallel with no artificial serialization between them. The same serialization rule applies to Rewrite apply operations on the same path. This behavior must be implemented at the scenario service layer, not at the transport layer.",
+      "description": "The system must enforce that two concurrent Extract calls for the same module_path are serialized through an in-process per-path mutex/queue, ensuring only one extraction runs at a time per path. Concurrent Extract calls for different paths must run in parallel with no artificial serialization between them. The same serialization rule applies to Rewrite apply operations on the same path. This behavior must be implemented at the scenario service layer, not at the transport layer.",
       "id": "REQ-P0-006",
       "prd_ref": "OT-P0-006",
       "status": "draft",

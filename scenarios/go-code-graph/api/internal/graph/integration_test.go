@@ -104,6 +104,7 @@ func TestExtractFixtures(t *testing.T) {
 	}{
 		{"go-cycles", "../../../bas/fixtures/go-cycles"},
 		{"go-mislocated", "../../../bas/fixtures/go-mislocated"},
+		{"go-usage-facts", "../../../bas/fixtures/go-usage-facts"},
 	}
 
 	svc := newRealService()
@@ -113,7 +114,7 @@ func TestExtractFixtures(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			abs := resolveFixture(t, tc.fixtureRel)
-			g, _, err := svc.Extract(context.Background(), graph.ExtractInput{ScenarioPath: abs})
+			g, _, err := svc.Extract(context.Background(), graph.ExtractInput{ModulePath: abs})
 			if err != nil {
 				t.Fatalf("Extract: %v", err)
 			}
@@ -141,6 +142,93 @@ func TestExtractFixtures(t *testing.T) {
 	}
 }
 
+func TestExtractGenericNonScenarioModulePath(t *testing.T) {
+	abs := resolveFixture(t, "../../../bas/fixtures/go-mislocated")
+	if _, err := os.Stat(filepath.Join(abs, ".vrooli", "service.json")); err == nil {
+		t.Fatalf("fixture should remain a generic module, not a Vrooli scenario: %s", abs)
+	}
+
+	g, warnings, err := newRealService().Extract(context.Background(), graph.ExtractInput{ModulePath: abs})
+	if err != nil {
+		t.Fatalf("Extract generic module: %v", err)
+	}
+	if len(warnings) != 0 {
+		t.Fatalf("generic module should extract without warnings, got %+v", warnings)
+	}
+	if len(g.Nodes) == 0 {
+		t.Fatalf("generic module produced no graph nodes")
+	}
+}
+
+func TestExtractGenericUsageFacts(t *testing.T) {
+	abs := resolveFixture(t, "../../../bas/fixtures/go-usage-facts")
+	g, warnings, err := newRealService().Extract(context.Background(), graph.ExtractInput{ModulePath: abs})
+	if err != nil {
+		t.Fatalf("Extract usage facts: %v", err)
+	}
+	if len(warnings) != 0 {
+		t.Fatalf("usage facts fixture should extract without warnings, got %+v", warnings)
+	}
+
+	nodes := map[graph.NodeKind][]graph.Node{}
+	for _, node := range g.Nodes {
+		nodes[node.Kind] = append(nodes[node.Kind], node)
+	}
+	for _, kind := range []graph.NodeKind{
+		graph.NodeKindImportSpec,
+		graph.NodeKindReference,
+		graph.NodeKindCall,
+		graph.NodeKindTypeUsage,
+	} {
+		if len(nodes[kind]) == 0 {
+			t.Fatalf("missing %s nodes; graph has %d nodes", kind, len(g.Nodes))
+		}
+	}
+
+	if !hasNodeAttr(nodes[graph.NodeKindImportSpec], "alias", "prod") {
+		t.Fatalf("missing aliased import fact: %+v", nodes[graph.NodeKindImportSpec])
+	}
+	if !hasNodeAttr(nodes[graph.NodeKindImportSpec], "is_blank", "true") {
+		t.Fatalf("missing blank import fact: %+v", nodes[graph.NodeKindImportSpec])
+	}
+	if !hasNodeAttr(nodes[graph.NodeKindImportSpec], "is_dot", "true") {
+		t.Fatalf("missing dot import fact: %+v", nodes[graph.NodeKindImportSpec])
+	}
+	if !hasNodeAttr(nodes[graph.NodeKindCall], "callee", "writer.WriteThing") {
+		t.Fatalf("missing interface selector call fact: %+v", nodes[graph.NodeKindCall])
+	}
+	if !hasNodeAttr(nodes[graph.NodeKindCall], "callee", "service.WriteThing") {
+		t.Fatalf("missing concrete selector call fact: %+v", nodes[graph.NodeKindCall])
+	}
+	if !hasNodeAttr(nodes[graph.NodeKindTypeUsage], "address_of", "true") {
+		t.Fatalf("missing address-of composite literal type usage fact: %+v", nodes[graph.NodeKindTypeUsage])
+	}
+}
+
+func TestExtractScenarioAPIModulePath(t *testing.T) {
+	abs := resolveFixture(t, "../..")
+	if _, err := os.Stat(filepath.Join(filepath.Dir(abs), ".vrooli", "service.json")); err != nil {
+		t.Fatalf("expected scenario metadata next to API module: %v", err)
+	}
+
+	g, _, err := newRealService().Extract(context.Background(), graph.ExtractInput{ModulePath: abs})
+	if err != nil {
+		t.Fatalf("Extract scenario API module: %v", err)
+	}
+	if len(g.Nodes) == 0 {
+		t.Fatalf("scenario API module produced no graph nodes")
+	}
+}
+
+func hasNodeAttr(nodes []graph.Node, key, value string) bool {
+	for _, node := range nodes {
+		if node.Attributes[key] == value {
+			return true
+		}
+	}
+	return false
+}
+
 func TestConcurrentExtractSamePath(t *testing.T) {
 	abs := resolveFixture(t, "../../../bas/fixtures/go-cycles")
 	svc := newRealService()
@@ -153,7 +241,7 @@ func TestConcurrentExtractSamePath(t *testing.T) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			g, _, err := svc.Extract(context.Background(), graph.ExtractInput{ScenarioPath: abs})
+			g, _, err := svc.Extract(context.Background(), graph.ExtractInput{ModulePath: abs})
 			if err != nil {
 				errs[i] = err
 				return
@@ -184,11 +272,11 @@ func TestConcurrentExtractDifferentPaths(t *testing.T) {
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		_, _, errA = svc.Extract(context.Background(), graph.ExtractInput{ScenarioPath: a})
+		_, _, errA = svc.Extract(context.Background(), graph.ExtractInput{ModulePath: a})
 	}()
 	go func() {
 		defer wg.Done()
-		_, _, errB = svc.Extract(context.Background(), graph.ExtractInput{ScenarioPath: b})
+		_, _, errB = svc.Extract(context.Background(), graph.ExtractInput{ModulePath: b})
 	}()
 	wg.Wait()
 	if errA != nil {

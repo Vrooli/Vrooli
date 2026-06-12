@@ -105,7 +105,7 @@
         {
           "type": "ci",
           "status": "planned",
-          "notes": "Workflow includes `cd packages/proto && make check`."
+          "notes": "Workflow includes `cd packages/proto && make verify-committed-gen`."
         }
       ]
     }

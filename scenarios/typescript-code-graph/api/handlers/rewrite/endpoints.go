@@ -26,13 +26,13 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        graph_v1connect.TypeScriptCodeGraphServiceRewritePlanProcedure,
 		Method:      "POST",
 		Summary:     "Plan a TypeScript rewrite",
-		Description: "Validates and normalizes a list of FileMove / ImportRewrite operations and returns a deterministic plan_id. Identical normalized inputs produce identical plan_ids; the (scenario_path, plan_id) composite scopes plans per project.",
+		Description: "Validates and normalizes a list of FileMove / ImportRewrite operations and returns a deterministic plan_id. Identical normalized inputs produce identical plan_ids; the (project_path, plan_id) composite scopes plans per project.",
 		Category:    "rewrite",
 		Request: &module.Schema{
 			Type: "object",
 			Properties: map[string]string{
-				"scenario_path": "string (required, absolute path)",
-				"operations":    "array<rewrite.v1.Operation> (>=1; each must set exactly one of file_move / import_rewrite)",
+				"project_path": "string (required, absolute path to project root or tsconfig.json)",
+				"operations":   "array<rewrite.v1.Operation> (>=1; each must set exactly one of file_move / import_rewrite)",
 			},
 		},
 		Response: &module.Schema{
@@ -43,7 +43,7 @@ var Endpoints = []module.EndpointDescriptor{
 			},
 		},
 		Errors: []module.ErrorDesc{
-			{Status: 400, Code: "invalid_argument", Description: "Missing scenario_path, empty operations, absolute/parent path, or both/neither oneof arm set"},
+			{Status: 400, Code: "invalid_argument", Description: "Missing project_path, empty operations, absolute/parent path, or both/neither oneof arm set"},
 			{Status: 500, Code: "internal", Description: "Plan store save failed"},
 		},
 		CLIMapping: &module.CLIMapping{
@@ -56,14 +56,14 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        graph_v1connect.TypeScriptCodeGraphServiceRewriteApplyProcedure,
 		Method:      "POST",
 		Summary:     "Apply a TypeScript rewrite plan",
-		Description: "Executes the operations recorded under plan_id against the project at scenario_path. The apply flag must be true; X-Dry-Run: true header short-circuits before the sidecar call and returns synthetic OK results.",
+		Description: "Executes the operations recorded under plan_id against the project at project_path. The apply flag must be true; X-Dry-Run: true header short-circuits before the sidecar call and returns synthetic OK results.",
 		Category:    "rewrite",
 		Request: &module.Schema{
 			Type: "object",
 			Properties: map[string]string{
-				"scenario_path": "string (required, absolute path; must match the plan's scenario)",
-				"plan_id":       "string (required, returned by RewritePlan)",
-				"apply":         "bool (must be true; false is rejected with InvalidArgument)",
+				"project_path": "string (required, absolute path; must match the planned project)",
+				"plan_id":      "string (required, returned by RewritePlan)",
+				"apply":        "bool (must be true; false is rejected with InvalidArgument)",
 			},
 		},
 		Response: &module.Schema{
@@ -75,8 +75,8 @@ var Endpoints = []module.EndpointDescriptor{
 			},
 		},
 		Errors: []module.ErrorDesc{
-			{Status: 400, Code: "invalid_argument", Description: "Missing scenario_path / plan_id, or apply=false"},
-			{Status: 412, Code: "failed_precondition", Description: "Plan not found for this scenario (mismatched scenario_path or unknown plan_id)"},
+			{Status: 400, Code: "invalid_argument", Description: "Missing project_path / plan_id, or apply=false"},
+			{Status: 412, Code: "failed_precondition", Description: "Plan not found for this project (mismatched project_path or unknown plan_id)"},
 			{Status: 503, Code: "unavailable", Description: "Node sidecar is unhealthy or permanently failed"},
 			{Status: 504, Code: "deadline_exceeded", Description: "Sidecar call exceeded its deadline"},
 			{Status: 500, Code: "internal", Description: "Unexpected sidecar or plan store failure"},

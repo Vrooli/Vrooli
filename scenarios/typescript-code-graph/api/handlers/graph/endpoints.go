@@ -22,12 +22,12 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        graph_v1connect.TypeScriptCodeGraphServiceExtractProcedure,
 		Method:      "POST",
 		Summary:     "Extract a deterministic TypeScript graph",
-		Description: "Loads the TypeScript project rooted at scenario_path via the Node sidecar (ts-morph) and returns the normalized graph + warnings + extraction time + graph hash. Declaration nodes carry their leading_comments[] verbatim — REQ-P0-003.",
+		Description: "Loads the TypeScript project selected by project_path via the Node sidecar (ts-morph) and returns the normalized graph + warnings + extraction time + graph hash. Declaration nodes carry their leading_comments[] verbatim — REQ-P0-003.",
 		Category:    "graph",
 		Request: &module.Schema{
 			Type: "object",
 			Properties: map[string]string{
-				"scenario_path": "string (required, absolute path to the project root containing tsconfig.json)",
+				"project_path": "string (required, absolute path to the project root or tsconfig.json)",
 			},
 		},
 		Response: &module.Schema{
@@ -41,8 +41,8 @@ var Endpoints = []module.EndpointDescriptor{
 			},
 		},
 		Errors: []module.ErrorDesc{
-			{Status: 400, Code: "invalid_argument", Description: "Missing or non-absolute scenario_path; no/multiple tsconfig.json"},
-			{Status: 404, Code: "not_found", Description: "scenario_path unreadable"},
+			{Status: 400, Code: "invalid_argument", Description: "Missing or non-absolute project_path; no/multiple tsconfig.json"},
+			{Status: 404, Code: "not_found", Description: "project_path unreadable"},
 			{Status: 501, Code: "unimplemented", Description: "pnpm/yarn workspaces are not supported in v1"},
 			{Status: 503, Code: "unavailable", Description: "Node sidecar is unhealthy or permanently failed"},
 			{Status: 504, Code: "deadline_exceeded", Description: "Sidecar call exceeded its deadline"},

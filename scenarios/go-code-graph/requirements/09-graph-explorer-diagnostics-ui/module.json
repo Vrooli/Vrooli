@@ -1,5 +1,5 @@
 {
-  "description": "Ship a UI surface that lets an operator paste a scenario path, see the extracted nodes/edges/warnings, view server health, and inspect recent extraction calls. The graph explorer is the human debug path when an automated consumer reports unexpected results.",
+  "description": "Ship a UI surface that lets an operator paste a module path, see the extracted nodes/edges/warnings, view server health, and inspect recent extraction calls. The graph explorer is the human debug path when an automated consumer reports unexpected results.",
   "module_id": "MOD-P0-009",
   "prd_ref": "OT-P0-009",
   "priority": "P0",
@@ -11,7 +11,7 @@
         "REQ-P0-001",
         "REQ-P0-005"
       ],
-      "description": "Ship a UI surface that enables operators to: (1) paste a scenario_path and trigger extraction, (2) browse the extracted graph nodes, edges, and warnings in a structured view, (3) view server health status, and (4) inspect a log of recent extraction calls including timestamps and result summaries. This UI is the human debug path when automated consumers report unexpected extraction results. The UI must consume the Connect-RPC service exclusively (no direct DB queries or internal API shortcuts).",
+      "description": "Ship a UI surface that enables operators to: (1) paste a module_path and trigger extraction, (2) browse the extracted graph nodes, edges, and warnings in a structured view, (3) view server health status, and (4) inspect a log of recent extraction calls including timestamps and result summaries. This UI is the human debug path when automated consumers report unexpected extraction results. The UI must consume the Connect-RPC service exclusively (no direct DB queries or internal API shortcuts).",
       "id": "REQ-P0-009",
       "prd_ref": "OT-P0-009",
       "status": "draft",
@@ -46,14 +46,14 @@
           "type": "test"
         },
         {
-          "notes": "Test recent extractions log displays entries with timestamp, scenario_path, node count, warning count",
+          "notes": "Test recent extractions log displays entries with timestamp, module_path, node count, warning count",
           "phase": "unit",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "End-to-end UI test: operator enters a valid scenario_path, clicks extract, graph nodes and edges appear in the explorer",
+          "notes": "End-to-end UI test: operator enters a valid module_path, clicks extract, graph nodes and edges appear in the explorer",
           "phase": "integration",
           "ref": "",
           "status": "pending",

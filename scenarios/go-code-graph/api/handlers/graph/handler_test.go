@@ -61,7 +61,7 @@ func TestHandlerExtractHappyPath(t *testing.T) {
 	client := newTestClient(t, svc)
 
 	resp, err := client.Extract(context.Background(), connect.NewRequest(&graphv1.ExtractRequest{
-		ScenarioPath: root,
+		ModulePath: root,
 	}))
 	if err != nil {
 		t.Fatalf("Extract: %v", err)
@@ -83,10 +83,10 @@ func TestHandlerExtractInvalidArgument(t *testing.T) {
 	client := newTestClient(t, svc)
 
 	_, err := client.Extract(context.Background(), connect.NewRequest(&graphv1.ExtractRequest{
-		ScenarioPath: "",
+		ModulePath: "",
 	}))
 	if err == nil {
-		t.Fatal("expected error for empty scenario_path")
+		t.Fatal("expected error for empty module_path")
 	}
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("want InvalidArgument, got %v", connect.CodeOf(err))
@@ -99,7 +99,7 @@ func TestHandlerExtractNotFound(t *testing.T) {
 	client := newTestClient(t, svc)
 
 	_, err := client.Extract(context.Background(), connect.NewRequest(&graphv1.ExtractRequest{
-		ScenarioPath: "/no/such/path/xyz",
+		ModulePath: "/no/such/path/xyz",
 	}))
 	if err == nil {
 		t.Fatal("expected error for missing path")
@@ -122,7 +122,7 @@ func TestHandlerExtractLoaderInternal(t *testing.T) {
 	client := newTestClient(t, svc)
 
 	_, err := client.Extract(context.Background(), connect.NewRequest(&graphv1.ExtractRequest{
-		ScenarioPath: root,
+		ModulePath: root,
 	}))
 	if err == nil {
 		t.Fatal("expected error from loader failure")

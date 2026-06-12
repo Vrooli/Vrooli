@@ -37,7 +37,7 @@ export let count = 0;
     );
 
     const out = extract({
-      scenarioPath: "/proj",
+      projectPath: "/proj",
       _project: project,
       _rootDirOverride: "/proj",
     });
@@ -74,7 +74,7 @@ export function MyWidget() {
 }`,
     );
     const out = extract({
-      scenarioPath: "/proj",
+      projectPath: "/proj",
       _project: project,
       _rootDirOverride: "/proj",
     });
@@ -93,7 +93,7 @@ export function MyWidget() {
 export const X = 1;`,
     );
     const out = extract({
-      scenarioPath: "/proj",
+      projectPath: "/proj",
       _project: project,
       _rootDirOverride: "/proj",
     });
@@ -111,7 +111,7 @@ export const X = 1;`,
       const p = inMemoryProject();
       p.createSourceFile("/proj/src/b.ts", `export const B = 2;`);
       p.createSourceFile("/proj/src/a.ts", `export const A = 1;`);
-      return extract({ scenarioPath: "/proj", _project: p, _rootDirOverride: "/proj" });
+      return extract({ projectPath: "/proj", _project: p, _rootDirOverride: "/proj" });
     };
     const r1 = make();
     const r2 = make();
@@ -125,7 +125,7 @@ export const X = 1;`,
       "/proj/src/main.ts",
       `import { U } from "./util"; export const M = U;`,
     );
-    const out = extract({ scenarioPath: "/proj", _project: project, _rootDirOverride: "/proj" });
+    const out = extract({ projectPath: "/proj", _project: project, _rootDirOverride: "/proj" });
     // In-memory FS won't satisfy fs.existsSync, so the import resolves to a
     // best-guess ts_module pointer — verify the edge exists with kind=IMPORT.
     const importEdges = out.graph.edges.filter((e) => e.kind === 1);
@@ -139,7 +139,7 @@ export const X = 1;`,
       "/proj/src/main.ts",
       `import { Gone } from "./does-not-exist"; export const M = Gone;`,
     );
-    const out = extract({ scenarioPath: "/proj", _project: project, _rootDirOverride: "/proj" });
+    const out = extract({ projectPath: "/proj", _project: project, _rootDirOverride: "/proj" });
 
     // The dangling edge is still emitted (consumers see the dependency)...
     const importEdges = out.graph.edges.filter((e) => e.kind === 1);
@@ -159,8 +159,73 @@ export const X = 1;`,
       "/proj/src/main.ts",
       `import { useState } from "react"; export const M = useState;`,
     );
-    const out = extract({ scenarioPath: "/proj", _project: project, _rootDirOverride: "/proj" });
+    const out = extract({ projectPath: "/proj", _project: project, _rootDirOverride: "/proj" });
     // Bare specifiers are external: no edge, no warning.
     expect(out.warnings.filter((w) => w.kind === 2).length).toBe(0);
+  });
+
+  it("emits generic import, reference, call, JSX, and export facts", () => {
+    const project = inMemoryProject();
+    project.createSourceFile(
+      "/proj/src/client.ts",
+      `
+export function sendThing(input: { id: string }) {
+  return input.id;
+}
+export type Response = { ok: boolean };
+      `,
+    );
+    project.createSourceFile(
+      "/proj/src/widget.tsx",
+      `
+import React, { useMemo as memo, type ReactNode } from "react";
+import * as Client from "./client";
+import { sendThing } from "./client";
+
+export function Widget({ child }: { child: ReactNode }) {
+  const result = sendThing({ id: "1" });
+  const other = Client.sendThing({ id: result });
+  const value = memo(() => other, [other]);
+  return <Panel title={value}>{child}</Panel>;
+}
+
+function Panel(props: { title: string; children: ReactNode }) {
+  return <section>{props.children}</section>;
+}
+      `,
+    );
+
+    const out = extract({ projectPath: "/proj", _project: project, _rootDirOverride: "/proj" });
+    const nodes = out.graph.nodes;
+    const byKind = (kind: string) => nodes.filter((n) => n.attributes.kind === kind);
+
+    const importBindings = byKind("TS_NODE_KIND_IMPORT_BINDING");
+    expect(importBindings.map((n) => n.name)).toEqual(
+      expect.arrayContaining(["React", "memo", "ReactNode", "Client", "sendThing"]),
+    );
+    expect(importBindings.find((n) => n.name === "ReactNode")?.attributes.type_only).toBe("true");
+    expect(importBindings.find((n) => n.name === "Client")?.attributes.import_kind).toBe("namespace");
+
+    const calls = byKind("TS_NODE_KIND_CALL");
+    expect(calls.map((n) => n.attributes.callee)).toEqual(
+      expect.arrayContaining(["sendThing", "Client.sendThing", "memo"]),
+    );
+    expect(calls.find((n) => n.attributes.callee === "sendThing")?.attributes.enclosing_declaration).toBe("Widget");
+
+    const jsx = byKind("TS_NODE_KIND_JSX_USAGE");
+    expect(jsx.map((n) => n.attributes.component_name)).toEqual(
+      expect.arrayContaining(["Panel", "section"]),
+    );
+    expect(jsx.find((n) => n.attributes.component_name === "Panel")?.attributes.enclosing_declaration).toBe("Widget");
+
+    const references = byKind("TS_NODE_KIND_REFERENCE");
+    expect(references.map((n) => n.name)).toEqual(expect.arrayContaining(["sendThing", "result", "other", "child"]));
+
+    const exports = byKind("TS_NODE_KIND_EXPORT");
+    expect(exports.map((n) => n.name)).toEqual(expect.arrayContaining(["Widget", "sendThing", "Response"]));
+    for (const fact of [...importBindings, ...calls, ...jsx, ...references, ...exports]) {
+      expect(fact.attributes.start_line).toMatch(/^\d+$/);
+      expect(fact.attributes.end_column).toMatch(/^\d+$/);
+    }
   });
 });

@@ -27,7 +27,7 @@ Use this document to answer:
 
 | Log | Source | How To Read | Notes |
 |---|---|---|---|
-| API logs | lifecycle-managed API process | `make logs` | Request logging uses deterministic clock seam in tests. Per-call entries include `request_id`, `scenario_path`, `op_kind` (extract/rewrite_plan/rewrite_apply), `duration_ms`, `warning_count`, `error_kind`. |
+| API logs | lifecycle-managed API process | `make logs` | Request logging uses deterministic clock seam in tests. Per-call entries include `request_id`, `module_path`, `op_kind` (extract/rewrite_plan/rewrite_apply), `duration_ms`, `warning_count`, `error_kind`. |
 | UI logs | lifecycle-managed UI server | `make logs` | Production bundle server logs only. |
 | Recent-calls telemetry | API in-memory ring buffer | Visible in the explorer UI's diagnostics page | Bounded at 256 entries; lost on restart. UI-only convenience surface. |
 

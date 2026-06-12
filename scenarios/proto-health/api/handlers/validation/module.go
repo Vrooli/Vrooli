@@ -51,7 +51,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        validationconnect.ProtoHealthServiceValidateScenarioProcedure,
 		Method:      "POST",
 		Summary:     "Validate a scenario's proto contracts",
-		Description: "Validates one scenario's Protocol Buffer structure, annotations, adoption signals, transport world, and conservative unused-message hints without computing fleet dependency graphs.",
+		Description: "Validates one scenario's Protocol Buffer structure, annotations, declared transport world, REST exception payload declarations, and conservative unused-message hints without computing fleet dependency graphs.",
 		Category:    "validation",
 		Request: &module.Schema{
 			Type:       "object",
@@ -78,7 +78,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        validationconnect.ProtoHealthServiceDescribeScenarioProtosProcedure,
 		Method:      "POST",
 		Summary:     "Describe a scenario's proto surface",
-		Description: "Returns the scenario-scoped proto surface fact: files, services, RPCs, messages, imports, annotations, adoption signals, and transport-world summary.",
+		Description: "Returns the scenario-scoped proto surface fact: files, services, RPCs, messages, imports, annotations, REST exception payload declarations, and transport-world summary.",
 		Category:    "validation",
 		Request: &module.Schema{
 			Type:       "object",

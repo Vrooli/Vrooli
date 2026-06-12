@@ -89,8 +89,27 @@ const (
 // field surfaces in .vrooli/endpoints.json so consumers can see the
 // human-readable justification.
 type RESTException struct {
-	Reason RESTReason `json:"reason"`
-	Note   string     `json:"note,omitempty"`
+	Reason        RESTReason                  `json:"reason"`
+	Note          string                      `json:"note,omitempty"`
+	ProtoPayloads *RESTExceptionProtoPayloads `json:"proto_payloads,omitempty"`
+}
+
+// RESTExceptionProtoPayloads declares the static proto payload intent for a
+// documented REST exception. These declarations are contract facts; they do
+// not prove the handler implementation emits the declared shape.
+type RESTExceptionProtoPayloads struct {
+	Request  RESTExceptionPayload `json:"request"`
+	Response RESTExceptionPayload `json:"response"`
+	Error    RESTExceptionPayload `json:"error"`
+}
+
+// RESTExceptionPayload declares one request/response/error payload role for a
+// REST exception. ProtoFullName is omitted when the role is intentionally not
+// proto-typed, such as a multipart/form-data request.
+type RESTExceptionPayload struct {
+	ProtoFullName string `json:"proto_full_name,omitempty"`
+	Transport     string `json:"transport"`
+	Conformance   string `json:"conformance"`
 }
 
 // Schema is the permissive shape used by .vrooli/endpoints.json's

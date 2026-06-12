@@ -14,7 +14,7 @@
       "prd_ref": "OT-P0-004",
       "category": "api",
       "criticality": "P0",
-      "description": "DescribeScenarioProtos returns a structured inventory of scenario-owned files, versions, domains, services, RPCs, messages, fields, imports, annotations, adoption signals, and transport world.",
+      "description": "DescribeScenarioProtos returns a structured inventory of scenario-owned files, versions, domains, services, RPCs, messages, fields, imports, annotations, REST exception payload declarations, and declared transport world.",
       "tags": ["protosurface", "descriptor", "connect"],
       "validation": [
         {

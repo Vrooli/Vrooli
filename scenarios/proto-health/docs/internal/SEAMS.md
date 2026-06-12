@@ -110,15 +110,15 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | A fake checker returns clean or drifted results for `proto.gen_out_of_sync` tests. |
 | **Why it exists** | `buf` already owns generation. The validator owns translating drift into a stable finding without making every unit test run codegen. |
 
-### TransportDetector (Connect vs hand-rolled)
+### Transport facts (declaration-based)
 
 | | |
 |---|---|
 | **Seam** | Scenario transport-world detection |
-| **Interface** | `internal/protosurface` folds transport detection into `DescriptorLoader.LoadScenario` by reading `.vrooli/endpoints.json` and scanning API Go files for conservative mux/protojson hand-rolled signals. |
+| **Interface** | `internal/protosurface` folds transport facts into `DescriptorLoader.LoadScenario` by reading `.vrooli/endpoints.json` and descriptor procedure paths. REST exception payload declarations are facts; handler implementation proof is not evaluated in this tier. |
 | **Production wiring** | `handlers/validation.Module` uses the descriptor loader's transport facts before validation rules run. |
 | **Test fake** | Validation tests can set `Surface.TransportWorld` and per-RPC `TransportKind` directly. |
-| **Why it exists** | The validator must label the transport world so agents apply the right implementation pattern, but it should reuse template precedent rather than inventing a parallel rule set. |
+| **Why it exists** | The validator must label the declared/public transport world so agents apply the right implementation pattern. It must not parse API source files; future implementation proof belongs behind a separate surface-code-facts seam. |
 
 ### Clock
 

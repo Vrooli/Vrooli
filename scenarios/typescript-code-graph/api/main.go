@@ -166,7 +166,7 @@ func main() {
 	}
 
 	// graph + rewrite share one PathMutex so Extract and Apply against
-	// the same scenario_path serialize (OT-P0-007). The rewrite domain
+	// the same project_path serialize (OT-P0-007). The rewrite domain
 	// holds plans in-memory until REQ-P1-002 lands SQLite persistence.
 	pathMu := intgraph.NewPathMutex()
 	graphSvc := intgraph.NewService(supervisor, pathMu)

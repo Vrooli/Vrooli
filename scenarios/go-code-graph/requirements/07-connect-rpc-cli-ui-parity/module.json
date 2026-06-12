@@ -67,7 +67,7 @@
           "type": "test"
         },
         {
-          "notes": "UI Extract invocation produces the same graph as CLI and direct Connect-RPC call for the same scenario_path",
+          "notes": "UI Extract invocation produces the same graph as CLI and direct Connect-RPC call for the same module_path",
           "phase": "integration",
           "ref": "",
           "status": "pending",

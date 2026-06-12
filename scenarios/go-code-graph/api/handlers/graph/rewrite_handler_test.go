@@ -57,8 +57,8 @@ func TestHandlerRewritePlanHappyPath(t *testing.T) {
 	client := newTestClientWithRewrite(t, svc)
 
 	resp, err := client.RewritePlan(context.Background(), connect.NewRequest(&graphv1.RewritePlanRequest{
-		ScenarioPath: "/tmp/x",
-		Operations:   []*rewrite_v1.Operation{fileMoveOp("a/b.go", "c/d.go")},
+		ModulePath: "/tmp/x",
+		Operations: []*rewrite_v1.Operation{fileMoveOp("a/b.go", "c/d.go")},
 	}))
 	if err != nil {
 		t.Fatalf("RewritePlan: %v", err)
@@ -77,7 +77,7 @@ func TestHandlerRewritePlanEmptyIsInvalidArgument(t *testing.T) {
 	client := newTestClientWithRewrite(t, svc)
 
 	_, err := client.RewritePlan(context.Background(), connect.NewRequest(&graphv1.RewritePlanRequest{
-		ScenarioPath: "/tmp/x",
+		ModulePath: "/tmp/x",
 	}))
 	if err == nil {
 		t.Fatal("expected error for empty operations")
@@ -100,17 +100,17 @@ func TestHandlerRewriteApplyHappyPath(t *testing.T) {
 	client := newTestClientWithRewrite(t, svc)
 
 	planResp, err := client.RewritePlan(context.Background(), connect.NewRequest(&graphv1.RewritePlanRequest{
-		ScenarioPath: "/tmp/x",
-		Operations:   []*rewrite_v1.Operation{fileMoveOp("a.go", "b.go")},
+		ModulePath: "/tmp/x",
+		Operations: []*rewrite_v1.Operation{fileMoveOp("a.go", "b.go")},
 	}))
 	if err != nil {
 		t.Fatalf("Plan: %v", err)
 	}
 
 	applyResp, err := client.RewriteApply(context.Background(), connect.NewRequest(&graphv1.RewriteApplyRequest{
-		ScenarioPath: "/tmp/x",
-		PlanId:       planResp.Msg.GetPlanId(),
-		Apply:        true,
+		ModulePath: "/tmp/x",
+		PlanId:     planResp.Msg.GetPlanId(),
+		Apply:      true,
 	}))
 	if err != nil {
 		t.Fatalf("Apply: %v", err)
@@ -135,17 +135,17 @@ func TestHandlerRewriteApplyApplyFalseIsInvalidArgument(t *testing.T) {
 	client := newTestClientWithRewrite(t, svc)
 
 	planResp, err := client.RewritePlan(context.Background(), connect.NewRequest(&graphv1.RewritePlanRequest{
-		ScenarioPath: "/tmp/x",
-		Operations:   []*rewrite_v1.Operation{fileMoveOp("a.go", "b.go")},
+		ModulePath: "/tmp/x",
+		Operations: []*rewrite_v1.Operation{fileMoveOp("a.go", "b.go")},
 	}))
 	if err != nil {
 		t.Fatalf("Plan: %v", err)
 	}
 
 	_, err = client.RewriteApply(context.Background(), connect.NewRequest(&graphv1.RewriteApplyRequest{
-		ScenarioPath: "/tmp/x",
-		PlanId:       planResp.Msg.GetPlanId(),
-		Apply:        false,
+		ModulePath: "/tmp/x",
+		PlanId:     planResp.Msg.GetPlanId(),
+		Apply:      false,
 	}))
 	if err == nil {
 		t.Fatal("expected error when apply=false")
@@ -168,17 +168,17 @@ func TestHandlerRewriteApplyDryRunHeaderThreadsThrough(t *testing.T) {
 	client := newTestClientWithRewrite(t, svc)
 
 	planResp, err := client.RewritePlan(context.Background(), connect.NewRequest(&graphv1.RewritePlanRequest{
-		ScenarioPath: "/tmp/x",
-		Operations:   []*rewrite_v1.Operation{fileMoveOp("a.go", "b.go")},
+		ModulePath: "/tmp/x",
+		Operations: []*rewrite_v1.Operation{fileMoveOp("a.go", "b.go")},
 	}))
 	if err != nil {
 		t.Fatalf("Plan: %v", err)
 	}
 
 	req := connect.NewRequest(&graphv1.RewriteApplyRequest{
-		ScenarioPath: "/tmp/x",
-		PlanId:       planResp.Msg.GetPlanId(),
-		Apply:        true,
+		ModulePath: "/tmp/x",
+		PlanId:     planResp.Msg.GetPlanId(),
+		Apply:      true,
 	})
 	req.Header().Set("X-Dry-Run", "true")
 	resp, err := client.RewriteApply(context.Background(), req)
@@ -199,9 +199,9 @@ func TestHandlerRewriteApplyUnknownPlanIsInvalidArgument(t *testing.T) {
 	client := newTestClientWithRewrite(t, svc)
 
 	_, err := client.RewriteApply(context.Background(), connect.NewRequest(&graphv1.RewriteApplyRequest{
-		ScenarioPath: "/tmp/x",
-		PlanId:       "deadbeef",
-		Apply:        true,
+		ModulePath: "/tmp/x",
+		PlanId:     "deadbeef",
+		Apply:      true,
 	}))
 	if err == nil {
 		t.Fatal("expected error for unknown plan_id")

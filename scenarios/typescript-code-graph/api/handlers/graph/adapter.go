@@ -84,7 +84,9 @@ func isTsSymbolKind(k intgraph.NodeKind) bool {
 		intgraph.NodeKindClass, intgraph.NodeKindInterface,
 		intgraph.NodeKindType, intgraph.NodeKindFunction,
 		intgraph.NodeKindVar, intgraph.NodeKindConst,
-		intgraph.NodeKindReExport:
+		intgraph.NodeKindReExport, intgraph.NodeKindImportBinding,
+		intgraph.NodeKindReference, intgraph.NodeKindCall,
+		intgraph.NodeKindJsxUsage, intgraph.NodeKindExport:
 		return true
 	}
 	return false
@@ -110,6 +112,16 @@ func tsKindEnumName(k intgraph.NodeKind) string {
 		return "TS_NODE_KIND_CONST"
 	case intgraph.NodeKindReExport:
 		return "TS_NODE_KIND_RE_EXPORT"
+	case intgraph.NodeKindImportBinding:
+		return "TS_NODE_KIND_IMPORT_BINDING"
+	case intgraph.NodeKindReference:
+		return "TS_NODE_KIND_REFERENCE"
+	case intgraph.NodeKindCall:
+		return "TS_NODE_KIND_CALL"
+	case intgraph.NodeKindJsxUsage:
+		return "TS_NODE_KIND_JSX_USAGE"
+	case intgraph.NodeKindExport:
+		return "TS_NODE_KIND_EXPORT"
 	}
 	return ""
 }
@@ -159,6 +171,6 @@ func warningKindToProto(k intgraph.WarningKind) commonv1.CodeGraphWarningKind {
 // without inline payload shaping.
 func requestToInput(req *graphv1.ExtractRequest) intgraph.ExtractInput {
 	return intgraph.ExtractInput{
-		ScenarioPath: req.GetScenarioPath(),
+		ProjectPath: req.GetProjectPath(),
 	}
 }

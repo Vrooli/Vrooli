@@ -23,8 +23,8 @@ func RewritePlan(ctx context.Context, req *connect.Request[graphv1.RewritePlanRe
 		return nil, connect.NewError(connect.CodeInternal, errors.New("rewrite service not wired"))
 	}
 	in := rewritedom.PlanInput{
-		ScenarioPath: req.Msg.GetScenarioPath(),
-		Operations:   protoToDomainOperations(req.Msg.GetOperations()),
+		ProjectPath: req.Msg.GetProjectPath(),
+		Operations:  protoToDomainOperations(req.Msg.GetOperations()),
 	}
 	out, err := svc.Plan(ctx, in)
 	if err != nil {
@@ -52,9 +52,9 @@ func RewriteApply(ctx context.Context, req *connect.Request[graphv1.RewriteApply
 			errors.New("apply must be true; dry-run is signaled via the X-Dry-Run header"))
 	}
 	in := rewritedom.ApplyInput{
-		ScenarioPath: req.Msg.GetScenarioPath(),
-		PlanID:       rewritedom.PlanID(req.Msg.GetPlanId()),
-		DryRun:       dryRun,
+		ProjectPath: req.Msg.GetProjectPath(),
+		PlanID:      rewritedom.PlanID(req.Msg.GetPlanId()),
+		DryRun:      dryRun,
 	}
 	out, err := svc.Apply(ctx, in)
 	if err != nil {

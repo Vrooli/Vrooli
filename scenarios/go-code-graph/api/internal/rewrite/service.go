@@ -24,7 +24,7 @@ type Service struct {
 
 // NewService wires the production Service with a no-op operation log.
 // The same *intgraph.PathMutex instance must be shared with the graph
-// domain so concurrent Extract/Apply calls for the same scenario_path
+// domain so concurrent Extract/Apply calls for the same module_path
 // serialize (OT-P0-006). Callers that want REQ-P1-002 persistent
 // audit rows should use NewServiceWithLog.
 func NewService(store PlanStore, executor RewriteExecutor, mu *intgraph.PathMutex) *Service {
@@ -43,14 +43,14 @@ func NewServiceWithLog(store PlanStore, executor RewriteExecutor, mu *intgraph.P
 }
 
 // Plan validates, normalizes, hashes, persists, and returns the plan.
-// The PlanID is sha256-hex(canonical JSON of ScenarioPath +
+// The PlanID is sha256-hex(canonical JSON of ModulePath +
 // normalized operations) — identical inputs always produce identical
 // plan_ids.
 func (s *Service) Plan(ctx context.Context, in PlanInput) (Plan, error) {
-	if strings.TrimSpace(in.ScenarioPath) == "" {
+	if strings.TrimSpace(in.ModulePath) == "" {
 		return Plan{}, RewriteError{
 			Kind:    RewriteErrorMalformedOperation,
-			Message: "scenario_path is required",
+			Message: "module_path is required",
 		}
 	}
 	if len(in.Operations) == 0 {
@@ -70,14 +70,14 @@ func (s *Service) Plan(ctx context.Context, in PlanInput) (Plan, error) {
 		}
 	}
 
-	id, err := derivePlanID(in.ScenarioPath, normalized)
+	id, err := derivePlanID(in.ModulePath, normalized)
 	if err != nil {
 		return Plan{}, RewriteError{Kind: RewriteErrorInternal, Message: "derive plan id", Cause: err}
 	}
 	plan := Plan{
-		ID:           id,
-		ScenarioPath: in.ScenarioPath,
-		Operations:   normalized,
+		ID:         id,
+		ModulePath: in.ModulePath,
+		Operations: normalized,
 	}
 	if err := s.store.Save(ctx, plan); err != nil {
 		return Plan{}, RewriteError{Kind: RewriteErrorInternal, Message: "save plan", Cause: err}
@@ -106,22 +106,22 @@ func (s *Service) Apply(ctx context.Context, in ApplyInput) (ApplyResult, error)
 	if err != nil {
 		return ApplyResult{}, err
 	}
-	if strings.TrimSpace(in.ScenarioPath) == "" {
+	if strings.TrimSpace(in.ModulePath) == "" {
 		return ApplyResult{}, RewriteError{
 			Kind:    RewriteErrorMalformedOperation,
-			Message: "scenario_path is required",
+			Message: "module_path is required",
 		}
 	}
-	if !samePath(plan.ScenarioPath, in.ScenarioPath) {
+	if !samePath(plan.ModulePath, in.ModulePath) {
 		return ApplyResult{}, RewriteError{
 			Kind:    RewriteErrorPathMismatch,
-			Message: "plan was authored against a different scenario_path",
+			Message: "plan was authored against a different module_path",
 		}
 	}
 
-	abs, err := filepath.Abs(in.ScenarioPath)
+	abs, err := filepath.Abs(in.ModulePath)
 	if err != nil {
-		return ApplyResult{}, RewriteError{Kind: RewriteErrorInternal, Message: "resolve scenario path", Cause: err}
+		return ApplyResult{}, RewriteError{Kind: RewriteErrorInternal, Message: "resolve module path", Cause: err}
 	}
 
 	// Dry-run: skip the executor entirely, return synthetic OK for
@@ -161,13 +161,13 @@ func (s *Service) Apply(ctx context.Context, in ApplyInput) (ApplyResult, error)
 // path and normalized operations. JSON is the canonical serialization
 // because every field is a primitive string and Go's encoding/json
 // produces stable output for structs.
-func derivePlanID(scenarioPath string, ops []Operation) (PlanID, error) {
+func derivePlanID(modulePath string, ops []Operation) (PlanID, error) {
 	payload := struct {
-		ScenarioPath string           `json:"scenario_path"`
-		Operations   []map[string]any `json:"operations"`
+		ModulePath string           `json:"module_path"`
+		Operations []map[string]any `json:"operations"`
 	}{
-		ScenarioPath: scenarioPath,
-		Operations:   make([]map[string]any, 0, len(ops)),
+		ModulePath: modulePath,
+		Operations: make([]map[string]any, 0, len(ops)),
 	}
 	for _, op := range ops {
 		switch o := op.(type) {
@@ -193,7 +193,7 @@ func derivePlanID(scenarioPath string, ops []Operation) (PlanID, error) {
 	return PlanID(hex.EncodeToString(sum[:])), nil
 }
 
-// samePath compares two scenario paths via their absolute forms so
+// samePath compares two module paths via their absolute forms so
 // "./x" and "/abs/x" match when the caller's cwd makes them equivalent.
 // Falls back to literal string compare when filepath.Abs fails.
 func samePath(a, b string) bool {

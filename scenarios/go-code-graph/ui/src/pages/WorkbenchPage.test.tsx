@@ -71,7 +71,7 @@ describe("WorkbenchPage", () => {
     // Graph tab is the default; its canvas should be visible.
     expect(screen.getByTestId(selectors.features.explorer.canvas.root)).toBeInTheDocument();
     expect(client.extract).toHaveBeenCalledWith({
-      scenarioPath: "scenarios/go-code-graph",
+      modulePath: "scenarios/go-code-graph",
       includeVendor: false,
     });
   });

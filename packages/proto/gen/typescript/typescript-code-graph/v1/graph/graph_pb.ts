@@ -14,20 +14,20 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file typescript-code-graph/v1/graph/graph.proto.
  */
 export const file_typescript_code_graph_v1_graph_graph: GenFile = /*@__PURE__*/
-  fileDesc("Cip0eXBlc2NyaXB0LWNvZGUtZ3JhcGgvdjEvZ3JhcGgvZ3JhcGgucHJvdG8SJXZyb29saS50eXBlc2NyaXB0X2NvZGVfZ3JhcGgudjEuZ3JhcGgiJwoORXh0cmFjdFJlcXVlc3QSFQoNc2NlbmFyaW9fcGF0aBgBIAEoCSKsAQoPRXh0cmFjdFJlc3BvbnNlEiMKBWdyYXBoGAEgASgLMhQuY29tbW9uLnYxLkNvZGVHcmFwaBItCgh3YXJuaW5ncxgCIAMoCzIbLmNvbW1vbi52MS5Db2RlR3JhcGhXYXJuaW5nEhUKDWV4dHJhY3Rpb25fbXMYAyABKAMSEgoKZ3JhcGhfaGFzaBgEIAEoCRIaChJzaWRlY2FyX3JlcXVlc3RfaWQYBSABKAkicwoSUmV3cml0ZVBsYW5SZXF1ZXN0EhUKDXNjZW5hcmlvX3BhdGgYASABKAkSRgoKb3BlcmF0aW9ucxgCIAMoCzIyLnZyb29saS50eXBlc2NyaXB0X2NvZGVfZ3JhcGgudjEucmV3cml0ZS5PcGVyYXRpb24ieQoTUmV3cml0ZVBsYW5SZXNwb25zZRIPCgdwbGFuX2lkGAEgASgJElEKFW5vcm1hbGl6ZWRfb3BlcmF0aW9ucxgCIAMoCzIyLnZyb29saS50eXBlc2NyaXB0X2NvZGVfZ3JhcGgudjEucmV3cml0ZS5PcGVyYXRpb24iTAoTUmV3cml0ZUFwcGx5UmVxdWVzdBIVCg1zY2VuYXJpb19wYXRoGAEgASgJEg8KB3BsYW5faWQYAiABKAkSDQoFYXBwbHkYAyABKAgigwEKFFJld3JpdGVBcHBseVJlc3BvbnNlEg8KB3BsYW5faWQYASABKAkSSQoHcmVzdWx0cxgCIAMoCzI4LnZyb29saS50eXBlc2NyaXB0X2NvZGVfZ3JhcGgudjEucmV3cml0ZS5PcGVyYXRpb25SZXN1bHQSDwoHZHJ5X3J1bhgDIAEoCCIVChNMaXN0Rml4dHVyZXNSZXF1ZXN0Ij8KC0ZpeHR1cmVJbmZvEgwKBG5hbWUYASABKAkSDAoEcGF0aBgCIAEoCRIUCgxoYXNfZXhwZWN0ZWQYAyABKAgiXAoUTGlzdEZpeHR1cmVzUmVzcG9uc2USRAoIZml4dHVyZXMYASADKAsyMi52cm9vbGkudHlwZXNjcmlwdF9jb2RlX2dyYXBoLnYxLmdyYXBoLkZpeHR1cmVJbmZvIiYKFlZhbGlkYXRlRml4dHVyZVJlcXVlc3QSDAoEbmFtZRgBIAEoCSJ5ChdWYWxpZGF0ZUZpeHR1cmVSZXNwb25zZRIOCgZwYXNzZWQYASABKAgSDAoEZGlmZhgCIAEoCRIWCg5leHBlY3RlZF9ieXRlcxgDIAEoAxIUCgxhY3R1YWxfYnl0ZXMYBCABKAMSEgoKZ3JhcGhfaGFzaBgFIAEoCSqwAgoKVHNOb2RlS2luZBIcChhUU19OT0RFX0tJTkRfVU5TUEVDSUZJRUQQABIYChNUU19OT0RFX0tJTkRfTU9EVUxFEMgBEhsKFlRTX05PREVfS0lORF9DT01QT05FTlQQyQESFgoRVFNfTk9ERV9LSU5EX0hPT0sQygESFwoSVFNfTk9ERV9LSU5EX0NMQVNTEMsBEhsKFlRTX05PREVfS0lORF9JTlRFUkZBQ0UQzAESFgoRVFNfTk9ERV9LSU5EX1RZUEUQzQESGgoVVFNfTk9ERV9LSU5EX0ZVTkNUSU9OEM4BEhUKEFRTX05PREVfS0lORF9WQVIQzwESFwoSVFNfTk9ERV9LSU5EX0NPTlNUENABEhsKFlRTX05PREVfS0lORF9SRV9FWFBPUlQQ0QEyzgUKGlR5cGVTY3JpcHRDb2RlR3JhcGhTZXJ2aWNlEnoKB0V4dHJhY3QSNS52cm9vbGkudHlwZXNjcmlwdF9jb2RlX2dyYXBoLnYxLmdyYXBoLkV4dHJhY3RSZXF1ZXN0GjYudnJvb2xpLnR5cGVzY3JpcHRfY29kZV9ncmFwaC52MS5ncmFwaC5FeHRyYWN0UmVzcG9uc2UiABKGAQoLUmV3cml0ZVBsYW4SOS52cm9vbGkudHlwZXNjcmlwdF9jb2RlX2dyYXBoLnYxLmdyYXBoLlJld3JpdGVQbGFuUmVxdWVzdBo6LnZyb29saS50eXBlc2NyaXB0X2NvZGVfZ3JhcGgudjEuZ3JhcGguUmV3cml0ZVBsYW5SZXNwb25zZSIAEokBCgxSZXdyaXRlQXBwbHkSOi52cm9vbGkudHlwZXNjcmlwdF9jb2RlX2dyYXBoLnYxLmdyYXBoLlJld3JpdGVBcHBseVJlcXVlc3QaOy52cm9vbGkudHlwZXNjcmlwdF9jb2RlX2dyYXBoLnYxLmdyYXBoLlJld3JpdGVBcHBseVJlc3BvbnNlIgASiQEKDExpc3RGaXh0dXJlcxI6LnZyb29saS50eXBlc2NyaXB0X2NvZGVfZ3JhcGgudjEuZ3JhcGguTGlzdEZpeHR1cmVzUmVxdWVzdBo7LnZyb29saS50eXBlc2NyaXB0X2NvZGVfZ3JhcGgudjEuZ3JhcGguTGlzdEZpeHR1cmVzUmVzcG9uc2UiABKSAQoPVmFsaWRhdGVGaXh0dXJlEj0udnJvb2xpLnR5cGVzY3JpcHRfY29kZV9ncmFwaC52MS5ncmFwaC5WYWxpZGF0ZUZpeHR1cmVSZXF1ZXN0Gj4udnJvb2xpLnR5cGVzY3JpcHRfY29kZV9ncmFwaC52MS5ncmFwaC5WYWxpZGF0ZUZpeHR1cmVSZXNwb25zZSIAQlhaVmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdHlwZXNjcmlwdC1jb2RlLWdyYXBoL3YxL2dyYXBoO2dyYXBoX3YxYgZwcm90bzM", [file_common_v1_code_graph, file_typescript_code_graph_v1_rewrite_rewrite]);
+  fileDesc("Cip0eXBlc2NyaXB0LWNvZGUtZ3JhcGgvdjEvZ3JhcGgvZ3JhcGgucHJvdG8SJXZyb29saS50eXBlc2NyaXB0X2NvZGVfZ3JhcGgudjEuZ3JhcGgiJgoORXh0cmFjdFJlcXVlc3QSFAoMcHJvamVjdF9wYXRoGAEgASgJIqwBCg9FeHRyYWN0UmVzcG9uc2USIwoFZ3JhcGgYASABKAsyFC5jb21tb24udjEuQ29kZUdyYXBoEi0KCHdhcm5pbmdzGAIgAygLMhsuY29tbW9uLnYxLkNvZGVHcmFwaFdhcm5pbmcSFQoNZXh0cmFjdGlvbl9tcxgDIAEoAxISCgpncmFwaF9oYXNoGAQgASgJEhoKEnNpZGVjYXJfcmVxdWVzdF9pZBgFIAEoCSJyChJSZXdyaXRlUGxhblJlcXVlc3QSFAoMcHJvamVjdF9wYXRoGAEgASgJEkYKCm9wZXJhdGlvbnMYAiADKAsyMi52cm9vbGkudHlwZXNjcmlwdF9jb2RlX2dyYXBoLnYxLnJld3JpdGUuT3BlcmF0aW9uInkKE1Jld3JpdGVQbGFuUmVzcG9uc2USDwoHcGxhbl9pZBgBIAEoCRJRChVub3JtYWxpemVkX29wZXJhdGlvbnMYAiADKAsyMi52cm9vbGkudHlwZXNjcmlwdF9jb2RlX2dyYXBoLnYxLnJld3JpdGUuT3BlcmF0aW9uIksKE1Jld3JpdGVBcHBseVJlcXVlc3QSFAoMcHJvamVjdF9wYXRoGAEgASgJEg8KB3BsYW5faWQYAiABKAkSDQoFYXBwbHkYAyABKAgigwEKFFJld3JpdGVBcHBseVJlc3BvbnNlEg8KB3BsYW5faWQYASABKAkSSQoHcmVzdWx0cxgCIAMoCzI4LnZyb29saS50eXBlc2NyaXB0X2NvZGVfZ3JhcGgudjEucmV3cml0ZS5PcGVyYXRpb25SZXN1bHQSDwoHZHJ5X3J1bhgDIAEoCCIVChNMaXN0Rml4dHVyZXNSZXF1ZXN0Ij8KC0ZpeHR1cmVJbmZvEgwKBG5hbWUYASABKAkSDAoEcGF0aBgCIAEoCRIUCgxoYXNfZXhwZWN0ZWQYAyABKAgiXAoUTGlzdEZpeHR1cmVzUmVzcG9uc2USRAoIZml4dHVyZXMYASADKAsyMi52cm9vbGkudHlwZXNjcmlwdF9jb2RlX2dyYXBoLnYxLmdyYXBoLkZpeHR1cmVJbmZvIiYKFlZhbGlkYXRlRml4dHVyZVJlcXVlc3QSDAoEbmFtZRgBIAEoCSJ5ChdWYWxpZGF0ZUZpeHR1cmVSZXNwb25zZRIOCgZwYXNzZWQYASABKAgSDAoEZGlmZhgCIAEoCRIWCg5leHBlY3RlZF9ieXRlcxgDIAEoAxIUCgxhY3R1YWxfYnl0ZXMYBCABKAMSEgoKZ3JhcGhfaGFzaBgFIAEoCSq+AwoKVHNOb2RlS2luZBIcChhUU19OT0RFX0tJTkRfVU5TUEVDSUZJRUQQABIYChNUU19OT0RFX0tJTkRfTU9EVUxFEMgBEhsKFlRTX05PREVfS0lORF9DT01QT05FTlQQyQESFgoRVFNfTk9ERV9LSU5EX0hPT0sQygESFwoSVFNfTk9ERV9LSU5EX0NMQVNTEMsBEhsKFlRTX05PREVfS0lORF9JTlRFUkZBQ0UQzAESFgoRVFNfTk9ERV9LSU5EX1RZUEUQzQESGgoVVFNfTk9ERV9LSU5EX0ZVTkNUSU9OEM4BEhUKEFRTX05PREVfS0lORF9WQVIQzwESFwoSVFNfTk9ERV9LSU5EX0NPTlNUENABEhsKFlRTX05PREVfS0lORF9SRV9FWFBPUlQQ0QESIAobVFNfTk9ERV9LSU5EX0lNUE9SVF9CSU5ESU5HENIBEhsKFlRTX05PREVfS0lORF9SRUZFUkVOQ0UQ0wESFgoRVFNfTk9ERV9LSU5EX0NBTEwQ1AESGwoWVFNfTk9ERV9LSU5EX0pTWF9VU0FHRRDVARIYChNUU19OT0RFX0tJTkRfRVhQT1JUENYBMs4FChpUeXBlU2NyaXB0Q29kZUdyYXBoU2VydmljZRJ6CgdFeHRyYWN0EjUudnJvb2xpLnR5cGVzY3JpcHRfY29kZV9ncmFwaC52MS5ncmFwaC5FeHRyYWN0UmVxdWVzdBo2LnZyb29saS50eXBlc2NyaXB0X2NvZGVfZ3JhcGgudjEuZ3JhcGguRXh0cmFjdFJlc3BvbnNlIgAShgEKC1Jld3JpdGVQbGFuEjkudnJvb2xpLnR5cGVzY3JpcHRfY29kZV9ncmFwaC52MS5ncmFwaC5SZXdyaXRlUGxhblJlcXVlc3QaOi52cm9vbGkudHlwZXNjcmlwdF9jb2RlX2dyYXBoLnYxLmdyYXBoLlJld3JpdGVQbGFuUmVzcG9uc2UiABKJAQoMUmV3cml0ZUFwcGx5EjoudnJvb2xpLnR5cGVzY3JpcHRfY29kZV9ncmFwaC52MS5ncmFwaC5SZXdyaXRlQXBwbHlSZXF1ZXN0GjsudnJvb2xpLnR5cGVzY3JpcHRfY29kZV9ncmFwaC52MS5ncmFwaC5SZXdyaXRlQXBwbHlSZXNwb25zZSIAEokBCgxMaXN0Rml4dHVyZXMSOi52cm9vbGkudHlwZXNjcmlwdF9jb2RlX2dyYXBoLnYxLmdyYXBoLkxpc3RGaXh0dXJlc1JlcXVlc3QaOy52cm9vbGkudHlwZXNjcmlwdF9jb2RlX2dyYXBoLnYxLmdyYXBoLkxpc3RGaXh0dXJlc1Jlc3BvbnNlIgASkgEKD1ZhbGlkYXRlRml4dHVyZRI9LnZyb29saS50eXBlc2NyaXB0X2NvZGVfZ3JhcGgudjEuZ3JhcGguVmFsaWRhdGVGaXh0dXJlUmVxdWVzdBo+LnZyb29saS50eXBlc2NyaXB0X2NvZGVfZ3JhcGgudjEuZ3JhcGguVmFsaWRhdGVGaXh0dXJlUmVzcG9uc2UiAEJYWlZnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3R5cGVzY3JpcHQtY29kZS1ncmFwaC92MS9ncmFwaDtncmFwaF92MWIGcHJvdG8z", [file_common_v1_code_graph, file_typescript_code_graph_v1_rewrite_rewrite]);
 
 /**
  * @generated from message vrooli.typescript_code_graph.v1.graph.ExtractRequest
  */
 export type ExtractRequest = Message<"vrooli.typescript_code_graph.v1.graph.ExtractRequest"> & {
   /**
-   * Absolute or scenario-relative path to the TS project root. Must
-   * contain exactly one tsconfig.json (or have one resolvable per
-   * ts-morph's standard discovery).
+   * Absolute path to a TS project root directory or to a concrete
+   * tsconfig.json file. Directory inputs must contain exactly one
+   * tsconfig.json; explicit file inputs select that project directly.
    *
-   * @generated from field: string scenario_path = 1;
+   * @generated from field: string project_path = 1;
    */
-  scenarioPath: string;
+  projectPath: string;
 };
 
 /**
@@ -96,9 +96,12 @@ export const ExtractResponseSchema: GenMessage<ExtractResponse> = /*@__PURE__*/
  */
 export type RewritePlanRequest = Message<"vrooli.typescript_code_graph.v1.graph.RewritePlanRequest"> & {
   /**
-   * @generated from field: string scenario_path = 1;
+   * Absolute path to a TS project root directory or to a concrete
+   * tsconfig.json file. The value scopes the stored rewrite plan.
+   *
+   * @generated from field: string project_path = 1;
    */
-  scenarioPath: string;
+  projectPath: string;
 
   /**
    * @generated from field: repeated vrooli.typescript_code_graph.v1.rewrite.Operation operations = 2;
@@ -147,9 +150,12 @@ export const RewritePlanResponseSchema: GenMessage<RewritePlanResponse> = /*@__P
  */
 export type RewriteApplyRequest = Message<"vrooli.typescript_code_graph.v1.graph.RewriteApplyRequest"> & {
   /**
-   * @generated from field: string scenario_path = 1;
+   * Absolute path to the same TS project root directory or tsconfig.json
+   * file used when the plan was authored.
+   *
+   * @generated from field: string project_path = 1;
    */
-  scenarioPath: string;
+  projectPath: string;
 
   /**
    * @generated from field: string plan_id = 2;
@@ -341,9 +347,8 @@ export const ValidateFixtureResponseSchema: GenMessage<ValidateFixtureResponse> 
  * lives here so consumers can validate the value without parsing
  * strings.
  *
- * Reserved-but-unused values exist so future additions stay
- * backward-compatible (consumers ignore unknown string values rather
- * than failing).
+ * Usage-fact values remain generic TypeScript evidence. They are not
+ * endpoint, proto-health, or Vrooli policy facts.
  *
  * @generated from enum vrooli.typescript_code_graph.v1.graph.TsNodeKind
  */
@@ -424,6 +429,41 @@ export enum TsNodeKind {
    * @generated from enum value: TS_NODE_KIND_RE_EXPORT = 209;
    */
   RE_EXPORT = 209,
+
+  /**
+   * One import binding from an import declaration.
+   *
+   * @generated from enum value: TS_NODE_KIND_IMPORT_BINDING = 210;
+   */
+  IMPORT_BINDING = 210,
+
+  /**
+   * One identifier reference with enclosing declaration context.
+   *
+   * @generated from enum value: TS_NODE_KIND_REFERENCE = 211;
+   */
+  REFERENCE = 211,
+
+  /**
+   * One call expression.
+   *
+   * @generated from enum value: TS_NODE_KIND_CALL = 212;
+   */
+  CALL = 212,
+
+  /**
+   * One JSX component/tag usage.
+   *
+   * @generated from enum value: TS_NODE_KIND_JSX_USAGE = 213;
+   */
+  JSX_USAGE = 213,
+
+  /**
+   * One exported declaration or re-export summary entry.
+   *
+   * @generated from enum value: TS_NODE_KIND_EXPORT = 214;
+   */
+  EXPORT = 214,
 }
 
 /**

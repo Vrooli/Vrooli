@@ -26,7 +26,7 @@ from common.v1 import code_graph_pb2 as common_dot_v1_dot_code__graph__pb2
 from go_code_graph.v1.rewrite import rewrite_pb2 as go__code__graph_dot_v1_dot_rewrite_dot_rewrite__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\"go-code-graph/v1/graph/graph.proto\x12\x1dvrooli.go_code_graph.v1.graph\x1a\x1a\x63ommon/v1/code_graph.proto\x1a&go-code-graph/v1/rewrite/rewrite.proto\"\\\n\x0e\x45xtractRequest\x12#\n\rscenario_path\x18\x01 \x01(\tR\x0cscenarioPath\x12%\n\x0einclude_vendor\x18\x02 \x01(\x08R\rincludeVendor\"\xba\x01\n\x0f\x45xtractResponse\x12*\n\x05graph\x18\x01 \x01(\x0b\x32\x14.common.v1.CodeGraphR\x05graph\x12\x37\n\x08warnings\x18\x02 \x03(\x0b\x32\x1b.common.v1.CodeGraphWarningR\x08warnings\x12#\n\rextraction_ms\x18\x03 \x01(\x03R\x0c\x65xtractionMs\x12\x1d\n\ngraph_hash\x18\x04 \x01(\tR\tgraphHash\"\x85\x01\n\x12RewritePlanRequest\x12#\n\rscenario_path\x18\x01 \x01(\tR\x0cscenarioPath\x12J\n\noperations\x18\x02 \x03(\x0b\x32*.vrooli.go_code_graph.v1.rewrite.OperationR\noperations\"\x8f\x01\n\x13RewritePlanResponse\x12\x17\n\x07plan_id\x18\x01 \x01(\tR\x06planId\x12_\n\x15normalized_operations\x18\x02 \x03(\x0b\x32*.vrooli.go_code_graph.v1.rewrite.OperationR\x14normalizedOperations\"i\n\x13RewriteApplyRequest\x12#\n\rscenario_path\x18\x01 \x01(\tR\x0cscenarioPath\x12\x17\n\x07plan_id\x18\x02 \x01(\tR\x06planId\x12\x14\n\x05\x61pply\x18\x03 \x01(\x08R\x05\x61pply\"\x94\x01\n\x14RewriteApplyResponse\x12\x17\n\x07plan_id\x18\x01 \x01(\tR\x06planId\x12J\n\x07results\x18\x02 \x03(\x0b\x32\x30.vrooli.go_code_graph.v1.rewrite.OperationResultR\x07results\x12\x17\n\x07\x64ry_run\x18\x03 \x01(\x08R\x06\x64ryRun\"\x15\n\x13ListFixturesRequest\"X\n\x0b\x46ixtureInfo\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n\x04path\x18\x02 \x01(\tR\x04path\x12!\n\x0chas_expected\x18\x03 \x01(\x08R\x0bhasExpected\"^\n\x14ListFixturesResponse\x12\x46\n\x08\x66ixtures\x18\x01 \x03(\x0b\x32*.vrooli.go_code_graph.v1.graph.FixtureInfoR\x08\x66ixtures\",\n\x16ValidateFixtureRequest\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\"\xae\x01\n\x17ValidateFixtureResponse\x12\x16\n\x06passed\x18\x01 \x01(\x08R\x06passed\x12\x12\n\x04\x64iff\x18\x02 \x01(\tR\x04\x64iff\x12%\n\x0e\x65xpected_bytes\x18\x03 \x01(\x03R\rexpectedBytes\x12!\n\x0c\x61\x63tual_bytes\x18\x04 \x01(\x03R\x0b\x61\x63tualBytes\x12\x1d\n\ngraph_hash\x18\x05 \x01(\tR\tgraphHash*\xbb\x01\n\nGoNodeKind\x12\x1c\n\x18GO_NODE_KIND_UNSPECIFIED\x10\x00\x12\x15\n\x11GO_NODE_KIND_TYPE\x10\x64\x12\x15\n\x11GO_NODE_KIND_FUNC\x10\x65\x12\x14\n\x10GO_NODE_KIND_VAR\x10\x66\x12\x16\n\x12GO_NODE_KIND_CONST\x10g\x12\x1a\n\x16GO_NODE_KIND_INTERFACE\x10h\x12\x17\n\x13GO_NODE_KIND_METHOD\x10i2\xf3\x04\n\x12GoCodeGraphService\x12j\n\x07\x45xtract\x12-.vrooli.go_code_graph.v1.graph.ExtractRequest\x1a..vrooli.go_code_graph.v1.graph.ExtractResponse\"\x00\x12v\n\x0bRewritePlan\x12\x31.vrooli.go_code_graph.v1.graph.RewritePlanRequest\x1a\x32.vrooli.go_code_graph.v1.graph.RewritePlanResponse\"\x00\x12y\n\x0cRewriteApply\x12\x32.vrooli.go_code_graph.v1.graph.RewriteApplyRequest\x1a\x33.vrooli.go_code_graph.v1.graph.RewriteApplyResponse\"\x00\x12y\n\x0cListFixtures\x12\x32.vrooli.go_code_graph.v1.graph.ListFixturesRequest\x1a\x33.vrooli.go_code_graph.v1.graph.ListFixturesResponse\"\x00\x12\x82\x01\n\x0fValidateFixture\x12\x35.vrooli.go_code_graph.v1.graph.ValidateFixtureRequest\x1a\x36.vrooli.go_code_graph.v1.graph.ValidateFixtureResponse\"\x00\x42PZNgithub.com/vrooli/vrooli/packages/proto/gen/go/go-code-graph/v1/graph;graph_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\"go-code-graph/v1/graph/graph.proto\x12\x1dvrooli.go_code_graph.v1.graph\x1a\x1a\x63ommon/v1/code_graph.proto\x1a&go-code-graph/v1/rewrite/rewrite.proto\"X\n\x0e\x45xtractRequest\x12\x1f\n\x0bmodule_path\x18\x01 \x01(\tR\nmodulePath\x12%\n\x0einclude_vendor\x18\x02 \x01(\x08R\rincludeVendor\"\xba\x01\n\x0f\x45xtractResponse\x12*\n\x05graph\x18\x01 \x01(\x0b\x32\x14.common.v1.CodeGraphR\x05graph\x12\x37\n\x08warnings\x18\x02 \x03(\x0b\x32\x1b.common.v1.CodeGraphWarningR\x08warnings\x12#\n\rextraction_ms\x18\x03 \x01(\x03R\x0c\x65xtractionMs\x12\x1d\n\ngraph_hash\x18\x04 \x01(\tR\tgraphHash\"\x81\x01\n\x12RewritePlanRequest\x12\x1f\n\x0bmodule_path\x18\x01 \x01(\tR\nmodulePath\x12J\n\noperations\x18\x02 \x03(\x0b\x32*.vrooli.go_code_graph.v1.rewrite.OperationR\noperations\"\x8f\x01\n\x13RewritePlanResponse\x12\x17\n\x07plan_id\x18\x01 \x01(\tR\x06planId\x12_\n\x15normalized_operations\x18\x02 \x03(\x0b\x32*.vrooli.go_code_graph.v1.rewrite.OperationR\x14normalizedOperations\"e\n\x13RewriteApplyRequest\x12\x1f\n\x0bmodule_path\x18\x01 \x01(\tR\nmodulePath\x12\x17\n\x07plan_id\x18\x02 \x01(\tR\x06planId\x12\x14\n\x05\x61pply\x18\x03 \x01(\x08R\x05\x61pply\"\x94\x01\n\x14RewriteApplyResponse\x12\x17\n\x07plan_id\x18\x01 \x01(\tR\x06planId\x12J\n\x07results\x18\x02 \x03(\x0b\x32\x30.vrooli.go_code_graph.v1.rewrite.OperationResultR\x07results\x12\x17\n\x07\x64ry_run\x18\x03 \x01(\x08R\x06\x64ryRun\"\x15\n\x13ListFixturesRequest\"X\n\x0b\x46ixtureInfo\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n\x04path\x18\x02 \x01(\tR\x04path\x12!\n\x0chas_expected\x18\x03 \x01(\x08R\x0bhasExpected\"^\n\x14ListFixturesResponse\x12\x46\n\x08\x66ixtures\x18\x01 \x03(\x0b\x32*.vrooli.go_code_graph.v1.graph.FixtureInfoR\x08\x66ixtures\",\n\x16ValidateFixtureRequest\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\"\xae\x01\n\x17ValidateFixtureResponse\x12\x16\n\x06passed\x18\x01 \x01(\x08R\x06passed\x12\x12\n\x04\x64iff\x18\x02 \x01(\tR\x04\x64iff\x12%\n\x0e\x65xpected_bytes\x18\x03 \x01(\x03R\rexpectedBytes\x12!\n\x0c\x61\x63tual_bytes\x18\x04 \x01(\x03R\x0b\x61\x63tualBytes\x12\x1d\n\ngraph_hash\x18\x05 \x01(\tR\tgraphHash*\xa9\x02\n\nGoNodeKind\x12\x1c\n\x18GO_NODE_KIND_UNSPECIFIED\x10\x00\x12\x15\n\x11GO_NODE_KIND_TYPE\x10\x64\x12\x15\n\x11GO_NODE_KIND_FUNC\x10\x65\x12\x14\n\x10GO_NODE_KIND_VAR\x10\x66\x12\x16\n\x12GO_NODE_KIND_CONST\x10g\x12\x1a\n\x16GO_NODE_KIND_INTERFACE\x10h\x12\x17\n\x13GO_NODE_KIND_METHOD\x10i\x12\x1c\n\x18GO_NODE_KIND_IMPORT_SPEC\x10j\x12\x1a\n\x16GO_NODE_KIND_REFERENCE\x10k\x12\x15\n\x11GO_NODE_KIND_CALL\x10l\x12\x1b\n\x17GO_NODE_KIND_TYPE_USAGE\x10m2\xf3\x04\n\x12GoCodeGraphService\x12j\n\x07\x45xtract\x12-.vrooli.go_code_graph.v1.graph.ExtractRequest\x1a..vrooli.go_code_graph.v1.graph.ExtractResponse\"\x00\x12v\n\x0bRewritePlan\x12\x31.vrooli.go_code_graph.v1.graph.RewritePlanRequest\x1a\x32.vrooli.go_code_graph.v1.graph.RewritePlanResponse\"\x00\x12y\n\x0cRewriteApply\x12\x32.vrooli.go_code_graph.v1.graph.RewriteApplyRequest\x1a\x33.vrooli.go_code_graph.v1.graph.RewriteApplyResponse\"\x00\x12y\n\x0cListFixtures\x12\x32.vrooli.go_code_graph.v1.graph.ListFixturesRequest\x1a\x33.vrooli.go_code_graph.v1.graph.ListFixturesResponse\"\x00\x12\x82\x01\n\x0fValidateFixture\x12\x35.vrooli.go_code_graph.v1.graph.ValidateFixtureRequest\x1a\x36.vrooli.go_code_graph.v1.graph.ValidateFixtureResponse\"\x00\x42PZNgithub.com/vrooli/vrooli/packages/proto/gen/go/go-code-graph/v1/graph;graph_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -34,30 +34,30 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'go_code_graph.v1.graph.grap
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZNgithub.com/vrooli/vrooli/packages/proto/gen/go/go-code-graph/v1/graph;graph_v1'
-  _globals['_GONODEKIND']._serialized_start=1393
-  _globals['_GONODEKIND']._serialized_end=1580
+  _globals['_GONODEKIND']._serialized_start=1381
+  _globals['_GONODEKIND']._serialized_end=1678
   _globals['_EXTRACTREQUEST']._serialized_start=137
-  _globals['_EXTRACTREQUEST']._serialized_end=229
-  _globals['_EXTRACTRESPONSE']._serialized_start=232
-  _globals['_EXTRACTRESPONSE']._serialized_end=418
-  _globals['_REWRITEPLANREQUEST']._serialized_start=421
-  _globals['_REWRITEPLANREQUEST']._serialized_end=554
-  _globals['_REWRITEPLANRESPONSE']._serialized_start=557
-  _globals['_REWRITEPLANRESPONSE']._serialized_end=700
-  _globals['_REWRITEAPPLYREQUEST']._serialized_start=702
-  _globals['_REWRITEAPPLYREQUEST']._serialized_end=807
-  _globals['_REWRITEAPPLYRESPONSE']._serialized_start=810
-  _globals['_REWRITEAPPLYRESPONSE']._serialized_end=958
-  _globals['_LISTFIXTURESREQUEST']._serialized_start=960
-  _globals['_LISTFIXTURESREQUEST']._serialized_end=981
-  _globals['_FIXTUREINFO']._serialized_start=983
-  _globals['_FIXTUREINFO']._serialized_end=1071
-  _globals['_LISTFIXTURESRESPONSE']._serialized_start=1073
-  _globals['_LISTFIXTURESRESPONSE']._serialized_end=1167
-  _globals['_VALIDATEFIXTUREREQUEST']._serialized_start=1169
-  _globals['_VALIDATEFIXTUREREQUEST']._serialized_end=1213
-  _globals['_VALIDATEFIXTURERESPONSE']._serialized_start=1216
-  _globals['_VALIDATEFIXTURERESPONSE']._serialized_end=1390
-  _globals['_GOCODEGRAPHSERVICE']._serialized_start=1583
-  _globals['_GOCODEGRAPHSERVICE']._serialized_end=2210
+  _globals['_EXTRACTREQUEST']._serialized_end=225
+  _globals['_EXTRACTRESPONSE']._serialized_start=228
+  _globals['_EXTRACTRESPONSE']._serialized_end=414
+  _globals['_REWRITEPLANREQUEST']._serialized_start=417
+  _globals['_REWRITEPLANREQUEST']._serialized_end=546
+  _globals['_REWRITEPLANRESPONSE']._serialized_start=549
+  _globals['_REWRITEPLANRESPONSE']._serialized_end=692
+  _globals['_REWRITEAPPLYREQUEST']._serialized_start=694
+  _globals['_REWRITEAPPLYREQUEST']._serialized_end=795
+  _globals['_REWRITEAPPLYRESPONSE']._serialized_start=798
+  _globals['_REWRITEAPPLYRESPONSE']._serialized_end=946
+  _globals['_LISTFIXTURESREQUEST']._serialized_start=948
+  _globals['_LISTFIXTURESREQUEST']._serialized_end=969
+  _globals['_FIXTUREINFO']._serialized_start=971
+  _globals['_FIXTUREINFO']._serialized_end=1059
+  _globals['_LISTFIXTURESRESPONSE']._serialized_start=1061
+  _globals['_LISTFIXTURESRESPONSE']._serialized_end=1155
+  _globals['_VALIDATEFIXTUREREQUEST']._serialized_start=1157
+  _globals['_VALIDATEFIXTUREREQUEST']._serialized_end=1201
+  _globals['_VALIDATEFIXTURERESPONSE']._serialized_start=1204
+  _globals['_VALIDATEFIXTURERESPONSE']._serialized_end=1378
+  _globals['_GOCODEGRAPHSERVICE']._serialized_start=1681
+  _globals['_GOCODEGRAPHSERVICE']._serialized_end=2308
 # @@protoc_insertion_point(module_scope)

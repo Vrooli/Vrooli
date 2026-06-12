@@ -18,13 +18,13 @@ import (
 // the behaviour the test wants; the zero value returns (nil, nil)
 // which is a legitimate "empty module" response.
 type FakeLoader struct {
-	LoadFunc func(ctx context.Context, scenarioPath string, opts intgraph.LoadOptions) ([]*packages.Package, error)
+	LoadFunc func(ctx context.Context, modulePath string, opts intgraph.LoadOptions) ([]*packages.Package, error)
 }
 
 // Load satisfies intgraph.PackagesLoader.
-func (f *FakeLoader) Load(ctx context.Context, scenarioPath string, opts intgraph.LoadOptions) ([]*packages.Package, error) {
+func (f *FakeLoader) Load(ctx context.Context, modulePath string, opts intgraph.LoadOptions) ([]*packages.Package, error) {
 	if f.LoadFunc != nil {
-		return f.LoadFunc(ctx, scenarioPath, opts)
+		return f.LoadFunc(ctx, modulePath, opts)
 	}
 	return nil, nil
 }

@@ -14,7 +14,7 @@ types — no hand-written struct mirror exists to drift.
 
 Connect-RPC errors use Connect's canonical error envelope and code set.
 REST exceptions, such as multipart uploads, use the template error
-envelope (`packages/proto/schemas/proto-health/v1/errors/errors.proto`):
+envelope (`packages/proto/schemas/proto-health/v1/shared/errors.proto`):
 
 ```json
 { "code": "<canonical_code>", "message": "<human readable>", "details": [...] }

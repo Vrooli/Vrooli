@@ -10,7 +10,7 @@
         "REQ-P0-001",
         "REQ-P0-002"
       ],
-      "description": "When individual source files fail to parse or import references cannot be resolved, the Extract operation must return a partial graph covering all successfully parsed content plus a Warnings[] list. Each warning entry must be a structured object with fields: file (absolute path), kind (enum: PARSE_ERROR, UNRESOLVABLE_IMPORT, etc.), and message (human-readable description). Hard failures (panic-level) are reserved exclusively for catastrophic conditions: missing tsconfig.json, unreadable scenario path, or a sidecar process that has exhausted its restart budget. Mid-migration projects with broken imports or syntax errors are first-class supported inputs.",
+      "description": "When individual source files fail to parse or import references cannot be resolved, the Extract operation must return a partial graph covering all successfully parsed content plus a Warnings[] list. Each warning entry must be a structured object with fields: file (absolute path), kind (enum: PARSE_ERROR, UNRESOLVABLE_IMPORT, etc.), and message (human-readable description). Hard failures (panic-level) are reserved exclusively for catastrophic conditions: missing tsconfig.json, unreadable project path, or a sidecar process that has exhausted its restart budget. Mid-migration projects with broken imports or syntax errors are first-class supported inputs.",
       "id": "REQ-P0-006",
       "prd_ref": "OT-P0-006",
       "status": "draft",

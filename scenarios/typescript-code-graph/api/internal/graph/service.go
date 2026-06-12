@@ -31,7 +31,7 @@ func NewService(client sidecar.SidecarClient, mu *PathMutex) *Service {
 	return &Service{client: client, mu: mu}
 }
 
-// Extract validates the input, locks the absolute scenario path, asks
+// Extract validates the input, locks the absolute project path, asks
 // the sidecar for the raw graph, normalizes, hashes, and returns the
 // ExtractOutput. Errors are typed ExtractError so handlers can map them
 // to Connect codes via ErrorToConnectCode.
@@ -42,18 +42,18 @@ func NewService(client sidecar.SidecarClient, mu *PathMutex) *Service {
 // here — timing belongs to the transport layer, and the handler measures
 // it with its own clock when projecting onto the proto ExtractResponse.
 func (s *Service) Extract(ctx context.Context, in ExtractInput) (ExtractOutput, error) {
-	path := strings.TrimSpace(in.ScenarioPath)
+	path := strings.TrimSpace(in.ProjectPath)
 	if path == "" {
 		return ExtractOutput{}, ExtractError{
 			Kind:    ExtractErrorInvalidInput,
-			Message: "scenario_path is required",
+			Message: "project_path is required",
 		}
 	}
 	if !filepath.IsAbs(path) {
 		return ExtractOutput{}, ExtractError{
 			Kind:    ExtractErrorInvalidInput,
 			Path:    path,
-			Message: "scenario_path must be absolute",
+			Message: "project_path must be absolute",
 		}
 	}
 	abs := filepath.Clean(path)

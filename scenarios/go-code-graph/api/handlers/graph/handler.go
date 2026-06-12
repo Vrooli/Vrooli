@@ -51,7 +51,7 @@ func NewConnectHandler(d Deps) *connectHandler {
 // ExtractResponse. Internal errors are logged; client errors are not.
 func (h *connectHandler) Extract(ctx context.Context, req *connect.Request[graphv1.ExtractRequest]) (*connect.Response[graphv1.ExtractResponse], error) {
 	in := intgraph.ExtractInput{
-		ScenarioPath:  req.Msg.GetScenarioPath(),
+		ModulePath:    req.Msg.GetModulePath(),
 		IncludeVendor: req.Msg.GetIncludeVendor(),
 	}
 
@@ -61,7 +61,7 @@ func (h *connectHandler) Extract(ctx context.Context, req *connect.Request[graph
 	if err != nil {
 		connectErr := intgraph.ToConnectError(err)
 		if connect.CodeOf(connectErr) == connect.CodeInternal {
-			h.deps.Logger.Printf("graph.Extract(%q): %v", in.ScenarioPath, err)
+			h.deps.Logger.Printf("graph.Extract(%q): %v", in.ModulePath, err)
 		}
 		return nil, connectErr
 	}
@@ -80,15 +80,15 @@ func (h *connectHandler) Extract(ctx context.Context, req *connect.Request[graph
 // proto response.
 func (h *connectHandler) RewritePlan(ctx context.Context, req *connect.Request[graphv1.RewritePlanRequest]) (*connect.Response[graphv1.RewritePlanResponse], error) {
 	in := intrewrite.PlanInput{
-		ScenarioPath: req.Msg.GetScenarioPath(),
-		Operations:   protoOperationsToDomain(req.Msg.GetOperations()),
+		ModulePath: req.Msg.GetModulePath(),
+		Operations: protoOperationsToDomain(req.Msg.GetOperations()),
 	}
 
 	plan, err := h.deps.RewriteService.Plan(ctx, in)
 	if err != nil {
 		connectErr := intrewrite.ToConnectError(err)
 		if connect.CodeOf(connectErr) == connect.CodeInternal {
-			h.deps.Logger.Printf("rewrite.Plan(%q): %v", in.ScenarioPath, err)
+			h.deps.Logger.Printf("rewrite.Plan(%q): %v", in.ModulePath, err)
 		}
 		return nil, connectErr
 	}
@@ -106,17 +106,17 @@ func (h *connectHandler) RewritePlan(ctx context.Context, req *connect.Request[g
 func (h *connectHandler) RewriteApply(ctx context.Context, req *connect.Request[graphv1.RewriteApplyRequest]) (*connect.Response[graphv1.RewriteApplyResponse], error) {
 	dryRun := strings.EqualFold(strings.TrimSpace(req.Header().Get("X-Dry-Run")), "true")
 	in := intrewrite.ApplyInput{
-		ScenarioPath: req.Msg.GetScenarioPath(),
-		PlanID:       intrewrite.PlanID(req.Msg.GetPlanId()),
-		Apply:        req.Msg.GetApply(),
-		DryRun:       dryRun,
+		ModulePath: req.Msg.GetModulePath(),
+		PlanID:     intrewrite.PlanID(req.Msg.GetPlanId()),
+		Apply:      req.Msg.GetApply(),
+		DryRun:     dryRun,
 	}
 
 	result, err := h.deps.RewriteService.Apply(ctx, in)
 	if err != nil {
 		connectErr := intrewrite.ToConnectError(err)
 		if connect.CodeOf(connectErr) == connect.CodeInternal {
-			h.deps.Logger.Printf("rewrite.Apply(%q, plan=%q): %v", in.ScenarioPath, in.PlanID, err)
+			h.deps.Logger.Printf("rewrite.Apply(%q, plan=%q): %v", in.ModulePath, in.PlanID, err)
 		}
 		return nil, connectErr
 	}

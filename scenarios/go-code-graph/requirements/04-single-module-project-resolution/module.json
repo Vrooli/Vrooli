@@ -9,21 +9,21 @@
       "dependencies": [
         "REQ-P0-002"
       ],
-      "description": "Both Extract and Rewrite must operate on exactly one go.mod per call. The system must discover the go.mod from the provided scenario_path and reject all ambiguous cases with a typed, actionable error. Rejection cases: (1) no go.mod discoverable in or above the scenario_path, (2) multiple go.mod files found within the scenario_path subtree, (3) a go.work workspace file is present. Each rejection must return a distinct typed error identifying the conflicting file paths and instructing the operator which file to point at.",
+      "description": "Both Extract and Rewrite must operate on exactly one go.mod per call. The system must discover the go.mod from the provided module_path and reject all ambiguous cases with a typed, actionable error. Rejection cases: (1) no go.mod discoverable in or above the module_path, (2) multiple go.mod files found within the module_path subtree, (3) a go.work workspace file is present. Each rejection must return a distinct typed error identifying the conflicting file paths and instructing the operator which file to point at.",
       "id": "REQ-P0-004",
       "prd_ref": "OT-P0-004",
       "status": "draft",
       "title": "Single go.mod Enforcement and Ambiguous Input Rejection",
       "validation": [
         {
-          "notes": "Test rejection when no go.mod exists in or above scenario_path, error includes path searched",
+          "notes": "Test rejection when no go.mod exists in or above module_path, error includes path searched",
           "phase": "unit",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Test rejection when multiple go.mod files exist within scenario_path subtree, error lists all discovered go.mod paths",
+          "notes": "Test rejection when multiple go.mod files exist within module_path subtree, error lists all discovered go.mod paths",
           "phase": "unit",
           "ref": "",
           "status": "pending",
@@ -37,7 +37,7 @@
           "type": "test"
         },
         {
-          "notes": "Test successful discovery when exactly one go.mod exists at or above scenario_path",
+          "notes": "Test successful discovery when exactly one go.mod exists at or above module_path",
           "phase": "unit",
           "ref": "",
           "status": "pending",

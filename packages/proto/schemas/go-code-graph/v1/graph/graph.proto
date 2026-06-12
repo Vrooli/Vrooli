@@ -58,7 +58,8 @@ service GoCodeGraphService {
 // 100..199 range. Producers attach the typed kind via attributes["kind"] =
 // "<GoNodeKind>" on each CodeGraphNode whose primary NodeKind is FILE,
 // PACKAGE, or MODULE; the typed-kind enum lives here so consumers can
-// validate the value without parsing strings.
+// validate the value without parsing strings. Usage facts are generic Go
+// language facts, not endpoint/proto-health policy.
 enum GoNodeKind {
   GO_NODE_KIND_UNSPECIFIED = 0;
   GO_NODE_KIND_TYPE = 100;
@@ -67,12 +68,17 @@ enum GoNodeKind {
   GO_NODE_KIND_CONST = 103;
   GO_NODE_KIND_INTERFACE = 104;
   GO_NODE_KIND_METHOD = 105;
+  GO_NODE_KIND_IMPORT_SPEC = 106;
+  GO_NODE_KIND_REFERENCE = 107;
+  GO_NODE_KIND_CALL = 108;
+  GO_NODE_KIND_TYPE_USAGE = 109;
 }
 
 message ExtractRequest {
-  // Absolute or scenario-relative path to a Go module root. Must contain
-  // exactly one go.mod.
-  string scenario_path = 1;
+  // Absolute or repo-relative path to a Go module root. Must contain exactly
+  // one go.mod. Scenario API modules are supported by pointing at their module
+  // root, e.g. scenarios/<name>/api.
+  string module_path = 1;
   // When false (default) the loader skips vendor/ directories and module
   // cache paths. REQ-P1-003.
   bool include_vendor = 2;
@@ -97,7 +103,9 @@ message ExtractResponse {
 // -----------------------------------------------------------------------------
 
 message RewritePlanRequest {
-  string scenario_path = 1;
+  // Absolute or repo-relative path to the Go module root that owns the rewrite
+  // operation paths.
+  string module_path = 1;
   repeated vrooli.go_code_graph.v1.rewrite.Operation operations = 2;
 }
 
@@ -112,7 +120,9 @@ message RewritePlanResponse {
 }
 
 message RewriteApplyRequest {
-  string scenario_path = 1;
+  // Absolute or repo-relative path to the same Go module root used for the
+  // corresponding RewritePlan request.
+  string module_path = 1;
   string plan_id = 2;
   // Must be true. False is rejected with InvalidArgument so dry-run callers
   // never accidentally mutate the working tree.

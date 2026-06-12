@@ -45,11 +45,11 @@ export const ErrorEnvelopeSchema: GenMessage<ErrorEnvelope> = /*@__PURE__*/
  * ExtractError describes a typed failure from the graph extraction path.
  *
  * kind values:
- *   - "no_tsconfig_found"        scenario_path has no resolvable tsconfig.json
+ *   - "no_tsconfig_found"        project_path has no resolvable tsconfig.json
  *   - "multiple_tsconfig_files"  ambiguity at the same level; consumer must
  *                                point at one
  *   - "workspace_unsupported"    pnpm workspace detected; P2
- *   - "path_unreadable"          scenario_path can't be read by the API process
+ *   - "path_unreadable"          project_path can't be read by the API process
  *   - "parse_failure"            ts-morph could not parse any source file
  *                                (catastrophic; partial-graph warnings stay
  *                                inline on ExtractResponse)
@@ -89,7 +89,7 @@ export const ExtractErrorSchema: GenMessage<ExtractError> = /*@__PURE__*/
  * kind values:
  *   - "plan_not_found"           plan_id missing from store (expired or never
  *                                registered)
- *   - "scenario_mismatch"        apply called with a different scenario_path
+ *   - "project_mismatch"         apply called with a different project_path
  *                                than the original plan
  *   - "operation_unsupported"    operation type not implemented in v1
  *   - "operation_failed"         a single operation failed during apply (per-op

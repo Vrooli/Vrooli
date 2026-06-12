@@ -24,7 +24,7 @@ func TestExtractDeterminism(t *testing.T) {
 	var firstJSON []byte
 	for i := 0; i < runs; i++ {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		out, err := svc.Extract(ctx, graph.ExtractInput{ScenarioPath: fixDir})
+		out, err := svc.Extract(ctx, graph.ExtractInput{ProjectPath: fixDir})
 		cancel()
 		require.NoError(t, err, "run %d", i)
 

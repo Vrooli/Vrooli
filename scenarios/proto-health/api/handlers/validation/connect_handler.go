@@ -97,15 +97,16 @@ func severityToProto(s internal.Severity) validationv1.Severity {
 
 func surfaceToProto(in protosurface.Surface) *sharedv1.ProtoSurface {
 	out := &sharedv1.ProtoSurface{
-		Scenario:             in.Scenario,
-		TransportWorld:       transportWorldToProto(in.TransportWorld),
-		Files:                make([]*sharedv1.ProtoFile, 0, len(in.Files)),
-		Services:             make([]*sharedv1.ProtoService, 0, len(in.Services)),
-		Messages:             make([]*sharedv1.ProtoMessage, 0, len(in.Messages)),
-		IntraScenarioImports: make([]*sharedv1.ProtoImport, 0, len(in.IntraScenarioImports)),
-		CrossScenarioImports: make([]*sharedv1.ProtoImport, 0, len(in.CrossScenarioImports)),
-		AdoptionSignals:      make([]*sharedv1.AdoptionSignal, 0, len(in.AdoptionSignals)),
-		RestExceptionRefs:    make([]*sharedv1.RestExceptionRef, 0, len(in.RESTExceptionRefs)),
+		Scenario:              in.Scenario,
+		TransportWorld:        transportWorldToProto(in.TransportWorld),
+		Files:                 make([]*sharedv1.ProtoFile, 0, len(in.Files)),
+		Services:              make([]*sharedv1.ProtoService, 0, len(in.Services)),
+		Messages:              make([]*sharedv1.ProtoMessage, 0, len(in.Messages)),
+		IntraScenarioImports:  make([]*sharedv1.ProtoImport, 0, len(in.IntraScenarioImports)),
+		CrossScenarioImports:  make([]*sharedv1.ProtoImport, 0, len(in.CrossScenarioImports)),
+		RestExceptionRefs:     make([]*sharedv1.RestExceptionRef, 0, len(in.RESTExceptionRefs)),
+		RestExceptions:        make([]*sharedv1.RestExceptionEndpoint, 0, len(in.RESTExceptions)),
+		RestExceptionPayloads: make([]*sharedv1.RestExceptionPayloadRef, 0, len(in.RESTExceptionPayloads)),
 	}
 	for _, f := range in.Files {
 		pf := &sharedv1.ProtoFile{
@@ -168,9 +169,6 @@ func surfaceToProto(in protosurface.Surface) *sharedv1.ProtoSurface {
 	for _, imp := range in.CrossScenarioImports {
 		out.CrossScenarioImports = append(out.CrossScenarioImports, importToProto(imp))
 	}
-	for _, sig := range in.AdoptionSignals {
-		out.AdoptionSignals = append(out.AdoptionSignals, &sharedv1.AdoptionSignal{Name: sig.Name, Present: sig.Present, Detail: sig.Detail})
-	}
 	for _, ref := range in.RESTExceptionRefs {
 		out.RestExceptionRefs = append(out.RestExceptionRefs, &sharedv1.RestExceptionRef{
 			EndpointId: ref.EndpointID,
@@ -181,15 +179,59 @@ func surfaceToProto(in protosurface.Surface) *sharedv1.ProtoSurface {
 			FullName:   ref.FullName,
 		})
 	}
+	for _, endpoint := range in.RESTExceptions {
+		out.RestExceptions = append(out.RestExceptions, &sharedv1.RestExceptionEndpoint{
+			EndpointId:             endpoint.EndpointID,
+			Path:                   endpoint.Path,
+			Method:                 endpoint.Method,
+			Domain:                 endpoint.Domain,
+			Reason:                 endpoint.Reason,
+			HasPayloadDeclarations: endpoint.HasPayloadDeclarations,
+		})
+	}
+	for _, ref := range in.RESTExceptionPayloads {
+		out.RestExceptionPayloads = append(out.RestExceptionPayloads, &sharedv1.RestExceptionPayloadRef{
+			EndpointId:    ref.EndpointID,
+			Path:          ref.Path,
+			Method:        ref.Method,
+			Domain:        ref.Domain,
+			Reason:        ref.Reason,
+			Role:          restPayloadRoleToProto(ref.Role),
+			ProtoFullName: ref.ProtoFullName,
+			Transport:     ref.Transport,
+			Conformance:   ref.Conformance,
+			ProofStatus:   restPayloadProofStatusToProto(ref.ProofStatus),
+		})
+	}
 	return out
 }
 
 func importToProto(imp protosurface.Import) *sharedv1.ProtoImport {
 	return &sharedv1.ProtoImport{
-		FromFile:   imp.FromFile,
-		ToFile:     imp.ToFile,
-		FromDomain: imp.FromDomain,
-		ToDomain:   imp.ToDomain,
+		FromFile:     imp.FromFile,
+		ToFile:       imp.ToFile,
+		FromScenario: imp.FromScenario,
+		ToScenario:   imp.ToScenario,
+		FromPackage:  imp.FromPackage,
+		ToPackage:    imp.ToPackage,
+		FromVersion:  imp.FromVersion,
+		ToVersion:    imp.ToVersion,
+		FromDomain:   imp.FromDomain,
+		ToDomain:     imp.ToDomain,
+		Kind:         importKindToProto(imp.Kind),
+	}
+}
+
+func importKindToProto(kind protosurface.ImportKind) sharedv1.ImportKind {
+	switch kind {
+	case protosurface.ImportKindScenarioLocal:
+		return sharedv1.ImportKind_IMPORT_KIND_SCENARIO_LOCAL
+	case protosurface.ImportKindCrossScenario:
+		return sharedv1.ImportKind_IMPORT_KIND_CROSS_SCENARIO
+	case protosurface.ImportKindExternal:
+		return sharedv1.ImportKind_IMPORT_KIND_EXTERNAL
+	default:
+		return sharedv1.ImportKind_IMPORT_KIND_UNSPECIFIED
 	}
 }
 
@@ -220,5 +262,27 @@ func transportKindToProto(kind protosurface.TransportKind) sharedv1.TransportKin
 		return sharedv1.TransportKind_TRANSPORT_KIND_NOT_SERVED
 	default:
 		return sharedv1.TransportKind_TRANSPORT_KIND_UNSPECIFIED
+	}
+}
+
+func restPayloadRoleToProto(role protosurface.RESTPayloadRole) sharedv1.RestPayloadRole {
+	switch role {
+	case protosurface.RESTPayloadRoleRequest:
+		return sharedv1.RestPayloadRole_REST_PAYLOAD_ROLE_REQUEST
+	case protosurface.RESTPayloadRoleResponse:
+		return sharedv1.RestPayloadRole_REST_PAYLOAD_ROLE_RESPONSE
+	case protosurface.RESTPayloadRoleError:
+		return sharedv1.RestPayloadRole_REST_PAYLOAD_ROLE_ERROR
+	default:
+		return sharedv1.RestPayloadRole_REST_PAYLOAD_ROLE_UNSPECIFIED
+	}
+}
+
+func restPayloadProofStatusToProto(status protosurface.RESTPayloadProofStatus) sharedv1.RestPayloadProofStatus {
+	switch status {
+	case protosurface.RESTPayloadProofNotEvaluated:
+		return sharedv1.RestPayloadProofStatus_REST_PAYLOAD_PROOF_STATUS_NOT_EVALUATED
+	default:
+		return sharedv1.RestPayloadProofStatus_REST_PAYLOAD_PROOF_STATUS_UNSPECIFIED
 	}
 }

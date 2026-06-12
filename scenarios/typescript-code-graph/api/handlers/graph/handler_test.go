@@ -71,7 +71,7 @@ func TestHandlerExtractHappyPath(t *testing.T) {
 	client := newTestClient(t, svc)
 
 	resp, err := client.Extract(context.Background(), connect.NewRequest(&graphv1.ExtractRequest{
-		ScenarioPath: "/abs/proj",
+		ProjectPath: "/abs/proj",
 	}))
 	require.NoError(t, err)
 	require.NotNil(t, resp.Msg.GetGraph())
@@ -100,7 +100,7 @@ func TestHandlerExtractInvalidArgument(t *testing.T) {
 	fake := &sidecarmocks.FakeSidecarClient{StatusValue: sidecar.StatusReady}
 	svc := intgraph.NewService(fake, intgraph.NewPathMutex())
 	client := newTestClient(t, svc)
-	_, err := client.Extract(context.Background(), connect.NewRequest(&graphv1.ExtractRequest{ScenarioPath: ""}))
+	_, err := client.Extract(context.Background(), connect.NewRequest(&graphv1.ExtractRequest{ProjectPath: ""}))
 	require.Error(t, err)
 	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
@@ -110,7 +110,7 @@ func TestHandlerExtractUnavailableSidecar(t *testing.T) {
 	fake := &sidecarmocks.FakeSidecarClient{StatusValue: sidecar.StatusUnhealthy}
 	svc := intgraph.NewService(fake, intgraph.NewPathMutex())
 	client := newTestClient(t, svc)
-	_, err := client.Extract(context.Background(), connect.NewRequest(&graphv1.ExtractRequest{ScenarioPath: "/abs"}))
+	_, err := client.Extract(context.Background(), connect.NewRequest(&graphv1.ExtractRequest{ProjectPath: "/abs"}))
 	require.Error(t, err)
 	require.Equal(t, connect.CodeUnavailable, connect.CodeOf(err))
 }
@@ -125,7 +125,7 @@ func TestHandlerExtractWorkspaceUnsupported(t *testing.T) {
 	}
 	svc := intgraph.NewService(fake, intgraph.NewPathMutex())
 	client := newTestClient(t, svc)
-	_, err := client.Extract(context.Background(), connect.NewRequest(&graphv1.ExtractRequest{ScenarioPath: "/abs"}))
+	_, err := client.Extract(context.Background(), connect.NewRequest(&graphv1.ExtractRequest{ProjectPath: "/abs"}))
 	require.Error(t, err)
 	require.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err))
 }
@@ -140,7 +140,7 @@ func TestHandlerExtractNotFound(t *testing.T) {
 	}
 	svc := intgraph.NewService(fake, intgraph.NewPathMutex())
 	client := newTestClient(t, svc)
-	_, err := client.Extract(context.Background(), connect.NewRequest(&graphv1.ExtractRequest{ScenarioPath: "/abs"}))
+	_, err := client.Extract(context.Background(), connect.NewRequest(&graphv1.ExtractRequest{ProjectPath: "/abs"}))
 	require.Error(t, err)
 	require.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
 }
@@ -158,7 +158,7 @@ func TestHandlerRewritePlan_HappyPath(t *testing.T) {
 	client := newTestClientWithRewrite(t, gsvc, rsvc)
 
 	resp, err := client.RewritePlan(context.Background(), connect.NewRequest(&graphv1.RewritePlanRequest{
-		ScenarioPath: "/abs/proj",
+		ProjectPath: "/abs/proj",
 		Operations: []*rewritepb.Operation{
 			{Op: &rewritepb.Operation_FileMove{FileMove: &rewritepb.FileMove{FromPath: "a.ts", ToPath: "b.ts"}}},
 		},
@@ -168,11 +168,11 @@ func TestHandlerRewritePlan_HappyPath(t *testing.T) {
 }
 
 // TestHandlerRewritePlan_InvalidArgument confirms validation errors
-// surface as InvalidArgument (empty scenario_path).
+// surface as InvalidArgument (empty project_path).
 func TestHandlerRewritePlan_InvalidArgument(t *testing.T) {
 	t.Parallel()
 	client := newTestClient(t, intgraph.NewService(&sidecarmocks.FakeSidecarClient{StatusValue: sidecar.StatusReady}, intgraph.NewPathMutex()))
-	_, err := client.RewritePlan(context.Background(), connect.NewRequest(&graphv1.RewritePlanRequest{ScenarioPath: ""}))
+	_, err := client.RewritePlan(context.Background(), connect.NewRequest(&graphv1.RewritePlanRequest{ProjectPath: ""}))
 	require.Error(t, err)
 	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
@@ -183,7 +183,7 @@ func TestHandlerRewritePlan_InvalidArgument(t *testing.T) {
 func TestHandlerRewriteApply_RejectsApplyFalse(t *testing.T) {
 	t.Parallel()
 	client := newTestClient(t, intgraph.NewService(&sidecarmocks.FakeSidecarClient{StatusValue: sidecar.StatusReady}, intgraph.NewPathMutex()))
-	_, err := client.RewriteApply(context.Background(), connect.NewRequest(&graphv1.RewriteApplyRequest{ScenarioPath: "/abs", PlanId: "x", Apply: false}))
+	_, err := client.RewriteApply(context.Background(), connect.NewRequest(&graphv1.RewriteApplyRequest{ProjectPath: "/abs", PlanId: "x", Apply: false}))
 	require.Error(t, err)
 	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
@@ -200,7 +200,7 @@ func TestHandlerRewriteApply_DryRunHeader(t *testing.T) {
 	client := newTestClientWithRewrite(t, gsvc, rsvc)
 
 	planResp, err := client.RewritePlan(context.Background(), connect.NewRequest(&graphv1.RewritePlanRequest{
-		ScenarioPath: "/abs/proj",
+		ProjectPath: "/abs/proj",
 		Operations: []*rewritepb.Operation{
 			{Op: &rewritepb.Operation_FileMove{FileMove: &rewritepb.FileMove{FromPath: "a.ts", ToPath: "b.ts"}}},
 		},
@@ -208,9 +208,9 @@ func TestHandlerRewriteApply_DryRunHeader(t *testing.T) {
 	require.NoError(t, err)
 
 	applyReq := connect.NewRequest(&graphv1.RewriteApplyRequest{
-		ScenarioPath: "/abs/proj",
-		PlanId:       planResp.Msg.GetPlanId(),
-		Apply:        true,
+		ProjectPath: "/abs/proj",
+		PlanId:      planResp.Msg.GetPlanId(),
+		Apply:       true,
 	})
 	applyReq.Header().Set("X-Dry-Run", "true")
 	applyResp, err := client.RewriteApply(context.Background(), applyReq)
@@ -225,9 +225,9 @@ func TestHandlerRewriteApply_PlanNotFound(t *testing.T) {
 	t.Parallel()
 	client := newTestClient(t, intgraph.NewService(&sidecarmocks.FakeSidecarClient{StatusValue: sidecar.StatusReady}, intgraph.NewPathMutex()))
 	_, err := client.RewriteApply(context.Background(), connect.NewRequest(&graphv1.RewriteApplyRequest{
-		ScenarioPath: "/abs/proj",
-		PlanId:       "missing",
-		Apply:        true,
+		ProjectPath: "/abs/proj",
+		PlanId:      "missing",
+		Apply:       true,
 	}))
 	require.Error(t, err)
 	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))

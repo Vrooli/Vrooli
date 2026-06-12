@@ -33,7 +33,7 @@ import (
 )
 
 const (
-	manifestSchema  = "../../../../scripts/scenarios/schemas/endpoints.schema.json"
+	manifestSchema  = "../../test-genie/schemas/endpoints.schema.json"
 	manifestVersion = "1.0.0"
 	defaultOutput   = "../.vrooli/endpoints.json"
 	defaultSeed     = "cmd/gen-endpoints/cli_commands_seed.json"
@@ -197,12 +197,50 @@ func validateTransport(endpoints []module.EndpointDescriptor) error {
 						"(multipart_upload, webhook_receiver, third_party_shape, ops_probe)",
 					e.ID, e.RESTException.Reason))
 			}
+			if err := validateRESTExceptionPayloads(e); err != nil {
+				violations = append(violations, err.Error())
+			}
 		}
 	}
 	if len(violations) > 0 {
 		return fmt.Errorf("transport validation failed:\n  - %s", strings.Join(violations, "\n  - "))
 	}
 	return nil
+}
+
+func validateRESTExceptionPayloads(e module.EndpointDescriptor) error {
+	payloads := e.RESTException.ProtoPayloads
+	if payloads == nil {
+		return fmt.Errorf("endpoint %q: RESTException.ProtoPayloads must declare request, response, and error payload intent", e.ID)
+	}
+	var violations []string
+	check := func(role string, p module.RESTExceptionPayload) {
+		if strings.TrimSpace(p.Transport) == "" {
+			violations = append(violations, fmt.Sprintf("%s transport is required", role))
+		}
+		if !validPayloadConformance(p.Conformance) {
+			violations = append(violations, fmt.Sprintf("%s conformance %q is unsupported", role, p.Conformance))
+		}
+		if strings.TrimSpace(p.ProtoFullName) == "" && p.Conformance == "protojson" {
+			violations = append(violations, fmt.Sprintf("%s proto_full_name is required when conformance is protojson", role))
+		}
+	}
+	check("request", payloads.Request)
+	check("response", payloads.Response)
+	check("error", payloads.Error)
+	if len(violations) > 0 {
+		return fmt.Errorf("endpoint %q: RESTException.ProtoPayloads invalid: %s", e.ID, strings.Join(violations, "; "))
+	}
+	return nil
+}
+
+func validPayloadConformance(v string) bool {
+	switch v {
+	case "none", "transport_only", "external_shape", "protojson":
+		return true
+	default:
+		return false
+	}
 }
 
 func validRESTReason(r module.RESTReason) bool {

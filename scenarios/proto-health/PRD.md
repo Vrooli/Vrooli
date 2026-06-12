@@ -19,7 +19,7 @@
 - [x] OT-P0-001 | Proto standard defined | `packages/proto/STYLE_GUIDE.md` retires `@layer`, defines domain organization, `v<n>/shared/`, supported annotations, and version directory rules.
 - [ ] OT-P0-002 | Scenario scaffold documented | Generated `proto-health` scenario has PRD, requirements, architecture, domain, seam, testing, problems, and progress docs that describe the real validator target state.
 - [ ] OT-P0-003 | Per-scenario proto validation | `ProtoHealthService.ValidateScenario` validates one scenario and returns stable findings with severity, code, location, message, and suggestion.
-- [ ] OT-P0-004 | Proto surface fact | `ProtoHealthService.DescribeScenarioProtos` returns a structured inventory of a scenario's files, services, RPCs, messages, fields, imports, annotations, adoption signals, and transport world.
+- [ ] OT-P0-004 | Proto surface fact | `ProtoHealthService.DescribeScenarioProtos` returns a structured inventory of a scenario's files, services, RPCs, messages, fields, imports, annotations, REST exception payload declarations, and declared transport world.
 - [ ] OT-P0-005 | CLI surface | `proto-health validate scenario <name> --json` and `proto-health describe scenario <name> --json` call the generated Connect API and return machine-readable output.
 
 ### 🟠 P1 – Should have post-launch
@@ -28,7 +28,7 @@
 - [ ] OT-P1-002 | Ecosystem-manager maturity signal | ecosystem-manager consumes proto findings as an R2 `proto-health` soft-boost dimension.
 - [ ] OT-P1-003 | Direct UI | The UI lists fleet proto-health status and per-scenario findings/surface facts with loading, error, and empty states.
 - [ ] OT-P1-004 | Proto contract audit skill | `proto-contract-audit` steer skill loads through prompt-manager and routes deep API/interoperability decisions to the existing sibling skills.
-- [ ] OT-P1-005 | CI gen-sync gate | CI runs `cd packages/proto && make check` so committed generated artifacts cannot drift from schema sources.
+- [ ] OT-P1-005 | CI gen-sync gate | CI runs `cd packages/proto && make verify-committed-gen` so committed generated artifacts cannot drift from schema sources.
 
 ### 🟢 P2 – Future / expansion
 
