@@ -14,7 +14,7 @@ Track provider, resource, and consumer relationships for Code Facts.
 
 ## Vrooli Resources
 
-No shared resources are required in v1. SQLite may be used locally for cache metadata if Phase 9 needs persistence.
+No shared resources are required in v1. SQLite is used locally for derived cache metadata and payloads.
 
 ## Scenario Dependencies
 

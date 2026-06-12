@@ -50,7 +50,7 @@ Fact-family filtering is applied at the Code Facts service boundary. Provider-le
 |---|---|---|
 | Provider clients | Hide graph-provider transport behind fakes | API internal analyzer seams |
 | Target filesystem | Resolve paths and metadata deterministically | API internal target seams |
-| Cache store | Store cache entries and diagnostics | API internal cache seams |
+| Cache store | Store graph/report entries, hash evidence, and diagnostics | API internal cache seams with SQLite production repository and in-memory tests |
 | Rendering | Keep CLI output thin and proto-shaped for JSON | CLI domain renderers |
 
 ## Extension Rules
@@ -64,14 +64,14 @@ Fact-family filtering is applied at the Code Facts service boundary. Provider-le
 
 | Surface | Level | Evidence | Remaining Drift |
 |---|---:|---|---|
-| Docs | 2 | Domain map and seams documented in Phase 5 | Implementation not started |
-| API | 1 | Generated template exists | Phase 6 replaces notes with Code Facts contract |
-| CLI | 1 | Generated template exists | Phase 6 adds real commands |
-| UI | 1 | Generated template exists | Phase 11 builds workbench |
+| Docs | 2 | Domain map and seams documented in Phase 5 | Later phases need resolver/analyzer details |
+| API | 3 | `CodeFactsService` exposes describe, proof, cache, target resolution, surface inventory, parse-unit discovery, analyzer brokering, cache reuse, proto adoption proof, and REST endpoint proof | CLI/UI proof and widget proof families remain later work |
+| CLI | 3 | `facts` and `cache` command groups call generated Connect clients, including cache status/inspect/clear | More human summaries land with proof data |
+| UI | 2 | `/facts` workbench reads the describe report and displays cache state/hash metadata | Phase 11 deepens inspection/filtering |
 
 ## Intentional Deviations
 
-The generated `notes` domain remains temporarily as scaffold infrastructure. It is template residue and must be removed when the first real Code Facts vertical slice lands.
+Analyzer-backed generic language evidence is active as of Phase 8 for imports, symbols, references, calls, and provider warnings. Cache reuse is active as of Phase 9 for graph and report payloads with source/config hash evidence. Phase 10 interprets those generic facts into proto adoption and REST endpoint proof evidence while leaving CLI proof and UI widget proof for later phases.
 
 ## Documentation Architecture
 

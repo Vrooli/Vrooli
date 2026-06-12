@@ -19,19 +19,20 @@ Use this document to answer:
 | UI build | 5-10 minutes accepted for current Vite module graph | lifecycle/test-genie build logs | inherited |
 | API health | responsive under lifecycle health timeout | `/health` check | active |
 | UI health | responsive under lifecycle health timeout | `/health` check | active |
+| Repeated selective describe | Provider extraction avoided after identical cached request | API unit test with counting provider | active |
 
 ## Current Measurements
 
 | Measurement | Value | Source | Date |
 |---|---|---|---|
-| None captured yet. | n/a | n/a | 2026-06-12 |
+| Repeated `DescribeCodeFacts` cache reuse | second identical request uses report cache and makes zero provider calls | `internal/facts` unit test | 2026-06-12 |
 
 ## Known Constraints
 
 - Vite production builds may process thousands of modules and take
   several minutes.
-- Performance budgets for real product workflows must be defined after
-  domains and UX flows are known.
+- Cache fingerprinting walks bounded parse-unit roots and prunes dependency/build directories.
+- Performance budgets for proof synthesis should be revisited after Phase 11 exposes larger operator UI workflows and Phase 12 adds the first external consumer.
 
 ## Regression Procedure
 

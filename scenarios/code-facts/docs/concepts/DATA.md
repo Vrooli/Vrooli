@@ -6,7 +6,7 @@ Describe Code Facts data ownership, storage, and retention before implementation
 
 ## Storage Overview
 
-Phase 5 defines contracts only. Later phases may use SQLite or filesystem-backed storage for cache indexes and report metadata. Provider graph data can be recomputed and should not be treated as durable user data.
+Code Facts owns derived evidence and cache metadata. Provider graph data and normalized reports can be recomputed from source and should not be treated as durable user data.
 
 ## Data Ownership
 
@@ -20,7 +20,7 @@ Phase 5 defines contracts only. Later phases may use SQLite or filesystem-backed
 
 ## Schema Map
 
-Planned proto packages live under `packages/proto/schemas/code-facts/v1/` and should be split by domain when Phase 6 lands.
+Proto packages live under `packages/proto/schemas/code-facts/v1/`. The API stores cache entries in SQLite table `code_facts_cache_entries`, keyed by cache key with scope, target root, analyzer/provider versions, source/config hashes, graph hash, serialized payload, timestamps, and hit count.
 
 ## Migrations And Compatibility
 
@@ -32,7 +32,7 @@ Planned exports are JSON/proto-shaped describe reports and compact baseline summ
 
 ## Retention And Deletion
 
-Cache entries are derived data and may be cleared per target or globally. Durable retention policy is deferred until Phase 9 chooses storage.
+Cache entries are derived data and may be cleared per target with dry-run support. Durable retention limits are deferred until usage data shows whether automatic pruning is needed.
 
 ## Privacy Notes
 

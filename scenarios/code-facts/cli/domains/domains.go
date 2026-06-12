@@ -1,7 +1,8 @@
 package domains
 
 import (
-	"code-facts/cli/domains/notes"
+	"code-facts/cli/domains/cache"
+	"code-facts/cli/domains/facts"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -36,9 +37,13 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // templates/scenarios/react-vite/docs/internal/SEAMS.md (manifest ↔
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
-	notesGroup, err := notes.Register(core, manifest)
+	factsGroup, err := facts.Register(core, manifest)
 	if err != nil {
 		return nil, err
 	}
-	return []cliapp.SubcommandGroup{notesGroup}, nil
+	cacheGroup, err := cache.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.SubcommandGroup{factsGroup, cacheGroup}, nil
 }

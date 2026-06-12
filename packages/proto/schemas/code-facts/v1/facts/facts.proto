@@ -1,0 +1,266 @@
+syntax = "proto3";
+
+package vrooli.code_facts.v1.facts;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts;facts_v1";
+
+// =============================================================================
+// CODE FACTS SERVICE
+// =============================================================================
+//
+// @layer 5  (api surface)
+// @domain target + surface + facts + proof + cache
+// @stability experimental
+//
+// Code Facts is the shared code-evidence broker for Vrooli. It resolves a
+// bounded target, describes scenario/generic surfaces, brokers language graph
+// providers, and returns typed evidence that downstream validators can consume
+// without parsing implementation source themselves.
+// =============================================================================
+
+service CodeFactsService {
+  // DescribeCodeFacts returns a selective report for the requested fact
+  // families. Unsupported families are represented with typed evidence instead
+  // of being omitted.
+  rpc DescribeCodeFacts(DescribeCodeFactsRequest) returns (CodeFactsReport) {}
+
+  // ListSurfaces returns the surface inventory portion of DescribeCodeFacts.
+  rpc ListSurfaces(ListSurfacesRequest) returns (ListSurfacesResponse) {}
+
+  // CheckProtoAdoption returns proof-family evidence for generated proto
+  // adoption. Phase 6 exposes the contract; later phases add analyzer-backed
+  // proof.
+  rpc CheckProtoAdoption(CheckProtoAdoptionRequest) returns (ProofReport) {}
+
+  // CheckEndpointProof returns proof-family evidence for one endpoint or all
+  // endpoints in a target. Phase 6 exposes the contract; later phases add
+  // analyzer-backed proof.
+  rpc CheckEndpointProof(CheckEndpointProofRequest) returns (ProofReport) {}
+
+  // GetCacheStatus returns inspectable cache metadata for a target/options
+  // tuple.
+  rpc GetCacheStatus(GetCacheStatusRequest) returns (CacheStatus) {}
+
+  // InspectCache returns matching cache entries with key/hash evidence.
+  rpc InspectCache(InspectCacheRequest) returns (CacheStatus) {}
+
+  // ClearCache plans or clears cache entries for a target/options tuple.
+  rpc ClearCache(ClearCacheRequest) returns (ClearCacheResponse) {}
+}
+
+enum TargetKind {
+  TARGET_KIND_UNSPECIFIED = 0;
+  TARGET_KIND_PATH = 1;
+  TARGET_KIND_SCENARIO = 2;
+  TARGET_KIND_REPO = 3;
+  TARGET_KIND_MODULE = 4;
+  TARGET_KIND_PROJECT = 5;
+}
+
+enum FactFamily {
+  FACT_FAMILY_UNSPECIFIED = 0;
+  FACT_FAMILY_SURFACES = 1;
+  FACT_FAMILY_PARSE_UNITS = 2;
+  FACT_FAMILY_IMPORTS = 3;
+  FACT_FAMILY_SYMBOLS = 4;
+  FACT_FAMILY_REFERENCES = 5;
+  FACT_FAMILY_CALLS = 6;
+  FACT_FAMILY_PROTO_ADOPTION = 7;
+  FACT_FAMILY_ENDPOINT_PROOFS = 8;
+  FACT_FAMILY_CLI_PROOFS = 9;
+  FACT_FAMILY_UI_WIDGET_PROOFS = 10;
+  FACT_FAMILY_ALL = 99;
+}
+
+enum EvidenceStatus {
+  EVIDENCE_STATUS_UNSPECIFIED = 0;
+  EVIDENCE_STATUS_PROVEN = 1;
+  EVIDENCE_STATUS_MISSING = 2;
+  EVIDENCE_STATUS_CONTRADICTED = 3;
+  EVIDENCE_STATUS_UNSUPPORTED = 4;
+  EVIDENCE_STATUS_UNKNOWN = 5;
+}
+
+enum SurfaceKind {
+  SURFACE_KIND_UNSPECIFIED = 0;
+  SURFACE_KIND_API = 1;
+  SURFACE_KIND_CLI = 2;
+  SURFACE_KIND_UI = 3;
+  SURFACE_KIND_SIDECAR = 4;
+  SURFACE_KIND_WORKER = 5;
+  SURFACE_KIND_JOB = 6;
+}
+
+enum SurfaceStatus {
+  SURFACE_STATUS_UNSPECIFIED = 0;
+  SURFACE_STATUS_KNOWN = 1;
+  SURFACE_STATUS_MISSING = 2;
+  SURFACE_STATUS_UNSUPPORTED = 3;
+  SURFACE_STATUS_AMBIGUOUS = 4;
+  SURFACE_STATUS_UNKNOWN = 5;
+}
+
+message CodeTarget {
+  TargetKind kind = 1;
+  string path = 2;
+  string scenario = 3;
+  string repo_root = 4;
+  repeated string language_filter = 5;
+  bool strict = 6;
+}
+
+message DescribeCodeFactsRequest {
+  CodeTarget target = 1;
+  repeated FactFamily include = 2;
+  repeated string endpoint_ids = 3;
+  repeated string command_ids = 4;
+  repeated string widget_ids = 5;
+  int32 max_depth = 6;
+  bool use_cache = 7;
+}
+
+message ListSurfacesRequest {
+  CodeTarget target = 1;
+  bool use_cache = 2;
+}
+
+message CheckProtoAdoptionRequest {
+  CodeTarget target = 1;
+  repeated string surfaces = 2;
+  bool use_cache = 3;
+}
+
+message CheckEndpointProofRequest {
+  CodeTarget target = 1;
+  repeated string endpoint_ids = 2;
+  bool use_cache = 3;
+}
+
+message GetCacheStatusRequest {
+  CodeTarget target = 1;
+}
+
+message InspectCacheRequest {
+  CodeTarget target = 1;
+  string cache_key = 2;
+}
+
+message ClearCacheRequest {
+  CodeTarget target = 1;
+  bool dry_run = 2;
+}
+
+message TargetContext {
+  CodeTarget requested = 1;
+  TargetKind resolved_kind = 2;
+  string root_path = 3;
+  string scenario = 4;
+  bool scenario_aware = 5;
+}
+
+message SourceRange {
+  string file = 1;
+  int32 start_line = 2;
+  int32 start_column = 3;
+  int32 end_line = 4;
+  int32 end_column = 5;
+}
+
+message Evidence {
+  EvidenceStatus status = 1;
+  double confidence = 2;
+  SourceRange range = 3;
+  string symbol = 4;
+  string analyzer = 5;
+  string message = 6;
+}
+
+message ParseUnit {
+  string id = 1;
+  string language = 2;
+  string root_path = 3;
+  string config_path = 4;
+  EvidenceStatus status = 5;
+  repeated Evidence evidence = 6;
+}
+
+message Surface {
+  string id = 1;
+  SurfaceKind kind = 2;
+  string path = 3;
+  SurfaceStatus status = 4;
+  repeated Evidence evidence = 5;
+}
+
+message GenericFact {
+  string id = 1;
+  FactFamily family = 2;
+  string kind = 3;
+  string subject = 4;
+  repeated Evidence evidence = 5;
+  map<string, string> attributes = 6;
+}
+
+message Warning {
+  string code = 1;
+  string message = 2;
+  EvidenceStatus status = 3;
+}
+
+message CacheMetadata {
+  string cache_key = 1;
+  bool hit = 2;
+  string analyzer_version = 3;
+  string graph_hash = 4;
+  int64 age_seconds = 5;
+  string state = 6;
+  string reason = 7;
+  string source_hash = 8;
+  string config_hash = 9;
+  string provider_version = 10;
+  string schema_version = 11;
+  int64 created_at_unix = 12;
+  int64 last_used_at_unix = 13;
+  int64 hit_count = 14;
+  string scope = 15;
+}
+
+message CacheStatus {
+  CodeTarget target = 1;
+  string cache_key = 2;
+  int64 entries = 3;
+  repeated CacheMetadata entries_metadata = 4;
+}
+
+message ClearCacheResponse {
+  string cache_key = 1;
+  int64 matched_entries = 2;
+  int64 cleared_entries = 3;
+  bool dry_run = 4;
+}
+
+message CodeFactsReport {
+  TargetContext target = 1;
+  repeated ParseUnit parse_units = 2;
+  repeated Surface surfaces = 3;
+  repeated GenericFact facts = 4;
+  repeated Evidence evidence = 5;
+  repeated Warning warnings = 6;
+  CacheMetadata cache = 7;
+}
+
+message ListSurfacesResponse {
+  TargetContext target = 1;
+  repeated Surface surfaces = 2;
+  repeated Warning warnings = 3;
+  CacheMetadata cache = 4;
+}
+
+message ProofReport {
+  TargetContext target = 1;
+  FactFamily family = 2;
+  repeated GenericFact facts = 3;
+  repeated Evidence evidence = 4;
+  repeated Warning warnings = 5;
+  CacheMetadata cache = 6;
+}

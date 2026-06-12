@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "core-contract",
     "description": "P0 requirements for Code Facts target resolution, fact selection, evidence status, proof synthesis, cache, and programmatic surfaces.",
+    "last_validated_at": "2026-06-12T15:52:24-04:00",
+    "module": "core-contract",
     "prd_ref": "PRD.md",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -10,15 +11,26 @@
     {
       "id": "CF-P0-001",
       "title": "Resolve bounded code targets",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "target",
       "criticality": "P0",
       "description": "Resolve path, scenario, module, and project targets into a canonical root, target kind, optional scenario context, language filter, and evidence-backed diagnostics.",
-      "tags": ["target", "resolution"],
+      "tags": [
+        "target",
+        "resolution"
+      ],
       "validation": [
-        { "type": "unit", "status": "planned", "notes": "Target resolver tests cover scenario:<name>, path-inside-scenario, generic Go module, generic TS project, explicit tsconfig, and unsupported path." },
-        { "type": "integration", "status": "planned", "notes": "code-facts describe --include surfaces,parse_units returns target context without calling providers." }
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Target resolver tests cover scenario:\u003cname\u003e, path-inside-scenario, generic Go module, generic TS project, explicit tsconfig, and unsupported path."
+        },
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "code-facts describe --include surfaces,parse_units returns target context without calling providers."
+        }
       ]
     },
     {
@@ -29,10 +41,21 @@
       "category": "surface",
       "criticality": "P0",
       "description": "Report Vrooli scenario API, CLI, UI, sidecar, endpoint, and generic parse-unit facts with known/missing/unsupported/ambiguous/unknown statuses.",
-      "tags": ["surface", "parse-units"],
+      "tags": [
+        "surface",
+        "parse-units"
+      ],
       "validation": [
-        { "type": "unit", "status": "planned", "notes": "Surface inventory tests use generated scenario fixtures and generic code-root fixtures." },
-        { "type": "business", "status": "planned", "notes": "test-genie execute code-facts business --json confirms this requirement maps to OT-P0-002." }
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Surface inventory tests use generated scenario fixtures and generic code-root fixtures."
+        },
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "test-genie execute code-facts business --json confirms this requirement maps to OT-P0-002."
+        }
       ]
     },
     {
@@ -43,10 +66,22 @@
       "category": "analyzer",
       "criticality": "P0",
       "description": "Route Go parse units to go-code-graph and TypeScript parse units to typescript-code-graph through provider seams; Code Facts must not parse supported source files itself.",
-      "tags": ["analyzer", "providers", "seams"],
+      "tags": [
+        "analyzer",
+        "providers",
+        "seams"
+      ],
       "validation": [
-        { "type": "unit", "status": "planned", "notes": "Fake provider tests verify routing, provider failure mapping, and unsupported parse units." },
-        { "type": "integration", "status": "planned", "notes": "Provider-backed fixture tests prove Go and TS facts are normalized from graph responses." }
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "Fake provider tests verify routing, provider failure mapping, strict-mode provider errors, and unsupported parse units."
+        },
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Provider-backed fixture tests prove Go and TS facts are normalized from graph responses."
+        }
       ]
     },
     {
@@ -57,62 +92,106 @@
       "category": "facts",
       "criticality": "P0",
       "description": "Describe requests include explicit fact-family filters and responses contain only requested families plus required context, warnings, and unsupported-family evidence.",
-      "tags": ["facts", "filtering"],
+      "tags": [
+        "facts",
+        "filtering"
+      ],
       "validation": [
-        { "type": "unit", "status": "planned", "notes": "Include-filter tests cover surfaces-only, imports-only, proof-only, all, and unsupported family combinations." },
-        { "type": "cli", "status": "planned", "notes": "code-facts describe <target> --include imports,symbols --json omits calls and proof sections." }
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "Provider-backed unit tests verify imports-only and calls-only requests omit unrelated provider facts; proof-only and CLI filtering remain planned."
+        },
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "code-facts describe \u003ctarget\u003e --include imports,symbols --json omits calls and proof sections."
+        }
       ]
     },
     {
       "id": "CF-P0-005",
       "title": "Use explicit evidence statuses",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "proof",
       "criticality": "P0",
       "description": "Every high-level proof and unsupported condition uses one of proven, missing, contradicted, unsupported, or unknown with source evidence.",
-      "tags": ["evidence", "status"],
+      "tags": [
+        "evidence",
+        "status"
+      ],
       "validation": [
-        { "type": "unit", "status": "planned", "notes": "Evidence status tests cover all five statuses and stable JSON/proto rendering." }
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "Proof synthesis tests cover proven, missing, contradicted, unsupported, and unknown-oriented evidence paths."
+        }
       ]
     },
     {
       "id": "CF-P0-006",
       "title": "Prove proto adoption facts",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-006",
       "category": "proof",
       "criticality": "P0",
       "description": "Detect generated proto adoption in Go API/CLI and TypeScript UI surfaces from import/reference/call facts, including missing and unsupported cases.",
-      "tags": ["proto", "adoption"],
+      "tags": [
+        "proto",
+        "adoption"
+      ],
       "validation": [
-        { "type": "integration", "status": "planned", "notes": "Fixtures cover Go generated imports, TS generated imports, missing adoption, and provider-unavailable outcomes." }
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "API tests cover Go generated imports by surface and missing adoption outcomes. TS generated import proof uses the same normalized import path matcher."
+        }
       ]
     },
     {
       "id": "CF-P0-007",
       "title": "Prove Go REST endpoint implementation facts",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-007",
       "category": "proof",
       "criticality": "P0",
       "description": "Synthesize endpoint proof facts for Go REST handlers using generic call/type/import usage facts from go-code-graph.",
-      "tags": ["endpoint-proof", "go"],
+      "tags": [
+        "endpoint-proof",
+        "go"
+      ],
       "validation": [
-        { "type": "integration", "status": "planned", "notes": "REST handler fixtures cover protojson response construction, error envelope usage, missing payload usage, and contradicted declaration." }
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "API tests cover protojson response construction, error envelope usage, and contradicted declaration from wrong response type."
+        }
       ]
     },
     {
       "id": "CF-P0-008",
       "title": "Expose deterministic cache diagnostics",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-008",
       "category": "cache",
       "criticality": "P0",
       "description": "Cache keys include analyzer version, target root, options, config hashes, source hashes, graph hash, and requested family; responses expose hit/miss/stale reason metadata.",
-      "tags": ["cache", "determinism"],
+      "tags": [
+        "cache",
+        "determinism"
+      ],
       "validation": [
-        { "type": "unit", "status": "planned", "notes": "Cache key tests verify stable key construction and invalidation on source/options/provider-version changes." }
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "Cache tests verify repeated describe reuse, source-hash invalidation, status entries, and dry-run clear semantics."
+        },
+        {
+          "type": "test",
+          "status": "implemented",
+          "notes": "Connect API and CLI expose status, inspect, and clear operations with cache key/hash metadata."
+        }
       ]
     },
     {
@@ -122,11 +201,22 @@
       "prd_ref": "OT-P0-009",
       "category": "surface",
       "criticality": "P0",
-      "description": "Connect API and CLI expose equivalent describe, surfaces, proto-adoption, endpoint-proof, and cache status/clear operations.",
-      "tags": ["api", "cli"],
+      "description": "Connect API and CLI expose equivalent describe, surfaces, proto-adoption, endpoint-proof, and cache status/inspect/clear operations.",
+      "tags": [
+        "api",
+        "cli"
+      ],
       "validation": [
-        { "type": "contracts", "status": "planned", "notes": "CLI manifest bindings cover every Code Facts service operation." },
-        { "type": "unit", "status": "planned", "notes": "CLI command tests assert JSON output mirrors proto response shapes." }
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "CLI manifest bindings cover every Code Facts service operation."
+        },
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "CLI command tests assert JSON output mirrors proto response shapes."
+        }
       ]
     },
     {
@@ -137,9 +227,16 @@
       "category": "ui",
       "criticality": "P0",
       "description": "UI lets operators inspect target context, surfaces, parse units, fact families, warnings, evidence statuses, provider provenance, and cache state.",
-      "tags": ["ui", "operator-workbench"],
+      "tags": [
+        "ui",
+        "operator-workbench"
+      ],
       "validation": [
-        { "type": "ui", "status": "planned", "notes": "Component and BAS tests cover target entry, include filtering, evidence table states, warnings, and cache panel." }
+        {
+          "type": "test",
+          "status": "planned",
+          "notes": "Component and BAS tests cover target entry, include filtering, evidence table states, warnings, and cache panel."
+        }
       ]
     }
   ]

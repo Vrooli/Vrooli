@@ -9,7 +9,7 @@
     "bottomNavLabel": "التنقل الرئيسي",
     "nav": {
       "dashboard": "لوحة التحكم",
-      "notes": "الملاحظات",
+      "facts": "الحقائق",
       "settings": "الإعدادات"
     }
   },
@@ -27,8 +27,9 @@
       "description": "نظرة عامة على حالة السيناريو والمقاييس الرئيسية. استبدل هذه البطاقات بأسطح حقيقية مع نمو منتجك.",
       "statPlaceholderLabel": "إحصائية"
     },
-    "notes": {
-      "title": "الملاحظات"
+    "facts": {
+      "title": "الحقائق",
+      "description": "افحص أسطح الهدف الحالي ووحدات التحليل والأدلة والتحذيرات وبيانات التخزين المؤقت."
     },
     "settings": {
       "title": "الإعدادات",
@@ -52,23 +53,19 @@
     "summary_zero": "لا توجد إشعارات",
     "summary_one": "إشعار واحد"
   },
-  "notes": {
-    "title": "الملاحظات",
-    "loading": "جارٍ تحميل الملاحظات…",
-    "empty": "لا توجد ملاحظات بعد.",
-    "create": "إنشاء ملاحظة",
-    "createdAtLabel": "تاريخ الإنشاء:",
-    "attachmentsLabel": "{{count}} مرفقات",
-    "attachmentsLabel_one": "مرفق واحد",
-    "uploadAttachment": "رفع مرفق",
-    "attachmentFileLabel": "ملف المرفق",
-    "uploadSuccess": "تم رفع {{name}}.",
-    "noFileSelected": "اختر ملفًا قبل الرفع.",
-    "measure": {
-      "title": "ملاحظات هذا الأسبوع",
-      "loading": "جارٍ العد…",
-      "thisWeek": "{{count}} ملاحظة أُنشئت هذا الأسبوع"
-    }
+  "facts": {
+    "title": "تقرير Code Facts",
+    "description": "هدف السيناريو: code-facts",
+    "loading": "جارٍ تحميل الحقائق…",
+    "cacheHit": "نتيجة من التخزين المؤقت",
+    "cacheMiss": "لا توجد نتيجة في التخزين المؤقت",
+    "surfaces": "الأسطح",
+    "parseUnits": "وحدات التحليل",
+    "warnings": "التحذيرات",
+    "cacheState": "حالة التخزين المؤقت",
+    "cacheKey": "مفتاح التخزين المؤقت",
+    "sourceHash": "بصمة المصدر",
+    "configHash": "بصمة الإعدادات"
   },
   "errors": {
     "canceled": "Operation canceled.",

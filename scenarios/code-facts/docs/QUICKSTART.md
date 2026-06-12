@@ -26,13 +26,13 @@ Use `make status` to find the assigned UI and API ports. The UI is the operator 
 
 ## 4 — First Describe
 
-The Phase 6 CLI contract will expose:
+The Phase 6 CLI contract exposes:
 
 ```bash
-code-facts describe scenario:proto-health --include surfaces,proto_adoption --json
+code-facts facts describe scenario:code-facts --include surfaces,parse_units,proto_adoption --json
 ```
 
-Until Phase 6 lands, this scenario remains in documentation-first orientation.
+Analyzer-backed facts return typed `unsupported` evidence until the target resolver and provider broker land in later phases.
 
 ## 5 — Run the tests
 
@@ -41,4 +41,4 @@ cd scenarios/code-facts
 make test
 ```
 
-Known Phase 5 scaffold caveat: the generated template still contains the `notes` example domain until the implementation phases replace it with Code Facts domains.
+The generated `notes` example domain has been removed; active scenario surfaces are health plus the Code Facts `facts` and `cache` contracts.

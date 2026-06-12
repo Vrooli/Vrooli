@@ -1,16 +1,23 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "code-facts",
-  "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "description": "Code Facts CLI surface. Commands are thin wrappers over CodeFactsService and return proto-shaped JSON with --json.",
   "groups": [
     {
-      "name": "notes",
-      "description": "Manage notes (CRUD reference)",
+      "name": "facts",
+      "description": "Describe code targets and proof evidence",
       "commands": [
         {
-          "name": "list",
-          "description": "List all notes",
-          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "ListNotes" },
+          "name": "describe",
+          "description": "Describe selected code fact families for a target",
+          "positionals": [
+            { "name": "target", "required": true, "description": "Target path or scenario:<name>" }
+          ],
+          "flags": [
+            { "name": "include", "description": "Comma-separated fact families such as surfaces,parse_units,imports,all" },
+            { "name": "no-cache", "bool": true, "description": "Bypass cache lookup" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "CodeFactsService", "method": "DescribeCodeFacts" },
           "governance": {
             "effect": "read",
             "run_eligible": true,
@@ -18,41 +25,120 @@
           }
         },
         {
-          "name": "create",
-          "description": "Create a note",
-          "flags": [
-            { "name": "title", "required": true, "description": "Note title" },
-            { "name": "body", "description": "Note body" }
+          "name": "surfaces",
+          "description": "List target surfaces",
+          "positionals": [
+            { "name": "target", "required": true, "description": "Target path or scenario:<name>" }
           ],
-          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "CreateNote" },
+          "flags": [
+            { "name": "no-cache", "bool": true, "description": "Bypass cache lookup" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "CodeFactsService", "method": "ListSurfaces" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "proto-adoption",
+          "description": "Check proto adoption evidence",
+          "positionals": [
+            { "name": "target", "required": true, "description": "Target path or scenario:<name>" }
+          ],
+          "flags": [
+            { "name": "surface", "description": "Comma-separated surface ids to inspect" },
+            { "name": "no-cache", "bool": true, "description": "Bypass cache lookup" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "CodeFactsService", "method": "CheckProtoAdoption" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "endpoint-proof",
+          "description": "Check endpoint implementation evidence",
+          "positionals": [
+            { "name": "target", "required": true, "description": "Target path or scenario:<name>" }
+          ],
+          "flags": [
+            { "name": "endpoint", "description": "Comma-separated endpoint ids to inspect" },
+            { "name": "no-cache", "bool": true, "description": "Bypass cache lookup" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "CodeFactsService", "method": "CheckEndpointProof" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "cache",
+      "description": "Inspect and clear Code Facts cache entries",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Get cache status for a target",
+          "positionals": [
+            { "name": "target", "required": true, "description": "Target path or scenario:<name>" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "CodeFactsService", "method": "GetCacheStatus" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          },
+          "measure": {
+            "domain": "cache",
+            "intent": "How many derived cache entries exist for a Code Facts target.",
+            "questions": [
+              "how many code facts cache entries exist for this target",
+              "cache entries for scenario code-facts",
+              "how many derived graph and report cache entries are stored"
+            ],
+            "params": {
+              "target": { "default": "scenario:code-facts" }
+            },
+            "result": {
+              "kind": "scalar",
+              "value_field": "entries",
+              "unit": "entries",
+              "summary_template": "{entries} cache entries for {target}"
+            }
+          }
+        },
+        {
+          "name": "inspect",
+          "description": "Inspect cache entries for a target",
+          "positionals": [
+            { "name": "target", "required": true, "description": "Target path or scenario:<name>" }
+          ],
+          "flags": [
+            { "name": "cache-key", "description": "Optional exact cache key to inspect" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "CodeFactsService", "method": "InspectCache" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "clear",
+          "description": "Clear cache entries for a target",
+          "positionals": [
+            { "name": "target", "required": true, "description": "Target path or scenario:<name>" }
+          ],
+          "flags": [
+            { "name": "dry-run", "bool": true, "description": "Report matching entries without clearing them" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "CodeFactsService", "method": "ClearCache" },
           "governance": {
             "effect": "write",
-            "run_eligible": true,
-            "permissions": ["network:internal"]
-          }
-        },
-        {
-          "name": "get",
-          "description": "Get a note by id",
-          "positionals": [
-            { "name": "id", "required": true, "description": "Note id" }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "GetNote" },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": ["network:internal"]
-          }
-        },
-        {
-          "name": "count",
-          "description": "Count notes created in a time window (template reference command)",
-          "flags": [
-            { "name": "window", "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)" }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "CountNotes" },
-          "governance": {
-            "effect": "read",
             "run_eligible": true,
             "permissions": ["network:internal"]
           }
@@ -62,10 +148,8 @@
   ],
   "measures": {
     "domains": [
-      { "domain": "notes", "stateful": true, "reason": "Template reference domain only; Code Facts product measures will be declared when real fact/cache domains are implemented." }
-    ],
-    "omitted": [
-      { "domain": "notes", "reason": "Template reference domain only; not part of the Code Facts product contract." }
+      { "domain": "facts", "stateful": false, "reason": "Fact queries are deterministic evidence reads; cache hit metadata records reuse without changing requested evidence semantics." },
+      { "domain": "cache", "stateful": true, "reason": "Cache status, inspect, and clear expose operational state and dry-run mutation counts." }
     ]
   }
 }

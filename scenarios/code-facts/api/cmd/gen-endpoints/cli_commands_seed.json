@@ -1,5 +1,5 @@
 {
-  "_comment": "Source of truth for the cli_commands[] portion of .vrooli/endpoints.json. Hand-maintained because the CLI is a separate Go module from the API; cross-module codegen would force one to import the other. Each entry mirrors a real subcommand registered in cli/domains/<dom>/register.go (or cli-core's StandardScenarioApp built-ins). Codegen verifies every cli_mapping.command in endpoints[] has a matching name here.",
+  "_comment": "Source of truth for the cli_commands[] portion of .vrooli/endpoints.json. Hand-maintained because the CLI is a separate Go module from the API; codegen verifies every cli_mapping.command in endpoints[] has a matching name here.",
   "cli_commands": [
     {
       "name": "status",
@@ -7,29 +7,39 @@
       "endpoint_id": "health"
     },
     {
-      "name": "notes list",
-      "description": "List all notes (newest-first, default limit 100)",
-      "endpoint_id": "notes_list"
+      "name": "facts describe",
+      "description": "Describe selected code fact families for a target",
+      "endpoint_id": "facts_describe"
     },
     {
-      "name": "notes create",
-      "description": "Create a note (--title TITLE [--body BODY])",
-      "endpoint_id": "notes_create"
+      "name": "facts surfaces",
+      "description": "List target surfaces",
+      "endpoint_id": "facts_surfaces"
     },
     {
-      "name": "notes get",
-      "description": "Get a note by id",
-      "endpoint_id": "notes_get"
+      "name": "facts proto-adoption",
+      "description": "Check proto adoption evidence",
+      "endpoint_id": "facts_proto_adoption"
     },
     {
-      "name": "notes count",
-      "description": "Count notes created in a time window (--window WINDOW); the reference measure",
-      "endpoint_id": "notes_count"
+      "name": "facts endpoint-proof",
+      "description": "Check endpoint implementation evidence",
+      "endpoint_id": "facts_endpoint_proof"
     },
     {
-      "name": "notes attach",
-      "description": "Upload an attachment for a note (--file PATH)",
-      "endpoint_id": "notes_attach"
+      "name": "cache status",
+      "description": "Get cache status for a target",
+      "endpoint_id": "facts_cache_status"
+    },
+    {
+      "name": "cache inspect",
+      "description": "Inspect cache entries for a target",
+      "endpoint_id": "facts_cache_inspect"
+    },
+    {
+      "name": "cache clear",
+      "description": "Clear cache entries for a target",
+      "endpoint_id": "facts_cache_clear"
     }
   ]
 }

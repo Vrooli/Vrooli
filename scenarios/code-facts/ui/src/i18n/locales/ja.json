@@ -9,7 +9,7 @@
     "bottomNavLabel": "メインナビゲーション",
     "nav": {
       "dashboard": "ダッシュボード",
-      "notes": "ノート",
+      "facts": "ファクト",
       "settings": "設定"
     }
   },
@@ -27,8 +27,9 @@
       "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
       "statPlaceholderLabel": "指標"
     },
-    "notes": {
-      "title": "ノート"
+    "facts": {
+      "title": "ファクト",
+      "description": "現在のターゲットのサーフェス、解析単位、エビデンス、警告、キャッシュメタデータを確認します。"
     },
     "settings": {
       "title": "設定",
@@ -49,22 +50,19 @@
   "notifications": {
     "summary": "{{count}} 件の通知"
   },
-  "notes": {
-    "title": "ノート",
-    "loading": "ノートを読み込み中…",
-    "empty": "まだノートはありません。",
-    "create": "ノートを作成",
-    "createdAtLabel": "作成:",
-    "attachmentsLabel": "添付ファイル {{count}} 件",
-    "uploadAttachment": "添付ファイルをアップロード",
-    "attachmentFileLabel": "添付ファイル",
-    "uploadSuccess": "{{name}} をアップロードしました。",
-    "noFileSelected": "アップロードするファイルを選択してください。",
-    "measure": {
-      "title": "今週のノート",
-      "loading": "集計中…",
-      "thisWeek": "今週作成されたノート: {{count}} 件"
-    }
+  "facts": {
+    "title": "Code Facts レポート",
+    "description": "シナリオターゲット: code-facts",
+    "loading": "ファクトを読み込み中…",
+    "cacheHit": "キャッシュヒット",
+    "cacheMiss": "キャッシュミス",
+    "surfaces": "サーフェス",
+    "parseUnits": "解析単位",
+    "warnings": "警告",
+    "cacheState": "キャッシュ状態",
+    "cacheKey": "キャッシュキー",
+    "sourceHash": "ソースハッシュ",
+    "configHash": "設定ハッシュ"
   },
   "errors": {
     "canceled": "Operation canceled.",

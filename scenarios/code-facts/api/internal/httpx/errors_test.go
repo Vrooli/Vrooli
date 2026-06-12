@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
 
-	errorsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/errors"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/shared"
 )
 
 // TestWriteError exercises the canonical non-2xx writer end-to-end:
@@ -65,7 +65,7 @@ func TestWriteError(t *testing.T) {
 			require.Equal(t, tc.wantStatus, rec.Code)
 			require.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 
-			var got errorsv1.ErrorEnvelope
+			var got sharedv1.ErrorEnvelope
 			err := protojson.Unmarshal(rec.Body.Bytes(), &got)
 			require.NoError(t, err, "envelope must round-trip through protojson")
 			require.Equal(t, tc.wantCode, got.Code)

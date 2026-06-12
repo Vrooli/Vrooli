@@ -89,8 +89,25 @@ const (
 // field surfaces in .vrooli/endpoints.json so consumers can see the
 // human-readable justification.
 type RESTException struct {
-	Reason RESTReason `json:"reason"`
-	Note   string     `json:"note,omitempty"`
+	Reason        RESTReason        `json:"reason"`
+	Note          string            `json:"note,omitempty"`
+	ProtoPayloads RESTProtoPayloads `json:"proto_payloads"`
+}
+
+// RESTProtoPayloads declares the proto payload intent for each role on a REST
+// exception. It is static metadata for proto-health; implementation proof lives
+// in the Code Facts evidence layer.
+type RESTProtoPayloads struct {
+	Request  RESTPayload `json:"request"`
+	Response RESTPayload `json:"response"`
+	Error    RESTPayload `json:"error"`
+}
+
+// RESTPayload describes one declared REST payload role.
+type RESTPayload struct {
+	ProtoFullName string `json:"proto_full_name,omitempty"`
+	Transport     string `json:"transport"`
+	Conformance   string `json:"conformance"`
 }
 
 // Schema is the permissive shape used by .vrooli/endpoints.json's

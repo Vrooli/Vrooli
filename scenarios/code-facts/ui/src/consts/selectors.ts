@@ -308,25 +308,12 @@ const literalSelectors = {
   notifications: {
     summary: "notifications-summary",
   },
-  notes: {
-    card: "notes-card",
-    list: "notes-list",
-    loading: "notes-loading",
-    empty: "notes-empty",
-    error: "notes-error",
-    createButton: "notes-create-button",
-    createdAt: "notes-created-at",
-    attachmentCount: "notes-attachment-count",
-    attachmentUpload: "notes-attachment-upload",
-    attachmentFile: "notes-attachment-file",
-    attachmentButton: "notes-attachment-button",
-    attachmentStatus: "notes-attachment-status",
-    measure: {
-      card: "notes-measure-card",
-      value: "notes-measure-value",
-      loading: "notes-measure-loading",
-      error: "notes-measure-error",
-    },
+  facts: {
+    workbench: "facts-workbench",
+    loading: "facts-loading",
+    error: "facts-error",
+    cache: "facts-cache",
+    evidenceList: "facts-evidence-list",
   },
   locale: {
     switcher: "locale-switcher",
@@ -344,7 +331,7 @@ const literalSelectors = {
   },
   pages: {
     dashboard: "page-dashboard",
-    notes: "page-notes",
+    facts: "page-facts",
     settings: "page-settings",
   },
   errorBoundary: {
@@ -373,12 +360,12 @@ const dynamicSelectorDefinitions = {
     sidebarLink: defineDynamicSelector({
       description: "Sidebar navigation link by canonical nav key",
       testIdPattern: "layout-sidebar-link-${key}",
-      params: { key: { type: "enum", values: ["dashboard", "notes", "settings"] as const } },
+      params: { key: { type: "enum", values: ["dashboard", "facts", "settings"] as const } },
     }),
     bottomNavLink: defineDynamicSelector({
       description: "Bottom-nav link by canonical nav key",
       testIdPattern: "layout-bottom-nav-link-${key}",
-      params: { key: { type: "enum", values: ["dashboard", "notes", "settings"] as const } },
+      params: { key: { type: "enum", values: ["dashboard", "facts", "settings"] as const } },
     }),
   },
   settingsPage: {

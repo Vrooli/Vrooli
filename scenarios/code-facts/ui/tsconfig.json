@@ -52,6 +52,9 @@
     /* Paths */
     "baseUrl": ".",
     "paths": {
+      "@bufbuild/protobuf": ["./node_modules/@bufbuild/protobuf/dist/esm/index.d.ts"],
+      "@bufbuild/protobuf/*": ["./node_modules/@bufbuild/protobuf/dist/esm/*/index.d.ts"],
+      "@vrooli/proto-types/*": ["../../../packages/proto/gen/typescript/*"],
       "@/*": ["./src/*"]
     }
   },

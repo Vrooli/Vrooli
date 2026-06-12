@@ -18,11 +18,13 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	seed := filepath.Join(t.TempDir(), "seed.json")
 	writeSeed(t, seed, []CLICommand{
 		{Name: "status", Description: "Health check", EndpointID: "health"},
-		{Name: "notes list", Description: "List notes", EndpointID: "notes_list"},
-		{Name: "notes create", Description: "Create note", EndpointID: "notes_create"},
-		{Name: "notes get", Description: "Get note", EndpointID: "notes_get"},
-		{Name: "notes count", Description: "Count notes", EndpointID: "notes_count"},
-		{Name: "notes attach", Description: "Attach file", EndpointID: "notes_attach"},
+		{Name: "facts describe", Description: "Describe code facts", EndpointID: "facts_describe"},
+		{Name: "facts surfaces", Description: "List surfaces", EndpointID: "facts_surfaces"},
+		{Name: "facts proto-adoption", Description: "Check proto adoption", EndpointID: "facts_proto_adoption"},
+		{Name: "facts endpoint-proof", Description: "Check endpoint proof", EndpointID: "facts_endpoint_proof"},
+		{Name: "cache status", Description: "Cache status", EndpointID: "facts_cache_status"},
+		{Name: "cache inspect", Description: "Inspect cache", EndpointID: "facts_cache_inspect"},
+		{Name: "cache clear", Description: "Clear cache", EndpointID: "facts_cache_clear"},
 	})
 
 	if err := run(output, seed); err != nil {
@@ -53,8 +55,8 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	if len(got.Endpoints) == 0 {
 		t.Error("manifest must include at least one endpoint")
 	}
-	if len(got.CLICommands) != 6 {
-		t.Errorf("cli_commands count = %d, want 6", len(got.CLICommands))
+	if len(got.CLICommands) != 8 {
+		t.Errorf("cli_commands count = %d, want 8", len(got.CLICommands))
 	}
 
 	// Trailing newline so editors don't get angry about diff noise.
@@ -103,15 +105,15 @@ func TestCrossCheck_PassesWhenSeeded(t *testing.T) {
 }
 
 // TestStripBinaryPrefix is the smallest unit on the command-name
-// normalisation step: the endpoint's "code-facts notes list"
-// must compare against the seed's "notes list".
+// normalisation step: the endpoint's "code-facts facts describe"
+// must compare against the seed's "facts describe".
 func TestStripBinaryPrefix(t *testing.T) {
 	cases := []struct {
 		in   string
 		want string
 	}{
 		{in: "code-facts status", want: "status"},
-		{in: "code-facts notes list", want: "notes list"},
+		{in: "code-facts facts describe", want: "facts describe"},
 		{in: "already-stripped", want: "already-stripped"},
 		{in: "code-facts", want: "code-facts"}, // no trailing space → preserved
 	}

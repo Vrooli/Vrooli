@@ -1,12 +1,23 @@
 # Cache
 
-Cache keys are planned to include:
+Code Facts caches derived graph and report payloads. Source code is never owned by Code Facts.
 
-- Code Facts analyzer version.
+Cache keys include:
+
+- Code Facts analyzer/schema version.
 - Provider analyzer version.
 - Canonical target root.
-- Request options and requested fact families.
-- Project/config hashes such as `go.mod`, `go.sum`, `tsconfig.json`, and package metadata.
-- Source content hash or provider graph hash.
+- Parse unit id, root, and config path for graph entries.
+- Request options and requested fact families for report entries.
+- Config hashes such as `go.mod`, `go.sum`, `tsconfig.json`, `package.json`, and lockfiles.
+- Source content fingerprints for bounded Go/TypeScript/JavaScript parse-unit files.
+- Provider graph hash when a graph result is available.
 
-Cache responses should expose hit, miss, stale, bypassed, and invalidated states with reasons. Derived facts can be cleared; source code is never owned by Code Facts.
+Cache scopes:
+
+- `graph`: parse unit plus provider options to provider graph payload.
+- `report`: selected fact families plus target/options to `CodeFactsReport`.
+
+Callers can pass `use_cache=false` on describe/proof/surface requests to bypass lookup and force fresh extraction. Fresh results refresh cache entries with the latest source/config hash evidence.
+
+Cache metadata exposes key, scope, state (`hit`, `miss`, `bypassed`, or `stored`), reason, analyzer version, provider version, schema version, source hash, config hash, graph hash, age, and hit count. `code-facts cache clear <target> --dry-run` reports matches without deleting derived entries.

@@ -11,14 +11,14 @@
 
 ### 🔴 P0 – Must ship for viability
 
-- [ ] OT-P0-001 | Target Resolution | Target resolution supports `path`, `scenario`, `module`, and `project` inputs, including repo-root overrides and language filters.
+- [x] OT-P0-001 | Target Resolution | Target resolution supports `path`, `scenario`, `module`, and `project` inputs, including repo-root overrides and language filters.
 - [ ] OT-P0-002 | Surface Inventory | Surface inventory identifies Vrooli scenario surfaces and generic parse units with source-backed status.
 - [ ] OT-P0-003 | Analyzer Brokering | Analyzer brokering calls Go and TypeScript graph providers without parsing supported source directly.
 - [ ] OT-P0-004 | Selective Describe | Selective describe returns only requested fact families and clearly reports unsupported families.
-- [ ] OT-P0-005 | Evidence Status Model | Evidence status model supports `proven`, `missing`, `contradicted`, `unsupported`, and `unknown`.
-- [ ] OT-P0-006 | Proto Adoption Facts | Proto adoption facts work for Go API/CLI and TypeScript UI surfaces using generic import/reference/call evidence.
-- [ ] OT-P0-007 | Endpoint Proof Facts | Endpoint proof facts work for Go REST handlers using generic graph usage facts, not proto-health heuristics.
-- [ ] OT-P0-008 | Deterministic Cache | Cache keys and invalidation are deterministic, inspectable, and tied to analyzer version, target/options, source hashes, graph hashes, and requested fact families.
+- [x] OT-P0-005 | Evidence Status Model | Evidence status model supports `proven`, `missing`, `contradicted`, `unsupported`, and `unknown`.
+- [x] OT-P0-006 | Proto Adoption Facts | Proto adoption facts work for Go API/CLI and TypeScript UI surfaces using generic import/reference/call evidence.
+- [x] OT-P0-007 | Endpoint Proof Facts | Endpoint proof facts work for Go REST handlers using generic graph usage facts, not proto-health heuristics.
+- [x] OT-P0-008 | Deterministic Cache | Cache keys and invalidation are deterministic, inspectable, and tied to analyzer version, target/options, source hashes, graph hashes, and requested fact families.
 - [ ] OT-P0-009 | API/CLI Parity | CLI and Connect API expose equivalent core operations for describe, surfaces, proto adoption, endpoint proof, and cache diagnostics.
 - [ ] OT-P0-010 | Operator Workbench | Operator UI can inspect targets, surfaces, parse units, facts, warnings, evidence, and cache status.
 
@@ -38,7 +38,7 @@
 ## 🧱 Tech Direction Snapshot
 
 - Preferred stacks / frameworks: Generated React-Vite scenario with Go API, Go CLI, Connect-RPC, protobuf contracts in `packages/proto/schemas/code-facts/v1`, and the `vrooli-default` design kit.
-- Data + storage expectations: v1 can start with local deterministic cache metadata and filesystem-backed test fakes. SQLite is acceptable for cache index/audit history if Phase 9 needs persistence. No shared resource is required for Phase 5.
+- Data + storage expectations: v1 uses local SQLite for derived graph/report cache entries and in-memory fakes for focused tests. No shared resource is required for Code Facts cache storage.
 - Integration strategy: Code Facts calls `go-code-graph` for Go parse units and `typescript-code-graph` for TypeScript projects. It reads Vrooli repo/scenario metadata shallowly (`.vrooli/service.json`, `.vrooli/endpoints.json`, CLI manifests, testing metadata) but does not parse supported source languages itself.
 - Non-goals / guardrails: No language parser logic in Code Facts for Go or TypeScript. No proto-health policy inside graph providers. No compatibility aliases for greenfield contracts. No unbounded monorepo analysis in v1; callers must provide explicit bounded targets.
 

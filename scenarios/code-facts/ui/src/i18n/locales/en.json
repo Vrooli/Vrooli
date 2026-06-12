@@ -9,7 +9,7 @@
     "bottomNavLabel": "Primary navigation",
     "nav": {
       "dashboard": "Dashboard",
-      "notes": "Notes",
+      "facts": "Facts",
       "settings": "Settings"
     }
   },
@@ -27,8 +27,9 @@
       "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
       "statPlaceholderLabel": "Stat"
     },
-    "notes": {
-      "title": "Notes"
+    "facts": {
+      "title": "Facts",
+      "description": "Inspect the current target's surfaces, parse units, evidence, warnings, and cache metadata."
     },
     "settings": {
       "title": "Settings",
@@ -52,23 +53,19 @@
     "summary_zero": "No notifications",
     "summary_one": "1 notification"
   },
-  "notes": {
-    "title": "Notes",
-    "loading": "Loading notes…",
-    "empty": "No notes yet.",
-    "create": "Create note",
-    "createdAtLabel": "Created:",
-    "attachmentsLabel": "{{count}} attachments",
-    "attachmentsLabel_one": "1 attachment",
-    "uploadAttachment": "Upload attachment",
-    "attachmentFileLabel": "Attachment file",
-    "uploadSuccess": "Uploaded {{name}}.",
-    "noFileSelected": "Select a file before uploading.",
-    "measure": {
-      "title": "Notes this week",
-      "loading": "Counting…",
-      "thisWeek": "{{count}} notes created this week"
-    }
+  "facts": {
+    "title": "Code Facts report",
+    "description": "Scenario target: code-facts",
+    "loading": "Loading facts…",
+    "cacheHit": "Cache hit",
+    "cacheMiss": "Cache miss",
+    "surfaces": "Surfaces",
+    "parseUnits": "Parse units",
+    "warnings": "Warnings",
+    "cacheState": "Cache state",
+    "cacheKey": "Cache key",
+    "sourceHash": "Source hash",
+    "configHash": "Config hash"
   },
   "errors": {
     "canceled": "Operation canceled.",

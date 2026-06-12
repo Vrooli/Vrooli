@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package vrooli.cli.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1";
+
+// =============================================================================
+// VROOLI CLI — `host inventory` output contract (consumed subset)
+// =============================================================================
+//
+// @stability experimental
+//
+// Typed view of `vrooli host inventory --json`. The full command emits a rich
+// host snapshot (cpu, load, gpus, os, probe statuses, …); this contract models
+// the fields consumers decode today (memory + swap), and `protojson` with
+// DiscardUnknown ignores the rest. Extend as consumers need more sections.
+//
+// IMPORTANT: byte counts are uint64. The CLI emits them as JSON *strings*
+// (e.g. "65435598848") — the proto3 JSON convention for 64-bit integers, which
+// avoids precision loss in JS. Decoding via protojson into these uint64 fields
+// round-trips correctly; a plain encoding/json uint64 cannot (it rejects the
+// quoted number), which is the parse bug this contract removes.
+//
+// This is a consumer-decode contract: the producer is not (yet) migrated to
+// emit from it, so it is not golden-pinned against the producer the way
+// resource_list is. Promoting `host inventory` to a producer-authoritative
+// contract is a separate follow-up.
+// =============================================================================
+
+// HostInventoryResponse is the typed subset of `vrooli host inventory --json`.
+message HostInventoryResponse {
+  // System memory totals.
+  HostMemory memory = 1;
+
+  // Swap totals.
+  HostSwap swap = 2;
+}
+
+// HostMemory holds system memory counters, in bytes.
+message HostMemory {
+  // Total physical memory, in bytes.
+  uint64 total_bytes = 1;
+
+  // Memory available for new allocations without swapping, in bytes.
+  uint64 available_bytes = 2;
+
+  // Memory used by kernel buffers, in bytes.
+  uint64 buffers_bytes = 3;
+
+  // Memory used by the page cache, in bytes.
+  uint64 cached_bytes = 4;
+}
+
+// HostSwap holds swap counters, in bytes.
+message HostSwap {
+  // Total swap space, in bytes.
+  uint64 total_bytes = 1;
+}

@@ -1,6 +1,10 @@
 import { defineConfig, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
+import { fileURLToPath } from "node:url";
+
+const protoTypesPath = fileURLToPath(new URL("../../../packages/proto/gen/typescript", import.meta.url));
+const protobufPath = fileURLToPath(new URL("./node_modules/@bufbuild/protobuf/dist/esm", import.meta.url));
 
 // Mode-aware config. A regular `vite build` ships the lean prod artifact;
 // `vite build --mode profile` produces a perf-build channel for performance
@@ -30,17 +34,21 @@ export default defineConfig(({ mode }): UserConfig => {
   return {
     base: './',  // Required for tunnel/proxy contexts
     plugins: [react(), stringsCodegen()],
-    resolve: isProfile
-      ? {
-          alias: {
-            "react-dom/client": "react-dom/profiling",
-            // Internal references inside react-dom/client.js do
-            // `require('react-dom')`, which would resolve back to the
-            // stripped-prod bundle. Force them through the profiling entry too.
-            "react-dom$": "react-dom/profiling",
-          },
-        }
-      : undefined,
+    resolve: {
+      alias: {
+        "@vrooli/proto-types": protoTypesPath,
+        "@bufbuild/protobuf": protobufPath,
+        ...(isProfile
+          ? {
+              "react-dom/client": "react-dom/profiling",
+              // Internal references inside react-dom/client.js do
+              // `require('react-dom')`, which would resolve back to the
+              // stripped-prod bundle. Force them through the profiling entry too.
+              "react-dom$": "react-dom/profiling",
+            }
+          : {}),
+      },
+    },
     esbuild: isProfile
       ? {
           keepNames: true,

@@ -22,44 +22,30 @@ workflow model.
 
 | Flow | Domain | Trigger | Outcome | Statefulness | Validation |
 |---|---|---|---|---|---|
-| Attachment upload | notes | User/CLI uploads a file for a note. | Blob is stored and metadata is persisted. | Stateful upload request with validation and failure paths. | Level 5 workflow tests: matrix, traces, declarative spec, checked Quint model, generated artifacts, and production replay. |
+| Describe request | facts | API/CLI/UI requests selected fact families for a bounded target. | Report returns target context, selected fact families, evidence, warnings, and cache metadata. | Cache state stores graph/report entries with deterministic hash evidence. | Unit/API/CLI/UI smoke tests plus resolver/analyzer/cache unit tests. |
 
 ## Flow Details
 
-### Attachment upload
+### Describe request
 
-- Owner domain: notes.
-- Trigger: multipart upload request from UI or CLI.
-- Inputs: note id, file key/name, file bytes, content type, file size.
+- Owner domain: facts.
+- Trigger: `DescribeCodeFacts`, `ListSurfaces`, proof RPCs, or the `/facts` workbench.
+- Inputs: target kind/identifier, included fact families, optional endpoint/command/widget filters.
 - Steps:
-  1. Parse multipart request.
-  2. Validate note id and file metadata.
-  3. Store opaque bytes through BlobStore.
-  4. Persist attachment metadata through notes repository seam.
-  5. Return proto-typed metadata response.
-- Outputs: uploaded attachment metadata or typed error response.
-- Failure modes: missing note id, missing file, invalid metadata, blob
-  write failure, metadata persistence failure.
-- Retry/cancel behavior: caller may retry after transport/storage
-  failure; duplicate handling belongs to the owning real domain when
-  product requirements demand it.
-- Tests: `api/handlers/notes/attachments_handler_test.go`,
-  `api/internal/notes/attachments_service_test.go`,
-  `api/internal/notes/flow/flow_test.go`,
-  `ui/src/features/notes/AttachmentUpload.test.tsx`, and
-  `ui/src/features/notes/flow/flow.test.ts`.
-- Generated subpackages: `api/internal/notes/flow/generated/`
-  (`model.qnt`, `artifact.json`, `runtime.go`, `replay.go`) and
-  `ui/src/features/notes/flow/generated/` (`model.qnt`, `artifact.json`,
-  `runtime.ts`, `replay.helper.ts`).
-- Requirements: template starter only.
+  1. Validate target shape.
+  2. Normalize requested fact families.
+  3. Return currently-supported target context plus typed `unsupported` evidence for later-phase families.
+  4. Attach deterministic cache metadata.
+- Outputs: `CodeFactsReport`, `ListSurfacesResponse`, or `ProofReport`.
+- Failure modes: missing target, unsupported target kind, malformed fact-family request.
+- Retry/cancel behavior: stateless in Phase 6.
+- Requirements: CF-P0-004, CF-P0-005, CF-P0-008, CF-P0-009.
 
 ## State Machines
 
 | Domain/Flow | States | Illegal Transitions | Enforcement |
 |---|---|---|---|
-| notes / attachment upload API | received, bytes_stored, metadata_recorded, failed | metadata before bytes, terminal-state escape, duplicate terminal events | `*.flow.json` contract, generated Quint model, generated formal artifact replay, side-effect cleanup tests |
-| notes / attachment upload UI | idle, selected, uploading, succeeded, failed | start before select, stale completion after reset/reselect, retry without file context | `*.flow.json` contract, generated Quint model, generated formal artifact replay, attempt-id stale completion tests |
+| facts / describe request | validated, described, unsupported, failed | report before validation, silent unsupported family omission | handler/service tests and CLI/UI smoke tests |
 
 ## Maturity Ladder
 
