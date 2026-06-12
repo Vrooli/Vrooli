@@ -58,7 +58,11 @@ func TestEmitLifecycleFailureWritesBlock(t *testing.T) {
 	}
 	// Sanity: Full log path matches the canonical helper so a rename
 	// over in internal/process would trip the test.
-	if !strings.Contains(got, process.ScenarioLifecycleLogPath(home, "alpha")) {
+	logPath, err := process.ScenarioLifecycleLogPath(home, "alpha")
+	if err != nil {
+		t.Fatalf("ScenarioLifecycleLogPath: %v", err)
+	}
+	if !strings.Contains(got, logPath) {
 		t.Errorf("log path did not match process.ScenarioLifecycleLogPath: %q", got)
 	}
 }

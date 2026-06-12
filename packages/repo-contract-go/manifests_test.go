@@ -29,6 +29,17 @@ func TestScenarioCLIManifestPath(t *testing.T) {
 	}
 }
 
+func TestScenarioCLIManifestRepoRel(t *testing.T) {
+	root := fixtureRoot(t)
+	got, err := ScenarioCLIManifestRepoRel(root, "test-genie")
+	if err != nil {
+		t.Fatalf("ScenarioCLIManifestRepoRel() error = %v", err)
+	}
+	if got != "scenarios/test-genie/cli/manifest.json" {
+		t.Fatalf("ScenarioCLIManifestRepoRel() = %q", got)
+	}
+}
+
 func TestScenarioServiceManifestPath(t *testing.T) {
 	root := fixtureRoot(t)
 	got, err := ScenarioServiceManifestPath(root, "test-genie")

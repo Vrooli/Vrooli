@@ -58,7 +58,7 @@ func ParseRequest(args []string) (Request, error) {
 
 func Render(w io.Writer, format cliout.Format, report shareddrift.Report) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, report)
+		return writeSharedDriftJSON(w, report)
 	}
 	status := "clean"
 	if !report.Clean {

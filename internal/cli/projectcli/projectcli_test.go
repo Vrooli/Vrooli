@@ -2,6 +2,7 @@ package projectcli
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -201,9 +202,15 @@ func TestRenderDoctorReportJSONIncludesChecks(t *testing.T) {
 	if err := RenderDoctorReport(&stdout, cliout.FormatJSON, report); err != nil {
 		t.Fatalf("RenderDoctorReport: %v", err)
 	}
-	output := stdout.String()
-	if !strings.Contains(output, `"success": true`) || !strings.Contains(output, `"checks":`) {
-		t.Fatalf("stdout = %s", output)
+	var decoded map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &decoded); err != nil {
+		t.Fatalf("output is not valid JSON: %v\n%s", err, stdout.String())
+	}
+	if decoded["success"] != true {
+		t.Fatalf("success: want true, got %v", decoded["success"])
+	}
+	if _, ok := decoded["checks"].([]any); !ok {
+		t.Fatalf("checks missing/wrong type: %v", decoded["checks"])
 	}
 }
 

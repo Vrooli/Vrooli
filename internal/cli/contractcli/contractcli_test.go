@@ -2,6 +2,7 @@ package contractcli
 
 import (
 	"bytes"
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -47,9 +48,12 @@ func TestRenderMatchGlobJSONIncludesMatchedField(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RenderMatchGlob: %v", err)
 	}
-	output := stdout.String()
-	if !strings.Contains(output, `"success": true`) || !strings.Contains(output, `"matched": true`) {
-		t.Fatalf("stdout = %s", output)
+	var got map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
+		t.Fatalf("output is not valid JSON: %v\n%s", err, stdout.String())
+	}
+	if got["success"] != true || got["matched"] != true {
+		t.Fatalf("stdout = %s", stdout.String())
 	}
 }
 

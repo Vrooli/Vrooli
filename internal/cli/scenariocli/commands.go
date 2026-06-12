@@ -402,7 +402,7 @@ func ParseValidateEnvRequest(globalsJSON bool, args []string) (ValidateEnvReques
 
 func RenderValidateEnvResponse(w io.Writer, format cliout.Format, resp ValidateEnvResponse) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteFieldsWithSuccess(w, resp.Report.Passed, map[string]any{"report": resp.Report})
+		return writeScenarioEnvValidationJSON(w, resp.Report)
 	}
 	status := "passed"
 	if !resp.Report.Passed {
@@ -614,7 +614,7 @@ func ParseOrientationRequest(globalsJSON bool, args []string) (OrientationReques
 
 func RenderOrientationResponse(w io.Writer, format cliout.Format, report OrientationReport) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteFieldsWithSuccess(w, true, map[string]any{"orientation": report})
+		return writeScenarioOrientationJSON(w, report)
 	}
 	if report.Finalized {
 		_, _ = fmt.Fprintf(w, "Orientation finalized for %s\n", report.Scenario)

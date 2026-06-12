@@ -253,7 +253,7 @@ func WriteVersion(w io.Writer, root string, globals rootcli.GlobalOptions, info 
 		return err
 	}
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, versionOutput{
+		return writeCliVersionJSON(w, versionOutput{
 			CLIVersion:      info.CLIVersion,
 			PlatformVersion: info.PlatformVersion,
 			Root:            root,
@@ -720,7 +720,7 @@ func (app *App) statusRuntimeSupervisor(ctx *CommandContext, args []string) erro
 		return err
 	}
 	if jsonOutput {
-		return cliout.WriteJSON(ctx.Stdout, report)
+		return writeCliSupervisorStatusJSON(ctx.Stdout, report)
 	}
 	_, _ = fmt.Fprintf(ctx.Stdout, "Runtime supervisor: %s\n", report.Status)
 	if report.StatusReason != "" {
@@ -783,7 +783,7 @@ func (app *App) installRuntimeSupervisor(ctx *CommandContext, args []string) err
 		return err
 	}
 	if ctx.Globals.JSON {
-		return cliout.WriteJSON(ctx.Stdout, result)
+		return writeCliSupervisorServiceResultJSON(ctx.Stdout, result)
 	}
 	_, _ = fmt.Fprintf(ctx.Stdout, "Installed runtime supervisor service: %s\n", result.UnitPath)
 	return nil
@@ -808,7 +808,7 @@ func (app *App) uninstallRuntimeSupervisor(ctx *CommandContext, args []string) e
 		return err
 	}
 	if ctx.Globals.JSON {
-		return cliout.WriteJSON(ctx.Stdout, result)
+		return writeCliSupervisorServiceResultJSON(ctx.Stdout, result)
 	}
 	_, _ = fmt.Fprintf(ctx.Stdout, "Uninstalled runtime supervisor service: %s\n", result.UnitPath)
 	return nil
@@ -1065,7 +1065,7 @@ func (app *App) runHostInventoryCommand(ctx *CommandContext, args []string) erro
 		return nil
 	}
 	if ctx.Globals.JSON || parsed.HasFlag("--json") {
-		return cliout.WriteJSON(ctx.Stdout, snapshot)
+		return writeHostSnapshotJSON(ctx.Stdout, snapshot)
 	}
 	_, _ = fmt.Fprintf(ctx.Stdout, "OS: %s/%s\n", snapshot.OS, snapshot.Arch)
 	_, _ = fmt.Fprintf(ctx.Stdout, "CPU cores: %d\n", snapshot.CPU.Cores)

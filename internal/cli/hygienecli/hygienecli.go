@@ -123,7 +123,7 @@ func ParseRequest(args []string) (Request, error) {
 
 func Render(w io.Writer, format cliout.Format, report hygieneapp.Report, mode OutputMode) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, report)
+		return writeHygieneReportJSON(w, report)
 	}
 	if mode == OutputModeNext {
 		renderNextSteps(w, report, false)

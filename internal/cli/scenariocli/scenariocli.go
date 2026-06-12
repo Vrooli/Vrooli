@@ -274,7 +274,7 @@ func CopyProcessRecords(values []process.Record) []process.Record {
 
 func WriteLifecycleItems(w io.Writer, format cliout.Format, items []LifecycleItemOutput) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteSuccessJSON(w, "scenarios", items)
+		return writeScenarioLifecycleJSON(w, items)
 	}
 	if isQuietOutput() {
 		return writeLifecycleItemsCompact(w, items)
@@ -378,16 +378,7 @@ func statusGlyph(item LifecycleItemOutput) string {
 
 func WriteBatchReport(w io.Writer, format cliout.Format, resp BatchResponse) error {
 	if format == cliout.FormatJSON {
-		data := map[string]any{
-			"failed": resp.Failed,
-		}
-		if len(resp.Started) > 0 {
-			data["started"] = resp.Started
-		}
-		if len(resp.Stopped) > 0 {
-			data["stopped"] = resp.Stopped
-		}
-		return cliout.WriteSuccessJSON(w, "data", data)
+		return writeScenarioBatchJSON(w, resp)
 	}
 
 	if len(resp.Started) == 0 && len(resp.Stopped) == 0 && len(resp.Failed) == 0 {
@@ -420,18 +411,7 @@ func WriteBatchReport(w io.Writer, format cliout.Format, resp BatchResponse) err
 
 func RenderListResponse(w io.Writer, format cliout.Format, resp ListResponse) error {
 	if format == cliout.FormatJSON {
-		fields := map[string]any{
-			"summary": map[string]int{
-				"total_scenarios": len(resp.Items),
-				"running":         resp.RunningCount,
-				"available":       len(resp.Items) - resp.RunningCount,
-			},
-			"scenarios": resp.Items,
-		}
-		if len(resp.Failures) > 0 {
-			fields["discovery_failures"] = resp.Failures
-		}
-		return cliout.WriteSuccessFields(w, fields)
+		return writeScenarioListJSON(w, resp)
 	}
 
 	_, _ = fmt.Fprintln(w, "[INFO]    Available scenarios:")
@@ -460,7 +440,7 @@ func RenderListResponse(w io.Writer, format cliout.Format, resp ListResponse) er
 
 func RenderInfoResponse(w io.Writer, format cliout.Format, resp InfoOutput) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, resp)
+		return writeScenarioInfoJSON(w, resp)
 	}
 	WriteInfoHuman(w, resp.Scenario, resp.Runtime)
 	return nil
@@ -469,24 +449,7 @@ func RenderInfoResponse(w io.Writer, format cliout.Format, resp InfoOutput) erro
 func RenderStatusResponse(w io.Writer, format cliout.Format, resp StatusResponse) error {
 	if resp.Single == nil {
 		if format == cliout.FormatJSON {
-			runningCount := 0
-			for _, item := range resp.List {
-				if item.Status == "running" {
-					runningCount++
-				}
-			}
-			fields := map[string]any{
-				"summary": map[string]int{
-					"total_scenarios": len(resp.List),
-					"running":         runningCount,
-					"stopped":         len(resp.List) - runningCount,
-				},
-				"scenarios": resp.List,
-			}
-			if len(resp.Failures) > 0 {
-				fields["discovery_failures"] = resp.Failures
-			}
-			return cliout.WriteSuccessFields(w, fields)
+			return writeScenarioStatusListJSON(w, resp.List, resp.Failures)
 		}
 		WriteStatusTable(w, resp.List)
 		if len(resp.Failures) > 0 {
@@ -499,7 +462,7 @@ func RenderStatusResponse(w io.Writer, format cliout.Format, resp StatusResponse
 	}
 
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, resp.Single)
+		return writeScenarioStatusSingleJSON(w, *resp.Single)
 	}
 	WriteStatusHuman(w, *resp.Single)
 	return nil
@@ -507,15 +470,7 @@ func RenderStatusResponse(w io.Writer, format cliout.Format, resp StatusResponse
 
 func RenderSetupResponse(w io.Writer, format cliout.Format, result lifecycle.PhaseResult) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteSuccessFields(w, map[string]any{
-			"phase":   "setup",
-			"status":  result.Status,
-			"defined": result.Defined,
-			"steps": map[string]int{
-				"executed": result.ExecutedSteps,
-				"skipped":  result.SkippedSteps,
-			},
-		})
+		return writeScenarioSetupJSON(w, result)
 	}
 
 	switch result.Status {
@@ -532,7 +487,7 @@ func RenderSetupResponse(w io.Writer, format cliout.Format, result lifecycle.Pha
 func RenderPortResponse(w io.Writer, format cliout.Format, resp PortResponse) error {
 	if resp.List != nil {
 		if format == cliout.FormatJSON {
-			return cliout.WriteJSON(w, resp.List)
+			return writeScenarioPortListJSON(w, *resp.List)
 		}
 		if !resp.List.Success {
 			return fmt.Errorf("%s", resp.List.Error)
@@ -546,7 +501,7 @@ func RenderPortResponse(w io.Writer, format cliout.Format, resp PortResponse) er
 		return nil
 	}
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, resp.Single)
+		return writeScenarioPortSingleJSON(w, *resp.Single)
 	}
 	if !resp.Single.Success {
 		return fmt.Errorf("%s", resp.Single.Error)

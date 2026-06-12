@@ -106,3 +106,27 @@ func TestScenarioStatusSingleRequiresName(t *testing.T) {
 		t.Fatal("expected error for empty name")
 	}
 }
+
+func TestListScenariosWithPortsInjectsFlag(t *testing.T) {
+	runner := &stubRunner{responses: []stubResponse{{output: []byte(`{"success": true, "scenarios": []}`)}}}
+	client := New(WithRunner(runner))
+
+	if _, err := client.ListScenarios(context.Background(), WithPorts()); err != nil {
+		t.Fatalf("ListScenarios: %v", err)
+	}
+	if args := runner.calls[0].args; strings.Join(args, " ") != "--no-stale-check scenario list --json --include-ports" {
+		t.Errorf("unexpected args: %v", args)
+	}
+}
+
+func TestListScenariosDefaultOmitsPortsFlag(t *testing.T) {
+	runner := &stubRunner{responses: []stubResponse{{output: []byte(`{"success": true, "scenarios": []}`)}}}
+	client := New(WithRunner(runner))
+
+	if _, err := client.ListScenarios(context.Background()); err != nil {
+		t.Fatalf("ListScenarios: %v", err)
+	}
+	if args := runner.calls[0].args; strings.Join(args, " ") != "--no-stale-check scenario list --json" {
+		t.Errorf("unexpected args: %v", args)
+	}
+}

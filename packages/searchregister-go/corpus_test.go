@@ -88,6 +88,7 @@ func randomSuite(rng *rand.Rand, providerID string, n int) aisearch.TestSuite {
 		c := aisearch.TestCase{
 			ID:     fmt.Sprintf("c%d", i),
 			Query:  pick(rng, "restart a scenario", "view logs", "asdf qwer"),
+			Scope:  pick(rng, "", "global", "scenario:cli-health", "path:docs/concepts"),
 			Status: pick(rng, "", aisearch.CaseStatusReviewed, aisearch.CaseStatusCandidate),
 			Note:   pick(rng, "", "calibration note"),
 		}

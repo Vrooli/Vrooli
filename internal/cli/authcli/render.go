@@ -11,7 +11,7 @@ import (
 
 func RenderStatus(w io.Writer, format cliout.Format, report authapp.Report) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteSuccessJSON(w, "data", report)
+		return writeAuthStatusJSON(w, report)
 	}
 	rows := make([][]string, 0, len(report.Statuses))
 	for _, s := range report.Statuses {

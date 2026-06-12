@@ -55,7 +55,10 @@ func TestScenarioLogHelperReaders(t *testing.T) {
 
 func TestShowScenarioLifecycleLogHonorsTailOption(t *testing.T) {
 	home := t.TempDir()
-	path := process.ScenarioLifecycleLogPath(home, "alpha")
+	path, err := process.ScenarioLifecycleLogPath(home, "alpha")
+	if err != nil {
+		t.Fatalf("ScenarioLifecycleLogPath: %v", err)
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatalf("mkdir lifecycle log dir: %v", err)
 	}
@@ -75,7 +78,10 @@ func TestShowScenarioLifecycleLogHonorsTailOption(t *testing.T) {
 
 func TestShowScenarioRuntimeAndStepLogsHonorTailOption(t *testing.T) {
 	home := t.TempDir()
-	logsDir := process.ScenarioLogsDir(home, "alpha")
+	logsDir, err := process.ScenarioLogsDir(home, "alpha")
+	if err != nil {
+		t.Fatalf("ScenarioLogsDir: %v", err)
+	}
 	if err := os.MkdirAll(logsDir, 0o755); err != nil {
 		t.Fatalf("mkdir runtime logs dir: %v", err)
 	}

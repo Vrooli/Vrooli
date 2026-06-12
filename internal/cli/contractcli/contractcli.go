@@ -11,7 +11,7 @@ import (
 
 func RenderValidate(w io.Writer, format cliout.Format, output contractapp.ValidationOutput) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, output)
+		return writeContractValidationJSON(w, output)
 	}
 	status := "passed"
 	if !output.Success {
@@ -36,7 +36,7 @@ func RenderValidate(w io.Writer, format cliout.Format, output contractapp.Valida
 
 func RenderShow(w io.Writer, format cliout.Format, output contractapp.ShowOutput) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, output)
+		return writeContractShowJSON(w, output)
 	}
 	if _, err := fmt.Fprintln(w, "Repo contract"); err != nil {
 		return err
@@ -82,7 +82,7 @@ func RenderShow(w io.Writer, format cliout.Format, output contractapp.ShowOutput
 
 func RenderResolveScenario(w io.Writer, format cliout.Format, output contractapp.ResolveScenarioOutput) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, output)
+		return writeContractResolveScenarioJSON(w, output)
 	}
 	_, err := fmt.Fprintln(w, output.Path)
 	return err
@@ -90,7 +90,7 @@ func RenderResolveScenario(w io.Writer, format cliout.Format, output contractapp
 
 func RenderMatchGlob(w io.Writer, format cliout.Format, output contractapp.MatchGlobOutput) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, output)
+		return writeContractMatchGlobJSON(w, output)
 	}
 	if output.Matched {
 		_, err := fmt.Fprintln(w, "matched")

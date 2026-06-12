@@ -11,7 +11,7 @@ import (
 
 func RenderAdd(w io.Writer, format cliout.Format, resp planapp.AddOutput) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, resp)
+		return writePlansJSON(w, PlansAddResponse(resp))
 	}
 	printPlanSummary(w, resp.Plan)
 	_, _ = fmt.Fprintln(w, "next: vrooli plans show "+resp.Plan.Slug)
@@ -20,7 +20,7 @@ func RenderAdd(w io.Writer, format cliout.Format, resp planapp.AddOutput) error 
 
 func RenderList(w io.Writer, format cliout.Format, resp planapp.ListOutput) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, resp)
+		return writePlansJSON(w, PlansListResponse(resp))
 	}
 	if len(resp.Plans) == 0 {
 		_, _ = fmt.Fprintln(w, "no plans found")
@@ -38,7 +38,7 @@ func RenderList(w io.Writer, format cliout.Format, resp planapp.ListOutput) erro
 
 func RenderShow(w io.Writer, format cliout.Format, resp planapp.ShowOutput) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, resp)
+		return writePlansJSON(w, PlansShowResponse(resp))
 	}
 	printPlanSummary(w, resp.Plan)
 	_, _ = fmt.Fprintln(w)
@@ -48,7 +48,7 @@ func RenderShow(w io.Writer, format cliout.Format, resp planapp.ShowOutput) erro
 
 func RenderPath(w io.Writer, format cliout.Format, resp planapp.PathOutput) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, resp)
+		return writePlansJSON(w, PlansPathResponse(resp))
 	}
 	_, _ = fmt.Fprintln(w, filepath.ToSlash(resp.Path))
 	return nil
@@ -56,7 +56,7 @@ func RenderPath(w io.Writer, format cliout.Format, resp planapp.PathOutput) erro
 
 func RenderArchive(w io.Writer, format cliout.Format, resp planapp.ArchiveOutput) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, resp)
+		return writePlansJSON(w, PlansArchiveResponse(resp))
 	}
 	_, _ = fmt.Fprintf(w, "archived %s\n", resp.Plan.ID)
 	return nil
@@ -64,7 +64,7 @@ func RenderArchive(w io.Writer, format cliout.Format, resp planapp.ArchiveOutput
 
 func RenderImport(w io.Writer, format cliout.Format, resp planapp.ImportOutput) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, resp)
+		return writePlansJSON(w, PlansImportResponse(resp))
 	}
 	printPlanSummary(w, resp.Plan)
 	if resp.Deleted {
@@ -75,7 +75,7 @@ func RenderImport(w io.Writer, format cliout.Format, resp planapp.ImportOutput) 
 
 func RenderExport(w io.Writer, format cliout.Format, resp planapp.ExportOutput) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteJSON(w, resp)
+		return writePlansJSON(w, PlansExportResponse(resp))
 	}
 	_, _ = fmt.Fprintf(w, "exported %s to %s\n", resp.ID, filepath.ToSlash(resp.Path))
 	return nil

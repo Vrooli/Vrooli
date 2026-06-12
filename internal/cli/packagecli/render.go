@@ -12,7 +12,7 @@ import (
 
 func RenderList(w io.Writer, format cliout.Format, resp ListResponse) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteSuccessJSON(w, "packages", resp.Packages)
+		return writePackageJSON(w, PackageListResponse(resp))
 	}
 	for _, item := range resp.Packages {
 		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\n", item.Name, item.Manifest.Package.Kind, filepath.ToSlash(item.RootPath))
@@ -22,7 +22,7 @@ func RenderList(w io.Writer, format cliout.Format, resp ListResponse) error {
 
 func RenderInfo(w io.Writer, format cliout.Format, resp packagegov.Package) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteSuccessJSON(w, "package", resp)
+		return writePackageJSON(w, PackageInfoResponse(resp))
 	}
 	_, _ = fmt.Fprintf(w, "name: %s\n", resp.Name)
 	_, _ = fmt.Fprintf(w, "kind: %s\n", resp.Manifest.Package.Kind)
@@ -34,7 +34,7 @@ func RenderInfo(w io.Writer, format cliout.Format, resp packagegov.Package) erro
 
 func RenderDependents(w io.Writer, format cliout.Format, resp DependentsResponse) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteSuccessJSON(w, "dependents", resp)
+		return writePackageJSON(w, PackageDependentsResponse(resp))
 	}
 	for _, dep := range resp.Dependents {
 		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", dep.ConsumerName, dep.ConsumerClass, dep.AdoptionMode, filepath.ToSlash(dep.DependencyFile))
@@ -50,7 +50,7 @@ func RenderDependents(w io.Writer, format cliout.Format, resp DependentsResponse
 
 func RenderValidate(w io.Writer, format cliout.Format, resp ValidateResponse) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteSuccessJSON(w, "report", resp.Report)
+		return writePackageJSON(w, PackageValidateResponse(resp))
 	}
 	if len(resp.Report.Issues) == 0 {
 		_, _ = fmt.Fprintln(w, "package governance validation passed")
@@ -64,7 +64,7 @@ func RenderValidate(w io.Writer, format cliout.Format, resp ValidateResponse) er
 
 func RenderRun(w io.Writer, format cliout.Format, resp RunResponse) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteSuccessJSON(w, "result", resp)
+		return writePackageJSON(w, PackageRunResponse(resp))
 	}
 	_, _ = fmt.Fprintf(w, "%s %s completed\n", resp.Action, resp.PackageName)
 	return nil
@@ -72,7 +72,7 @@ func RenderRun(w io.Writer, format cliout.Format, resp RunResponse) error {
 
 func RenderRefresh(w io.Writer, format cliout.Format, resp RefreshResponse) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteSuccessJSON(w, "refresh", resp)
+		return writePackageJSON(w, PackageRefreshResponse(resp))
 	}
 	if len(resp.Items) == 0 {
 		_, _ = fmt.Fprintf(w, "refreshed %s with no affected governed consumers\n", resp.PackageName)
@@ -94,7 +94,7 @@ func RenderRefresh(w io.Writer, format cliout.Format, resp RefreshResponse) erro
 
 func RenderAudit(w io.Writer, format cliout.Format, resp AuditResponse) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteSuccessJSON(w, "audit", resp.Report)
+		return writePackageJSON(w, PackageAuditResponse(resp))
 	}
 	if len(resp.Report.Issues) == 0 {
 		_, _ = fmt.Fprintln(w, "package governance audit passed")

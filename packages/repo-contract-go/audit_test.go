@@ -12,9 +12,10 @@ import (
 
 // TestNoManifestPathLiteralJoins enforces the Phase 1 drift-impossibility
 // property: the literal strings "docs/manifest.json" and "cli/manifest.json"
-// must not appear anywhere outside .vrooli/repo-contract.json and the
-// packages/repo-contract-go/ helpers. All consumers must resolve manifest
-// paths through ScenarioDocsManifestPath / ScenarioCLIManifestPath instead.
+// must not appear anywhere outside .vrooli/repo-contract.json,
+// packages/repo-contract-go/ helpers, and the contract invariant checker.
+// Consumers must resolve manifest paths through the Scenario*Manifest* helpers
+// instead of carrying their own path authority.
 func TestNoManifestPathLiteralJoins(t *testing.T) {
 	repoRoot := testkitgo.ProjectRoot(t)
 
@@ -37,7 +38,8 @@ func TestNoManifestPathLiteralJoins(t *testing.T) {
 
 	// Specific paths (repo-root-relative, slash) excluded from the literal check.
 	allowlist := map[string]bool{
-		".vrooli/repo-contract.json":      true,
+		".vrooli/repo-contract.json":              true,
+		"internal/repocontractcheck/checks.go":    true,
 		"packages/repo-contract-go/audit_test.go": true,
 		"packages/repo-contract-go/manifests.go":  true,
 	}
@@ -125,7 +127,7 @@ func TestNoManifestPathLiteralJoins(t *testing.T) {
 	if len(hits) == 0 {
 		return
 	}
-	t.Errorf("found %d literal manifest-path joins; use repocontract.ScenarioDocsManifestPath / ScenarioCLIManifestPath instead:", len(hits))
+	t.Errorf("found %d literal manifest-path references; use repo-contract Scenario*Manifest* helpers, or add a narrow audit exception only for contract assertions:", len(hits))
 	for _, h := range hits {
 		t.Errorf("  %s:%d: %s", h.path, h.line, h.text)
 	}

@@ -214,7 +214,7 @@ func (r TemplateDriftReport) AnyDrifted() bool {
 
 func RenderTemplateDriftResponse(w io.Writer, format cliout.Format, report TemplateDriftReport) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteSuccessJSON(w, "drift", report)
+		return writeScenarioTemplateDriftJSON(w, report)
 	}
 	if len(report.Scenarios) == 0 {
 		_, _ = fmt.Fprintln(w, "No scenarios with template provenance found.")
@@ -441,7 +441,7 @@ type TemplateCleanupResult = templatevalidation.CleanupResult
 
 func RenderTemplateListResponse(w io.Writer, format cliout.Format, templates []TemplateInfo) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteSuccessJSON(w, "templates", templates)
+		return writeScenarioTemplateListJSON(w, templates)
 	}
 	rows := make([][]string, 0, len(templates))
 	for _, item := range templates {
@@ -677,7 +677,7 @@ func WriteTemplateRelocations(w io.Writer, relocations []ResolvedRelocation) {
 
 func RenderTemplateValidateResponse(w io.Writer, format cliout.Format, report TemplateValidationReport) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteFieldsWithSuccess(w, len(report.Issues) == 0, map[string]any{"report": report})
+		return writeScenarioTemplateValidateJSON(w, report)
 	}
 	mode := string(report.Mode)
 	if mode == "" {
@@ -708,7 +708,7 @@ func RenderTemplateValidateResponse(w io.Writer, format cliout.Format, report Te
 
 func RenderTemplateCleanupResponse(w io.Writer, format cliout.Format, result TemplateCleanupResult) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteFieldsWithSuccess(w, len(result.Failures) == 0, map[string]any{"cleanup": result})
+		return writeScenarioTemplateCleanupJSON(w, result)
 	}
 	_, _ = fmt.Fprintln(w, "Template validation cleanup")
 	_, _ = fmt.Fprintf(w, "Status: %s\n", result.Message)

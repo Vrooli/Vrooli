@@ -863,7 +863,7 @@ func renderResourceListResponse(w io.Writer, format cliout.Format, resp resource
 
 func renderResourceValidateResponse(w io.Writer, format cliout.Format, report resources.ResourceValidationReport) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteFieldsWithSuccess(w, report.Passed, map[string]any{"report": report})
+		return resourcecli.WriteValidationReportJSON(w, report)
 	}
 	status := "passed"
 	if !report.Passed {
@@ -905,7 +905,7 @@ func renderResourceBlueprintSearchResponse(w io.Writer, format cliout.Format, re
 
 func renderResourceTemplateListResponse(w io.Writer, format cliout.Format, items []resources.ResourceTemplateInfo) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteSuccessJSON(w, "templates", items)
+		return resourcecli.WriteTemplateList(w, items)
 	}
 	rows := make([][]string, 0, len(items))
 	for _, item := range items {
@@ -926,7 +926,7 @@ func renderResourceTemplateListResponse(w io.Writer, format cliout.Format, items
 
 func renderResourceTemplateShowResponse(w io.Writer, format cliout.Format, info resources.ResourceTemplateInfo) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteSuccessJSON(w, "template", info)
+		return resourcecli.WriteTemplateShow(w, info)
 	}
 	manifest := info.Manifest
 	rows := [][]string{
@@ -967,7 +967,7 @@ func renderResourceTemplateShowResponse(w io.Writer, format cliout.Format, info 
 
 func renderResourceTemplateValidateResponse(w io.Writer, format cliout.Format, report resources.ResourceTemplateValidationReport) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteSuccessJSON(w, "report", report)
+		return resourcecli.WriteTemplateValidationReport(w, report)
 	}
 	_, _ = fmt.Fprintf(w, "Validated %d resource templates\n", report.Count)
 	return nil
@@ -975,7 +975,7 @@ func renderResourceTemplateValidateResponse(w io.Writer, format cliout.Format, r
 
 func renderResourceTemplateGenerateResponse(w io.Writer, format cliout.Format, report resources.ResourceTemplateGenerateReport) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteSuccessJSON(w, "report", report)
+		return resourcecli.WriteTemplateGenerateReport(w, report)
 	}
 	if report.DryRun {
 		_, _ = fmt.Fprintf(w, "[DRY-RUN] Would generate resource template %s at %s\n", report.Template.Name, report.Destination)

@@ -40,7 +40,7 @@ type TemplateValidationCleanupResponse struct {
 
 func RenderStatusReport(w io.Writer, format cliout.Format, resp StatusResponse) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteSuccessJSON(w, "status", resp.Report)
+		return writeProjectStatusJSON(w, resp.Report)
 	}
 
 	if !resp.Options.ScenariosOnly {
@@ -105,7 +105,7 @@ func RenderStatusReport(w io.Writer, format cliout.Format, resp StatusResponse) 
 
 func RenderDoctorReport(w io.Writer, format cliout.Format, report project.DoctorReport) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteSuccessJSON(w, "checks", report.Checks)
+		return writeProjectDoctorJSON(w, report.Checks)
 	}
 
 	rows := make([][]string, 0, len(report.Checks))
@@ -117,7 +117,7 @@ func RenderDoctorReport(w io.Writer, format cliout.Format, report project.Doctor
 
 func RenderStopReport(w io.Writer, format cliout.Format, report control.StopReport) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteSuccessJSON(w, "data", report)
+		return writeProjectStopJSON(w, report)
 	}
 	for _, item := range report.Stopped {
 		_, _ = fmt.Fprintf(w, "Stopped %s\n", item.Name)
@@ -132,7 +132,7 @@ func RenderOrphansResponse(w io.Writer, format cliout.Format, resp OrphansRespon
 	if resp.KillReport != nil {
 		typed := *resp.KillReport
 		if format == cliout.FormatJSON {
-			return cliout.WriteSuccessJSON(w, "data", typed)
+			return writeProjectStopJSON(w, typed)
 		}
 		for _, item := range typed.Stopped {
 			_, _ = fmt.Fprintf(w, "Stopped orphan PID %s (%s)\n", item.Name, item.Message)
@@ -147,11 +147,9 @@ func RenderOrphansResponse(w io.Writer, format cliout.Format, resp OrphansRespon
 	}
 	if format == cliout.FormatJSON {
 		if resp.DryRun {
-			return cliout.WriteSuccessJSON(w, "dry_run", struct {
-				Orphans []maintenance.SystemProcess `json:"orphans"`
-			}{Orphans: resp.List})
+			return writeProjectOrphansDryRunJSON(w, resp.List)
 		}
-		return cliout.WriteSuccessJSON(w, "orphans", resp.List)
+		return writeProjectOrphansJSON(w, resp.List)
 	}
 	if resp.DryRun {
 		if len(resp.List) == 0 {
@@ -184,7 +182,7 @@ func RenderLocksResponse(w io.Writer, format cliout.Format, resp LocksResponse) 
 	if resp.CleanReport != nil {
 		typed := *resp.CleanReport
 		if format == cliout.FormatJSON {
-			return cliout.WriteSuccessJSON(w, "data", typed)
+			return writeProjectStopJSON(w, typed)
 		}
 		for _, item := range typed.Stopped {
 			_, _ = fmt.Fprintf(w, "Removed stale lock for port %s\n", item.Name)
@@ -198,10 +196,7 @@ func RenderLocksResponse(w io.Writer, format cliout.Format, resp LocksResponse) 
 		return nil
 	}
 	if format == cliout.FormatJSON {
-		return cliout.WriteSuccessFields(w, map[string]any{
-			"locks":           resp.List,
-			"registry_claims": resp.RuntimeClaims,
-		})
+		return writeProjectLocksJSON(w, resp.List, resp.RuntimeClaims)
 	}
 	if len(resp.List) == 0 && len(resp.RuntimeClaims) == 0 {
 		_, _ = fmt.Fprintln(w, "No port locks found.")
@@ -238,7 +233,7 @@ func RenderLocksResponse(w io.Writer, format cliout.Format, resp LocksResponse) 
 func RenderTemplateValidationCleanupResponse(w io.Writer, format cliout.Format, resp TemplateValidationCleanupResponse) error {
 	result := resp.Result
 	if format == cliout.FormatJSON {
-		return cliout.WriteFieldsWithSuccess(w, len(result.Failures) == 0, map[string]any{"cleanup": result})
+		return writeProjectTemplateCleanupJSON(w, result)
 	}
 	_, _ = fmt.Fprintln(w, "Template validation cleanup")
 	_, _ = fmt.Fprintf(w, "Status: %s\n", result.Message)
@@ -294,7 +289,7 @@ func RenderTemplateValidationCleanupResponse(w io.Writer, format cliout.Format, 
 
 func RenderPortDiagnostic(w io.Writer, format cliout.Format, diagnostic maintenance.PortDiagnostic) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteSuccessJSON(w, "diagnostic", diagnostic)
+		return writeProjectPortDiagnosticJSON(w, diagnostic)
 	}
 
 	_, _ = fmt.Fprintf(w, "Port %d\n", diagnostic.Port)

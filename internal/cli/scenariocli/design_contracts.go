@@ -65,7 +65,7 @@ type (
 
 func RenderDesignListResponse(w io.Writer, format cliout.Format, kits []DesignKitInfo) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteSuccessJSON(w, "designKits", kits)
+		return writeScenarioDesignListJSON(w, kits)
 	}
 	rows := make([][]string, 0, len(kits))
 	for _, kit := range kits {
@@ -84,7 +84,7 @@ func RenderDesignListResponse(w io.Writer, format cliout.Format, kits []DesignKi
 
 func RenderDesignShowResponse(w io.Writer, format cliout.Format, info DesignKitInfo) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteSuccessJSON(w, "designKit", info)
+		return writeScenarioDesignShowJSON(w, info)
 	}
 	manifest := info.Manifest
 	_, _ = fmt.Fprintf(w, "%s (%s)\n", manifest.Name, manifest.ID)
@@ -118,7 +118,7 @@ func RenderDesignShowResponse(w io.Writer, format cliout.Format, info DesignKitI
 
 func RenderDesignValidateResponse(w io.Writer, format cliout.Format, report DesignValidationReport) error {
 	if format == cliout.FormatJSON {
-		return cliout.WriteSuccessJSON(w, "designValidation", report)
+		return writeScenarioDesignValidateJSON(w, report)
 	}
 	if len(report.Issues) == 0 {
 		_, _ = fmt.Fprintf(w, "Validated %d design kits\n", report.Count)
