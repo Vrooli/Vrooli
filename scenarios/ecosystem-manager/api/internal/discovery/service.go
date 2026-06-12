@@ -9,6 +9,8 @@ package discovery
 
 import (
 	"errors"
+	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -27,6 +29,11 @@ var (
 	ErrScenarioNotFound = errors.New("scenario not found")
 	// ErrEmptyName is returned when a name-keyed lookup is missing its name.
 	ErrEmptyName = errors.New("name is required")
+	// ErrDiscoveryUnavailable wraps a failed CLI-backed discovery sweep. The
+	// transport maps it to a retryable Unavailable status so the UI reports a
+	// degraded discovery explicitly instead of presenting an empty list (which
+	// is indistinguishable from "genuinely zero resources").
+	ErrDiscoveryUnavailable = errors.New("discovery unavailable")
 )
 
 // cacheTTL bounds how long discovery results are reused before re-running the
@@ -59,6 +66,18 @@ func (c *cache) setResources(resources []tasks.ResourceInfo) {
 	c.resourcesTime = time.Now()
 }
 
+// lastResources returns the most recent successful sweep regardless of TTL, so
+// a transient discovery failure can degrade to stale-but-real data rather than
+// to an empty list. The bool is false only when no sweep has ever succeeded.
+func (c *cache) lastResources() ([]tasks.ResourceInfo, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if c.resourcesTime.IsZero() {
+		return nil, false
+	}
+	return c.resources, true
+}
+
 func (c *cache) getScenarios() ([]tasks.ScenarioInfo, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -75,52 +94,85 @@ func (c *cache) setScenarios(scenarios []tasks.ScenarioInfo) {
 	c.scenariosTime = time.Now()
 }
 
+// lastScenarios returns the most recent successful sweep regardless of TTL.
+// See lastResources.
+func (c *cache) lastScenarios() ([]tasks.ScenarioInfo, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if c.scenariosTime.IsZero() {
+		return nil, false
+	}
+	return c.scenarios, true
+}
+
 // Service answers discovery queries. Construct with NewService.
 type Service struct {
 	assembler *prompts.Assembler
 	cache     *cache
+	// discoverResources/discoverScenarios are the CLI-backed sweep seams,
+	// defaulted to the package functions and overridable in tests.
+	discoverResources func() ([]tasks.ResourceInfo, error)
+	discoverScenarios func() ([]tasks.ScenarioInfo, error)
 }
 
 // NewService builds a discovery Service. assembler supplies the operation
 // catalogue; it may be nil, in which case Operations returns an empty slice.
 func NewService(assembler *prompts.Assembler) *Service {
 	return &Service{
-		assembler: assembler,
-		cache:     &cache{ttl: cacheTTL},
+		assembler:         assembler,
+		cache:             &cache{ttl: cacheTTL},
+		discoverResources: DiscoverResources,
+		discoverScenarios: DiscoverScenarios,
 	}
 }
 
 // Resources returns the discovered resources and whether the result came from
-// cache. Discovery failures degrade to an empty slice (never an error) so the
-// UI never blocks on a flaky CLI sweep — mirroring the prior REST behaviour.
-func (s *Service) Resources(refresh bool) ([]tasks.ResourceInfo, bool) {
+// cache. On a discovery failure it does NOT cache an empty result; it degrades
+// to the last successful sweep when one exists (returning it with a non-nil
+// ErrDiscoveryUnavailable so the caller can flag the data as stale), and
+// otherwise returns ErrDiscoveryUnavailable with no data. This keeps a flaky
+// CLI sweep from silently emptying — and poisoning the cache with — the list.
+func (s *Service) Resources(refresh bool) ([]tasks.ResourceInfo, bool, error) {
 	if !refresh {
 		if cached, hit := s.cache.getResources(); hit {
-			return cached, true
+			return cached, true, nil
 		}
 	}
-	resources, err := DiscoverResources()
+	resources, err := s.discoverResources()
 	if err != nil {
-		resources = []tasks.ResourceInfo{}
+		wrapped := fmt.Errorf("%w: %v", ErrDiscoveryUnavailable, err)
+		if last, ok := s.cache.lastResources(); ok {
+			log.Printf("discovery: serving last-good resources (%d) after sweep failure: %v", len(last), err)
+			return last, true, wrapped
+		}
+		log.Printf("discovery: resource sweep failed and no cache available: %v", err)
+		return nil, false, wrapped
 	}
 	s.cache.setResources(resources)
-	return resources, false
+	return resources, false, nil
 }
 
 // Scenarios returns the discovered scenarios and whether the result came from
-// cache. Discovery failures degrade to an empty slice.
-func (s *Service) Scenarios(refresh bool) ([]tasks.ScenarioInfo, bool) {
+// cache. It applies the same degrade-to-last-good / surface-the-error policy as
+// Resources.
+func (s *Service) Scenarios(refresh bool) ([]tasks.ScenarioInfo, bool, error) {
 	if !refresh {
 		if cached, hit := s.cache.getScenarios(); hit {
-			return cached, true
+			return cached, true, nil
 		}
 	}
-	scenarios, err := DiscoverScenarios()
+	scenarios, err := s.discoverScenarios()
 	if err != nil {
-		scenarios = []tasks.ScenarioInfo{}
+		wrapped := fmt.Errorf("%w: %v", ErrDiscoveryUnavailable, err)
+		if last, ok := s.cache.lastScenarios(); ok {
+			log.Printf("discovery: serving last-good scenarios (%d) after sweep failure: %v", len(last), err)
+			return last, true, wrapped
+		}
+		log.Printf("discovery: scenario sweep failed and no cache available: %v", err)
+		return nil, false, wrapped
 	}
 	s.cache.setScenarios(scenarios)
-	return scenarios, false
+	return scenarios, false, nil
 }
 
 // Resource returns one discovered resource by name. Returns ErrEmptyName when
@@ -129,11 +181,15 @@ func (s *Service) Resource(name string, refresh bool) (tasks.ResourceInfo, bool,
 	if name == "" {
 		return tasks.ResourceInfo{}, false, ErrEmptyName
 	}
-	resources, cacheHit := s.Resources(refresh)
+	resources, cacheHit, err := s.Resources(refresh)
 	for _, r := range resources {
 		if r.Name == name {
 			return r, cacheHit, nil
 		}
+	}
+	if err != nil {
+		// Discovery failed; don't misreport a transient outage as NotFound.
+		return tasks.ResourceInfo{}, cacheHit, err
 	}
 	return tasks.ResourceInfo{}, cacheHit, ErrResourceNotFound
 }
@@ -144,11 +200,15 @@ func (s *Service) Scenario(name string, refresh bool) (tasks.ScenarioInfo, bool,
 	if name == "" {
 		return tasks.ScenarioInfo{}, false, ErrEmptyName
 	}
-	scenarios, cacheHit := s.Scenarios(refresh)
+	scenarios, cacheHit, err := s.Scenarios(refresh)
 	for _, sc := range scenarios {
 		if sc.Name == name {
 			return sc, cacheHit, nil
 		}
+	}
+	if err != nil {
+		// Discovery failed; don't misreport a transient outage as NotFound.
+		return tasks.ScenarioInfo{}, cacheHit, err
 	}
 	return tasks.ScenarioInfo{}, cacheHit, ErrScenarioNotFound
 }
@@ -209,6 +269,8 @@ func ToConnectError(err error) error {
 		return connect.NewError(connect.CodeInvalidArgument, err)
 	case errors.Is(err, ErrResourceNotFound), errors.Is(err, ErrScenarioNotFound):
 		return connect.NewError(connect.CodeNotFound, err)
+	case errors.Is(err, ErrDiscoveryUnavailable):
+		return connect.NewError(connect.CodeUnavailable, err)
 	default:
 		return connect.NewError(connect.CodeInternal, err)
 	}

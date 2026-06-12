@@ -8,30 +8,21 @@ import (
 	"strings"
 
 	"github.com/ecosystem-manager/api/pkg/tasks"
-	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
+	vroolicli "github.com/vrooli/vrooli-cli-go"
 )
 
 // DiscoverScenarios gets all available scenarios from vrooli CLI
 func DiscoverScenarios() ([]tasks.ScenarioInfo, error) {
-	return discoverScenarios(execRunner)
+	return discoverScenarios(defaultClient)
 }
 
-func discoverScenarios(runner commandRunner) ([]tasks.ScenarioInfo, error) {
+func discoverScenarios(client *vroolicli.Client) ([]tasks.ScenarioInfo, error) {
 	var scenarios []tasks.ScenarioInfo
 
-	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
-	defer cancel()
-
 	// Get all scenarios from vrooli CLI (now includes unregistered scenarios)
-	output, err := runner.Run(ctx, "vrooli", "scenario", "list", "--json")
+	resp, err := client.ListScenarios(context.Background())
 	if err != nil {
 		log.Printf("Error: Failed to get vrooli scenarios: %v", err)
-		return scenarios, err
-	}
-
-	var resp cliv1.ScenarioListResponse
-	if err := cliJSONUnmarshal.Unmarshal(output, &resp); err != nil {
-		log.Printf("Error: Failed to parse vrooli scenario list output: %v", err)
 		return scenarios, err
 	}
 

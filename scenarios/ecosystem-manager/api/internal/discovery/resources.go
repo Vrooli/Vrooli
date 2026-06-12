@@ -6,42 +6,24 @@ import (
 	"sort"
 	"strings"
 
-	"google.golang.org/protobuf/encoding/protojson"
-
 	"github.com/ecosystem-manager/api/pkg/tasks"
+	vroolicli "github.com/vrooli/vrooli-cli-go"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
 
-// cliJSONUnmarshal decodes `vrooli … --json` output into its vrooli.cli.v1 wire
-// contract. DiscardUnknown keeps EM forward-compatible: a field added by a
-// future CLI is ignored, not an error.
-var cliJSONUnmarshal = protojson.UnmarshalOptions{DiscardUnknown: true}
+var defaultClient = vroolicli.New()
 
 // DiscoverResources gets all available resources from vrooli CLI
 func DiscoverResources() ([]tasks.ResourceInfo, error) {
-	return discoverResources(execRunner)
+	return discoverResources(defaultClient)
 }
 
-func discoverResources(runner commandRunner) ([]tasks.ResourceInfo, error) {
+func discoverResources(client *vroolicli.Client) ([]tasks.ResourceInfo, error) {
 	var resources []tasks.ResourceInfo
 
-	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
-	defer cancel()
-
-	output, err := runner.Run(ctx, "vrooli", "resource", "list", "--json", "--verbose")
+	resp, err := client.ListResources(context.Background())
 	if err != nil {
-		log.Printf("Warning: Failed to run 'vrooli resource list --json --verbose': %v", err)
-		// Try without verbose flag as fallback
-		output, err = runner.Run(ctx, "vrooli", "resource", "list", "--json")
-		if err != nil {
-			log.Printf("Error: Failed to get vrooli resources: %v", err)
-			return resources, err
-		}
-	}
-
-	var resp cliv1.ResourceListResponse
-	if err := cliJSONUnmarshal.Unmarshal(output, &resp); err != nil {
-		log.Printf("Error: Failed to parse vrooli resource list output: %v", err)
+		log.Printf("Error: Failed to get vrooli resources: %v", err)
 		return resources, err
 	}
 

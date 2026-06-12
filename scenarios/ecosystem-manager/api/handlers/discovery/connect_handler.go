@@ -36,7 +36,13 @@ func NewConnectHandler(deps Deps) *ConnectHandler {
 func (h *ConnectHandler) ListResources(
 	_ context.Context, req *connect.Request[discoveryv1.ListResourcesRequest],
 ) (*connect.Response[discoveryv1.ListResourcesResponse], error) {
-	resources, _ := h.svc.Resources(req.Msg.GetRefresh())
+	resources, _, err := h.svc.Resources(req.Msg.GetRefresh())
+	if err != nil && len(resources) == 0 {
+		// Discovery failed with no last-good data to fall back on: report it
+		// explicitly (Unavailable) rather than returning an empty list that
+		// looks like "zero resources".
+		return nil, internaldiscovery.ToConnectError(err)
+	}
 	protos := make([]*discoveryv1.Resource, 0, len(resources))
 	for _, r := range resources {
 		protos = append(protos, toProtoResource(r))
@@ -51,7 +57,10 @@ func (h *ConnectHandler) ListResources(
 func (h *ConnectHandler) ListScenarios(
 	_ context.Context, req *connect.Request[discoveryv1.ListScenariosRequest],
 ) (*connect.Response[discoveryv1.ListScenariosResponse], error) {
-	scenarios, _ := h.svc.Scenarios(req.Msg.GetRefresh())
+	scenarios, _, err := h.svc.Scenarios(req.Msg.GetRefresh())
+	if err != nil && len(scenarios) == 0 {
+		return nil, internaldiscovery.ToConnectError(err)
+	}
 	protos := make([]*discoveryv1.Scenario, 0, len(scenarios))
 	for _, s := range scenarios {
 		protos = append(protos, toProtoScenario(s))

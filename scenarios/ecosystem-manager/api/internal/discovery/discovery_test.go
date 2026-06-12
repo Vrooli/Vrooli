@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	vroolicli "github.com/vrooli/vrooli-cli-go"
 )
 
 type stubResponse struct {
@@ -59,7 +61,7 @@ func TestDiscoverResourcesFallsBackOnVerboseFailure(t *testing.T) {
 		},
 	}
 
-	resources, err := discoverResources(runner)
+	resources, err := discoverResources(vroolicli.New(vroolicli.WithRunner(runner)))
 	if err != nil {
 		t.Fatalf("expected fallback to succeed, got error: %v", err)
 	}
@@ -69,8 +71,8 @@ func TestDiscoverResourcesFallsBackOnVerboseFailure(t *testing.T) {
 	}
 
 	wantCalls := [][]string{
-		{"vrooli", "resource", "list", "--json", "--verbose"},
-		{"vrooli", "resource", "list", "--json"},
+		{"vrooli", "--no-stale-check", "resource", "list", "--json", "--verbose"},
+		{"vrooli", "--no-stale-check", "resource", "list", "--json"},
 	}
 
 	if len(runner.calls) != len(wantCalls) {
@@ -96,7 +98,7 @@ func TestDiscoverResourcesParsesWrappedObjectAndDerivesStatus(t *testing.T) {
 		},
 	}
 
-	resources, err := discoverResources(runner)
+	resources, err := discoverResources(vroolicli.New(vroolicli.WithRunner(runner)))
 	if err != nil {
 		t.Fatalf("expected success, got error: %v", err)
 	}
@@ -118,17 +120,16 @@ func TestDiscoverResourcesParsesWrappedObjectAndDerivesStatus(t *testing.T) {
 }
 
 func TestDiscoverScenariosHonorsCommandTimeout(t *testing.T) {
-	originalTimeout := commandTimeout
-	commandTimeout = 10 * time.Millisecond
-	defer func() { commandTimeout = originalTimeout }()
-
 	runner := &stubRunner{
 		responses: []stubResponse{
 			{delay: 50 * time.Millisecond},
 		},
 	}
 
-	_, err := discoverScenarios(runner)
+	_, err := discoverScenarios(vroolicli.New(
+		vroolicli.WithRunner(runner),
+		vroolicli.WithTimeout(10*time.Millisecond),
+	))
 	if err == nil {
 		t.Fatalf("expected timeout error, got nil")
 	}
