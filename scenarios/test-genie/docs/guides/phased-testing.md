@@ -4,30 +4,41 @@ This guide explains Vrooli's comprehensive phased testing architecture and how t
 
 ## Overview
 
-Vrooli uses a **11-phase testing architecture** that progressively validates scenarios from basic structure through performance benchmarks. Test Genie orchestrates these phases through its Go-native API.
+Vrooli uses a **catalog-driven testing architecture** that progressively validates scenarios from basic structure through producer-backed health phases. Test Genie orchestrates these phases through its Go-native API.
 
-## The 11-Phase Architecture
+## The Phase Architecture
 
 ```mermaid
 graph TB
     subgraph "Static Phases (No Runtime)"
         P1[Phase 1: Structure<br/>15s<br/>Files & config]
-        P2[Phase 2: Standards<br/>60s<br/>scenario-auditor rules]
-        P3[Phase 3: Dependencies<br/>30s<br/>Packages & resources]
-        P4[Phase 4: Lint<br/>30s<br/>Type checking]
-        P5[Phase 5: Docs<br/>60s<br/>Markdown, links]
+        P2[Phase 2: Contracts<br/>60s<br/>CLI bindings]
+        P3[Phase 3: UI Health<br/>60s<br/>UI manifest]
+        P4[Phase 4: Standards<br/>60s<br/>scenario-auditor rules]
+        P5[Phase 5: Architecture<br/>120s<br/>Structural cohesion]
+        P6[Phase 6: Dependencies<br/>30s<br/>Packages & resources]
+        P7[Phase 7: Lint<br/>30s<br/>Type checking]
+        P8[Phase 8: Docs<br/>60s<br/>Markdown, links]
     end
 
     subgraph "Runtime Phases (Scenario Running)"
-        P6[Phase 6: Smoke<br/>90s<br/>UI load, iframe-bridge]
-        P7[Phase 7: Unit<br/>60s<br/>Go, Node, Python]
-        P8[Phase 8: Integration<br/>120s<br/>API, CLI, BATS]
-        P9[Phase 9: Playbooks<br/>120s<br/>BAS browser automation]
-        P10[Phase 10: Business<br/>180s<br/>Requirements & coverage]
-        P11[Phase 11: Performance<br/>60s<br/>Benchmarks & load]
+        P9[Phase 9: Performance<br/>60s<br/>Benchmarks & load]
+        P10[Phase 10: Smoke<br/>90s<br/>UI load, iframe-bridge]
+        P11[Phase 11: Unit<br/>60s<br/>Go, Node, Python]
+        P12[Phase 12: Integration<br/>120s<br/>API, CLI, BATS]
+        P13[Phase 13: Playbooks<br/>120s<br/>BAS browser automation]
+        P14[Phase 14: Business<br/>180s<br/>Requirements & coverage]
     end
 
-    P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P10 --> P11
+    subgraph "Producer Health Phases"
+        P15[Phase 15: Coverage<br/>30s<br/>Coverage artifacts]
+        P16[Phase 16: Tidiness<br/>120s<br/>Code quality]
+        P17[Phase 17: Security<br/>180s<br/>Security posture]
+        P18[Phase 18: Measures<br/>180s<br/>Measures coverage]
+        P19[Phase 19: Proto<br/>120s<br/>Proto contracts]
+    end
+
+    P1 --> P2 --> P3 --> P4 --> P5 --> P6 --> P7 --> P8 --> P9 --> P10 --> P11 --> P12 --> P13 --> P14 --> P15 --> P16 --> P17 --> P18 --> P19
 
     style P1 fill:#fff3e0
     style P2 fill:#f3e5f5
@@ -44,16 +55,24 @@ graph TB
 | Phase | Timeout | Purpose | Requires Runtime |
 |-------|---------|---------|------------------|
 | **Structure** | 15s | Validate files and configuration | No |
+| **Contracts** | 60s | Validate CLI manifest bindings | No |
+| **UI Health** | 60s | Validate UI manifest bindings | No |
 | **Standards** | 60s | scenario-auditor standards rules | No |
+| **Architecture** | 120s | Audit structural cohesion | No |
 | **Dependencies** | 30s | Check tools and resources | No |
 | **Lint** | 30s | Type checking and linting | No |
 | **Docs** | 60s | Validate Markdown, mermaid, links, portability | No |
+| **Performance** | 60s | Run benchmarks (optional) | Yes |
 | **Smoke** | 90s | UI load and iframe-bridge validation | Yes |
 | **Unit** | 60s | Run unit tests (Go, Node, Python) | No |
 | **Integration** | 120s | Test API endpoints and CLI commands | Yes |
 | **Playbooks** | 120s | Execute BAS browser automation workflows | Yes |
 | **Business** | 180s | Validate requirements coverage | Yes |
-| **Performance** | 60s | Run benchmarks (optional) | Yes |
+| **Coverage** | 30s | Parse coverage artifacts | No |
+| **Tidiness** | 120s | Delegate file/function quality checks | No |
+| **Security** | 180s | Delegate security posture validation | No |
+| **Measures** | 180s | Delegate measures coverage validation | No |
+| **Proto** | 120s | Delegate Protocol Buffer contract validation | No |
 
 See [Phases Overview](../phases/README.md) for detailed phase definitions.
 
@@ -76,9 +95,10 @@ test-genie execute my-scenario --preset comprehensive
 
 | Preset | Phases | Use Case |
 |--------|--------|----------|
-| **Quick** | Structure, Standards, Docs, Unit | Fast feedback during development |
-| **Smoke** | Structure, Standards, Lint, Docs, Integration | Pre-push validation |
-| **Comprehensive** | All 11 phases | Full coverage before release |
+| **Quick** | Structure, Standards, Docs, Business, Unit, Proto | Fast feedback during development |
+| **Smoke** | Structure, Standards, Lint, Docs, Business, Integration, Proto | Pre-push validation |
+| **Architecture Audit** | Structure, Contracts, UI Health, Docs, Standards, Architecture, Proto | Surface and architecture review |
+| **Comprehensive** | All catalog phases | Full coverage before release |
 
 See [Presets Reference](../reference/presets.md) for detailed preset definitions.
 

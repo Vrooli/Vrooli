@@ -50,6 +50,7 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 	findings = append(findings, checkPackages(scenario, surface)...)
 	findings = append(findings, checkVersions(surface)...)
 	findings = append(findings, checkUnsupportedAnnotations(surface)...)
+	findings = append(findings, checkTemplateSource(surface)...)
 	findings = append(findings, checkCrossDomainImports(surface)...)
 	findings = append(findings, checkAdoption(surface)...)
 	findings = append(findings, checkTransport(surface)...)
@@ -237,7 +238,16 @@ func checkVersions(surface protosurface.Surface) []Finding {
 }
 
 func checkUnsupportedAnnotations(surface protosurface.Surface) []Finding {
-	supported := map[string]bool{"stability": true, "deprecated": true, "example": true}
+	supported := map[string]bool{
+		"stability":  true,
+		"deprecated": true,
+		"example":    true,
+		"see":        true,
+		"format":     true,
+		"unit":       true,
+		"default":    true,
+		"template":   true,
+	}
 	deprecated := map[string]bool{"layer": true, "domain": true, "imports": true}
 	var findings []Finding
 	for _, f := range surface.Files {
@@ -254,7 +264,26 @@ func checkUnsupportedAnnotations(surface protosurface.Surface) []Finding {
 				Code:       CodeUnsupportedAnnotation,
 				Location:   f.Path,
 				Message:    msg,
-				Suggestion: "keep only @stability, @deprecated, or @example annotations in proto leading comments",
+				Suggestion: "keep only annotations listed in packages/proto/STYLE_GUIDE.md",
+			})
+		}
+	}
+	return findings
+}
+
+func checkTemplateSource(surface protosurface.Surface) []Finding {
+	var findings []Finding
+	for _, f := range surface.Files {
+		for _, a := range f.Annotations {
+			if a.Name != "template" {
+				continue
+			}
+			findings = append(findings, Finding{
+				Severity:   SeverityWarning,
+				Code:       CodeTemplateSource,
+				Location:   f.Path,
+				Message:    fmt.Sprintf("proto file is marked as template-sourced (%s)", a.Value),
+				Suggestion: "keep @template while this is scaffold reference code; remove the annotation only when this contract has been replaced or intentionally adopted as scenario-owned surface",
 			})
 		}
 	}
@@ -377,6 +406,11 @@ func checkPossiblyUnused(surface protosurface.Surface) []Finding {
 			reachable[rpc.Output] = true
 		}
 	}
+	for _, ref := range surface.RESTExceptionRefs {
+		if ref.FullName != "" {
+			reachable[ref.FullName] = true
+		}
+	}
 	byFullName := map[string]protosurface.Message{}
 	for _, m := range surface.Messages {
 		byFullName[m.FullName] = m
@@ -398,13 +432,9 @@ func checkPossiblyUnused(surface protosurface.Surface) []Finding {
 		walk(name)
 	}
 
-	stability := map[string]string{}
-	for _, f := range surface.Files {
-		stability[f.Path] = f.Stability
-	}
 	var findings []Finding
 	for _, m := range surface.Messages {
-		if reachable[m.FullName] || stability[m.FilePath] == "stable" {
+		if reachable[m.FullName] {
 			continue
 		}
 		findings = append(findings, Finding{

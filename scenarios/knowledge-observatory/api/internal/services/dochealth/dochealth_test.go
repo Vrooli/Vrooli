@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // --- test helpers ----------------------------------------------------------
@@ -44,6 +46,15 @@ func writeTestFile(t *testing.T, path, content string) {
 
 func newCfg() effective {
 	return defaultStaticConfig().withOptions(DocHealthOptions{})
+}
+
+func docsManifestRel(t *testing.T) string {
+	t.Helper()
+	rel, err := repocontract.ScenarioDocsManifestRel("")
+	if err != nil {
+		t.Fatalf("resolve docs manifest rel: %v", err)
+	}
+	return rel
 }
 
 // --- markdown / mermaid ----------------------------------------------------
@@ -286,7 +297,8 @@ func TestScanCodeFilesForDocRefs_SkipsNodeModules(t *testing.T) {
 
 func TestCheckManifestCoverage_NoManifestNoFindings(t *testing.T) {
 	dir := t.TempDir()
-	out, _, err := checkManifestCoverage(dir, "docs/manifest.json", false, nil)
+	manifestRel := docsManifestRel(t)
+	out, _, err := checkManifestCoverage(dir, manifestRel, false, nil)
 	if err != nil || len(out) != 0 {
 		t.Fatalf("expected empty when manifest missing, got err=%v findings=%v", err, out)
 	}
@@ -294,8 +306,9 @@ func TestCheckManifestCoverage_NoManifestNoFindings(t *testing.T) {
 
 func TestCheckManifestCoverage_MissingDocReported(t *testing.T) {
 	dir := t.TempDir()
-	writeTestFile(t, filepath.Join(dir, "docs/manifest.json"), `["docs/missing.md"]`)
-	out, cov, err := checkManifestCoverage(dir, "docs/manifest.json", false, nil)
+	manifestRel := docsManifestRel(t)
+	writeTestFile(t, filepath.Join(dir, filepath.FromSlash(manifestRel)), `["docs/missing.md"]`)
+	out, cov, err := checkManifestCoverage(dir, manifestRel, false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -309,10 +322,11 @@ func TestCheckManifestCoverage_MissingDocReported(t *testing.T) {
 
 func TestCheckManifestCoverage_OrphanReportedOnlyInStrict(t *testing.T) {
 	dir := t.TempDir()
-	writeTestFile(t, filepath.Join(dir, "docs/manifest.json"), `[]`)
+	manifestRel := docsManifestRel(t)
+	writeTestFile(t, filepath.Join(dir, filepath.FromSlash(manifestRel)), `[]`)
 	writeTestFile(t, filepath.Join(dir, "docs/orphan.md"), "x")
 	foundDocs := []string{filepath.Join(dir, "docs/orphan.md")}
-	out, cov, err := checkManifestCoverage(dir, "docs/manifest.json", false, foundDocs)
+	out, cov, err := checkManifestCoverage(dir, manifestRel, false, foundDocs)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -323,7 +337,7 @@ func TestCheckManifestCoverage_OrphanReportedOnlyInStrict(t *testing.T) {
 		t.Fatal("orphan should not be a finding when requireAll=false")
 	}
 
-	out, _, err = checkManifestCoverage(dir, "docs/manifest.json", true, foundDocs)
+	out, _, err = checkManifestCoverage(dir, manifestRel, true, foundDocs)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -334,9 +348,10 @@ func TestCheckManifestCoverage_OrphanReportedOnlyInStrict(t *testing.T) {
 
 func TestCheckManifestCoverage_ManifestObjectFormat(t *testing.T) {
 	dir := t.TempDir()
-	writeTestFile(t, filepath.Join(dir, "docs/manifest.json"), `{"docs":["docs/x.md"]}`)
+	manifestRel := docsManifestRel(t)
+	writeTestFile(t, filepath.Join(dir, filepath.FromSlash(manifestRel)), `{"docs":["docs/x.md"]}`)
 	writeTestFile(t, filepath.Join(dir, "docs/x.md"), "x")
-	_, cov, err := checkManifestCoverage(dir, "docs/manifest.json", false, []string{filepath.Join(dir, "docs/x.md")})
+	_, cov, err := checkManifestCoverage(dir, manifestRel, false, []string{filepath.Join(dir, "docs/x.md")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -347,8 +362,9 @@ func TestCheckManifestCoverage_ManifestObjectFormat(t *testing.T) {
 
 func TestCheckManifestCoverage_MalformedFails(t *testing.T) {
 	dir := t.TempDir()
-	writeTestFile(t, filepath.Join(dir, "docs/manifest.json"), `{not json`)
-	_, _, err := checkManifestCoverage(dir, "docs/manifest.json", false, nil)
+	manifestRel := docsManifestRel(t)
+	writeTestFile(t, filepath.Join(dir, filepath.FromSlash(manifestRel)), `{not json`)
+	_, _, err := checkManifestCoverage(dir, manifestRel, false, nil)
 	if err == nil {
 		t.Fatal("expected malformed-manifest error")
 	}

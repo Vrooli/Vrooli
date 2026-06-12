@@ -105,6 +105,7 @@ func surfaceToProto(in protosurface.Surface) *sharedv1.ProtoSurface {
 		IntraScenarioImports: make([]*sharedv1.ProtoImport, 0, len(in.IntraScenarioImports)),
 		CrossScenarioImports: make([]*sharedv1.ProtoImport, 0, len(in.CrossScenarioImports)),
 		AdoptionSignals:      make([]*sharedv1.AdoptionSignal, 0, len(in.AdoptionSignals)),
+		RestExceptionRefs:    make([]*sharedv1.RestExceptionRef, 0, len(in.RESTExceptionRefs)),
 	}
 	for _, f := range in.Files {
 		pf := &sharedv1.ProtoFile{
@@ -169,6 +170,16 @@ func surfaceToProto(in protosurface.Surface) *sharedv1.ProtoSurface {
 	}
 	for _, sig := range in.AdoptionSignals {
 		out.AdoptionSignals = append(out.AdoptionSignals, &sharedv1.AdoptionSignal{Name: sig.Name, Present: sig.Present, Detail: sig.Detail})
+	}
+	for _, ref := range in.RESTExceptionRefs {
+		out.RestExceptionRefs = append(out.RestExceptionRefs, &sharedv1.RestExceptionRef{
+			EndpointId: ref.EndpointID,
+			Path:       ref.Path,
+			Method:     ref.Method,
+			Domain:     ref.Domain,
+			Message:    ref.Message,
+			FullName:   ref.FullName,
+		})
 	}
 	return out
 }

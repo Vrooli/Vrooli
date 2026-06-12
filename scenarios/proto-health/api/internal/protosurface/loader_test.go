@@ -24,6 +24,7 @@ func TestDescriptorLoaderLoadScenario(t *testing.T) {
 
 	var sawNotes bool
 	var sawStability bool
+	var sawTemplate bool
 	for _, f := range surface.Files {
 		if f.Path == "proto-health/v1/notes/notes.proto" {
 			sawNotes = true
@@ -34,11 +35,15 @@ func TestDescriptorLoaderLoadScenario(t *testing.T) {
 				if a.Name == "stability" && a.Value == "stable" {
 					sawStability = true
 				}
+				if a.Name == "template" && a.Value == "react-vite/example" {
+					sawTemplate = true
+				}
 			}
 		}
 	}
 	require.True(t, sawNotes)
 	require.True(t, sawStability)
+	require.True(t, sawTemplate)
 
 	var sawRPC bool
 	for _, svc := range surface.Services {
@@ -64,6 +69,14 @@ func TestDescriptorLoaderLoadScenario(t *testing.T) {
 		Name:    "api_go_mod_replace",
 		Present: true,
 		Detail:  "api/go.mod references the shared packages/proto module",
+	})
+	require.Contains(t, surface.RESTExceptionRefs, RESTExceptionRef{
+		EndpointID: "notes_attach",
+		Path:       "/api/v1/notes/{id}/attachments",
+		Method:     "POST",
+		Domain:     "notes",
+		Message:    "UploadAttachmentResponse",
+		FullName:   "vrooli.proto_health.v1.notes.UploadAttachmentResponse",
 	})
 }
 

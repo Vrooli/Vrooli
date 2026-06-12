@@ -11,6 +11,7 @@ import (
 
 	measures "github.com/vrooli/measures-go"
 	"github.com/vrooli/measures-go/manifestscan"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // ManifestSource reads a target scenario's raw cli/manifest.json bytes.
@@ -321,7 +322,7 @@ func normalizeOverrides(in []manifestscan.DomainOverride) []manifestscan.DomainO
 // Production filesystem seams
 // -----------------------------------------------------------------------------
 
-// FilesystemManifestSource reads scenarios/<scenario>/cli/manifest.json under
+// FilesystemManifestSource reads the target scenario's CLI manifest under
 // RepoRoot.
 type FilesystemManifestSource struct {
 	RepoRoot string
@@ -330,7 +331,10 @@ type FilesystemManifestSource struct {
 // Manifest returns the raw manifest bytes, or (nil, nil) when the scenario has no
 // CLI manifest (it simply declares no measures).
 func (f FilesystemManifestSource) Manifest(scenario string) ([]byte, error) {
-	path := filepath.Join(f.RepoRoot, "scenarios", scenario, "cli", "manifest.json")
+	path, err := repocontract.ScenarioCLIManifestPath(f.RepoRoot, scenario)
+	if err != nil {
+		return nil, err
+	}
 	b, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {

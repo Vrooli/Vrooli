@@ -66,15 +66,27 @@ agent will re-investigate something the system has already solved, miss
 related context that would shorten the new investigation, or open a duplicate
 fix. Skipping this phase wastes effort and corrodes institutional memory.
 
-**Actions** (run both passes — one is not a substitute for the other):
+**Actions** (start with the federated pass; the two scoped passes add depth, they are not redundant):
 
 1. **Identify the affected scenario.** If multiple scenarios are involved,
-   pick the most-affected one for pass 1; the cross-scenario pass covers the
-   rest.
+   pick the most-affected one for the scoped passes; the federated pass covers
+   the rest.
 
-2. **Pass 1 — Scenario-local fix history.** Use the `swarm-manager` CLI to
-   list every prior fix targeting this scenario, including archived ones.
-   Search by symptom keyword:
+2. **Pass 1 — Federated recall (start here).** One semantic query across the
+   records corpus (the recursive-learning memory). Each `record` hit carries
+   *how* a prior agent solved it — its trigger and approach — not just a link.
+
+   ```bash
+   search-hub query "<one-sentence symptom>" --type record
+   ```
+
+   Widen to `--type record,doc` to also pull in any written explanation of the
+   subsystem. This is the AGENTS.md §4 "Recall prior work first" beat applied to
+   debugging.
+
+3. **Pass 2 — Scenario-local fix history (depth / fallback).** List every prior
+   fix targeting this scenario, including archived ones — scoped deeper than the
+   federated pass, and the fallback when search-hub is unavailable:
 
    ```bash
    swarm-manager scenarios fixes --name <scenario> --all --search "<symptom keywords>"
@@ -86,21 +98,17 @@ fix. Skipping this phase wastes effort and corrodes institutional memory.
    swarm-manager scenarios fixes --name <scenario> --all --limit 20
    ```
 
-3. **Pass 2 — Cross-scenario semantic recall.** Use AI search over the fix
-   corpus. Archived items are included by default when `--kind fix` is set.
-
-   ```bash
-   swarm-manager ai-search query "<one-sentence symptom>" --kind fix
-   ```
-
-   For a focused first pass, narrow to the affected scenario:
+4. **Pass 3 — Direct fix-corpus semantic recall (fallback).** The records-only
+   AI search that search-hub federates; use it directly when search-hub is down,
+   or to scope by `--kind fix` and target scenario. Archived items are included
+   by default when `--kind fix` is set.
 
    ```bash
    swarm-manager ai-search query "<one-sentence symptom>" --kind fix --target-scenario <scenario>
    ```
 
    If AI search reports `fallback: unavailable`, run `swarm-manager ai-search
-   status` to confirm the index is reachable, then proceed with pass 1 only
+   status` to confirm the index is reachable, then proceed with pass 2 only
    and note the gap in the investigation log.
 
 **Required output** — Phase 0 must conclude with exactly one of:

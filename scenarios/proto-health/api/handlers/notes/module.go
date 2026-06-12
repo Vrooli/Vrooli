@@ -244,7 +244,7 @@ var Endpoints = []module.EndpointDescriptor{
 			},
 		},
 		Response: &module.Schema{
-			Type: "object",
+			Type: "UploadAttachmentResponse",
 			Properties: map[string]string{
 				"attachment": "Attachment",
 			},

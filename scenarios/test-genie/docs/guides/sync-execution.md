@@ -435,7 +435,7 @@ curl -X POST http://localhost:17480/api/v1/test-suite/{suite_id}/execute-sync \
 
 ### Related Guides
 - [Phased Testing](phased-testing.md) - 10-phase testing architecture
-- [Phased Testing](phased-testing.md) - 11-phase testing architecture
+- [Phased Testing](phased-testing.md) - catalog-driven phase architecture
 - [Requirements Sync](../phases/business/requirements-sync.md) - Automatic requirement tracking
 - [Test Generation](test-generation.md) - AI-powered test creation
 

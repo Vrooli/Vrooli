@@ -21,7 +21,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Description: "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
 		Category:    "system",
 		Response: &module.Schema{
-			Type: "object",
+			Type: "Response",
 			Properties: map[string]string{
 				"status":       "string",
 				"readiness":    "boolean",

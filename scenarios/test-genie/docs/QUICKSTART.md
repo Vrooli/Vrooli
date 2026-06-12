@@ -56,33 +56,42 @@ Results are available via:
 
 | Preset | Phases | Time | Use Case |
 |--------|--------|------|----------|
-| **Quick** | Structure, Standards, Docs, Unit | ~1-2 min | Fast sanity check |
-| **Smoke** | Structure, Standards, Lint, Docs, Integration | ~4-5 min | Pre-push validation |
-| **Comprehensive** | All 11 phases | ~10+ min | Full coverage |
+| **Quick** | Structure, Standards, Docs, Business, Unit, Proto | Scenario-aware | Fast sanity check |
+| **Smoke** | Structure, Standards, Lint, Docs, Business, Integration, Proto | Scenario-aware | Pre-push validation |
+| **Architecture Audit** | Structure, Contracts, UI Health, Docs, Standards, Architecture, Proto | Scenario-aware | Surface and architecture review |
+| **Comprehensive** | All catalog phases | Scenario-aware | Full coverage |
 
 See [Presets Reference](reference/presets.md) for details.
 
 ## Test Phases
 
-Test Genie uses a 11-phase testing architecture:
+Test Genie uses a catalog-driven testing architecture:
 
 ```
-Structure → Standards → Dependencies → Lint → Docs → Smoke → Unit → Integration → Playbooks → Business → Performance
+Structure → Contracts → UI Health → Standards → Architecture → Dependencies → Lint → Docs → Performance → Smoke → Unit → Integration → Playbooks → Business → Coverage → Tidiness → Security → Measures → Proto
 ```
 
 | Phase | Purpose | Timeout |
 |-------|---------|---------|
 | **Structure** | Validate files and config | 15s |
+| **Contracts** | Validate CLI manifest bindings | 60s |
+| **UI Health** | Validate UI manifest bindings | 60s |
 | **Standards** | scenario-auditor standards rules | 60s |
+| **Architecture** | Structural cohesion audit | 120s |
 | **Dependencies** | Check tools and resources | 30s |
 | **Lint** | Type checking and linting | 30s |
 | **Docs** | Markdown, mermaid, link validation | 60s |
+| **Performance** | Run benchmarks (optional) | 60s |
 | **Smoke** | UI load + iframe-bridge | 90s |
 | **Unit** | Run unit tests (Go, Node, Python) | 60s |
 | **Integration** | Test API/UI connectivity | 120s |
 | **Playbooks** | Execute BAS browser automation workflows | 120s |
 | **Business** | Validate workflows and rules | 180s |
-| **Performance** | Run benchmarks (optional) | 60s |
+| **Coverage** | Parse coverage artifacts | 30s |
+| **Tidiness** | File/function quality checks | 120s |
+| **Security** | Security posture validation | 180s |
+| **Measures** | Measures coverage validation | 180s |
+| **Proto** | Protocol Buffer contract validation | 120s |
 
 See [Phased Testing Guide](guides/phased-testing.md) for the complete architecture.
 
@@ -96,7 +105,7 @@ See [Phased Testing Guide](guides/phased-testing.md) for the complete architectu
 - [BATS Teardown Bug](safety/bats-teardown-bug.md) - Real incident case study
 
 ### Phase Documentation
-- [Phases Overview](phases/README.md) - 11-phase architecture with mermaid diagrams
+- [Phases Overview](phases/README.md) - phase architecture with mermaid diagrams
 - [Structure Phase](phases/structure/README.md) - File and CLI validation
 - [Standards Phase](phases/standards/README.md) - Standards enforcement via scenario-auditor
 - [Dependencies Phase](phases/dependencies/README.md) - Runtime and tool checks
@@ -109,7 +118,7 @@ See [Phased Testing Guide](guides/phased-testing.md) for the complete architectu
 - [Performance Phase](phases/performance/README.md) - Build benchmarks and Lighthouse
 
 ### Guides (How-To)
-- [Phased Testing](guides/phased-testing.md) - Understanding the 11-phase architecture
+- [Phased Testing](guides/phased-testing.md) - Understanding the catalog-driven phase architecture
 - [Test Generation](guides/test-generation.md) - AI-powered test creation
 - [Requirements Sync](phases/business/requirements-sync.md) - Automatic requirement tracking
 - [Scenario Unit Testing](phases/unit/scenario-unit-testing.md) - Go, Node, Python unit tests

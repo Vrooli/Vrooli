@@ -530,7 +530,7 @@ Add comments explaining threshold choices:
 ### Related Guides
 - [Performance Phase](README.md) - Performance phase overview
 - [Lighthouse Integration](lighthouse.md) - Detailed Lighthouse configuration
-- [Phases Overview](../README.md) - Understanding the 11-phase architecture
+- [Phases Overview](../README.md) - Understanding the catalog-driven phase architecture
 - [Requirements Sync](../business/requirements-sync.md) - Automatic requirement tracking
 
 ### Reference

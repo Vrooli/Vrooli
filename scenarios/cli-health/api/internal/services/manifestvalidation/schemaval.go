@@ -55,17 +55,18 @@ func (v *JSONSchemaValidator) Validate(_ context.Context, raw []byte) ([]Finding
 	}
 
 	var doc any
+	manifestRel := cliManifestRel(v.RepoRoot)
 	if err := json.Unmarshal(raw, &doc); err != nil {
 		return []Finding{{
 			Severity: SeverityError,
 			Code:     CodeManifestParseError,
-			Location: "cli/manifest.json",
+			Location: manifestRel,
 			Message:  fmt.Sprintf("manifest is not valid JSON: %v", err),
 		}}, nil
 	}
 
 	if err := v.schema.Validate(doc); err != nil {
-		return schemaErrToFindings(err), nil
+		return schemaErrToFindings(err, manifestRel), nil
 	}
 	return nil, nil
 }
@@ -73,13 +74,13 @@ func (v *JSONSchemaValidator) Validate(_ context.Context, raw []byte) ([]Finding
 // schemaErrToFindings flattens a jsonschema.ValidationError tree into a flat
 // list of error-severity findings. Each leaf becomes one finding so callers
 // see every distinct violation rather than only the root.
-func schemaErrToFindings(err error) []Finding {
+func schemaErrToFindings(err error, manifestRel string) []Finding {
 	var ve *jsonschema.ValidationError
 	if !errors.As(err, &ve) {
 		return []Finding{{
 			Severity: SeverityError,
 			Code:     CodeManifestSchemaError,
-			Location: "cli/manifest.json",
+			Location: manifestRel,
 			Message:  err.Error(),
 		}}
 	}
@@ -94,9 +95,9 @@ func schemaErrToFindings(err error) []Finding {
 	for _, leaf := range leaves {
 		loc := leaf.InstanceLocation
 		if loc == "" {
-			loc = "cli/manifest.json"
+			loc = manifestRel
 		} else {
-			loc = "cli/manifest.json#" + loc
+			loc = manifestRel + "#" + loc
 		}
 		findings = append(findings, Finding{
 			Severity: SeverityError,
@@ -106,6 +107,11 @@ func schemaErrToFindings(err error) []Finding {
 		})
 	}
 	return findings
+}
+
+func cliManifestRel(repoRoot string) string {
+	rel, _ := repocontract.ScenarioCLIManifestRel(repoRoot)
+	return rel
 }
 
 type schemaLeaf struct {

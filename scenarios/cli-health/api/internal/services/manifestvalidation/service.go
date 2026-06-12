@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // Service runs validation for one scenario at a time. All side effects flow
@@ -250,5 +251,9 @@ func finalize(scenario string, findings []Finding) Report {
 }
 
 func defaultManifestRel(scenario string) string {
-	return fmt.Sprintf("scenarios/%s/cli/manifest.json", scenario)
+	rel, err := repocontract.ScenarioCLIManifestRepoRel("", scenario)
+	if err != nil {
+		return scenario
+	}
+	return rel
 }

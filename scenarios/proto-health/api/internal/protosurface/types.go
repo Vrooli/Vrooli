@@ -11,6 +11,7 @@ type Surface struct {
 	Messages             []Message
 	IntraScenarioImports []Import
 	CrossScenarioImports []Import
+	RESTExceptionRefs    []RESTExceptionRef
 	AdoptionSignals      []AdoptionSignal
 	TransportWorld       TransportWorld
 }
@@ -69,6 +70,15 @@ type Import struct {
 	ToFile     string
 	FromDomain string
 	ToDomain   string
+}
+
+type RESTExceptionRef struct {
+	EndpointID string
+	Path       string
+	Method     string
+	Domain     string
+	Message    string
+	FullName   string
 }
 
 type AdoptionSignal struct {

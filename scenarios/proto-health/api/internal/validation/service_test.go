@@ -108,6 +108,89 @@ func TestValidateScenarioFindsPolicyViolations(t *testing.T) {
 	requireFinding(t, report, CodeVersionNaming, SeverityWarning)
 }
 
+func TestValidateScenarioFindsTemplateSource(t *testing.T) {
+	surface := cleanSurface()
+	surface.Files[0].Annotations = append(surface.Files[0].Annotations, protosurface.Annotation{Name: "template", Value: "react-vite/example"})
+
+	svc := New(Deps{Loader: fakeLoader{surface: surface}})
+	report, err := svc.ValidateScenario(context.Background(), "demo")
+	require.NoError(t, err)
+	require.True(t, report.Passed)
+	requireFinding(t, report, CodeTemplateSource, SeverityWarning)
+}
+
+func TestValidateScenarioReportsStableMessageNotLocallyReachable(t *testing.T) {
+	surface := cleanSurface()
+	surface.Files = append(surface.Files, protosurface.File{
+		Path:      "demo/v1/notes/attachments.proto",
+		Package:   "vrooli.demo.v1.notes",
+		Version:   "v1",
+		Domain:    "notes",
+		Stability: "stable",
+	})
+	surface.Messages = append(surface.Messages, protosurface.Message{
+		FilePath: "demo/v1/notes/attachments.proto",
+		Package:  "vrooli.demo.v1.notes",
+		Name:     "UploadAttachmentResponse",
+		FullName: "vrooli.demo.v1.notes.UploadAttachmentResponse",
+		Domain:   "notes",
+	})
+
+	svc := New(Deps{Loader: fakeLoader{surface: surface}})
+	report, err := svc.ValidateScenario(context.Background(), "demo")
+	require.NoError(t, err)
+	require.True(t, report.Passed)
+	requireFinding(t, report, CodePossiblyUnused, SeverityInfo)
+}
+
+func TestValidateScenarioTreatsRESTExceptionResponseAsReachable(t *testing.T) {
+	surface := cleanSurface()
+	surface.Files = append(surface.Files, protosurface.File{
+		Path:      "demo/v1/notes/attachments.proto",
+		Package:   "vrooli.demo.v1.notes",
+		Version:   "v1",
+		Domain:    "notes",
+		Stability: "stable",
+	})
+	surface.Messages = append(surface.Messages,
+		protosurface.Message{
+			FilePath: "demo/v1/notes/attachments.proto",
+			Package:  "vrooli.demo.v1.notes",
+			Name:     "Attachment",
+			FullName: "vrooli.demo.v1.notes.Attachment",
+			Domain:   "notes",
+		},
+		protosurface.Message{
+			FilePath: "demo/v1/notes/attachments.proto",
+			Package:  "vrooli.demo.v1.notes",
+			Name:     "UploadAttachmentResponse",
+			FullName: "vrooli.demo.v1.notes.UploadAttachmentResponse",
+			Domain:   "notes",
+			Fields: []protosurface.Field{{
+				Name:        "attachment",
+				Type:        "message",
+				MessageType: "vrooli.demo.v1.notes.Attachment",
+				Number:      1,
+			}},
+		},
+	)
+	surface.RESTExceptionRefs = []protosurface.RESTExceptionRef{{
+		EndpointID: "notes_attach",
+		Path:       "/api/v1/notes/{id}/attachments",
+		Method:     "POST",
+		Domain:     "notes",
+		Message:    "UploadAttachmentResponse",
+		FullName:   "vrooli.demo.v1.notes.UploadAttachmentResponse",
+	}}
+
+	svc := New(Deps{Loader: fakeLoader{surface: surface}})
+	report, err := svc.ValidateScenario(context.Background(), "demo")
+	require.NoError(t, err)
+	for _, finding := range report.Findings {
+		require.NotEqual(t, CodePossiblyUnused, finding.Code, "REST-exception response messages should be reachable: %+v", report.Findings)
+	}
+}
+
 func TestValidateScenarioFindsImportCycle(t *testing.T) {
 	surface := cleanSurface()
 	surface.IntraScenarioImports = []protosurface.Import{
@@ -148,13 +231,6 @@ func cleanSurface() protosurface.Surface {
 			Domain:      "shared",
 			Stability:   "stable",
 			Annotations: []protosurface.Annotation{{Name: "stability", Value: "stable"}},
-		}},
-		Messages: []protosurface.Message{{
-			FilePath: "demo/v1/shared/health.proto",
-			Package:  "vrooli.demo.v1.shared",
-			Name:     "HealthResponse",
-			FullName: "vrooli.demo.v1.shared.HealthResponse",
-			Domain:   "shared",
 		}},
 		AdoptionSignals: []protosurface.AdoptionSignal{
 			{Name: "api_go_mod_replace", Present: true, Detail: "api/go.mod references the shared packages/proto module"},

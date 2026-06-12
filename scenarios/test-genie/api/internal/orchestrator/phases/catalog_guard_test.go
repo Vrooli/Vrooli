@@ -41,6 +41,26 @@ func TestPresetsResolveAgainstCatalog(t *testing.T) {
 	}
 }
 
+func TestCuratedPresetsIncludeProto(t *testing.T) {
+	presets := DefaultPresets()
+	for _, preset := range []Preset{PresetQuick, PresetSmoke, PresetArchitectureAudit} {
+		names, ok := presets[preset.String()]
+		if !ok {
+			t.Fatalf("preset %q missing from DefaultPresets", preset)
+		}
+		found := false
+		for _, name := range names {
+			if name == Proto.String() {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("preset %q must include %q for proto contract feedback, got %v", preset, Proto, names)
+		}
+	}
+}
+
 // TestCapabilityManifestCoversEveryPhase is the anti-drift guard for the
 // runnability capability manifest. Every catalog phase must carry a manifest
 // whose Phase/Optional mirror the spec, and the surface declarations are pinned

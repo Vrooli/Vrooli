@@ -5,11 +5,21 @@ import (
 	"strings"
 	"testing"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	kov1 "github.com/vrooli/vrooli/packages/proto/gen/go/knowledge-observatory/v1"
 
 	"test-genie/internal/eligibility"
 )
+
+func cliManifestRel(t *testing.T) string {
+	t.Helper()
+	rel, err := repocontract.ScenarioCLIManifestRel("")
+	if err != nil {
+		t.Fatalf("resolve CLI manifest rel: %v", err)
+	}
+	return rel
+}
 
 // TestNormalizeFindingSeverity is the R3 anti-drift guard: every severity
 // vocabulary any producer emits must map to a defined ladder rung. Bare
@@ -42,10 +52,11 @@ func TestNormalizeFindingSeverity(t *testing.T) {
 }
 
 func TestContractsArchFindings(t *testing.T) {
+	manifestRel := cliManifestRel(t)
 	rep := &cliHealthReport{
 		Scenario: "demo",
 		Findings: []cliHealthFinding{
-			{Severity: "SEVERITY_ERROR", Code: "proto.orphan_method", Location: "cli/manifest.json", Message: "method not bound", Suggestion: "bind it"},
+			{Severity: "SEVERITY_ERROR", Code: "proto.orphan_method", Location: manifestRel, Message: "method not bound", Suggestion: "bind it"},
 			{Severity: "SEVERITY_WARNING", Code: "manifest.note", Location: "", Message: "advisory"},
 		},
 	}
@@ -59,7 +70,7 @@ func TestContractsArchFindings(t *testing.T) {
 	if got[0].Severity != architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR {
 		t.Errorf("severity = %v, want ERROR", got[0].Severity)
 	}
-	if got[0].Code != "proto.orphan_method" || got[0].Locations[0] != "cli/manifest.json" {
+	if got[0].Code != "proto.orphan_method" || got[0].Locations[0] != manifestRel {
 		t.Errorf("unexpected mapping: %+v", got[0])
 	}
 	if !strings.HasPrefix(got[0].StableId, "afid:") {

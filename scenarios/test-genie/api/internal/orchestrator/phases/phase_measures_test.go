@@ -3,6 +3,7 @@ package phases
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -25,11 +26,12 @@ func TestTranslateMeasuresReport_Passing(t *testing.T) {
 }
 
 func TestTranslateMeasuresReport_UncoveredDomainFailsPhase(t *testing.T) {
+	manifestRel := cliManifestRel(t)
 	rep := &measuresReport{
 		Scenario: "swarm-manager",
 		Passed:   false,
 		Findings: []measuresFinding{
-			{Severity: "SEVERITY_ERROR", RuleID: "measures.uncovered-domain", Title: "captures uncovered", FilePath: "cli/manifest.json", Scanner: "coverage"},
+			{Severity: "SEVERITY_ERROR", RuleID: "measures.uncovered-domain", Title: "captures uncovered", FilePath: manifestRel, Scanner: "coverage"},
 		},
 	}
 	rep.Summary.Errors = 1
@@ -61,10 +63,11 @@ func TestTranslateMeasuresReport_WarningOnlySucceeds(t *testing.T) {
 }
 
 func TestMeasuresArchFindings_MapsSourceAndStableID(t *testing.T) {
+	manifestRel := cliManifestRel(t)
 	rep := &measuresReport{
 		Scenario: "swarm-manager",
 		Findings: []measuresFinding{
-			{Severity: "SEVERITY_ERROR", RuleID: "measures.uncovered-domain", Title: "captures", FilePath: "cli/manifest.json"},
+			{Severity: "SEVERITY_ERROR", RuleID: "measures.uncovered-domain", Title: "captures", FilePath: manifestRel},
 		},
 	}
 	got := measuresArchFindings("swarm-manager", rep)
@@ -117,10 +120,10 @@ func swapMeasuresSeams(t *testing.T, reachable bool, validate func(probe bool) (
 }
 
 func TestRunMeasuresPhase_ProbesWhenReachable(t *testing.T) {
-	const hollow = `{"scenario":"demo","passed":false,` +
-		`"findings":[{"rule_id":"measures.hollow-declaration","severity":"SEVERITY_ERROR",` +
-		`"title":"Hollow measure declaration: notes.count","scanner":"probe","file_path":"cli/manifest.json"}],` +
-		`"summary":{"errors":1}}`
+	hollow := fmt.Sprintf(`{"scenario":"demo","passed":false,`+
+		`"findings":[{"rule_id":"measures.hollow-declaration","severity":"SEVERITY_ERROR",`+
+		`"title":"Hollow measure declaration: notes.count","scanner":"probe","file_path":%q}],`+
+		`"summary":{"errors":1}}`, cliManifestRel(t))
 	var gotProbe bool
 	swapMeasuresSeams(t, true, func(probe bool) ([]byte, int, error) {
 		gotProbe = probe

@@ -23,6 +23,7 @@ const (
 	CodeStabilityDishonest    = "proto.stability_dishonest"
 	CodeCrossDomainImport     = "proto.cross_domain_import"
 	CodeUnsupportedAnnotation = "proto.unsupported_annotation"
+	CodeTemplateSource        = "proto.template_source"
 	CodeNotAdopted            = "proto.not_adopted"
 	CodeHandRolledTransport   = "proto.hand_rolled_transport"
 	CodeVersionNaming         = "proto.version_naming"

@@ -53,14 +53,19 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Symptom:** The scaffold still contains the template `notes` CRUD
 domain, its SQLite schema, CLI commands, UI pages, and proto files.
+Proto validation reports those relocated template contracts as
+`proto.template_source` warnings while they remain marked
+`@template react-vite/example`.
 
 **Root cause:** `proto-health` was generated from the `react-vite`
 template before its real `validation` and `protosurface` domains were
 implemented.
 
 **Workaround:** Treat notes as reference-only. Do not extend it for
-product behavior. Copy patterns from it when implementing the first
-real domain, then delete notes in the same change.
+product behavior. Keep the `@template` marker while it is reference
+code. Copy patterns from it when implementing the first real domain,
+then delete notes or remove the marker only when the contract is
+intentionally adopted.
 
 **Real fix:** Implement `validation` and `protosurface` with API, CLI,
 UI, tests, and docs; remove notes code/protos/docs references after the

@@ -25,6 +25,7 @@ import (
 
 	measures "github.com/vrooli/measures-go"
 	"github.com/vrooli/measures-go/manifestscan"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // Severity classifies a finding. ERROR drives passed=false and is the only level
@@ -153,7 +154,12 @@ type Inputs struct {
 }
 
 // manifestPath is the conventional location a coverage finding points at.
-const manifestPath = "cli/manifest.json"
+var manifestPath = scenarioCLIManifestRel()
+
+func scenarioCLIManifestRel() string {
+	rel, _ := repocontract.ScenarioCLIManifestRel("")
+	return rel
+}
 
 // Classify is the pure heart: it turns gathered inputs into the coverage report
 // + normalized findings. It performs no I/O and is fully table-testable.

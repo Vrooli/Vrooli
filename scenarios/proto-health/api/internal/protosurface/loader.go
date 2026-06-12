@@ -264,18 +264,19 @@ func (l *DescriptorLoader) applyTransportFacts(s *Surface) {
 	if l.repoRoot == "" {
 		return
 	}
-	paths, err := endpointPaths(filepath.Join(l.repoRoot, "scenarios", s.Scenario, ".vrooli", "endpoints.json"))
+	facts, err := endpointFacts(filepath.Join(l.repoRoot, "scenarios", s.Scenario, ".vrooli", "endpoints.json"))
 	if err != nil {
 		return
 	}
 	hasHandRolled := hasHandRolledTransport(filepath.Join(l.repoRoot, "scenarios", s.Scenario, "api"))
+	messageIndex := messageIndex(s.Messages)
 	connectCount := 0
 	handRolledCount := 0
 	servedCount := 0
 	for i := range s.Services {
 		for j := range s.Services[i].RPCs {
 			procedure := "/" + s.Services[i].FullName + "/" + s.Services[i].RPCs[j].Name
-			if paths[procedure] {
+			if facts.connectPaths[procedure] {
 				s.Services[i].RPCs[j].Transport = TransportKindConnect
 				connectCount++
 				servedCount++
@@ -300,6 +301,54 @@ func (l *DescriptorLoader) applyTransportFacts(s *Surface) {
 	default:
 		s.TransportWorld = TransportWorldMixed
 	}
+	for _, endpoint := range facts.restExceptions {
+		for _, name := range endpoint.responseTypeNames() {
+			msg, ok := resolveEndpointMessage(messageIndex, endpoint, name)
+			if !ok {
+				continue
+			}
+			appendRESTExceptionRef(s, endpoint, msg)
+		}
+		if msg, ok := messageIndex[messageKey("errors", "ErrorEnvelope")]; ok {
+			appendRESTExceptionRef(s, endpoint, msg)
+		}
+	}
+	sort.Slice(s.RESTExceptionRefs, func(i, j int) bool {
+		if s.RESTExceptionRefs[i].Path != s.RESTExceptionRefs[j].Path {
+			return s.RESTExceptionRefs[i].Path < s.RESTExceptionRefs[j].Path
+		}
+		return s.RESTExceptionRefs[i].FullName < s.RESTExceptionRefs[j].FullName
+	})
+}
+
+func appendRESTExceptionRef(s *Surface, endpoint endpointFact, msg Message) {
+	for _, ref := range s.RESTExceptionRefs {
+		if ref.Path == endpoint.Path && ref.FullName == msg.FullName {
+			return
+		}
+	}
+	s.RESTExceptionRefs = append(s.RESTExceptionRefs, RESTExceptionRef{
+		EndpointID: endpoint.ID,
+		Path:       endpoint.Path,
+		Method:     endpoint.Method,
+		Domain:     endpoint.Category,
+		Message:    msg.Name,
+		FullName:   msg.FullName,
+	})
+}
+
+func resolveEndpointMessage(index map[string]Message, endpoint endpointFact, name string) (Message, bool) {
+	candidates := []string{endpoint.Category}
+	if endpoint.ID == "health" || strings.Contains(endpoint.Path, "health") {
+		candidates = append(candidates, "health")
+	}
+	for _, domain := range candidates {
+		if msg, ok := index[messageKey(domain, name)]; ok {
+			return msg, true
+		}
+	}
+	msg, ok := index[messageKey("", name)]
+	return msg, ok
 }
 
 func hasHandRolledTransport(apiRoot string) bool {
@@ -334,27 +383,90 @@ func hasHandRolledTransport(apiRoot string) bool {
 	return found
 }
 
-func endpointPaths(path string) (map[string]bool, error) {
+type endpointsFacts struct {
+	connectPaths   map[string]bool
+	restExceptions []endpointFact
+}
+
+type endpointFact struct {
+	ID            string          `json:"id"`
+	Path          string          `json:"path"`
+	Method        string          `json:"method"`
+	Category      string          `json:"category"`
+	Response      endpointSchema  `json:"response"`
+	RESTException json.RawMessage `json:"rest_exception"`
+}
+
+type endpointSchema struct {
+	Type       string            `json:"type"`
+	Properties map[string]string `json:"properties"`
+}
+
+func (e endpointFact) responseTypeNames() []string {
+	seen := map[string]bool{}
+	var out []string
+	add := func(name string) {
+		name = strings.TrimSpace(name)
+		if name == "" || isPrimitiveSchemaType(name) || seen[name] {
+			return
+		}
+		seen[name] = true
+		out = append(out, name)
+	}
+	add(e.Response.Type)
+	for _, name := range e.Response.Properties {
+		add(name)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func isPrimitiveSchemaType(name string) bool {
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "", "object", "array", "string", "number", "integer", "boolean", "multipart/form-data", "file":
+		return true
+	default:
+		return false
+	}
+}
+
+func endpointFacts(path string) (endpointsFacts, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return endpointsFacts{}, err
 	}
 	var doc struct {
-		Endpoints []struct {
-			Path          string          `json:"path"`
-			RESTException json.RawMessage `json:"rest_exception"`
-		} `json:"endpoints"`
+		Endpoints []endpointFact `json:"endpoints"`
 	}
 	if err := json.Unmarshal(b, &doc); err != nil {
-		return nil, err
+		return endpointsFacts{}, err
 	}
-	out := make(map[string]bool, len(doc.Endpoints))
+	out := endpointsFacts{connectPaths: make(map[string]bool, len(doc.Endpoints))}
 	for _, e := range doc.Endpoints {
 		if strings.HasPrefix(e.Path, "/") && len(e.RESTException) == 0 {
-			out[e.Path] = true
+			out.connectPaths[e.Path] = true
+			continue
+		}
+		if len(e.RESTException) > 0 {
+			out.restExceptions = append(out.restExceptions, e)
 		}
 	}
 	return out, nil
+}
+
+func messageIndex(messages []Message) map[string]Message {
+	out := map[string]Message{}
+	for _, m := range messages {
+		out[messageKey(m.Domain, m.Name)] = m
+		if _, exists := out[messageKey("", m.Name)]; !exists {
+			out[messageKey("", m.Name)] = m
+		}
+	}
+	return out
+}
+
+func messageKey(domain, name string) string {
+	return domain + "\x00" + name
 }
 
 func (l *DescriptorLoader) applyAdoptionSignals(s *Surface) {
@@ -403,6 +515,12 @@ func sortSurface(s *Surface) {
 	sort.Slice(s.Messages, func(i, j int) bool { return s.Messages[i].FullName < s.Messages[j].FullName })
 	sort.Slice(s.IntraScenarioImports, lessImport(s.IntraScenarioImports))
 	sort.Slice(s.CrossScenarioImports, lessImport(s.CrossScenarioImports))
+	sort.Slice(s.RESTExceptionRefs, func(i, j int) bool {
+		if s.RESTExceptionRefs[i].Path != s.RESTExceptionRefs[j].Path {
+			return s.RESTExceptionRefs[i].Path < s.RESTExceptionRefs[j].Path
+		}
+		return s.RESTExceptionRefs[i].FullName < s.RESTExceptionRefs[j].FullName
+	})
 }
 
 func lessImport(imports []Import) func(i, j int) bool {

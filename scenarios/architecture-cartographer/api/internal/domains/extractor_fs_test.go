@@ -83,7 +83,7 @@ func TestFolderExtractor_MissingDir(t *testing.T) {
 
 func TestCLIGroupExtractor(t *testing.T) {
 	dir := t.TempDir()
-	writeFile(t, dir, "cli/manifest.json", `{
+	writeFile(t, dir, cliManifestRel(dir), `{
       "name": "x",
       "groups": [
         {"name": "graph", "commands": []},
@@ -118,7 +118,7 @@ func TestCLIGroupExtractor_MissingManifest(t *testing.T) {
 
 func TestCLIGroupExtractor_Malformed(t *testing.T) {
 	dir := t.TempDir()
-	writeFile(t, dir, "cli/manifest.json", `{not json`)
+	writeFile(t, dir, cliManifestRel(dir), `{not json`)
 	if _, err := NewCLIGroupExtractor().Extract(context.Background(), dir); err == nil {
 		t.Fatal("expected parse error for malformed manifest")
 	}

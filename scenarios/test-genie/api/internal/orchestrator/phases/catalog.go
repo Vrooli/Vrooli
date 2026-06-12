@@ -158,6 +158,13 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		DefaultTimeout: 180 * time.Second,
 		Description:    "Delegates measures-coverage validation to measures-health (stateful-domain coverage + per-measure tier) and maps findings into the FINDING_SOURCE_MEASURES channel that feeds the ecosystem-manager soft `measures` ladder dimension.",
 	})
+	register(Spec{
+		Name:           Proto,
+		Runner:         runProtoPhase,
+		Optional:       true,
+		DefaultTimeout: 120 * time.Second,
+		Description:    "Delegates proto contract validation to proto-health and maps findings into the FINDING_SOURCE_PROTO channel that feeds the ecosystem-manager soft `proto-health` R2 ladder dimension.",
+	})
 	return catalog
 }
 
