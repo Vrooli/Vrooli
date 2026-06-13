@@ -9,6 +9,9 @@ import (
 	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"google.golang.org/protobuf/encoding/protojson"
+
+	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
 
 // recordedCall captures one shell-out so tests can assert the argv the
@@ -508,8 +511,10 @@ func TestSafetyRunTerminal(t *testing.T) {
 
 // ---- check ---------------------------------------------------------------
 
+// engagementJSON renders a `recovery show/list` fixture as the producer does:
+// the typed vrooli.cli.v1 contract marshaled with UseProtoNames (snake_case).
 func engagementJSON(mode, variant, anchor string) []byte {
-	b, _ := json.Marshal(engagementView{
+	b, _ := protojson.MarshalOptions{UseProtoNames: true}.Marshal(&cliv1.RecoveryEngagementView{
 		Scenario: "demo-scenario", Slug: "wip", Mode: mode, Variant: variant, AnchorBaselineName: anchor,
 	})
 	return b
@@ -626,8 +631,28 @@ func TestAbandonLiveRestoresAndRestarts(t *testing.T) {
 
 // ---- gc ------------------------------------------------------------------
 
+// listJSON renders a `recovery list` fixture the way the producer does: the
+// typed vrooli.cli.v1 contract marshaled with UseProtoNames (snake_case).
 func listJSON(views ...engagementView) []byte {
-	b, _ := json.Marshal(map[string]any{"engagements": views})
+	out := &cliv1.RecoveryListOutput{}
+	for _, v := range views {
+		eng := &cliv1.RecoveryEngagementView{
+			Scenario:           v.Scenario,
+			Slug:               v.Slug,
+			Mode:               v.Mode,
+			Variant:            v.Variant,
+			ShadowInstanceKey:  v.ShadowInstanceKey,
+			AnchorBaselineName: v.AnchorBaselineName,
+			AmbientVar:         v.AmbientVar,
+			Ttl:                v.TTL,
+			Expired:            v.Expired,
+		}
+		if v.ExpiresAt != nil {
+			eng.ExpiresAt = v.ExpiresAt.Format(time.RFC3339Nano)
+		}
+		out.Engagements = append(out.Engagements, eng)
+	}
+	b, _ := protojson.MarshalOptions{UseProtoNames: true}.Marshal(out)
 	return b
 }
 

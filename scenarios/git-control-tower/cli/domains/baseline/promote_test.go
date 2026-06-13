@@ -40,7 +40,7 @@ func installShadowEngagement(t *testing.T) (*fakeRunner, func()) {
 	f := newFakeRunner(t)
 	f.stdout["recovery show"] = engagementJSON("shadow", "shadow", "engagement-wip")
 	f.stdout["run quiesce"] = quiesceJSON(true, false, "live drained")
-	f.stdout["recovery migrate"] = []byte(`{"fastPath":true}`)
+	f.stdout["recovery migrate"] = []byte(`{"fast_path":true}`)
 	f.stdout["scenario status"] = statusJSON("running")
 	return f, f.install()
 }

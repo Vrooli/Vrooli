@@ -24,6 +24,7 @@ import (
 	"github.com/vrooli/api-core/pathfilter"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	vroolicli "github.com/vrooli/vrooli-cli-go"
 )
 
 const (
@@ -170,32 +171,45 @@ type VrooliScenario struct {
 	Path        string   `json:"path"`
 }
 
+// cliClient is the shared typed Vrooli CLI client. It decodes the
+// vrooli.cli.v1 contracts instead of hand-parsing CLI JSON, so a CLI output
+// change is a compile error here rather than a silently empty or wrong result.
+var cliClient = vroolicli.New()
+
 // Global database connection
 var db *sql.DB
 
 // Global agent manager (used by Claude Fix and Automated Fix features)
 var agentManager = NewAgentManager()
 
-// getVrooliScenarios calls the Vrooli CLI to get real scenario information
+// getVrooliScenarios calls the Vrooli CLI to get real scenario information,
+// mapping the typed vrooli.cli.v1 scenario-list contract onto the auditor's
+// view model.
 func getVrooliScenarios() (*VrooliScenarioResponse, error) {
-	cmd := exec.Command("vrooli", "scenario", "list", "--json")
-
-	// Set timeout for the command
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	cmd = exec.CommandContext(ctx, "vrooli", "scenario", "list", "--json")
 
-	output, err := cmd.Output()
+	resp, err := cliClient.ListScenarios(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute vrooli command: %w", err)
+		return nil, fmt.Errorf("failed to list vrooli scenarios: %w", err)
 	}
 
-	var response VrooliScenarioResponse
-	if err := json.Unmarshal(output, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse vrooli response: %w", err)
+	response := &VrooliScenarioResponse{Success: resp.GetSuccess()}
+	response.Summary.TotalScenarios = int(resp.GetSummary().GetTotalScenarios())
+	response.Summary.Running = int(resp.GetSummary().GetRunning())
+	response.Summary.Available = int(resp.GetSummary().GetAvailable())
+	for _, s := range resp.GetScenarios() {
+		response.Scenarios = append(response.Scenarios, VrooliScenario{
+			Name:        s.GetName(),
+			Description: s.GetDescription(),
+			Version:     s.GetVersion(),
+			Status:      s.GetStatus(),
+			Tags:        s.GetTags(),
+			Path:        s.GetPath(),
+		})
 	}
 
-	return &response, nil
+	return response, nil
 }
 
 func countScenarioEndpoints(scenarioPath string) int {

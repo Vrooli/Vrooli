@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"data-backup-manager/internal/discovery"
+	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
 
 func TestResolveBase(t *testing.T) {
@@ -71,15 +72,15 @@ func TestLoadDurableData(t *testing.T) {
 	}
 }
 
-func TestParseResourceListFiltersEnabledExternalCLI(t *testing.T) {
-	out := []byte(`{"resources":[
-      {"name":"claude-code","enabled":true,"driver":"external-cli","manifest_path":"/r/claude-code/resource.json"},
-      {"name":"codex","enabled":true,"driver":"external-cli","manifest_path":"/r/codex/resource.json"},
-      {"name":"postgres","enabled":true,"driver":"compose-service","manifest_path":"/r/postgres/resource.json"},
-      {"name":"disabled-cli","enabled":false,"driver":"external-cli","manifest_path":"/r/d/resource.json"},
-      {"name":"no-manifest","enabled":true,"driver":"external-cli","manifest_path":""}
-    ]}`)
-	refs := discovery.ParseResourceListForTest(out)
+func TestFilterResourcesKeepsEnabledExternalCLI(t *testing.T) {
+	resources := []*cliv1.Resource{
+		{Name: "claude-code", Enabled: true, Driver: "external-cli", ManifestPath: "/r/claude-code/resource.json"},
+		{Name: "codex", Enabled: true, Driver: "external-cli", ManifestPath: "/r/codex/resource.json"},
+		{Name: "postgres", Enabled: true, Driver: "compose-service", ManifestPath: "/r/postgres/resource.json"},
+		{Name: "disabled-cli", Enabled: false, Driver: "external-cli", ManifestPath: "/r/d/resource.json"},
+		{Name: "no-manifest", Enabled: true, Driver: "external-cli", ManifestPath: ""},
+	}
+	refs := discovery.FilterResourcesForTest(resources)
 	if len(refs) != 2 {
 		t.Fatalf("expected 2 enabled external-cli refs, got %d: %+v", len(refs), refs)
 	}
@@ -89,11 +90,5 @@ func TestParseResourceListFiltersEnabledExternalCLI(t *testing.T) {
 	}
 	if !names["claude-code"] || !names["codex"] {
 		t.Fatalf("expected claude-code + codex, got %+v", refs)
-	}
-}
-
-func TestParseResourceListToleratesGarbage(t *testing.T) {
-	if refs := discovery.ParseResourceListForTest([]byte("not json")); len(refs) != 0 {
-		t.Fatalf("expected no refs for garbage input, got %+v", refs)
 	}
 }

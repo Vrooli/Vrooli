@@ -6,7 +6,8 @@ require (
 	connectrpc.com/connect v1.19.2
 	github.com/vrooli/api-core v0.0.0-00010101000000-000000000000
 	github.com/vrooli/cli-core v0.0.0
-	github.com/vrooli/vrooli/packages/proto v0.0.0-00010101000000-000000000000
+	github.com/vrooli/vrooli-cli-go v0.0.0
+	github.com/vrooli/vrooli/packages/proto v0.0.0
 	google.golang.org/protobuf v1.36.11
 )
 
@@ -28,3 +29,5 @@ replace git-control-tower => ../api
 replace github.com/vrooli/vrooli => ../../..
 
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
+
+replace github.com/vrooli/vrooli-cli-go => ../../../packages/vrooli-cli-go

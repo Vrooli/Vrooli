@@ -2,9 +2,11 @@ package discovery
 
 import (
 	"context"
-	"encoding/json"
-	"os/exec"
+	"fmt"
 	"strings"
+
+	vroolicli "github.com/vrooli/vrooli-cli-go"
+	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
 
 // ResourceRef is one platform resource as reported by the CLI: enough to read
@@ -16,72 +18,51 @@ type ResourceRef struct {
 	ManifestPath string
 }
 
-// CLIResourceEnumerator enumerates resources by shelling `vrooli resource list
-// --json` and keeping only enabled host-filesystem (external-cli) resources —
-// the only ones that can declare durable host state. It is the single place the
-// `vrooli` CLI is shelled.
+// CLIResourceEnumerator enumerates resources through the typed `vrooli resource
+// list` contract, keeping only enabled host-filesystem (external-cli) resources
+// with a manifest path — the only ones that can declare durable host state.
 //
-// Failure degrades gracefully: if the CLI is missing or returns unparseable
-// output, Enumerate returns no resources and no error, so discovery still works
-// from the WellKnownScanner alone.
+// Errors propagate. A missing or broken CLI surfaces as a discovery error
+// rather than silently yielding zero targets: for a backup manager, quietly
+// enumerating nothing is more dangerous than failing loudly, and propagating
+// matches the CompositeScanner contract ("a real failure is never silently
+// hidden").
 type CLIResourceEnumerator struct {
-	// bin is the CLI binary to invoke (default "vrooli").
-	bin string
+	client *vroolicli.Client
 }
 
 // NewResourceEnumerator constructs the production enumerator.
 func NewResourceEnumerator() *CLIResourceEnumerator {
-	return &CLIResourceEnumerator{bin: "vrooli"}
+	return &CLIResourceEnumerator{client: vroolicli.New()}
 }
 
 // Compile-time guarantee.
 var _ ResourceEnumerator = (*CLIResourceEnumerator)(nil)
 
-// resourceListEnvelope mirrors the relevant slice of `vrooli resource list
-// --json`. Unknown fields are ignored.
-type resourceListEnvelope struct {
-	Resources []struct {
-		Name         string `json:"name"`
-		Enabled      bool   `json:"enabled"`
-		Driver       string `json:"driver"`
-		ManifestPath string `json:"manifest_path"`
-	} `json:"resources"`
-}
-
 func (e *CLIResourceEnumerator) Enumerate(ctx context.Context) ([]ResourceRef, error) {
-	bin := e.bin
-	if strings.TrimSpace(bin) == "" {
-		bin = "vrooli"
-	}
-	out, err := exec.CommandContext(ctx, bin, "resource", "list", "--json").Output()
+	resp, err := e.client.ListResources(ctx)
 	if err != nil {
-		return nil, nil // graceful: discovery falls back to the well-known scanner.
+		return nil, fmt.Errorf("enumerate resources: %w", err)
 	}
-	return parseEnabledExternalCLI(out), nil
+	return filterEnabledExternalCLI(resp.GetResources()), nil
 }
 
-// parseEnabledExternalCLI parses `vrooli resource list --json` output and keeps
-// only enabled external-cli resources with a manifest path. Unparseable input
-// yields no resources (never an error), so a CLI shape change degrades to the
-// well-known scanner rather than breaking discovery.
-func parseEnabledExternalCLI(out []byte) []ResourceRef {
-	var env resourceListEnvelope
-	if err := json.Unmarshal(out, &env); err != nil {
-		return nil
-	}
-	refs := make([]ResourceRef, 0, len(env.Resources))
-	for _, r := range env.Resources {
-		if !r.Enabled || r.Driver != "external-cli" {
+// filterEnabledExternalCLI keeps only enabled external-cli resources that carry
+// a manifest path — the resources that can declare durable host state.
+func filterEnabledExternalCLI(resources []*cliv1.Resource) []ResourceRef {
+	refs := make([]ResourceRef, 0, len(resources))
+	for _, r := range resources {
+		if !r.GetEnabled() || r.GetDriver() != "external-cli" {
 			continue
 		}
-		if strings.TrimSpace(r.ManifestPath) == "" {
+		if strings.TrimSpace(r.GetManifestPath()) == "" {
 			continue
 		}
 		refs = append(refs, ResourceRef{
-			Name:         r.Name,
-			Driver:       r.Driver,
-			Enabled:      r.Enabled,
-			ManifestPath: r.ManifestPath,
+			Name:         r.GetName(),
+			Driver:       r.GetDriver(),
+			Enabled:      r.GetEnabled(),
+			ManifestPath: r.GetManifestPath(),
 		})
 	}
 	return refs

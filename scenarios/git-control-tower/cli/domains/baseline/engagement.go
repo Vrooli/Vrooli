@@ -27,7 +27,9 @@ import (
 
 	"github.com/vrooli/api-core/coreset"
 	"github.com/vrooli/cli-core/cliapp"
+	vroolicli "github.com/vrooli/vrooli-cli-go"
 
+	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 	baselinesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/baselines"
 )
 
@@ -60,6 +62,23 @@ var runCommand = func(ctx context.Context, name string, args ...string) ([]byte,
 	}
 	return stdout.Bytes(), nil
 }
+
+// cliVrooliRunner bridges the typed vrooli CLI client onto this package's single
+// runCommand seam. Recovery JSON reads then decode the generated vrooli.cli.v1
+// contracts (typed, snake_case) while every external call still routes through
+// the one recorder that tests inject.
+type cliVrooliRunner struct{}
+
+func (cliVrooliRunner) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
+	return runCommand(ctx, name, args...)
+}
+
+func (cliVrooliRunner) RunCombined(ctx context.Context, name string, args ...string) ([]byte, error) {
+	return runCommand(ctx, name, args...)
+}
+
+// cliClient issues typed `vrooli recovery …` reads through runCommand.
+var cliClient = vroolicli.New(vroolicli.WithRunner(cliVrooliRunner{}))
 
 // snapshotAnchor captures a baseline record to diff against later. It is a seam
 // (not an inline clientFactory call) so engagement tests need not implement the
@@ -232,30 +251,51 @@ func loadCoreSet(ctx context.Context) coreSet {
 
 // ---- engagement view (parsed from `vrooli recovery … --json`) ------------
 
-// engagementView is the subset of the floor's EngagementView the verbs read back.
+// engagementView is the subset of the floor's EngagementView the verbs read
+// back. It is an internal view-model mapped from the typed
+// vrooli.cli.v1.RecoveryEngagementView contract (see engagementFromProto).
 type engagementView struct {
-	Scenario           string     `json:"scenario"`
-	Slug               string     `json:"slug"`
-	Mode               string     `json:"mode"`
-	Variant            string     `json:"variant"`
-	ShadowInstanceKey  string     `json:"shadowInstanceKey"`
-	AnchorBaselineName string     `json:"anchorBaselineName"`
-	AmbientVar         string     `json:"ambientVar"`
-	TTL                string     `json:"ttl"`
-	ExpiresAt          *time.Time `json:"expiresAt"`
-	Expired            bool       `json:"expired"`
+	Scenario           string
+	Slug               string
+	Mode               string
+	Variant            string
+	ShadowInstanceKey  string
+	AnchorBaselineName string
+	AmbientVar         string
+	TTL                string
+	ExpiresAt          *time.Time
+	Expired            bool
+}
+
+// engagementFromProto maps the typed recovery-floor engagement contract onto the
+// local view-model. expires_at arrives as an RFC3339Nano string ("" when none);
+// an unparseable value degrades to nil rather than failing the read.
+func engagementFromProto(v *cliv1.RecoveryEngagementView) engagementView {
+	ev := engagementView{
+		Scenario:           v.GetScenario(),
+		Slug:               v.GetSlug(),
+		Mode:               v.GetMode(),
+		Variant:            v.GetVariant(),
+		ShadowInstanceKey:  v.GetShadowInstanceKey(),
+		AnchorBaselineName: v.GetAnchorBaselineName(),
+		AmbientVar:         v.GetAmbientVar(),
+		TTL:                v.GetTtl(),
+		Expired:            v.GetExpired(),
+	}
+	if s := strings.TrimSpace(v.GetExpiresAt()); s != "" {
+		if t, err := time.Parse(time.RFC3339Nano, s); err == nil {
+			ev.ExpiresAt = &t
+		}
+	}
+	return ev
 }
 
 func readEngagement(ctx context.Context, scenario, slug string) (engagementView, error) {
-	out, err := runCommand(ctx, "vrooli", "recovery", "show", "--scenario", scenario, "--slug", slug, "--json")
+	v, err := cliClient.RecoveryShow(ctx, scenario, slug)
 	if err != nil {
 		return engagementView{}, fmt.Errorf("read engagement %s/%s: %w", scenario, slug, err)
 	}
-	var v engagementView
-	if err := json.Unmarshal(out, &v); err != nil {
-		return engagementView{}, fmt.Errorf("parse engagement %s/%s: %w", scenario, slug, err)
-	}
-	return v, nil
+	return engagementFromProto(v), nil
 }
 
 // ---- start ---------------------------------------------------------------
@@ -550,20 +590,13 @@ func safetyRunTerminal(status string) bool {
 // are dropped. GCT cannot import the platform InstanceKey SSOT, so the floor
 // query is the only place these strings are derived.
 func shadowTargetMappings(ctx context.Context, scenario, variant string, targetNames []string) string {
-	out, err := runCommand(ctx, "vrooli", "recovery", "namespace", "--scenario", scenario, "--variant", variant, "--json")
+	ns, err := cliClient.RecoveryNamespace(ctx, scenario, variant)
 	if err != nil {
 		return ""
 	}
-	var ns struct {
-		PostgresDb string `json:"postgresDb"`
-		DataDir    string `json:"dataDir"`
-	}
-	if json.Unmarshal(out, &ns) != nil {
-		return ""
-	}
 	locByTarget := map[string]string{
-		"postgres": strings.TrimSpace(ns.PostgresDb),
-		"data":     strings.TrimSpace(ns.DataDir),
+		"postgres": strings.TrimSpace(ns.GetPostgresDb()),
+		"data":     strings.TrimSpace(ns.GetDataDir()),
 	}
 	pairs := make([]string, 0, len(targetNames))
 	for _, name := range targetNames {
@@ -698,17 +731,15 @@ func runStatusCmd(core *cliapp.ScenarioApp, args []string) error {
 }
 
 func listEngagements(ctx context.Context) ([]engagementView, error) {
-	out, err := runCommand(ctx, "vrooli", "recovery", "list", "--json")
+	resp, err := cliClient.RecoveryList(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list engagements: %w", err)
 	}
-	var parsed struct {
-		Engagements []engagementView `json:"engagements"`
+	views := make([]engagementView, 0, len(resp.GetEngagements()))
+	for _, e := range resp.GetEngagements() {
+		views = append(views, engagementFromProto(e))
 	}
-	if err := json.Unmarshal(out, &parsed); err != nil {
-		return nil, fmt.Errorf("parse engagement list: %w", err)
-	}
-	return parsed.Engagements, nil
+	return views, nil
 }
 
 // ---- abandon -------------------------------------------------------------

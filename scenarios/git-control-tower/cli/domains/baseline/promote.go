@@ -43,6 +43,9 @@ import (
 	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"google.golang.org/protobuf/encoding/protojson"
+
+	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
 
 // defaultDrainTimeout bounds the quiesce wait before promote aborts (or, with
@@ -308,20 +311,18 @@ func applyMigrations(ctx context.Context, scenario, slug string) (string, bool) 
 		}
 		return note, false
 	}
-	var r struct {
-		FastPath bool     `json:"fastPath"`
-		Applied  []string `json:"applied"`
-		Skipped  []string `json:"skipped"`
-	}
-	if json.Unmarshal(out, &r) != nil {
-		// The runner exited 0; a parse miss must not block an otherwise-clean
-		// promote (mirrors probeLiveHealth's defensive parsing).
+	// Decode the typed vrooli.cli.v1 recovery-migrate contract. runCommand
+	// (not the typed client) stays the seam here so the exec-failure path above
+	// is distinct from a decode miss below — the runner exited 0, so a parse miss
+	// must not block an otherwise-clean promote (mirrors probeLiveHealth).
+	var r cliv1.RecoveryMigrateOutput
+	if (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(out, &r) != nil {
 		return "migrations applied (unparseable runner output)", true
 	}
-	if r.FastPath {
+	if r.GetFastPath() {
 		return "no migration scripts — shape-unchanged fast path", true
 	}
-	return fmt.Sprintf("applied %d migration script(s); %d already-applied", len(r.Applied), len(r.Skipped)), true
+	return fmt.Sprintf("applied %d migration script(s); %d already-applied", len(r.GetApplied()), len(r.GetSkipped())), true
 }
 
 // quiesceResult is the subset of the agent-manager QuiesceResult JSON promote reads.
