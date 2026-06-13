@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"test-genie/internal/orchestrator/runnability"
+
+	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
 
 // scenarioRoot resolves scenarios/test-genie from this test file's location so
@@ -104,6 +106,44 @@ func TestCapabilityManifestCoversEveryPhase(t *testing.T) {
 		}
 		if caps.DBIsolation != w.dbiso {
 			t.Errorf("phase %q: DBIsolation=%v, want %v", spec.Name, caps.DBIsolation, w.dbiso)
+		}
+	}
+}
+
+// TestFindingSourceCoversEveryProducingPhase is the anti-drift guard for the
+// per-phase finding-source tokens that the combined findings artifact carries
+// and a campaign reaudit derives covered-sources from. Every finding-producing
+// phase MUST declare a non-UNSPECIFIED FindingSource; non-producing phases
+// (unit, lint, smoke, …) MUST leave it UNSPECIFIED so they never contribute a
+// phantom source to reaudit coverage. The expected map is pinned to the
+// producer set so adding a finding-emitting phase without a source breaks the
+// build instead of silently producing un-attributed findings.
+func TestFindingSourceCoversEveryProducingPhase(t *testing.T) {
+	producing := map[Name]architecturev1.FindingSource{
+		Structure:    architecturev1.FindingSource_FINDING_SOURCE_STRUCTURE,
+		Contracts:    architecturev1.FindingSource_FINDING_SOURCE_CLI,
+		UIHealth:     architecturev1.FindingSource_FINDING_SOURCE_UI,
+		Standards:    architecturev1.FindingSource_FINDING_SOURCE_STANDARDS,
+		Architecture: architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE,
+		Docs:         architecturev1.FindingSource_FINDING_SOURCE_DOCS,
+		Business:     architecturev1.FindingSource_FINDING_SOURCE_BUSINESS,
+		Coverage:     architecturev1.FindingSource_FINDING_SOURCE_COVERAGE,
+		Tidiness:     architecturev1.FindingSource_FINDING_SOURCE_TIDINESS,
+		Security:     architecturev1.FindingSource_FINDING_SOURCE_SECURITY,
+		Measures:     architecturev1.FindingSource_FINDING_SOURCE_MEASURES,
+		Proto:        architecturev1.FindingSource_FINDING_SOURCE_PROTO,
+	}
+	catalog := DefaultCatalog()
+	for _, spec := range catalog.All() {
+		want, isProducer := producing[spec.Name]
+		if isProducer {
+			if spec.FindingSource != want {
+				t.Errorf("phase %q: FindingSource = %v, want %v", spec.Name, spec.FindingSource, want)
+			}
+			continue
+		}
+		if spec.FindingSource != architecturev1.FindingSource_FINDING_SOURCE_UNSPECIFIED {
+			t.Errorf("non-producing phase %q declares FindingSource %v, want UNSPECIFIED", spec.Name, spec.FindingSource)
 		}
 	}
 }

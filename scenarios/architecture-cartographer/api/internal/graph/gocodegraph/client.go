@@ -139,7 +139,7 @@ func (c *Client) Extract(ctx context.Context, scenario string) (graph.RawGraph, 
 	}
 	rpc := graph_v1connect.NewGoCodeGraphServiceClient(c.httpClient, baseURL)
 	resp, err := rpc.Extract(ctx, connect.NewRequest(&graphv1.ExtractRequest{
-		ScenarioPath: projectPath,
+		ModulePath: projectPath,
 	}))
 	if err != nil {
 		return graph.RawGraph{}, classifyConnectError(err)

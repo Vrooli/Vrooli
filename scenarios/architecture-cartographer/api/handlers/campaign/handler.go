@@ -98,15 +98,16 @@ func (h *Handler) ApplyItem(ctx context.Context, req *connect.Request[campaignv1
 }
 
 func (h *Handler) ReauditCampaign(ctx context.Context, req *connect.Request[campaignv1.ReauditCampaignRequest]) (*connect.Response[campaignv1.ReauditCampaignResponse], error) {
-	res, err := h.svc.Reaudit(ctx, req.Msg.GetCampaignId(), req.Msg.GetFindings())
+	res, err := h.svc.Reaudit(ctx, req.Msg.GetCampaignId(), req.Msg.GetFindings(), req.Msg.GetCoveredSources())
 	if err != nil {
 		return nil, connect.NewError(errorToConnectCode(err), err)
 	}
 	return connect.NewResponse(&campaignv1.ReauditCampaignResponse{
-		Validated:   findingsToProto(res.Validated),
-		StillOpen:   findingsToProto(res.StillOpen),
-		Regressions: findingsToProto(res.Regressions),
-		Status:      statusProjectionToProto(res.Status),
+		Validated:    findingsToProto(res.Validated),
+		StillOpen:    findingsToProto(res.StillOpen),
+		Regressions:  findingsToProto(res.Regressions),
+		NotReaudited: findingsToProto(res.NotReaudited),
+		Status:       statusProjectionToProto(res.Status),
 	}), nil
 }
 

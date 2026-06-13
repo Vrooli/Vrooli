@@ -38,6 +38,19 @@ func effortToken(e architecturev1.EffortHint) string {
 	}
 }
 
+// hasStampableFinding reports whether at least one finding yields a non-empty
+// stable id — i.e. whether ingest would actually track anything. It mirrors
+// the Create/Reaudit upsert loops' `if f.StableID == "" { continue }` guard so
+// the empty-set rejection is decided by the same rule that decides ingestion.
+func hasStampableFinding(scenario string, findings []*architecturev1.ArchitectureFinding) bool {
+	for _, pf := range findings {
+		if fromProto(scenario, pf).StableID != "" {
+			return true
+		}
+	}
+	return false
+}
+
 // fromProto converts an ingested ArchitectureFinding into the tracker's
 // Finding model. The stable ID is RECOMPUTED via the shared findingid
 // helper (never trusting the caller's stamp) so reconciliation is anchored

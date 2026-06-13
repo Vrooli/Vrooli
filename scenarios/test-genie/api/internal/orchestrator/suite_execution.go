@@ -32,6 +32,8 @@ import (
 	sharedruns "test-genie/internal/shared/runs"
 
 	"github.com/vrooli/freshness-go/treedigest"
+	"github.com/vrooli/vrooli/packages/proto/architecture/findingid"
+	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
 
 var (
@@ -621,7 +623,22 @@ func (o *SuiteOrchestrator) finalizeExecution(
 	result.PhaseSummary = SummarizePhases(phaseResults)
 	result.WarningSummary = BuildWarningSummary(prepared.env.RunID, phaseResults)
 
-	if nudge := computeCampaignNudge(result.ScenarioName, phaseResults); nudge != nil {
+	// Persist the combined findings artifact BEFORE the nudge so the nudge can
+	// point at a file that already exists on disk (the on-ramp the assessment
+	// found broken). The path is run-deterministic regardless of write order.
+	if err := o.writeFindingsArtifact(
+		prepared.env.ScenarioDir,
+		result.ScenarioName,
+		prepared.runID,
+		result.Verdict,
+		result.CompletedAt,
+		phaseResults,
+	); err != nil {
+		log.Printf("failed to write findings artifact: %v", err)
+	}
+
+	artifactPath := sharedartifacts.RelativeRunFindingsArtifactPath(prepared.runID)
+	if nudge := computeCampaignNudge(result.ScenarioName, result.Verdict, artifactPath, phaseResults); nudge != nil {
 		result.CampaignNudge = nudge
 		log.Printf("campaign nudge fired for %s: %d findings (%d blocker/error) — %s",
 			result.ScenarioName, nudge.Total, nudge.Severe, nudge.Command)
@@ -862,11 +879,12 @@ func (o *SuiteOrchestrator) discoverPhaseDefinitions(env workspacepkg.Environmen
 	if o.catalog != nil {
 		for _, spec := range o.catalog.All() {
 			definitions[spec.Name.Key()] = phases.Definition{
-				Name:         spec.Name,
-				Runner:       spec.Runner,
-				Timeout:      spec.DefaultTimeout,
-				Optional:     spec.Optional,
-				Capabilities: spec.Capabilities,
+				Name:          spec.Name,
+				Runner:        spec.Runner,
+				Timeout:       spec.DefaultTimeout,
+				Optional:      spec.Optional,
+				Capabilities:  spec.Capabilities,
+				FindingSource: spec.FindingSource,
 			}
 		}
 	}
@@ -1118,6 +1136,12 @@ func (o *SuiteOrchestrator) completePhaseRun(
 		Observations:    report.Observations,
 		Findings:        report.Findings,
 	}
+	// Stamp the phase's finding-source token (empty for phases that emit no
+	// findings) so a downstream campaign reaudit can derive which sources
+	// this run covered — even when the phase produced zero findings.
+	if run.definition.FindingSource != architecturev1.FindingSource_FINDING_SOURCE_UNSPECIFIED {
+		result.FindingSource = findingid.SourceToken(run.definition.FindingSource)
+	}
 	if len(preObservations) > 0 {
 		result.Observations = append(preObservations, result.Observations...)
 	}
@@ -1171,6 +1195,63 @@ func (o *SuiteOrchestrator) writeLatestManifest(scenarioDir, runLogDir, runID st
 
 	writer := sharedartifacts.NewBaseWriter(scenarioDir, filepath.Base(scenarioDir), runID)
 	return writer.WriteJSON(sharedartifacts.LatestManifestPath(scenarioDir), manifest)
+}
+
+// findingsArtifact is the per-run combined findings document. Its shape is a
+// superset of the campaign `--from-audit` ingest contract (`phases[].findings`)
+// so the nudge can point at a file that already exists on disk. Zero-finding
+// phases are INCLUDED — their presence with a findingSource token is what lets
+// a campaign reaudit derive which sources a partial run actually covered.
+type findingsArtifact struct {
+	Scenario    string                  `json:"scenario"`
+	RunID       string                  `json:"runId"`
+	Verdict     string                  `json:"verdict"`
+	CompletedAt string                  `json:"completedAt"`
+	Phases      []findingsArtifactPhase `json:"phases"`
+}
+
+type findingsArtifactPhase struct {
+	Name          string                                `json:"name"`
+	Status        string                                `json:"status"`
+	FindingSource string                                `json:"findingSource,omitempty"`
+	Findings      []*architecturev1.ArchitectureFinding `json:"findings"`
+}
+
+// writeFindingsArtifact persists the combined per-run findings document under
+// coverage/runs/<runID>/findings.json and mirrors it to
+// coverage/latest/findings.json. Encoding matches the suite `--json` report
+// (encoding/json, enums as integers) so the cartographer ingest round-trips.
+func (o *SuiteOrchestrator) writeFindingsArtifact(scenarioDir, scenario, runID, verdict string, completedAt time.Time, results []PhaseExecutionResult) error {
+	artifact := findingsArtifact{
+		Scenario:    scenario,
+		RunID:       runID,
+		Verdict:     verdict,
+		CompletedAt: completedAt.UTC().Format(time.RFC3339),
+		Phases:      make([]findingsArtifactPhase, 0, len(results)),
+	}
+	for _, res := range results {
+		findings := res.Findings
+		if findings == nil {
+			findings = []*architecturev1.ArchitectureFinding{}
+		}
+		artifact.Phases = append(artifact.Phases, findingsArtifactPhase{
+			Name:          res.Name,
+			Status:        res.Status,
+			FindingSource: res.FindingSource,
+			Findings:      findings,
+		})
+	}
+	writer := sharedartifacts.NewBaseWriter(scenarioDir, filepath.Base(scenarioDir), runID)
+	if err := writer.EnsureDir(sharedartifacts.RunDir(scenarioDir, runID)); err != nil {
+		return err
+	}
+	if err := writer.EnsureDir(sharedartifacts.LatestDirPath(scenarioDir)); err != nil {
+		return err
+	}
+	if err := writer.WriteJSON(sharedartifacts.RunFindingsArtifactPath(scenarioDir, runID), artifact); err != nil {
+		return err
+	}
+	return writer.WriteJSON(sharedartifacts.LatestFindingsArtifactPath(scenarioDir), artifact)
 }
 
 func updateLatestPointer(latestDir, linkName, target string) error {

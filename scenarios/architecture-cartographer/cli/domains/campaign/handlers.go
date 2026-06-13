@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -30,15 +31,36 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	}
 }
 
-// loadAuditFindings reads a test-genie --json SuiteExecutionResult from a
-// path (or stdin when "-") and flattens every phase's findings into the
-// shared ArchitectureFinding slice the tracker ingests. The findings
-// serialize with proto-int enums; encoding/json round-trips them back into
-// the generated type since both sides share this contract.
-func loadAuditFindings(path string) ([]*architecturev1.ArchitectureFinding, error) {
+// loadedAudit is the parsed result of a test-genie findings document: the
+// flattened findings, the document's own scenario (when present), and the
+// set of finding-source tokens whose phases actually RAN this audit (used to
+// scope a reaudit's coverage so non-run sources are not false-validated).
+type loadedAudit struct {
+	scenario       string
+	findings       []*architecturev1.ArchitectureFinding
+	coveredSources []string
+	// hasSourceTokens is true when at least one phase carried a findingSource
+	// token. A foreign/hand-built document without any tokens cannot scope
+	// coverage, so the reaudit falls back to all-sources-covered.
+	hasSourceTokens bool
+}
+
+// loadAuditFindings reads a test-genie findings document (the persisted
+// coverage/runs/<runID>/findings.json artifact, or a `test-genie execute
+// --json` SuiteExecutionResult) from a path (or stdin when "-") and flattens
+// every phase's findings into the shared ArchitectureFinding slice the tracker
+// ingests. The findings serialize with proto-int enums; encoding/json
+// round-trips them back into the generated type since both sides share this
+// contract.
+//
+// It hard-errors on the two silent-empty footguns the assessment found:
+// a document with no `phases` key at all (e.g. a single per-phase file), and a
+// well-formed document that yields zero findings. An empty campaign is never
+// useful, so there is no override flag.
+func loadAuditFindings(path string) (loadedAudit, error) {
 	path = strings.TrimSpace(path)
 	if path == "" {
-		return nil, nil
+		return loadedAudit{}, fmt.Errorf("no audit report given (--from-audit is required)")
 	}
 	var (
 		data []byte
@@ -50,23 +72,57 @@ func loadAuditFindings(path string) ([]*architecturev1.ArchitectureFinding, erro
 		data, err = os.ReadFile(path)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("read audit report %q: %w", path, err)
+		return loadedAudit{}, fmt.Errorf("read audit report %q: %w", path, err)
 	}
+	// Phases is a pointer so a missing key (nil) is distinguishable from a
+	// present-but-empty array.
 	var report struct {
-		Phases []struct {
-			Findings []*architecturev1.ArchitectureFinding `json:"findings"`
+		Scenario string `json:"scenario"`
+		Phases   *[]struct {
+			Name          string                                `json:"name"`
+			Status        string                                `json:"status"`
+			FindingSource string                                `json:"findingSource"`
+			Findings      []*architecturev1.ArchitectureFinding `json:"findings"`
 		} `json:"phases"`
 	}
 	if err := json.Unmarshal(data, &report); err != nil {
-		return nil, fmt.Errorf("parse audit report %q (expected a test-genie --json SuiteExecutionResult): %w", path, err)
+		return loadedAudit{}, fmt.Errorf("parse audit report %q (expected a test-genie findings document): %w", path, err)
 	}
-	var out []*architecturev1.ArchitectureFinding
-	for _, p := range report.Phases {
+	if report.Phases == nil {
+		return loadedAudit{}, fmt.Errorf(
+			"audit report %q is not a test-genie suite findings document (expected `phases[].findings`) — pass the findings.json persisted under coverage/runs/<runID>/ or `test-genie execute <scenario> --json` output",
+			path)
+	}
+
+	out := loadedAudit{scenario: strings.TrimSpace(report.Scenario)}
+	covered := map[string]struct{}{}
+	for _, p := range *report.Phases {
 		for _, f := range p.Findings {
 			if f != nil {
-				out = append(out, f)
+				out.findings = append(out.findings, f)
 			}
 		}
+		src := strings.TrimSpace(p.FindingSource)
+		if src == "" {
+			continue
+		}
+		out.hasSourceTokens = true
+		// A source is covered only when its phase actually ran (passed or
+		// failed); a skipped phase saw nothing and must not validate items.
+		switch strings.ToLower(strings.TrimSpace(p.Status)) {
+		case "passed", "failed":
+			covered[src] = struct{}{}
+		}
+	}
+	for src := range covered {
+		out.coveredSources = append(out.coveredSources, src)
+	}
+	sort.Strings(out.coveredSources)
+
+	if len(out.findings) == 0 {
+		return loadedAudit{}, fmt.Errorf(
+			"audit report %q contains zero findings — nothing to track (an empty campaign is never useful)",
+			path)
 	}
 	return out, nil
 }
@@ -101,14 +157,21 @@ func profileName(p campaignv1.RankProfile) string {
 
 func (h *handlers) create(ctx cliapp.RunContext) error {
 	scenario := ctx.Positional("scenario")
-	findings, err := loadAuditFindings(ctx.Flag("from-audit"))
+	audit, err := loadAuditFindings(ctx.Flag("from-audit"))
 	if err != nil {
 		return err
+	}
+	// Guard against ingesting scenario A's findings into a scenario-B campaign:
+	// the artifact records the scenario it was produced for.
+	if audit.scenario != "" && !strings.EqualFold(audit.scenario, strings.TrimSpace(scenario)) {
+		return fmt.Errorf(
+			"audit report is for scenario %q but the campaign targets %q — re-run the audit for %q or fix the create argument",
+			audit.scenario, scenario, scenario)
 	}
 	resp, err := h.client.CreateCampaign(context.Background(), connect.NewRequest(&campaignv1.CreateCampaignRequest{
 		Scenario: scenario,
 		Name:     ctx.Flag("name"),
-		Findings: findings,
+		Findings: audit.findings,
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError(fmt.Sprintf("create campaign for %q", scenario), err, nil)
@@ -247,13 +310,22 @@ func (h *handlers) apply(ctx cliapp.RunContext) error {
 
 func (h *handlers) reaudit(ctx cliapp.RunContext) error {
 	id := ctx.Positional("campaign-id")
-	findings, err := loadAuditFindings(ctx.Flag("from-audit"))
+	audit, err := loadAuditFindings(ctx.Flag("from-audit"))
 	if err != nil {
 		return err
 	}
+	// Scope the reaudit to the sources whose phases actually ran. A foreign
+	// document without findingSource tokens can't scope coverage, so fall back
+	// to all-sources-covered and say so (empty covered_sources = full suite).
+	coveredSources := audit.coveredSources
+	if !audit.hasSourceTokens {
+		coveredSources = nil
+		fmt.Fprintln(ctx.Stderr(), "note: audit report has no per-phase findingSource tokens — treating every source as covered (full-suite reaudit)")
+	}
 	resp, err := h.client.ReauditCampaign(context.Background(), connect.NewRequest(&campaignv1.ReauditCampaignRequest{
-		CampaignId: id,
-		Findings:   findings,
+		CampaignId:     id,
+		Findings:       audit.findings,
+		CoveredSources: coveredSources,
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError(fmt.Sprintf("reaudit campaign %q", id), err, nil)
@@ -265,8 +337,8 @@ func (h *handlers) reaudit(ctx cliapp.RunContext) error {
 		return cliapp.PrintProtoJSON(ctx.Stdout(), resp.Msg)
 	}
 	st := resp.Msg.GetStatus()
-	status := fmt.Sprintf("Reaudit: %d validated, %d still open, %d regression(s). Progress: %d/%d resolved.",
-		len(resp.Msg.GetValidated()), len(resp.Msg.GetStillOpen()), len(resp.Msg.GetRegressions()),
+	status := fmt.Sprintf("Reaudit: %d validated, %d still open, %d regression(s), %d not re-audited. Progress: %d/%d resolved.",
+		len(resp.Msg.GetValidated()), len(resp.Msg.GetStillOpen()), len(resp.Msg.GetRegressions()), len(resp.Msg.GetNotReaudited()),
 		st.GetResolved()+st.GetValidated(), st.GetTotal())
 	var triage []cliapp.TriageGroup
 	if regs := resp.Msg.GetRegressions(); len(regs) > 0 {
@@ -275,6 +347,16 @@ func (h *handlers) reaudit(ctx cliapp.RunContext) error {
 			items = append(items, findingLine(f))
 		}
 		triage = append(triage, cliapp.TriageGroup{Heading: "⚠️  Regressions (introduced or reappeared)", Items: items})
+	}
+	if nr := resp.Msg.GetNotReaudited(); len(nr) > 0 {
+		items := make([]string, 0, len(nr))
+		for _, f := range nr {
+			items = append(items, findingLine(f))
+		}
+		triage = append(triage, cliapp.TriageGroup{
+			Heading: fmt.Sprintf("%d item(s) not re-audited — their phases did not run", len(nr)),
+			Items:   items,
+		})
 	}
 	return ctx.RenderOperational(cliapp.OperationalReport{
 		Status: []string{status},

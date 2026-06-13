@@ -19,12 +19,19 @@ import (
 //
 // The trigger is source-agnostic: it fires on ANY audit that crosses a
 // threshold, not only the architecture phase — a docs/standards/cli/ui load
-// is just as worth tracking. Both thresholds are configurable via env; the
-// nudge fires when EITHER is exceeded. Always logged when it fires — never
-// silent. Zero-finding runs naturally no-op (total below threshold).
+// is just as worth tracking. Always logged when it fires — never silent.
+//
+// Two triggers, both env-tunable; the nudge fires when EITHER holds:
+//   - SEVERE: count(BLOCKER|ERROR) ≥ THRESHOLD_SEVERE — fires regardless of
+//     verdict, because real rot is worth tracking even on an otherwise-green
+//     suite.
+//   - VOLUME: count(BLOCKER|ERROR|WARN) > THRESHOLD_TOTAL AND the suite did
+//     not PASS. INFO findings are advisory by definition and never counted; a
+//     green suite is by definition blocking no one, so it never nags on volume
+//     alone. This is the fix for the assessment's "near-permanent banner".
 const (
-	defaultCampaignSevereThreshold = 5  // count(BLOCKER|ERROR) ≥ this
-	defaultCampaignTotalThreshold  = 15 // count(all findings)   > this
+	defaultCampaignSevereThreshold = 5  // count(BLOCKER|ERROR)        ≥ this
+	defaultCampaignTotalThreshold  = 15 // count(BLOCKER|ERROR|WARN)   > this
 
 	envCampaignSevereThreshold = "TESTGENIE_CAMPAIGN_THRESHOLD_SEVERE"
 	envCampaignTotalThreshold  = "TESTGENIE_CAMPAIGN_THRESHOLD_TOTAL"
@@ -44,6 +51,9 @@ type CampaignNudge struct {
 	BySeverity map[string]int `json:"bySeverity"`
 	// Reason explains, in one line, why the nudge fired.
 	Reason string `json:"reason"`
+	// ArtifactPath is the scenario-relative findings.json that already exists
+	// on disk; the Command ingests it via --from-audit.
+	ArtifactPath string `json:"artifactPath"`
 	// Command is the literal command to open the tracked campaign.
 	Command string `json:"command"`
 }
@@ -81,11 +91,12 @@ func severityName(s architecturev1.FindingSeverity) string {
 }
 
 // computeCampaignNudge aggregates the normalized findings across all phases
-// and returns a nudge when the load exceeds either threshold. It returns nil
-// when the load is below both thresholds (so a clean or light run never
-// nudges). The trigger does NOT depend on which phases ran — any battery
-// that crosses the threshold is worth tracking as a campaign.
-func computeCampaignNudge(scenario string, phaseResults []phases.ExecutionResult) *CampaignNudge {
+// and returns a nudge when either the SEVERE or VOLUME trigger holds (see the
+// const block). It returns nil otherwise — so a clean or light run, and a
+// green run carrying only advisory warnings, never nudge. verdict is the
+// tri-state suite outcome (PASS/PARTIAL/FAIL); artifactPath is the
+// scenario-relative findings.json the nudge command points at.
+func computeCampaignNudge(scenario, verdict, artifactPath string, phaseResults []phases.ExecutionResult) *CampaignNudge {
 	bySeverity := map[string]int{}
 	total := 0
 	for _, p := range phaseResults {
@@ -98,24 +109,41 @@ func computeCampaignNudge(scenario string, phaseResults []phases.ExecutionResult
 		}
 	}
 	severe := bySeverity["blocker"] + bySeverity["error"]
+	// Volume counts actionable findings only: blocker+error+warn. INFO is
+	// advisory by definition and excluded so an info flood can't nag.
+	actionable := severe + bySeverity["warn"]
 
 	severeThreshold := campaignThreshold(envCampaignSevereThreshold, defaultCampaignSevereThreshold)
 	totalThreshold := campaignThreshold(envCampaignTotalThreshold, defaultCampaignTotalThreshold)
 
-	if severe < severeThreshold && total <= totalThreshold {
+	severeTrip := severe >= severeThreshold
+	// Volume only trips on a non-passing suite: a green run blocks no one.
+	volumeTrip := actionable > totalThreshold && verdict != SuiteVerdictPass
+	if !severeTrip && !volumeTrip {
 		return nil
 	}
 
+	var reason string
+	switch {
+	case severeTrip:
+		reason = fmt.Sprintf(
+			"%d blocker/error findings (≥%d) — track these as a campaign instead of fixing ad-hoc.",
+			severe, severeThreshold)
+	default:
+		reason = fmt.Sprintf(
+			"%d actionable findings (blocker/error/warn) exceed the single-pass threshold (>%d) on a non-passing suite — track this as a campaign instead of fixing ad-hoc.",
+			actionable, totalThreshold)
+	}
+
 	return &CampaignNudge{
-		Triggered:  true,
-		Total:      total,
-		Severe:     severe,
-		BySeverity: bySeverity,
-		Reason: fmt.Sprintf(
-			"%d findings (%d blocker/error) exceed the single-pass threshold (severe≥%d or total>%d). Track this as a campaign instead of fixing ad-hoc.",
-			total, severe, severeThreshold, totalThreshold),
+		Triggered:    true,
+		Total:        total,
+		Severe:       severe,
+		BySeverity:   bySeverity,
+		Reason:       reason,
+		ArtifactPath: artifactPath,
 		Command: fmt.Sprintf(
-			"architecture-cartographer campaign create %s --from-audit <audit-report.json>",
-			scenario),
+			"architecture-cartographer campaign create %s --from-audit %s",
+			scenario, artifactPath),
 	}
 }

@@ -187,6 +187,11 @@ type Definition struct {
 	// mutation, DB isolation, resources). Sourced from the catalog Spec; the
 	// runnability gate reads it to decide RUN/RUN_DEGRADED/SKIP.
 	Capabilities runnability.PhaseCapabilities
+	// FindingSource is the architecture-finding channel this phase emits into
+	// (FINDING_SOURCE_UNSPECIFIED for phases that produce no findings, e.g.
+	// unit/integration/lint). Carried from the catalog Spec so the orchestrator
+	// can stamp the per-phase findingSource token onto each ExecutionResult.
+	FindingSource architecturev1.FindingSource
 }
 
 // Spec captures metadata for a catalog entry.
@@ -206,6 +211,12 @@ type Spec struct {
 	// embedded Phase/Optional fields so every catalog entry carries a complete
 	// manifest; the anti-drift guard asserts surface-bearing phases declare one.
 	Capabilities runnability.PhaseCapabilities
+	// FindingSource is the architecture-finding channel this phase emits into.
+	// Leave UNSPECIFIED for phases that produce no findings (unit, integration,
+	// lint, smoke, performance, playbooks, dependencies). The orchestrator
+	// stamps the lower-case token onto each ExecutionResult so a downstream
+	// campaign reaudit can derive which sources a partial run actually covered.
+	FindingSource architecturev1.FindingSource
 }
 
 // ExecutionResult captures per-phase outcome information.
@@ -224,6 +235,11 @@ type ExecutionResult struct {
 	RunnabilityVerdict string        `json:"runnabilityVerdict,omitempty"`
 	RunnabilityReason  string        `json:"runnabilityReason,omitempty"`
 	Observations       []Observation `json:"observations,omitempty"`
+	// FindingSource is the lower-case source token (findingid vocabulary) for
+	// the channel this phase emits into; empty for phases that produce no
+	// findings. Its presence even on a zero-finding phase is what lets a
+	// campaign reaudit know the source WAS covered by this run.
+	FindingSource string `json:"findingSource,omitempty"`
 	// Findings is the normalized, machine-ingestable finding set for this
 	// phase (see RunReport.Findings). Serialized in the suite `--json`
 	// report so `architecture-cartographer campaign create --from-audit`

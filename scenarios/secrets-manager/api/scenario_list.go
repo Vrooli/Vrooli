@@ -5,12 +5,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os/exec"
 	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
+	vroolicli "github.com/vrooli/vrooli-cli-go"
 )
+
+// cliClient is the shared typed Vrooli CLI client. It decodes the
+// vrooli.cli.v1 contracts instead of hand-parsing CLI JSON, so a CLI output
+// change is a compile error here rather than a silently empty or wrong result.
+var cliClient = vroolicli.New()
 
 // -----------------------------------------------------------------------------
 // ScenarioCLI Interface
@@ -58,11 +63,6 @@ type scenarioSummary struct {
 	Status      string   `json:"status,omitempty"`
 	Tags        []string `json:"tags,omitempty"`
 	Path        string   `json:"path,omitempty"`
-}
-
-type scenarioListPayload struct {
-	Success   bool              `json:"success"`
-	Scenarios []scenarioSummary `json:"scenarios"`
 }
 
 // -----------------------------------------------------------------------------
@@ -116,30 +116,29 @@ func fetchScenarioList(ctx context.Context) ([]scenarioSummary, error) {
 	return defaultScenarioCLI.ListScenarios(ctx)
 }
 
-// fetchScenarioListImpl is the underlying implementation using the vrooli CLI.
+// fetchScenarioListImpl is the underlying implementation using the typed CLI
+// client, mapping the vrooli.cli.v1 scenario-list contract onto scenarioSummary.
 func fetchScenarioListImpl(ctx context.Context) ([]scenarioSummary, error) {
-	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "list", "--json")
-	output, err := cmd.Output()
+	resp, err := cliClient.ListScenarios(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("vrooli scenario list failed: %w", err)
 	}
-
-	var payload scenarioListPayload
-	if err := json.Unmarshal(output, &payload); err != nil {
-		return nil, fmt.Errorf("unable to parse scenario list: %w", err)
-	}
-	if !payload.Success && len(payload.Scenarios) == 0 {
+	if !resp.GetSuccess() && len(resp.GetScenarios()) == 0 {
 		return nil, fmt.Errorf("scenario list did not return results")
 	}
 
-	// Normalize names to avoid trailing slashes or whitespace from CLI output
-	for i, scenario := range payload.Scenarios {
-		payload.Scenarios[i].Name = strings.TrimSpace(scenario.Name)
-		payload.Scenarios[i].Description = strings.TrimSpace(scenario.Description)
-		payload.Scenarios[i].Version = strings.TrimSpace(scenario.Version)
-		payload.Scenarios[i].Status = strings.TrimSpace(scenario.Status)
-		payload.Scenarios[i].Path = strings.TrimSpace(scenario.Path)
+	// Normalize names to avoid trailing slashes or whitespace from CLI output.
+	scenarios := make([]scenarioSummary, 0, len(resp.GetScenarios()))
+	for _, s := range resp.GetScenarios() {
+		scenarios = append(scenarios, scenarioSummary{
+			Name:        strings.TrimSpace(s.GetName()),
+			Description: strings.TrimSpace(s.GetDescription()),
+			Version:     strings.TrimSpace(s.GetVersion()),
+			Status:      strings.TrimSpace(s.GetStatus()),
+			Tags:        s.GetTags(),
+			Path:        strings.TrimSpace(s.GetPath()),
+		})
 	}
 
-	return payload.Scenarios, nil
+	return scenarios, nil
 }

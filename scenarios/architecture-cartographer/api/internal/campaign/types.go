@@ -146,8 +146,9 @@ type Status struct {
 
 // ReauditResult summarizes what a re-audit reconciled.
 type ReauditResult struct {
-	Validated   []Finding // were tracked, gone from fresh → validated
-	StillOpen   []Finding // tracked and still present
-	Regressions []Finding // reappeared-after-terminal or brand-new
-	Status      Status
+	Validated    []Finding // were tracked, gone from fresh → validated
+	StillOpen    []Finding // tracked and still present
+	Regressions  []Finding // reappeared-after-terminal or brand-new
+	NotReaudited []Finding // tracked but source not covered → left untouched
+	Status       Status
 }

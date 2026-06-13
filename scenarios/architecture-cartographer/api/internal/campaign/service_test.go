@@ -91,7 +91,7 @@ func TestResolveAndReauditValidates(t *testing.T) {
 	// Re-audit: the cycle is gone, the mislocated file persists.
 	res, err := svc.Reaudit(ctx, id, []*architecturev1.ArchitectureFinding{
 		pf("demo", "mislocated_file", architecturev1.FindingSeverity_FINDING_SEVERITY_WARNING, "api/b"),
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("reaudit: %v", err)
 	}
@@ -122,7 +122,7 @@ func TestReauditDetectsNewRegression(t *testing.T) {
 	// Re-audit: original cycle gone, but the fix introduced a NEW cycle.
 	res, err := svc.Reaudit(ctx, id, []*architecturev1.ArchitectureFinding{
 		pf("demo", "cycle/auth", architecturev1.FindingSeverity_FINDING_SEVERITY_BLOCKER, "api/auth"),
-	})
+	}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,7 +150,7 @@ func TestReauditReappearanceIsRegression(t *testing.T) {
 	// Re-audit: the "resolved" cycle is STILL there → regression.
 	res, err := svc.Reaudit(ctx, id, []*architecturev1.ArchitectureFinding{
 		pf("demo", "cycle/x", architecturev1.FindingSeverity_FINDING_SEVERITY_BLOCKER, "api/a"),
-	})
+	}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -208,7 +208,7 @@ func TestStableIDReconciliationSurvivesLocationReorder(t *testing.T) {
 	// regression).
 	res, err := svc.Reaudit(ctx, id, []*architecturev1.ArchitectureFinding{
 		pf("demo", "cycle/x", architecturev1.FindingSeverity_FINDING_SEVERITY_BLOCKER, "api\\b", "api/a"),
-	})
+	}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -223,7 +223,12 @@ func TestStableIDReconciliationSurvivesLocationReorder(t *testing.T) {
 func TestCloseMarksCampaignClosed(t *testing.T) {
 	svc := newTestService(t)
 	ctx := context.Background()
-	st, _ := svc.Create(ctx, "demo", "", nil)
+	st, err := svc.Create(ctx, "demo", "", []*architecturev1.ArchitectureFinding{
+		pf("demo", "cycle/x", architecturev1.FindingSeverity_FINDING_SEVERITY_BLOCKER, "api/a"),
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
 	id := st.Campaign.ID
 	closed, err := svc.Close(ctx, id)
 	if err != nil {
@@ -237,9 +242,14 @@ func TestCloseMarksCampaignClosed(t *testing.T) {
 func TestListCampaignsFiltersByScenarioNewestFirst(t *testing.T) {
 	svc := newTestService(t)
 	ctx := context.Background()
-	a1, _ := svc.Create(ctx, "alpha", "first", nil)
-	a2, _ := svc.Create(ctx, "alpha", "second", nil)
-	if _, err := svc.Create(ctx, "beta", "other", nil); err != nil {
+	one := func() []*architecturev1.ArchitectureFinding {
+		return []*architecturev1.ArchitectureFinding{
+			pf("x", "cycle/x", architecturev1.FindingSeverity_FINDING_SEVERITY_BLOCKER, "api/a"),
+		}
+	}
+	a1, _ := svc.Create(ctx, "alpha", "first", one())
+	a2, _ := svc.Create(ctx, "alpha", "second", one())
+	if _, err := svc.Create(ctx, "beta", "other", one()); err != nil {
 		t.Fatalf("create beta: %v", err)
 	}
 
@@ -269,6 +279,112 @@ func TestListCampaignsFiltersByScenarioNewestFirst(t *testing.T) {
 	}
 	if len(all) != 3 {
 		t.Errorf("expected 3 campaigns across all scenarios, got %d", len(all))
+	}
+}
+
+func pfSrc(scenario, code string, src architecturev1.FindingSource, sev architecturev1.FindingSeverity, locs ...string) *architecturev1.ArchitectureFinding {
+	f := pf(scenario, code, sev, locs...)
+	f.Source = src
+	return f
+}
+
+// TestCreateRejectsEmptyFindings: an empty Create is rejected (defense in
+// depth behind the CLI check — an empty campaign is never useful).
+func TestCreateRejectsEmptyFindings(t *testing.T) {
+	svc := newTestService(t)
+	ctx := context.Background()
+	if _, err := svc.Create(ctx, "demo", "", nil); err == nil {
+		t.Fatal("expected Create with nil findings to be rejected")
+	}
+	if _, err := svc.Create(ctx, "demo", "", []*architecturev1.ArchitectureFinding{}); err == nil {
+		t.Fatal("expected Create with empty findings to be rejected")
+	}
+}
+
+// TestReauditRejectsEmptyFindings: an empty fresh photograph would
+// mass-validate everything; it is rejected.
+func TestReauditRejectsEmptyFindings(t *testing.T) {
+	svc := newTestService(t)
+	ctx := context.Background()
+	st, err := svc.Create(ctx, "demo", "", []*architecturev1.ArchitectureFinding{
+		pf("demo", "cycle/x", architecturev1.FindingSeverity_FINDING_SEVERITY_BLOCKER, "api/a"),
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if _, err := svc.Reaudit(ctx, st.Campaign.ID, nil, nil); err == nil {
+		t.Fatal("expected Reaudit with nil findings to be rejected")
+	}
+}
+
+// TestReauditCoverageGuardLeavesUncoveredUntouched: a reaudit scoped to a
+// subset of sources must leave findings from non-covered sources UNTOUCHED
+// (their phase did not run) and report them in NotReaudited — never falsely
+// validate them on absence.
+func TestReauditCoverageGuardLeavesUncoveredUntouched(t *testing.T) {
+	svc := newTestService(t)
+	ctx := context.Background()
+	st, err := svc.Create(ctx, "demo", "", []*architecturev1.ArchitectureFinding{
+		pfSrc("demo", "std_violation", architecturev1.FindingSource_FINDING_SOURCE_STANDARDS, architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR, "a.go"),
+		pfSrc("demo", "proto_break", architecturev1.FindingSource_FINDING_SOURCE_PROTO, architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR, "x.proto"),
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	id := st.Campaign.ID
+
+	// A proto-only reaudit: proto finding still present, standards omitted
+	// because the standards phase did not run (source not covered).
+	res, err := svc.Reaudit(ctx, id, []*architecturev1.ArchitectureFinding{
+		pfSrc("demo", "proto_break", architecturev1.FindingSource_FINDING_SOURCE_PROTO, architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR, "x.proto"),
+	}, []string{"proto"})
+	if err != nil {
+		t.Fatalf("reaudit: %v", err)
+	}
+	if len(res.Validated) != 0 {
+		t.Fatalf("nothing should validate (standards uncovered, proto still present), got %+v", res.Validated)
+	}
+	if len(res.StillOpen) != 1 || res.StillOpen[0].Code != "proto_break" {
+		t.Fatalf("proto finding should be still-open, got %+v", res.StillOpen)
+	}
+	if len(res.NotReaudited) != 1 || res.NotReaudited[0].Code != "std_violation" {
+		t.Fatalf("standards finding should be not-reaudited, got %+v", res.NotReaudited)
+	}
+	// And its persisted state is unchanged (still detected, not validated).
+	cur, err := svc.Status(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, _ := findingByCode(cur.Findings, "std_violation")
+	if got.Status != StatusDetected {
+		t.Errorf("uncovered finding state changed to %s, want detected (untouched)", got.Status)
+	}
+}
+
+// TestReauditEmptyCoverageMeansAllCovered: empty covered_sources is full-suite
+// semantics — an absent finding from any source validates.
+func TestReauditEmptyCoverageMeansAllCovered(t *testing.T) {
+	svc := newTestService(t)
+	ctx := context.Background()
+	st, err := svc.Create(ctx, "demo", "", []*architecturev1.ArchitectureFinding{
+		pfSrc("demo", "std_violation", architecturev1.FindingSource_FINDING_SOURCE_STANDARDS, architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR, "a.go"),
+		pfSrc("demo", "proto_break", architecturev1.FindingSource_FINDING_SOURCE_PROTO, architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR, "x.proto"),
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	// Standards gone, proto still present, empty coverage = all covered.
+	res, err := svc.Reaudit(ctx, st.Campaign.ID, []*architecturev1.ArchitectureFinding{
+		pfSrc("demo", "proto_break", architecturev1.FindingSource_FINDING_SOURCE_PROTO, architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR, "x.proto"),
+	}, nil)
+	if err != nil {
+		t.Fatalf("reaudit: %v", err)
+	}
+	if len(res.Validated) != 1 || res.Validated[0].Code != "std_violation" {
+		t.Fatalf("empty coverage should validate the absent standards finding, got %+v", res.Validated)
+	}
+	if len(res.NotReaudited) != 0 {
+		t.Fatalf("empty coverage must never produce not-reaudited, got %+v", res.NotReaudited)
 	}
 }
 

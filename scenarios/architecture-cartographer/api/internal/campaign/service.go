@@ -46,7 +46,11 @@ type Service interface {
 	Resolve(ctx context.Context, id, stableID, note string) (Finding, error)
 	// Reaudit reconciles a fresh findings set against the tracked set by
 	// stable id: absent→validated, present→stay, (re)appeared→regression.
-	Reaudit(ctx context.Context, id string, fresh []*architecturev1.ArchitectureFinding) (ReauditResult, error)
+	// coveredSources scopes which sources the fresh photograph actually
+	// observed (findingid tokens); a tracked finding whose source is not
+	// covered is left untouched and reported in NotReaudited. An EMPTY
+	// coveredSources means all sources are covered (full-suite semantics).
+	Reaudit(ctx context.Context, id string, fresh []*architecturev1.ArchitectureFinding, coveredSources []string) (ReauditResult, error)
 	// Close marks the campaign closed.
 	Close(ctx context.Context, id string) (Status, error)
 }
@@ -80,6 +84,11 @@ func (s *service) Create(ctx context.Context, scenario, name string, findings []
 	scenario = strings.TrimSpace(scenario)
 	if scenario == "" {
 		return Status{}, ErrInvalidInput{Reason: "scenario is required"}
+	}
+	// Defense in depth behind the CLI check: an empty campaign tracks nothing
+	// and is never useful.
+	if !hasStampableFinding(scenario, findings) {
+		return Status{}, ErrInvalidInput{Reason: "no findings to ingest — an empty campaign is never useful"}
 	}
 	c := Campaign{
 		ID:       uuid.NewString(),
@@ -163,14 +172,34 @@ func (s *service) Resolve(ctx context.Context, id, stableID, note string) (Findi
 	return s.repo.GetFinding(ctx, id, stableID)
 }
 
-func (s *service) Reaudit(ctx context.Context, id string, fresh []*architecturev1.ArchitectureFinding) (ReauditResult, error) {
+func (s *service) Reaudit(ctx context.Context, id string, fresh []*architecturev1.ArchitectureFinding, coveredSources []string) (ReauditResult, error) {
 	c, err := s.repo.GetCampaign(ctx, id)
 	if err != nil {
 		return ReauditResult{}, err
 	}
+	// An empty fresh photograph would mass-validate every tracked finding;
+	// reject it rather than corrupt the campaign.
+	if !hasStampableFinding(c.Scenario, fresh) {
+		return ReauditResult{}, ErrInvalidInput{Reason: "reaudit received zero findings — an empty photograph would falsely validate everything"}
+	}
 	tracked, err := s.repo.ListFindings(ctx, id)
 	if err != nil {
 		return ReauditResult{}, err
+	}
+
+	// Build the coverage set. Empty ⇒ all sources covered (full-suite).
+	covered := make(map[string]struct{}, len(coveredSources))
+	for _, src := range coveredSources {
+		if src = strings.TrimSpace(src); src != "" {
+			covered[src] = struct{}{}
+		}
+	}
+	isCovered := func(source string) bool {
+		if len(covered) == 0 {
+			return true
+		}
+		_, ok := covered[source]
+		return ok
 	}
 
 	// Index the fresh photograph by canonical afid.
@@ -207,8 +236,15 @@ func (s *service) Reaudit(ctx context.Context, id string, fresh []*architecturev
 			}
 			continue
 		}
-		// Absent from the fresh photograph → fixed. Validate it (unless it
-		// was already validated/committed).
+		// Absent from the fresh photograph. Only treat absence as evidence of
+		// a fix when this finding's source was actually covered by the audit;
+		// otherwise its phase did not run and we must leave it untouched.
+		if !isCovered(f.Source) {
+			result.NotReaudited = append(result.NotReaudited, f)
+			continue
+		}
+		// Covered and absent → fixed. Validate it (unless it was already
+		// validated/committed).
 		switch f.Status {
 		case StatusValidated, StatusCommitted:
 			// already terminal-and-gone; leave as is

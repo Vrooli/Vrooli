@@ -166,12 +166,13 @@ func (r *RequirementsSummary) Promotions() []RequirementChange {
 // audit's finding load exceeded the single-pass threshold, recommending a
 // tracked improvement campaign over ad-hoc fixing.
 type CampaignNudge struct {
-	Triggered  bool           `json:"triggered"`
-	Total      int            `json:"total"`
-	Severe     int            `json:"severe"`
-	BySeverity map[string]int `json:"bySeverity"`
-	Reason     string         `json:"reason"`
-	Command    string         `json:"command"`
+	Triggered    bool           `json:"triggered"`
+	Total        int            `json:"total"`
+	Severe       int            `json:"severe"`
+	BySeverity   map[string]int `json:"bySeverity"`
+	Reason       string         `json:"reason"`
+	ArtifactPath string         `json:"artifactPath"`
+	Command      string         `json:"command"`
 }
 
 // WarningDetail captures a non-fatal warning emitted by a phase.

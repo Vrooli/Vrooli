@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"test-genie/internal/orchestrator/runnability"
+
+	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
 
 // Catalog exposes the orchestrator's built-in phase registry so the API can
@@ -39,9 +41,10 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 	}
 
 	register(Spec{
-		Name:        Structure,
-		Runner:      runStructurePhase,
-		Description: "Validates scenario layout, manifests, and JSON health before any tests run.",
+		Name:          Structure,
+		Runner:        runStructurePhase,
+		Description:   "Validates scenario layout, manifests, and JSON health before any tests run.",
+		FindingSource: architecturev1.FindingSource_FINDING_SOURCE_STRUCTURE,
 	})
 	register(Spec{
 		Name:           Contracts,
@@ -49,6 +52,7 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Optional:       false,
 		DefaultTimeout: 60 * time.Second,
 		Description:    "Validates cli/manifest.json bindings against proto descriptors via cli-health.",
+		FindingSource:  architecturev1.FindingSource_FINDING_SOURCE_CLI,
 	})
 	register(Spec{
 		Name:           UIHealth,
@@ -56,6 +60,7 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Optional:       false,
 		DefaultTimeout: 60 * time.Second,
 		Description:    "Validates ui/manifest.json bindings, slot directories, and overlay rules via ui-health.",
+		FindingSource:  architecturev1.FindingSource_FINDING_SOURCE_UI,
 	})
 	register(Spec{
 		Name:           Standards,
@@ -63,6 +68,7 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Optional:       false,
 		DefaultTimeout: 60 * time.Second,
 		Description:    "Runs scenario-auditor standards rules (PRD/service.json/proxy/lifecycle config).",
+		FindingSource:  architecturev1.FindingSource_FINDING_SOURCE_STANDARDS,
 	})
 	register(Spec{
 		Name:           Architecture,
@@ -70,6 +76,7 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Optional:       true,
 		DefaultTimeout: 120 * time.Second,
 		Description:    "Audits structural cohesion (cycles, coupling, convergence, mislocation) via architecture-cartographer. Advisory — never gates; drives the campaign nudge.",
+		FindingSource:  architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE,
 	})
 	register(Spec{
 		Name:        Dependencies,
@@ -88,6 +95,7 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Optional:       false,
 		DefaultTimeout: 60 * time.Second,
 		Description:    "Validates Markdown, mermaid diagrams, links, and portability guards across scenario docs.",
+		FindingSource:  architecturev1.FindingSource_FINDING_SOURCE_DOCS,
 	})
 	register(Spec{
 		Name:         Performance,
@@ -126,9 +134,10 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		},
 	})
 	register(Spec{
-		Name:        Business,
-		Runner:      runBusinessPhase,
-		Description: "Audits requirements modules to guarantee operational targets stay mapped.",
+		Name:          Business,
+		Runner:        runBusinessPhase,
+		Description:   "Audits requirements modules to guarantee operational targets stay mapped.",
+		FindingSource: architecturev1.FindingSource_FINDING_SOURCE_BUSINESS,
 	})
 	register(Spec{
 		Name:           Coverage,
@@ -136,6 +145,7 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Optional:       true,
 		DefaultTimeout: 30 * time.Second,
 		Description:    "Parses Go coverage profiles and Node LCOV reports and flags targets below the coverage threshold (source=coverage).",
+		FindingSource:  architecturev1.FindingSource_FINDING_SOURCE_COVERAGE,
 	})
 	register(Spec{
 		Name:           Tidiness,
@@ -143,6 +153,7 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Optional:       true,
 		DefaultTimeout: 120 * time.Second,
 		Description:    "Delegates file/function quality checks to tidiness-manager and maps violations into findings (source=tidiness).",
+		FindingSource:  architecturev1.FindingSource_FINDING_SOURCE_TIDINESS,
 	})
 	register(Spec{
 		Name:           Security,
@@ -150,6 +161,7 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Optional:       true,
 		DefaultTimeout: 180 * time.Second,
 		Description:    "Delegates security posture validation to security-health (secrets, Go SAST, Go vuln-DB, JS deps) and maps findings into the FINDING_SOURCE_SECURITY channel that gates the ecosystem-manager R1 ladder rung.",
+		FindingSource:  architecturev1.FindingSource_FINDING_SOURCE_SECURITY,
 	})
 	register(Spec{
 		Name:           Measures,
@@ -157,6 +169,7 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Optional:       true,
 		DefaultTimeout: 180 * time.Second,
 		Description:    "Delegates measures-coverage validation to measures-health (stateful-domain coverage + per-measure tier) and maps findings into the FINDING_SOURCE_MEASURES channel that feeds the ecosystem-manager soft `measures` ladder dimension.",
+		FindingSource:  architecturev1.FindingSource_FINDING_SOURCE_MEASURES,
 	})
 	register(Spec{
 		Name:           Proto,
@@ -164,6 +177,7 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Optional:       true,
 		DefaultTimeout: 120 * time.Second,
 		Description:    "Delegates proto contract validation to proto-health and maps findings into the FINDING_SOURCE_PROTO channel that feeds the ecosystem-manager soft `proto-health` R2 ladder dimension.",
+		FindingSource:  architecturev1.FindingSource_FINDING_SOURCE_PROTO,
 	})
 	return catalog
 }

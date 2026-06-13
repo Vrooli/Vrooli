@@ -89,6 +89,12 @@ const (
 
 	// LatestManifestFile is the manifest describing the latest run artifacts.
 	LatestManifestFile = "manifest.json"
+
+	// FindingsArtifactFile is the per-run combined findings document. It
+	// gathers every phase's normalized findings (zero-finding phases
+	// included) into one file shaped as the `--from-audit` ingest contract,
+	// so the campaign nudge can point at a file that already exists on disk.
+	FindingsArtifactFile = "findings.json"
 )
 
 // ============================================================================
@@ -180,6 +186,25 @@ func RunLighthouseDir(scenarioDir, runID string) string {
 // RunUnitDir returns the absolute per-run unit directory.
 func RunUnitDir(scenarioDir, runID string) string {
 	return filepath.Join(RunDir(scenarioDir, runID), UnitSubdir)
+}
+
+// RunFindingsArtifactPath returns the absolute path to a run's combined
+// findings document (coverage/runs/<runID>/findings.json).
+func RunFindingsArtifactPath(scenarioDir, runID string) string {
+	return filepath.Join(RunDir(scenarioDir, runID), FindingsArtifactFile)
+}
+
+// LatestFindingsArtifactPath returns the absolute path to the latest-run
+// mirror of the combined findings document (coverage/latest/findings.json).
+func LatestFindingsArtifactPath(scenarioDir string) string {
+	return filepath.Join(LatestDirPath(scenarioDir), FindingsArtifactFile)
+}
+
+// RelativeRunFindingsArtifactPath returns the scenario-relative path to a
+// run's combined findings document, suitable for embedding in the campaign
+// nudge command (`--from-audit coverage/runs/<runID>/findings.json`).
+func RelativeRunFindingsArtifactPath(runID string) string {
+	return filepath.Join(RunsDir, runID, FindingsArtifactFile)
 }
 
 // RunsIndexPath returns the absolute path to the append-only runs index.

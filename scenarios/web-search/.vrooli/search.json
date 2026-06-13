@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../scripts/scenarios/schemas/search.schema.json",
+  "$schema": "../../../.vrooli/schemas/search.schema.json",
   "version": "1.0.0",
   "providers": [
     {

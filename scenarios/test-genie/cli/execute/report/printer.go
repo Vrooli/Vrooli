@@ -185,7 +185,9 @@ func (p *Printer) printCampaignNudge(resp execTypes.Response) {
 		parts = append(parts, extra...)
 		fmt.Fprintf(p.w, "   findings: %s\n", strings.Join(parts, " "))
 	}
-	fmt.Fprintln(p.w, "   Save this run's --json output, then:")
+	if strings.TrimSpace(n.ArtifactPath) != "" {
+		fmt.Fprintf(p.w, "   findings artifact: %s\n", n.ArtifactPath)
+	}
 	fmt.Fprintf(p.w, "   %s\n", p.color.Cyan(n.Command))
 }
 

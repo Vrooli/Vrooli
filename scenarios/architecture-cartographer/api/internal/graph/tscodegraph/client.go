@@ -116,7 +116,7 @@ func (c *Client) Extract(ctx context.Context, scenario string) (graph.RawGraph, 
 	}
 	rpc := graph_v1connect.NewTypeScriptCodeGraphServiceClient(c.httpClient, baseURL)
 	resp, err := rpc.Extract(ctx, connect.NewRequest(&graphv1.ExtractRequest{
-		ScenarioPath: projectPath,
+		ProjectPath: projectPath,
 	}))
 	if err != nil {
 		return graph.RawGraph{}, classifyConnectError(err)

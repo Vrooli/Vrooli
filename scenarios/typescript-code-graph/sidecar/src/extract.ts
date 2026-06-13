@@ -975,6 +975,16 @@ interface DiagChainLike {
 
 function flattenMessage(m: unknown): string {
   if (typeof m === "string") return m;
+  if (m && typeof m === "object" && "getMessageText" in m) {
+    const getter = (m as { getMessageText?: () => unknown }).getMessageText;
+    if (typeof getter === "function") return flattenMessage(getter.call(m));
+  }
+  if (m && typeof m === "object" && "compilerObject" in m) {
+    const compilerObject = (m as { compilerObject?: unknown }).compilerObject;
+    if (compilerObject && typeof compilerObject === "object" && "messageText" in compilerObject) {
+      return flattenMessage((compilerObject as DiagChainLike).messageText);
+    }
+  }
   if (m && typeof m === "object" && "messageText" in m) {
     const chain = m as DiagChainLike;
     let out = flattenMessage(chain.messageText);
