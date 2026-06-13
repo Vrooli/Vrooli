@@ -233,6 +233,67 @@ function Panel(props: { title: string; children: ReactNode }) {
     }
   });
 
+  it("emits generic Express route registration facts for literal routes", () => {
+    const project = inMemoryProject();
+    project.createSourceFile(
+      "/proj/src/server.ts",
+      `
+const app = express();
+const router = express.Router();
+function healthHandler() {}
+const upload = () => {};
+app.get("/health", healthHandler);
+router.post(\`/api/v1/notes/:id/attachments\`, upload);
+      `,
+    );
+
+    const out = extract({ projectPath: "/proj", _project: project, _rootDirOverride: "/proj" });
+    const routes = out.graph.nodes.filter((n) => n.attributes.kind === "TS_NODE_KIND_ROUTE_REGISTRATION");
+
+    expect(routes.map((n) => n.attributes.route_path)).toEqual(
+      expect.arrayContaining(["/health", "/api/v1/notes/:id/attachments"]),
+    );
+    expect(routes.find((n) => n.attributes.route_path === "/health")?.attributes).toMatchObject({
+      http_method: "GET",
+      route_path_status: "proven",
+      router_framework: "express",
+      handler_expr: "healthHandler",
+      handler_symbol: "healthHandler",
+    });
+    expect(routes.find((n) => n.attributes.route_path === "/api/v1/notes/:id/attachments")?.attributes).toMatchObject({
+      http_method: "POST",
+      route_path_status: "proven",
+      router_framework: "express",
+      handler_expr: "upload",
+      handler_symbol: "upload",
+    });
+  });
+
+  it("emits unknown route path status for dynamic Express routes", () => {
+    const project = inMemoryProject();
+    project.createSourceFile(
+      "/proj/src/server.ts",
+      `
+const router = express.Router();
+const prefix = "/health";
+function handler() {}
+router.get(prefix, handler);
+      `,
+    );
+
+    const out = extract({ projectPath: "/proj", _project: project, _rootDirOverride: "/proj" });
+    const route = out.graph.nodes.find((n) => n.attributes.kind === "TS_NODE_KIND_ROUTE_REGISTRATION");
+
+    expect(route).toBeDefined();
+    expect(route!.attributes).toMatchObject({
+      http_method: "GET",
+      route_path: "",
+      route_path_status: "unknown",
+      router_framework: "express",
+      handler_expr: "handler",
+    });
+  });
+
   it("allows a scenario UI pnpm workspace boundary with packages dot", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "tscg-boundary-"));
     try {

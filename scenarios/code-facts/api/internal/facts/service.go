@@ -409,7 +409,7 @@ func parseUnitsForDescribeAnalysis(units []*factsv1.ParseUnit, include []factsv1
 	if hasFamily(include, factsv1.FactFamily_FACT_FAMILY_ENDPOINT_PROOFS) &&
 		!hasFamily(include, factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION) &&
 		!hasDirectAnalyzerFamily(include) {
-		return filterParseUnits(units, []string{"go"})
+		return filterParseUnits(units, []string{"go", "typescript"})
 	}
 	return units
 }
@@ -431,7 +431,7 @@ func endpointProofLanguages(requested []string) []string {
 	if len(requested) > 0 {
 		return requested
 	}
-	return []string{"go"}
+	return []string{"go", "typescript"}
 }
 
 func languageSet(languages []string) map[string]bool {

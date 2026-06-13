@@ -1,18 +1,14 @@
 // Package health provides the /health endpoint.
-//
-// Built on api-core/health for the standardized response schema
-// (status / dependencies / metrics) but plumbed through the local
-// database.Pinger seam so handler tests can substitute a fake without
-// opening the on-disk SQLite file.
 package health
 
 import (
-	"context"
 	"net/http"
+	"time"
 
 	"proto-health/internal/database"
+	"proto-health/internal/httpx"
 
-	apihealth "github.com/vrooli/api-core/health"
+	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/health"
 )
 
 // Deps wires the seams the health handler needs. Service and Version
@@ -29,10 +25,32 @@ type Deps struct {
 // is registered as Critical: a failed ping flips the response to
 // status="unhealthy" with HTTP 503.
 func NewHandler(d Deps) http.HandlerFunc {
-	return apihealth.New(d.Service).
-		Version(d.Version).
-		Check(apihealth.Func("database", func(ctx context.Context) error {
-			return d.Pinger.PingContext(ctx)
-		}), apihealth.Critical).
-		Handler()
+	started := time.Now()
+	return func(w http.ResponseWriter, r *http.Request) {
+		now := time.Now()
+		statusCode := http.StatusOK
+		resp := &healthv1.Response{
+			Status:        "healthy",
+			Service:       d.Service,
+			Timestamp:     now.UTC().Format(time.RFC3339),
+			Readiness:     true,
+			Version:       d.Version,
+			UptimeSeconds: now.Sub(started).Seconds(),
+			Dependencies: map[string]*healthv1.DependencyStatus{
+				"database": {Connected: true},
+			},
+		}
+
+		if err := d.Pinger.PingContext(r.Context()); err != nil {
+			statusCode = http.StatusServiceUnavailable
+			resp.Status = "unhealthy"
+			resp.Readiness = false
+			resp.Dependencies["database"] = &healthv1.DependencyStatus{
+				Connected: false,
+				Error:     err.Error(),
+			}
+		}
+
+		httpx.WriteProto(w, statusCode, resp)
+	}
 }

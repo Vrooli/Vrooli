@@ -48,9 +48,8 @@ var Endpoints = []module.EndpointDescriptor{
 					Conformance:   "protojson",
 				},
 				Error: module.RESTExceptionPayload{
-					ProtoFullName: "vrooli.proto_health.v1.shared.ErrorEnvelope",
-					Transport:     "json",
-					Conformance:   "protojson",
+					Transport:   "json",
+					Conformance: "external_shape",
 				},
 			},
 		},

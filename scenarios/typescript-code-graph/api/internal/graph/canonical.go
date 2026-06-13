@@ -146,6 +146,8 @@ func nodeKindToWire(k NodeKind) int32 {
 		return 213
 	case NodeKindExport:
 		return 214
+	case NodeKindRoute:
+		return 215
 	default:
 		return 0
 	}

@@ -75,7 +75,7 @@ func (n normalizer) familyForNode(language string, node *commonv1.CodeGraphNode)
 			return factsv1.FactFamily_FACT_FAMILY_IMPORTS, true
 		case "TS_NODE_KIND_REFERENCE", "ts_reference":
 			return factsv1.FactFamily_FACT_FAMILY_REFERENCES, true
-		case "TS_NODE_KIND_CALL", "TS_NODE_KIND_JSX_USAGE", "ts_call", "ts_jsx_usage":
+		case "TS_NODE_KIND_CALL", "TS_NODE_KIND_JSX_USAGE", "TS_NODE_KIND_ROUTE_REGISTRATION", "ts_call", "ts_jsx_usage", "ts_route_registration":
 			return factsv1.FactFamily_FACT_FAMILY_CALLS, true
 		case "TS_NODE_KIND_COMPONENT", "TS_NODE_KIND_HOOK", "TS_NODE_KIND_CLASS", "TS_NODE_KIND_INTERFACE", "TS_NODE_KIND_TYPE", "TS_NODE_KIND_FUNCTION", "TS_NODE_KIND_VAR", "TS_NODE_KIND_CONST", "TS_NODE_KIND_EXPORT", "TS_NODE_KIND_RE_EXPORT",
 			"ts_component", "ts_hook", "ts_class", "ts_interface", "ts_type", "ts_function", "ts_var", "ts_const", "ts_export", "ts_re_export":

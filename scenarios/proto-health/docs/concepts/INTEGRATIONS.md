@@ -19,7 +19,7 @@ Use this document to answer:
 |---|---|---|---|---|---|
 | SQLite | embedded storage | yes | API, notes reference | `SQLITE_PATH` lifecycle env var | API reports unhealthy if unreachable. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario should be started through lifecycle commands. |
-| code-facts | scenario | soft-required for implementation proof | validation API | `CodeFactsService.CheckProtoAdoption` and `CheckEndpointProof` over a scenario target | Static validation still runs; unavailable proof is reported as `proto.code_facts_unavailable` warning. |
+| code-facts | scenario | soft-required for implementation proof | validation API | `CodeFactsService.CheckProtoAdoption` and `CheckEndpointProof` over a scenario target | Static validation still runs; unavailable or unsupported proof is reported as proto proof warnings. |
 
 ## Vrooli Resources
 
@@ -35,7 +35,7 @@ requires them.
 
 | Scenario | Status | Reason | Contract |
 |---|---|---|---|
-| code-facts | active | Owns source analyzer brokering and proof synthesis. | `proto-health` asks for proto adoption and endpoint proof reports, then maps statuses into policy findings. |
+| code-facts | active | Owns source analyzer brokering, framework adapter coverage, and proof synthesis. | `proto-health` asks for proto adoption and endpoint proof reports, then maps statuses into policy findings. |
 
 ## Third-Party Services
 

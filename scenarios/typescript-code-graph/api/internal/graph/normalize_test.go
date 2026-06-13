@@ -57,6 +57,7 @@ func TestNormalize_DecodesTsNodeKinds(t *testing.T) {
 		{212, graph.NodeKindCall},
 		{213, graph.NodeKindJsxUsage},
 		{214, graph.NodeKindExport},
+		{215, graph.NodeKindRoute},
 		{200, graph.NodeKindModule},
 		{1, graph.NodeKindFile},
 		{2, graph.NodeKindModule},

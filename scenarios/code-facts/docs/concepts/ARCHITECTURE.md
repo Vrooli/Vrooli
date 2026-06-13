@@ -37,12 +37,20 @@ request target
   -> surface inventory + parse-unit discovery
   -> analyzer broker
   -> fact normalizer
+  -> framework endpoint adapters
   -> proof synthesizer
   -> cache metadata
   -> CodeFactsReport
 ```
 
 Fact-family filtering is applied at the Code Facts service boundary. Provider-level extraction may still be full graph extraction until providers add selective extraction.
+
+Endpoint proof is intentionally two-stage. Graph providers emit generic route,
+import, reference, call, and type facts. Code Facts framework adapters then
+interpret only the generic attributes they support and produce normalized
+endpoint implementation evidence. The final proof step compares that evidence
+to `.vrooli/endpoints.json`; downstream consumers such as proto-health consume
+only the resulting proof statuses and evidence.
 
 ## Shared Infrastructure
 
@@ -57,6 +65,8 @@ Fact-family filtering is applied at the Code Facts service boundary. Provider-le
 
 - Add new fact families as explicit enum/contract values.
 - Add new analyzer providers behind the analyzer seam.
+- Add new endpoint framework coverage through Code Facts adapters backed by
+  generic graph facts.
 - Add new proof families in the proof domain, backed by generic facts.
 - Keep provider-specific language details out of shared Code Facts evidence unless normalized.
 

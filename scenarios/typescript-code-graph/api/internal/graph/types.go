@@ -56,6 +56,7 @@ const (
 	NodeKindCall          NodeKind = "ts_call"
 	NodeKindJsxUsage      NodeKind = "ts_jsx_usage"
 	NodeKindExport        NodeKind = "ts_export"
+	NodeKindRoute         NodeKind = "ts_route_registration"
 )
 
 // EdgeKind enumerates the directed-edge families this scenario emits.

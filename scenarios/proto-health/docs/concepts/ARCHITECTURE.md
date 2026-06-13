@@ -159,7 +159,8 @@ long as the wire payload type is shared.
    proof reports for generated proto adoption and REST exception
    handler conformance. Missing or contradicted proof becomes a
    proto-health finding; unsupported or unavailable analyzers degrade
-   to warnings. `proto-health` does not parse Go or TypeScript source.
+   to warnings. Language/framework coverage depends on the Code Facts
+   support matrix; `proto-health` does not parse Go or TypeScript source.
 
 The generated `notes` domain remains in the scaffold as a reference
 vertical until `validation` and `protosurface` are implemented. It is

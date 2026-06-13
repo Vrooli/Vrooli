@@ -108,6 +108,8 @@ func decodeNodeKind(k int32) NodeKind {
 		return NodeKindJsxUsage
 	case 214:
 		return NodeKindExport
+	case 215:
+		return NodeKindRoute
 	default:
 		return NodeKindFile
 	}

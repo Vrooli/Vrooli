@@ -40,9 +40,8 @@
             "conformance": "protojson"
           },
           "error": {
-            "proto_full_name": "vrooli.proto_health.v1.shared.ErrorEnvelope",
             "transport": "json",
-            "conformance": "protojson"
+            "conformance": "external_shape"
           }
         }
       }

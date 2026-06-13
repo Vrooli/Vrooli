@@ -59,6 +59,7 @@ const TS_NODE_KIND_REFERENCE = 211;
 const TS_NODE_KIND_CALL = 212;
 const TS_NODE_KIND_JSX_USAGE = 213;
 const TS_NODE_KIND_EXPORT = 214;
+const TS_NODE_KIND_ROUTE_REGISTRATION = 215;
 
 // common.v1.EdgeKind
 const EK_IMPORT = 1;
@@ -87,6 +88,7 @@ const KIND_SHORT: Record<number, string> = {
   [TS_NODE_KIND_CALL]: "ts_call",
   [TS_NODE_KIND_JSX_USAGE]: "ts_jsx_usage",
   [TS_NODE_KIND_EXPORT]: "ts_export",
+  [TS_NODE_KIND_ROUTE_REGISTRATION]: "ts_route_registration",
 };
 
 // String name used in attributes["kind"] (matches TsNodeKind enum names).
@@ -106,6 +108,7 @@ const KIND_ATTR: Record<number, string> = {
   [TS_NODE_KIND_CALL]: "TS_NODE_KIND_CALL",
   [TS_NODE_KIND_JSX_USAGE]: "TS_NODE_KIND_JSX_USAGE",
   [TS_NODE_KIND_EXPORT]: "TS_NODE_KIND_EXPORT",
+  [TS_NODE_KIND_ROUTE_REGISTRATION]: "TS_NODE_KIND_ROUTE_REGISTRATION",
 };
 
 // --- Typed errors -------------------------------------------------------------
@@ -732,6 +735,8 @@ function usageFactNodes(
     if (Node.isImportDeclaration(child) || Node.isExportDeclaration(child)) return;
     if (Node.isCallExpression(child)) {
       nodes.push(callFactNode(relPath, child));
+      const route = routeRegistrationFactNode(relPath, child);
+      if (route) nodes.push(route);
       return;
     }
     if (Node.isJsxSelfClosingElement(child)) {
@@ -753,6 +758,59 @@ function usageFactNodes(
     nodes.push(referenceFactNode(relPath, child, symbolIndex));
   });
   return nodes;
+}
+
+function routeRegistrationFactNode(relPath: string, call: import("ts-morph").CallExpression): CodeGraphNode | null {
+  const expr = call.getExpression();
+  if (!Node.isPropertyAccessExpression(expr)) return null;
+  const method = expr.getName().toUpperCase();
+  if (!["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"].includes(method)) return null;
+  const receiver = expr.getExpression().getText();
+  if (!isExpressRouterReceiver(receiver)) return null;
+
+  const args = call.getArguments();
+  const route = literalRoutePath(args[0]);
+  const handlerExpr = args[1]?.getText() ?? "";
+  return {
+    id: `${KIND_SHORT[TS_NODE_KIND_ROUTE_REGISTRATION]}:${relPath}:${stableLocation(call)}:${method}`,
+    kind: TS_NODE_KIND_ROUTE_REGISTRATION,
+    name: `${method} ${route.path || "<dynamic>"}`,
+    path: relPath,
+    attributes: {
+      language: "typescript",
+      kind: KIND_ATTR[TS_NODE_KIND_ROUTE_REGISTRATION]!,
+      router_framework: "express",
+      router_receiver: receiver,
+      http_method: method,
+      http_method_status: "proven",
+      route_path: route.path,
+      route_path_status: route.status,
+      handler_expr: handlerExpr,
+      handler_symbol: handlerSymbol(args[1]),
+      enclosing_symbol: enclosingDeclarationName(call),
+      ...sourceRangeAttrs(call),
+    },
+    leading_comments: [],
+  };
+}
+
+function isExpressRouterReceiver(receiver: string): boolean {
+  return receiver === "app" || receiver === "router" || receiver.endsWith("Router");
+}
+
+function literalRoutePath(node: Node | undefined): { path: string; status: string } {
+  if (!node) return { path: "", status: "unknown" };
+  if (Node.isStringLiteral(node) || Node.isNoSubstitutionTemplateLiteral(node)) {
+    return { path: node.getLiteralText(), status: "proven" };
+  }
+  return { path: "", status: "unknown" };
+}
+
+function handlerSymbol(node: Node | undefined): string {
+  if (!node) return "";
+  if (Node.isIdentifier(node)) return node.getText();
+  if (Node.isPropertyAccessExpression(node)) return node.getText();
+  return "";
 }
 
 function callFactNode(relPath: string, call: import("ts-morph").CallExpression): CodeGraphNode {

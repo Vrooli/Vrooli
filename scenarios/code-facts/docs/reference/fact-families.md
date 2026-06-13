@@ -9,9 +9,25 @@
 | `references` | Implemented in Phase 8. Resolved symbol references and Go type-usage facts where graph providers emit them. |
 | `calls` | Implemented in Phase 8. Call expressions and JSX usage facts, including provider metadata such as callee, argument summaries, props summaries, and enclosing declarations when present. |
 | `proto_adoption` | Implemented in Phase 10. Generated proto artifact adoption evidence synthesized from generic imports, scoped by API/CLI/UI surface and classified as scenario-owned or shared generated proto usage. |
-| `endpoint_proofs` | Implemented in Phase 10. Static REST-exception implementation evidence synthesized from `.vrooli/endpoints.json`, route metadata when graph facts provide it, and recognized typed helper usage such as `WriteProto`/`WriteError`. |
+| `endpoint_proofs` | Implemented. Static REST-exception implementation evidence synthesized by comparing `.vrooli/endpoints.json` declarations with normalized endpoint implementation facts from Code Facts framework adapters. |
 | `cli_proofs` | Planned CLI implementation evidence. |
 | `ui_widget_proofs` | Planned UI widget evidence. |
 | `all` | All supported families for the target. |
 
 Generic facts include provider-specific metadata in `attributes`. Code Facts treats those attributes as evidence payload, not policy conclusions. Proof families interpret a small, documented subset of those attributes and emit `unknown` instead of `proven` when the provider graph lacks enough detail.
+
+## Endpoint Proof Support Matrix
+
+| Language | Framework | Route Proof | Response Proto Proof | Error Proto Proof | Status |
+|---|---|---|---|---|---|
+| Go | `net/http` / gorilla mux-style static registrations | Supported from route registration facts with literal path and method attributes. | Supported through generated Go proto type usage and recognized `httpx.WriteProto`-style helpers. | Supported through generated ErrorEnvelope usage and recognized `httpx.WriteError`-style helpers. | Active |
+| TypeScript | Express | Supported for literal `app.METHOD(...)` and `router.METHOD(...)` registrations emitted by `typescript-code-graph`. | Supported for static generated TypeScript proto imports plus recognized response calls or typed arguments. Import-only evidence remains `unknown`. | Partial and conservative; generated error payload usage must be visible in handler-local facts. | Active, partial |
+| TypeScript | Fastify, Hono, and other frameworks | Not evaluated until an adapter exists. | Unsupported. | Unsupported. | Planned |
+
+Endpoint-level status is an aggregate over route and required proto payload
+roles. `contradicted` outranks all other statuses, `missing` outranks
+`unknown` and `unsupported`, and `unknown` prevents a proven endpoint unless it
+belongs to a role that is explicitly non-proto or non-required.
+Route-registration facts for frameworks without an endpoint adapter emit
+`code-facts.endpoint_proof.framework_unsupported` warnings with `unsupported`
+status; they are not treated as proof.

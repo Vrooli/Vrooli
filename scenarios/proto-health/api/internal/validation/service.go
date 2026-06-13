@@ -201,6 +201,11 @@ func codeFactsUnavailableFinding(scope string, err error) Finding {
 }
 
 func factStatus(fact *factsv1.GenericFact) factsv1.EvidenceStatus {
+	if fact.GetFamily() == factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION || fact.GetFamily() == factsv1.FactFamily_FACT_FAMILY_ENDPOINT_PROOFS {
+		if len(fact.GetEvidence()) > 0 && fact.GetEvidence()[0].GetStatus() != factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSPECIFIED {
+			return fact.GetEvidence()[0].GetStatus()
+		}
+	}
 	status := factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSPECIFIED
 	for _, ev := range fact.GetEvidence() {
 		switch ev.GetStatus() {

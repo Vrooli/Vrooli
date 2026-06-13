@@ -151,21 +151,23 @@
     },
     {
       "id": "CF-P0-007",
-      "title": "Prove Go REST endpoint implementation facts",
+      "title": "Prove REST endpoint implementation facts",
       "status": "complete",
       "prd_ref": "OT-P0-007",
       "category": "proof",
       "criticality": "P0",
-      "description": "Synthesize endpoint proof facts for Go REST handlers using generic call/type/import usage facts from go-code-graph.",
+      "description": "Synthesize endpoint proof facts for supported REST handlers using framework adapters over generic call/type/import/route facts from graph providers.",
       "tags": [
         "endpoint-proof",
-        "go"
+        "go",
+        "typescript",
+        "framework-adapter"
       ],
       "validation": [
         {
           "type": "test",
           "status": "implemented",
-          "notes": "API tests cover protojson response construction, error envelope usage, and contradicted declaration from wrong response type."
+          "notes": "API tests cover Go protojson response construction, error envelope usage, TypeScript Express static route proof, missing payload evidence, import-only unknown evidence, and contradicted declaration from wrong response type."
         }
       ]
     },

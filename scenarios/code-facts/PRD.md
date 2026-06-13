@@ -17,7 +17,7 @@
 - [x] OT-P0-004 | Selective Describe | Selective describe returns only requested fact families and clearly reports unsupported families.
 - [x] OT-P0-005 | Evidence Status Model | Evidence status model supports `proven`, `missing`, `contradicted`, `unsupported`, and `unknown`.
 - [x] OT-P0-006 | Proto Adoption Facts | Proto adoption facts work for Go API/CLI and TypeScript UI surfaces using generic import/reference/call evidence.
-- [x] OT-P0-007 | Endpoint Proof Facts | Endpoint proof facts work for Go REST handlers using generic graph usage facts, not proto-health heuristics.
+- [x] OT-P0-007 | Endpoint Proof Facts | Endpoint proof facts work through Code Facts framework adapters using generic graph usage facts, not proto-health heuristics.
 - [x] OT-P0-008 | Deterministic Cache | Cache keys and invalidation are deterministic, inspectable, and tied to analyzer version, target/options, source hashes, graph hashes, and requested fact families.
 - [x] OT-P0-009 | API/CLI Parity | CLI and Connect API expose equivalent core operations for describe, surfaces, proto adoption, endpoint proof, and cache diagnostics.
 - [x] OT-P0-010 | Operator Workbench | Operator UI can inspect targets, surfaces, parse units, facts, warnings, evidence, and cache status.

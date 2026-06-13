@@ -18,11 +18,11 @@ Phase 13 manually validated the live provider path against `proto-health` with `
 
 ## Proof Synthesis Limits
 
-Phase 10 proof synthesis is deliberately static and conservative. Endpoint route proof becomes `proven` only when graph facts expose route path/method attributes or typed helper usage; otherwise Code Facts reports `unknown` or `missing` rather than inferring success from endpoint metadata alone.
+Endpoint proof synthesis is deliberately static and conservative. Endpoint route proof becomes `proven` only when graph facts expose route path/method attributes supported by a Code Facts framework adapter; otherwise Code Facts reports `unknown` or `missing` rather than inferring success from endpoint metadata alone.
 
-As of 2026-06-13, `go-code-graph` emits `go_route_registration` facts for supported static Go route registrations and Code Facts maps those facts into `FACT_FAMILY_CALLS` so existing endpoint proof can match `route_path` and `http_method`. Remaining route-proof unknowns should now mean either the provider was unavailable, the route shape is dynamic/unsupported, or the endpoint declaration does not match the static route evidence.
+As of 2026-06-13, `go-code-graph` emits `go_route_registration` facts for supported static Go route registrations, and `typescript-code-graph` emits generic Express route-registration facts for literal Express `app.METHOD` and `router.METHOD` calls. Code Facts maps both into `FACT_FAMILY_CALLS` and proves endpoints through the `go.http` and `ts.express` adapters. Remaining route-proof unknowns should now mean either the provider was unavailable, the route shape is dynamic/unsupported, no adapter supports the framework, or the endpoint declaration does not match static route evidence.
 
-Endpoint-proof scans default to Go parse units because the current endpoint proof contract consumes Go route/call/import evidence. Callers can still opt into other languages with `CodeTarget.language_filter`; `DescribeCodeFacts` only narrows this way when the request asks for endpoint proofs without direct analyzer families such as imports/calls/references.
+Express payload proof is intentionally partial. Import-only evidence is `unknown`, wrong generated payload usage is `contradicted`, and missing handler-local payload usage is `missing` for supported static routes.
 
 ## Deferred Consumer Adoption
 

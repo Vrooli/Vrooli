@@ -4,7 +4,8 @@
 
 - Vrooli repository setup is complete.
 - `code-facts` is installed through the scenario lifecycle.
-- Future implementation phases require `go-code-graph` and `typescript-code-graph` running for provider-backed facts.
+- Provider-backed facts require `go-code-graph` and `typescript-code-graph`
+  running when cache is bypassed or cold.
 
 ## 1 — Setup
 
@@ -26,13 +27,15 @@ Use `make status` to find the assigned UI and API ports. The UI is the operator 
 
 ## 4 — First Describe
 
-The Phase 6 CLI contract exposes:
+The CLI exposes:
 
 ```bash
 code-facts facts describe scenario:code-facts --include surfaces,parse_units,proto_adoption --json
 ```
 
-Analyzer-backed facts return typed `unsupported` evidence until the target resolver and provider broker land in later phases.
+Analyzer-backed facts return typed evidence from normalized provider output.
+Unavailable providers or unsupported frameworks are reported as `unknown` or
+`unsupported`; they are not treated as proof.
 
 ## 5 — Run the tests
 

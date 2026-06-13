@@ -86,7 +86,8 @@ func isTsSymbolKind(k intgraph.NodeKind) bool {
 		intgraph.NodeKindVar, intgraph.NodeKindConst,
 		intgraph.NodeKindReExport, intgraph.NodeKindImportBinding,
 		intgraph.NodeKindReference, intgraph.NodeKindCall,
-		intgraph.NodeKindJsxUsage, intgraph.NodeKindExport:
+		intgraph.NodeKindJsxUsage, intgraph.NodeKindExport,
+		intgraph.NodeKindRoute:
 		return true
 	}
 	return false
@@ -122,6 +123,8 @@ func tsKindEnumName(k intgraph.NodeKind) string {
 		return "TS_NODE_KIND_JSX_USAGE"
 	case intgraph.NodeKindExport:
 		return "TS_NODE_KIND_EXPORT"
+	case intgraph.NodeKindRoute:
+		return "TS_NODE_KIND_ROUTE_REGISTRATION"
 	}
 	return ""
 }

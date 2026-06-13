@@ -14,4 +14,4 @@
 
 The only REST exception currently exposed by Code Facts is the operational `/health` probe.
 
-`CheckProtoAdoption` uses normalized generated-proto import facts. `CheckEndpointProof` is static-only: it reads endpoint declarations, then proves response/error payload usage only when graph facts expose recognizable helper calls or typed arguments. It returns `unknown`, `missing`, or `contradicted` rather than treating incomplete static evidence as success.
+`CheckProtoAdoption` uses normalized generated-proto import facts. `CheckEndpointProof` is static-only: it reads endpoint declarations, asks Code Facts framework adapters to normalize implementation evidence from provider graph facts, then proves route and response/error payload usage only when the selected adapter recognizes helper calls or typed arguments. It returns `unknown`, `missing`, `unsupported`, or `contradicted` rather than treating incomplete static evidence as success.

@@ -58,9 +58,11 @@ type endpointProofScope struct {
 	parseUnit string
 	fileID    string
 	file      string
+	framework string
 	handler   string
 	symbol    string
 	enclosing string
+	factories []string
 }
 
 func (s *Service) proofInput(ctx *factsv1.TargetContext, facts []*factsv1.GenericFact, warnings []*factsv1.Warning, evidence []*factsv1.Evidence, cache *factsv1.CacheMetadata) proofInput {
@@ -143,9 +145,18 @@ func synthesizeEndpointProofs(input proofInput, selected []string) ([]*factsv1.G
 		return unsupportedProof(factsv1.FactFamily_FACT_FAMILY_ENDPOINT_PROOFS, "Endpoint proof requires a Vrooli scenario target.")
 	}
 	selectedSet := requestedSet(selected)
+	implementations := defaultEndpointAdapters().ExtractEndpointImplementations(endpointAdapterContext{
+		target:    input.target,
+		facts:     input.facts,
+		endpoints: input.endpoints,
+	})
+	implementationsByEndpoint := map[string][]endpointImplementation{}
+	for _, impl := range implementations {
+		implementationsByEndpoint[impl.EndpointID] = append(implementationsByEndpoint[impl.EndpointID], impl)
+	}
 	var out []*factsv1.GenericFact
 	var evidenceOut []*factsv1.Evidence
-	var warnings []*factsv1.Warning
+	warnings := unsupportedEndpointFrameworkWarnings(input.facts)
 	for _, endpoint := range input.endpoints {
 		if endpoint.RESTException == nil {
 			continue
@@ -153,7 +164,7 @@ func synthesizeEndpointProofs(input proofInput, selected []string) ([]*factsv1.G
 		if len(selectedSet) > 0 && !selectedSet[endpoint.ID] {
 			continue
 		}
-		proofs := endpointPayloadProofs(endpoint, input.facts)
+		proofs := endpointImplementationProofs(endpoint, implementationsByEndpoint[endpoint.ID])
 		status := aggregateStatus(proofs)
 		message := endpoint.ID + " REST exception proof synthesized from endpoint metadata and graph usage facts."
 		ev := &factsv1.Evidence{Status: status, Confidence: confidenceForStatus(status), Analyzer: proofAnalyzer, Message: message, Range: &factsv1.SourceRange{File: endpointsPath(input.target)}}
@@ -197,7 +208,53 @@ func synthesizeEndpointProofs(input proofInput, selected []string) ([]*factsv1.G
 	return out, evidenceOut, warnings
 }
 
-func endpointPayloadProofs(endpoint endpointDeclaration, facts []*factsv1.GenericFact) []*factsv1.Evidence {
+func unsupportedEndpointFrameworkWarnings(facts []*factsv1.GenericFact) []*factsv1.Warning {
+	supported := map[string]bool{
+		"go:":                true,
+		"go:go.http":         true,
+		"go:gorilla/mux":     true,
+		"go:net/http":        true,
+		"typescript:express": true,
+	}
+	seen := map[string]bool{}
+	var warnings []*factsv1.Warning
+	for _, fact := range factsByFamily(facts, factsv1.FactFamily_FACT_FAMILY_CALLS) {
+		attrs := fact.GetAttributes()
+		if !isRouteRegistrationFact(attrs) {
+			continue
+		}
+		language := strings.TrimSpace(attrs["language"])
+		framework := strings.TrimSpace(attrs["router_framework"])
+		if language == "" {
+			continue
+		}
+		key := language + ":" + framework
+		if supported[key] || seen[key] {
+			continue
+		}
+		seen[key] = true
+		label := framework
+		if label == "" {
+			label = "unspecified"
+		}
+		warnings = append(warnings, providerWarning(
+			"code-facts.endpoint_proof",
+			"framework_unsupported",
+			"Endpoint proof has no adapter for "+language+" "+label+" route registrations.",
+			factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED,
+		))
+	}
+	sort.SliceStable(warnings, func(i, j int) bool { return warnings[i].GetMessage() < warnings[j].GetMessage() })
+	return warnings
+}
+
+func isRouteRegistrationFact(attrs map[string]string) bool {
+	kind := strings.ToLower(strings.TrimSpace(attrs["kind"]))
+	return strings.Contains(kind, "route_registration") ||
+		(strings.TrimSpace(attrs["route_path"]) != "" && strings.TrimSpace(attrs["http_method"]) != "")
+}
+
+func endpointImplementationProofs(endpoint endpointDeclaration, implementations []endpointImplementation) []*factsv1.Evidence {
 	payloads := endpoint.RESTException.ProtoPayloads
 	if payloads == nil {
 		return []*factsv1.Evidence{{
@@ -207,13 +264,68 @@ func endpointPayloadProofs(endpoint endpointDeclaration, facts []*factsv1.Generi
 			Message:    "REST exception has no proto_payloads declaration.",
 		}}
 	}
-	scope := routeProofScope(endpoint, facts)
+	if len(implementations) == 0 {
+		return endpointProofsWithoutImplementation(endpoint)
+	}
+	impl := bestEndpointImplementation(implementations)
 	var out []*factsv1.Evidence
-	out = append(out, scope.route)
-	out = append(out, payloadEvidence("response", payloads.Response, facts, scope))
-	out = append(out, payloadEvidence("error", payloads.Error, facts, scope))
-	if payloads.Request.Transport != "" && payloads.Request.Conformance != "none" && payloads.Request.ProtoFullName != "" {
-		out = append(out, payloadEvidence("request", payloads.Request, facts, scope))
+	out = append(out, impl.Evidence...)
+	return out
+}
+
+func bestEndpointImplementation(implementations []endpointImplementation) endpointImplementation {
+	best := implementations[0]
+	bestRank := endpointImplementationRank(best)
+	for _, impl := range implementations[1:] {
+		rank := endpointImplementationRank(impl)
+		if rank > bestRank {
+			best = impl
+			bestRank = rank
+		}
+	}
+	return best
+}
+
+func endpointImplementationRank(impl endpointImplementation) int {
+	switch aggregateStatus(impl.Evidence) {
+	case factsv1.EvidenceStatus_EVIDENCE_STATUS_CONTRADICTED:
+		return 5
+	case factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN:
+		return 4
+	case factsv1.EvidenceStatus_EVIDENCE_STATUS_MISSING:
+		return 3
+	case factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN:
+		return 2
+	case factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED:
+		return 1
+	default:
+		return 0
+	}
+}
+
+func endpointProofsWithoutImplementation(endpoint endpointDeclaration) []*factsv1.Evidence {
+	payloads := endpoint.RESTException.ProtoPayloads
+	out := []*factsv1.Evidence{{
+		Status:     factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN,
+		Confidence: 0,
+		Analyzer:   proofAnalyzer,
+		Message:    "Route registration could not be proven by any endpoint implementation adapter.",
+	}}
+	for _, payload := range declaredPayloadRoles(endpoint) {
+		out = append(out, &factsv1.Evidence{
+			Status:     factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN,
+			Confidence: 0,
+			Analyzer:   proofAnalyzer,
+			Message:    string(payload.role) + " payload proof requires a proven route registration before handler-local payload evidence can be trusted.",
+		})
+	}
+	if payloads != nil && len(out) == 1 {
+		out = append(out, &factsv1.Evidence{
+			Status:     factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED,
+			Confidence: 0,
+			Analyzer:   proofAnalyzer,
+			Message:    "REST exception declares no required proto payload roles.",
+		})
 	}
 	return out
 }
@@ -228,9 +340,11 @@ func routeProofScope(endpoint endpointDeclaration, facts []*factsv1.GenericFact)
 				parseUnit: attrs["parse_unit_id"],
 				fileID:    attrs["file_id"],
 				file:      factFile(fact),
+				framework: strings.TrimSpace(attrs["router_framework"]),
 				handler:   strings.TrimSpace(attrs["handler_expr"]),
 				symbol:    strings.TrimSpace(attrs["handler_symbol"]),
 				enclosing: strings.TrimSpace(attrs["enclosing_symbol"]),
+				factories: handlerFactories(fact, facts),
 			}
 		}
 	}
@@ -244,8 +358,40 @@ func routeProofScope(endpoint endpointDeclaration, facts []*factsv1.GenericFact)
 	}
 }
 
-func payloadEvidence(role string, payload payloadDeclaration, facts []*factsv1.GenericFact, scope endpointProofScope) *factsv1.Evidence {
-	if payload.Conformance == "none" || payload.Transport == "none" {
+func tsExpressRouteProofScope(endpoint endpointDeclaration, facts []*factsv1.GenericFact) endpointProofScope {
+	for _, fact := range factsByFamily(facts, factsv1.FactFamily_FACT_FAMILY_CALLS) {
+		attrs := fact.GetAttributes()
+		if attrs["language"] != "typescript" || attrs["router_framework"] != "express" {
+			continue
+		}
+		if attrs["route_path_status"] != "proven" || attrs["route_path"] != endpoint.Path || !strings.EqualFold(attrs["http_method"], endpoint.Method) {
+			continue
+		}
+		return endpointProofScope{
+			route:     proofEvidenceFromFact(fact, factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, "Express route registration matched "+endpoint.Method+" "+endpoint.Path+"."),
+			proven:    true,
+			parseUnit: attrs["parse_unit_id"],
+			fileID:    attrs["file_id"],
+			file:      factFile(fact),
+			framework: "express",
+			handler:   strings.TrimSpace(attrs["handler_expr"]),
+			symbol:    strings.TrimSpace(attrs["handler_symbol"]),
+			enclosing: strings.TrimSpace(firstNonEmpty(attrs["enclosing_symbol"], attrs["enclosing_declaration"])),
+		}
+	}
+	return endpointProofScope{
+		route: &factsv1.Evidence{
+			Status:     factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN,
+			Confidence: 0,
+			Analyzer:   proofAnalyzer,
+			Message:    "Express route registration could not be proven from current TypeScript graph facts with literal route_path/http_method attributes.",
+		},
+		framework: "express",
+	}
+}
+
+func goPayloadEvidence(role string, payload payloadDeclaration, facts []*factsv1.GenericFact, scope endpointProofScope) *factsv1.Evidence {
+	if payload.Conformance == "none" || payload.Conformance == "transport_only" || payload.Conformance == "external_shape" || payload.Transport == "none" {
 		return &factsv1.Evidence{Status: factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED, Confidence: 0, Analyzer: proofAnalyzer, Message: role + " payload has no proto transport to prove."}
 	}
 	expected := goPayloadExpectation(payload.ProtoFullName)
@@ -274,6 +420,9 @@ func payloadEvidence(role string, payload payloadDeclaration, facts []*factsv1.G
 		if callUsesPayload(attrs, expected) {
 			return proofEvidenceFromFact(fact, factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, role+" payload uses "+payload.ProtoFullName+" through a recognized helper or typed argument.")
 		}
+		if role == "error" && callUsesErrorHelper(attrs) && payloadUsagePresent(factsInParseUnit(facts, scope.parseUnit), expected) {
+			return proofEvidenceFromFact(fact, factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, role+" payload uses "+payload.ProtoFullName+" through a route-local error helper.")
+		}
 		if role == "response" && callContradictsPayload(attrs, expected) {
 			return proofEvidenceFromFact(fact, factsv1.EvidenceStatus_EVIDENCE_STATUS_CONTRADICTED, "response payload uses a different generated proto type than "+payload.ProtoFullName+".")
 		}
@@ -284,6 +433,56 @@ func payloadEvidence(role string, payload payloadDeclaration, facts []*factsv1.G
 			Confidence: 0.25,
 			Analyzer:   proofAnalyzer,
 			Message:    role + " payload import is present, but no response/error helper usage was proven for " + payload.ProtoFullName + ".",
+		}
+	}
+	return &factsv1.Evidence{
+		Status:     factsv1.EvidenceStatus_EVIDENCE_STATUS_MISSING,
+		Confidence: 0.85,
+		Analyzer:   proofAnalyzer,
+		Message:    role + " payload " + payload.ProtoFullName + " was not found in imports, references, calls, or type usages.",
+	}
+}
+
+func tsExpressPayloadEvidence(role string, payload payloadDeclaration, facts []*factsv1.GenericFact, scope endpointProofScope) *factsv1.Evidence {
+	if payload.Conformance == "none" || payload.Conformance == "transport_only" || payload.Conformance == "external_shape" || payload.Transport == "none" {
+		return &factsv1.Evidence{Status: factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED, Confidence: 0, Analyzer: proofAnalyzer, Message: role + " payload has no proto transport to prove."}
+	}
+	expected := tsPayloadExpectation(payload.ProtoFullName)
+	if expected.importPath == "" {
+		return &factsv1.Evidence{Status: factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN, Confidence: 0, Analyzer: proofAnalyzer, Message: role + " payload declaration has no proto_full_name."}
+	}
+	if !scope.proven {
+		return &factsv1.Evidence{
+			Status:     factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN,
+			Confidence: 0,
+			Analyzer:   proofAnalyzer,
+			Message:    role + " payload proof requires a proven route registration before handler-local payload evidence can be trusted.",
+		}
+	}
+	scoped := factsInEndpointScope(facts, scope)
+	if len(scoped) == 0 {
+		return &factsv1.Evidence{
+			Status:     factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN,
+			Confidence: 0,
+			Analyzer:   proofAnalyzer,
+			Message:    role + " payload proof could not correlate the Express route registration to a handler scope.",
+		}
+	}
+	for _, fact := range factsByFamily(scoped, factsv1.FactFamily_FACT_FAMILY_CALLS, factsv1.FactFamily_FACT_FAMILY_REFERENCES) {
+		attrs := fact.GetAttributes()
+		if tsCallUsesPayload(attrs, expected) {
+			return proofEvidenceFromFact(fact, factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, role+" payload uses "+payload.ProtoFullName+" through a recognized Express response call or typed argument.")
+		}
+		if role == "response" && tsCallContradictsPayload(attrs, expected) {
+			return proofEvidenceFromFact(fact, factsv1.EvidenceStatus_EVIDENCE_STATUS_CONTRADICTED, "response payload uses a different generated TypeScript proto type than "+payload.ProtoFullName+".")
+		}
+	}
+	if tsImportPresent(expected.importPath, factsInParseUnit(facts, scope.parseUnit)) {
+		return &factsv1.Evidence{
+			Status:     factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN,
+			Confidence: 0.25,
+			Analyzer:   proofAnalyzer,
+			Message:    role + " payload import is present, but no Express response/error usage was proven for " + payload.ProtoFullName + ".",
 		}
 	}
 	return &factsv1.Evidence{
@@ -312,7 +511,7 @@ func endpointScopeMatches(attrs map[string]string, file string, scope endpointPr
 	if scope.symbol != "" && attrs["enclosing_symbol"] == scope.symbol {
 		return true
 	}
-	enclosing := strings.TrimSpace(attrs["enclosing_symbol"])
+	enclosing := strings.TrimSpace(firstNonEmpty(attrs["enclosing_symbol"], attrs["enclosing_declaration"]))
 	if enclosing != "" && handlerNamesMatch(scope.handler, enclosing) {
 		return true
 	}
@@ -322,7 +521,47 @@ func endpointScopeMatches(attrs map[string]string, file string, scope endpointPr
 	if scope.file != "" && file != "" && cleanEvidencePath(file) == cleanEvidencePath(scope.file) && enclosing != "" && handlerNamesMatch(scope.handler, enclosing) {
 		return true
 	}
+	for _, factory := range scope.factories {
+		if handlerNamesMatch(factory, enclosing) {
+			return true
+		}
+	}
 	return false
+}
+
+func handlerFactories(route *factsv1.GenericFact, facts []*factsv1.GenericFact) []string {
+	routeAttrs := route.GetAttributes()
+	handlerExpr := strings.TrimSpace(routeAttrs["handler_expr"])
+	if handlerExpr == "" || strings.Contains(handlerExpr, ".") {
+		return nil
+	}
+	routeLine := atoiString(routeAttrs["start_line"])
+	var out []string
+	for _, fact := range factsByFamily(facts, factsv1.FactFamily_FACT_FAMILY_CALLS) {
+		if fact == nil || fact.GetId() == route.GetId() || !sameParseUnit(fact, routeAttrs["parse_unit_id"]) {
+			continue
+		}
+		attrs := fact.GetAttributes()
+		if routeAttrs["file_id"] == "" || attrs["file_id"] != routeAttrs["file_id"] {
+			continue
+		}
+		if routeAttrs["enclosing_symbol"] == "" || attrs["enclosing_symbol"] != routeAttrs["enclosing_symbol"] {
+			continue
+		}
+		if routeLine > 0 {
+			line := atoiString(attrs["start_line"])
+			if line > 0 && line > routeLine {
+				continue
+			}
+		}
+		callee := strings.TrimSpace(firstNonEmpty(attrs["callee"], attrs["name"]))
+		if callee == "" || !strings.Contains(callee, "Handler") {
+			continue
+		}
+		out = append(out, callee)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func handlerNamesMatch(handlerExpr, enclosing string) bool {
@@ -334,7 +573,40 @@ func handlerNamesMatch(handlerExpr, enclosing string) bool {
 	if handlerExpr == enclosing || strings.HasSuffix(handlerExpr, "."+enclosing) {
 		return true
 	}
-	return strings.HasSuffix(handlerExpr, "("+enclosing+")")
+	if strings.HasSuffix(handlerExpr, "("+enclosing+")") {
+		return true
+	}
+	handlerName := handlerLeafName(handlerExpr)
+	enclosingName := handlerLeafName(enclosing)
+	return handlerName != "" && handlerName == enclosingName
+}
+
+func handlerLeafName(value string) string {
+	value = strings.TrimSpace(value)
+	value = strings.TrimPrefix(value, "*")
+	if idx := strings.LastIndex(value, "."); idx >= 0 {
+		value = value[idx+1:]
+	}
+	value = strings.TrimPrefix(value, "*")
+	if idx := strings.LastIndex(value, ")"); idx >= 0 && idx+1 < len(value) {
+		value = value[idx+1:]
+	}
+	return value
+}
+
+func atoiString(value string) int {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return 0
+	}
+	n := 0
+	for _, r := range value {
+		if r < '0' || r > '9' {
+			return 0
+		}
+		n = n*10 + int(r-'0')
+	}
+	return n
 }
 
 func factsInParseUnit(facts []*factsv1.GenericFact, parseUnit string) []*factsv1.GenericFact {
@@ -360,6 +632,35 @@ type goPayload struct {
 	fullName   string
 }
 
+type tsPayload struct {
+	importPath string
+	typeName   string
+	fullName   string
+	scenario   string
+}
+
+func tsPayloadExpectation(fullName string) tsPayload {
+	parts := strings.Split(strings.TrimSpace(fullName), ".")
+	if len(parts) < 4 {
+		return tsPayload{}
+	}
+	versionIdx := -1
+	for i, part := range parts {
+		if strings.HasPrefix(part, "v") && len(part) > 1 && part[1] >= '0' && part[1] <= '9' {
+			versionIdx = i
+			break
+		}
+	}
+	if versionIdx < 2 || versionIdx >= len(parts)-1 {
+		return tsPayload{}
+	}
+	scenarioSlug := strings.ReplaceAll(strings.Join(parts[1:versionIdx], "_"), "_", "-")
+	pkgParts := parts[versionIdx+1 : len(parts)-1]
+	importParts := []string{"@vrooli/proto-types", scenarioSlug, parts[versionIdx]}
+	importParts = append(importParts, pkgParts...)
+	return tsPayload{importPath: strings.Join(importParts, "/"), typeName: parts[len(parts)-1], fullName: fullName, scenario: scenarioSlug}
+}
+
 func goPayloadExpectation(fullName string) goPayload {
 	parts := strings.Split(strings.TrimSpace(fullName), ".")
 	if len(parts) < 4 {
@@ -382,6 +683,33 @@ func goPayloadExpectation(fullName string) goPayload {
 	return goPayload{importPath: strings.Join(importParts, "/"), typeName: parts[len(parts)-1], fullName: fullName}
 }
 
+func tsCallUsesPayload(attrs map[string]string, expected tsPayload) bool {
+	callee := attrs["callee"]
+	if !strings.Contains(callee, "res.json") && !strings.Contains(callee, "reply.send") {
+		return false
+	}
+	haystack := strings.Join([]string{
+		callee,
+		attrs["argument_summary"],
+		attrs["argument_types"],
+		attrs["resolved_type"],
+		attrs["return_type"],
+		attrs["type"],
+	}, " ")
+	return strings.Contains(haystack, expected.importPath+"."+expected.typeName) ||
+		strings.Contains(haystack, expected.importPath+"/"+expected.typeName)
+}
+
+func tsCallContradictsPayload(attrs map[string]string, expected tsPayload) bool {
+	haystack := strings.Join([]string{attrs["callee"], attrs["argument_summary"], attrs["argument_types"], attrs["resolved_type"], attrs["return_type"], attrs["type"]}, " ")
+	if !strings.Contains(haystack, "res.json") && !strings.Contains(haystack, "reply.send") {
+		return false
+	}
+	return strings.Contains(haystack, "@vrooli/proto-types/"+expected.scenario+"/") &&
+		!strings.Contains(haystack, expected.importPath+"."+expected.typeName) &&
+		!strings.Contains(haystack, expected.importPath+"/"+expected.typeName)
+}
+
 func callUsesPayload(attrs map[string]string, expected goPayload) bool {
 	haystack := strings.Join([]string{
 		attrs["callee"],
@@ -398,6 +726,30 @@ func callUsesPayload(attrs map[string]string, expected goPayload) bool {
 		return true
 	}
 	return strings.Contains(haystack, "."+expected.typeName) && strings.Contains(haystack, "WriteProto")
+}
+
+func tsImportPresent(importPath string, facts []*factsv1.GenericFact) bool {
+	for _, fact := range factsByFamily(facts, factsv1.FactFamily_FACT_FAMILY_IMPORTS) {
+		normalized := normalizedImportPath(fact)
+		if normalized == importPath || strings.HasPrefix(normalized, importPath+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+func callUsesErrorHelper(attrs map[string]string) bool {
+	callee := strings.TrimSpace(attrs["callee"])
+	return callee == "httpx.WriteError" || strings.HasSuffix(callee, ".WriteError") || callee == "WriteError"
+}
+
+func payloadUsagePresent(facts []*factsv1.GenericFact, expected goPayload) bool {
+	for _, fact := range factsByFamily(facts, factsv1.FactFamily_FACT_FAMILY_CALLS, factsv1.FactFamily_FACT_FAMILY_REFERENCES) {
+		if callUsesPayload(fact.GetAttributes(), expected) {
+			return true
+		}
+	}
+	return false
 }
 
 func callContradictsPayload(attrs map[string]string, expected goPayload) bool {

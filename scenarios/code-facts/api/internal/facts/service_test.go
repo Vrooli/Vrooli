@@ -639,7 +639,7 @@ func TestEndpointProofProvesRESTExceptionPayload(t *testing.T) {
 					"kind":             "GO_NODE_KIND_CALL",
 					"callee":           "httpx.WriteProto",
 					"argument_types":   "net/http.ResponseWriter, int, *github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/notes.UploadAttachmentResponse",
-					"enclosing_symbol": "handleUpload",
+					"enclosing_symbol": "*attachmentsHandler.handleUpload",
 				},
 			},
 			{
@@ -649,8 +649,19 @@ func TestEndpointProofProvesRESTExceptionPayload(t *testing.T) {
 				Attributes: map[string]string{
 					"kind":             "GO_NODE_KIND_CALL",
 					"callee":           "httpx.WriteError",
-					"argument_types":   "net/http.ResponseWriter, int, github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/shared.ErrorEnvelope",
-					"enclosing_symbol": "handleUpload",
+					"argument_types":   "net/http.ResponseWriter, int, string, string",
+					"enclosing_symbol": "*attachmentsHandler.handleUpload",
+				},
+			},
+			{
+				Id:   "error-helper",
+				Name: "protojson.Marshal",
+				Path: "api/internal/httpx/errors.go",
+				Attributes: map[string]string{
+					"kind":             "GO_NODE_KIND_CALL",
+					"callee":           "protojson.Marshal",
+					"argument_types":   "*github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/shared.ErrorEnvelope",
+					"enclosing_symbol": "WriteError",
 				},
 			},
 		}}},
@@ -705,7 +716,7 @@ func TestEndpointProofDoesNotBorrowPayloadFromDifferentHandler(t *testing.T) {
 					"kind":             "GO_NODE_KIND_CALL",
 					"callee":           "httpx.WriteProto",
 					"argument_types":   "net/http.ResponseWriter, int, *github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/health.Response",
-					"enclosing_symbol": "handleUpload",
+					"enclosing_symbol": "*attachmentsHandler.handleUpload",
 				},
 			},
 			{
@@ -715,8 +726,19 @@ func TestEndpointProofDoesNotBorrowPayloadFromDifferentHandler(t *testing.T) {
 				Attributes: map[string]string{
 					"kind":             "GO_NODE_KIND_CALL",
 					"callee":           "httpx.WriteError",
-					"argument_types":   "net/http.ResponseWriter, int, github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/shared.ErrorEnvelope",
-					"enclosing_symbol": "handleUpload",
+					"argument_types":   "net/http.ResponseWriter, int, string, string",
+					"enclosing_symbol": "*attachmentsHandler.handleUpload",
+				},
+			},
+			{
+				Id:   "error-helper",
+				Name: "protojson.Marshal",
+				Path: "api/internal/httpx/errors.go",
+				Attributes: map[string]string{
+					"kind":             "GO_NODE_KIND_CALL",
+					"callee":           "protojson.Marshal",
+					"argument_types":   "*github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/shared.ErrorEnvelope",
+					"enclosing_symbol": "WriteError",
 				},
 			},
 		}}},
@@ -732,7 +754,77 @@ func TestEndpointProofDoesNotBorrowPayloadFromDifferentHandler(t *testing.T) {
 	requireProofFact(t, report.GetFacts(), "health", factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN)
 }
 
-func TestEndpointProofSkipsTypeScriptProviderByDefault(t *testing.T) {
+func TestEndpointProofCorrelatesHandlerFactoryClosure(t *testing.T) {
+	repo, scenarioRoot := writeScenarioFixture(t, "proto-health")
+	writeFile(t, filepath.Join(scenarioRoot, ".vrooli", "endpoints.json"), `{"endpoints":[{
+  "id":"health",
+  "path":"/health",
+  "method":"GET",
+  "rest_exception":{
+    "reason":"ops_probe",
+    "proto_payloads":{
+      "request":{"transport":"none","conformance":"none"},
+      "response":{"proto_full_name":"vrooli.proto_health.v1.health.Response","transport":"json","conformance":"protojson"},
+      "error":{"transport":"json","conformance":"external_shape"}
+    }
+  }
+}]}`)
+	provider := fakeProvider{
+		language: "go",
+		analyzer: "go-code-graph",
+		result: &GraphResult{GraphHash: "endpoint-proof", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+			{
+				Id:   "factory",
+				Name: "NewHandler",
+				Path: "api/handlers/health/module.go",
+				Attributes: map[string]string{
+					"kind":             "GO_NODE_KIND_CALL",
+					"callee":           "NewHandler",
+					"file_id":          "file:handlers/health/module.go",
+					"enclosing_symbol": "Module",
+					"start_line":       "19",
+				},
+			},
+			{
+				Id:   "health-route",
+				Name: "GET /health",
+				Path: "api/handlers/health/module.go",
+				Attributes: map[string]string{
+					"kind":             "GO_NODE_KIND_ROUTE_REGISTRATION",
+					"route_path":       "/health",
+					"http_method":      "GET",
+					"handler_expr":     "h",
+					"handler_symbol":   "go_var:package:proto-health/handlers/health:h",
+					"file_id":          "file:handlers/health/module.go",
+					"enclosing_symbol": "Module",
+					"start_line":       "23",
+				},
+			},
+			{
+				Id:   "response",
+				Name: "httpx.WriteProto",
+				Path: "api/handlers/health/handler.go",
+				Attributes: map[string]string{
+					"kind":             "GO_NODE_KIND_CALL",
+					"callee":           "httpx.WriteProto",
+					"argument_types":   "net/http.ResponseWriter, int, *github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/health.Response",
+					"enclosing_symbol": "NewHandler",
+				},
+			},
+		}}},
+	}
+
+	report, err := NewService(WithBroker(NewBroker(provider))).EndpointProof(context.Background(), &factsv1.CheckEndpointProofRequest{
+		Target:      &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_SCENARIO, Scenario: "proto-health", RepoRoot: repo},
+		EndpointIds: []string{"health"},
+	})
+	if err != nil {
+		t.Fatalf("EndpointProof() error = %v", err)
+	}
+	requireProofFact(t, report.GetFacts(), "health", factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN)
+}
+
+func TestEndpointProofAnalyzesTypeScriptProviderByDefault(t *testing.T) {
 	repo, scenarioRoot := writeScenarioFixture(t, "proto-health")
 	writeFile(t, filepath.Join(scenarioRoot, ".vrooli", "endpoints.json"), endpointProofFixtureJSON())
 	goProvider := fakeProvider{
@@ -753,13 +845,13 @@ func TestEndpointProofSkipsTypeScriptProviderByDefault(t *testing.T) {
 	if err != nil {
 		t.Fatalf("EndpointProof() error = %v", err)
 	}
-	if tsProvider.calls != 0 {
-		t.Fatalf("typescript provider calls = %d, want 0", tsProvider.calls)
+	if tsProvider.calls != 1 {
+		t.Fatalf("typescript provider calls = %d, want 1", tsProvider.calls)
 	}
 	requireProofFact(t, report.GetFacts(), "notes_attach", factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN)
 }
 
-func TestDescribeEndpointProofSkipsTypeScriptProviderByDefault(t *testing.T) {
+func TestDescribeEndpointProofAnalyzesTypeScriptProviderByDefault(t *testing.T) {
 	repo, scenarioRoot := writeScenarioFixture(t, "proto-health")
 	writeFile(t, filepath.Join(scenarioRoot, ".vrooli", "endpoints.json"), endpointProofFixtureJSON())
 	goProvider := fakeProvider{
@@ -781,10 +873,247 @@ func TestDescribeEndpointProofSkipsTypeScriptProviderByDefault(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Describe() error = %v", err)
 	}
-	if tsProvider.calls != 0 {
-		t.Fatalf("typescript provider calls = %d, want 0", tsProvider.calls)
+	if tsProvider.calls != 1 {
+		t.Fatalf("typescript provider calls = %d, want 1", tsProvider.calls)
 	}
 	requireProofFact(t, report.GetFacts(), "notes_attach", factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN)
+}
+
+func TestEndpointProofProvesTypeScriptExpressResponse(t *testing.T) {
+	repo, scenarioRoot := writeScenarioFixture(t, "proto-health")
+	writeFile(t, filepath.Join(scenarioRoot, ".vrooli", "endpoints.json"), `{"endpoints":[{
+  "id":"health",
+  "path":"/health",
+  "method":"GET",
+  "rest_exception":{
+    "reason":"ops_probe",
+    "proto_payloads":{
+      "request":{"transport":"none","conformance":"none"},
+      "response":{"proto_full_name":"vrooli.proto_health.v1.health.Response","transport":"json","conformance":"protojson"},
+      "error":{"transport":"json","conformance":"external_shape"}
+    }
+  }
+}]}`)
+	provider := fakeProvider{
+		language: "typescript",
+		analyzer: "typescript-code-graph",
+		result:   tsExpressGraphResult("res.json", "@vrooli/proto-types/proto-health/v1/health.Response"),
+	}
+
+	report, err := NewService(WithBroker(NewBroker(provider))).EndpointProof(context.Background(), &factsv1.CheckEndpointProofRequest{
+		Target:      &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_SCENARIO, Scenario: "proto-health", RepoRoot: repo},
+		EndpointIds: []string{"health"},
+	})
+	if err != nil {
+		t.Fatalf("EndpointProof() error = %v", err)
+	}
+	requireProofFact(t, report.GetFacts(), "health", factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN)
+}
+
+func TestEndpointProofUsesProvenTypeScriptWhenGoImplementationUnknown(t *testing.T) {
+	repo, scenarioRoot := writeScenarioFixture(t, "proto-health")
+	writeFile(t, filepath.Join(scenarioRoot, ".vrooli", "endpoints.json"), `{"endpoints":[{
+  "id":"health",
+  "path":"/health",
+  "method":"GET",
+  "rest_exception":{
+    "reason":"ops_probe",
+    "proto_payloads":{
+      "request":{"transport":"none","conformance":"none"},
+      "response":{"proto_full_name":"vrooli.proto_health.v1.health.Response","transport":"json","conformance":"protojson"},
+      "error":{"transport":"json","conformance":"external_shape"}
+    }
+  }
+}]}`)
+	goProvider := fakeProvider{
+		language: "go",
+		analyzer: "go-code-graph",
+		result: &GraphResult{GraphHash: "go-mismatch", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+			{
+				Id:   "wrong-route",
+				Name: "POST /health",
+				Path: "api/server.go",
+				Attributes: map[string]string{
+					"kind":        "GO_NODE_KIND_ROUTE_REGISTRATION",
+					"route_path":  "/health",
+					"http_method": "POST",
+				},
+			},
+		}}},
+	}
+	tsProvider := fakeProvider{
+		language: "typescript",
+		analyzer: "typescript-code-graph",
+		result:   tsExpressGraphResult("res.json", "@vrooli/proto-types/proto-health/v1/health.Response"),
+	}
+
+	report, err := NewService(WithBroker(NewBroker(goProvider, tsProvider))).EndpointProof(context.Background(), &factsv1.CheckEndpointProofRequest{
+		Target:      &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_SCENARIO, Scenario: "proto-health", RepoRoot: repo},
+		EndpointIds: []string{"health"},
+	})
+	if err != nil {
+		t.Fatalf("EndpointProof() error = %v", err)
+	}
+	requireProofFact(t, report.GetFacts(), "health", factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN)
+}
+
+func TestEndpointProofContradictsTypeScriptExpressWrongResponse(t *testing.T) {
+	repo, scenarioRoot := writeScenarioFixture(t, "proto-health")
+	writeFile(t, filepath.Join(scenarioRoot, ".vrooli", "endpoints.json"), `{"endpoints":[{
+  "id":"health",
+  "path":"/health",
+  "method":"GET",
+  "rest_exception":{
+    "reason":"ops_probe",
+    "proto_payloads":{
+      "request":{"transport":"none","conformance":"none"},
+      "response":{"proto_full_name":"vrooli.proto_health.v1.health.Response","transport":"json","conformance":"protojson"},
+      "error":{"transport":"json","conformance":"external_shape"}
+    }
+  }
+}]}`)
+	provider := fakeProvider{
+		language: "typescript",
+		analyzer: "typescript-code-graph",
+		result:   tsExpressGraphResult("res.json", "@vrooli/proto-types/proto-health/v1/notes.UploadAttachmentResponse"),
+	}
+
+	report, err := NewService(WithBroker(NewBroker(provider))).EndpointProof(context.Background(), &factsv1.CheckEndpointProofRequest{
+		Target:      &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_SCENARIO, Scenario: "proto-health", RepoRoot: repo},
+		EndpointIds: []string{"health"},
+	})
+	if err != nil {
+		t.Fatalf("EndpointProof() error = %v", err)
+	}
+	requireProofFact(t, report.GetFacts(), "health", factsv1.EvidenceStatus_EVIDENCE_STATUS_CONTRADICTED)
+}
+
+func TestEndpointProofTypeScriptExpressMissingPayload(t *testing.T) {
+	repo, scenarioRoot := writeScenarioFixture(t, "proto-health")
+	writeFile(t, filepath.Join(scenarioRoot, ".vrooli", "endpoints.json"), `{"endpoints":[{
+  "id":"health",
+  "path":"/health",
+  "method":"GET",
+  "rest_exception":{
+    "reason":"ops_probe",
+    "proto_payloads":{
+      "request":{"transport":"none","conformance":"none"},
+      "response":{"proto_full_name":"vrooli.proto_health.v1.health.Response","transport":"json","conformance":"protojson"},
+      "error":{"transport":"json","conformance":"external_shape"}
+    }
+  }
+}]}`)
+	provider := fakeProvider{
+		language: "typescript",
+		analyzer: "typescript-code-graph",
+		result: &GraphResult{GraphHash: "ts-express", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+			tsExpressRouteNode(),
+			{
+				Id:   "response",
+				Name: "res.status",
+				Path: "api/server.ts",
+				Attributes: map[string]string{
+					"kind":                  "TS_NODE_KIND_CALL",
+					"callee":                "res.status",
+					"argument_summary":      "number",
+					"enclosing_declaration": "healthHandler",
+				},
+			},
+		}}},
+	}
+
+	report, err := NewService(WithBroker(NewBroker(provider))).EndpointProof(context.Background(), &factsv1.CheckEndpointProofRequest{
+		Target:      &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_SCENARIO, Scenario: "proto-health", RepoRoot: repo},
+		EndpointIds: []string{"health"},
+	})
+	if err != nil {
+		t.Fatalf("EndpointProof() error = %v", err)
+	}
+	requireProofFact(t, report.GetFacts(), "health", factsv1.EvidenceStatus_EVIDENCE_STATUS_MISSING)
+}
+
+func TestEndpointProofTypeScriptExpressImportOnlyUnknown(t *testing.T) {
+	repo, scenarioRoot := writeScenarioFixture(t, "proto-health")
+	writeFile(t, filepath.Join(scenarioRoot, ".vrooli", "endpoints.json"), `{"endpoints":[{
+  "id":"health",
+  "path":"/health",
+  "method":"GET",
+  "rest_exception":{
+    "reason":"ops_probe",
+    "proto_payloads":{
+      "request":{"transport":"none","conformance":"none"},
+      "response":{"proto_full_name":"vrooli.proto_health.v1.health.Response","transport":"json","conformance":"protojson"},
+      "error":{"transport":"json","conformance":"external_shape"}
+    }
+  }
+}]}`)
+	provider := fakeProvider{
+		language: "typescript",
+		analyzer: "typescript-code-graph",
+		result: &GraphResult{GraphHash: "ts-express", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+			tsExpressRouteNode(),
+			tsImportNode("@vrooli/proto-types/proto-health/v1/health"),
+		}}},
+	}
+
+	report, err := NewService(WithBroker(NewBroker(provider))).EndpointProof(context.Background(), &factsv1.CheckEndpointProofRequest{
+		Target:      &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_SCENARIO, Scenario: "proto-health", RepoRoot: repo},
+		EndpointIds: []string{"health"},
+	})
+	if err != nil {
+		t.Fatalf("EndpointProof() error = %v", err)
+	}
+	requireProofFact(t, report.GetFacts(), "health", factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN)
+}
+
+func TestEndpointProofWarnsForUnsupportedTypeScriptFramework(t *testing.T) {
+	repo, scenarioRoot := writeScenarioFixture(t, "proto-health")
+	writeFile(t, filepath.Join(scenarioRoot, ".vrooli", "endpoints.json"), `{"endpoints":[{
+  "id":"health",
+  "path":"/health",
+  "method":"GET",
+  "rest_exception":{
+    "reason":"ops_probe",
+    "proto_payloads":{
+      "request":{"transport":"none","conformance":"none"},
+      "response":{"proto_full_name":"vrooli.proto_health.v1.health.Response","transport":"json","conformance":"protojson"},
+      "error":{"transport":"json","conformance":"external_shape"}
+    }
+  }
+}]}`)
+	provider := fakeProvider{
+		language: "typescript",
+		analyzer: "typescript-code-graph",
+		result: &GraphResult{GraphHash: "ts-fastify", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+			{
+				Id:   "route",
+				Name: "GET /health",
+				Path: "api/server.ts",
+				Attributes: map[string]string{
+					"kind":             "TS_NODE_KIND_ROUTE_REGISTRATION",
+					"router_framework": "fastify",
+					"route_path":       "/health",
+					"http_method":      "GET",
+					"handler_expr":     "healthHandler",
+				},
+			},
+		}}},
+	}
+
+	report, err := NewService(WithBroker(NewBroker(provider))).EndpointProof(context.Background(), &factsv1.CheckEndpointProofRequest{
+		Target:      &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_SCENARIO, Scenario: "proto-health", RepoRoot: repo},
+		EndpointIds: []string{"health"},
+	})
+	if err != nil {
+		t.Fatalf("EndpointProof() error = %v", err)
+	}
+	requireProofFact(t, report.GetFacts(), "health", factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN)
+	for _, warning := range report.GetWarnings() {
+		if warning.GetCode() == "code-facts.endpoint_proof.framework_unsupported" && warning.GetStatus() == factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED {
+			return
+		}
+	}
+	t.Fatalf("warnings = %#v, want framework_unsupported unsupported warning", report.GetWarnings())
 }
 
 func TestEndpointProofLeavesMismatchedRouteUnknown(t *testing.T) {
@@ -945,7 +1274,7 @@ func endpointProofGraphResult() *GraphResult {
 				"kind":             "GO_NODE_KIND_CALL",
 				"callee":           "httpx.WriteProto",
 				"argument_types":   "net/http.ResponseWriter, int, *github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/notes.UploadAttachmentResponse",
-				"enclosing_symbol": "handleUpload",
+				"enclosing_symbol": "*attachmentsHandler.handleUpload",
 			},
 		},
 		{
@@ -955,11 +1284,70 @@ func endpointProofGraphResult() *GraphResult {
 			Attributes: map[string]string{
 				"kind":             "GO_NODE_KIND_CALL",
 				"callee":           "httpx.WriteError",
-				"argument_types":   "net/http.ResponseWriter, int, github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/shared.ErrorEnvelope",
-				"enclosing_symbol": "handleUpload",
+				"argument_types":   "net/http.ResponseWriter, int, string, string",
+				"enclosing_symbol": "*attachmentsHandler.handleUpload",
+			},
+		},
+		{
+			Id:   "error-helper",
+			Name: "protojson.Marshal",
+			Path: "api/internal/httpx/errors.go",
+			Attributes: map[string]string{
+				"kind":             "GO_NODE_KIND_CALL",
+				"callee":           "protojson.Marshal",
+				"argument_types":   "*github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/shared.ErrorEnvelope",
+				"enclosing_symbol": "WriteError",
 			},
 		},
 	}}}
+}
+
+func tsExpressGraphResult(responseCallee, responseType string) *GraphResult {
+	return &GraphResult{GraphHash: "ts-express", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+		tsExpressRouteNode(),
+		tsImportNode("@vrooli/proto-types/proto-health/v1/health"),
+		{
+			Id:   "response",
+			Name: responseCallee,
+			Path: "api/server.ts",
+			Attributes: map[string]string{
+				"kind":                  "TS_NODE_KIND_CALL",
+				"callee":                responseCallee,
+				"argument_summary":      responseType,
+				"enclosing_declaration": "healthHandler",
+			},
+		},
+	}}}
+}
+
+func tsExpressRouteNode() *commonv1.CodeGraphNode {
+	return &commonv1.CodeGraphNode{
+		Id:   "route",
+		Name: "GET /health",
+		Path: "api/server.ts",
+		Attributes: map[string]string{
+			"kind":              "TS_NODE_KIND_ROUTE_REGISTRATION",
+			"router_framework":  "express",
+			"route_path":        "/health",
+			"route_path_status": "proven",
+			"http_method":       "GET",
+			"handler_expr":      "healthHandler",
+			"handler_symbol":    "healthHandler",
+		},
+	}
+}
+
+func tsImportNode(sourceModule string) *commonv1.CodeGraphNode {
+	return &commonv1.CodeGraphNode{
+		Id:   "import:" + sourceModule,
+		Name: "Response",
+		Path: "api/server.ts",
+		Attributes: map[string]string{
+			"kind":          "TS_NODE_KIND_IMPORT_BINDING",
+			"source_module": sourceModule,
+			"local_name":    "Response",
+		},
+	}
 }
 
 func writeScenarioFixture(t *testing.T, name string) (repo string, scenarioRoot string) {
