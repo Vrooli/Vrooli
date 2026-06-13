@@ -8,12 +8,15 @@ importers:
 
   .:
     dependencies:
-      '@vrooli/iframe-bridge':
-        specifier: file:../../../packages/iframe-bridge
-        version: file:../../../packages/iframe-bridge
       '@tanstack/react-virtual':
         specifier: ^3.0.0
         version: 3.13.12(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@vrooli/api-base':
+        specifier: file:../../../packages/api-base
+        version: file:../../../packages/api-base(@bufbuild/protobuf@2.12.0)(express@4.21.2)(ws@8.21.0)
+      '@vrooli/iframe-bridge':
+        specifier: file:../../../packages/iframe-bridge
+        version: file:../../../packages/iframe-bridge
       cors:
         specifier: ^2.8.5
         version: 2.8.5
@@ -137,6 +140,20 @@ packages:
   '@babel/types@7.28.4':
     resolution: {integrity: sha512-bkFqkLhh3pMBUQQkpVgWDWq/lqzc2678eUyDlTBhRqhCHFguYYGM0Efga7tYk4TogG/3x0EEl66/OQ+WGbWB/Q==}
     engines: {node: '>=6.9.0'}
+
+  '@bufbuild/protobuf@2.12.0':
+    resolution: {integrity: sha512-B/XlCaFIP8LOwzo+bz5uFzATYokcwCKQcghqnlfwSmM5eX/qTkvDBnDPs+gXtX/RyjxJ4DRikECcPJbyALA8FA==}
+
+  '@connectrpc/connect-web@2.1.2':
+    resolution: {integrity: sha512-1tfaK85MU+gJjwwmL31d2rzdf0XCYX99chZf63uG89SGBUd4XuZ4ZzhGo2u79TPXOE6nLIZQ2okrpyey42PYdg==}
+    peerDependencies:
+      '@bufbuild/protobuf': ^2.7.0
+      '@connectrpc/connect': 2.1.2
+
+  '@connectrpc/connect@2.1.2':
+    resolution: {integrity: sha512-MXkBijtcX09R10Eb6sFeIetc6w6746eio6xtfuyVOH7oQAacT1X0GzMIQFux6Qy8cq3W/T5qX5Bei8YbFtmRGA==}
+    peerDependencies:
+      '@bufbuild/protobuf': ^2.7.0
 
   '@esbuild/aix-ppc64@0.21.5':
     resolution: {integrity: sha512-1SDgH6ZSPTlggy1yI6+Dbkiz8xzpHJEVAlF/AM1tHPLsf5STom9rwtjE4hKAF20FfXXNTFqEYXyJNWh1GiZedQ==}
@@ -445,6 +462,12 @@ packages:
     engines: {node: ^14.18.0 || >=16.0.0}
     peerDependencies:
       vite: ^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0
+
+  '@vrooli/api-base@file:../../../packages/api-base':
+    resolution: {directory: ../../../packages/api-base, type: directory}
+    peerDependencies:
+      express: ^4.18.2
+      ws: ^8.16.0
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge':
     resolution: {directory: ../../../packages/iframe-bridge, type: directory}
@@ -896,6 +919,18 @@ packages:
       terser:
         optional: true
 
+  ws@8.21.0:
+    resolution: {integrity: sha512-Vsp28b7DRcimFQvrqu2Wek3z1iYxDCWqHYB8Qsnk/S4RfaCQzPGPyBNuVjJV3cd6UiKtUtp6sNM77gWvzcCH+g==}
+    engines: {node: '>=10.0.0'}
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: '>=5.0.2'
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
+        optional: true
+
   yallist@3.1.1:
     resolution: {integrity: sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g==}
 
@@ -1014,6 +1049,17 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.27.1
+
+  '@bufbuild/protobuf@2.12.0': {}
+
+  '@connectrpc/connect-web@2.1.2(@bufbuild/protobuf@2.12.0)(@connectrpc/connect@2.1.2(@bufbuild/protobuf@2.12.0))':
+    dependencies:
+      '@bufbuild/protobuf': 2.12.0
+      '@connectrpc/connect': 2.1.2(@bufbuild/protobuf@2.12.0)
+
+  '@connectrpc/connect@2.1.2(@bufbuild/protobuf@2.12.0)':
+    dependencies:
+      '@bufbuild/protobuf': 2.12.0
 
   '@esbuild/aix-ppc64@0.21.5':
     optional: true
@@ -1224,6 +1270,15 @@ snapshots:
       vite: 5.4.20
     transitivePeerDependencies:
       - supports-color
+
+  '@vrooli/api-base@file:../../../packages/api-base(@bufbuild/protobuf@2.12.0)(express@4.21.2)(ws@8.21.0)':
+    dependencies:
+      '@connectrpc/connect': 2.1.2(@bufbuild/protobuf@2.12.0)
+      '@connectrpc/connect-web': 2.1.2(@bufbuild/protobuf@2.12.0)(@connectrpc/connect@2.1.2(@bufbuild/protobuf@2.12.0))
+      express: 4.21.2
+      ws: 8.21.0
+    transitivePeerDependencies:
+      - '@bufbuild/protobuf'
 
   '@vrooli/iframe-bridge@file:../../../packages/iframe-bridge': {}
 
@@ -1692,5 +1747,7 @@ snapshots:
       rollup: 4.52.2
     optionalDependencies:
       fsevents: 2.3.3
+
+  ws@8.21.0: {}
 
   yallist@3.1.1: {}

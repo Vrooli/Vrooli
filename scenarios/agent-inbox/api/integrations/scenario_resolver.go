@@ -4,13 +4,19 @@ package integrations
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 	"sync"
+
+	vroolicli "github.com/vrooli/vrooli-cli-go"
 )
+
+// cliClient is the shared typed Vrooli CLI client for scenario discovery. It
+// decodes the vrooli.cli.v1 contracts instead of hand-parsing CLI JSON, so a
+// CLI output change is a compile error here rather than a silently empty or
+// wrong result.
+var cliClient = vroolicli.New()
 
 // defaultURLResolver implements URLResolver using environment variables and vrooli CLI.
 type defaultURLResolver struct{}
@@ -35,52 +41,38 @@ func ResolveScenarioURL(ctx context.Context, scenarioName string) (string, error
 		return url, nil
 	}
 
-	// Fall back to vrooli CLI
-	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "port", scenarioName, "API_PORT")
-	output, err := cmd.Output()
+	// Fall back to the vrooli CLI's typed scenario-port lookup.
+	resp, err := cliClient.ScenarioPort(ctx, scenarioName, "API_PORT")
 	if err != nil {
 		return "", fmt.Errorf("scenario %s not available: %w", scenarioName, err)
 	}
-
-	port := strings.TrimSpace(string(output))
-	if port == "" {
-		return "", fmt.Errorf("scenario %s returned empty port", scenarioName)
+	if !resp.GetSuccess() || resp.GetPort() == 0 {
+		return "", fmt.Errorf("scenario %s returned no API_PORT: %s", scenarioName, resp.GetError())
 	}
 
-	return fmt.Sprintf("http://localhost:%s", port), nil
+	return fmt.Sprintf("http://localhost:%d", resp.GetPort()), nil
 }
 
 // DiscoverToolScenarios uses vrooli CLI to find all running scenarios
 // and probes each for /api/v1/tools endpoints.
 // Returns the names of scenarios that implement the Tool Discovery Protocol.
 func (c *ScenarioClient) DiscoverToolScenarios(ctx context.Context) ([]string, error) {
-	// 1. Run: vrooli scenario list --json
-	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "list", "--json")
-	output, err := cmd.Output()
+	// 1. List scenarios via the typed CLI client.
+	resp, err := cliClient.ListScenarios(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to run vrooli scenario list: %w", err)
+		return nil, fmt.Errorf("failed to list vrooli scenarios: %w", err)
 	}
 
-	// 2. Parse JSON response
-	var response struct {
-		Scenarios []struct {
-			Name   string `json:"name"`
-			Status string `json:"status"`
-		} `json:"scenarios"`
-	}
-	if err := json.Unmarshal(output, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse vrooli response: %w", err)
-	}
-
-	// 3. Filter running scenarios (exclude [UNREGISTERED] and [MISSING])
+	// 2. Filter running scenarios (exclude [UNREGISTERED] and [MISSING]).
 	var candidates []string
-	for _, s := range response.Scenarios {
-		if s.Status != "[UNREGISTERED]" && s.Status != "[MISSING]" && s.Name != "" {
-			candidates = append(candidates, s.Name)
+	for _, s := range resp.GetScenarios() {
+		status := s.GetStatus()
+		if s.GetName() != "" && status != "[UNREGISTERED]" && status != "[MISSING]" {
+			candidates = append(candidates, s.GetName())
 		}
 	}
 
-	// 4. Probe each /api/v1/tools (parallel, with timeout)
+	// 3. Probe each /api/v1/tools (parallel, with timeout).
 	return c.probeForTools(ctx, candidates)
 }
 

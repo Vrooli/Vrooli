@@ -1,0 +1,224 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.com/schemas/search.schema.json",
+  "title": "Vrooli Search Configuration",
+  "description": "Scenario-owned AI-search SSOT (.vrooli/search.json): per-provider descriptor + tuning factors + evaluation corpus. Consumed by the scenario at boot (read tuning, self-register) and by search-hub (route, sweep, write-back). One file, one home — nothing search-tunable is a Go literal or a build-time seed.",
+  "type": "object",
+  "required": ["version", "providers"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Schema version (semver format)"
+    },
+    "providers": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Search providers this scenario exposes",
+      "items": { "$ref": "#/definitions/provider" }
+    }
+  },
+  "definitions": {
+    "provider": {
+      "type": "object",
+      "required": ["provider_id"],
+      "additionalProperties": false,
+      "properties": {
+        "provider_id": {
+          "type": "string",
+          "description": "Unique provider id (e.g. 'cli-health.commands')"
+        },
+        "provider_group": {
+          "type": "string",
+          "description": "Owning scenario / group (e.g. 'cli-health')"
+        },
+        "bucket": {
+          "type": "string",
+          "description": "Search-context bucket (DO/REUSE/KNOW/STATE), e.g. 'BUCKET_DO'"
+        },
+        "type": {
+          "type": "string",
+          "description": "Result kind (e.g. 'command', 'document', 'record')"
+        },
+        "description": {
+          "type": "string",
+          "description": "Routing description: what to find here and when to route to it"
+        },
+        "scope": {
+          "type": "string",
+          "description": "Routing scope (e.g. 'SCOPE_PROJECT')"
+        },
+        "endpoint": {
+          "$ref": "#/definitions/endpoint",
+          "description": "Search endpoint descriptor (search-hub registry shape)"
+        },
+        "status_endpoint": {
+          "$ref": "#/definitions/endpoint",
+          "description": "Status/health endpoint descriptor"
+        },
+        "reindex_endpoint": {
+          "$ref": "#/definitions/endpoint",
+          "description": "Secured control-plane target for the shared, token-gated search-hub.v1.control.SearchControlService reindex verbs (Reindex/ReindexStatus/ReindexCancel). Declared by a provider that exposes its corpus to the sweep; absent for routable-but-not-tunable providers."
+        },
+        "config_endpoint": {
+          "$ref": "#/definitions/endpoint",
+          "description": "Secured control-plane target for the shared SearchControlService.WriteConfig verb (the sweep's write-back of a winning tuning block into this file). Token-gated; absent for providers that are not config-writable."
+        },
+        "result_mapping": {
+          "type": "object",
+          "description": "How to map the provider's response into normalized hits",
+          "additionalProperties": true
+        },
+        "tuning": { "$ref": "#/definitions/tuning" },
+        "scoring": { "$ref": "#/definitions/scoring" },
+        "tests": { "$ref": "#/definitions/tests" }
+      }
+    },
+    "endpoint": {
+      "type": "object",
+      "description": "Opaque transport descriptor (interpreted by search-hub, not by aisearch-go).",
+      "additionalProperties": true
+    },
+    "tuning": {
+      "type": "object",
+      "description": "Search tuning factors. Optional: a provider that omits this block runs on the aisearch-go defaults (TuningConfig.WithDefaults — dense engine, default embed model, no rerank), so an untuned provider is still valid. INDEX-TIME factors (engine, embed_model, embed_task_prefix) change the stored vectors and require a reindex when moved; QUERY-TIME factors (rerank_*, floor) vary per request. The sweep writes the winning values here. See packages/aisearch-go/tuning.go (the factor-taxonomy SSOT) for the per-factor tradeoff.",
+      "additionalProperties": false,
+      "properties": {
+        "engine": {
+          "type": "string",
+          "enum": ["dense", "hybrid"],
+          "description": "INDEX-TIME. dense = dense-vector only; hybrid = dense + BM25 sparse RRF fusion. N/A for hybrid-by-construction adopters (e.g. knowledge-observatory.docs): when a provider's read+index path always builds a hybrid binding and exposes no config_endpoint, this field is a fixed invariant the engine pins — set it to \"hybrid\" to match reality; a divergent value is corrected with a warning at load."
+        },
+        "embed_model": {
+          "type": "string",
+          "description": "INDEX-TIME. Dense embedding model (default nomic-embed-text)."
+        },
+        "embed_task_prefix": {
+          "type": "boolean",
+          "description": "INDEX-TIME. Apply asymmetric search_query:/search_document: prefixes (nomic). Changes the embedding space → reindex."
+        },
+        "rerank_enabled": {
+          "type": "boolean",
+          "description": "QUERY-TIME. Gate the cross-encoder/LLM rerank pass."
+        },
+        "rerank_blend": {
+          "type": "boolean",
+          "description": "QUERY-TIME. Fuse rerank order with retrieval via RRF instead of reordering outright (requires rerank_enabled)."
+        },
+        "rerank_shortlist": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 500,
+          "description": "QUERY-TIME. Over-fetch depth into the reranker."
+        },
+        "floor": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "QUERY-TIME. Relevance-floor band (0 = let the package pick the regime default).",
+          "properties": {
+            "max_gap": { "type": "number", "minimum": 0, "maximum": 1 },
+            "hard_floor": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        }
+      }
+    },
+    "scoring": {
+      "type": "object",
+      "description": "Corpus grading policy. Defaults apply when omitted: recall_at=5, recall_target=0.8, mrr_at=3, deep_k=50.",
+      "additionalProperties": false,
+      "properties": {
+        "recall_at": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Acceptance recall cutoff K."
+        },
+        "recall_target": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Minimum accepted recall over reviewed, non-stale positives."
+        },
+        "mrr_at": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "MRR reporting cutoff."
+        },
+        "deep_k": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Referential validation probe depth. Values below recall_at are resolved up to recall_at by the shared library."
+        }
+      }
+    },
+    "tests": {
+      "type": "object",
+      "description": "The evaluation corpus — the SSOT that search-hub's eval store mirrors. One labelled corpus per provider; one case list (negatives are cases with expect_no_strong_hit). Maps 1:1 onto the search-hub eval proto's EvalSuite (modulo store-assigned suite metadata), so a scenario self-registers it at boot and every mutation writes back here.",
+      "additionalProperties": false,
+      "properties": {
+        "suite_id": {
+          "type": "string",
+          "description": "Optional override for the default suite id '<provider_id>.primary' (only a provider with more than one suite needs it)"
+        },
+        "name": { "type": "string", "description": "Human-facing suite name mirrored into the store" },
+        "description": { "type": "string", "description": "Human-facing suite description mirrored into the store" },
+        "cases": {
+          "type": "array",
+          "description": "The whole corpus: positive labelled queries AND negatives (a negative is a case with expect_no_strong_hit)",
+          "items": { "$ref": "#/definitions/test_case" }
+        }
+      }
+    },
+    "test_case": {
+      "type": "object",
+      "required": ["id", "query"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "description": "Stable case id" },
+        "query": { "type": "string", "description": "The natural-language query" },
+        "scope": {
+          "type": "string",
+          "pattern": "^(global|scenario:[^\\s].*|path:[^\\s].*)$",
+          "description": "Optional case-level query scope. Empty/default is global; scenario:<id> and path:<prefix> map to the shared SearchQuery scope."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["reviewed", "candidate"],
+          "description": "Review state. Empty/default is reviewed; generated cases enter as candidate and are excluded from acceptance recall until promoted."
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Difficulty/category/provenance tags (e.g. 'strong', 'weak-real', 'hard', 'gibberish', 'generated'). 'generated' is the load-bearing marker the sweep holds out of the tuning fold."
+        },
+        "expect_ids": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Positive label: leaf ids (per the provider's id_field, e.g. 'restart') that should appear within expect_within_top_k"
+        },
+        "expect_within_top_k": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "The expected hit must land within this rank"
+        },
+        "expect_min_score": {
+          "type": "number",
+          "description": "Optional single-regime floor for the expected hit. NOT set on rank-centric positives (cross-regime fairness)."
+        },
+        "expect_max_score": {
+          "type": "number",
+          "description": "Upper score band (used by negatives)"
+        },
+        "expect_no_strong_hit": {
+          "type": "boolean",
+          "description": "Negative: no result should exceed expect_max_score (junk-rejection case)"
+        },
+        "note": { "type": "string", "description": "Rationale / calibration note" }
+      }
+    }
+  }
+}

@@ -15,6 +15,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/discovery"
+	vroolicli "github.com/vrooli/vrooli-cli-go"
 )
 
 func handleGetScenarios(orchestrator *Orchestrator) http.HandlerFunc {
@@ -610,24 +611,21 @@ func handleStopScenario() http.HandlerFunc {
 	}
 }
 
-// Fetch scenario statuses using vrooli CLI
+// cliClient is the typed Vrooli CLI client used by the API handlers. It is a
+// package var so tests can substitute a stubbed runner instead of shelling the
+// real binary.
+var cliClient = vroolicli.New()
+
+// Fetch scenario statuses using the typed `vrooli scenario status` contract.
 func handleGetScenarioStatuses() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Create context with 5 second timeout to prevent test hangs
-		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-		defer cancel()
-
-		// Run vrooli scenario status --json
-		cmd := exec.CommandContext(ctx, "vrooli", "scenario", "status", "--json")
-		var out bytes.Buffer
-		var stderr bytes.Buffer
-		cmd.Stdout = &out
-		cmd.Stderr = &stderr
-
-		err := cmd.Run()
+		// The client applies its own per-operation timeout (sized for a
+		// full-fleet sweep, which can take ~10s). The previous hand-rolled 5s
+		// budget was a latent bug: it could time out a healthy sweep and report
+		// an empty list.
+		resp, err := cliClient.ScenarioStatuses(r.Context())
 		if err != nil {
-			// Log error but don't fail - return empty statuses
-			log.Printf("Error fetching scenario statuses: %v, stderr: %s", err, stderr.String())
+			log.Printf("Error fetching scenario statuses: %v", err)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]interface{}{
@@ -636,46 +634,22 @@ func handleGetScenarioStatuses() http.HandlerFunc {
 			return
 		}
 
-		// Parse the JSON output
-		var statusData map[string]interface{}
-		if err := json.Unmarshal(out.Bytes(), &statusData); err != nil {
-			log.Printf("Error parsing scenario status JSON: %v", err)
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]interface{}{
-				"statuses": map[string]interface{}{},
-			})
-			return
-		}
-
-		// Extract scenarios from the status data
 		statuses := make(map[string]interface{})
-		if scenarios, ok := statusData["scenarios"].([]interface{}); ok {
-			for _, scenario := range scenarios {
-				if s, ok := scenario.(map[string]interface{}); ok {
-					if name, ok := s["name"].(string); ok {
-						status := "stopped"
-						processCount := 0
-
-						if statusStr, ok := s["status"].(string); ok {
-							if statusStr == "running" || statusStr == "RUNNING" {
-								status = "running"
-							} else if statusStr == "error" || statusStr == "ERROR" {
-								status = "error"
-							}
-						}
-
-						// Check for "processes" field (actual field name in JSON)
-						if procs, ok := s["processes"].(float64); ok {
-							processCount = int(procs)
-						}
-
-						statuses[name] = map[string]interface{}{
-							"status":       status,
-							"processCount": processCount,
-						}
-					}
-				}
+		for _, s := range resp.GetScenarios() {
+			name := s.GetName()
+			if name == "" {
+				continue
+			}
+			status := "stopped"
+			switch strings.ToLower(s.GetStatus()) {
+			case "running":
+				status = "running"
+			case "error":
+				status = "error"
+			}
+			statuses[name] = map[string]interface{}{
+				"status":       status,
+				"processCount": int(s.GetProcesses()),
 			}
 		}
 

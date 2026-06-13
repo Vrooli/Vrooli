@@ -2,15 +2,19 @@ package scenarioport
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/url"
-	"os/exec"
 	"strings"
 	"time"
 
 	"github.com/vrooli/api-core/discovery"
+	vroolicli "github.com/vrooli/vrooli-cli-go"
 )
+
+// cliClient is the shared typed Vrooli CLI client. It decodes the
+// vrooli.cli.v1 contracts instead of hand-parsing CLI JSON, so a CLI output
+// change is a compile error here rather than a silently empty or wrong result.
+var cliClient = vroolicli.New()
 
 type PortInfo struct {
 	Name string
@@ -54,50 +58,46 @@ func (c *DefaultScenarioCLI) LookupPort(ctx context.Context, scenarioName, portN
 	return resolver.ResolveScenarioPort(ctx, scenarioName, portName)
 }
 
-// ListScenarios shells out to 'vrooli scenario list --json' to get all scenarios.
+// ListScenarios returns all scenarios via the typed CLI client, mapping the
+// vrooli.cli.v1 scenario-list contract onto ScenarioMetadata.
 func (c *DefaultScenarioCLI) ListScenarios(ctx context.Context) ([]ScenarioMetadata, error) {
-	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "list", "--json")
-	output, err := cmd.Output()
+	resp, err := cliClient.ListScenarios(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list scenarios: %w", err)
 	}
 
-	var payload scenarioListResponse
-	if err := json.Unmarshal(output, &payload); err != nil {
-		return nil, fmt.Errorf("failed to parse scenario list: %w", err)
-	}
-
-	scenarios := make([]ScenarioMetadata, 0, len(payload.Scenarios))
-	for _, item := range payload.Scenarios {
-		trimmedName := strings.TrimSpace(item.Name)
+	scenarios := make([]ScenarioMetadata, 0, len(resp.GetScenarios()))
+	for _, item := range resp.GetScenarios() {
+		trimmedName := strings.TrimSpace(item.GetName())
 		if trimmedName == "" {
 			continue
 		}
 		scenarios = append(scenarios, ScenarioMetadata{
 			Name:        trimmedName,
-			Description: strings.TrimSpace(item.Description),
-			Status:      strings.TrimSpace(item.Status),
+			Description: strings.TrimSpace(item.GetDescription()),
+			Status:      strings.TrimSpace(item.GetStatus()),
 		})
 	}
 
 	return scenarios, nil
 }
 
-// GetStatus shells out to 'vrooli scenario status' to get the current status.
+// GetStatus reads a scenario's lifecycle status via the typed CLI client. A
+// failed lookup is not an error condition — it degrades to "unknown".
 func (c *DefaultScenarioCLI) GetStatus(ctx context.Context, scenarioName string) (string, error) {
-	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "status", scenarioName)
-	output, err := cmd.Output()
+	resp, err := cliClient.ScenarioStatus(ctx, scenarioName)
 	if err != nil {
-		return "unknown", nil // Status command failing is not an error condition
+		return "unknown", nil
 	}
 
-	statusStr := strings.TrimSpace(string(output))
-	if strings.Contains(strings.ToLower(statusStr), "running") {
+	switch strings.ToLower(strings.TrimSpace(resp.GetScenario().GetStatus())) {
+	case "running":
 		return "running", nil
-	} else if strings.Contains(strings.ToLower(statusStr), "stopped") {
+	case "stopped":
 		return "stopped", nil
+	default:
+		return "unknown", nil
 	}
-	return "unknown", nil
 }
 
 // Compile-time interface enforcement
@@ -264,10 +264,6 @@ func ResolveURL(ctx context.Context, scenarioName, path string, portNames ...str
 	}
 
 	return resolvedURL, portInfo, nil
-}
-
-type scenarioListResponse struct {
-	Scenarios []ScenarioMetadata `json:"scenarios"`
 }
 
 // ListScenarios returns metadata for all known scenarios.

@@ -10,7 +10,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -87,14 +86,13 @@ func getAgentManagerURL() (string, error) {
 		return url, nil
 	}
 
-	// Fall back to port discovery via CLI
-	cmd := exec.Command("vrooli", "scenario", "port", "agent-manager", "API_PORT")
-	output, err := cmd.Output()
+	// Fall back to port discovery via the typed CLI client.
+	resp, err := cliClient.ScenarioPort(context.Background(), "agent-manager", "API_PORT")
 	if err == nil {
-		port := strings.TrimSpace(string(output))
-		if port != "" {
-			return fmt.Sprintf("http://localhost:%s", port), nil
+		if resp.GetSuccess() && resp.GetPort() != 0 {
+			return fmt.Sprintf("http://localhost:%d", resp.GetPort()), nil
 		}
+		err = fmt.Errorf("API_PORT unresolved: %s", resp.GetError())
 	}
 
 	// Fall back to reading agent-manager's service.json for a static port

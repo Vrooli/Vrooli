@@ -1,7 +1,11 @@
 # Root workspace configuration - shared packages only (packages/*).
 # IMPORTANT: Do NOT add scenarios/**/ui or any scenarios/* path here.
-# Scenarios must stay fully isolated to prevent dependency conflicts; they
-# install with "pnpm install --ignore-workspace" and never join this workspace.
+# Scenarios must stay fully isolated to prevent dependency conflicts; each
+# scenario ui/ carries its own pnpm-workspace.yaml BOUNDARY file (react-vite
+# template >= 1.1.0) that stops pnpm's upward workspace walk, so a plain
+# "pnpm install" there never joins this workspace ("--ignore-workspace" stays
+# equivalent and is what lifecycle commands pass). A pnpm-lock.yaml must never
+# exist at the repo root - it means an install ran in root-workspace scope.
 # Shared-package adoption is governed by "vrooli package ..." plus package
 # manifests under packages/*/.vrooli/package.json.
 # This file is the single source of truth for root workspace settings; do not

@@ -29,6 +29,9 @@ func TestDiscoveryHandlers(t *testing.T) {
 	})
 
 	t.Run("HandleGetScenarioStatuses", func(t *testing.T) {
+		// Deterministic via the client's runner seam — no real `vrooli` exec.
+		useStubCLI(t, []byte(`{"success":true,"scenarios":[{"name":"alpha","status":"running","processes":1}]}`), nil)
+
 		req := HTTPTestRequest{
 			Method: "GET",
 			Path:   "/api/v1/scenario-statuses",
@@ -36,9 +39,8 @@ func TestDiscoveryHandlers(t *testing.T) {
 
 		w := makeHTTPRequest(env, req)
 
-		// Handler returns statuses or error (may timeout in test environment)
-		if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
-			t.Errorf("Expected status 200 or 500, got %d", w.Code)
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", w.Code)
 		}
 
 		var resp map[string]interface{}

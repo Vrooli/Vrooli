@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
@@ -351,9 +352,15 @@ func TestHandleGetScenarioStatuses_AdditionalCoverage(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
-	t.Run("SkippedDueToHangingCommand", func(t *testing.T) {
-		// handleGetScenarioStatuses runs external commands that can hang in test environment
-		// Skip this test to avoid timeout issues
-		t.Skip("Skipping due to external command execution that can hang")
+	t.Run("StubbedCLIReturnsStatuses", func(t *testing.T) {
+		// The typed CLI client exposes a runner seam, so this no longer shells
+		// the real binary (which previously forced a skip "due to hanging").
+		useStubCLI(t, []byte(`{"success":true,"scenarios":[{"name":"alpha","status":"running","processes":2}]}`), nil)
+
+		w := httptest.NewRecorder()
+		handleGetScenarioStatuses()(w, httptest.NewRequest("GET", "/api/v1/scenario-statuses", nil))
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", w.Code)
+		}
 	})
 }

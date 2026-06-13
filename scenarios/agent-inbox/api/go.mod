@@ -9,6 +9,7 @@ require (
 	github.com/pkoukk/tiktoken-go v0.1.7
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
+	github.com/vrooli/vrooli-cli-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	google.golang.org/protobuf v1.36.11
 	modernc.org/sqlite v1.50.1
@@ -35,6 +36,8 @@ replace github.com/vrooli/api-core => ../../../packages/api-core
 require github.com/vrooli/cli-core v0.0.0 // indirect
 
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
+
+replace github.com/vrooli/vrooli-cli-go => ../../../packages/vrooli-cli-go
 
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 

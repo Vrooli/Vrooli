@@ -42,13 +42,13 @@ Adding an inbox entry:
 
 ```bash
 prompt-manager team knowledge-add marketing-crew \
-  --by=<source-id> \
   --topic="research-inbox/<signal-type>/<short-slug>" \
+  --caller-note="<source-id or routing context>" \
   --content="<raw operator note + honesty/confidence flags + optional suggested-method>" \
   --source="<original-url-if-known>"
 ```
 
-- `--by` identifies the source (e.g. `vision-walk`, `researcher`, `operator`).
+- `--caller-note` identifies the source context (e.g. `vision-walk`, `researcher`, `operator`). Knowledge entries are attributed automatically by runtime context; do not pass `--by` to `knowledge-add`.
 - `--source` carries the original URL when available.
 
 Each entry must preserve: source URL when available, raw operator note, confidence / honesty flags, and a proposed next method (or a reason no follow-up is warranted). Signal-type lives in the topic, not the content.
