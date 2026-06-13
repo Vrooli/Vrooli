@@ -16,7 +16,7 @@
       "description": "Vector embeddings for tasks to enable semantic similarity search and duplicate detection",
       "config": {
         "vectors": {
-          "size": 1536,
+          "embedding_role": "embedding.default",
           "distance": "Cosine",
           "on_disk": true
         },
@@ -127,7 +127,7 @@
       "description": "Vector embeddings for research artifacts to enable semantic search and relevance scoring",
       "config": {
         "vectors": {
-          "size": 1536,
+          "embedding_role": "embedding.default",
           "distance": "Cosine", 
           "on_disk": true
         },

@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	vroolicli "github.com/vrooli/vrooli-cli-go"
 )
 
 // TestCategorize verifies category lookup for known and unknown resources.
@@ -85,44 +87,60 @@ func writeResourcesFile(t *testing.T, _ string, resources []map[string]string) {
 	stubResourceStatusJSON(t, fixtures, nil)
 }
 
+// stubRunner is a vroolicli.Runner that returns canned output, letting tests
+// drive loadResources without executing the real CLI.
+type stubRunner struct {
+	out []byte
+	err error
+}
+
+func (s stubRunner) Run(context.Context, string, ...string) ([]byte, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	return s.out, nil
+}
+
+func (s stubRunner) RunCombined(ctx context.Context, name string, args ...string) ([]byte, error) {
+	return s.Run(ctx, name, args...)
+}
+
+// swapCLIClient points the package-level cliClient at a stub runner for the
+// duration of the test.
+func swapCLIClient(t *testing.T, out []byte, err error) {
+	t.Helper()
+	previous := cliClient
+	t.Cleanup(func() {
+		cliClient = previous
+	})
+	cliClient = vroolicli.New(vroolicli.WithRunner(stubRunner{out: out, err: err}))
+}
+
 func stubResourceStatusJSON(t *testing.T, fixtures []resourceStatusFixture, err error) {
 	t.Helper()
 
-	previous := runResourceStatusJSON
-	t.Cleanup(func() {
-		runResourceStatusJSON = previous
-	})
-
-	runResourceStatusJSON = func(context.Context) ([]byte, error) {
-		if err != nil {
-			return nil, err
-		}
-		payload := map[string]any{
-			"resources": fixturesToCLI(fixtures),
-			"success":   true,
-		}
-		data, marshalErr := json.Marshal(payload)
-		if marshalErr != nil {
-			t.Fatalf("marshal fixtures: %v", marshalErr)
-		}
-		return data, nil
+	if err != nil {
+		swapCLIClient(t, nil, err)
+		return
 	}
+	payload := map[string]any{
+		"resources": fixturesToCLI(fixtures),
+		"success":   true,
+	}
+	data, marshalErr := json.Marshal(payload)
+	if marshalErr != nil {
+		t.Fatalf("marshal fixtures: %v", marshalErr)
+	}
+	swapCLIClient(t, data, nil)
 }
 
 func stubRawResourceStatusJSON(t *testing.T, raw string, err error) {
 	t.Helper()
-
-	previous := runResourceStatusJSON
-	t.Cleanup(func() {
-		runResourceStatusJSON = previous
-	})
-
-	runResourceStatusJSON = func(context.Context) ([]byte, error) {
-		if err != nil {
-			return nil, err
-		}
-		return []byte(raw), nil
+	if err != nil {
+		swapCLIClient(t, nil, err)
+		return
 	}
+	swapCLIClient(t, []byte(raw), nil)
 }
 
 func fixturesToCLI(fixtures []resourceStatusFixture) []map[string]any {

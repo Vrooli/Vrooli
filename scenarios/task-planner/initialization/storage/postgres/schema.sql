@@ -5,6 +5,23 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 CREATE EXTENSION IF NOT EXISTS "vector";
 
+-- Embedding metadata records the policy facts used to generate each vector.
+-- The vector columns remain layout-neutral; retargeting creates shadow storage
+-- and cuts over after rows have been regenerated under the current role.
+CREATE TABLE embedding_metadata (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    owner_table TEXT NOT NULL,
+    owner_id TEXT NOT NULL,
+    embedding_column TEXT NOT NULL,
+    embedding_role TEXT NOT NULL,
+    embedding_model TEXT NOT NULL,
+    embedding_dimensions INTEGER NOT NULL CHECK (embedding_dimensions > 0),
+    embedding_policy_schema_version TEXT NOT NULL,
+    source_content_hash TEXT NOT NULL,
+    generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(owner_table, owner_id, embedding_column)
+);
+
 -- Enum types
 CREATE TYPE task_status AS ENUM ('unstructured', 'backlog', 'staged', 'in_progress', 'completed', 'cancelled', 'failed');
 CREATE TYPE task_priority AS ENUM ('critical', 'high', 'medium', 'low');
@@ -80,8 +97,8 @@ CREATE TABLE tasks (
     test_results TEXT,
     
     -- Vector embeddings for similarity
-    title_embedding VECTOR(1536),
-    content_embedding VECTOR(1536),
+    title_embedding VECTOR,
+    content_embedding VECTOR,
     
     -- Dependencies and relationships
     depends_on UUID[], -- Array of task IDs
@@ -165,7 +182,7 @@ CREATE TABLE research_artifacts (
     quality_score DECIMAL(3,2),
     
     -- Vector embedding for similarity search
-    content_embedding VECTOR(1536),
+    content_embedding VECTOR,
     
     metadata JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -206,6 +223,7 @@ CREATE INDEX idx_tasks_created ON tasks(created_at DESC);
 CREATE INDEX idx_tasks_parent ON tasks(parent_task_id);
 CREATE INDEX idx_tasks_title_embedding ON tasks USING ivfflat (title_embedding vector_cosine_ops);
 CREATE INDEX idx_tasks_content_embedding ON tasks USING ivfflat (content_embedding vector_cosine_ops);
+CREATE INDEX idx_embedding_metadata_owner ON embedding_metadata(owner_table, owner_id, embedding_column);
 CREATE INDEX idx_tasks_title_trgm ON tasks USING gin (title gin_trgm_ops);
 CREATE INDEX idx_tasks_tags ON tasks USING gin (tags);
 

@@ -28,16 +28,16 @@
         "collection_prefix": "task_planner_",
         "base_url": "http://localhost:6334",
         "health_check_endpoint": "http://localhost:6334/health",
-        "vector_size": 1536,
+        "embedding_role": "embedding.default",
         "collections": {
           "task_embeddings": {
             "name": "task_embeddings",
-            "vector_size": 1536,
+            "embedding_role": "embedding.default",
             "distance": "cosine"
           },
           "research_embeddings": {
             "name": "research_embeddings", 
-            "vector_size": 1536,
+            "embedding_role": "embedding.default",
             "distance": "cosine"
           }
         }
@@ -107,12 +107,12 @@
         "api_endpoint": "http://localhost:11434/api",
         "models": {
           "primary_llm": "chat.small",
-          "embedding_model": "embedding.default"
+          "embedding_role": "embedding.default"
         },
         "endpoints": {
-          "generate": "http://localhost:11434/api/generate",
-          "chat": "http://localhost:11434/api/chat", 
-          "embeddings": "http://localhost:11434/api/embeddings",
+          "generate_role": "chat.default",
+          "generate_command": "resource-ollama gateway generate --role chat.default --json",
+          "embed_command": "resource-ollama gateway embed --role embedding.default --json",
           "tags": "http://localhost:11434/api/tags"
         }
       },

@@ -11,14 +11,15 @@ This file provides essential guidance to Claude Code (claude.ai/code) when worki
    - Use `vrooli scenario test <name>` (or test-genie) to run scenario tests.
 2. **Files**: Always prefer editing existing files over creating new ones
 3. **Bug reporting & work logging**:
-   - If you spot a defect outside your current scope, file via `report-bug` (routes to scenario-qa).
+   - If you spot a defect outside your current scope, load the writer instructions with `prompt-manager skill read report-bug`, then file to scenario-qa with `prompt-manager team knowledge-add scenario-qa --topic="bug-inbox/<signal-type>/<slug>" --content "<front-matter + body>"`. `report-bug` is a prompt-manager skill, not a shell executable. If the knowledge writer is unavailable, fall back to `swarm-manager captures create --text "<bug report + attempted command>"` and say the bug writer was unavailable.
    - If you complete work worth preserving (non-trivial fix, feature, refactor, investigation), write a record via `swarm-manager records create`. Records are the recursive-learning loop's write side; without them, future agents lose your work.
-4. **Discover → Use → Capture** (continuous reflex, not an end-of-task checklist):
+4. **Recall → Discover → Use → Capture** (continuous reflex, not an end-of-task checklist):
+   - **Recall prior work first.** Before non-trivial work, search what the system has already learned: `search-hub query "<one-sentence intent>" --type record,skill,doc` (widen to `record,backlog,initiative,skill,doc` when planning). Read the top hits — a `record` hit carries *how* a prior agent solved it (its trigger + approach), not just a link. Three exits: nothing relevant → proceed; related prior work → build on it (cite the record/skill); a near-duplicate of an already-solved problem → stop and reconcile before redoing it. If search-hub is unavailable, fall back to `swarm-manager records search "<intent>"`. This is the *read* side of the recursive-learning loop; the record you write at the end (Rule 3) is the *write* side — recall makes those writes pay off.
    - **Discover first.** Before hand-rolling deterministic or operational work, run `prompt-manager discover "<what you need>" --type all` to find an existing skill or action. `--type all` is best-match relevance (skills and actions ranked purely by score, no curated topic packs), so phrase the query as the operation / what you need. (A miss is logged automatically — no action needed from you.)
    - **Capture as you go.** When you accomplish something reusable:
      - One Vrooli CLI command cleanly does it and no action exists → `prompt-manager action create --name "…" --command '<argv with {{placeholders}}>'` (previews by default; add `--apply` to register). Creating an action is free — no decision required.
      - It took several commands, only partly worked, or you improvised → `swarm-manager captures create --text "<intent / what you did / the friction>"`. Don't stitch multiple actions together; the capture becomes an enhancement or capability-gap the system triages into a single clean command later.
-     - Something is broken → `report-bug` (see above).
+     - Something is broken → use the `report-bug` skill workflow above; do not run `report-bug` as a shell command.
 5. **Dependencies**: Never install packages without explicit permission
 6. **Managing Scenarios**:
    - **ALWAYS use**: Scenario Makefiles for comprehensive management: `make start`, `make test`, `make logs`, `make stop`

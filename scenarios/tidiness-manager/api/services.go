@@ -3,17 +3,16 @@ package main
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
 	repocontract "github.com/vrooli/repo-contract-go"
+	vroolicli "github.com/vrooli/vrooli-cli-go"
 )
 
 func resolveRepoRootForTidiness() (string, error) {
@@ -34,6 +33,7 @@ func resolveRepoRootForTidiness() (string, error) {
 type ScenarioLocator struct {
 	repoRoot     string
 	scenariosDir string
+	client       *vroolicli.Client
 	cache        []string
 	cacheTime    time.Time
 	cacheTTL     time.Duration
@@ -54,6 +54,7 @@ func NewScenarioLocator(cacheTTL time.Duration) (*ScenarioLocator, error) {
 	return &ScenarioLocator{
 		repoRoot:     root,
 		scenariosDir: filepath.Join(root, filepath.FromSlash(layout.ScenarioDir)),
+		client:       vroolicli.New(),
 		cacheTTL:     cacheTTL,
 	}, nil
 }
@@ -109,25 +110,16 @@ func (sl *ScenarioLocator) List(ctx context.Context) ([]string, error) {
 		return sl.cache, nil
 	}
 
-	callCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(callCtx, "vrooli", "scenario", "status", "--json")
-	output, err := cmd.Output()
+	// The typed client owns the timeout (30s default when ctx has no deadline),
+	// the --no-stale-check flag, and decoding the vrooli.cli.v1 contract.
+	resp, err := sl.client.ScenarioStatuses(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var resp struct {
-		Scenarios []map[string]interface{} `json:"scenarios"`
-	}
-	if err := json.Unmarshal(output, &resp); err != nil {
-		return nil, err
-	}
-
-	scenarios := []string{}
-	for _, scenario := range resp.Scenarios {
-		if name, ok := scenario["name"].(string); ok {
+	scenarios := make([]string, 0, len(resp.GetScenarios()))
+	for _, scenario := range resp.GetScenarios() {
+		if name := scenario.GetName(); name != "" {
 			scenarios = append(scenarios, name)
 		}
 	}

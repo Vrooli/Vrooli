@@ -2,40 +2,30 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
-	"os/exec"
 	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
+	vroolicli "github.com/vrooli/vrooli-cli-go"
+	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
 
-// Resource represents a Vrooli resource with derived category.
+// cliClient is the shared typed Vrooli CLI client. It decodes the
+// vrooli.cli.v1 contracts instead of hand-parsing CLI JSON, so a CLI output
+// change is a compile error here rather than a silently empty or wrong result.
+// Tests swap it via a Runner seam (see resources_test.go).
+var cliClient = vroolicli.New()
+
+// Resource represents a Vrooli resource with derived category, as surfaced to
+// the onboarding UI. This is the onboarding API's own view-model — the UI
+// depends on this shape, not on the vrooli CLI contract.
 type Resource struct {
 	Name      string `json:"name"`
 	Status    string `json:"status"`
 	Category  string `json:"category"`
 	Installed bool   `json:"installed"`
-}
-
-type resourceStatusList struct {
-	Resources []resourceStatusItem `json:"resources"`
-}
-
-type resourceStatusItem struct {
-	Resource struct {
-		Name string `json:"name"`
-	} `json:"resource"`
-	Installed bool   `json:"installed"`
-	Running   bool   `json:"running"`
-	Health    string `json:"health"`
-	Message   string `json:"message"`
-}
-
-var runResourceStatusJSON = func(ctx context.Context) ([]byte, error) {
-	return exec.CommandContext(ctx, "vrooli", "resource", "status", "--json").Output()
 }
 
 // categoryMap maps resource names to human-friendly categories.
@@ -92,14 +82,16 @@ func categorize(name string) string {
 	return "general"
 }
 
-func normalizeResourceStatus(item resourceStatusItem) string {
-	if item.Running {
+// normalizeResourceStatus derives the onboarding UI's coarse status label from
+// the typed CLI resource status (running / installed / stopped).
+func normalizeResourceStatus(item *cliv1.ResourceStatus) string {
+	if item.GetRunning() {
 		return "running"
 	}
 
-	statusText := strings.ToLower(strings.TrimSpace(item.Health))
+	statusText := strings.ToLower(strings.TrimSpace(item.GetHealth()))
 	if statusText == "" {
-		statusText = strings.ToLower(strings.TrimSpace(item.Message))
+		statusText = strings.ToLower(strings.TrimSpace(item.GetMessage()))
 	}
 
 	switch {
@@ -107,38 +99,33 @@ func normalizeResourceStatus(item resourceStatusItem) string {
 		return "stopped"
 	case strings.Contains(statusText, "not installed"):
 		return "stopped"
-	case item.Installed:
+	case item.GetInstalled():
 		return "installed"
 	default:
 		return "stopped"
 	}
 }
 
-// loadResources reads resource status from the Vrooli CLI.
+// loadResources reads resource status from the Vrooli CLI via the typed client.
+// A CLI failure is propagated, never degraded to an empty list — the onboarding
+// wizard must not silently present zero resources on a transient hiccup.
 func loadResources() ([]Resource, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	data, err := runResourceStatusJSON(ctx)
+	resp, err := cliClient.ResourceStatuses(context.Background())
 	if err != nil {
-		return nil, fmt.Errorf("vrooli resource status --json failed: %w", err)
+		return nil, fmt.Errorf("vrooli resource status failed: %w", err)
 	}
 
-	var raw resourceStatusList
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return nil, fmt.Errorf("parse resource status output: %w", err)
-	}
-
-	resources := make([]Resource, 0, len(raw.Resources))
-	for _, item := range raw.Resources {
-		if strings.TrimSpace(item.Resource.Name) == "" {
+	resources := make([]Resource, 0, len(resp.GetResources()))
+	for _, item := range resp.GetResources() {
+		name := item.GetResource().GetName()
+		if strings.TrimSpace(name) == "" {
 			continue
 		}
 		resources = append(resources, Resource{
-			Name:      item.Resource.Name,
+			Name:      name,
 			Status:    normalizeResourceStatus(item),
-			Category:  categorize(item.Resource.Name),
-			Installed: item.Installed,
+			Category:  categorize(name),
+			Installed: item.GetInstalled(),
 		})
 	}
 	return resources, nil
