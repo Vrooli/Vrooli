@@ -128,18 +128,6 @@ func projectStopItem(item control.ResultItem) *cliv1.ProjectStopItem {
 	}
 }
 
-func projectLockInfo(lock maintenance.LockInfo) *cliv1.ProjectLockInfo {
-	return &cliv1.ProjectLockInfo{
-		Port:         int32(lock.Port),
-		Scenario:     lock.Scenario,
-		Pid:          int32(lock.PID),
-		Timestamp:    projectFormatTime(lock.Timestamp),
-		Path:         lock.Path,
-		OwnerRunning: lock.OwnerRunning,
-		Stale:        lock.Stale,
-	}
-}
-
 func projectRuntimeClaim(claim maintenance.RuntimeClaimInfo) *cliv1.ProjectRuntimeClaim {
 	return &cliv1.ProjectRuntimeClaim{
 		ClaimId:                     claim.ClaimID,
@@ -322,24 +310,21 @@ func writeProjectOrphansDryRunJSON(w io.Writer, list []maintenance.SystemProcess
 }
 
 // ---------------------------------------------------------------------------
-// `vrooli locks --json` (list mode) — WriteSuccessFields(locks, registry_claims)
+// `vrooli locks --json` (list mode) — WriteSuccessFields(registry_claims)
 // ---------------------------------------------------------------------------
 
-// ProjectLocksResponseMessage maps the legacy lock + registry-claim lists onto
-// the success-fields envelope.
-func ProjectLocksResponseMessage(locks []maintenance.LockInfo, claims []maintenance.RuntimeClaimInfo) *cliv1.ProjectLocksResponse {
+// ProjectLocksResponseMessage maps the registry-claim list onto the
+// success-fields envelope.
+func ProjectLocksResponseMessage(claims []maintenance.RuntimeClaimInfo) *cliv1.ProjectLocksResponse {
 	out := &cliv1.ProjectLocksResponse{Success: true}
-	for _, lock := range locks {
-		out.Locks = append(out.Locks, projectLockInfo(lock))
-	}
 	for _, claim := range claims {
 		out.RegistryClaims = append(out.RegistryClaims, projectRuntimeClaim(claim))
 	}
 	return out
 }
 
-func writeProjectLocksJSON(w io.Writer, locks []maintenance.LockInfo, claims []maintenance.RuntimeClaimInfo) error {
-	return cliout.WriteProtoJSON(w, ProjectLocksResponseMessage(locks, claims))
+func writeProjectLocksJSON(w io.Writer, claims []maintenance.RuntimeClaimInfo) error {
+	return cliout.WriteProtoJSON(w, ProjectLocksResponseMessage(claims))
 }
 
 // ---------------------------------------------------------------------------
@@ -462,9 +447,6 @@ func ProjectPortDiagnosticResponseMessage(d maintenance.PortDiagnostic) *cliv1.P
 			Command: l.Command,
 			Zombie:  l.Zombie,
 		})
-	}
-	if d.Lock != nil {
-		out.Lock = projectLockInfo(*d.Lock)
 	}
 	for _, claim := range d.RegistryClaims {
 		out.RegistryClaims = append(out.RegistryClaims, projectRuntimeClaim(claim))

@@ -147,77 +147,6 @@ func TestBuildEnvironmentAllocatesPortsAndExpandsScenarioEnv(t *testing.T) {
 	}
 }
 
-// TestCleanStaleLocksRemovesLegacyArtifacts proves that CleanStaleLocks
-// remains as a one-time cleanup utility for legacy `.port_<port>.lock` files,
-// but that the files themselves no longer participate in port ownership.
-func TestCleanStaleLocksRemovesLegacyArtifacts(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-	writePortRegistry(t, root, nil)
-
-	manager, err := NewManager(root, home)
-	if err != nil {
-		t.Fatalf("NewManager: %v", err)
-	}
-	if err := manager.EnsureStateDir(); err != nil {
-		t.Fatalf("EnsureStateDir: %v", err)
-	}
-	writeLegacyLockFile(t, manager, 21234, "alpha", 999999, time.Unix(1_700_000_000, 0))
-	writeLegacyLockFile(t, manager, 21235, "beta", os.Getpid(), time.Now())
-
-	if err := manager.CleanStaleLocks(); err != nil {
-		t.Fatalf("CleanStaleLocks: %v", err)
-	}
-	if _, err := os.Stat(manager.lockPath(21234)); !os.IsNotExist(err) {
-		t.Fatalf("expected stale legacy lock removal, stat err=%v", err)
-	}
-	if _, err := os.Stat(manager.lockPath(21235)); err != nil {
-		t.Fatalf("expected live-owner legacy lock to remain as diagnostic: %v", err)
-	}
-}
-
-func TestRemoveScenarioLocksOnlyRemovesMatchingScenario(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-	writePortRegistry(t, root, nil)
-
-	manager, err := NewManager(root, home)
-	if err != nil {
-		t.Fatalf("NewManager: %v", err)
-	}
-	if err := manager.EnsureStateDir(); err != nil {
-		t.Fatalf("EnsureStateDir: %v", err)
-	}
-	writeLegacyLockFile(t, manager, 21234, "alpha", os.Getpid(), time.Now())
-	writeLegacyLockFile(t, manager, 21235, "beta", os.Getpid(), time.Now())
-	stateFile := filepath.Join(home, ".vrooli", "state", "scenarios", "alpha.json")
-	if err := os.WriteFile(stateFile, []byte("{}\n"), 0o644); err != nil {
-		t.Fatalf("write %s: %v", stateFile, err)
-	}
-
-	locks, err := manager.LocksForScenario("alpha")
-	if err != nil {
-		t.Fatalf("LocksForScenario(alpha): %v", err)
-	}
-	if len(locks) != 1 || locks[0].Port != 21234 {
-		t.Fatalf("alpha locks = %#v", locks)
-	}
-
-	if err := manager.RemoveScenarioLocks("alpha"); err != nil {
-		t.Fatalf("RemoveScenarioLocks(alpha): %v", err)
-	}
-
-	if _, err := os.Stat(manager.lockPath(21234)); !os.IsNotExist(err) {
-		t.Fatalf("expected alpha lock removal, stat err=%v", err)
-	}
-	if _, err := os.Stat(manager.lockPath(21235)); err != nil {
-		t.Fatalf("expected beta lock to remain: %v", err)
-	}
-	if _, err := os.Stat(stateFile); !os.IsNotExist(err) {
-		t.Fatalf("expected scenario state file removal, stat err=%v", err)
-	}
-}
-
 // TestEnsurePortBindableRejectsLiveForeignListener confirms the bind-probe
 // path: when a TCP listener exists from a foreign Vrooli scenario, the
 // allocator surfaces a structured conflict message.
@@ -232,14 +161,15 @@ func TestEnsurePortBindableRejectsLiveForeignListener(t *testing.T) {
 	}
 
 	previousInUse := isTCPPortInUseFn
-	previousInspect := inspectPortListenersFn
+	previousCapture := captureListenerSnapshotFn
 	previousReadEnv := readProcessEnvironmentPortFn
 	isTCPPortInUseFn = func(int) (bool, error) { return true, nil }
-	inspectPortListenersFn = func(int) (network.PortInspection, error) {
-		return network.PortInspection{
-			Inspection: network.ListenerInspection{Available: true, Tool: "stub"},
-			Listeners:  []network.PortListener{{PID: 4242}},
-		}, nil
+	captureListenerSnapshotFn = func() network.TCPListenerSnapshot {
+		return network.TCPListenerSnapshot{
+			Known: true,
+			Tool:  "stub",
+			Ports: map[int][]network.SnapshotListener{21236: {{PID: 4242}}},
+		}
 	}
 	readProcessEnvironmentPortFn = func(int) (map[string]string, error) {
 		return map[string]string{
@@ -249,11 +179,11 @@ func TestEnsurePortBindableRejectsLiveForeignListener(t *testing.T) {
 	}
 	t.Cleanup(func() {
 		isTCPPortInUseFn = previousInUse
-		inspectPortListenersFn = previousInspect
+		captureListenerSnapshotFn = previousCapture
 		readProcessEnvironmentPortFn = previousReadEnv
 	})
 
-	if err := manager.ensurePortBindable(21236, "alpha"); err == nil {
+	if err := manager.ensurePortBindable(21236, "alpha", &listenerSnapshotOnce{}); err == nil {
 		t.Fatal("expected Vrooli listener conflict")
 	} else if !strings.Contains(err.Error(), `Vrooli scenario "beta"`) || !strings.Contains(err.Error(), "4242") {
 		t.Fatalf("unexpected error: %v", err)
@@ -274,14 +204,15 @@ func TestEnsurePortBindableAllowsSameScenarioRestart(t *testing.T) {
 	}
 
 	previousInUse := isTCPPortInUseFn
-	previousInspect := inspectPortListenersFn
+	previousCapture := captureListenerSnapshotFn
 	previousReadEnv := readProcessEnvironmentPortFn
 	isTCPPortInUseFn = func(int) (bool, error) { return true, nil }
-	inspectPortListenersFn = func(int) (network.PortInspection, error) {
-		return network.PortInspection{
-			Inspection: network.ListenerInspection{Available: true, Tool: "stub"},
-			Listeners:  []network.PortListener{{PID: 5151}},
-		}, nil
+	captureListenerSnapshotFn = func() network.TCPListenerSnapshot {
+		return network.TCPListenerSnapshot{
+			Known: true,
+			Tool:  "stub",
+			Ports: map[int][]network.SnapshotListener{21236: {{PID: 5151}}},
+		}
 	}
 	readProcessEnvironmentPortFn = func(int) (map[string]string, error) {
 		return map[string]string{
@@ -291,11 +222,11 @@ func TestEnsurePortBindableAllowsSameScenarioRestart(t *testing.T) {
 	}
 	t.Cleanup(func() {
 		isTCPPortInUseFn = previousInUse
-		inspectPortListenersFn = previousInspect
+		captureListenerSnapshotFn = previousCapture
 		readProcessEnvironmentPortFn = previousReadEnv
 	})
 
-	if err := manager.ensurePortBindable(21236, "alpha"); err != nil {
+	if err := manager.ensurePortBindable(21236, "alpha", &listenerSnapshotOnce{}); err != nil {
 		t.Fatalf("ensurePortBindable(same scenario): %v", err)
 	}
 }
@@ -311,25 +242,26 @@ func TestEnsurePortBindableFallsBackToGenericConflictForNonVrooliListeners(t *te
 	}
 
 	previousInUse := isTCPPortInUseFn
-	previousInspect := inspectPortListenersFn
+	previousCapture := captureListenerSnapshotFn
 	previousReadEnv := readProcessEnvironmentPortFn
 	isTCPPortInUseFn = func(int) (bool, error) { return true, nil }
-	inspectPortListenersFn = func(int) (network.PortInspection, error) {
-		return network.PortInspection{
-			Inspection: network.ListenerInspection{Available: true, Tool: "stub"},
-			Listeners:  []network.PortListener{{PID: 6161}},
-		}, nil
+	captureListenerSnapshotFn = func() network.TCPListenerSnapshot {
+		return network.TCPListenerSnapshot{
+			Known: true,
+			Tool:  "stub",
+			Ports: map[int][]network.SnapshotListener{21236: {{PID: 6161}}},
+		}
 	}
 	readProcessEnvironmentPortFn = func(int) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
 	t.Cleanup(func() {
 		isTCPPortInUseFn = previousInUse
-		inspectPortListenersFn = previousInspect
+		captureListenerSnapshotFn = previousCapture
 		readProcessEnvironmentPortFn = previousReadEnv
 	})
 
-	if err := manager.ensurePortBindable(21236, "alpha"); err == nil {
+	if err := manager.ensurePortBindable(21236, "alpha", &listenerSnapshotOnce{}); err == nil {
 		t.Fatal("expected generic listener conflict")
 	} else if !strings.Contains(err.Error(), "port already in use") {
 		t.Fatalf("unexpected error: %v", err)
@@ -348,33 +280,10 @@ func TestEnsurePortBindableRejectsResourceReservedPort(t *testing.T) {
 		t.Fatalf("NewManager: %v", err)
 	}
 
-	if err := manager.ensurePortBindable(5433, "alpha"); err == nil {
+	if err := manager.ensurePortBindable(5433, "alpha", &listenerSnapshotOnce{}); err == nil {
 		t.Fatal("expected reserved resource port to fail")
 	} else if !strings.Contains(err.Error(), "reserved for resource") {
 		t.Fatalf("unexpected reserved-port error: %v", err)
-	}
-}
-
-// TestEnsurePortBindableIgnoresLegacyLockFiles is the load-bearing assertion
-// for Phase 9.3: a leftover `.port_<port>.lock` from a previous release is
-// pure diagnostic clutter — it does not block a registry-authorized
-// allocation that has already acquired its claim.
-func TestEnsurePortBindableIgnoresLegacyLockFiles(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-	writePortRegistry(t, root, nil)
-
-	manager, err := NewManager(root, home)
-	if err != nil {
-		t.Fatalf("NewManager: %v", err)
-	}
-	if err := manager.EnsureStateDir(); err != nil {
-		t.Fatalf("EnsureStateDir: %v", err)
-	}
-	writeLegacyLockFile(t, manager, 21999, "ghost-scenario", os.Getpid(), time.Now())
-
-	if err := manager.ensurePortBindable(21999, "alpha"); err != nil {
-		t.Fatalf("ensurePortBindable should ignore legacy lock; got %v", err)
 	}
 }
 
@@ -667,11 +576,10 @@ func TestRuntimeClaimsRollbackWhenLaterPortAllocationFails(t *testing.T) {
 	}
 }
 
-// TestStaleLegacyLockDoesNotOverrideActiveRuntimeClaim proves that even when
-// a `.port_<port>.lock` file from a prior install is present, the registry
-// claim remains the source of truth. The lock is a diagnostic artifact;
-// allocation neither honors it nor mutates it.
-func TestStaleLegacyLockDoesNotOverrideActiveRuntimeClaim(t *testing.T) {
+// TestActiveRuntimeClaimBlocksReplacementAllocation proves the registry claim
+// is the port-ownership source of truth: a second scenario cannot allocate a
+// fixed port whose active claim belongs to another instance.
+func TestActiveRuntimeClaimBlocksReplacementAllocation(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
 	writePortRegistry(t, root, nil)
@@ -694,11 +602,6 @@ func TestStaleLegacyLockDoesNotOverrideActiveRuntimeClaim(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewManager: %v", err)
 	}
-	if err := manager.EnsureStateDir(); err != nil {
-		t.Fatalf("EnsureStateDir: %v", err)
-	}
-	writeLegacyLockFile(t, manager, port, "stale-legacy", 999999, time.Now())
-
 	_, err = manager.BuildEnvironmentWithRuntimeClaims(fixedPortScenario(root, "beta", port), nil, RuntimeClaimOptions{
 		Enabled:    true,
 		Context:    ctx,
@@ -710,13 +613,6 @@ func TestStaleLegacyLockDoesNotOverrideActiveRuntimeClaim(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "active registry claim already owns port") {
 		t.Fatalf("unexpected error: %v", err)
-	}
-	lock, exists, err := manager.ReadLock(port)
-	if err != nil {
-		t.Fatalf("ReadLock: %v", err)
-	}
-	if !exists || lock.Scenario != "stale-legacy" {
-		t.Fatalf("legacy lock should remain as diagnostic evidence, got exists=%v lock=%#v", exists, lock)
 	}
 }
 
@@ -1529,17 +1425,6 @@ func ensureTypedResourceMetadata(t *testing.T, root string) {
 			},
 		},
 	})
-}
-
-func writeLegacyLockFile(t *testing.T, m *Manager, port int, scenarioName string, pid int, when time.Time) {
-	t.Helper()
-	if err := m.EnsureStateDir(); err != nil {
-		t.Fatalf("EnsureStateDir: %v", err)
-	}
-	content := []byte(fmt.Sprintf("%s:%d:%d\n", scenarioName, pid, when.Unix()))
-	if err := os.WriteFile(m.lockPath(port), content, 0o644); err != nil {
-		t.Fatalf("write legacy lock file: %v", err)
-	}
 }
 
 func intPtr(value int) *int {

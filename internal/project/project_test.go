@@ -61,9 +61,6 @@ func TestStatusAggregatesResourcesAndScenarios(t *testing.T) {
 	controller.MaintenanceSnapshotFn = func() (maintenance.ProcessSnapshot, error) {
 		return maintenance.ProcessSnapshot{TrackedProcesses: 1}, nil
 	}
-	controller.MaintenanceLocksFn = func() ([]maintenance.LockInfo, error) {
-		return nil, nil
-	}
 	report, err := controller.Status(StatusOptions{Fast: true})
 	if err != nil {
 		t.Fatalf("Status: %v", err)
@@ -140,9 +137,6 @@ func TestDoctorReportsToolingPortAndServiceManifest(t *testing.T) {
 	controller.MaintenanceSnapshotFn = func() (maintenance.ProcessSnapshot, error) {
 		return maintenance.ProcessSnapshot{}, nil
 	}
-	controller.MaintenanceLocksFn = func() ([]maintenance.LockInfo, error) {
-		return nil, nil
-	}
 	controller.HostReqValidateFn = func(root, home string) (hostreqcheck.Report, error) {
 		return hostreqcheck.Report{
 			Findings: []hostreqcheck.Finding{
@@ -169,9 +163,6 @@ func TestDoctorReportsToolingPortAndServiceManifest(t *testing.T) {
 	}
 	if !strings.Contains(output, "orphan_processes=ok") {
 		t.Fatalf("doctor checks missing orphan status: %s", output)
-	}
-	if !strings.Contains(output, "stale_port_locks=ok") {
-		t.Fatalf("doctor checks missing stale lock status: %s", output)
 	}
 	if !strings.Contains(output, "listener_inspection=") {
 		t.Fatalf("doctor checks missing listener inspection status: %s", output)
@@ -228,9 +219,6 @@ func TestDoctorReportsNonCanonicalCLIInstallLocations(t *testing.T) {
 	controller := New(root, home, io.Discard, io.Discard)
 	controller.MaintenanceSnapshotFn = func() (maintenance.ProcessSnapshot, error) {
 		return maintenance.ProcessSnapshot{}, nil
-	}
-	controller.MaintenanceLocksFn = func() ([]maintenance.LockInfo, error) {
-		return nil, nil
 	}
 	controller.LookPathFn = func(name string) (string, error) {
 		if name == "alpha" {
@@ -296,9 +284,6 @@ func TestDoctorToleratesBrokenScenarioCLIDiscovery(t *testing.T) {
 	controller.MaintenanceSnapshotFn = func() (maintenance.ProcessSnapshot, error) {
 		return maintenance.ProcessSnapshot{}, nil
 	}
-	controller.MaintenanceLocksFn = func() ([]maintenance.LockInfo, error) {
-		return nil, nil
-	}
 	controller.LookPathFn = func(name string) (string, error) {
 		return "/usr/bin/" + name, nil
 	}
@@ -359,9 +344,6 @@ func TestStatusSupportsResourceAndScenarioFilters(t *testing.T) {
 	controller := New(root, home, io.Discard, io.Discard)
 	controller.MaintenanceSnapshotFn = func() (maintenance.ProcessSnapshot, error) {
 		return maintenance.ProcessSnapshot{}, nil
-	}
-	controller.MaintenanceLocksFn = func() ([]maintenance.LockInfo, error) {
-		return nil, nil
 	}
 	resourcesOnly, err := controller.Status(StatusOptions{Fast: true, ResourcesOnly: true})
 	if err != nil {

@@ -171,10 +171,25 @@ func (s *Service) Tick(ctx context.Context) (TickReport, error) {
 		}
 		claimsByInstance[instance.InstanceID] = claims
 		refsByInstance[instance.InstanceID] = refs
-		for key, evidence := range scenarioruntime.ProcessEvidenceFromRefs(refs, s.pidRunning) {
+		health, err := s.store.GetHealthSnapshot(ctx, instance.InstanceID)
+		if err != nil && !errors.Is(err, scenarioruntime.ErrNotFound) {
+			return TickReport{}, fmt.Errorf("get health snapshot for %s: %w", instance.InstanceID, err)
+		}
+		if err == nil {
+			healthByInstance[instance.InstanceID] = health
+		}
+	}
+	// One listener snapshot per tick, captured AFTER the claim reads so the
+	// evidence is at least as fresh as the claim set; every claim of every
+	// instance is answered from it (previously: one lsof + N ps PER CLAIM,
+	// every tick, forever).
+	portListener := s.tickPortListener()
+	for _, instance := range instances {
+		claims := claimsByInstance[instance.InstanceID]
+		for key, evidence := range scenarioruntime.ProcessEvidenceFromRefs(refsByInstance[instance.InstanceID], s.pidRunning) {
 			processes[key] = evidence
 		}
-		for port, evidence := range listenerEvidenceFromActiveClaims(claims, s.portListener) {
+		for port, evidence := range listenerEvidenceFromActiveClaims(claims, portListener) {
 			listeners[port] = evidence
 		}
 		for _, claim := range claims {
@@ -188,13 +203,6 @@ func (s *Service) Tick(ctx context.Context) (TickReport, error) {
 			if _, err := s.store.UpdatePortClaimListenerEvidence(ctx, claim.ClaimID, scenarioruntime.ListenerObservationFromEvidence(s.now(), evidence)); err != nil {
 				return TickReport{}, fmt.Errorf("update listener evidence for %s: %w", claim.ClaimID, err)
 			}
-		}
-		health, err := s.store.GetHealthSnapshot(ctx, instance.InstanceID)
-		if err != nil && !errors.Is(err, scenarioruntime.ErrNotFound) {
-			return TickReport{}, fmt.Errorf("get health snapshot for %s: %w", instance.InstanceID, err)
-		}
-		if err == nil {
-			healthByInstance[instance.InstanceID] = health
 		}
 	}
 	reconciled, err := s.reconcileStartingInstances(ctx, instances, claimsByInstance, refsByInstance, healthByInstance, listeners)
@@ -536,21 +544,38 @@ func (s *Service) pidRunning(pid int) bool {
 	return process.IsPIDRunning(pid)
 }
 
-func (s *Service) portListener(port int) scenarioruntime.ListenerEvidence {
+// captureListenerSnapshotFn seams the per-tick snapshot capture so tests can
+// pin the real tickPortListener branch (evidence conversion, capture-after-
+// store-reads ordering) without reading the live host's TCP table.
+var captureListenerSnapshotFn = network.CaptureTCPListenerSnapshot
+
+// tickPortListener returns the per-tick listener evidence source: the
+// configured override when present (tests), otherwise a closure over ONE
+// freshly captured TCPListenerSnapshot shared by every port queried this
+// tick.
+func (s *Service) tickPortListener() PortListenerFunc {
 	if s.cfg.PortListener != nil {
-		return s.cfg.PortListener(port)
+		return s.cfg.PortListener
 	}
-	inspection, err := network.InspectPortListeners(port)
-	if err != nil || !inspection.Inspection.Available {
-		return scenarioruntime.ListenerEvidence{Known: false}
+	snapshot := captureListenerSnapshotFn()
+	return func(port int) scenarioruntime.ListenerEvidence {
+		state := snapshot.Listening(port)
+		if !state.Known {
+			return scenarioruntime.ListenerEvidence{Known: false}
+		}
+		evidence := scenarioruntime.ListenerEvidence{Known: true, Listening: state.Listening}
+		// Label provenance: listener_process_label previously carried the
+		// per-PID `ps` command string; it now comes from /proc/<pid>/cmdline
+		// (linux), the lsof comm name (darwin), or the process image path
+		// (windows). Same information, new source; downstream only displays
+		// it.
+		if len(state.Listeners) > 0 {
+			pid := state.Listeners[0].PID
+			evidence.PID = &pid
+			evidence.ProcessLabel = state.Listeners[0].Label
+		}
+		return evidence
 	}
-	evidence := scenarioruntime.ListenerEvidence{Known: true, Listening: len(inspection.Listeners) > 0}
-	if len(inspection.Listeners) > 0 {
-		listener := inspection.Listeners[0]
-		evidence.PID = &listener.PID
-		evidence.ProcessLabel = listener.Command
-	}
-	return evidence
 }
 
 func (s *Service) executeHealthProbes(ctx context.Context, instanceIDs []string, instances map[string]scenarioruntime.Instance, claims map[string][]scenarioruntime.PortClaim) (int, error) {

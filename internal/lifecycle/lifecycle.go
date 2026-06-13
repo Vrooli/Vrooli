@@ -22,6 +22,7 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqrun"
 	"github.com/vrooli/vrooli/internal/hostsession"
 	"github.com/vrooli/vrooli/internal/logx"
+	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/ports"
 	"github.com/vrooli/vrooli/internal/process"
@@ -143,6 +144,7 @@ type lifecycleDeps struct {
 	listeningPIDs           func(int) ([]int, error)
 	readScenarioRecords     func(string, string) ([]process.Record, error)
 	isPIDRunning            func(int) bool
+	cleanStaleLocks         func() error
 	resourceStatus          func(string, bool) (resourcecontrol.Status, error)
 	resourceManifest        func(string) (resourcemanifest.ResourceManifest, error)
 	runResource             func(string, []string, io.Writer, io.Writer) error
@@ -306,6 +308,12 @@ func (r *Runner) runtimeDeps() lifecycleDeps {
 			return resources.NewController(r.Root, r.Home).RunResourceCLI(name, args, stdout, stderr)
 		}
 	}
+	if deps.cleanStaleLocks == nil {
+		deps.cleanStaleLocks = func() error {
+			_, err := maintenance.NewController(r.Root, r.Home).CleanStaleLocks()
+			return err
+		}
+	}
 	if deps.inspectPort == nil {
 		deps.inspectPort = network.InspectPortListeners
 	}
@@ -430,13 +438,16 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 			err = errors.Join(err, fmt.Errorf("rollback failed: %w", cleanupErr))
 		}
 	}()
+	// --clean-stale: reconcile stale runtime registry state (expired claims,
+	// dead-owner instances) before the top-level start so a previous crash
+	// doesn't block port allocation. Dependencies skip this (len(stack) > 0):
+	// one reconcile per user-initiated start is enough.
 	if opts.CleanStale && len(stack) == 0 {
-		r.logDebug("Cleaning stale port locks before scenario start", logx.AttrScenario, item.Slug)
-		if err := r.Ports.CleanStaleLocks(); err != nil {
-			return Result{}, err
+		r.logDebug("Reconciling stale runtime registry state before scenario start", logx.AttrScenario, item.Slug)
+		if cleanErr := r.runtimeDeps().cleanStaleLocks(); cleanErr != nil {
+			return Result{}, cleanErr
 		}
 	}
-
 	failedDeps, failedResources, err := r.bootstrapScenarioDependencies(item, opts, ready, stack)
 	if err != nil {
 		return Result{}, err
@@ -713,14 +724,6 @@ func (r *Runner) cleanupScenarioRuntimeWithRegistry(name, variant, customPath st
 	}
 
 	portsToCheck := make(map[int]struct{})
-	locks, err := r.Ports.LocksForScenario(slug)
-	if err != nil {
-		return err
-	}
-	for _, lock := range locks {
-		portsToCheck[lock.Port] = struct{}{}
-	}
-
 	if includeManifestFixedPorts {
 		if item, loadErr := r.loadScenario(name, customPath); loadErr == nil {
 			for _, portSummary := range item.Manifest.SortedPorts() {
@@ -739,9 +742,6 @@ func (r *Runner) cleanupScenarioRuntimeWithRegistry(name, variant, customPath st
 		return err
 	}
 
-	if err := r.Ports.RemoveScenarioLocks(slug); err != nil {
-		return err
-	}
 	if err := runtimeStop.finish(ctx); err != nil {
 		return err
 	}

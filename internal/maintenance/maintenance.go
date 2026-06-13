@@ -30,10 +30,7 @@ type SystemProcess struct {
 	Command string `json:"command"`
 }
 
-type (
-	LockInfo     = network.LockInfo
-	PortListener = network.PortListener
-)
+type PortListener = network.PortListener
 
 type RuntimeClaimInfo struct {
 	ClaimID                   string                                  `json:"claim_id"`
@@ -94,7 +91,6 @@ type PortDiagnostic struct {
 	InUse              bool                       `json:"in_use"`
 	Listeners          []PortListener             `json:"listeners,omitempty"`
 	ListenerInspection network.ListenerInspection `json:"listener_inspection"`
-	Lock               *LockInfo                  `json:"lock,omitempty"`
 	RegistryClaims     []RuntimeClaimInfo         `json:"registry_claims,omitempty"`
 	RegistryProcesses  []RuntimeProcessRefInfo    `json:"registry_processes,omitempty"`
 	HostOrphanCount    int                        `json:"host_orphan_count"`
@@ -118,14 +114,13 @@ type PortPolicyReport struct {
 }
 
 var (
-	listLocksFn              = network.ListLocks
-	readLockFileFn           = network.ReadLockFile
-	pruneStaleLocksFn        = network.PruneStaleLocks
-	inspectPortListenersFn   = network.InspectPortListeners
-	killProcessFn            = killProcess
-	looksLikeVrooliProcessFn = looksLikeVrooliProcess
-	runProtoGenerateFn       = runProtoGenerate
-	openRuntimeRegistryFn    = openRuntimeRegistryIfPresent
+	inspectPortListenersFn    = network.InspectPortListeners
+	captureListenerSnapshotFn = network.CaptureTCPListenerSnapshot
+	pidIsRunningFn            = process.IsPIDRunning
+	killProcessFn             = killProcess
+	looksLikeVrooliProcessFn  = looksLikeVrooliProcess
+	runProtoGenerateFn        = runProtoGenerate
+	openRuntimeRegistryFn     = openRuntimeRegistryIfPresent
 )
 
 func NewController(root, home string) *Controller {
@@ -133,10 +128,6 @@ func NewController(root, home string) *Controller {
 		Root: filepath.Clean(root),
 		Home: filepath.Clean(home),
 	}
-}
-
-func (c *Controller) ListLocks() ([]LockInfo, error) {
-	return listLocksFn(c.Home)
 }
 
 func (c *Controller) ListRuntimeClaims() ([]RuntimeClaimInfo, error) {
@@ -196,13 +187,15 @@ func (c *Controller) CleanStaleLocks() (control.StopReport, error) {
 		}
 	}
 
-	cleanedLocks, err := pruneStaleLocksFn(c.Home)
+	// One-time tombstone sweep: nothing writes `.port_<N>.lock` files anymore,
+	// but pre-migration hosts may still carry strays. This is data cleanup
+	// (one glob, no forks), not a compatibility shim. `.port_*.guard` files
+	// are never swept here.
+	swept, err := sweepLegacyLockFiles(c.Home)
 	if err != nil {
 		return control.StopReport{}, err
 	}
-	for _, lock := range cleanedLocks {
-		stopped = append(stopped, control.Stopped(fmt.Sprintf("%d", lock.Port), "Removed stale legacy lock"))
-	}
+	stopped = append(stopped, swept...)
 
 	return control.StopReport{
 		Stopped: stopped,
@@ -372,23 +365,32 @@ func (c *Controller) stillVrooliOrphan(pid int) bool {
 	return looksLikeVrooliProcessFn(c.Root, c.Home, entry)
 }
 
+// sweepLegacyLockFiles removes stray `.port_<N>.lock` files left by
+// pre-registry releases. The directory is resolved through the runtime_home
+// authority (~/.vrooli/state/scenarios), never a hardcoded literal.
+func sweepLegacyLockFiles(home string) ([]control.ResultItem, error) {
+	stateDir, err := process.ScenarioStateDir(home)
+	if err != nil {
+		return nil, err
+	}
+	files, err := filepath.Glob(filepath.Join(stateDir, ".port_*.lock"))
+	if err != nil {
+		return nil, err
+	}
+	removed := make([]control.ResultItem, 0, len(files))
+	for _, file := range files {
+		if err := os.Remove(file); err != nil && !os.IsNotExist(err) {
+			return removed, err
+		}
+		removed = append(removed, control.Stopped(filepath.Base(file), "Removed legacy lock file"))
+	}
+	return removed, nil
+}
+
 func (c *Controller) DiagnosePort(port int, scenarioName string) (PortDiagnostic, error) {
 	inspection, err := inspectPortListenersFn(port)
 	if err != nil {
 		return PortDiagnostic{}, err
-	}
-
-	lockPath, err := network.LockPath(c.Home, port)
-	if err != nil {
-		return PortDiagnostic{}, err
-	}
-	var lock *LockInfo
-	if info, err := os.Stat(lockPath); err == nil && !info.IsDir() {
-		lockInfo, err := readLockFileFn(lockPath)
-		if err != nil {
-			return PortDiagnostic{}, err
-		}
-		lock = &lockInfo
 	}
 
 	snapshot, err := c.Snapshot()
@@ -402,7 +404,6 @@ func (c *Controller) DiagnosePort(port int, scenarioName string) (PortDiagnostic
 		InUse:              len(inspection.Listeners) > 0,
 		Listeners:          inspection.Listeners,
 		ListenerInspection: inspection.Inspection,
-		Lock:               lock,
 		HostOrphanCount:    snapshot.OrphanProcesses,
 		PortPolicy:         describePortPolicy(port),
 	}
@@ -459,9 +460,6 @@ func buildRecommendations(port int, diagnostic PortDiagnostic) []string {
 			"Port %d is above the canonical safe zone (<=%d); consider moving it to keep parity with other OSes.",
 			port, portspec.CanonicalMax,
 		))
-	}
-	if diagnostic.Lock != nil && diagnostic.Lock.Stale {
-		recommendations = append(recommendations, fmt.Sprintf("Clean stale lock file %s", diagnostic.Lock.Path))
 	}
 	for _, claim := range diagnostic.RegistryClaims {
 		switch claim.RecommendationCode {

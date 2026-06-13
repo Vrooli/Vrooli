@@ -160,25 +160,6 @@ func TestRenderOrphansResponseHumanEmpty(t *testing.T) {
 	}
 }
 
-func TestRenderLocksResponseHumanIncludesStaleStatus(t *testing.T) {
-	var stdout bytes.Buffer
-	err := RenderLocksResponse(&stdout, cliout.FormatHuman, LocksResponse{
-		List: []maintenance.LockInfo{{
-			Port:     21234,
-			Scenario: "alpha",
-			PID:      999,
-			Stale:    true,
-		}},
-	})
-	if err != nil {
-		t.Fatalf("RenderLocksResponse: %v", err)
-	}
-	output := stdout.String()
-	if !strings.Contains(output, "21234") || !strings.Contains(output, "stale") {
-		t.Fatalf("stdout = %q", output)
-	}
-}
-
 func TestRenderOrphansResponseHumanHandlesKillReport(t *testing.T) {
 	var stdout bytes.Buffer
 	err := RenderOrphansResponse(&stdout, cliout.FormatHuman, OrphansResponse{
@@ -226,5 +207,72 @@ func TestRenderStopReportHumanIncludesFailures(t *testing.T) {
 	output := stdout.String()
 	if !strings.Contains(output, "Stopped alpha") || !strings.Contains(output, "Failed beta: boom") {
 		t.Fatalf("stdout = %q", output)
+	}
+}
+
+func TestRenderLocksResponseHidesExpiredClaimsUnlessShowAll(t *testing.T) {
+	resp := LocksResponse{
+		RuntimeClaims: []maintenance.RuntimeClaimInfo{
+			{Port: 21234, Scenario: "alpha", ClaimStatus: "bound"},
+			{Port: 21235, Scenario: "beta", ClaimStatus: "expired"},
+			{Port: 21236, Scenario: "gamma", ClaimStatus: "expired"},
+		},
+	}
+
+	var hidden bytes.Buffer
+	if err := RenderLocksResponse(&hidden, cliout.FormatHuman, resp); err != nil {
+		t.Fatalf("RenderLocksResponse: %v", err)
+	}
+	output := hidden.String()
+	if strings.Contains(output, "21235") || strings.Contains(output, "21236") {
+		t.Fatalf("expired claims should be hidden by default: %q", output)
+	}
+	if !strings.Contains(output, "(+2 expired claims hidden — use --all)") {
+		t.Fatalf("missing hidden-count footer: %q", output)
+	}
+
+	resp.ShowAll = true
+	var all bytes.Buffer
+	if err := RenderLocksResponse(&all, cliout.FormatHuman, resp); err != nil {
+		t.Fatalf("RenderLocksResponse(--all): %v", err)
+	}
+	if !strings.Contains(all.String(), "21235") || !strings.Contains(all.String(), "21236") {
+		t.Fatalf("--all must show expired claims: %q", all.String())
+	}
+	if strings.Contains(all.String(), "hidden") {
+		t.Fatalf("--all must not print a hidden footer: %q", all.String())
+	}
+
+	// JSON output must carry the full set regardless of ShowAll.
+	resp.ShowAll = false
+	var asJSON bytes.Buffer
+	if err := RenderLocksResponse(&asJSON, cliout.FormatJSON, resp); err != nil {
+		t.Fatalf("RenderLocksResponse(json): %v", err)
+	}
+	var decoded struct {
+		RegistryClaims []map[string]any `json:"registry_claims"`
+	}
+	if err := json.Unmarshal(asJSON.Bytes(), &decoded); err != nil {
+		t.Fatalf("invalid JSON: %v\n%s", err, asJSON.String())
+	}
+	if len(decoded.RegistryClaims) != 3 {
+		t.Fatalf("JSON must never be filtered: got %d claims, want 3", len(decoded.RegistryClaims))
+	}
+}
+
+func TestParseLocksRequestAcceptsAllFlag(t *testing.T) {
+	req, err := ParseLocksRequest([]string{"--all"})
+	if err != nil {
+		t.Fatalf("ParseLocksRequest(--all): %v", err)
+	}
+	if !req.ShowAll || req.Clean {
+		t.Fatalf("req = %#v", req)
+	}
+	req, err = ParseLocksRequest(nil)
+	if err != nil {
+		t.Fatalf("ParseLocksRequest(): %v", err)
+	}
+	if req.ShowAll {
+		t.Fatal("ShowAll must default to false")
 	}
 }

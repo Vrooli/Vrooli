@@ -8,8 +8,27 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/hostsession"
+	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
+
+// stubListenerSnapshot pins the snapshot seam so ticks read controlled
+// listener evidence instead of the live host's TCP table. Returns a pointer
+// to the capture count.
+func stubListenerSnapshot(t *testing.T, snapshot network.TCPListenerSnapshot, onCapture func()) *int {
+	t.Helper()
+	original := captureListenerSnapshotFn
+	t.Cleanup(func() { captureListenerSnapshotFn = original })
+	captures := 0
+	captureListenerSnapshotFn = func() network.TCPListenerSnapshot {
+		captures++
+		if onCapture != nil {
+			onCapture()
+		}
+		return snapshot
+	}
+	return &captures
+}
 
 type fixedClock struct {
 	mu  sync.Mutex
@@ -191,6 +210,164 @@ func TestServiceTickPersistsListenerEvidenceForBoundClaims(t *testing.T) {
 	if claim.ListenerPID == nil || *claim.ListenerPID != listenerPID || claim.ListenerProcessLabel != "alpha-api" {
 		t.Fatalf("listener identity = pid %#v label %q, want %d alpha-api", claim.ListenerPID, claim.ListenerProcessLabel, listenerPID)
 	}
+}
+
+// TestServiceTickRealSnapshotBranchConvertsAndCapturesOnce exercises the real
+// tickPortListener branch (no cfg.PortListener override): exactly one snapshot
+// capture per tick regardless of claim count, listening ports convert to
+// Known/Listening evidence with PID+label attribution, and an unavailable
+// snapshot degrades to Known:false (never false-"not listening").
+func TestServiceTickRealSnapshotBranchConvertsAndCapturesOnce(t *testing.T) {
+	ctx := context.Background()
+	clk := newFixedClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
+	dbPath := filepath.Join(t.TempDir(), "runtime.db")
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: dbPath, Clock: clk})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	instance, err := store.CreateLease(ctx, scenarioruntime.Instance{
+		InstanceID:    "inst-alpha",
+		Scenario:      "alpha",
+		Status:        scenarioruntime.StatusRunning,
+		HostBootID:    "boot-current",
+		HostSessionID: "session-current",
+	}, time.Minute)
+	if err != nil {
+		t.Fatalf("CreateLease: %v", err)
+	}
+	for _, claim := range []scenarioruntime.PortClaim{
+		{ClaimID: "claim-alpha-api", InstanceID: instance.InstanceID, Scenario: "alpha", PortName: "api", Port: 18080, Status: scenarioruntime.ClaimStatusBound},
+		{ClaimID: "claim-alpha-ui", InstanceID: instance.InstanceID, Scenario: "alpha", PortName: "ui", Port: 18081, Status: scenarioruntime.ClaimStatusBound},
+	} {
+		if _, err := store.AcquirePortClaim(ctx, claim); err != nil {
+			t.Fatalf("AcquirePortClaim(%s): %v", claim.ClaimID, err)
+		}
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	captures := stubListenerSnapshot(t, network.TCPListenerSnapshot{
+		Known: true,
+		Tool:  "test",
+		Ports: map[int][]network.SnapshotListener{
+			18080: {{PID: 2468, Label: "alpha-api"}},
+		},
+	}, nil)
+
+	svc := New(Config{
+		DBPath:       dbPath,
+		SupervisorID: "sup-alpha",
+		LeaseTTL:     90 * time.Second,
+		Clock:        clk,
+		HostProvider: fakeHostProvider{snapshot: hostsession.Snapshot{BootID: "boot-current", SessionID: "session-current"}},
+	})
+	defer svc.Close()
+	if _, err := svc.Tick(ctx); err != nil {
+		t.Fatalf("Tick() error = %v", err)
+	}
+	if *captures != 1 {
+		t.Fatalf("snapshot captures = %d, want exactly 1 per tick", *captures)
+	}
+
+	check, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: dbPath, Clock: clk})
+	if err != nil {
+		t.Fatalf("reopen store: %v", err)
+	}
+	defer check.Close()
+	claims, err := check.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{InstanceID: instance.InstanceID})
+	if err != nil {
+		t.Fatalf("ListPortClaims: %v", err)
+	}
+	byID := map[string]scenarioruntime.PortClaim{}
+	for _, c := range claims {
+		byID[c.ClaimID] = c
+	}
+	api := byID["claim-alpha-api"]
+	if api.ListenerStatus != scenarioruntime.ListenerStatusListening {
+		t.Fatalf("api ListenerStatus = %q, want listening", api.ListenerStatus)
+	}
+	if api.ListenerPID == nil || *api.ListenerPID != 2468 || api.ListenerProcessLabel != "alpha-api" {
+		t.Fatalf("api listener identity = pid %#v label %q, want 2468 alpha-api", api.ListenerPID, api.ListenerProcessLabel)
+	}
+	ui := byID["claim-alpha-ui"]
+	if ui.ListenerStatus == scenarioruntime.ListenerStatusListening {
+		t.Fatalf("ui ListenerStatus = %q, want not-listening (port absent from snapshot)", ui.ListenerStatus)
+	}
+}
+
+// TestServiceTickCapturesSnapshotAfterClaimReads pins the freshness ordering:
+// the snapshot must be captured AFTER the tick's store reads, so evidence is
+// at least as fresh as the claim set. The stub binds a NEW claim at capture
+// time; with correct ordering that claim is not part of this tick's read set
+// and its listener evidence stays untouched. A refactor that hoists the
+// capture above the claim reads would pick the claim up and stamp it against
+// evidence that predates its bind — the false-expiry race.
+func TestServiceTickCapturesSnapshotAfterClaimReads(t *testing.T) {
+	ctx := context.Background()
+	clk := newFixedClock(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC))
+	dbPath := filepath.Join(t.TempDir(), "runtime.db")
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{DBPath: dbPath, Clock: clk})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	defer store.Close()
+	instance, err := store.CreateLease(ctx, scenarioruntime.Instance{
+		InstanceID:    "inst-alpha",
+		Scenario:      "alpha",
+		Status:        scenarioruntime.StatusRunning,
+		HostBootID:    "boot-current",
+		HostSessionID: "session-current",
+	}, time.Minute)
+	if err != nil {
+		t.Fatalf("CreateLease: %v", err)
+	}
+	if _, err := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
+		ClaimID: "claim-alpha-api", InstanceID: instance.InstanceID, Scenario: "alpha",
+		PortName: "api", Port: 18080, Status: scenarioruntime.ClaimStatusBound,
+	}); err != nil {
+		t.Fatalf("AcquirePortClaim: %v", err)
+	}
+
+	stubListenerSnapshot(t, network.TCPListenerSnapshot{
+		Known: true,
+		Tool:  "test",
+		Ports: map[int][]network.SnapshotListener{18080: nil},
+	}, func() {
+		if _, err := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
+			ClaimID: "claim-alpha-late", InstanceID: instance.InstanceID, Scenario: "alpha",
+			PortName: "late", Port: 19090, Status: scenarioruntime.ClaimStatusBound,
+		}); err != nil {
+			t.Errorf("AcquirePortClaim(late): %v", err)
+		}
+	})
+
+	svc := New(Config{
+		DBPath:       dbPath,
+		SupervisorID: "sup-alpha",
+		LeaseTTL:     90 * time.Second,
+		Clock:        clk,
+		HostProvider: fakeHostProvider{snapshot: hostsession.Snapshot{BootID: "boot-current", SessionID: "session-current"}},
+	})
+	defer svc.Close()
+	if _, err := svc.Tick(ctx); err != nil {
+		t.Fatalf("Tick() error = %v", err)
+	}
+
+	claims, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{InstanceID: instance.InstanceID})
+	if err != nil {
+		t.Fatalf("ListPortClaims: %v", err)
+	}
+	for _, claim := range claims {
+		if claim.ClaimID != "claim-alpha-late" {
+			continue
+		}
+		if claim.LastListenerCheckAt != nil || claim.ListenerStatus == scenarioruntime.ListenerStatusNotListening {
+			t.Fatalf("claim bound during capture was stamped with pre-bind evidence: %#v — snapshot captured before the claim reads", claim)
+		}
+		return
+	}
+	t.Fatal("late claim missing; capture stub did not run")
 }
 
 func TestServiceTickReconcilesLiveStartingInstance(t *testing.T) {

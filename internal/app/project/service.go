@@ -16,7 +16,6 @@ type ProjectOperations interface {
 type MaintenanceOperations interface {
 	ListOrphans() ([]maintenance.SystemProcess, error)
 	KillOrphans() (control.StopReport, error)
-	ListLocks() ([]maintenance.LockInfo, error)
 	ListRuntimeClaims() ([]maintenance.RuntimeClaimInfo, error)
 	CleanStaleLocks() (control.StopReport, error)
 	DiagnosePort(port int, scenarioName string) (maintenance.PortDiagnostic, error)
@@ -62,7 +61,6 @@ type OrphansResponse struct {
 }
 
 type LocksResponse struct {
-	List          []maintenance.LockInfo
 	RuntimeClaims []maintenance.RuntimeClaimInfo
 	CleanReport   *control.StopReport
 }
@@ -118,15 +116,11 @@ func (s Service) Locks(req LocksRequest) (LocksResponse, error) {
 		}
 		return LocksResponse{CleanReport: &report}, nil
 	}
-	items, err := s.Maintenance.ListLocks()
-	if err != nil {
-		return LocksResponse{}, err
-	}
 	claims, err := s.Maintenance.ListRuntimeClaims()
 	if err != nil {
 		return LocksResponse{}, err
 	}
-	return LocksResponse{List: items, RuntimeClaims: claims}, nil
+	return LocksResponse{RuntimeClaims: claims}, nil
 }
 
 func (s Service) DiagnosePort(req DiagnosePortRequest) (maintenance.PortDiagnostic, error) {

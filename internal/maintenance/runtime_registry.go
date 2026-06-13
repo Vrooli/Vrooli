@@ -9,6 +9,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/hostsession"
+	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
@@ -26,6 +27,9 @@ type runtimeMaintenanceStore interface {
 	ListExpiredActivePortClaims(ctx context.Context, at time.Time) ([]scenarioruntime.PortClaim, error)
 	ReleaseActivePortClaimsForInstance(ctx context.Context, instanceID string) ([]scenarioruntime.PortClaim, error)
 	StopLease(ctx context.Context, instanceID string, generation int64, reason string) (scenarioruntime.Instance, error)
+	GetInstances(ctx context.Context, instanceIDs []string) (map[string]scenarioruntime.Instance, error)
+	ListProcessRefsForInstances(ctx context.Context, instanceIDs []string) (map[string][]scenarioruntime.ProcessRef, error)
+	GetHealthSnapshots(ctx context.Context, instanceIDs []string) (map[string]scenarioruntime.HealthSnapshot, error)
 }
 
 func openRuntimeRegistryIfPresent(home string) (runtimeMaintenanceStore, func(), error) {
@@ -62,6 +66,34 @@ func listRuntimeClaims(ctx context.Context, store runtimeMaintenanceStore, port 
 		return nil, err
 	}
 	supervisorsByID := supervisorSessionsByID(supervisors)
+	pidRunning := newPIDLivenessMemo(processIsRunning)
+
+	// Batch the per-claim instance/ref/health lookups: 3 queries instead of
+	// 3×N sequential round trips.
+	instanceIDs := make([]string, 0, len(claims))
+	for _, claim := range claims {
+		if port > 0 && claim.Port != port {
+			continue
+		}
+		instanceIDs = append(instanceIDs, claim.InstanceID)
+	}
+	instancesByID, err := store.GetInstances(ctx, instanceIDs)
+	if err != nil {
+		return nil, err
+	}
+	refsByInstance, err := store.ListProcessRefsForInstances(ctx, instanceIDs)
+	if err != nil {
+		return nil, err
+	}
+	healthByInstance, err := store.GetHealthSnapshots(ctx, instanceIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Capture listener evidence ONCE, after the claim set is read: evidence
+	// must be at least as fresh as the claims, or a port bound between
+	// capture and query would read as not-listening.
+	listenerSnapshot := captureListenerSnapshotFn()
 	out := make([]RuntimeClaimInfo, 0, len(claims))
 	for _, claim := range claims {
 		if port > 0 && claim.Port != port {
@@ -91,8 +123,8 @@ func listRuntimeClaims(ctx context.Context, store runtimeMaintenanceStore, port 
 		}
 		var runtimeInstance scenarioruntime.Instance
 		var hasRuntimeInstance bool
-		instance, err := store.GetInstance(ctx, claim.InstanceID)
-		if err == nil {
+		instance, hasInstance := instancesByID[claim.InstanceID]
+		if hasInstance {
 			runtimeInstance = instance
 			hasRuntimeInstance = true
 			item.Generation = instance.Generation
@@ -114,18 +146,15 @@ func listRuntimeClaims(ctx context.Context, store runtimeMaintenanceStore, port 
 					item.SupervisorFresh = &fresh
 				}
 			}
-			refs, err := store.ListProcessRefs(ctx, claim.InstanceID)
-			if err != nil {
-				return nil, err
-			}
+			refs := refsByInstance[claim.InstanceID]
 			reconciled := scenarioruntime.ReconcileRuntime(scenarioruntime.ReconcileInput{
 				Now:           now,
 				CurrentBootID: host.BootID,
 				Instance:      instance,
 				Claims:        []scenarioruntime.PortClaim{claim},
 				ProcessRefs:   refs,
-				Processes:     scenarioruntime.ProcessEvidenceFromRefs(refs, processIsRunning),
-				Listeners:     runtimeListenerEvidence([]scenarioruntime.PortClaim{claim}, refs),
+				Processes:     scenarioruntime.ProcessEvidenceFromRefs(refs, pidRunning),
+				Listeners:     runtimeListenerEvidence(listenerSnapshot, []scenarioruntime.PortClaim{claim}, refs),
 			})
 			item.Reconciliation = reconciled.Classification
 			item.ReconcileReason = reconciled.Reason
@@ -136,16 +165,11 @@ func listRuntimeClaims(ctx context.Context, store runtimeMaintenanceStore, port 
 				item.ReconcileReason = claimResult.Reason
 				item.Authoritative = &claimResult.Authoritative
 			}
-		} else if !errors.Is(err, scenarioruntime.ErrNotFound) {
-			return nil, err
 		}
-		var health scenarioruntime.HealthSnapshot
-		health, err = store.GetHealthSnapshot(ctx, claim.InstanceID)
-		if err == nil {
+		health, hasHealth := healthByInstance[claim.InstanceID]
+		if hasHealth {
 			item.HealthStatus = health.Status
 			item.HealthReady = health.Readiness
-		} else if !errors.Is(err, scenarioruntime.ErrNotFound) {
-			return nil, err
 		}
 		if hasRuntimeInstance {
 			authoritative := false
@@ -196,26 +220,42 @@ func expireNonAuthoritativeRegistryState(ctx context.Context, store runtimeMaint
 		return nil, err
 	}
 	stopped := make([]control.ResultItem, 0)
+	pidRunning := newPIDLivenessMemo(processIsRunning)
+	// Gather all store state FIRST, then capture listener evidence: this path
+	// EXPIRES claims on known-absent listeners, so evidence captured before a
+	// claim was read could wrongly expire a port bound in between. One
+	// statuses-filtered claim query grouped in memory replaces the per-instance
+	// N+1 (PortClaimFilter only takes a single InstanceID).
+	activeClaims, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{
+		Statuses: scenarioruntime.ActivePortClaimStatuses(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	claimsByInstance := make(map[string][]scenarioruntime.PortClaim, len(instances))
+	for _, claim := range activeClaims {
+		claimsByInstance[claim.InstanceID] = append(claimsByInstance[claim.InstanceID], claim)
+	}
+	instanceIDs := make([]string, 0, len(instances))
 	for _, instance := range instances {
-		claims, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{
-			InstanceID: instance.InstanceID,
-			Statuses:   scenarioruntime.ActivePortClaimStatuses(),
-		})
-		if err != nil {
-			return nil, err
-		}
-		refs, err := store.ListProcessRefs(ctx, instance.InstanceID)
-		if err != nil {
-			return nil, err
-		}
+		instanceIDs = append(instanceIDs, instance.InstanceID)
+	}
+	refsByInstance, err := store.ListProcessRefsForInstances(ctx, instanceIDs)
+	if err != nil {
+		return nil, err
+	}
+	listenerSnapshot := captureListenerSnapshotFn()
+	for _, instance := range instances {
+		claims := claimsByInstance[instance.InstanceID]
+		refs := refsByInstance[instance.InstanceID]
 		reconciled := scenarioruntime.ReconcileRuntime(scenarioruntime.ReconcileInput{
 			Now:           time.Now().UTC(),
 			CurrentBootID: host.BootID,
 			Instance:      instance,
 			Claims:        claims,
 			ProcessRefs:   refs,
-			Processes:     scenarioruntime.ProcessEvidenceFromRefs(refs, processIsRunning),
-			Listeners:     runtimeListenerEvidence(claims, refs),
+			Processes:     scenarioruntime.ProcessEvidenceFromRefs(refs, pidRunning),
+			Listeners:     runtimeListenerEvidence(listenerSnapshot, claims, refs),
 		})
 		if reconciled.Classification == scenarioruntime.ReconcileUnverified {
 			continue
@@ -272,8 +312,9 @@ func finalizeStuckStoppingInstances(ctx context.Context, store runtimeMaintenanc
 	}
 	stopped := make([]control.ResultItem, 0)
 	now := time.Now().UTC()
+	pidRunning := newPIDLivenessMemo(processIsRunning)
 	for _, instance := range instances {
-		trigger, ok := stuckStoppingTrigger(instance, host.BootID, now)
+		trigger, ok := stuckStoppingTrigger(instance, host.BootID, now, pidRunning)
 		if !ok {
 			continue
 		}
@@ -288,7 +329,7 @@ func finalizeStuckStoppingInstances(ctx context.Context, store runtimeMaintenanc
 // stuckStoppingTrigger returns a short label for the condition that makes a
 // stopping instance eligible for the reaper, or ("", false) if the instance
 // still looks alive.
-func stuckStoppingTrigger(instance scenarioruntime.Instance, currentBootID string, now time.Time) (string, bool) {
+func stuckStoppingTrigger(instance scenarioruntime.Instance, currentBootID string, now time.Time, pidRunning func(int) bool) (string, bool) {
 	if instance.Status != scenarioruntime.StatusStopping {
 		return "", false
 	}
@@ -298,7 +339,7 @@ func stuckStoppingTrigger(instance scenarioruntime.Instance, currentBootID strin
 	if instance.OwnerPID == nil || *instance.OwnerPID <= 0 {
 		return "owner_pid_missing", true
 	}
-	if !processIsRunning(*instance.OwnerPID) {
+	if !pidRunning(*instance.OwnerPID) {
 		return "owner_pid_dead", true
 	}
 	if instance.HeartbeatDeadlineAt != nil && !instance.HeartbeatDeadlineAt.After(now) {
@@ -307,29 +348,34 @@ func stuckStoppingTrigger(instance scenarioruntime.Instance, currentBootID strin
 	return "", false
 }
 
-func runtimeListenerEvidence(claims []scenarioruntime.PortClaim, refs []scenarioruntime.ProcessRef) map[int]scenarioruntime.ListenerEvidence {
+func runtimeListenerEvidence(snapshot network.TCPListenerSnapshot, claims []scenarioruntime.PortClaim, refs []scenarioruntime.ProcessRef) map[int]scenarioruntime.ListenerEvidence {
 	return scenarioruntime.ListenerEvidenceFromClaims(claims, refs, func(port int) scenarioruntime.ListenerEvidence {
-		inspection, err := inspectPortListenersFn(port)
-		if err != nil || !inspection.Inspection.Available {
+		state := snapshot.Listening(port)
+		if !state.Known {
 			return scenarioruntime.ListenerEvidence{Known: false}
 		}
-		return scenarioruntime.ListenerEvidence{Known: true, Listening: len(inspection.Listeners) > 0}
+		return scenarioruntime.ListenerEvidence{Known: true, Listening: state.Listening}
 	})
 }
 
 func listRuntimeProcessRefs(ctx context.Context, store runtimeMaintenanceStore, claims []RuntimeClaimInfo) ([]RuntimeProcessRefInfo, error) {
 	seen := make(map[string]struct{})
+	pidRunning := newPIDLivenessMemo(processIsRunning)
+	instanceIDs := make([]string, 0, len(claims))
+	for _, claim := range claims {
+		instanceIDs = append(instanceIDs, claim.InstanceID)
+	}
+	refsByInstance, err := store.ListProcessRefsForInstances(ctx, instanceIDs)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]RuntimeProcessRefInfo, 0)
 	for _, claim := range claims {
 		if _, ok := seen[claim.InstanceID]; ok {
 			continue
 		}
 		seen[claim.InstanceID] = struct{}{}
-		refs, err := store.ListProcessRefs(ctx, claim.InstanceID)
-		if err != nil {
-			return nil, err
-		}
-		for _, ref := range refs {
+		for _, ref := range refsByInstance[claim.InstanceID] {
 			item := RuntimeProcessRefInfo{
 				RefID:          ref.RefID,
 				InstanceID:     ref.InstanceID,
@@ -343,7 +389,7 @@ func listRuntimeProcessRefs(ctx context.Context, store runtimeMaintenanceStore, 
 				Status:         ref.Status,
 			}
 			if ref.PID != nil {
-				running := processIsRunning(*ref.PID)
+				running := pidRunning(*ref.PID)
 				item.PIDRunning = &running
 			}
 			out = append(out, item)
@@ -392,6 +438,20 @@ func processIsRunning(pid int) bool {
 	if os.Getpid() == pid {
 		return true
 	}
-	_, ok := readProcessEntryFn(pid)
-	return ok
+	return pidIsRunningFn(pid)
+}
+
+// newPIDLivenessMemo wraps a liveness function with a per-run cache so each
+// distinct PID is probed at most once per registry scan, regardless of how
+// many claims or process refs reference it.
+func newPIDLivenessMemo(isRunning func(int) bool) func(int) bool {
+	cache := make(map[int]bool)
+	return func(pid int) bool {
+		if alive, ok := cache[pid]; ok {
+			return alive
+		}
+		alive := isRunning(pid)
+		cache[pid] = alive
+		return alive
+	}
 }

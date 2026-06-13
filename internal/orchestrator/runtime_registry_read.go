@@ -160,6 +160,7 @@ func (s *Service) reconcileRegistryRuntime(ctx context.Context, instance scenari
 	if err != nil {
 		return scenarioruntime.ReconcileResult{}, err
 	}
+	snapshot := network.CaptureTCPListenerSnapshot()
 	return scenarioruntime.ReconcileRuntime(scenarioruntime.ReconcileInput{
 		Now:           time.Now().UTC(),
 		CurrentBootID: host.BootID,
@@ -168,11 +169,11 @@ func (s *Service) reconcileRegistryRuntime(ctx context.Context, instance scenari
 		ProcessRefs:   refs,
 		Processes:     scenarioruntime.ProcessEvidenceFromRefs(refs, process.IsPIDRunning),
 		Listeners: scenarioruntime.ListenerEvidenceFromClaims(claims, refs, func(port int) scenarioruntime.ListenerEvidence {
-			inspection, err := network.InspectPortListeners(port)
-			if err != nil || !inspection.Inspection.Available {
+			state := snapshot.Listening(port)
+			if !state.Known {
 				return scenarioruntime.ListenerEvidence{Known: false}
 			}
-			return scenarioruntime.ListenerEvidence{Known: true, Listening: len(inspection.Listeners) > 0}
+			return scenarioruntime.ListenerEvidence{Known: true, Listening: state.Listening}
 		}),
 	}), nil
 }

@@ -38,6 +38,10 @@ type OrphansRequest struct {
 
 type LocksRequest struct {
 	Clean bool
+	// ShowAll includes expired claims in human-readable output. JSON output
+	// is never filtered (machine consumers depend on the full set), so this
+	// only affects rendering.
+	ShowAll bool
 }
 
 type DiagnosePortRequest struct {
@@ -133,11 +137,14 @@ func ParseOrphansRequest(args []string) (OrphansRequest, error) {
 func ParseLocksRequest(args []string) (LocksRequest, error) {
 	parsed, err := commandtree.ParseArgs("locks", LocksHelpText(), commandtree.ArgSchema{
 		Positionals: []commandtree.PositionalArg{{Name: "action"}},
+		Options: []commandtree.OptionArg{
+			{Name: "--all", Description: "Include expired claims in the table (JSON always includes them)"},
+		},
 	}, args)
 	if err != nil {
 		return LocksRequest{}, err
 	}
-	req := LocksRequest{}
+	req := LocksRequest{ShowAll: parsed.HasFlag("--all")}
 	if len(parsed.Positionals) == 1 {
 		switch parsed.Positionals[0] {
 		case "clean":
@@ -377,7 +384,7 @@ func parseLifecycleOptions(command string, args []string, helpText string) (proj
 	return opts, nil
 }
 
-const CleanupHelpText = "vrooli cleanup - Clean up orphaned processes, stale registry claims and legacy lock artifacts, and template validation workspaces\n\nUsage:\n  vrooli cleanup orphans [--dry-run]                  Kill orphaned Vrooli processes\n  vrooli cleanup locks                                Expire stale registry claims and prune legacy port-lock artifacts\n  vrooli cleanup template-validation [options]        Clean marker-backed deep template validation workspaces\n\nOptions:\n  --dry-run                 Preview cleanup without deleting files\n  --older-than <duration>   For `template-validation`: clean broad matches older than this Go duration (default 24h)\n  --include-retained        For `template-validation`: include retained debugging runs in broad cleanup\n  --run <run-id>            For `template-validation`: clean one explicit run id\n  --help, -h                Show this help message\n\nExamples:\n  vrooli cleanup orphans --dry-run                    # Preview which Vrooli processes would be killed\n  vrooli cleanup orphans                              # Kill orphaned Vrooli processes (SIGTERM, then SIGKILL)\n  vrooli cleanup locks                                # Expire stale registry claims and remove legacy `.port_<port>.lock` artifacts\n  vrooli cleanup template-validation --dry-run        # Preview stale template validation workspaces\n  vrooli cleanup template-validation --older-than 24h # Clean stale non-retained validation workspaces\n"
+const CleanupHelpText = "vrooli cleanup - Clean up orphaned processes, stale registry claims, and template validation workspaces\n\nUsage:\n  vrooli cleanup orphans [--dry-run]                  Kill orphaned Vrooli processes\n  vrooli cleanup locks                                Expire stale registry leases/claims (and sweep stray legacy lock files)\n  vrooli cleanup template-validation [options]        Clean marker-backed deep template validation workspaces\n\nOptions:\n  --dry-run                 Preview cleanup without deleting files\n  --older-than <duration>   For `template-validation`: clean broad matches older than this Go duration (default 24h)\n  --include-retained        For `template-validation`: include retained debugging runs in broad cleanup\n  --run <run-id>            For `template-validation`: clean one explicit run id\n  --help, -h                Show this help message\n\nExamples:\n  vrooli cleanup orphans --dry-run                    # Preview which Vrooli processes would be killed\n  vrooli cleanup orphans                              # Kill orphaned Vrooli processes (SIGTERM, then SIGKILL)\n  vrooli cleanup locks                                # Expire stale registry leases and claims\n  vrooli cleanup template-validation --dry-run        # Preview stale template validation workspaces\n  vrooli cleanup template-validation --older-than 24h # Clean stale non-retained validation workspaces\n"
 
 func statusArgSchema() commandtree.ArgSchema {
 	return commandtree.ArgSchema{
@@ -447,9 +454,12 @@ func OrphansHelpText() string {
 }
 
 func LocksHelpText() string {
-	return commandtree.HelpText("", "vrooli locks", "Inspect runtime registry claims and legacy lock artifacts.", commandtree.Help{}, commandtree.ArgSchema{
+	return commandtree.HelpText("", "vrooli locks", "Inspect runtime registry port claims.", commandtree.Help{}, commandtree.ArgSchema{
 		Positionals: []commandtree.PositionalArg{{Name: "action"}},
-		Options:     []commandtree.OptionArg{commandtree.JSONOption()},
+		Options: []commandtree.OptionArg{
+			commandtree.JSONOption(),
+			{Name: "--all", Description: "Include expired claims in the table (JSON always includes them)"},
+		},
 	})
 }
 

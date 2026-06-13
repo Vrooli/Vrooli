@@ -9,6 +9,7 @@ import (
 	"github.com/vrooli/vrooli/internal/control"
 	"github.com/vrooli/vrooli/internal/maintenance"
 	"github.com/vrooli/vrooli/internal/project"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	"github.com/vrooli/vrooli/internal/templatevalidation"
 )
 
@@ -30,8 +31,10 @@ type OrphansResponse struct {
 
 type LocksResponse struct {
 	CleanReport   *control.StopReport
-	List          []maintenance.LockInfo
 	RuntimeClaims []maintenance.RuntimeClaimInfo
+	// ShowAll renders expired claims in the human table. JSON output always
+	// carries the full claim set regardless of this flag.
+	ShowAll bool
 }
 
 type TemplateValidationCleanupResponse struct {
@@ -185,47 +188,47 @@ func RenderLocksResponse(w io.Writer, format cliout.Format, resp LocksResponse) 
 			return writeProjectStopJSON(w, typed)
 		}
 		for _, item := range typed.Stopped {
-			_, _ = fmt.Fprintf(w, "Removed stale lock for port %s\n", item.Name)
+			_, _ = fmt.Fprintf(w, "%s: %s\n", item.Name, item.Message)
 		}
 		for _, item := range typed.Failed {
-			_, _ = fmt.Fprintf(w, "Failed to remove lock for port %s: %s\n", item.Name, item.Error)
+			_, _ = fmt.Fprintf(w, "Failed %s: %s\n", item.Name, item.Error)
 		}
 		if len(typed.Stopped) == 0 && len(typed.Failed) == 0 {
-			_, _ = fmt.Fprintln(w, "No registry claims or legacy lock artifacts found.")
+			_, _ = fmt.Fprintln(w, "No stale registry state found.")
 		}
 		return nil
 	}
 	if format == cliout.FormatJSON {
-		return writeProjectLocksJSON(w, resp.List, resp.RuntimeClaims)
+		return writeProjectLocksJSON(w, resp.RuntimeClaims)
 	}
-	if len(resp.List) == 0 && len(resp.RuntimeClaims) == 0 {
-		_, _ = fmt.Fprintln(w, "No port locks found.")
+	if len(resp.RuntimeClaims) == 0 {
+		_, _ = fmt.Fprintln(w, "No registry port claims found.")
 		return nil
 	}
 	if len(resp.RuntimeClaims) > 0 {
+		visible := resp.RuntimeClaims
+		hiddenExpired := 0
+		if !resp.ShowAll {
+			visible = make([]maintenance.RuntimeClaimInfo, 0, len(resp.RuntimeClaims))
+			for _, item := range resp.RuntimeClaims {
+				if item.ClaimStatus == scenarioruntime.ClaimStatusExpired {
+					hiddenExpired++
+					continue
+				}
+				visible = append(visible, item)
+			}
+		}
 		_, _ = fmt.Fprintln(w, "Registry claims")
-		rows := make([][]string, 0, len(resp.RuntimeClaims))
-		for _, item := range resp.RuntimeClaims {
+		rows := make([][]string, 0, len(visible))
+		for _, item := range visible {
 			rows = append(rows, []string{strconv.Itoa(item.Port), item.Scenario, item.InstanceStatus, item.ClaimStatus, item.ListenerStatus, item.RecommendationCode})
 		}
 		if err := cliout.RenderTable(w, []string{"Port", "Scenario", "Lease", "Claim", "Listener", "Recommendation"}, rows); err != nil {
 			return err
 		}
-		if len(resp.List) > 0 {
-			_, _ = fmt.Fprintln(w)
+		if hiddenExpired > 0 {
+			_, _ = fmt.Fprintf(w, "(+%d expired claims hidden — use --all)\n", hiddenExpired)
 		}
-	}
-	if len(resp.List) > 0 {
-		_, _ = fmt.Fprintln(w, "Legacy artifacts (diagnostic only — not ownership authority)")
-		rows := make([][]string, 0, len(resp.List))
-		for _, item := range resp.List {
-			status := "active"
-			if item.Stale {
-				status = "stale"
-			}
-			rows = append(rows, []string{strconv.Itoa(item.Port), item.Scenario, strconv.Itoa(item.PID), status})
-		}
-		return cliout.RenderTable(w, []string{"Port", "Scenario", "PID", "Status"}, rows)
 	}
 	return nil
 }
@@ -312,11 +315,6 @@ func RenderPortDiagnostic(w io.Writer, format cliout.Format, diagnostic maintena
 		}
 	} else {
 		_, _ = fmt.Fprintln(w, "Listeners: none")
-	}
-	if diagnostic.Lock != nil {
-		_, _ = fmt.Fprintf(w, "Lock: %s (scenario=%s pid=%d stale=%t)\n", diagnostic.Lock.Path, diagnostic.Lock.Scenario, diagnostic.Lock.PID, diagnostic.Lock.Stale)
-	} else {
-		_, _ = fmt.Fprintln(w, "Lock: none")
 	}
 	if len(diagnostic.RegistryClaims) > 0 {
 		_, _ = fmt.Fprintln(w, "Registry claims:")

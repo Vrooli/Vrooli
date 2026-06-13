@@ -372,28 +372,7 @@ func parseProcessTableLine(line string) (processTableEntry, bool) {
 // readProcessEntryFn reads a single process's table entry. It is overridable in
 // tests and is used by KillOrphans to re-validate an orphan right before
 // sending a signal, guarding against the PID being recycled between the
-// snapshot and the kill.
+// snapshot and the kill. The implementation is per-platform
+// (process_entry_{linux,darwin,other}.go); platforms without an
+// implementation report not-found so the kill guard fails safe.
 var readProcessEntryFn = readProcessEntry
-
-func readProcessEntry(pid int) (processTableEntry, bool) {
-	if pid <= 0 {
-		return processTableEntry{}, false
-	}
-	output, err := shell.Output(shell.Spec{
-		Name: "ps",
-		Args: []string{"-p", strconv.Itoa(pid), "-o", "pid=,ppid=,pgid=,sid=,state=,command="},
-	})
-	if err != nil {
-		// ps returns a non-zero exit when the PID doesn't exist — the caller
-		// should treat that as "process gone".
-		return processTableEntry{}, false
-	}
-	entry, ok := parseProcessTableLine(string(output))
-	if !ok {
-		return processTableEntry{}, false
-	}
-	if entry.PID != pid {
-		return processTableEntry{}, false
-	}
-	return entry, true
-}

@@ -35,7 +35,6 @@ type Controller struct {
 	Maintenance           MaintenanceController
 	HostReqValidateFn     func(string, string) (hostreqcheck.Report, error)
 	MaintenanceSnapshotFn func() (maintenance.ProcessSnapshot, error)
-	MaintenanceLocksFn    func() ([]maintenance.LockInfo, error)
 	LookPathFn            func(string) (string, error)
 	NewPhaseRunner        func(root, home string, stdout, stderr io.Writer) (PhaseRunner, error)
 }
@@ -61,7 +60,6 @@ type ScenarioController interface {
 
 type MaintenanceController interface {
 	Snapshot() (maintenance.ProcessSnapshot, error)
-	ListLocks() ([]maintenance.LockInfo, error)
 }
 
 type PhaseRunner interface {
@@ -217,17 +215,6 @@ func (c *Controller) Status(opts StatusOptions) (StatusReport, error) {
 	report.Summary["maintenance_tracked_processes"] = maintenanceSnapshot.TrackedProcesses
 	report.Summary["maintenance_zombie_processes"] = maintenanceSnapshot.ZombieProcesses
 	report.Summary["maintenance_orphan_processes"] = maintenanceSnapshot.OrphanProcesses
-	locks, err := c.maintenanceLocks()
-	if err != nil {
-		return StatusReport{}, err
-	}
-	staleLocks := 0
-	for _, lock := range locks {
-		if lock.Stale {
-			staleLocks++
-		}
-	}
-	report.Summary["maintenance_stale_locks"] = staleLocks
 	return report, nil
 }
 
@@ -274,22 +261,6 @@ func (c *Controller) Doctor() (DoctorReport, error) {
 		Name:    "zombie_processes",
 		Status:  countStatus(maintenanceSnapshot.ZombieProcesses),
 		Message: fmt.Sprintf("%d zombie processes detected", maintenanceSnapshot.ZombieProcesses),
-	})
-
-	locks, err := c.maintenanceLocks()
-	if err != nil {
-		return DoctorReport{}, err
-	}
-	staleLocks := 0
-	for _, lock := range locks {
-		if lock.Stale {
-			staleLocks++
-		}
-	}
-	checks = append(checks, DoctorCheck{
-		Name:    "stale_port_locks",
-		Status:  countStatus(staleLocks),
-		Message: fmt.Sprintf("%d stale port locks detected", staleLocks),
 	})
 
 	listenerInspection := network.ListenerInspectionStatus()
@@ -521,13 +492,6 @@ func (c *Controller) maintenanceSnapshot() (maintenance.ProcessSnapshot, error) 
 		return c.MaintenanceSnapshotFn()
 	}
 	return c.Maintenance.Snapshot()
-}
-
-func (c *Controller) maintenanceLocks() ([]maintenance.LockInfo, error) {
-	if c.MaintenanceLocksFn != nil {
-		return c.MaintenanceLocksFn()
-	}
-	return c.Maintenance.ListLocks()
 }
 
 func (c *Controller) Stop(opts StopOptions) (control.StopReport, error) {

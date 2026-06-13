@@ -173,7 +173,6 @@ func TestOrphansJSONContract(t *testing.T) {
 func TestLocksJSONContract(t *testing.T) {
 	var buf bytes.Buffer
 	resp := LocksResponse{
-		List: []maintenance.LockInfo{{Port: 5329, Scenario: "web", PID: 99, Path: "/tmp/lock", Stale: true}},
 		RuntimeClaims: []maintenance.RuntimeClaimInfo{{
 			ClaimID:    "c1",
 			Scenario:   "web",
@@ -189,9 +188,8 @@ func TestLocksJSONContract(t *testing.T) {
 	if got["success"] != true {
 		t.Errorf("success: %v", got["success"])
 	}
-	locks := got["locks"].([]any)
-	if port, ok := locks[0].(map[string]any)["port"].(float64); !ok || port != 5329 {
-		t.Errorf("locks[0].port must be number 5329, got %v", locks[0])
+	if _, present := got["locks"]; present {
+		t.Errorf("retired locks field must not be emitted: %v", got)
 	}
 	claims := got["registry_claims"].([]any)
 	c0 := claims[0].(map[string]any)
@@ -258,7 +256,6 @@ func TestPortDiagnosticJSONContract(t *testing.T) {
 			{PID: 88, Command: "node", Zombie: false},
 		},
 		ListenerInspection: network.ListenerInspection{Available: true, Tool: "ss"},
-		Lock:               &maintenance.LockInfo{Port: 5329, Path: "/tmp/lock"},
 		RegistryClaims:     []maintenance.RuntimeClaimInfo{{ClaimID: "c1", Scenario: "web", Port: 5329}},
 		RegistryProcesses:  []maintenance.RuntimeProcessRefInfo{{RefID: "p1", PID: &listenerPID}},
 		HostOrphanCount:    2,

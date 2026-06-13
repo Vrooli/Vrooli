@@ -926,7 +926,7 @@ func (app *App) buildTopLevelHandlerMap() map[topcli.CommandID]rootcli.Handler[*
 			if err != nil {
 				return projectcli.LocksResponse{}, err
 			}
-			return projectcli.LocksResponse{List: resp.List, RuntimeClaims: resp.RuntimeClaims, CleanReport: resp.CleanReport}, nil
+			return projectcli.LocksResponse{RuntimeClaims: resp.RuntimeClaims, CleanReport: resp.CleanReport, ShowAll: req.ShowAll}, nil
 		}),
 		topcli.CommandDiagnosePort: projectcli.DiagnosePortHandler(commandStdout, projectOutputFormat, func(ctx *CommandContext, req projectcli.DiagnosePortRequest) (maintenance.PortDiagnostic, error) {
 			command, err := ctx.app.newProjectCommandService(ctx)

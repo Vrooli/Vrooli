@@ -3,6 +3,7 @@
 package process
 
 import (
+	"errors"
 	"os"
 	"strconv"
 	"strings"
@@ -14,7 +15,12 @@ func processIsAlive(process *os.Process) bool {
 		return false
 	}
 	if err := process.Signal(syscall.Signal(0)); err != nil {
-		return false
+		// EPERM means the PID exists but is owned by another user (e.g. a
+		// root-owned scenario process probed from an unprivileged CLI). The
+		// process is alive; only ESRCH/done means it is gone.
+		if !errors.Is(err, syscall.EPERM) {
+			return false
+		}
 	}
 	state, ok := readProcessState(process.Pid)
 	return !ok || state != 'Z'

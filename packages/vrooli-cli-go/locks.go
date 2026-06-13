@@ -7,10 +7,10 @@ import (
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
 
-// Locks returns the typed `vrooli locks --json` response: held port locks plus
-// the runtime registry's port claims (each with reconciliation state and a
-// port-ownership recommendation). Health and recovery tooling uses this to
-// reason about who owns which port.
+// Locks returns the typed `vrooli locks --json` response: the runtime
+// registry's port claims (each with reconciliation state and a port-ownership
+// recommendation). Health and recovery tooling uses this to reason about who
+// owns which port.
 func (c *Client) Locks(ctx context.Context) (*cliv1.ProjectLocksResponse, error) {
 	ctx, cancel := c.withTimeout(ctx)
 	defer cancel()

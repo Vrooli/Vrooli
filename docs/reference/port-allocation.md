@@ -131,12 +131,32 @@ registry — not files on disk — decides which scenario owns which port:
   the generated systemd unit records `VROOLI_SOURCE_ROOT` and runs from the
   repository root so the supervisor can operate outside an interactive shell.
 
-Older releases also wrote `.port_<port>.lock` files in
-`~/.vrooli/state/scenarios/`. These files are **diagnostic artifacts only**
-and no longer participate in ownership decisions. `vrooli locks` still lists
-them under a "Legacy artifacts" heading so operators can see leftover files
-from old installs; `vrooli cleanup locks` removes the stale ones. Allocation
-ignores them entirely.
+Releases before the registry cut-over wrote `.port_<port>.lock` files in
+`~/.vrooli/state/scenarios/`. That layer is fully retired: nothing reads or
+writes lock files anymore, and the registry is the only ownership authority.
+`vrooli cleanup locks` sweeps any stray `.port_*.lock` files left by old
+installs as one-time data cleanup.
+
+## Cross-platform evidence
+
+Listener and process-liveness evidence is collected per-OS by
+`internal/network` (`TCPListenerSnapshot`) and `internal/process`
+(`IsPIDRunning`):
+
+| OS | Listener port set | PID attribution | Liveness |
+|---|---|---|---|
+| Linux | `/proc/net/tcp{,6}` (fork-free) | one `ss -ltnpH` | `kill(pid, 0)` + `/proc/<pid>/stat` zombie check (EPERM ⇒ alive) |
+| macOS | `netstat -an -p tcp` (one fork, all users) | one `lsof -iTCP -sTCP:LISTEN` (own user only) | `kill(pid, 0)` (EPERM ⇒ alive) |
+| Windows | `GetExtendedTcpTable` (iphlpapi, zero forks) | owner PID from the same table | `OpenProcess` + `WaitForSingleObject` (ACCESS_DENIED ⇒ alive) |
+
+When a source cannot answer, evidence degrades to *unknown* — reconcile never
+treats unknown as "not listening", so claims are never expired on missing
+evidence. Manual trial steps for a new mac/windows host: run
+`vrooli locks --json` and confirm (a) it completes in under a second, (b)
+bound claims of running scenarios show `listener_status: listening`, and (c)
+`strace`/`dtruss`-equivalent shows no per-claim subprocess storm (at most one
+netstat + one lsof on macOS; zero forks on Windows). `make cross-compile` is
+the compile-time gate.
 
 ## Migration
 

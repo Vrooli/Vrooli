@@ -951,14 +951,6 @@ func TestRunnerStartRollsBackBackgroundProcessRecordsAndLocksOnHealthFailure(t *
 	if len(records) != 0 {
 		t.Fatalf("records after failed start = %#v, want none", records)
 	}
-
-	locks, lockErr := runner.Ports.LocksForScenario("alpha")
-	if lockErr != nil {
-		t.Fatalf("LocksForScenario(alpha): %v", lockErr)
-	}
-	if len(locks) != 0 {
-		t.Fatalf("locks after failed start = %#v, want none", locks)
-	}
 }
 
 func TestRunnerStartRollsBackLocksOnSetupFailure(t *testing.T) {
@@ -995,13 +987,59 @@ func TestRunnerStartRollsBackLocksOnSetupFailure(t *testing.T) {
 	if len(records) != 0 {
 		t.Fatalf("records after failed setup = %#v, want none", records)
 	}
+}
 
-	locks, lockErr := runner.Ports.LocksForScenario("alpha")
-	if lockErr != nil {
-		t.Fatalf("LocksForScenario(alpha): %v", lockErr)
+// TestRunnerStartCleanStaleReconcilesBeforeStart pins the --clean-stale
+// contract: the flag triggers exactly one stale-runtime-state reconcile before
+// the top-level start (external callers — test-genie's target runtime and
+// workspace-sandbox's host handler — pass it to recover from registry state a
+// crashed previous run left behind), a reconcile failure aborts the start, and
+// without the flag no reconcile runs.
+func TestRunnerStartCleanStaleReconcilesBeforeStart(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writeLifecycleFixture(t, root, "alpha")
+
+	item, err := scenario.Load(root, "alpha", scenario.SandboxEnv{})
+	if err != nil {
+		t.Fatalf("Load(alpha): %v", err)
 	}
-	if len(locks) != 0 {
-		t.Fatalf("locks after failed setup = %#v, want none", locks)
+	// Fail setup fast so neither case actually launches processes; the
+	// clean-stale gate runs before setup.
+	item.Manifest.Lifecycle.Setup = scenario.Phase{
+		Condition: &scenario.Condition{
+			Checks: []scenario.ConditionCheck{
+				{Type: "binaries", Targets: []string{"api/mock-api"}},
+			},
+		},
+		Steps: []scenario.PhaseStep{
+			{Name: "explode", Run: "exit 9"},
+		},
+	}
+	writeLifecycleFixtureManifest(t, root, item.Manifest)
+
+	calls := 0
+	reconcileErr := errors.New("stale reconcile boom")
+	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+		deps.cleanStaleLocks = func() error {
+			calls++
+			return reconcileErr
+		}
+	})
+
+	if _, err := runner.Start("alpha", StartOptions{CleanStale: true}); err == nil || !errors.Is(err, reconcileErr) {
+		t.Fatalf("Start with --clean-stale: err = %v, want reconcile failure to abort the start", err)
+	}
+	if calls != 1 {
+		t.Fatalf("reconcile calls = %d, want exactly 1", calls)
+	}
+
+	calls = 0
+	if _, err := runner.Start("alpha", StartOptions{}); err == nil {
+		t.Fatal("expected setup failure")
+	}
+	if calls != 0 {
+		t.Fatalf("reconcile calls without --clean-stale = %d, want 0", calls)
 	}
 }
 

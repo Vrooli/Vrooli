@@ -17,22 +17,13 @@ import (
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
-// mustProcDir / mustStateDir resolve runtime-home paths for tests; the process
+// mustProcDir resolves runtime-home paths for tests; the process
 // helpers now return errors (they resolve via the runtime_home contract).
 func mustProcDir(t *testing.T, home, name string) string {
 	t.Helper()
 	dir, err := process.ScenarioProcessDir(home, name)
 	if err != nil {
 		t.Fatalf("ScenarioProcessDir(%q, %q): %v", home, name, err)
-	}
-	return dir
-}
-
-func mustStateDir(t *testing.T, home string) string {
-	t.Helper()
-	dir, err := process.ScenarioStateDir(home)
-	if err != nil {
-		t.Fatalf("ScenarioStateDir(%q): %v", home, err)
 	}
 	return dir
 }
@@ -686,24 +677,20 @@ func TestDiagnosePortShowsRegistryClaimHealthAndProcessRefs(t *testing.T) {
 
 	originalInspect := inspectPortListenersFn
 	originalListProcessTable := listProcessTableFn
-	originalReadEntry := readProcessEntryFn
+	originalPIDRunning := pidIsRunningFn
 	t.Cleanup(func() {
 		inspectPortListenersFn = originalInspect
 		listProcessTableFn = originalListProcessTable
-		readProcessEntryFn = originalReadEntry
+		pidIsRunningFn = originalPIDRunning
 	})
 	inspectPortListenersFn = func(port int) (network.PortInspection, error) {
 		return network.PortInspection{Inspection: network.ListenerInspection{Available: true}}, nil
 	}
+	stubListenerSnapshot(t, true, nil)
 	listProcessTableFn = func() (map[int]processTableEntry, error) {
 		return map[int]processTableEntry{}, nil
 	}
-	readProcessEntryFn = func(pid int) (processTableEntry, bool) {
-		if pid == 4100 {
-			return processTableEntry{PID: 4100}, true
-		}
-		return processTableEntry{}, false
-	}
+	pidIsRunningFn = func(pid int) bool { return pid == 4100 }
 
 	diagnostic, err := NewController(root, home).DiagnosePort(claim.Port, "alpha")
 	if err != nil {
@@ -766,18 +753,35 @@ func TestCleanStaleLocksExpiresAbandonedRegistryReservationsAndLegacyLocks(t *te
 		t.Fatalf("AcquirePortClaim(bound): %v", err)
 	}
 
-	originalPrune := pruneStaleLocksFn
-	t.Cleanup(func() { pruneStaleLocksFn = originalPrune })
-	pruneStaleLocksFn = func(home string) ([]network.LockInfo, error) {
-		return []network.LockInfo{{Port: 15080, Scenario: "alpha", Stale: true}}, nil
+	stateDir, err := process.ScenarioStateDir(home)
+	if err != nil {
+		t.Fatalf("ScenarioStateDir: %v", err)
+	}
+	if err := os.MkdirAll(stateDir, 0o755); err != nil {
+		t.Fatalf("mkdir state dir: %v", err)
+	}
+	strayLock := filepath.Join(stateDir, ".port_15080.lock")
+	if err := os.WriteFile(strayLock, []byte("alpha:999999:1700000000\n"), 0o644); err != nil {
+		t.Fatalf("write stray lock: %v", err)
+	}
+	strayGuard := filepath.Join(stateDir, ".port_15080.guard")
+	if err := os.WriteFile(strayGuard, []byte("1:1700000000\n"), 0o644); err != nil {
+		t.Fatalf("write guard: %v", err)
 	}
 
+	stubListenerSnapshot(t, true, nil)
 	report, err := NewController(root, home).CleanStaleLocks()
 	if err != nil {
 		t.Fatalf("CleanStaleLocks: %v", err)
 	}
 	if len(report.Stopped) != 3 {
-		t.Fatalf("stopped = %#v, want stale starting lease, reserved claim, legacy lock", report.Stopped)
+		t.Fatalf("stopped = %#v, want stale starting lease, reserved claim, swept legacy lock file", report.Stopped)
+	}
+	if _, err := os.Stat(strayLock); !os.IsNotExist(err) {
+		t.Fatalf("stray lock file should be swept; stat err = %v", err)
+	}
+	if _, err := os.Stat(strayGuard); err != nil {
+		t.Fatalf("guard files must never be swept; stat err = %v", err)
 	}
 	afterClaim, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{InstanceID: starting.InstanceID})
 	if err != nil {
@@ -827,10 +831,7 @@ func TestCleanStaleLocksExpiresPreviousBootRegistryInstanceAndClaims(t *testing.
 		t.Fatalf("AcquirePortClaim: %v", err)
 	}
 
-	originalPrune := pruneStaleLocksFn
-	t.Cleanup(func() { pruneStaleLocksFn = originalPrune })
-	pruneStaleLocksFn = func(home string) ([]network.LockInfo, error) { return nil, nil }
-
+	stubListenerSnapshot(t, true, nil)
 	report, err := NewController(root, home).CleanStaleLocks()
 	if err != nil {
 		t.Fatalf("CleanStaleLocks: %v", err)
@@ -902,16 +903,7 @@ func TestCleanStaleLocksExpiresNonAuthoritativeClaimOnAuthoritativeInstance(t *t
 		t.Fatalf("AcquirePortClaim: %v", err)
 	}
 
-	originalPrune := pruneStaleLocksFn
-	originalInspect := inspectPortListenersFn
-	t.Cleanup(func() {
-		pruneStaleLocksFn = originalPrune
-		inspectPortListenersFn = originalInspect
-	})
-	pruneStaleLocksFn = func(home string) ([]network.LockInfo, error) { return nil, nil }
-	inspectPortListenersFn = func(port int) (network.PortInspection, error) {
-		return network.PortInspection{Inspection: network.ListenerInspection{Available: true, Tool: "test"}}, nil
-	}
+	stubListenerSnapshot(t, true, nil)
 
 	report, err := NewController(root, home).CleanStaleLocks()
 	if err != nil {
@@ -959,11 +951,9 @@ func TestCleanStaleLocksFinalizesStuckStoppingInstanceWhenOwnerPidDead(t *testin
 	t.Cleanup(func() { _ = store.Close() })
 
 	deadPID := 99999
-	originalReadEntry := readProcessEntryFn
-	t.Cleanup(func() { readProcessEntryFn = originalReadEntry })
-	readProcessEntryFn = func(pid int) (processTableEntry, bool) {
-		return processTableEntry{}, false
-	}
+	originalPIDRunning := pidIsRunningFn
+	t.Cleanup(func() { pidIsRunningFn = originalPIDRunning })
+	pidIsRunningFn = func(pid int) bool { return false }
 
 	heartbeatDeadline := time.Now().UTC().Add(time.Hour)
 	instance, err := store.CreateInstance(ctx, scenarioruntime.Instance{
@@ -1001,16 +991,7 @@ func TestCleanStaleLocksFinalizesStuckStoppingInstanceWhenOwnerPidDead(t *testin
 		t.Fatalf("AddProcessRef: %v", err)
 	}
 
-	originalPrune := pruneStaleLocksFn
-	originalInspect := inspectPortListenersFn
-	t.Cleanup(func() {
-		pruneStaleLocksFn = originalPrune
-		inspectPortListenersFn = originalInspect
-	})
-	pruneStaleLocksFn = func(home string) ([]network.LockInfo, error) { return nil, nil }
-	inspectPortListenersFn = func(port int) (network.PortInspection, error) {
-		return network.PortInspection{Inspection: network.ListenerInspection{Available: true, Tool: "test"}}, nil
-	}
+	stubListenerSnapshot(t, true, nil)
 
 	if _, err := NewController(root, home).CleanStaleLocks(); err != nil {
 		t.Fatalf("CleanStaleLocks: %v", err)
@@ -1067,14 +1048,9 @@ func TestCleanStaleLocksFinalizesStuckStoppingInstanceOnBootIDMismatch(t *testin
 	t.Cleanup(func() { _ = store.Close() })
 
 	livePID := os.Getpid()
-	originalReadEntry := readProcessEntryFn
-	t.Cleanup(func() { readProcessEntryFn = originalReadEntry })
-	readProcessEntryFn = func(pid int) (processTableEntry, bool) {
-		if pid == livePID {
-			return processTableEntry{PID: livePID}, true
-		}
-		return processTableEntry{}, false
-	}
+	originalPIDRunning := pidIsRunningFn
+	t.Cleanup(func() { pidIsRunningFn = originalPIDRunning })
+	pidIsRunningFn = func(pid int) bool { return pid == livePID }
 
 	heartbeatDeadline := time.Now().UTC().Add(time.Hour)
 	instance, err := store.CreateInstance(ctx, scenarioruntime.Instance{
@@ -1099,16 +1075,7 @@ func TestCleanStaleLocksFinalizesStuckStoppingInstanceOnBootIDMismatch(t *testin
 		t.Fatalf("AcquirePortClaim: %v", err)
 	}
 
-	originalPrune := pruneStaleLocksFn
-	originalInspect := inspectPortListenersFn
-	t.Cleanup(func() {
-		pruneStaleLocksFn = originalPrune
-		inspectPortListenersFn = originalInspect
-	})
-	pruneStaleLocksFn = func(home string) ([]network.LockInfo, error) { return nil, nil }
-	inspectPortListenersFn = func(port int) (network.PortInspection, error) {
-		return network.PortInspection{Inspection: network.ListenerInspection{Available: true, Tool: "test"}}, nil
-	}
+	stubListenerSnapshot(t, true, nil)
 
 	if _, err := NewController(root, home).CleanStaleLocks(); err != nil {
 		t.Fatalf("CleanStaleLocks: %v", err)
@@ -1161,14 +1128,9 @@ func TestCleanStaleLocksDoesNotTouchHealthyStoppingInstance(t *testing.T) {
 	t.Cleanup(func() { _ = store.Close() })
 
 	livePID := os.Getpid()
-	originalReadEntry := readProcessEntryFn
-	t.Cleanup(func() { readProcessEntryFn = originalReadEntry })
-	readProcessEntryFn = func(pid int) (processTableEntry, bool) {
-		if pid == livePID {
-			return processTableEntry{PID: livePID}, true
-		}
-		return processTableEntry{}, false
-	}
+	originalPIDRunning := pidIsRunningFn
+	t.Cleanup(func() { pidIsRunningFn = originalPIDRunning })
+	pidIsRunningFn = func(pid int) bool { return pid == livePID }
 
 	heartbeatDeadline := time.Now().UTC().Add(time.Hour)
 	instance, err := store.CreateInstance(ctx, scenarioruntime.Instance{
@@ -1193,16 +1155,7 @@ func TestCleanStaleLocksDoesNotTouchHealthyStoppingInstance(t *testing.T) {
 		t.Fatalf("AcquirePortClaim: %v", err)
 	}
 
-	originalPrune := pruneStaleLocksFn
-	originalInspect := inspectPortListenersFn
-	t.Cleanup(func() {
-		pruneStaleLocksFn = originalPrune
-		inspectPortListenersFn = originalInspect
-	})
-	pruneStaleLocksFn = func(home string) ([]network.LockInfo, error) { return nil, nil }
-	inspectPortListenersFn = func(port int) (network.PortInspection, error) {
-		return network.PortInspection{Inspection: network.ListenerInspection{Available: true, Tool: "test"}}, nil
-	}
+	stubListenerSnapshot(t, true, nil)
 
 	if _, err := NewController(root, home).CleanStaleLocks(); err != nil {
 		t.Fatalf("CleanStaleLocks: %v", err)
@@ -1245,11 +1198,9 @@ func TestDiagnosePortRecommendationMatchesCleanupAction(t *testing.T) {
 	t.Cleanup(func() { _ = store.Close() })
 
 	deadPID := 99999
-	originalReadEntry := readProcessEntryFn
-	t.Cleanup(func() { readProcessEntryFn = originalReadEntry })
-	readProcessEntryFn = func(pid int) (processTableEntry, bool) {
-		return processTableEntry{}, false
-	}
+	originalPIDRunning := pidIsRunningFn
+	t.Cleanup(func() { pidIsRunningFn = originalPIDRunning })
+	pidIsRunningFn = func(pid int) bool { return false }
 
 	heartbeatDeadline := time.Now().UTC().Add(time.Hour)
 	instance, err := store.CreateInstance(ctx, scenarioruntime.Instance{
@@ -1274,13 +1225,9 @@ func TestDiagnosePortRecommendationMatchesCleanupAction(t *testing.T) {
 		t.Fatalf("AcquirePortClaim: %v", err)
 	}
 
-	originalPrune := pruneStaleLocksFn
+	stubListenerSnapshot(t, true, nil)
 	originalInspect := inspectPortListenersFn
-	t.Cleanup(func() {
-		pruneStaleLocksFn = originalPrune
-		inspectPortListenersFn = originalInspect
-	})
-	pruneStaleLocksFn = func(home string) ([]network.LockInfo, error) { return nil, nil }
+	t.Cleanup(func() { inspectPortListenersFn = originalInspect })
 	inspectPortListenersFn = func(port int) (network.PortInspection, error) {
 		return network.PortInspection{Inspection: network.ListenerInspection{Available: true, Tool: "test"}}, nil
 	}
@@ -1324,6 +1271,158 @@ func indexContains(s, sub string) bool {
 		}
 	}
 	return false
+}
+
+// TestListRuntimeClaimsCapturesSnapshotAfterClaimReads pins the freshness
+// ordering on the listing path: the listener snapshot must be captured AFTER
+// the claim reads, so evidence is at least as fresh as the claim set. The
+// capture stub binds a NEW claim; with correct ordering it cannot appear in
+// the result. A refactor hoisting the capture above the reads would surface
+// it — classified against evidence that predates its bind.
+func TestListRuntimeClaimsCapturesSnapshotAfterClaimReads(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	ctx := context.Background()
+
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: home})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	instance, err := store.CreateLease(ctx, scenarioruntime.Instance{InstanceID: "inst-alpha", Scenario: "alpha", Status: scenarioruntime.StatusRunning}, time.Minute)
+	if err != nil {
+		t.Fatalf("CreateLease: %v", err)
+	}
+	if _, err := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
+		ClaimID: "claim-alpha-api", InstanceID: instance.InstanceID, Scenario: "alpha",
+		PortName: "api", Port: 18080, Status: scenarioruntime.ClaimStatusBound,
+	}); err != nil {
+		t.Fatalf("AcquirePortClaim: %v", err)
+	}
+
+	original := captureListenerSnapshotFn
+	t.Cleanup(func() { captureListenerSnapshotFn = original })
+	captureListenerSnapshotFn = func() network.TCPListenerSnapshot {
+		if _, err := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
+			ClaimID: "claim-alpha-late", InstanceID: instance.InstanceID, Scenario: "alpha",
+			PortName: "late", Port: 19090, Status: scenarioruntime.ClaimStatusBound,
+		}); err != nil {
+			t.Errorf("AcquirePortClaim(late): %v", err)
+		}
+		return network.TCPListenerSnapshot{Known: true, Tool: "test", Ports: map[int][]network.SnapshotListener{18080: nil}}
+	}
+
+	claims, err := NewController(root, home).ListRuntimeClaims()
+	if err != nil {
+		t.Fatalf("ListRuntimeClaims: %v", err)
+	}
+	for _, claim := range claims {
+		if claim.ClaimID == "claim-alpha-late" {
+			t.Fatalf("claim bound during capture appeared in the listing — snapshot captured before the claim reads: %#v", claim)
+		}
+	}
+	if len(claims) != 1 || claims[0].ClaimID != "claim-alpha-api" {
+		t.Fatalf("claims = %#v, want only claim-alpha-api", claims)
+	}
+}
+
+// TestCleanStaleLocksCapturesSnapshotAfterStoreReads pins the same freshness
+// ordering on the CLEANUP path, where it is safety-critical: this path
+// EXPIRES claims on known-absent listeners, so a snapshot captured before the
+// store reads could wrongly expire a port bound in between. The capture stub
+// binds a NEW claim; with correct ordering it is not part of this run's read
+// set and must survive untouched.
+func TestCleanStaleLocksCapturesSnapshotAfterStoreReads(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	ctx := context.Background()
+
+	host, err := hostsession.DefaultProvider{}.Current(ctx, home)
+	if err != nil {
+		t.Fatalf("Current host session: %v", err)
+	}
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: home})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	pid := os.Getpid()
+	instance, err := store.CreateLease(ctx, scenarioruntime.Instance{
+		InstanceID: "inst-alpha",
+		Scenario:   "alpha",
+		Status:     scenarioruntime.StatusRunning,
+		HostBootID: host.BootID,
+		WorkingDir: filepath.Join(root, "scenarios", "alpha"),
+	}, time.Minute)
+	if err != nil {
+		t.Fatalf("CreateLease: %v", err)
+	}
+	if _, err := store.AddProcessRef(ctx, scenarioruntime.ProcessRef{
+		RefID: "proc-alpha-api", InstanceID: instance.InstanceID, PID: &pid,
+		Step: "api", Status: "running", HostBootID: host.BootID,
+	}); err != nil {
+		t.Fatalf("AddProcessRef: %v", err)
+	}
+	// Same shape as the non-authoritative-claim test above: a bound claim with
+	// known-not-listening evidence gets expired. The late claim must NOT meet
+	// that fate, because it is bound only once the snapshot is captured.
+	if _, err := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
+		ClaimID: "claim-alpha-ws", InstanceID: instance.InstanceID, Scenario: "alpha",
+		PortName: "websocket", Port: 28888, Status: scenarioruntime.ClaimStatusBound,
+	}); err != nil {
+		t.Fatalf("AcquirePortClaim: %v", err)
+	}
+
+	original := captureListenerSnapshotFn
+	t.Cleanup(func() { captureListenerSnapshotFn = original })
+	captureListenerSnapshotFn = func() network.TCPListenerSnapshot {
+		_, acquireErr := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
+			ClaimID: "claim-alpha-late", InstanceID: instance.InstanceID, Scenario: "alpha",
+			PortName: "late", Port: 29999, Status: scenarioruntime.ClaimStatusBound,
+		})
+		if acquireErr != nil && !errors.Is(acquireErr, scenarioruntime.ErrActiveClaimConflict) {
+			t.Errorf("AcquirePortClaim(late): %v", acquireErr)
+		}
+		return network.TCPListenerSnapshot{Known: true, Tool: "test", Ports: map[int][]network.SnapshotListener{}}
+	}
+
+	if _, err := NewController(root, home).CleanStaleLocks(); err != nil {
+		t.Fatalf("CleanStaleLocks: %v", err)
+	}
+
+	afterClaims, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{InstanceID: instance.InstanceID})
+	if err != nil {
+		t.Fatalf("ListPortClaims: %v", err)
+	}
+	statusByID := map[string]string{}
+	for _, c := range afterClaims {
+		statusByID[c.ClaimID] = c.Status
+	}
+	if statusByID["claim-alpha-ws"] != scenarioruntime.ClaimStatusExpired {
+		t.Fatalf("pre-existing not-listening claim = %q, want expired (cleanup semantics changed under this test)", statusByID["claim-alpha-ws"])
+	}
+	if statusByID["claim-alpha-late"] != scenarioruntime.ClaimStatusBound {
+		t.Fatalf("claim bound during capture = %q, want still bound — expiring it means the snapshot was captured before the store reads", statusByID["claim-alpha-late"])
+	}
+}
+
+// stubListenerSnapshot pins the listener-evidence snapshot seam so reconcile
+// reads controlled evidence instead of the live host's TCP table. Without
+// this, tests using ports inside the real Vrooli allocation bands flake
+// whenever a running scenario occupies one. Ports absent from the map read as
+// known-not-listening; pass known=false to model an unavailable evidence
+// source (the snapshot degrades to unknown and reconcile must not expire on
+// it).
+func stubListenerSnapshot(t *testing.T, known bool, ports map[int][]network.SnapshotListener) {
+	t.Helper()
+	original := captureListenerSnapshotFn
+	t.Cleanup(func() { captureListenerSnapshotFn = original })
+	captureListenerSnapshotFn = func() network.TCPListenerSnapshot {
+		if !known {
+			return network.TCPListenerSnapshot{Tool: "test", Reason: "stubbed unavailable"}
+		}
+		return network.TCPListenerSnapshot{Known: true, Tool: "test", Ports: ports}
+	}
 }
 
 // TestListOrphansExcludesVrooliCLIInvocation guards against classifying a
@@ -1407,67 +1506,15 @@ func TestParseProcessTableLineRejectsTooFewFields(t *testing.T) {
 	}
 }
 
-func TestCleanStaleLocksRemovesOnlyDeadOwners(t *testing.T) {
-	root := t.TempDir()
-	home := t.TempDir()
-	stateDir := mustStateDir(t, home)
-	if err := os.MkdirAll(stateDir, 0o755); err != nil {
-		t.Fatalf("mkdir state dir: %v", err)
-	}
-
-	staleLock := filepath.Join(stateDir, ".port_21234.lock")
-	liveLock := filepath.Join(stateDir, ".port_21235.lock")
-	if err := os.WriteFile(staleLock, []byte("ghost:999999:1\n"), 0o644); err != nil {
-		t.Fatalf("write stale lock: %v", err)
-	}
-	if err := os.WriteFile(liveLock, []byte("alive:"+strconv.Itoa(os.Getpid())+":1\n"), 0o644); err != nil {
-		t.Fatalf("write live lock: %v", err)
-	}
-
-	controller := NewController(root, home)
-	report, err := controller.CleanStaleLocks()
-	if err != nil {
-		t.Fatalf("CleanStaleLocks: %v", err)
-	}
-	if len(report.Stopped) != 1 || report.Stopped[0].Name != "21234" {
-		t.Fatalf("report = %#v", report)
-	}
-	if _, err := os.Stat(staleLock); !os.IsNotExist(err) {
-		t.Fatalf("expected stale lock removal, stat err=%v", err)
-	}
-	if _, err := os.Stat(liveLock); err != nil {
-		t.Fatalf("expected live lock to remain: %v", err)
-	}
-}
-
 func TestDiagnosePortBuildsRecommendations(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()
-	stateDir := mustStateDir(t, home)
-	if err := os.MkdirAll(stateDir, 0o755); err != nil {
-		t.Fatalf("mkdir state dir: %v", err)
-	}
-	lockPath := filepath.Join(stateDir, ".port_21234.lock")
-	if err := os.WriteFile(lockPath, []byte("ghost:999999:1\n"), 0o644); err != nil {
-		t.Fatalf("write lock: %v", err)
-	}
-
-	originalListLocks := listLocksFn
-	originalReadLock := readLockFileFn
 	originalInspection := inspectPortListenersFn
 	originalListProcessTable := listProcessTableFn
 	t.Cleanup(func() {
-		listLocksFn = originalListLocks
-		readLockFileFn = originalReadLock
 		inspectPortListenersFn = originalInspection
 		listProcessTableFn = originalListProcessTable
 	})
-	listLocksFn = func(home string) ([]LockInfo, error) {
-		return network.ListLocks(home)
-	}
-	readLockFileFn = func(path string) (LockInfo, error) {
-		return network.ReadLockFile(path)
-	}
 	inspectPortListenersFn = func(port int) (network.PortInspection, error) {
 		if port != 21234 {
 			t.Fatalf("port = %d", port)
@@ -1477,6 +1524,9 @@ func TestDiagnosePortBuildsRecommendations(t *testing.T) {
 			Inspection: network.ListenerInspection{Available: true, Tool: "lsof"},
 		}, nil
 	}
+	stubListenerSnapshot(t, true, map[int][]network.SnapshotListener{
+		21234: {{PID: 4321, Label: "listener command"}},
+	})
 	listProcessTableFn = func() (map[int]processTableEntry, error) {
 		return map[int]processTableEntry{
 			5200: {PID: 5200, PPID: 1, PGID: 5200, Command: filepath.Join(root, "scenarios", "beta", "api", "server")},
@@ -1488,10 +1538,10 @@ func TestDiagnosePortBuildsRecommendations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DiagnosePort: %v", err)
 	}
-	if !diagnostic.InUse || diagnostic.Lock == nil || !diagnostic.Lock.Stale {
+	if !diagnostic.InUse {
 		t.Fatalf("diagnostic = %#v", diagnostic)
 	}
-	if len(diagnostic.Recommendations) < 3 {
+	if len(diagnostic.Recommendations) < 2 {
 		t.Fatalf("recommendations = %#v", diagnostic.Recommendations)
 	}
 }
@@ -1511,6 +1561,7 @@ func TestDiagnosePortReportsEphemeralOverlap(t *testing.T) {
 			Inspection: network.ListenerInspection{Available: true, Tool: "stub"},
 		}, nil
 	}
+	stubListenerSnapshot(t, true, nil)
 	listProcessTableFn = func() (map[int]processTableEntry, error) {
 		return map[int]processTableEntry{}, nil
 	}
@@ -1556,6 +1607,7 @@ func TestDiagnosePortCanonicalBandForSafePort(t *testing.T) {
 			Inspection: network.ListenerInspection{Available: true, Tool: "stub"},
 		}, nil
 	}
+	stubListenerSnapshot(t, true, nil)
 	listProcessTableFn = func() (map[int]processTableEntry, error) {
 		return map[int]processTableEntry{}, nil
 	}
@@ -1591,6 +1643,7 @@ func TestDiagnosePortReportsUnavailableListenerInspection(t *testing.T) {
 			},
 		}, nil
 	}
+	stubListenerSnapshot(t, false, nil)
 	listProcessTableFn = func() (map[int]processTableEntry, error) {
 		return map[int]processTableEntry{}, nil
 	}
@@ -1664,4 +1717,20 @@ func boolString(value bool) string {
 		return "true"
 	}
 	return "false"
+}
+
+func TestNewPIDLivenessMemoProbesEachPIDOnce(t *testing.T) {
+	calls := map[int]int{}
+	memo := newPIDLivenessMemo(func(pid int) bool {
+		calls[pid]++
+		return pid%2 == 0
+	})
+	for i := 0; i < 3; i++ {
+		if !memo(2) || memo(3) {
+			t.Fatal("memo changed answers across repeated calls")
+		}
+	}
+	if calls[2] != 1 || calls[3] != 1 {
+		t.Fatalf("expected one probe per distinct PID, got %v", calls)
+	}
 }
