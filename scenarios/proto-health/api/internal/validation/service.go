@@ -93,7 +93,7 @@ func (s *Service) checkProtoAdoptionFacts(ctx context.Context, scenario string) 
 	}
 	var findings []Finding
 	for _, warning := range report.GetWarnings() {
-		if warning.GetStatus() == factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED || warning.GetStatus() == factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN {
+		if isCodeFactsProofWarning(warning) {
 			findings = append(findings, Finding{
 				Severity:   SeverityWarning,
 				Code:       CodeProtoAdoptionUnsupported,
@@ -145,7 +145,7 @@ func (s *Service) checkEndpointProofFacts(ctx context.Context, scenario string, 
 	}
 	var findings []Finding
 	for _, warning := range report.GetWarnings() {
-		if warning.GetStatus() == factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED || warning.GetStatus() == factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN {
+		if isCodeFactsProofWarning(warning) {
 			findings = append(findings, Finding{
 				Severity:   SeverityWarning,
 				Code:       CodeEndpointProofUnsupported,
@@ -223,6 +223,21 @@ func factStatus(fact *factsv1.GenericFact) factsv1.EvidenceStatus {
 		}
 	}
 	return status
+}
+
+func isCodeFactsProofWarning(warning *factsv1.Warning) bool {
+	switch warning.GetStatus() {
+	case factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED:
+		return true
+	case factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN:
+		code := warning.GetCode()
+		return strings.HasSuffix(code, ".unavailable") ||
+			strings.HasSuffix(code, ".empty_graph") ||
+			strings.Contains(code, "_unsupported") ||
+			strings.Contains(code, ".unsupported")
+	default:
+		return false
+	}
 }
 
 func codeFactLocation(fact *factsv1.GenericFact, fallback string) string {

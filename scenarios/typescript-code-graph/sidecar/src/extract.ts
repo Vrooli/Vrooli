@@ -9,9 +9,12 @@
 //   - declarations within a file: stable sort by (line, column)
 //   - edges: stable sort by (from_node_id, to_node_id)
 //
-// Workspace detection: if a pnpm-workspace.yaml exists at the project root or
-// any parent up to (and including) the dir containing tsconfig.json, throw
-// WorkspaceUnsupportedError. The Go side maps this to ErrorKind
+// Workspace detection: a selected TypeScript project directory that is itself a
+// multi-project pnpm workspace root is unsupported. Ancestor workspaces are not
+// rejected because callers provide a concrete project root or tsconfig.json.
+// Scenario UIs intentionally carry a local pnpm-workspace.yaml with
+// `packages: [.]` as an install boundary; that single-project shape is allowed.
+// The Go side maps unsupported multi-project workspaces to ErrorKind
 // "workspace_unsupported".
 
 import * as fs from "node:fs";
@@ -363,21 +366,15 @@ function buildProject(projectPath: string): ResolvedProject {
   }
   tsconfigPath = matches[0]!;
 
-  // Workspace check: pnpm-workspace.yaml at projectRoot or any parent up to
-  // and including the tsconfig's dir.
+  // Workspace check: reject when the selected project directory itself is a
+  // multi-project workspace root. Ancestor workspace files do not make an
+  // explicit tsconfig extraction ambiguous.
   const tsconfigDir = path.dirname(tsconfigPath);
-  let cursor = projectRoot;
-  // Walk upward but bounded.
-  for (let i = 0; i < 64; i++) {
-    if (fs.existsSync(path.join(cursor, "pnpm-workspace.yaml"))) {
-      throw new WorkspaceUnsupportedError(
-        `pnpm-workspace.yaml found at ${cursor}; workspaces unsupported`,
-      );
-    }
-    if (cursor === tsconfigDir) break;
-    const parent = path.dirname(cursor);
-    if (parent === cursor) break;
-    cursor = parent;
+  const workspacePath = path.join(tsconfigDir, "pnpm-workspace.yaml");
+  if (fs.existsSync(workspacePath) && !isSingleProjectWorkspaceBoundary(workspacePath, tsconfigDir)) {
+    throw new WorkspaceUnsupportedError(
+      `pnpm-workspace.yaml found at ${tsconfigDir}; workspaces unsupported`,
+    );
   }
 
   try {
@@ -391,6 +388,65 @@ function buildProject(projectPath: string): ResolvedProject {
       `ts-morph project construction failed: ${(err as Error).message}`,
     );
   }
+}
+
+function isSingleProjectWorkspaceBoundary(workspacePath: string, tsconfigDir: string): boolean {
+  if (path.dirname(workspacePath) !== tsconfigDir) return false;
+  let raw: string;
+  try {
+    raw = fs.readFileSync(workspacePath, "utf8");
+  } catch {
+    return false;
+  }
+  const values = workspacePackageValues(raw);
+  return values.length === 1 && normalizeWorkspacePackage(values[0]!) === ".";
+}
+
+function workspacePackageValues(raw: string): string[] {
+  const lines = raw.split(/\r?\n/);
+  const values: string[] = [];
+  let inPackages = false;
+  for (const line of lines) {
+    const withoutComment = line.replace(/\s+#.*$/, "").trim();
+    if (withoutComment === "" || withoutComment.startsWith("#")) continue;
+    if (withoutComment.startsWith("packages:")) {
+      inPackages = true;
+      const rest = withoutComment.slice("packages:".length).trim();
+      if (rest.startsWith("[") && rest.endsWith("]")) {
+        return rest
+          .slice(1, -1)
+          .split(",")
+          .map((v) => unquoteWorkspaceScalar(v.trim()))
+          .filter((v) => v !== "");
+      }
+      if (rest !== "") values.push(unquoteWorkspaceScalar(rest));
+      continue;
+    }
+    if (!inPackages) continue;
+    if (!line.startsWith(" ") && !line.startsWith("\t")) break;
+    if (withoutComment.startsWith("-")) {
+      values.push(unquoteWorkspaceScalar(withoutComment.slice(1).trim()));
+    }
+  }
+  return values;
+}
+
+function unquoteWorkspaceScalar(value: string): string {
+  if (
+    (value.startsWith("\"") && value.endsWith("\"")) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
+    return value.slice(1, -1);
+  }
+  return value;
+}
+
+function normalizeWorkspacePackage(value: string): string {
+  const normalized = value.replace(/\\/g, "/").replace(/\/+$/, "");
+  if (normalized === "" || normalized === "./") return ".";
+  if (normalized === ".") return ".";
+  if (normalized === "./.") return ".";
+  return normalized;
 }
 
 // --- Declaration collection + classification ----------------------------------
@@ -913,7 +969,7 @@ function resolveSpecifier(
 }
 
 interface DiagChainLike {
-  messageText: string;
+  messageText: unknown;
   next?: DiagChainLike[] | undefined;
 }
 
@@ -921,10 +977,10 @@ function flattenMessage(m: unknown): string {
   if (typeof m === "string") return m;
   if (m && typeof m === "object" && "messageText" in m) {
     const chain = m as DiagChainLike;
-    let out = chain.messageText;
+    let out = flattenMessage(chain.messageText);
     let next = chain.next;
     while (next && next.length > 0) {
-      out += " " + next[0]!.messageText;
+      out += " " + flattenMessage(next[0]!.messageText);
       next = next[0]!.next;
     }
     return out;

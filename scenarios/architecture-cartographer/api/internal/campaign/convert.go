@@ -5,28 +5,6 @@ import (
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
 
-// sourceToken maps the shared FindingSource enum to its lower-case token.
-func sourceToken(s architecturev1.FindingSource) string {
-	switch s {
-	case architecturev1.FindingSource_FINDING_SOURCE_STRUCTURE:
-		return "structure"
-	case architecturev1.FindingSource_FINDING_SOURCE_CLI:
-		return "cli"
-	case architecturev1.FindingSource_FINDING_SOURCE_UI:
-		return "ui"
-	case architecturev1.FindingSource_FINDING_SOURCE_DOCS:
-		return "docs"
-	case architecturev1.FindingSource_FINDING_SOURCE_STANDARDS:
-		return "standards"
-	case architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE:
-		return "architecture"
-	case architecturev1.FindingSource_FINDING_SOURCE_TIDINESS:
-		return "tidiness"
-	default:
-		return "unspecified"
-	}
-}
-
 // severityToken maps the shared FindingSeverity enum to its lower-case
 // token (matching the cartographer's severity vocabulary).
 func severityToken(s architecturev1.FindingSeverity) string {
@@ -79,7 +57,7 @@ func fromProto(scenario string, pf *architecturev1.ArchitectureFinding) Finding 
 	}
 	f := Finding{
 		Scenario:   sc,
-		Source:     sourceToken(pf.GetSource()),
+		Source:     findingid.SourceToken(pf.GetSource()),
 		Code:       pf.GetCode(),
 		Severity:   severityToken(pf.GetSeverity()),
 		Locations:  pf.GetLocations(),

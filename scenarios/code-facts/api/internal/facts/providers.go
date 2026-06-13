@@ -87,6 +87,20 @@ func (e ProviderUnavailableError) Error() string {
 
 func (e ProviderUnavailableError) Unwrap() error { return e.Err }
 
+type ProviderUnsupportedError struct {
+	Analyzer string
+	Err      error
+}
+
+func (e ProviderUnsupportedError) Error() string {
+	if e.Err == nil {
+		return e.Analyzer + " unsupported"
+	}
+	return e.Analyzer + " unsupported: " + e.Err.Error()
+}
+
+func (e ProviderUnsupportedError) Unwrap() error { return e.Err }
+
 func errNoProvider(language string) ProviderUnavailableError {
 	return ProviderUnavailableError{Analyzer: "code-facts." + language, Err: fmt.Errorf("no graph provider for language %q", language)}
 }
@@ -171,10 +185,15 @@ func classifyProviderError(analyzer string, err error) error {
 		switch ce.Code() {
 		case connect.CodeUnavailable, connect.CodeDeadlineExceeded:
 			return ProviderUnavailableError{Analyzer: analyzer, Err: err}
+		case connect.CodeUnimplemented:
+			return ProviderUnsupportedError{Analyzer: analyzer, Err: err}
 		}
 	}
 	if strings.Contains(strings.ToLower(err.Error()), "connection refused") {
 		return ProviderUnavailableError{Analyzer: analyzer, Err: err}
+	}
+	if strings.Contains(strings.ToLower(err.Error()), "workspace_unsupported") {
+		return ProviderUnsupportedError{Analyzer: analyzer, Err: err}
 	}
 	return err
 }

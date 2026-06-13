@@ -18,7 +18,7 @@ Errors that originate inside the Node sidecar are translated into Go-side sentin
 |---|---|---|---|---|
 | graph | `ErrNoTsconfigFound` | `invalid_argument` | `errors.no_tsconfig_found` | No `tsconfig.json` discoverable in the input path. |
 | graph | `ErrMultipleTsconfigFiles` | `invalid_argument` | `errors.multiple_tsconfig_files` | Ambiguous — multiple `tsconfig.json` files at the same level. Operator must point at one. |
-| graph | `ErrWorkspaceUnsupported` | `invalid_argument` | `errors.workspace_unsupported` | pnpm workspace detected. P2 capability (OT-P2-005). |
+| graph | `ErrWorkspaceUnsupported` | `invalid_argument` | `errors.workspace_unsupported` | Selected project directory is a multi-project pnpm workspace root. Workspace-root extraction is a P2 capability (OT-P2-005). |
 | graph | `ErrPathUnreadable` | `failed_precondition` | `errors.path_unreadable` | Filesystem error on the input path. |
 | graph | `ErrProjectLoadFailed` | `internal` | `errors.project_load_failed` | `ts-morph` Project initialization failed with a catastrophic error (not per-file warnings). |
 | rewrite | `ErrInvalidOperations` | `invalid_argument` | `errors.invalid_operations` | Duplicate ops, cycles, or self-moves. |

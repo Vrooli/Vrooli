@@ -63,7 +63,7 @@ func (n normalizer) familyForNode(language string, node *commonv1.CodeGraphNode)
 			return factsv1.FactFamily_FACT_FAMILY_IMPORTS, true
 		case "GO_NODE_KIND_REFERENCE", "GO_NODE_KIND_TYPE_USAGE", "go_reference", "go_type_usage":
 			return factsv1.FactFamily_FACT_FAMILY_REFERENCES, true
-		case "GO_NODE_KIND_CALL", "go_call":
+		case "GO_NODE_KIND_CALL", "GO_NODE_KIND_ROUTE_REGISTRATION", "go_call", "go_route_registration":
 			return factsv1.FactFamily_FACT_FAMILY_CALLS, true
 		case "GO_NODE_KIND_TYPE", "GO_NODE_KIND_FUNC", "GO_NODE_KIND_VAR", "GO_NODE_KIND_CONST", "GO_NODE_KIND_INTERFACE", "GO_NODE_KIND_METHOD",
 			"go_type", "go_func", "go_var", "go_const", "go_interface", "go_method":
@@ -138,7 +138,7 @@ func genericKind(language string, node *commonv1.CodeGraphNode) string {
 
 func factSubject(node *commonv1.CodeGraphNode) string {
 	attrs := node.GetAttributes()
-	for _, key := range []string{"import_path", "source_module", "callee", "referenced_name", "qualified_name", "type", "name"} {
+	for _, key := range []string{"route_path", "import_path", "source_module", "callee", "referenced_name", "qualified_name", "type", "name"} {
 		if value := strings.TrimSpace(attrs[key]); value != "" {
 			return value
 		}

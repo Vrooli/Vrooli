@@ -1,3 +1,7 @@
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+
 import { Project } from "ts-morph";
 import { describe, expect, it } from "vitest";
 
@@ -226,6 +230,74 @@ function Panel(props: { title: string; children: ReactNode }) {
     for (const fact of [...importBindings, ...calls, ...jsx, ...references, ...exports]) {
       expect(fact.attributes.start_line).toMatch(/^\d+$/);
       expect(fact.attributes.end_column).toMatch(/^\d+$/);
+    }
+  });
+
+  it("allows a scenario UI pnpm workspace boundary with packages dot", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "tscg-boundary-"));
+    try {
+      fs.mkdirSync(path.join(root, "src"), { recursive: true });
+      fs.writeFileSync(path.join(root, "pnpm-workspace.yaml"), "packages:\n  - .\n");
+      fs.writeFileSync(path.join(root, "tsconfig.json"), JSON.stringify({
+        compilerOptions: {
+          target: "ES2020",
+          module: "ESNext",
+          strict: true,
+        },
+        include: ["src"],
+      }));
+      fs.writeFileSync(path.join(root, "src", "index.ts"), "export const value = 1;\n");
+
+      const out = extract({ projectPath: path.join(root, "tsconfig.json") });
+
+      expect(out.graph.nodes.map((n) => n.id)).toContain("ts_const:src/index.ts:value");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects multi-project pnpm workspaces", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "tscg-workspace-"));
+    try {
+      fs.mkdirSync(path.join(root, "src"), { recursive: true });
+      fs.writeFileSync(path.join(root, "pnpm-workspace.yaml"), "packages:\n  - .\n  - ../shared/*\n");
+      fs.writeFileSync(path.join(root, "tsconfig.json"), JSON.stringify({
+        compilerOptions: {
+          target: "ES2020",
+          module: "ESNext",
+          strict: true,
+        },
+        include: ["src"],
+      }));
+      fs.writeFileSync(path.join(root, "src", "index.ts"), "export const value = 1;\n");
+
+      expect(() => extract({ projectPath: path.join(root, "tsconfig.json") })).toThrow(/workspaces unsupported/);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("allows an explicit project inside an ancestor pnpm workspace", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "tscg-ancestor-workspace-"));
+    const app = path.join(root, "packages", "app");
+    try {
+      fs.mkdirSync(path.join(app, "src"), { recursive: true });
+      fs.writeFileSync(path.join(root, "pnpm-workspace.yaml"), "packages:\n  - packages/*\n");
+      fs.writeFileSync(path.join(app, "tsconfig.json"), JSON.stringify({
+        compilerOptions: {
+          target: "ES2020",
+          module: "ESNext",
+          strict: true,
+        },
+        include: ["src"],
+      }));
+      fs.writeFileSync(path.join(app, "src", "index.ts"), "export const value = 1;\n");
+
+      const out = extract({ projectPath: path.join(app, "tsconfig.json") });
+
+      expect(out.graph.nodes.map((n) => n.id)).toContain("ts_const:src/index.ts:value");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
     }
   });
 });

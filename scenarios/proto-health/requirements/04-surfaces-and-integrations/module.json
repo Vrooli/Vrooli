@@ -108,6 +108,23 @@
           "notes": "Workflow includes `cd packages/proto && make verify-committed-gen`."
         }
       ]
+    },
+    {
+      "id": "PROTO-SURFACES-007",
+      "title": "Use code-facts for implementation proof",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "integration",
+      "criticality": "P0",
+      "description": "proto-health delegates source-level proto adoption and REST endpoint proof to code-facts and maps proof status into stable proto findings.",
+      "tags": ["code-facts", "integration", "proof"],
+      "validation": [
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Run `code-facts describe proto-health --include proto_adoption,endpoint_proofs --json` and `proto-health validate scenario proto-health --json`."
+        }
+      ]
     }
   ]
 }

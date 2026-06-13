@@ -30,19 +30,20 @@ const (
 type NodeKind string
 
 const (
-	NodeKindFile       NodeKind = "file"
-	NodeKindPackage    NodeKind = "package"
-	NodeKindModule     NodeKind = "module"
-	NodeKindType       NodeKind = "go_type"
-	NodeKindFunc       NodeKind = "go_func"
-	NodeKindVar        NodeKind = "go_var"
-	NodeKindConst      NodeKind = "go_const"
-	NodeKindInterface  NodeKind = "go_interface"
-	NodeKindMethod     NodeKind = "go_method"
-	NodeKindImportSpec NodeKind = "go_import_spec"
-	NodeKindReference  NodeKind = "go_reference"
-	NodeKindCall       NodeKind = "go_call"
-	NodeKindTypeUsage  NodeKind = "go_type_usage"
+	NodeKindFile              NodeKind = "file"
+	NodeKindPackage           NodeKind = "package"
+	NodeKindModule            NodeKind = "module"
+	NodeKindType              NodeKind = "go_type"
+	NodeKindFunc              NodeKind = "go_func"
+	NodeKindVar               NodeKind = "go_var"
+	NodeKindConst             NodeKind = "go_const"
+	NodeKindInterface         NodeKind = "go_interface"
+	NodeKindMethod            NodeKind = "go_method"
+	NodeKindImportSpec        NodeKind = "go_import_spec"
+	NodeKindReference         NodeKind = "go_reference"
+	NodeKindCall              NodeKind = "go_call"
+	NodeKindTypeUsage         NodeKind = "go_type_usage"
+	NodeKindRouteRegistration NodeKind = "go_route_registration"
 )
 
 // EdgeKind enumerates the directed-edge families this scenario emits.

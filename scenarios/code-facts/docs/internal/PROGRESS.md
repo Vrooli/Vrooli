@@ -90,3 +90,12 @@ Next phase: Phase 13 cross-scenario hardening and documentation closeout.
 - Updated the P0 requirement registry to mark implemented target/surface/provider/filtering/API-CLI/UI scope complete.
 
 Plan status: Code Facts is ready as the shared code-evidence substrate. Remaining work is future consumer adoption and the deferred proof families listed in `PROBLEMS.md`.
+
+## 2026-06-13 — Provider Unsupported And Endpoint-Proof Scope Hardening
+
+- Classified provider `unimplemented` and `workspace_unsupported` failures as typed unsupported evidence instead of fatal non-strict Code Facts errors.
+- Honored `CodeTarget.language_filter` during parse-unit analysis and defaulted endpoint-proof analysis to Go parse units unless the caller explicitly requests another language.
+- Confirmed cold/no-cache endpoint proof for `proto-health` proves `health` and `notes_attach` with no warnings through both `endpoint-proof` and `describe --include endpoint_proofs`.
+- Confirmed `proto-health validate scenario proto-health --json`, `test-genie execute proto-health proto --json`, `vrooli scenario test code-facts --json`, and `vrooli scenario test proto-health --json` complete successfully after the hardening.
+
+Remaining related work: TypeScript provider diagnostics still emit many `typescript-code-graph.type_check_failure` warnings for generated UI files during proto-adoption scans; that is a diagnostics-quality issue, not a workspace parsing failure.

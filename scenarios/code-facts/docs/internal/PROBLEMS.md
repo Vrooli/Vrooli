@@ -12,7 +12,7 @@ Initial `make test` failed on generated scaffold drift: missing REST `proto_payl
 
 ## Provider Availability
 
-Code Facts does not require live graph providers in unit tests; Phase 8 added fake-provider broker coverage and maps unavailable live providers to typed `unknown` warnings unless strict mode is requested. Explicit integration tests against running `go-code-graph` and `typescript-code-graph` are still needed before consumers depend on live provider availability.
+Code Facts does not require live graph providers in unit tests; Phase 8 added fake-provider broker coverage and maps unavailable live providers to typed `unknown` warnings unless strict mode is requested. As of 2026-06-13, provider `unimplemented` and `workspace_unsupported` failures are also downgraded to typed `unsupported` warnings in non-strict mode. Explicit integration tests against running `go-code-graph` and `typescript-code-graph` are still needed before consumers depend on live provider availability.
 
 Phase 13 manually validated the live provider path against `proto-health` with `code-facts facts describe scenario:proto-health --include all --no-cache --json`. The TypeScript provider currently returns typed `typescript-code-graph.type_check_failure` warnings with `[object Object]` messages for many generated UI files; Code Facts preserves those as `unknown` warnings and `proto-health` filters noisy non-proof diagnostics. A future TypeScript Code Graph hardening pass should make those diagnostics human-readable.
 
@@ -20,7 +20,9 @@ Phase 13 manually validated the live provider path against `proto-health` with `
 
 Phase 10 proof synthesis is deliberately static and conservative. Endpoint route proof becomes `proven` only when graph facts expose route path/method attributes or typed helper usage; otherwise Code Facts reports `unknown` or `missing` rather than inferring success from endpoint metadata alone.
 
-The first consumer integration still reports `unknown` route implementation proof for `proto-health` REST exceptions `health` and `notes_attach`; payload writer and error-envelope evidence is present, but route registration proof lacks route path/method attributes in the current graph facts. This is acceptable for launch because `proto-health` maps it to warnings, not silent success.
+As of 2026-06-13, `go-code-graph` emits `go_route_registration` facts for supported static Go route registrations and Code Facts maps those facts into `FACT_FAMILY_CALLS` so existing endpoint proof can match `route_path` and `http_method`. Remaining route-proof unknowns should now mean either the provider was unavailable, the route shape is dynamic/unsupported, or the endpoint declaration does not match the static route evidence.
+
+Endpoint-proof scans default to Go parse units because the current endpoint proof contract consumes Go route/call/import evidence. Callers can still opt into other languages with `CodeTarget.language_filter`; `DescribeCodeFacts` only narrows this way when the request asks for endpoint proofs without direct analyzer families such as imports/calls/references.
 
 ## Deferred Consumer Adoption
 

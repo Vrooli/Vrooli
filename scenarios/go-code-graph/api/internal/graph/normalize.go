@@ -3,6 +3,7 @@ package graph
 import (
 	"bytes"
 	"go/ast"
+	"go/constant"
 	"go/printer"
 	"go/token"
 	"go/types"
@@ -248,6 +249,18 @@ func packageUsageFacts(p *packages.Package, pkgID, moduleRoot string) []Node {
 						Attributes: attrs,
 					},
 				})
+				for _, route := range routeRegistrationsForCall(p, syn, pkgID, fileID, x) {
+					out = append(out, pending{
+						key: rel + ":route:" + positionKey(p.Fset, x.Pos()) + ":" + route.key,
+						node: Node{
+							ID:         factID(NodeKindRouteRegistration, pkgID, rel, nextSeq(rel)),
+							Kind:       NodeKindRouteRegistration,
+							Name:       route.name,
+							Path:       rel,
+							Attributes: route.attrs,
+						},
+					})
+				}
 			case *ast.CompositeLit:
 				attrs := usageAttributes(LanguageGo, pkgID, fileID, p.Fset, x.Pos(), x.End())
 				attrs["type"] = exprString(p.Fset, x.Type)
@@ -545,6 +558,190 @@ func argumentTypes(p *packages.Package, args []ast.Expr) string {
 		parts = append(parts, "unknown")
 	}
 	return strings.Join(parts, ",")
+}
+
+type routeRegistrationFact struct {
+	key   string
+	name  string
+	attrs map[string]string
+}
+
+func routeRegistrationsForCall(p *packages.Package, file *ast.File, pkgID, fileID string, call *ast.CallExpr) []routeRegistrationFact {
+	if p == nil || p.Fset == nil || call == nil {
+		return nil
+	}
+	if facts := gorillaMuxRouteRegistrations(p, file, pkgID, fileID, call); len(facts) > 0 {
+		return facts
+	}
+	if fact, ok := netHTTPRouteRegistration(p, file, pkgID, fileID, call); ok {
+		return []routeRegistrationFact{fact}
+	}
+	return nil
+}
+
+func gorillaMuxRouteRegistrations(p *packages.Package, file *ast.File, pkgID, fileID string, call *ast.CallExpr) []routeRegistrationFact {
+	methodsSel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok || methodsSel.Sel == nil || methodsSel.Sel.Name != "Methods" {
+		return nil
+	}
+	handleCall, ok := unparen(methodsSel.X).(*ast.CallExpr)
+	if !ok {
+		return nil
+	}
+	handleSel, ok := handleCall.Fun.(*ast.SelectorExpr)
+	if !ok || handleSel.Sel == nil {
+		return nil
+	}
+	handleName := handleSel.Sel.Name
+	if handleName != "HandleFunc" && handleName != "Handle" {
+		return nil
+	}
+	if len(handleCall.Args) < 2 {
+		return nil
+	}
+
+	attrs := usageAttributes(LanguageGo, pkgID, fileID, p.Fset, call.Pos(), call.End())
+	attrs["router_framework"] = "gorilla/mux"
+	attrs["route_source"] = handleName + ".Methods"
+	attrs["handler_expr"] = exprString(p.Fset, handleCall.Args[1])
+	attrs["enclosing_symbol"] = enclosingFunctionName(p.Fset, file, call.Pos())
+	attrs["callee"] = exprString(p.Fset, call.Fun)
+	if obj := calledObject(p, handleCall.Args[1]); obj != nil {
+		attrs["handler_symbol"] = objectSymbolID(obj)
+	}
+	if path, ok := staticStringValue(p, handleCall.Args[0]); ok {
+		attrs["route_path"] = path
+		attrs["route_path_status"] = "known"
+	} else {
+		attrs["route_path_status"] = "unknown"
+	}
+
+	methods := staticHTTPMethods(p, call.Args)
+	if len(methods) == 0 {
+		attrs["http_method_status"] = "unknown"
+		return []routeRegistrationFact{{
+			key:   attrs["route_path"] + ":unknown:" + positionKey(p.Fset, call.Pos()),
+			name:  firstNonEmptyGraph(attrs["route_path"], attrs["handler_expr"], "route registration"),
+			attrs: attrs,
+		}}
+	}
+
+	out := make([]routeRegistrationFact, 0, len(methods))
+	for _, method := range methods {
+		methodAttrs := copyStringMap(attrs)
+		methodAttrs["http_method"] = method
+		methodAttrs["http_method_status"] = "known"
+		name := method
+		if methodAttrs["route_path"] != "" {
+			name += " " + methodAttrs["route_path"]
+		}
+		out = append(out, routeRegistrationFact{
+			key:   methodAttrs["route_path"] + ":" + method + ":" + positionKey(p.Fset, call.Pos()),
+			name:  name,
+			attrs: methodAttrs,
+		})
+	}
+	return out
+}
+
+func netHTTPRouteRegistration(p *packages.Package, file *ast.File, pkgID, fileID string, call *ast.CallExpr) (routeRegistrationFact, bool) {
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok || sel.Sel == nil || sel.Sel.Name != "HandleFunc" || len(call.Args) < 2 {
+		return routeRegistrationFact{}, false
+	}
+	obj := calledObject(p, call.Fun)
+	if obj == nil || objectPackagePath(obj) != "net/http" {
+		return routeRegistrationFact{}, false
+	}
+
+	attrs := usageAttributes(LanguageGo, pkgID, fileID, p.Fset, call.Pos(), call.End())
+	attrs["router_framework"] = "net/http"
+	attrs["route_source"] = "http.HandleFunc"
+	attrs["handler_expr"] = exprString(p.Fset, call.Args[1])
+	attrs["http_method_status"] = "unknown"
+	attrs["enclosing_symbol"] = enclosingFunctionName(p.Fset, file, call.Pos())
+	attrs["callee"] = exprString(p.Fset, call.Fun)
+	if obj := calledObject(p, call.Args[1]); obj != nil {
+		attrs["handler_symbol"] = objectSymbolID(obj)
+	}
+	if path, ok := staticStringValue(p, call.Args[0]); ok {
+		attrs["route_path"] = path
+		attrs["route_path_status"] = "known"
+	} else {
+		attrs["route_path_status"] = "unknown"
+	}
+	return routeRegistrationFact{
+		key:   attrs["route_path"] + ":unknown:" + positionKey(p.Fset, call.Pos()),
+		name:  firstNonEmptyGraph(attrs["route_path"], attrs["handler_expr"], "route registration"),
+		attrs: attrs,
+	}, true
+}
+
+func staticHTTPMethods(p *packages.Package, args []ast.Expr) []string {
+	if len(args) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(args))
+	for _, arg := range args {
+		method, ok := staticStringValue(p, arg)
+		if !ok || strings.TrimSpace(method) == "" {
+			return nil
+		}
+		out = append(out, strings.ToUpper(method))
+	}
+	return out
+}
+
+func staticStringValue(p *packages.Package, expr ast.Expr) (string, bool) {
+	switch x := unparen(expr).(type) {
+	case *ast.BasicLit:
+		if x.Kind != token.STRING {
+			return "", false
+		}
+		value, err := strconv.Unquote(x.Value)
+		return value, err == nil
+	case *ast.Ident:
+		return constStringValue(usedObject(p, x))
+	case *ast.SelectorExpr:
+		return constStringValue(calledObject(p, x))
+	default:
+		return "", false
+	}
+}
+
+func constStringValue(obj types.Object) (string, bool) {
+	c, ok := obj.(*types.Const)
+	if !ok || c.Val().Kind() != constant.String {
+		return "", false
+	}
+	return constant.StringVal(c.Val()), true
+}
+
+func unparen(expr ast.Expr) ast.Expr {
+	for {
+		p, ok := expr.(*ast.ParenExpr)
+		if !ok || p.X == nil {
+			return expr
+		}
+		expr = p.X
+	}
+}
+
+func copyStringMap(in map[string]string) map[string]string {
+	out := make(map[string]string, len(in))
+	for k, v := range in {
+		out[k] = v
+	}
+	return out
+}
+
+func firstNonEmptyGraph(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func validTypeString(s string) string {

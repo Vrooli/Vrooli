@@ -52,10 +52,10 @@ Plain query operations (`/health`, `extract` for a single quiet path) do not nee
 
 - **Owner domain**: `graph`.
 - **Trigger**: Connect-RPC `Extract(ExtractRequest{project_path})` call.
-- **Inputs**: absolute filesystem path that contains exactly one `tsconfig.json` and is not inside a pnpm workspace.
+- **Inputs**: absolute filesystem path that contains exactly one `tsconfig.json`, or an explicit `tsconfig.json`; selected multi-project workspace roots are unsupported.
 - **Steps**:
   1. Acquire per-path mutex (Go side) keyed by `filepath.Abs(project_path)`.
-  2. Validate input: reject if no `tsconfig.json` discoverable, multiple `tsconfig.json` files, or pnpm workspace detected.
+  2. Validate input: reject if no `tsconfig.json` discoverable, multiple `tsconfig.json` files, or the selected project directory is a multi-project workspace root.
   3. Verify sidecar is `ready`. If not, return `SidecarUnavailable`.
   4. Send `{type: "extract", request_id, project_path, options: {...}}` over IPC.
   5. Sidecar acquires its own per-path mutex (because `ts-morph` Project state is not safe to share).
@@ -67,7 +67,7 @@ Plain query operations (`/health`, `extract` for a single quiet path) do not nee
 - **Failure modes**:
   - `ExtractError{kind: no_tsconfig_found}` — no `tsconfig.json` discoverable.
   - `ExtractError{kind: multiple_tsconfig_files}` — ambiguous project root.
-  - `ExtractError{kind: workspace_unsupported}` — pnpm workspace detected.
+  - `ExtractError{kind: workspace_unsupported}` — selected project directory is a multi-project workspace root.
   - `ExtractError{kind: path_unreadable}` — filesystem error.
   - `SidecarUnavailable` — sidecar is not `ready`.
   - `SidecarTimeout{request_id, duration}` — IPC stalled past the request timeout.

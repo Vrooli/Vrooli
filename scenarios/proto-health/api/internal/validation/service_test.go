@@ -109,6 +109,29 @@ func TestValidateScenarioWarnsWhenCodeFactsUnavailable(t *testing.T) {
 	requireFinding(t, report, CodeCodeFactsUnavailable, SeverityWarning)
 }
 
+func TestValidateScenarioIgnoresNonProofCodeFactsWarnings(t *testing.T) {
+	svc := New(Deps{
+		Loader: fakeLoader{surface: cleanSurface()},
+		CodeFacts: &fakeCodeFactsClient{
+			adoptionReport: &factsv1.ProofReport{
+				Family: factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION,
+				Warnings: []*factsv1.Warning{{
+					Code:    "typescript-code-graph.type_check_failure",
+					Message: "src/App.tsx: [object Object]",
+					Status:  factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN,
+				}},
+			},
+		},
+	})
+
+	report, err := svc.ValidateScenario(context.Background(), "demo")
+	require.NoError(t, err)
+	require.True(t, report.Passed)
+	for _, finding := range report.Findings {
+		require.NotEqual(t, CodeProtoAdoptionUnsupported, finding.Code)
+	}
+}
+
 func TestValidateScenarioFindsContradictedEndpointProof(t *testing.T) {
 	client := &fakeCodeFactsClient{
 		adoptionReport: proofReport(factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION,

@@ -48,7 +48,7 @@ func (s *Service) Describe(ctx context.Context, req *factsv1.DescribeCodeFactsRe
 		return nil, err
 	}
 	include := normalizeFamilies(req.GetInclude())
-	parseUnits := discoverParseUnits(target)
+	parseUnits := filterParseUnits(discoverParseUnits(target), req.GetTarget().GetLanguageFilter())
 	sourceHash, configHash := sourceFingerprint(target, parseUnits)
 	reportPlan := reportCachePlan(req.GetTarget(), target, parseUnits, include, sourceHash, configHash, req.GetMaxDepth())
 	if req.GetUseCache() {
@@ -73,7 +73,8 @@ func (s *Service) Describe(ctx context.Context, req *factsv1.DescribeCodeFactsRe
 		report.ParseUnits = parseUnits
 	}
 	analysisInclude := expandAnalyzerFamilies(include)
-	facts, warnings, evidence, graphHash, err := s.analyze(ctx, target, parseUnits, analysisInclude, sourceHash, configHash, req.GetUseCache())
+	analysisUnits := parseUnitsForDescribeAnalysis(parseUnits, include, req.GetTarget().GetLanguageFilter())
+	facts, warnings, evidence, graphHash, err := s.analyze(ctx, target, analysisUnits, analysisInclude, sourceHash, configHash, req.GetUseCache())
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +159,7 @@ func (s *Service) EndpointProof(ctx context.Context, req *factsv1.CheckEndpointP
 		factsv1.FactFamily_FACT_FAMILY_IMPORTS,
 		factsv1.FactFamily_FACT_FAMILY_REFERENCES,
 		factsv1.FactFamily_FACT_FAMILY_CALLS,
-	}, req.GetUseCache())
+	}, req.GetUseCache(), endpointProofLanguages(req.GetTarget().GetLanguageFilter()))
 	if err != nil {
 		return nil, err
 	}
@@ -293,6 +294,17 @@ func (s *Service) analyze(ctx context.Context, target *factsv1.TargetContext, un
 			result, err = provider.Extract(ctx, unit)
 		}
 		if err != nil {
+			var unsupported ProviderUnsupportedError
+			if errors.As(err, &unsupported) && !target.GetRequested().GetStrict() {
+				warnings = append(warnings, providerWarning(unsupported.Analyzer, "unsupported", unsupported.Error(), factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED))
+				evidence = append(evidence, &factsv1.Evidence{
+					Status:     factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED,
+					Confidence: 0,
+					Analyzer:   unsupported.Analyzer,
+					Message:    unsupported.Error(),
+				})
+				continue
+			}
 			var unavailable ProviderUnavailableError
 			if errors.As(err, &unavailable) && !target.GetRequested().GetStrict() {
 				warnings = append(warnings, providerWarning(unavailable.Analyzer, "unavailable", unavailable.Error(), factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN))
@@ -319,8 +331,12 @@ func (s *Service) analyze(ctx context.Context, target *factsv1.TargetContext, un
 	return facts, warnings, evidence, strings.Join(graphHashes, ","), nil
 }
 
-func (s *Service) analyzeForProof(ctx context.Context, targetReq *factsv1.CodeTarget, target *factsv1.TargetContext, include []factsv1.FactFamily, useCache bool) (proofInput, error) {
-	parseUnits := discoverParseUnits(target)
+func (s *Service) analyzeForProof(ctx context.Context, targetReq *factsv1.CodeTarget, target *factsv1.TargetContext, include []factsv1.FactFamily, useCache bool, languageFilter ...[]string) (proofInput, error) {
+	filter := targetReq.GetLanguageFilter()
+	if len(languageFilter) > 0 {
+		filter = languageFilter[0]
+	}
+	parseUnits := filterParseUnits(discoverParseUnits(target), filter)
 	sourceHash, configHash := sourceFingerprint(target, parseUnits)
 	cachePlan := reportCachePlan(targetReq, target, parseUnits, include, sourceHash, configHash, 0)
 	cacheMeta := cachePlan.metadata(cacheState(useCache), cacheReason(useCache))
@@ -370,6 +386,63 @@ func firstUnitMessage(unit *factsv1.ParseUnit) string {
 		}
 	}
 	return "Parse unit is not supported by an analyzer."
+}
+
+func filterParseUnits(units []*factsv1.ParseUnit, languages []string) []*factsv1.ParseUnit {
+	allowed := languageSet(languages)
+	if len(allowed) == 0 {
+		return units
+	}
+	out := make([]*factsv1.ParseUnit, 0, len(units))
+	for _, unit := range units {
+		if allowed[strings.ToLower(strings.TrimSpace(unit.GetLanguage()))] {
+			out = append(out, unit)
+		}
+	}
+	return out
+}
+
+func parseUnitsForDescribeAnalysis(units []*factsv1.ParseUnit, include []factsv1.FactFamily, languageFilter []string) []*factsv1.ParseUnit {
+	if len(languageFilter) > 0 {
+		return units
+	}
+	if hasFamily(include, factsv1.FactFamily_FACT_FAMILY_ENDPOINT_PROOFS) &&
+		!hasFamily(include, factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION) &&
+		!hasDirectAnalyzerFamily(include) {
+		return filterParseUnits(units, []string{"go"})
+	}
+	return units
+}
+
+func hasDirectAnalyzerFamily(families []factsv1.FactFamily) bool {
+	for _, family := range families {
+		switch family {
+		case factsv1.FactFamily_FACT_FAMILY_IMPORTS,
+			factsv1.FactFamily_FACT_FAMILY_SYMBOLS,
+			factsv1.FactFamily_FACT_FAMILY_REFERENCES,
+			factsv1.FactFamily_FACT_FAMILY_CALLS:
+			return true
+		}
+	}
+	return false
+}
+
+func endpointProofLanguages(requested []string) []string {
+	if len(requested) > 0 {
+		return requested
+	}
+	return []string{"go"}
+}
+
+func languageSet(languages []string) map[string]bool {
+	out := map[string]bool{}
+	for _, language := range languages {
+		language = strings.ToLower(strings.TrimSpace(language))
+		if language != "" {
+			out[language] = true
+		}
+	}
+	return out
 }
 
 func normalizeFamilies(in []factsv1.FactFamily) []factsv1.FactFamily {

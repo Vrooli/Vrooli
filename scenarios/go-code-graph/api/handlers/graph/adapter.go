@@ -78,7 +78,7 @@ func isGoSymbolKind(k intgraph.NodeKind) bool {
 	case intgraph.NodeKindType, intgraph.NodeKindFunc, intgraph.NodeKindVar,
 		intgraph.NodeKindConst, intgraph.NodeKindInterface, intgraph.NodeKindMethod,
 		intgraph.NodeKindImportSpec, intgraph.NodeKindReference, intgraph.NodeKindCall,
-		intgraph.NodeKindTypeUsage:
+		intgraph.NodeKindTypeUsage, intgraph.NodeKindRouteRegistration:
 		return true
 	}
 	return false

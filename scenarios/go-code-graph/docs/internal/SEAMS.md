@@ -68,6 +68,19 @@ If a test needs to substitute a dependency, add or reuse a seam. If a
 test only needs to prove the state machine, call the workflow directly
 and use matrix/trace helpers from the relevant testutil package.
 
+## Route registration facts are graph facts
+
+Go REST route registrations are emitted by the `graph` domain as
+policy-free `go_route_registration` nodes, not as proto-health or
+endpoint-policy decisions. Supported static shapes include Gorilla mux
+`HandleFunc`/`Handle` calls chained with `Methods(...)`, plus
+`net/http.HandleFunc` registrations where the HTTP method is unknown.
+The fact contract uses attributes such as `route_path`, `http_method`,
+`handler_expr`, `handler_symbol`, `router_framework`, `route_source`,
+source range, and `*_status=unknown` when a dynamic expression cannot be
+resolved conservatively. Consumers such as `code-facts` own the join
+between these generic graph facts and Vrooli endpoint declarations.
+
 ## How to read this file
 
 | Column | Meaning |

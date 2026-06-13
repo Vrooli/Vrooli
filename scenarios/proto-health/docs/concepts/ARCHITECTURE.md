@@ -155,9 +155,11 @@ long as the wire payload type is shared.
    declare REST exception request, response, and error payload intent.
 2. **Static contract consistency**: declared payloads, imports,
    stability, and shared-type placement must match descriptor facts.
-3. **Implementation proof**: handler/source conformance is deferred to
-   a future surface-code-facts layer. Current proof status is reported
-   as not evaluated, never implied by source scans.
+3. **Implementation proof**: `proto-health` consumes `code-facts`
+   proof reports for generated proto adoption and REST exception
+   handler conformance. Missing or contradicted proof becomes a
+   proto-health finding; unsupported or unavailable analyzers degrade
+   to warnings. `proto-health` does not parse Go or TypeScript source.
 
 The generated `notes` domain remains in the scaffold as a reference
 vertical until `validation` and `protosurface` are implemented. It is

@@ -115,10 +115,20 @@ and use matrix/trace helpers from the relevant testutil package.
 | | |
 |---|---|
 | **Seam** | Scenario transport-world detection |
-| **Interface** | `internal/protosurface` folds transport facts into `DescriptorLoader.LoadScenario` by reading `.vrooli/endpoints.json` and descriptor procedure paths. REST exception payload declarations are facts; handler implementation proof is not evaluated in this tier. |
+| **Interface** | `internal/protosurface` folds transport facts into `DescriptorLoader.LoadScenario` by reading `.vrooli/endpoints.json` and descriptor procedure paths. REST exception payload declarations are facts; handler implementation proof is supplied by the `CodeFactsClient` seam. |
 | **Production wiring** | `handlers/validation.Module` uses the descriptor loader's transport facts before validation rules run. |
 | **Test fake** | Validation tests can set `Surface.TransportWorld` and per-RPC `TransportKind` directly. |
-| **Why it exists** | The validator must label the declared/public transport world so agents apply the right implementation pattern. It must not parse API source files; future implementation proof belongs behind a separate surface-code-facts seam. |
+| **Why it exists** | The validator must label the declared/public transport world so agents apply the right implementation pattern. It must not parse API source files or infer handler behavior from filenames. |
+
+### CodeFactsClient (implementation proof)
+
+| | |
+|---|---|
+| **Seam** | Scenario source-proof provider |
+| **Interface** | `internal/validation::CodeFactsClient`, returning `code-facts` `ProofReport` values for proto adoption and REST exception endpoint proof. |
+| **Production wiring** | `handlers/validation.Module` constructs `internal/codefacts.NewClient`, which discovers the `code-facts` scenario through lifecycle metadata and calls the generated Connect client. |
+| **Test fake** | Validation unit tests inject fake proof reports for proven, missing, contradicted, unsupported, and unavailable states. |
+| **Why it exists** | `proto-health` owns proto policy and finding taxonomy, while `code-facts` owns language analyzers and source evidence. This seam keeps Go/TypeScript parsing out of proto-health and makes analyzer outages degrade to explicit warnings. |
 
 ### Clock
 

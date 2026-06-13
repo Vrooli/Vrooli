@@ -78,26 +78,27 @@ replacement pattern is green.
 
 ### 2026-06-12 - Implementation proof tier is deferred
 
-**Symptom:** REST exception payload declarations report proof status as
-not evaluated even when the current handlers do marshal the declared
-proto payloads.
+**Symptom:** Implementation proof can degrade when `code-facts` or one
+of its graph providers is not running.
 
-**Root cause:** The current validator intentionally uses descriptor and
-scenario metadata facts only. It no longer scans Go/API source for
-handler behavior, and the graph scenarios do not yet expose enough
-handler/call/payload construction facts for deterministic proof.
+**Root cause:** `proto-health` intentionally consumes source evidence
+through `code-facts` instead of parsing Go or TypeScript directly. That
+keeps proto policy separate from analyzer implementation, but the proof
+tier now depends on code-facts lifecycle discovery and graph-provider
+availability.
 
-**Workaround:** Treat proto-health results as declaration and static
-contract validation. Use handler tests for implementation behavior in
-the owning scenario.
+**Workaround:** Treat `proto.code_facts_unavailable` and unsupported
+proof findings as degraded implementation evidence. Descriptor and
+static contract findings remain authoritative.
 
-**Real fix:** Add a separate surface-code-facts layer backed by
-go-code-graph / typescript-code-graph adapters, then consume those
-facts through a new proto-health proof seam.
+**Real fix:** Keep code-facts healthy through scenario lifecycle, and
+extend code-facts provider coverage when a surface returns unsupported
+proof for a language or framework it should understand.
 
 **Owner:** unassigned.
 
-**Refs:** `api/internal/protosurface/`, `docs/internal/SEAMS.md`.
+**Refs:** `api/internal/codefacts/`, `api/internal/validation/`,
+`docs/internal/SEAMS.md`.
 
 ## Architecture Drift
 

@@ -19,6 +19,7 @@ Use this document to answer:
 |---|---|---|---|---|---|
 | SQLite | embedded storage | yes | API, notes reference | `SQLITE_PATH` lifecycle env var | API reports unhealthy if unreachable. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario should be started through lifecycle commands. |
+| code-facts | scenario | soft-required for implementation proof | validation API | `CodeFactsService.CheckProtoAdoption` and `CheckEndpointProof` over a scenario target | Static validation still runs; unavailable proof is reported as `proto.code_facts_unavailable` warning. |
 
 ## Vrooli Resources
 
@@ -34,7 +35,7 @@ requires them.
 
 | Scenario | Status | Reason | Contract |
 |---|---|---|---|
-| None yet. | not-applicable | Generated scenario is standalone. | Add when this scenario calls or composes another scenario. |
+| code-facts | active | Owns source analyzer brokering and proof synthesis. | `proto-health` asks for proto adoption and endpoint proof reports, then maps statuses into policy findings. |
 
 ## Third-Party Services
 
@@ -47,6 +48,8 @@ requires them.
 | Dependency | Failure Signal | Expected Behavior | Tests |
 |---|---|---|---|
 | SQLite | `PingContext` error | `/health` returns unhealthy dependency status. | health handler tests |
+| code-facts | lifecycle discovery or RPC error | `ValidateScenario` returns a warning and keeps descriptor/static checks authoritative. | validation service tests with fake CodeFactsClient |
+| code-facts analyzer | unsupported or unknown proof status | `ValidateScenario` emits unsupported-proof warnings instead of inferring source behavior. | validation service tests with fake proof reports |
 
 ## Cross-References
 

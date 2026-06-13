@@ -52,6 +52,17 @@ type proofInput struct {
 	endpoints []endpointDeclaration
 }
 
+type endpointProofScope struct {
+	route     *factsv1.Evidence
+	proven    bool
+	parseUnit string
+	fileID    string
+	file      string
+	handler   string
+	symbol    string
+	enclosing string
+}
+
 func (s *Service) proofInput(ctx *factsv1.TargetContext, facts []*factsv1.GenericFact, warnings []*factsv1.Warning, evidence []*factsv1.Evidence, cache *factsv1.CacheMetadata) proofInput {
 	return proofInput{
 		target:    ctx,
@@ -196,32 +207,44 @@ func endpointPayloadProofs(endpoint endpointDeclaration, facts []*factsv1.Generi
 			Message:    "REST exception has no proto_payloads declaration.",
 		}}
 	}
+	scope := routeProofScope(endpoint, facts)
 	var out []*factsv1.Evidence
-	out = append(out, routeEvidence(endpoint, facts))
-	out = append(out, payloadEvidence("response", payloads.Response, facts))
-	out = append(out, payloadEvidence("error", payloads.Error, facts))
+	out = append(out, scope.route)
+	out = append(out, payloadEvidence("response", payloads.Response, facts, scope))
+	out = append(out, payloadEvidence("error", payloads.Error, facts, scope))
 	if payloads.Request.Transport != "" && payloads.Request.Conformance != "none" && payloads.Request.ProtoFullName != "" {
-		out = append(out, payloadEvidence("request", payloads.Request, facts))
+		out = append(out, payloadEvidence("request", payloads.Request, facts, scope))
 	}
 	return out
 }
 
-func routeEvidence(endpoint endpointDeclaration, facts []*factsv1.GenericFact) *factsv1.Evidence {
+func routeProofScope(endpoint endpointDeclaration, facts []*factsv1.GenericFact) endpointProofScope {
 	for _, fact := range factsByFamily(facts, factsv1.FactFamily_FACT_FAMILY_CALLS) {
 		attrs := fact.GetAttributes()
 		if attrs["route_path"] == endpoint.Path && strings.EqualFold(attrs["http_method"], endpoint.Method) {
-			return proofEvidenceFromFact(fact, factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, "Route registration matched "+endpoint.Method+" "+endpoint.Path+".")
+			return endpointProofScope{
+				route:     proofEvidenceFromFact(fact, factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, "Route registration matched "+endpoint.Method+" "+endpoint.Path+"."),
+				proven:    true,
+				parseUnit: attrs["parse_unit_id"],
+				fileID:    attrs["file_id"],
+				file:      factFile(fact),
+				handler:   strings.TrimSpace(attrs["handler_expr"]),
+				symbol:    strings.TrimSpace(attrs["handler_symbol"]),
+				enclosing: strings.TrimSpace(attrs["enclosing_symbol"]),
+			}
 		}
 	}
-	return &factsv1.Evidence{
-		Status:     factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN,
-		Confidence: 0,
-		Analyzer:   proofAnalyzer,
-		Message:    "Route registration could not be proven from current graph facts without explicit route_path/http_method attributes.",
+	return endpointProofScope{
+		route: &factsv1.Evidence{
+			Status:     factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN,
+			Confidence: 0,
+			Analyzer:   proofAnalyzer,
+			Message:    "Route registration could not be proven from current graph facts without explicit route_path/http_method attributes.",
+		},
 	}
 }
 
-func payloadEvidence(role string, payload payloadDeclaration, facts []*factsv1.GenericFact) *factsv1.Evidence {
+func payloadEvidence(role string, payload payloadDeclaration, facts []*factsv1.GenericFact, scope endpointProofScope) *factsv1.Evidence {
 	if payload.Conformance == "none" || payload.Transport == "none" {
 		return &factsv1.Evidence{Status: factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED, Confidence: 0, Analyzer: proofAnalyzer, Message: role + " payload has no proto transport to prove."}
 	}
@@ -229,7 +252,24 @@ func payloadEvidence(role string, payload payloadDeclaration, facts []*factsv1.G
 	if expected.importPath == "" {
 		return &factsv1.Evidence{Status: factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN, Confidence: 0, Analyzer: proofAnalyzer, Message: role + " payload declaration has no proto_full_name."}
 	}
-	for _, fact := range factsByFamily(facts, factsv1.FactFamily_FACT_FAMILY_CALLS, factsv1.FactFamily_FACT_FAMILY_REFERENCES) {
+	if !scope.proven {
+		return &factsv1.Evidence{
+			Status:     factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN,
+			Confidence: 0,
+			Analyzer:   proofAnalyzer,
+			Message:    role + " payload proof requires a proven route registration before handler-local payload evidence can be trusted.",
+		}
+	}
+	scoped := factsInEndpointScope(facts, scope)
+	if len(scoped) == 0 {
+		return &factsv1.Evidence{
+			Status:     factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN,
+			Confidence: 0,
+			Analyzer:   proofAnalyzer,
+			Message:    role + " payload proof could not correlate the route registration to a handler scope.",
+		}
+	}
+	for _, fact := range factsByFamily(scoped, factsv1.FactFamily_FACT_FAMILY_CALLS, factsv1.FactFamily_FACT_FAMILY_REFERENCES) {
 		attrs := fact.GetAttributes()
 		if callUsesPayload(attrs, expected) {
 			return proofEvidenceFromFact(fact, factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, role+" payload uses "+payload.ProtoFullName+" through a recognized helper or typed argument.")
@@ -238,7 +278,7 @@ func payloadEvidence(role string, payload payloadDeclaration, facts []*factsv1.G
 			return proofEvidenceFromFact(fact, factsv1.EvidenceStatus_EVIDENCE_STATUS_CONTRADICTED, "response payload uses a different generated proto type than "+payload.ProtoFullName+".")
 		}
 	}
-	if importPresent(expected.importPath, facts) {
+	if importPresent(expected.importPath, factsInParseUnit(facts, scope.parseUnit)) {
 		return &factsv1.Evidence{
 			Status:     factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN,
 			Confidence: 0.25,
@@ -252,6 +292,66 @@ func payloadEvidence(role string, payload payloadDeclaration, facts []*factsv1.G
 		Analyzer:   proofAnalyzer,
 		Message:    role + " payload " + payload.ProtoFullName + " was not found in imports, references, calls, or type usages.",
 	}
+}
+
+func factsInEndpointScope(facts []*factsv1.GenericFact, scope endpointProofScope) []*factsv1.GenericFact {
+	var out []*factsv1.GenericFact
+	for _, fact := range facts {
+		if fact == nil || !sameParseUnit(fact, scope.parseUnit) {
+			continue
+		}
+		attrs := fact.GetAttributes()
+		if endpointScopeMatches(attrs, factFile(fact), scope) {
+			out = append(out, fact)
+		}
+	}
+	return out
+}
+
+func endpointScopeMatches(attrs map[string]string, file string, scope endpointProofScope) bool {
+	if scope.symbol != "" && attrs["enclosing_symbol"] == scope.symbol {
+		return true
+	}
+	enclosing := strings.TrimSpace(attrs["enclosing_symbol"])
+	if enclosing != "" && handlerNamesMatch(scope.handler, enclosing) {
+		return true
+	}
+	if scope.fileID != "" && attrs["file_id"] == scope.fileID && enclosing != "" && enclosing == scope.enclosing && handlerNamesMatch(scope.handler, enclosing) {
+		return true
+	}
+	if scope.file != "" && file != "" && cleanEvidencePath(file) == cleanEvidencePath(scope.file) && enclosing != "" && handlerNamesMatch(scope.handler, enclosing) {
+		return true
+	}
+	return false
+}
+
+func handlerNamesMatch(handlerExpr, enclosing string) bool {
+	handlerExpr = strings.TrimSpace(handlerExpr)
+	enclosing = strings.TrimSpace(enclosing)
+	if handlerExpr == "" || enclosing == "" {
+		return false
+	}
+	if handlerExpr == enclosing || strings.HasSuffix(handlerExpr, "."+enclosing) {
+		return true
+	}
+	return strings.HasSuffix(handlerExpr, "("+enclosing+")")
+}
+
+func factsInParseUnit(facts []*factsv1.GenericFact, parseUnit string) []*factsv1.GenericFact {
+	if parseUnit == "" {
+		return facts
+	}
+	var out []*factsv1.GenericFact
+	for _, fact := range facts {
+		if sameParseUnit(fact, parseUnit) {
+			out = append(out, fact)
+		}
+	}
+	return out
+}
+
+func sameParseUnit(fact *factsv1.GenericFact, parseUnit string) bool {
+	return parseUnit == "" || fact.GetAttributes()["parse_unit_id"] == parseUnit
 }
 
 type goPayload struct {
@@ -333,6 +433,9 @@ func matchingProtoImports(scenario, surfaceID, surfacePath string, facts []*fact
 		if surfacePath != "" && factFile(fact) != "" && !isWithinPath(factFile(fact), surfacePath) {
 			continue
 		}
+		if surfacePath != "" && !factBelongsToSurface(fact, surfacePath) {
+			continue
+		}
 		switch surfaceID {
 		case "api", "cli":
 			if strings.Contains(importPath, "/gen/go/"+scenario+"/") || strings.Contains(importPath, "/gen/go/"+scenario+"/v") {
@@ -348,6 +451,30 @@ func matchingProtoImports(scenario, surfaceID, surfacePath string, facts []*fact
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].GetId() < out[j].GetId() })
 	return out
+}
+
+func factBelongsToSurface(fact *factsv1.GenericFact, surfacePath string) bool {
+	parseRoot := parseUnitRoot(fact.GetAttributes()["parse_unit_id"])
+	if parseRoot != "" {
+		rel, err := filepath.Rel(filepath.Clean(surfacePath), filepath.Clean(parseRoot))
+		return err == nil && (rel == "." || !strings.HasPrefix(rel, ".."))
+	}
+	file := factFile(fact)
+	if file == "" {
+		return false
+	}
+	if filepath.IsAbs(file) {
+		return isWithinPath(file, surfacePath)
+	}
+	return strings.HasPrefix(cleanEvidencePath(file), cleanEvidencePath(filepath.Base(surfacePath))+"/")
+}
+
+func parseUnitRoot(id string) string {
+	_, root, ok := strings.Cut(id, ":")
+	if !ok {
+		return ""
+	}
+	return root
 }
 
 func protoImportClassification(scenario string, matches []*factsv1.GenericFact) string {
@@ -492,6 +619,10 @@ func factFile(fact *factsv1.GenericFact) string {
 		}
 	}
 	return firstNonEmpty(fact.GetAttributes()["file"], fact.GetAttributes()["path"])
+}
+
+func cleanEvidencePath(path string) string {
+	return filepath.ToSlash(filepath.Clean(strings.TrimSpace(path)))
 }
 
 func isWithinPath(path, root string) bool {
