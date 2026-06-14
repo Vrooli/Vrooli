@@ -5,11 +5,13 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"scenario-dependency-analyzer/internal/app/services"
+	"scenario-dependency-analyzer/internal/interfacegraph"
 
 	"github.com/gin-gonic/gin"
 
@@ -218,6 +220,59 @@ func (h *handler) getGraphCentrality(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, report)
+}
+
+func (h *handler) getActualInterfaceGraph(c *gin.Context) {
+	graph, err := h.describeInterfaceGraph(c.Request.Context(), h.interfaceGraphRequest(c))
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, graph)
+}
+
+func (h *handler) getDependencyDrift(c *gin.Context) {
+	builder := interfacegraph.NewBuilder(
+		interfacegraph.NewProtoHealthClient(nil, nil),
+		interfacegraph.NewCodeFactsClient(nil, nil),
+	)
+	detector := interfacegraph.NewDriftDetector(builder, h.scenariosDir())
+	report, err := detector.Detect(c.Request.Context(), h.interfaceGraphRequest(c))
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, report)
+}
+
+func (h *handler) interfaceGraphRequest(c *gin.Context) interfacegraph.BuildRequest {
+	scenarios := c.QueryArray("scenario")
+	if csv := strings.TrimSpace(c.Query("scenarios")); csv != "" {
+		for _, part := range strings.Split(csv, ",") {
+			if part = strings.TrimSpace(part); part != "" {
+				scenarios = append(scenarios, part)
+			}
+		}
+	}
+	return interfacegraph.BuildRequest{
+		Scenarios:       scenarios,
+		Limit:           parseNonNegativeInt32(c.Query("limit")),
+		RepoRoot:        filepath.Dir(h.scenariosDir()),
+		StabilityFilter: c.Query("stability"),
+		LanguageFilter:  c.QueryArray("language"),
+	}
+}
+
+func parseNonNegativeInt32(value string) int32 {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return 0
+	}
+	parsed, err := strconv.ParseInt(value, 10, 32)
+	if err != nil || parsed < 0 {
+		return 0
+	}
+	return int32(parsed)
 }
 
 func (h *handler) detectCycles(c *gin.Context) {

@@ -2,6 +2,7 @@ package app
 
 import (
 	"database/sql"
+
 	"scenario-dependency-analyzer/internal/store"
 
 	appconfig "scenario-dependency-analyzer/internal/config"

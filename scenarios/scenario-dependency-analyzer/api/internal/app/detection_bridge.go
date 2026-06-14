@@ -14,6 +14,7 @@ package app
 
 import (
 	"fmt"
+
 	"scenario-dependency-analyzer/internal/detection"
 
 	types "scenario-dependency-analyzer/internal/types"

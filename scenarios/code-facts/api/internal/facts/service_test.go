@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -73,6 +74,117 @@ func TestDescribeScenarioDiscoversSurfacesAndParseUnits(t *testing.T) {
 	requireSurface(t, report.GetSurfaces(), "ui", factsv1.SurfaceStatus_SURFACE_STATUS_KNOWN)
 	requireParseUnit(t, report.GetParseUnits(), "go", factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN)
 	requireParseUnit(t, report.GetParseUnits(), "typescript", factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN)
+}
+
+func TestDescribeFleetImportsUsesExplicitSubset(t *testing.T) {
+	repo, _ := writeScenarioFixture(t, "alpha")
+	writeScenarioFixtureInRepo(t, repo, "beta")
+	provider := fakeProvider{
+		language: "go",
+		analyzer: "go-code-graph",
+		result: &GraphResult{Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+			protoImportNode("main.go", "github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/validation"),
+		}}},
+	}
+
+	report, err := NewService(WithBroker(NewBroker(provider))).DescribeFleetImports(context.Background(), &factsv1.DescribeFleetImportsRequest{
+		Scenarios:      []string{"alpha", "beta", "alpha", ""},
+		RepoRoot:       repo,
+		LanguageFilter: []string{"go"},
+	})
+	if err != nil {
+		t.Fatalf("DescribeFleetImports() error = %v", err)
+	}
+	if len(report.GetResults()) != 2 {
+		t.Fatalf("results len = %d, want 2", len(report.GetResults()))
+	}
+	if report.GetResults()[0].GetScenario() != "alpha" || report.GetResults()[1].GetScenario() != "beta" {
+		t.Fatalf("scenarios = %q, %q", report.GetResults()[0].GetScenario(), report.GetResults()[1].GetScenario())
+	}
+	for _, result := range report.GetResults() {
+		if result.GetError() != "" {
+			t.Fatalf("unexpected per-scenario error for %s: %s", result.GetScenario(), result.GetError())
+		}
+		requireFactFamily(t, result.GetReport().GetFacts(), factsv1.FactFamily_FACT_FAMILY_IMPORTS)
+	}
+}
+
+func TestDescribeFleetImportsListsAllAndAppliesLimit(t *testing.T) {
+	repo, _ := writeScenarioFixture(t, "alpha")
+	writeScenarioFixtureInRepo(t, repo, "beta")
+	writeScenarioFixtureInRepo(t, repo, "gamma")
+
+	report, err := NewService().DescribeFleetImports(context.Background(), &factsv1.DescribeFleetImportsRequest{
+		RepoRoot: repo,
+		Limit:    2,
+	})
+	if err != nil {
+		t.Fatalf("DescribeFleetImports() error = %v", err)
+	}
+	if len(report.GetResults()) != 2 {
+		t.Fatalf("results len = %d, want 2", len(report.GetResults()))
+	}
+	if report.GetResults()[0].GetScenario() != "alpha" || report.GetResults()[1].GetScenario() != "beta" {
+		t.Fatalf("scenarios = %q, %q", report.GetResults()[0].GetScenario(), report.GetResults()[1].GetScenario())
+	}
+}
+
+func TestDescribeFleetImportsReusesCache(t *testing.T) {
+	repo, _ := writeScenarioFixture(t, "alpha")
+	provider := &countingProvider{fakeProvider: fakeProvider{
+		language: "go",
+		analyzer: "go-code-graph",
+		result:   &GraphResult{Graph: &commonv1.CodeGraph{}},
+	}}
+	svc := NewService(WithBroker(NewBroker(provider)))
+	req := &factsv1.DescribeFleetImportsRequest{
+		Scenarios:      []string{"alpha"},
+		RepoRoot:       repo,
+		LanguageFilter: []string{"go"},
+		UseCache:       true,
+	}
+
+	if _, err := svc.DescribeFleetImports(context.Background(), req); err != nil {
+		t.Fatalf("first DescribeFleetImports() error = %v", err)
+	}
+	firstCalls := provider.calls
+	if firstCalls == 0 {
+		t.Fatal("provider was not called on first request")
+	}
+	if _, err := svc.DescribeFleetImports(context.Background(), req); err != nil {
+		t.Fatalf("second DescribeFleetImports() error = %v", err)
+	}
+	if provider.calls != firstCalls {
+		t.Fatalf("provider calls = %d after cache hit, want %d", provider.calls, firstCalls)
+	}
+}
+
+func TestDescribeFleetImportsIsolatesPerScenarioErrors(t *testing.T) {
+	repo, _ := writeScenarioFixture(t, "ok")
+
+	report, err := NewService().DescribeFleetImports(context.Background(), &factsv1.DescribeFleetImportsRequest{
+		Scenarios: []string{"ok", "missing"},
+		RepoRoot:  repo,
+	})
+	if err != nil {
+		t.Fatalf("DescribeFleetImports() error = %v", err)
+	}
+	if len(report.GetResults()) != 2 {
+		t.Fatalf("results len = %d, want 2", len(report.GetResults()))
+	}
+	if report.GetResults()[0].GetError() != "" {
+		t.Fatalf("ok error = %q", report.GetResults()[0].GetError())
+	}
+	if report.GetResults()[1].GetScenario() != "missing" || report.GetResults()[1].GetError() == "" {
+		t.Fatalf("missing result = %#v, want per-scenario error", report.GetResults()[1])
+	}
+}
+
+func TestDescribeFleetImportsRejectsInvalidLimit(t *testing.T) {
+	_, err := NewService().DescribeFleetImports(context.Background(), &factsv1.DescribeFleetImportsRequest{Limit: 501})
+	if err == nil || !strings.Contains(err.Error(), "limit must be between 0 and 500") {
+		t.Fatalf("error = %v, want invalid limit", err)
+	}
 }
 
 func TestDescribeScenarioReportsUnknownSidecarUnsupported(t *testing.T) {
@@ -1353,7 +1465,13 @@ func tsImportNode(sourceModule string) *commonv1.CodeGraphNode {
 func writeScenarioFixture(t *testing.T, name string) (repo string, scenarioRoot string) {
 	t.Helper()
 	repo = t.TempDir()
-	scenarioRoot = filepath.Join(repo, "scenarios", name)
+	scenarioRoot = writeScenarioFixtureInRepo(t, repo, name)
+	return repo, scenarioRoot
+}
+
+func writeScenarioFixtureInRepo(t *testing.T, repo string, name string) string {
+	t.Helper()
+	scenarioRoot := filepath.Join(repo, "scenarios", name)
 	writeFile(t, filepath.Join(scenarioRoot, ".vrooli", "service.json"), `{
   "cli": {"enabled": true, "adapter": {"kind": "go_module", "module_dir": "cli"}}
 }`)
@@ -1363,7 +1481,7 @@ func writeScenarioFixture(t *testing.T, name string) (repo string, scenarioRoot 
 	writeFile(t, filepath.Join(scenarioRoot, "cli", "manifest.json"), `{"groups":[]}`)
 	writeFile(t, filepath.Join(scenarioRoot, "ui", "package.json"), `{"scripts":{"build":"vite"}}`)
 	writeFile(t, filepath.Join(scenarioRoot, "ui", "tsconfig.json"), `{"compilerOptions":{"jsx":"react-jsx"}}`)
-	return repo, scenarioRoot
+	return scenarioRoot
 }
 
 func protoImportNode(path, importPath string) *commonv1.CodeGraphNode {
@@ -1412,6 +1530,16 @@ func requireParseUnit(t *testing.T, units []*factsv1.ParseUnit, language string,
 		}
 	}
 	t.Fatalf("parse unit %s not found in %#v", language, units)
+}
+
+func requireFactFamily(t *testing.T, facts []*factsv1.GenericFact, family factsv1.FactFamily) {
+	t.Helper()
+	for _, fact := range facts {
+		if fact.GetFamily() == family {
+			return
+		}
+	}
+	t.Fatalf("fact family %s not found in %#v", family, facts)
 }
 
 func requireProofFact(t *testing.T, facts []*factsv1.GenericFact, subject string, status factsv1.EvidenceStatus) {

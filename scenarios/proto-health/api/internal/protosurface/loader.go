@@ -17,6 +17,7 @@ import (
 
 type Loader interface {
 	LoadScenario(scenario string) (Surface, error)
+	ListScenarios() ([]string, error)
 }
 
 type DescriptorLoader struct {
@@ -79,6 +80,23 @@ func (l *DescriptorLoader) LoadScenario(scenario string) (Surface, error) {
 	}
 	l.applyTransportFacts(&s)
 	return s, nil
+}
+
+func (l *DescriptorLoader) ListScenarios() ([]string, error) {
+	seen := map[string]bool{}
+	l.files.RangeFiles(func(fd protoreflect.FileDescriptor) bool {
+		m := fileMeta(fd.Path())
+		if m.scenario != "" {
+			seen[m.scenario] = true
+		}
+		return true
+	})
+	out := make([]string, 0, len(seen))
+	for scenario := range seen {
+		out = append(out, scenario)
+	}
+	sort.Strings(out)
+	return out, nil
 }
 
 type meta struct {

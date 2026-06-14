@@ -126,7 +126,7 @@ export default function App() {
     if (view === "overview" || view === "graph" || view === "deployment" || view === "catalog") {
       setActiveTab(view);
     }
-  }, [searchParams, selectScenario, setFilter, setSelectedNode]);
+  }, [searchParams, selectScenario, setFilter, setSelectedNode, updateSearchParams]);
 
   const handleTabChange = useCallback(
     (value: string) => {

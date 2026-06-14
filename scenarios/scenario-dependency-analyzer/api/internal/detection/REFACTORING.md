@@ -69,15 +69,13 @@ The `detection` package has been refactored from a single 769-line file into a w
 - `recordDetection()` - merges duplicate detections
 - `augmentWithInitialization()` - adds resources from service.json
 
-### 7. scenario_scanner.go (324 lines) - **Scenario Detection**
+### 7. scenario_scanner.go - **Scenario Detection**
 - Encapsulated in `scenarioScanner` struct
-- `scanDependencies()` - main entry point for scenario dependencies
+- `scanDependencies()` - main entry point for interim runtime scenario signals
 - `scanWorkflows()` - detects shared workflow references
-- `scanFile()` - scans individual file for scenario refs
-- `detectVrooliCommands()` - finds "vrooli scenario" commands
-- `detectCLIReferences()` - finds CLI script references
-- `detectPortCalls()` - finds port resolution calls
-- `buildAliasCatalog()` - resolves variable aliases
+- `scanFile()` - scans individual file for explicit Vrooli scenario shell-outs
+- `detectVrooliCommands()` - finds "vrooli scenario" commands pending AST-fact replacement
+- Import-level scenario evidence now belongs to `internal/interfacegraph`, fed by proto-health and code-facts batch facts
 
 ## Benefits
 

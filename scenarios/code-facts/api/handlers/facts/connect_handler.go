@@ -38,6 +38,14 @@ func (h *connectHandler) DescribeCodeFacts(ctx context.Context, req *connect.Req
 	return connect.NewResponse(report), nil
 }
 
+func (h *connectHandler) DescribeFleetImports(ctx context.Context, req *connect.Request[factsv1.DescribeFleetImportsRequest]) (*connect.Response[factsv1.DescribeFleetImportsResponse], error) {
+	report, err := h.deps.Service.DescribeFleetImports(ctx, req.Msg)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(report), nil
+}
+
 func (h *connectHandler) ListSurfaces(ctx context.Context, req *connect.Request[factsv1.ListSurfacesRequest]) (*connect.Response[factsv1.ListSurfacesResponse], error) {
 	report, err := h.deps.Service.Surfaces(ctx, req.Msg)
 	if err != nil {

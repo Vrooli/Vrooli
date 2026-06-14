@@ -76,18 +76,8 @@ var (
 
 // Scenario detection patterns
 var (
-	// Patterns for detecting scenario variable declarations/aliases
-	scenarioAliasDeclPattern  = regexp.MustCompile(`(?m)(?:const|var)\s+([A-Za-z0-9_]+)\s*=\s*"([a-z0-9-]+)"`)
-	scenarioAliasShortPattern = regexp.MustCompile(`(?m)([A-Za-z0-9_]+)\s*:=\s*"([a-z0-9-]+)"`)
-	scenarioAliasBlockPattern = regexp.MustCompile(`(?m)^\s*([A-Za-z0-9_]+)\s*=\s*"([a-z0-9-]+)"`)
-
-	// Pattern for detecting scenario port resolution calls
-	scenarioPortCallPattern = regexp.MustCompile(`resolveScenarioPortViaCLI\s*\(\s*[^,]+,\s*(?:"([a-z0-9-]+)"|([A-Za-z0-9_]+))\s*,`)
-
-	// Patterns for detecting scenario references in code
+	// Pattern for detecting explicit scenario shell-outs.
 	vrooliScenarioPattern = regexp.MustCompile(`vrooli\s+scenario\s+(?:run|test|status|start|stop)\s+([a-z0-9-]+)`)
-	// More specific CLI pattern - require explicit CLI script reference
-	cliScenarioPattern = regexp.MustCompile(`([a-z0-9-]+)-(?:cli|api)(?:\.sh)?`)
 
 	// Pattern for detecting shared workflow references
 	sharedWorkflowPattern = regexp.MustCompile(`initialization/(?:automation/)?(?:n8n|huginn|windmill)/([^/]+\.json)`)

@@ -1,5 +1,7 @@
 import { buildApiUrl } from "@vrooli/api-base";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+// @ts-expect-error The shared proto-types package is resolved in packaged scenario builds.
+import type { DescribeInterfaceGraphResponse } from "@vrooli/proto-types/scenario-dependency-analyzer/v1/graph/graph_pb";
 import { getApiBaseUrl, prettyNumber } from "../lib/utils";
 import type {
   DependencyGraph,
@@ -20,6 +22,30 @@ export interface GraphStats {
   scenarioCount: number;
   resourceCount: number;
   complexityScore: string;
+}
+
+type ActualInterfaceGraphContract = DescribeInterfaceGraphResponse;
+
+export async function fetchActualInterfaceGraphContract(
+  apiBase: string,
+  signal?: AbortSignal
+): Promise<ActualInterfaceGraphContract> {
+  const response = await fetch(
+    buildApiUrl(
+      "/vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraphService/DescribeInterfaceGraph",
+      { baseUrl: apiBase }
+    ),
+    {
+      body: "{}",
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+      signal
+    }
+  );
+  if (!response.ok) {
+    throw new Error(`Actual interface graph request failed (${response.status})`);
+  }
+  return (await response.json()) as ActualInterfaceGraphContract;
 }
 
 export function useGraphData({

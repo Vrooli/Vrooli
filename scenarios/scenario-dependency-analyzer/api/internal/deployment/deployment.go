@@ -16,9 +16,10 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"scenario-dependency-analyzer/internal/config"
 	"sort"
 	"time"
+
+	"scenario-dependency-analyzer/internal/config"
 
 	"github.com/vrooli/api-core/storage"
 
@@ -132,7 +133,7 @@ func PersistReport(scenarioPath string, report *types.DeploymentAnalysisReport) 
 		return err
 	}
 	reportDir := filepath.Dir(reportPath)
-	if err := os.MkdirAll(reportDir, 0o755); err != nil {
+	if err := os.MkdirAll(reportDir, 0o750); err != nil {
 		return err
 	}
 	if existing, err := LoadReport(scenarioPath); err == nil && existing != nil {
@@ -146,11 +147,11 @@ func PersistReport(scenarioPath string, report *types.DeploymentAnalysisReport) 
 	if err != nil {
 		return err
 	}
-	if existingData, err := os.ReadFile(reportPath); err == nil && string(existingData) == string(data) {
+	if existingData, err := os.ReadFile(reportPath); err == nil && string(existingData) == string(data) { // #nosec G304 -- reportPath is derived from the scenario runtime path.
 		return nil
 	}
 	tmpPath := reportPath + ".tmp"
-	if err := os.WriteFile(tmpPath, data, 0o644); err != nil {
+	if err := os.WriteFile(tmpPath, data, 0o600); err != nil {
 		return err
 	}
 	return os.Rename(tmpPath, reportPath)
@@ -196,7 +197,7 @@ func LoadReport(scenarioPath string) (*types.DeploymentAnalysisReport, error) {
 	if err != nil {
 		return nil, err
 	}
-	data, err := os.ReadFile(reportPath)
+	data, err := os.ReadFile(reportPath) // #nosec G304 -- reportPath is derived from the scenario runtime path.
 	if err != nil {
 		return nil, err
 	}

@@ -1,0 +1,147 @@
+{
+  "_metadata": {
+    "module": "operational-targets",
+    "description": "SDA operational targets from the PRD.",
+    "prd_ref": "PRD.md",
+    "priority": "P0-P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "SDA-P0-001",
+      "title": "Declared dependency extraction",
+      "status": "complete",
+      "prd_ref": "Operational Targets > P0 > OT-P0-001",
+      "category": "declared-dependencies",
+      "description": "Parse scenario service metadata and extract declared resource and scenario dependencies."
+    },
+    {
+      "id": "SDA-P0-002",
+      "title": "Retained non-import scenario signals",
+      "status": "complete",
+      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "category": "legacy-signals",
+      "description": "Retain supported Vrooli command and workflow usage signals until AST facts replace them."
+    },
+    {
+      "id": "SDA-P0-003",
+      "title": "Dependency metadata storage",
+      "status": "complete",
+      "prd_ref": "Operational Targets > P0 > OT-P0-003",
+      "category": "storage",
+      "description": "Persist history-bearing dependency metadata and analysis records in the domain store."
+    },
+    {
+      "id": "SDA-P0-004",
+      "title": "Interactive dependency graph UI",
+      "status": "complete",
+      "prd_ref": "Operational Targets > P0 > OT-P0-004",
+      "category": "ui",
+      "description": "Render graph data with operator controls, status states, and selected-node details."
+    },
+    {
+      "id": "SDA-P0-005",
+      "title": "Semantic scenario matching",
+      "status": "complete",
+      "prd_ref": "Operational Targets > P0 > OT-P0-005",
+      "category": "semantic-matching",
+      "description": "Use Qdrant and embeddings for proposed-scenario similarity with deterministic fallback behavior."
+    },
+    {
+      "id": "SDA-P0-006",
+      "title": "CLI graph access",
+      "status": "complete",
+      "prd_ref": "Operational Targets > P0 > OT-P0-006",
+      "category": "cli",
+      "description": "Expose graph, drift, optimization, and export workflows through the SDA CLI."
+    },
+    {
+      "id": "SDA-P0-007",
+      "title": "API graph access",
+      "status": "complete",
+      "prd_ref": "Operational Targets > P0 > OT-P0-007",
+      "category": "api",
+      "description": "Serve REST and Connect endpoints for dependency and graph consumers."
+    },
+    {
+      "id": "SDA-P0-008",
+      "title": "Actual interface graph",
+      "status": "complete",
+      "prd_ref": "Operational Targets > P0 > OT-P0-008",
+      "category": "actual-graph",
+      "description": "Compute actual scenario edges from proto-health and code-facts batch facts."
+    },
+    {
+      "id": "SDA-P0-009",
+      "title": "Dependency drift reporting",
+      "status": "complete",
+      "prd_ref": "Operational Targets > P0 > OT-P0-009",
+      "category": "drift",
+      "description": "Compare actual import evidence with declared scenario dependencies using asymmetric severity."
+    },
+    {
+      "id": "SDA-P0-010",
+      "title": "Connect graph seam",
+      "status": "complete",
+      "prd_ref": "Operational Targets > P0 > OT-P0-010",
+      "category": "connect",
+      "description": "Expose DescribeInterfaceGraph as the reusable Connect contract for downstream planners."
+    },
+    {
+      "id": "SDA-P0-011",
+      "title": "SQLite storage cutover",
+      "status": "complete",
+      "prd_ref": "Operational Targets > P0 > OT-P0-011",
+      "category": "sqlite",
+      "description": "Run SDA on SQLite with embedded domain-owned schemas and no Postgres runtime dependency."
+    },
+    {
+      "id": "SDA-P1-001",
+      "title": "Optimization recommendations",
+      "status": "complete",
+      "prd_ref": "Operational Targets > P1 > OT-P1-001",
+      "category": "optimization",
+      "description": "Recommend resource swaps and dependency reductions for lighter deployments."
+    },
+    {
+      "id": "SDA-P1-002",
+      "title": "Dependency impact analysis",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P1 > OT-P1-002",
+      "category": "impact",
+      "description": "Explain which scenarios or resources are affected if a dependency is removed."
+    },
+    {
+      "id": "SDA-P1-003",
+      "title": "Dependency history",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P1 > OT-P1-003",
+      "category": "history",
+      "description": "Track dependency changes over time for regression and trend analysis."
+    },
+    {
+      "id": "SDA-P1-004",
+      "title": "Graph export formats",
+      "status": "complete",
+      "prd_ref": "Operational Targets > P1 > OT-P1-004",
+      "category": "export",
+      "description": "Export dependency graphs as JSON, DOT/GraphViz, and image-ready data."
+    },
+    {
+      "id": "SDA-P1-005",
+      "title": "Cycle detection",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P1 > OT-P1-005",
+      "category": "cycles",
+      "description": "Detect circular scenario or resource dependency chains."
+    },
+    {
+      "id": "SDA-P1-006",
+      "title": "Resource cost estimation",
+      "status": "planned",
+      "prd_ref": "Operational Targets > P1 > OT-P1-006",
+      "category": "cost",
+      "description": "Estimate resource cost and deployment weight from dependency depth and resource classes."
+    }
+  ]
+}

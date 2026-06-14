@@ -3,6 +3,7 @@ package protosurface
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -24,7 +25,6 @@ func TestDescriptorLoaderLoadScenario(t *testing.T) {
 
 	var sawNotes bool
 	var sawStability bool
-	var sawTemplate bool
 	for _, f := range surface.Files {
 		if f.Path == "proto-health/v1/notes/notes.proto" {
 			sawNotes = true
@@ -35,15 +35,11 @@ func TestDescriptorLoaderLoadScenario(t *testing.T) {
 				if a.Name == "stability" && a.Value == "stable" {
 					sawStability = true
 				}
-				if a.Name == "template" && a.Value == "react-vite/example" {
-					sawTemplate = true
-				}
 			}
 		}
 	}
 	require.True(t, sawNotes)
 	require.True(t, sawStability)
-	require.True(t, sawTemplate)
 
 	var sawRPC bool
 	for _, svc := range surface.Services {
@@ -101,6 +97,22 @@ func TestDescriptorLoaderLoadScenario(t *testing.T) {
 		Message:    "UploadAttachmentResponse",
 		FullName:   "vrooli.proto_health.v1.notes.UploadAttachmentResponse",
 	})
+}
+
+func TestDescriptorLoaderListScenarios(t *testing.T) {
+	repoRoot := findRepoRoot(t)
+	descriptorPath := filepath.Join(repoRoot, "packages", "proto", "gen", "descriptor", "image.binpb")
+	loader, err := NewDescriptorLoaderFromFile(repoRoot, descriptorPath)
+	require.NoError(t, err)
+
+	scenarios, err := loader.ListScenarios()
+	require.NoError(t, err)
+
+	require.Contains(t, scenarios, "proto-health")
+	require.Contains(t, scenarios, "code-facts")
+	sorted := append([]string{}, scenarios...)
+	sort.Strings(sorted)
+	require.Equal(t, sorted, scenarios)
 }
 
 func findRepoRoot(t *testing.T) string {

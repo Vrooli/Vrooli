@@ -1,13 +1,18 @@
 package graph
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
 
+	"connectrpc.com/connect"
 	"scenario-dependency-analyzer/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
+	graphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/graph"
+	graphconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/graph/graph_v1connect"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func Register(core *cliapp.ScenarioApp) cliapp.CommandGroup {
@@ -29,6 +34,9 @@ func Register(core *cliapp.ScenarioApp) cliapp.CommandGroup {
 func run(core *cliapp.ScenarioApp, args []string) error {
 	if len(args) > 0 && strings.EqualFold(strings.TrimSpace(args[0]), "centrality") {
 		return runCentrality(core, args[1:])
+	}
+	if len(args) > 0 && strings.EqualFold(strings.TrimSpace(args[0]), "actual") {
+		return runActual(core, args[1:])
 	}
 
 	fs := support.NewFlagSet("graph")
@@ -67,7 +75,7 @@ func run(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 	if outputPath != "" {
-		if err := os.WriteFile(outputPath, []byte(rendered), 0o644); err != nil {
+		if err := os.WriteFile(outputPath, []byte(rendered), 0o600); err != nil {
 			return fmt.Errorf("write graph output: %w", err)
 		}
 		report := cliapp.MutationReport{
@@ -105,6 +113,86 @@ func run(core *cliapp.ScenarioApp, args []string) error {
 		},
 	}
 	return support.PrintList(false, report, nil)
+}
+
+func runActual(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("graph actual")
+	var scenario string
+	var jsonOutput bool
+	fs.StringVar(&scenario, "scenario", "", "Limit graph to one scenario")
+	fs.BoolVar(&jsonOutput, "json", false, "Output raw JSON")
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+	positionals := fs.Args()
+	if len(positionals) > 1 {
+		return fmt.Errorf("usage: %s graph actual [scenario] [--scenario name] [--json]", support.AppName)
+	}
+	if len(positionals) == 1 {
+		if strings.TrimSpace(scenario) != "" {
+			return fmt.Errorf("provide scenario either positionally or with --scenario, not both")
+		}
+		scenario = positionals[0]
+	}
+
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	client := graphconnect.NewInterfaceGraphServiceClient(httpClient, baseURL)
+	resp, err := client.DescribeInterfaceGraph(context.Background(), connect.NewRequest(&graphv1.DescribeInterfaceGraphRequest{
+		Scenarios: scenarioFilter(scenario),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("describe actual interface graph", err, nil)
+	}
+	if jsonOutput {
+		body, err := protojson.MarshalOptions{Multiline: true, Indent: "  "}.Marshal(resp.Msg)
+		if err != nil {
+			return fmt.Errorf("render interface graph JSON: %w", err)
+		}
+		fmt.Fprintln(os.Stdout, string(body))
+		return nil
+	}
+
+	graph := resp.Msg.GetGraph()
+	nodes := graph.GetNodes()
+	edges := graph.GetEdges()
+	results := make([]string, 0, len(edges))
+	for _, edge := range edges {
+		results = append(results, fmt.Sprintf(
+			"%s -> %s (%d evidence)",
+			edge.GetFromScenario(),
+			edge.GetToScenario(),
+			len(edge.GetEvidence()),
+		))
+		if len(results) >= 10 {
+			break
+		}
+	}
+	scope := "fleet"
+	if strings.TrimSpace(scenario) != "" {
+		scope = scenario
+	}
+	report := cliapp.ListReport{
+		Summary: []string{
+			fmt.Sprintf("Scope: %s", scope),
+			fmt.Sprintf("Nodes: %d", len(nodes)),
+			fmt.Sprintf("Actual edges: %d", len(edges)),
+		},
+		ResultsHeading: "Sample Actual Edges",
+		Results:        results,
+		RetrievalHints: []string{
+			fmt.Sprintf("%s graph actual %s --json", support.AppName, strings.TrimSpace(scenario)),
+			fmt.Sprintf("%s drift %s --json", support.AppName, strings.TrimSpace(scenario)),
+		},
+	}
+	return support.PrintList(false, report, nil)
+}
+
+func scenarioFilter(scenario string) []string {
+	scenario = strings.TrimSpace(scenario)
+	if scenario == "" {
+		return nil
+	}
+	return []string{scenario}
 }
 
 func runCentrality(core *cliapp.ScenarioApp, args []string) error {

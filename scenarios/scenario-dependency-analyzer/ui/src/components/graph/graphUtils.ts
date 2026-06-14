@@ -8,6 +8,19 @@ export type SimulationNode = DependencyGraphNode & d3.SimulationNodeDatum & {
 export type SimulationEdge = DependencyGraphEdge & d3.SimulationLinkDatum<SimulationNode>;
 
 export type LinkEndpoint = SimulationNode | { id: string } | string | number;
+type GraphDragEvent = d3.D3DragEvent<SVGCircleElement, SimulationNode, SimulationNode>;
+type ClientPosition = { clientX: number; clientY: number };
+
+function hasClientPosition(value: unknown): value is ClientPosition {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "clientX" in value &&
+    "clientY" in value &&
+    typeof value.clientX === "number" &&
+    typeof value.clientY === "number"
+  );
+}
 
 /**
  * Get fill color for a node based on its type
@@ -112,12 +125,18 @@ export function matchesSearchFilter(node: SimulationNode, filterText: string): b
  * Get relative mouse position within a container
  */
 export function getRelativePosition(
-  event: MouseEvent | d3.D3DragEvent<any, any, any>,
+  event: MouseEvent | GraphDragEvent,
   container: HTMLElement | null
 ): { x: number; y: number } {
+  const sourceEvent: unknown = "sourceEvent" in event ? event.sourceEvent : event;
+  const pointer = hasClientPosition(sourceEvent)
+    ? sourceEvent
+    : hasClientPosition(event)
+      ? event
+      : { clientX: event.x, clientY: event.y };
   const bounds = container?.getBoundingClientRect();
   return {
-    x: (event as MouseEvent).clientX - (bounds?.left ?? 0) + 12,
-    y: (event as MouseEvent).clientY - (bounds?.top ?? 0) + 12
+    x: pointer.clientX - (bounds?.left ?? 0) + 12,
+    y: pointer.clientY - (bounds?.top ?? 0) + 12
   };
 }

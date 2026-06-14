@@ -80,7 +80,7 @@ func (h *handlers) protoAdoption(ctx cliapp.RunContext) error {
 	target := parseTarget(ctx.Positional("target"))
 	resp, err := h.client.CheckProtoAdoption(context.Background(), connect.NewRequest(&factsv1.CheckProtoAdoptionRequest{
 		Target:   target,
-		Surfaces: splitCSV(ctx.Flag("surface")),
+		Surfaces: splitCSVValues(ctx.FlagValues("surface")),
 		UseCache: !ctx.BoolFlag("no-cache"),
 	}))
 	if err != nil {
@@ -96,7 +96,7 @@ func (h *handlers) endpointProof(ctx cliapp.RunContext) error {
 	target := parseTarget(ctx.Positional("target"))
 	resp, err := h.client.CheckEndpointProof(context.Background(), connect.NewRequest(&factsv1.CheckEndpointProofRequest{
 		Target:      target,
-		EndpointIds: splitCSV(ctx.Flag("endpoint")),
+		EndpointIds: splitCSVValues(ctx.FlagValues("endpoint")),
 		UseCache:    !ctx.BoolFlag("no-cache"),
 	}))
 	if err != nil {
@@ -142,15 +142,22 @@ func parseFamilies(raw string) ([]factsv1.FactFamily, error) {
 }
 
 func splitCSV(raw string) []string {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
+	return splitCSVValues([]string{raw})
+}
+
+func splitCSVValues(values []string) []string {
+	if len(values) == 0 {
 		return nil
 	}
-	parts := strings.Split(raw, ",")
-	out := make([]string, 0, len(parts))
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		if part != "" {
+	seen := map[string]bool{}
+	var out []string
+	for _, raw := range values {
+		for _, part := range strings.Split(raw, ",") {
+			part = strings.TrimSpace(part)
+			if part == "" || seen[part] {
+				continue
+			}
+			seen[part] = true
 			out = append(out, part)
 		}
 	}

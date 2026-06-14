@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/cors"
@@ -34,11 +35,20 @@ func Run(cfg appconfig.Config, dbConn *sql.DB) error {
 
 	h := newHandler(rt)
 	registerRoutes(router, h)
+	registerInterfaceGraphConnectRoutes(router, h)
 
 	log.Printf("Starting Scenario Dependency Analyzer API on port %s", cfg.Port)
 	log.Printf("Scenarios directory: %s", cfg.ScenariosDir)
 
-	return http.ListenAndServe(":"+cfg.Port, handler)
+	server := &http.Server{
+		Addr:              ":" + cfg.Port,
+		Handler:           handler,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+	return server.ListenAndServe()
 }
 
 func registerRoutes(router *gin.Engine, handler *handler) {
@@ -57,6 +67,8 @@ func registerRoutes(router *gin.Engine, handler *handler) {
 		api.POST("/scenarios/:scenario/scan", handler.scanScenario)
 		api.GET("/core-set", handler.getCoreSet)
 		api.GET("/graph/centrality", handler.getGraphCentrality)
+		api.GET("/graph/actual", handler.getActualInterfaceGraph)
+		api.GET("/drift", handler.getDependencyDrift)
 		api.GET("/graph/:type", handler.getGraph)
 		api.GET("/graph/:type/cycles", handler.detectCycles)
 		api.GET("/dependencies/:name/impact", handler.getDependencyImpact)

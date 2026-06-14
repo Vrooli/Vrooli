@@ -46,6 +46,9 @@ func (s *resourceScanner) scan(scenarioPath, scenarioName string, cfg *types.Ser
 			}
 			return nil
 		}
+		if entry.Type()&fs.ModeSymlink != 0 {
+			return nil
+		}
 
 		// Only scan relevant file types
 		ext := strings.ToLower(filepath.Ext(path))
@@ -54,7 +57,7 @@ func (s *resourceScanner) scan(scenarioPath, scenarioName string, cfg *types.Ser
 		}
 
 		// Read file content
-		content, err := os.ReadFile(path)
+		content, err := os.ReadFile(path) // #nosec G304,G122 -- path comes from WalkDir under scenarioPath and symlink entries are skipped.
 		if err != nil {
 			return nil
 		}
@@ -126,7 +129,9 @@ func (s *resourceScanner) detectResourceCLICommands(content, relPath, scenarioNa
 	}
 }
 
-// detectResourceHeuristics uses pattern matching to detect resource usage
+// detectResourceHeuristics is an interim resource signal retained until resource
+// usage is delegated to code-facts/go-code-graph in the
+// scenario-dependency-analyzer-code-evidence-via-ast-facts follow-up.
 func (s *resourceScanner) detectResourceHeuristics(content, relPath, scenarioName string, results map[string]types.ScenarioDependency) {
 	for _, heuristic := range resourceHeuristicCatalog {
 		for _, pattern := range heuristic.Patterns {

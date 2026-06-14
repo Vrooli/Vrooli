@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -17,7 +18,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	apidb "github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
+	_ "modernc.org/sqlite"
+	"scenario-dependency-analyzer/internal/modules"
 	types "scenario-dependency-analyzer/internal/types"
 )
 
@@ -25,8 +29,8 @@ func ensureTestEnvVars() {
 	if os.Getenv("API_PORT") == "" {
 		os.Setenv("API_PORT", "0")
 	}
-	if os.Getenv("DATABASE_URL") == "" {
-		os.Setenv("DATABASE_URL", "postgres://test:test@localhost:5432/test_db?sslmode=disable")
+	if os.Getenv("SQLITE_PATH") == "" && os.Getenv("SQLITE_DB") == "" {
+		os.Setenv("SQLITE_DB", ":memory:")
 	}
 }
 
@@ -93,7 +97,7 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 
 	// Create test scenarios directory structure
 	scenariosDir := filepath.Join(tempDir, "scenarios")
-	if err := os.MkdirAll(scenariosDir, 0o755); err != nil {
+	if err := os.MkdirAll(scenariosDir, 0o750); err != nil {
 		os.RemoveAll(tempDir)
 		t.Fatalf("Failed to create scenarios dir: %v", err)
 	}
@@ -111,48 +115,29 @@ func setupTestDirectory(t *testing.T) *TestEnvironment {
 
 // setupTestDatabase creates an in-memory test database
 func setupTestDatabase(t *testing.T) (*sql.DB, func()) {
-	// Use in-memory SQLite for testing (alternative: use a test PostgreSQL instance)
-	// For now, we'll create a minimal mock that satisfies the interface
-	// In production tests, you'd connect to a real test database
-
-	// Note: This is a simplified version. For full integration tests,
-	// connect to a real PostgreSQL test database
-	testDB, err := sql.Open("postgres", "postgres://test:test@localhost:5432/test_db?sslmode=disable")
+	ensureTestEnvVars()
+	testDB, err := sql.Open("sqlite", "file::memory:?cache=shared&_pragma=foreign_keys(ON)")
 	if err != nil {
-		t.Skipf("Skipping database test - no test database available: %v", err)
-		return nil, func() {}
+		t.Fatalf("open test sqlite database: %v", err)
 	}
-
-	// Try to ping - if it fails, skip the test
 	if err := testDB.Ping(); err != nil {
 		testDB.Close()
-		t.Skipf("Skipping database test - cannot connect to test database: %v", err)
-		return nil, func() {}
+		t.Fatalf("ping test sqlite database: %v", err)
 	}
-
-	// Initialize test schema
-	_, err = testDB.Exec(`
-		CREATE TABLE IF NOT EXISTS scenario_dependencies (
-			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			scenario_name TEXT NOT NULL,
-			dependency_type TEXT NOT NULL,
-			dependency_name TEXT NOT NULL,
-			required BOOLEAN DEFAULT false,
-			purpose TEXT,
-			access_method TEXT,
-			configuration JSONB,
-			discovered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			last_verified TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-		)
-	`)
-	if err != nil {
+	if err := apidb.EnsureSchemas(context.Background(), testDB, modules.AllSchemas()...); err != nil {
 		testDB.Close()
-		t.Skipf("Skipping database test - cannot create schema: %v", err)
-		return nil, func() {}
+		t.Fatalf("initialize test schema: %v", err)
 	}
+	db = testDB
+	setDefaultRuntime(NewRuntime(loadConfig(), testDB))
 
 	cleanup := func() {
-		_, _ = testDB.Exec("DROP TABLE IF EXISTS scenario_dependencies")
+		if defaultRuntime != nil && defaultRuntime.DB() == testDB {
+			setDefaultRuntime(nil)
+		}
+		if db == testDB {
+			db = nil
+		}
 		testDB.Close()
 	}
 
@@ -170,13 +155,13 @@ type TestScenario struct {
 // createTestScenario creates a test scenario with service.json and optional files
 func createTestScenario(t *testing.T, env *TestEnvironment, name string, resources map[string]types.Resource) *TestScenario {
 	scenarioPath := filepath.Join(env.ScenariosDir, name)
-	if err := os.MkdirAll(scenarioPath, 0o755); err != nil {
+	if err := os.MkdirAll(scenarioPath, 0o750); err != nil {
 		t.Fatalf("Failed to create scenario dir: %v", err)
 	}
 
 	// Create .vrooli directory
 	vrooliPath := filepath.Join(scenarioPath, ".vrooli")
-	if err := os.MkdirAll(vrooliPath, 0o755); err != nil {
+	if err := os.MkdirAll(vrooliPath, 0o750); err != nil {
 		t.Fatalf("Failed to create .vrooli dir: %v", err)
 	}
 
@@ -206,7 +191,7 @@ func createTestScenario(t *testing.T, env *TestEnvironment, name string, resourc
 	}
 
 	serviceJSONPath := filepath.Join(vrooliPath, "service.json")
-	if err := os.WriteFile(serviceJSONPath, serviceJSON, 0o644); err != nil {
+	if err := os.WriteFile(serviceJSONPath, serviceJSON, 0o600); err != nil {
 		t.Fatalf("Failed to write service.json: %v", err)
 	}
 
@@ -252,7 +237,7 @@ func createTestResourceDirs(t *testing.T, env *TestEnvironment, names ...string)
 	base := filepath.Join(filepath.Dir(env.ScenariosDir), "resources")
 	for _, name := range names {
 		path := filepath.Join(base, name)
-		if err := os.MkdirAll(path, 0o755); err != nil {
+		if err := os.MkdirAll(path, 0o750); err != nil {
 			t.Fatalf("Failed to create resource dir %s: %v", name, err)
 		}
 	}
@@ -319,7 +304,7 @@ func setupTestRouter() *gin.Engine {
 	h.services.Graph = mockGraphService{}
 
 	// Add test routes - use same health handler as server.go
-	router.GET("/health", gin.WrapF(health.New().Handler()))
+	router.GET("/health", gin.WrapF(health.New("scenario-dependency-analyzer-api").Handler()))
 	router.GET("/api/v1/health/analysis", h.analysisHealth)
 
 	api := router.Group("/api/v1")
@@ -357,7 +342,7 @@ func insertTestDependency(t *testing.T, testDB *sql.DB, dep types.ScenarioDepend
 	_, err := testDB.Exec(`
 		INSERT INTO scenario_dependencies
 		(id, scenario_name, dependency_type, dependency_name, required, purpose, access_method, configuration)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		dep.ID, dep.ScenarioName, dep.DependencyType, dep.DependencyName,
 		dep.Required, dep.Purpose, dep.AccessMethod, string(configJSON),
 	)

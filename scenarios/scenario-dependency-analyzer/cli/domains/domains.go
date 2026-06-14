@@ -8,6 +8,7 @@ import (
 	"scenario-dependency-analyzer/cli/domains/dag"
 	"scenario-dependency-analyzer/cli/domains/dependencies"
 	"scenario-dependency-analyzer/cli/domains/deployment"
+	"scenario-dependency-analyzer/cli/domains/drift"
 	"scenario-dependency-analyzer/cli/domains/graph"
 	"scenario-dependency-analyzer/cli/domains/impact"
 	"scenario-dependency-analyzer/cli/domains/optimize"
@@ -27,6 +28,7 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 		scan.Register(core),
 		coreset.Register(core),
 		graph.Register(core),
+		drift.Register(core),
 		cycles.Register(core),
 		impact.Register(core),
 		proposals.Register(core),

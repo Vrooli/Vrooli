@@ -14,10 +14,11 @@ package coreset
 
 import (
 	"path/filepath"
-	"scenario-dependency-analyzer/internal/config"
-	"scenario-dependency-analyzer/internal/deployment"
 	"sort"
 	"strings"
+
+	"scenario-dependency-analyzer/internal/config"
+	"scenario-dependency-analyzer/internal/deployment"
 
 	apicoreset "github.com/vrooli/api-core/coreset"
 )

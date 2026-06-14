@@ -15,7 +15,7 @@
       "foundational-capability",
       "cross-scenario-multiplier",
       "go-api",
-      "postgres-storage",
+      "sqlite-storage",
       "claude-code-integration",
       "qdrant-vectors",
       "graph-visualization"
@@ -127,13 +127,8 @@
           "description": "Build Go dependency analysis API binary"
         },
         {
-          "name": "setup-database",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Initialize PostgreSQL schema and seed initial data"
-        },
-        {
           "name": "install-ui-deps",
-          "run": "cd ui && npm install",
+          "run": "cd ui && pnpm install --ignore-workspace",
           "description": "Install UI dependencies",
           "condition": {
             "file_exists": "ui/package.json"
@@ -207,22 +202,6 @@
   },
   "dependencies": {
     "resources": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "Store dependency metadata, analysis results, optimization recommendations, and graph data",
-        "initialization": [
-          {
-            "file": "initialization/storage/postgres/schema.sql",
-            "type": "schema"
-          },
-          {
-            "file": "initialization/storage/postgres/seed.sql",
-            "type": "seed"
-          }
-        ]
-      },
       "claude-code": {
         "type": "claude-code",
         "enabled": true,
@@ -251,7 +230,21 @@
         "purpose": "Cache frequently accessed dependency data and analysis results for performance optimization"
       }
     },
-    "scenarios": {}
+    "scenarios": {
+      "proto-health": {
+        "enabled": true,
+        "required": true,
+        "description": "Provides batch protobuf surface facts for actual cross-scenario interface graph attribution"
+      },
+      "code-facts": {
+        "enabled": true,
+        "required": true,
+        "description": "Provides batch import facts used to build actual cross-scenario usage evidence"
+      }
+    }
+  },
+  "environment": {
+    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/scenario-dependency-analyzer.db"
   },
   "cli": {
     "enabled": true,

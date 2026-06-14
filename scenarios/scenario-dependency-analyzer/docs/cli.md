@@ -61,6 +61,12 @@ scenario-dependency-analyzer dag export ecosystem-manager --recursive
 # Generate dependency graph
 scenario-dependency-analyzer graph combined --format json
 
+# Generate the actual import-evidence interface graph (planned)
+scenario-dependency-analyzer graph actual --json
+
+# Report declared-vs-actual drift (planned)
+scenario-dependency-analyzer drift ecosystem-manager --json
+
 # Check deployment readiness
 scenario-dependency-analyzer deployment ecosystem-manager
 ```
@@ -231,6 +237,7 @@ scenario-dependency-analyzer graph [type] [OPTIONS]
 - `--format <format>` - Output format: json, dot, mermaid (default: json)
 - `--output <file>` - Save output to file
 - `--json` - Force JSON output
+- `--actual` - Use the Connect-backed actual interface graph instead of the stored declared graph (planned)
 
 **Examples:**
 ```bash
@@ -281,6 +288,30 @@ dot -Tsvg deps.dot | open -f -a Safari
 dependency counts, required-edge weighted score, and distance to the nearest
 core seed. Ecosystem Manager consumes this as one input to derived scenario
 importance.
+
+**Actual graph output:**
+`graph actual --json` reports nodes, evidence-tagged scenario edges, transport world, and stability metadata. It is backed by `DescribeInterfaceGraph` and is the preferred machine interface for future planners.
+
+---
+
+### drift
+
+Report declared-vs-actual scenario dependency drift.
+
+**Usage:**
+```bash
+scenario-dependency-analyzer drift [scenario] [OPTIONS]
+```
+
+**Arguments:**
+- `scenario` - Optional scenario filter; omit for fleet-wide drift
+
+**Options:**
+- `--json` - Emit machine-readable findings
+
+**Semantics:**
+- `undeclared_but_used` is a warning because import evidence proves an actual scenario edge.
+- `declared_without_import_evidence` is informational because runtime URL discovery and CLI shell-out usage are not yet represented in upstream AST facts.
 
 ---
 

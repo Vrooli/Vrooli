@@ -7,10 +7,11 @@ import (
 	"math"
 	"os"
 	"os/exec"
-	"scenario-dependency-analyzer/internal/integrations/ollama"
-	"scenario-dependency-analyzer/internal/integrations/qdrant"
 	"strings"
 	"time"
+
+	"scenario-dependency-analyzer/internal/integrations/ollama"
+	"scenario-dependency-analyzer/internal/integrations/qdrant"
 )
 
 // Integrate with Qdrant for semantic similarity matching
@@ -71,13 +72,13 @@ func findSimilarScenariosQdrant(description string, existingScenarios []string) 
 func findSimilarScenariosQdrantViaCLI(description string, existingScenarios []string) ([]map[string]interface{}, error) {
 	var matches []map[string]interface{}
 
-	embeddingCmd := exec.Command("resource-qdrant", "embed", description)
+	embeddingCmd := exec.Command("resource-qdrant", "embed", description) // #nosec G204 -- executable is fixed; description is passed as an argument, not through a shell.
 	embeddingOutput, err := embeddingCmd.Output()
 	if err != nil {
 		return matches, fmt.Errorf("failed to create embedding: %w", err)
 	}
 
-	searchCmd := exec.Command("resource-qdrant", "search",
+	searchCmd := exec.Command("resource-qdrant", "search", // #nosec G204 -- executable and flags are fixed; vector content is passed as an argument, not through a shell.
 		"--collection", "scenario_embeddings",
 		"--vector", string(embeddingOutput),
 		"--limit", "5",

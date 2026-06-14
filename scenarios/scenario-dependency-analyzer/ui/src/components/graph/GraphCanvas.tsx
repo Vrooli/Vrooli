@@ -125,7 +125,7 @@ export function GraphCanvas({
       const targetMatch = matchesSearchFilter(target, filterText);
       return sourceMatch || targetMatch ? 0.68 : 0.12;
     });
-  }, [filterText, graph]);
+  }, [filterText, graph, nodeMapRef]);
 
   // Apply selection highlighting
   useEffect(() => {
@@ -160,7 +160,7 @@ export function GraphCanvas({
         const isActive = source.id === selectedNodeId || target.id === selectedNodeId;
         return isActive ? 3.2 : edge.required ? 1.6 : 1.0;
       });
-  }, [selectedNodeId]);
+  }, [nodeMapRef, selectedNodeId]);
 
   return (
     <div className={cn("relative h-full w-full overflow-hidden", className)} ref={containerRef}>

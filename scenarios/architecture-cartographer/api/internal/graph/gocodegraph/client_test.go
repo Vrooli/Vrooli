@@ -115,8 +115,8 @@ func TestClient_NoGoProject_EmptyGraph(t *testing.T) {
 func TestClient_Extract_HappyPath(t *testing.T) {
 	svc := &fakeService{
 		extractFn: func(_ context.Context, req *connect.Request[graphv1.ExtractRequest]) (*connect.Response[graphv1.ExtractResponse], error) {
-			if got := req.Msg.GetScenarioPath(); got != "demo" {
-				t.Fatalf("ScenarioPath=%q want demo", got)
+			if got := req.Msg.GetModulePath(); got != "demo" {
+				t.Fatalf("ModulePath=%q want demo", got)
 			}
 			return connect.NewResponse(&graphv1.ExtractResponse{
 				Graph: &commonv1.CodeGraph{

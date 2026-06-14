@@ -1,509 +1,65 @@
-# Product Requirements Document (PRD) - Scenario Dependency Analyzer
+# Product Requirements Document (PRD)
 
-## 🎯 Capability Definition
+## 🎯 Overview
+Purpose: `scenario-dependency-analyzer` is Vrooli's authority for scenario and resource dependency intelligence. It analyzes declared scenario configuration, computes actual cross-scenario interface usage from proto/import facts, exposes evidence-tagged graphs, and reports declared-vs-actual dependency drift.
 
-### Core Capability
-**What permanent capability does this scenario add to Vrooli?**
-This scenario adds **meta-intelligence for deployment optimization and capability planning** - the ability to automatically analyze, visualize, and optimize the dependency relationships between scenarios and resources. It enables Vrooli to understand its own architecture at a deep level and make intelligent decisions about deployments, resource allocation, and scenario development priorities.
+Target users: Vrooli agents, test-genie, tech-tree-designer, deployment planners, and engineers inspecting scenario architecture.
 
-### Intelligence Amplification
-**How does this capability make future agents smarter?**
-This capability transforms Vrooli from a collection of individual scenarios into a **self-aware intelligence system** that:
-- **Optimizes resource usage** by identifying redundancies and suggesting lightweight alternatives
-- **Accelerates scenario development** by revealing missing prerequisite capabilities
-- **Enables surgical deployments** where only necessary components are included
-- **Provides strategic planning intelligence** for capability gap analysis
-- **Creates compound learning** where each new scenario's dependencies become knowledge for future scenarios
+Deployment surfaces: Tier 1 local stack for v1. Go API and CLI provide programmatic access; the React UI provides direct graph inspection for operators.
 
-### Recursive Value
-**What new scenarios become possible after this exists?**
-1. **deployment-optimizer** - Intelligent deployment system that auto-selects optimal resource configurations
-2. **capability-planner** - Strategic planning for scenario development roadmaps
-3. **resource-cost-analyzer** - Economic optimization of resource usage across deployments  
-4. **scenario-merger** - Identifies opportunities to combine complementary scenarios
-5. **architecture-health-monitor** - Continuous monitoring of system dependency health
+Value proposition: Vrooli needs a reliable way to understand its own live dependency graph. SDA turns scattered declarations, proto surfaces, and import facts into one reusable engineering capability: graph inspection, deployment planning, and drift-proof dependency declarations.
 
-## 📊 Success Metrics
+## 🎯 Operational Targets
 
-### Functional Requirements
-- **Must Have (P0)**
-  - [x] Automatically parse existing scenarios and extract all resource dependencies
-  - [x] Detect inter-scenario dependencies (CLI calls, API usage, shared workflows)
-  - [x] Store dependency metadata in standardized `dependencies.json` format
-  - [x] Provide visualization of dependency graphs with interactive UI
-  - [x] Integration with resource-qdrant for semantic similarity matching (with fallback heuristics)
-  - [x] CLI interface for programmatic access to dependency data
-  - [x] API endpoints for other scenarios to query dependency information
-  
-- **Should Have (P1)**
-  - [x] Optimization recommendations (e.g., ollama → openrouter for lightweight deployments) - CLI command added
-  - [ ] Dependency impact analysis (what breaks if resource X is removed)
-  - [ ] Historical tracking of dependency changes over time
-  - [x] Export dependency graphs to various formats (GraphViz, JSON, PNG) - JSON and DOT supported
-  - [ ] Automated detection of circular dependencies
-  - [ ] Resource cost estimation based on dependency depth
-  
-- **Nice to Have (P2)**
-  - [ ] ML-powered prediction of likely dependencies for new scenarios
-  - [ ] Automated refactoring suggestions to reduce dependency complexity
-  - [ ] Integration with CI/CD to validate dependency changes
+Operational targets are measurable outcomes; checkboxes may auto-update based on validation.
 
-### Performance Criteria
-| Metric | Target | Measurement Method |
-|--------|--------|-------------------|
-| Dependency Scan Time | < 30s for all scenarios | CLI timing |
-| Visualization Load Time | < 3s for graphs with 100+ nodes | UI monitoring |
-| API Response Time | < 500ms for dependency queries | Load testing |
-| Memory Usage | < 1GB during full system analysis | Process monitoring |
+### 🔴 P0 – Must ship for viability
+- [x] OT-P0-001 | Declared dependency extraction | Automatically parse existing scenarios and extract resource and scenario dependencies from `service.json` and supported metadata.
+- [x] OT-P0-002 | Legacy inter-scenario signal coverage | Detect retained non-import scenario usage signals such as supported Vrooli command invocations and shared workflows until AST facts replace them.
+- [x] OT-P0-003 | Dependency metadata storage | Store history-bearing dependency metadata and analysis runs in the standardized dependency schema.
+- [x] OT-P0-004 | Interactive dependency graph UI | Provide a visualization of dependency graphs with loading, empty, error, and drift states.
+- [x] OT-P0-005 | Semantic scenario matching | Integrate with Qdrant and embedding resources for proposed-scenario similarity matching, with deterministic fallback heuristics.
+- [x] OT-P0-006 | CLI graph access | Provide CLI commands for graph, drift, optimization, and export workflows.
+- [x] OT-P0-007 | API graph access | Provide API endpoints other scenarios can query for dependency and graph information.
+- [x] OT-P0-008 | Actual interface graph | Compute actual cross-scenario interface edges from `proto-health` proto surfaces and `code-facts` import facts.
+- [x] OT-P0-009 | Dependency drift reporting | Report declared-vs-actual scenario dependency drift with asymmetric severity.
+- [x] OT-P0-010 | Connect graph seam | Expose `DescribeInterfaceGraph` as a Connect RPC for downstream planning scenarios.
+- [x] OT-P0-011 | SQLite storage cutover | Run on SQLite with domain-owned schemas instead of Postgres.
 
-### Quality Gates
-- [ ] All P0 requirements implemented and tested
-- [ ] Successfully analyzes all existing scenarios without errors
-- [ ] Visualization accurately represents actual dependencies
-- [ ] Other scenarios can programmatically query dependency data
-- [ ] Performance targets met under full system load
+### 🟠 P1 – Should have post-launch
+- [x] OT-P1-001 | Optimization recommendations | Recommend resource swaps and dependency reductions for lightweight deployment profiles.
+- [ ] OT-P1-002 | Dependency impact analysis | Explain what scenarios or resources would be affected if a dependency is removed.
+- [ ] OT-P1-003 | Dependency history | Track dependency changes over time for trend and regression analysis.
+- [x] OT-P1-004 | Graph export formats | Export dependency graphs as JSON, DOT/GraphViz, and image-ready data.
+- [ ] OT-P1-005 | Cycle detection | Detect and report circular scenario or resource dependency chains.
+- [ ] OT-P1-006 | Resource cost estimation | Estimate resource cost and deployment weight from dependency depth and resource classes.
 
-## 🏗️ Technical Architecture
+### 🟢 P2 – Future / expansion
+- [ ] OT-P2-001 | Predictive dependency planning | Predict likely dependencies for new scenario proposals from similar historical scenarios.
+- [ ] OT-P2-002 | Refactoring suggestions | Suggest refactors that reduce dependency complexity or improve deployment modularity.
+- [ ] OT-P2-003 | CI dependency policy | Integrate with CI and quality loops to validate dependency changes before merge.
 
-### Resource Dependencies
-```yaml
-required:
-  - resource_name: postgres
-    purpose: Store dependency metadata, analysis results, and historical data
-    integration_pattern: Direct SQL queries and migrations
-    access_method: resource-postgres CLI commands
-    
-  - resource_name: qdrant
-    purpose: Semantic similarity matching for proposed scenarios
-    integration_pattern: Vector storage and similarity queries
-    access_method: resource-qdrant CLI commands
+## 🧱 Tech Direction Snapshot
+Preferred stacks: Go API, Go CLI, React + Vite UI, SQLite through `packages/api-core/database`, and generated protobuf/Connect contracts for new reusable surfaces.
 
-optional:
-  - resource_name: redis
-    purpose: Cache analysis results and frequently accessed dependency data
-    fallback: Direct database queries with slightly higher latency
-    access_method: redis-cli via resource wrapper
-```
+Preferred storage: SQLite stores history-bearing analysis records and recommendations. Derived interface graphs are computed on demand and are not persisted. Qdrant remains available for semantic similarity matching.
 
-### Resource Integration Standards
-```yaml
-# Priority order for resource access:
-integration_priorities:
-  1_resource_cli:        # FIRST: Use resource CLI commands
-    - command: resource-postgres execute
-      purpose: Database operations for dependency storage
-    - command: resource-qdrant search
-      purpose: Semantic matching for similar scenarios
-  
-  2_direct_api:          # SECOND: Direct API when CLI insufficient
-    - justification: Complex graph visualizations require direct D3.js integration
-      endpoint: Custom visualization endpoints
-```
+Integration strategy: `proto-health` owns proto surface facts. `code-facts` owns language-level import extraction. SDA owns cross-scenario interpretation: mapping import/proto paths to scenario slugs, unifying evidence into graph edges, and comparing actual usage with `service.json`.
 
-### Data Models
-```yaml
-primary_entities:
-  - name: ScenarioDependency
-    storage: postgres
-    schema: |
-      {
-        id: UUID,
-        scenario_name: STRING,
-        dependency_type: ENUM(resource, scenario, shared_workflow),
-        dependency_name: STRING,
-        required: BOOLEAN,
-        purpose: STRING,
-        access_method: STRING,
-        discovered_at: TIMESTAMP,
-        last_verified: TIMESTAMP
-      }
-    relationships: Many scenarios can depend on many resources/scenarios
-    
-  - name: DependencyGraph  
-    storage: postgres
-    schema: |
-      {
-        id: UUID,
-        graph_type: ENUM(resource, scenario, combined),
-        nodes: JSONB,
-        edges: JSONB,
-        metadata: JSONB,
-        created_at: TIMESTAMP
-      }
-    relationships: Represents computed dependency graphs
-    
-  - name: OptimizationRecommendation
-    storage: postgres  
-    schema: |
-      {
-        id: UUID,
-        scenario_name: STRING,
-        recommendation_type: ENUM(resource_swap, dependency_reduction, merger_opportunity),
-        current_state: JSONB,
-        recommended_state: JSONB,
-        estimated_impact: JSONB,
-        confidence_score: FLOAT
-      }
-    relationships: Links to scenarios and provides optimization insights
-```
+Non-goals: No source-file scanning for import evidence inside SDA. No graph persistence. No full Gin-to-template migration in this plan. No planned-vs-live future-state modeling; tech-tree-designer owns that layer.
 
-### API Contract
-```yaml
-endpoints:
-  - method: GET
-    path: /api/v1/scenarios/{name}/dependencies
-    purpose: Get dependency information for a specific scenario
-    input_schema: |
-      {
-        name: STRING (scenario name),
-        include_transitive: BOOLEAN (optional, default false)
-      }
-    output_schema: |
-      {
-        scenario: STRING,
-        resources: [ScenarioDependency],
-        scenarios: [ScenarioDependency],
-        shared_workflows: [ScenarioDependency],
-        transitive_depth: INTEGER
-      }
-    sla:
-      response_time: 200ms
-      availability: 99.9%
+## 🤝 Dependencies & Launch Plan
+Required resources: SQLite for local scenario storage, Qdrant for semantic matching, Ollama embeddings via the `embedding.default` role, and claude-code for analysis workflows.
 
-  - method: POST  
-    path: /api/v1/analyze/proposed
-    purpose: Analyze dependencies for a proposed scenario description
-    input_schema: |
-      {
-        name: STRING,
-        description: STRING,
-        requirements: [STRING],
-        similar_scenarios: [STRING] (optional)
-      }
-    output_schema: |
-      {
-        predicted_resources: [ResourcePrediction],
-        similar_patterns: [SimilarityMatch], 
-        recommendations: [DependencyRecommendation],
-        confidence_scores: {resource: FLOAT, scenario: FLOAT}
-      }
+Scenario dependencies: `proto-health` for batch protobuf surface facts and `code-facts` for batch import facts. Downstream consumers include `test-genie` and future `tech-tree-designer` planning flows.
 
-  - method: GET
-    path: /api/v1/graph/{type}
-    purpose: Get dependency graph data for visualization
-    input_schema: |
-      {
-        type: ENUM(resources, scenarios, combined),
-        format: ENUM(json, graphviz, d3),
-        filter: STRING (optional scenario name filter)
-      }
-    output_schema: |
-      {
-        nodes: [GraphNode],
-        edges: [GraphEdge],  
-        metadata: {total_nodes, total_edges, complexity_score}
-      }
-```
+Operational risks: Declared-without-import-evidence can be a false positive while runtime URL and CLI shell-out AST facts are deferred. The mitigation is asymmetric severity: undeclared actual imports are warnings, while declared-only dependencies are informational until the AST-facts follow-up lands.
 
-### Event Interface
-```yaml
-published_events:
-  - name: dependency.analysis.completed
-    payload: {scenario: STRING, dependencies_found: INTEGER, analysis_time: INTEGER}
-    subscribers: [deployment-optimizer, capability-planner]
-    
-  - name: dependency.optimization.identified
-    payload: {scenario: STRING, optimization_type: STRING, potential_savings: OBJECT}
-    subscribers: [ecosystem-manager, resource-cost-analyzer]
-    
-consumed_events:
-  - name: scenario.created
-    action: Automatically analyze dependencies for newly created scenarios
-  - name: scenario.updated  
-    action: Re-analyze dependencies when scenarios are modified
-```
+Launch sequencing: Documentation and decisions → proto-health batch facts → code-facts batch imports → SQLite cutover → actual graph domain → drift reporting and detector cleanup → Connect graph seam → test-genie and maturity integration → full validation and standards cleanup.
 
-## 🖥️ CLI Interface Contract
+## 🎨 UX & Branding
+User experience: Operational-console graph inspection for engineers and agents. The UI prioritizes dense graph scanning, clear edge evidence, drift filtering, and fast recovery from loading/error states over marketing presentation.
 
-### Command Structure
-```yaml
-cli_binary: scenario-dependency-analyzer
-install_script: cli/install.sh
+Visual design: Existing Vrooli operational styling with restrained graph controls, readable node labels, and status affordances for actual/declaration drift. Graph views should be useful on desktop first and remain navigable in constrained viewports.
 
-required_commands:
-  - name: status
-    description: Show operational status and resource health
-    flags: [--json, --verbose]
-    
-  - name: help
-    description: Display command help and usage
-    flags: [--all, --command <name>]
-    
-  - name: version
-    description: Show CLI and API version information  
-    flags: [--json]
-
-custom_commands:
-  - name: analyze
-    description: Analyze dependencies for specific scenario or all scenarios
-    api_endpoint: /api/v1/analyze
-    arguments:
-      - name: scenario
-        type: string
-        required: false
-        description: Specific scenario to analyze (or 'all' for full system)
-    flags:
-      - name: --output
-        description: Output format (json, table, graph)
-      - name: --include-transitive  
-        description: Include transitive dependencies
-    output: Dependency analysis results
-
-  - name: graph
-    description: Generate and display dependency graphs
-    api_endpoint: /api/v1/graph  
-    arguments:
-      - name: type
-        type: string
-        required: true
-        description: Graph type (resources, scenarios, combined)
-    flags:
-      - name: --format
-        description: Output format (json, png, svg, html)
-      - name: --filter
-        description: Filter by scenario name pattern
-      - name: --output-file
-        description: Save graph to file
-    output: Dependency graph visualization
-
-  - name: optimize
-    description: Get optimization recommendations for scenarios
-    api_endpoint: /api/v1/optimize
-    arguments:
-      - name: scenario
-        type: string  
-        required: false
-        description: Scenario to optimize (or 'all' for system-wide)
-    flags:
-      - name: --type
-        description: Optimization type (resource, deployment, cost)
-      - name: --apply
-        description: Apply safe optimizations automatically
-    output: Optimization recommendations and results
-
-  - name: propose
-    description: Analyze dependencies for proposed scenario
-    api_endpoint: /api/v1/analyze/proposed
-    arguments:
-      - name: description
-        type: string
-        required: true
-        description: Scenario description or requirements file
-    flags:
-      - name: --similar
-        description: Number of similar scenarios to find
-      - name: --resources-only
-        description: Only predict resource dependencies
-    output: Predicted dependencies and recommendations
-```
-
-## 🔄 Integration Requirements
-
-### Upstream Dependencies  
-**What capabilities must exist before this can function?**
-- **PostgreSQL Resource**: Required for storing dependency metadata and analysis results
-- **resource-qdrant**: Critical for semantic similarity matching of proposed scenarios
-- **Scenario File System**: All existing scenarios must have discoverable `.vrooli/service.json` files
-
-### Downstream Enablement
-**What future capabilities does this unlock?**
-- **Intelligent Deployment System**: Enables surgical deployments with minimal resource footprint
-- **Strategic Capability Planning**: Identifies capability gaps and development priorities
-- **Resource Cost Optimization**: Enables economic analysis of different resource configurations
-- **Automated Architecture Health**: Continuous monitoring of system dependency health
-- **Scenario Development Acceleration**: Faster development through dependency insight
-
-### Cross-Scenario Interactions
-```yaml
-provides_to:
-  - scenario: deployment-optimizer
-    capability: Dependency analysis for minimal deployment configurations
-    interface: API + CLI
-    
-  - scenario: capability-planner  
-    capability: Capability gap analysis and development roadmaps
-    interface: API + Events
-    
-  - scenario: ecosystem-manager
-    capability: Dependency predictions for generated scenarios
-    interface: API
-    
-consumes_from:
-  - scenario: ecosystem-manager
-    capability: Notifications when scenarios are updated
-    fallback: Periodic full system scans
-```
-
-## 🎨 Style and Branding Requirements
-
-### UI/UX Style Guidelines
-```yaml
-style_profile:
-  category: technical
-  inspiration: NASA mission control meets network topology visualization
-  
-  visual_style:
-    color_scheme: dark
-    typography: technical
-    layout: dashboard
-    animations: subtle
-
-  personality:
-    tone: technical
-    mood: focused  
-    target_feeling: Intelligence and control over complex systems
-
-# Style references:
-style_references:
-  technical:
-    - system-monitor: "Matrix-style green terminal aesthetic"
-    - agent-dashboard: "NASA mission control vibes"
-  
-# Custom elements for this scenario:
-custom_elements:
-  - Interactive dependency graphs with zoom/pan capabilities
-  - Real-time dependency health indicators
-  - Color-coded optimization opportunities
-  - Hierarchical tree views for resource relationships
-```
-
-### Target Audience Alignment
-- **Primary Users**: DevOps engineers, system architects, AI researchers
-- **User Expectations**: Sophisticated technical interface with powerful analytical capabilities
-- **Accessibility**: WCAG AA compliance, high contrast mode support
-- **Responsive Design**: Desktop-first with tablet support for graph viewing
-
-## 💰 Value Proposition
-
-### Business Value
-- **Primary Value**: Reduces deployment costs and complexity through intelligent dependency optimization
-- **Revenue Potential**: $15K - $75K per deployment (higher for complex enterprise deployments)
-- **Cost Savings**: 40-70% reduction in resource usage through optimization recommendations
-- **Market Differentiator**: First AI system with true architectural self-awareness
-
-### Technical Value
-- **Reusability Score**: 10/10 - Every scenario benefits from dependency analysis
-- **Complexity Reduction**: Transforms complex deployment decisions into automated recommendations  
-- **Innovation Enablement**: Unlocks new categories of intelligent deployment and planning scenarios
-
-## 🧬 Evolution Path
-
-### Version 1.0 (Current)
-- Core dependency analysis and visualization
-- Basic resource and scenario relationship mapping
-- CLI and API interfaces for programmatic access
-- Integration with claude-code and qdrant
-
-### Version 2.0 (Planned)
-- ML-powered dependency prediction for proposed scenarios
-- Automated optimization application with rollback capability
-- Real-time dependency health monitoring and alerting
-- Advanced cost modeling and ROI analysis
-
-### Long-term Vision  
-- Evolve into Vrooli's central nervous system for architectural intelligence
-- Enable fully autonomous deployment optimization across cloud providers
-- Become the foundation for self-improving AI system architecture
-
-## ✅ Validation Criteria
-
-### Declarative Test Specification
-- **Phased testing:** `test/run-tests.sh` orchestrates the six standard phases (structure, dependencies, unit, integration, business, performance) via the shared runner in `scripts/scenarios/testing/shell/runner.sh`, with presets for `quick`, `smoke`, and `comprehensive` flows.
-- **Structure phase:** Verifies critical directories (`api/`, `cli/`, `ui/`, `.vrooli/`, `test/`, `initialization/storage/postgres/`) and files (`PRD.md`, `README.md`, `api/main.go`, `api/go.mod`, CLI wrapper, Postgres schema/seed assets) while ensuring the CLI wrapper is executable.
-- **Dependencies phase:** Executes `go list ./...` and `go mod verify` within `api/` to confirm module integrity without mutating the workspace, emitting warnings if the CLI wrapper is missing.
-- **Unit phase:** Delegates to `scripts/scenarios/testing/unit/run-all.sh`, enforcing Go coverage thresholds (warn <80%, fail <50%).
-- **Integration phase:** Auto-starts the scenario, validates live API endpoints (`/health`, `/api/v1/scenarios/{name}/dependencies`, `/api/v1/graph/combined`, `/api/v1/analyze/proposed`), and confirms the CLI can reach the running services.
-- **Business phase:** Runs high-level CLI workflows (`analyze all`, `graph combined`, `status --json`) and inspects generated JSON artifacts to ensure analyses return data using `jq` when available.
-- **Performance phase:** Benchmarks `scenario-dependency-analyzer analyze chart-generator --output json`, warning when execution exceeds the 60-second baseline and failing on timeouts.
-- **Lifecycle wiring:** `.vrooli/service.json` now maps the test lifecycle to a single step (`test/run-tests.sh`), keeping Makefile and CLI execution (`vrooli scenario test scenario-dependency-analyzer`) aligned with the phased architecture.
-
-## 🚨 Risk Mitigation
-
-### Technical Risks
-| Risk | Probability | Impact | Mitigation |
-|------|------------|--------|------------|
-| Large graph visualization performance | High | Medium | Implement progressive loading and zoom-based detail levels |
-| Circular dependency detection complexity | Medium | High | Use established graph algorithms with cycle detection |
-| AI analysis accuracy for new scenarios | Medium | Medium | Combine claude-code analysis with qdrant similarity matching |
-
-### Operational Risks
-- **Analysis Staleness**: Implement event-driven re-analysis when scenarios change
-- **Resource Conflicts**: Careful resource allocation and conflict detection in service.json  
-- **Performance at Scale**: Optimize database queries and implement result caching
-
-## 📝 Implementation Notes
-
-### Design Decisions
-**Graph Storage Format**: Store graphs as JSONB in PostgreSQL rather than specialized graph database
-- Alternative considered: Neo4j or ArangoDB for native graph operations
-- Decision driver: Consistency with existing Vrooli PostgreSQL usage and simpler deployment
-- Trade-offs: Slightly more complex queries but better resource utilization
-
-**Prediction Strategy**: Use Qdrant similarity matching with heuristic fallbacks for dependency prediction  
-- Alternative considered: separate AI CLI integration for free-form proposal analysis
-- Decision driver: keep proposal analysis aligned with supported resource surfaces and reduce brittle CLI coupling
-- Trade-offs: slightly less open-ended reasoning, but a simpler and more reliable prediction path
-
-### Security Considerations
-- **Data Protection**: Dependency metadata contains no sensitive information
-- **Access Control**: Read-only access to scenario configurations for analysis
-- **Audit Trail**: All dependency changes and optimizations are logged with timestamps
-
-## 🔗 References
-
-### Documentation
-- README.md - User-facing overview and quick start
-- docs/api.md - Complete API specification  
-- docs/cli.md - CLI command reference
-- docs/graph-formats.md - Graph export format specifications
-
-### Related PRDs
-- deployment-optimizer (planned) - Will consume dependency analysis
-- capability-planner (planned) - Strategic planning using dependency insights
-
-### External Resources  
-- D3.js documentation for graph visualization
-- GraphViz specification for graph export formats
-- PostgreSQL JSONB documentation for graph storage
-
----
-
-**Last Updated**: 2025-10-03
-**Status**: Validated & Stable (100% P0 Complete)
-**Owner**: Claude Code AI Agent
-**Review Cycle**: Every iteration during development, then quarterly
-
-## Implementation Progress
-
-### Recent Improvements (2025-10-03)
-- ✅ Fixed port environment variable naming to use standard `API_PORT` and `UI_PORT`
-- ✅ Removed deprecated `DEPENDENCY_ANALYZER_API_PORT` variable references
-- ✅ Updated all lifecycle test steps to use correct port variables
-- ✅ Verified all tests passing with corrected port configuration
-- ✅ Removed all TODO items from codebase
-- ✅ Validated core functionality: health checks, API endpoints, CLI commands
-
-### Previous Improvements (2025-09-28)
-- ✅ Fixed graph command to accept correct graph types (resource/scenario/combined)
-- ✅ Added optimize command to CLI for getting optimization recommendations
-- ✅ Improved propose command for analyzing proposed scenarios
-- ✅ Enhanced UI with proper dependency graph visualization
-- ✅ Fixed CLI-API type mapping for graph generation
-- ✅ Added support for DOT and Mermaid export formats
-
-### Known Limitations
-- Qdrant integration partially implemented (fallback to heuristics when not available)
-- Optimization recommendations currently in preview mode (shows potential, doesn't auto-apply)
-- Circular dependency detection not yet implemented (P1 requirement)
-- Historical tracking requires database initialization (P1 requirement)
-- Scenario name detection can produce false positives (common words like "func", "const" detected as scenarios)
+Accessibility: Interactive controls require keyboard and focus-visible behavior. Graph data must have accessible alternate representation through lists or panels so users are not forced to rely on canvas/SVG spatial interpretation alone.

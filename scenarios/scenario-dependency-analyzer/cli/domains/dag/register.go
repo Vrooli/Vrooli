@@ -3,8 +3,9 @@ package dag
 import (
 	"fmt"
 	"os"
-	"scenario-dependency-analyzer/cli/internal/support"
 	"strings"
+
+	"scenario-dependency-analyzer/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -56,7 +57,7 @@ func runExport(core *cliapp.ScenarioApp, args []string) error {
 	}
 
 	if outputPath != "" {
-		if err := os.WriteFile(outputPath, body, 0o644); err != nil {
+		if err := os.WriteFile(outputPath, body, 0o600); err != nil {
 			return fmt.Errorf("write dag output: %w", err)
 		}
 		report := cliapp.MutationReport{

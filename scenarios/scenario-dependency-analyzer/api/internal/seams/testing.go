@@ -2,6 +2,7 @@ package seams
 
 import (
 	"io/fs"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -54,7 +55,7 @@ func NewSequentialIDGenerator(prefix string) *SequentialIDGenerator {
 func (g *SequentialIDGenerator) NewID() string {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	id := g.prefix + "-" + string(rune('0'+g.next))
+	id := g.prefix + "-" + strconv.Itoa(g.next)
 	if g.next < 9 {
 		g.next++
 	}

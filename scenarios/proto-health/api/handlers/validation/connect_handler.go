@@ -17,6 +17,7 @@ import (
 type Validator interface {
 	ValidateScenario(ctx context.Context, scenario string) (internal.Report, error)
 	DescribeScenarioProtos(ctx context.Context, scenario string) (protosurface.Surface, error)
+	DescribeScenariosProtos(ctx context.Context, scenarios []string, limit int32, stabilityFilter string) ([]internal.SurfaceResult, error)
 }
 
 type Deps struct {
@@ -65,6 +66,30 @@ func (h *connectHandler) DescribeScenarioProtos(ctx context.Context, req *connec
 	}
 	return connect.NewResponse(&validationv1.DescribeScenarioProtosResponse{
 		Surface: surfaceToProto(surface),
+	}), nil
+}
+
+func (h *connectHandler) DescribeScenariosProtos(ctx context.Context, req *connect.Request[validationv1.DescribeScenariosProtosRequest]) (*connect.Response[validationv1.DescribeScenariosProtosResponse], error) {
+	if h.deps.Validator == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("validation validator is not wired"))
+	}
+	results, err := h.deps.Validator.DescribeScenariosProtos(ctx, req.Msg.GetScenarios(), req.Msg.GetLimit(), req.Msg.GetStabilityFilter())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	out := make([]*validationv1.ProtoSurfaceResult, 0, len(results))
+	for _, result := range results {
+		item := &validationv1.ProtoSurfaceResult{
+			Scenario: result.Scenario,
+			Error:    result.Error,
+		}
+		if result.Error == "" {
+			item.Surface = surfaceToProto(result.Surface)
+		}
+		out = append(out, item)
+	}
+	return connect.NewResponse(&validationv1.DescribeScenariosProtosResponse{
+		Results: out,
 	}), nil
 }
 

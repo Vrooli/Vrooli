@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"scenario-dependency-analyzer/internal/seams"
 	"testing"
+
+	"scenario-dependency-analyzer/internal/seams"
 
 	appconfig "scenario-dependency-analyzer/internal/config"
 
@@ -189,15 +190,18 @@ vrooli scenario run totally-fake
 		found[dep.DependencyName] = true
 	}
 
-	if !found["other-scenario"] || !found["browser-automation-studio"] {
+	if !found["other-scenario"] {
 		t.Fatalf("Missing expected dependencies: %v", found)
+	}
+	if found["browser-automation-studio"] {
+		t.Fatalf("CLI filename references should no longer be dependency evidence")
 	}
 	if found["ignored-scenario"] {
 		t.Fatalf("ignored-scenario should have been excluded")
 	}
 }
 
-func TestScanForScenarioDependenciesDetectsScenarioPortResolvers(t *testing.T) {
+func TestScanForScenarioDependenciesIgnoresObsoleteScenarioPortResolvers(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
@@ -234,8 +238,8 @@ func use(ctx context.Context) {
 		}
 	}
 
-	if !found {
-		t.Fatalf("Expected to detect app-issue-tracker dependency via port resolver")
+	if found {
+		t.Fatalf("obsolete scenario port resolver calls should no longer be dependency evidence")
 	}
 }
 
@@ -247,7 +251,7 @@ func TestApplyDetectedDiffsPreservesExistingDependencies(t *testing.T) {
 	defer env.Cleanup()
 
 	setEnvAndCleanup(t, "API_PORT", "12345")
-	setEnvAndCleanup(t, "DATABASE_URL", "postgres://example:test@localhost:5432/test")
+	setEnvAndCleanup(t, "SQLITE_DB", filepath.Join(env.TempDir, "scenario-dependency-analyzer.db"))
 	setEnvAndCleanup(t, "VROOLI_SCENARIOS_DIR", env.ScenariosDir)
 
 	resourcesDir := filepath.Join(env.TempDir, "resources")
@@ -597,7 +601,7 @@ func TestApplyDetectedDiffsWritesDependencies(t *testing.T) {
 	defer env.Cleanup()
 
 	t.Setenv("API_PORT", "19999")
-	t.Setenv("DATABASE_URL", "postgres://example:example@localhost:5432/example?sslmode=disable")
+	t.Setenv("SQLITE_DB", filepath.Join(env.TempDir, "scenario-dependency-analyzer.db"))
 
 	configureTestScenariosDir(t, env)
 	createTestResourceDirs(t, env, "postgres")

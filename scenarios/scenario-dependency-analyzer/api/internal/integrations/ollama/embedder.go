@@ -70,7 +70,7 @@ func (e *Embedder) run(ctx context.Context, args []string, stdin string) ([]byte
 	if e.Runner != nil {
 		return e.Runner(ctx, args, stdin)
 	}
-	cmd := exec.CommandContext(ctx, "resource-ollama", args...)
+	cmd := exec.CommandContext(ctx, "resource-ollama", args...) // #nosec G204 -- executable is fixed and args are internal CLI flags.
 	cmd.Stdin = strings.NewReader(stdin)
 	out, err := cmd.Output()
 	if err != nil {

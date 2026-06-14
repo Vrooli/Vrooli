@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 
 	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
@@ -109,6 +112,48 @@ func (s *Service) Describe(ctx context.Context, req *factsv1.DescribeCodeFactsRe
 	return report, nil
 }
 
+func (s *Service) DescribeFleetImports(ctx context.Context, req *factsv1.DescribeFleetImportsRequest) (*factsv1.DescribeFleetImportsResponse, error) {
+	if req.GetLimit() < 0 || req.GetLimit() > 500 {
+		return nil, fmt.Errorf("limit must be between 0 and 500")
+	}
+	repoRoot, err := resolveRepoRoot(req.GetRepoRoot())
+	if err != nil {
+		return nil, err
+	}
+	scenarios := normalizeScenarioList(req.GetScenarios())
+	if len(scenarios) == 0 {
+		scenarios, err = listScenarioSlugs(repoRoot)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if req.GetLimit() > 0 && len(scenarios) > int(req.GetLimit()) {
+		scenarios = scenarios[:int(req.GetLimit())]
+	}
+
+	resp := &factsv1.DescribeFleetImportsResponse{Results: make([]*factsv1.CodeFactsResult, 0, len(scenarios))}
+	for _, scenario := range scenarios {
+		result := &factsv1.CodeFactsResult{Scenario: scenario}
+		report, err := s.Describe(ctx, &factsv1.DescribeCodeFactsRequest{
+			Target: &factsv1.CodeTarget{
+				Kind:           factsv1.TargetKind_TARGET_KIND_SCENARIO,
+				Scenario:       scenario,
+				RepoRoot:       repoRoot,
+				LanguageFilter: req.GetLanguageFilter(),
+			},
+			Include:  []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_IMPORTS},
+			UseCache: req.GetUseCache(),
+		})
+		if err != nil {
+			result.Error = err.Error()
+		} else {
+			result.Report = report
+		}
+		resp.Results = append(resp.Results, result)
+	}
+	return resp, nil
+}
+
 func (s *Service) Surfaces(_ context.Context, req *factsv1.ListSurfacesRequest) (*factsv1.ListSurfacesResponse, error) {
 	if err := validateTarget(req.GetTarget()); err != nil {
 		return nil, err
@@ -122,6 +167,39 @@ func (s *Service) Surfaces(_ context.Context, req *factsv1.ListSurfacesRequest) 
 		Surfaces: discoverSurfaces(target),
 		Cache:    surfaceCacheMetadata(req.GetTarget(), target),
 	}, nil
+}
+
+func normalizeScenarioList(in []string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, scenario := range in {
+		scenario = strings.TrimSpace(scenario)
+		if scenario == "" || seen[scenario] {
+			continue
+		}
+		seen[scenario] = true
+		out = append(out, scenario)
+	}
+	return out
+}
+
+func listScenarioSlugs(repoRoot string) ([]string, error) {
+	entries, err := os.ReadDir(filepath.Join(repoRoot, "scenarios"))
+	if err != nil {
+		return nil, fmt.Errorf("list scenarios: %w", err)
+	}
+	var out []string
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		slug := entry.Name()
+		if hasServiceManifest(filepath.Join(repoRoot, "scenarios", slug)) {
+			out = append(out, slug)
+		}
+	}
+	sort.Strings(out)
+	return out, nil
 }
 
 func (s *Service) ProtoAdoption(ctx context.Context, req *factsv1.CheckProtoAdoptionRequest) (*factsv1.ProofReport, error) {

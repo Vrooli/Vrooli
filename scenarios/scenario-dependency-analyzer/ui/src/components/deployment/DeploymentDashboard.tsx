@@ -16,7 +16,7 @@ import { buildApiUrl } from "@vrooli/api-base";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import type { ScenarioSummary, DeploymentAnalysisReport } from "../../types";
+import type { ScenarioSummary, DeploymentAnalysisReport, ScenarioGapInfo } from "../../types";
 import { MetadataGapsPanel } from "./MetadataGapsPanel";
 import { RecommendedFlowPanel } from "./RecommendedFlowPanel";
 import { getApiBaseUrl } from "../../lib/utils";
@@ -139,7 +139,7 @@ export function DeploymentDashboard({ scenarios, loading, onRefresh, onScanScena
         );
 
         batch.forEach((scenario, idx) => {
-          const report = reports[idx];
+          const report = reports[idx] ?? null;
           let status: "ready" | "issues" | "not-scanned" | "critical" = "not-scanned";
           let blockersCount = 0;
           let missingMetadataCount = 0;
@@ -200,10 +200,10 @@ export function DeploymentDashboard({ scenarios, loading, onRefresh, onScanScena
     };
 
     void loadReports();
-  }, [scenarios]);
+  }, [apiBase, scenarios]);
 
   const aggregatedGaps = useMemo(() => {
-    const allGaps: Record<string, any> = {};
+    const allGaps: Record<string, ScenarioGapInfo> = {};
     let totalGaps = 0;
     let scenariosMissingAll = 0;
     const missingTiersSet = new Set<string>();
@@ -357,7 +357,7 @@ export function DeploymentDashboard({ scenarios, loading, onRefresh, onScanScena
         });
       }
     },
-    [onScanScenario]
+    [apiBase, onScanScenario]
   );
 
   const handleExportDag = useCallback(
@@ -368,14 +368,13 @@ export function DeploymentDashboard({ scenarios, loading, onRefresh, onScanScena
         return;
       }
       try {
-        const apiPort = import.meta.env.VITE_API_PORT || "20400";
         const url = buildApiUrl(`/scenarios/${name}/dag/export?recursive=true`, { baseUrl: apiBase });
         const response = await fetch(url);
         if (!response.ok) {
           setShowDagHelp(true);
           return;
         }
-        const data = await response.json();
+        const data: unknown = await response.json();
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
         const downloadUrl = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -390,7 +389,7 @@ export function DeploymentDashboard({ scenarios, loading, onRefresh, onScanScena
         setShowDagHelp(true);
       }
     },
-    [selectedScenario]
+    [apiBase, selectedScenario]
   );
 
   const tierOptions = [
@@ -404,6 +403,9 @@ export function DeploymentDashboard({ scenarios, loading, onRefresh, onScanScena
   const selectedTierFitness = selectedScenario?.lastReport?.aggregates?.[targetTier]?.fitness_score;
   const selectedTierBlockers = selectedScenario?.lastReport?.aggregates?.[targetTier]?.blocking_dependencies || [];
   const selectedTierRequirements = selectedScenario?.lastReport?.aggregates?.[targetTier]?.estimated_requirements;
+  const selectedScenarioGaps = selectedScenario
+    ? selectedScenario.lastReport?.metadata_gaps?.gaps_by_scenario?.[selectedScenario.scenario.name]
+    : undefined;
 
   return (
     <div className="space-y-6">
@@ -755,7 +757,7 @@ export function DeploymentDashboard({ scenarios, loading, onRefresh, onScanScena
                 <Info className="h-4 w-4 text-primary" aria-hidden="true" />
                 <p className="text-sm font-medium text-foreground">Metadata gaps for this scenario</p>
               </div>
-              {selectedScenario.lastReport?.metadata_gaps?.gaps_by_scenario?.[selectedScenario.scenario.name] ? (
+              {selectedScenarioGaps && selectedScenario.lastReport?.metadata_gaps ? (
                 <div className="space-y-2 text-xs text-muted-foreground">
                   <p className="text-[11px] text-muted-foreground">
                     Fill these fields in <code>.vrooli/service.json</code>. Use the docs and the “Scan &amp; Apply” button to re-check.
@@ -765,8 +767,7 @@ export function DeploymentDashboard({ scenarios, loading, onRefresh, onScanScena
                       total_gaps: selectedScenario.lastReport.metadata_gaps.total_gaps,
                       scenarios_missing_all: selectedScenario.lastReport.metadata_gaps.scenarios_missing_all,
                       gaps_by_scenario: {
-                        [selectedScenario.scenario.name]:
-                          selectedScenario.lastReport.metadata_gaps.gaps_by_scenario?.[selectedScenario.scenario.name]
+                        [selectedScenario.scenario.name]: selectedScenarioGaps
                       }
                     }}
                   />

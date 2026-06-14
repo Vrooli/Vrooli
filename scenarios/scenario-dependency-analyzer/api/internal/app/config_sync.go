@@ -414,7 +414,7 @@ func orderedMapFromStruct(value interface{}) *orderedmap.OrderedMap {
 
 func loadRawServiceConfigMap(scenarioPath string) (*orderedmap.OrderedMap, error) {
 	serviceConfigPath := filepath.Join(scenarioPath, ".vrooli", "service.json")
-	data, err := os.ReadFile(serviceConfigPath)
+	data, err := os.ReadFile(serviceConfigPath) // #nosec G304 -- serviceConfigPath is the canonical .vrooli/service.json under the scenario path.
 	if err != nil {
 		return nil, err
 	}
@@ -435,7 +435,7 @@ func writeRawServiceConfigMap(scenarioPath string, cfg *orderedmap.OrderedMap) e
 	payload = bytes.ReplaceAll(payload, []byte(`\u003c`), []byte("<"))
 	payload = bytes.ReplaceAll(payload, []byte(`\u003e`), []byte(">"))
 	payload = bytes.ReplaceAll(payload, []byte(`\u0026`), []byte("&"))
-	return os.WriteFile(serviceConfigPath, payload, 0o644)
+	return os.WriteFile(serviceConfigPath, payload, 0o600)
 }
 
 func logTrace(format string, args ...interface{}) {

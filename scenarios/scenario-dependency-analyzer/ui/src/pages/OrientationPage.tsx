@@ -1,4 +1,4 @@
-import { AlertCircle, ArrowRight, BarChart3, CheckCircle2, Compass, Network, Shield, MousePointerClick, Map, LifeBuoy } from "lucide-react";
+import { AlertCircle, ArrowRight, BarChart3, Compass, Network, Shield, MousePointerClick, Map, LifeBuoy } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
@@ -30,11 +30,12 @@ export function OrientationPage({
 
   return (
     <div className="space-y-6">
+      <h2 className="sr-only">Orientation workspace</h2>
       <Card className="border border-primary/40 bg-primary/5">
         <CardHeader className="flex flex-col gap-2 pb-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle className="text-lg flex items-center gap-2">
-              <Compass className="h-5 w-5 text-primary" />
+              <Compass className="h-5 w-5 text-primary" aria-hidden="true" />
               Orientation
             </CardTitle>
             <p className="text-sm text-muted-foreground">
@@ -74,7 +75,7 @@ export function OrientationPage({
         <Card className="border border-border/40 bg-background/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
-              <MousePointerClick className="h-4 w-4 text-primary" />
+              <MousePointerClick className="h-4 w-4 text-primary" aria-hidden="true" />
               Where should I click?
             </CardTitle>
           </CardHeader>
@@ -122,7 +123,7 @@ export function OrientationPage({
       <Card className="border border-border/40 bg-background/50">
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
-            <LifeBuoy className="h-4 w-4 text-primary" />
+            <LifeBuoy className="h-4 w-4 text-primary" aria-hidden="true" />
             Getting unstuck
           </CardTitle>
         </CardHeader>
@@ -166,7 +167,7 @@ function StepCard({
   return (
     <div className="rounded-xl border border-border/50 bg-background/60 p-4 shadow-sm">
       <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-        {icon}
+        <span aria-hidden="true">{icon}</span>
         <span>{title}</span>
       </div>
       <p className="mt-2 text-xs text-muted-foreground">{body}</p>
@@ -209,7 +210,7 @@ function ClickRow({
   return (
     <div className="flex items-start justify-between gap-3 rounded-lg border border-border/50 bg-background/60 p-3">
       <div className="flex items-start gap-2">
-        {icon}
+        <span aria-hidden="true">{icon}</span>
         <div>
           <p className="text-sm font-semibold text-foreground">{title}</p>
           <p className="text-xs text-muted-foreground">{body}</p>
@@ -227,7 +228,7 @@ function TipCard({ icon, title, body }: { icon: React.ReactNode; title: string; 
   return (
     <div className="rounded-lg border border-border/50 bg-background/60 p-3">
       <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-        {icon}
+        <span aria-hidden="true">{icon}</span>
         <span>{title}</span>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">{body}</p>

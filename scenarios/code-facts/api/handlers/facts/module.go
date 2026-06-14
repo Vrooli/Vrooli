@@ -92,6 +92,26 @@ var Endpoints = []module.EndpointDescriptor{
 		CLIMapping: &module.CLIMapping{Command: "code-facts facts surfaces", Args: []string{"<target>"}},
 	},
 	{
+		ID:          "facts_fleet_imports",
+		Path:        factsconnect.CodeFactsServiceDescribeFleetImportsProcedure,
+		Method:      "POST",
+		Summary:     "Describe fleet import facts",
+		Description: "Returns FACT_FAMILY_IMPORTS reports for many or all scenarios without resolving imports to scenario dependencies.",
+		Category:    "facts",
+		Request: &module.Schema{Type: "object", Properties: map[string]string{
+			"scenarios":       "array<string> (optional, empty means all scenarios)",
+			"limit":           "integer (optional, 0 means no limit, max 500)",
+			"use_cache":       "bool",
+			"repo_root":       "string",
+			"language_filter": "array<string>",
+		}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{
+			"results": "array<CodeFactsResult>",
+		}},
+		Errors:     []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Invalid limit or scenario enumeration failure"}},
+		CLIMapping: &module.CLIMapping{Command: "code-facts facts fleet-imports", Args: []string{"--scenario", "<name>", "--json"}},
+	},
+	{
 		ID:          "facts_proto_adoption",
 		Path:        factsconnect.CodeFactsServiceCheckProtoAdoptionProcedure,
 		Method:      "POST",

@@ -59,6 +59,8 @@ The seams package provides interfaces for external dependencies that vary:
 | `DeploymentReporter` | Deployment analysis | (future) | (future) |
 | `DependencyStore` | Persistence operations | (via store.Store) | `MockStore` |
 | `DependencyDetector` | Dependency detection | (via detection.Detector) | `MockDetector` |
+| `ProtoSurfaceClient` | Batch protobuf surface facts from proto-health | Connect client | Fixture client |
+| `ImportFactsClient` | Batch import facts from code-facts | Connect client | Fixture client |
 
 **Usage:**
 ```go
@@ -111,6 +113,24 @@ mockDetector.SetDetectedResources([]types.ScenarioDependency{...})
 
 **Migration status:** The interface is defined but the concrete Detector doesn't implement it yet due to type constraints (interface methods use `interface{}` while concrete methods use domain types). Future work should create adapter wrappers.
 
+### 3a. Interface Graph Domain (`internal/interfacegraph/`)
+
+**Status: Planned seam**
+
+The actual interface graph must live behind a domain service that depends on two fakeable clients:
+
+| Client | Upstream scenario | Responsibility |
+|--------|-------------------|----------------|
+| `ProtoSurfaceClient` | `proto-health` | Fetch batch proto surfaces and cross-scenario proto import evidence |
+| `ImportFactsClient` | `code-facts` | Fetch batch language-level import facts |
+
+SDA is responsible only for interpreting these facts at the fleet level:
+- Attribute proto and Go import paths to owning scenario slugs.
+- Merge evidence into source->target scenario edges.
+- Compare actual edges against `.vrooli/service.json` declarations.
+
+SDA must not open `.go`, `.ts`, or `.proto` source files for graph evidence; extraction belongs to upstream fact scenarios.
+
 ### 4. Store (`internal/store/`)
 
 **Status: Interface defined, integration in progress**
@@ -139,6 +159,8 @@ mockStore.SetDependencies("my-scenario", map[string]interface{}{
 ```
 
 **Migration status:** Similar to DependencyDetector, the interface uses `interface{}` for type independence. Future work should create typed adapter wrappers or update consuming code to work through the seams.
+
+**Storage migration direction:** Store remains a seam while the substrate moves from Postgres to SQLite. Domain-owned schema providers should keep callers on the existing store/service interfaces while SQL details move behind the repository layer.
 
 ### 5. Deployment Package (`internal/deployment/`)
 

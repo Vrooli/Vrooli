@@ -313,6 +313,120 @@ func (s *Service) DescribeScenarioProtos(_ context.Context, scenario string) (pr
 	return s.loader.LoadScenario(scenario)
 }
 
+func (s *Service) DescribeScenariosProtos(_ context.Context, scenarios []string, limit int32, stabilityFilter string) ([]SurfaceResult, error) {
+	if s.loader == nil {
+		return nil, fmt.Errorf("proto surface loader is not configured")
+	}
+	if limit < 0 || limit > 500 {
+		return nil, fmt.Errorf("limit must be between 0 and 500")
+	}
+	scenarios = normalizeScenarios(scenarios)
+	if len(scenarios) == 0 {
+		listed, err := s.loader.ListScenarios()
+		if err != nil {
+			return nil, err
+		}
+		scenarios = listed
+	}
+	if limit > 0 && len(scenarios) > int(limit) {
+		scenarios = scenarios[:limit]
+	}
+	results := make([]SurfaceResult, 0, len(scenarios))
+	for _, scenario := range scenarios {
+		surface, err := s.loader.LoadScenario(scenario)
+		result := SurfaceResult{Scenario: scenario}
+		if err != nil {
+			result.Error = err.Error()
+		} else {
+			result.Surface = filterSurfaceByStability(surface, strings.TrimSpace(stabilityFilter))
+		}
+		results = append(results, result)
+	}
+	return results, nil
+}
+
+func normalizeScenarios(in []string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, scenario := range in {
+		scenario = strings.TrimSpace(scenario)
+		if scenario == "" || seen[scenario] {
+			continue
+		}
+		seen[scenario] = true
+		out = append(out, scenario)
+	}
+	return out
+}
+
+func filterSurfaceByStability(surface protosurface.Surface, stability string) protosurface.Surface {
+	if stability == "" {
+		return surface
+	}
+	keptFiles := map[string]bool{}
+	filtered := surface
+	filtered.Files = nil
+	for _, file := range surface.Files {
+		if file.Stability != stability {
+			continue
+		}
+		filtered.Files = append(filtered.Files, file)
+		keptFiles[file.Path] = true
+	}
+	filtered.Services = nil
+	for _, service := range surface.Services {
+		if keptFiles[service.FilePath] {
+			filtered.Services = append(filtered.Services, service)
+		}
+	}
+	filtered.Messages = nil
+	for _, message := range surface.Messages {
+		if keptFiles[message.FilePath] {
+			filtered.Messages = append(filtered.Messages, message)
+		}
+	}
+	filtered.IntraScenarioImports = nil
+	for _, imp := range surface.IntraScenarioImports {
+		if keptFiles[imp.FromFile] {
+			filtered.IntraScenarioImports = append(filtered.IntraScenarioImports, imp)
+		}
+	}
+	filtered.CrossScenarioImports = nil
+	for _, imp := range surface.CrossScenarioImports {
+		if keptFiles[imp.FromFile] {
+			filtered.CrossScenarioImports = append(filtered.CrossScenarioImports, imp)
+		}
+	}
+	filtered.RESTExceptionRefs = nil
+	for _, ref := range surface.RESTExceptionRefs {
+		if ref.Domain == "" || domainHasKeptFile(surface, keptFiles, ref.Domain) {
+			filtered.RESTExceptionRefs = append(filtered.RESTExceptionRefs, ref)
+		}
+	}
+	filtered.RESTExceptions = nil
+	for _, endpoint := range surface.RESTExceptions {
+		if endpoint.Domain == "" || domainHasKeptFile(surface, keptFiles, endpoint.Domain) {
+			filtered.RESTExceptions = append(filtered.RESTExceptions, endpoint)
+		}
+	}
+	filtered.RESTExceptionPayloads = nil
+	for _, payload := range surface.RESTExceptionPayloads {
+		if payload.Domain == "" || domainHasKeptFile(surface, keptFiles, payload.Domain) {
+			filtered.RESTExceptionPayloads = append(filtered.RESTExceptionPayloads, payload)
+		}
+	}
+	return filtered
+}
+
+func domainHasKeptFile(surface protosurface.Surface, keptFiles map[string]bool, domain string) bool {
+	for _, file := range surface.Files {
+		if file.Domain == domain && keptFiles[file.Path] {
+			return true
+		}
+	}
+	return false
+}
+
 func checkCycles(surface protosurface.Surface) []Finding {
 	graph := map[string][]string{}
 	for _, f := range surface.Files {

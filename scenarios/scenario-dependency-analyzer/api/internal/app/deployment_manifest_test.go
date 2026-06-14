@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"scenario-dependency-analyzer/internal/deployment"
 	"testing"
 	"time"
+
+	"scenario-dependency-analyzer/internal/deployment"
 
 	types "scenario-dependency-analyzer/internal/types"
 )

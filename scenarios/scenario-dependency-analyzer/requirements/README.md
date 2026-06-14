@@ -17,3 +17,10 @@ Organize requirement modules by PRD operational targets, keeping the filesystem 
 - Never add compatibility shims (duplicate folders or alias imports) during migrations—let things fail temporarily instead of adding debt.
 - Manual validations are a temporary escape hatch; if you must use one, record it with `vrooli scenario requirements manual-log <scenario> <REQ-ID>` so drift detection knows when it expires, then replace it with Vrooli Ascension workflows (`docs/testing/guides/ui-automation-with-bas.md`) or other automated phases so `scenario status` stays green.
 - Keep this README under 100 lines and link to shared docs (`docs/testing/guides/requirement-tracking-quick-start.md`) for schema details.
+
+## Current Operational Targets
+
+- Actual interface graph: compute scenario edges from upstream proto/import facts, not SDA source scanning.
+- Drift accuracy: compare declared `service.json` scenario dependencies with actual evidence and preserve asymmetric severity.
+- Programmatic seam: expose `DescribeInterfaceGraph` and CLI JSON commands for planners and test-genie.
+- Storage cutover: keep derived graph on demand while moving history-bearing records to SQLite domain schemas.

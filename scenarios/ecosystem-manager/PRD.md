@@ -13,19 +13,19 @@
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [ ] OT-P0-001 | Unified task queue | Create/track all four operation types from one surface with real-time WebSocket updates.
-- [ ] OT-P0-002 | Closed-loop autosteer | Diagnose findings → select skill → execute via agent-manager → re-measure → terminate on objective/diminishing-returns/budget.
-- [ ] OT-P0-003 | Settings control | Persisted slots/cooldown/agent settings governing queue concurrency, with validated partial updates and side-effects on the processor.
+- [x] OT-P0-001 | Unified task queue | Create/track all four operation types from one surface with real-time WebSocket updates.
+- [x] OT-P0-002 | Closed-loop autosteer | Diagnose findings → select skill → execute via agent-manager → re-measure → terminate on objective/diminishing-returns/budget.
+- [x] OT-P0-003 | Settings control | Persisted slots/cooldown/agent settings governing queue concurrency, with validated partial updates and side-effects on the processor.
 - [ ] OT-P0-004 | Health + recovery | `/health` on the root router, stale-task recovery on startup, automatic WebSocket reconnection.
 - [ ] OT-P0-005 | Template conformance | EM itself passes the react-vite template standards/docs gates so it can be the migration reference for the rest of the fleet.
 - [ ] OT-P0-006 | Shadow-safe improvement | Autosteer engagements run against a baseline shadow (start/promote/abandon via git-control-tower), routing agent runs **and measurement** to the shadow so edits and audits never leak to the live instance.
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Connect-RPC transport | Migrate domains off hand-rolled REST/Zod onto proto-first Connect-RPC, one domain at a time (discovery is the reference).
-- [ ] OT-P1-002 | Cross-type intelligence | Dependency analysis flags affected scenarios/resources and feeds smart prioritization.
-- [ ] OT-P1-003 | Effectiveness transparency | Per-(skill, dimension) ledger + decision trace exposed via API/CLI/UI as a glass box.
-- [ ] OT-P1-004 | Temporal-flow verification | Model the queue/task state machine with `flow-verifier` (Quint) and gate transitions.
-- [ ] OT-P1-005 | Toolchain trust/cost priors | development-toolchain-validator fitness snapshots seed selection priors and a Layer-1 eligibility gate vetoes red skills, failing open when DTV is degraded.
+- [x] OT-P1-002 | Cross-type intelligence | Dependency analysis flags affected scenarios/resources and feeds smart prioritization.
+- [x] OT-P1-003 | Effectiveness transparency | Per-(skill, dimension) ledger + decision trace exposed via API/CLI/UI as a glass box.
+- [x] OT-P1-004 | Temporal-flow verification | Model the queue/task state machine with `flow-verifier` (Quint) and gate transitions.
+- [x] OT-P1-005 | Toolchain trust/cost priors | development-toolchain-validator fitness snapshots seed selection priors and a Layer-1 eligibility gate vetoes red skills, failing open when DTV is degraded.
 - [ ] OT-P1-006 | Fleet autosteer | Point EM's loop at other old-template scenarios and have it steer them to maturity unattended, with importance-aware scheduling across the fleet.
 
 ### 🟢 P2 – Future / expansion

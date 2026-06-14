@@ -2,11 +2,67 @@
 
 ## Overview
 
-The Scenario Dependency Analyzer API provides programmatic access to dependency analysis, graph generation, deployment readiness assessment, and metadata gap detection for Vrooli scenarios.
+The Scenario Dependency Analyzer API provides programmatic access to dependency analysis, graph generation, deployment readiness assessment, metadata gap detection, and actual cross-scenario interface graph data for Vrooli scenarios.
 
 **Base URL**: `http://localhost:{API_PORT}/api/v1`
 **Default Port**: Dynamically assigned (use `vrooli scenario port scenario-dependency-analyzer API_PORT`)
 **Content-Type**: `application/json`
+
+The legacy REST endpoints remain for the existing UI and operators. New programmatic graph consumers should use the Connect RPC surface described below.
+
+---
+
+## Connect Surface
+
+### `vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraphService.DescribeInterfaceGraph`
+
+Describe the actual cross-scenario interface graph computed on demand from `proto-health` and `code-facts`.
+
+**Request**:
+```json
+{
+  "scenarios": ["scenario-dependency-analyzer"],
+  "limit": 0,
+  "stabilityFilter": "stable",
+  "languageFilter": ["go"]
+}
+```
+
+**Response**:
+```json
+{
+  "graph": {
+    "nodes": [
+      {
+        "scenario": "scenario-dependency-analyzer"
+      }
+    ],
+    "edges": [
+      {
+        "fromScenario": "scenario-dependency-analyzer",
+        "toScenario": "proto-health",
+        "evidence": [
+          {
+            "source": "EVIDENCE_SOURCE_PROTO_IMPORT",
+            "toFile": "proto-health/v1/shared/surface.proto"
+          }
+        ],
+        "transportWorld": "connect",
+        "stability": ["stable"]
+      }
+    ],
+    "errors": [
+      {
+        "source": "code-facts",
+        "scenario": "example",
+        "message": "upstream fact collection error"
+      }
+    ]
+  }
+}
+```
+
+**Boundary**: SDA does not scan source files for this graph. It consumes proto facts from `proto-health`, import facts from `code-facts`, and only performs fleet-level attribution. Drift comparison remains available through `GET /api/v1/drift` and the `drift` CLI command.
 
 ---
 

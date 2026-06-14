@@ -13,12 +13,30 @@ import (
 )
 
 type fakeLoader struct {
-	surface protosurface.Surface
-	err     error
+	surface   protosurface.Surface
+	surfaces  map[string]protosurface.Surface
+	err       error
+	errors    map[string]error
+	scenarios []string
 }
 
-func (f fakeLoader) LoadScenario(string) (protosurface.Surface, error) {
+func (f fakeLoader) LoadScenario(scenario string) (protosurface.Surface, error) {
+	if f.errors != nil && f.errors[scenario] != nil {
+		return protosurface.Surface{}, f.errors[scenario]
+	}
+	if f.surfaces != nil {
+		if surface, ok := f.surfaces[scenario]; ok {
+			return surface, nil
+		}
+	}
 	return f.surface, f.err
+}
+
+func (f fakeLoader) ListScenarios() ([]string, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	return append([]string{}, f.scenarios...), nil
 }
 
 type fakeGenSyncChecker struct {
@@ -538,6 +556,94 @@ func TestDescribeScenarioProtosReturnsSurface(t *testing.T) {
 	got, err := svc.DescribeScenarioProtos(context.Background(), "demo")
 	require.NoError(t, err)
 	require.Equal(t, surface, got)
+}
+
+func TestDescribeScenariosProtosUsesExplicitSubset(t *testing.T) {
+	demo := cleanSurface()
+	demo.Scenario = "demo"
+	other := cleanSurface()
+	other.Scenario = "other"
+	svc := New(Deps{Loader: fakeLoader{
+		surfaces: map[string]protosurface.Surface{
+			"demo":  demo,
+			"other": other,
+		},
+	}})
+
+	results, err := svc.DescribeScenariosProtos(context.Background(), []string{"demo", "other", "demo", ""}, 0, "")
+	require.NoError(t, err)
+	require.Len(t, results, 2)
+	require.Equal(t, "demo", results[0].Scenario)
+	require.Equal(t, demo, results[0].Surface)
+	require.Equal(t, "other", results[1].Scenario)
+	require.Equal(t, other, results[1].Surface)
+}
+
+func TestDescribeScenariosProtosListsAllAndAppliesLimit(t *testing.T) {
+	svc := New(Deps{Loader: fakeLoader{
+		scenarios: []string{"alpha", "beta", "gamma"},
+		surfaces: map[string]protosurface.Surface{
+			"alpha": {Scenario: "alpha"},
+			"beta":  {Scenario: "beta"},
+			"gamma": {Scenario: "gamma"},
+		},
+	}})
+
+	results, err := svc.DescribeScenariosProtos(context.Background(), nil, 2, "")
+	require.NoError(t, err)
+	require.Len(t, results, 2)
+	require.Equal(t, "alpha", results[0].Scenario)
+	require.Equal(t, "beta", results[1].Scenario)
+}
+
+func TestDescribeScenariosProtosIsolatesPerScenarioErrors(t *testing.T) {
+	svc := New(Deps{Loader: fakeLoader{
+		surfaces: map[string]protosurface.Surface{
+			"ok": {Scenario: "ok"},
+		},
+		errors: map[string]error{
+			"bad": errors.New("no proto files found"),
+		},
+	}})
+
+	results, err := svc.DescribeScenariosProtos(context.Background(), []string{"ok", "bad"}, 0, "")
+	require.NoError(t, err)
+	require.Len(t, results, 2)
+	require.Empty(t, results[0].Error)
+	require.Equal(t, "ok", results[0].Surface.Scenario)
+	require.Equal(t, "bad", results[1].Scenario)
+	require.Equal(t, "no proto files found", results[1].Error)
+	require.Empty(t, results[1].Surface.Scenario)
+}
+
+func TestDescribeScenariosProtosFiltersByStability(t *testing.T) {
+	surface := cleanSurface()
+	surface.Files = append(surface.Files, protosurface.File{
+		Path:      "demo/v1/experimental/preview.proto",
+		Package:   "vrooli.demo.v1.experimental",
+		Version:   "v1",
+		Domain:    "experimental",
+		Stability: "experimental",
+	})
+	surface.Messages = append(surface.Messages,
+		protosurface.Message{FilePath: "demo/v1/experimental/preview.proto", Domain: "experimental", Name: "Preview"},
+	)
+	svc := New(Deps{Loader: fakeLoader{surface: surface}})
+
+	results, err := svc.DescribeScenariosProtos(context.Background(), []string{"demo"}, 0, "experimental")
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Len(t, results[0].Surface.Files, 1)
+	require.Equal(t, "demo/v1/experimental/preview.proto", results[0].Surface.Files[0].Path)
+	require.Len(t, results[0].Surface.Messages, 1)
+	require.Equal(t, "Preview", results[0].Surface.Messages[0].Name)
+}
+
+func TestDescribeScenariosProtosRejectsInvalidLimit(t *testing.T) {
+	svc := New(Deps{Loader: fakeLoader{surface: cleanSurface()}})
+
+	_, err := svc.DescribeScenariosProtos(context.Background(), []string{"demo"}, 501, "")
+	require.ErrorContains(t, err, "limit must be between 0 and 500")
 }
 
 func cleanSurface() protosurface.Surface {

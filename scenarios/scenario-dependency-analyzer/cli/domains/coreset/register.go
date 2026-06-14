@@ -5,6 +5,7 @@ package coreset
 
 import (
 	"fmt"
+
 	"scenario-dependency-analyzer/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"

@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"scenario-dependency-analyzer/internal/config"
 	"sort"
 	"strings"
 	"time"
+
+	"scenario-dependency-analyzer/internal/config"
 
 	types "scenario-dependency-analyzer/internal/types"
 )
@@ -358,7 +359,7 @@ func buildAPIServiceFromFolder(scenarioName, scenarioPath string, folder Detecte
 		},
 		Env: map[string]string{},
 		DataDirs: []string{
-			filepath.ToSlash(filepath.Join("data", folder.Name)),
+			filepath.ToSlash(filepath.Join("runtime", folder.Name)),
 		},
 		LogDir: filepath.ToSlash(filepath.Join("logs", folder.Name)),
 		Ports: &types.BundleSkeletonServicePorts{
@@ -637,7 +638,7 @@ func deriveServiceEnv(cfg *types.ServiceConfig, serviceID string, ports *types.B
 	if serviceID == fmt.Sprintf("%s-api", scenarioName) && prefersSQLite(cfg) {
 		env["BAS_DB_BACKEND"] = "sqlite"
 		if _, ok := env["BAS_SQLITE_PATH"]; !ok {
-			env["BAS_SQLITE_PATH"] = filepath.ToSlash(filepath.Join("${data}", "data", "api", fmt.Sprintf("%s.sqlite", scenarioName)))
+			env["BAS_SQLITE_PATH"] = filepath.ToSlash(filepath.Join("${data}", "api", fmt.Sprintf("%s.sqlite", scenarioName)))
 		}
 	}
 

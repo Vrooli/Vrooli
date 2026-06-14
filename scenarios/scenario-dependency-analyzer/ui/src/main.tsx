@@ -21,7 +21,7 @@ if (
     if (document.referrer) {
       parentOrigin = new URL(document.referrer).origin;
     }
-  } catch (error) {
+  } catch {
     // Fall back to default origin when parsing fails.
   }
 

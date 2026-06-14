@@ -98,4 +98,30 @@ var Endpoints = []module.EndpointDescriptor{
 			{Name: "Describe proto-health", Curl: "curl http://localhost:${API_PORT}/vrooli.proto_health.v1.validation.ProtoHealthService/DescribeScenarioProtos -H 'Content-Type: application/json' -d '{\"scenario\":\"proto-health\"}'"},
 		},
 	},
+	{
+		ID:          "validation_describe_scenarios_protos",
+		Path:        validationconnect.ProtoHealthServiceDescribeScenariosProtosProcedure,
+		Method:      "POST",
+		Summary:     "Describe multiple scenarios' proto surfaces",
+		Description: "Returns independent proto-surface fact results for many or all scenarios so downstream fleet graph consumers can avoid N per-scenario calls.",
+		Category:    "validation",
+		Request: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"scenarios":        "array<string> (optional, empty means all descriptor scenarios)",
+				"limit":            "integer (optional, 0 means no limit, max 500)",
+				"stability_filter": "string (optional, filters returned surface files by @stability)",
+			},
+		},
+		Response: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"results": "array<ProtoSurfaceResult>"},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Invalid limit or descriptor scenario discovery failure"},
+		},
+		Examples: []module.Example{
+			{Name: "Describe selected scenarios", Curl: "curl http://localhost:${API_PORT}/vrooli.proto_health.v1.validation.ProtoHealthService/DescribeScenariosProtos -H 'Content-Type: application/json' -d '{\"scenarios\":[\"proto-health\",\"code-facts\"]}'"},
+		},
+	},
 }

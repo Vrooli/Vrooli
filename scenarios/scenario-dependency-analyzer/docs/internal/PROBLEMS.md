@@ -41,3 +41,26 @@
 3. **Testing**: Fix the test suite to properly wait for API readiness
 4. **UI**: Add WebSocket support for real-time updates during analysis
 5. **Performance**: Add Redis caching layer for frequently accessed dependency data
+
+## Actual Interface Graph Migration (2026-06-13)
+
+### Declared Dependencies Are Not Actual Interface Usage
+**Problem**: SDA historically reported declared dependencies from `service.json` plus local scanner heuristics. That cannot answer whether a scenario actually imports another scenario's protobuf or generated Go client, and it cannot reliably flag `service.json` drift.
+
+**Planned solution**: Consume batch facts from `proto-health` and `code-facts`, attribute import paths to scenario slugs, and expose an on-demand evidence-tagged interface graph.
+
+**Status**: Planned by `scenario-dependency-analyzer-actual-interface-graph-and-import-drift`.
+
+### Scanner Ownership Boundary
+**Problem**: SDA's scanner owns too much language-specific evidence logic. `detectPortCalls` follows obsolete `resolveScenarioPortViaCLI` usage, and `detectCLIReferences` is superseded by Connect/proto imports. Retaining this style would duplicate code-facts and keep dependency evidence brittle.
+
+**Planned solution**: Delete the obsolete/superseded detectors during the graph migration. Keep only interim non-import signals with precise comments until upstream AST facts exist.
+
+**Status**: Planned cleanup.
+
+### Follow-Up: AST Facts for Runtime and CLI Usage
+**Problem**: Runtime `ResolveScenarioURL*` calls and `vrooli scenario run` shell-outs are real cross-scenario usage signals, but they are not import-level evidence and should not be rebuilt as regex scanners inside SDA.
+
+**Follow-up plan**: `scenario-dependency-analyzer-code-evidence-via-ast-facts`
+
+**Scope**: Add AST analyzers in `go-code-graph` and `typescript-code-graph` for modern discovery calls and scenario shell-outs, surface those through `code-facts`, then delete SDA's retained regex detectors and delegate resource-usage detection to fact providers.

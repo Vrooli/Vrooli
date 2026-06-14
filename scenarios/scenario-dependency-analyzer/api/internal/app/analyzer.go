@@ -3,6 +3,7 @@ package app
 import (
 	"database/sql"
 	"fmt"
+
 	"scenario-dependency-analyzer/internal/app/services"
 	"scenario-dependency-analyzer/internal/detection"
 	"scenario-dependency-analyzer/internal/seams"

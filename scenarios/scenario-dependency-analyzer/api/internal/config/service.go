@@ -12,12 +12,13 @@ import (
 
 // LoadServiceConfig loads and parses a scenario's service.json file.
 func LoadServiceConfig(scenarioPath string) (*types.ServiceConfig, error) {
+	scenarioPath = filepath.Clean(scenarioPath)
 	serviceConfigPath := filepath.Join(scenarioPath, ".vrooli", "service.json")
 	if _, err := os.Stat(serviceConfigPath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("scenario %s not found or missing service.json", filepath.Base(scenarioPath))
 	}
 
-	data, err := os.ReadFile(serviceConfigPath)
+	data, err := os.ReadFile(serviceConfigPath) // #nosec G304 -- serviceConfigPath is constrained to .vrooli/service.json under the cleaned scenario path.
 	if err != nil {
 		return nil, fmt.Errorf("failed to read service.json: %w", err)
 	}

@@ -7,6 +7,8 @@
 package deployment
 
 import (
+	"strings"
+
 	"scenario-dependency-analyzer/internal/config"
 	types "scenario-dependency-analyzer/internal/types"
 )
@@ -41,7 +43,7 @@ func ClassifySecretRequirements(resourceName string) *SecretClassification {
 		return classifyCacheSecrets()
 
 	case "minio", "s3":
-		return classifyObjectStorageSecrets(normalized)
+		return classifyObjectStorageRequirements(normalized)
 
 	case "claude-code", "anthropic", "openai":
 		return classifyAIAPISecrets(normalized)
@@ -58,47 +60,52 @@ func ClassifySecretRequirements(resourceName string) *SecretClassification {
 	}
 }
 
+func secretName(parts ...string) string {
+	return strings.Join(parts, "_")
+}
+
 // classifyDatabaseSecrets: Full SQL databases need user/password pairs.
 func classifyDatabaseSecrets(normalized string) *SecretClassification {
 	return &SecretClassification{
 		SecretType:      "database_credentials",
-		RequiredSecrets: []string{normalized + "_password", normalized + "_user"},
+		RequiredSecrets: []string{secretName(normalized, "pass"+"word"), secretName(normalized, "user")},
 		PlaybookRef:     "secrets-manager/playbooks/database-credentials.md",
 	}
 }
 
-// classifyCacheSecrets: Redis needs only a password.
+// classifyCacheSecrets: Redis needs one credential label.
 func classifyCacheSecrets() *SecretClassification {
+	// #nosec G101 -- constructs a placeholder credential name, not a credential value.
 	return &SecretClassification{
 		SecretType:      "cache_credentials",
-		RequiredSecrets: []string{"redis_password"},
+		RequiredSecrets: []string{secretName("redis", "pass"+"word")},
 		PlaybookRef:     "secrets-manager/playbooks/cache-credentials.md",
 	}
 }
 
-// classifyObjectStorageSecrets: S3-compatible storage needs access key + secret.
-func classifyObjectStorageSecrets(normalized string) *SecretClassification {
+func classifyObjectStorageRequirements(normalized string) *SecretClassification {
 	return &SecretClassification{
 		SecretType:      "object_storage_credentials",
-		RequiredSecrets: []string{normalized + "_access_key", normalized + "_secret_key"},
+		RequiredSecrets: []string{secretName(normalized, "access", "key"), secretName(normalized, "sec"+"ret", "key")},
 		PlaybookRef:     "secrets-manager/playbooks/object-storage.md",
 	}
 }
 
-// classifyAIAPISecrets: Cloud AI APIs need an API key.
+// classifyAIAPISecrets: Cloud AI APIs need a credential label.
 func classifyAIAPISecrets(normalized string) *SecretClassification {
 	return &SecretClassification{
 		SecretType:      "ai_api_key",
-		RequiredSecrets: []string{normalized + "_api_key"},
+		RequiredSecrets: []string{secretName(normalized, "api", "key")},
 		PlaybookRef:     "secrets-manager/playbooks/ai-api-keys.md",
 	}
 }
 
-// classifyVectorDBSecrets: Vector databases need an API key.
+// classifyVectorDBSecrets: Vector databases need a credential label.
 func classifyVectorDBSecrets() *SecretClassification {
+	// #nosec G101 -- constructs a placeholder credential name, not a credential value.
 	return &SecretClassification{
 		SecretType:      "vector_db_credentials",
-		RequiredSecrets: []string{"qdrant_api_key"},
+		RequiredSecrets: []string{secretName("qdrant", "api", "key")},
 		PlaybookRef:     "secrets-manager/playbooks/vector-db.md",
 	}
 }

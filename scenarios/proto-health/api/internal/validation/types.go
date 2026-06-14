@@ -67,8 +67,15 @@ type Report struct {
 	Summary  Summary
 }
 
+type SurfaceResult struct {
+	Scenario string
+	Surface  protosurface.Surface
+	Error    string
+}
+
 type SurfaceLoader interface {
 	LoadScenario(scenario string) (protosurface.Surface, error)
+	ListScenarios() ([]string, error)
 }
 
 type GenSyncStatus struct {

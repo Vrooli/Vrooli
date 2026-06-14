@@ -64,7 +64,7 @@ export function useGraphSimulation({
         root.attr("transform", event.transform.toString());
       });
 
-    svg.call(zoom as any);
+    svg.call(zoom);
 
     // Setup gradient for scenario nodes
     const defs = svg.append("defs");

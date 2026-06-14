@@ -676,19 +676,19 @@ func TestLoadConfig(t *testing.T) {
 	t.Run("ValidConfig", func(t *testing.T) {
 		// Save and set required env vars
 		originalPort := os.Getenv("API_PORT")
-		originalDBURL := os.Getenv("DATABASE_URL")
+		originalSQLiteDB := os.Getenv("SQLITE_DB")
 		defer func() {
 			if originalPort != "" {
 				os.Setenv("API_PORT", originalPort)
 			}
-			if originalDBURL != "" {
-				os.Setenv("DATABASE_URL", originalDBURL)
+			if originalSQLiteDB != "" {
+				os.Setenv("SQLITE_DB", originalSQLiteDB)
 			}
 		}()
 
 		// Set test values
 		os.Setenv("API_PORT", "8080")
-		os.Setenv("DATABASE_URL", "postgres://test:test@localhost/test")
+		os.Setenv("SQLITE_DB", filepath.Join(t.TempDir(), "scenario-dependency-analyzer.db"))
 
 		// Note: loadConfig calls log.Fatal on error, so we can't easily test
 		// the error paths without refactoring. We'll just verify it works with valid config.
