@@ -1,0 +1,29 @@
+// AUTO-GENERATED - do not edit by hand.
+//
+// Source : src/i18n/locales/en.json
+// Codegen: scripts/gen-strings.mjs
+
+export const strings = {
+  app: {
+    eyebrow: "Scenario Dependency Analyzer",
+    title: "Systems-level intelligence for the Vrooli ecosystem",
+    description: "Explore dependency graphs, assess deployment readiness, and manage scenario metadata with a responsive operational console.",
+  },
+  layout: {
+    sidebarLabel: "Analyzer surfaces",
+    bottomNavLabel: "Analyzer navigation",
+    nav: {
+      orientation: "Orientation",
+      graph: "Dependency Graph",
+      deployment: "Deployment Readiness",
+      catalog: "Scenario Catalog",
+    },
+  },
+  errorBoundary: {
+    title: "The analyzer UI hit an unexpected error.",
+    message: "Retry the current view. If the error persists, check the scenario logs.",
+    retry: "Retry",
+  },
+} as const;
+
+export type Strings = typeof strings;

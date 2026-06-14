@@ -1,0 +1,70 @@
+{
+  "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "scenario-dependency-analyzer",
+  "description": "Governance manifest for the Scenario Dependency Analyzer CLI. Runtime command registration is still code-backed during the React-Vite migration; this manifest declares the Connect-backed surface first and documents deferred legacy command coverage.",
+  "groups": [
+    {
+      "name": "graph",
+      "description": "Actual scenario interface graph operations",
+      "commands": [
+        {
+          "name": "actual",
+          "description": "Describe the actual scenario interface graph using the generated Connect contract",
+          "flags": [
+            {
+              "name": "format",
+              "description": "Output format",
+              "default": "json"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "InterfaceGraphService",
+            "method": "DescribeInterfaceGraph"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": [
+      {
+        "domain": "scenario_dependencies",
+        "stateful": true,
+        "reason": "Dependency edges are persisted in SQLite and need a dedicated future count/table measure RPC; the current graph actual command returns a nested graph contract rather than a measures-shaped result."
+      },
+      {
+        "domain": "scenario_metadata",
+        "stateful": true,
+        "reason": "Scenario metadata is persisted in SQLite and currently exposed through legacy REST/CLI commands; Connect measure coverage is deferred to the catalog contract migration."
+      },
+      {
+        "domain": "optimization_recommendations",
+        "stateful": true,
+        "reason": "Optimization recommendations are persisted analysis outputs; Connect measure coverage is deferred to the optimization contract migration."
+      }
+    ],
+    "omitted": [
+      {
+        "domain": "scenario_dependencies",
+        "reason": "The graph actual command is the current read surface, but it returns a nested interface graph instead of a measure-shaped scalar/table. Add a dedicated Count/ListScenarioDependencies Connect RPC before removing this waiver."
+      },
+      {
+        "domain": "scenario_metadata",
+        "reason": "Catalog/scenarios commands are still REST-backed compatibility surfaces during Phase 4."
+      },
+      {
+        "domain": "optimization_recommendations",
+        "reason": "Optimization commands are still REST-backed compatibility surfaces during Phase 4."
+      }
+    ]
+  },
+  "omitted": []
+}

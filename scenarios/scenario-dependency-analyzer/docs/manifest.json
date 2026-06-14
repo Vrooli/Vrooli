@@ -207,6 +207,36 @@
             "implemented"
           ],
           "completion": "required"
+        },
+        {
+          "path": "api.md",
+          "docType": "api-reference-legacy",
+          "title": "Detailed API Reference",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "cli.md",
+          "docType": "cli-reference-legacy",
+          "title": "Detailed CLI Reference",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
+        },
+        {
+          "path": "manifest.json",
+          "docType": "docs-manifest",
+          "title": "Documentation Manifest",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
         }
       ]
     },
@@ -223,6 +253,16 @@
             "implemented"
           ],
           "completion": "required"
+        },
+        {
+          "path": "integration.md",
+          "docType": "integration-guide",
+          "title": "Integration Guide",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
         }
       ]
     },
@@ -330,6 +370,26 @@
           "path": "internal/TESTING.md",
           "docType": "testing",
           "title": "Testing",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/COHERENCE-NOTES.md",
+          "docType": "coherence-notes",
+          "title": "Coherence Notes",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "internal/EXPERIENCE-AUDIT.md",
+          "docType": "experience-audit",
+          "title": "Experience Audit",
           "maturity": "active",
           "requiredBy": [
             "implemented"

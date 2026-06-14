@@ -45,7 +45,7 @@ scenario-dependency-analyzer analyze chart-generator
 # Show deployment readiness for a scenario
 scenario-dependency-analyzer deployment chart-generator
 
-# Export recursive dependency DAG (NEW!)
+# Export recursive dependency DAG
 scenario-dependency-analyzer dag export chart-generator --recursive
 
 # Scan and optionally apply inferred dependencies
@@ -57,10 +57,10 @@ scenario-dependency-analyzer analyze all
 # Generate declared dependency graph
 scenario-dependency-analyzer graph combined --format json
 
-# Generate actual interface graph (planned Connect-backed seam)
+# Generate actual interface graph through the Connect-backed seam
 scenario-dependency-analyzer graph actual --json
 
-# Report declared-vs-actual scenario dependency drift (planned)
+# Report declared-vs-actual scenario dependency drift
 scenario-dependency-analyzer drift scenario-dependency-analyzer --json
 
 # Analyze proposed scenario
@@ -71,8 +71,8 @@ scenario-dependency-analyzer help
 ```
 
 #### Web Interface
-Access the interactive dependency graph visualization and catalog at:
-`http://localhost:20401`
+Access the interactive dependency graph visualization and catalog at the `UI_PORT`
+reported by `vrooli scenario status scenario-dependency-analyzer`.
 
 Features:
 - Real-time dependency graph visualization
@@ -87,36 +87,38 @@ Features:
 
 #### API Endpoints
 ```bash
+API_PORT=$(vrooli scenario port scenario-dependency-analyzer API_PORT)
+
 # List scenarios + metadata
-curl http://localhost:20400/api/v1/scenarios
+curl "http://localhost:${API_PORT}/api/v1/scenarios"
 
 # Get stored detail for a scenario
-curl http://localhost:20400/api/v1/scenarios/chart-generator
+curl "http://localhost:${API_PORT}/api/v1/scenarios/chart-generator"
 
 # Trigger scan (set apply=true to update service.json automatically)
-curl -X POST http://localhost:20400/api/v1/scenarios/chart-generator/scan \
+curl -X POST "http://localhost:${API_PORT}/api/v1/scenarios/chart-generator/scan" \
   -H "Content-Type: application/json" \
   -d '{"apply":false}'
 
 # Get scenario dependencies
-curl http://localhost:20400/api/v1/scenarios/chart-generator/dependencies
+curl "http://localhost:${API_PORT}/api/v1/scenarios/chart-generator/dependencies"
 
 # Generate declared dependency graph
-curl http://localhost:20400/api/v1/graph/combined
+curl "http://localhost:${API_PORT}/api/v1/graph/combined"
 
-# Describe actual interface graph (planned Connect RPC)
+# Describe actual interface graph through Connect RPC
 # /vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraphService/DescribeInterfaceGraph
 
 # Analyze proposed scenario
-curl -X POST http://localhost:20400/api/v1/analyze/proposed \
+curl -X POST "http://localhost:${API_PORT}/api/v1/analyze/proposed" \
   -H "Content-Type: application/json" \
   -d '{"name":"test","description":"Database-driven AI scenario","requirements":["postgres"]}'
 
-# Export recursive DAG (NEW!)
-curl "http://localhost:20400/api/v1/scenarios/chart-generator/dag/export?recursive=true"
+# Export recursive DAG
+curl "http://localhost:${API_PORT}/api/v1/scenarios/chart-generator/dag/export?recursive=true"
 ```
 
-**NEW Features (2025-01-22)**:
+**Dependency Deployment Features**:
 - **📊 Recursive DAG Export**: Full dependency tree with metadata gaps via `/dag/export` endpoint and `dag export` CLI command
 - **🔍 Metadata Gap Analysis**: Automatic detection of missing deployment metadata across dependency trees
 - **📚 Comprehensive Documentation**: See `docs/api.md` and `docs/integration.md` for full API reference and integration patterns
@@ -251,7 +253,8 @@ vrooli scenario test scenario-dependency-analyzer
 
 # Test specific components
 ./cli/scenario-dependency-analyzer analyze scenario-dependency-analyzer
-curl http://localhost:20400/health
+API_PORT=$(vrooli scenario port scenario-dependency-analyzer API_PORT)
+curl "http://localhost:${API_PORT}/health"
 ```
 
 ## 🤝 Integration with Other Scenarios

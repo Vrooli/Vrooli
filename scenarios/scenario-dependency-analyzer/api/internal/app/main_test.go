@@ -70,6 +70,18 @@ func TestAnalysisHealthHandler(t *testing.T) {
 			t.Errorf("Expected status 'healthy' or 'degraded', got %v", status)
 		}
 
+		if response["service"] != "scenario-dependency-analyzer-api" {
+			t.Errorf("Expected service 'scenario-dependency-analyzer-api', got %v", response["service"])
+		}
+
+		if _, ok := response["timestamp"].(string); !ok {
+			t.Errorf("Expected timestamp string")
+		}
+
+		if _, ok := response["readiness"].(bool); !ok {
+			t.Errorf("Expected readiness boolean")
+		}
+
 		capabilities, ok := response["capabilities"].([]interface{})
 		if !ok {
 			t.Errorf("Expected capabilities array")

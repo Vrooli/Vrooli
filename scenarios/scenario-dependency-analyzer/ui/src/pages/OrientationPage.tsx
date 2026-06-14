@@ -2,6 +2,7 @@ import { AlertCircle, ArrowRight, BarChart3, Compass, Network, Shield, MousePoin
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
+import { statusTone } from "../theme/status";
 
 interface OrientationPageProps {
   onAnalyzeAll: () => void;
@@ -24,8 +25,8 @@ export function OrientationPage({
 }: OrientationPageProps) {
   const statusBadge = (() => {
     if (apiHealthy === null) return <Badge variant="secondary">Health: checking…</Badge>;
-    if (apiHealthy) return <Badge className="bg-green-500/20 text-green-100 border-green-500/50">Health: OK</Badge>;
-    return <Badge className="bg-red-500/20 text-red-100 border-red-500/50">Health: API unreachable</Badge>;
+    if (apiHealthy) return <Badge className={statusTone("success").badge}>Health: OK</Badge>;
+    return <Badge className={statusTone("danger").badge}>Health: API unreachable</Badge>;
   })();
 
   return (

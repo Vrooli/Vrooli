@@ -42,6 +42,17 @@
       "issues": "https://github.com/Vrooli/Vrooli/issues"
     }
   },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "0.0.0"
+    },
+    "migration": {
+      "status": "in-progress",
+      "plan": "/home/matthalloran8/.vrooli/plans/scenario-dependency-analyzer-react-vite-1-1-migration.md",
+      "notes": "Template provenance is declared so validators can run. Version remains 0.0.0 until the React-Vite 1.0.0 and 1.1.0 migration checklists are complete."
+    }
+  },
   "ports": {
     "api": {
       "env_var": "API_PORT",
@@ -136,7 +147,7 @@
         },
         {
           "name": "build-ui",
-          "run": "cd ui && npm run build",
+          "run": "cd ui && pnpm run build",
           "description": "Build production UI bundle"
         },
         {

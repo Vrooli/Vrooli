@@ -105,16 +105,25 @@ func (h *handler) getCoreSet(c *gin.Context) {
 
 func (h *handler) analysisHealth(c *gin.Context) {
 	graphSvc := h.graphService()
+	timestamp := time.Now().UTC().Format(time.RFC3339)
 	if _, err := graphSvc.GenerateGraph("combined"); err != nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"status": "unhealthy",
-			"error":  "Analysis capability test failed",
+			"status":    "unhealthy",
+			"service":   "scenario-dependency-analyzer-api",
+			"timestamp": timestamp,
+			"readiness": false,
+			"version":   "1.0.0",
+			"error":     "Analysis capability test failed",
 		})
 		return
 	}
 
 	payload := gin.H{
 		"status":       "healthy",
+		"service":      "scenario-dependency-analyzer-api",
+		"timestamp":    timestamp,
+		"readiness":    true,
+		"version":      "1.0.0",
 		"capabilities": []string{"dependency_analysis", "graph_generation"},
 	}
 

@@ -34,6 +34,52 @@
 3. **Circular Dependency Detection**: Graph algorithms exist in code but not fully integrated
 4. **Historical Tracking**: Database tables exist but no automatic tracking implemented
 
+## React-Vite 1.1 Migration Baseline (2026-06-14)
+
+### Template Provenance Missing
+**Problem**: `.vrooli/service.json` did not declare `generation.template.id`, so `ui-health validate scenario scenario-dependency-analyzer` skipped template-aware validation.
+**Status**: In progress. Provenance is now declared with template version `0.0.0`; do not advance to `1.0.0` or `1.1.0` until those migration checklists are complete.
+
+### CLI Manifest Missing
+**Problem**: `cli-health validate scenario scenario-dependency-analyzer` reports `manifest.missing` for `cli/manifest.json`.
+**Status**: Fixed for governance coverage. `cli/manifest.json` now declares the Connect-backed `graph actual` surface and `cli-health validate scenario scenario-dependency-analyzer` passes. Runtime command registration remains code-backed until a later manifest-loaded CLI migration.
+
+### UI Architecture Drift
+**Problem**: The UI still uses a monolithic `App.tsx` tab shell and custom server-state hooks rather than the template's providers, router, layout, React Query, selectors, i18n, theme, and test harness architecture.
+**Status**: Partially fixed. The UI now has template slot layout scaffolding, React Router path navigation, selectors, generated strings scaffolding, theme/test/api/i18n slots, an ErrorBoundary, concrete feature folders for graph/deployment/catalog, React Query-backed graph/catalog server state, `react-i18next` provider usage, and a Vitest/Testing Library/a11y harness. Remaining UI work is broader test coverage and Phase 6 design-system/token cleanup.
+
+### UI Test Coverage Floor
+**Problem**: `pnpm test:coverage` now runs, but coverage is low because only the first routing/API/ErrorBoundary/a11y harness slice exists.
+**Status**: Partially improved. Route tests now cover graph API failure rendering, graph table node selection and empty-filter states, catalog Scan & Apply mutation behavior, deployment degraded states from metadata gaps/blockers, and deployment scan failure messaging. Pure deployment status-helper tests cover critical/blocked/gap aggregation semantics. DAG export fallback/help behavior and deeper component coverage remain open before enforcing coverage thresholds.
+
+### UI Bundle Size Warning
+**Problem**: `pnpm run build` passes, but Vite reports the main minified JS chunk is above its default 500 kB warning threshold after adding router/query/i18n/test-adjacent runtime dependencies.
+**Status**: Non-blocking. Consider route-level code splitting or an explicit warning threshold after Phase 6 design cleanup.
+
+### UI Server CORS Blocked Browser Smoke Assets
+**Problem**: Browser-driven smoke and Lighthouse phases saw `403 Origin not allowed` for built JS/CSS assets because SDA passed an empty default CORS allow-list to `createScenarioServer`. Direct curl checks without an `Origin` header returned `200 OK`, which masked the issue outside browser execution.
+**Status**: Fixed. `ui/server.js` now defaults `corsOrigins` to `*`, matching the other lifecycle-managed scenario UI servers. Origin-bearing asset requests return `200 OK`, and `vrooli scenario test scenario-dependency-analyzer` passes.
+
+### Documentation Manifest Drift
+**Problem**: `knowledge-observatory docs audit scenario-dependency-analyzer --json` reported top-level `docs/api.md`, `docs/cli.md`, and `docs/integration.md` as orphaned docs, and localhost examples in prose were parsed as unknown machine-readable references.
+**Status**: Fixed. The legacy detailed API/CLI references, integration guide, and manifest are now registered in `docs/manifest.json`; URL prose was reworded to lifecycle-assigned port guidance; `knowledge-observatory docs health scenario-dependency-analyzer --json` now reports `health_score: 1`.
+
+### UI Design-System Debt
+**Problem**: Feature components still contain raw status and palette utility classes, especially in deployment readiness and graph panels.
+**Status**: Improved. Semantic status tones now live in `ui/src/theme/status.ts` and cover the repeated readiness/drift/error states. Deployment status derivation has been extracted into pure helpers, and deployment readiness rendering is now split across intro, summary, status-list, status-badge, and details components. A raw semantic palette inventory over `ui/src/**/*.ts{x}` no longer finds the tracked red/yellow/green/blue/slate/gray/amber/emerald/rose/orange status class families. Remaining design-system work is mostly route chunking and any targeted coverage needed before coverage thresholds are enforced.
+
+### Measures Coverage
+**Problem**: `vrooli scenario test scenario-dependency-analyzer` failed in `phase-measures` because `scenario_dependencies` was a stateful domain with no declared measure or waiver.
+**Status**: Fixed for this migration phase. `measures-health validate scenario scenario-dependency-analyzer` now passes with explicit waivers for `scenario_dependencies`, `scenario_metadata`, and `optimization_recommendations`. The `scenario_dependencies` waiver is intentional because the current graph RPC returns a nested interface graph, not a measure-shaped scalar/table; remove the waiver when a dedicated Count/ListScenarioDependencies Connect RPC exists.
+
+### Runtime Status Drift
+**Problem**: `vrooli scenario status scenario-dependency-analyzer` reports unhealthy even though live `/health`, `/api/v1/health/analysis`, and UI `/health` endpoints return `200 OK`.
+**Status**: Fixed. The runtime health probe was rejecting `/api/v1/health/analysis` because it returned analysis diagnostics without the standard health envelope fields. The endpoint now preserves its diagnostic fields while also returning `service`, `timestamp`, `readiness`, and `version`; after `make restart`, `vrooli scenario status scenario-dependency-analyzer --json` reports `health_status: healthy`.
+
+### Proto Reachability Notes
+**Problem**: `proto-health validate scenario scenario-dependency-analyzer` emits informational `proto.possibly_unused` findings for graph and health messages because the validator does not yet see all served/consumed reachability.
+**Status**: Non-blocking. Keep graph contracts because SDA is the fleet interface graph authority; close reachability evidence during Phase 2.
+
 ## Recommendations for Next Iteration
 
 1. **Priority**: Implement proper resource client libraries instead of exec calls

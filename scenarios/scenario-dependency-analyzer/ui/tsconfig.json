@@ -37,7 +37,13 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "types": ["node"]
+    "types": ["node", "vitest/globals", "@testing-library/jest-dom"],
+    "baseUrl": ".",
+    "paths": {
+      "@bufbuild/protobuf": ["node_modules/@bufbuild/protobuf/dist/cjs/index.d.ts"],
+      "@bufbuild/protobuf/*": ["node_modules/@bufbuild/protobuf/dist/cjs/*/index.d.ts"],
+      "@vrooli/proto-types/*": ["../../../packages/proto/gen/typescript/*"]
+    }
   },
   "include": ["src"],
   "references": [{ "path": "tsconfig.node.json" }]

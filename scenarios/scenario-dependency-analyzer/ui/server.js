@@ -23,7 +23,7 @@ const app = createScenarioServer({
   distDir: path.join(__dirname, "dist"),
   serviceName: "scenario-dependency-analyzer",
   version: process.env.npm_package_version ?? "1.0.0",
-  corsOrigins: process.env.CORS_ORIGINS ?? ""
+  corsOrigins: process.env.CORS_ORIGINS ?? "*"
 });
 
 const normalizedPort = Number.parseInt(uiPort, 10);

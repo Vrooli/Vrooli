@@ -117,7 +117,7 @@ mockDetector.SetDetectedResources([]types.ScenarioDependency{...})
 
 **Status: Planned seam**
 
-The actual interface graph must live behind a domain service that depends on two fakeable clients:
+The actual interface graph must live behind a domain service that depends on fakeable upstream clients:
 
 | Client | Upstream scenario | Responsibility |
 |--------|-------------------|----------------|

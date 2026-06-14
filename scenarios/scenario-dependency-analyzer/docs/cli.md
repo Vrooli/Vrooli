@@ -61,10 +61,10 @@ scenario-dependency-analyzer dag export ecosystem-manager --recursive
 # Generate dependency graph
 scenario-dependency-analyzer graph combined --format json
 
-# Generate the actual import-evidence interface graph (planned)
+# Generate the actual import-evidence interface graph
 scenario-dependency-analyzer graph actual --json
 
-# Report declared-vs-actual drift (planned)
+# Report declared-vs-actual drift
 scenario-dependency-analyzer drift ecosystem-manager --json
 
 # Check deployment readiness
@@ -237,7 +237,7 @@ scenario-dependency-analyzer graph [type] [OPTIONS]
 - `--format <format>` - Output format: json, dot, mermaid (default: json)
 - `--output <file>` - Save output to file
 - `--json` - Force JSON output
-- `--actual` - Use the Connect-backed actual interface graph instead of the stored declared graph (planned)
+- `--actual` - Legacy flag for the Connect-backed actual interface graph; prefer `graph actual --json` for new automation
 
 **Examples:**
 ```bash

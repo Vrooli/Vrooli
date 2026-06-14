@@ -4,7 +4,7 @@
 
 The Scenario Dependency Analyzer API provides programmatic access to dependency analysis, graph generation, deployment readiness assessment, metadata gap detection, and actual cross-scenario interface graph data for Vrooli scenarios.
 
-**Base URL**: `http://localhost:{API_PORT}/api/v1`
+**Base path**: `/api/v1` on the lifecycle-assigned `API_PORT`
 **Default Port**: Dynamically assigned (use `vrooli scenario port scenario-dependency-analyzer API_PORT`)
 **Content-Type**: `application/json`
 
@@ -96,9 +96,13 @@ Comprehensive health check including analysis capabilities.
 ```json
 {
   "status": "healthy",
+  "service": "scenario-dependency-analyzer-api",
+  "timestamp": "2026-06-14T21:28:55Z",
+  "readiness": true,
+  "version": "1.0.0",
   "capabilities": ["dependency_analysis", "graph_generation"],
-  "scenarios_found": 45,
-  "resources_available": 12,
+  "scenarios_found": 1,
+  "resources_available": 2,
   "database_status": "connected"
 }
 ```
