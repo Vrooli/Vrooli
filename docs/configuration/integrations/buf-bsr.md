@@ -82,7 +82,7 @@ The `vrooli auth status` command implements the [`external_sign_in_command`](ext
 
 After the local-plugin switch, the answer is **only when running `make refresh-vendor`**. The refresh script is the single code path that calls `buf export`, which fetches the upstream BSR modules into `path:packages/proto/vendor/`. Anonymous BSR access works for `buf export` until the rate limit kicks in; the token raises the ceiling.
 
-Refresh cadence is "when needed" — typically months between bumps, when consuming code wants a new field from googleapis or a new validate constraint. Run it, commit the updated `vendor/` tree, and `make check` enforces the resulting `gen/` diff is the only churn.
+Refresh cadence is "when needed" — typically months between bumps, when consuming code wants a new field from googleapis or a new validate constraint. Run it, commit the updated `vendor/` tree, and `make verify-committed-gen` enforces the resulting `gen/` diff is the only churn.
 
 ## Related documents
 

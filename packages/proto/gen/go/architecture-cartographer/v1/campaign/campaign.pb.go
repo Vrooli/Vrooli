@@ -1140,11 +1140,18 @@ func (x *ApplyItemResponse) GetItem() *CampaignItem {
 }
 
 type ReauditCampaignRequest struct {
-	state         protoimpl.MessageState    `protogen:"open.v1"`
-	CampaignId    string                    `protobuf:"bytes,1,opt,name=campaign_id,json=campaignId,proto3" json:"campaign_id,omitempty"`
-	Findings      []*v1.ArchitectureFinding `protobuf:"bytes,2,rep,name=findings,proto3" json:"findings,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state      protoimpl.MessageState    `protogen:"open.v1"`
+	CampaignId string                    `protobuf:"bytes,1,opt,name=campaign_id,json=campaignId,proto3" json:"campaign_id,omitempty"`
+	Findings   []*v1.ArchitectureFinding `protobuf:"bytes,2,rep,name=findings,proto3" json:"findings,omitempty"`
+	// covered_sources lists the finding-source tokens (findingid vocabulary,
+	// e.g. "standards", "proto") whose phases actually ran in this audit. A
+	// tracked finding whose source is NOT in this set is left untouched (its
+	// phase did not run, so its absence from `findings` is not evidence it was
+	// fixed). EMPTY means all sources are covered (full-suite semantics) — what
+	// a hand-rolled caller gets by default.
+	CoveredSources []string `protobuf:"bytes,3,rep,name=covered_sources,json=coveredSources,proto3" json:"covered_sources,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ReauditCampaignRequest) Reset() {
@@ -1191,12 +1198,22 @@ func (x *ReauditCampaignRequest) GetFindings() []*v1.ArchitectureFinding {
 	return nil
 }
 
+func (x *ReauditCampaignRequest) GetCoveredSources() []string {
+	if x != nil {
+		return x.CoveredSources
+	}
+	return nil
+}
+
 type ReauditCampaignResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Validated     []*CampaignItem        `protobuf:"bytes,1,rep,name=validated,proto3" json:"validated,omitempty"`
-	StillOpen     []*CampaignItem        `protobuf:"bytes,2,rep,name=still_open,json=stillOpen,proto3" json:"still_open,omitempty"`
-	Regressions   []*CampaignItem        `protobuf:"bytes,3,rep,name=regressions,proto3" json:"regressions,omitempty"`
-	Status        *CampaignStatus        `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Validated   []*CampaignItem        `protobuf:"bytes,1,rep,name=validated,proto3" json:"validated,omitempty"`
+	StillOpen   []*CampaignItem        `protobuf:"bytes,2,rep,name=still_open,json=stillOpen,proto3" json:"still_open,omitempty"`
+	Regressions []*CampaignItem        `protobuf:"bytes,3,rep,name=regressions,proto3" json:"regressions,omitempty"`
+	Status      *CampaignStatus        `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	// not_reaudited are tracked items whose source was not in covered_sources;
+	// their state was left untouched because their phase did not run.
+	NotReaudited  []*CampaignItem `protobuf:"bytes,5,rep,name=not_reaudited,json=notReaudited,proto3" json:"not_reaudited,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1255,6 +1272,13 @@ func (x *ReauditCampaignResponse) GetRegressions() []*CampaignItem {
 func (x *ReauditCampaignResponse) GetStatus() *CampaignStatus {
 	if x != nil {
 		return x.Status
+	}
+	return nil
+}
+
+func (x *ReauditCampaignResponse) GetNotReaudited() []*CampaignItem {
+	if x != nil {
+		return x.NotReaudited
 	}
 	return nil
 }
@@ -1431,17 +1455,19 @@ const file_architecture_cartographer_v1_campaign_campaign_proto_rawDesc = "" +
 	"campaignId\x12\x1b\n" +
 	"\tstable_id\x18\x02 \x01(\tR\bstableId\"c\n" +
 	"\x11ApplyItemResponse\x12N\n" +
-	"\x04item\x18\x01 \x01(\v2:.vrooli.architecture_cartographer.v1.campaign.CampaignItemR\x04item\"\x82\x01\n" +
+	"\x04item\x18\x01 \x01(\v2:.vrooli.architecture_cartographer.v1.campaign.CampaignItemR\x04item\"\xab\x01\n" +
 	"\x16ReauditCampaignRequest\x12\x1f\n" +
 	"\vcampaign_id\x18\x01 \x01(\tR\n" +
 	"campaignId\x12G\n" +
-	"\bfindings\x18\x02 \x03(\v2+.vrooli.architecture.v1.ArchitectureFindingR\bfindings\"\x82\x03\n" +
+	"\bfindings\x18\x02 \x03(\v2+.vrooli.architecture.v1.ArchitectureFindingR\bfindings\x12'\n" +
+	"\x0fcovered_sources\x18\x03 \x03(\tR\x0ecoveredSources\"\xe3\x03\n" +
 	"\x17ReauditCampaignResponse\x12X\n" +
 	"\tvalidated\x18\x01 \x03(\v2:.vrooli.architecture_cartographer.v1.campaign.CampaignItemR\tvalidated\x12Y\n" +
 	"\n" +
 	"still_open\x18\x02 \x03(\v2:.vrooli.architecture_cartographer.v1.campaign.CampaignItemR\tstillOpen\x12\\\n" +
 	"\vregressions\x18\x03 \x03(\v2:.vrooli.architecture_cartographer.v1.campaign.CampaignItemR\vregressions\x12T\n" +
-	"\x06status\x18\x04 \x01(\v2<.vrooli.architecture_cartographer.v1.campaign.CampaignStatusR\x06status\"7\n" +
+	"\x06status\x18\x04 \x01(\v2<.vrooli.architecture_cartographer.v1.campaign.CampaignStatusR\x06status\x12_\n" +
+	"\rnot_reaudited\x18\x05 \x03(\v2:.vrooli.architecture_cartographer.v1.campaign.CampaignItemR\fnotReaudited\"7\n" +
 	"\x14CloseCampaignRequest\x12\x1f\n" +
 	"\vcampaign_id\x18\x01 \x01(\tR\n" +
 	"campaignId\"m\n" +
@@ -1541,28 +1567,29 @@ var file_architecture_cartographer_v1_campaign_campaign_proto_depIdxs = []int32{
 	3,  // 20: vrooli.architecture_cartographer.v1.campaign.ReauditCampaignResponse.still_open:type_name -> vrooli.architecture_cartographer.v1.campaign.CampaignItem
 	3,  // 21: vrooli.architecture_cartographer.v1.campaign.ReauditCampaignResponse.regressions:type_name -> vrooli.architecture_cartographer.v1.campaign.CampaignItem
 	5,  // 22: vrooli.architecture_cartographer.v1.campaign.ReauditCampaignResponse.status:type_name -> vrooli.architecture_cartographer.v1.campaign.CampaignStatus
-	5,  // 23: vrooli.architecture_cartographer.v1.campaign.CloseCampaignResponse.status:type_name -> vrooli.architecture_cartographer.v1.campaign.CampaignStatus
-	6,  // 24: vrooli.architecture_cartographer.v1.campaign.CampaignService.CreateCampaign:input_type -> vrooli.architecture_cartographer.v1.campaign.CreateCampaignRequest
-	8,  // 25: vrooli.architecture_cartographer.v1.campaign.CampaignService.ListCampaigns:input_type -> vrooli.architecture_cartographer.v1.campaign.ListCampaignsRequest
-	10, // 26: vrooli.architecture_cartographer.v1.campaign.CampaignService.GetCampaignStatus:input_type -> vrooli.architecture_cartographer.v1.campaign.GetCampaignStatusRequest
-	12, // 27: vrooli.architecture_cartographer.v1.campaign.CampaignService.NextCampaignStep:input_type -> vrooli.architecture_cartographer.v1.campaign.NextCampaignStepRequest
-	14, // 28: vrooli.architecture_cartographer.v1.campaign.CampaignService.ResolveItem:input_type -> vrooli.architecture_cartographer.v1.campaign.ResolveItemRequest
-	16, // 29: vrooli.architecture_cartographer.v1.campaign.CampaignService.ApplyItem:input_type -> vrooli.architecture_cartographer.v1.campaign.ApplyItemRequest
-	18, // 30: vrooli.architecture_cartographer.v1.campaign.CampaignService.ReauditCampaign:input_type -> vrooli.architecture_cartographer.v1.campaign.ReauditCampaignRequest
-	20, // 31: vrooli.architecture_cartographer.v1.campaign.CampaignService.CloseCampaign:input_type -> vrooli.architecture_cartographer.v1.campaign.CloseCampaignRequest
-	7,  // 32: vrooli.architecture_cartographer.v1.campaign.CampaignService.CreateCampaign:output_type -> vrooli.architecture_cartographer.v1.campaign.CreateCampaignResponse
-	9,  // 33: vrooli.architecture_cartographer.v1.campaign.CampaignService.ListCampaigns:output_type -> vrooli.architecture_cartographer.v1.campaign.ListCampaignsResponse
-	11, // 34: vrooli.architecture_cartographer.v1.campaign.CampaignService.GetCampaignStatus:output_type -> vrooli.architecture_cartographer.v1.campaign.GetCampaignStatusResponse
-	13, // 35: vrooli.architecture_cartographer.v1.campaign.CampaignService.NextCampaignStep:output_type -> vrooli.architecture_cartographer.v1.campaign.NextCampaignStepResponse
-	15, // 36: vrooli.architecture_cartographer.v1.campaign.CampaignService.ResolveItem:output_type -> vrooli.architecture_cartographer.v1.campaign.ResolveItemResponse
-	17, // 37: vrooli.architecture_cartographer.v1.campaign.CampaignService.ApplyItem:output_type -> vrooli.architecture_cartographer.v1.campaign.ApplyItemResponse
-	19, // 38: vrooli.architecture_cartographer.v1.campaign.CampaignService.ReauditCampaign:output_type -> vrooli.architecture_cartographer.v1.campaign.ReauditCampaignResponse
-	21, // 39: vrooli.architecture_cartographer.v1.campaign.CampaignService.CloseCampaign:output_type -> vrooli.architecture_cartographer.v1.campaign.CloseCampaignResponse
-	32, // [32:40] is the sub-list for method output_type
-	24, // [24:32] is the sub-list for method input_type
-	24, // [24:24] is the sub-list for extension type_name
-	24, // [24:24] is the sub-list for extension extendee
-	0,  // [0:24] is the sub-list for field type_name
+	3,  // 23: vrooli.architecture_cartographer.v1.campaign.ReauditCampaignResponse.not_reaudited:type_name -> vrooli.architecture_cartographer.v1.campaign.CampaignItem
+	5,  // 24: vrooli.architecture_cartographer.v1.campaign.CloseCampaignResponse.status:type_name -> vrooli.architecture_cartographer.v1.campaign.CampaignStatus
+	6,  // 25: vrooli.architecture_cartographer.v1.campaign.CampaignService.CreateCampaign:input_type -> vrooli.architecture_cartographer.v1.campaign.CreateCampaignRequest
+	8,  // 26: vrooli.architecture_cartographer.v1.campaign.CampaignService.ListCampaigns:input_type -> vrooli.architecture_cartographer.v1.campaign.ListCampaignsRequest
+	10, // 27: vrooli.architecture_cartographer.v1.campaign.CampaignService.GetCampaignStatus:input_type -> vrooli.architecture_cartographer.v1.campaign.GetCampaignStatusRequest
+	12, // 28: vrooli.architecture_cartographer.v1.campaign.CampaignService.NextCampaignStep:input_type -> vrooli.architecture_cartographer.v1.campaign.NextCampaignStepRequest
+	14, // 29: vrooli.architecture_cartographer.v1.campaign.CampaignService.ResolveItem:input_type -> vrooli.architecture_cartographer.v1.campaign.ResolveItemRequest
+	16, // 30: vrooli.architecture_cartographer.v1.campaign.CampaignService.ApplyItem:input_type -> vrooli.architecture_cartographer.v1.campaign.ApplyItemRequest
+	18, // 31: vrooli.architecture_cartographer.v1.campaign.CampaignService.ReauditCampaign:input_type -> vrooli.architecture_cartographer.v1.campaign.ReauditCampaignRequest
+	20, // 32: vrooli.architecture_cartographer.v1.campaign.CampaignService.CloseCampaign:input_type -> vrooli.architecture_cartographer.v1.campaign.CloseCampaignRequest
+	7,  // 33: vrooli.architecture_cartographer.v1.campaign.CampaignService.CreateCampaign:output_type -> vrooli.architecture_cartographer.v1.campaign.CreateCampaignResponse
+	9,  // 34: vrooli.architecture_cartographer.v1.campaign.CampaignService.ListCampaigns:output_type -> vrooli.architecture_cartographer.v1.campaign.ListCampaignsResponse
+	11, // 35: vrooli.architecture_cartographer.v1.campaign.CampaignService.GetCampaignStatus:output_type -> vrooli.architecture_cartographer.v1.campaign.GetCampaignStatusResponse
+	13, // 36: vrooli.architecture_cartographer.v1.campaign.CampaignService.NextCampaignStep:output_type -> vrooli.architecture_cartographer.v1.campaign.NextCampaignStepResponse
+	15, // 37: vrooli.architecture_cartographer.v1.campaign.CampaignService.ResolveItem:output_type -> vrooli.architecture_cartographer.v1.campaign.ResolveItemResponse
+	17, // 38: vrooli.architecture_cartographer.v1.campaign.CampaignService.ApplyItem:output_type -> vrooli.architecture_cartographer.v1.campaign.ApplyItemResponse
+	19, // 39: vrooli.architecture_cartographer.v1.campaign.CampaignService.ReauditCampaign:output_type -> vrooli.architecture_cartographer.v1.campaign.ReauditCampaignResponse
+	21, // 40: vrooli.architecture_cartographer.v1.campaign.CampaignService.CloseCampaign:output_type -> vrooli.architecture_cartographer.v1.campaign.CloseCampaignResponse
+	33, // [33:41] is the sub-list for method output_type
+	25, // [25:33] is the sub-list for method input_type
+	25, // [25:25] is the sub-list for extension type_name
+	25, // [25:25] is the sub-list for extension extendee
+	0,  // [0:25] is the sub-list for field type_name
 }
 
 func init() { file_architecture_cartographer_v1_campaign_campaign_proto_init() }

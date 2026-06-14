@@ -245,44 +245,22 @@ message ProjectOrphansDryRun {
 }
 
 // -----------------------------------------------------------------------------
-// `vrooli locks --json` — WriteSuccessFields(w, {locks, registry_claims})
+// `vrooli locks --json` — WriteSuccessFields(w, {registry_claims})
 // -----------------------------------------------------------------------------
 
 // ProjectLocksResponse is the envelope of `vrooli locks --json` (list mode).
-// WriteSuccessFields sets success=true and merges the two fields in.
+// WriteSuccessFields sets success=true and merges the field in.
 message ProjectLocksResponse {
   // Always true for this list-mode envelope (WriteSuccessFields).
   bool success = 1;
 
-  // Legacy port-lock artifacts (diagnostic only); empty if none.
-  repeated ProjectLockInfo locks = 2;
+  // Field 2 carried legacy `.port_<N>.lock` artifacts (ProjectLockInfo);
+  // the file-lock layer was retired in favor of registry claims.
+  reserved 2;
+  reserved "locks";
 
   // Authoritative runtime registry claims; empty if none.
   repeated ProjectRuntimeClaim registry_claims = 3;
-}
-
-// ProjectLockInfo mirrors network.LockInfo (a legacy port-lock artifact).
-message ProjectLockInfo {
-  // Claimed port.
-  int32 port = 1;
-
-  // Owning scenario; empty if unset.
-  string scenario = 2;
-
-  // Owning process ID; 0 if unset.
-  int32 pid = 3;
-
-  // Lock creation time (RFC3339Nano); empty if unset.
-  string timestamp = 4;
-
-  // Path to the lock file.
-  string path = 5;
-
-  // True when the recorded owner process is still running.
-  bool owner_running = 6;
-
-  // True when the lock is considered stale.
-  bool stale = 7;
 }
 
 // ProjectRuntimeClaim mirrors maintenance.RuntimeClaimInfo (a registry claim).
@@ -566,8 +544,9 @@ message ProjectPortDiagnostic {
   // Whether OS-level listener inspection was available.
   ProjectListenerInspection listener_inspection = 5;
 
-  // Legacy lock artifact for the port; absent (null) if none.
-  ProjectLockInfo lock = 6;
+  // Field 6 carried the legacy lock artifact (ProjectLockInfo); retired.
+  reserved 6;
+  reserved "lock";
 
   // Runtime registry claims for the port; empty if none.
   repeated ProjectRuntimeClaim registry_claims = 7;

@@ -93,4 +93,3 @@ message ResourceConfig {
   // Human-readable description from the manifest; empty if unset.
   string description = 3;
 }
-

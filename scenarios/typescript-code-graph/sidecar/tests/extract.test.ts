@@ -168,6 +168,15 @@ export const X = 1;`,
     expect(out.warnings.filter((w) => w.kind === 2).length).toBe(0);
   });
 
+  it("suppresses TypeScript compiler option deprecation diagnostics", () => {
+    const project = inMemoryProject();
+    project.createSourceFile("/proj/src/main.ts", `export const ok = true;`);
+    const out = extract({ projectPath: "/proj", _project: project, _rootDirOverride: "/proj" });
+    expect(out.warnings.some((w) => w.message.includes("is deprecated and will stop functioning in TypeScript"))).toBe(
+      false,
+    );
+  });
+
   it("emits generic import, reference, call, JSX, and export facts", () => {
     const project = inMemoryProject();
     project.createSourceFile(

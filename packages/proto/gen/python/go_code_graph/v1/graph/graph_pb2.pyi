@@ -22,6 +22,7 @@ class GoNodeKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     GO_NODE_KIND_REFERENCE: _ClassVar[GoNodeKind]
     GO_NODE_KIND_CALL: _ClassVar[GoNodeKind]
     GO_NODE_KIND_TYPE_USAGE: _ClassVar[GoNodeKind]
+    GO_NODE_KIND_ROUTE_REGISTRATION: _ClassVar[GoNodeKind]
 GO_NODE_KIND_UNSPECIFIED: GoNodeKind
 GO_NODE_KIND_TYPE: GoNodeKind
 GO_NODE_KIND_FUNC: GoNodeKind
@@ -33,6 +34,7 @@ GO_NODE_KIND_IMPORT_SPEC: GoNodeKind
 GO_NODE_KIND_REFERENCE: GoNodeKind
 GO_NODE_KIND_CALL: GoNodeKind
 GO_NODE_KIND_TYPE_USAGE: GoNodeKind
+GO_NODE_KIND_ROUTE_REGISTRATION: GoNodeKind
 
 class ExtractRequest(_message.Message):
     __slots__ = ("module_path", "include_vendor")

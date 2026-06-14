@@ -418,6 +418,174 @@ func (x *DescribeScenarioProtosResponse) GetSurface() *shared.ProtoSurface {
 	return nil
 }
 
+// DescribeScenariosProtosRequest requests proto surfaces for many scenarios.
+// An empty scenario list means all scenarios present in the descriptor image.
+type DescribeScenariosProtosRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Scenarios       []string               `protobuf:"bytes,1,rep,name=scenarios,proto3" json:"scenarios,omitempty"`
+	Limit           int32                  `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	StabilityFilter string                 `protobuf:"bytes,3,opt,name=stability_filter,json=stabilityFilter,proto3" json:"stability_filter,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *DescribeScenariosProtosRequest) Reset() {
+	*x = DescribeScenariosProtosRequest{}
+	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DescribeScenariosProtosRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DescribeScenariosProtosRequest) ProtoMessage() {}
+
+func (x *DescribeScenariosProtosRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DescribeScenariosProtosRequest.ProtoReflect.Descriptor instead.
+func (*DescribeScenariosProtosRequest) Descriptor() ([]byte, []int) {
+	return file_proto_health_v1_validation_validation_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *DescribeScenariosProtosRequest) GetScenarios() []string {
+	if x != nil {
+		return x.Scenarios
+	}
+	return nil
+}
+
+func (x *DescribeScenariosProtosRequest) GetLimit() int32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *DescribeScenariosProtosRequest) GetStabilityFilter() string {
+	if x != nil {
+		return x.StabilityFilter
+	}
+	return ""
+}
+
+// ProtoSurfaceResult wraps one scenario's surface or per-scenario error.
+type ProtoSurfaceResult struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Surface       *shared.ProtoSurface   `protobuf:"bytes,2,opt,name=surface,proto3" json:"surface,omitempty"`
+	Error         string                 `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProtoSurfaceResult) Reset() {
+	*x = ProtoSurfaceResult{}
+	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProtoSurfaceResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProtoSurfaceResult) ProtoMessage() {}
+
+func (x *ProtoSurfaceResult) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProtoSurfaceResult.ProtoReflect.Descriptor instead.
+func (*ProtoSurfaceResult) Descriptor() ([]byte, []int) {
+	return file_proto_health_v1_validation_validation_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ProtoSurfaceResult) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *ProtoSurfaceResult) GetSurface() *shared.ProtoSurface {
+	if x != nil {
+		return x.Surface
+	}
+	return nil
+}
+
+func (x *ProtoSurfaceResult) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+// DescribeScenariosProtosResponse returns independent per-scenario results.
+type DescribeScenariosProtosResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Results       []*ProtoSurfaceResult  `protobuf:"bytes,1,rep,name=results,proto3" json:"results,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DescribeScenariosProtosResponse) Reset() {
+	*x = DescribeScenariosProtosResponse{}
+	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DescribeScenariosProtosResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DescribeScenariosProtosResponse) ProtoMessage() {}
+
+func (x *DescribeScenariosProtosResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DescribeScenariosProtosResponse.ProtoReflect.Descriptor instead.
+func (*DescribeScenariosProtosResponse) Descriptor() ([]byte, []int) {
+	return file_proto_health_v1_validation_validation_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *DescribeScenariosProtosResponse) GetResults() []*ProtoSurfaceResult {
+	if x != nil {
+		return x.Results
+	}
+	return nil
+}
+
 var File_proto_health_v1_validation_validation_proto protoreflect.FileDescriptor
 
 const file_proto_health_v1_validation_validation_proto_rawDesc = "" +
@@ -445,15 +613,26 @@ const file_proto_health_v1_validation_validation_proto_rawDesc = "" +
 	"\x1dDescribeScenarioProtosRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\"g\n" +
 	"\x1eDescribeScenarioProtosResponse\x12E\n" +
-	"\asurface\x18\x01 \x01(\v2+.vrooli.proto_health.v1.shared.ProtoSurfaceR\asurface*a\n" +
+	"\asurface\x18\x01 \x01(\v2+.vrooli.proto_health.v1.shared.ProtoSurfaceR\asurface\"\x7f\n" +
+	"\x1eDescribeScenariosProtosRequest\x12\x1c\n" +
+	"\tscenarios\x18\x01 \x03(\tR\tscenarios\x12\x14\n" +
+	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12)\n" +
+	"\x10stability_filter\x18\x03 \x01(\tR\x0fstabilityFilter\"\x8d\x01\n" +
+	"\x12ProtoSurfaceResult\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12E\n" +
+	"\asurface\x18\x02 \x01(\v2+.vrooli.proto_health.v1.shared.ProtoSurfaceR\asurface\x12\x14\n" +
+	"\x05error\x18\x03 \x01(\tR\x05error\"r\n" +
+	"\x1fDescribeScenariosProtosResponse\x12O\n" +
+	"\aresults\x18\x01 \x03(\v25.vrooli.proto_health.v1.validation.ProtoSurfaceResultR\aresults*a\n" +
 	"\bSeverity\x12\x18\n" +
 	"\x14SEVERITY_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eSEVERITY_ERROR\x10\x01\x12\x14\n" +
 	"\x10SEVERITY_WARNING\x10\x02\x12\x11\n" +
-	"\rSEVERITY_INFO\x10\x032\xc2\x02\n" +
+	"\rSEVERITY_INFO\x10\x032\xe5\x03\n" +
 	"\x12ProtoHealthService\x12\x8b\x01\n" +
 	"\x10ValidateScenario\x12:.vrooli.proto_health.v1.validation.ValidateScenarioRequest\x1a;.vrooli.proto_health.v1.validation.ValidateScenarioResponse\x12\x9d\x01\n" +
-	"\x16DescribeScenarioProtos\x12@.vrooli.proto_health.v1.validation.DescribeScenarioProtosRequest\x1aA.vrooli.proto_health.v1.validation.DescribeScenarioProtosResponseBYZWgithub.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/validation;validation_v1b\x06proto3"
+	"\x16DescribeScenarioProtos\x12@.vrooli.proto_health.v1.validation.DescribeScenarioProtosRequest\x1aA.vrooli.proto_health.v1.validation.DescribeScenarioProtosResponse\x12\xa0\x01\n" +
+	"\x17DescribeScenariosProtos\x12A.vrooli.proto_health.v1.validation.DescribeScenariosProtosRequest\x1aB.vrooli.proto_health.v1.validation.DescribeScenariosProtosResponseBYZWgithub.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/validation;validation_v1b\x06proto3"
 
 var (
 	file_proto_health_v1_validation_validation_proto_rawDescOnce sync.Once
@@ -468,31 +647,38 @@ func file_proto_health_v1_validation_validation_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_health_v1_validation_validation_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_proto_health_v1_validation_validation_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_proto_health_v1_validation_validation_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_proto_health_v1_validation_validation_proto_goTypes = []any{
-	(Severity)(0),                          // 0: vrooli.proto_health.v1.validation.Severity
-	(*Finding)(nil),                        // 1: vrooli.proto_health.v1.validation.Finding
-	(*Summary)(nil),                        // 2: vrooli.proto_health.v1.validation.Summary
-	(*ValidateScenarioRequest)(nil),        // 3: vrooli.proto_health.v1.validation.ValidateScenarioRequest
-	(*ValidateScenarioResponse)(nil),       // 4: vrooli.proto_health.v1.validation.ValidateScenarioResponse
-	(*DescribeScenarioProtosRequest)(nil),  // 5: vrooli.proto_health.v1.validation.DescribeScenarioProtosRequest
-	(*DescribeScenarioProtosResponse)(nil), // 6: vrooli.proto_health.v1.validation.DescribeScenarioProtosResponse
-	(*shared.ProtoSurface)(nil),            // 7: vrooli.proto_health.v1.shared.ProtoSurface
+	(Severity)(0),                           // 0: vrooli.proto_health.v1.validation.Severity
+	(*Finding)(nil),                         // 1: vrooli.proto_health.v1.validation.Finding
+	(*Summary)(nil),                         // 2: vrooli.proto_health.v1.validation.Summary
+	(*ValidateScenarioRequest)(nil),         // 3: vrooli.proto_health.v1.validation.ValidateScenarioRequest
+	(*ValidateScenarioResponse)(nil),        // 4: vrooli.proto_health.v1.validation.ValidateScenarioResponse
+	(*DescribeScenarioProtosRequest)(nil),   // 5: vrooli.proto_health.v1.validation.DescribeScenarioProtosRequest
+	(*DescribeScenarioProtosResponse)(nil),  // 6: vrooli.proto_health.v1.validation.DescribeScenarioProtosResponse
+	(*DescribeScenariosProtosRequest)(nil),  // 7: vrooli.proto_health.v1.validation.DescribeScenariosProtosRequest
+	(*ProtoSurfaceResult)(nil),              // 8: vrooli.proto_health.v1.validation.ProtoSurfaceResult
+	(*DescribeScenariosProtosResponse)(nil), // 9: vrooli.proto_health.v1.validation.DescribeScenariosProtosResponse
+	(*shared.ProtoSurface)(nil),             // 10: vrooli.proto_health.v1.shared.ProtoSurface
 }
 var file_proto_health_v1_validation_validation_proto_depIdxs = []int32{
-	0, // 0: vrooli.proto_health.v1.validation.Finding.severity:type_name -> vrooli.proto_health.v1.validation.Severity
-	1, // 1: vrooli.proto_health.v1.validation.ValidateScenarioResponse.findings:type_name -> vrooli.proto_health.v1.validation.Finding
-	2, // 2: vrooli.proto_health.v1.validation.ValidateScenarioResponse.summary:type_name -> vrooli.proto_health.v1.validation.Summary
-	7, // 3: vrooli.proto_health.v1.validation.DescribeScenarioProtosResponse.surface:type_name -> vrooli.proto_health.v1.shared.ProtoSurface
-	3, // 4: vrooli.proto_health.v1.validation.ProtoHealthService.ValidateScenario:input_type -> vrooli.proto_health.v1.validation.ValidateScenarioRequest
-	5, // 5: vrooli.proto_health.v1.validation.ProtoHealthService.DescribeScenarioProtos:input_type -> vrooli.proto_health.v1.validation.DescribeScenarioProtosRequest
-	4, // 6: vrooli.proto_health.v1.validation.ProtoHealthService.ValidateScenario:output_type -> vrooli.proto_health.v1.validation.ValidateScenarioResponse
-	6, // 7: vrooli.proto_health.v1.validation.ProtoHealthService.DescribeScenarioProtos:output_type -> vrooli.proto_health.v1.validation.DescribeScenarioProtosResponse
-	6, // [6:8] is the sub-list for method output_type
-	4, // [4:6] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	0,  // 0: vrooli.proto_health.v1.validation.Finding.severity:type_name -> vrooli.proto_health.v1.validation.Severity
+	1,  // 1: vrooli.proto_health.v1.validation.ValidateScenarioResponse.findings:type_name -> vrooli.proto_health.v1.validation.Finding
+	2,  // 2: vrooli.proto_health.v1.validation.ValidateScenarioResponse.summary:type_name -> vrooli.proto_health.v1.validation.Summary
+	10, // 3: vrooli.proto_health.v1.validation.DescribeScenarioProtosResponse.surface:type_name -> vrooli.proto_health.v1.shared.ProtoSurface
+	10, // 4: vrooli.proto_health.v1.validation.ProtoSurfaceResult.surface:type_name -> vrooli.proto_health.v1.shared.ProtoSurface
+	8,  // 5: vrooli.proto_health.v1.validation.DescribeScenariosProtosResponse.results:type_name -> vrooli.proto_health.v1.validation.ProtoSurfaceResult
+	3,  // 6: vrooli.proto_health.v1.validation.ProtoHealthService.ValidateScenario:input_type -> vrooli.proto_health.v1.validation.ValidateScenarioRequest
+	5,  // 7: vrooli.proto_health.v1.validation.ProtoHealthService.DescribeScenarioProtos:input_type -> vrooli.proto_health.v1.validation.DescribeScenarioProtosRequest
+	7,  // 8: vrooli.proto_health.v1.validation.ProtoHealthService.DescribeScenariosProtos:input_type -> vrooli.proto_health.v1.validation.DescribeScenariosProtosRequest
+	4,  // 9: vrooli.proto_health.v1.validation.ProtoHealthService.ValidateScenario:output_type -> vrooli.proto_health.v1.validation.ValidateScenarioResponse
+	6,  // 10: vrooli.proto_health.v1.validation.ProtoHealthService.DescribeScenarioProtos:output_type -> vrooli.proto_health.v1.validation.DescribeScenarioProtosResponse
+	9,  // 11: vrooli.proto_health.v1.validation.ProtoHealthService.DescribeScenariosProtos:output_type -> vrooli.proto_health.v1.validation.DescribeScenariosProtosResponse
+	9,  // [9:12] is the sub-list for method output_type
+	6,  // [6:9] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_proto_health_v1_validation_validation_proto_init() }
@@ -506,7 +692,7 @@ func file_proto_health_v1_validation_validation_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_health_v1_validation_validation_proto_rawDesc), len(file_proto_health_v1_validation_validation_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   6,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

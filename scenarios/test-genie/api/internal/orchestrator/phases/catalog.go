@@ -79,9 +79,10 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		FindingSource:  architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE,
 	})
 	register(Spec{
-		Name:        Dependencies,
-		Runner:      runDependenciesPhase,
-		Description: "Confirms required commands, runtimes, and declared resources are available.",
+		Name:          Dependencies,
+		Runner:        runDependenciesPhase,
+		Description:   "Confirms required commands, runtimes, declared resources, and actual-vs-declared scenario dependency drift.",
+		FindingSource: architecturev1.FindingSource_FINDING_SOURCE_DEPENDENCY,
 	})
 	register(Spec{
 		Name:           Lint,

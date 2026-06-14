@@ -130,6 +130,36 @@ class DescribeCodeFactsRequest(_message.Message):
     use_cache: bool
     def __init__(self, target: _Optional[_Union[CodeTarget, _Mapping]] = ..., include: _Optional[_Iterable[_Union[FactFamily, str]]] = ..., endpoint_ids: _Optional[_Iterable[str]] = ..., command_ids: _Optional[_Iterable[str]] = ..., widget_ids: _Optional[_Iterable[str]] = ..., max_depth: _Optional[int] = ..., use_cache: _Optional[bool] = ...) -> None: ...
 
+class DescribeFleetImportsRequest(_message.Message):
+    __slots__ = ("scenarios", "limit", "use_cache", "repo_root", "language_filter")
+    SCENARIOS_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    USE_CACHE_FIELD_NUMBER: _ClassVar[int]
+    REPO_ROOT_FIELD_NUMBER: _ClassVar[int]
+    LANGUAGE_FILTER_FIELD_NUMBER: _ClassVar[int]
+    scenarios: _containers.RepeatedScalarFieldContainer[str]
+    limit: int
+    use_cache: bool
+    repo_root: str
+    language_filter: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, scenarios: _Optional[_Iterable[str]] = ..., limit: _Optional[int] = ..., use_cache: _Optional[bool] = ..., repo_root: _Optional[str] = ..., language_filter: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class CodeFactsResult(_message.Message):
+    __slots__ = ("scenario", "report", "error")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    REPORT_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    report: CodeFactsReport
+    error: str
+    def __init__(self, scenario: _Optional[str] = ..., report: _Optional[_Union[CodeFactsReport, _Mapping]] = ..., error: _Optional[str] = ...) -> None: ...
+
+class DescribeFleetImportsResponse(_message.Message):
+    __slots__ = ("results",)
+    RESULTS_FIELD_NUMBER: _ClassVar[int]
+    results: _containers.RepeatedCompositeFieldContainer[CodeFactsResult]
+    def __init__(self, results: _Optional[_Iterable[_Union[CodeFactsResult, _Mapping]]] = ...) -> None: ...
+
 class ListSurfacesRequest(_message.Message):
     __slots__ = ("target", "use_cache")
     TARGET_FIELD_NUMBER: _ClassVar[int]

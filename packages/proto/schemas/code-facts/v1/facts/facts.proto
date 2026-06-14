@@ -10,7 +10,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v
 //
 // @layer 5  (api surface)
 // @domain target + surface + facts + proof + cache
-// @stability experimental
+// @stability stable
 //
 // Code Facts is the shared code-evidence broker for Vrooli. It resolves a
 // bounded target, describes scenario/generic surfaces, brokers language graph
@@ -24,17 +24,20 @@ service CodeFactsService {
   // of being omitted.
   rpc DescribeCodeFacts(DescribeCodeFactsRequest) returns (CodeFactsReport) {}
 
+  // DescribeFleetImports returns IMPORTS facts for many or all scenarios.
+  // It stays language-level: import_path attributes are not resolved to
+  // owning scenarios here.
+  rpc DescribeFleetImports(DescribeFleetImportsRequest) returns (DescribeFleetImportsResponse) {}
+
   // ListSurfaces returns the surface inventory portion of DescribeCodeFacts.
   rpc ListSurfaces(ListSurfacesRequest) returns (ListSurfacesResponse) {}
 
-  // CheckProtoAdoption returns proof-family evidence for generated proto
-  // adoption. Phase 6 exposes the contract; later phases add analyzer-backed
-  // proof.
+  // CheckProtoAdoption returns analyzer-backed proof-family evidence for
+  // generated proto adoption.
   rpc CheckProtoAdoption(CheckProtoAdoptionRequest) returns (ProofReport) {}
 
-  // CheckEndpointProof returns proof-family evidence for one endpoint or all
-  // endpoints in a target. Phase 6 exposes the contract; later phases add
-  // analyzer-backed proof.
+  // CheckEndpointProof returns analyzer-backed proof-family evidence for one
+  // endpoint or all endpoints in a target.
   rpc CheckEndpointProof(CheckEndpointProofRequest) returns (ProofReport) {}
 
   // GetCacheStatus returns inspectable cache metadata for a target/options
@@ -117,6 +120,24 @@ message DescribeCodeFactsRequest {
   repeated string widget_ids = 5;
   int32 max_depth = 6;
   bool use_cache = 7;
+}
+
+message DescribeFleetImportsRequest {
+  repeated string scenarios = 1;
+  int32 limit = 2;
+  bool use_cache = 3;
+  string repo_root = 4;
+  repeated string language_filter = 5;
+}
+
+message CodeFactsResult {
+  string scenario = 1;
+  CodeFactsReport report = 2;
+  string error = 3;
+}
+
+message DescribeFleetImportsResponse {
+  repeated CodeFactsResult results = 1;
 }
 
 message ListSurfacesRequest {

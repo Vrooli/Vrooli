@@ -244,6 +244,7 @@ func TestNewFindingPopulatesPerSourceEffort(t *testing.T) {
 		{architecturev1.FindingSource_FINDING_SOURCE_CLI, architecturev1.EffortHint_EFFORT_HINT_SMALL},
 		{architecturev1.FindingSource_FINDING_SOURCE_UI, architecturev1.EffortHint_EFFORT_HINT_SMALL},
 		{architecturev1.FindingSource_FINDING_SOURCE_STANDARDS, architecturev1.EffortHint_EFFORT_HINT_SMALL},
+		{architecturev1.FindingSource_FINDING_SOURCE_DEPENDENCY, architecturev1.EffortHint_EFFORT_HINT_SMALL},
 		{architecturev1.FindingSource_FINDING_SOURCE_STRUCTURE, architecturev1.EffortHint_EFFORT_HINT_LARGE},
 		{architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE, architecturev1.EffortHint_EFFORT_HINT_LARGE},
 	}

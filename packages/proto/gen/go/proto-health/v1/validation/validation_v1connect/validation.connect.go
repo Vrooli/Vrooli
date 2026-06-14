@@ -39,6 +39,9 @@ const (
 	// ProtoHealthServiceDescribeScenarioProtosProcedure is the fully-qualified name of the
 	// ProtoHealthService's DescribeScenarioProtos RPC.
 	ProtoHealthServiceDescribeScenarioProtosProcedure = "/vrooli.proto_health.v1.validation.ProtoHealthService/DescribeScenarioProtos"
+	// ProtoHealthServiceDescribeScenariosProtosProcedure is the fully-qualified name of the
+	// ProtoHealthService's DescribeScenariosProtos RPC.
+	ProtoHealthServiceDescribeScenariosProtosProcedure = "/vrooli.proto_health.v1.validation.ProtoHealthService/DescribeScenariosProtos"
 )
 
 // ProtoHealthServiceClient is a client for the vrooli.proto_health.v1.validation.ProtoHealthService
@@ -46,6 +49,7 @@ const (
 type ProtoHealthServiceClient interface {
 	ValidateScenario(context.Context, *connect.Request[validation.ValidateScenarioRequest]) (*connect.Response[validation.ValidateScenarioResponse], error)
 	DescribeScenarioProtos(context.Context, *connect.Request[validation.DescribeScenarioProtosRequest]) (*connect.Response[validation.DescribeScenarioProtosResponse], error)
+	DescribeScenariosProtos(context.Context, *connect.Request[validation.DescribeScenariosProtosRequest]) (*connect.Response[validation.DescribeScenariosProtosResponse], error)
 }
 
 // NewProtoHealthServiceClient constructs a client for the
@@ -72,13 +76,20 @@ func NewProtoHealthServiceClient(httpClient connect.HTTPClient, baseURL string, 
 			connect.WithSchema(protoHealthServiceMethods.ByName("DescribeScenarioProtos")),
 			connect.WithClientOptions(opts...),
 		),
+		describeScenariosProtos: connect.NewClient[validation.DescribeScenariosProtosRequest, validation.DescribeScenariosProtosResponse](
+			httpClient,
+			baseURL+ProtoHealthServiceDescribeScenariosProtosProcedure,
+			connect.WithSchema(protoHealthServiceMethods.ByName("DescribeScenariosProtos")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // protoHealthServiceClient implements ProtoHealthServiceClient.
 type protoHealthServiceClient struct {
-	validateScenario       *connect.Client[validation.ValidateScenarioRequest, validation.ValidateScenarioResponse]
-	describeScenarioProtos *connect.Client[validation.DescribeScenarioProtosRequest, validation.DescribeScenarioProtosResponse]
+	validateScenario        *connect.Client[validation.ValidateScenarioRequest, validation.ValidateScenarioResponse]
+	describeScenarioProtos  *connect.Client[validation.DescribeScenarioProtosRequest, validation.DescribeScenarioProtosResponse]
+	describeScenariosProtos *connect.Client[validation.DescribeScenariosProtosRequest, validation.DescribeScenariosProtosResponse]
 }
 
 // ValidateScenario calls vrooli.proto_health.v1.validation.ProtoHealthService.ValidateScenario.
@@ -92,11 +103,18 @@ func (c *protoHealthServiceClient) DescribeScenarioProtos(ctx context.Context, r
 	return c.describeScenarioProtos.CallUnary(ctx, req)
 }
 
+// DescribeScenariosProtos calls
+// vrooli.proto_health.v1.validation.ProtoHealthService.DescribeScenariosProtos.
+func (c *protoHealthServiceClient) DescribeScenariosProtos(ctx context.Context, req *connect.Request[validation.DescribeScenariosProtosRequest]) (*connect.Response[validation.DescribeScenariosProtosResponse], error) {
+	return c.describeScenariosProtos.CallUnary(ctx, req)
+}
+
 // ProtoHealthServiceHandler is an implementation of the
 // vrooli.proto_health.v1.validation.ProtoHealthService service.
 type ProtoHealthServiceHandler interface {
 	ValidateScenario(context.Context, *connect.Request[validation.ValidateScenarioRequest]) (*connect.Response[validation.ValidateScenarioResponse], error)
 	DescribeScenarioProtos(context.Context, *connect.Request[validation.DescribeScenarioProtosRequest]) (*connect.Response[validation.DescribeScenarioProtosResponse], error)
+	DescribeScenariosProtos(context.Context, *connect.Request[validation.DescribeScenariosProtosRequest]) (*connect.Response[validation.DescribeScenariosProtosResponse], error)
 }
 
 // NewProtoHealthServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -118,12 +136,20 @@ func NewProtoHealthServiceHandler(svc ProtoHealthServiceHandler, opts ...connect
 		connect.WithSchema(protoHealthServiceMethods.ByName("DescribeScenarioProtos")),
 		connect.WithHandlerOptions(opts...),
 	)
+	protoHealthServiceDescribeScenariosProtosHandler := connect.NewUnaryHandler(
+		ProtoHealthServiceDescribeScenariosProtosProcedure,
+		svc.DescribeScenariosProtos,
+		connect.WithSchema(protoHealthServiceMethods.ByName("DescribeScenariosProtos")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.proto_health.v1.validation.ProtoHealthService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ProtoHealthServiceValidateScenarioProcedure:
 			protoHealthServiceValidateScenarioHandler.ServeHTTP(w, r)
 		case ProtoHealthServiceDescribeScenarioProtosProcedure:
 			protoHealthServiceDescribeScenarioProtosHandler.ServeHTTP(w, r)
+		case ProtoHealthServiceDescribeScenariosProtosProcedure:
+			protoHealthServiceDescribeScenariosProtosHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -139,4 +165,8 @@ func (UnimplementedProtoHealthServiceHandler) ValidateScenario(context.Context, 
 
 func (UnimplementedProtoHealthServiceHandler) DescribeScenarioProtos(context.Context, *connect.Request[validation.DescribeScenarioProtosRequest]) (*connect.Response[validation.DescribeScenarioProtosResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.proto_health.v1.validation.ProtoHealthService.DescribeScenarioProtos is not implemented"))
+}
+
+func (UnimplementedProtoHealthServiceHandler) DescribeScenariosProtos(context.Context, *connect.Request[validation.DescribeScenariosProtosRequest]) (*connect.Response[validation.DescribeScenariosProtosResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.proto_health.v1.validation.ProtoHealthService.DescribeScenariosProtos is not implemented"))
 }

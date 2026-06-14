@@ -21,8 +21,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// DependencyStatus mirrors api-core/health.DependencyStatus. Reported
-// per-dependency from the /health endpoint.
+// DependencyStatus is reported per dependency from the /health endpoint.
 type DependencyStatus struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Whether the dependency was reachable on the most recent check.
@@ -98,8 +97,6 @@ func (x *DependencyStatus) GetDatabase() string {
 }
 
 // Response is the JSON payload returned by /health and /api/v1/health.
-// Fields appear in the order api-core/health.Response declares them so
-// proto field numbers match the source-of-truth declaration order.
 type Response struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Overall service status. Canonical values: "healthy", "degraded",

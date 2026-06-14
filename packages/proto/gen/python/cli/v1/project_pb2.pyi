@@ -185,32 +185,12 @@ class ProjectOrphansDryRun(_message.Message):
     def __init__(self, orphans: _Optional[_Iterable[_Union[ProjectSystemProcess, _Mapping]]] = ...) -> None: ...
 
 class ProjectLocksResponse(_message.Message):
-    __slots__ = ("success", "locks", "registry_claims")
+    __slots__ = ("success", "registry_claims")
     SUCCESS_FIELD_NUMBER: _ClassVar[int]
-    LOCKS_FIELD_NUMBER: _ClassVar[int]
     REGISTRY_CLAIMS_FIELD_NUMBER: _ClassVar[int]
     success: bool
-    locks: _containers.RepeatedCompositeFieldContainer[ProjectLockInfo]
     registry_claims: _containers.RepeatedCompositeFieldContainer[ProjectRuntimeClaim]
-    def __init__(self, success: _Optional[bool] = ..., locks: _Optional[_Iterable[_Union[ProjectLockInfo, _Mapping]]] = ..., registry_claims: _Optional[_Iterable[_Union[ProjectRuntimeClaim, _Mapping]]] = ...) -> None: ...
-
-class ProjectLockInfo(_message.Message):
-    __slots__ = ("port", "scenario", "pid", "timestamp", "path", "owner_running", "stale")
-    PORT_FIELD_NUMBER: _ClassVar[int]
-    SCENARIO_FIELD_NUMBER: _ClassVar[int]
-    PID_FIELD_NUMBER: _ClassVar[int]
-    TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
-    PATH_FIELD_NUMBER: _ClassVar[int]
-    OWNER_RUNNING_FIELD_NUMBER: _ClassVar[int]
-    STALE_FIELD_NUMBER: _ClassVar[int]
-    port: int
-    scenario: str
-    pid: int
-    timestamp: str
-    path: str
-    owner_running: bool
-    stale: bool
-    def __init__(self, port: _Optional[int] = ..., scenario: _Optional[str] = ..., pid: _Optional[int] = ..., timestamp: _Optional[str] = ..., path: _Optional[str] = ..., owner_running: _Optional[bool] = ..., stale: _Optional[bool] = ...) -> None: ...
+    def __init__(self, success: _Optional[bool] = ..., registry_claims: _Optional[_Iterable[_Union[ProjectRuntimeClaim, _Mapping]]] = ...) -> None: ...
 
 class ProjectRuntimeClaim(_message.Message):
     __slots__ = ("claim_id", "instance_id", "scenario", "generation", "port_name", "env_var", "port", "bind_host", "url", "claim_status", "instance_status", "supervisor_id", "supervisor_status", "supervisor_fresh", "lease_fresh", "heartbeat_deadline", "supervisor_heartbeat_deadline", "health_status", "health_ready", "reconciliation", "reconcile_reason", "authoritative", "created_at", "updated_at", "expires_at", "last_bound_at", "last_listener_check_at", "last_listener_seen_at", "first_unbound_at", "consecutive_listener_misses", "listener_status", "listener_pid", "listener_process_label", "recommendation_code", "recommendation_confidence", "recommendation_rationale")
@@ -391,13 +371,12 @@ class ProjectPortDiagnosticResponse(_message.Message):
     def __init__(self, success: _Optional[bool] = ..., diagnostic: _Optional[_Union[ProjectPortDiagnostic, _Mapping]] = ...) -> None: ...
 
 class ProjectPortDiagnostic(_message.Message):
-    __slots__ = ("port", "scenario", "in_use", "listeners", "listener_inspection", "lock", "registry_claims", "registry_processes", "host_orphan_count", "recommendations", "port_policy")
+    __slots__ = ("port", "scenario", "in_use", "listeners", "listener_inspection", "registry_claims", "registry_processes", "host_orphan_count", "recommendations", "port_policy")
     PORT_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     IN_USE_FIELD_NUMBER: _ClassVar[int]
     LISTENERS_FIELD_NUMBER: _ClassVar[int]
     LISTENER_INSPECTION_FIELD_NUMBER: _ClassVar[int]
-    LOCK_FIELD_NUMBER: _ClassVar[int]
     REGISTRY_CLAIMS_FIELD_NUMBER: _ClassVar[int]
     REGISTRY_PROCESSES_FIELD_NUMBER: _ClassVar[int]
     HOST_ORPHAN_COUNT_FIELD_NUMBER: _ClassVar[int]
@@ -408,13 +387,12 @@ class ProjectPortDiagnostic(_message.Message):
     in_use: bool
     listeners: _containers.RepeatedCompositeFieldContainer[ProjectPortListener]
     listener_inspection: ProjectListenerInspection
-    lock: ProjectLockInfo
     registry_claims: _containers.RepeatedCompositeFieldContainer[ProjectRuntimeClaim]
     registry_processes: _containers.RepeatedCompositeFieldContainer[ProjectRuntimeProcessRef]
     host_orphan_count: int
     recommendations: _containers.RepeatedScalarFieldContainer[str]
     port_policy: ProjectPortPolicy
-    def __init__(self, port: _Optional[int] = ..., scenario: _Optional[str] = ..., in_use: _Optional[bool] = ..., listeners: _Optional[_Iterable[_Union[ProjectPortListener, _Mapping]]] = ..., listener_inspection: _Optional[_Union[ProjectListenerInspection, _Mapping]] = ..., lock: _Optional[_Union[ProjectLockInfo, _Mapping]] = ..., registry_claims: _Optional[_Iterable[_Union[ProjectRuntimeClaim, _Mapping]]] = ..., registry_processes: _Optional[_Iterable[_Union[ProjectRuntimeProcessRef, _Mapping]]] = ..., host_orphan_count: _Optional[int] = ..., recommendations: _Optional[_Iterable[str]] = ..., port_policy: _Optional[_Union[ProjectPortPolicy, _Mapping]] = ...) -> None: ...
+    def __init__(self, port: _Optional[int] = ..., scenario: _Optional[str] = ..., in_use: _Optional[bool] = ..., listeners: _Optional[_Iterable[_Union[ProjectPortListener, _Mapping]]] = ..., listener_inspection: _Optional[_Union[ProjectListenerInspection, _Mapping]] = ..., registry_claims: _Optional[_Iterable[_Union[ProjectRuntimeClaim, _Mapping]]] = ..., registry_processes: _Optional[_Iterable[_Union[ProjectRuntimeProcessRef, _Mapping]]] = ..., host_orphan_count: _Optional[int] = ..., recommendations: _Optional[_Iterable[str]] = ..., port_policy: _Optional[_Union[ProjectPortPolicy, _Mapping]] = ...) -> None: ...
 
 class ProjectPortListener(_message.Message):
     __slots__ = ("pid", "command", "zombie")

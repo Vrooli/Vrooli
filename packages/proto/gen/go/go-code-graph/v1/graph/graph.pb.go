@@ -32,17 +32,18 @@ const (
 type GoNodeKind int32
 
 const (
-	GoNodeKind_GO_NODE_KIND_UNSPECIFIED GoNodeKind = 0
-	GoNodeKind_GO_NODE_KIND_TYPE        GoNodeKind = 100
-	GoNodeKind_GO_NODE_KIND_FUNC        GoNodeKind = 101
-	GoNodeKind_GO_NODE_KIND_VAR         GoNodeKind = 102
-	GoNodeKind_GO_NODE_KIND_CONST       GoNodeKind = 103
-	GoNodeKind_GO_NODE_KIND_INTERFACE   GoNodeKind = 104
-	GoNodeKind_GO_NODE_KIND_METHOD      GoNodeKind = 105
-	GoNodeKind_GO_NODE_KIND_IMPORT_SPEC GoNodeKind = 106
-	GoNodeKind_GO_NODE_KIND_REFERENCE   GoNodeKind = 107
-	GoNodeKind_GO_NODE_KIND_CALL        GoNodeKind = 108
-	GoNodeKind_GO_NODE_KIND_TYPE_USAGE  GoNodeKind = 109
+	GoNodeKind_GO_NODE_KIND_UNSPECIFIED        GoNodeKind = 0
+	GoNodeKind_GO_NODE_KIND_TYPE               GoNodeKind = 100
+	GoNodeKind_GO_NODE_KIND_FUNC               GoNodeKind = 101
+	GoNodeKind_GO_NODE_KIND_VAR                GoNodeKind = 102
+	GoNodeKind_GO_NODE_KIND_CONST              GoNodeKind = 103
+	GoNodeKind_GO_NODE_KIND_INTERFACE          GoNodeKind = 104
+	GoNodeKind_GO_NODE_KIND_METHOD             GoNodeKind = 105
+	GoNodeKind_GO_NODE_KIND_IMPORT_SPEC        GoNodeKind = 106
+	GoNodeKind_GO_NODE_KIND_REFERENCE          GoNodeKind = 107
+	GoNodeKind_GO_NODE_KIND_CALL               GoNodeKind = 108
+	GoNodeKind_GO_NODE_KIND_TYPE_USAGE         GoNodeKind = 109
+	GoNodeKind_GO_NODE_KIND_ROUTE_REGISTRATION GoNodeKind = 110
 )
 
 // Enum value maps for GoNodeKind.
@@ -59,19 +60,21 @@ var (
 		107: "GO_NODE_KIND_REFERENCE",
 		108: "GO_NODE_KIND_CALL",
 		109: "GO_NODE_KIND_TYPE_USAGE",
+		110: "GO_NODE_KIND_ROUTE_REGISTRATION",
 	}
 	GoNodeKind_value = map[string]int32{
-		"GO_NODE_KIND_UNSPECIFIED": 0,
-		"GO_NODE_KIND_TYPE":        100,
-		"GO_NODE_KIND_FUNC":        101,
-		"GO_NODE_KIND_VAR":         102,
-		"GO_NODE_KIND_CONST":       103,
-		"GO_NODE_KIND_INTERFACE":   104,
-		"GO_NODE_KIND_METHOD":      105,
-		"GO_NODE_KIND_IMPORT_SPEC": 106,
-		"GO_NODE_KIND_REFERENCE":   107,
-		"GO_NODE_KIND_CALL":        108,
-		"GO_NODE_KIND_TYPE_USAGE":  109,
+		"GO_NODE_KIND_UNSPECIFIED":        0,
+		"GO_NODE_KIND_TYPE":               100,
+		"GO_NODE_KIND_FUNC":               101,
+		"GO_NODE_KIND_VAR":                102,
+		"GO_NODE_KIND_CONST":              103,
+		"GO_NODE_KIND_INTERFACE":          104,
+		"GO_NODE_KIND_METHOD":             105,
+		"GO_NODE_KIND_IMPORT_SPEC":        106,
+		"GO_NODE_KIND_REFERENCE":          107,
+		"GO_NODE_KIND_CALL":               108,
+		"GO_NODE_KIND_TYPE_USAGE":         109,
+		"GO_NODE_KIND_ROUTE_REGISTRATION": 110,
 	}
 )
 
@@ -788,7 +791,7 @@ const file_go_code_graph_v1_graph_graph_proto_rawDesc = "" +
 	"\x0eexpected_bytes\x18\x03 \x01(\x03R\rexpectedBytes\x12!\n" +
 	"\factual_bytes\x18\x04 \x01(\x03R\vactualBytes\x12\x1d\n" +
 	"\n" +
-	"graph_hash\x18\x05 \x01(\tR\tgraphHash*\xa9\x02\n" +
+	"graph_hash\x18\x05 \x01(\tR\tgraphHash*\xce\x02\n" +
 	"\n" +
 	"GoNodeKind\x12\x1c\n" +
 	"\x18GO_NODE_KIND_UNSPECIFIED\x10\x00\x12\x15\n" +
@@ -801,7 +804,8 @@ const file_go_code_graph_v1_graph_graph_proto_rawDesc = "" +
 	"\x18GO_NODE_KIND_IMPORT_SPEC\x10j\x12\x1a\n" +
 	"\x16GO_NODE_KIND_REFERENCE\x10k\x12\x15\n" +
 	"\x11GO_NODE_KIND_CALL\x10l\x12\x1b\n" +
-	"\x17GO_NODE_KIND_TYPE_USAGE\x10m2\xf3\x04\n" +
+	"\x17GO_NODE_KIND_TYPE_USAGE\x10m\x12#\n" +
+	"\x1fGO_NODE_KIND_ROUTE_REGISTRATION\x10n2\xf3\x04\n" +
 	"\x12GoCodeGraphService\x12j\n" +
 	"\aExtract\x12-.vrooli.go_code_graph.v1.graph.ExtractRequest\x1a..vrooli.go_code_graph.v1.graph.ExtractResponse\"\x00\x12v\n" +
 	"\vRewritePlan\x121.vrooli.go_code_graph.v1.graph.RewritePlanRequest\x1a2.vrooli.go_code_graph.v1.graph.RewritePlanResponse\"\x00\x12y\n" +

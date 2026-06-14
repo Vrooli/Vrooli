@@ -213,7 +213,7 @@ type Spec struct {
 	Capabilities runnability.PhaseCapabilities
 	// FindingSource is the architecture-finding channel this phase emits into.
 	// Leave UNSPECIFIED for phases that produce no findings (unit, integration,
-	// lint, smoke, performance, playbooks, dependencies). The orchestrator
+	// lint, smoke, performance, playbooks). The orchestrator
 	// stamps the lower-case token onto each ExecutionResult so a downstream
 	// campaign reaudit can derive which sources a partial run actually covered.
 	FindingSource architecturev1.FindingSource

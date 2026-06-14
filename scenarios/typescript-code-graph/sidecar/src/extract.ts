@@ -281,6 +281,9 @@ export function extract(input: ExtractInput): ExtractOutput {
 
     // Diagnostics → warnings
     for (const diag of sf.getPreEmitDiagnostics()) {
+      if (shouldSuppressDiagnostic(diag.getCode(), flattenMessage(diag.getMessageText()))) {
+        continue;
+      }
       const cat = diag.getCategory();
       // Category: 0=Warning, 1=Error, 2=Suggestion, 3=Message
       // Map syntax errors to PARSE_ERROR, type-check errors to TYPE_CHECK_FAILURE.
@@ -309,6 +312,10 @@ export function extract(input: ExtractInput): ExtractOutput {
   });
 
   return { graph: { nodes, edges }, warnings };
+}
+
+function shouldSuppressDiagnostic(code: number, message: string): boolean {
+  return code === 5101 && message.includes("is deprecated and will stop functioning in TypeScript");
 }
 
 // --- Project construction -----------------------------------------------------

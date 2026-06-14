@@ -13,8 +13,7 @@ export const file_proto_health_v1_health_health: GenFile = /*@__PURE__*/
   fileDesc("CiNwcm90by1oZWFsdGgvdjEvaGVhbHRoL2hlYWx0aC5wcm90bxIddnJvb2xpLnByb3RvX2hlYWx0aC52MS5oZWFsdGgiWgoQRGVwZW5kZW5jeVN0YXR1cxIRCgljb25uZWN0ZWQYASABKAgSEgoKbGF0ZW5jeV9tcxgCIAEoARINCgVlcnJvchgDIAEoCRIQCghkYXRhYmFzZRgEIAEoCSKxAgoIUmVzcG9uc2USDgoGc3RhdHVzGAEgASgJEg8KB3NlcnZpY2UYAiABKAkSEQoJdGltZXN0YW1wGAMgASgJEhEKCXJlYWRpbmVzcxgEIAEoCBIPCgd2ZXJzaW9uGAUgASgJEhYKDnVwdGltZV9zZWNvbmRzGAYgASgBEk8KDGRlcGVuZGVuY2llcxgHIAMoCzI5LnZyb29saS5wcm90b19oZWFsdGgudjEuaGVhbHRoLlJlc3BvbnNlLkRlcGVuZGVuY2llc0VudHJ5GmQKEURlcGVuZGVuY2llc0VudHJ5EgsKA2tleRgBIAEoCRI+CgV2YWx1ZRgCIAEoCzIvLnZyb29saS5wcm90b19oZWFsdGgudjEuaGVhbHRoLkRlcGVuZGVuY3lTdGF0dXM6AjgBQlFaT2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vcHJvdG8taGVhbHRoL3YxL2hlYWx0aDtoZWFsdGhfdjFiBnByb3RvMw");
 
 /**
- * DependencyStatus mirrors api-core/health.DependencyStatus. Reported
- * per-dependency from the /health endpoint.
+ * DependencyStatus is reported per dependency from the /health endpoint.
  *
  * @generated from message vrooli.proto_health.v1.health.DependencyStatus
  */
@@ -59,8 +58,6 @@ export const DependencyStatusSchema: GenMessage<DependencyStatus> = /*@__PURE__*
 
 /**
  * Response is the JSON payload returned by /health and /api/v1/health.
- * Fields appear in the order api-core/health.Response declares them so
- * proto field numbers match the source-of-truth declaration order.
  *
  * @generated from message vrooli.proto_health.v1.health.Response
  */

@@ -72,6 +72,7 @@ enum GoNodeKind {
   GO_NODE_KIND_REFERENCE = 107;
   GO_NODE_KIND_CALL = 108;
   GO_NODE_KIND_TYPE_USAGE = 109;
+  GO_NODE_KIND_ROUTE_REGISTRATION = 110;
 }
 
 message ExtractRequest {

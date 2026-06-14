@@ -21,6 +21,7 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/proto-health
 service ProtoHealthService {
   rpc ValidateScenario(ValidateScenarioRequest) returns (ValidateScenarioResponse);
   rpc DescribeScenarioProtos(DescribeScenarioProtosRequest) returns (DescribeScenarioProtosResponse);
+  rpc DescribeScenariosProtos(DescribeScenariosProtosRequest) returns (DescribeScenariosProtosResponse);
 }
 
 // Severity classifies a Finding for filtering and rendering. ERROR causes
@@ -69,4 +70,24 @@ message DescribeScenarioProtosRequest {
 // DescribeScenarioProtosResponse returns the scenario-scoped proto surface.
 message DescribeScenarioProtosResponse {
   vrooli.proto_health.v1.shared.ProtoSurface surface = 1;
+}
+
+// DescribeScenariosProtosRequest requests proto surfaces for many scenarios.
+// An empty scenario list means all scenarios present in the descriptor image.
+message DescribeScenariosProtosRequest {
+  repeated string scenarios = 1;
+  int32 limit = 2;
+  string stability_filter = 3;
+}
+
+// ProtoSurfaceResult wraps one scenario's surface or per-scenario error.
+message ProtoSurfaceResult {
+  string scenario = 1;
+  vrooli.proto_health.v1.shared.ProtoSurface surface = 2;
+  string error = 3;
+}
+
+// DescribeScenariosProtosResponse returns independent per-scenario results.
+message DescribeScenariosProtosResponse {
+  repeated ProtoSurfaceResult results = 1;
 }

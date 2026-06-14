@@ -9,18 +9,14 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/proto-health
 // =============================================================================
 //
 // @stability stable
-// @template react-vite/example
-//
 // Wire contract for the API's /health and /api/v1/health endpoints. Health is
 // an operational REST exception: it is intentionally fetchable by load
 // balancers, lifecycle checks, and simple curl probes without a Connect client.
 //
-// Mirrors api-core/health.Response field-for-field with matching JSON
-// names so the api-core/health.Builder.Handler() chain in production
-// produces JSON that decodes into the generated proto type without
-// translation. Keep these in lockstep with packages/api-core/health/health.go;
-// adding a field there means adding the same field with the same JSON
-// name here.
+// The proto-health API writes this message directly through protojson for both
+// healthy and unhealthy readiness responses. Keep the handler and this schema
+// in lockstep: adding a field to handlers/health/handler.go means adding the
+// same field with the same JSON name here.
 //
 // Consumed by:
 //   - API: handlers/health/handler_test.go decodes responses via protojson
@@ -32,17 +28,12 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/proto-health
 //          via `create(ResponseSchema, overrides)` for component tests.
 //
 // Notes:
-//   - The `metrics` field on api-core/health.Response is omitted here
-//     because `map<string, google.protobuf.Value>` requires importing
-//     the well-known Any/Value types. The template doesn't ship metrics;
-//     scenarios that wire real metrics extend this proto when they do.
 //   - Optional numeric fields use plain `double` rather than wrapper
 //     types — the template's only consumer (DependencyStatus.latency_ms)
-//     treats absence as zero and that matches the api-core JSON encoding.
+//     treats absence as zero.
 // =============================================================================
 
-// DependencyStatus mirrors api-core/health.DependencyStatus. Reported
-// per-dependency from the /health endpoint.
+// DependencyStatus is reported per dependency from the /health endpoint.
 message DependencyStatus {
   // Whether the dependency was reachable on the most recent check.
   bool connected = 1;
@@ -60,8 +51,6 @@ message DependencyStatus {
 }
 
 // Response is the JSON payload returned by /health and /api/v1/health.
-// Fields appear in the order api-core/health.Response declares them so
-// proto field numbers match the source-of-truth declaration order.
 message Response {
   // Overall service status. Canonical values: "healthy", "degraded",
   // "unhealthy". Set to "unhealthy" when any Critical dependency fails.

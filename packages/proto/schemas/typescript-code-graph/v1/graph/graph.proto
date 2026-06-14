@@ -105,6 +105,8 @@ enum TsNodeKind {
   TS_NODE_KIND_JSX_USAGE = 213;
   // One exported declaration or re-export summary entry.
   TS_NODE_KIND_EXPORT = 214;
+  // One statically recognizable TypeScript framework route registration.
+  TS_NODE_KIND_ROUTE_REGISTRATION = 215;
 }
 
 // -----------------------------------------------------------------------------

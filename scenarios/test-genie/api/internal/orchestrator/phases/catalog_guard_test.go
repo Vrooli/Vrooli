@@ -125,6 +125,7 @@ func TestFindingSourceCoversEveryProducingPhase(t *testing.T) {
 		UIHealth:     architecturev1.FindingSource_FINDING_SOURCE_UI,
 		Standards:    architecturev1.FindingSource_FINDING_SOURCE_STANDARDS,
 		Architecture: architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE,
+		Dependencies: architecturev1.FindingSource_FINDING_SOURCE_DEPENDENCY,
 		Docs:         architecturev1.FindingSource_FINDING_SOURCE_DOCS,
 		Business:     architecturev1.FindingSource_FINDING_SOURCE_BUSINESS,
 		Coverage:     architecturev1.FindingSource_FINDING_SOURCE_COVERAGE,

@@ -683,7 +683,7 @@ var File_search_hub_v1_control_control_proto protoreflect.FileDescriptor
 
 const file_search_hub_v1_control_control_proto_rawDesc = "" +
 	"\n" +
-	"#search-hub/v1/control/control.proto\x12\x1cvrooli.search_hub.v1.control\x1a%search-hub/v1/registry/registry.proto\x1a\x1dsearch-hub/v1/eval/eval.proto\"d\n" +
+	"#search-hub/v1/control/control.proto\x12\x1cvrooli.search_hub.v1.control\x1a\x1dsearch-hub/v1/eval/eval.proto\x1a%search-hub/v1/registry/registry.proto\"d\n" +
 	"\x0eReindexRequest\x12\x14\n" +
 	"\x05scope\x18\x01 \x01(\tR\x05scope\x12\x17\n" +
 	"\adry_run\x18\x02 \x01(\bR\x06dryRun\x12#\n" +

@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file proto-health/v1/validation/validation.proto.
  */
 export const file_proto_health_v1_validation_validation: GenFile = /*@__PURE__*/
-  fileDesc("Citwcm90by1oZWFsdGgvdjEvdmFsaWRhdGlvbi92YWxpZGF0aW9uLnByb3RvEiF2cm9vbGkucHJvdG9faGVhbHRoLnYxLnZhbGlkYXRpb24ijQEKB0ZpbmRpbmcSPQoIc2V2ZXJpdHkYASABKA4yKy52cm9vbGkucHJvdG9faGVhbHRoLnYxLnZhbGlkYXRpb24uU2V2ZXJpdHkSDAoEY29kZRgCIAEoCRIQCghsb2NhdGlvbhgDIAEoCRIPCgdtZXNzYWdlGAQgASgJEhIKCnN1Z2dlc3Rpb24YBSABKAkiOgoHU3VtbWFyeRIOCgZlcnJvcnMYASABKAUSEAoId2FybmluZ3MYAiABKAUSDQoFaW5mb3MYAyABKAUiKwoXVmFsaWRhdGVTY2VuYXJpb1JlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkitwEKGFZhbGlkYXRlU2NlbmFyaW9SZXNwb25zZRIQCghzY2VuYXJpbxgBIAEoCRIOCgZwYXNzZWQYAiABKAgSPAoIZmluZGluZ3MYAyADKAsyKi52cm9vbGkucHJvdG9faGVhbHRoLnYxLnZhbGlkYXRpb24uRmluZGluZxI7CgdzdW1tYXJ5GAQgASgLMioudnJvb2xpLnByb3RvX2hlYWx0aC52MS52YWxpZGF0aW9uLlN1bW1hcnkiMQodRGVzY3JpYmVTY2VuYXJpb1Byb3Rvc1JlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkiXgoeRGVzY3JpYmVTY2VuYXJpb1Byb3Rvc1Jlc3BvbnNlEjwKB3N1cmZhY2UYASABKAsyKy52cm9vbGkucHJvdG9faGVhbHRoLnYxLnNoYXJlZC5Qcm90b1N1cmZhY2UqYQoIU2V2ZXJpdHkSGAoUU0VWRVJJVFlfVU5TUEVDSUZJRUQQABISCg5TRVZFUklUWV9FUlJPUhABEhQKEFNFVkVSSVRZX1dBUk5JTkcQAhIRCg1TRVZFUklUWV9JTkZPEAMywgIKElByb3RvSGVhbHRoU2VydmljZRKLAQoQVmFsaWRhdGVTY2VuYXJpbxI6LnZyb29saS5wcm90b19oZWFsdGgudjEudmFsaWRhdGlvbi5WYWxpZGF0ZVNjZW5hcmlvUmVxdWVzdBo7LnZyb29saS5wcm90b19oZWFsdGgudjEudmFsaWRhdGlvbi5WYWxpZGF0ZVNjZW5hcmlvUmVzcG9uc2USnQEKFkRlc2NyaWJlU2NlbmFyaW9Qcm90b3MSQC52cm9vbGkucHJvdG9faGVhbHRoLnYxLnZhbGlkYXRpb24uRGVzY3JpYmVTY2VuYXJpb1Byb3Rvc1JlcXVlc3QaQS52cm9vbGkucHJvdG9faGVhbHRoLnYxLnZhbGlkYXRpb24uRGVzY3JpYmVTY2VuYXJpb1Byb3Rvc1Jlc3BvbnNlQllaV2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vcHJvdG8taGVhbHRoL3YxL3ZhbGlkYXRpb247dmFsaWRhdGlvbl92MWIGcHJvdG8z", [file_proto_health_v1_shared_surface]);
+  fileDesc("Citwcm90by1oZWFsdGgvdjEvdmFsaWRhdGlvbi92YWxpZGF0aW9uLnByb3RvEiF2cm9vbGkucHJvdG9faGVhbHRoLnYxLnZhbGlkYXRpb24ijQEKB0ZpbmRpbmcSPQoIc2V2ZXJpdHkYASABKA4yKy52cm9vbGkucHJvdG9faGVhbHRoLnYxLnZhbGlkYXRpb24uU2V2ZXJpdHkSDAoEY29kZRgCIAEoCRIQCghsb2NhdGlvbhgDIAEoCRIPCgdtZXNzYWdlGAQgASgJEhIKCnN1Z2dlc3Rpb24YBSABKAkiOgoHU3VtbWFyeRIOCgZlcnJvcnMYASABKAUSEAoId2FybmluZ3MYAiABKAUSDQoFaW5mb3MYAyABKAUiKwoXVmFsaWRhdGVTY2VuYXJpb1JlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkitwEKGFZhbGlkYXRlU2NlbmFyaW9SZXNwb25zZRIQCghzY2VuYXJpbxgBIAEoCRIOCgZwYXNzZWQYAiABKAgSPAoIZmluZGluZ3MYAyADKAsyKi52cm9vbGkucHJvdG9faGVhbHRoLnYxLnZhbGlkYXRpb24uRmluZGluZxI7CgdzdW1tYXJ5GAQgASgLMioudnJvb2xpLnByb3RvX2hlYWx0aC52MS52YWxpZGF0aW9uLlN1bW1hcnkiMQodRGVzY3JpYmVTY2VuYXJpb1Byb3Rvc1JlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkiXgoeRGVzY3JpYmVTY2VuYXJpb1Byb3Rvc1Jlc3BvbnNlEjwKB3N1cmZhY2UYASABKAsyKy52cm9vbGkucHJvdG9faGVhbHRoLnYxLnNoYXJlZC5Qcm90b1N1cmZhY2UiXAoeRGVzY3JpYmVTY2VuYXJpb3NQcm90b3NSZXF1ZXN0EhEKCXNjZW5hcmlvcxgBIAMoCRINCgVsaW1pdBgCIAEoBRIYChBzdGFiaWxpdHlfZmlsdGVyGAMgASgJInMKElByb3RvU3VyZmFjZVJlc3VsdBIQCghzY2VuYXJpbxgBIAEoCRI8CgdzdXJmYWNlGAIgASgLMisudnJvb2xpLnByb3RvX2hlYWx0aC52MS5zaGFyZWQuUHJvdG9TdXJmYWNlEg0KBWVycm9yGAMgASgJImkKH0Rlc2NyaWJlU2NlbmFyaW9zUHJvdG9zUmVzcG9uc2USRgoHcmVzdWx0cxgBIAMoCzI1LnZyb29saS5wcm90b19oZWFsdGgudjEudmFsaWRhdGlvbi5Qcm90b1N1cmZhY2VSZXN1bHQqYQoIU2V2ZXJpdHkSGAoUU0VWRVJJVFlfVU5TUEVDSUZJRUQQABISCg5TRVZFUklUWV9FUlJPUhABEhQKEFNFVkVSSVRZX1dBUk5JTkcQAhIRCg1TRVZFUklUWV9JTkZPEAMy5QMKElByb3RvSGVhbHRoU2VydmljZRKLAQoQVmFsaWRhdGVTY2VuYXJpbxI6LnZyb29saS5wcm90b19oZWFsdGgudjEudmFsaWRhdGlvbi5WYWxpZGF0ZVNjZW5hcmlvUmVxdWVzdBo7LnZyb29saS5wcm90b19oZWFsdGgudjEudmFsaWRhdGlvbi5WYWxpZGF0ZVNjZW5hcmlvUmVzcG9uc2USnQEKFkRlc2NyaWJlU2NlbmFyaW9Qcm90b3MSQC52cm9vbGkucHJvdG9faGVhbHRoLnYxLnZhbGlkYXRpb24uRGVzY3JpYmVTY2VuYXJpb1Byb3Rvc1JlcXVlc3QaQS52cm9vbGkucHJvdG9faGVhbHRoLnYxLnZhbGlkYXRpb24uRGVzY3JpYmVTY2VuYXJpb1Byb3Rvc1Jlc3BvbnNlEqABChdEZXNjcmliZVNjZW5hcmlvc1Byb3RvcxJBLnZyb29saS5wcm90b19oZWFsdGgudjEudmFsaWRhdGlvbi5EZXNjcmliZVNjZW5hcmlvc1Byb3Rvc1JlcXVlc3QaQi52cm9vbGkucHJvdG9faGVhbHRoLnYxLnZhbGlkYXRpb24uRGVzY3JpYmVTY2VuYXJpb3NQcm90b3NSZXNwb25zZUJZWldnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Byb3RvLWhlYWx0aC92MS92YWxpZGF0aW9uO3ZhbGlkYXRpb25fdjFiBnByb3RvMw", [file_proto_health_v1_shared_surface]);
 
 /**
  * Finding is a single validation result tied to a location inside the scenario.
@@ -174,6 +174,84 @@ export const DescribeScenarioProtosResponseSchema: GenMessage<DescribeScenarioPr
   messageDesc(file_proto_health_v1_validation_validation, 5);
 
 /**
+ * DescribeScenariosProtosRequest requests proto surfaces for many scenarios.
+ * An empty scenario list means all scenarios present in the descriptor image.
+ *
+ * @generated from message vrooli.proto_health.v1.validation.DescribeScenariosProtosRequest
+ */
+export type DescribeScenariosProtosRequest = Message<"vrooli.proto_health.v1.validation.DescribeScenariosProtosRequest"> & {
+  /**
+   * @generated from field: repeated string scenarios = 1;
+   */
+  scenarios: string[];
+
+  /**
+   * @generated from field: int32 limit = 2;
+   */
+  limit: number;
+
+  /**
+   * @generated from field: string stability_filter = 3;
+   */
+  stabilityFilter: string;
+};
+
+/**
+ * Describes the message vrooli.proto_health.v1.validation.DescribeScenariosProtosRequest.
+ * Use `create(DescribeScenariosProtosRequestSchema)` to create a new message.
+ */
+export const DescribeScenariosProtosRequestSchema: GenMessage<DescribeScenariosProtosRequest> = /*@__PURE__*/
+  messageDesc(file_proto_health_v1_validation_validation, 6);
+
+/**
+ * ProtoSurfaceResult wraps one scenario's surface or per-scenario error.
+ *
+ * @generated from message vrooli.proto_health.v1.validation.ProtoSurfaceResult
+ */
+export type ProtoSurfaceResult = Message<"vrooli.proto_health.v1.validation.ProtoSurfaceResult"> & {
+  /**
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * @generated from field: vrooli.proto_health.v1.shared.ProtoSurface surface = 2;
+   */
+  surface?: ProtoSurface | undefined;
+
+  /**
+   * @generated from field: string error = 3;
+   */
+  error: string;
+};
+
+/**
+ * Describes the message vrooli.proto_health.v1.validation.ProtoSurfaceResult.
+ * Use `create(ProtoSurfaceResultSchema)` to create a new message.
+ */
+export const ProtoSurfaceResultSchema: GenMessage<ProtoSurfaceResult> = /*@__PURE__*/
+  messageDesc(file_proto_health_v1_validation_validation, 7);
+
+/**
+ * DescribeScenariosProtosResponse returns independent per-scenario results.
+ *
+ * @generated from message vrooli.proto_health.v1.validation.DescribeScenariosProtosResponse
+ */
+export type DescribeScenariosProtosResponse = Message<"vrooli.proto_health.v1.validation.DescribeScenariosProtosResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.proto_health.v1.validation.ProtoSurfaceResult results = 1;
+   */
+  results: ProtoSurfaceResult[];
+};
+
+/**
+ * Describes the message vrooli.proto_health.v1.validation.DescribeScenariosProtosResponse.
+ * Use `create(DescribeScenariosProtosResponseSchema)` to create a new message.
+ */
+export const DescribeScenariosProtosResponseSchema: GenMessage<DescribeScenariosProtosResponse> = /*@__PURE__*/
+  messageDesc(file_proto_health_v1_validation_validation, 8);
+
+/**
  * Severity classifies a Finding for filtering and rendering. ERROR causes
  * `passed=false`; WARNING and INFO are advisory.
  *
@@ -226,6 +304,14 @@ export const ProtoHealthService: GenService<{
     methodKind: "unary";
     input: typeof DescribeScenarioProtosRequestSchema;
     output: typeof DescribeScenarioProtosResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.proto_health.v1.validation.ProtoHealthService.DescribeScenariosProtos
+   */
+  describeScenariosProtos: {
+    methodKind: "unary";
+    input: typeof DescribeScenariosProtosRequestSchema;
+    output: typeof DescribeScenariosProtosResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_proto_health_v1_validation_validation, 0);

@@ -204,12 +204,22 @@ message ApplyItemResponse {
 message ReauditCampaignRequest {
   string campaign_id = 1;
   repeated vrooli.architecture.v1.ArchitectureFinding findings = 2;
+  // covered_sources lists the finding-source tokens (findingid vocabulary,
+  // e.g. "standards", "proto") whose phases actually ran in this audit. A
+  // tracked finding whose source is NOT in this set is left untouched (its
+  // phase did not run, so its absence from `findings` is not evidence it was
+  // fixed). EMPTY means all sources are covered (full-suite semantics) — what
+  // a hand-rolled caller gets by default.
+  repeated string covered_sources = 3;
 }
 message ReauditCampaignResponse {
   repeated CampaignItem validated = 1;
   repeated CampaignItem still_open = 2;
   repeated CampaignItem regressions = 3;
   CampaignStatus status = 4;
+  // not_reaudited are tracked items whose source was not in covered_sources;
+  // their state was left untouched because their phase did not run.
+  repeated CampaignItem not_reaudited = 5;
 }
 
 message CloseCampaignRequest {

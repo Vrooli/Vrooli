@@ -68,6 +68,8 @@ const (
 	TsNodeKind_TS_NODE_KIND_JSX_USAGE TsNodeKind = 213
 	// One exported declaration or re-export summary entry.
 	TsNodeKind_TS_NODE_KIND_EXPORT TsNodeKind = 214
+	// One statically recognizable TypeScript framework route registration.
+	TsNodeKind_TS_NODE_KIND_ROUTE_REGISTRATION TsNodeKind = 215
 )
 
 // Enum value maps for TsNodeKind.
@@ -89,24 +91,26 @@ var (
 		212: "TS_NODE_KIND_CALL",
 		213: "TS_NODE_KIND_JSX_USAGE",
 		214: "TS_NODE_KIND_EXPORT",
+		215: "TS_NODE_KIND_ROUTE_REGISTRATION",
 	}
 	TsNodeKind_value = map[string]int32{
-		"TS_NODE_KIND_UNSPECIFIED":    0,
-		"TS_NODE_KIND_MODULE":         200,
-		"TS_NODE_KIND_COMPONENT":      201,
-		"TS_NODE_KIND_HOOK":           202,
-		"TS_NODE_KIND_CLASS":          203,
-		"TS_NODE_KIND_INTERFACE":      204,
-		"TS_NODE_KIND_TYPE":           205,
-		"TS_NODE_KIND_FUNCTION":       206,
-		"TS_NODE_KIND_VAR":            207,
-		"TS_NODE_KIND_CONST":          208,
-		"TS_NODE_KIND_RE_EXPORT":      209,
-		"TS_NODE_KIND_IMPORT_BINDING": 210,
-		"TS_NODE_KIND_REFERENCE":      211,
-		"TS_NODE_KIND_CALL":           212,
-		"TS_NODE_KIND_JSX_USAGE":      213,
-		"TS_NODE_KIND_EXPORT":         214,
+		"TS_NODE_KIND_UNSPECIFIED":        0,
+		"TS_NODE_KIND_MODULE":             200,
+		"TS_NODE_KIND_COMPONENT":          201,
+		"TS_NODE_KIND_HOOK":               202,
+		"TS_NODE_KIND_CLASS":              203,
+		"TS_NODE_KIND_INTERFACE":          204,
+		"TS_NODE_KIND_TYPE":               205,
+		"TS_NODE_KIND_FUNCTION":           206,
+		"TS_NODE_KIND_VAR":                207,
+		"TS_NODE_KIND_CONST":              208,
+		"TS_NODE_KIND_RE_EXPORT":          209,
+		"TS_NODE_KIND_IMPORT_BINDING":     210,
+		"TS_NODE_KIND_REFERENCE":          211,
+		"TS_NODE_KIND_CALL":               212,
+		"TS_NODE_KIND_JSX_USAGE":          213,
+		"TS_NODE_KIND_EXPORT":             214,
+		"TS_NODE_KIND_ROUTE_REGISTRATION": 215,
 	}
 )
 
@@ -825,7 +829,7 @@ const file_typescript_code_graph_v1_graph_graph_proto_rawDesc = "" +
 	"\x0eexpected_bytes\x18\x03 \x01(\x03R\rexpectedBytes\x12!\n" +
 	"\factual_bytes\x18\x04 \x01(\x03R\vactualBytes\x12\x1d\n" +
 	"\n" +
-	"graph_hash\x18\x05 \x01(\tR\tgraphHash*\xbe\x03\n" +
+	"graph_hash\x18\x05 \x01(\tR\tgraphHash*\xe4\x03\n" +
 	"\n" +
 	"TsNodeKind\x12\x1c\n" +
 	"\x18TS_NODE_KIND_UNSPECIFIED\x10\x00\x12\x18\n" +
@@ -843,7 +847,8 @@ const file_typescript_code_graph_v1_graph_graph_proto_rawDesc = "" +
 	"\x16TS_NODE_KIND_REFERENCE\x10\xd3\x01\x12\x16\n" +
 	"\x11TS_NODE_KIND_CALL\x10\xd4\x01\x12\x1b\n" +
 	"\x16TS_NODE_KIND_JSX_USAGE\x10\xd5\x01\x12\x18\n" +
-	"\x13TS_NODE_KIND_EXPORT\x10\xd6\x012\xce\x05\n" +
+	"\x13TS_NODE_KIND_EXPORT\x10\xd6\x01\x12$\n" +
+	"\x1fTS_NODE_KIND_ROUTE_REGISTRATION\x10\xd7\x012\xce\x05\n" +
 	"\x1aTypeScriptCodeGraphService\x12z\n" +
 	"\aExtract\x125.vrooli.typescript_code_graph.v1.graph.ExtractRequest\x1a6.vrooli.typescript_code_graph.v1.graph.ExtractResponse\"\x00\x12\x86\x01\n" +
 	"\vRewritePlan\x129.vrooli.typescript_code_graph.v1.graph.RewritePlanRequest\x1a:.vrooli.typescript_code_graph.v1.graph.RewritePlanResponse\"\x00\x12\x89\x01\n" +

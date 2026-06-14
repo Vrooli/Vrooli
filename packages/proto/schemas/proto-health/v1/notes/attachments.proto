@@ -11,8 +11,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/proto-health
 // =============================================================================
 //
 // @stability stable
-// @template react-vite/example
-//
 // Response contract for the notes multipart upload REST exception. The request
 // body is intentionally multipart/form-data, but the response stays proto-typed
 // so CLI and UI callers can consume generated artifacts instead of parallel

@@ -2,8 +2,8 @@ syntax = "proto3";
 
 package vrooli.search_hub.v1.control;
 
-import "search-hub/v1/registry/registry.proto";
 import "search-hub/v1/eval/eval.proto";
+import "search-hub/v1/registry/registry.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/control;control_v1";
 

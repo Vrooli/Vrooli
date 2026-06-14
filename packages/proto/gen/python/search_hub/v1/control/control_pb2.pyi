@@ -1,5 +1,5 @@
-from search_hub.v1.registry import registry_pb2 as _registry_pb2
 from search_hub.v1.eval import eval_pb2 as _eval_pb2
+from search_hub.v1.registry import registry_pb2 as _registry_pb2
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Mapping as _Mapping

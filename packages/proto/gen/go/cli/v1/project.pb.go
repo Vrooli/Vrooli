@@ -1021,13 +1021,11 @@ func (x *ProjectOrphansDryRun) GetOrphans() []*ProjectSystemProcess {
 }
 
 // ProjectLocksResponse is the envelope of `vrooli locks --json` (list mode).
-// WriteSuccessFields sets success=true and merges the two fields in.
+// WriteSuccessFields sets success=true and merges the field in.
 type ProjectLocksResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Always true for this list-mode envelope (WriteSuccessFields).
 	Success bool `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	// Legacy port-lock artifacts (diagnostic only); empty if none.
-	Locks []*ProjectLockInfo `protobuf:"bytes,2,rep,name=locks,proto3" json:"locks,omitempty"`
 	// Authoritative runtime registry claims; empty if none.
 	RegistryClaims []*ProjectRuntimeClaim `protobuf:"bytes,3,rep,name=registry_claims,json=registryClaims,proto3" json:"registry_claims,omitempty"`
 	unknownFields  protoimpl.UnknownFields
@@ -1071,118 +1069,11 @@ func (x *ProjectLocksResponse) GetSuccess() bool {
 	return false
 }
 
-func (x *ProjectLocksResponse) GetLocks() []*ProjectLockInfo {
-	if x != nil {
-		return x.Locks
-	}
-	return nil
-}
-
 func (x *ProjectLocksResponse) GetRegistryClaims() []*ProjectRuntimeClaim {
 	if x != nil {
 		return x.RegistryClaims
 	}
 	return nil
-}
-
-// ProjectLockInfo mirrors network.LockInfo (a legacy port-lock artifact).
-type ProjectLockInfo struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Claimed port.
-	Port int32 `protobuf:"varint,1,opt,name=port,proto3" json:"port,omitempty"`
-	// Owning scenario; empty if unset.
-	Scenario string `protobuf:"bytes,2,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	// Owning process ID; 0 if unset.
-	Pid int32 `protobuf:"varint,3,opt,name=pid,proto3" json:"pid,omitempty"`
-	// Lock creation time (RFC3339Nano); empty if unset.
-	Timestamp string `protobuf:"bytes,4,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
-	// Path to the lock file.
-	Path string `protobuf:"bytes,5,opt,name=path,proto3" json:"path,omitempty"`
-	// True when the recorded owner process is still running.
-	OwnerRunning bool `protobuf:"varint,6,opt,name=owner_running,json=ownerRunning,proto3" json:"owner_running,omitempty"`
-	// True when the lock is considered stale.
-	Stale         bool `protobuf:"varint,7,opt,name=stale,proto3" json:"stale,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ProjectLockInfo) Reset() {
-	*x = ProjectLockInfo{}
-	mi := &file_cli_v1_project_proto_msgTypes[15]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ProjectLockInfo) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ProjectLockInfo) ProtoMessage() {}
-
-func (x *ProjectLockInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_project_proto_msgTypes[15]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ProjectLockInfo.ProtoReflect.Descriptor instead.
-func (*ProjectLockInfo) Descriptor() ([]byte, []int) {
-	return file_cli_v1_project_proto_rawDescGZIP(), []int{15}
-}
-
-func (x *ProjectLockInfo) GetPort() int32 {
-	if x != nil {
-		return x.Port
-	}
-	return 0
-}
-
-func (x *ProjectLockInfo) GetScenario() string {
-	if x != nil {
-		return x.Scenario
-	}
-	return ""
-}
-
-func (x *ProjectLockInfo) GetPid() int32 {
-	if x != nil {
-		return x.Pid
-	}
-	return 0
-}
-
-func (x *ProjectLockInfo) GetTimestamp() string {
-	if x != nil {
-		return x.Timestamp
-	}
-	return ""
-}
-
-func (x *ProjectLockInfo) GetPath() string {
-	if x != nil {
-		return x.Path
-	}
-	return ""
-}
-
-func (x *ProjectLockInfo) GetOwnerRunning() bool {
-	if x != nil {
-		return x.OwnerRunning
-	}
-	return false
-}
-
-func (x *ProjectLockInfo) GetStale() bool {
-	if x != nil {
-		return x.Stale
-	}
-	return false
 }
 
 // ProjectRuntimeClaim mirrors maintenance.RuntimeClaimInfo (a registry claim).
@@ -1266,7 +1157,7 @@ type ProjectRuntimeClaim struct {
 
 func (x *ProjectRuntimeClaim) Reset() {
 	*x = ProjectRuntimeClaim{}
-	mi := &file_cli_v1_project_proto_msgTypes[16]
+	mi := &file_cli_v1_project_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1278,7 +1169,7 @@ func (x *ProjectRuntimeClaim) String() string {
 func (*ProjectRuntimeClaim) ProtoMessage() {}
 
 func (x *ProjectRuntimeClaim) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_project_proto_msgTypes[16]
+	mi := &file_cli_v1_project_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1291,7 +1182,7 @@ func (x *ProjectRuntimeClaim) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectRuntimeClaim.ProtoReflect.Descriptor instead.
 func (*ProjectRuntimeClaim) Descriptor() ([]byte, []int) {
-	return file_cli_v1_project_proto_rawDescGZIP(), []int{16}
+	return file_cli_v1_project_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ProjectRuntimeClaim) GetClaimId() string {
@@ -1560,7 +1451,7 @@ type ProjectTemplateCleanupResponse struct {
 
 func (x *ProjectTemplateCleanupResponse) Reset() {
 	*x = ProjectTemplateCleanupResponse{}
-	mi := &file_cli_v1_project_proto_msgTypes[17]
+	mi := &file_cli_v1_project_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1572,7 +1463,7 @@ func (x *ProjectTemplateCleanupResponse) String() string {
 func (*ProjectTemplateCleanupResponse) ProtoMessage() {}
 
 func (x *ProjectTemplateCleanupResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_project_proto_msgTypes[17]
+	mi := &file_cli_v1_project_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1585,7 +1476,7 @@ func (x *ProjectTemplateCleanupResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectTemplateCleanupResponse.ProtoReflect.Descriptor instead.
 func (*ProjectTemplateCleanupResponse) Descriptor() ([]byte, []int) {
-	return file_cli_v1_project_proto_rawDescGZIP(), []int{17}
+	return file_cli_v1_project_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ProjectTemplateCleanupResponse) GetSuccess() bool {
@@ -1634,7 +1525,7 @@ type ProjectTemplateCleanupResult struct {
 
 func (x *ProjectTemplateCleanupResult) Reset() {
 	*x = ProjectTemplateCleanupResult{}
-	mi := &file_cli_v1_project_proto_msgTypes[18]
+	mi := &file_cli_v1_project_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1646,7 +1537,7 @@ func (x *ProjectTemplateCleanupResult) String() string {
 func (*ProjectTemplateCleanupResult) ProtoMessage() {}
 
 func (x *ProjectTemplateCleanupResult) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_project_proto_msgTypes[18]
+	mi := &file_cli_v1_project_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1659,7 +1550,7 @@ func (x *ProjectTemplateCleanupResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectTemplateCleanupResult.ProtoReflect.Descriptor instead.
 func (*ProjectTemplateCleanupResult) Descriptor() ([]byte, []int) {
-	return file_cli_v1_project_proto_rawDescGZIP(), []int{18}
+	return file_cli_v1_project_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ProjectTemplateCleanupResult) GetDryRun() bool {
@@ -1754,7 +1645,7 @@ type ProjectTemplateRun struct {
 
 func (x *ProjectTemplateRun) Reset() {
 	*x = ProjectTemplateRun{}
-	mi := &file_cli_v1_project_proto_msgTypes[19]
+	mi := &file_cli_v1_project_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1766,7 +1657,7 @@ func (x *ProjectTemplateRun) String() string {
 func (*ProjectTemplateRun) ProtoMessage() {}
 
 func (x *ProjectTemplateRun) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_project_proto_msgTypes[19]
+	mi := &file_cli_v1_project_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1779,7 +1670,7 @@ func (x *ProjectTemplateRun) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectTemplateRun.ProtoReflect.Descriptor instead.
 func (*ProjectTemplateRun) Descriptor() ([]byte, []int) {
-	return file_cli_v1_project_proto_rawDescGZIP(), []int{19}
+	return file_cli_v1_project_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ProjectTemplateRun) GetMarkerPath() string {
@@ -1838,7 +1729,7 @@ type ProjectTemplateRunMarker struct {
 
 func (x *ProjectTemplateRunMarker) Reset() {
 	*x = ProjectTemplateRunMarker{}
-	mi := &file_cli_v1_project_proto_msgTypes[20]
+	mi := &file_cli_v1_project_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1850,7 +1741,7 @@ func (x *ProjectTemplateRunMarker) String() string {
 func (*ProjectTemplateRunMarker) ProtoMessage() {}
 
 func (x *ProjectTemplateRunMarker) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_project_proto_msgTypes[20]
+	mi := &file_cli_v1_project_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1863,7 +1754,7 @@ func (x *ProjectTemplateRunMarker) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectTemplateRunMarker.ProtoReflect.Descriptor instead.
 func (*ProjectTemplateRunMarker) Descriptor() ([]byte, []int) {
-	return file_cli_v1_project_proto_rawDescGZIP(), []int{20}
+	return file_cli_v1_project_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ProjectTemplateRunMarker) GetVersion() string {
@@ -1972,7 +1863,7 @@ type ProjectTemplateSkippedRun struct {
 
 func (x *ProjectTemplateSkippedRun) Reset() {
 	*x = ProjectTemplateSkippedRun{}
-	mi := &file_cli_v1_project_proto_msgTypes[21]
+	mi := &file_cli_v1_project_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1984,7 +1875,7 @@ func (x *ProjectTemplateSkippedRun) String() string {
 func (*ProjectTemplateSkippedRun) ProtoMessage() {}
 
 func (x *ProjectTemplateSkippedRun) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_project_proto_msgTypes[21]
+	mi := &file_cli_v1_project_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1997,7 +1888,7 @@ func (x *ProjectTemplateSkippedRun) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectTemplateSkippedRun.ProtoReflect.Descriptor instead.
 func (*ProjectTemplateSkippedRun) Descriptor() ([]byte, []int) {
-	return file_cli_v1_project_proto_rawDescGZIP(), []int{21}
+	return file_cli_v1_project_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ProjectTemplateSkippedRun) GetRun() *ProjectTemplateRun {
@@ -2036,7 +1927,7 @@ type ProjectTemplateFailedRun struct {
 
 func (x *ProjectTemplateFailedRun) Reset() {
 	*x = ProjectTemplateFailedRun{}
-	mi := &file_cli_v1_project_proto_msgTypes[22]
+	mi := &file_cli_v1_project_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2048,7 +1939,7 @@ func (x *ProjectTemplateFailedRun) String() string {
 func (*ProjectTemplateFailedRun) ProtoMessage() {}
 
 func (x *ProjectTemplateFailedRun) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_project_proto_msgTypes[22]
+	mi := &file_cli_v1_project_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2061,7 +1952,7 @@ func (x *ProjectTemplateFailedRun) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectTemplateFailedRun.ProtoReflect.Descriptor instead.
 func (*ProjectTemplateFailedRun) Descriptor() ([]byte, []int) {
-	return file_cli_v1_project_proto_rawDescGZIP(), []int{22}
+	return file_cli_v1_project_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ProjectTemplateFailedRun) GetRun() *ProjectTemplateRun {
@@ -2098,7 +1989,7 @@ type ProjectPortDiagnosticResponse struct {
 
 func (x *ProjectPortDiagnosticResponse) Reset() {
 	*x = ProjectPortDiagnosticResponse{}
-	mi := &file_cli_v1_project_proto_msgTypes[23]
+	mi := &file_cli_v1_project_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2110,7 +2001,7 @@ func (x *ProjectPortDiagnosticResponse) String() string {
 func (*ProjectPortDiagnosticResponse) ProtoMessage() {}
 
 func (x *ProjectPortDiagnosticResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_project_proto_msgTypes[23]
+	mi := &file_cli_v1_project_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2123,7 +2014,7 @@ func (x *ProjectPortDiagnosticResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectPortDiagnosticResponse.ProtoReflect.Descriptor instead.
 func (*ProjectPortDiagnosticResponse) Descriptor() ([]byte, []int) {
-	return file_cli_v1_project_proto_rawDescGZIP(), []int{23}
+	return file_cli_v1_project_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ProjectPortDiagnosticResponse) GetSuccess() bool {
@@ -2153,8 +2044,6 @@ type ProjectPortDiagnostic struct {
 	Listeners []*ProjectPortListener `protobuf:"bytes,4,rep,name=listeners,proto3" json:"listeners,omitempty"`
 	// Whether OS-level listener inspection was available.
 	ListenerInspection *ProjectListenerInspection `protobuf:"bytes,5,opt,name=listener_inspection,json=listenerInspection,proto3" json:"listener_inspection,omitempty"`
-	// Legacy lock artifact for the port; absent (null) if none.
-	Lock *ProjectLockInfo `protobuf:"bytes,6,opt,name=lock,proto3" json:"lock,omitempty"`
 	// Runtime registry claims for the port; empty if none.
 	RegistryClaims []*ProjectRuntimeClaim `protobuf:"bytes,7,rep,name=registry_claims,json=registryClaims,proto3" json:"registry_claims,omitempty"`
 	// Runtime process references for the port; empty if none.
@@ -2171,7 +2060,7 @@ type ProjectPortDiagnostic struct {
 
 func (x *ProjectPortDiagnostic) Reset() {
 	*x = ProjectPortDiagnostic{}
-	mi := &file_cli_v1_project_proto_msgTypes[24]
+	mi := &file_cli_v1_project_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2183,7 +2072,7 @@ func (x *ProjectPortDiagnostic) String() string {
 func (*ProjectPortDiagnostic) ProtoMessage() {}
 
 func (x *ProjectPortDiagnostic) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_project_proto_msgTypes[24]
+	mi := &file_cli_v1_project_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2196,7 +2085,7 @@ func (x *ProjectPortDiagnostic) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectPortDiagnostic.ProtoReflect.Descriptor instead.
 func (*ProjectPortDiagnostic) Descriptor() ([]byte, []int) {
-	return file_cli_v1_project_proto_rawDescGZIP(), []int{24}
+	return file_cli_v1_project_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ProjectPortDiagnostic) GetPort() int32 {
@@ -2230,13 +2119,6 @@ func (x *ProjectPortDiagnostic) GetListeners() []*ProjectPortListener {
 func (x *ProjectPortDiagnostic) GetListenerInspection() *ProjectListenerInspection {
 	if x != nil {
 		return x.ListenerInspection
-	}
-	return nil
-}
-
-func (x *ProjectPortDiagnostic) GetLock() *ProjectLockInfo {
-	if x != nil {
-		return x.Lock
 	}
 	return nil
 }
@@ -2291,7 +2173,7 @@ type ProjectPortListener struct {
 
 func (x *ProjectPortListener) Reset() {
 	*x = ProjectPortListener{}
-	mi := &file_cli_v1_project_proto_msgTypes[25]
+	mi := &file_cli_v1_project_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2303,7 +2185,7 @@ func (x *ProjectPortListener) String() string {
 func (*ProjectPortListener) ProtoMessage() {}
 
 func (x *ProjectPortListener) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_project_proto_msgTypes[25]
+	mi := &file_cli_v1_project_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2316,7 +2198,7 @@ func (x *ProjectPortListener) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectPortListener.ProtoReflect.Descriptor instead.
 func (*ProjectPortListener) Descriptor() ([]byte, []int) {
-	return file_cli_v1_project_proto_rawDescGZIP(), []int{25}
+	return file_cli_v1_project_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ProjectPortListener) GetPid() int32 {
@@ -2355,7 +2237,7 @@ type ProjectListenerInspection struct {
 
 func (x *ProjectListenerInspection) Reset() {
 	*x = ProjectListenerInspection{}
-	mi := &file_cli_v1_project_proto_msgTypes[26]
+	mi := &file_cli_v1_project_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2367,7 +2249,7 @@ func (x *ProjectListenerInspection) String() string {
 func (*ProjectListenerInspection) ProtoMessage() {}
 
 func (x *ProjectListenerInspection) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_project_proto_msgTypes[26]
+	mi := &file_cli_v1_project_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2380,7 +2262,7 @@ func (x *ProjectListenerInspection) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectListenerInspection.ProtoReflect.Descriptor instead.
 func (*ProjectListenerInspection) Descriptor() ([]byte, []int) {
-	return file_cli_v1_project_proto_rawDescGZIP(), []int{26}
+	return file_cli_v1_project_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *ProjectListenerInspection) GetAvailable() bool {
@@ -2435,7 +2317,7 @@ type ProjectRuntimeProcessRef struct {
 
 func (x *ProjectRuntimeProcessRef) Reset() {
 	*x = ProjectRuntimeProcessRef{}
-	mi := &file_cli_v1_project_proto_msgTypes[27]
+	mi := &file_cli_v1_project_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2447,7 +2329,7 @@ func (x *ProjectRuntimeProcessRef) String() string {
 func (*ProjectRuntimeProcessRef) ProtoMessage() {}
 
 func (x *ProjectRuntimeProcessRef) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_project_proto_msgTypes[27]
+	mi := &file_cli_v1_project_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2460,7 +2342,7 @@ func (x *ProjectRuntimeProcessRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectRuntimeProcessRef.ProtoReflect.Descriptor instead.
 func (*ProjectRuntimeProcessRef) Descriptor() ([]byte, []int) {
-	return file_cli_v1_project_proto_rawDescGZIP(), []int{27}
+	return file_cli_v1_project_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ProjectRuntimeProcessRef) GetRefId() string {
@@ -2561,7 +2443,7 @@ type ProjectPortPolicy struct {
 
 func (x *ProjectPortPolicy) Reset() {
 	*x = ProjectPortPolicy{}
-	mi := &file_cli_v1_project_proto_msgTypes[28]
+	mi := &file_cli_v1_project_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2573,7 +2455,7 @@ func (x *ProjectPortPolicy) String() string {
 func (*ProjectPortPolicy) ProtoMessage() {}
 
 func (x *ProjectPortPolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_cli_v1_project_proto_msgTypes[28]
+	mi := &file_cli_v1_project_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2586,7 +2468,7 @@ func (x *ProjectPortPolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectPortPolicy.ProtoReflect.Descriptor instead.
 func (*ProjectPortPolicy) Descriptor() ([]byte, []int) {
-	return file_cli_v1_project_proto_rawDescGZIP(), []int{28}
+	return file_cli_v1_project_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ProjectPortPolicy) GetEphemeralMin() int32 {
@@ -2713,19 +2595,10 @@ const file_cli_v1_project_proto_rawDesc = "" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12<\n" +
 	"\adry_run\x18\x02 \x01(\v2#.vrooli.cli.v1.ProjectOrphansDryRunR\x06dryRun\"U\n" +
 	"\x14ProjectOrphansDryRun\x12=\n" +
-	"\aorphans\x18\x01 \x03(\v2#.vrooli.cli.v1.ProjectSystemProcessR\aorphans\"\xb3\x01\n" +
+	"\aorphans\x18\x01 \x03(\v2#.vrooli.cli.v1.ProjectSystemProcessR\aorphans\"\x8a\x01\n" +
 	"\x14ProjectLocksResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\x124\n" +
-	"\x05locks\x18\x02 \x03(\v2\x1e.vrooli.cli.v1.ProjectLockInfoR\x05locks\x12K\n" +
-	"\x0fregistry_claims\x18\x03 \x03(\v2\".vrooli.cli.v1.ProjectRuntimeClaimR\x0eregistryClaims\"\xc0\x01\n" +
-	"\x0fProjectLockInfo\x12\x12\n" +
-	"\x04port\x18\x01 \x01(\x05R\x04port\x12\x1a\n" +
-	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x10\n" +
-	"\x03pid\x18\x03 \x01(\x05R\x03pid\x12\x1c\n" +
-	"\ttimestamp\x18\x04 \x01(\tR\ttimestamp\x12\x12\n" +
-	"\x04path\x18\x05 \x01(\tR\x04path\x12#\n" +
-	"\rowner_running\x18\x06 \x01(\bR\fownerRunning\x12\x14\n" +
-	"\x05stale\x18\a \x01(\bR\x05stale\"\x9a\f\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12K\n" +
+	"\x0fregistry_claims\x18\x03 \x03(\v2\".vrooli.cli.v1.ProjectRuntimeClaimR\x0eregistryClaimsJ\x04\b\x02\x10\x03R\x05locks\"\x9a\f\n" +
 	"\x13ProjectRuntimeClaim\x12\x19\n" +
 	"\bclaim_id\x18\x01 \x01(\tR\aclaimId\x12\x1f\n" +
 	"\vinstance_id\x18\x02 \x01(\tR\n" +
@@ -2823,21 +2696,20 @@ const file_cli_v1_project_proto_rawDesc = "" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12D\n" +
 	"\n" +
 	"diagnostic\x18\x02 \x01(\v2$.vrooli.cli.v1.ProjectPortDiagnosticR\n" +
-	"diagnostic\"\xed\x04\n" +
+	"diagnostic\"\xc5\x04\n" +
 	"\x15ProjectPortDiagnostic\x12\x12\n" +
 	"\x04port\x18\x01 \x01(\x05R\x04port\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x15\n" +
 	"\x06in_use\x18\x03 \x01(\bR\x05inUse\x12@\n" +
 	"\tlisteners\x18\x04 \x03(\v2\".vrooli.cli.v1.ProjectPortListenerR\tlisteners\x12Y\n" +
-	"\x13listener_inspection\x18\x05 \x01(\v2(.vrooli.cli.v1.ProjectListenerInspectionR\x12listenerInspection\x122\n" +
-	"\x04lock\x18\x06 \x01(\v2\x1e.vrooli.cli.v1.ProjectLockInfoR\x04lock\x12K\n" +
+	"\x13listener_inspection\x18\x05 \x01(\v2(.vrooli.cli.v1.ProjectListenerInspectionR\x12listenerInspection\x12K\n" +
 	"\x0fregistry_claims\x18\a \x03(\v2\".vrooli.cli.v1.ProjectRuntimeClaimR\x0eregistryClaims\x12V\n" +
 	"\x12registry_processes\x18\b \x03(\v2'.vrooli.cli.v1.ProjectRuntimeProcessRefR\x11registryProcesses\x12*\n" +
 	"\x11host_orphan_count\x18\t \x01(\x05R\x0fhostOrphanCount\x12(\n" +
 	"\x0frecommendations\x18\n" +
 	" \x03(\tR\x0frecommendations\x12A\n" +
 	"\vport_policy\x18\v \x01(\v2 .vrooli.cli.v1.ProjectPortPolicyR\n" +
-	"portPolicy\"Y\n" +
+	"portPolicyJ\x04\b\x06\x10\aR\x04lock\"Y\n" +
 	"\x13ProjectPortListener\x12\x10\n" +
 	"\x03pid\x18\x01 \x01(\x05R\x03pid\x12\x18\n" +
 	"\acommand\x18\x02 \x01(\tR\acommand\x12\x16\n" +
@@ -2882,7 +2754,7 @@ func file_cli_v1_project_proto_rawDescGZIP() []byte {
 	return file_cli_v1_project_proto_rawDescData
 }
 
-var file_cli_v1_project_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
+var file_cli_v1_project_proto_msgTypes = make([]protoimpl.MessageInfo, 30)
 var file_cli_v1_project_proto_goTypes = []any{
 	(*ProjectStatusResponse)(nil),          // 0: vrooli.cli.v1.ProjectStatusResponse
 	(*ProjectStatusReport)(nil),            // 1: vrooli.cli.v1.ProjectStatusReport
@@ -2899,36 +2771,35 @@ var file_cli_v1_project_proto_goTypes = []any{
 	(*ProjectOrphansDryRunResponse)(nil),   // 12: vrooli.cli.v1.ProjectOrphansDryRunResponse
 	(*ProjectOrphansDryRun)(nil),           // 13: vrooli.cli.v1.ProjectOrphansDryRun
 	(*ProjectLocksResponse)(nil),           // 14: vrooli.cli.v1.ProjectLocksResponse
-	(*ProjectLockInfo)(nil),                // 15: vrooli.cli.v1.ProjectLockInfo
-	(*ProjectRuntimeClaim)(nil),            // 16: vrooli.cli.v1.ProjectRuntimeClaim
-	(*ProjectTemplateCleanupResponse)(nil), // 17: vrooli.cli.v1.ProjectTemplateCleanupResponse
-	(*ProjectTemplateCleanupResult)(nil),   // 18: vrooli.cli.v1.ProjectTemplateCleanupResult
-	(*ProjectTemplateRun)(nil),             // 19: vrooli.cli.v1.ProjectTemplateRun
-	(*ProjectTemplateRunMarker)(nil),       // 20: vrooli.cli.v1.ProjectTemplateRunMarker
-	(*ProjectTemplateSkippedRun)(nil),      // 21: vrooli.cli.v1.ProjectTemplateSkippedRun
-	(*ProjectTemplateFailedRun)(nil),       // 22: vrooli.cli.v1.ProjectTemplateFailedRun
-	(*ProjectPortDiagnosticResponse)(nil),  // 23: vrooli.cli.v1.ProjectPortDiagnosticResponse
-	(*ProjectPortDiagnostic)(nil),          // 24: vrooli.cli.v1.ProjectPortDiagnostic
-	(*ProjectPortListener)(nil),            // 25: vrooli.cli.v1.ProjectPortListener
-	(*ProjectListenerInspection)(nil),      // 26: vrooli.cli.v1.ProjectListenerInspection
-	(*ProjectRuntimeProcessRef)(nil),       // 27: vrooli.cli.v1.ProjectRuntimeProcessRef
-	(*ProjectPortPolicy)(nil),              // 28: vrooli.cli.v1.ProjectPortPolicy
-	nil,                                    // 29: vrooli.cli.v1.ProjectStatusReport.SummaryEntry
-	nil,                                    // 30: vrooli.cli.v1.ProjectScenarioStatus.PortsEntry
-	(*Resource)(nil),                       // 31: vrooli.cli.v1.Resource
-	(*structpb.Value)(nil),                 // 32: google.protobuf.Value
+	(*ProjectRuntimeClaim)(nil),            // 15: vrooli.cli.v1.ProjectRuntimeClaim
+	(*ProjectTemplateCleanupResponse)(nil), // 16: vrooli.cli.v1.ProjectTemplateCleanupResponse
+	(*ProjectTemplateCleanupResult)(nil),   // 17: vrooli.cli.v1.ProjectTemplateCleanupResult
+	(*ProjectTemplateRun)(nil),             // 18: vrooli.cli.v1.ProjectTemplateRun
+	(*ProjectTemplateRunMarker)(nil),       // 19: vrooli.cli.v1.ProjectTemplateRunMarker
+	(*ProjectTemplateSkippedRun)(nil),      // 20: vrooli.cli.v1.ProjectTemplateSkippedRun
+	(*ProjectTemplateFailedRun)(nil),       // 21: vrooli.cli.v1.ProjectTemplateFailedRun
+	(*ProjectPortDiagnosticResponse)(nil),  // 22: vrooli.cli.v1.ProjectPortDiagnosticResponse
+	(*ProjectPortDiagnostic)(nil),          // 23: vrooli.cli.v1.ProjectPortDiagnostic
+	(*ProjectPortListener)(nil),            // 24: vrooli.cli.v1.ProjectPortListener
+	(*ProjectListenerInspection)(nil),      // 25: vrooli.cli.v1.ProjectListenerInspection
+	(*ProjectRuntimeProcessRef)(nil),       // 26: vrooli.cli.v1.ProjectRuntimeProcessRef
+	(*ProjectPortPolicy)(nil),              // 27: vrooli.cli.v1.ProjectPortPolicy
+	nil,                                    // 28: vrooli.cli.v1.ProjectStatusReport.SummaryEntry
+	nil,                                    // 29: vrooli.cli.v1.ProjectScenarioStatus.PortsEntry
+	(*Resource)(nil),                       // 30: vrooli.cli.v1.Resource
+	(*structpb.Value)(nil),                 // 31: google.protobuf.Value
 }
 var file_cli_v1_project_proto_depIdxs = []int32{
 	1,  // 0: vrooli.cli.v1.ProjectStatusResponse.status:type_name -> vrooli.cli.v1.ProjectStatusReport
 	2,  // 1: vrooli.cli.v1.ProjectStatusReport.resources:type_name -> vrooli.cli.v1.ProjectResourceStatus
 	3,  // 2: vrooli.cli.v1.ProjectStatusReport.scenarios:type_name -> vrooli.cli.v1.ProjectScenarioStatus
 	4,  // 3: vrooli.cli.v1.ProjectStatusReport.maintenance:type_name -> vrooli.cli.v1.ProjectProcessSnapshot
-	29, // 4: vrooli.cli.v1.ProjectStatusReport.summary:type_name -> vrooli.cli.v1.ProjectStatusReport.SummaryEntry
-	31, // 5: vrooli.cli.v1.ProjectResourceStatus.resource:type_name -> vrooli.cli.v1.Resource
-	32, // 6: vrooli.cli.v1.ProjectResourceStatus.healthy:type_name -> google.protobuf.Value
-	32, // 7: vrooli.cli.v1.ProjectResourceStatus.raw:type_name -> google.protobuf.Value
-	30, // 8: vrooli.cli.v1.ProjectScenarioStatus.ports:type_name -> vrooli.cli.v1.ProjectScenarioStatus.PortsEntry
-	32, // 9: vrooli.cli.v1.ProjectScenarioStatus.health_status:type_name -> google.protobuf.Value
+	28, // 4: vrooli.cli.v1.ProjectStatusReport.summary:type_name -> vrooli.cli.v1.ProjectStatusReport.SummaryEntry
+	30, // 5: vrooli.cli.v1.ProjectResourceStatus.resource:type_name -> vrooli.cli.v1.Resource
+	31, // 6: vrooli.cli.v1.ProjectResourceStatus.healthy:type_name -> google.protobuf.Value
+	31, // 7: vrooli.cli.v1.ProjectResourceStatus.raw:type_name -> google.protobuf.Value
+	29, // 8: vrooli.cli.v1.ProjectScenarioStatus.ports:type_name -> vrooli.cli.v1.ProjectScenarioStatus.PortsEntry
+	31, // 9: vrooli.cli.v1.ProjectScenarioStatus.health_status:type_name -> google.protobuf.Value
 	5,  // 10: vrooli.cli.v1.ProjectProcessSnapshot.orphans:type_name -> vrooli.cli.v1.ProjectSystemProcess
 	7,  // 11: vrooli.cli.v1.ProjectDoctorResponse.checks:type_name -> vrooli.cli.v1.ProjectDoctorCheck
 	9,  // 12: vrooli.cli.v1.ProjectStopResponse.data:type_name -> vrooli.cli.v1.ProjectStopReport
@@ -2937,36 +2808,34 @@ var file_cli_v1_project_proto_depIdxs = []int32{
 	5,  // 15: vrooli.cli.v1.ProjectOrphansResponse.orphans:type_name -> vrooli.cli.v1.ProjectSystemProcess
 	13, // 16: vrooli.cli.v1.ProjectOrphansDryRunResponse.dry_run:type_name -> vrooli.cli.v1.ProjectOrphansDryRun
 	5,  // 17: vrooli.cli.v1.ProjectOrphansDryRun.orphans:type_name -> vrooli.cli.v1.ProjectSystemProcess
-	15, // 18: vrooli.cli.v1.ProjectLocksResponse.locks:type_name -> vrooli.cli.v1.ProjectLockInfo
-	16, // 19: vrooli.cli.v1.ProjectLocksResponse.registry_claims:type_name -> vrooli.cli.v1.ProjectRuntimeClaim
-	32, // 20: vrooli.cli.v1.ProjectRuntimeClaim.supervisor_fresh:type_name -> google.protobuf.Value
-	32, // 21: vrooli.cli.v1.ProjectRuntimeClaim.lease_fresh:type_name -> google.protobuf.Value
-	32, // 22: vrooli.cli.v1.ProjectRuntimeClaim.health_ready:type_name -> google.protobuf.Value
-	32, // 23: vrooli.cli.v1.ProjectRuntimeClaim.authoritative:type_name -> google.protobuf.Value
-	32, // 24: vrooli.cli.v1.ProjectRuntimeClaim.listener_pid:type_name -> google.protobuf.Value
-	18, // 25: vrooli.cli.v1.ProjectTemplateCleanupResponse.cleanup:type_name -> vrooli.cli.v1.ProjectTemplateCleanupResult
-	19, // 26: vrooli.cli.v1.ProjectTemplateCleanupResult.eligible:type_name -> vrooli.cli.v1.ProjectTemplateRun
-	21, // 27: vrooli.cli.v1.ProjectTemplateCleanupResult.skipped:type_name -> vrooli.cli.v1.ProjectTemplateSkippedRun
-	22, // 28: vrooli.cli.v1.ProjectTemplateCleanupResult.failures:type_name -> vrooli.cli.v1.ProjectTemplateFailedRun
-	19, // 29: vrooli.cli.v1.ProjectTemplateCleanupResult.removed:type_name -> vrooli.cli.v1.ProjectTemplateRun
-	20, // 30: vrooli.cli.v1.ProjectTemplateRun.marker:type_name -> vrooli.cli.v1.ProjectTemplateRunMarker
-	19, // 31: vrooli.cli.v1.ProjectTemplateSkippedRun.run:type_name -> vrooli.cli.v1.ProjectTemplateRun
-	19, // 32: vrooli.cli.v1.ProjectTemplateFailedRun.run:type_name -> vrooli.cli.v1.ProjectTemplateRun
-	24, // 33: vrooli.cli.v1.ProjectPortDiagnosticResponse.diagnostic:type_name -> vrooli.cli.v1.ProjectPortDiagnostic
-	25, // 34: vrooli.cli.v1.ProjectPortDiagnostic.listeners:type_name -> vrooli.cli.v1.ProjectPortListener
-	26, // 35: vrooli.cli.v1.ProjectPortDiagnostic.listener_inspection:type_name -> vrooli.cli.v1.ProjectListenerInspection
-	15, // 36: vrooli.cli.v1.ProjectPortDiagnostic.lock:type_name -> vrooli.cli.v1.ProjectLockInfo
-	16, // 37: vrooli.cli.v1.ProjectPortDiagnostic.registry_claims:type_name -> vrooli.cli.v1.ProjectRuntimeClaim
-	27, // 38: vrooli.cli.v1.ProjectPortDiagnostic.registry_processes:type_name -> vrooli.cli.v1.ProjectRuntimeProcessRef
-	28, // 39: vrooli.cli.v1.ProjectPortDiagnostic.port_policy:type_name -> vrooli.cli.v1.ProjectPortPolicy
-	32, // 40: vrooli.cli.v1.ProjectRuntimeProcessRef.pid:type_name -> google.protobuf.Value
-	32, // 41: vrooli.cli.v1.ProjectRuntimeProcessRef.pgid:type_name -> google.protobuf.Value
-	32, // 42: vrooli.cli.v1.ProjectRuntimeProcessRef.pid_running:type_name -> google.protobuf.Value
-	43, // [43:43] is the sub-list for method output_type
-	43, // [43:43] is the sub-list for method input_type
-	43, // [43:43] is the sub-list for extension type_name
-	43, // [43:43] is the sub-list for extension extendee
-	0,  // [0:43] is the sub-list for field type_name
+	15, // 18: vrooli.cli.v1.ProjectLocksResponse.registry_claims:type_name -> vrooli.cli.v1.ProjectRuntimeClaim
+	31, // 19: vrooli.cli.v1.ProjectRuntimeClaim.supervisor_fresh:type_name -> google.protobuf.Value
+	31, // 20: vrooli.cli.v1.ProjectRuntimeClaim.lease_fresh:type_name -> google.protobuf.Value
+	31, // 21: vrooli.cli.v1.ProjectRuntimeClaim.health_ready:type_name -> google.protobuf.Value
+	31, // 22: vrooli.cli.v1.ProjectRuntimeClaim.authoritative:type_name -> google.protobuf.Value
+	31, // 23: vrooli.cli.v1.ProjectRuntimeClaim.listener_pid:type_name -> google.protobuf.Value
+	17, // 24: vrooli.cli.v1.ProjectTemplateCleanupResponse.cleanup:type_name -> vrooli.cli.v1.ProjectTemplateCleanupResult
+	18, // 25: vrooli.cli.v1.ProjectTemplateCleanupResult.eligible:type_name -> vrooli.cli.v1.ProjectTemplateRun
+	20, // 26: vrooli.cli.v1.ProjectTemplateCleanupResult.skipped:type_name -> vrooli.cli.v1.ProjectTemplateSkippedRun
+	21, // 27: vrooli.cli.v1.ProjectTemplateCleanupResult.failures:type_name -> vrooli.cli.v1.ProjectTemplateFailedRun
+	18, // 28: vrooli.cli.v1.ProjectTemplateCleanupResult.removed:type_name -> vrooli.cli.v1.ProjectTemplateRun
+	19, // 29: vrooli.cli.v1.ProjectTemplateRun.marker:type_name -> vrooli.cli.v1.ProjectTemplateRunMarker
+	18, // 30: vrooli.cli.v1.ProjectTemplateSkippedRun.run:type_name -> vrooli.cli.v1.ProjectTemplateRun
+	18, // 31: vrooli.cli.v1.ProjectTemplateFailedRun.run:type_name -> vrooli.cli.v1.ProjectTemplateRun
+	23, // 32: vrooli.cli.v1.ProjectPortDiagnosticResponse.diagnostic:type_name -> vrooli.cli.v1.ProjectPortDiagnostic
+	24, // 33: vrooli.cli.v1.ProjectPortDiagnostic.listeners:type_name -> vrooli.cli.v1.ProjectPortListener
+	25, // 34: vrooli.cli.v1.ProjectPortDiagnostic.listener_inspection:type_name -> vrooli.cli.v1.ProjectListenerInspection
+	15, // 35: vrooli.cli.v1.ProjectPortDiagnostic.registry_claims:type_name -> vrooli.cli.v1.ProjectRuntimeClaim
+	26, // 36: vrooli.cli.v1.ProjectPortDiagnostic.registry_processes:type_name -> vrooli.cli.v1.ProjectRuntimeProcessRef
+	27, // 37: vrooli.cli.v1.ProjectPortDiagnostic.port_policy:type_name -> vrooli.cli.v1.ProjectPortPolicy
+	31, // 38: vrooli.cli.v1.ProjectRuntimeProcessRef.pid:type_name -> google.protobuf.Value
+	31, // 39: vrooli.cli.v1.ProjectRuntimeProcessRef.pgid:type_name -> google.protobuf.Value
+	31, // 40: vrooli.cli.v1.ProjectRuntimeProcessRef.pid_running:type_name -> google.protobuf.Value
+	41, // [41:41] is the sub-list for method output_type
+	41, // [41:41] is the sub-list for method input_type
+	41, // [41:41] is the sub-list for extension type_name
+	41, // [41:41] is the sub-list for extension extendee
+	0,  // [0:41] is the sub-list for field type_name
 }
 
 func init() { file_cli_v1_project_proto_init() }
@@ -2981,7 +2850,7 @@ func file_cli_v1_project_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cli_v1_project_proto_rawDesc), len(file_cli_v1_project_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   31,
+			NumMessages:   30,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

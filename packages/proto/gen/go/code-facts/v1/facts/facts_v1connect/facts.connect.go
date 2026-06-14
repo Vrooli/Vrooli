@@ -36,6 +36,9 @@ const (
 	// CodeFactsServiceDescribeCodeFactsProcedure is the fully-qualified name of the CodeFactsService's
 	// DescribeCodeFacts RPC.
 	CodeFactsServiceDescribeCodeFactsProcedure = "/vrooli.code_facts.v1.facts.CodeFactsService/DescribeCodeFacts"
+	// CodeFactsServiceDescribeFleetImportsProcedure is the fully-qualified name of the
+	// CodeFactsService's DescribeFleetImports RPC.
+	CodeFactsServiceDescribeFleetImportsProcedure = "/vrooli.code_facts.v1.facts.CodeFactsService/DescribeFleetImports"
 	// CodeFactsServiceListSurfacesProcedure is the fully-qualified name of the CodeFactsService's
 	// ListSurfaces RPC.
 	CodeFactsServiceListSurfacesProcedure = "/vrooli.code_facts.v1.facts.CodeFactsService/ListSurfaces"
@@ -62,15 +65,17 @@ type CodeFactsServiceClient interface {
 	// families. Unsupported families are represented with typed evidence instead
 	// of being omitted.
 	DescribeCodeFacts(context.Context, *connect.Request[facts.DescribeCodeFactsRequest]) (*connect.Response[facts.CodeFactsReport], error)
+	// DescribeFleetImports returns IMPORTS facts for many or all scenarios.
+	// It stays language-level: import_path attributes are not resolved to
+	// owning scenarios here.
+	DescribeFleetImports(context.Context, *connect.Request[facts.DescribeFleetImportsRequest]) (*connect.Response[facts.DescribeFleetImportsResponse], error)
 	// ListSurfaces returns the surface inventory portion of DescribeCodeFacts.
 	ListSurfaces(context.Context, *connect.Request[facts.ListSurfacesRequest]) (*connect.Response[facts.ListSurfacesResponse], error)
-	// CheckProtoAdoption returns proof-family evidence for generated proto
-	// adoption. Phase 6 exposes the contract; later phases add analyzer-backed
-	// proof.
+	// CheckProtoAdoption returns analyzer-backed proof-family evidence for
+	// generated proto adoption.
 	CheckProtoAdoption(context.Context, *connect.Request[facts.CheckProtoAdoptionRequest]) (*connect.Response[facts.ProofReport], error)
-	// CheckEndpointProof returns proof-family evidence for one endpoint or all
-	// endpoints in a target. Phase 6 exposes the contract; later phases add
-	// analyzer-backed proof.
+	// CheckEndpointProof returns analyzer-backed proof-family evidence for one
+	// endpoint or all endpoints in a target.
 	CheckEndpointProof(context.Context, *connect.Request[facts.CheckEndpointProofRequest]) (*connect.Response[facts.ProofReport], error)
 	// GetCacheStatus returns inspectable cache metadata for a target/options
 	// tuple.
@@ -96,6 +101,12 @@ func NewCodeFactsServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+CodeFactsServiceDescribeCodeFactsProcedure,
 			connect.WithSchema(codeFactsServiceMethods.ByName("DescribeCodeFacts")),
+			connect.WithClientOptions(opts...),
+		),
+		describeFleetImports: connect.NewClient[facts.DescribeFleetImportsRequest, facts.DescribeFleetImportsResponse](
+			httpClient,
+			baseURL+CodeFactsServiceDescribeFleetImportsProcedure,
+			connect.WithSchema(codeFactsServiceMethods.ByName("DescribeFleetImports")),
 			connect.WithClientOptions(opts...),
 		),
 		listSurfaces: connect.NewClient[facts.ListSurfacesRequest, facts.ListSurfacesResponse](
@@ -139,18 +150,24 @@ func NewCodeFactsServiceClient(httpClient connect.HTTPClient, baseURL string, op
 
 // codeFactsServiceClient implements CodeFactsServiceClient.
 type codeFactsServiceClient struct {
-	describeCodeFacts  *connect.Client[facts.DescribeCodeFactsRequest, facts.CodeFactsReport]
-	listSurfaces       *connect.Client[facts.ListSurfacesRequest, facts.ListSurfacesResponse]
-	checkProtoAdoption *connect.Client[facts.CheckProtoAdoptionRequest, facts.ProofReport]
-	checkEndpointProof *connect.Client[facts.CheckEndpointProofRequest, facts.ProofReport]
-	getCacheStatus     *connect.Client[facts.GetCacheStatusRequest, facts.CacheStatus]
-	inspectCache       *connect.Client[facts.InspectCacheRequest, facts.CacheStatus]
-	clearCache         *connect.Client[facts.ClearCacheRequest, facts.ClearCacheResponse]
+	describeCodeFacts    *connect.Client[facts.DescribeCodeFactsRequest, facts.CodeFactsReport]
+	describeFleetImports *connect.Client[facts.DescribeFleetImportsRequest, facts.DescribeFleetImportsResponse]
+	listSurfaces         *connect.Client[facts.ListSurfacesRequest, facts.ListSurfacesResponse]
+	checkProtoAdoption   *connect.Client[facts.CheckProtoAdoptionRequest, facts.ProofReport]
+	checkEndpointProof   *connect.Client[facts.CheckEndpointProofRequest, facts.ProofReport]
+	getCacheStatus       *connect.Client[facts.GetCacheStatusRequest, facts.CacheStatus]
+	inspectCache         *connect.Client[facts.InspectCacheRequest, facts.CacheStatus]
+	clearCache           *connect.Client[facts.ClearCacheRequest, facts.ClearCacheResponse]
 }
 
 // DescribeCodeFacts calls vrooli.code_facts.v1.facts.CodeFactsService.DescribeCodeFacts.
 func (c *codeFactsServiceClient) DescribeCodeFacts(ctx context.Context, req *connect.Request[facts.DescribeCodeFactsRequest]) (*connect.Response[facts.CodeFactsReport], error) {
 	return c.describeCodeFacts.CallUnary(ctx, req)
+}
+
+// DescribeFleetImports calls vrooli.code_facts.v1.facts.CodeFactsService.DescribeFleetImports.
+func (c *codeFactsServiceClient) DescribeFleetImports(ctx context.Context, req *connect.Request[facts.DescribeFleetImportsRequest]) (*connect.Response[facts.DescribeFleetImportsResponse], error) {
+	return c.describeFleetImports.CallUnary(ctx, req)
 }
 
 // ListSurfaces calls vrooli.code_facts.v1.facts.CodeFactsService.ListSurfaces.
@@ -190,15 +207,17 @@ type CodeFactsServiceHandler interface {
 	// families. Unsupported families are represented with typed evidence instead
 	// of being omitted.
 	DescribeCodeFacts(context.Context, *connect.Request[facts.DescribeCodeFactsRequest]) (*connect.Response[facts.CodeFactsReport], error)
+	// DescribeFleetImports returns IMPORTS facts for many or all scenarios.
+	// It stays language-level: import_path attributes are not resolved to
+	// owning scenarios here.
+	DescribeFleetImports(context.Context, *connect.Request[facts.DescribeFleetImportsRequest]) (*connect.Response[facts.DescribeFleetImportsResponse], error)
 	// ListSurfaces returns the surface inventory portion of DescribeCodeFacts.
 	ListSurfaces(context.Context, *connect.Request[facts.ListSurfacesRequest]) (*connect.Response[facts.ListSurfacesResponse], error)
-	// CheckProtoAdoption returns proof-family evidence for generated proto
-	// adoption. Phase 6 exposes the contract; later phases add analyzer-backed
-	// proof.
+	// CheckProtoAdoption returns analyzer-backed proof-family evidence for
+	// generated proto adoption.
 	CheckProtoAdoption(context.Context, *connect.Request[facts.CheckProtoAdoptionRequest]) (*connect.Response[facts.ProofReport], error)
-	// CheckEndpointProof returns proof-family evidence for one endpoint or all
-	// endpoints in a target. Phase 6 exposes the contract; later phases add
-	// analyzer-backed proof.
+	// CheckEndpointProof returns analyzer-backed proof-family evidence for one
+	// endpoint or all endpoints in a target.
 	CheckEndpointProof(context.Context, *connect.Request[facts.CheckEndpointProofRequest]) (*connect.Response[facts.ProofReport], error)
 	// GetCacheStatus returns inspectable cache metadata for a target/options
 	// tuple.
@@ -220,6 +239,12 @@ func NewCodeFactsServiceHandler(svc CodeFactsServiceHandler, opts ...connect.Han
 		CodeFactsServiceDescribeCodeFactsProcedure,
 		svc.DescribeCodeFacts,
 		connect.WithSchema(codeFactsServiceMethods.ByName("DescribeCodeFacts")),
+		connect.WithHandlerOptions(opts...),
+	)
+	codeFactsServiceDescribeFleetImportsHandler := connect.NewUnaryHandler(
+		CodeFactsServiceDescribeFleetImportsProcedure,
+		svc.DescribeFleetImports,
+		connect.WithSchema(codeFactsServiceMethods.ByName("DescribeFleetImports")),
 		connect.WithHandlerOptions(opts...),
 	)
 	codeFactsServiceListSurfacesHandler := connect.NewUnaryHandler(
@@ -262,6 +287,8 @@ func NewCodeFactsServiceHandler(svc CodeFactsServiceHandler, opts ...connect.Han
 		switch r.URL.Path {
 		case CodeFactsServiceDescribeCodeFactsProcedure:
 			codeFactsServiceDescribeCodeFactsHandler.ServeHTTP(w, r)
+		case CodeFactsServiceDescribeFleetImportsProcedure:
+			codeFactsServiceDescribeFleetImportsHandler.ServeHTTP(w, r)
 		case CodeFactsServiceListSurfacesProcedure:
 			codeFactsServiceListSurfacesHandler.ServeHTTP(w, r)
 		case CodeFactsServiceCheckProtoAdoptionProcedure:
@@ -285,6 +312,10 @@ type UnimplementedCodeFactsServiceHandler struct{}
 
 func (UnimplementedCodeFactsServiceHandler) DescribeCodeFacts(context.Context, *connect.Request[facts.DescribeCodeFactsRequest]) (*connect.Response[facts.CodeFactsReport], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.code_facts.v1.facts.CodeFactsService.DescribeCodeFacts is not implemented"))
+}
+
+func (UnimplementedCodeFactsServiceHandler) DescribeFleetImports(context.Context, *connect.Request[facts.DescribeFleetImportsRequest]) (*connect.Response[facts.DescribeFleetImportsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.code_facts.v1.facts.CodeFactsService.DescribeFleetImports is not implemented"))
 }
 
 func (UnimplementedCodeFactsServiceHandler) ListSurfaces(context.Context, *connect.Request[facts.ListSurfacesRequest]) (*connect.Response[facts.ListSurfacesResponse], error) {

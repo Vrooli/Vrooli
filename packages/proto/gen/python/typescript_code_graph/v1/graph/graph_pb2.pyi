@@ -27,6 +27,7 @@ class TsNodeKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TS_NODE_KIND_CALL: _ClassVar[TsNodeKind]
     TS_NODE_KIND_JSX_USAGE: _ClassVar[TsNodeKind]
     TS_NODE_KIND_EXPORT: _ClassVar[TsNodeKind]
+    TS_NODE_KIND_ROUTE_REGISTRATION: _ClassVar[TsNodeKind]
 TS_NODE_KIND_UNSPECIFIED: TsNodeKind
 TS_NODE_KIND_MODULE: TsNodeKind
 TS_NODE_KIND_COMPONENT: TsNodeKind
@@ -43,6 +44,7 @@ TS_NODE_KIND_REFERENCE: TsNodeKind
 TS_NODE_KIND_CALL: TsNodeKind
 TS_NODE_KIND_JSX_USAGE: TsNodeKind
 TS_NODE_KIND_EXPORT: TsNodeKind
+TS_NODE_KIND_ROUTE_REGISTRATION: TsNodeKind
 
 class ExtractRequest(_message.Message):
     __slots__ = ("project_path",)

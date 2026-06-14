@@ -1,173 +1,130 @@
 package phases
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"test-genie/internal/orchestrator/workspace"
+
+	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
 
-func stubCommandLookup(t *testing.T, stub func(string) (string, error)) {
+func swapDependencyDriftSeam(t *testing.T, fn func(ctx context.Context, scenario string) ([]byte, int, error)) {
 	t.Helper()
-	prev := commandLookup
-	commandLookup = stub
-	t.Cleanup(func() {
-		commandLookup = prev
-	})
+	prev := runDependencyDrift
+	runDependencyDrift = fn
+	t.Cleanup(func() { runDependencyDrift = prev })
 }
 
-func TestRunDependenciesPhaseDetectsRuntimesAndManagers(t *testing.T) {
-	root := t.TempDir()
-	scenarioDir := createScenarioLayout(t, root, "demo")
-	if err := os.WriteFile(filepath.Join(scenarioDir, "api", "go.mod"), []byte("module demo\n"), 0o644); err != nil {
-		t.Fatalf("failed to seed go.mod: %v", err)
-	}
-	uiDir := filepath.Join(scenarioDir, "ui")
-	if err := os.MkdirAll(uiDir, 0o755); err != nil {
-		t.Fatalf("failed to create ui dir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(uiDir, "package.json"), []byte(`{"name":"demo-ui"}`), 0o644); err != nil {
-		t.Fatalf("failed to seed package.json: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(uiDir, "pnpm-lock.yaml"), []byte("lockfileVersion: '9'\n"), 0o644); err != nil {
-		t.Fatalf("failed to seed pnpm lock file: %v", err)
-	}
-	if err := os.MkdirAll(filepath.Join(uiDir, "node_modules"), 0o755); err != nil {
-		t.Fatalf("failed to seed node_modules: %v", err)
-	}
-
-	lookups := make(map[string]int)
-	stubCommandLookup(t, func(name string) (string, error) {
-		lookups[name]++
-		return "/tmp/" + name, nil
-	})
-
+func dependencyEnv(t *testing.T) workspace.Environment {
+	t.Helper()
+	dir := t.TempDir()
 	env := workspace.Environment{
 		ScenarioName: "demo",
-		ScenarioDir:  scenarioDir,
-		TestDir:      filepath.Join(scenarioDir, "test"),
+		ScenarioDir:  dir,
+		TestDir:      filepath.Join(dir, "test"),
+		AppRoot:      filepath.Dir(dir),
 	}
-	report := runDependenciesPhase(context.Background(), env, io.Discard)
+	if err := os.MkdirAll(env.TestDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".vrooli", "testing.json"), []byte(`{
+		"dependencies": {
+			"runtime_versions": {},
+			"go_modules": {"enabled": false},
+			"node_packages": {"enabled": false},
+			"scenarios": {"enabled": false},
+			"resources": {"health_policy": "skip"}
+		}
+	}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".vrooli", "service.json"), []byte(`{
+		"name": "demo",
+		"dependencies": {
+			"resources": {},
+			"scenarios": {}
+		}
+	}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return env
+}
+
+func TestDependencyDriftArchFindings_MapsSourceAndStableID(t *testing.T) {
+	report, err := parseDependencyDriftOutput([]byte(`{
+		"findings": [
+			{
+				"scenario": "demo",
+				"dependency": "proto-health",
+				"kind": "undeclared-but-used",
+				"severity": "WARNING",
+				"message": "demo imports proto-health but does not declare it",
+				"evidence": [
+					{"source": "proto_import", "to_file": "proto-health/v1/shared/surface.proto"}
+				]
+			}
+		]
+	}`))
+	if err != nil {
+		t.Fatalf("parseDependencyDriftOutput: %v", err)
+	}
+	got := dependencyDriftArchFindings("demo", report)
+	if len(got) != 1 {
+		t.Fatalf("want 1 finding, got %d", len(got))
+	}
+	if got[0].GetSource() != architecturev1.FindingSource_FINDING_SOURCE_DEPENDENCY {
+		t.Errorf("source = %v, want FINDING_SOURCE_DEPENDENCY", got[0].GetSource())
+	}
+	if got[0].GetSeverity() != architecturev1.FindingSeverity_FINDING_SEVERITY_WARNING {
+		t.Errorf("severity = %v, want WARNING", got[0].GetSeverity())
+	}
+	if got[0].GetStableId() == "" {
+		t.Error("stable id must be stamped")
+	}
+	if len(got[0].GetEvidence()) != 1 || got[0].GetEvidence()[0].GetKind() != "proto_import" {
+		t.Fatalf("evidence not translated: %+v", got[0].GetEvidence())
+	}
+}
+
+func TestRunDependenciesPhase_DriftUnavailableSkipsGracefully(t *testing.T) {
+	swapDependencyDriftSeam(t, func(_ context.Context, _ string) ([]byte, int, error) {
+		return nil, 0, errors.New("not installed")
+	})
+
+	var buf bytes.Buffer
+	report := runDependenciesPhase(context.Background(), dependencyEnv(t), io.MultiWriter(&buf, io.Discard))
 	if report.Err != nil {
-		t.Fatalf("dependencies phase failed: %v", report.Err)
+		t.Fatalf("unavailable drift producer must not fail dependency phase: %v", report.Err)
 	}
-
-	expected := []string{"bash", "curl", "jq", "go", "node", "pnpm"}
-	for _, cmd := range expected {
-		if lookups[cmd] == 0 {
-			t.Fatalf("expected lookup for %s", cmd)
-		}
+	if len(report.Findings) != 0 {
+		t.Fatalf("skipped drift producer should emit no findings, got %d", len(report.Findings))
 	}
 }
 
-func TestRunDependenciesPhaseFailsWhenRuntimeMissing(t *testing.T) {
-	root := t.TempDir()
-	scenarioDir := createScenarioLayout(t, root, "demo")
-	if err := os.WriteFile(filepath.Join(scenarioDir, "api", "go.mod"), []byte("module demo\n"), 0o644); err != nil {
-		t.Fatalf("failed to seed go.mod: %v", err)
-	}
-
-	stubCommandLookup(t, func(name string) (string, error) {
-		if name == "go" {
-			return "", &commandNotFoundError{name}
-		}
-		return "/tmp/" + name, nil
+func TestRunDependenciesPhase_DriftFindingIsAttached(t *testing.T) {
+	swapDependencyDriftSeam(t, func(_ context.Context, scenario string) ([]byte, int, error) {
+		return []byte(`{
+			"findings": [
+				{"scenario":"` + scenario + `","dependency":"code-facts","kind":"undeclared-but-used","severity":"WARNING","message":"missing declaration"}
+			]
+		}`), 0, nil
 	})
 
-	env := workspace.Environment{
-		ScenarioName: "demo",
-		ScenarioDir:  scenarioDir,
-		TestDir:      filepath.Join(scenarioDir, "test"),
-	}
-	report := runDependenciesPhase(context.Background(), env, io.Discard)
-	if report.Err == nil {
-		t.Fatalf("expected failure when go runtime is unavailable")
-	}
-	if !strings.Contains(report.Err.Error(), "go") {
-		t.Fatalf("unexpected error: %v", report.Err)
-	}
-	if report.FailureClassification != FailureClassMissingDependency {
-		t.Fatalf("expected missing dependency classification, got %s", report.FailureClassification)
-	}
-}
-
-func TestRunDependenciesPhaseFailsOnMissingBaselineCommand(t *testing.T) {
-	root := t.TempDir()
-	scenarioDir := createScenarioLayout(t, root, "demo")
-
-	stubCommandLookup(t, func(name string) (string, error) {
-		if name == "jq" {
-			return "", &commandNotFoundError{name}
-		}
-		return "/tmp/" + name, nil
-	})
-
-	env := workspace.Environment{
-		ScenarioName: "demo",
-		ScenarioDir:  scenarioDir,
-		TestDir:      filepath.Join(scenarioDir, "test"),
-	}
-	report := runDependenciesPhase(context.Background(), env, io.Discard)
-	if report.Err == nil {
-		t.Fatalf("expected failure when baseline command is unavailable")
-	}
-	if !strings.Contains(report.Err.Error(), "jq") {
-		t.Fatalf("expected error to mention jq, got: %v", report.Err)
-	}
-}
-
-func TestRunDependenciesPhaseGeneratesObservations(t *testing.T) {
-	root := t.TempDir()
-	scenarioDir := createScenarioLayout(t, root, "demo")
-
-	stubCommandLookup(t, func(name string) (string, error) {
-		return "/tmp/" + name, nil
-	})
-
-	env := workspace.Environment{
-		ScenarioName: "demo",
-		ScenarioDir:  scenarioDir,
-		TestDir:      filepath.Join(scenarioDir, "test"),
-	}
-	report := runDependenciesPhase(context.Background(), env, io.Discard)
+	var buf bytes.Buffer
+	report := runDependenciesPhase(context.Background(), dependencyEnv(t), io.MultiWriter(&buf, io.Discard))
 	if report.Err != nil {
-		t.Fatalf("unexpected error: %v", report.Err)
+		t.Fatalf("dependency phase should still pass: %v", report.Err)
 	}
-	if len(report.Observations) == 0 {
-		t.Fatalf("expected observations to be recorded")
+	if len(report.Findings) != 1 || report.Findings[0].GetSource() != architecturev1.FindingSource_FINDING_SOURCE_DEPENDENCY {
+		t.Fatalf("expected 1 dependency finding, got %+v", report.Findings)
 	}
-}
-
-func TestRunDependenciesPhaseWithCancelledContext(t *testing.T) {
-	root := t.TempDir()
-	scenarioDir := createScenarioLayout(t, root, "demo")
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	env := workspace.Environment{
-		ScenarioName: "demo",
-		ScenarioDir:  scenarioDir,
-		TestDir:      filepath.Join(scenarioDir, "test"),
-	}
-	report := runDependenciesPhase(ctx, env, io.Discard)
-	if report.Err == nil {
-		t.Fatalf("expected failure for cancelled context")
-	}
-	if report.FailureClassification != FailureClassSystem {
-		t.Fatalf("expected system classification, got %s", report.FailureClassification)
-	}
-}
-
-// commandNotFoundError simulates exec.LookPath error.
-type commandNotFoundError struct {
-	name string
-}
-
-func (e *commandNotFoundError) Error() string {
-	return "executable file not found in $PATH: " + e.name
 }

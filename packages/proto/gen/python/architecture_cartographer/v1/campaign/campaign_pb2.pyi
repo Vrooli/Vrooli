@@ -221,24 +221,28 @@ class ApplyItemResponse(_message.Message):
     def __init__(self, item: _Optional[_Union[CampaignItem, _Mapping]] = ...) -> None: ...
 
 class ReauditCampaignRequest(_message.Message):
-    __slots__ = ("campaign_id", "findings")
+    __slots__ = ("campaign_id", "findings", "covered_sources")
     CAMPAIGN_ID_FIELD_NUMBER: _ClassVar[int]
     FINDINGS_FIELD_NUMBER: _ClassVar[int]
+    COVERED_SOURCES_FIELD_NUMBER: _ClassVar[int]
     campaign_id: str
     findings: _containers.RepeatedCompositeFieldContainer[_findings_pb2.ArchitectureFinding]
-    def __init__(self, campaign_id: _Optional[str] = ..., findings: _Optional[_Iterable[_Union[_findings_pb2.ArchitectureFinding, _Mapping]]] = ...) -> None: ...
+    covered_sources: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, campaign_id: _Optional[str] = ..., findings: _Optional[_Iterable[_Union[_findings_pb2.ArchitectureFinding, _Mapping]]] = ..., covered_sources: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ReauditCampaignResponse(_message.Message):
-    __slots__ = ("validated", "still_open", "regressions", "status")
+    __slots__ = ("validated", "still_open", "regressions", "status", "not_reaudited")
     VALIDATED_FIELD_NUMBER: _ClassVar[int]
     STILL_OPEN_FIELD_NUMBER: _ClassVar[int]
     REGRESSIONS_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
+    NOT_REAUDITED_FIELD_NUMBER: _ClassVar[int]
     validated: _containers.RepeatedCompositeFieldContainer[CampaignItem]
     still_open: _containers.RepeatedCompositeFieldContainer[CampaignItem]
     regressions: _containers.RepeatedCompositeFieldContainer[CampaignItem]
     status: CampaignStatus
-    def __init__(self, validated: _Optional[_Iterable[_Union[CampaignItem, _Mapping]]] = ..., still_open: _Optional[_Iterable[_Union[CampaignItem, _Mapping]]] = ..., regressions: _Optional[_Iterable[_Union[CampaignItem, _Mapping]]] = ..., status: _Optional[_Union[CampaignStatus, _Mapping]] = ...) -> None: ...
+    not_reaudited: _containers.RepeatedCompositeFieldContainer[CampaignItem]
+    def __init__(self, validated: _Optional[_Iterable[_Union[CampaignItem, _Mapping]]] = ..., still_open: _Optional[_Iterable[_Union[CampaignItem, _Mapping]]] = ..., regressions: _Optional[_Iterable[_Union[CampaignItem, _Mapping]]] = ..., status: _Optional[_Union[CampaignStatus, _Mapping]] = ..., not_reaudited: _Optional[_Iterable[_Union[CampaignItem, _Mapping]]] = ...) -> None: ...
 
 class CloseCampaignRequest(_message.Message):
     __slots__ = ("campaign_id",)

@@ -13,6 +13,12 @@ import (
 	"test-genie/internal/orchestrator/workspace"
 )
 
+func stubCommandLookup(t *testing.T, fn func(string) (string, error)) {
+	t.Helper()
+	restore := OverrideCommandLookup(fn)
+	t.Cleanup(restore)
+}
+
 func TestRunIntegrationPhaseExecutesCliAndBats(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] integration phase exercises CLI + bats", func(t *testing.T) {
 		root := t.TempDir()
