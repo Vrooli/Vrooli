@@ -51,7 +51,12 @@ const (
 	SupervisionPolicyManaged = "managed"
 	SupervisionPolicyManual  = "manual"
 
-	DefaultHeartbeatTTL           = 30 * time.Second
+	DefaultHeartbeatTTL = 30 * time.Second
+	// DefaultReservedClaimTTL bounds how long a reserved (not yet bound) port
+	// claim survives without renewal before any allocator may expire it. The
+	// lifecycle renews reserved claims alongside its instance heartbeats so a
+	// slow start (e.g. a long setup build) keeps its ports.
+	DefaultReservedClaimTTL       = 5 * time.Minute
 	DefaultMaxHealthResponseBytes = 64 * 1024
 )
 
@@ -287,6 +292,7 @@ type PortClaimRepository interface {
 	ListPortClaims(ctx context.Context, filter PortClaimFilter) ([]PortClaim, error)
 	ListExpiredActivePortClaims(ctx context.Context, at time.Time) ([]PortClaim, error)
 	UpdatePortClaimListenerEvidence(ctx context.Context, claimID string, evidence ListenerObservation) (PortClaim, error)
+	RenewReservedPortClaimsForInstance(ctx context.Context, instanceID string, expiresAt time.Time) (int, error)
 }
 
 type HealthRepository interface {

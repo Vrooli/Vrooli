@@ -18,6 +18,7 @@
     { "id": "dependencies", "description": "Dependency hygiene and governance." },
     { "id": "business", "description": "Business-logic validation." },
     { "id": "tidiness", "description": "File and function quality nits (tidiness-manager)." },
+    { "id": "dependency-accuracy", "description": "Declared scenario dependencies match actual import-level interface usage. Produced by the test-genie `dependencies` phase, which delegates to scenario-dependency-analyzer drift." },
     { "id": "measures", "description": "Measure coverage of stateful domains: each persisted-entity domain declares a named, typed, parameterized analytical query (or is waived). Produced by the test-genie `measures` phase, which delegates to the measures-health scenario." },
     { "id": "proto-health", "description": "Protocol Buffer contract organization, generated-artifact sync, transport-world clarity, and scenario-scoped proto-surface facts. Produced by the test-genie `proto` phase, which delegates to proto-health." }
   ],
@@ -33,7 +34,8 @@
     "FINDING_SOURCE_SECURITY": "security",
     "FINDING_SOURCE_MEASURES": "measures",
     "FINDING_SOURCE_BUSINESS": "business",
-    "FINDING_SOURCE_PROTO": "proto-health"
+    "FINDING_SOURCE_PROTO": "proto-health",
+    "FINDING_SOURCE_DEPENDENCY": "dependency-accuracy"
   },
   "testgenie_phase_map": {
     "structure": "structure",
@@ -41,7 +43,7 @@
     "ui-health": "ui",
     "standards": "standards",
     "architecture": "cycles",
-    "dependencies": "dependencies",
+    "dependencies": "dependency-accuracy",
     "lint": "standards",
     "docs": "docs",
     "smoke": "visual",

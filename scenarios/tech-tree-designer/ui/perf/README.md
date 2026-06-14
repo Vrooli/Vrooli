@@ -34,7 +34,7 @@ PORT=$(vrooli scenario port "${SCENARIO}" UI_PORT)
 node "${WORKDIR}/capture.js" "http://localhost:${PORT}" "${WORKDIR}/trace.json"
 ```
 
-The capture writes two files:
+The capture writes trace artifacts:
 
 - `trace.json` — load in Chrome DevTools Performance panel for visual analysis.
 - `trace.web-vitals.json` — long tasks, paint, LCP captured via

@@ -9,6 +9,9 @@
     "mainLabel": "メインコンテンツ",
     "nav": {
       "dashboard": "ダッシュボード",
+      "graph": "グラフ",
+      "planning": "計画",
+      "roadmap": "ロードマップ",
       "settings": "設定"
     }
   },
@@ -30,6 +33,102 @@
       "title": "設定",
       "themeHeading": "外観",
       "localeHeading": "言語"
+    }
+  },
+  "graph": {
+    "eyebrow": "インターフェイスグラフ",
+    "title": "シナリオ依存関係キャンバス",
+    "description": "ライブの proto import 依存関係と計画中の契約ノードを、1つの編集可能なキャンバスで確認します。",
+    "group": {
+      "none": "グループ化なし",
+      "sector": "セクターでグループ化",
+      "tier": "ティアでグループ化"
+    },
+    "actions": {
+      "refresh": "再読み込み",
+      "dot": "DOT"
+    },
+    "metrics": {
+      "live": "ライブシナリオ",
+      "planned": "計画シナリオ",
+      "dependencies": "依存関係",
+      "warnings": "ソース警告"
+    },
+    "states": {
+      "loading": "Tech Tree Designer からグラフを読み込み中…",
+      "error": "グラフデータを利用できません。API と proto-health が起動していることを確認してください。",
+      "empty": "まだグラフノードがありません。proto-health を起動し、計画シナリオを追加してキャンバスを埋めてください。"
+    },
+    "warnings": {
+      "title": "グラフソース警告",
+      "item": "{{source}} {{scenario}}: {{message}}"
+    },
+    "node": {
+      "planned": "計画",
+      "live": "ライブ",
+      "none": "NONE",
+      "unknown": "不明",
+      "unassigned": "未割り当て",
+      "untiered": "ティアなし"
+    }
+  },
+  "planning": {
+    "eyebrow": "計画",
+    "title": "契約先行シナリオ",
+    "slugPlaceholder": "planned-scenario",
+    "actions": {
+      "create": "計画シナリオを作成",
+      "save": "ファイルを保存",
+      "validate": "検証",
+      "materialize": "具現化",
+      "delete": "削除"
+    },
+    "states": {
+      "loading": "計画を読み込み中…",
+      "emptyList": "計画シナリオを作成して proto 契約のドラフトを開始します。",
+      "noSelection": "計画シナリオを選択または作成してください。",
+      "noFiles": "ファイルはまだありません。エディタの内容を保存して最初の proto ファイルを追加してください。"
+    },
+    "fallbacks": {
+      "unassigned": "未割り当て",
+      "untiered": "ティアなし"
+    },
+    "validation": {
+      "passed": "検証に合格しました",
+      "findings": "検証結果",
+      "none": "結果はありません。"
+    },
+    "materialized": "{{count}} 個の proto ファイルを書き込みました。"
+  },
+  "roadmap": {
+    "eyebrow": "ロードマップオーバーレイ",
+    "title": "セクター、ティア、マイルストーン",
+    "description": "2つ目のグラフモデルを作らずに計画成熟度を追跡します。進捗はシナリオの安定性から集計されます。",
+    "metrics": {
+      "sectors": "セクター",
+      "milestones": "マイルストーン",
+      "buckets": "進捗バケット"
+    },
+    "tiers": {
+      "title": "ティア進行",
+      "sectorColumn": "セクター",
+      "progressCounts": "P {{planned}} / L {{live}} / S {{stable}}"
+    },
+    "sectors": {
+      "title": "セクター"
+    },
+    "milestones": {
+      "title": "マイルストーン",
+      "requiredScenarios": "{{count}} 件の必須シナリオ"
+    },
+    "states": {
+      "loadingProgress": "進捗を読み込み中…",
+      "noSectors": "セクターはまだ追加されていません。",
+      "noMilestones": "マイルストーンはまだ追加されていません。"
+    },
+    "fallbacks": {
+      "unassigned": "未割り当て",
+      "noDescription": "説明はまだありません。"
     }
   },
   "health": {

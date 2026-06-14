@@ -126,7 +126,19 @@
     {
       "name": "dependencies",
       "status": "pass",
-      "findings": []
+      "findings": [
+        {
+          "scenario": "fixture-scenario",
+          "source": 13,
+          "code": "dependency.undeclared-but-used",
+          "severity": 2,
+          "locations": [
+            "scenarios/fixture-scenario/.vrooli/service.json"
+          ],
+          "message": "fixture-scenario imports proto-health but does not declare it",
+          "stable_id": "afid:0000000000000013"
+        }
+      ]
     },
     {
       "name": "lint",

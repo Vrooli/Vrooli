@@ -15,13 +15,12 @@ Future planned-proto editor workflows may use formal transition models. Those mo
 | health dependency probes | api-core health builder pingers | `handlers/health.Module` receives routed DB handle | handler tests inject test DB / health builder setup | Keeps runtime readiness observable without product tables. |
 | database routing | `*database.RoutedDB` | lifecycle and test-mode middleware choose primary/test pool | `internal/testutil/db` SQLite helpers | Lets test-genie route test data without direct DB sharing. |
 | GraphSource | `api/internal/graph.GraphSource.Graph(ctx, SourceRequest)` returning `TechTreeGraph` | `ProtoHealthSource` backed by `proto-health` `DescribeScenariosProtos`; `graph.Service` consumes it for Describe/Neighborhood/Path/Ancestors/Export | fake `ProtoSurfaceClient` fixtures and fake `GraphSource` service tests | Keeps graph logic independent of upstream provider shape and leaves room for the later SDA source. |
-
-## Planned seams
-
-| Seam | Interface | Planned Production Wiring | Test Fake | Why It Exists |
-|---|---|---|---|---|
-| ProtoValidator | validate planned `.proto` file tree | protocompile overlay resolver over planned files + real schemas | deterministic fake validator | Lets planning service tests cover validation outcomes without invoking compiler in every case. |
-| Materializer | write validated proto files + run generation | filesystem writer under `packages/proto/schemas/<slug>/` | temp-dir writer / dry-run | Makes the outside-scenario write path explicit and testable. |
+| PlannedGraphSource | `api/internal/graph.PlannedGraphSource.PlannedGraph(ctx)` | planning service returns planned nodes and import-derived edges | fake planned graph source in graph service tests | Lets graph merge planned nodes without importing planning storage. |
+| planning Repository | `api/internal/planning.Repository` | SQLiteRepository over `planned_scenario` and `planned_proto_file` | small package-local fakes in service tests | Keeps planning service independent of SQLite query mechanics. |
+| ProtoValidator | `api/internal/planning.ProtoValidator` | `CompilerValidator` using `bufbuild/protocompile` with planned-file overlay plus live schemas | deterministic fake validator when service-only tests need it | Validates planned proto text without shelling out to `buf` at runtime. |
+| Materializer | `api/internal/planning.Materializer` | `FilesystemMaterializer` writes under `packages/proto/schemas/<slug>/` and runs `make generate` | command-injected/temp-dir materializer tests | Makes the outside-scenario write path explicit and testable. |
+| roadmap Repository | `api/internal/roadmap.Repository` | SQLiteRepository over `roadmap_sector` and `roadmap_milestone` | package-local SQLite repository tests | Keeps roadmap overlay CRUD independent of SQLite query mechanics. |
+| roadmap GraphProvider | `api/internal/roadmap.GraphProvider` | existing graph service `Describe` result including live and planned nodes | fake graph provider in roadmap service tests | Derives progress from the graph without giving roadmap ownership of graph topology. |
 
 ## Adding a new seam
 

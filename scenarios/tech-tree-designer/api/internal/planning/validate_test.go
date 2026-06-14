@@ -2,6 +2,7 @@ package planning
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -15,6 +16,50 @@ func TestCompilerValidatorValidPlannedProtoPasses(t *testing.T) {
 		Files: []ProtoFile{{
 			Path: "planned-demo/v1/api/service.proto",
 			Text: validProtoText(),
+		}},
+	})
+
+	require.NoError(t, err)
+	require.Empty(t, errorCodes(findings))
+}
+
+func TestCompilerValidatorResolvesLiveImportsWithWellKnownDependencies(t *testing.T) {
+	root := t.TempDir()
+	commonDir := filepath.Join(root, "common/v1")
+	require.NoError(t, os.MkdirAll(commonDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(commonDir, "types.proto"), []byte(`syntax = "proto3";
+
+package common.v1;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1;commonv1";
+
+// @stability stable
+message JsonValue {
+  google.protobuf.Value value = 1;
+}
+`), 0o644))
+
+	validator := NewCompilerValidator(root)
+	findings, err := validator.Validate(context.Background(), Scenario{
+		Slug: "planned-demo",
+		Files: []ProtoFile{{
+			Path: "planned-demo/v1/api/service.proto",
+			Text: `syntax = "proto3";
+
+package planned_demo.v1.api;
+
+import "common/v1/types.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/planned-demo/v1/api;api_v1";
+
+// @stability experimental
+message PlannedThing {
+  string thing_id = 1;
+  common.v1.JsonValue metadata = 2;
+}
+`,
 		}},
 	})
 

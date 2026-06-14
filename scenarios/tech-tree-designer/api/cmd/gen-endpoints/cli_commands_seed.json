@@ -65,6 +65,31 @@
       "name": "plan materialize",
       "description": "Materialize planned proto files",
       "endpoint_id": "planning-materialize"
+    },
+    {
+      "name": "roadmap sectors",
+      "description": "List roadmap sectors",
+      "endpoint_id": "roadmap-sectors-list"
+    },
+    {
+      "name": "roadmap sector",
+      "description": "Create or update a roadmap sector",
+      "endpoint_id": "roadmap-sectors-upsert"
+    },
+    {
+      "name": "roadmap milestones",
+      "description": "List roadmap milestones",
+      "endpoint_id": "roadmap-milestones-list"
+    },
+    {
+      "name": "roadmap milestone",
+      "description": "Create or update a roadmap milestone",
+      "endpoint_id": "roadmap-milestones-upsert"
+    },
+    {
+      "name": "roadmap progress",
+      "description": "Roll up graph progress by sector and tier",
+      "endpoint_id": "roadmap-progress"
     }
   ]
 }

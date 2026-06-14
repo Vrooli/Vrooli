@@ -1,4 +1,6 @@
-/* eslint-disable react-refresh/only-export-components */
+/* eslint-disable react-refresh/only-export-components, no-restricted-syntax */
+import { lazy, Suspense } from "react";
+import type { ReactNode } from "react";
 import {
   createBrowserRouter,
   createMemoryRouter,
@@ -9,6 +11,18 @@ import {
 import { AppShell } from "../layout/AppShell";
 import { DashboardPage } from "../pages/DashboardPage";
 import { SettingsPage } from "../pages/SettingsPage";
+
+const GraphPage = lazy(() => import("../features/graph/GraphPage").then((module) => ({ default: module.GraphPage })));
+const PlanningPage = lazy(() => import("../features/planning/PlanningPage").then((module) => ({ default: module.PlanningPage })));
+const RoadmapPage = lazy(() => import("../features/roadmap/RoadmapPage").then((module) => ({ default: module.RoadmapPage })));
+
+function RouteLoader() {
+  return <div className="rounded-lg border border-app-border bg-app-surface p-4 text-sm text-app-muted-foreground">Loading surface…</div>;
+}
+
+function LazyPage({ children }: { children: ReactNode }) {
+  return <Suspense fallback={<RouteLoader />}>{children}</Suspense>;
+}
 
 /**
  * Canonical route table. Exported so tests can construct an in-memory router
@@ -22,6 +36,9 @@ export const routes: RouteObject[] = [
     element: <AppShell />,
     children: [
       { index: true, element: <DashboardPage /> },
+      { path: "graph", element: <LazyPage><GraphPage /></LazyPage> },
+      { path: "planning", element: <LazyPage><PlanningPage /></LazyPage> },
+      { path: "roadmap", element: <LazyPage><RoadmapPage /></LazyPage> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },

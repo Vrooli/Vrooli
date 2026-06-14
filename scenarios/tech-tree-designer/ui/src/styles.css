@@ -1,5 +1,6 @@
 @import "./design-tokens.css";
 @import "./theme/tokens.css";
+@import "@xyflow/react/dist/style.css";
 
 @tailwind base;
 @tailwind components;
@@ -19,4 +20,22 @@ body {
 :where(a, button, input, textarea, select, [tabindex]):focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
+}
+
+.react-flow {
+  --xy-node-border-default: transparent;
+  --xy-edge-stroke-default: rgba(148, 163, 184, 0.72);
+  --xy-controls-button-background-color-default: var(--color-surface);
+  --xy-controls-button-color-default: var(--color-foreground);
+  --xy-controls-button-border-color-default: var(--color-border);
+  color: var(--color-foreground);
+}
+
+.ttd-flow-edge path {
+  stroke: rgba(56, 189, 248, 0.72);
+}
+
+.ttd-flow-edge-planned path {
+  stroke: rgba(245, 158, 11, 0.8);
+  stroke-dasharray: 7 5;
 }

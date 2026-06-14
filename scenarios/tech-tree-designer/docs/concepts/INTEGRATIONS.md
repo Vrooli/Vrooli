@@ -16,7 +16,7 @@ Record scenario and resource dependencies for TTD.
 |---|---:|---|
 | SQLite | yes | Embedded scenario data store through lifecycle-provided `SQLITE_PATH`. |
 
-No Ollama, OpenRouter, Postgres, Qdrant, or Redis dependency belongs in this phase.
+No Ollama, OpenRouter, Postgres, Qdrant, or Redis dependency belongs in the shipped scope.
 
 ## Future Integrations
 

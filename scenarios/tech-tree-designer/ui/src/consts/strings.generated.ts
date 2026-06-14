@@ -21,6 +21,9 @@ export const strings = {
     mainLabel: "layout.mainLabel",
     nav: {
       dashboard: "layout.nav.dashboard",
+      graph: "layout.nav.graph",
+      planning: "layout.nav.planning",
+      roadmap: "layout.nav.roadmap",
       settings: "layout.nav.settings",
     },
   },
@@ -42,6 +45,104 @@ export const strings = {
       title: "pages.settings.title",
       themeHeading: "pages.settings.themeHeading",
       localeHeading: "pages.settings.localeHeading",
+    },
+  },
+  graph: {
+    eyebrow: "graph.eyebrow",
+    title: "graph.title",
+    description: "graph.description",
+    group: {
+      none: "graph.group.none",
+      sector: "graph.group.sector",
+      tier: "graph.group.tier",
+    },
+    actions: {
+      refresh: "graph.actions.refresh",
+      dot: "graph.actions.dot",
+    },
+    metrics: {
+      live: "graph.metrics.live",
+      planned: "graph.metrics.planned",
+      dependencies: "graph.metrics.dependencies",
+      warnings: "graph.metrics.warnings",
+    },
+    states: {
+      loading: "graph.states.loading",
+      error: "graph.states.error",
+      empty: "graph.states.empty",
+    },
+    warnings: {
+      title: "graph.warnings.title",
+      item: "graph.warnings.item",
+    },
+    node: {
+      planned: "graph.node.planned",
+      live: "graph.node.live",
+      none: "graph.node.none",
+      unknown: "graph.node.unknown",
+      unassigned: "graph.node.unassigned",
+      untiered: "graph.node.untiered",
+    },
+  },
+  planning: {
+    eyebrow: "planning.eyebrow",
+    title: "planning.title",
+    slugPlaceholder: "planning.slugPlaceholder",
+    actions: {
+      create: "planning.actions.create",
+      save: "planning.actions.save",
+      validate: "planning.actions.validate",
+      materialize: "planning.actions.materialize",
+      delete: "planning.actions.delete",
+    },
+    states: {
+      loading: "planning.states.loading",
+      emptyList: "planning.states.emptyList",
+      noSelection: "planning.states.noSelection",
+      noFiles: "planning.states.noFiles",
+    },
+    fallbacks: {
+      unassigned: "planning.fallbacks.unassigned",
+      untiered: "planning.fallbacks.untiered",
+    },
+    validation: {
+      passed: "planning.validation.passed",
+      findings: "planning.validation.findings",
+      none: "planning.validation.none",
+    },
+    materialized: "planning.materialized",
+    materialized_one: "planning.materialized_one",
+  },
+  roadmap: {
+    eyebrow: "roadmap.eyebrow",
+    title: "roadmap.title",
+    description: "roadmap.description",
+    metrics: {
+      sectors: "roadmap.metrics.sectors",
+      milestones: "roadmap.metrics.milestones",
+      buckets: "roadmap.metrics.buckets",
+    },
+    tiers: {
+      title: "roadmap.tiers.title",
+      sectorColumn: "roadmap.tiers.sectorColumn",
+      progressCounts: "roadmap.tiers.progressCounts",
+    },
+    sectors: {
+      title: "roadmap.sectors.title",
+    },
+    milestones: {
+      title: "roadmap.milestones.title",
+      requiredScenarios: "roadmap.milestones.requiredScenarios",
+      requiredScenarios_one: "roadmap.milestones.requiredScenarios_one",
+    },
+    states: {
+      loadingProgress: "roadmap.states.loadingProgress",
+      noSectors: "roadmap.states.noSectors",
+      noMilestones: "roadmap.states.noMilestones",
+    },
+    fallbacks: {
+      unassigned: "roadmap.fallbacks.unassigned",
+      noDescription: "roadmap.fallbacks.noDescription",
     },
   },
   health: {

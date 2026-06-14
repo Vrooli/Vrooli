@@ -188,14 +188,79 @@
           }
         }
       ]
+    },
+    {
+      "name": "roadmap",
+      "description": "Roadmap overlay commands.",
+      "commands": [
+        {
+          "name": "sectors",
+          "description": "List roadmap sectors.",
+          "binding": { "kind": "connect-rpc", "service": "RoadmapService", "method": "ListSectors" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "sector",
+          "description": "Create or update a roadmap sector.",
+          "positionals": [{ "name": "slug", "required": true }],
+          "flags": [
+            { "name": "name", "description": "Sector display name" },
+            { "name": "description", "description": "Sector description" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "RoadmapService", "method": "UpsertSector" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": ["network:internal", "filesystem:write"]
+          }
+        },
+        {
+          "name": "milestones",
+          "description": "List roadmap milestones.",
+          "binding": { "kind": "connect-rpc", "service": "RoadmapService", "method": "ListMilestones" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "milestone",
+          "description": "Create or update a roadmap milestone.",
+          "positionals": [{ "name": "id", "required": true }],
+          "flags": [
+            { "name": "name", "description": "Milestone display name" },
+            { "name": "description", "description": "Milestone description" },
+            { "name": "required", "description": "Comma-separated required scenario slugs" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "RoadmapService", "method": "UpsertMilestone" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": ["network:internal", "filesystem:write"]
+          }
+        },
+        {
+          "name": "progress",
+          "description": "Roll up graph progress by sector and tier.",
+          "flags": [
+            { "name": "sector", "description": "Optional sector filter" },
+            { "name": "tier", "description": "Optional tier filter" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "RoadmapService", "method": "GetProgress" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
     }
   ],
   "measures": { "domains": [] },
-  "omitted": [
-    { "service": "RoadmapService", "method": "ListSectors", "reason": "Roadmap overlay lands in Phase 5." },
-    { "service": "RoadmapService", "method": "UpsertSector", "reason": "Roadmap overlay lands in Phase 5." },
-    { "service": "RoadmapService", "method": "ListMilestones", "reason": "Roadmap overlay lands in Phase 5." },
-    { "service": "RoadmapService", "method": "UpsertMilestone", "reason": "Roadmap overlay lands in Phase 5." },
-    { "service": "RoadmapService", "method": "GetProgress", "reason": "Roadmap overlay lands in Phase 5." }
-  ]
+  "omitted": []
 }

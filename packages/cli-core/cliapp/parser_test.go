@@ -132,6 +132,34 @@ func TestParseArgsDefault(t *testing.T) {
 	if ctx.BoolFlag("color") {
 		t.Error("default-only flag should not be marked set")
 	}
+	if got := ctx.FlagValues("color"); strings.Join(got, ",") != "auto" {
+		t.Errorf("default values: got %v, want [auto]", got)
+	}
+}
+
+func TestParseArgsRepeatedValuedFlag(t *testing.T) {
+	schema := ArgSchema{Flags: []Flag{{Name: "endpoint"}}}
+	ctx, err := parseArgs(schema, []string{"--endpoint", "health", "--endpoint=notes_attach"}, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("parseArgs: %v", err)
+	}
+	if got := ctx.Flag("endpoint"); got != "notes_attach" {
+		t.Errorf("Flag returns last value: got %q, want notes_attach", got)
+	}
+	if got := ctx.FlagValues("endpoint"); strings.Join(got, ",") != "health,notes_attach" {
+		t.Errorf("FlagValues: got %v, want [health notes_attach]", got)
+	}
+}
+
+func TestParseArgsRepeatedValuedFlagOverridesDefault(t *testing.T) {
+	schema := ArgSchema{Flags: []Flag{{Name: "include", Default: "all"}}}
+	ctx, err := parseArgs(schema, []string{"--include", "imports", "--include", "calls"}, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("parseArgs: %v", err)
+	}
+	if got := ctx.FlagValues("include"); strings.Join(got, ",") != "imports,calls" {
+		t.Errorf("FlagValues: got %v, want [imports calls]", got)
+	}
 }
 
 func TestParseArgsRequiredPositional(t *testing.T) {

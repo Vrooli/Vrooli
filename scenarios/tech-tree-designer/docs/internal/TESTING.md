@@ -6,12 +6,14 @@ Record the test strategy for the regenerated scenario.
 
 ## Current Scaffold
 
-Phase 1 validates:
+The regenerated scaffold has been extended into the real graph, planning, and roadmap product surface. Current validation covers:
 
 - API health handler, module registry, endpoint generation, and server wiring.
-- CLI app shell and empty domain aggregator.
-- UI health card, routing, accessibility, selectors, i18n, theme provider, and test utilities.
-- Proto generation for health and error contracts.
+- Graph `GraphSource` mapping, graph service queries/export, Connect handler mounting, and CLI commands.
+- Planning SQLite file-tree CRUD, protocompile validation, materialization, Connect handlers, CLI commands, and UI editor behavior.
+- Roadmap SQLite storage, sector/milestone handlers, progress rollup, CLI commands, and UI route behavior.
+- UI health card, graph/planning/roadmap routing, accessibility, selectors, i18n, theme provider, and test utilities.
+- Proto generation for health, graph, planning, roadmap, and error contracts.
 
 ## Commands
 
@@ -24,12 +26,14 @@ cd scenarios/tech-tree-designer/ui && corepack pnpm test
 
 ## Future Coverage
 
-| Domain | Required Coverage |
+No required product domain is intentionally uncovered in the shipped scope. Future coverage should expand when deferred integrations from `PROBLEMS.md` are implemented.
+
+| Domain | Current Coverage |
 |---|---|
-| graph | fake GraphSource mapping, proto-health client mapping, graph queries, export formats, Connect handler, CLI commands |
-| planning | SQLite file-tree CRUD, protocompile validation, findings, materialize guard, CLI filesystem-feel commands |
-| roadmap | sector/tier/milestone storage, overlay attachment, progress rollup |
-| UI | D3 graph rendering, planned/live styling, editor CRUD, validation findings, loading/error/empty states |
+| graph | fake GraphSource mapping, proto-health client mapping, graph queries, export formats, Connect handler, CLI commands, UI graph rendering |
+| planning | SQLite file-tree CRUD, protocompile validation, findings, materialize guard, CLI filesystem-feel commands, UI editor CRUD |
+| roadmap | sector/tier/milestone storage, overlay attachment, progress rollup, UI progress display |
+| UI | live/planned styling, editor CRUD, validation findings, loading/error/empty states |
 
 ## Requirement Tags
 

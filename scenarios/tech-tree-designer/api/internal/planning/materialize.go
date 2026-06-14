@@ -38,7 +38,8 @@ func (m *FilesystemMaterializer) Materialize(ctx context.Context, scenario Scena
 		if err != nil {
 			return MaterializeResult{}, err
 		}
-		dst := filepath.Join(destRoot, filepath.FromSlash(path))
+		rel := strings.TrimPrefix(path, scenario.Slug+"/")
+		dst := filepath.Join(destRoot, filepath.FromSlash(rel))
 		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 			return MaterializeResult{}, fmt.Errorf("prepare materialized proto path: %w", err)
 		}

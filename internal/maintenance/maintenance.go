@@ -189,8 +189,13 @@ func (c *Controller) CleanStaleLocks() (control.StopReport, error) {
 
 	// One-time tombstone sweep: nothing writes `.port_<N>.lock` files anymore,
 	// but pre-migration hosts may still carry strays. This is data cleanup
-	// (one glob, no forks), not a compatibility shim. `.port_*.guard` files
-	// are never swept here.
+	// (one glob, no forks), not a compatibility shim.
+	//
+	// `.port_*.guard` files (from the deleted port-mutation guard machinery) are
+	// deliberately left alone: a pre-migration `vrooli` binary still running on
+	// this host could hold one mid-mutation, and removing it out from under that
+	// process would defeat its exclusion. They are tiny, self-expire (30s stale
+	// window in the old code), and harm nothing while they sit.
 	swept, err := sweepLegacyLockFiles(c.Home)
 	if err != nil {
 		return control.StopReport{}, err
@@ -388,10 +393,7 @@ func sweepLegacyLockFiles(home string) ([]control.ResultItem, error) {
 }
 
 func (c *Controller) DiagnosePort(port int, scenarioName string) (PortDiagnostic, error) {
-	inspection, err := inspectPortListenersFn(port)
-	if err != nil {
-		return PortDiagnostic{}, err
-	}
+	inspection := inspectPortListenersFn(port)
 
 	snapshot, err := c.Snapshot()
 	if err != nil {

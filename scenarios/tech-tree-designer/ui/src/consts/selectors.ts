@@ -324,7 +324,19 @@ const literalSelectors = {
   },
   pages: {
     dashboard: "page-dashboard",
+    graph: "page-graph",
+    planning: "page-planning",
+    roadmap: "page-roadmap",
     settings: "page-settings",
+  },
+  graph: {
+    canvas: "graph-canvas",
+    groupBy: "graph-group-by",
+  },
+  planning: {
+    slugInput: "planning-slug-input",
+    editor: "planning-editor",
+    findings: "planning-findings",
   },
   errorBoundary: {
     root: "error-boundary-root",
@@ -352,12 +364,12 @@ const dynamicSelectorDefinitions = {
     sidebarLink: defineDynamicSelector({
       description: "Sidebar navigation link by canonical nav key",
       testIdPattern: "layout-sidebar-link-${key}",
-      params: { key: { type: "enum", values: ["dashboard", "settings"] as const } },
+      params: { key: { type: "enum", values: ["dashboard", "graph", "planning", "roadmap", "settings"] as const } },
     }),
     bottomNavLink: defineDynamicSelector({
       description: "Bottom-nav link by canonical nav key",
       testIdPattern: "layout-bottom-nav-link-${key}",
-      params: { key: { type: "enum", values: ["dashboard", "settings"] as const } },
+      params: { key: { type: "enum", values: ["dashboard", "graph", "planning", "roadmap", "settings"] as const } },
     }),
   },
   settingsPage: {

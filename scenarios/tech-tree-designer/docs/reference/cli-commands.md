@@ -22,12 +22,29 @@ tech-tree-designer graph ancestors <scenario> [--scenarios a,b]
 tech-tree-designer graph export [--format text|dot|json] [--scenarios a,b] [--stability stable]
 ```
 
-Planned groups:
+Implemented planning commands:
 
-| Group | Purpose |
-|---|---|
-| plan | planned scenario proto CRUD, validate, materialize |
-| roadmap | sectors, tiers, milestones, progress |
+```bash
+tech-tree-designer plan create <slug> [--display-name "..."] [--sector engineering] [--tier foundation] [--stability experimental]
+tech-tree-designer plan list [--sector engineering] [--tier foundation]
+tech-tree-designer plan tree <slug> [path]
+tech-tree-designer plan add <slug> <path> [--from-file -|<file>]
+tech-tree-designer plan rm <slug> <path>
+tech-tree-designer plan validate <slug> [--json]
+tech-tree-designer plan materialize <slug>
+```
+
+`plan add` stores or replaces file text. `plan tree <slug> <path>` prints one stored file; without `path` it lists the stored tree.
+
+Implemented roadmap commands:
+
+```bash
+tech-tree-designer roadmap sectors
+tech-tree-designer roadmap sector <slug> [--name "..."] [--description "..."]
+tech-tree-designer roadmap milestones
+tech-tree-designer roadmap milestone <id> --name "..." [--description "..."] [--required a,b]
+tech-tree-designer roadmap progress [--sector engineering] [--tier foundation]
+```
 
 ## Output contracts
 

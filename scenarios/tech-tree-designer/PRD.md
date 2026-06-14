@@ -18,8 +18,8 @@
 - [ ] OT-P0-002 | Contract-first planning | Store planned scenarios as real `.proto` text, validate them against live schemas, and expose CRUD/validate/materialize flows through API and CLI.
 
 ### 🟠 P1 – Should have post-launch
-- [ ] OT-P1-001 | Roadmap overlay | Attach sector, tier, and milestone metadata to live and planned graph nodes without making tiers a competing backbone.
-- [ ] OT-P1-002 | Production planning UI | Provide a D3 graph surface, planned-proto editor, validation findings, and roadmap overview with loading, error, and empty states.
+- [x] OT-P1-001 | Roadmap overlay | Attach sector, tier, and milestone metadata to live and planned graph nodes without making tiers a competing backbone.
+- [ ] OT-P1-002 | Production planning UI | Provide an interactive graph surface, planned-proto editor, validation findings, and roadmap overview with loading, error, and empty states.
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Rich graph source | Add a `scenario-dependency-analyzer` GraphSource when its `DescribeInterfaceGraph` RPC is available.
@@ -29,7 +29,7 @@
 - Preferred stacks / frameworks: `react-vite` template, Go API/CLI, Connect-RPC, generated proto clients, SQLite, D3 for graph visualization.
 - Data + storage expectations: SQLite for planned scenarios, planned proto files, roadmap metadata, optional graph cache, and milestone state.
 - Integration strategy: Consume `proto-health` `DescribeScenariosProtos` first; keep `GraphSource` shaped for `scenario-dependency-analyzer` later.
-- Non-goals / guardrails: No migration from the old Gin/Postgres implementation, no compatibility shims, no old heuristic scenario catalog, no AI analysis in this phase, no SDA client until SDA ships the intended graph RPC.
+- Non-goals / guardrails: No migration from the old Gin/Postgres implementation, no compatibility shims, no old heuristic scenario catalog, no AI analysis in the shipped scope, no SDA client until SDA ships the intended graph RPC.
 
 ## 🤝 Dependencies & Launch Plan
 - Required resources: SQLite only.

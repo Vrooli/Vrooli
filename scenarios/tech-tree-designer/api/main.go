@@ -24,8 +24,10 @@ import (
 	graphH "tech-tree-designer/handlers/graph"
 	healthH "tech-tree-designer/handlers/health"
 	planningH "tech-tree-designer/handlers/planning"
+	roadmapH "tech-tree-designer/handlers/roadmap"
 	graphdomain "tech-tree-designer/internal/graph"
 	planningdomain "tech-tree-designer/internal/planning"
+	roadmapdomain "tech-tree-designer/internal/roadmap"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -125,12 +127,14 @@ func main() {
 		graphdomain.NewProtoHealthSource(graphdomain.NewProtoHealthClient(nil, nil)),
 		planningService,
 	)
+	roadmapService := roadmapdomain.NewService(roadmapdomain.NewSQLiteRepository(db), graphService)
 
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "tech-tree-designer-api", "1.0.0"),
 		graphH.Module(graphService),
 		planningH.Module(planningService),
+		roadmapH.Module(roadmapService),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

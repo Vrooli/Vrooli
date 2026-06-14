@@ -9,6 +9,9 @@
     "mainLabel": "المحتوى الرئيسي",
     "nav": {
       "dashboard": "لوحة التحكم",
+      "graph": "الرسم البياني",
+      "planning": "التخطيط",
+      "roadmap": "خارطة الطريق",
       "settings": "الإعدادات"
     }
   },
@@ -30,6 +33,104 @@
       "title": "الإعدادات",
       "themeHeading": "المظهر",
       "localeHeading": "اللغة"
+    }
+  },
+  "graph": {
+    "eyebrow": "رسم الواجهات",
+    "title": "لوحة تبعيات السيناريوهات",
+    "description": "افحص تبعيات استيراد proto الحية وعُقد العقود المخططة في لوحة واحدة قابلة للتحرير.",
+    "group": {
+      "none": "بدون تجميع",
+      "sector": "تجميع حسب القطاع",
+      "tier": "تجميع حسب المستوى"
+    },
+    "actions": {
+      "refresh": "تحديث",
+      "dot": "DOT"
+    },
+    "metrics": {
+      "live": "سيناريوهات حية",
+      "planned": "سيناريوهات مخططة",
+      "dependencies": "التبعيات",
+      "warnings": "تحذيرات المصدر"
+    },
+    "states": {
+      "loading": "جارٍ تحميل الرسم من Tech Tree Designer…",
+      "error": "بيانات الرسم غير متاحة. تأكد من تشغيل API و proto-health.",
+      "empty": "لا توجد عُقد رسم بعد. شغّل proto-health وأضف سيناريوهات مخططة لملء اللوحة."
+    },
+    "warnings": {
+      "title": "تحذيرات مصدر الرسم",
+      "item": "{{source}} {{scenario}}: {{message}}"
+    },
+    "node": {
+      "planned": "مخطط",
+      "live": "حي",
+      "none": "NONE",
+      "unknown": "غير معروف",
+      "unassigned": "غير مخصص",
+      "untiered": "بلا مستوى"
+    }
+  },
+  "planning": {
+    "eyebrow": "التخطيط",
+    "title": "سيناريوهات بعقود أولاً",
+    "slugPlaceholder": "planned-scenario",
+    "actions": {
+      "create": "إنشاء سيناريو مخطط",
+      "save": "حفظ الملف",
+      "validate": "تحقق",
+      "materialize": "تجسيد",
+      "delete": "حذف"
+    },
+    "states": {
+      "loading": "جارٍ تحميل الخطط…",
+      "emptyList": "أنشئ سيناريو مخططاً لبدء صياغة عقود proto.",
+      "noSelection": "اختر أو أنشئ سيناريو مخططاً.",
+      "noFiles": "لا توجد ملفات بعد. احفظ محتوى المحرر لإضافة أول ملف proto."
+    },
+    "fallbacks": {
+      "unassigned": "غير مخصص",
+      "untiered": "بلا مستوى"
+    },
+    "validation": {
+      "passed": "نجح التحقق",
+      "findings": "نتائج التحقق",
+      "none": "لم تُرجع أي نتائج."
+    },
+    "materialized": "تمت كتابة {{count}} ملفات proto.",
+    "materialized_one": "تمت كتابة ملف proto واحد."
+  },
+  "roadmap": {
+    "eyebrow": "طبقة خارطة الطريق",
+    "title": "القطاعات والمستويات والمعالم",
+    "description": "تتبع نضج التخطيط دون إنشاء نموذج رسم ثانٍ. يُجمع التقدم من استقرار السيناريوهات.",
+    "metrics": {
+      "sectors": "القطاعات",
+      "milestones": "المعالم",
+      "buckets": "حاويات التقدم"
+    },
+    "tiers": {
+      "title": "تقدم المستويات",
+      "sectorColumn": "القطاع",
+      "progressCounts": "P {{planned}} / L {{live}} / S {{stable}}"
+    },
+    "sectors": {
+      "title": "القطاعات"
+    },
+    "milestones": {
+      "title": "المعالم",
+      "requiredScenarios": "{{count}} سيناريوهات مطلوبة",
+      "requiredScenarios_one": "سيناريو مطلوب واحد"
+    },
+    "states": {
+      "loadingProgress": "جارٍ تحميل التقدم…",
+      "noSectors": "لم تتم إضافة أي قطاعات بعد.",
+      "noMilestones": "لم تتم إضافة أي معالم بعد."
+    },
+    "fallbacks": {
+      "unassigned": "غير مخصص",
+      "noDescription": "لا يوجد وصف بعد."
     }
   },
   "health": {

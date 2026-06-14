@@ -1,6 +1,6 @@
 # Architecture - Tech Tree Designer
 
-Tech Tree Designer is being regenerated as Vrooli's scenario-centric planning surface. It keeps the modern `react-vite` scenario shape while replacing the old Gin/Postgres implementation with Connect, SQLite, generated proto contracts, and domain-owned code.
+Tech Tree Designer is Vrooli's scenario-centric planning surface. It keeps the modern `react-vite` scenario shape while replacing the old Gin/Postgres implementation with Connect, SQLite, generated proto contracts, and domain-owned code.
 
 ## Purpose Of This Document
 
@@ -28,7 +28,7 @@ The graph is scenario-centric: nodes are scenarios, edges are real interface dep
 | Interface | Obligation |
 |---|---|
 | Programmatic | Connect graph and planning RPCs must be stable enough for agents and future scenarios to consume. CLI commands mirror the API for operator and agent use. |
-| Direct UI | The D3 graph, planning editor, and roadmap views must handle loading, error, empty, and validation-finding states before the scenario is considered production-ready. |
+| Direct UI | The interactive graph, planning editor, and roadmap views must handle loading, error, empty, and validation-finding states before the scenario is considered production-ready. |
 
 ## Ecosystem Fit
 
@@ -39,11 +39,11 @@ Compound-value seams:
 - Planning RPCs let future agents create, validate, inspect, and materialize planned proto contracts.
 - Export/query RPCs let other scenarios ask neighborhood, path, ancestry, and graph-shape questions.
 
-Monetization: internal meta scenario; no paid-feature wiring in this phase.
+Monetization: internal meta scenario; no paid-feature wiring.
 
 ## Domain Module Pattern
 
-Each real domain owns its API internals, handlers, CLI package, UI feature, proto schema, and storage schema. Current implementation contains health plus the graph domain's proto contract, `GraphSource` seam, Connect handlers, query/export service, and CLI commands. Planning storage, roadmap storage, and UI features land in later phases.
+Each real domain owns its API internals, handlers, CLI package, UI feature, proto schema, and storage schema. Current implementation contains health, the graph domain's proto-health-backed query/export surface, the planning domain's SQLite-backed planned proto file tree, validator, materializer, planned graph overlay, and the roadmap domain's sector/milestone/progress overlay. Graph, planning, and roadmap are exposed through Connect RPC, CLI commands, and production UI routes.
 
 ## Contract Rules
 
@@ -67,8 +67,9 @@ SQLite is the default store. Domain schemas live beside their domain code:
 | Date | Deviation | Reason | Revisit Trigger |
 |---|---|---|---|
 | 2026-06-14 | Old TTD deleted instead of migrated. | No consumed proto/API contract existed; preserving Gin/Postgres code would keep obsolete architecture and dependency heuristics alive. | Never; use git history for old concepts only. |
-| 2026-06-14 | Phase 2 shipped graph/planning/roadmap proto contracts before all domains were mounted. | Contract-first planning keeps the wire shape reviewable before persistence and UI work land. | Planning storage in Phase 4, roadmap overlay in Phase 5, UI in Phase 6. |
-| 2026-06-14 | Graph API and CLI now run before planned nodes exist. | The live graph is useful independently and exercises the `GraphSource` seam over proto-health. | Add planned-node merge behavior when planning storage lands. |
+| 2026-06-14 | Phase 2 shipped graph/planning/roadmap proto contracts before all domains were mounted. | Contract-first planning kept the wire shape reviewable before persistence and UI work landed. | Resolved by Phases 3-6; keep as historical context. |
+| 2026-06-14 | Graph API and CLI ran before planned nodes existed. | The live graph was useful independently and exercised the `GraphSource` seam over proto-health. | Resolved by Phase 4 planned-node merge behavior; keep as historical context. |
+| 2026-06-14 | `plan tree <slug> [path]` and `plan add` cover tree/show and add/edit semantics. | `cli-health` enforces one CLI binding per RPC; duplicate `tree/show` and `add/edit` command bindings are rejected. | Add dedicated proto RPCs if separate command names become worth the contract cost. |
 
 ## Cross-References
 

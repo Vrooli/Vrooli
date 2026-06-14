@@ -61,7 +61,7 @@ func (v *CompilerValidator) Validate(ctx context.Context, scenario Scenario) ([]
 	}
 
 	compiler := protocompile.Compiler{
-		Resolver: &protocompile.SourceResolver{ImportPaths: []string{tmp, schemasRoot}},
+		Resolver: protocompile.WithStandardImports(&protocompile.SourceResolver{ImportPaths: []string{tmp, schemasRoot}}),
 	}
 	if _, err := compiler.Compile(ctx, targets...); err != nil {
 		findings = append(findings, errorFinding("compile_failed", scenario.Slug, err.Error(), "Fix parser, import, package, and descriptor errors before materializing."))

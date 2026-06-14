@@ -22,9 +22,35 @@ Graph endpoints are generated Connect-RPC procedures:
 | `ListAncestors` | `/vrooli.tech_tree_designer.v1.graph.GraphService/ListAncestors` |
 | `ExportTechTree` | `/vrooli.tech_tree_designer.v1.graph.GraphService/ExportTechTree` |
 
+## Planning Connect RPC
+
+Planning endpoints are generated Connect-RPC procedures:
+
+| Method | Procedure |
+|---|---|
+| `CreatePlannedScenario` | `/vrooli.tech_tree_designer.v1.planning.PlanningService/CreatePlannedScenario` |
+| `ListPlannedScenarios` | `/vrooli.tech_tree_designer.v1.planning.PlanningService/ListPlannedScenarios` |
+| `GetPlannedScenario` | `/vrooli.tech_tree_designer.v1.planning.PlanningService/GetPlannedScenario` |
+| `PutPlannedProtoFile` | `/vrooli.tech_tree_designer.v1.planning.PlanningService/PutPlannedProtoFile` |
+| `DeletePlannedProtoFile` | `/vrooli.tech_tree_designer.v1.planning.PlanningService/DeletePlannedProtoFile` |
+| `ValidatePlannedScenario` | `/vrooli.tech_tree_designer.v1.planning.PlanningService/ValidatePlannedScenario` |
+| `MaterializePlannedScenario` | `/vrooli.tech_tree_designer.v1.planning.PlanningService/MaterializePlannedScenario` |
+
+## Roadmap Connect RPC
+
+Roadmap endpoints are generated Connect-RPC procedures:
+
+| Method | Procedure |
+|---|---|
+| `ListSectors` | `/vrooli.tech_tree_designer.v1.roadmap.RoadmapService/ListSectors` |
+| `UpsertSector` | `/vrooli.tech_tree_designer.v1.roadmap.RoadmapService/UpsertSector` |
+| `ListMilestones` | `/vrooli.tech_tree_designer.v1.roadmap.RoadmapService/ListMilestones` |
+| `UpsertMilestone` | `/vrooli.tech_tree_designer.v1.roadmap.RoadmapService/UpsertMilestone` |
+| `GetProgress` | `/vrooli.tech_tree_designer.v1.roadmap.RoadmapService/GetProgress` |
+
 ## Planned Endpoints
 
-Planning and roadmap endpoints are already declared as proto contracts, but their handlers are intentionally deferred to later phases. Do not add literal REST paths for product behavior.
+No current proto RPC is intentionally unmounted. Deferred future integrations are tracked in [`../internal/PROBLEMS.md`](../internal/PROBLEMS.md), not as placeholder endpoints.
 
 ## Cross-references
 

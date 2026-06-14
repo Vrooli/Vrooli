@@ -10,19 +10,16 @@ import (
 	"syscall"
 )
 
-func processIsAlive(process *os.Process) bool {
-	if process == nil {
-		return false
-	}
-	if err := process.Signal(syscall.Signal(0)); err != nil {
+func pidIsAlive(pid int) bool {
+	if err := syscall.Kill(pid, 0); err != nil {
 		// EPERM means the PID exists but is owned by another user (e.g. a
 		// root-owned scenario process probed from an unprivileged CLI). The
-		// process is alive; only ESRCH/done means it is gone.
+		// process is alive; only ESRCH means it is gone.
 		if !errors.Is(err, syscall.EPERM) {
 			return false
 		}
 	}
-	state, ok := readProcessState(process.Pid)
+	state, ok := readProcessState(pid)
 	return !ok || state != 'Z'
 }
 

@@ -24,10 +24,12 @@ import (
 
 	graphV1 "github.com/vrooli/vrooli/packages/proto/gen/go/tech-tree-designer/v1/graph"
 	planningV1 "github.com/vrooli/vrooli/packages/proto/gen/go/tech-tree-designer/v1/planning"
+	roadmapV1 "github.com/vrooli/vrooli/packages/proto/gen/go/tech-tree-designer/v1/roadmap"
 
 	graphH "tech-tree-designer/handlers/graph"
 	healthH "tech-tree-designer/handlers/health"
 	planningH "tech-tree-designer/handlers/planning"
+	roadmapH "tech-tree-designer/handlers/roadmap"
 	localdb "tech-tree-designer/internal/database"
 )
 
@@ -40,6 +42,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, healthH.Endpoints...)
 	out = append(out, graphH.Endpoints...)
 	out = append(out, planningH.Endpoints...)
+	out = append(out, roadmapH.Endpoints...)
 	return out
 }
 
@@ -68,6 +71,7 @@ func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "graph", File: graphV1.File_tech_tree_designer_v1_graph_graph_proto},
 		{Module: "planning", File: planningV1.File_tech_tree_designer_v1_planning_planning_proto},
+		{Module: "roadmap", File: roadmapV1.File_tech_tree_designer_v1_roadmap_roadmap_proto},
 	}
 }
 
@@ -84,5 +88,6 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(graphH.Schema),
 		apidb.SchemaProviderFunc(planningH.Schema),
+		apidb.SchemaProviderFunc(roadmapH.Schema),
 	}
 }

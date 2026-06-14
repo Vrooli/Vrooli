@@ -21,6 +21,7 @@ func parseArgs(schema ArgSchema, args []string, core *ScenarioApp, stdout, stder
 	ctx := &runContext{
 		schema:      schema,
 		flagValues:  make(map[string]string),
+		flagLists:   make(map[string][]string),
 		flagSet:     make(map[string]bool),
 		positionals: make(map[string]string),
 		repeated:    make(map[string][]string),
@@ -38,6 +39,7 @@ func parseArgs(schema ArgSchema, args []string, core *ScenarioApp, stdout, stder
 	for _, f := range schema.Flags {
 		if f.Default != "" && !f.Bool {
 			ctx.flagValues[f.Name] = f.Default
+			ctx.flagLists[f.Name] = []string{f.Default}
 		}
 	}
 
@@ -100,6 +102,10 @@ func parseArgs(schema ArgSchema, args []string, core *ScenarioApp, stdout, stder
 			value = args[i]
 		}
 		ctx.flagValues[flag.Name] = value
+		if !ctx.flagSet[flag.Name] {
+			ctx.flagLists[flag.Name] = nil
+		}
+		ctx.flagLists[flag.Name] = append(ctx.flagLists[flag.Name], value)
 		ctx.flagSet[flag.Name] = true
 	}
 

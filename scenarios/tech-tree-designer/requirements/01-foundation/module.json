@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "foundation",
     "description": "Requirements for the regenerated scenario-centric graph and contract-first planning surface.",
+    "last_validated_at": "2026-06-14T15:52:25-04:00",
+    "module": "foundation",
     "prd_ref": "PRD.md",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -15,7 +16,11 @@
       "category": "graph",
       "criticality": "P0",
       "description": "TTD must build a scenario-centric graph from proto-health surfaces through a fakeable GraphSource seam, preserving scenario nodes, proto-import edges, transport world, and stability metadata.",
-      "tags": ["graph", "proto-health", "contract"],
+      "tags": [
+        "graph",
+        "proto-health",
+        "contract"
+      ],
       "validation": [
         {
           "type": "manual",
@@ -32,7 +37,11 @@
       "category": "planning",
       "criticality": "P0",
       "description": "TTD must store planned scenarios as real .proto text files, expose filesystem-feel CRUD, validate planned contracts against live schemas, and refuse materialization on validation failure.",
-      "tags": ["planning", "proto", "materialize"],
+      "tags": [
+        "planning",
+        "proto",
+        "materialize"
+      ],
       "validation": [
         {
           "type": "manual",
@@ -44,17 +53,33 @@
     {
       "id": "TTD-ROADMAP-001",
       "title": "Roadmap metadata overlay",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-001",
       "category": "roadmap",
       "criticality": "P1",
       "description": "TTD must model sectors, capability tiers, and milestones as metadata overlays on graph nodes, with progress derived from live/planned stability rather than a separate backbone.",
-      "tags": ["roadmap", "overlay"],
+      "tags": [
+        "roadmap",
+        "overlay"
+      ],
       "validation": [
         {
-          "type": "manual",
-          "status": "planned",
-          "notes": "Phase 5 tests will cover overlay CRUD and progress rollup from node stability."
+          "type": "test",
+          "ref": "api/internal/roadmap/service_test.go::TestGetProgressRollsUpNodesBySectorTier",
+          "status": "implemented",
+          "notes": "Covers progress rollup from graph node kind and stability."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/roadmap/sqlite_test.go::TestSQLiteRepositoryRoundTrip",
+          "status": "implemented",
+          "notes": "Covers sector and milestone overlay persistence."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/roadmap/register_test.go::TestRegisterBuildsRoadmapGroup",
+          "status": "implemented",
+          "notes": "Covers roadmap CLI manifest bindings."
         }
       ]
     },
@@ -66,7 +91,11 @@
       "category": "ui",
       "criticality": "P1",
       "description": "TTD must provide a production-ready direct UI for the graph, planned proto editor, validation findings, and roadmap overview with loading, error, and empty states.",
-      "tags": ["ui", "graph", "planning"],
+      "tags": [
+        "ui",
+        "graph",
+        "planning"
+      ],
       "validation": [
         {
           "type": "manual",
@@ -83,7 +112,10 @@
       "category": "integration",
       "criticality": "P2",
       "description": "TTD must keep GraphSource shaped so scenario-dependency-analyzer can become a drop-in richer graph source when its InterfaceGraph RPC ships.",
-      "tags": ["sda", "graph-source"],
+      "tags": [
+        "sda",
+        "graph-source"
+      ],
       "validation": [
         {
           "type": "manual",
@@ -100,7 +132,10 @@
       "category": "analysis",
       "criticality": "P2",
       "description": "TTD may add optional AI-assisted node ideas, bottleneck analysis, and timelines only after deterministic graph and planning workflows are stable.",
-      "tags": ["ai", "future"],
+      "tags": [
+        "ai",
+        "future"
+      ],
       "validation": [
         {
           "type": "manual",

@@ -17,46 +17,43 @@ Use this document to answer:
 ## Role In Vrooli
 
 - Direct product: deferred.
-- Internal capability: generated scaffold only.
+- Internal capability: scenario-interface graph and contract-first planning surface.
 - SKU/bundle candidate: deferred.
 - Revenue line: deferred.
 
 ## Customer / Buyer
 
-- Primary user: define during PRD generation.
-- Buyer: define during monetization review.
-- Pain: define from demand evidence.
-- Existing alternatives: capture through market validation.
+- Primary user: Vrooli operators and implementation agents planning scenario interfaces.
+- Buyer: not applicable for the current internal meta-capability.
+- Pain: scenario dependency drift and late interface design create avoidable rework across the fleet.
+- Existing alternatives: ad hoc diagrams, manual proto browsing, and scenario-specific planning notes.
 
 ## Packaging
 
 | Packaging Option | Status | Notes |
 |---|---|---|
-| Standalone app | deferred | Revisit after first real domain is implemented. |
-| Bundle component | deferred | Map in project-level monetization catalog if promoted. |
+| Standalone app | deferred | Possible only if planning surfaces become customer-facing. |
+| Bundle component | candidate | Could support enterprise architecture/planning installations as an internal operator tool. |
 | Add-on | deferred | Use only when scenario clearly extends another SKU. |
-| Service/consulting assist | deferred | Consider if this scenario accelerates done-for-you delivery. |
+| Service/consulting assist | candidate | Helps scope and de-risk done-for-you scenario delivery by validating contracts early. |
 
 ## Pricing Hypothesis
 
 - Model: deferred.
 - Comparable products: none captured yet.
 - Willingness-to-pay evidence: none captured yet.
-- Cost drivers: local runtime by default; update for resources, hosted
-  services, gateway usage, or third-party APIs.
+- Cost drivers: local runtime, SQLite storage, and proto generation; no third-party AI/API cost in the shipped scope.
 
 ## Validation Plan
 
-- Demand signal needed: define before monetization review.
-- Channel: define in [`GO-TO-MARKET.md`](GO-TO-MARKET.md).
-- Success threshold: define from project-level monetization taxonomy.
-- Revisit trigger: first real domain reaches validated scenario tests
-  and has a clear user/customer.
+- Demand signal needed: repeated operator use during scenario planning and evidence that early proto validation reduces implementation rework.
+- Channel: internal Vrooli planning workflows first; external packaging only after user-facing demand is explicit.
+- Success threshold: material percentage of new scenario plans start as validated proto contracts.
+- Revisit trigger: TTD becomes part of a repeatable paid implementation or enterprise deployment workflow.
 
 ## Current Status
 
-`stub` — generated from the template. Fill this document when the PRD
-identifies a customer, SKU, revenue line, or monetization hypothesis.
+`internal-meta-capability` — shipped for Vrooli's planning loop. No direct pricing hypothesis is active.
 
 ## Cross-References
 

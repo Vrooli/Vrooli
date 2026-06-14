@@ -280,6 +280,97 @@
           "<slug>"
         ]
       }
+    },
+    {
+      "id": "roadmap-sectors-list",
+      "path": "/vrooli.tech_tree_designer.v1.roadmap.RoadmapService/ListSectors",
+      "method": "POST",
+      "summary": "List roadmap sectors",
+      "description": "Returns metadata sectors used to group live and planned scenario graph nodes.",
+      "category": "roadmap",
+      "request": {
+        "type": "ListSectorsRequest"
+      },
+      "response": {
+        "type": "ListSectorsResponse"
+      },
+      "cli_mapping": {
+        "command": "tech-tree-designer roadmap sectors"
+      }
+    },
+    {
+      "id": "roadmap-sectors-upsert",
+      "path": "/vrooli.tech_tree_designer.v1.roadmap.RoadmapService/UpsertSector",
+      "method": "POST",
+      "summary": "Create or update a roadmap sector",
+      "description": "Stores sector metadata for graph grouping and roadmap views.",
+      "category": "roadmap",
+      "request": {
+        "type": "UpsertSectorRequest"
+      },
+      "response": {
+        "type": "Sector"
+      },
+      "cli_mapping": {
+        "command": "tech-tree-designer roadmap sector",
+        "args": [
+          "<slug>"
+        ]
+      }
+    },
+    {
+      "id": "roadmap-milestones-list",
+      "path": "/vrooli.tech_tree_designer.v1.roadmap.RoadmapService/ListMilestones",
+      "method": "POST",
+      "summary": "List roadmap milestones",
+      "description": "Returns strategic milestones layered over scenario graph nodes.",
+      "category": "roadmap",
+      "request": {
+        "type": "ListMilestonesRequest"
+      },
+      "response": {
+        "type": "ListMilestonesResponse"
+      },
+      "cli_mapping": {
+        "command": "tech-tree-designer roadmap milestones"
+      }
+    },
+    {
+      "id": "roadmap-milestones-upsert",
+      "path": "/vrooli.tech_tree_designer.v1.roadmap.RoadmapService/UpsertMilestone",
+      "method": "POST",
+      "summary": "Create or update a roadmap milestone",
+      "description": "Stores a named milestone and the scenario nodes required to satisfy it.",
+      "category": "roadmap",
+      "request": {
+        "type": "UpsertMilestoneRequest"
+      },
+      "response": {
+        "type": "Milestone"
+      },
+      "cli_mapping": {
+        "command": "tech-tree-designer roadmap milestone",
+        "args": [
+          "<id>"
+        ]
+      }
+    },
+    {
+      "id": "roadmap-progress",
+      "path": "/vrooli.tech_tree_designer.v1.roadmap.RoadmapService/GetProgress",
+      "method": "POST",
+      "summary": "Get roadmap progress",
+      "description": "Rolls up live, planned, beta, and stable graph nodes by sector and tier.",
+      "category": "roadmap",
+      "request": {
+        "type": "GetProgressRequest"
+      },
+      "response": {
+        "type": "ProgressRollup"
+      },
+      "cli_mapping": {
+        "command": "tech-tree-designer roadmap progress"
+      }
     }
   ],
   "cli_commands": [
@@ -347,6 +438,31 @@
       "name": "plan materialize",
       "description": "Materialize planned proto files",
       "endpoint_id": "planning-materialize"
+    },
+    {
+      "name": "roadmap sectors",
+      "description": "List roadmap sectors",
+      "endpoint_id": "roadmap-sectors-list"
+    },
+    {
+      "name": "roadmap sector",
+      "description": "Create or update a roadmap sector",
+      "endpoint_id": "roadmap-sectors-upsert"
+    },
+    {
+      "name": "roadmap milestones",
+      "description": "List roadmap milestones",
+      "endpoint_id": "roadmap-milestones-list"
+    },
+    {
+      "name": "roadmap milestone",
+      "description": "Create or update a roadmap milestone",
+      "endpoint_id": "roadmap-milestones-upsert"
+    },
+    {
+      "name": "roadmap progress",
+      "description": "Roll up graph progress by sector and tier",
+      "endpoint_id": "roadmap-progress"
     }
   ]
 }
