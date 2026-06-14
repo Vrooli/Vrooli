@@ -26,8 +26,12 @@ const (
 // sees the isolation policy immediately. No backticks so it stays a raw literal.
 const pnpmWorkspaceComment = `# Root workspace configuration - shared packages only (packages/*).
 # IMPORTANT: Do NOT add scenarios/**/ui or any scenarios/* path here.
-# Scenarios must stay fully isolated to prevent dependency conflicts; they
-# install with "pnpm install --ignore-workspace" and never join this workspace.
+# Scenarios must stay fully isolated to prevent dependency conflicts; each
+# scenario ui/ carries its own pnpm-workspace.yaml BOUNDARY file (react-vite
+# template >= 1.1.0) that stops pnpm's upward workspace walk, so a plain
+# "pnpm install" there never joins this workspace ("--ignore-workspace" stays
+# equivalent and is what lifecycle commands pass). A pnpm-lock.yaml must never
+# exist at the repo root - it means an install ran in root-workspace scope.
 # Shared-package adoption is governed by "vrooli package ..." plus package
 # manifests under packages/*/.vrooli/package.json.
 # This file is the single source of truth for root workspace settings; do not
@@ -266,6 +270,44 @@ func (s Service) checkPnpmConfig(report *Report, fixSafe bool) {
 		})
 	}
 
+	// A root pnpm-lock.yaml must never exist: per-package locks live in
+	// packages/*, scenario locks in scenarios/*/ui. A root lock is the
+	// signature of an install that ran in root-workspace scope (e.g. a
+	// scenario ui install without its boundary file) and was deliberately
+	// removed from the repo.
+	rootLock := filepath.Join(root, "pnpm-lock.yaml")
+	if _, lerr := os.Stat(rootLock); lerr == nil {
+		if fixSafe {
+			if rerr := os.Remove(rootLock); rerr != nil {
+				findings = append(findings, Finding{
+					Severity:   SeverityError,
+					Code:       "pnpm_root_lockfile_stray",
+					Path:       "pnpm-lock.yaml",
+					Message:    fmt.Sprintf("failed to remove stray root pnpm-lock.yaml: %v", rerr),
+					Fixability: FixabilityManual,
+				})
+			} else {
+				report.ConfigFixes = append(report.ConfigFixes, "removed stray root pnpm-lock.yaml")
+				report.addCheck("pnpm_root_lockfile_healed", true, SeverityInfo, "removed stray root pnpm-lock.yaml")
+			}
+		} else {
+			findings = append(findings, Finding{
+				Severity:   SeverityError,
+				Code:       "pnpm_root_lockfile_stray",
+				Path:       "pnpm-lock.yaml",
+				Message:    "stray pnpm-lock.yaml at the repo root; an install ran in root-workspace scope",
+				Why:        "Per-package locks live in packages/* and scenario locks in scenarios/*/ui; a root lock means some install joined the root workspace (likely a scenario ui missing its pnpm-workspace.yaml boundary file).",
+				Fixability: FixabilityAutomatic,
+				NextActions: []Action{{
+					Code:       "remove_stray_root_lockfile",
+					Message:    "Delete the stray root pnpm-lock.yaml and add the boundary file to whichever ui/ produced it.",
+					Command:    "vrooli hygiene --pnpm-only --fix-safe",
+					Fixability: FixabilityAutomatic,
+				}},
+			})
+		}
+	}
+
 	if npmrcData, nerr := os.ReadFile(filepath.Join(root, rootNpmrcFile)); nerr == nil {
 		if npmrcHasWorkspaceKeys(npmrcData) {
 			findings = append(findings, Finding{
@@ -321,6 +363,7 @@ func (s Service) checkScenarioPnpm(report *Report) {
 
 	var starViolations []string
 	var missingLock []string
+	var missingBoundary []string
 	for _, pkgPath := range matches {
 		data, rerr := os.ReadFile(pkgPath)
 		if rerr != nil {
@@ -333,9 +376,13 @@ func (s Service) checkScenarioPnpm(report *Report) {
 		if _, lerr := os.Stat(lockPath); os.IsNotExist(lerr) {
 			missingLock = append(missingLock, relPathFromRoot(root, filepath.Dir(pkgPath)))
 		}
+		boundaryPath := filepath.Join(filepath.Dir(pkgPath), pnpmWorkspaceFile)
+		if _, berr := os.Stat(boundaryPath); os.IsNotExist(berr) {
+			missingBoundary = append(missingBoundary, relPathFromRoot(root, filepath.Dir(pkgPath)))
+		}
 	}
 
-	passed := len(starViolations) == 0 && len(missingLock) == 0
+	passed := len(starViolations) == 0 && len(missingLock) == 0 && len(missingBoundary) == 0
 	severity := SeverityInfo
 	message := fmt.Sprintf("%d scenario UIs checked, all isolated", len(matches))
 	if len(starViolations) > 0 {
@@ -344,6 +391,9 @@ func (s Service) checkScenarioPnpm(report *Report) {
 	} else if len(missingLock) > 0 {
 		severity = SeverityWarning
 		message = fmt.Sprintf("%d scenario UIs missing a committed pnpm-lock.yaml", len(missingLock))
+	} else if len(missingBoundary) > 0 {
+		severity = SeverityWarning
+		message = fmt.Sprintf("%d scenario UIs missing the pnpm-workspace.yaml boundary file", len(missingBoundary))
 	}
 	report.addCheck("scenario_pnpm", passed, severity, message)
 
@@ -373,6 +423,22 @@ func (s Service) checkScenarioPnpm(report *Report) {
 			NextActions: []Action{{
 				Code:       "commit_scenario_lockfile",
 				Message:    "Run corepack pnpm install --ignore-workspace in the scenario ui/ and commit the generated pnpm-lock.yaml.",
+				Fixability: FixabilityGuided,
+			}},
+		})
+	}
+	if len(missingBoundary) > 0 {
+		report.addFinding(Finding{
+			Severity:   SeverityWarning,
+			Code:       "scenario_missing_workspace_boundary",
+			Locations:  missingBoundary,
+			Message:    "scenario UI has no pnpm-workspace.yaml boundary file; a plain pnpm install there joins the root workspace",
+			Why:        "pnpm resolves its workspace by walking up to the first pnpm-workspace.yaml; without a local boundary, installs run in root-workspace scope, ignore the scenario lockfile/overrides, and regenerate a stray root lock (react-vite template >= 1.1.0 ships the boundary).",
+			Fixability: FixabilityGuided,
+			NextActions: []Action{{
+				Code:       "copy_workspace_boundary",
+				Message:    "Copy templates/scenarios/react-vite/ui/pnpm-workspace.yaml into the scenario ui/ directory.",
+				Command:    "cp templates/scenarios/react-vite/ui/pnpm-workspace.yaml <scenario>/ui/pnpm-workspace.yaml",
 				Fixability: FixabilityGuided,
 			}},
 		})

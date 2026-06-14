@@ -199,10 +199,11 @@ func TestPnpmConfigWarnsOnMissingScenarioLockfile(t *testing.T) {
 func TestPnpmConfigValidFilePasses(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "pnpm-workspace.yaml"), canonicalRootWorkspace(t))
-	// A clean isolated scenario.
+	// A clean isolated scenario: lockfile + workspace boundary present.
 	writeFile(t, filepath.Join(root, "scenarios", "demo", "ui", "package.json"),
 		`{"name":"demo-ui","dependencies":{"@vrooli/api-base":"file:../../../packages/api-base"}}`)
 	writeFile(t, filepath.Join(root, "scenarios", "demo", "ui", "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n")
+	writeFile(t, filepath.Join(root, "scenarios", "demo", "ui", "pnpm-workspace.yaml"), "packages:\n  - .\n")
 
 	report := runPnpmHygiene(t, root, false)
 	for _, f := range report.Findings {
@@ -236,4 +237,62 @@ func keys(m map[string]Finding) []string {
 		out = append(out, k)
 	}
 	return out
+}
+
+func TestPnpmConfigWarnsOnMissingScenarioBoundary(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "pnpm-workspace.yaml"), canonicalRootWorkspace(t))
+	// Lockfile present but no pnpm-workspace.yaml boundary: a plain install
+	// there would walk up and join the root workspace.
+	writeFile(t, filepath.Join(root, "scenarios", "demo", "ui", "package.json"),
+		`{"name":"demo-ui","dependencies":{"@vrooli/api-base":"file:../../../packages/api-base"}}`)
+	writeFile(t, filepath.Join(root, "scenarios", "demo", "ui", "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n")
+
+	report := runPnpmHygiene(t, root, false)
+	codes := findingCodes(report)
+	boundary, ok := codes["scenario_missing_workspace_boundary"]
+	if !ok {
+		t.Fatalf("expected scenario_missing_workspace_boundary finding, got %v", keys(codes))
+	}
+	if boundary.Severity != SeverityWarning {
+		t.Fatalf("missing boundary should be a warning, got %q", boundary.Severity)
+	}
+	if !containsString(boundary.Locations, "scenarios/demo/ui") {
+		t.Fatalf("expected location scenarios/demo/ui, got %v", boundary.Locations)
+	}
+}
+
+func TestPnpmConfigFlagsAndRemovesStrayRootLockfile(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "pnpm-workspace.yaml"), canonicalRootWorkspace(t))
+	writeFile(t, filepath.Join(root, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n")
+
+	// Without fix-safe: flagged as an error.
+	report := runPnpmHygiene(t, root, false)
+	codes := findingCodes(report)
+	stray, ok := codes["pnpm_root_lockfile_stray"]
+	if !ok {
+		t.Fatalf("expected pnpm_root_lockfile_stray finding, got %v", keys(codes))
+	}
+	if stray.Severity != SeverityError {
+		t.Fatalf("stray root lock should be an error, got %q", stray.Severity)
+	}
+
+	// With fix-safe: removed, no finding, fix recorded.
+	report = runPnpmHygiene(t, root, true)
+	if _, again := findingCodes(report)["pnpm_root_lockfile_stray"]; again {
+		t.Fatal("stray root lockfile finding should clear after fix-safe heal")
+	}
+	if _, err := os.Stat(filepath.Join(root, "pnpm-lock.yaml")); !os.IsNotExist(err) {
+		t.Fatal("fix-safe should remove the stray root pnpm-lock.yaml")
+	}
+	found := false
+	for _, fix := range report.ConfigFixes {
+		if strings.Contains(fix, "stray root pnpm-lock.yaml") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected ConfigFixes entry for stray root lock removal, got %v", report.ConfigFixes)
+	}
 }

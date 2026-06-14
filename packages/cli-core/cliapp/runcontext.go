@@ -24,6 +24,11 @@ type RunContext interface {
 	// returns the schema's Default.
 	Flag(name string) string
 
+	// FlagValues returns every supplied value for a valued flag, in order.
+	// If the flag was not provided, returns the schema's Default as a
+	// single value when set, otherwise nil.
+	FlagValues(name string) []string
+
 	// BoolFlag returns true if the flag was provided.
 	BoolFlag(name string) bool
 
@@ -78,6 +83,7 @@ type RunContext interface {
 type runContext struct {
 	schema      ArgSchema
 	flagValues  map[string]string
+	flagLists   map[string][]string
 	flagSet     map[string]bool
 	positionals map[string]string
 	repeated    map[string][]string
@@ -112,6 +118,19 @@ func (r *runContext) Flag(name string) string {
 		return v
 	}
 	return f.Default
+}
+
+func (r *runContext) FlagValues(name string) []string {
+	f := r.requireFlag(name)
+	if values := r.flagLists[name]; len(values) > 0 {
+		out := make([]string, len(values))
+		copy(out, values)
+		return out
+	}
+	if f.Default != "" {
+		return []string{f.Default}
+	}
+	return nil
 }
 
 func (r *runContext) BoolFlag(name string) bool {
@@ -231,6 +250,7 @@ func (r *runContext) Stderr() io.Writer {
 type TestRunContextOptions struct {
 	Schema      ArgSchema
 	Flags       map[string]string
+	FlagLists   map[string][]string
 	BoolFlags   map[string]bool
 	Positionals map[string]string
 	Repeated    map[string][]string
@@ -255,9 +275,18 @@ type TestRunContextOptions struct {
 func NewTestRunContext(opts TestRunContextOptions) RunContext {
 	flagSet := make(map[string]bool, len(opts.Flags)+len(opts.BoolFlags))
 	flagValues := make(map[string]string, len(opts.Flags))
+	flagLists := make(map[string][]string, len(opts.Flags)+len(opts.FlagLists))
 	for k, v := range opts.Flags {
 		flagValues[k] = v
+		flagLists[k] = []string{v}
 		flagSet[k] = true
+	}
+	for k, v := range opts.FlagLists {
+		flagLists[k] = append([]string(nil), v...)
+		if len(v) > 0 {
+			flagValues[k] = v[len(v)-1]
+			flagSet[k] = true
+		}
 	}
 	for k, v := range opts.BoolFlags {
 		if v {
@@ -276,6 +305,7 @@ func NewTestRunContext(opts TestRunContextOptions) RunContext {
 	return &runContext{
 		schema:      opts.Schema,
 		flagValues:  flagValues,
+		flagLists:   flagLists,
 		flagSet:     flagSet,
 		positionals: positionals,
 		repeated:    repeated,

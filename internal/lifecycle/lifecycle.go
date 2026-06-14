@@ -149,7 +149,7 @@ type lifecycleDeps struct {
 	resourceManifest        func(string) (resourcemanifest.ResourceManifest, error)
 	runResource             func(string, []string, io.Writer, io.Writer) error
 	runResourceCLI          func(string, []string, io.Writer, io.Writer) error
-	inspectPort             func(int) (network.PortInspection, error)
+	inspectPort             func(int) network.PortInspection
 	readProcessEnv          func(int) (map[string]string, error)
 	enforceHostRequirements func(hostreqrun.Options) (vrooliruntime.Report, error)
 	runtimeRegistry         func(context.Context, string) (scenarioRuntimeStore, error)
@@ -970,10 +970,7 @@ func (r *Runner) killManagedScenarioListeners(portsToCheck map[int]struct{}, key
 	targets := make(map[int]struct{})
 	fallbackPorts := make(map[int][]int) // port -> pids seen without env match
 	for port := range portsToCheck {
-		inspection, err := deps.inspectPort(port)
-		if err != nil {
-			return err
-		}
+		inspection := deps.inspectPort(port)
 		if !inspection.Inspection.Available {
 			continue
 		}

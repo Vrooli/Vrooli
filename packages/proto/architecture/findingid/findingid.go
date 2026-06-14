@@ -8,11 +8,19 @@
 //
 // It lives under packages/proto (not gen/, which `make clean` wipes) so it
 // ships with the generated ArchitectureFinding type it operates on.
+//
+// Identity is (scenario, source, code, file-level locations). Line and
+// column suffixes are stripped from extension-bearing file paths before
+// hashing, so identity is line-shift invariant BY DESIGN: fixing one
+// finding (which shifts later findings' line numbers in the same file)
+// never churns those findings' IDs. Display locations elsewhere keep their
+// line numbers — only the hash input is line-stripped.
 package findingid
 
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -32,11 +40,13 @@ type Inputs struct {
 	Locations []string
 }
 
-// sourceToken maps a FindingSource to a short, stable hash token. Using an
-// explicit map (rather than the generated String()) keeps the hash input
-// reviewable and independent of proto-formatting quirks; adding a source
-// here is a deliberate, frozen contract change.
-func sourceToken(s architecturev1.FindingSource) string {
+// SourceToken maps a FindingSource to a short, stable lower-case token.
+// Using an explicit map (rather than the generated String()) keeps the
+// hash input reviewable and independent of proto-formatting quirks; adding
+// a source here is a deliberate, frozen contract change. This is the single
+// source of truth for the source-token vocabulary shared by the hash input,
+// the campaign tracker's Finding.Source, and reaudit covered-sources.
+func SourceToken(s architecturev1.FindingSource) string {
 	switch s {
 	case architecturev1.FindingSource_FINDING_SOURCE_STRUCTURE:
 		return "structure"
@@ -62,14 +72,32 @@ func sourceToken(s architecturev1.FindingSource) string {
 		return "business"
 	case architecturev1.FindingSource_FINDING_SOURCE_PROTO:
 		return "proto"
+	case architecturev1.FindingSource_FINDING_SOURCE_DEPENDENCY:
+		return "dependency"
 	default:
 		return "unspecified"
 	}
 }
 
+// fileLineSuffix matches an extension-bearing file path with a trailing
+// `:line` or `:line:col` suffix. The extension anchor (`.go:75` yes,
+// `localhost:8080` no, `/health` no, bare domain names no) is what keeps
+// line-stripping from mangling URLs, host:port pairs, or route locations.
+// Group 1 is the file path without the line/column suffix.
+var fileLineSuffix = regexp.MustCompile(`^(.+\.[A-Za-z0-9_]+):\d+(:\d+)?$`)
+
 // normalizeLocations returns repo-relative, forward-slashed, trimmed,
-// sorted, de-duplicated locations. Empty entries are dropped. This is the
-// canonical form fed into the hash; callers need not pre-normalize.
+// sorted, de-duplicated locations with line/column suffixes stripped from
+// extension-bearing file paths. This is the canonical form fed into the
+// hash; callers need not pre-normalize. Line numbers are deliberately NOT
+// part of identity: fixing one finding shifts the line numbers of later
+// findings in the same file, and a stable ID must survive that drift.
+// Display locations elsewhere keep their line numbers; only the hash input
+// is line-stripped. A consequence: multiple findings with the same
+// (source, code, file) collapse to ONE hash-input entry — i.e. one stable
+// ID, one campaign work-item per file — which is the correct work-unit
+// granularity (reaudit validates only when ALL instances in that file are
+// gone). Dedup runs AFTER stripping so two same-file lines collapse.
 func normalizeLocations(in []string) []string {
 	out := make([]string, 0, len(in))
 	seen := make(map[string]struct{}, len(in))
@@ -77,6 +105,9 @@ func normalizeLocations(in []string) []string {
 		l = strings.TrimSpace(strings.ReplaceAll(l, "\\", "/"))
 		if l == "" {
 			continue
+		}
+		if m := fileLineSuffix.FindStringSubmatch(l); m != nil {
+			l = m[1]
 		}
 		if _, ok := seen[l]; ok {
 			continue
@@ -96,7 +127,7 @@ func Compute(in Inputs) string {
 	var b strings.Builder
 	b.WriteString(in.Scenario)
 	b.WriteByte('\x1f')
-	b.WriteString(sourceToken(in.Source))
+	b.WriteString(SourceToken(in.Source))
 	b.WriteByte('\x1f')
 	b.WriteString(in.Code)
 	b.WriteByte('\x1f')

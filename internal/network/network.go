@@ -21,6 +21,9 @@ func ListenerInspectionStatus() ListenerInspection {
 	return listenerInspectionStatus()
 }
 
-func InspectPortListeners(port int) (PortInspection, error) {
+// InspectPortListeners answers a single-port inspection from a one-shot
+// snapshot. Capture failure is folded into the result (Inspection.Available is
+// false), so there is no error to return.
+func InspectPortListeners(port int) PortInspection {
 	return inspectPortListeners(port)
 }

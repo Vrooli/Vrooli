@@ -1,0 +1,123 @@
+syntax = "proto3";
+
+package vrooli.tech_tree_designer.v1.graph;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/tech-tree-designer/v1/graph;graph_v1";
+
+// =============================================================================
+// GRAPH DOMAIN
+// =============================================================================
+//
+// @stability beta
+//
+// Connect-RPC surface for the scenario-centric interface graph. Live nodes are
+// sourced from proto-health today through the API's GraphSource seam; planned
+// nodes are added by the planning domain in the next phase.
+// =============================================================================
+
+service GraphService {
+  rpc DescribeTechTree(DescribeTechTreeRequest) returns (DescribeTechTreeResponse);
+  rpc GetNeighborhood(GetNeighborhoodRequest) returns (DescribeTechTreeResponse);
+  rpc FindPath(FindPathRequest) returns (DescribeTechTreeResponse);
+  rpc ListAncestors(ListAncestorsRequest) returns (DescribeTechTreeResponse);
+  rpc ExportTechTree(ExportTechTreeRequest) returns (ExportTechTreeResponse);
+}
+
+message DescribeTechTreeRequest {
+  repeated string scenario_filter = 1;
+  int32 limit = 2;
+  string stability_filter = 3;
+  string group_by = 4;
+}
+
+message DescribeTechTreeResponse {
+  TechTreeGraph graph = 1;
+}
+
+message GetNeighborhoodRequest {
+  string scenario = 1;
+  int32 depth = 2;
+  repeated string scenario_filter = 3;
+}
+
+message FindPathRequest {
+  string from_scenario = 1;
+  string to_scenario = 2;
+  repeated string scenario_filter = 3;
+}
+
+message ListAncestorsRequest {
+  string scenario = 1;
+  repeated string scenario_filter = 2;
+}
+
+message ExportTechTreeRequest {
+  ExportFormat format = 1;
+  repeated string scenario_filter = 2;
+  string stability_filter = 3;
+}
+
+message ExportTechTreeResponse {
+  ExportFormat format = 1;
+  string content = 2;
+  string media_type = 3;
+}
+
+message TechTreeGraph {
+  repeated TechNode nodes = 1;
+  repeated TechEdge edges = 2;
+  repeated GraphError errors = 3;
+}
+
+message TechNode {
+  string scenario = 1;
+  NodeKind kind = 2;
+  string display_name = 3;
+  string transport_world = 4;
+  repeated string stability = 5;
+  string sector = 6;
+  string tier = 7;
+}
+
+message TechEdge {
+  string from_scenario = 1;
+  string to_scenario = 2;
+  repeated GraphEvidence evidence = 3;
+  string transport_world = 4;
+  repeated string stability = 5;
+}
+
+message GraphEvidence {
+  EvidenceSource source = 1;
+  string import_path = 2;
+  string from_file = 3;
+  string to_file = 4;
+  string path = 5;
+  string analyzer = 6;
+}
+
+message GraphError {
+  string source = 1;
+  string scenario = 2;
+  string message = 3;
+}
+
+enum NodeKind {
+  NODE_KIND_UNSPECIFIED = 0;
+  NODE_KIND_LIVE = 1;
+  NODE_KIND_PLANNED = 2;
+}
+
+enum EvidenceSource {
+  EVIDENCE_SOURCE_UNSPECIFIED = 0;
+  EVIDENCE_SOURCE_PROTO_IMPORT = 1;
+  EVIDENCE_SOURCE_GO_IMPORT = 2;
+  EVIDENCE_SOURCE_PLANNED_PROTO_IMPORT = 3;
+}
+
+enum ExportFormat {
+  EXPORT_FORMAT_UNSPECIFIED = 0;
+  EXPORT_FORMAT_DOT = 1;
+  EXPORT_FORMAT_JSON = 2;
+  EXPORT_FORMAT_TEXT = 3;
+}

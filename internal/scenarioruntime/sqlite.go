@@ -287,6 +287,39 @@ func (s *SQLiteStore) ReleasePortClaim(ctx context.Context, claimID string) (Por
 	return s.updateClaimStatus(ctx, claimID, ClaimStatusReleased)
 }
 
+// RenewReservedPortClaimsForInstance pushes expires_at forward for every claim
+// of the instance that is still reserved (not yet bound), returning how many
+// were renewed. The lifecycle calls this alongside its instance heartbeats so
+// a slow start cannot have its reservations expired-and-stolen by a concurrent
+// allocation. Bound claims carry no expiry (cleared on bind) and are skipped
+// by the status filter.
+func (s *SQLiteStore) RenewReservedPortClaimsForInstance(ctx context.Context, instanceID string, expiresAt time.Time) (int, error) {
+	if strings.TrimSpace(instanceID) == "" {
+		return 0, fmt.Errorf("renew reserved port claims: instance_id is required")
+	}
+	now := s.now()
+	var renewed int64
+	err := s.withTx(ctx, func(tx *sql.Tx) error {
+		result, err := tx.ExecContext(ctx, `
+UPDATE runtime_port_claims
+SET expires_at = ?, updated_at = ?
+WHERE instance_id = ? AND status = ?`,
+			formatTime(expiresAt.UTC()), formatTime(now), instanceID, ClaimStatusReserved)
+		if err != nil {
+			return fmt.Errorf("renew reserved port claims: %w", err)
+		}
+		renewed, err = result.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("inspect reserved port claim renewal: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return int(renewed), nil
+}
+
 func (s *SQLiteStore) BindPortClaim(ctx context.Context, claimID string) (PortClaim, error) {
 	now := s.now()
 	var out PortClaim

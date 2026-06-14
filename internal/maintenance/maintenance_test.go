@@ -683,8 +683,8 @@ func TestDiagnosePortShowsRegistryClaimHealthAndProcessRefs(t *testing.T) {
 		listProcessTableFn = originalListProcessTable
 		pidIsRunningFn = originalPIDRunning
 	})
-	inspectPortListenersFn = func(port int) (network.PortInspection, error) {
-		return network.PortInspection{Inspection: network.ListenerInspection{Available: true}}, nil
+	inspectPortListenersFn = func(port int) network.PortInspection {
+		return network.PortInspection{Inspection: network.ListenerInspection{Available: true}}
 	}
 	stubListenerSnapshot(t, true, nil)
 	listProcessTableFn = func() (map[int]processTableEntry, error) {
@@ -1228,8 +1228,8 @@ func TestDiagnosePortRecommendationMatchesCleanupAction(t *testing.T) {
 	stubListenerSnapshot(t, true, nil)
 	originalInspect := inspectPortListenersFn
 	t.Cleanup(func() { inspectPortListenersFn = originalInspect })
-	inspectPortListenersFn = func(port int) (network.PortInspection, error) {
-		return network.PortInspection{Inspection: network.ListenerInspection{Available: true, Tool: "test"}}, nil
+	inspectPortListenersFn = func(port int) network.PortInspection {
+		return network.PortInspection{Inspection: network.ListenerInspection{Available: true, Tool: "test"}}
 	}
 
 	controller := NewController(root, home)
@@ -1515,14 +1515,14 @@ func TestDiagnosePortBuildsRecommendations(t *testing.T) {
 		inspectPortListenersFn = originalInspection
 		listProcessTableFn = originalListProcessTable
 	})
-	inspectPortListenersFn = func(port int) (network.PortInspection, error) {
+	inspectPortListenersFn = func(port int) network.PortInspection {
 		if port != 21234 {
 			t.Fatalf("port = %d", port)
 		}
 		return network.PortInspection{
 			Listeners:  []PortListener{{PID: 4321, Command: "listener command"}},
 			Inspection: network.ListenerInspection{Available: true, Tool: "lsof"},
-		}, nil
+		}
 	}
 	stubListenerSnapshot(t, true, map[int][]network.SnapshotListener{
 		21234: {{PID: 4321, Label: "listener command"}},
@@ -1556,10 +1556,10 @@ func TestDiagnosePortReportsEphemeralOverlap(t *testing.T) {
 		inspectPortListenersFn = originalInspection
 		listProcessTableFn = originalListProcessTable
 	})
-	inspectPortListenersFn = func(port int) (network.PortInspection, error) {
+	inspectPortListenersFn = func(port int) network.PortInspection {
 		return network.PortInspection{
 			Inspection: network.ListenerInspection{Available: true, Tool: "stub"},
-		}, nil
+		}
 	}
 	stubListenerSnapshot(t, true, nil)
 	listProcessTableFn = func() (map[int]processTableEntry, error) {
@@ -1602,10 +1602,10 @@ func TestDiagnosePortCanonicalBandForSafePort(t *testing.T) {
 		inspectPortListenersFn = originalInspection
 		listProcessTableFn = originalListProcessTable
 	})
-	inspectPortListenersFn = func(port int) (network.PortInspection, error) {
+	inspectPortListenersFn = func(port int) network.PortInspection {
 		return network.PortInspection{
 			Inspection: network.ListenerInspection{Available: true, Tool: "stub"},
-		}, nil
+		}
 	}
 	stubListenerSnapshot(t, true, nil)
 	listProcessTableFn = func() (map[int]processTableEntry, error) {
@@ -1635,13 +1635,13 @@ func TestDiagnosePortReportsUnavailableListenerInspection(t *testing.T) {
 		inspectPortListenersFn = originalInspection
 		listProcessTableFn = originalListProcessTable
 	})
-	inspectPortListenersFn = func(port int) (network.PortInspection, error) {
+	inspectPortListenersFn = func(port int) network.PortInspection {
 		return network.PortInspection{
 			Inspection: network.ListenerInspection{
 				Available: false,
 				Reason:    "lsof is not installed",
 			},
-		}, nil
+		}
 	}
 	stubListenerSnapshot(t, false, nil)
 	listProcessTableFn = func() (map[int]processTableEntry, error) {
@@ -1732,5 +1732,65 @@ func TestNewPIDLivenessMemoProbesEachPIDOnce(t *testing.T) {
 	}
 	if calls[2] != 1 || calls[3] != 1 {
 		t.Fatalf("expected one probe per distinct PID, got %v", calls)
+	}
+}
+
+// TestListRuntimeClaimsCapturesListenerSnapshotOnce is the anti-regression
+// guard for the 200x speedup: listener evidence must be captured ONCE per
+// listing, never once per claim. Before the overhaul each claim forked its own
+// lsof+ps (the dominant cost — 86 lsof + 422 ps on a 189-claim host).
+// Reintroducing a per-claim capture would push this counter above 1 no matter
+// how the forks are spelled.
+func TestListRuntimeClaimsCapturesListenerSnapshotOnce(t *testing.T) {
+	home := t.TempDir()
+	ctx := context.Background()
+
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: home})
+	if err != nil {
+		t.Fatalf("NewSQLiteStore: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+
+	const claimCount = 5
+	for i := 0; i < claimCount; i++ {
+		suffix := strconv.Itoa(i)
+		instance, err := store.CreateLease(ctx, scenarioruntime.Instance{
+			InstanceID: "inst-" + suffix,
+			Scenario:   "scenario-" + suffix,
+			Status:     scenarioruntime.StatusRunning,
+		}, time.Minute)
+		if err != nil {
+			t.Fatalf("CreateLease %d: %v", i, err)
+		}
+		if _, err := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
+			ClaimID:    "claim-" + suffix,
+			InstanceID: instance.InstanceID,
+			Scenario:   instance.Scenario,
+			PortName:   "api",
+			EnvVar:     "API_PORT",
+			Port:       15080 + i,
+			Status:     scenarioruntime.ClaimStatusBound,
+		}); err != nil {
+			t.Fatalf("AcquirePortClaim %d: %v", i, err)
+		}
+	}
+
+	original := captureListenerSnapshotFn
+	t.Cleanup(func() { captureListenerSnapshotFn = original })
+	captures := 0
+	captureListenerSnapshotFn = func() network.TCPListenerSnapshot {
+		captures++
+		return network.TCPListenerSnapshot{Known: true, Tool: "test"}
+	}
+
+	claims, err := listRuntimeClaims(ctx, store, 0, "", false)
+	if err != nil {
+		t.Fatalf("listRuntimeClaims: %v", err)
+	}
+	if len(claims) != claimCount {
+		t.Fatalf("listed %d claims, want %d", len(claims), claimCount)
+	}
+	if captures != 1 {
+		t.Fatalf("listener snapshot captured %d times for %d claims; must be exactly 1 (per-claim fork regression)", captures, claimCount)
 	}
 }

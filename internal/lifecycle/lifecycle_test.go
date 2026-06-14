@@ -2389,7 +2389,7 @@ func orphanScenarioItem() scenario.Scenario {
 
 func orphanLifecycleDeps(signaled *[]string) lifecycleDeps {
 	return lifecycleDeps{
-		inspectPort: func(port int) (network.PortInspection, error) {
+		inspectPort: func(port int) network.PortInspection {
 			switch port {
 			case 36235:
 				return network.PortInspection{
@@ -2398,14 +2398,14 @@ func orphanLifecycleDeps(signaled *[]string) lifecycleDeps {
 						{PID: 101},
 						{PID: 202},
 					},
-				}, nil
+				}
 			case 18800:
 				return network.PortInspection{
 					Inspection: network.ListenerInspection{Available: true, Tool: "stub"},
 					Listeners:  []network.PortListener{{PID: 303}},
-				}, nil
+				}
 			default:
-				return network.PortInspection{}, nil
+				return network.PortInspection{}
 			}
 		},
 		readProcessEnv: func(pid int) (map[string]string, error) {

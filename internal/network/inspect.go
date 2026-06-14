@@ -14,8 +14,8 @@ func listenerInspectionStatus() ListenerInspection {
 	}
 }
 
-func inspectPortListeners(port int) (PortInspection, error) {
-	return PortInspectionFromSnapshot(captureTCPListenerSnapshot(), port), nil
+func inspectPortListeners(port int) PortInspection {
+	return PortInspectionFromSnapshot(captureTCPListenerSnapshot(), port)
 }
 
 // PortInspectionFromSnapshot renders the legacy per-port inspection shape

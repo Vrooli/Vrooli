@@ -149,6 +149,9 @@ func ParseLocksRequest(args []string) (LocksRequest, error) {
 		switch parsed.Positionals[0] {
 		case "clean":
 			req.Clean = true
+			if req.ShowAll {
+				return LocksRequest{}, clipolicy.UsageErrorf("locks", "--all is only meaningful when listing claims, not with `clean`")
+			}
 		case "help":
 			return LocksRequest{}, clipolicy.CommandHelpOnly(LocksHelpText())
 		default:

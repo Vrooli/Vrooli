@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+package vrooli.scenario_dependency_analyzer.v1.graph;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/graph;graph_v1";
+
+// =============================================================================
+// INTERFACE GRAPH DOMAIN
+// =============================================================================
+//
+// @stability beta
+//
+// Wire contract for the fleet's actual cross-scenario interface graph. The
+// graph is assembled on demand from proto-health proto surfaces and code-facts
+// import facts. Scenario Dependency Analyzer owns only the cross-scenario
+// interpretation: it does not parse source files.
+//
+// Consumed by:
+//   - CLI: graph actual uses the generated Connect client for machine-readable
+//          graph output.
+//   - Future: tech-tree-designer consumes this seam to plan scenarios by their
+//             live interface dependencies.
+// =============================================================================
+
+service InterfaceGraphService {
+  // DescribeInterfaceGraph returns the on-demand actual interface graph.
+  rpc DescribeInterfaceGraph(DescribeInterfaceGraphRequest) returns (DescribeInterfaceGraphResponse);
+}
+
+message DescribeInterfaceGraphRequest {
+  // Optional scenario filter. Empty means all scenarios visible to the fact
+  // providers.
+  repeated string scenarios = 1;
+  // Optional maximum number of scenarios to request from upstream fact
+  // providers. Zero means no explicit limit.
+  int32 limit = 2;
+  // Optional proto-health stability filter such as "stable" or "experimental".
+  string stability_filter = 3;
+  // Optional code-facts language filter such as "go" or "typescript".
+  repeated string language_filter = 4;
+}
+
+message DescribeInterfaceGraphResponse {
+  InterfaceGraph graph = 1;
+}
+
+message InterfaceGraph {
+  repeated GraphNode nodes = 1;
+  repeated GraphEdge edges = 2;
+  repeated GraphError errors = 3;
+}
+
+message GraphNode {
+  string scenario = 1;
+}
+
+message GraphEdge {
+  string from_scenario = 1;
+  string to_scenario = 2;
+  repeated GraphEvidence evidence = 3;
+  string transport_world = 4;
+  repeated string stability = 5;
+}
+
+message GraphEvidence {
+  EvidenceSource source = 1;
+  string import_path = 2;
+  string from_file = 3;
+  string to_file = 4;
+  string path = 5;
+  string analyzer = 6;
+}
+
+enum EvidenceSource {
+  EVIDENCE_SOURCE_UNSPECIFIED = 0;
+  EVIDENCE_SOURCE_PROTO_IMPORT = 1;
+  EVIDENCE_SOURCE_GO_IMPORT = 2;
+}
+
+message GraphError {
+  string source = 1;
+  string scenario = 2;
+  string message = 3;
+}

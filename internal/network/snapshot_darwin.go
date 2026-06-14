@@ -2,7 +2,10 @@
 
 package network
 
-import "os/exec"
+import (
+	"context"
+	"os/exec"
+)
 
 // captureTCPListenerSnapshot builds the global listening-port set from
 // `netstat -an -p tcp` (one fork, unprivileged, sees ALL users' sockets).
@@ -15,7 +18,9 @@ func captureTCPListenerSnapshot() TCPListenerSnapshot {
 	if err != nil {
 		return TCPListenerSnapshot{Reason: "netstat is not installed", Tool: "netstat"}
 	}
-	output, err := exec.Command(netstatPath, "-an", "-p", "tcp").Output()
+	ctx, cancel := context.WithTimeout(context.Background(), listenerEnrichTimeout)
+	defer cancel()
+	output, err := exec.CommandContext(ctx, netstatPath, "-an", "-p", "tcp").Output()
 	if err != nil {
 		return TCPListenerSnapshot{Reason: "netstat -an -p tcp failed: " + err.Error(), Tool: "netstat"}
 	}
@@ -40,7 +45,9 @@ func enrichListenerPIDsWithLsof(ports map[int][]SnapshotListener) bool {
 	if err != nil {
 		return false
 	}
-	output, err := exec.Command(path, "-nP", "-iTCP", "-sTCP:LISTEN", "-Fpcn").Output()
+	ctx, cancel := context.WithTimeout(context.Background(), listenerEnrichTimeout)
+	defer cancel()
+	output, err := exec.CommandContext(ctx, path, "-nP", "-iTCP", "-sTCP:LISTEN", "-Fpcn").Output()
 	if err != nil {
 		return false
 	}
