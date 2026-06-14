@@ -2,341 +2,138 @@ package main
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
-	"regexp"
+	"path/filepath"
 	"strings"
-	"time"
 
-	"github.com/gin-gonic/gin"
-	_ "github.com/lib/pq"
+	"tech-tree-designer/internal/clock"
+	"tech-tree-designer/internal/modules"
+	"tech-tree-designer/internal/server"
+
+	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/preflight"
+	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
-	repocontract "github.com/vrooli/repo-contract-go"
+	_ "modernc.org/sqlite"
+
+	healthH "tech-tree-designer/handlers/health"
 )
 
-const (
-	treeIDQueryParam   = "tree_id"
-	treeSlugQueryParam = "tree_slug"
-	treeIDHeader       = "X-Tech-Tree-Id"
-	treeSlugHeader     = "X-Tech-Tree-Slug"
-)
-
-var slugCleaner = regexp.MustCompile(`[^a-z0-9-]+`)
-
-func scanTechTree(row *sql.Row) (*TechTree, error) {
-	var tree TechTree
-	var parentID sql.NullString
-	err := row.Scan(
-		&tree.ID,
-		&tree.Slug,
-		&tree.Name,
-		&tree.Description,
-		&tree.Version,
-		&tree.TreeType,
-		&tree.Status,
-		&tree.IsActive,
-		&parentID,
-		&tree.CreatedAt,
-		&tree.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
+// sqliteDSN resolves the SQLite database file path and wraps it in a DSN
+// with the canonical pragma string. Resolution order:
+//
+//  1. SQLITE_PATH env — the canonical override.
+//  2. SQLITE_DB env — alias accepted for symmetry with other scenarios.
+//  3. storage.NewResolver(ProfileAuto) — the storage-steer-mandated
+//     filesystem-safe-by-default location.
+//
+// The path scope is the variant-aware namespace (storage.ScenarioNamespace),
+// not the bare slug: under a Baseline Modes shadow engagement the lifecycle
+// injects VROOLI_STORAGE_NAMESPACE, so the shadow's SQLite file lands beside
+// "<scenario>_shadow" and never shares live's database. Outside the lifecycle
+// (local `go run`, tests) it falls back to the compile-time slug, so live paths
+// are unchanged. This is why a generated scenario is shadow-safe with zero
+// per-scenario work — see packages/api-core/storage/namespace.go.
+//
+// The pragmas mirror agent-inbox; tweak in lockstep with
+// internal/testutil/db.NewSQLite so production and tests open files the
+// same way.
+func sqliteDSN() (string, error) {
+	if path := strings.TrimSpace(os.Getenv("SQLITE_PATH")); path != "" {
+		return sqliteFileDSN(path)
 	}
-	if parentID.Valid {
-		tree.ParentTree = &parentID.String
-	} else {
-		tree.ParentTree = nil
-	}
-	return &tree, nil
-}
-
-func fetchTechTreeByID(ctx context.Context, id string) (*TechTree, error) {
-	if db == nil {
-		return nil, errors.New("database connection is not initialized")
-	}
-	return scanTechTree(db.QueryRowContext(ctx, `
-		SELECT id, slug, name, description, version, tree_type, status, is_active, parent_tree_id, created_at, updated_at
-		FROM tech_trees
-		WHERE id = $1
-	`, id))
-}
-
-func fetchTechTreeBySlug(ctx context.Context, slug string) (*TechTree, error) {
-	if db == nil {
-		return nil, errors.New("database connection is not initialized")
-	}
-	return scanTechTree(db.QueryRowContext(ctx, `
-		SELECT id, slug, name, description, version, tree_type, status, is_active, parent_tree_id, created_at, updated_at
-		FROM tech_trees
-		WHERE slug = $1
-	`, slug))
-}
-
-func fetchDefaultTechTree(ctx context.Context) (*TechTree, error) {
-	if db == nil {
-		return nil, errors.New("database connection is not initialized")
-	}
-	return scanTechTree(db.QueryRowContext(ctx, `
-		SELECT id, slug, name, description, version, tree_type, status, is_active, parent_tree_id, created_at, updated_at
-		FROM tech_trees
-		WHERE tree_type = 'official' AND status = 'active'
-		ORDER BY updated_at DESC
-		LIMIT 1
-	`))
-}
-
-func resolveTreeContext(c *gin.Context) (*TechTree, error) {
-	ctx := c.Request.Context()
-	if ctx == nil {
-		ctx = context.Background()
+	if path := strings.TrimSpace(os.Getenv("SQLITE_DB")); path != "" {
+		return sqliteFileDSN(path)
 	}
 
-	if treeID := strings.TrimSpace(c.Query(treeIDQueryParam)); treeID != "" {
-		return fetchTechTreeByID(ctx, treeID)
-	}
-
-	if treeSlug := strings.TrimSpace(c.Query(treeSlugQueryParam)); treeSlug != "" {
-		return fetchTechTreeBySlug(ctx, treeSlug)
-	}
-
-	if headerID := strings.TrimSpace(c.GetHeader(treeIDHeader)); headerID != "" {
-		return fetchTechTreeByID(ctx, headerID)
-	}
-
-	if headerSlug := strings.TrimSpace(c.GetHeader(treeSlugHeader)); headerSlug != "" {
-		return fetchTechTreeBySlug(ctx, headerSlug)
-	}
-
-	return fetchDefaultTechTree(ctx)
-}
-
-func normalizeSlug(value string) string {
-	slug := strings.ToLower(strings.TrimSpace(value))
-	slug = strings.ReplaceAll(slug, " ", "-")
-	slug = slugCleaner.ReplaceAllString(slug, "-")
-	slug = strings.Trim(slug, "-")
-	if slug == "" {
-		slug = fmt.Sprintf("tree-%d", time.Now().Unix())
-	}
-	return slug
-}
-
-func resolveRepoRoot() (string, error) {
-	return repocontract.ResolveRepoRoot()
-}
-
-func fetchTreeStats(ctx context.Context, treeID string) (int, int, int, error) {
-	var sectorCount, stageCount, mappingCount int
-	err := db.QueryRowContext(ctx, `
-		SELECT
-			(SELECT COUNT(1) FROM sectors WHERE tree_id = $1) AS sector_count,
-			(SELECT COUNT(1)
-			 FROM progression_stages ps
-			 JOIN sectors s ON ps.sector_id = s.id
-			 WHERE s.tree_id = $1) AS stage_count,
-			(SELECT COUNT(1)
-			 FROM scenario_mappings sm
-			 JOIN progression_stages ps ON sm.stage_id = ps.id
-			 JOIN sectors s ON ps.sector_id = s.id
-			 WHERE s.tree_id = $1) AS mapping_count
-	`, treeID).Scan(&sectorCount, &stageCount, &mappingCount)
-	if err != nil {
-		return 0, 0, 0, err
-	}
-	return sectorCount, stageCount, mappingCount, nil
-}
-
-func writeTreeResponse(c *gin.Context, tree *TechTree, statusCode int) {
-	ctx := c.Request.Context()
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	sectorCount, stageCount, mappingCount, err := fetchTreeStats(ctx, tree.ID)
-	response := gin.H{"tree": tree}
-	if err == nil {
-		response["stats"] = gin.H{
-			"sectors":           sectorCount,
-			"stages":            stageCount,
-			"scenario_mappings": mappingCount,
-		}
-	}
-	c.JSON(statusCode, response)
-}
-
-func main() {
-	// Preflight checks - must be first, before any initialization
-	if preflight.Run(preflight.Config{
-		ScenarioName: "tech-tree-designer",
-	}) {
-		return // Process was re-exec'd after rebuild
-	}
-
-	// Connect to database with automatic retry and backoff.
-	// Reads POSTGRES_* environment variables set by the lifecycle system.
-	var err error
-	db, err = database.Connect(context.Background(), database.Config{
-		Driver: "postgres",
-	})
-	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
-	}
-	defer db.Close()
-
-	// Configure connection pool
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-
-	// Initialize service layer
-	treeService = NewTreeService(db)
-	sectorService = NewSectorService(db)
-	stageService = NewStageService(db)
-	graphService = NewGraphService(db)
-	graphQueryService = NewGraphQueryService(db)
-
-	repoRoot, rootErr := resolveRepoRoot()
-	if rootErr != nil {
-		log.Printf("WARNING: scenario catalog disabled (repo root unresolved): %v", rootErr)
-	} else {
-		log.Printf("INFO: Resolved repo root: %s", repoRoot)
-		visibilityPath, pathErr := resolveVisibilityPath(repoRoot)
-		if pathErr != nil {
-			log.Printf("WARNING: scenario visibility path unavailable: %v", pathErr)
-		} else {
-			log.Printf("INFO: Visibility path: %s", visibilityPath)
-			manager, catalogErr := NewScenarioCatalogManager(repoRoot, visibilityPath)
-			if catalogErr != nil {
-				log.Printf("WARNING: scenario catalog unavailable: %v", catalogErr)
-			} else {
-				catalogManager = manager
-				log.Printf("INFO: Scenario catalog manager initialized successfully")
-				catalogManager.StartBackgroundRefresh(24 * time.Hour)
-			}
-		}
-	}
-
-	// Initialize Gin router
-	r := gin.Default()
-
-	// Add CORS middleware with explicit allowed origins
-	r.Use(func(c *gin.Context) {
-		allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
-		if allowedOrigins == "" {
-			allowedOrigins = "http://localhost:3000,http://localhost:35000"
-		}
-
-		origin := c.Request.Header.Get("Origin")
-		for _, allowed := range strings.Split(allowedOrigins, ",") {
-			if origin == strings.TrimSpace(allowed) {
-				c.Header("Access-Control-Allow-Origin", origin)
-				break
-			}
-		}
-
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-
-		c.Next()
-	})
-
-	// Health check endpoint
-	r.GET("/health", gin.WrapF(health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()))
-
-	// API routes
-	api := r.Group("/api/v1")
-	{
-		api.GET("/health", gin.WrapF(health.New().Version("1.0.0").Check(health.DB(db), health.Critical).Handler()))
-
-		// Tech tree routes
-		api.GET("/tech-tree", getTechTree)
-		api.GET("/tech-tree/sectors", getSectors)
-		api.POST("/tech-tree/sectors", createSectorHandler)
-		api.PATCH("/tech-tree/sectors/:id", updateSectorHandler)
-		api.DELETE("/tech-tree/sectors/:id", deleteSectorHandler)
-		api.GET("/tech-tree/sectors/:id", getSector)
-		api.GET("/tech-tree/stages/:id", getStage)
-		api.GET("/tech-tree/stages/:id/children", getStageChildren)
-		api.POST("/tech-tree/stages", createStageHandler)
-		api.PATCH("/tech-tree/stages/:id", updateStageHandler)
-		api.DELETE("/tech-tree/stages/:id", deleteStageHandler)
-		api.PUT("/tech-tree/graph", updateGraph)
-		api.GET("/tech-tree/graph/dot", exportGraphAsDOT)
-		api.GET("/tech-trees", listTechTrees)
-		api.POST("/tech-trees", createTechTreeHandler)
-		api.PATCH("/tech-trees/:id", updateTechTreeHandler)
-		api.POST("/tech-trees/:id/clone", cloneTechTreeHandler)
-		api.POST("/tech-tree/ai/stage-ideas", aiStageIdeasHandler)
-		api.GET("/tech-tree/scenario-catalog", getScenarioCatalogHandler)
-		api.POST("/tech-tree/scenario-catalog/refresh", refreshScenarioCatalogHandler)
-		api.POST("/tech-tree/scenario-catalog/visibility", updateScenarioVisibilityHandler)
-
-		// Progress tracking routes
-		api.GET("/progress/scenarios", getScenarioMappings)
-		api.POST("/progress/scenarios", updateScenarioMapping)
-		api.DELETE("/progress/scenarios/:id", deleteScenarioMapping)
-		api.PUT("/progress/scenarios/:scenario", updateScenarioStatus)
-
-		// Maturity tracking routes
-		api.PUT("/stages/:id/maturity", updateStageMaturity)
-		api.GET("/stages/:id/maturity/events", getStageMaturityEvents)
-
-		// Strategic analysis routes
-		api.POST("/tech-tree/analyze", analyzeStrategicPath)
-		api.GET("/milestones", getStrategicMilestones)
-		api.POST("/milestones", createStrategicMilestone)
-		api.PATCH("/milestones/:id", updateStrategicMilestone)
-		api.DELETE("/milestones/:id", deleteStrategicMilestone)
-		api.GET("/recommendations", getRecommendations)
-
-		// Dependencies and connections
-		api.GET("/dependencies", getDependencies)
-		api.GET("/connections", getCrossSectorConnections)
-
-		// Graph query endpoints for agents
-		api.GET("/graph/neighborhood", getStageNeighborhood)
-		api.GET("/graph/path", getShortestPath)
-		api.GET("/graph/ancestors", getStageAncestors)
-		api.GET("/graph/export/view", exportGraphViewAsText)
-	}
-
-	// Get port from environment (required)
-	port := os.Getenv("API_PORT")
-	if port == "" {
-		log.Fatal("API_PORT environment variable is required (no default port allowed for security)")
-	}
-
-	log.Printf("🚀 Tech Tree Designer API starting on port %s", port)
-	log.Printf("🌟 Strategic Intelligence System ready for superintelligence guidance")
-
-	if err := r.Run(":" + port); err != nil {
-		log.Fatalf("server exited: %v", err)
-	}
-}
-
-func resolveVisibilityPath(repoRoot string) (string, error) {
 	resolver, err := storage.NewResolver(storage.ResolverConfig{
 		AppID:   "vrooli",
 		Profile: storage.ProfileAuto,
 	})
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("create storage resolver: %w", err)
 	}
-	path, err := resolver.Path(storage.Options{ScenarioID: "tech-tree-designer"}, storage.ClassConfig, "scenario_visibility.json")
+	scenarioID, err := storage.ScenarioNamespace("tech-tree-designer")
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("resolve tech-tree-designer storage namespace: %w", err)
 	}
-	return path, nil
+	path, err := resolver.Path(
+		storage.Options{ScenarioID: scenarioID},
+		storage.ClassData,
+		"tech-tree-designer.db",
+	)
+	if err != nil {
+		return "", fmt.Errorf("resolve tech-tree-designer db path: %w", err)
+	}
+	return sqliteFileDSN(path)
 }
 
-// Get the main tech tree
+func sqliteFileDSN(path string) (string, error) {
+	if strings.HasPrefix(path, "file:") {
+		return path, nil
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return "", fmt.Errorf("prepare sqlite directory: %w", err)
+	}
+	return fmt.Sprintf(
+		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)",
+		path,
+	), nil
+}
+
+func main() {
+	// Preflight checks must run first so the binary can re-exec itself
+	// after a stale-source rebuild before any listeners are opened.
+	if preflight.Run(preflight.Config{ScenarioName: "tech-tree-designer"}) {
+		return
+	}
+
+	dsn, err := sqliteDSN()
+	if err != nil {
+		log.Fatalf("sqlite configuration failed: %v", err)
+	}
+
+	db, err := database.Open(context.Background(), database.Config{
+		Driver:       database.DriverSQLite,
+		DSN:          dsn,
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
+	if err != nil {
+		log.Fatalf("Database connection failed: %v", err)
+	}
+
+	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
+		log.Fatalf("schema initialization failed: %v", err)
+	}
+
+	srv := server.New(
+		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		healthH.Module(db, "tech-tree-designer-api", "1.0.0"),
+	)
+
+	// Top-level mux that mounts the API handler plus, when in development
+	// mode, the dev-only RoutingService used by test-genie to install a
+	// runtime test DB pool without restarting this scenario.
+	rootMux := http.NewServeMux()
+	devrouting.Register(rootMux, db)
+
+	rootMux.Handle("/", srv.Handler())
+
+	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
+	// request context so *database.RoutedDB routes the call to the
+	// installed test pool. Self-disables in production mode.
+	handler := apihttp.TestModeMiddleware(rootMux)
+
+	if err := apiserver.Run(apiserver.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
+}

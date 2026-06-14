@@ -1,134 +1,105 @@
-import { defineConfig, type Plugin } from 'vite'
-import react from '@vitejs/plugin-react'
-import http from 'node:http'
+import { defineConfig, type UserConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
 
-const UI_PORT = process.env.UI_PORT || '3000'
-const API_HOST = process.env.API_HOST || 'localhost'
-const API_PORT = process.env.API_PORT || ''
-const API_HEALTH_URL = API_PORT ? `http://${API_HOST}:${API_PORT}/health` : `http://${API_HOST}/health`
+// Mode-aware config. A regular `vite build` ships the lean prod artifact;
+// `vite build --mode profile` produces a perf-build channel for performance
+// tracing. The perf build is *still* a production bundle (minified, batched,
+// no StrictMode double-renders) — it differs only in:
+//
+//   1. `react-dom/client` aliases to `react-dom/profiling` so React's
+//      profiling instrumentation survives. This makes <React.Profiler>'s
+//      onRender callbacks fire, which lets `src/lib/profiler.ts` emit
+//      user_timing entries that show up in Chrome DevTools' Performance panel.
+//   2. `esbuild.keepNames` preserves component/function names through
+//      minification so CPU samples and React-track entries display real names
+//      instead of mangled ones.
+//
+// Cost in the perf build: ~5–15 % extra CPU per commit, ~10–20 KB extra gz.
+// Trade only when auditing.
+//
+// Triggering the perf build:
+//   - Direct:  `pnpm run build:profile` always uses --mode profile.
+//   - Via env: `VROOLI_BUILD_MODE=profile pnpm run build` (the conditional
+//              lives in package.json's `build` script). This lets
+//              `VROOLI_BUILD_MODE=profile vrooli scenario restart <name>`
+//              produce the perf bundle through the standard lifecycle path.
+export default defineConfig(({ mode }): UserConfig => {
+  const isProfile = mode === "profile";
 
-const now = () => new Date().toISOString()
-
-const healthEndpointPlugin = (): Plugin => ({
-  name: 'tech-tree-designer-health-endpoint',
-  async configureServer(server) {
-    server.middlewares.use(async (req, res, next) => {
-      if (req.url !== '/health') {
-        next()
-        return
-      }
-
-      const healthResponse = {
-        status: 'healthy' as 'healthy' | 'degraded',
-        service: 'tech-tree-designer-ui',
-        timestamp: now(),
-        readiness: true,
-        version: process.env.npm_package_version || '1.0.0',
-        api_connectivity: {
-          connected: false,
-          api_url: API_HEALTH_URL,
-          last_check: now(),
-          error: null as
-            | null
-            | {
-                code: string
-                message: string
-                category: 'network' | 'configuration'
-                retryable: boolean
-              },
-          latency_ms: null as number | null
+  return {
+    base: './',  // Required for tunnel/proxy contexts
+    plugins: [react(), stringsCodegen()],
+    resolve: isProfile
+      ? {
+          alias: {
+            "react-dom/client": "react-dom/profiling",
+            // Internal references inside react-dom/client.js do
+            // `require('react-dom')`, which would resolve back to the
+            // stripped-prod bundle. Force them through the profiling entry too.
+            "react-dom$": "react-dom/profiling",
+          },
         }
-      }
-
-      if (API_PORT) {
-        const startTime = Date.now()
-        await new Promise<void>((resolve) => {
-          const request = http.get(API_HEALTH_URL, { timeout: 2000 }, (apiRes) => {
-            const statusCode = apiRes.statusCode ?? 0
-            apiRes.resume()
-            apiRes.on('end', () => {
-              healthResponse.api_connectivity.latency_ms = Date.now() - startTime
-              healthResponse.api_connectivity.last_check = now()
-              healthResponse.api_connectivity.connected = statusCode >= 200 && statusCode < 300
-
-              if (!healthResponse.api_connectivity.connected) {
-                healthResponse.status = 'degraded'
-                healthResponse.readiness = false
-                healthResponse.api_connectivity.error = {
-                  code: `HTTP_${statusCode || 'UNKNOWN'}`,
-                  message: `API health endpoint returned status ${statusCode || 'unknown'}`,
-                  category: 'network',
-                  retryable: true
-                }
-              } else {
-                healthResponse.api_connectivity.error = null
-              }
-
-              resolve()
-            })
-          })
-
-          request.on('error', (error) => {
-            healthResponse.status = 'degraded'
-            healthResponse.readiness = false
-            healthResponse.api_connectivity.latency_ms = Date.now() - startTime
-            healthResponse.api_connectivity.connected = false
-            healthResponse.api_connectivity.last_check = now()
-            healthResponse.api_connectivity.error = {
-              code: 'CONNECTION_ERROR',
-              message: `Failed to reach API health endpoint: ${error.message}`,
-              category: 'network',
-              retryable: true
-            }
-            resolve()
-          })
-
-          request.on('timeout', () => {
-            request.destroy(new Error('timeout'))
-          })
-        })
-      } else {
-        healthResponse.status = 'degraded'
-        healthResponse.readiness = false
-        healthResponse.api_connectivity.error = {
-          code: 'MISSING_CONFIGURATION',
-          message: 'API_PORT environment variable is not configured',
-          category: 'configuration',
-          retryable: false
+      : undefined,
+    esbuild: isProfile
+      ? {
+          keepNames: true,
         }
-      }
-
-      res.setHeader('Content-Type', 'application/json')
-      res.end(JSON.stringify(healthResponse))
-    })
-  }
-})
-
-export default defineConfig({
-  base: './',
-  plugins: [react(), healthEndpointPlugin()],
-  server: {
-    port: Number.parseInt(UI_PORT, 10),
-    host: true,
-    open: false
-  },
-  build: {
-    outDir: 'dist',
-    sourcemap: true,
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          visualization: ['react-flow-renderer', 'd3'],
-          ui: ['framer-motion', 'lucide-react', 'recharts']
+      : undefined,
+    test: {
+      globals: true,
+      environment: 'jsdom',
+      setupFiles: ['./src/test-setup.ts'],
+      coverage: {
+        provider: 'v8',
+        reporter: ['text', 'json-summary', 'json'],
+        reportOnFailure: true,
+        // Scope coverage to the source tree. Without `include`, v8 walks every
+        // file the bundler touches — config files, eslint plugins, codegen
+        // scripts — and pollutes the denominator with files that have no
+        // production reason to be tested.
+        include: ['src/**/*.{ts,tsx}'],
+        // Exclusions cover test scaffolding and codegen only; production
+        // source under src/ is exhaustively included so removing a test
+        // can never silently shrink the denominator.
+        //
+        //   1. Test-only files (tests, setup, helpers).
+        //   2. Boot/codegen artefacts (main.tsx entry, type declarations,
+        //      generated registries, JSON catalogs).
+        //
+        // If a scenario adds genuinely-untestable code, prefer narrow file
+        // exclusions with a one-line rationale comment over loosening the
+        // thresholds. The default position is: every new src/ file ships
+        // with its own *.test.{ts,tsx} and lands inside the include set.
+        exclude: [
+          'src/**/*.test.{ts,tsx}',
+          'src/**/*.spec.{ts,tsx}',
+          'src/**/*.d.ts',
+          'src/main.tsx',
+          'src/test-setup.ts',
+          'src/test-utils/**',
+          'src/consts/strings.generated.ts',
+          'src/i18n/locales/**',
+          // Temporal-flow codegen. Everything under generated/ is
+          // emitted by the flow-verifier scenario and verified by the
+          // hand-authored thin-test at the feature root.
+          'src/**/generated/**',
+        ],
+        // 85% is the floor every canonical-surface file (App.tsx +
+        // button/input/textarea + consts + i18n + api/client + lib/utils +
+        // hooks/{useGamepad,useSpatialNav,SpatialGroup}) clears with the
+        // tests shipped in this template. Tightening beyond actual
+        // coverage of a healthy template would make every new scenario
+        // start red; loosening below it would make the gate vacuous.
+        // When a scenario's surface stabilises above 90% for a full
+        // release, raise these together.
+        thresholds: {
+          lines: 85,
+          functions: 85,
+          branches: 85,
+          statements: 85,
         }
       }
     }
-  },
-  define: {
-    __APP_VERSION__: JSON.stringify(process.env.npm_package_version || '1.0.0'),
-    'import.meta.env.VITE_API_PORT': JSON.stringify(API_PORT),
-    'import.meta.env.VITE_API_HOST': JSON.stringify(API_HOST),
-    'import.meta.env.VITE_APP_VERSION': JSON.stringify(process.env.npm_package_version || '1.0.0')
-  }
-})
+  };
+});

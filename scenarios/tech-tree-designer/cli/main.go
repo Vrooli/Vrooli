@@ -1,16 +1,18 @@
 package main
 
 import (
-	"log"
+	"fmt"
 	"os"
 )
 
 func main() {
 	app, err := NewApp()
 	if err != nil {
-		log.Fatalf("tech-tree-designer: %v", err)
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
 	}
 	if err := app.Run(os.Args[1:]); err != nil {
-		log.Fatal(err)
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
 	}
 }

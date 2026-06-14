@@ -1,0 +1,113 @@
+{
+  "_metadata": {
+    "module": "foundation",
+    "description": "Requirements for the regenerated scenario-centric graph and contract-first planning surface.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "TTD-GRAPH-001",
+      "title": "Live graph from proto-health",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "graph",
+      "criticality": "P0",
+      "description": "TTD must build a scenario-centric graph from proto-health surfaces through a fakeable GraphSource seam, preserving scenario nodes, proto-import edges, transport world, and stability metadata.",
+      "tags": ["graph", "proto-health", "contract"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Phase 2/3 tests will cover faked proto-health mapping, graph queries, export, and Connect handlers."
+        }
+      ]
+    },
+    {
+      "id": "TTD-PLAN-001",
+      "title": "Planned proto contract workspace",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "planning",
+      "criticality": "P0",
+      "description": "TTD must store planned scenarios as real .proto text files, expose filesystem-feel CRUD, validate planned contracts against live schemas, and refuse materialization on validation failure.",
+      "tags": ["planning", "proto", "materialize"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Phase 4 tests will cover file-tree CRUD, protocompile validation, finding emission, and materialize dry-run/guard behavior."
+        }
+      ]
+    },
+    {
+      "id": "TTD-ROADMAP-001",
+      "title": "Roadmap metadata overlay",
+      "status": "planned",
+      "prd_ref": "OT-P1-001",
+      "category": "roadmap",
+      "criticality": "P1",
+      "description": "TTD must model sectors, capability tiers, and milestones as metadata overlays on graph nodes, with progress derived from live/planned stability rather than a separate backbone.",
+      "tags": ["roadmap", "overlay"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Phase 5 tests will cover overlay CRUD and progress rollup from node stability."
+        }
+      ]
+    },
+    {
+      "id": "TTD-UI-001",
+      "title": "Production planning UI",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "ui",
+      "criticality": "P1",
+      "description": "TTD must provide a production-ready direct UI for the graph, planned proto editor, validation findings, and roadmap overview with loading, error, and empty states.",
+      "tags": ["ui", "graph", "planning"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Phase 6 tests will cover component behavior, accessibility, and loading/error/empty states."
+        }
+      ]
+    },
+    {
+      "id": "TTD-SDA-001",
+      "title": "Future scenario-dependency-analyzer source",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "category": "integration",
+      "criticality": "P2",
+      "description": "TTD must keep GraphSource shaped so scenario-dependency-analyzer can become a drop-in richer graph source when its InterfaceGraph RPC ships.",
+      "tags": ["sda", "graph-source"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Deferred until scenario-dependency-analyzer exposes the intended DescribeInterfaceGraph RPC."
+        }
+      ]
+    },
+    {
+      "id": "TTD-AI-001",
+      "title": "Future strategic analysis",
+      "status": "planned",
+      "prd_ref": "OT-P2-002",
+      "category": "analysis",
+      "criticality": "P2",
+      "description": "TTD may add optional AI-assisted node ideas, bottleneck analysis, and timelines only after deterministic graph and planning workflows are stable.",
+      "tags": ["ai", "future"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Deferred follow-up; no ollama/openrouter dependency in the current service manifest."
+        }
+      ]
+    }
+  ]
+}

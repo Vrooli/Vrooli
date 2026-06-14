@@ -1,241 +1,32 @@
 {
-  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
+    "parent": "vrooli",
     "name": "tech-tree-designer",
     "displayName": "Tech Tree Designer",
-    "description": "Strategic visualization and analysis of complete technology development pathways from basic tools to civilization-scale digital twins",
-    "version": "1.0.0",
+    "description": "Plan the fleet by its proto interfaces: render the actual scenario interface graph and design future scenarios as contracts before they're built.",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "strategic_intelligence",
     "tags": [
-      "strategic-planning",
-      "civilization-intelligence",
-      "technology-roadmap",
-      "digital-twin-progression",
-      "superintelligence-pathway",
-      "cross-sector-optimization",
-      "dependency-mapping",
-      "progress-tracking",
-      "ai-recommendations",
-      "graph-visualization",
-      "postgres-storage",
-      "ollama-analysis",
-      "strategic-consciousness"
-    ],
-    "parent": "vrooli",
-    "type": "scenario",
-    "category": "general",
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "support@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
-    ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scenarios/tech-tree-designer"
-    },
-    "license": "MIT",
-    "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
-    "support": {
-      "issues": "https://github.com/Vrooli/Vrooli/issues"
-    }
+      "react-ui",
+      "go-api"
+    ]
   },
-  "ports": {
-    "api": {
-      "env_var": "API_PORT",
-      "description": "Tech tree analysis and strategic planning API",
-      "range": "15000-19999"
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.1.0"
     },
-    "ui": {
-      "env_var": "UI_PORT",
-      "description": "Interactive tech tree visualization interface",
-      "range": "20000-24999"
-    }
-  },
-  "lifecycle": {
-    "version": "2.0.0",
-    "health": {
-      "description": "Tech Tree Designer health check configuration",
-      "endpoints": {
-        "api": "/health",
-        "ui": "/health"
-      },
-      "checks": [
-        {
-          "name": "api_endpoint",
-          "type": "http",
-          "target": "http://localhost:${API_PORT}/health",
-          "critical": true,
-          "timeout": 5000,
-          "interval": 30000
-        },
-        {
-          "name": "ui_endpoint",
-          "type": "http",
-          "target": "http://localhost:${UI_PORT}/health",
-          "critical": true,
-          "timeout": 5000,
-          "interval": 30000
-        },
-        {
-          "name": "postgres_connection",
-          "type": "postgres",
-          "target": "localhost:5433",
-          "critical": true,
-          "timeout": 5000,
-          "interval": 60000
-        }
-      ],
-      "timeout": 10000,
-      "interval": 30000,
-      "startup_grace_period": 15000
+    "generated_at": "2026-06-14T15:54:08Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
     },
-    "setup": {
-      "description": "Initialize Tech Tree Designer with complete civilization roadmap",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/tech-tree-designer-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "tech-tree-designer",
-            "targets": [
-              "tech-tree-designer"
-            ]
-          },
-          {
-            "type": "resources",
-            "populated": true
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "initialize-database",
-          "run": "../../scripts/resources/populate/populate.sh .",
-          "description": "Initialize database with tech tree schemas and seed data"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o tech-tree-designer-api .",
-          "description": "Build Go API for strategic analysis and data management"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && pnpm install --ignore-workspace --no-frozen-lockfile",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && pnpm run build",
-          "description": "Build interactive tech tree visualization interface"
-        },
-        {
-          "name": "verify-civilization-data",
-          "run": "./scripts/verify-postgres-data.sh",
-          "description": "Validate civilization progress data directly in Postgres"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start tech tree designer with API server and production UI bundle",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./tech-tree-designer-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/tech-tree-designer-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && node server.js",
-          "description": "Start Express server with built visualization app",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for tech-tree-designer",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute tech-tree-designer --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop tech tree designer services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"tech-tree-designer-api\" || true; sleep 1; pkill -9 -f \"tech-tree-designer-api\" 2>/dev/null || true",
-          "description": "Stop API server"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"tech-tree-designer/ui/server\" || true; sleep 1; pkill -9 -f \"tech-tree-designer/ui/server\" 2>/dev/null || true",
-          "description": "Stop UI development server"
-        }
-      ]
-    }
-  },
-  "dependencies": {
-    "resources": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "Storage for tech tree data, sector definitions, scenario mappings, and progress tracking",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          },
-          {
-            "file": "initialization/postgres/seed.sql",
-            "type": "seed"
-          },
-          {
-            "directory": "initialization/postgres/migrations",
-            "type": "migration"
-          }
-        ]
-      },
-      "ollama": {
-        "type": "ollama",
-        "enabled": true,
-        "required": false,
-        "purpose": "AI-powered strategic analysis, dependency discovery, and development path optimization"
-      },
-      "openrouter": {
-        "type": "openrouter",
-        "enabled": true,
-        "required": false,
-        "purpose": "Advanced AI models for stage idea generation, tree expansion recommendations, and strategic planning"
-      }
-    }
+    "manifest_sha": "efce375640f074bcbd20e0463fd67d9b413778c930293dda319a6e2f21526fd5",
+    "content_sha": "f26ae1ea5fb267b746c6ab7966468b0f3cebd1fc6631e78cbf6eac20fce1244e"
   },
   "cli": {
     "enabled": true,
@@ -243,6 +34,10 @@
     "adapter": {
       "kind": "go_module",
       "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
     },
     "install": [
       {
@@ -252,6 +47,13 @@
         ],
         "kind": "command",
         "run": "bash ./cli/install.sh"
+      },
+      {
+        "os": [
+          "windows"
+        ],
+        "kind": "command",
+        "run": "powershell -ExecutionPolicy Bypass -File .\\cli\\install.ps1"
       }
     ],
     "invoke": {
@@ -264,5 +66,159 @@
         ".vrooli/service.json"
       ]
     }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Build API and UI assets declared by the manifest-driven lifecycle contract",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/tech-tree-designer-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "tech-tree-designer"
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api \u0026\u0026 GOWORK=off go mod download \u0026\u0026 GOWORK=off go build -o tech-tree-designer-api .",
+          "description": "Build Go API server"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "if [ -f ui/package.json ]; then cd ui \u0026\u0026 (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "if [ -f ui/package.json ]; then cd ui \u0026\u0026 (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
+          "description": "Build production UI bundle"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Launch API and Vite dev server",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api \u0026\u0026 ./tech-tree-designer-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/tech-tree-designer-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui \u0026\u0026 node server.js",
+          "description": "Serve production UI bundle",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        }
+      ]
+    },
+    "build": {},
+    "deploy": {},
+    "clean": {},
+    "test": {
+      "description": "Execute phased test suite via test-genie",
+      "steps": [
+        {
+          "name": "check-temporal-models",
+          "run": "flow-verifier verify check --root .",
+          "description": "Verify formal flow artifacts via the flow-verifier scenario CLI"
+        },
+        {
+          "name": "run-tests",
+          "run": "test-genie execute tech-tree-designer --preset comprehensive",
+          "description": "Run all test phases via test-genie"
+        }
+      ]
+    },
+    "backup": {},
+    "restore": {},
+    "production": {},
+    "stop": {
+      "description": "Stop background processes",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f 'tech-tree-designer-api' || true",
+          "description": "Stop Go API"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f 'node server.js' || true",
+          "description": "Stop UI server"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "scenarios": {
+      "proto-health": {
+        "enabled": true,
+        "required": true,
+        "description": "Provides batch protobuf surface facts for the live scenario interface graph."
+      }
+    },
+    "resources": {}
+  },
+  "environment": {
+    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/tech-tree-designer.db"
   }
 }

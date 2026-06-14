@@ -1,0 +1,84 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "tech-tree-designer",
+  "description": "Tech Tree Designer CLI surface. Phase 1 keeps cli-core built-ins and reserves the graph contract.",
+  "groups": [
+    {
+      "name": "graph",
+      "description": "Scenario interface graph commands.",
+      "commands": [
+        {
+          "name": "describe",
+          "description": "Reserved for DescribeTechTree once the graph domain is implemented.",
+          "binding": { "kind": "connect-rpc", "service": "GraphService", "method": "DescribeTechTree" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "neighbors",
+          "description": "Reserved for GetNeighborhood once the graph domain is implemented.",
+          "positionals": [{ "name": "scenario", "required": true }],
+          "binding": { "kind": "connect-rpc", "service": "GraphService", "method": "GetNeighborhood" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "path",
+          "description": "Reserved for FindPath once the graph domain is implemented.",
+          "positionals": [
+            { "name": "from", "required": true },
+            { "name": "to", "required": true }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "GraphService", "method": "FindPath" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "ancestors",
+          "description": "Reserved for ListAncestors once the graph domain is implemented.",
+          "positionals": [{ "name": "scenario", "required": true }],
+          "binding": { "kind": "connect-rpc", "service": "GraphService", "method": "ListAncestors" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "export",
+          "description": "Reserved for ExportTechTree once the graph domain is implemented.",
+          "binding": { "kind": "connect-rpc", "service": "GraphService", "method": "ExportTechTree" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    }
+  ],
+  "measures": { "domains": [] },
+  "omitted": [
+    { "service": "PlanningService", "method": "CreatePlannedScenario", "reason": "Planning domain lands in Phase 4." },
+    { "service": "PlanningService", "method": "ListPlannedScenarios", "reason": "Planning domain lands in Phase 4." },
+    { "service": "PlanningService", "method": "GetPlannedScenario", "reason": "Planning domain lands in Phase 4." },
+    { "service": "PlanningService", "method": "PutPlannedProtoFile", "reason": "Planning domain lands in Phase 4." },
+    { "service": "PlanningService", "method": "DeletePlannedProtoFile", "reason": "Planning domain lands in Phase 4." },
+    { "service": "PlanningService", "method": "ValidatePlannedScenario", "reason": "Planning domain lands in Phase 4." },
+    { "service": "PlanningService", "method": "MaterializePlannedScenario", "reason": "Planning domain lands in Phase 4." },
+    { "service": "RoadmapService", "method": "ListSectors", "reason": "Roadmap overlay lands in Phase 5." },
+    { "service": "RoadmapService", "method": "UpsertSector", "reason": "Roadmap overlay lands in Phase 5." },
+    { "service": "RoadmapService", "method": "ListMilestones", "reason": "Roadmap overlay lands in Phase 5." },
+    { "service": "RoadmapService", "method": "UpsertMilestone", "reason": "Roadmap overlay lands in Phase 5." },
+    { "service": "RoadmapService", "method": "GetProgress", "reason": "Roadmap overlay lands in Phase 5." }
+  ]
+}
