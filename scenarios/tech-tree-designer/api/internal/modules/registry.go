@@ -22,7 +22,12 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	graphV1 "github.com/vrooli/vrooli/packages/proto/gen/go/tech-tree-designer/v1/graph"
+	planningV1 "github.com/vrooli/vrooli/packages/proto/gen/go/tech-tree-designer/v1/planning"
+
+	graphH "tech-tree-designer/handlers/graph"
 	healthH "tech-tree-designer/handlers/health"
+	planningH "tech-tree-designer/handlers/planning"
 	localdb "tech-tree-designer/internal/database"
 )
 
@@ -33,6 +38,8 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
+	out = append(out, graphH.Endpoints...)
+	out = append(out, planningH.Endpoints...)
 	return out
 }
 
@@ -58,7 +65,10 @@ type ProtoFileEntry struct {
 // AllProtoFiles returns the proto FileDescriptor backing each
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
-	return nil
+	return []ProtoFileEntry{
+		{Module: "graph", File: graphV1.File_tech_tree_designer_v1_graph_graph_proto},
+		{Module: "planning", File: planningV1.File_tech_tree_designer_v1_planning_planning_proto},
+	}
 }
 
 // AllSchemas returns every domain's schema provider plus the system
@@ -72,5 +82,7 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
+		apidb.SchemaProviderFunc(graphH.Schema),
+		apidb.SchemaProviderFunc(planningH.Schema),
 	}
 }

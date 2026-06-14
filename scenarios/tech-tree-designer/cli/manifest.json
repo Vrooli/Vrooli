@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "tech-tree-designer",
-  "description": "Tech Tree Designer CLI surface. Phase 1 keeps cli-core built-ins and reserves the graph contract.",
+  "description": "Tech Tree Designer CLI surface for the scenario interface graph.",
   "groups": [
     {
       "name": "graph",
@@ -9,58 +9,182 @@
       "commands": [
         {
           "name": "describe",
-          "description": "Reserved for DescribeTechTree once the graph domain is implemented.",
+          "description": "Describe the scenario interface graph.",
+          "flags": [
+            { "name": "scenarios", "description": "Comma-separated scenario filter" },
+            { "name": "stability", "description": "Optional stability filter" }
+          ],
           "binding": { "kind": "connect-rpc", "service": "GraphService", "method": "DescribeTechTree" },
           "governance": {
             "effect": "read",
-            "run_eligible": false,
+            "run_eligible": true,
             "permissions": ["network:internal"]
           }
         },
         {
           "name": "neighbors",
-          "description": "Reserved for GetNeighborhood once the graph domain is implemented.",
+          "description": "Get the graph neighborhood around one scenario.",
           "positionals": [{ "name": "scenario", "required": true }],
+          "flags": [
+            { "name": "depth", "description": "Neighborhood depth; defaults to 1" },
+            { "name": "scenarios", "description": "Comma-separated scenario filter" }
+          ],
           "binding": { "kind": "connect-rpc", "service": "GraphService", "method": "GetNeighborhood" },
           "governance": {
             "effect": "read",
-            "run_eligible": false,
+            "run_eligible": true,
             "permissions": ["network:internal"]
           }
         },
         {
           "name": "path",
-          "description": "Reserved for FindPath once the graph domain is implemented.",
+          "description": "Find a directed graph path between two scenarios.",
           "positionals": [
             { "name": "from", "required": true },
             { "name": "to", "required": true }
           ],
+          "flags": [
+            { "name": "scenarios", "description": "Comma-separated scenario filter" }
+          ],
           "binding": { "kind": "connect-rpc", "service": "GraphService", "method": "FindPath" },
           "governance": {
             "effect": "read",
-            "run_eligible": false,
+            "run_eligible": true,
             "permissions": ["network:internal"]
           }
         },
         {
           "name": "ancestors",
-          "description": "Reserved for ListAncestors once the graph domain is implemented.",
+          "description": "List dependency ancestors for one scenario.",
           "positionals": [{ "name": "scenario", "required": true }],
+          "flags": [
+            { "name": "scenarios", "description": "Comma-separated scenario filter" }
+          ],
           "binding": { "kind": "connect-rpc", "service": "GraphService", "method": "ListAncestors" },
           "governance": {
             "effect": "read",
-            "run_eligible": false,
+            "run_eligible": true,
             "permissions": ["network:internal"]
           }
         },
         {
           "name": "export",
-          "description": "Reserved for ExportTechTree once the graph domain is implemented.",
+          "description": "Export the scenario interface graph.",
+          "flags": [
+            { "name": "format", "description": "Export format: text, dot, or json", "default": "text" },
+            { "name": "scenarios", "description": "Comma-separated scenario filter" },
+            { "name": "stability", "description": "Optional stability filter" }
+          ],
           "binding": { "kind": "connect-rpc", "service": "GraphService", "method": "ExportTechTree" },
           "governance": {
             "effect": "read",
-            "run_eligible": false,
+            "run_eligible": true,
             "permissions": ["network:internal"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "plan",
+      "description": "Contract-first planned scenario commands.",
+      "commands": [
+        {
+          "name": "create",
+          "description": "Create or update a planned scenario.",
+          "positionals": [{ "name": "slug", "required": true }],
+          "flags": [
+            { "name": "display-name", "description": "Human display name" },
+            { "name": "sector", "description": "Roadmap sector metadata" },
+            { "name": "tier", "description": "Roadmap tier metadata" },
+            { "name": "stability", "description": "Target stability", "default": "experimental" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "PlanningService", "method": "CreatePlannedScenario" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": ["network:internal", "filesystem:write"]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List planned scenarios.",
+          "flags": [
+            { "name": "sector", "description": "Optional sector filter" },
+            { "name": "tier", "description": "Optional tier filter" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "PlanningService", "method": "ListPlannedScenarios" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "tree",
+          "description": "Show a planned scenario's proto file tree.",
+          "positionals": [
+            { "name": "slug", "required": true },
+            { "name": "path", "required": false }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "PlanningService", "method": "GetPlannedScenario" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "add",
+          "description": "Add or replace a planned proto file.",
+          "positionals": [
+            { "name": "slug", "required": true },
+            { "name": "path", "required": true }
+          ],
+          "flags": [
+            { "name": "from-file", "description": "Read proto text from file path or - for stdin", "default": "-" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "PlanningService", "method": "PutPlannedProtoFile" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": ["network:internal", "filesystem:write"]
+          }
+        },
+        {
+          "name": "rm",
+          "description": "Remove one planned proto file.",
+          "positionals": [
+            { "name": "slug", "required": true },
+            { "name": "path", "required": true }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "PlanningService", "method": "DeletePlannedProtoFile" },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": ["network:internal", "filesystem:write"]
+          }
+        },
+        {
+          "name": "validate",
+          "description": "Validate planned proto files.",
+          "positionals": [{ "name": "slug", "required": true }],
+          "binding": { "kind": "connect-rpc", "service": "PlanningService", "method": "ValidatePlannedScenario" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "materialize",
+          "description": "Write planned proto files into packages/proto and regenerate artifacts.",
+          "positionals": [{ "name": "slug", "required": true }],
+          "binding": { "kind": "connect-rpc", "service": "PlanningService", "method": "MaterializePlannedScenario" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": ["network:internal", "filesystem:write", "admin"]
           }
         }
       ]
@@ -68,13 +192,6 @@
   ],
   "measures": { "domains": [] },
   "omitted": [
-    { "service": "PlanningService", "method": "CreatePlannedScenario", "reason": "Planning domain lands in Phase 4." },
-    { "service": "PlanningService", "method": "ListPlannedScenarios", "reason": "Planning domain lands in Phase 4." },
-    { "service": "PlanningService", "method": "GetPlannedScenario", "reason": "Planning domain lands in Phase 4." },
-    { "service": "PlanningService", "method": "PutPlannedProtoFile", "reason": "Planning domain lands in Phase 4." },
-    { "service": "PlanningService", "method": "DeletePlannedProtoFile", "reason": "Planning domain lands in Phase 4." },
-    { "service": "PlanningService", "method": "ValidatePlannedScenario", "reason": "Planning domain lands in Phase 4." },
-    { "service": "PlanningService", "method": "MaterializePlannedScenario", "reason": "Planning domain lands in Phase 4." },
     { "service": "RoadmapService", "method": "ListSectors", "reason": "Roadmap overlay lands in Phase 5." },
     { "service": "RoadmapService", "method": "UpsertSector", "reason": "Roadmap overlay lands in Phase 5." },
     { "service": "RoadmapService", "method": "ListMilestones", "reason": "Roadmap overlay lands in Phase 5." },

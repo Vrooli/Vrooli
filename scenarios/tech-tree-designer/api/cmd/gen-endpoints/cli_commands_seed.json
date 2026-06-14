@@ -5,6 +5,66 @@
       "name": "status",
       "description": "Check API and dependency health (auto-provided by cli-core's StandardScenarioApp)",
       "endpoint_id": "health"
+    },
+    {
+      "name": "graph describe",
+      "description": "Describe the scenario interface graph",
+      "endpoint_id": "graph-describe"
+    },
+    {
+      "name": "graph neighbors",
+      "description": "Get the graph neighborhood around one scenario",
+      "endpoint_id": "graph-neighborhood"
+    },
+    {
+      "name": "graph path",
+      "description": "Find a directed graph path between two scenarios",
+      "endpoint_id": "graph-path"
+    },
+    {
+      "name": "graph ancestors",
+      "description": "List dependency ancestors for one scenario",
+      "endpoint_id": "graph-ancestors"
+    },
+    {
+      "name": "graph export",
+      "description": "Export the scenario interface graph",
+      "endpoint_id": "graph-export"
+    },
+    {
+      "name": "plan create",
+      "description": "Create or update a planned scenario",
+      "endpoint_id": "planning-create"
+    },
+    {
+      "name": "plan list",
+      "description": "List planned scenarios",
+      "endpoint_id": "planning-list"
+    },
+    {
+      "name": "plan tree",
+      "description": "Show a planned scenario's proto file tree",
+      "endpoint_id": "planning-get"
+    },
+    {
+      "name": "plan add",
+      "description": "Add a planned proto file",
+      "endpoint_id": "planning-file-put"
+    },
+    {
+      "name": "plan rm",
+      "description": "Remove a planned proto file",
+      "endpoint_id": "planning-file-delete"
+    },
+    {
+      "name": "plan validate",
+      "description": "Validate planned proto files",
+      "endpoint_id": "planning-validate"
+    },
+    {
+      "name": "plan materialize",
+      "description": "Materialize planned proto files",
+      "endpoint_id": "planning-materialize"
     }
   ]
 }

@@ -10,9 +10,21 @@ Lifecycle and operator health probe. The response is proto-shaped JSON matching 
 curl "http://localhost:${API_PORT}/health"
 ```
 
+## Graph Connect RPC
+
+Graph endpoints are generated Connect-RPC procedures:
+
+| Method | Procedure |
+|---|---|
+| `DescribeTechTree` | `/vrooli.tech_tree_designer.v1.graph.GraphService/DescribeTechTree` |
+| `GetNeighborhood` | `/vrooli.tech_tree_designer.v1.graph.GraphService/GetNeighborhood` |
+| `FindPath` | `/vrooli.tech_tree_designer.v1.graph.GraphService/FindPath` |
+| `ListAncestors` | `/vrooli.tech_tree_designer.v1.graph.GraphService/ListAncestors` |
+| `ExportTechTree` | `/vrooli.tech_tree_designer.v1.graph.GraphService/ExportTechTree` |
+
 ## Planned Endpoints
 
-Graph, planning, and roadmap endpoints will be Connect-RPC methods generated from future `graph`, `planning`, and `roadmap` protos. Do not add literal REST paths for product behavior.
+Planning and roadmap endpoints are already declared as proto contracts, but their handlers are intentionally deferred to later phases. Do not add literal REST paths for product behavior.
 
 ## Cross-references
 

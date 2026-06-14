@@ -43,7 +43,7 @@ Monetization: internal meta scenario; no paid-feature wiring in this phase.
 
 ## Domain Module Pattern
 
-Each real domain owns its API internals, handlers, CLI package, UI feature, proto schema, and storage schema. Current Phase 2 contains health plus graph/planning/roadmap proto contracts and the `graph` `GraphSource` seam. Graph handlers, planning storage, roadmap storage, and UI features land in later phases.
+Each real domain owns its API internals, handlers, CLI package, UI feature, proto schema, and storage schema. Current implementation contains health plus the graph domain's proto contract, `GraphSource` seam, Connect handlers, query/export service, and CLI commands. Planning storage, roadmap storage, and UI features land in later phases.
 
 ## Contract Rules
 
@@ -67,7 +67,8 @@ SQLite is the default store. Domain schemas live beside their domain code:
 | Date | Deviation | Reason | Revisit Trigger |
 |---|---|---|---|
 | 2026-06-14 | Old TTD deleted instead of migrated. | No consumed proto/API contract existed; preserving Gin/Postgres code would keep obsolete architecture and dependency heuristics alive. | Never; use git history for old concepts only. |
-| 2026-06-14 | Phase 2 has graph/planning/roadmap proto contracts and a tested proto-health-backed `GraphSource`; only health is mounted at runtime. | The graph seam can be implemented and tested before Connect handlers and UI land. | Add graph handlers/queries/export in Phase 3, planning storage in Phase 4, roadmap overlay in Phase 5. |
+| 2026-06-14 | Phase 2 shipped graph/planning/roadmap proto contracts before all domains were mounted. | Contract-first planning keeps the wire shape reviewable before persistence and UI work land. | Planning storage in Phase 4, roadmap overlay in Phase 5, UI in Phase 6. |
+| 2026-06-14 | Graph API and CLI now run before planned nodes exist. | The live graph is useful independently and exercises the `GraphSource` seam over proto-health. | Add planned-node merge behavior when planning storage lands. |
 
 ## Cross-References
 

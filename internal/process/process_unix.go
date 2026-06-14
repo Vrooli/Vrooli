@@ -5,17 +5,13 @@ package process
 import (
 	"errors"
 	"fmt"
-	"os"
 	"syscall"
 )
 
-func processIsAlive(process *os.Process) bool {
-	if process == nil {
-		return false
-	}
-	if err := process.Signal(syscall.Signal(0)); err != nil {
+func pidIsAlive(pid int) bool {
+	if err := syscall.Kill(pid, 0); err != nil {
 		// EPERM means the PID exists but is owned by another user; the
-		// process is alive. Only ESRCH/done means it is gone. There is no
+		// process is alive. Only ESRCH means it is gone. There is no
 		// /proc on darwin/BSD, so zombies are not distinguished here.
 		return errors.Is(err, syscall.EPERM)
 	}

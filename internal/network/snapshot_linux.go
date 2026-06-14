@@ -3,9 +3,17 @@
 package network
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
+)
+
+// Overridable in tests so the capture logic can be pinned against fake
+// procfs trees.
+var (
+	procNetTCPv4Path = "/proc/net/tcp"
+	procNetTCPv6Path = "/proc/net/tcp6"
 )
 
 // captureTCPListenerSnapshot builds the global listening-port set from
@@ -13,31 +21,37 @@ import (
 // attribution is optional enrichment via a single `ss -ltnpH` invocation;
 // when ss is absent or unprivileged the ports stay Known with empty
 // attribution.
+//
+// Both address families must contribute or the snapshot is not Known: a
+// readable tcp6 with an unreadable tcp (or vice versa) would report every
+// listener of the missing family as known-absent, and reconcile expires
+// claims on known-absent listeners. The only tolerated gap is a missing
+// /proc/net/tcp6 (ENOENT — IPv6 disabled), because then no IPv6 listener can
+// exist for the snapshot to miss.
 func captureTCPListenerSnapshot() TCPListenerSnapshot {
 	ports := make(map[int][]SnapshotListener)
-	parsedAny := false
-	var firstErr error
-	for _, path := range []string{"/proc/net/tcp", "/proc/net/tcp6"} {
-		data, err := os.ReadFile(path)
-		if err != nil {
-			if firstErr == nil {
-				firstErr = err
-			}
-			continue
+	dataV4, err := os.ReadFile(procNetTCPv4Path)
+	if err != nil {
+		return TCPListenerSnapshot{Reason: fmt.Sprintf("cannot read %s: %v", procNetTCPv4Path, err), Tool: "procfs"}
+	}
+	for _, port := range parseProcNetTCPListenPorts(dataV4) {
+		if _, ok := ports[port]; !ok {
+			ports[port] = nil
 		}
-		for _, port := range parseProcNetTCPListenPorts(data) {
+	}
+	dataV6, err := os.ReadFile(procNetTCPv6Path)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return TCPListenerSnapshot{Reason: fmt.Sprintf("cannot read %s: %v", procNetTCPv6Path, err), Tool: "procfs"}
+		}
+		// IPv6 disabled on this host: no v6 listeners can exist, so the v4
+		// set alone is complete.
+	} else {
+		for _, port := range parseProcNetTCPListenPorts(dataV6) {
 			if _, ok := ports[port]; !ok {
 				ports[port] = nil
 			}
 		}
-		parsedAny = true
-	}
-	if !parsedAny {
-		reason := "cannot read /proc/net/tcp"
-		if firstErr != nil {
-			reason = fmt.Sprintf("cannot read /proc/net/tcp: %v", firstErr)
-		}
-		return TCPListenerSnapshot{Reason: reason, Tool: "procfs"}
 	}
 	tool := "procfs"
 	if enrichListenerPIDsWithSS(ports) {
@@ -56,7 +70,9 @@ func enrichListenerPIDsWithSS(ports map[int][]SnapshotListener) bool {
 	if err != nil {
 		return false
 	}
-	output, err := exec.Command(path, "-ltnpH").Output()
+	ctx, cancel := context.WithTimeout(context.Background(), listenerEnrichTimeout)
+	defer cancel()
+	output, err := exec.CommandContext(ctx, path, "-ltnpH").Output()
 	if err != nil {
 		return false
 	}

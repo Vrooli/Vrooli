@@ -12,6 +12,7 @@ work lands, not while work is still speculative.
 |---|---|---|---|
 | 2026-06-14 | Codex | done | Greenfield-regenerated Tech Tree Designer from `react-vite`, removed the template notes domain, kept the scaffold health surface green, and recorded the graph/planning/roadmap target domains. |
 | 2026-06-14 | Codex | done | Added Phase 2 graph/planning/roadmap proto contracts, expanded graph CLI manifest coverage with deferred handlers, and implemented a tested `api/internal/graph` `ProtoHealthSource` seam over `DescribeScenariosProtos`. |
+| 2026-06-14 | Codex | done | Implemented Phase 3 graph Connect handlers, graph query/export service logic, endpoint manifest entries, and runnable graph CLI commands over the generated `GraphService` client. |
 
 ## Entry Template
 

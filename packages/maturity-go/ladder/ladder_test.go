@@ -66,6 +66,18 @@ func TestLowest_R2WhenProtoHealthError(t *testing.T) {
 	}
 }
 
+func TestLowest_R2WhenDependencyAccuracyError(t *testing.T) {
+	sig := allClean()
+	sig.ErrorPlusByDimension[dimd("dependency-accuracy")] = 1
+	r, ok := Lowest(sig, DefaultThresholds(), "")
+	if !ok || r.ID != RungR2 {
+		t.Fatalf("dependency-accuracy error must select R2, got %v ok=%v", r.ID, ok)
+	}
+	if r.HardGate {
+		t.Error("R2 must remain a soft gate")
+	}
+}
+
 func TestLowest_R3WhenCoverageError(t *testing.T) {
 	sig := allClean()
 	sig.ErrorPlusByDimension[dimd("coverage")] = 1

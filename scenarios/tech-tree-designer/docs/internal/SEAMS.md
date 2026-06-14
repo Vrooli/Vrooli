@@ -14,7 +14,7 @@ Future planned-proto editor workflows may use formal transition models. Those mo
 |---|---|---|---|---|
 | health dependency probes | api-core health builder pingers | `handlers/health.Module` receives routed DB handle | handler tests inject test DB / health builder setup | Keeps runtime readiness observable without product tables. |
 | database routing | `*database.RoutedDB` | lifecycle and test-mode middleware choose primary/test pool | `internal/testutil/db` SQLite helpers | Lets test-genie route test data without direct DB sharing. |
-| GraphSource | `api/internal/graph.GraphSource.Graph(ctx, SourceRequest)` returning `TechTreeGraph` | `ProtoHealthSource` backed by `proto-health` `DescribeScenariosProtos` | fake `ProtoSurfaceClient` fixtures | Keeps graph logic independent of upstream provider shape and leaves room for the later SDA source. |
+| GraphSource | `api/internal/graph.GraphSource.Graph(ctx, SourceRequest)` returning `TechTreeGraph` | `ProtoHealthSource` backed by `proto-health` `DescribeScenariosProtos`; `graph.Service` consumes it for Describe/Neighborhood/Path/Ancestors/Export | fake `ProtoSurfaceClient` fixtures and fake `GraphSource` service tests | Keeps graph logic independent of upstream provider shape and leaves room for the later SDA source. |
 
 ## Planned seams
 

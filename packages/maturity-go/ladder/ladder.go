@@ -201,11 +201,12 @@ func Rungs() []Rung {
 			ID:       RungR2,
 			HardGate: false,
 			Dimensions: []dimensions.Dimension{
-				dim("structure"), dim("cycles"), dim("contracts"), dim("docs"), dim("proto-health"),
+				dim("structure"), dim("cycles"), dim("contracts"), dim("docs"), dim("proto-health"), dim("dependency-accuracy"),
 			},
 			// Evolvable architecture: no import cycles; structure/contracts/docs/proto
-			// clean (error-based AND warning-density-capped — cycles still
-			// hard-block on any count per §8 OQ#3).
+			// and actual dependency declarations clean (error-based AND
+			// warning-density-capped — cycles still hard-block on any count
+			// per §8 OQ#3).
 			satisfied: func(s Signals, th Thresholds) bool {
 				if s.count(dim("cycles")) != 0 {
 					return false
@@ -213,7 +214,8 @@ func Rungs() []Rung {
 				return s.dimClean(dim("structure"), th) &&
 					s.dimClean(dim("contracts"), th) &&
 					s.dimClean(dim("docs"), th) &&
-					s.dimClean(dim("proto-health"), th)
+					s.dimClean(dim("proto-health"), th) &&
+					s.dimClean(dim("dependency-accuracy"), th)
 			},
 		},
 		{

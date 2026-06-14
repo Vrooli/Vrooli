@@ -46,6 +46,240 @@
           }
         }
       }
+    },
+    {
+      "id": "graph-describe",
+      "path": "/vrooli.tech_tree_designer.v1.graph.GraphService/DescribeTechTree",
+      "method": "POST",
+      "summary": "Describe the scenario interface graph",
+      "description": "Returns live scenario nodes and proto-import edges from the configured graph source.",
+      "category": "graph",
+      "request": {
+        "type": "DescribeTechTreeRequest"
+      },
+      "response": {
+        "type": "DescribeTechTreeResponse"
+      },
+      "cli_mapping": {
+        "command": "tech-tree-designer graph describe"
+      }
+    },
+    {
+      "id": "graph-neighborhood",
+      "path": "/vrooli.tech_tree_designer.v1.graph.GraphService/GetNeighborhood",
+      "method": "POST",
+      "summary": "Get a graph neighborhood",
+      "description": "Returns the nodes and edges within a local directed or incoming radius around one scenario.",
+      "category": "graph",
+      "request": {
+        "type": "GetNeighborhoodRequest"
+      },
+      "response": {
+        "type": "DescribeTechTreeResponse"
+      },
+      "cli_mapping": {
+        "command": "tech-tree-designer graph neighbors",
+        "args": [
+          "<scenario>"
+        ]
+      }
+    },
+    {
+      "id": "graph-path",
+      "path": "/vrooli.tech_tree_designer.v1.graph.GraphService/FindPath",
+      "method": "POST",
+      "summary": "Find a graph path",
+      "description": "Returns the shortest directed path between two scenarios when an interface-dependency path exists.",
+      "category": "graph",
+      "request": {
+        "type": "FindPathRequest"
+      },
+      "response": {
+        "type": "DescribeTechTreeResponse"
+      },
+      "cli_mapping": {
+        "command": "tech-tree-designer graph path",
+        "args": [
+          "<from>",
+          "<to>"
+        ]
+      }
+    },
+    {
+      "id": "graph-ancestors",
+      "path": "/vrooli.tech_tree_designer.v1.graph.GraphService/ListAncestors",
+      "method": "POST",
+      "summary": "List graph ancestors",
+      "description": "Returns the dependency ancestors reachable from a scenario through proto-import edges.",
+      "category": "graph",
+      "request": {
+        "type": "ListAncestorsRequest"
+      },
+      "response": {
+        "type": "DescribeTechTreeResponse"
+      },
+      "cli_mapping": {
+        "command": "tech-tree-designer graph ancestors",
+        "args": [
+          "<scenario>"
+        ]
+      }
+    },
+    {
+      "id": "graph-export",
+      "path": "/vrooli.tech_tree_designer.v1.graph.GraphService/ExportTechTree",
+      "method": "POST",
+      "summary": "Export the graph",
+      "description": "Exports the scenario interface graph as DOT, JSON, or plain text.",
+      "category": "graph",
+      "request": {
+        "type": "ExportTechTreeRequest"
+      },
+      "response": {
+        "type": "ExportTechTreeResponse"
+      },
+      "cli_mapping": {
+        "command": "tech-tree-designer graph export"
+      }
+    },
+    {
+      "id": "planning-create",
+      "path": "/vrooli.tech_tree_designer.v1.planning.PlanningService/CreatePlannedScenario",
+      "method": "POST",
+      "summary": "Create a planned scenario",
+      "description": "Creates or updates a planned scenario metadata record for contract-first design.",
+      "category": "planning",
+      "request": {
+        "type": "CreatePlannedScenarioRequest"
+      },
+      "response": {
+        "type": "PlannedScenario"
+      },
+      "cli_mapping": {
+        "command": "tech-tree-designer plan create",
+        "args": [
+          "<slug>"
+        ]
+      }
+    },
+    {
+      "id": "planning-list",
+      "path": "/vrooli.tech_tree_designer.v1.planning.PlanningService/ListPlannedScenarios",
+      "method": "POST",
+      "summary": "List planned scenarios",
+      "description": "Lists planned scenario records and their proto file trees.",
+      "category": "planning",
+      "request": {
+        "type": "ListPlannedScenariosRequest"
+      },
+      "response": {
+        "type": "ListPlannedScenariosResponse"
+      },
+      "cli_mapping": {
+        "command": "tech-tree-designer plan list"
+      }
+    },
+    {
+      "id": "planning-get",
+      "path": "/vrooli.tech_tree_designer.v1.planning.PlanningService/GetPlannedScenario",
+      "method": "POST",
+      "summary": "Get a planned scenario",
+      "description": "Returns planned scenario metadata and stored proto files.",
+      "category": "planning",
+      "request": {
+        "type": "GetPlannedScenarioRequest"
+      },
+      "response": {
+        "type": "PlannedScenario"
+      },
+      "cli_mapping": {
+        "command": "tech-tree-designer plan tree",
+        "args": [
+          "<slug>"
+        ]
+      }
+    },
+    {
+      "id": "planning-file-put",
+      "path": "/vrooli.tech_tree_designer.v1.planning.PlanningService/PutPlannedProtoFile",
+      "method": "POST",
+      "summary": "Add or edit a planned proto file",
+      "description": "Stores or replaces real .proto text for a planned scenario file path.",
+      "category": "planning",
+      "request": {
+        "type": "PutPlannedProtoFileRequest"
+      },
+      "response": {
+        "type": "PlannedProtoFile"
+      },
+      "cli_mapping": {
+        "command": "tech-tree-designer plan add",
+        "args": [
+          "<slug>",
+          "<path>"
+        ]
+      }
+    },
+    {
+      "id": "planning-file-delete",
+      "path": "/vrooli.tech_tree_designer.v1.planning.PlanningService/DeletePlannedProtoFile",
+      "method": "POST",
+      "summary": "Remove a planned proto file",
+      "description": "Deletes one stored proto file from a planned scenario.",
+      "category": "planning",
+      "request": {
+        "type": "DeletePlannedProtoFileRequest"
+      },
+      "response": {
+        "type": "DeletePlannedProtoFileResponse"
+      },
+      "cli_mapping": {
+        "command": "tech-tree-designer plan rm",
+        "args": [
+          "<slug>",
+          "<path>"
+        ]
+      }
+    },
+    {
+      "id": "planning-validate",
+      "path": "/vrooli.tech_tree_designer.v1.planning.PlanningService/ValidatePlannedScenario",
+      "method": "POST",
+      "summary": "Validate planned proto files",
+      "description": "Compiles planned proto text with live schemas and returns structure, naming, import, and stability findings.",
+      "category": "planning",
+      "request": {
+        "type": "ValidatePlannedScenarioRequest"
+      },
+      "response": {
+        "type": "ValidatePlannedScenarioResponse"
+      },
+      "cli_mapping": {
+        "command": "tech-tree-designer plan validate",
+        "args": [
+          "<slug>"
+        ]
+      }
+    },
+    {
+      "id": "planning-materialize",
+      "path": "/vrooli.tech_tree_designer.v1.planning.PlanningService/MaterializePlannedScenario",
+      "method": "POST",
+      "summary": "Materialize planned proto files",
+      "description": "Writes validated planned proto text into packages/proto/schemas/<slug>/ and regenerates proto artifacts.",
+      "category": "planning",
+      "request": {
+        "type": "MaterializePlannedScenarioRequest"
+      },
+      "response": {
+        "type": "MaterializePlannedScenarioResponse"
+      },
+      "cli_mapping": {
+        "command": "tech-tree-designer plan materialize",
+        "args": [
+          "<slug>"
+        ]
+      }
     }
   ],
   "cli_commands": [
@@ -53,6 +287,66 @@
       "name": "status",
       "description": "Check API and dependency health (auto-provided by cli-core's StandardScenarioApp)",
       "endpoint_id": "health"
+    },
+    {
+      "name": "graph describe",
+      "description": "Describe the scenario interface graph",
+      "endpoint_id": "graph-describe"
+    },
+    {
+      "name": "graph neighbors",
+      "description": "Get the graph neighborhood around one scenario",
+      "endpoint_id": "graph-neighborhood"
+    },
+    {
+      "name": "graph path",
+      "description": "Find a directed graph path between two scenarios",
+      "endpoint_id": "graph-path"
+    },
+    {
+      "name": "graph ancestors",
+      "description": "List dependency ancestors for one scenario",
+      "endpoint_id": "graph-ancestors"
+    },
+    {
+      "name": "graph export",
+      "description": "Export the scenario interface graph",
+      "endpoint_id": "graph-export"
+    },
+    {
+      "name": "plan create",
+      "description": "Create or update a planned scenario",
+      "endpoint_id": "planning-create"
+    },
+    {
+      "name": "plan list",
+      "description": "List planned scenarios",
+      "endpoint_id": "planning-list"
+    },
+    {
+      "name": "plan tree",
+      "description": "Show a planned scenario's proto file tree",
+      "endpoint_id": "planning-get"
+    },
+    {
+      "name": "plan add",
+      "description": "Add a planned proto file",
+      "endpoint_id": "planning-file-put"
+    },
+    {
+      "name": "plan rm",
+      "description": "Remove a planned proto file",
+      "endpoint_id": "planning-file-delete"
+    },
+    {
+      "name": "plan validate",
+      "description": "Validate planned proto files",
+      "endpoint_id": "planning-validate"
+    },
+    {
+      "name": "plan materialize",
+      "description": "Materialize planned proto files",
+      "endpoint_id": "planning-materialize"
     }
   ]
 }

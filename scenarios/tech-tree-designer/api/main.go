@@ -21,7 +21,11 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	graphH "tech-tree-designer/handlers/graph"
 	healthH "tech-tree-designer/handlers/health"
+	planningH "tech-tree-designer/handlers/planning"
+	graphdomain "tech-tree-designer/internal/graph"
+	planningdomain "tech-tree-designer/internal/planning"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -112,9 +116,21 @@ func main() {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
+	planningService := planningdomain.NewService(
+		planningdomain.NewSQLiteRepository(db),
+		planningdomain.NewCompilerValidator(""),
+		planningdomain.NewFilesystemMaterializer(""),
+	)
+	graphService := graphdomain.NewServiceWithPlanned(
+		graphdomain.NewProtoHealthSource(graphdomain.NewProtoHealthClient(nil, nil)),
+		planningService,
+	)
+
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "tech-tree-designer-api", "1.0.0"),
+		graphH.Module(graphService),
+		planningH.Module(planningService),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

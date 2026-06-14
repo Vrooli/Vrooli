@@ -1,11 +1,6 @@
 package graph
 
-import (
-	"strings"
-	"testing"
-
-	"github.com/vrooli/cli-core/cliapp"
-)
+import "testing"
 
 const manifestFixture = `{
   "name": "tech-tree-designer",
@@ -17,32 +12,53 @@ const manifestFixture = `{
         {
           "name": "describe",
           "description": "Describe graph.",
+          "flags": [
+            { "name": "scenarios" },
+            { "name": "stability" }
+          ],
           "binding": { "kind": "connect-rpc", "service": "GraphService", "method": "DescribeTechTree" },
-          "governance": { "effect": "read", "run_eligible": false }
+          "governance": { "effect": "read", "run_eligible": true }
         },
         {
           "name": "neighbors",
           "description": "Get neighbors.",
+          "positionals": [{ "name": "scenario", "required": true }],
+          "flags": [
+            { "name": "depth" },
+            { "name": "scenarios" }
+          ],
           "binding": { "kind": "connect-rpc", "service": "GraphService", "method": "GetNeighborhood" },
-          "governance": { "effect": "read", "run_eligible": false }
+          "governance": { "effect": "read", "run_eligible": true }
         },
         {
           "name": "path",
           "description": "Find path.",
+          "positionals": [
+            { "name": "from", "required": true },
+            { "name": "to", "required": true }
+          ],
+          "flags": [{ "name": "scenarios" }],
           "binding": { "kind": "connect-rpc", "service": "GraphService", "method": "FindPath" },
-          "governance": { "effect": "read", "run_eligible": false }
+          "governance": { "effect": "read", "run_eligible": true }
         },
         {
           "name": "ancestors",
           "description": "List ancestors.",
+          "positionals": [{ "name": "scenario", "required": true }],
+          "flags": [{ "name": "scenarios" }],
           "binding": { "kind": "connect-rpc", "service": "GraphService", "method": "ListAncestors" },
-          "governance": { "effect": "read", "run_eligible": false }
+          "governance": { "effect": "read", "run_eligible": true }
         },
         {
           "name": "export",
           "description": "Export graph.",
+          "flags": [
+            { "name": "format", "default": "text" },
+            { "name": "scenarios" },
+            { "name": "stability" }
+          ],
           "binding": { "kind": "connect-rpc", "service": "GraphService", "method": "ExportTechTree" },
-          "governance": { "effect": "read", "run_eligible": false }
+          "governance": { "effect": "read", "run_eligible": true }
         }
       ]
     }
@@ -65,16 +81,12 @@ func TestRegisterBuildsGraphGroup(t *testing.T) {
 	}
 }
 
-func TestDescribeHandlerIsReserved(t *testing.T) {
+func TestRegisterBuildsRunnableDescribeHandler(t *testing.T) {
 	group, err := Register(nil, []byte(manifestFixture))
 	if err != nil {
 		t.Fatalf("Register() error = %v", err)
 	}
-	err = group.Subcommands[0].RunCtx(cliapp.NewTestRunContext(cliapp.TestRunContextOptions{}))
-	if err == nil {
-		t.Fatal("RunCtx() error = nil, want reserved-domain guidance")
-	}
-	if !strings.Contains(err.Error(), "graph domain is implemented") {
-		t.Fatalf("RunCtx() error = %q, want reserved-domain guidance", err)
+	if group.Subcommands[0].RunCtx == nil {
+		t.Fatal("describe RunCtx = nil")
 	}
 }

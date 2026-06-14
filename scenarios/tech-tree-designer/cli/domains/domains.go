@@ -2,6 +2,7 @@ package domains
 
 import (
 	"tech-tree-designer/cli/domains/graph"
+	"tech-tree-designer/cli/domains/planning"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -40,5 +41,9 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
-	return []cliapp.SubcommandGroup{graphGroup}, nil
+	planningGroup, err := planning.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.SubcommandGroup{graphGroup, planningGroup}, nil
 }

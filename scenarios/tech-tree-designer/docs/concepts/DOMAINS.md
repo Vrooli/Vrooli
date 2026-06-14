@@ -11,7 +11,7 @@ Use this document to answer which bounded context owns each capability, data set
 | Domain | Purpose | Owns Data | Surfaces | Source Paths | Status |
 |---|---|---|---|---|---|
 | health | Report runtime readiness and dependency reachability. | No product data. | API, UI, cli-core `status`. | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/tech-tree-designer/v1/health/` | Implemented scaffold surface. |
-| graph | Build and query the scenario-centric interface graph. | Optional cache only. | Connect API, CLI, UI graph. | `packages/proto/schemas/tech-tree-designer/v1/graph/`, `cli/domains/graph/` | Planned Phase 2/3. |
+| graph | Build and query the scenario-centric interface graph. | Optional cache only. | Connect API, CLI, UI graph. | `api/internal/graph/`, `api/handlers/graph/`, `cli/domains/graph/`, `packages/proto/schemas/tech-tree-designer/v1/graph/` | Implemented API/CLI; UI pending. |
 | planning | Store future scenarios as real planned proto files and validate/materialize them. | Planned scenarios and planned proto text. | Connect API, CLI, UI editor. | `api/internal/planning/`, `api/handlers/planning/`, `cli/domains/planning/`, `ui/src/features/planning/` | Planned Phase 4. |
 | roadmap | Attach sectors, tiers, and milestones as metadata overlays. | Sector, tier, milestone, overlay metadata. | Connect API, CLI, UI roadmap. | `api/internal/roadmap/`, `api/handlers/roadmap/`, `cli/domains/roadmap/`, `ui/src/features/roadmap/` | Planned Phase 5. |
 
@@ -25,10 +25,11 @@ Use this document to answer which bounded context owns each capability, data set
 ## graph
 
 - Purpose: render the actual cross-scenario interface graph.
-- Owns: `GraphSource` seam, proto-health mapping, graph query algorithms, graph export.
+- Owns: `GraphSource` seam, proto-health mapping, graph query algorithms, graph export, and generated-client CLI commands.
 - Primary source: `proto-health` `DescribeScenariosProtos`.
 - Future source: `scenario-dependency-analyzer` `DescribeInterfaceGraph`.
-- Planned paths: `api/internal/graph/`, `api/handlers/graph/`, `cli/domains/graph/`, `ui/src/features/graph/`, `packages/proto/schemas/tech-tree-designer/v1/graph/`.
+- Source paths: `api/internal/graph/`, `api/handlers/graph/`, `cli/domains/graph/`, `packages/proto/schemas/tech-tree-designer/v1/graph/`.
+- Planned UI path: `ui/src/features/graph/`.
 
 ## planning
 

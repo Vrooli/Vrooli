@@ -18,6 +18,18 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	seed := filepath.Join(t.TempDir(), "seed.json")
 	writeSeed(t, seed, []CLICommand{
 		{Name: "status", Description: "Health check", EndpointID: "health"},
+		{Name: "graph describe", Description: "Describe graph", EndpointID: "graph-describe"},
+		{Name: "graph neighbors", Description: "Get graph neighborhood", EndpointID: "graph-neighborhood"},
+		{Name: "graph path", Description: "Find graph path", EndpointID: "graph-path"},
+		{Name: "graph ancestors", Description: "List graph ancestors", EndpointID: "graph-ancestors"},
+		{Name: "graph export", Description: "Export graph", EndpointID: "graph-export"},
+		{Name: "plan create", Description: "Create plan", EndpointID: "planning-create"},
+		{Name: "plan list", Description: "List plans", EndpointID: "planning-list"},
+		{Name: "plan tree", Description: "Plan tree", EndpointID: "planning-get"},
+		{Name: "plan add", Description: "Add planned proto", EndpointID: "planning-file-put"},
+		{Name: "plan rm", Description: "Remove planned proto", EndpointID: "planning-file-delete"},
+		{Name: "plan validate", Description: "Validate plan", EndpointID: "planning-validate"},
+		{Name: "plan materialize", Description: "Materialize plan", EndpointID: "planning-materialize"},
 	})
 
 	if err := run(output, seed); err != nil {
@@ -48,8 +60,8 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	if len(got.Endpoints) == 0 {
 		t.Error("manifest must include at least one endpoint")
 	}
-	if len(got.CLICommands) != 1 {
-		t.Errorf("cli_commands count = %d, want 1", len(got.CLICommands))
+	if len(got.CLICommands) != 13 {
+		t.Errorf("cli_commands count = %d, want 13", len(got.CLICommands))
 	}
 
 	// Trailing newline so editors don't get angry about diff noise.

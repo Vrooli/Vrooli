@@ -19,3 +19,7 @@ type SourceRequest struct {
 type GraphSource interface {
 	Graph(ctx context.Context, req SourceRequest) (*graphv1.TechTreeGraph, error)
 }
+
+type PlannedGraphSource interface {
+	PlannedGraph(ctx context.Context) (*graphv1.TechTreeGraph, error)
+}
