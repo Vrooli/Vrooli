@@ -10,8 +10,8 @@
     "nav": {
       "dashboard": "Dashboard",
       "graph": "Graph",
+      "ontology": "Ontology",
       "planning": "Planning",
-      "roadmap": "Roadmap",
       "settings": "Settings"
     }
   },
@@ -101,36 +101,53 @@
     "materialized": "Wrote {{count}} proto file(s).",
     "materialized_one": "Wrote 1 proto file."
   },
-  "roadmap": {
-    "eyebrow": "Roadmap overlay",
-    "title": "Sectors, tiers, and milestones",
-    "description": "Track planning maturity without creating a second graph model. Progress rolls up from scenario stability.",
+  "ontology": {
+    "eyebrow": "Capability ontology",
+    "title": "Coverage and fulfillment",
+    "description": "Author the top-down capability tree, place live and planned scenarios against it, and inspect cross-layer coverage.",
+    "actions": {
+      "refresh": "Refresh"
+    },
     "metrics": {
-      "sectors": "Sectors",
-      "milestones": "Milestones",
-      "buckets": "Progress buckets"
+      "capabilities": "Capabilities",
+      "ontologyCompleteness": "Ontology coverage",
+      "implementationSituatedness": "Mapped scenarios",
+      "unmapped": "Unmapped"
     },
-    "tiers": {
-      "title": "Tier progression",
-      "sectorColumn": "Sector",
-      "progressCounts": "P {{planned}} / L {{live}} / S {{stable}}"
+    "tree": {
+      "filterPlaceholder": "Filter capabilities"
     },
-    "sectors": {
-      "title": "Sectors"
+    "focus": {
+      "title": "Focus queue",
+      "score": "Score {{score}} · {{dependents}} downstream",
+      "empty": "No focus items yet."
     },
-    "milestones": {
-      "title": "Milestones",
-      "requiredScenarios": "{{count}} required scenario(s)",
-      "requiredScenarios_one": "1 required scenario"
+    "detail": {
+      "none": "No capability selected",
+      "noDescription": "No description yet.",
+      "direct": "Direct",
+      "subtree": "Subtree",
+      "fulfillments": "Fulfillments",
+      "yes": "Yes",
+      "no": "No"
+    },
+    "fulfillment": {
+      "placeholder": "scenario-slug",
+      "link": "Link scenario"
+    },
+    "coverage": {
+      "title": "Sector coverage",
+      "counts": "Built {{built}} / In-flight {{inflight}} / Gap {{gap}}"
+    },
+    "overlay": {
+      "title": "Overlay graph: {{nodes}} nodes / {{edges}} edges",
+      "ariaLabel": "Ontology overlay graph",
+      "empty": "No overlay nodes match this view."
     },
     "states": {
-      "loadingProgress": "Loading progress…",
-      "noSectors": "No sectors have been added yet.",
-      "noMilestones": "No milestones have been added yet."
-    },
-    "fallbacks": {
-      "unassigned": "Unassigned",
-      "noDescription": "No description yet."
+      "loading": "Loading ontology coverage…",
+      "error": "Ontology data is unavailable. Confirm the API is running.",
+      "empty": "No capabilities have been imported yet."
     }
   },
   "health": {

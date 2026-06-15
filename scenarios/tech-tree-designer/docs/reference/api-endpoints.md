@@ -36,17 +36,21 @@ Planning endpoints are generated Connect-RPC procedures:
 | `ValidatePlannedScenario` | `/vrooli.tech_tree_designer.v1.planning.PlanningService/ValidatePlannedScenario` |
 | `MaterializePlannedScenario` | `/vrooli.tech_tree_designer.v1.planning.PlanningService/MaterializePlannedScenario` |
 
-## Roadmap Connect RPC
+## Ontology Connect RPC
 
-Roadmap endpoints are generated Connect-RPC procedures:
+Ontology endpoints are generated Connect-RPC procedures:
 
 | Method | Procedure |
 |---|---|
-| `ListSectors` | `/vrooli.tech_tree_designer.v1.roadmap.RoadmapService/ListSectors` |
-| `UpsertSector` | `/vrooli.tech_tree_designer.v1.roadmap.RoadmapService/UpsertSector` |
-| `ListMilestones` | `/vrooli.tech_tree_designer.v1.roadmap.RoadmapService/ListMilestones` |
-| `UpsertMilestone` | `/vrooli.tech_tree_designer.v1.roadmap.RoadmapService/UpsertMilestone` |
-| `GetProgress` | `/vrooli.tech_tree_designer.v1.roadmap.RoadmapService/GetProgress` |
+| `ListCapabilities` | `/vrooli.tech_tree_designer.v1.ontology.OntologyService/ListCapabilities` |
+| `GetCapability` | `/vrooli.tech_tree_designer.v1.ontology.OntologyService/GetCapability` |
+| `UpsertCapability` | `/vrooli.tech_tree_designer.v1.ontology.OntologyService/UpsertCapability` |
+| `DeleteCapability` | `/vrooli.tech_tree_designer.v1.ontology.OntologyService/DeleteCapability` |
+| `ImportTopology` | `/vrooli.tech_tree_designer.v1.ontology.OntologyService/ImportTopology` |
+| `LinkFulfillment` | `/vrooli.tech_tree_designer.v1.ontology.OntologyService/LinkFulfillment` |
+| `GetCoverage` | `/vrooli.tech_tree_designer.v1.ontology.OntologyService/GetCoverage` |
+| `ListFocus` | `/vrooli.tech_tree_designer.v1.ontology.OntologyService/ListFocus` |
+| `DescribeOverlayGraph` | `/vrooli.tech_tree_designer.v1.ontology.OntologyService/DescribeOverlayGraph` |
 
 ## Planned Endpoints
 

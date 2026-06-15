@@ -12,6 +12,7 @@ class NodeKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     NODE_KIND_UNSPECIFIED: _ClassVar[NodeKind]
     NODE_KIND_LIVE: _ClassVar[NodeKind]
     NODE_KIND_PLANNED: _ClassVar[NodeKind]
+    NODE_KIND_CAPABILITY: _ClassVar[NodeKind]
 
 class EvidenceSource(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -19,6 +20,8 @@ class EvidenceSource(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     EVIDENCE_SOURCE_PROTO_IMPORT: _ClassVar[EvidenceSource]
     EVIDENCE_SOURCE_GO_IMPORT: _ClassVar[EvidenceSource]
     EVIDENCE_SOURCE_PLANNED_PROTO_IMPORT: _ClassVar[EvidenceSource]
+    EVIDENCE_SOURCE_DECOMPOSES: _ClassVar[EvidenceSource]
+    EVIDENCE_SOURCE_FULFILLS: _ClassVar[EvidenceSource]
 
 class ExportFormat(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -29,10 +32,13 @@ class ExportFormat(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 NODE_KIND_UNSPECIFIED: NodeKind
 NODE_KIND_LIVE: NodeKind
 NODE_KIND_PLANNED: NodeKind
+NODE_KIND_CAPABILITY: NodeKind
 EVIDENCE_SOURCE_UNSPECIFIED: EvidenceSource
 EVIDENCE_SOURCE_PROTO_IMPORT: EvidenceSource
 EVIDENCE_SOURCE_GO_IMPORT: EvidenceSource
 EVIDENCE_SOURCE_PLANNED_PROTO_IMPORT: EvidenceSource
+EVIDENCE_SOURCE_DECOMPOSES: EvidenceSource
+EVIDENCE_SOURCE_FULFILLS: EvidenceSource
 EXPORT_FORMAT_UNSPECIFIED: ExportFormat
 EXPORT_FORMAT_DOT: ExportFormat
 EXPORT_FORMAT_JSON: ExportFormat
@@ -115,7 +121,7 @@ class TechTreeGraph(_message.Message):
     def __init__(self, nodes: _Optional[_Iterable[_Union[TechNode, _Mapping]]] = ..., edges: _Optional[_Iterable[_Union[TechEdge, _Mapping]]] = ..., errors: _Optional[_Iterable[_Union[GraphError, _Mapping]]] = ...) -> None: ...
 
 class TechNode(_message.Message):
-    __slots__ = ("scenario", "kind", "display_name", "transport_world", "stability", "sector", "tier")
+    __slots__ = ("scenario", "kind", "display_name", "transport_world", "stability", "sector", "tier", "parent")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
     DISPLAY_NAME_FIELD_NUMBER: _ClassVar[int]
@@ -123,6 +129,7 @@ class TechNode(_message.Message):
     STABILITY_FIELD_NUMBER: _ClassVar[int]
     SECTOR_FIELD_NUMBER: _ClassVar[int]
     TIER_FIELD_NUMBER: _ClassVar[int]
+    PARENT_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     kind: NodeKind
     display_name: str
@@ -130,7 +137,8 @@ class TechNode(_message.Message):
     stability: _containers.RepeatedScalarFieldContainer[str]
     sector: str
     tier: str
-    def __init__(self, scenario: _Optional[str] = ..., kind: _Optional[_Union[NodeKind, str]] = ..., display_name: _Optional[str] = ..., transport_world: _Optional[str] = ..., stability: _Optional[_Iterable[str]] = ..., sector: _Optional[str] = ..., tier: _Optional[str] = ...) -> None: ...
+    parent: str
+    def __init__(self, scenario: _Optional[str] = ..., kind: _Optional[_Union[NodeKind, str]] = ..., display_name: _Optional[str] = ..., transport_world: _Optional[str] = ..., stability: _Optional[_Iterable[str]] = ..., sector: _Optional[str] = ..., tier: _Optional[str] = ..., parent: _Optional[str] = ...) -> None: ...
 
 class TechEdge(_message.Message):
     __slots__ = ("from_scenario", "to_scenario", "evidence", "transport_world", "stability")

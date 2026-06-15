@@ -19,8 +19,8 @@ Future planned-proto editor workflows may use formal transition models. Those mo
 | planning Repository | `api/internal/planning.Repository` | SQLiteRepository over `planned_scenario` and `planned_proto_file` | small package-local fakes in service tests | Keeps planning service independent of SQLite query mechanics. |
 | ProtoValidator | `api/internal/planning.ProtoValidator` | `CompilerValidator` using `bufbuild/protocompile` with planned-file overlay plus live schemas | deterministic fake validator when service-only tests need it | Validates planned proto text without shelling out to `buf` at runtime. |
 | Materializer | `api/internal/planning.Materializer` | `FilesystemMaterializer` writes under `packages/proto/schemas/<slug>/` and runs `make generate` | command-injected/temp-dir materializer tests | Makes the outside-scenario write path explicit and testable. |
-| roadmap Repository | `api/internal/roadmap.Repository` | SQLiteRepository over `roadmap_sector` and `roadmap_milestone` | package-local SQLite repository tests | Keeps roadmap overlay CRUD independent of SQLite query mechanics. |
-| roadmap GraphProvider | `api/internal/roadmap.GraphProvider` | existing graph service `Describe` result including live and planned nodes | fake graph provider in roadmap service tests | Derives progress from the graph without giving roadmap ownership of graph topology. |
+| ontology Repository | `api/internal/ontology.Repository` | SQLiteRepository over `capability`, `capability_edge`, `fulfillment`, and `coverage_exclusion` | package-local SQLite repository tests | Keeps ontology CRUD and coverage reads independent of SQLite query mechanics. |
+| ontology ScenarioSource | `api/internal/ontology.ScenarioSource` | graph service `Describe` result including live and planned nodes | fake scenario source in ontology service tests | Lets coverage and overlay analytics read implementation state without owning graph topology. |
 
 ## Adding a new seam
 
@@ -38,7 +38,7 @@ Current UI seams are test utilities only. Future graph/planning UI should keep A
 
 - `api/internal/modules` registry entries.
 - Generated proto types.
-- Static roadmap tier constants.
+- Static capability kind labels.
 - D3 rendering helpers unless they hide an external dependency.
 
 ## API contract manifest

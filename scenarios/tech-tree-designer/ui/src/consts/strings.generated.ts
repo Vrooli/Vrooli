@@ -22,8 +22,8 @@ export const strings = {
     nav: {
       dashboard: "layout.nav.dashboard",
       graph: "layout.nav.graph",
+      ontology: "layout.nav.ontology",
       planning: "layout.nav.planning",
-      roadmap: "layout.nav.roadmap",
       settings: "layout.nav.settings",
     },
   },
@@ -113,36 +113,53 @@ export const strings = {
     materialized: "planning.materialized",
     materialized_one: "planning.materialized_one",
   },
-  roadmap: {
-    eyebrow: "roadmap.eyebrow",
-    title: "roadmap.title",
-    description: "roadmap.description",
+  ontology: {
+    eyebrow: "ontology.eyebrow",
+    title: "ontology.title",
+    description: "ontology.description",
+    actions: {
+      refresh: "ontology.actions.refresh",
+    },
     metrics: {
-      sectors: "roadmap.metrics.sectors",
-      milestones: "roadmap.metrics.milestones",
-      buckets: "roadmap.metrics.buckets",
+      capabilities: "ontology.metrics.capabilities",
+      ontologyCompleteness: "ontology.metrics.ontologyCompleteness",
+      implementationSituatedness: "ontology.metrics.implementationSituatedness",
+      unmapped: "ontology.metrics.unmapped",
     },
-    tiers: {
-      title: "roadmap.tiers.title",
-      sectorColumn: "roadmap.tiers.sectorColumn",
-      progressCounts: "roadmap.tiers.progressCounts",
+    tree: {
+      filterPlaceholder: "ontology.tree.filterPlaceholder",
     },
-    sectors: {
-      title: "roadmap.sectors.title",
+    focus: {
+      title: "ontology.focus.title",
+      score: "ontology.focus.score",
+      empty: "ontology.focus.empty",
     },
-    milestones: {
-      title: "roadmap.milestones.title",
-      requiredScenarios: "roadmap.milestones.requiredScenarios",
-      requiredScenarios_one: "roadmap.milestones.requiredScenarios_one",
+    detail: {
+      none: "ontology.detail.none",
+      noDescription: "ontology.detail.noDescription",
+      direct: "ontology.detail.direct",
+      subtree: "ontology.detail.subtree",
+      fulfillments: "ontology.detail.fulfillments",
+      yes: "ontology.detail.yes",
+      no: "ontology.detail.no",
+    },
+    fulfillment: {
+      placeholder: "ontology.fulfillment.placeholder",
+      link: "ontology.fulfillment.link",
+    },
+    coverage: {
+      title: "ontology.coverage.title",
+      counts: "ontology.coverage.counts",
+    },
+    overlay: {
+      title: "ontology.overlay.title",
+      ariaLabel: "ontology.overlay.ariaLabel",
+      empty: "ontology.overlay.empty",
     },
     states: {
-      loadingProgress: "roadmap.states.loadingProgress",
-      noSectors: "roadmap.states.noSectors",
-      noMilestones: "roadmap.states.noMilestones",
-    },
-    fallbacks: {
-      unassigned: "roadmap.fallbacks.unassigned",
-      noDescription: "roadmap.fallbacks.noDescription",
+      loading: "ontology.states.loading",
+      error: "ontology.states.error",
+      empty: "ontology.states.empty",
     },
   },
   health: {

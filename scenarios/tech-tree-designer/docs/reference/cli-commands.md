@@ -36,14 +36,17 @@ tech-tree-designer plan materialize <slug>
 
 `plan add` stores or replaces file text. `plan tree <slug> <path>` prints one stored file; without `path` it lists the stored tree.
 
-Implemented roadmap commands:
+Implemented ontology commands:
 
 ```bash
-tech-tree-designer roadmap sectors
-tech-tree-designer roadmap sector <slug> [--name "..."] [--description "..."]
-tech-tree-designer roadmap milestones
-tech-tree-designer roadmap milestone <id> --name "..." [--description "..."] [--required a,b]
-tech-tree-designer roadmap progress [--sector engineering] [--tier foundation]
+tech-tree-designer ontology capabilities [--parent <id>] [--kind sector|capability|component|capstone|simulation]
+tech-tree-designer ontology capability <slug>
+tech-tree-designer ontology capability-upsert <slug> [--name "..."] [--kind capability] [--parent <id>]
+tech-tree-designer ontology import --from-file data/seed/macro_topology.json
+tech-tree-designer ontology fulfill <capability-id> <scenario-slug>
+tech-tree-designer ontology coverage
+tech-tree-designer ontology focus
+tech-tree-designer ontology overlay
 ```
 
 ## Output contracts

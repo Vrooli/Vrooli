@@ -51,35 +51,35 @@
       ]
     },
     {
-      "id": "TTD-ROADMAP-001",
-      "title": "Roadmap metadata overlay",
+      "id": "TTD-ONTOLOGY-001",
+      "title": "Capability ontology coverage layer",
       "status": "complete",
       "prd_ref": "OT-P1-001",
-      "category": "roadmap",
+      "category": "ontology",
       "criticality": "P1",
-      "description": "TTD must model sectors, capability tiers, and milestones as metadata overlays on graph nodes, with progress derived from live/planned stability rather than a separate backbone.",
+      "description": "TTD must model a top-down capability ontology, link capabilities to live and planned scenarios, and compute cross-layer coverage and focus analytics.",
       "tags": [
-        "roadmap",
-        "overlay"
+        "ontology",
+        "coverage"
       ],
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/roadmap/service_test.go::TestGetProgressRollsUpNodesBySectorTier",
+          "ref": "api/internal/ontology/service_test.go::TestCoverageClassifiesBuiltInflightGapsAndUnmappedScenarios",
           "status": "implemented",
-          "notes": "Covers progress rollup from graph node kind and stability."
+          "notes": "Covers four-state coverage classification."
         },
         {
           "type": "test",
-          "ref": "api/internal/roadmap/sqlite_test.go::TestSQLiteRepositoryRoundTrip",
+          "ref": "api/internal/ontology/sqlite_test.go::TestSQLiteRepositoryRoundTrip",
           "status": "implemented",
-          "notes": "Covers sector and milestone overlay persistence."
+          "notes": "Covers capability, edge, and fulfillment persistence."
         },
         {
           "type": "test",
-          "ref": "cli/domains/roadmap/register_test.go::TestRegisterBuildsRoadmapGroup",
+          "ref": "api/internal/ontology/importtopology_test.go::TestMapTopologyFixture",
           "status": "implemented",
-          "notes": "Covers roadmap CLI manifest bindings."
+          "notes": "Covers macro topology import mapping."
         }
       ]
     },
@@ -90,7 +90,7 @@
       "prd_ref": "OT-P1-002",
       "category": "ui",
       "criticality": "P1",
-      "description": "TTD must provide a production-ready direct UI for the graph, planned proto editor, validation findings, and roadmap overview with loading, error, and empty states.",
+      "description": "TTD must provide a production-ready direct UI for the graph, planned proto editor, validation findings, and ontology coverage overview with loading, error, and empty states.",
       "tags": [
         "ui",
         "graph",

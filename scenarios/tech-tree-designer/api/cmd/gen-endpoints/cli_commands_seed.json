@@ -67,29 +67,79 @@
       "endpoint_id": "planning-materialize"
     },
     {
-      "name": "roadmap sectors",
-      "description": "List roadmap sectors",
-      "endpoint_id": "roadmap-sectors-list"
+      "name": "ontology capabilities",
+      "description": "List capability ontology nodes",
+      "endpoint_id": "ontology-capabilities-list"
     },
     {
-      "name": "roadmap sector",
-      "description": "Create or update a roadmap sector",
-      "endpoint_id": "roadmap-sectors-upsert"
+      "name": "ontology capability",
+      "description": "Get a capability by slug",
+      "endpoint_id": "ontology-capability-get"
     },
     {
-      "name": "roadmap milestones",
-      "description": "List roadmap milestones",
-      "endpoint_id": "roadmap-milestones-list"
+      "name": "ontology capability-upsert",
+      "description": "Create or update a capability",
+      "endpoint_id": "ontology-capability-upsert"
     },
     {
-      "name": "roadmap milestone",
-      "description": "Create or update a roadmap milestone",
-      "endpoint_id": "roadmap-milestones-upsert"
+      "name": "ontology capability-rm",
+      "description": "Delete a capability",
+      "endpoint_id": "ontology-capability-delete"
     },
     {
-      "name": "roadmap progress",
-      "description": "Roll up graph progress by sector and tier",
-      "endpoint_id": "roadmap-progress"
+      "name": "ontology edge-add",
+      "description": "Create a capability edge",
+      "endpoint_id": "ontology-edge-upsert"
+    },
+    {
+      "name": "ontology edge-rm",
+      "description": "Delete a capability edge",
+      "endpoint_id": "ontology-edge-delete"
+    },
+    {
+      "name": "ontology import",
+      "description": "Import topology JSON",
+      "endpoint_id": "ontology-import-topology"
+    },
+    {
+      "name": "ontology fulfill",
+      "description": "Link a capability to a scenario",
+      "endpoint_id": "ontology-fulfillment-link"
+    },
+    {
+      "name": "ontology unfulfill",
+      "description": "Remove a fulfillment link",
+      "endpoint_id": "ontology-fulfillment-unlink"
+    },
+    {
+      "name": "ontology fulfillments",
+      "description": "List fulfillment links",
+      "endpoint_id": "ontology-fulfillments-list"
+    },
+    {
+      "name": "ontology coverage",
+      "description": "Compute ontology coverage",
+      "endpoint_id": "ontology-coverage"
+    },
+    {
+      "name": "ontology focus",
+      "description": "List prioritized focus items",
+      "endpoint_id": "ontology-focus"
+    },
+    {
+      "name": "ontology capability-scenarios",
+      "description": "List scenarios fulfilling a capability",
+      "endpoint_id": "ontology-capability-scenarios"
+    },
+    {
+      "name": "ontology scenario",
+      "description": "List capabilities fulfilled by a scenario",
+      "endpoint_id": "ontology-scenario-capabilities"
+    },
+    {
+      "name": "ontology overlay",
+      "description": "Describe the overlay graph",
+      "endpoint_id": "ontology-overlay-graph"
     }
   ]
 }

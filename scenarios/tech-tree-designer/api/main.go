@@ -23,11 +23,13 @@ import (
 
 	graphH "tech-tree-designer/handlers/graph"
 	healthH "tech-tree-designer/handlers/health"
+	ontologyH "tech-tree-designer/handlers/ontology"
 	planningH "tech-tree-designer/handlers/planning"
-	roadmapH "tech-tree-designer/handlers/roadmap"
 	graphdomain "tech-tree-designer/internal/graph"
+	ontologydomain "tech-tree-designer/internal/ontology"
 	planningdomain "tech-tree-designer/internal/planning"
-	roadmapdomain "tech-tree-designer/internal/roadmap"
+
+	graphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/tech-tree-designer/v1/graph"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -92,6 +94,14 @@ func sqliteFileDSN(path string) (string, error) {
 	), nil
 }
 
+type graphScenarioSource struct {
+	graph *graphdomain.Service
+}
+
+func (s graphScenarioSource) ScenarioGraph(ctx context.Context) (*graphv1.TechTreeGraph, error) {
+	return s.graph.Describe(ctx, graphdomain.SourceRequest{})
+}
+
 func main() {
 	// Preflight checks must run first so the binary can re-exec itself
 	// after a stale-source rebuild before any listeners are opened.
@@ -127,14 +137,17 @@ func main() {
 		graphdomain.NewProtoHealthSource(graphdomain.NewProtoHealthClient(nil, nil)),
 		planningService,
 	)
-	roadmapService := roadmapdomain.NewService(roadmapdomain.NewSQLiteRepository(db), graphService)
+	ontologyService := ontologydomain.NewServiceWithScenarioSource(
+		ontologydomain.NewSQLiteRepository(db),
+		graphScenarioSource{graph: graphService},
+	)
 
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "tech-tree-designer-api", "1.0.0"),
 		graphH.Module(graphService),
+		ontologyH.Module(ontologyService),
 		planningH.Module(planningService),
-		roadmapH.Module(roadmapService),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

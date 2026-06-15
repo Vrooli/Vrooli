@@ -85,6 +85,225 @@
       ]
     },
     {
+      "name": "ontology",
+      "description": "Capability ontology and coverage commands.",
+      "commands": [
+        {
+          "name": "capabilities",
+          "description": "List capability ontology nodes.",
+          "flags": [
+            { "name": "parent", "description": "Optional parent capability id" },
+            { "name": "kind", "description": "Filter kind: sector, capability, component, capstone, simulation" },
+            { "name": "descendants", "description": "Include descendants of --parent", "default": "false" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "OntologyService", "method": "ListCapabilities" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "capability",
+          "description": "Get a capability by slug.",
+          "positionals": [{ "name": "slug", "required": true }],
+          "binding": { "kind": "connect-rpc", "service": "OntologyService", "method": "GetCapability" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "capability-upsert",
+          "description": "Create or update a capability.",
+          "positionals": [{ "name": "slug", "required": true }],
+          "flags": [
+            { "name": "name", "description": "Capability display name" },
+            { "name": "description", "description": "Capability description" },
+            { "name": "kind", "description": "Kind: sector, capability, component, capstone, simulation", "default": "capability" },
+            { "name": "parent", "description": "Parent capability id" },
+            { "name": "importance", "description": "Optional importance weight" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "OntologyService", "method": "UpsertCapability" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": ["network:internal", "filesystem:write"]
+          }
+        },
+        {
+          "name": "capability-rm",
+          "description": "Delete a capability by slug.",
+          "positionals": [{ "name": "slug", "required": true }],
+          "binding": { "kind": "connect-rpc", "service": "OntologyService", "method": "DeleteCapability" },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": ["network:internal", "filesystem:write"]
+          }
+        },
+        {
+          "name": "edge-add",
+          "description": "Create a capability edge.",
+          "positionals": [
+            { "name": "from", "required": true },
+            { "name": "to", "required": true }
+          ],
+          "flags": [
+            { "name": "type", "description": "Edge type: progression, decomposes, requires", "default": "progression" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "OntologyService", "method": "UpsertCapabilityEdge" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": ["network:internal", "filesystem:write"]
+          }
+        },
+        {
+          "name": "edge-rm",
+          "description": "Delete a capability edge.",
+          "positionals": [
+            { "name": "from", "required": true },
+            { "name": "to", "required": true }
+          ],
+          "flags": [
+            { "name": "type", "description": "Edge type: progression, decomposes, requires", "default": "progression" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "OntologyService", "method": "DeleteCapabilityEdge" },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": ["network:internal", "filesystem:write"]
+          }
+        },
+        {
+          "name": "import",
+          "description": "Import topology JSON.",
+          "flags": [
+            { "name": "from-file", "description": "Topology JSON file path" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "OntologyService", "method": "ImportTopology" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": ["network:internal", "filesystem:read", "filesystem:write"]
+          }
+        },
+        {
+          "name": "fulfill",
+          "description": "Link a capability to a scenario.",
+          "positionals": [
+            { "name": "capability", "required": true },
+            { "name": "scenario", "required": true }
+          ],
+          "flags": [
+            { "name": "note", "description": "Optional fulfillment note" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "OntologyService", "method": "LinkFulfillment" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": ["network:internal", "filesystem:write"]
+          }
+        },
+        {
+          "name": "unfulfill",
+          "description": "Remove a capability-to-scenario fulfillment link.",
+          "positionals": [
+            { "name": "capability", "required": true },
+            { "name": "scenario", "required": true }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "OntologyService", "method": "UnlinkFulfillment" },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": ["network:internal", "filesystem:write"]
+          }
+        },
+        {
+          "name": "fulfillments",
+          "description": "List fulfillment links.",
+          "flags": [
+            { "name": "capability", "description": "Optional capability id filter" },
+            { "name": "scenario", "description": "Optional scenario slug filter" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "OntologyService", "method": "ListFulfillments" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "coverage",
+          "description": "Compute ontology and implementation coverage.",
+          "flags": [
+            { "name": "subtree", "description": "Use subtree rollup in capability state counts", "default": "true" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "OntologyService", "method": "GetCoverage" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "focus",
+          "description": "List prioritized ontology focus items.",
+          "flags": [
+            { "name": "limit", "description": "Maximum focus items", "default": "10" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "OntologyService", "method": "ListFocus" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "capability-scenarios",
+          "description": "List scenarios fulfilling a capability.",
+          "positionals": [{ "name": "slug", "required": true }],
+          "flags": [
+            { "name": "descendants", "description": "Include descendant capabilities", "default": "true" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "OntologyService", "method": "GetCapabilityScenarios" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "scenario",
+          "description": "List capabilities fulfilled by a scenario.",
+          "positionals": [{ "name": "slug", "required": true }],
+          "binding": { "kind": "connect-rpc", "service": "OntologyService", "method": "GetScenarioCapabilities" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "overlay",
+          "description": "Describe the ontology/implementation overlay graph.",
+          "flags": [
+            { "name": "implementation", "description": "Include implementation graph nodes and edges", "default": "false" },
+            { "name": "ontology", "description": "Include ontology graph nodes and edges", "default": "false" },
+            { "name": "fulfillment", "description": "Include fulfillment edges", "default": "false" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "OntologyService", "method": "DescribeOverlayGraph" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    },
+    {
       "name": "plan",
       "description": "Contract-first planned scenario commands.",
       "commands": [
@@ -94,8 +313,8 @@
           "positionals": [{ "name": "slug", "required": true }],
           "flags": [
             { "name": "display-name", "description": "Human display name" },
-            { "name": "sector", "description": "Roadmap sector metadata" },
-            { "name": "tier", "description": "Roadmap tier metadata" },
+            { "name": "sector", "description": "Planning sector metadata" },
+            { "name": "tier", "description": "Planning tier metadata" },
             { "name": "stability", "description": "Target stability", "default": "experimental" }
           ],
           "binding": { "kind": "connect-rpc", "service": "PlanningService", "method": "CreatePlannedScenario" },
@@ -185,77 +404,6 @@
             "run_eligible": false,
             "requires_confirmation": true,
             "permissions": ["network:internal", "filesystem:write", "admin"]
-          }
-        }
-      ]
-    },
-    {
-      "name": "roadmap",
-      "description": "Roadmap overlay commands.",
-      "commands": [
-        {
-          "name": "sectors",
-          "description": "List roadmap sectors.",
-          "binding": { "kind": "connect-rpc", "service": "RoadmapService", "method": "ListSectors" },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": ["network:internal"]
-          }
-        },
-        {
-          "name": "sector",
-          "description": "Create or update a roadmap sector.",
-          "positionals": [{ "name": "slug", "required": true }],
-          "flags": [
-            { "name": "name", "description": "Sector display name" },
-            { "name": "description", "description": "Sector description" }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "RoadmapService", "method": "UpsertSector" },
-          "governance": {
-            "effect": "write",
-            "run_eligible": false,
-            "permissions": ["network:internal", "filesystem:write"]
-          }
-        },
-        {
-          "name": "milestones",
-          "description": "List roadmap milestones.",
-          "binding": { "kind": "connect-rpc", "service": "RoadmapService", "method": "ListMilestones" },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": ["network:internal"]
-          }
-        },
-        {
-          "name": "milestone",
-          "description": "Create or update a roadmap milestone.",
-          "positionals": [{ "name": "id", "required": true }],
-          "flags": [
-            { "name": "name", "description": "Milestone display name" },
-            { "name": "description", "description": "Milestone description" },
-            { "name": "required", "description": "Comma-separated required scenario slugs" }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "RoadmapService", "method": "UpsertMilestone" },
-          "governance": {
-            "effect": "write",
-            "run_eligible": false,
-            "permissions": ["network:internal", "filesystem:write"]
-          }
-        },
-        {
-          "name": "progress",
-          "description": "Roll up graph progress by sector and tier.",
-          "flags": [
-            { "name": "sector", "description": "Optional sector filter" },
-            { "name": "tier", "description": "Optional tier filter" }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "RoadmapService", "method": "GetProgress" },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": ["network:internal"]
           }
         }
       ]

@@ -77,6 +77,9 @@ message TechNode {
   repeated string stability = 5;
   string sector = 6;
   string tier = 7;
+  // parent carries the capability parent id for ontology overlay nodes. It is
+  // empty for scenario graph nodes.
+  string parent = 8;
 }
 
 message TechEdge {
@@ -106,6 +109,7 @@ enum NodeKind {
   NODE_KIND_UNSPECIFIED = 0;
   NODE_KIND_LIVE = 1;
   NODE_KIND_PLANNED = 2;
+  NODE_KIND_CAPABILITY = 3;
 }
 
 enum EvidenceSource {
@@ -113,6 +117,8 @@ enum EvidenceSource {
   EVIDENCE_SOURCE_PROTO_IMPORT = 1;
   EVIDENCE_SOURCE_GO_IMPORT = 2;
   EVIDENCE_SOURCE_PLANNED_PROTO_IMPORT = 3;
+  EVIDENCE_SOURCE_DECOMPOSES = 4;
+  EVIDENCE_SOURCE_FULFILLS = 5;
 }
 
 enum ExportFormat {

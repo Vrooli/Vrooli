@@ -2,7 +2,7 @@
 
 ## Purpose Of This Document
 
-Record user/system workflows and lifecycle state machines for graph, planning, roadmap, and health surfaces.
+Record user/system workflows and lifecycle state machines for graph, planning, ontology, and health surfaces.
 
 ## Flow Inventory
 
@@ -11,7 +11,7 @@ Record user/system workflows and lifecycle state machines for graph, planning, r
 | Health check | health | implemented | Lifecycle and UI can read API readiness. |
 | Live graph describe/query/export | graph | implemented | Connect API, CLI, and UI graph routes are available. |
 | Planned proto validate/materialize | planning | implemented | Planned scenario CRUD, file storage, validation, and materialization are available. |
-| Roadmap progress rollup | roadmap | implemented | Sector/milestone metadata and graph-derived progress are available. |
+| Ontology coverage rollup | ontology | implemented | Capability hierarchy, fulfillment links, graph-derived coverage, and focus ranking are available. |
 
 ## Flow Details
 
@@ -35,11 +35,11 @@ Record user/system workflows and lifecycle state machines for graph, planning, r
 3. Findings are returned without mutating the shared proto tree.
 4. Materialization writes validated files under `packages/proto/schemas/<slug>/` and runs proto generation.
 
-### Roadmap progress rollup
+### Ontology coverage rollup
 
-1. Roadmap stores sector and milestone metadata.
-2. Progress reads the current graph rather than owning topology.
-3. Buckets are grouped by sector and tier with planned/live/stable counts.
+1. Ontology stores capability hierarchy, progression edges, and fulfillment links.
+2. Coverage reads the current graph through the scenario-source seam rather than owning implementation topology.
+3. Results classify capabilities as built, in-flight, or gaps, and report unmapped scenarios separately.
 
 ## State Machines
 

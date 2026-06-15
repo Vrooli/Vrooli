@@ -7,7 +7,7 @@
 
 ## 🎯 Overview
 - **Purpose**: Make Vrooli's scenario ecosystem plan-able by rendering the actual cross-scenario interface graph and letting agents design future scenarios as proto contracts before implementation.
-- **Primary users/verticals**: Vrooli engineering agents, scenario planners, ecosystem maintainers, and operators reviewing the capability roadmap.
+- **Primary users/verticals**: Vrooli engineering agents, scenario planners, ecosystem maintainers, and operators reviewing capability coverage.
 - **Deployment surfaces**: Connect API, Go CLI, React UI, generated proto contracts, and future agent/tool consumers.
 - **Value promise**: Reduce scenario drift and rework by planning around real interfaces first, then materializing proto contracts only when they validate.
 
@@ -18,8 +18,8 @@
 - [ ] OT-P0-002 | Contract-first planning | Store planned scenarios as real `.proto` text, validate them against live schemas, and expose CRUD/validate/materialize flows through API and CLI.
 
 ### 🟠 P1 – Should have post-launch
-- [x] OT-P1-001 | Roadmap overlay | Attach sector, tier, and milestone metadata to live and planned graph nodes without making tiers a competing backbone.
-- [ ] OT-P1-002 | Production planning UI | Provide an interactive graph surface, planned-proto editor, validation findings, and roadmap overview with loading, error, and empty states.
+- [x] OT-P1-001 | Capability ontology | Model the top-down capability tree, fulfillment links, coverage analytics, focus ranking, and overlay projection beside the scenario graph.
+- [ ] OT-P1-002 | Production planning UI | Provide an interactive graph surface, planned-proto editor, validation findings, and ontology coverage overview with loading, error, and empty states.
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Rich graph source | Add a `scenario-dependency-analyzer` GraphSource when its `DescribeInterfaceGraph` RPC is available.
@@ -27,7 +27,7 @@
 
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks / frameworks: `react-vite` template, Go API/CLI, Connect-RPC, generated proto clients, SQLite, D3 for graph visualization.
-- Data + storage expectations: SQLite for planned scenarios, planned proto files, roadmap metadata, optional graph cache, and milestone state.
+- Data + storage expectations: SQLite for planned scenarios, planned proto files, ontology metadata, fulfillment links, optional graph cache, and coverage exclusions.
 - Integration strategy: Consume `proto-health` `DescribeScenariosProtos` first; keep `GraphSource` shaped for `scenario-dependency-analyzer` later.
 - Non-goals / guardrails: No migration from the old Gin/Postgres implementation, no compatibility shims, no old heuristic scenario catalog, no AI analysis in the shipped scope, no SDA client until SDA ships the intended graph RPC.
 
@@ -35,7 +35,7 @@
 - Required resources: SQLite only.
 - Scenario dependencies: `proto-health` is required for the live graph; planned-only mode should degrade cleanly if unavailable.
 - Operational risks: `materialize` writes into `packages/proto/schemas/<slug>/` and must refuse on validation failure; generated proto churn must stay inside the plan allowlist.
-- Launch sequencing: regenerate scaffold, define graph/planning/roadmap protos, implement graph source/query/export, implement planned proto storage/validation/materialization, add roadmap overlay, then ship UI.
+- Launch sequencing: regenerate scaffold, define graph/planning/ontology protos, implement graph source/query/export, implement planned proto storage/validation/materialization, add ontology coverage, then ship UI.
 
 ## 🎨 UX & Branding
 - Look & feel: Dense engineering planning surface, not a marketing page; restrained controls, readable graph labels, stable panels, and theme-aware status colors.

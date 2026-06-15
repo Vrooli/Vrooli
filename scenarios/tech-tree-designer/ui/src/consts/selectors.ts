@@ -325,8 +325,8 @@ const literalSelectors = {
   pages: {
     dashboard: "page-dashboard",
     graph: "page-graph",
+    ontology: "page-ontology",
     planning: "page-planning",
-    roadmap: "page-roadmap",
     settings: "page-settings",
   },
   graph: {
@@ -364,12 +364,12 @@ const dynamicSelectorDefinitions = {
     sidebarLink: defineDynamicSelector({
       description: "Sidebar navigation link by canonical nav key",
       testIdPattern: "layout-sidebar-link-${key}",
-      params: { key: { type: "enum", values: ["dashboard", "graph", "planning", "roadmap", "settings"] as const } },
+      params: { key: { type: "enum", values: ["dashboard", "graph", "ontology", "planning", "settings"] as const } },
     }),
     bottomNavLink: defineDynamicSelector({
       description: "Bottom-nav link by canonical nav key",
       testIdPattern: "layout-bottom-nav-link-${key}",
-      params: { key: { type: "enum", values: ["dashboard", "graph", "planning", "roadmap", "settings"] as const } },
+      params: { key: { type: "enum", values: ["dashboard", "graph", "ontology", "planning", "settings"] as const } },
     }),
   },
   settingsPage: {

@@ -10,8 +10,8 @@
     "nav": {
       "dashboard": "ダッシュボード",
       "graph": "グラフ",
+      "ontology": "オントロジー",
       "planning": "計画",
-      "roadmap": "ロードマップ",
       "settings": "設定"
     }
   },
@@ -100,35 +100,53 @@
     },
     "materialized": "{{count}} 個の proto ファイルを書き込みました。"
   },
-  "roadmap": {
-    "eyebrow": "ロードマップオーバーレイ",
-    "title": "セクター、ティア、マイルストーン",
-    "description": "2つ目のグラフモデルを作らずに計画成熟度を追跡します。進捗はシナリオの安定性から集計されます。",
+  "ontology": {
+    "eyebrow": "能力オントロジー",
+    "title": "カバレッジと充足",
+    "description": "トップダウンの能力ツリーを作成し、ライブおよび計画シナリオを配置して、レイヤー横断のカバレッジを確認します。",
+    "actions": {
+      "refresh": "再読み込み"
+    },
     "metrics": {
-      "sectors": "セクター",
-      "milestones": "マイルストーン",
-      "buckets": "進捗バケット"
+      "capabilities": "能力",
+      "ontologyCompleteness": "オントロジー範囲",
+      "implementationSituatedness": "配置済みシナリオ",
+      "unmapped": "未配置"
     },
-    "tiers": {
-      "title": "ティア進行",
-      "sectorColumn": "セクター",
-      "progressCounts": "P {{planned}} / L {{live}} / S {{stable}}"
+    "tree": {
+      "filterPlaceholder": "能力を絞り込み"
     },
-    "sectors": {
-      "title": "セクター"
+    "focus": {
+      "title": "フォーカスキュー",
+      "score": "スコア {{score}} · 下流 {{dependents}}",
+      "empty": "フォーカス項目はまだありません。"
     },
-    "milestones": {
-      "title": "マイルストーン",
-      "requiredScenarios": "{{count}} 件の必須シナリオ"
+    "detail": {
+      "none": "能力が選択されていません",
+      "noDescription": "説明はまだありません。",
+      "direct": "直接",
+      "subtree": "サブツリー",
+      "fulfillments": "充足",
+      "yes": "はい",
+      "no": "いいえ"
+    },
+    "fulfillment": {
+      "placeholder": "scenario-slug",
+      "link": "シナリオをリンク"
+    },
+    "coverage": {
+      "title": "セクターカバレッジ",
+      "counts": "構築済み {{built}} / 進行中 {{inflight}} / ギャップ {{gap}}"
+    },
+    "overlay": {
+      "title": "オーバーレイグラフ: {{nodes}} ノード / {{edges}} エッジ",
+      "ariaLabel": "オントロジーオーバーレイグラフ",
+      "empty": "この表示に一致するオーバーレイノードはありません。"
     },
     "states": {
-      "loadingProgress": "進捗を読み込み中…",
-      "noSectors": "セクターはまだ追加されていません。",
-      "noMilestones": "マイルストーンはまだ追加されていません。"
-    },
-    "fallbacks": {
-      "unassigned": "未割り当て",
-      "noDescription": "説明はまだありません。"
+      "loading": "オントロジーカバレッジを読み込み中…",
+      "error": "オントロジーデータを利用できません。API が起動していることを確認してください。",
+      "empty": "能力はまだインポートされていません。"
     }
   },
   "health": {

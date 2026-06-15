@@ -18,17 +18,17 @@ proto-health DescribeScenariosProtos
 Connect API <-> CLI / UI / future agents
         |
         v
-SQLite planning + roadmap metadata
+SQLite planning + ontology metadata
 ```
 
-The graph is scenario-centric: nodes are scenarios, edges are real interface dependencies. Sector, tier, and milestone data are overlays for grouping and progress, not a separate fulfillment model.
+The graph is scenario-centric: nodes are scenarios, edges are real interface dependencies. The ontology is a separate top-down capability layer joined to scenarios through explicit fulfillment links.
 
 ## Interfaces
 
 | Interface | Obligation |
 |---|---|
-| Programmatic | Connect graph and planning RPCs must be stable enough for agents and future scenarios to consume. CLI commands mirror the API for operator and agent use. |
-| Direct UI | The interactive graph, planning editor, and roadmap views must handle loading, error, empty, and validation-finding states before the scenario is considered production-ready. |
+| Programmatic | Connect graph, planning, and ontology RPCs must be stable enough for agents and future scenarios to consume. CLI commands mirror the API for operator and agent use. |
+| Direct UI | The interactive graph, planning editor, and ontology coverage views must handle loading, error, empty, and validation-finding states before the scenario is considered production-ready. |
 
 ## Ecosystem Fit
 
@@ -37,13 +37,14 @@ Role: meta / interface-enabler. TTD advances the engineering meta-capability by 
 Compound-value seams:
 - `GraphSource` lets the live graph use `proto-health` now and `scenario-dependency-analyzer` later.
 - Planning RPCs let future agents create, validate, inspect, and materialize planned proto contracts.
+- Ontology coverage/focus RPCs let future agents prioritize gaps and place unmapped scenarios.
 - Export/query RPCs let other scenarios ask neighborhood, path, ancestry, and graph-shape questions.
 
 Monetization: internal meta scenario; no paid-feature wiring.
 
 ## Domain Module Pattern
 
-Each real domain owns its API internals, handlers, CLI package, UI feature, proto schema, and storage schema. Current implementation contains health, the graph domain's proto-health-backed query/export surface, the planning domain's SQLite-backed planned proto file tree, validator, materializer, planned graph overlay, and the roadmap domain's sector/milestone/progress overlay. Graph, planning, and roadmap are exposed through Connect RPC, CLI commands, and production UI routes.
+Each real domain owns its API internals, handlers, CLI package, UI feature, proto schema, and storage schema. Current implementation contains health, the graph domain's proto-health-backed query/export surface, the planning domain's SQLite-backed planned proto file tree, validator, materializer, planned graph overlay, and the ontology domain's capability tree, fulfillment, coverage, focus, and overlay projection. Graph, planning, and ontology are exposed through Connect RPC, CLI commands, and production UI routes.
 
 ## Contract Rules
 
@@ -58,7 +59,7 @@ Each real domain owns its API internals, handlers, CLI package, UI feature, prot
 SQLite is the default store. Domain schemas live beside their domain code:
 - `api/internal/graph/schema.sql` for optional graph cache.
 - `api/internal/planning/schema.sql` for planned scenarios and planned proto files.
-- `api/internal/roadmap/schema.sql` for sectors, tiers, milestones, and overlays.
+- `api/internal/ontology/schema.sql` for capabilities, capability edges, fulfillment links, and explicit coverage exclusions.
 
 `materialize` is the one intentional outside-scenario write path: it writes validated planned proto text into `packages/proto/schemas/<slug>/` and runs `make generate`.
 

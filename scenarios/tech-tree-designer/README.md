@@ -6,7 +6,7 @@ This scenario was greenfield-regenerated from the `react-vite` template. The old
 
 ## What You Get
 
-The regenerated scenario contains the modern health surface, SQLite lifecycle wiring, generated graph/planning/roadmap protos, Connect handlers, CLI bindings, and UI routes. The old Gin/Postgres implementation and the template notes example are gone.
+The regenerated scenario contains the modern health surface, SQLite lifecycle wiring, generated graph/planning/ontology protos, Connect handlers, CLI bindings, and UI routes. The old Gin/Postgres implementation and the template notes example are gone.
 
 Implemented product domains:
 
@@ -14,7 +14,7 @@ Implemented product domains:
 |---|---|
 | graph | Build scenario nodes and proto-import dependency edges from `proto-health` behind `GraphSource`, then query and export the graph. |
 | planning | Store planned scenarios as real `.proto` text, validate them, and materialize validated proto schemas. |
-| roadmap | Attach sectors, tiers, and milestones as graph metadata overlays and roll up progress. |
+| ontology | Author top-down capability nodes, link live/planned scenarios through fulfillment, and compute cross-layer coverage. |
 
 ## Running
 
@@ -41,8 +41,9 @@ tech-tree-designer plan add <slug> <path> --from-file <file>
 tech-tree-designer plan validate <slug>
 tech-tree-designer plan materialize <slug>
 
-tech-tree-designer roadmap sectors
-tech-tree-designer roadmap progress
+tech-tree-designer ontology capabilities
+tech-tree-designer ontology coverage
+tech-tree-designer ontology overlay
 ```
 
 ## Key Documents
@@ -58,4 +59,4 @@ tech-tree-designer roadmap progress
 
 ## Customize Safely
 
-Use domain-owned folders for graph, planning, and roadmap work. Keep generated proto output regenerated from schemas, and use scenario lifecycle commands for start/test/stop.
+Use domain-owned folders for graph, planning, and ontology work. Keep generated proto output regenerated from schemas, and use scenario lifecycle commands for start/test/stop.

@@ -6,24 +6,27 @@ import {
   type ExportTechTreeResponse,
 } from "@vrooli/proto-types/tech-tree-designer/v1/graph/graph_pb";
 import {
+  CapabilityKind,
+  OntologyService,
+  type Capability,
+  type CoverageSummary,
+  type Fulfillment,
+  type ListFocusResponse,
+  type OverlayGraph,
+} from "@vrooli/proto-types/tech-tree-designer/v1/ontology/ontology_pb";
+import {
   PlanningService,
   type MaterializePlannedScenarioResponse,
   type PlannedProtoFile,
   type PlannedScenario,
   type ValidatePlannedScenarioResponse,
 } from "@vrooli/proto-types/tech-tree-designer/v1/planning/planning_pb";
-import {
-  RoadmapService,
-  type ListMilestonesResponse,
-  type ListSectorsResponse,
-  type ProgressRollup,
-} from "@vrooli/proto-types/tech-tree-designer/v1/roadmap/roadmap_pb";
 
 import { transport } from "./client";
 
 export const graphClient = createClient(GraphService, transport);
+export const ontologyClient = createClient(OntologyService, transport);
 export const planningClient = createClient(PlanningService, transport);
-export const roadmapClient = createClient(RoadmapService, transport);
 
 export type GroupBy = "none" | "sector" | "tier";
 
@@ -93,27 +96,56 @@ export async function materializePlannedScenario(
   return planningClient.materializePlannedScenario({ slug });
 }
 
-export async function listSectors(): Promise<ListSectorsResponse> {
-  return roadmapClient.listSectors({});
+export async function listCapabilities(): Promise<Capability[]> {
+  const response = await ontologyClient.listCapabilities({
+    parentId: "",
+    kind: CapabilityKind.UNSPECIFIED,
+    includeDescendants: true,
+  });
+  return response.capabilities;
 }
 
-export async function listMilestones(): Promise<ListMilestonesResponse> {
-  return roadmapClient.listMilestones({});
+export async function getOntologyCoverage(): Promise<CoverageSummary> {
+  return ontologyClient.getCoverage({ includeSubtreeRollup: true });
 }
 
-export async function getProgress(): Promise<ProgressRollup> {
-  return roadmapClient.getProgress({ sector: "", tier: "" });
+export async function listOntologyFocus(): Promise<ListFocusResponse> {
+  return ontologyClient.listFocus({ limit: 8 });
+}
+
+export async function listFulfillments(): Promise<Fulfillment[]> {
+  const response = await ontologyClient.listFulfillments({ capabilityId: "", scenarioSlug: "" });
+  return response.fulfillments;
+}
+
+export async function unlinkFulfillment(input: {
+  capabilityId: string;
+  scenarioSlug: string;
+}): Promise<boolean> {
+  const response = await ontologyClient.unlinkFulfillment(input);
+  return response.deleted;
+}
+
+export async function describeOverlayGraph(): Promise<OverlayGraph | undefined> {
+  const response = await ontologyClient.describeOverlayGraph({
+    includeImplementation: true,
+    includeOntology: true,
+    includeFulfillment: true,
+  });
+  return response.graph;
 }
 
 export { ExportFormat };
 export type {
+  Capability,
+  CoverageSummary,
   DescribeTechTreeResponse,
   ExportTechTreeResponse,
+  Fulfillment,
+  ListFocusResponse,
+  OverlayGraph,
   PlannedProtoFile,
   PlannedScenario,
   ValidatePlannedScenarioResponse,
   MaterializePlannedScenarioResponse,
-  ListMilestonesResponse,
-  ListSectorsResponse,
-  ProgressRollup,
 };

@@ -9,7 +9,7 @@ Proto-typed UI, CLI, and inter-scenario calls use Connect-RPC. Errors
 move through domain, transport, and client layers:
 
 1. Domain/service code returns typed sentinels such as
-   planning or roadmap validation errors.
+   planning or ontology validation errors.
 2. The API transport edge maps those sentinels to `connect.Error`
    values in `internal/<domain>/service_error_mapping.go`.
 3. The UI receives `ConnectError`, maps `ConnectError.code` to an

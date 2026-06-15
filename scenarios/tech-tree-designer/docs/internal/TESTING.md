@@ -6,14 +6,14 @@ Record the test strategy for the regenerated scenario.
 
 ## Current Scaffold
 
-The regenerated scaffold has been extended into the real graph, planning, and roadmap product surface. Current validation covers:
+The regenerated scaffold has been extended into the real graph, planning, and ontology product surface. Current validation covers:
 
 - API health handler, module registry, endpoint generation, and server wiring.
 - Graph `GraphSource` mapping, graph service queries/export, Connect handler mounting, and CLI commands.
 - Planning SQLite file-tree CRUD, protocompile validation, materialization, Connect handlers, CLI commands, and UI editor behavior.
-- Roadmap SQLite storage, sector/milestone handlers, progress rollup, CLI commands, and UI route behavior.
-- UI health card, graph/planning/roadmap routing, accessibility, selectors, i18n, theme provider, and test utilities.
-- Proto generation for health, graph, planning, roadmap, and error contracts.
+- Ontology SQLite storage, import mapping, fulfillment links, coverage/focus math, overlay projection, CLI commands, and UI route behavior.
+- UI health card, graph/planning/ontology routing, accessibility, selectors, i18n, theme provider, and test utilities.
+- Proto generation for health, graph, planning, ontology, and error contracts.
 
 ## Commands
 
@@ -32,7 +32,7 @@ No required product domain is intentionally uncovered in the shipped scope. Futu
 |---|---|
 | graph | fake GraphSource mapping, proto-health client mapping, graph queries, export formats, Connect handler, CLI commands, UI graph rendering |
 | planning | SQLite file-tree CRUD, protocompile validation, findings, materialize guard, CLI filesystem-feel commands, UI editor CRUD |
-| roadmap | sector/tier/milestone storage, overlay attachment, progress rollup, UI progress display |
+| ontology | capability storage, topology import, fulfillment, coverage/focus analytics, overlay projection, UI coverage display |
 | UI | live/planned styling, editor CRUD, validation findings, loading/error/empty states |
 
 ## Requirement Tags

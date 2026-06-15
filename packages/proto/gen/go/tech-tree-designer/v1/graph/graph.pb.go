@@ -27,6 +27,7 @@ const (
 	NodeKind_NODE_KIND_UNSPECIFIED NodeKind = 0
 	NodeKind_NODE_KIND_LIVE        NodeKind = 1
 	NodeKind_NODE_KIND_PLANNED     NodeKind = 2
+	NodeKind_NODE_KIND_CAPABILITY  NodeKind = 3
 )
 
 // Enum value maps for NodeKind.
@@ -35,11 +36,13 @@ var (
 		0: "NODE_KIND_UNSPECIFIED",
 		1: "NODE_KIND_LIVE",
 		2: "NODE_KIND_PLANNED",
+		3: "NODE_KIND_CAPABILITY",
 	}
 	NodeKind_value = map[string]int32{
 		"NODE_KIND_UNSPECIFIED": 0,
 		"NODE_KIND_LIVE":        1,
 		"NODE_KIND_PLANNED":     2,
+		"NODE_KIND_CAPABILITY":  3,
 	}
 )
 
@@ -77,6 +80,8 @@ const (
 	EvidenceSource_EVIDENCE_SOURCE_PROTO_IMPORT         EvidenceSource = 1
 	EvidenceSource_EVIDENCE_SOURCE_GO_IMPORT            EvidenceSource = 2
 	EvidenceSource_EVIDENCE_SOURCE_PLANNED_PROTO_IMPORT EvidenceSource = 3
+	EvidenceSource_EVIDENCE_SOURCE_DECOMPOSES           EvidenceSource = 4
+	EvidenceSource_EVIDENCE_SOURCE_FULFILLS             EvidenceSource = 5
 )
 
 // Enum value maps for EvidenceSource.
@@ -86,12 +91,16 @@ var (
 		1: "EVIDENCE_SOURCE_PROTO_IMPORT",
 		2: "EVIDENCE_SOURCE_GO_IMPORT",
 		3: "EVIDENCE_SOURCE_PLANNED_PROTO_IMPORT",
+		4: "EVIDENCE_SOURCE_DECOMPOSES",
+		5: "EVIDENCE_SOURCE_FULFILLS",
 	}
 	EvidenceSource_value = map[string]int32{
 		"EVIDENCE_SOURCE_UNSPECIFIED":          0,
 		"EVIDENCE_SOURCE_PROTO_IMPORT":         1,
 		"EVIDENCE_SOURCE_GO_IMPORT":            2,
 		"EVIDENCE_SOURCE_PLANNED_PROTO_IMPORT": 3,
+		"EVIDENCE_SOURCE_DECOMPOSES":           4,
+		"EVIDENCE_SOURCE_FULFILLS":             5,
 	}
 )
 
@@ -647,8 +656,11 @@ type TechNode struct {
 	Stability      []string               `protobuf:"bytes,5,rep,name=stability,proto3" json:"stability,omitempty"`
 	Sector         string                 `protobuf:"bytes,6,opt,name=sector,proto3" json:"sector,omitempty"`
 	Tier           string                 `protobuf:"bytes,7,opt,name=tier,proto3" json:"tier,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// parent carries the capability parent id for ontology overlay nodes. It is
+	// empty for scenario graph nodes.
+	Parent        string `protobuf:"bytes,8,opt,name=parent,proto3" json:"parent,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TechNode) Reset() {
@@ -726,6 +738,13 @@ func (x *TechNode) GetSector() string {
 func (x *TechNode) GetTier() string {
 	if x != nil {
 		return x.Tier
+	}
+	return ""
+}
+
+func (x *TechNode) GetParent() string {
+	if x != nil {
+		return x.Parent
 	}
 	return ""
 }
@@ -986,7 +1005,7 @@ const file_tech_tree_designer_v1_graph_graph_proto_rawDesc = "" +
 	"\rTechTreeGraph\x12B\n" +
 	"\x05nodes\x18\x01 \x03(\v2,.vrooli.tech_tree_designer.v1.graph.TechNodeR\x05nodes\x12B\n" +
 	"\x05edges\x18\x02 \x03(\v2,.vrooli.tech_tree_designer.v1.graph.TechEdgeR\x05edges\x12F\n" +
-	"\x06errors\x18\x03 \x03(\v2..vrooli.tech_tree_designer.v1.graph.GraphErrorR\x06errors\"\xfe\x01\n" +
+	"\x06errors\x18\x03 \x03(\v2..vrooli.tech_tree_designer.v1.graph.GraphErrorR\x06errors\"\x96\x02\n" +
 	"\bTechNode\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12@\n" +
 	"\x04kind\x18\x02 \x01(\x0e2,.vrooli.tech_tree_designer.v1.graph.NodeKindR\x04kind\x12!\n" +
@@ -994,7 +1013,8 @@ const file_tech_tree_designer_v1_graph_graph_proto_rawDesc = "" +
 	"\x0ftransport_world\x18\x04 \x01(\tR\x0etransportWorld\x12\x1c\n" +
 	"\tstability\x18\x05 \x03(\tR\tstability\x12\x16\n" +
 	"\x06sector\x18\x06 \x01(\tR\x06sector\x12\x12\n" +
-	"\x04tier\x18\a \x01(\tR\x04tier\"\xe6\x01\n" +
+	"\x04tier\x18\a \x01(\tR\x04tier\x12\x16\n" +
+	"\x06parent\x18\b \x01(\tR\x06parent\"\xe6\x01\n" +
 	"\bTechEdge\x12#\n" +
 	"\rfrom_scenario\x18\x01 \x01(\tR\ffromScenario\x12\x1f\n" +
 	"\vto_scenario\x18\x02 \x01(\tR\n" +
@@ -1014,16 +1034,19 @@ const file_tech_tree_designer_v1_graph_graph_proto_rawDesc = "" +
 	"GraphError\x12\x16\n" +
 	"\x06source\x18\x01 \x01(\tR\x06source\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage*P\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage*j\n" +
 	"\bNodeKind\x12\x19\n" +
 	"\x15NODE_KIND_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eNODE_KIND_LIVE\x10\x01\x12\x15\n" +
-	"\x11NODE_KIND_PLANNED\x10\x02*\x9c\x01\n" +
+	"\x11NODE_KIND_PLANNED\x10\x02\x12\x18\n" +
+	"\x14NODE_KIND_CAPABILITY\x10\x03*\xda\x01\n" +
 	"\x0eEvidenceSource\x12\x1f\n" +
 	"\x1bEVIDENCE_SOURCE_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cEVIDENCE_SOURCE_PROTO_IMPORT\x10\x01\x12\x1d\n" +
 	"\x19EVIDENCE_SOURCE_GO_IMPORT\x10\x02\x12(\n" +
-	"$EVIDENCE_SOURCE_PLANNED_PROTO_IMPORT\x10\x03*t\n" +
+	"$EVIDENCE_SOURCE_PLANNED_PROTO_IMPORT\x10\x03\x12\x1e\n" +
+	"\x1aEVIDENCE_SOURCE_DECOMPOSES\x10\x04\x12\x1c\n" +
+	"\x18EVIDENCE_SOURCE_FULFILLS\x10\x05*t\n" +
 	"\fExportFormat\x12\x1d\n" +
 	"\x19EXPORT_FORMAT_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11EXPORT_FORMAT_DOT\x10\x01\x12\x16\n" +

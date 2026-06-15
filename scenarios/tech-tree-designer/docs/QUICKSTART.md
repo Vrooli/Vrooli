@@ -41,7 +41,7 @@ cd scenarios/tech-tree-designer/ui && corepack pnpm test
 
 ## Current Limitations
 
-The regenerated scenario exposes graph, planning, and roadmap surfaces through the Connect API, CLI, and UI. Use `tech-tree-designer graph --help`, `tech-tree-designer plan --help`, and `tech-tree-designer roadmap --help` for command details.
+The regenerated scenario exposes graph, planning, and ontology surfaces through the Connect API, CLI, and UI. Use `tech-tree-designer graph --help`, `tech-tree-designer plan --help`, and `tech-tree-designer ontology --help` for command details.
 
 Deferred integrations are tracked in [`internal/PROBLEMS.md`](internal/PROBLEMS.md): AI strategic analysis, the future SDA graph source, scenario scaffold generation from planned nodes, and proto-health import governance.
 

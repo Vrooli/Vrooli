@@ -57,7 +57,7 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Workaround:** Keep AI analysis out of service dependencies and UI/API scope.
 
-**Real fix:** Implement follow-up `tech-tree-designer-ai-strategic-analysis` after graph, planning, roadmap, and UI are stable.
+**Real fix:** Implement follow-up `tech-tree-designer-ai-strategic-analysis` after graph, planning, ontology, and UI are stable.
 
 **Owner:** unassigned.
 

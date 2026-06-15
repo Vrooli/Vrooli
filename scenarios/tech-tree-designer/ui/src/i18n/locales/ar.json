@@ -10,8 +10,8 @@
     "nav": {
       "dashboard": "لوحة التحكم",
       "graph": "الرسم البياني",
+      "ontology": "الأنطولوجيا",
       "planning": "التخطيط",
-      "roadmap": "خارطة الطريق",
       "settings": "الإعدادات"
     }
   },
@@ -101,36 +101,53 @@
     "materialized": "تمت كتابة {{count}} ملفات proto.",
     "materialized_one": "تمت كتابة ملف proto واحد."
   },
-  "roadmap": {
-    "eyebrow": "طبقة خارطة الطريق",
-    "title": "القطاعات والمستويات والمعالم",
-    "description": "تتبع نضج التخطيط دون إنشاء نموذج رسم ثانٍ. يُجمع التقدم من استقرار السيناريوهات.",
+  "ontology": {
+    "eyebrow": "أنطولوجيا القدرات",
+    "title": "التغطية والوفاء",
+    "description": "أنشئ شجرة القدرات من الأعلى إلى الأسفل، واربط بها السيناريوهات الحية والمخططة، وافحص التغطية بين الطبقات.",
+    "actions": {
+      "refresh": "تحديث"
+    },
     "metrics": {
-      "sectors": "القطاعات",
-      "milestones": "المعالم",
-      "buckets": "حاويات التقدم"
+      "capabilities": "القدرات",
+      "ontologyCompleteness": "تغطية الأنطولوجيا",
+      "implementationSituatedness": "سيناريوهات مرتبطة",
+      "unmapped": "غير مرتبطة"
     },
-    "tiers": {
-      "title": "تقدم المستويات",
-      "sectorColumn": "القطاع",
-      "progressCounts": "P {{planned}} / L {{live}} / S {{stable}}"
+    "tree": {
+      "filterPlaceholder": "تصفية القدرات"
     },
-    "sectors": {
-      "title": "القطاعات"
+    "focus": {
+      "title": "قائمة التركيز",
+      "score": "النتيجة {{score}} · {{dependents}} تبعيات لاحقة",
+      "empty": "لا توجد عناصر تركيز بعد."
     },
-    "milestones": {
-      "title": "المعالم",
-      "requiredScenarios": "{{count}} سيناريوهات مطلوبة",
-      "requiredScenarios_one": "سيناريو مطلوب واحد"
+    "detail": {
+      "none": "لم يتم اختيار قدرة",
+      "noDescription": "لا يوجد وصف بعد.",
+      "direct": "مباشر",
+      "subtree": "الشجرة الفرعية",
+      "fulfillments": "الوفاءات",
+      "yes": "نعم",
+      "no": "لا"
+    },
+    "fulfillment": {
+      "placeholder": "scenario-slug",
+      "link": "ربط السيناريو"
+    },
+    "coverage": {
+      "title": "تغطية القطاعات",
+      "counts": "مبني {{built}} / قيد التنفيذ {{inflight}} / فجوة {{gap}}"
+    },
+    "overlay": {
+      "title": "رسم الطبقات: {{nodes}} عقد / {{edges}} حواف",
+      "ariaLabel": "رسم طبقات الأنطولوجيا",
+      "empty": "لا توجد عقد مطابقة لهذا العرض."
     },
     "states": {
-      "loadingProgress": "جارٍ تحميل التقدم…",
-      "noSectors": "لم تتم إضافة أي قطاعات بعد.",
-      "noMilestones": "لم تتم إضافة أي معالم بعد."
-    },
-    "fallbacks": {
-      "unassigned": "غير مخصص",
-      "noDescription": "لا يوجد وصف بعد."
+      "loading": "جارٍ تحميل تغطية الأنطولوجيا…",
+      "error": "بيانات الأنطولوجيا غير متاحة. تأكد من تشغيل API.",
+      "empty": "لم يتم استيراد أي قدرات بعد."
     }
   },
   "health": {

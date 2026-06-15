@@ -143,6 +143,293 @@
       }
     },
     {
+      "id": "ontology-capabilities-list",
+      "path": "/vrooli.tech_tree_designer.v1.ontology.OntologyService/ListCapabilities",
+      "method": "POST",
+      "summary": "List capability ontology nodes",
+      "description": "Lists top-down capability nodes, optionally filtered by parent, descendants, and kind.",
+      "category": "ontology",
+      "request": {
+        "type": "ListCapabilitiesRequest"
+      },
+      "response": {
+        "type": "ListCapabilitiesResponse"
+      },
+      "cli_mapping": {
+        "command": "tech-tree-designer ontology capabilities"
+      }
+    },
+    {
+      "id": "ontology-capability-get",
+      "path": "/vrooli.tech_tree_designer.v1.ontology.OntologyService/GetCapability",
+      "method": "POST",
+      "summary": "Get a capability",
+      "description": "Returns one capability by id or slug.",
+      "category": "ontology",
+      "request": {
+        "type": "GetCapabilityRequest"
+      },
+      "response": {
+        "type": "Capability"
+      },
+      "cli_mapping": {
+        "command": "tech-tree-designer ontology capability",
+        "args": [
+          "<slug>"
+        ]
+      }
+    },
+    {
+      "id": "ontology-capability-upsert",
+      "path": "/vrooli.tech_tree_designer.v1.ontology.OntologyService/UpsertCapability",
+      "method": "POST",
+      "summary": "Create or update a capability",
+      "description": "Upserts a capability node in the top-down ontology tree.",
+      "category": "ontology",
+      "request": {
+        "type": "UpsertCapabilityRequest"
+      },
+      "response": {
+        "type": "Capability"
+      },
+      "cli_mapping": {
+        "command": "tech-tree-designer ontology capability-upsert"
+      }
+    },
+    {
+      "id": "ontology-capability-delete",
+      "path": "/vrooli.tech_tree_designer.v1.ontology.OntologyService/DeleteCapability",
+      "method": "POST",
+      "summary": "Delete a capability",
+      "description": "Deletes one capability node by id or slug.",
+      "category": "ontology",
+      "request": {
+        "type": "DeleteCapabilityRequest"
+      },
+      "response": {
+        "type": "DeleteCapabilityResponse"
+      },
+      "cli_mapping": {
+        "command": "tech-tree-designer ontology capability-rm",
+        "args": [
+          "<slug>"
+        ]
+      }
+    },
+    {
+      "id": "ontology-edge-upsert",
+      "path": "/vrooli.tech_tree_designer.v1.ontology.OntologyService/UpsertCapabilityEdge",
+      "method": "POST",
+      "summary": "Create a capability edge",
+      "description": "Creates a decomposition, progression, or requirement edge between capabilities.",
+      "category": "ontology",
+      "request": {
+        "type": "UpsertCapabilityEdgeRequest"
+      },
+      "response": {
+        "type": "CapabilityEdge"
+      },
+      "cli_mapping": {
+        "command": "tech-tree-designer ontology edge-add",
+        "args": [
+          "<from>",
+          "<to>"
+        ]
+      }
+    },
+    {
+      "id": "ontology-edge-delete",
+      "path": "/vrooli.tech_tree_designer.v1.ontology.OntologyService/DeleteCapabilityEdge",
+      "method": "POST",
+      "summary": "Delete a capability edge",
+      "description": "Deletes one capability edge.",
+      "category": "ontology",
+      "request": {
+        "type": "DeleteCapabilityEdgeRequest"
+      },
+      "response": {
+        "type": "DeleteCapabilityEdgeResponse"
+      },
+      "cli_mapping": {
+        "command": "tech-tree-designer ontology edge-rm",
+        "args": [
+          "<from>",
+          "<to>"
+        ]
+      }
+    },
+    {
+      "id": "ontology-import-topology",
+      "path": "/vrooli.tech_tree_designer.v1.ontology.OntologyService/ImportTopology",
+      "method": "POST",
+      "summary": "Import ontology topology JSON",
+      "description": "Idempotently imports the macro topology seed shape into capability nodes and progression edges.",
+      "category": "ontology",
+      "request": {
+        "type": "ImportTopologyRequest"
+      },
+      "response": {
+        "type": "ImportTopologyResponse"
+      },
+      "cli_mapping": {
+        "command": "tech-tree-designer ontology import",
+        "args": [
+          "--from-file",
+          "<path>"
+        ]
+      }
+    },
+    {
+      "id": "ontology-fulfillment-link",
+      "path": "/vrooli.tech_tree_designer.v1.ontology.OntologyService/LinkFulfillment",
+      "method": "POST",
+      "summary": "Link a scenario fulfillment",
+      "description": "Links a capability to a live or planned scenario slug.",
+      "category": "ontology",
+      "request": {
+        "type": "LinkFulfillmentRequest"
+      },
+      "response": {
+        "type": "Fulfillment"
+      },
+      "cli_mapping": {
+        "command": "tech-tree-designer ontology fulfill",
+        "args": [
+          "<capability>",
+          "<scenario>"
+        ]
+      }
+    },
+    {
+      "id": "ontology-fulfillment-unlink",
+      "path": "/vrooli.tech_tree_designer.v1.ontology.OntologyService/UnlinkFulfillment",
+      "method": "POST",
+      "summary": "Unlink a scenario fulfillment",
+      "description": "Removes a capability-to-scenario fulfillment link.",
+      "category": "ontology",
+      "request": {
+        "type": "UnlinkFulfillmentRequest"
+      },
+      "response": {
+        "type": "UnlinkFulfillmentResponse"
+      },
+      "cli_mapping": {
+        "command": "tech-tree-designer ontology unfulfill",
+        "args": [
+          "<capability>",
+          "<scenario>"
+        ]
+      }
+    },
+    {
+      "id": "ontology-fulfillments-list",
+      "path": "/vrooli.tech_tree_designer.v1.ontology.OntologyService/ListFulfillments",
+      "method": "POST",
+      "summary": "List fulfillment links",
+      "description": "Lists capability-to-scenario fulfillment links.",
+      "category": "ontology",
+      "request": {
+        "type": "ListFulfillmentsRequest"
+      },
+      "response": {
+        "type": "ListFulfillmentsResponse"
+      },
+      "cli_mapping": {
+        "command": "tech-tree-designer ontology fulfillments"
+      }
+    },
+    {
+      "id": "ontology-coverage",
+      "path": "/vrooli.tech_tree_designer.v1.ontology.OntologyService/GetCoverage",
+      "method": "POST",
+      "summary": "Get coverage analytics",
+      "description": "Computes built, in-flight, gap, and unmapped coverage across ontology and implementation layers.",
+      "category": "ontology",
+      "request": {
+        "type": "GetCoverageRequest"
+      },
+      "response": {
+        "type": "CoverageSummary"
+      },
+      "cli_mapping": {
+        "command": "tech-tree-designer ontology coverage"
+      }
+    },
+    {
+      "id": "ontology-focus",
+      "path": "/vrooli.tech_tree_designer.v1.ontology.OntologyService/ListFocus",
+      "method": "POST",
+      "summary": "List focus candidates",
+      "description": "Ranks ontology gaps and unmapped scenarios for portfolio prioritization.",
+      "category": "ontology",
+      "request": {
+        "type": "ListFocusRequest"
+      },
+      "response": {
+        "type": "ListFocusResponse"
+      },
+      "cli_mapping": {
+        "command": "tech-tree-designer ontology focus"
+      }
+    },
+    {
+      "id": "ontology-capability-scenarios",
+      "path": "/vrooli.tech_tree_designer.v1.ontology.OntologyService/GetCapabilityScenarios",
+      "method": "POST",
+      "summary": "List scenarios for a capability",
+      "description": "Returns live and planned scenarios fulfilling a capability, optionally through descendants.",
+      "category": "ontology",
+      "request": {
+        "type": "GetCapabilityScenariosRequest"
+      },
+      "response": {
+        "type": "CapabilityScenarios"
+      },
+      "cli_mapping": {
+        "command": "tech-tree-designer ontology capability-scenarios",
+        "args": [
+          "<slug>"
+        ]
+      }
+    },
+    {
+      "id": "ontology-scenario-capabilities",
+      "path": "/vrooli.tech_tree_designer.v1.ontology.OntologyService/GetScenarioCapabilities",
+      "method": "POST",
+      "summary": "List capabilities for a scenario",
+      "description": "Returns ontology capabilities directly fulfilled by one scenario slug.",
+      "category": "ontology",
+      "request": {
+        "type": "GetScenarioCapabilitiesRequest"
+      },
+      "response": {
+        "type": "ScenarioCapabilities"
+      },
+      "cli_mapping": {
+        "command": "tech-tree-designer ontology scenario",
+        "args": [
+          "<slug>"
+        ]
+      }
+    },
+    {
+      "id": "ontology-overlay-graph",
+      "path": "/vrooli.tech_tree_designer.v1.ontology.OntologyService/DescribeOverlayGraph",
+      "method": "POST",
+      "summary": "Describe the overlay graph",
+      "description": "Projects capability nodes, ontology edges, fulfillment edges, and implementation graph nodes into one graph response.",
+      "category": "ontology",
+      "request": {
+        "type": "DescribeOverlayGraphRequest"
+      },
+      "response": {
+        "type": "DescribeOverlayGraphResponse"
+      },
+      "cli_mapping": {
+        "command": "tech-tree-designer ontology overlay"
+      }
+    },
+    {
       "id": "planning-create",
       "path": "/vrooli.tech_tree_designer.v1.planning.PlanningService/CreatePlannedScenario",
       "method": "POST",
@@ -280,97 +567,6 @@
           "<slug>"
         ]
       }
-    },
-    {
-      "id": "roadmap-sectors-list",
-      "path": "/vrooli.tech_tree_designer.v1.roadmap.RoadmapService/ListSectors",
-      "method": "POST",
-      "summary": "List roadmap sectors",
-      "description": "Returns metadata sectors used to group live and planned scenario graph nodes.",
-      "category": "roadmap",
-      "request": {
-        "type": "ListSectorsRequest"
-      },
-      "response": {
-        "type": "ListSectorsResponse"
-      },
-      "cli_mapping": {
-        "command": "tech-tree-designer roadmap sectors"
-      }
-    },
-    {
-      "id": "roadmap-sectors-upsert",
-      "path": "/vrooli.tech_tree_designer.v1.roadmap.RoadmapService/UpsertSector",
-      "method": "POST",
-      "summary": "Create or update a roadmap sector",
-      "description": "Stores sector metadata for graph grouping and roadmap views.",
-      "category": "roadmap",
-      "request": {
-        "type": "UpsertSectorRequest"
-      },
-      "response": {
-        "type": "Sector"
-      },
-      "cli_mapping": {
-        "command": "tech-tree-designer roadmap sector",
-        "args": [
-          "<slug>"
-        ]
-      }
-    },
-    {
-      "id": "roadmap-milestones-list",
-      "path": "/vrooli.tech_tree_designer.v1.roadmap.RoadmapService/ListMilestones",
-      "method": "POST",
-      "summary": "List roadmap milestones",
-      "description": "Returns strategic milestones layered over scenario graph nodes.",
-      "category": "roadmap",
-      "request": {
-        "type": "ListMilestonesRequest"
-      },
-      "response": {
-        "type": "ListMilestonesResponse"
-      },
-      "cli_mapping": {
-        "command": "tech-tree-designer roadmap milestones"
-      }
-    },
-    {
-      "id": "roadmap-milestones-upsert",
-      "path": "/vrooli.tech_tree_designer.v1.roadmap.RoadmapService/UpsertMilestone",
-      "method": "POST",
-      "summary": "Create or update a roadmap milestone",
-      "description": "Stores a named milestone and the scenario nodes required to satisfy it.",
-      "category": "roadmap",
-      "request": {
-        "type": "UpsertMilestoneRequest"
-      },
-      "response": {
-        "type": "Milestone"
-      },
-      "cli_mapping": {
-        "command": "tech-tree-designer roadmap milestone",
-        "args": [
-          "<id>"
-        ]
-      }
-    },
-    {
-      "id": "roadmap-progress",
-      "path": "/vrooli.tech_tree_designer.v1.roadmap.RoadmapService/GetProgress",
-      "method": "POST",
-      "summary": "Get roadmap progress",
-      "description": "Rolls up live, planned, beta, and stable graph nodes by sector and tier.",
-      "category": "roadmap",
-      "request": {
-        "type": "GetProgressRequest"
-      },
-      "response": {
-        "type": "ProgressRollup"
-      },
-      "cli_mapping": {
-        "command": "tech-tree-designer roadmap progress"
-      }
     }
   ],
   "cli_commands": [
@@ -440,29 +636,79 @@
       "endpoint_id": "planning-materialize"
     },
     {
-      "name": "roadmap sectors",
-      "description": "List roadmap sectors",
-      "endpoint_id": "roadmap-sectors-list"
+      "name": "ontology capabilities",
+      "description": "List capability ontology nodes",
+      "endpoint_id": "ontology-capabilities-list"
     },
     {
-      "name": "roadmap sector",
-      "description": "Create or update a roadmap sector",
-      "endpoint_id": "roadmap-sectors-upsert"
+      "name": "ontology capability",
+      "description": "Get a capability by slug",
+      "endpoint_id": "ontology-capability-get"
     },
     {
-      "name": "roadmap milestones",
-      "description": "List roadmap milestones",
-      "endpoint_id": "roadmap-milestones-list"
+      "name": "ontology capability-upsert",
+      "description": "Create or update a capability",
+      "endpoint_id": "ontology-capability-upsert"
     },
     {
-      "name": "roadmap milestone",
-      "description": "Create or update a roadmap milestone",
-      "endpoint_id": "roadmap-milestones-upsert"
+      "name": "ontology capability-rm",
+      "description": "Delete a capability",
+      "endpoint_id": "ontology-capability-delete"
     },
     {
-      "name": "roadmap progress",
-      "description": "Roll up graph progress by sector and tier",
-      "endpoint_id": "roadmap-progress"
+      "name": "ontology edge-add",
+      "description": "Create a capability edge",
+      "endpoint_id": "ontology-edge-upsert"
+    },
+    {
+      "name": "ontology edge-rm",
+      "description": "Delete a capability edge",
+      "endpoint_id": "ontology-edge-delete"
+    },
+    {
+      "name": "ontology import",
+      "description": "Import topology JSON",
+      "endpoint_id": "ontology-import-topology"
+    },
+    {
+      "name": "ontology fulfill",
+      "description": "Link a capability to a scenario",
+      "endpoint_id": "ontology-fulfillment-link"
+    },
+    {
+      "name": "ontology unfulfill",
+      "description": "Remove a fulfillment link",
+      "endpoint_id": "ontology-fulfillment-unlink"
+    },
+    {
+      "name": "ontology fulfillments",
+      "description": "List fulfillment links",
+      "endpoint_id": "ontology-fulfillments-list"
+    },
+    {
+      "name": "ontology coverage",
+      "description": "Compute ontology coverage",
+      "endpoint_id": "ontology-coverage"
+    },
+    {
+      "name": "ontology focus",
+      "description": "List prioritized focus items",
+      "endpoint_id": "ontology-focus"
+    },
+    {
+      "name": "ontology capability-scenarios",
+      "description": "List scenarios fulfilling a capability",
+      "endpoint_id": "ontology-capability-scenarios"
+    },
+    {
+      "name": "ontology scenario",
+      "description": "List capabilities fulfilled by a scenario",
+      "endpoint_id": "ontology-scenario-capabilities"
+    },
+    {
+      "name": "ontology overlay",
+      "description": "Describe the overlay graph",
+      "endpoint_id": "ontology-overlay-graph"
     }
   ]
 }

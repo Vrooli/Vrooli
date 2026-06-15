@@ -1,6 +1,6 @@
 # Domains - Tech Tree Designer
 
-This document is the domain map for the regenerated Tech Tree Designer. The template notes domain has been removed; graph, planning, and roadmap are implemented as product domains.
+This document is the domain map for the regenerated Tech Tree Designer. The template notes domain has been removed; graph, planning, and ontology are implemented as product domains.
 
 ## Purpose Of This Document
 
@@ -13,13 +13,13 @@ Use this document to answer which bounded context owns each capability, data set
 | health | Report runtime readiness and dependency reachability. | No product data. | API, UI, cli-core `status`. | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/tech-tree-designer/v1/health/` | Implemented scaffold surface. |
 | graph | Build and query the scenario-centric interface graph. | Optional cache only. | Connect API, CLI, UI graph. | `api/internal/graph/`, `api/handlers/graph/`, `cli/domains/graph/`, `ui/src/features/graph/`, `packages/proto/schemas/tech-tree-designer/v1/graph/` | Implemented. |
 | planning | Store planned scenarios as real planned proto files and validate/materialize them. | Planned scenarios and planned proto text. | Connect API, CLI, UI editor. | `api/internal/planning/`, `api/handlers/planning/`, `cli/domains/planning/`, `ui/src/features/planning/`, `packages/proto/schemas/tech-tree-designer/v1/planning/` | Implemented. |
-| roadmap | Attach sectors, tiers, and milestones as metadata overlays. | Sector and milestone metadata. | Connect API, CLI, UI roadmap. | `api/internal/roadmap/`, `api/handlers/roadmap/`, `cli/domains/roadmap/`, `ui/src/features/roadmap/`, `packages/proto/schemas/tech-tree-designer/v1/roadmap/` | Implemented. |
+| ontology | Own the top-down capability tree, fulfillment links, coverage analytics, focus ranking, and overlay graph projection. | Capabilities, capability edges, fulfillment links, explicit coverage exclusions. | Connect API, CLI, UI ontology. | `api/internal/ontology/`, `api/handlers/ontology/`, `cli/domains/ontology/`, `ui/src/features/ontology/`, `packages/proto/schemas/tech-tree-designer/v1/ontology/` | Implemented. |
 
 ## health
 
 - Purpose: expose API/database readiness and prove the regenerated scaffold can run on SQLite.
 - Owns: health endpoint metadata and UI health card.
-- Does not own: product graph, planning, roadmap, or persistence policy.
+- Does not own: product graph, planning, ontology, or persistence policy.
 - Source paths: `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/tech-tree-designer/v1/health/`.
 
 ## graph
@@ -40,14 +40,14 @@ Use this document to answer which bounded context owns each capability, data set
 - CLI: `plan create`, `plan list`, `plan tree [path]`, `plan add`, `plan rm`, `plan validate`, `plan materialize`.
 - Paths: `api/internal/planning/`, `api/handlers/planning/`, `cli/domains/planning/`, `ui/src/features/planning/`, `packages/proto/schemas/tech-tree-designer/v1/planning/`.
 
-## roadmap
+## ontology
 
-- Purpose: layer sector, tier, and milestone metadata over live and planned scenario nodes.
-- Owns: sector records, milestone records, and progress rollups derived from graph node kind/stability.
-- Does not own: graph topology or scenario fulfillment heuristics.
-- Storage: `roadmap_sector` and `roadmap_milestone` in `api/internal/roadmap/schema.sql`.
-- CLI: `roadmap sectors`, `roadmap sector`, `roadmap milestones`, `roadmap milestone`, `roadmap progress`.
-- Paths: `api/internal/roadmap/`, `api/handlers/roadmap/`, `cli/domains/roadmap/`, `ui/src/features/roadmap/`, `packages/proto/schemas/tech-tree-designer/v1/roadmap/`.
+- Purpose: keep a top-down capability ontology beside the bottom-up scenario graph.
+- Owns: capability records, hierarchy/progression edges, fulfillment links, coverage/focus analytics, and overlay projection.
+- Does not own: implementation graph topology or planned proto materialization.
+- Storage: `capability`, `capability_edge`, `fulfillment`, and `coverage_exclusion` in `api/internal/ontology/schema.sql`.
+- CLI: `ontology capabilities`, `ontology capability`, `ontology import`, `ontology fulfill`, `ontology coverage`, `ontology focus`, `ontology overlay`.
+- Paths: `api/internal/ontology/`, `api/handlers/ontology/`, `cli/domains/ontology/`, `ui/src/features/ontology/`, `packages/proto/schemas/tech-tree-designer/v1/ontology/`.
 
 ## Non-Domains
 

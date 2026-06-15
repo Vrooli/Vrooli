@@ -2,8 +2,8 @@ package domains
 
 import (
 	"tech-tree-designer/cli/domains/graph"
+	"tech-tree-designer/cli/domains/ontology"
 	"tech-tree-designer/cli/domains/planning"
-	"tech-tree-designer/cli/domains/roadmap"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -42,13 +42,13 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
+	ontologyGroup, err := ontology.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
 	planningGroup, err := planning.Register(core, manifest)
 	if err != nil {
 		return nil, err
 	}
-	roadmapGroup, err := roadmap.Register(core, manifest)
-	if err != nil {
-		return nil, err
-	}
-	return []cliapp.SubcommandGroup{graphGroup, planningGroup, roadmapGroup}, nil
+	return []cliapp.SubcommandGroup{graphGroup, ontologyGroup, planningGroup}, nil
 }

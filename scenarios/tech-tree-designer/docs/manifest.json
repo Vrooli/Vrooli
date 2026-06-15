@@ -159,7 +159,7 @@
           "completion": "required",
           "ownerSkills": ["screaming-architecture-audit"],
           "validation": {
-            "requiredHeadings": ["Purpose Of This Document", "Domain Inventory", "health", "graph", "planning", "roadmap", "Non-Domains", "Cross-References"],
+            "requiredHeadings": ["Purpose Of This Document", "Domain Inventory", "health", "graph", "planning", "ontology", "Non-Domains", "Cross-References"],
             "forbiddenPlaceholders": [],
             "requiredLinks": ["ARCHITECTURE.md", "DATA.md", "../internal/SEAMS.md"]
           }

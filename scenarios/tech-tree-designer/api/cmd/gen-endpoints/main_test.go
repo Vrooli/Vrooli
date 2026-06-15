@@ -30,11 +30,21 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 		{Name: "plan rm", Description: "Remove planned proto", EndpointID: "planning-file-delete"},
 		{Name: "plan validate", Description: "Validate plan", EndpointID: "planning-validate"},
 		{Name: "plan materialize", Description: "Materialize plan", EndpointID: "planning-materialize"},
-		{Name: "roadmap sectors", Description: "List sectors", EndpointID: "roadmap-sectors-list"},
-		{Name: "roadmap sector", Description: "Upsert sector", EndpointID: "roadmap-sectors-upsert"},
-		{Name: "roadmap milestones", Description: "List milestones", EndpointID: "roadmap-milestones-list"},
-		{Name: "roadmap milestone", Description: "Upsert milestone", EndpointID: "roadmap-milestones-upsert"},
-		{Name: "roadmap progress", Description: "Progress rollup", EndpointID: "roadmap-progress"},
+		{Name: "ontology capabilities", Description: "List capabilities", EndpointID: "ontology-capabilities-list"},
+		{Name: "ontology capability", Description: "Get capability", EndpointID: "ontology-capability-get"},
+		{Name: "ontology capability-upsert", Description: "Upsert capability", EndpointID: "ontology-capability-upsert"},
+		{Name: "ontology capability-rm", Description: "Delete capability", EndpointID: "ontology-capability-delete"},
+		{Name: "ontology edge-add", Description: "Add capability edge", EndpointID: "ontology-edge-upsert"},
+		{Name: "ontology edge-rm", Description: "Delete capability edge", EndpointID: "ontology-edge-delete"},
+		{Name: "ontology import", Description: "Import topology", EndpointID: "ontology-import-topology"},
+		{Name: "ontology fulfill", Description: "Link fulfillment", EndpointID: "ontology-fulfillment-link"},
+		{Name: "ontology unfulfill", Description: "Unlink fulfillment", EndpointID: "ontology-fulfillment-unlink"},
+		{Name: "ontology fulfillments", Description: "List fulfillments", EndpointID: "ontology-fulfillments-list"},
+		{Name: "ontology coverage", Description: "Coverage", EndpointID: "ontology-coverage"},
+		{Name: "ontology focus", Description: "Focus", EndpointID: "ontology-focus"},
+		{Name: "ontology capability-scenarios", Description: "Capability scenarios", EndpointID: "ontology-capability-scenarios"},
+		{Name: "ontology scenario", Description: "Scenario capabilities", EndpointID: "ontology-scenario-capabilities"},
+		{Name: "ontology overlay", Description: "Overlay graph", EndpointID: "ontology-overlay-graph"},
 	})
 
 	if err := run(output, seed); err != nil {
@@ -65,8 +75,8 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	if len(got.Endpoints) == 0 {
 		t.Error("manifest must include at least one endpoint")
 	}
-	if len(got.CLICommands) != 18 {
-		t.Errorf("cli_commands count = %d, want 18", len(got.CLICommands))
+	if len(got.CLICommands) != 28 {
+		t.Errorf("cli_commands count = %d, want 28", len(got.CLICommands))
 	}
 
 	// Trailing newline so editors don't get angry about diff noise.

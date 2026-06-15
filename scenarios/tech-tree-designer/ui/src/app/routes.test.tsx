@@ -35,8 +35,8 @@ describe("AppRouter", () => {
     expect(await screen.findByTestId(selectors.pages.planning)).toBeInTheDocument();
   });
 
-  it("renders the roadmap page at /roadmap", async () => {
-    renderWithProviders(<TestAppRouter initialEntries={["/roadmap"]} />, { withoutRouter: true });
-    expect(await screen.findByTestId(selectors.pages.roadmap)).toBeInTheDocument();
+  it("renders the ontology page at /ontology", async () => {
+    renderWithProviders(<TestAppRouter initialEntries={["/ontology"]} />, { withoutRouter: true });
+    expect(await screen.findByTestId(selectors.pages.ontology)).toBeInTheDocument();
   });
 });
