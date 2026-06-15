@@ -53,6 +53,13 @@ service RunsService {
   // handle); the structured page set + screenshot count is what git-control-tower
   // diffs at the metadata level between two baselines.
   rpc ListRunVisuals(ListRunVisualsRequest) returns (ListRunVisualsResponse);
+  // CompareRunVisuals returns the per-page pixel-level comparison of two runs'
+  // captures. test-genie owns the visual analyzer (internal/visualcheck) and its
+  // thresholds, so consumers (git-control-tower's baseline visuals surface) get
+  // neutral per-page deltas rather than re-deriving pixel math. Every delta is
+  // advisory: a difference is never a verdict here — a clearly-broken render
+  // fails earlier, at smoke time.
+  rpc CompareRunVisuals(CompareRunVisualsRequest) returns (CompareRunVisualsResponse);
   // CheckFreshness reports, per phase, whether some recorded run executed that
   // phase (status passed) against the scenario's CURRENT working-tree digest.
   // Read-only; consumed by git-control-tower's advisory pre-commit step and
@@ -369,6 +376,28 @@ message ListRunVisualsRequest {
 
 message ListRunVisualsResponse {
   repeated RunVisual visuals = 1;
+}
+
+message CompareRunVisualsRequest {
+  string scenario = 1;
+  string base_run_id = 2;
+  string current_run_id = 3;
+}
+
+// VisualDelta is one page's pixel-level comparison between two runs' captures.
+message VisualDelta {
+  string page = 1;
+  string label = 2;
+  // status: identical | changed | added | removed. Every non-identical status
+  // is a neutral "review before/after" signal, not a failure.
+  string status = 3;
+  // changed_fraction is the share of the downscaled luminance grid that moved
+  // (0 unless status is "changed").
+  double changed_fraction = 4;
+}
+
+message CompareRunVisualsResponse {
+  repeated VisualDelta deltas = 1;
 }
 
 message CheckFreshnessRequest {

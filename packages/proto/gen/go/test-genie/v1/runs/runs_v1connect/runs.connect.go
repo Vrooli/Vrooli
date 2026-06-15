@@ -54,6 +54,9 @@ const (
 	// RunsServiceListRunVisualsProcedure is the fully-qualified name of the RunsService's
 	// ListRunVisuals RPC.
 	RunsServiceListRunVisualsProcedure = "/vrooli.test_genie.v1.runs.RunsService/ListRunVisuals"
+	// RunsServiceCompareRunVisualsProcedure is the fully-qualified name of the RunsService's
+	// CompareRunVisuals RPC.
+	RunsServiceCompareRunVisualsProcedure = "/vrooli.test_genie.v1.runs.RunsService/CompareRunVisuals"
 	// RunsServiceCheckFreshnessProcedure is the fully-qualified name of the RunsService's
 	// CheckFreshness RPC.
 	RunsServiceCheckFreshnessProcedure = "/vrooli.test_genie.v1.runs.RunsService/CheckFreshness"
@@ -97,6 +100,13 @@ type RunsServiceClient interface {
 	// handle); the structured page set + screenshot count is what git-control-tower
 	// diffs at the metadata level between two baselines.
 	ListRunVisuals(context.Context, *connect.Request[runs.ListRunVisualsRequest]) (*connect.Response[runs.ListRunVisualsResponse], error)
+	// CompareRunVisuals returns the per-page pixel-level comparison of two runs'
+	// captures. test-genie owns the visual analyzer (internal/visualcheck) and its
+	// thresholds, so consumers (git-control-tower's baseline visuals surface) get
+	// neutral per-page deltas rather than re-deriving pixel math. Every delta is
+	// advisory: a difference is never a verdict here — a clearly-broken render
+	// fails earlier, at smoke time.
+	CompareRunVisuals(context.Context, *connect.Request[runs.CompareRunVisualsRequest]) (*connect.Response[runs.CompareRunVisualsResponse], error)
 	// CheckFreshness reports, per phase, whether some recorded run executed that
 	// phase (status passed) against the scenario's CURRENT working-tree digest.
 	// Read-only; consumed by git-control-tower's advisory pre-commit step and
@@ -185,6 +195,12 @@ func NewRunsServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(runsServiceMethods.ByName("ListRunVisuals")),
 			connect.WithClientOptions(opts...),
 		),
+		compareRunVisuals: connect.NewClient[runs.CompareRunVisualsRequest, runs.CompareRunVisualsResponse](
+			httpClient,
+			baseURL+RunsServiceCompareRunVisualsProcedure,
+			connect.WithSchema(runsServiceMethods.ByName("CompareRunVisuals")),
+			connect.WithClientOptions(opts...),
+		),
 		checkFreshness: connect.NewClient[runs.CheckFreshnessRequest, runs.CheckFreshnessResponse](
 			httpClient,
 			baseURL+RunsServiceCheckFreshnessProcedure,
@@ -226,21 +242,22 @@ func NewRunsServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 
 // runsServiceClient implements RunsServiceClient.
 type runsServiceClient struct {
-	listRuns         *connect.Client[runs.ListRunsRequest, runs.ListRunsResponse]
-	getRun           *connect.Client[runs.GetRunRequest, runs.GetRunResponse]
-	deleteRun        *connect.Client[runs.DeleteRunRequest, runs.DeleteRunResponse]
-	pinRun           *connect.Client[runs.PinRunRequest, runs.PinRunResponse]
-	unpinRun         *connect.Client[runs.UnpinRunRequest, runs.UnpinRunResponse]
-	compareRuns      *connect.Client[runs.CompareRunsRequest, runs.CompareRunsResponse]
-	getPhaseArtifact *connect.Client[runs.GetPhaseArtifactRequest, runs.GetPhaseArtifactResponse]
-	listRunVideos    *connect.Client[runs.ListRunVideosRequest, runs.ListRunVideosResponse]
-	listRunVisuals   *connect.Client[runs.ListRunVisualsRequest, runs.ListRunVisualsResponse]
-	checkFreshness   *connect.Client[runs.CheckFreshnessRequest, runs.CheckFreshnessResponse]
-	startRun         *connect.Client[runs.StartRunRequest, runs.StartRunResponse]
-	followRun        *connect.Client[runs.FollowRunRequest, runs.RunEvent]
-	waitRun          *connect.Client[runs.WaitRunRequest, runs.WaitRunResponse]
-	abortRun         *connect.Client[runs.AbortRunRequest, runs.AbortRunResponse]
-	getRunStatus     *connect.Client[runs.GetRunStatusRequest, runs.RunLiveStatus]
+	listRuns          *connect.Client[runs.ListRunsRequest, runs.ListRunsResponse]
+	getRun            *connect.Client[runs.GetRunRequest, runs.GetRunResponse]
+	deleteRun         *connect.Client[runs.DeleteRunRequest, runs.DeleteRunResponse]
+	pinRun            *connect.Client[runs.PinRunRequest, runs.PinRunResponse]
+	unpinRun          *connect.Client[runs.UnpinRunRequest, runs.UnpinRunResponse]
+	compareRuns       *connect.Client[runs.CompareRunsRequest, runs.CompareRunsResponse]
+	getPhaseArtifact  *connect.Client[runs.GetPhaseArtifactRequest, runs.GetPhaseArtifactResponse]
+	listRunVideos     *connect.Client[runs.ListRunVideosRequest, runs.ListRunVideosResponse]
+	listRunVisuals    *connect.Client[runs.ListRunVisualsRequest, runs.ListRunVisualsResponse]
+	compareRunVisuals *connect.Client[runs.CompareRunVisualsRequest, runs.CompareRunVisualsResponse]
+	checkFreshness    *connect.Client[runs.CheckFreshnessRequest, runs.CheckFreshnessResponse]
+	startRun          *connect.Client[runs.StartRunRequest, runs.StartRunResponse]
+	followRun         *connect.Client[runs.FollowRunRequest, runs.RunEvent]
+	waitRun           *connect.Client[runs.WaitRunRequest, runs.WaitRunResponse]
+	abortRun          *connect.Client[runs.AbortRunRequest, runs.AbortRunResponse]
+	getRunStatus      *connect.Client[runs.GetRunStatusRequest, runs.RunLiveStatus]
 }
 
 // ListRuns calls vrooli.test_genie.v1.runs.RunsService.ListRuns.
@@ -286,6 +303,11 @@ func (c *runsServiceClient) ListRunVideos(ctx context.Context, req *connect.Requ
 // ListRunVisuals calls vrooli.test_genie.v1.runs.RunsService.ListRunVisuals.
 func (c *runsServiceClient) ListRunVisuals(ctx context.Context, req *connect.Request[runs.ListRunVisualsRequest]) (*connect.Response[runs.ListRunVisualsResponse], error) {
 	return c.listRunVisuals.CallUnary(ctx, req)
+}
+
+// CompareRunVisuals calls vrooli.test_genie.v1.runs.RunsService.CompareRunVisuals.
+func (c *runsServiceClient) CompareRunVisuals(ctx context.Context, req *connect.Request[runs.CompareRunVisualsRequest]) (*connect.Response[runs.CompareRunVisualsResponse], error) {
+	return c.compareRunVisuals.CallUnary(ctx, req)
 }
 
 // CheckFreshness calls vrooli.test_genie.v1.runs.RunsService.CheckFreshness.
@@ -345,6 +367,13 @@ type RunsServiceHandler interface {
 	// handle); the structured page set + screenshot count is what git-control-tower
 	// diffs at the metadata level between two baselines.
 	ListRunVisuals(context.Context, *connect.Request[runs.ListRunVisualsRequest]) (*connect.Response[runs.ListRunVisualsResponse], error)
+	// CompareRunVisuals returns the per-page pixel-level comparison of two runs'
+	// captures. test-genie owns the visual analyzer (internal/visualcheck) and its
+	// thresholds, so consumers (git-control-tower's baseline visuals surface) get
+	// neutral per-page deltas rather than re-deriving pixel math. Every delta is
+	// advisory: a difference is never a verdict here — a clearly-broken render
+	// fails earlier, at smoke time.
+	CompareRunVisuals(context.Context, *connect.Request[runs.CompareRunVisualsRequest]) (*connect.Response[runs.CompareRunVisualsResponse], error)
 	// CheckFreshness reports, per phase, whether some recorded run executed that
 	// phase (status passed) against the scenario's CURRENT working-tree digest.
 	// Read-only; consumed by git-control-tower's advisory pre-commit step and
@@ -429,6 +458,12 @@ func NewRunsServiceHandler(svc RunsServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(runsServiceMethods.ByName("ListRunVisuals")),
 		connect.WithHandlerOptions(opts...),
 	)
+	runsServiceCompareRunVisualsHandler := connect.NewUnaryHandler(
+		RunsServiceCompareRunVisualsProcedure,
+		svc.CompareRunVisuals,
+		connect.WithSchema(runsServiceMethods.ByName("CompareRunVisuals")),
+		connect.WithHandlerOptions(opts...),
+	)
 	runsServiceCheckFreshnessHandler := connect.NewUnaryHandler(
 		RunsServiceCheckFreshnessProcedure,
 		svc.CheckFreshness,
@@ -485,6 +520,8 @@ func NewRunsServiceHandler(svc RunsServiceHandler, opts ...connect.HandlerOption
 			runsServiceListRunVideosHandler.ServeHTTP(w, r)
 		case RunsServiceListRunVisualsProcedure:
 			runsServiceListRunVisualsHandler.ServeHTTP(w, r)
+		case RunsServiceCompareRunVisualsProcedure:
+			runsServiceCompareRunVisualsHandler.ServeHTTP(w, r)
 		case RunsServiceCheckFreshnessProcedure:
 			runsServiceCheckFreshnessHandler.ServeHTTP(w, r)
 		case RunsServiceStartRunProcedure:
@@ -540,6 +577,10 @@ func (UnimplementedRunsServiceHandler) ListRunVideos(context.Context, *connect.R
 
 func (UnimplementedRunsServiceHandler) ListRunVisuals(context.Context, *connect.Request[runs.ListRunVisualsRequest]) (*connect.Response[runs.ListRunVisualsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.test_genie.v1.runs.RunsService.ListRunVisuals is not implemented"))
+}
+
+func (UnimplementedRunsServiceHandler) CompareRunVisuals(context.Context, *connect.Request[runs.CompareRunVisualsRequest]) (*connect.Response[runs.CompareRunVisualsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.test_genie.v1.runs.RunsService.CompareRunVisuals is not implemented"))
 }
 
 func (UnimplementedRunsServiceHandler) CheckFreshness(context.Context, *connect.Request[runs.CheckFreshnessRequest]) (*connect.Response[runs.CheckFreshnessResponse], error) {

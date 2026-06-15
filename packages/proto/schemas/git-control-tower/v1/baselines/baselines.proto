@@ -92,13 +92,18 @@ message BaselineManifest {
 // SurfaceDiff is one surface's comparison verdict.
 message SurfaceDiff {
   string surface_id = 1;
-  // verdict: clean | regression | new-failure | preexisting | not-comparable
+  // verdict: clean | changed | regression | new-failure | preexisting | not-comparable
   string verdict = 2;
   repeated string regressions = 3;
   repeated string new_failures = 4;
   repeated string preexisting = 5;
   repeated string cleared = 6;
   string summary = 7;
+  // changed carries neutral, advisory differences that are NOT failures — the
+  // visuals surface uses it to report "the UI moved, review before/after"
+  // (each entry carries the change magnitude). A surface whose only delta is
+  // `changed` has verdict `changed`, which never affects the diff exit code.
+  repeated string changed = 8;
 }
 
 // Staleness reports working-tree drift from the baseline commit.
@@ -136,10 +141,25 @@ message SnapshotForBaselineRequest {
   int64 repo_id = 8;
 }
 
+// SnapshotForBaselineResponse returns IMMEDIATELY once the one comprehensive
+// test-genie run has started — it does NOT block for the run to finish. The
+// pin + manifest write happen server-side when the run completes (durable across
+// client disconnect), so the response carries the run handle the caller follows,
+// not the finished baseline. Follow the run with `test-genie runs follow
+// <scenario> <run_id>`; when it completes the baseline is pinned and queryable
+// via GetBaseline.
 message SnapshotForBaselineResponse {
-  BaselineManifest baseline = 1;
-  map<string, string> skipped = 2;
-  string dirty_warning = 3;
+  // run_id is the comprehensive run the baseline will pin once it completes.
+  string run_id = 1;
+  string scenario = 2;
+  string name = 3;
+  string branch = 4;
+  // estimated_total_seconds is the run's ETA (0 when unknown).
+  int32 estimated_total_seconds = 5;
+  bool eta_known = 6;
+  // dirty_warning is set when the baseline is being captured against a dirty
+  // working tree (surfaced up front so the operator can abort).
+  string dirty_warning = 7;
 }
 
 message GetBaselineRequest {

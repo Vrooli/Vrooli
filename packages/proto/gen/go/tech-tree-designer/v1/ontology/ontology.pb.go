@@ -592,82 +592,6 @@ func (x *Fulfillment) GetCreatedAt() string {
 	return ""
 }
 
-type Milestone struct {
-	state                 protoimpl.MessageState `protogen:"open.v1"`
-	Id                    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name                  string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Description           string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	RequiredCapabilityIds []string               `protobuf:"bytes,4,rep,name=required_capability_ids,json=requiredCapabilityIds,proto3" json:"required_capability_ids,omitempty"`
-	RequiredScenarioSlugs []string               `protobuf:"bytes,5,rep,name=required_scenario_slugs,json=requiredScenarioSlugs,proto3" json:"required_scenario_slugs,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
-}
-
-func (x *Milestone) Reset() {
-	*x = Milestone{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Milestone) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Milestone) ProtoMessage() {}
-
-func (x *Milestone) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Milestone.ProtoReflect.Descriptor instead.
-func (*Milestone) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *Milestone) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *Milestone) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *Milestone) GetDescription() string {
-	if x != nil {
-		return x.Description
-	}
-	return ""
-}
-
-func (x *Milestone) GetRequiredCapabilityIds() []string {
-	if x != nil {
-		return x.RequiredCapabilityIds
-	}
-	return nil
-}
-
-func (x *Milestone) GetRequiredScenarioSlugs() []string {
-	if x != nil {
-		return x.RequiredScenarioSlugs
-	}
-	return nil
-}
-
 type ListCapabilitiesRequest struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	ParentId           string                 `protobuf:"bytes,1,opt,name=parent_id,json=parentId,proto3" json:"parent_id,omitempty"`
@@ -679,7 +603,7 @@ type ListCapabilitiesRequest struct {
 
 func (x *ListCapabilitiesRequest) Reset() {
 	*x = ListCapabilitiesRequest{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[4]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -691,7 +615,7 @@ func (x *ListCapabilitiesRequest) String() string {
 func (*ListCapabilitiesRequest) ProtoMessage() {}
 
 func (x *ListCapabilitiesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[4]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -704,7 +628,7 @@ func (x *ListCapabilitiesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCapabilitiesRequest.ProtoReflect.Descriptor instead.
 func (*ListCapabilitiesRequest) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{4}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ListCapabilitiesRequest) GetParentId() string {
@@ -737,7 +661,7 @@ type ListCapabilitiesResponse struct {
 
 func (x *ListCapabilitiesResponse) Reset() {
 	*x = ListCapabilitiesResponse{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[5]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -749,7 +673,7 @@ func (x *ListCapabilitiesResponse) String() string {
 func (*ListCapabilitiesResponse) ProtoMessage() {}
 
 func (x *ListCapabilitiesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[5]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -762,7 +686,7 @@ func (x *ListCapabilitiesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCapabilitiesResponse.ProtoReflect.Descriptor instead.
 func (*ListCapabilitiesResponse) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{5}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ListCapabilitiesResponse) GetCapabilities() []*Capability {
@@ -782,7 +706,7 @@ type GetCapabilityRequest struct {
 
 func (x *GetCapabilityRequest) Reset() {
 	*x = GetCapabilityRequest{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[6]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -794,7 +718,7 @@ func (x *GetCapabilityRequest) String() string {
 func (*GetCapabilityRequest) ProtoMessage() {}
 
 func (x *GetCapabilityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[6]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -807,7 +731,7 @@ func (x *GetCapabilityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCapabilityRequest.ProtoReflect.Descriptor instead.
 func (*GetCapabilityRequest) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{6}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetCapabilityRequest) GetId() string {
@@ -833,7 +757,7 @@ type UpsertCapabilityRequest struct {
 
 func (x *UpsertCapabilityRequest) Reset() {
 	*x = UpsertCapabilityRequest{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[7]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -845,7 +769,7 @@ func (x *UpsertCapabilityRequest) String() string {
 func (*UpsertCapabilityRequest) ProtoMessage() {}
 
 func (x *UpsertCapabilityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[7]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -858,7 +782,7 @@ func (x *UpsertCapabilityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpsertCapabilityRequest.ProtoReflect.Descriptor instead.
 func (*UpsertCapabilityRequest) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{7}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *UpsertCapabilityRequest) GetCapability() *Capability {
@@ -878,7 +802,7 @@ type DeleteCapabilityRequest struct {
 
 func (x *DeleteCapabilityRequest) Reset() {
 	*x = DeleteCapabilityRequest{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[8]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -890,7 +814,7 @@ func (x *DeleteCapabilityRequest) String() string {
 func (*DeleteCapabilityRequest) ProtoMessage() {}
 
 func (x *DeleteCapabilityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[8]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -903,7 +827,7 @@ func (x *DeleteCapabilityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteCapabilityRequest.ProtoReflect.Descriptor instead.
 func (*DeleteCapabilityRequest) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{8}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *DeleteCapabilityRequest) GetId() string {
@@ -929,7 +853,7 @@ type DeleteCapabilityResponse struct {
 
 func (x *DeleteCapabilityResponse) Reset() {
 	*x = DeleteCapabilityResponse{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[9]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -941,7 +865,7 @@ func (x *DeleteCapabilityResponse) String() string {
 func (*DeleteCapabilityResponse) ProtoMessage() {}
 
 func (x *DeleteCapabilityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[9]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -954,7 +878,7 @@ func (x *DeleteCapabilityResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteCapabilityResponse.ProtoReflect.Descriptor instead.
 func (*DeleteCapabilityResponse) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{9}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *DeleteCapabilityResponse) GetDeleted() bool {
@@ -973,7 +897,7 @@ type UpsertCapabilityEdgeRequest struct {
 
 func (x *UpsertCapabilityEdgeRequest) Reset() {
 	*x = UpsertCapabilityEdgeRequest{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[10]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -985,7 +909,7 @@ func (x *UpsertCapabilityEdgeRequest) String() string {
 func (*UpsertCapabilityEdgeRequest) ProtoMessage() {}
 
 func (x *UpsertCapabilityEdgeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[10]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -998,7 +922,7 @@ func (x *UpsertCapabilityEdgeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpsertCapabilityEdgeRequest.ProtoReflect.Descriptor instead.
 func (*UpsertCapabilityEdgeRequest) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{10}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *UpsertCapabilityEdgeRequest) GetEdge() *CapabilityEdge {
@@ -1017,7 +941,7 @@ type DeleteCapabilityEdgeRequest struct {
 
 func (x *DeleteCapabilityEdgeRequest) Reset() {
 	*x = DeleteCapabilityEdgeRequest{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[11]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1029,7 +953,7 @@ func (x *DeleteCapabilityEdgeRequest) String() string {
 func (*DeleteCapabilityEdgeRequest) ProtoMessage() {}
 
 func (x *DeleteCapabilityEdgeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[11]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1042,7 +966,7 @@ func (x *DeleteCapabilityEdgeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteCapabilityEdgeRequest.ProtoReflect.Descriptor instead.
 func (*DeleteCapabilityEdgeRequest) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{11}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *DeleteCapabilityEdgeRequest) GetEdge() *CapabilityEdge {
@@ -1061,7 +985,7 @@ type DeleteCapabilityEdgeResponse struct {
 
 func (x *DeleteCapabilityEdgeResponse) Reset() {
 	*x = DeleteCapabilityEdgeResponse{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[12]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1073,7 +997,7 @@ func (x *DeleteCapabilityEdgeResponse) String() string {
 func (*DeleteCapabilityEdgeResponse) ProtoMessage() {}
 
 func (x *DeleteCapabilityEdgeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[12]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1086,7 +1010,7 @@ func (x *DeleteCapabilityEdgeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteCapabilityEdgeResponse.ProtoReflect.Descriptor instead.
 func (*DeleteCapabilityEdgeResponse) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{12}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *DeleteCapabilityEdgeResponse) GetDeleted() bool {
@@ -1105,7 +1029,7 @@ type ImportTopologyRequest struct {
 
 func (x *ImportTopologyRequest) Reset() {
 	*x = ImportTopologyRequest{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[13]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1117,7 +1041,7 @@ func (x *ImportTopologyRequest) String() string {
 func (*ImportTopologyRequest) ProtoMessage() {}
 
 func (x *ImportTopologyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[13]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1130,7 +1054,7 @@ func (x *ImportTopologyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImportTopologyRequest.ProtoReflect.Descriptor instead.
 func (*ImportTopologyRequest) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{13}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ImportTopologyRequest) GetJson() string {
@@ -1154,7 +1078,7 @@ type ImportTopologyResponse struct {
 
 func (x *ImportTopologyResponse) Reset() {
 	*x = ImportTopologyResponse{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[14]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1166,7 +1090,7 @@ func (x *ImportTopologyResponse) String() string {
 func (*ImportTopologyResponse) ProtoMessage() {}
 
 func (x *ImportTopologyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[14]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1179,7 +1103,7 @@ func (x *ImportTopologyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImportTopologyResponse.ProtoReflect.Descriptor instead.
 func (*ImportTopologyResponse) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{14}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ImportTopologyResponse) GetSectorsImported() int32 {
@@ -1233,7 +1157,7 @@ type LinkFulfillmentRequest struct {
 
 func (x *LinkFulfillmentRequest) Reset() {
 	*x = LinkFulfillmentRequest{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[15]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1245,7 +1169,7 @@ func (x *LinkFulfillmentRequest) String() string {
 func (*LinkFulfillmentRequest) ProtoMessage() {}
 
 func (x *LinkFulfillmentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[15]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1258,7 +1182,7 @@ func (x *LinkFulfillmentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LinkFulfillmentRequest.ProtoReflect.Descriptor instead.
 func (*LinkFulfillmentRequest) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{15}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *LinkFulfillmentRequest) GetFulfillment() *Fulfillment {
@@ -1278,7 +1202,7 @@ type UnlinkFulfillmentRequest struct {
 
 func (x *UnlinkFulfillmentRequest) Reset() {
 	*x = UnlinkFulfillmentRequest{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[16]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1290,7 +1214,7 @@ func (x *UnlinkFulfillmentRequest) String() string {
 func (*UnlinkFulfillmentRequest) ProtoMessage() {}
 
 func (x *UnlinkFulfillmentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[16]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1303,7 +1227,7 @@ func (x *UnlinkFulfillmentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnlinkFulfillmentRequest.ProtoReflect.Descriptor instead.
 func (*UnlinkFulfillmentRequest) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{16}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *UnlinkFulfillmentRequest) GetCapabilityId() string {
@@ -1329,7 +1253,7 @@ type UnlinkFulfillmentResponse struct {
 
 func (x *UnlinkFulfillmentResponse) Reset() {
 	*x = UnlinkFulfillmentResponse{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[17]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1341,7 +1265,7 @@ func (x *UnlinkFulfillmentResponse) String() string {
 func (*UnlinkFulfillmentResponse) ProtoMessage() {}
 
 func (x *UnlinkFulfillmentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[17]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1354,7 +1278,7 @@ func (x *UnlinkFulfillmentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnlinkFulfillmentResponse.ProtoReflect.Descriptor instead.
 func (*UnlinkFulfillmentResponse) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{17}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *UnlinkFulfillmentResponse) GetDeleted() bool {
@@ -1374,7 +1298,7 @@ type ListFulfillmentsRequest struct {
 
 func (x *ListFulfillmentsRequest) Reset() {
 	*x = ListFulfillmentsRequest{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[18]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1386,7 +1310,7 @@ func (x *ListFulfillmentsRequest) String() string {
 func (*ListFulfillmentsRequest) ProtoMessage() {}
 
 func (x *ListFulfillmentsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[18]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1399,7 +1323,7 @@ func (x *ListFulfillmentsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListFulfillmentsRequest.ProtoReflect.Descriptor instead.
 func (*ListFulfillmentsRequest) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{18}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ListFulfillmentsRequest) GetCapabilityId() string {
@@ -1425,7 +1349,7 @@ type ListFulfillmentsResponse struct {
 
 func (x *ListFulfillmentsResponse) Reset() {
 	*x = ListFulfillmentsResponse{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[19]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1437,7 +1361,7 @@ func (x *ListFulfillmentsResponse) String() string {
 func (*ListFulfillmentsResponse) ProtoMessage() {}
 
 func (x *ListFulfillmentsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[19]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1450,7 +1374,7 @@ func (x *ListFulfillmentsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListFulfillmentsResponse.ProtoReflect.Descriptor instead.
 func (*ListFulfillmentsResponse) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{19}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ListFulfillmentsResponse) GetFulfillments() []*Fulfillment {
@@ -1469,7 +1393,7 @@ type GetCoverageRequest struct {
 
 func (x *GetCoverageRequest) Reset() {
 	*x = GetCoverageRequest{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[20]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1481,7 +1405,7 @@ func (x *GetCoverageRequest) String() string {
 func (*GetCoverageRequest) ProtoMessage() {}
 
 func (x *GetCoverageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[20]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1494,7 +1418,7 @@ func (x *GetCoverageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCoverageRequest.ProtoReflect.Descriptor instead.
 func (*GetCoverageRequest) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{20}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *GetCoverageRequest) GetIncludeSubtreeRollup() bool {
@@ -1523,7 +1447,7 @@ type CoverageSummary struct {
 
 func (x *CoverageSummary) Reset() {
 	*x = CoverageSummary{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[21]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1535,7 +1459,7 @@ func (x *CoverageSummary) String() string {
 func (*CoverageSummary) ProtoMessage() {}
 
 func (x *CoverageSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[21]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1548,7 +1472,7 @@ func (x *CoverageSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CoverageSummary.ProtoReflect.Descriptor instead.
 func (*CoverageSummary) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{21}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *CoverageSummary) GetBuiltCapabilities() int32 {
@@ -1644,7 +1568,7 @@ type SectorCoverage struct {
 
 func (x *SectorCoverage) Reset() {
 	*x = SectorCoverage{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[22]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1656,7 +1580,7 @@ func (x *SectorCoverage) String() string {
 func (*SectorCoverage) ProtoMessage() {}
 
 func (x *SectorCoverage) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[22]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1669,7 +1593,7 @@ func (x *SectorCoverage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SectorCoverage.ProtoReflect.Descriptor instead.
 func (*SectorCoverage) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{22}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *SectorCoverage) GetSectorId() string {
@@ -1743,7 +1667,7 @@ type CoverageClassification struct {
 
 func (x *CoverageClassification) Reset() {
 	*x = CoverageClassification{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[23]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1755,7 +1679,7 @@ func (x *CoverageClassification) String() string {
 func (*CoverageClassification) ProtoMessage() {}
 
 func (x *CoverageClassification) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[23]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1768,7 +1692,7 @@ func (x *CoverageClassification) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CoverageClassification.ProtoReflect.Descriptor instead.
 func (*CoverageClassification) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{23}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *CoverageClassification) GetCapabilityId() string {
@@ -1829,7 +1753,7 @@ type ListFocusRequest struct {
 
 func (x *ListFocusRequest) Reset() {
 	*x = ListFocusRequest{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[24]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1841,7 +1765,7 @@ func (x *ListFocusRequest) String() string {
 func (*ListFocusRequest) ProtoMessage() {}
 
 func (x *ListFocusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[24]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1854,7 +1778,7 @@ func (x *ListFocusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListFocusRequest.ProtoReflect.Descriptor instead.
 func (*ListFocusRequest) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{24}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ListFocusRequest) GetLimit() int32 {
@@ -1873,7 +1797,7 @@ type ListFocusResponse struct {
 
 func (x *ListFocusResponse) Reset() {
 	*x = ListFocusResponse{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[25]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1885,7 +1809,7 @@ func (x *ListFocusResponse) String() string {
 func (*ListFocusResponse) ProtoMessage() {}
 
 func (x *ListFocusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[25]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1898,7 +1822,7 @@ func (x *ListFocusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListFocusResponse.ProtoReflect.Descriptor instead.
 func (*ListFocusResponse) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{25}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ListFocusResponse) GetItems() []*FocusItem {
@@ -1923,7 +1847,7 @@ type FocusItem struct {
 
 func (x *FocusItem) Reset() {
 	*x = FocusItem{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[26]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1935,7 +1859,7 @@ func (x *FocusItem) String() string {
 func (*FocusItem) ProtoMessage() {}
 
 func (x *FocusItem) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[26]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1948,7 +1872,7 @@ func (x *FocusItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FocusItem.ProtoReflect.Descriptor instead.
 func (*FocusItem) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{26}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *FocusItem) GetCapabilityId() string {
@@ -2011,7 +1935,7 @@ type GetCapabilityScenariosRequest struct {
 
 func (x *GetCapabilityScenariosRequest) Reset() {
 	*x = GetCapabilityScenariosRequest{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[27]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2023,7 +1947,7 @@ func (x *GetCapabilityScenariosRequest) String() string {
 func (*GetCapabilityScenariosRequest) ProtoMessage() {}
 
 func (x *GetCapabilityScenariosRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[27]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2036,7 +1960,7 @@ func (x *GetCapabilityScenariosRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCapabilityScenariosRequest.ProtoReflect.Descriptor instead.
 func (*GetCapabilityScenariosRequest) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{27}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *GetCapabilityScenariosRequest) GetCapabilityId() string {
@@ -2073,7 +1997,7 @@ type CapabilityScenarios struct {
 
 func (x *CapabilityScenarios) Reset() {
 	*x = CapabilityScenarios{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[28]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2085,7 +2009,7 @@ func (x *CapabilityScenarios) String() string {
 func (*CapabilityScenarios) ProtoMessage() {}
 
 func (x *CapabilityScenarios) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[28]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2098,7 +2022,7 @@ func (x *CapabilityScenarios) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilityScenarios.ProtoReflect.Descriptor instead.
 func (*CapabilityScenarios) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{28}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *CapabilityScenarios) GetCapabilityId() string {
@@ -2145,7 +2069,7 @@ type GetScenarioCapabilitiesRequest struct {
 
 func (x *GetScenarioCapabilitiesRequest) Reset() {
 	*x = GetScenarioCapabilitiesRequest{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[29]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2157,7 +2081,7 @@ func (x *GetScenarioCapabilitiesRequest) String() string {
 func (*GetScenarioCapabilitiesRequest) ProtoMessage() {}
 
 func (x *GetScenarioCapabilitiesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[29]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2170,7 +2094,7 @@ func (x *GetScenarioCapabilitiesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetScenarioCapabilitiesRequest.ProtoReflect.Descriptor instead.
 func (*GetScenarioCapabilitiesRequest) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{29}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *GetScenarioCapabilitiesRequest) GetScenarioSlug() string {
@@ -2191,7 +2115,7 @@ type ScenarioCapabilities struct {
 
 func (x *ScenarioCapabilities) Reset() {
 	*x = ScenarioCapabilities{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[30]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2203,7 +2127,7 @@ func (x *ScenarioCapabilities) String() string {
 func (*ScenarioCapabilities) ProtoMessage() {}
 
 func (x *ScenarioCapabilities) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[30]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2216,7 +2140,7 @@ func (x *ScenarioCapabilities) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScenarioCapabilities.ProtoReflect.Descriptor instead.
 func (*ScenarioCapabilities) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{30}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *ScenarioCapabilities) GetScenarioSlug() string {
@@ -2251,7 +2175,7 @@ type DescribeOverlayGraphRequest struct {
 
 func (x *DescribeOverlayGraphRequest) Reset() {
 	*x = DescribeOverlayGraphRequest{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[31]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2263,7 +2187,7 @@ func (x *DescribeOverlayGraphRequest) String() string {
 func (*DescribeOverlayGraphRequest) ProtoMessage() {}
 
 func (x *DescribeOverlayGraphRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[31]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2276,7 +2200,7 @@ func (x *DescribeOverlayGraphRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DescribeOverlayGraphRequest.ProtoReflect.Descriptor instead.
 func (*DescribeOverlayGraphRequest) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{31}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *DescribeOverlayGraphRequest) GetIncludeImplementation() bool {
@@ -2309,7 +2233,7 @@ type DescribeOverlayGraphResponse struct {
 
 func (x *DescribeOverlayGraphResponse) Reset() {
 	*x = DescribeOverlayGraphResponse{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[32]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2321,7 +2245,7 @@ func (x *DescribeOverlayGraphResponse) String() string {
 func (*DescribeOverlayGraphResponse) ProtoMessage() {}
 
 func (x *DescribeOverlayGraphResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[32]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2334,7 +2258,7 @@ func (x *DescribeOverlayGraphResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DescribeOverlayGraphResponse.ProtoReflect.Descriptor instead.
 func (*DescribeOverlayGraphResponse) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{32}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *DescribeOverlayGraphResponse) GetGraph() *OverlayGraph {
@@ -2355,7 +2279,7 @@ type OverlayGraph struct {
 
 func (x *OverlayGraph) Reset() {
 	*x = OverlayGraph{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[33]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2367,7 +2291,7 @@ func (x *OverlayGraph) String() string {
 func (*OverlayGraph) ProtoMessage() {}
 
 func (x *OverlayGraph) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[33]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2380,7 +2304,7 @@ func (x *OverlayGraph) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OverlayGraph.ProtoReflect.Descriptor instead.
 func (*OverlayGraph) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{33}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *OverlayGraph) GetNodes() []*OverlayNode {
@@ -2420,7 +2344,7 @@ type OverlayNode struct {
 
 func (x *OverlayNode) Reset() {
 	*x = OverlayNode{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[34]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2432,7 +2356,7 @@ func (x *OverlayNode) String() string {
 func (*OverlayNode) ProtoMessage() {}
 
 func (x *OverlayNode) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[34]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2445,7 +2369,7 @@ func (x *OverlayNode) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OverlayNode.ProtoReflect.Descriptor instead.
 func (*OverlayNode) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{34}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *OverlayNode) GetScenario() string {
@@ -2517,7 +2441,7 @@ type OverlayEdge struct {
 
 func (x *OverlayEdge) Reset() {
 	*x = OverlayEdge{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[35]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2529,7 +2453,7 @@ func (x *OverlayEdge) String() string {
 func (*OverlayEdge) ProtoMessage() {}
 
 func (x *OverlayEdge) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[35]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2542,7 +2466,7 @@ func (x *OverlayEdge) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OverlayEdge.ProtoReflect.Descriptor instead.
 func (*OverlayEdge) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{35}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *OverlayEdge) GetFromScenario() string {
@@ -2594,7 +2518,7 @@ type OverlayEvidence struct {
 
 func (x *OverlayEvidence) Reset() {
 	*x = OverlayEvidence{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[36]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2606,7 +2530,7 @@ func (x *OverlayEvidence) String() string {
 func (*OverlayEvidence) ProtoMessage() {}
 
 func (x *OverlayEvidence) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[36]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2619,7 +2543,7 @@ func (x *OverlayEvidence) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OverlayEvidence.ProtoReflect.Descriptor instead.
 func (*OverlayEvidence) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{36}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *OverlayEvidence) GetSource() OverlayEvidenceSource {
@@ -2675,7 +2599,7 @@ type OverlayError struct {
 
 func (x *OverlayError) Reset() {
 	*x = OverlayError{}
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[37]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2687,7 +2611,7 @@ func (x *OverlayError) String() string {
 func (*OverlayError) ProtoMessage() {}
 
 func (x *OverlayError) ProtoReflect() protoreflect.Message {
-	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[37]
+	mi := &file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2700,7 +2624,7 @@ func (x *OverlayError) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OverlayError.ProtoReflect.Descriptor instead.
 func (*OverlayError) Descriptor() ([]byte, []int) {
-	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{37}
+	return file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *OverlayError) GetSource() string {
@@ -2756,13 +2680,7 @@ const file_tech_tree_designer_v1_ontology_ontology_proto_rawDesc = "" +
 	"\rscenario_slug\x18\x02 \x01(\tR\fscenarioSlug\x12\x12\n" +
 	"\x04note\x18\x03 \x01(\tR\x04note\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\x04 \x01(\tR\tcreatedAt\"\xc1\x01\n" +
-	"\tMilestone\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
-	"\vdescription\x18\x03 \x01(\tR\vdescription\x126\n" +
-	"\x17required_capability_ids\x18\x04 \x03(\tR\x15requiredCapabilityIds\x126\n" +
-	"\x17required_scenario_slugs\x18\x05 \x03(\tR\x15requiredScenarioSlugs\"\xb2\x01\n" +
+	"created_at\x18\x04 \x01(\tR\tcreatedAt\"\xb2\x01\n" +
 	"\x17ListCapabilitiesRequest\x12\x1b\n" +
 	"\tparent_id\x18\x01 \x01(\tR\bparentId\x12I\n" +
 	"\x04kind\x18\x02 \x01(\x0e25.vrooli.tech_tree_designer.v1.ontology.CapabilityKindR\x04kind\x12/\n" +
@@ -2975,7 +2893,7 @@ func file_tech_tree_designer_v1_ontology_ontology_proto_rawDescGZIP() []byte {
 }
 
 var file_tech_tree_designer_v1_ontology_ontology_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
-var file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes = make([]protoimpl.MessageInfo, 38)
+var file_tech_tree_designer_v1_ontology_ontology_proto_msgTypes = make([]protoimpl.MessageInfo, 37)
 var file_tech_tree_designer_v1_ontology_ontology_proto_goTypes = []any{
 	(CapabilityKind)(0),                    // 0: vrooli.tech_tree_designer.v1.ontology.CapabilityKind
 	(CapabilityEdgeType)(0),                // 1: vrooli.tech_tree_designer.v1.ontology.CapabilityEdgeType
@@ -2986,41 +2904,40 @@ var file_tech_tree_designer_v1_ontology_ontology_proto_goTypes = []any{
 	(*Capability)(nil),                     // 6: vrooli.tech_tree_designer.v1.ontology.Capability
 	(*CapabilityEdge)(nil),                 // 7: vrooli.tech_tree_designer.v1.ontology.CapabilityEdge
 	(*Fulfillment)(nil),                    // 8: vrooli.tech_tree_designer.v1.ontology.Fulfillment
-	(*Milestone)(nil),                      // 9: vrooli.tech_tree_designer.v1.ontology.Milestone
-	(*ListCapabilitiesRequest)(nil),        // 10: vrooli.tech_tree_designer.v1.ontology.ListCapabilitiesRequest
-	(*ListCapabilitiesResponse)(nil),       // 11: vrooli.tech_tree_designer.v1.ontology.ListCapabilitiesResponse
-	(*GetCapabilityRequest)(nil),           // 12: vrooli.tech_tree_designer.v1.ontology.GetCapabilityRequest
-	(*UpsertCapabilityRequest)(nil),        // 13: vrooli.tech_tree_designer.v1.ontology.UpsertCapabilityRequest
-	(*DeleteCapabilityRequest)(nil),        // 14: vrooli.tech_tree_designer.v1.ontology.DeleteCapabilityRequest
-	(*DeleteCapabilityResponse)(nil),       // 15: vrooli.tech_tree_designer.v1.ontology.DeleteCapabilityResponse
-	(*UpsertCapabilityEdgeRequest)(nil),    // 16: vrooli.tech_tree_designer.v1.ontology.UpsertCapabilityEdgeRequest
-	(*DeleteCapabilityEdgeRequest)(nil),    // 17: vrooli.tech_tree_designer.v1.ontology.DeleteCapabilityEdgeRequest
-	(*DeleteCapabilityEdgeResponse)(nil),   // 18: vrooli.tech_tree_designer.v1.ontology.DeleteCapabilityEdgeResponse
-	(*ImportTopologyRequest)(nil),          // 19: vrooli.tech_tree_designer.v1.ontology.ImportTopologyRequest
-	(*ImportTopologyResponse)(nil),         // 20: vrooli.tech_tree_designer.v1.ontology.ImportTopologyResponse
-	(*LinkFulfillmentRequest)(nil),         // 21: vrooli.tech_tree_designer.v1.ontology.LinkFulfillmentRequest
-	(*UnlinkFulfillmentRequest)(nil),       // 22: vrooli.tech_tree_designer.v1.ontology.UnlinkFulfillmentRequest
-	(*UnlinkFulfillmentResponse)(nil),      // 23: vrooli.tech_tree_designer.v1.ontology.UnlinkFulfillmentResponse
-	(*ListFulfillmentsRequest)(nil),        // 24: vrooli.tech_tree_designer.v1.ontology.ListFulfillmentsRequest
-	(*ListFulfillmentsResponse)(nil),       // 25: vrooli.tech_tree_designer.v1.ontology.ListFulfillmentsResponse
-	(*GetCoverageRequest)(nil),             // 26: vrooli.tech_tree_designer.v1.ontology.GetCoverageRequest
-	(*CoverageSummary)(nil),                // 27: vrooli.tech_tree_designer.v1.ontology.CoverageSummary
-	(*SectorCoverage)(nil),                 // 28: vrooli.tech_tree_designer.v1.ontology.SectorCoverage
-	(*CoverageClassification)(nil),         // 29: vrooli.tech_tree_designer.v1.ontology.CoverageClassification
-	(*ListFocusRequest)(nil),               // 30: vrooli.tech_tree_designer.v1.ontology.ListFocusRequest
-	(*ListFocusResponse)(nil),              // 31: vrooli.tech_tree_designer.v1.ontology.ListFocusResponse
-	(*FocusItem)(nil),                      // 32: vrooli.tech_tree_designer.v1.ontology.FocusItem
-	(*GetCapabilityScenariosRequest)(nil),  // 33: vrooli.tech_tree_designer.v1.ontology.GetCapabilityScenariosRequest
-	(*CapabilityScenarios)(nil),            // 34: vrooli.tech_tree_designer.v1.ontology.CapabilityScenarios
-	(*GetScenarioCapabilitiesRequest)(nil), // 35: vrooli.tech_tree_designer.v1.ontology.GetScenarioCapabilitiesRequest
-	(*ScenarioCapabilities)(nil),           // 36: vrooli.tech_tree_designer.v1.ontology.ScenarioCapabilities
-	(*DescribeOverlayGraphRequest)(nil),    // 37: vrooli.tech_tree_designer.v1.ontology.DescribeOverlayGraphRequest
-	(*DescribeOverlayGraphResponse)(nil),   // 38: vrooli.tech_tree_designer.v1.ontology.DescribeOverlayGraphResponse
-	(*OverlayGraph)(nil),                   // 39: vrooli.tech_tree_designer.v1.ontology.OverlayGraph
-	(*OverlayNode)(nil),                    // 40: vrooli.tech_tree_designer.v1.ontology.OverlayNode
-	(*OverlayEdge)(nil),                    // 41: vrooli.tech_tree_designer.v1.ontology.OverlayEdge
-	(*OverlayEvidence)(nil),                // 42: vrooli.tech_tree_designer.v1.ontology.OverlayEvidence
-	(*OverlayError)(nil),                   // 43: vrooli.tech_tree_designer.v1.ontology.OverlayError
+	(*ListCapabilitiesRequest)(nil),        // 9: vrooli.tech_tree_designer.v1.ontology.ListCapabilitiesRequest
+	(*ListCapabilitiesResponse)(nil),       // 10: vrooli.tech_tree_designer.v1.ontology.ListCapabilitiesResponse
+	(*GetCapabilityRequest)(nil),           // 11: vrooli.tech_tree_designer.v1.ontology.GetCapabilityRequest
+	(*UpsertCapabilityRequest)(nil),        // 12: vrooli.tech_tree_designer.v1.ontology.UpsertCapabilityRequest
+	(*DeleteCapabilityRequest)(nil),        // 13: vrooli.tech_tree_designer.v1.ontology.DeleteCapabilityRequest
+	(*DeleteCapabilityResponse)(nil),       // 14: vrooli.tech_tree_designer.v1.ontology.DeleteCapabilityResponse
+	(*UpsertCapabilityEdgeRequest)(nil),    // 15: vrooli.tech_tree_designer.v1.ontology.UpsertCapabilityEdgeRequest
+	(*DeleteCapabilityEdgeRequest)(nil),    // 16: vrooli.tech_tree_designer.v1.ontology.DeleteCapabilityEdgeRequest
+	(*DeleteCapabilityEdgeResponse)(nil),   // 17: vrooli.tech_tree_designer.v1.ontology.DeleteCapabilityEdgeResponse
+	(*ImportTopologyRequest)(nil),          // 18: vrooli.tech_tree_designer.v1.ontology.ImportTopologyRequest
+	(*ImportTopologyResponse)(nil),         // 19: vrooli.tech_tree_designer.v1.ontology.ImportTopologyResponse
+	(*LinkFulfillmentRequest)(nil),         // 20: vrooli.tech_tree_designer.v1.ontology.LinkFulfillmentRequest
+	(*UnlinkFulfillmentRequest)(nil),       // 21: vrooli.tech_tree_designer.v1.ontology.UnlinkFulfillmentRequest
+	(*UnlinkFulfillmentResponse)(nil),      // 22: vrooli.tech_tree_designer.v1.ontology.UnlinkFulfillmentResponse
+	(*ListFulfillmentsRequest)(nil),        // 23: vrooli.tech_tree_designer.v1.ontology.ListFulfillmentsRequest
+	(*ListFulfillmentsResponse)(nil),       // 24: vrooli.tech_tree_designer.v1.ontology.ListFulfillmentsResponse
+	(*GetCoverageRequest)(nil),             // 25: vrooli.tech_tree_designer.v1.ontology.GetCoverageRequest
+	(*CoverageSummary)(nil),                // 26: vrooli.tech_tree_designer.v1.ontology.CoverageSummary
+	(*SectorCoverage)(nil),                 // 27: vrooli.tech_tree_designer.v1.ontology.SectorCoverage
+	(*CoverageClassification)(nil),         // 28: vrooli.tech_tree_designer.v1.ontology.CoverageClassification
+	(*ListFocusRequest)(nil),               // 29: vrooli.tech_tree_designer.v1.ontology.ListFocusRequest
+	(*ListFocusResponse)(nil),              // 30: vrooli.tech_tree_designer.v1.ontology.ListFocusResponse
+	(*FocusItem)(nil),                      // 31: vrooli.tech_tree_designer.v1.ontology.FocusItem
+	(*GetCapabilityScenariosRequest)(nil),  // 32: vrooli.tech_tree_designer.v1.ontology.GetCapabilityScenariosRequest
+	(*CapabilityScenarios)(nil),            // 33: vrooli.tech_tree_designer.v1.ontology.CapabilityScenarios
+	(*GetScenarioCapabilitiesRequest)(nil), // 34: vrooli.tech_tree_designer.v1.ontology.GetScenarioCapabilitiesRequest
+	(*ScenarioCapabilities)(nil),           // 35: vrooli.tech_tree_designer.v1.ontology.ScenarioCapabilities
+	(*DescribeOverlayGraphRequest)(nil),    // 36: vrooli.tech_tree_designer.v1.ontology.DescribeOverlayGraphRequest
+	(*DescribeOverlayGraphResponse)(nil),   // 37: vrooli.tech_tree_designer.v1.ontology.DescribeOverlayGraphResponse
+	(*OverlayGraph)(nil),                   // 38: vrooli.tech_tree_designer.v1.ontology.OverlayGraph
+	(*OverlayNode)(nil),                    // 39: vrooli.tech_tree_designer.v1.ontology.OverlayNode
+	(*OverlayEdge)(nil),                    // 40: vrooli.tech_tree_designer.v1.ontology.OverlayEdge
+	(*OverlayEvidence)(nil),                // 41: vrooli.tech_tree_designer.v1.ontology.OverlayEvidence
+	(*OverlayError)(nil),                   // 42: vrooli.tech_tree_designer.v1.ontology.OverlayError
 }
 var file_tech_tree_designer_v1_ontology_ontology_proto_depIdxs = []int32{
 	0,  // 0: vrooli.tech_tree_designer.v1.ontology.Capability.kind:type_name -> vrooli.tech_tree_designer.v1.ontology.CapabilityKind
@@ -3032,51 +2949,51 @@ var file_tech_tree_designer_v1_ontology_ontology_proto_depIdxs = []int32{
 	7,  // 6: vrooli.tech_tree_designer.v1.ontology.DeleteCapabilityEdgeRequest.edge:type_name -> vrooli.tech_tree_designer.v1.ontology.CapabilityEdge
 	8,  // 7: vrooli.tech_tree_designer.v1.ontology.LinkFulfillmentRequest.fulfillment:type_name -> vrooli.tech_tree_designer.v1.ontology.Fulfillment
 	8,  // 8: vrooli.tech_tree_designer.v1.ontology.ListFulfillmentsResponse.fulfillments:type_name -> vrooli.tech_tree_designer.v1.ontology.Fulfillment
-	28, // 9: vrooli.tech_tree_designer.v1.ontology.CoverageSummary.sectors:type_name -> vrooli.tech_tree_designer.v1.ontology.SectorCoverage
-	29, // 10: vrooli.tech_tree_designer.v1.ontology.CoverageSummary.classifications:type_name -> vrooli.tech_tree_designer.v1.ontology.CoverageClassification
+	27, // 9: vrooli.tech_tree_designer.v1.ontology.CoverageSummary.sectors:type_name -> vrooli.tech_tree_designer.v1.ontology.SectorCoverage
+	28, // 10: vrooli.tech_tree_designer.v1.ontology.CoverageSummary.classifications:type_name -> vrooli.tech_tree_designer.v1.ontology.CoverageClassification
 	2,  // 11: vrooli.tech_tree_designer.v1.ontology.CoverageClassification.state:type_name -> vrooli.tech_tree_designer.v1.ontology.CoverageState
-	32, // 12: vrooli.tech_tree_designer.v1.ontology.ListFocusResponse.items:type_name -> vrooli.tech_tree_designer.v1.ontology.FocusItem
+	31, // 12: vrooli.tech_tree_designer.v1.ontology.ListFocusResponse.items:type_name -> vrooli.tech_tree_designer.v1.ontology.FocusItem
 	3,  // 13: vrooli.tech_tree_designer.v1.ontology.FocusItem.reason:type_name -> vrooli.tech_tree_designer.v1.ontology.FocusReason
 	8,  // 14: vrooli.tech_tree_designer.v1.ontology.CapabilityScenarios.fulfillments:type_name -> vrooli.tech_tree_designer.v1.ontology.Fulfillment
 	6,  // 15: vrooli.tech_tree_designer.v1.ontology.ScenarioCapabilities.capabilities:type_name -> vrooli.tech_tree_designer.v1.ontology.Capability
 	8,  // 16: vrooli.tech_tree_designer.v1.ontology.ScenarioCapabilities.fulfillments:type_name -> vrooli.tech_tree_designer.v1.ontology.Fulfillment
-	39, // 17: vrooli.tech_tree_designer.v1.ontology.DescribeOverlayGraphResponse.graph:type_name -> vrooli.tech_tree_designer.v1.ontology.OverlayGraph
-	40, // 18: vrooli.tech_tree_designer.v1.ontology.OverlayGraph.nodes:type_name -> vrooli.tech_tree_designer.v1.ontology.OverlayNode
-	41, // 19: vrooli.tech_tree_designer.v1.ontology.OverlayGraph.edges:type_name -> vrooli.tech_tree_designer.v1.ontology.OverlayEdge
-	43, // 20: vrooli.tech_tree_designer.v1.ontology.OverlayGraph.errors:type_name -> vrooli.tech_tree_designer.v1.ontology.OverlayError
+	38, // 17: vrooli.tech_tree_designer.v1.ontology.DescribeOverlayGraphResponse.graph:type_name -> vrooli.tech_tree_designer.v1.ontology.OverlayGraph
+	39, // 18: vrooli.tech_tree_designer.v1.ontology.OverlayGraph.nodes:type_name -> vrooli.tech_tree_designer.v1.ontology.OverlayNode
+	40, // 19: vrooli.tech_tree_designer.v1.ontology.OverlayGraph.edges:type_name -> vrooli.tech_tree_designer.v1.ontology.OverlayEdge
+	42, // 20: vrooli.tech_tree_designer.v1.ontology.OverlayGraph.errors:type_name -> vrooli.tech_tree_designer.v1.ontology.OverlayError
 	4,  // 21: vrooli.tech_tree_designer.v1.ontology.OverlayNode.kind:type_name -> vrooli.tech_tree_designer.v1.ontology.OverlayNodeKind
-	42, // 22: vrooli.tech_tree_designer.v1.ontology.OverlayEdge.evidence:type_name -> vrooli.tech_tree_designer.v1.ontology.OverlayEvidence
+	41, // 22: vrooli.tech_tree_designer.v1.ontology.OverlayEdge.evidence:type_name -> vrooli.tech_tree_designer.v1.ontology.OverlayEvidence
 	5,  // 23: vrooli.tech_tree_designer.v1.ontology.OverlayEvidence.source:type_name -> vrooli.tech_tree_designer.v1.ontology.OverlayEvidenceSource
-	10, // 24: vrooli.tech_tree_designer.v1.ontology.OntologyService.ListCapabilities:input_type -> vrooli.tech_tree_designer.v1.ontology.ListCapabilitiesRequest
-	12, // 25: vrooli.tech_tree_designer.v1.ontology.OntologyService.GetCapability:input_type -> vrooli.tech_tree_designer.v1.ontology.GetCapabilityRequest
-	13, // 26: vrooli.tech_tree_designer.v1.ontology.OntologyService.UpsertCapability:input_type -> vrooli.tech_tree_designer.v1.ontology.UpsertCapabilityRequest
-	14, // 27: vrooli.tech_tree_designer.v1.ontology.OntologyService.DeleteCapability:input_type -> vrooli.tech_tree_designer.v1.ontology.DeleteCapabilityRequest
-	16, // 28: vrooli.tech_tree_designer.v1.ontology.OntologyService.UpsertCapabilityEdge:input_type -> vrooli.tech_tree_designer.v1.ontology.UpsertCapabilityEdgeRequest
-	17, // 29: vrooli.tech_tree_designer.v1.ontology.OntologyService.DeleteCapabilityEdge:input_type -> vrooli.tech_tree_designer.v1.ontology.DeleteCapabilityEdgeRequest
-	19, // 30: vrooli.tech_tree_designer.v1.ontology.OntologyService.ImportTopology:input_type -> vrooli.tech_tree_designer.v1.ontology.ImportTopologyRequest
-	21, // 31: vrooli.tech_tree_designer.v1.ontology.OntologyService.LinkFulfillment:input_type -> vrooli.tech_tree_designer.v1.ontology.LinkFulfillmentRequest
-	22, // 32: vrooli.tech_tree_designer.v1.ontology.OntologyService.UnlinkFulfillment:input_type -> vrooli.tech_tree_designer.v1.ontology.UnlinkFulfillmentRequest
-	24, // 33: vrooli.tech_tree_designer.v1.ontology.OntologyService.ListFulfillments:input_type -> vrooli.tech_tree_designer.v1.ontology.ListFulfillmentsRequest
-	26, // 34: vrooli.tech_tree_designer.v1.ontology.OntologyService.GetCoverage:input_type -> vrooli.tech_tree_designer.v1.ontology.GetCoverageRequest
-	30, // 35: vrooli.tech_tree_designer.v1.ontology.OntologyService.ListFocus:input_type -> vrooli.tech_tree_designer.v1.ontology.ListFocusRequest
-	33, // 36: vrooli.tech_tree_designer.v1.ontology.OntologyService.GetCapabilityScenarios:input_type -> vrooli.tech_tree_designer.v1.ontology.GetCapabilityScenariosRequest
-	35, // 37: vrooli.tech_tree_designer.v1.ontology.OntologyService.GetScenarioCapabilities:input_type -> vrooli.tech_tree_designer.v1.ontology.GetScenarioCapabilitiesRequest
-	37, // 38: vrooli.tech_tree_designer.v1.ontology.OntologyService.DescribeOverlayGraph:input_type -> vrooli.tech_tree_designer.v1.ontology.DescribeOverlayGraphRequest
-	11, // 39: vrooli.tech_tree_designer.v1.ontology.OntologyService.ListCapabilities:output_type -> vrooli.tech_tree_designer.v1.ontology.ListCapabilitiesResponse
+	9,  // 24: vrooli.tech_tree_designer.v1.ontology.OntologyService.ListCapabilities:input_type -> vrooli.tech_tree_designer.v1.ontology.ListCapabilitiesRequest
+	11, // 25: vrooli.tech_tree_designer.v1.ontology.OntologyService.GetCapability:input_type -> vrooli.tech_tree_designer.v1.ontology.GetCapabilityRequest
+	12, // 26: vrooli.tech_tree_designer.v1.ontology.OntologyService.UpsertCapability:input_type -> vrooli.tech_tree_designer.v1.ontology.UpsertCapabilityRequest
+	13, // 27: vrooli.tech_tree_designer.v1.ontology.OntologyService.DeleteCapability:input_type -> vrooli.tech_tree_designer.v1.ontology.DeleteCapabilityRequest
+	15, // 28: vrooli.tech_tree_designer.v1.ontology.OntologyService.UpsertCapabilityEdge:input_type -> vrooli.tech_tree_designer.v1.ontology.UpsertCapabilityEdgeRequest
+	16, // 29: vrooli.tech_tree_designer.v1.ontology.OntologyService.DeleteCapabilityEdge:input_type -> vrooli.tech_tree_designer.v1.ontology.DeleteCapabilityEdgeRequest
+	18, // 30: vrooli.tech_tree_designer.v1.ontology.OntologyService.ImportTopology:input_type -> vrooli.tech_tree_designer.v1.ontology.ImportTopologyRequest
+	20, // 31: vrooli.tech_tree_designer.v1.ontology.OntologyService.LinkFulfillment:input_type -> vrooli.tech_tree_designer.v1.ontology.LinkFulfillmentRequest
+	21, // 32: vrooli.tech_tree_designer.v1.ontology.OntologyService.UnlinkFulfillment:input_type -> vrooli.tech_tree_designer.v1.ontology.UnlinkFulfillmentRequest
+	23, // 33: vrooli.tech_tree_designer.v1.ontology.OntologyService.ListFulfillments:input_type -> vrooli.tech_tree_designer.v1.ontology.ListFulfillmentsRequest
+	25, // 34: vrooli.tech_tree_designer.v1.ontology.OntologyService.GetCoverage:input_type -> vrooli.tech_tree_designer.v1.ontology.GetCoverageRequest
+	29, // 35: vrooli.tech_tree_designer.v1.ontology.OntologyService.ListFocus:input_type -> vrooli.tech_tree_designer.v1.ontology.ListFocusRequest
+	32, // 36: vrooli.tech_tree_designer.v1.ontology.OntologyService.GetCapabilityScenarios:input_type -> vrooli.tech_tree_designer.v1.ontology.GetCapabilityScenariosRequest
+	34, // 37: vrooli.tech_tree_designer.v1.ontology.OntologyService.GetScenarioCapabilities:input_type -> vrooli.tech_tree_designer.v1.ontology.GetScenarioCapabilitiesRequest
+	36, // 38: vrooli.tech_tree_designer.v1.ontology.OntologyService.DescribeOverlayGraph:input_type -> vrooli.tech_tree_designer.v1.ontology.DescribeOverlayGraphRequest
+	10, // 39: vrooli.tech_tree_designer.v1.ontology.OntologyService.ListCapabilities:output_type -> vrooli.tech_tree_designer.v1.ontology.ListCapabilitiesResponse
 	6,  // 40: vrooli.tech_tree_designer.v1.ontology.OntologyService.GetCapability:output_type -> vrooli.tech_tree_designer.v1.ontology.Capability
 	6,  // 41: vrooli.tech_tree_designer.v1.ontology.OntologyService.UpsertCapability:output_type -> vrooli.tech_tree_designer.v1.ontology.Capability
-	15, // 42: vrooli.tech_tree_designer.v1.ontology.OntologyService.DeleteCapability:output_type -> vrooli.tech_tree_designer.v1.ontology.DeleteCapabilityResponse
+	14, // 42: vrooli.tech_tree_designer.v1.ontology.OntologyService.DeleteCapability:output_type -> vrooli.tech_tree_designer.v1.ontology.DeleteCapabilityResponse
 	7,  // 43: vrooli.tech_tree_designer.v1.ontology.OntologyService.UpsertCapabilityEdge:output_type -> vrooli.tech_tree_designer.v1.ontology.CapabilityEdge
-	18, // 44: vrooli.tech_tree_designer.v1.ontology.OntologyService.DeleteCapabilityEdge:output_type -> vrooli.tech_tree_designer.v1.ontology.DeleteCapabilityEdgeResponse
-	20, // 45: vrooli.tech_tree_designer.v1.ontology.OntologyService.ImportTopology:output_type -> vrooli.tech_tree_designer.v1.ontology.ImportTopologyResponse
+	17, // 44: vrooli.tech_tree_designer.v1.ontology.OntologyService.DeleteCapabilityEdge:output_type -> vrooli.tech_tree_designer.v1.ontology.DeleteCapabilityEdgeResponse
+	19, // 45: vrooli.tech_tree_designer.v1.ontology.OntologyService.ImportTopology:output_type -> vrooli.tech_tree_designer.v1.ontology.ImportTopologyResponse
 	8,  // 46: vrooli.tech_tree_designer.v1.ontology.OntologyService.LinkFulfillment:output_type -> vrooli.tech_tree_designer.v1.ontology.Fulfillment
-	23, // 47: vrooli.tech_tree_designer.v1.ontology.OntologyService.UnlinkFulfillment:output_type -> vrooli.tech_tree_designer.v1.ontology.UnlinkFulfillmentResponse
-	25, // 48: vrooli.tech_tree_designer.v1.ontology.OntologyService.ListFulfillments:output_type -> vrooli.tech_tree_designer.v1.ontology.ListFulfillmentsResponse
-	27, // 49: vrooli.tech_tree_designer.v1.ontology.OntologyService.GetCoverage:output_type -> vrooli.tech_tree_designer.v1.ontology.CoverageSummary
-	31, // 50: vrooli.tech_tree_designer.v1.ontology.OntologyService.ListFocus:output_type -> vrooli.tech_tree_designer.v1.ontology.ListFocusResponse
-	34, // 51: vrooli.tech_tree_designer.v1.ontology.OntologyService.GetCapabilityScenarios:output_type -> vrooli.tech_tree_designer.v1.ontology.CapabilityScenarios
-	36, // 52: vrooli.tech_tree_designer.v1.ontology.OntologyService.GetScenarioCapabilities:output_type -> vrooli.tech_tree_designer.v1.ontology.ScenarioCapabilities
-	38, // 53: vrooli.tech_tree_designer.v1.ontology.OntologyService.DescribeOverlayGraph:output_type -> vrooli.tech_tree_designer.v1.ontology.DescribeOverlayGraphResponse
+	22, // 47: vrooli.tech_tree_designer.v1.ontology.OntologyService.UnlinkFulfillment:output_type -> vrooli.tech_tree_designer.v1.ontology.UnlinkFulfillmentResponse
+	24, // 48: vrooli.tech_tree_designer.v1.ontology.OntologyService.ListFulfillments:output_type -> vrooli.tech_tree_designer.v1.ontology.ListFulfillmentsResponse
+	26, // 49: vrooli.tech_tree_designer.v1.ontology.OntologyService.GetCoverage:output_type -> vrooli.tech_tree_designer.v1.ontology.CoverageSummary
+	30, // 50: vrooli.tech_tree_designer.v1.ontology.OntologyService.ListFocus:output_type -> vrooli.tech_tree_designer.v1.ontology.ListFocusResponse
+	33, // 51: vrooli.tech_tree_designer.v1.ontology.OntologyService.GetCapabilityScenarios:output_type -> vrooli.tech_tree_designer.v1.ontology.CapabilityScenarios
+	35, // 52: vrooli.tech_tree_designer.v1.ontology.OntologyService.GetScenarioCapabilities:output_type -> vrooli.tech_tree_designer.v1.ontology.ScenarioCapabilities
+	37, // 53: vrooli.tech_tree_designer.v1.ontology.OntologyService.DescribeOverlayGraph:output_type -> vrooli.tech_tree_designer.v1.ontology.DescribeOverlayGraphResponse
 	39, // [39:54] is the sub-list for method output_type
 	24, // [24:39] is the sub-list for method input_type
 	24, // [24:24] is the sub-list for extension type_name
@@ -3095,7 +3012,7 @@ func file_tech_tree_designer_v1_ontology_ontology_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_tech_tree_designer_v1_ontology_ontology_proto_rawDesc), len(file_tech_tree_designer_v1_ontology_ontology_proto_rawDesc)),
 			NumEnums:      6,
-			NumMessages:   38,
+			NumMessages:   37,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

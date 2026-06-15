@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package vrooli.cli.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1";
+
+// =============================================================================
+// VROOLI CLI — `scenario test` phase-result output contract
+// =============================================================================
+//
+// @stability experimental
+//
+// Canonical wire shape for `vrooli scenario test <scenario> --json`: a terse
+// pass/fail summary of running the scenario's lifecycle `test` phase to
+// completion. Marshaled by the root vrooli CLI with protojson
+// (UseProtoNames=true, EmitUnpopulated=true) via cliout.WriteProtoJSON, so a
+// consumer decodes a typed shape rather than parsing stdout.
+//
+// The durable, addressable run is owned by the test-genie server, NOT the root
+// CLI. The run id, live status, per-phase detail, and re-attach/wait/abort live
+// behind `test-genie runs …` (the test-genie RunsService, surfaced from root as
+// `vrooli scenario test wait|status|follow|abort <scenario> <run-id>`). This
+// contract therefore deliberately carries no run id and no per-phase breakdown:
+// it is the lifecycle phase's exit summary, and nothing more.
+//
+// Status strings (a Go `type` string, matching the cli/v1 convention of
+// `string status` over prefixed enums): one of
+//   "passed" — the test phase completed successfully (exit 0)
+//   "failed" — a test step failed (non-zero exit)
+// =============================================================================
+
+// TestPhaseResult is the typed shape `vrooli scenario test <scenario> --json`
+// emits once the lifecycle test phase finishes.
+message TestPhaseResult {
+  // Target scenario slug.
+  string scenario = 1;
+
+  // Phase outcome string: "passed" (exit 0) or "failed" (non-zero exit).
+  string status = 2;
+
+  // Process exit code of the test phase; 0 on pass, non-zero on failure.
+  int32 exit_code = 3;
+
+  // RFC3339Nano timestamp when the phase started; empty if not measured.
+  string started_at = 4;
+
+  // RFC3339Nano timestamp when the phase finished; empty if not measured.
+  string ended_at = 5;
+
+  // Human-friendly total duration ("4m12s"); empty if not measured.
+  string duration = 6;
+
+  // Absolute path to the scenario lifecycle log file the phase wrote to.
+  string log_file = 7;
+}

@@ -424,6 +424,34 @@ class ListRunVisualsResponse(_message.Message):
     visuals: _containers.RepeatedCompositeFieldContainer[RunVisual]
     def __init__(self, visuals: _Optional[_Iterable[_Union[RunVisual, _Mapping]]] = ...) -> None: ...
 
+class CompareRunVisualsRequest(_message.Message):
+    __slots__ = ("scenario", "base_run_id", "current_run_id")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    BASE_RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    CURRENT_RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    base_run_id: str
+    current_run_id: str
+    def __init__(self, scenario: _Optional[str] = ..., base_run_id: _Optional[str] = ..., current_run_id: _Optional[str] = ...) -> None: ...
+
+class VisualDelta(_message.Message):
+    __slots__ = ("page", "label", "status", "changed_fraction")
+    PAGE_FIELD_NUMBER: _ClassVar[int]
+    LABEL_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    CHANGED_FRACTION_FIELD_NUMBER: _ClassVar[int]
+    page: str
+    label: str
+    status: str
+    changed_fraction: float
+    def __init__(self, page: _Optional[str] = ..., label: _Optional[str] = ..., status: _Optional[str] = ..., changed_fraction: _Optional[float] = ...) -> None: ...
+
+class CompareRunVisualsResponse(_message.Message):
+    __slots__ = ("deltas",)
+    DELTAS_FIELD_NUMBER: _ClassVar[int]
+    deltas: _containers.RepeatedCompositeFieldContainer[VisualDelta]
+    def __init__(self, deltas: _Optional[_Iterable[_Union[VisualDelta, _Mapping]]] = ...) -> None: ...
+
 class CheckFreshnessRequest(_message.Message):
     __slots__ = ("scenario", "phases")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]

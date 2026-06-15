@@ -323,13 +323,18 @@ func (x *BaselineManifest) GetSkipped() map[string]string {
 type SurfaceDiff struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	SurfaceId string                 `protobuf:"bytes,1,opt,name=surface_id,json=surfaceId,proto3" json:"surface_id,omitempty"`
-	// verdict: clean | regression | new-failure | preexisting | not-comparable
-	Verdict       string   `protobuf:"bytes,2,opt,name=verdict,proto3" json:"verdict,omitempty"`
-	Regressions   []string `protobuf:"bytes,3,rep,name=regressions,proto3" json:"regressions,omitempty"`
-	NewFailures   []string `protobuf:"bytes,4,rep,name=new_failures,json=newFailures,proto3" json:"new_failures,omitempty"`
-	Preexisting   []string `protobuf:"bytes,5,rep,name=preexisting,proto3" json:"preexisting,omitempty"`
-	Cleared       []string `protobuf:"bytes,6,rep,name=cleared,proto3" json:"cleared,omitempty"`
-	Summary       string   `protobuf:"bytes,7,opt,name=summary,proto3" json:"summary,omitempty"`
+	// verdict: clean | changed | regression | new-failure | preexisting | not-comparable
+	Verdict     string   `protobuf:"bytes,2,opt,name=verdict,proto3" json:"verdict,omitempty"`
+	Regressions []string `protobuf:"bytes,3,rep,name=regressions,proto3" json:"regressions,omitempty"`
+	NewFailures []string `protobuf:"bytes,4,rep,name=new_failures,json=newFailures,proto3" json:"new_failures,omitempty"`
+	Preexisting []string `protobuf:"bytes,5,rep,name=preexisting,proto3" json:"preexisting,omitempty"`
+	Cleared     []string `protobuf:"bytes,6,rep,name=cleared,proto3" json:"cleared,omitempty"`
+	Summary     string   `protobuf:"bytes,7,opt,name=summary,proto3" json:"summary,omitempty"`
+	// changed carries neutral, advisory differences that are NOT failures — the
+	// visuals surface uses it to report "the UI moved, review before/after"
+	// (each entry carries the change magnitude). A surface whose only delta is
+	// `changed` has verdict `changed`, which never affects the diff exit code.
+	Changed       []string `protobuf:"bytes,8,rep,name=changed,proto3" json:"changed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -411,6 +416,13 @@ func (x *SurfaceDiff) GetSummary() string {
 		return x.Summary
 	}
 	return ""
+}
+
+func (x *SurfaceDiff) GetChanged() []string {
+	if x != nil {
+		return x.Changed
+	}
+	return nil
 }
 
 // Staleness reports working-tree drift from the baseline commit.
@@ -734,11 +746,26 @@ func (x *SnapshotForBaselineRequest) GetRepoId() int64 {
 	return 0
 }
 
+// SnapshotForBaselineResponse returns IMMEDIATELY once the one comprehensive
+// test-genie run has started — it does NOT block for the run to finish. The
+// pin + manifest write happen server-side when the run completes (durable across
+// client disconnect), so the response carries the run handle the caller follows,
+// not the finished baseline. Follow the run with `test-genie runs follow
+// <scenario> <run_id>`; when it completes the baseline is pinned and queryable
+// via GetBaseline.
 type SnapshotForBaselineResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Baseline      *BaselineManifest      `protobuf:"bytes,1,opt,name=baseline,proto3" json:"baseline,omitempty"`
-	Skipped       map[string]string      `protobuf:"bytes,2,rep,name=skipped,proto3" json:"skipped,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	DirtyWarning  string                 `protobuf:"bytes,3,opt,name=dirty_warning,json=dirtyWarning,proto3" json:"dirty_warning,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// run_id is the comprehensive run the baseline will pin once it completes.
+	RunId    string `protobuf:"bytes,1,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	Scenario string `protobuf:"bytes,2,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Name     string `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Branch   string `protobuf:"bytes,4,opt,name=branch,proto3" json:"branch,omitempty"`
+	// estimated_total_seconds is the run's ETA (0 when unknown).
+	EstimatedTotalSeconds int32 `protobuf:"varint,5,opt,name=estimated_total_seconds,json=estimatedTotalSeconds,proto3" json:"estimated_total_seconds,omitempty"`
+	EtaKnown              bool  `protobuf:"varint,6,opt,name=eta_known,json=etaKnown,proto3" json:"eta_known,omitempty"`
+	// dirty_warning is set when the baseline is being captured against a dirty
+	// working tree (surfaced up front so the operator can abort).
+	DirtyWarning  string `protobuf:"bytes,7,opt,name=dirty_warning,json=dirtyWarning,proto3" json:"dirty_warning,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -773,18 +800,46 @@ func (*SnapshotForBaselineResponse) Descriptor() ([]byte, []int) {
 	return file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *SnapshotForBaselineResponse) GetBaseline() *BaselineManifest {
+func (x *SnapshotForBaselineResponse) GetRunId() string {
 	if x != nil {
-		return x.Baseline
+		return x.RunId
 	}
-	return nil
+	return ""
 }
 
-func (x *SnapshotForBaselineResponse) GetSkipped() map[string]string {
+func (x *SnapshotForBaselineResponse) GetScenario() string {
 	if x != nil {
-		return x.Skipped
+		return x.Scenario
 	}
-	return nil
+	return ""
+}
+
+func (x *SnapshotForBaselineResponse) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *SnapshotForBaselineResponse) GetBranch() string {
+	if x != nil {
+		return x.Branch
+	}
+	return ""
+}
+
+func (x *SnapshotForBaselineResponse) GetEstimatedTotalSeconds() int32 {
+	if x != nil {
+		return x.EstimatedTotalSeconds
+	}
+	return 0
+}
+
+func (x *SnapshotForBaselineResponse) GetEtaKnown() bool {
+	if x != nil {
+		return x.EtaKnown
+	}
+	return false
 }
 
 func (x *SnapshotForBaselineResponse) GetDirtyWarning() string {
@@ -1470,7 +1525,7 @@ const file_git_control_tower_v1_baselines_baselines_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\v25.vrooli.git_control_tower.v1.baselines.SurfacePointerR\x05value:\x028\x01\x1a:\n" +
 	"\fSkippedEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xe1\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xfb\x01\n" +
 	"\vSurfaceDiff\x12\x1d\n" +
 	"\n" +
 	"surface_id\x18\x01 \x01(\tR\tsurfaceId\x12\x18\n" +
@@ -1479,7 +1534,8 @@ const file_git_control_tower_v1_baselines_baselines_proto_rawDesc = "" +
 	"\fnew_failures\x18\x04 \x03(\tR\vnewFailures\x12 \n" +
 	"\vpreexisting\x18\x05 \x03(\tR\vpreexisting\x12\x18\n" +
 	"\acleared\x18\x06 \x03(\tR\acleared\x12\x18\n" +
-	"\asummary\x18\a \x01(\tR\asummary\"x\n" +
+	"\asummary\x18\a \x01(\tR\asummary\x12\x18\n" +
+	"\achanged\x18\b \x03(\tR\achanged\"x\n" +
 	"\tStaleness\x12#\n" +
 	"\rcommits_since\x18\x01 \x01(\x05R\fcommitsSince\x12#\n" +
 	"\rfiles_changed\x18\x02 \x01(\x05R\ffilesChanged\x12!\n" +
@@ -1510,14 +1566,15 @@ const file_git_control_tower_v1_baselines_baselines_proto_rawDesc = "" +
 	"\n" +
 	"created_by\x18\x06 \x01(\tR\tcreatedBy\x12\x16\n" +
 	"\x06reason\x18\a \x01(\tR\x06reason\x12\x17\n" +
-	"\arepo_id\x18\b \x01(\x03R\x06repoId\"\xbe\x02\n" +
-	"\x1bSnapshotForBaselineResponse\x12S\n" +
-	"\bbaseline\x18\x01 \x01(\v27.vrooli.git_control_tower.v1.baselines.BaselineManifestR\bbaseline\x12i\n" +
-	"\askipped\x18\x02 \x03(\v2O.vrooli.git_control_tower.v1.baselines.SnapshotForBaselineResponse.SkippedEntryR\askipped\x12#\n" +
-	"\rdirty_warning\x18\x03 \x01(\tR\fdirtyWarning\x1a:\n" +
-	"\fSkippedEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"u\n" +
+	"\arepo_id\x18\b \x01(\x03R\x06repoId\"\xf6\x01\n" +
+	"\x1bSnapshotForBaselineResponse\x12\x15\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x1a\n" +
+	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12\x16\n" +
+	"\x06branch\x18\x04 \x01(\tR\x06branch\x126\n" +
+	"\x17estimated_total_seconds\x18\x05 \x01(\x05R\x15estimatedTotalSeconds\x12\x1b\n" +
+	"\teta_known\x18\x06 \x01(\bR\betaKnown\x12#\n" +
+	"\rdirty_warning\x18\a \x01(\tR\fdirtyWarning\"u\n" +
 	"\x12GetBaselineRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
@@ -1585,7 +1642,7 @@ func file_git_control_tower_v1_baselines_baselines_proto_rawDescGZIP() []byte {
 	return file_git_control_tower_v1_baselines_baselines_proto_rawDescData
 }
 
-var file_git_control_tower_v1_baselines_baselines_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_git_control_tower_v1_baselines_baselines_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_git_control_tower_v1_baselines_baselines_proto_goTypes = []any{
 	(*GitState)(nil),                    // 0: vrooli.git_control_tower.v1.baselines.GitState
 	(*SurfacePointer)(nil),              // 1: vrooli.git_control_tower.v1.baselines.SurfacePointer
@@ -1609,7 +1666,6 @@ var file_git_control_tower_v1_baselines_baselines_proto_goTypes = []any{
 	nil,                                 // 19: vrooli.git_control_tower.v1.baselines.BaselineManifest.SurfacesEntry
 	nil,                                 // 20: vrooli.git_control_tower.v1.baselines.BaselineManifest.SkippedEntry
 	nil,                                 // 21: vrooli.git_control_tower.v1.baselines.CreateBaselineResponse.SkippedEntry
-	nil,                                 // 22: vrooli.git_control_tower.v1.baselines.SnapshotForBaselineResponse.SkippedEntry
 }
 var file_git_control_tower_v1_baselines_baselines_proto_depIdxs = []int32{
 	0,  // 0: vrooli.git_control_tower.v1.baselines.BaselineManifest.git:type_name -> vrooli.git_control_tower.v1.baselines.GitState
@@ -1617,35 +1673,33 @@ var file_git_control_tower_v1_baselines_baselines_proto_depIdxs = []int32{
 	20, // 2: vrooli.git_control_tower.v1.baselines.BaselineManifest.skipped:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest.SkippedEntry
 	2,  // 3: vrooli.git_control_tower.v1.baselines.CreateBaselineResponse.baseline:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest
 	21, // 4: vrooli.git_control_tower.v1.baselines.CreateBaselineResponse.skipped:type_name -> vrooli.git_control_tower.v1.baselines.CreateBaselineResponse.SkippedEntry
-	2,  // 5: vrooli.git_control_tower.v1.baselines.SnapshotForBaselineResponse.baseline:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest
-	22, // 6: vrooli.git_control_tower.v1.baselines.SnapshotForBaselineResponse.skipped:type_name -> vrooli.git_control_tower.v1.baselines.SnapshotForBaselineResponse.SkippedEntry
-	2,  // 7: vrooli.git_control_tower.v1.baselines.GetBaselineResponse.baseline:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest
-	2,  // 8: vrooli.git_control_tower.v1.baselines.ListBaselinesResponse.baselines:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest
-	2,  // 9: vrooli.git_control_tower.v1.baselines.DiffBaselineResponse.baseline:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest
-	0,  // 10: vrooli.git_control_tower.v1.baselines.DiffBaselineResponse.current_git:type_name -> vrooli.git_control_tower.v1.baselines.GitState
-	4,  // 11: vrooli.git_control_tower.v1.baselines.DiffBaselineResponse.staleness:type_name -> vrooli.git_control_tower.v1.baselines.Staleness
-	3,  // 12: vrooli.git_control_tower.v1.baselines.DiffBaselineResponse.surfaces:type_name -> vrooli.git_control_tower.v1.baselines.SurfaceDiff
-	2,  // 13: vrooli.git_control_tower.v1.baselines.EditBaselineResponse.baseline:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest
-	1,  // 14: vrooli.git_control_tower.v1.baselines.BaselineManifest.SurfacesEntry.value:type_name -> vrooli.git_control_tower.v1.baselines.SurfacePointer
-	5,  // 15: vrooli.git_control_tower.v1.baselines.BaselinesService.CreateBaseline:input_type -> vrooli.git_control_tower.v1.baselines.CreateBaselineRequest
-	7,  // 16: vrooli.git_control_tower.v1.baselines.BaselinesService.SnapshotForBaseline:input_type -> vrooli.git_control_tower.v1.baselines.SnapshotForBaselineRequest
-	9,  // 17: vrooli.git_control_tower.v1.baselines.BaselinesService.GetBaseline:input_type -> vrooli.git_control_tower.v1.baselines.GetBaselineRequest
-	11, // 18: vrooli.git_control_tower.v1.baselines.BaselinesService.ListBaselines:input_type -> vrooli.git_control_tower.v1.baselines.ListBaselinesRequest
-	13, // 19: vrooli.git_control_tower.v1.baselines.BaselinesService.DiffBaseline:input_type -> vrooli.git_control_tower.v1.baselines.DiffBaselineRequest
-	15, // 20: vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteBaseline:input_type -> vrooli.git_control_tower.v1.baselines.DeleteBaselineRequest
-	17, // 21: vrooli.git_control_tower.v1.baselines.BaselinesService.EditBaseline:input_type -> vrooli.git_control_tower.v1.baselines.EditBaselineRequest
-	6,  // 22: vrooli.git_control_tower.v1.baselines.BaselinesService.CreateBaseline:output_type -> vrooli.git_control_tower.v1.baselines.CreateBaselineResponse
-	8,  // 23: vrooli.git_control_tower.v1.baselines.BaselinesService.SnapshotForBaseline:output_type -> vrooli.git_control_tower.v1.baselines.SnapshotForBaselineResponse
-	10, // 24: vrooli.git_control_tower.v1.baselines.BaselinesService.GetBaseline:output_type -> vrooli.git_control_tower.v1.baselines.GetBaselineResponse
-	12, // 25: vrooli.git_control_tower.v1.baselines.BaselinesService.ListBaselines:output_type -> vrooli.git_control_tower.v1.baselines.ListBaselinesResponse
-	14, // 26: vrooli.git_control_tower.v1.baselines.BaselinesService.DiffBaseline:output_type -> vrooli.git_control_tower.v1.baselines.DiffBaselineResponse
-	16, // 27: vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteBaseline:output_type -> vrooli.git_control_tower.v1.baselines.DeleteBaselineResponse
-	18, // 28: vrooli.git_control_tower.v1.baselines.BaselinesService.EditBaseline:output_type -> vrooli.git_control_tower.v1.baselines.EditBaselineResponse
-	22, // [22:29] is the sub-list for method output_type
-	15, // [15:22] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	2,  // 5: vrooli.git_control_tower.v1.baselines.GetBaselineResponse.baseline:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest
+	2,  // 6: vrooli.git_control_tower.v1.baselines.ListBaselinesResponse.baselines:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest
+	2,  // 7: vrooli.git_control_tower.v1.baselines.DiffBaselineResponse.baseline:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest
+	0,  // 8: vrooli.git_control_tower.v1.baselines.DiffBaselineResponse.current_git:type_name -> vrooli.git_control_tower.v1.baselines.GitState
+	4,  // 9: vrooli.git_control_tower.v1.baselines.DiffBaselineResponse.staleness:type_name -> vrooli.git_control_tower.v1.baselines.Staleness
+	3,  // 10: vrooli.git_control_tower.v1.baselines.DiffBaselineResponse.surfaces:type_name -> vrooli.git_control_tower.v1.baselines.SurfaceDiff
+	2,  // 11: vrooli.git_control_tower.v1.baselines.EditBaselineResponse.baseline:type_name -> vrooli.git_control_tower.v1.baselines.BaselineManifest
+	1,  // 12: vrooli.git_control_tower.v1.baselines.BaselineManifest.SurfacesEntry.value:type_name -> vrooli.git_control_tower.v1.baselines.SurfacePointer
+	5,  // 13: vrooli.git_control_tower.v1.baselines.BaselinesService.CreateBaseline:input_type -> vrooli.git_control_tower.v1.baselines.CreateBaselineRequest
+	7,  // 14: vrooli.git_control_tower.v1.baselines.BaselinesService.SnapshotForBaseline:input_type -> vrooli.git_control_tower.v1.baselines.SnapshotForBaselineRequest
+	9,  // 15: vrooli.git_control_tower.v1.baselines.BaselinesService.GetBaseline:input_type -> vrooli.git_control_tower.v1.baselines.GetBaselineRequest
+	11, // 16: vrooli.git_control_tower.v1.baselines.BaselinesService.ListBaselines:input_type -> vrooli.git_control_tower.v1.baselines.ListBaselinesRequest
+	13, // 17: vrooli.git_control_tower.v1.baselines.BaselinesService.DiffBaseline:input_type -> vrooli.git_control_tower.v1.baselines.DiffBaselineRequest
+	15, // 18: vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteBaseline:input_type -> vrooli.git_control_tower.v1.baselines.DeleteBaselineRequest
+	17, // 19: vrooli.git_control_tower.v1.baselines.BaselinesService.EditBaseline:input_type -> vrooli.git_control_tower.v1.baselines.EditBaselineRequest
+	6,  // 20: vrooli.git_control_tower.v1.baselines.BaselinesService.CreateBaseline:output_type -> vrooli.git_control_tower.v1.baselines.CreateBaselineResponse
+	8,  // 21: vrooli.git_control_tower.v1.baselines.BaselinesService.SnapshotForBaseline:output_type -> vrooli.git_control_tower.v1.baselines.SnapshotForBaselineResponse
+	10, // 22: vrooli.git_control_tower.v1.baselines.BaselinesService.GetBaseline:output_type -> vrooli.git_control_tower.v1.baselines.GetBaselineResponse
+	12, // 23: vrooli.git_control_tower.v1.baselines.BaselinesService.ListBaselines:output_type -> vrooli.git_control_tower.v1.baselines.ListBaselinesResponse
+	14, // 24: vrooli.git_control_tower.v1.baselines.BaselinesService.DiffBaseline:output_type -> vrooli.git_control_tower.v1.baselines.DiffBaselineResponse
+	16, // 25: vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteBaseline:output_type -> vrooli.git_control_tower.v1.baselines.DeleteBaselineResponse
+	18, // 26: vrooli.git_control_tower.v1.baselines.BaselinesService.EditBaseline:output_type -> vrooli.git_control_tower.v1.baselines.EditBaselineResponse
+	20, // [20:27] is the sub-list for method output_type
+	13, // [13:20] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_git_control_tower_v1_baselines_baselines_proto_init() }
@@ -1659,7 +1713,7 @@ func file_git_control_tower_v1_baselines_baselines_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_git_control_tower_v1_baselines_baselines_proto_rawDesc), len(file_git_control_tower_v1_baselines_baselines_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   23,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -79,7 +79,7 @@ class BaselineManifest(_message.Message):
     def __init__(self, name: _Optional[str] = ..., scenario: _Optional[str] = ..., branch: _Optional[str] = ..., created_at: _Optional[str] = ..., created_by: _Optional[str] = ..., git: _Optional[_Union[GitState, _Mapping]] = ..., surfaces: _Optional[_Mapping[str, SurfacePointer]] = ..., schema_version: _Optional[int] = ..., skipped: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
 class SurfaceDiff(_message.Message):
-    __slots__ = ("surface_id", "verdict", "regressions", "new_failures", "preexisting", "cleared", "summary")
+    __slots__ = ("surface_id", "verdict", "regressions", "new_failures", "preexisting", "cleared", "summary", "changed")
     SURFACE_ID_FIELD_NUMBER: _ClassVar[int]
     VERDICT_FIELD_NUMBER: _ClassVar[int]
     REGRESSIONS_FIELD_NUMBER: _ClassVar[int]
@@ -87,6 +87,7 @@ class SurfaceDiff(_message.Message):
     PREEXISTING_FIELD_NUMBER: _ClassVar[int]
     CLEARED_FIELD_NUMBER: _ClassVar[int]
     SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    CHANGED_FIELD_NUMBER: _ClassVar[int]
     surface_id: str
     verdict: str
     regressions: _containers.RepeatedScalarFieldContainer[str]
@@ -94,7 +95,8 @@ class SurfaceDiff(_message.Message):
     preexisting: _containers.RepeatedScalarFieldContainer[str]
     cleared: _containers.RepeatedScalarFieldContainer[str]
     summary: str
-    def __init__(self, surface_id: _Optional[str] = ..., verdict: _Optional[str] = ..., regressions: _Optional[_Iterable[str]] = ..., new_failures: _Optional[_Iterable[str]] = ..., preexisting: _Optional[_Iterable[str]] = ..., cleared: _Optional[_Iterable[str]] = ..., summary: _Optional[str] = ...) -> None: ...
+    changed: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, surface_id: _Optional[str] = ..., verdict: _Optional[str] = ..., regressions: _Optional[_Iterable[str]] = ..., new_failures: _Optional[_Iterable[str]] = ..., preexisting: _Optional[_Iterable[str]] = ..., cleared: _Optional[_Iterable[str]] = ..., summary: _Optional[str] = ..., changed: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class Staleness(_message.Message):
     __slots__ = ("commits_since", "files_changed", "likely_stale")
@@ -164,21 +166,22 @@ class SnapshotForBaselineRequest(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., name: _Optional[str] = ..., branch: _Optional[str] = ..., include: _Optional[_Iterable[str]] = ..., fast: _Optional[bool] = ..., created_by: _Optional[str] = ..., reason: _Optional[str] = ..., repo_id: _Optional[int] = ...) -> None: ...
 
 class SnapshotForBaselineResponse(_message.Message):
-    __slots__ = ("baseline", "skipped", "dirty_warning")
-    class SkippedEntry(_message.Message):
-        __slots__ = ("key", "value")
-        KEY_FIELD_NUMBER: _ClassVar[int]
-        VALUE_FIELD_NUMBER: _ClassVar[int]
-        key: str
-        value: str
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
-    BASELINE_FIELD_NUMBER: _ClassVar[int]
-    SKIPPED_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ("run_id", "scenario", "name", "branch", "estimated_total_seconds", "eta_known", "dirty_warning")
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    BRANCH_FIELD_NUMBER: _ClassVar[int]
+    ESTIMATED_TOTAL_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    ETA_KNOWN_FIELD_NUMBER: _ClassVar[int]
     DIRTY_WARNING_FIELD_NUMBER: _ClassVar[int]
-    baseline: BaselineManifest
-    skipped: _containers.ScalarMap[str, str]
+    run_id: str
+    scenario: str
+    name: str
+    branch: str
+    estimated_total_seconds: int
+    eta_known: bool
     dirty_warning: str
-    def __init__(self, baseline: _Optional[_Union[BaselineManifest, _Mapping]] = ..., skipped: _Optional[_Mapping[str, str]] = ..., dirty_warning: _Optional[str] = ...) -> None: ...
+    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., name: _Optional[str] = ..., branch: _Optional[str] = ..., estimated_total_seconds: _Optional[int] = ..., eta_known: _Optional[bool] = ..., dirty_warning: _Optional[str] = ...) -> None: ...
 
 class GetBaselineRequest(_message.Message):
     __slots__ = ("scenario", "name", "branch", "repo_id")

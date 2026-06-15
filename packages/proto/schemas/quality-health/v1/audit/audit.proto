@@ -1,0 +1,203 @@
+syntax = "proto3";
+
+package vrooli.quality_health.v1.audit;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/quality-health/v1/audit;audit_v1";
+
+// AuditService is Quality Health's static-quality contract surface.
+service AuditService {
+  // AuditQuality runs the static quality audit for a scenario or path.
+  rpc AuditQuality(AuditQualityRequest) returns (AuditQualityResponse);
+
+  // ListContracts returns the static quality contracts known to Quality Health.
+  rpc ListContracts(ListContractsRequest) returns (ListContractsResponse);
+
+  // ExplainFinding returns remediation detail for a finding id or rule id.
+  rpc ExplainFinding(ExplainFindingRequest) returns (ExplainFindingResponse);
+
+  // PreviewFixConfig returns deterministic config edits without applying them.
+  rpc PreviewFixConfig(FixConfigRequest) returns (FixConfigResponse);
+
+  // ApplyFixConfig applies deterministic config edits for supported rules.
+  rpc ApplyFixConfig(FixConfigRequest) returns (FixConfigResponse);
+}
+
+// AuditQualityRequest identifies the target to audit.
+message AuditQualityRequest {
+  // Scenario slug, such as "quality-health". Optional when path is set.
+  string scenario = 1;
+
+  // Filesystem path to audit. Optional when scenario is set.
+  string path = 2;
+
+  // Optional contract/rule IDs to restrict the audit.
+  repeated string rule_ids = 3;
+
+  // Optional surface ids to restrict the audit.
+  repeated string surfaces = 6;
+
+  // Whether command execution should be included in the audit.
+  bool include_command_execution = 4;
+
+  // Whether deterministic config-fix previews should be included.
+  bool include_autofix_preview = 5;
+
+  // Whether upstream discovery may use cached facts.
+  bool use_cache = 7;
+}
+
+message AuditQualityResponse {
+  // Stable run identifier for this audit invocation.
+  string run_id = 1;
+
+  // Overall status. Canonical planned values: passed, failed, degraded, error.
+  string status = 2;
+
+  // Human-readable summary for CLI and UI preview surfaces.
+  string summary = 3;
+
+  string scenario = 4;
+  string target_kind = 5;
+  string target_path = 6;
+  repeated QualitySurface surfaces = 7;
+  repeated ContractEvaluation contracts = 8;
+  repeated QualityFinding findings = 9;
+  repeated CommandResult command_results = 10;
+  MaturitySummary maturity = 11;
+  AuditSummary counts = 12;
+  repeated string next_steps = 13;
+  string degraded_reason = 14;
+  repeated AutofixCandidate autofix_candidates = 15;
+}
+
+message ListContractsRequest {
+  string language = 1;
+  string framework = 2;
+  string surface_kind = 3;
+  repeated string rule_ids = 4;
+}
+
+message ListContractsResponse {
+  repeated QualityContract contracts = 1;
+}
+
+message ExplainFindingRequest {
+  string finding_id = 1;
+  string rule_id = 2;
+  string scenario = 3;
+}
+
+message ExplainFindingResponse {
+  QualityFinding finding = 1;
+  QualityContract contract = 2;
+  string why_it_matters = 3;
+  string remediation = 4;
+  repeated string next_steps = 5;
+}
+
+message FixConfigRequest {
+  string scenario = 1;
+  string path = 2;
+  repeated string rule_ids = 3;
+  bool apply = 4;
+}
+
+message FixConfigResponse {
+  string scenario = 1;
+  bool applied = 2;
+  repeated AutofixCandidate candidates = 3;
+  repeated string messages = 4;
+}
+
+message QualitySurface {
+  string id = 1;
+  string kind = 2;
+  string language = 3;
+  string framework = 4;
+  string root_path = 5;
+  string package_manager = 6;
+  string status = 7;
+  double confidence = 8;
+}
+
+message QualityContract {
+  string id = 1;
+  string title = 2;
+  string category = 3;
+  string severity = 4;
+  string language = 5;
+  string framework = 6;
+  string surface_kind = 7;
+  repeated string rule_ids = 8;
+  string description = 9;
+  string why_it_matters = 10;
+  string remediation = 11;
+  bool autofix_available = 12;
+}
+
+message ContractEvaluation {
+  string contract_id = 1;
+  string surface_id = 2;
+  string status = 3;
+  repeated string rule_ids = 4;
+}
+
+message QualityFinding {
+  string id = 1;
+  string scenario = 2;
+  string target_kind = 3;
+  string surface_id = 4;
+  string surface_kind = 5;
+  string language = 6;
+  string framework = 7;
+  string rule_id = 8;
+  string category = 9;
+  string severity = 10;
+  string file_path = 11;
+  string symbol = 12;
+  string message = 13;
+  string evidence = 14;
+  string expected = 15;
+  string observed = 16;
+  string why_it_matters = 17;
+  string remediation = 18;
+  bool autofix_available = 19;
+  string autofix_command = 20;
+  string source_command = 21;
+  string created_at = 22;
+}
+
+message CommandResult {
+  string name = 1;
+  string command = 2;
+  string working_directory = 3;
+  string status = 4;
+  int32 exit_code = 5;
+  string stdout_excerpt = 6;
+  string stderr_excerpt = 7;
+  int32 timeout_seconds = 8;
+  string failure_reason = 9;
+}
+
+message MaturitySummary {
+  int32 rung = 1;
+  string label = 2;
+  string rationale = 3;
+}
+
+message AuditSummary {
+  int32 errors = 1;
+  int32 warnings = 2;
+  int32 infos = 3;
+  int32 surfaces = 4;
+  int32 contracts = 5;
+}
+
+message AutofixCandidate {
+  string rule_id = 1;
+  string file_path = 2;
+  string description = 3;
+  string before = 4;
+  string after = 5;
+  bool applied = 6;
+}

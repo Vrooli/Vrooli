@@ -59,14 +59,6 @@ message Fulfillment {
   string created_at = 4;
 }
 
-message Milestone {
-  string id = 1;
-  string name = 2;
-  string description = 3;
-  repeated string required_capability_ids = 4;
-  repeated string required_scenario_slugs = 5;
-}
-
 message ListCapabilitiesRequest {
   string parent_id = 1;
   CapabilityKind kind = 2;

@@ -129,20 +129,6 @@ class Fulfillment(_message.Message):
     created_at: str
     def __init__(self, capability_id: _Optional[str] = ..., scenario_slug: _Optional[str] = ..., note: _Optional[str] = ..., created_at: _Optional[str] = ...) -> None: ...
 
-class Milestone(_message.Message):
-    __slots__ = ("id", "name", "description", "required_capability_ids", "required_scenario_slugs")
-    ID_FIELD_NUMBER: _ClassVar[int]
-    NAME_FIELD_NUMBER: _ClassVar[int]
-    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
-    REQUIRED_CAPABILITY_IDS_FIELD_NUMBER: _ClassVar[int]
-    REQUIRED_SCENARIO_SLUGS_FIELD_NUMBER: _ClassVar[int]
-    id: str
-    name: str
-    description: str
-    required_capability_ids: _containers.RepeatedScalarFieldContainer[str]
-    required_scenario_slugs: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., required_capability_ids: _Optional[_Iterable[str]] = ..., required_scenario_slugs: _Optional[_Iterable[str]] = ...) -> None: ...
-
 class ListCapabilitiesRequest(_message.Message):
     __slots__ = ("parent_id", "kind", "include_descendants")
     PARENT_ID_FIELD_NUMBER: _ClassVar[int]

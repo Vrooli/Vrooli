@@ -1,0 +1,59 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "quality-health",
+  "description": "Quality Health CLI surface. Phase 2 will implement audit, contracts, explain, and autofix groups.",
+  "groups": [
+    {
+      "name": "audit",
+      "description": "Run static quality audits",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Run a Quality Health audit for a scenario or path",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug to audit"
+            }
+          ],
+          "flags": [
+            {
+              "name": "rule",
+              "description": "Restrict the audit to a contract or rule ID"
+            },
+            {
+              "name": "commands",
+              "description": "Include command execution checks"
+            },
+            {
+              "name": "autofix-preview",
+              "description": "Include deterministic config-fix previews"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuditService",
+            "method": "AuditQuality"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": []
+  },
+  "omitted": []
+}
