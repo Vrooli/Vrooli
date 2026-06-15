@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"scenario-dependency-analyzer/cli/internal/support"
@@ -118,8 +119,10 @@ func run(core *cliapp.ScenarioApp, args []string) error {
 func runActual(core *cliapp.ScenarioApp, args []string) error {
 	fs := support.NewFlagSet("graph actual")
 	var scenario string
+	var maxScenarioHops int
 	var jsonOutput bool
 	fs.StringVar(&scenario, "scenario", "", "Limit graph to one scenario")
+	fs.IntVar(&maxScenarioHops, "max-scenario-hops", 0, "Limit graph to scenarios within N hops of the selected scenario")
 	fs.BoolVar(&jsonOutput, "json", false, "Output raw JSON")
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
@@ -135,10 +138,11 @@ func runActual(core *cliapp.ScenarioApp, args []string) error {
 		scenario = positionals[0]
 	}
 
-	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(core, 90*time.Second)
 	client := graphconnect.NewInterfaceGraphServiceClient(httpClient, baseURL)
 	resp, err := client.DescribeInterfaceGraph(context.Background(), connect.NewRequest(&graphv1.DescribeInterfaceGraphRequest{
-		Scenarios: scenarioFilter(scenario),
+		Scenarios:       scenarioFilter(scenario),
+		MaxScenarioHops: int32(maxScenarioHops),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("describe actual interface graph", err, nil)

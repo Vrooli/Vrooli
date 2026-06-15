@@ -6,11 +6,11 @@ Describe SDA-owned data, persistence boundaries, and import/export behavior.
 
 ## Storage Overview
 
-SDA stores analysis and deployment metadata in SQLite. On-demand actual interface graph responses are assembled from upstream facts and are not a source-scanning cache.
+SDA stores analysis and deployment metadata in SQLite. Actual interface graph responses are assembled from upstream facts and persisted as a derived cache keyed by request/fleet signature; the cache stores no source contents and is rebuildable.
 
 ## Data Ownership
 
-SDA owns graph interpretation, drift records, deployment reports, and bundle metadata. `proto-health` owns proto surface facts; `code-facts` owns language import facts.
+SDA owns graph interpretation, the derived interface graph cache, drift records, deployment reports, and bundle metadata. `proto-health` owns proto surface facts; `code-facts` owns language import facts.
 
 ## Schema Map
 

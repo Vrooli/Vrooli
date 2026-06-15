@@ -18,11 +18,6 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	seed := filepath.Join(t.TempDir(), "seed.json")
 	writeSeed(t, seed, []CLICommand{
 		{Name: "status", Description: "Health check", EndpointID: "health"},
-		{Name: "notes list", Description: "List notes", EndpointID: "notes_list"},
-		{Name: "notes create", Description: "Create note", EndpointID: "notes_create"},
-		{Name: "notes get", Description: "Get note", EndpointID: "notes_get"},
-		{Name: "notes count", Description: "Count notes", EndpointID: "notes_count"},
-		{Name: "notes attach", Description: "Attach file", EndpointID: "notes_attach"},
 	})
 
 	if err := run(output, seed); err != nil {
@@ -53,8 +48,8 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	if len(got.Endpoints) == 0 {
 		t.Error("manifest must include at least one endpoint")
 	}
-	if len(got.CLICommands) != 6 {
-		t.Errorf("cli_commands count = %d, want 6", len(got.CLICommands))
+	if len(got.CLICommands) != 1 {
+		t.Errorf("cli_commands count = %d, want 1", len(got.CLICommands))
 	}
 
 	// Trailing newline so editors don't get angry about diff noise.
@@ -103,15 +98,15 @@ func TestCrossCheck_PassesWhenSeeded(t *testing.T) {
 }
 
 // TestStripBinaryPrefix is the smallest unit on the command-name
-// normalisation step: the endpoint's "proto-health notes list"
-// must compare against the seed's "notes list".
+// normalisation step: the endpoint's "proto-health validate scenario"
+// must compare against the seed's "validate scenario".
 func TestStripBinaryPrefix(t *testing.T) {
 	cases := []struct {
 		in   string
 		want string
 	}{
 		{in: "proto-health status", want: "status"},
-		{in: "proto-health notes list", want: "notes list"},
+		{in: "proto-health validate scenario", want: "validate scenario"},
 		{in: "already-stripped", want: "already-stripped"},
 		{in: "proto-health", want: "proto-health"}, // no trailing space → preserved
 	}

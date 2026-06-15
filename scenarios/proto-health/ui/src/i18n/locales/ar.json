@@ -11,7 +11,6 @@
     "mainLabel": "المحتوى الرئيسي",
     "nav": {
       "dashboard": "لوحة التحكم",
-      "notes": "الملاحظات",
       "settings": "الإعدادات"
     }
   },
@@ -27,9 +26,6 @@
     "dashboard": {
       "title": "لوحة التحكم",
       "description": "شغّل فحوص proto-health واعرض سطح صحة API من مكان واحد."
-    },
-    "notes": {
-      "title": "الملاحظات"
     },
     "settings": {
       "title": "الإعدادات",
@@ -93,24 +89,6 @@
     "summary": "{{count}} إشعارات",
     "summary_zero": "لا توجد إشعارات",
     "summary_one": "إشعار واحد"
-  },
-  "notes": {
-    "title": "الملاحظات",
-    "loading": "جارٍ تحميل الملاحظات…",
-    "empty": "لا توجد ملاحظات بعد.",
-    "create": "إنشاء ملاحظة",
-    "createdAtLabel": "تاريخ الإنشاء:",
-    "attachmentsLabel": "{{count}} مرفقات",
-    "attachmentsLabel_one": "مرفق واحد",
-    "uploadAttachment": "رفع مرفق",
-    "attachmentFileLabel": "ملف المرفق",
-    "uploadSuccess": "تم رفع {{name}}.",
-    "noFileSelected": "اختر ملفًا قبل الرفع.",
-    "measure": {
-      "title": "ملاحظات هذا الأسبوع",
-      "loading": "جارٍ العد…",
-      "thisWeek": "{{count}} ملاحظة أُنشئت هذا الأسبوع"
-    }
   },
   "errors": {
     "canceled": "Operation canceled.",

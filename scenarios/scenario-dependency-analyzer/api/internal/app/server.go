@@ -43,7 +43,10 @@ func Run(cfg appconfig.Config, dbConn *sql.DB) error {
 
 	h := newHandler(rt)
 	registerRoutes(router, h)
-	graphapi.RegisterConnectRoutes(router, h.scenariosDir)
+	graphapi.RegisterConnectRoutes(router, h.scenariosDir, rt.Store(), graphapi.ConnectOptions{
+		CacheTTL:     cfg.InterfaceGraphCacheTTL,
+		BuildTimeout: cfg.InterfaceGraphBuildTimeout,
+	})
 
 	log.Printf("Starting Scenario Dependency Analyzer API on port %s", cfg.Port)
 	log.Printf("Scenarios directory: %s", cfg.ScenariosDir)
@@ -53,7 +56,7 @@ func Run(cfg appconfig.Config, dbConn *sql.DB) error {
 		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      30 * time.Second,
+		WriteTimeout:      max(30*time.Second, cfg.InterfaceGraphBuildTimeout+5*time.Second),
 		IdleTimeout:       60 * time.Second,
 	}
 	return server.ListenAndServe()

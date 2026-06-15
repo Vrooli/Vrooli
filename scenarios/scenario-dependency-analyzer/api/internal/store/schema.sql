@@ -68,3 +68,11 @@ CREATE TABLE IF NOT EXISTS scenario_metadata (
 
 CREATE INDEX IF NOT EXISTS idx_scenario_metadata_active ON scenario_metadata (is_active);
 CREATE INDEX IF NOT EXISTS idx_scenario_metadata_last_scanned ON scenario_metadata (last_scanned);
+
+CREATE TABLE IF NOT EXISTS interface_graph_cache (
+    fleet_signature TEXT PRIMARY KEY,
+    graph_json TEXT NOT NULL,
+    computed_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_interface_graph_cache_computed_at ON interface_graph_cache (computed_at);

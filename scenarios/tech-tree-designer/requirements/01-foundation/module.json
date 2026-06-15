@@ -10,22 +10,22 @@
   "requirements": [
     {
       "id": "TTD-GRAPH-001",
-      "title": "Live graph from proto-health",
-      "status": "planned",
+      "title": "Live graph from scenario-dependency-analyzer",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "graph",
       "criticality": "P0",
-      "description": "TTD must build a scenario-centric graph from proto-health surfaces through a fakeable GraphSource seam, preserving scenario nodes, proto-import edges, transport world, and stability metadata.",
+      "description": "TTD must build a scenario-centric graph from SDA's DescribeInterfaceGraph through a fakeable GraphSource seam, preserving scenario nodes, proto-import and Go-import edges, transport world, and stability metadata.",
       "tags": [
         "graph",
-        "proto-health",
+        "scenario-dependency-analyzer",
         "contract"
       ],
       "validation": [
         {
           "type": "manual",
-          "status": "planned",
-          "notes": "Phase 2/3 tests will cover faked proto-health mapping, graph queries, export, and Connect handlers."
+          "status": "implemented",
+          "notes": "SDA source tests cover faked SDA mapping; graph service tests cover queries, export, and planned overlays."
         }
       ]
     },
@@ -106,21 +106,22 @@
     },
     {
       "id": "TTD-SDA-001",
-      "title": "Future scenario-dependency-analyzer source",
-      "status": "planned",
+      "title": "scenario-dependency-analyzer source",
+      "status": "complete",
       "prd_ref": "OT-P2-001",
       "category": "integration",
       "criticality": "P2",
-      "description": "TTD must keep GraphSource shaped so scenario-dependency-analyzer can become a drop-in richer graph source when its InterfaceGraph RPC ships.",
+      "description": "TTD must consume scenario-dependency-analyzer as the canonical richer graph source through its InterfaceGraph RPC.",
       "tags": [
         "sda",
         "graph-source"
       ],
       "validation": [
         {
-          "type": "manual",
-          "status": "planned",
-          "notes": "Deferred until scenario-dependency-analyzer exposes the intended DescribeInterfaceGraph RPC."
+          "type": "test",
+          "ref": "api/internal/graph/sda_source_test.go::TestSDASourceGraphMapsInterfaceGraph",
+          "status": "implemented",
+          "notes": "Covers SDA response mapping, including Go import evidence."
         }
       ]
     },

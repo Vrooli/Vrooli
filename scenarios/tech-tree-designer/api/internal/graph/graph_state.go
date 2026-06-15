@@ -1,84 +1,11 @@
 package graph
 
 import (
-	"context"
-	"fmt"
 	"sort"
 	"strings"
 
 	graphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/tech-tree-designer/v1/graph"
 )
-
-type ProtoHealthSource struct {
-	client ProtoSurfaceClient
-}
-
-func NewProtoHealthSource(client ProtoSurfaceClient) *ProtoHealthSource {
-	return &ProtoHealthSource{client: client}
-}
-
-func (s *ProtoHealthSource) Graph(ctx context.Context, req SourceRequest) (*graphv1.TechTreeGraph, error) {
-	if s == nil || s.client == nil {
-		return nil, fmt.Errorf("proto-health graph source is not configured")
-	}
-	resp, err := s.client.DescribeScenariosProtos(ctx, ProtoSurfaceRequest{
-		Scenarios:       req.ScenarioFilter,
-		Limit:           req.Limit,
-		StabilityFilter: req.StabilityFilter,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("describe proto surfaces: %w", err)
-	}
-	return graphFromProtoSurfaces(resp), nil
-}
-
-func graphFromProtoSurfaces(resp *ProtoSurfaceResponse) *graphv1.TechTreeGraph {
-	state := newGraphState()
-	if resp == nil {
-		return state.graph()
-	}
-	for _, result := range resp.Results {
-		scenario := firstNonEmpty(result.Scenario, result.Surface.Scenario)
-		if scenario == "" {
-			continue
-		}
-		stabilityByPath := stabilityByPath(result.Surface)
-		stabilities := uniqueStabilities(result.Surface.Files)
-		state.addNode(&graphv1.TechNode{
-			Scenario:       scenario,
-			Kind:           graphv1.NodeKind_NODE_KIND_LIVE,
-			DisplayName:    displayName(scenario),
-			TransportWorld: result.Surface.TransportWorld,
-			Stability:      stabilities,
-		})
-		if result.Error != "" {
-			state.addError(&graphv1.GraphError{
-				Source:   SourceProtoHealth,
-				Scenario: scenario,
-				Message:  result.Error,
-			})
-			continue
-		}
-		for _, imp := range result.Surface.CrossScenarioImports {
-			from := firstNonEmpty(imp.FromScenario, scenario)
-			to := strings.TrimSpace(imp.ToScenario)
-			if from == "" || to == "" || from == to {
-				continue
-			}
-			state.addNode(&graphv1.TechNode{
-				Scenario:    to,
-				Kind:        graphv1.NodeKind_NODE_KIND_LIVE,
-				DisplayName: displayName(to),
-			})
-			state.addEvidence(from, to, &graphv1.GraphEvidence{
-				Source:   graphv1.EvidenceSource_EVIDENCE_SOURCE_PROTO_IMPORT,
-				FromFile: imp.FromFile,
-				ToFile:   imp.ToFile,
-			}, result.Surface.TransportWorld, firstNonEmpty(stabilityByPath[imp.FromFile], stabilityByPath[imp.ToFile]))
-		}
-	}
-	return state.graph()
-}
 
 type graphState struct {
 	nodes  map[string]*graphv1.TechNode
@@ -197,32 +124,6 @@ func (s *graphState) graph() *graphv1.TechTreeGraph {
 	return &graphv1.TechTreeGraph{Nodes: nodes, Edges: edges, Errors: s.errors}
 }
 
-func stabilityByPath(surface ProtoSurface) map[string]string {
-	out := make(map[string]string, len(surface.Files))
-	for _, file := range surface.Files {
-		if file.Path != "" && file.Stability != "" {
-			out[file.Path] = file.Stability
-		}
-	}
-	return out
-}
-
-func uniqueStabilities(files []ProtoFile) []string {
-	seen := map[string]struct{}{}
-	for _, file := range files {
-		stability := strings.TrimSpace(file.Stability)
-		if stability != "" {
-			seen[stability] = struct{}{}
-		}
-	}
-	out := make([]string, 0, len(seen))
-	for stability := range seen {
-		out = append(out, stability)
-	}
-	sort.Strings(out)
-	return out
-}
-
 func normalizeTransportWorld(value string) string {
 	value = strings.TrimSpace(strings.ToLower(value))
 	value = strings.TrimPrefix(value, "transport_world_")
@@ -258,14 +159,14 @@ func contains(values []string, needle string) bool {
 	return false
 }
 
-func hasEvidence(existing []*graphv1.GraphEvidence, next *graphv1.GraphEvidence) bool {
-	for _, ev := range existing {
-		if ev.GetSource() == next.GetSource() &&
-			ev.GetImportPath() == next.GetImportPath() &&
-			ev.GetFromFile() == next.GetFromFile() &&
-			ev.GetToFile() == next.GetToFile() &&
-			ev.GetPath() == next.GetPath() &&
-			ev.GetAnalyzer() == next.GetAnalyzer() {
+func hasEvidence(values []*graphv1.GraphEvidence, needle *graphv1.GraphEvidence) bool {
+	for _, value := range values {
+		if value.GetSource() == needle.GetSource() &&
+			value.GetImportPath() == needle.GetImportPath() &&
+			value.GetFromFile() == needle.GetFromFile() &&
+			value.GetToFile() == needle.GetToFile() &&
+			value.GetPath() == needle.GetPath() &&
+			value.GetAnalyzer() == needle.GetAnalyzer() {
 			return true
 		}
 	}

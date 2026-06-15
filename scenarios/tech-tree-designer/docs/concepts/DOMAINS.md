@@ -25,9 +25,8 @@ Use this document to answer which bounded context owns each capability, data set
 ## graph
 
 - Purpose: render the actual cross-scenario interface graph.
-- Owns: `GraphSource` seam, proto-health mapping, graph query algorithms, graph export, and generated-client CLI commands.
-- Primary source: `proto-health` `DescribeScenariosProtos`.
-- Future source: `scenario-dependency-analyzer` `DescribeInterfaceGraph`.
+- Owns: `GraphSource` seam, SDA graph mapping, graph query algorithms, graph export, and generated-client CLI commands.
+- Primary source: `scenario-dependency-analyzer` `DescribeInterfaceGraph`.
 - Source paths: `api/internal/graph/`, `api/handlers/graph/`, `cli/domains/graph/`, `ui/src/features/graph/`, `packages/proto/schemas/tech-tree-designer/v1/graph/`.
 
 ## planning

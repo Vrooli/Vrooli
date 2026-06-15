@@ -22,6 +22,8 @@ type graphService struct {
 	describeReq  *graphv1.DescribeTechTreeRequest
 	neighborsReq *graphv1.GetNeighborhoodRequest
 	exportReq    *graphv1.ExportTechTreeRequest
+	pathReq      *graphv1.FindPathRequest
+	ancestorsReq *graphv1.ListAncestorsRequest
 }
 
 func (s *graphService) DescribeTechTree(_ context.Context, req *connect.Request[graphv1.DescribeTechTreeRequest]) (*connect.Response[graphv1.DescribeTechTreeResponse], error) {
@@ -34,11 +36,13 @@ func (s *graphService) GetNeighborhood(_ context.Context, req *connect.Request[g
 	return connect.NewResponse(&graphv1.DescribeTechTreeResponse{Graph: testGraph()}), nil
 }
 
-func (s *graphService) FindPath(context.Context, *connect.Request[graphv1.FindPathRequest]) (*connect.Response[graphv1.DescribeTechTreeResponse], error) {
+func (s *graphService) FindPath(_ context.Context, req *connect.Request[graphv1.FindPathRequest]) (*connect.Response[graphv1.DescribeTechTreeResponse], error) {
+	s.pathReq = req.Msg
 	return connect.NewResponse(&graphv1.DescribeTechTreeResponse{Graph: testGraph()}), nil
 }
 
-func (s *graphService) ListAncestors(context.Context, *connect.Request[graphv1.ListAncestorsRequest]) (*connect.Response[graphv1.DescribeTechTreeResponse], error) {
+func (s *graphService) ListAncestors(_ context.Context, req *connect.Request[graphv1.ListAncestorsRequest]) (*connect.Response[graphv1.DescribeTechTreeResponse], error) {
+	s.ancestorsReq = req.Msg
 	return connect.NewResponse(&graphv1.DescribeTechTreeResponse{Graph: testGraph()}), nil
 }
 
@@ -119,6 +123,41 @@ func TestExportPrintsContentForHumanOutput(t *testing.T) {
 	require.NoError(t, h.export(ctx))
 	require.Equal(t, graphv1.ExportFormat_EXPORT_FORMAT_DOT, svc.exportReq.GetFormat())
 	require.Equal(t, "digraph tech_tree {}\n", out.String())
+}
+
+func TestPathPassesEndpointsAndRendersGraph(t *testing.T) {
+	svc := &graphService{}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
+	h := newHandlers(core)
+	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
+		Positionals: []cliapp.Positional{{Name: "from", Required: true}, {Name: "to", Required: true}},
+		Flags:       []cliapp.Flag{{Name: "scenarios"}},
+	}, cliapptest.TestRunContextOptions{
+		Positionals: map[string]string{"from": "ui", "to": "api"},
+		Flags:       map[string]string{"scenarios": "ui, api"},
+	})
+
+	require.NoError(t, h.path(ctx))
+	require.Equal(t, "ui", svc.pathReq.GetFromScenario())
+	require.Equal(t, "api", svc.pathReq.GetToScenario())
+	require.Equal(t, []string{"ui", "api"}, svc.pathReq.GetScenarioFilter())
+	require.Contains(t, out.String(), "Path from ui to api: 2 node(s), 1 edge(s).")
+}
+
+func TestAncestorsPassesScenarioAndRendersGraph(t *testing.T) {
+	svc := &graphService{}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
+	h := newHandlers(core)
+	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
+		Positionals: []cliapp.Positional{{Name: "scenario", Required: true}},
+		Flags:       []cliapp.Flag{{Name: "scenarios"}},
+	}, cliapptest.TestRunContextOptions{
+		Positionals: map[string]string{"scenario": "api"},
+	})
+
+	require.NoError(t, h.ancestors(ctx))
+	require.Equal(t, "api", svc.ancestorsReq.GetScenario())
+	require.Contains(t, out.String(), "Ancestors for api: 2 node(s), 1 edge(s).")
 }
 
 func testGraph() *graphv1.TechTreeGraph {

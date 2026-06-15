@@ -7,7 +7,7 @@ Get the regenerated Tech Tree Designer running through the Vrooli lifecycle.
 ## Prerequisites
 
 - Vrooli repo setup has completed.
-- `proto-health` is available when testing the live graph domain.
+- `scenario-dependency-analyzer` is available when testing the live graph domain.
 - UI dependencies are installed by the scenario lifecycle or generator hook.
 
 ## Start

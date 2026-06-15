@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 )
 
 type Builder struct {
@@ -20,6 +21,7 @@ type BuildRequest struct {
 	RepoRoot        string
 	StabilityFilter string
 	LanguageFilter  []string
+	MaxScenarioHops int32
 }
 
 func NewBuilder(protos ProtoSurfaceClient, imports ImportFactsClient) *Builder {
@@ -37,23 +39,44 @@ func (b *Builder) Build(ctx context.Context, req BuildRequest) (Graph, error) {
 		return Graph{}, fmt.Errorf("import facts client is not configured")
 	}
 
-	protoResp, err := b.protos.DescribeScenariosProtos(ctx, ProtoSurfaceRequest{
-		Scenarios:       req.Scenarios,
-		Limit:           req.Limit,
-		StabilityFilter: req.StabilityFilter,
-	})
-	if err != nil {
-		return Graph{}, fmt.Errorf("describe proto surfaces: %w", err)
+	var (
+		protoResp  *ProtoSurfaceResponse
+		importResp *ImportFactsResponse
+		protoErr   error
+		importErr  error
+		wg         sync.WaitGroup
+	)
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		protoResp, protoErr = b.protos.DescribeScenariosProtos(ctx, ProtoSurfaceRequest{
+			Scenarios:       req.Scenarios,
+			Limit:           req.Limit,
+			StabilityFilter: req.StabilityFilter,
+		})
+	}()
+	go func() {
+		defer wg.Done()
+		importResp, importErr = b.imports.DescribeFleetImports(ctx, ImportFactsRequest{
+			Scenarios:      req.Scenarios,
+			Limit:          req.Limit,
+			RepoRoot:       req.RepoRoot,
+			LanguageFilter: req.LanguageFilter,
+			UseCache:       true,
+		})
+	}()
+	wg.Wait()
+	if protoErr != nil {
+		return Graph{}, fmt.Errorf("describe proto surfaces: %w", protoErr)
 	}
-	importResp, err := b.imports.DescribeFleetImports(ctx, ImportFactsRequest{
-		Scenarios:      req.Scenarios,
-		Limit:          req.Limit,
-		RepoRoot:       req.RepoRoot,
-		LanguageFilter: req.LanguageFilter,
-		UseCache:       true,
-	})
-	if err != nil {
-		return Graph{}, fmt.Errorf("describe fleet imports: %w", err)
+	if importErr != nil {
+		return Graph{}, fmt.Errorf("describe fleet imports: %w", importErr)
+	}
+	if protoResp == nil {
+		protoResp = &ProtoSurfaceResponse{}
+	}
+	if importResp == nil {
+		importResp = &ImportFactsResponse{}
 	}
 
 	state := newGraphState()
@@ -123,7 +146,11 @@ func (b *Builder) Build(ctx context.Context, req BuildRequest) (Graph, error) {
 		}
 	}
 
-	return state.graph(), nil
+	graph := state.graph()
+	if req.MaxScenarioHops > 0 && len(req.Scenarios) > 0 {
+		graph = graph.Neighborhood(req.Scenarios, int(req.MaxScenarioHops))
+	}
+	return graph, nil
 }
 
 func scenariosFromRepoRoot(repoRoot string) []string {
@@ -230,6 +257,77 @@ func (s *graphState) graph() Graph {
 		return s.errors[i].Scenario < s.errors[j].Scenario
 	})
 	return Graph{Nodes: nodes, Edges: edges, Errors: s.errors}
+}
+
+func (g Graph) Neighborhood(seeds []string, maxHops int) Graph {
+	if maxHops < 0 {
+		maxHops = 0
+	}
+	frontier := map[string]int{}
+	visited := map[string]struct{}{}
+	for _, seed := range seeds {
+		seed = strings.TrimSpace(seed)
+		if seed == "" {
+			continue
+		}
+		frontier[seed] = 0
+		visited[seed] = struct{}{}
+	}
+	if len(frontier) == 0 {
+		return g
+	}
+	for len(frontier) > 0 {
+		next := map[string]int{}
+		for scenario, depth := range frontier {
+			if depth >= maxHops {
+				continue
+			}
+			for _, edge := range g.Edges {
+				var neighbor string
+				switch scenario {
+				case edge.FromScenario:
+					neighbor = edge.ToScenario
+				case edge.ToScenario:
+					neighbor = edge.FromScenario
+				}
+				if neighbor == "" {
+					continue
+				}
+				if _, ok := visited[neighbor]; ok {
+					continue
+				}
+				visited[neighbor] = struct{}{}
+				next[neighbor] = depth + 1
+			}
+		}
+		frontier = next
+	}
+
+	nodes := make([]Node, 0, len(g.Nodes))
+	for _, node := range g.Nodes {
+		if _, ok := visited[node.Scenario]; ok {
+			nodes = append(nodes, node)
+		}
+	}
+	edges := make([]Edge, 0, len(g.Edges))
+	for _, edge := range g.Edges {
+		_, fromOK := visited[edge.FromScenario]
+		_, toOK := visited[edge.ToScenario]
+		if fromOK && toOK {
+			edges = append(edges, edge)
+		}
+	}
+	errors := make([]Error, 0, len(g.Errors))
+	for _, graphErr := range g.Errors {
+		if graphErr.Scenario == "" {
+			errors = append(errors, graphErr)
+			continue
+		}
+		if _, ok := visited[graphErr.Scenario]; ok {
+			errors = append(errors, graphErr)
+		}
+	}
+	return Graph{Nodes: nodes, Edges: edges, Errors: errors}
 }
 
 func protoStabilityByPath(surface ProtoSurface) map[string]string {

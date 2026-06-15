@@ -8,7 +8,7 @@ Record scenario and resource dependencies for TTD.
 
 | Dependency | Required | Purpose | Degraded Behavior |
 |---|---:|---|---|
-| proto-health | yes | Supplies `DescribeScenariosProtos` surfaces for live graph nodes and proto-import edges. | Planned-only graph mode with a clear unavailable-source finding. |
+| scenario-dependency-analyzer | yes | Supplies `DescribeInterfaceGraph` live scenario nodes plus proto and Go import evidence. | Planned-only graph mode with a clear unavailable-source finding. |
 
 ## Resource Dependencies
 
@@ -16,13 +16,12 @@ Record scenario and resource dependencies for TTD.
 |---|---:|---|
 | SQLite | yes | Embedded scenario data store through lifecycle-provided `SQLITE_PATH`. |
 
-No Ollama, OpenRouter, Postgres, Qdrant, or Redis dependency belongs in the shipped scope.
+TTD does not call Ollama, OpenRouter, Postgres, Qdrant, or Redis directly. SDA may depend on heavier resources internally, but TTD only consumes SDA's graph contract.
 
 ## Future Integrations
 
 | Integration | Trigger |
 |---|---|
-| scenario-dependency-analyzer | Add as GraphSource after `DescribeInterfaceGraph` ships. |
 | AI model resources | Add only for the deferred strategic-analysis follow-up. |
 | scenario generator | Add only after planning materialization is stable and a scaffold-governance design exists. |
 

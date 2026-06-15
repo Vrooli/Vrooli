@@ -16,7 +16,7 @@ The legacy REST endpoints remain for the existing UI and operators. New programm
 
 ### `vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraphService.DescribeInterfaceGraph`
 
-Describe the actual cross-scenario interface graph computed on demand from `proto-health` and `code-facts`.
+Describe the actual cross-scenario interface graph assembled from `proto-health` and `code-facts`, served from SDA's derived cache when fresh.
 
 **Request**:
 ```json
@@ -24,7 +24,8 @@ Describe the actual cross-scenario interface graph computed on demand from `prot
   "scenarios": ["scenario-dependency-analyzer"],
   "limit": 0,
   "stabilityFilter": "stable",
-  "languageFilter": ["go"]
+  "languageFilter": ["go"],
+  "maxScenarioHops": 1
 }
 ```
 
@@ -62,7 +63,7 @@ Describe the actual cross-scenario interface graph computed on demand from `prot
 }
 ```
 
-**Boundary**: SDA does not scan source files for this graph. It consumes proto facts from `proto-health`, import facts from `code-facts`, and only performs fleet-level attribution. Drift comparison remains available through `GET /api/v1/drift` and the `drift` CLI command.
+**Boundary**: SDA does not scan source files for this graph. It consumes proto facts from `proto-health`, import facts from `code-facts`, persists only a rebuildable derived graph cache, and performs fleet-level attribution. Drift comparison remains available through `GET /api/v1/drift` and the `drift` CLI command.
 
 ---
 

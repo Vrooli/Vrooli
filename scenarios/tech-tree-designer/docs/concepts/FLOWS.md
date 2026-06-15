@@ -24,7 +24,7 @@ Record user/system workflows and lifecycle state machines for graph, planning, o
 ### Live graph describe/query/export
 
 1. API calls the `GraphSource` seam.
-2. The current source reads `proto-health` `DescribeScenariosProtos` and maps surfaces to scenario nodes and proto-import edges.
+2. The current source reads SDA `DescribeInterfaceGraph` and maps scenario nodes plus proto/Go import evidence into the TTD graph contract.
 3. The graph service overlays planned scenarios from the planning store.
 4. Connect, CLI, or UI consumers request describe, neighborhood, path, ancestors, or export results.
 

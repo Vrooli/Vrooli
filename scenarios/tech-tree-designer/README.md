@@ -12,7 +12,7 @@ Implemented product domains:
 
 | Domain | Purpose |
 |---|---|
-| graph | Build scenario nodes and proto-import dependency edges from `proto-health` behind `GraphSource`, then query and export the graph. |
+| graph | Build scenario nodes and proto/Go import dependency edges from SDA behind `GraphSource`, then query and export the graph. |
 | planning | Store planned scenarios as real `.proto` text, validate them, and materialize validated proto schemas. |
 | ontology | Author top-down capability nodes, link live/planned scenarios through fulfillment, and compute cross-layer coverage. |
 

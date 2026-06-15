@@ -9,7 +9,7 @@ This document records the intended system shape for the regenerated scenario. Pr
 ## Scenario Shape
 
 ```
-proto-health DescribeScenariosProtos
+scenario-dependency-analyzer DescribeInterfaceGraph
         |
         v
   graph.GraphSource seam
@@ -35,7 +35,7 @@ The graph is scenario-centric: nodes are scenarios, edges are real interface dep
 Role: meta / interface-enabler. TTD advances the engineering meta-capability by letting agents plan scenarios around proto contracts and actual dependency evidence before code exists.
 
 Compound-value seams:
-- `GraphSource` lets the live graph use `proto-health` now and `scenario-dependency-analyzer` later.
+- `GraphSource` lets the live graph consume SDA's canonical interface-graph contract without coupling graph queries to SDA's wire shape.
 - Planning RPCs let future agents create, validate, inspect, and materialize planned proto contracts.
 - Ontology coverage/focus RPCs let future agents prioritize gaps and place unmapped scenarios.
 - Export/query RPCs let other scenarios ask neighborhood, path, ancestry, and graph-shape questions.
@@ -44,7 +44,7 @@ Monetization: internal meta scenario; no paid-feature wiring.
 
 ## Domain Module Pattern
 
-Each real domain owns its API internals, handlers, CLI package, UI feature, proto schema, and storage schema. Current implementation contains health, the graph domain's proto-health-backed query/export surface, the planning domain's SQLite-backed planned proto file tree, validator, materializer, planned graph overlay, and the ontology domain's capability tree, fulfillment, coverage, focus, and overlay projection. Graph, planning, and ontology are exposed through Connect RPC, CLI commands, and production UI routes.
+Each real domain owns its API internals, handlers, CLI package, UI feature, proto schema, and storage schema. Current implementation contains health, the graph domain's SDA-backed query/export surface, the planning domain's SQLite-backed planned proto file tree, validator, materializer, planned graph overlay, and the ontology domain's capability tree, fulfillment, coverage, focus, and overlay projection. Graph, planning, and ontology are exposed through Connect RPC, CLI commands, and production UI routes.
 
 ## Contract Rules
 

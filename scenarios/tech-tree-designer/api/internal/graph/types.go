@@ -7,13 +7,14 @@ import (
 )
 
 const (
-	SourceProtoHealth = "proto-health"
+	SourceSDA = "scenario-dependency-analyzer"
 )
 
 type SourceRequest struct {
 	ScenarioFilter  []string
 	Limit           int32
 	StabilityFilter string
+	MaxScenarioHops int32
 }
 
 type GraphSource interface {

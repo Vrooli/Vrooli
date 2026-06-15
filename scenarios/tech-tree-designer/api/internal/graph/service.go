@@ -32,7 +32,7 @@ func (s *Service) Describe(ctx context.Context, req SourceRequest) (*graphv1.Tec
 	}
 	if err != nil {
 		graph.Errors = append(graph.Errors, &graphv1.GraphError{
-			Source:  SourceProtoHealth,
+			Source:  SourceSDA,
 			Message: err.Error(),
 		})
 	}
@@ -58,7 +58,12 @@ func (s *Service) Neighborhood(ctx context.Context, scenario string, depth int32
 	if depth <= 0 {
 		depth = 1
 	}
-	graph, err := s.Describe(ctx, SourceRequest{ScenarioFilter: filter})
+	sourceReq := SourceRequest{ScenarioFilter: filter}
+	if len(filter) == 0 {
+		sourceReq.ScenarioFilter = []string{scenario}
+		sourceReq.MaxScenarioHops = depth
+	}
+	graph, err := s.Describe(ctx, sourceReq)
 	if err != nil {
 		return nil, err
 	}

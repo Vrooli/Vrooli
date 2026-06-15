@@ -61,6 +61,7 @@ The seams package provides interfaces for external dependencies that vary:
 | `DependencyDetector` | Dependency detection | (via detection.Detector) | `MockDetector` |
 | `ProtoSurfaceClient` | Batch protobuf surface facts from proto-health | Connect client | Fixture client |
 | `ImportFactsClient` | Batch import facts from code-facts | Connect client | Fixture client |
+| `InterfaceGraphCache` | Rebuildable derived graph cache keyed by request signature | `store.Store` SQLite methods | In-memory SQLite store tests |
 
 **Usage:**
 ```go

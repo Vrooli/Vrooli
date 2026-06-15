@@ -208,7 +208,16 @@
       ]
     }
   },
-  "dependencies": {},
+  "dependencies": {
+    "scenarios": {
+      "code-facts": {
+        "enabled": true,
+        "required": true,
+        "description": "Provides proto adoption and endpoint proof evidence used by proto validation."
+      }
+    },
+    "resources": {}
+  },
   "environment": {
     "SQLITE_PATH": "${SCENARIO_DATA_DIR}/proto-health.db"
   }

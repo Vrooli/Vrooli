@@ -16,9 +16,11 @@ import (
 
 // Config captures runtime configuration resolved from the environment.
 type Config struct {
-	Port         string
-	DatabaseDSN  string
-	ScenariosDir string
+	Port                       string
+	DatabaseDSN                string
+	ScenariosDir               string
+	InterfaceGraphCacheTTL     time.Duration
+	InterfaceGraphBuildTimeout time.Duration
 }
 
 // Load reads environment variables (and .env files) to build the Config.
@@ -45,10 +47,24 @@ func Load() Config {
 	}
 
 	return Config{
-		Port:         port,
-		DatabaseDSN:  dbDSN,
-		ScenariosDir: scenariosDir,
+		Port:                       port,
+		DatabaseDSN:                dbDSN,
+		ScenariosDir:               scenariosDir,
+		InterfaceGraphCacheTTL:     durationFromEnv("INTERFACE_GRAPH_CACHE_TTL", 5*time.Minute),
+		InterfaceGraphBuildTimeout: durationFromEnv("INTERFACE_GRAPH_BUILD_TIMEOUT", 90*time.Second),
 	}
+}
+
+func durationFromEnv(name string, fallback time.Duration) time.Duration {
+	raw := strings.TrimSpace(os.Getenv(name))
+	if raw == "" {
+		return fallback
+	}
+	parsed, err := time.ParseDuration(raw)
+	if err != nil || parsed < 0 {
+		return fallback
+	}
+	return parsed
 }
 
 // InitDatabase opens the embedded SQLite database with the standard Vrooli pragmas.

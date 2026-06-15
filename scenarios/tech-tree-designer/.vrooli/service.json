@@ -210,10 +210,10 @@
   },
   "dependencies": {
     "scenarios": {
-      "proto-health": {
+      "scenario-dependency-analyzer": {
         "enabled": true,
         "required": true,
-        "description": "Provides batch protobuf surface facts for the live scenario interface graph."
+        "description": "Provides the canonical fleet interface graph with proto and Go import evidence."
       }
     },
     "resources": {}

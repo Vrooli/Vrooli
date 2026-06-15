@@ -65,13 +65,11 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ### 2026-06-14 - SDA GraphSource deferred
 
-**Symptom:** TTD needs a richer future graph source, but `scenario-dependency-analyzer` has not shipped the planned `DescribeInterfaceGraph` RPC as a consumed TTD contract.
+**Status:** Resolved on 2026-06-15. TTD now consumes `scenario-dependency-analyzer` `DescribeInterfaceGraph` through `SDASource`.
 
-**Root cause:** The first graph source must consume the already-shipped `proto-health` batch surface.
+**Root cause:** Earlier graph work landed before SDA's Connect graph contract existed.
 
-**Workaround:** Shape `GraphSource` and `TechEdge` so an SDA implementation can be added later without changing graph consumers.
-
-**Real fix:** Implement follow-up `tech-tree-designer-sda-graph-source` once SDA's graph RPC is available.
+**Outcome:** The old proto-health source was deleted; SDA is now the canonical live graph source for proto and Go import evidence.
 
 **Owner:** unassigned.
 

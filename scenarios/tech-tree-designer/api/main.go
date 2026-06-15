@@ -134,7 +134,7 @@ func main() {
 		planningdomain.NewFilesystemMaterializer(""),
 	)
 	graphService := graphdomain.NewServiceWithPlanned(
-		graphdomain.NewProtoHealthSource(graphdomain.NewProtoHealthClient(nil, nil)),
+		graphdomain.NewSDASource(graphdomain.NewSDAClient(nil, nil)),
 		planningService,
 	)
 	ontologyService := ontologydomain.NewServiceWithScenarioSource(

@@ -23,13 +23,13 @@ func TestDescriptorLoaderLoadScenario(t *testing.T) {
 	require.NotEmpty(t, surface.Messages)
 	require.Equal(t, TransportWorldConnect, surface.TransportWorld)
 
-	var sawNotes bool
+	var sawValidation bool
 	var sawStability bool
 	for _, f := range surface.Files {
-		if f.Path == "proto-health/v1/notes/notes.proto" {
-			sawNotes = true
+		if f.Path == "proto-health/v1/validation/validation.proto" {
+			sawValidation = true
 			require.Equal(t, "v1", f.Version)
-			require.Equal(t, "notes", f.Domain)
+			require.Equal(t, "validation", f.Domain)
 			require.Equal(t, "stable", f.Stability)
 			for _, a := range f.Annotations {
 				if a.Name == "stability" && a.Value == "stable" {
@@ -38,64 +38,33 @@ func TestDescriptorLoaderLoadScenario(t *testing.T) {
 			}
 		}
 	}
-	require.True(t, sawNotes)
+	require.True(t, sawValidation)
 	require.True(t, sawStability)
 
 	var sawRPC bool
 	for _, svc := range surface.Services {
-		if svc.FullName != "vrooli.proto_health.v1.notes.NotesService" {
+		if svc.FullName != "vrooli.proto_health.v1.validation.ProtoHealthService" {
 			continue
 		}
 		for _, rpc := range svc.RPCs {
-			if rpc.Name == "ListNotes" {
+			if rpc.Name == "ValidateScenario" {
 				sawRPC = true
-				require.Equal(t, "vrooli.proto_health.v1.notes.ListNotesRequest", rpc.Input)
+				require.Equal(t, "vrooli.proto_health.v1.validation.ValidateScenarioRequest", rpc.Input)
 				require.Equal(t, TransportKindConnect, rpc.Transport)
 			}
 		}
 	}
 	require.True(t, sawRPC)
 
-	require.Contains(t, surface.CrossScenarioImports, Import{
-		FromFile:     "proto-health/v1/notes/notes.proto",
-		ToFile:       "measures/v1/measures.proto",
-		FromScenario: "proto-health",
-		ToScenario:   "measures",
-		FromPackage:  "vrooli.proto_health.v1.notes",
-		ToPackage:    "vrooli.measures.v1",
-		FromVersion:  "v1",
-		ToVersion:    "v1",
-		FromDomain:   "notes",
-		ToDomain:     "measures",
-		Kind:         ImportKindCrossScenario,
-	})
+	// proto-health's only REST exception is the ops_probe health endpoint;
+	// every domain RPC is Connect, so no other exception should appear.
 	require.Contains(t, surface.RESTExceptions, RESTExceptionEndpoint{
-		EndpointID:             "notes_attach",
-		Path:                   "/api/v1/notes/{id}/attachments",
-		Method:                 "POST",
-		Domain:                 "notes",
-		Reason:                 "multipart_upload",
+		EndpointID:             "health",
+		Path:                   "/health",
+		Method:                 "GET",
+		Domain:                 "system",
+		Reason:                 "ops_probe",
 		HasPayloadDeclarations: true,
-	})
-	require.Contains(t, surface.RESTExceptionPayloads, RESTExceptionPayloadRef{
-		EndpointID:    "notes_attach",
-		Path:          "/api/v1/notes/{id}/attachments",
-		Method:        "POST",
-		Domain:        "notes",
-		Reason:        "multipart_upload",
-		Role:          RESTPayloadRoleResponse,
-		ProtoFullName: "vrooli.proto_health.v1.notes.UploadAttachmentResponse",
-		Transport:     "json",
-		Conformance:   "protojson",
-		ProofStatus:   RESTPayloadProofNotEvaluated,
-	})
-	require.Contains(t, surface.RESTExceptionRefs, RESTExceptionRef{
-		EndpointID: "notes_attach",
-		Path:       "/api/v1/notes/{id}/attachments",
-		Method:     "POST",
-		Domain:     "notes",
-		Message:    "UploadAttachmentResponse",
-		FullName:   "vrooli.proto_health.v1.notes.UploadAttachmentResponse",
 	})
 }
 

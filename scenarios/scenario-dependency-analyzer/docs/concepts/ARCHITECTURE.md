@@ -22,13 +22,14 @@ SDA must not scan source files for actual graph evidence. Its responsibility is 
 
 ## Actual Graph Model
 
-The actual graph is computed on demand:
+The actual graph is assembled from upstream facts and served from a derived cache when fresh:
 
 1. Fetch batch proto surfaces from `proto-health`.
 2. Fetch batch import facts from `code-facts`.
 3. Attribute import paths to scenario slugs.
 4. Merge evidence into source-to-target scenario edges.
-5. Compare actual edges with declared scenario dependencies.
+5. Persist the derived graph by request signature for fast repeat reads.
+6. Compare actual edges with declared scenario dependencies.
 
 Edges carry:
 
@@ -36,7 +37,7 @@ Edges carry:
 - `transport_world`: forwarded from proto surface facts where available.
 - `stability`: forwarded from proto surface facts where available.
 
-The derived graph is not persisted. Only history-bearing data such as recommendations and analysis runs belongs in SQLite.
+The derived graph cache is persisted in SQLite for repeat-read performance. It is rebuildable from upstream facts and must not become the source of truth for proto surfaces or language imports.
 
 ## Drift Semantics
 

@@ -2,7 +2,6 @@ package domains
 
 import (
 	"proto-health/cli/domains/describe"
-	"proto-health/cli/domains/notes"
 	"proto-health/cli/domains/validate"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -38,11 +37,10 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // templates/scenarios/react-vite/docs/internal/SEAMS.md (manifest ↔
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
-	out := make([]cliapp.SubcommandGroup, 0, 3)
+	out := make([]cliapp.SubcommandGroup, 0, 2)
 	for _, reg := range []func(*cliapp.ScenarioApp, []byte) (cliapp.SubcommandGroup, error){
 		validate.Register,
 		describe.Register,
-		notes.Register,
 	} {
 		group, err := reg(core, manifest)
 		if err != nil {

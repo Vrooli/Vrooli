@@ -56,8 +56,8 @@
     },
     "states": {
       "loading": "Loading graph from Tech Tree Designer…",
-      "error": "Graph data is unavailable. Confirm the API and proto-health are running.",
-      "empty": "No graph nodes are available yet. Start proto-health and add planned scenarios to populate the canvas."
+      "error": "Graph data is unavailable. Confirm the API and scenario-dependency-analyzer are running.",
+      "empty": "No graph nodes are available yet. Start scenario-dependency-analyzer and add planned scenarios to populate the canvas."
     },
     "warnings": {
       "title": "Graph source warnings",

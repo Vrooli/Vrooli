@@ -14,7 +14,7 @@
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [ ] OT-P0-001 | Live interface graph | Render scenario nodes and proto-import dependency edges from `proto-health` behind a fakeable `GraphSource` seam.
+- [x] OT-P0-001 | Live interface graph | Render scenario nodes and proto/Go import dependency edges from SDA's `DescribeInterfaceGraph` behind a fakeable `GraphSource` seam.
 - [ ] OT-P0-002 | Contract-first planning | Store planned scenarios as real `.proto` text, validate them against live schemas, and expose CRUD/validate/materialize flows through API and CLI.
 
 ### 🟠 P1 – Should have post-launch
@@ -22,18 +22,18 @@
 - [ ] OT-P1-002 | Production planning UI | Provide an interactive graph surface, planned-proto editor, validation findings, and ontology coverage overview with loading, error, and empty states.
 
 ### 🟢 P2 – Future / expansion
-- [ ] OT-P2-001 | Rich graph source | Add a `scenario-dependency-analyzer` GraphSource when its `DescribeInterfaceGraph` RPC is available.
+- [x] OT-P2-001 | Rich graph source | Consume `scenario-dependency-analyzer` `DescribeInterfaceGraph` as the live graph source.
 - [ ] OT-P2-002 | Strategic analysis | Add optional AI-assisted bottleneck, node idea, and timeline analysis after the deterministic graph/planning surface is stable.
 
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks / frameworks: `react-vite` template, Go API/CLI, Connect-RPC, generated proto clients, SQLite, D3 for graph visualization.
 - Data + storage expectations: SQLite for planned scenarios, planned proto files, ontology metadata, fulfillment links, optional graph cache, and coverage exclusions.
-- Integration strategy: Consume `proto-health` `DescribeScenariosProtos` first; keep `GraphSource` shaped for `scenario-dependency-analyzer` later.
-- Non-goals / guardrails: No migration from the old Gin/Postgres implementation, no compatibility shims, no old heuristic scenario catalog, no AI analysis in the shipped scope, no SDA client until SDA ships the intended graph RPC.
+- Integration strategy: Consume SDA `DescribeInterfaceGraph`; SDA owns fleet graph interpretation while TTD owns graph queries, planning overlays, and ontology joins.
+- Non-goals / guardrails: No migration from the old Gin/Postgres implementation, no compatibility shims, no old heuristic scenario catalog, no AI analysis in the shipped scope, no duplicate proto/import scanning inside TTD.
 
 ## 🤝 Dependencies & Launch Plan
 - Required resources: SQLite only.
-- Scenario dependencies: `proto-health` is required for the live graph; planned-only mode should degrade cleanly if unavailable.
+- Scenario dependencies: `scenario-dependency-analyzer` is required for the live graph; planned-only mode should degrade cleanly if unavailable.
 - Operational risks: `materialize` writes into `packages/proto/schemas/<slug>/` and must refuse on validation failure; generated proto churn must stay inside the plan allowlist.
 - Launch sequencing: regenerate scaffold, define graph/planning/ontology protos, implement graph source/query/export, implement planned proto storage/validation/materialization, add ontology coverage, then ship UI.
 
@@ -45,5 +45,4 @@
 
 ## Appendix
 - Implementation plan: `tech-tree-designer-regeneration-scenario-centric-interface-graph-contract-first-planning.md` in the user-scoped Vrooli plans directory.
-- `proto-health` source surface: `packages/proto/schemas/proto-health/v1/shared/surface.proto`
-- Future SDA plan: `scenario-dependency-analyzer-actual-interface-graph-and-import-drift.md` in the user-scoped Vrooli plans directory.
+- SDA source surface: `packages/proto/schemas/scenario-dependency-analyzer/v1/graph/graph.proto`

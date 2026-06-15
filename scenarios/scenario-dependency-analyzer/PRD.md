@@ -42,16 +42,16 @@ Operational targets are measurable outcomes; checkboxes may auto-update based on
 ## 🧱 Tech Direction Snapshot
 Preferred stacks: Go API, Go CLI, React + Vite UI, SQLite through `packages/api-core/database`, and generated protobuf/Connect contracts for new reusable surfaces.
 
-Preferred storage: SQLite stores history-bearing analysis records and recommendations. Derived interface graphs are computed on demand and are not persisted. Qdrant remains available for semantic similarity matching.
+Preferred storage: SQLite stores history-bearing analysis records, recommendations, and rebuildable derived interface graph cache entries. Qdrant remains available for semantic similarity matching.
 
 Integration strategy: `proto-health` owns proto surface facts. `code-facts` owns language-level import extraction. SDA owns cross-scenario interpretation: mapping import/proto paths to scenario slugs, unifying evidence into graph edges, and comparing actual usage with `service.json`.
 
-Non-goals: No source-file scanning for import evidence inside SDA. No graph persistence. No full Gin-to-template migration in this plan. No planned-vs-live future-state modeling; tech-tree-designer owns that layer.
+Non-goals: No source-file scanning for import evidence inside SDA. No raw fact persistence or source-content cache. No full Gin-to-template migration in this plan. No planned-vs-live future-state modeling; tech-tree-designer owns that layer.
 
 ## 🤝 Dependencies & Launch Plan
 Required resources: SQLite for local scenario storage, Qdrant for semantic matching, Ollama embeddings via the `embedding.default` role, and claude-code for analysis workflows.
 
-Scenario dependencies: `proto-health` for batch protobuf surface facts and `code-facts` for batch import facts. Downstream consumers include `test-genie` and future `tech-tree-designer` planning flows.
+Scenario dependencies: `proto-health` for batch protobuf surface facts and `code-facts` for batch import facts. Downstream consumers include `test-genie` and `tech-tree-designer` planning flows.
 
 Operational risks: Declared-without-import-evidence can be a false positive while runtime URL and CLI shell-out AST facts are deferred. The mitigation is asymmetric severity: undeclared actual imports are warnings, while declared-only dependencies are informational until the AST-facts follow-up lands.
 
