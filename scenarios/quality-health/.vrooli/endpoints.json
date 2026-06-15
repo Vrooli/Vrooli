@@ -46,6 +46,168 @@
           }
         }
       }
+    },
+    {
+      "id": "audit_quality",
+      "path": "/vrooli.quality_health.v1.audit.AuditService/AuditQuality",
+      "method": "POST",
+      "summary": "Run static quality audit",
+      "description": "Discovers scenario surfaces through Code Facts, evaluates static-quality contracts, optionally runs lint/type commands, and returns normalized findings and maturity.",
+      "category": "audit",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string",
+          "rule_ids": "array<string>",
+          "scenario": "string",
+          "surfaces": "array<string>"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "findings": "array<QualityFinding>",
+          "maturity": "MaturitySummary",
+          "status": "string",
+          "surfaces": "array<QualitySurface>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario/path is missing or cannot be resolved"
+        }
+      ],
+      "cli_mapping": {
+        "command": "quality-health audit run",
+        "args": [
+          "<scenario>",
+          "--json"
+        ]
+      }
+    },
+    {
+      "id": "audit_contracts_list",
+      "path": "/vrooli.quality_health.v1.audit.AuditService/ListContracts",
+      "method": "POST",
+      "summary": "List quality contracts",
+      "description": "",
+      "category": "contracts",
+      "request": {
+        "type": "object",
+        "properties": {
+          "framework": "string",
+          "language": "string",
+          "rule_ids": "array<string>",
+          "surface_kind": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "contracts": "array<QualityContract>"
+        }
+      },
+      "cli_mapping": {
+        "command": "quality-health contracts list",
+        "args": [
+          "--json"
+        ]
+      }
+    },
+    {
+      "id": "audit_explain_finding",
+      "path": "/vrooli.quality_health.v1.audit.AuditService/ExplainFinding",
+      "method": "POST",
+      "summary": "Explain a quality finding",
+      "description": "",
+      "category": "explain",
+      "request": {
+        "type": "object",
+        "properties": {
+          "finding_id": "string",
+          "rule_id": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "contract": "QualityContract",
+          "finding": "QualityFinding",
+          "next_steps": "array<string>"
+        }
+      },
+      "cli_mapping": {
+        "command": "quality-health explain finding",
+        "args": [
+          "<finding-id>",
+          "--scenario",
+          "<scenario>"
+        ]
+      }
+    },
+    {
+      "id": "audit_preview_fix_config",
+      "path": "/vrooli.quality_health.v1.audit.AuditService/PreviewFixConfig",
+      "method": "POST",
+      "summary": "Preview static quality config fixes",
+      "description": "",
+      "category": "autofix",
+      "request": {
+        "type": "object",
+        "properties": {
+          "path": "string",
+          "rule_ids": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "candidates": "array<AutofixCandidate>",
+          "messages": "array<string>"
+        }
+      },
+      "cli_mapping": {
+        "command": "quality-health fix-config run",
+        "args": [
+          "<scenario>",
+          "--dry-run"
+        ]
+      }
+    },
+    {
+      "id": "audit_apply_fix_config",
+      "path": "/vrooli.quality_health.v1.audit.AuditService/ApplyFixConfig",
+      "method": "POST",
+      "summary": "Apply static quality config fixes",
+      "description": "",
+      "category": "autofix",
+      "request": {
+        "type": "object",
+        "properties": {
+          "apply": "bool",
+          "path": "string",
+          "rule_ids": "array<string>",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "applied": "bool",
+          "candidates": "array<AutofixCandidate>",
+          "messages": "array<string>"
+        }
+      },
+      "cli_mapping": {
+        "command": "quality-health fix-config apply",
+        "args": [
+          "<scenario>"
+        ]
+      }
     }
   ],
   "cli_commands": [
@@ -58,6 +220,26 @@
       "name": "audit run",
       "description": "Run a Quality Health audit for a scenario or path",
       "endpoint_id": "audit_quality"
+    },
+    {
+      "name": "contracts list",
+      "description": "List Quality Health static-quality contracts",
+      "endpoint_id": "audit_contracts_list"
+    },
+    {
+      "name": "explain finding",
+      "description": "Explain a Quality Health finding or rule",
+      "endpoint_id": "audit_explain_finding"
+    },
+    {
+      "name": "fix-config run",
+      "description": "Preview or apply safe static-quality config fixes",
+      "endpoint_id": "audit_preview_fix_config"
+    },
+    {
+      "name": "fix-config apply",
+      "description": "Apply safe static-quality config fixes",
+      "endpoint_id": "audit_apply_fix_config"
     }
   ]
 }

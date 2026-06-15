@@ -21,6 +21,7 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	auditH "quality-health/handlers/audit"
 	healthH "quality-health/handlers/health"
 )
 
@@ -115,6 +116,7 @@ func main() {
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "quality-health-api", "1.0.0"),
+		auditH.Module(log.Default()),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

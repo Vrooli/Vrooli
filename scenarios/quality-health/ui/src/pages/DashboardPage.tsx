@@ -1,12 +1,8 @@
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
-import { HealthCard } from "../features/health/HealthCard";
+import { ScenarioAuditWorkbench } from "../features/audit/ScenarioAuditWorkbench";
 import { useTranslation } from "../i18n";
 
-/**
- * Dashboard / home page. Composes the health card plus stat placeholders.
- * Replace the cards with real surfaces when the scenario grows them.
- */
 export function DashboardPage() {
   const { t } = useTranslation();
 
@@ -14,33 +10,16 @@ export function DashboardPage() {
     <section
       data-testid={selectors.pages.dashboard}
       aria-labelledby="dashboard-heading"
+      aria-describedby="dashboard-description"
       className="flex flex-col gap-4"
     >
-      <h2 id="dashboard-heading" className="text-2xl font-semibold">
+      <h2 id="dashboard-heading" className="sr-only">
         {t(strings.pages.dashboard.title)}
       </h2>
-      <p className="text-sm font-medium uppercase text-app-muted-foreground">
-        {t(strings.app.eyebrow)}
+      <p id="dashboard-description" className="sr-only">
+        {t(strings.pages.dashboard.description)}
       </p>
-      <p className="max-w-3xl text-app-muted-foreground">
-        {t(strings.app.description)}
-      </p>
-      <p className="text-app-muted-foreground">{t(strings.pages.dashboard.description)}</p>
-      <div className="grid gap-4 md:grid-cols-3">
-        <HealthCard />
-        <div className="rounded-panel border border-app-border bg-app-surface p-4">
-          <p className="text-xs uppercase text-app-muted-foreground">
-            {t(strings.pages.dashboard.statPlaceholderLabel)}
-          </p>
-          <p className="mt-2 text-2xl font-semibold">—</p>
-        </div>
-        <div className="rounded-panel border border-app-border bg-app-surface p-4">
-          <p className="text-xs uppercase text-app-muted-foreground">
-            {t(strings.pages.dashboard.statPlaceholderLabel)}
-          </p>
-          <p className="mt-2 text-2xl font-semibold">—</p>
-        </div>
-      </div>
+      <ScenarioAuditWorkbench />
     </section>
   );
 }

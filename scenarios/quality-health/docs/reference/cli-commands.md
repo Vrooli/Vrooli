@@ -5,7 +5,7 @@ The CLI must stay thin over the API. It owns argument parsing, output formatting
 ## audit
 
 ```bash
-quality-health audit <scenario> [--surface <id>] [--rule <id>] [--commands] [--autofix-preview] [--json]
+quality-health audit run <scenario> [--surface <id>] [--rule <id>] [--commands] [--autofix-preview] [--json]
 ```
 
 Runs a Quality Health audit. Human output groups findings by remediation path. JSON output follows the API response shape.
@@ -21,7 +21,7 @@ Lists contract registry entries and their applicability.
 ## explain
 
 ```bash
-quality-health explain <finding-id> [--scenario <scenario>] [--json]
+quality-health explain finding <finding-id> [--scenario <scenario>] [--rule <rule-id>] [--json]
 ```
 
 Explains a stable finding ID, why it matters, and the exact repair path.
@@ -29,12 +29,12 @@ Explains a stable finding ID, why it matters, and the exact repair path.
 ## fix-config
 
 ```bash
-quality-health fix-config <scenario> [--rule <id>] --dry-run [--json]
-quality-health fix-config <scenario> [--rule <id>] --apply [--json]
+quality-health fix-config run <scenario> [--rule <id>] [--dry-run] [--apply] [--json]
+quality-health fix-config apply <scenario> [--rule <id>] [--json]
 ```
 
-Previews or applies deterministic config fixes. Dry-run is the default safety posture. `--apply` must be explicit.
+Previews or applies deterministic config fixes. Dry-run is the default safety posture. Applying changes requires either `fix-config run --apply` or the explicit `fix-config apply` command.
 
 ## Existing Commands
 
-Only the cli-core standard commands are active after Phase 1. Phase 2 should add the Quality Health commands above.
+The cli-core standard `status` and `configure` commands remain available.

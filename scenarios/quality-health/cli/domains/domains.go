@@ -1,6 +1,13 @@
 package domains
 
-import "github.com/vrooli/cli-core/cliapp"
+import (
+	"quality-health/cli/domains/audit"
+	"quality-health/cli/domains/autofix"
+	"quality-health/cli/domains/contracts"
+	"quality-health/cli/domains/explain"
+
+	"github.com/vrooli/cli-core/cliapp"
+)
 
 // CommandGroups aggregates flat command groups from domain packages.
 //
@@ -32,7 +39,18 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // templates/scenarios/react-vite/docs/internal/SEAMS.md (manifest ↔
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
-	_ = core
-	_ = manifest
-	return []cliapp.SubcommandGroup{}, nil
+	out := make([]cliapp.SubcommandGroup, 0, 4)
+	for _, reg := range []func(*cliapp.ScenarioApp, []byte) (cliapp.SubcommandGroup, error){
+		audit.Register,
+		contracts.Register,
+		explain.Register,
+		autofix.Register,
+	} {
+		group, err := reg(core, manifest)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, group)
+	}
+	return out, nil
 }

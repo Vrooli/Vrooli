@@ -1,11 +1,11 @@
 # API Endpoints — Quality Health
 
-## Target API Shape
+## API Shape
 
-Quality Health should expose proto/Connect services unless a generated REST exception is explicitly documented.
+Quality Health exposes proto/Connect services unless a generated REST exception is explicitly documented.
 
 ```text
-QualityHealthService
+AuditService
   AuditQuality(AuditQualityRequest) returns (AuditQualityResponse)
   ListContracts(ListContractsRequest) returns (ListContractsResponse)
   ExplainFinding(ExplainFindingRequest) returns (ExplainFindingResponse)
@@ -17,10 +17,8 @@ QualityHealthService
 
 Request fields:
 
-- `target.kind`: `scenario`, `path`, or `project`
-- `target.scenario`
-- `target.path`
-- `target.repo_root`
+- `scenario`
+- `path`
 - `surfaces[]`
 - `rule_ids[]`
 - `include_command_execution`
@@ -32,8 +30,6 @@ Response fields:
 - `run_id`
 - `scenario`
 - `status`: `passed`, `failed`, `degraded`, or `error`
-- `started_at`
-- `finished_at`
 - `surfaces[]`
 - `contracts[]`
 - `findings[]`
@@ -45,11 +41,11 @@ Response fields:
 
 ## ListContracts
 
-Lists contract definitions filtered by language, framework, surface kind, tooling, or rule ID. This endpoint powers CLI discoverability and UI contract detail views.
+Lists contract definitions filtered by language, framework, surface kind, or rule ID. This endpoint powers CLI discoverability and UI contract detail views.
 
 ## ExplainFinding
 
-Returns remediation for a stable finding ID. v1 may require the caller to pass `scenario` so the API can re-audit or locate the latest finding context.
+Returns remediation for a stable finding ID or rule ID. v1 derives explanations from the contract registry and may require the caller to pass `scenario` for contextual next-step commands.
 
 ## PreviewFixConfig
 

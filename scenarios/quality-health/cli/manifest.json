@@ -23,6 +23,10 @@
               "description": "Restrict the audit to a contract or rule ID"
             },
             {
+              "name": "surface",
+              "description": "Restrict the audit to a discovered surface id or kind"
+            },
+            {
               "name": "commands",
               "description": "Include command execution checks"
             },
@@ -47,6 +51,110 @@
               "filesystem:read",
               "network:internal"
             ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "contracts",
+      "description": "Inspect static quality contracts",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List Quality Health contracts",
+          "flags": [
+            { "name": "language", "description": "Filter by language" },
+            { "name": "framework", "description": "Filter by framework" },
+            { "name": "surface-kind", "description": "Filter by surface kind" },
+            { "name": "json", "description": "Emit JSON output" }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuditService",
+            "method": "ListContracts"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "explain",
+      "description": "Explain quality findings and rule remediation",
+      "commands": [
+        {
+          "name": "finding",
+          "description": "Explain a finding id or rule id",
+          "positionals": [
+            { "name": "finding-id", "required": true, "description": "Finding id or rule id" }
+          ],
+          "flags": [
+            { "name": "scenario", "description": "Scenario slug for contextual next steps" },
+            { "name": "rule", "description": "Explicit rule id to explain" },
+            { "name": "json", "description": "Emit JSON output" }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuditService",
+            "method": "ExplainFinding"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "fix-config",
+      "description": "Preview or apply deterministic quality config fixes",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Preview or apply safe config fixes",
+          "positionals": [
+            { "name": "scenario", "required": true, "description": "Scenario slug to repair" }
+          ],
+          "flags": [
+            { "name": "rule", "description": "Restrict fixes to a rule id" },
+            { "name": "dry-run", "description": "Preview fixes without applying them" },
+            { "name": "apply", "description": "Apply supported config fixes" },
+            { "name": "json", "description": "Emit JSON output" }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuditService",
+            "method": "PreviewFixConfig"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": ["filesystem:read", "filesystem:write", "network:internal"]
+          }
+        },
+        {
+          "name": "apply",
+          "description": "Apply supported safe config fixes",
+          "positionals": [
+            { "name": "scenario", "required": true, "description": "Scenario slug to repair" }
+          ],
+          "flags": [
+            { "name": "rule", "description": "Restrict fixes to a rule id" },
+            { "name": "json", "description": "Emit JSON output" }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuditService",
+            "method": "ApplyFixConfig"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": ["filesystem:read", "filesystem:write", "network:internal"]
           }
         }
       ]

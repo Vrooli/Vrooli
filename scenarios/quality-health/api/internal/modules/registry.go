@@ -22,8 +22,11 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	auditH "quality-health/handlers/audit"
 	healthH "quality-health/handlers/health"
 	localdb "quality-health/internal/database"
+
+	auditv1 "github.com/vrooli/vrooli/packages/proto/gen/go/quality-health/v1/audit"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -33,6 +36,7 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
+	out = append(out, auditH.Endpoints...)
 	return out
 }
 
@@ -58,7 +62,9 @@ type ProtoFileEntry struct {
 // AllProtoFiles returns the proto FileDescriptor backing each
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
-	return nil
+	return []ProtoFileEntry{
+		{Module: "audit", File: auditv1.File_quality_health_v1_audit_audit_proto},
+	}
 }
 
 // AllSchemas returns every domain's schema provider plus the system
@@ -72,5 +78,6 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
+		apidb.SchemaProviderFunc(auditH.Schema),
 	}
 }

@@ -10,6 +10,26 @@
       "name": "audit run",
       "description": "Run a Quality Health audit for a scenario or path",
       "endpoint_id": "audit_quality"
+    },
+    {
+      "name": "contracts list",
+      "description": "List Quality Health static-quality contracts",
+      "endpoint_id": "audit_contracts_list"
+    },
+    {
+      "name": "explain finding",
+      "description": "Explain a Quality Health finding or rule",
+      "endpoint_id": "audit_explain_finding"
+    },
+    {
+      "name": "fix-config run",
+      "description": "Preview or apply safe static-quality config fixes",
+      "endpoint_id": "audit_preview_fix_config"
+    },
+    {
+      "name": "fix-config apply",
+      "description": "Apply safe static-quality config fixes",
+      "endpoint_id": "audit_apply_fix_config"
     }
   ]
 }

@@ -11,7 +11,8 @@ It is being built as a dedicated scenario so Test Genie can delegate one `qualit
 - Rule-parity preservation for the existing Tidiness Manager / Scenario Auditor type-safety checks.
 - Agent-readable findings with stable IDs, evidence, remediation, and maturity.
 - Safe `fix-config` preview/apply workflow for deterministic config edits.
-- Future Test Genie `quality` phase provider and operator UI.
+- Future Test Genie `quality` phase provider.
+- Operator UI for audit overview, surface breakdown, findings triage, contract detail, command evidence, and autofix preview.
 
 ## Documentation Map
 
@@ -31,7 +32,7 @@ make test
 vrooli scenario requirements validate quality-health
 ```
 
-The future scenario CLI will expose:
+The scenario CLI exposes:
 
 ```bash
 quality-health audit <scenario> --json
@@ -40,6 +41,6 @@ quality-health explain <finding-id> --scenario <scenario>
 quality-health fix-config <scenario> --dry-run --json
 ```
 
-## Customize Safely
+## UI
 
-The generated `notes` reference domain has been removed. Keep the generated health endpoint, lifecycle metadata, design tokens, i18n wiring, accessibility primitives, and scenario Makefile lifecycle shape while Phase 2 adds the real Quality Health domains.
+The generated `notes` reference domain has been removed. The dashboard now opens directly to the Quality Health audit workbench and consumes the same `AuditService` model used by the CLI and future Test Genie provider.

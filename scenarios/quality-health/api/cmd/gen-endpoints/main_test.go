@@ -20,8 +20,8 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 		{Name: "status", Description: "Health check", EndpointID: "health"},
 		{Name: "audit run", Description: "Run audit", EndpointID: "audit_run"},
 		{Name: "contracts list", Description: "List contracts", EndpointID: "contracts_list"},
-		{Name: "explain", Description: "Explain finding", EndpointID: "explain_finding"},
-		{Name: "fix-config preview", Description: "Preview config fix", EndpointID: "fix_config_preview"},
+		{Name: "explain finding", Description: "Explain finding", EndpointID: "explain_finding"},
+		{Name: "fix-config run", Description: "Preview config fix", EndpointID: "fix_config_preview"},
 		{Name: "fix-config apply", Description: "Apply config fix", EndpointID: "fix_config_apply"},
 	})
 

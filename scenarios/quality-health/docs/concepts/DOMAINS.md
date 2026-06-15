@@ -2,18 +2,18 @@
 
 ## Purpose Of This Document
 
-This document names the bounded contexts that will replace the generated example domain during Phase 2.
+This document names the bounded contexts that replaced the generated example domain and now back the API, CLI, and UI.
 
 ## Domain Inventory
 
 | Domain | Purpose | Primary OT | Surfaces | Source Paths |
 |---|---|---|---|---|
-| surfaces | Convert Code Facts output into Quality Health's normalized surface inventory. | OT-P0-001 | API, tests | planned: `api/internal/surfaces`, `api/handlers/surfaces` |
-| contracts | Register and evaluate static-quality contracts by language/framework/surface/tooling. | OT-P0-002, OT-P0-003 | API, CLI list | planned: `api/internal/contracts`, `api/handlers/contracts`, `cli/domains/contracts` |
-| audit | Orchestrate discovery, contract evaluation, command execution, findings, maturity, and next steps. | OT-P0-001, OT-P0-004 | API, CLI, UI | planned: `api/internal/audit`, `api/handlers/audit`, `cli/domains/audit`, `ui/src/features/audit` |
-| commands | Resolve and run bounded lint/type commands, returning structured command results. | OT-P0-001 | API | planned: `api/internal/commands` |
-| autofix | Preview and apply deterministic config edits for supported rules. | OT-P0-005 | API, CLI, UI | planned: `api/internal/autofix`, `api/handlers/autofix`, `cli/domains/autofix`, `ui/src/features/autofix` |
-| explain | Return detailed remediation for stable finding IDs. | OT-P1-003 | API, CLI, UI | planned: `api/internal/explain`, `api/handlers/explain`, `cli/domains/explain`, `ui/src/features/explain` |
+| surfaces | Convert Code Facts output into Quality Health's normalized surface inventory. | OT-P0-001 | API, tests, UI | `api/internal/surfaces`, `api/handlers/audit`, `ui/src/features/audit` |
+| contracts | Register and evaluate static-quality contracts by language/framework/surface/tooling. | OT-P0-002, OT-P0-003 | API, CLI list, UI | `api/internal/contracts`, `api/handlers/audit`, `cli/domains/contracts`, `ui/src/features/audit` |
+| audit | Orchestrate discovery, contract evaluation, command execution, findings, maturity, and next steps. | OT-P0-001, OT-P0-004 | API, CLI, UI | `api/internal/audit`, `api/handlers/audit`, `cli/domains/audit`, `ui/src/features/audit` |
+| commands | Resolve and run bounded lint/type commands, returning structured command results. | OT-P0-001 | API, UI | `api/internal/commands`, `ui/src/features/audit` |
+| autofix | Preview and apply deterministic config edits for supported rules. | OT-P0-005 | API, CLI, UI | `api/internal/autofix`, `api/handlers/audit`, `cli/domains/autofix`, `ui/src/features/audit` |
+| explain | Return detailed remediation for stable finding IDs. | OT-P1-003 | API, CLI, UI | `api/internal/contracts`, `api/handlers/audit`, `cli/domains/explain`, `ui/src/features/audit` |
 
 ## Domain Details
 
