@@ -3,8 +3,6 @@ package preflight
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,43 +10,11 @@ import (
 	"time"
 )
 
-func TestChecker_CheckBrowserless_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/pressure" {
-			t.Errorf("unexpected path: %s", r.URL.Path)
-		}
-		w.WriteHeader(http.StatusOK)
-		if _, err := w.Write([]byte(`{"pressure":{"running":0}}`)); err != nil {
-			t.Fatalf("write response: %v", err)
-		}
-	}))
-	defer server.Close()
-
-	c := NewChecker(server.URL)
-	err := c.CheckBrowserless(context.Background())
-	if err != nil {
-		t.Errorf("CheckBrowserless() error = %v", err)
-	}
-}
-
-func TestChecker_CheckBrowserless_Failure(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusServiceUnavailable)
-	}))
-	defer server.Close()
-
-	c := NewChecker(server.URL)
-	err := c.CheckBrowserless(context.Background())
-	if err == nil {
-		t.Error("CheckBrowserless() expected error for unavailable service")
-	}
-}
-
 func TestChecker_CheckUIDirectory(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// No UI directory
-	c := NewChecker("http://localhost:4110")
+	c := NewChecker()
 	if c.CheckUIDirectory(tmpDir) {
 		t.Error("CheckUIDirectory() should return false when ui dir doesn't exist")
 	}
@@ -82,7 +48,7 @@ func TestChecker_CheckIframeBridge_Present(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c := NewChecker("http://localhost:4110")
+	c := NewChecker()
 	status, err := c.CheckIframeBridge(context.Background(), tmpDir)
 	if err != nil {
 		t.Fatalf("CheckIframeBridge() error = %v", err)
@@ -114,7 +80,7 @@ func TestChecker_CheckIframeBridge_DevDependency(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c := NewChecker("http://localhost:4110")
+	c := NewChecker()
 	status, err := c.CheckIframeBridge(context.Background(), tmpDir)
 	if err != nil {
 		t.Fatalf("CheckIframeBridge() error = %v", err)
@@ -146,7 +112,7 @@ func TestChecker_CheckIframeBridge_Missing(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c := NewChecker("http://localhost:4110")
+	c := NewChecker()
 	status, err := c.CheckIframeBridge(context.Background(), tmpDir)
 	if err != nil {
 		t.Fatalf("CheckIframeBridge() error = %v", err)
@@ -160,7 +126,7 @@ func TestChecker_CheckIframeBridge_Missing(t *testing.T) {
 func TestChecker_CheckIframeBridge_NoPackageJSON(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	c := NewChecker("http://localhost:4110")
+	c := NewChecker()
 	status, err := c.CheckIframeBridge(context.Background(), tmpDir)
 	if err != nil {
 		t.Fatalf("CheckIframeBridge() error = %v", err)
@@ -178,7 +144,7 @@ func TestChecker_CheckBundleFreshness_NoDist(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c := NewChecker("http://localhost:4110")
+	c := NewChecker()
 	status, err := c.CheckBundleFreshness(context.Background(), tmpDir)
 	if err != nil {
 		t.Fatalf("CheckBundleFreshness() error = %v", err)
@@ -201,7 +167,7 @@ func TestChecker_CheckBundleFreshness_HasDist(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c := NewChecker("http://localhost:4110")
+	c := NewChecker()
 	status, err := c.CheckBundleFreshness(context.Background(), tmpDir)
 	if err != nil {
 		t.Fatalf("CheckBundleFreshness() error = %v", err)
@@ -268,7 +234,7 @@ func TestChecker_CheckBundleFreshness_StaleBundle(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c := NewChecker("http://localhost:4110")
+	c := NewChecker()
 	status, err := c.CheckBundleFreshness(context.Background(), tmpDir)
 	if err != nil {
 		t.Fatalf("CheckBundleFreshness() error = %v", err)
@@ -336,7 +302,7 @@ func TestChecker_CheckBundleFreshness_WithServiceJSONFreshBundle(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c := NewChecker("http://localhost:4110")
+	c := NewChecker()
 	status, err := c.CheckBundleFreshness(context.Background(), tmpDir)
 	if err != nil {
 		t.Fatalf("CheckBundleFreshness() error = %v", err)
@@ -369,7 +335,7 @@ func TestChecker_CheckBundleFreshness_InvalidServiceJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c := NewChecker("http://localhost:4110")
+	c := NewChecker()
 	status, err := c.CheckBundleFreshness(context.Background(), tmpDir)
 	if err != nil {
 		t.Fatalf("CheckBundleFreshness() error = %v", err)
@@ -414,7 +380,7 @@ func TestChecker_CheckBundleFreshness_NoUIBundleCheck(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c := NewChecker("http://localhost:4110")
+	c := NewChecker()
 	status, err := c.CheckBundleFreshness(context.Background(), tmpDir)
 	if err != nil {
 		t.Fatalf("CheckBundleFreshness() error = %v", err)
@@ -436,7 +402,7 @@ func TestChecker_CheckIframeBridge_InvalidJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c := NewChecker("http://localhost:4110")
+	c := NewChecker()
 	status, err := c.CheckIframeBridge(context.Background(), tmpDir)
 	if err != nil {
 		t.Fatalf("CheckIframeBridge() error = %v", err)
@@ -450,28 +416,11 @@ func TestChecker_CheckIframeBridge_InvalidJSON(t *testing.T) {
 	}
 }
 
-func TestChecker_WithHTTPClient(t *testing.T) {
-	customClient := &http.Client{Timeout: 5 * time.Second}
-	c := NewChecker("http://localhost:4110", WithHTTPClient(customClient))
-
-	if c.httpClient != customClient {
-		t.Error("httpClient should be set to custom client")
-	}
-}
-
 func TestChecker_WithAppRoot(t *testing.T) {
-	c := NewChecker("http://localhost:4110", WithAppRoot("/custom/root"))
+	c := NewChecker(WithAppRoot("/custom/root"))
 
 	if c.appRoot != "/custom/root" {
 		t.Errorf("appRoot = %q, want %q", c.appRoot, "/custom/root")
-	}
-}
-
-func TestChecker_CheckBrowserless_Unreachable(t *testing.T) {
-	c := NewChecker("http://localhost:99999") // Invalid port
-	err := c.CheckBrowserless(context.Background())
-	if err == nil {
-		t.Error("CheckBrowserless() should return error for unreachable server")
 	}
 }
 
@@ -513,7 +462,7 @@ func TestChecker_CheckBundleFreshness_DistDirMissing(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c := NewChecker("http://localhost:4110")
+	c := NewChecker()
 	status, err := c.CheckBundleFreshness(context.Background(), tmpDir)
 	if err != nil {
 		t.Fatalf("CheckBundleFreshness() error = %v", err)
@@ -636,7 +585,7 @@ func TestChecker_CheckUIPortDefined_Defined(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c := NewChecker("http://localhost:4110")
+	c := NewChecker()
 	result, err := c.CheckUIPortDefined(tmpDir)
 	if err != nil {
 		t.Fatalf("CheckUIPortDefined() error = %v", err)
@@ -671,7 +620,7 @@ func TestChecker_CheckUIPortDefined_NotDefined(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c := NewChecker("http://localhost:4110")
+	c := NewChecker()
 	result, err := c.CheckUIPortDefined(tmpDir)
 	if err != nil {
 		t.Fatalf("CheckUIPortDefined() error = %v", err)
@@ -685,7 +634,7 @@ func TestChecker_CheckUIPortDefined_NotDefined(t *testing.T) {
 func TestChecker_CheckUIPortDefined_NoServiceJSON(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	c := NewChecker("http://localhost:4110")
+	c := NewChecker()
 	result, err := c.CheckUIPortDefined(tmpDir)
 	if err != nil {
 		t.Fatalf("CheckUIPortDefined() error = %v", err)
@@ -707,7 +656,7 @@ func TestChecker_CheckUIPortDefined_InvalidJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c := NewChecker("http://localhost:4110")
+	c := NewChecker()
 	result, err := c.CheckUIPortDefined(tmpDir)
 	if err != nil {
 		t.Fatalf("CheckUIPortDefined() error = %v", err)
@@ -737,7 +686,7 @@ func TestChecker_CheckUIPortDefined_EmptyEnvVar(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c := NewChecker("http://localhost:4110")
+	c := NewChecker()
 	result, err := c.CheckUIPortDefined(tmpDir)
 	if err != nil {
 		t.Fatalf("CheckUIPortDefined() error = %v", err)
@@ -764,7 +713,7 @@ func TestChecker_CheckUIPortDefined_NullUI(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c := NewChecker("http://localhost:4110")
+	c := NewChecker()
 	result, err := c.CheckUIPortDefined(tmpDir)
 	if err != nil {
 		t.Fatalf("CheckUIPortDefined() error = %v", err)
@@ -812,7 +761,7 @@ func TestChecker_CheckUIPort_Method1_DirectPort(t *testing.T) {
 	validator := newMockPortValidator()
 	validator.SetListening(3000, true)
 
-	c := NewChecker("http://localhost:4110", WithCommandExecutor(executor), WithPortValidator(validator))
+	c := NewChecker(WithCommandExecutor(executor), WithPortValidator(validator))
 	port, err := c.CheckUIPort(context.Background(), "test-scenario")
 	if err != nil {
 		t.Fatalf("CheckUIPort() error = %v", err)
@@ -833,7 +782,7 @@ func TestChecker_CheckUIPort_Method2_AllPorts(t *testing.T) {
 	validator := newMockPortValidator()
 	validator.SetListening(3001, true)
 
-	c := NewChecker("http://localhost:4110", WithCommandExecutor(executor), WithPortValidator(validator))
+	c := NewChecker(WithCommandExecutor(executor), WithPortValidator(validator))
 	port, err := c.CheckUIPort(context.Background(), "test-scenario")
 	if err != nil {
 		t.Fatalf("CheckUIPort() error = %v", err)
@@ -857,7 +806,7 @@ func TestChecker_CheckUIPort_Method3_LogParsing(t *testing.T) {
 	validator := newMockPortValidator()
 	validator.SetListening(3002, true)
 
-	c := NewChecker("http://localhost:4110", WithCommandExecutor(executor), WithPortValidator(validator))
+	c := NewChecker(WithCommandExecutor(executor), WithPortValidator(validator))
 	port, err := c.CheckUIPort(context.Background(), "test-scenario")
 	if err != nil {
 		t.Fatalf("CheckUIPort() error = %v", err)
@@ -876,7 +825,7 @@ func TestChecker_CheckUIPort_AllMethodsFail(t *testing.T) {
 	executor.SetResponse("vrooli scenario logs test-scenario --step start-ui --lines 50",
 		[]byte("Starting UI server...\nNo port info\n"), nil)
 
-	c := NewChecker("http://localhost:4110", WithCommandExecutor(executor))
+	c := NewChecker(WithCommandExecutor(executor))
 	port, err := c.CheckUIPort(context.Background(), "test-scenario")
 	if err != nil {
 		t.Fatalf("CheckUIPort() error = %v", err)
@@ -896,7 +845,7 @@ func TestChecker_CheckUIPort_InvalidPortOutput(t *testing.T) {
 	// Method 3 fails
 	executor.SetResponse("vrooli scenario logs test-scenario --step start-ui --lines 50", nil, fmt.Errorf("error"))
 
-	c := NewChecker("http://localhost:4110", WithCommandExecutor(executor))
+	c := NewChecker(WithCommandExecutor(executor))
 	port, err := c.CheckUIPort(context.Background(), "test-scenario")
 	if err != nil {
 		t.Fatalf("CheckUIPort() error = %v", err)
@@ -916,7 +865,7 @@ func TestChecker_CheckUIPort_ZeroPort(t *testing.T) {
 	// Method 3 fails
 	executor.SetResponse("vrooli scenario logs test-scenario --step start-ui --lines 50", nil, fmt.Errorf("error"))
 
-	c := NewChecker("http://localhost:4110", WithCommandExecutor(executor))
+	c := NewChecker(WithCommandExecutor(executor))
 	port, err := c.CheckUIPort(context.Background(), "test-scenario")
 	if err != nil {
 		t.Fatalf("CheckUIPort() error = %v", err)
@@ -941,7 +890,7 @@ func TestChecker_CheckUIPort_Method1Preferred(t *testing.T) {
 	validator := newMockPortValidator()
 	validator.SetListening(3000, true)
 
-	c := NewChecker("http://localhost:4110", WithCommandExecutor(executor), WithPortValidator(validator))
+	c := NewChecker(WithCommandExecutor(executor), WithPortValidator(validator))
 	port, err := c.CheckUIPort(context.Background(), "test-scenario")
 	if err != nil {
 		t.Fatalf("CheckUIPort() error = %v", err)
@@ -961,7 +910,7 @@ func TestChecker_CheckUIPort_WhitespaceHandling(t *testing.T) {
 	validator := newMockPortValidator()
 	validator.SetListening(3000, true)
 
-	c := NewChecker("http://localhost:4110", WithCommandExecutor(executor), WithPortValidator(validator))
+	c := NewChecker(WithCommandExecutor(executor), WithPortValidator(validator))
 	port, err := c.CheckUIPort(context.Background(), "test-scenario")
 	if err != nil {
 		t.Fatalf("CheckUIPort() error = %v", err)
@@ -974,7 +923,7 @@ func TestChecker_CheckUIPort_WhitespaceHandling(t *testing.T) {
 
 func TestChecker_WithCommandExecutor(t *testing.T) {
 	executor := newMockCommandExecutor()
-	c := NewChecker("http://localhost:4110", WithCommandExecutor(executor))
+	c := NewChecker(WithCommandExecutor(executor))
 
 	if c.cmdExecutor != executor {
 		t.Error("cmdExecutor should be set to custom executor")
@@ -1009,7 +958,7 @@ func (m *mockPortValidator) SetListening(port int, listening bool) {
 
 func TestChecker_WithPortValidator(t *testing.T) {
 	validator := newMockPortValidator()
-	c := NewChecker("http://localhost:4110", WithPortValidator(validator))
+	c := NewChecker(WithPortValidator(validator))
 
 	if c.portValidator != validator {
 		t.Error("portValidator should be set to custom validator")
@@ -1023,7 +972,7 @@ func TestChecker_CheckUIPort_PortListening(t *testing.T) {
 	validator := newMockPortValidator()
 	validator.SetListening(3000, true)
 
-	c := NewChecker("http://localhost:4110",
+	c := NewChecker(
 		WithCommandExecutor(executor),
 		WithPortValidator(validator))
 
@@ -1044,7 +993,7 @@ func TestChecker_CheckUIPort_PortNotListening(t *testing.T) {
 	validator := newMockPortValidator()
 	// Don't set port 3000 as listening - it will fail validation
 
-	c := NewChecker("http://localhost:4110",
+	c := NewChecker(
 		WithCommandExecutor(executor),
 		WithPortValidator(validator))
 
@@ -1074,7 +1023,7 @@ func TestChecker_CheckUIPort_Method2WithValidation(t *testing.T) {
 	validator := newMockPortValidator()
 	validator.SetListening(4000, true)
 
-	c := NewChecker("http://localhost:4110",
+	c := NewChecker(
 		WithCommandExecutor(executor),
 		WithPortValidator(validator))
 
@@ -1098,7 +1047,7 @@ func TestChecker_CheckUIPort_Method3WithValidation(t *testing.T) {
 	validator := newMockPortValidator()
 	validator.SetListening(5000, true)
 
-	c := NewChecker("http://localhost:4110",
+	c := NewChecker(
 		WithCommandExecutor(executor),
 		WithPortValidator(validator))
 
@@ -1153,7 +1102,7 @@ func TestChecker_CheckUIPort_DiscoveryMethodInError(t *testing.T) {
 			validator := newMockPortValidator()
 			// Port not listening - will fail validation
 
-			c := NewChecker("http://localhost:4110",
+			c := NewChecker(
 				WithCommandExecutor(executor),
 				WithPortValidator(validator))
 
@@ -1222,7 +1171,7 @@ func TestChecker_CheckBundleFreshness_NestedSourceFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c := NewChecker("http://localhost:4110")
+	c := NewChecker()
 	status, err := c.CheckBundleFreshness(context.Background(), tmpDir)
 	if err != nil {
 		t.Fatalf("CheckBundleFreshness() error = %v", err)
@@ -1287,7 +1236,7 @@ func TestChecker_CheckBundleFreshness_StaleNestedSourceFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c := NewChecker("http://localhost:4110")
+	c := NewChecker()
 	status, err := c.CheckBundleFreshness(context.Background(), tmpDir)
 	if err != nil {
 		t.Fatalf("CheckBundleFreshness() error = %v", err)
@@ -1407,7 +1356,7 @@ func TestChecker_CheckUIDirectory_FileNotDir(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c := NewChecker("http://localhost:4110")
+	c := NewChecker()
 	if c.CheckUIDirectory(tmpDir) {
 		t.Error("CheckUIDirectory() should return false when ui is a file, not a directory")
 	}
@@ -1435,7 +1384,7 @@ func TestChecker_CheckIframeBridge_BothDepsAndDevDeps(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c := NewChecker("http://localhost:4110")
+	c := NewChecker()
 	status, err := c.CheckIframeBridge(context.Background(), tmpDir)
 	if err != nil {
 		t.Fatalf("CheckIframeBridge() error = %v", err)
@@ -1447,14 +1396,6 @@ func TestChecker_CheckIframeBridge_BothDepsAndDevDeps(t *testing.T) {
 	// Should prefer the version from dependencies (^2.0.0)
 	if status.Version != "^2.0.0" {
 		t.Errorf("Version = %q, want %q (should prefer dependencies over devDependencies)", status.Version, "^2.0.0")
-	}
-}
-
-func TestChecker_NewChecker_TrimsTrailingSlash(t *testing.T) {
-	c := NewChecker("http://localhost:4110/")
-
-	if c.browserlessURL != "http://localhost:4110" {
-		t.Errorf("browserlessURL = %q, want trailing slash removed", c.browserlessURL)
 	}
 }
 
@@ -1479,26 +1420,6 @@ func TestParseUIPortFromLogs_NegativePort(t *testing.T) {
 	}
 }
 
-func TestChecker_CheckBrowserless_ContextCancelled(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Simulate slow response
-		time.Sleep(100 * time.Millisecond)
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer server.Close()
-
-	c := NewChecker(server.URL)
-
-	// Create a cancelled context
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	err := c.CheckBrowserless(ctx)
-	if err == nil {
-		t.Error("CheckBrowserless() should return error for cancelled context")
-	}
-}
-
 func TestChecker_CheckUIPortDefined_EmptyPortsSection(t *testing.T) {
 	tmpDir := t.TempDir()
 	vrooliDir := filepath.Join(tmpDir, ".vrooli")
@@ -1513,7 +1434,7 @@ func TestChecker_CheckUIPortDefined_EmptyPortsSection(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c := NewChecker("http://localhost:4110")
+	c := NewChecker()
 	result, err := c.CheckUIPortDefined(tmpDir)
 	if err != nil {
 		t.Fatalf("CheckUIPortDefined() error = %v", err)
@@ -1573,7 +1494,7 @@ func TestChecker_CheckBundleFreshness_DefaultSourceGlobs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	c := NewChecker("http://localhost:4110")
+	c := NewChecker()
 	status, err := c.CheckBundleFreshness(context.Background(), tmpDir)
 	if err != nil {
 		t.Fatalf("CheckBundleFreshness() error = %v", err)

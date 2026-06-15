@@ -1,3 +1,8 @@
+// Package preflight validates the engine-agnostic preconditions for a UI smoke
+// test: the scenario has a UI directory and a defined UI port, its bundle is
+// fresh, the @vrooli/iframe-bridge dependency is present, and the UI port is
+// discoverable and listening. It is a dependency-light leaf: it knows nothing
+// about the browser engine that ultimately drives the smoke capture.
 package preflight
 
 import (
@@ -5,16 +10,43 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
-
-	"test-genie/internal/smoke/orchestrator"
 )
+
+// BundleStatus describes UI bundle freshness.
+type BundleStatus struct {
+	// Fresh indicates whether the bundle is up-to-date.
+	Fresh bool
+	// Reason describes why the bundle is stale (if applicable).
+	Reason string
+	// Config carries the raw bundle-check configuration from service.json.
+	Config json.RawMessage
+}
+
+// BridgeStatus describes iframe-bridge dependency status.
+type BridgeStatus struct {
+	// DependencyPresent indicates whether @vrooli/iframe-bridge is installed.
+	DependencyPresent bool
+	// Version is the installed version of iframe-bridge.
+	Version string
+	// Details provides additional information.
+	Details string
+}
+
+// UIPortDefinition describes whether a scenario defines a UI port in service.json.
+type UIPortDefinition struct {
+	// Defined is true when service.json defines a UI port.
+	Defined bool
+	// EnvVar is the environment variable name (e.g. "UI_PORT").
+	EnvVar string
+	// Description is the port description from service.json.
+	Description string
+}
 
 // CommandExecutor abstracts command execution for testing.
 type CommandExecutor interface {
@@ -50,20 +82,14 @@ func (d defaultPortValidator) ValidateListening(port int) error {
 
 // Checker validates preconditions for UI smoke tests.
 type Checker struct {
-	browserlessURL string
-	httpClient     *http.Client
-	appRoot        string
-	cmdExecutor    CommandExecutor
-	portValidator  PortValidator
+	appRoot       string
+	cmdExecutor   CommandExecutor
+	portValidator PortValidator
 }
 
 // NewChecker creates a new preflight Checker.
-func NewChecker(browserlessURL string, opts ...CheckerOption) *Checker {
+func NewChecker(opts ...CheckerOption) *Checker {
 	c := &Checker{
-		browserlessURL: strings.TrimSuffix(browserlessURL, "/"),
-		httpClient: &http.Client{
-			Timeout: 10 * time.Second,
-		},
 		cmdExecutor:   defaultExecutor{},
 		portValidator: defaultPortValidator{},
 	}
@@ -75,13 +101,6 @@ func NewChecker(browserlessURL string, opts ...CheckerOption) *Checker {
 
 // CheckerOption configures a Checker.
 type CheckerOption func(*Checker)
-
-// WithHTTPClient sets a custom HTTP client.
-func WithHTTPClient(hc *http.Client) CheckerOption {
-	return func(c *Checker) {
-		c.httpClient = hc
-	}
-}
 
 // WithAppRoot sets the application root directory.
 func WithAppRoot(appRoot string) CheckerOption {
@@ -104,35 +123,12 @@ func WithPortValidator(validator PortValidator) CheckerOption {
 	}
 }
 
-// Ensure Checker implements orchestrator.PreflightChecker.
-var _ orchestrator.PreflightChecker = (*Checker)(nil)
-
-// CheckBrowserless verifies the Browserless service is available and healthy.
-func (c *Checker) CheckBrowserless(ctx context.Context) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.browserlessURL+"/pressure", nil)
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
-	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("browserless unreachable: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("browserless returned status %d", resp.StatusCode)
-	}
-
-	return nil
-}
-
 // CheckBundleFreshness verifies the UI bundle is up-to-date.
-func (c *Checker) CheckBundleFreshness(ctx context.Context, scenarioDir string) (*orchestrator.BundleStatus, error) {
+func (c *Checker) CheckBundleFreshness(ctx context.Context, scenarioDir string) (*BundleStatus, error) {
 	// Check if ui/dist/index.html exists
 	distIndex := filepath.Join(scenarioDir, "ui", "dist", "index.html")
 	if _, err := os.Stat(distIndex); os.IsNotExist(err) {
-		return &orchestrator.BundleStatus{
+		return &BundleStatus{
 			Fresh:  false,
 			Reason: "UI bundle missing (ui/dist/index.html not found)",
 		}, nil
@@ -143,20 +139,20 @@ func (c *Checker) CheckBundleFreshness(ctx context.Context, scenarioDir string) 
 	config, err := loadBundleConfig(serviceJSON)
 	if err != nil {
 		// If we can't load config, assume bundle is fresh if dist exists
-		return &orchestrator.BundleStatus{Fresh: true}, nil
+		return &BundleStatus{Fresh: true}, nil
 	}
 
 	// Check if bundle needs rebuild based on source file timestamps
 	if config != nil {
 		fresh, reason := c.checkBundleTimestamps(scenarioDir, config)
-		return &orchestrator.BundleStatus{
+		return &BundleStatus{
 			Fresh:  fresh,
 			Reason: reason,
 			Config: config.Raw,
 		}, nil
 	}
 
-	return &orchestrator.BundleStatus{Fresh: true}, nil
+	return &BundleStatus{Fresh: true}, nil
 }
 
 // bundleConfig holds ui-bundle check configuration from service.json.
@@ -306,12 +302,12 @@ func expandGlob(baseDir, pattern string) ([]string, error) {
 }
 
 // CheckIframeBridge verifies @vrooli/iframe-bridge is installed.
-func (c *Checker) CheckIframeBridge(ctx context.Context, scenarioDir string) (*orchestrator.BridgeStatus, error) {
+func (c *Checker) CheckIframeBridge(ctx context.Context, scenarioDir string) (*BridgeStatus, error) {
 	packageJSON := filepath.Join(scenarioDir, "ui", "package.json")
 
 	data, err := os.ReadFile(packageJSON)
 	if err != nil {
-		return &orchestrator.BridgeStatus{
+		return &BridgeStatus{
 			DependencyPresent: false,
 			Details:           "ui/package.json not found",
 		}, nil
@@ -323,7 +319,7 @@ func (c *Checker) CheckIframeBridge(ctx context.Context, scenarioDir string) (*o
 	}
 
 	if err := json.Unmarshal(data, &pkg); err != nil {
-		return &orchestrator.BridgeStatus{
+		return &BridgeStatus{
 			DependencyPresent: false,
 			Details:           fmt.Sprintf("failed to parse package.json: %v", err),
 		}, nil
@@ -335,13 +331,13 @@ func (c *Checker) CheckIframeBridge(ctx context.Context, scenarioDir string) (*o
 	}
 
 	if version == "" {
-		return &orchestrator.BridgeStatus{
+		return &BridgeStatus{
 			DependencyPresent: false,
 			Details:           "@vrooli/iframe-bridge not listed in dependencies",
 		}, nil
 	}
 
-	return &orchestrator.BridgeStatus{
+	return &BridgeStatus{
 		DependencyPresent: true,
 		Version:           version,
 	}, nil
@@ -441,11 +437,11 @@ func parseUIPortFromLogs(logs string) int {
 }
 
 // CheckUIPortDefined checks if the scenario's service.json defines a UI port.
-func (c *Checker) CheckUIPortDefined(scenarioDir string) (*orchestrator.UIPortDefinition, error) {
+func (c *Checker) CheckUIPortDefined(scenarioDir string) (*UIPortDefinition, error) {
 	serviceJSON := filepath.Join(scenarioDir, ".vrooli", "service.json")
 	data, err := os.ReadFile(serviceJSON)
 	if err != nil {
-		return &orchestrator.UIPortDefinition{Defined: false}, nil
+		return &UIPortDefinition{Defined: false}, nil
 	}
 
 	var manifest struct {
@@ -458,18 +454,18 @@ func (c *Checker) CheckUIPortDefined(scenarioDir string) (*orchestrator.UIPortDe
 	}
 
 	if err := json.Unmarshal(data, &manifest); err != nil {
-		return &orchestrator.UIPortDefinition{Defined: false}, nil
+		return &UIPortDefinition{Defined: false}, nil
 	}
 
 	if manifest.Ports.UI != nil && manifest.Ports.UI.EnvVar != "" {
-		return &orchestrator.UIPortDefinition{
+		return &UIPortDefinition{
 			Defined:     true,
 			EnvVar:      manifest.Ports.UI.EnvVar,
 			Description: manifest.Ports.UI.Description,
 		}, nil
 	}
 
-	return &orchestrator.UIPortDefinition{Defined: false}, nil
+	return &UIPortDefinition{Defined: false}, nil
 }
 
 // CheckUIDirectory returns true if the scenario has a UI directory.

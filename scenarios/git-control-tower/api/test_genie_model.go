@@ -8,6 +8,10 @@ type TestExecutionRequest struct {
 	Skip              []string `json:"skip,omitempty"`
 	FailFast          bool     `json:"failFast,omitempty"`
 	DiagnosticsPreset string   `json:"diagnosticsPreset,omitempty"` // none | light | full
+	// CaptureProfile is the capture-depth dial (orthogonal to the phase set). ""
+	// is the default depth; "baseline" enables all-pages visual capture + video +
+	// full diagnostics on the smoke phase (used by baseline snapshots).
+	CaptureProfile string `json:"captureProfile,omitempty"`
 }
 
 // TestExecutionResult mirrors test-genie SuiteExecutionResult.

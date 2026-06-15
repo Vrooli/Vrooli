@@ -292,11 +292,10 @@ type UISmokeResult struct {
 
 // RunUISmoke executes a UI smoke test for the specified scenario.
 // If uiURL is provided, it overrides the auto-detected URL.
-// If browserlessURL is provided, it overrides the default Browserless endpoint.
 // If timeoutMs is > 0, it overrides the default timeout.
 // When scenarioDirOverride is non-empty, it is used instead of resolving via
 // scenariosRoot. See packages/cli-core/cliutil/sandbox.go.
-func (s *ScenarioDirectoryService) RunUISmoke(ctx context.Context, scenario string, uiURL string, browserlessURL string, timeoutMs int64, scenarioDirOverride string) (*UISmokeResult, error) {
+func (s *ScenarioDirectoryService) RunUISmoke(ctx context.Context, scenario string, uiURL string, timeoutMs int64, scenarioDirOverride string) (*UISmokeResult, error) {
 	scenario = strings.TrimSpace(scenario)
 	if scenario == "" {
 		return nil, shared.NewValidationError("scenario name is required")
@@ -319,11 +318,6 @@ func (s *ScenarioDirectoryService) RunUISmoke(ctx context.Context, scenario stri
 		return nil, fmt.Errorf("scenario path is not a directory")
 	}
 
-	// Use default browserless URL if not provided
-	if browserlessURL == "" {
-		browserlessURL = smoke.DefaultBrowserlessURL
-	}
-
 	opts := []smoke.RunnerOption{smoke.WithRunnerLogger(log.Writer())}
 	if timeoutMs > 0 {
 		opts = append(opts, smoke.WithRunnerTimeout(time.Duration(timeoutMs)*time.Millisecond))
@@ -332,7 +326,10 @@ func (s *ScenarioDirectoryService) RunUISmoke(ctx context.Context, scenario stri
 		opts = append(opts, smoke.WithUIURL(uiURL))
 	}
 
-	runner := smoke.NewRunner(browserlessURL, opts...)
+	runner, err := smoke.NewBASRunner(ctx, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("ui smoke test setup failed: %w", err)
+	}
 	result, err := runner.Run(ctx, scenario, dir, sharedruns.NewRunID())
 	if err != nil {
 		return nil, fmt.Errorf("ui smoke test failed: %w", err)
@@ -343,12 +340,9 @@ func (s *ScenarioDirectoryService) RunUISmoke(ctx context.Context, scenario stri
 
 // UISmokeOptions contains options for running a UI smoke test.
 type UISmokeOptions struct {
-	URL            string
-	BrowserlessURL string
-	TimeoutMs      int64
-	NoRecovery     bool
-	SharedMode     bool
-	AutoStart      bool
+	URL       string
+	TimeoutMs int64
+	AutoStart bool
 	// ScenarioDirOverride overrides the scenario directory path for sandboxed agents.
 	// See packages/cli-core/cliutil/sandbox.go.
 	ScenarioDirOverride string
@@ -378,12 +372,6 @@ func (s *ScenarioDirectoryService) RunUISmokeWithOpts(ctx context.Context, scena
 		return nil, fmt.Errorf("scenario path is not a directory")
 	}
 
-	// Use default browserless URL if not provided
-	browserlessURL := opts.BrowserlessURL
-	if browserlessURL == "" {
-		browserlessURL = smoke.DefaultBrowserlessURL
-	}
-
 	runnerOpts := []smoke.RunnerOption{smoke.WithRunnerLogger(log.Writer())}
 	if opts.TimeoutMs > 0 {
 		runnerOpts = append(runnerOpts, smoke.WithRunnerTimeout(time.Duration(opts.TimeoutMs)*time.Millisecond))
@@ -391,18 +379,14 @@ func (s *ScenarioDirectoryService) RunUISmokeWithOpts(ctx context.Context, scena
 	if opts.URL != "" {
 		runnerOpts = append(runnerOpts, smoke.WithUIURL(opts.URL))
 	}
-	// Apply recovery options
-	if opts.NoRecovery {
-		runnerOpts = append(runnerOpts, smoke.WithAutoRecovery(false))
-	}
-	if opts.SharedMode {
-		runnerOpts = append(runnerOpts, smoke.WithSharedMode(true))
-	}
 	if opts.AutoStart {
 		runnerOpts = append(runnerOpts, smoke.WithAutoStart(true))
 	}
 
-	runner := smoke.NewRunner(browserlessURL, runnerOpts...)
+	runner, err := smoke.NewBASRunner(ctx, runnerOpts...)
+	if err != nil {
+		return nil, fmt.Errorf("ui smoke test setup failed: %w", err)
+	}
 	result, err := runner.Run(ctx, scenario, dir, sharedruns.NewRunID())
 	if err != nil {
 		return nil, fmt.Errorf("ui smoke test failed: %w", err)

@@ -17,9 +17,6 @@ func TestParseArgs_ScenarioOnly(t *testing.T) {
 	if parsed.URL != "" {
 		t.Errorf("URL = %q, want empty", parsed.URL)
 	}
-	if parsed.BrowserlessURL != "" {
-		t.Errorf("BrowserlessURL = %q, want empty", parsed.BrowserlessURL)
-	}
 	if parsed.TimeoutMs != 0 {
 		t.Errorf("TimeoutMs = %d, want 0", parsed.TimeoutMs)
 	}
@@ -43,15 +40,12 @@ func TestParseArgs_WithURL(t *testing.T) {
 	}
 }
 
-func TestParseArgs_WithBrowserlessURL(t *testing.T) {
+func TestParseArgs_BrowserlessFlagRejected(t *testing.T) {
+	// The Browserless substrate was removed (smoke now runs on Browser
+	// Automation Studio); the --browserless flag must no longer be accepted.
 	args := []string{"demo", "--browserless", "http://custom-browserless:7777"}
-	parsed, err := ParseArgs(args)
-	if err != nil {
-		t.Fatalf("ParseArgs() error = %v", err)
-	}
-
-	if parsed.BrowserlessURL != "http://custom-browserless:7777" {
-		t.Errorf("BrowserlessURL = %q, want %q", parsed.BrowserlessURL, "http://custom-browserless:7777")
+	if _, err := ParseArgs(args); err == nil {
+		t.Error("ParseArgs() expected error for removed --browserless flag")
 	}
 }
 
@@ -83,7 +77,6 @@ func TestParseArgs_AllOptions(t *testing.T) {
 	args := []string{
 		"my-scenario",
 		"--url", "http://example.com:3000",
-		"--browserless", "http://browserless:4110",
 		"--timeout", "180000",
 		"--json",
 	}
@@ -97,9 +90,6 @@ func TestParseArgs_AllOptions(t *testing.T) {
 	}
 	if parsed.URL != "http://example.com:3000" {
 		t.Errorf("URL = %q, want %q", parsed.URL, "http://example.com:3000")
-	}
-	if parsed.BrowserlessURL != "http://browserless:4110" {
-		t.Errorf("BrowserlessURL = %q, want %q", parsed.BrowserlessURL, "http://browserless:4110")
 	}
 	if parsed.TimeoutMs != 180000 {
 		t.Errorf("TimeoutMs = %d, want %d", parsed.TimeoutMs, 180000)
@@ -182,9 +172,6 @@ func TestRequest_ZeroValues(t *testing.T) {
 	if req.URL != "" {
 		t.Errorf("URL zero value = %q, want empty", req.URL)
 	}
-	if req.BrowserlessURL != "" {
-		t.Errorf("BrowserlessURL zero value = %q, want empty", req.BrowserlessURL)
-	}
 	if req.TimeoutMs != 0 {
 		t.Errorf("TimeoutMs zero value = %d, want 0", req.TimeoutMs)
 	}
@@ -198,9 +185,6 @@ func TestArgs_ZeroValues(t *testing.T) {
 	}
 	if args.URL != "" {
 		t.Errorf("URL zero value = %q, want empty", args.URL)
-	}
-	if args.BrowserlessURL != "" {
-		t.Errorf("BrowserlessURL zero value = %q, want empty", args.BrowserlessURL)
 	}
 	if args.TimeoutMs != 0 {
 		t.Errorf("TimeoutMs zero value = %d, want 0", args.TimeoutMs)

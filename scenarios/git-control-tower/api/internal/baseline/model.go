@@ -31,16 +31,18 @@ const (
 	SurfaceRules     = "rules"
 )
 
-// AllSurfaces is the canonical capture order (cheap → expensive). The CLI's
-// default (empty --include) captures every available surface in this order.
+// AllSurfaces is the canonical display order (cheap → expensive). A baseline
+// captures ONE comprehensive run and every surface is a view over it, so this
+// is purely the order surfaces render in.
 var AllSurfaces = []string{SurfaceStructure, SurfaceRules, SurfaceTests, SurfaceVisuals, SurfaceWorkflows}
 
-// SurfacePointer kinds — where the referenced artifact actually lives.
+// SurfacePointer kinds — where the referenced artifact actually lives. Every
+// surface in a baseline now references the single shared test-genie run
+// (KindTestGenieRun); the visuals surface points at that same run's visual
+// artifacts.
 const (
-	// KindTestGenieRun references a pinned test-genie run by runID.
+	// KindTestGenieRun references the pinned comprehensive test-genie run by runID.
 	KindTestGenieRun = "test-genie-run"
-	// KindGCTLocalSnapshot references a GCT-local JSON snapshot by ID.
-	KindGCTLocalSnapshot = "gct-local-snapshot"
 	// KindExternal references an artifact owned by another subsystem.
 	KindExternal = "external"
 )
@@ -106,8 +108,26 @@ type BaselineManifest struct {
 	SchemaVersion int               `json:"schema_version"`
 }
 
+// runID returns the single shared test-genie run this baseline pinned. Every
+// captured surface references the same comprehensive run, so any one pointer's
+// Ref is the run id; "" when the baseline captured no run (empty manifest or a
+// fully-skipped capture).
+func (m BaselineManifest) RunID() string {
+	for _, id := range AllSurfaces {
+		if ptr, ok := m.Surfaces[id]; ok && ptr.Kind == KindTestGenieRun && ptr.Ref != "" {
+			return ptr.Ref
+		}
+	}
+	for _, ptr := range m.Surfaces {
+		if ptr.Kind == KindTestGenieRun && ptr.Ref != "" {
+			return ptr.Ref
+		}
+	}
+	return ""
+}
+
 // Validate checks the required fields are present. It does not validate
-// surface availability — that is the adapter layer's job.
+// surface availability — that is the orchestration layer's job.
 func (m BaselineManifest) Validate() error {
 	if strings.TrimSpace(m.Name) == "" {
 		return fmt.Errorf("baseline name is required")

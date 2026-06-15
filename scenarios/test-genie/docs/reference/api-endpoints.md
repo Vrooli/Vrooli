@@ -254,7 +254,7 @@ Resolve the actual phase plan and timing guidance for a request without running 
 | `skip` | string[] | No | `[]` | Requested phase exclusions |
 | `failFast` | bool | No | `false` | Included for parity with the execute request surface |
 | `suiteRequestId` | UUID | No | - | Accepted but ignored by the planner |
-| `uiUrl` / `apiUrl` / `browserlessUrl` | string | No | auto-detected when possible | Runtime overrides for phases that depend on running services |
+| `uiUrl` / `apiUrl` | string | No | auto-detected when possible | Runtime overrides for phases that depend on running services |
 | `scenarioPath` | string | No | resolved from scenario name | Absolute physical scenario directory to read and write |
 | `logicalRepoRoot` | string | No | none | Absolute repo root for repo-relative validation |
 | `logicalScenarioRelPath` | string | No | none | Scenario directory relative to `logicalRepoRoot` |

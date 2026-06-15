@@ -33,7 +33,6 @@ type Args struct {
 	LogicalScenarioRelPath string
 
 	// Runtime URLs for Lighthouse and integration testing
-	UIURL          string
-	APIURL         string
-	BrowserlessURL string
+	UIURL  string
+	APIURL string
 }

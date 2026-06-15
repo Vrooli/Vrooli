@@ -17,6 +17,13 @@ import (
 	"strings"
 )
 
+// Resource names recognized by the runnability gate. They key RunContext.Resources.
+const (
+	// ResourceBAS is the Browser Automation Studio workflow engine, required by
+	// the smoke phase (which drives its capture on BAS).
+	ResourceBAS = "browser-automation-studio"
+)
+
 // DBIsolation classifies how a phase obtains an isolated database for its run.
 type DBIsolation int
 
@@ -75,8 +82,8 @@ type PhaseCapabilities struct {
 	LifecycleDecisionDeferred bool
 	// DBIsolation declares the phase's database-isolation requirement.
 	DBIsolation DBIsolation
-	// RequiredResources names local resources (e.g. "postgres", "browserless")
-	// that must be available for the phase to run.
+	// RequiredResources names local resources (e.g. "postgres",
+	// "browser-automation-studio") that must be available for the phase to run.
 	RequiredResources []string
 	// Optional mirrors the catalog's Optional flag. The resolver does not gate
 	// on it, but it travels with the capabilities so the suite layer can decide

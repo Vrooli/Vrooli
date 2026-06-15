@@ -788,8 +788,8 @@ mkdir -p coverage/ui-smoke
 # Check permissions
 chmod 755 coverage
 
-# Verify browserless is running
-curl http://localhost:3000/json/version
+# Verify Browser Automation Studio is running
+vrooli scenario status browser-automation-studio
 ```
 
 ### Browser Connection Failures
@@ -797,19 +797,16 @@ curl http://localhost:3000/json/version
 **Symptoms:**
 ```
 Failed to connect to browser
-WebSocket connection failed
+BAS workflow engine unreachable
 ```
 
 **Solutions:**
 ```bash
-# Check browserless resource
-vrooli resource status browserless
+# Check Browser Automation Studio
+vrooli scenario status browser-automation-studio
 
-# Restart browserless
-vrooli resource restart browserless
-
-# Verify connection
-curl http://localhost:3000/health
+# Start it if needed (idempotent)
+vrooli scenario start browser-automation-studio
 ```
 
 ---
@@ -912,7 +909,7 @@ def db_session():
 
 | Error | Cause | Solution |
 |-------|-------|----------|
-| "browserless unavailable" | Resource down | `vrooli resource start browserless` |
+| "browser-automation-studio unavailable" | BAS down | `vrooli scenario start browser-automation-studio` |
 | "element not found" | UI changed | Update selectors |
 | "timeout exceeded" | Slow UI | Increase wait times |
 

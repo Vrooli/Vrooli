@@ -2,6 +2,7 @@ package baseline
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -11,28 +12,30 @@ import (
 )
 
 // PinOwner returns the canonical test-genie pin owner for a baseline. Deleting
-// the baseline unpins exactly this owner, releasing the run to normal GC
-// (Decision 3).
+// the baseline unpins exactly this owner, releasing the run to normal GC.
 func PinOwner(name string) string { return "gct:baseline:" + name }
 
-// Service orchestrates baseline capture/diff/delete across surface adapters. It
-// owns no surface logic — adapters do (Decision 3). test-genie owns run
-// history; GCT owns baselines.
+// Service orchestrates baseline capture/diff/delete. A baseline is ONE
+// comprehensive, durable test-genie run pinned once; each surface is a
+// phase-set view over that single run (option-c). The service owns no run
+// history — test-genie does; GCT owns the baseline manifest of pointers.
 type Service struct {
 	storage    *Storage
-	adapters   map[string]SurfaceAdapter
-	probe      StalenessProbe
+	exec       Executor
 	runs       RunsClient
+	probe      StalenessProbe
+	reachable  Reachability
 	captureGit func(ctx context.Context, repoDir string) (git.State, error)
 	now        func() time.Time
 }
 
-// Deps wires the Service. Adapters is keyed by surface ID.
+// Deps wires the Service.
 type Deps struct {
 	Storage    *Storage
-	Adapters   map[string]SurfaceAdapter
-	Probe      StalenessProbe
+	Exec       Executor
 	Runs       RunsClient
+	Probe      StalenessProbe
+	Reachable  Reachability
 	CaptureGit func(ctx context.Context, repoDir string) (git.State, error)
 	Now        func() time.Time
 }
@@ -46,17 +49,32 @@ func NewService(d Deps) *Service {
 	if d.Now == nil {
 		d.Now = time.Now
 	}
-	if d.Adapters == nil {
-		d.Adapters = map[string]SurfaceAdapter{}
-	}
 	return &Service{
 		storage:    d.Storage,
-		adapters:   d.Adapters,
-		probe:      d.Probe,
+		exec:       d.Exec,
 		runs:       d.Runs,
+		probe:      d.Probe,
+		reachable:  d.Reachable,
 		captureGit: d.CaptureGit,
 		now:        d.Now,
 	}
+}
+
+// reachabilityError returns a non-empty skip reason when the test-genie backend
+// is not usable for a comprehensive run: the seams aren't wired, or a bounded
+// reachability probe fails fast. An empty string means "proceed". Centralizing
+// this here is what turns an unreachable backend from a multi-minute silent
+// hang into an immediate, clearly-explained skip (the reported bug).
+func (s *Service) reachabilityError(ctx context.Context) string {
+	if s.exec == nil || s.runs == nil {
+		return "test-genie unavailable at capture time (owning subsystem not wired)"
+	}
+	if s.reachable != nil {
+		if err := s.reachable.Probe(ctx); err != nil {
+			return "test-genie unreachable (fast-skip, not blocked): " + err.Error()
+		}
+	}
+	return ""
 }
 
 // CreateRequest captures (or assembles) a baseline.
@@ -66,9 +84,9 @@ type CreateRequest struct {
 	Scenario  string
 	Name      string
 	Branch    string   // optional override; default derived from git state
-	Include   []string // surface IDs; empty = all available
+	Include   []string // surface IDs to view; empty = all surfaces
 	Fast      bool
-	Capture   bool // true = run adapters (snapshot); false = empty manifest (create)
+	Capture   bool // true = run the comprehensive suite (snapshot); false = empty manifest (create)
 	CreatedBy string
 	Reason    string
 }
@@ -81,10 +99,11 @@ type CreateResult struct {
 }
 
 // Create captures a baseline. On Capture=false it writes an empty manifest
-// (power-user/UI path). Surface capture is best-effort: unavailable or failing
-// surfaces are recorded in Skipped, not fatal — except that a fully-empty
-// capture (every requested surface skipped) is reported via Skipped for the
-// caller to judge.
+// (power-user/UI path). On Capture=true it triggers ONE comprehensive test-genie
+// run with the baseline capture profile, pins it once, and points every
+// requested surface at that single run — surfaces are views, not separate runs.
+// If the comprehensive run cannot be triggered every requested surface is
+// recorded in Skipped (so a partial baseline never masquerades as complete).
 func (s *Service) Create(ctx context.Context, req CreateRequest) (CreateResult, error) {
 	if strings.TrimSpace(req.Name) == "" {
 		return CreateResult{}, fmt.Errorf("baseline name is required")
@@ -114,42 +133,21 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (CreateResult, 
 		SchemaVersion: SchemaVersion,
 	}
 
+	want := req.Include
+	if len(want) == 0 {
+		want = AllSurfaces
+	}
+
 	skipped := map[string]string{}
 	if req.Capture {
-		target := Target{RepoID: req.RepoID, RepoDir: req.RepoDir, Scenario: req.Scenario}
-		opts := CaptureOptions{Fast: req.Fast, PinnedBy: PinOwner(req.Name)}
-		want := req.Include
-		if len(want) == 0 {
-			want = AllSurfaces
-		}
-		for _, id := range want {
-			adapter := s.adapters[id]
-			if adapter == nil {
-				skipped[id] = "no adapter registered"
-				continue
-			}
-			// An unavailable surface (owning subsystem unreachable) is recorded
-			// as skipped, not silently dropped — otherwise the baseline would
-			// look complete when it isn't.
-			if !adapter.Available(ctx, target) {
-				skipped[id] = "surface unavailable at capture time (owning subsystem not reachable)"
-				continue
-			}
-			ptr, capErr := adapter.Capture(ctx, target, opts)
-			if capErr != nil {
-				skipped[id] = capErr.Error()
-				continue
-			}
-			manifest.Surfaces[id] = ptr
-		}
+		s.capture(ctx, &manifest, req, want, skipped)
 	}
 	if len(skipped) > 0 {
 		manifest.Skipped = skipped
 	}
 
 	if err := s.storage.Save(req.RepoID, manifest, CreateOnly); err != nil {
-		// Roll back any pins we created so a failed create leaves no orphans.
-		s.unpinSurfaces(ctx, manifest)
+		s.unpinRun(ctx, manifest)
 		return CreateResult{}, err
 	}
 
@@ -158,6 +156,126 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (CreateResult, 
 		res.DirtyWarning = fmt.Sprintf("baseline captured against dirty tree (%s) — comparisons may be muddled by uncommitted changes", gitState.DirtySummary)
 	}
 	return res, nil
+}
+
+// capture triggers the single comprehensive run, pins it once, and fills in one
+// pointer per requested surface (all referencing the shared run). On failure it
+// records every requested surface as skipped.
+func (s *Service) capture(ctx context.Context, manifest *BaselineManifest, req CreateRequest, want []string, skipped map[string]string) {
+	if reason := s.reachabilityError(ctx); reason != "" {
+		for _, id := range want {
+			skipped[id] = reason
+		}
+		return
+	}
+
+	res, err := s.exec.Execute(ctx, req.Scenario)
+	if err != nil {
+		for _, id := range want {
+			skipped[id] = "comprehensive run failed: " + err.Error()
+		}
+		return
+	}
+	if res.RunID == "" {
+		for _, id := range want {
+			skipped[id] = "test-genie returned no runID"
+		}
+		return
+	}
+
+	// Pin the shared run ONCE for the whole baseline.
+	if err := s.runs.PinRun(ctx, req.Scenario, res.RunID, PinOwner(req.Name), "baseline:"+req.Name); err != nil {
+		for _, id := range want {
+			skipped[id] = "pin run " + res.RunID + ": " + err.Error()
+		}
+		return
+	}
+
+	now := s.now().UTC()
+	phaseStatus := map[string]string{}
+	for _, p := range res.Phases {
+		phaseStatus[p.Name] = p.Status
+	}
+
+	for _, id := range want {
+		switch id {
+		case SurfaceVisuals:
+			manifest.Surfaces[id] = s.visualPointer(ctx, req.Scenario, res.RunID, now)
+		default:
+			phases, ok := surfacePhases[id]
+			if !ok {
+				skipped[id] = "unknown surface"
+				continue
+			}
+			manifest.Surfaces[id] = phaseSurfacePointer(id, res.RunID, phases, phaseStatus, now)
+		}
+	}
+}
+
+// phaseSurfacePointer builds a surface's pointer (referencing the shared run)
+// with a compact per-surface summary of its phases' terminal statuses.
+func phaseSurfacePointer(surfaceID, runID string, phases []string, phaseStatus map[string]string, now time.Time) SurfacePointer {
+	sum := surfaceSummary{RunID: runID}
+	for _, p := range phases {
+		st, ran := phaseStatus[p]
+		if !ran {
+			continue
+		}
+		sum.Phases = append(sum.Phases, PhaseStatus{Name: p, Status: st})
+		switch st {
+		case "passed":
+			sum.Passed++
+		case "failed":
+			sum.Failed++
+		}
+	}
+	raw, _ := json.Marshal(sum)
+	return SurfacePointer{
+		SurfaceID:  surfaceID,
+		Kind:       KindTestGenieRun,
+		Ref:        runID,
+		CapturedAt: now,
+		Summary:    raw,
+	}
+}
+
+// visualPointer builds the visuals surface pointer: the same shared run, with a
+// summary of its visual artifacts (page set + screenshot count) read from
+// test-genie's ListRunVisuals.
+func (s *Service) visualPointer(ctx context.Context, scenario, runID string, now time.Time) SurfacePointer {
+	sum := visualSummary{RunID: runID}
+	if vis, err := s.runs.ListRunVisuals(ctx, scenario, runID); err == nil {
+		for _, v := range vis {
+			sum.Pages = append(sum.Pages, v.Page)
+			if v.ScreenshotRelPath != "" {
+				sum.Screenshots++
+			}
+		}
+		sort.Strings(sum.Pages)
+	}
+	raw, _ := json.Marshal(sum)
+	return SurfacePointer{
+		SurfaceID:  SurfaceVisuals,
+		Kind:       KindTestGenieRun,
+		Ref:        runID,
+		CapturedAt: now,
+		Summary:    raw,
+	}
+}
+
+// surfaceSummary is the compact per-phase-surface summary stored on a pointer.
+type surfaceSummary struct {
+	RunID  string        `json:"run_id"`
+	Passed int           `json:"passed"`
+	Failed int           `json:"failed"`
+	Phases []PhaseStatus `json:"phases"`
+}
+
+// visualSummary is the compact visuals-surface summary stored on a pointer.
+type visualSummary struct {
+	RunID       string   `json:"run_id"`
+	Screenshots int      `json:"screenshots"`
+	Pages       []string `json:"pages"`
 }
 
 // Get returns a single baseline manifest.
@@ -181,8 +299,12 @@ type DiffResult struct {
 	DirtyWarning string // non-empty when the current tree is dirty (verdicts are most suspect then)
 }
 
-// Diff compares a baseline against the current working tree. surface, when
-// non-empty, restricts the diff to that one surface.
+// Diff compares a baseline against the current working tree. It triggers ONE
+// comprehensive run now, issues ONE empty-phase CompareRuns over (baseline run,
+// current run), and buckets the returned PhaseDiff[] into surfaces locally
+// (option-c). The visuals surface is diffed at the metadata level over the two
+// runs' visual artifacts. surface, when non-empty, restricts the result to that
+// one surface.
 func (s *Service) Diff(ctx context.Context, repoID int64, repoDir, scenario, branch, name, surface string) (DiffResult, error) {
 	manifest, err := s.storage.Load(repoID, scenario, branch, name)
 	if err != nil {
@@ -190,40 +312,21 @@ func (s *Service) Diff(ctx context.Context, repoID int64, repoDir, scenario, bra
 	}
 	cur, gerr := s.captureGit(ctx, repoDir)
 	if gerr != nil {
-		// Non-fatal: diff can still run; staleness is best-effort.
 		cur = git.State{}
 	}
 	stale, _ := ComputeStaleness(ctx, s.probe, repoDir, manifest.Git.Sha)
 
-	target := Target{RepoID: repoID, RepoDir: repoDir, Scenario: scenario}
 	res := DiffResult{Manifest: manifest, CurrentGit: cur, Staleness: stale, Verdict: VerdictClean}
 	if cur.Dirty {
 		res.DirtyWarning = fmt.Sprintf("working tree is dirty (%s) — failures may be caused by uncommitted changes rather than the diff itself", cur.DirtySummary)
 	}
 
-	ids := s.sortedSurfaceIDs(manifest)
-	for _, id := range ids {
-		if surface != "" && id != surface {
-			continue
-		}
-		ptr := manifest.Surfaces[id]
-		adapter := s.adapters[id]
-		if adapter == nil {
-			res.Surfaces = append(res.Surfaces, notComparable(id, "no adapter registered"))
-			res.Verdict = WorseVerdict(res.Verdict, VerdictNotComparable)
-			continue
-		}
-		d, derr := adapter.Diff(ctx, target, ptr)
-		if derr != nil {
-			d = notComparable(id, derr.Error())
-		}
-		res.Surfaces = append(res.Surfaces, d)
-		res.Verdict = WorseVerdict(res.Verdict, d.Verdict)
-	}
+	baseRunID := manifest.RunID()
+	s.diffSurfaces(ctx, scenario, baseRunID, manifest, surface, &res)
 
 	// Surfaces requested but never captured (recorded in manifest.Skipped) are
 	// reported as not-comparable so a partial baseline cannot masquerade as a
-	// clean one — the diff explicitly says "this surface was never captured".
+	// clean one.
 	for _, id := range sortedSkippedIDs(manifest) {
 		if surface != "" && id != surface {
 			continue
@@ -231,9 +334,7 @@ func (s *Service) Diff(ctx context.Context, repoID int64, repoDir, scenario, bra
 		if _, captured := manifest.Surfaces[id]; captured {
 			continue
 		}
-		d := notComparable(id, "surface was not captured in this baseline: "+manifest.Skipped[id])
-		res.Surfaces = append(res.Surfaces, d)
-		res.Verdict = WorseVerdict(res.Verdict, VerdictNotComparable)
+		appendSurface(&res, notComparable(id, "surface was not captured in this baseline: "+manifest.Skipped[id]))
 	}
 
 	if surface != "" && len(res.Surfaces) == 0 {
@@ -242,28 +343,202 @@ func (s *Service) Diff(ctx context.Context, repoID int64, repoDir, scenario, bra
 	return res, nil
 }
 
-// Delete removes a baseline and releases what it pinned: shared test-genie runs
-// are unpinned, and surface artifacts owned exclusively by this baseline (the
-// visuals snapshot) are deleted via the adapter's optional SurfaceReleaser.
+// diffSurfaces runs the current comprehensive run + one CompareRuns, then
+// buckets the per-phase deltas into the captured phase-set surfaces and diffs
+// the visuals surface at the metadata level.
+func (s *Service) diffSurfaces(ctx context.Context, scenario, baseRunID string, manifest BaselineManifest, surface string, res *DiffResult) {
+	captured := s.sortedSurfaceIDs(manifest)
+	markAll := func(reason string) {
+		for _, id := range captured {
+			if surface != "" && id != surface {
+				continue
+			}
+			appendSurface(res, notComparable(id, reason))
+		}
+	}
+
+	if baseRunID == "" {
+		markAll("baseline has no comparable run")
+		return
+	}
+	if reason := s.reachabilityError(ctx); reason != "" {
+		markAll(reason)
+		return
+	}
+
+	cur, err := s.exec.Execute(ctx, scenario)
+	if err != nil || cur.RunID == "" {
+		reason := "could not run current comprehensive suite"
+		if err != nil {
+			reason += ": " + err.Error()
+		}
+		markAll(reason)
+		return
+	}
+	curRunID := cur.RunID
+
+	// ONE empty-phase compare returns every phase's delta; bucket locally.
+	cmp, cmpErr := s.runs.CompareRuns(ctx, scenario, baseRunID, curRunID, "")
+	bucketed := bucketPhaseDiffs(cmp)
+
+	for _, id := range captured {
+		if surface != "" && id != surface {
+			continue
+		}
+		if id == SurfaceVisuals {
+			appendSurface(res, s.visualsDiff(ctx, scenario, baseRunID, curRunID))
+			continue
+		}
+		if cmpErr != nil {
+			appendSurface(res, notComparable(id, "compare failed: "+cmpErr.Error()))
+			continue
+		}
+		d, ok := bucketed[id]
+		if !ok {
+			// No phase for this surface appeared in the compare (e.g. the phase
+			// was skipped in one run) — report not-comparable rather than
+			// silently clean.
+			appendSurface(res, notComparable(id, "no comparable phase results for surface"))
+			continue
+		}
+		appendSurface(res, d)
+	}
+}
+
+// bucketPhaseDiffs folds the flat PhaseDiff[] from one empty-phase CompareRuns
+// into one SurfaceDiff per phase-set surface (option-c). A multi-phase surface
+// like `tests` aggregates unit+integration+smoke. Phases with no owning surface
+// are dropped.
+func bucketPhaseDiffs(cmp CompareResult) map[string]SurfaceDiff {
+	acc := map[string]*SurfaceDiff{}
+	for _, p := range cmp.Phases {
+		surfaceID, ok := phaseSurface[p.Phase]
+		if !ok {
+			continue
+		}
+		d := acc[surfaceID]
+		if d == nil {
+			d = &SurfaceDiff{SurfaceID: surfaceID, Verdict: VerdictClean}
+			acc[surfaceID] = d
+		}
+		d.Verdict = WorseVerdict(d.Verdict, Verdict(p.Verdict))
+		d.Regressions = append(d.Regressions, p.Regressions...)
+		d.NewFailures = append(d.NewFailures, p.NewFailures...)
+		d.Preexisting = append(d.Preexisting, p.Preexisting...)
+		d.Cleared = append(d.Cleared, p.Cleared...)
+	}
+	out := make(map[string]SurfaceDiff, len(acc))
+	for id, d := range acc {
+		d.Summary = summarizeVerdict(*d)
+		out[id] = *d
+	}
+	return out
+}
+
+// visualsDiff compares the two runs' visual artifacts at the metadata level
+// (page set + screenshot count) via test-genie's ListRunVisuals.
+func (s *Service) visualsDiff(ctx context.Context, scenario, baseRunID, curRunID string) SurfaceDiff {
+	base, err := s.runs.ListRunVisuals(ctx, scenario, baseRunID)
+	if err != nil {
+		return notComparable(SurfaceVisuals, "load baseline visuals: "+err.Error())
+	}
+	cur, err := s.runs.ListRunVisuals(ctx, scenario, curRunID)
+	if err != nil {
+		return notComparable(SurfaceVisuals, "load current visuals: "+err.Error())
+	}
+	return diffVisuals(base, cur)
+}
+
+// diffVisuals compares two runs' visual artifacts at the metadata level. A page
+// captured at baseline but no longer captured is a regression; new pages or a
+// changed screenshot count are drift (new-failure — inspect side-by-side in the
+// UI); identical structure is clean.
+func diffVisuals(base, cur []RunVisual) SurfaceDiff {
+	d := SurfaceDiff{SurfaceID: SurfaceVisuals, Verdict: VerdictClean}
+
+	basePages, baseShots := visualIndex(base)
+	curPages, curShots := visualIndex(cur)
+
+	for p := range basePages {
+		if !curPages[p] {
+			d.Regressions = append(d.Regressions, "page no longer captured: "+p)
+		}
+	}
+	for p := range curPages {
+		if !basePages[p] {
+			d.NewFailures = append(d.NewFailures, "new page: "+p)
+		}
+	}
+	if len(d.Regressions) == 0 && len(d.NewFailures) == 0 && baseShots != curShots {
+		d.NewFailures = append(d.NewFailures, fmt.Sprintf("screenshot count changed: %d → %d (inspect in UI)", baseShots, curShots))
+	}
+	sort.Strings(d.Regressions)
+	sort.Strings(d.NewFailures)
+
+	switch {
+	case len(d.Regressions) > 0:
+		d.Verdict = VerdictRegression
+	case len(d.NewFailures) > 0:
+		d.Verdict = VerdictNewFailure
+	default:
+		d.Verdict = VerdictClean
+	}
+	d.Summary = summarizeVerdict(d)
+	return d
+}
+
+// visualIndex returns the set of captured pages and the count of pages that
+// produced a screenshot.
+func visualIndex(vis []RunVisual) (pages map[string]bool, screenshots int) {
+	pages = map[string]bool{}
+	for _, v := range vis {
+		pages[v.Page] = true
+		if v.ScreenshotRelPath != "" {
+			screenshots++
+		}
+	}
+	return pages, screenshots
+}
+
+// appendSurface adds a surface diff and rolls its verdict into the overall one.
+func appendSurface(res *DiffResult, d SurfaceDiff) {
+	res.Surfaces = append(res.Surfaces, d)
+	res.Verdict = WorseVerdict(res.Verdict, d.Verdict)
+}
+
+// notComparable builds a not-comparable SurfaceDiff with a reason.
+func notComparable(surfaceID, reason string) SurfaceDiff {
+	return SurfaceDiff{SurfaceID: surfaceID, Verdict: VerdictNotComparable, Summary: reason}
+}
+
+// summarizeVerdict renders a one-line human summary for a surface diff.
+func summarizeVerdict(d SurfaceDiff) string {
+	switch d.Verdict {
+	case VerdictClean:
+		if len(d.Cleared) > 0 {
+			return fmt.Sprintf("no regressions (%d cleared)", len(d.Cleared))
+		}
+		return "no change"
+	case VerdictRegression:
+		return fmt.Sprintf("%d regression(s)", len(d.Regressions))
+	case VerdictNewFailure:
+		return fmt.Sprintf("%d new failure(s) (added by your changes)", len(d.NewFailures))
+	case VerdictPreexisting:
+		return fmt.Sprintf("%d preexisting failure(s) (inherited)", len(d.Preexisting))
+	case VerdictNotComparable:
+		return "not comparable"
+	}
+	return string(d.Verdict)
+}
+
+// Delete removes a baseline and unpins the shared comprehensive run it pinned.
 func (s *Service) Delete(ctx context.Context, repoID int64, scenario, branch, name string) error {
 	manifest, err := s.storage.Load(repoID, scenario, branch, name)
 	if err != nil {
 		return err
 	}
-	s.unpinSurfaces(ctx, manifest)
-	s.releaseSurfaces(ctx, repoID, scenario, manifest)
+	s.unpinRun(ctx, manifest)
 	return s.storage.Delete(repoID, scenario, branch, name)
-}
-
-// releaseSurfaces deletes per-baseline-owned artifacts (e.g. the pinned visuals
-// snapshot) for adapters that implement SurfaceReleaser. Best-effort, like
-// unpinSurfaces: a failed release must not block deleting the manifest.
-func (s *Service) releaseSurfaces(ctx context.Context, repoID int64, scenario string, m BaselineManifest) {
-	for id, ptr := range m.Surfaces {
-		if releaser, ok := s.adapters[id].(SurfaceReleaser); ok {
-			_ = releaser.Release(ctx, repoID, scenario, ptr)
-		}
-	}
 }
 
 // EditRequest swaps the pointer for one surface to a different test-genie run.
@@ -303,17 +578,17 @@ func (s *Service) Edit(ctx context.Context, req EditRequest) (BaselineManifest, 
 	return manifest, nil
 }
 
-// unpinSurfaces releases every test-genie run a manifest pinned.
-func (s *Service) unpinSurfaces(ctx context.Context, m BaselineManifest) {
+// unpinRun releases the single shared run a baseline pinned. Every surface
+// references the same run, so this unpins once regardless of surface count.
+func (s *Service) unpinRun(ctx context.Context, m BaselineManifest) {
 	if s.runs == nil {
 		return
 	}
-	owner := PinOwner(m.Name)
-	for _, ptr := range m.Surfaces {
-		if ptr.Kind == KindTestGenieRun && ptr.Ref != "" {
-			_ = s.runs.UnpinRun(ctx, m.Scenario, ptr.Ref, owner)
-		}
+	runID := m.RunID()
+	if runID == "" {
+		return
 	}
+	_ = s.runs.UnpinRun(ctx, m.Scenario, runID, PinOwner(m.Name))
 }
 
 // sortedSkippedIDs returns the manifest's skipped surface IDs in canonical

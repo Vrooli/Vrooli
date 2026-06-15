@@ -93,7 +93,7 @@ coverage/
 │   ├── screenshot.png       # Page screenshot
 │   ├── console.json         # Browser console logs
 │   ├── network.json         # Failed network requests
-│   ├── dom.html             # DOM snapshot
+│   ├── raw.json             # Raw engine-agnostic evidence (minus screenshot bytes)
 │   └── README.md            # Human-readable summary
 ├── automation/              # Playbook execution timelines
 │   └── *.timeline.json

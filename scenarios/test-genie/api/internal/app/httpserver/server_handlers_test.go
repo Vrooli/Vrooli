@@ -341,7 +341,7 @@ func TestServer_handleExecuteSuite(t *testing.T) {
 	}{
 		{
 			name: "success",
-			body: `{"scenarioName":"demo","suiteRequestId":"11111111-1111-1111-1111-111111111111","phases":["unit"],"failFast":true,"uiUrl":"http://localhost:35771","apiUrl":"http://localhost:17551","browserlessUrl":"http://localhost:4110"}`,
+			body: `{"scenarioName":"demo","suiteRequestId":"11111111-1111-1111-1111-111111111111","phases":["unit"],"failFast":true,"uiUrl":"http://localhost:35771","apiUrl":"http://localhost:17551"}`,
 			executor: &stubSuiteExecutor{
 				result: &orchestrator.SuiteExecutionResult{
 					ExecutionID:  uuid.New(),
@@ -363,9 +363,6 @@ func TestServer_handleExecuteSuite(t *testing.T) {
 				}
 				if exec.input.Request.APIURL != "http://localhost:17551" {
 					t.Fatalf("expected apiUrl to pass through, got %s", exec.input.Request.APIURL)
-				}
-				if exec.input.Request.BrowserlessURL != "http://localhost:4110" {
-					t.Fatalf("expected browserlessUrl to pass through, got %s", exec.input.Request.BrowserlessURL)
 				}
 			},
 		},
@@ -652,12 +649,11 @@ type stubScenarioDirectory struct {
 	runArgs      []string
 
 	// UI Smoke fields
-	uiSmokeResp           *scenarios.UISmokeResult
-	uiSmokeErr            error
-	uiSmokeName           string
-	uiSmokeUIURL          string
-	uiSmokeBrowserlessURL string
-	uiSmokeTimeoutMs      int64
+	uiSmokeResp      *scenarios.UISmokeResult
+	uiSmokeErr       error
+	uiSmokeName      string
+	uiSmokeUIURL     string
+	uiSmokeTimeoutMs int64
 
 	scenarioRoot string
 }
@@ -696,10 +692,9 @@ func (s *stubScenarioDirectory) ListFilesWithMeta(ctx context.Context, name stri
 	return scenarios.FileListResult{}, nil
 }
 
-func (s *stubScenarioDirectory) RunUISmoke(ctx context.Context, name string, uiURL string, browserlessURL string, timeoutMs int64, scenarioDirOverride string) (*scenarios.UISmokeResult, error) {
+func (s *stubScenarioDirectory) RunUISmoke(ctx context.Context, name string, uiURL string, timeoutMs int64, scenarioDirOverride string) (*scenarios.UISmokeResult, error) {
 	s.uiSmokeName = name
 	s.uiSmokeUIURL = uiURL
-	s.uiSmokeBrowserlessURL = browserlessURL
 	s.uiSmokeTimeoutMs = timeoutMs
 	if s.uiSmokeErr != nil {
 		return nil, s.uiSmokeErr
@@ -710,7 +705,6 @@ func (s *stubScenarioDirectory) RunUISmoke(ctx context.Context, name string, uiU
 func (s *stubScenarioDirectory) RunUISmokeWithOpts(ctx context.Context, name string, opts scenarios.UISmokeOptions) (*scenarios.UISmokeResult, error) {
 	s.uiSmokeName = name
 	s.uiSmokeUIURL = opts.URL
-	s.uiSmokeBrowserlessURL = opts.BrowserlessURL
 	s.uiSmokeTimeoutMs = opts.TimeoutMs
 	if s.uiSmokeErr != nil {
 		return nil, s.uiSmokeErr
@@ -798,7 +792,7 @@ func TestServer_handleUISmoke_WithCustomURL(t *testing.T) {
 		logger:    log.New(io.Discard, "", 0),
 	}
 
-	payload := `{"url": "http://custom.example.com:8080", "browserless_url": "http://localhost:4110", "timeout_ms": 120000}`
+	payload := `{"url": "http://custom.example.com:8080", "timeout_ms": 120000}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios/demo/ui-smoke", strings.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
 	req = mux.SetURLVars(req, map[string]string{"name": "demo"})
@@ -813,9 +807,6 @@ func TestServer_handleUISmoke_WithCustomURL(t *testing.T) {
 	// Verify the custom URL was passed through
 	if scenarioSvc.uiSmokeUIURL != "http://custom.example.com:8080" {
 		t.Errorf("expected uiURL 'http://custom.example.com:8080', got %q", scenarioSvc.uiSmokeUIURL)
-	}
-	if scenarioSvc.uiSmokeBrowserlessURL != "http://localhost:4110" {
-		t.Errorf("expected browserlessURL 'http://localhost:4110', got %q", scenarioSvc.uiSmokeBrowserlessURL)
 	}
 	if scenarioSvc.uiSmokeTimeoutMs != 120000 {
 		t.Errorf("expected timeoutMs 120000, got %d", scenarioSvc.uiSmokeTimeoutMs)
@@ -887,7 +878,7 @@ func TestServer_handleUISmoke_ValidationError(t *testing.T) {
 
 func TestServer_handleUISmoke_InternalError(t *testing.T) {
 	scenarioSvc := &stubScenarioDirectory{
-		uiSmokeErr: errors.New("browserless connection failed"),
+		uiSmokeErr: errors.New("browser automation connection failed"),
 	}
 	server := &Server{
 		config:    Config{Port: "0"},
@@ -986,7 +977,7 @@ func TestServer_handleUISmoke_PartialPayload(t *testing.T) {
 		logger:    log.New(io.Discard, "", 0),
 	}
 
-	// Only URL provided, no timeout or browserless URL
+	// Only URL provided, no timeout
 	payload := `{"url": "http://localhost:4000"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/scenarios/demo/ui-smoke", strings.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
@@ -1002,9 +993,6 @@ func TestServer_handleUISmoke_PartialPayload(t *testing.T) {
 	// Verify only URL was set
 	if scenarioSvc.uiSmokeUIURL != "http://localhost:4000" {
 		t.Errorf("expected uiURL 'http://localhost:4000', got %q", scenarioSvc.uiSmokeUIURL)
-	}
-	if scenarioSvc.uiSmokeBrowserlessURL != "" {
-		t.Errorf("expected browserlessURL to be empty, got %q", scenarioSvc.uiSmokeBrowserlessURL)
 	}
 	if scenarioSvc.uiSmokeTimeoutMs != 0 {
 		t.Errorf("expected timeoutMs to be 0, got %d", scenarioSvc.uiSmokeTimeoutMs)

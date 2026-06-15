@@ -197,7 +197,7 @@ Customize structure validation in `.vrooli/testing.json`:
 ## Related Documentation
 
 - [CLI Manifest Contract](cli-approaches.md) - Manifest-driven scenario CLI adapters
-- [UI Smoke Tests](ui-smoke.md) - Browserless-based UI validation
+- [UI Smoke Tests](ui-smoke.md) - BAS-based UI validation
 - [Playbooks Directory Structure](../playbooks/directory-structure.md) - Canonical playbooks layout
 
 ## See Also

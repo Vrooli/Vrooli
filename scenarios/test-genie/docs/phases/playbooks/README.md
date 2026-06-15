@@ -93,6 +93,28 @@ graph TB
     style ARTIFACTS fill:#fff9c4
 ```
 
+## Browser-evidence findings (additive)
+
+A workflow's own assertions are the **primary** verdict: a failed assertion
+fails the workflow, an all-green workflow passes. On top of that, each workflow's
+BAS timeline is run through the shared browser-evidence analyzer
+(`internal/evidence`, the same authority the [UI smoke phase](../structure/ui-smoke.md)
+uses) to surface browser-level problems the assertions did not explicitly check:
+
+- **failed network requests** (transport failure or `>=400` status) → error finding;
+- **uncaught page errors / a blank final DOM** → error finding;
+- **console errors** → error finding (counted and surfaced, but non-fatal — a
+  passing UI may log handled errors);
+- **console warnings** → warning finding.
+
+These findings are **additive observations**: they appear alongside the
+workflow's pass/fail result and never, on their own, flip a passing workflow to
+failed. A clean workflow with console errors surfaces them; an all-green clean
+workflow stays green with no findings. The console/network/screenshot extraction
+is shared with smoke via `playbooks/execution/evidence_adapter.go`, and the
+verdict rules live once in `internal/evidence` — they cannot drift between the
+two browser phases.
+
 ## Workflow Structure
 
 Workflows are JSON files defining browser automation steps:

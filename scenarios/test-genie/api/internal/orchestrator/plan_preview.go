@@ -45,7 +45,7 @@ func (o *SuiteOrchestrator) loadExecutionPlanContext(req SuiteExecutionRequest) 
 		return nil, err
 	}
 
-	ws.SetRuntimeURLs(req.UIURL, req.APIURL, resolveBrowserlessURL(req.BrowserlessURL))
+	ws.SetRuntimeURLs(req.UIURL, req.APIURL)
 	ws.SetClaims(o.claims)
 
 	env := ws.Environment()

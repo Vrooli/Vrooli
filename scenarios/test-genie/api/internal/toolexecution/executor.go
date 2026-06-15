@@ -34,7 +34,7 @@ type ScenarioDirectory interface {
 	ListSummaries(ctx context.Context) ([]scenarios.ScenarioSummary, error)
 	GetSummary(ctx context.Context, name string) (*scenarios.ScenarioSummary, error)
 	RunScenarioTests(ctx context.Context, name string, preferred string, extraArgs []string, scenarioDirOverride string) (*scenarios.TestingCommand, *scenarios.TestingRunnerResult, error)
-	RunUISmoke(ctx context.Context, name string, uiURL string, browserlessURL string, timeoutMs int64, scenarioDirOverride string) (*scenarios.UISmokeResult, error)
+	RunUISmoke(ctx context.Context, name string, uiURL string, timeoutMs int64, scenarioDirOverride string) (*scenarios.UISmokeResult, error)
 	ListFiles(ctx context.Context, name string, opts scenarios.FileListOptions) ([]scenarios.FileNode, error)
 	ScenarioRoot() string
 }
@@ -223,10 +223,9 @@ func (e *ServerExecutor) runUISmoke(ctx context.Context, args map[string]interfa
 	}
 
 	uiURL := getStringArg(args, "ui_url", "")
-	browserlessURL := getStringArg(args, "browserless_url", "")
 	timeoutMs := int64(getIntArg(args, "timeout_ms", 30000))
 
-	result, err := e.scenarioDirectory.RunUISmoke(ctx, scenario, uiURL, browserlessURL, timeoutMs, "")
+	result, err := e.scenarioDirectory.RunUISmoke(ctx, scenario, uiURL, timeoutMs, "")
 	if err != nil {
 		return ErrorResult(fmt.Sprintf("failed to run UI smoke test: %v", err), CodeInternalError), nil
 	}

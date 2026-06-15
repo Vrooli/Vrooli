@@ -6,6 +6,168 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class RunEvent(_message.Message):
+    __slots__ = ("event", "elapsed_seconds", "run_id", "scenario", "artifact_dir", "preset", "phase", "phase_index", "phase_total", "status", "duration_seconds", "quiet_seconds", "message", "success", "verdict", "error")
+    EVENT_FIELD_NUMBER: _ClassVar[int]
+    ELAPSED_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_DIR_FIELD_NUMBER: _ClassVar[int]
+    PRESET_FIELD_NUMBER: _ClassVar[int]
+    PHASE_FIELD_NUMBER: _ClassVar[int]
+    PHASE_INDEX_FIELD_NUMBER: _ClassVar[int]
+    PHASE_TOTAL_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    DURATION_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    QUIET_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    SUCCESS_FIELD_NUMBER: _ClassVar[int]
+    VERDICT_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    event: str
+    elapsed_seconds: float
+    run_id: str
+    scenario: str
+    artifact_dir: str
+    preset: str
+    phase: str
+    phase_index: int
+    phase_total: int
+    status: str
+    duration_seconds: int
+    quiet_seconds: float
+    message: str
+    success: bool
+    verdict: str
+    error: str
+    def __init__(self, event: _Optional[str] = ..., elapsed_seconds: _Optional[float] = ..., run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., artifact_dir: _Optional[str] = ..., preset: _Optional[str] = ..., phase: _Optional[str] = ..., phase_index: _Optional[int] = ..., phase_total: _Optional[int] = ..., status: _Optional[str] = ..., duration_seconds: _Optional[int] = ..., quiet_seconds: _Optional[float] = ..., message: _Optional[str] = ..., success: _Optional[bool] = ..., verdict: _Optional[str] = ..., error: _Optional[str] = ...) -> None: ...
+
+class RunLiveStatus(_message.Message):
+    __slots__ = ("run_id", "scenario", "status", "active_phase", "phase_index", "phase_total", "started_at", "elapsed_seconds", "estimated_total_seconds", "estimated_remaining_seconds", "eta_known", "recommended_next_check_seconds", "verdict", "success", "error", "active")
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    ACTIVE_PHASE_FIELD_NUMBER: _ClassVar[int]
+    PHASE_INDEX_FIELD_NUMBER: _ClassVar[int]
+    PHASE_TOTAL_FIELD_NUMBER: _ClassVar[int]
+    STARTED_AT_FIELD_NUMBER: _ClassVar[int]
+    ELAPSED_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    ESTIMATED_TOTAL_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    ESTIMATED_REMAINING_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    ETA_KNOWN_FIELD_NUMBER: _ClassVar[int]
+    RECOMMENDED_NEXT_CHECK_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    VERDICT_FIELD_NUMBER: _ClassVar[int]
+    SUCCESS_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    ACTIVE_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    scenario: str
+    status: str
+    active_phase: str
+    phase_index: int
+    phase_total: int
+    started_at: str
+    elapsed_seconds: float
+    estimated_total_seconds: int
+    estimated_remaining_seconds: int
+    eta_known: bool
+    recommended_next_check_seconds: int
+    verdict: str
+    success: bool
+    error: str
+    active: bool
+    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., status: _Optional[str] = ..., active_phase: _Optional[str] = ..., phase_index: _Optional[int] = ..., phase_total: _Optional[int] = ..., started_at: _Optional[str] = ..., elapsed_seconds: _Optional[float] = ..., estimated_total_seconds: _Optional[int] = ..., estimated_remaining_seconds: _Optional[int] = ..., eta_known: _Optional[bool] = ..., recommended_next_check_seconds: _Optional[int] = ..., verdict: _Optional[str] = ..., success: _Optional[bool] = ..., error: _Optional[str] = ..., active: _Optional[bool] = ...) -> None: ...
+
+class StartRunRequest(_message.Message):
+    __slots__ = ("scenario", "preset", "phases", "skip", "fail_fast", "diagnostics_preset", "ui_url", "api_url", "scenario_path", "logical_repo_root", "logical_scenario_rel_path", "suite_request_id", "capture_profile")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    PRESET_FIELD_NUMBER: _ClassVar[int]
+    PHASES_FIELD_NUMBER: _ClassVar[int]
+    SKIP_FIELD_NUMBER: _ClassVar[int]
+    FAIL_FAST_FIELD_NUMBER: _ClassVar[int]
+    DIAGNOSTICS_PRESET_FIELD_NUMBER: _ClassVar[int]
+    UI_URL_FIELD_NUMBER: _ClassVar[int]
+    API_URL_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_PATH_FIELD_NUMBER: _ClassVar[int]
+    LOGICAL_REPO_ROOT_FIELD_NUMBER: _ClassVar[int]
+    LOGICAL_SCENARIO_REL_PATH_FIELD_NUMBER: _ClassVar[int]
+    SUITE_REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    CAPTURE_PROFILE_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    preset: str
+    phases: _containers.RepeatedScalarFieldContainer[str]
+    skip: _containers.RepeatedScalarFieldContainer[str]
+    fail_fast: bool
+    diagnostics_preset: str
+    ui_url: str
+    api_url: str
+    scenario_path: str
+    logical_repo_root: str
+    logical_scenario_rel_path: str
+    suite_request_id: str
+    capture_profile: str
+    def __init__(self, scenario: _Optional[str] = ..., preset: _Optional[str] = ..., phases: _Optional[_Iterable[str]] = ..., skip: _Optional[_Iterable[str]] = ..., fail_fast: _Optional[bool] = ..., diagnostics_preset: _Optional[str] = ..., ui_url: _Optional[str] = ..., api_url: _Optional[str] = ..., scenario_path: _Optional[str] = ..., logical_repo_root: _Optional[str] = ..., logical_scenario_rel_path: _Optional[str] = ..., suite_request_id: _Optional[str] = ..., capture_profile: _Optional[str] = ...) -> None: ...
+
+class StartRunResponse(_message.Message):
+    __slots__ = ("run_id", "scenario", "estimated_total_seconds", "eta_known")
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    ESTIMATED_TOTAL_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    ETA_KNOWN_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    scenario: str
+    estimated_total_seconds: int
+    eta_known: bool
+    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., estimated_total_seconds: _Optional[int] = ..., eta_known: _Optional[bool] = ...) -> None: ...
+
+class FollowRunRequest(_message.Message):
+    __slots__ = ("scenario", "run_id")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    run_id: str
+    def __init__(self, scenario: _Optional[str] = ..., run_id: _Optional[str] = ...) -> None: ...
+
+class WaitRunRequest(_message.Message):
+    __slots__ = ("scenario", "run_id", "timeout_seconds")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    TIMEOUT_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    run_id: str
+    timeout_seconds: int
+    def __init__(self, scenario: _Optional[str] = ..., run_id: _Optional[str] = ..., timeout_seconds: _Optional[int] = ...) -> None: ...
+
+class WaitRunResponse(_message.Message):
+    __slots__ = ("status", "timed_out")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    TIMED_OUT_FIELD_NUMBER: _ClassVar[int]
+    status: RunLiveStatus
+    timed_out: bool
+    def __init__(self, status: _Optional[_Union[RunLiveStatus, _Mapping]] = ..., timed_out: _Optional[bool] = ...) -> None: ...
+
+class AbortRunRequest(_message.Message):
+    __slots__ = ("scenario", "run_id")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    run_id: str
+    def __init__(self, scenario: _Optional[str] = ..., run_id: _Optional[str] = ...) -> None: ...
+
+class AbortRunResponse(_message.Message):
+    __slots__ = ("status",)
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    status: RunLiveStatus
+    def __init__(self, status: _Optional[_Union[RunLiveStatus, _Mapping]] = ...) -> None: ...
+
+class GetRunStatusRequest(_message.Message):
+    __slots__ = ("scenario", "run_id")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    run_id: str
+    def __init__(self, scenario: _Optional[str] = ..., run_id: _Optional[str] = ...) -> None: ...
+
 class DiagnosticsInfo(_message.Message):
     __slots__ = ("video", "console", "network", "har", "trace", "dom")
     VIDEO_FIELD_NUMBER: _ClassVar[int]
@@ -233,6 +395,34 @@ class ListRunVideosResponse(_message.Message):
     VIDEOS_FIELD_NUMBER: _ClassVar[int]
     videos: _containers.RepeatedCompositeFieldContainer[RunVideo]
     def __init__(self, videos: _Optional[_Iterable[_Union[RunVideo, _Mapping]]] = ...) -> None: ...
+
+class RunVisual(_message.Message):
+    __slots__ = ("page", "label", "screenshot_rel_path", "video_rel_path", "screenshot_size_bytes")
+    PAGE_FIELD_NUMBER: _ClassVar[int]
+    LABEL_FIELD_NUMBER: _ClassVar[int]
+    SCREENSHOT_REL_PATH_FIELD_NUMBER: _ClassVar[int]
+    VIDEO_REL_PATH_FIELD_NUMBER: _ClassVar[int]
+    SCREENSHOT_SIZE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    page: str
+    label: str
+    screenshot_rel_path: str
+    video_rel_path: str
+    screenshot_size_bytes: int
+    def __init__(self, page: _Optional[str] = ..., label: _Optional[str] = ..., screenshot_rel_path: _Optional[str] = ..., video_rel_path: _Optional[str] = ..., screenshot_size_bytes: _Optional[int] = ...) -> None: ...
+
+class ListRunVisualsRequest(_message.Message):
+    __slots__ = ("scenario", "run_id")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    run_id: str
+    def __init__(self, scenario: _Optional[str] = ..., run_id: _Optional[str] = ...) -> None: ...
+
+class ListRunVisualsResponse(_message.Message):
+    __slots__ = ("visuals",)
+    VISUALS_FIELD_NUMBER: _ClassVar[int]
+    visuals: _containers.RepeatedCompositeFieldContainer[RunVisual]
+    def __init__(self, visuals: _Optional[_Iterable[_Union[RunVisual, _Mapping]]] = ...) -> None: ...
 
 class CheckFreshnessRequest(_message.Message):
     __slots__ = ("scenario", "phases")

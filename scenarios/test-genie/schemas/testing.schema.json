@@ -126,7 +126,7 @@
         },
         "ui_smoke": {
           "type": "object",
-          "description": "Browserless-backed UI smoke harness configuration",
+          "description": "BAS (Browser Automation Studio)-backed UI smoke harness configuration",
           "properties": {
             "enabled": {
               "type": "boolean",
@@ -137,7 +137,7 @@
               "type": "integer",
               "minimum": 1000,
               "default": 90000,
-              "description": "Navigation timeout passed to Browserless (milliseconds)"
+              "description": "Navigation timeout passed to the BAS workflow engine (milliseconds)"
             },
             "handshake_timeout_ms": {
               "type": "integer",

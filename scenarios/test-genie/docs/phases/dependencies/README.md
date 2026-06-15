@@ -115,7 +115,7 @@ Resources declared in `.vrooli/service.json` are checked:
 {
   "resources": {
     "required": ["redis", "ollama"],
-    "optional": ["browserless"]
+    "optional": ["browser-automation-studio"]
   }
 }
 ```

@@ -12,6 +12,18 @@ not documented below.
 |---|---|---|---|---|
 | `Resolver` | `orchestrator/runnability/runnability.go` (`Resolver` interface) | `runnability.StandardResolver` (`orchestrator/runnability/resolver.go`) | `mocks.FakeResolver` (`orchestrator/runnability/mocks/resolver.go`) | The single per-phase RUN/RUN_DEGRADED/SKIP decision: `PhaseCapabilities × RunContext → Verdict`. Absorbs the old `runtimeNeeds` switch, the `EnsureRunning` self-clobber, the playbooks routed-vs-fallback `PathDecision`, and the requirements skip vocabulary. Pure; exhaustively unit-tested. |
 
+## UI smoke (BAS workflow capture)
+
+| Seam | Declaration | Production impl | Test double | Why |
+|---|---|---|---|---|
+| `WorkflowClient` | `browsercapture/browsercapture.go` (`WorkflowClient` interface) | `browsercapture.NewLiveClient` wrapping `execution.NewClientWithConfig` (Connect-RPC over BAS `apiconnect`) | `browsercapture.FakeWorkflowClient` (`browsercapture/fake.go`) returning a canned `execution.ParsedTimeline` | The BAS workflow-engine capture seam. Smoke runs its host-iframe + handshake-gate + screenshot workflow on the same BAS client playbooks uses — no second BAS client. Tests exercise the capture/verdict mapping without a live engine. |
+| `FakeWorkflowClient` | `browsercapture/fake.go` | (test-only) | itself | Test wiring for `WorkflowClient`; records the executed workflow definition and returns a canned timeline / errors. |
+| `CaptureClient` | `browsercapture/capture.go` (`CaptureClient` interface) | `browsercapture.NewLiveCaptureClient` (BAS `CaptureService` sharing the workflow client's connection via `execution.HTTPClient.CaptureServiceClient`) | `browsercapture.FakeCaptureClient` (`browsercapture/capture_fake.go`) returning canned `CaptureResponse`s | The BAS single-location capture seam for the all-pages visual capture (one `Capture` per discovered page). Reuses the ONE BAS connection — no second client. Plain multi-page screenshots only (no host-iframe handshake — that stays on `WorkflowClient`). |
+| `FakeCaptureClient` | `browsercapture/capture_fake.go` | (test-only) | itself | Test wiring for `CaptureClient`; records every request and returns canned/per-URL responses, so the all-pages loop + cost guard run without a live engine. |
+| `FileReader` (page discovery) | `pagediscovery/pagediscovery.go` (`FileReader` interface) | `pagediscovery.OSFileReader` (`os.ReadFile` of `.vrooli/lighthouse.json`) | `pagediscovery.FakeFileReader` (`pagediscovery/fake.go`) mapping path→bytes | The page-discovery filesystem seam. test-genie's single source of truth for the scenario page set (`lighthouse`/`fallback`/`explicit`), consumed by the smoke all-pages capture. Tests supply page configs without touching disk. |
+| `FakeFileReader` | `pagediscovery/fake.go` | (test-only) | itself | Test wiring for the page-discovery `FileReader` seam. |
+| timeline → evidence mapping | `playbooks/execution/evidence_adapter.go` (`ConsoleEntries`, `NetworkFailures`, `ToEvidence`) | pure functions over `execution.ParsedTimeline` → `evidence.Evidence` | unit-tested in `evidence_adapter_test.go` (canned timelines + golden happy fixture) | The single home for reading console/network/page-error/screenshot observations off a BAS timeline. Both browser phases consume it — smoke via `browsercapture/timeline.go`, playbooks via `playbooks/evidence_findings.go` — so the console/network extraction rules cannot drift between phases. The verdict rules themselves live once in `internal/evidence`. |
+
 ## Playbooks phase
 
 | Seam | Declaration | Production impl | Test double | Why |

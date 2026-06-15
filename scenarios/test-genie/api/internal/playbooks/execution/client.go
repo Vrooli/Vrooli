@@ -19,6 +19,7 @@ import (
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api/apiconnect"
 	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture/captureconnect"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
@@ -561,6 +562,15 @@ func ParseTimeline(data []byte) (TimelineSummary, error) {
 // BaseURL returns the base URL of the BAS API.
 func (c *HTTPClient) BaseURL() string {
 	return c.baseURL
+}
+
+// CaptureServiceClient returns a BAS CaptureService client bound to this client's
+// shared HTTP client and Connect base URL. Reusing the workflow client's
+// connection/discovery plumbing keeps test-genie on exactly one BAS client — the
+// single-location capture verb and the workflow engine share transport and
+// timeouts.
+func (c *HTTPClient) CaptureServiceClient() captureconnect.CaptureServiceClient {
+	return captureconnect.NewCaptureServiceClient(c.httpClient, c.connectBaseURL)
 }
 
 // GetScreenshots retrieves screenshot metadata for an execution.

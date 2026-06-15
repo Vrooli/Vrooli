@@ -51,9 +51,23 @@ const (
 	// RunsServiceListRunVideosProcedure is the fully-qualified name of the RunsService's ListRunVideos
 	// RPC.
 	RunsServiceListRunVideosProcedure = "/vrooli.test_genie.v1.runs.RunsService/ListRunVideos"
+	// RunsServiceListRunVisualsProcedure is the fully-qualified name of the RunsService's
+	// ListRunVisuals RPC.
+	RunsServiceListRunVisualsProcedure = "/vrooli.test_genie.v1.runs.RunsService/ListRunVisuals"
 	// RunsServiceCheckFreshnessProcedure is the fully-qualified name of the RunsService's
 	// CheckFreshness RPC.
 	RunsServiceCheckFreshnessProcedure = "/vrooli.test_genie.v1.runs.RunsService/CheckFreshness"
+	// RunsServiceStartRunProcedure is the fully-qualified name of the RunsService's StartRun RPC.
+	RunsServiceStartRunProcedure = "/vrooli.test_genie.v1.runs.RunsService/StartRun"
+	// RunsServiceFollowRunProcedure is the fully-qualified name of the RunsService's FollowRun RPC.
+	RunsServiceFollowRunProcedure = "/vrooli.test_genie.v1.runs.RunsService/FollowRun"
+	// RunsServiceWaitRunProcedure is the fully-qualified name of the RunsService's WaitRun RPC.
+	RunsServiceWaitRunProcedure = "/vrooli.test_genie.v1.runs.RunsService/WaitRun"
+	// RunsServiceAbortRunProcedure is the fully-qualified name of the RunsService's AbortRun RPC.
+	RunsServiceAbortRunProcedure = "/vrooli.test_genie.v1.runs.RunsService/AbortRun"
+	// RunsServiceGetRunStatusProcedure is the fully-qualified name of the RunsService's GetRunStatus
+	// RPC.
+	RunsServiceGetRunStatusProcedure = "/vrooli.test_genie.v1.runs.RunsService/GetRunStatus"
 )
 
 // RunsServiceClient is a client for the vrooli.test_genie.v1.runs.RunsService service.
@@ -77,11 +91,33 @@ type RunsServiceClient interface {
 	// round-trip through proto); the rel_path here is the handle that route
 	// takes. Consumed by git-control-tower's WorkflowReplayService.
 	ListRunVideos(context.Context, *connect.Request[runs.ListRunVideosRequest]) (*connect.Response[runs.ListRunVideosResponse], error)
+	// ListRunVisuals enumerates the per-page UI smoke visual artifacts (screenshot
+	// + optional video) captured by a run under the baseline capture profile. The
+	// bytes are served over the same binary REST artifact route (rel_path is the
+	// handle); the structured page set + screenshot count is what git-control-tower
+	// diffs at the metadata level between two baselines.
+	ListRunVisuals(context.Context, *connect.Request[runs.ListRunVisualsRequest]) (*connect.Response[runs.ListRunVisualsResponse], error)
 	// CheckFreshness reports, per phase, whether some recorded run executed that
 	// phase (status passed) against the scenario's CURRENT working-tree digest.
 	// Read-only; consumed by git-control-tower's advisory pre-commit step and
 	// the `test-genie runs freshness` CLI verb.
 	CheckFreshness(context.Context, *connect.Request[runs.CheckFreshnessRequest]) (*connect.Response[runs.CheckFreshnessResponse], error)
+	// StartRun starts a suite run under a server-lifetime context and returns its
+	// run id synchronously (before the suite executes). The run survives client
+	// cancellation; observe it via FollowRun/WaitRun/GetRunStatus.
+	StartRun(context.Context, *connect.Request[runs.StartRunRequest]) (*connect.Response[runs.StartRunResponse], error)
+	// FollowRun streams canonical run events for a run, replaying history so a
+	// late or re-attaching follower sees the full sequence. Cancelling the stream
+	// detaches the viewer WITHOUT aborting the run.
+	FollowRun(context.Context, *connect.Request[runs.FollowRunRequest]) (*connect.ServerStreamForClient[runs.RunEvent], error)
+	// WaitRun blocks until the run reaches a terminal state or the timeout
+	// elapses, returning the final (or current) live status.
+	WaitRun(context.Context, *connect.Request[runs.WaitRunRequest]) (*connect.Response[runs.WaitRunResponse], error)
+	// AbortRun cancels a running run and transitions it to aborted.
+	AbortRun(context.Context, *connect.Request[runs.AbortRunRequest]) (*connect.Response[runs.AbortRunResponse], error)
+	// GetRunStatus returns a point-in-time live snapshot (status, active phase,
+	// elapsed, remaining ETA, recommended next-check backoff).
+	GetRunStatus(context.Context, *connect.Request[runs.GetRunStatusRequest]) (*connect.Response[runs.RunLiveStatus], error)
 }
 
 // NewRunsServiceClient constructs a client for the vrooli.test_genie.v1.runs.RunsService service.
@@ -143,10 +179,46 @@ func NewRunsServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(runsServiceMethods.ByName("ListRunVideos")),
 			connect.WithClientOptions(opts...),
 		),
+		listRunVisuals: connect.NewClient[runs.ListRunVisualsRequest, runs.ListRunVisualsResponse](
+			httpClient,
+			baseURL+RunsServiceListRunVisualsProcedure,
+			connect.WithSchema(runsServiceMethods.ByName("ListRunVisuals")),
+			connect.WithClientOptions(opts...),
+		),
 		checkFreshness: connect.NewClient[runs.CheckFreshnessRequest, runs.CheckFreshnessResponse](
 			httpClient,
 			baseURL+RunsServiceCheckFreshnessProcedure,
 			connect.WithSchema(runsServiceMethods.ByName("CheckFreshness")),
+			connect.WithClientOptions(opts...),
+		),
+		startRun: connect.NewClient[runs.StartRunRequest, runs.StartRunResponse](
+			httpClient,
+			baseURL+RunsServiceStartRunProcedure,
+			connect.WithSchema(runsServiceMethods.ByName("StartRun")),
+			connect.WithClientOptions(opts...),
+		),
+		followRun: connect.NewClient[runs.FollowRunRequest, runs.RunEvent](
+			httpClient,
+			baseURL+RunsServiceFollowRunProcedure,
+			connect.WithSchema(runsServiceMethods.ByName("FollowRun")),
+			connect.WithClientOptions(opts...),
+		),
+		waitRun: connect.NewClient[runs.WaitRunRequest, runs.WaitRunResponse](
+			httpClient,
+			baseURL+RunsServiceWaitRunProcedure,
+			connect.WithSchema(runsServiceMethods.ByName("WaitRun")),
+			connect.WithClientOptions(opts...),
+		),
+		abortRun: connect.NewClient[runs.AbortRunRequest, runs.AbortRunResponse](
+			httpClient,
+			baseURL+RunsServiceAbortRunProcedure,
+			connect.WithSchema(runsServiceMethods.ByName("AbortRun")),
+			connect.WithClientOptions(opts...),
+		),
+		getRunStatus: connect.NewClient[runs.GetRunStatusRequest, runs.RunLiveStatus](
+			httpClient,
+			baseURL+RunsServiceGetRunStatusProcedure,
+			connect.WithSchema(runsServiceMethods.ByName("GetRunStatus")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -162,7 +234,13 @@ type runsServiceClient struct {
 	compareRuns      *connect.Client[runs.CompareRunsRequest, runs.CompareRunsResponse]
 	getPhaseArtifact *connect.Client[runs.GetPhaseArtifactRequest, runs.GetPhaseArtifactResponse]
 	listRunVideos    *connect.Client[runs.ListRunVideosRequest, runs.ListRunVideosResponse]
+	listRunVisuals   *connect.Client[runs.ListRunVisualsRequest, runs.ListRunVisualsResponse]
 	checkFreshness   *connect.Client[runs.CheckFreshnessRequest, runs.CheckFreshnessResponse]
+	startRun         *connect.Client[runs.StartRunRequest, runs.StartRunResponse]
+	followRun        *connect.Client[runs.FollowRunRequest, runs.RunEvent]
+	waitRun          *connect.Client[runs.WaitRunRequest, runs.WaitRunResponse]
+	abortRun         *connect.Client[runs.AbortRunRequest, runs.AbortRunResponse]
+	getRunStatus     *connect.Client[runs.GetRunStatusRequest, runs.RunLiveStatus]
 }
 
 // ListRuns calls vrooli.test_genie.v1.runs.RunsService.ListRuns.
@@ -205,9 +283,39 @@ func (c *runsServiceClient) ListRunVideos(ctx context.Context, req *connect.Requ
 	return c.listRunVideos.CallUnary(ctx, req)
 }
 
+// ListRunVisuals calls vrooli.test_genie.v1.runs.RunsService.ListRunVisuals.
+func (c *runsServiceClient) ListRunVisuals(ctx context.Context, req *connect.Request[runs.ListRunVisualsRequest]) (*connect.Response[runs.ListRunVisualsResponse], error) {
+	return c.listRunVisuals.CallUnary(ctx, req)
+}
+
 // CheckFreshness calls vrooli.test_genie.v1.runs.RunsService.CheckFreshness.
 func (c *runsServiceClient) CheckFreshness(ctx context.Context, req *connect.Request[runs.CheckFreshnessRequest]) (*connect.Response[runs.CheckFreshnessResponse], error) {
 	return c.checkFreshness.CallUnary(ctx, req)
+}
+
+// StartRun calls vrooli.test_genie.v1.runs.RunsService.StartRun.
+func (c *runsServiceClient) StartRun(ctx context.Context, req *connect.Request[runs.StartRunRequest]) (*connect.Response[runs.StartRunResponse], error) {
+	return c.startRun.CallUnary(ctx, req)
+}
+
+// FollowRun calls vrooli.test_genie.v1.runs.RunsService.FollowRun.
+func (c *runsServiceClient) FollowRun(ctx context.Context, req *connect.Request[runs.FollowRunRequest]) (*connect.ServerStreamForClient[runs.RunEvent], error) {
+	return c.followRun.CallServerStream(ctx, req)
+}
+
+// WaitRun calls vrooli.test_genie.v1.runs.RunsService.WaitRun.
+func (c *runsServiceClient) WaitRun(ctx context.Context, req *connect.Request[runs.WaitRunRequest]) (*connect.Response[runs.WaitRunResponse], error) {
+	return c.waitRun.CallUnary(ctx, req)
+}
+
+// AbortRun calls vrooli.test_genie.v1.runs.RunsService.AbortRun.
+func (c *runsServiceClient) AbortRun(ctx context.Context, req *connect.Request[runs.AbortRunRequest]) (*connect.Response[runs.AbortRunResponse], error) {
+	return c.abortRun.CallUnary(ctx, req)
+}
+
+// GetRunStatus calls vrooli.test_genie.v1.runs.RunsService.GetRunStatus.
+func (c *runsServiceClient) GetRunStatus(ctx context.Context, req *connect.Request[runs.GetRunStatusRequest]) (*connect.Response[runs.RunLiveStatus], error) {
+	return c.getRunStatus.CallUnary(ctx, req)
 }
 
 // RunsServiceHandler is an implementation of the vrooli.test_genie.v1.runs.RunsService service.
@@ -231,11 +339,33 @@ type RunsServiceHandler interface {
 	// round-trip through proto); the rel_path here is the handle that route
 	// takes. Consumed by git-control-tower's WorkflowReplayService.
 	ListRunVideos(context.Context, *connect.Request[runs.ListRunVideosRequest]) (*connect.Response[runs.ListRunVideosResponse], error)
+	// ListRunVisuals enumerates the per-page UI smoke visual artifacts (screenshot
+	// + optional video) captured by a run under the baseline capture profile. The
+	// bytes are served over the same binary REST artifact route (rel_path is the
+	// handle); the structured page set + screenshot count is what git-control-tower
+	// diffs at the metadata level between two baselines.
+	ListRunVisuals(context.Context, *connect.Request[runs.ListRunVisualsRequest]) (*connect.Response[runs.ListRunVisualsResponse], error)
 	// CheckFreshness reports, per phase, whether some recorded run executed that
 	// phase (status passed) against the scenario's CURRENT working-tree digest.
 	// Read-only; consumed by git-control-tower's advisory pre-commit step and
 	// the `test-genie runs freshness` CLI verb.
 	CheckFreshness(context.Context, *connect.Request[runs.CheckFreshnessRequest]) (*connect.Response[runs.CheckFreshnessResponse], error)
+	// StartRun starts a suite run under a server-lifetime context and returns its
+	// run id synchronously (before the suite executes). The run survives client
+	// cancellation; observe it via FollowRun/WaitRun/GetRunStatus.
+	StartRun(context.Context, *connect.Request[runs.StartRunRequest]) (*connect.Response[runs.StartRunResponse], error)
+	// FollowRun streams canonical run events for a run, replaying history so a
+	// late or re-attaching follower sees the full sequence. Cancelling the stream
+	// detaches the viewer WITHOUT aborting the run.
+	FollowRun(context.Context, *connect.Request[runs.FollowRunRequest], *connect.ServerStream[runs.RunEvent]) error
+	// WaitRun blocks until the run reaches a terminal state or the timeout
+	// elapses, returning the final (or current) live status.
+	WaitRun(context.Context, *connect.Request[runs.WaitRunRequest]) (*connect.Response[runs.WaitRunResponse], error)
+	// AbortRun cancels a running run and transitions it to aborted.
+	AbortRun(context.Context, *connect.Request[runs.AbortRunRequest]) (*connect.Response[runs.AbortRunResponse], error)
+	// GetRunStatus returns a point-in-time live snapshot (status, active phase,
+	// elapsed, remaining ETA, recommended next-check backoff).
+	GetRunStatus(context.Context, *connect.Request[runs.GetRunStatusRequest]) (*connect.Response[runs.RunLiveStatus], error)
 }
 
 // NewRunsServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -293,10 +423,46 @@ func NewRunsServiceHandler(svc RunsServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(runsServiceMethods.ByName("ListRunVideos")),
 		connect.WithHandlerOptions(opts...),
 	)
+	runsServiceListRunVisualsHandler := connect.NewUnaryHandler(
+		RunsServiceListRunVisualsProcedure,
+		svc.ListRunVisuals,
+		connect.WithSchema(runsServiceMethods.ByName("ListRunVisuals")),
+		connect.WithHandlerOptions(opts...),
+	)
 	runsServiceCheckFreshnessHandler := connect.NewUnaryHandler(
 		RunsServiceCheckFreshnessProcedure,
 		svc.CheckFreshness,
 		connect.WithSchema(runsServiceMethods.ByName("CheckFreshness")),
+		connect.WithHandlerOptions(opts...),
+	)
+	runsServiceStartRunHandler := connect.NewUnaryHandler(
+		RunsServiceStartRunProcedure,
+		svc.StartRun,
+		connect.WithSchema(runsServiceMethods.ByName("StartRun")),
+		connect.WithHandlerOptions(opts...),
+	)
+	runsServiceFollowRunHandler := connect.NewServerStreamHandler(
+		RunsServiceFollowRunProcedure,
+		svc.FollowRun,
+		connect.WithSchema(runsServiceMethods.ByName("FollowRun")),
+		connect.WithHandlerOptions(opts...),
+	)
+	runsServiceWaitRunHandler := connect.NewUnaryHandler(
+		RunsServiceWaitRunProcedure,
+		svc.WaitRun,
+		connect.WithSchema(runsServiceMethods.ByName("WaitRun")),
+		connect.WithHandlerOptions(opts...),
+	)
+	runsServiceAbortRunHandler := connect.NewUnaryHandler(
+		RunsServiceAbortRunProcedure,
+		svc.AbortRun,
+		connect.WithSchema(runsServiceMethods.ByName("AbortRun")),
+		connect.WithHandlerOptions(opts...),
+	)
+	runsServiceGetRunStatusHandler := connect.NewUnaryHandler(
+		RunsServiceGetRunStatusProcedure,
+		svc.GetRunStatus,
+		connect.WithSchema(runsServiceMethods.ByName("GetRunStatus")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/vrooli.test_genie.v1.runs.RunsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -317,8 +483,20 @@ func NewRunsServiceHandler(svc RunsServiceHandler, opts ...connect.HandlerOption
 			runsServiceGetPhaseArtifactHandler.ServeHTTP(w, r)
 		case RunsServiceListRunVideosProcedure:
 			runsServiceListRunVideosHandler.ServeHTTP(w, r)
+		case RunsServiceListRunVisualsProcedure:
+			runsServiceListRunVisualsHandler.ServeHTTP(w, r)
 		case RunsServiceCheckFreshnessProcedure:
 			runsServiceCheckFreshnessHandler.ServeHTTP(w, r)
+		case RunsServiceStartRunProcedure:
+			runsServiceStartRunHandler.ServeHTTP(w, r)
+		case RunsServiceFollowRunProcedure:
+			runsServiceFollowRunHandler.ServeHTTP(w, r)
+		case RunsServiceWaitRunProcedure:
+			runsServiceWaitRunHandler.ServeHTTP(w, r)
+		case RunsServiceAbortRunProcedure:
+			runsServiceAbortRunHandler.ServeHTTP(w, r)
+		case RunsServiceGetRunStatusProcedure:
+			runsServiceGetRunStatusHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -360,6 +538,30 @@ func (UnimplementedRunsServiceHandler) ListRunVideos(context.Context, *connect.R
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.test_genie.v1.runs.RunsService.ListRunVideos is not implemented"))
 }
 
+func (UnimplementedRunsServiceHandler) ListRunVisuals(context.Context, *connect.Request[runs.ListRunVisualsRequest]) (*connect.Response[runs.ListRunVisualsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.test_genie.v1.runs.RunsService.ListRunVisuals is not implemented"))
+}
+
 func (UnimplementedRunsServiceHandler) CheckFreshness(context.Context, *connect.Request[runs.CheckFreshnessRequest]) (*connect.Response[runs.CheckFreshnessResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.test_genie.v1.runs.RunsService.CheckFreshness is not implemented"))
+}
+
+func (UnimplementedRunsServiceHandler) StartRun(context.Context, *connect.Request[runs.StartRunRequest]) (*connect.Response[runs.StartRunResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.test_genie.v1.runs.RunsService.StartRun is not implemented"))
+}
+
+func (UnimplementedRunsServiceHandler) FollowRun(context.Context, *connect.Request[runs.FollowRunRequest], *connect.ServerStream[runs.RunEvent]) error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.test_genie.v1.runs.RunsService.FollowRun is not implemented"))
+}
+
+func (UnimplementedRunsServiceHandler) WaitRun(context.Context, *connect.Request[runs.WaitRunRequest]) (*connect.Response[runs.WaitRunResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.test_genie.v1.runs.RunsService.WaitRun is not implemented"))
+}
+
+func (UnimplementedRunsServiceHandler) AbortRun(context.Context, *connect.Request[runs.AbortRunRequest]) (*connect.Response[runs.AbortRunResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.test_genie.v1.runs.RunsService.AbortRun is not implemented"))
+}
+
+func (UnimplementedRunsServiceHandler) GetRunStatus(context.Context, *connect.Request[runs.GetRunStatusRequest]) (*connect.Response[runs.RunLiveStatus], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.test_genie.v1.runs.RunsService.GetRunStatus is not implemented"))
 }

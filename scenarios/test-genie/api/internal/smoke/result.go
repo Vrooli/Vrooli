@@ -25,8 +25,9 @@ type BlockedReason string
 const (
 	// BlockedReasonNone indicates no block (test was not blocked).
 	BlockedReasonNone BlockedReason = ""
-	// BlockedReasonBrowserlessOffline indicates Browserless service is unavailable.
-	BlockedReasonBrowserlessOffline BlockedReason = "browserless_offline"
+	// BlockedReasonBASUnavailable indicates the Browser Automation Studio
+	// workflow engine is unreachable, so the capture could not run.
+	BlockedReasonBASUnavailable BlockedReason = "bas_unavailable"
 	// BlockedReasonBundleStale indicates UI bundle is outdated.
 	BlockedReasonBundleStale BlockedReason = "bundle_stale"
 	// BlockedReasonUIPortMissing indicates UI port is defined but not detected.
@@ -37,7 +38,7 @@ const (
 // Compatible with legacy bash implementation exit codes.
 func (r BlockedReason) ExitCode() int {
 	switch r {
-	case BlockedReasonBrowserlessOffline:
+	case BlockedReasonBASUnavailable:
 		return 50
 	case BlockedReasonBundleStale:
 		return 60
@@ -105,14 +106,15 @@ type Result struct {
 	// IframeBridge contains bridge dependency information.
 	IframeBridge *BridgeStatus `json:"iframe_bridge,omitempty"`
 
-	// Browserless contains browserless resource information.
-	Browserless json.RawMessage `json:"browserless,omitempty"`
-
 	// StorageShim contains storage shim patching results.
 	StorageShim []StorageShimEntry `json:"storage_shim,omitempty"`
 
-	// Raw contains the raw browserless response (excluding screenshot).
+	// Raw contains the raw smoke evidence (excluding screenshot bytes).
 	Raw json.RawMessage `json:"raw,omitempty"`
+
+	// PageCaptures holds the per-page all-pages visual capture outcomes (only
+	// populated under the baseline capture profile; empty at default depth).
+	PageCaptures []PageCapture `json:"page_captures,omitempty"`
 }
 
 // HandshakeResult describes the iframe-bridge handshake outcome.
@@ -141,10 +143,7 @@ type ArtifactPaths struct {
 	// Network is the path to the network failures JSON.
 	Network string `json:"network,omitempty"`
 
-	// HTML is the path to the DOM snapshot.
-	HTML string `json:"html,omitempty"`
-
-	// Raw is the path to the raw response JSON.
+	// Raw is the path to the raw evidence JSON.
 	Raw string `json:"raw,omitempty"`
 
 	// Readme is the path to the generated README.md summary.

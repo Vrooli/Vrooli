@@ -23,13 +23,10 @@ func Run(client *Client, args []string) error {
 	scenarioPath := cliutil.ResolveScenarioPath(parsed.Scenario)
 
 	req := Request{
-		URL:            parsed.URL,
-		BrowserlessURL: parsed.BrowserlessURL,
-		TimeoutMs:      parsed.TimeoutMs,
-		NoRecovery:     parsed.NoRecovery,
-		SharedMode:     parsed.SharedMode,
-		AutoStart:      parsed.AutoStart,
-		ScenarioPath:   scenarioPath,
+		URL:          parsed.URL,
+		TimeoutMs:    parsed.TimeoutMs,
+		AutoStart:    parsed.AutoStart,
+		ScenarioPath: scenarioPath,
 	}
 
 	resp, raw, err := client.Run(parsed.Scenario, req)
@@ -65,15 +62,12 @@ func exitWithCode(resp Response) {
 // ParseArgs parses command line arguments for the ui-smoke command.
 func ParseArgs(args []string) (Args, error) {
 	if len(args) == 0 {
-		return Args{}, usageError("usage: ui-smoke <scenario> [--url <ui-url>] [--browserless <url>] [--timeout <ms>] [--no-recovery] [--shared-mode] [--auto-start] [--json]")
+		return Args{}, usageError("usage: ui-smoke <scenario> [--url <ui-url>] [--timeout <ms>] [--auto-start] [--json]")
 	}
 	out := Args{Scenario: args[0]}
 	fs := flag.NewFlagSet("ui-smoke", flag.ContinueOnError)
 	fs.StringVar(&out.URL, "url", "", "Custom UI URL to test (overrides auto-detection)")
-	fs.StringVar(&out.BrowserlessURL, "browserless", "", "Custom Browserless URL (default: http://localhost:4110)")
 	fs.Int64Var(&out.TimeoutMs, "timeout", 0, "Overall timeout in milliseconds (default: 90000)")
-	fs.BoolVar(&out.NoRecovery, "no-recovery", false, "Disable automatic browserless recovery on health failures")
-	fs.BoolVar(&out.SharedMode, "shared-mode", false, "Shared mode: don't restart browserless if other sessions are active")
 	fs.BoolVar(&out.AutoStart, "auto-start", false, "Auto-start the scenario if UI port is not detected")
 	jsonOutput := cliutil.JSONFlag(fs)
 	fs.SetOutput(flag.CommandLine.Output())

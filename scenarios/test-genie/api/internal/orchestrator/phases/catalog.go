@@ -106,11 +106,17 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Capabilities: runnability.PhaseCapabilities{NeedsUI: true},
 	})
 	register(Spec{
-		Name:         Smoke,
-		Runner:       runSmokePhase,
-		Optional:     true,
-		Description:  "Validates UI loads correctly, establishes iframe-bridge communication, and has no critical errors.",
-		Capabilities: runnability.PhaseCapabilities{NeedsUI: true},
+		Name:        Smoke,
+		Runner:      runSmokePhase,
+		Optional:    true,
+		Description: "Validates UI loads correctly, establishes iframe-bridge communication, and has no critical errors.",
+		Capabilities: runnability.PhaseCapabilities{
+			NeedsUI: true,
+			// Smoke runs on the Browser Automation Studio workflow engine. When
+			// BAS is unreachable the runnability gate skips smoke (resource
+			// unavailable) instead of failing it hard.
+			RequiredResources: []string{runnability.ResourceBAS},
+		},
 	})
 	register(Spec{
 		Name:        Unit,

@@ -6,24 +6,20 @@ import (
 	"git-control-tower/internal/git"
 )
 
-// fakeExecutor returns a canned ExecResult and records the phases/diagnostics
-// it was asked to run.
+// fakeExecutor returns a canned ExecResult and records how many comprehensive
+// runs it was asked to trigger. Each call synthesizes a unique runID so a
+// capture run and a diff's current run differ.
 type fakeExecutor struct {
-	result   ExecResult
-	err      error
-	calls    int
-	lastDiag string
-	lastPh   []string
+	result ExecResult
+	err    error
+	calls  int
 }
 
-func (f *fakeExecutor) Execute(_ context.Context, _ string, phases []string, diag string) (ExecResult, error) {
+func (f *fakeExecutor) Execute(_ context.Context, _ string) (ExecResult, error) {
 	f.calls++
-	f.lastPh = phases
-	f.lastDiag = diag
 	if f.err != nil {
 		return ExecResult{}, f.err
 	}
-	// Synthesize a unique runID per call so capture vs diff differ.
 	r := f.result
 	if r.RunID == "" {
 		r.RunID = "run"
@@ -51,6 +47,9 @@ type fakeRuns struct {
 	unpins     []pinCall
 	compare    CompareResult
 	compareErr error
+	// visuals is keyed by runID; a missing key returns an empty slice.
+	visuals    map[string][]RunVisual
+	visualsErr error
 }
 
 func (f *fakeRuns) PinRun(_ context.Context, scenario, runID, by, reason string) error {
@@ -67,30 +66,23 @@ func (f *fakeRuns) CompareRuns(_ context.Context, _, _, _, _ string) (CompareRes
 	return f.compare, f.compareErr
 }
 
-type fakeVisual struct {
-	capture []VisualSnapshot
-	idx     int
-	getSnap VisualSnapshot
-	getOK   bool
-	deleted []string
-}
-
-func (f *fakeVisual) Capture(_ context.Context, _ int64, _, _ string, _ bool) (VisualSnapshot, error) {
-	if f.idx >= len(f.capture) {
-		return VisualSnapshot{}, nil
+func (f *fakeRuns) ListRunVisuals(_ context.Context, _, runID string) ([]RunVisual, error) {
+	if f.visualsErr != nil {
+		return nil, f.visualsErr
 	}
-	r := f.capture[f.idx]
-	f.idx++
-	return r, nil
+	return f.visuals[runID], nil
 }
 
-func (f *fakeVisual) Get(_ context.Context, _ int64, _, _ string) (VisualSnapshot, bool, error) {
-	return f.getSnap, f.getOK, nil
+// fakeReachability returns a canned reachability result and records how many
+// times it was probed.
+type fakeReachability struct {
+	err    error
+	probes int
 }
 
-func (f *fakeVisual) Delete(_ context.Context, _ int64, _, snapshotID string) error {
-	f.deleted = append(f.deleted, snapshotID)
-	return nil
+func (f *fakeReachability) Probe(_ context.Context) error {
+	f.probes++
+	return f.err
 }
 
 // fixedGit returns a CaptureGit func yielding a fixed state.

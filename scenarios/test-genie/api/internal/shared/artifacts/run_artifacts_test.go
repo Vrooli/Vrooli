@@ -70,3 +70,75 @@ func TestListRunVideos(t *testing.T) {
 		t.Fatalf("expected size 4, got %d", got[0].SizeBytes)
 	}
 }
+
+func TestListRunVisuals(t *testing.T) {
+	scenarioDir := t.TempDir()
+	runID := "run-v"
+	pagesDir := RunUISmokePagesDir(scenarioDir, runID)
+
+	// page "/" with screenshot + video.
+	rootDir := filepath.Join(pagesDir, "_root_")
+	if err := os.MkdirAll(rootDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(rootDir, "page.json"), []byte(`{"page":"/","label":"Home"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(rootDir, "screenshot.png"), []byte("PNGDATA"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(rootDir, "video.webm"), []byte("VID"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// page "/backlog" with screenshot only.
+	backlogDir := filepath.Join(pagesDir, "backlog")
+	if err := os.MkdirAll(backlogDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(backlogDir, "page.json"), []byte(`{"page":"/backlog","label":"Backlog"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(backlogDir, "screenshot.png"), []byte("PNG2"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	visuals, err := ListRunVisuals(scenarioDir, runID)
+	if err != nil {
+		t.Fatalf("ListRunVisuals error: %v", err)
+	}
+	if len(visuals) != 2 {
+		t.Fatalf("expected 2 visuals, got %d", len(visuals))
+	}
+	// Sorted by page route: "/" before "/backlog".
+	if visuals[0].Page != "/" || visuals[0].Label != "Home" {
+		t.Fatalf("first visual = %+v", visuals[0])
+	}
+	if visuals[0].ScreenshotRelPath != "ui-smoke/pages/_root_/screenshot.png" {
+		t.Fatalf("screenshot rel path = %q", visuals[0].ScreenshotRelPath)
+	}
+	if visuals[0].VideoRelPath != "ui-smoke/pages/_root_/video.webm" {
+		t.Fatalf("video rel path = %q", visuals[0].VideoRelPath)
+	}
+	if visuals[0].ScreenshotSizeBytes != int64(len("PNGDATA")) {
+		t.Fatalf("screenshot size = %d", visuals[0].ScreenshotSizeBytes)
+	}
+	if visuals[1].Page != "/backlog" || visuals[1].VideoRelPath != "" {
+		t.Fatalf("second visual = %+v", visuals[1])
+	}
+
+	// Resolution of a returned rel path must work and stay inside the run dir.
+	if _, err := ResolveRunArtifact(scenarioDir, runID, visuals[0].ScreenshotRelPath); err != nil {
+		t.Fatalf("ResolveRunArtifact(%q) error: %v", visuals[0].ScreenshotRelPath, err)
+	}
+}
+
+func TestListRunVisualsEmptyWhenNoCaptures(t *testing.T) {
+	visuals, err := ListRunVisuals(t.TempDir(), "missing")
+	if err != nil {
+		t.Fatalf("expected nil error for missing run, got %v", err)
+	}
+	if len(visuals) != 0 {
+		t.Fatalf("expected empty slice, got %d", len(visuals))
+	}
+}

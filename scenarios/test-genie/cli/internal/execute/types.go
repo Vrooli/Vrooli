@@ -21,10 +21,8 @@ type Request struct {
 	// Runtime URLs for phases that need to connect to running services.
 	// UIURL/APIURL are optional overrides; when omitted, Test Genie manages the
 	// target scenario lifecycle and discovers URLs from lifecycle process metadata.
-	// BrowserlessURL falls back to BROWSERLESS_URL env var or default if not specified.
-	UIURL          string `json:"uiUrl,omitempty"`
-	APIURL         string `json:"apiUrl,omitempty"`
-	BrowserlessURL string `json:"browserlessUrl,omitempty"`
+	UIURL  string `json:"uiUrl,omitempty"`
+	APIURL string `json:"apiUrl,omitempty"`
 
 	// ScenarioPath is the absolute physical path to the scenario directory that
 	// test-genie should read and write. When empty, the API resolves the physical

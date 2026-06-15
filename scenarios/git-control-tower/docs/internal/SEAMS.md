@@ -267,25 +267,31 @@ Operator-facing config file:
 `scenarios/git-control-tower/.vrooli/config.json` (top-level `policy`
 key). See `api/internal/config/config.go` for schema.
 
-## Baseline Surface-Adapter Seams
+## Baseline Seams
 
 **Location**: `api/internal/baseline/` (declarations) + `api/baseline_clients.go` (production wiring) + `api/internal/git/state.go`.
 
-The baseline subsystem captures and diffs a scenario's cross-surface review state (workflows, tests, structure, visuals, rules). It owns *pointers*, not artifacts (Decision 1). Every external dependency is an injected interface so the orchestration `Service` and the five adapters are unit-testable with fakes — the `baseline` package never imports the flat `main` package (no import cycle), so all live-dependency wiring lives in `baseline_clients.go`.
+The baseline subsystem captures and diffs a scenario's cross-surface review state (structure, rules, tests, workflows, visuals) from **one** comprehensive, durable test-genie run pinned once; surfaces are phase-set / artifact **views** over that single run (no per-surface adapters). It owns *pointers*, not artifacts (Decision 1). Every external dependency is an injected interface so the orchestration `Service` is unit-testable with fakes — the `baseline` package never imports the flat `main` package (no import cycle), so all live-dependency wiring lives in `baseline_clients.go`. The `{surface → phase-set}` mapping is the SSOT in `internal/baseline/views.go`.
 
 | Seam | Declaration | Production Impl | Test Double | Why it exists |
 |---|---|---|---|---|
-| `SurfaceAdapter` | `internal/baseline/adapter.go` | `NewWorkflowsAdapter` / `NewTestsAdapter` / `NewStructureAdapter` / `NewRulesAdapter` / `NewVisualsAdapter` | `fakeAdapter` in `adapter_test.go` | One contract per review surface: `Capture`/`Diff`/`Available`. Service orchestrates; adapters own surface logic (Decision 3). |
-| `Executor` | `internal/baseline/adapter.go` | `baselineExecutor` (test-genie execute API) in `baseline_clients.go` | `fakeExecutor` in `fakes_test.go` | Triggers a phase-scoped test-genie run and returns the runID. |
-| `RunsClient` | `internal/baseline/adapter.go` | `baselineRunsClient` (test-genie `RunsService` Connect-RPC) | `fakeRuns` in `fakes_test.go` | Pin/unpin/compare runs; the workflows/tests/structure/rules adapters all diff via `CompareRuns` (each scoped to its phase set). |
-| `VisualClient` | `internal/baseline/adapter.go` | `baselineVisualClient` (GCT visual capture + storage) | `fakeVisual` in `fakes_test.go` | GCT-local visual snapshot capture/lookup (the one surface that is not a test-genie run). |
-| `StalenessProbe` | `internal/baseline/adapter.go` | `baselineStalenessProbe` (read-only `git rev-list`/`diff`) | injected fake in `service_test.go` | Commits/files-changed since the baseline sha; read-only (`feedback_no_git_mutations`). |
+| `Executor` | `internal/baseline/seams.go` | `baselineExecutor` (test-genie execute API, `preset=comprehensive` + `captureProfile=baseline`) in `baseline_clients.go` | `fakeExecutor` in `fakes_test.go` | Triggers ONE comprehensive run and returns the runID. Capture and diff both reuse this single run. |
+| `RunsClient` | `internal/baseline/seams.go` | `baselineRunsClient` (test-genie `RunsService` Connect-RPC) | `fakeRuns` in `fakes_test.go` | Pin/unpin the shared run; one empty-phase `CompareRuns` returns every phase's delta (GCT buckets to surfaces locally — option-c); `ListRunVisuals` enumerates the run's visual artifacts for the metadata-level visuals diff. |
+| `StalenessProbe` | `internal/baseline/seams.go` | `baselineStalenessProbe` (read-only `git rev-list`/`diff`) | injected fake in `service_test.go` | Commits/files-changed since the baseline sha; read-only (`feedback_no_git_mutations`). |
+| `Reachability` | `internal/baseline/seams.go` | `baselineReachability` (short-timeout `GET /health` on the discovery-resolved test-genie URL, ~5s) in `baseline_clients.go` | `fakeReachability` in `fakes_test.go` | Fast, bounded liveness check probed BEFORE committing to the multi-minute comprehensive run. Unreachable → capture skips every surface (clear reason) / diff marks surfaces not-comparable, instead of blocking to the 15m/30m client deadlines (the reported silent-hang fix). Replaced the old `exec==nil||runs==nil` stub. |
 | `CaptureGit` | `internal/baseline/service.go` (`Deps.CaptureGit`) | `git.Capture` (`internal/git/state.go`) | injected func in `service_test.go` | Reads sha/branch/dirty/detached; sandbox-aware; never mutates. |
 
 Seam guardrails:
 - The `baseline` package imports neither `main` nor `connectrpc.com/connect`; transport + live clients stay in `baseline_clients.go` / `handlers/baseline/`.
-- Baseline manifests are pointers only — adapters reference test-genie runs (pinned) or GCT-local snapshot IDs; they never copy artifacts.
+- Baseline manifests are pointers only — every surface references the one pinned test-genie run; they never copy artifacts.
+- A baseline pins ONE run and unpins it ONCE on delete, regardless of surface count.
 - `BaselineStorage` is branch-scoped and `flock`-protected (`storage.go`); writes are atomic temp-file renames.
+- **Snapshot durability (Phase 5):** `SnapshotForBaseline` runs the orchestration tail (run → pin → manifest write) under `context.WithoutCancel(ctx)` + a `snapshotTailCeiling` ceiling, so a client that disconnects AFTER the durable run completes cannot abandon a half-pinned, manifest-less baseline. The heavy run itself is durable in test-genie's `runmanager`; GCT keeps NO parallel job system. The CLI applies a bounded deadline (not bare `context.Background()`) and on SIGINT detaches (cancel ≠ abort) with `test-genie runs wait <scenario> <run-id>` re-attach guidance.
+
+### Observability Surface (baseline snapshot)
+- **States/transitions:** `SnapshotForBaseline` logs a start line (`scenario`, `name`, "durable server-side") and a completion line (`run`, `surfaces`, `skipped`). The CLI prints an up-front banner (run is durable, bounded deadline, re-attach command) before the long wait, and a detach line on interrupt/deadline — so the snapshot never reads as a silent hang.
+- **Skip reasons are first-class:** every fast-skip carries its cause into the manifest's `skipped` map (`test-genie unreachable (fast-skip, not blocked): …`), surfaced by `show`/`diff` so a partial baseline can't masquerade as complete.
+- **Signal stability:** the re-attach verb is the existing `test-genie runs wait`; GCT adds no new wait verb.
 
 ## Verification Checklist
 
@@ -301,8 +307,10 @@ When adding new behavior, verify:
 - Tests can swap in `FakeGitRunner`, `FakeWorkspaceSandboxAPI`, or `SQLiteRepoStore` (memory DB).
 - Cross-scenario HTTP client tests use `api/internal/testutil/httpx`.
 - Repository layout fixtures use `api/internal/testutil/fixtures` — `WriteRepoContract` copies the **live** `.vrooli/repo-contract.json` verbatim; never hand-type a contract literal (it drifts when the schema gains a required field).
-- Baseline surface dependencies (`Executor`, `RunsClient`, `VisualClient`, `StalenessProbe`, `CaptureGit`) are injected via `baseline.Deps`; tests use the fakes in `internal/baseline/fakes_test.go`, never live clients.
-- Structure and rules are test-genie surfaces (phases `structure` and `standards`), not direct scenario-auditor calls — GCT pins the run and diffs via `CompareRuns`, the same boundary as workflows↔playbooks (Decision 3). The only direct scenario-auditor consumer left in GCT is the live review UI proxy (out of the baseline path).
+- Baseline dependencies (`Executor`, `RunsClient`, `StalenessProbe`, `CaptureGit`) are injected via `baseline.Deps`; tests use the fakes in `internal/baseline/fakes_test.go`, never live clients.
+- A baseline is ONE comprehensive run, pinned once; surfaces are phase-set views (`internal/baseline/views.go`). Diff issues one empty-phase `CompareRuns` and buckets the `PhaseDiff[]` into surfaces locally (option-c). The visuals surface diffs at the metadata level over the two runs' `ListRunVisuals`; GCT no longer captures or stores baseline screenshots (that subsystem was deleted from the baseline path in Phase 4).
+- Structure and rules are test-genie phases (`structure` and `standards`), not direct scenario-auditor calls — the same boundary as workflows↔playbooks (Decision 3). The only direct scenario-auditor consumer left in GCT is the live review UI proxy (out of the baseline path).
+- The standalone GCT visual-capture REST feature (`visual_capture_*`, `/api/v1/repo/visual-captures`, periodic capture, review-panel screenshot dimensions) is a **separate** live capability with its own `VisualCaptureStorage`; it is NOT part of the baseline subsystem and was intentionally left in place.
 - **WorkflowReplayService** (`handlers/workflowreplay/`) is a thin Connect proxy over test-genie playbooks runs for the Workflows tab (Decision 3 — the UI never calls test-genie directly). Its `RunsClient` seam (concrete `workflowReplayRunsClient` in `workflowreplay_clients.go`, discovery-resolved; faked via `fakeRuns` in `connect_handler_test.go`) wraps `RunsService.{ListRuns,GetRun,ListRunVideos}`. Binary video bytes stream over the REST proxy route `GET /repo/workflow-runs/{runId}/video` (`workflow_run_video_handler.go`), not proto. The former workflow-capture stack (BrowserAutomationClient-driven, GCT-local `WorkflowCaptureResult` store) was deleted in Plan B; BrowserAutomationClient remains only for the visuals/screenshots surface.
 - SQLite persistence tests use `api/internal/testutil/db`.
 - UI tests use the shared setup and React Query/fetch/viewport helpers.

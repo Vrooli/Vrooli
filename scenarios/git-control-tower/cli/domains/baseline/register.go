@@ -11,11 +11,14 @@ package baseline
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 
 	"connectrpc.com/connect"
@@ -37,10 +40,12 @@ const (
 	exitNotComparable = 2
 )
 
-// baselineClientTimeout bounds snapshot/diff, which synchronously trigger
-// multi-minute test-genie runs + BAS capture server-side (the server's own runs
-// client allows 15m). The scenario-default client timeout would abort the call
-// mid-capture, so the baseline client gets its own long deadline.
+// baselineClientTimeout bounds snapshot/diff, which block while one
+// comprehensive, server-durable test-genie run executes (the server's own runs
+// client allows 15m). It is a CEILING, not the expected wait: the snapshot
+// fast-skips an unreachable backend in seconds, and an interrupt detaches
+// without aborting the durable run. The scenario-default client timeout would
+// abort mid-run, so the baseline client gets its own long, bounded deadline.
 const baselineClientTimeout = 30 * time.Minute
 
 // clientFactory builds the BaselinesService Connect client. Overridable in tests.
@@ -56,7 +61,7 @@ var clientFactory = func(core *cliapp.ScenarioApp) baselines_v1connect.Baselines
 // engagement.go + promote.go).
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	subcommands := []cliapp.Command{
-		{Name: "snapshot", NeedsAPI: true, Description: "Capture a baseline (--scenario --name [--branch] [--include w,t,...] [--fast|--full] [--reason])", Run: func(a []string) error { return runSnapshot(core, a) }},
+		{Name: "snapshot", NeedsAPI: true, Description: "Capture a baseline from one durable test-genie run (--scenario --name [--branch] [--include w,t,...] [--fast|--full] [--reason]); Ctrl-C detaches (re-attach via test-genie runs wait), never aborts", Run: func(a []string) error { return runSnapshot(core, a) }},
 		{Name: "diff", NeedsAPI: true, Description: "Diff a baseline against the working tree (--scenario --name [--branch] [--surface]); exit 1 on regression, 2 on not-comparable", Run: func(a []string) error { return runDiff(core, a) }},
 		{Name: "list", NeedsAPI: true, Description: "List baselines (--scenario [--branch] [--all-branches])", Run: func(a []string) error { return runList(core, a) }},
 		{Name: "show", NeedsAPI: true, Description: "Show one baseline (--scenario --name [--branch])", Run: func(a []string) error { return runShow(core, a) }},
@@ -125,12 +130,36 @@ func runSnapshot(core *cliapp.ScenarioApp, args []string) error {
 		fast = false
 	}
 
+	// Up-front signal (signal-and-feedback-surface-design): a snapshot triggers
+	// ONE comprehensive, server-durable test-genie run. The heavy work survives
+	// this CLI disconnecting; we just block to relay the verdict. Tell the
+	// operator that before the long wait so it never reads as a silent hang.
+	if !c.json {
+		fmt.Printf("Capturing baseline %q for %s — triggering one comprehensive test-genie run (durable server-side).\n", c.name, c.scenario)
+		fmt.Printf("  The run continues even if this command is interrupted; bounded client deadline %s.\n", humanDuration(baselineClientTimeout))
+		fmt.Printf("  If the wait drops, find the run with: test-genie runs list --scenario %s   then re-attach: test-genie runs wait %s <run-id>\n", c.scenario, c.scenario)
+	}
+
+	// Bounded deadline (not bare context.Background()) so the CLI can never hang
+	// forever; SIGINT detaches WITHOUT aborting the server-side run.
+	ctx, cancel := context.WithTimeout(context.Background(), baselineClientTimeout)
+	defer cancel()
+	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	client := clientFactory(core)
-	resp, err := client.SnapshotForBaseline(context.Background(), connect.NewRequest(&baselinesv1.SnapshotForBaselineRequest{
+	resp, err := client.SnapshotForBaseline(ctx, connect.NewRequest(&baselinesv1.SnapshotForBaselineRequest{
 		Scenario: c.scenario, Name: c.name, Branch: c.branch,
 		Include: splitCSV(include), Fast: fast, Reason: reason, CreatedBy: "agent",
 	}))
 	if err != nil {
+		// Cancel ≠ abort: an interrupt or deadline detaches from the durable
+		// run, it does not stop it. Guide the operator back to it and exit 0.
+		if isDetach(ctx, err) {
+			fmt.Fprintf(os.Stderr, "\nDetached from the snapshot — the comprehensive run continues server-side (not aborted).\n")
+			fmt.Fprintf(os.Stderr, "Re-attach: test-genie runs list --scenario %s   then: test-genie runs wait %s <run-id>\n", c.scenario, c.scenario)
+			return nil
+		}
 		return err
 	}
 	if c.json {
@@ -138,6 +167,18 @@ func runSnapshot(core *cliapp.ScenarioApp, args []string) error {
 	}
 	printSnapshot(resp.Msg)
 	return nil
+}
+
+// humanDuration renders a duration compactly (e.g. "30m0s") for the snapshot
+// banner. Trivial wrapper kept local so the banner reads in one place.
+func humanDuration(d time.Duration) string { return d.String() }
+
+// isDetach reports whether a SnapshotForBaseline error is a client-side
+// detach (interrupt or bounded-deadline elapsed) rather than a real failure.
+// A detach is NOT an abort: the durable run continues server-side, so the CLI
+// exits 0 with re-attach guidance instead of surfacing an error.
+func isDetach(ctx context.Context, err error) bool {
+	return ctx.Err() != nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
 }
 
 func runDiff(core *cliapp.ScenarioApp, args []string) error {

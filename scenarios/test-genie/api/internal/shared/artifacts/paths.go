@@ -173,6 +173,16 @@ func RunUISmokeDir(scenarioDir, runID string) string {
 	return filepath.Join(RunDir(scenarioDir, runID), UISmokeSubdir)
 }
 
+// UISmokePagesSubdir is the per-run subdirectory holding all-pages visual
+// captures (one directory per page) produced under the baseline capture profile.
+const UISmokePagesSubdir = "pages"
+
+// RunUISmokePagesDir returns the absolute per-run all-pages visual capture
+// directory (coverage/runs/<runID>/ui-smoke/pages/).
+func RunUISmokePagesDir(scenarioDir, runID string) string {
+	return filepath.Join(RunUISmokeDir(scenarioDir, runID), UISmokePagesSubdir)
+}
+
 // RunAutomationDir returns the absolute per-run automation directory.
 func RunAutomationDir(scenarioDir, runID string) string {
 	return filepath.Join(RunDir(scenarioDir, runID), AutomationSubdir)

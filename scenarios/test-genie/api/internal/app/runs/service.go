@@ -218,6 +218,36 @@ func (s *Service) ListRunVideos(ctx context.Context, req *connect.Request[runspb
 	return connect.NewResponse(&runspb.ListRunVideosResponse{Videos: out}), nil
 }
 
+// ListRunVisuals enumerates the per-page UI smoke visual artifacts (screenshot +
+// optional video) a run captured under the baseline capture profile. The binary
+// content is served by the REST artifact route; this returns the structured
+// page set + rel-path handles git-control-tower diffs at the metadata level.
+func (s *Service) ListRunVisuals(ctx context.Context, req *connect.Request[runspb.ListRunVisualsRequest]) (*connect.Response[runspb.ListRunVisualsResponse], error) {
+	dir, err := s.scenarioDir(req.Msg.GetScenario())
+	if err != nil {
+		return nil, err
+	}
+	runID := strings.TrimSpace(req.Msg.GetRunId())
+	if runID == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("run_id is required"))
+	}
+	visuals, err := sharedartifacts.ListRunVisuals(dir, runID)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	out := make([]*runspb.RunVisual, 0, len(visuals))
+	for _, v := range visuals {
+		out = append(out, &runspb.RunVisual{
+			Page:                v.Page,
+			Label:               v.Label,
+			ScreenshotRelPath:   v.ScreenshotRelPath,
+			VideoRelPath:        v.VideoRelPath,
+			ScreenshotSizeBytes: v.ScreenshotSizeBytes,
+		})
+	}
+	return connect.NewResponse(&runspb.ListRunVisualsResponse{Visuals: out}), nil
+}
+
 // ResolveArtifact maps a (scenario, runID, run-relative path) to an absolute
 // filesystem path under the run's artifact root, rejecting traversal. Used by
 // the REST binary artifact route to stream videos without exposing

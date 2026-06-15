@@ -11,6 +11,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"time"
 
 	"connectrpc.com/connect"
 
@@ -20,6 +21,13 @@ import (
 	baselinesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/baselines"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/baselines/baselines_v1connect"
 )
+
+// snapshotTailCeiling bounds the detached snapshot orchestration so a wedged
+// test-genie can never leak a goroutine forever. It must comfortably exceed the
+// comprehensive run + pin + manifest write; the reachability probe already
+// makes the common unreachable case fail in seconds, so this is a backstop, not
+// the normal path.
+const snapshotTailCeiling = 30 * time.Minute
 
 // RepoResolver maps an optional explicit repoID (0 = active repo) to a concrete
 // (repoID, repoDir) pair the baseline service operates on.
@@ -95,13 +103,30 @@ func (s *Server) CreateBaseline(ctx context.Context, req *connect.Request[baseli
 	}), nil
 }
 
+// SnapshotForBaseline captures a baseline from ONE comprehensive, durable
+// test-genie run. The reported silent-hang fix has two halves: (1) the heavy run
+// is already durable in test-genie's runmanager, and (2) the cheap orchestration
+// tail (pin + manifest write) runs under the server-lifetime context, NOT the
+// request context — so a client that disconnects (or Ctrl-Cs) AFTER the run
+// completes can never abandon a half-pinned, manifest-less baseline. The tail is
+// bounded by snapshotTailCeiling so a wedged backend can't leak a goroutine.
+// Request values (caller header, etc.) are preserved via context.WithoutCancel.
 func (s *Server) SnapshotForBaseline(ctx context.Context, req *connect.Request[baselinesv1.SnapshotForBaselineRequest]) (*connect.Response[baselinesv1.SnapshotForBaselineResponse], error) {
 	m := req.Msg
 	rid, repoDir, err := s.repos.Resolve(ctx, m.GetRepoId())
 	if err != nil {
 		return nil, s.wrap("SnapshotForBaseline", err)
 	}
-	res, err := s.svc.Create(ctx, bl.CreateRequest{
+
+	// Detach the orchestration from the client connection: keep the request's
+	// values (caller header, auth) via WithoutCancel but drop its cancellation,
+	// then apply our own ceiling so a wedged backend can't leak a goroutine.
+	tailCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), snapshotTailCeiling)
+	defer cancel()
+
+	s.logger.Printf("baselines.SnapshotForBaseline: starting comprehensive snapshot scenario=%s name=%s (durable server-side; client disconnect will not abandon the pin/manifest)", m.GetScenario(), m.GetName())
+
+	res, err := s.svc.Create(tailCtx, bl.CreateRequest{
 		RepoID: rid, RepoDir: repoDir, Scenario: m.GetScenario(), Name: m.GetName(),
 		Branch: m.GetBranch(), Include: m.GetInclude(), Fast: m.GetFast(),
 		Capture: true, CreatedBy: m.GetCreatedBy(), Reason: m.GetReason(),
@@ -109,6 +134,7 @@ func (s *Server) SnapshotForBaseline(ctx context.Context, req *connect.Request[b
 	if err != nil {
 		return nil, s.wrap("SnapshotForBaseline", err)
 	}
+	s.logger.Printf("baselines.SnapshotForBaseline: snapshot complete scenario=%s name=%s run=%s surfaces=%d skipped=%d", m.GetScenario(), m.GetName(), res.Manifest.RunID(), len(res.Manifest.Surfaces), len(res.Skipped))
 	return connect.NewResponse(&baselinesv1.SnapshotForBaselineResponse{
 		Baseline: manifestToProto(res.Manifest), Skipped: res.Skipped, DirtyWarning: res.DirtyWarning,
 	}), nil

@@ -178,7 +178,7 @@ func (p *TestingToolProvider) runScenarioTestsTool() *toolspb.ToolDefinition {
 func (p *TestingToolProvider) runUiSmokeTool() *toolspb.ToolDefinition {
 	return &toolspb.ToolDefinition{
 		Name:        "run_ui_smoke",
-		Description: "Run UI smoke tests for a scenario. Tests that the UI loads and basic interactions work. Requires browserless service to be running.",
+		Description: "Run UI smoke tests for a scenario. Tests that the UI loads and basic interactions work. Requires the browser-automation-studio scenario to be running.",
 		Category:    "test_execution",
 		Parameters: &toolspb.ToolParameters{
 			Type: "object",
@@ -190,10 +190,6 @@ func (p *TestingToolProvider) runUiSmokeTool() *toolspb.ToolDefinition {
 				"ui_url": {
 					Type:        "string",
 					Description: "URL of the UI to test. Auto-detected from scenario config if not specified.",
-				},
-				"browserless_url": {
-					Type:        "string",
-					Description: "URL of the browserless service. Uses default if not specified.",
 				},
 				"timeout_ms": {
 					Type:        "integer",

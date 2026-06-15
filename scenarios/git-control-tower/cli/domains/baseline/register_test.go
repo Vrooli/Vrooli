@@ -1,6 +1,51 @@
 package baseline
 
-import "testing"
+import (
+	"context"
+	"errors"
+	"testing"
+	"time"
+)
+
+// A snapshot interrupted (SIGINT) or whose bounded client deadline elapses must
+// DETACH (exit 0, the durable run continues), not surface as a hard error.
+// A genuine RPC error must propagate.
+func TestIsDetach(t *testing.T) {
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	live := context.Background()
+
+	cases := []struct {
+		name string
+		ctx  context.Context
+		err  error
+		want bool
+	}{
+		{"interrupt cancels ctx", canceled, errors.New("rpc aborted"), true},
+		{"deadline exceeded", live, context.DeadlineExceeded, true},
+		{"explicit canceled error", live, context.Canceled, true},
+		{"real backend error", live, errors.New("internal: pin failed"), false},
+	}
+	for _, tc := range cases {
+		if got := isDetach(tc.ctx, tc.err); got != tc.want {
+			t.Errorf("%s: isDetach = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestHumanDuration(t *testing.T) {
+	if got := humanDuration(30 * time.Minute); got != "30m0s" {
+		t.Errorf("humanDuration = %q", got)
+	}
+}
+
+func TestBaselineClientTimeoutIsBounded(t *testing.T) {
+	// The snapshot/diff deadline must be a finite ceiling, never zero (which
+	// http.Client treats as "no timeout" — the bare-Background hang this fixes).
+	if baselineClientTimeout <= 0 {
+		t.Fatalf("baselineClientTimeout must be a positive ceiling, got %v", baselineClientTimeout)
+	}
+}
 
 func TestExitCodeForVerdict(t *testing.T) {
 	cases := map[string]int{

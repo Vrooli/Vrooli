@@ -154,7 +154,12 @@ test-genie run-tests my-scenario --playbook bas/cases/smoke/dashboard-loads.json
 
 ## ui-smoke
 
-Run only the shared Browserless-backed UI smoke harness.
+Run only the shared UI smoke harness. The harness embeds the scenario UI in a
+host iframe shell on the **Browser Automation Studio (BAS)** workflow engine,
+waits for the iframe-bridge handshake (a hard-fail gate), and captures a
+screenshot plus console/network observations. BAS must be running
+(`vrooli scenario start browser-automation-studio`); when it is unreachable the
+smoke phase skips rather than failing hard.
 
 ```bash
 test-genie ui-smoke <scenario-name> [options]

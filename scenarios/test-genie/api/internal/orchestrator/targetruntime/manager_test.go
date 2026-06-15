@@ -95,7 +95,7 @@ func TestRestartWithEnvUsesPathAwareRestartAndEnvOverrides(t *testing.T) {
 func TestCommandEnvironmentScrubsCallerRuntimePorts(t *testing.T) {
 	t.Setenv("UI_PORT", "21223")
 	t.Setenv("API_PORT", "15421")
-	t.Setenv("BROWSERLESS_URL", "http://localhost:4110")
+	t.Setenv("CUSTOM_TOOL_URL", "http://localhost:4321")
 
 	env := commandEnvironment(map[string]string{"DATABASE_URL": "postgres://temp"})
 	for _, item := range env {
@@ -103,7 +103,7 @@ func TestCommandEnvironmentScrubsCallerRuntimePorts(t *testing.T) {
 			t.Fatalf("caller runtime port leaked into command environment: %v", env)
 		}
 	}
-	if !containsEnv(env, "BROWSERLESS_URL=http://localhost:4110") {
+	if !containsEnv(env, "CUSTOM_TOOL_URL=http://localhost:4321") {
 		t.Fatalf("unrelated env should be preserved: %v", env)
 	}
 	if !containsEnv(env, "DATABASE_URL=postgres://temp") {

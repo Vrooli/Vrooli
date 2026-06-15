@@ -7,12 +7,9 @@ import (
 
 // Request represents the UI smoke test request payload.
 type Request struct {
-	URL            string `json:"url,omitempty"`
-	BrowserlessURL string `json:"browserless_url,omitempty"`
-	TimeoutMs      int64  `json:"timeout_ms,omitempty"`
-	NoRecovery     bool   `json:"no_recovery,omitempty"`
-	SharedMode     bool   `json:"shared_mode,omitempty"`
-	AutoStart      bool   `json:"auto_start,omitempty"`
+	URL       string `json:"url,omitempty"`
+	TimeoutMs int64  `json:"timeout_ms,omitempty"`
+	AutoStart bool   `json:"auto_start,omitempty"`
 
 	// ScenarioPath overrides the scenario directory path. Set by the CLI
 	// when running inside a sandboxed agent.
@@ -37,14 +34,16 @@ type Response struct {
 	Bundle              json.RawMessage `json:"bundle,omitempty"`
 }
 
-// Exit codes compatible with legacy bash implementation.
+// Exit codes mirror the API smoke runner's BlockedReason.ExitCode mapping
+// (scenarios/test-genie/api/internal/smoke/result.go).
 const (
 	// ExitSuccess indicates the test passed.
 	ExitSuccess = 0
 	// ExitFailure indicates the test failed.
 	ExitFailure = 1
-	// ExitBrowserlessOffline indicates Browserless service is unavailable.
-	ExitBrowserlessOffline = 50
+	// ExitBASUnavailable indicates the Browser Automation Studio workflow engine
+	// is unreachable, so the smoke capture could not run.
+	ExitBASUnavailable = 50
 	// ExitBundleStale indicates UI bundle is outdated.
 	ExitBundleStale = 60
 	// ExitUIPortMissing indicates UI port is defined but not detected.
@@ -54,8 +53,8 @@ const (
 // ExitCodeForBlockedReason returns the exit code for a blocked reason.
 func ExitCodeForBlockedReason(reason string) int {
 	switch reason {
-	case "browserless_offline":
-		return ExitBrowserlessOffline
+	case "bas_unavailable":
+		return ExitBASUnavailable
 	case "bundle_stale":
 		return ExitBundleStale
 	case "ui_port_missing":
@@ -67,12 +66,9 @@ func ExitCodeForBlockedReason(reason string) int {
 
 // Args holds parsed command line arguments.
 type Args struct {
-	Scenario       string
-	URL            string
-	BrowserlessURL string
-	TimeoutMs      int64
-	JSON           bool
-	NoRecovery     bool
-	SharedMode     bool
-	AutoStart      bool
+	Scenario  string
+	URL       string
+	TimeoutMs int64
+	JSON      bool
+	AutoStart bool
 }

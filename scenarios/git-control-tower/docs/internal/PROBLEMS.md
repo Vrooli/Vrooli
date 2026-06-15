@@ -13,9 +13,9 @@ Known issues, tech debt, and deferred work for the git-control-tower scenario.
   validation, explicit allowlists, and safe defaults for any mutating endpoint.
 - Repository size and file counts can cause slow status/diff calls; plan
   pagination and caching before claiming "production-ready".
-- Some `test-genie` phases (smoke/performance) may require a running
-  Browserless service; defer those phases until the shared test infrastructure
-  is available.
+- Some `test-genie` phases (smoke/performance) require a running Browser
+  Automation Studio (BAS) workflow engine; when BAS is unreachable, smoke
+  routes through the runnability resolver and SKIPs rather than hard-failing.
 - `vrooli scenario status git-control-tower` currently fails its optional
   `test-genie` structure probe due to an unsupported `-no-record` flag; the
   core scenario test lifecycle still uses `test-genie execute`.

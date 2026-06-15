@@ -30,6 +30,12 @@ type Environment struct {
 	// control.
 	DiagnosticsPreset string
 
+	// CaptureProfile is the capture-depth dial threaded to the smoke phase. ""
+	// (default) keeps smoke single-page on the workflow engine (unchanged cost);
+	// "baseline" requests all-pages visual capture + video. See
+	// internal/captureprofile.
+	CaptureProfile string
+
 	ScenarioName string
 	ScenarioDir  string
 	// TestDir is the legacy "testing workspace" root. Vrooli no longer requires
@@ -42,10 +48,9 @@ type Environment struct {
 
 	// Runtime URLs for phases that need to connect to running services.
 	// These are optional and may be empty if the scenario isn't running.
-	UIURL          string // Base URL for the scenario UI (e.g., "http://localhost:3000")
-	APIURL         string // Base URL for the scenario API (e.g., "http://localhost:8080")
-	BrowserlessURL string // URL for Browserless service (e.g., "http://localhost:4110")
-	TargetRuntime  TargetRuntime
+	UIURL         string // Base URL for the scenario UI (e.g., "http://localhost:3000")
+	APIURL        string // Base URL for the scenario API (e.g., "http://localhost:8080")
+	TargetRuntime TargetRuntime
 	// Claims governs single-slot concurrency for the playbooks phase. Nil
 	// means the orchestrator was wired without claim support — phases will
 	// refuse to run the playbooks path in that case (a wiring bug).
@@ -74,11 +79,10 @@ type ScenarioWorkspace struct {
 	artifactDir string
 
 	// Runtime URLs (set via SetRuntimeURLs)
-	uiURL          string
-	apiURL         string
-	browserlessURL string
-	targetRuntime  TargetRuntime
-	claims         *playbooksclaims.Service
+	uiURL         string
+	apiURL        string
+	targetRuntime TargetRuntime
+	claims        *playbooksclaims.Service
 }
 
 // Options configures scenario workspace resolution.
@@ -187,7 +191,6 @@ func (w *ScenarioWorkspace) Environment() Environment {
 		Mapping:         w.Mapping,
 		UIURL:           w.uiURL,
 		APIURL:          w.apiURL,
-		BrowserlessURL:  w.browserlessURL,
 		TargetRuntime:   w.targetRuntime,
 		Claims:          w.claims,
 	}
@@ -204,13 +207,12 @@ func (w *ScenarioWorkspace) SetClaims(svc *playbooksclaims.Service) {
 
 // SetRuntimeURLs configures the runtime service URLs for phases that need to connect
 // to running services (e.g., Lighthouse audits, integration tests).
-func (w *ScenarioWorkspace) SetRuntimeURLs(uiURL, apiURL, browserlessURL string) {
+func (w *ScenarioWorkspace) SetRuntimeURLs(uiURL, apiURL string) {
 	if w == nil {
 		return
 	}
 	w.uiURL = uiURL
 	w.apiURL = apiURL
-	w.browserlessURL = browserlessURL
 }
 
 // SetTargetRuntime configures the lifecycle manager used by phases that need to

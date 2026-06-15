@@ -7,12 +7,14 @@
 
 The smoke phase validates that a scenario's UI loads correctly, establishes communication with the host via iframe-bridge, and produces no critical JavaScript errors. It runs after the lint phase and before unit tests as a quick sanity check.
 
+The smoke phase embeds the scenario's UI in a host iframe shell on the **Browser Automation Studio (BAS)** workflow engine, waits for the iframe-bridge handshake (a hard-fail gate), and captures a screenshot plus console and network failures. The browser engine is reached through the shared BAS workflow client (the same one the playbooks phase uses); the engine choice is isolated to `internal/browsercapture`, and the verdict is produced by the shared `internal/evidence` analyzer.
+
 ## What Gets Validated
 
 ```mermaid
 graph TB
     subgraph "Smoke Phase Checks"
-        PRE[Preflight Checks<br/>Browserless health, bundle freshness]
+        PRE[Preflight Checks<br/>bundle freshness, UI port discovery]
         LOAD[Page Load<br/>UI loads without crashes]
         BRIDGE[iframe-bridge<br/>Host communication established]
         CONSOLE[Console Errors<br/>No critical JS exceptions]
@@ -118,17 +120,16 @@ Signal patterns supported:
 
 ## Prerequisites
 
-### 1. Browserless Resource
+### 1. Browser Automation Studio (BAS)
 
-The UI smoke test requires Browserless to be running:
+The UI smoke test drives its capture on the BAS workflow engine, so the `browser-automation-studio` scenario must be running:
 
 ```bash
-# Check status
-resource-browserless manage status
-
-# Start if needed
-resource-browserless manage start
+# Start if needed (idempotent)
+vrooli scenario start browser-automation-studio
 ```
+
+When BAS is unreachable, the runnability gate **skips** the smoke phase (resource `browser-automation-studio` unavailable) rather than failing it hard.
 
 ### 2. iframe-bridge Dependency
 
@@ -170,14 +171,15 @@ Your scenario should define a UI port in `.vrooli/service.json`:
 The UI smoke test follows this sequence:
 
 1. **Check configuration** - Skip if disabled in testing.json
-2. **Check Browserless health** - Block if Browserless is offline
-3. **Check bundle freshness** - Block if source files are newer than dist
-4. **Discover UI port** - Find the running UI server port
-5. **Check iframe-bridge dependency** - Fail if missing
-6. **Execute browser session** - Load UI in iframe via Browserless
-7. **Evaluate handshake** - Wait for bridge readiness signal
-8. **Write artifacts** - Save screenshot, console logs, etc.
-9. **Build result** - Determine pass/fail status
+2. **Check bundle freshness** - Block if source files are newer than dist
+3. **Discover UI port** - Find the running UI server port
+4. **Check iframe-bridge dependency** - Fail if missing
+5. **Capture via BAS** - Embed the UI in a host iframe shell on the BAS workflow engine and run the inline smoke workflow
+6. **Evaluate handshake** - Wait for the bridge readiness signal (hard-fail gate)
+7. **Write artifacts** - Save screenshot, console logs, etc.
+8. **Build result** - Determine pass/fail status via the shared `internal/evidence` analyzer
+
+> BAS reachability is decided up front by the runnability gate: when BAS is down the phase is skipped before this flow begins.
 
 ## Test Results
 
@@ -188,7 +190,7 @@ The UI smoke test follows this sequence:
 | `passed` | UI loaded successfully with handshake |
 | `failed` | Test encountered errors (JS errors, network failures, no handshake) |
 | `skipped` | Test was skipped (no UI directory, disabled, or no UI port defined) |
-| `blocked` | Precondition failed (Browserless offline, bundle stale, port not running) |
+| `blocked` | Precondition failed (bundle stale, or UI port defined but not running) |
 
 ### Result JSON
 
@@ -211,7 +213,6 @@ Results are stored in `coverage/ui-smoke/latest.json`:
     "screenshot": "coverage/ui-smoke/screenshot.png",
     "console": "coverage/ui-smoke/console.json",
     "network": "coverage/ui-smoke/network.json",
-    "html": "coverage/ui-smoke/dom.html",
     "raw": "coverage/ui-smoke/raw.json"
   }
 }
@@ -225,21 +226,20 @@ All artifacts are stored in `coverage/ui-smoke/`:
 |------|--------|---------|
 | `screenshot.png` | PNG | UI screenshot at test completion |
 | `console.json` | JSON | All console messages (log/warn/error/info) |
-| `network.json` | JSON | Failed network requests (4xx/5xx/timeouts) |
-| `dom.html` | HTML | Complete DOM snapshot |
-| `raw.json` | JSON | Full Browserless response (minus screenshot) |
+| `network.json` | JSON | Failed network requests (4xx/5xx/transport errors) |
+| `raw.json` | JSON | Raw engine-agnostic evidence (minus screenshot bytes) |
 | `latest.json` | JSON | Complete result object with metadata |
 | `README.md` | Markdown | Human-readable summary with troubleshooting |
 
 ## Troubleshooting
 
-### Browserless Offline
+### BAS Unavailable
 
-**Symptom**: Test blocked with "Browserless resource is offline"
+**Symptom**: Smoke phase **skipped** with a "requires unavailable resource(s): browser-automation-studio" reason.
 
 **Solution**:
 ```bash
-resource-browserless manage start
+vrooli scenario start browser-automation-studio
 ```
 
 ### Bundle Stale
@@ -323,6 +323,33 @@ If using custom signals, choose ones that indicate your app is truly ready:
 ### 4. Handle Errors Gracefully
 
 Unhandled JavaScript errors will cause the test to fail. Ensure your app has proper error boundaries.
+
+## Capture-depth lever (capture profile)
+
+The smoke phase has a **capture-depth dial** that is orthogonal to the phase set
+(which phases run). It tunes only how deeply the smoke phase captures UI visuals.
+
+| Property | Value |
+|---|---|
+| **Name** | capture profile |
+| **Request field** | `capture_profile` (proto `StartRunRequest`), `captureProfile` (HTTP execute payload), `SuiteExecutionRequest.CaptureProfile` |
+| **Default / floor** | `""` — **default depth**: the single-page handshake smoke only (one BAS workflow capture). Routine `comprehensive` runs pay nothing extra. |
+| **Ceiling** | `baseline` — adds an **all-pages visual capture** (one `CaptureService.Capture` per page discovered from `.vrooli/lighthouse.json`), captures **video** per page, and forces **full** diagnostics. |
+| **Effect** | Gates whether the smoke phase enumerates discovered pages and issues plain multi-page visual captures (screenshot + console + network, plus video under `baseline`), each judged by the shared `internal/evidence` analyzer and persisted as run artifacts. A failing page demotes the smoke result. |
+
+The all-pages visuals use BAS's single-location `CaptureService.Capture` verb
+(plain screenshots, no host-iframe handshake — that handshake stays on the
+workflow engine for the single-page smoke). They are written under
+`coverage/runs/<runID>/ui-smoke/pages/<page>/` (`screenshot.png`, optional
+`video.webm`, `page.json`) and are enumerable via the `RunsService.ListRunVisuals`
+RPC + serveable through the existing
+`GET /scenarios/{name}/runs/{runId}/artifact?path=` route. `git-control-tower`
+baseline snapshots set `capture_profile=baseline` and consume these as run
+artifacts.
+
+**Default smoke (no profile) is unchanged** — single-page, single capture. A unit
+cost guard (`internal/smoke` `TestCostGuard_DefaultProfileSinglePageOnly`) asserts
+the default issues exactly one capture and zero `CaptureService` calls.
 
 ## See Also
 

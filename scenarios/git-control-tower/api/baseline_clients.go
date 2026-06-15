@@ -26,17 +26,20 @@ import (
 // the live-dependency wiring lives here.
 // ---------------------------------------------------------------------------
 
-// baselineExecutor triggers a test-genie suite run via the REST execute API and
-// returns the runID-keyed result.
+// baselineExecutor triggers ONE comprehensive, durable test-genie run with the
+// baseline capture profile (full diagnostics + all-pages visuals + video) via
+// the REST execute API, which is request-decoupled and returns the runID-keyed
+// result. The comprehensive preset is catalog-derived (drift-proof) in
+// test-genie, so a baseline always covers every phase.
 type baselineExecutor struct {
 	client *TestGenieClient
 }
 
-func (e baselineExecutor) Execute(ctx context.Context, scenario string, phases []string, diagnosticsPreset string) (baseline.ExecResult, error) {
+func (e baselineExecutor) Execute(ctx context.Context, scenario string) (baseline.ExecResult, error) {
 	res, err := e.client.ExecuteSuite(ctx, TestExecutionRequest{
-		ScenarioName:      scenario,
-		Phases:            phases,
-		DiagnosticsPreset: diagnosticsPreset,
+		ScenarioName:   scenario,
+		Preset:         "comprehensive",
+		CaptureProfile: "baseline",
 	})
 	if err != nil {
 		return baseline.ExecResult{}, err
@@ -120,57 +123,74 @@ func (c baselineRunsClient) CompareRuns(ctx context.Context, scenario, runIDA, r
 	return out, nil
 }
 
-// baselineVisualClient wraps GCT's visual snapshot capture + storage.
-type baselineVisualClient struct {
-	bas     *BrowserAutomationClient
-	storage *VisualCaptureStorage
-	fs      FileIO
-}
-
-func (v baselineVisualClient) Capture(ctx context.Context, repoID int64, repoDir, scenario string, pinned bool) (baseline.VisualSnapshot, error) {
-	// Pinned captures use baseline mode (role=baseline, additive) so routine
-	// loose captures never delete them and multiple baselines coexist. Transient
-	// captures (the "current" side of a diff) use capture mode — they replace the
-	// single loose snapshot and don't accumulate.
-	mode := CaptureModeCapture
-	if pinned {
-		mode = CaptureModeBaseline
-	}
-	meta, err := CaptureScenario(ctx, VisualCaptureDeps{
-		BAS:     v.bas,
-		Storage: v.storage,
-		FS:      v.fs,
-		RepoDir: repoDir,
-		RepoID:  repoID,
-	}, VisualCaptureRequest{ScenarioSlug: scenario, Mode: mode, TriggerType: "manual"})
+// ListRunVisuals enumerates a run's per-page visual artifacts (page set +
+// screenshot count) — the metadata GCT diffs between two baselines' runs.
+func (c baselineRunsClient) ListRunVisuals(ctx context.Context, scenario, runID string) ([]baseline.RunVisual, error) {
+	cl, err := c.client(ctx)
 	if err != nil {
-		return baseline.VisualSnapshot{}, err
+		return nil, err
 	}
-	return baseline.VisualSnapshot{
-		SnapshotID:      meta.ID,
-		ScreenshotCount: meta.ScreenshotCount,
-		Pages:           meta.Pages,
-	}, nil
-}
-
-// Delete removes a pinned visual snapshot when its owning baseline is deleted.
-func (v baselineVisualClient) Delete(_ context.Context, repoID int64, scenario, snapshotID string) error {
-	if snapshotID == "" {
-		return nil
-	}
-	return v.storage.DeleteSnapshotSet(repoID, scenario, snapshotID)
-}
-
-func (v baselineVisualClient) Get(ctx context.Context, repoID int64, scenario, snapshotID string) (baseline.VisualSnapshot, bool, error) {
-	detail, err := v.storage.GetSnapshotSet(repoID, scenario, snapshotID)
+	resp, err := cl.ListRunVisuals(ctx, connect.NewRequest(&runspb.ListRunVisualsRequest{
+		Scenario: scenario, RunId: runID,
+	}))
 	if err != nil {
-		return baseline.VisualSnapshot{}, false, nil
+		return nil, err
 	}
-	return baseline.VisualSnapshot{
-		SnapshotID:      detail.ID,
-		ScreenshotCount: detail.ScreenshotCount,
-		Pages:           detail.Pages,
-	}, true, nil
+	out := make([]baseline.RunVisual, 0, len(resp.Msg.GetVisuals()))
+	for _, v := range resp.Msg.GetVisuals() {
+		out = append(out, baseline.RunVisual{
+			Page:                v.GetPage(),
+			Label:               v.GetLabel(),
+			ScreenshotRelPath:   v.GetScreenshotRelPath(),
+			ScreenshotSizeBytes: v.GetScreenshotSizeBytes(),
+		})
+	}
+	return out, nil
+}
+
+// baselineReachability is a fast, bounded liveness check of the test-genie
+// backend: a short-timeout GET /health against the discovery-resolved URL. It is
+// probed BEFORE a baseline commits to a multi-minute comprehensive run so an
+// unreachable test-genie skips fast (clear reason) instead of blocking to the
+// long execute/compare deadlines — the reported silent-hang class.
+type baselineReachability struct {
+	httpClient *http.Client
+	resolveURL func(ctx context.Context) (string, error)
+}
+
+func newBaselineReachability(timeout time.Duration) baselineReachability {
+	return baselineReachability{
+		httpClient: &http.Client{Timeout: timeout},
+		resolveURL: func(ctx context.Context) (string, error) {
+			return discovery.ResolveScenarioURLDefault(ctx, "test-genie")
+		},
+	}
+}
+
+// Probe returns nil when test-genie answers GET /health within the probe's own
+// short timeout. It bounds itself independently of ctx so the probe can never be
+// the thing that hangs (the whole point of fail-fast).
+func (r baselineReachability) Probe(ctx context.Context) error {
+	probeCtx, cancel := context.WithTimeout(ctx, r.httpClient.Timeout)
+	defer cancel()
+
+	baseURL, err := r.resolveURL(probeCtx)
+	if err != nil {
+		return fmt.Errorf("resolve test-genie url: %w", err)
+	}
+	req, err := http.NewRequestWithContext(probeCtx, http.MethodGet, strings.TrimRight(baseURL, "/")+"/health", nil)
+	if err != nil {
+		return fmt.Errorf("build health request: %w", err)
+	}
+	resp, err := r.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("health request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("health returned status %d", resp.StatusCode)
+	}
+	return nil
 }
 
 // baselineStalenessProbe counts commits and changed files between a baseline
@@ -254,29 +274,23 @@ func (r baselineRepoResolver) Resolve(ctx context.Context, repoID int64) (int64,
 	return resolved.ID, resolved.Path, nil
 }
 
-// newBaselineService assembles the baseline orchestration service with all
-// surface adapters wired to GCT's live clients.
+// newBaselineService assembles the baseline orchestration service. A baseline
+// is ONE comprehensive, durable test-genie run pinned once; every surface
+// (structure, rules, tests, workflows, visuals) is a phase-set / artifact view
+// over that single run. GCT owns no run history — test-genie does (Decision 3).
 func (s *Server) newBaselineService() *baseline.Service {
 	exec := baselineExecutor{client: s.testGenieClient}
-	// 15-minute timeout: diff triggers a fresh test-genie run before comparing.
+	// 15-minute timeout: a diff triggers a fresh comprehensive run before
+	// comparing.
 	runs := newBaselineRunsClient(15 * time.Minute)
-	visual := baselineVisualClient{bas: s.basClient, storage: s.visualCaptureStorage, fs: OSFileIO{}}
 
-	// structure → test-genie "structure" phase; rules → "standards" phase. Both
-	// run through test-genie (which itself invokes scenario-auditor for
-	// standards), so GCT pins runs rather than calling scenario-auditor directly
-	// (Decision 3) — mirroring workflows↔playbooks.
-	adapters := map[string]baseline.SurfaceAdapter{
-		baseline.SurfaceWorkflows: baseline.NewWorkflowsAdapter(exec, runs),
-		baseline.SurfaceTests:     baseline.NewTestsAdapter(exec, runs),
-		baseline.SurfaceStructure: baseline.NewStructureAdapter(exec, runs),
-		baseline.SurfaceRules:     baseline.NewRulesAdapter(exec, runs),
-		baseline.SurfaceVisuals:   baseline.NewVisualsAdapter(visual),
-	}
 	return baseline.NewService(baseline.Deps{
-		Storage:  baseline.NewStorage(s.storageResolver),
-		Adapters: adapters,
-		Probe:    baselineStalenessProbe{},
-		Runs:     runs,
+		Storage: baseline.NewStorage(s.storageResolver),
+		Exec:    exec,
+		Runs:    runs,
+		Probe:   baselineStalenessProbe{},
+		// Fast-skip an unreachable test-genie in ~5s instead of blocking the
+		// whole snapshot to the multi-minute execute/compare deadlines.
+		Reachable: newBaselineReachability(5 * time.Second),
 	})
 }

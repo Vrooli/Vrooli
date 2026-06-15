@@ -352,6 +352,9 @@ func (r *Runner) Run(ctx context.Context) *RunResult {
 		results = append(results, result)
 		summary.WorkflowsExecuted++
 
+		// Surface additive browser-evidence findings regardless of pass/fail.
+		observations = append(observations, result.Observations...)
+
 		if result.Err != nil {
 			summary.WorkflowsFailed++
 			summary.TotalDuration = time.Since(phaseStart)
@@ -530,7 +533,12 @@ func (r *Runner) executeWorkflow(ctx context.Context, entry Entry) Result {
 	outcome.Duration = time.Since(start)
 
 	// Collect artifacts (both on success and failure for debugging)
-	artifactResult, parseErr := r.collectWorkflowArtifacts(ctx, entry, executionID, outcome, execErr)
+	artifactResult, parsed, parseErr := r.collectWorkflowArtifacts(ctx, entry, executionID, outcome, execErr)
+
+	// Derive additive browser-evidence findings (console/network/page errors)
+	// via the shared analyzer. These surface alongside — and never override —
+	// the workflow's own assertion verdict.
+	evidenceObs := evidenceObservations(entry.File, parsed)
 
 	if execErr != nil || parseErr != nil {
 		var playErr *PlaybookExecutionError
@@ -558,12 +566,13 @@ func (r *Runner) executeWorkflow(ctx context.Context, entry Entry) Result {
 			Outcome:      outcome,
 			Err:          playErr,
 			ArtifactPath: artifactResult.Dir,
+			Observations: evidenceObs,
 		}
 	}
 
 	_ = r.traceWriter.Write(artifacts.TraceWorkflowCompleteEvent(entry.File, executionID, outcome.Duration, outcome.Stats))
 
-	return Result{Entry: entry, Outcome: outcome, ArtifactPath: artifactResult.Dir}
+	return Result{Entry: entry, Outcome: outcome, ArtifactPath: artifactResult.Dir, Observations: evidenceObs}
 }
 
 // ensureBAS ensures the BAS API is available.

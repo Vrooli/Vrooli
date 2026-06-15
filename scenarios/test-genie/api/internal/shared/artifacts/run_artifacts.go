@@ -10,6 +10,7 @@
 package artifacts
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -80,6 +81,96 @@ func ListRunVideos(scenarioDir, runID string) ([]RunVideo, error) {
 		return out[i].RelPath < out[j].RelPath
 	})
 	return out, nil
+}
+
+// RunVisual describes one page's UI smoke visual capture (screenshot + optional
+// video), addressable by paths relative to the run's artifact root. It is the
+// structured page-set listing git-control-tower diffs at the metadata level
+// between two baselines (page set + screenshot count).
+type RunVisual struct {
+	Page                string `json:"page"`
+	Label               string `json:"label,omitempty"`
+	ScreenshotRelPath   string `json:"screenshot_rel_path,omitempty"`
+	VideoRelPath        string `json:"video_rel_path,omitempty"`
+	ScreenshotSizeBytes int64  `json:"screenshot_size_bytes,omitempty"`
+}
+
+// visualPageFile is the per-page metadata file the smoke runner writes alongside
+// each page's screenshot/video so enumeration reports the route + label.
+const visualPageFile = "page.json"
+
+// visualScreenshotFile / visualVideoFile are the per-page artifact filenames.
+const (
+	visualScreenshotFile = "screenshot.png"
+	visualVideoFile      = "video.webm"
+)
+
+// visualPageMeta is the on-disk page.json shape.
+type visualPageMeta struct {
+	Page  string `json:"page"`
+	Label string `json:"label,omitempty"`
+}
+
+// ListRunVisuals enumerates the per-page UI smoke visual captures under a run's
+// ui-smoke/pages tree. Returns an empty slice (no error) when the run captured
+// no all-pages visuals (i.e. ran at default capture depth), so callers can
+// render an empty state. Pages are sorted by route for stable output.
+func ListRunVisuals(scenarioDir, runID string) ([]RunVisual, error) {
+	pagesDir := RunUISmokePagesDir(scenarioDir, runID)
+	entries, err := os.ReadDir(pagesDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []RunVisual{}, nil
+		}
+		return nil, err
+	}
+
+	runRoot := RunDir(scenarioDir, runID)
+	out := []RunVisual{}
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		pageDir := filepath.Join(pagesDir, e.Name())
+		visual := RunVisual{Page: e.Name()}
+
+		if meta, mErr := os.ReadFile(filepath.Join(pageDir, visualPageFile)); mErr == nil {
+			var m visualPageMeta
+			if json.Unmarshal(meta, &m) == nil {
+				if m.Page != "" {
+					visual.Page = m.Page
+				}
+				visual.Label = m.Label
+			}
+		}
+
+		if rel, size, ok := relArtifact(runRoot, pageDir, visualScreenshotFile); ok {
+			visual.ScreenshotRelPath = rel
+			visual.ScreenshotSizeBytes = size
+		}
+		if rel, _, ok := relArtifact(runRoot, pageDir, visualVideoFile); ok {
+			visual.VideoRelPath = rel
+		}
+		out = append(out, visual)
+	}
+
+	sort.Slice(out, func(i, j int) bool { return out[i].Page < out[j].Page })
+	return out, nil
+}
+
+// relArtifact returns the run-relative path and size of file name under dir, and
+// whether it exists.
+func relArtifact(runRoot, dir, name string) (string, int64, bool) {
+	abs := filepath.Join(dir, name)
+	info, err := os.Stat(abs)
+	if err != nil || info.IsDir() {
+		return "", 0, false
+	}
+	rel, rerr := filepath.Rel(runRoot, abs)
+	if rerr != nil {
+		return "", 0, false
+	}
+	return filepath.ToSlash(rel), info.Size(), true
 }
 
 // ResolveRunArtifact maps a run-relative artifact path to an absolute path,

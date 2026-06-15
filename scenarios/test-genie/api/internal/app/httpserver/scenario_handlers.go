@@ -71,13 +71,10 @@ func (s *Server) handleUISmoke(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var payload struct {
-		URL            string `json:"url"`
-		BrowserlessURL string `json:"browserless_url"`
-		TimeoutMs      int64  `json:"timeout_ms"`
-		NoRecovery     bool   `json:"no_recovery"`
-		SharedMode     bool   `json:"shared_mode"`
-		AutoStart      bool   `json:"auto_start"`
-		ScenarioPath   string `json:"scenarioPath"`
+		URL          string `json:"url"`
+		TimeoutMs    int64  `json:"timeout_ms"`
+		AutoStart    bool   `json:"auto_start"`
+		ScenarioPath string `json:"scenarioPath"`
 	}
 	if r.Body != nil {
 		defer r.Body.Close()
@@ -89,10 +86,7 @@ func (s *Server) handleUISmoke(w http.ResponseWriter, r *http.Request) {
 
 	opts := scenarios.UISmokeOptions{
 		URL:                 payload.URL,
-		BrowserlessURL:      payload.BrowserlessURL,
 		TimeoutMs:           payload.TimeoutMs,
-		NoRecovery:          payload.NoRecovery,
-		SharedMode:          payload.SharedMode,
 		AutoStart:           payload.AutoStart,
 		ScenarioDirOverride: strings.TrimSpace(payload.ScenarioPath),
 	}

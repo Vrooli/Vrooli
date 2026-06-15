@@ -34,12 +34,12 @@ func runSmokePhase(ctx context.Context, env workspace.Environment, logWriter io.
 	logPhaseStep(logWriter, "running UI smoke test for %s", env.ScenarioName)
 
 	// Run the smoke test
-	phaseResult, err := smokeRunForPhase(ctx, env.ScenarioName, env.ScenarioDir, env.UIURL, env.RunID, logWriter)
+	phaseResult, err := smokeRunForPhase(ctx, env.ScenarioName, env.ScenarioDir, env.UIURL, env.RunID, env.CaptureProfile, logWriter)
 	if err != nil {
 		return RunReport{
 			Err:                   err,
 			FailureClassification: FailureClassSystem,
-			Remediation:           "Check browserless availability and scenario UI configuration.",
+			Remediation:           "Ensure the browser-automation-studio scenario is running and the scenario UI is configured (vrooli scenario start browser-automation-studio).",
 			Observations: []Observation{
 				NewErrorObservation(fmt.Sprintf("UI smoke execution failed: %v", err)),
 			},
@@ -94,8 +94,8 @@ func runSmokePhase(ctx context.Context, env workspace.Environment, logWriter io.
 			res.NetworkFailureCount, res.PageErrorCount, res.ConsoleErrorCount,
 		)
 		if res.Artifacts != (smoke.ArtifactPaths{}) {
-			logPhaseStep(logWriter, "UI smoke artifacts: screenshot=%s console=%s network=%s html=%s raw=%s readme=%s",
-				res.Artifacts.Screenshot, res.Artifacts.Console, res.Artifacts.Network, res.Artifacts.HTML, res.Artifacts.Raw, res.Artifacts.Readme)
+			logPhaseStep(logWriter, "UI smoke artifacts: screenshot=%s console=%s network=%s raw=%s readme=%s",
+				res.Artifacts.Screenshot, res.Artifacts.Console, res.Artifacts.Network, res.Artifacts.Raw, res.Artifacts.Readme)
 		}
 		if res.ConsoleWarningCount > 0 {
 			message := fmt.Sprintf("UI smoke captured %d browser console warning(s)", res.ConsoleWarningCount)

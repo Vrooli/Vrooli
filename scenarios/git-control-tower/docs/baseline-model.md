@@ -9,31 +9,39 @@ change code, you diff the baseline against the working tree and each surface is
 classified — so a pre-existing failure never gets mistaken for a regression you
 introduced.
 
-## Manifest of pointers (Decision 1)
+## One comprehensive run, surfaces as views (Decision 1)
 
-A baseline **owns no artifacts**. It is a manifest of *pointers* into the
-surfaces that already store their own results:
+A baseline **owns no artifacts**. It is a manifest of *pointers* into **one**
+comprehensive, durable test-genie run. Capturing a baseline triggers a
+**single** `comprehensive` test-genie execution with the `baseline` capture
+profile (full diagnostics + all-pages visuals + video), pins that run **once**,
+and points every surface at it. Surfaces are **phase-set views** over the shared
+run, not separate runs:
 
 ```mermaid
 flowchart LR
   B[BaselineManifest<br/>data/&lt;repoID&gt;/baselines/&lt;scenario&gt;/&lt;branch&gt;/&lt;name&gt;.json]
-  B -->|workflows| TG1[test-genie run<br/>runID]
-  B -->|tests| TG2[test-genie run<br/>runID]
-  B -->|structure| GS1[gct-local snapshot]
-  B -->|visuals| GS2[gct-local snapshot]
-  B -->|rules| GS3[gct-local snapshot]
+  R[one pinned test-genie run<br/>runID — comprehensive + baseline profile]
+  B -->|structure → structure phase| R
+  B -->|rules → standards phase| R
+  B -->|tests → unit+integration+smoke| R
+  B -->|workflows → playbooks phase| R
+  B -->|visuals → run's visual artifacts| R
 ```
 
-- **workflows** and **tests** point at **test-genie runs** (`kind=test-genie-run`,
-  `ref=<runID>`). test-genie owns run history; GCT *pins* the run
-  (`gct:baseline:<name>`) so retention GC can't reclaim it while the baseline
-  references it, and unpins on delete.
-- **structure**, **visuals**, **rules** point at **GCT-local snapshots**
-  (`kind=gct-local-snapshot`) — issue-set / screenshot snapshots GCT stores
-  itself.
+- Every surface is `kind=test-genie-run`, `ref=<runID>` — the **same** runID.
+  test-genie owns run history; GCT *pins* the run once (`gct:baseline:<name>`)
+  so retention GC can't reclaim it while the baseline references it, and unpins
+  it once on delete.
+- The **visuals** surface points at the same run's UI-smoke visual artifacts
+  (screenshots captured by the smoke phase under the `baseline` profile),
+  enumerated via test-genie's `ListRunVisuals`. There is no GCT-local visual
+  storage for baselines.
 
-Because the manifest only holds pointers, capturing a baseline is cheap and the
-same run can back several baselines.
+The `{surface → phase-set}` grouping is the SSOT in
+`internal/baseline/views.go`. Because the manifest only holds pointers into one
+run, capturing a baseline is one execution and the same run can back several
+baselines.
 
 ## Branch scoping (Decision 2)
 
@@ -48,16 +56,25 @@ branch you're working on. A detached HEAD scopes to `detached-<sha8>`. Listing
 defaults to the current branch; `--all-branches` (CLI) or the UI list shows
 every branch.
 
-## Per-surface adapters
+## Surfaces as views (capture + diff)
 
-Each surface is captured/diffed by an adapter behind a narrow interface
-(`scenarios/git-control-tower/api/internal/baseline/adapter_*.go`). To **add a
-new surface**:
+There is no per-surface adapter layer. One executor triggers the comprehensive
+run; one comparer diffs two runs. The mapping from surface to its test-genie
+phases lives in `internal/baseline/views.go` (`surfacePhases`). To **add a new
+phase-set surface**:
 
-1. Implement the adapter interface (capture → pointer, diff → `SurfaceDiff`).
-2. Register it in the service's surface map.
+1. Add its `{surface → phase-set}` entry to `surfacePhases` in `views.go`.
+2. Add its `Surface*` constant + a slot in `AllSurfaces` (`model.go`).
 3. Add it to `BASELINE_SURFACES` in the UI (`ui/src/features/baselines/model.ts`)
    so the modal, chips, and diff routing pick it up.
+
+**Diff is option-c.** A diff triggers one current comprehensive run and issues
+**one** empty-phase `CompareRuns(baselineRun, currentRun)`. test-genie returns a
+flat `PhaseDiff[]` (every phase's delta); GCT buckets those phases back into
+surfaces **locally** via the `surfacePhases` inverse index. A multi-phase
+surface like `tests` aggregates its phases' deltas (worst verdict wins). The
+`visuals` surface is diffed at the metadata level (page set + screenshot count)
+over the two runs' `ListRunVisuals` results — no pixel diffing.
 
 The diff verdict vocabulary is shared verbatim with test-genie's classifier:
 `clean` · `regression` · `new-failure` · `preexisting` · `not-comparable`.
@@ -92,10 +109,7 @@ flowchart TB
   BC -->|Connect| BSVC[BaselinesService]
   WC -->|Connect| WRS[WorkflowReplayService]
   WRS -->|proxy, playbooks-only| RUNS[test-genie RunsService]
-  BSVC --> ADP[surface adapters]
-  ADP --> RUNS
-  ADP --> AUD[scenario-auditor]
-  ADP --> VIS[GCT visual capture]
+  BSVC -->|one comprehensive run + pin + compare + ListRunVisuals| RUNS
   WT -. video bytes .-> VID[GET /repo/workflow-runs/&lt;id&gt;/video] --> TGART[test-genie artifact route]
 ```
 
@@ -106,18 +120,40 @@ flowchart TB
 
 ## Surfaces
 
-| Surface | Pointer kind | Backed by |
-|---|---|---|
-| workflows | test-genie-run | test-genie playbooks run |
-| tests | test-genie-run | test-genie unit/integration/smoke run |
-| structure | gct-local-snapshot | scenario-auditor structure scan |
-| visuals | gct-local-snapshot | GCT visual capture (screenshots) |
-| rules | gct-local-snapshot | scenario-auditor rules scan |
+All surfaces reference the **same** pinned comprehensive run
+(`kind=test-genie-run`); the "backed by" column is the phase/artifact view each
+surface presents over that one run.
+
+| Surface | View over the shared run |
+|---|---|
+| structure | `structure` phase |
+| rules | `standards` phase |
+| tests | `unit` + `integration` + `smoke` phases |
+| workflows | `playbooks` phase |
+| visuals | the run's UI-smoke visual artifacts (`ListRunVisuals`) |
 
 ## Surfaces, CLI, and UI
 
 - **CLI** (agent surface): `git-control-tower baseline {snapshot,diff,list,show,delete,create,edit}`.
   Always explicit — every command requires `--name`.
+
+  **`snapshot` durability & UX.** A snapshot triggers ONE comprehensive,
+  server-durable test-genie run. The CLI is built so this never reads as a
+  silent hang:
+  - Before the long wait it prints an up-front banner: the run is durable
+    server-side, the bounded client deadline, and the `test-genie runs
+    list/wait <scenario>` re-attach commands.
+  - The wait has a bounded deadline (not bare `context.Background()`); a wedged
+    backend can't hang the shell forever.
+  - **Ctrl-C detaches, it does not abort** (cancel ≠ abort): the CLI prints the
+    re-attach guidance and exits 0 while the run continues in test-genie.
+  - If test-genie is unreachable, the snapshot **fast-skips** (every surface
+    recorded as skipped with the probe reason) in ~5s instead of blocking to the
+    long deadline.
+  Server-side, `SnapshotForBaseline` runs the cheap pin + manifest-write tail
+  under `context.WithoutCancel`, so a client that disconnects after the durable
+  run completes still gets a fully-pinned, persisted baseline. GCT reuses
+  test-genie's durable `runmanager` and keeps no parallel job system.
 - **UI** (human surface): the **Baselines tab** is the cross-surface management
   view. Every baseline-includable surface tab (Screenshots, Workflows, Tests,
   Rules) behaves identically through one shared primitive set in
@@ -130,25 +166,23 @@ flowchart TB
     states what you're viewing, switches the default baseline inline, and runs
     or exits an on-demand compare.
   - **`SurfaceComparePanel` + `useCompareOnDemand`** — the single compare path
-    (Decision 3); tests/rules/workflows re-run the surface server-side, while
-    Screenshots compares instantaneously by reading the selected baseline's
-    `visuals` pointer (the "before" pane) against the current loose capture (the
-    "after").
+    (Decision 3). A baseline diff re-runs the comprehensive suite server-side
+    once and buckets the per-phase deltas; the Screenshots view compares the two
+    runs' visual artifacts at the metadata level.
   A per-device "default baseline" (localStorage) drives which baseline the bar
   compares against; the CLI/API ignore this convenience and always require an
   explicit name (Decision 4).
 
 ### One meaning of "baseline" (Plan C Decision 1)
 
-The UI uses "baseline" to mean a `BaselineManifest` and nothing else. There is
-no UI action that creates a `role=baseline` visual *snapshot* directly — the
-visual-capture path only ever produces loose captures. Baseline-pinned visual
-snapshots are produced solely by the baseline snapshot flow:
+The UI uses "baseline" to mean a `BaselineManifest` and nothing else. A
+baseline's visuals are **run artifacts produced by test-genie** under the
+`baseline` capture profile — GCT no longer captures or stores baseline
+screenshots itself. Because all surfaces (including visuals) reference the one
+shared run, deleting a baseline unpins exactly that run once; there is nothing
+GCT-owned to separately release.
 
-- The visuals adapter captures with **baseline mode** (`role=baseline`), which
-  is **additive** — routine loose captures (capture mode, replacing the single
-  `role=capture` snapshot) never touch pinned snapshots, so many baselines'
-  screenshots coexist.
-- When a baseline is deleted, its exclusively-owned visual snapshot is released
-  via the adapter's optional `SurfaceReleaser` (test-genie surfaces unpin shared
-  runs instead).
+> The standalone GCT visual-capture REST feature (the Screenshots tab's loose
+> captures + periodic capture under `/api/v1/repo/visual-captures`) is a
+> separate, independent capability and is **not** part of the baseline
+> subsystem. It retains its own `VisualCaptureStorage`.

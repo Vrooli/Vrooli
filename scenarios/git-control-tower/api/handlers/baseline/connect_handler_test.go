@@ -2,6 +2,7 @@ package baseline
 
 import (
 	"context"
+	"sync"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -94,6 +95,89 @@ func TestBaselinesServiceRoundTrip(t *testing.T) {
 	}))
 	if connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("expected NotFound after delete, got %v", err)
+	}
+}
+
+// --- tail-decoupling fakes (Phase 5) -------------------------------------
+
+// cancelOnExecExecutor cancels the supplied context as soon as Execute is
+// called, modeling a client that disconnects the instant the heavy run starts.
+// It returns a successful run regardless, so the cheap pin + manifest tail is
+// what's at risk if the handler tied it to the request context.
+type cancelOnExecExecutor struct {
+	cancel func()
+	mu     sync.Mutex
+	calls  int
+}
+
+func (e *cancelOnExecExecutor) Execute(_ context.Context, _ string) (bl.ExecResult, error) {
+	e.mu.Lock()
+	e.calls++
+	e.mu.Unlock()
+	e.cancel() // client "disconnects" mid-run
+	return bl.ExecResult{RunID: "run-xyz", Success: true, Phases: []bl.PhaseStatus{{Name: "unit", Status: "passed"}}}, nil
+}
+
+type recordingRuns struct {
+	mu   sync.Mutex
+	pins int
+}
+
+func (r *recordingRuns) PinRun(_ context.Context, _, _, _, _ string) error {
+	r.mu.Lock()
+	r.pins++
+	r.mu.Unlock()
+	return nil
+}
+func (r *recordingRuns) UnpinRun(_ context.Context, _, _, _ string) error { return nil }
+func (r *recordingRuns) CompareRuns(_ context.Context, _, _, _, _ string) (bl.CompareResult, error) {
+	return bl.CompareResult{}, nil
+}
+
+func (r *recordingRuns) ListRunVisuals(_ context.Context, _, _ string) ([]bl.RunVisual, error) {
+	return nil, nil
+}
+
+// SnapshotForBaseline must NOT abandon the pin + manifest when the client
+// context is canceled the moment the durable run starts — the handler detaches
+// the orchestration tail via context.WithoutCancel. This is the reported
+// silent-hang/abandonment fix.
+func TestSnapshotTailSurvivesClientCancel(t *testing.T) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli"})
+	if err != nil {
+		t.Fatalf("NewResolver: %v", err)
+	}
+	store := bl.NewStorageAt(resolver, t.TempDir())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	exec := &cancelOnExecExecutor{cancel: cancel}
+	runs := &recordingRuns{}
+	svc := bl.NewService(bl.Deps{
+		Storage:    store,
+		Exec:       exec,
+		Runs:       runs,
+		CaptureGit: func(context.Context, string) (git.State, error) { return git.State{Branch: "agi", Sha: "abc123"}, nil },
+	})
+	srv := NewServer(Deps{Service: svc, Repos: fakeRepos{dir: "/repo"}})
+
+	resp, err := srv.SnapshotForBaseline(ctx, connect.NewRequest(&baselinesv1.SnapshotForBaselineRequest{
+		Scenario: "foo", Name: "snap-1", Branch: "agi",
+	}))
+	if err != nil {
+		t.Fatalf("SnapshotForBaseline (cancel mid-run): %v", err)
+	}
+	if exec.calls != 1 {
+		t.Fatalf("expected exactly one run, got %d", exec.calls)
+	}
+	if runs.pins != 1 {
+		t.Fatalf("pin must survive client cancel, got %d pins", runs.pins)
+	}
+	if got := resp.Msg.GetBaseline().GetName(); got != "snap-1" {
+		t.Fatalf("manifest not returned: %q", got)
+	}
+	// The manifest is durable on disk despite the canceled client context.
+	if _, err := svc.Get(context.Background(), 1, "foo", "agi", "snap-1"); err != nil {
+		t.Fatalf("manifest must be durably persisted: %v", err)
 	}
 }
 

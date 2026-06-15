@@ -47,11 +47,154 @@ service RunsService {
   // round-trip through proto); the rel_path here is the handle that route
   // takes. Consumed by git-control-tower's WorkflowReplayService.
   rpc ListRunVideos(ListRunVideosRequest) returns (ListRunVideosResponse);
+  // ListRunVisuals enumerates the per-page UI smoke visual artifacts (screenshot
+  // + optional video) captured by a run under the baseline capture profile. The
+  // bytes are served over the same binary REST artifact route (rel_path is the
+  // handle); the structured page set + screenshot count is what git-control-tower
+  // diffs at the metadata level between two baselines.
+  rpc ListRunVisuals(ListRunVisualsRequest) returns (ListRunVisualsResponse);
   // CheckFreshness reports, per phase, whether some recorded run executed that
   // phase (status passed) against the scenario's CURRENT working-tree digest.
   // Read-only; consumed by git-control-tower's advisory pre-commit step and
   // the `test-genie runs freshness` CLI verb.
   rpc CheckFreshness(CheckFreshnessRequest) returns (CheckFreshnessResponse);
+
+  // --- Durable run lifecycle (server-owned, request-decoupled) ---------------
+  // The run manager owns execution under a server-lifetime context, so a run
+  // survives client cancellation. StartRun returns immediately with the run id;
+  // FollowRun/WaitRun/AbortRun/GetRunStatus address that run by id. These are
+  // the typed surface the test-genie CLI and agents use; the legacy REST
+  // execute/stream endpoints are thin adapters over the same run manager.
+
+  // StartRun starts a suite run under a server-lifetime context and returns its
+  // run id synchronously (before the suite executes). The run survives client
+  // cancellation; observe it via FollowRun/WaitRun/GetRunStatus.
+  rpc StartRun(StartRunRequest) returns (StartRunResponse);
+  // FollowRun streams canonical run events for a run, replaying history so a
+  // late or re-attaching follower sees the full sequence. Cancelling the stream
+  // detaches the viewer WITHOUT aborting the run.
+  rpc FollowRun(FollowRunRequest) returns (stream RunEvent);
+  // WaitRun blocks until the run reaches a terminal state or the timeout
+  // elapses, returning the final (or current) live status.
+  rpc WaitRun(WaitRunRequest) returns (WaitRunResponse);
+  // AbortRun cancels a running run and transitions it to aborted.
+  rpc AbortRun(AbortRunRequest) returns (AbortRunResponse);
+  // GetRunStatus returns a point-in-time live snapshot (status, active phase,
+  // elapsed, remaining ETA, recommended next-check backoff).
+  rpc GetRunStatus(GetRunStatusRequest) returns (RunLiveStatus);
+}
+
+// RunEvent is the single canonical run-event vocabulary every follower observes
+// regardless of transport. event is one of: run_started, phase_started,
+// phase_progress, phase_heartbeat, phase_completed, phase_failed, run_completed.
+message RunEvent {
+  string event = 1;
+  double elapsed_seconds = 2;
+  // run_started / run_completed boundaries.
+  string run_id = 3;
+  string scenario = 4;
+  string artifact_dir = 5;
+  string preset = 6;
+  // phase-scoped fields.
+  string phase = 7;
+  int32 phase_index = 8;
+  int32 phase_total = 9;
+  string status = 10;
+  int32 duration_seconds = 11;
+  double quiet_seconds = 12;
+  string message = 13;
+  // terminal fields (run_completed).
+  bool success = 14;
+  string verdict = 15;
+  string error = 16;
+}
+
+// RunLiveStatus is a point-in-time snapshot of a run.
+message RunLiveStatus {
+  string run_id = 1;
+  string scenario = 2;
+  string status = 3; // in_progress | passed | failed | aborted
+  string active_phase = 4;
+  int32 phase_index = 5;
+  int32 phase_total = 6;
+  string started_at = 7; // RFC3339
+  double elapsed_seconds = 8;
+  int32 estimated_total_seconds = 9;
+  int32 estimated_remaining_seconds = 10;
+  bool eta_known = 11;
+  // recommended_next_check_seconds is the backoff a poller should wait before
+  // re-checking: 0 when terminal, else the remaining estimate clamped to
+  // [5, 60] (30 when the ETA is unknown).
+  int32 recommended_next_check_seconds = 12;
+  string verdict = 13;
+  bool success = 14;
+  string error = 15;
+  // active reports whether the snapshot came from the live registry (true) or
+  // the durable index (false).
+  bool active = 16;
+}
+
+message StartRunRequest {
+  string scenario = 1;
+  string preset = 2;
+  repeated string phases = 3;
+  repeated string skip = 4;
+  bool fail_fast = 5;
+  string diagnostics_preset = 6;
+  string ui_url = 7;
+  string api_url = 8;
+  // Field 9 (browserless_url) was removed when test-genie's browser substrate
+  // unified onto Browser Automation Studio (the Browserless client was deleted).
+  reserved 9;
+  reserved "browserless_url";
+  string scenario_path = 10;
+  string logical_repo_root = 11;
+  string logical_scenario_rel_path = 12;
+  string suite_request_id = 13;
+  // capture_profile is the capture-depth dial (orthogonal to the phase set). ""
+  // is the default depth (single-page smoke, unchanged cost). "baseline" enables
+  // all-pages visual capture + video + full diagnostics for the smoke phase
+  // (used by git-control-tower baseline snapshots).
+  string capture_profile = 14;
+}
+
+message StartRunResponse {
+  string run_id = 1;
+  string scenario = 2;
+  // estimated_total_seconds is the summed plan-preview estimate; the CLI uses it
+  // to decide whether to follow inline or auto-background. 0 when unknown.
+  int32 estimated_total_seconds = 3;
+  bool eta_known = 4;
+}
+
+message FollowRunRequest {
+  string scenario = 1;
+  string run_id = 2;
+}
+
+message WaitRunRequest {
+  string scenario = 1;
+  string run_id = 2;
+  int32 timeout_seconds = 3; // 0 = block until terminal
+}
+
+message WaitRunResponse {
+  RunLiveStatus status = 1;
+  bool timed_out = 2; // true if the wait returned before the run was terminal
+}
+
+message AbortRunRequest {
+  string scenario = 1;
+  string run_id = 2;
+}
+
+message AbortRunResponse {
+  RunLiveStatus status = 1;
+}
+
+message GetRunStatusRequest {
+  string scenario = 1;
+  string run_id = 2;
 }
 
 // DiagnosticsInfo is the serialized diagnostics profile a run executed with.
@@ -201,6 +344,31 @@ message ListRunVideosRequest {
 
 message ListRunVideosResponse {
   repeated RunVideo videos = 1;
+}
+
+// RunVisual describes one page's UI smoke visual capture, addressable by paths
+// relative to the run's artifact root (handles for the binary artifact route).
+message RunVisual {
+  // page is the captured route (e.g. "/", "/backlog").
+  string page = 1;
+  // label is the human-readable page name.
+  string label = 2;
+  // screenshot_rel_path is the run-relative path to the page screenshot, or ""
+  // when no screenshot was captured.
+  string screenshot_rel_path = 3;
+  // video_rel_path is the run-relative path to the page video, or "" when none.
+  string video_rel_path = 4;
+  // screenshot_size_bytes is the screenshot file size (0 when absent).
+  int64 screenshot_size_bytes = 5;
+}
+
+message ListRunVisualsRequest {
+  string scenario = 1;
+  string run_id = 2;
+}
+
+message ListRunVisualsResponse {
+  repeated RunVisual visuals = 1;
 }
 
 message CheckFreshnessRequest {

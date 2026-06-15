@@ -90,6 +90,11 @@ type Result struct {
 	Outcome      *Outcome
 	Err          error
 	ArtifactPath string
+	// Observations carries additive browser-evidence findings (console errors,
+	// network failures, blank/page errors) derived from the workflow's BAS
+	// timeline. They surface alongside the workflow's own pass/fail verdict but
+	// do not, on their own, change it.
+	Observations []Observation
 }
 
 // Re-export shared types for consistency across packages.

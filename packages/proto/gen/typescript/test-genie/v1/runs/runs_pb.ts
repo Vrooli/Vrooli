@@ -10,7 +10,467 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file test-genie/v1/runs/runs.proto.
  */
 export const file_test_genie_v1_runs_runs: GenFile = /*@__PURE__*/
-  fileDesc("Ch10ZXN0LWdlbmllL3YxL3J1bnMvcnVucy5wcm90bxIZdnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucyJrCg9EaWFnbm9zdGljc0luZm8SDQoFdmlkZW8YASABKAgSDwoHY29uc29sZRgCIAEoCBIPCgduZXR3b3JrGAMgASgIEgsKA2hhchgEIAEoCBINCgV0cmFjZRgFIAEoCBILCgNkb20YBiABKAgiPwoHUGluSW5mbxIRCglwaW5uZWRfYnkYASABKAkSEQoJcGlubmVkX2F0GAIgASgJEg4KBnJlYXNvbhgDIAEoCSJDCglQaGFzZUluZm8SDAoEbmFtZRgBIAEoCRIOCgZzdGF0dXMYAiABKAkSGAoQZHVyYXRpb25fc2Vjb25kcxgDIAEoASL2AgoHUnVuSW5mbxIOCgZydW5faWQYASABKAkSEAoIc2NlbmFyaW8YAiABKAkSEgoKc3RhcnRlZF9hdBgDIAEoCRIUCgxjb21wbGV0ZWRfYXQYBCABKAkSDgoGc3RhdHVzGAUgASgJEjQKBnBoYXNlcxgGIAMoCzIkLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUGhhc2VJbmZvEg8KB2dpdF9zaGEYByABKAkSEgoKZ2l0X2JyYW5jaBgIIAEoCRIRCglnaXRfZGlydHkYCSABKAgSGQoRZ2l0X2RpcnR5X3N1bW1hcnkYCiABKAkSPwoLZGlhZ25vc3RpY3MYCyABKAsyKi52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkRpYWdub3N0aWNzSW5mbxIwCgRwaW5zGAwgAygLMiIudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5QaW5JbmZvEhMKC3RyZWVfZGlnZXN0GA0gASgJIkIKD0xpc3RSdW5zUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIOCgZzdGF0dXMYAiABKAkSDQoFbGltaXQYAyABKAUiRAoQTGlzdFJ1bnNSZXNwb25zZRIwCgRydW5zGAEgAygLMiIudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5SdW5JbmZvIjEKDUdldFJ1blJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDgoGcnVuX2lkGAIgASgJIkEKDkdldFJ1blJlc3BvbnNlEi8KA3J1bhgBIAEoCzIiLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUnVuSW5mbyJDChBEZWxldGVSdW5SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnJ1bl9pZBgCIAEoCRINCgVmb3JjZRgDIAEoCCIkChFEZWxldGVSdW5SZXNwb25zZRIPCgdkZWxldGVkGAEgASgIIlQKDVBpblJ1blJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDgoGcnVuX2lkGAIgASgJEhEKCXBpbm5lZF9ieRgDIAEoCRIOCgZyZWFzb24YBCABKAkiQQoOUGluUnVuUmVzcG9uc2USLwoDcnVuGAEgASgLMiIudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5SdW5JbmZvIkYKD1VucGluUnVuUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIOCgZydW5faWQYAiABKAkSEQoJcGlubmVkX2J5GAMgASgJIkMKEFVucGluUnVuUmVzcG9uc2USLwoDcnVuGAEgASgLMiIudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5SdW5JbmZvIlkKEkNvbXBhcmVSdW5zUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIQCghydW5faWRfYRgCIAEoCRIQCghydW5faWRfYhgDIAEoCRINCgVwaGFzZRgEIAEoCSKyAQoJUGhhc2VEaWZmEg0KBXBoYXNlGAEgASgJEhAKCHN0YXR1c19hGAIgASgJEhAKCHN0YXR1c19iGAMgASgJEg8KB3ZlcmRpY3QYBCABKAkSEwoLcmVncmVzc2lvbnMYBSADKAkSFAoMbmV3X2ZhaWx1cmVzGAYgAygJEhwKFHByZWV4aXN0aW5nX2ZhaWx1cmVzGAcgAygJEhgKEGNsZWFyZWRfZmFpbHVyZXMYCCADKAkiXAoTQ29tcGFyZVJ1bnNSZXNwb25zZRI0CgZwaGFzZXMYASADKAsyJC52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLlBoYXNlRGlmZhIPCgd2ZXJkaWN0GAIgASgJIkoKF0dldFBoYXNlQXJ0aWZhY3RSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnJ1bl9pZBgCIAEoCRINCgVwaGFzZRgDIAEoCSJBChhHZXRQaGFzZUFydGlmYWN0UmVzcG9uc2USDwoHY29udGVudBgBIAEoCRIUCgxjb250ZW50X3R5cGUYAiABKAkiQgoIUnVuVmlkZW8SEAoId29ya2Zsb3cYASABKAkSEAoIcmVsX3BhdGgYAiABKAkSEgoKc2l6ZV9ieXRlcxgDIAEoAyI4ChRMaXN0UnVuVmlkZW9zUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIOCgZydW5faWQYAiABKAkiTAoVTGlzdFJ1blZpZGVvc1Jlc3BvbnNlEjMKBnZpZGVvcxgBIAMoCzIjLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUnVuVmlkZW8iOQoVQ2hlY2tGcmVzaG5lc3NSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnBoYXNlcxgCIAMoCSJjCg5QaGFzZUZyZXNobmVzcxINCgVwaGFzZRgBIAEoCRIOCgZzdGF0dXMYAiABKAkSEwoLbGFzdF9ydW5faWQYAyABKAkSHQoVbGFzdF9ydW5fY29tcGxldGVkX2F0GAQgASgJIpUBChZDaGVja0ZyZXNobmVzc1Jlc3BvbnNlEhAKCHNjZW5hcmlvGAEgASgJEhMKC3RyZWVfZGlnZXN0GAIgASgJEjkKBnBoYXNlcxgDIAMoCzIpLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUGhhc2VGcmVzaG5lc3MSGQoRc3VnZ2VzdGVkX2NvbW1hbmQYBCABKAky0wcKC1J1bnNTZXJ2aWNlEmMKCExpc3RSdW5zEioudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5MaXN0UnVuc1JlcXVlc3QaKy52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkxpc3RSdW5zUmVzcG9uc2USXQoGR2V0UnVuEigudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5HZXRSdW5SZXF1ZXN0GikudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5HZXRSdW5SZXNwb25zZRJmCglEZWxldGVSdW4SKy52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkRlbGV0ZVJ1blJlcXVlc3QaLC52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkRlbGV0ZVJ1blJlc3BvbnNlEl0KBlBpblJ1bhIoLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUGluUnVuUmVxdWVzdBopLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUGluUnVuUmVzcG9uc2USYwoIVW5waW5SdW4SKi52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLlVucGluUnVuUmVxdWVzdBorLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuVW5waW5SdW5SZXNwb25zZRJsCgtDb21wYXJlUnVucxItLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuQ29tcGFyZVJ1bnNSZXF1ZXN0Gi4udnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5Db21wYXJlUnVuc1Jlc3BvbnNlEnsKEEdldFBoYXNlQXJ0aWZhY3QSMi52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkdldFBoYXNlQXJ0aWZhY3RSZXF1ZXN0GjMudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5HZXRQaGFzZUFydGlmYWN0UmVzcG9uc2UScgoNTGlzdFJ1blZpZGVvcxIvLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuTGlzdFJ1blZpZGVvc1JlcXVlc3QaMC52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkxpc3RSdW5WaWRlb3NSZXNwb25zZRJ1Cg5DaGVja0ZyZXNobmVzcxIwLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuQ2hlY2tGcmVzaG5lc3NSZXF1ZXN0GjEudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5DaGVja0ZyZXNobmVzc1Jlc3BvbnNlQktaSWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdGVzdC1nZW5pZS92MS9ydW5zO3J1bnNfdjFiBnByb3RvMw");
+  fileDesc("Ch10ZXN0LWdlbmllL3YxL3J1bnMvcnVucy5wcm90bxIZdnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucyK2AgoIUnVuRXZlbnQSDQoFZXZlbnQYASABKAkSFwoPZWxhcHNlZF9zZWNvbmRzGAIgASgBEg4KBnJ1bl9pZBgDIAEoCRIQCghzY2VuYXJpbxgEIAEoCRIUCgxhcnRpZmFjdF9kaXIYBSABKAkSDgoGcHJlc2V0GAYgASgJEg0KBXBoYXNlGAcgASgJEhMKC3BoYXNlX2luZGV4GAggASgFEhMKC3BoYXNlX3RvdGFsGAkgASgFEg4KBnN0YXR1cxgKIAEoCRIYChBkdXJhdGlvbl9zZWNvbmRzGAsgASgFEhUKDXF1aWV0X3NlY29uZHMYDCABKAESDwoHbWVzc2FnZRgNIAEoCRIPCgdzdWNjZXNzGA4gASgIEg8KB3ZlcmRpY3QYDyABKAkSDQoFZXJyb3IYECABKAki8AIKDVJ1bkxpdmVTdGF0dXMSDgoGcnVuX2lkGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEg4KBnN0YXR1cxgDIAEoCRIUCgxhY3RpdmVfcGhhc2UYBCABKAkSEwoLcGhhc2VfaW5kZXgYBSABKAUSEwoLcGhhc2VfdG90YWwYBiABKAUSEgoKc3RhcnRlZF9hdBgHIAEoCRIXCg9lbGFwc2VkX3NlY29uZHMYCCABKAESHwoXZXN0aW1hdGVkX3RvdGFsX3NlY29uZHMYCSABKAUSIwobZXN0aW1hdGVkX3JlbWFpbmluZ19zZWNvbmRzGAogASgFEhEKCWV0YV9rbm93bhgLIAEoCBImCh5yZWNvbW1lbmRlZF9uZXh0X2NoZWNrX3NlY29uZHMYDCABKAUSDwoHdmVyZGljdBgNIAEoCRIPCgdzdWNjZXNzGA4gASgIEg0KBWVycm9yGA8gASgJEg4KBmFjdGl2ZRgQIAEoCCLAAgoPU3RhcnRSdW5SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnByZXNldBgCIAEoCRIOCgZwaGFzZXMYAyADKAkSDAoEc2tpcBgEIAMoCRIRCglmYWlsX2Zhc3QYBSABKAgSGgoSZGlhZ25vc3RpY3NfcHJlc2V0GAYgASgJEg4KBnVpX3VybBgHIAEoCRIPCgdhcGlfdXJsGAggASgJEhUKDXNjZW5hcmlvX3BhdGgYCiABKAkSGQoRbG9naWNhbF9yZXBvX3Jvb3QYCyABKAkSIQoZbG9naWNhbF9zY2VuYXJpb19yZWxfcGF0aBgMIAEoCRIYChBzdWl0ZV9yZXF1ZXN0X2lkGA0gASgJEhcKD2NhcHR1cmVfcHJvZmlsZRgOIAEoCUoECAkQClIPYnJvd3Nlcmxlc3NfdXJsImgKEFN0YXJ0UnVuUmVzcG9uc2USDgoGcnVuX2lkGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEh8KF2VzdGltYXRlZF90b3RhbF9zZWNvbmRzGAMgASgFEhEKCWV0YV9rbm93bhgEIAEoCCI0ChBGb2xsb3dSdW5SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnJ1bl9pZBgCIAEoCSJLCg5XYWl0UnVuUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIOCgZydW5faWQYAiABKAkSFwoPdGltZW91dF9zZWNvbmRzGAMgASgFIl4KD1dhaXRSdW5SZXNwb25zZRI4CgZzdGF0dXMYASABKAsyKC52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLlJ1bkxpdmVTdGF0dXMSEQoJdGltZWRfb3V0GAIgASgIIjMKD0Fib3J0UnVuUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIOCgZydW5faWQYAiABKAkiTAoQQWJvcnRSdW5SZXNwb25zZRI4CgZzdGF0dXMYASABKAsyKC52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLlJ1bkxpdmVTdGF0dXMiNwoTR2V0UnVuU3RhdHVzUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIOCgZydW5faWQYAiABKAkiawoPRGlhZ25vc3RpY3NJbmZvEg0KBXZpZGVvGAEgASgIEg8KB2NvbnNvbGUYAiABKAgSDwoHbmV0d29yaxgDIAEoCBILCgNoYXIYBCABKAgSDQoFdHJhY2UYBSABKAgSCwoDZG9tGAYgASgIIj8KB1BpbkluZm8SEQoJcGlubmVkX2J5GAEgASgJEhEKCXBpbm5lZF9hdBgCIAEoCRIOCgZyZWFzb24YAyABKAkiQwoJUGhhc2VJbmZvEgwKBG5hbWUYASABKAkSDgoGc3RhdHVzGAIgASgJEhgKEGR1cmF0aW9uX3NlY29uZHMYAyABKAEi9gIKB1J1bkluZm8SDgoGcnVuX2lkGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEhIKCnN0YXJ0ZWRfYXQYAyABKAkSFAoMY29tcGxldGVkX2F0GAQgASgJEg4KBnN0YXR1cxgFIAEoCRI0CgZwaGFzZXMYBiADKAsyJC52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLlBoYXNlSW5mbxIPCgdnaXRfc2hhGAcgASgJEhIKCmdpdF9icmFuY2gYCCABKAkSEQoJZ2l0X2RpcnR5GAkgASgIEhkKEWdpdF9kaXJ0eV9zdW1tYXJ5GAogASgJEj8KC2RpYWdub3N0aWNzGAsgASgLMioudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5EaWFnbm9zdGljc0luZm8SMAoEcGlucxgMIAMoCzIiLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUGluSW5mbxITCgt0cmVlX2RpZ2VzdBgNIAEoCSJCCg9MaXN0UnVuc1JlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDgoGc3RhdHVzGAIgASgJEg0KBWxpbWl0GAMgASgFIkQKEExpc3RSdW5zUmVzcG9uc2USMAoEcnVucxgBIAMoCzIiLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUnVuSW5mbyIxCg1HZXRSdW5SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnJ1bl9pZBgCIAEoCSJBCg5HZXRSdW5SZXNwb25zZRIvCgNydW4YASABKAsyIi52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLlJ1bkluZm8iQwoQRGVsZXRlUnVuUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIOCgZydW5faWQYAiABKAkSDQoFZm9yY2UYAyABKAgiJAoRRGVsZXRlUnVuUmVzcG9uc2USDwoHZGVsZXRlZBgBIAEoCCJUCg1QaW5SdW5SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnJ1bl9pZBgCIAEoCRIRCglwaW5uZWRfYnkYAyABKAkSDgoGcmVhc29uGAQgASgJIkEKDlBpblJ1blJlc3BvbnNlEi8KA3J1bhgBIAEoCzIiLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUnVuSW5mbyJGCg9VbnBpblJ1blJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDgoGcnVuX2lkGAIgASgJEhEKCXBpbm5lZF9ieRgDIAEoCSJDChBVbnBpblJ1blJlc3BvbnNlEi8KA3J1bhgBIAEoCzIiLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUnVuSW5mbyJZChJDb21wYXJlUnVuc1JlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSEAoIcnVuX2lkX2EYAiABKAkSEAoIcnVuX2lkX2IYAyABKAkSDQoFcGhhc2UYBCABKAkisgEKCVBoYXNlRGlmZhINCgVwaGFzZRgBIAEoCRIQCghzdGF0dXNfYRgCIAEoCRIQCghzdGF0dXNfYhgDIAEoCRIPCgd2ZXJkaWN0GAQgASgJEhMKC3JlZ3Jlc3Npb25zGAUgAygJEhQKDG5ld19mYWlsdXJlcxgGIAMoCRIcChRwcmVleGlzdGluZ19mYWlsdXJlcxgHIAMoCRIYChBjbGVhcmVkX2ZhaWx1cmVzGAggAygJIlwKE0NvbXBhcmVSdW5zUmVzcG9uc2USNAoGcGhhc2VzGAEgAygLMiQudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5QaGFzZURpZmYSDwoHdmVyZGljdBgCIAEoCSJKChdHZXRQaGFzZUFydGlmYWN0UmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIOCgZydW5faWQYAiABKAkSDQoFcGhhc2UYAyABKAkiQQoYR2V0UGhhc2VBcnRpZmFjdFJlc3BvbnNlEg8KB2NvbnRlbnQYASABKAkSFAoMY29udGVudF90eXBlGAIgASgJIkIKCFJ1blZpZGVvEhAKCHdvcmtmbG93GAEgASgJEhAKCHJlbF9wYXRoGAIgASgJEhIKCnNpemVfYnl0ZXMYAyABKAMiOAoUTGlzdFJ1blZpZGVvc1JlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDgoGcnVuX2lkGAIgASgJIkwKFUxpc3RSdW5WaWRlb3NSZXNwb25zZRIzCgZ2aWRlb3MYASADKAsyIy52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLlJ1blZpZGVvInwKCVJ1blZpc3VhbBIMCgRwYWdlGAEgASgJEg0KBWxhYmVsGAIgASgJEhsKE3NjcmVlbnNob3RfcmVsX3BhdGgYAyABKAkSFgoOdmlkZW9fcmVsX3BhdGgYBCABKAkSHQoVc2NyZWVuc2hvdF9zaXplX2J5dGVzGAUgASgDIjkKFUxpc3RSdW5WaXN1YWxzUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRIOCgZydW5faWQYAiABKAkiTwoWTGlzdFJ1blZpc3VhbHNSZXNwb25zZRI1Cgd2aXN1YWxzGAEgAygLMiQudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5SdW5WaXN1YWwiOQoVQ2hlY2tGcmVzaG5lc3NSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnBoYXNlcxgCIAMoCSJjCg5QaGFzZUZyZXNobmVzcxINCgVwaGFzZRgBIAEoCRIOCgZzdGF0dXMYAiABKAkSEwoLbGFzdF9ydW5faWQYAyABKAkSHQoVbGFzdF9ydW5fY29tcGxldGVkX2F0GAQgASgJIpUBChZDaGVja0ZyZXNobmVzc1Jlc3BvbnNlEhAKCHNjZW5hcmlvGAEgASgJEhMKC3RyZWVfZGlnZXN0GAIgASgJEjkKBnBoYXNlcxgDIAMoCzIpLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUGhhc2VGcmVzaG5lc3MSGQoRc3VnZ2VzdGVkX2NvbW1hbmQYBCABKAkywQwKC1J1bnNTZXJ2aWNlEmMKCExpc3RSdW5zEioudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5MaXN0UnVuc1JlcXVlc3QaKy52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkxpc3RSdW5zUmVzcG9uc2USXQoGR2V0UnVuEigudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5HZXRSdW5SZXF1ZXN0GikudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5HZXRSdW5SZXNwb25zZRJmCglEZWxldGVSdW4SKy52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkRlbGV0ZVJ1blJlcXVlc3QaLC52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkRlbGV0ZVJ1blJlc3BvbnNlEl0KBlBpblJ1bhIoLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUGluUnVuUmVxdWVzdBopLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUGluUnVuUmVzcG9uc2USYwoIVW5waW5SdW4SKi52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLlVucGluUnVuUmVxdWVzdBorLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuVW5waW5SdW5SZXNwb25zZRJsCgtDb21wYXJlUnVucxItLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuQ29tcGFyZVJ1bnNSZXF1ZXN0Gi4udnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5Db21wYXJlUnVuc1Jlc3BvbnNlEnsKEEdldFBoYXNlQXJ0aWZhY3QSMi52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkdldFBoYXNlQXJ0aWZhY3RSZXF1ZXN0GjMudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5HZXRQaGFzZUFydGlmYWN0UmVzcG9uc2UScgoNTGlzdFJ1blZpZGVvcxIvLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuTGlzdFJ1blZpZGVvc1JlcXVlc3QaMC52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkxpc3RSdW5WaWRlb3NSZXNwb25zZRJ1Cg5MaXN0UnVuVmlzdWFscxIwLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuTGlzdFJ1blZpc3VhbHNSZXF1ZXN0GjEudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5MaXN0UnVuVmlzdWFsc1Jlc3BvbnNlEnUKDkNoZWNrRnJlc2huZXNzEjAudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5DaGVja0ZyZXNobmVzc1JlcXVlc3QaMS52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkNoZWNrRnJlc2huZXNzUmVzcG9uc2USYwoIU3RhcnRSdW4SKi52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLlN0YXJ0UnVuUmVxdWVzdBorLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuU3RhcnRSdW5SZXNwb25zZRJfCglGb2xsb3dSdW4SKy52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLkZvbGxvd1J1blJlcXVlc3QaIy52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLlJ1bkV2ZW50MAESYAoHV2FpdFJ1bhIpLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuV2FpdFJ1blJlcXVlc3QaKi52cm9vbGkudGVzdF9nZW5pZS52MS5ydW5zLldhaXRSdW5SZXNwb25zZRJjCghBYm9ydFJ1bhIqLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuQWJvcnRSdW5SZXF1ZXN0GisudnJvb2xpLnRlc3RfZ2VuaWUudjEucnVucy5BYm9ydFJ1blJlc3BvbnNlEmgKDEdldFJ1blN0YXR1cxIuLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuR2V0UnVuU3RhdHVzUmVxdWVzdBooLnZyb29saS50ZXN0X2dlbmllLnYxLnJ1bnMuUnVuTGl2ZVN0YXR1c0JLWklnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Rlc3QtZ2VuaWUvdjEvcnVucztydW5zX3YxYgZwcm90bzM");
+
+/**
+ * RunEvent is the single canonical run-event vocabulary every follower observes
+ * regardless of transport. event is one of: run_started, phase_started,
+ * phase_progress, phase_heartbeat, phase_completed, phase_failed, run_completed.
+ *
+ * @generated from message vrooli.test_genie.v1.runs.RunEvent
+ */
+export type RunEvent = Message<"vrooli.test_genie.v1.runs.RunEvent"> & {
+  /**
+   * @generated from field: string event = 1;
+   */
+  event: string;
+
+  /**
+   * @generated from field: double elapsed_seconds = 2;
+   */
+  elapsedSeconds: number;
+
+  /**
+   * run_started / run_completed boundaries.
+   *
+   * @generated from field: string run_id = 3;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: string scenario = 4;
+   */
+  scenario: string;
+
+  /**
+   * @generated from field: string artifact_dir = 5;
+   */
+  artifactDir: string;
+
+  /**
+   * @generated from field: string preset = 6;
+   */
+  preset: string;
+
+  /**
+   * phase-scoped fields.
+   *
+   * @generated from field: string phase = 7;
+   */
+  phase: string;
+
+  /**
+   * @generated from field: int32 phase_index = 8;
+   */
+  phaseIndex: number;
+
+  /**
+   * @generated from field: int32 phase_total = 9;
+   */
+  phaseTotal: number;
+
+  /**
+   * @generated from field: string status = 10;
+   */
+  status: string;
+
+  /**
+   * @generated from field: int32 duration_seconds = 11;
+   */
+  durationSeconds: number;
+
+  /**
+   * @generated from field: double quiet_seconds = 12;
+   */
+  quietSeconds: number;
+
+  /**
+   * @generated from field: string message = 13;
+   */
+  message: string;
+
+  /**
+   * terminal fields (run_completed).
+   *
+   * @generated from field: bool success = 14;
+   */
+  success: boolean;
+
+  /**
+   * @generated from field: string verdict = 15;
+   */
+  verdict: string;
+
+  /**
+   * @generated from field: string error = 16;
+   */
+  error: string;
+};
+
+/**
+ * Describes the message vrooli.test_genie.v1.runs.RunEvent.
+ * Use `create(RunEventSchema)` to create a new message.
+ */
+export const RunEventSchema: GenMessage<RunEvent> = /*@__PURE__*/
+  messageDesc(file_test_genie_v1_runs_runs, 0);
+
+/**
+ * RunLiveStatus is a point-in-time snapshot of a run.
+ *
+ * @generated from message vrooli.test_genie.v1.runs.RunLiveStatus
+ */
+export type RunLiveStatus = Message<"vrooli.test_genie.v1.runs.RunLiveStatus"> & {
+  /**
+   * @generated from field: string run_id = 1;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: string scenario = 2;
+   */
+  scenario: string;
+
+  /**
+   * in_progress | passed | failed | aborted
+   *
+   * @generated from field: string status = 3;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string active_phase = 4;
+   */
+  activePhase: string;
+
+  /**
+   * @generated from field: int32 phase_index = 5;
+   */
+  phaseIndex: number;
+
+  /**
+   * @generated from field: int32 phase_total = 6;
+   */
+  phaseTotal: number;
+
+  /**
+   * RFC3339
+   *
+   * @generated from field: string started_at = 7;
+   */
+  startedAt: string;
+
+  /**
+   * @generated from field: double elapsed_seconds = 8;
+   */
+  elapsedSeconds: number;
+
+  /**
+   * @generated from field: int32 estimated_total_seconds = 9;
+   */
+  estimatedTotalSeconds: number;
+
+  /**
+   * @generated from field: int32 estimated_remaining_seconds = 10;
+   */
+  estimatedRemainingSeconds: number;
+
+  /**
+   * @generated from field: bool eta_known = 11;
+   */
+  etaKnown: boolean;
+
+  /**
+   * recommended_next_check_seconds is the backoff a poller should wait before
+   * re-checking: 0 when terminal, else the remaining estimate clamped to
+   * [5, 60] (30 when the ETA is unknown).
+   *
+   * @generated from field: int32 recommended_next_check_seconds = 12;
+   */
+  recommendedNextCheckSeconds: number;
+
+  /**
+   * @generated from field: string verdict = 13;
+   */
+  verdict: string;
+
+  /**
+   * @generated from field: bool success = 14;
+   */
+  success: boolean;
+
+  /**
+   * @generated from field: string error = 15;
+   */
+  error: string;
+
+  /**
+   * active reports whether the snapshot came from the live registry (true) or
+   * the durable index (false).
+   *
+   * @generated from field: bool active = 16;
+   */
+  active: boolean;
+};
+
+/**
+ * Describes the message vrooli.test_genie.v1.runs.RunLiveStatus.
+ * Use `create(RunLiveStatusSchema)` to create a new message.
+ */
+export const RunLiveStatusSchema: GenMessage<RunLiveStatus> = /*@__PURE__*/
+  messageDesc(file_test_genie_v1_runs_runs, 1);
+
+/**
+ * @generated from message vrooli.test_genie.v1.runs.StartRunRequest
+ */
+export type StartRunRequest = Message<"vrooli.test_genie.v1.runs.StartRunRequest"> & {
+  /**
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * @generated from field: string preset = 2;
+   */
+  preset: string;
+
+  /**
+   * @generated from field: repeated string phases = 3;
+   */
+  phases: string[];
+
+  /**
+   * @generated from field: repeated string skip = 4;
+   */
+  skip: string[];
+
+  /**
+   * @generated from field: bool fail_fast = 5;
+   */
+  failFast: boolean;
+
+  /**
+   * @generated from field: string diagnostics_preset = 6;
+   */
+  diagnosticsPreset: string;
+
+  /**
+   * @generated from field: string ui_url = 7;
+   */
+  uiUrl: string;
+
+  /**
+   * @generated from field: string api_url = 8;
+   */
+  apiUrl: string;
+
+  /**
+   * @generated from field: string scenario_path = 10;
+   */
+  scenarioPath: string;
+
+  /**
+   * @generated from field: string logical_repo_root = 11;
+   */
+  logicalRepoRoot: string;
+
+  /**
+   * @generated from field: string logical_scenario_rel_path = 12;
+   */
+  logicalScenarioRelPath: string;
+
+  /**
+   * @generated from field: string suite_request_id = 13;
+   */
+  suiteRequestId: string;
+
+  /**
+   * capture_profile is the capture-depth dial (orthogonal to the phase set). ""
+   * is the default depth (single-page smoke, unchanged cost). "baseline" enables
+   * all-pages visual capture + video + full diagnostics for the smoke phase
+   * (used by git-control-tower baseline snapshots).
+   *
+   * @generated from field: string capture_profile = 14;
+   */
+  captureProfile: string;
+};
+
+/**
+ * Describes the message vrooli.test_genie.v1.runs.StartRunRequest.
+ * Use `create(StartRunRequestSchema)` to create a new message.
+ */
+export const StartRunRequestSchema: GenMessage<StartRunRequest> = /*@__PURE__*/
+  messageDesc(file_test_genie_v1_runs_runs, 2);
+
+/**
+ * @generated from message vrooli.test_genie.v1.runs.StartRunResponse
+ */
+export type StartRunResponse = Message<"vrooli.test_genie.v1.runs.StartRunResponse"> & {
+  /**
+   * @generated from field: string run_id = 1;
+   */
+  runId: string;
+
+  /**
+   * @generated from field: string scenario = 2;
+   */
+  scenario: string;
+
+  /**
+   * estimated_total_seconds is the summed plan-preview estimate; the CLI uses it
+   * to decide whether to follow inline or auto-background. 0 when unknown.
+   *
+   * @generated from field: int32 estimated_total_seconds = 3;
+   */
+  estimatedTotalSeconds: number;
+
+  /**
+   * @generated from field: bool eta_known = 4;
+   */
+  etaKnown: boolean;
+};
+
+/**
+ * Describes the message vrooli.test_genie.v1.runs.StartRunResponse.
+ * Use `create(StartRunResponseSchema)` to create a new message.
+ */
+export const StartRunResponseSchema: GenMessage<StartRunResponse> = /*@__PURE__*/
+  messageDesc(file_test_genie_v1_runs_runs, 3);
+
+/**
+ * @generated from message vrooli.test_genie.v1.runs.FollowRunRequest
+ */
+export type FollowRunRequest = Message<"vrooli.test_genie.v1.runs.FollowRunRequest"> & {
+  /**
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * @generated from field: string run_id = 2;
+   */
+  runId: string;
+};
+
+/**
+ * Describes the message vrooli.test_genie.v1.runs.FollowRunRequest.
+ * Use `create(FollowRunRequestSchema)` to create a new message.
+ */
+export const FollowRunRequestSchema: GenMessage<FollowRunRequest> = /*@__PURE__*/
+  messageDesc(file_test_genie_v1_runs_runs, 4);
+
+/**
+ * @generated from message vrooli.test_genie.v1.runs.WaitRunRequest
+ */
+export type WaitRunRequest = Message<"vrooli.test_genie.v1.runs.WaitRunRequest"> & {
+  /**
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * @generated from field: string run_id = 2;
+   */
+  runId: string;
+
+  /**
+   * 0 = block until terminal
+   *
+   * @generated from field: int32 timeout_seconds = 3;
+   */
+  timeoutSeconds: number;
+};
+
+/**
+ * Describes the message vrooli.test_genie.v1.runs.WaitRunRequest.
+ * Use `create(WaitRunRequestSchema)` to create a new message.
+ */
+export const WaitRunRequestSchema: GenMessage<WaitRunRequest> = /*@__PURE__*/
+  messageDesc(file_test_genie_v1_runs_runs, 5);
+
+/**
+ * @generated from message vrooli.test_genie.v1.runs.WaitRunResponse
+ */
+export type WaitRunResponse = Message<"vrooli.test_genie.v1.runs.WaitRunResponse"> & {
+  /**
+   * @generated from field: vrooli.test_genie.v1.runs.RunLiveStatus status = 1;
+   */
+  status?: RunLiveStatus | undefined;
+
+  /**
+   * true if the wait returned before the run was terminal
+   *
+   * @generated from field: bool timed_out = 2;
+   */
+  timedOut: boolean;
+};
+
+/**
+ * Describes the message vrooli.test_genie.v1.runs.WaitRunResponse.
+ * Use `create(WaitRunResponseSchema)` to create a new message.
+ */
+export const WaitRunResponseSchema: GenMessage<WaitRunResponse> = /*@__PURE__*/
+  messageDesc(file_test_genie_v1_runs_runs, 6);
+
+/**
+ * @generated from message vrooli.test_genie.v1.runs.AbortRunRequest
+ */
+export type AbortRunRequest = Message<"vrooli.test_genie.v1.runs.AbortRunRequest"> & {
+  /**
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * @generated from field: string run_id = 2;
+   */
+  runId: string;
+};
+
+/**
+ * Describes the message vrooli.test_genie.v1.runs.AbortRunRequest.
+ * Use `create(AbortRunRequestSchema)` to create a new message.
+ */
+export const AbortRunRequestSchema: GenMessage<AbortRunRequest> = /*@__PURE__*/
+  messageDesc(file_test_genie_v1_runs_runs, 7);
+
+/**
+ * @generated from message vrooli.test_genie.v1.runs.AbortRunResponse
+ */
+export type AbortRunResponse = Message<"vrooli.test_genie.v1.runs.AbortRunResponse"> & {
+  /**
+   * @generated from field: vrooli.test_genie.v1.runs.RunLiveStatus status = 1;
+   */
+  status?: RunLiveStatus | undefined;
+};
+
+/**
+ * Describes the message vrooli.test_genie.v1.runs.AbortRunResponse.
+ * Use `create(AbortRunResponseSchema)` to create a new message.
+ */
+export const AbortRunResponseSchema: GenMessage<AbortRunResponse> = /*@__PURE__*/
+  messageDesc(file_test_genie_v1_runs_runs, 8);
+
+/**
+ * @generated from message vrooli.test_genie.v1.runs.GetRunStatusRequest
+ */
+export type GetRunStatusRequest = Message<"vrooli.test_genie.v1.runs.GetRunStatusRequest"> & {
+  /**
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * @generated from field: string run_id = 2;
+   */
+  runId: string;
+};
+
+/**
+ * Describes the message vrooli.test_genie.v1.runs.GetRunStatusRequest.
+ * Use `create(GetRunStatusRequestSchema)` to create a new message.
+ */
+export const GetRunStatusRequestSchema: GenMessage<GetRunStatusRequest> = /*@__PURE__*/
+  messageDesc(file_test_genie_v1_runs_runs, 9);
 
 /**
  * DiagnosticsInfo is the serialized diagnostics profile a run executed with.
@@ -54,7 +514,7 @@ export type DiagnosticsInfo = Message<"vrooli.test_genie.v1.runs.DiagnosticsInfo
  * Use `create(DiagnosticsInfoSchema)` to create a new message.
  */
 export const DiagnosticsInfoSchema: GenMessage<DiagnosticsInfo> = /*@__PURE__*/
-  messageDesc(file_test_genie_v1_runs_runs, 0);
+  messageDesc(file_test_genie_v1_runs_runs, 10);
 
 /**
  * PinInfo is a single external pin protecting the run from GC.
@@ -85,7 +545,7 @@ export type PinInfo = Message<"vrooli.test_genie.v1.runs.PinInfo"> & {
  * Use `create(PinInfoSchema)` to create a new message.
  */
 export const PinInfoSchema: GenMessage<PinInfo> = /*@__PURE__*/
-  messageDesc(file_test_genie_v1_runs_runs, 1);
+  messageDesc(file_test_genie_v1_runs_runs, 11);
 
 /**
  * PhaseInfo is a compact per-phase summary.
@@ -116,7 +576,7 @@ export type PhaseInfo = Message<"vrooli.test_genie.v1.runs.PhaseInfo"> & {
  * Use `create(PhaseInfoSchema)` to create a new message.
  */
 export const PhaseInfoSchema: GenMessage<PhaseInfo> = /*@__PURE__*/
-  messageDesc(file_test_genie_v1_runs_runs, 2);
+  messageDesc(file_test_genie_v1_runs_runs, 12);
 
 /**
  * RunInfo mirrors the run index record.
@@ -205,7 +665,7 @@ export type RunInfo = Message<"vrooli.test_genie.v1.runs.RunInfo"> & {
  * Use `create(RunInfoSchema)` to create a new message.
  */
 export const RunInfoSchema: GenMessage<RunInfo> = /*@__PURE__*/
-  messageDesc(file_test_genie_v1_runs_runs, 3);
+  messageDesc(file_test_genie_v1_runs_runs, 13);
 
 /**
  * @generated from message vrooli.test_genie.v1.runs.ListRunsRequest
@@ -236,7 +696,7 @@ export type ListRunsRequest = Message<"vrooli.test_genie.v1.runs.ListRunsRequest
  * Use `create(ListRunsRequestSchema)` to create a new message.
  */
 export const ListRunsRequestSchema: GenMessage<ListRunsRequest> = /*@__PURE__*/
-  messageDesc(file_test_genie_v1_runs_runs, 4);
+  messageDesc(file_test_genie_v1_runs_runs, 14);
 
 /**
  * @generated from message vrooli.test_genie.v1.runs.ListRunsResponse
@@ -253,7 +713,7 @@ export type ListRunsResponse = Message<"vrooli.test_genie.v1.runs.ListRunsRespon
  * Use `create(ListRunsResponseSchema)` to create a new message.
  */
 export const ListRunsResponseSchema: GenMessage<ListRunsResponse> = /*@__PURE__*/
-  messageDesc(file_test_genie_v1_runs_runs, 5);
+  messageDesc(file_test_genie_v1_runs_runs, 15);
 
 /**
  * @generated from message vrooli.test_genie.v1.runs.GetRunRequest
@@ -275,7 +735,7 @@ export type GetRunRequest = Message<"vrooli.test_genie.v1.runs.GetRunRequest"> &
  * Use `create(GetRunRequestSchema)` to create a new message.
  */
 export const GetRunRequestSchema: GenMessage<GetRunRequest> = /*@__PURE__*/
-  messageDesc(file_test_genie_v1_runs_runs, 6);
+  messageDesc(file_test_genie_v1_runs_runs, 16);
 
 /**
  * @generated from message vrooli.test_genie.v1.runs.GetRunResponse
@@ -292,7 +752,7 @@ export type GetRunResponse = Message<"vrooli.test_genie.v1.runs.GetRunResponse">
  * Use `create(GetRunResponseSchema)` to create a new message.
  */
 export const GetRunResponseSchema: GenMessage<GetRunResponse> = /*@__PURE__*/
-  messageDesc(file_test_genie_v1_runs_runs, 7);
+  messageDesc(file_test_genie_v1_runs_runs, 17);
 
 /**
  * @generated from message vrooli.test_genie.v1.runs.DeleteRunRequest
@@ -321,7 +781,7 @@ export type DeleteRunRequest = Message<"vrooli.test_genie.v1.runs.DeleteRunReque
  * Use `create(DeleteRunRequestSchema)` to create a new message.
  */
 export const DeleteRunRequestSchema: GenMessage<DeleteRunRequest> = /*@__PURE__*/
-  messageDesc(file_test_genie_v1_runs_runs, 8);
+  messageDesc(file_test_genie_v1_runs_runs, 18);
 
 /**
  * @generated from message vrooli.test_genie.v1.runs.DeleteRunResponse
@@ -338,7 +798,7 @@ export type DeleteRunResponse = Message<"vrooli.test_genie.v1.runs.DeleteRunResp
  * Use `create(DeleteRunResponseSchema)` to create a new message.
  */
 export const DeleteRunResponseSchema: GenMessage<DeleteRunResponse> = /*@__PURE__*/
-  messageDesc(file_test_genie_v1_runs_runs, 9);
+  messageDesc(file_test_genie_v1_runs_runs, 19);
 
 /**
  * @generated from message vrooli.test_genie.v1.runs.PinRunRequest
@@ -372,7 +832,7 @@ export type PinRunRequest = Message<"vrooli.test_genie.v1.runs.PinRunRequest"> &
  * Use `create(PinRunRequestSchema)` to create a new message.
  */
 export const PinRunRequestSchema: GenMessage<PinRunRequest> = /*@__PURE__*/
-  messageDesc(file_test_genie_v1_runs_runs, 10);
+  messageDesc(file_test_genie_v1_runs_runs, 20);
 
 /**
  * @generated from message vrooli.test_genie.v1.runs.PinRunResponse
@@ -389,7 +849,7 @@ export type PinRunResponse = Message<"vrooli.test_genie.v1.runs.PinRunResponse">
  * Use `create(PinRunResponseSchema)` to create a new message.
  */
 export const PinRunResponseSchema: GenMessage<PinRunResponse> = /*@__PURE__*/
-  messageDesc(file_test_genie_v1_runs_runs, 11);
+  messageDesc(file_test_genie_v1_runs_runs, 21);
 
 /**
  * @generated from message vrooli.test_genie.v1.runs.UnpinRunRequest
@@ -416,7 +876,7 @@ export type UnpinRunRequest = Message<"vrooli.test_genie.v1.runs.UnpinRunRequest
  * Use `create(UnpinRunRequestSchema)` to create a new message.
  */
 export const UnpinRunRequestSchema: GenMessage<UnpinRunRequest> = /*@__PURE__*/
-  messageDesc(file_test_genie_v1_runs_runs, 12);
+  messageDesc(file_test_genie_v1_runs_runs, 22);
 
 /**
  * @generated from message vrooli.test_genie.v1.runs.UnpinRunResponse
@@ -433,7 +893,7 @@ export type UnpinRunResponse = Message<"vrooli.test_genie.v1.runs.UnpinRunRespon
  * Use `create(UnpinRunResponseSchema)` to create a new message.
  */
 export const UnpinRunResponseSchema: GenMessage<UnpinRunResponse> = /*@__PURE__*/
-  messageDesc(file_test_genie_v1_runs_runs, 13);
+  messageDesc(file_test_genie_v1_runs_runs, 23);
 
 /**
  * @generated from message vrooli.test_genie.v1.runs.CompareRunsRequest
@@ -471,7 +931,7 @@ export type CompareRunsRequest = Message<"vrooli.test_genie.v1.runs.CompareRunsR
  * Use `create(CompareRunsRequestSchema)` to create a new message.
  */
 export const CompareRunsRequestSchema: GenMessage<CompareRunsRequest> = /*@__PURE__*/
-  messageDesc(file_test_genie_v1_runs_runs, 14);
+  messageDesc(file_test_genie_v1_runs_runs, 24);
 
 /**
  * PhaseDiff classifies the difference for a single phase between run A and B.
@@ -535,7 +995,7 @@ export type PhaseDiff = Message<"vrooli.test_genie.v1.runs.PhaseDiff"> & {
  * Use `create(PhaseDiffSchema)` to create a new message.
  */
 export const PhaseDiffSchema: GenMessage<PhaseDiff> = /*@__PURE__*/
-  messageDesc(file_test_genie_v1_runs_runs, 15);
+  messageDesc(file_test_genie_v1_runs_runs, 25);
 
 /**
  * @generated from message vrooli.test_genie.v1.runs.CompareRunsResponse
@@ -560,7 +1020,7 @@ export type CompareRunsResponse = Message<"vrooli.test_genie.v1.runs.CompareRuns
  * Use `create(CompareRunsResponseSchema)` to create a new message.
  */
 export const CompareRunsResponseSchema: GenMessage<CompareRunsResponse> = /*@__PURE__*/
-  messageDesc(file_test_genie_v1_runs_runs, 16);
+  messageDesc(file_test_genie_v1_runs_runs, 26);
 
 /**
  * @generated from message vrooli.test_genie.v1.runs.GetPhaseArtifactRequest
@@ -587,7 +1047,7 @@ export type GetPhaseArtifactRequest = Message<"vrooli.test_genie.v1.runs.GetPhas
  * Use `create(GetPhaseArtifactRequestSchema)` to create a new message.
  */
 export const GetPhaseArtifactRequestSchema: GenMessage<GetPhaseArtifactRequest> = /*@__PURE__*/
-  messageDesc(file_test_genie_v1_runs_runs, 17);
+  messageDesc(file_test_genie_v1_runs_runs, 27);
 
 /**
  * @generated from message vrooli.test_genie.v1.runs.GetPhaseArtifactResponse
@@ -613,7 +1073,7 @@ export type GetPhaseArtifactResponse = Message<"vrooli.test_genie.v1.runs.GetPha
  * Use `create(GetPhaseArtifactResponseSchema)` to create a new message.
  */
 export const GetPhaseArtifactResponseSchema: GenMessage<GetPhaseArtifactResponse> = /*@__PURE__*/
-  messageDesc(file_test_genie_v1_runs_runs, 18);
+  messageDesc(file_test_genie_v1_runs_runs, 28);
 
 /**
  * RunVideo describes one recorded workflow video, addressable by a path
@@ -645,7 +1105,7 @@ export type RunVideo = Message<"vrooli.test_genie.v1.runs.RunVideo"> & {
  * Use `create(RunVideoSchema)` to create a new message.
  */
 export const RunVideoSchema: GenMessage<RunVideo> = /*@__PURE__*/
-  messageDesc(file_test_genie_v1_runs_runs, 19);
+  messageDesc(file_test_genie_v1_runs_runs, 29);
 
 /**
  * @generated from message vrooli.test_genie.v1.runs.ListRunVideosRequest
@@ -667,7 +1127,7 @@ export type ListRunVideosRequest = Message<"vrooli.test_genie.v1.runs.ListRunVid
  * Use `create(ListRunVideosRequestSchema)` to create a new message.
  */
 export const ListRunVideosRequestSchema: GenMessage<ListRunVideosRequest> = /*@__PURE__*/
-  messageDesc(file_test_genie_v1_runs_runs, 20);
+  messageDesc(file_test_genie_v1_runs_runs, 30);
 
 /**
  * @generated from message vrooli.test_genie.v1.runs.ListRunVideosResponse
@@ -684,7 +1144,97 @@ export type ListRunVideosResponse = Message<"vrooli.test_genie.v1.runs.ListRunVi
  * Use `create(ListRunVideosResponseSchema)` to create a new message.
  */
 export const ListRunVideosResponseSchema: GenMessage<ListRunVideosResponse> = /*@__PURE__*/
-  messageDesc(file_test_genie_v1_runs_runs, 21);
+  messageDesc(file_test_genie_v1_runs_runs, 31);
+
+/**
+ * RunVisual describes one page's UI smoke visual capture, addressable by paths
+ * relative to the run's artifact root (handles for the binary artifact route).
+ *
+ * @generated from message vrooli.test_genie.v1.runs.RunVisual
+ */
+export type RunVisual = Message<"vrooli.test_genie.v1.runs.RunVisual"> & {
+  /**
+   * page is the captured route (e.g. "/", "/backlog").
+   *
+   * @generated from field: string page = 1;
+   */
+  page: string;
+
+  /**
+   * label is the human-readable page name.
+   *
+   * @generated from field: string label = 2;
+   */
+  label: string;
+
+  /**
+   * screenshot_rel_path is the run-relative path to the page screenshot, or ""
+   * when no screenshot was captured.
+   *
+   * @generated from field: string screenshot_rel_path = 3;
+   */
+  screenshotRelPath: string;
+
+  /**
+   * video_rel_path is the run-relative path to the page video, or "" when none.
+   *
+   * @generated from field: string video_rel_path = 4;
+   */
+  videoRelPath: string;
+
+  /**
+   * screenshot_size_bytes is the screenshot file size (0 when absent).
+   *
+   * @generated from field: int64 screenshot_size_bytes = 5;
+   */
+  screenshotSizeBytes: bigint;
+};
+
+/**
+ * Describes the message vrooli.test_genie.v1.runs.RunVisual.
+ * Use `create(RunVisualSchema)` to create a new message.
+ */
+export const RunVisualSchema: GenMessage<RunVisual> = /*@__PURE__*/
+  messageDesc(file_test_genie_v1_runs_runs, 32);
+
+/**
+ * @generated from message vrooli.test_genie.v1.runs.ListRunVisualsRequest
+ */
+export type ListRunVisualsRequest = Message<"vrooli.test_genie.v1.runs.ListRunVisualsRequest"> & {
+  /**
+   * @generated from field: string scenario = 1;
+   */
+  scenario: string;
+
+  /**
+   * @generated from field: string run_id = 2;
+   */
+  runId: string;
+};
+
+/**
+ * Describes the message vrooli.test_genie.v1.runs.ListRunVisualsRequest.
+ * Use `create(ListRunVisualsRequestSchema)` to create a new message.
+ */
+export const ListRunVisualsRequestSchema: GenMessage<ListRunVisualsRequest> = /*@__PURE__*/
+  messageDesc(file_test_genie_v1_runs_runs, 33);
+
+/**
+ * @generated from message vrooli.test_genie.v1.runs.ListRunVisualsResponse
+ */
+export type ListRunVisualsResponse = Message<"vrooli.test_genie.v1.runs.ListRunVisualsResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.test_genie.v1.runs.RunVisual visuals = 1;
+   */
+  visuals: RunVisual[];
+};
+
+/**
+ * Describes the message vrooli.test_genie.v1.runs.ListRunVisualsResponse.
+ * Use `create(ListRunVisualsResponseSchema)` to create a new message.
+ */
+export const ListRunVisualsResponseSchema: GenMessage<ListRunVisualsResponse> = /*@__PURE__*/
+  messageDesc(file_test_genie_v1_runs_runs, 34);
 
 /**
  * @generated from message vrooli.test_genie.v1.runs.CheckFreshnessRequest
@@ -709,7 +1259,7 @@ export type CheckFreshnessRequest = Message<"vrooli.test_genie.v1.runs.CheckFres
  * Use `create(CheckFreshnessRequestSchema)` to create a new message.
  */
 export const CheckFreshnessRequestSchema: GenMessage<CheckFreshnessRequest> = /*@__PURE__*/
-  messageDesc(file_test_genie_v1_runs_runs, 22);
+  messageDesc(file_test_genie_v1_runs_runs, 35);
 
 /**
  * PhaseFreshness is the verdict for one phase.
@@ -752,7 +1302,7 @@ export type PhaseFreshness = Message<"vrooli.test_genie.v1.runs.PhaseFreshness">
  * Use `create(PhaseFreshnessSchema)` to create a new message.
  */
 export const PhaseFreshnessSchema: GenMessage<PhaseFreshness> = /*@__PURE__*/
-  messageDesc(file_test_genie_v1_runs_runs, 23);
+  messageDesc(file_test_genie_v1_runs_runs, 36);
 
 /**
  * @generated from message vrooli.test_genie.v1.runs.CheckFreshnessResponse
@@ -790,7 +1340,7 @@ export type CheckFreshnessResponse = Message<"vrooli.test_genie.v1.runs.CheckFre
  * Use `create(CheckFreshnessResponseSchema)` to create a new message.
  */
 export const CheckFreshnessResponseSchema: GenMessage<CheckFreshnessResponse> = /*@__PURE__*/
-  messageDesc(file_test_genie_v1_runs_runs, 24);
+  messageDesc(file_test_genie_v1_runs_runs, 37);
 
 /**
  * @generated from service vrooli.test_genie.v1.runs.RunsService
@@ -880,6 +1430,20 @@ export const RunsService: GenService<{
     output: typeof ListRunVideosResponseSchema;
   },
   /**
+   * ListRunVisuals enumerates the per-page UI smoke visual artifacts (screenshot
+   * + optional video) captured by a run under the baseline capture profile. The
+   * bytes are served over the same binary REST artifact route (rel_path is the
+   * handle); the structured page set + screenshot count is what git-control-tower
+   * diffs at the metadata level between two baselines.
+   *
+   * @generated from rpc vrooli.test_genie.v1.runs.RunsService.ListRunVisuals
+   */
+  listRunVisuals: {
+    methodKind: "unary";
+    input: typeof ListRunVisualsRequestSchema;
+    output: typeof ListRunVisualsResponseSchema;
+  },
+  /**
    * CheckFreshness reports, per phase, whether some recorded run executed that
    * phase (status passed) against the scenario's CURRENT working-tree digest.
    * Read-only; consumed by git-control-tower's advisory pre-commit step and
@@ -891,6 +1455,62 @@ export const RunsService: GenService<{
     methodKind: "unary";
     input: typeof CheckFreshnessRequestSchema;
     output: typeof CheckFreshnessResponseSchema;
+  },
+  /**
+   * StartRun starts a suite run under a server-lifetime context and returns its
+   * run id synchronously (before the suite executes). The run survives client
+   * cancellation; observe it via FollowRun/WaitRun/GetRunStatus.
+   *
+   * @generated from rpc vrooli.test_genie.v1.runs.RunsService.StartRun
+   */
+  startRun: {
+    methodKind: "unary";
+    input: typeof StartRunRequestSchema;
+    output: typeof StartRunResponseSchema;
+  },
+  /**
+   * FollowRun streams canonical run events for a run, replaying history so a
+   * late or re-attaching follower sees the full sequence. Cancelling the stream
+   * detaches the viewer WITHOUT aborting the run.
+   *
+   * @generated from rpc vrooli.test_genie.v1.runs.RunsService.FollowRun
+   */
+  followRun: {
+    methodKind: "server_streaming";
+    input: typeof FollowRunRequestSchema;
+    output: typeof RunEventSchema;
+  },
+  /**
+   * WaitRun blocks until the run reaches a terminal state or the timeout
+   * elapses, returning the final (or current) live status.
+   *
+   * @generated from rpc vrooli.test_genie.v1.runs.RunsService.WaitRun
+   */
+  waitRun: {
+    methodKind: "unary";
+    input: typeof WaitRunRequestSchema;
+    output: typeof WaitRunResponseSchema;
+  },
+  /**
+   * AbortRun cancels a running run and transitions it to aborted.
+   *
+   * @generated from rpc vrooli.test_genie.v1.runs.RunsService.AbortRun
+   */
+  abortRun: {
+    methodKind: "unary";
+    input: typeof AbortRunRequestSchema;
+    output: typeof AbortRunResponseSchema;
+  },
+  /**
+   * GetRunStatus returns a point-in-time live snapshot (status, active phase,
+   * elapsed, remaining ETA, recommended next-check backoff).
+   *
+   * @generated from rpc vrooli.test_genie.v1.runs.RunsService.GetRunStatus
+   */
+  getRunStatus: {
+    methodKind: "unary";
+    input: typeof GetRunStatusRequestSchema;
+    output: typeof RunLiveStatusSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_test_genie_v1_runs_runs, 0);

@@ -125,7 +125,7 @@ See [Phased Testing Guide](guides/phased-testing.md) for the complete architectu
 - [CLI Testing](phases/integration/cli-testing.md) - BATS testing for CLIs
 - [UI Testability](guides/ui-testability.md) - Design testable UIs
 - [UI Automation with BAS](phases/playbooks/ui-automation-with-bas.md) - Vrooli Ascension workflows
-- [UI Smoke Testing](phases/structure/ui-smoke.md) - Fast UI validation with Browserless
+- [UI Smoke Testing](phases/structure/ui-smoke.md) - Fast UI validation on Browser Automation Studio
 - [Lighthouse Integration](phases/performance/lighthouse.md) - Performance and accessibility testing
 - [Performance Testing](phases/performance/performance-testing.md) - Build benchmarks and regression detection
 - [CLI Manifest Contract](phases/structure/cli-approaches.md) - Manifest-driven scenario CLI adapter patterns

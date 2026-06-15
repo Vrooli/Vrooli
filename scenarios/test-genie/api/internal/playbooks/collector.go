@@ -18,12 +18,12 @@ func (r *Runner) collectWorkflowArtifacts(
 	executionID string,
 	outcome *Outcome,
 	execErr error,
-) (*artifacts.WorkflowArtifacts, error) {
+) (*artifacts.WorkflowArtifacts, *execution.ParsedTimeline, error) {
 	// Fetch timeline data from BAS
 	timeline, timelineData, fetchErr := r.basClient.GetTimeline(ctx, executionID)
 	if fetchErr != nil {
 		shared.LogWarn(r.logWriter, "failed to fetch timeline for %s: %v", entry.File, fetchErr)
-		return &artifacts.WorkflowArtifacts{}, nil
+		return &artifacts.WorkflowArtifacts{}, nil, nil
 	}
 
 	// Parse timeline for structured data
@@ -75,7 +75,7 @@ func (r *Runner) collectWorkflowArtifacts(
 		// Fallback to legacy timeline-only writing
 		shared.LogWarn(r.logWriter, "artifact writer does not support full artifact collection, using legacy mode")
 		timelinePath, _ := r.artifactWriter.WriteTimeline(entry.File, timelineData)
-		return &artifacts.WorkflowArtifacts{Dir: timelinePath, Timeline: timelinePath}, parseErr
+		return &artifacts.WorkflowArtifacts{Dir: timelinePath, Timeline: timelinePath}, parsed, parseErr
 	}
 
 	// Write all artifacts
@@ -99,7 +99,7 @@ func (r *Runner) collectWorkflowArtifacts(
 	// Download rich diagnostics (video/trace/HAR) when the run requested them.
 	r.downloadDiagnostics(ctx, entry.File, executionID, fileWriter)
 
-	return workflowArtifacts, parseErr
+	return workflowArtifacts, parsed, parseErr
 }
 
 // downloadDiagnostics fetches and persists the video/trace/HAR artifacts that

@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"test-genie/internal/captureprofile"
 	"test-genie/internal/orchestrator/phases"
 	"test-genie/internal/orchestrator/requirements"
 	"test-genie/internal/orchestrator/runnability"
@@ -22,6 +23,7 @@ import (
 	"test-genie/internal/playbooksclaims"
 	"test-genie/internal/selfidentity"
 	"test-genie/internal/shared"
+	"test-genie/internal/smoke"
 
 	"github.com/google/uuid"
 
@@ -93,26 +95,6 @@ const (
 	SuiteVerdictFail    = "FAIL"
 )
 
-// Default Browserless URL and environment variable name.
-const (
-	defaultBrowserlessURL = "http://localhost:4110"
-	browserlessURLEnvVar  = "BROWSERLESS_URL"
-)
-
-// resolveBrowserlessURL returns the Browserless URL to use, checking in order:
-// 1. Explicit value from request
-// 2. BROWSERLESS_URL environment variable
-// 3. Default localhost URL
-func resolveBrowserlessURL(explicit string) string {
-	if explicit != "" {
-		return explicit
-	}
-	if url := os.Getenv(browserlessURLEnvVar); url != "" {
-		return url
-	}
-	return defaultBrowserlessURL
-}
-
 // SuiteOrchestrator runs scenario-local test phases without relying on external bash runners.
 type SuiteOrchestrator struct {
 	scenariosRoot string
@@ -153,13 +135,17 @@ type SuiteExecutionRequest struct {
 	// playbooks diagnostics config for this run (richer BAS artifact capture).
 	DiagnosticsPreset string `json:"diagnosticsPreset,omitempty"`
 
+	// CaptureProfile is the capture-depth dial (orthogonal to the phase set).
+	// "" = default depth (single-page smoke, unchanged cost); "baseline" =
+	// all-pages visual capture + video for the smoke phase. See
+	// internal/captureprofile.
+	CaptureProfile string `json:"captureProfile,omitempty"`
+
 	// Runtime URLs for phases that need to connect to running services.
 	// UIURL/APIURL are optional overrides; when omitted, Test Genie manages the
 	// target scenario lifecycle and discovers URLs from lifecycle process metadata.
-	// BrowserlessURL falls back to BROWSERLESS_URL env var or default.
-	UIURL          string `json:"uiUrl,omitempty"`
-	APIURL         string `json:"apiUrl,omitempty"`
-	BrowserlessURL string `json:"browserlessUrl,omitempty"`
+	UIURL  string `json:"uiUrl,omitempty"`
+	APIURL string `json:"apiUrl,omitempty"`
 
 	// ScenarioPath is the absolute physical scenario directory to read and write.
 	// When empty, the orchestrator resolves it from ScenarioName.
@@ -412,9 +398,39 @@ func (o *SuiteOrchestrator) prepareTargetRuntime(
 
 	// The run context is computed from the surfaces that ended up live (whether
 	// reused from a self-target or started for another target). The per-phase
-	// runnability gate reads it to decide RUN / RUN_DEGRADED / SKIP.
-	rc := resolveRunContext(env, targetruntime.URLs{}, false, "", nil)
+	// runnability gate reads it to decide RUN / RUN_DEGRADED / SKIP. The
+	// resource map is probed from the selected phases' declared requirements so
+	// e.g. smoke skips/degrades when BAS is unreachable rather than failing hard.
+	rc := resolveRunContext(env, targetruntime.URLs{}, false, "", resolveResources(ctx, defs))
 	return env, rc, lease, manager, nil
+}
+
+// resolveResources probes availability for the local resources the selected
+// phases declare as required, returning the name→available map the runnability
+// gate consumes. Each resource is probed at most once and only when some
+// selected phase needs it (so runs without that phase pay nothing).
+func resolveResources(ctx context.Context, defs []phases.Definition) map[string]bool {
+	required := make(map[string]struct{})
+	for _, def := range defs {
+		for _, r := range def.Capabilities.RequiredResources {
+			required[r] = struct{}{}
+		}
+	}
+	if len(required) == 0 {
+		return nil
+	}
+	resources := make(map[string]bool, len(required))
+	for name := range required {
+		switch name {
+		case runnability.ResourceBAS:
+			resources[name] = smoke.ProbeBAS(ctx)
+		default:
+			// Unknown resource: leave unset (treated as unavailable) so a
+			// phase that requires it skips with a clear reason rather than
+			// silently passing the gate.
+		}
+	}
+	return resources
 }
 
 // bringUpTargetSurfaces resolves the target's UI/API URLs into env, honoring the
@@ -478,6 +494,19 @@ func newRunID() string {
 	return sharedruns.NewRunID()
 }
 
+// resolveDiagnosticsPreset resolves the effective diagnostics preset for a run.
+// An explicit DiagnosticsPreset always wins; otherwise the capture profile's
+// paired preset applies (the baseline profile implies "full" diagnostics so its
+// richer artifact capture is recorded). The default profile leaves the preset
+// empty (cheap default), preserving routine comprehensive cost.
+func resolveDiagnosticsPreset(req SuiteExecutionRequest) string {
+	if p := strings.TrimSpace(req.DiagnosticsPreset); p != "" {
+		return p
+	}
+	profile, _ := captureprofile.Resolve(req.CaptureProfile)
+	return profile.DiagnosticsPreset()
+}
+
 // resolveRunDiagnostics maps the per-run diagnostics preset to the index's
 // serialized diagnostics shape. An empty/unknown preset records the cheap
 // default (console only), matching the playbooks config default.
@@ -510,7 +539,8 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 		runID = newRunID()
 	}
 	planCtx.env.RunID = runID
-	planCtx.env.DiagnosticsPreset = strings.TrimSpace(req.DiagnosticsPreset)
+	planCtx.env.CaptureProfile = strings.TrimSpace(req.CaptureProfile)
+	planCtx.env.DiagnosticsPreset = resolveDiagnosticsPreset(req)
 	if err := sharedartifacts.EnsureCoverageStructure(planCtx.env.ScenarioDir); err != nil {
 		return nil, err
 	}
@@ -535,7 +565,7 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 		Scenario:        scenario,
 		StartedAt:       time.Now().UTC(),
 		Status:          sharedruns.StatusInProgress,
-		Diagnostics:     resolveRunDiagnostics(req.DiagnosticsPreset),
+		Diagnostics:     resolveRunDiagnostics(planCtx.env.DiagnosticsPreset),
 		GitSha:          gitCtx.Sha,
 		GitBranch:       gitCtx.Branch,
 		GitDirty:        gitCtx.Dirty,
