@@ -31,7 +31,7 @@ SDA serves operators and future agents who need to understand which scenarios/re
 
 - Split `DeploymentDashboard` into smaller view/state subcomponents before deeper visual cleanup.
 - Continue replacing remaining raw palette classes where they are semantic statuses rather than one-off layout details.
-- Decide whether to split Vite chunks by route after the design cleanup stabilizes.
+- Route-level chunking is now implemented; keep watching chunk growth as new surfaces are added.
 
 ## 2026-06-14 Graph Data Accessibility Slice
 
@@ -58,7 +58,7 @@ SDA serves operators and future agents who need to understand which scenarios/re
 
 ### Remaining Work
 
-- Decide whether route-level code splitting is worth adding to address the non-blocking Vite large chunk warning.
+- Route-level code splitting is now in place; keep future heavy surfaces behind lazy route/module boundaries.
 - Consider targeted coverage for DAG export fallback/help behavior before enforcing UI coverage thresholds.
 
 ## 2026-06-14 Failure-State Coverage Slice
@@ -71,7 +71,7 @@ SDA serves operators and future agents who need to understand which scenarios/re
 
 ### Remaining Work
 
-- Route-level code splitting remains the only current UI build warning.
+- The large-chunk build warning is closed by lazy-loading route surfaces.
 - DAG export fallback/help behavior is still a candidate for targeted coverage before coverage thresholds are enforced.
 
 ## 2026-06-14 Runtime Smoke Cleanup
@@ -83,4 +83,4 @@ SDA serves operators and future agents who need to understand which scenarios/re
 
 ### Remaining Work
 
-- Route-level code splitting remains the only current UI build warning.
+- Keep route surfaces lazy-loaded when adding future heavy graph or deployment modules.

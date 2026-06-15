@@ -6,6 +6,7 @@ import (
 
 	"scenario-dependency-analyzer/internal/app/services"
 	"scenario-dependency-analyzer/internal/detection"
+	graphdomain "scenario-dependency-analyzer/internal/graph"
 	"scenario-dependency-analyzer/internal/seams"
 	"scenario-dependency-analyzer/internal/store"
 
@@ -99,10 +100,6 @@ func (a *Analyzer) generateGraphWithSeams(graphType string, deps *seams.Dependen
 	if a == nil {
 		return nil, fmt.Errorf("analyzer not initialized")
 	}
-	builder := graphBuilder{
-		store:   a.store,
-		catalog: a.detector,
-		seams:   deps,
-	}
+	builder := graphdomain.NewBuilder(a.store, a.detector, deps)
 	return builder.Generate(graphType)
 }

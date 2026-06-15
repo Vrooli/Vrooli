@@ -1,10 +1,11 @@
-package app
+package graph
 
 import (
 	"context"
 	"errors"
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/gin-gonic/gin"
@@ -15,44 +16,57 @@ import (
 	graphconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/graph/graph_v1connect"
 )
 
-type interfaceGraphConnectHandler struct {
-	handler *handler
-}
-
-func registerInterfaceGraphConnectRoutes(router *gin.Engine, h *handler) {
-	connectPath, connectHandler := graphconnect.NewInterfaceGraphServiceHandler(&interfaceGraphConnectHandler{handler: h})
+// RegisterConnectRoutes mounts the durable Connect interface graph contract.
+func RegisterConnectRoutes(router *gin.Engine, scenariosDir func() string) {
+	connectPath, connectHandler := graphconnect.NewInterfaceGraphServiceHandler(&connectHandler{
+		scenariosDir: scenariosDir,
+	})
 	router.Any(connectPath+"*path", gin.WrapH(connectHandler))
 }
 
-func (h *interfaceGraphConnectHandler) DescribeInterfaceGraph(ctx context.Context, req *connect.Request[graphv1.DescribeInterfaceGraphRequest]) (*connect.Response[graphv1.DescribeInterfaceGraphResponse], error) {
-	if h == nil || h.handler == nil {
+type connectHandler struct {
+	scenariosDir func() string
+}
+
+func (h *connectHandler) DescribeInterfaceGraph(ctx context.Context, req *connect.Request[graphv1.DescribeInterfaceGraphRequest]) (*connect.Response[graphv1.DescribeInterfaceGraphResponse], error) {
+	if h == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("interface graph handler is not configured"))
 	}
+
 	msg := req.Msg
 	if msg == nil {
 		msg = &graphv1.DescribeInterfaceGraphRequest{}
 	}
-	graph, err := h.handler.describeInterfaceGraph(ctx, interfacegraph.BuildRequest{
+
+	graph, err := h.describeInterfaceGraph(ctx, interfacegraph.BuildRequest{
 		Scenarios:       msg.GetScenarios(),
 		Limit:           msg.GetLimit(),
-		RepoRoot:        filepath.Dir(h.handler.scenariosDir()),
+		RepoRoot:        filepath.Dir(h.resolveScenariosDir()),
 		StabilityFilter: msg.GetStabilityFilter(),
 		LanguageFilter:  msg.GetLanguageFilter(),
 	})
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("describe interface graph: %w", err))
 	}
+
 	return connect.NewResponse(&graphv1.DescribeInterfaceGraphResponse{
 		Graph: interfaceGraphToProto(graph),
 	}), nil
 }
 
-func (h *handler) describeInterfaceGraph(ctx context.Context, req interfacegraph.BuildRequest) (interfacegraph.Graph, error) {
+func (h *connectHandler) describeInterfaceGraph(ctx context.Context, req interfacegraph.BuildRequest) (interfacegraph.Graph, error) {
 	builder := interfacegraph.NewBuilder(
 		interfacegraph.NewProtoHealthClient(nil, nil),
 		interfacegraph.NewCodeFactsClient(nil, nil),
 	)
 	return builder.Build(ctx, req)
+}
+
+func (h *connectHandler) resolveScenariosDir() string {
+	if h.scenariosDir == nil {
+		return ""
+	}
+	return strings.TrimSpace(h.scenariosDir())
 }
 
 func interfaceGraphToProto(in interfacegraph.Graph) *graphv1.InterfaceGraph {
@@ -109,4 +123,4 @@ func evidenceSourceToProto(source string) graphv1.EvidenceSource {
 	}
 }
 
-var _ graphconnect.InterfaceGraphServiceHandler = (*interfaceGraphConnectHandler)(nil)
+var _ graphconnect.InterfaceGraphServiceHandler = (*connectHandler)(nil)

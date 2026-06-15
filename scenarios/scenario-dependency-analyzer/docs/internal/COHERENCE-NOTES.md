@@ -207,6 +207,13 @@ This file tracks the React-Vite 1.1 migration inventory for the Scenario Depende
 ### Validation
 
 - `GOWORK=off go test ./...` passed in the API package.
+- `golangci-lint run` passed in the API package.
+- `knowledge-observatory docs health scenario-dependency-analyzer --json` reports `health_score: 1`.
+- `ui-health validate scenario scenario-dependency-analyzer` passed with no findings.
+- `cli-health validate scenario scenario-dependency-analyzer` passed with no findings.
+- `proto-health validate scenario scenario-dependency-analyzer` passed with existing info-only reachability notes.
+- `make build` passed with the known non-blocking Vite large chunk warning.
+- `make test` passed.
 - `pnpm run lint` passed in the UI package.
 - `pnpm run type-check` passed in the UI package.
 - `ui-health validate scenario scenario-dependency-analyzer` passed with no findings.
@@ -225,3 +232,154 @@ This file tracks the React-Vite 1.1 migration inventory for the Scenario Depende
 
 - `knowledge-observatory docs health scenario-dependency-analyzer --json` reports `health_score: 1`.
 - `knowledge-observatory docs audit scenario-dependency-analyzer --json` no longer reports orphaned docs, extra docs, or unknown marked references.
+
+## 2026-06-14 Phase 3 API Adapter Slice
+
+### Completed
+
+- Added `api/internal/catalog` as the scenario catalog REST adapter for `GET /api/v1/scenarios` and `GET /api/v1/scenarios/:scenario`.
+- Routed catalog list/detail registration through the domain adapter while preserving the existing app-backed `ScenarioService` implementation.
+- Moved deployment readiness, DAG export, and bundle manifest REST presentation into `api/internal/deployment`.
+- Added focused adapter tests for catalog listing/error status mapping and deployment report, DAG flattening, unsupported DAG format, bundle manifest, and reporter error behavior.
+
+### Validation
+
+- `GOWORK=off go test ./...` passed in the API package.
+
+### Remaining API Migration Work
+
+- Extract the catalog service implementation out of `api/internal/app` when the backing workspace/store dependencies can move cleanly.
+- Continue migrating REST adapter groups one domain at a time; graph and dependency impact routes are the next plausible candidates.
+
+## 2026-06-14 Phase 3 Graph Adapter Slice
+
+### Completed
+
+- Added `api/internal/graph` as the graph REST compatibility adapter for legacy dependency graph, centrality, cycle detection, actual interface graph JSON, and drift routes.
+- Moved graph centrality analytics and cycle detection out of `api/internal/app` into the graph domain package.
+- Updated app route registration so graph routes mount through the graph adapter while existing app services still provide graph generation.
+- Added focused graph adapter tests and moved centrality tests to the graph package.
+
+### Validation
+
+- `GOWORK=off go test ./...` passed in the API package.
+
+### Remaining API Migration Work
+
+- The Connect graph handler now lives in `api/internal/graph/connect.go`; app startup only wires the graph-owned generated contract route.
+
+## 2026-06-14 Phase 3 Remaining REST Adapter Slice
+
+### Completed
+
+- Added `api/internal/analysis` as the REST adapter for scenario analysis and scan/apply routes.
+- Added `api/internal/dependencies` as the REST adapter for stored dependency reads and dependency impact reports.
+- Added `api/internal/proposal`, `api/internal/optimization`, and `api/internal/coreset` adapters for their matching REST compatibility routes.
+- Reduced `api/internal/app/handlers.go` to app handler construction, service accessors, scenario-dir resolution, and analysis health; production and test routers now mount the moved routes through domain packages.
+- Added focused adapter tests for analysis, scan, dependencies, impact, proposal, optimization, and core-set routes.
+
+### Validation
+
+- `GOWORK=off go test ./...` passed in the API package.
+
+### Remaining API Migration Work
+
+- Backing service implementations for analysis, scan, dependencies, optimization, proposal, and scenarios still live in the app registry. Extract those only when their workspace/store/runtime dependencies can move cleanly.
+- The Connect graph handler now lives in `api/internal/graph/connect.go`; remaining API migration debt is backing service implementation ownership, not graph presentation.
+
+## 2026-06-15 Phase 3 Graph Connect Presentation Slice
+
+### Completed
+
+- Moved generated `InterfaceGraphService` Connect presentation from `api/internal/app` into `api/internal/graph`.
+- Kept app startup responsible only for route wiring through `graph.RegisterConnectRoutes`.
+- Added graph-domain test coverage for interface graph to proto response mapping.
+
+### Validation
+
+- `GOWORK=off go test ./...` passed in the API package.
+- `golangci-lint run` passed in the API package.
+- `knowledge-observatory docs health scenario-dependency-analyzer --json` reports `health_score: 1`.
+- `ui-health validate scenario scenario-dependency-analyzer` passed with no findings.
+- `cli-health validate scenario scenario-dependency-analyzer` passed with no findings.
+- `proto-health validate scenario scenario-dependency-analyzer` passed with existing info-only reachability notes.
+- `make build` passed with the known non-blocking Vite large chunk warning.
+- `vrooli scenario status scenario-dependency-analyzer --json` reports healthy.
+- `make test` is blocked by the external Test Genie execute parser regression filed as `knw-1781498226583665032`; it treats the scenario name as a phase before SDA phases execute.
+
+### Remaining API Migration Work
+
+- Backing service implementations for scenario catalog, graph generation, scan, dependencies, optimization, and proposal still live in the app package. Extract these only when their workspace/store/runtime dependencies can move cleanly.
+
+## 2026-06-15 Phase 3 App Service Boundary Slice
+
+### Completed
+
+- Split app-backed service implementations out of `api/internal/app/service_registry.go` into focused files:
+  - `service_analysis.go`
+  - `service_scan.go`
+  - `service_graph.go`
+  - `service_optimization.go`
+  - `service_scenario.go`
+  - `service_deployment.go`
+  - `service_proposal.go`
+- Kept `service_registry.go` as the composition point for wiring the `services.Registry`.
+- Preserved existing app-owned implementation boundaries; this slice improves discoverability without moving workspace/store/runtime coupling prematurely.
+
+### Validation
+
+- `GOWORK=off go test ./...` passed in the API package.
+- `golangci-lint run` passed in the API package.
+- `knowledge-observatory docs health scenario-dependency-analyzer --json` reports `health_score: 1`.
+- `git diff --check -- scenarios/scenario-dependency-analyzer` passed.
+- `ui-health validate scenario scenario-dependency-analyzer` passed with no findings.
+- `cli-health validate scenario scenario-dependency-analyzer` passed with no findings.
+- `proto-health validate scenario scenario-dependency-analyzer` passed with existing info-only reachability notes.
+- `vrooli scenario status scenario-dependency-analyzer --json` reports healthy.
+- `make build` passed and confirmed split UI chunks without the previous Vite warning.
+- `make test` passed after rebuild; no stale SDA binary warning remained on the final run.
+
+### Remaining API Migration Work
+
+- The backing services still live in package `app`; move them into domain packages only when their dependencies can move cleanly or shrink behind typed ports.
+
+## 2026-06-15 UI Route Chunking Slice
+
+### Completed
+
+- Lazy-loaded the orientation, graph, deployment, and catalog route surfaces from `ui/src/app/routes.tsx`.
+- Kept shared route state, search-param synchronization, React Query hooks, and app shell ownership unchanged so user-visible behavior remains stable.
+- Added an in-shell loading state for lazy route transitions.
+
+### Validation
+
+- `pnpm run type-check` passed in the UI package.
+- `pnpm run lint` passed in the UI package.
+- `pnpm test` passed in the UI package.
+- `pnpm run build` passed and now emits split route chunks; the main JS chunk is below Vite's default warning threshold, so the previous large-chunk warning is gone.
+- `ui-health validate scenario scenario-dependency-analyzer` passed with no findings.
+- `cli-health validate scenario scenario-dependency-analyzer` passed with no findings.
+- `proto-health validate scenario scenario-dependency-analyzer` passed with existing info-only reachability notes.
+- `GOWORK=off go test ./...` passed in the API package.
+- `make build` passed and confirmed the split chunk output without the previous Vite warning.
+- `make test` passed; the earlier Test Genie parser blocker did not reproduce on this run.
+
+## 2026-06-15 Graph Builder Ownership And Template Provenance Slice
+
+### Completed
+
+- Moved dependency graph construction from `api/internal/app/graph.go` into `api/internal/graph/builder.go`.
+- Kept `api/internal/app` responsible for analyzer composition and legacy fallback wiring, while graph node/edge construction, stale scenario filtering, metadata, and complexity scoring are graph-domain-owned.
+- Added graph-domain builder tests for graph-type filtering, stale scenario filtering, store error propagation, deterministic IDs, and normalized complexity scoring.
+- Reassessed React-Vite template obligations after the UI/router/test/i18n/PWA/docs/health work and bumped `.vrooli/service.json::generation.template.version` to `1.1.0` with the current template manifest/content hashes.
+
+### Validation
+
+- `GOWORK=off go test ./...` passed in the API package.
+- `ui-health validate scenario scenario-dependency-analyzer` passed with no findings.
+- `cli-health validate scenario scenario-dependency-analyzer` passed with no findings.
+- `vrooli scenario template drift scenario-dependency-analyzer --json` reports an ok status.
+
+### Remaining API Migration Work
+
+- Backing services for deployment, proposal, optimization, analysis/scan, dependencies, and scenario catalog still live in package `app`; move them only when their workspace/store/runtime dependencies can be isolated behind clean ports.

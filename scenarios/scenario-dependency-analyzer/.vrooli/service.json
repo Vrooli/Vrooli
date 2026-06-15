@@ -45,12 +45,14 @@
   "generation": {
     "template": {
       "id": "react-vite",
-      "version": "0.0.0"
+      "version": "1.1.0"
     },
+    "manifest_sha": "efce375640f074bcbd20e0463fd67d9b413778c930293dda319a6e2f21526fd5",
+    "content_sha": "f26ae1ea5fb267b746c6ab7966468b0f3cebd1fc6631e78cbf6eac20fce1244e",
     "migration": {
-      "status": "in-progress",
+      "status": "aligned",
       "plan": "/home/matthalloran8/.vrooli/plans/scenario-dependency-analyzer-react-vite-1-1-migration.md",
-      "notes": "Template provenance is declared so validators can run. Version remains 0.0.0 until the React-Vite 1.0.0 and 1.1.0 migration checklists are complete."
+      "notes": "React-Vite 1.1 migration obligations are complete for SDA's current architecture. Residual SDA-specific debt remains documented in docs/internal/PROBLEMS.md: REST compatibility surfaces, governance-only CLI manifest loading, intentional measures waivers, proto reachability info notes, and deeper backing-service ownership."
     }
   },
   "ports": {

@@ -38,7 +38,7 @@
 
 ### Template Provenance Missing
 **Problem**: `.vrooli/service.json` did not declare `generation.template.id`, so `ui-health validate scenario scenario-dependency-analyzer` skipped template-aware validation.
-**Status**: In progress. Provenance is now declared with template version `0.0.0`; do not advance to `1.0.0` or `1.1.0` until those migration checklists are complete.
+**Status**: Fixed. Provenance now declares React-Vite template version `1.1.0` with the current template manifest/content hashes. `vrooli scenario template drift scenario-dependency-analyzer --json` reports an ok status. Residual SDA-specific debts below remain tracked separately and do not represent template hash drift.
 
 ### CLI Manifest Missing
 **Problem**: `cli-health validate scenario scenario-dependency-analyzer` reports `manifest.missing` for `cli/manifest.json`.
@@ -54,7 +54,7 @@
 
 ### UI Bundle Size Warning
 **Problem**: `pnpm run build` passes, but Vite reports the main minified JS chunk is above its default 500 kB warning threshold after adding router/query/i18n/test-adjacent runtime dependencies.
-**Status**: Non-blocking. Consider route-level code splitting or an explicit warning threshold after Phase 6 design cleanup.
+**Status**: Fixed. Orientation, graph, deployment, and catalog route surfaces are now lazy-loaded from `ui/src/app/routes.tsx`, so the production build emits route chunks and the main JS chunk stays below Vite's default warning threshold without raising the limit.
 
 ### UI Server CORS Blocked Browser Smoke Assets
 **Problem**: Browser-driven smoke and Lighthouse phases saw `403 Origin not allowed` for built JS/CSS assets because SDA passed an empty default CORS allow-list to `createScenarioServer`. Direct curl checks without an `Origin` header returned `200 OK`, which masked the issue outside browser execution.
@@ -66,7 +66,7 @@
 
 ### UI Design-System Debt
 **Problem**: Feature components still contain raw status and palette utility classes, especially in deployment readiness and graph panels.
-**Status**: Improved. Semantic status tones now live in `ui/src/theme/status.ts` and cover the repeated readiness/drift/error states. Deployment status derivation has been extracted into pure helpers, and deployment readiness rendering is now split across intro, summary, status-list, status-badge, and details components. A raw semantic palette inventory over `ui/src/**/*.ts{x}` no longer finds the tracked red/yellow/green/blue/slate/gray/amber/emerald/rose/orange status class families. Remaining design-system work is mostly route chunking and any targeted coverage needed before coverage thresholds are enforced.
+**Status**: Improved. Semantic status tones now live in `ui/src/theme/status.ts` and cover the repeated readiness/drift/error states. Deployment status derivation has been extracted into pure helpers, and deployment readiness rendering is now split across intro, summary, status-list, status-badge, and details components. A raw semantic palette inventory over `ui/src/**/*.ts{x}` no longer finds the tracked red/yellow/green/blue/slate/gray/amber/emerald/rose/orange status class families. Remaining design-system work is mostly targeted coverage before coverage thresholds are enforced.
 
 ### Measures Coverage
 **Problem**: `vrooli scenario test scenario-dependency-analyzer` failed in `phase-measures` because `scenario_dependencies` was a stateful domain with no declared measure or waiver.
@@ -75,6 +75,14 @@
 ### Runtime Status Drift
 **Problem**: `vrooli scenario status scenario-dependency-analyzer` reports unhealthy even though live `/health`, `/api/v1/health/analysis`, and UI `/health` endpoints return `200 OK`.
 **Status**: Fixed. The runtime health probe was rejecting `/api/v1/health/analysis` because it returned analysis diagnostics without the standard health envelope fields. The endpoint now preserves its diagnostic fields while also returning `service`, `timestamp`, `readiness`, and `version`; after `make restart`, `vrooli scenario status scenario-dependency-analyzer --json` reports `health_status: healthy`.
+
+### API Architecture Convergence
+**Problem**: `api/internal/app` still owns the central Gin router, service registry, and multiple REST adapters, so some domains remain less discoverable than the React-Vite template's screaming-architecture target.
+**Status**: Partially improved. Scenario catalog list/detail REST presentation now lives in `api/internal/catalog` with its own adapter tests and a tiny local service contract. Deployment readiness, DAG export, and bundle manifest REST presentation now live in `api/internal/deployment` with adapter coverage. Graph REST presentation, centrality analytics, cycle detection, generated Connect graph presentation, and dependency graph construction now live in `api/internal/graph` with adapter/domain tests. Analysis/scan REST presentation lives in `api/internal/analysis`; stored dependencies and impact routes live in `api/internal/dependencies`; proposal, optimization, and core-set presentation live in their matching domain packages. `api/internal/app/service_registry.go` is now only service composition; focused app service implementations live in `service_*.go` files until their workspace/store/runtime dependencies can move cleanly into domain packages.
+
+### Test Genie Execute Parser Regression
+**Problem**: On 2026-06-15, `make test` reached SDA's test phase but failed before executing phases because `test-genie execute scenario-dependency-analyzer --preset comprehensive` treated `scenario-dependency-analyzer` as a phase name. Alternate flag ordering treated `quick` as a phase, and `execute --help` advertised `--dry-run` while the parser rejected it.
+**Status**: No longer blocking SDA validation. The external issue remains filed as `knw-1781498226583665032` for Test Genie ownership, but `make test` completed successfully on 2026-06-15 after the UI route-chunking slice.
 
 ### Proto Reachability Notes
 **Problem**: `proto-health validate scenario scenario-dependency-analyzer` emits informational `proto.possibly_unused` findings for graph and health messages because the validator does not yet see all served/consumed reachability.

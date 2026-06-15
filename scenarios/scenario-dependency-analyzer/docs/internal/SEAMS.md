@@ -80,7 +80,8 @@ mockStore.SetMetrics(map[string]interface{}{"scenarios_found": 5})
 **Functions with seam support:**
 - `extractDeclaredResourcesWithSeams()` - controlled time/ID generation
 - `convertDeclaredScenariosToDependenciesWithSeams()` - controlled time/ID generation
-- `Analyzer.generateGraphWithSeams()` - graph building with controlled time/ID generation and explicit store/catalog seams
+- `graph.NewBuilder(...).Generate()` - graph building with controlled time/ID generation and explicit store/catalog seams
+- `Analyzer.generateGraphWithSeams()` - app composition wrapper around the graph-domain builder
 
 ### 3. Detection Engine (`internal/detection/`)
 
@@ -113,11 +114,11 @@ mockDetector.SetDetectedResources([]types.ScenarioDependency{...})
 
 **Migration status:** The interface is defined but the concrete Detector doesn't implement it yet due to type constraints (interface methods use `interface{}` while concrete methods use domain types). Future work should create adapter wrappers.
 
-### 3a. Interface Graph Domain (`internal/interfacegraph/`)
+### 3a. Interface Graph Domain (`internal/interfacegraph/`, `internal/graph/`)
 
-**Status: Planned seam**
+**Status: Active seam, presentation extraction in progress**
 
-The actual interface graph must live behind a domain service that depends on fakeable upstream clients:
+The actual interface graph lives behind a domain service that depends on fakeable upstream clients:
 
 | Client | Upstream scenario | Responsibility |
 |--------|-------------------|----------------|
@@ -130,6 +131,8 @@ SDA is responsible only for interpreting these facts at the fleet level:
 - Compare actual edges against `.vrooli/service.json` declarations.
 
 SDA must not open `.go`, `.ts`, or `.proto` source files for graph evidence; extraction belongs to upstream fact scenarios.
+
+REST compatibility routes for dependency graphs, actual interface graph JSON, drift, centrality, and cycles are registered through `api/internal/graph`. Dependency graph construction, centrality analytics, cycle detection, and the graph Connect handler for `DescribeInterfaceGraph` also live in `api/internal/graph`, so graph presentation and graph read-model construction are domain-owned while app startup only wires routes and service composition. The adapters depend on the app service registry only through the small `GraphService` interface and a `scenariosDir` resolver, keeping Gin route code out of `api/internal/app`.
 
 ### 4. Store (`internal/store/`)
 
@@ -177,7 +180,7 @@ deployment.LoadReport(scenarioPath)
 
 **Locations of direct calls:**
 - `analysis.go:87-91` - AnalyzeScenario
-- `service_registry.go:257,276-280` - deploymentService
+- `service_deployment.go` - deploymentService
 
 **Future improvement:** Create `DeploymentReporter` interface and inject it.
 
@@ -217,7 +220,7 @@ svc := h.scenarioService()
 detail, _ := svc.GetScenarioDetail(name)
 ```
 
-Dependency-centric HTTP handlers now rely on `DependencyService` rather than touching the store or detector directly, reducing new bridge usage in presentation code.
+Dependency-centric HTTP handlers now rely on `DependencyService` rather than touching the store or detector directly, reducing new bridge usage in presentation code. Scenario catalog list/detail HTTP routes are registered through `api/internal/catalog`, so catalog presentation has a domain-owned adapter while its backing service remains app-owned. Deployment readiness, DAG export, and bundle manifest HTTP routes are registered through `api/internal/deployment`, keeping deployment presentation next to deployment report logic. Graph, centrality, cycle, actual-graph compatibility, and drift REST routes are registered through `api/internal/graph`; graph construction, centrality, and cycle logic now live in the graph package. Analysis/scan, stored dependency/impact, proposal, optimization, and core-set REST routes are registered through their matching domain packages; `api/internal/app/handlers.go` now only retains app handler construction, service accessors, scenario-dir resolution, and analysis health. `api/internal/app/service_registry.go` is now only composition; app-owned backing implementations are split into focused `service_*.go` files while deeper dependency extraction remains deferred.
 
 ### Configuration Loading
 

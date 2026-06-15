@@ -21,7 +21,11 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
 	_ "modernc.org/sqlite"
+	analysisapi "scenario-dependency-analyzer/internal/analysis"
+	dependenciesapi "scenario-dependency-analyzer/internal/dependencies"
+	graphdomain "scenario-dependency-analyzer/internal/graph"
 	"scenario-dependency-analyzer/internal/modules"
+	proposalapi "scenario-dependency-analyzer/internal/proposal"
 	types "scenario-dependency-analyzer/internal/types"
 )
 
@@ -78,7 +82,7 @@ func (mockGraphService) GraphCentrality(coreSeeds []string, scenario string) (*t
 	if err != nil {
 		return nil, err
 	}
-	return calculateGraphCentrality(graph, coreSeeds, scenario), nil
+	return graphdomain.CalculateCentrality(graph, coreSeeds, scenario), nil
 }
 
 // setupTestDirectory creates an isolated test environment with proper cleanup
@@ -309,11 +313,10 @@ func setupTestRouter() *gin.Engine {
 
 	api := router.Group("/api/v1")
 	{
-		api.GET("/analyze/:scenario", h.analyzeScenario)
-		api.GET("/scenarios/:scenario/dependencies", h.getDependencies)
-		api.GET("/graph/centrality", h.getGraphCentrality)
-		api.GET("/graph/:type", h.getGraph)
-		api.POST("/analyze/proposed", h.analyzeProposed)
+		analysisapi.RegisterHTTPRoutes(api, h.analysisService(), h.scanService())
+		dependenciesapi.RegisterHTTPRoutes(api, h.dependencyService())
+		graphdomain.RegisterHTTPRoutes(api, h.graphService(), h.scenariosDir)
+		proposalapi.RegisterHTTPRoutes(api, h.proposalService())
 	}
 
 	return router

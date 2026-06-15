@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo } from "react";
 import { AlertCircle } from "lucide-react";
 import {
   createBrowserRouter,
@@ -17,16 +17,25 @@ import {
   routeDefinitions,
   routePath
 } from "./routeDefinitions";
-import { CatalogPage } from "../features/catalog/CatalogPage";
 import { useScenarioCatalog } from "../features/catalog/useScenarioCatalog";
-import { DeploymentPage } from "../features/deployment/DeploymentPage";
-import { GraphPage } from "../features/graph/GraphPage";
 import { useGraphData } from "../features/graph/useGraphData";
-import { OrientationPage } from "../pages/OrientationPage";
 import { statusTone } from "../theme/status";
 import type { GraphType, LayoutMode } from "../types";
 
 export const routes = routeDefinitions;
+
+const CatalogPage = lazy(() =>
+  import("../features/catalog/CatalogPage").then((module) => ({ default: module.CatalogPage }))
+);
+const DeploymentPage = lazy(() =>
+  import("../features/deployment/DeploymentPage").then((module) => ({ default: module.DeploymentPage }))
+);
+const GraphPage = lazy(() =>
+  import("../features/graph/GraphPage").then((module) => ({ default: module.GraphPage }))
+);
+const OrientationPage = lazy(() =>
+  import("../pages/OrientationPage").then((module) => ({ default: module.OrientationPage }))
+);
 
 const routeFromLocation = (pathname: string, search: string): AppRoute => {
   const searchParams = new URLSearchParams(search);
@@ -247,65 +256,77 @@ function ScenarioDependencyAnalyzerRoutes() {
         </Card>
       ) : null}
 
-      {activeRoute === "overview" ? (
-        <OrientationPage
-          onAnalyzeAll={() => void analyzeAll()}
-          onGoGraph={() => onNavigate("graph")}
-          onGoDeployment={() => onNavigate("deployment")}
-          onGoCatalog={() => onNavigate("catalog")}
-          hasGraphData={Boolean(graph)}
-          hasScenarioSummaries={summaries.length > 0}
-          apiHealthy={apiHealthy}
-        />
-      ) : null}
+      <Suspense fallback={<RouteLoadingState />}>
+        {activeRoute === "overview" ? (
+          <OrientationPage
+            onAnalyzeAll={() => void analyzeAll()}
+            onGoGraph={() => onNavigate("graph")}
+            onGoDeployment={() => onNavigate("deployment")}
+            onGoCatalog={() => onNavigate("catalog")}
+            hasGraphData={Boolean(graph)}
+            hasScenarioSummaries={summaries.length > 0}
+            apiHealthy={apiHealthy}
+          />
+        ) : null}
 
-      {activeRoute === "graph" ? (
-        <GraphPage
-          graph={graph}
-          graphType={graphType}
-          layout={layout}
-          filter={filter}
-          driftFilter={driftFilter}
-          loading={loading}
-          selectedNode={selectedNode}
-          apiHealthy={apiHealthy}
-          stats={stats}
-          onGraphTypeChange={handleGraphTypeChange}
-          onLayoutChange={handleLayoutChange}
-          onFilterChange={handleFilterChange}
-          onDriftFilterChange={setDriftFilter}
-          onSelectNode={setSelectedNode}
-          onRefresh={() => fetchGraph(graphType)}
-          onAnalyzeAll={analyzeAll}
-          onExport={handleExport}
-        />
-      ) : null}
+        {activeRoute === "graph" ? (
+          <GraphPage
+            graph={graph}
+            graphType={graphType}
+            layout={layout}
+            filter={filter}
+            driftFilter={driftFilter}
+            loading={loading}
+            selectedNode={selectedNode}
+            apiHealthy={apiHealthy}
+            stats={stats}
+            onGraphTypeChange={handleGraphTypeChange}
+            onLayoutChange={handleLayoutChange}
+            onFilterChange={handleFilterChange}
+            onDriftFilterChange={setDriftFilter}
+            onSelectNode={setSelectedNode}
+            onRefresh={() => fetchGraph(graphType)}
+            onAnalyzeAll={analyzeAll}
+            onExport={handleExport}
+          />
+        ) : null}
 
-      {activeRoute === "deployment" ? (
-        <DeploymentPage
-          scenarios={summaries}
-          loading={loadingSummaries}
-          onRefresh={refreshSummaries}
-          onScanScenario={handleScenarioScan}
-          onSelectScenario={handleSelectScenarioForDeployment}
-        />
-      ) : null}
+        {activeRoute === "deployment" ? (
+          <DeploymentPage
+            scenarios={summaries}
+            loading={loadingSummaries}
+            onRefresh={refreshSummaries}
+            onScanScenario={handleScenarioScan}
+            onSelectScenario={handleSelectScenarioForDeployment}
+          />
+        ) : null}
 
-      {activeRoute === "catalog" ? (
-        <CatalogPage
-          scenarios={summaries}
-          selectedScenario={selectedScenario}
-          detail={detail}
-          loadingSummaries={loadingSummaries}
-          detailLoading={detailLoading}
-          scanLoading={scanLoading}
-          optimizeLoading={optimizeLoading}
-          onSelectScenario={handleSelectScenario}
-          onRefresh={refreshSummaries}
-          onScan={handleScenarioScanForDetail}
-          onOptimize={handleOptimize}
-        />
-      ) : null}
+        {activeRoute === "catalog" ? (
+          <CatalogPage
+            scenarios={summaries}
+            selectedScenario={selectedScenario}
+            detail={detail}
+            loadingSummaries={loadingSummaries}
+            detailLoading={detailLoading}
+            scanLoading={scanLoading}
+            optimizeLoading={optimizeLoading}
+            onSelectScenario={handleSelectScenario}
+            onRefresh={refreshSummaries}
+            onScan={handleScenarioScanForDetail}
+            onOptimize={handleOptimize}
+          />
+        ) : null}
+      </Suspense>
     </AppShell>
+  );
+}
+
+function RouteLoadingState() {
+  return (
+    <Card className={`border text-sm ${statusTone("info").panel}`} aria-live="polite">
+      <CardContent className="py-4">
+        <p className="font-semibold">Loading workspace surface...</p>
+      </CardContent>
+    </Card>
   );
 }

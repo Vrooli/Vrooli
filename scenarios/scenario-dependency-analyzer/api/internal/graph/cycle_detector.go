@@ -1,4 +1,4 @@
-package app
+package graph
 
 import (
 	"fmt"
@@ -6,28 +6,28 @@ import (
 	types "scenario-dependency-analyzer/internal/types"
 )
 
-// CycleDetectionResult represents the outcome of circular dependency analysis
+// CycleDetectionResult represents the outcome of circular dependency analysis.
 type CycleDetectionResult struct {
 	HasCycles    bool              `json:"has_cycles"`
 	CycleCount   int               `json:"cycle_count"`
 	Cycles       []DependencyCycle `json:"cycles"`
 	AffectedDeps []string          `json:"affected_dependencies"`
-	Severity     string            `json:"severity"` // "none", "warning", "critical"
+	Severity     string            `json:"severity"`
 	Message      string            `json:"message"`
 }
 
-// DependencyCycle represents a single circular dependency path
+// DependencyCycle represents a single circular dependency path.
 type DependencyCycle struct {
 	Path        []string               `json:"path"`
 	Length      int                    `json:"length"`
-	CycleType   string                 `json:"cycle_type"` // "scenario", "resource", "mixed"
-	Required    bool                   `json:"required"`   // true if all edges are required
+	CycleType   string                 `json:"cycle_type"`
+	Required    bool                   `json:"required"`
 	Description string                 `json:"description"`
 	Metadata    map[string]interface{} `json:"metadata"`
 }
 
-// detectCycles performs circular dependency detection on the dependency graph
-func detectCycles(graph *types.DependencyGraph) *CycleDetectionResult {
+// DetectCycles performs circular dependency detection on the dependency graph.
+func DetectCycles(graph *types.DependencyGraph) *CycleDetectionResult {
 	if graph == nil || len(graph.Edges) == 0 {
 		return &CycleDetectionResult{
 			HasCycles: false,
@@ -36,15 +36,11 @@ func detectCycles(graph *types.DependencyGraph) *CycleDetectionResult {
 		}
 	}
 
-	// Build adjacency list for efficient traversal
 	adjList := buildAdjacencyList(graph.Edges)
-
-	// Track visited nodes and current path for cycle detection
 	visited := make(map[string]bool)
 	recursionStack := make(map[string]bool)
 	var cycles []DependencyCycle
 
-	// Check each node as a potential cycle start
 	for _, node := range graph.Nodes {
 		if !visited[node.ID] {
 			foundCycles := dfsDetectCycles(node.ID, adjList, visited, recursionStack, graph.Edges, []string{})
@@ -52,15 +48,9 @@ func detectCycles(graph *types.DependencyGraph) *CycleDetectionResult {
 		}
 	}
 
-	// Deduplicate cycles (same cycle discovered from different starting points)
 	uniqueCycles := deduplicateCycles(cycles)
-
-	// Determine severity
 	severity := calculateCycleSeverity(uniqueCycles)
-
-	// Extract affected dependencies
 	affectedDeps := extractAffectedDependencies(uniqueCycles)
-
 	message := generateCycleMessage(len(uniqueCycles), severity)
 
 	return &CycleDetectionResult{
@@ -73,18 +63,14 @@ func detectCycles(graph *types.DependencyGraph) *CycleDetectionResult {
 	}
 }
 
-// buildAdjacencyList creates a map of node -> list of nodes it depends on
 func buildAdjacencyList(edges []types.GraphEdge) map[string][]types.GraphEdge {
 	adjList := make(map[string][]types.GraphEdge)
-
 	for _, edge := range edges {
 		adjList[edge.Source] = append(adjList[edge.Source], edge)
 	}
-
 	return adjList
 }
 
-// dfsDetectCycles performs depth-first search to find cycles
 func dfsDetectCycles(
 	nodeID string,
 	adjList map[string][]types.GraphEdge,
@@ -98,20 +84,16 @@ func dfsDetectCycles(
 	currentPath = append(currentPath, nodeID)
 
 	var cycles []DependencyCycle
-
-	// Explore all neighbors
 	for _, edge := range adjList[nodeID] {
 		targetID := edge.Target
 
 		if !visited[targetID] {
-			// Recursively explore
 			foundCycles := dfsDetectCycles(targetID, adjList, visited, recursionStack, allEdges, currentPath)
 			cycles = append(cycles, foundCycles...)
 		} else if recursionStack[targetID] {
-			// Cycle detected! Build the cycle path
 			cycleStart := findInPath(currentPath, targetID)
 			if cycleStart >= 0 {
-				cyclePath := append(currentPath[cycleStart:], targetID) // Close the cycle
+				cyclePath := append(currentPath[cycleStart:], targetID)
 				cycle := buildCycleInfo(cyclePath, allEdges)
 				cycles = append(cycles, cycle)
 			}
@@ -122,7 +104,6 @@ func dfsDetectCycles(
 	return cycles
 }
 
-// findInPath returns the index of nodeID in path, or -1 if not found
 func findInPath(path []string, nodeID string) int {
 	for i, id := range path {
 		if id == nodeID {
@@ -132,7 +113,6 @@ func findInPath(path []string, nodeID string) int {
 	return -1
 }
 
-// buildCycleInfo creates a DependencyCycle from a path
 func buildCycleInfo(path []string, allEdges []types.GraphEdge) DependencyCycle {
 	cycleType := determineCycleType(path, allEdges)
 	allRequired := checkAllEdgesRequired(path, allEdges)
@@ -140,7 +120,7 @@ func buildCycleInfo(path []string, allEdges []types.GraphEdge) DependencyCycle {
 
 	return DependencyCycle{
 		Path:        path,
-		Length:      len(path) - 1, // Exclude the duplicate end node
+		Length:      len(path) - 1,
 		CycleType:   cycleType,
 		Required:    allRequired,
 		Description: description,
@@ -150,7 +130,6 @@ func buildCycleInfo(path []string, allEdges []types.GraphEdge) DependencyCycle {
 	}
 }
 
-// determineCycleType identifies if cycle involves scenarios, resources, or both
 func determineCycleType(path []string, allEdges []types.GraphEdge) string {
 	hasScenario := false
 	hasResource := false
@@ -174,7 +153,6 @@ func determineCycleType(path []string, allEdges []types.GraphEdge) string {
 	return "resource"
 }
 
-// checkAllEdgesRequired returns true if all edges in the cycle are required
 func checkAllEdgesRequired(path []string, allEdges []types.GraphEdge) bool {
 	for i := 0; i < len(path)-1; i++ {
 		edge := findEdge(path[i], path[i+1], allEdges)
@@ -185,7 +163,6 @@ func checkAllEdgesRequired(path []string, allEdges []types.GraphEdge) bool {
 	return true
 }
 
-// findEdge finds an edge between source and target
 func findEdge(source, target string, edges []types.GraphEdge) *types.GraphEdge {
 	for i := range edges {
 		if edges[i].Source == source && edges[i].Target == target {
@@ -195,21 +172,18 @@ func findEdge(source, target string, edges []types.GraphEdge) *types.GraphEdge {
 	return nil
 }
 
-// generateCycleSignature creates a normalized signature for cycle deduplication
 func generateCycleSignature(path []string) string {
 	if len(path) <= 1 {
 		return ""
 	}
 
-	// Find the lexicographically smallest node as the starting point
 	minIdx := 0
-	for i := 1; i < len(path)-1; i++ { // Exclude last element (duplicate)
+	for i := 1; i < len(path)-1; i++ {
 		if path[i] < path[minIdx] {
 			minIdx = i
 		}
 	}
 
-	// Build normalized path starting from the smallest node
 	normalized := make([]string, len(path)-1)
 	for i := 0; i < len(normalized); i++ {
 		normalized[i] = path[(minIdx+i)%(len(path)-1)]
@@ -222,7 +196,6 @@ func generateCycleSignature(path []string) string {
 	return signature
 }
 
-// deduplicateCycles removes duplicate cycles based on their signature
 func deduplicateCycles(cycles []DependencyCycle) []DependencyCycle {
 	seen := make(map[string]bool)
 	var unique []DependencyCycle
@@ -242,24 +215,20 @@ func deduplicateCycles(cycles []DependencyCycle) []DependencyCycle {
 	return unique
 }
 
-// calculateCycleSeverity determines the severity level
 func calculateCycleSeverity(cycles []DependencyCycle) string {
 	if len(cycles) == 0 {
 		return "none"
 	}
 
-	// Check for critical cycles (all required dependencies)
 	for _, cycle := range cycles {
 		if cycle.Required {
 			return "critical"
 		}
 	}
 
-	// If we have cycles but none are all-required, it's a warning
 	return "warning"
 }
 
-// extractAffectedDependencies returns a sorted list of unique dependencies in cycles
 func extractAffectedDependencies(cycles []DependencyCycle) []string {
 	depSet := make(map[string]bool)
 
@@ -277,13 +246,11 @@ func extractAffectedDependencies(cycles []DependencyCycle) []string {
 	return deps
 }
 
-// generateCycleDescription creates a human-readable description
 func generateCycleDescription(path []string, cycleType string) string {
 	if len(path) <= 1 {
 		return "Invalid cycle path"
 	}
 
-	// Remove duplicate end node for cleaner description
 	cleanPath := path[:len(path)-1]
 
 	return fmt.Sprintf("%s cycle: %s forms a circular dependency loop (%d hops)",
@@ -292,7 +259,6 @@ func generateCycleDescription(path []string, cycleType string) string {
 		len(cleanPath))
 }
 
-// joinPath creates "A → B → C" style path string
 func joinPath(path []string) string {
 	if len(path) == 0 {
 		return ""
@@ -301,11 +267,10 @@ func joinPath(path []string) string {
 	for i := 1; i < len(path); i++ {
 		result += " → " + path[i]
 	}
-	result += " → " + path[0] // Show it cycles back
+	result += " → " + path[0]
 	return result
 }
 
-// generateCycleMessage creates an overall message about cycle detection
 func generateCycleMessage(cycleCount int, severity string) string {
 	if cycleCount == 0 {
 		return "No circular dependencies detected. Dependency graph is acyclic."

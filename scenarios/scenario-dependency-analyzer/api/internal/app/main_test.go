@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"scenario-dependency-analyzer/internal/deployment"
+	graphdomain "scenario-dependency-analyzer/internal/graph"
 
 	"github.com/vrooli/api-core/storage"
 	appoptimization "scenario-dependency-analyzer/internal/app/optimization"
@@ -766,7 +767,7 @@ func TestCalculateComplexityScore(t *testing.T) {
 				}
 			}
 
-			score := calculateComplexityScore(nodes, edges)
+			score := graphdomain.CalculateComplexityScore(nodes, edges)
 
 			if score < 0 {
 				t.Errorf("Expected non-negative complexity score, got %f", score)

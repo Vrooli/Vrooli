@@ -1,4 +1,4 @@
-package app
+package graph
 
 import (
 	"testing"
@@ -6,7 +6,7 @@ import (
 	types "scenario-dependency-analyzer/internal/types"
 )
 
-func TestCalculateGraphCentrality(t *testing.T) {
+func TestCalculateCentrality(t *testing.T) {
 	graph := &types.DependencyGraph{
 		Type: "combined",
 		Nodes: []types.GraphNode{
@@ -26,7 +26,7 @@ func TestCalculateGraphCentrality(t *testing.T) {
 		},
 	}
 
-	report := calculateGraphCentrality(graph, []string{"core"}, "api")
+	report := CalculateCentrality(graph, []string{"core"}, "api")
 	if got := len(report.Nodes); got != 1 {
 		t.Fatalf("expected one filtered centrality row, got %d", got)
 	}
@@ -51,7 +51,7 @@ func TestCalculateGraphCentrality(t *testing.T) {
 	}
 }
 
-func TestCalculateGraphCentralityCycleTolerance(t *testing.T) {
+func TestCalculateCentralityCycleTolerance(t *testing.T) {
 	graph := &types.DependencyGraph{
 		Type: "combined",
 		Nodes: []types.GraphNode{
@@ -68,7 +68,7 @@ func TestCalculateGraphCentralityCycleTolerance(t *testing.T) {
 		},
 	}
 
-	report := calculateGraphCentrality(graph, []string{"core"}, "b")
+	report := CalculateCentrality(graph, []string{"core"}, "b")
 	if got := len(report.Nodes); got != 1 {
 		t.Fatalf("expected one filtered centrality row, got %d", got)
 	}
@@ -81,13 +81,13 @@ func TestCalculateGraphCentralityCycleTolerance(t *testing.T) {
 	}
 }
 
-func TestCalculateGraphCentralityUnknownScenario(t *testing.T) {
+func TestCalculateCentralityUnknownScenario(t *testing.T) {
 	graph := &types.DependencyGraph{
 		Type:  "combined",
 		Nodes: []types.GraphNode{{ID: "known", Type: "scenario", Group: "scenarios"}},
 	}
 
-	report := calculateGraphCentrality(graph, []string{"core"}, "missing")
+	report := CalculateCentrality(graph, []string{"core"}, "missing")
 	if got := len(report.Nodes); got != 0 {
 		t.Fatalf("expected no rows for unknown scenario, got %d", got)
 	}

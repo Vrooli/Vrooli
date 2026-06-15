@@ -10,7 +10,15 @@ import (
 	"github.com/rs/cors"
 	"github.com/vrooli/api-core/health"
 
+	analysisapi "scenario-dependency-analyzer/internal/analysis"
+	"scenario-dependency-analyzer/internal/catalog"
 	appconfig "scenario-dependency-analyzer/internal/config"
+	coresetapi "scenario-dependency-analyzer/internal/coreset"
+	dependenciesapi "scenario-dependency-analyzer/internal/dependencies"
+	deploymentapi "scenario-dependency-analyzer/internal/deployment"
+	graphapi "scenario-dependency-analyzer/internal/graph"
+	optimizationapi "scenario-dependency-analyzer/internal/optimization"
+	proposalapi "scenario-dependency-analyzer/internal/proposal"
 )
 
 // Run boots the HTTP API using the provided configuration and database connection.
@@ -35,7 +43,7 @@ func Run(cfg appconfig.Config, dbConn *sql.DB) error {
 
 	h := newHandler(rt)
 	registerRoutes(router, h)
-	registerInterfaceGraphConnectRoutes(router, h)
+	graphapi.RegisterConnectRoutes(router, h.scenariosDir)
 
 	log.Printf("Starting Scenario Dependency Analyzer API on port %s", cfg.Port)
 	log.Printf("Scenarios directory: %s", cfg.ScenariosDir)
@@ -57,22 +65,13 @@ func registerRoutes(router *gin.Engine, handler *handler) {
 
 	api := router.Group("/api/v1")
 	{
-		api.GET("/scenarios", handler.listScenarios)
-		api.GET("/scenarios/:scenario", handler.getScenarioDetail)
-		api.GET("/scenarios/:scenario/deployment", handler.getDeploymentReport)
-		api.GET("/scenarios/:scenario/bundle/manifest", handler.getBundleManifest)
-		api.GET("/scenarios/:scenario/dag/export", handler.exportDAG)
-		api.GET("/analyze/:scenario", handler.analyzeScenario)
-		api.GET("/scenarios/:scenario/dependencies", handler.getDependencies)
-		api.POST("/scenarios/:scenario/scan", handler.scanScenario)
-		api.GET("/core-set", handler.getCoreSet)
-		api.GET("/graph/centrality", handler.getGraphCentrality)
-		api.GET("/graph/actual", handler.getActualInterfaceGraph)
-		api.GET("/drift", handler.getDependencyDrift)
-		api.GET("/graph/:type", handler.getGraph)
-		api.GET("/graph/:type/cycles", handler.detectCycles)
-		api.GET("/dependencies/:name/impact", handler.getDependencyImpact)
-		api.POST("/analyze/proposed", handler.analyzeProposed)
-		api.POST("/optimize", handler.optimize)
+		catalog.RegisterRoutes(api, handler.scenarioService())
+		deploymentapi.RegisterHTTPRoutes(api, handler.deploymentService())
+		analysisapi.RegisterHTTPRoutes(api, handler.analysisService(), handler.scanService())
+		dependenciesapi.RegisterHTTPRoutes(api, handler.dependencyService())
+		coresetapi.RegisterHTTPRoutes(api, handler.scenariosDir)
+		graphapi.RegisterHTTPRoutes(api, handler.graphService(), handler.scenariosDir)
+		proposalapi.RegisterHTTPRoutes(api, handler.proposalService())
+		optimizationapi.RegisterHTTPRoutes(api, handler.optimizationService())
 	}
 }

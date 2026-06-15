@@ -1,4 +1,4 @@
-package app
+package graph
 
 import (
 	"sort"
@@ -13,7 +13,8 @@ type reverseEdge struct {
 	weight   float64
 }
 
-func calculateGraphCentrality(graph *types.DependencyGraph, coreSeeds []string, scenario string) *types.GraphCentralityReport {
+// CalculateCentrality summarizes reverse-dependency importance for scenario graph nodes.
+func CalculateCentrality(graph *types.DependencyGraph, coreSeeds []string, scenario string) *types.GraphCentralityReport {
 	scenario = strings.TrimSpace(scenario)
 	if graph == nil {
 		return &types.GraphCentralityReport{
