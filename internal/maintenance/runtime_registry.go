@@ -405,17 +405,23 @@ func runtimeTrackedProcessRefs(home string) ([]trackedProcessRef, error) {
 	}
 	defer closeStore()
 
-	instances, err := store.ListInstances(context.Background(), scenarioruntime.InstanceFilter{Statuses: scenarioruntime.ActiveInstanceStatuses()})
+	ctx := context.Background()
+	instances, err := store.ListInstances(ctx, scenarioruntime.InstanceFilter{Statuses: scenarioruntime.ActiveInstanceStatuses()})
+	if err != nil {
+		return nil, err
+	}
+	instanceIDs := make([]string, 0, len(instances))
+	for _, instance := range instances {
+		instanceIDs = append(instanceIDs, instance.InstanceID)
+	}
+	// One batched query instead of one ListProcessRefs round trip per instance.
+	refsByInstance, err := store.ListProcessRefsForInstances(ctx, instanceIDs)
 	if err != nil {
 		return nil, err
 	}
 	out := make([]trackedProcessRef, 0)
 	for _, instance := range instances {
-		refs, err := store.ListProcessRefs(context.Background(), instance.InstanceID)
-		if err != nil {
-			return nil, err
-		}
-		for _, ref := range refs {
+		for _, ref := range refsByInstance[instance.InstanceID] {
 			item := trackedProcessRef{}
 			if ref.PID != nil {
 				item.PID = *ref.PID

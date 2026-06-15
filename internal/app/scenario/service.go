@@ -211,8 +211,10 @@ func (s Service) Setup(req SetupRequest) (lifecycle.PhaseResult, error) {
 	return s.Runner.RunPhaseDetailed(req.Name, "setup", req.Opts)
 }
 
-func (s Service) Test(req TestRequest) error {
-	return s.Runner.RunPhase(req.Name, "test", req.Opts)
+// TestDetailed runs the test phase and returns the lifecycle result (run-id,
+// timestamps, exit code, log file) so the CLI can persist a typed run record.
+func (s Service) TestDetailed(req TestRequest) (lifecycle.PhaseResult, error) {
+	return s.Runner.RunPhaseDetailed(req.Name, "test", req.Opts)
 }
 
 func (s Service) StartAll() (BatchResponse, error) {

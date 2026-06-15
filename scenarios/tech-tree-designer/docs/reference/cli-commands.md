@@ -41,12 +41,19 @@ Implemented ontology commands:
 ```bash
 tech-tree-designer ontology capabilities [--parent <id>] [--kind sector|capability|component|capstone|simulation]
 tech-tree-designer ontology capability <slug>
-tech-tree-designer ontology capability-upsert <slug> [--name "..."] [--kind capability] [--parent <id>]
+tech-tree-designer ontology capability-upsert <slug> [--name "..."] [--description "..."] [--kind capability] [--parent <id>] [--importance <number>]
+tech-tree-designer ontology capability-rm <slug>
+tech-tree-designer ontology edge-add <from> <to> [--type progression|decomposes|requires]
+tech-tree-designer ontology edge-rm <from> <to> [--type progression|decomposes|requires]
 tech-tree-designer ontology import --from-file data/seed/macro_topology.json
-tech-tree-designer ontology fulfill <capability-id> <scenario-slug>
-tech-tree-designer ontology coverage
-tech-tree-designer ontology focus
-tech-tree-designer ontology overlay
+tech-tree-designer ontology fulfill <capability-id> <scenario-slug> [--note "..."]
+tech-tree-designer ontology unfulfill <capability-id> <scenario-slug>
+tech-tree-designer ontology fulfillments [--capability <id>] [--scenario <slug>]
+tech-tree-designer ontology coverage [--subtree true|false]
+tech-tree-designer ontology focus [--limit 10]
+tech-tree-designer ontology capability-scenarios <slug> [--descendants true|false]
+tech-tree-designer ontology scenario <slug>
+tech-tree-designer ontology overlay [--implementation true|false] [--ontology true|false] [--fulfillment true|false]
 ```
 
 ## Output contracts

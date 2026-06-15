@@ -297,28 +297,7 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 			},
 			WriteBatchReport,
 		),
-		CommandTest: bindGlobal(deps.Stdout,
-			func(ctx C, args []string) (TestRequest, error) {
-				return ParseTestRequest(deps.Globals(ctx).JSON, deps.Globals(ctx).Verbose, args)
-			},
-			func(ctx C, req TestRequest) (cliout.Format, struct{}, error) {
-				if req.Opts.CustomPath == "" {
-					if err := ensureScenarioCLIs(deps, ctx, req.Name); err != nil {
-						return "", struct{}{}, err
-					}
-				}
-				emitScenarioStaleWarning(deps.Stderr(ctx), deps.Root(ctx), req.Name, deps.Globals(ctx))
-				runner, err := deps.LifecycleRunner(ctx)
-				if err != nil {
-					return "", struct{}{}, err
-				}
-				service := NewRunnerService(runner)
-				return TestResponseFrom(func(req TestRequest) error {
-					return service.Test(scenarioapp.TestRequest(req))
-				}, req)
-			},
-			func(w io.Writer, _ cliout.Format, _ struct{}) error { return nil },
-		),
+		CommandTest: TestHandler(deps),
 		CommandLogs: LogsHandler(deps),
 		CommandOpen: bindGlobal(deps.Stdout,
 			func(ctx C, args []string) (OpenRequest, error) { return ParseOpenRequest(deps.Globals(ctx).JSON, args) },

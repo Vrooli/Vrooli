@@ -211,8 +211,11 @@ type (
 		JSON bool
 	}
 	TestRequest struct {
-		Name string
-		Opts lifecycle.PhaseOptions
+		Name     string
+		Selector string
+		Opts     lifecycle.PhaseOptions
+		// JSON emits the typed vrooli.cli.v1.TestPhaseResult pass/fail summary.
+		JSON bool
 	}
 	StartAllRequest struct{ JSON bool }
 	StopAllRequest  struct{ JSON bool }
@@ -477,9 +480,10 @@ func ParseSetupRequest(globalsJSON bool, args []string) (SetupRequest, error) {
 	return SetupRequest{Name: name, Opts: opts, JSON: jsonFlag}, nil
 }
 
-func ParseTestArgs(globalsJSON, globalsVerbose bool, args []string) (string, lifecycle.PhaseOptions, error) {
+func ParseTestArgs(globalsJSON, globalsVerbose bool, args []string) (TestRequest, error) {
 	name := ""
 	selection := ""
+	req := TestRequest{JSON: globalsJSON}
 	opts := lifecycle.PhaseOptions{}
 	remaining := []string{}
 	for index := 0; index < len(args); index++ {
@@ -487,7 +491,7 @@ func ParseTestArgs(globalsJSON, globalsVerbose bool, args []string) (string, lif
 		switch arg {
 		case "--path":
 			if index+1 >= len(args) {
-				return "", lifecycle.PhaseOptions{}, clipolicy.UsageErrorf("scenario test", "scenario test --path requires a value")
+				return TestRequest{}, clipolicy.UsageErrorf("scenario test", "scenario test --path requires a value")
 			}
 			index++
 			opts.CustomPath = args[index]
@@ -495,6 +499,10 @@ func ParseTestArgs(globalsJSON, globalsVerbose bool, args []string) (string, lif
 			opts.AllowSkipMissingRuntime = true
 		case "--manage-runtime":
 			opts.ManageRuntime = true
+		case "--json":
+			// Wrapper-level JSON (typed TestPhaseResult pass/fail summary) — NOT
+			// forwarded to the test-genie child; that stays terse/human by default.
+			req.JSON = true
 		default:
 			if strings.HasPrefix(arg, "-") {
 				remaining = append(remaining, arg)
@@ -510,24 +518,24 @@ func ParseTestArgs(globalsJSON, globalsVerbose bool, args []string) (string, lif
 		}
 	}
 	if name == "" {
-		return "", lifecycle.PhaseOptions{}, clipolicy.UsageErrorf("scenario test", "scenario test requires a scenario name")
+		return TestRequest{}, clipolicy.UsageErrorf("scenario test", "scenario test requires a scenario name")
 	}
 	if selection != "" {
 		valid := map[string]string{"structure": "structure", "dependencies": "dependencies", "unit": "unit", "integration": "integration", "business": "business", "performance": "performance", "all": "all", "e2e": "integration"}
 		mapped, ok := valid[selection]
 		if !ok {
-			return "", lifecycle.PhaseOptions{}, clipolicy.UsageErrorf("scenario test", "invalid test selector: %s", selection)
+			return TestRequest{}, clipolicy.UsageErrorf("scenario test", "invalid test selector: %s", selection)
 		}
+		req.Selector = mapped
 		remaining = append([]string{mapped}, remaining...)
-	}
-	if globalsJSON && !containsArg(remaining, "--json") {
-		remaining = append(remaining, "--json")
 	}
 	if globalsVerbose && !containsArg(remaining, "--verbose") {
 		remaining = append(remaining, "--verbose")
 	}
 	opts.Args = remaining
-	return name, opts, nil
+	req.Name = name
+	req.Opts = opts
+	return req, nil
 }
 
 func ParseTestRequest(globalsJSON, globalsVerbose bool, args []string) (TestRequest, error) {
@@ -536,11 +544,7 @@ func ParseTestRequest(globalsJSON, globalsVerbose bool, args []string) (TestRequ
 			return TestRequest{}, clipolicy.CommandHelpOnly(TestHelpText())
 		}
 	}
-	name, opts, err := ParseTestArgs(globalsJSON, globalsVerbose, args)
-	if err != nil {
-		return TestRequest{}, err
-	}
-	return TestRequest{Name: name, Opts: opts}, nil
+	return ParseTestArgs(globalsJSON, globalsVerbose, args)
 }
 
 func ParseStartAllRequest(globalsJSON bool, args []string) (StartAllRequest, error) {

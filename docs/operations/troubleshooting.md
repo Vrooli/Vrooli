@@ -74,10 +74,10 @@ vrooli diagnose-port <port>
 vrooli diagnose-port <port> --json
 ```
 
-These are the preferred first-line tools for registry claim hygiene, leftover
-legacy lock files, orphaned processes, and port conflicts.
+These are the preferred first-line tools for registry claim hygiene,
+orphaned processes, and port conflicts.
 
-`vrooli locks --json` returns two distinct lists:
+`vrooli locks --json` returns the registry claim list:
 
 - `registry_claims` — the **authoritative** allocation state. Every active
   scenario port should appear here as a `bound` claim attached to a supervised
@@ -85,9 +85,11 @@ legacy lock files, orphaned processes, and port conflicts.
   `last_listener_check_at`, `last_listener_seen_at`,
   `consecutive_listener_misses`, `lease_fresh`, `authoritative`,
   `recommendation_code`, `recommendation_confidence`.
-- `locks` — **legacy artifacts only**. `.port_<port>.lock` files left over
-  from older installs; allocation no longer consults them. They are surfaced
-  for cleanup visibility, not as ownership evidence.
+
+The human-readable `vrooli locks` table hides `expired` claims by default;
+pass `--all` to include them (JSON always carries the full set). The legacy
+`.port_<port>.lock` file layer is retired; `vrooli cleanup locks` sweeps any
+stray files left by pre-registry installs.
 
 A declared port with repeated `not_listening` observations on a `bound` claim
 may be stale manifest data, but scenario source usage and health still matter.

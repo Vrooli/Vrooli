@@ -51,10 +51,6 @@ func SetupResponseFrom(run func(SetupRequest) (lifecycle.PhaseResult, error), re
 	return cliout.FormatHuman, result, err
 }
 
-func TestResponseFrom(run func(TestRequest) error, req TestRequest) (cliout.Format, struct{}, error) {
-	return cliout.FormatHuman, struct{}{}, run(req)
-}
-
 func BatchStartResponseFrom(format cliout.Format, run func() (scenarioapp.BatchResponse, error)) (BatchResponse, error) {
 	resp, err := run()
 	return toCLIBatchResponse(resp), err

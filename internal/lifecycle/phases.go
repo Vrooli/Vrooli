@@ -34,6 +34,15 @@ type PhaseResult struct {
 	Status        PhaseExecutionStatus `json:"status"`
 	ExecutedSteps int                  `json:"executed_steps"`
 	SkippedSteps  int                  `json:"skipped_steps"`
+	// Run-lifecycle bookkeeping, populated by RunPhaseDetailed so callers can
+	// build a typed run result / persist a run record. RunID is the same id
+	// written to the lifecycle log markers. ExitCode/Failed reflect the phase
+	// step outcome (0 on success). LogFile is the scenario lifecycle log path.
+	RunID     string    `json:"run_id,omitempty"`
+	StartedAt time.Time `json:"started_at,omitempty"`
+	EndedAt   time.Time `json:"ended_at,omitempty"`
+	ExitCode  int       `json:"exit_code"`
+	LogFile   string    `json:"log_file,omitempty"`
 }
 
 type PhaseStepError struct {
@@ -137,13 +146,20 @@ func (r *Runner) RunPhaseDetailed(name, phaseName string, opts PhaseOptions) (Ph
 
 	args := append([]string(nil), opts.Args...)
 	var result PhaseResult
-	if err := r.runWithLifecycleLog(lifecycleLogContext{Scenario: item.Slug, Operation: "phase", Phase: phaseName}, func(logWriter, childWriter io.Writer) error {
+	logPath, _ := process.ScenarioLifecycleLogPath(r.Home, item.Slug)
+	meta, runErr := r.runWithLifecycleLog(lifecycleLogContext{Scenario: item.Slug, Operation: "phase", Phase: phaseName, RunID: strings.TrimSpace(opts.RunID)}, func(logWriter, childWriter io.Writer) error {
 		var executeErr error
 		result, executeErr = r.ExecutePhaseDetailed(item, phaseName, env, args, logWriter, childWriter)
 		return executeErr
-	}); err != nil {
-		r.logError("Scenario phase failed", err, logx.AttrScenario, item.Slug, logx.AttrPhase, phaseName)
-		return result, err
+	})
+	result.RunID = meta.RunID
+	result.StartedAt = meta.StartedAt
+	result.EndedAt = meta.EndedAt
+	result.LogFile = logPath
+	result.ExitCode = extractExitCode(runErr)
+	if runErr != nil {
+		r.logError("Scenario phase failed", runErr, logx.AttrScenario, item.Slug, logx.AttrPhase, phaseName)
+		return result, runErr
 	}
 	r.logInfo("Scenario phase completed",
 		logx.AttrScenario, item.Slug,
@@ -238,7 +254,7 @@ func (r *Runner) ExecutePhaseDetailed(item scenario.Scenario, phaseName string, 
 			finalCmd += " " + strings.Join(quotedArgs, " ")
 		}
 		if phaseName == "test" {
-			finalCmd = injectTestGenieAutoStart(finalCmd)
+			finalCmd = injectTestGenieTestFlags(finalCmd)
 		}
 
 		if step.Background {
@@ -281,35 +297,93 @@ func (r *Runner) ExecutePhaseDetailed(item scenario.Scenario, phaseName string, 
 	return result, nil
 }
 
-func injectTestGenieAutoStart(command string) string {
+// injectTestGenieTestFlags rewrites a lifecycle `test-genie execute` test step to
+// carry the two flags the lifecycle path requires, idempotently:
+//
+//   - `--auto-start` (a global test-genie flag, before the subcommand): the
+//     lifecycle owns the target scenario's runtime, so the suite may auto-start
+//     surfaces it needs.
+//   - `--wait` (an execute flag, after the subcommand): the run is owned by the
+//     test-genie server and `execute` auto-backgrounds a known-long run by
+//     default; the lifecycle (and CI) must instead block to the suite's real
+//     verdict, so `--wait` forces an inline follow-to-completion.
+//
+// The server still owns the run, so an interrupted lifecycle leaves the run
+// alive and re-attachable by the run id `execute` prints up front.
+func injectTestGenieTestFlags(command string) string {
 	fields := strings.Fields(command)
-	if len(fields) < 2 {
-		return command
-	}
 
-	commandIndex := -1
-	for index, field := range fields {
-		if strings.Contains(field, "=") && !strings.HasPrefix(field, "-") {
+	// Locate the test-genie binary (the first token that is not an env
+	// assignment).
+	binIdx := -1
+	for i, f := range fields {
+		if strings.Contains(f, "=") && !strings.HasPrefix(f, "-") {
 			continue
 		}
-		commandIndex = index
+		binIdx = i
 		break
 	}
-	if commandIndex < 0 || commandIndex+1 >= len(fields) {
+	if binIdx < 0 || filepath.Base(fields[binIdx]) != "test-genie" {
 		return command
-	}
-	if filepath.Base(fields[commandIndex]) != "test-genie" || fields[commandIndex+1] != "execute" {
-		return command
-	}
-	for _, field := range fields[commandIndex+2:] {
-		if field == "--auto-start" || strings.HasPrefix(field, "--auto-start=") {
-			return command
-		}
 	}
 
-	target := fields[commandIndex] + " execute"
-	replacement := fields[commandIndex] + " --auto-start execute"
-	return strings.Replace(command, target, replacement, 1)
+	// Locate the `execute` subcommand, allowing global flags (e.g. an existing
+	// --auto-start) between the binary and the subcommand.
+	execIdx := -1
+	for i := binIdx + 1; i < len(fields); i++ {
+		if fields[i] == "execute" {
+			execIdx = i
+			break
+		}
+		if !strings.HasPrefix(fields[i], "-") {
+			break // a positional before `execute` — not a test-genie execute command
+		}
+	}
+	if execIdx < 0 {
+		return command
+	}
+
+	hasAutoStart := false
+	for i := binIdx + 1; i < execIdx; i++ {
+		if fields[i] == "--auto-start" || strings.HasPrefix(fields[i], "--auto-start=") {
+			hasAutoStart = true
+		}
+	}
+	hasWait := false
+	for i := execIdx + 1; i < len(fields); i++ {
+		if fields[i] == "--wait" || strings.HasPrefix(fields[i], "--wait=") {
+			hasWait = true
+		}
+	}
+	if hasAutoStart && hasWait {
+		return command
+	}
+
+	// Splice --auto-start (a test-genie GLOBAL flag) into the binary..execute
+	// span, preserving the possibly-quoted tail byte-for-byte. The span replace
+	// touches only the binary + any existing global flags + the `execute` token,
+	// leaving the scenario positional and the rest of the command untouched.
+	span := strings.Join(fields[binIdx:execIdx+1], " ")
+	rebuilt := fields[binIdx]
+	for i := binIdx + 1; i < execIdx; i++ {
+		rebuilt += " " + fields[i]
+	}
+	if !hasAutoStart {
+		rebuilt += " --auto-start"
+	}
+	rebuilt += " execute"
+	command = strings.Replace(command, span, rebuilt, 1)
+
+	// --wait is an `execute` flag, so it MUST follow the scenario positional —
+	// `execute` reads its first argument as the scenario name. Splicing --wait
+	// right after `execute` would make `--wait` the scenario and push the real
+	// scenario name into the phase list ("unknown phase '<scenario>'"). `execute`
+	// parses flags interspersed with positionals, so appending --wait at the very
+	// end of the command is correct regardless of any quoted arg tail.
+	if !hasWait {
+		command += " --wait"
+	}
+	return command
 }
 
 func (r *Runner) startTrackedProcess(item scenario.Scenario, phase string, step scenario.PhaseStep, env map[string]string) error {
@@ -429,7 +503,7 @@ func (r *Runner) runForegroundStep(item scenario.Scenario, phase, command string
 // console, gated by the current verbosity; childWriter is for raw tool
 // stdout (vite/pnpm) — it tees the log file and reaches the console only
 // at VerbosityVerbose. The log file always receives everything.
-func (r *Runner) runWithLifecycleLog(ctx lifecycleLogContext, fn func(logWriter, childWriter io.Writer) error) error {
+func (r *Runner) runWithLifecycleLog(ctx lifecycleLogContext, fn func(logWriter, childWriter io.Writer) error) (RunMeta, error) {
 	if strings.TrimSpace(ctx.Scenario) == "" {
 		ctx.Scenario = "unknown"
 	}
@@ -441,14 +515,14 @@ func (r *Runner) runWithLifecycleLog(ctx lifecycleLogContext, fn func(logWriter,
 	}
 	path, err := process.ScenarioLifecycleLogPath(r.Home, ctx.Scenario)
 	if err != nil {
-		return err
+		return RunMeta{}, err
 	}
 	if _, err := config.EnsureOwnedDir(filepath.Dir(path)); err != nil {
-		return err
+		return RunMeta{}, err
 	}
 	file, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
-		return err
+		return RunMeta{}, err
 	}
 	defer file.Close()
 	_ = config.ChownToInvokingUser(path)
@@ -456,11 +530,15 @@ func (r *Runner) runWithLifecycleLog(ctx lifecycleLogContext, fn func(logWriter,
 	logWriter := io.MultiWriter(r.consoleOut(), file)
 	childWriter := io.MultiWriter(r.childStdoutConsole(), file)
 	startedAt := time.Now().UTC()
-	runID := lifecycleRunID(startedAt)
+	runID := strings.TrimSpace(ctx.RunID)
+	if runID == "" {
+		runID = lifecycleRunID(startedAt)
+	}
 	writeLifecycleRunStart(file, ctx, runID, startedAt)
 	err = fn(logWriter, childWriter)
-	writeLifecycleRunEnd(file, ctx, runID, startedAt, time.Now().UTC(), err)
-	return err
+	endedAt := time.Now().UTC()
+	writeLifecycleRunEnd(file, ctx, runID, startedAt, endedAt, err)
+	return RunMeta{RunID: runID, StartedAt: startedAt, EndedAt: endedAt}, err
 }
 
 func startLifecycleLogContext(scenarioName, operation, phase string) lifecycleLogContext {

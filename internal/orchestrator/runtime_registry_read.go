@@ -27,6 +27,45 @@ func (s *Service) registryDetailsByScenario(ctx context.Context, items []scenari
 	if err != nil {
 		return nil, err
 	}
+	relevant := make([]scenarioruntime.Instance, 0, len(instances))
+	instanceIDs := make([]string, 0, len(instances))
+	for _, instance := range instances {
+		if _, ok := registryScenarioBySlug(items, instance.Scenario); !ok {
+			continue
+		}
+		relevant = append(relevant, instance)
+		instanceIDs = append(instanceIDs, instance.InstanceID)
+	}
+	if len(relevant) == 0 {
+		return map[string]Detail{}, nil
+	}
+
+	// Constant query count regardless of fleet size: one claims query grouped
+	// in memory plus the chunked batch reads for refs and health.
+	activeClaims, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{Statuses: scenarioruntime.ActivePortClaimStatuses()})
+	if err != nil {
+		return nil, err
+	}
+	claimsByInstance := make(map[string][]scenarioruntime.PortClaim, len(relevant))
+	for _, claim := range activeClaims {
+		claimsByInstance[claim.InstanceID] = append(claimsByInstance[claim.InstanceID], claim)
+	}
+	refsByInstance, err := store.ListProcessRefsForInstances(ctx, instanceIDs)
+	if err != nil {
+		return nil, err
+	}
+	healthByInstance, err := store.GetHealthSnapshots(ctx, instanceIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Evidence is captured once, AFTER every store read above, so no claim is
+	// judged by listener/process evidence older than the claim itself.
+	evidence, err := s.captureRegistryEvidence(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	type reconciledDetail struct {
 		detail   Detail
 		instance scenarioruntime.Instance
@@ -35,16 +74,15 @@ func (s *Service) registryDetailsByScenario(ctx context.Context, items []scenari
 	// the same scenario never collapse into one "latest" entry — without this,
 	// a shadow could overwrite the live instance's reported status (or vice
 	// versa). Live ⇒ bare slug, so single-instance scenarios are unchanged.
-	latest := make(map[string]reconciledDetail, len(instances))
-	for _, instance := range instances {
+	latest := make(map[string]reconciledDetail, len(relevant))
+	for _, instance := range relevant {
 		item, ok := registryScenarioBySlug(items, instance.Scenario)
 		if !ok {
 			continue
 		}
-		detail, authoritative, err := s.detailFromRegistryInstance(ctx, store, item, instance)
-		if err != nil {
-			return nil, err
-		}
+		detail, authoritative := detailFromRegistryInstance(item, instance,
+			claimsByInstance[instance.InstanceID], refsByInstance[instance.InstanceID],
+			healthByInstance[instance.InstanceID], evidence)
 		if !authoritative {
 			continue
 		}
@@ -92,21 +130,7 @@ func (s *Service) registryDetail(ctx context.Context, item scenario.Scenario) (D
 	if len(instances) == 0 {
 		return Detail{}, false, nil
 	}
-	detail, authoritative, err := s.detailFromRegistryInstance(ctx, store, item, latestRuntimeInstance(instances))
-	if err != nil {
-		return Detail{}, false, err
-	}
-	return detail, authoritative, nil
-}
-
-func (s *Service) openRuntimeRegistry(ctx context.Context) (runtimeRegistryQueryStore, error) {
-	if s.runtimeRegistry != nil {
-		return s.runtimeRegistry(ctx, s.Home)
-	}
-	return scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: s.Home})
-}
-
-func (s *Service) detailFromRegistryInstance(ctx context.Context, store runtimeRegistryQueryStore, item scenario.Scenario, instance scenarioruntime.Instance) (Detail, bool, error) {
+	instance := latestRuntimeInstance(instances)
 	claims, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{
 		InstanceID: instance.InstanceID,
 		Statuses:   scenarioruntime.ActivePortClaimStatuses(),
@@ -122,12 +146,49 @@ func (s *Service) detailFromRegistryInstance(ctx context.Context, store runtimeR
 	if err != nil && !errors.Is(err, scenarioruntime.ErrNotFound) {
 		return Detail{}, false, err
 	}
-	reconciled, err := s.reconcileRegistryRuntime(ctx, instance, claims, refs)
+	// Evidence after the store reads — same ordering rule as the fleet path.
+	evidence, err := s.captureRegistryEvidence(ctx)
 	if err != nil {
 		return Detail{}, false, err
 	}
+	detail, authoritative := detailFromRegistryInstance(item, instance, claims, refs, health, evidence)
+	return detail, authoritative, nil
+}
+
+func (s *Service) openRuntimeRegistry(ctx context.Context) (runtimeRegistryQueryStore, error) {
+	if s.runtimeRegistry != nil {
+		return s.runtimeRegistry(ctx, s.Home)
+	}
+	return scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: s.Home})
+}
+
+// registryEvidence is the per-operation runtime evidence shared across every
+// instance reconciled in one listing: the host boot ID and one listener
+// snapshot. Capture it AFTER the store reads whose claims it judges.
+type registryEvidence struct {
+	bootID   string
+	snapshot network.TCPListenerSnapshot
+}
+
+func (s *Service) captureRegistryEvidence(ctx context.Context) (registryEvidence, error) {
+	provider := s.hostSession
+	if provider == nil {
+		provider = hostsession.DefaultProvider{}.Current
+	}
+	host, err := provider(ctx, s.Home)
+	if err != nil {
+		return registryEvidence{}, err
+	}
+	return registryEvidence{
+		bootID:   host.BootID,
+		snapshot: network.CaptureTCPListenerSnapshot(),
+	}, nil
+}
+
+func detailFromRegistryInstance(item scenario.Scenario, instance scenarioruntime.Instance, claims []scenarioruntime.PortClaim, refs []scenarioruntime.ProcessRef, health scenarioruntime.HealthSnapshot, evidence registryEvidence) (Detail, bool) {
+	reconciled := reconcileRegistryRuntime(instance, claims, refs, evidence)
 	if !reconciled.Authoritative {
-		return Detail{}, false, nil
+		return Detail{}, false
 	}
 
 	records := recordsFromProcessRefs(instance.Scenario, refs)
@@ -148,34 +209,25 @@ func (s *Service) detailFromRegistryInstance(ctx context.Context, store runtimeR
 		Scenario: item,
 		Runtime:  runtime,
 		Details:  details,
-	}, true, nil
+	}, true
 }
 
-func (s *Service) reconcileRegistryRuntime(ctx context.Context, instance scenarioruntime.Instance, claims []scenarioruntime.PortClaim, refs []scenarioruntime.ProcessRef) (scenarioruntime.ReconcileResult, error) {
-	provider := s.hostSession
-	if provider == nil {
-		provider = hostsession.DefaultProvider{}.Current
-	}
-	host, err := provider(ctx, s.Home)
-	if err != nil {
-		return scenarioruntime.ReconcileResult{}, err
-	}
-	snapshot := network.CaptureTCPListenerSnapshot()
+func reconcileRegistryRuntime(instance scenarioruntime.Instance, claims []scenarioruntime.PortClaim, refs []scenarioruntime.ProcessRef, evidence registryEvidence) scenarioruntime.ReconcileResult {
 	return scenarioruntime.ReconcileRuntime(scenarioruntime.ReconcileInput{
 		Now:           time.Now().UTC(),
-		CurrentBootID: host.BootID,
+		CurrentBootID: evidence.bootID,
 		Instance:      instance,
 		Claims:        claims,
 		ProcessRefs:   refs,
 		Processes:     scenarioruntime.ProcessEvidenceFromRefs(refs, process.IsPIDRunning),
 		Listeners: scenarioruntime.ListenerEvidenceFromClaims(claims, refs, func(port int) scenarioruntime.ListenerEvidence {
-			state := snapshot.Listening(port)
+			state := evidence.snapshot.Listening(port)
 			if !state.Known {
 				return scenarioruntime.ListenerEvidence{Known: false}
 			}
 			return scenarioruntime.ListenerEvidence{Known: true, Listening: state.Listening}
 		}),
-	}), nil
+	})
 }
 
 func authoritativeClaims(claims []scenarioruntime.ReconciledClaim) []scenarioruntime.PortClaim {

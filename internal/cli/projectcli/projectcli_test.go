@@ -276,3 +276,17 @@ func TestParseLocksRequestAcceptsAllFlag(t *testing.T) {
 		t.Fatal("ShowAll must default to false")
 	}
 }
+
+func TestParseLocksRequestRejectsAllWithClean(t *testing.T) {
+	if _, err := ParseLocksRequest([]string{"clean", "--all"}); err == nil {
+		t.Fatal("expected --all with `clean` to be rejected; clean filters nothing")
+	}
+	// `clean` alone stays valid.
+	req, err := ParseLocksRequest([]string{"clean"})
+	if err != nil {
+		t.Fatalf("ParseLocksRequest(clean): %v", err)
+	}
+	if !req.Clean || req.ShowAll {
+		t.Fatalf("req = %#v", req)
+	}
+}

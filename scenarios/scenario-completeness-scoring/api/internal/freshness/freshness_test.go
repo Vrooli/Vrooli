@@ -97,7 +97,7 @@ func TestCheckDigestFailureDegradesToUnknown(t *testing.T) {
 
 func TestCheckUsesRequiredPhaseSet(t *testing.T) {
 	res := fixedService("td:x", nil, nil).Check("fixture", "/unused")
-	want := []string{"structure", "standards", "docs", "business", "unit"}
+	want := []string{"structure", "standards", "docs", "business", "unit", "proto"}
 	if len(res.Phases) != len(want) {
 		t.Fatalf("phase count = %d, want %d", len(res.Phases), len(want))
 	}

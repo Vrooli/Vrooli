@@ -9,11 +9,11 @@ cd packages/proto
 make generate   # regenerate gen/ (Go, TS, JS, Python, pyi)
 make lint       # buf lint
 make breaking   # buf breaking-change check vs base branch
-make check      # generate + diff guard (used in CI)
+make verify-committed-gen  # CI-style committed gen/ diff guard
 make refresh-vendor  # refresh vendor/ from BSR (rare, requires login)
 ```
 
-All of `make generate`, `make lint`, `make breaking`, `make check` are **fully offline-capable** — zero outbound BSR requests. `make refresh-vendor` is the only target that contacts buf.build (see [Refreshing vendored modules](#refreshing-vendored-modules)).
+All of `make generate`, `make lint`, `make breaking`, `make verify-committed-gen` are **fully offline-capable** — zero outbound BSR requests. `make refresh-vendor` is the only target that contacts buf.build (see [Refreshing vendored modules](#refreshing-vendored-modules)).
 
 ## Pipeline shape
 
@@ -50,7 +50,7 @@ Why local? Two reasons:
 1. Create the file under `packages/proto/schemas/<scenario>/v1/<dir>/<name>.proto` matching the existing layout.
 2. `cd packages/proto && make generate`.
 3. Commit `schemas/<...>` and the new files under `gen/`.
-4. `make check` enforces the diff matches.
+4. `make verify-committed-gen` enforces the committed generated artifacts match.
 
 No buf.gen.yaml change is needed for a new file — the existing 5 plugin invocations cover whatever protos are under `schemas/`.
 
@@ -75,7 +75,7 @@ No buf.gen.yaml change is needed for a new file — the existing 5 plugin invoca
 1. Update both the manifest `version` field (`internal/tools/<plugin>/tool.json#/version`) and the handler's `defaultVersion` constant. The handler test asserts they match.
 2. `vrooli setup` (or run the install commands manually) to upgrade the local binary.
 3. `cd packages/proto && make generate`.
-4. Commit the manifest, handler, and the resulting `gen/` diff. CI's `make check` enforces the diff is consistent.
+4. Commit the manifest, handler, and the resulting `gen/` diff. CI's `make verify-committed-gen` enforces the diff is consistent.
 
 ## Refreshing vendored modules
 
@@ -86,12 +86,12 @@ cd packages/proto
 buf export buf.build/googleapis/googleapis -o vendor/googleapis
 buf export buf.build/bufbuild/protovalidate -o vendor/protovalidate
 make generate
-make check
+make verify-committed-gen
 ```
 
 The `buf export` calls require BSR access. Anonymous works until the rate limit kicks in; an authenticated session (see [`docs/configuration/integrations/buf-bsr.md`](../configuration/integrations/buf-bsr.md)) raises the ceiling. Login is the **only** time the BSR token matters — codegen itself is unconditional after the refresh.
 
-A `make refresh-vendor` target wraps the above so contributors don't have to memorize the URLs. If the resulting `gen/` diff is unexpected, roll back the vendor change rather than committing drift; `make check` is the gate.
+A `make refresh-vendor` target wraps the above so contributors don't have to memorize the URLs. If the resulting `gen/` diff is unexpected, roll back the vendor change rather than committing drift; `make verify-committed-gen` is the CI-style committed-artifact gate.
 
 ## Troubleshooting
 
@@ -99,7 +99,7 @@ A `make refresh-vendor` target wraps the above so contributors don't have to mem
 
 The protoc-gen-es v2 series shipped a parsing regression in early 2.x patches (e.g. 2.5.x). Ensure the installed version matches the manifest pin (currently `2.12.0`). `protoc-gen-es --version` should print the pinned value; `npm install --prefix ~/.cache/vrooli/protoc-plugins/node @bufbuild/protoc-gen-es@<pinned>` re-installs.
 
-### `make check` shows comment-only diffs after a plugin upgrade
+### `make verify-committed-gen` shows comment-only diffs after a plugin upgrade
 
 Any plugin version bump (`protoc-gen-go`, `protoc-gen-connect-go`, `protoc-gen-es`, `protoc`) re-stamps the generator-version comment at the top of every generated file. Commit the diff alongside the manifest pin bump in the same PR. There is no special-casing of comment-only diffs — the version is part of the plugin's output contract.
 

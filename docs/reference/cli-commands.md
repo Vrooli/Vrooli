@@ -180,11 +180,12 @@ vrooli locks
 vrooli diagnose-port <port>
 ```
 
-These commands help inspect stale locks, orphaned processes, diagnostics, and port conflicts.
+These commands help inspect registry port claims, orphaned processes, diagnostics, and port conflicts.
 
 Practical guidance:
 
-- `vrooli cleanup locks` removes stale lock files
+- `vrooli locks` shows the runtime registry's port claims (expired claims hidden unless `--all`; `--json` always includes everything)
+- `vrooli cleanup locks` expires stale leases and non-authoritative registry claims
 - `vrooli orphans` inspects or terminates orphaned Vrooli-managed processes
 - `vrooli diagnose-port <port>` is the targeted tool for a fixed-port startup failure after lifecycle has already attempted automatic cleanup
 

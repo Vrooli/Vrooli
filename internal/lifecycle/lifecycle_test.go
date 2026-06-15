@@ -2669,26 +2669,41 @@ func TestExecutePhaseAppendsTestArgsAndWarnsOnStopFailure(t *testing.T) {
 	}
 }
 
-func TestInjectTestGenieAutoStart(t *testing.T) {
+func TestInjectTestGenieTestFlags(t *testing.T) {
 	tests := []struct {
 		name string
 		in   string
 		want string
 	}{
 		{
-			name: "basic execute command",
+			// --auto-start is a global flag (before the subcommand); --wait is an
+			// execute flag and MUST land AFTER the scenario positional, or execute
+			// reads "--wait" as the scenario and the real scenario becomes a phase.
+			name: "injects both auto-start (pre-execute) and wait (post-positional)",
 			in:   "test-genie execute alpha --preset comprehensive",
-			want: "test-genie --auto-start execute alpha --preset comprehensive",
+			want: "test-genie --auto-start execute alpha --preset comprehensive --wait",
+		},
+		{
+			// Regression: a hyphenated scenario name must remain the scenario
+			// positional, never get pushed into the phase list by an --wait splice.
+			name: "keeps a hyphenated scenario as the positional (regression)",
+			in:   "test-genie execute tech-tree-designer --preset comprehensive",
+			want: "test-genie --auto-start execute tech-tree-designer --preset comprehensive --wait",
 		},
 		{
 			name: "preserves env assignments",
 			in:   "TEST_MODE=1 test-genie execute alpha",
-			want: "TEST_MODE=1 test-genie --auto-start execute alpha",
+			want: "TEST_MODE=1 test-genie --auto-start execute alpha --wait",
 		},
 		{
-			name: "leaves explicit auto-start unchanged",
+			name: "adds wait when auto-start already present",
 			in:   "test-genie --auto-start execute alpha",
-			want: "test-genie --auto-start execute alpha",
+			want: "test-genie --auto-start execute alpha --wait",
+		},
+		{
+			name: "leaves a fully-flagged command unchanged",
+			in:   "test-genie --auto-start execute --wait alpha",
+			want: "test-genie --auto-start execute --wait alpha",
 		},
 		{
 			name: "ignores unrelated commands",
@@ -2699,8 +2714,8 @@ func TestInjectTestGenieAutoStart(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := injectTestGenieAutoStart(tc.in); got != tc.want {
-				t.Fatalf("injectTestGenieAutoStart(%q) = %q, want %q", tc.in, got, tc.want)
+			if got := injectTestGenieTestFlags(tc.in); got != tc.want {
+				t.Fatalf("injectTestGenieTestFlags(%q) = %q, want %q", tc.in, got, tc.want)
 			}
 		})
 	}

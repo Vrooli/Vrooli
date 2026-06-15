@@ -150,6 +150,12 @@ func (s *runtimeRegistrySession) heartbeat(ctx context.Context) error {
 		return fmt.Errorf("heartbeat scenario runtime lease: %w", err)
 	}
 	s.instance = updated
+	// Reserved port claims expire on their own TTL; renew them with the lease
+	// so a slow start (e.g. a long setup build) keeps its ports instead of
+	// having them expired-and-stolen by a concurrent allocation.
+	if _, err := s.store.RenewReservedPortClaimsForInstance(ctx, s.instance.InstanceID, time.Now().UTC().Add(scenarioruntime.DefaultReservedClaimTTL)); err != nil {
+		return fmt.Errorf("renew scenario runtime port reservations: %w", err)
+	}
 	return nil
 }
 

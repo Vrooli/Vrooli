@@ -1,5 +1,15 @@
 # Research
 
+## 2026-06-14 AI Chat Share-Link Extraction (spike, not yet built)
+
+- Reverse-engineered how to pull full conversation content from an AI chat share
+  link (ChatGPT). Naive fetch/readability returns blank; the backend API is
+  Cloudflare-403'd. The transcript is embedded in the raw HTML as a React Router
+  "turbo-stream" payload and must be decoded by index references.
+- Captured the working technique + reference decoder + caveats in
+  [`CONVERSATION_EXTRACTION.md`](CONVERSATION_EXTRACTION.md) so a future
+  "conversation source" integration doesn't reinvent it.
+
 ## 2026-05-31 Standards Polish
 
 - `scenario-completeness-scoring score validation bookmark-intelligence-hub` reported two validation-quality issues: one requirement per operational target and a high manual-validation ratio.

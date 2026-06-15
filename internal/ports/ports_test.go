@@ -183,7 +183,7 @@ func TestEnsurePortBindableRejectsLiveForeignListener(t *testing.T) {
 		readProcessEnvironmentPortFn = previousReadEnv
 	})
 
-	if err := manager.ensurePortBindable(21236, "alpha", &listenerSnapshotOnce{}); err == nil {
+	if err := manager.ensurePortBindable(21236, scenarioruntime.InstanceKey{Scenario: "alpha"}, &listenerSnapshotOnce{}); err == nil {
 		t.Fatal("expected Vrooli listener conflict")
 	} else if !strings.Contains(err.Error(), `Vrooli scenario "beta"`) || !strings.Contains(err.Error(), "4242") {
 		t.Fatalf("unexpected error: %v", err)
@@ -226,8 +226,101 @@ func TestEnsurePortBindableAllowsSameScenarioRestart(t *testing.T) {
 		readProcessEnvironmentPortFn = previousReadEnv
 	})
 
-	if err := manager.ensurePortBindable(21236, "alpha", &listenerSnapshotOnce{}); err != nil {
+	if err := manager.ensurePortBindable(21236, scenarioruntime.InstanceKey{Scenario: "alpha"}, &listenerSnapshotOnce{}); err != nil {
 		t.Fatalf("ensurePortBindable(same scenario): %v", err)
+	}
+}
+
+// TestEnsurePortBindableRejectsSiblingVariantListener pins the variant-aware
+// half of the same-instance check: a leftover shadow listener squatting on a
+// port the LIVE instance is allocating is a real conflict, not a recoverable
+// restart — letting it through would only defer the failure to the actual
+// bind in develop/health.
+func TestEnsurePortBindableRejectsSiblingVariantListener(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writePortRegistry(t, root, nil)
+
+	manager, err := NewManager(root, home)
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+
+	previousInUse := isTCPPortInUseFn
+	previousCapture := captureListenerSnapshotFn
+	previousReadEnv := readProcessEnvironmentPortFn
+	isTCPPortInUseFn = func(int) (bool, error) { return true, nil }
+	captureListenerSnapshotFn = func() network.TCPListenerSnapshot {
+		return network.TCPListenerSnapshot{
+			Known: true,
+			Tool:  "stub",
+			Ports: map[int][]network.SnapshotListener{21236: {{PID: 7272}}},
+		}
+	}
+	readProcessEnvironmentPortFn = func(int) (map[string]string, error) {
+		return map[string]string{
+			"VROOLI_LIFECYCLE_MANAGED": "true",
+			"VROOLI_SCENARIO":          "alpha",
+			"VROOLI_VARIANT":           "shadow",
+		}, nil
+	}
+	t.Cleanup(func() {
+		isTCPPortInUseFn = previousInUse
+		captureListenerSnapshotFn = previousCapture
+		readProcessEnvironmentPortFn = previousReadEnv
+	})
+
+	err = manager.ensurePortBindable(21236, scenarioruntime.InstanceKey{Scenario: "alpha"}, &listenerSnapshotOnce{})
+	if err == nil {
+		t.Fatal("expected sibling-variant listener conflict")
+	}
+	if !strings.Contains(err.Error(), `"alpha@shadow"`) || !strings.Contains(err.Error(), "7272") {
+		t.Fatalf("conflict must name the owning instance slug and pid, got: %v", err)
+	}
+}
+
+// TestEnsurePortBindableTreatsLegacyVariantlessListenerAsLive pins the
+// compatibility rule: a listener with VROOLI_SCENARIO but no VROOLI_VARIANT
+// predates variant injection and is treated as live, so a live restart
+// recovers it and a shadow allocation conflicts with it.
+func TestEnsurePortBindableTreatsLegacyVariantlessListenerAsLive(t *testing.T) {
+	root := t.TempDir()
+	home := t.TempDir()
+	writePortRegistry(t, root, nil)
+
+	manager, err := NewManager(root, home)
+	if err != nil {
+		t.Fatalf("NewManager: %v", err)
+	}
+
+	previousInUse := isTCPPortInUseFn
+	previousCapture := captureListenerSnapshotFn
+	previousReadEnv := readProcessEnvironmentPortFn
+	isTCPPortInUseFn = func(int) (bool, error) { return true, nil }
+	captureListenerSnapshotFn = func() network.TCPListenerSnapshot {
+		return network.TCPListenerSnapshot{
+			Known: true,
+			Tool:  "stub",
+			Ports: map[int][]network.SnapshotListener{21236: {{PID: 8383}}},
+		}
+	}
+	readProcessEnvironmentPortFn = func(int) (map[string]string, error) {
+		return map[string]string{
+			"VROOLI_LIFECYCLE_MANAGED": "true",
+			"VROOLI_SCENARIO":          "alpha",
+		}, nil
+	}
+	t.Cleanup(func() {
+		isTCPPortInUseFn = previousInUse
+		captureListenerSnapshotFn = previousCapture
+		readProcessEnvironmentPortFn = previousReadEnv
+	})
+
+	if err := manager.ensurePortBindable(21236, scenarioruntime.InstanceKey{Scenario: "alpha"}, &listenerSnapshotOnce{}); err != nil {
+		t.Fatalf("live allocation must recover a legacy variantless same-scenario listener: %v", err)
+	}
+	if err := manager.ensurePortBindable(21236, scenarioruntime.InstanceKey{Scenario: "alpha", Variant: "shadow"}, &listenerSnapshotOnce{}); err == nil {
+		t.Fatal("shadow allocation must conflict with a legacy (live) listener of the same scenario")
 	}
 }
 
@@ -261,7 +354,7 @@ func TestEnsurePortBindableFallsBackToGenericConflictForNonVrooliListeners(t *te
 		readProcessEnvironmentPortFn = previousReadEnv
 	})
 
-	if err := manager.ensurePortBindable(21236, "alpha", &listenerSnapshotOnce{}); err == nil {
+	if err := manager.ensurePortBindable(21236, scenarioruntime.InstanceKey{Scenario: "alpha"}, &listenerSnapshotOnce{}); err == nil {
 		t.Fatal("expected generic listener conflict")
 	} else if !strings.Contains(err.Error(), "port already in use") {
 		t.Fatalf("unexpected error: %v", err)
@@ -280,7 +373,7 @@ func TestEnsurePortBindableRejectsResourceReservedPort(t *testing.T) {
 		t.Fatalf("NewManager: %v", err)
 	}
 
-	if err := manager.ensurePortBindable(5433, "alpha", &listenerSnapshotOnce{}); err == nil {
+	if err := manager.ensurePortBindable(5433, scenarioruntime.InstanceKey{Scenario: "alpha"}, &listenerSnapshotOnce{}); err == nil {
 		t.Fatal("expected reserved resource port to fail")
 	} else if !strings.Contains(err.Error(), "reserved for resource") {
 		t.Fatalf("unexpected reserved-port error: %v", err)
@@ -442,6 +535,124 @@ func TestBuildEnvironmentWithRuntimeClaimsExpiresAbandonedReservedClaim(t *testi
 	if got := env.RuntimeClaims["api"].Status; got != scenarioruntime.ClaimStatusReserved {
 		t.Fatalf("new runtime claim status = %q, want reserved", got)
 	}
+}
+
+// TestExpireReservedClaimsSkipsLiveStartingOwner pins the slow-start guard: a
+// reserved claim past its TTL must NOT be expired while its owning instance is
+// still starting on this boot with a live owner process — expiring it would
+// let a concurrent allocation steal the port mid-start (e.g. during a long
+// setup build). Once the owner is gone, the same claim expires as before.
+func TestExpireReservedClaimsSkipsLiveStartingOwner(t *testing.T) {
+	store := newRuntimeClaimStoreForPortTests(t)
+	ctx := context.Background()
+	ownerPID := os.Getpid()
+	instance, err := store.CreateInstance(ctx, scenarioruntime.Instance{
+		Scenario:   "alpha",
+		Status:     scenarioruntime.StatusStarting,
+		OwnerPID:   &ownerPID,
+		HostBootID: "boot-1",
+	})
+	if err != nil {
+		t.Fatalf("CreateInstance: %v", err)
+	}
+	now := time.Date(2026, 6, 12, 12, 0, 0, 0, time.UTC)
+	expiresAt := now.Add(-time.Minute)
+	claim, err := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
+		InstanceID: instance.InstanceID,
+		Scenario:   instance.Scenario,
+		PortName:   "api",
+		EnvVar:     "API_PORT",
+		Port:       freeLocalPort(t),
+		ExpiresAt:  &expiresAt,
+	})
+	if err != nil {
+		t.Fatalf("AcquirePortClaim: %v", err)
+	}
+
+	options := RuntimeClaimOptions{
+		Enabled:       true,
+		Context:       ctx,
+		Store:         store,
+		InstanceID:    instance.InstanceID,
+		CurrentBootID: func(context.Context) string { return "boot-1" },
+		PIDIsRunning:  func(int) bool { return true },
+	}
+	if err := expireReservedRuntimeClaims(ctx, options, now); err != nil {
+		t.Fatalf("expireReservedRuntimeClaims(live owner): %v", err)
+	}
+	if got := claimStatus(t, store, claim.ClaimID); got != scenarioruntime.ClaimStatusReserved {
+		t.Fatalf("claim with live starting owner = %q, want still reserved", got)
+	}
+
+	// Same claim, dead owner: expiry proceeds.
+	options.PIDIsRunning = func(int) bool { return false }
+	if err := expireReservedRuntimeClaims(ctx, options, now); err != nil {
+		t.Fatalf("expireReservedRuntimeClaims(dead owner): %v", err)
+	}
+	if got := claimStatus(t, store, claim.ClaimID); got != scenarioruntime.ClaimStatusExpired {
+		t.Fatalf("claim with dead owner = %q, want expired", got)
+	}
+}
+
+// TestExpireReservedClaimsExpiresCrossBootOwner pins the reboot case: an
+// owner PID that happens to be alive on a DIFFERENT boot is leftover state,
+// not a slow start — the claim must expire.
+func TestExpireReservedClaimsExpiresCrossBootOwner(t *testing.T) {
+	store := newRuntimeClaimStoreForPortTests(t)
+	ctx := context.Background()
+	ownerPID := os.Getpid()
+	instance, err := store.CreateInstance(ctx, scenarioruntime.Instance{
+		Scenario:   "alpha",
+		Status:     scenarioruntime.StatusStarting,
+		OwnerPID:   &ownerPID,
+		HostBootID: "boot-old",
+	})
+	if err != nil {
+		t.Fatalf("CreateInstance: %v", err)
+	}
+	now := time.Date(2026, 6, 12, 12, 0, 0, 0, time.UTC)
+	expiresAt := now.Add(-time.Minute)
+	claim, err := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
+		InstanceID: instance.InstanceID,
+		Scenario:   instance.Scenario,
+		PortName:   "api",
+		EnvVar:     "API_PORT",
+		Port:       freeLocalPort(t),
+		ExpiresAt:  &expiresAt,
+	})
+	if err != nil {
+		t.Fatalf("AcquirePortClaim: %v", err)
+	}
+
+	options := RuntimeClaimOptions{
+		Enabled:       true,
+		Context:       ctx,
+		Store:         store,
+		InstanceID:    instance.InstanceID,
+		CurrentBootID: func(context.Context) string { return "boot-new" },
+		PIDIsRunning:  func(int) bool { return true },
+	}
+	if err := expireReservedRuntimeClaims(ctx, options, now); err != nil {
+		t.Fatalf("expireReservedRuntimeClaims: %v", err)
+	}
+	if got := claimStatus(t, store, claim.ClaimID); got != scenarioruntime.ClaimStatusExpired {
+		t.Fatalf("cross-boot claim = %q, want expired", got)
+	}
+}
+
+func claimStatus(t *testing.T, store *scenarioruntime.SQLiteStore, claimID string) string {
+	t.Helper()
+	claims, err := store.ListPortClaims(context.Background(), scenarioruntime.PortClaimFilter{})
+	if err != nil {
+		t.Fatalf("ListPortClaims: %v", err)
+	}
+	for _, claim := range claims {
+		if claim.ClaimID == claimID {
+			return claim.Status
+		}
+	}
+	t.Fatalf("claim %s not found", claimID)
+	return ""
 }
 
 func TestBoundRuntimeClaimSurvivesExpiredReservationCleanup(t *testing.T) {

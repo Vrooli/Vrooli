@@ -47,6 +47,10 @@ type lifecycleRunnerFactory func(root, home string, stdout, stderr io.Writer, lo
 type runtimeRegistryQueryStore interface {
 	scenarioruntime.QueryRepository
 	scenarioruntime.ProcessRefRepository
+	// Batch reads so fleet listings issue a constant number of queries
+	// instead of three per instance.
+	ListProcessRefsForInstances(ctx context.Context, instanceIDs []string) (map[string][]scenarioruntime.ProcessRef, error)
+	GetHealthSnapshots(ctx context.Context, instanceIDs []string) (map[string]scenarioruntime.HealthSnapshot, error)
 	Close() error
 }
 

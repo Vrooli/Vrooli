@@ -31,7 +31,7 @@ func defaultHostBootID(ctx context.Context) (string, error) {
 	return snap.BootID, nil
 }
 
-const defaultClaimTTL = 5 * time.Minute
+const defaultClaimTTL = scenarioruntime.DefaultReservedClaimTTL
 
 var (
 	isTCPPortInUseFn             = isTCPPortInUse
@@ -288,7 +288,7 @@ func (m *Manager) allocatePortDefinition(key scenarioruntime.InstanceKey, portSu
 			if err != nil {
 				return portAllocation{}, fmt.Errorf("fixed port %d for %s unavailable: %w", port, portSummary.Name, err)
 			}
-			if err := m.ensurePortBindable(port, key.Scenario, listeners); err != nil {
+			if err := m.ensurePortBindable(port, key, listeners); err != nil {
 				if claimed {
 					_, _ = claimOptions.Store.ReleasePortClaim(runtimeClaimContext(claimOptions), claim.ClaimID)
 				}
@@ -343,7 +343,7 @@ func (m *Manager) allocateFromBand(key scenarioruntime.InstanceKey, portSummary 
 		if err != nil {
 			continue
 		}
-		if err := m.ensurePortBindable(port, key.Scenario, listeners); err != nil {
+		if err := m.ensurePortBindable(port, key, listeners); err != nil {
 			if claimed {
 				_, _ = claimOptions.Store.ReleasePortClaim(runtimeClaimContext(claimOptions), claim.ClaimID)
 			}
@@ -406,7 +406,7 @@ func (m *Manager) acquireRuntimePortClaim(key scenarioruntime.InstanceKey, portS
 		return scenarioruntime.PortClaim{}, false, nil
 	}
 	ctx := runtimeClaimContext(options)
-	if err := expireReservedRuntimeClaims(ctx, options.Store, m.Now().UTC()); err != nil {
+	if err := expireReservedRuntimeClaims(ctx, options, m.Now().UTC()); err != nil {
 		return scenarioruntime.PortClaim{}, false, err
 	}
 	existing, ok, err := findExistingRuntimeClaim(ctx, options.Store, options.InstanceID, portSummary.Name, port)
@@ -657,17 +657,60 @@ func findExistingRuntimeClaim(ctx context.Context, store RuntimeClaimStore, inst
 	return scenarioruntime.PortClaim{}, false, nil
 }
 
-func expireReservedRuntimeClaims(ctx context.Context, store RuntimeClaimStore, at time.Time) error {
+func expireReservedRuntimeClaims(ctx context.Context, options RuntimeClaimOptions, at time.Time) error {
+	store := options.Store
 	claims, err := expiredReservedRuntimeClaims(ctx, store, at)
 	if err != nil {
 		return err
 	}
+	if len(claims) == 0 {
+		return nil
+	}
+	currentBootID := resolveCurrentBootID(ctx, options)
+	pidIsRunning := options.PIDIsRunning
+	if pidIsRunning == nil {
+		pidIsRunning = process.IsPIDRunning
+	}
+	// One liveness verdict per owning instance, not per claim.
+	ownerAlive := map[string]bool{}
 	for _, claim := range claims {
+		alive, checked := ownerAlive[claim.InstanceID]
+		if !checked {
+			alive = reservedClaimOwnerStillStarting(ctx, store, claim.InstanceID, currentBootID, pidIsRunning)
+			ownerAlive[claim.InstanceID] = alive
+		}
+		if alive {
+			// The reservation outlived its TTL but its owner is still actively
+			// working toward binding (e.g. a 10-minute setup/build phase).
+			// Expiring it here would let a concurrent allocation steal the
+			// port mid-start, so leave the claim in place — the cleanup paths
+			// with full evidence handle truly stuck owners.
+			continue
+		}
 		if _, err := store.ExpirePortClaim(ctx, claim.ClaimID); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// reservedClaimOwnerStillStarting reports whether the instance owning an
+// expired reserved claim is still alive and working toward binding it: the
+// instance is starting/running, was created on the current boot, and its
+// owner process is still running. Any uncertainty (missing instance, missing
+// owner PID, cross-boot leftovers) reads false — the claim expires as before.
+func reservedClaimOwnerStillStarting(ctx context.Context, store RuntimeClaimStore, instanceID, currentBootID string, pidIsRunning func(int) bool) bool {
+	instance, err := store.GetInstance(ctx, instanceID)
+	if err != nil {
+		return false
+	}
+	if instance.Status != scenarioruntime.StatusStarting && instance.Status != scenarioruntime.StatusRunning {
+		return false
+	}
+	if currentBootID != "" && instance.HostBootID != "" && instance.HostBootID != currentBootID {
+		return false
+	}
+	return instance.OwnerPID != nil && *instance.OwnerPID > 0 && pidIsRunning(*instance.OwnerPID)
 }
 
 func expiredReservedRuntimeClaims(ctx context.Context, store RuntimeClaimStore, at time.Time) ([]scenarioruntime.PortClaim, error) {
@@ -707,9 +750,9 @@ func parseRange(value string) (int, int, error) {
 
 // ensurePortBindable confirms the OS port is not already held by a foreign
 // listener. The registry claim acquired before this call is the ownership
-// authority; this only adds a socket-bind safety check so a same-scenario
+// authority; this only adds a socket-bind safety check so a same-instance
 // restart can detect lingering external processes squatting on the port.
-func (m *Manager) ensurePortBindable(port int, scenarioName string, listeners *listenerSnapshotOnce) error {
+func (m *Manager) ensurePortBindable(port int, key scenarioruntime.InstanceKey, listeners *listenerSnapshotOnce) error {
 	if reservedByResource(m.ResourcePorts, port) {
 		return fmt.Errorf("reserved for resource")
 	}
@@ -720,23 +763,51 @@ func (m *Manager) ensurePortBindable(port int, scenarioName string, listeners *l
 	if !inUse {
 		return nil
 	}
-	// A listener exists. If it belongs to this scenario, treat as a
-	// recoverable restart-in-progress (the registry claim is already ours).
-	// Anything else is a real conflict that the operator must resolve.
-	detail, ok := describeVrooliPortConflict(listeners.get(), port, scenarioName)
+	// A listener exists. If it belongs to this exact instance — same scenario
+	// AND same variant — treat as a recoverable restart-in-progress (the
+	// registry claim is already ours). A sibling variant's listener (e.g. a
+	// leftover shadow squatting on a live fixed port) is a real conflict:
+	// allowing it through would only defer the failure to the actual bind.
+	conflict, ok := findVrooliPortConflict(listeners.get(), port)
 	if ok {
-		if strings.Contains(detail, fmt.Sprintf("scenario %q", scenarioName)) {
+		if conflict.sameInstance(key) {
 			return nil
 		}
-		return errors.New(detail)
+		return errors.New(conflict.describe())
 	}
 	return errors.New("port already in use")
 }
 
-func describeVrooliPortConflict(snapshot network.TCPListenerSnapshot, port int, scenarioName string) (string, bool) {
+// vrooliPortConflict is the structured identity of a Vrooli-managed listener
+// occupying a port. OwnerScenario is empty for a managed-but-unattributed
+// listener; OwnerVariant "" means the listener predates variant injection and
+// is treated as live (matching the lifecycle's legacy-process convention).
+type vrooliPortConflict struct {
+	PID           int
+	OwnerScenario string
+	OwnerVariant  string
+}
+
+func (c vrooliPortConflict) sameInstance(key scenarioruntime.InstanceKey) bool {
+	if c.OwnerScenario == "" {
+		return false
+	}
+	owner := scenarioruntime.InstanceKey{Scenario: c.OwnerScenario, Variant: c.OwnerVariant}.Normalize()
+	return owner == key.Normalize()
+}
+
+func (c vrooliPortConflict) describe() string {
+	if c.OwnerScenario == "" {
+		return fmt.Sprintf("port already in use by Vrooli-managed listener (pid %d)", c.PID)
+	}
+	owner := scenarioruntime.InstanceKey{Scenario: c.OwnerScenario, Variant: c.OwnerVariant}.Normalize()
+	return fmt.Sprintf("port already in use by Vrooli scenario %q (pid %d)", owner.Slug(), c.PID)
+}
+
+func findVrooliPortConflict(snapshot network.TCPListenerSnapshot, port int) (vrooliPortConflict, bool) {
 	inspection := network.PortInspectionFromSnapshot(snapshot, port)
 	if !inspection.Inspection.Available {
-		return "", false
+		return vrooliPortConflict{}, false
 	}
 
 	for _, listener := range inspection.Listeners {
@@ -747,17 +818,14 @@ func describeVrooliPortConflict(snapshot network.TCPListenerSnapshot, port int, 
 		if !isVrooliManagedListener(env) {
 			continue
 		}
-		ownerScenario := strings.TrimSpace(env["VROOLI_SCENARIO"])
-		if ownerScenario == "" {
-			return fmt.Sprintf("port already in use by Vrooli-managed listener (pid %d)", listener.PID), true
-		}
-		if ownerScenario == scenarioName {
-			return fmt.Sprintf("port already in use by existing Vrooli listener for scenario %q (pid %d)", ownerScenario, listener.PID), true
-		}
-		return fmt.Sprintf("port already in use by Vrooli scenario %q (pid %d)", ownerScenario, listener.PID), true
+		return vrooliPortConflict{
+			PID:           listener.PID,
+			OwnerScenario: strings.TrimSpace(env["VROOLI_SCENARIO"]),
+			OwnerVariant:  strings.TrimSpace(env[scenarioruntime.EnvVariant]),
+		}, true
 	}
 
-	return "", false
+	return vrooliPortConflict{}, false
 }
 
 func isVrooliManagedListener(env map[string]string) bool {

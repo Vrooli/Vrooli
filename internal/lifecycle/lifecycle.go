@@ -59,6 +59,18 @@ type lifecycleLogContext struct {
 	Scenario  string
 	Operation string
 	Phase     string
+	// RunID, when set, overrides the generated run identifier so a caller can
+	// pin the id shared with a persisted run record.
+	RunID string
+}
+
+// RunMeta is the lifecycle-run bookkeeping a phase run produces: the run-id used
+// in the log markers and the wall-clock boundaries. The CLI uses it to populate
+// the typed test-run result and persist the run record.
+type RunMeta struct {
+	RunID     string
+	StartedAt time.Time
+	EndedAt   time.Time
 }
 
 // Verbosity controls how much of a lifecycle run is echoed to the console.
@@ -216,6 +228,11 @@ type PhaseOptions struct {
 	AllowSkipMissingRuntime bool
 	ManageRuntime           bool
 	ProjectMode             bool
+	// RunID, when set, is used verbatim as the lifecycle run identifier instead
+	// of generating one. It lets the CLI share a single id across the log
+	// markers, the persisted test-run record, and a detached child's run (so the
+	// parent that launched `--detach` and the child agree on the run-id).
+	RunID string
 }
 
 type Result struct {
@@ -524,7 +541,7 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 		if err := runtimeSession.setPhase(context.Background(), "setup"); err != nil {
 			return Result{}, err
 		}
-		if err := r.runWithLifecycleLog(startLifecycleLogContext(item.Slug, opts.Operation, "setup"), func(logWriter, childWriter io.Writer) error {
+		if _, err := r.runWithLifecycleLog(startLifecycleLogContext(item.Slug, opts.Operation, "setup"), func(logWriter, childWriter io.Writer) error {
 			_, err := r.ExecutePhaseDetailed(item, "setup", env.EnvVars, nil, logWriter, childWriter)
 			return err
 		}); err != nil {
@@ -540,7 +557,7 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 	if err := runtimeSession.setPhase(context.Background(), "develop"); err != nil {
 		return Result{}, err
 	}
-	if err := r.runWithLifecycleLog(startLifecycleLogContext(item.Slug, opts.Operation, "develop"), func(logWriter, childWriter io.Writer) error {
+	if _, err := r.runWithLifecycleLog(startLifecycleLogContext(item.Slug, opts.Operation, "develop"), func(logWriter, childWriter io.Writer) error {
 		_, err := r.ExecutePhaseDetailed(item, "develop", env.EnvVars, nil, logWriter, childWriter)
 		return err
 	}); err != nil {
@@ -617,7 +634,7 @@ func (r *Runner) prepareScenarioEnvironment(item scenario.Scenario, runtimeSessi
 		return ports.Environment{}, err
 	}
 
-	if err := r.runWithLifecycleLog(lifecycleLogContext{Scenario: item.Slug, Operation: "environment", Phase: "database"}, func(logWriter, _ io.Writer) error {
+	if _, err := r.runWithLifecycleLog(lifecycleLogContext{Scenario: item.Slug, Operation: "environment", Phase: "database"}, func(logWriter, _ io.Writer) error {
 		return r.ensureScenarioDatabase(item, env.EnvVars, logWriter)
 	}); err != nil {
 		return ports.Environment{}, err

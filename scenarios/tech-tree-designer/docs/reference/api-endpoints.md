@@ -46,10 +46,16 @@ Ontology endpoints are generated Connect-RPC procedures:
 | `GetCapability` | `/vrooli.tech_tree_designer.v1.ontology.OntologyService/GetCapability` |
 | `UpsertCapability` | `/vrooli.tech_tree_designer.v1.ontology.OntologyService/UpsertCapability` |
 | `DeleteCapability` | `/vrooli.tech_tree_designer.v1.ontology.OntologyService/DeleteCapability` |
+| `UpsertCapabilityEdge` | `/vrooli.tech_tree_designer.v1.ontology.OntologyService/UpsertCapabilityEdge` |
+| `DeleteCapabilityEdge` | `/vrooli.tech_tree_designer.v1.ontology.OntologyService/DeleteCapabilityEdge` |
 | `ImportTopology` | `/vrooli.tech_tree_designer.v1.ontology.OntologyService/ImportTopology` |
 | `LinkFulfillment` | `/vrooli.tech_tree_designer.v1.ontology.OntologyService/LinkFulfillment` |
+| `UnlinkFulfillment` | `/vrooli.tech_tree_designer.v1.ontology.OntologyService/UnlinkFulfillment` |
+| `ListFulfillments` | `/vrooli.tech_tree_designer.v1.ontology.OntologyService/ListFulfillments` |
 | `GetCoverage` | `/vrooli.tech_tree_designer.v1.ontology.OntologyService/GetCoverage` |
 | `ListFocus` | `/vrooli.tech_tree_designer.v1.ontology.OntologyService/ListFocus` |
+| `GetCapabilityScenarios` | `/vrooli.tech_tree_designer.v1.ontology.OntologyService/GetCapabilityScenarios` |
+| `GetScenarioCapabilities` | `/vrooli.tech_tree_designer.v1.ontology.OntologyService/GetScenarioCapabilities` |
 | `DescribeOverlayGraph` | `/vrooli.tech_tree_designer.v1.ontology.OntologyService/DescribeOverlayGraph` |
 
 ## Planned Endpoints
