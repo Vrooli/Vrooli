@@ -18,6 +18,7 @@ import (
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/queue"
+	"test-genie/internal/runmanager"
 	"test-genie/internal/scenarios"
 	"test-genie/internal/shared"
 
@@ -381,30 +382,25 @@ func TestServer_handleExecuteSuite(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name: "suite request not found",
+			// Errors raised while the suite executes surface as a failed run
+			// (500 + details), since the run is started decoupled and observed
+			// via the run manager rather than a synchronous Execute call.
+			name: "execution failure",
 			body: `{"scenarioName":"demo","suiteRequestId":"11111111-1111-1111-1111-111111111111"}`,
 			executor: &stubSuiteExecutor{
 				err: execution.ErrSuiteRequestNotFound,
 			},
-			wantStatus: http.StatusNotFound,
-		},
-		{
-			name: "validation error",
-			body: `{"scenarioName":"demo"}`,
-			executor: &stubSuiteExecutor{
-				err: shared.NewValidationError("bad request"),
-			},
-			wantStatus: http.StatusBadRequest,
+			wantStatus: http.StatusInternalServerError,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			server := &Server{
-				config:       Config{Port: "0"},
-				router:       mux.NewRouter(),
-				executionSvc: tt.executor,
-				logger:       log.New(io.Discard, "", 0),
+				config:     Config{Port: "0"},
+				router:     mux.NewRouter(),
+				runManager: runmanager.New(tt.executor, ""),
+				logger:     log.New(io.Discard, "", 0),
 			}
 
 			req := httptest.NewRequest(http.MethodPost, "/api/v1/executions", strings.NewReader(tt.body))
@@ -426,9 +422,9 @@ func TestServer_handleExecuteSuiteIncludesFailureDetails(t *testing.T) {
 	server := &Server{
 		config: Config{Port: "0"},
 		router: mux.NewRouter(),
-		executionSvc: &stubSuiteExecutor{
+		runManager: runmanager.New(&stubSuiteExecutor{
 			err: errors.New("start target scenario demo: exit status 2"),
-		},
+		}, ""),
 		logger: log.New(io.Discard, "", 0),
 	}
 

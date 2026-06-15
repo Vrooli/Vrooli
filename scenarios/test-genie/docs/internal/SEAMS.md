@@ -41,6 +41,14 @@ not documented below.
 | RunsService RPC | `internal/app/runs/service.go` | Thin Connect-RPC wrapper over `internal/shared/runs.Index`; `scenariosRoot` resolves a slug → run index path. | `service_test.go` against `t.TempDir()`. | The HTTP surface the test-genie CLI and GCT baseline adapters consume. |
 | Run artifact enumeration/serving | `internal/shared/artifacts/run_artifacts.go` (`ListRunVideos`, `ResolveRunArtifact`); `RunsService.ListRunVideos` (Connect) + REST `GET /scenarios/{name}/runs/{runId}/artifact?path=` (`httpserver/run_artifact_handler.go`) | `ListRunVideos` walks `automation/<wf>/video/*.webm`; `ResolveRunArtifact` traversal-guards a run-relative path to `RunDir`. Structured listing is Connect; binary bytes stream over REST (range via `http.ServeFile`). | `run_artifacts_test.go` (traversal + enumeration) against `t.TempDir()`. | Lets GCT's WorkflowReplayService list + proxy playbooks-run videos without reaching into test-genie's filesystem. |
 
+## Durable run lifecycle (server-owned runs)
+
+| Seam | Declaration | Production impl | Test double | Why |
+|---|---|---|---|---|
+| Run manager | `internal/runmanager/manager.go` (`Manager`, `ActiveRun`) | In-memory registry of in-flight runs keyed by runID, each holding a cancel func + event broadcaster + live phase state, backed by `shared/runs.Index` for cross-restart durability. Execution runs under a **server-lifetime** context, not the request, so a client disconnect never cancels the suite. | `manager_test.go` against `t.TempDir()` (disconnect-does-not-cancel, multi-follower fan-out, abort→aborted, startup sweep idempotency). | The decouple keystone: makes a run survive client cancellation and re-attachable by one run-id (`StartRun`/`FollowRun`/`WaitRun`/`AbortRun`/`GetRunStatus`). |
+| Event broadcaster | `internal/runmanager/broadcaster.go` | Fans `RunEvent`s to N subscribers and buffers recent history so a late/re-attaching follower replays phase progress from the start. | `manager_test.go` (two followers of one run both receive the full sequence). | Lets `FollowRun` be re-attachable and replayable instead of a one-shot live tap. |
+| Run lifecycle RPC | `internal/app/runs/lifecycle.go` (`StartRun`/`FollowRun`/`WaitRun`/`AbortRun`/`GetRunStatus`) | Connect-RPC handlers over the run manager; `GetRunStatus` derives remaining-ETA from the plan preview and clamps `recommended_next_check_seconds`. | `lifecycle_test.go` against `t.TempDir()`. | The durable-run control surface the CLI default (`execute`) and the root `vrooli scenario test wait/status/follow/abort` proxy consume. |
+
 ## Database handle
 
 | Seam | Declaration | Production impl | Test double | Why |

@@ -217,6 +217,25 @@ Execute a test suite for a scenario. Supports presets for common configurations.
 test-genie execute <scenario-name> [options]
 ```
 
+### Durable, cancel-survivable runs
+
+The run is owned by the **test-genie server**, not this command, so it is
+decoupled from the request/process lifecycle:
+
+- The run id and a re-attach command are printed **up front** (first lines).
+- If this command is interrupted (Ctrl-C, a tool timeout, a dropped
+  connection), the run **keeps going** — interrupting only detaches the viewer.
+  It does **not** abort the run. To actually stop a run, use `runs abort`.
+- A run whose estimated duration is at or above the auto-background threshold
+  (`TEST_GENIE_AUTOBACKGROUND_SECONDS`, default 60s; `0` disables) is launched
+  in the background so your shell returns immediately, with a re-attach command.
+  Shorter or unknown-ETA runs are followed inline (still cancel-survivable).
+- `--wait` always blocks to completion inline regardless of ETA (used by CI and
+  the `vrooli` lifecycle test phase, which need the real exit code).
+
+Re-attach / inspect a run by handle with the `runs` verbs below
+(`test-genie runs wait <scenario> <run-id>`, etc.).
+
 ### Options
 
 | Option | Default | Description |
@@ -225,13 +244,13 @@ test-genie execute <scenario-name> [options]
 | `--phases <phases>` | all | Comma-separated phases to run |
 | `--skip <phases>` | none | Phases to skip |
 | `--fail-fast` | `false` | Stop on first failure |
-| `--watch` | `false` | Live progress monitoring |
+| `--wait` | `false` | Block to completion inline; never auto-background (CI / scripted use) |
+| `--json` | `false` | Block to verdict and emit the full result blob |
+| `--jsonl` | `false` | Stream canonical newline-delimited phase events (run_started…run_completed) for TUIs |
 | `--request-id <uuid>` | | Link to queued suite request |
 | `--scenario-path <path>` | resolved from scenario name | Absolute physical scenario directory to read and write |
 | `--logical-repo-root <path>` | none | Absolute repo root to use for repo-relative validation |
 | `--logical-scenario-relpath <path>` | none | Scenario directory relative to `--logical-repo-root` |
-| `--timeout <seconds>` | preset | Override phase timeout |
-| `--sync` | `false` | Trigger requirements sync after execution |
 
 `--scenario-path` and the logical placement flags intentionally describe
 different concepts. Use only `--scenario-path` when the scenario truly lives at
@@ -355,6 +374,39 @@ Log: /tmp/test-genie/logs/my-scenario-comprehensive.log
 ```
 
 ---
+
+## runs
+
+Inspect and control the durable, server-owned run history for a scenario. The
+append-only history verbs (`list`/`show`/`delete`/`pin`/`unpin`/`compare`/
+`freshness`) are documented under [run history](#history); the verbs below
+operate on a single run **by handle** and are the anti-polling re-attach
+surface.
+
+```bash
+test-genie runs <verb> <scenario> <run-id> [options]
+```
+
+| Verb | Description |
+|------|-------------|
+| `wait <scenario> <run-id> [--timeout <seconds>] [--json]` | Block until the run is terminal. Exit `0` passed, `1` failed/aborted, `124` if `--timeout` elapses first. |
+| `follow <scenario> <run-id>` | Stream the run's canonical events to completion (replays history for a finished run). |
+| `status <scenario> <run-id> [--json]` | Live snapshot: status, active phase, elapsed, estimated remaining, and `recommended_next_check_seconds` (the backoff to use if you must poll). |
+| `abort <scenario> <run-id> [--json]` | Cancel a running run (transitions it to `aborted`). This is the **only** way to destroy a run — interrupting `execute`/`wait`/`follow` merely detaches. |
+
+These verbs are also surfaced from the root CLI as
+`vrooli scenario test wait|status|follow|abort <scenario> <run-id>` (and `logs`
+as an alias for `follow`), which proxy to `test-genie runs …`.
+
+### Anti-polling recipe
+
+Do **not** loop with repeated "still waiting" checks. If a run backgrounds or
+your tool times out, block once with the printed re-attach command:
+
+```bash
+test-genie runs wait my-scenario 20251208-151044-abcd1234
+# exits with the suite's real code; 124 if a --timeout window elapses
+```
 
 ## coverage
 

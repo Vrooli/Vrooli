@@ -142,6 +142,13 @@ type SuiteExecutionRequest struct {
 	Skip         []string `json:"skip,omitempty"`
 	FailFast     bool     `json:"failFast"`
 
+	// RunID, when set, is the durable run identifier the run manager mints up
+	// front so it can register and return the id synchronously (before the
+	// suite actually starts executing). When empty, prepareExecution mints one.
+	// Threading the id keeps a single run-id scheme and makes the start→finalize
+	// index upsert idempotent under the pre-minted id.
+	RunID string `json:"runId,omitempty"`
+
 	// DiagnosticsPreset ("none"|"light"|"full"), when set, overrides the
 	// playbooks diagnostics config for this run (richer BAS artifact capture).
 	DiagnosticsPreset string `json:"diagnosticsPreset,omitempty"`
@@ -168,10 +175,15 @@ type SuiteExecutionResult struct {
 	ExecutionID    uuid.UUID  `json:"executionId,omitempty"`
 	SuiteRequestID *uuid.UUID `json:"suiteRequestId,omitempty"`
 	RunID          string     `json:"runId,omitempty"`
-	ScenarioName   string     `json:"scenarioName"`
-	StartedAt      time.Time  `json:"startedAt"`
-	CompletedAt    time.Time  `json:"completedAt"`
-	Success        bool       `json:"success"`
+	// ArtifactDir is the stable, first-class run artifact root
+	// (coverage/runs/<runID>/) holding per-phase logs, validator JSON, and the
+	// findings document. Surfaced so a `--jsonl` consumer / TUI can locate a
+	// run's outputs without re-deriving the layout.
+	ArtifactDir  string    `json:"artifactDir,omitempty"`
+	ScenarioName string    `json:"scenarioName"`
+	StartedAt    time.Time `json:"startedAt"`
+	CompletedAt  time.Time `json:"completedAt"`
+	Success      bool      `json:"success"`
 	// Verdict is the tri-state outcome (PASS/PARTIAL/FAIL). Success is kept for
 	// backward compatibility and is true for both PASS and PARTIAL (only FAIL is
 	// a non-zero exit), so a self-test that skips an unrunnable phase is honestly
@@ -325,39 +337,19 @@ func NewSuiteOrchestrator(scenariosRoot string) (*SuiteOrchestrator, error) {
 
 // Execute performs a phased test run and returns the recorded result.
 func (o *SuiteOrchestrator) Execute(ctx context.Context, req SuiteExecutionRequest) (*SuiteExecutionResult, error) {
-	prepared, err := o.prepareExecution(req)
-	if err != nil {
-		return nil, err
-	}
-	env, runCtx, runtimeLease, runtimeManager, err := o.prepareTargetRuntime(ctx, prepared.env, prepared.plan.Selected, req, nil)
-	if err != nil {
-		return nil, err
-	}
-	prepared.env = env
-	defer func() {
-		if runtimeManager != nil {
-			if cleanupErr := runtimeManager.Cleanup(context.Background(), runtimeLease, io.Discard); cleanupErr != nil {
-				log.Printf("failed to clean up target runtime: %v", cleanupErr)
-			}
-		}
-	}()
-
-	phaseResults, anyFailure := o.runSelectedPhases(
-		ctx,
-		env,
-		runCtx,
-		prepared.runLogDir,
-		prepared.plan.Selected,
-		req.FailFast,
-		buildPhaseWarningMap(prepared.plan),
-	)
-
-	return o.finalizeExecution(ctx, req, prepared, phaseResults, anyFailure, nil), nil
+	return o.execute(ctx, req, nil)
 }
 
-// ExecuteWithEvents performs a phased test run while streaming events via callback.
-// This enables real-time progress reporting for SSE/WebSocket clients.
+// ExecuteWithEvents performs a phased test run while streaming events via
+// callback, enabling real-time progress reporting for SSE/Connect clients.
 func (o *SuiteOrchestrator) ExecuteWithEvents(ctx context.Context, req SuiteExecutionRequest, emit ExecutionEventCallback) (*SuiteExecutionResult, error) {
+	return o.execute(ctx, req, emit)
+}
+
+// execute is the single phased-run implementation. A nil emit runs silently
+// (the blocking path); a non-nil emit streams phase events. The per-phase
+// runners already no-op when emit is nil, so there is one code path regardless.
+func (o *SuiteOrchestrator) execute(ctx context.Context, req SuiteExecutionRequest, emit ExecutionEventCallback) (*SuiteExecutionResult, error) {
 	prepared, err := o.prepareExecution(req)
 	if err != nil {
 		return nil, err
@@ -482,39 +474,6 @@ func runtimeNeeds(defs []phases.Definition) targetruntime.Needs {
 	return needs
 }
 
-func (o *SuiteOrchestrator) runSelectedPhases(
-	ctx context.Context,
-	env workspacepkg.Environment,
-	runCtx runnability.RunContext,
-	runLogDir string,
-	defs []phases.Definition,
-	failFast bool,
-	warnings map[string][]phases.Observation,
-) ([]PhaseExecutionResult, bool) {
-	if len(defs) == 0 {
-		return nil, false
-	}
-	results := make([]PhaseExecutionResult, 0, len(defs))
-	anyFailure := false
-	for _, phase := range defs {
-		verdict := resolvePhaseVerdict(phase, runCtx)
-		if verdict.IsSkip() {
-			results = append(results, o.newSkippedPhaseResult(phase, runLogDir, verdict))
-			continue
-		}
-		phaseResult := o.runPhase(ctx, env, runLogDir, phase, mergeRunnabilityObservations(verdict, warnings[phase.Name.Key()]))
-		annotatePhaseRunnability(&phaseResult, verdict)
-		if phaseResult.Status == phaseStatusFailed {
-			anyFailure = true
-		}
-		results = append(results, phaseResult)
-		if failFast && phaseResult.Status == phaseStatusFailed {
-			break
-		}
-	}
-	return results, anyFailure
-}
-
 func newRunID() string {
 	return sharedruns.NewRunID()
 }
@@ -544,7 +503,12 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 	}
 	scenario := planCtx.env.ScenarioName
 
-	runID := newRunID()
+	// Honor a run id pre-minted by the run manager so the durable id is known
+	// before execution begins; mint one only when running outside the manager.
+	runID := strings.TrimSpace(req.RunID)
+	if runID == "" {
+		runID = newRunID()
+	}
 	planCtx.env.RunID = runID
 	planCtx.env.DiagnosticsPreset = strings.TrimSpace(req.DiagnosticsPreset)
 	if err := sharedartifacts.EnsureCoverageStructure(planCtx.env.ScenarioDir); err != nil {
@@ -589,6 +553,7 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 		runLogDir: runLogDir,
 		result: &SuiteExecutionResult{
 			RunID:               runID,
+			ArtifactDir:         sharedartifacts.RunDir(planCtx.env.ScenarioDir, runID),
 			ScenarioName:        scenario,
 			StartedAt:           time.Now().UTC(),
 			PresetUsed:          planCtx.plan.PresetUsed,
@@ -1003,18 +968,8 @@ func (o *SuiteOrchestrator) scriptPhaseRunner(scriptPath string) phases.Runner {
 	}
 }
 
-func (o *SuiteOrchestrator) runPhase(ctx context.Context, env workspacepkg.Environment, runLogDir string, def phases.Definition, preObservations []phases.Observation) PhaseExecutionResult {
-	run, err := o.beginPhaseRun(ctx, env, runLogDir, def, nil, preObservations)
-	if err != nil {
-		return o.newPhaseSetupFailure(def.Name, runLogDir, err)
-	}
-	defer run.close()
-
-	report := def.Runner(run.phaseCtx, env, run.logWriter)
-	return o.completePhaseRun(run, report, preObservations)
-}
-
-// runPhaseWithEvents is like runPhase but emits observation events during execution.
+// runPhaseWithEvents runs a single phase, emitting observation events during
+// execution when emit is non-nil (the per-phase writer no-ops emit otherwise).
 func (o *SuiteOrchestrator) runPhaseWithEvents(ctx context.Context, env workspacepkg.Environment, runLogDir string, def phases.Definition, emit ExecutionEventCallback, preObservations []phases.Observation) PhaseExecutionResult {
 	run, err := o.beginPhaseRun(ctx, env, runLogDir, def, emit, preObservations)
 	if err != nil {

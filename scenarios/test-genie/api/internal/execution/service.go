@@ -19,7 +19,6 @@ import (
 var ErrSuiteRequestNotFound = errors.New("suite request not found")
 
 type suiteExecutionEngine interface {
-	Execute(ctx context.Context, req orchestrator.SuiteExecutionRequest) (*orchestrator.SuiteExecutionResult, error)
 	ExecuteWithEvents(ctx context.Context, req orchestrator.SuiteExecutionRequest, emit orchestrator.ExecutionEventCallback) (*orchestrator.SuiteExecutionResult, error)
 }
 
@@ -55,65 +54,20 @@ func NewSuiteExecutionService(engine suiteExecutionEngine, executions suiteExecu
 
 // Execute runs the suite, persists the result, and keeps queue state in sync.
 func (s *SuiteExecutionService) Execute(ctx context.Context, input SuiteExecutionInput) (*orchestrator.SuiteExecutionResult, error) {
-	if s.engine == nil {
-		return nil, fmt.Errorf("suite execution engine is not configured")
-	}
-	if s.executions == nil {
-		return nil, fmt.Errorf("suite execution repository is not configured")
-	}
-
-	var suiteID *uuid.UUID
-	if input.SuiteRequestID != nil {
-		suiteID = input.SuiteRequestID
-		if err := s.loadAndMarkSuiteRequest(ctx, *suiteID, input.Request.ScenarioName); err != nil {
-			return nil, err
-		}
-	}
-
-	result, err := s.engine.Execute(ctx, input.Request)
-	if err != nil {
-		s.markSuiteFailed(ctx, suiteID)
-		return nil, err
-	}
-	if result == nil {
-		s.markSuiteFailed(ctx, suiteID)
-		return nil, errors.New("suite execution engine returned no result")
-	}
-
-	record := &SuiteExecutionRecord{
-		ID:                  uuid.New(),
-		SuiteRequestID:      suiteID,
-		ScenarioName:        result.ScenarioName,
-		PresetUsed:          result.PresetUsed,
-		RequestedPreset:     result.RequestedPreset,
-		RequestedPhases:     append([]string(nil), result.RequestedPhases...),
-		RequestedSkipPhases: append([]string(nil), result.RequestedSkipPhases...),
-		PlannedPhases:       append([]string(nil), result.PlannedPhases...),
-		FailFast:            result.FailFast,
-		Success:             result.Success,
-		Phases:              append([]phases.ExecutionResult(nil), result.Phases...),
-		StartedAt:           result.StartedAt,
-		CompletedAt:         result.CompletedAt,
-	}
-
-	if err := s.executions.Create(ctx, record); err != nil {
-		s.markSuiteFailed(ctx, suiteID)
-		return nil, err
-	}
-
-	if suiteID != nil {
-		if err := s.finalizeSuiteRequest(ctx, *suiteID, result.Success); err != nil {
-			return nil, err
-		}
-		result.SuiteRequestID = suiteID
-	}
-
-	result.ExecutionID = record.ID
-	return result, nil
+	return s.run(ctx, input, nil)
 }
 
 // ExecuteWithEvents runs the suite with streaming events via callback.
 func (s *SuiteExecutionService) ExecuteWithEvents(ctx context.Context, input SuiteExecutionInput, emit orchestrator.ExecutionEventCallback) (*orchestrator.SuiteExecutionResult, error) {
+	return s.run(ctx, input, emit)
+}
+
+// run is the single execute implementation: it marks the linked suite request
+// running (if any), drives the orchestrator (streaming events when emit is
+// non-nil), persists the execution record, and finalizes queue state. The
+// orchestrator's own per-phase writer no-ops a nil emit, so the two public
+// entrypoints share one body.
+func (s *SuiteExecutionService) run(ctx context.Context, input SuiteExecutionInput, emit orchestrator.ExecutionEventCallback) (*orchestrator.SuiteExecutionResult, error) {
 	if s.engine == nil {
 		return nil, fmt.Errorf("suite execution engine is not configured")
 	}

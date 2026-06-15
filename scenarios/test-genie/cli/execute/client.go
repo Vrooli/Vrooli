@@ -96,6 +96,12 @@ func (c *Client) Run(req Request) (Response, []byte, error) {
 	return result, body, nil
 }
 
+// BaseURL returns the resolved API base URL (HTTP client first, then the API
+// client), used to construct the durable run-lifecycle Connect client.
+func (c *Client) BaseURL() string {
+	return c.resolveBaseURL()
+}
+
 // resolveBaseURL gets the base URL from the configured HTTP client.
 // The HTTP client is initialized by cli-core with proper port detection via vrooli.
 func (c *Client) resolveBaseURL() string {

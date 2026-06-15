@@ -21,7 +21,9 @@ func newTestService(t *testing.T) (*Service, string) {
 	if err := os.MkdirAll(filepath.Join(root, "demo"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	return NewService(root), root
+	// The read-only index RPCs under test need neither the run manager nor the
+	// planner.
+	return NewService(root, nil, nil), root
 }
 
 func seedRecord(t *testing.T, root string, rec sharedruns.RunRecord) {

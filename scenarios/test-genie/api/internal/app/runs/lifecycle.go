@@ -1,0 +1,234 @@
+package runs
+
+import (
+	"context"
+	"errors"
+	"strings"
+	"time"
+
+	"connectrpc.com/connect"
+	"github.com/google/uuid"
+
+	"test-genie/internal/execution"
+	"test-genie/internal/orchestrator"
+	"test-genie/internal/runmanager"
+	"test-genie/internal/shared"
+	sharedruns "test-genie/internal/shared/runs"
+
+	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
+)
+
+// StartRun starts a durable, request-decoupled suite run and returns its id and
+// ETA synchronously. Plan validation (bad preset/phase) is surfaced up front as
+// InvalidArgument; the run itself survives client cancellation.
+func (s *Service) StartRun(ctx context.Context, req *connect.Request[runspb.StartRunRequest]) (*connect.Response[runspb.StartRunResponse], error) {
+	if s.runManager == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("run manager is not configured"))
+	}
+	scenario := strings.TrimSpace(req.Msg.GetScenario())
+	if scenario == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario is required"))
+	}
+
+	input := execution.SuiteExecutionInput{
+		Request: orchestrator.SuiteExecutionRequest{
+			ScenarioName:           scenario,
+			Preset:                 strings.TrimSpace(req.Msg.GetPreset()),
+			Phases:                 req.Msg.GetPhases(),
+			Skip:                   req.Msg.GetSkip(),
+			FailFast:               req.Msg.GetFailFast(),
+			DiagnosticsPreset:      strings.TrimSpace(req.Msg.GetDiagnosticsPreset()),
+			UIURL:                  strings.TrimSpace(req.Msg.GetUiUrl()),
+			APIURL:                 strings.TrimSpace(req.Msg.GetApiUrl()),
+			BrowserlessURL:         strings.TrimSpace(req.Msg.GetBrowserlessUrl()),
+			ScenarioPath:           strings.TrimSpace(req.Msg.GetScenarioPath()),
+			LogicalRepoRoot:        strings.TrimSpace(req.Msg.GetLogicalRepoRoot()),
+			LogicalScenarioRelPath: strings.TrimSpace(req.Msg.GetLogicalScenarioRelPath()),
+		},
+	}
+	if id := strings.TrimSpace(req.Msg.GetSuiteRequestId()); id != "" {
+		parsed, err := uuid.Parse(id)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("suite_request_id must be a valid UUID"))
+		}
+		input.SuiteRequestID = &parsed
+	}
+
+	etaTotal, etaKnown, err := s.previewPlan(ctx, input.Request)
+	if err != nil {
+		return nil, err
+	}
+
+	runID, err := s.runManager.Start(runmanager.StartOptions{Input: input, EstimatedTotalSeconds: etaTotal})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&runspb.StartRunResponse{
+		RunId:                 runID,
+		Scenario:              scenario,
+		EstimatedTotalSeconds: int32(etaTotal),
+		EtaKnown:              etaKnown,
+	}), nil
+}
+
+// previewPlan derives the summed plan estimate and surfaces plan validation
+// errors (bad preset/phase) as InvalidArgument so a malformed request is
+// rejected up front rather than failing inside the run goroutine. A non-fatal
+// preview error (e.g. no timing history) yields ETA-unknown and proceeds.
+func (s *Service) previewPlan(ctx context.Context, req orchestrator.SuiteExecutionRequest) (int, bool, error) {
+	if s.planner == nil {
+		return 0, false, nil
+	}
+	preview, err := s.planner.Preview(ctx, req)
+	if err != nil {
+		var vErr shared.ValidationError
+		if errors.As(err, &vErr) {
+			return 0, false, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		return 0, false, nil
+	}
+	if preview == nil {
+		return 0, false, nil
+	}
+	total := preview.Summary.EstimatedDurationSeconds
+	return total, total > 0, nil
+}
+
+// FollowRun streams canonical run events, replaying history first. Cancelling
+// the stream detaches the follower without aborting the run.
+func (s *Service) FollowRun(ctx context.Context, req *connect.Request[runspb.FollowRunRequest], stream *connect.ServerStream[runspb.RunEvent]) error {
+	if s.runManager == nil {
+		return connect.NewError(connect.CodeUnimplemented, errors.New("run manager is not configured"))
+	}
+	scenario := strings.TrimSpace(req.Msg.GetScenario())
+	runID := strings.TrimSpace(req.Msg.GetRunId())
+	replay, ch, err := s.runManager.Follow(ctx, scenario, runID)
+	if err != nil {
+		return mapRunError(err)
+	}
+	for _, ev := range replay {
+		if err := stream.Send(toRunEvent(ev)); err != nil {
+			return err
+		}
+	}
+	for ev := range ch {
+		if err := stream.Send(toRunEvent(ev)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// WaitRun blocks until terminal or the optional timeout, returning the live
+// status. A timeout returns the current (non-terminal) snapshot with
+// timed_out=true; the run keeps executing.
+func (s *Service) WaitRun(ctx context.Context, req *connect.Request[runspb.WaitRunRequest]) (*connect.Response[runspb.WaitRunResponse], error) {
+	if s.runManager == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("run manager is not configured"))
+	}
+	scenario := strings.TrimSpace(req.Msg.GetScenario())
+	runID := strings.TrimSpace(req.Msg.GetRunId())
+
+	waitCtx := ctx
+	if secs := req.Msg.GetTimeoutSeconds(); secs > 0 {
+		var cancel context.CancelFunc
+		waitCtx, cancel = context.WithTimeout(ctx, time.Duration(secs)*time.Second)
+		defer cancel()
+	}
+
+	st, err := s.runManager.Wait(waitCtx, scenario, runID)
+	timedOut := false
+	if err != nil {
+		switch {
+		case errors.Is(err, context.DeadlineExceeded), errors.Is(err, context.Canceled):
+			timedOut = true
+		case errors.Is(err, sharedruns.ErrRunNotFound):
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		default:
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+	}
+	if isTerminalStatus(st.Status) {
+		timedOut = false
+	}
+	return connect.NewResponse(&runspb.WaitRunResponse{Status: toLiveStatus(st), TimedOut: timedOut}), nil
+}
+
+// AbortRun cancels a running run and reports its terminal aborted status.
+func (s *Service) AbortRun(ctx context.Context, req *connect.Request[runspb.AbortRunRequest]) (*connect.Response[runspb.AbortRunResponse], error) {
+	if s.runManager == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("run manager is not configured"))
+	}
+	st, err := s.runManager.Abort(strings.TrimSpace(req.Msg.GetScenario()), strings.TrimSpace(req.Msg.GetRunId()))
+	if err != nil {
+		return nil, mapRunError(err)
+	}
+	return connect.NewResponse(&runspb.AbortRunResponse{Status: toLiveStatus(st)}), nil
+}
+
+// GetRunStatus returns a point-in-time live snapshot.
+func (s *Service) GetRunStatus(ctx context.Context, req *connect.Request[runspb.GetRunStatusRequest]) (*connect.Response[runspb.RunLiveStatus], error) {
+	if s.runManager == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("run manager is not configured"))
+	}
+	st, err := s.runManager.Status(strings.TrimSpace(req.Msg.GetScenario()), strings.TrimSpace(req.Msg.GetRunId()))
+	if err != nil {
+		return nil, mapRunError(err)
+	}
+	return connect.NewResponse(toLiveStatus(st)), nil
+}
+
+func toRunEvent(ev runmanager.Event) *runspb.RunEvent {
+	return &runspb.RunEvent{
+		Event:           ev.Kind,
+		ElapsedSeconds:  ev.ElapsedSeconds,
+		RunId:           ev.RunID,
+		Scenario:        ev.Scenario,
+		ArtifactDir:     ev.ArtifactDir,
+		Preset:          ev.Preset,
+		Phase:           ev.Phase,
+		PhaseIndex:      int32(ev.PhaseIndex),
+		PhaseTotal:      int32(ev.PhaseTotal),
+		Status:          ev.Status,
+		DurationSeconds: int32(ev.DurationSeconds),
+		QuietSeconds:    ev.QuietSeconds,
+		Message:         ev.Message,
+		Success:         ev.Success,
+		Verdict:         ev.Verdict,
+		Error:           ev.Error,
+	}
+}
+
+func toLiveStatus(st runmanager.LiveStatus) *runspb.RunLiveStatus {
+	startedAt := ""
+	if !st.StartedAt.IsZero() {
+		startedAt = st.StartedAt.UTC().Format(time.RFC3339)
+	}
+	return &runspb.RunLiveStatus{
+		RunId:                       st.RunID,
+		Scenario:                    st.Scenario,
+		Status:                      st.Status,
+		ActivePhase:                 st.ActivePhase,
+		PhaseIndex:                  int32(st.PhaseIndex),
+		PhaseTotal:                  int32(st.PhaseTotal),
+		StartedAt:                   startedAt,
+		ElapsedSeconds:              st.ElapsedSeconds,
+		EstimatedTotalSeconds:       int32(st.EstimatedTotalSeconds),
+		EstimatedRemainingSeconds:   int32(st.EstimatedRemainingSeconds),
+		EtaKnown:                    st.ETAKnown,
+		RecommendedNextCheckSeconds: int32(st.RecommendedNextCheckSeconds),
+		Verdict:                     st.Verdict,
+		Success:                     st.Success,
+		Error:                       st.Error,
+		Active:                      st.Active,
+	}
+}
+
+func isTerminalStatus(status string) bool {
+	switch status {
+	case sharedruns.StatusPassed, sharedruns.StatusFailed, sharedruns.StatusAborted:
+		return true
+	default:
+		return false
+	}
+}

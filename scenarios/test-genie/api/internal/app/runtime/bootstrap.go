@@ -19,6 +19,7 @@ import (
 	"test-genie/internal/queue"
 	"test-genie/internal/requirements"
 	"test-genie/internal/requirementsimprove"
+	"test-genie/internal/runmanager"
 	"test-genie/internal/scenarios"
 	"test-genie/internal/toolexecution"
 	"test-genie/internal/toolregistry"
@@ -36,6 +37,7 @@ type Bootstrapped struct {
 	ExecutionHistory           execution.ExecutionHistory
 	ExecutionService           *execution.SuiteExecutionService
 	ExecutionPlanner           execution.ExecutionPlanner
+	RunManager                 *runmanager.Manager
 	ScenarioService            *scenarios.ScenarioDirectoryService
 	PhaseCatalog               phaseCatalogProvider
 	AgentService               *agentmanager.AgentService
@@ -109,6 +111,16 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 
 	executionSvc := execution.NewSuiteExecutionService(runner, executionRepo, suiteRequestService)
 
+	// The run manager owns durable run execution decoupled from any client
+	// request: it is the single engine every door (blocking REST, SSE gateway,
+	// Connect run surface) funnels through, so a run survives client cancellation.
+	runManager := runmanager.New(executionSvc, cfg.ScenariosRoot)
+	if swept, err := runManager.Sweep(); err != nil {
+		log.Printf("[test-genie] run-index startup sweep failed: %v", err)
+	} else if swept > 0 {
+		log.Printf("[test-genie] startup sweep: marked %d orphaned in-progress run(s) aborted", swept)
+	}
+
 	claimsRepo := playbooksclaims.NewSqliteRepository(db)
 	claimsService := playbooksclaims.NewService(playbooksclaims.Config{Repo: claimsRepo})
 	runner.SetClaims(claimsService)
@@ -122,8 +134,10 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 	phases.SetRoutingChecker(routingEligibility)
 	eligibilityService := appelig.NewService(routingEligibility, cfg.ScenariosRoot)
 
-	// RunsService exposes the append-only run index over Connect-RPC.
-	runsService := apprun.NewService(cfg.ScenariosRoot)
+	// RunsService exposes the append-only run index AND the durable run
+	// lifecycle (start/follow/wait/abort/status) over Connect-RPC, delegating
+	// execution to the run manager.
+	runsService := apprun.NewService(cfg.ScenariosRoot, runManager, executionPlanner)
 
 	// Create agent-manager service
 	agentEnabled := os.Getenv("AGENT_MANAGER_ENABLED") != "false"
@@ -194,6 +208,7 @@ func BuildDependencies(cfg *Config) (*Bootstrapped, error) {
 		ExecutionHistory:           executionHistory,
 		ExecutionService:           executionSvc,
 		ExecutionPlanner:           executionPlanner,
+		RunManager:                 runManager,
 		ScenarioService:            scenarioService,
 		PhaseCatalog:               runner,
 		AgentService:               agentService,

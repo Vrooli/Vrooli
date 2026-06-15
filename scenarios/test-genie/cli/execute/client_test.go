@@ -27,15 +27,3 @@ func TestParseRunResponseSuccess(t *testing.T) {
 		t.Fatalf("expected execution id exec-123, got %q", resp.ExecutionID)
 	}
 }
-
-func TestProcessSSEStreamRejectsEarlyTermination(t *testing.T) {
-	client := &Client{}
-
-	_, err := client.processSSEStream(strings.NewReader(""), nil, nil)
-	if err == nil {
-		t.Fatal("expected early stream termination to fail")
-	}
-	if !strings.Contains(err.Error(), "stream ended before completion event") {
-		t.Fatalf("expected stream termination diagnostic, got %v", err)
-	}
-}

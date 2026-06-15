@@ -27,7 +27,7 @@ func Register(runtime deps.Runtime) cliapp.CommandGroup {
 				Description: "Execute a suite for a scenario",
 				Usage:       execute.UsageLine,
 				HelpText:    execute.HelpText(),
-				Run:         func(args []string) error { return execute.Run(runtime.Execute, runtime.HTTPClient, args) },
+				Run:         func(args []string) error { return execute.Run(runtime.Execute, args) },
 			},
 		},
 	}

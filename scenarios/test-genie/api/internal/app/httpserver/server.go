@@ -26,6 +26,7 @@ import (
 	"test-genie/internal/playbooksclaims"
 	"test-genie/internal/queue"
 	"test-genie/internal/requirementsimprove"
+	"test-genie/internal/runmanager"
 	"test-genie/internal/scenarios"
 	"test-genie/internal/toolexecution"
 	"test-genie/internal/toolregistry"
@@ -56,8 +57,8 @@ type Dependencies struct {
 	DB                         *database.RoutedDB
 	SuiteQueue                 suiteRequestQueue
 	Executions                 execution.ExecutionHistory
-	ExecutionSvc               suiteExecutor
 	ExecutionPlanner           executionPlanner
+	RunManager                 *runmanager.Manager
 	Scenarios                  scenarioDirectory
 	PhaseCatalog               phaseCatalog
 	AgentService               *agentmanager.AgentService
@@ -78,11 +79,6 @@ type suiteRequestQueue interface {
 	List(ctx context.Context, limit int) ([]queue.SuiteRequest, error)
 	Get(ctx context.Context, id uuid.UUID) (*queue.SuiteRequest, error)
 	StatusSnapshot(ctx context.Context) (queue.SuiteRequestSnapshot, error)
-}
-
-type suiteExecutor interface {
-	Execute(ctx context.Context, input execution.SuiteExecutionInput) (*orchestrator.SuiteExecutionResult, error)
-	ExecuteWithEvents(ctx context.Context, input execution.SuiteExecutionInput, emit orchestrator.ExecutionEventCallback) (*orchestrator.SuiteExecutionResult, error)
 }
 
 type executionPlanner interface {
@@ -135,8 +131,8 @@ type Server struct {
 	router                     *mux.Router
 	suiteRequests              suiteRequestQueue
 	executionHistory           execution.ExecutionHistory
-	executionSvc               suiteExecutor
 	executionPlanner           executionPlanner
+	runManager                 *runmanager.Manager
 	scenarios                  scenarioDirectory
 	phaseCatalog               phaseCatalog
 	logger                     Logger
@@ -169,11 +165,11 @@ func New(config Config, deps Dependencies) (*Server, error) {
 	if deps.Executions == nil {
 		return nil, fmt.Errorf("execution history service is required")
 	}
-	if deps.ExecutionSvc == nil {
-		return nil, fmt.Errorf("execution service is required")
-	}
 	if deps.ExecutionPlanner == nil {
 		return nil, fmt.Errorf("execution planner is required")
+	}
+	if deps.RunManager == nil {
+		return nil, fmt.Errorf("run manager is required")
 	}
 	if deps.Scenarios == nil {
 		return nil, fmt.Errorf("scenario directory service is required")
@@ -196,8 +192,8 @@ func New(config Config, deps Dependencies) (*Server, error) {
 		router:                     mux.NewRouter(),
 		suiteRequests:              deps.SuiteQueue,
 		executionHistory:           deps.Executions,
-		executionSvc:               deps.ExecutionSvc,
 		executionPlanner:           deps.ExecutionPlanner,
+		runManager:                 deps.RunManager,
 		scenarios:                  deps.Scenarios,
 		phaseCatalog:               deps.PhaseCatalog,
 		logger:                     logger,
@@ -367,6 +363,12 @@ func (s *Server) Start() error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
+	// Cancel any in-flight durable runs so the process exits promptly; the next
+	// boot's startup sweep marks their index entries aborted.
+	if s.runManager != nil {
+		s.runManager.Shutdown()
+	}
 
 	if err := httpServer.Shutdown(ctx); err != nil {
 		return fmt.Errorf("server shutdown failed: %w", err)

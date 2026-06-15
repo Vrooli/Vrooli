@@ -6,11 +6,9 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"test-genie/cli/execute/report"
 	"test-genie/cli/internal/phases"
@@ -20,23 +18,28 @@ import (
 	execTypes "test-genie/cli/internal/execute"
 )
 
-const UsageLine = "test-genie execute <scenario> [phases...] [--preset quick] [--skip performance] [--scenario-path PATH] [--logical-repo-root PATH] [--logical-scenario-relpath PATH] [--ui-url URL] [--api-url URL] [--browserless-url URL] [--fail-fast] [--json]"
+const UsageLine = "test-genie execute <scenario> [phases...] [--preset quick] [--skip performance] [--scenario-path PATH] [--logical-repo-root PATH] [--logical-scenario-relpath PATH] [--ui-url URL] [--api-url URL] [--browserless-url URL] [--fail-fast] [--wait] [--json] [--jsonl]"
 
 // HelpText returns the framework-rendered help body for the execute command.
 func HelpText() string {
-	return `Execute a scenario suite and stream or summarize the phase results.
+	return `Execute a scenario suite. The run is owned by the test-genie server, so it
+survives this command being interrupted: the run id and a re-attach command are
+printed up front, and a known-long run is launched in the background (use --wait
+to always block inline). Re-attach with 'test-genie runs wait <scenario> <id>'.
 
 Examples:
   test-genie execute swarm-manager
   test-genie execute swarm-manager standards lint integration
   test-genie execute swarm-manager --preset quick --fail-fast
+  test-genie execute swarm-manager --wait            # block to completion inline (CI)
   test-genie execute swarm-manager --skip performance --json
+  test-genie execute swarm-manager --jsonl           # newline-delimited phase events for TUIs
   test-genie execute demo --scenario-path /tmp/vrooli/scenarios/demo --preset comprehensive
   test-genie execute demo --scenario-path /tmp/vrooli/scenarios/demo --logical-repo-root /workspace/Vrooli --logical-scenario-relpath scenarios/demo --preset comprehensive`
 }
 
 // Run executes the execute command.
-func Run(client *Client, httpClient *cliutil.HTTPClient, args []string) error {
+func Run(client *Client, args []string) error {
 	parsed, err := ParseArgs(args)
 	if err != nil {
 		return err
@@ -66,18 +69,24 @@ func Run(client *Client, httpClient *cliutil.HTTPClient, args []string) error {
 		LogicalScenarioRelPath: parsed.LogicalScenarioRelPath,
 	}
 
+	baseURL := client.BaseURL()
+
+	// JSONL machine stream: skip all human pre-execution rendering and emit the
+	// canonical newline-delimited event stream (run id on the first line). The
+	// process exits with the suite's real result code.
+	if parsed.JSONL {
+		return RunDurable(baseURL, req, DurableOptions{JSONL: true})
+	}
+
 	var (
-		preview         execTypes.PlanPreview
-		previewReady    bool
-		progressPhases  []string
-		estimateTargets map[string]time.Duration
-		timeoutTargets  map[string]time.Duration
+		preview        execTypes.PlanPreview
+		previewReady   bool
+		progressPhases []string
 	)
 	if planned, err := client.PreviewPlan(req); err == nil {
 		preview = planned
 		previewReady = true
 		progressPhases = plannedPhaseNames(planned)
-		estimateTargets, timeoutTargets = phaseTimingTargets(planned)
 	} else if !parsed.JSON {
 		fmt.Fprintf(os.Stderr, "Warning: unable to preview execution plan (%v)\n", err)
 		if len(parsed.Phases) > 0 {
@@ -85,7 +94,7 @@ func Run(client *Client, httpClient *cliutil.HTTPClient, args []string) error {
 		}
 	}
 
-	// Create printer early for pre-execution output
+	// Create printer early for pre-execution output.
 	pr := report.New(
 		os.Stdout,
 		parsed.Scenario,
@@ -103,78 +112,29 @@ func Run(client *Client, httpClient *cliutil.HTTPClient, args []string) error {
 		pr.SetPlanPreview(preview)
 	}
 
-	// Print header and test plan IMMEDIATELY (before API call)
-	// This gives users instant feedback about what will run
+	// Print header and test plan IMMEDIATELY (before the run starts) so the
+	// user sees what will run before any work begins.
 	if !parsed.JSON {
 		pr.PrintPreExecution(progressPhases)
 	}
 
-	// Determine streaming mode:
-	// - Default to streaming for interactive TTY (better UX with live output)
-	// - Use spinner for non-TTY (CI/piped output)
-	// - Respect explicit --stream or --no-stream flags
-	useStreaming := parsed.Stream
-	if !parsed.NoStream && !parsed.JSON && isInteractiveTTY() {
-		useStreaming = true
-	}
-
-	// Choose execution mode: SSE streaming vs regular
-	var resp Response
-	var raw []byte
-
-	if useStreaming && !parsed.JSON {
-		// SSE streaming mode: real-time output as phases complete
-		// This is the default for interactive terminals
-		var err error
-		resp, err = client.RunWithSSE(req, pr, progressPhases)
+	// --json: programmatic block-to-verdict over the blocking REST adapter (the
+	// run is still server-owned and cancel-survivable). Returns the full result
+	// schema unchanged for existing consumers.
+	if parsed.JSON {
+		resp, raw, err := client.Run(req)
 		if err != nil {
-			PrintError(os.Stdout, err, req, httpClient)
+			printJSONExecutionError(raw, err)
 			return err
 		}
-
-		// Mark that observations were already streamed, skip re-rendering them
-		pr.SetStreamedObservations(true)
-		// Print final summary (SSE already showed phase progress)
-		pr.PrintResults(resp)
-	} else {
-		// Standard execution mode with progress indicator
-		// Used for CI, piped output, or when --no-stream is specified
-		var stopProgress func()
-		var tailer *LogTailer
-		if !parsed.JSON && previewReady && len(progressPhases) > 0 {
-			stopProgress = StartProgress(os.Stderr, progressPhases, estimateTargets, timeoutTargets)
-		}
-
-		var err error
-		resp, raw, err = client.Run(req)
-		if stopProgress != nil {
-			stopProgress()
-		}
-		if tailer != nil {
-			tailer.Stop()
-		}
-		if err != nil {
-			if parsed.JSON {
-				printJSONExecutionError(raw, err)
-				return err
-			}
-			PrintError(os.Stdout, err, req, httpClient)
-			return err
-		}
-		if parsed.JSON {
-			cliutil.PrintJSON(raw)
-			return executionResultError(resp)
-		}
-
-		// Print results (header/plan already printed pre-execution)
-		pr.PrintResults(resp)
+		cliutil.PrintJSON(raw)
+		return executionResultError(resp)
 	}
 
-	if resp.Error != "" {
-		fmt.Printf("\nError: %s\n", resp.Error)
-	}
-
-	return executionResultError(resp)
+	// Default human path: a server-owned, cancel-survivable run. Prints the run
+	// id + re-attach command up front, auto-backgrounds known-long runs (unless
+	// --wait), and follows inline otherwise.
+	return RunDurable(baseURL, req, DurableOptions{Wait: parsed.Wait, Printer: pr})
 }
 
 func printJSONExecutionError(raw []byte, err error) {
@@ -200,17 +160,6 @@ func executionResultError(resp Response) error {
 	return fmt.Errorf("suite execution completed with failures")
 }
 
-// isInteractiveTTY checks if stdout is connected to an interactive terminal.
-// Returns true for interactive shells, false for piped output or CI environments.
-func isInteractiveTTY() bool {
-	fi, err := os.Stdout.Stat()
-	if err != nil {
-		return false
-	}
-	// Check if stdout is a character device (terminal)
-	return (fi.Mode() & os.ModeCharDevice) != 0
-}
-
 // ParseArgs parses command line arguments for the execute command.
 func ParseArgs(args []string) (Args, error) {
 	if len(args) == 0 {
@@ -224,8 +173,8 @@ func ParseArgs(args []string) (Args, error) {
 	fs.StringVar(&out.RequestID, "request-id", "", "Link to suite request")
 	fs.StringVar(&out.DiagnosticsPreset, "diagnostics-preset", "", "Playbooks diagnostics capture: none|light|full (overrides testing.json)")
 	fs.BoolVar(&out.FailFast, "fail-fast", false, "Stop on first failure")
-	fs.BoolVar(&out.Stream, "stream", false, "Force streaming mode (default for TTY)")
-	fs.BoolVar(&out.NoStream, "no-stream", false, "Disable streaming, use progress spinner instead")
+	fs.BoolVar(&out.Wait, "wait", false, "Block to completion inline; never auto-background (CI / scripted use)")
+	fs.BoolVar(&out.JSONL, "jsonl", false, "Stream canonical newline-delimited phase events (run_started…run_completed) for TUIs")
 	fs.StringVar(&out.ScenarioPath, "scenario-path", "", "Absolute path to the scenario directory")
 	fs.StringVar(&out.LogicalRepoRoot, "logical-repo-root", "", "Absolute repo root for repo-relative validation")
 	fs.StringVar(&out.LogicalScenarioRelPath, "logical-scenario-relpath", "", "Logical scenario directory relative to --logical-repo-root")
@@ -291,41 +240,6 @@ func validateLogicalPlacementArgs(scenario, logicalRepoRoot, logicalScenarioRelP
 	return nil
 }
 
-// PrintError displays a formatted error box with debugging hints.
-func PrintError(w io.Writer, err error, req Request, httpClient *cliutil.HTTPClient) {
-	fmt.Fprintln(w, "╔═══════════════════════════════════════════════════════════════╗")
-	fmt.Fprintf(w, "║  %-61s║\n", "TEST EXECUTION REQUEST FAILED")
-	fmt.Fprintln(w, "╠═══════════════════════════════════════════════════════════════╣")
-	fmt.Fprintf(w, "║  %-61s║\n", fmt.Sprintf("Scenario: %s", req.ScenarioName))
-	if req.Preset != "" {
-		fmt.Fprintf(w, "║  %-61s║\n", fmt.Sprintf("Preset: %s", req.Preset))
-	}
-	if len(req.Phases) > 0 {
-		fmt.Fprintf(w, "║  %-61s║\n", fmt.Sprintf("Requested phases: %s", strings.Join(req.Phases, ", ")))
-	}
-	if len(req.Skip) > 0 {
-		fmt.Fprintf(w, "║  %-61s║\n", fmt.Sprintf("Skip: %s", strings.Join(req.Skip, ", ")))
-	}
-	if req.FailFast {
-		fmt.Fprintf(w, "║  %-61s║\n", "Fail-fast: enabled")
-	}
-	if httpClient != nil {
-		if base := httpClient.BaseURL(); strings.TrimSpace(base) != "" {
-			fmt.Fprintf(w, "║  %-61s║\n", fmt.Sprintf("API base: %s", base))
-		}
-		if timeout := httpClient.Timeout(); timeout > 0 {
-			fmt.Fprintf(w, "║  %-61s║\n", fmt.Sprintf("HTTP timeout: %s", timeout))
-		}
-	}
-	fmt.Fprintf(w, "║  %-61s║\n", fmt.Sprintf("Error: %v", err))
-	fmt.Fprintln(w, "╚═══════════════════════════════════════════════════════════════╝")
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, "Next steps:")
-	fmt.Fprintf(w, "  • Check scenario logs: vrooli scenario logs %s\n", req.ScenarioName)
-	fmt.Fprintf(w, "  • Verify scenario health: vrooli scenario status %s\n", req.ScenarioName)
-	fmt.Fprintf(w, "  • Retry with streaming to inspect live output: test-genie execute %s --stream\n", req.ScenarioName)
-}
-
 func usageError(msg string) error {
 	return errors.New(msg)
 }
@@ -339,22 +253,4 @@ func plannedPhaseNames(preview execTypes.PlanPreview) []string {
 		names = append(names, phase.Name)
 	}
 	return names
-}
-
-func phaseTimingTargets(preview execTypes.PlanPreview) (map[string]time.Duration, map[string]time.Duration) {
-	estimates := make(map[string]time.Duration, len(preview.Phases))
-	timeouts := make(map[string]time.Duration, len(preview.Phases))
-	for _, phase := range preview.Phases {
-		key := phases.NormalizeAlias(phases.NormalizeName(phase.Name))
-		if key == "" {
-			continue
-		}
-		if phase.EstimatedDurationSeconds > 0 {
-			estimates[key] = time.Duration(phase.EstimatedDurationSeconds) * time.Second
-		}
-		if phase.TimeoutSeconds > 0 {
-			timeouts[key] = time.Duration(phase.TimeoutSeconds) * time.Second
-		}
-	}
-	return estimates, timeouts
 }

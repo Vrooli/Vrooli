@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -10,6 +11,7 @@ import (
 
 	"test-genie/internal/execution"
 	"test-genie/internal/orchestrator"
+	"test-genie/internal/runmanager"
 	"test-genie/internal/shared"
 
 	"github.com/google/uuid"
@@ -81,6 +83,12 @@ func buildSuiteExecutionInput(payload suiteExecutionPayload) (execution.SuiteExe
 	}, nil
 }
 
+// handleExecuteSuite is the blocking REST adapter over the run manager: it
+// starts a durable, request-decoupled run and blocks until it completes,
+// returning the full result. Because the run is owned by the server (not this
+// request), a client disconnect detaches this handler without aborting the run
+// — the caller can re-attach by run id. Consumed by git-control-tower and any
+// programmatic blocking caller.
 func (s *Server) handleExecuteSuite(w http.ResponseWriter, r *http.Request) {
 	input, err := decodeSuiteExecutionInput(r)
 	if err != nil {
@@ -93,23 +101,43 @@ func (s *Server) handleExecuteSuite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if s.executionSvc == nil {
+	if s.runManager == nil {
 		s.writeError(w, http.StatusInternalServerError, "execution service unavailable")
 		return
 	}
 
-	result, err := s.executionSvc.Execute(r.Context(), input)
+	// Synchronous plan validation (bad preset/phase → 400) + ETA.
+	eta, err := s.previewPlanETA(r.Context(), input.Request)
 	if err != nil {
-		if errors.Is(err, execution.ErrSuiteRequestNotFound) {
-			s.writeError(w, http.StatusNotFound, "suite request not found")
-			return
-		}
 		var vErr shared.ValidationError
 		if errors.As(err, &vErr) {
 			s.writeError(w, http.StatusBadRequest, vErr.Error())
 			return
 		}
-		detail := err.Error()
+	}
+
+	runID, err := s.runManager.Start(runmanager.StartOptions{Input: input, EstimatedTotalSeconds: eta})
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	status, err := s.runManager.Wait(r.Context(), input.Request.ScenarioName, runID)
+	if err != nil {
+		// Client disconnected (or its deadline elapsed): the run continues under
+		// the server-lifetime context. Nothing to write back.
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return
+		}
+		s.writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if status.Result == nil {
+		detail := status.Error
+		if detail == "" {
+			detail = "suite execution failed"
+		}
 		s.log("suite execution failed", map[string]interface{}{"error": detail})
 		s.writeJSON(w, http.StatusInternalServerError, map[string]interface{}{
 			"success": false,
@@ -123,7 +151,7 @@ func (s *Server) handleExecuteSuite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.writeJSON(w, http.StatusOK, result)
+	s.writeJSON(w, http.StatusOK, status.Result)
 }
 
 func (s *Server) handleListExecutions(w http.ResponseWriter, r *http.Request) {

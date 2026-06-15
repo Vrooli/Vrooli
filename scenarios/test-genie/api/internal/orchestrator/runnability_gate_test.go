@@ -108,7 +108,7 @@ func TestRunSelectedPhasesSkipsUnrunnableSurfacePhaseOnSelf(t *testing.T) {
 	// that would SIGTERM the suite, so it must skip.
 	rc := runnability.RunContext{TargetIsSelf: true, LiveSurfaces: runnability.Surfaces{}}
 
-	results, anyFailure := o.runSelectedPhases(context.Background(), workspacepkg.Environment{}, rc, runLogDir, defs, false, nil)
+	results, anyFailure := o.runSelectedPhasesWithEvents(context.Background(), workspacepkg.Environment{}, rc, runLogDir, defs, false, nil, nil)
 	if anyFailure {
 		t.Fatal("a runnability skip must not be reported as a failure")
 	}
@@ -143,7 +143,7 @@ func TestRunSelectedPhasesRunsSurfacePhaseWhenLive(t *testing.T) {
 	defs := []phases.Definition{surfaceDef(phases.Smoke)}
 	rc := runnability.RunContext{TargetIsSelf: true, LiveSurfaces: runnability.Surfaces{UI: true}}
 
-	results, anyFailure := o.runSelectedPhases(context.Background(), workspacepkg.Environment{}, rc, runLogDir, defs, false, nil)
+	results, anyFailure := o.runSelectedPhasesWithEvents(context.Background(), workspacepkg.Environment{}, rc, runLogDir, defs, false, nil, nil)
 	if anyFailure {
 		t.Fatal("unexpected failure")
 	}

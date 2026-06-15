@@ -3,14 +3,22 @@ package httpserver
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
 	"test-genie/internal/orchestrator"
+	"test-genie/internal/runmanager"
+	"test-genie/internal/shared"
 )
 
-// SSE event types for streaming execution progress
+// SSE event types for streaming execution progress. This is the browser-facing
+// streaming REST exception (the test-genie UI's live-progress view): a thin
+// gateway that starts a run on the run manager and proxies its canonical event
+// stream as Server-Sent Events. All durability/decoupling lives in the run
+// manager; this handler only adapts the transport, so a browser disconnect
+// detaches the viewer without aborting the run.
 const (
 	SSEEventPhaseStart  = "phase_start"
 	SSEEventPhaseEnd    = "phase_end"
@@ -21,13 +29,13 @@ const (
 	SSEEventHeartbeat   = "heartbeat"
 )
 
-// SSEEvent represents a Server-Sent Event
+// SSEEvent represents a Server-Sent Event.
 type SSEEvent struct {
 	Event string      `json:"event"`
 	Data  interface{} `json:"data"`
 }
 
-// PhaseStartEvent is sent when a phase begins execution
+// PhaseStartEvent is sent when a phase begins execution.
 type PhaseStartEvent struct {
 	Phase     string `json:"phase"`
 	Index     int    `json:"index"`
@@ -35,7 +43,7 @@ type PhaseStartEvent struct {
 	Timestamp string `json:"timestamp"`
 }
 
-// PhaseEndEvent is sent when a phase completes
+// PhaseEndEvent is sent when a phase completes.
 type PhaseEndEvent struct {
 	Phase    string `json:"phase"`
 	Status   string `json:"status"`
@@ -43,21 +51,12 @@ type PhaseEndEvent struct {
 	Error    string `json:"error,omitempty"`
 }
 
-// ProgressEvent provides periodic progress updates
-type ProgressEvent struct {
-	Phase   string  `json:"phase"`
-	Elapsed float64 `json:"elapsedSeconds"`
-	Message string  `json:"message,omitempty"`
-}
-
 func (s *Server) handleExecuteSuiteStream(w http.ResponseWriter, r *http.Request) {
-	// Set SSE headers
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
-	// Check if the client supports flushing
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		s.writeError(w, http.StatusInternalServerError, "streaming not supported")
@@ -69,108 +68,104 @@ func (s *Server) handleExecuteSuiteStream(w http.ResponseWriter, r *http.Request
 		s.writeSSEError(w, flusher, err.Error())
 		return
 	}
-
-	if s.executionSvc == nil {
+	if s.runManager == nil {
 		s.writeSSEError(w, flusher, "execution service unavailable")
 		return
 	}
 
-	// Create a context that respects client disconnection
-	ctx, cancel := context.WithCancel(r.Context())
-	defer cancel()
-
-	// Start a heartbeat goroutine to keep the connection alive
-	heartbeatDone := make(chan struct{})
-	go func() {
-		ticker := time.NewTicker(10 * time.Second)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				s.writeSSE(w, flusher, SSEEvent{
-					Event: SSEEventHeartbeat,
-					Data: map[string]interface{}{
-						"timestamp": time.Now().Format(time.RFC3339),
-					},
-				})
-			case <-ctx.Done():
-				close(heartbeatDone)
-				return
-			}
-		}
-	}()
-
-	// Execute the suite with real-time event streaming
-	startTime := time.Now()
-	result, err := s.executionSvc.ExecuteWithEvents(ctx, input, func(event orchestrator.ExecutionEvent) {
-		// Convert orchestrator events to SSE events
-		switch event.Type {
-		case orchestrator.EventPhaseStart:
-			s.writeSSE(w, flusher, SSEEvent{
-				Event: SSEEventPhaseStart,
-				Data: PhaseStartEvent{
-					Phase:     event.Phase,
-					Index:     event.PhaseIndex,
-					Total:     event.PhaseTotal,
-					Timestamp: event.Timestamp.Format(time.RFC3339),
-				},
-			})
-		case orchestrator.EventPhaseEnd:
-			s.writeSSE(w, flusher, SSEEvent{
-				Event: SSEEventPhaseEnd,
-				Data: PhaseEndEvent{
-					Phase:    event.Phase,
-					Status:   event.Status,
-					Duration: event.DurationSeconds,
-					Error:    event.Error,
-				},
-			})
-		case orchestrator.EventObservation:
-			s.writeSSE(w, flusher, SSEEvent{
-				Event: SSEEventObservation,
-				Data: map[string]interface{}{
-					"phase":     event.Phase,
-					"message":   event.Message,
-					"timestamp": event.Timestamp.Format(time.RFC3339),
-				},
-			})
-		case orchestrator.EventProgress:
-			s.writeSSE(w, flusher, SSEEvent{
-				Event: SSEEventProgress,
-				Data: ProgressEvent{
-					Phase:   event.Phase,
-					Message: event.Message,
-				},
-			})
-		case orchestrator.EventComplete:
-			// Complete event is handled after the function returns
-		}
-	})
-
-	// Stop heartbeat
-	cancel()
-	<-heartbeatDone
-
+	// Synchronous plan validation + ETA. A malformed request (bad preset/phase)
+	// is reported as an SSE error before the run starts.
+	eta, err := s.previewPlanETA(r.Context(), input.Request)
 	if err != nil {
-		s.writeSSEError(w, flusher, fmt.Sprintf("execution failed: %v", err))
+		s.writeSSEError(w, flusher, err.Error())
 		return
 	}
 
-	// Send completion event with full result
-	s.writeSSE(w, flusher, SSEEvent{
-		Event: SSEEventComplete,
-		Data: map[string]interface{}{
-			"success":       result.Success,
-			"verdict":       result.Verdict,
-			"executionId":   result.ExecutionID,
-			"presetUsed":    result.PresetUsed,
-			"startedAt":     result.StartedAt,
-			"completedAt":   result.CompletedAt,
-			"phaseSummary":  result.PhaseSummary,
-			"phases":        result.Phases,
+	runID, err := s.runManager.Start(runmanager.StartOptions{Input: input, EstimatedTotalSeconds: eta})
+	if err != nil {
+		s.writeSSEError(w, flusher, err.Error())
+		return
+	}
+
+	replay, ch, err := s.runManager.Follow(r.Context(), input.Request.ScenarioName, runID)
+	if err != nil {
+		s.writeSSEError(w, flusher, err.Error())
+		return
+	}
+
+	startTime := time.Now()
+	for _, ev := range replay {
+		s.writeCanonicalSSE(w, flusher, ev, startTime)
+	}
+	for ev := range ch {
+		s.writeCanonicalSSE(w, flusher, ev, startTime)
+	}
+}
+
+// previewPlanETA resolves the summed plan estimate and surfaces plan validation
+// errors. A non-fatal preview error (no timing history) yields ETA 0.
+func (s *Server) previewPlanETA(ctx context.Context, req orchestrator.SuiteExecutionRequest) (int, error) {
+	if s.executionPlanner == nil {
+		return 0, nil
+	}
+	preview, err := s.executionPlanner.Preview(ctx, req)
+	if err != nil {
+		var vErr shared.ValidationError
+		if errors.As(err, &vErr) {
+			return 0, vErr
+		}
+		return 0, nil
+	}
+	if preview == nil {
+		return 0, nil
+	}
+	return preview.Summary.EstimatedDurationSeconds, nil
+}
+
+// writeCanonicalSSE maps one canonical run event onto the browser's SSE wire
+// vocabulary. run_started is internal-only (the browser already knows the run
+// it requested) and is not forwarded.
+func (s *Server) writeCanonicalSSE(w http.ResponseWriter, flusher http.Flusher, ev runmanager.Event, startTime time.Time) {
+	switch ev.Kind {
+	case runmanager.EventPhaseStarted:
+		s.writeSSE(w, flusher, SSEEvent{Event: SSEEventPhaseStart, Data: PhaseStartEvent{
+			Phase: ev.Phase, Index: ev.PhaseIndex, Total: ev.PhaseTotal, Timestamp: time.Now().Format(time.RFC3339),
+		}})
+	case runmanager.EventPhaseProgress:
+		s.writeSSE(w, flusher, SSEEvent{Event: SSEEventProgress, Data: map[string]interface{}{
+			"phase": ev.Phase, "message": ev.Message, "elapsedSeconds": ev.ElapsedSeconds,
+		}})
+	case runmanager.EventPhaseHeartbeat:
+		s.writeSSE(w, flusher, SSEEvent{Event: SSEEventHeartbeat, Data: map[string]interface{}{
+			"phase": ev.Phase, "elapsedSeconds": ev.ElapsedSeconds, "quietSeconds": ev.QuietSeconds,
+			"timestamp": time.Now().Format(time.RFC3339),
+		}})
+	case runmanager.EventPhaseCompleted, runmanager.EventPhaseFailed:
+		s.writeSSE(w, flusher, SSEEvent{Event: SSEEventPhaseEnd, Data: PhaseEndEvent{
+			Phase: ev.Phase, Status: ev.Status, Duration: ev.DurationSeconds, Error: ev.Error,
+		}})
+	case runmanager.EventRunCompleted:
+		if ev.Error != "" && ev.Result == nil {
+			s.writeSSEError(w, flusher, ev.Error)
+			return
+		}
+		data := map[string]interface{}{
+			"success":       ev.Success,
+			"verdict":       ev.Verdict,
+			"runId":         ev.RunID,
+			"artifactDir":   ev.ArtifactDir,
 			"totalDuration": time.Since(startTime).Seconds(),
-		},
-	})
+		}
+		if ev.Result != nil {
+			data["executionId"] = ev.Result.ExecutionID
+			data["presetUsed"] = ev.Result.PresetUsed
+			data["startedAt"] = ev.Result.StartedAt
+			data["completedAt"] = ev.Result.CompletedAt
+			data["phaseSummary"] = ev.Result.PhaseSummary
+			data["phases"] = ev.Result.Phases
+		}
+		s.writeSSE(w, flusher, SSEEvent{Event: SSEEventComplete, Data: data})
+	}
 }
 
 func (s *Server) writeSSE(w http.ResponseWriter, flusher http.Flusher, event SSEEvent) {

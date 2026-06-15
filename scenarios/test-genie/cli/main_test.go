@@ -2,117 +2,130 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
+	"sync"
 	"testing"
+
+	"connectrpc.com/connect"
 
 	"test-genie/cli/execute"
 	"test-genie/cli/generate"
 
 	"github.com/vrooli/cli-core/cliutil"
+
+	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
+	runs_v1connect "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs/runs_v1connect"
 )
 
-func TestExecuteAcceptsPositionalPhases(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/health":
-			fmt.Fprintf(w, `{"status":"ok","service":"test-genie"}`)
-			return
-		case "/api/v1/executions/plan":
-			fmt.Fprintf(w, `{"scenarioName":"demo","phases":[{"name":"unit","estimatedDurationSeconds":1,"timeoutSeconds":60},{"name":"integration","estimatedDurationSeconds":2,"timeoutSeconds":120}],"summary":{"phaseCount":2,"estimatedDurationSeconds":3,"timeoutSeconds":180}}`)
-			return
-		case "/api/v1/executions":
-			body, _ := io.ReadAll(r.Body)
-			defer r.Body.Close()
-			if !bytes.Contains(body, []byte(`"phases":["unit","integration"]`)) {
-				t.Fatalf("expected phases in payload, got: %s", string(body))
-			}
-			fmt.Fprintf(w, `{"success":true,"phases":[{"name":"unit","status":"passed","durationSeconds":1}],"executionId":"abc"}`)
-			return
-		default:
-			t.Fatalf("unexpected path: %s", r.URL.Path)
+// executeFakeRuns captures the StartRun request the execute command sends over
+// the durable Connect surface and completes the run with a successful stream.
+type executeFakeRuns struct {
+	runs_v1connect.UnimplementedRunsServiceHandler
+	mu      sync.Mutex
+	started *runspb.StartRunRequest
+}
+
+func (f *executeFakeRuns) StartRun(_ context.Context, req *connect.Request[runspb.StartRunRequest]) (*connect.Response[runspb.StartRunResponse], error) {
+	f.mu.Lock()
+	f.started = req.Msg
+	f.mu.Unlock()
+	return connect.NewResponse(&runspb.StartRunResponse{RunId: "20260101-000000-abcd1234", Scenario: req.Msg.GetScenario()}), nil
+}
+
+func (f *executeFakeRuns) FollowRun(_ context.Context, _ *connect.Request[runspb.FollowRunRequest], stream *connect.ServerStream[runspb.RunEvent]) error {
+	for _, ev := range []*runspb.RunEvent{
+		{Event: "run_started", RunId: "20260101-000000-abcd1234"},
+		{Event: "run_completed", Success: true, Verdict: "PASS"},
+	} {
+		if err := stream.Send(ev); err != nil {
+			return err
 		}
-	}))
-	defer server.Close()
+	}
+	return nil
+}
 
-	t.Setenv("TEST_GENIE_API_BASE", server.URL)
+// newExecuteTestServer mounts the REST plan-preview endpoint plus the Connect
+// RunsService the durable execute path drives.
+func newExecuteTestServer(t *testing.T, planJSON string, fake *executeFakeRuns) *httptest.Server {
+	t.Helper()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprint(w, `{"status":"ok","service":"test-genie"}`)
+	})
+	mux.HandleFunc("/api/v1/executions/plan", func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprint(w, planJSON)
+	})
+	path, handler := runs_v1connect.NewRunsServiceHandler(fake)
+	mux.Handle(path, handler)
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+func TestExecuteAcceptsPositionalPhases(t *testing.T) {
+	t.Setenv("TEST_GENIE_AUTOBACKGROUND_SECONDS", "0") // always follow inline
+	fake := &executeFakeRuns{}
+	srv := newExecuteTestServer(t,
+		`{"scenarioName":"demo","phases":[{"name":"unit","estimatedDurationSeconds":1,"timeoutSeconds":60},{"name":"integration","estimatedDurationSeconds":2,"timeoutSeconds":120}],"summary":{"phaseCount":2,"estimatedDurationSeconds":3,"timeoutSeconds":180}}`,
+		fake)
+
+	t.Setenv("TEST_GENIE_API_BASE", srv.URL)
 	app := newTestApp(t)
-
 	if err := app.Run([]string{"execute", "demo", "unit", "integration"}); err != nil {
 		t.Fatalf("execute failed: %v", err)
+	}
+	if got := fake.started.GetPhases(); !reflect.DeepEqual(got, []string{"unit", "integration"}) {
+		t.Fatalf("expected phases [unit integration], got %v", got)
 	}
 }
 
 func TestExecuteSendsExplicitScenarioPath(t *testing.T) {
+	t.Setenv("TEST_GENIE_AUTOBACKGROUND_SECONDS", "0")
 	scenarioPath := filepath.Join(t.TempDir(), "scenarios", "demo")
 	logicalRepoRoot := t.TempDir()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/health":
-			fmt.Fprintf(w, `{"status":"ok","service":"test-genie"}`)
-			return
-		case "/api/v1/executions/plan":
-			fmt.Fprintf(w, `{"scenarioName":"demo","phases":[{"name":"unit","estimatedDurationSeconds":1,"timeoutSeconds":60}],"summary":{"phaseCount":1,"estimatedDurationSeconds":1,"timeoutSeconds":60}}`)
-			return
-		case "/api/v1/executions":
-			body, _ := io.ReadAll(r.Body)
-			defer r.Body.Close()
-			if !bytes.Contains(body, []byte(`"scenarioPath":"`+filepath.ToSlash(scenarioPath)+`"`)) {
-				t.Fatalf("expected scenarioPath in payload, got: %s", string(body))
-			}
-			if !bytes.Contains(body, []byte(`"logicalRepoRoot":"`+filepath.ToSlash(logicalRepoRoot)+`"`)) ||
-				!bytes.Contains(body, []byte(`"logicalScenarioRelPath":"scenarios/demo"`)) {
-				t.Fatalf("expected logical placement in payload, got: %s", string(body))
-			}
-			fmt.Fprintf(w, `{"success":true,"phases":[{"name":"unit","status":"passed","durationSeconds":1}],"executionId":"abc"}`)
-			return
-		default:
-			t.Fatalf("unexpected path: %s", r.URL.Path)
-		}
-	}))
-	defer server.Close()
+	fake := &executeFakeRuns{}
+	srv := newExecuteTestServer(t,
+		`{"scenarioName":"demo","phases":[{"name":"unit","estimatedDurationSeconds":1,"timeoutSeconds":60}],"summary":{"phaseCount":1,"estimatedDurationSeconds":1,"timeoutSeconds":60}}`,
+		fake)
 
-	t.Setenv("TEST_GENIE_API_BASE", server.URL)
+	t.Setenv("TEST_GENIE_API_BASE", srv.URL)
 	app := newTestApp(t)
-
 	if err := app.Run([]string{"execute", "demo", "unit", "--scenario-path", scenarioPath, "--logical-repo-root", logicalRepoRoot, "--logical-scenario-relpath", "scenarios/demo"}); err != nil {
 		t.Fatalf("execute failed: %v", err)
+	}
+	if got := fake.started.GetScenarioPath(); got != scenarioPath {
+		t.Fatalf("expected scenarioPath %q, got %q", scenarioPath, got)
+	}
+	if got := fake.started.GetLogicalRepoRoot(); got != logicalRepoRoot {
+		t.Fatalf("expected logicalRepoRoot %q, got %q", logicalRepoRoot, got)
+	}
+	if got := fake.started.GetLogicalScenarioRelPath(); got != "scenarios/demo" {
+		t.Fatalf("expected logicalScenarioRelPath scenarios/demo, got %q", got)
 	}
 }
 
 func TestExecuteAllPhaseSkipsExplicitList(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/health":
-			fmt.Fprintf(w, `{"status":"ok","service":"test-genie"}`)
-			return
-		case "/api/v1/executions/plan":
-			fmt.Fprintf(w, `{"scenarioName":"demo","phases":[{"name":"structure","estimatedDurationSeconds":1,"timeoutSeconds":60},{"name":"standards","estimatedDurationSeconds":1,"timeoutSeconds":60}],"summary":{"phaseCount":2,"estimatedDurationSeconds":2,"timeoutSeconds":120}}`)
-			return
-		case "/api/v1/executions":
-			body, _ := io.ReadAll(r.Body)
-			defer r.Body.Close()
-			if bytes.Contains(body, []byte(`"phases"`)) {
-				t.Fatalf("expected phases to be omitted when 'all' requested, got: %s", string(body))
-			}
-			fmt.Fprintf(w, `{"success":true,"phases":[],"executionId":"abc"}`)
-			return
-		default:
-			t.Fatalf("unexpected path: %s", r.URL.Path)
-		}
-	}))
-	defer server.Close()
+	t.Setenv("TEST_GENIE_AUTOBACKGROUND_SECONDS", "0")
+	fake := &executeFakeRuns{}
+	srv := newExecuteTestServer(t,
+		`{"scenarioName":"demo","phases":[{"name":"structure","estimatedDurationSeconds":1,"timeoutSeconds":60},{"name":"standards","estimatedDurationSeconds":1,"timeoutSeconds":60}],"summary":{"phaseCount":2,"estimatedDurationSeconds":2,"timeoutSeconds":120}}`,
+		fake)
 
-	t.Setenv("TEST_GENIE_API_BASE", server.URL)
+	t.Setenv("TEST_GENIE_API_BASE", srv.URL)
 	app := newTestApp(t)
-
 	if err := app.Run([]string{"execute", "demo", "all"}); err != nil {
 		t.Fatalf("execute failed: %v", err)
+	}
+	if got := fake.started.GetPhases(); len(got) != 0 {
+		t.Fatalf("expected phases omitted for 'all', got %v", got)
 	}
 }
 

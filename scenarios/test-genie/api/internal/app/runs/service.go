@@ -14,21 +14,35 @@ import (
 
 	"connectrpc.com/connect"
 
+	"test-genie/internal/execution"
+	"test-genie/internal/orchestrator"
+	"test-genie/internal/runmanager"
 	sharedartifacts "test-genie/internal/shared/artifacts"
 	sharedruns "test-genie/internal/shared/runs"
 
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
 
-// Service implements runs_v1connect.RunsServiceHandler.
+// executionPlanner previews a run plan to derive its ETA and surface validation
+// errors synchronously (bad preset/phase) before a run is started.
+type executionPlanner interface {
+	Preview(ctx context.Context, req orchestrator.SuiteExecutionRequest) (*execution.ExecutionPlanPreview, error)
+}
+
+// Service implements runs_v1connect.RunsServiceHandler. Beyond the read-only run
+// index surface, it owns the durable run lifecycle (StartRun/FollowRun/WaitRun/
+// AbortRun/GetRunStatus) by delegating to the run manager.
 type Service struct {
 	scenariosRoot string
+	runManager    *runmanager.Manager
+	planner       executionPlanner
 }
 
 // NewService returns a Service. scenariosRoot resolves each request's scenario
-// slug to its physical directory so the run index can be addressed.
-func NewService(scenariosRoot string) *Service {
-	return &Service{scenariosRoot: scenariosRoot}
+// slug to its physical directory so the run index can be addressed. runManager
+// and planner power the durable run-lifecycle RPCs.
+func NewService(scenariosRoot string, runManager *runmanager.Manager, planner executionPlanner) *Service {
+	return &Service{scenariosRoot: scenariosRoot, runManager: runManager, planner: planner}
 }
 
 func (s *Service) scenarioDir(scenario string) (string, error) {

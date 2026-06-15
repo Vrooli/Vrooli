@@ -24,9 +24,9 @@ type Args struct {
 	RequestID              string
 	DiagnosticsPreset      string
 	FailFast               bool
-	Stream                 bool
-	NoStream               bool // Explicitly disable streaming (use spinner instead)
+	Wait                   bool // Force block-to-completion inline (CI / lifecycle); never auto-background
 	JSON                   bool
+	JSONL                  bool // Stream canonical newline-delimited phase events
 	ExtraPhases            []string
 	ScenarioPath           string
 	LogicalRepoRoot        string

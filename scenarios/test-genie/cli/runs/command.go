@@ -59,6 +59,14 @@ func Run(apiClient *cliutil.APIClient, args []string) error {
 		return runCompare(apiClient, args[1:], os.Stdout)
 	case "freshness":
 		return runFreshness(apiClient, args[1:], os.Stdout)
+	case "wait":
+		return runWait(apiClient, args[1:], os.Stdout)
+	case "follow":
+		return runFollow(apiClient, args[1:], os.Stdout)
+	case "abort":
+		return runAbort(apiClient, args[1:], os.Stdout)
+	case "status":
+		return runStatus(apiClient, args[1:], os.Stdout)
 	case "help", "-h", "--help":
 		return printUsage(os.Stdout)
 	default:
@@ -76,6 +84,13 @@ Commands:
   pin      --scenario <s> <runID> --by <id> [--reason <text>]    Pin a run (protect from GC)
   unpin    --scenario <s> <runID> --by <id>                      Remove a pin
   compare  --scenario <s> <runID-a> <runID-b> [--phase <name>]   Compare two runs
+  wait     <scenario> <runID> [--timeout N] [--json]             Block until the run is terminal
+                                                                 (exit 0 passed, 1 failed/aborted,
+                                                                 124 if --timeout elapses first)
+  follow   <scenario> <runID>                                    Stream a run's live events to the end
+  status   <scenario> <runID> [--json]                           Live snapshot (status, phase, ETA,
+                                                                 recommended next-check backoff)
+  abort    <scenario> <runID> [--json]                           Cancel a running run (→ aborted)
   freshness --scenario <s> [--phases a,b]                        Check whether required phases ran
                                                                  against the scenario's current tree
                                                                  (exit 1 if any phase is stale/unknown;
