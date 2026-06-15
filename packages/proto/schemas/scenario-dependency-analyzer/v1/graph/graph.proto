@@ -11,19 +11,20 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dep
 // @stability beta
 //
 // Wire contract for the fleet's actual cross-scenario interface graph. The
-// graph is assembled on demand from proto-health proto surfaces and code-facts
-// import facts. Scenario Dependency Analyzer owns only the cross-scenario
-// interpretation: it does not parse source files.
+// graph is assembled from proto-health proto surfaces and code-facts import
+// facts, then served from SDA's cached read model when fresh. Scenario
+// Dependency Analyzer owns only the cross-scenario interpretation: it does not
+// parse source files.
 //
 // Consumed by:
 //   - CLI: graph actual uses the generated Connect client for machine-readable
 //          graph output.
-//   - Future: tech-tree-designer consumes this seam to plan scenarios by their
-//             live interface dependencies.
+//   - tech-tree-designer consumes this seam to plan scenarios by their live
+//     interface dependencies.
 // =============================================================================
 
 service InterfaceGraphService {
-  // DescribeInterfaceGraph returns the on-demand actual interface graph.
+  // DescribeInterfaceGraph returns the actual interface graph.
   rpc DescribeInterfaceGraph(DescribeInterfaceGraphRequest) returns (DescribeInterfaceGraphResponse);
 }
 
@@ -38,10 +39,16 @@ message DescribeInterfaceGraphRequest {
   string stability_filter = 3;
   // Optional code-facts language filter such as "go" or "typescript".
   repeated string language_filter = 4;
+  // Optional neighborhood bound around scenarios. Zero means no neighborhood
+  // bound. Only meaningful when scenarios are provided.
+  int32 max_scenario_hops = 5;
 }
 
 message DescribeInterfaceGraphResponse {
   InterfaceGraph graph = 1;
+  // RFC3339 timestamp for the cached graph used to serve the response. Empty
+  // means the graph was built for this request and not served from cache.
+  string computed_at = 2;
 }
 
 message InterfaceGraph {

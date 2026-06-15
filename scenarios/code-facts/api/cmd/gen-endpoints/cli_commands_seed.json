@@ -17,6 +17,11 @@
       "endpoint_id": "facts_surfaces"
     },
     {
+      "name": "facts fleet-imports",
+      "description": "Describe fleet import facts",
+      "endpoint_id": "facts_fleet_imports"
+    },
+    {
       "name": "facts proto-adoption",
       "description": "Check proto adoption evidence",
       "endpoint_id": "facts_proto_adoption"

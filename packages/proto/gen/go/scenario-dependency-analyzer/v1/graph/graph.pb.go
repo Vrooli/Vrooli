@@ -82,8 +82,11 @@ type DescribeInterfaceGraphRequest struct {
 	StabilityFilter string `protobuf:"bytes,3,opt,name=stability_filter,json=stabilityFilter,proto3" json:"stability_filter,omitempty"`
 	// Optional code-facts language filter such as "go" or "typescript".
 	LanguageFilter []string `protobuf:"bytes,4,rep,name=language_filter,json=languageFilter,proto3" json:"language_filter,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Optional neighborhood bound around scenarios. Zero means no neighborhood
+	// bound. Only meaningful when scenarios are provided.
+	MaxScenarioHops int32 `protobuf:"varint,5,opt,name=max_scenario_hops,json=maxScenarioHops,proto3" json:"max_scenario_hops,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *DescribeInterfaceGraphRequest) Reset() {
@@ -144,9 +147,19 @@ func (x *DescribeInterfaceGraphRequest) GetLanguageFilter() []string {
 	return nil
 }
 
+func (x *DescribeInterfaceGraphRequest) GetMaxScenarioHops() int32 {
+	if x != nil {
+		return x.MaxScenarioHops
+	}
+	return 0
+}
+
 type DescribeInterfaceGraphResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Graph         *InterfaceGraph        `protobuf:"bytes,1,opt,name=graph,proto3" json:"graph,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Graph *InterfaceGraph        `protobuf:"bytes,1,opt,name=graph,proto3" json:"graph,omitempty"`
+	// RFC3339 timestamp for the cached graph used to serve the response. Empty
+	// means the graph was built for this request and not served from cache.
+	ComputedAt    string `protobuf:"bytes,2,opt,name=computed_at,json=computedAt,proto3" json:"computed_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -186,6 +199,13 @@ func (x *DescribeInterfaceGraphResponse) GetGraph() *InterfaceGraph {
 		return x.Graph
 	}
 	return nil
+}
+
+func (x *DescribeInterfaceGraphResponse) GetComputedAt() string {
+	if x != nil {
+		return x.ComputedAt
+	}
+	return ""
 }
 
 type InterfaceGraph struct {
@@ -516,14 +536,17 @@ var File_scenario_dependency_analyzer_v1_graph_graph_proto protoreflect.FileDesc
 
 const file_scenario_dependency_analyzer_v1_graph_graph_proto_rawDesc = "" +
 	"\n" +
-	"1scenario-dependency-analyzer/v1/graph/graph.proto\x12,vrooli.scenario_dependency_analyzer.v1.graph\"\xa7\x01\n" +
+	"1scenario-dependency-analyzer/v1/graph/graph.proto\x12,vrooli.scenario_dependency_analyzer.v1.graph\"\xd3\x01\n" +
 	"\x1dDescribeInterfaceGraphRequest\x12\x1c\n" +
 	"\tscenarios\x18\x01 \x03(\tR\tscenarios\x12\x14\n" +
 	"\x05limit\x18\x02 \x01(\x05R\x05limit\x12)\n" +
 	"\x10stability_filter\x18\x03 \x01(\tR\x0fstabilityFilter\x12'\n" +
-	"\x0flanguage_filter\x18\x04 \x03(\tR\x0elanguageFilter\"t\n" +
+	"\x0flanguage_filter\x18\x04 \x03(\tR\x0elanguageFilter\x12*\n" +
+	"\x11max_scenario_hops\x18\x05 \x01(\x05R\x0fmaxScenarioHops\"\x95\x01\n" +
 	"\x1eDescribeInterfaceGraphResponse\x12R\n" +
-	"\x05graph\x18\x01 \x01(\v2<.vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraphR\x05graph\"\x80\x02\n" +
+	"\x05graph\x18\x01 \x01(\v2<.vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraphR\x05graph\x12\x1f\n" +
+	"\vcomputed_at\x18\x02 \x01(\tR\n" +
+	"computedAt\"\x80\x02\n" +
 	"\x0eInterfaceGraph\x12M\n" +
 	"\x05nodes\x18\x01 \x03(\v27.vrooli.scenario_dependency_analyzer.v1.graph.GraphNodeR\x05nodes\x12M\n" +
 	"\x05edges\x18\x02 \x03(\v27.vrooli.scenario_dependency_analyzer.v1.graph.GraphEdgeR\x05edges\x12P\n" +

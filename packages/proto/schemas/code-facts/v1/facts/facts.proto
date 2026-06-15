@@ -8,7 +8,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v
 // CODE FACTS SERVICE
 // =============================================================================
 //
-// @layer 5  (api surface)
 // @domain target + surface + facts + proof + cache
 // @stability stable
 //

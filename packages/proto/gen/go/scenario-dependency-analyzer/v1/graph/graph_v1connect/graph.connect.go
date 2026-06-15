@@ -41,7 +41,7 @@ const (
 // InterfaceGraphServiceClient is a client for the
 // vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraphService service.
 type InterfaceGraphServiceClient interface {
-	// DescribeInterfaceGraph returns the on-demand actual interface graph.
+	// DescribeInterfaceGraph returns the actual interface graph.
 	DescribeInterfaceGraph(context.Context, *connect.Request[graph.DescribeInterfaceGraphRequest]) (*connect.Response[graph.DescribeInterfaceGraphResponse], error)
 }
 
@@ -80,7 +80,7 @@ func (c *interfaceGraphServiceClient) DescribeInterfaceGraph(ctx context.Context
 // InterfaceGraphServiceHandler is an implementation of the
 // vrooli.scenario_dependency_analyzer.v1.graph.InterfaceGraphService service.
 type InterfaceGraphServiceHandler interface {
-	// DescribeInterfaceGraph returns the on-demand actual interface graph.
+	// DescribeInterfaceGraph returns the actual interface graph.
 	DescribeInterfaceGraph(context.Context, *connect.Request[graph.DescribeInterfaceGraphRequest]) (*connect.Response[graph.DescribeInterfaceGraphResponse], error)
 }
 

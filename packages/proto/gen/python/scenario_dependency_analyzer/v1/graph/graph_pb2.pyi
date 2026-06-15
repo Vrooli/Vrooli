@@ -17,22 +17,26 @@ EVIDENCE_SOURCE_PROTO_IMPORT: EvidenceSource
 EVIDENCE_SOURCE_GO_IMPORT: EvidenceSource
 
 class DescribeInterfaceGraphRequest(_message.Message):
-    __slots__ = ("scenarios", "limit", "stability_filter", "language_filter")
+    __slots__ = ("scenarios", "limit", "stability_filter", "language_filter", "max_scenario_hops")
     SCENARIOS_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
     STABILITY_FILTER_FIELD_NUMBER: _ClassVar[int]
     LANGUAGE_FILTER_FIELD_NUMBER: _ClassVar[int]
+    MAX_SCENARIO_HOPS_FIELD_NUMBER: _ClassVar[int]
     scenarios: _containers.RepeatedScalarFieldContainer[str]
     limit: int
     stability_filter: str
     language_filter: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, scenarios: _Optional[_Iterable[str]] = ..., limit: _Optional[int] = ..., stability_filter: _Optional[str] = ..., language_filter: _Optional[_Iterable[str]] = ...) -> None: ...
+    max_scenario_hops: int
+    def __init__(self, scenarios: _Optional[_Iterable[str]] = ..., limit: _Optional[int] = ..., stability_filter: _Optional[str] = ..., language_filter: _Optional[_Iterable[str]] = ..., max_scenario_hops: _Optional[int] = ...) -> None: ...
 
 class DescribeInterfaceGraphResponse(_message.Message):
-    __slots__ = ("graph",)
+    __slots__ = ("graph", "computed_at")
     GRAPH_FIELD_NUMBER: _ClassVar[int]
+    COMPUTED_AT_FIELD_NUMBER: _ClassVar[int]
     graph: InterfaceGraph
-    def __init__(self, graph: _Optional[_Union[InterfaceGraph, _Mapping]] = ...) -> None: ...
+    computed_at: str
+    def __init__(self, graph: _Optional[_Union[InterfaceGraph, _Mapping]] = ..., computed_at: _Optional[str] = ...) -> None: ...
 
 class InterfaceGraph(_message.Message):
     __slots__ = ("nodes", "edges", "errors")

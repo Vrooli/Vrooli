@@ -82,7 +82,7 @@ func (e cacheEntry) metadata(state, reason string) *factsv1.CacheMetadata {
 }
 
 type memoryCacheRepository struct {
-	mu      sync.Mutex
+	mu      sync.RWMutex
 	entries map[string]cacheEntry
 }
 
@@ -92,14 +92,15 @@ func NewMemoryCacheRepository() CacheRepository {
 
 func (r *memoryCacheRepository) GetReport(_ context.Context, key string) (*factsv1.CodeFactsReport, *cacheEntry, bool, error) {
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	entry, ok := r.entries[key]
 	if !ok || entry.Scope != cacheScopeReport {
+		r.mu.Unlock()
 		return nil, nil, false, nil
 	}
 	entry.HitCount++
 	entry.LastUsedAtUnix = time.Now().Unix()
 	r.entries[key] = entry
+	r.mu.Unlock()
 	var report factsv1.CodeFactsReport
 	if err := protojson.Unmarshal([]byte(entry.PayloadJSON), &report); err != nil {
 		return nil, nil, false, err
@@ -124,14 +125,15 @@ func (r *memoryCacheRepository) PutReport(_ context.Context, entry cacheEntry, r
 
 func (r *memoryCacheRepository) GetGraph(_ context.Context, key string) (*GraphResult, *cacheEntry, bool, error) {
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	entry, ok := r.entries[key]
 	if !ok || entry.Scope != cacheScopeGraph {
+		r.mu.Unlock()
 		return nil, nil, false, nil
 	}
 	entry.HitCount++
 	entry.LastUsedAtUnix = time.Now().Unix()
 	r.entries[key] = entry
+	r.mu.Unlock()
 	result, err := graphResultFromEntry(entry)
 	if err != nil {
 		return nil, nil, false, err
@@ -160,8 +162,8 @@ func (r *memoryCacheRepository) PutGraph(_ context.Context, entry cacheEntry, re
 }
 
 func (r *memoryCacheRepository) Status(_ context.Context, targetRoot, key string) ([]cacheEntry, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	var out []cacheEntry
 	for _, entry := range r.entries {
 		if targetRoot != "" && entry.TargetRoot != targetRoot {
@@ -452,7 +454,7 @@ func sourceFingerprint(target *factsv1.TargetContext, units []*factsv1.ParseUnit
 			}
 		}
 	}
-	return hashFiles(target.GetRootPath(), sourceFiles(roots)), hashFiles(target.GetRootPath(), keys(configs))
+	return fileStatSignature(target.GetRootPath(), sourceFiles(roots)), fileStatSignature(target.GetRootPath(), keys(configs))
 }
 
 func sourceFiles(roots map[string]bool) []string {
@@ -486,7 +488,7 @@ func isSourceFile(path string) bool {
 	}
 }
 
-func hashFiles(root string, paths []string) string {
+func fileStatSignature(root string, paths []string) string {
 	sort.Strings(paths)
 	h := sha256.New()
 	for _, path := range paths {
@@ -494,13 +496,12 @@ func hashFiles(root string, paths []string) string {
 		if err != nil || strings.HasPrefix(rel, "..") {
 			rel = path
 		}
-		content, err := os.ReadFile(path)
+		info, err := os.Stat(path)
 		if err != nil {
 			_, _ = fmt.Fprintf(h, "missing:%s\n", filepath.ToSlash(rel))
 			continue
 		}
-		sum := sha256.Sum256(content)
-		_, _ = fmt.Fprintf(h, "%s:%s\n", filepath.ToSlash(rel), hex.EncodeToString(sum[:]))
+		_, _ = fmt.Fprintf(h, "%s:%d:%d\n", filepath.ToSlash(rel), info.Size(), info.ModTime().UnixNano())
 	}
 	return hex.EncodeToString(h.Sum(nil))
 }

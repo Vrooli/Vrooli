@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
+	"sync"
 
 	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 )
@@ -131,26 +133,42 @@ func (s *Service) DescribeFleetImports(ctx context.Context, req *factsv1.Describ
 		scenarios = scenarios[:int(req.GetLimit())]
 	}
 
-	resp := &factsv1.DescribeFleetImportsResponse{Results: make([]*factsv1.CodeFactsResult, 0, len(scenarios))}
-	for _, scenario := range scenarios {
-		result := &factsv1.CodeFactsResult{Scenario: scenario}
-		report, err := s.Describe(ctx, &factsv1.DescribeCodeFactsRequest{
-			Target: &factsv1.CodeTarget{
-				Kind:           factsv1.TargetKind_TARGET_KIND_SCENARIO,
-				Scenario:       scenario,
-				RepoRoot:       repoRoot,
-				LanguageFilter: req.GetLanguageFilter(),
-			},
-			Include:  []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_IMPORTS},
-			UseCache: req.GetUseCache(),
-		})
-		if err != nil {
-			result.Error = err.Error()
-		} else {
-			result.Report = report
+	results := make([]*factsv1.CodeFactsResult, len(scenarios))
+	workerLimit := min(16, max(1, runtime.NumCPU()))
+	sem := make(chan struct{}, workerLimit)
+	var wg sync.WaitGroup
+	for i, scenario := range scenarios {
+		i, scenario := i, scenario
+		results[i] = &factsv1.CodeFactsResult{Scenario: scenario}
+		select {
+		case <-ctx.Done():
+			results[i].Error = ctx.Err().Error()
+			continue
+		case sem <- struct{}{}:
 		}
-		resp.Results = append(resp.Results, result)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			defer func() { <-sem }()
+			report, err := s.Describe(ctx, &factsv1.DescribeCodeFactsRequest{
+				Target: &factsv1.CodeTarget{
+					Kind:           factsv1.TargetKind_TARGET_KIND_SCENARIO,
+					Scenario:       scenario,
+					RepoRoot:       repoRoot,
+					LanguageFilter: req.GetLanguageFilter(),
+				},
+				Include:  []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_IMPORTS},
+				UseCache: req.GetUseCache(),
+			})
+			if err != nil {
+				results[i].Error = err.Error()
+				return
+			}
+			results[i].Report = report
+		}()
 	}
+	wg.Wait()
+	resp := &factsv1.DescribeFleetImportsResponse{Results: results}
 	return resp, nil
 }
 
