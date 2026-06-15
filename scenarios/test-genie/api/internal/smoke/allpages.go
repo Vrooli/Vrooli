@@ -12,6 +12,7 @@ import (
 	"test-genie/internal/evidence"
 	"test-genie/internal/pagediscovery"
 	sharedartifacts "test-genie/internal/shared/artifacts"
+	"test-genie/internal/visualcheck"
 )
 
 // PageCapture is the analyzed outcome of one all-pages visual capture.
@@ -61,7 +62,9 @@ func (r *Runner) runAllPages(ctx context.Context, scenarioDir, scenarioName stri
 			r.log("Page capture failed for %s: %v", page.Path, err)
 		}
 
-		verdict := evidence.Analyze(capture.Evidence)
+		ev := capture.Evidence
+		applyRenderHealth(&ev, readScreenshot(capture.ScreenshotPath))
+		verdict := evidence.Analyze(ev)
 		pc := PageCapture{
 			Page:    page.Path,
 			Label:   page.Label,
@@ -116,6 +119,42 @@ func (r *Runner) copyArtifact(pagePath, srcPath, destPath string) {
 	if err := os.WriteFile(destPath, data, 0o644); err != nil {
 		r.log("Failed to copy artifact for %s: %v", pagePath, err)
 	}
+}
+
+// applyRenderHealth runs the pixel render-health check over a captured
+// screenshot and annotates the evidence so a clearly-broken (blank/solid-color)
+// render becomes a hard failure in evidence.Analyze. Pixel render-health is the
+// smoke phase's authority for "the page is visibly broken"; the DOM-blank check
+// in the playbooks engine is the authority where no screenshot exists, so the
+// two never double-report. An empty or undecodable screenshot is non-fatal —
+// render-health is simply skipped and the remaining evidence rules still apply
+// (graceful degradation).
+func applyRenderHealth(ev *evidence.Evidence, png []byte) {
+	if len(png) == 0 {
+		return
+	}
+	health, err := visualcheck.RenderHealth(png, visualcheck.ThresholdsFromEnv())
+	if err != nil {
+		return
+	}
+	if health.Broken {
+		ev.RenderBroken = true
+		ev.RenderBrokenReason = health.Reason
+	}
+}
+
+// readScreenshot reads a captured screenshot from disk, returning nil (not an
+// error) when the path is empty or unreadable so render-health degrades to a
+// skip rather than aborting the page.
+func readScreenshot(path string) []byte {
+	if path == "" {
+		return nil
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	return data
 }
 
 // statusFromVerdict maps an evidence verdict to a smoke status.

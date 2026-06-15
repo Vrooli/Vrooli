@@ -40,6 +40,9 @@ type Server struct {
 	svc    *bl.Service
 	repos  RepoResolver
 	logger *log.Logger
+	// finalize, when set, overrides the async snapshot finalize tail (tests run
+	// it synchronously to assert the pin lands).
+	finalize func(ctx context.Context, pending bl.PendingCapture)
 }
 
 // Deps wires the Connect server.
@@ -103,14 +106,20 @@ func (s *Server) CreateBaseline(ctx context.Context, req *connect.Request[baseli
 	}), nil
 }
 
-// SnapshotForBaseline captures a baseline from ONE comprehensive, durable
-// test-genie run. The reported silent-hang fix has two halves: (1) the heavy run
-// is already durable in test-genie's runmanager, and (2) the cheap orchestration
-// tail (pin + manifest write) runs under the server-lifetime context, NOT the
-// request context — so a client that disconnects (or Ctrl-Cs) AFTER the run
-// completes can never abandon a half-pinned, manifest-less baseline. The tail is
-// bounded by snapshotTailCeiling so a wedged backend can't leak a goroutine.
-// Request values (caller header, etc.) are preserved via context.WithoutCancel.
+// SnapshotForBaseline starts ONE comprehensive, durable test-genie run and
+// returns its handle IMMEDIATELY — it does not block for the run to finish. The
+// pin + manifest write happen on a server-owned goroutine when the run
+// completes, so:
+//
+//   - the caller gets a run id + ETA up front and never sits on a silent block;
+//   - a client that disconnects (or Ctrl-Cs) can never abandon a half-pinned,
+//     manifest-less baseline — the finalize tail runs under the server-lifetime
+//     context (WithoutCancel keeps the request's values, drops its cancellation),
+//     bounded by snapshotTailCeiling so a wedged backend can't leak a goroutine.
+//
+// The caller follows the durable run with `test-genie runs follow <scenario>
+// <run_id>`; once it completes the baseline is pinned and queryable via
+// GetBaseline.
 func (s *Server) SnapshotForBaseline(ctx context.Context, req *connect.Request[baselinesv1.SnapshotForBaselineRequest]) (*connect.Response[baselinesv1.SnapshotForBaselineResponse], error) {
 	m := req.Msg
 	rid, repoDir, err := s.repos.Resolve(ctx, m.GetRepoId())
@@ -118,15 +127,7 @@ func (s *Server) SnapshotForBaseline(ctx context.Context, req *connect.Request[b
 		return nil, s.wrap("SnapshotForBaseline", err)
 	}
 
-	// Detach the orchestration from the client connection: keep the request's
-	// values (caller header, auth) via WithoutCancel but drop its cancellation,
-	// then apply our own ceiling so a wedged backend can't leak a goroutine.
-	tailCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), snapshotTailCeiling)
-	defer cancel()
-
-	s.logger.Printf("baselines.SnapshotForBaseline: starting comprehensive snapshot scenario=%s name=%s (durable server-side; client disconnect will not abandon the pin/manifest)", m.GetScenario(), m.GetName())
-
-	res, err := s.svc.Create(tailCtx, bl.CreateRequest{
+	pending, err := s.svc.StartCapture(ctx, bl.CreateRequest{
 		RepoID: rid, RepoDir: repoDir, Scenario: m.GetScenario(), Name: m.GetName(),
 		Branch: m.GetBranch(), Include: m.GetInclude(), Fast: m.GetFast(),
 		Capture: true, CreatedBy: m.GetCreatedBy(), Reason: m.GetReason(),
@@ -134,10 +135,49 @@ func (s *Server) SnapshotForBaseline(ctx context.Context, req *connect.Request[b
 	if err != nil {
 		return nil, s.wrap("SnapshotForBaseline", err)
 	}
-	s.logger.Printf("baselines.SnapshotForBaseline: snapshot complete scenario=%s name=%s run=%s surfaces=%d skipped=%d", m.GetScenario(), m.GetName(), res.Manifest.RunID(), len(res.Manifest.Surfaces), len(res.Skipped))
+
+	s.logger.Printf("baselines.SnapshotForBaseline: started comprehensive run scenario=%s name=%s run=%s eta=%ds (durable; pinning server-side on completion)",
+		m.GetScenario(), m.GetName(), pending.Run.RunID, pending.Run.EstimatedTotalSeconds)
+
+	// Finalize on a server-owned context detached from this request.
+	s.finalizeSnapshot(ctx, pending)
+
 	return connect.NewResponse(&baselinesv1.SnapshotForBaselineResponse{
-		Baseline: manifestToProto(res.Manifest), Skipped: res.Skipped, DirtyWarning: res.DirtyWarning,
+		RunId:                 pending.Run.RunID,
+		Scenario:              pending.Manifest.Scenario,
+		Name:                  pending.Manifest.Name,
+		Branch:                pending.Manifest.Branch,
+		EstimatedTotalSeconds: int32(pending.Run.EstimatedTotalSeconds),
+		EtaKnown:              pending.Run.EtaKnown,
+		DirtyWarning:          pending.DirtyWarning,
 	}), nil
+}
+
+// finalizeSnapshot waits for the durable run to complete, then pins + writes the
+// manifest, on a goroutine bound to a server-owned context (WithoutCancel +
+// ceiling) so a disconnected client never abandons the pin. Overridable in tests
+// to run synchronously.
+func (s *Server) finalizeSnapshot(ctx context.Context, pending bl.PendingCapture) {
+	run := s.finalize
+	if run == nil {
+		run = s.finalizeAsync
+	}
+	run(ctx, pending)
+}
+
+func (s *Server) finalizeAsync(ctx context.Context, pending bl.PendingCapture) {
+	tailCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), snapshotTailCeiling)
+	go func() {
+		defer cancel()
+		res, err := s.svc.FinalizeCapture(tailCtx, pending)
+		if err != nil {
+			s.logger.Printf("baselines.SnapshotForBaseline: finalize FAILED scenario=%s name=%s run=%s: %v",
+				pending.Manifest.Scenario, pending.Manifest.Name, pending.Run.RunID, err)
+			return
+		}
+		s.logger.Printf("baselines.SnapshotForBaseline: pinned scenario=%s name=%s run=%s surfaces=%d skipped=%d",
+			pending.Manifest.Scenario, pending.Manifest.Name, res.Manifest.RunID(), len(res.Manifest.Surfaces), len(res.Skipped))
+	}()
 }
 
 func (s *Server) GetBaseline(ctx context.Context, req *connect.Request[baselinesv1.GetBaselineRequest]) (*connect.Response[baselinesv1.GetBaselineResponse], error) {

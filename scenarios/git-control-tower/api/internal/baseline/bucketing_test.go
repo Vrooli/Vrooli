@@ -1,6 +1,9 @@
 package baseline
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // bucketPhaseDiffs folds a flat per-phase compare into one diff per phase-set
 // surface (option-c). Phases with no owning surface are dropped.
@@ -45,32 +48,68 @@ func TestBucketPhaseDiffs(t *testing.T) {
 	}
 }
 
+// TestDiffVisuals proves the visuals surface is advisory: every per-page delta
+// is the neutral `changed` tier (never a failing verdict), and it never affects
+// the diff exit code. A clearly-broken render is NOT a concern here — it fails
+// earlier, at smoke time, on the test/smoke surface.
 func TestDiffVisuals(t *testing.T) {
-	base := []RunVisual{
-		{Page: "/", ScreenshotRelPath: "a.png"},
-		{Page: "/dashboard", ScreenshotRelPath: "b.png"},
-	}
-
-	// Page removed ⇒ regression.
-	if d := diffVisuals(base, []RunVisual{{Page: "/", ScreenshotRelPath: "a.png"}}); d.Verdict != VerdictRegression {
-		t.Errorf("removed page: verdict = %s, want regression", d.Verdict)
-	}
-	// Page added ⇒ new-failure (drift).
-	added := append(append([]RunVisual{}, base...), RunVisual{Page: "/new", ScreenshotRelPath: "c.png"})
-	if d := diffVisuals(base, added); d.Verdict != VerdictNewFailure {
-		t.Errorf("added page: verdict = %s, want new-failure", d.Verdict)
-	}
-	// Identical ⇒ clean.
-	if d := diffVisuals(base, base); d.Verdict != VerdictClean {
+	// All identical ⇒ clean.
+	d := diffVisuals([]VisualDelta{
+		{Page: "/", Status: "identical"},
+		{Page: "/dashboard", Status: "identical"},
+	})
+	if d.Verdict != VerdictClean {
 		t.Errorf("identical: verdict = %s, want clean", d.Verdict)
 	}
-	// Same pages, different screenshot count ⇒ drift (new-failure).
-	fewerShots := []RunVisual{
-		{Page: "/", ScreenshotRelPath: "a.png"},
-		{Page: "/dashboard", ScreenshotRelPath: ""},
+	if len(d.Changed) != 0 {
+		t.Errorf("identical: Changed = %v, want empty", d.Changed)
 	}
-	if d := diffVisuals(base, fewerShots); d.Verdict != VerdictNewFailure {
-		t.Errorf("count change: verdict = %s, want new-failure", d.Verdict)
+
+	// A changed page ⇒ changed (advisory), with magnitude, and in the Changed
+	// bucket — NOT NewFailures/Regressions.
+	d = diffVisuals([]VisualDelta{
+		{Page: "/", Status: "identical"},
+		{Page: "/dashboard", Status: "changed", ChangedFraction: 0.12},
+	})
+	if d.Verdict != VerdictChanged {
+		t.Errorf("changed page: verdict = %s, want changed", d.Verdict)
+	}
+	if len(d.NewFailures) != 0 || len(d.Regressions) != 0 {
+		t.Errorf("changed page must not populate failure buckets: new=%v reg=%v", d.NewFailures, d.Regressions)
+	}
+	if len(d.Changed) != 1 || !strings.Contains(d.Changed[0], "12%") {
+		t.Errorf("changed page: Changed = %v, want one entry carrying magnitude", d.Changed)
+	}
+
+	// Added/removed pages are neutral review items, not failures.
+	d = diffVisuals([]VisualDelta{
+		{Page: "/new", Status: "added"},
+		{Page: "/gone", Status: "removed"},
+	})
+	if d.Verdict != VerdictChanged {
+		t.Errorf("added/removed: verdict = %s, want changed", d.Verdict)
+	}
+	if len(d.Changed) != 2 {
+		t.Errorf("added/removed: Changed = %v, want two review entries", d.Changed)
+	}
+
+	// A changed-only verdict must roll up to exit 0 (advisory).
+	if got := exitCodeForVerdictTest(string(VerdictChanged)); got != 0 {
+		t.Errorf("changed verdict exit code = %d, want 0 (advisory)", got)
+	}
+}
+
+// exitCodeForVerdictTest mirrors the CLI's exit-code rule (regression→1,
+// not-comparable→2, else 0) so the advisory contract is asserted at the API
+// boundary without importing the CLI package.
+func exitCodeForVerdictTest(verdict string) int {
+	switch verdict {
+	case string(VerdictRegression):
+		return 1
+	case string(VerdictNotComparable):
+		return 2
+	default:
+		return 0
 	}
 }
 

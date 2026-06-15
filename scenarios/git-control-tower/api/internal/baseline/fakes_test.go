@@ -7,24 +7,30 @@ import (
 )
 
 // fakeExecutor returns a canned ExecResult and records how many comprehensive
-// runs it was asked to trigger. Each call synthesizes a unique runID so a
-// capture run and a diff's current run differ.
+// runs it was asked to start. Each StartRun synthesizes a unique runID so a
+// capture run and a diff's current run differ; AwaitResult replays the canned
+// result (or err) for that runID.
 type fakeExecutor struct {
-	result ExecResult
-	err    error
-	calls  int
+	result   ExecResult
+	err      error // AwaitResult error (the run failed)
+	startErr error // StartRun error (could not start the run)
+	calls    int
 }
 
-func (f *fakeExecutor) Execute(_ context.Context, _ string) (ExecResult, error) {
+func (f *fakeExecutor) StartRun(_ context.Context, _ string) (RunHandle, error) {
+	if f.startErr != nil {
+		return RunHandle{}, f.startErr
+	}
 	f.calls++
+	return RunHandle{RunID: "run-" + itoa(f.calls), EstimatedTotalSeconds: 60, EtaKnown: true}, nil
+}
+
+func (f *fakeExecutor) AwaitResult(_ context.Context, _, runID string) (ExecResult, error) {
 	if f.err != nil {
 		return ExecResult{}, f.err
 	}
 	r := f.result
-	if r.RunID == "" {
-		r.RunID = "run"
-	}
-	r.RunID = r.RunID + "-" + itoa(f.calls)
+	r.RunID = runID
 	return r, nil
 }
 
@@ -50,6 +56,10 @@ type fakeRuns struct {
 	// visuals is keyed by runID; a missing key returns an empty slice.
 	visuals    map[string][]RunVisual
 	visualsErr error
+	// visualDeltas is the canned CompareRunVisuals result; compareVisualsErr
+	// forces an error.
+	visualDeltas     []VisualDelta
+	compareVisualErr error
 }
 
 func (f *fakeRuns) PinRun(_ context.Context, scenario, runID, by, reason string) error {
@@ -71,6 +81,13 @@ func (f *fakeRuns) ListRunVisuals(_ context.Context, _, runID string) ([]RunVisu
 		return nil, f.visualsErr
 	}
 	return f.visuals[runID], nil
+}
+
+func (f *fakeRuns) CompareRunVisuals(_ context.Context, _, _, _ string) ([]VisualDelta, error) {
+	if f.compareVisualErr != nil {
+		return nil, f.compareVisualErr
+	}
+	return f.visualDeltas, nil
 }
 
 // fakeReachability returns a canned reachability result and records how many

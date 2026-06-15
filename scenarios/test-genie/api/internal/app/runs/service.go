@@ -9,6 +9,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"test-genie/internal/runmanager"
 	sharedartifacts "test-genie/internal/shared/artifacts"
 	sharedruns "test-genie/internal/shared/runs"
+	"test-genie/internal/visualcheck"
 
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 )
@@ -246,6 +248,123 @@ func (s *Service) ListRunVisuals(ctx context.Context, req *connect.Request[runsp
 		})
 	}
 	return connect.NewResponse(&runspb.ListRunVisualsResponse{Visuals: out}), nil
+}
+
+// CompareRunVisuals returns the per-page pixel-level comparison of two runs'
+// captures. test-genie owns the visual analyzer (internal/visualcheck), so a
+// consumer like git-control-tower gets neutral per-page deltas instead of
+// re-deriving pixel math. A page captured in both runs is decoded and compared;
+// a page captured in only one run is reported as added/removed. Every delta is
+// advisory — a difference is never a verdict here (a clearly-broken render fails
+// earlier, at smoke time).
+func (s *Service) CompareRunVisuals(ctx context.Context, req *connect.Request[runspb.CompareRunVisualsRequest]) (*connect.Response[runspb.CompareRunVisualsResponse], error) {
+	dir, err := s.scenarioDir(req.Msg.GetScenario())
+	if err != nil {
+		return nil, err
+	}
+	baseRunID := strings.TrimSpace(req.Msg.GetBaseRunId())
+	curRunID := strings.TrimSpace(req.Msg.GetCurrentRunId())
+	if baseRunID == "" || curRunID == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("base_run_id and current_run_id are required"))
+	}
+
+	baseVisuals, err := sharedartifacts.ListRunVisuals(dir, baseRunID)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	curVisuals, err := sharedartifacts.ListRunVisuals(dir, curRunID)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	baseByPage := indexVisualsByPage(baseVisuals)
+	curByPage := indexVisualsByPage(curVisuals)
+	thresholds := visualcheck.ThresholdsFromEnv()
+
+	pages := sortedUnion(baseByPage, curByPage)
+	deltas := make([]*runspb.VisualDelta, 0, len(pages))
+	for _, page := range pages {
+		base, inBase := baseByPage[page]
+		cur, inCur := curByPage[page]
+		label := cur.Label
+		if !inCur {
+			label = base.Label
+		}
+		delta := &runspb.VisualDelta{Page: page, Label: label}
+		switch {
+		case inBase && inCur:
+			status, fraction := s.comparePageVisual(dir, baseRunID, base, curRunID, cur, thresholds)
+			delta.Status = status
+			delta.ChangedFraction = fraction
+		case inCur:
+			delta.Status = "added"
+		default:
+			delta.Status = "removed"
+		}
+		deltas = append(deltas, delta)
+	}
+	return connect.NewResponse(&runspb.CompareRunVisualsResponse{Deltas: deltas}), nil
+}
+
+// comparePageVisual decodes and compares one page's screenshot across two runs.
+// An unreadable or undecodable capture degrades to "changed" so the page is
+// surfaced for review rather than silently dropped — never a hard failure, since
+// the visuals surface is advisory.
+func (s *Service) comparePageVisual(dir, baseRunID string, base sharedartifacts.RunVisual, curRunID string, cur sharedartifacts.RunVisual, thresholds visualcheck.Thresholds) (status string, fraction float64) {
+	if base.ScreenshotRelPath == "" || cur.ScreenshotRelPath == "" {
+		return "changed", 0
+	}
+	baseBytes, err := readRunArtifact(dir, baseRunID, base.ScreenshotRelPath)
+	if err != nil {
+		return "changed", 0
+	}
+	curBytes, err := readRunArtifact(dir, curRunID, cur.ScreenshotRelPath)
+	if err != nil {
+		return "changed", 0
+	}
+	result, err := visualcheck.Compare(baseBytes, curBytes, thresholds)
+	if err != nil {
+		return "changed", 0
+	}
+	if result.Identical {
+		return "identical", 0
+	}
+	return "changed", result.ChangedFraction
+}
+
+// readRunArtifact resolves and reads a run-relative artifact's bytes.
+func readRunArtifact(dir, runID, relPath string) ([]byte, error) {
+	abs, err := sharedartifacts.ResolveRunArtifact(dir, runID, relPath)
+	if err != nil {
+		return nil, err
+	}
+	return os.ReadFile(abs)
+}
+
+// indexVisualsByPage keys a run's visuals by page path.
+func indexVisualsByPage(visuals []sharedartifacts.RunVisual) map[string]sharedartifacts.RunVisual {
+	out := make(map[string]sharedartifacts.RunVisual, len(visuals))
+	for _, v := range visuals {
+		out[v.Page] = v
+	}
+	return out
+}
+
+// sortedUnion returns the sorted union of two maps' keys.
+func sortedUnion(a, b map[string]sharedartifacts.RunVisual) []string {
+	seen := make(map[string]struct{}, len(a)+len(b))
+	for k := range a {
+		seen[k] = struct{}{}
+	}
+	for k := range b {
+		seen[k] = struct{}{}
+	}
+	out := make([]string, 0, len(seen))
+	for k := range seen {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // ResolveArtifact maps a (scenario, runID, run-relative path) to an absolute

@@ -5,12 +5,14 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"time"
 
 	"connectrpc.com/connect"
 
 	"github.com/vrooli/cli-core/cliutil"
 
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
+	runs_v1connect "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs/runs_v1connect"
 )
 
 // (JSON output uses the shared writeJSON helper defined in command.go.)
@@ -29,6 +31,11 @@ func twoPositional(args []string, verb string) (scenario, runID string, err erro
 
 // runWait blocks until the run is terminal (or --timeout elapses) and exits with
 // the suite's result code: 0 passed, 1 failed/aborted, 124 still-in-progress.
+//
+// Human mode STREAMS the run's live events (the same renderer as `runs follow`)
+// so a waiting agent sees progress + heartbeats and never reads the wait as a
+// silent hang. `--json` keeps the single quiet WaitRun snapshot for scripts that
+// want one structured result and an exit code.
 func runWait(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 	fs := flag.NewFlagSet("runs wait", flag.ContinueOnError)
 	fs.SetOutput(w)
@@ -45,20 +52,40 @@ func runWait(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 	if err != nil {
 		return err
 	}
+
+	if *jsonOut {
+		return waitSnapshot(cl, w, scenario, runID, *timeout)
+	}
+
+	// Human mode: stream to terminal (optionally bounded by --timeout).
+	ctx := context.Background()
+	if *timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(*timeout)*time.Second)
+		defer cancel()
+	}
+	terminal, streamErr := streamRunEvents(ctx, cl, w, scenario, runID)
+	if ctx.Err() == context.DeadlineExceeded {
+		fmt.Fprintf(w, "\nstill running — re-attach: test-genie runs follow %s %s\n", scenario, runID)
+		return &exitErr{code: exitWaitTimeout, err: fmt.Errorf("run %s did not finish within the wait window", runID)}
+	}
+	return terminalExit(runID, terminal, streamErr)
+}
+
+// waitSnapshot is the scripted `--json` path: one WaitRun call, one structured
+// status, the suite exit code.
+func waitSnapshot(cl runs_v1connect.RunsServiceClient, w io.Writer, scenario, runID string, timeout int) error {
 	resp, err := cl.WaitRun(context.Background(), connect.NewRequest(&runspb.WaitRunRequest{
-		Scenario: scenario, RunId: runID, TimeoutSeconds: int32(*timeout),
+		Scenario: scenario, RunId: runID, TimeoutSeconds: int32(timeout),
 	}))
 	if err != nil {
 		return &exitErr{code: exitNotComparable, err: err}
 	}
 	st := resp.Msg.GetStatus()
-	if *jsonOut {
-		return writeJSON(w, st)
+	if err := writeJSON(w, st); err != nil {
+		return err
 	}
-	printLiveStatus(w, st)
-
 	if resp.Msg.GetTimedOut() {
-		fmt.Fprintf(w, "\nstill running — re-attach: test-genie runs wait %s %s\n", scenario, runID)
 		return &exitErr{code: exitWaitTimeout, err: fmt.Errorf("run %s did not finish within the wait window", runID)}
 	}
 	if st.GetStatus() == "passed" {
@@ -83,11 +110,20 @@ func runFollow(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	stream, err := cl.FollowRun(context.Background(), connect.NewRequest(&runspb.FollowRunRequest{
+	terminal, streamErr := streamRunEvents(context.Background(), cl, w, scenario, runID)
+	return terminalExit(runID, terminal, streamErr)
+}
+
+// streamRunEvents follows a run, rendering each event with printFollowEvent, and
+// returns the terminal run_completed event (nil if the stream ended without one,
+// e.g. the context deadline elapsed). It is the single stream→render loop shared
+// by `runs follow`, human `runs wait`, and the inline execute follower.
+func streamRunEvents(ctx context.Context, cl runs_v1connect.RunsServiceClient, w io.Writer, scenario, runID string) (*runspb.RunEvent, error) {
+	stream, err := cl.FollowRun(ctx, connect.NewRequest(&runspb.FollowRunRequest{
 		Scenario: scenario, RunId: runID,
 	}))
 	if err != nil {
-		return &exitErr{code: exitNotComparable, err: err}
+		return nil, err
 	}
 	var terminal *runspb.RunEvent
 	for stream.Receive() {
@@ -97,7 +133,15 @@ func runFollow(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 			terminal = ev
 		}
 	}
-	if streamErr := stream.Err(); streamErr != nil {
+	return terminal, stream.Err()
+}
+
+// terminalExit maps a stream's terminal event + error to the suite exit code:
+// stream error → not-comparable; terminal failure → regression; else pass. A
+// nil terminal with no error (deadline handled by the caller) is treated as a
+// clean detach.
+func terminalExit(runID string, terminal *runspb.RunEvent, streamErr error) error {
+	if streamErr != nil && terminal == nil {
 		return &exitErr{code: exitNotComparable, err: streamErr}
 	}
 	if terminal != nil && !terminal.GetSuccess() {

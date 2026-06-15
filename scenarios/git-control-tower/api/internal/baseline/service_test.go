@@ -68,6 +68,64 @@ func TestServiceCreateOneRunOnePin(t *testing.T) {
 	}
 }
 
+// StartCapture returns the run handle WITHOUT pinning or writing a manifest;
+// FinalizeCapture (run on a server-owned context) does the pin + manifest. This
+// is the return-fast durable flow.
+func TestServiceStartThenFinalizeCapture(t *testing.T) {
+	exec := &fakeExecutor{result: ExecResult{Success: true, Phases: []PhaseStatus{{"unit", "passed"}}}}
+	runs := &fakeRuns{}
+	svc, _ := newTestService(t, exec, runs, git.State{Branch: "agi", Sha: "abc"})
+
+	pending, err := svc.StartCapture(context.Background(), CreateRequest{
+		RepoID: 1, RepoDir: "/repo", Scenario: "foo", Name: "p", Capture: true,
+	})
+	if err != nil {
+		t.Fatalf("StartCapture: %v", err)
+	}
+	if pending.Run.RunID == "" || !pending.Run.EtaKnown {
+		t.Fatalf("StartCapture must return a run handle with an ETA, got %+v", pending.Run)
+	}
+	// Nothing pinned or persisted yet.
+	if len(runs.pins) != 0 {
+		t.Fatalf("StartCapture must not pin, got %+v", runs.pins)
+	}
+	if _, err := svc.Get(context.Background(), 1, "foo", "agi", "p"); err == nil {
+		t.Fatal("manifest must not exist until FinalizeCapture")
+	}
+
+	if _, err := svc.FinalizeCapture(context.Background(), pending); err != nil {
+		t.Fatalf("FinalizeCapture: %v", err)
+	}
+	if len(runs.pins) != 1 {
+		t.Fatalf("FinalizeCapture must pin exactly once, got %+v", runs.pins)
+	}
+	got, err := svc.Get(context.Background(), 1, "foo", "agi", "p")
+	if err != nil {
+		t.Fatalf("manifest must be persisted after FinalizeCapture: %v", err)
+	}
+	if got.RunID() != pending.Run.RunID {
+		t.Fatalf("manifest pins run %q, want %q", got.RunID(), pending.Run.RunID)
+	}
+}
+
+// StartCapture fails fast (no run started) when the baseline already exists.
+func TestServiceStartCaptureRejectsDuplicate(t *testing.T) {
+	exec := &fakeExecutor{result: ExecResult{Success: true, Phases: []PhaseStatus{{"unit", "passed"}}}}
+	runs := &fakeRuns{}
+	svc, _ := newTestService(t, exec, runs, git.State{Branch: "agi", Sha: "abc"})
+
+	if _, err := svc.Create(context.Background(), CreateRequest{RepoID: 1, Scenario: "foo", Name: "dup", Branch: "agi"}); err != nil {
+		t.Fatalf("seed create: %v", err)
+	}
+	startsBefore := exec.calls
+	if _, err := svc.StartCapture(context.Background(), CreateRequest{RepoID: 1, Scenario: "foo", Name: "dup", Capture: true}); err != ErrAlreadyExists {
+		t.Fatalf("StartCapture on duplicate = %v, want ErrAlreadyExists", err)
+	}
+	if exec.calls != startsBefore {
+		t.Fatal("StartCapture must not start a run when the baseline already exists")
+	}
+}
+
 // A subset of surfaces still triggers exactly one run + one pin.
 func TestServiceCreateIncludeSubset(t *testing.T) {
 	exec := &fakeExecutor{result: ExecResult{Success: true, Phases: []PhaseStatus{{"unit", "passed"}}}}
@@ -213,21 +271,17 @@ func TestServiceDiffSingleSurface(t *testing.T) {
 	}
 }
 
-// The visuals surface diffs at the metadata level over the two runs'
-// ListRunVisuals results (page set + screenshot count).
-func TestServiceDiffVisualsMetadata(t *testing.T) {
+// The visuals surface is advisory: a pixel difference (or an added/removed page)
+// is the neutral `changed` tier, never a failing verdict, and the overall diff
+// stays exit-0. test-genie owns the pixel comparison (CompareRunVisuals); GCT
+// only renders the neutral deltas.
+func TestServiceDiffVisualsAdvisory(t *testing.T) {
 	exec := &fakeExecutor{result: ExecResult{Phases: []PhaseStatus{{"smoke", "passed"}}}}
 	runs := &fakeRuns{
-		visuals: map[string][]RunVisual{
-			// baseline run (created first, runID "run-1").
-			"run-1": {
-				{Page: "/", ScreenshotRelPath: "ui-smoke/pages/home/screenshot.png"},
-				{Page: "/backlog", ScreenshotRelPath: "ui-smoke/pages/backlog/screenshot.png"},
-			},
-			// current diff run (runID "run-2"): /backlog page dropped.
-			"run-2": {
-				{Page: "/", ScreenshotRelPath: "ui-smoke/pages/home/screenshot.png"},
-			},
+		visualDeltas: []VisualDelta{
+			{Page: "/", Status: "identical"},
+			{Page: "/dashboard", Status: "changed", ChangedFraction: 0.18},
+			{Page: "/backlog", Status: "removed"},
 		},
 	}
 	svc, _ := newTestService(t, exec, runs, git.State{Branch: "agi", Sha: "abc"})
@@ -244,9 +298,19 @@ func TestServiceDiffVisualsMetadata(t *testing.T) {
 	if len(res.Surfaces) != 1 {
 		t.Fatalf("expected one surface, got %+v", res.Surfaces)
 	}
-	// A page captured at baseline but no longer captured is a regression.
-	if res.Surfaces[0].Verdict != VerdictRegression {
-		t.Fatalf("dropped page should be a visuals regression, got %s (%+v)", res.Surfaces[0].Verdict, res.Surfaces[0])
+	surface := res.Surfaces[0]
+	if surface.Verdict != VerdictChanged {
+		t.Fatalf("visual differences should be the advisory `changed` tier, got %s (%+v)", surface.Verdict, surface)
+	}
+	if len(surface.Regressions) != 0 || len(surface.NewFailures) != 0 {
+		t.Fatalf("visuals must never populate failure buckets: %+v", surface)
+	}
+	if len(surface.Changed) != 2 { // changed page + removed page; identical omitted
+		t.Fatalf("expected 2 review entries, got %v", surface.Changed)
+	}
+	// The overall diff verdict must not gate.
+	if res.Verdict != VerdictChanged {
+		t.Fatalf("overall verdict = %s, want changed (advisory)", res.Verdict)
 	}
 }
 

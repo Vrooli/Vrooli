@@ -36,14 +36,15 @@ export function EntityList({
 }: {
   title: string;
   items: string[];
-  tone?: "regression" | "new" | "preexisting" | "cleared" | "default";
+  tone?: "regression" | "new" | "preexisting" | "cleared" | "changed" | "default";
 }) {
-  if (items.length === 0) return null;
+  if (!items || items.length === 0) return null;
   const toneClass = {
     regression: "text-red-300",
     new: "text-amber-300",
     preexisting: "text-slate-400",
     cleared: "text-emerald-300",
+    changed: "text-blue-300",
     default: "text-slate-300",
   }[tone];
   return (
@@ -99,7 +100,8 @@ export function SurfaceDiffBody({
     diff.regressions.length === 0 &&
     diff.newFailures.length === 0 &&
     diff.preexisting.length === 0 &&
-    diff.cleared.length === 0;
+    diff.cleared.length === 0 &&
+    (diff.changed?.length ?? 0) === 0;
   if (empty) {
     return <p className="text-xs text-slate-500">{cleanLabel}</p>;
   }
@@ -109,6 +111,7 @@ export function SurfaceDiffBody({
       <EntityList title="New failures" items={diff.newFailures} tone="new" />
       <EntityList title="Preexisting" items={diff.preexisting} tone="preexisting" />
       <EntityList title="Cleared" items={diff.cleared} tone="cleared" />
+      <EntityList title="Changed — review before/after" items={diff.changed} tone="changed" />
     </div>
   );
 }

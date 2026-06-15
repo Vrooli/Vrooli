@@ -41,6 +41,17 @@ func autoBackgroundThreshold() (seconds int, enabled bool) {
 	return n, true
 }
 
+// autoBackgroundOnUnknownETA reports whether a run with an UNKNOWN ETA should be
+// auto-backgrounded (treated as potentially long) rather than followed inline.
+// Default on, so an unestimatable first run never blocks an agent's tool past
+// its timeout. TEST_GENIE_AUTOBACKGROUND_ON_UNKNOWN_ETA=0/false disables it
+// (unknown-ETA runs then follow inline). It is moot when auto-backgrounding is
+// disabled entirely (TEST_GENIE_AUTOBACKGROUND_SECONDS=0).
+func autoBackgroundOnUnknownETA() bool {
+	raw := strings.TrimSpace(strings.ToLower(os.Getenv("TEST_GENIE_AUTOBACKGROUND_ON_UNKNOWN_ETA")))
+	return raw != "0" && raw != "false"
+}
+
 // newRunsClient builds a Connect client for the durable run-lifecycle RPCs. It
 // uses a no-timeout HTTP client because FollowRun is a long-lived server stream
 // and WaitRun may block for the full suite duration; per-call deadlines are
@@ -50,10 +61,13 @@ func newRunsClient(baseURL string) runs_v1connect.RunsServiceClient {
 	return runs_v1connect.NewRunsServiceClient(httpClient, strings.TrimRight(baseURL, "/"))
 }
 
-// reattachCommand is the self-contained command an agent copies to block on a
-// run that is still executing.
+// reattachCommand is the self-contained command an agent copies to re-attach to
+// a run that is still executing. It names `runs follow` (the streaming verb that
+// prints incremental progress + heartbeats) rather than `runs wait` (which
+// blocks silently until terminal) so a re-attaching agent sees the run is alive
+// and stops panic-polling.
 func reattachCommand(scenario, runID string) string {
-	return "test-genie runs wait " + scenario + " " + runID
+	return "test-genie runs follow " + scenario + " " + runID
 }
 
 // humanDuration renders a second count as a compact human string (e.g. "2m30s").

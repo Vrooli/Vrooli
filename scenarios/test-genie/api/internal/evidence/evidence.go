@@ -89,6 +89,16 @@ type Evidence struct {
 	// ScreenshotRef points at the captured screenshot artifact (path or id).
 	// Carried for diagnostics; it does not affect the verdict.
 	ScreenshotRef string
+
+	// RenderBroken reports that a pixel render-health check judged the captured
+	// screenshot a clearly-broken (blank/solid-color) render. It is set by the
+	// producer (the smoke phase, via internal/visualcheck) before Analyze;
+	// producers that do not inspect pixels leave it false. A broken render is a
+	// hard failure that needs no baseline.
+	RenderBroken bool
+	// RenderBrokenReason explains RenderBroken (e.g. "98% of the frame is a
+	// single tone"); empty when RenderBroken is false.
+	RenderBrokenReason string
 }
 
 // Verdict is the analyzed outcome of one [Evidence].
@@ -113,12 +123,15 @@ func (v Verdict) Passed() bool { return v.Status == StatusPassed }
 //  1. the browser session did not execute (engine/navigation failure);
 //  2. the iframe-bridge handshake never signaled ready;
 //  3. one or more network requests failed;
-//  4. one or more uncaught page exceptions occurred.
+//  4. the screenshot is a clearly-broken (blank/solid-color) render;
+//  5. one or more uncaught page exceptions occurred.
 //
-// Console errors are counted but are not, on their own, a failure (a passing
-// UI may log handled errors); console warnings are surfaced as a count for the
-// caller to report as a warning. This precedence and these semantics match the
-// historical smoke contract exactly.
+// A broken render ranks below network failures (a failed request is the more
+// actionable root cause of an empty page) but above page exceptions (a blank
+// frame is a more fundamental defect than a logged exception). Console errors
+// are counted but are not, on their own, a failure (a passing UI may log
+// handled errors); console warnings are surfaced as a count for the caller to
+// report as a warning.
 func Analyze(ev Evidence) Verdict {
 	v := Verdict{
 		Status:              StatusPassed,
@@ -149,6 +162,9 @@ func Analyze(ev Evidence) Verdict {
 	case len(ev.Network) > 0:
 		v.Status = StatusFailed
 		v.Message = formatNetworkFailures(ev.Network)
+	case ev.RenderBroken:
+		v.Status = StatusFailed
+		v.Message = fmt.Sprintf("rendered blank/solid color: %s", ev.RenderBrokenReason)
 	case len(ev.PageErrors) > 0:
 		v.Status = StatusFailed
 		v.Message = fmt.Sprintf("UI exception: %s", ev.PageErrors[0].Message)

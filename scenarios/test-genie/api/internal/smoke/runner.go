@@ -222,6 +222,7 @@ func (r *Runner) Run(ctx context.Context, scenarioName, scenarioDir, runID strin
 		r.log("BAS smoke capture failed: %v", captureErr)
 	}
 	ev := capture.Evidence
+	applyRenderHealth(&ev, capture.Screenshot)
 
 	// Step 6: verdict via the shared evidence analyzer (single authority).
 	verdict := evidence.Analyze(ev)

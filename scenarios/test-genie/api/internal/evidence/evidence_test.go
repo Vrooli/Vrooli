@@ -76,6 +76,24 @@ func TestAnalyze(t *testing.T) {
 			wantStatus:  StatusPassed,
 			wantMessage: "UI loaded successfully",
 		},
+		{
+			name:        "broken render fails the load",
+			ev:          Evidence{Loaded: true, Handshake: signaled, RenderBroken: true, RenderBrokenReason: "98% of the frame is a single tone"},
+			wantStatus:  StatusFailed,
+			wantMessage: "rendered blank/solid color: 98% of the frame is a single tone",
+		},
+		{
+			name:        "network failure outranks broken render",
+			ev:          Evidence{Loaded: true, Handshake: signaled, Network: []NetworkEntry{{URL: "http://x/api", Status: intPtr(500)}}, RenderBroken: true, RenderBrokenReason: "blank"},
+			wantStatus:  StatusFailed,
+			wantMessage: "HTTP 500 → http://x/api",
+		},
+		{
+			name:        "broken render outranks page exception",
+			ev:          Evidence{Loaded: true, Handshake: signaled, RenderBroken: true, RenderBrokenReason: "blank", PageErrors: []PageError{{Message: "boom"}}},
+			wantStatus:  StatusFailed,
+			wantMessage: "rendered blank/solid color: blank",
+		},
 	}
 
 	for _, tt := range tests {

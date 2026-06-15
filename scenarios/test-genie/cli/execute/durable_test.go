@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -12,6 +13,19 @@ import (
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 	runs_v1connect "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs/runs_v1connect"
 )
+
+// TestReattachCommandStreams pins the breadcrumb to the streaming `runs follow`
+// verb — never the silent `runs wait`. A re-attaching agent must see live
+// progress so it stops panic-polling (the whole point of Track B).
+func TestReattachCommandStreams(t *testing.T) {
+	got := reattachCommand("demo", "R1")
+	if got != "test-genie runs follow demo R1" {
+		t.Fatalf("reattachCommand = %q, want it to name `runs follow`", got)
+	}
+	if strings.Contains(got, "runs wait") {
+		t.Fatalf("reattachCommand must not name the silent `runs wait`: %q", got)
+	}
+}
 
 func TestAutoBackgroundThreshold(t *testing.T) {
 	t.Run("default", func(t *testing.T) {
@@ -135,6 +149,39 @@ func TestRunDurableAutoBackgroundsLongRun(t *testing.T) {
 	}
 	if h.followCalled.Load() {
 		t.Fatal("a known-long run must NOT be followed inline (should background)")
+	}
+}
+
+// TestRunDurableUnknownETABackgrounds proves a run whose ETA is unknown
+// auto-backgrounds (returns fast) instead of blocking inline — closing the
+// first-run/unestimatable-run gap.
+func TestRunDurableUnknownETABackgrounds(t *testing.T) {
+	t.Setenv("TEST_GENIE_AUTOBACKGROUND_SECONDS", "60")
+	h := &fakeRunsServer{eta: 0} // eta_known=false
+	url := newFakeRunsServer(t, h)
+	if err := RunDurable(url, Request{ScenarioName: "demo"}, DurableOptions{}); err != nil {
+		t.Fatalf("unknown-ETA should background and return nil, got %v", err)
+	}
+	if h.followCalled.Load() {
+		t.Fatal("an unknown-ETA run must background, not follow inline")
+	}
+}
+
+// TestRunDurableUnknownETAInlineWhenLeverOff proves the lever can force inline
+// follow for unknown-ETA runs.
+func TestRunDurableUnknownETAInlineWhenLeverOff(t *testing.T) {
+	t.Setenv("TEST_GENIE_AUTOBACKGROUND_SECONDS", "60")
+	t.Setenv("TEST_GENIE_AUTOBACKGROUND_ON_UNKNOWN_ETA", "0")
+	h := &fakeRunsServer{eta: 0, events: []*runspb.RunEvent{
+		{Event: evRunStarted, RunId: "R"},
+		{Event: evRunCompleted, Success: true, Verdict: "PASS"},
+	}}
+	url := newFakeRunsServer(t, h)
+	if err := RunDurable(url, Request{ScenarioName: "demo"}, DurableOptions{}); err != nil {
+		t.Fatalf("inline follow should succeed, got %v", err)
+	}
+	if !h.followCalled.Load() {
+		t.Fatal("lever off: unknown-ETA must follow inline")
 	}
 }
 

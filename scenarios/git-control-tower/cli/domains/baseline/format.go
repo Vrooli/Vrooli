@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	baselinesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/baselines"
 )
@@ -13,6 +14,8 @@ func verdictMark(verdict string) string {
 	switch verdict {
 	case "clean":
 		return "✓"
+	case "changed":
+		return "≈"
 	case "regression", "new-failure":
 		return "✗"
 	case "preexisting":
@@ -42,24 +45,31 @@ func gitLine(g *baselinesv1.GitState) string {
 	return line
 }
 
+// printSnapshot renders the snapshot START result: the run handle + ETA + the
+// streaming follow command. The baseline pins server-side when the run
+// completes, so the snapshot returns fast and the operator follows the durable
+// run by id (anti-polling: no silent block).
 func printSnapshot(resp *baselinesv1.SnapshotForBaselineResponse) {
-	b := resp.GetBaseline()
-	fmt.Printf("✓ Captured baseline %q for %s\n", b.GetName(), b.GetScenario())
-	fmt.Printf("  %s\n", gitLine(b.GetGit()))
-	if len(b.GetSurfaces()) > 0 {
-		var parts []string
-		for _, id := range surfaceIDsSorted(b.GetSurfaces()) {
-			p := b.GetSurfaces()[id]
-			parts = append(parts, fmt.Sprintf("%s(%s)", id, summaryText(p.GetSummary())))
-		}
-		fmt.Printf("  surfaces: %s\n", strings.Join(parts, " "))
+	fmt.Print(snapshotBanner(resp))
+}
+
+// snapshotBanner builds the snapshot-start banner. Pure (no I/O) so the
+// anti-polling contract — an up-front run id + ETA + a streaming follow command,
+// never a silent block — is unit-testable.
+func snapshotBanner(resp *baselinesv1.SnapshotForBaselineResponse) string {
+	eta := "unknown"
+	if resp.GetEtaKnown() {
+		eta = (time.Duration(resp.GetEstimatedTotalSeconds()) * time.Second).String()
 	}
-	for _, surface := range stringKeysSorted(resp.GetSkipped()) {
-		fmt.Printf("  ⚠ skipped %s: %s\n", surface, resp.GetSkipped()[surface])
-	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "▶ Baseline %q for %s — comprehensive run %s started\n", resp.GetName(), resp.GetScenario(), resp.GetRunId())
+	fmt.Fprintf(&b, "  estimated %s — the run is durable server-side; the baseline pins automatically when it completes.\n", eta)
+	fmt.Fprintf(&b, "  follow live:   test-genie runs follow %s %s\n", resp.GetScenario(), resp.GetRunId())
+	fmt.Fprintf(&b, "  then inspect:  git-control-tower baseline show --scenario %s --name %s\n", resp.GetScenario(), resp.GetName())
 	if w := resp.GetDirtyWarning(); w != "" {
-		fmt.Printf("⚠ %s\n", w)
+		fmt.Fprintf(&b, "⚠ %s\n", w)
 	}
+	return b.String()
 }
 
 func printDiff(resp *baselinesv1.DiffBaselineResponse) {
@@ -87,6 +97,7 @@ func printDiff(resp *baselinesv1.DiffBaselineResponse) {
 		printLines("new", s.GetNewFailures())
 		printLines("preexisting", s.GetPreexisting())
 		printLines("cleared", s.GetCleared())
+		printLines("changed — review", s.GetChanged())
 	}
 	fmt.Println()
 	if w := resp.GetDirtyWarning(); w != "" {

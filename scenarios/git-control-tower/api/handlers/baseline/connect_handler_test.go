@@ -100,22 +100,26 @@ func TestBaselinesServiceRoundTrip(t *testing.T) {
 
 // --- tail-decoupling fakes (Phase 5) -------------------------------------
 
-// cancelOnExecExecutor cancels the supplied context as soon as Execute is
-// called, modeling a client that disconnects the instant the heavy run starts.
-// It returns a successful run regardless, so the cheap pin + manifest tail is
-// what's at risk if the handler tied it to the request context.
+// cancelOnExecExecutor cancels the supplied context as soon as the run starts,
+// modeling a client that disconnects the instant the heavy run begins. It still
+// reports a successful run, so the cheap pin + manifest tail is what's at risk if
+// the handler tied it to the request context.
 type cancelOnExecExecutor struct {
 	cancel func()
 	mu     sync.Mutex
 	calls  int
 }
 
-func (e *cancelOnExecExecutor) Execute(_ context.Context, _ string) (bl.ExecResult, error) {
+func (e *cancelOnExecExecutor) StartRun(_ context.Context, _ string) (bl.RunHandle, error) {
 	e.mu.Lock()
 	e.calls++
 	e.mu.Unlock()
-	e.cancel() // client "disconnects" mid-run
-	return bl.ExecResult{RunID: "run-xyz", Success: true, Phases: []bl.PhaseStatus{{Name: "unit", Status: "passed"}}}, nil
+	e.cancel() // client "disconnects" the instant the run starts
+	return bl.RunHandle{RunID: "run-xyz", EstimatedTotalSeconds: 60, EtaKnown: true}, nil
+}
+
+func (e *cancelOnExecExecutor) AwaitResult(_ context.Context, _, runID string) (bl.ExecResult, error) {
+	return bl.ExecResult{RunID: runID, Success: true, Phases: []bl.PhaseStatus{{Name: "unit", Status: "passed"}}}, nil
 }
 
 type recordingRuns struct {
@@ -138,10 +142,15 @@ func (r *recordingRuns) ListRunVisuals(_ context.Context, _, _ string) ([]bl.Run
 	return nil, nil
 }
 
-// SnapshotForBaseline must NOT abandon the pin + manifest when the client
-// context is canceled the moment the durable run starts — the handler detaches
-// the orchestration tail via context.WithoutCancel. This is the reported
-// silent-hang/abandonment fix.
+func (r *recordingRuns) CompareRunVisuals(_ context.Context, _, _, _ string) ([]bl.VisualDelta, error) {
+	return nil, nil
+}
+
+// SnapshotForBaseline returns the run handle immediately and finalizes (pin +
+// manifest) on a server-owned context. The pin + manifest must NOT be abandoned
+// when the client context is canceled the moment the durable run starts — the
+// finalize tail detaches via context.WithoutCancel. This is the reported
+// silent-hang/abandonment fix, now on the return-fast flow.
 func TestSnapshotTailSurvivesClientCancel(t *testing.T) {
 	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli"})
 	if err != nil {
@@ -159,6 +168,13 @@ func TestSnapshotTailSurvivesClientCancel(t *testing.T) {
 		CaptureGit: func(context.Context, string) (git.State, error) { return git.State{Branch: "agi", Sha: "abc123"}, nil },
 	})
 	srv := NewServer(Deps{Service: svc, Repos: fakeRepos{dir: "/repo"}})
+	// Run the finalize tail synchronously (still detached from the request ctx
+	// via WithoutCancel) so the durability assertion is deterministic.
+	done := make(chan error, 1)
+	srv.finalize = func(reqCtx context.Context, pending bl.PendingCapture) {
+		_, ferr := svc.FinalizeCapture(context.WithoutCancel(reqCtx), pending)
+		done <- ferr
+	}
 
 	resp, err := srv.SnapshotForBaseline(ctx, connect.NewRequest(&baselinesv1.SnapshotForBaselineRequest{
 		Scenario: "foo", Name: "snap-1", Branch: "agi",
@@ -166,14 +182,20 @@ func TestSnapshotTailSurvivesClientCancel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SnapshotForBaseline (cancel mid-run): %v", err)
 	}
+	if ferr := <-done; ferr != nil {
+		t.Fatalf("finalize failed: %v", ferr)
+	}
 	if exec.calls != 1 {
-		t.Fatalf("expected exactly one run, got %d", exec.calls)
+		t.Fatalf("expected exactly one run start, got %d", exec.calls)
 	}
 	if runs.pins != 1 {
 		t.Fatalf("pin must survive client cancel, got %d pins", runs.pins)
 	}
-	if got := resp.Msg.GetBaseline().GetName(); got != "snap-1" {
-		t.Fatalf("manifest not returned: %q", got)
+	if got := resp.Msg.GetRunId(); got != "run-xyz" {
+		t.Fatalf("snapshot must return the run id, got %q", got)
+	}
+	if got := resp.Msg.GetName(); got != "snap-1" {
+		t.Fatalf("snapshot must echo the baseline name, got %q", got)
 	}
 	// The manifest is durable on disk despite the canceled client context.
 	if _, err := svc.Get(context.Background(), 1, "foo", "agi", "snap-1"); err != nil {

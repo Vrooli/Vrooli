@@ -86,6 +86,49 @@ If those become operator controls later, they should be added only with a clear 
 - `estimateConfidence`: how much evidence supports it
 - `estimateSampleSize`: how many runs informed it
 
+## Visual Render-Health & Comparison Levers
+
+The smoke phase's all-pages capture runs a stdlib-only pixel analysis
+(`internal/visualcheck`) over each screenshot: a **render-health** check (is the
+page a blank/solid-color broken render?) and, for baseline diffs, a **pairwise
+comparison** (how much did the page change?). Both downscale to a coarse
+luminance grid so anti-aliasing/font jitter never produces false signals.
+
+Every threshold is an environment-overridable lever. Unset or out-of-range
+values fall back to the safe default (a malformed lever degrades, never fails).
+All are monotonic — "higher = stricter" is noted per lever.
+
+| Lever | Default | Range | Effect |
+|---|---|---|---|
+| `TEST_GENIE_VISUAL_GRID_SIZE` | `32` | int > 0 | Edge of the square luminance grid each image is downscaled to. Higher = finer detail (more sensitive, slower); lower = more jitter-tolerant. |
+| `TEST_GENIE_VISUAL_BLANK_FRACTION` | `0.98` | (0,1] | Share of grid cells in one luminance band for a render to be judged blank/solid (broken). Higher = stricter (only near-uniform frames are broken). |
+| `TEST_GENIE_VISUAL_MIN_VARIANCE` | `0.0005` | ≥ 0 | Grid-luminance variance at/below which a render is judged flat/broken. Higher = stricter (more frames flagged broken). |
+| `TEST_GENIE_VISUAL_PIXEL_DELTA` | `0.06` | [0,1] | Per-cell normalized luminance delta above which a cell counts as changed in a comparison. Higher = looser (small shifts ignored). |
+| `TEST_GENIE_VISUAL_CHANGED_TOLERANCE` | `0.01` | [0,1] | Share of changed cells at/below which two captures are "identical". Higher = looser (more drift tolerated as identical). |
+
+**Verdict semantics.** A clearly-broken render is a **hard failure** at smoke
+time (it fails its phase, with the page named in the message), and needs no
+baseline. Any other visual difference is surfaced by git-control-tower's baseline
+diff as the neutral, advisory **`changed`** tier ("review before/after") — it
+never gates a run (the diff exit code stays 0). Console errors are counted but
+are not, alone, a failure; network failures and broken renders are.
+
+## Run-Lifecycle Feedback Levers
+
+`test-genie execute` (and `vrooli scenario test`) own a server-durable run: the
+command returns a run id up front and either follows the run inline or
+auto-backgrounds it, so a long run never blocks an agent's tool past its timeout.
+
+| Lever | Default | Effect |
+|---|---|---|
+| `TEST_GENIE_AUTOBACKGROUND_SECONDS` | `60` | ETA (seconds) at/above which a run auto-backgrounds instead of following inline. `0` disables auto-backgrounding entirely (every run follows inline); values below `10` are clamped up to `10`. |
+| `TEST_GENIE_AUTOBACKGROUND_ON_UNKNOWN_ETA` | `1` (on) | When a run's ETA is unknown (first/unestimatable run), auto-background it (treat as potentially long) rather than following inline. `0`/`false` makes unknown-ETA runs follow inline. Moot when auto-backgrounding is disabled. |
+
+A backgrounded or interrupted run is re-attached with the streaming verb
+`test-genie runs follow <scenario> <run-id>` (prints live progress + heartbeats).
+`runs wait` blocks to the same exit code; in human mode it also streams, while
+`--json` stays a single quiet snapshot for scripts.
+
 ## See Also
 
 - [API Reference](api-endpoints.md)

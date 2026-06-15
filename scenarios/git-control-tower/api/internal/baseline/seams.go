@@ -20,6 +20,7 @@ type SurfaceDiff struct {
 	NewFailures []string // absent in baseline, failing now
 	Preexisting []string // failing in both
 	Cleared     []string // failing in baseline, passing now
+	Changed     []string // neutral, advisory differences to review (visuals); never a failure
 	Summary     string   // one-line human summary
 }
 
@@ -83,12 +84,28 @@ type CompareResult struct {
 	Phases  []PhaseDiff
 }
 
-// Executor triggers ONE comprehensive, durable test-genie run (all phases) with
-// the baseline capture profile (full diagnostics + all-pages visuals + video)
-// and returns the runID-keyed result. Diffs reuse the same comprehensive run so
-// every surface is a view over a single execution.
+// RunHandle is the immediately-returned handle for a started comprehensive run:
+// its id and ETA, available before the run completes so a snapshot can return
+// fast and the operator can follow the durable run by id.
+type RunHandle struct {
+	RunID                 string
+	EstimatedTotalSeconds int
+	EtaKnown              bool
+}
+
+// Executor drives ONE comprehensive, durable test-genie run (all phases) with
+// the baseline capture profile (full diagnostics + all-pages visuals + video).
+// It is two-phase so a snapshot can return the run handle immediately and pin
+// the baseline server-side once the durable run completes:
+//
+//   - StartRun begins the run and returns its handle without blocking.
+//   - AwaitResult blocks until the run is terminal and returns its phase results.
+//
+// Diffs reuse the same comprehensive run so every surface is a view over a
+// single execution.
 type Executor interface {
-	Execute(ctx context.Context, scenario string) (ExecResult, error)
+	StartRun(ctx context.Context, scenario string) (RunHandle, error)
+	AwaitResult(ctx context.Context, scenario, runID string) (ExecResult, error)
 }
 
 // RunVisual is one page's UI-smoke visual artifact captured by a run under the
@@ -112,6 +129,28 @@ type RunsClient interface {
 	CompareRuns(ctx context.Context, scenario, runIDA, runIDB, phase string) (CompareResult, error)
 	// ListRunVisuals enumerates the per-page visual artifacts a run captured.
 	ListRunVisuals(ctx context.Context, scenario, runID string) ([]RunVisual, error)
+	// CompareRunVisuals returns the per-page pixel-level comparison of two runs'
+	// captures. test-genie owns the visual analyzer (and its thresholds lever);
+	// GCT consumes the neutral per-page deltas and renders them as the advisory
+	// "changed" tier. The result is advisory by contract — a difference is never
+	// a failure here (a clearly-broken render fails earlier, at smoke time).
+	CompareRunVisuals(ctx context.Context, scenario, baseRunID, curRunID string) ([]VisualDelta, error)
+}
+
+// VisualDelta is one page's pixel-level comparison between two runs' captures.
+// Status is one of:
+//   - "identical": the page rendered the same within tolerance;
+//   - "changed":   the page's pixels moved (ChangedFraction carries by how much);
+//   - "added":     the page was captured now but not in the baseline;
+//   - "removed":   the page was captured in the baseline but not now.
+//
+// Every non-identical status is a neutral "review before/after" signal, not a
+// failure.
+type VisualDelta struct {
+	Page            string
+	Label           string
+	Status          string
+	ChangedFraction float64
 }
 
 // StalenessProbe computes commits and files changed since a sha. Read-only.

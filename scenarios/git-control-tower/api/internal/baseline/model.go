@@ -48,12 +48,19 @@ const (
 )
 
 // Verdict classifies a surface diff. Severity order (high→low) is
-// regression > not-comparable > new-failure > preexisting > clean, matching
-// test-genie's RunsService classifier so exit codes are consistent.
+// regression > not-comparable > new-failure > preexisting > changed > clean,
+// matching test-genie's RunsService classifier so exit codes are consistent.
+//
+// VerdictChanged is the neutral "the surface differs, review it" tier: it ranks
+// just above clean, below every verdict that signals a problem, and never
+// affects the diff exit code (it is advisory by contract). The visuals surface
+// is its sole producer — a UI that renders differently but is not broken is a
+// change to look at, not a failure to fix.
 type Verdict string
 
 const (
 	VerdictClean         Verdict = "clean"
+	VerdictChanged       Verdict = "changed"
 	VerdictRegression    Verdict = "regression"
 	VerdictNewFailure    Verdict = "new-failure"
 	VerdictPreexisting   Verdict = "preexisting"
@@ -62,10 +69,11 @@ const (
 
 var verdictRank = map[Verdict]int{
 	VerdictClean:         0,
-	VerdictPreexisting:   1,
-	VerdictNewFailure:    2,
-	VerdictNotComparable: 3,
-	VerdictRegression:    4,
+	VerdictChanged:       1,
+	VerdictPreexisting:   2,
+	VerdictNewFailure:    3,
+	VerdictNotComparable: 4,
+	VerdictRegression:    5,
 }
 
 // WorseVerdict returns the higher-severity of two verdicts. Used to roll

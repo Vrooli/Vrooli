@@ -26,27 +26,57 @@ import (
 // the live-dependency wiring lives here.
 // ---------------------------------------------------------------------------
 
-// baselineExecutor triggers ONE comprehensive, durable test-genie run with the
+// baselineExecutor drives ONE comprehensive, durable test-genie run with the
 // baseline capture profile (full diagnostics + all-pages visuals + video) via
-// the REST execute API, which is request-decoupled and returns the runID-keyed
-// result. The comprehensive preset is catalog-derived (drift-proof) in
-// test-genie, so a baseline always covers every phase.
+// the durable RunsService: StartRun returns the run handle immediately (so a
+// snapshot can return fast and pin server-side on completion), and AwaitResult
+// blocks on WaitRun then reads the terminal phase set via GetRun. The
+// comprehensive preset is catalog-derived (drift-proof) in test-genie, so a
+// baseline always covers every phase.
 type baselineExecutor struct {
-	client *TestGenieClient
+	runs baselineRunsClient
 }
 
-func (e baselineExecutor) Execute(ctx context.Context, scenario string) (baseline.ExecResult, error) {
-	res, err := e.client.ExecuteSuite(ctx, TestExecutionRequest{
-		ScenarioName:   scenario,
+func (e baselineExecutor) StartRun(ctx context.Context, scenario string) (baseline.RunHandle, error) {
+	cl, err := e.runs.client(ctx)
+	if err != nil {
+		return baseline.RunHandle{}, err
+	}
+	resp, err := cl.StartRun(ctx, connect.NewRequest(&runspb.StartRunRequest{
+		Scenario:       scenario,
 		Preset:         "comprehensive",
 		CaptureProfile: "baseline",
-	})
+	}))
+	if err != nil {
+		return baseline.RunHandle{}, err
+	}
+	return baseline.RunHandle{
+		RunID:                 resp.Msg.GetRunId(),
+		EstimatedTotalSeconds: int(resp.Msg.GetEstimatedTotalSeconds()),
+		EtaKnown:              resp.Msg.GetEtaKnown(),
+	}, nil
+}
+
+func (e baselineExecutor) AwaitResult(ctx context.Context, scenario, runID string) (baseline.ExecResult, error) {
+	cl, err := e.runs.client(ctx)
 	if err != nil {
 		return baseline.ExecResult{}, err
 	}
-	out := baseline.ExecResult{RunID: res.RunID, Success: res.Success}
-	for _, p := range res.Phases {
-		out.Phases = append(out.Phases, baseline.PhaseStatus{Name: p.Name, Status: p.Status})
+	if _, err := cl.WaitRun(ctx, connect.NewRequest(&runspb.WaitRunRequest{
+		Scenario: scenario, RunId: runID,
+	})); err != nil {
+		return baseline.ExecResult{}, err
+	}
+	got, err := cl.GetRun(ctx, connect.NewRequest(&runspb.GetRunRequest{
+		Scenario: scenario, RunId: runID,
+	}))
+	if err != nil {
+		return baseline.ExecResult{}, err
+	}
+	info := got.Msg.GetRun()
+	out := baseline.ExecResult{RunID: info.GetRunId(), Success: info.GetStatus() == "passed"}
+	for _, p := range info.GetPhases() {
+		out.Phases = append(out.Phases, baseline.PhaseStatus{Name: p.GetName(), Status: p.GetStatus()})
 	}
 	return out, nil
 }
@@ -143,6 +173,32 @@ func (c baselineRunsClient) ListRunVisuals(ctx context.Context, scenario, runID 
 			Label:               v.GetLabel(),
 			ScreenshotRelPath:   v.GetScreenshotRelPath(),
 			ScreenshotSizeBytes: v.GetScreenshotSizeBytes(),
+		})
+	}
+	return out, nil
+}
+
+// CompareRunVisuals asks test-genie (the owner of the visual analyzer) to
+// compare two runs' captures and returns the neutral per-page deltas GCT renders
+// as the advisory "changed" tier.
+func (c baselineRunsClient) CompareRunVisuals(ctx context.Context, scenario, baseRunID, curRunID string) ([]baseline.VisualDelta, error) {
+	cl, err := c.client(ctx)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := cl.CompareRunVisuals(ctx, connect.NewRequest(&runspb.CompareRunVisualsRequest{
+		Scenario: scenario, BaseRunId: baseRunID, CurrentRunId: curRunID,
+	}))
+	if err != nil {
+		return nil, err
+	}
+	out := make([]baseline.VisualDelta, 0, len(resp.Msg.GetDeltas()))
+	for _, d := range resp.Msg.GetDeltas() {
+		out = append(out, baseline.VisualDelta{
+			Page:            d.GetPage(),
+			Label:           d.GetLabel(),
+			Status:          d.GetStatus(),
+			ChangedFraction: d.GetChangedFraction(),
 		})
 	}
 	return out, nil
@@ -279,7 +335,11 @@ func (r baselineRepoResolver) Resolve(ctx context.Context, repoID int64) (int64,
 // (structure, rules, tests, workflows, visuals) is a phase-set / artifact view
 // over that single run. GCT owns no run history — test-genie does (Decision 3).
 func (s *Server) newBaselineService() *baseline.Service {
-	exec := baselineExecutor{client: s.testGenieClient}
+	// 30-minute timeout: AwaitResult's WaitRun blocks server-side until the
+	// comprehensive run is terminal, so the executor's client must outlast a long
+	// run (bounded the same as the detached snapshot tail).
+	execRuns := newBaselineRunsClient(30 * time.Minute)
+	exec := baselineExecutor{runs: execRuns}
 	// 15-minute timeout: a diff triggers a fresh comprehensive run before
 	// comparing.
 	runs := newBaselineRunsClient(15 * time.Minute)

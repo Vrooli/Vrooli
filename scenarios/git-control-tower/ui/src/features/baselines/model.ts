@@ -38,7 +38,13 @@ export function surfaceLabel(id: string): string {
 
 // ── Verdicts ──────────────────────────────────────────────────────────────
 
-export type Verdict = "clean" | "regression" | "new-failure" | "preexisting" | "not-comparable";
+export type Verdict =
+  | "clean"
+  | "changed"
+  | "regression"
+  | "new-failure"
+  | "preexisting"
+  | "not-comparable";
 
 export interface VerdictMeta {
   label: string;
@@ -50,6 +56,10 @@ export interface VerdictMeta {
 
 const VERDICT_META: Record<string, VerdictMeta> = {
   clean: { label: "Clean", variant: "success", isRegression: false },
+  // "changed" is the neutral, advisory visual tier — the UI moved and is worth a
+  // look, but it is NOT a failure (it never gates). Rendered as an informational
+  // badge, distinct from both clean and the failure verdicts.
+  changed: { label: "Changed — review", variant: "info", isRegression: false },
   regression: { label: "Regression", variant: "error", isRegression: true },
   "new-failure": { label: "New failure", variant: "warning", isRegression: false },
   preexisting: { label: "Preexisting", variant: "default", isRegression: false },

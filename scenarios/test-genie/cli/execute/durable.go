@@ -65,9 +65,19 @@ func RunDurable(baseURL string, req Request, opts DurableOptions) error {
 		return followJSONL(ctx, client, req.ScenarioName, runID, os.Stdout)
 	}
 
-	// Auto-background a known-long run unless the caller forced --wait.
-	if threshold, enabled := autoBackgroundThreshold(); !opts.Wait && enabled && etaKnown && eta >= threshold {
-		fmt.Fprintf(os.Stderr, "\n⏳ Estimated at %s — running in the background so your shell returns now.\n", humanDuration(eta))
+	// Auto-background a known-long run — or a run whose ETA is unknown (which
+	// could be long) — unless the caller forced --wait. A known-short run follows
+	// inline. This keeps an agent's tool from blocking past its timeout on a long
+	// or unestimatable run.
+	threshold, enabled := autoBackgroundThreshold()
+	knownLong := etaKnown && eta >= threshold
+	unknownLong := !etaKnown && autoBackgroundOnUnknownETA()
+	if !opts.Wait && enabled && (knownLong || unknownLong) {
+		if etaKnown {
+			fmt.Fprintf(os.Stderr, "\n⏳ Estimated at %s — running in the background so your shell returns now.\n", humanDuration(eta))
+		} else {
+			fmt.Fprintf(os.Stderr, "\n⏳ ETA unknown (treating as long) — running in the background so your shell returns now.\n")
+		}
 		fmt.Fprintf(os.Stderr, "   Block on the result with:\n     %s\n", reattachCommand(req.ScenarioName, runID))
 		return nil
 	}
@@ -264,7 +274,8 @@ func printRunBanner(w io.Writer, scenario, runID string, eta int, etaKnown bool)
 		etaStr = humanDuration(eta)
 	}
 	fmt.Fprintf(w, "▶ run %s started (estimated %s)\n", runID, etaStr)
-	fmt.Fprintf(w, "  if this command is interrupted, the run keeps going — re-attach with:\n    %s\n\n", reattachCommand(scenario, runID))
+	fmt.Fprintf(w, "  The test-genie server owns this run — if your shell or tool times out, the run keeps going.\n")
+	fmt.Fprintf(w, "  That is expected and recoverable: re-attach to live progress with\n    %s\n\n", reattachCommand(scenario, runID))
 }
 
 func printDetached(w io.Writer, scenario, runID string) {

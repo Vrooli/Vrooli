@@ -11,14 +11,11 @@ package baseline
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"os"
-	"os/signal"
 	"sort"
 	"strings"
-	"syscall"
 	"time"
 
 	"connectrpc.com/connect"
@@ -48,6 +45,11 @@ const (
 // abort mid-run, so the baseline client gets its own long, bounded deadline.
 const baselineClientTimeout = 30 * time.Minute
 
+// snapshotStartCeiling bounds the snapshot START call. The RPC returns as soon as
+// the durable run has started (git read + reachability probe + StartRun), so this
+// is small — the heavy run continues server-side and is followed by run id.
+const snapshotStartCeiling = 2 * time.Minute
+
 // clientFactory builds the BaselinesService Connect client. Overridable in tests.
 var clientFactory = func(core *cliapp.ScenarioApp) baselines_v1connect.BaselinesServiceClient {
 	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(core, baselineClientTimeout)
@@ -61,7 +63,7 @@ var clientFactory = func(core *cliapp.ScenarioApp) baselines_v1connect.Baselines
 // engagement.go + promote.go).
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	subcommands := []cliapp.Command{
-		{Name: "snapshot", NeedsAPI: true, Description: "Capture a baseline from one durable test-genie run (--scenario --name [--branch] [--include w,t,...] [--fast|--full] [--reason]); Ctrl-C detaches (re-attach via test-genie runs wait), never aborts", Run: func(a []string) error { return runSnapshot(core, a) }},
+		{Name: "snapshot", NeedsAPI: true, Description: "Capture a baseline from one durable test-genie run (--scenario --name [--branch] [--include w,t,...] [--fast|--full] [--reason]); Ctrl-C detaches (re-attach via test-genie runs follow), never aborts", Run: func(a []string) error { return runSnapshot(core, a) }},
 		{Name: "diff", NeedsAPI: true, Description: "Diff a baseline against the working tree (--scenario --name [--branch] [--surface]); exit 1 on regression, 2 on not-comparable", Run: func(a []string) error { return runDiff(core, a) }},
 		{Name: "list", NeedsAPI: true, Description: "List baselines (--scenario [--branch] [--all-branches])", Run: func(a []string) error { return runList(core, a) }},
 		{Name: "show", NeedsAPI: true, Description: "Show one baseline (--scenario --name [--branch])", Run: func(a []string) error { return runShow(core, a) }},
@@ -130,22 +132,16 @@ func runSnapshot(core *cliapp.ScenarioApp, args []string) error {
 		fast = false
 	}
 
-	// Up-front signal (signal-and-feedback-surface-design): a snapshot triggers
-	// ONE comprehensive, server-durable test-genie run. The heavy work survives
-	// this CLI disconnecting; we just block to relay the verdict. Tell the
-	// operator that before the long wait so it never reads as a silent hang.
+	// A snapshot now STARTS one comprehensive, server-durable run and returns its
+	// handle immediately (the pin happens server-side on completion). So the CLI
+	// returns fast with the run id + ETA + a streaming follow command, instead of
+	// blocking silently for the whole run.
 	if !c.json {
-		fmt.Printf("Capturing baseline %q for %s — triggering one comprehensive test-genie run (durable server-side).\n", c.name, c.scenario)
-		fmt.Printf("  The run continues even if this command is interrupted; bounded client deadline %s.\n", humanDuration(baselineClientTimeout))
-		fmt.Printf("  If the wait drops, find the run with: test-genie runs list --scenario %s   then re-attach: test-genie runs wait %s <run-id>\n", c.scenario, c.scenario)
+		fmt.Printf("Capturing baseline %q for %s — starting one comprehensive test-genie run...\n", c.name, c.scenario)
 	}
 
-	// Bounded deadline (not bare context.Background()) so the CLI can never hang
-	// forever; SIGINT detaches WITHOUT aborting the server-side run.
-	ctx, cancel := context.WithTimeout(context.Background(), baselineClientTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), snapshotStartCeiling)
 	defer cancel()
-	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
-	defer stop()
 
 	client := clientFactory(core)
 	resp, err := client.SnapshotForBaseline(ctx, connect.NewRequest(&baselinesv1.SnapshotForBaselineRequest{
@@ -153,13 +149,6 @@ func runSnapshot(core *cliapp.ScenarioApp, args []string) error {
 		Include: splitCSV(include), Fast: fast, Reason: reason, CreatedBy: "agent",
 	}))
 	if err != nil {
-		// Cancel ≠ abort: an interrupt or deadline detaches from the durable
-		// run, it does not stop it. Guide the operator back to it and exit 0.
-		if isDetach(ctx, err) {
-			fmt.Fprintf(os.Stderr, "\nDetached from the snapshot — the comprehensive run continues server-side (not aborted).\n")
-			fmt.Fprintf(os.Stderr, "Re-attach: test-genie runs list --scenario %s   then: test-genie runs wait %s <run-id>\n", c.scenario, c.scenario)
-			return nil
-		}
 		return err
 	}
 	if c.json {
@@ -167,18 +156,6 @@ func runSnapshot(core *cliapp.ScenarioApp, args []string) error {
 	}
 	printSnapshot(resp.Msg)
 	return nil
-}
-
-// humanDuration renders a duration compactly (e.g. "30m0s") for the snapshot
-// banner. Trivial wrapper kept local so the banner reads in one place.
-func humanDuration(d time.Duration) string { return d.String() }
-
-// isDetach reports whether a SnapshotForBaseline error is a client-side
-// detach (interrupt or bounded-deadline elapsed) rather than a real failure.
-// A detach is NOT an abort: the durable run continues server-side, so the CLI
-// exits 0 with re-attach guidance instead of surfacing an error.
-func isDetach(ctx context.Context, err error) bool {
-	return ctx.Err() != nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
 }
 
 func runDiff(core *cliapp.ScenarioApp, args []string) error {
@@ -348,9 +325,10 @@ func runEdit(core *cliapp.ScenarioApp, args []string) error {
 }
 
 // exitCodeForVerdict maps the overall diff verdict to a process exit code.
-// regression → 1; not-comparable → 2; new-failure/preexisting/clean → 0
-// (new failures and preexisting failures are not caused by the current change,
-// so they do not block — Plan A §3.2 / Decision 5).
+// regression → 1; not-comparable → 2; changed/new-failure/preexisting/clean → 0
+// (new/preexisting failures are not caused by the current change, and `changed`
+// is the neutral advisory visual tier — none of them block — Plan A §3.2 /
+// Decision 5).
 func exitCodeForVerdict(verdict string) int {
 	switch verdict {
 	case "regression":

@@ -105,32 +105,9 @@ type CreateResult struct {
 // If the comprehensive run cannot be triggered every requested surface is
 // recorded in Skipped (so a partial baseline never masquerades as complete).
 func (s *Service) Create(ctx context.Context, req CreateRequest) (CreateResult, error) {
-	if strings.TrimSpace(req.Name) == "" {
-		return CreateResult{}, fmt.Errorf("baseline name is required")
-	}
-	gitState, err := s.captureGit(ctx, req.RepoDir)
+	manifest, err := s.buildManifestSkeleton(ctx, req)
 	if err != nil {
-		return CreateResult{}, fmt.Errorf("read git state: %w", err)
-	}
-	branch := strings.TrimSpace(req.Branch)
-	if branch == "" {
-		branch = ResolveStorageBranch(gitState)
-	}
-
-	// Fail fast if it already exists (Save also enforces this atomically).
-	if _, err := s.storage.Load(req.RepoID, req.Scenario, branch, req.Name); err == nil {
-		return CreateResult{}, ErrAlreadyExists
-	}
-
-	manifest := BaselineManifest{
-		Name:          req.Name,
-		Scenario:      req.Scenario,
-		Branch:        branch,
-		CreatedAt:     s.now().UTC(),
-		CreatedBy:     req.CreatedBy,
-		Git:           gitState,
-		Surfaces:      map[string]SurfacePointer{},
-		SchemaVersion: SchemaVersion,
+		return CreateResult{}, err
 	}
 
 	want := req.Include
@@ -140,7 +117,19 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (CreateResult, 
 
 	skipped := map[string]string{}
 	if req.Capture {
-		s.capture(ctx, &manifest, req, want, skipped)
+		// Synchronous capture (start → await → fill). The durable, return-fast
+		// path is StartCapture/FinalizeCapture; Create stays the simple blocking
+		// form used by CreateBaseline (Capture=false) and tests.
+		if h, startErr := s.startCaptureRun(ctx, req.Scenario, want, skipped); startErr == nil {
+			res, awaitErr := s.exec.AwaitResult(ctx, req.Scenario, h.RunID)
+			if awaitErr != nil {
+				for _, id := range want {
+					skipped[id] = "comprehensive run failed: " + awaitErr.Error()
+				}
+			} else {
+				s.fillSurfaces(ctx, &manifest, req, want, skipped, res)
+			}
+		}
 	}
 	if len(skipped) > 0 {
 		manifest.Skipped = skipped
@@ -152,38 +141,145 @@ func (s *Service) Create(ctx context.Context, req CreateRequest) (CreateResult, 
 	}
 
 	res := CreateResult{Manifest: manifest, Skipped: skipped}
-	if gitState.Dirty {
-		res.DirtyWarning = fmt.Sprintf("baseline captured against dirty tree (%s) — comparisons may be muddled by uncommitted changes", gitState.DirtySummary)
+	if manifest.Git.Dirty {
+		res.DirtyWarning = dirtyCaptureWarning(manifest.Git.DirtySummary)
 	}
 	return res, nil
 }
 
-// capture triggers the single comprehensive run, pins it once, and fills in one
-// pointer per requested surface (all referencing the shared run). On failure it
-// records every requested surface as skipped.
-func (s *Service) capture(ctx context.Context, manifest *BaselineManifest, req CreateRequest, want []string, skipped map[string]string) {
+// PendingCapture is the handle StartCapture hands to FinalizeCapture: everything
+// needed to pin the run and write the manifest once the durable run completes.
+type PendingCapture struct {
+	Manifest     BaselineManifest
+	Req          CreateRequest
+	Want         []string
+	Run          RunHandle
+	DirtyWarning string
+}
+
+// StartCapture validates the request, captures git state, starts ONE
+// comprehensive durable run, and returns its handle WITHOUT waiting for it to
+// finish. The caller (the Connect handler) returns the handle to the client
+// immediately and hands the PendingCapture to FinalizeCapture on a server-owned
+// context so the pin + manifest survive client disconnect.
+func (s *Service) StartCapture(ctx context.Context, req CreateRequest) (PendingCapture, error) {
+	manifest, err := s.buildManifestSkeleton(ctx, req)
+	if err != nil {
+		return PendingCapture{}, err
+	}
+
+	want := req.Include
+	if len(want) == 0 {
+		want = AllSurfaces
+	}
+
+	if reason := s.reachabilityError(ctx); reason != "" {
+		return PendingCapture{}, fmt.Errorf("test-genie is not reachable: %s", reason)
+	}
+	h, err := s.exec.StartRun(ctx, req.Scenario)
+	if err != nil {
+		return PendingCapture{}, fmt.Errorf("start comprehensive run: %w", err)
+	}
+	if h.RunID == "" {
+		return PendingCapture{}, fmt.Errorf("test-genie returned no run id")
+	}
+
+	pending := PendingCapture{Manifest: manifest, Req: req, Want: want, Run: h}
+	if manifest.Git.Dirty {
+		pending.DirtyWarning = dirtyCaptureWarning(manifest.Git.DirtySummary)
+	}
+	return pending, nil
+}
+
+// FinalizeCapture blocks until the started run is terminal, pins it once, fills
+// the surface pointers, and writes the manifest. It runs on a server-owned
+// context so a disconnected client never abandons a half-pinned baseline.
+func (s *Service) FinalizeCapture(ctx context.Context, pending PendingCapture) (CreateResult, error) {
+	manifest := pending.Manifest
+	skipped := map[string]string{}
+
+	res, err := s.exec.AwaitResult(ctx, pending.Req.Scenario, pending.Run.RunID)
+	if err != nil {
+		for _, id := range pending.Want {
+			skipped[id] = "comprehensive run failed: " + err.Error()
+		}
+	} else {
+		s.fillSurfaces(ctx, &manifest, pending.Req, pending.Want, skipped, res)
+	}
+	if len(skipped) > 0 {
+		manifest.Skipped = skipped
+	}
+	if err := s.storage.Save(pending.Req.RepoID, manifest, CreateOnly); err != nil {
+		s.unpinRun(ctx, manifest)
+		return CreateResult{}, err
+	}
+	out := CreateResult{Manifest: manifest, Skipped: skipped, DirtyWarning: pending.DirtyWarning}
+	return out, nil
+}
+
+// buildManifestSkeleton validates the request, reads git state, resolves the
+// branch, and fails fast if the baseline already exists. It returns the
+// not-yet-captured manifest skeleton (its resolved branch is manifest.Branch).
+func (s *Service) buildManifestSkeleton(ctx context.Context, req CreateRequest) (BaselineManifest, error) {
+	if strings.TrimSpace(req.Name) == "" {
+		return BaselineManifest{}, fmt.Errorf("baseline name is required")
+	}
+	gitState, err := s.captureGit(ctx, req.RepoDir)
+	if err != nil {
+		return BaselineManifest{}, fmt.Errorf("read git state: %w", err)
+	}
+	branch := strings.TrimSpace(req.Branch)
+	if branch == "" {
+		branch = ResolveStorageBranch(gitState)
+	}
+	if _, err := s.storage.Load(req.RepoID, req.Scenario, branch, req.Name); err == nil {
+		return BaselineManifest{}, ErrAlreadyExists
+	}
+	return BaselineManifest{
+		Name:          req.Name,
+		Scenario:      req.Scenario,
+		Branch:        branch,
+		CreatedAt:     s.now().UTC(),
+		CreatedBy:     req.CreatedBy,
+		Git:           gitState,
+		Surfaces:      map[string]SurfacePointer{},
+		SchemaVersion: SchemaVersion,
+	}, nil
+}
+
+// startCaptureRun checks reachability and starts the run for the synchronous
+// Create path, recording a skip reason per surface on failure.
+func (s *Service) startCaptureRun(ctx context.Context, scenario string, want []string, skipped map[string]string) (RunHandle, error) {
 	if reason := s.reachabilityError(ctx); reason != "" {
 		for _, id := range want {
 			skipped[id] = reason
 		}
-		return
+		return RunHandle{}, fmt.Errorf("unreachable")
 	}
-
-	res, err := s.exec.Execute(ctx, req.Scenario)
-	if err != nil {
-		for _, id := range want {
-			skipped[id] = "comprehensive run failed: " + err.Error()
+	h, err := s.exec.StartRun(ctx, scenario)
+	if err != nil || h.RunID == "" {
+		reason := "test-genie returned no run id"
+		if err != nil {
+			reason = "comprehensive run failed: " + err.Error()
 		}
-		return
+		for _, id := range want {
+			skipped[id] = reason
+		}
+		return RunHandle{}, fmt.Errorf("start run")
 	}
+	return h, nil
+}
+
+// fillSurfaces pins the shared run once and fills one pointer per requested
+// surface (all referencing the run). On pin failure it records every surface as
+// skipped.
+func (s *Service) fillSurfaces(ctx context.Context, manifest *BaselineManifest, req CreateRequest, want []string, skipped map[string]string, res ExecResult) {
 	if res.RunID == "" {
 		for _, id := range want {
 			skipped[id] = "test-genie returned no runID"
 		}
 		return
 	}
-
-	// Pin the shared run ONCE for the whole baseline.
 	if err := s.runs.PinRun(ctx, req.Scenario, res.RunID, PinOwner(req.Name), "baseline:"+req.Name); err != nil {
 		for _, id := range want {
 			skipped[id] = "pin run " + res.RunID + ": " + err.Error()
@@ -210,6 +306,23 @@ func (s *Service) capture(ctx context.Context, manifest *BaselineManifest, req C
 			manifest.Surfaces[id] = phaseSurfacePointer(id, res.RunID, phases, phaseStatus, now)
 		}
 	}
+}
+
+// runToCompletion starts a comprehensive run and blocks for its result. Used by
+// Diff, which needs the current comparison run synchronously (the diff is an
+// inline operation, not a durable pin).
+func (s *Service) runToCompletion(ctx context.Context, scenario string) (ExecResult, error) {
+	h, err := s.exec.StartRun(ctx, scenario)
+	if err != nil {
+		return ExecResult{}, err
+	}
+	return s.exec.AwaitResult(ctx, scenario, h.RunID)
+}
+
+// dirtyCaptureWarning is the standard warning when a baseline is captured
+// against a dirty working tree.
+func dirtyCaptureWarning(summary string) string {
+	return fmt.Sprintf("baseline captured against dirty tree (%s) — comparisons may be muddled by uncommitted changes", summary)
 }
 
 // phaseSurfacePointer builds a surface's pointer (referencing the shared run)
@@ -366,7 +479,7 @@ func (s *Service) diffSurfaces(ctx context.Context, scenario, baseRunID string, 
 		return
 	}
 
-	cur, err := s.exec.Execute(ctx, scenario)
+	cur, err := s.runToCompletion(ctx, scenario)
 	if err != nil || cur.RunID == "" {
 		reason := "could not run current comprehensive suite"
 		if err != nil {
@@ -435,69 +548,43 @@ func bucketPhaseDiffs(cmp CompareResult) map[string]SurfaceDiff {
 	return out
 }
 
-// visualsDiff compares the two runs' visual artifacts at the metadata level
-// (page set + screenshot count) via test-genie's ListRunVisuals.
+// visualsDiff compares the two runs' visual artifacts at the pixel level via
+// test-genie's CompareRunVisuals (test-genie owns the analyzer). The visuals
+// surface is purely advisory: every per-page difference is reported as a neutral
+// "review before/after" signal, never a failure. A clearly-broken render is
+// caught earlier — at smoke time, where it fails its phase — so it surfaces on
+// the test/smoke surface, not here. This keeps one concept per surface: smoke is
+// the pass/fail authority; the visuals diff answers "did the UI move?".
 func (s *Service) visualsDiff(ctx context.Context, scenario, baseRunID, curRunID string) SurfaceDiff {
-	base, err := s.runs.ListRunVisuals(ctx, scenario, baseRunID)
+	deltas, err := s.runs.CompareRunVisuals(ctx, scenario, baseRunID, curRunID)
 	if err != nil {
-		return notComparable(SurfaceVisuals, "load baseline visuals: "+err.Error())
+		return notComparable(SurfaceVisuals, "compare visuals: "+err.Error())
 	}
-	cur, err := s.runs.ListRunVisuals(ctx, scenario, curRunID)
-	if err != nil {
-		return notComparable(SurfaceVisuals, "load current visuals: "+err.Error())
-	}
-	return diffVisuals(base, cur)
+	return diffVisuals(deltas)
 }
 
-// diffVisuals compares two runs' visual artifacts at the metadata level. A page
-// captured at baseline but no longer captured is a regression; new pages or a
-// changed screenshot count are drift (new-failure — inspect side-by-side in the
-// UI); identical structure is clean.
-func diffVisuals(base, cur []RunVisual) SurfaceDiff {
+// diffVisuals folds per-page visual deltas into the advisory `changed` tier.
+// Any non-identical page (changed pixels, added, or removed) is a neutral review
+// item; the surface verdict is `changed` when there is at least one, else
+// `clean`. It never emits a failing verdict — visuals are advisory by contract.
+func diffVisuals(deltas []VisualDelta) SurfaceDiff {
 	d := SurfaceDiff{SurfaceID: SurfaceVisuals, Verdict: VerdictClean}
-
-	basePages, baseShots := visualIndex(base)
-	curPages, curShots := visualIndex(cur)
-
-	for p := range basePages {
-		if !curPages[p] {
-			d.Regressions = append(d.Regressions, "page no longer captured: "+p)
+	for _, delta := range deltas {
+		switch delta.Status {
+		case "changed":
+			d.Changed = append(d.Changed, fmt.Sprintf("%s changed (%.0f%% of frame)", delta.Page, delta.ChangedFraction*100))
+		case "added":
+			d.Changed = append(d.Changed, fmt.Sprintf("%s captured now, absent in baseline (review)", delta.Page))
+		case "removed":
+			d.Changed = append(d.Changed, fmt.Sprintf("%s captured in baseline, absent now (review)", delta.Page))
 		}
 	}
-	for p := range curPages {
-		if !basePages[p] {
-			d.NewFailures = append(d.NewFailures, "new page: "+p)
-		}
-	}
-	if len(d.Regressions) == 0 && len(d.NewFailures) == 0 && baseShots != curShots {
-		d.NewFailures = append(d.NewFailures, fmt.Sprintf("screenshot count changed: %d → %d (inspect in UI)", baseShots, curShots))
-	}
-	sort.Strings(d.Regressions)
-	sort.Strings(d.NewFailures)
-
-	switch {
-	case len(d.Regressions) > 0:
-		d.Verdict = VerdictRegression
-	case len(d.NewFailures) > 0:
-		d.Verdict = VerdictNewFailure
-	default:
-		d.Verdict = VerdictClean
+	sort.Strings(d.Changed)
+	if len(d.Changed) > 0 {
+		d.Verdict = VerdictChanged
 	}
 	d.Summary = summarizeVerdict(d)
 	return d
-}
-
-// visualIndex returns the set of captured pages and the count of pages that
-// produced a screenshot.
-func visualIndex(vis []RunVisual) (pages map[string]bool, screenshots int) {
-	pages = map[string]bool{}
-	for _, v := range vis {
-		pages[v.Page] = true
-		if v.ScreenshotRelPath != "" {
-			screenshots++
-		}
-	}
-	return pages, screenshots
 }
 
 // appendSurface adds a surface diff and rolls its verdict into the overall one.
@@ -519,6 +606,8 @@ func summarizeVerdict(d SurfaceDiff) string {
 			return fmt.Sprintf("no regressions (%d cleared)", len(d.Cleared))
 		}
 		return "no change"
+	case VerdictChanged:
+		return fmt.Sprintf("%d change(s) to review (not a failure)", len(d.Changed))
 	case VerdictRegression:
 		return fmt.Sprintf("%d regression(s)", len(d.Regressions))
 	case VerdictNewFailure:

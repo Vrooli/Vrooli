@@ -106,8 +106,14 @@ func ToEvidence(tl *ParsedTimeline, opts ToEvidenceOptions) evidence.Evidence {
 
 // pageErrorsFromTimeline derives page-level failures from the run's end state. A
 // blank final DOM (no rendered content) is reported as a page error so the
-// analyzer surfaces a UI that loaded but rendered nothing — the playbooks
-// equivalent of smoke's blank detection.
+// analyzer surfaces a UI that loaded but rendered nothing.
+//
+// This is the playbooks authority for "the page is blank": playbooks observe a
+// DOM timeline, not a screenshot, so they detect blankness structurally. The
+// smoke phase, which captures screenshots, uses the pixel render-health check
+// (internal/visualcheck via Evidence.RenderBroken) instead. One concept, two
+// producers, each scoped to the evidence it actually has — they never run over
+// the same capture, so a blank page is reported exactly once.
 func pageErrorsFromTimeline(tl *ParsedTimeline) []evidence.PageError {
 	if tl == nil {
 		return nil

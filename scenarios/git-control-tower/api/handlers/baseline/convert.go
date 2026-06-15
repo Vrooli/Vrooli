@@ -72,6 +72,7 @@ func surfaceDiffToProto(d bl.SurfaceDiff) *baselinesv1.SurfaceDiff {
 		NewFailures: d.NewFailures,
 		Preexisting: d.Preexisting,
 		Cleared:     d.Cleared,
+		Changed:     d.Changed,
 		Summary:     d.Summary,
 	}
 }

@@ -1,7 +1,11 @@
 package smoke
 
 import (
+	"bytes"
 	"context"
+	"image"
+	"image/color"
+	"image/png"
 	"os"
 	"path/filepath"
 	"testing"
@@ -12,6 +16,27 @@ import (
 
 	capturepb "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture"
 )
+
+// writeSolidScreenshot writes a real solid-color PNG (a clearly broken render)
+// and returns a capture response pointing at it.
+func writeSolidScreenshot(t *testing.T, name string, c color.Color) *capturepb.CaptureResponse {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, 64, 48))
+	for y := 0; y < 48; y++ {
+		for x := 0; x < 64; x++ {
+			img.Set(x, y, c)
+		}
+	}
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), name)
+	if err := os.WriteFile(path, buf.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return screenshotResponse(path)
+}
 
 // lighthouseScenario writes a scenario dir with a UI and a multi-page
 // lighthouse.json so all-pages discovery yields more than the fallback page.
@@ -171,6 +196,51 @@ func TestBaselineProfile_FailingPageDemotesResult(t *testing.T) {
 	}
 	if result.Status != StatusFailed {
 		t.Fatalf("status = %v, want failed (a broken page must demote the result)", result.Status)
+	}
+}
+
+// TestBaselineProfile_BlankRenderHardFails verifies a page whose screenshot is
+// a solid color (a clearly-broken render) demotes the overall result via the
+// pixel render-health check — even with a clean handshake and no network/page
+// errors. The page-named blank message must surface.
+func TestBaselineProfile_BlankRenderHardFails(t *testing.T) {
+	dir := lighthouseScenario(t, `[{"path":"/"},{"path":"/blank"}]`)
+
+	workflow := &browsercapture.FakeWorkflowClient{Timeline: handshakeTimeline(true, "ref"), Asset: []byte("PNG")}
+	capture := &browsercapture.FakeCaptureClient{
+		Responses: map[string]*capturepb.CaptureResponse{
+			"scenario=demo,path=/":      writeServerScreenshot(t, "root.png"), // non-PNG bytes → render-health skipped
+			"scenario=demo,path=/blank": writeSolidScreenshot(t, "blank.png", color.RGBA{255, 255, 255, 255}),
+		},
+	}
+	mc := browsercapture.NewMultiCapturer(capture)
+
+	runner := NewRunner(browsercapture.New(workflow),
+		WithUIURL("http://localhost:3000"),
+		WithAllPagesCapture(mc, false),
+	)
+
+	result, err := runner.Run(context.Background(), "demo", dir, "run-blank")
+	if err != nil {
+		t.Fatalf("Run error: %v", err)
+	}
+	if result.Status != StatusFailed {
+		t.Fatalf("status = %v, want failed (a blank render must demote the result)", result.Status)
+	}
+	var blank *PageCapture
+	for i := range result.PageCaptures {
+		if result.PageCaptures[i].Page == "/blank" {
+			blank = &result.PageCaptures[i]
+		}
+	}
+	if blank == nil {
+		t.Fatal("missing /blank page capture")
+	}
+	if blank.Status != StatusFailed {
+		t.Fatalf("/blank status = %v, want failed", blank.Status)
+	}
+	if !bytes.Contains([]byte(blank.Message), []byte("blank/solid color")) {
+		t.Fatalf("/blank message = %q, want it to name a blank/solid render", blank.Message)
 	}
 }
 
