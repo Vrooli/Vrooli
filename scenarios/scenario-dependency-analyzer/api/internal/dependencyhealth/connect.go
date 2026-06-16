@@ -749,7 +749,7 @@ func (h *connectHandler) evaluateDrift(ctx context.Context, scenario string) (*h
 	status := "pass"
 	summary := "Declared scenario dependencies match import evidence."
 	if len(findings) > 0 {
-		status = "warn"
+		status = statusFromFindings(findings, "graph")
 		summary = fmt.Sprintf("%d dependency graph drift finding(s).", len(findings))
 	}
 	out := section("graph", "Dependency graph drift", status, summary)

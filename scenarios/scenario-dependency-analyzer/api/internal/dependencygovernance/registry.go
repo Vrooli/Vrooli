@@ -208,6 +208,9 @@ func (r *Registry) ValidateObserved(scenario string, observed []*governancev1.Ob
 	for _, dep := range observed {
 		record := byKey[recordKey(dep.GetEcosystem(), dep.GetPackageName())]
 		if record == nil {
+			if isUnrecordedTransitiveDependency(dep) {
+				continue
+			}
 			findings = append(findings, governanceFinding(dep, "WARNING", "Dependency needs governance review", "This dependency is not yet recorded in approved dependency memory.", "Keep the dependency if it is the right tool, and submit purpose, version/range, alternatives considered, and security/license notes for review.", dep.GetVersion(), "recorded approval, constraint, deprecation, or block decision"))
 			continue
 		}
@@ -456,7 +459,12 @@ func scanGoMod(path string) ([]*governancev1.ObservedDependency, error) {
 }
 
 func parseGoRequire(line, path string) *governancev1.ObservedDependency {
-	line = strings.Split(line, "//")[0]
+	group := "require"
+	parts := strings.SplitN(line, "//", 2)
+	line = parts[0]
+	if len(parts) == 2 && strings.Contains(parts[1], "indirect") {
+		group = "require_indirect"
+	}
 	fields := strings.Fields(line)
 	if len(fields) < 2 {
 		return nil
@@ -466,8 +474,12 @@ func parseGoRequire(line, path string) *governancev1.ObservedDependency {
 		PackageName:     fields[0],
 		Version:         fields[1],
 		FilePath:        filepath.ToSlash(path),
-		DependencyGroup: "require",
+		DependencyGroup: group,
 	}
+}
+
+func isUnrecordedTransitiveDependency(dep *governancev1.ObservedDependency) bool {
+	return sameFold(dep.GetEcosystem(), "go") && sameFold(dep.GetDependencyGroup(), "require_indirect")
 }
 
 func governanceFinding(dep *governancev1.ObservedDependency, severity, title, description, remediation, observed, expected string) *governancev1.ApprovedDependencyFinding {

@@ -121,6 +121,20 @@ func TestFinalizeCountsSeverityAndDegradedDependencies(t *testing.T) {
 	}
 }
 
+func TestStatusFromFindingsTreatsInfoOnlyAsPass(t *testing.T) {
+	findings := []*healthv1.DependencyHealthFinding{
+		{SourceDomain: "graph", Severity: "INFO"},
+		{SourceDomain: "governance", Severity: "WARNING"},
+	}
+
+	if got := statusFromFindings(findings, "graph"); got != "pass" {
+		t.Fatalf("graph status = %q, want pass for info-only findings", got)
+	}
+	if got := statusFromFindings(findings, "governance"); got != "warn" {
+		t.Fatalf("governance status = %q, want warn", got)
+	}
+}
+
 func TestRuntimeDependencyHealthReportsRequiredResourceAndScenarioFailures(t *testing.T) {
 	tmp := t.TempDir()
 	scenarioDir := filepath.Join(tmp, "demo")

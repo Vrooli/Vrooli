@@ -46,6 +46,37 @@ func TestValidateObservedWarnsForUnrecordedDependencyWithoutFailing(t *testing.T
 	}
 }
 
+func TestValidateObservedDoesNotWarnForUnrecordedIndirectGoDependency(t *testing.T) {
+	repoRoot := t.TempDir()
+	writeRegistry(t, repoRoot, `{"records":[]}`)
+	registry := NewRegistry(repoRoot)
+
+	resp, err := registry.ValidateObserved("demo", []*governancev1.ObservedDependency{
+		{
+			Ecosystem:       "go",
+			PackageName:     "golang.org/x/sys",
+			Version:         "v0.29.0",
+			FilePath:        "scenarios/demo/api/go.mod",
+			DependencyGroup: "require_indirect",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !resp.GetPassed() {
+		t.Fatalf("unrecorded indirect Go dependency should not fail")
+	}
+	if got := len(resp.GetFindings()); got != 0 {
+		t.Fatalf("findings = %d, want 0 for unrecorded indirect Go dependency", got)
+	}
+	if got := resp.GetSummary().GetObserved(); got != 1 {
+		t.Fatalf("observed = %d, want indirect dependency retained in observed output", got)
+	}
+	if got := resp.GetSummary().GetUnrecorded(); got != 0 {
+		t.Fatalf("unrecorded = %d, want 0 for suppressed indirect dependency", got)
+	}
+}
+
 func TestValidateObservedFailsForBlockedDependency(t *testing.T) {
 	repoRoot := t.TempDir()
 	writeRegistry(t, repoRoot, `{
@@ -75,6 +106,72 @@ func TestValidateObservedFailsForBlockedDependency(t *testing.T) {
 	}
 	if len(resp.GetFindings()) != 1 || resp.GetFindings()[0].GetSeverity() != "ERROR" {
 		t.Fatalf("findings = %#v, want one error", resp.GetFindings())
+	}
+}
+
+func TestValidateObservedFailsForBlockedIndirectGoDependency(t *testing.T) {
+	repoRoot := t.TempDir()
+	writeRegistry(t, repoRoot, `{
+		"records": [
+			{
+				"ecosystem": "go",
+				"package_name": "example.com/blocked",
+				"version_range": "*",
+				"state": "blocked",
+				"replacement": "Use a maintained module."
+			}
+		]
+	}`)
+	registry := NewRegistry(repoRoot)
+
+	resp, err := registry.ValidateObserved("demo", []*governancev1.ObservedDependency{
+		{
+			Ecosystem:       "go",
+			PackageName:     "example.com/blocked",
+			Version:         "v0.1.0",
+			FilePath:        "scenarios/demo/api/go.mod",
+			DependencyGroup: "require_indirect",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.GetPassed() {
+		t.Fatalf("blocked indirect Go dependency should fail")
+	}
+	if len(resp.GetFindings()) != 1 || resp.GetFindings()[0].GetSeverity() != "ERROR" {
+		t.Fatalf("findings = %#v, want one error", resp.GetFindings())
+	}
+}
+
+func TestScanGoModMarksIndirectRequirements(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "go.mod")
+	if err := os.WriteFile(path, []byte(`module example.com/demo
+
+go 1.24
+
+require (
+	github.com/direct/module v1.2.3
+	golang.org/x/sys v0.29.0 // indirect
+)
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	deps, err := scanGoMod(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	groups := map[string]string{}
+	for _, dep := range deps {
+		groups[dep.GetPackageName()] = dep.GetDependencyGroup()
+	}
+	if groups["github.com/direct/module"] != "require" {
+		t.Fatalf("direct group = %q, want require", groups["github.com/direct/module"])
+	}
+	if groups["golang.org/x/sys"] != "require_indirect" {
+		t.Fatalf("indirect group = %q, want require_indirect", groups["golang.org/x/sys"])
 	}
 }
 
