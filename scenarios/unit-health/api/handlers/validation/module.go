@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"unit-health/internal/discovery"
 	"unit-health/internal/module"
 	internalvalidation "unit-health/internal/validation"
 
@@ -26,6 +27,8 @@ func Module(logger *log.Logger, repoRoot string) module.Module {
 	if err != nil && logger != nil {
 		logger.Printf("validation: maturity assessment unavailable: %v", err)
 	}
+	svc.Spec = spec
+	svc.Locator = discovery.DefaultLocator{RepoRoot: repoRoot}
 	connectPath, connectHandler := validationconnect.NewValidationServiceHandler(NewHandlerWithDeps(Deps{
 		Service:      svc,
 		Logger:       logger,

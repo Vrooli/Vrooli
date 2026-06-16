@@ -12,13 +12,34 @@ package validation
 import (
 	"context"
 	"fmt"
+	"runtime"
+	"strings"
 	"time"
+
+	"unit-health/internal/discovery"
+	"unit-health/internal/executor"
+
+	"github.com/vrooli/maturity-go/assessment"
 )
 
-// Service runs Unit Health validation. Seams (Code Facts discoverer, executor,
-// analyzers) land as fields in later phases.
+// Service runs Unit Health validation. The Discoverer (Code Facts intake) and
+// Spec (local maturity ladder) are injected; the bounded executor and the
+// coverage/architecture/quality analyzers land as fields in later phases.
 type Service struct {
-	Now func() time.Time
+	// Discoverer is the Code Facts intake seam. Defaults to a live
+	// CodeFactsClient when nil so production wiring stays a no-op.
+	Discoverer discovery.Discoverer
+	// Locator resolves scenario/path to a root dir for the default discoverer.
+	Locator discovery.Locator
+	// Spec is the parsed `.vrooli/maturity.json`. When set, the engine computes
+	// the local maturity summary from emitted findings.
+	Spec *assessment.Spec
+	// Executor runs planned commands when execution is requested. Defaults to a
+	// bounded os/exec runner when nil; tests inject a fake.
+	Executor executor.Runner
+	// MaxConcurrency bounds parallel command execution. Defaults to NumCPU/2.
+	MaxConcurrency int
+	Now            func() time.Time
 }
 
 // Request identifies the validation target and execution options.
@@ -172,24 +193,235 @@ func (s *Service) now() time.Time {
 
 // Validate runs the Unit Health validation for the requested target.
 //
-// Phase 2 skeleton: returns a schema-valid, honestly-degraded Response with no
-// findings. Later phases replace the body with real discovery/execution/
-// analysis while keeping this signature stable.
-func (s *Service) Validate(_ context.Context, req Request) (Response, error) {
+// Phase 3 implements Code Facts intake and the test-plan builder: it discovers
+// surfaces, resolves canonical test workspaces, emits discovery/config-gap
+// findings, and produces a dry-run execution plan. Bounded execution (Phase 4)
+// and the coverage/architecture/quality analyzers (Phase 5) extend the same
+// Response without changing this signature.
+func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 	now := s.now()
-	target := req.Scenario
-	if target == "" {
-		target = req.Path
+	nowStr := now.UTC().Format(time.RFC3339)
+	runID := "uh-" + now.UTC().Format("20060102-150405")
+
+	disc := s.Discoverer
+	if disc == nil {
+		disc = discovery.CodeFactsClient{Locator: s.Locator}
 	}
-	return Response{
-		RunID:          "uh-" + now.UTC().Format("20060102-150405"),
-		Status:         "degraded",
-		Scenario:       req.Scenario,
-		TargetKind:     "scenario",
-		TargetPath:     req.Path,
-		DegradedReason: "Unit Health validation engine is not yet implemented; the Phase 2 skeleton returns an empty assessment.",
-		Maturity:       Maturity{Rung: 0, Label: "L0", Rationale: "Validation engine not yet implemented."},
-		Summary:        fmt.Sprintf("%s: Unit Health validation skeleton (no test surfaces analyzed yet).", target),
-		NextSteps:      []string{"Phase 3 wires Code Facts intake and the test plan builder."},
-	}, nil
+	inv, err := disc.Discover(ctx, req.Scenario, req.Path, req.UseCache)
+	if err != nil {
+		return Response{}, fmt.Errorf("discover surfaces: %w", err)
+	}
+
+	scenario := inv.Scenario
+	if scenario == "" {
+		scenario = req.Scenario
+	}
+
+	surfaces, workspaces, plan, findings := buildPlan(scenario, inv, nowStr)
+
+	var commandResults []CommandResult
+	if req.IncludeExecution && len(plan.Commands) > 0 {
+		commandResults, findings = s.execute(ctx, scenario, plan, findings, nowStr)
+	}
+
+	resp := Response{
+		RunID:          runID,
+		Scenario:       scenario,
+		TargetKind:     orDefault(inv.TargetKind, "scenario"),
+		TargetPath:     inv.RootPath,
+		DegradedReason: inv.DegradedReason,
+		Surfaces:       surfaces,
+		Workspaces:     workspaces,
+		Plan:           plan,
+		CommandResults: commandResults,
+		Findings:       findings,
+	}
+	resp.Status = deriveStatus(inv, findings)
+	resp.Maturity = s.assessMaturity(findings)
+	resp.Summary = summarize(scenario, surfaces, workspaces, findings)
+	resp.NextSteps = nextSteps(resp.Status, inv)
+	return resp, nil
+}
+
+// execute runs the planned commands under the bounded executor and appends
+// execution findings (failures, missing dependencies, hangs, misconfig) to the
+// supplied findings. It returns the command results and the augmented findings.
+func (s *Service) execute(ctx context.Context, scenario string, plan ExecutionPlan, findings []Finding, now string) ([]CommandResult, []Finding) {
+	runner := s.Executor
+	if runner == nil {
+		runner = executor.Bounded{}
+	}
+	concurrency := s.MaxConcurrency
+	if concurrency < 1 {
+		if concurrency = runtime.NumCPU() / 2; concurrency < 1 {
+			concurrency = 1
+		}
+	}
+
+	cmds := make([]executor.Command, 0, len(plan.Commands))
+	for _, pc := range plan.Commands {
+		cmds = append(cmds, executor.Command{
+			WorkspaceID:    pc.WorkspaceID,
+			Name:           pc.Name,
+			Argv:           strings.Fields(pc.Command),
+			Dir:            pc.WorkingDirectory,
+			TimeoutSeconds: pc.TimeoutSeconds,
+		})
+	}
+
+	results := executor.RunAll(ctx, runner, cmds, concurrency)
+	out := make([]CommandResult, 0, len(results))
+	for i, r := range results {
+		timeout := 0
+		if i < len(plan.Commands) {
+			timeout = plan.Commands[i].TimeoutSeconds
+		}
+		out = append(out, CommandResult{
+			Name:             r.Name,
+			Command:          r.Command,
+			WorkingDirectory: dirForWorkspace(plan, r.WorkspaceID),
+			Status:           r.Status,
+			ExitCode:         r.ExitCode,
+			StdoutExcerpt:    r.Stdout,
+			StderrExcerpt:    r.Stderr,
+			TimeoutSeconds:   timeout,
+			FailureReason:    r.FailureReason,
+			FailureClass:     r.FailureClass,
+			DurationMS:       r.DurationMS,
+		})
+		if f, ok := executionFinding(scenario, r, now); ok {
+			findings = append(findings, f)
+		}
+	}
+	return out, findings
+}
+
+func dirForWorkspace(plan ExecutionPlan, workspaceID string) string {
+	for _, c := range plan.Commands {
+		if c.WorkspaceID == workspaceID {
+			return c.WorkingDirectory
+		}
+	}
+	return ""
+}
+
+// executionFinding maps a non-passing command result onto a maturity finding.
+func executionFinding(scenario string, r executor.Result, now string) (Finding, bool) {
+	if r.Status == executor.StatusPassed {
+		return Finding{}, false
+	}
+	var code, category string
+	switch r.FailureClass {
+	case executor.ClassMissingDependency:
+		code, category = codeTestDependencyMissing, "execution"
+	case executor.ClassTimeoutHang, executor.ClassNoOutputStall:
+		code, category = codeTestTimeoutHang, "diagnostics"
+	case executor.ClassMisconfiguration:
+		code, category = codeTestMisconfiguration, "execution"
+	default:
+		code, category = codeTestExecutionFailure, "execution"
+	}
+	evidence := r.FailureReason
+	if tail := strings.TrimSpace(r.Stderr); tail != "" {
+		evidence = r.FailureReason + "\n--- stderr tail ---\n" + tail
+	} else if tail := strings.TrimSpace(r.Stdout); tail != "" {
+		evidence = r.FailureReason + "\n--- stdout tail ---\n" + tail
+	}
+	return Finding{
+		ID:            code + "-" + r.WorkspaceID,
+		Scenario:      scenario,
+		WorkspaceID:   r.WorkspaceID,
+		Code:          code,
+		Category:      category,
+		Severity:      codeSeverity[code],
+		Message:       fmt.Sprintf("Command %q in workspace %q %s.", r.Command, r.WorkspaceID, r.Status),
+		Evidence:      evidence,
+		Expected:      "The workspace's tests run to completion and pass within the timeout.",
+		Observed:      fmt.Sprintf("status=%s, class=%s, exit=%d, %dms", r.Status, r.FailureClass, r.ExitCode, r.DurationMS),
+		WhyItMatters:  "A failing, hanging, or unrunnable test command blocks the scenario from being validated or hardened.",
+		Remediation:   "Inspect the command output, fix the failure, and re-run with --include-execution.",
+		SourceCommand: r.Command,
+		CreatedAt:     now,
+	}, true
+}
+
+// assessMaturity computes the provider-local maturity summary from findings.
+// When no spec is wired (e.g. unit tests of the bare service) it degrades to an
+// L0/unknown summary rather than guessing.
+func (s *Service) assessMaturity(findings []Finding) Maturity {
+	if s.Spec == nil {
+		return Maturity{Rung: 0, Label: "L0", Rationale: "Maturity spec not loaded."}
+	}
+	assessed := make([]assessment.Finding, 0, len(findings))
+	for _, f := range findings {
+		assessed = append(assessed, assessment.Finding{
+			Code:     f.Code,
+			Severity: f.Severity,
+			Message:  f.Message,
+			Phase:    s.Spec.Phase,
+		})
+	}
+	local := assessment.LocalMaturity(*s.Spec, assessed)
+	rung := levelIndex(s.Spec, local.CurrentLevel)
+	rationale := "All assessed Unit Health contracts are clean."
+	if len(local.BlockingFindingCodes) > 0 {
+		rationale = fmt.Sprintf("Reaching %s is blocked by: %v", local.NextLevel, local.BlockingFindingCodes)
+	}
+	return Maturity{Rung: rung, Label: orDefault(local.CurrentLevel, "L0"), Rationale: rationale}
+}
+
+func levelIndex(spec *assessment.Spec, id string) int {
+	for i, lvl := range spec.Levels {
+		if lvl.ID == id {
+			return i
+		}
+	}
+	return 0
+}
+
+func deriveStatus(inv discovery.Inventory, findings []Finding) string {
+	if len(inv.Surfaces) == 0 {
+		return "degraded"
+	}
+	for _, f := range findings {
+		if f.Severity == "error" {
+			return "failed"
+		}
+	}
+	if inv.DegradedReason != "" {
+		return "degraded"
+	}
+	return "passed"
+}
+
+func summarize(scenario string, surfaces []Surface, workspaces []Workspace, findings []Finding) string {
+	if len(surfaces) == 0 {
+		return fmt.Sprintf("%s: no testable surfaces discovered.", scenario)
+	}
+	errs := 0
+	for _, f := range findings {
+		if f.Severity == "error" {
+			errs++
+		}
+	}
+	return fmt.Sprintf("%s: %d surface(s), %d workspace(s), %d finding(s) (%d blocking).",
+		scenario, len(surfaces), len(workspaces), len(findings), errs)
+}
+
+func nextSteps(status string, inv discovery.Inventory) []string {
+	switch {
+	case len(inv.Surfaces) == 0:
+		return []string{"Add a discoverable test workspace; ensure Code Facts can describe the scenario."}
+	case status == "failed":
+		return []string{"Resolve the blocking configuration findings, then run with --include-execution to run the planned tests."}
+	default:
+		return []string{"Run with --include-execution to execute the planned tests and analyze coverage."}
+	}
+}
+
+func orDefault(v, def string) string {
+	if v == "" {
+		return def
+	}
+	return v
 }

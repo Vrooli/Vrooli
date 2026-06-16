@@ -54,6 +54,9 @@ func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 	if reason := strings.TrimSpace(msg.GetDegradedReason()); reason != "" {
 		summary = append(summary, "Degraded: "+reason)
 	}
+	summary = append(summary, workspaceLines(msg.GetWorkspaces())...)
+	summary = append(summary, planLines(msg.GetPlan())...)
+	summary = append(summary, executionLines(msg.GetCommandResults())...)
 
 	human := cliapp.ListReport{
 		Summary:        summary,
@@ -68,10 +71,64 @@ func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 	if err := cliapp.RenderProtoList(ctx, msg, human); err != nil {
 		return err
 	}
-	if msg.GetStatus() == "failed" {
+	if msg.GetStatus() == "failed" || msg.GetCounts().GetErrors() > 0 {
 		return fmt.Errorf("unit-health validation failed with %d error finding(s)", msg.GetCounts().GetErrors())
 	}
 	return nil
+}
+
+// workspaceLines renders the discovered testable workspaces, their canonical
+// framework, and their readiness so operators see what would run and why.
+func workspaceLines(workspaces []*validationv1.TestWorkspace) []string {
+	if len(workspaces) == 0 {
+		return nil
+	}
+	lines := []string{fmt.Sprintf("Workspaces (%d):", len(workspaces))}
+	for _, w := range workspaces {
+		line := fmt.Sprintf("  • %s [%s] %s — %s", w.GetId(), w.GetLanguage(), w.GetCanonicalFramework(), w.GetStatus())
+		if reason := strings.TrimSpace(w.GetDegradedReason()); reason != "" {
+			line += " (" + reason + ")"
+		}
+		lines = append(lines, line)
+	}
+	return lines
+}
+
+// planLines renders the dry-run execution plan: the bounded commands Unit
+// Health would run for each workspace.
+func planLines(plan *validationv1.ExecutionPlan) []string {
+	if plan == nil {
+		return nil
+	}
+	var lines []string
+	if len(plan.GetCommands()) > 0 {
+		lines = append(lines, fmt.Sprintf("Test plan (%d command(s)):", len(plan.GetCommands())))
+		for _, c := range plan.GetCommands() {
+			lines = append(lines, fmt.Sprintf("  • %s: %s (cwd=%s, timeout=%ds)",
+				c.GetName(), c.GetCommand(), c.GetWorkingDirectory(), c.GetTimeoutSeconds()))
+		}
+	}
+	if notes := strings.TrimSpace(plan.GetNotes()); notes != "" {
+		lines = append(lines, "Plan notes: "+notes)
+	}
+	return lines
+}
+
+// executionLines renders the outcome of any executed test commands so failing,
+// hanging, or unrunnable workspaces are visible in human output.
+func executionLines(results []*validationv1.CommandResult) []string {
+	if len(results) == 0 {
+		return nil
+	}
+	lines := []string{fmt.Sprintf("Execution (%d command(s)):", len(results))}
+	for _, r := range results {
+		line := fmt.Sprintf("  • %s: %s (exit=%d, %dms)", r.GetName(), r.GetStatus(), r.GetExitCode(), r.GetDurationMs())
+		if class := strings.TrimSpace(r.GetFailureClass()); class != "" {
+			line += " [" + class + "]"
+		}
+		lines = append(lines, line)
+	}
+	return lines
 }
 
 func firstFlag(values []string) string {

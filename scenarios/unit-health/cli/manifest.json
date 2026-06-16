@@ -16,7 +16,7 @@
           "flags": [
             { "name": "path", "description": "Filesystem path to validate instead of a scenario slug" },
             { "name": "workspace", "description": "Restrict validation to a workspace id (repeatable)" },
-            { "name": "execution", "description": "Execute planned test commands (default: plan only)" },
+            { "name": "execution", "bool": true, "description": "Execute planned test commands (default: plan only)" },
             { "name": "json", "description": "Emit JSON output" }
           ],
           "binding": { "kind": "connect-rpc", "service": "ValidationService", "method": "ValidateScenario" },
