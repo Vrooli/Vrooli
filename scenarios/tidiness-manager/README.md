@@ -13,6 +13,10 @@ Tidiness Manager prevents scenarios from decaying into unmaintainable chaos thro
 - **Agent API**: HTTP/CLI interface for other agents to request tidiness recommendations
 - **Human Dashboard**: React UI for managing campaigns, viewing issues, and triggering scans
 
+## What You Get
+
+Tidiness Manager gives agents and maintainers a focused maintainability system: scan endpoints, CLI commands, stored issues, prioritization, campaign workflows, and a dashboard for inspecting cleanup work. It does not own lint, type, or static-quality policy; Quality Health owns that contract.
+
 ## Quick Start
 
 ```bash
@@ -45,8 +49,8 @@ tidiness-manager/
 ├── ui/                    # React dashboard
 │   ├── src/pages/        # Dashboard, scenario detail, campaign manager
 │   └── src/components/   # File tables, issue viewers, scan controls
-├── requirements/         # Requirements registry (8 modules, 58 requirements)
-└── docs/                # PROGRESS, PROBLEMS, RESEARCH
+├── requirements/         # Requirements registry
+└── docs/                # Concepts, reference, operations, and internal ledgers
 ```
 
 ## Core Capabilities
@@ -160,13 +164,25 @@ make test-performance   # Scan timing, Lighthouse scores
 
 See `requirements/README.md` for requirement tracking and validation strategy.
 
+## Documentation Map
+
+- [Start Here](docs/START-HERE.md) - orientation for agents and maintainers
+- [Architecture](docs/concepts/ARCHITECTURE.md) - surfaces, boundaries, and data flow
+- [Domains](docs/concepts/DOMAINS.md) - bounded contexts and ownership
+- [API Endpoints](docs/reference/api-endpoints.md) - HTTP contract
+- [CLI Commands](docs/reference/cli-commands.md) - installed command surface
+- [Configuration](docs/reference/configuration.md) - lifecycle, env, and scenario contracts
+- [Runbook](docs/operations/RUNBOOK.md) - operational commands and triage
+- [Problems](docs/internal/PROBLEMS.md) - known issues and deferred work
+- [Progress](docs/internal/PROGRESS.md) - historical implementation record
+
 ## Development Workflow
 
 1. **Read the PRD** (`PRD.md`) to understand operational targets
 2. **Check requirements** (`requirements/`) for detailed technical specs
 3. **Start with light scanning** (foundation for all other modules)
 4. **Tag tests** with `[REQ:TM-XX-NNN]` to link to requirements
-5. **Update PROGRESS.md** when completing modules
+5. **Update docs/internal/PROGRESS.md** when completing modules
 
 ## Configuration
 
@@ -184,8 +200,15 @@ Stored in postgres `config` table; UI provides management interface.
 - **PRD**: [PRD.md](PRD.md) - Operational targets and technical direction
 - **Requirements**: [requirements/](requirements/) - 8 modules, 58 requirements
 - **Research**: [docs/RESEARCH.md](docs/RESEARCH.md) - Uniqueness analysis
-- **Progress**: [docs/PROGRESS.md](docs/PROGRESS.md) - Development log
-- **Problems**: [docs/PROBLEMS.md](docs/PROBLEMS.md) - Known issues
+- **Progress**: [docs/internal/PROGRESS.md](docs/internal/PROGRESS.md) - Development log
+- **Problems**: [docs/internal/PROBLEMS.md](docs/internal/PROBLEMS.md) - Known issues
+
+## Customize Safely
+
+- Keep lint, type checking, static-quality contracts, and protective config comments aligned with Quality Health.
+- Keep Tidiness Manager changes focused on maintainability scans, issue workflows, recommendations, and campaigns.
+- Use lifecycle commands rather than direct process execution.
+- Update docs and requirements whenever API, CLI, persistence, or campaign behavior changes.
 
 ## Comparison to Related Scenarios
 

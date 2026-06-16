@@ -59,7 +59,6 @@ func registerDefaultExternalProviders() {
 			newPRDControlTowerProvider(),
 			newStackGovernorProvider(),
 			newTestGenieProvider(),
-			newTidinessManagerProvider(),
 		} {
 			registerExternalProvider(provider)
 		}

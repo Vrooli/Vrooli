@@ -167,43 +167,6 @@ type AIIssue struct {
 	RemediationSteps string `json:"remediation_steps,omitempty"`
 }
 
-type TypeSafetyViolation struct {
-	RuleID      string `json:"rule_id"`
-	Severity    string `json:"severity"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Remediation string `json:"remediation,omitempty"`
-	FilePath    string `json:"file_path,omitempty"`
-}
-
-type FilePatternBreakdown struct {
-	FilePath              string `json:"file_path"`
-	AsAnyCount            int    `json:"as_any_count,omitempty"`
-	AsTypeAssertionCount  int    `json:"as_type_assertion_count,omitempty"`
-	TsIgnoreCount         int    `json:"ts_ignore_count,omitempty"`
-	NonNullAssertionCount int    `json:"non_null_assertion_count,omitempty"`
-	Total                 int    `json:"total"`
-}
-
-type TypeSafetyPatternSummary struct {
-	TotalFiles            int                    `json:"total_files"`
-	AsAnyCount            int                    `json:"as_any_count"`
-	AsTypeAssertionCount  int                    `json:"as_type_assertion_count"`
-	TsIgnoreCount         int                    `json:"ts_ignore_count"`
-	NonNullAssertionCount int                    `json:"non_null_assertion_count"`
-	TopFiles              []FilePatternBreakdown `json:"top_files,omitempty"`
-}
-
-type TypeSafetyConfigResult struct {
-	Scenario            string                    `json:"scenario"`
-	TSConfigFound       bool                      `json:"tsconfig_found"`
-	TSConfigStrict      bool                      `json:"tsconfig_strict"`
-	TSConfigNoUnchecked bool                      `json:"tsconfig_no_unchecked_indexed_access"`
-	ESLintConfigFound   bool                      `json:"eslint_config_found"`
-	PatternSummary      *TypeSafetyPatternSummary `json:"pattern_summary,omitempty"`
-	Violations          []TypeSafetyViolation     `json:"violations"`
-}
-
 type ScenarioSummary struct {
 	Scenario  string `json:"scenario"`
 	Total     int    `json:"total"`

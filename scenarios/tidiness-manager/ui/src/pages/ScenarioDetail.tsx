@@ -23,7 +23,12 @@ export default function ScenarioDetail() {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["scenario-detail", scenarioName],
-    queryFn: () => fetchScenarioDetail(scenarioName!),
+    queryFn: () => {
+      if (!scenarioName) {
+        throw new Error("Scenario name is required");
+      }
+      return fetchScenarioDetail(scenarioName);
+    },
     enabled: !!scenarioName,
   });
 

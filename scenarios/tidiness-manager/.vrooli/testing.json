@@ -5,6 +5,26 @@
     "last_updated": "2025-11-27T10:53:00-05:00"
   },
   "version": "1.0.0",
+  "lint": {
+    "handlers": {
+      "go_module": {
+        "enabled": true,
+        "strict": true
+      },
+      "node_package": {
+        "enabled": true,
+        "strict": true
+      }
+    },
+    "policy": {
+      "unconfigured_common_components": {
+        "api": "error",
+        "ui": "warning",
+        "cli": "warning"
+      },
+      "unmatched_code_components": "warning"
+    }
+  },
   "phases": {
     "unit": {
       "timeout": "6m"

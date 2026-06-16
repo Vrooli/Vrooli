@@ -211,9 +211,9 @@ describe('ScenarioDetail', () => {
       await waitFor(() => {
         const dataRows = screen.getAllByTestId('file-table-row');
         // First row should contain utils.ts (src/lib)
-        expect(dataRows[0].textContent).toContain('utils.ts');
+        expect(dataRows[0]?.textContent).toContain('utils.ts');
         // Last row should contain handlers.go (src/api)
-        expect(dataRows[2].textContent).toContain('handlers.go');
+        expect(dataRows[2]?.textContent).toContain('handlers.go');
       });
 
       // Click again to reverse to asc
@@ -222,9 +222,9 @@ describe('ScenarioDetail', () => {
       await waitFor(() => {
         const dataRowsAsc = screen.getAllByTestId('file-table-row');
         // First row should contain handlers.go (alphabetically first: api < components < lib)
-        expect(dataRowsAsc[0].textContent).toContain('handlers.go');
+        expect(dataRowsAsc[0]?.textContent).toContain('handlers.go');
         // Last row should contain utils.ts
-        expect(dataRowsAsc[2].textContent).toContain('utils.ts');
+        expect(dataRowsAsc[2]?.textContent).toContain('utils.ts');
       });
     });
 
@@ -244,6 +244,9 @@ describe('ScenarioDetail', () => {
 
       // Files sorted by lines desc: 850, 250, 120
       const dataRows = screen.getAllByTestId('file-table-row');
+      expect(dataRows[0]).toBeDefined();
+      expect(dataRows[1]).toBeDefined();
+      expect(dataRows[2]).toBeDefined();
       expect(dataRows[0]).toHaveTextContent('src/api/handlers.go');
       expect(dataRows[1]).toHaveTextContent('src/components/App.tsx');
       expect(dataRows[2]).toHaveTextContent('src/lib/utils.ts');
@@ -258,6 +261,9 @@ describe('ScenarioDetail', () => {
         const dataRows = screen.getAllByTestId('file-table-row');
 
         // Default sort is totalIssues desc: handlers (10) > App (3) > utils (0)
+        expect(dataRows[0]).toBeDefined();
+        expect(dataRows[1]).toBeDefined();
+        expect(dataRows[2]).toBeDefined();
         expect(dataRows[0]).toHaveTextContent('src/api/handlers.go');
         expect(dataRows[1]).toHaveTextContent('src/components/App.tsx');
         expect(dataRows[2]).toHaveTextContent('src/lib/utils.ts');
@@ -280,6 +286,9 @@ describe('ScenarioDetail', () => {
 
       // Files by visit count desc: utils (5) > App (3) > handlers (1)
       const dataRows = screen.getAllByTestId('file-table-row');
+      expect(dataRows[0]).toBeDefined();
+      expect(dataRows[1]).toBeDefined();
+      expect(dataRows[2]).toBeDefined();
       expect(dataRows[0]).toHaveTextContent('src/lib/utils.ts');
       expect(dataRows[1]).toHaveTextContent('src/components/App.tsx');
       expect(dataRows[2]).toHaveTextContent('src/api/handlers.go');
@@ -299,7 +308,12 @@ describe('ScenarioDetail', () => {
 
       // Default is desc: handlers (10) > App (3) > utils (0)
       let dataRows = screen.getAllByTestId('file-table-row');
-      expect(within(dataRows[0]).getByText('src/api/handlers.go')).toBeInTheDocument();
+      const firstDataRow = dataRows[0];
+      expect(firstDataRow).toBeDefined();
+      if (!firstDataRow) {
+        throw new Error('Expected at least one file-table row');
+      }
+      expect(within(firstDataRow).getByText('src/api/handlers.go')).toBeInTheDocument();
 
       // Click once to toggle from desc to asc (since already on totalIssues)
       await user.click(issuesHeader);
@@ -307,8 +321,8 @@ describe('ScenarioDetail', () => {
       await waitFor(() => {
         const ascRows = screen.getAllByTestId('file-table-row');
         // After first click: asc order - utils (0) < App (3) < handlers (10)
-        expect(ascRows[0].textContent).toContain('utils.ts');
-        expect(ascRows[2].textContent).toContain('handlers.go');
+        expect(ascRows[0]?.textContent).toContain('utils.ts');
+        expect(ascRows[2]?.textContent).toContain('handlers.go');
       });
 
       // Click again to toggle back to desc
@@ -317,8 +331,8 @@ describe('ScenarioDetail', () => {
       await waitFor(() => {
         const descRows = screen.getAllByTestId('file-table-row');
         // After second click: back to desc order - handlers (10) > App (3) > utils (0)
-        expect(descRows[0].textContent).toContain('handlers.go');
-        expect(descRows[2].textContent).toContain('utils.ts');
+        expect(descRows[0]?.textContent).toContain('handlers.go');
+        expect(descRows[2]?.textContent).toContain('utils.ts');
       });
     });
 

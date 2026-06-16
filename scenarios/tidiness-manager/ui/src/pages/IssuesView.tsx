@@ -23,11 +23,16 @@ export default function IssuesView() {
 
   const { data: issues = [], isLoading, error } = useQuery({
     queryKey: ["all-issues", scenarioName, statusFilter, categoryFilter, severityFilter],
-    queryFn: () => fetchAllIssues(scenarioName!, {
-      status: statusFilter !== "all" ? statusFilter : undefined,
-      category: categoryFilter !== "all" ? categoryFilter : undefined,
-      severity: severityFilter !== "all" ? severityFilter : undefined,
-    }),
+    queryFn: () => {
+      if (!scenarioName) {
+        throw new Error("Scenario name is required");
+      }
+      return fetchAllIssues(scenarioName, {
+        status: statusFilter !== "all" ? statusFilter : undefined,
+        category: categoryFilter !== "all" ? categoryFilter : undefined,
+        severity: severityFilter !== "all" ? severityFilter : undefined,
+      });
+    },
     enabled: !!scenarioName,
   });
 

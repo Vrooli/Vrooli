@@ -86,10 +86,12 @@ func (dd *DuplicationDetector) detectGoDuplication(ctx context.Context, files []
 		}, nil
 	}
 
-	// Convert relative paths to absolute paths
-	absPaths := make([]string, len(files))
-	for i, relPath := range files {
-		absPaths[i] = filepath.Join(dd.scenarioPath, relPath)
+	absPaths, err := resolveScenarioFiles(dd.scenarioPath, files)
+	if err != nil {
+		return &DuplicateResult{
+			Skipped:    true,
+			SkipReason: err.Error(),
+		}, nil
 	}
 
 	// Run dupl with threshold (25 tokens minimum for significant duplication)
@@ -98,7 +100,7 @@ func (dd *DuplicationDetector) detectGoDuplication(ctx context.Context, files []
 
 	// dupl -t 25 <files...>
 	args := append([]string{"-t", "25"}, absPaths...)
-	cmd := exec.CommandContext(cmdCtx, "dupl", args...)
+	cmd := exec.CommandContext(cmdCtx, "dupl", args...) // #nosec G204 G702 -- executable is fixed and file args are constrained to scenario root.
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -230,7 +232,7 @@ func (dd *DuplicationDetector) detectJSDuplication(ctx context.Context, files []
 	// For simplicity, analyze the entire ui/src directory if TypeScript files present
 	uiSrcPath := filepath.Join(dd.scenarioPath, "ui", "src")
 
-	cmd := exec.CommandContext(cmdCtx, "npx", "jscpd", "--reporters", "json", "--min-lines", "5", "--min-tokens", "50", "--silent", uiSrcPath)
+	cmd := exec.CommandContext(cmdCtx, "npx", "jscpd", "--reporters", "json", "--min-lines", "5", "--min-tokens", "50", "--silent", uiSrcPath) // #nosec G204 G702 -- executable is fixed and target path is derived from scenario root.
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

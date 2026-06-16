@@ -74,7 +74,9 @@ AuditQualityResponse
   summary/next steps/degraded reason
 ```
 
-The load-bearing invariant is that Code Facts discovers surfaces before contracts are selected. Filesystem conventions such as `ui/`, `api/`, and `cli/` may appear as evidence from Code Facts or a degraded fallback, but they must not become the core policy model.
+The load-bearing invariant is that Code Facts discovers surfaces before contracts are selected, and that **rule applicability is decided by language/tooling, never by surface name**. Filesystem conventions such as `ui/`, `api/`, and `cli/` may appear as evidence from Code Facts or a degraded fallback, but they must not become the core policy model. Routing is registry-driven through a single applicability helper (`applicableContracts`): a surface's detected language selects its contract pack(s), and both rule dispatch (`evaluateSurface`) and contract-evaluation records derive from that one decision. A TypeScript surface named `worker` is evaluated identically to one named `ui`; a Go surface named `edge` identically to one named `api`. Adding a new language requires only a registry pack plus an evaluator.
+
+A second honesty invariant: **a surface that received zero evaluation must never report a clean pass.** A discovered surface whose language matches no contract pack is reported as `uncovered` (not `passed`), carries an info `QUALITY_COVERAGE_GAP` finding, is counted in the summary, and caps maturity at L2. See [quality-contracts.md](../reference/quality-contracts.md#coverage-gaps) and [finding-schema.md](../reference/finding-schema.md#contract-evaluation-status).
 
 ## Domain Inventory
 

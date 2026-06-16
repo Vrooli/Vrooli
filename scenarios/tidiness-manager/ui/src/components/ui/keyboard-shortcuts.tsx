@@ -104,7 +104,7 @@ export function KeyboardShortcuts({ onNavigate }: KeyboardShortcutsProps) {
     if (!acc[shortcut.section]) {
       acc[shortcut.section] = [];
     }
-    acc[shortcut.section].push(shortcut);
+    acc[shortcut.section]?.push(shortcut);
     return acc;
   }, {} as Record<string, Shortcut[]>);
 

@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "React UI for humans to manage tidiness campaigns and view issues",
-    "last_validated_at": "2026-06-15T18:20:36-04:00"
+    "last_validated_at": "2026-06-15T22:34:58-04:00"
   },
   "requirements": [
     {
@@ -113,24 +113,11 @@
     {
       "id": "TM-UI-005",
       "title": "Scenario detail - filter controls",
-      "status": "complete",
+      "status": "pending",
       "prd_ref": "OT-P1-006",
       "description": "Provide filters for severity, category, long-file flag, visit count threshold",
-      "validation": [
-        {
-          "type": "automation",
-          "ref": "bas/cases/01-light-scanning/ui/scenario-detail.json",
-          "phase": "integration",
-          "status": "implemented",
-          "notes": "Filter controls not yet implemented - table shows all files without filtering capability. Deferred to P1. Filter UI components and state management needed."
-        },
-        {
-          "type": "test",
-          "ref": "ui/src/pages/__tests__/ScenarioDetail.test.tsx",
-          "phase": "unit",
-          "status": "implemented"
-        }
-      ]
+      "validation": [],
+      "notes": "Filter controls are deferred P1 scope. The scenario detail table currently supports display and sorting, but not severity/category/long-file/visit-count filters."
     },
     {
       "id": "TM-UI-006",
@@ -139,6 +126,13 @@
       "prd_ref": "OT-P0-009",
       "description": "Implement developer-focused dark theme matching scenario-auditor aesthetic",
       "validation": [
+        {
+          "type": "automation",
+          "ref": "bas/cases/04-ui-dashboard/ui/theme.json",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Observer-mode BAS workflow validates dark theme rendering and table visibility."
+        },
         {
           "type": "test",
           "ref": "ui/src/__tests__/App.test.tsx",

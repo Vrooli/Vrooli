@@ -15,7 +15,12 @@ export default function FileDetail() {
 
   const { data: issues = [], isLoading, error } = useQuery({
     queryKey: ["file-issues", scenarioName, filePath],
-    queryFn: () => fetchFileIssues(scenarioName!, filePath!),
+    queryFn: () => {
+      if (!scenarioName || !filePath) {
+        throw new Error("Scenario name and file path are required");
+      }
+      return fetchFileIssues(scenarioName, filePath);
+    },
     enabled: !!scenarioName && !!filePath,
   });
 

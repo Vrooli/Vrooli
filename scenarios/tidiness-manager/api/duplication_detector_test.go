@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"testing"
 	"time"
 )
@@ -333,6 +334,26 @@ func TestDetectDuplication_NoFiles(t *testing.T) {
 				t.Errorf("Expected skip reason to contain one of %v, got: %q", tt.expectedReason, result.SkipReason)
 			}
 		})
+	}
+}
+
+// [REQ:TM-LS-005] Test duplication subprocess inputs cannot escape the scenario root.
+func TestDetectGoDuplication_RejectsEscapedPaths(t *testing.T) {
+	if !commandExists("dupl") {
+		t.Skip("dupl not installed, skipping subprocess path-boundary test")
+	}
+
+	dd := NewDuplicationDetector(t.TempDir(), 60*time.Second)
+	for _, filePath := range []string{
+		"../outside.go",
+		filepath.Join("api", "..", "..", "outside.go"),
+		filepath.Join(string(filepath.Separator), "tmp", "outside.go"),
+	} {
+		result, err := dd.DetectDuplication(context.Background(), LanguageGo, []string{filePath})
+		if err != nil {
+			t.Fatalf("DetectDuplication(%q) failed: %v", filePath, err)
+		}
+		assertResultSkipped(t, result, "escapes scenario root")
 	}
 }
 

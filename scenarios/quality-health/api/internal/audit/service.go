@@ -107,14 +107,30 @@ func (s *Service) Audit(ctx context.Context, req Request) (Response, error) {
 		RunID:     "qh-" + now.UTC().Format("20060102-150405"),
 		Inventory: inv,
 	}
+	var uncoveredSurfaces []string
 	for _, surface := range filtered {
+		rules := rulesForSurface(surface)
+		if len(rules) == 0 {
+			// A surface that received zero evaluation must never report a clean
+			// pass. Emit an honest "not checked" signal: an info coverage-gap
+			// finding plus an `uncovered` contract status.
+			res.Findings = append(res.Findings, coverageGapFinding(inv, surface, now))
+			res.Contracts = append(res.Contracts, ContractEvaluation{
+				ContractID: "",
+				SurfaceID:  surface.ID,
+				Status:     "uncovered",
+				RuleIDs:    nil,
+			})
+			uncoveredSurfaces = append(uncoveredSurfaces, surface.ID)
+			continue
+		}
 		before := len(res.Findings)
 		res.Findings = append(res.Findings, s.evaluateSurface(inv, surface, req.RuleIDs, now)...)
 		res.Contracts = append(res.Contracts, ContractEvaluation{
 			ContractID: contractIDForSurface(surface),
 			SurfaceID:  surface.ID,
 			Status:     statusFromFindings(res.Findings[before:]),
-			RuleIDs:    rulesForSurface(surface),
+			RuleIDs:    rules,
 		})
 	}
 	beforeScenario := len(res.Findings)
@@ -135,7 +151,7 @@ func (s *Service) Audit(ctx context.Context, req Request) (Response, error) {
 		}
 	}
 	sortFindings(res.Findings)
-	res.Maturity = maturity(inv, res.Findings, res.CommandResults)
+	res.Maturity = maturity(inv, res.Findings, res.CommandResults, uncoveredSurfaces)
 	res.Status = auditStatus(inv, res.Findings)
 	res.Summary = summary(res)
 	res.NextSteps = nextSteps(res)
@@ -175,15 +191,18 @@ func (s *Service) now() time.Time {
 	return time.Now()
 }
 
+// evaluateSurface dispatches evaluators by the surface's language/tooling, never
+// by its name. Routing is the mirror image of applicableContracts: any ts/js
+// surface gets the TypeScript evaluators; any Go surface gets the Go evaluator.
 func (s *Service) evaluateSurface(inv surfaces.Inventory, surface surfaces.Surface, onlyRules []string, now time.Time) []Finding {
 	var out []Finding
-	if surface.Kind == "ui" && (surface.Language == "typescript" || surface.Language == "javascript") {
+	switch normalizeContractLanguage(surface.Language) {
+	case "typescript":
 		out = append(out, evalTSConfig(inv, surface, onlyRules, now)...)
 		out = append(out, evalESLint(inv, surface, onlyRules, now)...)
 		out = append(out, evalPackage(inv, surface, onlyRules, now)...)
 		out = append(out, evalDangerousPatterns(inv, surface, onlyRules, now)...)
-	}
-	if surface.Language == "go" || surface.Kind == "api" || surface.Kind == "cli" {
+	case "go":
 		out = append(out, evalGo(inv, surface, onlyRules, now)...)
 	}
 	return out
@@ -203,7 +222,14 @@ func evalTSConfig(inv surfaces.Inventory, surface surfaces.Surface, onlyRules []
 	path := filepath.Join(surface.RootPath, "tsconfig.json")
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return []Finding{newFinding(inv, surface, contracts.RuleTSConfigStrict, "typescript", "error", path, "tsconfig.json not found", "TypeScript UI surface has no tsconfig.json.", "strict true, noUncheckedIndexedAccess true, and safety comments", "missing", true, now)}
+		// A JavaScript-only surface legitimately has no tsconfig — self-skip so
+		// the other TS-pack rules (eslint, build typecheck, suppressions) still
+		// run without a spurious "tsconfig not found" error. Only a TypeScript
+		// surface missing its tsconfig is a real violation.
+		if surface.Language == "javascript" {
+			return nil
+		}
+		return []Finding{newFinding(inv, surface, contracts.RuleTSConfigStrict, "typescript", "error", path, "tsconfig.json not found", "TypeScript surface has no tsconfig.json.", "strict true, noUncheckedIndexedAccess true, and safety comments", "missing", true, now)}
 	}
 	raw := string(content)
 	stripped := autofix.StripJSONCComments(raw)
@@ -285,7 +311,7 @@ func evalPackage(inv surfaces.Inventory, surface surfaces.Surface, onlyRules []s
 	}
 	build := strings.TrimSpace(pkg.Scripts["build"])
 	if build == "" {
-		return []Finding{newFinding(inv, surface, contracts.RuleNodeBuildTypecheck, "typescript", "error", path, "Missing build script", "The UI package does not define a build script.", "build script that runs typecheck before bundling", "missing", false, now)}
+		return []Finding{newFinding(inv, surface, contracts.RuleNodeBuildTypecheck, "typescript", "error", path, "Missing build script", "The package does not define a build script.", "build script that runs typecheck before bundling", "missing", false, now)}
 	}
 	if !strings.Contains(build, "tsc --noEmit") && !strings.Contains(build, "run type-check") && !strings.Contains(build, "type-check &&") {
 		return []Finding{newFinding(inv, surface, contracts.RuleNodeBuildTypecheck, "typescript", "error", path, "Build script skips TypeScript type checking", "Build script is `"+build+"`.", "tsc --noEmit or type-check before bundling", build, false, now)}
@@ -351,6 +377,11 @@ func evalDangerousPatterns(inv surfaces.Inventory, surface surfaces.Surface, onl
 	return []Finding{newFinding(inv, surface, contracts.RuleTSDangerousPatterns, "typescript", "warning", surface.RootPath, "Dangerous TypeScript suppression patterns found", evidence, "zero dangerous suppression patterns", evidence, false, now)}
 }
 
+// evalGo is reached only for Go surfaces (routing is decided by language in
+// evaluateSurface). The hasGoFiles guards below are NOT routing — they guard
+// against a mixed-content surface root that declares language=go but whose
+// immediate directory holds no .go files yet, so we do not demand go.mod/config
+// where there is nothing to lint.
 func evalGo(inv surfaces.Inventory, surface surfaces.Surface, onlyRules []string, now time.Time) []Finding {
 	var findings []Finding
 	if wants(onlyRules, contracts.RuleGoModPresent) && hasGoFiles(surface.RootPath) && !exists(filepath.Join(surface.RootPath, "go.mod")) {
@@ -654,24 +685,67 @@ func hasGo(inv surfaces.Inventory) bool {
 	return false
 }
 
+// normalizeContractLanguage folds related languages onto one contract key so a
+// JavaScript surface is covered by the TypeScript pack (the TS rules evaluate
+// shared tooling: eslint, package.json scripts, .ts/.js suppressions).
+func normalizeContractLanguage(language string) string {
+	if language == "javascript" {
+		return "typescript"
+	}
+	return language
+}
+
+// applicableContracts is the single source of truth for surface rule routing.
+// It resolves the contract packs that apply to a surface purely from its
+// language/tooling via the registry — never from the surface name. Adding a new
+// language pack requires only a registry entry + evaluator; no dispatch edits.
+func applicableContracts(surface surfaces.Surface) []contracts.Contract {
+	lang := normalizeContractLanguage(surface.Language)
+	if lang == "" || lang == "unknown" {
+		return nil
+	}
+	var out []contracts.Contract
+	for _, c := range contracts.List(lang, surface.Framework, surface.Kind, nil) {
+		// Surface-level packs are language-keyed; the scenario-level pack
+		// (empty language, SurfaceKind "scenario") is evaluated separately and
+		// must not attach to a discovered surface.
+		if c.Language == "" {
+			continue
+		}
+		out = append(out, c)
+	}
+	return out
+}
+
 func contractIDForSurface(surface surfaces.Surface) string {
-	if surface.Kind == "ui" {
-		return "typescript-react-vite-ui"
+	cs := applicableContracts(surface)
+	if len(cs) == 0 {
+		return ""
 	}
-	if surface.Kind == "api" || surface.Kind == "cli" {
-		return "go-api-cli-quality"
-	}
-	return "scenario-quality-gates"
+	return cs[0].ID
 }
 
 func rulesForSurface(surface surfaces.Surface) []string {
-	if surface.Kind == "ui" {
-		return []string{contracts.RuleTSConfigStrict, contracts.RuleESLintSafetyRules, contracts.RuleTSDangerousPatterns, contracts.RuleESLintTypedConfig, contracts.RuleNodeBuildTypecheck}
+	var out []string
+	for _, c := range applicableContracts(surface) {
+		out = append(out, c.RuleIDs...)
 	}
-	if surface.Kind == "api" || surface.Kind == "cli" {
-		return []string{contracts.RuleGoModPresent, contracts.RuleGoLintConfigPresent, contracts.RuleGoLintRequiredLinters}
+	return out
+}
+
+// coverageGapFinding produces the honest "not checked" signal for a discovered
+// surface that no quality contract pack covers. It is info-only: it never gates
+// run status, but it makes the gap visible and caps maturity.
+func coverageGapFinding(inv surfaces.Inventory, surface surfaces.Surface, now time.Time) Finding {
+	lang := surface.Language
+	if lang == "" {
+		lang = "unknown"
 	}
-	return nil
+	msg := fmt.Sprintf("surface %s (language=%s) discovered but no quality contract applies", surface.ID, lang)
+	f := newFinding(inv, surface, contracts.RuleCoverageGap, "coverage", "info", surface.RootPath, msg, msg, "a quality contract pack covering language="+lang, "no applicable contract", false, now)
+	f.WhyItMatters = "A discovered surface that receives zero evaluation must never report a clean pass; this gap keeps missing coverage visible instead of silently green."
+	f.Remediation = "File a capability-gap so a quality contract pack is added for language=" + lang + "."
+	return f
 }
 
 func statusFromFindings(findings []Finding) string {
@@ -710,12 +784,17 @@ func auditStatus(inv surfaces.Inventory, findings []Finding) string {
 	return "passed"
 }
 
-func maturity(inv surfaces.Inventory, findings []Finding, results []commands.Result) Maturity {
+func maturity(inv surfaces.Inventory, findings []Finding, results []commands.Result, uncoveredSurfaces []string) Maturity {
 	if inv.DegradedReason != "" || len(inv.Surfaces) == 0 {
 		return Maturity{Rung: 0, Label: "L0", Rationale: "No reliable Code Facts-backed quality audit."}
 	}
 	if hasError(findings) {
 		return Maturity{Rung: 2, Label: "L2", Rationale: "Surfaces discovered, but strict quality contracts are not yet satisfied."}
+	}
+	if len(uncoveredSurfaces) > 0 {
+		// Cannot claim "strict contracts satisfied" (L3+) while a discovered
+		// surface received zero evaluation. Honest cap at L2.
+		return Maturity{Rung: 2, Label: "L2", Rationale: fmt.Sprintf("Coverage is incomplete: surface(s) %s discovered without an applicable quality contract; maturity is capped at L2 until a contract pack covers them.", strings.Join(uncoveredSurfaces, ", "))}
 	}
 	if len(results) == 0 {
 		return Maturity{Rung: 3, Label: "L3", Rationale: "Strict quality contracts are satisfied; command execution was not requested."}
@@ -739,7 +818,17 @@ func hasError(findings []Finding) bool {
 
 func summary(res Response) string {
 	errors, warnings, infos := countFindings(res.Findings)
-	return fmt.Sprintf("%s: %d error(s), %d warning(s), %d info(s) across %d surface(s)", res.Inventory.Scenario, errors, warnings, infos, len(res.Inventory.Surfaces))
+	base := fmt.Sprintf("%s: %d error(s), %d warning(s), %d info(s) across %d surface(s)", res.Inventory.Scenario, errors, warnings, infos, len(res.Inventory.Surfaces))
+	uncovered := 0
+	for _, c := range res.Contracts {
+		if c.Status == "uncovered" {
+			uncovered++
+		}
+	}
+	if uncovered > 0 {
+		base += fmt.Sprintf("; %d surface(s) uncovered", uncovered)
+	}
+	return base
 }
 
 func nextSteps(res Response) []string {

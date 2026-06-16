@@ -226,7 +226,7 @@ describe('API Module', () => {
 
       expect(result.count).toBe(1);
       expect(result.issues).toHaveLength(1);
-      expect(result.issues[0].message).toBe('Unused variable');
+      expect(result.issues[0]?.message).toBe('Unused variable');
       expect(globalThis.fetch).toHaveBeenCalledWith(
         expect.stringContaining('/scan/light/parse-lint'),
         expect.objectContaining({
@@ -279,8 +279,8 @@ describe('API Module', () => {
       const result = await api.parseTypeOutput('test-scenario', 'tsc', 'type output');
 
       expect(result.count).toBe(1);
-      expect(result.issues[0].severity).toBe('error');
-      expect(result.issues[0].category).toBe('type');
+      expect(result.issues[0]?.severity).toBe('error');
+      expect(result.issues[0]?.category).toBe('type');
     });
   });
 
@@ -305,10 +305,10 @@ describe('API Module', () => {
       const stats = await api.fetchScenarioStats();
 
       expect(stats).toHaveLength(2);
-      expect(stats[0].scenario).toBe('test-scenario-1');
-      expect(stats[0].light_issues).toBe(3);
-      expect(stats[0].ai_issues).toBe(2);
-      expect(stats[0].long_files).toBe(1);
+      expect(stats[0]?.scenario).toBe('test-scenario-1');
+      expect(stats[0]?.light_issues).toBe(3);
+      expect(stats[0]?.ai_issues).toBe(2);
+      expect(stats[0]?.long_files).toBe(1);
     });
 
     it('should handle empty scenario list', async () => {
@@ -358,8 +358,8 @@ describe('API Module', () => {
       });
 
       expect(issues).toHaveLength(1);
-      expect(issues[0].file).toBe('test.ts');
-      expect(issues[0].line).toBe(10);
+      expect(issues[0]?.file).toBe('test.ts');
+      expect(issues[0]?.line).toBe(10);
       expect(globalThis.fetch).toHaveBeenCalledWith(
         expect.stringMatching(/scenario=test-scenario.*status=open.*category=lint.*severity=warning/),
         expect.any(Object)

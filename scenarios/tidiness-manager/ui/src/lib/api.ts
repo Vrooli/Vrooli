@@ -215,6 +215,46 @@ export interface FileStats {
   extension?: string;
 }
 
+interface ApiErrorResponse {
+  error?: string;
+}
+
+interface ScenarioStatsApiResponse {
+  scenarios?: Array<{
+    scenario?: string;
+    lint?: number;
+    type?: number;
+    long_files?: number;
+  }>;
+}
+
+interface ScenarioDetailApiResponse {
+  stats: ScenarioStats;
+  files: FileStats[];
+}
+
+interface IssueApiResponse {
+  id?: number;
+  scenario?: string;
+  file_path?: string;
+  line_number?: number;
+  column_number?: number;
+  title?: string;
+  description?: string;
+  severity?: string;
+  category?: string;
+  status?: "open" | "resolved" | "ignored";
+  resolution_notes?: string;
+  created_at?: string;
+}
+
+const readJson = async <T>(res: Response): Promise<T> => res.json() as Promise<T>;
+
+async function readErrorMessage(res: Response, fallback: string): Promise<string> {
+  const error = await readJson<ApiErrorResponse>(res).catch(() => ({ error: undefined }));
+  return error.error ?? fallback;
+}
+
 // ============================================================================
 // API Client Functions
 // ============================================================================
@@ -230,7 +270,7 @@ export async function fetchHealth(): Promise<HealthResponse> {
     throw new Error(`API health check failed: ${res.status}`);
   }
 
-  return res.json();
+  return readJson<HealthResponse>(res);
 }
 
 export async function lightScan(scenarioPath: string, timeoutSec?: number): Promise<ScanResult> {
@@ -242,11 +282,10 @@ export async function lightScan(scenarioPath: string, timeoutSec?: number): Prom
   });
 
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(error.error || `Light scan failed: ${res.status}`);
+    throw new Error(await readErrorMessage(res, "Unknown error"));
   }
 
-  return res.json();
+  return readJson<ScanResult>(res);
 }
 
 export async function parseLintOutput(scenario: string, tool: string, output: string): Promise<{ issues: Issue[]; count: number }> {
@@ -258,11 +297,10 @@ export async function parseLintOutput(scenario: string, tool: string, output: st
   });
 
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(error.error || `Parse lint failed: ${res.status}`);
+    throw new Error(await readErrorMessage(res, `Parse lint failed: ${res.status}`));
   }
 
-  return res.json();
+  return readJson<{ issues: Issue[]; count: number }>(res);
 }
 
 export async function parseTypeOutput(scenario: string, tool: string, output: string): Promise<{ issues: Issue[]; count: number }> {
@@ -274,11 +312,10 @@ export async function parseTypeOutput(scenario: string, tool: string, output: st
   });
 
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(error.error || `Parse type failed: ${res.status}`);
+    throw new Error(await readErrorMessage(res, `Parse type failed: ${res.status}`));
   }
 
-  return res.json();
+  return readJson<{ issues: Issue[]; count: number }>(res);
 }
 
 // ============================================================================
@@ -305,16 +342,16 @@ export async function fetchScenarioStats(): Promise<ScenarioStats[]> {
     throw new Error(`Failed to fetch scenario stats: ${res.status}`);
   }
 
-  const data = await res.json();
+  const data = await readJson<ScenarioStatsApiResponse>(res);
 
   // Transform API response to match UI expectations
   // API returns: { scenarios: [{ scenario, total, lint, type, long_files }], count }
   // UI expects: ScenarioStats[] with light_issues, ai_issues, etc.
-  return (data.scenarios || []).map((s: any) => ({
-    scenario: s.scenario,
-    light_issues: s.lint || 0,
-    ai_issues: s.type || 0,
-    long_files: s.long_files || 0,
+  return (data.scenarios ?? []).map((s) => ({
+    scenario: s.scenario ?? "unknown",
+    light_issues: s.lint ?? 0,
+    ai_issues: s.type ?? 0,
+    long_files: s.long_files ?? 0,
     visit_percent: 0, // TODO: Calculate from visited-tracker integration
     campaign_status: "none" as const, // TODO: Join with campaigns table
     total_files: 0, // TODO: Join with file_metrics table
@@ -333,7 +370,7 @@ export async function fetchScenarioDetail(scenarioName: string): Promise<{ stats
     throw new Error(`Failed to fetch scenario detail: ${res.status}`);
   }
 
-  const data = await res.json();
+  const data = await readJson<ScenarioDetailApiResponse>(res);
 
   // API returns: { stats: {...}, files: [{...}] }
   return {
@@ -380,23 +417,23 @@ export async function fetchAllIssues(scenarioName: string, filters?: { status?: 
     throw new Error(`Failed to fetch issues: ${res.status}`);
   }
 
-  const data = await res.json();
+  const data = await readJson<IssueApiResponse[]>(res);
 
   // Transform API response to match UI expectations
   // API returns: [{ id, scenario, file_path, line_number, column_number, title, description, ... }]
   // UI expects: Issue[] with { id, scenario, file, line, column, message, ... }
-  return (data || []).map((issue: any) => ({
+  return data.map((issue) => ({
     id: issue.id,
-    scenario: issue.scenario,
+    scenario: issue.scenario ?? scenarioName,
     file: issue.file_path,
-    line: issue.line_number || 0,
-    column: issue.column_number || 0,
-    message: issue.description || issue.title,
+    line: issue.line_number ?? 0,
+    column: issue.column_number ?? 0,
+    message: issue.description ?? issue.title ?? "Untitled issue",
     rule: issue.title,
     severity: issue.severity === "error" ? "error" : "warning",
-    tool: issue.category, // category serves as tool identifier
+    tool: issue.category ?? "unknown", // category serves as tool identifier
     category: issue.category === "lint" ? "lint" : issue.category === "type" ? "type" : "ai",
-    status: issue.status || "open",
+    status: issue.status ?? "open",
     resolution_notes: issue.resolution_notes,
     created_at: issue.created_at,
   }));
@@ -411,11 +448,10 @@ export async function updateIssueStatus(issueId: number, status: "open" | "resol
   });
 
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ error: "Unknown error" }));
-    throw new Error(error.error || `Failed to update issue: ${res.status}`);
+    throw new Error(await readErrorMessage(res, `Failed to update issue: ${res.status}`));
   }
 
-  return res.json();
+  return readJson<{ id: number; status: string; updated_at: string }>(res);
 }
 
 export async function fetchCampaigns(scenarioName?: string): Promise<Campaign[]> {

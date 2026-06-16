@@ -23,7 +23,7 @@ Owns the Code Facts client seam and the `QualitySurface` model. It should reques
 
 ### contracts
 
-Owns rule definitions, applicability, severity, expected evidence, and evaluators. Contracts are keyed by language/framework/surface/tooling, not by scenario template. The first registry includes TypeScript React/Vite UI, generic TypeScript UI, Go API, Go CLI, Node package gates, scenario Makefile gates, and scenario testing metadata gates.
+Owns rule definitions, applicability, severity, expected evidence, and evaluators. Contracts are **language-first**: applicability is keyed on language (primary), with framework/surface-kind/tooling as optional narrowing — never on surface name or scenario template. A single registry-backed helper (`applicableContracts`) is the only place that decides which packs apply to a surface; `evaluateSurface`, `contractIDForSurface`, and `rulesForSurface` all derive from it. The registry ships three packs: `typescript-static-quality` (any ts/js surface), `go-static-quality` (any Go surface), and `scenario-quality-gates` (the scenario root). A discovered surface matching no pack is reported `uncovered` with a `QUALITY_COVERAGE_GAP` info finding — never a clean pass — and caps maturity at L2.
 
 ### audit
 

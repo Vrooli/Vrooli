@@ -13,6 +13,10 @@ const (
 	RuleGoLintConfigPresent   = "GO_LINT_CONFIG_PRESENT"
 	RuleGoLintRequiredLinters = "GO_LINT_REQUIRED_LINTERS"
 	RuleMakefileQualityGates  = "MAKEFILE_QUALITY_GATES"
+	// RuleCoverageGap marks a discovered surface for which no quality contract
+	// pack applies. It is an informational honesty signal, not a registry
+	// contract, so it is intentionally absent from Registry().
+	RuleCoverageGap = "QUALITY_COVERAGE_GAP"
 )
 
 type Contract struct {
@@ -33,13 +37,18 @@ type Contract struct {
 func Registry() []Contract {
 	return []Contract{
 		{
-			ID:          "typescript-react-vite-ui",
-			Title:       "TypeScript React/Vite UI static quality",
+			// Language-keyed: applies to any TypeScript or JavaScript surface
+			// regardless of surface name or framework. Framework/SurfaceKind are
+			// left empty (wildcard) so a future pack can narrow without forcing
+			// this one to. The owner of applicability is the language/tooling,
+			// not the folder name.
+			ID:          "typescript-static-quality",
+			Title:       "TypeScript/JavaScript static quality",
 			Category:    "typescript",
 			Severity:    "error",
 			Language:    "typescript",
-			Framework:   "react-vite",
-			SurfaceKind: "ui",
+			Framework:   "",
+			SurfaceKind: "",
 			RuleIDs: []string{
 				RuleTSConfigStrict,
 				RuleESLintSafetyRules,
@@ -47,24 +56,26 @@ func Registry() []Contract {
 				RuleESLintTypedConfig,
 				RuleNodeBuildTypecheck,
 			},
-			Description:      "Enforces strict TypeScript, typed ESLint, safety rules, guardrail comments, typechecked builds, and suppression visibility for React/Vite UI surfaces.",
-			WhyItMatters:     "These rules prevent agents from hiding UI runtime crashes by weakening type and lint settings.",
+			Description:      "Enforces strict TypeScript, typed ESLint, safety rules, guardrail comments, typechecked builds, and suppression visibility for any TypeScript or JavaScript surface.",
+			WhyItMatters:     "These rules prevent agents from hiding runtime crashes by weakening type and lint settings.",
 			Remediation:      "Restore the strict config values, keep the required safety comments, and fix source code with null checks, optional chaining, nullish coalescing, and type guards.",
 			AutofixAvailable: true,
 		},
 		{
-			ID:          "go-api-cli-quality",
-			Title:       "Go API/CLI lint baseline",
+			// Language-keyed: applies to any Go surface regardless of surface
+			// name (api/cli/worker/...). SurfaceKind is left empty (wildcard).
+			ID:          "go-static-quality",
+			Title:       "Go lint baseline",
 			Category:    "go",
 			Severity:    "error",
 			Language:    "go",
-			SurfaceKind: "api,cli",
+			SurfaceKind: "",
 			RuleIDs: []string{
 				RuleGoModPresent,
 				RuleGoLintConfigPresent,
 				RuleGoLintRequiredLinters,
 			},
-			Description:  "Enforces Go module and golangci-lint baseline setup for API and CLI surfaces.",
+			Description:  "Enforces Go module and golangci-lint baseline setup for any Go surface.",
 			WhyItMatters: "Without local module and linter configuration, Go quality checks become environment-dependent and easier to bypass.",
 			Remediation:  "Keep go.mod and .golangci.yml next to each Go surface and enable the baseline linters.",
 		},

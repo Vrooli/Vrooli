@@ -101,6 +101,209 @@ func TestAuditDetectsGoLintBaselineRules(t *testing.T) {
 	require.Contains(t, got, contracts.RuleGoLintRequiredLinters)
 }
 
+func TestAuditRoutesTSSurfaceByLanguageNotName(t *testing.T) {
+	// A TypeScript surface named "worker" (not "ui") must still be evaluated by
+	// the TS pack — routing keys on language, not surface name.
+	root := t.TempDir()
+	worker := filepath.Join(root, "worker")
+	require.NoError(t, os.MkdirAll(worker, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(worker, "tsconfig.json"), []byte(`{"compilerOptions":{"strict":true,"noUncheckedIndexedAccess":true}}`), 0o644))
+
+	report := runAuditWithSurfaces(t, root, []surfaces.Surface{
+		{ID: "worker", Kind: "worker", Language: "typescript", RootPath: worker, Status: "known"},
+	}, []string{contracts.RuleTSConfigStrict})
+
+	require.Len(t, report.Findings, 1)
+	require.Equal(t, contracts.RuleTSConfigStrict, report.Findings[0].RuleID)
+	require.Equal(t, "worker", report.Findings[0].SurfaceID)
+	require.Equal(t, "typescript-static-quality", contractStatusFor(report, "worker").ContractID)
+}
+
+func TestAuditRoutesGoSurfaceByLanguageNotName(t *testing.T) {
+	// A Go surface named "worker" (not api/cli) must still be evaluated by the
+	// Go pack.
+	root := t.TempDir()
+	worker := filepath.Join(root, "worker")
+	require.NoError(t, os.MkdirAll(worker, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(worker, "main.go"), []byte("package main\nfunc main(){}\n"), 0o644))
+
+	report := runAuditWithSurfaces(t, root, []surfaces.Surface{
+		{ID: "worker", Kind: "worker", Language: "go", RootPath: worker, Status: "known"},
+	}, []string{contracts.RuleGoModPresent})
+
+	require.Len(t, report.Findings, 1)
+	require.Equal(t, contracts.RuleGoModPresent, report.Findings[0].RuleID)
+	require.Equal(t, "go-static-quality", contractStatusFor(report, "worker").ContractID)
+}
+
+func TestAuditUncoveredSurfaceReportsGapNotPass(t *testing.T) {
+	// A discovered surface with no applicable contract (e.g. python) must report
+	// `uncovered` + a coverage-gap info finding, never a clean pass.
+	root := t.TempDir()
+	pysvc := filepath.Join(root, "pysvc")
+	require.NoError(t, os.MkdirAll(pysvc, 0o755))
+	// Keep scenario-level gates clean (no node/go surfaces here) so we isolate
+	// the coverage-gap behavior in the run status.
+	require.NoError(t, os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".vrooli", "testing.json"), []byte(`{"lint":{"handlers":{}}}`), 0o644))
+
+	report := runAuditWithSurfaces(t, root, []surfaces.Surface{
+		{ID: "pysvc", Kind: "api", Language: "python", RootPath: pysvc, Status: "known"},
+	}, nil)
+
+	c := contractStatusFor(report, "pysvc")
+	require.Equal(t, "uncovered", c.Status)
+	require.Equal(t, "", c.ContractID)
+
+	gap := findingForRule(report, contracts.RuleCoverageGap)
+	require.Equal(t, contracts.RuleCoverageGap, gap.RuleID)
+	require.Equal(t, "info", gap.Severity)
+	require.Equal(t, "coverage", gap.Category)
+	require.Contains(t, gap.Message, "pysvc")
+	require.Contains(t, gap.Message, "language=python")
+	// Info-only: run status is not failed.
+	require.Equal(t, "passed", report.Status)
+	require.Contains(t, report.Summary, "1 surface(s) uncovered")
+}
+
+func TestAuditNonGoApiSurfaceDoesNotRunGoEvaluator(t *testing.T) {
+	// A non-Go surface named "api" (python) must not run the Go evaluator.
+	root := t.TempDir()
+	api := filepath.Join(root, "api")
+	require.NoError(t, os.MkdirAll(api, 0o755))
+
+	report := runAuditWithSurfaces(t, root, []surfaces.Surface{
+		{ID: "api", Kind: "api", Language: "python", RootPath: api, Status: "known"},
+	}, nil)
+
+	for _, f := range report.Findings {
+		require.NotEqual(t, contracts.RuleGoModPresent, f.RuleID)
+		require.NotEqual(t, contracts.RuleGoLintConfigPresent, f.RuleID)
+		require.NotEqual(t, contracts.RuleGoLintRequiredLinters, f.RuleID)
+	}
+	require.Equal(t, "uncovered", contractStatusFor(report, "api").Status)
+}
+
+func TestAuditJSOnlySurfaceSkipsTSConfig(t *testing.T) {
+	// A JavaScript-only surface (no tsconfig) gets ESLint/build/suppression
+	// rules; TS_CONFIG_STRICT self-skips without a spurious "not found" error.
+	root := t.TempDir()
+	web := filepath.Join(root, "web")
+	require.NoError(t, os.MkdirAll(web, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(web, "package.json"), []byte(`{"scripts":{"build":"vite build"}}`), 0o644))
+
+	report := runAuditWithSurfaces(t, root, []surfaces.Surface{
+		{ID: "web", Kind: "ui", Language: "javascript", RootPath: web, Status: "known"},
+	}, nil)
+
+	var ruleIDs []string
+	for _, f := range report.Findings {
+		ruleIDs = append(ruleIDs, f.RuleID)
+		require.NotEqual(t, contracts.RuleTSConfigStrict, f.RuleID, "TS_CONFIG_STRICT must self-skip for JS-only surfaces")
+	}
+	// ESLint-missing and build-typecheck rules still apply.
+	require.Contains(t, ruleIDs, contracts.RuleESLintSafetyRules)
+	require.Contains(t, ruleIDs, contracts.RuleNodeBuildTypecheck)
+	require.Equal(t, "typescript-static-quality", contractStatusFor(report, "web").ContractID)
+}
+
+func TestAuditMaturityCappedWhenUncovered(t *testing.T) {
+	// Mixed inventory: one clean covered surface + one uncovered surface. Run is
+	// passed, but maturity is capped at L2 and names the uncovered surface.
+	root := t.TempDir()
+	api := filepath.Join(root, "api")
+	require.NoError(t, os.MkdirAll(api, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(api, "main.go"), []byte("package main\nfunc main(){}\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(api, "go.mod"), []byte("module x\n\ngo 1.25\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(api, ".golangci.yml"), []byte("linters:\n  enable:\n    - errcheck\n    - gofumpt\n    - govet\n    - ineffassign\n    - staticcheck\n    - typecheck\n    - unused\n"), 0o644))
+	// Keep the scenario-level Go gates clean so the run stays passed and we
+	// isolate the maturity cap caused purely by the uncovered surface.
+	require.NoError(t, os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".vrooli", "testing.json"), []byte(`{"lint":{"handlers":{"go_module":{"enabled":true,"strict":true}}}}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "Makefile"), []byte("lint-go:\n\tgolangci-lint run\nfmt-go:\n\tgofumpt -w .\n"), 0o644))
+	rust := filepath.Join(root, "rustsvc")
+	require.NoError(t, os.MkdirAll(rust, 0o755))
+
+	report := runAuditWithSurfaces(t, root, []surfaces.Surface{
+		{ID: "api", Kind: "api", Language: "go", RootPath: api, Status: "known"},
+		{ID: "rustsvc", Kind: "api", Language: "rust", RootPath: rust, Status: "known"},
+	}, nil)
+
+	require.Equal(t, "passed", report.Status)
+	require.Equal(t, 2, report.Maturity.Rung)
+	require.Equal(t, "L2", report.Maturity.Label)
+	require.Contains(t, report.Maturity.Rationale, "rustsvc")
+	require.Contains(t, report.Summary, "1 surface(s) uncovered")
+}
+
+func TestAuditParityForUiApiCliFixture(t *testing.T) {
+	// Parity: the classic ui/+api/+cli layout still fires every existing rule
+	// (no findings dropped after the language-first loosening).
+	root := t.TempDir()
+	ui := filepath.Join(root, "ui")
+	api := filepath.Join(root, "api")
+	cli := filepath.Join(root, "cli")
+	for _, d := range []string{ui, api, cli} {
+		require.NoError(t, os.MkdirAll(d, 0o755))
+	}
+	// UI: tsconfig without protective comments -> TS_CONFIG_STRICT fires.
+	require.NoError(t, os.WriteFile(filepath.Join(ui, "tsconfig.json"), []byte(`{"compilerOptions":{"strict":true,"noUncheckedIndexedAccess":true}}`), 0o644))
+	// api/cli: go files without go.mod -> GO_MOD_PRESENT fires.
+	require.NoError(t, os.WriteFile(filepath.Join(api, "main.go"), []byte("package main\nfunc main(){}\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(cli, "main.go"), []byte("package main\nfunc main(){}\n"), 0o644))
+
+	report := runAuditWithSurfaces(t, root, []surfaces.Surface{
+		{ID: "ui", Kind: "ui", Language: "typescript", Framework: "react-vite", RootPath: ui, Status: "known"},
+		{ID: "api", Kind: "api", Language: "go", RootPath: api, Status: "known"},
+		{ID: "cli", Kind: "cli", Language: "go", RootPath: cli, Status: "known"},
+	}, []string{contracts.RuleTSConfigStrict, contracts.RuleGoModPresent})
+
+	bySurface := map[string][]string{}
+	for _, f := range report.Findings {
+		bySurface[f.SurfaceID] = append(bySurface[f.SurfaceID], f.RuleID)
+	}
+	require.Contains(t, bySurface["ui"], contracts.RuleTSConfigStrict)
+	require.Contains(t, bySurface["api"], contracts.RuleGoModPresent)
+	require.Contains(t, bySurface["cli"], contracts.RuleGoModPresent)
+	require.Equal(t, "typescript-static-quality", contractStatusFor(report, "ui").ContractID)
+	require.Equal(t, "go-static-quality", contractStatusFor(report, "api").ContractID)
+	require.Equal(t, "go-static-quality", contractStatusFor(report, "cli").ContractID)
+}
+
+func findingForRule(report Response, ruleID string) Finding {
+	for _, f := range report.Findings {
+		if f.RuleID == ruleID {
+			return f
+		}
+	}
+	return Finding{}
+}
+
+func contractStatusFor(report Response, surfaceID string) ContractEvaluation {
+	for _, c := range report.Contracts {
+		if c.SurfaceID == surfaceID {
+			return c
+		}
+	}
+	return ContractEvaluation{}
+}
+
+func runAuditWithSurfaces(t *testing.T, root string, surfs []surfaces.Surface, rules []string) Response {
+	t.Helper()
+	svc := &Service{
+		Discoverer: fakeDiscoverer{inv: surfaces.Inventory{
+			Scenario:   "fixture",
+			TargetKind: "path",
+			RootPath:   root,
+			Surfaces:   surfs,
+		}},
+		Now: func() time.Time { return time.Date(2026, 6, 15, 12, 0, 0, 0, time.UTC) },
+	}
+	report, err := svc.Audit(context.Background(), Request{Scenario: "fixture", RuleIDs: rules})
+	require.NoError(t, err)
+	return report
+}
+
 func runFixtureAudit(t *testing.T, root string, rules []string) Response {
 	t.Helper()
 	svc := &Service{

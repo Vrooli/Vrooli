@@ -231,7 +231,7 @@ func (ls *LightScanner) runMakeCommand(ctx context.Context, target string) *Comm
 		return skippedCommandRun(command, "invalid make target format", "target validation failed", 0)
 	}
 
-	cmd := exec.CommandContext(ctx, "make", target)
+	cmd := exec.CommandContext(ctx, "make", target) // #nosec G204 G702 -- executable is fixed and target is validated by isValidMakeTarget.
 	cmd.Dir = ls.scenarioPath
 
 	var stdout, stderr bytes.Buffer
