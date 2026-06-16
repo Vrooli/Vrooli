@@ -1,0 +1,125 @@
+syntax = "proto3";
+
+package vrooli.scenario_dependency_analyzer.v1.dependency_governance;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/dependency_governance;dependency_governance_v1";
+
+// =============================================================================
+// DEPENDENCY GOVERNANCE DOMAIN
+// =============================================================================
+//
+// @stability beta
+//
+// Approved dependency records are review memory, not a hard allowlist. This
+// contract exposes recorded approvals and validation results so agents can
+// prefer known-good dependencies while still proposing better unrecorded options
+// with rationale, alternatives, and security/license notes.
+// =============================================================================
+
+service DependencyGovernanceService {
+  rpc ListApprovedDependencies(ListApprovedDependenciesRequest) returns (ApprovedDependencyListResponse);
+  rpc SearchApprovedDependencies(SearchApprovedDependenciesRequest) returns (ApprovedDependencySearchResponse);
+  rpc ExplainApprovedDependency(ExplainApprovedDependencyRequest) returns (ApprovedDependencyExplainResponse);
+  rpc ValidateApprovedDependencies(ValidateApprovedDependenciesRequest) returns (ApprovedDependencyValidationResponse);
+}
+
+message ListApprovedDependenciesRequest {
+  string ecosystem = 1;
+  string state = 2;
+  string surface = 3;
+  string use_case = 4;
+}
+
+message SearchApprovedDependenciesRequest {
+  string query = 1;
+  string ecosystem = 2;
+  int32 limit = 3;
+}
+
+message ExplainApprovedDependencyRequest {
+  string ecosystem = 1;
+  string package_name = 2;
+}
+
+message ValidateApprovedDependenciesRequest {
+  string scenario = 1;
+}
+
+message ApprovedDependencyListResponse {
+  repeated ApprovedDependencyRecord records = 1;
+  DependencyGovernanceSummary summary = 2;
+  string guidance = 3;
+}
+
+message ApprovedDependencySearchResponse {
+  repeated ApprovedDependencyRecord records = 1;
+  DependencyGovernanceSummary summary = 2;
+  string guidance = 3;
+}
+
+message ApprovedDependencyExplainResponse {
+  ApprovedDependencyRecord record = 1;
+  bool found = 2;
+  string guidance = 3;
+}
+
+message ApprovedDependencyValidationResponse {
+  string scenario = 1;
+  bool passed = 2;
+  DependencyGovernanceSummary summary = 3;
+  repeated ApprovedDependencyFinding findings = 4;
+  repeated ObservedDependency observed_dependencies = 5;
+  string guidance = 6;
+}
+
+message DependencyGovernanceSummary {
+  string status = 1;
+  int32 approved = 2;
+  int32 approved_with_constraints = 3;
+  int32 needs_review = 4;
+  int32 blocked = 5;
+  int32 deprecated = 6;
+  int32 unrecorded = 7;
+  int32 observed = 8;
+}
+
+message ApprovedDependencyRecord {
+  string ecosystem = 1;
+  string package_name = 2;
+  string version_range = 3;
+  string state = 4;
+  repeated string allowed_surfaces = 5;
+  repeated string use_cases = 6;
+  string rationale = 7;
+  string approved_by = 8;
+  string approved_date = 9;
+  string last_reviewed = 10;
+  string review_expires = 11;
+  string license_notes = 12;
+  string security_notes = 13;
+  repeated string example_scenarios = 14;
+  string replacement = 15;
+  repeated string keywords = 16;
+}
+
+message ObservedDependency {
+  string ecosystem = 1;
+  string package_name = 2;
+  string version = 3;
+  string surface_id = 4;
+  string file_path = 5;
+  string dependency_group = 6;
+}
+
+message ApprovedDependencyFinding {
+  string id = 1;
+  string severity = 2;
+  string title = 3;
+  string description = 4;
+  string remediation = 5;
+  string file_path = 6;
+  string ecosystem = 7;
+  string package_name = 8;
+  string observed = 9;
+  string expected = 10;
+}

@@ -15,21 +15,21 @@ Read first when present:
 
 ---
 
-### 0. Programmatic Validation — run this first
+### 0. Provider-Owned Maturity — run this first
 
-Take the proto-health photograph before doing manual judgment:
+Take the proto-health photograph before doing manual judgment. The default human output is the single source of truth for current local maturity, next level, blockers, global impact grouping, and recommended skill IDs:
 
 ```bash
-proto-health validate scenario {{TARGET}} --json
+proto-health validate scenario {{TARGET}}
 ```
 
-When running through the full quality loop, use the test-genie phase so findings are normalized into `FINDING_SOURCE_PROTO`:
+Use `--json` only for automation or parser debugging. When running through the full quality loop, use the test-genie phase so findings are normalized into `FINDING_SOURCE_PROTO`:
 
 ```bash
 test-genie execute {{TARGET}} proto --json
 ```
 
-Use these results to prioritize fixes. The manual workflow below is for interpreting and resolving findings, not duplicating proto-health's deterministic checks.
+Use these results to prioritize fixes. The manual workflow below is for interpreting and resolving findings, not duplicating proto-health's deterministic checks or its `.vrooli/maturity.json` ladder.
 
 ---
 
@@ -51,18 +51,11 @@ Use these results to prioritize fixes. The manual workflow below is for interpre
 
 ---
 
-### 2. Proto Maturity Model
+### 2. Provider Findings
 
-Assess the scenario by verifiable artifacts, not by intent.
+Assess the scenario from provider findings, not by intent or a duplicated prose ladder. Walk the `proto-health validate scenario {{TARGET}}` output in order: fix ERROR findings first, document accepted warnings, and rerun the provider CLI after meaningful changes.
 
-| Level | Name | What exists | When to stop here |
-|---|---|---|---|
-| 0 | Hand-rolled or absent | No scenario proto, or API/CLI/UI rely on ad hoc JSON and hand-written DTOs. | Only acceptable for a prototype not yet exposing a reusable surface. |
-| 1 | Generated baseline | Schema exists under `packages/proto/schemas/{{TARGET}}/`, `packages/proto/gen/` artifacts are current, and `make verify-committed-gen` can verify committed-artifact sync. | Stop when the immediate risk is stale generated code. |
-| 2 | Domain-organized | Files follow `schemas/{{TARGET}}/v<n>/<domain>/<domain>.proto`, `v1/shared/` holds scenario-local shared types, and version dirs are contiguous. | Stop when placement is clear but adoption remains incomplete. |
-| 3 | Adopted generated contracts | API/CLI/UI import generated types or clients instead of parallel hand-written shapes. | Stop when contract consumption is type-safe but transport is still mixed. |
-| 4 | Transport-clear and stability-honest | Generated Connect handlers serve proto-owned calls, REST exceptions are explicit, and `@stability` matches implementation reality. | Stop when proto-health is warning-only or clean. |
-| 5 | Quality-loop green | `test-genie` `proto` phase emits no ERROR findings and remaining warnings are understood in `PROBLEMS.md`. | Stop when this scenario no longer blocks the `proto-health` R2 dimension. |
+The provider owns current/next maturity. If that maturity output is inaccurate, update proto-health or its maturity spec instead of patching this skill.
 
 ---
 
@@ -81,7 +74,7 @@ Walk these rows in order.
 | `proto.template_source` | Keep the marker while the file is scaffold reference code; remove it only when the contract is intentionally adopted or replaced. | Template maintenance if new generated scenarios inherit the wrong marker |
 | `proto.possibly_unused` | Treat as advisory; confirm locally and document if intentionally reserved. | scenario-dependency-analyzer for fleet-aware dead-proto decisions |
 
-Generated-contract adoption is still part of the manual audit ladder above.
+Generated-contract adoption is still part of proto-health's provider-owned maturity.
 Automated proof belongs to the future `surface-code-facts` layer, not to a
 declaration-only proto-health finding.
 
@@ -112,8 +105,8 @@ make verify-committed-gen
 
 | Symptom | First check | Likely cause | Fix |
 |---|---|---|---|
-| `proto-health validate scenario {{TARGET}} --json` cannot find or reach proto-health | `cd scenarios/proto-health && make status` | The producer scenario is stopped or unhealthy. | Start it through lifecycle with `cd scenarios/proto-health && make start`, then rerun validation. |
-| `proto.gen_out_of_sync` appears after schema edits | `cd packages/proto && make generate` | Generated artifacts under `packages/proto/gen/` do not match `packages/proto/schemas/`. | Regenerate, inspect the scoped `gen/` diff, and rerun `proto-health validate scenario {{TARGET}} --json`. |
+| `proto-health validate scenario {{TARGET}}` cannot find or reach proto-health | `cd scenarios/proto-health && make status` | The producer scenario is stopped or unhealthy. | Start it through lifecycle with `cd scenarios/proto-health && make start`, then rerun validation. |
+| `proto.gen_out_of_sync` appears after schema edits | `cd packages/proto && make generate` | Generated artifacts under `packages/proto/gen/` do not match `packages/proto/schemas/`. | Regenerate, inspect the scoped `gen/` diff, and rerun `proto-health validate scenario {{TARGET}}`. |
 | `cd packages/proto && make verify-committed-gen` fails while schema/generated changes are intentionally uncommitted | `git diff --stat -- packages/proto/gen packages/proto/schemas` | The check compares generated artifacts against the git index; it is a commit/CI gate, not a substitute for reviewing uncommitted generated diffs. | Confirm `make generate` is idempotent, include the generated artifacts in the same commit as schema changes, then rerun `make verify-committed-gen` from a clean or staged state. |
 | Only `proto.possibly_unused` or other WARNING/INFO findings remain | Inspect `scenarios/{{TARGET}}/docs/internal/PROBLEMS.md` | The scenario may be intentionally carrying advisory migration debt. | Document the reason and owner in durable docs; do not turn warning-tier maturity findings into blockers without a plan update. |
 
@@ -128,7 +121,7 @@ You may update schema files, generated artifacts, scenario API/CLI/UI consumers,
 You must:
 - keep proto-health's scope scenario-local
 - preserve generated-code provenance by editing schemas, not `gen/` directly
-- run `proto-health validate scenario {{TARGET}} --json` after meaningful changes
+- run `proto-health validate scenario {{TARGET}}` after meaningful changes
 - write unresolved proto warnings to durable scenario docs rather than a standalone audit report
 
 Avoid:

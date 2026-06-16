@@ -4,13 +4,15 @@
 
 import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { MaturityAssessment } from "../../../common/v1/maturity_pb";
+import { file_common_v1_maturity } from "../../../common/v1/maturity_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file ui-health/v1/validation/validation.proto.
  */
 export const file_ui_health_v1_validation_validation: GenFile = /*@__PURE__*/
-  fileDesc("Cih1aS1oZWFsdGgvdjEvdmFsaWRhdGlvbi92YWxpZGF0aW9uLnByb3RvEh52cm9vbGkudWlfaGVhbHRoLnYxLnZhbGlkYXRpb24iigEKB0ZpbmRpbmcSOgoIc2V2ZXJpdHkYASABKA4yKC52cm9vbGkudWlfaGVhbHRoLnYxLnZhbGlkYXRpb24uU2V2ZXJpdHkSDAoEY29kZRgCIAEoCRIQCghsb2NhdGlvbhgDIAEoCRIPCgdtZXNzYWdlGAQgASgJEhIKCnN1Z2dlc3Rpb24YBSABKAkiOgoHU3VtbWFyeRIOCgZlcnJvcnMYASABKAUSEAoId2FybmluZ3MYAiABKAUSDQoFaW5mb3MYAyABKAUiKwoXVmFsaWRhdGVTY2VuYXJpb1JlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkisQEKGFZhbGlkYXRlU2NlbmFyaW9SZXNwb25zZRIQCghzY2VuYXJpbxgBIAEoCRIOCgZwYXNzZWQYAiABKAgSOQoIZmluZGluZ3MYAyADKAsyJy52cm9vbGkudWlfaGVhbHRoLnYxLnZhbGlkYXRpb24uRmluZGluZxI4CgdzdW1tYXJ5GAQgASgLMicudnJvb2xpLnVpX2hlYWx0aC52MS52YWxpZGF0aW9uLlN1bW1hcnkqYQoIU2V2ZXJpdHkSGAoUU0VWRVJJVFlfVU5TUEVDSUZJRUQQABISCg5TRVZFUklUWV9FUlJPUhABEhQKEFNFVkVSSVRZX1dBUk5JTkcQAhIRCg1TRVZFUklUWV9JTkZPEAMymwEKEVZhbGlkYXRpb25TZXJ2aWNlEoUBChBWYWxpZGF0ZVNjZW5hcmlvEjcudnJvb2xpLnVpX2hlYWx0aC52MS52YWxpZGF0aW9uLlZhbGlkYXRlU2NlbmFyaW9SZXF1ZXN0GjgudnJvb2xpLnVpX2hlYWx0aC52MS52YWxpZGF0aW9uLlZhbGlkYXRlU2NlbmFyaW9SZXNwb25zZUJWWlRnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3VpLWhlYWx0aC92MS92YWxpZGF0aW9uO3ZhbGlkYXRpb25fdjFiBnByb3RvMw");
+  fileDesc("Cih1aS1oZWFsdGgvdjEvdmFsaWRhdGlvbi92YWxpZGF0aW9uLnByb3RvEh52cm9vbGkudWlfaGVhbHRoLnYxLnZhbGlkYXRpb24iigEKB0ZpbmRpbmcSOgoIc2V2ZXJpdHkYASABKA4yKC52cm9vbGkudWlfaGVhbHRoLnYxLnZhbGlkYXRpb24uU2V2ZXJpdHkSDAoEY29kZRgCIAEoCRIQCghsb2NhdGlvbhgDIAEoCRIPCgdtZXNzYWdlGAQgASgJEhIKCnN1Z2dlc3Rpb24YBSABKAkiOgoHU3VtbWFyeRIOCgZlcnJvcnMYASABKAUSEAoId2FybmluZ3MYAiABKAUSDQoFaW5mb3MYAyABKAUiKwoXVmFsaWRhdGVTY2VuYXJpb1JlcXVlc3QSEAoIc2NlbmFyaW8YASABKAki5AEKGFZhbGlkYXRlU2NlbmFyaW9SZXNwb25zZRIQCghzY2VuYXJpbxgBIAEoCRIOCgZwYXNzZWQYAiABKAgSOQoIZmluZGluZ3MYAyADKAsyJy52cm9vbGkudWlfaGVhbHRoLnYxLnZhbGlkYXRpb24uRmluZGluZxI4CgdzdW1tYXJ5GAQgASgLMicudnJvb2xpLnVpX2hlYWx0aC52MS52YWxpZGF0aW9uLlN1bW1hcnkSMQoKYXNzZXNzbWVudBgFIAEoCzIdLmNvbW1vbi52MS5NYXR1cml0eUFzc2Vzc21lbnQqYQoIU2V2ZXJpdHkSGAoUU0VWRVJJVFlfVU5TUEVDSUZJRUQQABISCg5TRVZFUklUWV9FUlJPUhABEhQKEFNFVkVSSVRZX1dBUk5JTkcQAhIRCg1TRVZFUklUWV9JTkZPEAMymwEKEVZhbGlkYXRpb25TZXJ2aWNlEoUBChBWYWxpZGF0ZVNjZW5hcmlvEjcudnJvb2xpLnVpX2hlYWx0aC52MS52YWxpZGF0aW9uLlZhbGlkYXRlU2NlbmFyaW9SZXF1ZXN0GjgudnJvb2xpLnVpX2hlYWx0aC52MS52YWxpZGF0aW9uLlZhbGlkYXRlU2NlbmFyaW9SZXNwb25zZUJWWlRnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3VpLWhlYWx0aC92MS92YWxpZGF0aW9uO3ZhbGlkYXRpb25fdjFiBnByb3RvMw", [file_common_v1_maturity]);
 
 /**
  * Finding is a single validation result tied to a location inside the
@@ -119,6 +121,14 @@ export type ValidateScenarioResponse = Message<"vrooli.ui_health.v1.validation.V
    * @generated from field: vrooli.ui_health.v1.validation.Summary summary = 4;
    */
   summary?: Summary | undefined;
+
+  /**
+   * Shared provider-owned maturity assessment. Automation should consume this
+   * structural object; humans should run the CLI without --json.
+   *
+   * @generated from field: common.v1.MaturityAssessment assessment = 5;
+   */
+  assessment?: MaturityAssessment | undefined;
 };
 
 /**

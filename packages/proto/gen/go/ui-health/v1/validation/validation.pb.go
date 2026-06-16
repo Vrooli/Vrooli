@@ -7,6 +7,7 @@
 package validation_v1
 
 import (
+	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -256,11 +257,14 @@ func (x *ValidateScenarioRequest) GetScenario() string {
 }
 
 type ValidateScenarioResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	Passed        bool                   `protobuf:"varint,2,opt,name=passed,proto3" json:"passed,omitempty"`
-	Findings      []*Finding             `protobuf:"bytes,3,rep,name=findings,proto3" json:"findings,omitempty"`
-	Summary       *Summary               `protobuf:"bytes,4,opt,name=summary,proto3" json:"summary,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Scenario string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Passed   bool                   `protobuf:"varint,2,opt,name=passed,proto3" json:"passed,omitempty"`
+	Findings []*Finding             `protobuf:"bytes,3,rep,name=findings,proto3" json:"findings,omitempty"`
+	Summary  *Summary               `protobuf:"bytes,4,opt,name=summary,proto3" json:"summary,omitempty"`
+	// Shared provider-owned maturity assessment. Automation should consume this
+	// structural object; humans should run the CLI without --json.
+	Assessment    *v1.MaturityAssessment `protobuf:"bytes,5,opt,name=assessment,proto3" json:"assessment,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -323,11 +327,18 @@ func (x *ValidateScenarioResponse) GetSummary() *Summary {
 	return nil
 }
 
+func (x *ValidateScenarioResponse) GetAssessment() *v1.MaturityAssessment {
+	if x != nil {
+		return x.Assessment
+	}
+	return nil
+}
+
 var File_ui_health_v1_validation_validation_proto protoreflect.FileDescriptor
 
 const file_ui_health_v1_validation_validation_proto_rawDesc = "" +
 	"\n" +
-	"(ui-health/v1/validation/validation.proto\x12\x1evrooli.ui_health.v1.validation\"\xb9\x01\n" +
+	"(ui-health/v1/validation/validation.proto\x12\x1evrooli.ui_health.v1.validation\x1a\x18common/v1/maturity.proto\"\xb9\x01\n" +
 	"\aFinding\x12D\n" +
 	"\bseverity\x18\x01 \x01(\x0e2(.vrooli.ui_health.v1.validation.SeverityR\bseverity\x12\x12\n" +
 	"\x04code\x18\x02 \x01(\tR\x04code\x12\x1a\n" +
@@ -341,12 +352,15 @@ const file_ui_health_v1_validation_validation_proto_rawDesc = "" +
 	"\bwarnings\x18\x02 \x01(\x05R\bwarnings\x12\x14\n" +
 	"\x05infos\x18\x03 \x01(\x05R\x05infos\"5\n" +
 	"\x17ValidateScenarioRequest\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\"\xd6\x01\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\"\x95\x02\n" +
 	"\x18ValidateScenarioResponse\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x16\n" +
 	"\x06passed\x18\x02 \x01(\bR\x06passed\x12C\n" +
 	"\bfindings\x18\x03 \x03(\v2'.vrooli.ui_health.v1.validation.FindingR\bfindings\x12A\n" +
-	"\asummary\x18\x04 \x01(\v2'.vrooli.ui_health.v1.validation.SummaryR\asummary*a\n" +
+	"\asummary\x18\x04 \x01(\v2'.vrooli.ui_health.v1.validation.SummaryR\asummary\x12=\n" +
+	"\n" +
+	"assessment\x18\x05 \x01(\v2\x1d.common.v1.MaturityAssessmentR\n" +
+	"assessment*a\n" +
 	"\bSeverity\x12\x18\n" +
 	"\x14SEVERITY_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eSEVERITY_ERROR\x10\x01\x12\x14\n" +
@@ -375,18 +389,20 @@ var file_ui_health_v1_validation_validation_proto_goTypes = []any{
 	(*Summary)(nil),                  // 2: vrooli.ui_health.v1.validation.Summary
 	(*ValidateScenarioRequest)(nil),  // 3: vrooli.ui_health.v1.validation.ValidateScenarioRequest
 	(*ValidateScenarioResponse)(nil), // 4: vrooli.ui_health.v1.validation.ValidateScenarioResponse
+	(*v1.MaturityAssessment)(nil),    // 5: common.v1.MaturityAssessment
 }
 var file_ui_health_v1_validation_validation_proto_depIdxs = []int32{
 	0, // 0: vrooli.ui_health.v1.validation.Finding.severity:type_name -> vrooli.ui_health.v1.validation.Severity
 	1, // 1: vrooli.ui_health.v1.validation.ValidateScenarioResponse.findings:type_name -> vrooli.ui_health.v1.validation.Finding
 	2, // 2: vrooli.ui_health.v1.validation.ValidateScenarioResponse.summary:type_name -> vrooli.ui_health.v1.validation.Summary
-	3, // 3: vrooli.ui_health.v1.validation.ValidationService.ValidateScenario:input_type -> vrooli.ui_health.v1.validation.ValidateScenarioRequest
-	4, // 4: vrooli.ui_health.v1.validation.ValidationService.ValidateScenario:output_type -> vrooli.ui_health.v1.validation.ValidateScenarioResponse
-	4, // [4:5] is the sub-list for method output_type
-	3, // [3:4] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	5, // 3: vrooli.ui_health.v1.validation.ValidateScenarioResponse.assessment:type_name -> common.v1.MaturityAssessment
+	3, // 4: vrooli.ui_health.v1.validation.ValidationService.ValidateScenario:input_type -> vrooli.ui_health.v1.validation.ValidateScenarioRequest
+	4, // 5: vrooli.ui_health.v1.validation.ValidationService.ValidateScenario:output_type -> vrooli.ui_health.v1.validation.ValidateScenarioResponse
+	5, // [5:6] is the sub-list for method output_type
+	4, // [4:5] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_ui_health_v1_validation_validation_proto_init() }

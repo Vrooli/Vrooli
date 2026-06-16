@@ -63,6 +63,15 @@ scenario-dependency-analyzer graph actual --json
 # Report declared-vs-actual scenario dependency drift
 scenario-dependency-analyzer drift scenario-dependency-analyzer --json
 
+# Validate dependency health through the producer contract
+scenario-dependency-analyzer health scenario-dependency-analyzer --json
+
+# Search approved dependency governance memory
+scenario-dependency-analyzer deps approved search "React graph library" --json
+
+# Validate a scenario against approved dependency governance memory
+scenario-dependency-analyzer deps approved validate scenario-dependency-analyzer --json
+
 # Analyze proposed scenario
 scenario-dependency-analyzer propose "AI-powered task scheduler with database storage"
 
@@ -127,6 +136,8 @@ curl "http://localhost:${API_PORT}/api/v1/scenarios/chart-generator/dag/export?r
 
 - Actual interface graph assembly from `proto-health` proto facts and `code-facts` import facts.
 - Declared-vs-actual drift reporting for scenario dependencies.
+- Dependency-health producer contract for Test Genie and future agents, including Code Facts-backed surface inventory, dependency readiness checks, runtime dependency status, approved dependency governance, pnpm release-age policy validation, security-health dependency-index availability, and graph drift.
+- Approved dependency governance records exposed through a generated Connect contract and CLI. These records are review memory, not an exhaustive allowlist; agents may suggest better unrecorded dependencies with purpose, version/range, alternatives, and security/license notes.
 - REST, Connect, CLI, and UI surfaces for operators and downstream scenarios.
 
 ## Documentation Map

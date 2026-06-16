@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package vrooli.measures_health.v1.validation;
 
+import "common/v1/maturity.proto";
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/measures-health/v1/validation;validation_v1";
 
 // =============================================================================
@@ -175,6 +177,9 @@ message ValidateScenarioResponse {
   // Context that applied but could not run (e.g. "probe (scenario not
   // running)"); surfaced as INFO, never a failure.
   repeated string skipped_scanners = 6;
+  // Shared provider-owned maturity assessment. Automation should consume this
+  // structural object; humans should use the default CLI rendering.
+  common.v1.MaturityAssessment assessment = 7;
 }
 
 // ListFleetCoverageRequest requests the cross-scenario coverage rollup. An

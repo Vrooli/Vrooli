@@ -2,7 +2,7 @@
 
 Prioritize **making `scenarios/{{TARGET}}/`'s analytical questions answerable as declared, typed, parameterized measures** on `packages/measures-go`, so `search-hub` can match a natural-language question ("how many backlog items closed this week"), resolve its parameters deterministically, and — for safe read-only measures — return the computed answer with provenance.
 
-Your goal is to move each stateful domain **up the Measure Maturity Ladder** (§3) until `measures-health validate scenario {{TARGET}}` grades it at full tier — not to invent new business logic. Measures are a declaration + thin serve layer over computations the scenario already performs.
+Your goal is to make `measures-health validate scenario {{TARGET}}` report the target's provider-owned current and next maturity as unblocked — not to invent new business logic. Measures are a declaration + thin serve layer over computations the scenario already performs.
 
 Required reading:
 - **`path:packages/measures-go/README.md`** — the contract API: the three-source `MeasureDeclaration`, the deterministic `time_window` resolver, the serve `Registry`, the auto-exec `Gate`, the `LLMExtractor`/`MeasureComposer` seams, the CQRS substrate, and the contract invariants. This skill is the *judgment* layer; the README is the *API*.
@@ -59,27 +59,16 @@ Measures are **not** prompt-manager *actions* (agent-discovered command intents)
 
 ---
 
-### 3. Measure Maturity Ladder
+### 3. Provider-Owned Maturity
 
-Grade each stateful domain against this ladder, then move it up only as far as its analytical value justifies. **Every level is gated by a command you can run** — the verifiable artifact is the `measures-health` CLI's own verdict, so two agents grading the same scenario land on the same rung.
-
-The gating command throughout is:
+Run the provider CLI before manual judgment. The provider's default human output is the single source of truth for current local maturity, next level, blockers, global impact grouping, and recommended skill IDs:
 
 ```bash
-measures-health validate scenario {{TARGET}}            # static: expected/covered/waived + per-measure tier + verdict
-measures-health validate scenario {{TARGET}} --probe    # + boots the scenario and round-trips each measure endpoint
+measures-health validate scenario {{TARGET}}
+measures-health validate scenario {{TARGET}} --probe
 ```
 
-| Level | Name | What exists (verifiable artifact) | When to stop here |
-|---|---|---|---|
-| **0** | Unmeasured | `validate` reports `✗ ERROR` on ≥1 stateful domain, or `cli/manifest.json` has no `measure` block. | Never, while any stateful domain accumulates countable rows. |
-| **1** | Classified | Every stateful domain is **covered or waived**: `validate` shows **no stale-waiver WARNING** and every `measures.omitted[]`/`domains[]` entry has a written reason. | A domain with genuinely no historical/countable value — waive it and stop. |
-| **2** | Declared | `measure` blocks bound to proto methods; cli-health static validation emits **no `measure.invalid` / `measure.unknown_param_type`**; `validate` lists the domain `covered`. | Never — a declared-but-unserved measure is hollow (caught at L3). |
-| **3** | Served & probed | `validate --probe` returns **`probePassed: true`** for every measure (endpoint answers, conforms to its declared `result` shape — no 404, no shape mismatch). | A low-traffic domain where a windowed count is the whole question. |
-| **4** | Full tier | every measure graded **`tier: full`** (canonical `time_window` params) and `validate` reports **0 findings** → the domain clears the EM soft `measures` rung (R4). | **The target for most domains.** |
-| **5** | Federated & parity | `search-hub query "<the domain's question>"` matches the measure, resolves the window, and auto-answers end-to-end; any old `/stats` path is **deleted** (`git grep -n "GET /.*stats"` clean); dashboard-parity `table`/`series`/rate measures exist; an eval baseline is recorded. | Dogfood / flagship scenarios (e.g. swarm-manager). |
-
-The level is not a vanity score — it tells the next agent exactly how far adoption got and what the validator will still flag.
+Use this skill to interpret and fix the findings the CLI reports. Do not restate or override the provider's `.vrooli/maturity.json` ladder in skill prose; if the ladder looks wrong, fix `measures-health` or its maturity spec.
 
 ---
 
@@ -136,7 +125,7 @@ Per the agent memory loop (canon), findings accumulate in the scenario's durable
 - **`scenarios/{{TARGET}}/docs/internal/SEAMS.md`** — the "Measures Serve Boundary" seam: the `Registry` is the single point where a declaration meets its computation; the test double is a fake compute func.
 - **`scenarios/{{TARGET}}/docs/internal/PROBLEMS.md`** — deferred measure work (a `/stats` migration in flight, a domain stuck below full tier and why, a waiver that needs revisiting).
 
-Write the current ladder level reached per domain so the next agent continues rather than re-discovers.
+Write the provider-reported current/next maturity and blockers so the next agent continues rather than re-discovers.
 
 ---
 

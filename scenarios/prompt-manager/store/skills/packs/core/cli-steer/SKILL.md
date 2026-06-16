@@ -36,20 +36,15 @@ Optional reading:
 
 ---
 
-### 2. CLI Maturity Model
+### 2. CLI Health Provider
 
-Assess each scenario CLI independently. A CLI may be L3 for one domain and L1 for another.
+Run CLI Health before manual judgment. The provider's default human output is the single source of truth for current local maturity, next level, blockers, global impact grouping, and recommended skill IDs:
 
-| Level | Name | What exists | When to stop here |
-|---|---|---|---|
-| 0 | Bash script | A `.sh` wrapper or curl pipeline; not portable. | Never the planned target. |
-| 1 | Go binary on cli-core | `main.go` + `ScenarioApp`, standard env derivation, stale detection, global flags. | Tiny throwaway CLIs only. |
-| 2 | API parity | Every scenario API method has a corresponding CLI command; argument parsing uses `cliutil.ParseInterspersed`. | Acceptable when the API is still mostly REST and proto adoption is in flight. |
-| 3 | Generated Connect clients | For every proto-owned RPC, the CLI consumes `<domain>connect.New<Service>Client(httpClient, baseURL)` from `cliapp.NewConnectHTTPClient(core)`. Hand-written `APIClient.Get/Post` exists only inside REST-exception commands. | Most healthy CLIs land here. |
-| 4 | Report-shaped output | Human output uses `cliapp.RenderListReport` / `RenderMutationReport` / `RenderOperationalReport`; `--json` companions use `PrintReportJSON` and emit the proto-typed wire shape; `--dry-run` flows through end to end. | Strong default; CLIs feel professional. |
-| 5 | Descriptor parity test | `cmd/gen-endpoints` (or an equivalent test) validates that every `EndpointDescriptor.CLIMapping.Command` resolves to a registered CLI command and every Connect RPC has a CLI counterpart. | Drift becomes a build failure, not a docs note. |
+```bash
+cli-health validate scenario {{TARGET}}
+```
 
-Use the level to identify the next concrete move: scaffold, parity, switch to Connect client, adopt report renderers, or add the parity gate.
+Use this skill to interpret and fix the provider findings: scaffold, parity, generated Connect clients, report renderers, or drift gates. Do not duplicate or summarize CLI Health's `.vrooli/maturity.json` ladder in skill prose; if the ladder is wrong, fix `cli-health` or its maturity spec.
 
 ---
 

@@ -104,6 +104,7 @@ Agent-maintained document tracking development milestones.
 - Documentation completeness and accuracy
 - Adding DOC: comments to critical code paths
 - Adding [CODE: ...] references in documentation
+- Added core steer skills `quality-health` and `tidiness` so standards and tidiness Test Genie findings can route to dedicated remediation doctrine with `programmaticHome` metadata.
 
 ---
 

@@ -15,6 +15,8 @@ import (
 	appconfig "scenario-dependency-analyzer/internal/config"
 	coresetapi "scenario-dependency-analyzer/internal/coreset"
 	dependenciesapi "scenario-dependency-analyzer/internal/dependencies"
+	dependencygovernanceapi "scenario-dependency-analyzer/internal/dependencygovernance"
+	dependencyhealthapi "scenario-dependency-analyzer/internal/dependencyhealth"
 	deploymentapi "scenario-dependency-analyzer/internal/deployment"
 	graphapi "scenario-dependency-analyzer/internal/graph"
 	optimizationapi "scenario-dependency-analyzer/internal/optimization"
@@ -47,6 +49,8 @@ func Run(cfg appconfig.Config, dbConn *sql.DB) error {
 		CacheTTL:     cfg.InterfaceGraphCacheTTL,
 		BuildTimeout: cfg.InterfaceGraphBuildTimeout,
 	})
+	dependencyhealthapi.RegisterConnectRoutes(router, h.scenariosDir)
+	dependencygovernanceapi.RegisterConnectRoutes(router, h.scenariosDir)
 
 	log.Printf("Starting Scenario Dependency Analyzer API on port %s", cfg.Port)
 	log.Printf("Scenarios directory: %s", cfg.ScenariosDir)

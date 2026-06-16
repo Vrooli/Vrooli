@@ -9,6 +9,14 @@ Do **not** break functionality, regress tests, or weaken existing protections. A
 Required reading:
 - `prompt-manager skills read visited-tracker-tools knowledge-observatory-tools`
 
+Run Security Health before manual judgment. The provider's default human output is the single source of truth for current local maturity, next level, blockers, global impact grouping, and recommended skill IDs:
+
+```bash
+security-health validate scenario {{TARGET}}
+```
+
+Use this skill to interpret and fix the provider findings. Do not duplicate or summarize Security Health's `.vrooli/maturity.json` ladder in skill prose; if the ladder is wrong, fix `security-health` or its maturity spec.
+
 Focus on **practical, high-impact security improvements**, guided by these principles:
 
 ---

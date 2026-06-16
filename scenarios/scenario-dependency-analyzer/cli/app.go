@@ -63,6 +63,10 @@ func (a *App) normalizeArgs(args []string) []string {
 	switch cleaned[0] {
 	case "config":
 		cleaned[0] = "configure"
+	case "deps":
+		if len(cleaned) >= 2 && cleaned[1] == "approved" {
+			cleaned = append([]string{"deps-approved"}, cleaned[2:]...)
+		}
 	case "dependencies":
 		cleaned[0] = "list"
 	case "scenario":

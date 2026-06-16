@@ -7,6 +7,7 @@
 package validation_v1
 
 import (
+	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -261,11 +262,14 @@ func (x *ValidateScenarioRequest) GetScenario() string {
 
 // ValidateScenarioResponse reports proto-health findings for the scenario.
 type ValidateScenarioResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	Passed        bool                   `protobuf:"varint,2,opt,name=passed,proto3" json:"passed,omitempty"`
-	Findings      []*Finding             `protobuf:"bytes,3,rep,name=findings,proto3" json:"findings,omitempty"`
-	Summary       *Summary               `protobuf:"bytes,4,opt,name=summary,proto3" json:"summary,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Scenario string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Passed   bool                   `protobuf:"varint,2,opt,name=passed,proto3" json:"passed,omitempty"`
+	Findings []*Finding             `protobuf:"bytes,3,rep,name=findings,proto3" json:"findings,omitempty"`
+	Summary  *Summary               `protobuf:"bytes,4,opt,name=summary,proto3" json:"summary,omitempty"`
+	// Shared provider-owned maturity assessment. Automation should consume this
+	// structural object; humans should use the default CLI rendering.
+	Assessment    *v1.MaturityAssessment `protobuf:"bytes,5,opt,name=assessment,proto3" json:"assessment,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -324,6 +328,13 @@ func (x *ValidateScenarioResponse) GetFindings() []*Finding {
 func (x *ValidateScenarioResponse) GetSummary() *Summary {
 	if x != nil {
 		return x.Summary
+	}
+	return nil
+}
+
+func (x *ValidateScenarioResponse) GetAssessment() *v1.MaturityAssessment {
+	if x != nil {
+		return x.Assessment
 	}
 	return nil
 }
@@ -590,7 +601,7 @@ var File_proto_health_v1_validation_validation_proto protoreflect.FileDescriptor
 
 const file_proto_health_v1_validation_validation_proto_rawDesc = "" +
 	"\n" +
-	"+proto-health/v1/validation/validation.proto\x12!vrooli.proto_health.v1.validation\x1a$proto-health/v1/shared/surface.proto\"\xbc\x01\n" +
+	"+proto-health/v1/validation/validation.proto\x12!vrooli.proto_health.v1.validation\x1a\x18common/v1/maturity.proto\x1a$proto-health/v1/shared/surface.proto\"\xbc\x01\n" +
 	"\aFinding\x12G\n" +
 	"\bseverity\x18\x01 \x01(\x0e2+.vrooli.proto_health.v1.validation.SeverityR\bseverity\x12\x12\n" +
 	"\x04code\x18\x02 \x01(\tR\x04code\x12\x1a\n" +
@@ -604,12 +615,15 @@ const file_proto_health_v1_validation_validation_proto_rawDesc = "" +
 	"\bwarnings\x18\x02 \x01(\x05R\bwarnings\x12\x14\n" +
 	"\x05infos\x18\x03 \x01(\x05R\x05infos\"5\n" +
 	"\x17ValidateScenarioRequest\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\"\xdc\x01\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\"\x9b\x02\n" +
 	"\x18ValidateScenarioResponse\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x16\n" +
 	"\x06passed\x18\x02 \x01(\bR\x06passed\x12F\n" +
 	"\bfindings\x18\x03 \x03(\v2*.vrooli.proto_health.v1.validation.FindingR\bfindings\x12D\n" +
-	"\asummary\x18\x04 \x01(\v2*.vrooli.proto_health.v1.validation.SummaryR\asummary\";\n" +
+	"\asummary\x18\x04 \x01(\v2*.vrooli.proto_health.v1.validation.SummaryR\asummary\x12=\n" +
+	"\n" +
+	"assessment\x18\x05 \x01(\v2\x1d.common.v1.MaturityAssessmentR\n" +
+	"assessment\";\n" +
 	"\x1dDescribeScenarioProtosRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\"g\n" +
 	"\x1eDescribeScenarioProtosResponse\x12E\n" +
@@ -659,26 +673,28 @@ var file_proto_health_v1_validation_validation_proto_goTypes = []any{
 	(*DescribeScenariosProtosRequest)(nil),  // 7: vrooli.proto_health.v1.validation.DescribeScenariosProtosRequest
 	(*ProtoSurfaceResult)(nil),              // 8: vrooli.proto_health.v1.validation.ProtoSurfaceResult
 	(*DescribeScenariosProtosResponse)(nil), // 9: vrooli.proto_health.v1.validation.DescribeScenariosProtosResponse
-	(*shared.ProtoSurface)(nil),             // 10: vrooli.proto_health.v1.shared.ProtoSurface
+	(*v1.MaturityAssessment)(nil),           // 10: common.v1.MaturityAssessment
+	(*shared.ProtoSurface)(nil),             // 11: vrooli.proto_health.v1.shared.ProtoSurface
 }
 var file_proto_health_v1_validation_validation_proto_depIdxs = []int32{
 	0,  // 0: vrooli.proto_health.v1.validation.Finding.severity:type_name -> vrooli.proto_health.v1.validation.Severity
 	1,  // 1: vrooli.proto_health.v1.validation.ValidateScenarioResponse.findings:type_name -> vrooli.proto_health.v1.validation.Finding
 	2,  // 2: vrooli.proto_health.v1.validation.ValidateScenarioResponse.summary:type_name -> vrooli.proto_health.v1.validation.Summary
-	10, // 3: vrooli.proto_health.v1.validation.DescribeScenarioProtosResponse.surface:type_name -> vrooli.proto_health.v1.shared.ProtoSurface
-	10, // 4: vrooli.proto_health.v1.validation.ProtoSurfaceResult.surface:type_name -> vrooli.proto_health.v1.shared.ProtoSurface
-	8,  // 5: vrooli.proto_health.v1.validation.DescribeScenariosProtosResponse.results:type_name -> vrooli.proto_health.v1.validation.ProtoSurfaceResult
-	3,  // 6: vrooli.proto_health.v1.validation.ProtoHealthService.ValidateScenario:input_type -> vrooli.proto_health.v1.validation.ValidateScenarioRequest
-	5,  // 7: vrooli.proto_health.v1.validation.ProtoHealthService.DescribeScenarioProtos:input_type -> vrooli.proto_health.v1.validation.DescribeScenarioProtosRequest
-	7,  // 8: vrooli.proto_health.v1.validation.ProtoHealthService.DescribeScenariosProtos:input_type -> vrooli.proto_health.v1.validation.DescribeScenariosProtosRequest
-	4,  // 9: vrooli.proto_health.v1.validation.ProtoHealthService.ValidateScenario:output_type -> vrooli.proto_health.v1.validation.ValidateScenarioResponse
-	6,  // 10: vrooli.proto_health.v1.validation.ProtoHealthService.DescribeScenarioProtos:output_type -> vrooli.proto_health.v1.validation.DescribeScenarioProtosResponse
-	9,  // 11: vrooli.proto_health.v1.validation.ProtoHealthService.DescribeScenariosProtos:output_type -> vrooli.proto_health.v1.validation.DescribeScenariosProtosResponse
-	9,  // [9:12] is the sub-list for method output_type
-	6,  // [6:9] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	10, // 3: vrooli.proto_health.v1.validation.ValidateScenarioResponse.assessment:type_name -> common.v1.MaturityAssessment
+	11, // 4: vrooli.proto_health.v1.validation.DescribeScenarioProtosResponse.surface:type_name -> vrooli.proto_health.v1.shared.ProtoSurface
+	11, // 5: vrooli.proto_health.v1.validation.ProtoSurfaceResult.surface:type_name -> vrooli.proto_health.v1.shared.ProtoSurface
+	8,  // 6: vrooli.proto_health.v1.validation.DescribeScenariosProtosResponse.results:type_name -> vrooli.proto_health.v1.validation.ProtoSurfaceResult
+	3,  // 7: vrooli.proto_health.v1.validation.ProtoHealthService.ValidateScenario:input_type -> vrooli.proto_health.v1.validation.ValidateScenarioRequest
+	5,  // 8: vrooli.proto_health.v1.validation.ProtoHealthService.DescribeScenarioProtos:input_type -> vrooli.proto_health.v1.validation.DescribeScenarioProtosRequest
+	7,  // 9: vrooli.proto_health.v1.validation.ProtoHealthService.DescribeScenariosProtos:input_type -> vrooli.proto_health.v1.validation.DescribeScenariosProtosRequest
+	4,  // 10: vrooli.proto_health.v1.validation.ProtoHealthService.ValidateScenario:output_type -> vrooli.proto_health.v1.validation.ValidateScenarioResponse
+	6,  // 11: vrooli.proto_health.v1.validation.ProtoHealthService.DescribeScenarioProtos:output_type -> vrooli.proto_health.v1.validation.DescribeScenarioProtosResponse
+	9,  // 12: vrooli.proto_health.v1.validation.ProtoHealthService.DescribeScenariosProtos:output_type -> vrooli.proto_health.v1.validation.DescribeScenariosProtosResponse
+	10, // [10:13] is the sub-list for method output_type
+	7,  // [7:10] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_proto_health_v1_validation_validation_proto_init() }

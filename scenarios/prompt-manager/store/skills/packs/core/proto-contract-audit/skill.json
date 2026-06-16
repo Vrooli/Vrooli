@@ -22,8 +22,8 @@
     "contracts"
   ],
   "targetToolId": "run-agent",
-  "programmaticHome": "test-genie:proto",
-  "revision": 1,
+  "programmaticHome": "proto-health:proto",
+  "revision": 2,
   "createdAt": "2026-06-11T00:00:00Z",
-  "updatedAt": "2026-06-11T00:00:00Z"
+  "updatedAt": "2026-06-16T00:00:00Z"
 }

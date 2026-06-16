@@ -17,7 +17,8 @@
   "targetDimensions": [
     "security"
   ],
-  "revision": 46,
+  "programmaticHome": "security-health:security",
+  "revision": 47,
   "createdAt": "2025-01-15T00:00:00Z",
-  "updatedAt": "2026-02-05T01:02:36Z"
+  "updatedAt": "2026-06-16T00:00:00Z"
 }

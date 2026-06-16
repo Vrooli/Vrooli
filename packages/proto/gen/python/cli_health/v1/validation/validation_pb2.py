@@ -22,9 +22,10 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
+from common.v1 import maturity_pb2 as common_dot_v1_dot_maturity__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n)cli-health/v1/validation/validation.proto\x12\x1fvrooli.cli_health.v1.validation\"\xba\x01\n\x07\x46inding\x12\x45\n\x08severity\x18\x01 \x01(\x0e\x32).vrooli.cli_health.v1.validation.SeverityR\x08severity\x12\x12\n\x04\x63ode\x18\x02 \x01(\tR\x04\x63ode\x12\x1a\n\x08location\x18\x03 \x01(\tR\x08location\x12\x18\n\x07message\x18\x04 \x01(\tR\x07message\x12\x1e\n\nsuggestion\x18\x05 \x01(\tR\nsuggestion\"S\n\x07Summary\x12\x16\n\x06\x65rrors\x18\x01 \x01(\x05R\x06\x65rrors\x12\x1a\n\x08warnings\x18\x02 \x01(\x05R\x08warnings\x12\x14\n\x05infos\x18\x03 \x01(\x05R\x05infos\"5\n\x17ValidateScenarioRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\"\xd8\x01\n\x18ValidateScenarioResponse\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x16\n\x06passed\x18\x02 \x01(\x08R\x06passed\x12\x44\n\x08\x66indings\x18\x03 \x03(\x0b\x32(.vrooli.cli_health.v1.validation.FindingR\x08\x66indings\x12\x42\n\x07summary\x18\x04 \x01(\x0b\x32(.vrooli.cli_health.v1.validation.SummaryR\x07summary*a\n\x08Severity\x12\x18\n\x14SEVERITY_UNSPECIFIED\x10\x00\x12\x12\n\x0eSEVERITY_ERROR\x10\x01\x12\x14\n\x10SEVERITY_WARNING\x10\x02\x12\x11\n\rSEVERITY_INFO\x10\x03\x32\x9d\x01\n\x11ValidationService\x12\x87\x01\n\x10ValidateScenario\x12\x38.vrooli.cli_health.v1.validation.ValidateScenarioRequest\x1a\x39.vrooli.cli_health.v1.validation.ValidateScenarioResponseBWZUgithub.com/vrooli/vrooli/packages/proto/gen/go/cli-health/v1/validation;validation_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n)cli-health/v1/validation/validation.proto\x12\x1fvrooli.cli_health.v1.validation\x1a\x18\x63ommon/v1/maturity.proto\"\xba\x01\n\x07\x46inding\x12\x45\n\x08severity\x18\x01 \x01(\x0e\x32).vrooli.cli_health.v1.validation.SeverityR\x08severity\x12\x12\n\x04\x63ode\x18\x02 \x01(\tR\x04\x63ode\x12\x1a\n\x08location\x18\x03 \x01(\tR\x08location\x12\x18\n\x07message\x18\x04 \x01(\tR\x07message\x12\x1e\n\nsuggestion\x18\x05 \x01(\tR\nsuggestion\"S\n\x07Summary\x12\x16\n\x06\x65rrors\x18\x01 \x01(\x05R\x06\x65rrors\x12\x1a\n\x08warnings\x18\x02 \x01(\x05R\x08warnings\x12\x14\n\x05infos\x18\x03 \x01(\x05R\x05infos\"5\n\x17ValidateScenarioRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\"\x97\x02\n\x18ValidateScenarioResponse\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x16\n\x06passed\x18\x02 \x01(\x08R\x06passed\x12\x44\n\x08\x66indings\x18\x03 \x03(\x0b\x32(.vrooli.cli_health.v1.validation.FindingR\x08\x66indings\x12\x42\n\x07summary\x18\x04 \x01(\x0b\x32(.vrooli.cli_health.v1.validation.SummaryR\x07summary\x12=\n\nassessment\x18\x05 \x01(\x0b\x32\x1d.common.v1.MaturityAssessmentR\nassessment*a\n\x08Severity\x12\x18\n\x14SEVERITY_UNSPECIFIED\x10\x00\x12\x12\n\x0eSEVERITY_ERROR\x10\x01\x12\x14\n\x10SEVERITY_WARNING\x10\x02\x12\x11\n\rSEVERITY_INFO\x10\x03\x32\x9d\x01\n\x11ValidationService\x12\x87\x01\n\x10ValidateScenario\x12\x38.vrooli.cli_health.v1.validation.ValidateScenarioRequest\x1a\x39.vrooli.cli_health.v1.validation.ValidateScenarioResponseBWZUgithub.com/vrooli/vrooli/packages/proto/gen/go/cli-health/v1/validation;validation_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,16 +33,16 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'cli_health.v1.validation.va
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZUgithub.com/vrooli/vrooli/packages/proto/gen/go/cli-health/v1/validation;validation_v1'
-  _globals['_SEVERITY']._serialized_start=626
-  _globals['_SEVERITY']._serialized_end=723
-  _globals['_FINDING']._serialized_start=79
-  _globals['_FINDING']._serialized_end=265
-  _globals['_SUMMARY']._serialized_start=267
-  _globals['_SUMMARY']._serialized_end=350
-  _globals['_VALIDATESCENARIOREQUEST']._serialized_start=352
-  _globals['_VALIDATESCENARIOREQUEST']._serialized_end=405
-  _globals['_VALIDATESCENARIORESPONSE']._serialized_start=408
-  _globals['_VALIDATESCENARIORESPONSE']._serialized_end=624
-  _globals['_VALIDATIONSERVICE']._serialized_start=726
-  _globals['_VALIDATIONSERVICE']._serialized_end=883
+  _globals['_SEVERITY']._serialized_start=715
+  _globals['_SEVERITY']._serialized_end=812
+  _globals['_FINDING']._serialized_start=105
+  _globals['_FINDING']._serialized_end=291
+  _globals['_SUMMARY']._serialized_start=293
+  _globals['_SUMMARY']._serialized_end=376
+  _globals['_VALIDATESCENARIOREQUEST']._serialized_start=378
+  _globals['_VALIDATESCENARIOREQUEST']._serialized_end=431
+  _globals['_VALIDATESCENARIORESPONSE']._serialized_start=434
+  _globals['_VALIDATESCENARIORESPONSE']._serialized_end=713
+  _globals['_VALIDATIONSERVICE']._serialized_start=815
+  _globals['_VALIDATIONSERVICE']._serialized_end=972
 # @@protoc_insertion_point(module_scope)

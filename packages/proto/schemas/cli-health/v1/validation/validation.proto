@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package vrooli.cli_health.v1.validation;
 
+import "common/v1/maturity.proto";
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli-health/v1/validation;validation_v1";
 
 // =============================================================================
@@ -72,4 +74,7 @@ message ValidateScenarioResponse {
   bool passed = 2;
   repeated Finding findings = 3;
   Summary summary = 4;
+  // Shared provider-owned maturity assessment. Automation should consume this
+  // structural object; humans should run the CLI without --json.
+  common.v1.MaturityAssessment assessment = 5;
 }

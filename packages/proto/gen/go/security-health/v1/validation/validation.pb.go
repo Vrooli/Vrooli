@@ -7,6 +7,7 @@
 package validation_v1
 
 import (
+	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -302,8 +303,11 @@ type ValidateScenarioResponse struct {
 	// Names of scanners that applied to a detected substrate but whose binary was
 	// not installed; surfaced as INFO context, never a failure.
 	SkippedScanners []string `protobuf:"bytes,5,rep,name=skipped_scanners,json=skippedScanners,proto3" json:"skipped_scanners,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Shared provider-owned maturity assessment. Automation should consume this
+	// structural object; humans should run the CLI without --json.
+	Assessment    *v1.MaturityAssessment `protobuf:"bytes,6,opt,name=assessment,proto3" json:"assessment,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ValidateScenarioResponse) Reset() {
@@ -371,11 +375,18 @@ func (x *ValidateScenarioResponse) GetSkippedScanners() []string {
 	return nil
 }
 
+func (x *ValidateScenarioResponse) GetAssessment() *v1.MaturityAssessment {
+	if x != nil {
+		return x.Assessment
+	}
+	return nil
+}
+
 var File_security_health_v1_validation_validation_proto protoreflect.FileDescriptor
 
 const file_security_health_v1_validation_validation_proto_rawDesc = "" +
 	"\n" +
-	".security-health/v1/validation/validation.proto\x12$vrooli.security_health.v1.validation\"\xff\x01\n" +
+	".security-health/v1/validation/validation.proto\x12$vrooli.security_health.v1.validation\x1a\x18common/v1/maturity.proto\"\xff\x01\n" +
 	"\aFinding\x12\x17\n" +
 	"\arule_id\x18\x01 \x01(\tR\x06ruleId\x12J\n" +
 	"\bseverity\x18\x02 \x01(\x0e2..vrooli.security_health.v1.validation.SeverityR\bseverity\x12\x14\n" +
@@ -389,13 +400,16 @@ const file_security_health_v1_validation_validation_proto_rawDesc = "" +
 	"\bwarnings\x18\x02 \x01(\x05R\bwarnings\x12\x14\n" +
 	"\x05infos\x18\x03 \x01(\x05R\x05infos\"5\n" +
 	"\x17ValidateScenarioRequest\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\"\x8d\x02\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\"\xcc\x02\n" +
 	"\x18ValidateScenarioResponse\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x16\n" +
 	"\x06passed\x18\x02 \x01(\bR\x06passed\x12I\n" +
 	"\bfindings\x18\x03 \x03(\v2-.vrooli.security_health.v1.validation.FindingR\bfindings\x12G\n" +
 	"\asummary\x18\x04 \x01(\v2-.vrooli.security_health.v1.validation.SummaryR\asummary\x12)\n" +
-	"\x10skipped_scanners\x18\x05 \x03(\tR\x0fskippedScanners*a\n" +
+	"\x10skipped_scanners\x18\x05 \x03(\tR\x0fskippedScanners\x12=\n" +
+	"\n" +
+	"assessment\x18\x06 \x01(\v2\x1d.common.v1.MaturityAssessmentR\n" +
+	"assessment*a\n" +
 	"\bSeverity\x12\x18\n" +
 	"\x14SEVERITY_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eSEVERITY_ERROR\x10\x01\x12\x14\n" +
@@ -424,18 +438,20 @@ var file_security_health_v1_validation_validation_proto_goTypes = []any{
 	(*Summary)(nil),                  // 2: vrooli.security_health.v1.validation.Summary
 	(*ValidateScenarioRequest)(nil),  // 3: vrooli.security_health.v1.validation.ValidateScenarioRequest
 	(*ValidateScenarioResponse)(nil), // 4: vrooli.security_health.v1.validation.ValidateScenarioResponse
+	(*v1.MaturityAssessment)(nil),    // 5: common.v1.MaturityAssessment
 }
 var file_security_health_v1_validation_validation_proto_depIdxs = []int32{
 	0, // 0: vrooli.security_health.v1.validation.Finding.severity:type_name -> vrooli.security_health.v1.validation.Severity
 	1, // 1: vrooli.security_health.v1.validation.ValidateScenarioResponse.findings:type_name -> vrooli.security_health.v1.validation.Finding
 	2, // 2: vrooli.security_health.v1.validation.ValidateScenarioResponse.summary:type_name -> vrooli.security_health.v1.validation.Summary
-	3, // 3: vrooli.security_health.v1.validation.ValidationService.ValidateScenario:input_type -> vrooli.security_health.v1.validation.ValidateScenarioRequest
-	4, // 4: vrooli.security_health.v1.validation.ValidationService.ValidateScenario:output_type -> vrooli.security_health.v1.validation.ValidateScenarioResponse
-	4, // [4:5] is the sub-list for method output_type
-	3, // [3:4] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	5, // 3: vrooli.security_health.v1.validation.ValidateScenarioResponse.assessment:type_name -> common.v1.MaturityAssessment
+	3, // 4: vrooli.security_health.v1.validation.ValidationService.ValidateScenario:input_type -> vrooli.security_health.v1.validation.ValidateScenarioRequest
+	4, // 5: vrooli.security_health.v1.validation.ValidationService.ValidateScenario:output_type -> vrooli.security_health.v1.validation.ValidateScenarioResponse
+	5, // [5:6] is the sub-list for method output_type
+	4, // [4:5] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_security_health_v1_validation_validation_proto_init() }

@@ -23,6 +23,8 @@ import (
 	_ "modernc.org/sqlite"
 	analysisapi "scenario-dependency-analyzer/internal/analysis"
 	dependenciesapi "scenario-dependency-analyzer/internal/dependencies"
+	dependencygovernanceapi "scenario-dependency-analyzer/internal/dependencygovernance"
+	dependencyhealthapi "scenario-dependency-analyzer/internal/dependencyhealth"
 	graphdomain "scenario-dependency-analyzer/internal/graph"
 	"scenario-dependency-analyzer/internal/modules"
 	proposalapi "scenario-dependency-analyzer/internal/proposal"
@@ -318,6 +320,8 @@ func setupTestRouter() *gin.Engine {
 		graphdomain.RegisterHTTPRoutes(api, h.graphService(), h.scenariosDir)
 		proposalapi.RegisterHTTPRoutes(api, h.proposalService())
 	}
+	dependencyhealthapi.RegisterConnectRoutes(router, h.scenariosDir)
+	dependencygovernanceapi.RegisterConnectRoutes(router, h.scenariosDir)
 
 	return router
 }

@@ -8,8 +8,10 @@ import (
 	"scenario-dependency-analyzer/cli/domains/dag"
 	"scenario-dependency-analyzer/cli/domains/dependencies"
 	"scenario-dependency-analyzer/cli/domains/deployment"
+	"scenario-dependency-analyzer/cli/domains/depsapproved"
 	"scenario-dependency-analyzer/cli/domains/drift"
 	"scenario-dependency-analyzer/cli/domains/graph"
+	"scenario-dependency-analyzer/cli/domains/health"
 	"scenario-dependency-analyzer/cli/domains/impact"
 	"scenario-dependency-analyzer/cli/domains/optimize"
 	"scenario-dependency-analyzer/cli/domains/proposals"
@@ -28,6 +30,7 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 		scan.Register(core),
 		coreset.Register(core),
 		graph.Register(core),
+		health.Register(core),
 		drift.Register(core),
 		cycles.Register(core),
 		impact.Register(core),
@@ -43,5 +46,6 @@ func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 		dag.Register(core),
 		scenarios.Register(core),
 		bundle.Register(core),
+		depsapproved.Register(core),
 	}
 }

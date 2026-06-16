@@ -17,6 +17,7 @@ Complete command-line interface reference for analyzing and visualizing scenario
   - [list](#list)
   - [deployment](#deployment)
   - [health](#health)
+  - [deps approved](#deps-approved)
   - [status](#status)
 - [Examples](#examples)
 - [Output Formats](#output-formats)
@@ -66,6 +67,12 @@ scenario-dependency-analyzer graph actual --json
 
 # Report declared-vs-actual drift
 scenario-dependency-analyzer drift ecosystem-manager --json
+
+# Validate dependency health through the Test Genie producer contract
+scenario-dependency-analyzer health ecosystem-manager --json
+
+# Search approved dependency governance memory
+scenario-dependency-analyzer deps approved search "React graph library" --json
 
 # Check deployment readiness
 scenario-dependency-analyzer deployment ecosystem-manager
@@ -621,35 +628,103 @@ Bundle files:
 
 ### health
 
-Check service health and analysis capabilities.
+Validate dependency health for one scenario through SDA's producer contract.
+This is the public surface Test Genie will consume for its dependencies phase.
+The current response includes Code Facts-backed surfaces, dependency readiness,
+runtime dependency status for required resources/scenarios, approved dependency
+governance, pnpm release-age policy validation, graph drift, and a stable
+security-health dependency-index availability section.
 
 **Usage:**
 ```bash
-scenario-dependency-analyzer health [OPTIONS]
+scenario-dependency-analyzer health <scenario> [OPTIONS]
 ```
 
+**Arguments:**
+- `scenario` - Scenario name
+
 **Options:**
-- `--json` - Output in JSON format
-- `--detailed` - Include detailed analysis health check
+- `--json` - Output raw JSON
+- `--use-cache` - Allow cached upstream facts (default: true)
 
 **Examples:**
 ```bash
-# Basic health check
-scenario-dependency-analyzer health
+# Human-readable dependency health summary
+scenario-dependency-analyzer health ecosystem-manager
 
-# Detailed health check
-scenario-dependency-analyzer health --detailed
-
-# Get JSON output
-scenario-dependency-analyzer health --json
+# Get machine-readable producer output
+scenario-dependency-analyzer health ecosystem-manager --json
 ```
 
 **Output:**
 ```
-🏥 Checking health...
-✅ Scenario Dependency Analyzer is healthy
-   API: http://localhost:20400
+Scenario: ecosystem-manager
+Passed: false
+Findings: 0
+Degraded integrations: 0
+
+Dependency Health Sections
+pass: Code Facts surfaces - 3 Code Facts surface(s) discovered.
+pass: Dependency readiness - Host commands, runtimes, modules, and packages passed readiness checks (6 command probe(s)).
+pass: Runtime dependencies - 2 required resource(s), 1 required scenario dependency(ies) checked.
+not_configured: Approved dependency governance - Approved dependency registry is present but has no records yet; observed dependencies are reported as needs-review guidance, not allowlist failures.
+pass: Package release-age policy - 1 pnpm-managed dependency surface(s) checked for minimumReleaseAge >= 10080 minutes.
+pass: Security Health dependency index - Security Health dependency index available=true ready=true indexed=47867 vulnerable=1041.
+pass: Dependency graph drift - Declared scenario dependencies match import evidence.
 ```
+
+Release-age policy uses pnpm's `minimumReleaseAge` setting. Vrooli's default is
+10080 minutes. `minimumReleaseAgeExclude` entries are allowed only when the
+exception is recorded in `.vrooli/dependencies/approved-dependencies.json` with
+rationale and review expiry.
+
+The security section calls `security-health deps status --json` only to report
+dependency-index availability and freshness. SDA does not run `pnpm audit`,
+`govulncheck`, OSV, or other vulnerability scanners.
+
+---
+
+### deps approved
+
+Inspect approved third-party dependency governance records. Approved records are
+review memory, not an exhaustive allowlist. If a better dependency is
+appropriate, suggest it with purpose, version/range, alternatives considered,
+and security/license notes so it can be reviewed and recorded.
+
+**Usage:**
+```bash
+scenario-dependency-analyzer deps approved list [OPTIONS]
+scenario-dependency-analyzer deps approved search <query> [OPTIONS]
+scenario-dependency-analyzer deps approved explain <ecosystem>/<package> [OPTIONS]
+scenario-dependency-analyzer deps approved validate <scenario> [OPTIONS]
+```
+
+**Options:**
+- `--json` - Output raw JSON
+- `--ecosystem` - Filter list/search by ecosystem such as `npm` or `go`
+- `--state` - Filter list by governance state
+
+**Examples:**
+```bash
+# List all recorded approvals
+scenario-dependency-analyzer deps approved list --json
+
+# Search for a known-good graph package
+scenario-dependency-analyzer deps approved search "React graph library" --json
+
+# Explain one package record
+scenario-dependency-analyzer deps approved explain npm/reactflow --json
+
+# Validate one scenario's package declarations
+scenario-dependency-analyzer deps approved validate graph-studio --json
+```
+
+Validation behavior:
+- recorded dependency within range: pass/info
+- recorded dependency outside range: warning
+- unrecorded dependency: warning/needs-review, not automatic failure
+- blocked dependency: error
+- deprecated dependency: warning with replacement guidance
 
 ---
 

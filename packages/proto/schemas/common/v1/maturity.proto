@@ -1,0 +1,86 @@
+syntax = "proto3";
+
+package common.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1;commonv1";
+
+// =============================================================================
+// SHARED HEALTH MATURITY ASSESSMENT
+// =============================================================================
+//
+// @layer 0
+// @domain common
+// @stability beta
+//
+// MaturityAssessment is the provider-owned health scenario maturity contract.
+// Health scenarios compute local maturity from their domain findings and emit
+// this object alongside their existing provider-specific response. Test Genie
+// and status readers may consume it when present, while maturity-go remains the
+// global authority for turning all findings into the scenario-wide R0-R4 signal.
+// =============================================================================
+
+// GlobalImpact is a stable semantic vocabulary for how one provider finding
+// affects global scenario maturity. It deliberately avoids naming R0/R1/R2
+// directly so the global ladder can evolve without rewriting provider specs.
+enum GlobalImpact {
+  GLOBAL_IMPACT_UNSPECIFIED = 0;
+  GLOBAL_IMPACT_FOUNDATION_BLOCKER = 1;
+  GLOBAL_IMPACT_SAFETY_BLOCKER = 2;
+  GLOBAL_IMPACT_EVOLVABILITY_GAP = 3;
+  GLOBAL_IMPACT_HARDENING_GAP = 4;
+  GLOBAL_IMPACT_CAPABILITY_GAP = 5;
+  GLOBAL_IMPACT_ADVISORY = 6;
+  GLOBAL_IMPACT_UNKNOWN = 7;
+}
+
+// LocalMaturityLevel is one provider-local rung from `.vrooli/maturity.json`.
+message LocalMaturityLevel {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  repeated string entry_criteria = 4;
+  repeated string exit_criteria = 5;
+}
+
+// FindingMaturity is the maturity metadata attached to one provider finding.
+message FindingMaturity {
+  // Provider-local level blocked by this finding, e.g. "L3".
+  string local_level = 1;
+  GlobalImpact global_impact = 2;
+  // Canonical maturity-go dimension id, e.g. "measures" or "security".
+  string dimension = 3;
+  repeated string recommended_skill_ids = 4;
+}
+
+// AssessmentFinding is the shared finding projection used by the assessment.
+// Provider responses may still expose richer native findings in parallel.
+message AssessmentFinding {
+  string code = 1;
+  string severity = 2;
+  string title = 3;
+  string message = 4;
+  string location = 5;
+  string remediation = 6;
+  FindingMaturity maturity = 7;
+}
+
+// LocalMaturityAssessment explains the provider-local current and next rung.
+message LocalMaturityAssessment {
+  string current_level = 1;
+  string next_level = 2;
+  repeated LocalMaturityLevel levels = 3;
+  repeated string blocking_finding_codes = 4;
+}
+
+// MaturityAssessment is the single structural object health providers emit.
+message MaturityAssessment {
+  string scenario = 1;
+  string provider = 2;
+  string phase = 3;
+  string version = 4;
+  LocalMaturityAssessment local = 5;
+  repeated AssessmentFinding findings = 6;
+  map<string, int32> findings_by_global_impact = 7;
+  map<string, int32> findings_by_severity = 8;
+  repeated string recommended_skill_ids = 9;
+}

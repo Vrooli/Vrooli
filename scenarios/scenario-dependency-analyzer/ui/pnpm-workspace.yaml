@@ -12,3 +12,4 @@
 # Shared @vrooli/* packages are consumed via file: references (see package.json).
 packages:
   - .
+minimumReleaseAge: 10080

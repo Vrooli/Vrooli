@@ -68,14 +68,14 @@ You **must NOT:**
 
 ---
 
-### 5. Maturity-ladder requirement for audit-shaped steer skills
+### 5. Maturity-source requirement for audit-shaped steer skills
 
-Audit-shaped steer skills (those that examine an existing scenario and produce findings against a defined target state — architecture, temporal flow, API, CLI, interop, storage, testing-seams, etc.) **must** follow the destination-over-direction pattern. See the canon section in `docs/agent-system/SKILL_AUTHORING.md` ("Destination over direction: maturity ladders for audit-shaped skills") for the full articulation.
+Audit-shaped steer skills (those that examine an existing scenario and produce findings against a defined target state — architecture, temporal flow, API, CLI, interop, storage, testing-seams, etc.) **must** follow the destination-over-direction pattern. See the canon section in `docs/agent-system/SKILL_AUTHORING.md` ("Destination over direction: maturity sources for audit-shaped skills") for the full articulation.
 
 The four mandatory ingredients:
 
 1. **Scope boundaries** up front, anchored to `scenarios/{{TARGET}}/`, with explicit handoffs to sibling skills.
-2. **Named maturity ladder (L0–L5)** where each level is gated by a *verifiable artifact* (`ls`/`grep`/CLI-checkable), with "What exists" and "When to stop here" columns. No adjective-only levels.
+2. **Named maturity source**: either a skill-owned ladder or a provider-owned maturity report. If skill-owned, each level is gated by a *verifiable artifact* (`ls`/`grep`/CLI-checkable), with "What exists" and "When to stop here" semantics. If provider-owned, name the default human CLI command and do not duplicate the provider's L0-L5 ladder in the skill.
 3. **Decision / archetype table** the agent walks row-by-row, so two agents land in the same row on the same scenario.
 4. **Durable-doc output anchors** — findings accumulate in `scenarios/{{TARGET}}/docs/ARCHITECTURE.md`, `SEAMS.md`, `PROBLEMS.md` via `knowledge-observatory-tools`. **Do not create standalone `*_AUDIT.md` reports.**
 
@@ -83,7 +83,7 @@ Reference exemplars:
 - `scenarios/prompt-manager/store/skills/packs/core/temporal-flow-audit/SKILL.md` §2 "Temporal Maturity Model"
 - `scenarios/prompt-manager/store/skills/packs/core/screaming-architecture-audit/SKILL.md` §2 "Architecture Maturity Model"
 
-Greenfield-directive steers (skills that prescribe how to build from scratch rather than audit an existing artifact) may borrow the pattern but are not required to.
+Provider-backed steer skills keep implementation and remediation guidance in the skill, but the provider validation output owns current level, next level, blockers, and finding-to-skill recommendations. Greenfield-directive steers (skills that prescribe how to build from scratch rather than audit an existing artifact) may borrow the pattern but are not required to.
 
 ---
 

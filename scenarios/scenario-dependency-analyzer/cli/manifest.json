@@ -4,6 +4,178 @@
   "description": "Governance manifest for the Scenario Dependency Analyzer CLI. Runtime command registration is still code-backed during the React-Vite migration; this manifest declares the Connect-backed surface first and documents deferred legacy command coverage.",
   "groups": [
     {
+      "name": "dependency-health",
+      "description": "Dependency readiness and governance validation",
+      "commands": [
+        {
+          "name": "health",
+          "description": "Validate dependency health for one scenario",
+          "args": [
+            {
+              "name": "scenario",
+              "description": "Scenario to validate",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false"
+            },
+            {
+              "name": "use-cache",
+              "description": "Allow cached upstream facts",
+              "default": "true"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyHealthService",
+            "method": "ValidateDependencyHealth"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "approved-dependencies",
+      "description": "Approved third-party dependency governance memory",
+      "commands": [
+        {
+          "name": "deps approved list",
+          "description": "List approved dependency records with non-allowlist guidance",
+          "flags": [
+            {
+              "name": "ecosystem",
+              "description": "Filter by ecosystem"
+            },
+            {
+              "name": "state",
+              "description": "Filter by governance state"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "ListApprovedDependencies"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "deps approved search",
+          "description": "Search approved dependency records without treating them as an exhaustive allowlist",
+          "args": [
+            {
+              "name": "query",
+              "description": "Search query",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "ecosystem",
+              "description": "Filter by ecosystem"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "SearchApprovedDependencies"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "deps approved explain",
+          "description": "Explain one approved dependency record",
+          "args": [
+            {
+              "name": "dependency",
+              "description": "Dependency formatted as ecosystem/package",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "ExplainApprovedDependency"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "deps approved validate",
+          "description": "Validate a scenario against approved dependency governance records",
+          "args": [
+            {
+              "name": "scenario",
+              "description": "Scenario to validate",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "ValidateApprovedDependencies"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "graph",
       "description": "Actual scenario interface graph operations",
       "commands": [

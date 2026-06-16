@@ -1,3 +1,4 @@
+from common.v1 import maturity_pb2 as _maturity_pb2
 from proto_health.v1.shared import surface_pb2 as _surface_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
@@ -50,16 +51,18 @@ class ValidateScenarioRequest(_message.Message):
     def __init__(self, scenario: _Optional[str] = ...) -> None: ...
 
 class ValidateScenarioResponse(_message.Message):
-    __slots__ = ("scenario", "passed", "findings", "summary")
+    __slots__ = ("scenario", "passed", "findings", "summary", "assessment")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     PASSED_FIELD_NUMBER: _ClassVar[int]
     FINDINGS_FIELD_NUMBER: _ClassVar[int]
     SUMMARY_FIELD_NUMBER: _ClassVar[int]
+    ASSESSMENT_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     passed: bool
     findings: _containers.RepeatedCompositeFieldContainer[Finding]
     summary: Summary
-    def __init__(self, scenario: _Optional[str] = ..., passed: _Optional[bool] = ..., findings: _Optional[_Iterable[_Union[Finding, _Mapping]]] = ..., summary: _Optional[_Union[Summary, _Mapping]] = ...) -> None: ...
+    assessment: _maturity_pb2.MaturityAssessment
+    def __init__(self, scenario: _Optional[str] = ..., passed: _Optional[bool] = ..., findings: _Optional[_Iterable[_Union[Finding, _Mapping]]] = ..., summary: _Optional[_Union[Summary, _Mapping]] = ..., assessment: _Optional[_Union[_maturity_pb2.MaturityAssessment, _Mapping]] = ...) -> None: ...
 
 class DescribeScenarioProtosRequest(_message.Message):
     __slots__ = ("scenario",)

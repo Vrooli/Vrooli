@@ -7,6 +7,7 @@
 package validation_v1
 
 import (
+	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -642,8 +643,11 @@ type ValidateScenarioResponse struct {
 	// Context that applied but could not run (e.g. "probe (scenario not
 	// running)"); surfaced as INFO, never a failure.
 	SkippedScanners []string `protobuf:"bytes,6,rep,name=skipped_scanners,json=skippedScanners,proto3" json:"skipped_scanners,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Shared provider-owned maturity assessment. Automation should consume this
+	// structural object; humans should use the default CLI rendering.
+	Assessment    *v1.MaturityAssessment `protobuf:"bytes,7,opt,name=assessment,proto3" json:"assessment,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ValidateScenarioResponse) Reset() {
@@ -714,6 +718,13 @@ func (x *ValidateScenarioResponse) GetSummary() *Summary {
 func (x *ValidateScenarioResponse) GetSkippedScanners() []string {
 	if x != nil {
 		return x.SkippedScanners
+	}
+	return nil
+}
+
+func (x *ValidateScenarioResponse) GetAssessment() *v1.MaturityAssessment {
+	if x != nil {
+		return x.Assessment
 	}
 	return nil
 }
@@ -917,7 +928,7 @@ var File_measures_health_v1_validation_validation_proto protoreflect.FileDescrip
 
 const file_measures_health_v1_validation_validation_proto_rawDesc = "" +
 	"\n" +
-	".measures-health/v1/validation/validation.proto\x12$vrooli.measures_health.v1.validation\"\x9e\x02\n" +
+	".measures-health/v1/validation/validation.proto\x12$vrooli.measures_health.v1.validation\x1a\x18common/v1/maturity.proto\"\x9e\x02\n" +
 	"\x0eMeasureSummary\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06intent\x18\x02 \x01(\tR\x06intent\x12>\n" +
@@ -949,14 +960,17 @@ const file_measures_health_v1_validation_validation_proto_rawDesc = "" +
 	"\x05infos\x18\x03 \x01(\x05R\x05infos\"K\n" +
 	"\x17ValidateScenarioRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x14\n" +
-	"\x05probe\x18\x02 \x01(\bR\x05probe\"\xdd\x02\n" +
+	"\x05probe\x18\x02 \x01(\bR\x05probe\"\x9c\x03\n" +
 	"\x18ValidateScenarioResponse\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x16\n" +
 	"\x06passed\x18\x02 \x01(\bR\x06passed\x12N\n" +
 	"\adomains\x18\x03 \x03(\v24.vrooli.measures_health.v1.validation.DomainCoverageR\adomains\x12I\n" +
 	"\bfindings\x18\x04 \x03(\v2-.vrooli.measures_health.v1.validation.FindingR\bfindings\x12G\n" +
 	"\asummary\x18\x05 \x01(\v2-.vrooli.measures_health.v1.validation.SummaryR\asummary\x12)\n" +
-	"\x10skipped_scanners\x18\x06 \x03(\tR\x0fskippedScanners\"8\n" +
+	"\x10skipped_scanners\x18\x06 \x03(\tR\x0fskippedScanners\x12=\n" +
+	"\n" +
+	"assessment\x18\a \x01(\v2\x1d.common.v1.MaturityAssessmentR\n" +
+	"assessment\"8\n" +
 	"\x18ListFleetCoverageRequest\x12\x1c\n" +
 	"\tscenarios\x18\x01 \x03(\tR\tscenarios\"\x9c\x02\n" +
 	"\n" +
@@ -1019,6 +1033,7 @@ var file_measures_health_v1_validation_validation_proto_goTypes = []any{
 	(*ListFleetCoverageRequest)(nil),  // 9: vrooli.measures_health.v1.validation.ListFleetCoverageRequest
 	(*FleetEntry)(nil),                // 10: vrooli.measures_health.v1.validation.FleetEntry
 	(*ListFleetCoverageResponse)(nil), // 11: vrooli.measures_health.v1.validation.ListFleetCoverageResponse
+	(*v1.MaturityAssessment)(nil),     // 12: common.v1.MaturityAssessment
 }
 var file_measures_health_v1_validation_validation_proto_depIdxs = []int32{
 	2,  // 0: vrooli.measures_health.v1.validation.MeasureSummary.tier:type_name -> vrooli.measures_health.v1.validation.Tier
@@ -1029,17 +1044,18 @@ var file_measures_health_v1_validation_validation_proto_depIdxs = []int32{
 	4,  // 5: vrooli.measures_health.v1.validation.ValidateScenarioResponse.domains:type_name -> vrooli.measures_health.v1.validation.DomainCoverage
 	5,  // 6: vrooli.measures_health.v1.validation.ValidateScenarioResponse.findings:type_name -> vrooli.measures_health.v1.validation.Finding
 	6,  // 7: vrooli.measures_health.v1.validation.ValidateScenarioResponse.summary:type_name -> vrooli.measures_health.v1.validation.Summary
-	2,  // 8: vrooli.measures_health.v1.validation.FleetEntry.worst_tier:type_name -> vrooli.measures_health.v1.validation.Tier
-	10, // 9: vrooli.measures_health.v1.validation.ListFleetCoverageResponse.entries:type_name -> vrooli.measures_health.v1.validation.FleetEntry
-	7,  // 10: vrooli.measures_health.v1.validation.ValidationService.ValidateScenario:input_type -> vrooli.measures_health.v1.validation.ValidateScenarioRequest
-	9,  // 11: vrooli.measures_health.v1.validation.ValidationService.ListFleetCoverage:input_type -> vrooli.measures_health.v1.validation.ListFleetCoverageRequest
-	8,  // 12: vrooli.measures_health.v1.validation.ValidationService.ValidateScenario:output_type -> vrooli.measures_health.v1.validation.ValidateScenarioResponse
-	11, // 13: vrooli.measures_health.v1.validation.ValidationService.ListFleetCoverage:output_type -> vrooli.measures_health.v1.validation.ListFleetCoverageResponse
-	12, // [12:14] is the sub-list for method output_type
-	10, // [10:12] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	12, // 8: vrooli.measures_health.v1.validation.ValidateScenarioResponse.assessment:type_name -> common.v1.MaturityAssessment
+	2,  // 9: vrooli.measures_health.v1.validation.FleetEntry.worst_tier:type_name -> vrooli.measures_health.v1.validation.Tier
+	10, // 10: vrooli.measures_health.v1.validation.ListFleetCoverageResponse.entries:type_name -> vrooli.measures_health.v1.validation.FleetEntry
+	7,  // 11: vrooli.measures_health.v1.validation.ValidationService.ValidateScenario:input_type -> vrooli.measures_health.v1.validation.ValidateScenarioRequest
+	9,  // 12: vrooli.measures_health.v1.validation.ValidationService.ListFleetCoverage:input_type -> vrooli.measures_health.v1.validation.ListFleetCoverageRequest
+	8,  // 13: vrooli.measures_health.v1.validation.ValidationService.ValidateScenario:output_type -> vrooli.measures_health.v1.validation.ValidateScenarioResponse
+	11, // 14: vrooli.measures_health.v1.validation.ValidationService.ListFleetCoverage:output_type -> vrooli.measures_health.v1.validation.ListFleetCoverageResponse
+	13, // [13:15] is the sub-list for method output_type
+	11, // [11:13] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_measures_health_v1_validation_validation_proto_init() }

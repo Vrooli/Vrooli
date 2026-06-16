@@ -107,15 +107,16 @@ Additional structure check for skills with operational CLI workflows:
 
 #### **4.1.1 Destination-Clarity Check (Audit-Shaped Skills)**
 
-Applies to **audit-shaped skills** — skills that examine an existing scenario and produce findings/recommendations against a defined target state (the steer audit cohort: architecture, temporal flow, API, CLI, interop, storage, testing-seams, etc.). See `docs/agent-system/SKILL_AUTHORING.md` §"Destination over direction: maturity ladders for audit-shaped skills" for the canon definition.
+Applies to **audit-shaped skills** — skills that examine an existing scenario and produce findings/recommendations against a defined target state (the steer audit cohort: architecture, temporal flow, API, CLI, interop, storage, testing-seams, etc.). See `docs/agent-system/SKILL_AUTHORING.md` §"Destination over direction: maturity sources for audit-shaped skills" for the canon definition.
 
 Check:
 
-* [ ] Skill declares a **named maturity ladder** (L0–L5 or similar) with a **verifiable artifact** per level (`ls`/`grep`/CLI-checkable) — not adjectives like "improved" or "more idiomatic".
-* [ ] Each level has "What exists" and "When to stop here" columns (or equivalent).
+* [ ] Skill declares a **named maturity source**: either a skill-owned ladder or a provider-owned maturity report.
+* [ ] If skill-owned, the ladder has a **verifiable artifact** per level (`ls`/`grep`/CLI-checkable) — not adjectives like "improved" or "more idiomatic" — and each level has "What exists" and "When to stop here" semantics.
+* [ ] If provider-owned, the skill names the default human CLI command (for example, `proto-health validate scenario {{TARGET}}`), keeps `--json` for automation only, and does **not** duplicate or summarize the provider's L0-L5 ladder.
 * [ ] Findings are routed to **durable docs** (`ARCHITECTURE.md`, `SEAMS.md`, `PROBLEMS.md`) via `knowledge-observatory-tools`, **not** to standalone `*_AUDIT.md` files.
 
-**Failure mode — "fuzzy destination":** the skill describes a *direction* ("improve X", "consider Y", "make it more idiomatic") but never names a verifiable end state two agents would converge on. Classify as at least **Major** for audit-shaped skills; missing destination clarity blocks promotion (see `docs/agent-system/PROMOTION_LADDER.md` and `development-toolchain-validator` P1-005 "Skill Maturity Score" — the programmatic reading of this check).
+**Failure mode — "fuzzy destination":** the skill describes a *direction* ("improve X", "consider Y", "make it more idiomatic") but never names a verifiable end state two agents would converge on. Classify as at least **Major** for audit-shaped skills; missing destination clarity blocks promotion (see `docs/agent-system/PROMOTION_LADDER.md` and `development-toolchain-validator` P1-005 "Skill Maturity Score" — the programmatic reading of this check). If a provider owns the maturity ladder, duplicating that ladder in the skill is drift risk; route to provider output instead.
 
 Reference exemplars to cite when patching:
 * `scenarios/prompt-manager/store/skills/packs/core/temporal-flow-audit/SKILL.md` §2 "Temporal Maturity Model"
