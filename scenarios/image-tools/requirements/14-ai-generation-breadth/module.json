@@ -1,0 +1,34 @@
+{
+  "description": "Outpaint/generative-expand and background replace added as first-class ops with standalone backends, hardware-aware selection, and full CLI/API parity.",
+  "module_id": "MOD-P1-001",
+  "prd_ref": "OT-P1-001",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "feature",
+      "dependencies": [],
+      "description": "Outpaint/generative-expand and background replace added as first-class ops with standalone backends, hardware-aware selection, and full CLI/API parity.",
+      "id": "IMG-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "planned",
+      "title": "AI Generation & Editing Breadth",
+      "validation": [
+        {
+          "notes": "Outpaint and background-replace ops invoke standalone backends",
+          "phase": "unit",
+          "ref": "api/internal/ai/breadth_test.go",
+          "status": "planned",
+          "type": "test"
+        },
+        {
+          "notes": "Both ops complete headless via the job system",
+          "phase": "integration",
+          "ref": "cli/domains/ai/breadth_test.go",
+          "status": "planned",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "AI Generation & Editing Breadth"
+}

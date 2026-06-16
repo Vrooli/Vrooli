@@ -1,0 +1,34 @@
+{
+  "description": "Text-to-image (seed + N variations + size presets), image-to-image, inpaint (mask/box/text), and object removal run via >=1 standalone non-ComfyUI backend per op; ComfyUI optional plug-in.",
+  "module_id": "MOD-P0-002",
+  "prd_ref": "OT-P0-002",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [],
+      "description": "Text-to-image (seed + N variations + size presets), image-to-image, inpaint (mask/box/text), and object removal run via >=1 standalone non-ComfyUI backend per op; ComfyUI optional plug-in.",
+      "id": "IMG-P0-002",
+      "prd_ref": "OT-P0-002",
+      "status": "planned",
+      "title": "Core AI Generation & Editing",
+      "validation": [
+        {
+          "notes": "Generation/edit op invokes selected standalone backend and persists params with output",
+          "phase": "unit",
+          "ref": "api/internal/ai/generation_test.go",
+          "status": "planned",
+          "type": "test"
+        },
+        {
+          "notes": "Each AI gen/edit op completes headless via the async job system",
+          "phase": "integration",
+          "ref": "cli/domains/ai/generation_test.go",
+          "status": "planned",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Core AI Generation & Editing"
+}

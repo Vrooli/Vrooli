@@ -1,0 +1,34 @@
+{
+  "description": "Host capability read via system-monitor capability/capacity probe (built on internal/hostinventory); cheap ops zero-download; each AI op ships a CPU-capable default; selector surfaces 'needs >=X GB VRAM' and time-warning messaging.",
+  "module_id": "MOD-P0-008",
+  "prd_ref": "OT-P0-008",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [],
+      "description": "Host capability read via system-monitor capability/capacity probe (built on internal/hostinventory); cheap ops zero-download; each AI op ships a CPU-capable default; selector surfaces 'needs >=X GB VRAM' and time-warning messaging.",
+      "id": "IMG-P0-008",
+      "prd_ref": "OT-P0-008",
+      "status": "planned",
+      "title": "Hardware-Aware Selection",
+      "validation": [
+        {
+          "notes": "Selector maps probed capability to a fitting model tier",
+          "phase": "unit",
+          "ref": "api/internal/models/hardwarefit_test.go",
+          "status": "planned",
+          "type": "test"
+        },
+        {
+          "notes": "Selection degrades to CPU default and emits warning when GPU absent",
+          "phase": "integration",
+          "ref": "api/internal/models/degrade_test.go",
+          "status": "planned",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Hardware-Aware Selection"
+}

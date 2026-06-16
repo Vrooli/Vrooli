@@ -1,0 +1,27 @@
+{
+  "description": "General-purpose image diff/visual-comparison op built as a first-class capability so test-genie can later adopt it without duplication.",
+  "module_id": "MOD-P1-009",
+  "prd_ref": "OT-P1-009",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "feature",
+      "dependencies": [],
+      "description": "General-purpose image diff/visual-comparison op built as a first-class capability so test-genie can later adopt it without duplication.",
+      "id": "IMG-P1-009",
+      "prd_ref": "OT-P1-009",
+      "status": "planned",
+      "title": "Image Diff & Visual Comparison",
+      "validation": [
+        {
+          "notes": "Pixel/perceptual diff highlights changed regions",
+          "phase": "unit",
+          "ref": "api/internal/diff/diff_test.go",
+          "status": "planned",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Image Diff & Visual Comparison"
+}

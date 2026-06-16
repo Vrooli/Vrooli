@@ -1,0 +1,31 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-06-16T16:08:16-04:00"
+  },
+  "requirements": [
+    {
+      "id": "IMG-P1-008",
+      "title": "Light Non-Destructive Editor Layer",
+      "status": "complete",
+      "prd_ref": "OT-P1-008",
+      "category": "feature",
+      "description": "UI op-stack with undo/redo over the headless core; interactive widgets (mask-paint, drag-box crop, brush touch-up) only where the op benefits; all ops remain headless via mask file/coords/text.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "ui/src/features/editor/editor.test.tsx",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Op-stack applies/undoes ops non-destructively"
+        },
+        {
+          "type": "manual",
+          "ref": "docs/internal/SECURITY.md",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Interactive ops have accessible non-pointer fallbacks"
+        }
+      ]
+    }
+  ]
+}

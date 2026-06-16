@@ -1,0 +1,34 @@
+{
+  "description": "Per-op provider interface with >=1 standalone-lightweight backend (required), ComfyUI optional, BYOK-cloud fallback, guaranteed CPU fallback; >=1 standalone backend enforced at registration.",
+  "module_id": "MOD-P0-005",
+  "prd_ref": "OT-P0-005",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [],
+      "description": "Per-op provider interface with >=1 standalone-lightweight backend (required), ComfyUI optional, BYOK-cloud fallback, guaranteed CPU fallback; >=1 standalone backend enforced at registration.",
+      "id": "IMG-P0-005",
+      "prd_ref": "OT-P0-005",
+      "status": "planned",
+      "title": "Backend Abstraction & Provider Interface",
+      "validation": [
+        {
+          "notes": "Provider registry rejects an op lacking a standalone backend",
+          "phase": "unit",
+          "ref": "api/internal/backends/registry_test.go",
+          "status": "planned",
+          "type": "test"
+        },
+        {
+          "notes": "Provider selection order standalone->comfyui->byok->cpu honored",
+          "phase": "unit",
+          "ref": "api/internal/backends/selection_test.go",
+          "status": "planned",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Backend Abstraction & Provider Interface"
+}

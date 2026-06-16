@@ -1,0 +1,34 @@
+{
+  "description": "Caption/alt-text, object detection/tagging, anonymous face detection (no recognition), quality assessment, duplicate/near-dup detection (perceptual hash), embedding generation, and QR/barcode read.",
+  "module_id": "MOD-P1-003",
+  "prd_ref": "OT-P1-003",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "feature",
+      "dependencies": [],
+      "description": "Caption/alt-text, object detection/tagging, anonymous face detection (no recognition), quality assessment, duplicate/near-dup detection (perceptual hash), embedding generation, and QR/barcode read.",
+      "id": "IMG-P1-003",
+      "prd_ref": "OT-P1-003",
+      "status": "planned",
+      "title": "Analysis Breadth",
+      "validation": [
+        {
+          "notes": "Each analysis-breadth op returns structured results",
+          "phase": "unit",
+          "ref": "api/internal/analysis/breadth_test.go",
+          "status": "planned",
+          "type": "test"
+        },
+        {
+          "notes": "Embedding generation feeds semantic image search",
+          "phase": "integration",
+          "ref": "api/internal/analysis/embedding_test.go",
+          "status": "planned",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Analysis Breadth"
+}

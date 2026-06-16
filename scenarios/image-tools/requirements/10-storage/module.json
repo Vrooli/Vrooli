@@ -1,0 +1,34 @@
+{
+  "description": "Image binaries stored via api-core storage/blobstore (outside repo) by default; save location overridable per request; outputs user-owned (copy/move/delete anywhere).",
+  "module_id": "MOD-P0-010",
+  "prd_ref": "OT-P0-010",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [],
+      "description": "Image binaries stored via api-core storage/blobstore (outside repo) by default; save location overridable per request; outputs user-owned (copy/move/delete anywhere).",
+      "id": "IMG-P0-010",
+      "prd_ref": "OT-P0-010",
+      "status": "planned",
+      "title": "Persistent Storage & Output Ownership",
+      "validation": [
+        {
+          "notes": "Storage resolver writes outside repo and honors per-request override",
+          "phase": "unit",
+          "ref": "api/internal/storage/resolver_test.go",
+          "status": "planned",
+          "type": "test"
+        },
+        {
+          "notes": "Output round-trips through api-core storage and is retrievable",
+          "phase": "integration",
+          "ref": "api/internal/storage/storage_test.go",
+          "status": "planned",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Persistent Storage & Output Ownership"
+}

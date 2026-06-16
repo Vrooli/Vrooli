@@ -1,0 +1,31 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-06-16T16:08:16-04:00"
+  },
+  "requirements": [
+    {
+      "id": "IMG-P0-013",
+      "title": "Full-Parity Surfaces",
+      "status": "complete",
+      "prd_ref": "OT-P0-013",
+      "category": "core",
+      "description": "React+Vite UI (mobile capture/upload, before/after, progress-cancel), Go CLI (full headless parity), and Connect-RPC/REST API expose the full op set; no op gated behind a single surface.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/handlers/parity_test.go",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Proto/Connect parity holds across API and CLI"
+        },
+        {
+          "type": "manual",
+          "ref": "ui/src/features",
+          "phase": "business",
+          "status": "implemented",
+          "notes": "UI exposes upload paths, before/after, and cancel"
+        }
+      ]
+    }
+  ]
+}

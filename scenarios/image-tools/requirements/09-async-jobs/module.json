@@ -1,0 +1,41 @@
+{
+  "description": "Server-owned jobs survive client disconnect; submit returns job-id + ETA; CLI block-once wait verb; UI SSE progress; GPU jobs serialized; cheap CPU ops concurrent; no client polling.",
+  "module_id": "MOD-P0-009",
+  "prd_ref": "OT-P0-009",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [],
+      "description": "Server-owned jobs survive client disconnect; submit returns job-id + ETA; CLI block-once wait verb; UI SSE progress; GPU jobs serialized; cheap CPU ops concurrent; no client polling.",
+      "id": "IMG-P0-009",
+      "prd_ref": "OT-P0-009",
+      "status": "planned",
+      "title": "Durable Async Job Queue",
+      "validation": [
+        {
+          "notes": "Job state machine survives simulated client disconnect",
+          "phase": "unit",
+          "ref": "api/internal/jobs/lifecycle_test.go",
+          "status": "planned",
+          "type": "test"
+        },
+        {
+          "notes": "GPU jobs serialize while CPU ops run concurrently",
+          "phase": "unit",
+          "ref": "api/internal/jobs/queue_test.go",
+          "status": "planned",
+          "type": "test"
+        },
+        {
+          "notes": "CLI submit->wait returns terminal verdict + exit code",
+          "phase": "integration",
+          "ref": "cli/domains/jobs/jobs_test.go",
+          "status": "planned",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Durable Async Job Queue"
+}

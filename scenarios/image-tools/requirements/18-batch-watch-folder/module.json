@@ -1,0 +1,34 @@
+{
+  "description": "Batch accepts glob/folder inputs; watch-folder triggers configured recipes/ops on new files with debounce and output routing.",
+  "module_id": "MOD-P1-005",
+  "prd_ref": "OT-P1-005",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "feature",
+      "dependencies": [],
+      "description": "Batch accepts glob/folder inputs; watch-folder triggers configured recipes/ops on new files with debounce and output routing.",
+      "id": "IMG-P1-005",
+      "prd_ref": "OT-P1-005",
+      "status": "planned",
+      "title": "Batch Processing & Watch-Folder Automation",
+      "validation": [
+        {
+          "notes": "Batch expands globs and fans out jobs",
+          "phase": "unit",
+          "ref": "api/internal/batch/batch_test.go",
+          "status": "planned",
+          "type": "test"
+        },
+        {
+          "notes": "Watch-folder debounces and routes outputs on new files",
+          "phase": "integration",
+          "ref": "api/internal/watch/watch_test.go",
+          "status": "planned",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Batch Processing & Watch-Folder Automation"
+}
