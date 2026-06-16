@@ -1,0 +1,203 @@
+syntax = "proto3";
+
+package vrooli.unit_health.v1.validation;
+
+import "common/v1/maturity.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/unit-health/v1/validation;validation_v1";
+
+// =============================================================================
+// UNIT HEALTH — validation contract
+// =============================================================================
+//
+// @stability beta
+//
+// Wire contract for Unit Health's primary surface. Unit Health owns test
+// discovery, execution, test architecture, test quality, coverage, and
+// flake/runtime diagnostics, and emits provider-local test maturity through the
+// shared common.v1.MaturityAssessment contract. Test Genie's `unit` phase shells
+// `unit-health validate scenario <name> --json` and ingests
+// ValidateScenarioResponse.assessment.
+//
+// Naming convention: the `Service` suffix and `<Service><Verb>Request` request
+// shape match buf's DEFAULT lint rules and the rest of `packages/proto/`.
+//
+// Consumed by:
+//   - API: handlers/validation/connect_handler.go implements the generated
+//          ValidationServiceHandler from the validation_v1connect Go package.
+//   - UI:  ui/src/api/validation.ts exposes the generated Connect-Web client.
+//   - CLI: cli/domains/validate/handlers.go calls the generated Connect-Go
+//          client and renders via cliapp.ListReport.
+// =============================================================================
+
+// ValidationService is Unit Health's test-maturity validation surface.
+service ValidationService {
+  // ValidateScenario discovers test surfaces, plans and (optionally) runs the
+  // canonical test commands, analyzes coverage/architecture/quality, and
+  // returns normalized findings plus a shared maturity assessment.
+  rpc ValidateScenario(ValidateScenarioRequest) returns (ValidateScenarioResponse);
+}
+
+// ValidateScenarioRequest identifies the target to validate.
+message ValidateScenarioRequest {
+  // Scenario slug, such as "unit-health". Optional when path is set.
+  string scenario = 1;
+
+  // Filesystem path to validate. Optional when scenario is set.
+  string path = 2;
+
+  // Optional workspace ids to restrict the validation.
+  repeated string workspaces = 3;
+
+  // Whether planned test commands should be executed. When false the response
+  // describes the plan without running anything.
+  bool include_execution = 4;
+
+  // Whether upstream Code Facts discovery may use cached facts.
+  bool use_cache = 5;
+}
+
+message ValidateScenarioResponse {
+  // Stable run identifier for this validation invocation.
+  string run_id = 1;
+
+  // Overall status. Canonical planned values: passed, failed, degraded, error.
+  string status = 2;
+
+  // Human-readable summary for CLI and UI preview surfaces.
+  string summary = 3;
+
+  string scenario = 4;
+  string target_kind = 5;
+  string target_path = 6;
+  string degraded_reason = 7;
+
+  repeated TestSurface surfaces = 8;
+  repeated TestWorkspace workspaces = 9;
+  ExecutionPlan plan = 10;
+  repeated CommandResult command_results = 11;
+  repeated CoverageTarget coverage = 12;
+  repeated ValidationFinding findings = 13;
+  repeated Diagnostic diagnostics = 14;
+  MaturitySummary maturity = 15;
+  ValidationCounts counts = 16;
+  repeated string next_steps = 17;
+  common.v1.MaturityAssessment assessment = 18;
+}
+
+// TestSurface is a discovered scenario surface (api/cli/ui/worker/...) as
+// reported by Code Facts.
+message TestSurface {
+  string id = 1;
+  string kind = 2;
+  string language = 3;
+  string framework = 4;
+  string root_path = 5;
+  string package_manager = 6;
+  string status = 7;
+  double confidence = 8;
+}
+
+// TestWorkspace is a testable unit (Go module, TypeScript/Vite UI, Python
+// package) with its canonical framework and resolved test commands.
+message TestWorkspace {
+  string id = 1;
+  string language = 2;
+  string root_path = 3;
+  string framework = 4;
+  string canonical_framework = 5;
+  string test_command = 6;
+  string coverage_command = 7;
+  string package_manager = 8;
+  string status = 9;
+  string degraded_reason = 10;
+}
+
+// ExecutionPlan is the bounded set of commands Unit Health would run.
+message ExecutionPlan {
+  repeated PlannedCommand commands = 1;
+  string notes = 2;
+}
+
+message PlannedCommand {
+  string workspace_id = 1;
+  string name = 2;
+  string command = 3;
+  string working_directory = 4;
+  int32 timeout_seconds = 5;
+}
+
+message CommandResult {
+  string name = 1;
+  string command = 2;
+  string working_directory = 3;
+  string status = 4;
+  int32 exit_code = 5;
+  string stdout_excerpt = 6;
+  string stderr_excerpt = 7;
+  int32 timeout_seconds = 8;
+  string failure_reason = 9;
+  // Canonical classes: test_failure, missing_dependency, misconfiguration,
+  // timeout, no_output_stall, system.
+  string failure_class = 10;
+  int64 duration_ms = 11;
+}
+
+message CoverageTarget {
+  string id = 1;
+  string language = 2;
+  string surface_id = 3;
+  string file_path = 4;
+  int64 covered_lines = 5;
+  int64 total_lines = 6;
+  double coverage_percent = 7;
+  double threshold = 8;
+  string status = 9;
+}
+
+message ValidationFinding {
+  string id = 1;
+  string scenario = 2;
+  string surface_id = 3;
+  string workspace_id = 4;
+  string language = 5;
+  string framework = 6;
+  // Finding code; maps to a `.vrooli/maturity.json` finding entry.
+  string code = 7;
+  string category = 8;
+  string severity = 9;
+  string file_path = 10;
+  string symbol = 11;
+  string message = 12;
+  string evidence = 13;
+  string expected = 14;
+  string observed = 15;
+  string why_it_matters = 16;
+  string remediation = 17;
+  string source_command = 18;
+  string created_at = 19;
+}
+
+message Diagnostic {
+  // Canonical kinds: flake, runtime_growth, hang_culprit, slow_command.
+  string kind = 1;
+  string workspace_id = 2;
+  string message = 3;
+  string evidence = 4;
+  string severity = 5;
+}
+
+message MaturitySummary {
+  int32 rung = 1;
+  string label = 2;
+  string rationale = 3;
+}
+
+message ValidationCounts {
+  int32 errors = 1;
+  int32 warnings = 2;
+  int32 infos = 3;
+  int32 surfaces = 4;
+  int32 workspaces = 5;
+  int32 coverage_targets = 6;
+}

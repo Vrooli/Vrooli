@@ -369,7 +369,7 @@ Use these heuristics when creating or evolving any skill:
 
 ---
 
-## Destination over direction: maturity ladders for audit-shaped skills
+## Destination over direction: maturity sources for audit-shaped skills
 
 **Convergence thesis.** Two agents on two machines running the same skill against the same scenario should produce compatible outputs. Skills converge when they are *less prescriptive about the path* and *more prescriptive about the destination*. A skill that names a verifiable end state lets agents arrive there from any starting point; a skill that lists steps without naming the destination invites divergent interpretations every session.
 
@@ -382,7 +382,7 @@ Non-examples: Tools, Search, and Practice skills, and greenfield-directive steer
 ### The four ingredients (mandatory for audit-shaped skills)
 
 1. **Scope Boundaries up front** — anchored to `path:scenarios/{{TARGET}}/`. State explicitly what is in scope, what is out, and what hands off to sibling skills. The opening paragraphs must let the agent know whether to keep reading.
-2. **Named Maturity Ladder (L0–L5)** — every level gated by a *verifiable artifact* (something an agent can confirm with `ls`, `grep`, or a CLI assertion), not by an adjective. Each level has two columns: **What exists** (the concrete artifact at this level) and **When to stop here** (the criterion that says "no further work justified now"). "Improved" / "better" / "more idiomatic" are not levels.
+2. **Named maturity source** — either a skill-owned maturity ladder or a provider-owned maturity report. If the skill owns the ladder, every level is gated by a *verifiable artifact* (something an agent can confirm with `ls`, `grep`, or a CLI assertion), not by an adjective; each level has **What exists** and **When to stop here** semantics. If a health provider owns the ladder through `.vrooli/maturity.json`, the skill must name the default human CLI command (for example, `proto-health validate scenario {{TARGET}}`) and treat that output as the single source of truth. **Do not duplicate or summarize provider-owned L0-L5 ladders in skill prose.**
 3. **Decision / Archetype Model** — a table the agent walks row-by-row to classify the artifact under audit. Agents pick a deterministic row instead of synthesizing prose; two agents reading the same scenario must land in the same row.
 4. **Durable-doc Output Anchors** — findings land in `path:scenarios/{{TARGET}}/docs/ARCHITECTURE.md`, `SEAMS.md`, `PROBLEMS.md` (or the closest existing equivalents) via `knowledge-observatory-tools`. **Do NOT create standalone `*_AUDIT.md` reports.** Standalone audit files freeze a single session's view and rot; durable docs accumulate findings across runs and survive agent churn.
 
@@ -391,20 +391,20 @@ Non-examples: Tools, Search, and Practice skills, and greenfield-directive steer
 - `path:scenarios/prompt-manager/store/skills/packs/core/temporal-flow-audit/SKILL.md` §2 "Temporal Maturity Model" — the cleanest existing implementation of the pattern.
 - `path:scenarios/prompt-manager/store/skills/packs/core/screaming-architecture-audit/SKILL.md` §2 "Architecture Maturity Model" — parallel implementation in a different audit domain.
 
-Cite these when teaching the pattern; do not paraphrase the ladders elsewhere.
+Cite these when teaching skill-owned ladders; do not paraphrase their ladders elsewhere. Provider-backed skills should cite the provider CLI instead.
 
 ### Orthogonality with `PROMOTION_LADDER.md`
 
 Two ladders compose; they do not compete.
 
-- **Destination axis (this section):** WHAT the skill describes — is the end state a named, verifiable artifact?
+- **Destination axis (this section):** WHAT the skill describes — is the end state a named, verifiable artifact or a provider-owned maturity report?
 - **Implementation axis (`path:docs/agent-system/PROMOTION_LADDER.md`):** HOW the skill is implemented — prose → CLI wrapper → Action → retired.
 
-A destination-clear skill is a *precondition* for climbing the promotion ladder: `development-toolchain-validator` can only mechanize artifact checks that the skill has actually named. Without destination clarity there is nothing for a CLI to check against, so an unconfigured skill stays at the bottom of the implementation ladder regardless of how well-written its prose is.
+A destination-clear skill is a *precondition* for climbing the promotion ladder: `development-toolchain-validator` can only mechanize artifact checks that the skill has actually named. Without destination clarity there is nothing for a CLI to check against, so an unconfigured skill stays at the bottom of the implementation ladder regardless of how well-written its prose is. When a provider owns the maturity ladder, destination clarity means the skill routes agents to the provider output and focuses its own prose on remediation.
 
 ### Programmatic reading
 
-`path:scenarios/development-toolchain-validator/` P1-005 "Skill Maturity Score" is the mechanical reading of destination-over-direction. The score is weighted by: *has structural config + has CLI tool assertions + all assertions pass + no conflicts*. Skills that name verifiable artifacts can be configured and scored; skills that describe direction without a destination cannot, and they sit at the bottom of the score distribution until they encode their ladder.
+`path:scenarios/development-toolchain-validator/` P1-005 "Skill Maturity Score" is the mechanical reading of destination-over-direction. The score is weighted by: *has structural config + has CLI tool assertions + all assertions pass + no conflicts*. Skills that name verifiable artifacts or provider-owned maturity commands can be configured and scored; skills that describe direction without a destination cannot, and they sit at the bottom of the score distribution until they encode their destination source.
 
 ### Applicability
 

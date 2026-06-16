@@ -16,7 +16,7 @@ There are three categories of configuration data, and every file in the system f
 | **Computed analysis** — what an analyzer figured out | `service.deployment.aggregate_requirements`, `service.deployment.tiers`, `.vrooli/schemas/resource-definitions.json` | Tools, regenerable | "This scenario needs 2 GB RAM", "tier-3-mobile fitness score 0.4" |
 | **Operator state** — what this install *chose* | `.vrooli/operator-state.json` | The wizard, or hand | "swarm-manager is enabled", "kernel_config safeguard is opted in", "ollama resource is disabled" |
 
-Generated lifecycle/runtime state is not configuration. Setup markers, resource-populated markers, runtime databases, port locks, logs, and process records belong under `~/.vrooli/`; per-project setup/resource markers use `~/.vrooli/state/projects/<project-key>/` so multiple local checkouts stay disambiguated.
+Generated lifecycle/runtime state is not configuration. Setup markers, resource-populated markers, runtime databases (including the SQLite port-claim registry), logs, and process records belong under `~/.vrooli/`; per-project setup/resource markers use `~/.vrooli/state/projects/<project-key>/` so multiple local checkouts stay disambiguated.
 
 See [`architecture.md`](architecture.md) for the full source-of-truth table and the rules for resolving any specific value at runtime (manifest default vs. operator override).
 
