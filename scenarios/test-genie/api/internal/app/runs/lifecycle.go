@@ -59,16 +59,36 @@ func (s *Service) StartRun(ctx context.Context, req *connect.Request[runspb.Star
 		return nil, err
 	}
 
-	runID, err := s.runManager.Start(runmanager.StartOptions{Input: input, EstimatedTotalSeconds: etaTotal})
+	res, err := s.runManager.Start(runmanager.StartOptions{Input: input, EstimatedTotalSeconds: etaTotal})
 	if err != nil {
+		var busy *runmanager.BusyError
+		if errors.As(err, &busy) {
+			return nil, busyError(busy)
+		}
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	return connect.NewResponse(&runspb.StartRunResponse{
-		RunId:                 runID,
+		RunId:                 res.RunID,
 		Scenario:              scenario,
 		EstimatedTotalSeconds: int32(etaTotal),
 		EtaKnown:              etaKnown,
+		Coalesced:             res.Coalesced,
 	}), nil
+}
+
+// busyError maps a run-admission rejection to a FailedPrecondition carrying a
+// typed RunBusyInfo detail, so callers render wait/abort guidance without
+// parsing the error string.
+func busyError(busy *runmanager.BusyError) *connect.Error {
+	cerr := connect.NewError(connect.CodeFailedPrecondition, busy)
+	if detail, derr := connect.NewErrorDetail(&runspb.RunBusyInfo{
+		Scenario: busy.Scenario,
+		RunId:    busy.RunID,
+		Preset:   busy.Preset,
+	}); derr == nil {
+		cerr.AddDetail(detail)
+	}
+	return cerr
 }
 
 // previewPlan derives the summed plan estimate and surfaces plan validation

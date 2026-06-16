@@ -15,7 +15,47 @@
 
 ## Replay/Idempotency Invariants
 [Operations that must be safe to retry]
-- **Operation**: idempotency key, safe retry pattern
+
+- **One in-progress test-genie run per scenario.** At most one in-progress run
+  exists per scenario at a time. Different scenarios run concurrently; the same
+  scenario does not. This is a **correctness** requirement, not just efficiency:
+  every run brings the target up via `targetruntime.EnsureRunning`, which shares
+  one live instance (ports, DB, fixtures) with no mutual exclusion, and one run's
+  cleanup can tear the scenario down under another. Enforced centrally in
+  test-genie `runManager.Start` (atomic scan+decide+insert under one lock).
+- **Run admission key** (coalescing identity): `(scenario, preset, captureProfile,
+  sorted phases, sorted skip, scenarioPath, logicalRepoRoot, logicalScenarioRelPath)`.
+  The baseline *name* is deliberately NOT part of it, so many diffs of one
+  scenario (different `--name`) coalesce onto one comprehensive run and each
+  caches its own comparison.
+- **Coalesce vs reject.** An identical in-flight request (same key) **coalesces**
+  onto the running run (`coalesced=true`) — idempotent, no second suite. A
+  divergent request (different key) while a run is in flight is **rejected** with
+  `FailedPrecondition` carrying the in-flight run id + preset, never coalesced and
+  never stacked. Snapshots and diffs share the comprehensive+baseline key, so they
+  coalesce with each other; only a genuinely different shape (e.g. `execute
+  --preset quick`) rejects.
+- **retireGrace exclusion.** A just-finished (terminal) run lingers in the
+  registry for `retireGrace` (60s) so late status/follow calls read the live
+  snapshot. Admission ignores these terminal lingerers — they never block or
+  coalesce a fresh start.
+- **Clean-tree run reuse.** A diff reuses a completed `comprehensive`+`baseline`
+  run only when the working tree is clean, its sha matches exactly, and it
+  finished within `GCT_DIFF_RUN_REUSE_TTL` (default 15m). A dirty tree always
+  runs fresh (uncommitted edits aren't captured by sha).
+- **DiffResult cache commit boundary.** The cached `DiffResult` (keyed
+  `(repoID, scenario, branch, name, runID)`) is written only on a successful
+  `FinalizeDiff` (atomic tmp+rename). If the finalize tail is lost (crash),
+  `GetDiffResult` recomputes once on demand from the durable runs — the runs
+  themselves never depend on the cache.
 
 ## Enforcement Mechanisms
 [How each invariant is protected]
+
+- One-run-per-scenario + coalesce/reject/retireGrace: test-genie
+  `internal/runmanager/manager.go` (`Start`, `admissionKey`), tested in
+  `manager_test.go` (concurrent-identical, divergent-reject, retireGrace,
+  TOCTOU race under `-race`).
+- Run reuse + diff cache + recompute: `internal/baseline/service.go`
+  (`resolveCurrentRun`, `FinalizeDiff`, `GetDiffResult`) + `storage.go`
+  (`SaveDiffResult`/`LoadDiffResult`), tested in `service_test.go`.

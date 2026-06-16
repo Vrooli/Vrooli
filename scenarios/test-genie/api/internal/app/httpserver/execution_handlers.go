@@ -116,11 +116,17 @@ func (s *Server) handleExecuteSuite(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	runID, err := s.runManager.Start(runmanager.StartOptions{Input: input, EstimatedTotalSeconds: eta})
+	res, err := s.runManager.Start(runmanager.StartOptions{Input: input, EstimatedTotalSeconds: eta})
 	if err != nil {
+		var busy *runmanager.BusyError
+		if errors.As(err, &busy) {
+			s.writeError(w, http.StatusConflict, busy.Error())
+			return
+		}
 		s.writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	runID := res.RunID
 
 	status, err := s.runManager.Wait(r.Context(), input.Request.ScenarioName, runID)
 	if err != nil {

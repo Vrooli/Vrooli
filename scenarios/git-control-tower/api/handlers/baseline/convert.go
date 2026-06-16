@@ -64,6 +64,25 @@ func manifestToProto(m bl.BaselineManifest) *baselinesv1.BaselineManifest {
 	return out
 }
 
+// diffResultToProto renders a computed diff into the wire DiffResult message.
+func diffResultToProto(res bl.DiffResult) *baselinesv1.DiffResult {
+	out := &baselinesv1.DiffResult{
+		Baseline:   manifestToProto(res.Manifest),
+		CurrentGit: gitToProto(res.CurrentGit),
+		Staleness: &baselinesv1.Staleness{
+			CommitsSince: int32(res.Staleness.CommitsSince),
+			FilesChanged: int32(res.Staleness.FilesChanged),
+			LikelyStale:  res.Staleness.LikelyStale,
+		},
+		Verdict:      string(res.Verdict),
+		DirtyWarning: res.DirtyWarning,
+	}
+	for _, d := range res.Surfaces {
+		out.Surfaces = append(out.Surfaces, surfaceDiffToProto(d))
+	}
+	return out
+}
+
 func surfaceDiffToProto(d bl.SurfaceDiff) *baselinesv1.SurfaceDiff {
 	return &baselinesv1.SurfaceDiff{
 		SurfaceId:   d.SurfaceID,

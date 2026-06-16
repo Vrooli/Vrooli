@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"git-control-tower/internal/git"
 )
@@ -12,6 +13,26 @@ import (
 func newTestService(t *testing.T, exec Executor, runs RunsClient, gitState git.State) (*Service, *Storage) {
 	t.Helper()
 	return newTestServiceWith(t, Deps{Exec: exec, Runs: runs, CaptureGit: fixedGit(gitState)})
+}
+
+// runDiff drives the durable diff to completion (StartDiff → FinalizeDiff) and
+// returns the computed result — the test bridge for the now-async diff flow.
+func runDiff(t *testing.T, svc *Service, repoID int64, repoDir, scenario, branch, name, surface string) (DiffResult, error) {
+	t.Helper()
+	out, err := svc.StartDiff(context.Background(), StartDiffRequest{
+		RepoID: repoID, RepoDir: repoDir, Scenario: scenario, Branch: branch, Name: name, Surface: surface,
+	})
+	if err != nil {
+		return DiffResult{}, err
+	}
+	cd, err := svc.FinalizeDiff(context.Background(), out.Pending)
+	if err != nil {
+		return DiffResult{}, err
+	}
+	if cd.Result == nil {
+		return DiffResult{}, errors.New("finalized diff has no result")
+	}
+	return *cd.Result, nil
 }
 
 // newTestServiceWith builds a Service from a partial Deps, filling in a fresh
@@ -214,7 +235,7 @@ func TestServiceDiffOptionCBucketing(t *testing.T) {
 		},
 	}
 
-	res, err := svc.Diff(context.Background(), 1, "/repo", "foo", "agi", "p", "")
+	res, err := runDiff(t, svc, 1, "/repo", "foo", "agi", "p", "")
 	if err != nil {
 		t.Fatalf("Diff: %v", err)
 	}
@@ -259,7 +280,7 @@ func TestServiceDiffSingleSurface(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	res, err := svc.Diff(context.Background(), 1, "/repo", "foo", "agi", "p", SurfaceRules)
+	res, err := runDiff(t, svc, 1, "/repo", "foo", "agi", "p", SurfaceRules)
 	if err != nil {
 		t.Fatalf("Diff: %v", err)
 	}
@@ -291,7 +312,7 @@ func TestServiceDiffVisualsAdvisory(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	res, err := svc.Diff(context.Background(), 1, "/repo", "foo", "agi", "p", SurfaceVisuals)
+	res, err := runDiff(t, svc, 1, "/repo", "foo", "agi", "p", SurfaceVisuals)
 	if err != nil {
 		t.Fatalf("Diff: %v", err)
 	}
@@ -332,7 +353,7 @@ func TestServicePartialBaselineDoesNotMasqueradeAsComplete(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	res, err := svc.Diff(context.Background(), 1, "/repo", "foo", "agi", "p", "")
+	res, err := runDiff(t, svc, 1, "/repo", "foo", "agi", "p", "")
 	if err != nil {
 		t.Fatalf("Diff: %v", err)
 	}
@@ -398,9 +419,11 @@ func TestServiceCaptureProceedsWhenReachable(t *testing.T) {
 	}
 }
 
-// Diff fast-skips an unreachable backend: it marks captured surfaces
-// not-comparable with the probe reason instead of blocking on a fresh run.
-func TestServiceDiffFastSkipsWhenUnreachable(t *testing.T) {
+// StartDiff fast-fails an unreachable backend up front: it returns an error
+// carrying the probe reason and starts NO run — the durable contract mirrors
+// StartCapture (an unreachable test-genie can't produce a verdict, so the CLI
+// reports it rather than rendering a misleading all-not-comparable diff).
+func TestServiceStartDiffFailsFastWhenUnreachable(t *testing.T) {
 	exec := &fakeExecutor{result: ExecResult{Phases: []PhaseStatus{{"unit", "passed"}}}}
 	runs := &fakeRuns{}
 	reach := &fakeReachability{}
@@ -416,23 +439,17 @@ func TestServiceDiffFastSkipsWhenUnreachable(t *testing.T) {
 	reach.err = errors.New("connection refused")
 	callsBefore := exec.calls
 
-	res, err := svc.Diff(context.Background(), 1, "/repo", "foo", "agi", "p", "")
-	if err != nil {
-		t.Fatalf("Diff: %v", err)
+	_, err := svc.StartDiff(context.Background(), StartDiffRequest{
+		RepoID: 1, RepoDir: "/repo", Scenario: "foo", Branch: "agi", Name: "p",
+	})
+	if err == nil {
+		t.Fatal("StartDiff should fail fast when test-genie is unreachable")
+	}
+	if !strings.Contains(err.Error(), "connection refused") {
+		t.Fatalf("error should carry the probe reason, got %v", err)
 	}
 	if exec.calls != callsBefore {
-		t.Fatalf("unreachable diff must not trigger a current run, calls went %d→%d", callsBefore, exec.calls)
-	}
-	if len(res.Surfaces) == 0 {
-		t.Fatal("expected surfaces marked not-comparable")
-	}
-	for _, d := range res.Surfaces {
-		if d.Verdict != VerdictNotComparable {
-			t.Fatalf("surface %q should be not-comparable when unreachable, got %s", d.SurfaceID, d.Verdict)
-		}
-		if !strings.Contains(d.Summary, "connection refused") {
-			t.Fatalf("not-comparable reason should carry the probe error, got %q", d.Summary)
-		}
+		t.Fatalf("unreachable diff must not start a run, calls went %d→%d", callsBefore, exec.calls)
 	}
 }
 
@@ -468,6 +485,174 @@ func TestServiceCaptureTailSurvivesCanceledContext(t *testing.T) {
 	// Manifest is durably persisted.
 	if _, err := st.Load(1, "foo", "agi", "p"); err != nil {
 		t.Fatalf("manifest must be durable on disk: %v", err)
+	}
+}
+
+// seedBaseline captures a baseline (one shared run) so a diff has a base run.
+func seedBaseline(t *testing.T, svc *Service, name string) {
+	t.Helper()
+	if _, err := svc.Create(context.Background(), CreateRequest{
+		RepoID: 1, RepoDir: "/repo", Scenario: "foo", Name: name, Branch: "agi", Capture: true,
+	}); err != nil {
+		t.Fatalf("seed baseline %q: %v", name, err)
+	}
+}
+
+// A clean working tree at a sha with an existing comprehensive run reuses that
+// run — no second suite (the redundant-run fix, §6b rows 8/9).
+func TestServiceDiffReusesCleanTreeRun(t *testing.T) {
+	exec := &fakeExecutor{
+		result:      ExecResult{Phases: []PhaseStatus{{"unit", "passed"}}},
+		reusableHit: true,
+		reusable:    ReusableRun{RunID: "reused-run", CompletedAt: time.Now().UTC()},
+	}
+	runs := &fakeRuns{compare: CompareResult{Phases: []PhaseDiff{{Phase: "unit", Verdict: "clean"}}}}
+	svc, _ := newTestServiceWith(t, Deps{Exec: exec, Runs: runs, ReuseTTL: 15 * time.Minute, CaptureGit: fixedGit(git.State{Branch: "agi", Sha: "abc"})})
+	seedBaseline(t, svc, "p")
+	callsAfterSeed := exec.calls
+
+	out, err := svc.StartDiff(context.Background(), StartDiffRequest{RepoID: 1, RepoDir: "/repo", Scenario: "foo", Branch: "agi", Name: "p"})
+	if err != nil {
+		t.Fatalf("StartDiff: %v", err)
+	}
+	if !out.ReusedRun {
+		t.Fatal("clean tree with an existing run should reuse it")
+	}
+	if out.RunID != "reused-run" {
+		t.Fatalf("reused run id = %q, want reused-run", out.RunID)
+	}
+	if out.ReusedSha != "abc" {
+		t.Fatalf("reused sha = %q, want abc", out.ReusedSha)
+	}
+	if exec.calls != callsAfterSeed {
+		t.Fatalf("reuse must not start a new run, calls went %d→%d", callsAfterSeed, exec.calls)
+	}
+}
+
+// A dirty working tree never reuses a run (uncommitted edits aren't captured by
+// sha) — a fresh run starts (§6b row 10).
+func TestServiceDiffDirtyTreeStartsFresh(t *testing.T) {
+	exec := &fakeExecutor{
+		result:      ExecResult{Phases: []PhaseStatus{{"unit", "passed"}}},
+		reusableHit: true, // a match exists, but the dirty tree must ignore it
+		reusable:    ReusableRun{RunID: "reused-run", CompletedAt: time.Now().UTC()},
+	}
+	runs := &fakeRuns{}
+	svc, _ := newTestServiceWith(t, Deps{Exec: exec, Runs: runs, ReuseTTL: 15 * time.Minute, CaptureGit: fixedGit(git.State{Branch: "agi", Sha: "abc", Dirty: true, DirtySummary: "1 modified"})})
+	seedBaseline(t, svc, "p")
+	callsAfterSeed := exec.calls
+
+	out, err := svc.StartDiff(context.Background(), StartDiffRequest{RepoID: 1, RepoDir: "/repo", Scenario: "foo", Branch: "agi", Name: "p"})
+	if err != nil {
+		t.Fatalf("StartDiff: %v", err)
+	}
+	if out.ReusedRun {
+		t.Fatal("a dirty tree must never reuse a run")
+	}
+	if exec.calls != callsAfterSeed+1 {
+		t.Fatalf("dirty tree should start exactly one fresh run, calls went %d→%d", callsAfterSeed, exec.calls)
+	}
+	if out.DirtyWarning == "" {
+		t.Fatal("dirty tree should surface a warning")
+	}
+}
+
+// A reuse candidate older than the TTL is not reused — a fresh run starts.
+func TestServiceDiffReuseTTLExpired(t *testing.T) {
+	exec := &fakeExecutor{
+		result:      ExecResult{Phases: []PhaseStatus{{"unit", "passed"}}},
+		reusableHit: true,
+		reusable:    ReusableRun{RunID: "stale-run", CompletedAt: time.Now().UTC().Add(-1 * time.Hour)},
+	}
+	runs := &fakeRuns{}
+	svc, _ := newTestServiceWith(t, Deps{Exec: exec, Runs: runs, ReuseTTL: 15 * time.Minute, CaptureGit: fixedGit(git.State{Branch: "agi", Sha: "abc"})})
+	seedBaseline(t, svc, "p")
+	callsAfterSeed := exec.calls
+
+	out, err := svc.StartDiff(context.Background(), StartDiffRequest{RepoID: 1, RepoDir: "/repo", Scenario: "foo", Branch: "agi", Name: "p"})
+	if err != nil {
+		t.Fatalf("StartDiff: %v", err)
+	}
+	if out.ReusedRun {
+		t.Fatal("a run older than the TTL must not be reused")
+	}
+	if exec.calls != callsAfterSeed+1 {
+		t.Fatalf("expired reuse should start a fresh run, calls went %d→%d", callsAfterSeed, exec.calls)
+	}
+}
+
+// GetDiffResult returns in_progress (with a backoff) when the run is still
+// executing and no result is cached yet.
+func TestServiceGetDiffResultInProgress(t *testing.T) {
+	exec := &fakeExecutor{statusInfo: &RunStatusInfo{Status: "in_progress", Terminal: false, RecommendedNextCheckSeconds: 12}}
+	runs := &fakeRuns{}
+	svc, _ := newTestServiceWith(t, Deps{Exec: exec, Runs: runs, CaptureGit: fixedGit(git.State{Branch: "agi", Sha: "abc"})})
+	seedBaseline(t, svc, "p")
+
+	cd, next, err := svc.GetDiffResult(context.Background(), GetDiffResultRequest{RepoID: 1, RepoDir: "/repo", Scenario: "foo", Branch: "agi", Name: "p", RunID: "run-running"})
+	if err != nil {
+		t.Fatalf("GetDiffResult: %v", err)
+	}
+	if cd.Status != "in_progress" {
+		t.Fatalf("status = %q, want in_progress", cd.Status)
+	}
+	if next != 12 {
+		t.Fatalf("recommended next check = %d, want 12", next)
+	}
+}
+
+// FinalizeDiff caches the verdict; GetDiffResult then returns it instantly.
+// Two baseline names sharing ONE current run each cache their own result (§6.3).
+func TestServiceTwoNamesShareOneRunTwoCachedResults(t *testing.T) {
+	exec := &fakeExecutor{result: ExecResult{Phases: []PhaseStatus{{"unit", "passed"}}}}
+	runs := &fakeRuns{compare: CompareResult{Phases: []PhaseDiff{{Phase: "unit", Verdict: "clean"}}}}
+	svc, _ := newTestServiceWith(t, Deps{Exec: exec, Runs: runs, CaptureGit: fixedGit(git.State{Branch: "agi", Sha: "abc"})})
+	seedBaseline(t, svc, "alpha")
+	seedBaseline(t, svc, "beta")
+
+	const sharedRun = "shared-current-run"
+	for _, name := range []string{"alpha", "beta"} {
+		manifest, err := svc.Get(context.Background(), 1, "foo", "agi", name)
+		if err != nil {
+			t.Fatalf("load %q: %v", name, err)
+		}
+		pending := PendingDiff{
+			RepoID: 1, Scenario: "foo", Branch: "agi", Name: name,
+			Manifest: manifest, BaseRunID: manifest.RunID(), CurRunID: sharedRun,
+		}
+		if _, err := svc.FinalizeDiff(context.Background(), pending); err != nil {
+			t.Fatalf("FinalizeDiff %q: %v", name, err)
+		}
+	}
+	// Both names resolve their own cached result against the one shared run.
+	for _, name := range []string{"alpha", "beta"} {
+		cd, _, err := svc.GetDiffResult(context.Background(), GetDiffResultRequest{RepoID: 1, RepoDir: "/repo", Scenario: "foo", Branch: "agi", Name: name, RunID: sharedRun})
+		if err != nil {
+			t.Fatalf("GetDiffResult %q: %v", name, err)
+		}
+		if cd.Status != "ready" || cd.Result == nil {
+			t.Fatalf("name %q: status=%q result=%v, want ready+result", name, cd.Status, cd.Result)
+		}
+		if cd.Result.Manifest.Name != name {
+			t.Fatalf("cached result for %q has manifest name %q", name, cd.Result.Manifest.Name)
+		}
+	}
+}
+
+// When the run is terminal but no result was cached (finalize lost to a crash),
+// GetDiffResult recomputes on demand.
+func TestServiceGetDiffResultRecomputesWhenTerminalUncached(t *testing.T) {
+	exec := &fakeExecutor{result: ExecResult{Phases: []PhaseStatus{{"unit", "passed"}}}} // RunStatus defaults to terminal
+	runs := &fakeRuns{compare: CompareResult{Phases: []PhaseDiff{{Phase: "unit", Verdict: "clean"}}}}
+	svc, _ := newTestServiceWith(t, Deps{Exec: exec, Runs: runs, CaptureGit: fixedGit(git.State{Branch: "agi", Sha: "abc"})})
+	seedBaseline(t, svc, "p")
+
+	cd, _, err := svc.GetDiffResult(context.Background(), GetDiffResultRequest{RepoID: 1, RepoDir: "/repo", Scenario: "foo", Branch: "agi", Name: "p", RunID: "terminal-uncached"})
+	if err != nil {
+		t.Fatalf("GetDiffResult: %v", err)
+	}
+	if cd.Status != "ready" || cd.Result == nil {
+		t.Fatalf("terminal-uncached should recompute to ready, got status=%q result=%v", cd.Status, cd.Result)
 	}
 }
 

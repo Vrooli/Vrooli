@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/vrooli/api-core/storage"
 
@@ -105,6 +106,77 @@ func (s *Storage) scenarioDir(repoID int64, scenario string) (string, error) {
 
 func (s *Storage) manifestPath(dir, name string) string {
 	return filepath.Join(dir, sanitizeSegment(name)+".json")
+}
+
+// diffCachePath is where a computed diff result is cached, keyed by baseline
+// name + the current run it was computed against. Keeping it under the baseline
+// branch dir (in a .diffs/ subdir) co-locates it with the manifest it diffs.
+func (s *Storage) diffCachePath(dir, name, runID string) string {
+	return filepath.Join(dir, ".diffs", sanitizeSegment(name)+"__"+sanitizeSegment(runID)+".json")
+}
+
+// CachedDiff is the persisted outcome of a finalized diff: the computed result
+// (ready) or the failure reason (failed). Cached so GetDiffResult returns the
+// verdict instantly, surviving client disconnect and server restart.
+type CachedDiff struct {
+	Status     string      `json:"status"` // ready | failed
+	Result     *DiffResult `json:"result,omitempty"`
+	Error      string      `json:"error,omitempty"`
+	RunID      string      `json:"run_id"`
+	ComputedAt time.Time   `json:"computed_at"`
+}
+
+// SaveDiffResult persists a finalized diff under (repoID, scenario, branch,
+// name, runID). Writes are atomic (tmp + rename) and serialized through the same
+// per-baseline lock as the manifest.
+func (s *Storage) SaveDiffResult(repoID int64, scenario, branch, name, runID string, cd CachedDiff) error {
+	dir, err := s.branchDir(repoID, scenario, branch)
+	if err != nil {
+		return err
+	}
+	return s.withLock(dir, name, func() error {
+		path := s.diffCachePath(dir, name, runID)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			return fmt.Errorf("create diff cache dir: %w", err)
+		}
+		data, err := json.MarshalIndent(cd, "", "  ")
+		if err != nil {
+			return fmt.Errorf("marshal diff cache: %w", err)
+		}
+		tmp := path + ".tmp"
+		if err := os.WriteFile(tmp, data, 0o644); err != nil {
+			return fmt.Errorf("write diff cache tmp: %w", err)
+		}
+		if err := os.Rename(tmp, path); err != nil {
+			return fmt.Errorf("replace diff cache: %w", err)
+		}
+		return nil
+	})
+}
+
+// LoadDiffResult reads a cached diff. ok=false (no error) when none is cached.
+func (s *Storage) LoadDiffResult(repoID int64, scenario, branch, name, runID string) (CachedDiff, bool, error) {
+	dir, err := s.branchDir(repoID, scenario, branch)
+	if err != nil {
+		return CachedDiff{}, false, err
+	}
+	var cd CachedDiff
+	found := false
+	err = s.withLock(dir, name, func() error {
+		data, rerr := os.ReadFile(s.diffCachePath(dir, name, runID))
+		if rerr != nil {
+			if os.IsNotExist(rerr) {
+				return nil
+			}
+			return fmt.Errorf("read diff cache: %w", rerr)
+		}
+		found = true
+		return json.Unmarshal(data, &cd)
+	})
+	if err != nil {
+		return CachedDiff{}, false, err
+	}
+	return cd, found, nil
 }
 
 func (s *Storage) lockPath(dir, name string) string {

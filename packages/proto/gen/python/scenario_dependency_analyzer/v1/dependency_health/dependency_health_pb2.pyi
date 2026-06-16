@@ -1,3 +1,4 @@
+from common.v1 import maturity_pb2 as _maturity_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -15,7 +16,7 @@ class ValidateDependencyHealthRequest(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., use_cache: _Optional[bool] = ...) -> None: ...
 
 class DependencyHealthResponse(_message.Message):
-    __slots__ = ("scenario", "passed", "summary", "sections", "findings", "surfaces", "command_results", "governance_summary", "policy_summary", "degraded_dependencies", "generated_at")
+    __slots__ = ("scenario", "passed", "summary", "sections", "findings", "surfaces", "command_results", "governance_summary", "policy_summary", "degraded_dependencies", "generated_at", "assessment")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     PASSED_FIELD_NUMBER: _ClassVar[int]
     SUMMARY_FIELD_NUMBER: _ClassVar[int]
@@ -27,6 +28,7 @@ class DependencyHealthResponse(_message.Message):
     POLICY_SUMMARY_FIELD_NUMBER: _ClassVar[int]
     DEGRADED_DEPENDENCIES_FIELD_NUMBER: _ClassVar[int]
     GENERATED_AT_FIELD_NUMBER: _ClassVar[int]
+    ASSESSMENT_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     passed: bool
     summary: DependencyHealthSummary
@@ -38,7 +40,8 @@ class DependencyHealthResponse(_message.Message):
     policy_summary: DependencyPolicySummary
     degraded_dependencies: _containers.RepeatedCompositeFieldContainer[DegradedDependency]
     generated_at: str
-    def __init__(self, scenario: _Optional[str] = ..., passed: _Optional[bool] = ..., summary: _Optional[_Union[DependencyHealthSummary, _Mapping]] = ..., sections: _Optional[_Iterable[_Union[DependencyHealthSection, _Mapping]]] = ..., findings: _Optional[_Iterable[_Union[DependencyHealthFinding, _Mapping]]] = ..., surfaces: _Optional[_Iterable[_Union[DependencyHealthSurface, _Mapping]]] = ..., command_results: _Optional[_Iterable[_Union[DependencyHealthCommandResult, _Mapping]]] = ..., governance_summary: _Optional[_Union[DependencyGovernanceSummary, _Mapping]] = ..., policy_summary: _Optional[_Union[DependencyPolicySummary, _Mapping]] = ..., degraded_dependencies: _Optional[_Iterable[_Union[DegradedDependency, _Mapping]]] = ..., generated_at: _Optional[str] = ...) -> None: ...
+    assessment: _maturity_pb2.MaturityAssessment
+    def __init__(self, scenario: _Optional[str] = ..., passed: _Optional[bool] = ..., summary: _Optional[_Union[DependencyHealthSummary, _Mapping]] = ..., sections: _Optional[_Iterable[_Union[DependencyHealthSection, _Mapping]]] = ..., findings: _Optional[_Iterable[_Union[DependencyHealthFinding, _Mapping]]] = ..., surfaces: _Optional[_Iterable[_Union[DependencyHealthSurface, _Mapping]]] = ..., command_results: _Optional[_Iterable[_Union[DependencyHealthCommandResult, _Mapping]]] = ..., governance_summary: _Optional[_Union[DependencyGovernanceSummary, _Mapping]] = ..., policy_summary: _Optional[_Union[DependencyPolicySummary, _Mapping]] = ..., degraded_dependencies: _Optional[_Iterable[_Union[DegradedDependency, _Mapping]]] = ..., generated_at: _Optional[str] = ..., assessment: _Optional[_Union[_maturity_pb2.MaturityAssessment, _Mapping]] = ...) -> None: ...
 
 class DependencyHealthSummary(_message.Message):
     __slots__ = ("sections", "surfaces", "findings", "errors", "warnings", "infos", "degraded_dependencies")

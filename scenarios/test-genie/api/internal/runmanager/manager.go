@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -32,8 +33,31 @@ const (
 
 // retireGrace is how long a terminal run lingers in the in-memory registry
 // after completion so immediately-following Status/Wait/Follow calls read the
-// authoritative live snapshot before falling back to the durable index.
+// authoritative live snapshot before falling back to the durable index. The
+// run-admission guard deliberately ignores these lingering terminal runs: a
+// just-finished run never blocks or coalesces a fresh start.
 const retireGrace = 60 * time.Second
+
+// defaultMaxRunsPerScenario is the per-scenario in-progress run cap. It is 1
+// because concurrent runs of the SAME scenario are not merely wasteful but
+// INCORRECT: every run brings the target up via targetruntime.EnsureRunning,
+// which shares one live instance (ports, DB, fixtures) with no mutual
+// exclusion, and one run's Cleanup can tear the scenario down out from under
+// another. Serialization — not isolation — is the invariant. The lever
+// TEST_GENIE_MAX_RUNS_PER_SCENARIO exists only as a future escape hatch for
+// when per-run isolation lands; >1 is documented-unsafe until then.
+const defaultMaxRunsPerScenario = 1
+
+// maxRunsPerScenarioFromEnv resolves the configured per-scenario cap, never
+// returning less than 1.
+func maxRunsPerScenarioFromEnv() int {
+	if raw := strings.TrimSpace(os.Getenv("TEST_GENIE_MAX_RUNS_PER_SCENARIO")); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil && n >= 1 {
+			return n
+		}
+	}
+	return defaultMaxRunsPerScenario
+}
 
 // HeartbeatInterval resolves the configured quiet-phase heartbeat cadence.
 func HeartbeatInterval() time.Duration {
@@ -47,11 +71,12 @@ func HeartbeatInterval() time.Duration {
 
 // Manager owns durable run execution decoupled from any client request.
 type Manager struct {
-	base          context.Context
-	cancelBase    context.CancelFunc
-	exec          Executor
-	scenariosRoot string
-	heartbeat     time.Duration
+	base               context.Context
+	cancelBase         context.CancelFunc
+	exec               Executor
+	scenariosRoot      string
+	heartbeat          time.Duration
+	maxRunsPerScenario int
 
 	mu   sync.Mutex
 	runs map[string]*activeRun
@@ -59,12 +84,17 @@ type Manager struct {
 
 // activeRun is the in-memory state for a run currently tracked by the manager.
 type activeRun struct {
-	runID     string
-	scenario  string
-	startedAt time.Time
-	cancel    context.CancelFunc
-	bc        *broadcaster
-	done      chan struct{}
+	runID    string
+	scenario string
+	preset   string
+	// admissionKey is the deterministic coalescing identity for this run (see
+	// admissionKey). Immutable after construction, so it is safe to read under
+	// the manager lock during admission.
+	admissionKey string
+	startedAt    time.Time
+	cancel       context.CancelFunc
+	bc           *broadcaster
+	done         chan struct{}
 
 	mu          sync.Mutex
 	status      string
@@ -116,16 +146,77 @@ type StartOptions struct {
 func New(exec Executor, scenariosRoot string) *Manager {
 	base, cancel := context.WithCancel(context.Background())
 	return &Manager{
-		base:          base,
-		cancelBase:    cancel,
-		exec:          exec,
-		scenariosRoot: strings.TrimSpace(scenariosRoot),
-		heartbeat:     HeartbeatInterval(),
-		runs:          make(map[string]*activeRun),
+		base:               base,
+		cancelBase:         cancel,
+		exec:               exec,
+		scenariosRoot:      strings.TrimSpace(scenariosRoot),
+		heartbeat:          HeartbeatInterval(),
+		maxRunsPerScenario: maxRunsPerScenarioFromEnv(),
+		runs:               make(map[string]*activeRun),
 	}
 }
 
 func runKey(scenario, runID string) string { return scenario + "\x00" + runID }
+
+// admissionKey is the deterministic coalescing identity of a run request:
+// two requests with the same key are the *same* logical run, so a second one
+// can ride the first instead of stacking a duplicate suite. The baseline name
+// is deliberately NOT part of it (see §6.3 of the plan: many diffs of one
+// scenario share a single comprehensive run). FailFast/diagnostics are excluded
+// — they don't change which suite executes against which tree.
+func admissionKey(req orchestrator.SuiteExecutionRequest) string {
+	phases := append([]string(nil), req.Phases...)
+	sort.Strings(phases)
+	skip := append([]string(nil), req.Skip...)
+	sort.Strings(skip)
+	parts := []string{
+		"scenario=" + strings.TrimSpace(req.ScenarioName),
+		"preset=" + strings.TrimSpace(req.Preset),
+		"capture=" + strings.TrimSpace(req.CaptureProfile),
+		"phases=" + strings.Join(phases, ","),
+		"skip=" + strings.Join(skip, ","),
+		"scenarioPath=" + strings.TrimSpace(req.ScenarioPath),
+		"logicalRepoRoot=" + strings.TrimSpace(req.LogicalRepoRoot),
+		"logicalScenarioRelPath=" + strings.TrimSpace(req.LogicalScenarioRelPath),
+	}
+	return strings.Join(parts, "\x1f")
+}
+
+// StartResult reports the outcome of an admitted run.
+type StartResult struct {
+	// RunID is the run to observe — the freshly-started run, or the in-flight
+	// run a coalesced request attached to.
+	RunID string
+	// Coalesced is true when the request matched an already-in-flight run of the
+	// same scenario+key and rode it instead of starting a second suite.
+	Coalesced bool
+}
+
+// BusyError is returned when a DIVERGENT run (different key) is requested for a
+// scenario that already has the maximum in-progress runs. It carries the
+// in-flight run so callers can render wait/abort guidance without parsing
+// strings. StartRun maps it to connect.CodeFailedPrecondition.
+type BusyError struct {
+	Scenario string
+	RunID    string
+	Preset   string
+}
+
+func (e *BusyError) Error() string {
+	preset := e.Preset
+	if preset == "" {
+		preset = "(default)"
+	}
+	return fmt.Sprintf("scenario %s already has an in-progress run %s (preset %s); wait for it or abort it before starting a different run", e.Scenario, e.RunID, preset)
+}
+
+// currentStatus reads the run's status under its own lock. Safe to call while
+// holding the manager lock (lock order is always m.mu → ar.mu).
+func (ar *activeRun) currentStatus() string {
+	ar.mu.Lock()
+	defer ar.mu.Unlock()
+	return ar.status
+}
 
 func (m *Manager) lookup(scenario, runID string) *activeRun {
 	m.mu.Lock()
@@ -133,48 +224,102 @@ func (m *Manager) lookup(scenario, runID string) *activeRun {
 	return m.runs[runKey(scenario, runID)]
 }
 
-// Start mints (or honors) a run id, registers the run, and drives it in a
-// server-lifetime goroutine, returning the run id synchronously. The run
-// survives cancellation of the request that initiated it.
-func (m *Manager) Start(opts StartOptions) (string, error) {
+// Start admits a run under the one-run-per-scenario invariant, registers it, and
+// drives it in a server-lifetime goroutine, returning a StartResult
+// synchronously. The run survives cancellation of the request that initiated it.
+//
+// Admission (atomic under m.mu — scan + decide + insert, so two concurrent
+// Starts cannot both miss):
+//   - an identical in-flight request (same admissionKey) COALESCES onto the
+//     existing run (StartResult.Coalesced=true); no second suite is driven.
+//   - a divergent request, when the scenario is already at its in-progress cap,
+//     is REJECTED with *BusyError carrying the in-flight run id + preset.
+//   - otherwise a fresh run is minted, registered, and driven.
+//
+// Terminal runs lingering within retireGrace are ignored: a just-finished run
+// never blocks or coalesces a fresh start.
+func (m *Manager) Start(opts StartOptions) (StartResult, error) {
 	scenario := strings.TrimSpace(opts.Input.Request.ScenarioName)
 	if scenario == "" {
-		return "", fmt.Errorf("scenarioName is required")
+		return StartResult{}, fmt.Errorf("scenarioName is required")
 	}
 	runID := strings.TrimSpace(opts.Input.Request.RunID)
 	if runID == "" {
 		runID = sharedruns.NewRunID()
 	}
 	opts.Input.Request.RunID = runID
+	preset := strings.TrimSpace(opts.Input.Request.Preset)
+	key := admissionKey(opts.Input.Request)
 
 	now := time.Now().UTC()
 	ar := &activeRun{
-		runID:       runID,
-		scenario:    scenario,
-		startedAt:   now,
-		bc:          newBroadcaster(),
-		done:        make(chan struct{}),
-		status:      sharedruns.StatusInProgress,
-		lastEventAt: now,
-		etaTotal:    opts.EstimatedTotalSeconds,
+		runID:        runID,
+		scenario:     scenario,
+		preset:       preset,
+		admissionKey: key,
+		startedAt:    now,
+		bc:           newBroadcaster(),
+		done:         make(chan struct{}),
+		status:       sharedruns.StatusInProgress,
+		lastEventAt:  now,
+		etaTotal:     opts.EstimatedTotalSeconds,
 	}
 	runCtx, cancel := context.WithCancel(m.base)
 	ar.cancel = cancel
 
 	m.mu.Lock()
+	// Enumerate in-progress runs of this scenario (ignoring terminal lingerers).
+	var inFlight []*activeRun
+	for _, other := range m.runs {
+		if other.scenario != scenario {
+			continue
+		}
+		if isTerminal(other.currentStatus()) {
+			continue
+		}
+		inFlight = append(inFlight, other)
+	}
+	// Coalesce onto an identical in-flight request.
+	for _, other := range inFlight {
+		if other.admissionKey == key {
+			m.mu.Unlock()
+			cancel()
+			return StartResult{RunID: other.runID, Coalesced: true}, nil
+		}
+	}
+	// Reject a divergent request once the scenario is at its in-progress cap.
+	if len(inFlight) >= m.maxRunsPerScenario {
+		busy := oldestRun(inFlight)
+		m.mu.Unlock()
+		cancel()
+		return StartResult{}, &BusyError{Scenario: scenario, RunID: busy.runID, Preset: busy.preset}
+	}
+	// Defensive: an explicitly pre-minted run id must be unique.
 	if _, exists := m.runs[runKey(scenario, runID)]; exists {
 		m.mu.Unlock()
 		cancel()
-		return "", fmt.Errorf("run %s is already active", runID)
+		return StartResult{}, fmt.Errorf("run %s is already active", runID)
 	}
 	m.runs[runKey(scenario, runID)] = ar
 	m.mu.Unlock()
 
 	// run_started boundary so a follower subscribing immediately learns the id.
-	ar.bc.publish(Event{Kind: EventRunStarted, RunID: runID, Scenario: scenario, Preset: strings.TrimSpace(opts.Input.Request.Preset)})
+	ar.bc.publish(Event{Kind: EventRunStarted, RunID: runID, Scenario: scenario, Preset: preset})
 
 	go m.drive(runCtx, ar, opts.Input)
-	return runID, nil
+	return StartResult{RunID: runID}, nil
+}
+
+// oldestRun returns the earliest-started run in a non-empty slice (the one a
+// busy-rejection points the caller at to wait on or abort).
+func oldestRun(runs []*activeRun) *activeRun {
+	oldest := runs[0]
+	for _, ar := range runs[1:] {
+		if ar.startedAt.Before(oldest.startedAt) {
+			oldest = ar
+		}
+	}
+	return oldest
 }
 
 // drive runs the suite to completion, fanning events to followers, then writes

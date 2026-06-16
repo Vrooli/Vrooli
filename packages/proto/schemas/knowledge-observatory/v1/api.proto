@@ -3,6 +3,7 @@ syntax = "proto3";
 package knowledge_observatory.v1;
 
 import "buf/validate/validate.proto";
+import "common/v1/maturity.proto";
 import "google/protobuf/struct.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/knowledge-observatory/v1;knowledgeobservatoryv1";
@@ -418,6 +419,10 @@ message DocHealthResponse {
   // Time the check was performed.
   // @format rfc3339
   string timestamp = 16 [(buf.validate.field).string.min_len = 1];
+
+  // Provider-owned local maturity assessment for Test Genie docs phase
+  // aggregation and fleet-level health comparison.
+  common.v1.MaturityAssessment assessment = 17;
 }
 
 // KnowledgeObservatoryService is the Connect-RPC entry point for the

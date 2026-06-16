@@ -43,6 +43,9 @@ type Server struct {
 	// finalize, when set, overrides the async snapshot finalize tail (tests run
 	// it synchronously to assert the pin lands).
 	finalize func(ctx context.Context, pending bl.PendingCapture)
+	// finalizeDiffFn, when set, overrides the async diff finalize tail (tests run
+	// it synchronously to assert the verdict caches).
+	finalizeDiffFn func(ctx context.Context, pending bl.PendingDiff)
 }
 
 // Deps wires the Connect server.
@@ -133,11 +136,15 @@ func (s *Server) SnapshotForBaseline(ctx context.Context, req *connect.Request[b
 		Capture: true, CreatedBy: m.GetCreatedBy(), Reason: m.GetReason(),
 	})
 	if err != nil {
+		var busy *bl.RunBusyError
+		if errors.As(err, &busy) {
+			return nil, busyConnectError(busy)
+		}
 		return nil, s.wrap("SnapshotForBaseline", err)
 	}
 
-	s.logger.Printf("baselines.SnapshotForBaseline: started comprehensive run scenario=%s name=%s run=%s eta=%ds (durable; pinning server-side on completion)",
-		m.GetScenario(), m.GetName(), pending.Run.RunID, pending.Run.EstimatedTotalSeconds)
+	s.logger.Printf("baselines.SnapshotForBaseline: started comprehensive run scenario=%s name=%s run=%s eta=%ds coalesced=%t (durable; pinning server-side on completion)",
+		m.GetScenario(), m.GetName(), pending.Run.RunID, pending.Run.EstimatedTotalSeconds, pending.Run.Coalesced)
 
 	// Finalize on a server-owned context detached from this request.
 	s.finalizeSnapshot(ctx, pending)
@@ -150,7 +157,20 @@ func (s *Server) SnapshotForBaseline(ctx context.Context, req *connect.Request[b
 		EstimatedTotalSeconds: int32(pending.Run.EstimatedTotalSeconds),
 		EtaKnown:              pending.Run.EtaKnown,
 		DirtyWarning:          pending.DirtyWarning,
+		Coalesced:             pending.Run.Coalesced,
 	}), nil
+}
+
+// busyConnectError maps a one-run-per-scenario rejection to FailedPrecondition
+// carrying a typed RunBusyInfo detail (shared by the snapshot + diff doors).
+func busyConnectError(busy *bl.RunBusyError) error {
+	cerr := connect.NewError(connect.CodeFailedPrecondition, busy)
+	if detail, derr := connect.NewErrorDetail(&baselinesv1.RunBusyInfo{
+		Scenario: busy.Scenario, RunId: busy.RunID, Preset: busy.Preset,
+	}); derr == nil {
+		cerr.AddDetail(detail)
+	}
+	return cerr
 }
 
 // finalizeSnapshot waits for the durable run to complete, then pins + writes the
@@ -210,31 +230,112 @@ func (s *Server) ListBaselines(ctx context.Context, req *connect.Request[baselin
 	return connect.NewResponse(out), nil
 }
 
-func (s *Server) DiffBaseline(ctx context.Context, req *connect.Request[baselinesv1.DiffBaselineRequest]) (*connect.Response[baselinesv1.DiffBaselineResponse], error) {
+// StartDiff resolves the comprehensive run the baseline will be diffed against
+// and returns its handle IMMEDIATELY — it does not block for the run. The diff
+// verdict is computed + cached on a server-owned goroutine when the run
+// completes (durable across client disconnect), so the caller follows the run
+// and resolves the verdict with GetDiffResult. Mirrors SnapshotForBaseline.
+func (s *Server) StartDiff(ctx context.Context, req *connect.Request[baselinesv1.StartDiffRequest]) (*connect.Response[baselinesv1.StartDiffResponse], error) {
 	m := req.Msg
 	rid, repoDir, branch, err := s.resolveTarget(ctx, m.GetRepoId(), m.GetBranch(), false)
 	if err != nil {
-		return nil, s.wrap("DiffBaseline", err)
+		return nil, s.wrap("StartDiff", err)
 	}
-	res, err := s.svc.Diff(ctx, rid, repoDir, m.GetScenario(), branch, m.GetName(), m.GetSurface())
+	out, err := s.svc.StartDiff(ctx, bl.StartDiffRequest{
+		RepoID: rid, RepoDir: repoDir, Scenario: m.GetScenario(),
+		Branch: branch, Name: m.GetName(), Surface: m.GetSurface(),
+	})
 	if err != nil {
-		return nil, s.wrap("DiffBaseline", err)
+		return nil, s.wrapStartDiff(err)
 	}
-	out := &baselinesv1.DiffBaselineResponse{
-		Baseline:   manifestToProto(res.Manifest),
-		CurrentGit: gitToProto(res.CurrentGit),
-		Staleness: &baselinesv1.Staleness{
-			CommitsSince: int32(res.Staleness.CommitsSince),
-			FilesChanged: int32(res.Staleness.FilesChanged),
-			LikelyStale:  res.Staleness.LikelyStale,
-		},
-		Verdict:      string(res.Verdict),
-		DirtyWarning: res.DirtyWarning,
+
+	s.logger.Printf("baselines.StartDiff: scenario=%s name=%s run=%s coalesced=%t reused=%t (durable; verdict cached server-side on completion)",
+		m.GetScenario(), m.GetName(), out.RunID, out.Coalesced, out.ReusedRun)
+
+	// Finalize (await + compute + cache) on a server-owned context detached from
+	// this request, so a disconnected client never abandons the verdict.
+	s.finalizeDiff(ctx, out.Pending)
+
+	return connect.NewResponse(&baselinesv1.StartDiffResponse{
+		RunId:                 out.RunID,
+		Scenario:              out.Scenario,
+		Name:                  out.Name,
+		Branch:                out.Branch,
+		EstimatedTotalSeconds: int32(out.EstimatedTotalSeconds),
+		EtaKnown:              out.EtaKnown,
+		Coalesced:             out.Coalesced,
+		ReusedRun:             out.ReusedRun,
+		ReusedSha:             out.ReusedSha,
+		DirtyWarning:          out.DirtyWarning,
+	}), nil
+}
+
+// finalizeDiff runs FinalizeDiff on a goroutine bound to a server-owned context
+// (WithoutCancel + ceiling) so a disconnected client never abandons the cached
+// verdict. Overridable in tests to run synchronously.
+func (s *Server) finalizeDiff(ctx context.Context, pending bl.PendingDiff) {
+	run := s.finalizeDiffFn
+	if run == nil {
+		run = s.finalizeDiffAsync
 	}
-	for _, d := range res.Surfaces {
-		out.Surfaces = append(out.Surfaces, surfaceDiffToProto(d))
+	run(ctx, pending)
+}
+
+func (s *Server) finalizeDiffAsync(ctx context.Context, pending bl.PendingDiff) {
+	tailCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), snapshotTailCeiling)
+	go func() {
+		defer cancel()
+		cd, err := s.svc.FinalizeDiff(tailCtx, pending)
+		if err != nil {
+			s.logger.Printf("baselines.StartDiff: finalize FAILED scenario=%s name=%s run=%s: %v",
+				pending.Scenario, pending.Name, pending.CurRunID, err)
+			return
+		}
+		verdict := ""
+		if cd.Result != nil {
+			verdict = string(cd.Result.Verdict)
+		}
+		s.logger.Printf("baselines.StartDiff: cached verdict scenario=%s name=%s run=%s verdict=%s",
+			pending.Scenario, pending.Name, pending.CurRunID, verdict)
+	}()
+}
+
+// GetDiffResult returns the cached diff verdict for a (baseline, run), or its
+// in-flight status when the run is still executing.
+func (s *Server) GetDiffResult(ctx context.Context, req *connect.Request[baselinesv1.GetDiffResultRequest]) (*connect.Response[baselinesv1.GetDiffResultResponse], error) {
+	m := req.Msg
+	rid, repoDir, branch, err := s.resolveTarget(ctx, m.GetRepoId(), m.GetBranch(), false)
+	if err != nil {
+		return nil, s.wrap("GetDiffResult", err)
+	}
+	cd, nextCheck, err := s.svc.GetDiffResult(ctx, bl.GetDiffResultRequest{
+		RepoID: rid, RepoDir: repoDir, Scenario: m.GetScenario(),
+		Branch: branch, Name: m.GetName(), RunID: m.GetRunId(), Surface: m.GetSurface(),
+		Wait: m.GetWait(),
+	})
+	if err != nil {
+		return nil, s.wrap("GetDiffResult", err)
+	}
+	out := &baselinesv1.GetDiffResultResponse{
+		Status:                      cd.Status,
+		Error:                       cd.Error,
+		RunId:                       m.GetRunId(),
+		RecommendedNextCheckSeconds: int32(nextCheck),
+	}
+	if cd.Result != nil {
+		out.Diff = diffResultToProto(*cd.Result)
 	}
 	return connect.NewResponse(out), nil
+}
+
+// wrapStartDiff maps a StartDiff rejection. A divergent in-flight run surfaces as
+// FailedPrecondition carrying RunBusyInfo so the CLI renders wait/abort guidance.
+func (s *Server) wrapStartDiff(err error) error {
+	var busy *bl.RunBusyError
+	if errors.As(err, &busy) {
+		return busyConnectError(busy)
+	}
+	return s.wrap("StartDiff", err)
 }
 
 func (s *Server) DeleteBaseline(ctx context.Context, req *connect.Request[baselinesv1.DeleteBaselineRequest]) (*connect.Response[baselinesv1.DeleteBaselineResponse], error) {

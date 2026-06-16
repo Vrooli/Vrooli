@@ -21,6 +21,10 @@ service DependencyGovernanceService {
   rpc SearchApprovedDependencies(SearchApprovedDependenciesRequest) returns (ApprovedDependencySearchResponse);
   rpc ExplainApprovedDependency(ExplainApprovedDependencyRequest) returns (ApprovedDependencyExplainResponse);
   rpc ValidateApprovedDependencies(ValidateApprovedDependenciesRequest) returns (ApprovedDependencyValidationResponse);
+  rpc ValidateFleetApprovedDependencies(ValidateFleetApprovedDependenciesRequest) returns (FleetApprovedDependencyValidationResponse);
+  rpc UpsertApprovedDependency(UpsertApprovedDependencyRequest) returns (UpsertApprovedDependencyResponse);
+  rpc PreviewVulnerabilityRemediation(PreviewVulnerabilityRemediationRequest) returns (VulnerabilityRemediationResponse);
+  rpc DenyVulnerableDependency(DenyVulnerableDependencyRequest) returns (VulnerabilityRemediationResponse);
 }
 
 message ListApprovedDependenciesRequest {
@@ -43,6 +47,33 @@ message ExplainApprovedDependencyRequest {
 
 message ValidateApprovedDependenciesRequest {
   string scenario = 1;
+  string policy_mode = 2;
+}
+
+message ValidateFleetApprovedDependenciesRequest {
+  string policy_mode = 1;
+}
+
+message UpsertApprovedDependencyRequest {
+  ApprovedDependencyRecord record = 1;
+  bool dry_run = 2;
+}
+
+message PreviewVulnerabilityRemediationRequest {
+  string ecosystem = 1;
+  string package_name = 2;
+  string vulnerability_id = 3;
+}
+
+message DenyVulnerableDependencyRequest {
+  string ecosystem = 1;
+  string package_name = 2;
+  string vulnerability_id = 3;
+  string affected_range = 4;
+  string fixed_range = 5;
+  string rationale = 6;
+  string approved_by = 7;
+  bool dry_run = 8;
 }
 
 message ApprovedDependencyListResponse {
@@ -72,6 +103,66 @@ message ApprovedDependencyValidationResponse {
   string guidance = 6;
 }
 
+message FleetApprovedDependencyValidationResponse {
+  bool passed = 1;
+  DependencyGovernanceSummary summary = 2;
+  repeated ApprovedDependencyValidationResponse scenarios = 3;
+  repeated DependencyUsageGroup usage_groups = 4;
+  repeated ApprovedDependencyFinding findings = 5;
+  string guidance = 6;
+}
+
+message UpsertApprovedDependencyResponse {
+  ApprovedDependencyRecord record = 1;
+  ApprovedDependencyRecord previous_record = 2;
+  bool dry_run = 3;
+  bool changed = 4;
+  string message = 5;
+  DependencyGovernanceSummary summary = 6;
+  string guidance = 7;
+}
+
+message VulnerabilityRemediationResponse {
+  bool found = 1;
+  SecurityVulnerabilityEvidence vulnerability = 2;
+  ApprovedDependencyRecord suggested_record = 3;
+  UpsertApprovedDependencyResponse mutation = 4;
+  repeated string affected_scenarios = 5;
+  repeated string source_files = 6;
+  string remediation = 7;
+  string guidance = 8;
+}
+
+message SecurityVulnerabilityEvidence {
+  string vulnerability_id = 1;
+  repeated string aliases = 2;
+  string ecosystem = 3;
+  string package_name = 4;
+  string observed_version = 5;
+  repeated SecurityVersionRange affected_ranges = 6;
+  repeated SecurityVersionRange fixed_ranges = 7;
+  string severity = 8;
+  string normalized_severity = 9;
+  string advisory_url = 10;
+  string summary = 11;
+  string source = 12;
+  string reachability = 13;
+  string confidence = 14;
+  bool production = 15;
+  bool dev_only = 16;
+  string remediation = 17;
+  repeated string scenarios = 18;
+  repeated string source_files = 19;
+}
+
+message SecurityVersionRange {
+  string range = 1;
+  string version = 2;
+  string introduced = 3;
+  string fixed = 4;
+  string last_affected = 5;
+}
+
 message DependencyGovernanceSummary {
   string status = 1;
   int32 approved = 2;
@@ -81,6 +172,17 @@ message DependencyGovernanceSummary {
   int32 deprecated = 6;
   int32 unrecorded = 7;
   int32 observed = 8;
+  string policy_mode = 9;
+  int32 denied = 10;
+  int32 out_of_range = 11;
+  int32 out_of_scope = 12;
+  int32 expired = 13;
+  int32 scenario_count = 14;
+  int32 dependency_count = 15;
+  int32 finding_count = 16;
+  int32 error_count = 17;
+  int32 warning_count = 18;
+  int32 info_count = 19;
 }
 
 message ApprovedDependencyRecord {
@@ -100,6 +202,9 @@ message ApprovedDependencyRecord {
   repeated string example_scenarios = 14;
   string replacement = 15;
   repeated string keywords = 16;
+  repeated string allowed_scenarios = 17;
+  repeated string denied_scenarios = 18;
+  repeated string allowed_dependency_groups = 19;
 }
 
 message ObservedDependency {
@@ -109,6 +214,18 @@ message ObservedDependency {
   string surface_id = 4;
   string file_path = 5;
   string dependency_group = 6;
+}
+
+message DependencyUsageGroup {
+  string ecosystem = 1;
+  string package_name = 2;
+  int32 scenario_count = 3;
+  int32 usage_count = 4;
+  repeated string scenarios = 5;
+  repeated ObservedDependency observed_dependencies = 6;
+  int32 finding_count = 7;
+  string highest_severity = 8;
+  string state = 9;
 }
 
 message ApprovedDependencyFinding {
@@ -122,4 +239,7 @@ message ApprovedDependencyFinding {
   string package_name = 8;
   string observed = 9;
   string expected = 10;
+  string scenario = 11;
+  string finding_class = 12;
+  string policy_mode = 13;
 }

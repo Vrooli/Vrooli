@@ -109,16 +109,28 @@ class StartRunRequest(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., preset: _Optional[str] = ..., phases: _Optional[_Iterable[str]] = ..., skip: _Optional[_Iterable[str]] = ..., fail_fast: _Optional[bool] = ..., diagnostics_preset: _Optional[str] = ..., ui_url: _Optional[str] = ..., api_url: _Optional[str] = ..., scenario_path: _Optional[str] = ..., logical_repo_root: _Optional[str] = ..., logical_scenario_rel_path: _Optional[str] = ..., suite_request_id: _Optional[str] = ..., capture_profile: _Optional[str] = ...) -> None: ...
 
 class StartRunResponse(_message.Message):
-    __slots__ = ("run_id", "scenario", "estimated_total_seconds", "eta_known")
+    __slots__ = ("run_id", "scenario", "estimated_total_seconds", "eta_known", "coalesced")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     ESTIMATED_TOTAL_SECONDS_FIELD_NUMBER: _ClassVar[int]
     ETA_KNOWN_FIELD_NUMBER: _ClassVar[int]
+    COALESCED_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     scenario: str
     estimated_total_seconds: int
     eta_known: bool
-    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., estimated_total_seconds: _Optional[int] = ..., eta_known: _Optional[bool] = ...) -> None: ...
+    coalesced: bool
+    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., estimated_total_seconds: _Optional[int] = ..., eta_known: _Optional[bool] = ..., coalesced: _Optional[bool] = ...) -> None: ...
+
+class RunBusyInfo(_message.Message):
+    __slots__ = ("scenario", "run_id", "preset")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    PRESET_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    run_id: str
+    preset: str
+    def __init__(self, scenario: _Optional[str] = ..., run_id: _Optional[str] = ..., preset: _Optional[str] = ...) -> None: ...
 
 class FollowRunRequest(_message.Message):
     __slots__ = ("scenario", "run_id")
@@ -205,7 +217,7 @@ class PhaseInfo(_message.Message):
     def __init__(self, name: _Optional[str] = ..., status: _Optional[str] = ..., duration_seconds: _Optional[float] = ...) -> None: ...
 
 class RunInfo(_message.Message):
-    __slots__ = ("run_id", "scenario", "started_at", "completed_at", "status", "phases", "git_sha", "git_branch", "git_dirty", "git_dirty_summary", "diagnostics", "pins", "tree_digest")
+    __slots__ = ("run_id", "scenario", "started_at", "completed_at", "status", "phases", "git_sha", "git_branch", "git_dirty", "git_dirty_summary", "diagnostics", "pins", "tree_digest", "preset", "capture_profile")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     STARTED_AT_FIELD_NUMBER: _ClassVar[int]
@@ -219,6 +231,8 @@ class RunInfo(_message.Message):
     DIAGNOSTICS_FIELD_NUMBER: _ClassVar[int]
     PINS_FIELD_NUMBER: _ClassVar[int]
     TREE_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    PRESET_FIELD_NUMBER: _ClassVar[int]
+    CAPTURE_PROFILE_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     scenario: str
     started_at: str
@@ -232,7 +246,9 @@ class RunInfo(_message.Message):
     diagnostics: DiagnosticsInfo
     pins: _containers.RepeatedCompositeFieldContainer[PinInfo]
     tree_digest: str
-    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., started_at: _Optional[str] = ..., completed_at: _Optional[str] = ..., status: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[PhaseInfo, _Mapping]]] = ..., git_sha: _Optional[str] = ..., git_branch: _Optional[str] = ..., git_dirty: _Optional[bool] = ..., git_dirty_summary: _Optional[str] = ..., diagnostics: _Optional[_Union[DiagnosticsInfo, _Mapping]] = ..., pins: _Optional[_Iterable[_Union[PinInfo, _Mapping]]] = ..., tree_digest: _Optional[str] = ...) -> None: ...
+    preset: str
+    capture_profile: str
+    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., started_at: _Optional[str] = ..., completed_at: _Optional[str] = ..., status: _Optional[str] = ..., phases: _Optional[_Iterable[_Union[PhaseInfo, _Mapping]]] = ..., git_sha: _Optional[str] = ..., git_branch: _Optional[str] = ..., git_dirty: _Optional[bool] = ..., git_dirty_summary: _Optional[str] = ..., diagnostics: _Optional[_Union[DiagnosticsInfo, _Mapping]] = ..., pins: _Optional[_Iterable[_Union[PinInfo, _Mapping]]] = ..., tree_digest: _Optional[str] = ..., preset: _Optional[str] = ..., capture_profile: _Optional[str] = ...) -> None: ...
 
 class ListRunsRequest(_message.Message):
     __slots__ = ("scenario", "status", "limit")
@@ -353,6 +369,32 @@ class CompareRunsResponse(_message.Message):
     phases: _containers.RepeatedCompositeFieldContainer[PhaseDiff]
     verdict: str
     def __init__(self, phases: _Optional[_Iterable[_Union[PhaseDiff, _Mapping]]] = ..., verdict: _Optional[str] = ...) -> None: ...
+
+class FindRunRequest(_message.Message):
+    __slots__ = ("scenario", "git_sha", "tree_digest", "preset", "capture_profile", "status", "require_clean")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    GIT_SHA_FIELD_NUMBER: _ClassVar[int]
+    TREE_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    PRESET_FIELD_NUMBER: _ClassVar[int]
+    CAPTURE_PROFILE_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    REQUIRE_CLEAN_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    git_sha: str
+    tree_digest: str
+    preset: str
+    capture_profile: str
+    status: str
+    require_clean: bool
+    def __init__(self, scenario: _Optional[str] = ..., git_sha: _Optional[str] = ..., tree_digest: _Optional[str] = ..., preset: _Optional[str] = ..., capture_profile: _Optional[str] = ..., status: _Optional[str] = ..., require_clean: _Optional[bool] = ...) -> None: ...
+
+class FindRunResponse(_message.Message):
+    __slots__ = ("found", "run")
+    FOUND_FIELD_NUMBER: _ClassVar[int]
+    RUN_FIELD_NUMBER: _ClassVar[int]
+    found: bool
+    run: RunInfo
+    def __init__(self, found: _Optional[bool] = ..., run: _Optional[_Union[RunInfo, _Mapping]] = ...) -> None: ...
 
 class GetPhaseArtifactRequest(_message.Message):
     __slots__ = ("scenario", "run_id", "phase")

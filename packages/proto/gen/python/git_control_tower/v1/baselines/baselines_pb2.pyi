@@ -166,7 +166,7 @@ class SnapshotForBaselineRequest(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., name: _Optional[str] = ..., branch: _Optional[str] = ..., include: _Optional[_Iterable[str]] = ..., fast: _Optional[bool] = ..., created_by: _Optional[str] = ..., reason: _Optional[str] = ..., repo_id: _Optional[int] = ...) -> None: ...
 
 class SnapshotForBaselineResponse(_message.Message):
-    __slots__ = ("run_id", "scenario", "name", "branch", "estimated_total_seconds", "eta_known", "dirty_warning")
+    __slots__ = ("run_id", "scenario", "name", "branch", "estimated_total_seconds", "eta_known", "dirty_warning", "coalesced")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
@@ -174,6 +174,7 @@ class SnapshotForBaselineResponse(_message.Message):
     ESTIMATED_TOTAL_SECONDS_FIELD_NUMBER: _ClassVar[int]
     ETA_KNOWN_FIELD_NUMBER: _ClassVar[int]
     DIRTY_WARNING_FIELD_NUMBER: _ClassVar[int]
+    COALESCED_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     scenario: str
     name: str
@@ -181,7 +182,8 @@ class SnapshotForBaselineResponse(_message.Message):
     estimated_total_seconds: int
     eta_known: bool
     dirty_warning: str
-    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., name: _Optional[str] = ..., branch: _Optional[str] = ..., estimated_total_seconds: _Optional[int] = ..., eta_known: _Optional[bool] = ..., dirty_warning: _Optional[str] = ...) -> None: ...
+    coalesced: bool
+    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., name: _Optional[str] = ..., branch: _Optional[str] = ..., estimated_total_seconds: _Optional[int] = ..., eta_known: _Optional[bool] = ..., dirty_warning: _Optional[str] = ..., coalesced: _Optional[bool] = ...) -> None: ...
 
 class GetBaselineRequest(_message.Message):
     __slots__ = ("scenario", "name", "branch", "repo_id")
@@ -219,7 +221,7 @@ class ListBaselinesResponse(_message.Message):
     baselines: _containers.RepeatedCompositeFieldContainer[BaselineManifest]
     def __init__(self, baselines: _Optional[_Iterable[_Union[BaselineManifest, _Mapping]]] = ...) -> None: ...
 
-class DiffBaselineRequest(_message.Message):
+class StartDiffRequest(_message.Message):
     __slots__ = ("scenario", "name", "branch", "surface", "repo_id")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
@@ -233,7 +235,63 @@ class DiffBaselineRequest(_message.Message):
     repo_id: int
     def __init__(self, scenario: _Optional[str] = ..., name: _Optional[str] = ..., branch: _Optional[str] = ..., surface: _Optional[str] = ..., repo_id: _Optional[int] = ...) -> None: ...
 
-class DiffBaselineResponse(_message.Message):
+class StartDiffResponse(_message.Message):
+    __slots__ = ("run_id", "scenario", "name", "branch", "estimated_total_seconds", "eta_known", "coalesced", "reused_run", "reused_sha", "dirty_warning")
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    BRANCH_FIELD_NUMBER: _ClassVar[int]
+    ESTIMATED_TOTAL_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    ETA_KNOWN_FIELD_NUMBER: _ClassVar[int]
+    COALESCED_FIELD_NUMBER: _ClassVar[int]
+    REUSED_RUN_FIELD_NUMBER: _ClassVar[int]
+    REUSED_SHA_FIELD_NUMBER: _ClassVar[int]
+    DIRTY_WARNING_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    scenario: str
+    name: str
+    branch: str
+    estimated_total_seconds: int
+    eta_known: bool
+    coalesced: bool
+    reused_run: bool
+    reused_sha: str
+    dirty_warning: str
+    def __init__(self, run_id: _Optional[str] = ..., scenario: _Optional[str] = ..., name: _Optional[str] = ..., branch: _Optional[str] = ..., estimated_total_seconds: _Optional[int] = ..., eta_known: _Optional[bool] = ..., coalesced: _Optional[bool] = ..., reused_run: _Optional[bool] = ..., reused_sha: _Optional[str] = ..., dirty_warning: _Optional[str] = ...) -> None: ...
+
+class GetDiffResultRequest(_message.Message):
+    __slots__ = ("scenario", "name", "branch", "run_id", "surface", "repo_id", "wait")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    BRANCH_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    SURFACE_FIELD_NUMBER: _ClassVar[int]
+    REPO_ID_FIELD_NUMBER: _ClassVar[int]
+    WAIT_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    name: str
+    branch: str
+    run_id: str
+    surface: str
+    repo_id: int
+    wait: bool
+    def __init__(self, scenario: _Optional[str] = ..., name: _Optional[str] = ..., branch: _Optional[str] = ..., run_id: _Optional[str] = ..., surface: _Optional[str] = ..., repo_id: _Optional[int] = ..., wait: _Optional[bool] = ...) -> None: ...
+
+class GetDiffResultResponse(_message.Message):
+    __slots__ = ("status", "diff", "error", "recommended_next_check_seconds", "run_id")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    DIFF_FIELD_NUMBER: _ClassVar[int]
+    ERROR_FIELD_NUMBER: _ClassVar[int]
+    RECOMMENDED_NEXT_CHECK_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    status: str
+    diff: DiffResult
+    error: str
+    recommended_next_check_seconds: int
+    run_id: str
+    def __init__(self, status: _Optional[str] = ..., diff: _Optional[_Union[DiffResult, _Mapping]] = ..., error: _Optional[str] = ..., recommended_next_check_seconds: _Optional[int] = ..., run_id: _Optional[str] = ...) -> None: ...
+
+class DiffResult(_message.Message):
     __slots__ = ("baseline", "current_git", "staleness", "surfaces", "verdict", "dirty_warning")
     BASELINE_FIELD_NUMBER: _ClassVar[int]
     CURRENT_GIT_FIELD_NUMBER: _ClassVar[int]
@@ -248,6 +306,16 @@ class DiffBaselineResponse(_message.Message):
     verdict: str
     dirty_warning: str
     def __init__(self, baseline: _Optional[_Union[BaselineManifest, _Mapping]] = ..., current_git: _Optional[_Union[GitState, _Mapping]] = ..., staleness: _Optional[_Union[Staleness, _Mapping]] = ..., surfaces: _Optional[_Iterable[_Union[SurfaceDiff, _Mapping]]] = ..., verdict: _Optional[str] = ..., dirty_warning: _Optional[str] = ...) -> None: ...
+
+class RunBusyInfo(_message.Message):
+    __slots__ = ("scenario", "run_id", "preset")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    PRESET_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    run_id: str
+    preset: str
+    def __init__(self, scenario: _Optional[str] = ..., run_id: _Optional[str] = ..., preset: _Optional[str] = ...) -> None: ...
 
 class DeleteBaselineRequest(_message.Message):
     __slots__ = ("scenario", "name", "branch", "repo_id")

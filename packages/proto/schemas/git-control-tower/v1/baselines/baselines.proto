@@ -43,8 +43,16 @@ service BaselinesService {
   rpc GetBaseline(GetBaselineRequest) returns (GetBaselineResponse);
   // ListBaselines enumerates baselines for a scenario (optionally one branch).
   rpc ListBaselines(ListBaselinesRequest) returns (ListBaselinesResponse);
-  // DiffBaseline compares a baseline against the current working tree.
-  rpc DiffBaseline(DiffBaselineRequest) returns (DiffBaselineResponse);
+  // StartDiff starts (or reuses/coalesces) ONE comprehensive run and returns its
+  // handle IMMEDIATELY — it does not block for the run to finish. The diff
+  // verdict is computed and cached server-side when the run completes; retrieve
+  // it with GetDiffResult. Mirrors SnapshotForBaseline's durable, return-fast
+  // contract so an agent never sits on a silent block (the anti-polling rule).
+  rpc StartDiff(StartDiffRequest) returns (StartDiffResponse);
+  // GetDiffResult returns the cached diff for a (baseline, run). While the run is
+  // still in flight it returns status=in_progress + a recommended next check;
+  // when the run finished but the cache was lost (crash) it recomputes once.
+  rpc GetDiffResult(GetDiffResultRequest) returns (GetDiffResultResponse);
   // DeleteBaseline removes a baseline and unpins the test-genie runs it held.
   rpc DeleteBaseline(DeleteBaselineRequest) returns (DeleteBaselineResponse);
   // EditBaseline re-points one surface at a different (pinned) test-genie run.
@@ -160,6 +168,11 @@ message SnapshotForBaselineResponse {
   // dirty_warning is set when the baseline is being captured against a dirty
   // working tree (surfaced up front so the operator can abort).
   string dirty_warning = 7;
+  // coalesced is true when the snapshot rode an already-in-flight comprehensive
+  // run of the scenario (e.g. a diff/snapshot already running) instead of
+  // starting a second suite — the one-run-per-scenario guard. run_id is then the
+  // in-flight run's id, which the baseline pins on completion.
+  bool coalesced = 8;
 }
 
 message GetBaselineRequest {
@@ -184,7 +197,7 @@ message ListBaselinesResponse {
   repeated BaselineManifest baselines = 1;
 }
 
-message DiffBaselineRequest {
+message StartDiffRequest {
   string scenario = 1;
   string name = 2;
   string branch = 3;
@@ -192,7 +205,61 @@ message DiffBaselineRequest {
   int64 repo_id = 5;
 }
 
-message DiffBaselineResponse {
+// StartDiffResponse returns IMMEDIATELY once the comprehensive run the diff will
+// compare against is resolved — it does NOT block for the run. The diff verdict
+// is computed + cached server-side when the run completes (durable across client
+// disconnect); resolve it with GetDiffResult using the returned run_id.
+message StartDiffResponse {
+  // run_id is the comprehensive "current" run the diff compares the baseline
+  // against — freshly started, coalesced onto an in-flight run, or a reused
+  // completed run at the current clean sha.
+  string run_id = 1;
+  string scenario = 2;
+  string name = 3;
+  string branch = 4;
+  int32 estimated_total_seconds = 5;
+  bool eta_known = 6;
+  // coalesced is true when the diff rode an already-in-flight comprehensive run
+  // of this scenario instead of starting a second suite.
+  bool coalesced = 7;
+  // reused_run is true when a completed clean-tree run at the current sha was
+  // reused (no suite re-run); reused_sha carries the 8-char sha.
+  bool reused_run = 8;
+  string reused_sha = 9;
+  // dirty_warning is set when the current working tree is dirty (reuse is
+  // skipped and verdicts may stem from uncommitted changes).
+  string dirty_warning = 10;
+}
+
+message GetDiffResultRequest {
+  string scenario = 1;
+  string name = 2;
+  string branch = 3;
+  string run_id = 4;
+  string surface = 5; // empty = all surfaces
+  int64 repo_id = 6;
+  // wait, when true, blocks SERVER-SIDE until the run is terminal and returns the
+  // ready result (no client polling). When false, an in-flight run returns
+  // status=in_progress immediately with a recommended next-check backoff.
+  bool wait = 7;
+}
+
+// GetDiffResultResponse carries the cached diff or its in-flight status.
+message GetDiffResultResponse {
+  // status: in_progress | ready | failed
+  string status = 1;
+  // diff is populated when status=ready.
+  DiffResult diff = 2;
+  // error is populated when status=failed.
+  string error = 3;
+  // recommended_next_check_seconds is the backoff to wait before re-checking
+  // when status=in_progress (0 otherwise).
+  int32 recommended_next_check_seconds = 4;
+  string run_id = 5;
+}
+
+// DiffResult is the computed cross-surface comparison payload.
+message DiffResult {
   BaselineManifest baseline = 1;
   GitState current_git = 2;
   Staleness staleness = 3;
@@ -202,6 +269,17 @@ message DiffBaselineResponse {
   // dirty_warning is non-empty when the current working tree is dirty, where
   // failures may stem from uncommitted changes rather than the diff itself.
   string dirty_warning = 6;
+}
+
+// RunBusyInfo describes the in-progress run that caused a divergent StartDiff to
+// be rejected (carried as a FailedPrecondition error detail), so the CLI renders
+// wait/abort guidance without parsing strings. A diff only collides this way
+// with a genuinely different run shape (e.g. a raw `execute --preset quick`);
+// diffs and snapshots of the same scenario coalesce rather than collide.
+message RunBusyInfo {
+  string scenario = 1;
+  string run_id = 2;
+  string preset = 3;
 }
 
 message DeleteBaselineRequest {

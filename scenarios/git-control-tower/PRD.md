@@ -31,7 +31,7 @@
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Web UI dashboard | Visual diff viewer, interactive staging, branch management, service health monitoring
-- [ ] OT-P2-002 | Worktree management | List, create, and manage git worktrees via API
+- [x] OT-P2-002 | Worktree management | List, create, and manage git worktrees via API
 - [ ] OT-P2-003 | Stash operations | Save, apply, and drop stashes programmatically
 
 ## 🧱 Tech Direction Snapshot

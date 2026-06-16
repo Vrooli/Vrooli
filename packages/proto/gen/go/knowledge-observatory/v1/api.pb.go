@@ -8,6 +8,7 @@ package knowledgeobservatoryv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	structpb "google.golang.org/protobuf/types/known/structpb"
@@ -1399,7 +1400,10 @@ type DocHealthResponse struct {
 	Counts *DocHealthCounts `protobuf:"bytes,15,opt,name=counts,proto3" json:"counts,omitempty"`
 	// Time the check was performed.
 	// @format rfc3339
-	Timestamp     string `protobuf:"bytes,16,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	Timestamp string `protobuf:"bytes,16,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	// Provider-owned local maturity assessment for Test Genie docs phase
+	// aggregation and fleet-level health comparison.
+	Assessment    *v1.MaturityAssessment `protobuf:"bytes,17,opt,name=assessment,proto3" json:"assessment,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1546,11 +1550,18 @@ func (x *DocHealthResponse) GetTimestamp() string {
 	return ""
 }
 
+func (x *DocHealthResponse) GetAssessment() *v1.MaturityAssessment {
+	if x != nil {
+		return x.Assessment
+	}
+	return nil
+}
+
 var File_knowledge_observatory_v1_api_proto protoreflect.FileDescriptor
 
 const file_knowledge_observatory_v1_api_proto_rawDesc = "" +
 	"\n" +
-	"\"knowledge-observatory/v1/api.proto\x12\x18knowledge_observatory.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\"\xb1\x03\n" +
+	"\"knowledge-observatory/v1/api.proto\x12\x18knowledge_observatory.v1\x1a\x1bbuf/validate/validate.proto\x1a\x18common/v1/maturity.proto\x1a\x1cgoogle/protobuf/struct.proto\"\xb1\x03\n" +
 	"\rSearchRequest\x12\x1d\n" +
 	"\x05query\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05query\x12#\n" +
 	"\n" +
@@ -1711,7 +1722,7 @@ const file_knowledge_observatory_v1_api_proto_rawDesc = "" +
 	"\x1c_require_all_docs_registeredB\x16\n" +
 	"\x14_skip_external_linksB\b\n" +
 	"\x06_scopeB\a\n" +
-	"\x05_path\"\xa2\b\n" +
+	"\x05_path\"\xe1\b\n" +
 	"\x11DocHealthResponse\x12,\n" +
 	"\rscenario_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fscenarioName\x121\n" +
 	"\x12source_template_id\x18\x02 \x01(\tH\x00R\x10sourceTemplateId\x88\x01\x01\x12(\n" +
@@ -1731,7 +1742,10 @@ const file_knowledge_observatory_v1_api_proto_rawDesc = "" +
 	"\x12reference_findings\x18\r \x03(\v2*.knowledge_observatory.v1.DocHealthFindingR\x11referenceFindings\x12W\n" +
 	"\x11manifest_findings\x18\x0e \x03(\v2*.knowledge_observatory.v1.DocHealthFindingR\x10manifestFindings\x12A\n" +
 	"\x06counts\x18\x0f \x01(\v2).knowledge_observatory.v1.DocHealthCountsR\x06counts\x12%\n" +
-	"\ttimestamp\x18\x10 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\ttimestampB\x15\n" +
+	"\ttimestamp\x18\x10 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\ttimestamp\x12=\n" +
+	"\n" +
+	"assessment\x18\x11 \x01(\v2\x1d.common.v1.MaturityAssessmentR\n" +
+	"assessmentB\x15\n" +
 	"\x13_source_template_idB\x10\n" +
 	"\x0e_manifest_pathB\x12\n" +
 	"\x10_manifest_status*\x98\x01\n" +
@@ -1777,6 +1791,7 @@ var file_knowledge_observatory_v1_api_proto_goTypes = []any{
 	nil,                                  // 16: knowledge_observatory.v1.InfrastructureHealthResponse.MetricsEntry
 	(*structpb.Struct)(nil),              // 17: google.protobuf.Struct
 	(*structpb.Value)(nil),               // 18: google.protobuf.Value
+	(*v1.MaturityAssessment)(nil),        // 19: common.v1.MaturityAssessment
 }
 var file_knowledge_observatory_v1_api_proto_depIdxs = []int32{
 	17, // 0: knowledge_observatory.v1.SearchResult.metadata:type_name -> google.protobuf.Struct
@@ -1797,15 +1812,16 @@ var file_knowledge_observatory_v1_api_proto_depIdxs = []int32{
 	9,  // 15: knowledge_observatory.v1.DocHealthResponse.reference_findings:type_name -> knowledge_observatory.v1.DocHealthFinding
 	9,  // 16: knowledge_observatory.v1.DocHealthResponse.manifest_findings:type_name -> knowledge_observatory.v1.DocHealthFinding
 	12, // 17: knowledge_observatory.v1.DocHealthResponse.counts:type_name -> knowledge_observatory.v1.DocHealthCounts
-	4,  // 18: knowledge_observatory.v1.InfrastructureHealthResponse.DependenciesEntry.value:type_name -> knowledge_observatory.v1.DependencyStatus
-	18, // 19: knowledge_observatory.v1.InfrastructureHealthResponse.MetricsEntry.value:type_name -> google.protobuf.Value
-	13, // 20: knowledge_observatory.v1.KnowledgeObservatoryService.DocHealth:input_type -> knowledge_observatory.v1.DocHealthRequest
-	14, // 21: knowledge_observatory.v1.KnowledgeObservatoryService.DocHealth:output_type -> knowledge_observatory.v1.DocHealthResponse
-	21, // [21:22] is the sub-list for method output_type
-	20, // [20:21] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	19, // 18: knowledge_observatory.v1.DocHealthResponse.assessment:type_name -> common.v1.MaturityAssessment
+	4,  // 19: knowledge_observatory.v1.InfrastructureHealthResponse.DependenciesEntry.value:type_name -> knowledge_observatory.v1.DependencyStatus
+	18, // 20: knowledge_observatory.v1.InfrastructureHealthResponse.MetricsEntry.value:type_name -> google.protobuf.Value
+	13, // 21: knowledge_observatory.v1.KnowledgeObservatoryService.DocHealth:input_type -> knowledge_observatory.v1.DocHealthRequest
+	14, // 22: knowledge_observatory.v1.KnowledgeObservatoryService.DocHealth:output_type -> knowledge_observatory.v1.DocHealthResponse
+	22, // [22:23] is the sub-list for method output_type
+	21, // [21:22] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_knowledge_observatory_v1_api_proto_init() }

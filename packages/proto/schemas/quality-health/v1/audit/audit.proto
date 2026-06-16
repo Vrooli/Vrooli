@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package vrooli.quality_health.v1.audit;
 
+import "common/v1/maturity.proto";
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/quality-health/v1/audit;audit_v1";
 
 // AuditService is Quality Health's static-quality contract surface.
@@ -68,6 +70,7 @@ message AuditQualityResponse {
   repeated string next_steps = 13;
   string degraded_reason = 14;
   repeated AutofixCandidate autofix_candidates = 15;
+  common.v1.MaturityAssessment assessment = 16;
 }
 
 message ListContractsRequest {

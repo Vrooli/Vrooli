@@ -29,6 +29,8 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/security-hea
 service DependencyService {
   rpc Search(SearchRequest) returns (SearchResponse);
   rpc Status(StatusRequest) returns (StatusResponse);
+  rpc ListVulnerabilities(ListVulnerabilitiesRequest) returns (ListVulnerabilitiesResponse);
+  rpc ExplainVulnerability(ExplainVulnerabilityRequest) returns (ExplainVulnerabilityResponse);
 }
 
 // Mode selects the retrieval strategy. AI uses ollama embeddings + Qdrant; TEXT
@@ -45,6 +47,30 @@ enum Ecosystem {
   ECOSYSTEM_UNSPECIFIED = 0;
   ECOSYSTEM_GO = 1;
   ECOSYSTEM_NPM = 2;
+}
+
+// Scanner/source that produced vulnerability evidence.
+enum VulnerabilitySource {
+  VULNERABILITY_SOURCE_UNSPECIFIED = 0;
+  VULNERABILITY_SOURCE_OSV = 1;
+  VULNERABILITY_SOURCE_GOVULNCHECK = 2;
+  VULNERABILITY_SOURCE_PNPM_AUDIT = 3;
+}
+
+// Reachability describes how directly the vulnerable code is known to be used.
+enum Reachability {
+  REACHABILITY_UNSPECIFIED = 0;
+  REACHABILITY_UNKNOWN = 1;
+  REACHABILITY_LOCKFILE_AFFECTED = 2;
+  REACHABILITY_REACHABLE = 3;
+}
+
+// EvidenceConfidence controls how downstream governance should treat evidence.
+enum EvidenceConfidence {
+  EVIDENCE_CONFIDENCE_UNSPECIFIED = 0;
+  EVIDENCE_CONFIDENCE_DEGRADED = 1;
+  EVIDENCE_CONFIDENCE_ADVISORY = 2;
+  EVIDENCE_CONFIDENCE_GATING = 3;
 }
 
 // DependencyRecord is the indexed unit: one resolved dependency of one
@@ -66,6 +92,45 @@ message DependencyRecord {
   string max_severity = 7;
   // RFC3339 timestamp of the most recent reconcile that observed this record.
   string last_seen = 8;
+}
+
+message AffectedVersionRange {
+  string range = 1;
+  string introduced = 2;
+  string fixed = 3;
+  string last_affected = 4;
+}
+
+message FixedVersionRange {
+  string range = 1;
+  string version = 2;
+}
+
+// VulnerabilityRecord is structured evidence for one vulnerable package version
+// as observed across one or more scenarios.
+message VulnerabilityRecord {
+  string vulnerability_id = 1;
+  repeated string aliases = 2;
+  Ecosystem ecosystem = 3;
+  string name = 4;
+  string version = 5;
+  repeated AffectedVersionRange affected_ranges = 6;
+  repeated FixedVersionRange fixed_ranges = 7;
+  string severity = 8;
+  string normalized_severity = 9;
+  string advisory_url = 10;
+  string summary = 11;
+  string details = 12;
+  VulnerabilitySource source = 13;
+  Reachability reachability = 14;
+  EvidenceConfidence confidence = 15;
+  bool production = 16;
+  bool dev_only = 17;
+  string first_seen = 18;
+  string last_seen = 19;
+  repeated string scenarios = 20;
+  repeated string source_files = 21;
+  string remediation = 22;
 }
 
 // SearchRequest is the body accepted by DependencyService.Search.
@@ -97,6 +162,31 @@ message SearchResult {
 message SearchResponse {
   repeated SearchResult results = 1;
   Mode mode_used = 2;
+}
+
+message ListVulnerabilitiesRequest {
+  Ecosystem ecosystem = 1;
+  string package_name = 2;
+  string scenario = 3;
+  string vulnerability_id = 4;
+  EvidenceConfidence minimum_confidence = 5;
+  int32 limit = 6;
+}
+
+message ListVulnerabilitiesResponse {
+  repeated VulnerabilityRecord vulnerabilities = 1;
+  int32 total = 2;
+}
+
+message ExplainVulnerabilityRequest {
+  string vulnerability_id = 1;
+  Ecosystem ecosystem = 2;
+  string package_name = 3;
+}
+
+message ExplainVulnerabilityResponse {
+  VulnerabilityRecord vulnerability = 1;
+  bool found = 2;
 }
 
 // StatusRequest is currently empty; reserved for future filters.

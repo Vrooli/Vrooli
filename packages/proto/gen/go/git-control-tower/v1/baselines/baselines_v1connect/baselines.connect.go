@@ -45,9 +45,12 @@ const (
 	// BaselinesServiceListBaselinesProcedure is the fully-qualified name of the BaselinesService's
 	// ListBaselines RPC.
 	BaselinesServiceListBaselinesProcedure = "/vrooli.git_control_tower.v1.baselines.BaselinesService/ListBaselines"
-	// BaselinesServiceDiffBaselineProcedure is the fully-qualified name of the BaselinesService's
-	// DiffBaseline RPC.
-	BaselinesServiceDiffBaselineProcedure = "/vrooli.git_control_tower.v1.baselines.BaselinesService/DiffBaseline"
+	// BaselinesServiceStartDiffProcedure is the fully-qualified name of the BaselinesService's
+	// StartDiff RPC.
+	BaselinesServiceStartDiffProcedure = "/vrooli.git_control_tower.v1.baselines.BaselinesService/StartDiff"
+	// BaselinesServiceGetDiffResultProcedure is the fully-qualified name of the BaselinesService's
+	// GetDiffResult RPC.
+	BaselinesServiceGetDiffResultProcedure = "/vrooli.git_control_tower.v1.baselines.BaselinesService/GetDiffResult"
 	// BaselinesServiceDeleteBaselineProcedure is the fully-qualified name of the BaselinesService's
 	// DeleteBaseline RPC.
 	BaselinesServiceDeleteBaselineProcedure = "/vrooli.git_control_tower.v1.baselines.BaselinesService/DeleteBaseline"
@@ -69,8 +72,16 @@ type BaselinesServiceClient interface {
 	GetBaseline(context.Context, *connect.Request[baselines.GetBaselineRequest]) (*connect.Response[baselines.GetBaselineResponse], error)
 	// ListBaselines enumerates baselines for a scenario (optionally one branch).
 	ListBaselines(context.Context, *connect.Request[baselines.ListBaselinesRequest]) (*connect.Response[baselines.ListBaselinesResponse], error)
-	// DiffBaseline compares a baseline against the current working tree.
-	DiffBaseline(context.Context, *connect.Request[baselines.DiffBaselineRequest]) (*connect.Response[baselines.DiffBaselineResponse], error)
+	// StartDiff starts (or reuses/coalesces) ONE comprehensive run and returns its
+	// handle IMMEDIATELY — it does not block for the run to finish. The diff
+	// verdict is computed and cached server-side when the run completes; retrieve
+	// it with GetDiffResult. Mirrors SnapshotForBaseline's durable, return-fast
+	// contract so an agent never sits on a silent block (the anti-polling rule).
+	StartDiff(context.Context, *connect.Request[baselines.StartDiffRequest]) (*connect.Response[baselines.StartDiffResponse], error)
+	// GetDiffResult returns the cached diff for a (baseline, run). While the run is
+	// still in flight it returns status=in_progress + a recommended next check;
+	// when the run finished but the cache was lost (crash) it recomputes once.
+	GetDiffResult(context.Context, *connect.Request[baselines.GetDiffResultRequest]) (*connect.Response[baselines.GetDiffResultResponse], error)
 	// DeleteBaseline removes a baseline and unpins the test-genie runs it held.
 	DeleteBaseline(context.Context, *connect.Request[baselines.DeleteBaselineRequest]) (*connect.Response[baselines.DeleteBaselineResponse], error)
 	// EditBaseline re-points one surface at a different (pinned) test-genie run.
@@ -113,10 +124,16 @@ func NewBaselinesServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(baselinesServiceMethods.ByName("ListBaselines")),
 			connect.WithClientOptions(opts...),
 		),
-		diffBaseline: connect.NewClient[baselines.DiffBaselineRequest, baselines.DiffBaselineResponse](
+		startDiff: connect.NewClient[baselines.StartDiffRequest, baselines.StartDiffResponse](
 			httpClient,
-			baseURL+BaselinesServiceDiffBaselineProcedure,
-			connect.WithSchema(baselinesServiceMethods.ByName("DiffBaseline")),
+			baseURL+BaselinesServiceStartDiffProcedure,
+			connect.WithSchema(baselinesServiceMethods.ByName("StartDiff")),
+			connect.WithClientOptions(opts...),
+		),
+		getDiffResult: connect.NewClient[baselines.GetDiffResultRequest, baselines.GetDiffResultResponse](
+			httpClient,
+			baseURL+BaselinesServiceGetDiffResultProcedure,
+			connect.WithSchema(baselinesServiceMethods.ByName("GetDiffResult")),
 			connect.WithClientOptions(opts...),
 		),
 		deleteBaseline: connect.NewClient[baselines.DeleteBaselineRequest, baselines.DeleteBaselineResponse](
@@ -140,7 +157,8 @@ type baselinesServiceClient struct {
 	snapshotForBaseline *connect.Client[baselines.SnapshotForBaselineRequest, baselines.SnapshotForBaselineResponse]
 	getBaseline         *connect.Client[baselines.GetBaselineRequest, baselines.GetBaselineResponse]
 	listBaselines       *connect.Client[baselines.ListBaselinesRequest, baselines.ListBaselinesResponse]
-	diffBaseline        *connect.Client[baselines.DiffBaselineRequest, baselines.DiffBaselineResponse]
+	startDiff           *connect.Client[baselines.StartDiffRequest, baselines.StartDiffResponse]
+	getDiffResult       *connect.Client[baselines.GetDiffResultRequest, baselines.GetDiffResultResponse]
 	deleteBaseline      *connect.Client[baselines.DeleteBaselineRequest, baselines.DeleteBaselineResponse]
 	editBaseline        *connect.Client[baselines.EditBaselineRequest, baselines.EditBaselineResponse]
 }
@@ -166,9 +184,14 @@ func (c *baselinesServiceClient) ListBaselines(ctx context.Context, req *connect
 	return c.listBaselines.CallUnary(ctx, req)
 }
 
-// DiffBaseline calls vrooli.git_control_tower.v1.baselines.BaselinesService.DiffBaseline.
-func (c *baselinesServiceClient) DiffBaseline(ctx context.Context, req *connect.Request[baselines.DiffBaselineRequest]) (*connect.Response[baselines.DiffBaselineResponse], error) {
-	return c.diffBaseline.CallUnary(ctx, req)
+// StartDiff calls vrooli.git_control_tower.v1.baselines.BaselinesService.StartDiff.
+func (c *baselinesServiceClient) StartDiff(ctx context.Context, req *connect.Request[baselines.StartDiffRequest]) (*connect.Response[baselines.StartDiffResponse], error) {
+	return c.startDiff.CallUnary(ctx, req)
+}
+
+// GetDiffResult calls vrooli.git_control_tower.v1.baselines.BaselinesService.GetDiffResult.
+func (c *baselinesServiceClient) GetDiffResult(ctx context.Context, req *connect.Request[baselines.GetDiffResultRequest]) (*connect.Response[baselines.GetDiffResultResponse], error) {
+	return c.getDiffResult.CallUnary(ctx, req)
 }
 
 // DeleteBaseline calls vrooli.git_control_tower.v1.baselines.BaselinesService.DeleteBaseline.
@@ -194,8 +217,16 @@ type BaselinesServiceHandler interface {
 	GetBaseline(context.Context, *connect.Request[baselines.GetBaselineRequest]) (*connect.Response[baselines.GetBaselineResponse], error)
 	// ListBaselines enumerates baselines for a scenario (optionally one branch).
 	ListBaselines(context.Context, *connect.Request[baselines.ListBaselinesRequest]) (*connect.Response[baselines.ListBaselinesResponse], error)
-	// DiffBaseline compares a baseline against the current working tree.
-	DiffBaseline(context.Context, *connect.Request[baselines.DiffBaselineRequest]) (*connect.Response[baselines.DiffBaselineResponse], error)
+	// StartDiff starts (or reuses/coalesces) ONE comprehensive run and returns its
+	// handle IMMEDIATELY — it does not block for the run to finish. The diff
+	// verdict is computed and cached server-side when the run completes; retrieve
+	// it with GetDiffResult. Mirrors SnapshotForBaseline's durable, return-fast
+	// contract so an agent never sits on a silent block (the anti-polling rule).
+	StartDiff(context.Context, *connect.Request[baselines.StartDiffRequest]) (*connect.Response[baselines.StartDiffResponse], error)
+	// GetDiffResult returns the cached diff for a (baseline, run). While the run is
+	// still in flight it returns status=in_progress + a recommended next check;
+	// when the run finished but the cache was lost (crash) it recomputes once.
+	GetDiffResult(context.Context, *connect.Request[baselines.GetDiffResultRequest]) (*connect.Response[baselines.GetDiffResultResponse], error)
 	// DeleteBaseline removes a baseline and unpins the test-genie runs it held.
 	DeleteBaseline(context.Context, *connect.Request[baselines.DeleteBaselineRequest]) (*connect.Response[baselines.DeleteBaselineResponse], error)
 	// EditBaseline re-points one surface at a different (pinned) test-genie run.
@@ -233,10 +264,16 @@ func NewBaselinesServiceHandler(svc BaselinesServiceHandler, opts ...connect.Han
 		connect.WithSchema(baselinesServiceMethods.ByName("ListBaselines")),
 		connect.WithHandlerOptions(opts...),
 	)
-	baselinesServiceDiffBaselineHandler := connect.NewUnaryHandler(
-		BaselinesServiceDiffBaselineProcedure,
-		svc.DiffBaseline,
-		connect.WithSchema(baselinesServiceMethods.ByName("DiffBaseline")),
+	baselinesServiceStartDiffHandler := connect.NewUnaryHandler(
+		BaselinesServiceStartDiffProcedure,
+		svc.StartDiff,
+		connect.WithSchema(baselinesServiceMethods.ByName("StartDiff")),
+		connect.WithHandlerOptions(opts...),
+	)
+	baselinesServiceGetDiffResultHandler := connect.NewUnaryHandler(
+		BaselinesServiceGetDiffResultProcedure,
+		svc.GetDiffResult,
+		connect.WithSchema(baselinesServiceMethods.ByName("GetDiffResult")),
 		connect.WithHandlerOptions(opts...),
 	)
 	baselinesServiceDeleteBaselineHandler := connect.NewUnaryHandler(
@@ -261,8 +298,10 @@ func NewBaselinesServiceHandler(svc BaselinesServiceHandler, opts ...connect.Han
 			baselinesServiceGetBaselineHandler.ServeHTTP(w, r)
 		case BaselinesServiceListBaselinesProcedure:
 			baselinesServiceListBaselinesHandler.ServeHTTP(w, r)
-		case BaselinesServiceDiffBaselineProcedure:
-			baselinesServiceDiffBaselineHandler.ServeHTTP(w, r)
+		case BaselinesServiceStartDiffProcedure:
+			baselinesServiceStartDiffHandler.ServeHTTP(w, r)
+		case BaselinesServiceGetDiffResultProcedure:
+			baselinesServiceGetDiffResultHandler.ServeHTTP(w, r)
 		case BaselinesServiceDeleteBaselineProcedure:
 			baselinesServiceDeleteBaselineHandler.ServeHTTP(w, r)
 		case BaselinesServiceEditBaselineProcedure:
@@ -292,8 +331,12 @@ func (UnimplementedBaselinesServiceHandler) ListBaselines(context.Context, *conn
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.baselines.BaselinesService.ListBaselines is not implemented"))
 }
 
-func (UnimplementedBaselinesServiceHandler) DiffBaseline(context.Context, *connect.Request[baselines.DiffBaselineRequest]) (*connect.Response[baselines.DiffBaselineResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.baselines.BaselinesService.DiffBaseline is not implemented"))
+func (UnimplementedBaselinesServiceHandler) StartDiff(context.Context, *connect.Request[baselines.StartDiffRequest]) (*connect.Response[baselines.StartDiffResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.baselines.BaselinesService.StartDiff is not implemented"))
+}
+
+func (UnimplementedBaselinesServiceHandler) GetDiffResult(context.Context, *connect.Request[baselines.GetDiffResultRequest]) (*connect.Response[baselines.GetDiffResultResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.git_control_tower.v1.baselines.BaselinesService.GetDiffResult is not implemented"))
 }
 
 func (UnimplementedBaselinesServiceHandler) DeleteBaseline(context.Context, *connect.Request[baselines.DeleteBaselineRequest]) (*connect.Response[baselines.DeleteBaselineResponse], error) {

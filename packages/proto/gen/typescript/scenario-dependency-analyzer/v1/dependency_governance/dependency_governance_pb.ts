@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file scenario-dependency-analyzer/v1/dependency_governance/dependency_governance.proto.
  */
 export const file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance: GenFile = /*@__PURE__*/
-  fileDesc("ClFzY2VuYXJpby1kZXBlbmRlbmN5LWFuYWx5emVyL3YxL2RlcGVuZGVuY3lfZ292ZXJuYW5jZS9kZXBlbmRlbmN5X2dvdmVybmFuY2UucHJvdG8SPHZyb29saS5zY2VuYXJpb19kZXBlbmRlbmN5X2FuYWx5emVyLnYxLmRlcGVuZGVuY3lfZ292ZXJuYW5jZSJmCh9MaXN0QXBwcm92ZWREZXBlbmRlbmNpZXNSZXF1ZXN0EhEKCWVjb3N5c3RlbRgBIAEoCRINCgVzdGF0ZRgCIAEoCRIPCgdzdXJmYWNlGAMgASgJEhAKCHVzZV9jYXNlGAQgASgJIlQKIVNlYXJjaEFwcHJvdmVkRGVwZW5kZW5jaWVzUmVxdWVzdBINCgVxdWVyeRgBIAEoCRIRCgllY29zeXN0ZW0YAiABKAkSDQoFbGltaXQYAyABKAUiSwogRXhwbGFpbkFwcHJvdmVkRGVwZW5kZW5jeVJlcXVlc3QSEQoJZWNvc3lzdGVtGAEgASgJEhQKDHBhY2thZ2VfbmFtZRgCIAEoCSI3CiNWYWxpZGF0ZUFwcHJvdmVkRGVwZW5kZW5jaWVzUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCSKHAgoeQXBwcm92ZWREZXBlbmRlbmN5TGlzdFJlc3BvbnNlEmcKB3JlY29yZHMYASADKAsyVi52cm9vbGkuc2NlbmFyaW9fZGVwZW5kZW5jeV9hbmFseXplci52MS5kZXBlbmRlbmN5X2dvdmVybmFuY2UuQXBwcm92ZWREZXBlbmRlbmN5UmVjb3JkEmoKB3N1bW1hcnkYAiABKAsyWS52cm9vbGkuc2NlbmFyaW9fZGVwZW5kZW5jeV9hbmFseXplci52MS5kZXBlbmRlbmN5X2dvdmVybmFuY2UuRGVwZW5kZW5jeUdvdmVybmFuY2VTdW1tYXJ5EhAKCGd1aWRhbmNlGAMgASgJIokCCiBBcHByb3ZlZERlcGVuZGVuY3lTZWFyY2hSZXNwb25zZRJnCgdyZWNvcmRzGAEgAygLMlYudnJvb2xpLnNjZW5hcmlvX2RlcGVuZGVuY3lfYW5hbHl6ZXIudjEuZGVwZW5kZW5jeV9nb3Zlcm5hbmNlLkFwcHJvdmVkRGVwZW5kZW5jeVJlY29yZBJqCgdzdW1tYXJ5GAIgASgLMlkudnJvb2xpLnNjZW5hcmlvX2RlcGVuZGVuY3lfYW5hbHl6ZXIudjEuZGVwZW5kZW5jeV9nb3Zlcm5hbmNlLkRlcGVuZGVuY3lHb3Zlcm5hbmNlU3VtbWFyeRIQCghndWlkYW5jZRgDIAEoCSKsAQohQXBwcm92ZWREZXBlbmRlbmN5RXhwbGFpblJlc3BvbnNlEmYKBnJlY29yZBgBIAEoCzJWLnZyb29saS5zY2VuYXJpb19kZXBlbmRlbmN5X2FuYWx5emVyLnYxLmRlcGVuZGVuY3lfZ292ZXJuYW5jZS5BcHByb3ZlZERlcGVuZGVuY3lSZWNvcmQSDQoFZm91bmQYAiABKAgSEAoIZ3VpZGFuY2UYAyABKAkiogMKJEFwcHJvdmVkRGVwZW5kZW5jeVZhbGlkYXRpb25SZXNwb25zZRIQCghzY2VuYXJpbxgBIAEoCRIOCgZwYXNzZWQYAiABKAgSagoHc3VtbWFyeRgDIAEoCzJZLnZyb29saS5zY2VuYXJpb19kZXBlbmRlbmN5X2FuYWx5emVyLnYxLmRlcGVuZGVuY3lfZ292ZXJuYW5jZS5EZXBlbmRlbmN5R292ZXJuYW5jZVN1bW1hcnkSaQoIZmluZGluZ3MYBCADKAsyVy52cm9vbGkuc2NlbmFyaW9fZGVwZW5kZW5jeV9hbmFseXplci52MS5kZXBlbmRlbmN5X2dvdmVybmFuY2UuQXBwcm92ZWREZXBlbmRlbmN5RmluZGluZxJvChVvYnNlcnZlZF9kZXBlbmRlbmNpZXMYBSADKAsyUC52cm9vbGkuc2NlbmFyaW9fZGVwZW5kZW5jeV9hbmFseXplci52MS5kZXBlbmRlbmN5X2dvdmVybmFuY2UuT2JzZXJ2ZWREZXBlbmRlbmN5EhAKCGd1aWRhbmNlGAYgASgJIsMBChtEZXBlbmRlbmN5R292ZXJuYW5jZVN1bW1hcnkSDgoGc3RhdHVzGAEgASgJEhAKCGFwcHJvdmVkGAIgASgFEiEKGWFwcHJvdmVkX3dpdGhfY29uc3RyYWludHMYAyABKAUSFAoMbmVlZHNfcmV2aWV3GAQgASgFEg8KB2Jsb2NrZWQYBSABKAUSEgoKZGVwcmVjYXRlZBgGIAEoBRISCgp1bnJlY29yZGVkGAcgASgFEhAKCG9ic2VydmVkGAggASgFIvUCChhBcHByb3ZlZERlcGVuZGVuY3lSZWNvcmQSEQoJZWNvc3lzdGVtGAEgASgJEhQKDHBhY2thZ2VfbmFtZRgCIAEoCRIVCg12ZXJzaW9uX3JhbmdlGAMgASgJEg0KBXN0YXRlGAQgASgJEhgKEGFsbG93ZWRfc3VyZmFjZXMYBSADKAkSEQoJdXNlX2Nhc2VzGAYgAygJEhEKCXJhdGlvbmFsZRgHIAEoCRITCgthcHByb3ZlZF9ieRgIIAEoCRIVCg1hcHByb3ZlZF9kYXRlGAkgASgJEhUKDWxhc3RfcmV2aWV3ZWQYCiABKAkSFgoOcmV2aWV3X2V4cGlyZXMYCyABKAkSFQoNbGljZW5zZV9ub3RlcxgMIAEoCRIWCg5zZWN1cml0eV9ub3RlcxgNIAEoCRIZChFleGFtcGxlX3NjZW5hcmlvcxgOIAMoCRITCgtyZXBsYWNlbWVudBgPIAEoCRIQCghrZXl3b3JkcxgQIAMoCSKPAQoST2JzZXJ2ZWREZXBlbmRlbmN5EhEKCWVjb3N5c3RlbRgBIAEoCRIUCgxwYWNrYWdlX25hbWUYAiABKAkSDwoHdmVyc2lvbhgDIAEoCRISCgpzdXJmYWNlX2lkGAQgASgJEhEKCWZpbGVfcGF0aBgFIAEoCRIYChBkZXBlbmRlbmN5X2dyb3VwGAYgASgJItIBChlBcHByb3ZlZERlcGVuZGVuY3lGaW5kaW5nEgoKAmlkGAEgASgJEhAKCHNldmVyaXR5GAIgASgJEg0KBXRpdGxlGAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJEhMKC3JlbWVkaWF0aW9uGAUgASgJEhEKCWZpbGVfcGF0aBgGIAEoCRIRCgllY29zeXN0ZW0YByABKAkSFAoMcGFja2FnZV9uYW1lGAggASgJEhAKCG9ic2VydmVkGAkgASgJEhAKCGV4cGVjdGVkGAogASgJMp4HChtEZXBlbmRlbmN5R292ZXJuYW5jZVNlcnZpY2US1wEKGExpc3RBcHByb3ZlZERlcGVuZGVuY2llcxJdLnZyb29saS5zY2VuYXJpb19kZXBlbmRlbmN5X2FuYWx5emVyLnYxLmRlcGVuZGVuY3lfZ292ZXJuYW5jZS5MaXN0QXBwcm92ZWREZXBlbmRlbmNpZXNSZXF1ZXN0GlwudnJvb2xpLnNjZW5hcmlvX2RlcGVuZGVuY3lfYW5hbHl6ZXIudjEuZGVwZW5kZW5jeV9nb3Zlcm5hbmNlLkFwcHJvdmVkRGVwZW5kZW5jeUxpc3RSZXNwb25zZRLdAQoaU2VhcmNoQXBwcm92ZWREZXBlbmRlbmNpZXMSXy52cm9vbGkuc2NlbmFyaW9fZGVwZW5kZW5jeV9hbmFseXplci52MS5kZXBlbmRlbmN5X2dvdmVybmFuY2UuU2VhcmNoQXBwcm92ZWREZXBlbmRlbmNpZXNSZXF1ZXN0Gl4udnJvb2xpLnNjZW5hcmlvX2RlcGVuZGVuY3lfYW5hbHl6ZXIudjEuZGVwZW5kZW5jeV9nb3Zlcm5hbmNlLkFwcHJvdmVkRGVwZW5kZW5jeVNlYXJjaFJlc3BvbnNlEtwBChlFeHBsYWluQXBwcm92ZWREZXBlbmRlbmN5El4udnJvb2xpLnNjZW5hcmlvX2RlcGVuZGVuY3lfYW5hbHl6ZXIudjEuZGVwZW5kZW5jeV9nb3Zlcm5hbmNlLkV4cGxhaW5BcHByb3ZlZERlcGVuZGVuY3lSZXF1ZXN0Gl8udnJvb2xpLnNjZW5hcmlvX2RlcGVuZGVuY3lfYW5hbHl6ZXIudjEuZGVwZW5kZW5jeV9nb3Zlcm5hbmNlLkFwcHJvdmVkRGVwZW5kZW5jeUV4cGxhaW5SZXNwb25zZRLlAQocVmFsaWRhdGVBcHByb3ZlZERlcGVuZGVuY2llcxJhLnZyb29saS5zY2VuYXJpb19kZXBlbmRlbmN5X2FuYWx5emVyLnYxLmRlcGVuZGVuY3lfZ292ZXJuYW5jZS5WYWxpZGF0ZUFwcHJvdmVkRGVwZW5kZW5jaWVzUmVxdWVzdBpiLnZyb29saS5zY2VuYXJpb19kZXBlbmRlbmN5X2FuYWx5emVyLnYxLmRlcGVuZGVuY3lfZ292ZXJuYW5jZS5BcHByb3ZlZERlcGVuZGVuY3lWYWxpZGF0aW9uUmVzcG9uc2VCf1p9Z2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zY2VuYXJpby1kZXBlbmRlbmN5LWFuYWx5emVyL3YxL2RlcGVuZGVuY3lfZ292ZXJuYW5jZTtkZXBlbmRlbmN5X2dvdmVybmFuY2VfdjFiBnByb3RvMw");
+  fileDesc("ClFzY2VuYXJpby1kZXBlbmRlbmN5LWFuYWx5emVyL3YxL2RlcGVuZGVuY3lfZ292ZXJuYW5jZS9kZXBlbmRlbmN5X2dvdmVybmFuY2UucHJvdG8SPHZyb29saS5zY2VuYXJpb19kZXBlbmRlbmN5X2FuYWx5emVyLnYxLmRlcGVuZGVuY3lfZ292ZXJuYW5jZSJmCh9MaXN0QXBwcm92ZWREZXBlbmRlbmNpZXNSZXF1ZXN0EhEKCWVjb3N5c3RlbRgBIAEoCRINCgVzdGF0ZRgCIAEoCRIPCgdzdXJmYWNlGAMgASgJEhAKCHVzZV9jYXNlGAQgASgJIlQKIVNlYXJjaEFwcHJvdmVkRGVwZW5kZW5jaWVzUmVxdWVzdBINCgVxdWVyeRgBIAEoCRIRCgllY29zeXN0ZW0YAiABKAkSDQoFbGltaXQYAyABKAUiSwogRXhwbGFpbkFwcHJvdmVkRGVwZW5kZW5jeVJlcXVlc3QSEQoJZWNvc3lzdGVtGAEgASgJEhQKDHBhY2thZ2VfbmFtZRgCIAEoCSJMCiNWYWxpZGF0ZUFwcHJvdmVkRGVwZW5kZW5jaWVzUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRITCgtwb2xpY3lfbW9kZRgCIAEoCSI/CihWYWxpZGF0ZUZsZWV0QXBwcm92ZWREZXBlbmRlbmNpZXNSZXF1ZXN0EhMKC3BvbGljeV9tb2RlGAEgASgJIpoBCh9VcHNlcnRBcHByb3ZlZERlcGVuZGVuY3lSZXF1ZXN0EmYKBnJlY29yZBgBIAEoCzJWLnZyb29saS5zY2VuYXJpb19kZXBlbmRlbmN5X2FuYWx5emVyLnYxLmRlcGVuZGVuY3lfZ292ZXJuYW5jZS5BcHByb3ZlZERlcGVuZGVuY3lSZWNvcmQSDwoHZHJ5X3J1bhgCIAEoCCJrCiZQcmV2aWV3VnVsbmVyYWJpbGl0eVJlbWVkaWF0aW9uUmVxdWVzdBIRCgllY29zeXN0ZW0YASABKAkSFAoMcGFja2FnZV9uYW1lGAIgASgJEhgKEHZ1bG5lcmFiaWxpdHlfaWQYAyABKAkiygEKH0RlbnlWdWxuZXJhYmxlRGVwZW5kZW5jeVJlcXVlc3QSEQoJZWNvc3lzdGVtGAEgASgJEhQKDHBhY2thZ2VfbmFtZRgCIAEoCRIYChB2dWxuZXJhYmlsaXR5X2lkGAMgASgJEhYKDmFmZmVjdGVkX3JhbmdlGAQgASgJEhMKC2ZpeGVkX3JhbmdlGAUgASgJEhEKCXJhdGlvbmFsZRgGIAEoCRITCgthcHByb3ZlZF9ieRgHIAEoCRIPCgdkcnlfcnVuGAggASgIIocCCh5BcHByb3ZlZERlcGVuZGVuY3lMaXN0UmVzcG9uc2USZwoHcmVjb3JkcxgBIAMoCzJWLnZyb29saS5zY2VuYXJpb19kZXBlbmRlbmN5X2FuYWx5emVyLnYxLmRlcGVuZGVuY3lfZ292ZXJuYW5jZS5BcHByb3ZlZERlcGVuZGVuY3lSZWNvcmQSagoHc3VtbWFyeRgCIAEoCzJZLnZyb29saS5zY2VuYXJpb19kZXBlbmRlbmN5X2FuYWx5emVyLnYxLmRlcGVuZGVuY3lfZ292ZXJuYW5jZS5EZXBlbmRlbmN5R292ZXJuYW5jZVN1bW1hcnkSEAoIZ3VpZGFuY2UYAyABKAkiiQIKIEFwcHJvdmVkRGVwZW5kZW5jeVNlYXJjaFJlc3BvbnNlEmcKB3JlY29yZHMYASADKAsyVi52cm9vbGkuc2NlbmFyaW9fZGVwZW5kZW5jeV9hbmFseXplci52MS5kZXBlbmRlbmN5X2dvdmVybmFuY2UuQXBwcm92ZWREZXBlbmRlbmN5UmVjb3JkEmoKB3N1bW1hcnkYAiABKAsyWS52cm9vbGkuc2NlbmFyaW9fZGVwZW5kZW5jeV9hbmFseXplci52MS5kZXBlbmRlbmN5X2dvdmVybmFuY2UuRGVwZW5kZW5jeUdvdmVybmFuY2VTdW1tYXJ5EhAKCGd1aWRhbmNlGAMgASgJIqwBCiFBcHByb3ZlZERlcGVuZGVuY3lFeHBsYWluUmVzcG9uc2USZgoGcmVjb3JkGAEgASgLMlYudnJvb2xpLnNjZW5hcmlvX2RlcGVuZGVuY3lfYW5hbHl6ZXIudjEuZGVwZW5kZW5jeV9nb3Zlcm5hbmNlLkFwcHJvdmVkRGVwZW5kZW5jeVJlY29yZBINCgVmb3VuZBgCIAEoCBIQCghndWlkYW5jZRgDIAEoCSKiAwokQXBwcm92ZWREZXBlbmRlbmN5VmFsaWRhdGlvblJlc3BvbnNlEhAKCHNjZW5hcmlvGAEgASgJEg4KBnBhc3NlZBgCIAEoCBJqCgdzdW1tYXJ5GAMgASgLMlkudnJvb2xpLnNjZW5hcmlvX2RlcGVuZGVuY3lfYW5hbHl6ZXIudjEuZGVwZW5kZW5jeV9nb3Zlcm5hbmNlLkRlcGVuZGVuY3lHb3Zlcm5hbmNlU3VtbWFyeRJpCghmaW5kaW5ncxgEIAMoCzJXLnZyb29saS5zY2VuYXJpb19kZXBlbmRlbmN5X2FuYWx5emVyLnYxLmRlcGVuZGVuY3lfZ292ZXJuYW5jZS5BcHByb3ZlZERlcGVuZGVuY3lGaW5kaW5nEm8KFW9ic2VydmVkX2RlcGVuZGVuY2llcxgFIAMoCzJQLnZyb29saS5zY2VuYXJpb19kZXBlbmRlbmN5X2FuYWx5emVyLnYxLmRlcGVuZGVuY3lfZ292ZXJuYW5jZS5PYnNlcnZlZERlcGVuZGVuY3kSEAoIZ3VpZGFuY2UYBiABKAkihQQKKUZsZWV0QXBwcm92ZWREZXBlbmRlbmN5VmFsaWRhdGlvblJlc3BvbnNlEg4KBnBhc3NlZBgBIAEoCBJqCgdzdW1tYXJ5GAIgASgLMlkudnJvb2xpLnNjZW5hcmlvX2RlcGVuZGVuY3lfYW5hbHl6ZXIudjEuZGVwZW5kZW5jeV9nb3Zlcm5hbmNlLkRlcGVuZGVuY3lHb3Zlcm5hbmNlU3VtbWFyeRJ1CglzY2VuYXJpb3MYAyADKAsyYi52cm9vbGkuc2NlbmFyaW9fZGVwZW5kZW5jeV9hbmFseXplci52MS5kZXBlbmRlbmN5X2dvdmVybmFuY2UuQXBwcm92ZWREZXBlbmRlbmN5VmFsaWRhdGlvblJlc3BvbnNlEmgKDHVzYWdlX2dyb3VwcxgEIAMoCzJSLnZyb29saS5zY2VuYXJpb19kZXBlbmRlbmN5X2FuYWx5emVyLnYxLmRlcGVuZGVuY3lfZ292ZXJuYW5jZS5EZXBlbmRlbmN5VXNhZ2VHcm91cBJpCghmaW5kaW5ncxgFIAMoCzJXLnZyb29saS5zY2VuYXJpb19kZXBlbmRlbmN5X2FuYWx5emVyLnYxLmRlcGVuZGVuY3lfZ292ZXJuYW5jZS5BcHByb3ZlZERlcGVuZGVuY3lGaW5kaW5nEhAKCGd1aWRhbmNlGAYgASgJIqwDCiBVcHNlcnRBcHByb3ZlZERlcGVuZGVuY3lSZXNwb25zZRJmCgZyZWNvcmQYASABKAsyVi52cm9vbGkuc2NlbmFyaW9fZGVwZW5kZW5jeV9hbmFseXplci52MS5kZXBlbmRlbmN5X2dvdmVybmFuY2UuQXBwcm92ZWREZXBlbmRlbmN5UmVjb3JkEm8KD3ByZXZpb3VzX3JlY29yZBgCIAEoCzJWLnZyb29saS5zY2VuYXJpb19kZXBlbmRlbmN5X2FuYWx5emVyLnYxLmRlcGVuZGVuY3lfZ292ZXJuYW5jZS5BcHByb3ZlZERlcGVuZGVuY3lSZWNvcmQSDwoHZHJ5X3J1bhgDIAEoCBIPCgdjaGFuZ2VkGAQgASgIEg8KB21lc3NhZ2UYBSABKAkSagoHc3VtbWFyeRgGIAEoCzJZLnZyb29saS5zY2VuYXJpb19kZXBlbmRlbmN5X2FuYWx5emVyLnYxLmRlcGVuZGVuY3lfZ292ZXJuYW5jZS5EZXBlbmRlbmN5R292ZXJuYW5jZVN1bW1hcnkSEAoIZ3VpZGFuY2UYByABKAki4gMKIFZ1bG5lcmFiaWxpdHlSZW1lZGlhdGlvblJlc3BvbnNlEg0KBWZvdW5kGAEgASgIEnIKDXZ1bG5lcmFiaWxpdHkYAiABKAsyWy52cm9vbGkuc2NlbmFyaW9fZGVwZW5kZW5jeV9hbmFseXplci52MS5kZXBlbmRlbmN5X2dvdmVybmFuY2UuU2VjdXJpdHlWdWxuZXJhYmlsaXR5RXZpZGVuY2UScAoQc3VnZ2VzdGVkX3JlY29yZBgDIAEoCzJWLnZyb29saS5zY2VuYXJpb19kZXBlbmRlbmN5X2FuYWx5emVyLnYxLmRlcGVuZGVuY3lfZ292ZXJuYW5jZS5BcHByb3ZlZERlcGVuZGVuY3lSZWNvcmQScAoIbXV0YXRpb24YBCABKAsyXi52cm9vbGkuc2NlbmFyaW9fZGVwZW5kZW5jeV9hbmFseXplci52MS5kZXBlbmRlbmN5X2dvdmVybmFuY2UuVXBzZXJ0QXBwcm92ZWREZXBlbmRlbmN5UmVzcG9uc2USGgoSYWZmZWN0ZWRfc2NlbmFyaW9zGAUgAygJEhQKDHNvdXJjZV9maWxlcxgGIAMoCRITCgtyZW1lZGlhdGlvbhgHIAEoCRIQCghndWlkYW5jZRgIIAEoCSKvBAodU2VjdXJpdHlWdWxuZXJhYmlsaXR5RXZpZGVuY2USGAoQdnVsbmVyYWJpbGl0eV9pZBgBIAEoCRIPCgdhbGlhc2VzGAIgAygJEhEKCWVjb3N5c3RlbRgDIAEoCRIUCgxwYWNrYWdlX25hbWUYBCABKAkSGAoQb2JzZXJ2ZWRfdmVyc2lvbhgFIAEoCRJrCg9hZmZlY3RlZF9yYW5nZXMYBiADKAsyUi52cm9vbGkuc2NlbmFyaW9fZGVwZW5kZW5jeV9hbmFseXplci52MS5kZXBlbmRlbmN5X2dvdmVybmFuY2UuU2VjdXJpdHlWZXJzaW9uUmFuZ2USaAoMZml4ZWRfcmFuZ2VzGAcgAygLMlIudnJvb2xpLnNjZW5hcmlvX2RlcGVuZGVuY3lfYW5hbHl6ZXIudjEuZGVwZW5kZW5jeV9nb3Zlcm5hbmNlLlNlY3VyaXR5VmVyc2lvblJhbmdlEhAKCHNldmVyaXR5GAggASgJEhsKE25vcm1hbGl6ZWRfc2V2ZXJpdHkYCSABKAkSFAoMYWR2aXNvcnlfdXJsGAogASgJEg8KB3N1bW1hcnkYCyABKAkSDgoGc291cmNlGAwgASgJEhQKDHJlYWNoYWJpbGl0eRgNIAEoCRISCgpjb25maWRlbmNlGA4gASgJEhIKCnByb2R1Y3Rpb24YDyABKAgSEAoIZGV2X29ubHkYECABKAgSEwoLcmVtZWRpYXRpb24YESABKAkicAoUU2VjdXJpdHlWZXJzaW9uUmFuZ2USDQoFcmFuZ2UYASABKAkSDwoHdmVyc2lvbhgCIAEoCRISCgppbnRyb2R1Y2VkGAMgASgJEg0KBWZpeGVkGAQgASgJEhUKDWxhc3RfYWZmZWN0ZWQYBSABKAkirgMKG0RlcGVuZGVuY3lHb3Zlcm5hbmNlU3VtbWFyeRIOCgZzdGF0dXMYASABKAkSEAoIYXBwcm92ZWQYAiABKAUSIQoZYXBwcm92ZWRfd2l0aF9jb25zdHJhaW50cxgDIAEoBRIUCgxuZWVkc19yZXZpZXcYBCABKAUSDwoHYmxvY2tlZBgFIAEoBRISCgpkZXByZWNhdGVkGAYgASgFEhIKCnVucmVjb3JkZWQYByABKAUSEAoIb2JzZXJ2ZWQYCCABKAUSEwoLcG9saWN5X21vZGUYCSABKAkSDgoGZGVuaWVkGAogASgFEhQKDG91dF9vZl9yYW5nZRgLIAEoBRIUCgxvdXRfb2Zfc2NvcGUYDCABKAUSDwoHZXhwaXJlZBgNIAEoBRIWCg5zY2VuYXJpb19jb3VudBgOIAEoBRIYChBkZXBlbmRlbmN5X2NvdW50GA8gASgFEhUKDWZpbmRpbmdfY291bnQYECABKAUSEwoLZXJyb3JfY291bnQYESABKAUSFQoNd2FybmluZ19jb3VudBgSIAEoBRISCgppbmZvX2NvdW50GBMgASgFIs0DChhBcHByb3ZlZERlcGVuZGVuY3lSZWNvcmQSEQoJZWNvc3lzdGVtGAEgASgJEhQKDHBhY2thZ2VfbmFtZRgCIAEoCRIVCg12ZXJzaW9uX3JhbmdlGAMgASgJEg0KBXN0YXRlGAQgASgJEhgKEGFsbG93ZWRfc3VyZmFjZXMYBSADKAkSEQoJdXNlX2Nhc2VzGAYgAygJEhEKCXJhdGlvbmFsZRgHIAEoCRITCgthcHByb3ZlZF9ieRgIIAEoCRIVCg1hcHByb3ZlZF9kYXRlGAkgASgJEhUKDWxhc3RfcmV2aWV3ZWQYCiABKAkSFgoOcmV2aWV3X2V4cGlyZXMYCyABKAkSFQoNbGljZW5zZV9ub3RlcxgMIAEoCRIWCg5zZWN1cml0eV9ub3RlcxgNIAEoCRIZChFleGFtcGxlX3NjZW5hcmlvcxgOIAMoCRITCgtyZXBsYWNlbWVudBgPIAEoCRIQCghrZXl3b3JkcxgQIAMoCRIZChFhbGxvd2VkX3NjZW5hcmlvcxgRIAMoCRIYChBkZW5pZWRfc2NlbmFyaW9zGBIgAygJEiEKGWFsbG93ZWRfZGVwZW5kZW5jeV9ncm91cHMYEyADKAkijwEKEk9ic2VydmVkRGVwZW5kZW5jeRIRCgllY29zeXN0ZW0YASABKAkSFAoMcGFja2FnZV9uYW1lGAIgASgJEg8KB3ZlcnNpb24YAyABKAkSEgoKc3VyZmFjZV9pZBgEIAEoCRIRCglmaWxlX3BhdGgYBSABKAkSGAoQZGVwZW5kZW5jeV9ncm91cBgGIAEoCSKwAgoURGVwZW5kZW5jeVVzYWdlR3JvdXASEQoJZWNvc3lzdGVtGAEgASgJEhQKDHBhY2thZ2VfbmFtZRgCIAEoCRIWCg5zY2VuYXJpb19jb3VudBgDIAEoBRITCgt1c2FnZV9jb3VudBgEIAEoBRIRCglzY2VuYXJpb3MYBSADKAkSbwoVb2JzZXJ2ZWRfZGVwZW5kZW5jaWVzGAYgAygLMlAudnJvb2xpLnNjZW5hcmlvX2RlcGVuZGVuY3lfYW5hbHl6ZXIudjEuZGVwZW5kZW5jeV9nb3Zlcm5hbmNlLk9ic2VydmVkRGVwZW5kZW5jeRIVCg1maW5kaW5nX2NvdW50GAcgASgFEhgKEGhpZ2hlc3Rfc2V2ZXJpdHkYCCABKAkSDQoFc3RhdGUYCSABKAkikAIKGUFwcHJvdmVkRGVwZW5kZW5jeUZpbmRpbmcSCgoCaWQYASABKAkSEAoIc2V2ZXJpdHkYAiABKAkSDQoFdGl0bGUYAyABKAkSEwoLZGVzY3JpcHRpb24YBCABKAkSEwoLcmVtZWRpYXRpb24YBSABKAkSEQoJZmlsZV9wYXRoGAYgASgJEhEKCWVjb3N5c3RlbRgHIAEoCRIUCgxwYWNrYWdlX25hbWUYCCABKAkSEAoIb2JzZXJ2ZWQYCSABKAkSEAoIZXhwZWN0ZWQYCiABKAkSEAoIc2NlbmFyaW8YCyABKAkSFQoNZmluZGluZ19jbGFzcxgMIAEoCRITCgtwb2xpY3lfbW9kZRgNIAEoCTK3DgobRGVwZW5kZW5jeUdvdmVybmFuY2VTZXJ2aWNlEtcBChhMaXN0QXBwcm92ZWREZXBlbmRlbmNpZXMSXS52cm9vbGkuc2NlbmFyaW9fZGVwZW5kZW5jeV9hbmFseXplci52MS5kZXBlbmRlbmN5X2dvdmVybmFuY2UuTGlzdEFwcHJvdmVkRGVwZW5kZW5jaWVzUmVxdWVzdBpcLnZyb29saS5zY2VuYXJpb19kZXBlbmRlbmN5X2FuYWx5emVyLnYxLmRlcGVuZGVuY3lfZ292ZXJuYW5jZS5BcHByb3ZlZERlcGVuZGVuY3lMaXN0UmVzcG9uc2US3QEKGlNlYXJjaEFwcHJvdmVkRGVwZW5kZW5jaWVzEl8udnJvb2xpLnNjZW5hcmlvX2RlcGVuZGVuY3lfYW5hbHl6ZXIudjEuZGVwZW5kZW5jeV9nb3Zlcm5hbmNlLlNlYXJjaEFwcHJvdmVkRGVwZW5kZW5jaWVzUmVxdWVzdBpeLnZyb29saS5zY2VuYXJpb19kZXBlbmRlbmN5X2FuYWx5emVyLnYxLmRlcGVuZGVuY3lfZ292ZXJuYW5jZS5BcHByb3ZlZERlcGVuZGVuY3lTZWFyY2hSZXNwb25zZRLcAQoZRXhwbGFpbkFwcHJvdmVkRGVwZW5kZW5jeRJeLnZyb29saS5zY2VuYXJpb19kZXBlbmRlbmN5X2FuYWx5emVyLnYxLmRlcGVuZGVuY3lfZ292ZXJuYW5jZS5FeHBsYWluQXBwcm92ZWREZXBlbmRlbmN5UmVxdWVzdBpfLnZyb29saS5zY2VuYXJpb19kZXBlbmRlbmN5X2FuYWx5emVyLnYxLmRlcGVuZGVuY3lfZ292ZXJuYW5jZS5BcHByb3ZlZERlcGVuZGVuY3lFeHBsYWluUmVzcG9uc2US5QEKHFZhbGlkYXRlQXBwcm92ZWREZXBlbmRlbmNpZXMSYS52cm9vbGkuc2NlbmFyaW9fZGVwZW5kZW5jeV9hbmFseXplci52MS5kZXBlbmRlbmN5X2dvdmVybmFuY2UuVmFsaWRhdGVBcHByb3ZlZERlcGVuZGVuY2llc1JlcXVlc3QaYi52cm9vbGkuc2NlbmFyaW9fZGVwZW5kZW5jeV9hbmFseXplci52MS5kZXBlbmRlbmN5X2dvdmVybmFuY2UuQXBwcm92ZWREZXBlbmRlbmN5VmFsaWRhdGlvblJlc3BvbnNlEvQBCiFWYWxpZGF0ZUZsZWV0QXBwcm92ZWREZXBlbmRlbmNpZXMSZi52cm9vbGkuc2NlbmFyaW9fZGVwZW5kZW5jeV9hbmFseXplci52MS5kZXBlbmRlbmN5X2dvdmVybmFuY2UuVmFsaWRhdGVGbGVldEFwcHJvdmVkRGVwZW5kZW5jaWVzUmVxdWVzdBpnLnZyb29saS5zY2VuYXJpb19kZXBlbmRlbmN5X2FuYWx5emVyLnYxLmRlcGVuZGVuY3lfZ292ZXJuYW5jZS5GbGVldEFwcHJvdmVkRGVwZW5kZW5jeVZhbGlkYXRpb25SZXNwb25zZRLZAQoYVXBzZXJ0QXBwcm92ZWREZXBlbmRlbmN5El0udnJvb2xpLnNjZW5hcmlvX2RlcGVuZGVuY3lfYW5hbHl6ZXIudjEuZGVwZW5kZW5jeV9nb3Zlcm5hbmNlLlVwc2VydEFwcHJvdmVkRGVwZW5kZW5jeVJlcXVlc3QaXi52cm9vbGkuc2NlbmFyaW9fZGVwZW5kZW5jeV9hbmFseXplci52MS5kZXBlbmRlbmN5X2dvdmVybmFuY2UuVXBzZXJ0QXBwcm92ZWREZXBlbmRlbmN5UmVzcG9uc2US5wEKH1ByZXZpZXdWdWxuZXJhYmlsaXR5UmVtZWRpYXRpb24SZC52cm9vbGkuc2NlbmFyaW9fZGVwZW5kZW5jeV9hbmFseXplci52MS5kZXBlbmRlbmN5X2dvdmVybmFuY2UuUHJldmlld1Z1bG5lcmFiaWxpdHlSZW1lZGlhdGlvblJlcXVlc3QaXi52cm9vbGkuc2NlbmFyaW9fZGVwZW5kZW5jeV9hbmFseXplci52MS5kZXBlbmRlbmN5X2dvdmVybmFuY2UuVnVsbmVyYWJpbGl0eVJlbWVkaWF0aW9uUmVzcG9uc2US2QEKGERlbnlWdWxuZXJhYmxlRGVwZW5kZW5jeRJdLnZyb29saS5zY2VuYXJpb19kZXBlbmRlbmN5X2FuYWx5emVyLnYxLmRlcGVuZGVuY3lfZ292ZXJuYW5jZS5EZW55VnVsbmVyYWJsZURlcGVuZGVuY3lSZXF1ZXN0Gl4udnJvb2xpLnNjZW5hcmlvX2RlcGVuZGVuY3lfYW5hbHl6ZXIudjEuZGVwZW5kZW5jeV9nb3Zlcm5hbmNlLlZ1bG5lcmFiaWxpdHlSZW1lZGlhdGlvblJlc3BvbnNlQn9afWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc2NlbmFyaW8tZGVwZW5kZW5jeS1hbmFseXplci92MS9kZXBlbmRlbmN5X2dvdmVybmFuY2U7ZGVwZW5kZW5jeV9nb3Zlcm5hbmNlX3YxYgZwcm90bzM");
 
 /**
  * @generated from message vrooli.scenario_dependency_analyzer.v1.dependency_governance.ListApprovedDependenciesRequest
@@ -101,6 +101,11 @@ export type ValidateApprovedDependenciesRequest = Message<"vrooli.scenario_depen
    * @generated from field: string scenario = 1;
    */
   scenario: string;
+
+  /**
+   * @generated from field: string policy_mode = 2;
+   */
+  policyMode: string;
 };
 
 /**
@@ -109,6 +114,124 @@ export type ValidateApprovedDependenciesRequest = Message<"vrooli.scenario_depen
  */
 export const ValidateApprovedDependenciesRequestSchema: GenMessage<ValidateApprovedDependenciesRequest> = /*@__PURE__*/
   messageDesc(file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance, 3);
+
+/**
+ * @generated from message vrooli.scenario_dependency_analyzer.v1.dependency_governance.ValidateFleetApprovedDependenciesRequest
+ */
+export type ValidateFleetApprovedDependenciesRequest = Message<"vrooli.scenario_dependency_analyzer.v1.dependency_governance.ValidateFleetApprovedDependenciesRequest"> & {
+  /**
+   * @generated from field: string policy_mode = 1;
+   */
+  policyMode: string;
+};
+
+/**
+ * Describes the message vrooli.scenario_dependency_analyzer.v1.dependency_governance.ValidateFleetApprovedDependenciesRequest.
+ * Use `create(ValidateFleetApprovedDependenciesRequestSchema)` to create a new message.
+ */
+export const ValidateFleetApprovedDependenciesRequestSchema: GenMessage<ValidateFleetApprovedDependenciesRequest> = /*@__PURE__*/
+  messageDesc(file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance, 4);
+
+/**
+ * @generated from message vrooli.scenario_dependency_analyzer.v1.dependency_governance.UpsertApprovedDependencyRequest
+ */
+export type UpsertApprovedDependencyRequest = Message<"vrooli.scenario_dependency_analyzer.v1.dependency_governance.UpsertApprovedDependencyRequest"> & {
+  /**
+   * @generated from field: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyRecord record = 1;
+   */
+  record?: ApprovedDependencyRecord | undefined;
+
+  /**
+   * @generated from field: bool dry_run = 2;
+   */
+  dryRun: boolean;
+};
+
+/**
+ * Describes the message vrooli.scenario_dependency_analyzer.v1.dependency_governance.UpsertApprovedDependencyRequest.
+ * Use `create(UpsertApprovedDependencyRequestSchema)` to create a new message.
+ */
+export const UpsertApprovedDependencyRequestSchema: GenMessage<UpsertApprovedDependencyRequest> = /*@__PURE__*/
+  messageDesc(file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance, 5);
+
+/**
+ * @generated from message vrooli.scenario_dependency_analyzer.v1.dependency_governance.PreviewVulnerabilityRemediationRequest
+ */
+export type PreviewVulnerabilityRemediationRequest = Message<"vrooli.scenario_dependency_analyzer.v1.dependency_governance.PreviewVulnerabilityRemediationRequest"> & {
+  /**
+   * @generated from field: string ecosystem = 1;
+   */
+  ecosystem: string;
+
+  /**
+   * @generated from field: string package_name = 2;
+   */
+  packageName: string;
+
+  /**
+   * @generated from field: string vulnerability_id = 3;
+   */
+  vulnerabilityId: string;
+};
+
+/**
+ * Describes the message vrooli.scenario_dependency_analyzer.v1.dependency_governance.PreviewVulnerabilityRemediationRequest.
+ * Use `create(PreviewVulnerabilityRemediationRequestSchema)` to create a new message.
+ */
+export const PreviewVulnerabilityRemediationRequestSchema: GenMessage<PreviewVulnerabilityRemediationRequest> = /*@__PURE__*/
+  messageDesc(file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance, 6);
+
+/**
+ * @generated from message vrooli.scenario_dependency_analyzer.v1.dependency_governance.DenyVulnerableDependencyRequest
+ */
+export type DenyVulnerableDependencyRequest = Message<"vrooli.scenario_dependency_analyzer.v1.dependency_governance.DenyVulnerableDependencyRequest"> & {
+  /**
+   * @generated from field: string ecosystem = 1;
+   */
+  ecosystem: string;
+
+  /**
+   * @generated from field: string package_name = 2;
+   */
+  packageName: string;
+
+  /**
+   * @generated from field: string vulnerability_id = 3;
+   */
+  vulnerabilityId: string;
+
+  /**
+   * @generated from field: string affected_range = 4;
+   */
+  affectedRange: string;
+
+  /**
+   * @generated from field: string fixed_range = 5;
+   */
+  fixedRange: string;
+
+  /**
+   * @generated from field: string rationale = 6;
+   */
+  rationale: string;
+
+  /**
+   * @generated from field: string approved_by = 7;
+   */
+  approvedBy: string;
+
+  /**
+   * @generated from field: bool dry_run = 8;
+   */
+  dryRun: boolean;
+};
+
+/**
+ * Describes the message vrooli.scenario_dependency_analyzer.v1.dependency_governance.DenyVulnerableDependencyRequest.
+ * Use `create(DenyVulnerableDependencyRequestSchema)` to create a new message.
+ */
+export const DenyVulnerableDependencyRequestSchema: GenMessage<DenyVulnerableDependencyRequest> = /*@__PURE__*/
+  messageDesc(file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance, 7);
 
 /**
  * @generated from message vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyListResponse
@@ -135,7 +258,7 @@ export type ApprovedDependencyListResponse = Message<"vrooli.scenario_dependency
  * Use `create(ApprovedDependencyListResponseSchema)` to create a new message.
  */
 export const ApprovedDependencyListResponseSchema: GenMessage<ApprovedDependencyListResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance, 4);
+  messageDesc(file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance, 8);
 
 /**
  * @generated from message vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencySearchResponse
@@ -162,7 +285,7 @@ export type ApprovedDependencySearchResponse = Message<"vrooli.scenario_dependen
  * Use `create(ApprovedDependencySearchResponseSchema)` to create a new message.
  */
 export const ApprovedDependencySearchResponseSchema: GenMessage<ApprovedDependencySearchResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance, 5);
+  messageDesc(file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance, 9);
 
 /**
  * @generated from message vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyExplainResponse
@@ -189,7 +312,7 @@ export type ApprovedDependencyExplainResponse = Message<"vrooli.scenario_depende
  * Use `create(ApprovedDependencyExplainResponseSchema)` to create a new message.
  */
 export const ApprovedDependencyExplainResponseSchema: GenMessage<ApprovedDependencyExplainResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance, 6);
+  messageDesc(file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance, 10);
 
 /**
  * @generated from message vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyValidationResponse
@@ -231,7 +354,282 @@ export type ApprovedDependencyValidationResponse = Message<"vrooli.scenario_depe
  * Use `create(ApprovedDependencyValidationResponseSchema)` to create a new message.
  */
 export const ApprovedDependencyValidationResponseSchema: GenMessage<ApprovedDependencyValidationResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance, 7);
+  messageDesc(file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance, 11);
+
+/**
+ * @generated from message vrooli.scenario_dependency_analyzer.v1.dependency_governance.FleetApprovedDependencyValidationResponse
+ */
+export type FleetApprovedDependencyValidationResponse = Message<"vrooli.scenario_dependency_analyzer.v1.dependency_governance.FleetApprovedDependencyValidationResponse"> & {
+  /**
+   * @generated from field: bool passed = 1;
+   */
+  passed: boolean;
+
+  /**
+   * @generated from field: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceSummary summary = 2;
+   */
+  summary?: DependencyGovernanceSummary | undefined;
+
+  /**
+   * @generated from field: repeated vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyValidationResponse scenarios = 3;
+   */
+  scenarios: ApprovedDependencyValidationResponse[];
+
+  /**
+   * @generated from field: repeated vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyUsageGroup usage_groups = 4;
+   */
+  usageGroups: DependencyUsageGroup[];
+
+  /**
+   * @generated from field: repeated vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyFinding findings = 5;
+   */
+  findings: ApprovedDependencyFinding[];
+
+  /**
+   * @generated from field: string guidance = 6;
+   */
+  guidance: string;
+};
+
+/**
+ * Describes the message vrooli.scenario_dependency_analyzer.v1.dependency_governance.FleetApprovedDependencyValidationResponse.
+ * Use `create(FleetApprovedDependencyValidationResponseSchema)` to create a new message.
+ */
+export const FleetApprovedDependencyValidationResponseSchema: GenMessage<FleetApprovedDependencyValidationResponse> = /*@__PURE__*/
+  messageDesc(file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance, 12);
+
+/**
+ * @generated from message vrooli.scenario_dependency_analyzer.v1.dependency_governance.UpsertApprovedDependencyResponse
+ */
+export type UpsertApprovedDependencyResponse = Message<"vrooli.scenario_dependency_analyzer.v1.dependency_governance.UpsertApprovedDependencyResponse"> & {
+  /**
+   * @generated from field: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyRecord record = 1;
+   */
+  record?: ApprovedDependencyRecord | undefined;
+
+  /**
+   * @generated from field: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyRecord previous_record = 2;
+   */
+  previousRecord?: ApprovedDependencyRecord | undefined;
+
+  /**
+   * @generated from field: bool dry_run = 3;
+   */
+  dryRun: boolean;
+
+  /**
+   * @generated from field: bool changed = 4;
+   */
+  changed: boolean;
+
+  /**
+   * @generated from field: string message = 5;
+   */
+  message: string;
+
+  /**
+   * @generated from field: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceSummary summary = 6;
+   */
+  summary?: DependencyGovernanceSummary | undefined;
+
+  /**
+   * @generated from field: string guidance = 7;
+   */
+  guidance: string;
+};
+
+/**
+ * Describes the message vrooli.scenario_dependency_analyzer.v1.dependency_governance.UpsertApprovedDependencyResponse.
+ * Use `create(UpsertApprovedDependencyResponseSchema)` to create a new message.
+ */
+export const UpsertApprovedDependencyResponseSchema: GenMessage<UpsertApprovedDependencyResponse> = /*@__PURE__*/
+  messageDesc(file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance, 13);
+
+/**
+ * @generated from message vrooli.scenario_dependency_analyzer.v1.dependency_governance.VulnerabilityRemediationResponse
+ */
+export type VulnerabilityRemediationResponse = Message<"vrooli.scenario_dependency_analyzer.v1.dependency_governance.VulnerabilityRemediationResponse"> & {
+  /**
+   * @generated from field: bool found = 1;
+   */
+  found: boolean;
+
+  /**
+   * @generated from field: vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityVulnerabilityEvidence vulnerability = 2;
+   */
+  vulnerability?: SecurityVulnerabilityEvidence | undefined;
+
+  /**
+   * @generated from field: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyRecord suggested_record = 3;
+   */
+  suggestedRecord?: ApprovedDependencyRecord | undefined;
+
+  /**
+   * @generated from field: vrooli.scenario_dependency_analyzer.v1.dependency_governance.UpsertApprovedDependencyResponse mutation = 4;
+   */
+  mutation?: UpsertApprovedDependencyResponse | undefined;
+
+  /**
+   * @generated from field: repeated string affected_scenarios = 5;
+   */
+  affectedScenarios: string[];
+
+  /**
+   * @generated from field: repeated string source_files = 6;
+   */
+  sourceFiles: string[];
+
+  /**
+   * @generated from field: string remediation = 7;
+   */
+  remediation: string;
+
+  /**
+   * @generated from field: string guidance = 8;
+   */
+  guidance: string;
+};
+
+/**
+ * Describes the message vrooli.scenario_dependency_analyzer.v1.dependency_governance.VulnerabilityRemediationResponse.
+ * Use `create(VulnerabilityRemediationResponseSchema)` to create a new message.
+ */
+export const VulnerabilityRemediationResponseSchema: GenMessage<VulnerabilityRemediationResponse> = /*@__PURE__*/
+  messageDesc(file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance, 14);
+
+/**
+ * @generated from message vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityVulnerabilityEvidence
+ */
+export type SecurityVulnerabilityEvidence = Message<"vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityVulnerabilityEvidence"> & {
+  /**
+   * @generated from field: string vulnerability_id = 1;
+   */
+  vulnerabilityId: string;
+
+  /**
+   * @generated from field: repeated string aliases = 2;
+   */
+  aliases: string[];
+
+  /**
+   * @generated from field: string ecosystem = 3;
+   */
+  ecosystem: string;
+
+  /**
+   * @generated from field: string package_name = 4;
+   */
+  packageName: string;
+
+  /**
+   * @generated from field: string observed_version = 5;
+   */
+  observedVersion: string;
+
+  /**
+   * @generated from field: repeated vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityVersionRange affected_ranges = 6;
+   */
+  affectedRanges: SecurityVersionRange[];
+
+  /**
+   * @generated from field: repeated vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityVersionRange fixed_ranges = 7;
+   */
+  fixedRanges: SecurityVersionRange[];
+
+  /**
+   * @generated from field: string severity = 8;
+   */
+  severity: string;
+
+  /**
+   * @generated from field: string normalized_severity = 9;
+   */
+  normalizedSeverity: string;
+
+  /**
+   * @generated from field: string advisory_url = 10;
+   */
+  advisoryUrl: string;
+
+  /**
+   * @generated from field: string summary = 11;
+   */
+  summary: string;
+
+  /**
+   * @generated from field: string source = 12;
+   */
+  source: string;
+
+  /**
+   * @generated from field: string reachability = 13;
+   */
+  reachability: string;
+
+  /**
+   * @generated from field: string confidence = 14;
+   */
+  confidence: string;
+
+  /**
+   * @generated from field: bool production = 15;
+   */
+  production: boolean;
+
+  /**
+   * @generated from field: bool dev_only = 16;
+   */
+  devOnly: boolean;
+
+  /**
+   * @generated from field: string remediation = 17;
+   */
+  remediation: string;
+};
+
+/**
+ * Describes the message vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityVulnerabilityEvidence.
+ * Use `create(SecurityVulnerabilityEvidenceSchema)` to create a new message.
+ */
+export const SecurityVulnerabilityEvidenceSchema: GenMessage<SecurityVulnerabilityEvidence> = /*@__PURE__*/
+  messageDesc(file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance, 15);
+
+/**
+ * @generated from message vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityVersionRange
+ */
+export type SecurityVersionRange = Message<"vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityVersionRange"> & {
+  /**
+   * @generated from field: string range = 1;
+   */
+  range: string;
+
+  /**
+   * @generated from field: string version = 2;
+   */
+  version: string;
+
+  /**
+   * @generated from field: string introduced = 3;
+   */
+  introduced: string;
+
+  /**
+   * @generated from field: string fixed = 4;
+   */
+  fixed: string;
+
+  /**
+   * @generated from field: string last_affected = 5;
+   */
+  lastAffected: string;
+};
+
+/**
+ * Describes the message vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityVersionRange.
+ * Use `create(SecurityVersionRangeSchema)` to create a new message.
+ */
+export const SecurityVersionRangeSchema: GenMessage<SecurityVersionRange> = /*@__PURE__*/
+  messageDesc(file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance, 16);
 
 /**
  * @generated from message vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceSummary
@@ -276,6 +674,61 @@ export type DependencyGovernanceSummary = Message<"vrooli.scenario_dependency_an
    * @generated from field: int32 observed = 8;
    */
   observed: number;
+
+  /**
+   * @generated from field: string policy_mode = 9;
+   */
+  policyMode: string;
+
+  /**
+   * @generated from field: int32 denied = 10;
+   */
+  denied: number;
+
+  /**
+   * @generated from field: int32 out_of_range = 11;
+   */
+  outOfRange: number;
+
+  /**
+   * @generated from field: int32 out_of_scope = 12;
+   */
+  outOfScope: number;
+
+  /**
+   * @generated from field: int32 expired = 13;
+   */
+  expired: number;
+
+  /**
+   * @generated from field: int32 scenario_count = 14;
+   */
+  scenarioCount: number;
+
+  /**
+   * @generated from field: int32 dependency_count = 15;
+   */
+  dependencyCount: number;
+
+  /**
+   * @generated from field: int32 finding_count = 16;
+   */
+  findingCount: number;
+
+  /**
+   * @generated from field: int32 error_count = 17;
+   */
+  errorCount: number;
+
+  /**
+   * @generated from field: int32 warning_count = 18;
+   */
+  warningCount: number;
+
+  /**
+   * @generated from field: int32 info_count = 19;
+   */
+  infoCount: number;
 };
 
 /**
@@ -283,7 +736,7 @@ export type DependencyGovernanceSummary = Message<"vrooli.scenario_dependency_an
  * Use `create(DependencyGovernanceSummarySchema)` to create a new message.
  */
 export const DependencyGovernanceSummarySchema: GenMessage<DependencyGovernanceSummary> = /*@__PURE__*/
-  messageDesc(file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance, 8);
+  messageDesc(file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance, 17);
 
 /**
  * @generated from message vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyRecord
@@ -368,6 +821,21 @@ export type ApprovedDependencyRecord = Message<"vrooli.scenario_dependency_analy
    * @generated from field: repeated string keywords = 16;
    */
   keywords: string[];
+
+  /**
+   * @generated from field: repeated string allowed_scenarios = 17;
+   */
+  allowedScenarios: string[];
+
+  /**
+   * @generated from field: repeated string denied_scenarios = 18;
+   */
+  deniedScenarios: string[];
+
+  /**
+   * @generated from field: repeated string allowed_dependency_groups = 19;
+   */
+  allowedDependencyGroups: string[];
 };
 
 /**
@@ -375,7 +843,7 @@ export type ApprovedDependencyRecord = Message<"vrooli.scenario_dependency_analy
  * Use `create(ApprovedDependencyRecordSchema)` to create a new message.
  */
 export const ApprovedDependencyRecordSchema: GenMessage<ApprovedDependencyRecord> = /*@__PURE__*/
-  messageDesc(file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance, 9);
+  messageDesc(file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance, 18);
 
 /**
  * @generated from message vrooli.scenario_dependency_analyzer.v1.dependency_governance.ObservedDependency
@@ -417,7 +885,64 @@ export type ObservedDependency = Message<"vrooli.scenario_dependency_analyzer.v1
  * Use `create(ObservedDependencySchema)` to create a new message.
  */
 export const ObservedDependencySchema: GenMessage<ObservedDependency> = /*@__PURE__*/
-  messageDesc(file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance, 10);
+  messageDesc(file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance, 19);
+
+/**
+ * @generated from message vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyUsageGroup
+ */
+export type DependencyUsageGroup = Message<"vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyUsageGroup"> & {
+  /**
+   * @generated from field: string ecosystem = 1;
+   */
+  ecosystem: string;
+
+  /**
+   * @generated from field: string package_name = 2;
+   */
+  packageName: string;
+
+  /**
+   * @generated from field: int32 scenario_count = 3;
+   */
+  scenarioCount: number;
+
+  /**
+   * @generated from field: int32 usage_count = 4;
+   */
+  usageCount: number;
+
+  /**
+   * @generated from field: repeated string scenarios = 5;
+   */
+  scenarios: string[];
+
+  /**
+   * @generated from field: repeated vrooli.scenario_dependency_analyzer.v1.dependency_governance.ObservedDependency observed_dependencies = 6;
+   */
+  observedDependencies: ObservedDependency[];
+
+  /**
+   * @generated from field: int32 finding_count = 7;
+   */
+  findingCount: number;
+
+  /**
+   * @generated from field: string highest_severity = 8;
+   */
+  highestSeverity: string;
+
+  /**
+   * @generated from field: string state = 9;
+   */
+  state: string;
+};
+
+/**
+ * Describes the message vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyUsageGroup.
+ * Use `create(DependencyUsageGroupSchema)` to create a new message.
+ */
+export const DependencyUsageGroupSchema: GenMessage<DependencyUsageGroup> = /*@__PURE__*/
+  messageDesc(file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance, 20);
 
 /**
  * @generated from message vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyFinding
@@ -472,6 +997,21 @@ export type ApprovedDependencyFinding = Message<"vrooli.scenario_dependency_anal
    * @generated from field: string expected = 10;
    */
   expected: string;
+
+  /**
+   * @generated from field: string scenario = 11;
+   */
+  scenario: string;
+
+  /**
+   * @generated from field: string finding_class = 12;
+   */
+  findingClass: string;
+
+  /**
+   * @generated from field: string policy_mode = 13;
+   */
+  policyMode: string;
 };
 
 /**
@@ -479,7 +1019,7 @@ export type ApprovedDependencyFinding = Message<"vrooli.scenario_dependency_anal
  * Use `create(ApprovedDependencyFindingSchema)` to create a new message.
  */
 export const ApprovedDependencyFindingSchema: GenMessage<ApprovedDependencyFinding> = /*@__PURE__*/
-  messageDesc(file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance, 11);
+  messageDesc(file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance, 21);
 
 /**
  * @generated from service vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService
@@ -516,6 +1056,38 @@ export const DependencyGovernanceService: GenService<{
     methodKind: "unary";
     input: typeof ValidateApprovedDependenciesRequestSchema;
     output: typeof ApprovedDependencyValidationResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ValidateFleetApprovedDependencies
+   */
+  validateFleetApprovedDependencies: {
+    methodKind: "unary";
+    input: typeof ValidateFleetApprovedDependenciesRequestSchema;
+    output: typeof FleetApprovedDependencyValidationResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.UpsertApprovedDependency
+   */
+  upsertApprovedDependency: {
+    methodKind: "unary";
+    input: typeof UpsertApprovedDependencyRequestSchema;
+    output: typeof UpsertApprovedDependencyResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.PreviewVulnerabilityRemediation
+   */
+  previewVulnerabilityRemediation: {
+    methodKind: "unary";
+    input: typeof PreviewVulnerabilityRemediationRequestSchema;
+    output: typeof VulnerabilityRemediationResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.DenyVulnerableDependency
+   */
+  denyVulnerableDependency: {
+    methodKind: "unary";
+    input: typeof DenyVulnerableDependencyRequestSchema;
+    output: typeof VulnerabilityRemediationResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance, 0);

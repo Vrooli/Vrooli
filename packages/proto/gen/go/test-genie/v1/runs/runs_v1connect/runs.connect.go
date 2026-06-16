@@ -57,6 +57,8 @@ const (
 	// RunsServiceCompareRunVisualsProcedure is the fully-qualified name of the RunsService's
 	// CompareRunVisuals RPC.
 	RunsServiceCompareRunVisualsProcedure = "/vrooli.test_genie.v1.runs.RunsService/CompareRunVisuals"
+	// RunsServiceFindRunProcedure is the fully-qualified name of the RunsService's FindRun RPC.
+	RunsServiceFindRunProcedure = "/vrooli.test_genie.v1.runs.RunsService/FindRun"
 	// RunsServiceCheckFreshnessProcedure is the fully-qualified name of the RunsService's
 	// CheckFreshness RPC.
 	RunsServiceCheckFreshnessProcedure = "/vrooli.test_genie.v1.runs.RunsService/CheckFreshness"
@@ -107,6 +109,13 @@ type RunsServiceClient interface {
 	// advisory: a difference is never a verdict here — a clearly-broken render
 	// fails earlier, at smoke time.
 	CompareRunVisuals(context.Context, *connect.Request[runs.CompareRunVisualsRequest]) (*connect.Response[runs.CompareRunVisualsResponse], error)
+	// FindRun returns the newest completed run matching a shape filter (scenario +
+	// optional git_sha / tree_digest / preset / capture_profile / status). It is
+	// the reuse primitive: git-control-tower asks "is there already a clean-tree
+	// comprehensive+baseline run at this sha?" before starting a new one, so a
+	// snapshot-then-diff (or repeated diff) at the same clean tree does not
+	// re-run the suite. Read-only.
+	FindRun(context.Context, *connect.Request[runs.FindRunRequest]) (*connect.Response[runs.FindRunResponse], error)
 	// CheckFreshness reports, per phase, whether some recorded run executed that
 	// phase (status passed) against the scenario's CURRENT working-tree digest.
 	// Read-only; consumed by git-control-tower's advisory pre-commit step and
@@ -201,6 +210,12 @@ func NewRunsServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(runsServiceMethods.ByName("CompareRunVisuals")),
 			connect.WithClientOptions(opts...),
 		),
+		findRun: connect.NewClient[runs.FindRunRequest, runs.FindRunResponse](
+			httpClient,
+			baseURL+RunsServiceFindRunProcedure,
+			connect.WithSchema(runsServiceMethods.ByName("FindRun")),
+			connect.WithClientOptions(opts...),
+		),
 		checkFreshness: connect.NewClient[runs.CheckFreshnessRequest, runs.CheckFreshnessResponse](
 			httpClient,
 			baseURL+RunsServiceCheckFreshnessProcedure,
@@ -252,6 +267,7 @@ type runsServiceClient struct {
 	listRunVideos     *connect.Client[runs.ListRunVideosRequest, runs.ListRunVideosResponse]
 	listRunVisuals    *connect.Client[runs.ListRunVisualsRequest, runs.ListRunVisualsResponse]
 	compareRunVisuals *connect.Client[runs.CompareRunVisualsRequest, runs.CompareRunVisualsResponse]
+	findRun           *connect.Client[runs.FindRunRequest, runs.FindRunResponse]
 	checkFreshness    *connect.Client[runs.CheckFreshnessRequest, runs.CheckFreshnessResponse]
 	startRun          *connect.Client[runs.StartRunRequest, runs.StartRunResponse]
 	followRun         *connect.Client[runs.FollowRunRequest, runs.RunEvent]
@@ -308,6 +324,11 @@ func (c *runsServiceClient) ListRunVisuals(ctx context.Context, req *connect.Req
 // CompareRunVisuals calls vrooli.test_genie.v1.runs.RunsService.CompareRunVisuals.
 func (c *runsServiceClient) CompareRunVisuals(ctx context.Context, req *connect.Request[runs.CompareRunVisualsRequest]) (*connect.Response[runs.CompareRunVisualsResponse], error) {
 	return c.compareRunVisuals.CallUnary(ctx, req)
+}
+
+// FindRun calls vrooli.test_genie.v1.runs.RunsService.FindRun.
+func (c *runsServiceClient) FindRun(ctx context.Context, req *connect.Request[runs.FindRunRequest]) (*connect.Response[runs.FindRunResponse], error) {
+	return c.findRun.CallUnary(ctx, req)
 }
 
 // CheckFreshness calls vrooli.test_genie.v1.runs.RunsService.CheckFreshness.
@@ -374,6 +395,13 @@ type RunsServiceHandler interface {
 	// advisory: a difference is never a verdict here — a clearly-broken render
 	// fails earlier, at smoke time.
 	CompareRunVisuals(context.Context, *connect.Request[runs.CompareRunVisualsRequest]) (*connect.Response[runs.CompareRunVisualsResponse], error)
+	// FindRun returns the newest completed run matching a shape filter (scenario +
+	// optional git_sha / tree_digest / preset / capture_profile / status). It is
+	// the reuse primitive: git-control-tower asks "is there already a clean-tree
+	// comprehensive+baseline run at this sha?" before starting a new one, so a
+	// snapshot-then-diff (or repeated diff) at the same clean tree does not
+	// re-run the suite. Read-only.
+	FindRun(context.Context, *connect.Request[runs.FindRunRequest]) (*connect.Response[runs.FindRunResponse], error)
 	// CheckFreshness reports, per phase, whether some recorded run executed that
 	// phase (status passed) against the scenario's CURRENT working-tree digest.
 	// Read-only; consumed by git-control-tower's advisory pre-commit step and
@@ -464,6 +492,12 @@ func NewRunsServiceHandler(svc RunsServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(runsServiceMethods.ByName("CompareRunVisuals")),
 		connect.WithHandlerOptions(opts...),
 	)
+	runsServiceFindRunHandler := connect.NewUnaryHandler(
+		RunsServiceFindRunProcedure,
+		svc.FindRun,
+		connect.WithSchema(runsServiceMethods.ByName("FindRun")),
+		connect.WithHandlerOptions(opts...),
+	)
 	runsServiceCheckFreshnessHandler := connect.NewUnaryHandler(
 		RunsServiceCheckFreshnessProcedure,
 		svc.CheckFreshness,
@@ -522,6 +556,8 @@ func NewRunsServiceHandler(svc RunsServiceHandler, opts ...connect.HandlerOption
 			runsServiceListRunVisualsHandler.ServeHTTP(w, r)
 		case RunsServiceCompareRunVisualsProcedure:
 			runsServiceCompareRunVisualsHandler.ServeHTTP(w, r)
+		case RunsServiceFindRunProcedure:
+			runsServiceFindRunHandler.ServeHTTP(w, r)
 		case RunsServiceCheckFreshnessProcedure:
 			runsServiceCheckFreshnessHandler.ServeHTTP(w, r)
 		case RunsServiceStartRunProcedure:
@@ -581,6 +617,10 @@ func (UnimplementedRunsServiceHandler) ListRunVisuals(context.Context, *connect.
 
 func (UnimplementedRunsServiceHandler) CompareRunVisuals(context.Context, *connect.Request[runs.CompareRunVisualsRequest]) (*connect.Response[runs.CompareRunVisualsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.test_genie.v1.runs.RunsService.CompareRunVisuals is not implemented"))
+}
+
+func (UnimplementedRunsServiceHandler) FindRun(context.Context, *connect.Request[runs.FindRunRequest]) (*connect.Response[runs.FindRunResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.test_genie.v1.runs.RunsService.FindRun is not implemented"))
 }
 
 func (UnimplementedRunsServiceHandler) CheckFreshness(context.Context, *connect.Request[runs.CheckFreshnessRequest]) (*connect.Response[runs.CheckFreshnessResponse], error) {

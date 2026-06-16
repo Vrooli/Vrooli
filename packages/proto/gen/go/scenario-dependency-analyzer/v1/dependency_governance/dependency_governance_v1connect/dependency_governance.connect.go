@@ -46,6 +46,18 @@ const (
 	// DependencyGovernanceServiceValidateApprovedDependenciesProcedure is the fully-qualified name of
 	// the DependencyGovernanceService's ValidateApprovedDependencies RPC.
 	DependencyGovernanceServiceValidateApprovedDependenciesProcedure = "/vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService/ValidateApprovedDependencies"
+	// DependencyGovernanceServiceValidateFleetApprovedDependenciesProcedure is the fully-qualified name
+	// of the DependencyGovernanceService's ValidateFleetApprovedDependencies RPC.
+	DependencyGovernanceServiceValidateFleetApprovedDependenciesProcedure = "/vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService/ValidateFleetApprovedDependencies"
+	// DependencyGovernanceServiceUpsertApprovedDependencyProcedure is the fully-qualified name of the
+	// DependencyGovernanceService's UpsertApprovedDependency RPC.
+	DependencyGovernanceServiceUpsertApprovedDependencyProcedure = "/vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService/UpsertApprovedDependency"
+	// DependencyGovernanceServicePreviewVulnerabilityRemediationProcedure is the fully-qualified name
+	// of the DependencyGovernanceService's PreviewVulnerabilityRemediation RPC.
+	DependencyGovernanceServicePreviewVulnerabilityRemediationProcedure = "/vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService/PreviewVulnerabilityRemediation"
+	// DependencyGovernanceServiceDenyVulnerableDependencyProcedure is the fully-qualified name of the
+	// DependencyGovernanceService's DenyVulnerableDependency RPC.
+	DependencyGovernanceServiceDenyVulnerableDependencyProcedure = "/vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService/DenyVulnerableDependency"
 )
 
 // DependencyGovernanceServiceClient is a client for the
@@ -55,6 +67,10 @@ type DependencyGovernanceServiceClient interface {
 	SearchApprovedDependencies(context.Context, *connect.Request[dependency_governance.SearchApprovedDependenciesRequest]) (*connect.Response[dependency_governance.ApprovedDependencySearchResponse], error)
 	ExplainApprovedDependency(context.Context, *connect.Request[dependency_governance.ExplainApprovedDependencyRequest]) (*connect.Response[dependency_governance.ApprovedDependencyExplainResponse], error)
 	ValidateApprovedDependencies(context.Context, *connect.Request[dependency_governance.ValidateApprovedDependenciesRequest]) (*connect.Response[dependency_governance.ApprovedDependencyValidationResponse], error)
+	ValidateFleetApprovedDependencies(context.Context, *connect.Request[dependency_governance.ValidateFleetApprovedDependenciesRequest]) (*connect.Response[dependency_governance.FleetApprovedDependencyValidationResponse], error)
+	UpsertApprovedDependency(context.Context, *connect.Request[dependency_governance.UpsertApprovedDependencyRequest]) (*connect.Response[dependency_governance.UpsertApprovedDependencyResponse], error)
+	PreviewVulnerabilityRemediation(context.Context, *connect.Request[dependency_governance.PreviewVulnerabilityRemediationRequest]) (*connect.Response[dependency_governance.VulnerabilityRemediationResponse], error)
+	DenyVulnerableDependency(context.Context, *connect.Request[dependency_governance.DenyVulnerableDependencyRequest]) (*connect.Response[dependency_governance.VulnerabilityRemediationResponse], error)
 }
 
 // NewDependencyGovernanceServiceClient constructs a client for the
@@ -93,15 +109,43 @@ func NewDependencyGovernanceServiceClient(httpClient connect.HTTPClient, baseURL
 			connect.WithSchema(dependencyGovernanceServiceMethods.ByName("ValidateApprovedDependencies")),
 			connect.WithClientOptions(opts...),
 		),
+		validateFleetApprovedDependencies: connect.NewClient[dependency_governance.ValidateFleetApprovedDependenciesRequest, dependency_governance.FleetApprovedDependencyValidationResponse](
+			httpClient,
+			baseURL+DependencyGovernanceServiceValidateFleetApprovedDependenciesProcedure,
+			connect.WithSchema(dependencyGovernanceServiceMethods.ByName("ValidateFleetApprovedDependencies")),
+			connect.WithClientOptions(opts...),
+		),
+		upsertApprovedDependency: connect.NewClient[dependency_governance.UpsertApprovedDependencyRequest, dependency_governance.UpsertApprovedDependencyResponse](
+			httpClient,
+			baseURL+DependencyGovernanceServiceUpsertApprovedDependencyProcedure,
+			connect.WithSchema(dependencyGovernanceServiceMethods.ByName("UpsertApprovedDependency")),
+			connect.WithClientOptions(opts...),
+		),
+		previewVulnerabilityRemediation: connect.NewClient[dependency_governance.PreviewVulnerabilityRemediationRequest, dependency_governance.VulnerabilityRemediationResponse](
+			httpClient,
+			baseURL+DependencyGovernanceServicePreviewVulnerabilityRemediationProcedure,
+			connect.WithSchema(dependencyGovernanceServiceMethods.ByName("PreviewVulnerabilityRemediation")),
+			connect.WithClientOptions(opts...),
+		),
+		denyVulnerableDependency: connect.NewClient[dependency_governance.DenyVulnerableDependencyRequest, dependency_governance.VulnerabilityRemediationResponse](
+			httpClient,
+			baseURL+DependencyGovernanceServiceDenyVulnerableDependencyProcedure,
+			connect.WithSchema(dependencyGovernanceServiceMethods.ByName("DenyVulnerableDependency")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // dependencyGovernanceServiceClient implements DependencyGovernanceServiceClient.
 type dependencyGovernanceServiceClient struct {
-	listApprovedDependencies     *connect.Client[dependency_governance.ListApprovedDependenciesRequest, dependency_governance.ApprovedDependencyListResponse]
-	searchApprovedDependencies   *connect.Client[dependency_governance.SearchApprovedDependenciesRequest, dependency_governance.ApprovedDependencySearchResponse]
-	explainApprovedDependency    *connect.Client[dependency_governance.ExplainApprovedDependencyRequest, dependency_governance.ApprovedDependencyExplainResponse]
-	validateApprovedDependencies *connect.Client[dependency_governance.ValidateApprovedDependenciesRequest, dependency_governance.ApprovedDependencyValidationResponse]
+	listApprovedDependencies          *connect.Client[dependency_governance.ListApprovedDependenciesRequest, dependency_governance.ApprovedDependencyListResponse]
+	searchApprovedDependencies        *connect.Client[dependency_governance.SearchApprovedDependenciesRequest, dependency_governance.ApprovedDependencySearchResponse]
+	explainApprovedDependency         *connect.Client[dependency_governance.ExplainApprovedDependencyRequest, dependency_governance.ApprovedDependencyExplainResponse]
+	validateApprovedDependencies      *connect.Client[dependency_governance.ValidateApprovedDependenciesRequest, dependency_governance.ApprovedDependencyValidationResponse]
+	validateFleetApprovedDependencies *connect.Client[dependency_governance.ValidateFleetApprovedDependenciesRequest, dependency_governance.FleetApprovedDependencyValidationResponse]
+	upsertApprovedDependency          *connect.Client[dependency_governance.UpsertApprovedDependencyRequest, dependency_governance.UpsertApprovedDependencyResponse]
+	previewVulnerabilityRemediation   *connect.Client[dependency_governance.PreviewVulnerabilityRemediationRequest, dependency_governance.VulnerabilityRemediationResponse]
+	denyVulnerableDependency          *connect.Client[dependency_governance.DenyVulnerableDependencyRequest, dependency_governance.VulnerabilityRemediationResponse]
 }
 
 // ListApprovedDependencies calls
@@ -128,6 +172,30 @@ func (c *dependencyGovernanceServiceClient) ValidateApprovedDependencies(ctx con
 	return c.validateApprovedDependencies.CallUnary(ctx, req)
 }
 
+// ValidateFleetApprovedDependencies calls
+// vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ValidateFleetApprovedDependencies.
+func (c *dependencyGovernanceServiceClient) ValidateFleetApprovedDependencies(ctx context.Context, req *connect.Request[dependency_governance.ValidateFleetApprovedDependenciesRequest]) (*connect.Response[dependency_governance.FleetApprovedDependencyValidationResponse], error) {
+	return c.validateFleetApprovedDependencies.CallUnary(ctx, req)
+}
+
+// UpsertApprovedDependency calls
+// vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.UpsertApprovedDependency.
+func (c *dependencyGovernanceServiceClient) UpsertApprovedDependency(ctx context.Context, req *connect.Request[dependency_governance.UpsertApprovedDependencyRequest]) (*connect.Response[dependency_governance.UpsertApprovedDependencyResponse], error) {
+	return c.upsertApprovedDependency.CallUnary(ctx, req)
+}
+
+// PreviewVulnerabilityRemediation calls
+// vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.PreviewVulnerabilityRemediation.
+func (c *dependencyGovernanceServiceClient) PreviewVulnerabilityRemediation(ctx context.Context, req *connect.Request[dependency_governance.PreviewVulnerabilityRemediationRequest]) (*connect.Response[dependency_governance.VulnerabilityRemediationResponse], error) {
+	return c.previewVulnerabilityRemediation.CallUnary(ctx, req)
+}
+
+// DenyVulnerableDependency calls
+// vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.DenyVulnerableDependency.
+func (c *dependencyGovernanceServiceClient) DenyVulnerableDependency(ctx context.Context, req *connect.Request[dependency_governance.DenyVulnerableDependencyRequest]) (*connect.Response[dependency_governance.VulnerabilityRemediationResponse], error) {
+	return c.denyVulnerableDependency.CallUnary(ctx, req)
+}
+
 // DependencyGovernanceServiceHandler is an implementation of the
 // vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService service.
 type DependencyGovernanceServiceHandler interface {
@@ -135,6 +203,10 @@ type DependencyGovernanceServiceHandler interface {
 	SearchApprovedDependencies(context.Context, *connect.Request[dependency_governance.SearchApprovedDependenciesRequest]) (*connect.Response[dependency_governance.ApprovedDependencySearchResponse], error)
 	ExplainApprovedDependency(context.Context, *connect.Request[dependency_governance.ExplainApprovedDependencyRequest]) (*connect.Response[dependency_governance.ApprovedDependencyExplainResponse], error)
 	ValidateApprovedDependencies(context.Context, *connect.Request[dependency_governance.ValidateApprovedDependenciesRequest]) (*connect.Response[dependency_governance.ApprovedDependencyValidationResponse], error)
+	ValidateFleetApprovedDependencies(context.Context, *connect.Request[dependency_governance.ValidateFleetApprovedDependenciesRequest]) (*connect.Response[dependency_governance.FleetApprovedDependencyValidationResponse], error)
+	UpsertApprovedDependency(context.Context, *connect.Request[dependency_governance.UpsertApprovedDependencyRequest]) (*connect.Response[dependency_governance.UpsertApprovedDependencyResponse], error)
+	PreviewVulnerabilityRemediation(context.Context, *connect.Request[dependency_governance.PreviewVulnerabilityRemediationRequest]) (*connect.Response[dependency_governance.VulnerabilityRemediationResponse], error)
+	DenyVulnerableDependency(context.Context, *connect.Request[dependency_governance.DenyVulnerableDependencyRequest]) (*connect.Response[dependency_governance.VulnerabilityRemediationResponse], error)
 }
 
 // NewDependencyGovernanceServiceHandler builds an HTTP handler from the service implementation. It
@@ -168,6 +240,30 @@ func NewDependencyGovernanceServiceHandler(svc DependencyGovernanceServiceHandle
 		connect.WithSchema(dependencyGovernanceServiceMethods.ByName("ValidateApprovedDependencies")),
 		connect.WithHandlerOptions(opts...),
 	)
+	dependencyGovernanceServiceValidateFleetApprovedDependenciesHandler := connect.NewUnaryHandler(
+		DependencyGovernanceServiceValidateFleetApprovedDependenciesProcedure,
+		svc.ValidateFleetApprovedDependencies,
+		connect.WithSchema(dependencyGovernanceServiceMethods.ByName("ValidateFleetApprovedDependencies")),
+		connect.WithHandlerOptions(opts...),
+	)
+	dependencyGovernanceServiceUpsertApprovedDependencyHandler := connect.NewUnaryHandler(
+		DependencyGovernanceServiceUpsertApprovedDependencyProcedure,
+		svc.UpsertApprovedDependency,
+		connect.WithSchema(dependencyGovernanceServiceMethods.ByName("UpsertApprovedDependency")),
+		connect.WithHandlerOptions(opts...),
+	)
+	dependencyGovernanceServicePreviewVulnerabilityRemediationHandler := connect.NewUnaryHandler(
+		DependencyGovernanceServicePreviewVulnerabilityRemediationProcedure,
+		svc.PreviewVulnerabilityRemediation,
+		connect.WithSchema(dependencyGovernanceServiceMethods.ByName("PreviewVulnerabilityRemediation")),
+		connect.WithHandlerOptions(opts...),
+	)
+	dependencyGovernanceServiceDenyVulnerableDependencyHandler := connect.NewUnaryHandler(
+		DependencyGovernanceServiceDenyVulnerableDependencyProcedure,
+		svc.DenyVulnerableDependency,
+		connect.WithSchema(dependencyGovernanceServiceMethods.ByName("DenyVulnerableDependency")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case DependencyGovernanceServiceListApprovedDependenciesProcedure:
@@ -178,6 +274,14 @@ func NewDependencyGovernanceServiceHandler(svc DependencyGovernanceServiceHandle
 			dependencyGovernanceServiceExplainApprovedDependencyHandler.ServeHTTP(w, r)
 		case DependencyGovernanceServiceValidateApprovedDependenciesProcedure:
 			dependencyGovernanceServiceValidateApprovedDependenciesHandler.ServeHTTP(w, r)
+		case DependencyGovernanceServiceValidateFleetApprovedDependenciesProcedure:
+			dependencyGovernanceServiceValidateFleetApprovedDependenciesHandler.ServeHTTP(w, r)
+		case DependencyGovernanceServiceUpsertApprovedDependencyProcedure:
+			dependencyGovernanceServiceUpsertApprovedDependencyHandler.ServeHTTP(w, r)
+		case DependencyGovernanceServicePreviewVulnerabilityRemediationProcedure:
+			dependencyGovernanceServicePreviewVulnerabilityRemediationHandler.ServeHTTP(w, r)
+		case DependencyGovernanceServiceDenyVulnerableDependencyProcedure:
+			dependencyGovernanceServiceDenyVulnerableDependencyHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -201,4 +305,20 @@ func (UnimplementedDependencyGovernanceServiceHandler) ExplainApprovedDependency
 
 func (UnimplementedDependencyGovernanceServiceHandler) ValidateApprovedDependencies(context.Context, *connect.Request[dependency_governance.ValidateApprovedDependenciesRequest]) (*connect.Response[dependency_governance.ApprovedDependencyValidationResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ValidateApprovedDependencies is not implemented"))
+}
+
+func (UnimplementedDependencyGovernanceServiceHandler) ValidateFleetApprovedDependencies(context.Context, *connect.Request[dependency_governance.ValidateFleetApprovedDependenciesRequest]) (*connect.Response[dependency_governance.FleetApprovedDependencyValidationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ValidateFleetApprovedDependencies is not implemented"))
+}
+
+func (UnimplementedDependencyGovernanceServiceHandler) UpsertApprovedDependency(context.Context, *connect.Request[dependency_governance.UpsertApprovedDependencyRequest]) (*connect.Response[dependency_governance.UpsertApprovedDependencyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.UpsertApprovedDependency is not implemented"))
+}
+
+func (UnimplementedDependencyGovernanceServiceHandler) PreviewVulnerabilityRemediation(context.Context, *connect.Request[dependency_governance.PreviewVulnerabilityRemediationRequest]) (*connect.Response[dependency_governance.VulnerabilityRemediationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.PreviewVulnerabilityRemediation is not implemented"))
+}
+
+func (UnimplementedDependencyGovernanceServiceHandler) DenyVulnerableDependency(context.Context, *connect.Request[dependency_governance.DenyVulnerableDependencyRequest]) (*connect.Response[dependency_governance.VulnerabilityRemediationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.DenyVulnerableDependency is not implemented"))
 }

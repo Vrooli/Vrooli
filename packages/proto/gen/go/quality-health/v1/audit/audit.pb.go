@@ -7,6 +7,7 @@
 package audit_v1
 
 import (
+	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -128,19 +129,20 @@ type AuditQualityResponse struct {
 	// Overall status. Canonical planned values: passed, failed, degraded, error.
 	Status string `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
 	// Human-readable summary for CLI and UI preview surfaces.
-	Summary           string                `protobuf:"bytes,3,opt,name=summary,proto3" json:"summary,omitempty"`
-	Scenario          string                `protobuf:"bytes,4,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	TargetKind        string                `protobuf:"bytes,5,opt,name=target_kind,json=targetKind,proto3" json:"target_kind,omitempty"`
-	TargetPath        string                `protobuf:"bytes,6,opt,name=target_path,json=targetPath,proto3" json:"target_path,omitempty"`
-	Surfaces          []*QualitySurface     `protobuf:"bytes,7,rep,name=surfaces,proto3" json:"surfaces,omitempty"`
-	Contracts         []*ContractEvaluation `protobuf:"bytes,8,rep,name=contracts,proto3" json:"contracts,omitempty"`
-	Findings          []*QualityFinding     `protobuf:"bytes,9,rep,name=findings,proto3" json:"findings,omitempty"`
-	CommandResults    []*CommandResult      `protobuf:"bytes,10,rep,name=command_results,json=commandResults,proto3" json:"command_results,omitempty"`
-	Maturity          *MaturitySummary      `protobuf:"bytes,11,opt,name=maturity,proto3" json:"maturity,omitempty"`
-	Counts            *AuditSummary         `protobuf:"bytes,12,opt,name=counts,proto3" json:"counts,omitempty"`
-	NextSteps         []string              `protobuf:"bytes,13,rep,name=next_steps,json=nextSteps,proto3" json:"next_steps,omitempty"`
-	DegradedReason    string                `protobuf:"bytes,14,opt,name=degraded_reason,json=degradedReason,proto3" json:"degraded_reason,omitempty"`
-	AutofixCandidates []*AutofixCandidate   `protobuf:"bytes,15,rep,name=autofix_candidates,json=autofixCandidates,proto3" json:"autofix_candidates,omitempty"`
+	Summary           string                 `protobuf:"bytes,3,opt,name=summary,proto3" json:"summary,omitempty"`
+	Scenario          string                 `protobuf:"bytes,4,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	TargetKind        string                 `protobuf:"bytes,5,opt,name=target_kind,json=targetKind,proto3" json:"target_kind,omitempty"`
+	TargetPath        string                 `protobuf:"bytes,6,opt,name=target_path,json=targetPath,proto3" json:"target_path,omitempty"`
+	Surfaces          []*QualitySurface      `protobuf:"bytes,7,rep,name=surfaces,proto3" json:"surfaces,omitempty"`
+	Contracts         []*ContractEvaluation  `protobuf:"bytes,8,rep,name=contracts,proto3" json:"contracts,omitempty"`
+	Findings          []*QualityFinding      `protobuf:"bytes,9,rep,name=findings,proto3" json:"findings,omitempty"`
+	CommandResults    []*CommandResult       `protobuf:"bytes,10,rep,name=command_results,json=commandResults,proto3" json:"command_results,omitempty"`
+	Maturity          *MaturitySummary       `protobuf:"bytes,11,opt,name=maturity,proto3" json:"maturity,omitempty"`
+	Counts            *AuditSummary          `protobuf:"bytes,12,opt,name=counts,proto3" json:"counts,omitempty"`
+	NextSteps         []string               `protobuf:"bytes,13,rep,name=next_steps,json=nextSteps,proto3" json:"next_steps,omitempty"`
+	DegradedReason    string                 `protobuf:"bytes,14,opt,name=degraded_reason,json=degradedReason,proto3" json:"degraded_reason,omitempty"`
+	AutofixCandidates []*AutofixCandidate    `protobuf:"bytes,15,rep,name=autofix_candidates,json=autofixCandidates,proto3" json:"autofix_candidates,omitempty"`
+	Assessment        *v1.MaturityAssessment `protobuf:"bytes,16,opt,name=assessment,proto3" json:"assessment,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -276,6 +278,13 @@ func (x *AuditQualityResponse) GetDegradedReason() string {
 func (x *AuditQualityResponse) GetAutofixCandidates() []*AutofixCandidate {
 	if x != nil {
 		return x.AutofixCandidates
+	}
+	return nil
+}
+
+func (x *AuditQualityResponse) GetAssessment() *v1.MaturityAssessment {
+	if x != nil {
+		return x.Assessment
 	}
 	return nil
 }
@@ -1532,7 +1541,7 @@ var File_quality_health_v1_audit_audit_proto protoreflect.FileDescriptor
 
 const file_quality_health_v1_audit_audit_proto_rawDesc = "" +
 	"\n" +
-	"#quality-health/v1/audit/audit.proto\x12\x1evrooli.quality_health.v1.audit\"\x8d\x02\n" +
+	"#quality-health/v1/audit/audit.proto\x12\x1evrooli.quality_health.v1.audit\x1a\x18common/v1/maturity.proto\"\x8d\x02\n" +
 	"\x13AuditQualityRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12\x19\n" +
@@ -1540,7 +1549,7 @@ const file_quality_health_v1_audit_audit_proto_rawDesc = "" +
 	"\bsurfaces\x18\x06 \x03(\tR\bsurfaces\x12:\n" +
 	"\x19include_command_execution\x18\x04 \x01(\bR\x17includeCommandExecution\x126\n" +
 	"\x17include_autofix_preview\x18\x05 \x01(\bR\x15includeAutofixPreview\x12\x1b\n" +
-	"\tuse_cache\x18\a \x01(\bR\buseCache\"\xbb\x06\n" +
+	"\tuse_cache\x18\a \x01(\bR\buseCache\"\xfa\x06\n" +
 	"\x14AuditQualityResponse\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x18\n" +
@@ -1560,7 +1569,10 @@ const file_quality_health_v1_audit_audit_proto_rawDesc = "" +
 	"\n" +
 	"next_steps\x18\r \x03(\tR\tnextSteps\x12'\n" +
 	"\x0fdegraded_reason\x18\x0e \x01(\tR\x0edegradedReason\x12_\n" +
-	"\x12autofix_candidates\x18\x0f \x03(\v20.vrooli.quality_health.v1.audit.AutofixCandidateR\x11autofixCandidates\"\x8e\x01\n" +
+	"\x12autofix_candidates\x18\x0f \x03(\v20.vrooli.quality_health.v1.audit.AutofixCandidateR\x11autofixCandidates\x12=\n" +
+	"\n" +
+	"assessment\x18\x10 \x01(\v2\x1d.common.v1.MaturityAssessmentR\n" +
+	"assessment\"\x8e\x01\n" +
 	"\x14ListContractsRequest\x12\x1a\n" +
 	"\blanguage\x18\x01 \x01(\tR\blanguage\x12\x1c\n" +
 	"\tframework\x18\x02 \x01(\tR\tframework\x12!\n" +
@@ -1718,6 +1730,7 @@ var file_quality_health_v1_audit_audit_proto_goTypes = []any{
 	(*MaturitySummary)(nil),        // 13: vrooli.quality_health.v1.audit.MaturitySummary
 	(*AuditSummary)(nil),           // 14: vrooli.quality_health.v1.audit.AuditSummary
 	(*AutofixCandidate)(nil),       // 15: vrooli.quality_health.v1.audit.AutofixCandidate
+	(*v1.MaturityAssessment)(nil),  // 16: common.v1.MaturityAssessment
 }
 var file_quality_health_v1_audit_audit_proto_depIdxs = []int32{
 	8,  // 0: vrooli.quality_health.v1.audit.AuditQualityResponse.surfaces:type_name -> vrooli.quality_health.v1.audit.QualitySurface
@@ -1727,25 +1740,26 @@ var file_quality_health_v1_audit_audit_proto_depIdxs = []int32{
 	13, // 4: vrooli.quality_health.v1.audit.AuditQualityResponse.maturity:type_name -> vrooli.quality_health.v1.audit.MaturitySummary
 	14, // 5: vrooli.quality_health.v1.audit.AuditQualityResponse.counts:type_name -> vrooli.quality_health.v1.audit.AuditSummary
 	15, // 6: vrooli.quality_health.v1.audit.AuditQualityResponse.autofix_candidates:type_name -> vrooli.quality_health.v1.audit.AutofixCandidate
-	9,  // 7: vrooli.quality_health.v1.audit.ListContractsResponse.contracts:type_name -> vrooli.quality_health.v1.audit.QualityContract
-	11, // 8: vrooli.quality_health.v1.audit.ExplainFindingResponse.finding:type_name -> vrooli.quality_health.v1.audit.QualityFinding
-	9,  // 9: vrooli.quality_health.v1.audit.ExplainFindingResponse.contract:type_name -> vrooli.quality_health.v1.audit.QualityContract
-	15, // 10: vrooli.quality_health.v1.audit.FixConfigResponse.candidates:type_name -> vrooli.quality_health.v1.audit.AutofixCandidate
-	0,  // 11: vrooli.quality_health.v1.audit.AuditService.AuditQuality:input_type -> vrooli.quality_health.v1.audit.AuditQualityRequest
-	2,  // 12: vrooli.quality_health.v1.audit.AuditService.ListContracts:input_type -> vrooli.quality_health.v1.audit.ListContractsRequest
-	4,  // 13: vrooli.quality_health.v1.audit.AuditService.ExplainFinding:input_type -> vrooli.quality_health.v1.audit.ExplainFindingRequest
-	6,  // 14: vrooli.quality_health.v1.audit.AuditService.PreviewFixConfig:input_type -> vrooli.quality_health.v1.audit.FixConfigRequest
-	6,  // 15: vrooli.quality_health.v1.audit.AuditService.ApplyFixConfig:input_type -> vrooli.quality_health.v1.audit.FixConfigRequest
-	1,  // 16: vrooli.quality_health.v1.audit.AuditService.AuditQuality:output_type -> vrooli.quality_health.v1.audit.AuditQualityResponse
-	3,  // 17: vrooli.quality_health.v1.audit.AuditService.ListContracts:output_type -> vrooli.quality_health.v1.audit.ListContractsResponse
-	5,  // 18: vrooli.quality_health.v1.audit.AuditService.ExplainFinding:output_type -> vrooli.quality_health.v1.audit.ExplainFindingResponse
-	7,  // 19: vrooli.quality_health.v1.audit.AuditService.PreviewFixConfig:output_type -> vrooli.quality_health.v1.audit.FixConfigResponse
-	7,  // 20: vrooli.quality_health.v1.audit.AuditService.ApplyFixConfig:output_type -> vrooli.quality_health.v1.audit.FixConfigResponse
-	16, // [16:21] is the sub-list for method output_type
-	11, // [11:16] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	16, // 7: vrooli.quality_health.v1.audit.AuditQualityResponse.assessment:type_name -> common.v1.MaturityAssessment
+	9,  // 8: vrooli.quality_health.v1.audit.ListContractsResponse.contracts:type_name -> vrooli.quality_health.v1.audit.QualityContract
+	11, // 9: vrooli.quality_health.v1.audit.ExplainFindingResponse.finding:type_name -> vrooli.quality_health.v1.audit.QualityFinding
+	9,  // 10: vrooli.quality_health.v1.audit.ExplainFindingResponse.contract:type_name -> vrooli.quality_health.v1.audit.QualityContract
+	15, // 11: vrooli.quality_health.v1.audit.FixConfigResponse.candidates:type_name -> vrooli.quality_health.v1.audit.AutofixCandidate
+	0,  // 12: vrooli.quality_health.v1.audit.AuditService.AuditQuality:input_type -> vrooli.quality_health.v1.audit.AuditQualityRequest
+	2,  // 13: vrooli.quality_health.v1.audit.AuditService.ListContracts:input_type -> vrooli.quality_health.v1.audit.ListContractsRequest
+	4,  // 14: vrooli.quality_health.v1.audit.AuditService.ExplainFinding:input_type -> vrooli.quality_health.v1.audit.ExplainFindingRequest
+	6,  // 15: vrooli.quality_health.v1.audit.AuditService.PreviewFixConfig:input_type -> vrooli.quality_health.v1.audit.FixConfigRequest
+	6,  // 16: vrooli.quality_health.v1.audit.AuditService.ApplyFixConfig:input_type -> vrooli.quality_health.v1.audit.FixConfigRequest
+	1,  // 17: vrooli.quality_health.v1.audit.AuditService.AuditQuality:output_type -> vrooli.quality_health.v1.audit.AuditQualityResponse
+	3,  // 18: vrooli.quality_health.v1.audit.AuditService.ListContracts:output_type -> vrooli.quality_health.v1.audit.ListContractsResponse
+	5,  // 19: vrooli.quality_health.v1.audit.AuditService.ExplainFinding:output_type -> vrooli.quality_health.v1.audit.ExplainFindingResponse
+	7,  // 20: vrooli.quality_health.v1.audit.AuditService.PreviewFixConfig:output_type -> vrooli.quality_health.v1.audit.FixConfigResponse
+	7,  // 21: vrooli.quality_health.v1.audit.AuditService.ApplyFixConfig:output_type -> vrooli.quality_health.v1.audit.FixConfigResponse
+	17, // [17:22] is the sub-list for method output_type
+	12, // [12:17] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_quality_health_v1_audit_audit_proto_init() }

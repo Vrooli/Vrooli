@@ -11,6 +11,7 @@ package baseline
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -35,6 +36,9 @@ const (
 	exitOK            = 0
 	exitRegression    = 1
 	exitNotComparable = 2
+	// exitNotReady is `diff status` when the run is still in flight — distinct
+	// from a verdict so scripts don't misread "not done yet" as "clean".
+	exitNotReady = 3
 )
 
 // baselineClientTimeout bounds snapshot/diff, which block while one
@@ -64,7 +68,7 @@ var clientFactory = func(core *cliapp.ScenarioApp) baselines_v1connect.Baselines
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	subcommands := []cliapp.Command{
 		{Name: "snapshot", NeedsAPI: true, Description: "Capture a baseline from one durable test-genie run (--scenario --name [--branch] [--include w,t,...] [--fast|--full] [--reason]); Ctrl-C detaches (re-attach via test-genie runs follow), never aborts", Run: func(a []string) error { return runSnapshot(core, a) }},
-		{Name: "diff", NeedsAPI: true, Description: "Diff a baseline against the working tree (--scenario --name [--branch] [--surface]); exit 1 on regression, 2 on not-comparable", Run: func(a []string) error { return runDiff(core, a) }},
+		{Name: "diff", NeedsAPI: true, Description: "Start a durable diff of a baseline vs the working tree, returning a run id + re-attach command (--scenario --name [--branch] [--surface] [--wait]); `diff status --run R` resolves the verdict (exit 1 regression, 2 not-comparable, 3 not-ready); reuses a clean-tree run when possible; Ctrl-C detaches, never aborts", Run: func(a []string) error { return runDiff(core, a) }},
 		{Name: "list", NeedsAPI: true, Description: "List baselines (--scenario [--branch] [--all-branches])", Run: func(a []string) error { return runList(core, a) }},
 		{Name: "show", NeedsAPI: true, Description: "Show one baseline (--scenario --name [--branch])", Run: func(a []string) error { return runShow(core, a) }},
 		{Name: "delete", NeedsAPI: true, Description: "Delete a baseline and unpin its test-genie runs (--scenario --name [--branch])", Run: func(a []string) error { return runDelete(core, a) }},
@@ -149,6 +153,9 @@ func runSnapshot(core *cliapp.ScenarioApp, args []string) error {
 		Include: splitCSV(include), Fast: fast, Reason: reason, CreatedBy: "agent",
 	}))
 	if err != nil {
+		if handled, code := renderRunBusy(err, c.scenario); handled {
+			os.Exit(code)
+		}
 		return err
 	}
 	if c.json {
@@ -158,12 +165,24 @@ func runSnapshot(core *cliapp.ScenarioApp, args []string) error {
 	return nil
 }
 
+// runDiff STARTS a durable diff and returns immediately with the run handle +
+// re-attach banner (mirror snapshot) — it never silently blocks (the
+// anti-polling contract). `baseline diff status --run R` (dispatched here)
+// resolves the cached verdict. With --wait it blocks server-side and prints the
+// verdict inline; a clean-tree reuse resolves instantly with no second suite.
 func runDiff(core *cliapp.ScenarioApp, args []string) error {
+	// Sub-dispatch: `baseline diff status …` resolves a started diff's verdict.
+	if len(args) > 0 && args[0] == "status" {
+		return runDiffStatus(core, args[1:])
+	}
+
 	var c commonFlags
 	var surface string
+	var wait bool
 	fs := newFlagSet("baseline diff")
 	c.bind(fs)
 	fs.StringVar(&surface, "surface", "", "Restrict to one surface")
+	fs.BoolVar(&wait, "wait", false, "Block until the verdict is ready and print it inline (CI); default returns a run id to resolve with `diff status`")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -171,22 +190,122 @@ func runDiff(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 
+	startCtx, cancel := context.WithTimeout(context.Background(), snapshotStartCeiling)
+	defer cancel()
 	client := clientFactory(core)
-	resp, err := client.DiffBaseline(context.Background(), connect.NewRequest(&baselinesv1.DiffBaselineRequest{
+	start, err := client.StartDiff(startCtx, connect.NewRequest(&baselinesv1.StartDiffRequest{
 		Scenario: c.scenario, Name: c.name, Branch: c.branch, Surface: surface,
+	}))
+	if err != nil {
+		if handled, code := renderRunBusy(err, c.scenario); handled {
+			os.Exit(code)
+		}
+		return err
+	}
+
+	// --wait, or a reused run (already terminal): resolve the verdict inline.
+	// Otherwise return fast with the re-attach banner (no client polling).
+	if wait || start.Msg.GetReusedRun() {
+		return resolveDiff(core, c, surface, start.Msg.GetRunId(), wait)
+	}
+	if c.json {
+		return printJSON(start.Msg)
+	}
+	printDiffStart(start.Msg)
+	return nil
+}
+
+// runDiffStatus resolves a started diff's cached verdict. It exits 0/1/2 by
+// verdict, or 3 when the run is still in flight (with follow/resolve guidance).
+func runDiffStatus(core *cliapp.ScenarioApp, args []string) error {
+	var c commonFlags
+	var surface, run string
+	var wait bool
+	fs := newFlagSet("baseline diff status")
+	c.bind(fs)
+	fs.StringVar(&surface, "surface", "", "Restrict to one surface")
+	fs.StringVar(&run, "run", "", "The diff's run id (from `baseline diff`) (required)")
+	fs.BoolVar(&wait, "wait", false, "Block server-side until the verdict is ready")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if err := c.requireScenarioName(); err != nil {
+		return err
+	}
+	if strings.TrimSpace(run) == "" {
+		return fmt.Errorf("--run is required (the run id printed by `baseline diff`)")
+	}
+	return resolveDiff(core, c, surface, run, wait)
+}
+
+// resolveDiff fetches a diff verdict via GetDiffResult and renders it, exiting by
+// verdict (0/1/2) or 3 when still in flight. wait blocks server-side.
+func resolveDiff(core *cliapp.ScenarioApp, c commonFlags, surface, run string, wait bool) error {
+	timeout := snapshotStartCeiling
+	if wait {
+		timeout = baselineClientTimeout
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	client := clientFactory(core)
+	resp, err := client.GetDiffResult(ctx, connect.NewRequest(&baselinesv1.GetDiffResultRequest{
+		Scenario: c.scenario, Name: c.name, Branch: c.branch, RunId: run, Surface: surface, Wait: wait,
 	}))
 	if err != nil {
 		return err
 	}
+	msg := resp.Msg
+	if msg.GetStatus() == "in_progress" {
+		if c.json {
+			if err := printJSON(msg); err != nil {
+				return err
+			}
+		} else {
+			printDiffPending(c.scenario, c.name, run, int(msg.GetRecommendedNextCheckSeconds()))
+		}
+		os.Exit(exitNotReady)
+	}
 	if c.json {
-		if err := printJSON(resp.Msg); err != nil {
+		if err := printJSON(msg); err != nil {
 			return err
 		}
-	} else {
-		printDiff(resp.Msg)
+	} else if d := msg.GetDiff(); d != nil {
+		printDiff(d)
 	}
-	os.Exit(exitCodeForVerdict(resp.Msg.GetVerdict()))
+	os.Exit(exitCodeForVerdict(msg.GetDiff().GetVerdict()))
 	return nil
+}
+
+// renderRunBusy renders the one-run-per-scenario rejection (a divergent run is
+// in flight) with wait/abort guidance and returns the exit code, or false when
+// err is not a busy rejection.
+func renderRunBusy(err error, scenario string) (bool, int) {
+	var ce *connect.Error
+	if !errors.As(err, &ce) || ce.Code() != connect.CodeFailedPrecondition {
+		return false, 0
+	}
+	for _, d := range ce.Details() {
+		msg, derr := d.Value()
+		if derr != nil {
+			continue
+		}
+		bi, ok := msg.(*baselinesv1.RunBusyInfo)
+		if !ok {
+			continue
+		}
+		fmt.Fprintf(os.Stderr, "✗ %s already has an in-progress run %s (preset %s) — only one run per scenario at a time.\n", bi.GetScenario(), bi.GetRunId(), busyPreset(bi.GetPreset()))
+		fmt.Fprintf(os.Stderr, "  wait:  test-genie runs follow %s %s\n", bi.GetScenario(), bi.GetRunId())
+		fmt.Fprintf(os.Stderr, "  abort: test-genie runs abort %s %s\n", bi.GetScenario(), bi.GetRunId())
+		return true, exitNotComparable
+	}
+	return false, 0
+}
+
+func busyPreset(p string) string {
+	if strings.TrimSpace(p) == "" {
+		return "default"
+	}
+	return p
 }
 
 func runList(core *cliapp.ScenarioApp, args []string) error {

@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file security-health/v1/dependencies/dependencies.proto.
  */
 export const file_security_health_v1_dependencies_dependencies: GenFile = /*@__PURE__*/
-  fileDesc("CjJzZWN1cml0eS1oZWFsdGgvdjEvZGVwZW5kZW5jaWVzL2RlcGVuZGVuY2llcy5wcm90bxImdnJvb2xpLnNlY3VyaXR5X2hlYWx0aC52MS5kZXBlbmRlbmNpZXMi2QEKEERlcGVuZGVuY3lSZWNvcmQSEAoIc2NlbmFyaW8YASABKAkSRAoJZWNvc3lzdGVtGAIgASgOMjEudnJvb2xpLnNlY3VyaXR5X2hlYWx0aC52MS5kZXBlbmRlbmNpZXMuRWNvc3lzdGVtEgwKBG5hbWUYAyABKAkSDwoHdmVyc2lvbhgEIAEoCRITCgtzb3VyY2VfZmlsZRgFIAEoCRIQCgh2dWxuX2lkcxgGIAMoCRIUCgxtYXhfc2V2ZXJpdHkYByABKAkSEQoJbGFzdF9zZWVuGAggASgJItsBCg1TZWFyY2hSZXF1ZXN0Eg0KBXF1ZXJ5GAEgASgJEg0KBWxpbWl0GAIgASgFEjoKBG1vZGUYAyABKA4yLC52cm9vbGkuc2VjdXJpdHlfaGVhbHRoLnYxLmRlcGVuZGVuY2llcy5Nb2RlEkQKCWVjb3N5c3RlbRgEIAEoDjIxLnZyb29saS5zZWN1cml0eV9oZWFsdGgudjEuZGVwZW5kZW5jaWVzLkVjb3N5c3RlbRIXCg92dWxuZXJhYmxlX29ubHkYBSABKAgSEQoJbmFtZV9nbG9iGAYgASgJImcKDFNlYXJjaFJlc3VsdBJICgZyZWNvcmQYASABKAsyOC52cm9vbGkuc2VjdXJpdHlfaGVhbHRoLnYxLmRlcGVuZGVuY2llcy5EZXBlbmRlbmN5UmVjb3JkEg0KBXNjb3JlGAIgASgBIpgBCg5TZWFyY2hSZXNwb25zZRJFCgdyZXN1bHRzGAEgAygLMjQudnJvb2xpLnNlY3VyaXR5X2hlYWx0aC52MS5kZXBlbmRlbmNpZXMuU2VhcmNoUmVzdWx0Ej8KCW1vZGVfdXNlZBgCIAEoDjIsLnZyb29saS5zZWN1cml0eV9oZWFsdGgudjEuZGVwZW5kZW5jaWVzLk1vZGUiDwoNU3RhdHVzUmVxdWVzdCL3AQoOU3RhdHVzUmVzcG9uc2USEQoJYXZhaWxhYmxlGAEgASgIEg4KBm9sbGFtYRgCIAEoCBIOCgZxZHJhbnQYAyABKAgSFQoNaW5kZXhlZF9jb3VudBgEIAEoBRIYChB2dWxuZXJhYmxlX2NvdW50GAUgASgFEhkKEWxhc3RfcmVjb25jaWxlX2F0GAYgASgJEh4KFmxhc3RfcmVjb25jaWxlX291dGNvbWUYByABKAkSFwoPaW5kZXhlZF92ZWN0b3JzGAggASgFEhgKEGV4cGVjdGVkX3ZlY3RvcnMYCSABKAUSEwoLaW5kZXhfcmVhZHkYCiABKAgqOAoETW9kZRIUChBNT0RFX1VOU1BFQ0lGSUVEEAASCwoHTU9ERV9BSRABEg0KCU1PREVfVEVYVBACKksKCUVjb3N5c3RlbRIZChVFQ09TWVNURU1fVU5TUEVDSUZJRUQQABIQCgxFQ09TWVNURU1fR08QARIRCg1FQ09TWVNURU1fTlBNEAIyhQIKEURlcGVuZGVuY3lTZXJ2aWNlEncKBlNlYXJjaBI1LnZyb29saS5zZWN1cml0eV9oZWFsdGgudjEuZGVwZW5kZW5jaWVzLlNlYXJjaFJlcXVlc3QaNi52cm9vbGkuc2VjdXJpdHlfaGVhbHRoLnYxLmRlcGVuZGVuY2llcy5TZWFyY2hSZXNwb25zZRJ3CgZTdGF0dXMSNS52cm9vbGkuc2VjdXJpdHlfaGVhbHRoLnYxLmRlcGVuZGVuY2llcy5TdGF0dXNSZXF1ZXN0GjYudnJvb2xpLnNlY3VyaXR5X2hlYWx0aC52MS5kZXBlbmRlbmNpZXMuU3RhdHVzUmVzcG9uc2VCYFpeZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zZWN1cml0eS1oZWFsdGgvdjEvZGVwZW5kZW5jaWVzO2RlcGVuZGVuY2llc192MWIGcHJvdG8z");
+  fileDesc("CjJzZWN1cml0eS1oZWFsdGgvdjEvZGVwZW5kZW5jaWVzL2RlcGVuZGVuY2llcy5wcm90bxImdnJvb2xpLnNlY3VyaXR5X2hlYWx0aC52MS5kZXBlbmRlbmNpZXMi2QEKEERlcGVuZGVuY3lSZWNvcmQSEAoIc2NlbmFyaW8YASABKAkSRAoJZWNvc3lzdGVtGAIgASgOMjEudnJvb2xpLnNlY3VyaXR5X2hlYWx0aC52MS5kZXBlbmRlbmNpZXMuRWNvc3lzdGVtEgwKBG5hbWUYAyABKAkSDwoHdmVyc2lvbhgEIAEoCRITCgtzb3VyY2VfZmlsZRgFIAEoCRIQCgh2dWxuX2lkcxgGIAMoCRIUCgxtYXhfc2V2ZXJpdHkYByABKAkSEQoJbGFzdF9zZWVuGAggASgJIl8KFEFmZmVjdGVkVmVyc2lvblJhbmdlEg0KBXJhbmdlGAEgASgJEhIKCmludHJvZHVjZWQYAiABKAkSDQoFZml4ZWQYAyABKAkSFQoNbGFzdF9hZmZlY3RlZBgEIAEoCSIzChFGaXhlZFZlcnNpb25SYW5nZRINCgVyYW5nZRgBIAEoCRIPCgd2ZXJzaW9uGAIgASgJIqgGChNWdWxuZXJhYmlsaXR5UmVjb3JkEhgKEHZ1bG5lcmFiaWxpdHlfaWQYASABKAkSDwoHYWxpYXNlcxgCIAMoCRJECgllY29zeXN0ZW0YAyABKA4yMS52cm9vbGkuc2VjdXJpdHlfaGVhbHRoLnYxLmRlcGVuZGVuY2llcy5FY29zeXN0ZW0SDAoEbmFtZRgEIAEoCRIPCgd2ZXJzaW9uGAUgASgJElUKD2FmZmVjdGVkX3JhbmdlcxgGIAMoCzI8LnZyb29saS5zZWN1cml0eV9oZWFsdGgudjEuZGVwZW5kZW5jaWVzLkFmZmVjdGVkVmVyc2lvblJhbmdlEk8KDGZpeGVkX3JhbmdlcxgHIAMoCzI5LnZyb29saS5zZWN1cml0eV9oZWFsdGgudjEuZGVwZW5kZW5jaWVzLkZpeGVkVmVyc2lvblJhbmdlEhAKCHNldmVyaXR5GAggASgJEhsKE25vcm1hbGl6ZWRfc2V2ZXJpdHkYCSABKAkSFAoMYWR2aXNvcnlfdXJsGAogASgJEg8KB3N1bW1hcnkYCyABKAkSDwoHZGV0YWlscxgMIAEoCRJLCgZzb3VyY2UYDSABKA4yOy52cm9vbGkuc2VjdXJpdHlfaGVhbHRoLnYxLmRlcGVuZGVuY2llcy5WdWxuZXJhYmlsaXR5U291cmNlEkoKDHJlYWNoYWJpbGl0eRgOIAEoDjI0LnZyb29saS5zZWN1cml0eV9oZWFsdGgudjEuZGVwZW5kZW5jaWVzLlJlYWNoYWJpbGl0eRJOCgpjb25maWRlbmNlGA8gASgOMjoudnJvb2xpLnNlY3VyaXR5X2hlYWx0aC52MS5kZXBlbmRlbmNpZXMuRXZpZGVuY2VDb25maWRlbmNlEhIKCnByb2R1Y3Rpb24YECABKAgSEAoIZGV2X29ubHkYESABKAgSEgoKZmlyc3Rfc2VlbhgSIAEoCRIRCglsYXN0X3NlZW4YEyABKAkSEQoJc2NlbmFyaW9zGBQgAygJEhQKDHNvdXJjZV9maWxlcxgVIAMoCRITCgtyZW1lZGlhdGlvbhgWIAEoCSLbAQoNU2VhcmNoUmVxdWVzdBINCgVxdWVyeRgBIAEoCRINCgVsaW1pdBgCIAEoBRI6CgRtb2RlGAMgASgOMiwudnJvb2xpLnNlY3VyaXR5X2hlYWx0aC52MS5kZXBlbmRlbmNpZXMuTW9kZRJECgllY29zeXN0ZW0YBCABKA4yMS52cm9vbGkuc2VjdXJpdHlfaGVhbHRoLnYxLmRlcGVuZGVuY2llcy5FY29zeXN0ZW0SFwoPdnVsbmVyYWJsZV9vbmx5GAUgASgIEhEKCW5hbWVfZ2xvYhgGIAEoCSJnCgxTZWFyY2hSZXN1bHQSSAoGcmVjb3JkGAEgASgLMjgudnJvb2xpLnNlY3VyaXR5X2hlYWx0aC52MS5kZXBlbmRlbmNpZXMuRGVwZW5kZW5jeVJlY29yZBINCgVzY29yZRgCIAEoASKYAQoOU2VhcmNoUmVzcG9uc2USRQoHcmVzdWx0cxgBIAMoCzI0LnZyb29saS5zZWN1cml0eV9oZWFsdGgudjEuZGVwZW5kZW5jaWVzLlNlYXJjaFJlc3VsdBI/Cgltb2RlX3VzZWQYAiABKA4yLC52cm9vbGkuc2VjdXJpdHlfaGVhbHRoLnYxLmRlcGVuZGVuY2llcy5Nb2RlIosCChpMaXN0VnVsbmVyYWJpbGl0aWVzUmVxdWVzdBJECgllY29zeXN0ZW0YASABKA4yMS52cm9vbGkuc2VjdXJpdHlfaGVhbHRoLnYxLmRlcGVuZGVuY2llcy5FY29zeXN0ZW0SFAoMcGFja2FnZV9uYW1lGAIgASgJEhAKCHNjZW5hcmlvGAMgASgJEhgKEHZ1bG5lcmFiaWxpdHlfaWQYBCABKAkSVgoSbWluaW11bV9jb25maWRlbmNlGAUgASgOMjoudnJvb2xpLnNlY3VyaXR5X2hlYWx0aC52MS5kZXBlbmRlbmNpZXMuRXZpZGVuY2VDb25maWRlbmNlEg0KBWxpbWl0GAYgASgFIoIBChtMaXN0VnVsbmVyYWJpbGl0aWVzUmVzcG9uc2USVAoPdnVsbmVyYWJpbGl0aWVzGAEgAygLMjsudnJvb2xpLnNlY3VyaXR5X2hlYWx0aC52MS5kZXBlbmRlbmNpZXMuVnVsbmVyYWJpbGl0eVJlY29yZBINCgV0b3RhbBgCIAEoBSKTAQobRXhwbGFpblZ1bG5lcmFiaWxpdHlSZXF1ZXN0EhgKEHZ1bG5lcmFiaWxpdHlfaWQYASABKAkSRAoJZWNvc3lzdGVtGAIgASgOMjEudnJvb2xpLnNlY3VyaXR5X2hlYWx0aC52MS5kZXBlbmRlbmNpZXMuRWNvc3lzdGVtEhQKDHBhY2thZ2VfbmFtZRgDIAEoCSKBAQocRXhwbGFpblZ1bG5lcmFiaWxpdHlSZXNwb25zZRJSCg12dWxuZXJhYmlsaXR5GAEgASgLMjsudnJvb2xpLnNlY3VyaXR5X2hlYWx0aC52MS5kZXBlbmRlbmNpZXMuVnVsbmVyYWJpbGl0eVJlY29yZBINCgVmb3VuZBgCIAEoCCIPCg1TdGF0dXNSZXF1ZXN0IvcBCg5TdGF0dXNSZXNwb25zZRIRCglhdmFpbGFibGUYASABKAgSDgoGb2xsYW1hGAIgASgIEg4KBnFkcmFudBgDIAEoCBIVCg1pbmRleGVkX2NvdW50GAQgASgFEhgKEHZ1bG5lcmFibGVfY291bnQYBSABKAUSGQoRbGFzdF9yZWNvbmNpbGVfYXQYBiABKAkSHgoWbGFzdF9yZWNvbmNpbGVfb3V0Y29tZRgHIAEoCRIXCg9pbmRleGVkX3ZlY3RvcnMYCCABKAUSGAoQZXhwZWN0ZWRfdmVjdG9ycxgJIAEoBRITCgtpbmRleF9yZWFkeRgKIAEoCCo4CgRNb2RlEhQKEE1PREVfVU5TUEVDSUZJRUQQABILCgdNT0RFX0FJEAESDQoJTU9ERV9URVhUEAIqSwoJRWNvc3lzdGVtEhkKFUVDT1NZU1RFTV9VTlNQRUNJRklFRBAAEhAKDEVDT1NZU1RFTV9HTxABEhEKDUVDT1NZU1RFTV9OUE0QAiqkAQoTVnVsbmVyYWJpbGl0eVNvdXJjZRIkCiBWVUxORVJBQklMSVRZX1NPVVJDRV9VTlNQRUNJRklFRBAAEhwKGFZVTE5FUkFCSUxJVFlfU09VUkNFX09TVhABEiQKIFZVTE5FUkFCSUxJVFlfU09VUkNFX0dPVlVMTkNIRUNLEAISIwofVlVMTkVSQUJJTElUWV9TT1VSQ0VfUE5QTV9BVURJVBADKoYBCgxSZWFjaGFiaWxpdHkSHAoYUkVBQ0hBQklMSVRZX1VOU1BFQ0lGSUVEEAASGAoUUkVBQ0hBQklMSVRZX1VOS05PV04QARIiCh5SRUFDSEFCSUxJVFlfTE9DS0ZJTEVfQUZGRUNURUQQAhIaChZSRUFDSEFCSUxJVFlfUkVBQ0hBQkxFEAMqnQEKEkV2aWRlbmNlQ29uZmlkZW5jZRIjCh9FVklERU5DRV9DT05GSURFTkNFX1VOU1BFQ0lGSUVEEAASIAocRVZJREVOQ0VfQ09ORklERU5DRV9ERUdSQURFRBABEiAKHEVWSURFTkNFX0NPTkZJREVOQ0VfQURWSVNPUlkQAhIeChpFVklERU5DRV9DT05GSURFTkNFX0dBVElORxADMsoEChFEZXBlbmRlbmN5U2VydmljZRJ3CgZTZWFyY2gSNS52cm9vbGkuc2VjdXJpdHlfaGVhbHRoLnYxLmRlcGVuZGVuY2llcy5TZWFyY2hSZXF1ZXN0GjYudnJvb2xpLnNlY3VyaXR5X2hlYWx0aC52MS5kZXBlbmRlbmNpZXMuU2VhcmNoUmVzcG9uc2USdwoGU3RhdHVzEjUudnJvb2xpLnNlY3VyaXR5X2hlYWx0aC52MS5kZXBlbmRlbmNpZXMuU3RhdHVzUmVxdWVzdBo2LnZyb29saS5zZWN1cml0eV9oZWFsdGgudjEuZGVwZW5kZW5jaWVzLlN0YXR1c1Jlc3BvbnNlEp4BChNMaXN0VnVsbmVyYWJpbGl0aWVzEkIudnJvb2xpLnNlY3VyaXR5X2hlYWx0aC52MS5kZXBlbmRlbmNpZXMuTGlzdFZ1bG5lcmFiaWxpdGllc1JlcXVlc3QaQy52cm9vbGkuc2VjdXJpdHlfaGVhbHRoLnYxLmRlcGVuZGVuY2llcy5MaXN0VnVsbmVyYWJpbGl0aWVzUmVzcG9uc2USoQEKFEV4cGxhaW5WdWxuZXJhYmlsaXR5EkMudnJvb2xpLnNlY3VyaXR5X2hlYWx0aC52MS5kZXBlbmRlbmNpZXMuRXhwbGFpblZ1bG5lcmFiaWxpdHlSZXF1ZXN0GkQudnJvb2xpLnNlY3VyaXR5X2hlYWx0aC52MS5kZXBlbmRlbmNpZXMuRXhwbGFpblZ1bG5lcmFiaWxpdHlSZXNwb25zZUJgWl5naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3NlY3VyaXR5LWhlYWx0aC92MS9kZXBlbmRlbmNpZXM7ZGVwZW5kZW5jaWVzX3YxYgZwcm90bzM");
 
 /**
  * DependencyRecord is the indexed unit: one resolved dependency of one
@@ -82,6 +82,185 @@ export const DependencyRecordSchema: GenMessage<DependencyRecord> = /*@__PURE__*
   messageDesc(file_security_health_v1_dependencies_dependencies, 0);
 
 /**
+ * @generated from message vrooli.security_health.v1.dependencies.AffectedVersionRange
+ */
+export type AffectedVersionRange = Message<"vrooli.security_health.v1.dependencies.AffectedVersionRange"> & {
+  /**
+   * @generated from field: string range = 1;
+   */
+  range: string;
+
+  /**
+   * @generated from field: string introduced = 2;
+   */
+  introduced: string;
+
+  /**
+   * @generated from field: string fixed = 3;
+   */
+  fixed: string;
+
+  /**
+   * @generated from field: string last_affected = 4;
+   */
+  lastAffected: string;
+};
+
+/**
+ * Describes the message vrooli.security_health.v1.dependencies.AffectedVersionRange.
+ * Use `create(AffectedVersionRangeSchema)` to create a new message.
+ */
+export const AffectedVersionRangeSchema: GenMessage<AffectedVersionRange> = /*@__PURE__*/
+  messageDesc(file_security_health_v1_dependencies_dependencies, 1);
+
+/**
+ * @generated from message vrooli.security_health.v1.dependencies.FixedVersionRange
+ */
+export type FixedVersionRange = Message<"vrooli.security_health.v1.dependencies.FixedVersionRange"> & {
+  /**
+   * @generated from field: string range = 1;
+   */
+  range: string;
+
+  /**
+   * @generated from field: string version = 2;
+   */
+  version: string;
+};
+
+/**
+ * Describes the message vrooli.security_health.v1.dependencies.FixedVersionRange.
+ * Use `create(FixedVersionRangeSchema)` to create a new message.
+ */
+export const FixedVersionRangeSchema: GenMessage<FixedVersionRange> = /*@__PURE__*/
+  messageDesc(file_security_health_v1_dependencies_dependencies, 2);
+
+/**
+ * VulnerabilityRecord is structured evidence for one vulnerable package version
+ * as observed across one or more scenarios.
+ *
+ * @generated from message vrooli.security_health.v1.dependencies.VulnerabilityRecord
+ */
+export type VulnerabilityRecord = Message<"vrooli.security_health.v1.dependencies.VulnerabilityRecord"> & {
+  /**
+   * @generated from field: string vulnerability_id = 1;
+   */
+  vulnerabilityId: string;
+
+  /**
+   * @generated from field: repeated string aliases = 2;
+   */
+  aliases: string[];
+
+  /**
+   * @generated from field: vrooli.security_health.v1.dependencies.Ecosystem ecosystem = 3;
+   */
+  ecosystem: Ecosystem;
+
+  /**
+   * @generated from field: string name = 4;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string version = 5;
+   */
+  version: string;
+
+  /**
+   * @generated from field: repeated vrooli.security_health.v1.dependencies.AffectedVersionRange affected_ranges = 6;
+   */
+  affectedRanges: AffectedVersionRange[];
+
+  /**
+   * @generated from field: repeated vrooli.security_health.v1.dependencies.FixedVersionRange fixed_ranges = 7;
+   */
+  fixedRanges: FixedVersionRange[];
+
+  /**
+   * @generated from field: string severity = 8;
+   */
+  severity: string;
+
+  /**
+   * @generated from field: string normalized_severity = 9;
+   */
+  normalizedSeverity: string;
+
+  /**
+   * @generated from field: string advisory_url = 10;
+   */
+  advisoryUrl: string;
+
+  /**
+   * @generated from field: string summary = 11;
+   */
+  summary: string;
+
+  /**
+   * @generated from field: string details = 12;
+   */
+  details: string;
+
+  /**
+   * @generated from field: vrooli.security_health.v1.dependencies.VulnerabilitySource source = 13;
+   */
+  source: VulnerabilitySource;
+
+  /**
+   * @generated from field: vrooli.security_health.v1.dependencies.Reachability reachability = 14;
+   */
+  reachability: Reachability;
+
+  /**
+   * @generated from field: vrooli.security_health.v1.dependencies.EvidenceConfidence confidence = 15;
+   */
+  confidence: EvidenceConfidence;
+
+  /**
+   * @generated from field: bool production = 16;
+   */
+  production: boolean;
+
+  /**
+   * @generated from field: bool dev_only = 17;
+   */
+  devOnly: boolean;
+
+  /**
+   * @generated from field: string first_seen = 18;
+   */
+  firstSeen: string;
+
+  /**
+   * @generated from field: string last_seen = 19;
+   */
+  lastSeen: string;
+
+  /**
+   * @generated from field: repeated string scenarios = 20;
+   */
+  scenarios: string[];
+
+  /**
+   * @generated from field: repeated string source_files = 21;
+   */
+  sourceFiles: string[];
+
+  /**
+   * @generated from field: string remediation = 22;
+   */
+  remediation: string;
+};
+
+/**
+ * Describes the message vrooli.security_health.v1.dependencies.VulnerabilityRecord.
+ * Use `create(VulnerabilityRecordSchema)` to create a new message.
+ */
+export const VulnerabilityRecordSchema: GenMessage<VulnerabilityRecord> = /*@__PURE__*/
+  messageDesc(file_security_health_v1_dependencies_dependencies, 3);
+
+/**
  * SearchRequest is the body accepted by DependencyService.Search.
  *
  * @generated from message vrooli.security_health.v1.dependencies.SearchRequest
@@ -135,7 +314,7 @@ export type SearchRequest = Message<"vrooli.security_health.v1.dependencies.Sear
  * Use `create(SearchRequestSchema)` to create a new message.
  */
 export const SearchRequestSchema: GenMessage<SearchRequest> = /*@__PURE__*/
-  messageDesc(file_security_health_v1_dependencies_dependencies, 1);
+  messageDesc(file_security_health_v1_dependencies_dependencies, 4);
 
 /**
  * SearchResult is one ranked hit from the corpus.
@@ -162,7 +341,7 @@ export type SearchResult = Message<"vrooli.security_health.v1.dependencies.Searc
  * Use `create(SearchResultSchema)` to create a new message.
  */
 export const SearchResultSchema: GenMessage<SearchResult> = /*@__PURE__*/
-  messageDesc(file_security_health_v1_dependencies_dependencies, 2);
+  messageDesc(file_security_health_v1_dependencies_dependencies, 5);
 
 /**
  * SearchResponse echoes which Mode actually served the request so callers can
@@ -187,7 +366,120 @@ export type SearchResponse = Message<"vrooli.security_health.v1.dependencies.Sea
  * Use `create(SearchResponseSchema)` to create a new message.
  */
 export const SearchResponseSchema: GenMessage<SearchResponse> = /*@__PURE__*/
-  messageDesc(file_security_health_v1_dependencies_dependencies, 3);
+  messageDesc(file_security_health_v1_dependencies_dependencies, 6);
+
+/**
+ * @generated from message vrooli.security_health.v1.dependencies.ListVulnerabilitiesRequest
+ */
+export type ListVulnerabilitiesRequest = Message<"vrooli.security_health.v1.dependencies.ListVulnerabilitiesRequest"> & {
+  /**
+   * @generated from field: vrooli.security_health.v1.dependencies.Ecosystem ecosystem = 1;
+   */
+  ecosystem: Ecosystem;
+
+  /**
+   * @generated from field: string package_name = 2;
+   */
+  packageName: string;
+
+  /**
+   * @generated from field: string scenario = 3;
+   */
+  scenario: string;
+
+  /**
+   * @generated from field: string vulnerability_id = 4;
+   */
+  vulnerabilityId: string;
+
+  /**
+   * @generated from field: vrooli.security_health.v1.dependencies.EvidenceConfidence minimum_confidence = 5;
+   */
+  minimumConfidence: EvidenceConfidence;
+
+  /**
+   * @generated from field: int32 limit = 6;
+   */
+  limit: number;
+};
+
+/**
+ * Describes the message vrooli.security_health.v1.dependencies.ListVulnerabilitiesRequest.
+ * Use `create(ListVulnerabilitiesRequestSchema)` to create a new message.
+ */
+export const ListVulnerabilitiesRequestSchema: GenMessage<ListVulnerabilitiesRequest> = /*@__PURE__*/
+  messageDesc(file_security_health_v1_dependencies_dependencies, 7);
+
+/**
+ * @generated from message vrooli.security_health.v1.dependencies.ListVulnerabilitiesResponse
+ */
+export type ListVulnerabilitiesResponse = Message<"vrooli.security_health.v1.dependencies.ListVulnerabilitiesResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.security_health.v1.dependencies.VulnerabilityRecord vulnerabilities = 1;
+   */
+  vulnerabilities: VulnerabilityRecord[];
+
+  /**
+   * @generated from field: int32 total = 2;
+   */
+  total: number;
+};
+
+/**
+ * Describes the message vrooli.security_health.v1.dependencies.ListVulnerabilitiesResponse.
+ * Use `create(ListVulnerabilitiesResponseSchema)` to create a new message.
+ */
+export const ListVulnerabilitiesResponseSchema: GenMessage<ListVulnerabilitiesResponse> = /*@__PURE__*/
+  messageDesc(file_security_health_v1_dependencies_dependencies, 8);
+
+/**
+ * @generated from message vrooli.security_health.v1.dependencies.ExplainVulnerabilityRequest
+ */
+export type ExplainVulnerabilityRequest = Message<"vrooli.security_health.v1.dependencies.ExplainVulnerabilityRequest"> & {
+  /**
+   * @generated from field: string vulnerability_id = 1;
+   */
+  vulnerabilityId: string;
+
+  /**
+   * @generated from field: vrooli.security_health.v1.dependencies.Ecosystem ecosystem = 2;
+   */
+  ecosystem: Ecosystem;
+
+  /**
+   * @generated from field: string package_name = 3;
+   */
+  packageName: string;
+};
+
+/**
+ * Describes the message vrooli.security_health.v1.dependencies.ExplainVulnerabilityRequest.
+ * Use `create(ExplainVulnerabilityRequestSchema)` to create a new message.
+ */
+export const ExplainVulnerabilityRequestSchema: GenMessage<ExplainVulnerabilityRequest> = /*@__PURE__*/
+  messageDesc(file_security_health_v1_dependencies_dependencies, 9);
+
+/**
+ * @generated from message vrooli.security_health.v1.dependencies.ExplainVulnerabilityResponse
+ */
+export type ExplainVulnerabilityResponse = Message<"vrooli.security_health.v1.dependencies.ExplainVulnerabilityResponse"> & {
+  /**
+   * @generated from field: vrooli.security_health.v1.dependencies.VulnerabilityRecord vulnerability = 1;
+   */
+  vulnerability?: VulnerabilityRecord | undefined;
+
+  /**
+   * @generated from field: bool found = 2;
+   */
+  found: boolean;
+};
+
+/**
+ * Describes the message vrooli.security_health.v1.dependencies.ExplainVulnerabilityResponse.
+ * Use `create(ExplainVulnerabilityResponseSchema)` to create a new message.
+ */
+export const ExplainVulnerabilityResponseSchema: GenMessage<ExplainVulnerabilityResponse> = /*@__PURE__*/
+  messageDesc(file_security_health_v1_dependencies_dependencies, 10);
 
 /**
  * StatusRequest is currently empty; reserved for future filters.
@@ -202,7 +494,7 @@ export type StatusRequest = Message<"vrooli.security_health.v1.dependencies.Stat
  * Use `create(StatusRequestSchema)` to create a new message.
  */
 export const StatusRequestSchema: GenMessage<StatusRequest> = /*@__PURE__*/
-  messageDesc(file_security_health_v1_dependencies_dependencies, 4);
+  messageDesc(file_security_health_v1_dependencies_dependencies, 11);
 
 /**
  * StatusResponse reports backend availability and the last reconcile state.
@@ -295,7 +587,7 @@ export type StatusResponse = Message<"vrooli.security_health.v1.dependencies.Sta
  * Use `create(StatusResponseSchema)` to create a new message.
  */
 export const StatusResponseSchema: GenMessage<StatusResponse> = /*@__PURE__*/
-  messageDesc(file_security_health_v1_dependencies_dependencies, 5);
+  messageDesc(file_security_health_v1_dependencies_dependencies, 12);
 
 /**
  * Mode selects the retrieval strategy. AI uses ollama embeddings + Qdrant; TEXT
@@ -356,6 +648,105 @@ export const EcosystemSchema: GenEnum<Ecosystem> = /*@__PURE__*/
   enumDesc(file_security_health_v1_dependencies_dependencies, 1);
 
 /**
+ * Scanner/source that produced vulnerability evidence.
+ *
+ * @generated from enum vrooli.security_health.v1.dependencies.VulnerabilitySource
+ */
+export enum VulnerabilitySource {
+  /**
+   * @generated from enum value: VULNERABILITY_SOURCE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: VULNERABILITY_SOURCE_OSV = 1;
+   */
+  OSV = 1,
+
+  /**
+   * @generated from enum value: VULNERABILITY_SOURCE_GOVULNCHECK = 2;
+   */
+  GOVULNCHECK = 2,
+
+  /**
+   * @generated from enum value: VULNERABILITY_SOURCE_PNPM_AUDIT = 3;
+   */
+  PNPM_AUDIT = 3,
+}
+
+/**
+ * Describes the enum vrooli.security_health.v1.dependencies.VulnerabilitySource.
+ */
+export const VulnerabilitySourceSchema: GenEnum<VulnerabilitySource> = /*@__PURE__*/
+  enumDesc(file_security_health_v1_dependencies_dependencies, 2);
+
+/**
+ * Reachability describes how directly the vulnerable code is known to be used.
+ *
+ * @generated from enum vrooli.security_health.v1.dependencies.Reachability
+ */
+export enum Reachability {
+  /**
+   * @generated from enum value: REACHABILITY_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: REACHABILITY_UNKNOWN = 1;
+   */
+  UNKNOWN = 1,
+
+  /**
+   * @generated from enum value: REACHABILITY_LOCKFILE_AFFECTED = 2;
+   */
+  LOCKFILE_AFFECTED = 2,
+
+  /**
+   * @generated from enum value: REACHABILITY_REACHABLE = 3;
+   */
+  REACHABLE = 3,
+}
+
+/**
+ * Describes the enum vrooli.security_health.v1.dependencies.Reachability.
+ */
+export const ReachabilitySchema: GenEnum<Reachability> = /*@__PURE__*/
+  enumDesc(file_security_health_v1_dependencies_dependencies, 3);
+
+/**
+ * EvidenceConfidence controls how downstream governance should treat evidence.
+ *
+ * @generated from enum vrooli.security_health.v1.dependencies.EvidenceConfidence
+ */
+export enum EvidenceConfidence {
+  /**
+   * @generated from enum value: EVIDENCE_CONFIDENCE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: EVIDENCE_CONFIDENCE_DEGRADED = 1;
+   */
+  DEGRADED = 1,
+
+  /**
+   * @generated from enum value: EVIDENCE_CONFIDENCE_ADVISORY = 2;
+   */
+  ADVISORY = 2,
+
+  /**
+   * @generated from enum value: EVIDENCE_CONFIDENCE_GATING = 3;
+   */
+  GATING = 3,
+}
+
+/**
+ * Describes the enum vrooli.security_health.v1.dependencies.EvidenceConfidence.
+ */
+export const EvidenceConfidenceSchema: GenEnum<EvidenceConfidence> = /*@__PURE__*/
+  enumDesc(file_security_health_v1_dependencies_dependencies, 4);
+
+/**
  * @generated from service vrooli.security_health.v1.dependencies.DependencyService
  */
 export const DependencyService: GenService<{
@@ -374,6 +765,22 @@ export const DependencyService: GenService<{
     methodKind: "unary";
     input: typeof StatusRequestSchema;
     output: typeof StatusResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.security_health.v1.dependencies.DependencyService.ListVulnerabilities
+   */
+  listVulnerabilities: {
+    methodKind: "unary";
+    input: typeof ListVulnerabilitiesRequestSchema;
+    output: typeof ListVulnerabilitiesResponseSchema;
+  },
+  /**
+   * @generated from rpc vrooli.security_health.v1.dependencies.DependencyService.ExplainVulnerability
+   */
+  explainVulnerability: {
+    methodKind: "unary";
+    input: typeof ExplainVulnerabilityRequestSchema;
+    output: typeof ExplainVulnerabilityResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_security_health_v1_dependencies_dependencies, 0);

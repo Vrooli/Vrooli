@@ -15,6 +15,13 @@ type fakeExecutor struct {
 	err      error // AwaitResult error (the run failed)
 	startErr error // StartRun error (could not start the run)
 	calls    int
+	// reusable / reusableHit / findErr script FindReusableRun (clean-tree reuse).
+	reusable    ReusableRun
+	reusableHit bool
+	findErr     error
+	// statusInfo, when set, scripts RunStatus; otherwise a terminal-passed
+	// snapshot is returned.
+	statusInfo *RunStatusInfo
 }
 
 func (f *fakeExecutor) StartRun(_ context.Context, _ string) (RunHandle, error) {
@@ -32,6 +39,20 @@ func (f *fakeExecutor) AwaitResult(_ context.Context, _, runID string) (ExecResu
 	r := f.result
 	r.RunID = runID
 	return r, nil
+}
+
+func (f *fakeExecutor) RunStatus(_ context.Context, _, _ string) (RunStatusInfo, error) {
+	if f.statusInfo != nil {
+		return *f.statusInfo, nil
+	}
+	return RunStatusInfo{Status: "passed", Terminal: true, Success: true}, nil
+}
+
+func (f *fakeExecutor) FindReusableRun(_ context.Context, _, _ string) (ReusableRun, bool, error) {
+	if f.findErr != nil {
+		return ReusableRun{}, false, f.findErr
+	}
+	return f.reusable, f.reusableHit, nil
 }
 
 func itoa(i int) string {

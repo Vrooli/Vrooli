@@ -17,7 +17,7 @@ import {
 } from "./api-baselines";
 import type {
   BaselineManifest,
-  DiffBaselineResponse,
+  DiffResult,
 } from "@vrooli/proto-types/git-control-tower/v1/baselines/baselines_pb";
 
 export function useBaselines(
@@ -56,10 +56,11 @@ export function useBaselineDiff(
   opts: { surface?: string; enabled?: boolean; repoId?: string | null } = {},
 ) {
   const { surface = "", enabled = true, repoId } = opts;
-  return useQuery<DiffBaselineResponse, Error>({
+  return useQuery<DiffResult | undefined, Error>({
     queryKey: queryKeys.baselineDiff(scenario, name, branch, surface, repoId),
     queryFn: () => diffBaseline({ scenario, name, branch, surface, repoId }),
-    // A diff re-runs the surfaces server-side; never poll it automatically.
+    // The diff resolves the verdict server-side (start + server-side wait);
+    // never poll it automatically.
     enabled: enabled && Boolean(scenario) && Boolean(name),
     staleTime: 0,
     gcTime: 60_000,
@@ -113,7 +114,7 @@ export interface CompareOnDemand {
   /** Resolved baseline being compared against ("" when none selected). */
   baselineName: string;
   /** The diff result, once a comparison has run. */
-  diff: DiffBaselineResponse | undefined;
+  diff: DiffResult | undefined;
   /** A diff is in flight. */
   isRunning: boolean;
   error: Error | null;

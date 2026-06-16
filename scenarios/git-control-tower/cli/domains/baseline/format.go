@@ -62,7 +62,11 @@ func snapshotBanner(resp *baselinesv1.SnapshotForBaselineResponse) string {
 		eta = (time.Duration(resp.GetEstimatedTotalSeconds()) * time.Second).String()
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "▶ Baseline %q for %s — comprehensive run %s started\n", resp.GetName(), resp.GetScenario(), resp.GetRunId())
+	if resp.GetCoalesced() {
+		fmt.Fprintf(&b, "▶ Baseline %q for %s — re-using in-flight comprehensive run %s for %s (no new suite)\n", resp.GetName(), resp.GetScenario(), resp.GetRunId(), resp.GetScenario())
+	} else {
+		fmt.Fprintf(&b, "▶ Baseline %q for %s — comprehensive run %s started\n", resp.GetName(), resp.GetScenario(), resp.GetRunId())
+	}
 	fmt.Fprintf(&b, "  estimated %s — the run is durable server-side; the baseline pins automatically when it completes.\n", eta)
 	fmt.Fprintf(&b, "  follow live:   test-genie runs follow %s %s\n", resp.GetScenario(), resp.GetRunId())
 	fmt.Fprintf(&b, "  then inspect:  git-control-tower baseline show --scenario %s --name %s\n", resp.GetScenario(), resp.GetName())
@@ -72,7 +76,53 @@ func snapshotBanner(resp *baselinesv1.SnapshotForBaselineResponse) string {
 	return b.String()
 }
 
-func printDiff(resp *baselinesv1.DiffBaselineResponse) {
+// printDiffStart renders the durable-diff START banner: the run handle + ETA +
+// the streaming follow command + the resolve command, with an outcome-specific
+// header (fresh / coalesced onto an in-flight run / reused a completed run). The
+// diff returns fast and the verdict is computed + cached server-side — no client
+// polling (the anti-polling contract, mirror of snapshotBanner).
+func printDiffStart(resp *baselinesv1.StartDiffResponse) {
+	fmt.Print(diffStartBanner(resp))
+}
+
+// diffStartBanner builds the start banner. Pure (no I/O) so the anti-polling
+// contract is unit-testable.
+func diffStartBanner(resp *baselinesv1.StartDiffResponse) string {
+	scenario, name, run := resp.GetScenario(), resp.GetName(), resp.GetRunId()
+	var b strings.Builder
+	switch {
+	case resp.GetReusedRun():
+		fmt.Fprintf(&b, "▶ Diff of baseline %q for %s — re-using completed run %s at %s (no suite re-run)\n", name, scenario, run, resp.GetReusedSha())
+	case resp.GetCoalesced():
+		fmt.Fprintf(&b, "▶ Diff of baseline %q for %s — re-using in-flight comprehensive run %s for %s (no new suite)\n", name, scenario, run, scenario)
+	default:
+		eta := "unknown"
+		if resp.GetEtaKnown() {
+			eta = (time.Duration(resp.GetEstimatedTotalSeconds()) * time.Second).String()
+		}
+		fmt.Fprintf(&b, "▶ Diff of baseline %q for %s — comprehensive run %s started (estimated %s)\n", name, scenario, run, eta)
+	}
+	fmt.Fprintf(&b, "  the run is durable server-side; the diff verdict is computed and cached when it completes.\n")
+	fmt.Fprintf(&b, "  follow live:   test-genie runs follow %s %s\n", scenario, run)
+	fmt.Fprintf(&b, "  then resolve:  git-control-tower baseline diff status --scenario %s --name %s --run %s\n", scenario, name, run)
+	if w := resp.GetDirtyWarning(); w != "" {
+		fmt.Fprintf(&b, "⚠ %s\n", w)
+	}
+	return b.String()
+}
+
+// printDiffPending renders the in-flight guidance when `diff status` is called
+// before the run is terminal: the follow/resolve commands + a backoff hint.
+func printDiffPending(scenario, name, run string, nextCheckSeconds int) {
+	fmt.Printf("⏳ Diff of baseline %q for %s is still computing on run %s.\n", name, scenario, run)
+	fmt.Printf("  follow live:   test-genie runs follow %s %s\n", scenario, run)
+	fmt.Printf("  then resolve:  git-control-tower baseline diff status --scenario %s --name %s --run %s\n", scenario, name, run)
+	if nextCheckSeconds > 0 {
+		fmt.Printf("  (or re-check in ~%ds)\n", nextCheckSeconds)
+	}
+}
+
+func printDiff(resp *baselinesv1.DiffResult) {
 	b := resp.GetBaseline()
 	fmt.Printf("Baseline: %s   captured %s\n", b.GetName(), b.GetCreatedAt())
 	if cg := resp.GetCurrentGit(); cg != nil {

@@ -92,16 +92,24 @@ var snapshotAnchor = func(core *cliapp.ScenarioApp, ctx context.Context, scenari
 }
 
 // diffAnchor diffs a baseline record against the working tree and returns the
-// overall verdict. Seam, same rationale as snapshotAnchor.
+// overall verdict. It starts the durable diff then resolves the verdict with a
+// server-side wait (no client polling) — the engagement flow needs the verdict
+// synchronously. Seam, same rationale as snapshotAnchor.
 var diffAnchor = func(core *cliapp.ScenarioApp, ctx context.Context, scenario, name, surface string) (string, error) {
 	client := clientFactory(core)
-	resp, err := client.DiffBaseline(ctx, connect.NewRequest(&baselinesv1.DiffBaselineRequest{
+	start, err := client.StartDiff(ctx, connect.NewRequest(&baselinesv1.StartDiffRequest{
 		Scenario: scenario, Name: name, Surface: surface,
 	}))
 	if err != nil {
 		return "", err
 	}
-	return resp.Msg.GetVerdict(), nil
+	resp, err := client.GetDiffResult(ctx, connect.NewRequest(&baselinesv1.GetDiffResultRequest{
+		Scenario: scenario, Name: name, RunId: start.Msg.GetRunId(), Surface: surface, Wait: true,
+	}))
+	if err != nil {
+		return "", err
+	}
+	return resp.Msg.GetDiff().GetVerdict(), nil
 }
 
 // registerEngagementVerbs returns the engagement subcommands appended to the

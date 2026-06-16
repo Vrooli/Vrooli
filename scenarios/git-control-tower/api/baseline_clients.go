@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -18,6 +20,38 @@ import (
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs/runs_v1connect"
 )
+
+// terminalRunStatuses are the test-genie run statuses that mean "no longer
+// executing" — the diff verdict can be computed once a run reaches one.
+func isTerminalRunStatus(status string) bool {
+	switch status {
+	case "passed", "failed", "aborted":
+		return true
+	default:
+		return false
+	}
+}
+
+// asRunBusy extracts a typed RunBusyError from a test-genie StartRun rejection:
+// the one-run-per-scenario guard returns FailedPrecondition with a RunBusyInfo
+// detail when a divergent run is already in flight. Returns nil for any other
+// error so the caller propagates it unchanged.
+func asRunBusy(err error) *baseline.RunBusyError {
+	var ce *connect.Error
+	if !errors.As(err, &ce) || ce.Code() != connect.CodeFailedPrecondition {
+		return nil
+	}
+	for _, d := range ce.Details() {
+		msg, derr := d.Value()
+		if derr != nil {
+			continue
+		}
+		if bi, ok := msg.(*runspb.RunBusyInfo); ok {
+			return &baseline.RunBusyError{Scenario: bi.GetScenario(), RunID: bi.GetRunId(), Preset: bi.GetPreset()}
+		}
+	}
+	return nil
+}
 
 // ---------------------------------------------------------------------------
 // Concrete baseline seam implementations. These adapt GCT's existing clients
@@ -48,13 +82,66 @@ func (e baselineExecutor) StartRun(ctx context.Context, scenario string) (baseli
 		CaptureProfile: "baseline",
 	}))
 	if err != nil {
+		if busy := asRunBusy(err); busy != nil {
+			return baseline.RunHandle{}, busy
+		}
 		return baseline.RunHandle{}, err
 	}
 	return baseline.RunHandle{
 		RunID:                 resp.Msg.GetRunId(),
 		EstimatedTotalSeconds: int(resp.Msg.GetEstimatedTotalSeconds()),
 		EtaKnown:              resp.Msg.GetEtaKnown(),
+		Coalesced:             resp.Msg.GetCoalesced(),
 	}, nil
+}
+
+// RunStatus returns a non-blocking lifecycle snapshot via GetRunStatus.
+func (e baselineExecutor) RunStatus(ctx context.Context, scenario, runID string) (baseline.RunStatusInfo, error) {
+	cl, err := e.runs.client(ctx)
+	if err != nil {
+		return baseline.RunStatusInfo{}, err
+	}
+	resp, err := cl.GetRunStatus(ctx, connect.NewRequest(&runspb.GetRunStatusRequest{
+		Scenario: scenario, RunId: runID,
+	}))
+	if err != nil {
+		return baseline.RunStatusInfo{}, err
+	}
+	st := resp.Msg
+	return baseline.RunStatusInfo{
+		Status:                      st.GetStatus(),
+		Terminal:                    isTerminalRunStatus(st.GetStatus()),
+		Success:                     st.GetSuccess(),
+		RecommendedNextCheckSeconds: int(st.GetRecommendedNextCheckSeconds()),
+	}, nil
+}
+
+// FindReusableRun asks test-genie for the newest completed clean-tree
+// comprehensive+baseline run at exactly gitSha. A match means the working tree
+// has not changed since that run, so the diff can reuse it instead of starting a
+// fresh suite.
+func (e baselineExecutor) FindReusableRun(ctx context.Context, scenario, gitSha string) (baseline.ReusableRun, bool, error) {
+	cl, err := e.runs.client(ctx)
+	if err != nil {
+		return baseline.ReusableRun{}, false, err
+	}
+	resp, err := cl.FindRun(ctx, connect.NewRequest(&runspb.FindRunRequest{
+		Scenario:       scenario,
+		GitSha:         gitSha,
+		Preset:         "comprehensive",
+		CaptureProfile: "baseline",
+		Status:         "passed",
+		RequireClean:   true,
+	}))
+	if err != nil {
+		return baseline.ReusableRun{}, false, err
+	}
+	if !resp.Msg.GetFound() {
+		return baseline.ReusableRun{}, false, nil
+	}
+	info := resp.Msg.GetRun()
+	completedAt, _ := time.Parse(time.RFC3339, info.GetCompletedAt())
+	return baseline.ReusableRun{RunID: info.GetRunId(), CompletedAt: completedAt}, true, nil
 }
 
 func (e baselineExecutor) AwaitResult(ctx context.Context, scenario, runID string) (baseline.ExecResult, error) {
@@ -352,5 +439,23 @@ func (s *Server) newBaselineService() *baseline.Service {
 		// Fast-skip an unreachable test-genie in ~5s instead of blocking the
 		// whole snapshot to the multi-minute execute/compare deadlines.
 		Reachable: newBaselineReachability(5 * time.Second),
+		ReuseTTL:  diffRunReuseTTL(),
 	})
+}
+
+// defaultDiffRunReuseTTL bounds clean-tree run reuse: a completed run at the
+// current sha is reused only when it finished within this window, so a diff
+// never serves a verdict from a run old enough that the environment (deps,
+// external state) may have drifted even though the tree sha matches.
+const defaultDiffRunReuseTTL = 15 * time.Minute
+
+// diffRunReuseTTL resolves the reuse window. Lever GCT_DIFF_RUN_REUSE_TTL
+// accepts a Go duration ("15m", "1h"); "0" disables reuse entirely.
+func diffRunReuseTTL() time.Duration {
+	if raw := strings.TrimSpace(os.Getenv("GCT_DIFF_RUN_REUSE_TTL")); raw != "" {
+		if d, err := time.ParseDuration(raw); err == nil && d >= 0 {
+			return d
+		}
+	}
+	return defaultDiffRunReuseTTL
 }

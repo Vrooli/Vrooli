@@ -1,4 +1,5 @@
 from buf.validate import validate_pb2 as _validate_pb2
+from common.v1 import maturity_pb2 as _maturity_pb2
 from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
@@ -263,7 +264,7 @@ class DocHealthRequest(_message.Message):
     def __init__(self, scenario_name: _Optional[str] = ..., strict_external_links: _Optional[bool] = ..., require_all_docs_registered: _Optional[bool] = ..., skip_external_links: _Optional[bool] = ..., scope: _Optional[str] = ..., path: _Optional[str] = ..., checks: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class DocHealthResponse(_message.Message):
-    __slots__ = ("scenario_name", "source_template_id", "manifest_path", "manifest_status", "health_score", "total_docs", "misplaced_docs", "missing_docs", "extra_docs", "temporary_docs", "contract_findings", "content_findings", "reference_findings", "manifest_findings", "counts", "timestamp")
+    __slots__ = ("scenario_name", "source_template_id", "manifest_path", "manifest_status", "health_score", "total_docs", "misplaced_docs", "missing_docs", "extra_docs", "temporary_docs", "contract_findings", "content_findings", "reference_findings", "manifest_findings", "counts", "timestamp", "assessment")
     SCENARIO_NAME_FIELD_NUMBER: _ClassVar[int]
     SOURCE_TEMPLATE_ID_FIELD_NUMBER: _ClassVar[int]
     MANIFEST_PATH_FIELD_NUMBER: _ClassVar[int]
@@ -280,6 +281,7 @@ class DocHealthResponse(_message.Message):
     MANIFEST_FINDINGS_FIELD_NUMBER: _ClassVar[int]
     COUNTS_FIELD_NUMBER: _ClassVar[int]
     TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
+    ASSESSMENT_FIELD_NUMBER: _ClassVar[int]
     scenario_name: str
     source_template_id: str
     manifest_path: str
@@ -296,4 +298,5 @@ class DocHealthResponse(_message.Message):
     manifest_findings: _containers.RepeatedCompositeFieldContainer[DocHealthFinding]
     counts: DocHealthCounts
     timestamp: str
-    def __init__(self, scenario_name: _Optional[str] = ..., source_template_id: _Optional[str] = ..., manifest_path: _Optional[str] = ..., manifest_status: _Optional[str] = ..., health_score: _Optional[float] = ..., total_docs: _Optional[int] = ..., misplaced_docs: _Optional[_Iterable[_Union[DocHealthMisplacedDoc, _Mapping]]] = ..., missing_docs: _Optional[_Iterable[_Union[DocHealthMissingDoc, _Mapping]]] = ..., extra_docs: _Optional[_Iterable[str]] = ..., temporary_docs: _Optional[_Iterable[str]] = ..., contract_findings: _Optional[_Iterable[_Union[DocHealthFinding, _Mapping]]] = ..., content_findings: _Optional[_Iterable[_Union[DocHealthFinding, _Mapping]]] = ..., reference_findings: _Optional[_Iterable[_Union[DocHealthFinding, _Mapping]]] = ..., manifest_findings: _Optional[_Iterable[_Union[DocHealthFinding, _Mapping]]] = ..., counts: _Optional[_Union[DocHealthCounts, _Mapping]] = ..., timestamp: _Optional[str] = ...) -> None: ...
+    assessment: _maturity_pb2.MaturityAssessment
+    def __init__(self, scenario_name: _Optional[str] = ..., source_template_id: _Optional[str] = ..., manifest_path: _Optional[str] = ..., manifest_status: _Optional[str] = ..., health_score: _Optional[float] = ..., total_docs: _Optional[int] = ..., misplaced_docs: _Optional[_Iterable[_Union[DocHealthMisplacedDoc, _Mapping]]] = ..., missing_docs: _Optional[_Iterable[_Union[DocHealthMissingDoc, _Mapping]]] = ..., extra_docs: _Optional[_Iterable[str]] = ..., temporary_docs: _Optional[_Iterable[str]] = ..., contract_findings: _Optional[_Iterable[_Union[DocHealthFinding, _Mapping]]] = ..., content_findings: _Optional[_Iterable[_Union[DocHealthFinding, _Mapping]]] = ..., reference_findings: _Optional[_Iterable[_Union[DocHealthFinding, _Mapping]]] = ..., manifest_findings: _Optional[_Iterable[_Union[DocHealthFinding, _Mapping]]] = ..., counts: _Optional[_Union[DocHealthCounts, _Mapping]] = ..., timestamp: _Optional[str] = ..., assessment: _Optional[_Union[_maturity_pb2.MaturityAssessment, _Mapping]] = ...) -> None: ...

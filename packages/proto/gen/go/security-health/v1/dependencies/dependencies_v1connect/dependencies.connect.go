@@ -39,6 +39,12 @@ const (
 	// DependencyServiceStatusProcedure is the fully-qualified name of the DependencyService's Status
 	// RPC.
 	DependencyServiceStatusProcedure = "/vrooli.security_health.v1.dependencies.DependencyService/Status"
+	// DependencyServiceListVulnerabilitiesProcedure is the fully-qualified name of the
+	// DependencyService's ListVulnerabilities RPC.
+	DependencyServiceListVulnerabilitiesProcedure = "/vrooli.security_health.v1.dependencies.DependencyService/ListVulnerabilities"
+	// DependencyServiceExplainVulnerabilityProcedure is the fully-qualified name of the
+	// DependencyService's ExplainVulnerability RPC.
+	DependencyServiceExplainVulnerabilityProcedure = "/vrooli.security_health.v1.dependencies.DependencyService/ExplainVulnerability"
 )
 
 // DependencyServiceClient is a client for the
@@ -46,6 +52,8 @@ const (
 type DependencyServiceClient interface {
 	Search(context.Context, *connect.Request[dependencies.SearchRequest]) (*connect.Response[dependencies.SearchResponse], error)
 	Status(context.Context, *connect.Request[dependencies.StatusRequest]) (*connect.Response[dependencies.StatusResponse], error)
+	ListVulnerabilities(context.Context, *connect.Request[dependencies.ListVulnerabilitiesRequest]) (*connect.Response[dependencies.ListVulnerabilitiesResponse], error)
+	ExplainVulnerability(context.Context, *connect.Request[dependencies.ExplainVulnerabilityRequest]) (*connect.Response[dependencies.ExplainVulnerabilityResponse], error)
 }
 
 // NewDependencyServiceClient constructs a client for the
@@ -72,13 +80,27 @@ func NewDependencyServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(dependencyServiceMethods.ByName("Status")),
 			connect.WithClientOptions(opts...),
 		),
+		listVulnerabilities: connect.NewClient[dependencies.ListVulnerabilitiesRequest, dependencies.ListVulnerabilitiesResponse](
+			httpClient,
+			baseURL+DependencyServiceListVulnerabilitiesProcedure,
+			connect.WithSchema(dependencyServiceMethods.ByName("ListVulnerabilities")),
+			connect.WithClientOptions(opts...),
+		),
+		explainVulnerability: connect.NewClient[dependencies.ExplainVulnerabilityRequest, dependencies.ExplainVulnerabilityResponse](
+			httpClient,
+			baseURL+DependencyServiceExplainVulnerabilityProcedure,
+			connect.WithSchema(dependencyServiceMethods.ByName("ExplainVulnerability")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // dependencyServiceClient implements DependencyServiceClient.
 type dependencyServiceClient struct {
-	search *connect.Client[dependencies.SearchRequest, dependencies.SearchResponse]
-	status *connect.Client[dependencies.StatusRequest, dependencies.StatusResponse]
+	search               *connect.Client[dependencies.SearchRequest, dependencies.SearchResponse]
+	status               *connect.Client[dependencies.StatusRequest, dependencies.StatusResponse]
+	listVulnerabilities  *connect.Client[dependencies.ListVulnerabilitiesRequest, dependencies.ListVulnerabilitiesResponse]
+	explainVulnerability *connect.Client[dependencies.ExplainVulnerabilityRequest, dependencies.ExplainVulnerabilityResponse]
 }
 
 // Search calls vrooli.security_health.v1.dependencies.DependencyService.Search.
@@ -91,11 +113,25 @@ func (c *dependencyServiceClient) Status(ctx context.Context, req *connect.Reque
 	return c.status.CallUnary(ctx, req)
 }
 
+// ListVulnerabilities calls
+// vrooli.security_health.v1.dependencies.DependencyService.ListVulnerabilities.
+func (c *dependencyServiceClient) ListVulnerabilities(ctx context.Context, req *connect.Request[dependencies.ListVulnerabilitiesRequest]) (*connect.Response[dependencies.ListVulnerabilitiesResponse], error) {
+	return c.listVulnerabilities.CallUnary(ctx, req)
+}
+
+// ExplainVulnerability calls
+// vrooli.security_health.v1.dependencies.DependencyService.ExplainVulnerability.
+func (c *dependencyServiceClient) ExplainVulnerability(ctx context.Context, req *connect.Request[dependencies.ExplainVulnerabilityRequest]) (*connect.Response[dependencies.ExplainVulnerabilityResponse], error) {
+	return c.explainVulnerability.CallUnary(ctx, req)
+}
+
 // DependencyServiceHandler is an implementation of the
 // vrooli.security_health.v1.dependencies.DependencyService service.
 type DependencyServiceHandler interface {
 	Search(context.Context, *connect.Request[dependencies.SearchRequest]) (*connect.Response[dependencies.SearchResponse], error)
 	Status(context.Context, *connect.Request[dependencies.StatusRequest]) (*connect.Response[dependencies.StatusResponse], error)
+	ListVulnerabilities(context.Context, *connect.Request[dependencies.ListVulnerabilitiesRequest]) (*connect.Response[dependencies.ListVulnerabilitiesResponse], error)
+	ExplainVulnerability(context.Context, *connect.Request[dependencies.ExplainVulnerabilityRequest]) (*connect.Response[dependencies.ExplainVulnerabilityResponse], error)
 }
 
 // NewDependencyServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -117,12 +153,28 @@ func NewDependencyServiceHandler(svc DependencyServiceHandler, opts ...connect.H
 		connect.WithSchema(dependencyServiceMethods.ByName("Status")),
 		connect.WithHandlerOptions(opts...),
 	)
+	dependencyServiceListVulnerabilitiesHandler := connect.NewUnaryHandler(
+		DependencyServiceListVulnerabilitiesProcedure,
+		svc.ListVulnerabilities,
+		connect.WithSchema(dependencyServiceMethods.ByName("ListVulnerabilities")),
+		connect.WithHandlerOptions(opts...),
+	)
+	dependencyServiceExplainVulnerabilityHandler := connect.NewUnaryHandler(
+		DependencyServiceExplainVulnerabilityProcedure,
+		svc.ExplainVulnerability,
+		connect.WithSchema(dependencyServiceMethods.ByName("ExplainVulnerability")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.security_health.v1.dependencies.DependencyService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case DependencyServiceSearchProcedure:
 			dependencyServiceSearchHandler.ServeHTTP(w, r)
 		case DependencyServiceStatusProcedure:
 			dependencyServiceStatusHandler.ServeHTTP(w, r)
+		case DependencyServiceListVulnerabilitiesProcedure:
+			dependencyServiceListVulnerabilitiesHandler.ServeHTTP(w, r)
+		case DependencyServiceExplainVulnerabilityProcedure:
+			dependencyServiceExplainVulnerabilityHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -138,4 +190,12 @@ func (UnimplementedDependencyServiceHandler) Search(context.Context, *connect.Re
 
 func (UnimplementedDependencyServiceHandler) Status(context.Context, *connect.Request[dependencies.StatusRequest]) (*connect.Response[dependencies.StatusResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.security_health.v1.dependencies.DependencyService.Status is not implemented"))
+}
+
+func (UnimplementedDependencyServiceHandler) ListVulnerabilities(context.Context, *connect.Request[dependencies.ListVulnerabilitiesRequest]) (*connect.Response[dependencies.ListVulnerabilitiesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.security_health.v1.dependencies.DependencyService.ListVulnerabilities is not implemented"))
+}
+
+func (UnimplementedDependencyServiceHandler) ExplainVulnerability(context.Context, *connect.Request[dependencies.ExplainVulnerabilityRequest]) (*connect.Response[dependencies.ExplainVulnerabilityResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.security_health.v1.dependencies.DependencyService.ExplainVulnerability is not implemented"))
 }

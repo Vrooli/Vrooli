@@ -1,3 +1,4 @@
+from common.v1 import maturity_pb2 as _maturity_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -25,7 +26,7 @@ class AuditQualityRequest(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., path: _Optional[str] = ..., rule_ids: _Optional[_Iterable[str]] = ..., surfaces: _Optional[_Iterable[str]] = ..., include_command_execution: _Optional[bool] = ..., include_autofix_preview: _Optional[bool] = ..., use_cache: _Optional[bool] = ...) -> None: ...
 
 class AuditQualityResponse(_message.Message):
-    __slots__ = ("run_id", "status", "summary", "scenario", "target_kind", "target_path", "surfaces", "contracts", "findings", "command_results", "maturity", "counts", "next_steps", "degraded_reason", "autofix_candidates")
+    __slots__ = ("run_id", "status", "summary", "scenario", "target_kind", "target_path", "surfaces", "contracts", "findings", "command_results", "maturity", "counts", "next_steps", "degraded_reason", "autofix_candidates", "assessment")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     SUMMARY_FIELD_NUMBER: _ClassVar[int]
@@ -41,6 +42,7 @@ class AuditQualityResponse(_message.Message):
     NEXT_STEPS_FIELD_NUMBER: _ClassVar[int]
     DEGRADED_REASON_FIELD_NUMBER: _ClassVar[int]
     AUTOFIX_CANDIDATES_FIELD_NUMBER: _ClassVar[int]
+    ASSESSMENT_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     status: str
     summary: str
@@ -56,7 +58,8 @@ class AuditQualityResponse(_message.Message):
     next_steps: _containers.RepeatedScalarFieldContainer[str]
     degraded_reason: str
     autofix_candidates: _containers.RepeatedCompositeFieldContainer[AutofixCandidate]
-    def __init__(self, run_id: _Optional[str] = ..., status: _Optional[str] = ..., summary: _Optional[str] = ..., scenario: _Optional[str] = ..., target_kind: _Optional[str] = ..., target_path: _Optional[str] = ..., surfaces: _Optional[_Iterable[_Union[QualitySurface, _Mapping]]] = ..., contracts: _Optional[_Iterable[_Union[ContractEvaluation, _Mapping]]] = ..., findings: _Optional[_Iterable[_Union[QualityFinding, _Mapping]]] = ..., command_results: _Optional[_Iterable[_Union[CommandResult, _Mapping]]] = ..., maturity: _Optional[_Union[MaturitySummary, _Mapping]] = ..., counts: _Optional[_Union[AuditSummary, _Mapping]] = ..., next_steps: _Optional[_Iterable[str]] = ..., degraded_reason: _Optional[str] = ..., autofix_candidates: _Optional[_Iterable[_Union[AutofixCandidate, _Mapping]]] = ...) -> None: ...
+    assessment: _maturity_pb2.MaturityAssessment
+    def __init__(self, run_id: _Optional[str] = ..., status: _Optional[str] = ..., summary: _Optional[str] = ..., scenario: _Optional[str] = ..., target_kind: _Optional[str] = ..., target_path: _Optional[str] = ..., surfaces: _Optional[_Iterable[_Union[QualitySurface, _Mapping]]] = ..., contracts: _Optional[_Iterable[_Union[ContractEvaluation, _Mapping]]] = ..., findings: _Optional[_Iterable[_Union[QualityFinding, _Mapping]]] = ..., command_results: _Optional[_Iterable[_Union[CommandResult, _Mapping]]] = ..., maturity: _Optional[_Union[MaturitySummary, _Mapping]] = ..., counts: _Optional[_Union[AuditSummary, _Mapping]] = ..., next_steps: _Optional[_Iterable[str]] = ..., degraded_reason: _Optional[str] = ..., autofix_candidates: _Optional[_Iterable[_Union[AutofixCandidate, _Mapping]]] = ..., assessment: _Optional[_Union[_maturity_pb2.MaturityAssessment, _Mapping]] = ...) -> None: ...
 
 class ListContractsRequest(_message.Message):
     __slots__ = ("language", "framework", "surface_kind", "rule_ids")

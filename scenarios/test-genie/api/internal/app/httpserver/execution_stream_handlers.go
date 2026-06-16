@@ -81,11 +81,12 @@ func (s *Server) handleExecuteSuiteStream(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	runID, err := s.runManager.Start(runmanager.StartOptions{Input: input, EstimatedTotalSeconds: eta})
+	res, err := s.runManager.Start(runmanager.StartOptions{Input: input, EstimatedTotalSeconds: eta})
 	if err != nil {
 		s.writeSSEError(w, flusher, err.Error())
 		return
 	}
+	runID := res.RunID
 
 	replay, ch, err := s.runManager.Follow(r.Context(), input.Request.ScenarioName, runID)
 	if err != nil {

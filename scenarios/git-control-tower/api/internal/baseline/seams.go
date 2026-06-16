@@ -1,6 +1,10 @@
 package baseline
 
-import "context"
+import (
+	"context"
+	"fmt"
+	"time"
+)
 
 // Target identifies what a baseline operates on for a single request. repoID
 // scopes GCT-local storage; repoDir is the absolute working tree; Scenario is
@@ -91,6 +95,45 @@ type RunHandle struct {
 	RunID                 string
 	EstimatedTotalSeconds int
 	EtaKnown              bool
+	// Coalesced is true when StartRun rode an already-in-flight comprehensive run
+	// of the scenario (the one-run-per-scenario guard) instead of starting a
+	// second suite. The run id is then that in-flight run's id.
+	Coalesced bool
+}
+
+// RunStatusInfo is a non-blocking snapshot of a run's lifecycle state, used by
+// GetDiffResult to answer "is the run still going?" without waiting on it.
+type RunStatusInfo struct {
+	Status                      string // in_progress | passed | failed | aborted
+	Terminal                    bool
+	Success                     bool
+	RecommendedNextCheckSeconds int
+}
+
+// ReusableRun is a completed run a diff can reuse instead of starting a fresh
+// one (clean tree + exact sha + matching shape).
+type ReusableRun struct {
+	RunID       string
+	CompletedAt time.Time
+}
+
+// RunBusyError is a typed rejection from StartRun: the scenario already has a
+// DIVERGENT in-progress run (different shape), so a new run of a different shape
+// cannot start under the one-run-per-scenario invariant. It carries the
+// in-flight run so the CLI renders wait/abort guidance. (A diff never collides
+// with another diff/snapshot of the same scenario — those coalesce.)
+type RunBusyError struct {
+	Scenario string
+	RunID    string
+	Preset   string
+}
+
+func (e *RunBusyError) Error() string {
+	preset := e.Preset
+	if preset == "" {
+		preset = "(default)"
+	}
+	return fmt.Sprintf("scenario %s already has an in-progress run %s (preset %s); wait for it or abort it before starting a different run", e.Scenario, e.RunID, preset)
 }
 
 // Executor drives ONE comprehensive, durable test-genie run (all phases) with
@@ -106,6 +149,14 @@ type RunHandle struct {
 type Executor interface {
 	StartRun(ctx context.Context, scenario string) (RunHandle, error)
 	AwaitResult(ctx context.Context, scenario, runID string) (ExecResult, error)
+	// RunStatus returns a non-blocking lifecycle snapshot of a run, so a diff can
+	// report in_progress vs ready without waiting on the run.
+	RunStatus(ctx context.Context, scenario, runID string) (RunStatusInfo, error)
+	// FindReusableRun returns the newest completed clean-tree comprehensive+
+	// baseline run at exactly gitSha, if one exists; found=false otherwise. It
+	// lets a diff skip re-running the suite when the working tree hasn't changed
+	// since a prior run/snapshot (the redundant-run defect).
+	FindReusableRun(ctx context.Context, scenario, gitSha string) (ReusableRun, bool, error)
 }
 
 // RunVisual is one page's UI-smoke visual artifact captured by a run under the

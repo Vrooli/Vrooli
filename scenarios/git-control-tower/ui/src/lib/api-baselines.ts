@@ -11,7 +11,7 @@
 import { baselinesClient } from "./connect";
 import type {
   BaselineManifest,
-  DiffBaselineResponse,
+  DiffResult,
   SnapshotForBaselineResponse,
 } from "@vrooli/proto-types/git-control-tower/v1/baselines/baselines_pb";
 
@@ -72,14 +72,27 @@ export interface DiffBaselineParams {
   repoId?: string | null;
 }
 
-export async function diffBaseline(params: DiffBaselineParams): Promise<DiffBaselineResponse> {
-  return baselinesClient.diffBaseline({
+// diffBaseline starts a durable diff then resolves its verdict with a
+// server-side wait (no client polling). The diff verdict is computed and cached
+// server-side; for the UI's one-shot query this reads as a single async call.
+export async function diffBaseline(params: DiffBaselineParams): Promise<DiffResult | undefined> {
+  const started = await baselinesClient.startDiff({
     scenario: params.scenario,
     name: params.name,
     branch: params.branch ?? "",
     surface: params.surface ?? "",
     repoId: toRepoId(params.repoId),
   });
+  const res = await baselinesClient.getDiffResult({
+    scenario: params.scenario,
+    name: params.name,
+    branch: params.branch ?? "",
+    runId: started.runId,
+    surface: params.surface ?? "",
+    repoId: toRepoId(params.repoId),
+    wait: true,
+  });
+  return res.diff;
 }
 
 export interface SnapshotBaselineParams {

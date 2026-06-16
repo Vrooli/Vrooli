@@ -60,8 +60,10 @@ func toRunInfo(r sharedruns.RunRecord) *runspb.RunInfo {
 			Trace:   r.Diagnostics.Trace,
 			Dom:     r.Diagnostics.DOM,
 		},
-		Pins:       pins,
-		TreeDigest: r.TreeDigest,
+		Pins:           pins,
+		TreeDigest:     r.TreeDigest,
+		Preset:         r.Preset,
+		CaptureProfile: r.CaptureProfile,
 	}
 }
 

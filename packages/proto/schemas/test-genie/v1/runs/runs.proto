@@ -60,6 +60,13 @@ service RunsService {
   // advisory: a difference is never a verdict here — a clearly-broken render
   // fails earlier, at smoke time.
   rpc CompareRunVisuals(CompareRunVisualsRequest) returns (CompareRunVisualsResponse);
+  // FindRun returns the newest completed run matching a shape filter (scenario +
+  // optional git_sha / tree_digest / preset / capture_profile / status). It is
+  // the reuse primitive: git-control-tower asks "is there already a clean-tree
+  // comprehensive+baseline run at this sha?" before starting a new one, so a
+  // snapshot-then-diff (or repeated diff) at the same clean tree does not
+  // re-run the suite. Read-only.
+  rpc FindRun(FindRunRequest) returns (FindRunResponse);
   // CheckFreshness reports, per phase, whether some recorded run executed that
   // phase (status passed) against the scenario's CURRENT working-tree digest.
   // Read-only; consumed by git-control-tower's advisory pre-commit step and
@@ -172,6 +179,20 @@ message StartRunResponse {
   // to decide whether to follow inline or auto-background. 0 when unknown.
   int32 estimated_total_seconds = 3;
   bool eta_known = 4;
+  // coalesced is true when this request matched an already-in-flight run of the
+  // same scenario with the same logical request key and rode it instead of
+  // starting a second suite. run_id is then the in-flight run's id. The
+  // one-run-per-scenario invariant means identical re-requests are idempotent.
+  bool coalesced = 5;
+}
+
+// RunBusyInfo describes the in-progress run that caused a divergent StartRun to
+// be rejected (carried in the FailedPrecondition error detail). It lets callers
+// render wait/abort guidance without parsing error strings.
+message RunBusyInfo {
+  string scenario = 1;
+  string run_id = 2;
+  string preset = 3;
 }
 
 message FollowRunRequest {
@@ -246,6 +267,13 @@ message RunInfo {
   // start ("td:"-prefixed sha256; see test-genie internal/shared/treedigest).
   // Empty on runs that predate digest stamping.
   string tree_digest = 13;
+  // preset is the requested suite preset ("quick"|"comprehensive"|...) and
+  // capture_profile the capture-depth dial (""|"baseline"). Both identify the
+  // suite SHAPE the run executed, so a consumer (git-control-tower) can reuse a
+  // completed run only when it matches the shape it needs. Empty on runs that
+  // predate shape stamping.
+  string preset = 14;
+  string capture_profile = 15;
 }
 
 message ListRunsRequest {
@@ -323,6 +351,26 @@ message CompareRunsResponse {
   // verdict is the worst per-phase verdict (regression > not-comparable >
   // new-failure > clean), driving the CLI exit code.
   string verdict = 2;
+}
+
+message FindRunRequest {
+  string scenario = 1;
+  // All match filters are exact-match and optional (empty = don't constrain):
+  string git_sha = 2;
+  string tree_digest = 3;
+  string preset = 4;
+  string capture_profile = 5;
+  // status defaults to "passed" when empty (the reuse case wants a clean run).
+  string status = 6;
+  // require_clean, when true, excludes runs captured against a dirty tree
+  // (git_dirty). Reuse always sets this — an uncommitted-edit run isn't a
+  // faithful stand-in for the current clean tree.
+  bool require_clean = 7;
+}
+
+message FindRunResponse {
+  bool found = 1;
+  RunInfo run = 2; // the newest matching run; unset when found=false
 }
 
 message GetPhaseArtifactRequest {

@@ -27,6 +27,10 @@ type Service struct {
 	reachable  Reachability
 	captureGit func(ctx context.Context, repoDir string) (git.State, error)
 	now        func() time.Time
+	// reuseTTL bounds clean-tree run reuse: a completed run at the current sha is
+	// reused only when it finished within this window (0 = no reuse). Lever
+	// GCT_DIFF_RUN_REUSE_TTL.
+	reuseTTL time.Duration
 }
 
 // Deps wires the Service.
@@ -38,6 +42,7 @@ type Deps struct {
 	Reachable  Reachability
 	CaptureGit func(ctx context.Context, repoDir string) (git.State, error)
 	Now        func() time.Time
+	ReuseTTL   time.Duration
 }
 
 // NewService builds a Service, defaulting CaptureGit to the real git reader and
@@ -57,6 +62,7 @@ func NewService(d Deps) *Service {
 		reachable:  d.Reachable,
 		captureGit: d.CaptureGit,
 		now:        d.Now,
+		reuseTTL:   d.ReuseTTL,
 	}
 }
 
@@ -308,17 +314,6 @@ func (s *Service) fillSurfaces(ctx context.Context, manifest *BaselineManifest, 
 	}
 }
 
-// runToCompletion starts a comprehensive run and blocks for its result. Used by
-// Diff, which needs the current comparison run synchronously (the diff is an
-// inline operation, not a durable pin).
-func (s *Service) runToCompletion(ctx context.Context, scenario string) (ExecResult, error) {
-	h, err := s.exec.StartRun(ctx, scenario)
-	if err != nil {
-		return ExecResult{}, err
-	}
-	return s.exec.AwaitResult(ctx, scenario, h.RunID)
-}
-
 // dirtyCaptureWarning is the standard warning when a baseline is captured
 // against a dirty working tree.
 func dirtyCaptureWarning(summary string) string {
@@ -412,110 +407,286 @@ type DiffResult struct {
 	DirtyWarning string // non-empty when the current tree is dirty (verdicts are most suspect then)
 }
 
-// Diff compares a baseline against the current working tree. It triggers ONE
-// comprehensive run now, issues ONE empty-phase CompareRuns over (baseline run,
-// current run), and buckets the returned PhaseDiff[] into surfaces locally
-// (option-c). The visuals surface is diffed at the metadata level over the two
-// runs' visual artifacts. surface, when non-empty, restricts the result to that
-// one surface.
-func (s *Service) Diff(ctx context.Context, repoID int64, repoDir, scenario, branch, name, surface string) (DiffResult, error) {
-	manifest, err := s.storage.Load(repoID, scenario, branch, name)
+// StartDiffRequest parameterizes StartDiff.
+type StartDiffRequest struct {
+	RepoID   int64
+	RepoDir  string
+	Scenario string
+	Branch   string
+	Name     string
+	Surface  string // empty = all surfaces
+}
+
+// StartDiffOutcome is returned immediately by StartDiff: the comprehensive run
+// the diff will compare against (fresh / coalesced / reused) plus the
+// PendingDiff handed to FinalizeDiff on a server-owned context.
+type StartDiffOutcome struct {
+	RunID                 string
+	Scenario              string
+	Name                  string
+	Branch                string
+	EstimatedTotalSeconds int
+	EtaKnown              bool
+	Coalesced             bool
+	ReusedRun             bool
+	ReusedSha             string
+	DirtyWarning          string
+	Pending               PendingDiff
+}
+
+// PendingDiff is everything FinalizeDiff needs to compute + cache the verdict
+// once the current run is terminal. Mirrors PendingCapture's role for snapshots.
+type PendingDiff struct {
+	RepoID     int64
+	Scenario   string
+	Branch     string
+	Name       string
+	Surface    string
+	Manifest   BaselineManifest
+	CurrentGit git.State
+	Staleness  Staleness
+	BaseRunID  string
+	CurRunID   string
+}
+
+// StartDiff resolves the current comprehensive run a baseline will be diffed
+// against and returns its handle WITHOUT waiting for it. The run is reused (clean
+// tree, same sha), coalesced onto an in-flight run, or freshly started (always
+// under the one-run-per-scenario guard, so a snapshot/diff already running is
+// ridden, never stacked). FinalizeDiff computes + caches the verdict on a
+// server-owned context. Mirrors StartCapture's durable, return-fast contract.
+func (s *Service) StartDiff(ctx context.Context, req StartDiffRequest) (StartDiffOutcome, error) {
+	manifest, err := s.storage.Load(req.RepoID, req.Scenario, req.Branch, req.Name)
 	if err != nil {
-		return DiffResult{}, err
+		return StartDiffOutcome{}, err
 	}
-	cur, gerr := s.captureGit(ctx, repoDir)
+	if req.Surface != "" {
+		_, captured := manifest.Surfaces[req.Surface]
+		_, wasSkipped := manifest.Skipped[req.Surface]
+		if !captured && !wasSkipped {
+			return StartDiffOutcome{}, fmt.Errorf("surface %q not present in baseline %q", req.Surface, req.Name)
+		}
+	}
+
+	// An empty (create-only) baseline has no captured run to compare against, so
+	// a diff cannot produce a verdict — fail fast rather than waste a full
+	// comprehensive run that would only report "nothing to compare".
+	baseRunID := manifest.RunID()
+	if baseRunID == "" {
+		return StartDiffOutcome{}, fmt.Errorf("baseline %q has no captured run to diff against (it was created empty; snapshot or edit it first)", req.Name)
+	}
+
+	cur, gerr := s.captureGit(ctx, req.RepoDir)
 	if gerr != nil {
 		cur = git.State{}
 	}
-	stale, _ := ComputeStaleness(ctx, s.probe, repoDir, manifest.Git.Sha)
+	stale, _ := ComputeStaleness(ctx, s.probe, req.RepoDir, manifest.Git.Sha)
 
+	if reason := s.reachabilityError(ctx); reason != "" {
+		return StartDiffOutcome{}, fmt.Errorf("test-genie is not reachable: %s", reason)
+	}
+	runID, coalesced, reused, sha, handle, err := s.resolveCurrentRun(ctx, req.Scenario, cur)
+	if err != nil {
+		return StartDiffOutcome{}, err
+	}
+
+	out := StartDiffOutcome{
+		RunID:                 runID,
+		Scenario:              req.Scenario,
+		Name:                  req.Name,
+		Branch:                req.Branch,
+		EstimatedTotalSeconds: handle.EstimatedTotalSeconds,
+		EtaKnown:              handle.EtaKnown,
+		Coalesced:             coalesced,
+		ReusedRun:             reused,
+		ReusedSha:             sha,
+		Pending: PendingDiff{
+			RepoID:     req.RepoID,
+			Scenario:   req.Scenario,
+			Branch:     req.Branch,
+			Name:       req.Name,
+			Surface:    req.Surface,
+			Manifest:   manifest,
+			CurrentGit: cur,
+			Staleness:  stale,
+			BaseRunID:  baseRunID,
+			CurRunID:   runID,
+		},
+	}
+	if cur.Dirty {
+		out.DirtyWarning = fmt.Sprintf("working tree is dirty (%s) — failures may be caused by uncommitted changes rather than the diff itself", cur.DirtySummary)
+	}
+	return out, nil
+}
+
+// resolveCurrentRun decides the comprehensive run a diff compares against:
+//   - clean tree + a completed comprehensive+baseline run at exactly cur.Sha
+//     within the reuse TTL → reuse it (no suite re-run);
+//   - otherwise StartRun (which itself coalesces onto an in-flight run of the
+//     scenario, or starts a fresh one, under the one-run-per-scenario guard).
+func (s *Service) resolveCurrentRun(ctx context.Context, scenario string, cur git.State) (runID string, coalesced, reused bool, sha string, handle RunHandle, err error) {
+	if !cur.Dirty && cur.Sha != "" {
+		if rr, found, ferr := s.exec.FindReusableRun(ctx, scenario, cur.Sha); ferr == nil && found {
+			if s.reuseTTL <= 0 || s.now().UTC().Sub(rr.CompletedAt) <= s.reuseTTL {
+				return rr.RunID, false, true, shortSha(cur.Sha), RunHandle{RunID: rr.RunID}, nil
+			}
+		}
+	}
+	h, serr := s.exec.StartRun(ctx, scenario)
+	if serr != nil {
+		return "", false, false, "", RunHandle{}, serr
+	}
+	if h.RunID == "" {
+		return "", false, false, "", RunHandle{}, fmt.Errorf("test-genie returned no run id")
+	}
+	return h.RunID, h.Coalesced, false, "", h, nil
+}
+
+// FinalizeDiff blocks until the current run is terminal, computes the diff
+// verdict, and persists it under (repoID, scenario, branch, name, runID). It runs
+// on a server-owned context so a disconnected client never abandons the result.
+// Multiple baseline names sharing one current run each persist their own result.
+func (s *Service) FinalizeDiff(ctx context.Context, pending PendingDiff) (CachedDiff, error) {
+	_, awaitErr := s.exec.AwaitResult(ctx, pending.Scenario, pending.CurRunID)
+	diff := s.computeDiff(ctx, pending.Manifest, pending.Surface, pending.CurrentGit, pending.Staleness, pending.BaseRunID, pending.CurRunID, awaitErr)
+	cd := CachedDiff{Status: "ready", Result: &diff, RunID: pending.CurRunID, ComputedAt: s.now().UTC()}
+	if err := s.storage.SaveDiffResult(pending.RepoID, pending.Scenario, pending.Branch, pending.Name, pending.CurRunID, cd); err != nil {
+		return cd, err
+	}
+	return cd, nil
+}
+
+// GetDiffResultRequest parameterizes GetDiffResult.
+type GetDiffResultRequest struct {
+	RepoID   int64
+	RepoDir  string
+	Scenario string
+	Branch   string
+	Name     string
+	RunID    string
+	Surface  string
+	// Wait blocks SERVER-SIDE until the run is terminal before computing (no
+	// client polling). When false, an in-flight run returns status=in_progress.
+	Wait bool
+}
+
+// GetDiffResult returns the cached diff for (baseline, run). When no cache exists
+// it inspects the run: still in-flight → status=in_progress + a recommended
+// next-check backoff (unless Wait, which blocks server-side until terminal);
+// terminal but uncached (finalize lost to a crash) → recompute once on demand
+// and cache it. The returned CachedDiff.Status is one of in_progress | ready.
+func (s *Service) GetDiffResult(ctx context.Context, req GetDiffResultRequest) (CachedDiff, int, error) {
+	cached, ok, err := s.storage.LoadDiffResult(req.RepoID, req.Scenario, req.Branch, req.Name, req.RunID)
+	if err != nil {
+		return CachedDiff{}, 0, err
+	}
+	if ok {
+		return cached, 0, nil
+	}
+
+	st, serr := s.exec.RunStatus(ctx, req.Scenario, req.RunID)
+	if serr != nil {
+		return CachedDiff{}, 0, serr
+	}
+	if !st.Terminal && !req.Wait {
+		return CachedDiff{Status: "in_progress", RunID: req.RunID}, st.RecommendedNextCheckSeconds, nil
+	}
+
+	// Either the run is terminal but uncached (the finalize tail was lost to a
+	// crash/restart), or Wait was requested and we block server-side via
+	// AwaitResult until terminal. Recompute once on demand; the runs are durable.
+	manifest, err := s.storage.Load(req.RepoID, req.Scenario, req.Branch, req.Name)
+	if err != nil {
+		return CachedDiff{}, 0, err
+	}
+	cur, gerr := s.captureGit(ctx, req.RepoDir)
+	if gerr != nil {
+		cur = git.State{}
+	}
+	stale, _ := ComputeStaleness(ctx, s.probe, req.RepoDir, manifest.Git.Sha)
+	_, awaitErr := s.exec.AwaitResult(ctx, req.Scenario, req.RunID)
+	diff := s.computeDiff(ctx, manifest, req.Surface, cur, stale, manifest.RunID(), req.RunID, awaitErr)
+	cd := CachedDiff{Status: "ready", Result: &diff, RunID: req.RunID, ComputedAt: s.now().UTC()}
+	_ = s.storage.SaveDiffResult(req.RepoID, req.Scenario, req.Branch, req.Name, req.RunID, cd)
+	return cd, 0, nil
+}
+
+// computeDiff issues ONE empty-phase CompareRuns over (baseline run, current
+// run), buckets the returned PhaseDiff[] into surfaces locally (option-c), and
+// diffs the visuals surface at the metadata level. runErr, when non-nil, is the
+// current run's completion error: every surface is then reported not-comparable
+// so a failed run yields a clear verdict rather than a perpetual in_progress.
+func (s *Service) computeDiff(ctx context.Context, manifest BaselineManifest, surface string, cur git.State, stale Staleness, baseRunID, curRunID string, runErr error) DiffResult {
 	res := DiffResult{Manifest: manifest, CurrentGit: cur, Staleness: stale, Verdict: VerdictClean}
 	if cur.Dirty {
 		res.DirtyWarning = fmt.Sprintf("working tree is dirty (%s) — failures may be caused by uncommitted changes rather than the diff itself", cur.DirtySummary)
 	}
 
-	baseRunID := manifest.RunID()
-	s.diffSurfaces(ctx, scenario, baseRunID, manifest, surface, &res)
-
-	// Surfaces requested but never captured (recorded in manifest.Skipped) are
-	// reported as not-comparable so a partial baseline cannot masquerade as a
-	// clean one.
-	for _, id := range sortedSkippedIDs(manifest) {
-		if surface != "" && id != surface {
-			continue
-		}
-		if _, captured := manifest.Surfaces[id]; captured {
-			continue
-		}
-		appendSurface(&res, notComparable(id, "surface was not captured in this baseline: "+manifest.Skipped[id]))
-	}
-
-	if surface != "" && len(res.Surfaces) == 0 {
-		return DiffResult{}, fmt.Errorf("surface %q not present in baseline %q", surface, name)
-	}
-	return res, nil
-}
-
-// diffSurfaces runs the current comprehensive run + one CompareRuns, then
-// buckets the per-phase deltas into the captured phase-set surfaces and diffs
-// the visuals surface at the metadata level.
-func (s *Service) diffSurfaces(ctx context.Context, scenario, baseRunID string, manifest BaselineManifest, surface string, res *DiffResult) {
 	captured := s.sortedSurfaceIDs(manifest)
 	markAll := func(reason string) {
 		for _, id := range captured {
 			if surface != "" && id != surface {
 				continue
 			}
-			appendSurface(res, notComparable(id, reason))
+			appendSurface(&res, notComparable(id, reason))
 		}
 	}
 
-	if baseRunID == "" {
+	switch {
+	case baseRunID == "":
 		markAll("baseline has no comparable run")
-		return
-	}
-	if reason := s.reachabilityError(ctx); reason != "" {
-		markAll(reason)
-		return
-	}
-
-	cur, err := s.runToCompletion(ctx, scenario)
-	if err != nil || cur.RunID == "" {
-		reason := "could not run current comprehensive suite"
-		if err != nil {
-			reason += ": " + err.Error()
+	case runErr != nil:
+		markAll("could not run current comprehensive suite: " + runErr.Error())
+	case curRunID == "":
+		markAll("current run produced no run id")
+	default:
+		// ONE empty-phase compare returns every phase's delta; bucket locally.
+		cmp, cmpErr := s.runs.CompareRuns(ctx, manifest.Scenario, baseRunID, curRunID, "")
+		bucketed := bucketPhaseDiffs(cmp)
+		for _, id := range captured {
+			if surface != "" && id != surface {
+				continue
+			}
+			if id == SurfaceVisuals {
+				appendSurface(&res, s.visualsDiff(ctx, manifest.Scenario, baseRunID, curRunID))
+				continue
+			}
+			if cmpErr != nil {
+				appendSurface(&res, notComparable(id, "compare failed: "+cmpErr.Error()))
+				continue
+			}
+			d, ok := bucketed[id]
+			if !ok {
+				// No phase for this surface appeared in the compare (e.g. the phase
+				// was skipped in one run) — report not-comparable rather than
+				// silently clean.
+				appendSurface(&res, notComparable(id, "no comparable phase results for surface"))
+				continue
+			}
+			appendSurface(&res, d)
 		}
-		markAll(reason)
-		return
 	}
-	curRunID := cur.RunID
 
-	// ONE empty-phase compare returns every phase's delta; bucket locally.
-	cmp, cmpErr := s.runs.CompareRuns(ctx, scenario, baseRunID, curRunID, "")
-	bucketed := bucketPhaseDiffs(cmp)
-
-	for _, id := range captured {
+	// Surfaces requested but never captured (recorded in manifest.Skipped) are
+	// reported as not-comparable so a partial baseline cannot masquerade as clean.
+	for _, id := range sortedSkippedIDs(manifest) {
 		if surface != "" && id != surface {
 			continue
 		}
-		if id == SurfaceVisuals {
-			appendSurface(res, s.visualsDiff(ctx, scenario, baseRunID, curRunID))
+		if _, isCaptured := manifest.Surfaces[id]; isCaptured {
 			continue
 		}
-		if cmpErr != nil {
-			appendSurface(res, notComparable(id, "compare failed: "+cmpErr.Error()))
-			continue
-		}
-		d, ok := bucketed[id]
-		if !ok {
-			// No phase for this surface appeared in the compare (e.g. the phase
-			// was skipped in one run) — report not-comparable rather than
-			// silently clean.
-			appendSurface(res, notComparable(id, "no comparable phase results for surface"))
-			continue
-		}
-		appendSurface(res, d)
+		appendSurface(&res, notComparable(id, "surface was not captured in this baseline: "+manifest.Skipped[id]))
 	}
+	return res
+}
+
+// shortSha truncates a git sha to its 8-char display form.
+func shortSha(sha string) string {
+	if len(sha) > 8 {
+		return sha[:8]
+	}
+	return sha
 }
 
 // bucketPhaseDiffs folds the flat PhaseDiff[] from one empty-phase CompareRuns

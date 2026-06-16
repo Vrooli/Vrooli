@@ -73,15 +73,12 @@ func TestBaselinesServiceRoundTrip(t *testing.T) {
 		t.Fatalf("expected 1 baseline, got %d", len(listResp.Msg.GetBaselines()))
 	}
 
-	diffResp, err := srv.DiffBaseline(ctx, connect.NewRequest(&baselinesv1.DiffBaselineRequest{
+	// An empty (create-only) baseline has no captured run, so a diff fails fast
+	// rather than wasting a comprehensive run that has nothing to compare.
+	if _, err := srv.StartDiff(ctx, connect.NewRequest(&baselinesv1.StartDiffRequest{
 		Scenario: "foo", Name: "plan-1", Branch: "agi",
-	}))
-	if err != nil {
-		t.Fatalf("DiffBaseline: %v", err)
-	}
-	// Empty manifest → no surfaces → clean verdict.
-	if diffResp.Msg.GetVerdict() != string(bl.VerdictClean) {
-		t.Fatalf("expected clean verdict, got %q", diffResp.Msg.GetVerdict())
+	})); err == nil {
+		t.Fatal("StartDiff on an empty baseline should fail fast")
 	}
 
 	if _, err := srv.DeleteBaseline(ctx, connect.NewRequest(&baselinesv1.DeleteBaselineRequest{
@@ -120,6 +117,14 @@ func (e *cancelOnExecExecutor) StartRun(_ context.Context, _ string) (bl.RunHand
 
 func (e *cancelOnExecExecutor) AwaitResult(_ context.Context, _, runID string) (bl.ExecResult, error) {
 	return bl.ExecResult{RunID: runID, Success: true, Phases: []bl.PhaseStatus{{Name: "unit", Status: "passed"}}}, nil
+}
+
+func (e *cancelOnExecExecutor) RunStatus(_ context.Context, _, _ string) (bl.RunStatusInfo, error) {
+	return bl.RunStatusInfo{Status: "passed", Terminal: true, Success: true}, nil
+}
+
+func (e *cancelOnExecExecutor) FindReusableRun(_ context.Context, _, _ string) (bl.ReusableRun, bool, error) {
+	return bl.ReusableRun{}, false, nil
 }
 
 type recordingRuns struct {
@@ -200,6 +205,67 @@ func TestSnapshotTailSurvivesClientCancel(t *testing.T) {
 	// The manifest is durable on disk despite the canceled client context.
 	if _, err := svc.Get(context.Background(), 1, "foo", "agi", "snap-1"); err != nil {
 		t.Fatalf("manifest must be durably persisted: %v", err)
+	}
+}
+
+// StartDiff returns the current run handle immediately and finalizes the verdict
+// on a server-owned tail; GetDiffResult then returns the cached verdict. This is
+// the durable, return-fast diff contract (mirror of the snapshot tail test).
+func TestStartDiffThenGetResult(t *testing.T) {
+	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli"})
+	if err != nil {
+		t.Fatalf("NewResolver: %v", err)
+	}
+	store := bl.NewStorageAt(resolver, t.TempDir())
+	exec := &cancelOnExecExecutor{cancel: func() {}}
+	runs := &recordingRuns{}
+	svc := bl.NewService(bl.Deps{
+		Storage:    store,
+		Exec:       exec,
+		Runs:       runs,
+		CaptureGit: func(context.Context, string) (git.State, error) { return git.State{Branch: "agi", Sha: "abc123"}, nil },
+	})
+	srv := NewServer(Deps{Service: svc, Repos: fakeRepos{dir: "/repo"}})
+	// Run the diff finalize tail synchronously (still detached) for determinism.
+	done := make(chan error, 1)
+	srv.finalizeDiffFn = func(reqCtx context.Context, pending bl.PendingDiff) {
+		_, ferr := svc.FinalizeDiff(context.WithoutCancel(reqCtx), pending)
+		done <- ferr
+	}
+	ctx := context.Background()
+
+	// Seed a captured baseline (one shared run) synchronously so the diff has a
+	// base run to compare against.
+	if _, err := svc.Create(ctx, bl.CreateRequest{
+		RepoID: 1, RepoDir: "/repo", Scenario: "foo", Name: "plan-1", Branch: "agi", Capture: true,
+	}); err != nil {
+		t.Fatalf("seed baseline: %v", err)
+	}
+
+	startResp, err := srv.StartDiff(ctx, connect.NewRequest(&baselinesv1.StartDiffRequest{
+		Scenario: "foo", Name: "plan-1", Branch: "agi",
+	}))
+	if err != nil {
+		t.Fatalf("StartDiff: %v", err)
+	}
+	if startResp.Msg.GetRunId() == "" {
+		t.Fatal("StartDiff must return a run id to follow")
+	}
+	if ferr := <-done; ferr != nil {
+		t.Fatalf("diff finalize failed: %v", ferr)
+	}
+
+	getResp, err := srv.GetDiffResult(ctx, connect.NewRequest(&baselinesv1.GetDiffResultRequest{
+		Scenario: "foo", Name: "plan-1", Branch: "agi", RunId: startResp.Msg.GetRunId(),
+	}))
+	if err != nil {
+		t.Fatalf("GetDiffResult: %v", err)
+	}
+	if getResp.Msg.GetStatus() != "ready" {
+		t.Fatalf("expected ready status, got %q", getResp.Msg.GetStatus())
+	}
+	if getResp.Msg.GetDiff() == nil {
+		t.Fatal("ready result must carry the diff payload")
 	}
 }
 

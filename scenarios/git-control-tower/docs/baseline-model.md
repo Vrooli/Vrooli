@@ -68,7 +68,7 @@ phase-set surface**:
 3. Add it to `BASELINE_SURFACES` in the UI (`ui/src/features/baselines/model.ts`)
    so the modal, chips, and diff routing pick it up.
 
-**Diff is option-c.** A diff triggers one current comprehensive run and issues
+**Diff is option-c.** A diff resolves one current comprehensive run and issues
 **one** empty-phase `CompareRuns(baselineRun, currentRun)`. test-genie returns a
 flat `PhaseDiff[]` (every phase's delta); GCT buckets those phases back into
 surfaces **locally** via the `surfacePhases` inverse index. A multi-phase
@@ -76,10 +76,39 @@ surface like `tests` aggregates its phases' deltas (worst verdict wins). The
 `visuals` surface is diffed at the metadata level (page set + screenshot count)
 over the two runs' `ListRunVisuals` results — no pixel diffing.
 
-The diff verdict vocabulary is shared verbatim with test-genie's classifier:
-`clean` · `regression` · `new-failure` · `preexisting` · `not-comparable`.
-`diff` exit codes: `0` safe (clean/new-failure/preexisting), `1` regression,
-`2` not-comparable.
+**Diff is durable and return-fast (mirrors snapshot).** `StartDiff` resolves the
+current run and returns **immediately** with its run id + ETA + a re-attach
+command — it never silently blocks. The verdict is computed and **cached
+server-side** when the run completes (keyed `(repoID, scenario, branch, name,
+runID)`), surviving client disconnect; `GetDiffResult` returns it instantly.
+The CLI:
+
+```
+git-control-tower baseline diff   --scenario S --name N        # start, returns a run id
+git-control-tower baseline diff status --scenario S --name N --run R   # resolve the verdict
+git-control-tower baseline diff   --scenario S --name N --wait  # block server-side, print inline
+```
+
+`diff status` exit codes: `0` clean/safe, `1` regression, `2` not-comparable,
+`3` not-ready (run still in flight — distinct from a verdict).
+
+**The current run is resolved, not always re-run.** Resolution order:
+
+1. **Reuse** — clean working tree + a completed `comprehensive`+`baseline` run
+   at exactly the current sha within `GCT_DIFF_RUN_REUSE_TTL` (default 15m) →
+   that run is reused (`reused_run`), no suite re-run. So `snapshot` then `diff`
+   (or repeated diffs) at the same clean sha do **not** re-run the suite.
+2. **Coalesce** — otherwise `StartRun` rides an already-in-flight comprehensive
+   run of the scenario (`coalesced`), e.g. when a snapshot or another diff of
+   the same scenario is running. Many diffs of one scenario (different `--name`)
+   share one run and each caches its own comparison.
+3. **Fresh** — otherwise a new comprehensive run starts.
+
+A dirty working tree never reuses a run (uncommitted edits aren't captured by
+sha). An empty (create-only) baseline has no run to compare against, so a diff
+fails fast rather than wasting a suite. Reuse/coalesce are enforced by
+test-genie's one-run-per-scenario admission guard (see `INVARIANTS.md`); GCT
+never starts a parallel suite for the same scenario.
 
 ## Staleness
 

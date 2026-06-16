@@ -53,11 +53,21 @@ func RunDurable(baseURL string, req Request, opts DurableOptions) error {
 
 	start, err := client.StartRun(ctx, connect.NewRequest(toStartRunRequest(req)))
 	if err != nil {
+		if msg, ok := runBusyGuidance(err); ok {
+			fmt.Fprint(os.Stderr, msg)
+			return fmt.Errorf("scenario %s is busy with another run", req.ScenarioName)
+		}
 		return fmt.Errorf("start run: %w", err)
 	}
 	runID := start.Msg.GetRunId()
 	eta := int(start.Msg.GetEstimatedTotalSeconds())
 	etaKnown := start.Msg.GetEtaKnown()
+
+	// Coalesced: this request matched an already-in-flight identical run and rode
+	// it instead of starting a second suite (the one-run-per-scenario guard).
+	if start.Msg.GetCoalesced() {
+		fmt.Fprintf(os.Stderr, "↻ Re-attached to in-flight run %s for %s (identical request already running — no second suite).\n", runID, req.ScenarioName)
+	}
 
 	printRunBanner(os.Stderr, req.ScenarioName, runID, eta, etaKnown)
 
@@ -280,6 +290,36 @@ func printRunBanner(w io.Writer, scenario, runID string, eta int, etaKnown bool)
 
 func printDetached(w io.Writer, scenario, runID string) {
 	fmt.Fprintf(w, "\n⏸ Detached from run %s (still running).\n   Re-attach with:\n     %s\n", runID, reattachCommand(scenario, runID))
+}
+
+// runBusyGuidance extracts the one-run-per-scenario rejection (a divergent run
+// is already in flight) and renders wait/abort guidance. ok=false for any other
+// error. No client polling — the agent waits server-side or aborts.
+func runBusyGuidance(err error) (string, bool) {
+	var ce *connect.Error
+	if !errors.As(err, &ce) || ce.Code() != connect.CodeFailedPrecondition {
+		return "", false
+	}
+	for _, d := range ce.Details() {
+		msg, derr := d.Value()
+		if derr != nil {
+			continue
+		}
+		bi, ok := msg.(*runspb.RunBusyInfo)
+		if !ok {
+			continue
+		}
+		preset := bi.GetPreset()
+		if preset == "" {
+			preset = "default"
+		}
+		var b strings.Builder
+		fmt.Fprintf(&b, "✗ %s already has an in-progress run %s (preset %s) — only one run per scenario at a time.\n", bi.GetScenario(), bi.GetRunId(), preset)
+		fmt.Fprintf(&b, "  wait:  test-genie runs follow %s %s\n", bi.GetScenario(), bi.GetRunId())
+		fmt.Fprintf(&b, "  abort: test-genie runs abort %s %s\n", bi.GetScenario(), bi.GetRunId())
+		return b.String(), true
+	}
+	return "", false
 }
 
 func toStartRunRequest(req Request) *runspb.StartRunRequest {

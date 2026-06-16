@@ -571,6 +571,8 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 		GitDirty:        gitCtx.Dirty,
 		GitDirtySummary: gitCtx.DirtySummary,
 		TreeDigest:      digest,
+		Preset:          strings.TrimSpace(req.Preset),
+		CaptureProfile:  strings.TrimSpace(req.CaptureProfile),
 	}); err != nil {
 		log.Printf("failed to record run %s in index: %v", runID, err)
 	}

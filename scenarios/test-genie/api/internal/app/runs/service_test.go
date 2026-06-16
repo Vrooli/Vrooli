@@ -188,3 +188,57 @@ func TestGetPhaseArtifact(t *testing.T) {
 		t.Fatalf("expected NotFound, got %v", err)
 	}
 }
+
+// FindRun returns the newest completed run that matches every shape filter, and
+// found=false when none does. It is the reuse primitive git-control-tower
+// queries: only a clean, comprehensive+baseline run at the requested sha should
+// match (so a quick run, a dirty run, or a different sha is never reused).
+func TestFindRun(t *testing.T) {
+	svc, root := newTestService(t)
+	base := time.Now().UTC()
+	// A matching clean comprehensive+baseline run at sha "abc".
+	seedRecord(t, root, sharedruns.RunRecord{
+		RunID: "match", Scenario: "demo", StartedAt: base, Status: sharedruns.StatusPassed,
+		GitSha: "abc", Preset: "comprehensive", CaptureProfile: "baseline",
+	})
+	// A newer run that should NOT match: different preset.
+	seedRecord(t, root, sharedruns.RunRecord{
+		RunID: "wrong-preset", Scenario: "demo", StartedAt: base.Add(time.Minute), Status: sharedruns.StatusPassed,
+		GitSha: "abc", Preset: "quick", CaptureProfile: "baseline",
+	})
+	// A newer run that should NOT match: dirty tree.
+	seedRecord(t, root, sharedruns.RunRecord{
+		RunID: "dirty", Scenario: "demo", StartedAt: base.Add(2 * time.Minute), Status: sharedruns.StatusPassed,
+		GitSha: "abc", Preset: "comprehensive", CaptureProfile: "baseline", GitDirty: true,
+	})
+	// A newer run that should NOT match: different sha.
+	seedRecord(t, root, sharedruns.RunRecord{
+		RunID: "other-sha", Scenario: "demo", StartedAt: base.Add(3 * time.Minute), Status: sharedruns.StatusPassed,
+		GitSha: "def", Preset: "comprehensive", CaptureProfile: "baseline",
+	})
+
+	resp, err := svc.FindRun(context.Background(), connect.NewRequest(&runspb.FindRunRequest{
+		Scenario: "demo", GitSha: "abc", Preset: "comprehensive", CaptureProfile: "baseline",
+		Status: "passed", RequireClean: true,
+	}))
+	if err != nil {
+		t.Fatalf("FindRun: %v", err)
+	}
+	if !resp.Msg.GetFound() {
+		t.Fatal("expected a matching run")
+	}
+	if got := resp.Msg.GetRun().GetRunId(); got != "match" {
+		t.Fatalf("FindRun matched %q, want the clean comprehensive+baseline run \"match\"", got)
+	}
+
+	// No run at this sha → found=false.
+	miss, err := svc.FindRun(context.Background(), connect.NewRequest(&runspb.FindRunRequest{
+		Scenario: "demo", GitSha: "zzz", Preset: "comprehensive", CaptureProfile: "baseline", RequireClean: true,
+	}))
+	if err != nil {
+		t.Fatalf("FindRun(miss): %v", err)
+	}
+	if miss.Msg.GetFound() {
+		t.Fatalf("expected no match for an unknown sha, got %q", miss.Msg.GetRun().GetRunId())
+	}
+}

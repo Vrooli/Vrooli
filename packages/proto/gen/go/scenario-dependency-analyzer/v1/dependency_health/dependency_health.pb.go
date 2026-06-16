@@ -7,6 +7,7 @@
 package dependency_health_v1
 
 import (
+	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -88,6 +89,7 @@ type DependencyHealthResponse struct {
 	PolicySummary        *DependencyPolicySummary         `protobuf:"bytes,9,opt,name=policy_summary,json=policySummary,proto3" json:"policy_summary,omitempty"`
 	DegradedDependencies []*DegradedDependency            `protobuf:"bytes,10,rep,name=degraded_dependencies,json=degradedDependencies,proto3" json:"degraded_dependencies,omitempty"`
 	GeneratedAt          string                           `protobuf:"bytes,11,opt,name=generated_at,json=generatedAt,proto3" json:"generated_at,omitempty"`
+	Assessment           *v1.MaturityAssessment           `protobuf:"bytes,12,opt,name=assessment,proto3" json:"assessment,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -197,6 +199,13 @@ func (x *DependencyHealthResponse) GetGeneratedAt() string {
 		return x.GeneratedAt
 	}
 	return ""
+}
+
+func (x *DependencyHealthResponse) GetAssessment() *v1.MaturityAssessment {
+	if x != nil {
+		return x.Assessment
+	}
+	return nil
 }
 
 type DependencyHealthSummary struct {
@@ -915,10 +924,10 @@ var File_scenario_dependency_analyzer_v1_dependency_health_dependency_health_pro
 
 const file_scenario_dependency_analyzer_v1_dependency_health_dependency_health_proto_rawDesc = "" +
 	"\n" +
-	"Iscenario-dependency-analyzer/v1/dependency_health/dependency_health.proto\x128vrooli.scenario_dependency_analyzer.v1.dependency_health\"Z\n" +
+	"Iscenario-dependency-analyzer/v1/dependency_health/dependency_health.proto\x128vrooli.scenario_dependency_analyzer.v1.dependency_health\x1a\x18common/v1/maturity.proto\"Z\n" +
 	"\x1fValidateDependencyHealthRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x1b\n" +
-	"\tuse_cache\x18\x02 \x01(\bR\buseCache\"\xb3\b\n" +
+	"\tuse_cache\x18\x02 \x01(\bR\buseCache\"\xf2\b\n" +
 	"\x18DependencyHealthResponse\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x16\n" +
 	"\x06passed\x18\x02 \x01(\bR\x06passed\x12k\n" +
@@ -931,7 +940,10 @@ const file_scenario_dependency_analyzer_v1_dependency_health_dependency_health_p
 	"\x0epolicy_summary\x18\t \x01(\v2Q.vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyPolicySummaryR\rpolicySummary\x12\x81\x01\n" +
 	"\x15degraded_dependencies\x18\n" +
 	" \x03(\v2L.vrooli.scenario_dependency_analyzer.v1.dependency_health.DegradedDependencyR\x14degradedDependencies\x12!\n" +
-	"\fgenerated_at\x18\v \x01(\tR\vgeneratedAt\"\xec\x01\n" +
+	"\fgenerated_at\x18\v \x01(\tR\vgeneratedAt\x12=\n" +
+	"\n" +
+	"assessment\x18\f \x01(\v2\x1d.common.v1.MaturityAssessmentR\n" +
+	"assessment\"\xec\x01\n" +
 	"\x17DependencyHealthSummary\x12\x1a\n" +
 	"\bsections\x18\x01 \x01(\x05R\bsections\x12\x1a\n" +
 	"\bsurfaces\x18\x02 \x01(\x05R\bsurfaces\x12\x1a\n" +
@@ -1031,23 +1043,25 @@ var file_scenario_dependency_analyzer_v1_dependency_health_dependency_health_pro
 	(*DependencyGovernanceSummary)(nil),     // 7: vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyGovernanceSummary
 	(*DependencyPolicySummary)(nil),         // 8: vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyPolicySummary
 	(*DegradedDependency)(nil),              // 9: vrooli.scenario_dependency_analyzer.v1.dependency_health.DegradedDependency
+	(*v1.MaturityAssessment)(nil),           // 10: common.v1.MaturityAssessment
 }
 var file_scenario_dependency_analyzer_v1_dependency_health_dependency_health_proto_depIdxs = []int32{
-	2, // 0: vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyHealthResponse.summary:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyHealthSummary
-	3, // 1: vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyHealthResponse.sections:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyHealthSection
-	4, // 2: vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyHealthResponse.findings:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyHealthFinding
-	5, // 3: vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyHealthResponse.surfaces:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyHealthSurface
-	6, // 4: vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyHealthResponse.command_results:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyHealthCommandResult
-	7, // 5: vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyHealthResponse.governance_summary:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyGovernanceSummary
-	8, // 6: vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyHealthResponse.policy_summary:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyPolicySummary
-	9, // 7: vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyHealthResponse.degraded_dependencies:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_health.DegradedDependency
-	0, // 8: vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyHealthService.ValidateDependencyHealth:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_health.ValidateDependencyHealthRequest
-	1, // 9: vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyHealthService.ValidateDependencyHealth:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyHealthResponse
-	9, // [9:10] is the sub-list for method output_type
-	8, // [8:9] is the sub-list for method input_type
-	8, // [8:8] is the sub-list for extension type_name
-	8, // [8:8] is the sub-list for extension extendee
-	0, // [0:8] is the sub-list for field type_name
+	2,  // 0: vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyHealthResponse.summary:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyHealthSummary
+	3,  // 1: vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyHealthResponse.sections:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyHealthSection
+	4,  // 2: vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyHealthResponse.findings:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyHealthFinding
+	5,  // 3: vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyHealthResponse.surfaces:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyHealthSurface
+	6,  // 4: vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyHealthResponse.command_results:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyHealthCommandResult
+	7,  // 5: vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyHealthResponse.governance_summary:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyGovernanceSummary
+	8,  // 6: vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyHealthResponse.policy_summary:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyPolicySummary
+	9,  // 7: vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyHealthResponse.degraded_dependencies:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_health.DegradedDependency
+	10, // 8: vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyHealthResponse.assessment:type_name -> common.v1.MaturityAssessment
+	0,  // 9: vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyHealthService.ValidateDependencyHealth:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_health.ValidateDependencyHealthRequest
+	1,  // 10: vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyHealthService.ValidateDependencyHealth:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_health.DependencyHealthResponse
+	10, // [10:11] is the sub-list for method output_type
+	9,  // [9:10] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_scenario_dependency_analyzer_v1_dependency_health_dependency_health_proto_init() }

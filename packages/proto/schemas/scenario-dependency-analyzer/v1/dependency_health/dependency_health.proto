@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package vrooli.scenario_dependency_analyzer.v1.dependency_health;
 
+import "common/v1/maturity.proto";
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/dependency_health;dependency_health_v1";
 
 // =============================================================================
@@ -45,6 +47,7 @@ message DependencyHealthResponse {
   DependencyPolicySummary policy_summary = 9;
   repeated DegradedDependency degraded_dependencies = 10;
   string generated_at = 11;
+  common.v1.MaturityAssessment assessment = 12;
 }
 
 message DependencyHealthSummary {

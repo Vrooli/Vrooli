@@ -169,6 +169,56 @@ func (s *Service) CompareRuns(ctx context.Context, req *connect.Request[runspb.C
 	return connect.NewResponse(resp), nil
 }
 
+// FindRun returns the newest completed run matching the shape filter, or
+// found=false when none matches. It is the reuse primitive git-control-tower
+// queries before starting a comprehensive run: "is there already a clean-tree
+// comprehensive+baseline run at this sha?" Matching is exact on every non-empty
+// filter; status defaults to "passed"; require_clean excludes dirty-tree runs.
+func (s *Service) FindRun(ctx context.Context, req *connect.Request[runspb.FindRunRequest]) (*connect.Response[runspb.FindRunResponse], error) {
+	dir, err := s.scenarioDir(req.Msg.GetScenario())
+	if err != nil {
+		return nil, err
+	}
+	records, err := sharedruns.NewIndex(dir).List()
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+
+	wantStatus := strings.TrimSpace(req.Msg.GetStatus())
+	if wantStatus == "" {
+		wantStatus = sharedruns.StatusPassed
+	}
+	gitSha := strings.TrimSpace(req.Msg.GetGitSha())
+	treeDigest := strings.TrimSpace(req.Msg.GetTreeDigest())
+	preset := strings.TrimSpace(req.Msg.GetPreset())
+	captureProfile := strings.TrimSpace(req.Msg.GetCaptureProfile())
+	requireClean := req.Msg.GetRequireClean()
+
+	// List() returns newest-first, so the first match is the newest.
+	for _, r := range records {
+		if r.Status != wantStatus {
+			continue
+		}
+		if requireClean && r.GitDirty {
+			continue
+		}
+		if gitSha != "" && r.GitSha != gitSha {
+			continue
+		}
+		if treeDigest != "" && r.TreeDigest != treeDigest {
+			continue
+		}
+		if preset != "" && r.Preset != preset {
+			continue
+		}
+		if captureProfile != "" && r.CaptureProfile != captureProfile {
+			continue
+		}
+		return connect.NewResponse(&runspb.FindRunResponse{Found: true, Run: toRunInfo(r)}), nil
+	}
+	return connect.NewResponse(&runspb.FindRunResponse{Found: false}), nil
+}
+
 // GetPhaseArtifact returns the raw phase-results JSON for a run+phase.
 func (s *Service) GetPhaseArtifact(ctx context.Context, req *connect.Request[runspb.GetPhaseArtifactRequest]) (*connect.Response[runspb.GetPhaseArtifactResponse], error) {
 	dir, err := s.scenarioDir(req.Msg.GetScenario())
