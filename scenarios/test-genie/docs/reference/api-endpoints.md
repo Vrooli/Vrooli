@@ -360,7 +360,7 @@ Execute a test suite for a scenario. This is the primary endpoint for running te
 **Available Phases:**
 1. `structure` - Validates scenario layout, manifests, and JSON health
 2. `standards` - Runs scenario-auditor standards enforcement
-3. `dependencies` - Confirms required commands, runtimes, and declared resources
+3. `dependencies` - Delegates dependency health validation to scenario-dependency-analyzer
 4. `quality` - Delegates static quality contracts to quality-health
 5. `docs` - Validates markdown, mermaid, and links
 6. `smoke` - Performs fast UI / runtime handshake validation

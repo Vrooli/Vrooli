@@ -19,24 +19,30 @@ import (
 // QualitySummary mirrors quality-health's audit summary so phase pointers keep
 // a stable JSON shape across runs.
 type QualitySummary struct {
-	Scenario         string `json:"scenario"`
-	Status           string `json:"status"`
-	Passed           bool   `json:"passed"`
-	Errors           int    `json:"errors"`
-	Warnings         int    `json:"warnings"`
-	Infos            int    `json:"infos"`
-	Surfaces         int    `json:"surfaces"`
-	Contracts        int    `json:"contracts"`
-	AutofixableCount int    `json:"autofixable_count"`
-	Skipped          bool   `json:"skipped,omitempty"`
+	Scenario          string `json:"scenario"`
+	Status            string `json:"status"`
+	Passed            bool   `json:"passed"`
+	Errors            int    `json:"errors"`
+	Warnings          int    `json:"warnings"`
+	Infos             int    `json:"infos"`
+	Surfaces          int    `json:"surfaces"`
+	Contracts         int    `json:"contracts"`
+	AutofixableCount  int    `json:"autofixable_count"`
+	LocalCurrentLevel string `json:"local_current_level,omitempty"`
+	LocalNextLevel    string `json:"local_next_level,omitempty"`
+	Skipped           bool   `json:"skipped,omitempty"`
 }
 
 func (s QualitySummary) String() string {
 	if s.Skipped {
 		return "skipped"
 	}
-	return fmt.Sprintf("%s status=%s passed=%v errors=%d warnings=%d infos=%d surfaces=%d contracts=%d autofixable=%d",
+	text := fmt.Sprintf("%s status=%s passed=%v errors=%d warnings=%d infos=%d surfaces=%d contracts=%d autofixable=%d",
 		s.Scenario, s.Status, s.Passed, s.Errors, s.Warnings, s.Infos, s.Surfaces, s.Contracts, s.AutofixableCount)
+	if s.LocalCurrentLevel != "" || s.LocalNextLevel != "" {
+		text += fmt.Sprintf(" local=%s next=%s", s.LocalCurrentLevel, s.LocalNextLevel)
+	}
+	return text
 }
 
 // qualityFinding is the structured shape `quality-health audit run <scenario>
@@ -56,12 +62,13 @@ type qualityFinding struct {
 }
 
 type qualityReport struct {
-	RunID    string           `json:"run_id"`
-	Scenario string           `json:"scenario"`
-	Status   string           `json:"status"`
-	Summary  string           `json:"summary"`
-	Findings []qualityFinding `json:"findings"`
-	Counts   struct {
+	RunID      string                      `json:"run_id"`
+	Scenario   string                      `json:"scenario"`
+	Status     string                      `json:"status"`
+	Summary    string                      `json:"summary"`
+	Findings   []qualityFinding            `json:"findings"`
+	Assessment *providerMaturityAssessment `json:"assessment"`
+	Counts     struct {
 		Errors           int `json:"errors"`
 		Warnings         int `json:"warnings"`
 		Infos            int `json:"infos"`
@@ -135,7 +142,7 @@ func runQualityPhase(ctx context.Context, env workspace.Environment, logWriter i
 					RunResult: shared.RunResult[QualitySummary]{
 						Success:      false,
 						Error:        fmt.Errorf("parse quality-health output: %w (exit=%d)", parseErr, exitCode),
-						FailureClass: shared.FailureClassSystem,
+						FailureClass: classifyProviderParseFailure(parseErr),
 						Remediation:  "Run `quality-health audit run " + env.ScenarioName + " --json` manually and inspect output.",
 					},
 				}, nil
@@ -196,6 +203,9 @@ func parseQualityOutput(raw []byte) (*qualityReport, error) {
 	if err := json.Unmarshal(raw, &rep); err != nil {
 		return nil, err
 	}
+	if err := requireProviderAssessment("quality-health", "quality", rep.Assessment); err != nil {
+		return nil, err
+	}
 	return &rep, nil
 }
 
@@ -212,6 +222,7 @@ func translateQualityReport(rep *qualityReport, exitCode int) *qualityRunResult 
 		Contracts:        rep.Counts.Contracts,
 		AutofixableCount: rep.Counts.AutofixableCount,
 	}
+	out.Summary.LocalCurrentLevel, out.Summary.LocalNextLevel = localMaturitySummary(rep.Assessment)
 
 	failureCount := 0
 	for _, f := range rep.Findings {

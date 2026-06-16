@@ -1,0 +1,239 @@
+{
+  "provider": "scenario-dependency-analyzer",
+  "phase": "dependencies",
+  "version": "1.0.0",
+  "levels": [
+    {
+      "id": "L0",
+      "name": "No dependency graph",
+      "description": "SDA cannot resolve dependency surfaces or runtime dependency metadata for the target scenario.",
+      "entry_criteria": ["Scenario id is provided"],
+      "exit_criteria": ["At least one dependency surface or explicit no-surface finding is emitted"]
+    },
+    {
+      "id": "L1",
+      "name": "Dependency surfaces known",
+      "description": "SDA can identify package/module surfaces and reports unsupported or missing surfaces explicitly.",
+      "entry_criteria": ["Target scenario is readable"],
+      "exit_criteria": ["Dependency surfaces are discovered or intentionally reported as absent"]
+    },
+    {
+      "id": "L2",
+      "name": "Runtime dependencies reachable",
+      "description": "Required resources and scenario dependencies are present, running, and healthy enough for local validation.",
+      "entry_criteria": ["Dependency surfaces are known"],
+      "exit_criteria": ["Required runtime resources and scenario dependencies are running and healthy"]
+    },
+    {
+      "id": "L3",
+      "name": "Package metadata governed",
+      "description": "Dependency metadata is reproducible, package lockfiles are coherent, and release-age policy is enforced.",
+      "entry_criteria": ["Runtime dependency checks pass"],
+      "exit_criteria": ["Package managers, lockfiles, go.mod state, and release-age policy are healthy"]
+    },
+    {
+      "id": "L4",
+      "name": "Dependency governance current",
+      "description": "Approved dependency registry, policy exceptions, security-health index status, and graph drift are current.",
+      "entry_criteria": ["Package metadata checks pass"],
+      "exit_criteria": ["Governance registry, security index, and declared-vs-observed graph evidence are current"]
+    },
+    {
+      "id": "L5",
+      "name": "Fleet-ready dependency posture",
+      "description": "Dependency health is clean enough for Test Genie delegation and fleet-level maturity comparison.",
+      "entry_criteria": ["Governance and graph drift checks pass"],
+      "exit_criteria": ["No dependency-health findings block fleet validation"]
+    }
+  ],
+  "findings": {
+    "dependency.surfaces.none": {
+      "local_level_impact": "L1",
+      "global_impact": "evolvability_gap",
+      "dimension": "dependencies",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["storage-steer", "ecosystem-fit"]
+    },
+    "dependency.surface.unsupported": {
+      "local_level_impact": "L1",
+      "global_impact": "advisory",
+      "dimension": "dependencies",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["ecosystem-fit"]
+    },
+    "dependency.surface.unsupported_language": {
+      "local_level_impact": "L1",
+      "global_impact": "advisory",
+      "dimension": "dependencies",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["ecosystem-fit"]
+    },
+    "dependency.runtime.manifest_readable": {
+      "local_level_impact": "L2",
+      "global_impact": "foundation_blocker",
+      "dimension": "dependencies",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["cross-platform-readiness"]
+    },
+    "dependency.runtime.resource_present": {
+      "local_level_impact": "L2",
+      "global_impact": "foundation_blocker",
+      "dimension": "dependencies",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["storage-steer", "cross-platform-readiness"]
+    },
+    "dependency.runtime.resource_running": {
+      "local_level_impact": "L2",
+      "global_impact": "foundation_blocker",
+      "dimension": "dependencies",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["cross-platform-readiness"]
+    },
+    "dependency.runtime.resource_healthy": {
+      "local_level_impact": "L2",
+      "global_impact": "foundation_blocker",
+      "dimension": "dependencies",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["cross-platform-readiness"]
+    },
+    "dependency.runtime.scenario_running": {
+      "local_level_impact": "L2",
+      "global_impact": "foundation_blocker",
+      "dimension": "dependencies",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["ecosystem-fit", "cross-platform-readiness"]
+    },
+    "dependency.runtime.scenario_healthy": {
+      "local_level_impact": "L2",
+      "global_impact": "foundation_blocker",
+      "dimension": "dependencies",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["ecosystem-fit", "cross-platform-readiness"]
+    },
+    "dependency.runtime.version": {
+      "local_level_impact": "L2",
+      "global_impact": "advisory",
+      "dimension": "dependencies",
+      "severity_default": "SEVERITY_INFO",
+      "recommended_skill_ids": ["cross-platform-readiness"]
+    },
+    "dependency.command.available": {
+      "local_level_impact": "L3",
+      "global_impact": "hardening_gap",
+      "dimension": "dependencies",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["cross-platform-readiness"]
+    },
+    "dependency.go.mod_present": {
+      "local_level_impact": "L3",
+      "global_impact": "foundation_blocker",
+      "dimension": "dependencies",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["go", "storage-steer"]
+    },
+    "dependency.go.local_replace_resolves": {
+      "local_level_impact": "L3",
+      "global_impact": "evolvability_gap",
+      "dimension": "dependencies",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["go", "cross-platform-readiness"]
+    },
+    "dependency.go.tidy": {
+      "local_level_impact": "L3",
+      "global_impact": "hardening_gap",
+      "dimension": "dependencies",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["go", "test"]
+    },
+    "dependency.node.package_json_present": {
+      "local_level_impact": "L3",
+      "global_impact": "foundation_blocker",
+      "dimension": "dependencies",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["cross-platform-readiness"]
+    },
+    "dependency.node.lockfile_present": {
+      "local_level_impact": "L3",
+      "global_impact": "hardening_gap",
+      "dimension": "dependencies",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["test", "cross-platform-readiness"]
+    },
+    "dependency.node.single_lockfile": {
+      "local_level_impact": "L3",
+      "global_impact": "hardening_gap",
+      "dimension": "dependencies",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["cross-platform-readiness"]
+    },
+    "dependency.node.install_state": {
+      "local_level_impact": "L3",
+      "global_impact": "advisory",
+      "dimension": "dependencies",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["cross-platform-readiness"]
+    },
+    "dependency.release_age.policy_readable": {
+      "local_level_impact": "L3",
+      "global_impact": "hardening_gap",
+      "dimension": "dependencies",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["security", "cross-platform-readiness"]
+    },
+    "dependency.release_age.minimum_configured": {
+      "local_level_impact": "L3",
+      "global_impact": "hardening_gap",
+      "dimension": "dependencies",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["security", "cross-platform-readiness"]
+    },
+    "dependency.release_age.minimum_value": {
+      "local_level_impact": "L3",
+      "global_impact": "hardening_gap",
+      "dimension": "dependencies",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["security", "cross-platform-readiness"]
+    },
+    "dependency.release_age.exclude_governed": {
+      "local_level_impact": "L4",
+      "global_impact": "safety_blocker",
+      "dimension": "dependencies",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["security", "cross-platform-readiness"]
+    },
+    "dependency.governance.registry_readable": {
+      "local_level_impact": "L4",
+      "global_impact": "safety_blocker",
+      "dimension": "dependencies",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["security", "ecosystem-fit"]
+    },
+    "dependency.governance.approved_dependency": {
+      "local_level_impact": "L4",
+      "global_impact": "safety_blocker",
+      "dimension": "dependencies",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["security", "ecosystem-fit"]
+    },
+    "dependency.graph.undeclared": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "dependency-accuracy",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["ecosystem-fit", "architecture"]
+    },
+    "dependency.graph.stale_declaration": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "dependency-accuracy",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["ecosystem-fit", "architecture"]
+    }
+  },
+  "fallback": {
+    "local_level_impact": "L2",
+    "global_impact": "evolvability_gap",
+    "dimension": "dependencies",
+    "severity_default": "SEVERITY_ERROR"
+  }
+}

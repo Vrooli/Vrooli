@@ -72,6 +72,21 @@ func TestTranslateContractsReport_WarningOnlySucceeds(t *testing.T) {
 	}
 }
 
+func TestTranslateContractsReport_PreservesLocalMaturitySummary(t *testing.T) {
+	rep := &cliHealthReport{
+		Scenario:   "demo",
+		Passed:     true,
+		Assessment: testProviderAssessment("demo", "cli-health", "contracts", "L2", "L3"),
+	}
+	out := translateContractsReport(rep, 0)
+	if out.Summary.LocalCurrentLevel != "L2" || out.Summary.LocalNextLevel != "L3" {
+		t.Fatalf("local summary = current %q next %q, want L2/L3", out.Summary.LocalCurrentLevel, out.Summary.LocalNextLevel)
+	}
+	if got := out.Summary.String(); got != "demo passed=true errors=0 warnings=0 infos=0 local=L2 next=L3" {
+		t.Fatalf("summary string = %q", got)
+	}
+}
+
 func TestTranslateContractsReport_NonZeroExitWithoutErrorsFailsPhase(t *testing.T) {
 	rep := &cliHealthReport{Scenario: "demo", Passed: true}
 	out := translateContractsReport(rep, 2)
@@ -95,9 +110,27 @@ func TestParseCLIHealthOutput_InvalidJSON(t *testing.T) {
 	}
 }
 
+func TestParseCLIHealthOutput_RejectsMalformedAssessment(t *testing.T) {
+	raw := []byte(`{"scenario":"demo","passed":true,"findings":[],"summary":{},"assessment":{"provider":"cli-health","phase":"contracts","local":{}}}`)
+	if _, err := parseCLIHealthOutput(raw); err == nil {
+		t.Fatal("expected malformed assessment error")
+	} else if got := classifyProviderParseFailure(err); got != "maturity_contract" {
+		t.Fatalf("classification = %q, want maturity_contract", got)
+	}
+}
+
+func TestParseCLIHealthOutput_RejectsMissingAssessment(t *testing.T) {
+	raw := []byte(`{"scenario":"demo","passed":true,"findings":[],"summary":{}}`)
+	if _, err := parseCLIHealthOutput(raw); err == nil {
+		t.Fatal("expected missing assessment error")
+	} else if got := classifyProviderParseFailure(err); got != "maturity_contract" {
+		t.Fatalf("classification = %q, want maturity_contract", got)
+	}
+}
+
 func TestRunContractsPhase_HappyPath(t *testing.T) {
 	restore := swapContractsSeam(t, func(_ context.Context, scenario string) ([]byte, int, error) {
-		return []byte(`{"scenario":"` + scenario + `","passed":true,"summary":{}}`), 0, nil
+		return []byte(`{"scenario":"` + scenario + `","passed":true,"summary":{},` + testProviderAssessmentJSON(scenario, "cli-health", "contracts", "L5", "") + `}`), 0, nil
 	})
 	defer restore()
 
@@ -150,7 +183,8 @@ func TestRunContractsPhase_FindingsFailPhase(t *testing.T) {
 			"findings":[
 				{"severity":"SEVERITY_ERROR","code":"proto.orphan_method","location":"x","message":"y"}
 			],
-			"summary":{"errors":1}
+			"summary":{"errors":1},
+			` + testProviderAssessmentJSON("broken", "cli-health", "contracts", "L1", "L2") + `
 		}`), 1, nil
 	})
 	defer restore()

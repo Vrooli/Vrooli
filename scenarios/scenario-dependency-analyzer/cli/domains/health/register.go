@@ -80,6 +80,10 @@ func run(core *cliapp.ScenarioApp, args []string) error {
 			fmt.Sprintf("%s drift %s --json", support.AppName, strings.TrimSpace(scenario)),
 		},
 	}
+	if maturity := cliapp.BuildMaturityListReport(resp.Msg.GetAssessment()); maturity.Summary != nil {
+		report.Summary = append(report.Summary, maturity.Summary...)
+		report.RetrievalHints = append(report.RetrievalHints, maturity.RetrievalHints...)
+	}
 	return support.PrintList(false, report, nil)
 }
 

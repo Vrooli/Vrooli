@@ -320,7 +320,8 @@ func setupTestRouter() *gin.Engine {
 		graphdomain.RegisterHTTPRoutes(api, h.graphService(), h.scenariosDir)
 		proposalapi.RegisterHTTPRoutes(api, h.proposalService())
 	}
-	dependencyhealthapi.RegisterConnectRoutes(router, h.scenariosDir)
+	spec, _ := loadMaturitySpec()
+	dependencyhealthapi.RegisterConnectRoutes(router, h.scenariosDir, dependencyhealthapi.Options{MaturitySpec: spec})
 	dependencygovernanceapi.RegisterConnectRoutes(router, h.scenariosDir)
 
 	return router

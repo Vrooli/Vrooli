@@ -64,6 +64,21 @@ func TestTranslateProtoReport_WarningOnlySucceeds(t *testing.T) {
 	}
 }
 
+func TestTranslateProtoReport_PreservesLocalMaturitySummary(t *testing.T) {
+	rep := &protoReport{
+		Scenario:   "demo",
+		Passed:     true,
+		Assessment: testProviderAssessment("demo", "proto-health", "proto", "L2", "L3"),
+	}
+	out := translateProtoReport(rep, 0)
+	if out.Summary.LocalCurrentLevel != "L2" || out.Summary.LocalNextLevel != "L3" {
+		t.Fatalf("local summary = current %q next %q, want L2/L3", out.Summary.LocalCurrentLevel, out.Summary.LocalNextLevel)
+	}
+	if got := out.Summary.String(); got != "demo passed=true errors=0 warnings=0 infos=0 local=L2 next=L3" {
+		t.Fatalf("summary string = %q", got)
+	}
+}
+
 func TestProtoArchFindings_MapsSourceAndStableID(t *testing.T) {
 	rep := &protoReport{
 		Scenario: "demo",
@@ -92,6 +107,20 @@ func TestParseProtoOutput_Empty(t *testing.T) {
 	}
 }
 
+func TestParseProtoOutput_RejectsMalformedAssessment(t *testing.T) {
+	raw := []byte(`{"scenario":"demo","passed":true,"findings":[],"summary":{},"assessment":{"provider":"proto-health","phase":"proto","local":{}}}`)
+	if _, err := parseProtoOutput(raw); err == nil {
+		t.Fatal("expected malformed assessment error")
+	}
+}
+
+func TestParseProtoOutput_RejectsMissingAssessment(t *testing.T) {
+	raw := []byte(`{"scenario":"demo","passed":true,"findings":[],"summary":{}}`)
+	if _, err := parseProtoOutput(raw); err == nil {
+		t.Fatal("expected missing assessment error")
+	}
+}
+
 func TestRunProtoPhase_CLIMissingSkipsGracefully(t *testing.T) {
 	swapProtoSeam(t, func(_ context.Context, _ string) ([]byte, int, error) {
 		return nil, 0, errors.New("locate proto-health CLI: not found")
@@ -114,7 +143,8 @@ func TestRunProtoPhase_ErrorFindingFailsPhase(t *testing.T) {
 			"findings":[
 				{"code":"proto.gen_out_of_sync","severity":"SEVERITY_ERROR","message":"generated artifacts are stale","suggestion":"run make generate","location":"packages/proto/gen"}
 			],
-			"summary":{"errors":1}
+			"summary":{"errors":1},
+			` + testProviderAssessmentJSON(scenario, "proto-health", "proto", "L1", "L2") + `
 		}`), 1, nil
 	})
 

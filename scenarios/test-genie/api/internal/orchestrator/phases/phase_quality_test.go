@@ -25,6 +25,13 @@ func TestRunQualityPhasePassesAndMapsWarningFindings(t *testing.T) {
 				"remediation":"Fix source code instead of suppressing checks."
 			}],
 			"counts":{"warnings":1,"surfaces":3,"contracts":4},
+			"assessment":{
+				"scenario":"demo",
+				"provider":"quality-health",
+				"phase":"quality",
+				"version":"1.0.0",
+				"local":{"current_level":"L4","next_level":"L5"}
+			},
 			"next_steps":["Run quality-health explain finding abc --scenario demo"]
 		}`), 0, nil
 	})
@@ -49,6 +56,54 @@ func TestRunQualityPhasePassesAndMapsWarningFindings(t *testing.T) {
 	}
 }
 
+func TestParseQualityOutputPreservesMaturityAssessment(t *testing.T) {
+	rep, err := parseQualityOutput([]byte(`{
+		"scenario":"demo",
+		"status":"passed",
+		"assessment":{
+			"scenario":"demo",
+			"provider":"quality-health",
+			"phase":"quality",
+			"version":"1.0.0",
+			"local":{"current_level":"L3","next_level":"L4","blocking_finding_codes":["GO_LINT_CONFIG_PRESENT"]}
+		}
+	}`))
+	if err != nil {
+		t.Fatalf("parseQualityOutput() error = %v", err)
+	}
+	summary := translateQualityReport(rep, 0).Summary
+	if summary.LocalCurrentLevel != "L3" || summary.LocalNextLevel != "L4" {
+		t.Fatalf("summary local levels = %q/%q, want L3/L4", summary.LocalCurrentLevel, summary.LocalNextLevel)
+	}
+}
+
+func TestParseQualityOutputRejectsMalformedPresentAssessment(t *testing.T) {
+	_, err := parseQualityOutput([]byte(`{
+		"scenario":"demo",
+		"status":"passed",
+		"assessment":{"provider":"quality-health","phase":"quality","local":{}}
+	}`))
+	if err == nil {
+		t.Fatalf("expected malformed present assessment to fail")
+	}
+	if !errors.Is(err, errProviderMaturityContract) {
+		t.Fatalf("error = %v, want provider maturity contract violation", err)
+	}
+}
+
+func TestParseQualityOutputRejectsMissingAssessment(t *testing.T) {
+	_, err := parseQualityOutput([]byte(`{
+		"scenario":"demo",
+		"status":"passed"
+	}`))
+	if err == nil {
+		t.Fatalf("expected missing assessment to fail")
+	}
+	if !errors.Is(err, errProviderMaturityContract) {
+		t.Fatalf("error = %v, want provider maturity contract violation", err)
+	}
+}
+
 func TestRunQualityPhaseFailsOnErrorFindings(t *testing.T) {
 	restore := overrideQualityValidate(func(context.Context, string) ([]byte, int, error) {
 		return []byte(`{
@@ -60,7 +115,14 @@ func TestRunQualityPhaseFailsOnErrorFindings(t *testing.T) {
 				"message":"tsconfig strict mode is disabled",
 				"file_path":"ui/tsconfig.json"
 			}],
-			"counts":{"errors":1,"surfaces":1,"contracts":1}
+			"counts":{"errors":1,"surfaces":1,"contracts":1},
+			"assessment":{
+				"scenario":"demo",
+				"provider":"quality-health",
+				"phase":"quality",
+				"version":"1.0.0",
+				"local":{"current_level":"L1","next_level":"L2"}
+			}
 		}`), 1, nil
 	})
 	defer restore()

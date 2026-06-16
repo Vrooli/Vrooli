@@ -38,6 +38,7 @@ These options apply to all commands:
 | `ui-smoke` | Run the shared UI smoke harness |
 | `registry` | Manage playbook registries |
 | `requirements` | Inspect and sync requirements evidence |
+| `provider-contract` | Validate provider-backed maturity assessment contracts |
 | `playbooks-seed` | Apply or clean up playbooks seed data |
 | `storage` | Run storage maintenance tasks |
 | `status` | Check test-genie operational status |
@@ -194,6 +195,29 @@ test-genie requirements --help
 
 ---
 
+## provider-contract
+
+Restart a provider through Vrooli lifecycle and validate that its programmatic output includes a valid shared maturity assessment.
+
+```bash
+test-genie provider-contract check <phase|provider> <scenario-name> [--json]
+```
+
+Use `--no-restart` only for diagnostics when lifecycle freshness is already guaranteed.
+
+Supported probes include CLI-backed providers (`cli-health`, `ui-health`, `quality-health`, `scenario-dependency-analyzer`, `security-health`, `measures-health`, `proto-health`, `scenario-auditor`, `architecture-cartographer`), the `knowledge-observatory` DocHealth RPC wrapper, and the `tidiness-manager` HTTP tidiness scan endpoint discovered through lifecycle.
+
+### Examples
+
+```bash
+test-genie provider-contract check contracts my-scenario
+test-genie provider-contract check cli-health my-scenario --json
+test-genie provider-contract check docs my-scenario
+test-genie provider-contract check tidiness-manager my-scenario --json
+```
+
+---
+
 ## playbooks-seed
 
 Apply or clean up `bas/__seeds` lifecycle data for playbook execution.
@@ -278,7 +302,7 @@ validation.
 |-------|-------------|
 | `structure` | Validates scenario layout, manifests, and JSON health |
 | `standards` | Runs scenario-auditor standards enforcement |
-| `dependencies` | Confirms required commands, runtimes, and resources |
+| `dependencies` | Delegates dependency health validation to scenario-dependency-analyzer |
 | `quality` | Delegates static quality contracts to quality-health |
 | `docs` | Validates markdown, mermaid, and links |
 | `smoke` | Performs fast runtime / UI handshake checks |

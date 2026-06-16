@@ -41,6 +41,148 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "deps approved upsert",
+          "description": "Preview or apply one dependency governance record from JSON",
+          "args": [
+            {
+              "name": "record",
+              "description": "ApprovedDependencyRecord JSON file supplied with --file",
+              "required": false
+            }
+          ],
+          "flags": [
+            {
+              "name": "file",
+              "description": "Path to an ApprovedDependencyRecord JSON file"
+            },
+            {
+              "name": "apply",
+              "description": "Apply the change; default is dry-run preview",
+              "default": "false"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "UpsertApprovedDependency"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "filesystem:write:.vrooli/dependencies/approved-dependencies.json"
+            ]
+          }
+        },
+        {
+          "name": "deps approved approve",
+          "description": "Preview or apply an approved dependency governance decision",
+          "args": [
+            {
+              "name": "dependency",
+              "description": "Dependency formatted as ecosystem/package",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "range",
+              "description": "Approved version or version range",
+              "default": "*"
+            },
+            {
+              "name": "rationale",
+              "description": "Approval rationale"
+            },
+            {
+              "name": "surfaces",
+              "description": "Comma-separated allowed surfaces"
+            },
+            {
+              "name": "groups",
+              "description": "Comma-separated allowed dependency groups"
+            },
+            {
+              "name": "apply",
+              "description": "Apply the change; default is dry-run preview",
+              "default": "false"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "UpsertApprovedDependency"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "filesystem:write:.vrooli/dependencies/approved-dependencies.json"
+            ]
+          }
+        },
+        {
+          "name": "deps approved deny",
+          "description": "Preview or apply a denied dependency governance decision",
+          "args": [
+            {
+              "name": "dependency",
+              "description": "Dependency formatted as ecosystem/package",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "range",
+              "description": "Denied version or version range",
+              "default": "*"
+            },
+            {
+              "name": "reason",
+              "description": "Denial rationale"
+            },
+            {
+              "name": "replacement",
+              "description": "Replacement or remediation guidance"
+            },
+            {
+              "name": "apply",
+              "description": "Apply the change; default is dry-run preview",
+              "default": "false"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "UpsertApprovedDependency"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "filesystem:write:.vrooli/dependencies/approved-dependencies.json"
+            ]
+          }
         }
       ]
     },
@@ -145,15 +287,24 @@
         },
         {
           "name": "deps approved validate",
-          "description": "Validate a scenario against approved dependency governance records",
+          "description": "Validate one scenario or the whole fleet against dependency governance records",
           "args": [
             {
               "name": "scenario",
-              "description": "Scenario to validate",
-              "required": true
+              "description": "Scenario to validate unless --all is set",
+              "required": false
             }
           ],
           "flags": [
+            {
+              "name": "all",
+              "description": "Validate every discovered scenario",
+              "default": "false"
+            },
+            {
+              "name": "policy-mode",
+              "description": "Override registry policy mode: advisory, strict, or review_gate"
+            },
             {
               "name": "json",
               "description": "Output raw JSON",

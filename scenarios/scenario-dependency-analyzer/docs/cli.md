@@ -697,12 +697,23 @@ scenario-dependency-analyzer deps approved list [OPTIONS]
 scenario-dependency-analyzer deps approved search <query> [OPTIONS]
 scenario-dependency-analyzer deps approved explain <ecosystem>/<package> [OPTIONS]
 scenario-dependency-analyzer deps approved validate <scenario> [OPTIONS]
+scenario-dependency-analyzer deps approved validate --all [OPTIONS]
+scenario-dependency-analyzer deps approved upsert --file <record.json> [OPTIONS]
+scenario-dependency-analyzer deps approved approve <ecosystem>/<package> --rationale <text> [OPTIONS]
+scenario-dependency-analyzer deps approved deny <ecosystem>/<package> --reason <text> [OPTIONS]
 ```
 
 **Options:**
 - `--json` - Output raw JSON
 - `--ecosystem` - Filter list/search by ecosystem such as `npm` or `go`
 - `--state` - Filter list by governance state
+- `--all` - Validate every discovered scenario
+- `--policy-mode` - Override registry policy mode: `advisory`, `strict`, or `review_gate`
+- `--file` - Read an `ApprovedDependencyRecord` JSON document for `upsert`
+- `--range` - Version or version range for `approve` and `deny`
+- `--rationale` / `--reason` - Required review rationale for approval or denial
+- `--replacement` - Replacement or remediation guidance for denied dependencies
+- `--apply` - Apply a governance mutation; mutation commands dry-run by default
 
 **Examples:**
 ```bash
@@ -717,14 +728,29 @@ scenario-dependency-analyzer deps approved explain npm/reactflow --json
 
 # Validate one scenario's package declarations
 scenario-dependency-analyzer deps approved validate graph-studio --json
+
+# Validate dependency governance across the fleet
+scenario-dependency-analyzer deps approved validate --all --json
+
+# Preview an approval without writing the registry
+scenario-dependency-analyzer deps approved approve npm/react --range ">=18.0.0 <20.0.0" --rationale "Approved UI runtime framework." --surfaces ui --groups dependencies --json
+
+# Apply a denied dependency decision
+scenario-dependency-analyzer deps approved deny npm/left-pad --reason "Use native string padding." --replacement "String.prototype.padStart/padEnd" --apply --json
+
+# Apply a full record from JSON
+scenario-dependency-analyzer deps approved upsert --file ./record.json --apply --json
 ```
 
 Validation behavior:
 - recorded dependency within range: pass/info
-- recorded dependency outside range: warning
-- unrecorded dependency: warning/needs-review, not automatic failure
-- blocked dependency: error
+- recorded dependency outside range: warning by default
+- recorded dependency outside approved scenario/surface/group scope: warning by default
+- unrecorded direct dependency: warning in advisory mode, error in strict mode
+- unrecorded Go indirect dependency: observed-only by default unless a denied/deprecated record exists
+- denied or blocked dependency: error
 - deprecated dependency: warning with replacement guidance
+- expired governance review: warning
 
 ---
 

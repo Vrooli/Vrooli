@@ -38,6 +38,9 @@ const (
 	FailureClassExecution FailureClass = "execution"
 	// FailureClassTimeout indicates a timeout occurred.
 	FailureClassTimeout FailureClass = "timeout"
+	// FailureClassMaturityContract indicates a provider returned a response
+	// that violates the shared maturity assessment contract.
+	FailureClassMaturityContract FailureClass = "maturity_contract"
 	// FailureClassSystem indicates a system-level error (I/O, permissions, etc).
 	FailureClassSystem FailureClass = "system"
 )

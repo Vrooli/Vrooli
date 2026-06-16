@@ -53,6 +53,19 @@ func TestTranslateSecurityReport_ErrorSeverityFailsPhase(t *testing.T) {
 	}
 }
 
+func TestTranslateSecurityReport_PreservesLocalMaturity(t *testing.T) {
+	rep := &securityReport{
+		Scenario:   "demo",
+		Passed:     true,
+		Assessment: testProviderAssessment("demo", "security-health", "security", "L2", "L3"),
+	}
+
+	out := translateSecurityReport(rep, 0)
+	if out.Summary.LocalCurrentLevel != "L2" || out.Summary.LocalNextLevel != "L3" {
+		t.Fatalf("local maturity not preserved: %+v", out.Summary)
+	}
+}
+
 func TestTranslateSecurityReport_WarningOnlySucceeds(t *testing.T) {
 	rep := &securityReport{
 		Scenario: "demo",
@@ -93,6 +106,20 @@ func TestSecurityArchFindings_MapsSourceAndStableID(t *testing.T) {
 func TestParseSecurityOutput_Empty(t *testing.T) {
 	if _, err := parseSecurityOutput([]byte("  ")); err == nil {
 		t.Fatal("expected error on empty output")
+	}
+}
+
+func TestParseSecurityOutput_MalformedAssessmentFails(t *testing.T) {
+	raw := []byte(`{"scenario":"demo","passed":true,"findings":[],"summary":{},"assessment":{"provider":"security-health","phase":"security","local":{}}}`)
+	if _, err := parseSecurityOutput(raw); err == nil {
+		t.Fatal("expected malformed assessment error")
+	}
+}
+
+func TestParseSecurityOutput_MissingAssessmentFails(t *testing.T) {
+	raw := []byte(`{"scenario":"demo","passed":true,"findings":[],"summary":{}}`)
+	if _, err := parseSecurityOutput(raw); err == nil {
+		t.Fatal("expected missing assessment error")
 	}
 }
 
@@ -159,7 +186,8 @@ func TestRunSecurityPhase_PlantedSecretFailsPhase(t *testing.T) {
 			"findings":[
 				{"rule_id":"gitleaks.aws-access-token","severity":"SEVERITY_ERROR","title":"AWS","remediation":"rotate","file_path":"leak.go:2","scanner":"gitleaks"}
 			],
-			"summary":{"errors":1}
+			"summary":{"errors":1},
+			` + testProviderAssessmentJSON(scenario, "security-health", "security", "L1", "L2") + `
 		}`), 1, nil
 	})
 	defer restore()

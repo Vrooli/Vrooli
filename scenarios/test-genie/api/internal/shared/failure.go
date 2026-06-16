@@ -10,6 +10,8 @@ func StandardizeFailureClass(fc FailureClass) FailureClass {
 		return FailureClassMissingDependency
 	case FailureClassTimeout:
 		return FailureClassTimeout
+	case FailureClassMaturityContract:
+		return FailureClassMaturityContract
 	case FailureClassTestFailure:
 		// Map test failures to system for phase reporting
 		return FailureClassSystem

@@ -4,6 +4,7 @@ import (
 	"test-genie/cli/eligibility"
 	"test-genie/cli/internal/deps"
 	"test-genie/cli/playbooksseed"
+	"test-genie/cli/providercontract"
 	"test-genie/cli/registry"
 	"test-genie/cli/requirements"
 	"test-genie/cli/runlocal"
@@ -42,6 +43,12 @@ func Register(runtime deps.Runtime) cliapp.CommandGroup {
 				NeedsAPI:    false,
 				Description: "Inspect and sync scenario requirements",
 				Run:         func(args []string) error { return requirements.Run(args) },
+			},
+			{
+				Name:        "provider-contract",
+				NeedsAPI:    false,
+				Description: "Validate provider maturity assessment contracts",
+				Run:         func(args []string) error { return providercontract.Run(args) },
 			},
 			{
 				Name:        "eligibility",

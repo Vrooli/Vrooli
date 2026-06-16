@@ -19,20 +19,26 @@ import (
 // UIHealthSummary mirrors the ui-health validation summary so the phase
 // pointer keeps stable JSON shape across runs.
 type UIHealthSummary struct {
-	Scenario string `json:"scenario"`
-	Passed   bool   `json:"passed"`
-	Errors   int    `json:"errors"`
-	Warnings int    `json:"warnings"`
-	Infos    int    `json:"infos"`
-	Skipped  bool   `json:"skipped,omitempty"`
+	Scenario          string `json:"scenario"`
+	Passed            bool   `json:"passed"`
+	Errors            int    `json:"errors"`
+	Warnings          int    `json:"warnings"`
+	Infos             int    `json:"infos"`
+	LocalCurrentLevel string `json:"local_current_level,omitempty"`
+	LocalNextLevel    string `json:"local_next_level,omitempty"`
+	Skipped           bool   `json:"skipped,omitempty"`
 }
 
 func (s UIHealthSummary) String() string {
 	if s.Skipped {
 		return "skipped"
 	}
-	return fmt.Sprintf("%s passed=%v errors=%d warnings=%d infos=%d",
+	text := fmt.Sprintf("%s passed=%v errors=%d warnings=%d infos=%d",
 		s.Scenario, s.Passed, s.Errors, s.Warnings, s.Infos)
+	if s.LocalCurrentLevel != "" || s.LocalNextLevel != "" {
+		text += fmt.Sprintf(" local=%s next=%s", s.LocalCurrentLevel, s.LocalNextLevel)
+	}
+	return text
 }
 
 type uiHealthFinding struct {
@@ -44,10 +50,11 @@ type uiHealthFinding struct {
 }
 
 type uiHealthReport struct {
-	Scenario string            `json:"scenario"`
-	Passed   bool              `json:"passed"`
-	Findings []uiHealthFinding `json:"findings"`
-	Summary  struct {
+	Scenario   string                      `json:"scenario"`
+	Passed     bool                        `json:"passed"`
+	Findings   []uiHealthFinding           `json:"findings"`
+	Assessment *providerMaturityAssessment `json:"assessment"`
+	Summary    struct {
 		Errors   int `json:"errors"`
 		Warnings int `json:"warnings"`
 		Infos    int `json:"infos"`
@@ -110,8 +117,8 @@ func runUIHealthPhase(ctx context.Context, env workspace.Environment, logWriter 
 					RunResult: shared.RunResult[UIHealthSummary]{
 						Success:      false,
 						Error:        fmt.Errorf("parse ui-health output: %w (exit=%d)", parseErr, exitCode),
-						FailureClass: shared.FailureClassSystem,
-						Remediation:  "Run `ui-health validate scenario " + env.ScenarioName + " --json` manually and inspect output.",
+						FailureClass: classifyProviderParseFailure(parseErr),
+						Remediation:  "Run `ui-health validate scenario " + env.ScenarioName + "` for the human report, then retry with `--json` if the structural output still looks malformed.",
 					},
 				}, nil
 			}
@@ -174,6 +181,9 @@ func parseUIHealthOutput(raw []byte) (*uiHealthReport, error) {
 	if err := json.Unmarshal(raw, &rep); err != nil {
 		return nil, err
 	}
+	if err := requireProviderAssessment("ui-health", "ui-health", rep.Assessment); err != nil {
+		return nil, err
+	}
 	return &rep, nil
 }
 
@@ -186,6 +196,7 @@ func translateUIHealthReport(rep *uiHealthReport, exitCode int) *uiHealthRunResu
 		Warnings: rep.Summary.Warnings,
 		Infos:    rep.Summary.Infos,
 	}
+	out.Summary.LocalCurrentLevel, out.Summary.LocalNextLevel = localMaturitySummary(rep.Assessment)
 
 	failureCount := 0
 	for _, f := range rep.Findings {

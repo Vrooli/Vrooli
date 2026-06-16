@@ -72,6 +72,12 @@ scenario-dependency-analyzer deps approved search "React graph library" --json
 # Validate a scenario against approved dependency governance memory
 scenario-dependency-analyzer deps approved validate scenario-dependency-analyzer --json
 
+# Preview a governance approval; add --apply to write the registry
+scenario-dependency-analyzer deps approved approve npm/react --range ">=18.0.0 <20.0.0" --rationale "Approved UI runtime framework." --surfaces ui --groups dependencies --json
+
+# Preview a governance denial; add --apply to write the registry
+scenario-dependency-analyzer deps approved deny npm/left-pad --reason "Use native string padding." --replacement "String.prototype.padStart/padEnd" --json
+
 # Analyze proposed scenario
 scenario-dependency-analyzer propose "AI-powered task scheduler with database storage"
 

@@ -136,13 +136,12 @@ flowchart LR
 
 **File:** `phase_dependencies.go`
 
-Confirms required runtimes and tools are available:
+Delegates dependency validation to Scenario Dependency Analyzer:
 
-- Go toolchain (`go`)
-- Node.js (`node`, `npm`/`pnpm`/`yarn`)
-- Python (`python3`/`python`)
-- Bash (`bash`)
-- Declared resources in `service.json`
+- Calls `scenario-dependency-analyzer health <scenario> --json`
+- Maps SDA findings into `FINDING_SOURCE_DEPENDENCY`
+- Does not run native dependency checks or call SDA drift separately
+- Fails when SDA returns `ERROR` / `BLOCKER` dependency health findings or when the producer is unavailable
 
 ### unit
 
@@ -304,7 +303,7 @@ phases/
 ├── types.go                # Name, Runner, RunReport, ExecutionResult
 │
 ├── phase_structure.go      # Structure validation
-├── phase_dependencies.go   # Dependency checks
+├── phase_dependencies.go   # SDA dependency health delegation
 ├── phase_unit.go           # Unit test execution
 ├── phase_integration.go    # Integration tests
 ├── phase_playbooks.go      # BAS workflow execution

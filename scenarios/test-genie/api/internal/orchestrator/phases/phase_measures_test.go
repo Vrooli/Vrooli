@@ -62,6 +62,21 @@ func TestTranslateMeasuresReport_WarningOnlySucceeds(t *testing.T) {
 	}
 }
 
+func TestTranslateMeasuresReport_PreservesLocalMaturitySummary(t *testing.T) {
+	rep := &measuresReport{
+		Scenario:   "demo",
+		Passed:     true,
+		Assessment: testProviderAssessment("demo", "measures-health", "measures", "L3", "L4"),
+	}
+	out := translateMeasuresReport(rep, 0)
+	if out.Summary.LocalCurrentLevel != "L3" || out.Summary.LocalNextLevel != "L4" {
+		t.Fatalf("local maturity not preserved: %+v", out.Summary)
+	}
+	if got := out.Summary.String(); got != "demo passed=true errors=0 warnings=0 infos=0 local=L3 next=L4" {
+		t.Fatalf("summary string = %q", got)
+	}
+}
+
 func TestMeasuresArchFindings_MapsSourceAndStableID(t *testing.T) {
 	manifestRel := cliManifestRel(t)
 	rep := &measuresReport{
@@ -88,6 +103,20 @@ func TestMeasuresArchFindings_MapsSourceAndStableID(t *testing.T) {
 func TestParseMeasuresOutput_Empty(t *testing.T) {
 	if _, err := parseMeasuresOutput([]byte("  ")); err == nil {
 		t.Fatal("expected error on empty output")
+	}
+}
+
+func TestParseMeasuresOutput_RejectsMalformedAssessment(t *testing.T) {
+	raw := []byte(`{"scenario":"demo","passed":true,"findings":[],"summary":{},"assessment":{"provider":"measures-health","phase":"measures","local":{}}}`)
+	if _, err := parseMeasuresOutput(raw); err == nil {
+		t.Fatal("expected malformed assessment error")
+	}
+}
+
+func TestParseMeasuresOutput_RejectsMissingAssessment(t *testing.T) {
+	raw := []byte(`{"scenario":"demo","passed":true,"findings":[],"summary":{}}`)
+	if _, err := parseMeasuresOutput(raw); err == nil {
+		t.Fatal("expected missing assessment error")
 	}
 }
 
@@ -123,7 +152,7 @@ func TestRunMeasuresPhase_ProbesWhenReachable(t *testing.T) {
 	hollow := fmt.Sprintf(`{"scenario":"demo","passed":false,`+
 		`"findings":[{"rule_id":"measures.hollow-declaration","severity":"SEVERITY_ERROR",`+
 		`"title":"Hollow measure declaration: notes.count","scanner":"probe","file_path":%q}],`+
-		`"summary":{"errors":1}}`, cliManifestRel(t))
+		`"summary":{"errors":1},%s}`, cliManifestRel(t), testProviderAssessmentJSON("demo", "measures-health", "measures", "L2", "L3"))
 	var gotProbe bool
 	swapMeasuresSeams(t, true, func(probe bool) ([]byte, int, error) {
 		gotProbe = probe
@@ -151,7 +180,7 @@ func TestRunMeasuresPhase_ProbesWhenReachable(t *testing.T) {
 }
 
 func TestRunMeasuresPhase_StaticWhenUnreachable(t *testing.T) {
-	const passing = `{"scenario":"demo","passed":true,"findings":[],"summary":{}}`
+	passing := `{"scenario":"demo","passed":true,"findings":[],"summary":{},` + testProviderAssessmentJSON("demo", "measures-health", "measures", "L5", "") + `}`
 	var gotProbe bool
 	swapMeasuresSeams(t, false, func(probe bool) ([]byte, int, error) {
 		gotProbe = probe

@@ -81,7 +81,7 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 	register(Spec{
 		Name:          Dependencies,
 		Runner:        runDependenciesPhase,
-		Description:   "Confirms required commands, runtimes, declared resources, and actual-vs-declared scenario dependency drift.",
+		Description:   "Delegates dependency readiness, runtime dependency status, governance, release-age policy, security index availability, and graph drift to scenario-dependency-analyzer health.",
 		FindingSource: architecturev1.FindingSource_FINDING_SOURCE_DEPENDENCY,
 	})
 	register(Spec{

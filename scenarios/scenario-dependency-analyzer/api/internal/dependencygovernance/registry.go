@@ -9,7 +9,9 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/gin-gonic/gin"
@@ -31,8 +33,16 @@ type Registry struct {
 }
 
 type registryFile struct {
-	Guidance string                     `json:"guidance"`
-	Records  []approvedDependencyRecord `json:"records"`
+	SchemaVersion        string                     `json:"schema_version"`
+	Version              string                     `json:"version"`
+	Guidance             string                     `json:"guidance"`
+	Policy               registryPolicy             `json:"policy"`
+	ReleaseAgeExceptions []string                   `json:"release_age_exceptions"`
+	Records              []approvedDependencyRecord `json:"records"`
+}
+
+type registryPolicy struct {
+	Mode string `json:"mode"`
 }
 
 type approvedDependencyRecord struct {
@@ -52,6 +62,14 @@ type approvedDependencyRecord struct {
 	ExampleScenarios []string `json:"example_scenarios"`
 	Replacement      string   `json:"replacement"`
 	Keywords         []string `json:"keywords"`
+	AllowedScenarios []string `json:"allowed_scenarios"`
+	DeniedScenarios  []string `json:"denied_scenarios"`
+	AllowedGroups    []string `json:"allowed_dependency_groups"`
+}
+
+type loadedRegistry struct {
+	records []*governancev1.ApprovedDependencyRecord
+	policy  registryPolicy
 }
 
 func NewRegistry(repoRoot string) *Registry {
@@ -110,9 +128,25 @@ func (h *connectHandler) ValidateApprovedDependencies(_ context.Context, req *co
 	if scenario == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario is required"))
 	}
-	resp, err := h.registry().ValidateScenario(scenario)
+	resp, err := h.registry().ValidateScenario(scenario, req.Msg.GetPolicyMode())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (h *connectHandler) ValidateFleetApprovedDependencies(_ context.Context, req *connect.Request[governancev1.ValidateFleetApprovedDependenciesRequest]) (*connect.Response[governancev1.FleetApprovedDependencyValidationResponse], error) {
+	resp, err := h.registry().ValidateFleet(req.Msg.GetPolicyMode())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (h *connectHandler) UpsertApprovedDependency(_ context.Context, req *connect.Request[governancev1.UpsertApprovedDependencyRequest]) (*connect.Response[governancev1.UpsertApprovedDependencyResponse], error) {
+	resp, err := h.registry().Upsert(req.Msg.GetRecord(), req.Msg.GetDryRun())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	return connect.NewResponse(resp), nil
 }
@@ -182,7 +216,7 @@ func (r *Registry) Explain(ecosystem, packageName string) (*governancev1.Approve
 	return nil, false, nil
 }
 
-func (r *Registry) ValidateScenario(scenario string) (*governancev1.ApprovedDependencyValidationResponse, error) {
+func (r *Registry) ValidateScenario(scenario string, policyModeOverride ...string) (*governancev1.ApprovedDependencyValidationResponse, error) {
 	scenarioDir := filepath.Join(filepath.Dir(r.registryPath()), "..", "scenarios", scenario)
 	if r.repoRoot != "" {
 		scenarioDir = filepath.Join(r.repoRoot, "scenarios", scenario)
@@ -191,14 +225,56 @@ func (r *Registry) ValidateScenario(scenario string) (*governancev1.ApprovedDepe
 	if err != nil {
 		return nil, err
 	}
-	return r.ValidateObserved(scenario, observed)
+	return r.ValidateObserved(scenario, observed, policyModeOverride...)
 }
 
-func (r *Registry) ValidateObserved(scenario string, observed []*governancev1.ObservedDependency) (*governancev1.ApprovedDependencyValidationResponse, error) {
-	records, err := r.loadRecords()
+func (r *Registry) ValidateFleet(policyModeOverride ...string) (*governancev1.FleetApprovedDependencyValidationResponse, error) {
+	loaded, err := r.loadRegistry()
 	if err != nil {
 		return nil, err
 	}
+	scenarios, err := r.discoverScenarios()
+	if err != nil {
+		return nil, err
+	}
+	responses := make([]*governancev1.ApprovedDependencyValidationResponse, 0, len(scenarios))
+	for _, scenario := range scenarios {
+		resp, err := r.ValidateScenario(scenario, policyModeOverride...)
+		if err != nil {
+			resp = degradedScenarioResponse(scenario, err, r.effectivePolicyMode(policyModeOverride...))
+		}
+		responses = append(responses, resp)
+	}
+	summary := summarizeRecords(loaded.records)
+	summary.Status = "pass"
+	summary.PolicyMode = r.effectivePolicyMode(policyModeOverride...)
+	summary.ScenarioCount = int32(len(responses))
+	var findings []*governancev1.ApprovedDependencyFinding
+	for _, resp := range responses {
+		mergeSummary(summary, resp.GetSummary())
+		findings = append(findings, resp.GetFindings()...)
+	}
+	summary.FindingCount = int32(len(findings))
+	summary.DependencyCount = int32(len(buildUsageGroups(responses)))
+	status, passed := statusFromFindings(findings, len(responses) == 0)
+	summary.Status = status
+	return &governancev1.FleetApprovedDependencyValidationResponse{
+		Passed:      passed,
+		Summary:     summary,
+		Scenarios:   responses,
+		UsageGroups: buildUsageGroups(responses),
+		Findings:    findings,
+		Guidance:    Guidance,
+	}, nil
+}
+
+func (r *Registry) ValidateObserved(scenario string, observed []*governancev1.ObservedDependency, policyModeOverride ...string) (*governancev1.ApprovedDependencyValidationResponse, error) {
+	loaded, err := r.loadRegistry()
+	if err != nil {
+		return nil, err
+	}
+	records := loaded.records
+	policyMode := normalize(firstNonEmpty(append(policyModeOverride, loaded.policy.Mode, "advisory")...))
 	byKey := make(map[string]*governancev1.ApprovedDependencyRecord, len(records))
 	for _, record := range records {
 		byKey[recordKey(record.GetEcosystem(), record.GetPackageName())] = record
@@ -211,47 +287,62 @@ func (r *Registry) ValidateObserved(scenario string, observed []*governancev1.Ob
 			if isUnrecordedTransitiveDependency(dep) {
 				continue
 			}
-			findings = append(findings, governanceFinding(dep, "WARNING", "Dependency needs governance review", "This dependency is not yet recorded in approved dependency memory.", "Keep the dependency if it is the right tool, and submit purpose, version/range, alternatives considered, and security/license notes for review.", dep.GetVersion(), "recorded approval, constraint, deprecation, or block decision"))
+			severity := "WARNING"
+			if policyMode == "strict" {
+				severity = "ERROR"
+			}
+			findings = append(findings, governanceFinding(scenario, dep, "UNRECORDED_DIRECT", severity, "Dependency needs governance review", "This dependency is not yet recorded in approved dependency memory.", "Keep the dependency if it is the right tool, and submit purpose, version/range, alternatives considered, and security/license notes for review.", dep.GetVersion(), "recorded approval, constraint, deprecation, or denial decision", policyMode))
 			continue
 		}
 		state := normalize(record.GetState())
 		switch state {
-		case "blocked":
-			findings = append(findings, governanceFinding(dep, "ERROR", "Blocked dependency is in use", "This dependency is recorded as blocked for Vrooli usage.", firstNonEmpty(record.GetReplacement(), "Replace the dependency or file an explicit governance exception with rationale and expiry."), dep.GetVersion(), "dependency absent or governance exception approved"))
+		case "blocked", "denied":
+			findings = append(findings, governanceFinding(scenario, dep, "DENIED_IN_USE", "ERROR", "Denied dependency is in use", "This dependency is recorded as denied for Vrooli usage.", firstNonEmpty(record.GetReplacement(), "Replace the dependency or file an explicit governance exception with rationale and expiry."), dep.GetVersion(), "dependency absent or governance exception approved", policyMode))
 		case "deprecated":
-			findings = append(findings, governanceFinding(dep, "WARNING", "Deprecated dependency is in use", "This dependency is recorded as deprecated.", firstNonEmpty(record.GetReplacement(), "Plan a migration to a maintained replacement."), dep.GetVersion(), "replacement dependency in use"))
-		case "approved", "approved_with_constraints", "needs_review", "":
-			if !versionAllowed(dep.GetVersion(), record.GetVersionRange()) {
-				findings = append(findings, governanceFinding(dep, "WARNING", "Dependency version is outside recorded approval", "The dependency is recorded, but the observed version/range does not match the approved range.", "Review whether the observed version should be approved, constrained, or changed.", dep.GetVersion(), firstNonEmpty(record.GetVersionRange(), "recorded approved range")))
+			findings = append(findings, governanceFinding(scenario, dep, "DEPRECATED_IN_USE", "WARNING", "Deprecated dependency is in use", "This dependency is recorded as deprecated.", firstNonEmpty(record.GetReplacement(), "Plan a migration to a maintained replacement."), dep.GetVersion(), "replacement dependency in use", policyMode))
+		case "approved", "approved_with_constraints", "needs_review", "exception", "":
+			if !versionAllowed(dep.GetEcosystem(), dep.GetVersion(), record.GetVersionRange()) {
+				findings = append(findings, governanceFinding(scenario, dep, "VERSION_OUT_OF_RANGE", "WARNING", "Dependency version is outside recorded approval", "The dependency is recorded, but the observed version/range does not match the approved range.", "Review whether the observed version should be approved, constrained, or changed.", dep.GetVersion(), firstNonEmpty(record.GetVersionRange(), "recorded approved range"), policyMode))
+			}
+			if scopeReason := scopeViolation(scenario, dep, record); scopeReason != "" {
+				findings = append(findings, governanceFinding(scenario, dep, "SCOPE_VIOLATION", "WARNING", "Dependency is outside recorded governance scope", scopeReason, "Update the dependency scope, move usage to an approved surface/group, or choose a scoped alternative.", depScope(dep), recordScope(record), policyMode))
+			}
+			if expired(record.GetReviewExpires()) {
+				findings = append(findings, governanceFinding(scenario, dep, "EXPIRED_APPROVAL", "WARNING", "Dependency governance review has expired", "This dependency approval or exception has passed its review expiry date.", "Review the dependency and renew, replace, or deny it.", record.GetReviewExpires(), "unexpired review date", policyMode))
 			}
 			if state == "needs_review" {
-				findings = append(findings, governanceFinding(dep, "WARNING", "Dependency approval still needs review", "This dependency has a governance record but has not been approved yet.", "Complete dependency review or choose an already approved alternative if appropriate.", dep.GetVersion(), "approved or approved_with_constraints"))
+				findings = append(findings, governanceFinding(scenario, dep, "UNRECORDED_DIRECT", "WARNING", "Dependency approval still needs review", "This dependency has a governance record but has not been approved yet.", "Complete dependency review or choose an already approved alternative if appropriate.", dep.GetVersion(), "approved or approved_with_constraints", policyMode))
 			}
 		default:
-			findings = append(findings, governanceFinding(dep, "WARNING", "Dependency has unknown governance state", "This dependency has a governance record with an unrecognized state.", "Fix the approved dependency registry state value.", state, "approved, approved_with_constraints, needs_review, blocked, or deprecated"))
+			findings = append(findings, governanceFinding(scenario, dep, "REGISTRY_INVALID", "WARNING", "Dependency has unknown governance state", "This dependency has a governance record with an unrecognized state.", "Fix the approved dependency registry state value.", state, "approved, approved_with_constraints, needs_review, denied, or deprecated", policyMode))
 		}
 	}
 
 	summary := summarizeRecords(records)
+	summary.PolicyMode = policyMode
 	summary.Observed = int32(len(observed))
 	for _, finding := range findings {
-		if strings.Contains(finding.GetDescription(), "not yet recorded") {
+		switch finding.GetFindingClass() {
+		case "UNRECORDED_DIRECT":
 			summary.Unrecorded++
+		case "VERSION_OUT_OF_RANGE":
+			summary.OutOfRange++
+		case "SCOPE_VIOLATION":
+			summary.OutOfScope++
+		case "EXPIRED_APPROVAL", "EXPIRED_EXCEPTION":
+			summary.Expired++
+		}
+		switch strings.ToUpper(finding.GetSeverity()) {
+		case "ERROR":
+			summary.ErrorCount++
+		case "WARNING":
+			summary.WarningCount++
+		default:
+			summary.InfoCount++
 		}
 	}
-	status := "pass"
-	passed := true
-	for _, finding := range findings {
-		if strings.EqualFold(finding.GetSeverity(), "ERROR") {
-			status = "fail"
-			passed = false
-			break
-		}
-		if strings.EqualFold(finding.GetSeverity(), "WARNING") {
-			status = "warn"
-		}
-	}
-	if len(records) == 0 {
+	status, passed := statusFromFindings(findings, len(records) == 0)
+	if len(records) == 0 && len(findings) == 0 {
 		status = "not_configured"
 	}
 	summary.Status = status
@@ -265,24 +356,183 @@ func (r *Registry) ValidateObserved(scenario string, observed []*governancev1.Ob
 	}, nil
 }
 
-func (r *Registry) loadRecords() ([]*governancev1.ApprovedDependencyRecord, error) {
-	data, err := os.ReadFile(r.registryPath())
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("read approved dependency registry: %w", err)
+func (r *Registry) Upsert(record *governancev1.ApprovedDependencyRecord, dryRun bool) (*governancev1.UpsertApprovedDependencyResponse, error) {
+	normalized := protoRecordToJSON(record).toProto()
+	if err := validateRecord(normalized); err != nil {
+		return nil, err
 	}
-	var raw registryFile
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return nil, fmt.Errorf("parse approved dependency registry: %w", err)
+	raw, err := r.loadRegistryFileForMutation()
+	if err != nil {
+		return nil, err
+	}
+	if raw.SchemaVersion == "" {
+		raw.SchemaVersion = "1"
+	}
+	if raw.Policy.Mode == "" {
+		raw.Policy.Mode = "advisory"
+	}
+	replacement := protoRecordToJSON(normalized)
+	key := recordKey(normalized.GetEcosystem(), normalized.GetPackageName())
+	var previous *governancev1.ApprovedDependencyRecord
+	changed := true
+	replaced := false
+	for i, existing := range raw.Records {
+		existingProto := existing.toProto()
+		if recordKey(existingProto.GetEcosystem(), existingProto.GetPackageName()) != key {
+			continue
+		}
+		previous = existingProto
+		changed = !recordsEqual(previous, normalized)
+		raw.Records[i] = replacement
+		replaced = true
+		break
+	}
+	if !replaced {
+		raw.Records = append(raw.Records, replacement)
+	}
+	sort.Slice(raw.Records, func(i, j int) bool {
+		left := raw.Records[i].toProto()
+		right := raw.Records[j].toProto()
+		return recordKey(left.GetEcosystem(), left.GetPackageName()) < recordKey(right.GetEcosystem(), right.GetPackageName())
+	})
+	if err := validateRegistryFile(raw); err != nil {
+		return nil, err
+	}
+	if !dryRun && changed {
+		if err := r.writeRegistryFile(raw); err != nil {
+			return nil, err
+		}
+	}
+	records := make([]*governancev1.ApprovedDependencyRecord, 0, len(raw.Records))
+	for _, rawRecord := range raw.Records {
+		records = append(records, rawRecord.toProto())
+	}
+	return &governancev1.UpsertApprovedDependencyResponse{
+		Record:         normalized,
+		PreviousRecord: previous,
+		DryRun:         dryRun,
+		Changed:        changed,
+		Message:        mutationMessage(dryRun, changed, previous != nil, normalized),
+		Summary:        summarizeRecords(records),
+		Guidance:       Guidance,
+	}, nil
+}
+
+func (r *Registry) loadRecords() ([]*governancev1.ApprovedDependencyRecord, error) {
+	loaded, err := r.loadRegistry()
+	if err != nil {
+		return nil, err
+	}
+	return loaded.records, nil
+}
+
+func (r *Registry) loadRegistry() (*loadedRegistry, error) {
+	raw, err := r.loadRegistryFile()
+	if err != nil {
+		return nil, err
+	}
+	if err := validateRegistryFile(raw); err != nil {
+		return nil, err
 	}
 	records := make([]*governancev1.ApprovedDependencyRecord, 0, len(raw.Records))
 	for _, record := range raw.Records {
 		records = append(records, record.toProto())
 	}
 	sortRecords(records)
-	return records, nil
+	return &loadedRegistry{records: records, policy: raw.Policy}, nil
+}
+
+func (r *Registry) loadRegistryFile() (registryFile, error) {
+	data, err := os.ReadFile(r.registryPath())
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return registryFile{SchemaVersion: "1", Policy: registryPolicy{Mode: "advisory"}}, nil
+		}
+		return registryFile{}, fmt.Errorf("read approved dependency registry: %w", err)
+	}
+	var raw registryFile
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return registryFile{}, fmt.Errorf("parse approved dependency registry: %w", err)
+	}
+	normalizeRegistryFileDefaults(&raw)
+	return raw, nil
+}
+
+func (r *Registry) loadRegistryFileForMutation() (registryFile, error) {
+	raw, err := r.loadRegistryFile()
+	if err != nil {
+		return registryFile{}, err
+	}
+	if err := validateRegistryFile(raw); err != nil {
+		return registryFile{}, err
+	}
+	return raw, nil
+}
+
+func validateRegistryFile(raw registryFile) error {
+	if raw.SchemaVersion != "" && raw.SchemaVersion != "1" {
+		return fmt.Errorf("approved dependency registry schema_version %q is not supported", raw.SchemaVersion)
+	}
+	if raw.Policy.Mode == "" {
+		raw.Policy.Mode = "advisory"
+	}
+	if !validPolicyMode(raw.Policy.Mode) {
+		return fmt.Errorf("approved dependency registry policy.mode %q is not supported", raw.Policy.Mode)
+	}
+	seen := map[string]struct{}{}
+	for _, record := range raw.Records {
+		protoRecord := record.toProto()
+		key := recordKey(protoRecord.GetEcosystem(), protoRecord.GetPackageName())
+		if _, ok := seen[key]; ok {
+			return fmt.Errorf("duplicate approved dependency record %s", key)
+		}
+		seen[key] = struct{}{}
+		if err := validateRecord(protoRecord); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func normalizeRegistryFileDefaults(raw *registryFile) {
+	if raw == nil {
+		return
+	}
+	if raw.SchemaVersion == "" {
+		raw.SchemaVersion = "1"
+	}
+	if raw.Policy.Mode == "" {
+		raw.Policy.Mode = "advisory"
+	}
+}
+
+func (r *Registry) writeRegistryFile(raw registryFile) error {
+	path := r.registryPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return fmt.Errorf("prepare approved dependency registry directory: %w", err)
+	}
+	data, err := json.MarshalIndent(raw, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode approved dependency registry: %w", err)
+	}
+	data = append(data, '\n')
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".approved-dependencies-*.json")
+	if err != nil {
+		return fmt.Errorf("create approved dependency registry temp file: %w", err)
+	}
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath)
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("write approved dependency registry temp file: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("close approved dependency registry temp file: %w", err)
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		return fmt.Errorf("replace approved dependency registry: %w", err)
+	}
+	return nil
 }
 
 func (r *Registry) registryPath() string {
@@ -291,22 +541,52 @@ func (r *Registry) registryPath() string {
 
 func (r approvedDependencyRecord) toProto() *governancev1.ApprovedDependencyRecord {
 	return &governancev1.ApprovedDependencyRecord{
-		Ecosystem:        normalize(r.Ecosystem),
-		PackageName:      strings.TrimSpace(r.PackageName),
-		VersionRange:     strings.TrimSpace(r.VersionRange),
-		State:            normalize(r.State),
-		AllowedSurfaces:  trimStrings(r.AllowedSurfaces),
-		UseCases:         trimStrings(r.UseCases),
-		Rationale:        strings.TrimSpace(r.Rationale),
-		ApprovedBy:       strings.TrimSpace(r.ApprovedBy),
-		ApprovedDate:     strings.TrimSpace(r.ApprovedDate),
-		LastReviewed:     strings.TrimSpace(r.LastReviewed),
-		ReviewExpires:    strings.TrimSpace(r.ReviewExpires),
-		LicenseNotes:     strings.TrimSpace(r.LicenseNotes),
-		SecurityNotes:    strings.TrimSpace(r.SecurityNotes),
-		ExampleScenarios: trimStrings(r.ExampleScenarios),
-		Replacement:      strings.TrimSpace(r.Replacement),
-		Keywords:         trimStrings(r.Keywords),
+		Ecosystem:               normalize(r.Ecosystem),
+		PackageName:             strings.TrimSpace(r.PackageName),
+		VersionRange:            strings.TrimSpace(r.VersionRange),
+		State:                   normalize(r.State),
+		AllowedSurfaces:         trimStrings(r.AllowedSurfaces),
+		UseCases:                trimStrings(r.UseCases),
+		Rationale:               strings.TrimSpace(r.Rationale),
+		ApprovedBy:              strings.TrimSpace(r.ApprovedBy),
+		ApprovedDate:            strings.TrimSpace(r.ApprovedDate),
+		LastReviewed:            strings.TrimSpace(r.LastReviewed),
+		ReviewExpires:           strings.TrimSpace(r.ReviewExpires),
+		LicenseNotes:            strings.TrimSpace(r.LicenseNotes),
+		SecurityNotes:           strings.TrimSpace(r.SecurityNotes),
+		ExampleScenarios:        trimStrings(r.ExampleScenarios),
+		Replacement:             strings.TrimSpace(r.Replacement),
+		Keywords:                trimStrings(r.Keywords),
+		AllowedScenarios:        trimStrings(r.AllowedScenarios),
+		DeniedScenarios:         trimStrings(r.DeniedScenarios),
+		AllowedDependencyGroups: trimStrings(r.AllowedGroups),
+	}
+}
+
+func protoRecordToJSON(record *governancev1.ApprovedDependencyRecord) approvedDependencyRecord {
+	if record == nil {
+		return approvedDependencyRecord{}
+	}
+	return approvedDependencyRecord{
+		Ecosystem:        normalize(record.GetEcosystem()),
+		PackageName:      strings.TrimSpace(record.GetPackageName()),
+		VersionRange:     strings.TrimSpace(record.GetVersionRange()),
+		State:            normalize(record.GetState()),
+		AllowedSurfaces:  trimStrings(record.GetAllowedSurfaces()),
+		UseCases:         trimStrings(record.GetUseCases()),
+		Rationale:        strings.TrimSpace(record.GetRationale()),
+		ApprovedBy:       strings.TrimSpace(record.GetApprovedBy()),
+		ApprovedDate:     strings.TrimSpace(record.GetApprovedDate()),
+		LastReviewed:     strings.TrimSpace(record.GetLastReviewed()),
+		ReviewExpires:    strings.TrimSpace(record.GetReviewExpires()),
+		LicenseNotes:     strings.TrimSpace(record.GetLicenseNotes()),
+		SecurityNotes:    strings.TrimSpace(record.GetSecurityNotes()),
+		ExampleScenarios: trimStrings(record.GetExampleScenarios()),
+		Replacement:      strings.TrimSpace(record.GetReplacement()),
+		Keywords:         trimStrings(record.GetKeywords()),
+		AllowedScenarios: trimStrings(record.GetAllowedScenarios()),
+		DeniedScenarios:  trimStrings(record.GetDeniedScenarios()),
+		AllowedGroups:    trimStrings(record.GetAllowedDependencyGroups()),
 	}
 }
 
@@ -330,11 +610,17 @@ func ScanScenarioDependencies(scenarioDir string) ([]*governancev1.ObservedDepen
 			if err != nil {
 				return err
 			}
+			for _, dep := range deps {
+				dep.SurfaceId = inferSurfaceID(path)
+			}
 			observed = append(observed, deps...)
 		case "go.mod":
 			deps, err := scanGoMod(path)
 			if err != nil {
 				return err
+			}
+			for _, dep := range deps {
+				dep.SurfaceId = inferSurfaceID(path)
 			}
 			observed = append(observed, deps...)
 		}
@@ -478,22 +764,273 @@ func parseGoRequire(line, path string) *governancev1.ObservedDependency {
 	}
 }
 
+func (r *Registry) discoverScenarios() ([]string, error) {
+	scenariosRoot := filepath.Join(r.repoRoot, "scenarios")
+	entries, err := os.ReadDir(scenariosRoot)
+	if err != nil {
+		return nil, fmt.Errorf("read scenarios directory: %w", err)
+	}
+	scenarios := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		if !entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(scenariosRoot, entry.Name(), ".vrooli", "service.json")); err == nil {
+			scenarios = append(scenarios, entry.Name())
+		}
+	}
+	sort.Strings(scenarios)
+	return scenarios, nil
+}
+
+func (r *Registry) effectivePolicyMode(policyModeOverride ...string) string {
+	loaded, err := r.loadRegistry()
+	if err != nil {
+		return "advisory"
+	}
+	mode := normalize(firstNonEmpty(append(policyModeOverride, loaded.policy.Mode, "advisory")...))
+	if !validPolicyMode(mode) {
+		return "advisory"
+	}
+	return mode
+}
+
+func degradedScenarioResponse(scenario string, err error, policyMode string) *governancev1.ApprovedDependencyValidationResponse {
+	finding := &governancev1.ApprovedDependencyFinding{
+		Id:           "governance." + slug(scenario+".scan.degraded"),
+		Scenario:     scenario,
+		Severity:     "ERROR",
+		Title:        "Scenario dependency scan failed",
+		Description:  err.Error(),
+		Remediation:  "Fix the scenario dependency files or scanner error, then rerun fleet validation.",
+		FindingClass: "SCAN_DEGRADED",
+		PolicyMode:   policyMode,
+	}
+	return &governancev1.ApprovedDependencyValidationResponse{
+		Scenario: scenario,
+		Passed:   false,
+		Summary: &governancev1.DependencyGovernanceSummary{
+			Status:       "fail",
+			PolicyMode:   policyMode,
+			FindingCount: 1,
+			ErrorCount:   1,
+		},
+		Findings: []*governancev1.ApprovedDependencyFinding{finding},
+		Guidance: Guidance,
+	}
+}
+
+func mergeSummary(target, source *governancev1.DependencyGovernanceSummary) {
+	if target == nil || source == nil {
+		return
+	}
+	target.Unrecorded += source.GetUnrecorded()
+	target.Observed += source.GetObserved()
+	target.OutOfRange += source.GetOutOfRange()
+	target.OutOfScope += source.GetOutOfScope()
+	target.Expired += source.GetExpired()
+	target.FindingCount += source.GetFindingCount()
+	target.ErrorCount += source.GetErrorCount()
+	target.WarningCount += source.GetWarningCount()
+	target.InfoCount += source.GetInfoCount()
+}
+
+func buildUsageGroups(responses []*governancev1.ApprovedDependencyValidationResponse) []*governancev1.DependencyUsageGroup {
+	groups := map[string]*governancev1.DependencyUsageGroup{}
+	scenariosByKey := map[string]map[string]struct{}{}
+	findingsByKey := map[string]int32{}
+	severityByKey := map[string]string{}
+	for _, resp := range responses {
+		for _, finding := range resp.GetFindings() {
+			key := recordKey(finding.GetEcosystem(), finding.GetPackageName())
+			if key == "/" {
+				continue
+			}
+			findingsByKey[key]++
+			severityByKey[key] = maxSeverity(severityByKey[key], finding.GetSeverity())
+		}
+		for _, dep := range resp.GetObservedDependencies() {
+			key := recordKey(dep.GetEcosystem(), dep.GetPackageName())
+			group := groups[key]
+			if group == nil {
+				group = &governancev1.DependencyUsageGroup{
+					Ecosystem:   dep.GetEcosystem(),
+					PackageName: dep.GetPackageName(),
+				}
+				groups[key] = group
+				scenariosByKey[key] = map[string]struct{}{}
+			}
+			group.UsageCount++
+			group.ObservedDependencies = append(group.GetObservedDependencies(), dep)
+			scenariosByKey[key][resp.GetScenario()] = struct{}{}
+		}
+	}
+	out := make([]*governancev1.DependencyUsageGroup, 0, len(groups))
+	for key, group := range groups {
+		for scenario := range scenariosByKey[key] {
+			group.Scenarios = append(group.GetScenarios(), scenario)
+		}
+		sort.Strings(group.Scenarios)
+		group.ScenarioCount = int32(len(group.GetScenarios()))
+		group.FindingCount = findingsByKey[key]
+		group.HighestSeverity = firstNonEmpty(severityByKey[key], "INFO")
+		out = append(out, group)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		return recordKey(out[i].GetEcosystem(), out[i].GetPackageName()) < recordKey(out[j].GetEcosystem(), out[j].GetPackageName())
+	})
+	return out
+}
+
+func maxSeverity(left, right string) string {
+	rank := map[string]int{"": 0, "INFO": 1, "WARNING": 2, "ERROR": 3, "BLOCKER": 4}
+	if rank[strings.ToUpper(right)] > rank[strings.ToUpper(left)] {
+		return strings.ToUpper(right)
+	}
+	return strings.ToUpper(left)
+}
+
+func statusFromFindings(findings []*governancev1.ApprovedDependencyFinding, notConfigured bool) (string, bool) {
+	if notConfigured && len(findings) == 0 {
+		return "not_configured", true
+	}
+	status := "pass"
+	for _, finding := range findings {
+		switch strings.ToUpper(finding.GetSeverity()) {
+		case "ERROR", "BLOCKER":
+			return "fail", false
+		case "WARNING":
+			status = "warn"
+		}
+	}
+	return status, true
+}
+
+func validateRecord(record *governancev1.ApprovedDependencyRecord) error {
+	key := recordKey(record.GetEcosystem(), record.GetPackageName())
+	if record.GetEcosystem() == "" || record.GetPackageName() == "" {
+		return fmt.Errorf("approved dependency record %q must include ecosystem and package_name", key)
+	}
+	if !validState(record.GetState()) {
+		return fmt.Errorf("approved dependency record %s has unsupported state %q", key, record.GetState())
+	}
+	if strings.TrimSpace(record.GetRationale()) == "" {
+		return fmt.Errorf("approved dependency record %s must include rationale", key)
+	}
+	state := normalize(record.GetState())
+	if (state == "denied" || state == "blocked" || state == "deprecated") && strings.TrimSpace(record.GetReplacement()) == "" && strings.TrimSpace(record.GetRationale()) == "" {
+		return fmt.Errorf("approved dependency record %s must include replacement or rationale for %s state", key, state)
+	}
+	if record.GetReviewExpires() != "" {
+		if _, err := time.Parse("2006-01-02", record.GetReviewExpires()); err != nil {
+			return fmt.Errorf("approved dependency record %s has invalid review_expires %q", key, record.GetReviewExpires())
+		}
+	}
+	return nil
+}
+
+func validState(state string) bool {
+	switch normalize(state) {
+	case "", "approved", "approved_with_constraints", "needs_review", "blocked", "denied", "deprecated", "exception":
+		return true
+	default:
+		return false
+	}
+}
+
+func validPolicyMode(mode string) bool {
+	switch normalize(mode) {
+	case "advisory", "strict", "review_gate":
+		return true
+	default:
+		return false
+	}
+}
+
+func scopeViolation(scenario string, dep *governancev1.ObservedDependency, record *governancev1.ApprovedDependencyRecord) string {
+	if containsFold(record.GetDeniedScenarios(), scenario) {
+		return "This dependency is denied for the current scenario."
+	}
+	if len(record.GetAllowedScenarios()) > 0 && !containsFold(record.GetAllowedScenarios(), scenario) {
+		return "This dependency is not approved for the current scenario."
+	}
+	if dep.GetSurfaceId() != "" && len(record.GetAllowedSurfaces()) > 0 && !containsFold(record.GetAllowedSurfaces(), dep.GetSurfaceId()) {
+		return "This dependency is not approved for the current surface."
+	}
+	if dep.GetDependencyGroup() != "" && len(record.GetAllowedDependencyGroups()) > 0 && !containsFold(record.GetAllowedDependencyGroups(), dep.GetDependencyGroup()) {
+		return "This dependency is not approved for the current dependency group."
+	}
+	return ""
+}
+
+func expired(date string) bool {
+	date = strings.TrimSpace(date)
+	if date == "" {
+		return false
+	}
+	parsed, err := time.Parse("2006-01-02", date)
+	if err != nil {
+		return false
+	}
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	return parsed.Before(today)
+}
+
+func depScope(dep *governancev1.ObservedDependency) string {
+	parts := []string{}
+	if dep.GetSurfaceId() != "" {
+		parts = append(parts, "surface="+dep.GetSurfaceId())
+	}
+	if dep.GetDependencyGroup() != "" {
+		parts = append(parts, "group="+dep.GetDependencyGroup())
+	}
+	return strings.Join(parts, ", ")
+}
+
+func recordScope(record *governancev1.ApprovedDependencyRecord) string {
+	parts := []string{}
+	if len(record.GetAllowedScenarios()) > 0 {
+		parts = append(parts, "scenarios="+strings.Join(record.GetAllowedScenarios(), ","))
+	}
+	if len(record.GetAllowedSurfaces()) > 0 {
+		parts = append(parts, "surfaces="+strings.Join(record.GetAllowedSurfaces(), ","))
+	}
+	if len(record.GetAllowedDependencyGroups()) > 0 {
+		parts = append(parts, "groups="+strings.Join(record.GetAllowedDependencyGroups(), ","))
+	}
+	return firstNonEmpty(strings.Join(parts, "; "), "recorded scope")
+}
+
+func inferSurfaceID(path string) string {
+	parts := strings.Split(filepath.ToSlash(path), "/")
+	for _, part := range parts {
+		switch part {
+		case "api", "cli", "ui", "worker":
+			return part
+		}
+	}
+	return ""
+}
+
 func isUnrecordedTransitiveDependency(dep *governancev1.ObservedDependency) bool {
 	return sameFold(dep.GetEcosystem(), "go") && sameFold(dep.GetDependencyGroup(), "require_indirect")
 }
 
-func governanceFinding(dep *governancev1.ObservedDependency, severity, title, description, remediation, observed, expected string) *governancev1.ApprovedDependencyFinding {
+func governanceFinding(scenario string, dep *governancev1.ObservedDependency, findingClass, severity, title, description, remediation, observed, expected, policyMode string) *governancev1.ApprovedDependencyFinding {
 	return &governancev1.ApprovedDependencyFinding{
-		Id:          "governance." + slug(dep.GetEcosystem()+"."+dep.GetPackageName()+"."+title),
-		Severity:    severity,
-		Title:       title,
-		Description: description,
-		Remediation: remediation,
-		FilePath:    dep.GetFilePath(),
-		Ecosystem:   dep.GetEcosystem(),
-		PackageName: dep.GetPackageName(),
-		Observed:    observed,
-		Expected:    expected,
+		Id:           "governance." + slug(scenario+"."+dep.GetEcosystem()+"."+dep.GetPackageName()+"."+findingClass),
+		Severity:     severity,
+		Title:        title,
+		Description:  description,
+		Remediation:  remediation,
+		FilePath:     dep.GetFilePath(),
+		Ecosystem:    dep.GetEcosystem(),
+		PackageName:  dep.GetPackageName(),
+		Observed:     observed,
+		Expected:     expected,
+		Scenario:     scenario,
+		FindingClass: findingClass,
+		PolicyMode:   policyMode,
 	}
 }
 
@@ -513,11 +1050,66 @@ func summarizeRecords(records []*governancev1.ApprovedDependencyRecord) *governa
 			summary.NeedsReview++
 		case "blocked":
 			summary.Blocked++
+			summary.Denied++
+		case "denied":
+			summary.Denied++
 		case "deprecated":
 			summary.Deprecated++
 		}
 	}
 	return summary
+}
+
+func recordsEqual(left, right *governancev1.ApprovedDependencyRecord) bool {
+	if left == nil || right == nil {
+		return left == right
+	}
+	return left.GetEcosystem() == right.GetEcosystem() &&
+		left.GetPackageName() == right.GetPackageName() &&
+		left.GetVersionRange() == right.GetVersionRange() &&
+		left.GetState() == right.GetState() &&
+		left.GetRationale() == right.GetRationale() &&
+		left.GetApprovedBy() == right.GetApprovedBy() &&
+		left.GetApprovedDate() == right.GetApprovedDate() &&
+		left.GetLastReviewed() == right.GetLastReviewed() &&
+		left.GetReviewExpires() == right.GetReviewExpires() &&
+		left.GetLicenseNotes() == right.GetLicenseNotes() &&
+		left.GetSecurityNotes() == right.GetSecurityNotes() &&
+		left.GetReplacement() == right.GetReplacement() &&
+		stringSlicesEqual(left.GetAllowedSurfaces(), right.GetAllowedSurfaces()) &&
+		stringSlicesEqual(left.GetUseCases(), right.GetUseCases()) &&
+		stringSlicesEqual(left.GetExampleScenarios(), right.GetExampleScenarios()) &&
+		stringSlicesEqual(left.GetKeywords(), right.GetKeywords()) &&
+		stringSlicesEqual(left.GetAllowedScenarios(), right.GetAllowedScenarios()) &&
+		stringSlicesEqual(left.GetDeniedScenarios(), right.GetDeniedScenarios()) &&
+		stringSlicesEqual(left.GetAllowedDependencyGroups(), right.GetAllowedDependencyGroups())
+}
+
+func stringSlicesEqual(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for i := range left {
+		if left[i] != right[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func mutationMessage(dryRun, changed, replaced bool, record *governancev1.ApprovedDependencyRecord) string {
+	action := "create"
+	if replaced {
+		action = "update"
+	}
+	key := recordKey(record.GetEcosystem(), record.GetPackageName())
+	if !changed {
+		return fmt.Sprintf("No registry change needed for %s.", key)
+	}
+	if dryRun {
+		return fmt.Sprintf("Dry run: would %s governance decision for %s.", action, key)
+	}
+	return fmt.Sprintf("Governance decision %sd for %s.", action, key)
 }
 
 func matchesFilter(value, filter string) bool {
@@ -555,10 +1147,157 @@ func queryTerms(query string) []string {
 	return out
 }
 
-func versionAllowed(observed, approvedRange string) bool {
+func versionAllowed(ecosystem, observed, approvedRange string) bool {
 	approvedRange = strings.TrimSpace(approvedRange)
 	observed = strings.TrimSpace(observed)
-	return approvedRange == "" || approvedRange == "*" || observed == "" || observed == approvedRange
+	if approvedRange == "" || approvedRange == "*" || observed == "" || observed == approvedRange {
+		return true
+	}
+	switch normalize(ecosystem) {
+	case "npm", "go":
+		return rangeAllowsVersion(approvedRange, observed)
+	default:
+		return false
+	}
+}
+
+func rangeAllowsVersion(constraint, observed string) bool {
+	observedVersion, ok := parseVersion(firstVersionToken(observed))
+	if !ok {
+		return false
+	}
+	for _, clause := range strings.Split(constraint, "||") {
+		if clauseAllowsVersion(strings.TrimSpace(clause), observedVersion) {
+			return true
+		}
+	}
+	return false
+}
+
+func clauseAllowsVersion(clause string, observed semanticVersion) bool {
+	if clause == "" || clause == "*" {
+		return true
+	}
+	tokens := splitConstraintTokens(clause)
+	if len(tokens) == 0 {
+		return false
+	}
+	for _, token := range tokens {
+		if !constraintTokenAllowsVersion(token, observed) {
+			return false
+		}
+	}
+	return true
+}
+
+func splitConstraintTokens(clause string) []string {
+	fields := strings.FieldsFunc(clause, func(r rune) bool {
+		return r == ',' || r == ' '
+	})
+	tokens := make([]string, 0, len(fields))
+	for _, field := range fields {
+		field = strings.TrimSpace(field)
+		if field != "" {
+			tokens = append(tokens, field)
+		}
+	}
+	return tokens
+}
+
+func constraintTokenAllowsVersion(token string, observed semanticVersion) bool {
+	token = strings.TrimSpace(token)
+	if token == "" || token == "*" || token == "x" || token == "X" {
+		return true
+	}
+	if strings.HasPrefix(token, "^") {
+		base, ok := parseVersion(strings.TrimPrefix(token, "^"))
+		return ok && compareVersion(observed, base) >= 0 && observed.Major == base.Major
+	}
+	if strings.HasPrefix(token, "~") {
+		base, ok := parseVersion(strings.TrimPrefix(token, "~"))
+		return ok && compareVersion(observed, base) >= 0 && observed.Major == base.Major && observed.Minor == base.Minor
+	}
+	for _, op := range []string{">=", "<=", ">", "<", "="} {
+		if strings.HasPrefix(token, op) {
+			want, ok := parseVersion(strings.TrimPrefix(token, op))
+			if !ok {
+				return false
+			}
+			cmp := compareVersion(observed, want)
+			switch op {
+			case ">=":
+				return cmp >= 0
+			case "<=":
+				return cmp <= 0
+			case ">":
+				return cmp > 0
+			case "<":
+				return cmp < 0
+			case "=":
+				return cmp == 0
+			}
+		}
+	}
+	want, ok := parseVersion(token)
+	return ok && compareVersion(observed, want) == 0
+}
+
+type semanticVersion struct {
+	Major int
+	Minor int
+	Patch int
+}
+
+func firstVersionToken(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	fields := strings.FieldsFunc(value, func(r rune) bool {
+		return r == ' ' || r == ',' || r == '|'
+	})
+	if len(fields) == 0 {
+		return value
+	}
+	return fields[0]
+}
+
+func parseVersion(value string) (semanticVersion, bool) {
+	value = strings.TrimSpace(value)
+	value = strings.TrimLeft(value, "^~<>= ")
+	value = strings.TrimPrefix(value, "v")
+	value = strings.SplitN(value, "-", 2)[0]
+	value = strings.SplitN(value, "+", 2)[0]
+	if value == "" || value == "*" {
+		return semanticVersion{}, false
+	}
+	parts := strings.Split(value, ".")
+	if len(parts) == 0 || len(parts) > 3 {
+		return semanticVersion{}, false
+	}
+	nums := []int{0, 0, 0}
+	for i, part := range parts {
+		if part == "x" || part == "X" || part == "*" {
+			nums[i] = 0
+			continue
+		}
+		n, err := strconv.Atoi(part)
+		if err != nil {
+			return semanticVersion{}, false
+		}
+		nums[i] = n
+	}
+	return semanticVersion{Major: nums[0], Minor: nums[1], Patch: nums[2]}, true
+}
+
+func compareVersion(left, right semanticVersion) int {
+	if left.Major != right.Major {
+		return left.Major - right.Major
+	}
+	if left.Minor != right.Minor {
+		return left.Minor - right.Minor
+	}
+	return left.Patch - right.Patch
 }
 
 func recordKey(ecosystem, packageName string) string {

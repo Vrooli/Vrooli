@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/maturity-go/assessment"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/dependency_health"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -50,6 +51,18 @@ type staticCommandRunner struct {
 
 func (r staticCommandRunner) Run(context.Context, string, string, ...string) (string, error) {
 	return r.output, r.err
+}
+
+type routedCommandRunner struct {
+	outputs map[string]string
+}
+
+func (r routedCommandRunner) Run(_ context.Context, _ string, name string, args ...string) (string, error) {
+	key := strings.Join(append([]string{name}, args...), " ")
+	if output, ok := r.outputs[key]; ok {
+		return output, nil
+	}
+	return `{}`, nil
 }
 
 type fakeRuntimeStatusFetcher struct {
@@ -118,6 +131,70 @@ func TestFinalizeCountsSeverityAndDegradedDependencies(t *testing.T) {
 	}
 	if got := resp.GetSummary().GetDegradedDependencies(); got != 1 {
 		t.Fatalf("degraded dependencies = %d, want 1", got)
+	}
+}
+
+func TestBuildMaturityAssessmentIncludesLocalMaturity(t *testing.T) {
+	spec := testMaturitySpec(t)
+	resp := &healthv1.DependencyHealthResponse{
+		Scenario: "demo",
+		Findings: []*healthv1.DependencyHealthFinding{
+			{
+				Id:          "release-age.policy-ui-minimum-too-low",
+				Severity:    "ERROR",
+				Title:       "pnpm release-age minimum is too low",
+				Description: "This pnpm workspace allows dependency versions newer than the Vrooli default cooldown.",
+				Remediation: "Raise minimumReleaseAge to at least 10080 minutes.",
+				FilePath:    "scenarios/demo/ui/pnpm-workspace.yaml",
+				RuleId:      "dependency.release_age.minimum_value",
+			},
+		},
+	}
+
+	got, err := buildMaturityAssessment(resp, spec)
+	if err != nil {
+		t.Fatalf("buildMaturityAssessment() error = %v", err)
+	}
+	if got.GetProvider() != "scenario-dependency-analyzer" {
+		t.Fatalf("provider = %q, want scenario-dependency-analyzer", got.GetProvider())
+	}
+	if got.GetPhase() != "dependencies" {
+		t.Fatalf("phase = %q, want dependencies", got.GetPhase())
+	}
+	if got.GetLocal().GetCurrentLevel() == "" {
+		t.Fatalf("local current level must be set: %+v", got.GetLocal())
+	}
+	if len(got.GetFindings()) != 1 || got.GetFindings()[0].GetMaturity() == nil {
+		t.Fatalf("assessment findings missing maturity metadata: %+v", got.GetFindings())
+	}
+}
+
+func TestBuildMaturityAssessmentRequiresSpec(t *testing.T) {
+	_, err := buildMaturityAssessment(&healthv1.DependencyHealthResponse{Scenario: "demo"}, nil)
+	if err == nil {
+		t.Fatal("buildMaturityAssessment() unexpectedly accepted nil spec")
+	}
+}
+
+func TestMaturitySpecCoversDependencyHealthRuleFamilies(t *testing.T) {
+	spec := testMaturitySpec(t)
+	for _, code := range []string{
+		"dependency.surfaces.none",
+		"dependency.runtime.resource_running",
+		"dependency.runtime.scenario_healthy",
+		"dependency.command.available",
+		"dependency.go.tidy",
+		"dependency.node.lockfile_present",
+		"dependency.release_age.minimum_value",
+		"dependency.governance.approved_dependency",
+		"dependency.graph.undeclared",
+	} {
+		if _, ok := spec.Findings[code]; !ok {
+			t.Fatalf("maturity spec missing emitted rule %q", code)
+		}
+	}
+	if spec.Fallback.LocalLevelImpact == "" {
+		t.Fatal("maturity spec fallback must cover newly introduced dependency-health rules explicitly")
 	}
 }
 
@@ -337,10 +414,13 @@ func TestSecurityHealthStatusReportsIndexReadiness(t *testing.T) {
 		commandRunner: staticCommandRunner{output: `{"available":true,"indexed_count":42,"vulnerable_count":3,"index_ready":true,"last_reconcile_at":"2026-06-16T00:00:00Z"}`},
 	}
 
-	section, degraded := handler.evaluateSecurityHealth(context.Background())
+	section, findings, degraded := handler.evaluateSecurityHealth(context.Background(), "demo")
 
 	if len(degraded) != 0 {
 		t.Fatalf("degraded = %d, want 0", len(degraded))
+	}
+	if len(findings) != 0 {
+		t.Fatalf("findings = %d, want 0", len(findings))
 	}
 	if section.GetStatus() != "pass" {
 		t.Fatalf("security status = %q, want pass", section.GetStatus())
@@ -357,13 +437,64 @@ func TestSecurityHealthStatusDegradesWhenUnavailable(t *testing.T) {
 		},
 	}
 
-	section, degraded := handler.evaluateSecurityHealth(context.Background())
+	section, _, degraded := handler.evaluateSecurityHealth(context.Background(), "demo")
 
 	if section.GetStatus() != "degraded" {
 		t.Fatalf("security status = %q, want degraded", section.GetStatus())
 	}
 	if len(degraded) != 1 || degraded[0].GetDomain() != "security" {
 		t.Fatalf("degraded = %#v, want one security degraded dependency", degraded)
+	}
+}
+
+func TestSecurityHealthVulnerabilityEvidenceProducesHealthFindings(t *testing.T) {
+	handler := &connectHandler{
+		scenariosDir: func() string { return filepath.Join(t.TempDir(), "scenarios") },
+		commandLookup: func(name string) (string, error) {
+			if name == "security-health" {
+				return "/usr/bin/security-health", nil
+			}
+			return "", errors.New("unexpected command")
+		},
+		commandRunner: routedCommandRunner{outputs: map[string]string{
+			"security-health deps status --json": `{"available":true,"indexed_count":42,"vulnerable_count":1,"index_ready":true}`,
+			"security-health deps vulnerabilities --scenario demo --json": `{
+				"total": 1,
+				"vulnerabilities": [{
+					"vulnerability_id": "GHSA-1234",
+					"ecosystem": "npm",
+					"name": "vite",
+					"version": "5.0.0",
+					"fixed_ranges": [{"range": ">= 5.1.0", "version": "5.1.0"}],
+					"normalized_severity": "high",
+					"advisory_url": "https://osv.dev/vulnerability/GHSA-1234",
+					"summary": "test vulnerability",
+					"source": "VULNERABILITY_SOURCE_OSV",
+					"reachability": "REACHABILITY_LOCKFILE_AFFECTED",
+					"confidence": "EVIDENCE_CONFIDENCE_ADVISORY",
+					"source_files": ["ui/pnpm-lock.yaml"]
+				}]
+			}`,
+		}},
+	}
+
+	section, findings, degraded := handler.evaluateSecurityHealth(context.Background(), "demo")
+
+	if len(degraded) != 0 {
+		t.Fatalf("degraded = %d, want 0", len(degraded))
+	}
+	if section.GetStatus() != "warn" {
+		t.Fatalf("security status = %q, want warn", section.GetStatus())
+	}
+	if len(findings) != 1 {
+		t.Fatalf("findings = %d, want 1", len(findings))
+	}
+	finding := findings[0]
+	if finding.GetSeverity() != "WARNING" || finding.GetRuleId() != "dependency.security.vulnerable_version" {
+		t.Fatalf("finding mapping wrong: %+v", finding)
+	}
+	if finding.GetExpected() != ">= 5.1.0" || !strings.Contains(finding.GetRemediation(), "GHSA-1234") {
+		t.Fatalf("fixed guidance missing: %+v", finding)
 	}
 }
 
@@ -485,4 +616,17 @@ func writeFile(t *testing.T, path, content string) {
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func testMaturitySpec(t *testing.T) *assessment.Spec {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join("..", "..", "..", ".vrooli", "maturity.json"))
+	if err != nil {
+		t.Fatalf("read maturity spec: %v", err)
+	}
+	spec, err := assessment.ParseSpec(raw)
+	if err != nil {
+		t.Fatalf("parse maturity spec: %v", err)
+	}
+	return spec
 }

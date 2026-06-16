@@ -17,14 +17,17 @@ import (
 	"connectrpc.com/connect"
 	"github.com/gin-gonic/gin"
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/maturity-go/assessment"
 	vroolicli "github.com/vrooli/vrooli-cli-go"
 
 	"scenario-dependency-analyzer/internal/dependencygovernance"
 	"scenario-dependency-analyzer/internal/interfacegraph"
 
+	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 	factsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts/facts_v1connect"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	governancev1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/dependency_governance"
 	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/dependency_health"
 	healthconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/dependency_health/dependency_health_v1connect"
@@ -37,10 +40,19 @@ const (
 	releaseAgeMinimumMinutes   = 10080
 )
 
+type Options struct {
+	MaturitySpec *assessment.Spec
+}
+
 // RegisterConnectRoutes mounts the dependency-health producer contract.
-func RegisterConnectRoutes(router *gin.Engine, scenariosDir func() string) {
+func RegisterConnectRoutes(router *gin.Engine, scenariosDir func() string, opts ...Options) {
+	var cfg Options
+	if len(opts) > 0 {
+		cfg = opts[0]
+	}
 	connectPath, connectHandler := healthconnect.NewDependencyHealthServiceHandler(&connectHandler{
 		scenariosDir: scenariosDir,
+		spec:         cfg.MaturitySpec,
 	})
 	router.Any(connectPath+"*path", gin.WrapH(connectHandler))
 }
@@ -51,6 +63,7 @@ type connectHandler struct {
 	commandLookup     func(string) (string, error)
 	commandRunner     commandRunner
 	statusFetcher     runtimeStatusFetcher
+	spec              *assessment.Spec
 }
 
 func (h *connectHandler) ValidateDependencyHealth(ctx context.Context, req *connect.Request[healthv1.ValidateDependencyHealthRequest]) (*connect.Response[healthv1.DependencyHealthResponse], error) {
@@ -83,7 +96,7 @@ func (h *connectHandler) ValidateDependencyHealth(ctx context.Context, req *conn
 	runtimeSection, runtimeFindings, runtimeDegraded := h.evaluateRuntime(ctx, scenario)
 	governanceSection, governanceFindings, governanceSummary := h.evaluateGovernance(scenario, surfaces)
 	releaseAgeSection, releaseAgeFindings, policySummary := h.evaluateReleaseAge(scenario, surfaces)
-	securitySection, securityDegraded := h.evaluateSecurityHealth(ctx)
+	securitySection, securityFindings, securityDegraded := h.evaluateSecurityHealth(ctx, scenario)
 	resp.GovernanceSummary = governanceSummary
 	resp.PolicySummary = policySummary
 	resp.Sections = append(resp.Sections,
@@ -98,6 +111,7 @@ func (h *connectHandler) ValidateDependencyHealth(ctx context.Context, req *conn
 	resp.Findings = append(resp.Findings, runtimeFindings...)
 	resp.Findings = append(resp.Findings, governanceFindings...)
 	resp.Findings = append(resp.Findings, releaseAgeFindings...)
+	resp.Findings = append(resp.Findings, securityFindings...)
 	resp.CommandResults = append(resp.CommandResults, commandResults...)
 	resp.DegradedDependencies = append(resp.DegradedDependencies, degraded...)
 	resp.DegradedDependencies = append(resp.DegradedDependencies, runtimeDegraded...)
@@ -107,7 +121,49 @@ func (h *connectHandler) ValidateDependencyHealth(ctx context.Context, req *conn
 	resp.Findings = append(resp.Findings, driftFindings...)
 	resp.DegradedDependencies = append(resp.DegradedDependencies, degraded...)
 	finalize(resp)
+	assessment, err := buildMaturityAssessment(resp, h.spec)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build dependency maturity assessment: %w", err))
+	}
+	resp.Assessment = assessment
 	return connect.NewResponse(resp), nil
+}
+
+func buildMaturityAssessment(resp *healthv1.DependencyHealthResponse, spec *assessment.Spec) (*commonv1.MaturityAssessment, error) {
+	if spec == nil {
+		return nil, fmt.Errorf("maturity spec is required")
+	}
+	findings := make([]assessment.Finding, 0, len(resp.GetFindings()))
+	for _, finding := range resp.GetFindings() {
+		findings = append(findings, assessment.Finding{
+			Code:        firstNonEmpty(finding.GetRuleId(), finding.GetId()),
+			Severity:    severityToAssessment(finding.GetSeverity()),
+			Title:       finding.GetTitle(),
+			Message:     finding.GetDescription(),
+			Location:    finding.GetFilePath(),
+			Remediation: finding.GetRemediation(),
+			Source:      architecturev1.FindingSource_FINDING_SOURCE_DEPENDENCY,
+			Phase:       spec.Phase,
+		})
+	}
+	return assessment.BuildProtoAssessment(assessment.BuildInput{
+		Scenario: resp.GetScenario(),
+		Spec:     *spec,
+		Findings: findings,
+	})
+}
+
+func severityToAssessment(severity string) string {
+	switch strings.ToUpper(strings.TrimSpace(severity)) {
+	case "CRITICAL", "HIGH", "ERROR":
+		return architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR.String()
+	case "MEDIUM", "WARN", "WARNING":
+		return architecturev1.FindingSeverity_FINDING_SEVERITY_WARNING.String()
+	case "LOW", "INFO":
+		return architecturev1.FindingSeverity_FINDING_SEVERITY_INFO.String()
+	default:
+		return severity
+	}
 }
 
 type releaseAgePolicy struct {
@@ -140,6 +196,33 @@ type securityHealthDependencyStatus struct {
 	IndexedVectors       int    `json:"indexed_vectors"`
 	ExpectedVectors      int    `json:"expected_vectors"`
 	IndexReady           bool   `json:"index_ready"`
+}
+
+type securityHealthVulnerabilityResponse struct {
+	Vulnerabilities []securityHealthVulnerability `json:"vulnerabilities"`
+	Total           int                           `json:"total"`
+}
+
+type securityHealthVulnerability struct {
+	VulnerabilityID    string                     `json:"vulnerability_id"`
+	Ecosystem          string                     `json:"ecosystem"`
+	Name               string                     `json:"name"`
+	Version            string                     `json:"version"`
+	FixedRanges        []securityHealthFixedRange `json:"fixed_ranges"`
+	NormalizedSeverity string                     `json:"normalized_severity"`
+	AdvisoryURL        string                     `json:"advisory_url"`
+	Summary            string                     `json:"summary"`
+	Source             string                     `json:"source"`
+	Reachability       string                     `json:"reachability"`
+	Confidence         string                     `json:"confidence"`
+	Scenarios          []string                   `json:"scenarios"`
+	SourceFiles        []string                   `json:"source_files"`
+	Remediation        string                     `json:"remediation"`
+}
+
+type securityHealthFixedRange struct {
+	Range   string `json:"range"`
+	Version string `json:"version"`
 }
 
 func (h *connectHandler) evaluateReleaseAge(scenario string, surfaces []*healthv1.DependencyHealthSurface) (*healthv1.DependencyHealthSection, []*healthv1.DependencyHealthFinding, *healthv1.DependencyPolicySummary) {
@@ -193,13 +276,13 @@ func (h *connectHandler) evaluateReleaseAge(scenario string, surfaces []*healthv
 	return sectionWithFindingIDs("release-age", "Package release-age policy", summary.GetStatus(), text, findingIDs(findings, "release-age")), findings, summary
 }
 
-func (h *connectHandler) evaluateSecurityHealth(ctx context.Context) (*healthv1.DependencyHealthSection, []*healthv1.DegradedDependency) {
+func (h *connectHandler) evaluateSecurityHealth(ctx context.Context, scenario string) (*healthv1.DependencyHealthSection, []*healthv1.DependencyHealthFinding, []*healthv1.DegradedDependency) {
 	lookup := h.commandLookup
 	if lookup == nil {
 		lookup = exec.LookPath
 	}
 	if _, err := lookup("security-health"); err != nil {
-		return section("security", "Security Health dependency index", "degraded", "Security Health CLI is unavailable; SDA skipped dependency index freshness status without running vulnerability scanners."), []*healthv1.DegradedDependency{
+		return section("security", "Security Health dependency index", "degraded", "Security Health CLI is unavailable; SDA skipped dependency index freshness status without running vulnerability scanners."), nil, []*healthv1.DegradedDependency{
 			{
 				Id:         "security-health-deps-status",
 				Dependency: "security-health",
@@ -220,7 +303,7 @@ func (h *connectHandler) evaluateSecurityHealth(ctx context.Context) (*healthv1.
 		if observed == "" {
 			observed = err.Error()
 		}
-		return section("security", "Security Health dependency index", "degraded", "Security Health dependency index status is unavailable; SDA did not run vulnerability scanners."), []*healthv1.DegradedDependency{
+		return section("security", "Security Health dependency index", "degraded", "Security Health dependency index status is unavailable; SDA did not run vulnerability scanners."), nil, []*healthv1.DegradedDependency{
 			{
 				Id:         "security-health-deps-status",
 				Dependency: "security-health deps status",
@@ -231,7 +314,7 @@ func (h *connectHandler) evaluateSecurityHealth(ctx context.Context) (*healthv1.
 	}
 	var status securityHealthDependencyStatus
 	if err := json.Unmarshal([]byte(out), &status); err != nil {
-		return section("security", "Security Health dependency index", "degraded", "Security Health dependency index status returned unparseable JSON."), []*healthv1.DegradedDependency{
+		return section("security", "Security Health dependency index", "degraded", "Security Health dependency index status returned unparseable JSON."), nil, []*healthv1.DegradedDependency{
 			{
 				Id:         "security-health-deps-status",
 				Dependency: "security-health deps status",
@@ -257,7 +340,119 @@ func (h *connectHandler) evaluateSecurityHealth(ctx context.Context) (*healthv1.
 			Reason:     summary,
 		})
 	}
-	return section("security", "Security Health dependency index", sectionStatus, summary), degraded
+	findings, vulnDegraded := h.securityVulnerabilityFindings(ctx, runner, scenario)
+	degraded = append(degraded, vulnDegraded...)
+	if len(findings) > 0 {
+		summary = fmt.Sprintf("%s %d vulnerable dependency evidence finding(s).", summary, len(findings))
+		if statusFromFindings(findings, "security") == "fail" {
+			sectionStatus = "fail"
+		} else if sectionStatus == "pass" {
+			sectionStatus = "warn"
+		}
+	}
+	return sectionWithFindingIDs("security", "Security Health dependency index", sectionStatus, summary, findingIDs(findings, "security")), findings, degraded
+}
+
+func (h *connectHandler) securityVulnerabilityFindings(ctx context.Context, runner commandRunner, scenario string) ([]*healthv1.DependencyHealthFinding, []*healthv1.DegradedDependency) {
+	statusCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	out, err := runner.Run(statusCtx, filepath.Dir(h.resolveScenariosDir()), "security-health", "deps", "vulnerabilities", "--scenario", scenario, "--json")
+	if err != nil {
+		observed := strings.TrimSpace(out)
+		if observed == "" {
+			observed = err.Error()
+		}
+		return nil, []*healthv1.DegradedDependency{{
+			Id:         "security-health-vulnerability-evidence",
+			Dependency: "security-health deps vulnerabilities",
+			Domain:     "security",
+			Reason:     observed,
+		}}
+	}
+	var resp securityHealthVulnerabilityResponse
+	if err := json.Unmarshal([]byte(out), &resp); err != nil {
+		return nil, []*healthv1.DegradedDependency{{
+			Id:         "security-health-vulnerability-evidence",
+			Dependency: "security-health deps vulnerabilities",
+			Domain:     "security",
+			Reason:     fmt.Sprintf("parse vulnerability JSON: %v", err),
+		}}
+	}
+	findings := make([]*healthv1.DependencyHealthFinding, 0, len(resp.Vulnerabilities))
+	for _, vuln := range resp.Vulnerabilities {
+		findings = append(findings, securityVulnerabilityFinding(vuln))
+	}
+	return findings, nil
+}
+
+func securityVulnerabilityFinding(vuln securityHealthVulnerability) *healthv1.DependencyHealthFinding {
+	confidence := normalizeEvidenceToken(vuln.Confidence)
+	severity := "WARNING"
+	if confidence == "gating" {
+		severity = "ERROR"
+	}
+	title := fmt.Sprintf("Vulnerable dependency version is in use: %s", vuln.Name)
+	summary := strings.TrimSpace(vuln.Summary)
+	if summary == "" {
+		summary = vuln.VulnerabilityID
+	}
+	description := fmt.Sprintf("%s@%s is affected by %s from Security Health (%s confidence, %s reachability). %s", vuln.Name, vuln.Version, vuln.VulnerabilityID, firstNonEmpty(confidence, vuln.Confidence, "unknown"), firstNonEmpty(normalizeEvidenceToken(vuln.Reachability), vuln.Reachability, "unknown"), summary)
+	remediation := strings.TrimSpace(vuln.Remediation)
+	if remediation == "" {
+		remediation = fmt.Sprintf("Update %s to a fixed version (%s), or record a reviewed governance exception if this evidence is not applicable.", vuln.Name, firstSecurityFixedRange(vuln.FixedRanges))
+	}
+	if strings.TrimSpace(vuln.AdvisoryURL) != "" {
+		remediation += " Advisory: " + strings.TrimSpace(vuln.AdvisoryURL)
+	}
+	return &healthv1.DependencyHealthFinding{
+		Id:           "security.vulnerability." + slug(vuln.Ecosystem+"."+vuln.Name+"."+vuln.Version+"."+vuln.VulnerabilityID),
+		Severity:     severity,
+		SourceDomain: "security",
+		Title:        title,
+		Description:  description,
+		Remediation:  remediation,
+		FilePath:     firstString(vuln.SourceFiles),
+		RuleId:       "dependency.security.vulnerable_version",
+		Observed:     fmt.Sprintf("%s@%s", vuln.Name, vuln.Version),
+		Expected:     firstSecurityFixedRange(vuln.FixedRanges),
+	}
+}
+
+func firstSecurityFixedRange(ranges []securityHealthFixedRange) string {
+	for _, fixed := range ranges {
+		if strings.TrimSpace(fixed.Range) != "" {
+			return strings.TrimSpace(fixed.Range)
+		}
+		if strings.TrimSpace(fixed.Version) != "" {
+			return ">= " + strings.TrimSpace(fixed.Version)
+		}
+	}
+	return "fixed version from Security Health evidence"
+}
+
+func firstString(values []string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
+func lowerTrim(value string) string {
+	return strings.ToLower(strings.TrimSpace(value))
+}
+
+func normalizeEvidenceToken(value string) string {
+	value = lowerTrim(value)
+	for _, prefix := range []string{
+		"evidence_confidence_",
+		"reachability_",
+		"vulnerability_source_",
+	} {
+		value = strings.TrimPrefix(value, prefix)
+	}
+	return value
 }
 
 type surfaceDiscoverer interface {

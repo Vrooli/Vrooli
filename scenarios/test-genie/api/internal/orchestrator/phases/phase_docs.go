@@ -51,8 +51,10 @@ type DocsSummary struct {
 	MarkedRefsSkipped int `json:"markedRefsSkipped"`
 	MarkedRefsUnknown int `json:"markedRefsUnknown"`
 
-	DocsInManifest    int `json:"docsInManifest"`
-	DocsNotInManifest int `json:"docsNotInManifest"`
+	DocsInManifest    int    `json:"docsInManifest"`
+	DocsNotInManifest int    `json:"docsNotInManifest"`
+	LocalCurrentLevel string `json:"local_current_level,omitempty"`
+	LocalNextLevel    string `json:"local_next_level,omitempty"`
 }
 
 // String returns a short human-readable summary.
@@ -62,6 +64,9 @@ func (s DocsSummary) String() string {
 	if s.CodeRefsFound > 0 || s.DocRefsFound > 0 || s.MarkedRefsFound > 0 {
 		base += fmt.Sprintf(", code refs: %d found/%d broken, doc refs: %d found/%d broken, marked refs: %d found/%d broken",
 			s.CodeRefsFound, s.CodeRefsBroken, s.DocRefsFound, s.DocRefsBroken, s.MarkedRefsFound, s.MarkedRefsBroken)
+	}
+	if s.LocalCurrentLevel != "" || s.LocalNextLevel != "" {
+		base += fmt.Sprintf(", local=%s next=%s", s.LocalCurrentLevel, s.LocalNextLevel)
 	}
 	return base
 }
@@ -249,6 +254,14 @@ func docsArchFindings(scenario string, resp *kov1.DocHealthResponse) []*architec
 func translateDocHealth(resp *kov1.DocHealthResponse) *docsRunResult {
 	out := &docsRunResult{}
 	out.Summary = countsToSummary(resp.GetCounts())
+	if err := requireProtoProviderAssessment("knowledge-observatory", "docs", resp.GetAssessment()); err != nil {
+		out.Success = false
+		out.FailureClass = shared.FailureClassMaturityContract
+		out.Error = err
+		out.Remediation = "Run 'test-genie provider-contract check docs " + resp.GetScenarioName() + " --json' and restart knowledge-observatory if stale."
+		return out
+	}
+	out.Summary.LocalCurrentLevel, out.Summary.LocalNextLevel = protoLocalMaturitySummary(resp.GetAssessment())
 
 	failureCount := 0
 

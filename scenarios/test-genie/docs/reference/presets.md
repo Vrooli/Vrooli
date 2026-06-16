@@ -208,7 +208,7 @@ graph LR
 | Structure validation | ✅ | ✅ | ✅ | ✅ |
 | Standards enforcement | ✅ | ✅ | ✅ | ✅ |
 | Contract surface audit | ❌ | ❌ | ✅ | ✅ |
-| Dependency check | ❌ | ❌ | ❌ | ✅ |
+| SDA dependency health | ❌ | ❌ | ❌ | ✅ |
 | Unit tests | ✅ | ❌ | ❌ | ✅ |
 | Integration tests | ❌ | ✅ | ❌ | ✅ |
 | Business registry validation | ✅ | ✅ | ❌ | ✅ |

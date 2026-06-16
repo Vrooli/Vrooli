@@ -39,7 +39,7 @@ test-genie/
 |-------|---------|---------|
 | Structure | 15s | Validate files, JSON configs |
 | Standards | 60s | Run scenario-auditor standards rules (PRD/service.json/proxy/lifecycle config) |
-| Dependencies | 30s | Check runtimes, tools, resources |
+| Dependencies | 30s | Dependency health via scenario-dependency-analyzer |
 | Quality | 120s | Static quality contracts via quality-health |
 | Docs | 60s | Validate Markdown, mermaid, links, portability |
 | Smoke | 90s | UI handshake via iframe-bridge |

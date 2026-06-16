@@ -177,6 +177,9 @@ func stubRuntimePhaseRunners(orchestrator *SuiteOrchestrator) {
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Smoke, Runner: noOp, Optional: true, Weight: 70})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Integration, Runner: noOp, Weight: 90})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Playbooks, Runner: noOp, Weight: 100})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Security, Runner: noOp, Optional: true, Weight: 140})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Measures, Runner: noOp, Optional: true, Weight: 150})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Proto, Runner: noOp, Optional: true, Weight: 160})
 }
 
 func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
@@ -200,6 +203,8 @@ func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 			switch {
 			case name == "scenario-auditor":
 				return `{"security":null,"standards":{"summary":{"total":0,"by_severity":{},"highest_severity":"","top_violations":[]}}}`, nil
+			case isDependencyHealthCommand(name, args):
+				return dependencyHealthStubOutput(args[1]), nil
 			case strings.Contains(name, filepath.Join("cli", "demo")) && len(args) > 0 && args[0] == "version":
 				return "demo version 1.0.0", nil
 			case strings.Contains(name, filepath.Join("cli", "test-genie")) && len(args) > 0 && args[0] == "version":
@@ -365,6 +370,9 @@ func TestSuiteOrchestratorExecuteCapturesSelectionMetadata(t *testing.T) {
 			if strings.Contains(name, filepath.Join("cli", "test-genie")) && len(args) > 0 && args[0] == "version" {
 				return "test-genie version 1.0.0", nil
 			}
+			if isDependencyHealthCommand(name, args) {
+				return dependencyHealthStubOutput(args[1]), nil
+			}
 			return "", nil
 		})
 
@@ -423,6 +431,8 @@ func TestSuiteOrchestratorSyncsRequirementsAfterFullRun(t *testing.T) {
 			switch {
 			case name == "scenario-auditor":
 				return `{"security":null,"standards":{"summary":{"total":0,"by_severity":{},"highest_severity":"","top_violations":[]}}}`, nil
+			case isDependencyHealthCommand(name, args):
+				return dependencyHealthStubOutput(args[1]), nil
 			case strings.Contains(name, filepath.Join("cli", "demo")) && len(args) > 0 && args[0] == "version":
 				return "demo version 1.0.0", nil
 			case strings.Contains(name, filepath.Join("cli", "test-genie")) && len(args) > 0 && args[0] == "version":
@@ -591,6 +601,9 @@ func TestSuiteOrchestratorPresetFromFile(t *testing.T) {
 		stubPhaseCommandCapture(t, func(ctx context.Context, dir string, logWriter io.Writer, name string, args ...string) (string, error) {
 			if name == "scenario-auditor" {
 				return `{"security":null,"standards":{"summary":{"total":0,"by_severity":{},"highest_severity":"","top_violations":[]}}}`, nil
+			}
+			if isDependencyHealthCommand(name, args) {
+				return dependencyHealthStubOutput(args[1]), nil
 			}
 			return "", nil
 		})
@@ -959,6 +972,38 @@ func TestSelectPhases(t *testing.T) {
 func boolPtr(value bool) *bool {
 	v := value
 	return &v
+}
+
+func isDependencyHealthCommand(name string, args []string) bool {
+	return name == "scenario-dependency-analyzer" &&
+		len(args) >= 3 &&
+		args[0] == "health" &&
+		args[1] != "" &&
+		args[2] == "--json"
+}
+
+func dependencyHealthStubOutput(scenario string) string {
+	return fmt.Sprintf(`{
+		"scenario": %q,
+		"passed": true,
+		"summary": {"sections": 6, "findings": 0, "errors": 0, "warnings": 0, "infos": 0},
+		"sections": [
+			{"id": "surfaces", "title": "Code surfaces", "status": "pass"},
+			{"id": "readiness", "title": "Dependency readiness", "status": "pass"},
+			{"id": "runtime", "title": "Runtime dependencies", "status": "pass"},
+			{"id": "governance", "title": "Approved dependency governance", "status": "pass"},
+			{"id": "release-age", "title": "Package release-age policy", "status": "pass"},
+			{"id": "graph", "title": "Dependency graph drift", "status": "pass"}
+		],
+		"findings": [],
+		"assessment": {
+			"scenario": %q,
+			"provider": "scenario-dependency-analyzer",
+			"phase": "dependencies",
+			"version": "1.0.0",
+			"local": {"currentLevel": "L5", "nextLevel": ""}
+		}
+	}`, scenario, scenario)
 }
 
 func stubCommandLookup(t *testing.T, fn func(string) (string, error)) {

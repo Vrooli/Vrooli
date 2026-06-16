@@ -14,6 +14,7 @@ import (
 
 	"test-genie/internal/orchestrator/workspace"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	kov1 "github.com/vrooli/vrooli/packages/proto/gen/go/knowledge-observatory/v1"
 )
 
@@ -42,6 +43,7 @@ func TestTranslateDocHealth_AllClean(t *testing.T) {
 	resp := &kov1.DocHealthResponse{
 		ScenarioName: "demo",
 		Counts:       &kov1.DocHealthCounts{FilesChecked: 3, LocalLinks: 5},
+		Assessment:   testProtoProviderAssessment("demo", "knowledge-observatory", "docs", "L5", ""),
 	}
 	out := translateDocHealth(resp)
 	if !out.Success {
@@ -52,10 +54,49 @@ func TestTranslateDocHealth_AllClean(t *testing.T) {
 	}
 }
 
+func TestTranslateDocHealth_PreservesLocalMaturitySummary(t *testing.T) {
+	resp := &kov1.DocHealthResponse{
+		ScenarioName: "demo",
+		Counts:       &kov1.DocHealthCounts{FilesChecked: 3},
+		Assessment:   testProtoProviderAssessment("demo", "knowledge-observatory", "docs", "L3", "L4"),
+	}
+	out := translateDocHealth(resp)
+	if !out.Success {
+		t.Fatalf("expected Success=true, got error %v", out.Error)
+	}
+	if out.Summary.LocalCurrentLevel != "L3" || out.Summary.LocalNextLevel != "L4" {
+		t.Fatalf("local maturity = %q/%q, want L3/L4", out.Summary.LocalCurrentLevel, out.Summary.LocalNextLevel)
+	}
+}
+
+func TestTranslateDocHealth_RejectsMalformedPresentAssessment(t *testing.T) {
+	resp := &kov1.DocHealthResponse{
+		ScenarioName: "demo",
+		Assessment: &commonv1.MaturityAssessment{
+			Provider: "knowledge-observatory",
+			Phase:    "docs",
+			Scenario: "demo",
+			Version:  "1.0.0",
+			Local:    &commonv1.LocalMaturityAssessment{},
+		},
+	}
+	out := translateDocHealth(resp)
+	if out.Success {
+		t.Fatalf("expected Success=false")
+	}
+	if string(out.FailureClass) != "maturity_contract" {
+		t.Fatalf("FailureClass = %q, want maturity_contract", out.FailureClass)
+	}
+	if out.Error == nil {
+		t.Fatalf("expected maturity contract error")
+	}
+}
+
 func TestTranslateDocHealth_FailureSeverityFailsPhase(t *testing.T) {
 	path := "docs/foo.md"
 	resp := &kov1.DocHealthResponse{
 		ScenarioName: "demo",
+		Assessment:   testProtoProviderAssessment("demo", "knowledge-observatory", "docs", "L2", "L3"),
 		ContentFindings: []*kov1.DocHealthFinding{
 			{Code: "broken_local_link", Severity: kov1.DocHealthSeverity_DOC_HEALTH_SEVERITY_FAILURE, Message: "broken link", Path: &path},
 		},
@@ -78,6 +119,7 @@ func TestTranslateDocHealth_FailureSeverityFailsPhase(t *testing.T) {
 func TestTranslateDocHealth_WarningOnly_Succeeds(t *testing.T) {
 	resp := &kov1.DocHealthResponse{
 		ScenarioName: "demo",
+		Assessment:   testProtoProviderAssessment("demo", "knowledge-observatory", "docs", "L4", "L5"),
 		ContentFindings: []*kov1.DocHealthFinding{
 			{Code: "absolute_path", Severity: kov1.DocHealthSeverity_DOC_HEALTH_SEVERITY_WARNING, Message: "absolute path detected"},
 		},
@@ -85,6 +127,16 @@ func TestTranslateDocHealth_WarningOnly_Succeeds(t *testing.T) {
 	out := translateDocHealth(resp)
 	if !out.Success {
 		t.Errorf("expected Success=true when only warnings are present")
+	}
+}
+
+func TestTranslateDocHealth_RejectsMissingAssessment(t *testing.T) {
+	out := translateDocHealth(&kov1.DocHealthResponse{ScenarioName: "demo"})
+	if out.Success {
+		t.Fatalf("expected Success=false")
+	}
+	if string(out.FailureClass) != "maturity_contract" {
+		t.Fatalf("FailureClass = %q, want maturity_contract", out.FailureClass)
 	}
 }
 

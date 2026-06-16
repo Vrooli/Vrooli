@@ -19,20 +19,26 @@ import (
 // ProtoSummary mirrors the proto-health validation summary so phase pointers
 // keep a stable JSON shape across runs.
 type ProtoSummary struct {
-	Scenario string `json:"scenario"`
-	Passed   bool   `json:"passed"`
-	Errors   int    `json:"errors"`
-	Warnings int    `json:"warnings"`
-	Infos    int    `json:"infos"`
-	Skipped  bool   `json:"skipped,omitempty"`
+	Scenario          string `json:"scenario"`
+	Passed            bool   `json:"passed"`
+	Errors            int    `json:"errors"`
+	Warnings          int    `json:"warnings"`
+	Infos             int    `json:"infos"`
+	LocalCurrentLevel string `json:"local_current_level,omitempty"`
+	LocalNextLevel    string `json:"local_next_level,omitempty"`
+	Skipped           bool   `json:"skipped,omitempty"`
 }
 
 func (s ProtoSummary) String() string {
 	if s.Skipped {
 		return "skipped"
 	}
-	return fmt.Sprintf("%s passed=%v errors=%d warnings=%d infos=%d",
+	text := fmt.Sprintf("%s passed=%v errors=%d warnings=%d infos=%d",
 		s.Scenario, s.Passed, s.Errors, s.Warnings, s.Infos)
+	if s.LocalCurrentLevel != "" || s.LocalNextLevel != "" {
+		text += fmt.Sprintf(" local=%s next=%s", s.LocalCurrentLevel, s.LocalNextLevel)
+	}
+	return text
 }
 
 // protoFinding is the structured shape `proto-health validate scenario <name>
@@ -46,10 +52,11 @@ type protoFinding struct {
 }
 
 type protoReport struct {
-	Scenario string         `json:"scenario"`
-	Passed   bool           `json:"passed"`
-	Findings []protoFinding `json:"findings"`
-	Summary  struct {
+	Scenario   string                      `json:"scenario"`
+	Passed     bool                        `json:"passed"`
+	Findings   []protoFinding              `json:"findings"`
+	Assessment *providerMaturityAssessment `json:"assessment"`
+	Summary    struct {
 		Errors   int `json:"errors"`
 		Warnings int `json:"warnings"`
 		Infos    int `json:"infos"`
@@ -124,8 +131,8 @@ func runProtoPhase(ctx context.Context, env workspace.Environment, logWriter io.
 					RunResult: shared.RunResult[ProtoSummary]{
 						Success:      false,
 						Error:        fmt.Errorf("parse proto-health output: %w (exit=%d)", parseErr, exitCode),
-						FailureClass: shared.FailureClassSystem,
-						Remediation:  "Run `proto-health validate scenario " + env.ScenarioName + " --json` manually and inspect output.",
+						FailureClass: classifyProviderParseFailure(parseErr),
+						Remediation:  "Run `proto-health validate scenario " + env.ScenarioName + "` for the human report, then retry with `--json` if the structural output still looks malformed.",
 					},
 				}, nil
 			}
@@ -185,6 +192,9 @@ func parseProtoOutput(raw []byte) (*protoReport, error) {
 	if err := json.Unmarshal(raw, &rep); err != nil {
 		return nil, err
 	}
+	if err := requireProviderAssessment("proto-health", "proto", rep.Assessment); err != nil {
+		return nil, err
+	}
 	return &rep, nil
 }
 
@@ -197,6 +207,7 @@ func translateProtoReport(rep *protoReport, exitCode int) *protoRunResult {
 		Warnings: rep.Summary.Warnings,
 		Infos:    rep.Summary.Infos,
 	}
+	out.Summary.LocalCurrentLevel, out.Summary.LocalNextLevel = localMaturitySummary(rep.Assessment)
 
 	failureCount := 0
 	for _, f := range rep.Findings {

@@ -47,6 +47,7 @@ const (
 	FailureClassMisconfiguration  = "misconfiguration"
 	FailureClassMissingDependency = "missing_dependency"
 	FailureClassTimeout           = "timeout"
+	FailureClassMaturityContract  = "maturity_contract"
 	FailureClassSystem            = "system"
 )
 

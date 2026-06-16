@@ -2,13 +2,18 @@ package app
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/cors"
 	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/maturity-go/assessment"
+	repocontract "github.com/vrooli/repo-contract-go"
 
 	analysisapi "scenario-dependency-analyzer/internal/analysis"
 	"scenario-dependency-analyzer/internal/catalog"
@@ -49,7 +54,11 @@ func Run(cfg appconfig.Config, dbConn *sql.DB) error {
 		CacheTTL:     cfg.InterfaceGraphCacheTTL,
 		BuildTimeout: cfg.InterfaceGraphBuildTimeout,
 	})
-	dependencyhealthapi.RegisterConnectRoutes(router, h.scenariosDir)
+	spec, err := loadMaturitySpec()
+	if err != nil {
+		log.Printf("dependency-health: maturity assessment unavailable: %v", err)
+	}
+	dependencyhealthapi.RegisterConnectRoutes(router, h.scenariosDir, dependencyhealthapi.Options{MaturitySpec: spec})
 	dependencygovernanceapi.RegisterConnectRoutes(router, h.scenariosDir)
 
 	log.Printf("Starting Scenario Dependency Analyzer API on port %s", cfg.Port)
@@ -64,6 +73,19 @@ func Run(cfg appconfig.Config, dbConn *sql.DB) error {
 		IdleTimeout:       60 * time.Second,
 	}
 	return server.ListenAndServe()
+}
+
+func loadMaturitySpec() (*assessment.Spec, error) {
+	repoRoot, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		return nil, fmt.Errorf("resolve repo root: %w", err)
+	}
+	path := filepath.Join(repoRoot, "scenarios", "scenario-dependency-analyzer", ".vrooli", "maturity.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", path, err)
+	}
+	return assessment.ParseSpec(raw)
 }
 
 func registerRoutes(router *gin.Engine, handler *handler) {

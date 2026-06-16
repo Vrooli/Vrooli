@@ -93,48 +93,24 @@ The registry should be generated via `test-genie registry build`, not hand-maint
 
 ## Dependencies Phase
 
-The `dependencies` section in `.vrooli/testing.json` controls the read-only dependency preflight. Defaults are strict and fail when required readiness cannot be proven.
+The dependencies phase delegates to Scenario Dependency Analyzer:
 
-```json
-{
-  "dependencies": {
-    "strict": true,
-    "runtime_versions": {
-      "go": ">=1.21",
-      "node": ">=18.0.0",
-      "python3": ">=3.10.0"
-    },
-    "go_modules": {
-      "enabled": true,
-      "tidy_diff": true,
-      "build": false,
-      "local_replace_resolution": true
-    },
-    "node_packages": {
-      "enabled": true,
-      "require_node_modules": true,
-      "lockfile_required": true
-    },
-    "resources": {
-      "health_policy": "fail",
-      "allow_unknown_health_when_running": true
-    },
-    "scenarios": {
-      "enabled": true,
-      "health_policy": "fail"
-    }
-  }
-}
+```bash
+scenario-dependency-analyzer health <scenario> --json
 ```
+
+Dependency readiness, runtime dependency policy, graph drift, governance, release-age policy, and degraded Security Health dependency-index status are configured and interpreted by SDA. Test Genie does not read `.vrooli/testing.json` dependency knobs for this phase.
 
 Common remediation:
 
 | Finding | Typical command |
 |---------|-----------------|
-| `go_module_drift` | `cd scenarios/<name>/api && GOWORK=off go mod tidy` |
-| `node_install_state_stale` | `cd scenarios/<name>/ui && pnpm install --ignore-workspace` |
-| `required_resource_unhealthy` | `vrooli resource start <name>` |
-| `required_scenario_unhealthy` | `vrooli scenario start <name>` or `vrooli scenario restart <name>` |
+| `dependency.readiness.*` | Run the remediation reported by `scenario-dependency-analyzer health <scenario> --json` |
+| `dependency.runtime.*` | Start or restart the reported resource/scenario dependency |
+| `dependency.graph.*` | Update `.vrooli/service.json` or remove stale dependency usage |
+| `dependency.governance.*` | Review/update `.vrooli/dependencies/approved-dependencies.json` |
+| `dependency.release_age.*` | Add/raise pnpm `minimumReleaseAge` or record an approved exclusion |
+| `dependency.security.*` | Check `security-health deps status --json` |
 
 ## Advanced infrastructure levers
 

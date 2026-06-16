@@ -180,6 +180,30 @@
   },
   "dependencies": {
     "scenarios": {
+      "agent-inbox": {
+        "enabled": true,
+        "required": false,
+        "description": "Optional external tool-discovery consumer. Test Genie publishes tool registry proto contracts that agent-inbox can consume.",
+        "degraded_behavior": "Core test execution continues when agent-inbox is unavailable; external tool invocation/discovery integrations may be unavailable."
+      },
+      "agent-manager": {
+        "enabled": true,
+        "required": false,
+        "description": "Optional AI-assisted generation and repair producer used by agent workflows and WebSocket status streaming.",
+        "degraded_behavior": "Core test execution continues when agent-manager is unavailable; AI-assisted generation/fix workflows return clear unavailable errors."
+      },
+      "architecture-cartographer": {
+        "enabled": true,
+        "required": false,
+        "description": "Advisory architecture audit producer used by the non-gating architecture phase and campaign nudge workflows.",
+        "degraded_behavior": "Architecture phase skips or reports advisory unavailability instead of failing comprehensive execution."
+      },
+      "browser-automation-studio": {
+        "enabled": true,
+        "required": false,
+        "description": "Optional browser workflow producer used by smoke and playbook phases for UI automation and captured evidence.",
+        "degraded_behavior": "UI smoke/playbook automation can skip or report missing BAS, while non-browser phases continue."
+      },
       "knowledge-observatory": {
         "enabled": true,
         "required": true,
@@ -193,6 +217,13 @@
         "startup_policy": "must_start",
         "description": "Single source of truth for cli/manifest.json + proto binding validation. Contracts phase shells out to `cli-health validate scenario <name> --json` and fails fast when the CLI is unavailable.",
         "degraded_behavior": "Contracts phase fails with FailureClassMissingDependency until cli-health is available"
+      },
+      "scenario-dependency-analyzer": {
+        "enabled": true,
+        "required": true,
+        "startup_policy": "must_start",
+        "description": "Single source of truth for dependency health. Dependencies phase shells out to `scenario-dependency-analyzer health <name> --json` and fails fast when the producer is unavailable.",
+        "degraded_behavior": "Dependencies phase fails with FailureClassMissingDependency until scenario-dependency-analyzer is available"
       }
     }
   },

@@ -7,6 +7,7 @@ require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/lib/pq v1.10.9
 	github.com/vrooli/cli-core v0.0.0
+	github.com/vrooli/maturity-go v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	golang.org/x/term v0.37.0
@@ -86,6 +87,8 @@ require (
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
 
 replace github.com/vrooli/freshness-go => ../../../packages/freshness-go
+
+replace github.com/vrooli/maturity-go => ../../../packages/maturity-go
 
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 

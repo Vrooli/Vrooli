@@ -159,9 +159,10 @@ make logs     # View test logs
 - Resource dependencies declared in service.json
 
 **Example failures**:
-- Missing Go runtime
-- pnpm not installed
-- Declared resource not available
+- Missing runtime or package manager reported by SDA readiness
+- Required resource or scenario dependency unavailable
+- Declared-vs-actual dependency graph drift
+- Missing pnpm release-age policy or blocked dependency governance finding
 
 ### Phase 3: Quality
 
