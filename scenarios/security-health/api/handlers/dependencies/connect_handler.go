@@ -19,6 +19,8 @@ import (
 type Searcher interface {
 	Search(ctx context.Context, req depdomain.SearchRequest) (depdomain.SearchResponse, error)
 	Status(ctx context.Context) (depdomain.Status, error)
+	ListVulnerabilities(ctx context.Context, req depdomain.VulnerabilityQuery) (depdomain.VulnerabilityList, error)
+	ExplainVulnerability(ctx context.Context, req depdomain.VulnerabilityQuery) (depdomain.VulnerabilityRecord, bool, error)
 }
 
 // Deps wires the handler's seams.
@@ -81,6 +83,41 @@ func (h *connectHandler) Status(ctx context.Context, _ *connect.Request[dependen
 	}), nil
 }
 
+func (h *connectHandler) ListVulnerabilities(ctx context.Context, req *connect.Request[dependenciesv1.ListVulnerabilitiesRequest]) (*connect.Response[dependenciesv1.ListVulnerabilitiesResponse], error) {
+	resp, err := h.deps.Service.ListVulnerabilities(ctx, depdomain.VulnerabilityQuery{
+		Ecosystem:         ecosystemFromProto(req.Msg.GetEcosystem()),
+		PackageName:       req.Msg.GetPackageName(),
+		Scenario:          req.Msg.GetScenario(),
+		VulnerabilityID:   req.Msg.GetVulnerabilityId(),
+		MinimumConfidence: confidenceFromProto(req.Msg.GetMinimumConfidence()),
+		Limit:             int(req.Msg.GetLimit()),
+	})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	out := &dependenciesv1.ListVulnerabilitiesResponse{Total: int32(resp.Total)}
+	for _, vuln := range resp.Vulnerabilities {
+		out.Vulnerabilities = append(out.Vulnerabilities, vulnerabilityToProto(vuln))
+	}
+	return connect.NewResponse(out), nil
+}
+
+func (h *connectHandler) ExplainVulnerability(ctx context.Context, req *connect.Request[dependenciesv1.ExplainVulnerabilityRequest]) (*connect.Response[dependenciesv1.ExplainVulnerabilityResponse], error) {
+	vuln, found, err := h.deps.Service.ExplainVulnerability(ctx, depdomain.VulnerabilityQuery{
+		VulnerabilityID: req.Msg.GetVulnerabilityId(),
+		Ecosystem:       ecosystemFromProto(req.Msg.GetEcosystem()),
+		PackageName:     req.Msg.GetPackageName(),
+		Limit:           1,
+	})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&dependenciesv1.ExplainVulnerabilityResponse{
+		Vulnerability: vulnerabilityToProto(vuln),
+		Found:         found,
+	}), nil
+}
+
 func recordToProto(r depdomain.DependencyRecord) *dependenciesv1.DependencyRecord {
 	return &dependenciesv1.DependencyRecord{
 		Scenario:    r.Scenario,
@@ -92,6 +129,46 @@ func recordToProto(r depdomain.DependencyRecord) *dependenciesv1.DependencyRecor
 		MaxSeverity: r.MaxSeverity,
 		LastSeen:    r.LastSeen,
 	}
+}
+
+func vulnerabilityToProto(v depdomain.VulnerabilityRecord) *dependenciesv1.VulnerabilityRecord {
+	out := &dependenciesv1.VulnerabilityRecord{
+		VulnerabilityId:    v.VulnerabilityID,
+		Aliases:            v.Aliases,
+		Ecosystem:          ecosystemToProto(v.Ecosystem),
+		Name:               v.Name,
+		Version:            v.Version,
+		Severity:           v.Severity,
+		NormalizedSeverity: v.NormalizedSeverity,
+		AdvisoryUrl:        v.AdvisoryURL,
+		Summary:            v.Summary,
+		Details:            v.Details,
+		Source:             sourceToProto(v.Source),
+		Reachability:       reachabilityToProto(v.Reachability),
+		Confidence:         confidenceToProto(v.Confidence),
+		Production:         v.Production,
+		DevOnly:            v.DevOnly,
+		FirstSeen:          v.FirstSeen,
+		LastSeen:           v.LastSeen,
+		Scenarios:          v.Scenarios,
+		SourceFiles:        v.SourceFiles,
+		Remediation:        v.Remediation,
+	}
+	for _, r := range v.AffectedRanges {
+		out.AffectedRanges = append(out.AffectedRanges, &dependenciesv1.AffectedVersionRange{
+			Range:        r.Range,
+			Introduced:   r.Introduced,
+			Fixed:        r.Fixed,
+			LastAffected: r.LastAffected,
+		})
+	}
+	for _, r := range v.FixedRanges {
+		out.FixedRanges = append(out.FixedRanges, &dependenciesv1.FixedVersionRange{
+			Range:   r.Range,
+			Version: r.Version,
+		})
+	}
+	return out
 }
 
 func modeFromProto(m dependenciesv1.Mode) depdomain.Mode {
@@ -135,5 +212,57 @@ func ecosystemToProto(e depdomain.Ecosystem) dependenciesv1.Ecosystem {
 		return dependenciesv1.Ecosystem_ECOSYSTEM_NPM
 	default:
 		return dependenciesv1.Ecosystem_ECOSYSTEM_UNSPECIFIED
+	}
+}
+
+func sourceToProto(s depdomain.VulnerabilitySource) dependenciesv1.VulnerabilitySource {
+	switch s {
+	case depdomain.VulnerabilitySourceOSV:
+		return dependenciesv1.VulnerabilitySource_VULNERABILITY_SOURCE_OSV
+	case depdomain.VulnerabilitySourceGovulncheck:
+		return dependenciesv1.VulnerabilitySource_VULNERABILITY_SOURCE_GOVULNCHECK
+	case depdomain.VulnerabilitySourcePnpmAudit:
+		return dependenciesv1.VulnerabilitySource_VULNERABILITY_SOURCE_PNPM_AUDIT
+	default:
+		return dependenciesv1.VulnerabilitySource_VULNERABILITY_SOURCE_UNSPECIFIED
+	}
+}
+
+func reachabilityToProto(r depdomain.Reachability) dependenciesv1.Reachability {
+	switch r {
+	case depdomain.ReachabilityUnknown:
+		return dependenciesv1.Reachability_REACHABILITY_UNKNOWN
+	case depdomain.ReachabilityLockfileAffected:
+		return dependenciesv1.Reachability_REACHABILITY_LOCKFILE_AFFECTED
+	case depdomain.ReachabilityReachable:
+		return dependenciesv1.Reachability_REACHABILITY_REACHABLE
+	default:
+		return dependenciesv1.Reachability_REACHABILITY_UNSPECIFIED
+	}
+}
+
+func confidenceFromProto(c dependenciesv1.EvidenceConfidence) depdomain.EvidenceConfidence {
+	switch c {
+	case dependenciesv1.EvidenceConfidence_EVIDENCE_CONFIDENCE_DEGRADED:
+		return depdomain.EvidenceConfidenceDegraded
+	case dependenciesv1.EvidenceConfidence_EVIDENCE_CONFIDENCE_ADVISORY:
+		return depdomain.EvidenceConfidenceAdvisory
+	case dependenciesv1.EvidenceConfidence_EVIDENCE_CONFIDENCE_GATING:
+		return depdomain.EvidenceConfidenceGating
+	default:
+		return depdomain.EvidenceConfidenceUnspecified
+	}
+}
+
+func confidenceToProto(c depdomain.EvidenceConfidence) dependenciesv1.EvidenceConfidence {
+	switch c {
+	case depdomain.EvidenceConfidenceDegraded:
+		return dependenciesv1.EvidenceConfidence_EVIDENCE_CONFIDENCE_DEGRADED
+	case depdomain.EvidenceConfidenceAdvisory:
+		return dependenciesv1.EvidenceConfidence_EVIDENCE_CONFIDENCE_ADVISORY
+	case depdomain.EvidenceConfidenceGating:
+		return dependenciesv1.EvidenceConfidence_EVIDENCE_CONFIDENCE_GATING
+	default:
+		return dependenciesv1.EvidenceConfidence_EVIDENCE_CONFIDENCE_UNSPECIFIED
 	}
 }

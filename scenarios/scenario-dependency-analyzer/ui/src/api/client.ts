@@ -1,4 +1,4 @@
-import { buildApiUrl } from "@vrooli/api-base";
+import { buildApiUrl, createScenarioConnectTransport, resolveApiBase } from "@vrooli/api-base";
 import type { DescribeInterfaceGraphResponse } from "@vrooli/proto-types/scenario-dependency-analyzer/v1/graph/graph_pb";
 
 import { getApiBaseUrl } from "../lib/utils";
@@ -27,6 +27,9 @@ interface AnalysisHealthResponse {
 export function buildScenarioApiUrl(path: string): string {
   return buildApiUrl(path, { baseUrl: getApiBaseUrl() });
 }
+
+export const API_BASE = resolveApiBase();
+export const transport = createScenarioConnectTransport({ baseUrl: API_BASE });
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(buildScenarioApiUrl(path), init);

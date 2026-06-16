@@ -183,6 +183,88 @@
               "filesystem:write:.vrooli/dependencies/approved-dependencies.json"
             ]
           }
+        },
+        {
+          "name": "deps approved deny-vulnerable",
+          "description": "Preview or apply a Security Health-derived denied dependency decision",
+          "args": [
+            {
+              "name": "dependency",
+              "description": "Dependency formatted as ecosystem/package",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "vulnerability",
+              "description": "Security vulnerability id driving the denial"
+            },
+            {
+              "name": "affected-range",
+              "description": "Affected version range to deny; defaults to Security Health evidence"
+            },
+            {
+              "name": "fixed-range",
+              "description": "Fixed version range; defaults to Security Health evidence"
+            },
+            {
+              "name": "apply",
+              "description": "Apply the change; default is dry-run preview",
+              "default": "false"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "DenyVulnerableDependency"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "filesystem:write:.vrooli/dependencies/approved-dependencies.json"
+            ]
+          }
+        },
+        {
+          "name": "deps approved remediate",
+          "description": "Show Security Health vulnerability evidence and governance remediation preview",
+          "args": [
+            {
+              "name": "dependency",
+              "description": "Dependency formatted as ecosystem/package",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "vulnerability",
+              "description": "Security vulnerability id to explain"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "PreviewVulnerabilityRemediation"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     },
@@ -315,6 +397,87 @@
             "kind": "connect-rpc",
             "service": "DependencyGovernanceService",
             "method": "ValidateApprovedDependencies"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "deps approved findings",
+          "description": "List fleet approved-dependency governance findings",
+          "flags": [
+            {
+              "name": "scenario",
+              "description": "Filter by scenario"
+            },
+            {
+              "name": "ecosystem",
+              "description": "Filter by ecosystem"
+            },
+            {
+              "name": "package",
+              "description": "Filter by package name"
+            },
+            {
+              "name": "severity",
+              "description": "Filter by severity"
+            },
+            {
+              "name": "class",
+              "description": "Filter by finding class"
+            },
+            {
+              "name": "policy-mode",
+              "description": "Override registry policy mode: advisory, strict, or review_gate"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "ListApprovedDependencyFindings"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "deps approved usage",
+          "description": "Show fleet usage for one dependency",
+          "args": [
+            {
+              "name": "dependency",
+              "description": "Dependency formatted as ecosystem/package",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "policy-mode",
+              "description": "Override registry policy mode: advisory, strict, or review_gate"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "GetApprovedDependencyUsage"
           },
           "governance": {
             "effect": "read",

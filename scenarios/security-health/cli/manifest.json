@@ -47,6 +47,35 @@
           "description": "Report dependency-index availability, counts, and last reconcile",
           "binding": { "kind": "connect-rpc", "service": "DependencyService", "method": "Status" },
           "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "vulnerabilities",
+          "description": "List structured vulnerability evidence across fleet dependencies",
+          "positionals": [
+            { "name": "package", "required": false, "description": "Optional package filter, such as react or golang.org/x/net" }
+          ],
+          "flags": [
+            { "name": "ecosystem", "description": "Filter by ecosystem: go | npm" },
+            { "name": "scenario", "description": "Filter by scenario id" },
+            { "name": "vulnerability", "description": "Filter by CVE, GHSA, GO, or OSV id" },
+            { "name": "minimum-confidence", "description": "Minimum evidence confidence: degraded | advisory | gating" },
+            { "name": "limit", "default": "20", "description": "Maximum vulnerability groups to return" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "DependencyService", "method": "ListVulnerabilities" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "explain",
+          "description": "Explain one vulnerability with affected scenarios and fixed-version guidance",
+          "positionals": [
+            { "name": "vulnerability", "required": true, "description": "CVE, GHSA, GO, or OSV id" }
+          ],
+          "flags": [
+            { "name": "ecosystem", "description": "Optional ecosystem filter: go | npm" },
+            { "name": "package", "description": "Optional package filter" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "DependencyService", "method": "ExplainVulnerability" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         }
       ]
     },

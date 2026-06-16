@@ -12,9 +12,13 @@ import (
 )
 
 type stubSearcher struct {
-	gotReq depdomain.SearchRequest
-	resp   depdomain.SearchResponse
-	status depdomain.Status
+	gotReq     depdomain.SearchRequest
+	gotVulnReq depdomain.VulnerabilityQuery
+	resp       depdomain.SearchResponse
+	status     depdomain.Status
+	vulns      depdomain.VulnerabilityList
+	vuln       depdomain.VulnerabilityRecord
+	found      bool
 }
 
 func (s *stubSearcher) Search(_ context.Context, req depdomain.SearchRequest) (depdomain.SearchResponse, error) {
@@ -22,6 +26,15 @@ func (s *stubSearcher) Search(_ context.Context, req depdomain.SearchRequest) (d
 	return s.resp, nil
 }
 func (s *stubSearcher) Status(context.Context) (depdomain.Status, error) { return s.status, nil }
+func (s *stubSearcher) ListVulnerabilities(_ context.Context, req depdomain.VulnerabilityQuery) (depdomain.VulnerabilityList, error) {
+	s.gotVulnReq = req
+	return s.vulns, nil
+}
+
+func (s *stubSearcher) ExplainVulnerability(_ context.Context, req depdomain.VulnerabilityQuery) (depdomain.VulnerabilityRecord, bool, error) {
+	s.gotVulnReq = req
+	return s.vuln, s.found, nil
+}
 
 func TestSearch_MapsFiltersAndRecords(t *testing.T) {
 	stub := &stubSearcher{resp: depdomain.SearchResponse{
@@ -71,5 +84,48 @@ func TestStatus_Maps(t *testing.T) {
 	}
 	if resp.Msg.GetIndexedVectors() != 4123 || resp.Msg.GetExpectedVectors() != 4390 || resp.Msg.GetIndexReady() {
 		t.Errorf("coverage fields not mapped: %+v", resp.Msg)
+	}
+}
+
+func TestListVulnerabilities_MapsEvidence(t *testing.T) {
+	stub := &stubSearcher{vulns: depdomain.VulnerabilityList{
+		Total: 1,
+		Vulnerabilities: []depdomain.VulnerabilityRecord{{
+			VulnerabilityID:    "GHSA-1",
+			Ecosystem:          depdomain.EcosystemNPM,
+			Name:               "vite",
+			Version:            "5.0.0",
+			NormalizedSeverity: "high",
+			Source:             depdomain.VulnerabilitySourceOSV,
+			Reachability:       depdomain.ReachabilityLockfileAffected,
+			Confidence:         depdomain.EvidenceConfidenceAdvisory,
+			AffectedRanges:     []depdomain.AffectedVersionRange{{Range: "<5.1.0", Fixed: "5.1.0"}},
+			FixedRanges:        []depdomain.FixedVersionRange{{Range: ">= 5.1.0", Version: "5.1.0"}},
+			Scenarios:          []string{"demo"},
+			SourceFiles:        []string{"ui/pnpm-lock.yaml"},
+		}},
+	}}
+	h := NewConnectHandler(Deps{Service: stub})
+	resp, err := h.ListVulnerabilities(context.Background(), connect.NewRequest(&dependenciesv1.ListVulnerabilitiesRequest{
+		Ecosystem:         dependenciesv1.Ecosystem_ECOSYSTEM_NPM,
+		PackageName:       "vite",
+		MinimumConfidence: dependenciesv1.EvidenceConfidence_EVIDENCE_CONFIDENCE_ADVISORY,
+		Limit:             5,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stub.gotVulnReq.Ecosystem != depdomain.EcosystemNPM || stub.gotVulnReq.PackageName != "vite" || stub.gotVulnReq.MinimumConfidence != depdomain.EvidenceConfidenceAdvisory || stub.gotVulnReq.Limit != 5 {
+		t.Fatalf("request not mapped: %+v", stub.gotVulnReq)
+	}
+	if resp.Msg.GetTotal() != 1 || len(resp.Msg.GetVulnerabilities()) != 1 {
+		t.Fatalf("response count wrong: %+v", resp.Msg)
+	}
+	got := resp.Msg.GetVulnerabilities()[0]
+	if got.GetSource() != dependenciesv1.VulnerabilitySource_VULNERABILITY_SOURCE_OSV || got.GetConfidence() != dependenciesv1.EvidenceConfidence_EVIDENCE_CONFIDENCE_ADVISORY {
+		t.Fatalf("evidence enums not mapped: %+v", got)
+	}
+	if len(got.GetAffectedRanges()) != 1 || got.GetAffectedRanges()[0].GetFixed() != "5.1.0" {
+		t.Fatalf("ranges not mapped: %+v", got.GetAffectedRanges())
 	}
 }

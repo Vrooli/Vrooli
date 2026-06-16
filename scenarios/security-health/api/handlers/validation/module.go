@@ -1,13 +1,17 @@
 package validation
 
 import (
+	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 
 	"security-health/internal/module"
 	"security-health/internal/validation"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
+	"github.com/vrooli/maturity-go/assessment"
 
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/security-health/v1/validation"
 	validationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/security-health/v1/validation/validation_v1connect"
@@ -23,9 +27,14 @@ var ProtoFile = validationv1.File_security_health_v1_validation_validation_proto
 // validator is constructed with the real exec/scanner seams rooted at repoRoot.
 func Module(logger *log.Logger, repoRoot string) module.Module {
 	validator := validation.New(validation.Deps{RepoRoot: repoRoot, Logger: logger})
+	spec, err := loadMaturitySpec(repoRoot)
+	if err != nil && logger != nil {
+		logger.Printf("validation: maturity assessment disabled: %v", err)
+	}
 	connectPath, connectHandler := validationconnect.NewValidationServiceHandler(NewConnectHandler(Deps{
-		Logger:    logger,
-		Validator: validator,
+		Logger:       logger,
+		Validator:    validator,
+		MaturitySpec: spec,
 	}))
 	return module.Module{
 		Name: "validation",
@@ -34,6 +43,15 @@ func Module(logger *log.Logger, repoRoot string) module.Module {
 		},
 		Endpoints: Endpoints,
 	}
+}
+
+func loadMaturitySpec(repoRoot string) (*assessment.Spec, error) {
+	path := filepath.Join(repoRoot, "scenarios", "security-health", ".vrooli", "maturity.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", path, err)
+	}
+	return assessment.ParseSpec(raw)
 }
 
 // Schema returns "" — validation is stateless (no tables). The registry
@@ -63,6 +81,7 @@ var Endpoints = []module.EndpointDescriptor{
 				"findings":         "array<Finding>",
 				"summary":          "Summary",
 				"skipped_scanners": "array<string>",
+				"assessment":       "common.v1.MaturityAssessment",
 			},
 		},
 		Errors: []module.ErrorDesc{

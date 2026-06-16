@@ -135,6 +135,14 @@ SDA must not open `.go`, `.ts`, or `.proto` source files for graph evidence; ext
 
 REST compatibility routes for dependency graphs, actual interface graph JSON, drift, centrality, and cycles are registered through `api/internal/graph`. Dependency graph construction, centrality analytics, cycle detection, and the graph Connect handler for `DescribeInterfaceGraph` also live in `api/internal/graph`, so graph presentation and graph read-model construction are domain-owned while app startup only wires routes and service composition. The adapters depend on the app service registry only through the small `GraphService` interface and a `scenariosDir` resolver, keeping Gin route code out of `api/internal/app`.
 
+### 3b. Governance UI Connect Client (`ui/src/api/governance.ts`)
+
+**Status: Active typed UI seam**
+
+The Governance route consumes `DependencyGovernanceService` through the generated TypeScript proto contract and `createScenarioConnectTransport`. The UI must not hand-build governance endpoint URLs or duplicate policy logic; fleet validation, record listing, dry-run upsert, vulnerability remediation preview, and denied-range application all go through the typed Connect client.
+
+Tests mock this seam at `ui/src/api/governance.ts` or `@connectrpc/connect` rather than mocking raw fetch URLs. This keeps UI behavior aligned with the long-term proto/Connect migration while existing legacy REST graph/catalog calls are migrated separately.
+
 ### 4. Store (`internal/store/`)
 
 **Status: Interface defined, integration in progress**

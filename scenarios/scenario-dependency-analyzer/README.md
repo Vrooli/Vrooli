@@ -72,11 +72,19 @@ scenario-dependency-analyzer deps approved search "React graph library" --json
 # Validate a scenario against approved dependency governance memory
 scenario-dependency-analyzer deps approved validate scenario-dependency-analyzer --json
 
+# Review fleet governance findings and one dependency's usage
+scenario-dependency-analyzer deps approved findings --severity WARNING --json
+scenario-dependency-analyzer deps approved usage npm/react --json
+
 # Preview a governance approval; add --apply to write the registry
 scenario-dependency-analyzer deps approved approve npm/react --range ">=18.0.0 <20.0.0" --rationale "Approved UI runtime framework." --surfaces ui --groups dependencies --json
 
 # Preview a governance denial; add --apply to write the registry
 scenario-dependency-analyzer deps approved deny npm/left-pad --reason "Use native string padding." --replacement "String.prototype.padStart/padEnd" --json
+
+# Preview a Security Health-derived vulnerability remediation; add --apply to deny-vulnerable to write the registry
+scenario-dependency-analyzer deps approved remediate npm/vite --vulnerability GHSA-example --json
+scenario-dependency-analyzer deps approved deny-vulnerable npm/vite --vulnerability GHSA-example --json
 
 # Analyze proposed scenario
 scenario-dependency-analyzer propose "AI-powered task scheduler with database storage"
@@ -95,6 +103,7 @@ Features:
 - Scenario catalog panel with last-scan status
 - Detail view showing declared vs detected dependencies with drift badges
 - Deployment readiness panel with tier fitness, blockers, and bundle manifest insight
+- Governance view for fleet dependency findings, dependency usage groups, reviewed records, dry-run approval/denial, and Security Health-derived denied-range remediation
 - One-click scan and scan+apply actions per scenario
 - System statistics and health monitoring
 - Export functionality for graphs
@@ -143,7 +152,7 @@ curl "http://localhost:${API_PORT}/api/v1/scenarios/chart-generator/dag/export?r
 - Actual interface graph assembly from `proto-health` proto facts and `code-facts` import facts.
 - Declared-vs-actual drift reporting for scenario dependencies.
 - Dependency-health producer contract for Test Genie and future agents, including Code Facts-backed surface inventory, dependency readiness checks, runtime dependency status, approved dependency governance, pnpm release-age policy validation, security-health dependency-index availability, and graph drift.
-- Approved dependency governance records exposed through a generated Connect contract and CLI. These records are review memory, not an exhaustive allowlist; agents may suggest better unrecorded dependencies with purpose, version/range, alternatives, and security/license notes.
+- Approved dependency governance records exposed through a generated Connect contract, CLI, and Governance UI. These records are review memory, not an exhaustive allowlist; agents may suggest better unrecorded dependencies with purpose, version/range, alternatives, and security/license notes.
 - REST, Connect, CLI, and UI surfaces for operators and downstream scenarios.
 
 ## Documentation Map

@@ -14,5 +14,15 @@ export const selectors = {
   errorBoundary: {
     root: "sda-error-boundary",
     retryButton: "sda-error-boundary-retry"
+  },
+  governance: {
+    root: "sda-governance-root",
+    refreshButton: "sda-governance-refresh",
+    summary: "sda-governance-summary",
+    findingRow: (id: string) => `sda-governance-finding-${id}`,
+    dependencyRow: (ecosystem: string, packageName: string) =>
+      `sda-governance-dependency-${ecosystem}-${packageName}`,
+    decisionForm: "sda-governance-decision-form",
+    remediationForm: "sda-governance-remediation-form"
   }
 } as const;

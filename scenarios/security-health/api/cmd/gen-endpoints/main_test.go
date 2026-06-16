@@ -25,6 +25,8 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 		{Name: "validate scenario", Description: "Validate scenario security posture", EndpointID: "validation_validate_scenario"},
 		{Name: "deps search", Description: "Search dependency index", EndpointID: "dependencies_search"},
 		{Name: "deps status", Description: "Dependency index status", EndpointID: "dependencies_status"},
+		{Name: "deps vulnerabilities", Description: "List vulnerability evidence", EndpointID: "dependencies_vulnerabilities"},
+		{Name: "deps explain", Description: "Explain vulnerability evidence", EndpointID: "dependencies_explain_vulnerability"},
 		{Name: "reindex run", Description: "Reconcile dependency corpus", EndpointID: "reindex_reindex"},
 		{Name: "reindex status", Description: "Poll reindex job", EndpointID: "reindex_status"},
 		{Name: "reindex cancel", Description: "Cancel reindex job", EndpointID: "reindex_cancel"},
@@ -58,8 +60,8 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	if len(got.Endpoints) == 0 {
 		t.Error("manifest must include at least one endpoint")
 	}
-	if len(got.CLICommands) != 11 {
-		t.Errorf("cli_commands count = %d, want 11", len(got.CLICommands))
+	if len(got.CLICommands) != 13 {
+		t.Errorf("cli_commands count = %d, want 13", len(got.CLICommands))
 	}
 
 	// Trailing newline so editors don't get angry about diff noise.

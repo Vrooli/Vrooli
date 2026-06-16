@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { renderWithProviders } from "../test-utils/renderWithProviders";
 import { expectNoA11yViolations } from "../test-utils/a11y";
-import { TestAppRouter } from "./routes";
+import { routes, TestAppRouter } from "./routes";
 
 const graphPayload = {
   id: "test-graph",
@@ -132,6 +132,14 @@ beforeEach(() => {
 });
 
 describe("App routes", () => {
+  it("registers the Governance route in the primary navigation model", () => {
+    expect(routes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ key: "governance", path: "/governance", label: "Governance" })
+      ])
+    );
+  });
+
   it("renders a deep-linked graph route", async () => {
     renderWithProviders(<TestAppRouter initialEntries={["/graph?layout=grid&graph_type=scenario"]} />);
 

@@ -11,7 +11,8 @@
       "orientation": "Orientation",
       "graph": "Dependency Graph",
       "deployment": "Deployment Readiness",
-      "catalog": "Scenario Catalog"
+      "catalog": "Scenario Catalog",
+      "governance": "Governance"
     }
   },
   "errorBoundary": {

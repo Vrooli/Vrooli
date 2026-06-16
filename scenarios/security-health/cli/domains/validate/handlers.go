@@ -73,6 +73,13 @@ func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 	if len(msg.GetSkippedScanners()) > 0 {
 		summaryLines = append(summaryLines, fmt.Sprintf("Skipped (not installed): %v", msg.GetSkippedScanners()))
 	}
+	if assessmentReport := cliapp.BuildMaturityListReport(msg.GetAssessment()); len(assessmentReport.Summary) > 0 {
+		summaryLines = append(summaryLines, assessmentReport.Summary...)
+		if len(assessmentReport.Results) > 0 {
+			results = append(results, "")
+			results = append(results, assessmentReport.Results...)
+		}
+	}
 	if err := cliapp.RenderProtoList(ctx, msg, cliapp.ListReport{
 		Summary:        summaryLines,
 		ResultsHeading: "Findings",

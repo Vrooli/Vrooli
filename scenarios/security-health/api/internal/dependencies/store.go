@@ -3,6 +3,7 @@ package dependencies
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"path"
 	"sort"
@@ -59,6 +60,9 @@ func (s *Store) Apply(ctx context.Context, scenario string, fresh []DependencyRe
 	for _, r := range fresh {
 		freshKeys[r.Key()] = struct{}{}
 	}
+	if err := s.deleteVulnerabilities(ctx, scenario); err != nil {
+		return err
+	}
 	for _, r := range fresh {
 		if _, err := s.db.ExecContext(ctx, `
 			INSERT INTO dependency_records (dep_key, scenario, ecosystem, name, version, source_file, vuln_ids, max_severity, last_seen)
@@ -73,6 +77,17 @@ func (s *Store) Apply(ctx context.Context, scenario string, fresh []DependencyRe
 		); err != nil {
 			return fmt.Errorf("upsert %s: %w", r.Key(), err)
 		}
+		for _, vuln := range r.Vulnerabilities {
+			vuln.Scenarios = []string{r.Scenario}
+			vuln.SourceFiles = []string{r.SourceFile}
+			if vuln.FirstSeen == "" {
+				vuln.FirstSeen = now
+			}
+			vuln.LastSeen = now
+			if err := s.upsertVulnerability(ctx, vuln, r.Scenario, r.SourceFile); err != nil {
+				return err
+			}
+		}
 	}
 	// Delete stale rows (present before, absent now) within the scope.
 	current, err := s.keySet(ctx, scenario)
@@ -85,6 +100,93 @@ func (s *Store) Apply(ctx context.Context, scenario string, fresh []DependencyRe
 				return fmt.Errorf("delete %s: %w", k, err)
 			}
 		}
+	}
+	return nil
+}
+
+func (s *Store) deleteVulnerabilities(ctx context.Context, scenario string) error {
+	q := `DELETE FROM vulnerability_records`
+	var args []any
+	if scenario != "" {
+		q += ` WHERE scenario = ?`
+		args = append(args, scenario)
+	}
+	if _, err := s.db.ExecContext(ctx, q, args...); err != nil {
+		return fmt.Errorf("delete vulnerability records: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) upsertVulnerability(ctx context.Context, vuln VulnerabilityRecord, scenario, sourceFile string) error {
+	if strings.TrimSpace(vuln.VulnerabilityID) == "" {
+		return nil
+	}
+	affected, err := json.Marshal(vuln.AffectedRanges)
+	if err != nil {
+		return fmt.Errorf("marshal affected ranges for %s: %w", vuln.VulnerabilityID, err)
+	}
+	fixed, err := json.Marshal(vuln.FixedRanges)
+	if err != nil {
+		return fmt.Errorf("marshal fixed ranges for %s: %w", vuln.VulnerabilityID, err)
+	}
+	key := strings.Join([]string{
+		vuln.VulnerabilityID,
+		string(vuln.Ecosystem),
+		vuln.Name,
+		vuln.Version,
+		scenario,
+		sourceFile,
+		string(vuln.Source),
+	}, "|")
+	_, err = s.db.ExecContext(ctx, `
+		INSERT INTO vulnerability_records (
+			vuln_key, vulnerability_id, aliases, ecosystem, name, version,
+			affected_ranges, fixed_ranges, severity, normalized_severity,
+			advisory_url, summary, details, source, reachability, confidence,
+			production, dev_only, first_seen, last_seen, scenario, source_file, remediation
+		)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(vuln_key) DO UPDATE SET
+			aliases = excluded.aliases,
+			affected_ranges = excluded.affected_ranges,
+			fixed_ranges = excluded.fixed_ranges,
+			severity = excluded.severity,
+			normalized_severity = excluded.normalized_severity,
+			advisory_url = excluded.advisory_url,
+			summary = excluded.summary,
+			details = excluded.details,
+			reachability = excluded.reachability,
+			confidence = excluded.confidence,
+			production = excluded.production,
+			dev_only = excluded.dev_only,
+			last_seen = excluded.last_seen,
+			remediation = excluded.remediation`,
+		key,
+		vuln.VulnerabilityID,
+		strings.Join(uniqueSorted(vuln.Aliases), ","),
+		string(vuln.Ecosystem),
+		vuln.Name,
+		vuln.Version,
+		string(affected),
+		string(fixed),
+		vuln.Severity,
+		vuln.NormalizedSeverity,
+		vuln.AdvisoryURL,
+		vuln.Summary,
+		vuln.Details,
+		string(vuln.Source),
+		string(vuln.Reachability),
+		string(vuln.Confidence),
+		boolInt(vuln.Production),
+		boolInt(vuln.DevOnly),
+		vuln.FirstSeen,
+		vuln.LastSeen,
+		scenario,
+		sourceFile,
+		vuln.Remediation,
+	)
+	if err != nil {
+		return fmt.Errorf("upsert vulnerability %s: %w", key, err)
 	}
 	return nil
 }
@@ -396,6 +498,205 @@ func (s *Store) VulnerableCount(ctx context.Context) (int, error) {
 	var n int
 	err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM dependency_records WHERE vuln_ids != ''`).Scan(&n)
 	return n, err
+}
+
+// ListVulnerabilities returns structured vulnerability evidence grouped by
+// vulnerability/package/version/source so callers can see fleet impact.
+func (s *Store) ListVulnerabilities(ctx context.Context, req VulnerabilityQuery) (VulnerabilityList, error) {
+	var where []string
+	var args []any
+	if req.Ecosystem != EcosystemUnspecified {
+		where = append(where, "ecosystem = ?")
+		args = append(args, string(req.Ecosystem))
+	}
+	if strings.TrimSpace(req.PackageName) != "" {
+		where = append(where, "name = ?")
+		args = append(args, strings.TrimSpace(req.PackageName))
+	}
+	if strings.TrimSpace(req.Scenario) != "" {
+		where = append(where, "scenario = ?")
+		args = append(args, strings.TrimSpace(req.Scenario))
+	}
+	if strings.TrimSpace(req.VulnerabilityID) != "" {
+		where = append(where, "vulnerability_id = ?")
+		args = append(args, strings.TrimSpace(req.VulnerabilityID))
+	}
+	if req.MinimumConfidence != EvidenceConfidenceUnspecified {
+		where = append(where, confidencePredicate(req.MinimumConfidence))
+	}
+	q := `SELECT vulnerability_id, aliases, ecosystem, name, version, affected_ranges, fixed_ranges,
+		severity, normalized_severity, advisory_url, summary, details, source, reachability,
+		confidence, production, dev_only, first_seen, last_seen, scenario, source_file, remediation
+		FROM vulnerability_records`
+	if len(where) > 0 {
+		q += " WHERE " + strings.Join(where, " AND ")
+	}
+	q += ` ORDER BY normalized_severity DESC, vulnerability_id, ecosystem, name, version, scenario`
+	rows, err := s.db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return VulnerabilityList{}, err
+	}
+	defer rows.Close()
+
+	limit := req.Limit
+	if limit <= 0 {
+		limit = DefaultSearchLimit
+	}
+	if limit > MaxSearchLimit {
+		limit = MaxSearchLimit
+	}
+
+	grouped := map[string]*VulnerabilityRecord{}
+	var order []string
+	for rows.Next() {
+		rec, scenario, sourceFile, err := scanVulnerabilityRow(rows)
+		if err != nil {
+			return VulnerabilityList{}, err
+		}
+		key := vulnerabilityGroupKey(rec)
+		existing, ok := grouped[key]
+		if !ok {
+			rec.Scenarios = nil
+			rec.SourceFiles = nil
+			existing = &rec
+			grouped[key] = existing
+			order = append(order, key)
+		}
+		existing.Scenarios = appendUnique(existing.Scenarios, scenario)
+		existing.SourceFiles = appendUnique(existing.SourceFiles, sourceFile)
+		if existing.FirstSeen == "" || (rec.FirstSeen != "" && rec.FirstSeen < existing.FirstSeen) {
+			existing.FirstSeen = rec.FirstSeen
+		}
+		if rec.LastSeen > existing.LastSeen {
+			existing.LastSeen = rec.LastSeen
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return VulnerabilityList{}, err
+	}
+	sort.Strings(order)
+	total := len(order)
+	if len(order) > limit {
+		order = order[:limit]
+	}
+	out := make([]VulnerabilityRecord, 0, len(order))
+	for _, key := range order {
+		rec := *grouped[key]
+		sort.Strings(rec.Scenarios)
+		sort.Strings(rec.SourceFiles)
+		out = append(out, rec)
+	}
+	return VulnerabilityList{Vulnerabilities: out, Total: total}, nil
+}
+
+func scanVulnerabilityRow(rows *sql.Rows) (VulnerabilityRecord, string, string, error) {
+	var rec VulnerabilityRecord
+	var aliases, eco, affectedRaw, fixedRaw, source, reachability, confidence, scenario, sourceFile string
+	var production, devOnly int
+	if err := rows.Scan(
+		&rec.VulnerabilityID,
+		&aliases,
+		&eco,
+		&rec.Name,
+		&rec.Version,
+		&affectedRaw,
+		&fixedRaw,
+		&rec.Severity,
+		&rec.NormalizedSeverity,
+		&rec.AdvisoryURL,
+		&rec.Summary,
+		&rec.Details,
+		&source,
+		&reachability,
+		&confidence,
+		&production,
+		&devOnly,
+		&rec.FirstSeen,
+		&rec.LastSeen,
+		&scenario,
+		&sourceFile,
+		&rec.Remediation,
+	); err != nil {
+		return VulnerabilityRecord{}, "", "", err
+	}
+	rec.Ecosystem = Ecosystem(eco)
+	rec.Aliases = splitCSV(aliases)
+	rec.Source = VulnerabilitySource(source)
+	rec.Reachability = Reachability(reachability)
+	rec.Confidence = EvidenceConfidence(confidence)
+	rec.Production = production != 0
+	rec.DevOnly = devOnly != 0
+	_ = json.Unmarshal([]byte(affectedRaw), &rec.AffectedRanges)
+	_ = json.Unmarshal([]byte(fixedRaw), &rec.FixedRanges)
+	return rec, scenario, sourceFile, nil
+}
+
+func vulnerabilityGroupKey(rec VulnerabilityRecord) string {
+	return strings.Join([]string{
+		rec.VulnerabilityID,
+		string(rec.Ecosystem),
+		rec.Name,
+		rec.Version,
+		string(rec.Source),
+	}, "|")
+}
+
+func confidencePredicate(min EvidenceConfidence) string {
+	switch min {
+	case EvidenceConfidenceGating:
+		return "confidence = 'gating'"
+	case EvidenceConfidenceAdvisory:
+		return "confidence IN ('advisory', 'gating')"
+	case EvidenceConfidenceDegraded:
+		return "confidence IN ('degraded', 'advisory', 'gating')"
+	default:
+		return "1 = 1"
+	}
+}
+
+func boolInt(v bool) int {
+	if v {
+		return 1
+	}
+	return 0
+}
+
+func splitCSV(raw string) []string {
+	if strings.TrimSpace(raw) == "" {
+		return nil
+	}
+	return uniqueSorted(strings.Split(raw, ","))
+}
+
+func uniqueSorted(values []string) []string {
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func appendUnique(values []string, value string) []string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return values
+	}
+	for _, existing := range values {
+		if existing == value {
+			return values
+		}
+	}
+	return append(values, value)
 }
 
 // SetReconcileState records the latest reconcile timestamp + outcome.

@@ -314,6 +314,26 @@ func (s *Service) Status(ctx context.Context) (Status, error) {
 	}, nil
 }
 
+// ListVulnerabilities returns structured vulnerability evidence from the
+// SQLite corpus. The corpus is refreshed by reconcile/reindex, not by this read.
+func (s *Service) ListVulnerabilities(ctx context.Context, req VulnerabilityQuery) (VulnerabilityList, error) {
+	return s.store.ListVulnerabilities(ctx, req)
+}
+
+// ExplainVulnerability returns the first vulnerability record matching the id
+// and optional package filters.
+func (s *Service) ExplainVulnerability(ctx context.Context, req VulnerabilityQuery) (VulnerabilityRecord, bool, error) {
+	req.Limit = 1
+	list, err := s.store.ListVulnerabilities(ctx, req)
+	if err != nil {
+		return VulnerabilityRecord{}, false, err
+	}
+	if len(list.Vulnerabilities) == 0 {
+		return VulnerabilityRecord{}, false, nil
+	}
+	return list.Vulnerabilities[0], true, nil
+}
+
 // reindexJob tracks one async reconcile.
 type reindexJob struct {
 	mu        sync.Mutex

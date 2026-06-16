@@ -15,8 +15,10 @@ const GroupName = "deps"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"DependencyService.Search": h.search,
-		"DependencyService.Status": h.status,
+		"DependencyService.Search":               h.search,
+		"DependencyService.Status":               h.status,
+		"DependencyService.ListVulnerabilities":  h.vulnerabilities,
+		"DependencyService.ExplainVulnerability": h.explain,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

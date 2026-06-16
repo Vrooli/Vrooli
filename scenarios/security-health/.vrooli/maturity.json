@@ -1,0 +1,85 @@
+{
+  "provider": "security-health",
+  "phase": "security",
+  "version": "1.0.0",
+  "levels": [
+    {
+      "id": "L0",
+      "name": "No security target",
+      "description": "The target scenario cannot be resolved or scanned as a repository scenario.",
+      "entry_criteria": ["Scenario id is provided"],
+      "exit_criteria": ["Scenario directory exists under scenarios/"]
+    },
+    {
+      "id": "L1",
+      "name": "Substrates classified",
+      "description": "Security-health can detect supported and unsupported substrates and report degraded scanner context without failing availability.",
+      "entry_criteria": ["Scenario directory is readable"],
+      "exit_criteria": ["Detected Go, pnpm, and unsupported substrates are represented in the validation report"]
+    },
+    {
+      "id": "L2",
+      "name": "Safety blockers absent",
+      "description": "No scanner reports an ERROR-class secret, SAST, reachable vulnerability, or production dependency vulnerability.",
+      "entry_criteria": ["Substrates are classified"],
+      "exit_criteria": ["No ERROR findings are emitted by security scanners"]
+    },
+    {
+      "id": "L3",
+      "name": "Scanner coverage available",
+      "description": "Applicable scanner classes are installed or their absence is deliberately understood as degraded context.",
+      "entry_criteria": ["Safety blockers are absent"],
+      "exit_criteria": ["Absent or degraded scanners have been resolved or explicitly accepted"]
+    },
+    {
+      "id": "L4",
+      "name": "Dependency intelligence indexed",
+      "description": "Dependency exposure can be searched through the security-health dependency corpus and index surfaces.",
+      "entry_criteria": ["Scanner coverage is available"],
+      "exit_criteria": ["Dependency records are indexed and searchable through structured or semantic search"]
+    },
+    {
+      "id": "L5",
+      "name": "Continuous security posture",
+      "description": "The scenario is ready for continuous fleet security posture monitoring and badge/UI surfaces.",
+      "entry_criteria": ["Dependency intelligence is indexed"],
+      "exit_criteria": ["Validation, dependency search, and posture surfaces can support continuous fleet monitoring"]
+    }
+  ],
+  "findings": {
+    "security-health.scenario-not-found": {
+      "local_level_impact": "L0",
+      "global_impact": "advisory",
+      "dimension": "security",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["ecosystem-fit"]
+    },
+    "security-health.scanner-absent": {
+      "local_level_impact": "L3",
+      "global_impact": "advisory",
+      "dimension": "security",
+      "severity_default": "SEVERITY_INFO",
+      "recommended_skill_ids": ["security"]
+    },
+    "security-health.scanner-degraded": {
+      "local_level_impact": "L3",
+      "global_impact": "advisory",
+      "dimension": "security",
+      "severity_default": "SEVERITY_INFO",
+      "recommended_skill_ids": ["scientific-debugging", "security"]
+    },
+    "security-health.substrate-unsupported": {
+      "local_level_impact": "L1",
+      "global_impact": "advisory",
+      "dimension": "security",
+      "severity_default": "SEVERITY_INFO",
+      "recommended_skill_ids": ["ecosystem-fit", "security"]
+    }
+  },
+  "fallback": {
+    "local_level_impact": "L2",
+    "global_impact": "safety_blocker",
+    "dimension": "security",
+    "severity_default": "SEVERITY_ERROR"
+  }
+}

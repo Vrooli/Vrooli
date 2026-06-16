@@ -46,7 +46,7 @@
 
 ### UI Architecture Drift
 **Problem**: The UI still uses a monolithic `App.tsx` tab shell and custom server-state hooks rather than the template's providers, router, layout, React Query, selectors, i18n, theme, and test harness architecture.
-**Status**: Partially fixed. The UI now has template slot layout scaffolding, React Router path navigation, selectors, generated strings scaffolding, theme/test/api/i18n slots, an ErrorBoundary, concrete feature folders for graph/deployment/catalog, React Query-backed graph/catalog server state, `react-i18next` provider usage, and a Vitest/Testing Library/a11y harness. Remaining UI work is broader test coverage and Phase 6 design-system/token cleanup.
+**Status**: Partially fixed. The UI now has template slot layout scaffolding, React Router path navigation, selectors, generated strings scaffolding, theme/test/api/i18n slots, an ErrorBoundary, concrete feature folders for graph/deployment/catalog/governance, React Query-backed graph/catalog/governance server state, a generated proto/Connect Governance client, `react-i18next` provider usage, and a Vitest/Testing Library/a11y harness. Remaining UI work is broader test coverage and Phase 6 design-system/token cleanup.
 
 ### UI Test Coverage Floor
 **Problem**: `pnpm test:coverage` now runs, but coverage is low because only the first routing/API/ErrorBoundary/a11y harness slice exists.

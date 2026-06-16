@@ -7,8 +7,10 @@ import (
 
 	"connectrpc.com/connect"
 
+	"github.com/vrooli/maturity-go/assessment"
 	"security-health/internal/validation"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/security-health/v1/validation"
 )
 
@@ -35,7 +37,7 @@ func TestValidateScenario_MapsReport(t *testing.T) {
 		}},
 		Summary:         validation.Summary{Errors: 1},
 		SkippedScanners: []string{"osv-scanner"},
-	}}})
+	}}, MaturitySpec: testMaturitySpec()})
 
 	resp, err := h.ValidateScenario(context.Background(), connect.NewRequest(&validationv1.ValidateScenarioRequest{Scenario: "demo"}))
 	if err != nil {
@@ -57,6 +59,19 @@ func TestValidateScenario_MapsReport(t *testing.T) {
 	if len(msg.GetSkippedScanners()) != 1 {
 		t.Errorf("skipped scanners not propagated: %v", msg.GetSkippedScanners())
 	}
+	ma := msg.GetAssessment()
+	if ma.GetProvider() != "security-health" || ma.GetPhase() != "security" {
+		t.Fatalf("assessment identity wrong: %+v", ma)
+	}
+	if ma.GetLocal().GetCurrentLevel() != "L1" || ma.GetLocal().GetNextLevel() != "L2" {
+		t.Fatalf("assessment local maturity wrong: %+v", ma.GetLocal())
+	}
+	if got := ma.GetFindingsByGlobalImpact()["safety_blocker"]; got != 1 {
+		t.Fatalf("global impact count = %d, want 1", got)
+	}
+	if ma.GetFindings()[0].GetMaturity().GetGlobalImpact() != commonv1.GlobalImpact_GLOBAL_IMPACT_SAFETY_BLOCKER {
+		t.Fatalf("finding maturity impact wrong: %+v", ma.GetFindings()[0].GetMaturity())
+	}
 }
 
 func TestValidateScenario_ErrorIsInvalidArgument(t *testing.T) {
@@ -72,5 +87,25 @@ func TestValidateScenario_NoValidatorUnimplemented(t *testing.T) {
 	_, err := h.ValidateScenario(context.Background(), connect.NewRequest(&validationv1.ValidateScenarioRequest{Scenario: "x"}))
 	if connect.CodeOf(err) != connect.CodeUnimplemented {
 		t.Errorf("want Unimplemented, got %v", connect.CodeOf(err))
+	}
+}
+
+func testMaturitySpec() *assessment.Spec {
+	return &assessment.Spec{
+		Provider: "security-health",
+		Phase:    "security",
+		Version:  "test",
+		Levels: []assessment.Level{
+			{ID: "L0", Name: "target readable"},
+			{ID: "L1", Name: "substrates classified"},
+			{ID: "L2", Name: "safety blockers absent"},
+		},
+		Findings: map[string]assessment.FindingMapping{},
+		Fallback: assessment.FallbackPolicy{
+			LocalLevelImpact: "L2",
+			GlobalImpact:     assessment.ImpactSafetyBlocker,
+			Dimension:        "security",
+			SeverityDefault:  "SEVERITY_ERROR",
+		},
 	}
 }

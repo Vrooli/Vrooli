@@ -85,6 +85,61 @@ func (h *handlers) status(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) vulnerabilities(ctx cliapp.RunContext) error {
+	req := &dependenciesv1.ListVulnerabilitiesRequest{
+		Ecosystem:         parseEcosystem(ctx.Flag("ecosystem")),
+		PackageName:       ctx.Positional("package"),
+		Scenario:          ctx.Flag("scenario"),
+		VulnerabilityId:   ctx.Flag("vulnerability"),
+		MinimumConfidence: parseConfidence(ctx.Flag("minimum-confidence")),
+	}
+	if raw := strings.TrimSpace(ctx.Flag("limit")); raw != "" {
+		if v, err := strconv.Atoi(raw); err == nil {
+			req.Limit = int32(v)
+		}
+	}
+	resp, err := h.client.ListVulnerabilities(context.Background(), connect.NewRequest(req))
+	if err != nil {
+		return cliapp.WrapAPIError("deps vulnerabilities", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no vulnerabilities response")
+	}
+	lines := make([]string, 0, len(resp.Msg.GetVulnerabilities()))
+	for _, v := range resp.Msg.GetVulnerabilities() {
+		lines = append(lines, vulnerabilityLine(v))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("%d vulnerability record(s)", resp.Msg.GetTotal())},
+		ResultsHeading: "Vulnerabilities",
+		Results:        lines,
+	})
+}
+
+func (h *handlers) explain(ctx cliapp.RunContext) error {
+	req := &dependenciesv1.ExplainVulnerabilityRequest{
+		VulnerabilityId: ctx.Positional("vulnerability"),
+		Ecosystem:       parseEcosystem(ctx.Flag("ecosystem")),
+		PackageName:     ctx.Flag("package"),
+	}
+	resp, err := h.client.ExplainVulnerability(context.Background(), connect.NewRequest(req))
+	if err != nil {
+		return cliapp.WrapAPIError("deps explain", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no vulnerability explanation")
+	}
+	var lines []string
+	if resp.Msg.GetFound() {
+		lines = []string{vulnerabilityLine(resp.Msg.GetVulnerability())}
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("found=%v", resp.Msg.GetFound())},
+		ResultsHeading: "Vulnerability",
+		Results:        lines,
+	})
+}
+
 // indexLine renders the vector-index coverage: "index: 4123/4390 (94%) —
 // building" while the backfill populates, "ready" once AI mode is served.
 func indexLine(indexed, expected int32, ready bool) string {
@@ -121,6 +176,19 @@ func parseEcosystem(raw string) dependenciesv1.Ecosystem {
 	}
 }
 
+func parseConfidence(raw string) dependenciesv1.EvidenceConfidence {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "degraded":
+		return dependenciesv1.EvidenceConfidence_EVIDENCE_CONFIDENCE_DEGRADED
+	case "advisory":
+		return dependenciesv1.EvidenceConfidence_EVIDENCE_CONFIDENCE_ADVISORY
+	case "gating":
+		return dependenciesv1.EvidenceConfidence_EVIDENCE_CONFIDENCE_GATING
+	default:
+		return dependenciesv1.EvidenceConfidence_EVIDENCE_CONFIDENCE_UNSPECIFIED
+	}
+}
+
 func ecosystemLabel(e dependenciesv1.Ecosystem) string {
 	switch e {
 	case dependenciesv1.Ecosystem_ECOSYSTEM_GO:
@@ -148,4 +216,42 @@ func nonEmpty(s, fallback string) string {
 		return fallback
 	}
 	return s
+}
+
+func vulnerabilityLine(v *dependenciesv1.VulnerabilityRecord) string {
+	if v == nil {
+		return ""
+	}
+	return fmt.Sprintf("%-8s %s@%s  %s [%s/%s] scenarios=%s fixed=%s",
+		ecosystemLabel(v.GetEcosystem()),
+		v.GetName(),
+		v.GetVersion(),
+		v.GetVulnerabilityId(),
+		nonEmpty(v.GetNormalizedSeverity(), "unknown"),
+		confidenceLabel(v.GetConfidence()),
+		strings.Join(v.GetScenarios(), ","),
+		firstFixed(v.GetFixedRanges()),
+	)
+}
+
+func confidenceLabel(c dependenciesv1.EvidenceConfidence) string {
+	switch c {
+	case dependenciesv1.EvidenceConfidence_EVIDENCE_CONFIDENCE_DEGRADED:
+		return "degraded"
+	case dependenciesv1.EvidenceConfidence_EVIDENCE_CONFIDENCE_ADVISORY:
+		return "advisory"
+	case dependenciesv1.EvidenceConfidence_EVIDENCE_CONFIDENCE_GATING:
+		return "gating"
+	default:
+		return "unspecified"
+	}
+}
+
+func firstFixed(ranges []*dependenciesv1.FixedVersionRange) string {
+	for _, r := range ranges {
+		if strings.TrimSpace(r.GetRange()) != "" {
+			return r.GetRange()
+		}
+	}
+	return "unknown"
 }

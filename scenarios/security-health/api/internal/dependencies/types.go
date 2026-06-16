@@ -33,14 +33,15 @@ const (
 // scenario, annotated with any known vulnerabilities. Mirrors the proto
 // DependencyRecord message.
 type DependencyRecord struct {
-	Scenario    string    `json:"scenario"`
-	Ecosystem   Ecosystem `json:"ecosystem"`
-	Name        string    `json:"name"`
-	Version     string    `json:"version"`
-	SourceFile  string    `json:"source_file"`
-	VulnIDs     []string  `json:"vuln_ids"`
-	MaxSeverity string    `json:"max_severity"`
-	LastSeen    string    `json:"last_seen"`
+	Scenario        string                `json:"scenario"`
+	Ecosystem       Ecosystem             `json:"ecosystem"`
+	Name            string                `json:"name"`
+	Version         string                `json:"version"`
+	SourceFile      string                `json:"source_file"`
+	VulnIDs         []string              `json:"vuln_ids"`
+	MaxSeverity     string                `json:"max_severity"`
+	LastSeen        string                `json:"last_seen"`
+	Vulnerabilities []VulnerabilityRecord `json:"vulnerabilities,omitempty"`
 }
 
 // Key is the stable identity of a record across reconciles: a dependency is
@@ -73,6 +74,88 @@ type SearchRequest struct {
 type SearchResponse struct {
 	Results  []SearchResult
 	ModeUsed Mode
+}
+
+// VulnerabilitySource identifies the scanner/source that produced the evidence.
+type VulnerabilitySource string
+
+const (
+	VulnerabilitySourceUnspecified VulnerabilitySource = ""
+	VulnerabilitySourceOSV         VulnerabilitySource = "osv"
+	VulnerabilitySourceGovulncheck VulnerabilitySource = "govulncheck"
+	VulnerabilitySourcePnpmAudit   VulnerabilitySource = "pnpm-audit"
+)
+
+// Reachability captures how precisely Security Health knows the vulnerable code
+// is used.
+type Reachability string
+
+const (
+	ReachabilityUnspecified      Reachability = ""
+	ReachabilityUnknown          Reachability = "unknown"
+	ReachabilityLockfileAffected Reachability = "lockfile_affected"
+	ReachabilityReachable        Reachability = "reachable"
+)
+
+// EvidenceConfidence tells downstream policy whether evidence should gate.
+type EvidenceConfidence string
+
+const (
+	EvidenceConfidenceUnspecified EvidenceConfidence = ""
+	EvidenceConfidenceDegraded    EvidenceConfidence = "degraded"
+	EvidenceConfidenceAdvisory    EvidenceConfidence = "advisory"
+	EvidenceConfidenceGating      EvidenceConfidence = "gating"
+)
+
+type AffectedVersionRange struct {
+	Range        string `json:"range"`
+	Introduced   string `json:"introduced"`
+	Fixed        string `json:"fixed"`
+	LastAffected string `json:"last_affected"`
+}
+
+type FixedVersionRange struct {
+	Range   string `json:"range"`
+	Version string `json:"version"`
+}
+
+type VulnerabilityRecord struct {
+	VulnerabilityID    string                 `json:"vulnerability_id"`
+	Aliases            []string               `json:"aliases"`
+	Ecosystem          Ecosystem              `json:"ecosystem"`
+	Name               string                 `json:"name"`
+	Version            string                 `json:"version"`
+	AffectedRanges     []AffectedVersionRange `json:"affected_ranges"`
+	FixedRanges        []FixedVersionRange    `json:"fixed_ranges"`
+	Severity           string                 `json:"severity"`
+	NormalizedSeverity string                 `json:"normalized_severity"`
+	AdvisoryURL        string                 `json:"advisory_url"`
+	Summary            string                 `json:"summary"`
+	Details            string                 `json:"details"`
+	Source             VulnerabilitySource    `json:"source"`
+	Reachability       Reachability           `json:"reachability"`
+	Confidence         EvidenceConfidence     `json:"confidence"`
+	Production         bool                   `json:"production"`
+	DevOnly            bool                   `json:"dev_only"`
+	FirstSeen          string                 `json:"first_seen"`
+	LastSeen           string                 `json:"last_seen"`
+	Scenarios          []string               `json:"scenarios"`
+	SourceFiles        []string               `json:"source_files"`
+	Remediation        string                 `json:"remediation"`
+}
+
+type VulnerabilityQuery struct {
+	Ecosystem         Ecosystem
+	PackageName       string
+	Scenario          string
+	VulnerabilityID   string
+	MinimumConfidence EvidenceConfidence
+	Limit             int
+}
+
+type VulnerabilityList struct {
+	Vulnerabilities []VulnerabilityRecord
+	Total           int
 }
 
 // Status reports backend availability and the last reconcile state.

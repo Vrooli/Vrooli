@@ -678,9 +678,10 @@ Release-age policy uses pnpm's `minimumReleaseAge` setting. Vrooli's default is
 exception is recorded in `.vrooli/dependencies/approved-dependencies.json` with
 rationale and review expiry.
 
-The security section calls `security-health deps status --json` only to report
-dependency-index availability and freshness. SDA does not run `pnpm audit`,
-`govulncheck`, OSV, or other vulnerability scanners.
+The security section calls `security-health deps status --json` and indexed
+`security-health deps vulnerabilities` evidence to report dependency-index
+availability, freshness, and known vulnerable dependency records. SDA does not
+run `pnpm audit`, `govulncheck`, OSV, or other vulnerability scanners.
 
 ---
 
@@ -698,9 +699,13 @@ scenario-dependency-analyzer deps approved search <query> [OPTIONS]
 scenario-dependency-analyzer deps approved explain <ecosystem>/<package> [OPTIONS]
 scenario-dependency-analyzer deps approved validate <scenario> [OPTIONS]
 scenario-dependency-analyzer deps approved validate --all [OPTIONS]
+scenario-dependency-analyzer deps approved findings [OPTIONS]
+scenario-dependency-analyzer deps approved usage <ecosystem>/<package> [OPTIONS]
 scenario-dependency-analyzer deps approved upsert --file <record.json> [OPTIONS]
 scenario-dependency-analyzer deps approved approve <ecosystem>/<package> --rationale <text> [OPTIONS]
 scenario-dependency-analyzer deps approved deny <ecosystem>/<package> --reason <text> [OPTIONS]
+scenario-dependency-analyzer deps approved remediate <ecosystem>/<package> --vulnerability <id> [OPTIONS]
+scenario-dependency-analyzer deps approved deny-vulnerable <ecosystem>/<package> --vulnerability <id> [OPTIONS]
 ```
 
 **Options:**
@@ -709,10 +714,14 @@ scenario-dependency-analyzer deps approved deny <ecosystem>/<package> --reason <
 - `--state` - Filter list by governance state
 - `--all` - Validate every discovered scenario
 - `--policy-mode` - Override registry policy mode: `advisory`, `strict`, or `review_gate`
+- `--scenario`, `--package`, `--severity`, `--class` - Filter `findings` output
 - `--file` - Read an `ApprovedDependencyRecord` JSON document for `upsert`
 - `--range` - Version or version range for `approve` and `deny`
 - `--rationale` / `--reason` - Required review rationale for approval or denial
 - `--replacement` - Replacement or remediation guidance for denied dependencies
+- `--vulnerability` - Security Health vulnerability id for remediation and security-derived denial
+- `--affected-range` - Affected range to deny; defaults to Security Health evidence
+- `--fixed-range` - Fixed range guidance; defaults to Security Health evidence
 - `--apply` - Apply a governance mutation; mutation commands dry-run by default
 
 **Examples:**
@@ -732,11 +741,23 @@ scenario-dependency-analyzer deps approved validate graph-studio --json
 # Validate dependency governance across the fleet
 scenario-dependency-analyzer deps approved validate --all --json
 
+# List actionable fleet governance findings
+scenario-dependency-analyzer deps approved findings --severity WARNING --json
+
+# Show every scenario and surface using one dependency
+scenario-dependency-analyzer deps approved usage npm/react --json
+
 # Preview an approval without writing the registry
 scenario-dependency-analyzer deps approved approve npm/react --range ">=18.0.0 <20.0.0" --rationale "Approved UI runtime framework." --surfaces ui --groups dependencies --json
 
 # Apply a denied dependency decision
 scenario-dependency-analyzer deps approved deny npm/left-pad --reason "Use native string padding." --replacement "String.prototype.padStart/padEnd" --apply --json
+
+# Preview Security Health-derived remediation without writing the registry
+scenario-dependency-analyzer deps approved remediate npm/vite --vulnerability GHSA-example --json
+
+# Preview a vulnerability-derived denied range; add --apply to write the registry
+scenario-dependency-analyzer deps approved deny-vulnerable npm/vite --vulnerability GHSA-example --json
 
 # Apply a full record from JSON
 scenario-dependency-analyzer deps approved upsert --file ./record.json --apply --json
@@ -748,6 +769,7 @@ Validation behavior:
 - recorded dependency outside approved scenario/surface/group scope: warning by default
 - unrecorded direct dependency: warning in advisory mode, error in strict mode
 - unrecorded Go indirect dependency: observed-only by default unless a denied/deprecated record exists
+- Security Health vulnerability evidence: exposed through `remediate`; `deny-vulnerable` records a denied affected range through the governance API and dry-runs by default
 - denied or blocked dependency: error
 - deprecated dependency: warning with replacement guidance
 - expired governance review: warning

@@ -1,6 +1,7 @@
 package dependencygovernance
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -287,6 +288,67 @@ func TestValidateFleetAggregatesScenariosAndUsage(t *testing.T) {
 	}
 }
 
+func TestListFindingsFiltersFleetGovernanceFindings(t *testing.T) {
+	repoRoot := t.TempDir()
+	writeRegistry(t, repoRoot, `{
+		"schema_version": "1",
+		"records": []
+	}`)
+	writeScenarioPackage(t, repoRoot, "alpha", `{"dependencies":{"react":"^19.0.0"}}`)
+	writeScenarioPackage(t, repoRoot, "beta", `{"dependencies":{"left-pad":"^1.3.0"}}`)
+	registry := NewRegistry(repoRoot)
+
+	resp, err := registry.ListFindings(&governancev1.ListApprovedDependencyFindingsRequest{
+		Scenario:    "alpha",
+		Ecosystem:   "npm",
+		Severity:    "WARNING",
+		PackageName: "react",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := len(resp.GetFindings()); got != 1 {
+		t.Fatalf("findings = %d, want 1", got)
+	}
+	if resp.GetFindings()[0].GetScenario() != "alpha" || resp.GetFindings()[0].GetPackageName() != "react" {
+		t.Fatalf("finding = %#v, want alpha react", resp.GetFindings()[0])
+	}
+	if resp.GetSummary().GetScenarioCount() != 1 || resp.GetSummary().GetDependencyCount() != 1 || resp.GetSummary().GetFindingCount() != 1 {
+		t.Fatalf("summary = %#v, want one scenario/dependency/finding", resp.GetSummary())
+	}
+}
+
+func TestGetUsageReturnsOneDependencyUsageAndFindings(t *testing.T) {
+	repoRoot := t.TempDir()
+	writeRegistry(t, repoRoot, `{
+		"schema_version": "1",
+		"records": []
+	}`)
+	writeScenarioPackage(t, repoRoot, "alpha", `{"dependencies":{"react":"^19.0.0"}}`)
+	writeScenarioPackage(t, repoRoot, "beta", `{"devDependencies":{"react":"^19.0.0"}}`)
+	registry := NewRegistry(repoRoot)
+
+	resp, err := registry.GetUsage(&governancev1.GetApprovedDependencyUsageRequest{
+		Ecosystem:   "npm",
+		PackageName: "react",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !resp.GetFound() {
+		t.Fatalf("usage should be found")
+	}
+	if resp.GetUsageGroup().GetUsageCount() != 2 || resp.GetUsageGroup().GetScenarioCount() != 2 {
+		t.Fatalf("usage group = %#v, want two usages across two scenarios", resp.GetUsageGroup())
+	}
+	if got := len(resp.GetFindings()); got != 2 {
+		t.Fatalf("findings = %d, want 2 unrecorded findings for react", got)
+	}
+	if resp.GetSummary().GetObserved() != 2 || resp.GetSummary().GetUnrecorded() != 2 {
+		t.Fatalf("summary = %#v, want observed/unrecorded counts for selected dependency", resp.GetSummary())
+	}
+}
+
 func TestScanGoModMarksIndirectRequirements(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "go.mod")
@@ -419,6 +481,137 @@ func TestUpsertWritesNormalizedRecordAndValidationUsesIt(t *testing.T) {
 	}
 }
 
+func TestPreviewVulnerabilityRemediationBuildsSecurityDerivedDeniedRecord(t *testing.T) {
+	repoRoot := t.TempDir()
+	writeRegistry(t, repoRoot, `{"schema_version":"1","policy":{"mode":"advisory"},"records":[]}`)
+	installFakeSecurityHealth(t, `{
+		"found": true,
+		"vulnerability": {
+			"vulnerability_id": "GHSA-demo",
+			"aliases": ["CVE-2026-0001"],
+			"ecosystem": "ECOSYSTEM_NPM",
+			"name": "vite",
+			"version": "5.0.0",
+			"affected_ranges": [{"range": "<5.1.0", "fixed": "5.1.0"}],
+			"fixed_ranges": [{"range": ">=5.1.0", "version": "5.1.0"}],
+			"normalized_severity": "high",
+			"advisory_url": "https://osv.dev/vulnerability/GHSA-demo",
+			"summary": "Demo vulnerability",
+			"source": "VULNERABILITY_SOURCE_OSV",
+			"reachability": "REACHABILITY_LOCKFILE_AFFECTED",
+			"confidence": "EVIDENCE_CONFIDENCE_ADVISORY",
+			"scenarios": ["demo"],
+			"source_files": ["ui/pnpm-lock.yaml"],
+			"remediation": "Upgrade vite to >=5.1.0."
+		}
+	}`)
+	registry := NewRegistry(repoRoot)
+
+	resp, err := registry.PreviewVulnerabilityRemediation(context.Background(), &governancev1.PreviewVulnerabilityRemediationRequest{
+		Ecosystem:       "npm",
+		PackageName:     "vite",
+		VulnerabilityId: "GHSA-demo",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !resp.GetFound() {
+		t.Fatalf("found = false, want true")
+	}
+	record := resp.GetSuggestedRecord()
+	if record.GetState() != "denied" || record.GetVersionRange() != "<5.1.0" {
+		t.Fatalf("suggested record = %#v, want denied <5.1.0", record)
+	}
+	if !strings.Contains(record.GetSecurityNotes(), "vulnerability=GHSA-demo") || !strings.Contains(record.GetSecurityNotes(), "confidence=advisory") {
+		t.Fatalf("security notes missing evidence: %q", record.GetSecurityNotes())
+	}
+	if got := strings.Join(resp.GetAffectedScenarios(), ","); got != "demo" {
+		t.Fatalf("affected scenarios = %q, want demo", got)
+	}
+	_, found, err := registry.Explain("npm", "vite")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if found {
+		t.Fatalf("preview should not write registry")
+	}
+}
+
+func TestDenyVulnerableDependencyDryRunAndApply(t *testing.T) {
+	repoRoot := t.TempDir()
+	writeRegistry(t, repoRoot, `{
+		"schema_version": "1",
+		"policy": {"mode": "advisory"},
+		"records": [
+			{
+				"ecosystem": "npm",
+				"package_name": "vite",
+				"version_range": ">=5.0.0 <6.0.0",
+				"state": "approved",
+				"rationale": "Previously approved Vite range."
+			}
+		]
+	}`)
+	installFakeSecurityHealth(t, `{
+		"found": true,
+		"vulnerability": {
+			"vulnerabilityId": "GHSA-demo",
+			"ecosystem": "ECOSYSTEM_NPM",
+			"name": "vite",
+			"version": "5.0.0",
+			"affectedRanges": [{"range": "<5.1.0"}],
+			"fixedRanges": [{"range": ">=5.1.0"}],
+			"source": "VULNERABILITY_SOURCE_PNPM_AUDIT",
+			"reachability": "REACHABILITY_UNKNOWN",
+			"confidence": "EVIDENCE_CONFIDENCE_GATING",
+			"scenarios": ["demo"]
+		}
+	}`)
+	registry := NewRegistry(repoRoot)
+
+	dryRun, err := registry.DenyVulnerableDependency(context.Background(), &governancev1.DenyVulnerableDependencyRequest{
+		Ecosystem:       "npm",
+		PackageName:     "vite",
+		VulnerabilityId: "GHSA-demo",
+		DryRun:          true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dryRun.GetMutation() == nil || !dryRun.GetMutation().GetDryRun() || dryRun.GetMutation().GetPreviousRecord() == nil {
+		t.Fatalf("dry-run mutation = %#v, want dry-run with previous record", dryRun.GetMutation())
+	}
+	record, found, err := registry.Explain("npm", "vite")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !found || record.GetState() != "approved" {
+		t.Fatalf("dry-run changed registry record: %#v found=%t", record, found)
+	}
+
+	applied, err := registry.DenyVulnerableDependency(context.Background(), &governancev1.DenyVulnerableDependencyRequest{
+		Ecosystem:       "npm",
+		PackageName:     "vite",
+		VulnerabilityId: "GHSA-demo",
+		DryRun:          false,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if applied.GetMutation() == nil || applied.GetMutation().GetDryRun() || !applied.GetMutation().GetChanged() {
+		t.Fatalf("apply mutation = %#v, want applied changed mutation", applied.GetMutation())
+	}
+	validation, err := registry.ValidateObserved("demo", []*governancev1.ObservedDependency{
+		{Ecosystem: "npm", PackageName: "vite", Version: "5.0.0", FilePath: "scenarios/demo/ui/package.json", DependencyGroup: "dependencies"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if validation.GetPassed() || validation.GetFindings()[0].GetFindingClass() != "DENIED_IN_USE" {
+		t.Fatalf("validation = passed:%t findings:%#v, want denied failure", validation.GetPassed(), validation.GetFindings())
+	}
+}
+
 func writeRegistry(t *testing.T, repoRoot, content string) {
 	t.Helper()
 	path := filepath.Join(repoRoot, ".vrooli", "dependencies", "approved-dependencies.json")
@@ -428,6 +621,17 @@ func writeRegistry(t *testing.T, repoRoot, content string) {
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func installFakeSecurityHealth(t *testing.T, response string) {
+	t.Helper()
+	binDir := t.TempDir()
+	path := filepath.Join(binDir, "security-health")
+	script := "#!/usr/bin/env sh\ncat <<'JSON'\n" + response + "\nJSON\n"
+	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 }
 
 func writeScenarioPackage(t *testing.T, repoRoot, scenario, packageJSON string) {

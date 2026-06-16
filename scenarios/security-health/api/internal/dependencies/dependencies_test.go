@@ -9,6 +9,7 @@ import (
 
 	"security-health/internal/clock"
 	"security-health/internal/testutil/db"
+	"security-health/internal/validation"
 )
 
 func newTestStore(t *testing.T) *Store {
@@ -107,6 +108,97 @@ func TestStore_ApplyDiffSearch(t *testing.T) {
 	up, del, _ = s.Diff(ctx, "", recs[:2])
 	if del != 1 {
 		t.Errorf("expected 1 delete after dropping a record, got %d (up=%d)", del, up)
+	}
+}
+
+func TestStore_ListVulnerabilitiesAggregatesScenarioExposure(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	vuln := VulnerabilityRecord{
+		VulnerabilityID:    "GHSA-1234",
+		Aliases:            []string{"CVE-2026-0001"},
+		Ecosystem:          EcosystemNPM,
+		Name:               "vite",
+		Version:            "5.0.0",
+		AffectedRanges:     []AffectedVersionRange{{Range: "<5.1.0", Fixed: "5.1.0"}},
+		FixedRanges:        []FixedVersionRange{{Range: ">= 5.1.0", Version: "5.1.0"}},
+		NormalizedSeverity: "high",
+		Source:             VulnerabilitySourceOSV,
+		Reachability:       ReachabilityLockfileAffected,
+		Confidence:         EvidenceConfidenceAdvisory,
+		Production:         true,
+	}
+	recs := []DependencyRecord{
+		{Scenario: "a", Ecosystem: EcosystemNPM, Name: "vite", Version: "5.0.0", SourceFile: "ui/pnpm-lock.yaml", VulnIDs: []string{"GHSA-1234"}, MaxSeverity: "high", Vulnerabilities: []VulnerabilityRecord{vuln}},
+		{Scenario: "b", Ecosystem: EcosystemNPM, Name: "vite", Version: "5.0.0", SourceFile: "worker/pnpm-lock.yaml", VulnIDs: []string{"GHSA-1234"}, MaxSeverity: "high", Vulnerabilities: []VulnerabilityRecord{vuln}},
+	}
+	if err := s.Apply(ctx, "", recs, "2026-06-01T00:00:00Z"); err != nil {
+		t.Fatal(err)
+	}
+	list, err := s.ListVulnerabilities(ctx, VulnerabilityQuery{PackageName: "vite", MinimumConfidence: EvidenceConfidenceAdvisory})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if list.Total != 1 || len(list.Vulnerabilities) != 1 {
+		t.Fatalf("expected one aggregated vulnerability, got %+v", list)
+	}
+	got := list.Vulnerabilities[0]
+	if got.VulnerabilityID != "GHSA-1234" || got.FixedRanges[0].Range != ">= 5.1.0" {
+		t.Fatalf("vulnerability details not preserved: %+v", got)
+	}
+	if len(got.Scenarios) != 2 || got.Scenarios[0] != "a" || got.Scenarios[1] != "b" {
+		t.Fatalf("scenario exposure not aggregated: %+v", got.Scenarios)
+	}
+}
+
+func TestBuildVulnIndex_PreservesOSVRangesAndFixedVersions(t *testing.T) {
+	report := validation.OSVReport{Results: []validation.OSVResult{{
+		Packages: []validation.OSVPackage{{
+			Package: validation.OSVPackageInfo{Name: "vite", Version: "5.0.0", Ecosystem: "npm"},
+			Vulnerabilities: []validation.OSVVuln{{
+				ID:      "GHSA-1234",
+				Aliases: []string{"CVE-2026-0001"},
+				Summary: "test vuln",
+				DatabaseSpecific: struct {
+					Severity string `json:"severity"`
+				}{Severity: "HIGH"},
+				Affected: []struct {
+					Ranges []struct {
+						Events []struct {
+							Introduced   string `json:"introduced"`
+							Fixed        string `json:"fixed"`
+							LastAffected string `json:"last_affected"`
+						} `json:"events"`
+					} `json:"ranges"`
+				}{{
+					Ranges: []struct {
+						Events []struct {
+							Introduced   string `json:"introduced"`
+							Fixed        string `json:"fixed"`
+							LastAffected string `json:"last_affected"`
+						} `json:"events"`
+					}{{
+						Events: []struct {
+							Introduced   string `json:"introduced"`
+							Fixed        string `json:"fixed"`
+							LastAffected string `json:"last_affected"`
+						}{{Introduced: "0", Fixed: "5.1.0"}},
+					}},
+				}},
+			}},
+		}},
+	}}}
+	index := buildVulnIndex(report)
+	entry := index[depMatchKey(EcosystemNPM, "vite", "5.0.0")]
+	if len(entry.vulnerabilities) != 1 {
+		t.Fatalf("expected one vulnerability, got %+v", entry)
+	}
+	got := entry.vulnerabilities[0]
+	if got.AffectedRanges[0].Range != ">=0 <5.1.0" || got.FixedRanges[0].Range != ">= 5.1.0" {
+		t.Fatalf("range evidence not preserved: %+v", got)
+	}
+	if got.Confidence != EvidenceConfidenceAdvisory || got.Reachability != ReachabilityLockfileAffected {
+		t.Fatalf("OSV evidence classification wrong: %+v", got)
 	}
 }
 

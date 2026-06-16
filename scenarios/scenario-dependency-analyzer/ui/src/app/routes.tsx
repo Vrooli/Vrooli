@@ -33,6 +33,9 @@ const DeploymentPage = lazy(() =>
 const GraphPage = lazy(() =>
   import("../features/graph/GraphPage").then((module) => ({ default: module.GraphPage }))
 );
+const GovernancePage = lazy(() =>
+  import("../features/governance/GovernancePage").then((module) => ({ default: module.GovernancePage }))
+);
 const OrientationPage = lazy(() =>
   import("../pages/OrientationPage").then((module) => ({ default: module.OrientationPage }))
 );
@@ -43,6 +46,7 @@ const routeFromLocation = (pathname: string, search: string): AppRoute => {
   if (pathname.endsWith("/graph")) return "graph";
   if (pathname.endsWith("/deployment")) return "deployment";
   if (pathname.endsWith("/catalog")) return "catalog";
+  if (pathname.endsWith("/governance")) return "governance";
   return isRouteKey(legacyView) ? legacyView : "overview";
 };
 
@@ -316,6 +320,8 @@ function ScenarioDependencyAnalyzerRoutes() {
             onOptimize={handleOptimize}
           />
         ) : null}
+
+        {activeRoute === "governance" ? <GovernancePage /> : null}
       </Suspense>
     </AppShell>
   );

@@ -22,6 +22,16 @@
       "endpoint_id": "dependencies_status"
     },
     {
+      "name": "deps vulnerabilities",
+      "description": "List structured dependency vulnerability evidence with affected ranges, fixed ranges, confidence, and scenario exposure",
+      "endpoint_id": "dependencies_vulnerabilities"
+    },
+    {
+      "name": "deps explain",
+      "description": "Explain one vulnerability with affected scenarios and fixed-version guidance",
+      "endpoint_id": "dependencies_explain_vulnerability"
+    },
+    {
       "name": "reindex run",
       "description": "Reconcile the fleet dependency corpus (--scenario, --dry-run)",
       "endpoint_id": "reindex_reindex"

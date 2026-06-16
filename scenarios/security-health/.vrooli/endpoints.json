@@ -36,7 +36,7 @@
       "path": "/vrooli.security_health.v1.dependencies.DependencyService/Search",
       "method": "POST",
       "summary": "Search the fleet dependency & vulnerability index",
-      "description": "Queries the fleet SBOM corpus with a free-text query plus structured filters (ecosystem, vulnerable-only, name glob). Answers 'which scenarios are exposed to CVE-X?' in one call. TEXT/structured mode is always available; MODE_AI degrades to TEXT until the semantic layer is wired.",
+      "description": "Queries the fleet SBOM corpus with a free-text query plus structured filters (ecosystem, vulnerable-only, name glob). Answers 'which scenarios are exposed to CVE-X?' in one call. TEXT/structured mode is always available; MODE_AI ranks by semantic similarity (Ollama embeddings + Qdrant) and degrades to TEXT when those backends are down. The response's mode_used reports which served the request.",
       "category": "dependencies",
       "request": {
         "type": "object",
@@ -96,6 +96,76 @@
       ],
       "cli_mapping": {
         "command": "security-health deps status"
+      }
+    },
+    {
+      "id": "dependencies_vulnerabilities",
+      "path": "/vrooli.security_health.v1.dependencies.DependencyService/ListVulnerabilities",
+      "method": "POST",
+      "summary": "List structured dependency vulnerability evidence",
+      "description": "Returns vulnerability evidence grouped by package/version with affected ranges, fixed-version guidance, source scanner, reachability, confidence, and affected scenarios/source files.",
+      "category": "dependencies",
+      "request": {
+        "type": "object",
+        "properties": {
+          "ecosystem": "Ecosystem (GO|NPM)",
+          "limit": "int32",
+          "minimum_confidence": "EvidenceConfidence (DEGRADED|ADVISORY|GATING)",
+          "package_name": "string",
+          "scenario": "string",
+          "vulnerability_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "total": "int32",
+          "vulnerabilities": "array<VulnerabilityRecord>"
+        }
+      },
+      "examples": [
+        {
+          "name": "Vulnerable dependencies",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.security_health.v1.dependencies.DependencyService/ListVulnerabilities -H 'Content-Type: application/json' -d '{}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "security-health deps vulnerabilities"
+      }
+    },
+    {
+      "id": "dependencies_explain_vulnerability",
+      "path": "/vrooli.security_health.v1.dependencies.DependencyService/ExplainVulnerability",
+      "method": "POST",
+      "summary": "Explain one dependency vulnerability",
+      "description": "Returns one structured vulnerability record for an advisory id, optionally scoped by ecosystem/package, including fixed-version and affected-scenario evidence.",
+      "category": "dependencies",
+      "request": {
+        "type": "object",
+        "properties": {
+          "ecosystem": "Ecosystem (GO|NPM)",
+          "package_name": "string",
+          "vulnerability_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "found": "boolean",
+          "vulnerability": "VulnerabilityRecord"
+        }
+      },
+      "examples": [
+        {
+          "name": "Explain advisory",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.security_health.v1.dependencies.DependencyService/ExplainVulnerability -H 'Content-Type: application/json' -d '{\"vulnerability_id\":\"GHSA-example\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "security-health deps explain",
+        "args": [
+          "<vulnerability>"
+        ]
       }
     },
     {
@@ -218,6 +288,7 @@
       "response": {
         "type": "object",
         "properties": {
+          "assessment": "common.v1.MaturityAssessment",
           "findings": "array<Finding>",
           "passed": "boolean",
           "scenario": "string",
@@ -266,6 +337,16 @@
       "name": "deps status",
       "description": "Report dependency-index availability, counts, and last reconcile",
       "endpoint_id": "dependencies_status"
+    },
+    {
+      "name": "deps vulnerabilities",
+      "description": "List structured dependency vulnerability evidence with affected ranges, fixed ranges, confidence, and scenario exposure",
+      "endpoint_id": "dependencies_vulnerabilities"
+    },
+    {
+      "name": "deps explain",
+      "description": "Explain one vulnerability with affected scenarios and fixed-version guidance",
+      "endpoint_id": "dependencies_explain_vulnerability"
     },
     {
       "name": "reindex run",

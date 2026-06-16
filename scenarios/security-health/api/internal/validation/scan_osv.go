@@ -76,6 +76,7 @@ type OSVPackageInfo struct {
 
 type OSVVuln struct {
 	ID               string `json:"id"`
+	Aliases          []string `json:"aliases"`
 	Summary          string `json:"summary"`
 	Detail           string `json:"detail"`
 	DatabaseSpecific struct {
@@ -84,7 +85,9 @@ type OSVVuln struct {
 	Affected []struct {
 		Ranges []struct {
 			Events []struct {
-				Fixed string `json:"fixed"`
+				Introduced   string `json:"introduced"`
+				Fixed        string `json:"fixed"`
+				LastAffected string `json:"last_affected"`
 			} `json:"events"`
 		} `json:"ranges"`
 	} `json:"affected"`

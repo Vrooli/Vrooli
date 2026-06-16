@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -65,6 +66,49 @@ type approvedDependencyRecord struct {
 	AllowedScenarios []string `json:"allowed_scenarios"`
 	DeniedScenarios  []string `json:"denied_scenarios"`
 	AllowedGroups    []string `json:"allowed_dependency_groups"`
+}
+
+type securityHealthExplainResponse struct {
+	Vulnerability securityHealthVulnerability `json:"vulnerability"`
+	Found         bool                        `json:"found"`
+}
+
+type securityHealthVulnerability struct {
+	VulnerabilityID      string                       `json:"vulnerability_id"`
+	VulnerabilityIDCamel string                       `json:"vulnerabilityId"`
+	Aliases              []string                     `json:"aliases"`
+	Ecosystem            string                       `json:"ecosystem"`
+	Name                 string                       `json:"name"`
+	Version              string                       `json:"version"`
+	AffectedRanges       []securityHealthVersionRange `json:"affected_ranges"`
+	AffectedRangesCamel  []securityHealthVersionRange `json:"affectedRanges"`
+	FixedRanges          []securityHealthVersionRange `json:"fixed_ranges"`
+	FixedRangesCamel     []securityHealthVersionRange `json:"fixedRanges"`
+	Severity             string                       `json:"severity"`
+	NormalizedSeverity   string                       `json:"normalized_severity"`
+	NormalizedCamel      string                       `json:"normalizedSeverity"`
+	AdvisoryURL          string                       `json:"advisory_url"`
+	AdvisoryURLCamel     string                       `json:"advisoryUrl"`
+	Summary              string                       `json:"summary"`
+	Source               string                       `json:"source"`
+	Reachability         string                       `json:"reachability"`
+	Confidence           string                       `json:"confidence"`
+	Production           bool                         `json:"production"`
+	DevOnly              bool                         `json:"dev_only"`
+	DevOnlyCamel         bool                         `json:"devOnly"`
+	Scenarios            []string                     `json:"scenarios"`
+	SourceFiles          []string                     `json:"source_files"`
+	SourceFilesCamel     []string                     `json:"sourceFiles"`
+	Remediation          string                       `json:"remediation"`
+}
+
+type securityHealthVersionRange struct {
+	Range        string `json:"range"`
+	Version      string `json:"version"`
+	Introduced   string `json:"introduced"`
+	Fixed        string `json:"fixed"`
+	LastAffected string `json:"last_affected"`
+	LastCamel    string `json:"lastAffected"`
 }
 
 type loadedRegistry struct {
@@ -143,8 +187,40 @@ func (h *connectHandler) ValidateFleetApprovedDependencies(_ context.Context, re
 	return connect.NewResponse(resp), nil
 }
 
+func (h *connectHandler) ListApprovedDependencyFindings(_ context.Context, req *connect.Request[governancev1.ListApprovedDependencyFindingsRequest]) (*connect.Response[governancev1.ApprovedDependencyFindingsResponse], error) {
+	resp, err := h.registry().ListFindings(req.Msg)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (h *connectHandler) GetApprovedDependencyUsage(_ context.Context, req *connect.Request[governancev1.GetApprovedDependencyUsageRequest]) (*connect.Response[governancev1.ApprovedDependencyUsageResponse], error) {
+	resp, err := h.registry().GetUsage(req.Msg)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
 func (h *connectHandler) UpsertApprovedDependency(_ context.Context, req *connect.Request[governancev1.UpsertApprovedDependencyRequest]) (*connect.Response[governancev1.UpsertApprovedDependencyResponse], error) {
 	resp, err := h.registry().Upsert(req.Msg.GetRecord(), req.Msg.GetDryRun())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (h *connectHandler) PreviewVulnerabilityRemediation(ctx context.Context, req *connect.Request[governancev1.PreviewVulnerabilityRemediationRequest]) (*connect.Response[governancev1.VulnerabilityRemediationResponse], error) {
+	resp, err := h.registry().PreviewVulnerabilityRemediation(ctx, req.Msg)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (h *connectHandler) DenyVulnerableDependency(ctx context.Context, req *connect.Request[governancev1.DenyVulnerableDependencyRequest]) (*connect.Response[governancev1.VulnerabilityRemediationResponse], error) {
+	resp, err := h.registry().DenyVulnerableDependency(ctx, req.Msg)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
@@ -265,6 +341,76 @@ func (r *Registry) ValidateFleet(policyModeOverride ...string) (*governancev1.Fl
 		UsageGroups: buildUsageGroups(responses),
 		Findings:    findings,
 		Guidance:    Guidance,
+	}, nil
+}
+
+func (r *Registry) ListFindings(req *governancev1.ListApprovedDependencyFindingsRequest) (*governancev1.ApprovedDependencyFindingsResponse, error) {
+	fleet, err := r.ValidateFleet(req.GetPolicyMode())
+	if err != nil {
+		return nil, err
+	}
+	findings := make([]*governancev1.ApprovedDependencyFinding, 0, len(fleet.GetFindings()))
+	for _, finding := range fleet.GetFindings() {
+		if !matchesFilter(finding.GetScenario(), req.GetScenario()) {
+			continue
+		}
+		if !matchesFilter(finding.GetEcosystem(), req.GetEcosystem()) {
+			continue
+		}
+		if req.GetPackageName() != "" && !sameFold(finding.GetPackageName(), req.GetPackageName()) {
+			continue
+		}
+		if !matchesFilter(finding.GetSeverity(), req.GetSeverity()) {
+			continue
+		}
+		if !matchesFilter(finding.GetFindingClass(), req.GetFindingClass()) {
+			continue
+		}
+		findings = append(findings, finding)
+	}
+	return &governancev1.ApprovedDependencyFindingsResponse{
+		Findings: findings,
+		Summary:  summarizeFindings(findings, fleet.GetSummary().GetPolicyMode()),
+		Guidance: Guidance,
+	}, nil
+}
+
+func (r *Registry) GetUsage(req *governancev1.GetApprovedDependencyUsageRequest) (*governancev1.ApprovedDependencyUsageResponse, error) {
+	ecosystem := normalize(req.GetEcosystem())
+	packageName := strings.TrimSpace(req.GetPackageName())
+	if ecosystem == "" || packageName == "" {
+		return nil, fmt.Errorf("ecosystem and package_name are required")
+	}
+	fleet, err := r.ValidateFleet(req.GetPolicyMode())
+	if err != nil {
+		return nil, err
+	}
+	key := recordKey(ecosystem, packageName)
+	var group *governancev1.DependencyUsageGroup
+	for _, candidate := range fleet.GetUsageGroups() {
+		if recordKey(candidate.GetEcosystem(), candidate.GetPackageName()) == key {
+			group = candidate
+			break
+		}
+	}
+	findings := make([]*governancev1.ApprovedDependencyFinding, 0)
+	for _, finding := range fleet.GetFindings() {
+		if recordKey(finding.GetEcosystem(), finding.GetPackageName()) == key {
+			findings = append(findings, finding)
+		}
+	}
+	summary := summarizeFindings(findings, fleet.GetSummary().GetPolicyMode())
+	if group != nil {
+		summary.Observed = group.GetUsageCount()
+		summary.ScenarioCount = group.GetScenarioCount()
+		summary.DependencyCount = 1
+	}
+	return &governancev1.ApprovedDependencyUsageResponse{
+		Found:      group != nil,
+		UsageGroup: group,
+		Findings:   findings,
+		Summary:    summary,
+		Guidance:   Guidance,
 	}, nil
 }
 
@@ -416,6 +562,252 @@ func (r *Registry) Upsert(record *governancev1.ApprovedDependencyRecord, dryRun 
 		Summary:        summarizeRecords(records),
 		Guidance:       Guidance,
 	}, nil
+}
+
+func (r *Registry) PreviewVulnerabilityRemediation(ctx context.Context, req *governancev1.PreviewVulnerabilityRemediationRequest) (*governancev1.VulnerabilityRemediationResponse, error) {
+	ecosystem := normalize(req.GetEcosystem())
+	packageName := strings.TrimSpace(req.GetPackageName())
+	vulnerabilityID := strings.TrimSpace(req.GetVulnerabilityId())
+	if ecosystem == "" || packageName == "" || vulnerabilityID == "" {
+		return nil, fmt.Errorf("ecosystem, package_name, and vulnerability_id are required")
+	}
+	evidence, found, err := r.securityVulnerabilityEvidence(ctx, ecosystem, packageName, vulnerabilityID)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return &governancev1.VulnerabilityRemediationResponse{
+			Found:    false,
+			Guidance: Guidance,
+		}, nil
+	}
+	record := securityDeniedRecord(evidence, "", "", "")
+	return &governancev1.VulnerabilityRemediationResponse{
+		Found:             true,
+		Vulnerability:     evidence,
+		SuggestedRecord:   record,
+		AffectedScenarios: append([]string{}, evidenceScenarios(evidence)...),
+		SourceFiles:       append([]string{}, evidenceSourceFiles(evidence)...),
+		Remediation:       remediationForEvidence(evidence, record.GetVersionRange()),
+		Guidance:          Guidance,
+	}, nil
+}
+
+func (r *Registry) DenyVulnerableDependency(ctx context.Context, req *governancev1.DenyVulnerableDependencyRequest) (*governancev1.VulnerabilityRemediationResponse, error) {
+	ecosystem := normalize(req.GetEcosystem())
+	packageName := strings.TrimSpace(req.GetPackageName())
+	vulnerabilityID := strings.TrimSpace(req.GetVulnerabilityId())
+	if ecosystem == "" || packageName == "" || vulnerabilityID == "" {
+		return nil, fmt.Errorf("ecosystem, package_name, and vulnerability_id are required")
+	}
+	evidence, found, err := r.securityVulnerabilityEvidence(ctx, ecosystem, packageName, vulnerabilityID)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return &governancev1.VulnerabilityRemediationResponse{
+			Found:    false,
+			Guidance: Guidance,
+		}, nil
+	}
+	record := securityDeniedRecord(evidence, req.GetAffectedRange(), req.GetFixedRange(), req.GetRationale())
+	if req.GetApprovedBy() != "" {
+		record.ApprovedBy = strings.TrimSpace(req.GetApprovedBy())
+	}
+	mutation, err := r.Upsert(record, req.GetDryRun())
+	if err != nil {
+		return nil, err
+	}
+	return &governancev1.VulnerabilityRemediationResponse{
+		Found:             true,
+		Vulnerability:     evidence,
+		SuggestedRecord:   record,
+		Mutation:          mutation,
+		AffectedScenarios: append([]string{}, evidenceScenarios(evidence)...),
+		SourceFiles:       append([]string{}, evidenceSourceFiles(evidence)...),
+		Remediation:       remediationForEvidence(evidence, record.GetVersionRange()),
+		Guidance:          Guidance,
+	}, nil
+}
+
+func (r *Registry) securityVulnerabilityEvidence(ctx context.Context, ecosystem, packageName, vulnerabilityID string) (*governancev1.SecurityVulnerabilityEvidence, bool, error) {
+	timeoutCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(timeoutCtx, "security-health", "deps", "explain", vulnerabilityID, "--ecosystem", ecosystem, "--package", packageName, "--json")
+	if r.repoRoot != "" {
+		cmd.Dir = r.repoRoot
+	}
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, false, fmt.Errorf("query Security Health vulnerability evidence: %w: %s", err, strings.TrimSpace(string(output)))
+	}
+	var resp securityHealthExplainResponse
+	if err := json.Unmarshal(output, &resp); err != nil {
+		return nil, false, fmt.Errorf("parse Security Health vulnerability evidence: %w", err)
+	}
+	if !resp.Found {
+		return nil, false, nil
+	}
+	evidence := securityVulnerabilityToProto(resp.Vulnerability)
+	if evidence.GetVulnerabilityId() == "" {
+		evidence.VulnerabilityId = vulnerabilityID
+	}
+	if evidence.GetEcosystem() == "" {
+		evidence.Ecosystem = ecosystem
+	}
+	if evidence.GetPackageName() == "" {
+		evidence.PackageName = packageName
+	}
+	return evidence, true, nil
+}
+
+func securityVulnerabilityToProto(v securityHealthVulnerability) *governancev1.SecurityVulnerabilityEvidence {
+	affected := firstRanges(v.AffectedRanges, v.AffectedRangesCamel)
+	fixed := firstRanges(v.FixedRanges, v.FixedRangesCamel)
+	return &governancev1.SecurityVulnerabilityEvidence{
+		VulnerabilityId:    firstNonEmpty(v.VulnerabilityID, v.VulnerabilityIDCamel),
+		Aliases:            trimStrings(v.Aliases),
+		Ecosystem:          normalizeSecurityEcosystem(v.Ecosystem),
+		PackageName:        strings.TrimSpace(v.Name),
+		ObservedVersion:    strings.TrimSpace(v.Version),
+		AffectedRanges:     securityRangesToProto(affected),
+		FixedRanges:        securityRangesToProto(fixed),
+		Severity:           strings.TrimSpace(v.Severity),
+		NormalizedSeverity: strings.TrimSpace(firstNonEmpty(v.NormalizedSeverity, v.NormalizedCamel)),
+		AdvisoryUrl:        strings.TrimSpace(firstNonEmpty(v.AdvisoryURL, v.AdvisoryURLCamel)),
+		Summary:            strings.TrimSpace(v.Summary),
+		Source:             normalizeSecurityToken(v.Source),
+		Reachability:       normalizeSecurityToken(v.Reachability),
+		Confidence:         normalizeSecurityToken(v.Confidence),
+		Production:         v.Production,
+		DevOnly:            v.DevOnly || v.DevOnlyCamel,
+		Remediation:        strings.TrimSpace(v.Remediation),
+		Scenarios:          trimStrings(v.Scenarios),
+		SourceFiles:        trimStrings(firstStrings(v.SourceFiles, v.SourceFilesCamel)),
+	}
+}
+
+func securityRangesToProto(ranges []securityHealthVersionRange) []*governancev1.SecurityVersionRange {
+	out := make([]*governancev1.SecurityVersionRange, 0, len(ranges))
+	for _, r := range ranges {
+		out = append(out, &governancev1.SecurityVersionRange{
+			Range:        strings.TrimSpace(r.Range),
+			Version:      strings.TrimSpace(r.Version),
+			Introduced:   strings.TrimSpace(r.Introduced),
+			Fixed:        strings.TrimSpace(r.Fixed),
+			LastAffected: strings.TrimSpace(firstNonEmpty(r.LastAffected, r.LastCamel)),
+		})
+	}
+	return out
+}
+
+func securityDeniedRecord(evidence *governancev1.SecurityVulnerabilityEvidence, affectedRangeOverride, fixedRangeOverride, rationaleOverride string) *governancev1.ApprovedDependencyRecord {
+	affectedRange := firstNonEmpty(strings.TrimSpace(affectedRangeOverride), firstSecurityAffectedRange(evidence), evidence.GetObservedVersion(), "*")
+	fixedRange := firstNonEmpty(strings.TrimSpace(fixedRangeOverride), firstSecurityFixedRange(evidence), "a fixed version outside the affected range")
+	rationale := strings.TrimSpace(rationaleOverride)
+	if rationale == "" {
+		rationale = fmt.Sprintf("%s is affected by %s according to Security Health evidence.", evidence.GetPackageName(), evidence.GetVulnerabilityId())
+	}
+	securityNotes := []string{
+		"security-health vulnerability evidence",
+		"vulnerability=" + evidence.GetVulnerabilityId(),
+	}
+	if evidence.GetSource() != "" {
+		securityNotes = append(securityNotes, "source="+evidence.GetSource())
+	}
+	if evidence.GetConfidence() != "" {
+		securityNotes = append(securityNotes, "confidence="+evidence.GetConfidence())
+	}
+	if evidence.GetReachability() != "" {
+		securityNotes = append(securityNotes, "reachability="+evidence.GetReachability())
+	}
+	if evidence.GetAdvisoryUrl() != "" {
+		securityNotes = append(securityNotes, "advisory="+evidence.GetAdvisoryUrl())
+	}
+	return &governancev1.ApprovedDependencyRecord{
+		Ecosystem:        evidence.GetEcosystem(),
+		PackageName:      evidence.GetPackageName(),
+		VersionRange:     affectedRange,
+		State:            "denied",
+		Rationale:        rationale,
+		ApprovedDate:     time.Now().UTC().Format("2006-01-02"),
+		LastReviewed:     time.Now().UTC().Format("2006-01-02"),
+		SecurityNotes:    strings.Join(securityNotes, "; "),
+		Replacement:      "Update to " + fixedRange + " or record a reviewed exception with expiry if the evidence is not applicable.",
+		ExampleScenarios: evidence.GetScenarios(),
+		Keywords:         trimStrings(append([]string{"security", "vulnerability", evidence.GetVulnerabilityId()}, evidence.GetAliases()...)),
+	}
+}
+
+func firstSecurityAffectedRange(evidence *governancev1.SecurityVulnerabilityEvidence) string {
+	for _, r := range evidence.GetAffectedRanges() {
+		if strings.TrimSpace(r.GetRange()) != "" {
+			return strings.TrimSpace(r.GetRange())
+		}
+		if strings.TrimSpace(r.GetLastAffected()) != "" {
+			return "<= " + strings.TrimSpace(r.GetLastAffected())
+		}
+	}
+	return ""
+}
+
+func firstSecurityFixedRange(evidence *governancev1.SecurityVulnerabilityEvidence) string {
+	for _, r := range evidence.GetFixedRanges() {
+		if strings.TrimSpace(r.GetRange()) != "" {
+			return strings.TrimSpace(r.GetRange())
+		}
+		if strings.TrimSpace(r.GetVersion()) != "" {
+			return ">= " + strings.TrimSpace(r.GetVersion())
+		}
+		if strings.TrimSpace(r.GetFixed()) != "" {
+			return ">= " + strings.TrimSpace(r.GetFixed())
+		}
+	}
+	return ""
+}
+
+func remediationForEvidence(evidence *governancev1.SecurityVulnerabilityEvidence, affectedRange string) string {
+	fixedRange := firstNonEmpty(firstSecurityFixedRange(evidence), "a fixed version outside the affected range")
+	return fmt.Sprintf("Deny %s/%s versions matching %s because of %s, then update affected scenarios to %s or record a reviewed exception with expiry.", evidence.GetEcosystem(), evidence.GetPackageName(), firstNonEmpty(affectedRange, "the affected range"), evidence.GetVulnerabilityId(), fixedRange)
+}
+
+func evidenceScenarios(evidence *governancev1.SecurityVulnerabilityEvidence) []string {
+	return trimStrings(evidence.GetScenarios())
+}
+
+func evidenceSourceFiles(evidence *governancev1.SecurityVulnerabilityEvidence) []string {
+	return trimStrings(evidence.GetSourceFiles())
+}
+
+func firstRanges(primary, fallback []securityHealthVersionRange) []securityHealthVersionRange {
+	if len(primary) > 0 {
+		return primary
+	}
+	return fallback
+}
+
+func firstStrings(primary, fallback []string) []string {
+	if len(primary) > 0 {
+		return primary
+	}
+	return fallback
+}
+
+func normalizeSecurityEcosystem(value string) string {
+	value = normalizeSecurityToken(value)
+	value = strings.TrimPrefix(value, "ecosystem_")
+	if value == "unspecified" {
+		return ""
+	}
+	return value
+}
+
+func normalizeSecurityToken(value string) string {
+	value = strings.TrimSpace(value)
+	value = strings.TrimPrefix(value, "EVIDENCE_CONFIDENCE_")
+	value = strings.TrimPrefix(value, "VULNERABILITY_SOURCE_")
+	value = strings.TrimPrefix(value, "REACHABILITY_")
+	return strings.ToLower(strings.ReplaceAll(value, "-", "_"))
 }
 
 func (r *Registry) loadRecords() ([]*governancev1.ApprovedDependencyRecord, error) {
@@ -833,6 +1225,51 @@ func mergeSummary(target, source *governancev1.DependencyGovernanceSummary) {
 	target.ErrorCount += source.GetErrorCount()
 	target.WarningCount += source.GetWarningCount()
 	target.InfoCount += source.GetInfoCount()
+}
+
+func summarizeFindings(findings []*governancev1.ApprovedDependencyFinding, policyMode string) *governancev1.DependencyGovernanceSummary {
+	summary := &governancev1.DependencyGovernanceSummary{
+		PolicyMode:   firstNonEmpty(policyMode, "advisory"),
+		FindingCount: int32(len(findings)),
+	}
+	scenarios := map[string]struct{}{}
+	dependencies := map[string]struct{}{}
+	for _, finding := range findings {
+		if finding.GetScenario() != "" {
+			scenarios[finding.GetScenario()] = struct{}{}
+		}
+		key := recordKey(finding.GetEcosystem(), finding.GetPackageName())
+		if key != "/" {
+			dependencies[key] = struct{}{}
+		}
+		switch finding.GetFindingClass() {
+		case "UNRECORDED_DIRECT":
+			summary.Unrecorded++
+		case "DENIED_IN_USE", "SECURITY_AFFECTED_RANGE_DENIED":
+			summary.Denied++
+		case "DEPRECATED_IN_USE":
+			summary.Deprecated++
+		case "VERSION_OUT_OF_RANGE", "SECURITY_VULNERABLE_VERSION":
+			summary.OutOfRange++
+		case "SCOPE_VIOLATION":
+			summary.OutOfScope++
+		case "EXPIRED_APPROVAL", "EXPIRED_EXCEPTION":
+			summary.Expired++
+		}
+		switch strings.ToUpper(finding.GetSeverity()) {
+		case "ERROR", "BLOCKER":
+			summary.ErrorCount++
+		case "WARNING":
+			summary.WarningCount++
+		default:
+			summary.InfoCount++
+		}
+	}
+	summary.ScenarioCount = int32(len(scenarios))
+	summary.DependencyCount = int32(len(dependencies))
+	status, _ := statusFromFindings(findings, false)
+	summary.Status = status
+	return summary
 }
 
 func buildUsageGroups(responses []*governancev1.ApprovedDependencyValidationResponse) []*governancev1.DependencyUsageGroup {

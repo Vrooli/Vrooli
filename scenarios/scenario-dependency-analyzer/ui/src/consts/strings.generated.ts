@@ -17,6 +17,7 @@ export const strings = {
       graph: "Dependency Graph",
       deployment: "Deployment Readiness",
       catalog: "Scenario Catalog",
+      governance: "Governance",
     },
   },
   errorBoundary: {
