@@ -1,0 +1,92 @@
+{
+  "provider": "tidiness-manager",
+  "phase": "tidiness",
+  "version": "1.0.0",
+  "levels": [
+    {
+      "id": "L0",
+      "name": "No tidiness target",
+      "description": "Tidiness Manager cannot resolve a scenario or readable source tree for maintainability scanning.",
+      "entry_criteria": ["Scenario name or path is provided"],
+      "exit_criteria": ["The target scenario resolves to readable source files"]
+    },
+    {
+      "id": "L1",
+      "name": "Maintainability scan available",
+      "description": "The provider can run the maintainability scan and return normalized findings for Test Genie and agents.",
+      "entry_criteria": ["Target source tree is readable"],
+      "exit_criteria": ["Tidiness scan completes with structured findings and summary counts"]
+    },
+    {
+      "id": "L2",
+      "name": "File size and local debt controlled",
+      "description": "Files stay within reviewable size boundaries and tracked debt markers do not accumulate beyond maintainable thresholds.",
+      "entry_criteria": ["Maintainability scan completes"],
+      "exit_criteria": ["No long-file or dense technical-debt findings block local maintainability"]
+    },
+    {
+      "id": "L3",
+      "name": "Complexity and coupling controlled",
+      "description": "Highly branched functions and broad import surfaces are kept visible and below local maintainability thresholds.",
+      "entry_criteria": ["File size and local debt are controlled"],
+      "exit_criteria": ["No high-complexity or high-coupling findings block local maintainability"]
+    },
+    {
+      "id": "L4",
+      "name": "Duplication controlled",
+      "description": "Duplicated implementation blocks are low enough that fixes and behavior changes do not drift across copies.",
+      "entry_criteria": ["Complexity and coupling are controlled"],
+      "exit_criteria": ["No duplicated-code findings block local maintainability"]
+    },
+    {
+      "id": "L5",
+      "name": "Fleet-ready tidiness posture",
+      "description": "The scenario is clean enough for Test Genie delegation, cleanup campaign planning, and fleet-wide maintainability comparison.",
+      "entry_criteria": ["Duplication is controlled"],
+      "exit_criteria": ["No Tidiness Manager findings block fleet validation"]
+    }
+  ],
+  "findings": {
+    "LONG_FILE": {
+      "local_level_impact": "L2",
+      "global_impact": "hardening_gap",
+      "dimension": "tidiness",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["tidiness", "cognitive-load-reduction"]
+    },
+    "TECH_DEBT_MARKERS": {
+      "local_level_impact": "L2",
+      "global_impact": "hardening_gap",
+      "dimension": "tidiness",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["tidiness", "intent-clarification"]
+    },
+    "HIGH_COMPLEXITY": {
+      "local_level_impact": "L3",
+      "global_impact": "hardening_gap",
+      "dimension": "tidiness",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["tidiness", "cognitive-load-reduction", "test"]
+    },
+    "HIGH_COUPLING": {
+      "local_level_impact": "L3",
+      "global_impact": "evolvability_gap",
+      "dimension": "tidiness",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["tidiness", "boundary-of-responsibility-enforcement"]
+    },
+    "DUPLICATED_CODE": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "tidiness",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["tidiness", "utils-unification"]
+    }
+  },
+  "fallback": {
+    "local_level_impact": "L1",
+    "global_impact": "hardening_gap",
+    "dimension": "tidiness",
+    "severity_default": "SEVERITY_WARNING"
+  }
+}

@@ -69,6 +69,13 @@ func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 	if len(msg.GetSkippedScanners()) > 0 {
 		summary = append(summary, fmt.Sprintf("Skipped: %v", msg.GetSkippedScanners()))
 	}
+	if assessmentReport := cliapp.BuildMaturityListReport(msg.GetAssessment()); len(assessmentReport.Summary) > 0 {
+		summary = append(summary, assessmentReport.Summary...)
+		if len(assessmentReport.Results) > 0 {
+			results = append(results, "")
+			results = append(results, assessmentReport.Results...)
+		}
+	}
 	if err := cliapp.RenderProtoList(ctx, msg, cliapp.ListReport{
 		Summary:        summary,
 		ResultsHeading: "Domains",

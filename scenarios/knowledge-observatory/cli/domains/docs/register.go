@@ -19,6 +19,7 @@ import (
 
 	kov1 "github.com/vrooli/vrooli/packages/proto/gen/go/knowledge-observatory/v1"
 	kov1connect "github.com/vrooli/vrooli/packages/proto/gen/go/knowledge-observatory/v1/knowledgeobservatoryv1connect"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 type FileSearchRequest struct {
@@ -444,7 +445,7 @@ func health(deps support.Dependencies, args []string) error {
 		return fmt.Errorf("DocHealth RPC failed: %w", err)
 	}
 	if *jsonOut || jsonFromPositional {
-		body, err := json.MarshalIndent(resp.Msg, "", "  ")
+		body, err := protojson.MarshalOptions{Multiline: true, Indent: "  "}.Marshal(resp.Msg)
 		if err != nil {
 			return err
 		}

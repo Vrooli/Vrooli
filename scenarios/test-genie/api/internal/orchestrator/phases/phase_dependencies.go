@@ -243,7 +243,7 @@ func dependencySummary(report *healthv1.DependencyHealthResponse) DependencySumm
 	if policy := report.GetPolicySummary(); policy != nil {
 		out.PolicyStatus = policy.GetStatus()
 	}
-	out.LocalCurrentLevel, out.LocalNextLevel = protoLocalMaturitySummary(report.GetAssessment())
+	out.LocalCurrentLevel, out.LocalNextLevel = localMaturitySummary(report.GetAssessment())
 	return out
 }
 

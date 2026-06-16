@@ -69,7 +69,7 @@ func TestRunStandardsPhaseFailsOnHighWhenFailOnHigh(t *testing.T) {
 			_, _ = w.Write([]byte(`{"id":"job-123","status":"completed"}`))
 		case "/api/v1/standards/check/jobs/job-123/summary":
 			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"summary":{"total":1,"by_severity":{"high":1},"highest_severity":"high","top_violations":[{"severity":"high","rule_id":"prd_structure","file_path":"PRD.md","line_number":1,"title":"Bad PRD"}]}}`))
+			_, _ = w.Write([]byte(`{"summary":{"total":1,"by_severity":{"high":1},"highest_severity":"high","top_violations":[{"severity":"high","rule_id":"prd_structure","file_path":"PRD.md","line_number":1,"title":"Bad PRD"}],` + testProviderAssessmentJSON("demo", "scenario-auditor", "standards", "L3", "L4") + `}}`))
 		default:
 			http.NotFound(w, r)
 		}
@@ -91,6 +91,43 @@ func TestRunStandardsPhaseFailsOnHighWhenFailOnHigh(t *testing.T) {
 	}
 	if report.Err == nil || !strings.Contains(report.Err.Error(), "fail_on") {
 		t.Fatalf("expected threshold error, got %v", report.Err)
+	}
+}
+
+func TestRunStandardsPhaseFailsMaturityContractWhenAssessmentMissing(t *testing.T) {
+	root := t.TempDir()
+	scenarioDir := createScenarioLayout(t, root, "demo")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/standards/check/demo":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"job_id":"job-123","status":{"id":"job-123","status":"running"}}`))
+		case "/api/v1/standards/check/jobs/job-123":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"id":"job-123","status":"completed"}`))
+		case "/api/v1/standards/check/jobs/job-123/summary":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"summary":{"total":0,"by_severity":{},"highest_severity":"","top_violations":[]}}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	restoreResolver := overrideScenarioAuditorBaseURL(server.URL, nil)
+	defer restoreResolver()
+
+	env := workspace.Environment{
+		ScenarioName: "demo",
+		ScenarioDir:  scenarioDir,
+		AppRoot:      filepath.Dir(filepath.Dir(scenarioDir)),
+	}
+	report := runStandardsPhase(context.Background(), env, io.Discard)
+	if report.FailureClassification != FailureClassMaturityContract {
+		t.Fatalf("expected maturity contract classification, got %s", report.FailureClassification)
+	}
+	if report.Err == nil || !strings.Contains(report.Err.Error(), "assessment") {
+		t.Fatalf("expected assessment error, got %v", report.Err)
 	}
 }
 
@@ -201,7 +238,7 @@ func TestRunStandardsPhaseHonorsMinSeverityForDisplay(t *testing.T) {
 			_, _ = w.Write([]byte(`{"id":"job-456","status":"completed"}`))
 		case "/api/v1/standards/check/jobs/job-456/summary":
 			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"summary":{"total":2,"by_severity":{"high":1,"low":1},"highest_severity":"high","top_violations":[{"severity":"low","rule_id":"x","file_path":"a","line_number":1,"title":"low"},{"severity":"high","rule_id":"y","file_path":"b","line_number":2,"title":"high"}]}}`))
+			_, _ = w.Write([]byte(`{"summary":{"total":2,"by_severity":{"high":1,"low":1},"highest_severity":"high","top_violations":[{"severity":"low","rule_id":"x","file_path":"a","line_number":1,"title":"low"},{"severity":"high","rule_id":"y","file_path":"b","line_number":2,"title":"high"}],` + testProviderAssessmentJSON("demo", "scenario-auditor", "standards", "L3", "L4") + `}}`))
 		default:
 			http.NotFound(w, r)
 		}

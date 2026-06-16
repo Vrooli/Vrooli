@@ -164,6 +164,11 @@ func skipDocsForTests(t *testing.T) {
 	t.Setenv("TEST_GENIE_SKIP_DOCS", "1")
 }
 
+func skipArchitectureForTests(t *testing.T) {
+	t.Helper()
+	t.Setenv("TEST_GENIE_SKIP_ARCHITECTURE", "1")
+}
+
 func stubRuntimePhaseRunners(orchestrator *SuiteOrchestrator) {
 	noOp := func(ctx context.Context, env workspacepkg.Environment, logWriter io.Writer) phasespkg.RunReport {
 		return phasespkg.RunReport{}
@@ -187,6 +192,7 @@ func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 		skipPlaybooksForTests(t)
 		skipStandardsForTests(t)
 		skipDocsForTests(t)
+		skipArchitectureForTests(t)
 		root := t.TempDir()
 		createScenarioLayout(t, root, "demo")
 		stubCommandLookup(t, func(name string) (string, error) {
@@ -415,6 +421,7 @@ func TestSuiteOrchestratorSyncsRequirementsAfterFullRun(t *testing.T) {
 		skipPlaybooksForTests(t)
 		skipStandardsForTests(t)
 		skipDocsForTests(t)
+		skipArchitectureForTests(t)
 		root := t.TempDir()
 		createScenarioLayout(t, root, "demo")
 		stubCommandLookup(t, func(name string) (string, error) {

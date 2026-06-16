@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/discovery"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 
 	"test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/shared"
@@ -72,13 +73,14 @@ func (v ViolationExcerpt) CanonicalRuleID() string {
 
 // ViolationSummary is the auditor's structured scan result.
 type ViolationSummary struct {
-	Total           int                `json:"total"`
-	BySeverity      map[string]int     `json:"by_severity"`
-	ByRule          []RuleCount        `json:"by_rule"`
-	HighestSeverity string             `json:"highest_severity"`
-	TopViolations   []ViolationExcerpt `json:"top_violations"`
-	Artifact        *ScanArtifactRef   `json:"artifact,omitempty"`
-	Recommended     []string           `json:"recommended_steps,omitempty"`
+	Total           int                          `json:"total"`
+	BySeverity      map[string]int               `json:"by_severity"`
+	ByRule          []RuleCount                  `json:"by_rule"`
+	HighestSeverity string                       `json:"highest_severity"`
+	TopViolations   []ViolationExcerpt           `json:"top_violations"`
+	Artifact        *ScanArtifactRef             `json:"artifact,omitempty"`
+	Recommended     []string                     `json:"recommended_steps,omitempty"`
+	Assessment      *commonv1.MaturityAssessment `json:"assessment,omitempty"`
 }
 
 // StandardsStartResponse decodes the POST .../standards/check/<scenario> response.

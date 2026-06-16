@@ -10,7 +10,7 @@ work lands, not while work is still speculative.
 
 | Date | Author | Status | Notes |
 |---|---|---|---|
-| _No progress entries yet._ |  |  |  |
+| 2026-06-16 | Codex | done | Adopted the shared health maturity assessment contract for UI Health. Added `.vrooli/maturity.json`, emitted `common.v1.MaturityAssessment` from `ValidateScenario`, rendered local maturity in CLI human output, and preserved local maturity in Test Genie ui-health phase summaries. |
 
 ## Entry Template
 

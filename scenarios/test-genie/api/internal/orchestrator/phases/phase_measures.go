@@ -15,6 +15,7 @@ import (
 
 	"github.com/vrooli/api-core/discovery"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 // MeasuresSummary mirrors the measures-health validation summary so the phase
@@ -58,11 +59,12 @@ type measuresFinding struct {
 }
 
 type measuresReport struct {
-	Scenario   string                      `json:"scenario"`
-	Passed     bool                        `json:"passed"`
-	Findings   []measuresFinding           `json:"findings"`
-	Assessment *providerMaturityAssessment `json:"assessment"`
-	Summary    struct {
+	Scenario      string                       `json:"scenario"`
+	Passed        bool                         `json:"passed"`
+	Findings      []measuresFinding            `json:"findings"`
+	AssessmentRaw json.RawMessage              `json:"assessment"`
+	Assessment    *commonv1.MaturityAssessment `json:"-"`
+	Summary       struct {
 		Errors   int `json:"errors"`
 		Warnings int `json:"warnings"`
 		Infos    int `json:"infos"`
@@ -234,9 +236,11 @@ func parseMeasuresOutput(raw []byte) (*measuresReport, error) {
 	if err := json.Unmarshal(raw, &rep); err != nil {
 		return nil, err
 	}
-	if err := requireProviderAssessment("measures-health", "measures", rep.Assessment); err != nil {
+	assessment, err := requireProviderAssessmentJSON("measures-health", "measures", rep.AssessmentRaw)
+	if err != nil {
 		return nil, err
 	}
+	rep.Assessment = assessment
 	return &rep, nil
 }
 

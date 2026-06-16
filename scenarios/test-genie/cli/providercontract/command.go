@@ -179,6 +179,9 @@ func runProbe(ctx context.Context, args Args, probe Probe) ([]byte, string, erro
 		raw, err := commandRunner(ctx, args.Timeout, "", invocation[0], invocation[1:]...)
 		source := strings.Join(invocation, " ")
 		if err != nil {
+			if len(bytes.TrimSpace(raw)) > 0 {
+				return raw, source, nil
+			}
 			return nil, source, fmt.Errorf("run provider command `%s`: %w", source, err)
 		}
 		return raw, source, nil
@@ -273,23 +276,50 @@ func ResolveProbe(subject string) (Probe, error) {
 }
 
 func parseAssessment(raw []byte) (*commonv1.MaturityAssessment, error) {
-	var envelope struct {
-		Assessment json.RawMessage `json:"assessment"`
-	}
-	if err := json.Unmarshal(raw, &envelope); err != nil {
+	var payload json.RawMessage
+	if err := json.Unmarshal(raw, &payload); err != nil {
 		return nil, fmt.Errorf("parse provider JSON: %w", err)
 	}
-	if len(envelope.Assessment) == 0 || bytes.Equal(envelope.Assessment, []byte("null")) {
+	assessmentJSON := findAssessmentJSON(payload)
+	if len(assessmentJSON) == 0 || bytes.Equal(assessmentJSON, []byte("null")) {
 		return nil, fmt.Errorf("assessment is required")
 	}
 	var msg commonv1.MaturityAssessment
-	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(envelope.Assessment, &msg); err != nil {
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(assessmentJSON, &msg); err != nil {
 		return nil, fmt.Errorf("parse assessment: %w", err)
 	}
 	if err := assessment.ValidateAssessment(&msg); err != nil {
 		return nil, err
 	}
 	return &msg, nil
+}
+
+func findAssessmentJSON(raw json.RawMessage) json.RawMessage {
+	if len(raw) == 0 || bytes.Equal(raw, []byte("null")) {
+		return nil
+	}
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &obj); err == nil {
+		if assessmentJSON, ok := obj["assessment"]; ok {
+			return assessmentJSON
+		}
+		for _, child := range obj {
+			if assessmentJSON := findAssessmentJSON(child); len(assessmentJSON) > 0 {
+				return assessmentJSON
+			}
+		}
+		return nil
+	}
+	var arr []json.RawMessage
+	if err := json.Unmarshal(raw, &arr); err != nil {
+		return nil
+	}
+	for _, child := range arr {
+		if assessmentJSON := findAssessmentJSON(child); len(assessmentJSON) > 0 {
+			return assessmentJSON
+		}
+	}
+	return nil
 }
 
 func runCommand(ctx context.Context, timeout time.Duration, dir string, name string, args ...string) ([]byte, error) {

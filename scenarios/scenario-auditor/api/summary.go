@@ -10,6 +10,10 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/vrooli/maturity-go/assessment"
+	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 const (
@@ -57,14 +61,15 @@ type ScanArtifactRef struct {
 }
 
 type ViolationSummary struct {
-	Total            int                `json:"total"`
-	BySeverity       map[string]int     `json:"by_severity"`
-	ByRule           []RuleCount        `json:"by_rule"`
-	HighestSeverity  string             `json:"highest_severity"`
-	TopViolations    []ViolationExcerpt `json:"top_violations"`
-	Artifact         *ScanArtifactRef   `json:"artifact,omitempty"`
-	RecommendedSteps []string           `json:"recommended_steps,omitempty"`
-	GeneratedAt      string             `json:"generated_at"`
+	Total            int                          `json:"total"`
+	BySeverity       map[string]int               `json:"by_severity"`
+	ByRule           []RuleCount                  `json:"by_rule"`
+	HighestSeverity  string                       `json:"highest_severity"`
+	TopViolations    []ViolationExcerpt           `json:"top_violations"`
+	Artifact         *ScanArtifactRef             `json:"artifact,omitempty"`
+	RecommendedSteps []string                     `json:"recommended_steps,omitempty"`
+	GeneratedAt      string                       `json:"generated_at"`
+	Assessment       *commonv1.MaturityAssessment `json:"assessment,omitempty"`
 }
 
 type violationRecord struct {
@@ -132,6 +137,75 @@ func buildViolationSummary(records []violationRecord, limit int) ViolationSummar
 	summary.RecommendedSteps = buildRecommendedSteps(&summary)
 
 	return summary
+}
+
+func attachStandardsMaturityAssessment(scenarioName string, summary *ViolationSummary, records []violationRecord) error {
+	if summary == nil {
+		return fmt.Errorf("standards summary is required")
+	}
+	spec, err := loadStandardsMaturitySpec()
+	if err != nil {
+		return err
+	}
+	assessed := make([]assessment.Finding, 0, len(records))
+	for _, rec := range records {
+		code := strings.TrimSpace(rec.RuleID)
+		if code == "" {
+			code = strings.TrimSpace(rec.Source)
+		}
+		if code == "" {
+			code = "standards.unknown"
+		}
+		location := strings.TrimSpace(rec.FilePath)
+		if location != "" && rec.LineNumber > 0 {
+			location = fmt.Sprintf("%s:%d", location, rec.LineNumber)
+		}
+		assessed = append(assessed, assessment.Finding{
+			Code:        code,
+			Severity:    standardsSeverityToAssessment(rec.Severity),
+			Title:       firstNonEmpty(rec.Title, code),
+			Location:    location,
+			Remediation: rec.Recommendation,
+			Source:      architecturev1.FindingSource_FINDING_SOURCE_STANDARDS,
+			Phase:       spec.Phase,
+		})
+	}
+	assessment, err := assessment.BuildProtoAssessment(assessment.BuildInput{
+		Scenario: firstNonEmpty(strings.TrimSpace(scenarioName), "all"),
+		Spec:     *spec,
+		Findings: assessed,
+	})
+	if err != nil {
+		return err
+	}
+	summary.Assessment = assessment
+	return nil
+}
+
+func loadStandardsMaturitySpec() (*assessment.Spec, error) {
+	ctx, err := repoContext()
+	if err != nil {
+		return nil, fmt.Errorf("resolve repo root for standards maturity spec: %w", err)
+	}
+	path := filepath.Join(ctx.RepoRoot(), "scenarios", "scenario-auditor", ".vrooli", "maturity.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read standards maturity spec: %w", err)
+	}
+	return assessment.ParseSpec(raw)
+}
+
+func standardsSeverityToAssessment(severity string) string {
+	switch normalizeSeverity(severity) {
+	case "critical", "high":
+		return architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR.String()
+	case "medium", "low":
+		return architecturev1.FindingSeverity_FINDING_SEVERITY_WARNING.String()
+	case "info":
+		return architecturev1.FindingSeverity_FINDING_SEVERITY_INFO.String()
+	default:
+		return severity
+	}
 }
 
 func selectTopViolations(records []violationRecord, limit int) []ViolationExcerpt {

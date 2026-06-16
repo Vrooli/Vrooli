@@ -88,7 +88,8 @@ func RunDurable(baseURL string, req Request, opts DurableOptions) error {
 		} else {
 			fmt.Fprintf(os.Stderr, "\n⏳ ETA unknown (treating as long) — running in the background so your shell returns now.\n")
 		}
-		fmt.Fprintf(os.Stderr, "   Block on the result with:\n     %s\n", reattachCommand(req.ScenarioName, runID))
+		fmt.Fprintf(os.Stderr, "   Block on the result (quiet, exits with the verdict) with:\n     %s\n", reattachCommand(req.ScenarioName, runID))
+		fmt.Fprintf(os.Stderr, "   Or watch live progress with:\n     %s\n", followCommand(req.ScenarioName, runID))
 		return nil
 	}
 
@@ -115,7 +116,12 @@ func followInline(parent context.Context, client runs_v1connect.RunsServiceClien
 		}
 	}()
 
-	stream, err := client.FollowRun(ctx, connect.NewRequest(&runspb.FollowRunRequest{Scenario: scenario, RunId: runID}))
+	// Suppress heartbeat keep-alives when stdout is not a terminal (piped or
+	// backgrounded) so an agent following inline is not re-woken on every beat;
+	// an interactive terminal keeps them as a liveness signal.
+	stream, err := client.FollowRun(ctx, connect.NewRequest(&runspb.FollowRunRequest{
+		Scenario: scenario, RunId: runID, SuppressHeartbeats: !isStdoutTTY(),
+	}))
 	if err != nil {
 		return fmt.Errorf("follow run: %w", err)
 	}
@@ -153,7 +159,10 @@ func followInline(parent context.Context, client runs_v1connect.RunsServiceClien
 // Because FollowRun replays history, the first line is always run_started
 // (carrying the run id), and the last is run_completed.
 func followJSONL(ctx context.Context, client runs_v1connect.RunsServiceClient, scenario, runID string, out io.Writer) error {
-	stream, err := client.FollowRun(ctx, connect.NewRequest(&runspb.FollowRunRequest{Scenario: scenario, RunId: runID}))
+	// A machine consumer never wants heartbeat keep-alive noise — always suppress.
+	stream, err := client.FollowRun(ctx, connect.NewRequest(&runspb.FollowRunRequest{
+		Scenario: scenario, RunId: runID, SuppressHeartbeats: true,
+	}))
 	if err != nil {
 		_ = emitEventLine(out, map[string]any{"event": evRunCompleted, "success": false, "error": err.Error()})
 		return err
@@ -285,11 +294,12 @@ func printRunBanner(w io.Writer, scenario, runID string, eta int, etaKnown bool)
 	}
 	fmt.Fprintf(w, "▶ run %s started (estimated %s)\n", runID, etaStr)
 	fmt.Fprintf(w, "  The test-genie server owns this run — if your shell or tool times out, the run keeps going.\n")
-	fmt.Fprintf(w, "  That is expected and recoverable: re-attach to live progress with\n    %s\n\n", reattachCommand(scenario, runID))
+	fmt.Fprintf(w, "  Block on the result (quiet, exits with the verdict) with:\n    %s\n", reattachCommand(scenario, runID))
+	fmt.Fprintf(w, "  Or watch live progress with:\n    %s\n\n", followCommand(scenario, runID))
 }
 
 func printDetached(w io.Writer, scenario, runID string) {
-	fmt.Fprintf(w, "\n⏸ Detached from run %s (still running).\n   Re-attach with:\n     %s\n", runID, reattachCommand(scenario, runID))
+	fmt.Fprintf(w, "\n⏸ Detached from run %s (still running).\n   Re-attach with:\n     %s\n   (or watch live: %s)\n", runID, reattachCommand(scenario, runID), followCommand(scenario, runID))
 }
 
 // runBusyGuidance extracts the one-run-per-scenario rejection (a divergent run
@@ -315,7 +325,7 @@ func runBusyGuidance(err error) (string, bool) {
 		}
 		var b strings.Builder
 		fmt.Fprintf(&b, "✗ %s already has an in-progress run %s (preset %s) — only one run per scenario at a time.\n", bi.GetScenario(), bi.GetRunId(), preset)
-		fmt.Fprintf(&b, "  wait:  test-genie runs follow %s %s\n", bi.GetScenario(), bi.GetRunId())
+		fmt.Fprintf(&b, "  wait:  %s\n", reattachCommand(bi.GetScenario(), bi.GetRunId()))
 		fmt.Fprintf(&b, "  abort: test-genie runs abort %s %s\n", bi.GetScenario(), bi.GetRunId())
 		return b.String(), true
 	}

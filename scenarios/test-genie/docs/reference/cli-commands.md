@@ -212,6 +212,8 @@ Supported probes include CLI-backed providers (`cli-health`, `ui-health`, `quali
 ```bash
 test-genie provider-contract check contracts my-scenario
 test-genie provider-contract check cli-health my-scenario --json
+test-genie provider-contract check standards my-scenario
+test-genie provider-contract check architecture my-scenario --json
 test-genie provider-contract check docs my-scenario
 test-genie provider-contract check tidiness-manager my-scenario --json
 ```

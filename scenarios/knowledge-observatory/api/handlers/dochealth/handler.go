@@ -9,26 +9,41 @@ package dochealth
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
 
 	"knowledge-observatory/internal/services/dochealth"
 
+	"github.com/vrooli/maturity-go/assessment"
+	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	kov1 "github.com/vrooli/vrooli/packages/proto/gen/go/knowledge-observatory/v1"
 )
 
 // Handler implements the generated KnowledgeObservatoryServiceHandler.
 type Handler struct {
 	service *dochealth.Service
+	spec    *assessment.Spec
 	now     func() time.Time
+}
+
+type Deps struct {
+	Service      *dochealth.Service
+	MaturitySpec *assessment.Spec
 }
 
 // New builds a Connect handler backed by the provided dochealth service.
 // service must be non-nil; production wires the singleton created in
 // server.setupServices.
 func New(service *dochealth.Service) *Handler {
-	return &Handler{service: service, now: time.Now}
+	return NewWithDeps(Deps{Service: service})
+}
+
+func NewWithDeps(deps Deps) *Handler {
+	return &Handler{service: deps.Service, spec: deps.MaturitySpec, now: time.Now}
 }
 
 // WithClock overrides the timestamp source (tests).
@@ -55,7 +70,11 @@ func (h *Handler) DocHealth(ctx context.Context, req *connect.Request[kov1.DocHe
 	if err != nil {
 		return nil, mapError(err)
 	}
-	return connect.NewResponse(translate(result, h.now())), nil
+	resp, err := translate(result, h.now(), h.spec)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build docs maturity assessment: %w", err))
+	}
+	return connect.NewResponse(resp), nil
 }
 
 func mapError(err error) error {
@@ -71,7 +90,7 @@ func mapError(err error) error {
 	}
 }
 
-func translate(r *dochealth.DocHealthResult, now time.Time) *kov1.DocHealthResponse {
+func translate(r *dochealth.DocHealthResult, now time.Time, spec *assessment.Spec) (*kov1.DocHealthResponse, error) {
 	resp := &kov1.DocHealthResponse{
 		ScenarioName:  r.ScenarioName,
 		HealthScore:   r.HealthScore,
@@ -126,7 +145,124 @@ func translate(r *dochealth.DocHealthResult, now time.Time) *kov1.DocHealthRespo
 	resp.ContentFindings = translateFindings(r.ContentFindings)
 	resp.ReferenceFindings = translateFindings(r.ReferenceFindings)
 	resp.ManifestFindings = translateFindings(r.ManifestFindings)
-	return resp
+	a, err := buildMaturityAssessment(r, spec)
+	if err != nil {
+		return nil, err
+	}
+	resp.Assessment = a
+	return resp, nil
+}
+
+func buildMaturityAssessment(r *dochealth.DocHealthResult, spec *assessment.Spec) (*commonv1.MaturityAssessment, error) {
+	if spec == nil {
+		return nil, fmt.Errorf("maturity spec is required")
+	}
+	findings := make([]assessment.Finding, 0,
+		len(r.MisplacedDocs)+len(r.MissingDocs)+len(r.ExtraDocs)+len(r.TemporaryDocs)+
+			len(r.ContractFindings)+len(r.ContentFindings)+len(r.ReferenceFindings)+len(r.ManifestFindings))
+	for _, m := range r.MisplacedDocs {
+		findings = append(findings, assessment.Finding{
+			Code:        "misplaced_doc",
+			Severity:    severityToAssessment(m.Severity),
+			Title:       "Misplaced documentation",
+			Message:     firstNonEmpty(m.Message, "documentation file is in the wrong location"),
+			Location:    m.ActualPath,
+			Remediation: "Move the document to " + m.ExpectedPath,
+			Source:      architecturev1.FindingSource_FINDING_SOURCE_DOCS,
+			Phase:       spec.Phase,
+		})
+	}
+	for _, m := range r.MissingDocs {
+		findings = append(findings, assessment.Finding{
+			Code:        "missing_doc",
+			Severity:    severityToAssessment(m.Severity),
+			Title:       "Missing documentation",
+			Message:     fmt.Sprintf("required %s documentation is missing", firstNonEmpty(m.DocType, "scenario")),
+			Location:    m.Path,
+			Remediation: "Create the required documentation file.",
+			Source:      architecturev1.FindingSource_FINDING_SOURCE_DOCS,
+			Phase:       spec.Phase,
+		})
+	}
+	for _, path := range r.ExtraDocs {
+		findings = append(findings, assessment.Finding{
+			Code:        "extra_doc",
+			Severity:    architecturev1.FindingSeverity_FINDING_SEVERITY_INFO.String(),
+			Title:       "Extra documentation",
+			Message:     "documentation file is outside the scenario documentation contract",
+			Location:    path,
+			Remediation: "Register the doc in docs/manifest.json or remove it if obsolete.",
+			Source:      architecturev1.FindingSource_FINDING_SOURCE_DOCS,
+			Phase:       spec.Phase,
+		})
+	}
+	for _, path := range r.TemporaryDocs {
+		findings = append(findings, assessment.Finding{
+			Code:        "temporary_doc",
+			Severity:    architecturev1.FindingSeverity_FINDING_SEVERITY_WARNING.String(),
+			Title:       "Temporary documentation",
+			Message:     "temporary documentation artifact should be promoted or removed",
+			Location:    path,
+			Remediation: "Promote durable content into the docs contract or remove the temporary artifact.",
+			Source:      architecturev1.FindingSource_FINDING_SOURCE_DOCS,
+			Phase:       spec.Phase,
+		})
+	}
+	appendDocFindings := func(in []dochealth.Finding) {
+		for _, f := range in {
+			findings = append(findings, assessment.Finding{
+				Code:     f.Code,
+				Severity: severityToAssessment(f.Severity),
+				Title:    f.Code,
+				Message:  f.Message,
+				Location: docLocation(f.Path, f.Line),
+				Source:   architecturev1.FindingSource_FINDING_SOURCE_DOCS,
+				Phase:    spec.Phase,
+			})
+		}
+	}
+	appendDocFindings(r.ContractFindings)
+	appendDocFindings(r.ContentFindings)
+	appendDocFindings(r.ReferenceFindings)
+	appendDocFindings(r.ManifestFindings)
+	return assessment.BuildProtoAssessment(assessment.BuildInput{
+		Scenario: r.ScenarioName,
+		Spec:     *spec,
+		Findings: findings,
+	})
+}
+
+func severityToAssessment(s dochealth.Severity) string {
+	switch s {
+	case dochealth.SeverityFailure:
+		return architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR.String()
+	case dochealth.SeverityWarning:
+		return architecturev1.FindingSeverity_FINDING_SEVERITY_WARNING.String()
+	case dochealth.SeverityInfo:
+		return architecturev1.FindingSeverity_FINDING_SEVERITY_INFO.String()
+	default:
+		return ""
+	}
+}
+
+func docLocation(path string, line int) string {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return ""
+	}
+	if line > 0 {
+		return fmt.Sprintf("%s:%d", path, line)
+	}
+	return path
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func translateFindings(in []dochealth.Finding) []*kov1.DocHealthFinding {

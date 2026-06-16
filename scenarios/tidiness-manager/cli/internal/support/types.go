@@ -1,5 +1,7 @@
 package support
 
+import commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+
 type CommandRun struct {
 	Command    string `json:"command"`
 	ExitCode   int    `json:"exit_code"`
@@ -31,11 +33,12 @@ type LightScanResult struct {
 }
 
 type TidinessScanResponse struct {
-	Scenario   string              `json:"scenario"`
-	Status     string              `json:"status"`
-	Findings   []TidinessFinding   `json:"findings"`
-	Violations []TidinessFinding   `json:"violations"`
-	Summary    TidinessScanSummary `json:"summary"`
+	Scenario   string                       `json:"scenario"`
+	Status     string                       `json:"status"`
+	Findings   []TidinessFinding            `json:"findings"`
+	Violations []TidinessFinding            `json:"violations"`
+	Summary    TidinessScanSummary          `json:"summary"`
+	Assessment *commonv1.MaturityAssessment `json:"assessment"`
 }
 
 type TidinessScanSummary struct {

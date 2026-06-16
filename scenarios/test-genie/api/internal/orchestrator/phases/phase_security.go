@@ -14,6 +14,7 @@ import (
 	"test-genie/internal/shared"
 
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 // SecuritySummary mirrors the security-health validation summary so the phase
@@ -56,11 +57,12 @@ type securityFinding struct {
 }
 
 type securityReport struct {
-	Scenario   string                      `json:"scenario"`
-	Passed     bool                        `json:"passed"`
-	Findings   []securityFinding           `json:"findings"`
-	Assessment *providerMaturityAssessment `json:"assessment"`
-	Summary    struct {
+	Scenario      string                       `json:"scenario"`
+	Passed        bool                         `json:"passed"`
+	Findings      []securityFinding            `json:"findings"`
+	AssessmentRaw json.RawMessage              `json:"assessment"`
+	Assessment    *commonv1.MaturityAssessment `json:"-"`
+	Summary       struct {
 		Errors   int `json:"errors"`
 		Warnings int `json:"warnings"`
 		Infos    int `json:"infos"`
@@ -218,9 +220,11 @@ func parseSecurityOutput(raw []byte) (*securityReport, error) {
 	if err := json.Unmarshal(raw, &rep); err != nil {
 		return nil, err
 	}
-	if err := requireProviderAssessment("security-health", "security", rep.Assessment); err != nil {
+	assessment, err := requireProviderAssessmentJSON("security-health", "security", rep.AssessmentRaw)
+	if err != nil {
 		return nil, err
 	}
+	rep.Assessment = assessment
 	return &rep, nil
 }
 

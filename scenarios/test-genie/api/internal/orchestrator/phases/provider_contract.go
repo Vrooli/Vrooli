@@ -1,28 +1,20 @@
 package phases
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 
 	"test-genie/internal/shared"
 
+	"github.com/vrooli/maturity-go/assessment"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 var errProviderMaturityContract = errors.New("provider maturity contract violation")
-
-type providerMaturityAssessment struct {
-	Scenario string `json:"scenario"`
-	Provider string `json:"provider"`
-	Phase    string `json:"phase"`
-	Version  string `json:"version"`
-	Local    struct {
-		CurrentLevel string   `json:"current_level"`
-		NextLevel    string   `json:"next_level"`
-		Blocking     []string `json:"blocking_finding_codes"`
-	} `json:"local"`
-}
 
 func providerMaturityContractError(format string, args ...any) error {
 	return fmt.Errorf("%w: %s", errProviderMaturityContract, fmt.Sprintf(format, args...))
@@ -35,60 +27,40 @@ func classifyProviderParseFailure(err error) shared.FailureClass {
 	return shared.FailureClassSystem
 }
 
-func requireProviderAssessment(provider string, phase string, assessment *providerMaturityAssessment) error {
-	if assessment == nil {
-		return providerMaturityContractError("%s %s output is missing required assessment", provider, phase)
+func requireProviderAssessmentJSON(provider string, phase string, raw json.RawMessage) (*commonv1.MaturityAssessment, error) {
+	if len(raw) == 0 || bytes.Equal(raw, []byte("null")) {
+		return nil, providerMaturityContractError("%s %s output is missing required assessment", provider, phase)
 	}
-	if strings.TrimSpace(assessment.Scenario) == "" {
-		return providerMaturityContractError("%s assessment.scenario is required", provider)
+	var msg commonv1.MaturityAssessment
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(raw, &msg); err != nil {
+		return nil, providerMaturityContractError("%s %s assessment is malformed: %v", provider, phase, err)
 	}
-	if strings.TrimSpace(assessment.Provider) == "" {
-		return providerMaturityContractError("%s assessment.provider is required", provider)
+	if err := requireProtoProviderAssessment(provider, phase, &msg); err != nil {
+		return nil, err
 	}
-	if strings.TrimSpace(assessment.Phase) == "" {
-		return providerMaturityContractError("%s assessment.phase is required", provider)
-	}
-	if strings.TrimSpace(assessment.Version) == "" {
-		return providerMaturityContractError("%s assessment.version is required", provider)
-	}
-	if strings.TrimSpace(assessment.Local.CurrentLevel) == "" {
-		return providerMaturityContractError("%s assessment.local.current_level is required", provider)
-	}
-	return nil
+	return &msg, nil
 }
 
-func localMaturitySummary(assessment *providerMaturityAssessment) (current string, next string) {
-	if assessment == nil {
-		return "", ""
-	}
-	return assessment.Local.CurrentLevel, assessment.Local.NextLevel
-}
-
-func requireProtoProviderAssessment(provider string, phase string, assessment *commonv1.MaturityAssessment) error {
-	if assessment == nil {
-		return providerMaturityContractError("%s %s output is missing required assessment", provider, phase)
-	}
-	if strings.TrimSpace(assessment.GetScenario()) == "" {
-		return providerMaturityContractError("%s assessment.scenario is required", provider)
-	}
-	if strings.TrimSpace(assessment.GetProvider()) == "" {
-		return providerMaturityContractError("%s assessment.provider is required", provider)
-	}
-	if strings.TrimSpace(assessment.GetPhase()) == "" {
-		return providerMaturityContractError("%s assessment.phase is required", provider)
-	}
-	if strings.TrimSpace(assessment.GetVersion()) == "" {
-		return providerMaturityContractError("%s assessment.version is required", provider)
-	}
-	if strings.TrimSpace(assessment.GetLocal().GetCurrentLevel()) == "" {
-		return providerMaturityContractError("%s assessment.local.current_level is required", provider)
-	}
-	return nil
-}
-
-func protoLocalMaturitySummary(assessment *commonv1.MaturityAssessment) (current string, next string) {
+func localMaturitySummary(assessment *commonv1.MaturityAssessment) (current string, next string) {
 	if assessment == nil {
 		return "", ""
 	}
 	return assessment.GetLocal().GetCurrentLevel(), assessment.GetLocal().GetNextLevel()
+}
+
+func requireProtoProviderAssessment(provider string, phase string, assessment *commonv1.MaturityAssessment) error {
+	if err := assessmentpkgValidate(assessment); err != nil {
+		return providerMaturityContractError("%s %s assessment is invalid: %v", provider, phase, err)
+	}
+	if got := strings.TrimSpace(assessment.GetProvider()); got != provider {
+		return providerMaturityContractError("%s %s assessment.provider=%q, want %q", provider, phase, got, provider)
+	}
+	if got := strings.TrimSpace(assessment.GetPhase()); got != phase {
+		return providerMaturityContractError("%s %s assessment.phase=%q, want %q", provider, phase, got, phase)
+	}
+	return nil
+}
+
+func assessmentpkgValidate(a *commonv1.MaturityAssessment) error {
+	return assessment.ValidateAssessment(a)
 }

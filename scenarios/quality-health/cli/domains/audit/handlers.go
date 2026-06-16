@@ -48,14 +48,19 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 	if len(results) == 0 {
 		results = append(results, "No static-quality findings.")
 	}
-	err = cliapp.RenderProtoList(ctx, msg, cliapp.ListReport{
+	human := cliapp.ListReport{
 		Summary: []string{
 			fmt.Sprintf("%s (%s): %d error(s), %d warning(s), %d autofixable, maturity %s", msg.GetScenario(), msg.GetStatus(), msg.GetCounts().GetErrors(), msg.GetCounts().GetWarnings(), msg.GetCounts().GetAutofixableCount(), msg.GetMaturity().GetLabel()),
 		},
 		ResultsHeading: "Findings",
 		Results:        results,
 		RetrievalHints: msg.GetNextSteps(),
-	})
+	}
+	if maturity := cliapp.BuildMaturityListReport(msg.GetAssessment()); maturity.Summary != nil {
+		human.Summary = append(human.Summary, maturity.Summary...)
+		human.RetrievalHints = append(human.RetrievalHints, maturity.RetrievalHints...)
+	}
+	err = cliapp.RenderProtoList(ctx, msg, human)
 	if err != nil {
 		return err
 	}

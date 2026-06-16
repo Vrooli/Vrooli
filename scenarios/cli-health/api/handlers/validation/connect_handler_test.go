@@ -88,7 +88,10 @@ func TestBuildMaturityAssessmentMapsCLIFindings(t *testing.T) {
 			Suggestion: "fix method",
 		}},
 	}
-	got := buildMaturityAssessment(report, spec)
+	got, err := buildMaturityAssessment(report, spec)
+	if err != nil {
+		t.Fatalf("buildMaturityAssessment returned error: %v", err)
+	}
 	if got.GetProvider() != "cli-health" || got.GetPhase() != "contracts" {
 		t.Fatalf("assessment identity = %s/%s, want cli-health/contracts", got.GetProvider(), got.GetPhase())
 	}

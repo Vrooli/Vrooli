@@ -1,0 +1,232 @@
+{
+  "provider": "proto-health",
+  "phase": "proto",
+  "version": "1.0.0",
+  "levels": [
+    {
+      "id": "L0",
+      "name": "No proto surface",
+      "description": "The scenario does not expose a readable scenario-scoped proto surface.",
+      "entry_criteria": ["Scenario exists in the repository"],
+      "exit_criteria": ["Scenario proto files are discoverable in packages/proto/schemas/<scenario>/"]
+    },
+    {
+      "id": "L1",
+      "name": "Organized proto packages",
+      "description": "Proto files use the expected scenario package, version directory, domain placement, and supported annotations.",
+      "entry_criteria": ["Proto files are discoverable"],
+      "exit_criteria": ["Packages, versions, domains, annotations, and shared type placement follow the proto style guide"]
+    },
+    {
+      "id": "L2",
+      "name": "Generated artifacts synchronized",
+      "description": "Committed generated artifacts and descriptor output are in sync with schema sources.",
+      "entry_criteria": ["Proto packages are organized"],
+      "exit_criteria": ["Generated Go, Python, TypeScript, and descriptor artifacts match schema sources"]
+    },
+    {
+      "id": "L3",
+      "name": "Transport world declared",
+      "description": "The proto surface avoids hand-rolled transport drift and has explicit health proto coverage.",
+      "entry_criteria": ["Generated artifacts are synchronized"],
+      "exit_criteria": ["Transport usage is generated/proto-backed and health contracts are present where required"]
+    },
+    {
+      "id": "L4",
+      "name": "Endpoint proof aligned",
+      "description": "REST exceptions and generated proto adoption are backed by code-facts proof instead of declarations alone.",
+      "entry_criteria": ["Transport world is clear"],
+      "exit_criteria": ["Proto adoption and REST exception endpoint payloads have proven, non-contradictory implementation evidence"]
+    },
+    {
+      "id": "L5",
+      "name": "Fleet-ready proto surface",
+      "description": "The proto surface is clean enough for fleet dependency analysis and reuse/search consumers.",
+      "entry_criteria": ["Endpoint proof is aligned"],
+      "exit_criteria": ["No dependency, import, unused-type, or fleet-surface hints remain"]
+    }
+  ],
+  "findings": {
+    "proto.code_facts_unavailable": {
+      "local_level_impact": "L4",
+      "global_impact": "advisory",
+      "dimension": "proto-health",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["proto-contract-audit"]
+    },
+    "proto.cross_domain_import": {
+      "local_level_impact": "L5",
+      "global_impact": "evolvability_gap",
+      "dimension": "proto-health",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["proto-contract-audit", "screaming-architecture-audit"]
+    },
+    "proto.cycle": {
+      "local_level_impact": "L5",
+      "global_impact": "evolvability_gap",
+      "dimension": "cycles",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["proto-contract-audit", "screaming-architecture-audit"]
+    },
+    "proto.domain_mismatch": {
+      "local_level_impact": "L1",
+      "global_impact": "evolvability_gap",
+      "dimension": "proto-health",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["proto-contract-audit"]
+    },
+    "proto.endpoint_proof_contradicted": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "proto-health",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["proto-contract-audit", "api-steer"]
+    },
+    "proto.endpoint_proof_missing": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "proto-health",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["proto-contract-audit", "api-steer"]
+    },
+    "proto.endpoint_proof_unsupported": {
+      "local_level_impact": "L4",
+      "global_impact": "advisory",
+      "dimension": "proto-health",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["proto-contract-audit"]
+    },
+    "proto.gen_out_of_sync": {
+      "local_level_impact": "L2",
+      "global_impact": "foundation_blocker",
+      "dimension": "proto-health",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["proto-contract-audit"]
+    },
+    "proto.hand_rolled_transport": {
+      "local_level_impact": "L3",
+      "global_impact": "evolvability_gap",
+      "dimension": "proto-health",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["proto-contract-audit", "api-steer"]
+    },
+    "proto.import_kind_unknown": {
+      "local_level_impact": "L5",
+      "global_impact": "evolvability_gap",
+      "dimension": "proto-health",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["proto-contract-audit"]
+    },
+    "proto.missing_health_proto": {
+      "local_level_impact": "L3",
+      "global_impact": "hardening_gap",
+      "dimension": "proto-health",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["proto-contract-audit", "test"]
+    },
+    "proto.package_mismatch": {
+      "local_level_impact": "L1",
+      "global_impact": "evolvability_gap",
+      "dimension": "proto-health",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["proto-contract-audit"]
+    },
+    "proto.possibly_unused": {
+      "local_level_impact": "L5",
+      "global_impact": "advisory",
+      "dimension": "proto-health",
+      "severity_default": "SEVERITY_INFO",
+      "recommended_skill_ids": ["proto-contract-audit"]
+    },
+    "proto.proto_adoption_contradicted": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "proto-health",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["proto-contract-audit", "api-steer"]
+    },
+    "proto.proto_adoption_missing": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "proto-health",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["proto-contract-audit", "api-steer"]
+    },
+    "proto.proto_adoption_unsupported": {
+      "local_level_impact": "L4",
+      "global_impact": "advisory",
+      "dimension": "proto-health",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["proto-contract-audit"]
+    },
+    "proto.rest_payload_invalid_conformance": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "proto-health",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["proto-contract-audit", "api-steer"]
+    },
+    "proto.rest_payload_missing_declaration": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "proto-health",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["proto-contract-audit", "api-steer"]
+    },
+    "proto.rest_payload_unknown_message": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "proto-health",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["proto-contract-audit", "api-steer"]
+    },
+    "proto.shared_type_misplaced": {
+      "local_level_impact": "L1",
+      "global_impact": "evolvability_gap",
+      "dimension": "proto-health",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["proto-contract-audit"]
+    },
+    "proto.stability_dependency_mismatch": {
+      "local_level_impact": "L5",
+      "global_impact": "evolvability_gap",
+      "dimension": "proto-health",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["proto-contract-audit", "dependency-direction-audit"]
+    },
+    "proto.stability_dishonest": {
+      "local_level_impact": "L1",
+      "global_impact": "evolvability_gap",
+      "dimension": "proto-health",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["proto-contract-audit"]
+    },
+    "proto.template_source": {
+      "local_level_impact": "L1",
+      "global_impact": "advisory",
+      "dimension": "proto-health",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["proto-contract-audit"]
+    },
+    "proto.unsupported_annotation": {
+      "local_level_impact": "L1",
+      "global_impact": "advisory",
+      "dimension": "proto-health",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["proto-contract-audit"]
+    },
+    "proto.version_naming": {
+      "local_level_impact": "L1",
+      "global_impact": "advisory",
+      "dimension": "proto-health",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["proto-contract-audit"]
+    }
+  },
+  "fallback": {
+    "local_level_impact": "L1",
+    "global_impact": "unknown",
+    "dimension": "proto-health",
+    "severity_default": "SEVERITY_WARNING"
+  }
+}

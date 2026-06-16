@@ -1,21 +1,33 @@
 package audit
 
 import (
+	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 
 	internalaudit "quality-health/internal/audit"
 	"quality-health/internal/module"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/maturity-go/assessment"
 	auditv1 "github.com/vrooli/vrooli/packages/proto/gen/go/quality-health/v1/audit"
 	auditconnect "github.com/vrooli/vrooli/packages/proto/gen/go/quality-health/v1/audit/audit_v1connect"
 )
 
 var ProtoFile = auditv1.File_quality_health_v1_audit_audit_proto
 
-func Module(logger *log.Logger) module.Module {
+func Module(logger *log.Logger, repoRoot string) module.Module {
 	svc := internalaudit.New(nil)
-	connectPath, connectHandler := auditconnect.NewAuditServiceHandler(NewHandler(svc, logger))
+	spec, err := loadMaturitySpec(repoRoot)
+	if err != nil && logger != nil {
+		logger.Printf("audit: maturity assessment unavailable: %v", err)
+	}
+	connectPath, connectHandler := auditconnect.NewAuditServiceHandler(NewHandlerWithDeps(Deps{
+		Service:      svc,
+		Logger:       logger,
+		MaturitySpec: spec,
+	}))
 	return module.Module{
 		Name: "audit",
 		Mount: func(r *mux.Router) {
@@ -23,6 +35,15 @@ func Module(logger *log.Logger) module.Module {
 		},
 		Endpoints: Endpoints,
 	}
+}
+
+func loadMaturitySpec(repoRoot string) (*assessment.Spec, error) {
+	path := filepath.Join(repoRoot, "scenarios", "quality-health", ".vrooli", "maturity.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", path, err)
+	}
+	return assessment.ParseSpec(raw)
 }
 
 func Schema() string { return "" }
@@ -36,7 +57,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Description: "Discovers scenario surfaces through Code Facts, evaluates static-quality contracts, optionally runs lint/type commands, and returns normalized findings and maturity.",
 		Category:    "audit",
 		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "path": "string", "rule_ids": "array<string>", "surfaces": "array<string>"}},
-		Response:    &module.Schema{Type: "object", Properties: map[string]string{"status": "string", "surfaces": "array<QualitySurface>", "findings": "array<QualityFinding>", "maturity": "MaturitySummary"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"status": "string", "surfaces": "array<QualitySurface>", "findings": "array<QualityFinding>", "maturity": "MaturitySummary", "assessment": "common.v1.MaturityAssessment"}},
 		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Scenario/path is missing or cannot be resolved"}},
 		CLIMapping:  &module.CLIMapping{Command: "quality-health audit run", Args: []string{"<scenario>", "--json"}},
 	},

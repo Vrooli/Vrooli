@@ -14,6 +14,7 @@ import (
 	"test-genie/internal/shared"
 
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 // QualitySummary mirrors quality-health's audit summary so phase pointers keep
@@ -62,13 +63,14 @@ type qualityFinding struct {
 }
 
 type qualityReport struct {
-	RunID      string                      `json:"run_id"`
-	Scenario   string                      `json:"scenario"`
-	Status     string                      `json:"status"`
-	Summary    string                      `json:"summary"`
-	Findings   []qualityFinding            `json:"findings"`
-	Assessment *providerMaturityAssessment `json:"assessment"`
-	Counts     struct {
+	RunID         string                       `json:"run_id"`
+	Scenario      string                       `json:"scenario"`
+	Status        string                       `json:"status"`
+	Summary       string                       `json:"summary"`
+	Findings      []qualityFinding             `json:"findings"`
+	AssessmentRaw json.RawMessage              `json:"assessment"`
+	Assessment    *commonv1.MaturityAssessment `json:"-"`
+	Counts        struct {
 		Errors           int `json:"errors"`
 		Warnings         int `json:"warnings"`
 		Infos            int `json:"infos"`
@@ -203,9 +205,11 @@ func parseQualityOutput(raw []byte) (*qualityReport, error) {
 	if err := json.Unmarshal(raw, &rep); err != nil {
 		return nil, err
 	}
-	if err := requireProviderAssessment("quality-health", "quality", rep.Assessment); err != nil {
+	assessment, err := requireProviderAssessmentJSON("quality-health", "quality", rep.AssessmentRaw)
+	if err != nil {
 		return nil, err
 	}
+	rep.Assessment = assessment
 	return &rep, nil
 }
 

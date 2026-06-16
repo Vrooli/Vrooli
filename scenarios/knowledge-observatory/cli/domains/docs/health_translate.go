@@ -36,6 +36,7 @@ func protoToHealthResponse(in *kov1.DocHealthResponse) HealthResponse {
 	out.ContentIssues = append(out.ContentIssues, findingsToWarnings(in.GetContentFindings(), "content")...)
 	out.ContentIssues = append(out.ContentIssues, findingsToWarnings(in.GetReferenceFindings(), "reference")...)
 	out.ContentIssues = append(out.ContentIssues, findingsToWarnings(in.GetManifestFindings(), "manifest")...)
+	out.Assessment = in.GetAssessment()
 	out.CanAutoFix = len(out.MisplacedDocs) > 0
 	return out
 }

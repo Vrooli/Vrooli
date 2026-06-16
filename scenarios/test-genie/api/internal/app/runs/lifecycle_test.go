@@ -130,6 +130,30 @@ func TestLifecycleRPC_Abort(t *testing.T) {
 	}
 }
 
+// TestKeepFollowEvent proves the per-follower heartbeat filter drops ONLY
+// phase_heartbeat events (and only when suppression is on), never phase
+// transitions or the terminal run_completed.
+func TestKeepFollowEvent(t *testing.T) {
+	cases := []struct {
+		kind     string
+		suppress bool
+		want     bool
+	}{
+		{runmanager.EventPhaseHeartbeat, true, false}, // dropped when suppressing
+		{runmanager.EventPhaseHeartbeat, false, true}, // kept for an interactive follower
+		{runmanager.EventPhaseStarted, true, true},    // phase transitions always survive
+		{runmanager.EventPhaseCompleted, true, true},  // ...
+		{runmanager.EventPhaseFailed, true, true},     // ...
+		{runmanager.EventRunCompleted, true, true},    // the verdict always survives
+		{runmanager.EventPhaseProgress, true, true},   // progress always survives
+	}
+	for _, tc := range cases {
+		if got := keepFollowEvent(runmanager.Event{Kind: tc.kind}, tc.suppress); got != tc.want {
+			t.Errorf("keepFollowEvent(%q, suppress=%v) = %v, want %v", tc.kind, tc.suppress, got, tc.want)
+		}
+	}
+}
+
 func TestLifecycleRPC_StartRejectsEmptyScenario(t *testing.T) {
 	svc := NewService(t.TempDir(), runmanager.New(newRPCFake(t.TempDir()), t.TempDir()), nil)
 	if _, err := svc.StartRun(context.Background(), connect.NewRequest(&runspb.StartRunRequest{})); err == nil {

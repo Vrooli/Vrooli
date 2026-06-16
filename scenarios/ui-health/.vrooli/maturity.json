@@ -1,0 +1,211 @@
+{
+  "provider": "ui-health",
+  "phase": "ui-health",
+  "version": "1.0.0",
+  "levels": [
+    {
+      "id": "L0",
+      "name": "No UI surface",
+      "description": "The target scenario has no UI surface or no readable UI manifest context.",
+      "entry_criteria": ["Scenario exists in the repository"],
+      "exit_criteria": ["A UI surface and service template metadata are discoverable"]
+    },
+    {
+      "id": "L1",
+      "name": "Template manifest readable",
+      "description": "The scenario resolves a template UI manifest with the expected scenario-ui contract.",
+      "entry_criteria": ["UI surface exists"],
+      "exit_criteria": ["service.json and template ui/manifest.json can be read and parsed"]
+    },
+    {
+      "id": "L2",
+      "name": "Manifest contract valid",
+      "description": "The template manifest declares the expected contract kind, schema, defaults, and slot map.",
+      "entry_criteria": ["Template manifest is readable"],
+      "exit_criteria": ["Manifest contract metadata and required slots are valid"]
+    },
+    {
+      "id": "L3",
+      "name": "Overlay compatible",
+      "description": "Scenario overlay manifests parse correctly and only override template-owned slots.",
+      "entry_criteria": ["Manifest contract is valid"],
+      "exit_criteria": ["No overlay parse or unknown-slot findings remain"]
+    },
+    {
+      "id": "L4",
+      "name": "Slot filesystem aligned",
+      "description": "Declared UI slots map to existing directories and path-pattern vocabulary.",
+      "entry_criteria": ["Overlay is compatible"],
+      "exit_criteria": ["Slot dirs, placeholder parents, and path patterns align with the on-disk UI"]
+    },
+    {
+      "id": "L5",
+      "name": "Discoverable UI surface",
+      "description": "The UI manifest is clean enough for UI-surface indexing, overlays, and downstream widget/component discovery.",
+      "entry_criteria": ["Slot filesystem is aligned"],
+      "exit_criteria": ["No ui-health validation findings block UI discoverability"]
+    }
+  ],
+  "findings": {
+    "no_ui_surface": {
+      "local_level_impact": "L0",
+      "global_impact": "advisory",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_INFO",
+      "recommended_skill_ids": ["ecosystem-fit"]
+    },
+    "ui_predates_template_layout": {
+      "local_level_impact": "L4",
+      "global_impact": "advisory",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["ux", "react-coherence"]
+    },
+    "service_json_path_invalid": {
+      "local_level_impact": "L1",
+      "global_impact": "foundation_blocker",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["ecosystem-fit"]
+    },
+    "service_json_missing": {
+      "local_level_impact": "L1",
+      "global_impact": "foundation_blocker",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["ecosystem-fit"]
+    },
+    "service_json_invalid": {
+      "local_level_impact": "L1",
+      "global_impact": "foundation_blocker",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["ecosystem-fit"]
+    },
+    "template_id_missing": {
+      "local_level_impact": "L1",
+      "global_impact": "advisory",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["ecosystem-fit", "react-coherence"]
+    },
+    "template_unknown": {
+      "local_level_impact": "L1",
+      "global_impact": "foundation_blocker",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["ecosystem-fit"]
+    },
+    "template_manifest_invalid": {
+      "local_level_impact": "L1",
+      "global_impact": "foundation_blocker",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["react-coherence"]
+    },
+    "contract_kind_mismatch": {
+      "local_level_impact": "L2",
+      "global_impact": "evolvability_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["react-coherence"]
+    },
+    "contract_schema_mismatch": {
+      "local_level_impact": "L2",
+      "global_impact": "evolvability_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["react-coherence"]
+    },
+    "slots_empty": {
+      "local_level_impact": "L2",
+      "global_impact": "evolvability_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["react-coherence"]
+    },
+    "overlay_read_failed": {
+      "local_level_impact": "L3",
+      "global_impact": "foundation_blocker",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["react-coherence"]
+    },
+    "overlay_invalid": {
+      "local_level_impact": "L3",
+      "global_impact": "evolvability_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["react-coherence"]
+    },
+    "overlay_unknown_slot": {
+      "local_level_impact": "L3",
+      "global_impact": "evolvability_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["react-coherence", "ux"]
+    },
+    "slot_dir_empty": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["react-coherence", "ux"]
+    },
+    "slot_dir_missing": {
+      "local_level_impact": "L4",
+      "global_impact": "hardening_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["react-coherence", "ux"]
+    },
+    "slot_dir_stat_failed": {
+      "local_level_impact": "L4",
+      "global_impact": "foundation_blocker",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["react-coherence"]
+    },
+    "slot_dir_not_directory": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["react-coherence", "ux"]
+    },
+    "slot_parent_dir_missing": {
+      "local_level_impact": "L4",
+      "global_impact": "hardening_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["react-coherence", "ux"]
+    },
+    "slot_instances_empty": {
+      "local_level_impact": "L4",
+      "global_impact": "advisory",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_INFO",
+      "recommended_skill_ids": ["react-coherence"]
+    },
+    "path_pattern_unknown_token": {
+      "local_level_impact": "L4",
+      "global_impact": "advisory",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["react-coherence", "ux"]
+    },
+    "slot_dir_overlap_equal": {
+      "local_level_impact": "L4",
+      "global_impact": "hardening_gap",
+      "dimension": "ui",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["react-coherence", "ux"]
+    }
+  },
+  "fallback": {
+    "local_level_impact": "L4",
+    "global_impact": "evolvability_gap",
+    "dimension": "ui",
+    "severity_default": "SEVERITY_ERROR"
+  }
+}

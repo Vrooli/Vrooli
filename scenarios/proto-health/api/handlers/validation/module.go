@@ -1,12 +1,15 @@
 package validation
 
 import (
+	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
+	"github.com/vrooli/maturity-go/assessment"
 
 	"proto-health/internal/codefacts"
 	"proto-health/internal/module"
@@ -33,9 +36,14 @@ func Module(logger *log.Logger, repoRoot string) module.Module {
 		RepoRoot:       repoRoot,
 		CodeFacts:      codefacts.NewClient(nil, http.DefaultClient),
 	})
+	spec, err := loadMaturitySpec(repoRoot)
+	if err != nil && logger != nil {
+		logger.Printf("validation: maturity assessment disabled: %v", err)
+	}
 	connectPath, connectHandler := validationconnect.NewProtoHealthServiceHandler(NewConnectHandler(Deps{
-		Logger:    logger,
-		Validator: validator,
+		Logger:       logger,
+		Validator:    validator,
+		MaturitySpec: spec,
 	}))
 	return module.Module{
 		Name: "validation",
@@ -44,6 +52,15 @@ func Module(logger *log.Logger, repoRoot string) module.Module {
 		},
 		Endpoints: Endpoints,
 	}
+}
+
+func loadMaturitySpec(repoRoot string) (*assessment.Spec, error) {
+	path := filepath.Join(repoRoot, "scenarios", "proto-health", ".vrooli", "maturity.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", path, err)
+	}
+	return assessment.ParseSpec(raw)
 }
 
 func Schema() string { return "" }
@@ -63,10 +80,11 @@ var Endpoints = []module.EndpointDescriptor{
 		Response: &module.Schema{
 			Type: "object",
 			Properties: map[string]string{
-				"scenario": "string",
-				"passed":   "boolean",
-				"findings": "array<Finding>",
-				"summary":  "Summary",
+				"scenario":   "string",
+				"passed":     "boolean",
+				"findings":   "array<Finding>",
+				"summary":    "Summary",
+				"assessment": "common.v1.MaturityAssessment",
 			},
 		},
 		Errors: []module.ErrorDesc{

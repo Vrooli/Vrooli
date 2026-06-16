@@ -10,7 +10,7 @@ tidiness-manager scan <scenario-or-path> --type light --timeout 120
 tidiness-manager scan <scenario> --type smart --file api/main.go --campaign-id 123
 ```
 
-`tidiness` is the default and returns maintainability findings. `light` is retained for metrics compatibility. `smart` requires explicit files.
+`tidiness` is the default and returns maintainability findings plus the provider-local maturity summary. `light` is retained for metrics compatibility. `smart` requires explicit files.
 
 ## issues
 

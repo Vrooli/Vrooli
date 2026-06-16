@@ -12,6 +12,7 @@ require (
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
 	github.com/testcontainers/testcontainers-go v0.31.0
 	github.com/vrooli/freshness-go v0.0.0
+	github.com/vrooli/maturity-go v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/vrooli-cli-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
@@ -36,6 +37,8 @@ require (
 )
 
 replace github.com/vrooli/freshness-go => ../../../packages/freshness-go
+
+replace github.com/vrooli/maturity-go => ../../../packages/maturity-go
 
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 

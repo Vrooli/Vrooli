@@ -25,10 +25,10 @@ Knowledge Observatory provides real-time introspection and management of Vrooli'
 
 ### 🔴 P0 – Must ship for viability
 
-- [x] OT-P0-001 | Semantic search across Qdrant | Natural-language search returning ranked results across collections
+- [ ] OT-P0-001 | Semantic search across Qdrant | Natural-language search returning ranked results across collections
 - [x] OT-P0-002 | Knowledge quality metrics | Coherence, freshness, redundancy, and coverage metrics per collection
 - [x] OT-P0-003 | Knowledge graph access | API-powered graph endpoint for semantic relationships
-- [x] OT-P0-004 | API endpoints for knowledge queries | Stable REST endpoints for search, health, and graph queries
+- [ ] OT-P0-004 | API endpoints for knowledge queries | Stable REST endpoints for search, health, and graph queries
 - [x] OT-P0-005 | CLI exploration commands | CLI workflows for search, health, and graph inspection
 - [x] OT-P0-006 | Operator dashboard UI | Modern control-tower UI with search, metrics, and health views
 

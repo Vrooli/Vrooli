@@ -1,0 +1,134 @@
+{
+  "provider": "scenario-auditor",
+  "phase": "standards",
+  "version": "1.0.0",
+  "levels": [
+    {
+      "id": "L0",
+      "name": "No standards target",
+      "description": "Scenario Auditor cannot resolve a scenario or readable source tree for standards scanning.",
+      "entry_criteria": ["Scenario name is provided"],
+      "exit_criteria": ["The target scenario resolves to readable files"]
+    },
+    {
+      "id": "L1",
+      "name": "Standards scan available",
+      "description": "The standards provider can start, complete, and summarize a scan for the target scenario.",
+      "entry_criteria": ["Target source tree is readable"],
+      "exit_criteria": ["A standards scan completes with structured violation data"]
+    },
+    {
+      "id": "L2",
+      "name": "Scenario structure compliant",
+      "description": "Required scenario layout, service metadata, lifecycle health, and port conventions are present enough for ecosystem tools.",
+      "entry_criteria": ["Standards scan completes"],
+      "exit_criteria": ["No structure or configuration standards violations block lifecycle and discovery"]
+    },
+    {
+      "id": "L3",
+      "name": "Service reliability standards compliant",
+      "description": "API, CLI, database, logging, and process-management standards are met well enough for repeated local operation.",
+      "entry_criteria": ["Scenario structure is compliant"],
+      "exit_criteria": ["No service reliability standards violations block development operations"]
+    },
+    {
+      "id": "L4",
+      "name": "Agent and testing standards compliant",
+      "description": "Agent-facing routing, test database, and automation standards are healthy enough for delegated improvement workflows.",
+      "entry_criteria": ["Service reliability standards are compliant"],
+      "exit_criteria": ["No agent or testing standards violations block Test Genie and playbook workflows"]
+    },
+    {
+      "id": "L5",
+      "name": "Fleet-ready standards posture",
+      "description": "The scenario has no standards violations that block fleet validation, recurring standards scans, or automated remediation campaigns.",
+      "entry_criteria": ["Agent and testing standards are compliant"],
+      "exit_criteria": ["No Scenario Auditor standards findings block fleet validation"]
+    }
+  ],
+  "findings": {
+    "config_service_health": {
+      "local_level_impact": "L2",
+      "global_impact": "foundation_blocker",
+      "dimension": "standards",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["ecosystem-fit", "cross-platform-readiness"]
+    },
+    "config_service_ports": {
+      "local_level_impact": "L2",
+      "global_impact": "foundation_blocker",
+      "dimension": "standards",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["ecosystem-fit", "cross-platform-readiness"]
+    },
+    "config_service_port_usage": {
+      "local_level_impact": "L2",
+      "global_impact": "evolvability_gap",
+      "dimension": "standards",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["cross-platform-readiness"]
+    },
+    "required_layout": {
+      "local_level_impact": "L2",
+      "global_impact": "foundation_blocker",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["ecosystem-fit"]
+    },
+    "routed-test-db-v1": {
+      "local_level_impact": "L4",
+      "global_impact": "hardening_gap",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["test", "storage-steer"]
+    },
+    "routed_database_drivers": {
+      "local_level_impact": "L4",
+      "global_impact": "hardening_gap",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["test", "storage-steer"]
+    },
+    "routed_database_handle_capture": {
+      "local_level_impact": "L4",
+      "global_impact": "hardening_gap",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["test", "storage-steer"]
+    },
+    "database_backoff": {
+      "local_level_impact": "L3",
+      "global_impact": "hardening_gap",
+      "dimension": "standards",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["storage-steer", "cross-platform-readiness"]
+    },
+    "server_run": {
+      "local_level_impact": "L3",
+      "global_impact": "foundation_blocker",
+      "dimension": "standards",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["api-steer", "cross-platform-readiness"]
+    },
+    "application_logging": {
+      "local_level_impact": "L3",
+      "global_impact": "hardening_gap",
+      "dimension": "standards",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["api-steer"]
+    },
+    "env_validation": {
+      "local_level_impact": "L3",
+      "global_impact": "safety_blocker",
+      "dimension": "standards",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["security", "api-steer"]
+    }
+  },
+  "fallback": {
+    "local_level_impact": "L3",
+    "global_impact": "evolvability_gap",
+    "dimension": "standards",
+    "severity_default": "SEVERITY_WARNING"
+  }
+}

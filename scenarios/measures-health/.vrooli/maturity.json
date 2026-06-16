@@ -1,0 +1,120 @@
+{
+  "provider": "measures-health",
+  "phase": "measures",
+  "version": "1.0.0",
+  "levels": [
+    {
+      "id": "L0",
+      "name": "No readable measures contract",
+      "description": "The scenario has not exposed enough structure for measures-health to reason about measures adoption.",
+      "entry_criteria": ["Scenario exists in the repository"],
+      "exit_criteria": ["The CLI manifest and repository contract can be read"]
+    },
+    {
+      "id": "L1",
+      "name": "Expected stateful domains derived",
+      "description": "Measures-health can derive the scenario's stateful domains from the canonical architecture surface or a documented fallback.",
+      "entry_criteria": ["CLI manifest is readable"],
+      "exit_criteria": ["Stateful domains are derived from packages/proto/schemas/<scenario>/v1/domain or an explicit fallback"]
+    },
+    {
+      "id": "L2",
+      "name": "Domains covered or waived",
+      "description": "Every expected stateful domain has a declared measure or a deliberate waiver.",
+      "entry_criteria": ["Expected stateful domains are known"],
+      "exit_criteria": ["No stateful domain is uncovered and no persisted substrate is undeclared"]
+    },
+    {
+      "id": "L3",
+      "name": "Measures assemble",
+      "description": "Declared measures assemble against their bound proto request schemas.",
+      "entry_criteria": ["Stateful domains are covered or waived"],
+      "exit_criteria": ["Every declared measure assembles against its proto binding"]
+    },
+    {
+      "id": "L4",
+      "name": "Full-tier coverage",
+      "description": "Covered domains are backed by full-tier measures with deterministic or bounded parameter extraction.",
+      "entry_criteria": ["Declared measures assemble"],
+      "exit_criteria": ["All covered domains have full-tier measures"]
+    },
+    {
+      "id": "L5",
+      "name": "Behavioral and indexed",
+      "description": "Declared measures pass the behavioral probe and are ready for fleet/search surfaces.",
+      "entry_criteria": ["Measures are full tier"],
+      "exit_criteria": ["Behavioral probe passes and measure declarations are suitable for indexed search"]
+    }
+  ],
+  "findings": {
+    "measures.architecture-fallback": {
+      "local_level_impact": "L1",
+      "global_impact": "advisory",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_INFO",
+      "recommended_skill_ids": ["screaming-architecture-audit", "measures-adoption"]
+    },
+    "measures.hollow-declaration": {
+      "local_level_impact": "L5",
+      "global_impact": "capability_gap",
+      "dimension": "measures",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["measures-adoption", "test"]
+    },
+    "measures.illegal-domain-declaration": {
+      "local_level_impact": "L1",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["screaming-architecture-audit", "measures-adoption"]
+    },
+    "measures.malformed-declaration": {
+      "local_level_impact": "L3",
+      "global_impact": "capability_gap",
+      "dimension": "measures",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["measures-adoption", "api-steer"]
+    },
+    "measures.stale-waiver": {
+      "local_level_impact": "L2",
+      "global_impact": "advisory",
+      "dimension": "measures",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["measures-adoption"]
+    },
+    "measures.tier-fallback": {
+      "local_level_impact": "L4",
+      "global_impact": "hardening_gap",
+      "dimension": "measures",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["measures-adoption"]
+    },
+    "measures.tier-partial": {
+      "local_level_impact": "L4",
+      "global_impact": "advisory",
+      "dimension": "measures",
+      "severity_default": "SEVERITY_INFO",
+      "recommended_skill_ids": ["measures-adoption"]
+    },
+    "measures.uncovered-domain": {
+      "local_level_impact": "L2",
+      "global_impact": "capability_gap",
+      "dimension": "measures",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["measures-adoption"]
+    },
+    "measures.undeclared-substrate": {
+      "local_level_impact": "L2",
+      "global_impact": "capability_gap",
+      "dimension": "measures",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["measures-adoption", "screaming-architecture-audit"]
+    }
+  },
+  "fallback": {
+    "local_level_impact": "L1",
+    "global_impact": "unknown",
+    "dimension": "measures",
+    "severity_default": "SEVERITY_WARNING"
+  }
+}

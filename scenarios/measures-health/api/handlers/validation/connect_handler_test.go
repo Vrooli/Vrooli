@@ -6,9 +6,11 @@ import (
 
 	"connectrpc.com/connect"
 
+	"github.com/vrooli/maturity-go/assessment"
 	"github.com/vrooli/measures-go/manifestscan"
 	internal "measures-health/internal/validation"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/measures-health/v1/validation"
 )
 
@@ -40,7 +42,7 @@ func TestValidateScenario_MapsReportToProto(t *testing.T) {
 			{RuleID: "measures.uncovered-domain", Severity: internal.SeverityError, Title: "x", Remediation: "y", Scanner: "coverage"},
 		},
 	}
-	h := NewConnectHandler(Deps{Validator: fakeValidator{rep: rep}})
+	h := NewConnectHandler(Deps{Validator: fakeValidator{rep: rep}, MaturitySpec: testMaturitySpec()})
 	resp, err := h.ValidateScenario(context.Background(), connect.NewRequest(&validationv1.ValidateScenarioRequest{Scenario: "swarm-manager"}))
 	if err != nil {
 		t.Fatal(err)
@@ -66,6 +68,19 @@ func TestValidateScenario_MapsReportToProto(t *testing.T) {
 	if f0.GetSeverity() != validationv1.Severity_SEVERITY_ERROR || f0.GetRuleId() != "measures.uncovered-domain" {
 		t.Fatalf("finding mapping wrong: %+v", f0)
 	}
+	assessment := m.GetAssessment()
+	if assessment.GetProvider() != "measures-health" || assessment.GetPhase() != "measures" {
+		t.Fatalf("assessment identity wrong: %+v", assessment)
+	}
+	if assessment.GetLocal().GetCurrentLevel() != "L1" || assessment.GetLocal().GetNextLevel() != "L2" {
+		t.Fatalf("assessment local maturity wrong: %+v", assessment.GetLocal())
+	}
+	if got := assessment.GetFindingsByGlobalImpact()["capability_gap"]; got != 1 {
+		t.Fatalf("global impact count = %d, want 1", got)
+	}
+	if assessment.GetFindings()[0].GetMaturity().GetGlobalImpact() != commonv1.GlobalImpact_GLOBAL_IMPACT_CAPABILITY_GAP {
+		t.Fatalf("finding maturity impact wrong: %+v", assessment.GetFindings()[0].GetMaturity())
+	}
 }
 
 func TestListFleetCoverage_MapsEntries(t *testing.T) {
@@ -82,5 +97,33 @@ func TestListFleetCoverage_MapsEntries(t *testing.T) {
 	}
 	if resp.Msg.GetEntries()[0].GetWorstTier() != validationv1.Tier_TIER_FULL {
 		t.Fatalf("tier mapping wrong: %+v", resp.Msg.GetEntries()[0])
+	}
+}
+
+func testMaturitySpec() *assessment.Spec {
+	return &assessment.Spec{
+		Provider: "measures-health",
+		Phase:    "measures",
+		Version:  "test",
+		Levels: []assessment.Level{
+			{ID: "L0", Name: "contract readable"},
+			{ID: "L1", Name: "domains derived"},
+			{ID: "L2", Name: "domains covered"},
+		},
+		Findings: map[string]assessment.FindingMapping{
+			"measures.uncovered-domain": {
+				LocalLevelImpact:    "L2",
+				GlobalImpact:        assessment.ImpactCapabilityGap,
+				Dimension:           "measures",
+				SeverityDefault:     "SEVERITY_ERROR",
+				RecommendedSkillIDs: []string{"measures-adoption"},
+			},
+		},
+		Fallback: assessment.FallbackPolicy{
+			LocalLevelImpact: "L1",
+			GlobalImpact:     assessment.ImpactUnknown,
+			Dimension:        "measures",
+			SeverityDefault:  "SEVERITY_WARNING",
+		},
 	}
 }

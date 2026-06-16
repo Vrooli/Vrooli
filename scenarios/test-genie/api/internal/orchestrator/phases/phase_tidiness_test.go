@@ -39,7 +39,7 @@ func TestTidinessPhaseMapsViolations(t *testing.T) {
 			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
-		_, _ = io.WriteString(w, `{"findings":[
+		_, _ = io.WriteString(w, `{"assessment":{"scenario":"demo","provider":"tidiness-manager","phase":"tidiness","version":"1.0.0","local":{"current_level":"L4","next_level":"L5"}},"findings":[
 			{"rule_id":"LONG_FILE","category":"length","severity":"medium","title":"large file","file_path":"api/server.go","line_number":1,"why_it_matters":"large files slow review","recommended_remediation":"split cohesive responsibilities"},
 			{"rule_id":"TECH_DEBT_MARKERS","category":"technical_debt","severity":"low","title":"many TODOs","file_path":"ui/App.tsx","recommended_remediation":"resolve stale markers"}
 		]}`)
@@ -66,7 +66,7 @@ func TestTidinessPhaseMapsViolations(t *testing.T) {
 
 func TestTidinessPhaseCleanScenario(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = io.WriteString(w, `{"violations":[]}`)
+		_, _ = io.WriteString(w, `{"assessment":{"scenario":"demo","provider":"tidiness-manager","phase":"tidiness","version":"1.0.0","local":{"current_level":"L5"}},"violations":[]}`)
 	}))
 	t.Cleanup(srv.Close)
 	withTidinessSeams(t, func(ctx context.Context) (string, error) { return srv.URL, nil })
@@ -74,5 +74,21 @@ func TestTidinessPhaseCleanScenario(t *testing.T) {
 	rep := runTidinessPhase(context.Background(), workspace.Environment{ScenarioName: "demo"}, io.Discard)
 	if rep.Err != nil || len(rep.Findings) != 0 {
 		t.Fatalf("clean scenario: err=%v findings=%d", rep.Err, len(rep.Findings))
+	}
+}
+
+func TestTidinessPhaseFailsMaturityContractWhenAssessmentMissing(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.WriteString(w, `{"findings":[]}`)
+	}))
+	t.Cleanup(srv.Close)
+	withTidinessSeams(t, func(ctx context.Context) (string, error) { return srv.URL, nil })
+
+	rep := runTidinessPhase(context.Background(), workspace.Environment{ScenarioName: "demo"}, io.Discard)
+	if rep.Err == nil {
+		t.Fatal("expected missing assessment to fail the tidiness phase")
+	}
+	if rep.FailureClassification != FailureClassMaturityContract {
+		t.Fatalf("FailureClassification = %q, want %q", rep.FailureClassification, FailureClassMaturityContract)
 	}
 }

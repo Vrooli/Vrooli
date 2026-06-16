@@ -65,13 +65,16 @@
       },
       "tests": {
         "name": "ui-health surfaces — starter baseline",
-        "description": "STARTER rank-centric baseline for the ui-health surfaces corpus: a few intent->surface queries plus a junk-rejection negative. The value is the history mechanism, not the thresholds — the ui-health owner should add expect_ids once real corpus surface ids are known. Positives assert expect_within_top_k (the dense ScoreThreshold of 0.55 already trims noise); the gibberish negative feeds the junk-rejection constraint, never the recall objective.",
+        "description": "STARTER rank-centric baseline for the ui-health surfaces corpus: a few intent->surface queries plus a junk-rejection negative. Positives assert the expected deterministic surface ids within the top results (the dense ScoreThreshold of 0.55 already trims noise); the gibberish negative feeds the junk-rejection constraint, never the recall objective.",
         "cases": [
           {
             "id": "settings-surface",
             "query": "where do I change settings",
             "tags": [
               "strong"
+            ],
+            "expect_ids": [
+              "e29284fc-fbed-53aa-bdaa-393f185ec1a3"
             ],
             "expect_within_top_k": 5
           },
@@ -81,6 +84,9 @@
             "tags": [
               "strong"
             ],
+            "expect_ids": [
+              "a6753018-739a-5171-9901-b24859ef6ab4"
+            ],
             "expect_within_top_k": 5
           },
           {
@@ -88,6 +94,9 @@
             "query": "health dashboard overview",
             "tags": [
               "strong"
+            ],
+            "expect_ids": [
+              "93a6c570-d40b-5b63-bb8e-43ff086fdb6f"
             ],
             "expect_within_top_k": 5
           },

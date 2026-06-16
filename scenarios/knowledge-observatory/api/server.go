@@ -25,6 +25,7 @@ import (
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/maturity-go/assessment"
 	searchregister "github.com/vrooli/searchregister-go"
 
 	knowledgeobservatoryv1connect "github.com/vrooli/vrooli/packages/proto/gen/go/knowledge-observatory/v1/knowledgeobservatoryv1connect"
@@ -75,6 +76,7 @@ type Server struct {
 
 	graphService         *graph.Service
 	docHealthService     *dochealth.Service
+	docHealthMaturity    *assessment.Spec
 	docSearchService     *docsearch.Service
 	docExplorerService   *explorer.Service
 	docViewerService     *viewer.Service
@@ -151,6 +153,16 @@ func isTruthy(value string) bool {
 	}
 }
 
+func loadDocHealthMaturitySpec(scenariosRoot string) (*assessment.Spec, error) {
+	repoRoot := filepath.Dir(scenariosRoot)
+	path := filepath.Join(repoRoot, "scenarios", "knowledge-observatory", ".vrooli", "maturity.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", path, err)
+	}
+	return assessment.ParseSpec(raw)
+}
+
 func (s *Server) setupServices() {
 	vs := &vectorstore.Qdrant{
 		BaseURL: s.qdrantURL(),
@@ -179,6 +191,12 @@ func (s *Server) setupServices() {
 			s.log("doc health service disabled", map[string]interface{}{"error": err.Error()})
 		} else {
 			s.docHealthService = service
+		}
+		spec, err := loadDocHealthMaturitySpec(s.config.ScenariosRoot)
+		if err != nil {
+			s.log("doc health maturity assessment unavailable", map[string]interface{}{"error": err.Error()})
+		} else {
+			s.docHealthMaturity = spec
 		}
 	}
 	if s.config != nil && s.config.ScenariosRoot != "" {
@@ -421,7 +439,10 @@ func (s *Server) setupRoutes() {
 	// Connect-RPC: KnowledgeObservatoryService (DocHealth + future RPCs).
 	if s.docHealthService != nil {
 		path, h := knowledgeobservatoryv1connect.NewKnowledgeObservatoryServiceHandler(
-			dochealthhandler.New(s.docHealthService),
+			dochealthhandler.NewWithDeps(dochealthhandler.Deps{
+				Service:      s.docHealthService,
+				MaturitySpec: s.docHealthMaturity,
+			}),
 		)
 		connectx.RegisterServices(s.router, connectx.ServiceMount{Path: path, Handler: h})
 	}

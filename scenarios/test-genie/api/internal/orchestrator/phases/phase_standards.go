@@ -115,6 +115,24 @@ func runStandardsPhase(ctx context.Context, env workspace.Environment, logWriter
 			Observations:          observations,
 		}
 	}
+	if err := requireProtoProviderAssessment("scenario-auditor", "standards", summary.Assessment); err != nil {
+		classification := FailureClassMaturityContract
+		remediation := fmt.Sprintf("Restart scenario-auditor through Vrooli lifecycle, then run `scenario-auditor standards scan %s --wait --timeout %ds` and verify the JSON summary includes assessment.", env.ScenarioName, timeoutSeconds)
+		writePhasePointer(env, "standards", RunReport{
+			Err:                   err,
+			FailureClassification: classification,
+			Remediation:           remediation,
+			Observations:          observations,
+		}, nil, cleanLog)
+		return RunReport{
+			Err:                   err,
+			FailureClassification: classification,
+			Remediation:           remediation,
+			Observations:          observations,
+			Findings:              archFindings,
+		}
+	}
+	localCurrent, localNext := localMaturitySummary(summary.Assessment)
 
 	failedThreshold := violatesFailOn(summary.HighestSeverity, failOn)
 	if err != nil || failedThreshold {
@@ -129,8 +147,10 @@ func runStandardsPhase(ctx context.Context, env workspace.Environment, logWriter
 
 		extras := map[string]any{
 			"summary": map[string]any{
-				"total":            summary.Total,
-				"highest_severity": summary.HighestSeverity,
+				"total":               summary.Total,
+				"highest_severity":    summary.HighestSeverity,
+				"local_current_level": localCurrent,
+				"local_next_level":    localNext,
 			},
 		}
 		writePhasePointer(env, "standards", RunReport{
@@ -150,8 +170,10 @@ func runStandardsPhase(ctx context.Context, env workspace.Environment, logWriter
 
 	extras := map[string]any{
 		"summary": map[string]any{
-			"total":            summary.Total,
-			"highest_severity": summary.HighestSeverity,
+			"total":               summary.Total,
+			"highest_severity":    summary.HighestSeverity,
+			"local_current_level": localCurrent,
+			"local_next_level":    localNext,
 		},
 	}
 	report := RunReport{Observations: observations, Findings: archFindings}

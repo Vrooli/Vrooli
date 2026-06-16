@@ -12,13 +12,16 @@ import (
 
 	"ui-health/internal/services/manifestvalidation"
 
+	"github.com/vrooli/maturity-go/assessment"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/validation"
 )
 
 // Deps wires the seams the Connect validation handler needs.
 type Deps struct {
-	Logger    *log.Logger
-	Validator Validator
+	Logger       *log.Logger
+	Validator    Validator
+	MaturitySpec *assessment.Spec
 }
 
 // Validator is the slice of manifestvalidation.Service the handler exercises.
@@ -45,10 +48,15 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
+	maturityAssessment, err := buildMaturityAssessment(report, h.deps.MaturitySpec)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build maturity assessment: %w", err))
+	}
 	resp := &validationv1.ValidateScenarioResponse{
-		Scenario: report.Scenario,
-		Passed:   report.Passed,
-		Findings: findingsToProto(report.Findings),
+		Scenario:   report.Scenario,
+		Passed:     report.Passed,
+		Findings:   findingsToProto(report.Findings),
+		Assessment: maturityAssessment,
 		Summary: &validationv1.Summary{
 			Errors:   int32(report.Summary.Errors),
 			Warnings: int32(report.Summary.Warnings),
@@ -56,6 +64,28 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 		},
 	}
 	return connect.NewResponse(resp), nil
+}
+
+func buildMaturityAssessment(rep manifestvalidation.Report, spec *assessment.Spec) (*commonv1.MaturityAssessment, error) {
+	if spec == nil {
+		return nil, nil
+	}
+	findings := make([]assessment.Finding, 0, len(rep.Findings))
+	for _, f := range rep.Findings {
+		findings = append(findings, assessment.Finding{
+			Code:        f.Code,
+			Severity:    severityToProto(f.Severity).String(),
+			Message:     f.Message,
+			Location:    f.Location,
+			Remediation: f.Suggestion,
+			Phase:       spec.Phase,
+		})
+	}
+	return assessment.BuildProtoAssessment(assessment.BuildInput{
+		Scenario: rep.Scenario,
+		Spec:     *spec,
+		Findings: findings,
+	})
 }
 
 func findingsToProto(in []manifestvalidation.Finding) []*validationv1.Finding {

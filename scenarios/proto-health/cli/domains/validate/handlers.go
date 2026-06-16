@@ -48,8 +48,16 @@ func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 		int(msg.GetSummary().GetWarnings()),
 		int(msg.GetSummary().GetInfos()),
 	)
+	summaryLines := []string{summary}
+	if assessmentReport := cliapp.BuildMaturityListReport(msg.GetAssessment()); len(assessmentReport.Summary) > 0 {
+		summaryLines = append(summaryLines, assessmentReport.Summary...)
+		if len(assessmentReport.Results) > 0 {
+			results = append(results, "")
+			results = append(results, assessmentReport.Results...)
+		}
+	}
 	if err := cliapp.RenderProtoList(ctx, msg, cliapp.ListReport{
-		Summary:        []string{summary},
+		Summary:        summaryLines,
 		ResultsHeading: "Findings",
 		Results:        results,
 		RetrievalHints: []string{

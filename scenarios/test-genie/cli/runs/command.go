@@ -61,6 +61,8 @@ func Run(apiClient *cliutil.APIClient, args []string) error {
 		return runFreshness(apiClient, args[1:], os.Stdout)
 	case "wait":
 		return runWait(apiClient, args[1:], os.Stdout)
+	case "wait-all":
+		return runWaitAll(apiClient, args[1:], os.Stdout)
 	case "follow":
 		return runFollow(apiClient, args[1:], os.Stdout)
 	case "abort":
@@ -86,8 +88,16 @@ Commands:
   compare  --scenario <s> <runID-a> <runID-b> [--phase <name>]   Compare two runs
   wait     <scenario> <runID> [--timeout N] [--json]             Block until the run is terminal
                                                                  (exit 0 passed, 1 failed/aborted,
-                                                                 124 if --timeout elapses first)
-  follow   <scenario> <runID>                                    Stream a run's live events to the end
+                                                                 124 if --timeout elapses first).
+                                                                 --json is the quiet agent path (one
+                                                                 snapshot, no stream)
+  wait-all --run <s>:<runID> [--run ...] [--timeout N] [--json]  Block until ALL named runs are terminal
+                                                                 (one call for parallel runs). Aggregate
+                                                                 exit: 0 all passed, 1 any failed, 124 any
+                                                                 still in-flight at --timeout, 2 any error
+  follow   <scenario> <runID> [--heartbeats]                     Stream a run's live events to the end
+                                                                 (human live-watch; heartbeats are dropped
+                                                                 on a non-TTY unless --heartbeats)
   status   <scenario> <runID> [--json]                           Live snapshot (status, phase, ETA,
                                                                  recommended next-check backoff)
   abort    <scenario> <runID> [--json]                           Cancel a running run (→ aborted)

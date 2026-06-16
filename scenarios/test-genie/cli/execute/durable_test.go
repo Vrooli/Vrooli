@@ -14,16 +14,22 @@ import (
 	runs_v1connect "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs/runs_v1connect"
 )
 
-// TestReattachCommandStreams pins the breadcrumb to the streaming `runs follow`
-// verb — never the silent `runs wait`. A re-attaching agent must see live
-// progress so it stops panic-polling (the whole point of Track B).
-func TestReattachCommandStreams(t *testing.T) {
+// TestReattachCommandIsQuietWait pins the agent-facing breadcrumb to the quiet,
+// single-return `runs wait --json` verb — never the heartbeating `runs follow`
+// stream. A backgrounded stream re-wakes an agent on every heartbeat ("still
+// waiting…" spam); a single quiet wait does not. followCommand is the separate
+// human live-watch verb.
+func TestReattachCommandIsQuietWait(t *testing.T) {
 	got := reattachCommand("demo", "R1")
-	if got != "test-genie runs follow demo R1" {
-		t.Fatalf("reattachCommand = %q, want it to name `runs follow`", got)
+	if got != "test-genie runs wait --json demo R1" {
+		t.Fatalf("reattachCommand = %q, want it to name `runs wait --json`", got)
 	}
-	if strings.Contains(got, "runs wait") {
-		t.Fatalf("reattachCommand must not name the silent `runs wait`: %q", got)
+	if strings.Contains(got, "runs follow") {
+		t.Fatalf("reattachCommand must not steer agents to the heartbeating `runs follow`: %q", got)
+	}
+	live := followCommand("demo", "R1")
+	if live != "test-genie runs follow demo R1" {
+		t.Fatalf("followCommand = %q, want it to name `runs follow`", live)
 	}
 }
 

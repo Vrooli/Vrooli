@@ -101,6 +101,11 @@ func runTidiness(core *cliapp.ScenarioApp, target string, timeout int, jsonOutpu
 			fmt.Sprintf("%s recommend-refactors %s --limit 10", cliName, scenario),
 		},
 	}
+	if result.Assessment != nil {
+		maturity := cliapp.BuildMaturityListReport(result.Assessment)
+		report.Summary = append(report.Summary, maturity.Summary...)
+		report.RetrievalHints = append(report.RetrievalHints, maturity.RetrievalHints...)
+	}
 
 	if jsonOutput {
 		return cliapp.PrintReportJSON(os.Stdout, report)

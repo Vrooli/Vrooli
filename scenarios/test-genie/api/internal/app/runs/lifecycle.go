@@ -122,21 +122,39 @@ func (s *Service) FollowRun(ctx context.Context, req *connect.Request[runspb.Fol
 	}
 	scenario := strings.TrimSpace(req.Msg.GetScenario())
 	runID := strings.TrimSpace(req.Msg.GetRunId())
+	// suppress_heartbeats is a per-follower filter: the manager keeps publishing
+	// heartbeats to the shared broadcaster (other followers — e.g. browser SSE —
+	// still receive them); we just skip them on THIS stream.
+	suppressHeartbeats := req.Msg.GetSuppressHeartbeats()
 	replay, ch, err := s.runManager.Follow(ctx, scenario, runID)
 	if err != nil {
 		return mapRunError(err)
 	}
 	for _, ev := range replay {
+		if !keepFollowEvent(ev, suppressHeartbeats) {
+			continue
+		}
 		if err := stream.Send(toRunEvent(ev)); err != nil {
 			return err
 		}
 	}
 	for ev := range ch {
+		if !keepFollowEvent(ev, suppressHeartbeats) {
+			continue
+		}
 		if err := stream.Send(toRunEvent(ev)); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// keepFollowEvent reports whether an event is forwarded to a follower. When
+// suppressHeartbeats is set, phase_heartbeat keep-alives are dropped; every other
+// event (phase transitions and the terminal run_completed) always passes, so the
+// filter can never silence progress or the verdict.
+func keepFollowEvent(ev runmanager.Event, suppressHeartbeats bool) bool {
+	return !(suppressHeartbeats && ev.Kind == runmanager.EventPhaseHeartbeat)
 }
 
 // WaitRun blocks until terminal or the optional timeout, returning the live

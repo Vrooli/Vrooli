@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 type AuditResponse struct {
@@ -66,21 +67,22 @@ type AuditDuplicateTitle struct {
 }
 
 type HealthResponse struct {
-	ScenarioName     string              `json:"scenario_name"`
-	SourceTemplateID string              `json:"source_template_id"`
-	ManifestPath     string              `json:"manifest_path"`
-	ManifestStatus   string              `json:"manifest_status"`
-	HealthScore      float64             `json:"health_score"`
-	TotalDocs        int                 `json:"total_docs"`
-	MisplacedDocs    []AuditMisplacedDoc `json:"misplaced_docs"`
-	MissingDocs      []string            `json:"missing_docs"`
-	ExtraDocs        []string            `json:"extra_docs"`
-	TemporaryDocs    []string            `json:"temporary_docs"`
-	Warnings         []HealthWarning     `json:"warnings"`
-	ContractFindings []HealthWarning     `json:"contract_findings"`
-	ContentIssues    []HealthWarning     `json:"content_issues"`
-	CanAutoFix       bool                `json:"can_auto_fix"`
-	FixCategory      string              `json:"fix_category"`
+	ScenarioName     string                       `json:"scenario_name"`
+	SourceTemplateID string                       `json:"source_template_id"`
+	ManifestPath     string                       `json:"manifest_path"`
+	ManifestStatus   string                       `json:"manifest_status"`
+	HealthScore      float64                      `json:"health_score"`
+	TotalDocs        int                          `json:"total_docs"`
+	MisplacedDocs    []AuditMisplacedDoc          `json:"misplaced_docs"`
+	MissingDocs      []string                     `json:"missing_docs"`
+	ExtraDocs        []string                     `json:"extra_docs"`
+	TemporaryDocs    []string                     `json:"temporary_docs"`
+	Warnings         []HealthWarning              `json:"warnings"`
+	ContractFindings []HealthWarning              `json:"contract_findings"`
+	ContentIssues    []HealthWarning              `json:"content_issues"`
+	Assessment       *commonv1.MaturityAssessment `json:"assessment,omitempty"`
+	CanAutoFix       bool                         `json:"can_auto_fix"`
+	FixCategory      string                       `json:"fix_category"`
 }
 
 type HealthWarning struct {
@@ -242,6 +244,9 @@ func BuildHealthReport(result HealthResponse, fallbackScenario string) cliapp.Op
 				},
 			},
 		},
+	}
+	if maturity := cliapp.BuildMaturityListReport(result.Assessment); maturity.Summary != nil {
+		report.Status = append(report.Status, maturity.Summary...)
 	}
 	if result.CanAutoFix {
 		report.Triage[1].Items = append(report.Triage[1].Items, "Auto-fix available: yes")

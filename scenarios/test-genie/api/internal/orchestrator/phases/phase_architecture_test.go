@@ -38,6 +38,7 @@ func sampleAuditResponse() *audit_v1.AuditRunResponse {
 		Outcome:       audit_v1.AuditOutcome_AUDIT_OUTCOME_FINDINGS,
 		TotalFindings: 2,
 		BySeverity:    map[string]int32{"blocker": 1, "warn": 1},
+		Assessment:    testProtoProviderAssessment("demo", "architecture-cartographer", "architecture", "L3", "L4"),
 		Findings: []*audit_v1.ConflictSummary{
 			{Type: "cycle", Subtype: "cross-domain", Severity: conflicts_v1.Severity_SEVERITY_BLOCKER, Locations: []string{"api/internal/a", "api/internal/b"}, Domains: []string{"a", "b"}, Headline: "import cycle a↔b"},
 			{Type: "coupling_smell", Severity: conflicts_v1.Severity_SEVERITY_WARN, Locations: []string{"api/internal/c"}, Headline: "high fan-out"},
@@ -59,6 +60,9 @@ func TestTranslateArchitectureResponse_FindingsAreAdvisory(t *testing.T) {
 	}
 	if out.Summary.Authority != "high" {
 		t.Errorf("authority = %q, want high", out.Summary.Authority)
+	}
+	if out.Summary.LocalCurrentLevel != "L3" || out.Summary.LocalNextLevel != "L4" {
+		t.Errorf("local maturity = %q/%q, want L3/L4", out.Summary.LocalCurrentLevel, out.Summary.LocalNextLevel)
 	}
 }
 
@@ -118,6 +122,25 @@ func TestRunArchitecturePhase_PopulatesFindings(t *testing.T) {
 	}
 	if len(report.Findings) != 2 {
 		t.Fatalf("want 2 findings on report, got %d", len(report.Findings))
+	}
+}
+
+func TestRunArchitecturePhase_MissingAssessmentFailsMaturityContract(t *testing.T) {
+	restore := swapArchitectureSeam(t, func(_ context.Context, _ string) (*audit_v1.AuditRunResponse, error) {
+		resp := sampleAuditResponse()
+		resp.Assessment = nil
+		return resp, nil
+	})
+	defer restore()
+
+	dir := t.TempDir()
+	env := workspaceEnv(t, dir)
+	report := runArchitecturePhase(context.Background(), env, io.Discard)
+	if report.FailureClassification != FailureClassMaturityContract {
+		t.Fatalf("expected maturity contract classification, got %s", report.FailureClassification)
+	}
+	if report.Err == nil {
+		t.Fatalf("expected missing assessment error")
 	}
 }
 

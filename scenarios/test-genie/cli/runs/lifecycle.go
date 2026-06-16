@@ -5,9 +5,11 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
 	"time"
 
 	"connectrpc.com/connect"
+	"golang.org/x/term"
 
 	"github.com/vrooli/cli-core/cliutil"
 
@@ -20,6 +22,36 @@ import (
 // Exit code for a wait that returned before the run reached a terminal state.
 const exitWaitTimeout = 124
 
+// stderrOut is where a --json wait writes its non-JSON timeout hint, so stdout
+// stays pure JSON for parsers. Overridable in tests.
+var stderrOut io.Writer = os.Stderr
+
+// printTimeoutHint emits the cadence governor + the exact re-invoke command after
+// a --timeout wait returned before the run was terminal. nextCheck is the
+// server's recommended_next_check_seconds (0 → the cadence line is omitted). The
+// re-invoke line is the quiet wait verb, never a faster poll.
+func printTimeoutHint(w io.Writer, scenario, runID string, timeout, nextCheck int) {
+	if nextCheck > 0 {
+		fmt.Fprintf(w, "still running — re-check in ~%ds (do not poll faster):\n", nextCheck)
+	} else {
+		fmt.Fprintf(w, "still running — re-attach with:\n")
+	}
+	fmt.Fprintf(w, "  test-genie runs wait --json --timeout=%d %s %s\n", timeout, scenario, runID)
+}
+
+// fetchNextCheck best-effort reads the server's recommended backoff for a run
+// (used by the human-stream timeout path, which has no live status in hand).
+// Returns 0 on any error.
+func fetchNextCheck(cl runs_v1connect.RunsServiceClient, scenario, runID string) int {
+	resp, err := cl.GetRunStatus(context.Background(), connect.NewRequest(&runspb.GetRunStatusRequest{
+		Scenario: scenario, RunId: runID,
+	}))
+	if err != nil {
+		return 0
+	}
+	return int(resp.Msg.GetRecommendedNextCheckSeconds())
+}
+
 // twoPositional extracts the <scenario> <runID> positional arguments shared by
 // the by-handle verbs (wait/follow/abort/status).
 func twoPositional(args []string, verb string) (scenario, runID string, err error) {
@@ -29,13 +61,34 @@ func twoPositional(args []string, verb string) (scenario, runID string, err erro
 	return args[0], args[1], nil
 }
 
+// isTTY reports whether w is a terminal (mirrors report/color.go). Heartbeat
+// keep-alives are kept for an interactive terminal and dropped otherwise.
+func isTTY(w io.Writer) bool {
+	if f, ok := w.(*os.File); ok {
+		return term.IsTerminal(int(f.Fd()))
+	}
+	return false
+}
+
+// suppressHeartbeatsFor decides whether THIS follower opts out of heartbeat
+// keep-alives: a non-interactive consumer (piped/backgrounded stdout) does,
+// unless forceKeep (the --heartbeats override) says otherwise. A backgrounded
+// stream that beats every ~30s re-wakes an agent on each beat — the spam this
+// suppression exists to prevent.
+func suppressHeartbeatsFor(w io.Writer, forceKeep bool) bool {
+	if forceKeep {
+		return false
+	}
+	return !isTTY(w)
+}
+
 // runWait blocks until the run is terminal (or --timeout elapses) and exits with
 // the suite's result code: 0 passed, 1 failed/aborted, 124 still-in-progress.
 //
-// Human mode STREAMS the run's live events (the same renderer as `runs follow`)
-// so a waiting agent sees progress + heartbeats and never reads the wait as a
-// silent hang. `--json` keeps the single quiet WaitRun snapshot for scripts that
-// want one structured result and an exit code.
+// `--json` is the quiet agent path: a single WaitRun snapshot + exit code, no
+// stream. Human mode STREAMS the run's live events (the same renderer as `runs
+// follow`); on a non-TTY (piped) stdout it suppresses heartbeat keep-alives so a
+// backgrounded wait is not re-woken on every beat.
 func runWait(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 	fs := flag.NewFlagSet("runs wait", flag.ContinueOnError)
 	fs.SetOutput(w)
@@ -64,9 +117,10 @@ func runWait(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 		ctx, cancel = context.WithTimeout(ctx, time.Duration(*timeout)*time.Second)
 		defer cancel()
 	}
-	terminal, streamErr := streamRunEvents(ctx, cl, w, scenario, runID)
+	terminal, streamErr := streamRunEvents(ctx, cl, w, scenario, runID, suppressHeartbeatsFor(w, false))
 	if ctx.Err() == context.DeadlineExceeded {
-		fmt.Fprintf(w, "\nstill running — re-attach: test-genie runs follow %s %s\n", scenario, runID)
+		fmt.Fprintln(w)
+		printTimeoutHint(w, scenario, runID, *timeout, fetchNextCheck(cl, scenario, runID))
 		return &exitErr{code: exitWaitTimeout, err: fmt.Errorf("run %s did not finish within the wait window", runID)}
 	}
 	return terminalExit(runID, terminal, streamErr)
@@ -86,6 +140,10 @@ func waitSnapshot(cl runs_v1connect.RunsServiceClient, w io.Writer, scenario, ru
 		return err
 	}
 	if resp.Msg.GetTimedOut() {
+		// stdout stays pure JSON (the snapshot already carries
+		// recommended_next_check_seconds); the human-readable cadence + re-invoke
+		// line goes to stderr.
+		printTimeoutHint(stderrOut, scenario, runID, timeout, int(st.GetRecommendedNextCheckSeconds()))
 		return &exitErr{code: exitWaitTimeout, err: fmt.Errorf("run %s did not finish within the wait window", runID)}
 	}
 	if st.GetStatus() == "passed" {
@@ -95,10 +153,12 @@ func waitSnapshot(cl runs_v1connect.RunsServiceClient, w io.Writer, scenario, ru
 }
 
 // runFollow streams the run's canonical events to completion, exiting with the
-// suite's result code.
+// suite's result code. On a non-TTY (piped) stdout it suppresses heartbeat
+// keep-alives unless --heartbeats forces them on.
 func runFollow(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 	fs := flag.NewFlagSet("runs follow", flag.ContinueOnError)
 	fs.SetOutput(w)
+	heartbeats := fs.Bool("heartbeats", false, "Keep heartbeat keep-alive lines even when stdout is not a terminal")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -110,7 +170,7 @@ func runFollow(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	terminal, streamErr := streamRunEvents(context.Background(), cl, w, scenario, runID)
+	terminal, streamErr := streamRunEvents(context.Background(), cl, w, scenario, runID, suppressHeartbeatsFor(w, *heartbeats))
 	return terminalExit(runID, terminal, streamErr)
 }
 
@@ -118,9 +178,10 @@ func runFollow(apiClient *cliutil.APIClient, args []string, w io.Writer) error {
 // returns the terminal run_completed event (nil if the stream ended without one,
 // e.g. the context deadline elapsed). It is the single stream→render loop shared
 // by `runs follow`, human `runs wait`, and the inline execute follower.
-func streamRunEvents(ctx context.Context, cl runs_v1connect.RunsServiceClient, w io.Writer, scenario, runID string) (*runspb.RunEvent, error) {
+// suppressHeartbeats opts this follower out of heartbeat keep-alives server-side.
+func streamRunEvents(ctx context.Context, cl runs_v1connect.RunsServiceClient, w io.Writer, scenario, runID string, suppressHeartbeats bool) (*runspb.RunEvent, error) {
 	stream, err := cl.FollowRun(ctx, connect.NewRequest(&runspb.FollowRunRequest{
-		Scenario: scenario, RunId: runID,
+		Scenario: scenario, RunId: runID, SuppressHeartbeats: suppressHeartbeats,
 	}))
 	if err != nil {
 		return nil, err

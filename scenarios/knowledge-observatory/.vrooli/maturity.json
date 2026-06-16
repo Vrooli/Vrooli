@@ -1,0 +1,365 @@
+{
+  "provider": "knowledge-observatory",
+  "phase": "docs",
+  "version": "1.0.0",
+  "levels": [
+    {
+      "id": "L0",
+      "name": "No documentation target",
+      "description": "Knowledge Observatory cannot resolve a scenario or documentation path for docs health validation.",
+      "entry_criteria": ["Scenario id or docs path is provided"],
+      "exit_criteria": ["The target scenario or path resolves to readable documentation input"]
+    },
+    {
+      "id": "L1",
+      "name": "Documentation contract discoverable",
+      "description": "The target has a readable documentation manifest or an explicit fallback contract, with required contract fields present.",
+      "entry_criteria": ["Documentation input is readable"],
+      "exit_criteria": ["Manifest schema, contract kind, maturity values, stages, and document metadata validate"]
+    },
+    {
+      "id": "L2",
+      "name": "Required documentation placed",
+      "description": "Required scenario documentation exists at contract-approved paths, without misplaced or missing docs.",
+      "entry_criteria": ["Documentation contract is discoverable"],
+      "exit_criteria": ["No required docs are missing or misplaced"]
+    },
+    {
+      "id": "L3",
+      "name": "Content and links healthy",
+      "description": "Markdown, Mermaid, absolute paths, derived-count markers, and local/external links are healthy enough for operator and agent use.",
+      "entry_criteria": ["Required documentation is present"],
+      "exit_criteria": ["No content validator findings block documentation health"]
+    },
+    {
+      "id": "L4",
+      "name": "References and manifest coverage healthy",
+      "description": "Bidirectional code/doc references and docs manifest coverage stay coherent as code and docs evolve.",
+      "entry_criteria": ["Content validators pass"],
+      "exit_criteria": ["No reference-integrity or manifest-coverage findings block documentation health"]
+    },
+    {
+      "id": "L5",
+      "name": "Fleet-ready documentation posture",
+      "description": "Documentation health is clean enough for Test Genie delegation, provider maturity comparison, and reusable scenario onboarding.",
+      "entry_criteria": ["References and manifest coverage are healthy"],
+      "exit_criteria": ["No documentation-health findings block fleet validation"]
+    }
+  ],
+  "findings": {
+    "schema_load_error": {
+      "local_level_impact": "L1",
+      "global_impact": "foundation_blocker",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["documentation-health", "knowledge-observatory-tools"]
+    },
+    "schema_violation": {
+      "local_level_impact": "L1",
+      "global_impact": "foundation_blocker",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["documentation-health", "knowledge-observatory-tools"]
+    },
+    "manifest_missing": {
+      "local_level_impact": "L1",
+      "global_impact": "foundation_blocker",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["documentation-health", "knowledge-observatory-tools"]
+    },
+    "invalid_contract_kind": {
+      "local_level_impact": "L1",
+      "global_impact": "foundation_blocker",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "invalid_contract_schema": {
+      "local_level_impact": "L1",
+      "global_impact": "foundation_blocker",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "missing_maturity_values": {
+      "local_level_impact": "L1",
+      "global_impact": "evolvability_gap",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "missing_stages": {
+      "local_level_impact": "L1",
+      "global_impact": "evolvability_gap",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "duplicate_identifier": {
+      "local_level_impact": "L1",
+      "global_impact": "evolvability_gap",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "invalid_maturity": {
+      "local_level_impact": "L1",
+      "global_impact": "evolvability_gap",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "invalid_required_by": {
+      "local_level_impact": "L1",
+      "global_impact": "evolvability_gap",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "missing_section_id": {
+      "local_level_impact": "L1",
+      "global_impact": "evolvability_gap",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "missing_section_title": {
+      "local_level_impact": "L1",
+      "global_impact": "evolvability_gap",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "missing_document_path": {
+      "local_level_impact": "L1",
+      "global_impact": "evolvability_gap",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "missing_doc_type": {
+      "local_level_impact": "L1",
+      "global_impact": "evolvability_gap",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "missing_document_title": {
+      "local_level_impact": "L1",
+      "global_impact": "evolvability_gap",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "missing_maturity": {
+      "local_level_impact": "L1",
+      "global_impact": "evolvability_gap",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "missing_required_by": {
+      "local_level_impact": "L1",
+      "global_impact": "evolvability_gap",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "missing_completion": {
+      "local_level_impact": "L1",
+      "global_impact": "evolvability_gap",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "invalid_completion": {
+      "local_level_impact": "L1",
+      "global_impact": "evolvability_gap",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "append_log_missing_heading": {
+      "local_level_impact": "L1",
+      "global_impact": "evolvability_gap",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "append_log_invalid_fields": {
+      "local_level_impact": "L1",
+      "global_impact": "evolvability_gap",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "append_log_invalid_date_source": {
+      "local_level_impact": "L1",
+      "global_impact": "evolvability_gap",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "append_log_invalid_format": {
+      "local_level_impact": "L1",
+      "global_impact": "evolvability_gap",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "misplaced_doc": {
+      "local_level_impact": "L2",
+      "global_impact": "evolvability_gap",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["documentation-health", "knowledge-observatory-tools"]
+    },
+    "missing_doc": {
+      "local_level_impact": "L2",
+      "global_impact": "evolvability_gap",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["documentation-health", "knowledge-observatory-tools"]
+    },
+    "extra_doc": {
+      "local_level_impact": "L2",
+      "global_impact": "advisory",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_INFO",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "temporary_doc": {
+      "local_level_impact": "L2",
+      "global_impact": "advisory",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "content_issue": {
+      "local_level_impact": "L3",
+      "global_impact": "evolvability_gap",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "file_read_error": {
+      "local_level_impact": "L3",
+      "global_impact": "foundation_blocker",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "markdown_unclosed_fence": {
+      "local_level_impact": "L3",
+      "global_impact": "evolvability_gap",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "mermaid_invalid": {
+      "local_level_impact": "L3",
+      "global_impact": "evolvability_gap",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "absolute_path": {
+      "local_level_impact": "L3",
+      "global_impact": "hardening_gap",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["cross-platform-readiness", "documentation-health"]
+    },
+    "unmarked_number": {
+      "local_level_impact": "L3",
+      "global_impact": "advisory",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "number_marker_without_reason": {
+      "local_level_impact": "L3",
+      "global_impact": "advisory",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "broken_link_parse": {
+      "local_level_impact": "L3",
+      "global_impact": "evolvability_gap",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "broken_local_link": {
+      "local_level_impact": "L3",
+      "global_impact": "evolvability_gap",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "external_link_warning": {
+      "local_level_impact": "L3",
+      "global_impact": "advisory",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "broken_external_link": {
+      "local_level_impact": "L3",
+      "global_impact": "advisory",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "broken_code_ref": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["documentation-health", "intent-clarification"]
+    },
+    "broken_doc_ref": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["documentation-health", "intent-clarification"]
+    },
+    "broken_marked_ref": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["documentation-health", "intent-clarification"]
+    },
+    "unknown_marked_ref": {
+      "local_level_impact": "L4",
+      "global_impact": "advisory",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "manifest_missing_doc": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["documentation-health"]
+    },
+    "manifest_orphaned_doc": {
+      "local_level_impact": "L4",
+      "global_impact": "advisory",
+      "dimension": "docs",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["documentation-health"]
+    }
+  },
+  "fallback": {
+    "local_level_impact": "L3",
+    "global_impact": "evolvability_gap",
+    "dimension": "docs",
+    "severity_default": "SEVERITY_WARNING"
+  }
+}

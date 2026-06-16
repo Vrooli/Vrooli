@@ -14,6 +14,7 @@ import (
 	"test-genie/internal/shared"
 
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 // ContractsSummary mirrors the cli-health validation summary so the phase
@@ -52,11 +53,12 @@ type cliHealthFinding struct {
 }
 
 type cliHealthReport struct {
-	Scenario   string                      `json:"scenario"`
-	Passed     bool                        `json:"passed"`
-	Findings   []cliHealthFinding          `json:"findings"`
-	Assessment *providerMaturityAssessment `json:"assessment"`
-	Summary    struct {
+	Scenario      string                       `json:"scenario"`
+	Passed        bool                         `json:"passed"`
+	Findings      []cliHealthFinding           `json:"findings"`
+	AssessmentRaw json.RawMessage              `json:"assessment"`
+	Assessment    *commonv1.MaturityAssessment `json:"-"`
+	Summary       struct {
 		Errors   int `json:"errors"`
 		Warnings int `json:"warnings"`
 		Infos    int `json:"infos"`
@@ -189,9 +191,11 @@ func parseCLIHealthOutput(raw []byte) (*cliHealthReport, error) {
 	if err := json.Unmarshal(raw, &rep); err != nil {
 		return nil, err
 	}
-	if err := requireProviderAssessment("cli-health", "contracts", rep.Assessment); err != nil {
+	assessment, err := requireProviderAssessmentJSON("cli-health", "contracts", rep.AssessmentRaw)
+	if err != nil {
 		return nil, err
 	}
+	rep.Assessment = assessment
 	return &rep, nil
 }
 

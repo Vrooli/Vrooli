@@ -9,8 +9,10 @@ require (
 	github.com/testcontainers/testcontainers-go v0.27.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.27.0
 	github.com/vrooli/api-core v0.0.0
+	github.com/vrooli/maturity-go v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/vrooli-cli-go v0.0.0
+	github.com/vrooli/vrooli/packages/proto v0.0.0
 )
 
 replace github.com/testcontainers/testcontainers-go => github.com/testcontainers/testcontainers-go v0.27.0
@@ -18,6 +20,8 @@ replace github.com/testcontainers/testcontainers-go => github.com/testcontainers
 replace github.com/vrooli/api-core => ../../../packages/api-core
 
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
+
+replace github.com/vrooli/maturity-go => ../../../packages/maturity-go
 
 replace github.com/vrooli/vrooli-cli-go => ../../../packages/vrooli-cli-go
 
@@ -59,7 +63,6 @@ require (
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
-	github.com/vrooli/vrooli/packages/proto v0.0.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
 	golang.org/x/exp v0.0.0-20230510235704-dd950f8aeaea // indirect
 	golang.org/x/mod v0.11.0 // indirect

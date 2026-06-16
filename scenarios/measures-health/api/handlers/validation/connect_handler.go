@@ -8,14 +8,17 @@ package validation
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"connectrpc.com/connect"
 
+	"github.com/vrooli/maturity-go/assessment"
 	"github.com/vrooli/measures-go/manifestscan"
 	"measures-health/internal/runhistory"
 	internal "measures-health/internal/validation"
 
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/measures-health/v1/validation"
 )
 
@@ -36,9 +39,10 @@ type RunRecorder interface {
 
 // Deps wires the Connect validation handler.
 type Deps struct {
-	Validator Validator
-	Recorder  RunRecorder
-	Logger    *log.Logger
+	Validator    Validator
+	Recorder     RunRecorder
+	Logger       *log.Logger
+	MaturitySpec *assessment.Spec
 }
 
 type connectHandler struct {
@@ -73,7 +77,11 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 			h.deps.Logger.Printf("validation.ValidateScenario(%q): record run history: %v", rep.Scenario, rerr)
 		}
 	}
-	return connect.NewResponse(reportToProto(rep)), nil
+	resp, err := reportToProto(rep, h.deps.MaturitySpec)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(resp), nil
 }
 
 func (h *connectHandler) ListFleetCoverage(ctx context.Context, req *connect.Request[validationv1.ListFleetCoverageRequest]) (*connect.Response[validationv1.ListFleetCoverageResponse], error) {
@@ -98,7 +106,7 @@ func (h *connectHandler) ListFleetCoverage(ctx context.Context, req *connect.Req
 	return connect.NewResponse(resp), nil
 }
 
-func reportToProto(rep internal.Report) *validationv1.ValidateScenarioResponse {
+func reportToProto(rep internal.Report, spec *assessment.Spec) (*validationv1.ValidateScenarioResponse, error) {
 	errs, warns, infos := rep.Summary()
 	out := &validationv1.ValidateScenarioResponse{
 		Scenario:        rep.Scenario,
@@ -143,7 +151,34 @@ func reportToProto(rep internal.Report) *validationv1.ValidateScenarioResponse {
 			Scanner:     f.Scanner,
 		})
 	}
-	return out
+	if spec != nil {
+		assessment, err := buildMaturityAssessment(rep, *spec)
+		if err != nil {
+			return nil, fmt.Errorf("build maturity assessment: %w", err)
+		}
+		out.Assessment = assessment
+	}
+	return out, nil
+}
+
+func buildMaturityAssessment(rep internal.Report, spec assessment.Spec) (*commonv1.MaturityAssessment, error) {
+	findings := make([]assessment.Finding, 0, len(rep.Findings))
+	for _, f := range rep.Findings {
+		findings = append(findings, assessment.Finding{
+			Code:        f.RuleID,
+			Severity:    severityToProto(f.Severity).String(),
+			Title:       f.Title,
+			Message:     f.Description,
+			Location:    f.FilePath,
+			Remediation: f.Remediation,
+			Phase:       spec.Phase,
+		})
+	}
+	return assessment.BuildProtoAssessment(assessment.BuildInput{
+		Scenario: rep.Scenario,
+		Spec:     spec,
+		Findings: findings,
+	})
 }
 
 func severityToProto(s internal.Severity) validationv1.Severity {

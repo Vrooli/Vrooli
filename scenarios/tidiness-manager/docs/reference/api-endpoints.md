@@ -14,6 +14,7 @@ Returns service readiness and database dependency status.
 - `POST /api/v1/scan/tidiness`
   - Primary maintainability scan for Test Genie and agents.
   - Body includes `scenario_name` and optional timeout.
+  - Response includes `findings`, the compatibility `violations` alias, `summary`, and shared provider maturity `assessment`.
 - `POST /api/v1/scan/light`
   - Compatibility scan for metrics and parser workflows.
   - Body includes `scenario_path` and optional timeout.

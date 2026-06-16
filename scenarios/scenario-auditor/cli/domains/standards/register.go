@@ -146,6 +146,11 @@ func runSummary(core *cliapp.ScenarioApp, args []string) error {
 	}
 
 	summary := support.MapValue(resp["summary"])
+	if assessment := support.MapValue(summary["assessment"]); len(assessment) > 0 {
+		if local := support.MapValue(assessment["local"]); len(local) > 0 {
+			summary["local_maturity"] = fmt.Sprintf("current=%s next=%s", support.StringValue(local["current_level"]), support.StringValue(local["next_level"]))
+		}
+	}
 	report := cliapp.ListReport{
 		Summary: []string{
 			fmt.Sprintf("Job ID: %s", fs.Arg(0)),

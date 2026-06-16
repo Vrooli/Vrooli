@@ -19,6 +19,7 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
+	repocontract "github.com/vrooli/repo-contract-go"
 	_ "modernc.org/sqlite"
 
 	auditH "quality-health/handlers/audit"
@@ -113,10 +114,16 @@ func main() {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
+	logger := log.Default()
+	repoRoot, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		log.Fatalf("resolve repo root: %v", err)
+	}
+
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: clock.System{}, Logger: logger},
 		healthH.Module(db, "quality-health-api", "1.0.0"),
-		auditH.Module(log.Default()),
+		auditH.Module(logger, repoRoot),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

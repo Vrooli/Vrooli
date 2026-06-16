@@ -2,7 +2,10 @@ module tidiness-manager/cli
 
 go 1.25.0
 
-require github.com/vrooli/cli-core v0.0.0
+require (
+	github.com/vrooli/cli-core v0.0.0
+	github.com/vrooli/vrooli/packages/proto v0.0.0
+)
 
 require (
 	connectrpc.com/connect v1.19.2 // indirect
@@ -17,5 +20,7 @@ replace github.com/vrooli/api-core => ../../../packages/api-core
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
 
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
+
+replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 
 replace github.com/vrooli/vrooli => ../../..

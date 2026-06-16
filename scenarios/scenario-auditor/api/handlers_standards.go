@@ -332,6 +332,9 @@ func getStandardsViolationsSummaryHandler(w http.ResponseWriter, r *http.Request
 	violations := standardsStore.GetViolations(lookup)
 	records := convertStandardsViolationsToRecords(violations)
 	summary := buildViolationSummary(records, limit)
+	if err := attachStandardsMaturityAssessment(firstNonEmpty(scenario, lookup), &summary, records); err != nil {
+		logger.Warn("Failed to build standards maturity assessment", map[string]any{"error": err.Error(), "scenario": lookup})
+	}
 	filtered := cloneSummary(&summary, limit, minSeverity)
 
 	response := map[string]any{
@@ -474,6 +477,9 @@ func (job *StandardsScanJob) run(ctx context.Context, targets []standardsScanTar
 
 	records := convertStandardsViolationsToRecords(allViolations)
 	summary := buildViolationSummary(records, maxSummaryBuffer)
+	if err := attachStandardsMaturityAssessment(scenarioName, &summary, records); err != nil {
+		logger.Warn("Failed to build standards maturity assessment", map[string]any{"error": err.Error(), "scenario": scenarioName})
+	}
 	if artifact, err := persistScanArtifact("standards", scenarioName, jobSnapshot.ID, result); err == nil {
 		summary.Artifact = artifact
 	} else {

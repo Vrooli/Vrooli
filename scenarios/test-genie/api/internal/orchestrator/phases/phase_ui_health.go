@@ -14,6 +14,7 @@ import (
 	"test-genie/internal/shared"
 
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 // UIHealthSummary mirrors the ui-health validation summary so the phase
@@ -50,11 +51,12 @@ type uiHealthFinding struct {
 }
 
 type uiHealthReport struct {
-	Scenario   string                      `json:"scenario"`
-	Passed     bool                        `json:"passed"`
-	Findings   []uiHealthFinding           `json:"findings"`
-	Assessment *providerMaturityAssessment `json:"assessment"`
-	Summary    struct {
+	Scenario      string                       `json:"scenario"`
+	Passed        bool                         `json:"passed"`
+	Findings      []uiHealthFinding            `json:"findings"`
+	AssessmentRaw json.RawMessage              `json:"assessment"`
+	Assessment    *commonv1.MaturityAssessment `json:"-"`
+	Summary       struct {
 		Errors   int `json:"errors"`
 		Warnings int `json:"warnings"`
 		Infos    int `json:"infos"`
@@ -181,9 +183,11 @@ func parseUIHealthOutput(raw []byte) (*uiHealthReport, error) {
 	if err := json.Unmarshal(raw, &rep); err != nil {
 		return nil, err
 	}
-	if err := requireProviderAssessment("ui-health", "ui-health", rep.Assessment); err != nil {
+	assessment, err := requireProviderAssessmentJSON("ui-health", "ui-health", rep.AssessmentRaw)
+	if err != nil {
 		return nil, err
 	}
+	rep.Assessment = assessment
 	return &rep, nil
 }
 

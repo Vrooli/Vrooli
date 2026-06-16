@@ -15,24 +15,38 @@ import (
 	"quality-health/internal/contracts"
 	"quality-health/internal/surfaces"
 
+	"github.com/vrooli/maturity-go/assessment"
+	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	auditv1 "github.com/vrooli/vrooli/packages/proto/gen/go/quality-health/v1/audit"
 	auditconnect "github.com/vrooli/vrooli/packages/proto/gen/go/quality-health/v1/audit/audit_v1connect"
 )
+
+type Deps struct {
+	Service      *internalaudit.Service
+	Logger       *log.Logger
+	MaturitySpec *assessment.Spec
+}
 
 type Handler struct {
 	auditconnect.UnimplementedAuditServiceHandler
 	svc    *internalaudit.Service
 	logger *log.Logger
+	spec   *assessment.Spec
 }
 
 func NewHandler(svc *internalaudit.Service, logger *log.Logger) *Handler {
-	if logger == nil {
-		logger = log.Default()
+	return NewHandlerWithDeps(Deps{Service: svc, Logger: logger})
+}
+
+func NewHandlerWithDeps(deps Deps) *Handler {
+	if deps.Logger == nil {
+		deps.Logger = log.Default()
 	}
-	if svc == nil {
-		svc = internalaudit.New(nil)
+	if deps.Service == nil {
+		deps.Service = internalaudit.New(nil)
 	}
-	return &Handler{svc: svc, logger: logger}
+	return &Handler{svc: deps.Service, logger: deps.Logger, spec: deps.MaturitySpec}
 }
 
 var _ auditconnect.AuditServiceHandler = (*Handler)(nil)
@@ -53,7 +67,11 @@ func (h *Handler) AuditQuality(ctx context.Context, req *connect.Request[auditv1
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	return connect.NewResponse(responseToProto(report)), nil
+	resp, err := responseToProto(report, h.spec)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build maturity assessment: %w", err))
+	}
+	return connect.NewResponse(resp), nil
 }
 
 func (h *Handler) ListContracts(_ context.Context, req *connect.Request[auditv1.ListContractsRequest]) (*connect.Response[auditv1.ListContractsResponse], error) {
@@ -104,8 +122,12 @@ func (h *Handler) ApplyFixConfig(ctx context.Context, req *connect.Request[audit
 	return connect.NewResponse(fixResponseToProto(inv, true, candidates)), nil
 }
 
-func responseToProto(in internalaudit.Response) *auditv1.AuditQualityResponse {
+func responseToProto(in internalaudit.Response, spec *assessment.Spec) (*auditv1.AuditQualityResponse, error) {
 	errors, warnings, infos := findingCounts(in.Findings)
+	assessment, err := buildMaturityAssessment(in, spec)
+	if err != nil {
+		return nil, err
+	}
 	out := &auditv1.AuditQualityResponse{
 		RunId:          in.RunID,
 		Status:         in.Status,
@@ -127,7 +149,8 @@ func responseToProto(in internalaudit.Response) *auditv1.AuditQualityResponse {
 			Contracts:        int32(len(in.Contracts)),
 			AutofixableCount: int32(autofixableCount(in.Findings)),
 		},
-		NextSteps: in.NextSteps,
+		NextSteps:  in.NextSteps,
+		Assessment: assessment,
 	}
 	for _, s := range in.Inventory.Surfaces {
 		out.Surfaces = append(out.Surfaces, surfaceToProto(s))
@@ -144,7 +167,44 @@ func responseToProto(in internalaudit.Response) *auditv1.AuditQualityResponse {
 	for _, c := range in.AutofixCandidates {
 		out.AutofixCandidates = append(out.AutofixCandidates, candidateToProto(c))
 	}
-	return out
+	return out, nil
+}
+
+func buildMaturityAssessment(in internalaudit.Response, spec *assessment.Spec) (*commonv1.MaturityAssessment, error) {
+	if spec == nil {
+		return nil, fmt.Errorf("maturity spec is required")
+	}
+	findings := make([]assessment.Finding, 0, len(in.Findings))
+	for _, f := range in.Findings {
+		findings = append(findings, assessment.Finding{
+			Code:        f.RuleID,
+			Severity:    severityToAssessment(f.Severity),
+			Title:       f.RuleID,
+			Message:     f.Message,
+			Location:    f.FilePath,
+			Remediation: f.Remediation,
+			Source:      architecturev1.FindingSource_FINDING_SOURCE_STANDARDS,
+			Phase:       spec.Phase,
+		})
+	}
+	return assessment.BuildProtoAssessment(assessment.BuildInput{
+		Scenario: in.Inventory.Scenario,
+		Spec:     *spec,
+		Findings: findings,
+	})
+}
+
+func severityToAssessment(severity string) string {
+	switch strings.ToLower(strings.TrimSpace(severity)) {
+	case "error":
+		return architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR.String()
+	case "warning", "warn":
+		return architecturev1.FindingSeverity_FINDING_SEVERITY_WARNING.String()
+	case "info":
+		return architecturev1.FindingSeverity_FINDING_SEVERITY_INFO.String()
+	default:
+		return severity
+	}
 }
 
 func surfaceToProto(in surfaces.Surface) *auditv1.QualitySurface {

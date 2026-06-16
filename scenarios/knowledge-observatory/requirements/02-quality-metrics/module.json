@@ -1,88 +1,83 @@
 {
   "_metadata": {
-    "prd_section": "P0 - Knowledge Quality Metrics",
-    "description": "Calculate and report knowledge quality metrics including coherence, freshness, and redundancy"
+    "description": "Calculate and report knowledge quality metrics including coherence, freshness, and redundancy",
+    "last_validated_at": "2026-06-16T11:08:17-04:00"
   },
   "requirements": [
     {
       "id": "KO-QM-001",
       "title": "Coherence score calculation",
-      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "status": "complete",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-002",
       "description": "Calculate semantic coherence within collections by measuring similarity variance and cluster tightness",
       "validation": [
         {
           "type": "test",
+          "ref": "api/metrics_test.go",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/metrics_test.go"
+          "status": "implemented"
         }
-      ],
-      "notes": "Higher coherence indicates well-organized, topically-consistent knowledge",
-      "status": "complete"
+      ]
     },
     {
       "id": "KO-QM-002",
       "title": "Freshness score calculation",
-      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "status": "complete",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-002",
       "description": "Track knowledge age using payload timestamps and calculate time-decay based freshness scores",
       "validation": [
         {
           "type": "test",
+          "ref": "api/metrics_test.go",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/metrics_test.go"
+          "status": "implemented"
         }
-      ],
-      "notes": "Recent knowledge weighted higher; configurable decay curves per domain",
-      "status": "complete"
+      ]
     },
     {
       "id": "KO-QM-003",
       "title": "Redundancy detection",
-      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "status": "complete",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-002",
       "description": "Identify duplicate or near-duplicate knowledge entries using similarity thresholds",
       "validation": [
         {
           "type": "test",
+          "ref": "api/metrics_test.go",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/metrics_test.go"
+          "status": "implemented"
         }
-      ],
-      "notes": "Flag entries with >0.95 similarity as potential duplicates",
-      "status": "complete"
+      ]
     },
     {
       "id": "KO-QM-004",
       "title": "Quality metrics API endpoint",
-      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "status": "complete",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-002",
       "description": "GET /api/v1/knowledge/health returns aggregated quality metrics for all collections",
       "validation": [
         {
           "type": "test",
+          "ref": "api/metrics_test.go",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/metrics_test.go"
+          "status": "implemented"
         }
-      ],
-      "notes": "Response includes per-collection and overall health scores",
-      "status": "complete"
+      ]
     },
     {
       "id": "KO-QM-005",
-      "title": "Quality calculation performance < 1s",
-      "prd_ref": "Operational Targets > P0 > OT-P0-002",
+      "title": "Quality calculation performance \u003c 1s",
+      "status": "complete",
+      "prd_ref": "Operational Targets \u003e P0 \u003e OT-P0-002",
       "description": "Quality metrics calculation must complete in under 1 second per collection scan",
       "validation": [
         {
           "type": "test",
+          "ref": "api/metrics_test.go",
           "phase": "unit",
-          "status": "implemented",
-          "ref": "api/metrics_test.go"
+          "status": "implemented"
         }
-      ],
-      "notes": "Critical for real-time monitoring",
-      "status": "complete"
+      ]
     }
   ]
 }

@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/maturity-go/assessment"
 )
 
 // Test helpers for handler testing
@@ -192,6 +193,12 @@ func TestBuildTidinessScanReportsMaintainabilityOnly(t *testing.T) {
 	if result.Summary.TechDebt == 0 {
 		t.Fatalf("expected tech-debt finding, got summary %+v", result.Summary)
 	}
+	if err := assessment.ValidateAssessment(result.Assessment); err != nil {
+		t.Fatalf("assessment invalid: %v", err)
+	}
+	if result.Assessment.GetProvider() != "tidiness-manager" || result.Assessment.GetPhase() != "tidiness" {
+		t.Fatalf("assessment identity = %s/%s, want tidiness-manager/tidiness", result.Assessment.GetProvider(), result.Assessment.GetPhase())
+	}
 	for _, finding := range result.Findings {
 		if finding.Category == "type_safety" || strings.Contains(finding.RuleID, "TS_CONFIG") {
 			t.Fatalf("tidiness scan must not emit static-quality finding: %+v", finding)
@@ -199,6 +206,38 @@ func TestBuildTidinessScanReportsMaintainabilityOnly(t *testing.T) {
 		if finding.WhyItMatters == "" || finding.RecommendedRemediation == "" {
 			t.Fatalf("finding missing guidance fields: %+v", finding)
 		}
+	}
+}
+
+func TestTidinessMaturitySpecCoversEmittedRules(t *testing.T) {
+	spec, err := loadTidinessMaturitySpec()
+	if err != nil {
+		t.Fatalf("loadTidinessMaturitySpec() error = %v", err)
+	}
+	for _, ruleID := range []string{"LONG_FILE", "TECH_DEBT_MARKERS", "HIGH_COUPLING", "HIGH_COMPLEXITY", "DUPLICATED_CODE"} {
+		if _, ok := spec.Findings[ruleID]; !ok {
+			t.Fatalf("maturity spec missing emitted rule %q", ruleID)
+		}
+	}
+
+	got, err := buildTidinessMaturityAssessment("demo", []TidinessFinding{
+		newTidinessFinding("demo", "long-file", "length", "medium", "api/server.go", "", 1, "large file", "too large", nil, "why", "split it", "file-size"),
+	}, spec)
+	if err != nil {
+		t.Fatalf("buildTidinessMaturityAssessment() error = %v", err)
+	}
+	if got.GetLocal().GetCurrentLevel() != "L5" {
+		t.Fatalf("warning-only assessment current level = %q, want L5", got.GetLocal().GetCurrentLevel())
+	}
+
+	blocking, err := buildTidinessMaturityAssessment("demo", []TidinessFinding{
+		newTidinessFinding("demo", "duplicated-code", "duplication", "high", "api/server.go", "", 1, "duplicated code", "duplicate", nil, "why", "extract", "duplication"),
+	}, spec)
+	if err != nil {
+		t.Fatalf("buildTidinessMaturityAssessment(blocking) error = %v", err)
+	}
+	if blocking.GetLocal().GetCurrentLevel() != "L3" {
+		t.Fatalf("blocking assessment current level = %q, want L3", blocking.GetLocal().GetCurrentLevel())
 	}
 }
 

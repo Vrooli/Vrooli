@@ -15,6 +15,7 @@ import (
 
 	"github.com/vrooli/api-core/discovery"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 // tidinessClient is the seam tests override to stand in for the
@@ -37,8 +38,10 @@ type tidinessScanRequest struct {
 }
 
 type tidinessScanResponse struct {
-	Findings   []tidinessFinding `json:"findings"`
-	Violations []tidinessFinding `json:"violations"`
+	Findings      []tidinessFinding            `json:"findings"`
+	Violations    []tidinessFinding            `json:"violations"`
+	AssessmentRaw json.RawMessage              `json:"assessment"`
+	Assessment    *commonv1.MaturityAssessment `json:"-"`
 }
 
 type tidinessFinding struct {
@@ -86,7 +89,7 @@ func runTidinessPhase(ctx context.Context, env workspace.Environment, logWriter 
 		}
 	}
 
-	findingsFromManager, err := fetchTidinessFindings(ctx, baseURL, scenario)
+	scan, err := fetchTidinessScan(ctx, baseURL, scenario)
 	if err != nil {
 		shared.LogWarn(cleanLog, "tidiness-manager scan failed; skipping tidiness phase: %v", err)
 		return RunReport{
@@ -96,9 +99,26 @@ func runTidinessPhase(ctx context.Context, env workspace.Environment, logWriter 
 			},
 		}
 	}
-
+	assessment, err := requireProviderAssessmentJSON("tidiness-manager", "tidiness", scan.AssessmentRaw)
+	if err != nil {
+		return RunReport{
+			Err:                   err,
+			FailureClassification: string(classifyProviderParseFailure(err)),
+			Remediation:           fmt.Sprintf("Run `test-genie provider-contract check tidiness %s --json` after restarting tidiness-manager through lifecycle, then fix the provider maturity assessment.", scenario),
+			Observations: []Observation{
+				NewSectionObservation("🧹", "Tidiness"),
+				NewErrorObservation(err.Error()),
+			},
+		}
+	}
+	scan.Assessment = assessment
+	findingsFromManager := scan.findings()
 	findings := tidinessArchFindings(scenario, findingsFromManager)
 	obs := []Observation{NewSectionObservation("🧹", "Tidiness")}
+	current, next := localMaturitySummary(scan.Assessment)
+	if current != "" || next != "" {
+		obs = append(obs, NewInfoObservation(fmt.Sprintf("Tidiness local maturity: current=%s next=%s", current, next)))
+	}
 	if len(findingsFromManager) == 0 {
 		obs = append(obs, NewSuccessObservation("No tidiness violations detected"))
 		return RunReport{Observations: obs, Findings: findings}
@@ -119,7 +139,7 @@ func runTidinessPhase(ctx context.Context, env workspace.Environment, logWriter 
 	return RunReport{Observations: obs, Findings: findings}
 }
 
-func fetchTidinessFindings(ctx context.Context, baseURL, scenario string) ([]tidinessFinding, error) {
+func fetchTidinessScan(ctx context.Context, baseURL, scenario string) (*tidinessScanResponse, error) {
 	payload, _ := json.Marshal(tidinessScanRequest{ScenarioName: scenario})
 	endpoint := fmt.Sprintf("%s/api/v1/scan/tidiness", strings.TrimRight(baseURL, "/"))
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
@@ -143,10 +163,17 @@ func fetchTidinessFindings(ctx context.Context, baseURL, scenario string) ([]tid
 	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
 		return nil, err
 	}
-	if len(parsed.Findings) > 0 {
-		return parsed.Findings, nil
+	return &parsed, nil
+}
+
+func (r *tidinessScanResponse) findings() []tidinessFinding {
+	if r == nil {
+		return nil
 	}
-	return parsed.Violations, nil
+	if len(r.Findings) > 0 {
+		return r.Findings
+	}
+	return r.Violations
 }
 
 // tidinessArchFindings maps tidiness-manager findings into the shared

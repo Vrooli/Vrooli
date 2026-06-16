@@ -14,6 +14,7 @@ import (
 	"test-genie/internal/shared"
 
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 // ProtoSummary mirrors the proto-health validation summary so phase pointers
@@ -52,11 +53,12 @@ type protoFinding struct {
 }
 
 type protoReport struct {
-	Scenario   string                      `json:"scenario"`
-	Passed     bool                        `json:"passed"`
-	Findings   []protoFinding              `json:"findings"`
-	Assessment *providerMaturityAssessment `json:"assessment"`
-	Summary    struct {
+	Scenario      string                       `json:"scenario"`
+	Passed        bool                         `json:"passed"`
+	Findings      []protoFinding               `json:"findings"`
+	AssessmentRaw json.RawMessage              `json:"assessment"`
+	Assessment    *commonv1.MaturityAssessment `json:"-"`
+	Summary       struct {
 		Errors   int `json:"errors"`
 		Warnings int `json:"warnings"`
 		Infos    int `json:"infos"`
@@ -192,9 +194,11 @@ func parseProtoOutput(raw []byte) (*protoReport, error) {
 	if err := json.Unmarshal(raw, &rep); err != nil {
 		return nil, err
 	}
-	if err := requireProviderAssessment("proto-health", "proto", rep.Assessment); err != nil {
+	assessment, err := requireProviderAssessmentJSON("proto-health", "proto", rep.AssessmentRaw)
+	if err != nil {
 		return nil, err
 	}
+	rep.Assessment = assessment
 	return &rep, nil
 }
 

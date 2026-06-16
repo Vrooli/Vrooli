@@ -261,7 +261,7 @@ func translateDocHealth(resp *kov1.DocHealthResponse) *docsRunResult {
 		out.Remediation = "Run 'test-genie provider-contract check docs " + resp.GetScenarioName() + " --json' and restart knowledge-observatory if stale."
 		return out
 	}
-	out.Summary.LocalCurrentLevel, out.Summary.LocalNextLevel = protoLocalMaturitySummary(resp.GetAssessment())
+	out.Summary.LocalCurrentLevel, out.Summary.LocalNextLevel = localMaturitySummary(resp.GetAssessment())
 
 	failureCount := 0
 

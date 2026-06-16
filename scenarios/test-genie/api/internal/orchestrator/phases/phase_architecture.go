@@ -25,24 +25,26 @@ import (
 
 // ArchitectureSummary is the metric rollup persisted to phase pointers.
 type ArchitectureSummary struct {
-	Scenario   string `json:"scenario"`
-	Outcome    string `json:"outcome"`
-	Total      int    `json:"total"`
-	Blockers   int    `json:"blockers"`
-	Errors     int    `json:"errors"`
-	Warnings   int    `json:"warnings"`
-	Infos      int    `json:"infos"`
-	Suppressed int    `json:"suppressed"`
-	Authority  string `json:"authority,omitempty"`
-	Skipped    bool   `json:"skipped,omitempty"`
+	Scenario          string `json:"scenario"`
+	Outcome           string `json:"outcome"`
+	Total             int    `json:"total"`
+	Blockers          int    `json:"blockers"`
+	Errors            int    `json:"errors"`
+	Warnings          int    `json:"warnings"`
+	Infos             int    `json:"infos"`
+	Suppressed        int    `json:"suppressed"`
+	Authority         string `json:"authority,omitempty"`
+	Skipped           bool   `json:"skipped,omitempty"`
+	LocalCurrentLevel string `json:"local_current_level,omitempty"`
+	LocalNextLevel    string `json:"local_next_level,omitempty"`
 }
 
 func (s ArchitectureSummary) String() string {
 	if s.Skipped {
 		return "skipped"
 	}
-	return fmt.Sprintf("%s outcome=%s total=%d (blocker=%d error=%d warn=%d info=%d) suppressed=%d authority=%s",
-		s.Scenario, s.Outcome, s.Total, s.Blockers, s.Errors, s.Warnings, s.Infos, s.Suppressed, s.Authority)
+	return fmt.Sprintf("%s outcome=%s total=%d (blocker=%d error=%d warn=%d info=%d) suppressed=%d authority=%s local=%s next=%s",
+		s.Scenario, s.Outcome, s.Total, s.Blockers, s.Errors, s.Warnings, s.Infos, s.Suppressed, s.Authority, s.LocalCurrentLevel, s.LocalNextLevel)
 }
 
 type architectureRunResult struct {
@@ -112,6 +114,19 @@ func runArchitecturePhase(ctx context.Context, env workspace.Environment, logWri
 			auditErr,
 		)
 		return architectureSkipReport(env, reason, logWriter)
+	}
+	if err := requireProtoProviderAssessment("architecture-cartographer", "architecture", resp.GetAssessment()); err != nil {
+		summary := ArchitectureSummary{Scenario: env.ScenarioName}
+		report := RunReport{
+			Err:                   err,
+			FailureClassification: FailureClassMaturityContract,
+			Remediation:           "Restart architecture-cartographer through Vrooli lifecycle, then run `architecture-cartographer audit run " + env.ScenarioName + " --json` and verify the response includes assessment.",
+			Observations: []Observation{
+				NewErrorObservation("architecture-cartographer response is missing or malforms the required maturity assessment"),
+			},
+		}
+		writePhasePointer(env, "architecture", report, map[string]any{"summary": summary}, logWriter)
+		return report
 	}
 
 	var summary ArchitectureSummary
@@ -188,6 +203,7 @@ func translateArchitectureResponse(resp *audit_v1.AuditRunResponse) *architectur
 	if d := resp.GetDomains(); d != nil {
 		out.Summary.Authority = d.GetConfidence()
 	}
+	out.Summary.LocalCurrentLevel, out.Summary.LocalNextLevel = localMaturitySummary(resp.GetAssessment())
 
 	out.Observations = append(out.Observations, shared.NewSectionObservation("🏛️", "Architecture"))
 	for _, f := range resp.GetFindings() {

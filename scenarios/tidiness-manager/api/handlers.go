@@ -5,11 +5,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vrooli/maturity-go/assessment"
+	repocontract "github.com/vrooli/repo-contract-go"
+	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 // LightScanRequest defines the request body for light scanning
@@ -277,11 +283,12 @@ type TidinessScanRequest struct {
 // Test Genie and agents. It intentionally excludes lint/type/static-quality
 // policy findings, which are owned by quality-health.
 type TidinessScanResponse struct {
-	Scenario   string              `json:"scenario"`
-	Status     string              `json:"status"`
-	Findings   []TidinessFinding   `json:"findings"`
-	Violations []TidinessFinding   `json:"violations"` // compatibility alias for simple consumers
-	Summary    TidinessScanSummary `json:"summary"`
+	Scenario   string                       `json:"scenario"`
+	Status     string                       `json:"status"`
+	Findings   []TidinessFinding            `json:"findings"`
+	Violations []TidinessFinding            `json:"violations"` // compatibility alias for simple consumers
+	Summary    TidinessScanSummary          `json:"summary"`
+	Assessment *commonv1.MaturityAssessment `json:"assessment"`
 }
 
 type TidinessScanSummary struct {
@@ -456,13 +463,80 @@ func buildTidinessScan(ctx context.Context, scenarioName, scenarioPath string, t
 	if len(findings) > 0 {
 		status = "issues_found"
 	}
+	spec, err := loadTidinessMaturitySpec()
+	if err != nil {
+		return nil, err
+	}
+	maturityAssessment, err := buildTidinessMaturityAssessment(scenarioName, findings, spec)
+	if err != nil {
+		return nil, err
+	}
 	return &TidinessScanResponse{
 		Scenario:   scenarioName,
 		Status:     status,
 		Findings:   findings,
 		Violations: findings,
 		Summary:    summary,
+		Assessment: maturityAssessment,
 	}, nil
+}
+
+func loadTidinessMaturitySpec() (*assessment.Spec, error) {
+	_, repoRoot, err := repocontract.LoadDefaultFromEnvOrCWD()
+	if err != nil {
+		return nil, fmt.Errorf("resolve repo root for tidiness maturity spec: %w", err)
+	}
+	path := filepath.Join(repoRoot, "scenarios", "tidiness-manager", ".vrooli", "maturity.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read tidiness maturity spec: %w", err)
+	}
+	return assessment.ParseSpec(raw)
+}
+
+func buildTidinessMaturityAssessment(scenarioName string, findings []TidinessFinding, spec *assessment.Spec) (*commonv1.MaturityAssessment, error) {
+	if spec == nil {
+		return nil, fmt.Errorf("tidiness maturity spec is required")
+	}
+	assessed := make([]assessment.Finding, 0, len(findings))
+	for _, finding := range findings {
+		assessed = append(assessed, assessment.Finding{
+			Code:        finding.RuleID,
+			Severity:    tidinessSeverityToAssessment(finding.Severity),
+			Title:       finding.Title,
+			Message:     finding.Description,
+			Location:    tidinessFindingLocation(finding),
+			Remediation: finding.RecommendedRemediation,
+			Source:      architecturev1.FindingSource_FINDING_SOURCE_TIDINESS,
+			Phase:       spec.Phase,
+		})
+	}
+	return assessment.BuildProtoAssessment(assessment.BuildInput{
+		Scenario: scenarioName,
+		Spec:     *spec,
+		Findings: assessed,
+	})
+}
+
+func tidinessSeverityToAssessment(severity string) string {
+	switch strings.ToLower(strings.TrimSpace(severity)) {
+	case "critical", "high":
+		return architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR.String()
+	case "medium", "warning", "warn":
+		return architecturev1.FindingSeverity_FINDING_SEVERITY_WARNING.String()
+	case "low", "info":
+		return architecturev1.FindingSeverity_FINDING_SEVERITY_INFO.String()
+	default:
+		return severity
+	}
+}
+
+func tidinessFindingLocation(finding TidinessFinding) string {
+	location := strings.TrimSpace(finding.FilePath)
+	if location != "" && finding.LineNumber > 0 {
+		return fmt.Sprintf("%s:%d", location, finding.LineNumber)
+	}
+	return location
 }
 
 func filesForLanguageMetric(scenarioPath string, lang Language) []string {

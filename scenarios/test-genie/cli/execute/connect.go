@@ -7,8 +7,17 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/term"
+
 	runs_v1connect "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs/runs_v1connect"
 )
+
+// isStdoutTTY reports whether stdout is an interactive terminal. Heartbeat
+// keep-alives are kept for a TTY and suppressed otherwise (mirror of
+// report/color.go's detection).
+func isStdoutTTY() bool {
+	return term.IsTerminal(int(os.Stdout.Fd()))
+}
 
 // defaultAutoBackgroundSeconds is the ETA at/above which a non-`--wait` run is
 // launched in the background (the CLI returns immediately with a re-attach
@@ -61,12 +70,20 @@ func newRunsClient(baseURL string) runs_v1connect.RunsServiceClient {
 	return runs_v1connect.NewRunsServiceClient(httpClient, strings.TrimRight(baseURL, "/"))
 }
 
-// reattachCommand is the self-contained command an agent copies to re-attach to
-// a run that is still executing. It names `runs follow` (the streaming verb that
-// prints incremental progress + heartbeats) rather than `runs wait` (which
-// blocks silently until terminal) so a re-attaching agent sees the run is alive
-// and stops panic-polling.
+// reattachCommand is the self-contained command an agent copies to block on a
+// run that is still executing. It names `runs wait --json` — the quiet,
+// single-return verb that blocks server-side and returns ONCE with the verdict +
+// exit code (and, on --timeout, a backoff hint) — rather than `runs follow`
+// (a continuous, heartbeating stream). A backgrounded stream re-wakes an agent on
+// every heartbeat and produces "still waiting…" spam; a single quiet wait does
+// not. Use followCommand for the human/TUI live-watch verb.
 func reattachCommand(scenario, runID string) string {
+	return "test-genie runs wait --json " + scenario + " " + runID
+}
+
+// followCommand is the human/TUI live-watch verb: a continuous event stream with
+// progress lines and heartbeats. Prefer reattachCommand for agents and scripts.
+func followCommand(scenario, runID string) string {
 	return "test-genie runs follow " + scenario + " " + runID
 }
 

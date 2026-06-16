@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "HTTP/CLI API for other agents to request tidiness recommendations",
-    "last_validated_at": "2026-06-16T00:00:28-04:00"
+    "last_validated_at": "2026-06-16T12:39:25-04:00"
   },
   "requirements": [
     {

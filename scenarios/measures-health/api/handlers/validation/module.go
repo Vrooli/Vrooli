@@ -1,13 +1,17 @@
 package validation
 
 import (
+	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 
 	"measures-health/internal/module"
 	internal "measures-health/internal/validation"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
+	"github.com/vrooli/maturity-go/assessment"
 
 	validationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/measures-health/v1/validation/validation_v1connect"
 )
@@ -20,10 +24,15 @@ import (
 // validation_run history.
 func Module(repoRoot string, recorder RunRecorder, logger *log.Logger) module.Module {
 	v := internal.NewFilesystemValidator(repoRoot)
+	spec, err := loadMaturitySpec(repoRoot)
+	if err != nil && logger != nil {
+		logger.Printf("validation: maturity assessment disabled: %v", err)
+	}
 	connectPath, connectHandler := validationconnect.NewValidationServiceHandler(NewConnectHandler(Deps{
-		Validator: v,
-		Recorder:  recorder,
-		Logger:    logger,
+		Validator:    v,
+		Recorder:     recorder,
+		Logger:       logger,
+		MaturitySpec: spec,
 	}))
 	return module.Module{
 		Name: "validation",
@@ -32,6 +41,15 @@ func Module(repoRoot string, recorder RunRecorder, logger *log.Logger) module.Mo
 		},
 		Endpoints: Endpoints,
 	}
+}
+
+func loadMaturitySpec(repoRoot string) (*assessment.Spec, error) {
+	path := filepath.Join(repoRoot, "scenarios", "measures-health", ".vrooli", "maturity.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", path, err)
+	}
+	return assessment.ParseSpec(raw)
 }
 
 // Schema returns "" — validation computes coverage on demand from the
@@ -60,11 +78,12 @@ var Endpoints = []module.EndpointDescriptor{
 		Response: &module.Schema{
 			Type: "object",
 			Properties: map[string]string{
-				"scenario": "string",
-				"passed":   "bool",
-				"domains":  "array<DomainCoverage>",
-				"findings": "array<Finding>",
-				"summary":  "Summary",
+				"scenario":   "string",
+				"passed":     "bool",
+				"domains":    "array<DomainCoverage>",
+				"findings":   "array<Finding>",
+				"summary":    "Summary",
+				"assessment": "common.v1.MaturityAssessment",
 			},
 		},
 		Errors: []module.ErrorDesc{

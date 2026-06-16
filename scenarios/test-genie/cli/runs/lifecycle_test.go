@@ -113,6 +113,36 @@ func TestRunWaitJSONSnapshot(t *testing.T) {
 	}
 }
 
+// TestRunWaitJSONTimeoutSurfacesBackoff proves a `--json --timeout` wait that
+// returns before terminal exits 124, keeps stdout pure JSON, and prints the
+// cadence governor + the exact quiet re-invoke line to stderr.
+func TestRunWaitJSONTimeoutSurfacesBackoff(t *testing.T) {
+	withStreamServer(t, &streamServer{
+		waitStatus: &runspb.RunLiveStatus{RunId: "R", Status: "in_progress", RecommendedNextCheckSeconds: 17},
+		waitTimed:  true,
+	})
+	var out, errBuf bytes.Buffer
+	prev := stderrOut
+	stderrOut = &errBuf
+	t.Cleanup(func() { stderrOut = prev })
+
+	err := runWait(nil, []string{"--json", "--timeout", "30", "demo", "R"}, &out)
+	var ee *exitErr
+	if !errors.As(err, &ee) || ee.ExitCode() != exitWaitTimeout {
+		t.Fatalf("expected 124 wait-timeout exit, got %v", err)
+	}
+	if strings.Contains(out.String(), "still running") {
+		t.Fatalf("stdout must stay pure JSON (hint belongs on stderr), got: %q", out.String())
+	}
+	hint := errBuf.String()
+	if !strings.Contains(hint, "~17s") {
+		t.Fatalf("stderr must surface recommended_next_check_seconds, got: %q", hint)
+	}
+	if !strings.Contains(hint, "test-genie runs wait --json --timeout=30 demo R") {
+		t.Fatalf("stderr must surface the exact quiet re-invoke line, got: %q", hint)
+	}
+}
+
 // TestRunFollowStreams proves `runs follow` renders the stream and exits clean.
 func TestRunFollowStreams(t *testing.T) {
 	withStreamServer(t, &streamServer{events: passEvents()})
