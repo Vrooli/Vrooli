@@ -6,7 +6,8 @@
 
 Tidiness Manager prevents scenarios from decaying into unmaintainable chaos through:
 
-- **Light Scanning**: Fast, cheap static analysis via `make lint` and `make type` integration
+- **Tidiness Scanning**: Fast maintainability findings for long files, complexity, duplication, technical debt, and coupling
+- **Light Scanning**: Backward-compatible metrics collection and parser support for stored issue workflows
 - **Smart Scanning**: AI-powered deep analysis using resource-claude-code for refactoring suggestions
 - **Campaign Management**: Automatic, progressive tidiness campaigns using visited-tracker
 - **Agent API**: HTTP/CLI interface for other agents to request tidiness recommendations
@@ -25,7 +26,7 @@ make dev
 tidiness-manager status
 
 # Scan a scenario for tidiness issues
-tidiness-manager scan browser-automation-studio --type light
+tidiness-manager scan browser-automation-studio --type tidiness
 
 # List issues
 tidiness-manager issues browser-automation-studio --limit 10
@@ -51,10 +52,14 @@ tidiness-manager/
 ## Core Capabilities
 
 ### Light Scanning
-- Executes `make lint` and `make type` for scenarios with Makefiles
-- Parses outputs into structured issues (file, line, message, tool)
+- Collects file metrics and supports legacy parser workflows
 - Computes per-file line counts and flags files exceeding thresholds
 - Completes in <60s for small scenarios, <120s for medium scenarios
+
+### Tidiness Scanning
+- Reports normalized maintainability findings from file size, TODO/FIXME/HACK density, coupling, complexity, and duplication metrics
+- Emits agent guidance fields: why the issue matters, recommended remediation, and campaign grouping hints
+- Excludes lint/type/static-quality contract findings; those belong to quality-health and Test Genie's `quality` phase
 
 ### Smart Scanning
 - Uses resource-claude-code/resource-codes for AI analysis
@@ -111,7 +116,10 @@ tidiness-manager/
 # Check API health
 tidiness-manager status
 
-# Trigger light scan (fast, static analysis)
+# Trigger tidiness scan (default maintainability audit)
+tidiness-manager scan <scenario> --type tidiness
+
+# Trigger light scan (legacy metrics/parser path)
 tidiness-manager scan <scenario> --type light [--wait]
 
 # Trigger smart scan (slow, AI-powered)

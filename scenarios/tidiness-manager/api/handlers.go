@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // LightScanRequest defines the request body for light scanning
@@ -257,6 +258,289 @@ func (s *Server) handleSmartScan(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, result)
 }
 
+// TidinessScanRequest defines the request body for maintainability scanning.
+type TidinessScanRequest struct {
+	ScenarioName string `json:"scenario_name"`
+	TimeoutSec   int    `json:"timeout_sec,omitempty"`
+}
+
+// TidinessScanResponse is the normalized maintainability contract consumed by
+// Test Genie and agents. It intentionally excludes lint/type/static-quality
+// policy findings, which are owned by quality-health.
+type TidinessScanResponse struct {
+	Scenario   string              `json:"scenario"`
+	Status     string              `json:"status"`
+	Findings   []TidinessFinding   `json:"findings"`
+	Violations []TidinessFinding   `json:"violations"` // compatibility alias for simple consumers
+	Summary    TidinessScanSummary `json:"summary"`
+}
+
+type TidinessScanSummary struct {
+	TotalFindings int `json:"total_findings"`
+	LongFiles     int `json:"long_files"`
+	Complexity    int `json:"complexity"`
+	Duplication   int `json:"duplication"`
+	TechDebt      int `json:"tech_debt"`
+	Coupling      int `json:"coupling"`
+}
+
+type TidinessFinding struct {
+	ID                     string         `json:"id"`
+	RuleID                 string         `json:"rule_id"`
+	Scenario               string         `json:"scenario"`
+	FilePath               string         `json:"file_path,omitempty"`
+	Symbol                 string         `json:"symbol,omitempty"`
+	LineNumber             int            `json:"line_number,omitempty"`
+	Category               string         `json:"category"`
+	Severity               string         `json:"severity"`
+	Title                  string         `json:"title"`
+	Description            string         `json:"description"`
+	Evidence               map[string]any `json:"evidence,omitempty"`
+	WhyItMatters           string         `json:"why_it_matters"`
+	RecommendedRemediation string         `json:"recommended_remediation"`
+	Remediation            string         `json:"remediation"` // compatibility alias
+	CampaignGroupHint      string         `json:"campaign_group_hint,omitempty"`
+}
+
+// handleTidinessScan scans a scenario for maintainability/tidiness debt.
+func (s *Server) handleTidinessScan(w http.ResponseWriter, r *http.Request) {
+	var req TidinessScanRequest
+	if !decodeAndValidateJSON(w, r, &req) {
+		return
+	}
+	if strings.TrimSpace(req.ScenarioName) == "" {
+		respondError(w, http.StatusBadRequest, "scenario_name is required")
+		return
+	}
+	if s.scenarioLocator == nil {
+		respondError(w, http.StatusInternalServerError, "scenario locator not initialized")
+		return
+	}
+
+	scenarioName, err := s.scenarioLocator.ValidateScenarioName(req.ScenarioName)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	scenarioPath, err := s.scenarioLocator.ScenarioPath(scenarioName)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	timeout := 120 * time.Second
+	if req.TimeoutSec > 0 {
+		if req.TimeoutSec > 600 {
+			respondError(w, http.StatusBadRequest, "timeout_sec cannot exceed 600 seconds")
+			return
+		}
+		timeout = time.Duration(req.TimeoutSec) * time.Second
+	}
+
+	result, err := buildTidinessScan(r.Context(), scenarioName, scenarioPath, timeout)
+	if err != nil {
+		s.log("tidiness scan failed", map[string]interface{}{
+			"error":    err.Error(),
+			"scenario": scenarioName,
+		})
+		respondError(w, http.StatusInternalServerError, "tidiness scan failed")
+		return
+	}
+	respondJSON(w, http.StatusOK, result)
+}
+
+func buildTidinessScan(ctx context.Context, scenarioName, scenarioPath string, timeout time.Duration) (*TidinessScanResponse, error) {
+	scanner := NewLightScanner(scenarioPath, timeout)
+	fileMetrics, err := scanner.collectFileMetrics()
+	if err != nil {
+		return nil, err
+	}
+	languageMetrics, err := scanner.collectLanguageMetrics(ctx)
+	if err != nil {
+		languageMetrics = map[Language]*LanguageMetrics{}
+	}
+
+	findings := make([]TidinessFinding, 0)
+	const longFileThreshold = 500
+	const longTestFileThreshold = 1250
+	for _, metric := range fileMetrics {
+		threshold := longFileThreshold
+		if IsTestFilePath(metric.Path) {
+			threshold = longTestFileThreshold
+		}
+		if metric.Lines > threshold {
+			findings = append(findings, newTidinessFinding(scenarioName, "long-file", "length", severityForLineCount(metric.Lines, threshold), metric.Path, "", 1,
+				fmt.Sprintf("File has %d lines", metric.Lines),
+				fmt.Sprintf("File has %d lines, exceeding the tidiness threshold of %d.", metric.Lines, threshold),
+				map[string]any{"lines": metric.Lines, "threshold": threshold},
+				"Large files slow review, hide ownership boundaries, and make agent edits riskier.",
+				"Split the file around cohesive responsibilities and move tests/helpers with the code they support.",
+				"file-size"))
+		}
+	}
+
+	codeAnalyzer := NewCodeMetricsAnalyzer(scenarioPath)
+	for lang, metrics := range languageMetrics {
+		langInfoFiles := filesForLanguageMetric(scenarioPath, lang)
+		if len(langInfoFiles) == 0 {
+			continue
+		}
+		for _, relPath := range langInfoFiles {
+			if codeMetrics, err := codeAnalyzer.analyzeFile(filepath.Join(scenarioPath, relPath), lang); err == nil {
+				findings = append(findings, techDebtFindings(scenarioName, relPath, codeMetrics)...)
+				if codeMetrics.ImportCount > DefaultIssueGeneratorConfig().HighImportThreshold {
+					threshold := DefaultIssueGeneratorConfig().HighImportThreshold
+					findings = append(findings, newTidinessFinding(scenarioName, "high-coupling", "coupling", severityForCoupling(codeMetrics.ImportCount, threshold), relPath, "", 1,
+						fmt.Sprintf("File has %d imports", codeMetrics.ImportCount),
+						fmt.Sprintf("File has %d imports, exceeding the coupling threshold of %d.", codeMetrics.ImportCount, threshold),
+						map[string]any{"imports": codeMetrics.ImportCount, "threshold": threshold},
+						"High import counts often signal broad responsibilities and brittle dependency surfaces.",
+						"Extract focused collaborators or move unrelated responsibilities into narrower modules.",
+						"coupling"))
+				}
+			}
+		}
+
+		if metrics.Complexity != nil && !metrics.Complexity.Skipped {
+			for _, complexFile := range metrics.Complexity.HighComplexityFiles {
+				findings = append(findings, newTidinessFinding(scenarioName, "high-complexity", "complexity", severityForComplexity(complexFile.Complexity, metrics.Complexity.Threshold), complexFile.Path, complexFile.Function, complexFile.Line,
+					fmt.Sprintf("%s has cyclomatic complexity %d", complexFile.Function, complexFile.Complexity),
+					fmt.Sprintf("Function %s has cyclomatic complexity %d, exceeding the threshold of %d.", complexFile.Function, complexFile.Complexity, metrics.Complexity.Threshold),
+					map[string]any{"complexity": complexFile.Complexity, "threshold": metrics.Complexity.Threshold, "tool": metrics.Complexity.Tool},
+					"Highly branched code is harder to test, review, and safely modify.",
+					"Extract decision branches into named helpers and add focused tests around each behavior path.",
+					"complexity"))
+			}
+		}
+
+		if metrics.Duplicates != nil && !metrics.Duplicates.Skipped {
+			for i, block := range metrics.Duplicates.DuplicateBlocks {
+				primaryPath := ""
+				line := 0
+				if len(block.Files) > 0 {
+					primaryPath = block.Files[0].Path
+					line = block.Files[0].StartLine
+				}
+				findings = append(findings, newTidinessFinding(scenarioName, "duplicated-code", "duplication", severityForDuplication(float64(block.Lines), 10), primaryPath, "", line,
+					fmt.Sprintf("Duplicated block spans %d lines", block.Lines),
+					fmt.Sprintf("Duplicated code block #%d spans %d lines across %d locations.", i+1, block.Lines, len(block.Files)),
+					map[string]any{"lines": block.Lines, "locations": block.Files, "tool": metrics.Duplicates.Tool},
+					"Duplicated code multiplies future fixes and makes behavior drift likely.",
+					"Extract the shared behavior or intentionally document why the copies must diverge.",
+					"duplication"))
+			}
+		}
+	}
+
+	sort.SliceStable(findings, func(i, j int) bool {
+		if supportRank(findings[i].Severity) != supportRank(findings[j].Severity) {
+			return supportRank(findings[i].Severity) < supportRank(findings[j].Severity)
+		}
+		if findings[i].FilePath != findings[j].FilePath {
+			return findings[i].FilePath < findings[j].FilePath
+		}
+		return findings[i].RuleID < findings[j].RuleID
+	})
+
+	summary := summarizeTidinessFindings(findings)
+	status := "passed"
+	if len(findings) > 0 {
+		status = "issues_found"
+	}
+	return &TidinessScanResponse{
+		Scenario:   scenarioName,
+		Status:     status,
+		Findings:   findings,
+		Violations: findings,
+		Summary:    summary,
+	}, nil
+}
+
+func filesForLanguageMetric(scenarioPath string, lang Language) []string {
+	detector := NewLanguageDetector(scenarioPath)
+	languages, err := detector.DetectLanguages()
+	if err != nil {
+		return nil
+	}
+	if info, ok := languages[lang]; ok {
+		return info.Files
+	}
+	return nil
+}
+
+func techDebtFindings(scenario, relPath string, metrics *FileCodeMetrics) []TidinessFinding {
+	config := DefaultIssueGeneratorConfig()
+	debt := metrics.TodoCount + metrics.FixmeCount + metrics.HackCount
+	if debt <= config.HighTechDebtThreshold {
+		return nil
+	}
+	return []TidinessFinding{
+		newTidinessFinding(scenario, "tech-debt-markers", "technical_debt", severityForTechDebt(debt, config.HighTechDebtThreshold), relPath, "", 1,
+			fmt.Sprintf("File has %d TODO/FIXME/HACK markers", debt),
+			fmt.Sprintf("File has %d tracked debt markers: %d TODO, %d FIXME, %d HACK.", debt, metrics.TodoCount, metrics.FixmeCount, metrics.HackCount),
+			map[string]any{"todo": metrics.TodoCount, "fixme": metrics.FixmeCount, "hack": metrics.HackCount, "threshold": config.HighTechDebtThreshold},
+			"Dense local debt markers are a sign that cleanup has stopped being managed intentionally.",
+			"Resolve stale markers, convert real work into tracked issues, and keep only comments that explain active constraints.",
+			"technical-debt"),
+	}
+}
+
+func newTidinessFinding(scenario, ruleID, category, severity, filePath, symbol string, line int, title, description string, evidence map[string]any, why, remediation, campaignGroup string) TidinessFinding {
+	idParts := []string{scenario, ruleID, category, filePath, symbol, strconv.Itoa(line)}
+	remediation = strings.TrimSpace(remediation)
+	return TidinessFinding{
+		ID:                     strings.ReplaceAll(strings.Join(idParts, ":"), " ", "-"),
+		RuleID:                 strings.ToUpper(strings.ReplaceAll(ruleID, "-", "_")),
+		Scenario:               scenario,
+		FilePath:               filePath,
+		Symbol:                 symbol,
+		LineNumber:             line,
+		Category:               category,
+		Severity:               severity,
+		Title:                  title,
+		Description:            description,
+		Evidence:               evidence,
+		WhyItMatters:           why,
+		RecommendedRemediation: remediation,
+		Remediation:            remediation,
+		CampaignGroupHint:      campaignGroup,
+	}
+}
+
+func summarizeTidinessFindings(findings []TidinessFinding) TidinessScanSummary {
+	summary := TidinessScanSummary{TotalFindings: len(findings)}
+	for _, finding := range findings {
+		switch finding.Category {
+		case "length":
+			summary.LongFiles++
+		case "complexity":
+			summary.Complexity++
+		case "duplication":
+			summary.Duplication++
+		case "technical_debt":
+			summary.TechDebt++
+		case "coupling":
+			summary.Coupling++
+		}
+	}
+	return summary
+}
+
+func supportRank(severity string) int {
+	switch strings.ToLower(strings.TrimSpace(severity)) {
+	case "critical":
+		return 0
+	case "high":
+		return 1
+	case "medium":
+		return 2
+	case "low":
+		return 3
+	default:
+		return 4
+	}
+}
+
 // storeAIIssue stores an AI-discovered issue in the database (TM-SS-002, TM-API-006)
 func (s *Server) storeAIIssue(ctx context.Context, scenario string, issue AIIssue, sessionID string, campaignID *int) error {
 	if s.store == nil {
@@ -282,149 +566,6 @@ func (s *Server) persistFileMetrics(ctx context.Context, scenario string, metric
 		return fmt.Errorf("store not initialized")
 	}
 	return s.store.PersistFileMetrics(ctx, scenario, metrics)
-}
-
-// TypeSafetyScanRequest defines the request body for type-safety scanning
-type TypeSafetyScanRequest struct {
-	ScenarioName    string `json:"scenario_name"`
-	IncludePatterns bool   `json:"include_patterns,omitempty"`
-}
-
-// handleTypeSafetyScan scans a scenario's UI for type-safety config issues
-func (s *Server) handleTypeSafetyScan(w http.ResponseWriter, r *http.Request) {
-	var req TypeSafetyScanRequest
-	if !decodeAndValidateJSON(w, r, &req) {
-		return
-	}
-
-	if req.ScenarioName == "" {
-		respondError(w, http.StatusBadRequest, "scenario_name is required")
-		return
-	}
-
-	if s.scenarioLocator == nil {
-		respondError(w, http.StatusInternalServerError, "scenario locator not initialized")
-		return
-	}
-
-	scenarioName, err := s.scenarioLocator.ValidateScenarioName(req.ScenarioName)
-	if err != nil {
-		respondError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	scenarioPath, err := s.scenarioLocator.ScenarioPath(scenarioName)
-	if err != nil {
-		respondError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	analyzer := NewTypeSafetyAnalyzer(scenarioPath)
-	result := analyzer.Analyze()
-
-	// Optionally include pattern detection
-	if req.IncludePatterns {
-		summary := s.collectTypeSafetyPatterns(scenarioPath)
-		if summary != nil {
-			result.PatternSummary = summary
-		}
-	}
-
-	respondJSON(w, http.StatusOK, result)
-}
-
-// handleTypeSafetyFix auto-fixes tsconfig.json for a scenario
-func (s *Server) handleTypeSafetyFix(w http.ResponseWriter, r *http.Request) {
-	var req TypeSafetyScanRequest
-	if !decodeAndValidateJSON(w, r, &req) {
-		return
-	}
-
-	if req.ScenarioName == "" {
-		respondError(w, http.StatusBadRequest, "scenario_name is required")
-		return
-	}
-
-	if s.scenarioLocator == nil {
-		respondError(w, http.StatusInternalServerError, "scenario locator not initialized")
-		return
-	}
-
-	scenarioName, err := s.scenarioLocator.ValidateScenarioName(req.ScenarioName)
-	if err != nil {
-		respondError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	scenarioPath, err := s.scenarioLocator.ScenarioPath(scenarioName)
-	if err != nil {
-		respondError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	analyzer := NewTypeSafetyAnalyzer(scenarioPath)
-	result, fixErr := analyzer.FixTSConfig()
-	if fixErr != nil {
-		respondError(w, http.StatusInternalServerError, fixErr.Error())
-		return
-	}
-
-	respondJSON(w, http.StatusOK, result)
-}
-
-// collectTypeSafetyPatterns walks TS/JS files and aggregates dangerous pattern counts
-func (s *Server) collectTypeSafetyPatterns(scenarioPath string) *TypeSafetyPatternSummary {
-	detector := NewLanguageDetector(scenarioPath)
-	languages, err := detector.DetectLanguages()
-	if err != nil {
-		return nil
-	}
-
-	summary := &TypeSafetyPatternSummary{}
-	cma := NewCodeMetricsAnalyzer(scenarioPath)
-
-	var allFiles []FilePatternBreakdown
-
-	for lang, langInfo := range languages {
-		if lang != LanguageTypeScript && lang != LanguageJavaScript {
-			continue
-		}
-		for _, relPath := range langInfo.Files {
-			absPath := filepath.Join(scenarioPath, relPath)
-			fm, err := cma.analyzeFile(absPath, lang)
-			if err != nil {
-				continue
-			}
-			summary.TotalFiles++
-			summary.AsAnyCount += fm.AsAnyCount
-			summary.AsTypeAssertionCount += fm.AsTypeAssertionCount
-			summary.TsIgnoreCount += fm.TsIgnoreCount
-			summary.NonNullAssertionCount += fm.NonNullAssertionCount
-
-			total := fm.AsAnyCount + fm.AsTypeAssertionCount + fm.TsIgnoreCount + fm.NonNullAssertionCount
-			if total > 0 {
-				allFiles = append(allFiles, FilePatternBreakdown{
-					FilePath:              relPath,
-					AsAnyCount:            fm.AsAnyCount,
-					AsTypeAssertionCount:  fm.AsTypeAssertionCount,
-					TsIgnoreCount:         fm.TsIgnoreCount,
-					NonNullAssertionCount: fm.NonNullAssertionCount,
-					Total:                 total,
-				})
-			}
-		}
-	}
-
-	// Sort by total descending and take top 10
-	sort.Slice(allFiles, func(i, j int) bool {
-		return allFiles[i].Total > allFiles[j].Total
-	})
-	if len(allFiles) > 10 {
-		allFiles = allFiles[:10]
-	}
-	if len(allFiles) > 0 {
-		summary.TopFiles = allFiles
-	}
-
-	return summary
 }
 
 // GenerateIssuesFromMetricsRequest defines request for generating issues from stored metrics

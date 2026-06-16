@@ -645,7 +645,7 @@ func main() {
 	}
 }
 
-func TestIssueGenerator_TypeSafety(t *testing.T) {
+func TestIssueGenerator_DoesNotEmitTypeSafetyIssues(t *testing.T) {
 	metrics := []DetailedFileMetrics{
 		{
 			FilePath:              "src/bad.ts",
@@ -659,16 +659,9 @@ func TestIssueGenerator_TypeSafety(t *testing.T) {
 	config := DefaultIssueGeneratorConfig()
 	issues := GenerateIssuesFromMetrics("test-scenario", metrics, config)
 
-	foundTypeSafety := false
 	for _, issue := range issues {
 		if issue.Category == "type_safety" {
-			foundTypeSafety = true
-			if issue.Severity == "" {
-				t.Error("expected non-empty severity for type_safety issue")
-			}
+			t.Fatalf("type_safety issues must be owned by quality-health, got %+v", issue)
 		}
-	}
-	if !foundTypeSafety {
-		t.Error("expected type_safety issue to be generated when threshold exceeded")
 	}
 }

@@ -20,7 +20,7 @@ func Register(core *cliapp.ScenarioApp) cliapp.CommandGroup {
 			{
 				Name:        "scan",
 				NeedsAPI:    true,
-				Description: "Run light, smart, or type-safety scans",
+				Description: "Run tidiness, light, or smart scans",
 				Run: func(args []string) error {
 					return run(core, args)
 				},
@@ -31,14 +31,12 @@ func Register(core *cliapp.ScenarioApp) cliapp.CommandGroup {
 
 func run(core *cliapp.ScenarioApp, args []string) error {
 	fs := support.NewFlagSet("scan")
-	scanType := fs.String("type", "light", "Scan type: light, smart, or type-safety")
+	scanType := fs.String("type", "tidiness", "Scan type: tidiness, light, or smart")
 	timeout := fs.Int("timeout", 120, "Light scan timeout in seconds")
 	var files cliutil.StringList
 	fs.Var(&files, "file", "File to include in smart scan (repeatable)")
 	forceRescan := fs.Bool("force-rescan", false, "Re-analyze files already seen in this smart scan session")
 	campaignID := fs.Int("campaign-id", 0, "Attach smart scan results to a campaign")
-	includePatterns := fs.Bool("include-patterns", false, "Include dangerous pattern summary in type-safety scans")
-	fix := fs.Bool("fix", false, "Apply supported fixes for the selected scan type")
 	jsonOutput := cliutil.JSONFlag(fs)
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
@@ -50,15 +48,63 @@ func run(core *cliapp.ScenarioApp, args []string) error {
 	}
 
 	switch strings.ToLower(strings.TrimSpace(*scanType)) {
+	case "tidiness", "maintainability":
+		return runTidiness(core, target, *timeout, *jsonOutput)
 	case "light":
 		return runLight(core, target, *timeout, *jsonOutput)
 	case "smart":
 		return runSmart(core, target, files.Values(), *forceRescan, *campaignID, *jsonOutput)
-	case "type-safety", "type", "typesafety":
-		return runTypeSafety(core, target, *includePatterns, *fix, *jsonOutput)
 	default:
 		return fmt.Errorf("unsupported scan type %q", *scanType)
 	}
+}
+
+func runTidiness(core *cliapp.ScenarioApp, target string, timeout int, jsonOutput bool) error {
+	scenario := support.ScenarioName(target)
+	if strings.TrimSpace(scenario) == "" {
+		return fmt.Errorf("scenario name is required for tidiness scans")
+	}
+
+	body, err := core.Request("POST", "/scan/tidiness", nil, map[string]interface{}{
+		"scenario_name": scenario,
+		"timeout_sec":   timeout,
+	})
+	if err != nil {
+		return err
+	}
+
+	var result support.TidinessScanResponse
+	if err := support.Decode(body, &result); err != nil {
+		return err
+	}
+
+	findings := result.Findings
+	sort.SliceStable(findings, func(i, j int) bool {
+		return support.SeverityRank(findings[i].Severity) < support.SeverityRank(findings[j].Severity)
+	})
+
+	report := cliapp.ListReport{
+		Summary: []string{
+			fmt.Sprintf("Scenario: %s", result.Scenario),
+			fmt.Sprintf("Status: %s", result.Status),
+			fmt.Sprintf("Findings: %d", result.Summary.TotalFindings),
+			fmt.Sprintf("Long files: %d", result.Summary.LongFiles),
+			fmt.Sprintf("Complexity: %d", result.Summary.Complexity),
+			fmt.Sprintf("Duplication: %d", result.Summary.Duplication),
+			fmt.Sprintf("Tech debt: %d", result.Summary.TechDebt),
+		},
+		ResultsHeading: "Tidiness Findings",
+		Results:        tidinessRows(findings),
+		RetrievalHints: []string{
+			fmt.Sprintf("%s scan %s --type tidiness", cliName, scenario),
+			fmt.Sprintf("%s recommend-refactors %s --limit 10", cliName, scenario),
+		},
+	}
+
+	if jsonOutput {
+		return cliapp.PrintReportJSON(os.Stdout, report)
+	}
+	return cliapp.RenderListReport(os.Stdout, report)
 }
 
 func runLight(core *cliapp.ScenarioApp, target string, timeout int, jsonOutput bool) error {
@@ -160,64 +206,6 @@ func runSmart(core *cliapp.ScenarioApp, target string, files []string, forceResc
 	return cliapp.RenderOperationalReport(os.Stdout, report)
 }
 
-func runTypeSafety(core *cliapp.ScenarioApp, target string, includePatterns, fix, jsonOutput bool) error {
-	scenario := support.ScenarioName(target)
-	if strings.TrimSpace(scenario) == "" {
-		return fmt.Errorf("scenario name is required for type-safety scans")
-	}
-
-	endpoint := "/scan/type-safety"
-	if fix {
-		endpoint = "/scan/type-safety/fix"
-	}
-
-	body, err := core.Request("POST", endpoint, nil, map[string]interface{}{
-		"scenario_name":    scenario,
-		"include_patterns": includePatterns,
-	})
-	if err != nil {
-		return err
-	}
-
-	var result support.TypeSafetyConfigResult
-	if err := support.Decode(body, &result); err != nil {
-		return err
-	}
-
-	violations := result.Violations
-	sort.SliceStable(violations, func(i, j int) bool {
-		return support.SeverityRank(violations[i].Severity) < support.SeverityRank(violations[j].Severity)
-	})
-
-	summary := []string{
-		fmt.Sprintf("Scenario: %s", scenario),
-		fmt.Sprintf("Violations: %d", len(violations)),
-		support.StatusLine(result.TSConfigFound, "tsconfig.json detected", ""),
-		support.StatusLine(result.ESLintConfigFound, "ESLint config detected", ""),
-	}
-	if result.TSConfigFound {
-		summary = append(summary,
-			support.StatusLine(result.TSConfigStrict, "TypeScript strict mode", ""),
-			support.StatusLine(result.TSConfigNoUnchecked, "noUncheckedIndexedAccess", ""),
-		)
-	}
-
-	report := cliapp.ListReport{
-		Summary:        summary,
-		ResultsHeading: "Violations",
-		Results:        typeSafetyRows(violations, result.PatternSummary),
-		RetrievalHints: []string{fmt.Sprintf("%s scan %s --type type-safety --include-patterns", cliName, scenario)},
-	}
-	if fix {
-		report.RetrievalHints = append(report.RetrievalHints, fmt.Sprintf("%s scan %s --type type-safety", cliName, scenario))
-	}
-
-	if jsonOutput {
-		return cliapp.PrintReportJSON(os.Stdout, report)
-	}
-	return cliapp.RenderListReport(os.Stdout, report)
-}
-
 func commandSummary(name string, run *support.CommandRun) string {
 	if run == nil {
 		return fmt.Sprintf("%s: not available", name)
@@ -266,26 +254,21 @@ func batchRows(batches []support.BatchResult) []string {
 	return rows
 }
 
-func typeSafetyRows(violations []support.TypeSafetyViolation, patterns *support.TypeSafetyPatternSummary) []string {
-	rows := make([]string, 0, len(violations)+4)
-	for _, violation := range violations {
-		rows = append(rows, fmt.Sprintf("[%s] %s", strings.ToUpper(violation.Severity), violation.Title))
-	}
-	if patterns != nil {
-		rows = append(rows,
-			fmt.Sprintf("Pattern totals: as-any=%d, assertions=%d, ts-ignore=%d, non-null=%d",
-				patterns.AsAnyCount, patterns.AsTypeAssertionCount, patterns.TsIgnoreCount, patterns.NonNullAssertionCount),
-		)
-		limit := len(patterns.TopFiles)
-		if limit > 3 {
-			limit = 3
+func tidinessRows(findings []support.TidinessFinding) []string {
+	rows := make([]string, 0, len(findings))
+	for _, finding := range findings {
+		loc := finding.FilePath
+		if finding.LineNumber > 0 {
+			loc = fmt.Sprintf("%s:%d", loc, finding.LineNumber)
 		}
-		for _, top := range patterns.TopFiles[:limit] {
-			rows = append(rows, fmt.Sprintf("Pattern hotspot: %s (%d markers)", top.FilePath, top.Total))
+		line := fmt.Sprintf("[%s] %s", strings.ToUpper(finding.Severity), finding.Title)
+		if strings.TrimSpace(loc) != "" {
+			line += " -> " + loc
 		}
+		rows = append(rows, line)
 	}
 	if len(rows) == 0 {
-		rows = append(rows, "No type-safety violations detected")
+		rows = append(rows, "No tidiness findings detected")
 	}
 	return rows
 }

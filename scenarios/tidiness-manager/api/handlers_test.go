@@ -2,9 +2,13 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gorilla/mux"
@@ -151,6 +155,50 @@ func TestRespondError(t *testing.T) {
 				t.Errorf("respondError() message = %v, want %v", response["error"], tt.message)
 			}
 		})
+	}
+}
+
+func TestBuildTidinessScanReportsMaintainabilityOnly(t *testing.T) {
+	tmpDir := t.TempDir()
+	apiDir := filepath.Join(tmpDir, "api")
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
+		t.Fatalf("mkdir api: %v", err)
+	}
+
+	var content strings.Builder
+	content.WriteString("package main\n\n")
+	content.WriteString("import \"fmt\"\n\n")
+	content.WriteString("func main() {\n")
+	for i := 0; i < 12; i++ {
+		content.WriteString("\t// TODO: planned cleanup\n")
+	}
+	content.WriteString("\tfmt.Println(\"ok\")\n")
+	content.WriteString("}\n")
+	for i := 0; i < 520; i++ {
+		content.WriteString("// filler line\n")
+	}
+	if err := os.WriteFile(filepath.Join(apiDir, "main.go"), []byte(content.String()), 0o644); err != nil {
+		t.Fatalf("write source: %v", err)
+	}
+
+	result, err := buildTidinessScan(context.Background(), "demo", tmpDir, 0)
+	if err != nil {
+		t.Fatalf("buildTidinessScan failed: %v", err)
+	}
+
+	if result.Summary.LongFiles == 0 {
+		t.Fatalf("expected long-file finding, got summary %+v", result.Summary)
+	}
+	if result.Summary.TechDebt == 0 {
+		t.Fatalf("expected tech-debt finding, got summary %+v", result.Summary)
+	}
+	for _, finding := range result.Findings {
+		if finding.Category == "type_safety" || strings.Contains(finding.RuleID, "TS_CONFIG") {
+			t.Fatalf("tidiness scan must not emit static-quality finding: %+v", finding)
+		}
+		if finding.WhyItMatters == "" || finding.RecommendedRemediation == "" {
+			t.Fatalf("finding missing guidance fields: %+v", finding)
+		}
 	}
 }
 

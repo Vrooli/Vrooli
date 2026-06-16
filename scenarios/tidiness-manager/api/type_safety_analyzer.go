@@ -9,12 +9,18 @@ import (
 	"strings"
 )
 
-// TypeSafetyAnalyzer validates TypeScript/ESLint config for a scenario's UI directory
+// TypeSafetyAnalyzer validates TypeScript/ESLint config for a scenario's UI directory.
+//
+// Deprecated: Quality Health owns lint/type/static-quality contracts and
+// autofix. This analyzer remains only as archived parity code until historical
+// tests and metric consumers are removed.
 type TypeSafetyAnalyzer struct {
 	scenarioPath string
 }
 
-// NewTypeSafetyAnalyzer creates an analyzer for the given scenario path
+// NewTypeSafetyAnalyzer creates an analyzer for the given scenario path.
+//
+// Deprecated: use quality-health audit/fix-config surfaces for active checks.
 func NewTypeSafetyAnalyzer(scenarioPath string) *TypeSafetyAnalyzer {
 	return &TypeSafetyAnalyzer{scenarioPath: scenarioPath}
 }

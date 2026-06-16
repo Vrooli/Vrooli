@@ -102,9 +102,9 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/scan/light/parse-lint", s.handleParseLint).Methods("POST")
 	s.router.HandleFunc("/api/v1/scan/light/parse-type", s.handleParseType).Methods("POST")
 
-	// Type-safety scanning endpoints
-	s.router.HandleFunc("/api/v1/scan/type-safety", s.handleTypeSafetyScan).Methods("POST", "OPTIONS")
-	s.router.HandleFunc("/api/v1/scan/type-safety/fix", s.handleTypeSafetyFix).Methods("POST", "OPTIONS")
+	// Tidiness scanning endpoints. Static quality/type-safety policy now belongs
+	// to quality-health; this endpoint reports maintainability debt only.
+	s.router.HandleFunc("/api/v1/scan/tidiness", s.handleTidinessScan).Methods("POST", "OPTIONS")
 
 	// Smart scanning endpoints (TM-SS-001, TM-SS-002)
 	s.router.HandleFunc("/api/v1/scan/smart", s.handleSmartScan).Methods("POST", "OPTIONS")
