@@ -67,8 +67,8 @@ var clientFactory = func(core *cliapp.ScenarioApp) baselines_v1connect.Baselines
 // engagement.go + promote.go).
 func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 	subcommands := []cliapp.Command{
-		{Name: "snapshot", NeedsAPI: true, Description: "Capture a baseline from one durable test-genie run (--scenario --name [--branch] [--include w,t,...] [--fast|--full] [--reason]); Ctrl-C detaches (re-attach via test-genie runs follow), never aborts", Run: func(a []string) error { return runSnapshot(core, a) }},
-		{Name: "diff", NeedsAPI: true, Description: "Start a durable diff of a baseline vs the working tree, returning a run id + re-attach command (--scenario --name [--branch] [--surface] [--wait]); `diff status --run R` resolves the verdict (exit 1 regression, 2 not-comparable, 3 not-ready); reuses a clean-tree run when possible; Ctrl-C detaches, never aborts", Run: func(a []string) error { return runDiff(core, a) }},
+		{Name: "snapshot", NeedsAPI: true, Description: "Capture a baseline from one durable test-genie run (--scenario --name [--branch] [--include w,t,...] [--fast|--full] [--reason]); Ctrl-C detaches (re-attach via test-genie runs wait --json), never aborts", Run: func(a []string) error { return runSnapshot(core, a) }},
+		{Name: "diff", NeedsAPI: true, Description: "Start a durable diff of a baseline vs the working tree, returning a run id + re-attach command (--scenario --name [--branch] [--surface] [--wait]); `diff status --run R` resolves the verdict (exit 1 regression, 2 not-comparable, 3 not-ready); `diff wait-all --run s:name:R …` resolves several started diffs in one call; reuses a clean-tree run when possible; Ctrl-C detaches, never aborts", Run: func(a []string) error { return runDiff(core, a) }},
 		{Name: "list", NeedsAPI: true, Description: "List baselines (--scenario [--branch] [--all-branches])", Run: func(a []string) error { return runList(core, a) }},
 		{Name: "show", NeedsAPI: true, Description: "Show one baseline (--scenario --name [--branch])", Run: func(a []string) error { return runShow(core, a) }},
 		{Name: "delete", NeedsAPI: true, Description: "Delete a baseline and unpin its test-genie runs (--scenario --name [--branch])", Run: func(a []string) error { return runDelete(core, a) }},
@@ -171,9 +171,13 @@ func runSnapshot(core *cliapp.ScenarioApp, args []string) error {
 // resolves the cached verdict. With --wait it blocks server-side and prints the
 // verdict inline; a clean-tree reuse resolves instantly with no second suite.
 func runDiff(core *cliapp.ScenarioApp, args []string) error {
-	// Sub-dispatch: `baseline diff status …` resolves a started diff's verdict.
+	// Sub-dispatch: `baseline diff status …` resolves a started diff's verdict;
+	// `baseline diff wait-all …` resolves several started diffs in one call.
 	if len(args) > 0 && args[0] == "status" {
 		return runDiffStatus(core, args[1:])
+	}
+	if len(args) > 0 && args[0] == "wait-all" {
+		return runDiffWaitAll(core, args[1:])
 	}
 
 	var c commonFlags
@@ -294,7 +298,7 @@ func renderRunBusy(err error, scenario string) (bool, int) {
 			continue
 		}
 		fmt.Fprintf(os.Stderr, "✗ %s already has an in-progress run %s (preset %s) — only one run per scenario at a time.\n", bi.GetScenario(), bi.GetRunId(), busyPreset(bi.GetPreset()))
-		fmt.Fprintf(os.Stderr, "  wait:  test-genie runs follow %s %s\n", bi.GetScenario(), bi.GetRunId())
+		fmt.Fprintf(os.Stderr, "  wait:  test-genie runs wait --json %s %s\n", bi.GetScenario(), bi.GetRunId())
 		fmt.Fprintf(os.Stderr, "  abort: test-genie runs abort %s %s\n", bi.GetScenario(), bi.GetRunId())
 		return true, exitNotComparable
 	}

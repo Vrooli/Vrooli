@@ -1,14 +1,18 @@
 package validation
 
 import (
+	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 
-	"github.com/vrooli/measures-go/manifestscan"
 	"cli-health/internal/module"
 	"cli-health/internal/services/manifestvalidation"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
+	"github.com/vrooli/maturity-go/assessment"
+	"github.com/vrooli/measures-go/manifestscan"
 
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli-health/v1/validation"
 	validationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/cli-health/v1/validation/validation_v1connect"
@@ -31,10 +35,15 @@ func Module(logger *log.Logger, repoRoot string, reservedNames []string) module.
 		Measures:  manifestscan.NewDescriptorSchemaReader(repoRoot),
 		Logger:    logger,
 	})
+	spec, err := loadMaturitySpec(repoRoot)
+	if err != nil && logger != nil {
+		logger.Printf("validation: maturity assessment disabled: %v", err)
+	}
 	connectPath, connectHandler := validationconnect.NewValidationServiceHandler(NewConnectHandler(Deps{
 		Logger:        logger,
 		Validator:     validator,
 		ReservedNames: reservedNames,
+		MaturitySpec:  spec,
 	}))
 	return module.Module{
 		Name: "validation",
@@ -43,6 +52,15 @@ func Module(logger *log.Logger, repoRoot string, reservedNames []string) module.
 		},
 		Endpoints: Endpoints,
 	}
+}
+
+func loadMaturitySpec(repoRoot string) (*assessment.Spec, error) {
+	path := filepath.Join(repoRoot, "scenarios", "cli-health", ".vrooli", "maturity.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", path, err)
+	}
+	return assessment.ParseSpec(raw)
 }
 
 // Schema returns "" — validation is stateless in Phase 1 (no tables). The
@@ -69,10 +87,11 @@ var Endpoints = []module.EndpointDescriptor{
 		Response: &module.Schema{
 			Type: "object",
 			Properties: map[string]string{
-				"scenario": "string",
-				"passed":   "boolean",
-				"findings": "array<Finding>",
-				"summary":  "Summary",
+				"scenario":   "string",
+				"passed":     "boolean",
+				"findings":   "array<Finding>",
+				"summary":    "Summary",
+				"assessment": "common.v1.MaturityAssessment",
 			},
 		},
 		Errors: []module.ErrorDesc{

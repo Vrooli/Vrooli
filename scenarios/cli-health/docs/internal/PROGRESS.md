@@ -11,6 +11,7 @@ work lands, not while work is still speculative.
 | Date | Author | Status | Notes |
 |---|---|---|---|
 | 2026-05-19 | Generator Agent | done | Phase 0 complete: scenario generated from react-vite + vrooli-default; PRD authored via prd-control-tower; 14 requirements generated covering 9/9 OTs; DOMAINS.md updated with validation/search/reindex domains; service.json declares ollama + qdrant resource dependencies; notes example domain removed; orientation finalized. Fixed 7 substrate bugs in templates/scenarios/react-vite (also patched in cli-health): (1) SCENARIO_ID→SCENARIO_ID_SNAKE in proto-symbol references, (2) cliapp.Register signature drift, (3) stale UI flow contractSha256, (4) stale API flow contractSha256, (5) missing RESTException on /health endpoint, (6) Makefile missing canonical .PHONY targets (clean/build/fmt/fmt-go/fmt-ui/lint/lint-go/lint-ui/check), (7) iframe guard + appId missing from ui/src/main.tsx, (bonus) manifest's omitted[] referenced nonexistent NotesService.AttachFile. Also relaxed TestProtoConnectParity to skip on empty AllProtoFiles() for greenfield transitional state. |
+| 2026-06-16 | Codex | done | Adopted the shared health maturity assessment contract for CLI Health. Added `.vrooli/maturity.json`, emitted `common.v1.MaturityAssessment` from `ValidateScenario`, rendered local maturity in CLI human output, and preserved local maturity in Test Genie contracts phase summaries. |
 
 ## Entry Template
 

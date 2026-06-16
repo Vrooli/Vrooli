@@ -4,13 +4,17 @@ import (
 	"context"
 	"errors"
 	"log"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
 
 	"cli-health/internal/services/manifestvalidation"
+	"github.com/vrooli/maturity-go/assessment"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli-health/v1/validation"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 type stubValidator struct {
@@ -70,4 +74,90 @@ func TestValidate_ScenarioPassesThrough(t *testing.T) {
 	if !resp.Msg.GetPassed() {
 		t.Errorf("Passed=false; want true")
 	}
+}
+
+func TestBuildMaturityAssessmentMapsCLIFindings(t *testing.T) {
+	spec := testMaturitySpec()
+	report := manifestvalidation.Report{
+		Scenario: "demo",
+		Findings: []manifestvalidation.Finding{{
+			Severity:   manifestvalidation.SeverityError,
+			Code:       manifestvalidation.CodeBindingUnknownMethod,
+			Location:   "scenarios/demo/cli/manifest.json",
+			Message:    "bad binding",
+			Suggestion: "fix method",
+		}},
+	}
+	got := buildMaturityAssessment(report, spec)
+	if got.GetProvider() != "cli-health" || got.GetPhase() != "contracts" {
+		t.Fatalf("assessment identity = %s/%s, want cli-health/contracts", got.GetProvider(), got.GetPhase())
+	}
+	if got.GetLocal().GetCurrentLevel() != "L1" || got.GetLocal().GetNextLevel() != "L2" {
+		t.Fatalf("local maturity = current %q next %q, want L1/L2", got.GetLocal().GetCurrentLevel(), got.GetLocal().GetNextLevel())
+	}
+	if got.GetFindings()[0].GetMaturity().GetGlobalImpact() != commonv1.GlobalImpact_GLOBAL_IMPACT_EVOLVABILITY_GAP {
+		t.Fatalf("global impact = %v, want EVOLVABILITY_GAP", got.GetFindings()[0].GetMaturity().GetGlobalImpact())
+	}
+}
+
+func TestMaturitySpecCoversCLIHealthFindings(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "..", "..", ".vrooli", "maturity.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	spec, err := assessment.ParseSpec(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, code := range []string{
+		manifestvalidation.CodeManifestMissing,
+		manifestvalidation.CodeManifestParseError,
+		manifestvalidation.CodeManifestSchemaError,
+		manifestvalidation.CodeProtoBuildFailed,
+		manifestvalidation.CodeBindingUnknownSvc,
+		manifestvalidation.CodeBindingUnknownMethod,
+		manifestvalidation.CodeBindingDuplicate,
+		manifestvalidation.CodeProtoOrphanMethod,
+		manifestvalidation.CodeOmissionOrphan,
+		manifestvalidation.CodeMeasureInvalid,
+		manifestvalidation.CodeMeasureUnknownType,
+		manifestvalidation.CodeMeasureSchemaUnread,
+		manifestvalidation.CodeMeasureTier,
+	} {
+		if _, ok := spec.Findings[code]; !ok {
+			t.Fatalf("maturity spec does not map emitted finding code %q", code)
+		}
+	}
+}
+
+func testMaturitySpec() *assessment.Spec {
+	spec := &assessment.Spec{
+		Provider: "cli-health",
+		Phase:    "contracts",
+		Version:  "test",
+		Levels: []assessment.Level{
+			{ID: "L0", Name: "No manifest"},
+			{ID: "L1", Name: "Schema valid"},
+			{ID: "L2", Name: "Bindings valid"},
+		},
+		Findings: map[string]assessment.FindingMapping{
+			manifestvalidation.CodeBindingUnknownMethod: {
+				LocalLevelImpact:    "L2",
+				GlobalImpact:        assessment.ImpactEvolvabilityGap,
+				Dimension:           "contracts",
+				SeverityDefault:     "SEVERITY_ERROR",
+				RecommendedSkillIDs: []string{"cli-steer"},
+			},
+		},
+		Fallback: assessment.FallbackPolicy{
+			LocalLevelImpact: "L2",
+			GlobalImpact:     assessment.ImpactEvolvabilityGap,
+			Dimension:        "contracts",
+			SeverityDefault:  "SEVERITY_ERROR",
+		},
+	}
+	if err := assessment.ValidateSpec(*spec); err != nil {
+		panic(err)
+	}
+	return spec
 }

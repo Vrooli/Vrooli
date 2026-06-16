@@ -52,21 +52,30 @@ func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 		}
 		results = append(results, line)
 	}
-	summary := fmt.Sprintf("Validated %s — passed=%v errors=%d warnings=%d infos=%d",
-		msg.Scenario, msg.Passed,
-		int(msg.GetSummary().GetErrors()),
-		int(msg.GetSummary().GetWarnings()),
-		int(msg.GetSummary().GetInfos()),
-	)
+	summaryLines := []string{
+		fmt.Sprintf("Validated %s — passed=%v errors=%d warnings=%d infos=%d",
+			msg.GetScenario(), msg.GetPassed(),
+			int(msg.GetSummary().GetErrors()),
+			int(msg.GetSummary().GetWarnings()),
+			int(msg.GetSummary().GetInfos()),
+		),
+	}
+	if assessmentReport := cliapp.BuildMaturityListReport(msg.GetAssessment()); len(assessmentReport.Summary) > 0 {
+		summaryLines = append(summaryLines, assessmentReport.Summary...)
+		if len(assessmentReport.Results) > 0 {
+			results = append(results, "")
+			results = append(results, assessmentReport.Results...)
+		}
+	}
 	if err := cliapp.RenderProtoList(ctx, msg, cliapp.ListReport{
-		Summary:        []string{summary},
+		Summary:        summaryLines,
 		ResultsHeading: "Findings",
 		Results:        results,
 	}); err != nil {
 		return err
 	}
-	if !msg.Passed {
-		return fmt.Errorf("scenario %s did not pass validation (%d error finding(s))", msg.Scenario, msg.GetSummary().GetErrors())
+	if !msg.GetPassed() {
+		return fmt.Errorf("scenario %s did not pass validation (%d error finding(s))", msg.GetScenario(), msg.GetSummary().GetErrors())
 	}
 	return nil
 }

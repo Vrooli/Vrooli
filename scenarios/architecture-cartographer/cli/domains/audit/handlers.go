@@ -315,6 +315,11 @@ func renderHuman(msg *auditv1.AuditRunResponse) {
 		}
 		fmt.Println()
 	}
+	if maturity := cliapp.BuildMaturityListReport(msg.GetAssessment()); len(maturity.Summary) > 0 {
+		for _, line := range maturity.Summary {
+			fmt.Printf("  %s\n", line)
+		}
+	}
 	for _, f := range msg.GetFindings() {
 		sid := f.GetStableId()
 		if sid == "" {
@@ -384,6 +389,7 @@ type jsonReportT struct {
 	Findings           []jsonFinding    `json:"findings,omitempty"`
 	Domains            map[string]any   `json:"domains"`
 	Graph              map[string]any   `json:"graph"`
+	Assessment         any              `json:"assessment,omitempty"`
 	DurationMS         int64            `json:"duration_ms"`
 }
 
@@ -424,6 +430,7 @@ func jsonReport(msg *auditv1.AuditRunResponse) jsonReportT {
 			"package_count":     msg.GetGraph().GetPackageCount(),
 			"import_edge_count": msg.GetGraph().GetImportEdgeCount(),
 		},
+		Assessment: msg.GetAssessment(),
 	}
 	for _, f := range msg.GetFindings() {
 		out.Findings = append(out.Findings, jsonFinding{

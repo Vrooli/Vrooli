@@ -68,7 +68,8 @@ func snapshotBanner(resp *baselinesv1.SnapshotForBaselineResponse) string {
 		fmt.Fprintf(&b, "▶ Baseline %q for %s — comprehensive run %s started\n", resp.GetName(), resp.GetScenario(), resp.GetRunId())
 	}
 	fmt.Fprintf(&b, "  estimated %s — the run is durable server-side; the baseline pins automatically when it completes.\n", eta)
-	fmt.Fprintf(&b, "  follow live:   test-genie runs follow %s %s\n", resp.GetScenario(), resp.GetRunId())
+	fmt.Fprintf(&b, "  block on it:   test-genie runs wait --json %s %s\n", resp.GetScenario(), resp.GetRunId())
+	fmt.Fprintf(&b, "  (watch live:   test-genie runs follow %s %s)\n", resp.GetScenario(), resp.GetRunId())
 	fmt.Fprintf(&b, "  then inspect:  git-control-tower baseline show --scenario %s --name %s\n", resp.GetScenario(), resp.GetName())
 	if w := resp.GetDirtyWarning(); w != "" {
 		fmt.Fprintf(&b, "⚠ %s\n", w)
@@ -103,7 +104,8 @@ func diffStartBanner(resp *baselinesv1.StartDiffResponse) string {
 		fmt.Fprintf(&b, "▶ Diff of baseline %q for %s — comprehensive run %s started (estimated %s)\n", name, scenario, run, eta)
 	}
 	fmt.Fprintf(&b, "  the run is durable server-side; the diff verdict is computed and cached when it completes.\n")
-	fmt.Fprintf(&b, "  follow live:   test-genie runs follow %s %s\n", scenario, run)
+	fmt.Fprintf(&b, "  block on it:   test-genie runs wait --json %s %s\n", scenario, run)
+	fmt.Fprintf(&b, "  (watch live:   test-genie runs follow %s %s)\n", scenario, run)
 	fmt.Fprintf(&b, "  then resolve:  git-control-tower baseline diff status --scenario %s --name %s --run %s\n", scenario, name, run)
 	if w := resp.GetDirtyWarning(); w != "" {
 		fmt.Fprintf(&b, "⚠ %s\n", w)
@@ -115,10 +117,10 @@ func diffStartBanner(resp *baselinesv1.StartDiffResponse) string {
 // before the run is terminal: the follow/resolve commands + a backoff hint.
 func printDiffPending(scenario, name, run string, nextCheckSeconds int) {
 	fmt.Printf("⏳ Diff of baseline %q for %s is still computing on run %s.\n", name, scenario, run)
-	fmt.Printf("  follow live:   test-genie runs follow %s %s\n", scenario, run)
-	fmt.Printf("  then resolve:  git-control-tower baseline diff status --scenario %s --name %s --run %s\n", scenario, name, run)
+	fmt.Printf("  block on it:   git-control-tower baseline diff status --scenario %s --name %s --run %s --wait\n", scenario, name, run)
+	fmt.Printf("  (watch live:   test-genie runs follow %s %s)\n", scenario, run)
 	if nextCheckSeconds > 0 {
-		fmt.Printf("  (or re-check in ~%ds)\n", nextCheckSeconds)
+		fmt.Printf("  if you must re-check instead, wait ~%ds (do not poll faster)\n", nextCheckSeconds)
 	}
 }
 

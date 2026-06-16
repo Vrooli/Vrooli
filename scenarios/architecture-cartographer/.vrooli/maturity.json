@@ -1,0 +1,113 @@
+{
+  "provider": "architecture-cartographer",
+  "phase": "architecture",
+  "version": "1.0.0",
+  "levels": [
+    {
+      "id": "L0",
+      "name": "No architecture target",
+      "description": "Architecture Cartographer cannot resolve or extract a graph for the target scenario.",
+      "entry_criteria": ["Scenario name is provided"],
+      "exit_criteria": ["The target scenario graph can be extracted or read from cache"]
+    },
+    {
+      "id": "L1",
+      "name": "Graph extraction available",
+      "description": "The provider can produce a graph snapshot and run the audit orchestration.",
+      "entry_criteria": ["Scenario source tree is readable"],
+      "exit_criteria": ["Graph extraction completes without tool errors"]
+    },
+    {
+      "id": "L2",
+      "name": "Domain authority available",
+      "description": "The scenario has enough domain authority for architecture findings to be interpreted against an intentional map.",
+      "entry_criteria": ["Graph extraction is available"],
+      "exit_criteria": ["Domain authority is curated or sufficiently high-confidence"]
+    },
+    {
+      "id": "L3",
+      "name": "Boundary drift visible",
+      "description": "Import cycles, coupling, mislocation, and convergence drift are detected and surfaced as stable findings.",
+      "entry_criteria": ["Domain authority is available"],
+      "exit_criteria": ["Architecture findings include stable codes, locations, and domains"]
+    },
+    {
+      "id": "L4",
+      "name": "Boundary drift controlled",
+      "description": "No blocker or error architecture findings remain in active code paths.",
+      "entry_criteria": ["Boundary drift is visible"],
+      "exit_criteria": ["No blocker or error architecture findings remain"]
+    },
+    {
+      "id": "L5",
+      "name": "Fleet-ready architecture posture",
+      "description": "The architecture audit is clean enough for Test Genie delegation, campaign generation, and recurring drift monitoring.",
+      "entry_criteria": ["Boundary drift is controlled"],
+      "exit_criteria": ["No Architecture Cartographer findings block fleet validation"]
+    }
+  ],
+  "findings": {
+    "graph.extract_failed": {
+      "local_level_impact": "L0",
+      "global_impact": "foundation_blocker",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["screaming-architecture-audit", "scientific-debugging"]
+    },
+    "domain_authority/missing": {
+      "local_level_impact": "L2",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["screaming-architecture-audit", "architecture-cartographer"]
+    },
+    "domain_authority/low": {
+      "local_level_impact": "L2",
+      "global_impact": "advisory",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_INFO",
+      "recommended_skill_ids": ["screaming-architecture-audit"]
+    },
+    "cycle": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "cycles",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["screaming-architecture-audit", "boundary-of-responsibility-enforcement"]
+    },
+    "cycle/cross-domain": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "cycles",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["screaming-architecture-audit", "boundary-of-responsibility-enforcement"]
+    },
+    "coupling_smell": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["screaming-architecture-audit", "cognitive-load-reduction"]
+    },
+    "mislocated_file": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["screaming-architecture-audit", "boundary-of-responsibility-enforcement"]
+    },
+    "convergence_drift": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["screaming-architecture-audit"]
+    }
+  },
+  "fallback": {
+    "local_level_impact": "L3",
+    "global_impact": "evolvability_gap",
+    "dimension": "structure",
+    "severity_default": "SEVERITY_WARNING"
+  }
+}

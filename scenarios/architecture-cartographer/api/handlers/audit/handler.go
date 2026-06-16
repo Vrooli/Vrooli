@@ -4,14 +4,22 @@ package audit
 import (
 	"context"
 	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"architecture-cartographer/internal/audit"
 	"architecture-cartographer/internal/conflicts"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/maturity-go/assessment"
+	repocontract "github.com/vrooli/repo-contract-go"
 	auditv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/audit"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/audit/audit_v1connect"
 	conflictsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/conflicts"
+	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
@@ -157,7 +165,91 @@ func reportToProto(r audit.Report) *auditv1.AuditRunResponse {
 			Headline:   headlineFor(c),
 		})
 	}
+	if maturity, err := buildMaturityAssessment(r); err == nil {
+		out.Assessment = maturity
+	}
 	return out
+}
+
+func buildMaturityAssessment(r audit.Report) (*commonv1.MaturityAssessment, error) {
+	spec, err := loadMaturitySpec()
+	if err != nil {
+		return nil, err
+	}
+	findings := make([]assessment.Finding, 0, len(r.Findings)+2)
+	if r.Outcome == audit.OutcomeToolError {
+		findings = append(findings, assessment.Finding{
+			Code:        "graph.extract_failed",
+			Severity:    architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR.String(),
+			Title:       "Architecture audit tool error",
+			Message:     r.Error,
+			Remediation: "Run `architecture-cartographer audit run " + r.Scenario + "` and inspect graph extraction or detector failures.",
+			Source:      architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE,
+			Phase:       spec.Phase,
+		})
+	}
+	switch strings.TrimSpace(r.Domains.Confidence) {
+	case "missing":
+		findings = append(findings, assessment.Finding{
+			Code:        "domain_authority/missing",
+			Severity:    architecturev1.FindingSeverity_FINDING_SEVERITY_WARNING.String(),
+			Title:       "Missing architecture domain authority",
+			Message:     r.OutcomeReason,
+			Remediation: "Write docs/concepts/DOMAINS.md for the target scenario or rerun in advisory mode when intentionally deferred.",
+			Source:      architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE,
+			Phase:       spec.Phase,
+		})
+	case "low":
+		findings = append(findings, assessment.Finding{
+			Code:        "domain_authority/low",
+			Severity:    architecturev1.FindingSeverity_FINDING_SEVERITY_INFO.String(),
+			Title:       "Low-confidence architecture domain authority",
+			Message:     r.OutcomeReason,
+			Remediation: "Promote inferred domains to docs/concepts/DOMAINS.md.",
+			Source:      architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE,
+			Phase:       spec.Phase,
+		})
+	}
+	for _, c := range r.Findings {
+		findings = append(findings, assessment.Finding{
+			Code:        architectureFindingCode(c),
+			Severity:    severityToProto(c.Severity).String(),
+			Title:       headlineFor(c),
+			Location:    strings.Join(c.Locations, ", "),
+			Remediation: "Use Architecture Cartographer campaign guidance to resolve the drift or add a deliberate suppression.",
+			Source:      architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE,
+			Phase:       spec.Phase,
+		})
+	}
+	return assessment.BuildProtoAssessment(assessment.BuildInput{
+		Scenario: r.Scenario,
+		Spec:     *spec,
+		Findings: findings,
+	})
+}
+
+func loadMaturitySpec() (*assessment.Spec, error) {
+	_, repoRoot, err := repocontract.LoadDefaultFromEnvOrCWD()
+	if err != nil {
+		return nil, fmt.Errorf("resolve repo root for architecture maturity spec: %w", err)
+	}
+	path := filepath.Join(repoRoot, "scenarios", "architecture-cartographer", ".vrooli", "maturity.json")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read architecture maturity spec: %w", err)
+	}
+	return assessment.ParseSpec(raw)
+}
+
+func architectureFindingCode(c conflicts.Conflict) string {
+	code := strings.TrimSpace(c.Type)
+	if sub := strings.TrimSpace(c.Subtype); sub != "" {
+		code += "/" + sub
+	}
+	if code == "" {
+		return "architecture.unknown"
+	}
+	return code
 }
 
 func freshnessToProto(f audit.SnapshotFreshness) auditv1.SnapshotFreshness {

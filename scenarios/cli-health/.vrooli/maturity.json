@@ -1,0 +1,148 @@
+{
+  "provider": "cli-health",
+  "phase": "contracts",
+  "version": "1.0.0",
+  "levels": [
+    {
+      "id": "L0",
+      "name": "No CLI manifest contract",
+      "description": "The target scenario has no readable CLI manifest contract for cli-health to validate.",
+      "entry_criteria": ["Scenario exists in the repository"],
+      "exit_criteria": ["cli/manifest.json is present and parseable"]
+    },
+    {
+      "id": "L1",
+      "name": "Manifest schema valid",
+      "description": "The CLI manifest conforms to the canonical schema and can be parsed by cli-core.",
+      "entry_criteria": ["CLI manifest exists"],
+      "exit_criteria": ["Manifest JSON is schema-valid and parseable"]
+    },
+    {
+      "id": "L2",
+      "name": "Command bindings valid",
+      "description": "Every declared command binding resolves to a known generated proto service and method.",
+      "entry_criteria": ["Manifest schema is valid"],
+      "exit_criteria": ["No unknown, duplicate, or orphan CLI/proto bindings remain"]
+    },
+    {
+      "id": "L3",
+      "name": "Proto/API coverage complete",
+      "description": "The scenario's proto methods are either exposed through CLI commands or deliberately omitted with a reason.",
+      "entry_criteria": ["Command bindings resolve"],
+      "exit_criteria": ["Every proto method is bound or intentionally omitted"]
+    },
+    {
+      "id": "L4",
+      "name": "Measures metadata valid",
+      "description": "CLI command measure blocks are well-formed against their proto-derived parameter schemas.",
+      "entry_criteria": ["CLI/proto coverage is complete"],
+      "exit_criteria": ["Measure blocks assemble cleanly and degraded schema reads are resolved or accepted"]
+    },
+    {
+      "id": "L5",
+      "name": "Discoverable CLI surface",
+      "description": "The CLI manifest is clean enough for command indexing, discovery, and governance reuse.",
+      "entry_criteria": ["Measure metadata is valid"],
+      "exit_criteria": ["No cli-health validation findings block command discovery"]
+    }
+  ],
+  "findings": {
+    "manifest.missing": {
+      "local_level_impact": "L0",
+      "global_impact": "advisory",
+      "dimension": "contracts",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["cli-steer"]
+    },
+    "manifest.parse_error": {
+      "local_level_impact": "L1",
+      "global_impact": "foundation_blocker",
+      "dimension": "contracts",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["cli-steer"]
+    },
+    "manifest.schema_error": {
+      "local_level_impact": "L1",
+      "global_impact": "evolvability_gap",
+      "dimension": "contracts",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["cli-steer"]
+    },
+    "proto.build_failed": {
+      "local_level_impact": "L2",
+      "global_impact": "foundation_blocker",
+      "dimension": "proto-health",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["proto-contract-audit", "cli-steer"]
+    },
+    "binding.unknown_service": {
+      "local_level_impact": "L2",
+      "global_impact": "evolvability_gap",
+      "dimension": "contracts",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["cli-steer", "api-steer"]
+    },
+    "binding.unknown_method": {
+      "local_level_impact": "L2",
+      "global_impact": "evolvability_gap",
+      "dimension": "contracts",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["cli-steer", "api-steer"]
+    },
+    "binding.duplicate": {
+      "local_level_impact": "L2",
+      "global_impact": "evolvability_gap",
+      "dimension": "contracts",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["cli-steer"]
+    },
+    "proto.orphan_method": {
+      "local_level_impact": "L3",
+      "global_impact": "evolvability_gap",
+      "dimension": "contracts",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["cli-steer", "api-steer"]
+    },
+    "omission.orphan": {
+      "local_level_impact": "L3",
+      "global_impact": "advisory",
+      "dimension": "contracts",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["cli-steer"]
+    },
+    "measure.invalid": {
+      "local_level_impact": "L4",
+      "global_impact": "capability_gap",
+      "dimension": "measures",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["measures-adoption", "cli-steer"]
+    },
+    "measure.unknown_param_type": {
+      "local_level_impact": "L4",
+      "global_impact": "capability_gap",
+      "dimension": "measures",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["measures-adoption", "cli-steer"]
+    },
+    "measure.schema_unread": {
+      "local_level_impact": "L4",
+      "global_impact": "advisory",
+      "dimension": "measures",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["measures-adoption", "proto-contract-audit"]
+    },
+    "measure.tier": {
+      "local_level_impact": "L5",
+      "global_impact": "advisory",
+      "dimension": "measures",
+      "severity_default": "SEVERITY_INFO",
+      "recommended_skill_ids": ["measures-adoption"]
+    }
+  },
+  "fallback": {
+    "local_level_impact": "L2",
+    "global_impact": "evolvability_gap",
+    "dimension": "contracts",
+    "severity_default": "SEVERITY_ERROR"
+  }
+}
