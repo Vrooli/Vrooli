@@ -172,6 +172,7 @@ func stubRuntimePhaseRunners(orchestrator *SuiteOrchestrator) {
 	// it here (preserving its weight-20 position) so orchestration tests don't
 	// depend on that external tool.
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.UIHealth, Runner: noOp, Optional: false, Weight: 20})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Quality, Runner: noOp, Optional: false, Weight: 60})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Performance, Runner: noOp, Optional: true, Weight: 60})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Smoke, Runner: noOp, Optional: true, Weight: 70})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Integration, Runner: noOp, Weight: 90})

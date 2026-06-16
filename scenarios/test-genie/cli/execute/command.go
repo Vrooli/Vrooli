@@ -29,7 +29,7 @@ to always block inline). Re-attach with 'test-genie runs wait <scenario> <id>'.
 
 Examples:
   test-genie execute swarm-manager
-  test-genie execute swarm-manager standards lint integration
+  test-genie execute swarm-manager standards quality integration
   test-genie execute swarm-manager --preset quick --fail-fast
   test-genie execute swarm-manager --wait            # block to completion inline (CI)
   test-genie execute swarm-manager --skip performance --json

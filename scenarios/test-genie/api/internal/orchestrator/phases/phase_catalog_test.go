@@ -75,32 +75,32 @@ func TestPhaseCatalogDescriptors(t *testing.T) {
 	}
 }
 
-func TestLintPhaseTimeout(t *testing.T) {
+func TestQualityPhaseTimeout(t *testing.T) {
 	catalog := NewDefaultCatalog(15 * time.Minute) // Default is 15 minutes
-	lint, ok := catalog.Lookup("lint")
+	quality, ok := catalog.Lookup("quality")
 	if !ok {
-		t.Fatalf("expected lint phase to be registered")
+		t.Fatalf("expected quality phase to be registered")
 	}
-	expected := 30 * time.Second
-	if lint.DefaultTimeout != expected {
-		t.Errorf("lint phase timeout = %v, want %v", lint.DefaultTimeout, expected)
+	expected := 120 * time.Second
+	if quality.DefaultTimeout != expected {
+		t.Errorf("quality phase timeout = %v, want %v", quality.DefaultTimeout, expected)
 	}
 }
 
-func TestLintPhaseIsRegistered(t *testing.T) {
+func TestQualityPhaseIsRegistered(t *testing.T) {
 	catalog := NewDefaultCatalog(time.Minute)
-	lint, ok := catalog.Lookup("lint")
+	quality, ok := catalog.Lookup("quality")
 	if !ok {
-		t.Fatalf("expected lint phase to be registered")
+		t.Fatalf("expected quality phase to be registered")
 	}
-	if lint.Runner == nil {
-		t.Fatalf("lint phase should have a runner")
+	if quality.Runner == nil {
+		t.Fatalf("quality phase should have a runner")
 	}
-	if lint.Optional {
-		t.Fatalf("lint phase should not be optional")
+	if quality.Optional {
+		t.Fatalf("quality phase should not be optional")
 	}
-	if !strings.Contains(lint.Description, "linting") && !strings.Contains(lint.Description, "static analysis") {
-		t.Errorf("lint phase description should mention linting or static analysis, got: %s", lint.Description)
+	if !strings.Contains(quality.Description, "quality-health") || !strings.Contains(quality.Description, "lint/type") {
+		t.Errorf("quality phase description should mention quality-health and lint/type, got: %s", quality.Description)
 	}
 }
 

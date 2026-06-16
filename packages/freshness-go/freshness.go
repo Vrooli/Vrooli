@@ -101,7 +101,7 @@ func Check(records []runindex.RunRecord, currentDigest string, phaseNames []stri
 // anti-gaming decision): a config knob would let an agent delete required
 // phases to silence the freshness checker instead of running tests.
 func RequiredPhases() []string {
-	return []string{"structure", "standards", "docs", "business", "unit"}
+	return []string{"structure", "standards", "docs", "business", "unit", "proto"}
 }
 
 // NormalizePhases lowercases, trims, and de-duplicates a requested phase

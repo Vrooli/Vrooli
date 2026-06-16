@@ -57,7 +57,7 @@ Results are available via:
 | Preset | Phases | Time | Use Case |
 |--------|--------|------|----------|
 | **Quick** | Structure, Standards, Docs, Business, Unit, Proto | Scenario-aware | Fast sanity check |
-| **Smoke** | Structure, Standards, Lint, Docs, Business, Integration, Proto | Scenario-aware | Pre-push validation |
+| **Smoke** | Structure, Standards, Quality, Docs, Business, Integration, Proto | Scenario-aware | Pre-push validation |
 | **Architecture Audit** | Structure, Contracts, UI Health, Docs, Standards, Architecture, Proto | Scenario-aware | Surface and architecture review |
 | **Comprehensive** | All catalog phases | Scenario-aware | Full coverage |
 
@@ -68,7 +68,7 @@ See [Presets Reference](reference/presets.md) for details.
 Test Genie uses a catalog-driven testing architecture:
 
 ```
-Structure → Contracts → UI Health → Standards → Architecture → Dependencies → Lint → Docs → Performance → Smoke → Unit → Integration → Playbooks → Business → Coverage → Tidiness → Security → Measures → Proto
+Structure → Contracts → UI Health → Standards → Architecture → Dependencies → Quality → Docs → Performance → Smoke → Unit → Integration → Playbooks → Business → Coverage → Tidiness → Security → Measures → Proto
 ```
 
 | Phase | Purpose | Timeout |
@@ -79,7 +79,7 @@ Structure → Contracts → UI Health → Standards → Architecture → Depende
 | **Standards** | scenario-auditor standards rules | 60s |
 | **Architecture** | Structural cohesion audit | 120s |
 | **Dependencies** | Check tools and resources | 30s |
-| **Lint** | Type checking and linting | 30s |
+| **Quality** | Static quality contracts via quality-health | 120s |
 | **Docs** | Markdown, mermaid, link validation | 60s |
 | **Performance** | Run benchmarks (optional) | 60s |
 | **Smoke** | UI load + iframe-bridge | 90s |
@@ -109,7 +109,7 @@ See [Phased Testing Guide](guides/phased-testing.md) for the complete architectu
 - [Structure Phase](phases/structure/README.md) - File and CLI validation
 - [Standards Phase](phases/standards/README.md) - Standards enforcement via scenario-auditor
 - [Dependencies Phase](phases/dependencies/README.md) - Runtime and tool checks
-- [Lint Phase](phases/lint/README.md) - Type checking and linting
+- [Quality Phase](phases/quality/README.md) - Static quality contracts
 - [Docs Phase](phases/docs/README.md) - Markdown, mermaid, and link validation
 - [Unit Phase](phases/unit/README.md) - Test runners and coverage
 - [Integration Phase](phases/integration/README.md) - CLI and API testing

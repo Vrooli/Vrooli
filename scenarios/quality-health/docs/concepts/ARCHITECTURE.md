@@ -13,7 +13,8 @@ Quality Health is a meta / interface-enabler scenario with three user-facing sur
 ```text
 Code Facts
   -> Quality Health API
-      -> contract registry
+      -> rule registry
+      -> contract registry view
       -> audit orchestrator
       -> command runner
       -> autofix planner
@@ -74,16 +75,19 @@ AuditQualityResponse
   summary/next steps/degraded reason
 ```
 
-The load-bearing invariant is that Code Facts discovers surfaces before contracts are selected, and that **rule applicability is decided by language/tooling, never by surface name**. Filesystem conventions such as `ui/`, `api/`, and `cli/` may appear as evidence from Code Facts or a degraded fallback, but they must not become the core policy model. Routing is registry-driven through a single applicability helper (`applicableContracts`): a surface's detected language selects its contract pack(s), and both rule dispatch (`evaluateSurface`) and contract-evaluation records derive from that one decision. A TypeScript surface named `worker` is evaluated identically to one named `ui`; a Go surface named `edge` identically to one named `api`. Adding a new language requires only a registry pack plus an evaluator.
+The load-bearing invariant is that Code Facts discovers surfaces before contracts are selected, and that **rule applicability is decided by language/tooling, never by surface name**. Filesystem conventions such as `ui/`, `api/`, and `cli/` may appear as evidence from Code Facts or a degraded fallback, but they must not become the core policy model. Routing is registry-driven through `api/internal/rules`: each rule owns its applicability, fix class, and evaluator seam; the contract registry is a read model grouped from those rules. A TypeScript surface named `worker` is evaluated identically to one named `ui`; a Go surface named `edge` identically to one named `api`. Adding a new language requires a rule with applicability plus any contract copy that should explain the new pack.
 
 A second honesty invariant: **a surface that received zero evaluation must never report a clean pass.** A discovered surface whose language matches no contract pack is reported as `uncovered` (not `passed`), carries an info `QUALITY_COVERAGE_GAP` finding, is counted in the summary, and caps maturity at L2. See [quality-contracts.md](../reference/quality-contracts.md#coverage-gaps) and [finding-schema.md](../reference/finding-schema.md#contract-evaluation-status).
+
+A third honesty invariant: **autofixability is derived, not declared at the finding call site.** Rule metadata owns `fix_class`, and each finding reports `autofix_available` only when the matching fixer can preview a safe edit. Parse errors, missing files, and unsupported config shapes stay non-autofixable even for rules whose class is `autofix`.
 
 ## Domain Inventory
 
 The implementation should replace the generated example domain with these domains:
 
 - `surfaces`: Code Facts ingestion and normalized inventory.
-- `contracts`: language/framework/surface contract registry.
+- `rules`: static-quality rule definitions, applicability, fix class, and evaluator seams.
+- `contracts`: language/framework/surface contract pack view derived from rules.
 - `audit`: orchestration, finding generation, maturity summary.
 - `commands`: bounded lint/type command resolution and execution results.
 - `autofix`: deterministic config fix preview/apply.

@@ -5,7 +5,7 @@
 **Optional**: Yes
 **Requires Runtime**: Yes
 
-The smoke phase validates that a scenario's UI loads correctly, establishes communication with the host via iframe-bridge, and produces no critical JavaScript errors. It runs after the lint phase and before unit tests as a quick sanity check.
+The smoke phase validates that a scenario's UI loads correctly, establishes communication with the host via iframe-bridge, and produces no critical JavaScript errors. It runs after the quality phase and before unit tests as a quick sanity check.
 
 The smoke phase embeds the scenario's UI in a host iframe shell on the **Browser Automation Studio (BAS)** workflow engine, waits for the iframe-bridge handshake (a hard-fail gate), and captures a screenshot plus console and network failures. The browser engine is reached through the shared BAS workflow client (the same one the playbooks phase uses); the engine choice is isolated to `internal/browsercapture`, and the verdict is produced by the shared `internal/evidence` analyzer.
 
@@ -354,6 +354,6 @@ the default issues exactly one capture and zero `CaptureService` calls.
 ## See Also
 
 - [Phases Overview](../README.md) - Phase architecture
-- [Lint Phase](../lint/README.md) - Previous phase
+- [Quality Phase](../quality/README.md) - Previous phase
 - [Unit Phase](../unit/README.md) - Next phase
 - [UI Automation with BAS](../playbooks/ui-automation-with-bas.md) - Full UI testing

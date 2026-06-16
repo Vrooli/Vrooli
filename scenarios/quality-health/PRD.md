@@ -19,6 +19,8 @@ Operational targets are measurable outcomes; checkboxes may auto-update based on
 - [ ] OT-P0-003 | Protective Comment Enforcement | TypeScript and ESLint config audits treat safety-critical agent guidance comments as first-class contract evidence, so strict config values without the required guardrail text still fail.
 - [ ] OT-P0-004 | Agent-Readable Findings And Maturity | Audit responses include stable finding IDs, evidence, expected/observed values, why-it-matters copy, remediation, next steps, and a deterministic quality maturity rung.
 - [ ] OT-P0-005 | Safe Config Autofix Preview | `quality-health fix-config <scenario> --dry-run --json` previews deterministic config edits for supported rules without applying changes; `--apply` is required for mutation.
+- [x] OT-P0-006 | Autofix Completeness And Honesty | Each rule declares a fix class, every audit output reports aggregate autofixability, and `autofix_available` is true only when a registered fixer can actually produce a safe preview.
+- [x] OT-P0-007 | Suppression Governance | TypeScript and Go suppression patterns are visible contract findings unless they carry a non-empty written reason explaining the exception.
 
 ### 🟠 P1 – Should have post-launch
 - [ ] OT-P1-001 | Test Genie Quality Phase Provider | Test Genie shells the `quality` phase to Quality Health, maps results to the standards dimension, and retires the native `lint` phase plus duplicated type-safety policy producers.

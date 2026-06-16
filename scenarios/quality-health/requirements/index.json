@@ -7,6 +7,7 @@
   "imports": [
     "01-scenario-boundary/module.json",
     "02-audit-core/module.json",
-    "03-surfaces-and-integrations/module.json"
+    "03-surfaces-and-integrations/module.json",
+    "04-autofix-completeness/module.json"
   ]
 }

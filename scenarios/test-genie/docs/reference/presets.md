@@ -53,7 +53,7 @@ test-genie execute my-scenario --preset smoke
 |-------|-------------|---------|
 | Structure | Validates files and config | 15s |
 | Standards | scenario-auditor standards rules | 60s |
-| Lint | Type checking and linting | 30s |
+| Quality | Static quality contracts via quality-health | 120s |
 | Docs | Validates Markdown, mermaid, links | 60s |
 | Business | Validates requirements registry health | 180s |
 | Integration | Basic connectivity tests | 120s |
@@ -117,7 +117,7 @@ test-genie execute my-scenario --preset comprehensive
 | Standards | scenario-auditor standards rules | 60s |
 | Architecture | Audits structural cohesion | 120s |
 | Dependencies | Checks resources available | 30s |
-| Lint | Type checking and linting | 30s |
+| Quality | Static quality contracts via quality-health | 120s |
 | Docs | Validates Markdown, mermaid, links | 60s |
 | Smoke | UI handshake / iframe-bridge | 90s |
 | Unit | Runs unit tests | 60s |
@@ -158,7 +158,7 @@ graph LR
     subgraph Smoke
         S1[Structure]
         S2[Standards]
-        S3[Lint]
+        S3[Quality]
         S4[Docs]
         S5[Business]
         S6[Integration]
@@ -182,7 +182,7 @@ graph LR
         C4[UI Health]
         C5[Architecture]
         C6[Dependencies]
-        C7[Lint]
+        C7[Quality]
         C8[Docs]
         C9[Smoke]
         C10[Unit]

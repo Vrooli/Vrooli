@@ -23,6 +23,7 @@ expected
 observed
 why_it_matters
 remediation
+fix_class
 autofix_available
 autofix_command
 source_command
@@ -49,6 +50,15 @@ Current rule-parity mapping:
 
 - current `high` severity becomes `error`,
 - current `medium` severity becomes `warning` unless Phase 2 intentionally promotes it.
+
+## Fix Class And Autofix Honesty
+
+Every rule declares one `fix_class`:
+
+- `autofix`: deterministic config repair may exist, but a finding reports `autofix_available = true` only when the registered fixer can preview a safe edit for that exact finding.
+- `detection_only`: Quality Health can identify the issue, but the repair needs source-level judgment or manual policy intent.
+
+Missing files, parse errors, and unsupported config shapes must not report an autofix command. The aggregate `counts.autofixable_count` is the number of findings whose individual `autofix_available` flag is true.
 
 ## Contract Evaluation Status
 

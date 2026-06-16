@@ -101,6 +101,156 @@ func TestAuditDetectsGoLintBaselineRules(t *testing.T) {
 	require.Contains(t, got, contracts.RuleGoLintRequiredLinters)
 }
 
+func TestAuditFailsGoLinterDisabledNotJustMentioned(t *testing.T) {
+	// [REQ:QH-AUDIT-006]
+	root := t.TempDir()
+	api := filepath.Join(root, "api")
+	require.NoError(t, os.MkdirAll(api, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(api, "main.go"), []byte("package main\nfunc main(){}\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(api, ".golangci.yml"), []byte(`linters:
+  enable:
+    - govet
+    - gofumpt
+    - staticcheck
+    - typecheck
+    - unused
+    - ineffassign
+  disable:
+    - errcheck # mentioning errcheck here must not satisfy the contract
+`), 0o644))
+
+	report := runAuditWithSurfaces(t, root, []surfaces.Surface{
+		{ID: "api", Kind: "api", Language: "go", RootPath: api, Status: "known"},
+	}, []string{contracts.RuleGoLintRequiredLinters})
+
+	f := findingForRule(report, contracts.RuleGoLintRequiredLinters)
+	require.Equal(t, contracts.RuleGoLintRequiredLinters, f.RuleID)
+	require.Contains(t, f.Observed, "errcheck")
+}
+
+func TestAuditFailsCommentedMakefileGate(t *testing.T) {
+	// [REQ:QH-AUDIT-006]
+	root := t.TempDir()
+	ui := filepath.Join(root, "ui")
+	require.NoError(t, os.MkdirAll(ui, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(ui, "package.json"), []byte(`{"scripts":{"build":"vite build"}}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "Makefile"), []byte(`# lint-ui:
+#	pnpm run lint
+#	pnpm run type-check
+fmt-ui:
+	@echo lint:fix
+`), 0o644))
+
+	report := runAuditWithSurfaces(t, root, []surfaces.Surface{
+		{ID: "ui", Kind: "ui", Language: "typescript", RootPath: ui, Status: "known"},
+	}, []string{contracts.RuleMakefileQualityGates})
+
+	f := findingForRule(report, contracts.RuleMakefileQualityGates)
+	require.Equal(t, contracts.RuleMakefileQualityGates, f.RuleID)
+	require.Contains(t, f.Observed, "lint-ui")
+}
+
+func TestAuditFailsCommentedESLintTypedConfig(t *testing.T) {
+	// [REQ:QH-AUDIT-006]
+	root := t.TempDir()
+	ui := filepath.Join(root, "ui")
+	require.NoError(t, os.MkdirAll(ui, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(ui, "eslint.config.js"), []byte(`export default {
+  // strictTypeChecked
+  // parserOptions: { project: true },
+  rules: { "import/no-cycle": "error" },
+}`), 0o644))
+
+	report := runAuditWithSurfaces(t, root, []surfaces.Surface{
+		{ID: "ui", Kind: "ui", Language: "typescript", RootPath: ui, Status: "known"},
+	}, []string{contracts.RuleESLintTypedConfig})
+
+	f := findingForRule(report, contracts.RuleESLintTypedConfig)
+	require.Equal(t, contracts.RuleESLintTypedConfig, f.RuleID)
+	require.Contains(t, f.Observed, "strictTypeChecked")
+	require.Contains(t, f.Observed, "parserOptions.project")
+}
+
+func TestAuditReportsBareGoNolintSuppression(t *testing.T) {
+	// [REQ:QH-SUP-001]
+	root := t.TempDir()
+	api := filepath.Join(root, "api")
+	require.NoError(t, os.MkdirAll(api, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(api, "main.go"), []byte("package main\n\nfunc main() { //nolint:errcheck\n}\n"), 0o644))
+
+	report := runAuditWithSurfaces(t, root, []surfaces.Surface{
+		{ID: "api", Kind: "api", Language: "go", RootPath: api, Status: "known"},
+	}, []string{contracts.RuleGoDangerousPatterns})
+
+	f := findingForRule(report, contracts.RuleGoDangerousPatterns)
+	require.Equal(t, contracts.RuleGoDangerousPatterns, f.RuleID)
+	require.Equal(t, "warning", f.Severity)
+	require.False(t, f.AutofixAvailable)
+}
+
+func TestAuditAllowsReasonedGoNolintSuppression(t *testing.T) {
+	// [REQ:QH-SUP-001]
+	root := t.TempDir()
+	api := filepath.Join(root, "api")
+	require.NoError(t, os.MkdirAll(api, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(api, "main.go"), []byte("package main\n\nfunc main() { //nolint:errcheck // third-party cleanup intentionally ignored here\n}\n"), 0o644))
+
+	report := runAuditWithSurfaces(t, root, []surfaces.Surface{
+		{ID: "api", Kind: "api", Language: "go", RootPath: api, Status: "known"},
+	}, []string{contracts.RuleGoDangerousPatterns})
+
+	require.Equal(t, Finding{}, findingForRule(report, contracts.RuleGoDangerousPatterns))
+}
+
+func TestAuditReportsBareTSSuppression(t *testing.T) {
+	// [REQ:QH-SUP-001]
+	root := t.TempDir()
+	ui := filepath.Join(root, "ui")
+	require.NoError(t, os.MkdirAll(ui, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(ui, "component.ts"), []byte("const value = {};\n// @ts-expect-error\nvalue.missing();\n"), 0o644))
+
+	report := runAuditWithSurfaces(t, root, []surfaces.Surface{
+		{ID: "ui", Kind: "ui", Language: "typescript", RootPath: ui, Status: "known"},
+	}, []string{contracts.RuleTSDangerousPatterns})
+
+	f := findingForRule(report, contracts.RuleTSDangerousPatterns)
+	require.Equal(t, contracts.RuleTSDangerousPatterns, f.RuleID)
+	require.Equal(t, "warning", f.Severity)
+	require.Contains(t, f.Evidence, "bare TS suppressions=1")
+	require.False(t, f.AutofixAvailable)
+}
+
+func TestAuditAllowsReasonedTSSuppression(t *testing.T) {
+	// [REQ:QH-SUP-001]
+	root := t.TempDir()
+	ui := filepath.Join(root, "ui")
+	require.NoError(t, os.MkdirAll(ui, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(ui, "component.ts"), []byte("const value = {};\n// @ts-expect-error third-party theme package lacks types\nvalue.missing();\n"), 0o644))
+
+	report := runAuditWithSurfaces(t, root, []surfaces.Surface{
+		{ID: "ui", Kind: "ui", Language: "typescript", RootPath: ui, Status: "known"},
+	}, []string{contracts.RuleTSDangerousPatterns})
+
+	require.Equal(t, Finding{}, findingForRule(report, contracts.RuleTSDangerousPatterns))
+}
+
+func TestAuditAutofixHonestyForMissingTSConfig(t *testing.T) {
+	// [REQ:QH-FIX-003]
+	root := t.TempDir()
+	ui := filepath.Join(root, "ui")
+	require.NoError(t, os.MkdirAll(ui, 0o755))
+
+	report := runAuditWithSurfaces(t, root, []surfaces.Surface{
+		{ID: "ui", Kind: "ui", Language: "typescript", RootPath: ui, Status: "known"},
+	}, []string{contracts.RuleTSConfigStrict})
+
+	f := findingForRule(report, contracts.RuleTSConfigStrict)
+	require.Equal(t, contracts.RuleTSConfigStrict, f.RuleID)
+	require.False(t, f.AutofixAvailable)
+	require.Empty(t, f.AutofixCommand)
+	require.NotContains(t, report.Summary, "autofixable")
+}
+
 func TestAuditRoutesTSSurfaceByLanguageNotName(t *testing.T) {
 	// A TypeScript surface named "worker" (not "ui") must still be evaluated by
 	// the TS pack — routing keys on language, not surface name.

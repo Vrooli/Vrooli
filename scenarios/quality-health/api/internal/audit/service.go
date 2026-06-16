@@ -4,11 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -16,6 +12,7 @@ import (
 	"quality-health/internal/autofix"
 	"quality-health/internal/commands"
 	"quality-health/internal/contracts"
+	"quality-health/internal/rules"
 	"quality-health/internal/surfaces"
 )
 
@@ -75,6 +72,7 @@ type Finding struct {
 	Observed         string
 	WhyItMatters     string
 	Remediation      string
+	FixClass         string
 	AutofixAvailable bool
 	AutofixCommand   string
 	SourceCommand    string
@@ -109,11 +107,8 @@ func (s *Service) Audit(ctx context.Context, req Request) (Response, error) {
 	}
 	var uncoveredSurfaces []string
 	for _, surface := range filtered {
-		rules := rulesForSurface(surface)
-		if len(rules) == 0 {
-			// A surface that received zero evaluation must never report a clean
-			// pass. Emit an honest "not checked" signal: an info coverage-gap
-			// finding plus an `uncovered` contract status.
+		allSurfaceRules := rules.SurfaceRules(surface)
+		if len(allSurfaceRules) == 0 {
 			res.Findings = append(res.Findings, coverageGapFinding(inv, surface, now))
 			res.Contracts = append(res.Contracts, ContractEvaluation{
 				ContractID: "",
@@ -124,22 +119,25 @@ func (s *Service) Audit(ctx context.Context, req Request) (Response, error) {
 			uncoveredSurfaces = append(uncoveredSurfaces, surface.ID)
 			continue
 		}
+		surfaceRules := rules.Filter(allSurfaceRules, req.RuleIDs)
 		before := len(res.Findings)
-		res.Findings = append(res.Findings, s.evaluateSurface(inv, surface, req.RuleIDs, now)...)
+		res.Findings = append(res.Findings, s.evaluateRules(inv, surface, surfaceRules, now)...)
 		res.Contracts = append(res.Contracts, ContractEvaluation{
-			ContractID: contractIDForSurface(surface),
+			ContractID: contractIDForRules(allSurfaceRules),
 			SurfaceID:  surface.ID,
 			Status:     statusFromFindings(res.Findings[before:]),
-			RuleIDs:    rules,
+			RuleIDs:    ruleIDs(allSurfaceRules),
 		})
 	}
+	allScenarioRules := rules.ScenarioRules()
+	scenarioRules := rules.Filter(allScenarioRules, req.RuleIDs)
 	beforeScenario := len(res.Findings)
-	res.Findings = append(res.Findings, s.evaluateScenario(inv, req.RuleIDs, now)...)
+	res.Findings = append(res.Findings, s.evaluateRules(inv, surfaces.Surface{ID: "scenario", Kind: "scenario"}, scenarioRules, now)...)
 	res.Contracts = append(res.Contracts, ContractEvaluation{
 		ContractID: "scenario-quality-gates",
 		SurfaceID:  "scenario",
 		Status:     statusFromFindings(res.Findings[beforeScenario:]),
-		RuleIDs:    []string{contracts.RuleTestingConfigStrict, contracts.RuleMakefileQualityGates},
+		RuleIDs:    ruleIDs(allScenarioRules),
 	})
 	if req.IncludeCommandExecution {
 		res.CommandResults = commands.RunAll(ctx, s.Executor, inv)
@@ -191,406 +189,55 @@ func (s *Service) now() time.Time {
 	return time.Now()
 }
 
-// evaluateSurface dispatches evaluators by the surface's language/tooling, never
-// by its name. Routing is the mirror image of applicableContracts: any ts/js
-// surface gets the TypeScript evaluators; any Go surface gets the Go evaluator.
-func (s *Service) evaluateSurface(inv surfaces.Inventory, surface surfaces.Surface, onlyRules []string, now time.Time) []Finding {
+func (s *Service) evaluateRules(inv surfaces.Inventory, surface surfaces.Surface, ruleList []rules.Rule, now time.Time) []Finding {
 	var out []Finding
-	switch normalizeContractLanguage(surface.Language) {
-	case "typescript":
-		out = append(out, evalTSConfig(inv, surface, onlyRules, now)...)
-		out = append(out, evalESLint(inv, surface, onlyRules, now)...)
-		out = append(out, evalPackage(inv, surface, onlyRules, now)...)
-		out = append(out, evalDangerousPatterns(inv, surface, onlyRules, now)...)
-	case "go":
-		out = append(out, evalGo(inv, surface, onlyRules, now)...)
+	for _, rule := range ruleList {
+		if rule.Evaluate == nil {
+			continue
+		}
+		ctx := rules.EvalContext{Inventory: inv, Surface: surface, Now: now}
+		for _, finding := range rule.Evaluate(ctx) {
+			out = append(out, findingFromRule(inv, finding, now))
+		}
 	}
 	return out
 }
 
-func (s *Service) evaluateScenario(inv surfaces.Inventory, onlyRules []string, now time.Time) []Finding {
-	var out []Finding
-	out = append(out, evalTestingConfig(inv, onlyRules, now)...)
-	out = append(out, evalMakefile(inv, onlyRules, now)...)
-	return out
-}
-
-func evalTSConfig(inv surfaces.Inventory, surface surfaces.Surface, onlyRules []string, now time.Time) []Finding {
-	if !wants(onlyRules, contracts.RuleTSConfigStrict) {
-		return nil
-	}
-	path := filepath.Join(surface.RootPath, "tsconfig.json")
-	content, err := os.ReadFile(path)
-	if err != nil {
-		// A JavaScript-only surface legitimately has no tsconfig — self-skip so
-		// the other TS-pack rules (eslint, build typecheck, suppressions) still
-		// run without a spurious "tsconfig not found" error. Only a TypeScript
-		// surface missing its tsconfig is a real violation.
-		if surface.Language == "javascript" {
-			return nil
-		}
-		return []Finding{newFinding(inv, surface, contracts.RuleTSConfigStrict, "typescript", "error", path, "tsconfig.json not found", "TypeScript surface has no tsconfig.json.", "strict true, noUncheckedIndexedAccess true, and safety comments", "missing", true, now)}
-	}
-	raw := string(content)
-	stripped := autofix.StripJSONCComments(raw)
-	var parsed map[string]any
-	if err := json.Unmarshal([]byte(stripped), &parsed); err != nil {
-		return []Finding{newFinding(inv, surface, contracts.RuleTSConfigStrict, "typescript", "error", path, "tsconfig.json parse error", err.Error(), "valid JSONC", "parse error", true, now)}
-	}
-	compiler, _ := parsed["compilerOptions"].(map[string]any)
-	var findings []Finding
-	if compiler == nil {
-		findings = append(findings, newFinding(inv, surface, contracts.RuleTSConfigStrict, "typescript", "error", path, "Missing compilerOptions", "compilerOptions section is absent.", "compilerOptions with strict and noUncheckedIndexedAccess", "missing", true, now))
-		return findings
-	}
-	if strict, ok := compiler["strict"].(bool); !ok || !strict {
-		findings = append(findings, newFinding(inv, surface, contracts.RuleTSConfigStrict, "typescript", "error", path, "strict mode not enabled", "compilerOptions.strict is not true.", "strict: true", fmt.Sprintf("%v", compiler["strict"]), true, now))
-	}
-	if noUnchecked, ok := compiler["noUncheckedIndexedAccess"].(bool); !ok || !noUnchecked {
-		findings = append(findings, newFinding(inv, surface, contracts.RuleTSConfigStrict, "typescript", "error", path, "noUncheckedIndexedAccess not enabled", "compilerOptions.noUncheckedIndexedAccess is not true.", "noUncheckedIndexedAccess: true", fmt.Sprintf("%v", compiler["noUncheckedIndexedAccess"]), true, now))
-	}
-	if !autofix.HasTSConfigProtectiveComments(raw) {
-		findings = append(findings, newFinding(inv, surface, contracts.RuleTSConfigStrict, "typescript", "error", path, "Missing protective comment block", "Strict settings exist without the guardrail comments that tell agents not to weaken them.", "all required safety comment phrases", "missing comment phrase(s)", true, now))
-	}
-	return findings
-}
-
-func evalESLint(inv surfaces.Inventory, surface surfaces.Surface, onlyRules []string, now time.Time) []Finding {
-	var findings []Finding
-	path, raw := findESLint(surface.RootPath)
-	if path == "" {
-		if wants(onlyRules, contracts.RuleESLintSafetyRules) {
-			findings = append(findings, newFinding(inv, surface, contracts.RuleESLintSafetyRules, "typescript", "error", filepath.Join(surface.RootPath, "eslint.config.js"), "ESLint config not found", "Safety-critical lint rules cannot be verified.", "eslint config with safety rules and comments", "missing", false, now))
-		}
-		return findings
-	}
-	if wants(onlyRules, contracts.RuleESLintSafetyRules) {
-		if !strings.Contains(raw, "SAFETY-CRITICAL RULES - DO NOT REMOVE, DISABLE, OR WEAKEN") {
-			findings = append(findings, newFinding(inv, surface, contracts.RuleESLintSafetyRules, "typescript", "error", path, "Missing safety-critical header comment", "ESLint config lacks the guardrail header that tells agents not to disable safety rules.", "safety-critical header comment", "missing", false, now))
-		}
-		if missing := missingCriticalComments(raw); len(missing) > 0 {
-			findings = append(findings, newFinding(inv, surface, contracts.RuleESLintSafetyRules, "typescript", "error", path, "Missing per-rule CRITICAL comments", "Missing // CRITICAL comments for "+strings.Join(missing, ", ")+".", "per-rule // CRITICAL comments", "missing", false, now))
-		}
-		if missing, weak := lintRuleProblems(raw); len(missing) > 0 || len(weak) > 0 {
-			observed := strings.Join(append(prefixAll("missing ", missing), prefixAll("weak ", weak)...), ", ")
-			findings = append(findings, newFinding(inv, surface, contracts.RuleESLintSafetyRules, "typescript", "error", path, "ESLint safety rules incomplete", "Required safety rules are missing or weaker than the minimum level.", "required safety rules at warn/error minimums", observed, false, now))
-		}
-	}
-	if wants(onlyRules, contracts.RuleESLintTypedConfig) {
-		var missing []string
-		if !strings.Contains(raw, "strictTypeChecked") {
-			missing = append(missing, "strictTypeChecked")
-		}
-		if !strings.Contains(raw, "parserOptions") || (!strings.Contains(raw, "project") && !strings.Contains(raw, "projectService")) {
-			missing = append(missing, "parserOptions.project or projectService")
-		}
-		if strings.Contains(raw, `"import/no-cycle"`) && (!strings.Contains(raw, "import/resolver") || !strings.Contains(raw, "typescript")) {
-			missing = append(missing, "TypeScript import resolver")
-		}
-		if len(missing) > 0 {
-			findings = append(findings, newFinding(inv, surface, contracts.RuleESLintTypedConfig, "typescript", "error", path, "ESLint typed configuration is incomplete", "Missing "+strings.Join(missing, ", ")+".", "strictTypeChecked, typed parser options, and TS import resolver", strings.Join(missing, ", "), false, now))
-		}
-	}
-	return findings
-}
-
-func evalPackage(inv surfaces.Inventory, surface surfaces.Surface, onlyRules []string, now time.Time) []Finding {
-	if !wants(onlyRules, contracts.RuleNodeBuildTypecheck) {
-		return nil
-	}
-	path := filepath.Join(surface.RootPath, "package.json")
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return nil
-	}
-	var pkg struct {
-		Scripts map[string]string `json:"scripts"`
-	}
-	if err := json.Unmarshal(raw, &pkg); err != nil {
-		return []Finding{newFinding(inv, surface, contracts.RuleNodeBuildTypecheck, "typescript", "error", path, "package.json parse error", err.Error(), "valid package.json", "parse error", false, now)}
-	}
-	build := strings.TrimSpace(pkg.Scripts["build"])
-	if build == "" {
-		return []Finding{newFinding(inv, surface, contracts.RuleNodeBuildTypecheck, "typescript", "error", path, "Missing build script", "The package does not define a build script.", "build script that runs typecheck before bundling", "missing", false, now)}
-	}
-	if !strings.Contains(build, "tsc --noEmit") && !strings.Contains(build, "run type-check") && !strings.Contains(build, "type-check &&") {
-		return []Finding{newFinding(inv, surface, contracts.RuleNodeBuildTypecheck, "typescript", "error", path, "Build script skips TypeScript type checking", "Build script is `"+build+"`.", "tsc --noEmit or type-check before bundling", build, false, now)}
-	}
-	return nil
-}
-
-func evalDangerousPatterns(inv surfaces.Inventory, surface surfaces.Surface, onlyRules []string, now time.Time) []Finding {
-	if !wants(onlyRules, contracts.RuleTSDangerousPatterns) {
-		return nil
-	}
-	type counts struct{ asAny, asType, ignore, nonNull, total int }
-	total := counts{}
-	perFile := map[string]counts{}
-	_ = filepath.WalkDir(surface.RootPath, func(path string, d os.DirEntry, err error) error {
-		if err != nil || d == nil {
-			return nil
-		}
-		if d.IsDir() {
-			switch d.Name() {
-			case "node_modules", "dist", "build", "coverage", ".vite", ".git":
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if ext := filepath.Ext(path); ext != ".ts" && ext != ".tsx" && ext != ".js" && ext != ".jsx" {
-			return nil
-		}
-		raw, err := os.ReadFile(path)
-		if err != nil {
-			return nil
-		}
-		text := string(raw)
-		c := counts{
-			asAny:   strings.Count(text, "as any"),
-			asType:  countTypeAssertions(text),
-			ignore:  strings.Count(text, "@ts-ignore"),
-			nonNull: countNonNullAssertions(text),
-		}
-		c.total = c.asAny + c.asType + c.ignore + c.nonNull
-		if c.total > 0 {
-			perFile[path] = c
-			total.asAny += c.asAny
-			total.asType += c.asType
-			total.ignore += c.ignore
-			total.nonNull += c.nonNull
-			total.total += c.total
-		}
-		return nil
-	})
-	if total.total == 0 {
-		return nil
-	}
-	files := make([]string, 0, len(perFile))
-	for path := range perFile {
-		files = append(files, path)
-	}
-	sort.Strings(files)
-	if len(files) > 10 {
-		files = files[:10]
-	}
-	evidence := fmt.Sprintf("as any=%d, type assertions=%d, @ts-ignore=%d, non-null assertions=%d, top files=%s", total.asAny, total.asType, total.ignore, total.nonNull, strings.Join(files, ", "))
-	return []Finding{newFinding(inv, surface, contracts.RuleTSDangerousPatterns, "typescript", "warning", surface.RootPath, "Dangerous TypeScript suppression patterns found", evidence, "zero dangerous suppression patterns", evidence, false, now)}
-}
-
-// evalGo is reached only for Go surfaces (routing is decided by language in
-// evaluateSurface). The hasGoFiles guards below are NOT routing — they guard
-// against a mixed-content surface root that declares language=go but whose
-// immediate directory holds no .go files yet, so we do not demand go.mod/config
-// where there is nothing to lint.
-func evalGo(inv surfaces.Inventory, surface surfaces.Surface, onlyRules []string, now time.Time) []Finding {
-	var findings []Finding
-	if wants(onlyRules, contracts.RuleGoModPresent) && hasGoFiles(surface.RootPath) && !exists(filepath.Join(surface.RootPath, "go.mod")) {
-		findings = append(findings, newFinding(inv, surface, contracts.RuleGoModPresent, "go", "error", filepath.Join(surface.RootPath, "go.mod"), "Missing go.mod", "Go files exist without a module file.", "go.mod present", "missing", false, now))
-	}
-	configPath := firstExisting(filepath.Join(surface.RootPath, ".golangci.yml"), filepath.Join(surface.RootPath, ".golangci.yaml"))
-	if wants(onlyRules, contracts.RuleGoLintConfigPresent) && hasGoFiles(surface.RootPath) && configPath == "" {
-		findings = append(findings, newFinding(inv, surface, contracts.RuleGoLintConfigPresent, "go", "error", filepath.Join(surface.RootPath, ".golangci.yml"), "Missing golangci-lint config", "Go lint behavior is environment-dependent without checked-in config.", ".golangci.yml/.yaml present", "missing", false, now))
-	}
-	if wants(onlyRules, contracts.RuleGoLintRequiredLinters) && configPath != "" {
-		raw, _ := os.ReadFile(configPath)
-		var missing []string
-		for _, linter := range []string{"errcheck", "gofumpt", "govet", "ineffassign", "staticcheck", "typecheck", "unused"} {
-			if !strings.Contains(string(raw), linter) {
-				missing = append(missing, linter)
-			}
-		}
-		if len(missing) > 0 {
-			findings = append(findings, newFinding(inv, surface, contracts.RuleGoLintRequiredLinters, "go", "error", configPath, "golangci-lint baseline incomplete", "Missing required linters: "+strings.Join(missing, ", ")+".", "baseline linters enabled", strings.Join(missing, ", "), false, now))
-		}
-	}
-	return findings
-}
-
-func evalTestingConfig(inv surfaces.Inventory, onlyRules []string, now time.Time) []Finding {
-	if !wants(onlyRules, contracts.RuleTestingConfigStrict) {
-		return nil
-	}
-	path := filepath.Join(inv.RootPath, ".vrooli", "testing.json")
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return []Finding{scenarioFinding(inv, contracts.RuleTestingConfigStrict, "error", path, "testing.json missing lint strictness policy", ".vrooli/testing.json is missing.", "strict node_package/go_module lint handlers", "missing", now)}
-	}
-	var cfg struct {
-		Lint struct {
-			Handlers struct {
-				GoModule    strictHandler `json:"go_module"`
-				NodePackage strictHandler `json:"node_package"`
-			} `json:"handlers"`
-		} `json:"lint"`
-	}
-	if err := json.Unmarshal([]byte(autofix.StripJSONCComments(string(raw))), &cfg); err != nil {
-		return []Finding{scenarioFinding(inv, contracts.RuleTestingConfigStrict, "error", path, "testing.json parse error", err.Error(), "valid strict lint config", "parse error", now)}
-	}
-	var findings []Finding
-	if hasNode(inv) && !cfg.Lint.Handlers.NodePackage.StrictEnabled() {
-		findings = append(findings, scenarioFinding(inv, contracts.RuleTestingConfigStrict, "error", path, "Node lint strict mode not enabled", "node_package strict lint handler is not enabled.", "node_package enabled=true strict=true", "not strict", now))
-	}
-	if hasGo(inv) && !cfg.Lint.Handlers.GoModule.StrictEnabled() {
-		findings = append(findings, scenarioFinding(inv, contracts.RuleTestingConfigStrict, "error", path, "Go lint strict mode not enabled", "go_module strict lint handler is not enabled.", "go_module enabled=true strict=true", "not strict", now))
-	}
-	return findings
-}
-
-func evalMakefile(inv surfaces.Inventory, onlyRules []string, now time.Time) []Finding {
-	if !wants(onlyRules, contracts.RuleMakefileQualityGates) {
-		return nil
-	}
-	path := filepath.Join(inv.RootPath, "Makefile")
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return nil
-	}
-	text := string(raw)
-	var missing []string
-	if hasNode(inv) {
-		if !strings.Contains(text, "fmt-ui:") || !strings.Contains(text, "lint:fix") {
-			missing = append(missing, "fmt-ui target that runs lint:fix")
-		}
-		if !strings.Contains(text, "lint-ui:") || !strings.Contains(text, "pnpm run lint") || !strings.Contains(text, "pnpm run type-check") {
-			missing = append(missing, "lint-ui target that runs lint and type-check")
-		}
-	}
-	if hasGo(inv) {
-		if !strings.Contains(text, "lint-go:") || !strings.Contains(text, "golangci-lint") {
-			missing = append(missing, "lint-go target that runs golangci-lint")
-		}
-		if !strings.Contains(text, "fmt-go:") || (!strings.Contains(text, "gofumpt") && !strings.Contains(text, "gofmt")) {
-			missing = append(missing, "fmt-go target that runs gofumpt/gofmt")
-		}
-	}
-	if len(missing) == 0 {
-		return nil
-	}
-	return []Finding{scenarioFinding(inv, contracts.RuleMakefileQualityGates, "warning", path, "Makefile quality targets are incomplete", strings.Join(missing, ", "), "real fmt/lint gates for UI and Go surfaces", strings.Join(missing, ", "), now)}
-}
-
-type strictHandler struct {
-	Enabled *bool `json:"enabled"`
-	Strict  *bool `json:"strict"`
-}
-
-func (h strictHandler) StrictEnabled() bool {
-	if h.Enabled != nil && !*h.Enabled {
-		return false
-	}
-	return h.Strict != nil && *h.Strict
-}
-
-var eslintRules = []struct {
-	rule string
-	min  string
-}{
-	{"react-hooks/rules-of-hooks", "error"},
-	{"@typescript-eslint/no-non-null-assertion", "error"},
-	{"@typescript-eslint/no-explicit-any", "error"},
-	{"@typescript-eslint/no-unsafe-member-access", "warn"},
-	{"@typescript-eslint/no-unsafe-call", "warn"},
-	{"@typescript-eslint/no-unsafe-argument", "warn"},
-	{"@typescript-eslint/no-unsafe-assignment", "warn"},
-	{"@typescript-eslint/no-unsafe-return", "warn"},
-	{"import/no-cycle", "error"},
-}
-
-func lintRuleProblems(content string) (missing, weak []string) {
-	for _, req := range eslintRules {
-		escaped := regexp.QuoteMeta(req.rule)
-		re := regexp.MustCompile(`["']` + escaped + `["']\s*:\s*["'](error|warn|off)["']`)
-		match := re.FindStringSubmatch(content)
-		if len(match) == 0 {
-			missing = append(missing, req.rule)
-			continue
-		}
-		if levelRank(match[1]) < levelRank(req.min) {
-			weak = append(weak, req.rule+"="+match[1])
-		}
-	}
-	return missing, weak
-}
-
-func missingCriticalComments(content string) []string {
-	var missing []string
-	for _, rule := range []string{"rules-of-hooks", "no-non-null-assertion", "no-unsafe-", "no-cycle"} {
-		idx := strings.Index(content, rule)
-		if idx < 0 {
-			continue
-		}
-		start := idx - 200
-		if start < 0 {
-			start = 0
-		}
-		if !strings.Contains(content[start:idx], "// CRITICAL:") {
-			missing = append(missing, rule)
-		}
-	}
-	return missing
-}
-
-func levelRank(level string) int {
-	switch level {
-	case "off":
-		return 0
-	case "warn":
-		return 1
-	case "error":
-		return 2
-	default:
-		return -1
-	}
-}
-
-func newFinding(inv surfaces.Inventory, surface surfaces.Surface, ruleID, category, severity, path, message, evidence, expected, observed string, autofixAvailable bool, now time.Time) Finding {
-	c, _ := contracts.ByRule(ruleID)
+func findingFromRule(inv surfaces.Inventory, in rules.Finding, now time.Time) Finding {
+	contract, _ := contracts.ByRule(in.RuleID)
+	rule, _ := rules.ByID(in.RuleID)
+	autofixAvailable := rule.FixClass == rules.FixClassAutofix && autofix.CanFix(inv.RootPath, in.RuleID, in.FilePath)
 	f := Finding{
 		Scenario:         inv.Scenario,
 		TargetKind:       inv.TargetKind,
-		SurfaceID:        surface.ID,
-		SurfaceKind:      surface.Kind,
-		Language:         surface.Language,
-		Framework:        surface.Framework,
-		RuleID:           ruleID,
-		Category:         category,
-		Severity:         severity,
-		FilePath:         path,
-		Message:          message,
-		Evidence:         evidence,
-		Expected:         expected,
-		Observed:         observed,
-		WhyItMatters:     c.WhyItMatters,
-		Remediation:      c.Remediation,
+		SurfaceID:        in.Surface.ID,
+		SurfaceKind:      in.Surface.Kind,
+		Language:         in.Surface.Language,
+		Framework:        in.Surface.Framework,
+		RuleID:           in.RuleID,
+		Category:         in.Category,
+		Severity:         in.Severity,
+		FilePath:         in.FilePath,
+		Message:          in.Message,
+		Evidence:         in.Evidence,
+		Expected:         in.Expected,
+		Observed:         in.Observed,
+		WhyItMatters:     contract.WhyItMatters,
+		Remediation:      contract.Remediation,
+		FixClass:         rule.FixClass,
 		AutofixAvailable: autofixAvailable,
 		CreatedAt:        now.UTC().Format(time.RFC3339),
 	}
 	if autofixAvailable {
-		f.AutofixCommand = fmt.Sprintf("quality-health fix-config %s --rule %s --dry-run", inv.Scenario, ruleID)
+		f.AutofixCommand = fmt.Sprintf("quality-health fix-config run %s --rule %s --dry-run", inv.Scenario, in.RuleID)
 	}
 	f.ID = stableID(f)
 	return f
 }
 
-func scenarioFinding(inv surfaces.Inventory, ruleID, severity, path, message, evidence, expected, observed string, now time.Time) Finding {
-	return newFinding(inv, surfaces.Surface{ID: "scenario", Kind: "scenario"}, ruleID, "scenario", severity, path, message, evidence, expected, observed, false, now)
-}
-
 func stableID(f Finding) string {
 	h := sha256.Sum256([]byte(strings.Join([]string{f.Scenario, f.SurfaceID, f.RuleID, f.FilePath, f.Symbol, f.Expected, f.Observed}, "\x00")))
 	return hex.EncodeToString(h[:])[:16]
-}
-
-func wants(onlyRules []string, ruleID string) bool {
-	if len(onlyRules) == 0 {
-		return true
-	}
-	for _, id := range onlyRules {
-		if strings.EqualFold(strings.TrimSpace(id), ruleID) {
-			return true
-		}
-	}
-	return false
 }
 
 func filterSurfaces(in []surfaces.Surface, ids []string) []surfaces.Surface {
@@ -610,125 +257,17 @@ func filterSurfaces(in []surfaces.Surface, ids []string) []surfaces.Surface {
 	return out
 }
 
-func findESLint(root string) (string, string) {
-	for _, name := range []string{"eslint.config.js", "eslint.config.mjs", "eslint.config.cjs", ".eslintrc.json", ".eslintrc.js", ".eslintrc.cjs"} {
-		path := filepath.Join(root, name)
-		raw, err := os.ReadFile(path)
-		if err == nil {
-			return path, string(raw)
-		}
-	}
-	return "", ""
-}
-
-func countTypeAssertions(text string) int {
-	re := regexp.MustCompile(`\bas\s+[A-ZA-Za-z_{\[]`)
-	return len(re.FindAllString(text, -1))
-}
-
-func countNonNullAssertions(text string) int {
-	re := regexp.MustCompile(`[A-Za-z0-9_\]\)]!([.;,\)\]\}])`)
-	return len(re.FindAllString(text, -1))
-}
-
-func hasGoFiles(root string) bool {
-	found := false
-	_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
-		if err != nil || d == nil || found {
-			return nil
-		}
-		if d.IsDir() {
-			switch d.Name() {
-			case "vendor", "node_modules", ".git":
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if filepath.Ext(path) == ".go" {
-			found = true
-			return filepath.SkipAll
-		}
-		return nil
-	})
-	return found
-}
-
-func exists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
-}
-
-func firstExisting(paths ...string) string {
-	for _, path := range paths {
-		if exists(path) {
-			return path
-		}
-	}
-	return ""
-}
-
-func hasNode(inv surfaces.Inventory) bool {
-	for _, s := range inv.Surfaces {
-		if s.Language == "typescript" || s.Language == "javascript" || exists(filepath.Join(s.RootPath, "package.json")) {
-			return true
-		}
-	}
-	return false
-}
-
-func hasGo(inv surfaces.Inventory) bool {
-	for _, s := range inv.Surfaces {
-		if s.Language == "go" || exists(filepath.Join(s.RootPath, "go.mod")) {
-			return true
-		}
-	}
-	return false
-}
-
-// normalizeContractLanguage folds related languages onto one contract key so a
-// JavaScript surface is covered by the TypeScript pack (the TS rules evaluate
-// shared tooling: eslint, package.json scripts, .ts/.js suppressions).
-func normalizeContractLanguage(language string) string {
-	if language == "javascript" {
-		return "typescript"
-	}
-	return language
-}
-
-// applicableContracts is the single source of truth for surface rule routing.
-// It resolves the contract packs that apply to a surface purely from its
-// language/tooling via the registry — never from the surface name. Adding a new
-// language pack requires only a registry entry + evaluator; no dispatch edits.
-func applicableContracts(surface surfaces.Surface) []contracts.Contract {
-	lang := normalizeContractLanguage(surface.Language)
-	if lang == "" || lang == "unknown" {
-		return nil
-	}
-	var out []contracts.Contract
-	for _, c := range contracts.List(lang, surface.Framework, surface.Kind, nil) {
-		// Surface-level packs are language-keyed; the scenario-level pack
-		// (empty language, SurfaceKind "scenario") is evaluated separately and
-		// must not attach to a discovered surface.
-		if c.Language == "" {
-			continue
-		}
-		out = append(out, c)
-	}
-	return out
-}
-
-func contractIDForSurface(surface surfaces.Surface) string {
-	cs := applicableContracts(surface)
-	if len(cs) == 0 {
+func contractIDForRules(ruleList []rules.Rule) string {
+	if len(ruleList) == 0 {
 		return ""
 	}
-	return cs[0].ID
+	return ruleList[0].ContractID
 }
 
-func rulesForSurface(surface surfaces.Surface) []string {
-	var out []string
-	for _, c := range applicableContracts(surface) {
-		out = append(out, c.RuleIDs...)
+func ruleIDs(ruleList []rules.Rule) []string {
+	out := make([]string, 0, len(ruleList))
+	for _, rule := range ruleList {
+		out = append(out, rule.ID)
 	}
 	return out
 }
@@ -742,7 +281,17 @@ func coverageGapFinding(inv surfaces.Inventory, surface surfaces.Surface, now ti
 		lang = "unknown"
 	}
 	msg := fmt.Sprintf("surface %s (language=%s) discovered but no quality contract applies", surface.ID, lang)
-	f := newFinding(inv, surface, contracts.RuleCoverageGap, "coverage", "info", surface.RootPath, msg, msg, "a quality contract pack covering language="+lang, "no applicable contract", false, now)
+	f := findingFromRule(inv, rules.Finding{
+		Surface:  surface,
+		RuleID:   contracts.RuleCoverageGap,
+		Category: "coverage",
+		Severity: "info",
+		FilePath: surface.RootPath,
+		Message:  msg,
+		Evidence: msg,
+		Expected: "a quality contract pack covering language=" + lang,
+		Observed: "no applicable contract",
+	}, now)
 	f.WhyItMatters = "A discovered surface that receives zero evaluation must never report a clean pass; this gap keeps missing coverage visible instead of silently green."
 	f.Remediation = "File a capability-gap so a quality contract pack is added for language=" + lang + "."
 	return f
@@ -792,8 +341,6 @@ func maturity(inv surfaces.Inventory, findings []Finding, results []commands.Res
 		return Maturity{Rung: 2, Label: "L2", Rationale: "Surfaces discovered, but strict quality contracts are not yet satisfied."}
 	}
 	if len(uncoveredSurfaces) > 0 {
-		// Cannot claim "strict contracts satisfied" (L3+) while a discovered
-		// surface received zero evaluation. Honest cap at L2.
 		return Maturity{Rung: 2, Label: "L2", Rationale: fmt.Sprintf("Coverage is incomplete: surface(s) %s discovered without an applicable quality contract; maturity is capped at L2 until a contract pack covers them.", strings.Join(uncoveredSurfaces, ", "))}
 	}
 	if len(results) == 0 {
@@ -819,6 +366,9 @@ func hasError(findings []Finding) bool {
 func summary(res Response) string {
 	errors, warnings, infos := countFindings(res.Findings)
 	base := fmt.Sprintf("%s: %d error(s), %d warning(s), %d info(s) across %d surface(s)", res.Inventory.Scenario, errors, warnings, infos, len(res.Inventory.Surfaces))
+	if n := autofixableCount(res.Findings); n > 0 {
+		base += fmt.Sprintf("; %d autofixable", n)
+	}
 	uncovered := 0
 	for _, c := range res.Contracts {
 		if c.Status == "uncovered" {
@@ -832,13 +382,23 @@ func summary(res Response) string {
 }
 
 func nextSteps(res Response) []string {
-	if len(res.AutofixCandidates) > 0 {
-		return []string{fmt.Sprintf("Run `quality-health fix-config run %s --dry-run` to inspect safe config repairs.", res.Inventory.Scenario)}
+	if n := autofixableCount(res.Findings); n > 0 {
+		return []string{fmt.Sprintf("%d finding(s) autofixable — run `quality-health fix-config run %s --dry-run` to inspect safe config repairs.", n, res.Inventory.Scenario)}
 	}
 	if len(res.Findings) > 0 {
 		return []string{fmt.Sprintf("Run `quality-health explain finding %s --scenario %s --rule %s` for remediation detail.", res.Findings[0].ID, res.Inventory.Scenario, res.Findings[0].RuleID)}
 	}
 	return []string{"No Quality Health remediation is required."}
+}
+
+func autofixableCount(findings []Finding) int {
+	count := 0
+	for _, f := range findings {
+		if f.AutofixAvailable {
+			count++
+		}
+	}
+	return count
 }
 
 func countFindings(findings []Finding) (errors, warnings, infos int) {
@@ -853,12 +413,4 @@ func countFindings(findings []Finding) (errors, warnings, infos int) {
 		}
 	}
 	return errors, warnings, infos
-}
-
-func prefixAll(prefix string, values []string) []string {
-	out := make([]string, 0, len(values))
-	for _, value := range values {
-		out = append(out, prefix+value)
-	}
-	return out
 }

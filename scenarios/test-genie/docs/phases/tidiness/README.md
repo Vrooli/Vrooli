@@ -1,17 +1,19 @@
 # Tidiness Phase
 
-The `tidiness` phase delegates file/function quality checks to the **tidiness-manager** scenario (the same provider scenario-auditor uses for type-safety rules) and maps the returned violations into findings. It is a **finding producer** (source=`tidiness`): its output feeds the ecosystem-manager `tidiness` dimension.
+The `tidiness` phase delegates maintainability checks to the **tidiness-manager** scenario and maps the returned findings into Test Genie findings. It is a **finding producer** (source=`tidiness`): its output feeds the ecosystem-manager `tidiness` dimension.
+
+Static-quality contracts, lint policy, type policy, and config strictness are owned by the `quality` phase through **quality-health**.
 
 ## How It Runs
 
 Test Genie resolves the `tidiness-manager` API via `api-core/discovery`, then calls:
 
 ```
-POST {tidiness-manager}/api/v1/scan/type-safety
-{ "scenario_name": "<scenario>", "include_patterns": true }
+POST {tidiness-manager}/api/v1/scan/tidiness
+{ "scenario_name": "<scenario>" }
 ```
 
-Each returned violation becomes one `tidiness`-source finding (code = rule id, severity normalized, location = file path).
+Each returned finding becomes one `tidiness`-source finding (code = rule id or category, severity normalized, location = file path/line when available).
 
 ## Skip Behaviour (not a failure)
 

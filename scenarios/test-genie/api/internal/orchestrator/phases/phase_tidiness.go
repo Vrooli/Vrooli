@@ -29,32 +29,37 @@ var resolveTidinessBaseURL = func(ctx context.Context) (string, error) {
 }
 
 // tidinessScanRequest / tidinessScanResponse mirror the tidiness-manager
-// `/api/v1/scan/type-safety` contract (kept minimal — only the fields this
+// `/api/v1/scan/tidiness` contract (kept minimal — only the fields this
 // producer consumes). The canonical request/response live in tidiness-manager;
 // this is the consumer view.
 type tidinessScanRequest struct {
-	ScenarioName    string `json:"scenario_name"`
-	IncludePatterns bool   `json:"include_patterns"`
+	ScenarioName string `json:"scenario_name"`
 }
 
 type tidinessScanResponse struct {
-	Violations []tidinessViolation `json:"violations"`
+	Findings   []tidinessFinding `json:"findings"`
+	Violations []tidinessFinding `json:"violations"`
 }
 
-type tidinessViolation struct {
-	RuleID      string `json:"rule_id"`
-	Severity    string `json:"severity"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Remediation string `json:"remediation,omitempty"`
-	FilePath    string `json:"file_path,omitempty"`
+type tidinessFinding struct {
+	RuleID                 string `json:"rule_id"`
+	Category               string `json:"category"`
+	Severity               string `json:"severity"`
+	Title                  string `json:"title"`
+	Description            string `json:"description"`
+	WhyItMatters           string `json:"why_it_matters"`
+	RecommendedRemediation string `json:"recommended_remediation"`
+	Remediation            string `json:"remediation,omitempty"`
+	FilePath               string `json:"file_path,omitempty"`
+	Symbol                 string `json:"symbol,omitempty"`
+	LineNumber             int    `json:"line_number,omitempty"`
 }
 
 // runTidinessPhase delegates file/function quality checks to the
-// tidiness-manager scenario (the same provider scenario-auditor uses) and maps
-// its violations into `tidiness`-source findings. If tidiness-manager is not
-// running it follows the runnability-gate pattern — a clear SKIP, never a
-// suite failure — because tidiness is an optional external dependency.
+// tidiness-manager scenario and maps maintainability findings into
+// `tidiness`-source findings. If tidiness-manager is not running it follows
+// the runnability-gate pattern — a clear SKIP, never a suite failure — because
+// tidiness is an optional external dependency.
 func runTidinessPhase(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
 	if report := CheckContext(ctx); report != nil {
 		return *report
@@ -81,7 +86,7 @@ func runTidinessPhase(ctx context.Context, env workspace.Environment, logWriter 
 		}
 	}
 
-	violations, err := fetchTidinessViolations(ctx, baseURL, scenario)
+	findingsFromManager, err := fetchTidinessFindings(ctx, baseURL, scenario)
 	if err != nil {
 		shared.LogWarn(cleanLog, "tidiness-manager scan failed; skipping tidiness phase: %v", err)
 		return RunReport{
@@ -92,14 +97,14 @@ func runTidinessPhase(ctx context.Context, env workspace.Environment, logWriter 
 		}
 	}
 
-	findings := tidinessArchFindings(scenario, violations)
+	findings := tidinessArchFindings(scenario, findingsFromManager)
 	obs := []Observation{NewSectionObservation("🧹", "Tidiness")}
-	if len(violations) == 0 {
+	if len(findingsFromManager) == 0 {
 		obs = append(obs, NewSuccessObservation("No tidiness violations detected"))
 		return RunReport{Observations: obs, Findings: findings}
 	}
-	obs = append(obs, NewInfoObservation(fmt.Sprintf("Tidiness violations: %d", len(violations))))
-	for _, v := range violations {
+	obs = append(obs, NewInfoObservation(fmt.Sprintf("Tidiness findings: %d", len(findingsFromManager))))
+	for _, v := range findingsFromManager {
 		title := strings.TrimSpace(v.Title)
 		if title == "" {
 			title = v.RuleID
@@ -114,9 +119,9 @@ func runTidinessPhase(ctx context.Context, env workspace.Environment, logWriter 
 	return RunReport{Observations: obs, Findings: findings}
 }
 
-func fetchTidinessViolations(ctx context.Context, baseURL, scenario string) ([]tidinessViolation, error) {
-	payload, _ := json.Marshal(tidinessScanRequest{ScenarioName: scenario, IncludePatterns: true})
-	endpoint := fmt.Sprintf("%s/api/v1/scan/type-safety", strings.TrimRight(baseURL, "/"))
+func fetchTidinessFindings(ctx context.Context, baseURL, scenario string) ([]tidinessFinding, error) {
+	payload, _ := json.Marshal(tidinessScanRequest{ScenarioName: scenario})
+	endpoint := fmt.Sprintf("%s/api/v1/scan/tidiness", strings.TrimRight(baseURL, "/"))
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
 	if err != nil {
 		return nil, err
@@ -138,15 +143,18 @@ func fetchTidinessViolations(ctx context.Context, baseURL, scenario string) ([]t
 	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
 		return nil, err
 	}
+	if len(parsed.Findings) > 0 {
+		return parsed.Findings, nil
+	}
 	return parsed.Violations, nil
 }
 
-// tidinessArchFindings maps tidiness-manager violations into the shared
+// tidinessArchFindings maps tidiness-manager findings into the shared
 // ArchitectureFinding contract (source=TIDINESS). code = rule id, severity is
 // normalized by newFinding, location = file path.
-func tidinessArchFindings(scenario string, violations []tidinessViolation) []*architecturev1.ArchitectureFinding {
-	out := make([]*architecturev1.ArchitectureFinding, 0, len(violations))
-	for _, v := range violations {
+func tidinessArchFindings(scenario string, findings []tidinessFinding) []*architecturev1.ArchitectureFinding {
+	out := make([]*architecturev1.ArchitectureFinding, 0, len(findings))
+	for _, v := range findings {
 		title := strings.TrimSpace(v.Title)
 		if title == "" {
 			title = strings.TrimSpace(v.Description)
@@ -154,11 +162,26 @@ func tidinessArchFindings(scenario string, violations []tidinessViolation) []*ar
 		if title == "" {
 			title = v.RuleID
 		}
+		code := strings.TrimSpace(v.RuleID)
+		if code == "" {
+			code = strings.TrimSpace(v.Category)
+		}
+		remediation := strings.TrimSpace(v.RecommendedRemediation)
+		if remediation == "" {
+			remediation = strings.TrimSpace(v.Remediation)
+		}
+		if why := strings.TrimSpace(v.WhyItMatters); why != "" && remediation != "" {
+			remediation = why + "\n\n" + remediation
+		}
+		location := strings.TrimSpace(v.FilePath)
+		if location != "" && v.LineNumber > 0 {
+			location = fmt.Sprintf("%s:%d", location, v.LineNumber)
+		}
 		out = append(out, newFinding(
 			scenario,
 			architecturev1.FindingSource_FINDING_SOURCE_TIDINESS,
-			v.RuleID, v.Severity, title, strings.TrimSpace(v.Remediation),
-			nonEmptyLocations(strings.TrimSpace(v.FilePath)), nil,
+			code, v.Severity, title, remediation,
+			nonEmptyLocations(location), nil,
 		))
 	}
 	return out

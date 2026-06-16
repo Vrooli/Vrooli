@@ -18,7 +18,7 @@ test-genie status --executions
 
 ## What Test Genie Does
 
-- **Executes tests** via 11-phase pipeline (structure → standards → dependencies → lint → docs → smoke → unit → integration → playbooks → business → performance)
+- **Executes tests** via a phase pipeline (structure → standards → dependencies → quality → docs → smoke → unit → integration → playbooks → business → performance, plus optional health providers)
 - **Tracks requirements** by auto-syncing `[REQ:ID]` tags from test results
 - **Provides APIs** for agent automation (REST + CLI)
 - **Queues test generation** requests for downstream AI agents
@@ -40,7 +40,7 @@ test-genie/
 | Structure | 15s | Validate files, JSON configs |
 | Standards | 60s | Run scenario-auditor standards rules (PRD/service.json/proxy/lifecycle config) |
 | Dependencies | 30s | Check runtimes, tools, resources |
-| Lint | 30s | Type checking and linting |
+| Quality | 120s | Static quality contracts via quality-health |
 | Docs | 60s | Validate Markdown, mermaid, links, portability |
 | Smoke | 90s | UI handshake via iframe-bridge |
 | Unit | 60s | Run Go/Node/Python unit tests |
@@ -54,8 +54,8 @@ test-genie/
 | Preset | Phases | Use Case |
 |--------|--------|----------|
 | `quick` | Structure, Standards, Docs, Unit | Fast sanity check |
-| `smoke` | Structure, Standards, Lint, Docs, Integration | Pre-commit validation |
-| `comprehensive` | Structure, Standards, Dependencies, Lint, Docs, Smoke, Unit, Integration, Playbooks, Business, Performance | Full CI/CD validation |
+| `smoke` | Structure, Standards, Quality, Docs, Integration | Pre-commit validation |
+| `comprehensive` | Every registered phase, including Quality | Full CI/CD validation |
 
 ```bash
 test-genie execute my-scenario --preset smoke

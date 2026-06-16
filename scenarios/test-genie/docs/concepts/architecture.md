@@ -36,7 +36,7 @@ flowchart TB
 | `internal/queue` | Suite request lifecycle and queue telemetry | Owns stale-queue policy |
 | `internal/execution` | Execution records plus queue/execution coordination | Keeps queue state and persisted execution history consistent |
 | `internal/orchestrator` | Phase planning, execution, artifacts, presets | Central coordinator for phased runs |
-| `internal/orchestrator/phases` | Phase-specific orchestration adapters | Structure, lint, playbooks, business, performance, etc. |
+| `internal/orchestrator/phases` | Phase-specific orchestration adapters | Structure, quality, playbooks, business, performance, etc. |
 | `internal/playbooks` | BAS registry loading, execution, seeding, isolation | Owns BAS-specific contracts and artifacting |
 | `internal/playbooks/dbdetect` | Evidence-based DB detection (postgres/redis/sqlite) for playbooks isolation | Declarative profile table + collectors + resolver; no silent fallback, no `service.json` schema changes |
 | `internal/scenarios` | Scenario summaries and local test-run adapters | Bridges scenario metadata into API/CLI surfaces |

@@ -11,7 +11,7 @@
     "standards",
     "architecture",
     "dependencies",
-    "lint",
+    "quality",
     "docs",
     "smoke",
     "unit",
@@ -141,7 +141,7 @@
       ]
     },
     {
-      "name": "lint",
+      "name": "quality",
       "status": "fail",
       "findings": [
         {

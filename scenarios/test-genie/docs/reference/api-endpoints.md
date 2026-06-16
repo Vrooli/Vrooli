@@ -361,7 +361,7 @@ Execute a test suite for a scenario. This is the primary endpoint for running te
 1. `structure` - Validates scenario layout, manifests, and JSON health
 2. `standards` - Runs scenario-auditor standards enforcement
 3. `dependencies` - Confirms required commands, runtimes, and declared resources
-4. `lint` - Runs type checking and linting
+4. `quality` - Delegates static quality contracts to quality-health
 5. `docs` - Validates markdown, mermaid, and links
 6. `smoke` - Performs fast UI / runtime handshake validation
 7. `unit` - Runs Go, Node, Python, and shell unit suites as applicable
@@ -383,7 +383,7 @@ Use `POST /api/v1/executions/plan` to see the actual selected phases, runtime es
   "preset": "comprehensive",
   "requestedPreset": "comprehensive",
   "requestedSkipPhases": ["performance"],
-  "plannedPhases": ["structure", "standards", "dependencies", "lint", "docs", "smoke", "unit", "integration", "playbooks", "business"],
+  "plannedPhases": ["structure", "standards", "dependencies", "quality", "docs", "smoke", "unit", "integration", "playbooks", "business"],
   "failFast": false,
   "phases": [
     {
@@ -456,7 +456,7 @@ List execution history.
       "startedAt": "2025-01-15T10:30:00Z",
       "completedAt": "2025-01-15T10:35:00Z",
       "preset": "comprehensive",
-      "plannedPhases": ["structure", "standards", "dependencies", "lint", "docs", "smoke", "unit", "integration", "playbooks", "business"],
+      "plannedPhases": ["structure", "standards", "dependencies", "quality", "docs", "smoke", "unit", "integration", "playbooks", "business"],
       "failFast": false
     }
   ],
@@ -641,7 +641,7 @@ Returns the Go-native phase catalog with descriptions and configuration.
 }
 ```
 
-The full catalog currently includes `structure`, `standards`, `dependencies`, `lint`, `docs`, `smoke`, `unit`, `integration`, `playbooks`, `business`, and `performance`.
+The full catalog currently includes `structure`, `contracts`, `ui-health`, `standards`, `architecture`, `dependencies`, `quality`, `docs`, `performance`, `smoke`, `unit`, `integration`, `playbooks`, `business`, `coverage`, `tidiness`, `security`, `measures`, and `proto`.
 
 ---
 
@@ -734,7 +734,7 @@ curl -s http://localhost:8080/api/v1/phases | jq '.items[].name'
 # "structure"
 # "standards"
 # "dependencies"
-# "lint"
+# "quality"
 # "docs"
 # "smoke"
 # "unit"

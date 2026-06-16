@@ -35,13 +35,13 @@ func TestTidinessPhaseSkipsWhenManagerDown(t *testing.T) {
 
 func TestTidinessPhaseMapsViolations(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/v1/scan/type-safety" {
+		if r.URL.Path != "/api/v1/scan/tidiness" {
 			http.Error(w, "not found", http.StatusNotFound)
 			return
 		}
-		_, _ = io.WriteString(w, `{"violations":[
-			{"rule_id":"TS_DANGEROUS_PATTERNS","severity":"medium","title":"as any used","file_path":"ui/a.ts","remediation":"use a type guard"},
-			{"rule_id":"GO_LINT_CONFIG_PRESENT","severity":"high","title":"missing .golangci.yml","file_path":"api"}
+		_, _ = io.WriteString(w, `{"findings":[
+			{"rule_id":"LONG_FILE","category":"length","severity":"medium","title":"large file","file_path":"api/server.go","line_number":1,"why_it_matters":"large files slow review","recommended_remediation":"split cohesive responsibilities"},
+			{"rule_id":"TECH_DEBT_MARKERS","category":"technical_debt","severity":"low","title":"many TODOs","file_path":"ui/App.tsx","recommended_remediation":"resolve stale markers"}
 		]}`)
 	}))
 	t.Cleanup(srv.Close)
@@ -58,6 +58,9 @@ func TestTidinessPhaseMapsViolations(t *testing.T) {
 		if f.Source != architecturev1.FindingSource_FINDING_SOURCE_TIDINESS {
 			t.Errorf("finding %q source = %v, want TIDINESS", f.Code, f.Source)
 		}
+	}
+	if rep.Findings[0].Code != "LONG_FILE" {
+		t.Fatalf("expected tidiness rule code, got %q", rep.Findings[0].Code)
 	}
 }
 

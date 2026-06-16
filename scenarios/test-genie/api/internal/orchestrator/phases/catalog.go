@@ -85,10 +85,11 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		FindingSource: architecturev1.FindingSource_FINDING_SOURCE_DEPENDENCY,
 	})
 	register(Spec{
-		Name:           Lint,
-		Runner:         runLintPhase,
-		DefaultTimeout: 30 * time.Second,
-		Description:    "Runs component-based linting, type checking, and unmatched-component policy validation.",
+		Name:           Quality,
+		Runner:         runQualityPhase,
+		DefaultTimeout: 120 * time.Second,
+		Description:    "Delegates static quality contracts, lint/type policy, and strict config validation to quality-health.",
+		FindingSource:  architecturev1.FindingSource_FINDING_SOURCE_STANDARDS,
 	})
 	register(Spec{
 		Name:           Docs,

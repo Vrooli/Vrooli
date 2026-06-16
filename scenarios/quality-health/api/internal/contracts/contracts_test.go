@@ -7,6 +7,7 @@ import (
 )
 
 func TestRegistryIncludesMigratedRuleIDs(t *testing.T) {
+	// [REQ:QH-FIX-001]
 	var got []string
 	for _, contract := range Registry() {
 		got = append(got, contract.RuleIDs...)
@@ -21,6 +22,7 @@ func TestRegistryIncludesMigratedRuleIDs(t *testing.T) {
 		RuleGoModPresent,
 		RuleGoLintConfigPresent,
 		RuleGoLintRequiredLinters,
+		RuleGoDangerousPatterns,
 		RuleMakefileQualityGates,
 	} {
 		require.Contains(t, got, ruleID)

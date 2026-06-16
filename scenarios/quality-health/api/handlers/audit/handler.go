@@ -120,11 +120,12 @@ func responseToProto(in internalaudit.Response) *auditv1.AuditQualityResponse {
 			Rationale: in.Maturity.Rationale,
 		},
 		Counts: &auditv1.AuditSummary{
-			Errors:    int32(errors),
-			Warnings:  int32(warnings),
-			Infos:     int32(infos),
-			Surfaces:  int32(len(in.Inventory.Surfaces)),
-			Contracts: int32(len(in.Contracts)),
+			Errors:           int32(errors),
+			Warnings:         int32(warnings),
+			Infos:            int32(infos),
+			Surfaces:         int32(len(in.Inventory.Surfaces)),
+			Contracts:        int32(len(in.Contracts)),
+			AutofixableCount: int32(autofixableCount(in.Findings)),
 		},
 		NextSteps: in.NextSteps,
 	}
@@ -151,11 +152,11 @@ func surfaceToProto(in surfaces.Surface) *auditv1.QualitySurface {
 }
 
 func contractToProto(in contracts.Contract) *auditv1.QualityContract {
-	return &auditv1.QualityContract{Id: in.ID, Title: in.Title, Category: in.Category, Severity: in.Severity, Language: in.Language, Framework: in.Framework, SurfaceKind: in.SurfaceKind, RuleIds: in.RuleIDs, Description: in.Description, WhyItMatters: in.WhyItMatters, Remediation: in.Remediation, AutofixAvailable: in.AutofixAvailable}
+	return &auditv1.QualityContract{Id: in.ID, Title: in.Title, Category: in.Category, Severity: in.Severity, Language: in.Language, Framework: in.Framework, SurfaceKind: in.SurfaceKind, RuleIds: in.RuleIDs, Description: in.Description, WhyItMatters: in.WhyItMatters, Remediation: in.Remediation, AutofixAvailable: in.AutofixAvailable, FixClass: in.FixClass}
 }
 
 func findingToProto(in internalaudit.Finding) *auditv1.QualityFinding {
-	return &auditv1.QualityFinding{Id: in.ID, Scenario: in.Scenario, TargetKind: in.TargetKind, SurfaceId: in.SurfaceID, SurfaceKind: in.SurfaceKind, Language: in.Language, Framework: in.Framework, RuleId: in.RuleID, Category: in.Category, Severity: in.Severity, FilePath: in.FilePath, Symbol: in.Symbol, Message: in.Message, Evidence: in.Evidence, Expected: in.Expected, Observed: in.Observed, WhyItMatters: in.WhyItMatters, Remediation: in.Remediation, AutofixAvailable: in.AutofixAvailable, AutofixCommand: in.AutofixCommand, SourceCommand: in.SourceCommand, CreatedAt: in.CreatedAt}
+	return &auditv1.QualityFinding{Id: in.ID, Scenario: in.Scenario, TargetKind: in.TargetKind, SurfaceId: in.SurfaceID, SurfaceKind: in.SurfaceKind, Language: in.Language, Framework: in.Framework, RuleId: in.RuleID, Category: in.Category, Severity: in.Severity, FilePath: in.FilePath, Symbol: in.Symbol, Message: in.Message, Evidence: in.Evidence, Expected: in.Expected, Observed: in.Observed, WhyItMatters: in.WhyItMatters, Remediation: in.Remediation, AutofixAvailable: in.AutofixAvailable, AutofixCommand: in.AutofixCommand, SourceCommand: in.SourceCommand, CreatedAt: in.CreatedAt, FixClass: in.FixClass}
 }
 
 func commandToProto(in commands.Result) *auditv1.CommandResult {
@@ -189,4 +190,14 @@ func findingCounts(findings []internalaudit.Finding) (errors, warnings, infos in
 		}
 	}
 	return errors, warnings, infos
+}
+
+func autofixableCount(findings []internalaudit.Finding) int {
+	count := 0
+	for _, f := range findings {
+		if f.AutofixAvailable {
+			count++
+		}
+	}
+	return count
 }

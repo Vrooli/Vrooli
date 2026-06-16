@@ -11,15 +11,13 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"test-genie/internal/lint/execution"
 	"test-genie/internal/shared"
 )
 
 var (
-	commandLookup                         = exec.LookPath
-	lintCommandRunner    execution.Runner = execution.ProductionRunner{}
-	phaseCommandExecutor                  = runCommand
-	phaseCommandCapture                   = runCommandCapture
+	commandLookup        = exec.LookPath
+	phaseCommandExecutor = runCommand
+	phaseCommandCapture  = runCommandCapture
 )
 
 func normalizeCommandInvocation(name string, args []string) (string, []string) {
@@ -184,13 +182,6 @@ func OverrideCommandCapture(fn func(context.Context, string, io.Writer, string, 
 	prev := phaseCommandCapture
 	phaseCommandCapture = fn
 	return func() { phaseCommandCapture = prev }
-}
-
-// OverrideLintCommandRunner temporarily replaces lint tool execution.
-func OverrideLintCommandRunner(r execution.Runner) func() {
-	prev := lintCommandRunner
-	lintCommandRunner = r
-	return func() { lintCommandRunner = prev }
 }
 
 // Scenario interaction utilities - used by playbooks, smoke, and other runtime phases.

@@ -48,7 +48,7 @@
         { "path": "phases/ui-health/README.md", "title": "UI Health Phase", "description": "ui/manifest.json bindings, slot directories, and overlay rules via ui-health" },
         { "path": "phases/standards/README.md", "title": "Standards Phase", "description": "Standards enforcement via scenario-auditor" },
         { "path": "phases/dependencies/README.md", "title": "Dependencies Phase", "description": "Runtime and tool availability checks" },
-        { "path": "phases/lint/README.md", "title": "Lint Phase", "description": "Type checking and linting" },
+        { "path": "phases/quality/README.md", "title": "Quality Phase", "description": "Static quality contracts via quality-health" },
         { "path": "phases/docs/README.md", "title": "Docs Phase", "description": "Markdown, mermaid, and link validation" },
         { "path": "phases/smoke/README.md", "title": "Smoke Phase", "description": "UI load validation and iframe-bridge testing" },
         { "path": "phases/unit/README.md", "title": "Unit Phase", "description": "Language-specific unit test execution" },

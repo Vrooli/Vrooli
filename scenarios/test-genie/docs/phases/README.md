@@ -14,7 +14,7 @@ graph TB
         P3[3. UI Health<br/>ui/manifest slots, overlays]
         P4[4. Standards<br/>scenario-auditor rules]
         P5[5. Dependencies<br/>Tools, resources]
-        P6[6. Lint<br/>Type checking, linters]
+        P6[6. Quality<br/>Static quality contracts]
         P7[7. Docs<br/>Markdown, mermaid, links]
     end
 
@@ -57,7 +57,7 @@ Listed in catalog (execution) order:
 | [UI Health](ui-health/README.md) | 60s | No | No | Validate ui/manifest.json bindings, slot directories, and overlay rules (ui-health) |
 | [Standards](standards/README.md) | 60s | No | No | Runs scenario-auditor standards rules (PRD/service.json/proxy/lifecycle config) |
 | [Dependencies](dependencies/README.md) | 30s | No | No | Verify tools and resources |
-| [Lint](lint/README.md) | 30s | No | No | Component-based linting, type checking, and unmatched-component policy |
+| [Quality](quality/README.md) | 120s | No | No | Delegates lint/type/static-quality contracts to quality-health |
 | [Docs](docs/README.md) | 60s | No | No | Validate Markdown, mermaid, links, portability |
 | [Performance](performance/README.md) | 60s | Yes | Yes | Build benchmarks, Lighthouse audits |
 | [Smoke](smoke/README.md) | 90s | Yes | Yes | UI load and iframe-bridge validation |
@@ -68,12 +68,12 @@ Listed in catalog (execution) order:
 
 ## Static vs Runtime Phases
 
-**Static phases** (Structure, Contracts, UI Health, Standards, Dependencies, Lint, Docs) can run without the scenario being started:
+**Static phases** (Structure, Contracts, UI Health, Standards, Dependencies, Quality, Docs) can run without the scenario being started:
 - Validate files exist and are well-formed
 - Validate CLI/UI manifest bindings against proto descriptors and slot layout
 - Enforce scenario standards (PRD/service.json/proxy setup)
 - Check dependencies are installed
-- Run component-based type checking and linting
+- Run static-quality contract checks through Quality Health
 - Validate docs, links, and mermaid diagrams
 
 **Runtime phases** (Performance, Smoke, Unit, Integration, Playbooks, Business) may require the scenario to be running:
@@ -150,8 +150,8 @@ Presets bundle phases for common use cases:
 | Preset | Phases | Duration | Use Case |
 |--------|--------|----------|----------|
 | **quick** | structure, standards, docs, unit | ~1-2 min | Fast feedback during development |
-| **smoke** | structure, standards, lint, docs, integration | ~4-5 min | Pre-push validation |
-| **comprehensive** | structure, contracts, standards, dependencies, lint, docs, performance, smoke, unit, integration, playbooks, business | ~10+ min | Full validation before release |
+| **smoke** | structure, standards, quality, docs, integration | ~4-5 min | Pre-push validation |
+| **comprehensive** | every registered phase, including quality | ~10+ min | Full validation before release |
 
 See [Presets Reference](../reference/presets.md) for custom preset configuration.
 
@@ -164,7 +164,7 @@ Each phase has its own documentation folder with detailed guides:
 - **[UI Health](ui-health/README.md)** - ui/manifest.json bindings, slot directories, overlay rules via ui-health
 - **[Standards](standards/README.md)** - Standards enforcement via scenario-auditor
 - **[Dependencies](dependencies/README.md)** - Tool and resource verification
-- **[Lint](lint/README.md)** - Component-based linting, type checking, and unmatched-component policy
+- **[Quality](quality/README.md)** - Static quality contracts delegated to Quality Health
 - **[Docs](docs/README.md)** - Markdown, mermaid, link, and portability validation
 - **[Performance](performance/README.md)** - Build benchmarks, Lighthouse audits
 - **[Smoke](smoke/README.md)** - UI load validation and iframe-bridge testing

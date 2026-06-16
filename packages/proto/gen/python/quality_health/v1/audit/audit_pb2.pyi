@@ -145,7 +145,7 @@ class QualitySurface(_message.Message):
     def __init__(self, id: _Optional[str] = ..., kind: _Optional[str] = ..., language: _Optional[str] = ..., framework: _Optional[str] = ..., root_path: _Optional[str] = ..., package_manager: _Optional[str] = ..., status: _Optional[str] = ..., confidence: _Optional[float] = ...) -> None: ...
 
 class QualityContract(_message.Message):
-    __slots__ = ("id", "title", "category", "severity", "language", "framework", "surface_kind", "rule_ids", "description", "why_it_matters", "remediation", "autofix_available")
+    __slots__ = ("id", "title", "category", "severity", "language", "framework", "surface_kind", "rule_ids", "description", "why_it_matters", "remediation", "autofix_available", "fix_class")
     ID_FIELD_NUMBER: _ClassVar[int]
     TITLE_FIELD_NUMBER: _ClassVar[int]
     CATEGORY_FIELD_NUMBER: _ClassVar[int]
@@ -158,6 +158,7 @@ class QualityContract(_message.Message):
     WHY_IT_MATTERS_FIELD_NUMBER: _ClassVar[int]
     REMEDIATION_FIELD_NUMBER: _ClassVar[int]
     AUTOFIX_AVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    FIX_CLASS_FIELD_NUMBER: _ClassVar[int]
     id: str
     title: str
     category: str
@@ -170,7 +171,8 @@ class QualityContract(_message.Message):
     why_it_matters: str
     remediation: str
     autofix_available: bool
-    def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., category: _Optional[str] = ..., severity: _Optional[str] = ..., language: _Optional[str] = ..., framework: _Optional[str] = ..., surface_kind: _Optional[str] = ..., rule_ids: _Optional[_Iterable[str]] = ..., description: _Optional[str] = ..., why_it_matters: _Optional[str] = ..., remediation: _Optional[str] = ..., autofix_available: _Optional[bool] = ...) -> None: ...
+    fix_class: str
+    def __init__(self, id: _Optional[str] = ..., title: _Optional[str] = ..., category: _Optional[str] = ..., severity: _Optional[str] = ..., language: _Optional[str] = ..., framework: _Optional[str] = ..., surface_kind: _Optional[str] = ..., rule_ids: _Optional[_Iterable[str]] = ..., description: _Optional[str] = ..., why_it_matters: _Optional[str] = ..., remediation: _Optional[str] = ..., autofix_available: _Optional[bool] = ..., fix_class: _Optional[str] = ...) -> None: ...
 
 class ContractEvaluation(_message.Message):
     __slots__ = ("contract_id", "surface_id", "status", "rule_ids")
@@ -185,7 +187,7 @@ class ContractEvaluation(_message.Message):
     def __init__(self, contract_id: _Optional[str] = ..., surface_id: _Optional[str] = ..., status: _Optional[str] = ..., rule_ids: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class QualityFinding(_message.Message):
-    __slots__ = ("id", "scenario", "target_kind", "surface_id", "surface_kind", "language", "framework", "rule_id", "category", "severity", "file_path", "symbol", "message", "evidence", "expected", "observed", "why_it_matters", "remediation", "autofix_available", "autofix_command", "source_command", "created_at")
+    __slots__ = ("id", "scenario", "target_kind", "surface_id", "surface_kind", "language", "framework", "rule_id", "category", "severity", "file_path", "symbol", "message", "evidence", "expected", "observed", "why_it_matters", "remediation", "autofix_available", "autofix_command", "source_command", "created_at", "fix_class")
     ID_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     TARGET_KIND_FIELD_NUMBER: _ClassVar[int]
@@ -208,6 +210,7 @@ class QualityFinding(_message.Message):
     AUTOFIX_COMMAND_FIELD_NUMBER: _ClassVar[int]
     SOURCE_COMMAND_FIELD_NUMBER: _ClassVar[int]
     CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    FIX_CLASS_FIELD_NUMBER: _ClassVar[int]
     id: str
     scenario: str
     target_kind: str
@@ -230,7 +233,8 @@ class QualityFinding(_message.Message):
     autofix_command: str
     source_command: str
     created_at: str
-    def __init__(self, id: _Optional[str] = ..., scenario: _Optional[str] = ..., target_kind: _Optional[str] = ..., surface_id: _Optional[str] = ..., surface_kind: _Optional[str] = ..., language: _Optional[str] = ..., framework: _Optional[str] = ..., rule_id: _Optional[str] = ..., category: _Optional[str] = ..., severity: _Optional[str] = ..., file_path: _Optional[str] = ..., symbol: _Optional[str] = ..., message: _Optional[str] = ..., evidence: _Optional[str] = ..., expected: _Optional[str] = ..., observed: _Optional[str] = ..., why_it_matters: _Optional[str] = ..., remediation: _Optional[str] = ..., autofix_available: _Optional[bool] = ..., autofix_command: _Optional[str] = ..., source_command: _Optional[str] = ..., created_at: _Optional[str] = ...) -> None: ...
+    fix_class: str
+    def __init__(self, id: _Optional[str] = ..., scenario: _Optional[str] = ..., target_kind: _Optional[str] = ..., surface_id: _Optional[str] = ..., surface_kind: _Optional[str] = ..., language: _Optional[str] = ..., framework: _Optional[str] = ..., rule_id: _Optional[str] = ..., category: _Optional[str] = ..., severity: _Optional[str] = ..., file_path: _Optional[str] = ..., symbol: _Optional[str] = ..., message: _Optional[str] = ..., evidence: _Optional[str] = ..., expected: _Optional[str] = ..., observed: _Optional[str] = ..., why_it_matters: _Optional[str] = ..., remediation: _Optional[str] = ..., autofix_available: _Optional[bool] = ..., autofix_command: _Optional[str] = ..., source_command: _Optional[str] = ..., created_at: _Optional[str] = ..., fix_class: _Optional[str] = ...) -> None: ...
 
 class CommandResult(_message.Message):
     __slots__ = ("name", "command", "working_directory", "status", "exit_code", "stdout_excerpt", "stderr_excerpt", "timeout_seconds", "failure_reason")
@@ -265,18 +269,20 @@ class MaturitySummary(_message.Message):
     def __init__(self, rung: _Optional[int] = ..., label: _Optional[str] = ..., rationale: _Optional[str] = ...) -> None: ...
 
 class AuditSummary(_message.Message):
-    __slots__ = ("errors", "warnings", "infos", "surfaces", "contracts")
+    __slots__ = ("errors", "warnings", "infos", "surfaces", "contracts", "autofixable_count")
     ERRORS_FIELD_NUMBER: _ClassVar[int]
     WARNINGS_FIELD_NUMBER: _ClassVar[int]
     INFOS_FIELD_NUMBER: _ClassVar[int]
     SURFACES_FIELD_NUMBER: _ClassVar[int]
     CONTRACTS_FIELD_NUMBER: _ClassVar[int]
+    AUTOFIXABLE_COUNT_FIELD_NUMBER: _ClassVar[int]
     errors: int
     warnings: int
     infos: int
     surfaces: int
     contracts: int
-    def __init__(self, errors: _Optional[int] = ..., warnings: _Optional[int] = ..., infos: _Optional[int] = ..., surfaces: _Optional[int] = ..., contracts: _Optional[int] = ...) -> None: ...
+    autofixable_count: int
+    def __init__(self, errors: _Optional[int] = ..., warnings: _Optional[int] = ..., infos: _Optional[int] = ..., surfaces: _Optional[int] = ..., contracts: _Optional[int] = ..., autofixable_count: _Optional[int] = ...) -> None: ...
 
 class AutofixCandidate(_message.Message):
     __slots__ = ("rule_id", "file_path", "description", "before", "after", "applied")

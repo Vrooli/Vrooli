@@ -190,4 +190,4 @@ Override dependency checks in `.vrooli/testing.json`:
 
 - [Phases Overview](../README.md) - All phases
 - [Structure Phase](../structure/README.md) - Previous phase
-- [Lint Phase](../lint/README.md) - Next phase
+- [Quality Phase](../quality/README.md) - Next phase

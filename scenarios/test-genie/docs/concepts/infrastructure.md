@@ -78,7 +78,7 @@ in `internal/shared/artifacts/paths.go` to ensure consistency across phases.
 ```
 coverage/
 ├── logs/                    # Per-run phase logs
-│   └── <run-id>/phase.log   # e.g., 20251208-151044/lint.log
+│   └── <run-id>/phase.log   # e.g., 20251208-151044/quality.log
 ├── latest/                  # Pointers to most recent run
 │   ├── manifest.json        # Run metadata + artifact map
 │   └── *.log                # Symlinks or pointers to latest logs

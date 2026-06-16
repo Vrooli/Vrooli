@@ -85,7 +85,7 @@ func AnalyzePhaseFailures(phases []execTypes.Phase) []PhaseInsight {
 			insight.Impact = []string{"integration", "performance"}
 			insight.Fixes = append(insight.Fixes,
 				fmt.Sprintf("Fix TypeScript compiler errors (see %s)", insight.Log),
-				"Rebuild UI and rerun: test-genie execute <scenario> lint")
+				"Rebuild UI and rerun: test-genie execute <scenario> quality")
 		case failurePatterns["ui_bundle"].MatchString(content):
 			insight.Cause = "Stale or missing UI bundle"
 			insight.Detail = extractLine(content, failurePatterns["ui_bundle"])
@@ -235,7 +235,7 @@ func DiagnoseFailures(phases []execTypes.Phase) *FailureDiagnosis {
 			diag.ImpactedPhases = append(diag.ImpactedPhases, "integration", "performance")
 			diag.QuickFixes = append(diag.QuickFixes,
 				fmt.Sprintf("Fix TypeScript compiler errors (see %s)", DescribeLogPath(phase.LogPath)),
-				"Rebuild/restart scenario, then re-run: test-genie execute <scenario> lint")
+				"Rebuild/restart scenario, then re-run: test-genie execute <scenario> quality")
 		case diag.Primary == "" && failurePatterns["ui_bundle"].MatchString(content):
 			diag.Primary = "Stale or missing UI bundle"
 			diag.PrimaryPhase = phase.Name

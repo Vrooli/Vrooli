@@ -114,7 +114,7 @@ func TestCapabilityManifestCoversEveryPhase(t *testing.T) {
 // per-phase finding-source tokens that the combined findings artifact carries
 // and a campaign reaudit derives covered-sources from. Every finding-producing
 // phase MUST declare a non-UNSPECIFIED FindingSource; non-producing phases
-// (unit, lint, smoke, …) MUST leave it UNSPECIFIED so they never contribute a
+// (unit, smoke, …) MUST leave it UNSPECIFIED so they never contribute a
 // phantom source to reaudit coverage. The expected map is pinned to the
 // producer set so adding a finding-emitting phase without a source breaks the
 // build instead of silently producing un-attributed findings.
@@ -124,6 +124,7 @@ func TestFindingSourceCoversEveryProducingPhase(t *testing.T) {
 		Contracts:    architecturev1.FindingSource_FINDING_SOURCE_CLI,
 		UIHealth:     architecturev1.FindingSource_FINDING_SOURCE_UI,
 		Standards:    architecturev1.FindingSource_FINDING_SOURCE_STANDARDS,
+		Quality:      architecturev1.FindingSource_FINDING_SOURCE_STANDARDS,
 		Architecture: architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE,
 		Dependencies: architecturev1.FindingSource_FINDING_SOURCE_DEPENDENCY,
 		Docs:         architecturev1.FindingSource_FINDING_SOURCE_DOCS,

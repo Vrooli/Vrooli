@@ -23,7 +23,7 @@ func TestPhaseToggleStoreSaveAndLoadUsesStorageConfigRoot(t *testing.T) {
 				Reason:   "maintenance window",
 				Owner:    "platform",
 			},
-			"lint": {
+			"quality": {
 				Disabled: false,
 			},
 		},
@@ -39,8 +39,8 @@ func TestPhaseToggleStoreSaveAndLoadUsesStorageConfigRoot(t *testing.T) {
 	if saved.Phases["unit"].AddedAt.IsZero() {
 		t.Fatalf("saved unit toggle should record AddedAt")
 	}
-	if !saved.Phases["lint"].AddedAt.IsZero() {
-		t.Fatalf("enabled lint toggle should not record AddedAt")
+	if !saved.Phases["quality"].AddedAt.IsZero() {
+		t.Fatalf("enabled quality toggle should not record AddedAt")
 	}
 
 	path := filepath.Join(root, "vrooli", phaseToggleScenarioID, phaseToggleFilename)

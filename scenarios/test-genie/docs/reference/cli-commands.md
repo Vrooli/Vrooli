@@ -279,7 +279,7 @@ validation.
 | `structure` | Validates scenario layout, manifests, and JSON health |
 | `standards` | Runs scenario-auditor standards enforcement |
 | `dependencies` | Confirms required commands, runtimes, and resources |
-| `lint` | Runs type checking and linting |
+| `quality` | Delegates static quality contracts to quality-health |
 | `docs` | Validates markdown, mermaid, and links |
 | `smoke` | Performs fast runtime / UI handshake checks |
 | `unit` | Executes language-specific unit tests |
@@ -349,7 +349,7 @@ Executing test suite for: my-scenario
   Preset: comprehensive
   Estimate: 3m 12s
   Timeout budget: 29m 0s
-  Planned phases: structure, standards, dependencies, lint, docs, smoke, unit, integration, playbooks, business, performance
+  Planned phases: structure, standards, dependencies, quality, docs, smoke, unit, integration, playbooks, business, performance
 
 Plan:
   structure     estimate 4s    timeout 15m  high confidence from 12 runs
@@ -358,7 +358,7 @@ Plan:
 [1/11] structure     PASSED  (5s)
 [2/11] standards     PASSED  (2s)
 [3/11] dependencies  PASSED  (12s)
-[4/11] lint          PASSED  (9s)
+[4/11] quality       PASSED  (9s)
 [5/11] docs          PASSED  (3s)
 [6/11] smoke         PASSED  (6s)
 [7/11] unit          PASSED  (45s)
@@ -756,7 +756,7 @@ Name          Optional  Timeout  Description
 structure     No        15m      Validates scenario layout and manifests
 standards     No        1m       Runs scenario-auditor standards checks
 dependencies  No        15m      Confirms commands, runtimes, and resources
-lint          No        30s      Runs linting and type checking
+quality       No        120s     Delegates static quality contracts to quality-health
 docs          No        1m       Validates markdown, mermaid, and links
 smoke         No        90s      Performs fast runtime/UI handshake checks
 unit          No        15m      Executes language-specific unit suites

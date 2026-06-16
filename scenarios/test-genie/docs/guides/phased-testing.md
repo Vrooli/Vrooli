@@ -17,7 +17,7 @@ graph TB
         P4[Phase 4: Standards<br/>60s<br/>scenario-auditor rules]
         P5[Phase 5: Architecture<br/>120s<br/>Structural cohesion]
         P6[Phase 6: Dependencies<br/>30s<br/>Packages & resources]
-        P7[Phase 7: Lint<br/>30s<br/>Type checking]
+        P7[Phase 7: Quality<br/>120s<br/>Static quality]
         P8[Phase 8: Docs<br/>60s<br/>Markdown, links]
     end
 
@@ -60,7 +60,7 @@ graph TB
 | **Standards** | 60s | scenario-auditor standards rules | No |
 | **Architecture** | 120s | Audit structural cohesion | No |
 | **Dependencies** | 30s | Check tools and resources | No |
-| **Lint** | 30s | Type checking and linting | No |
+| **Quality** | 120s | Static quality contracts via quality-health | No |
 | **Docs** | 60s | Validate Markdown, mermaid, links, portability | No |
 | **Performance** | 60s | Run benchmarks (optional) | Yes |
 | **Smoke** | 90s | UI load and iframe-bridge validation | Yes |
@@ -96,7 +96,7 @@ test-genie execute my-scenario --preset comprehensive
 | Preset | Phases | Use Case |
 |--------|--------|----------|
 | **Quick** | Structure, Standards, Docs, Business, Unit, Proto | Fast feedback during development |
-| **Smoke** | Structure, Standards, Lint, Docs, Business, Integration, Proto | Pre-push validation |
+| **Smoke** | Structure, Standards, Quality, Docs, Business, Integration, Proto | Pre-push validation |
 | **Architecture Audit** | Structure, Contracts, UI Health, Docs, Standards, Architecture, Proto | Surface and architecture review |
 | **Comprehensive** | All catalog phases | Full coverage before release |
 
@@ -163,16 +163,16 @@ make logs     # View test logs
 - pnpm not installed
 - Declared resource not available
 
-### Phase 3: Lint
+### Phase 3: Quality
 
 **Purpose**: Run static analysis and type checking to catch errors before runtime.
 
 **Checks**:
-- Go: `golangci-lint` (fallback `go vet`)
+- Static quality contracts are delegated to `quality-health audit run <scenario> --json`.
 - TypeScript/JavaScript: `tsc --noEmit`, `eslint`
 - Python: `ruff`/`flake8`, optional `mypy`
 
-Warnings are informational; type errors fail. See [Lint Phase](../phases/lint/README.md).
+Warnings are informational; error findings fail. See [Quality Phase](../phases/quality/README.md).
 
 ### Phase 4: Docs Validation
 

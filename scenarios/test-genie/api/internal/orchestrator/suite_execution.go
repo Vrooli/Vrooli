@@ -65,7 +65,7 @@ const (
 	PhaseStructure                = phases.Structure
 	PhaseStandards                = phases.Standards
 	PhaseDependencies             = phases.Dependencies
-	PhaseLint                     = phases.Lint
+	PhaseQuality                  = phases.Quality
 	PhaseDocs                     = phases.Docs
 	PhaseUnit                     = phases.Unit
 	PhaseIntegration              = phases.Integration

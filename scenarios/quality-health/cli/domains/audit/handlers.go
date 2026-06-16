@@ -39,14 +39,18 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 	msg := resp.Msg
 	results := make([]string, 0, len(msg.GetFindings()))
 	for _, f := range msg.GetFindings() {
-		results = append(results, fmt.Sprintf("[%s] %s %s: %s", f.GetSeverity(), f.GetRuleId(), f.GetFilePath(), f.GetMessage()))
+		tag := ""
+		if f.GetAutofixAvailable() {
+			tag = " (autofixable)"
+		}
+		results = append(results, fmt.Sprintf("[%s] %s%s %s: %s", f.GetSeverity(), f.GetRuleId(), tag, f.GetFilePath(), f.GetMessage()))
 	}
 	if len(results) == 0 {
 		results = append(results, "No static-quality findings.")
 	}
 	err = cliapp.RenderProtoList(ctx, msg, cliapp.ListReport{
 		Summary: []string{
-			fmt.Sprintf("%s (%s): %d error(s), %d warning(s), maturity %s", msg.GetScenario(), msg.GetStatus(), msg.GetCounts().GetErrors(), msg.GetCounts().GetWarnings(), msg.GetMaturity().GetLabel()),
+			fmt.Sprintf("%s (%s): %d error(s), %d warning(s), %d autofixable, maturity %s", msg.GetScenario(), msg.GetStatus(), msg.GetCounts().GetErrors(), msg.GetCounts().GetWarnings(), msg.GetCounts().GetAutofixableCount(), msg.GetMaturity().GetLabel()),
 		},
 		ResultsHeading: "Findings",
 		Results:        results,

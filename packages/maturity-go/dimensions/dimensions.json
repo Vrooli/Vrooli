@@ -44,7 +44,7 @@
     "standards": "standards",
     "architecture": "cycles",
     "dependencies": "dependency-accuracy",
-    "lint": "standards",
+    "quality": "standards",
     "docs": "docs",
     "smoke": "visual",
     "unit": "tests",

@@ -198,7 +198,7 @@ Or with explicit phases:
   "success": true,
   "preset": "comprehensive",
   "requestedPreset": "comprehensive",
-  "plannedPhases": ["structure", "standards", "dependencies", "lint", "docs", "smoke", "unit", "integration", "playbooks", "business", "performance"],
+  "plannedPhases": ["structure", "standards", "dependencies", "quality", "docs", "smoke", "unit", "integration", "playbooks", "business", "performance"],
   "failFast": true,
   "phases": [
     {

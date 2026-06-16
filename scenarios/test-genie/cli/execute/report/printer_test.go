@@ -108,12 +108,12 @@ func TestPrintResultsCondensedReplay(t *testing.T) {
 func TestPrintPrePlanShowsDocs(t *testing.T) {
 	var buf bytes.Buffer
 	pr := New(&buf, "demo", "", nil, nil, false, nil, nil)
-	pr.PrintPreExecution([]string{"lint"})
+	pr.PrintPreExecution([]string{"quality"})
 
 	out := buf.String()
-	expectedDoc := repo.AbsPath("scenarios/test-genie/docs/phases/lint/README.md")
+	expectedDoc := repo.AbsPath("scenarios/test-genie/docs/phases/quality/README.md")
 	if !strings.Contains(out, "docs: "+expectedDoc) {
-		t.Fatalf("expected lint doc link in plan, got:\n%s", out)
+		t.Fatalf("expected quality doc link in plan, got:\n%s", out)
 	}
 }
 

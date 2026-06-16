@@ -341,7 +341,7 @@
     },
     "lint": {
       "type": "object",
-      "description": "Lint phase configuration. Discovers top-level components, matches them to supported lint handlers, and applies policy for unmatched components.",
+      "description": "Static-quality lint contract consumed by Quality Health and Test Genie's quality phase. The legacy native lint phase is retired, but this block still declares strict handler policy for scenario quality gates.",
       "additionalProperties": false,
       "properties": {
         "handlers": {
@@ -370,7 +370,7 @@
           "properties": {
             "unconfigured_common_components": {
               "type": "object",
-              "description": "Severity to use when common top-level components exist without a supported lint contract.",
+              "description": "Severity to use when common top-level components exist without a supported lint quality contract.",
               "properties": {
                 "api": { "$ref": "#/definitions/lint_policy_severity" },
                 "ui": { "$ref": "#/definitions/lint_policy_severity" },
@@ -395,7 +395,7 @@
         },
         "ignore": {
           "type": "array",
-          "description": "Top-level directory names to ignore during lint component discovery.",
+          "description": "Top-level directory names to ignore during lint quality contract discovery.",
           "items": {
             "type": "string"
           }
@@ -835,7 +835,7 @@
         "strict": {
           "type": "boolean",
           "default": false,
-          "description": "Treat lint warnings from this handler as phase-failing errors."
+          "description": "Treat lint warnings from this handler as quality-gate errors."
         }
       }
     },

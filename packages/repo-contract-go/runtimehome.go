@@ -24,6 +24,7 @@ const (
 	HomeKeyMetrics    = "metrics"
 	HomeKeyProcesses  = "processes"
 	HomeKeyBuild      = "build"
+	HomeKeyTestRuns   = "test_runs"
 
 	// Scoped (parameterized) runtime-home path keys.
 	ScopedScenarioSecrets = "scenario_secrets"

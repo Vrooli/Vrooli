@@ -778,6 +778,7 @@ type QualityContract struct {
 	WhyItMatters     string                 `protobuf:"bytes,10,opt,name=why_it_matters,json=whyItMatters,proto3" json:"why_it_matters,omitempty"`
 	Remediation      string                 `protobuf:"bytes,11,opt,name=remediation,proto3" json:"remediation,omitempty"`
 	AutofixAvailable bool                   `protobuf:"varint,12,opt,name=autofix_available,json=autofixAvailable,proto3" json:"autofix_available,omitempty"`
+	FixClass         string                 `protobuf:"bytes,13,opt,name=fix_class,json=fixClass,proto3" json:"fix_class,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -896,6 +897,13 @@ func (x *QualityContract) GetAutofixAvailable() bool {
 	return false
 }
 
+func (x *QualityContract) GetFixClass() string {
+	if x != nil {
+		return x.FixClass
+	}
+	return ""
+}
+
 type ContractEvaluation struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ContractId    string                 `protobuf:"bytes,1,opt,name=contract_id,json=contractId,proto3" json:"contract_id,omitempty"`
@@ -988,6 +996,7 @@ type QualityFinding struct {
 	AutofixCommand   string                 `protobuf:"bytes,20,opt,name=autofix_command,json=autofixCommand,proto3" json:"autofix_command,omitempty"`
 	SourceCommand    string                 `protobuf:"bytes,21,opt,name=source_command,json=sourceCommand,proto3" json:"source_command,omitempty"`
 	CreatedAt        string                 `protobuf:"bytes,22,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	FixClass         string                 `protobuf:"bytes,23,opt,name=fix_class,json=fixClass,proto3" json:"fix_class,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -1176,6 +1185,13 @@ func (x *QualityFinding) GetCreatedAt() string {
 	return ""
 }
 
+func (x *QualityFinding) GetFixClass() string {
+	if x != nil {
+		return x.FixClass
+	}
+	return ""
+}
+
 type CommandResult struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	Name             string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -1345,14 +1361,15 @@ func (x *MaturitySummary) GetRationale() string {
 }
 
 type AuditSummary struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Errors        int32                  `protobuf:"varint,1,opt,name=errors,proto3" json:"errors,omitempty"`
-	Warnings      int32                  `protobuf:"varint,2,opt,name=warnings,proto3" json:"warnings,omitempty"`
-	Infos         int32                  `protobuf:"varint,3,opt,name=infos,proto3" json:"infos,omitempty"`
-	Surfaces      int32                  `protobuf:"varint,4,opt,name=surfaces,proto3" json:"surfaces,omitempty"`
-	Contracts     int32                  `protobuf:"varint,5,opt,name=contracts,proto3" json:"contracts,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Errors           int32                  `protobuf:"varint,1,opt,name=errors,proto3" json:"errors,omitempty"`
+	Warnings         int32                  `protobuf:"varint,2,opt,name=warnings,proto3" json:"warnings,omitempty"`
+	Infos            int32                  `protobuf:"varint,3,opt,name=infos,proto3" json:"infos,omitempty"`
+	Surfaces         int32                  `protobuf:"varint,4,opt,name=surfaces,proto3" json:"surfaces,omitempty"`
+	Contracts        int32                  `protobuf:"varint,5,opt,name=contracts,proto3" json:"contracts,omitempty"`
+	AutofixableCount int32                  `protobuf:"varint,6,opt,name=autofixable_count,json=autofixableCount,proto3" json:"autofixable_count,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *AuditSummary) Reset() {
@@ -1416,6 +1433,13 @@ func (x *AuditSummary) GetSurfaces() int32 {
 func (x *AuditSummary) GetContracts() int32 {
 	if x != nil {
 		return x.Contracts
+	}
+	return 0
+}
+
+func (x *AuditSummary) GetAutofixableCount() int32 {
+	if x != nil {
+		return x.AutofixableCount
 	}
 	return 0
 }
@@ -1578,7 +1602,7 @@ const file_quality_health_v1_audit_audit_proto_rawDesc = "" +
 	"\x06status\x18\a \x01(\tR\x06status\x12\x1e\n" +
 	"\n" +
 	"confidence\x18\b \x01(\x01R\n" +
-	"confidence\"\xfe\x02\n" +
+	"confidence\"\x9b\x03\n" +
 	"\x0fQualityContract\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x1a\n" +
@@ -1592,14 +1616,15 @@ const file_quality_health_v1_audit_audit_proto_rawDesc = "" +
 	"\x0ewhy_it_matters\x18\n" +
 	" \x01(\tR\fwhyItMatters\x12 \n" +
 	"\vremediation\x18\v \x01(\tR\vremediation\x12+\n" +
-	"\x11autofix_available\x18\f \x01(\bR\x10autofixAvailable\"\x87\x01\n" +
+	"\x11autofix_available\x18\f \x01(\bR\x10autofixAvailable\x12\x1b\n" +
+	"\tfix_class\x18\r \x01(\tR\bfixClass\"\x87\x01\n" +
 	"\x12ContractEvaluation\x12\x1f\n" +
 	"\vcontract_id\x18\x01 \x01(\tR\n" +
 	"contractId\x12\x1d\n" +
 	"\n" +
 	"surface_id\x18\x02 \x01(\tR\tsurfaceId\x12\x16\n" +
 	"\x06status\x18\x03 \x01(\tR\x06status\x12\x19\n" +
-	"\brule_ids\x18\x04 \x03(\tR\aruleIds\"\xb1\x05\n" +
+	"\brule_ids\x18\x04 \x03(\tR\aruleIds\"\xce\x05\n" +
 	"\x0eQualityFinding\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x1f\n" +
@@ -1626,7 +1651,8 @@ const file_quality_health_v1_audit_audit_proto_rawDesc = "" +
 	"\x0fautofix_command\x18\x14 \x01(\tR\x0eautofixCommand\x12%\n" +
 	"\x0esource_command\x18\x15 \x01(\tR\rsourceCommand\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\x16 \x01(\tR\tcreatedAt\"\xbd\x02\n" +
+	"created_at\x18\x16 \x01(\tR\tcreatedAt\x12\x1b\n" +
+	"\tfix_class\x18\x17 \x01(\tR\bfixClass\"\xbd\x02\n" +
 	"\rCommandResult\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
 	"\acommand\x18\x02 \x01(\tR\acommand\x12+\n" +
@@ -1640,13 +1666,14 @@ const file_quality_health_v1_audit_audit_proto_rawDesc = "" +
 	"\x0fMaturitySummary\x12\x12\n" +
 	"\x04rung\x18\x01 \x01(\x05R\x04rung\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x12\x1c\n" +
-	"\trationale\x18\x03 \x01(\tR\trationale\"\x92\x01\n" +
+	"\trationale\x18\x03 \x01(\tR\trationale\"\xbf\x01\n" +
 	"\fAuditSummary\x12\x16\n" +
 	"\x06errors\x18\x01 \x01(\x05R\x06errors\x12\x1a\n" +
 	"\bwarnings\x18\x02 \x01(\x05R\bwarnings\x12\x14\n" +
 	"\x05infos\x18\x03 \x01(\x05R\x05infos\x12\x1a\n" +
 	"\bsurfaces\x18\x04 \x01(\x05R\bsurfaces\x12\x1c\n" +
-	"\tcontracts\x18\x05 \x01(\x05R\tcontracts\"\xb2\x01\n" +
+	"\tcontracts\x18\x05 \x01(\x05R\tcontracts\x12+\n" +
+	"\x11autofixable_count\x18\x06 \x01(\x05R\x10autofixableCount\"\xb2\x01\n" +
 	"\x10AutofixCandidate\x12\x17\n" +
 	"\arule_id\x18\x01 \x01(\tR\x06ruleId\x12\x1b\n" +
 	"\tfile_path\x18\x02 \x01(\tR\bfilePath\x12 \n" +

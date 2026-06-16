@@ -133,6 +133,7 @@ message QualityContract {
   string why_it_matters = 10;
   string remediation = 11;
   bool autofix_available = 12;
+  string fix_class = 13;
 }
 
 message ContractEvaluation {
@@ -165,6 +166,7 @@ message QualityFinding {
   string autofix_command = 20;
   string source_command = 21;
   string created_at = 22;
+  string fix_class = 23;
 }
 
 message CommandResult {
@@ -191,6 +193,7 @@ message AuditSummary {
   int32 infos = 3;
   int32 surfaces = 4;
   int32 contracts = 5;
+  int32 autofixable_count = 6;
 }
 
 message AutofixCandidate {

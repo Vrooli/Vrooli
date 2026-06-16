@@ -23,7 +23,7 @@ const (
 	Standards    Name = "standards"
 	Architecture Name = "architecture"
 	Dependencies Name = "dependencies"
-	Lint         Name = "lint"
+	Quality      Name = "quality"
 	Docs         Name = "docs"
 	Smoke        Name = "smoke"
 	Unit         Name = "unit"
@@ -189,7 +189,7 @@ type Definition struct {
 	Capabilities runnability.PhaseCapabilities
 	// FindingSource is the architecture-finding channel this phase emits into
 	// (FINDING_SOURCE_UNSPECIFIED for phases that produce no findings, e.g.
-	// unit/integration/lint). Carried from the catalog Spec so the orchestrator
+	// unit/integration). Carried from the catalog Spec so the orchestrator
 	// can stamp the per-phase findingSource token onto each ExecutionResult.
 	FindingSource architecturev1.FindingSource
 }
@@ -213,7 +213,7 @@ type Spec struct {
 	Capabilities runnability.PhaseCapabilities
 	// FindingSource is the architecture-finding channel this phase emits into.
 	// Leave UNSPECIFIED for phases that produce no findings (unit, integration,
-	// lint, smoke, performance, playbooks). The orchestrator
+	// smoke, performance, playbooks). The orchestrator
 	// stamps the lower-case token onto each ExecutionResult so a downstream
 	// campaign reaudit can derive which sources a partial run actually covered.
 	FindingSource architecturev1.FindingSource
