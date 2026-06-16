@@ -1,0 +1,36 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "unit-health",
+  "description": "Unit Health CLI surface. Single source of truth for the `validate` domain: schema-validated against cli-manifest/v1 and cross-validated against the ValidationService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "groups": [
+    {
+      "name": "validate",
+      "description": "Validate scenario test maturity",
+      "commands": [
+        {
+          "name": "scenario",
+          "description": "Validate a scenario's test execution, coverage, architecture, quality, and local test maturity",
+          "positionals": [
+            { "name": "scenario", "required": true, "description": "Scenario slug to validate" }
+          ],
+          "flags": [
+            { "name": "path", "description": "Filesystem path to validate instead of a scenario slug" },
+            { "name": "workspace", "description": "Restrict validation to a workspace id (repeatable)" },
+            { "name": "execution", "description": "Execute planned test commands (default: plan only)" },
+            { "name": "json", "description": "Emit JSON output" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ValidationService", "method": "ValidateScenario" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["filesystem:read", "network:internal"]
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": []
+  },
+  "omitted": []
+}

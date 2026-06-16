@@ -1,0 +1,225 @@
+{
+  "provider": "unit-health",
+  "phase": "unit",
+  "version": "1.0.0",
+  "levels": [
+    {
+      "id": "L0",
+      "name": "No reliable test surface",
+      "description": "The target scenario cannot be resolved or has no discoverable test surface.",
+      "entry_criteria": ["Scenario id or path is provided"],
+      "exit_criteria": ["At least one testable workspace (Go module, TypeScript/Vite UI, or Python package) is discoverable"]
+    },
+    {
+      "id": "L1",
+      "name": "Test surfaces discovered",
+      "description": "Unit Health can enumerate the testable workspaces of the scenario and explicitly report unsupported or undiscoverable ones.",
+      "entry_criteria": ["Target path is readable"],
+      "exit_criteria": ["Every discovered workspace either has a runnable test command or emits an explicit gap finding, and no test execution fails or hangs"]
+    },
+    {
+      "id": "L2",
+      "name": "Canonical test frameworks configured",
+      "description": "Each workspace uses its canonical Vrooli test framework (Go go test, React/Vite Vitest, Python pytest) with a coverage-capable configuration.",
+      "entry_criteria": ["Test surfaces are known"],
+      "exit_criteria": ["No workspace emits a missing-framework, noncanonical-framework, or missing-coverage-config error"]
+    },
+    {
+      "id": "L3",
+      "name": "Testable architecture and shared test utilities",
+      "description": "Tests are co-located, share test utilities, never import test helpers from production, and exercise injectable seams for time/env/http/logger/repository.",
+      "entry_criteria": ["Canonical frameworks are configured"],
+      "exit_criteria": ["No test-architecture contract emits an error"]
+    },
+    {
+      "id": "L4",
+      "name": "Coverage and edge-case depth",
+      "description": "Coverage meets the scenario threshold and tests include positive, negative, and boundary cases rather than render-only or assertion-free checks.",
+      "entry_criteria": ["Test architecture is sound"],
+      "exit_criteria": ["No coverage or test-quality contract emits an error"]
+    },
+    {
+      "id": "L5",
+      "name": "Drift-gated, flake-aware, requirement-linked tests",
+      "description": "Tests are stable (flake-aware), runtime-bounded, and linked to requirements so the scenario is fleet-ready for Test Genie delegation.",
+      "entry_criteria": ["Coverage and quality baselines are clean"],
+      "exit_criteria": ["No flake, runtime-growth, or untagged-requirement finding blocks fleet validation"]
+    }
+  ],
+  "findings": {
+    "TEST_SURFACE_ABSENT": {
+      "local_level_impact": "L0",
+      "global_impact": "foundation_blocker",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["test", "unit-testing-architecture-steer"]
+    },
+    "UNSUPPORTED_PARSE_UNIT": {
+      "local_level_impact": "L1",
+      "global_impact": "advisory",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_INFO",
+      "recommended_skill_ids": ["test"]
+    },
+    "TEST_EXECUTION_FAILURE": {
+      "local_level_impact": "L1",
+      "global_impact": "foundation_blocker",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["test", "scientific-debugging"]
+    },
+    "TEST_DEPENDENCY_MISSING": {
+      "local_level_impact": "L1",
+      "global_impact": "foundation_blocker",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["test"]
+    },
+    "TEST_TIMEOUT_HANG": {
+      "local_level_impact": "L1",
+      "global_impact": "safety_blocker",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["test", "scientific-debugging"]
+    },
+    "TEST_FRAMEWORK_MISSING": {
+      "local_level_impact": "L2",
+      "global_impact": "foundation_blocker",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["test", "unit-testing-architecture-steer"]
+    },
+    "TEST_FRAMEWORK_NONCANONICAL": {
+      "local_level_impact": "L2",
+      "global_impact": "evolvability_gap",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["test", "unit-testing-architecture-steer"]
+    },
+    "COVERAGE_CONFIG_MISSING": {
+      "local_level_impact": "L2",
+      "global_impact": "hardening_gap",
+      "dimension": "coverage",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["test"]
+    },
+    "PACKAGE_MANAGER_MISMATCH": {
+      "local_level_impact": "L2",
+      "global_impact": "evolvability_gap",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["test"]
+    },
+    "TEST_MISCONFIGURATION": {
+      "local_level_impact": "L2",
+      "global_impact": "hardening_gap",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["test"]
+    },
+    "TEST_NOT_COLOCATED": {
+      "local_level_impact": "L3",
+      "global_impact": "evolvability_gap",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["unit-testing-architecture-steer"]
+    },
+    "TEST_UTIL_MISSING": {
+      "local_level_impact": "L3",
+      "global_impact": "evolvability_gap",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["unit-testing-architecture-steer"]
+    },
+    "TEST_HELPER_FROM_PRODUCTION": {
+      "local_level_impact": "L3",
+      "global_impact": "hardening_gap",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["unit-testing-architecture-steer"]
+    },
+    "MISSING_INJECTABLE_SEAM": {
+      "local_level_impact": "L3",
+      "global_impact": "evolvability_gap",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["unit-testing-architecture-steer", "seam-discovery-and-enforcement"]
+    },
+    "LOW_COVERAGE": {
+      "local_level_impact": "L4",
+      "global_impact": "hardening_gap",
+      "dimension": "coverage",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["test"]
+    },
+    "COVERAGE_ABSENT": {
+      "local_level_impact": "L4",
+      "global_impact": "hardening_gap",
+      "dimension": "coverage",
+      "severity_default": "SEVERITY_INFO",
+      "recommended_skill_ids": ["test"]
+    },
+    "TEST_SKIPPED_OR_ONLY": {
+      "local_level_impact": "L4",
+      "global_impact": "hardening_gap",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["test"]
+    },
+    "TEST_NO_ASSERTION": {
+      "local_level_impact": "L4",
+      "global_impact": "hardening_gap",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["test"]
+    },
+    "TEST_RENDER_ONLY": {
+      "local_level_impact": "L4",
+      "global_impact": "hardening_gap",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["test", "unit-testing-architecture-steer"]
+    },
+    "TEST_EXCESSIVE_SNAPSHOTS": {
+      "local_level_impact": "L4",
+      "global_impact": "advisory",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_INFO",
+      "recommended_skill_ids": ["test"]
+    },
+    "TEST_MISSING_EDGE_CASES": {
+      "local_level_impact": "L4",
+      "global_impact": "hardening_gap",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["test", "unit-testing-architecture-steer"]
+    },
+    "TEST_FLAKE_SUSPECTED": {
+      "local_level_impact": "L5",
+      "global_impact": "hardening_gap",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["test", "scientific-debugging"]
+    },
+    "TEST_RUNTIME_GROWTH": {
+      "local_level_impact": "L5",
+      "global_impact": "advisory",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_INFO",
+      "recommended_skill_ids": ["test"]
+    },
+    "TEST_UNTAGGED_REQUIREMENT": {
+      "local_level_impact": "L5",
+      "global_impact": "evolvability_gap",
+      "dimension": "tests",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["test", "requirements-traceability-steer"]
+    }
+  },
+  "fallback": {
+    "local_level_impact": "L1",
+    "global_impact": "hardening_gap",
+    "dimension": "tests",
+    "severity_default": "SEVERITY_WARNING"
+  }
+}

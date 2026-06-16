@@ -1,0 +1,50 @@
+{
+  "_metadata": {
+    "module": "execution-safety",
+    "description": "Bounded, diagnostic test execution that cannot hang or OOM the host.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "UH-EXEC-001",
+      "title": "Bound every test command",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "api",
+      "criticality": "P0",
+      "description": "The command runner enforces a per-workspace timeout, a no-output watchdog, process-group cleanup on cancel/timeout, bounded concurrency, memory-aware worker caps, and environment isolation, and writes a command log artifact for every command.",
+      "tags": ["safety", "timeout", "watchdog", "process-group"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "Fake executor proves timeout, no-output stall, and cancel each terminate the process group and produce a classified result."}
+      ]
+    },
+    {
+      "id": "UH-EXEC-002",
+      "title": "Run canonical language runners",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "api",
+      "criticality": "P0",
+      "description": "Go runs `go test` with a coverage profile and package timing; Node runs Vitest with conservative worker settings (coverage script preferred, else a coverage finding); Python runs pytest with optional coverage or degraded unittest.",
+      "tags": ["go", "vitest", "pytest", "runners"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "Each runner builds the expected argv and conservative env against fixtures; real smoke test runs a tiny passing fixture per language available."}
+      ]
+    },
+    {
+      "id": "UH-EXEC-003",
+      "title": "Classify every failure",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "api",
+      "criticality": "P0",
+      "description": "Command results are classified as pass, test-failure, missing-dependency, misconfiguration, timeout/hang, no-output stall, or system-failure, and the classification drives the emitted finding code and severity.",
+      "tags": ["failure-class", "diagnostics"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "Fixture exit codes / output patterns map to the correct failure class and finding code."}
+      ]
+    }
+  ]
+}

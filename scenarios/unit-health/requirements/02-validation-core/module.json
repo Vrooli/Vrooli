@@ -1,0 +1,76 @@
+{
+  "_metadata": {
+    "module": "validation-core",
+    "description": "Code Facts intake, per-workspace test planning, canonical framework detection, and the agent-readable maturity assessment.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "UH-CORE-001",
+      "title": "Discover test surfaces through Code Facts",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "api",
+      "criticality": "P0",
+      "description": "ValidateScenario calls Code Facts for surfaces and parse units, builds a normalized target model, and returns a degraded result with an explicit finding when Code Facts is unavailable rather than guessing from the filesystem.",
+      "tags": ["code-facts", "surfaces", "api"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "Fake Code Facts client drives workspace discovery; unavailable discovery returns a degraded plan with a discovery finding."}
+      ]
+    },
+    {
+      "id": "UH-CORE-002",
+      "title": "Build a per-workspace test plan",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "api",
+      "criticality": "P0",
+      "description": "The plan builder derives Go workspaces from Go parse units, TypeScript/Vite UI workspaces from TypeScript parse units plus package.json, and Python fallback workspaces with explicit unsupported-by-Code-Facts evidence, producing a dry-run plan in both human and JSON output.",
+      "tags": ["plan", "workspaces", "api"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "Fixture parse-unit reports produce deterministic per-workspace plans including the degraded Python path."}
+      ]
+    },
+    {
+      "id": "UH-CORE-003",
+      "title": "Require canonical test frameworks",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "api",
+      "criticality": "P0",
+      "description": "Each workspace is assigned its canonical framework (Go go test, React/Vite vitest, Python pytest preferred / unittest degraded). Jest in a React/Vite UI, a missing test script, a missing coverage config, and a package-manager mismatch each emit a stable finding.",
+      "tags": ["frameworks", "vitest", "degraded"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "Fixtures cover Vitest-ok, Jest-degraded, missing-script, missing-coverage-config, and pm-mismatch cases."}
+      ]
+    },
+    {
+      "id": "UH-CORE-004",
+      "title": "Emit an agent-readable maturity assessment",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "api",
+      "criticality": "P0",
+      "description": "Responses include stable finding codes, evidence, remediation, recommended skills, current and next Unit Health local maturity, the blocking findings for the next level, and global semantic impact grouping; every emitted finding code maps in .vrooli/maturity.json.",
+      "tags": ["findings", "maturity", "test-genie"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "Golden response asserts deterministic finding codes, current/next level transitions, and that every code has a maturity mapping."}
+      ]
+    },
+    {
+      "id": "UH-CORE-005",
+      "title": "Human output is the default, JSON is opt-in",
+      "status": "planned",
+      "prd_ref": "OT-P1-004",
+      "category": "cli",
+      "criticality": "P1",
+      "description": "`unit-health validate scenario <name>` renders a useful human report by default using the shared maturity renderer; `--json` emits the same assessment structurally for programmatic consumers.",
+      "tags": ["cli", "human-output", "json-parity"],
+      "validation": [
+        {"type": "unit", "status": "planned", "notes": "CLI tests assert human output without --json and structural JSON parity with --json."}
+      ]
+    }
+  ]
+}
