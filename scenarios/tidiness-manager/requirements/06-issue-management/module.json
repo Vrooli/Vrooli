@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Human-friendly issue triage, resolution tracking, and scan triggers",
-    "last_validated_at": "2026-06-15T22:34:58-04:00"
+    "last_validated_at": "2026-06-16T00:00:28-04:00"
   },
   "requirements": [
     {

@@ -6,13 +6,13 @@ This document names Tidiness Manager's bounded contexts and points to the implem
 
 ## Domain Inventory
 
-| Domain | Owns | Primary code |
+| Domain | Purpose | Source Paths |
 | --- | --- | --- |
 | Scan orchestration | Light, tidiness, and smart scan request flow | `api/handlers.go`, `api/light_scanner.go`, `api/smart_scanner.go` |
 | Metrics and detectors | File metrics, complexity, duplication, debt markers | `api/code_metrics.go`, `api/complexity_analyzer.go`, `api/duplication_detector.go` |
-| Issues | Stored findings, status changes, filters | `api/agent_handlers.go`, `api/issue_generator.go`, `api/persistence.go` |
+| Issues | Stored findings, status changes, filters | `api/agent_handlers.go`, `api/issue_generator.go`, `api/issue_store.go`, `api/persistence.go` |
 | Campaigns | Cleanup campaign lifecycle and visited-tracker handoff | `api/auto_campaigns.go`, `api/campaign_manager.go`, `api/handlers_campaigns.go` |
-| CLI | Agent-facing commands | `cli/domains/` |
+| CLI | Agent-facing commands | `cli/domains/`, `cli/internal/` |
 | UI | Human dashboard and issue workflows | `ui/src/` |
 
 ## Domain Details

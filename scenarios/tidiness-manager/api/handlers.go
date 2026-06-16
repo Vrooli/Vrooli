@@ -173,9 +173,18 @@ func (s *Server) handleRefactorRecommendations(w http.ResponseWriter, r *http.Re
 
 // respondJSON writes a JSON response
 func respondJSON(w http.ResponseWriter, status int, data interface{}) {
+	setStandardSecurityHeaders(w)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(data)
+}
+
+func setStandardSecurityHeaders(w http.ResponseWriter) {
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("X-Frame-Options", "DENY")
+	w.Header().Set("X-XSS-Protection", "1; mode=block")
+	w.Header().Set("Strict-Transport-Security", "max-age=31536000")
+	w.Header().Set("Access-Control-Allow-Origin", "http://localhost")
 }
 
 // respondError writes an error response

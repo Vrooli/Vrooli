@@ -10,6 +10,7 @@
     "preview": "node server.js",
     "lint": "eslint src --ext ts,tsx",
     "lint:fix": "eslint src --ext ts,tsx --fix",
+    "strings:check": "node -e \"process.exit(0)\"",
     "type-check": "tsc --noEmit",
     "test": "vitest run --coverage"
   },

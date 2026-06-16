@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "React UI for humans to manage tidiness campaigns and view issues",
-    "last_validated_at": "2026-06-15T22:34:58-04:00"
+    "last_validated_at": "2026-06-16T00:00:28-04:00"
   },
   "requirements": [
     {
@@ -115,9 +115,7 @@
       "title": "Scenario detail - filter controls",
       "status": "pending",
       "prd_ref": "OT-P1-006",
-      "description": "Provide filters for severity, category, long-file flag, visit count threshold",
-      "validation": [],
-      "notes": "Filter controls are deferred P1 scope. The scenario detail table currently supports display and sorting, but not severity/category/long-file/visit-count filters."
+      "description": "Provide filters for severity, category, long-file flag, visit count threshold"
     },
     {
       "id": "TM-UI-006",
