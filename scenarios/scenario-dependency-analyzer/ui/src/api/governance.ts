@@ -2,7 +2,9 @@ import { createClient } from "@connectrpc/connect";
 import {
   DependencyGovernanceService,
   type ApprovedDependencyListResponse,
+  type ApprovedDependencyTriageResponse,
   type ApprovedDependencyRecord,
+  type SecurityGovernanceGapsResponse,
   type FleetApprovedDependencyValidationResponse,
   type UpsertApprovedDependencyResponse,
   type VulnerabilityRemediationResponse
@@ -22,6 +24,36 @@ export async function validateFleetApprovedDependencies(
 
 export async function listApprovedDependencies(): Promise<ApprovedDependencyListResponse> {
   return governanceClient.listApprovedDependencies({});
+}
+
+export async function getApprovedDependencyTriage(options: {
+  policyMode?: GovernancePolicyMode;
+  section?: string;
+  ecosystem?: string;
+  packageName?: string;
+  limit?: number;
+} = {}): Promise<ApprovedDependencyTriageResponse> {
+  return governanceClient.getApprovedDependencyTriage({
+    policyMode: options.policyMode ?? "advisory",
+    section: options.section ?? "",
+    ecosystem: options.ecosystem ?? "",
+    packageName: options.packageName ?? "",
+    limit: options.limit ?? 10
+  });
+}
+
+export async function listSecurityGovernanceGaps(options: {
+  ecosystem?: string;
+  packageName?: string;
+  severity?: string;
+  limit?: number;
+} = {}): Promise<SecurityGovernanceGapsResponse> {
+  return governanceClient.listSecurityGovernanceGaps({
+    ecosystem: options.ecosystem ?? "",
+    packageName: options.packageName ?? "",
+    severity: options.severity ?? "",
+    limit: options.limit ?? 10
+  });
 }
 
 export async function upsertApprovedDependency(
@@ -68,9 +100,13 @@ export async function denyVulnerableDependency(options: {
 export type {
   ApprovedDependencyFinding,
   ApprovedDependencyRecord,
+  ApprovedDependencyTriageResponse,
   DependencyGovernanceSummary,
+  DependencyGovernanceTriageGroup,
   DependencyUsageGroup,
   FleetApprovedDependencyValidationResponse,
+  SecurityGovernanceGap,
+  SecurityGovernanceGapsResponse,
   SecurityVulnerabilityEvidence,
   UpsertApprovedDependencyResponse,
   VulnerabilityRemediationResponse

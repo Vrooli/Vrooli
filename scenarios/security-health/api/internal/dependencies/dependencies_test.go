@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"security-health/internal/clock"
 	"security-health/internal/testutil/db"
@@ -151,6 +152,75 @@ func TestStore_ListVulnerabilitiesAggregatesScenarioExposure(t *testing.T) {
 	}
 }
 
+func TestStore_ListVulnerabilitiesFallsBackToDependencyRows(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	recs := []DependencyRecord{
+		{Scenario: "a", Ecosystem: EcosystemNPM, Name: "vite", Version: "5.0.0", SourceFile: "ui/pnpm-lock.yaml", VulnIDs: []string{"GHSA-1234"}, MaxSeverity: "high"},
+		{Scenario: "b", Ecosystem: EcosystemNPM, Name: "vite", Version: "5.0.0", SourceFile: "worker/pnpm-lock.yaml", VulnIDs: []string{"GHSA-1234"}, MaxSeverity: "moderate"},
+	}
+	if err := s.Apply(ctx, "", recs, "2026-06-01T00:00:00Z"); err != nil {
+		t.Fatal(err)
+	}
+
+	list, err := s.ListVulnerabilities(ctx, VulnerabilityQuery{
+		Ecosystem:       EcosystemNPM,
+		PackageName:     "vite",
+		VulnerabilityID: "GHSA-1234",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if list.Total != 1 || len(list.Vulnerabilities) != 1 {
+		t.Fatalf("expected one fallback vulnerability, got %+v", list)
+	}
+	got := list.Vulnerabilities[0]
+	if got.VulnerabilityID != "GHSA-1234" || got.Confidence != EvidenceConfidenceDegraded || got.Reachability != ReachabilityLockfileAffected {
+		t.Fatalf("fallback evidence not marked degraded lockfile evidence: %+v", got)
+	}
+	if got.NormalizedSeverity != "high" {
+		t.Fatalf("severity = %q, want high", got.NormalizedSeverity)
+	}
+	if len(got.Scenarios) != 2 || got.Scenarios[0] != "a" || got.Scenarios[1] != "b" {
+		t.Fatalf("scenario exposure not aggregated: %+v", got.Scenarios)
+	}
+
+	advisoryOnly, err := s.ListVulnerabilities(ctx, VulnerabilityQuery{
+		PackageName:       "vite",
+		MinimumConfidence: EvidenceConfidenceAdvisory,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if advisoryOnly.Total != 0 || len(advisoryOnly.Vulnerabilities) != 0 {
+		t.Fatalf("degraded fallback should not satisfy advisory confidence: %+v", advisoryOnly)
+	}
+}
+
+func TestService_ExplainVulnerabilityFallsBackToDependencyRows(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore(t)
+	if err := store.Apply(ctx, "", []DependencyRecord{{
+		Scenario: "demo", Ecosystem: EcosystemNPM, Name: "vite", Version: "5.0.0",
+		SourceFile: "ui/pnpm-lock.yaml", VulnIDs: []string{"GHSA-1234"}, MaxSeverity: "high",
+	}}, "2026-06-01T00:00:00Z"); err != nil {
+		t.Fatal(err)
+	}
+
+	svc := NewService(Deps{Store: store})
+	got, found, err := svc.ExplainVulnerability(ctx, VulnerabilityQuery{
+		VulnerabilityID: "GHSA-1234",
+		Ecosystem:       EcosystemNPM,
+		PackageName:     "vite",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !found || got.VulnerabilityID != "GHSA-1234" || got.Confidence != EvidenceConfidenceDegraded {
+		t.Fatalf("expected degraded fallback explanation, found=%v got=%+v", found, got)
+	}
+}
+
 func TestBuildVulnIndex_PreservesOSVRangesAndFixedVersions(t *testing.T) {
 	report := validation.OSVReport{Results: []validation.OSVResult{{
 		Packages: []validation.OSVPackage{{
@@ -227,6 +297,54 @@ func TestService_ReindexDryRunDoesNotWrite(t *testing.T) {
 	}
 }
 
+func TestService_ReindexRealRunReturnsBeforeAnnotationCompletes(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore(t)
+	repoRoot := t.TempDir()
+	scen := filepath.Join(repoRoot, "scenarios", "demo")
+	writeF(t, filepath.Join(scen, "api", "go.mod"), "module x\ngo 1.24\nrequire golang.org/x/net v0.17.0\n")
+	cmd := &blockingCommander{started: make(chan struct{}), release: make(chan struct{})}
+
+	svc := NewService(Deps{
+		RepoRoot:  repoRoot,
+		Store:     store,
+		Annotator: NewAnnotator(repoRoot, cmd),
+		Clock:     clock.System{},
+	})
+
+	started := make(chan ReindexResult, 1)
+	errs := make(chan error, 1)
+	go func() {
+		res, err := svc.Reindex(ctx, "demo", false)
+		if err != nil {
+			errs <- err
+			return
+		}
+		started <- res
+	}()
+
+	select {
+	case err := <-errs:
+		t.Fatalf("Reindex returned error: %v", err)
+	case res := <-started:
+		if res.DryRun || res.JobID == "" {
+			t.Fatalf("real reindex should return job id immediately, got %+v", res)
+		}
+		state, _, _, _, ok := svc.ReindexStatus(res.JobID)
+		if !ok || state != "pending" && state != "running" {
+			t.Fatalf("job status = %q ok=%v, want pending/running", state, ok)
+		}
+		cancelled, ok := svc.ReindexCancel(res.JobID)
+		if !ok || !cancelled {
+			t.Fatalf("cancel = (%v,%v), want true,true", cancelled, ok)
+		}
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("real reindex did not return before annotation completed")
+	}
+
+	close(cmd.release)
+}
+
 func TestService_StatusReportsCounts(t *testing.T) {
 	ctx := context.Background()
 	s := newTestStore(t)
@@ -259,6 +377,27 @@ type noopCommander struct{}
 func (noopCommander) LookPath(string) (string, error) { return "", os.ErrNotExist }
 func (noopCommander) Run(context.Context, string, string, ...string) ([]byte, []byte, int, error) {
 	return nil, nil, 0, nil
+}
+
+type blockingCommander struct {
+	started chan struct{}
+	release chan struct{}
+}
+
+func (b *blockingCommander) LookPath(string) (string, error) { return "/bin/osv-scanner", nil }
+
+func (b *blockingCommander) Run(ctx context.Context, _ string, _ string, _ ...string) ([]byte, []byte, int, error) {
+	select {
+	case <-b.started:
+	default:
+		close(b.started)
+	}
+	select {
+	case <-ctx.Done():
+		return nil, nil, 1, ctx.Err()
+	case <-b.release:
+		return []byte(`{"results":[]}`), nil, 0, nil
+	}
 }
 
 func writeF(t *testing.T, path, content string) {

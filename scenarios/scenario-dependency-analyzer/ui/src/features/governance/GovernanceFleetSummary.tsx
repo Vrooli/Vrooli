@@ -35,7 +35,7 @@ export function GovernanceFleetSummary({
             <DecisionStatusBadge value={summary?.status || (passed ? "pass" : "warn")} />
           </div>
           <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-            Fleet validation for approved, denied, scoped, expired, unrecorded, and vulnerable dependency decisions.
+            Fleet validation for approved, denied, expired, unrecorded, and vulnerable dependency decisions.
           </p>
         </div>
         <DecisionStatusBadge value={summary?.policyMode || "advisory"} />

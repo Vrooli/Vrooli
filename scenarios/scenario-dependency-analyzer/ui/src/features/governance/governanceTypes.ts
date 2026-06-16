@@ -51,6 +51,7 @@ export function governanceRecordFromDecision(options: {
     keywords: [],
     allowedScenarios: options.allowedScenarios ?? [],
     deniedScenarios: [],
-    allowedDependencyGroups: []
+    allowedDependencyGroups: [],
+    rangePolicy: ""
   };
 }

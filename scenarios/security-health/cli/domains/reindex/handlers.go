@@ -45,7 +45,7 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 	}
 	result := fmt.Sprintf("Reindex planned: upserts=%d deletes=%d (dry_run=%v)", msg.GetPlannedUpserts(), msg.GetPlannedDeletes(), msg.GetDryRun())
 	if !msg.GetDryRun() {
-		result = fmt.Sprintf("Started reindex job %s — planned upserts=%d deletes=%d", msg.GetJobId(), msg.GetPlannedUpserts(), msg.GetPlannedDeletes())
+		result = fmt.Sprintf("Started reindex job %s", msg.GetJobId())
 	}
 	return cliapp.RenderProtoMutation(ctx, msg, cliapp.MutationReport{
 		Result:      []string{result},

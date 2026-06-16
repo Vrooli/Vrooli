@@ -2,13 +2,19 @@ package dependencies
 
 import (
 	"context"
+	"io"
+	"log"
+	"net/http/httptest"
 	"testing"
 
 	"connectrpc.com/connect"
 
+	"security-health/internal/clock"
 	depdomain "security-health/internal/dependencies"
+	apiserver "security-health/internal/server"
 
 	dependenciesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/security-health/v1/dependencies"
+	dependenciesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/security-health/v1/dependencies/dependencies_v1connect"
 )
 
 type stubSearcher struct {
@@ -127,5 +133,58 @@ func TestListVulnerabilities_MapsEvidence(t *testing.T) {
 	}
 	if len(got.GetAffectedRanges()) != 1 || got.GetAffectedRanges()[0].GetFixed() != "5.1.0" {
 		t.Fatalf("ranges not mapped: %+v", got.GetAffectedRanges())
+	}
+}
+
+func TestDependencyService_RouterMountsAllProcedures(t *testing.T) {
+	stub := &stubSearcher{
+		resp: depdomain.SearchResponse{
+			ModeUsed: depdomain.ModeText,
+			Results: []depdomain.SearchResult{{
+				Record: depdomain.DependencyRecord{Scenario: "demo", Ecosystem: depdomain.EcosystemNPM, Name: "vite", Version: "5.0.0"},
+				Score:  1,
+			}},
+		},
+		status: depdomain.Status{Available: true, IndexedCount: 1},
+		vulns: depdomain.VulnerabilityList{
+			Total: 1,
+			Vulnerabilities: []depdomain.VulnerabilityRecord{{
+				VulnerabilityID:    "GHSA-1234",
+				Ecosystem:          depdomain.EcosystemNPM,
+				Name:               "vite",
+				Version:            "5.0.0",
+				NormalizedSeverity: "high",
+				Confidence:         depdomain.EvidenceConfidenceDegraded,
+			}},
+		},
+		vuln: depdomain.VulnerabilityRecord{
+			VulnerabilityID:    "GHSA-1234",
+			Ecosystem:          depdomain.EcosystemNPM,
+			Name:               "vite",
+			Version:            "5.0.0",
+			NormalizedSeverity: "high",
+			Confidence:         depdomain.EvidenceConfidenceDegraded,
+		},
+		found: true,
+	}
+	srv := apiserver.New(
+		apiserver.Deps{Clock: clock.System{}, Logger: log.New(io.Discard, "", 0)},
+		Module(log.New(io.Discard, "", 0), stub),
+	)
+	httpSrv := httptest.NewServer(srv.Handler())
+	t.Cleanup(httpSrv.Close)
+
+	client := dependenciesconnect.NewDependencyServiceClient(httpSrv.Client(), httpSrv.URL)
+	if resp, err := client.Search(context.Background(), connect.NewRequest(&dependenciesv1.SearchRequest{})); err != nil || len(resp.Msg.GetResults()) != 1 {
+		t.Fatalf("Search through router = (%+v, %v), want one result", resp, err)
+	}
+	if resp, err := client.Status(context.Background(), connect.NewRequest(&dependenciesv1.StatusRequest{})); err != nil || !resp.Msg.GetAvailable() {
+		t.Fatalf("Status through router = (%+v, %v), want available", resp, err)
+	}
+	if resp, err := client.ListVulnerabilities(context.Background(), connect.NewRequest(&dependenciesv1.ListVulnerabilitiesRequest{})); err != nil || resp.Msg.GetTotal() != 1 {
+		t.Fatalf("ListVulnerabilities through router = (%+v, %v), want total=1", resp, err)
+	}
+	if resp, err := client.ExplainVulnerability(context.Background(), connect.NewRequest(&dependenciesv1.ExplainVulnerabilityRequest{VulnerabilityId: "GHSA-1234"})); err != nil || !resp.Msg.GetFound() {
+		t.Fatalf("ExplainVulnerability through router = (%+v, %v), want found", resp, err)
 	}
 }

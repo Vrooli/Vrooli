@@ -375,10 +375,24 @@ type ReindexResult struct {
 }
 
 // Reindex discovers (and annotates) the fleet (or one scenario) and computes
-// planned upsert/delete counts. For dry_run it returns the plan synchronously
-// without writing. For a real run it starts an async job that applies the
-// changes and returns the planned counts plus the job id to poll.
+// planned upsert/delete counts for dry_run synchronously without writing. For a
+// real run it registers an async job immediately; discovery, diff, apply, and
+// index sync happen inside the job so scanner latency cannot block returning a
+// job id to callers.
 func (s *Service) Reindex(ctx context.Context, scenario string, dryRun bool) (ReindexResult, error) {
+	if !dryRun {
+		jobID := s.nextJobID()
+		jobCtx, cancel := context.WithCancel(context.Background())
+		job := &reindexJob{id: jobID, state: "pending", cancel: cancel}
+		s.mu.Lock()
+		s.jobs[jobID] = job
+		s.mu.Unlock()
+
+		go s.runReindexJob(jobCtx, job, scenario)
+
+		return ReindexResult{JobID: jobID, DryRun: false}, nil
+	}
+
 	fresh, err := s.discover(ctx, scenario)
 	if err != nil {
 		return ReindexResult{}, err
@@ -387,20 +401,7 @@ func (s *Service) Reindex(ctx context.Context, scenario string, dryRun bool) (Re
 	if err != nil {
 		return ReindexResult{}, err
 	}
-	if dryRun {
-		return ReindexResult{JobID: "", PlannedUpserts: upserts, PlannedDeletes: deletes, DryRun: true}, nil
-	}
-
-	jobID := s.nextJobID()
-	jobCtx, cancel := context.WithCancel(context.Background())
-	job := &reindexJob{id: jobID, state: "pending", total: len(fresh), cancel: cancel}
-	s.mu.Lock()
-	s.jobs[jobID] = job
-	s.mu.Unlock()
-
-	go s.runReindexJob(jobCtx, job, scenario, fresh)
-
-	return ReindexResult{JobID: jobID, PlannedUpserts: upserts, PlannedDeletes: deletes, DryRun: false}, nil
+	return ReindexResult{JobID: "", PlannedUpserts: upserts, PlannedDeletes: deletes, DryRun: true}, nil
 }
 
 // RunReconcileOnce performs a synchronous fleet reconcile (used by the sync
@@ -507,10 +508,26 @@ func severityLabel(s string) string {
 	return s
 }
 
-func (s *Service) runReindexJob(ctx context.Context, job *reindexJob, scenario string, fresh []DependencyRecord) {
-	job.set("running", 0, len(fresh), "")
+func (s *Service) runReindexJob(ctx context.Context, job *reindexJob, scenario string) {
+	job.set("running", 0, 0, "")
 	if ctx.Err() != nil {
 		job.set("cancelled", -1, -1, "")
+		return
+	}
+	fresh, err := s.discover(ctx, scenario)
+	if err != nil {
+		if ctx.Err() != nil {
+			job.set("cancelled", -1, -1, "")
+			return
+		}
+		job.set("failed", -1, -1, err.Error())
+		_ = s.store.SetReconcileState(ctx, s.now(), "reindex discovery failed: "+err.Error())
+		return
+	}
+	job.set("running", 0, len(fresh), "")
+	if _, _, err := s.store.Diff(ctx, scenario, fresh); err != nil {
+		job.set("failed", -1, -1, err.Error())
+		_ = s.store.SetReconcileState(ctx, s.now(), "reindex diff failed: "+err.Error())
 		return
 	}
 	if err := s.store.Apply(ctx, scenario, fresh, s.now()); err != nil {

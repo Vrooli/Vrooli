@@ -64,7 +64,8 @@ describe("api/governance", () => {
       keywords: [],
       allowedScenarios: [],
       deniedScenarios: [],
-      allowedDependencyGroups: []
+      allowedDependencyGroups: [],
+      rangePolicy: ""
     };
 
     await upsertApprovedDependency(record, true);

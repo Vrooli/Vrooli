@@ -503,6 +503,14 @@ func (s *Store) VulnerableCount(ctx context.Context) (int, error) {
 // ListVulnerabilities returns structured vulnerability evidence grouped by
 // vulnerability/package/version/source so callers can see fleet impact.
 func (s *Store) ListVulnerabilities(ctx context.Context, req VulnerabilityQuery) (VulnerabilityList, error) {
+	limit := req.Limit
+	if limit <= 0 {
+		limit = DefaultSearchLimit
+	}
+	if limit > MaxSearchLimit {
+		limit = MaxSearchLimit
+	}
+
 	var where []string
 	var args []any
 	if req.Ecosystem != EcosystemUnspecified {
@@ -538,14 +546,6 @@ func (s *Store) ListVulnerabilities(ctx context.Context, req VulnerabilityQuery)
 	}
 	defer rows.Close()
 
-	limit := req.Limit
-	if limit <= 0 {
-		limit = DefaultSearchLimit
-	}
-	if limit > MaxSearchLimit {
-		limit = MaxSearchLimit
-	}
-
 	grouped := map[string]*VulnerabilityRecord{}
 	var order []string
 	for rows.Next() {
@@ -574,6 +574,105 @@ func (s *Store) ListVulnerabilities(ctx context.Context, req VulnerabilityQuery)
 	if err := rows.Err(); err != nil {
 		return VulnerabilityList{}, err
 	}
+	sort.Strings(order)
+	total := len(order)
+	if total == 0 {
+		return s.listVulnerabilitiesFromDependencyRows(ctx, req, limit)
+	}
+	if len(order) > limit {
+		order = order[:limit]
+	}
+	out := make([]VulnerabilityRecord, 0, len(order))
+	for _, key := range order {
+		rec := *grouped[key]
+		sort.Strings(rec.Scenarios)
+		sort.Strings(rec.SourceFiles)
+		out = append(out, rec)
+	}
+	return VulnerabilityList{Vulnerabilities: out, Total: total}, nil
+}
+
+// listVulnerabilitiesFromDependencyRows preserves the structured evidence API
+// for corpuses reconciled before vulnerability_records existed. It intentionally
+// reports degraded confidence because affected/fixed range detail is absent.
+func (s *Store) listVulnerabilitiesFromDependencyRows(ctx context.Context, req VulnerabilityQuery, limit int) (VulnerabilityList, error) {
+	if req.MinimumConfidence == EvidenceConfidenceAdvisory || req.MinimumConfidence == EvidenceConfidenceGating {
+		return VulnerabilityList{}, nil
+	}
+
+	var where []string
+	var args []any
+	where = append(where, "vuln_ids != ''")
+	if req.Ecosystem != EcosystemUnspecified {
+		where = append(where, "ecosystem = ?")
+		args = append(args, string(req.Ecosystem))
+	}
+	if strings.TrimSpace(req.PackageName) != "" {
+		where = append(where, "name = ?")
+		args = append(args, strings.TrimSpace(req.PackageName))
+	}
+	if strings.TrimSpace(req.Scenario) != "" {
+		where = append(where, "scenario = ?")
+		args = append(args, strings.TrimSpace(req.Scenario))
+	}
+
+	q := `SELECT scenario, ecosystem, name, version, source_file, vuln_ids, max_severity, last_seen
+		FROM dependency_records WHERE ` + strings.Join(where, " AND ") + `
+		ORDER BY ecosystem, name, version, scenario`
+	rows, err := s.db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return VulnerabilityList{}, err
+	}
+	defer rows.Close()
+
+	filterID := strings.TrimSpace(req.VulnerabilityID)
+	grouped := map[string]*VulnerabilityRecord{}
+	var order []string
+	for rows.Next() {
+		var scenario, eco, name, version, sourceFile, vulnIDs, sev, lastSeen string
+		if err := rows.Scan(&scenario, &eco, &name, &version, &sourceFile, &vulnIDs, &sev, &lastSeen); err != nil {
+			return VulnerabilityList{}, err
+		}
+		for _, vulnID := range splitCSV(vulnIDs) {
+			if filterID != "" && vulnID != filterID {
+				continue
+			}
+			rec := VulnerabilityRecord{
+				VulnerabilityID:    vulnID,
+				Ecosystem:          Ecosystem(eco),
+				Name:               name,
+				Version:            version,
+				Severity:           sev,
+				NormalizedSeverity: sev,
+				Reachability:       ReachabilityLockfileAffected,
+				Confidence:         EvidenceConfidenceDegraded,
+				FirstSeen:          lastSeen,
+				LastSeen:           lastSeen,
+				Remediation:        "Re-run dependency reconcile to populate affected and fixed version evidence.",
+			}
+			key := vulnerabilityGroupKey(rec)
+			existing, ok := grouped[key]
+			if !ok {
+				existing = &rec
+				grouped[key] = existing
+				order = append(order, key)
+			}
+			existing.Scenarios = appendUnique(existing.Scenarios, scenario)
+			existing.SourceFiles = appendUnique(existing.SourceFiles, sourceFile)
+			existing.NormalizedSeverity = worseSeverity(existing.NormalizedSeverity, sev)
+			existing.Severity = existing.NormalizedSeverity
+			if existing.FirstSeen == "" || (lastSeen != "" && lastSeen < existing.FirstSeen) {
+				existing.FirstSeen = lastSeen
+			}
+			if lastSeen > existing.LastSeen {
+				existing.LastSeen = lastSeen
+			}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return VulnerabilityList{}, err
+	}
+
 	sort.Strings(order)
 	total := len(order)
 	if len(order) > limit {

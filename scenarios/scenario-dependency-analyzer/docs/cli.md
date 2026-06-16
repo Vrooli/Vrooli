@@ -699,9 +699,15 @@ scenario-dependency-analyzer deps approved search <query> [OPTIONS]
 scenario-dependency-analyzer deps approved explain <ecosystem>/<package> [OPTIONS]
 scenario-dependency-analyzer deps approved validate <scenario> [OPTIONS]
 scenario-dependency-analyzer deps approved validate --all [OPTIONS]
+scenario-dependency-analyzer deps approved triage [OPTIONS]
 scenario-dependency-analyzer deps approved findings [OPTIONS]
 scenario-dependency-analyzer deps approved usage <ecosystem>/<package> [OPTIONS]
 scenario-dependency-analyzer deps approved upsert --file <record.json> [OPTIONS]
+scenario-dependency-analyzer deps approved propose-records [OPTIONS]
+scenario-dependency-analyzer deps approved upsert-batch --file <proposals.json> [OPTIONS]
+scenario-dependency-analyzer deps approved security-gaps [OPTIONS]
+scenario-dependency-analyzer deps approved approve-observed <ecosystem>/<package> [OPTIONS]
+scenario-dependency-analyzer deps approved widen-range <ecosystem>/<package> --to-major-line [OPTIONS]
 scenario-dependency-analyzer deps approved approve <ecosystem>/<package> --rationale <text> [OPTIONS]
 scenario-dependency-analyzer deps approved deny <ecosystem>/<package> --reason <text> [OPTIONS]
 scenario-dependency-analyzer deps approved remediate <ecosystem>/<package> --vulnerability <id> [OPTIONS]
@@ -714,15 +720,24 @@ scenario-dependency-analyzer deps approved deny-vulnerable <ecosystem>/<package>
 - `--state` - Filter list by governance state
 - `--all` - Validate every discovered scenario
 - `--policy-mode` - Override registry policy mode: `advisory`, `strict`, or `review_gate`
-- `--scenario`, `--package`, `--severity`, `--class` - Filter `findings` output
+- `--section` - Filter `triage` output to `security`, `seeding`, `ranges`, `hotspots`, or `expired`
+- `--limit` - Maximum triage groups per section, or grouped findings, in human output
+- `--scenario`, `--package`, `--severity`, `--class` - Filter `findings` output; human mode groups by dependency and class
+- `--minimum-severity` - Filter `security-gaps` output by normalized vulnerability severity such as `high`
 - `--file` - Read an `ApprovedDependencyRecord` JSON document for `upsert`
+- `--top-unrecorded` - Maximum unrecorded dependency groups to propose as draft records
+- `--minimum-scenario-count` - Only propose records for dependencies observed in at least this many scenarios
+- `--from-findings` - Build an `approve-observed` decision from fleet findings and observed usage
+- `--to-major-line` - Widen an existing record to the single observed major line
+- `--range-strategy` - Proposal or approve-observed range strategy: `observed`, `exact`, `major_line`, `minimum`, or `wildcard`
 - `--range` - Version or version range for `approve` and `deny`
+- `--range-policy` - How SDA evaluates `--range`: `exact`, `major_line`, `minimum`, `dev_tooling`, or `security_denied`
 - `--rationale` / `--reason` - Required review rationale for approval or denial
 - `--replacement` - Replacement or remediation guidance for denied dependencies
 - `--vulnerability` - Security Health vulnerability id for remediation and security-derived denial
 - `--affected-range` - Affected range to deny; defaults to Security Health evidence
 - `--fixed-range` - Fixed range guidance; defaults to Security Health evidence
-- `--apply` - Apply a governance mutation; mutation commands dry-run by default
+- `--dry-run` / `--apply` - Preview or apply a governance mutation; mutation commands dry-run by default
 
 **Examples:**
 ```bash
@@ -741,17 +756,35 @@ scenario-dependency-analyzer deps approved validate graph-studio --json
 # Validate dependency governance across the fleet
 scenario-dependency-analyzer deps approved validate --all --json
 
-# List actionable fleet governance findings
+# Show grouped governance decisions to make next
+scenario-dependency-analyzer deps approved triage
+
+# List raw fleet governance findings for automation
 scenario-dependency-analyzer deps approved findings --severity WARNING --json
 
 # Show every scenario and surface using one dependency
 scenario-dependency-analyzer deps approved usage npm/react --json
 
+# Propose draft records for the highest-frequency unrecorded dependencies
+scenario-dependency-analyzer deps approved propose-records --top-unrecorded 25 --json
+
+# Preview applying a proposal response without writing the registry
+scenario-dependency-analyzer deps approved upsert-batch --file ./proposals.json --dry-run --json
+
+# Show vulnerable dependency exposures that are not represented by denied governance records
+scenario-dependency-analyzer deps approved security-gaps --minimum-severity high
+
+# Preview approving a dependency directly from observed fleet usage
+scenario-dependency-analyzer deps approved approve-observed npm/react --from-findings --json
+
+# Preview widening an existing approval to the observed major line
+scenario-dependency-analyzer deps approved widen-range npm/react --to-major-line --json
+
 # Preview an approval without writing the registry
-scenario-dependency-analyzer deps approved approve npm/react --range ">=18.0.0 <20.0.0" --rationale "Approved UI runtime framework." --surfaces ui --groups dependencies --json
+scenario-dependency-analyzer deps approved approve npm/react --range "18.2.0" --range-policy major_line --rationale "Approved UI runtime framework." --json
 
 # Apply a denied dependency decision
-scenario-dependency-analyzer deps approved deny npm/left-pad --reason "Use native string padding." --replacement "String.prototype.padStart/padEnd" --apply --json
+scenario-dependency-analyzer deps approved deny npm/left-pad --range "*" --reason "Use native string padding." --replacement "String.prototype.padStart/padEnd" --apply --json
 
 # Preview Security Health-derived remediation without writing the registry
 scenario-dependency-analyzer deps approved remediate npm/vite --vulnerability GHSA-example --json
@@ -761,18 +794,35 @@ scenario-dependency-analyzer deps approved deny-vulnerable npm/vite --vulnerabil
 
 # Apply a full record from JSON
 scenario-dependency-analyzer deps approved upsert --file ./record.json --apply --json
+
+# Apply a reviewed batch proposal after editing rationale/security/license notes
+scenario-dependency-analyzer deps approved upsert-batch --file ./proposals.json --apply --json
 ```
 
 Validation behavior:
 - recorded dependency within range: pass/info
 - recorded dependency outside range: warning by default
-- recorded dependency outside approved scenario/surface/group scope: warning by default
+- recorded dependency outside an explicit scenario exception: warning or error depending on the exception
 - unrecorded direct dependency: warning in advisory mode, error in strict mode
 - unrecorded Go indirect dependency: observed-only by default unless a denied/deprecated record exists
-- Security Health vulnerability evidence: exposed through `remediate`; `deny-vulnerable` records a denied affected range through the governance API and dry-runs by default
+- Security Health vulnerability evidence: exposed through `security-gaps` and `remediate`; `deny-vulnerable` records a denied affected range through the governance API and dry-runs by default
 - denied or blocked dependency: error
 - deprecated dependency: warning with replacement guidance
 - expired governance review: warning
+
+Signal categories:
+- `direct_runtime` - direct dependency declarations used at runtime.
+- `direct_dev` - direct development/tooling declarations.
+- `indirect` - Go `require_indirect` dependencies, aggregated without ordinary approval seeding noise.
+- `lockfile_transitive` - lockfile-only vulnerable evidence; handled through `security-gaps`, not normal approval seeding.
+- `security_vulnerable` - Security Health evidence that should be upgraded, denied, or explicitly reviewed.
+
+Range policy behavior:
+- `exact` accepts only the exact recorded version unless the recorded range itself is parseable.
+- `major_line` accepts versions on the same major line at or above the recorded baseline.
+- `minimum` accepts versions at or above the recorded lower bound and honors explicit upper bounds such as `<20.0.0`.
+- `dev_tooling` behaves like major-line policy for broad tooling approvals while Security Health-denied ranges still fail separately.
+- `security_denied` is for vulnerability-derived denied records; matching versions fail, while versions outside the affected range are not blocked by that denied record.
 
 ---
 

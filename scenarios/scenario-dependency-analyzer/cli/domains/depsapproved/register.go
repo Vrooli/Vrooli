@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -28,9 +29,15 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			{Name: "search", Description: "Search approved dependency records", Run: func(args []string) error { return runSearch(core, args) }},
 			{Name: "explain", Description: "Explain one approved dependency record", Run: func(args []string) error { return runExplain(core, args) }},
 			{Name: "validate", Description: "Validate scenario dependencies against governance records", Run: func(args []string) error { return runValidate(core, args) }},
+			{Name: "triage", Description: "Show grouped approved-dependency governance decisions", Run: func(args []string) error { return runTriage(core, args) }},
 			{Name: "findings", Description: "List fleet approved-dependency governance findings", Run: func(args []string) error { return runFindings(core, args) }},
 			{Name: "usage", Description: "Show fleet usage for one dependency", Run: func(args []string) error { return runUsage(core, args) }},
 			{Name: "upsert", Description: "Preview or apply one dependency governance record from JSON", Run: func(args []string) error { return runUpsert(core, args) }},
+			{Name: "propose-records", Description: "Propose draft governance records from fleet findings", Run: func(args []string) error { return runProposeRecords(core, args) }},
+			{Name: "upsert-batch", Description: "Preview or apply a batch of dependency governance records", Run: func(args []string) error { return runUpsertBatch(core, args) }},
+			{Name: "security-gaps", Description: "List vulnerable dependency exposures not yet represented in governance", Run: func(args []string) error { return runSecurityGaps(core, args) }},
+			{Name: "approve-observed", Description: "Approve a dependency from observed fleet usage", Run: func(args []string) error { return runApproveObserved(core, args) }},
+			{Name: "widen-range", Description: "Widen an existing approval to the observed major line", Run: func(args []string) error { return runWidenRange(core, args) }},
 			{Name: "approve", Description: "Preview or apply an approved dependency governance decision", Run: func(args []string) error { return runApprove(core, args) }},
 			{Name: "deny", Description: "Preview or apply a denied dependency governance decision", Run: func(args []string) error { return runDeny(core, args) }},
 			{Name: "deny-vulnerable", Description: "Preview or apply a security-derived denied dependency decision", Run: func(args []string) error { return runDenyVulnerable(core, args) }},
@@ -197,6 +204,7 @@ func runFindings(core *cliapp.ScenarioApp, args []string) error {
 	fs := support.NewFlagSet("deps approved findings")
 	var jsonOutput bool
 	var policyMode, scenario, ecosystem, packageName, severity, findingClass string
+	var limit int
 	fs.BoolVar(&jsonOutput, "json", false, "Output raw JSON")
 	fs.StringVar(&policyMode, "policy-mode", "", "Override registry policy mode: advisory, strict, or review_gate")
 	fs.StringVar(&scenario, "scenario", "", "Filter by scenario")
@@ -204,6 +212,7 @@ func runFindings(core *cliapp.ScenarioApp, args []string) error {
 	fs.StringVar(&packageName, "package", "", "Filter by package name")
 	fs.StringVar(&severity, "severity", "", "Filter by severity")
 	fs.StringVar(&findingClass, "class", "", "Filter by finding class")
+	fs.IntVar(&limit, "limit", 40, "Maximum grouped findings in human output")
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
@@ -224,10 +233,7 @@ func runFindings(core *cliapp.ScenarioApp, args []string) error {
 	if jsonOutput {
 		return printProto(resp.Msg)
 	}
-	results := make([]string, 0, len(resp.Msg.GetFindings()))
-	for _, finding := range resp.Msg.GetFindings() {
-		results = append(results, fmt.Sprintf("%s %s: %s/%s in %s - %s", finding.GetSeverity(), finding.GetFindingClass(), finding.GetEcosystem(), finding.GetPackageName(), finding.GetScenario(), finding.GetTitle()))
-	}
+	results := groupedFindingResults(resp.Msg.GetFindings(), limit)
 	report := cliapp.ListReport{
 		Summary: []string{
 			fmt.Sprintf("Findings: %d", resp.Msg.GetSummary().GetFindingCount()),
@@ -244,6 +250,162 @@ func runFindings(core *cliapp.ScenarioApp, args []string) error {
 		},
 	}
 	return support.PrintList(false, report, nil)
+}
+
+type findingGroup struct {
+	ecosystem   string
+	name        string
+	class       string
+	severity    string
+	count       int
+	scenarios   map[string]struct{}
+	versions    map[string]struct{}
+	title       string
+	remediation string
+}
+
+func groupedFindingResults(findings []*governancev1.ApprovedDependencyFinding, limit int) []string {
+	groups := map[string]*findingGroup{}
+	for _, finding := range findings {
+		key := strings.Join([]string{finding.GetEcosystem(), finding.GetPackageName(), finding.GetFindingClass()}, "\x00")
+		group := groups[key]
+		if group == nil {
+			group = &findingGroup{
+				ecosystem:   finding.GetEcosystem(),
+				name:        finding.GetPackageName(),
+				class:       finding.GetFindingClass(),
+				severity:    "INFO",
+				scenarios:   map[string]struct{}{},
+				versions:    map[string]struct{}{},
+				title:       finding.GetTitle(),
+				remediation: finding.GetRemediation(),
+			}
+			groups[key] = group
+		}
+		group.count++
+		group.severity = cliMaxSeverity(group.severity, finding.GetSeverity())
+		if finding.GetScenario() != "" {
+			group.scenarios[finding.GetScenario()] = struct{}{}
+		}
+		if finding.GetObserved() != "" {
+			group.versions[finding.GetObserved()] = struct{}{}
+		}
+	}
+	outGroups := make([]*findingGroup, 0, len(groups))
+	for _, group := range groups {
+		outGroups = append(outGroups, group)
+	}
+	sort.Slice(outGroups, func(i, j int) bool {
+		left := outGroups[i]
+		right := outGroups[j]
+		if cliSeverityRank(left.severity) != cliSeverityRank(right.severity) {
+			return cliSeverityRank(left.severity) > cliSeverityRank(right.severity)
+		}
+		if left.count != right.count {
+			return left.count > right.count
+		}
+		return left.ecosystem+"/"+left.name+"/"+left.class < right.ecosystem+"/"+right.name+"/"+right.class
+	})
+	results := make([]string, 0, len(outGroups))
+	shown := len(outGroups)
+	if limit > 0 && shown > limit {
+		shown = limit
+	}
+	for _, group := range outGroups[:shown] {
+		results = append(results, fmt.Sprintf(
+			"%s %s: %s/%s findings=%d scenarios=%d versions=%s next=%s",
+			group.severity,
+			group.class,
+			group.ecosystem,
+			group.name,
+			group.count,
+			len(group.scenarios),
+			sampleStrings(group.versions, 3),
+			groupedFindingCommand(group),
+		))
+	}
+	if hidden := len(outGroups) - shown; hidden > 0 {
+		results = append(results, fmt.Sprintf("%d more grouped finding(s) hidden; rerun with --limit %d or --json", hidden, len(outGroups)))
+	}
+	return results
+}
+
+func groupedFindingCommand(group *findingGroup) string {
+	if group == nil {
+		return fmt.Sprintf("%s deps approved triage", support.AppName)
+	}
+	switch group.class {
+	case "UNRECORDED_DIRECT":
+		return fmt.Sprintf("%s deps approved usage %s/%s --json", support.AppName, group.ecosystem, group.name)
+	case "VERSION_OUT_OF_RANGE":
+		return fmt.Sprintf("%s deps approved approve %s/%s --range <reviewed-range> --rationale <text> --json", support.AppName, group.ecosystem, group.name)
+	default:
+		return fmt.Sprintf("%s deps approved triage --ecosystem %s --package %s --json", support.AppName, group.ecosystem, group.name)
+	}
+}
+
+func cliMaxSeverity(left, right string) string {
+	if cliSeverityRank(right) > cliSeverityRank(left) {
+		return strings.ToUpper(right)
+	}
+	return strings.ToUpper(left)
+}
+
+func cliSeverityRank(value string) int {
+	rank := map[string]int{"": 0, "INFO": 1, "WARNING": 2, "ERROR": 3, "BLOCKER": 4}
+	return rank[strings.ToUpper(value)]
+}
+
+func sampleStrings(values map[string]struct{}, limit int) string {
+	items := make([]string, 0, len(values))
+	for value := range values {
+		items = append(items, value)
+	}
+	sort.Strings(items)
+	if len(items) == 0 {
+		return "unknown"
+	}
+	if limit > 0 && len(items) > limit {
+		items = append(items[:limit], fmt.Sprintf("+%d more", len(items)-limit))
+	}
+	return strings.Join(items, ",")
+}
+
+func runTriage(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("deps approved triage")
+	var jsonOutput bool
+	var policyMode, section, ecosystem, packageName string
+	var limit int
+	fs.BoolVar(&jsonOutput, "json", false, "Output raw JSON")
+	fs.StringVar(&policyMode, "policy-mode", "", "Override registry policy mode: advisory, strict, or review_gate")
+	fs.StringVar(&section, "section", "", "Filter by section: security, seeding, ranges, hotspots, or expired")
+	fs.StringVar(&ecosystem, "ecosystem", "", "Filter by ecosystem")
+	fs.StringVar(&packageName, "package", "", "Filter by package name")
+	fs.IntVar(&limit, "limit", 10, "Maximum groups per section in human output")
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+	if len(fs.Args()) != 0 {
+		return fmt.Errorf("usage: %s deps approved triage [--section security|seeding|ranges|hotspots|expired] [--ecosystem npm|go] [--package <name>] [--limit 20] [--json]", support.AppName)
+	}
+	requestLimit := int32(limit)
+	if jsonOutput {
+		requestLimit = 0
+	}
+	resp, err := governanceClient(core).GetApprovedDependencyTriage(context.Background(), connect.NewRequest(&governancev1.GetApprovedDependencyTriageRequest{
+		PolicyMode:  policyMode,
+		Section:     section,
+		Ecosystem:   ecosystem,
+		PackageName: packageName,
+		Limit:       requestLimit,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("show approved dependency triage", err, nil)
+	}
+	if jsonOutput {
+		return printProto(resp.Msg)
+	}
+	return printTriage(resp.Msg, limit)
 }
 
 func runUsage(core *cliapp.ScenarioApp, args []string) error {
@@ -335,18 +497,230 @@ func runUpsert(core *cliapp.ScenarioApp, args []string) error {
 	return runMutation(core, &record, !apply, jsonOutput)
 }
 
+func runProposeRecords(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("deps approved propose-records")
+	var jsonOutput bool
+	var policyMode, ecosystem, packageName, scenario, state, rangeStrategy string
+	var topUnrecorded, minimumScenarioCount int
+	var includeDev, includeRuntime bool
+	fs.BoolVar(&jsonOutput, "json", false, "Output raw JSON")
+	fs.StringVar(&policyMode, "policy-mode", "", "Override registry policy mode: advisory, strict, or review_gate")
+	fs.IntVar(&topUnrecorded, "top-unrecorded", 25, "Maximum unrecorded dependency groups to propose")
+	fs.StringVar(&ecosystem, "ecosystem", "", "Filter by ecosystem")
+	fs.StringVar(&packageName, "package", "", "Filter by package name")
+	fs.StringVar(&scenario, "scenario", "", "Filter by scenario")
+	fs.BoolVar(&includeDev, "include-dev", false, "Include direct dev dependencies; default includes dev and runtime")
+	fs.BoolVar(&includeRuntime, "include-runtime", false, "Include direct runtime dependencies; default includes dev and runtime")
+	fs.IntVar(&minimumScenarioCount, "minimum-scenario-count", 0, "Require use across at least this many scenarios")
+	fs.StringVar(&state, "state", "needs_review", "Proposed record state")
+	fs.StringVar(&rangeStrategy, "range-strategy", "", "Version range strategy: observed, exact, or wildcard")
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+	if len(fs.Args()) != 0 {
+		return fmt.Errorf("usage: %s deps approved propose-records [--top-unrecorded 25] [--ecosystem npm|go] [--package <name>] [--json]", support.AppName)
+	}
+	resp, err := governanceClient(core).ProposeApprovedDependencyRecords(context.Background(), connect.NewRequest(&governancev1.ProposeApprovedDependencyRecordsRequest{
+		PolicyMode:           policyMode,
+		TopUnrecorded:        int32(topUnrecorded),
+		Ecosystem:            ecosystem,
+		PackageName:          packageName,
+		Scenario:             scenario,
+		IncludeDev:           includeDev,
+		IncludeRuntime:       includeRuntime,
+		MinimumScenarioCount: int32(minimumScenarioCount),
+		State:                state,
+		RangeStrategy:        rangeStrategy,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("propose approved dependency records", err, nil)
+	}
+	if jsonOutput {
+		return printProto(resp.Msg)
+	}
+	return printProposals(resp.Msg)
+}
+
+func runUpsertBatch(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("deps approved upsert-batch")
+	var filePath string
+	var apply bool
+	var dryRunFlag bool
+	var jsonOutput bool
+	fs.StringVar(&filePath, "file", "", "Path to proposal or BatchUpsertApprovedDependenciesRequest JSON")
+	fs.BoolVar(&apply, "apply", false, "Apply the changes; default is dry-run preview")
+	fs.BoolVar(&dryRunFlag, "dry-run", false, "Preview the changes without writing")
+	fs.BoolVar(&jsonOutput, "json", false, "Output raw JSON")
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+	if len(fs.Args()) != 0 || strings.TrimSpace(filePath) == "" {
+		return fmt.Errorf("usage: %s deps approved upsert-batch --file <proposals.json> [--apply|--dry-run] [--json]", support.AppName)
+	}
+	if apply && dryRunFlag {
+		return fmt.Errorf("--apply and --dry-run cannot be used together")
+	}
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("read approved dependency proposal file: %w", err)
+	}
+	var batch governancev1.BatchUpsertApprovedDependenciesRequest
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(data, &batch); err != nil {
+		return fmt.Errorf("parse approved dependency batch JSON: %w", err)
+	}
+	if len(batch.GetRecords()) == 0 {
+		return fmt.Errorf("approved dependency batch contains no records")
+	}
+	batch.DryRun = !apply
+	resp, err := governanceClient(core).BatchUpsertApprovedDependencies(context.Background(), connect.NewRequest(&batch))
+	if err != nil {
+		return cliapp.WrapAPIError("batch upsert approved dependencies", err, nil)
+	}
+	if jsonOutput {
+		return printProto(resp.Msg)
+	}
+	return printBatchUpsert(resp.Msg)
+}
+
+func runSecurityGaps(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("deps approved security-gaps")
+	var jsonOutput bool
+	var ecosystem, packageName, scenario, vulnerabilityID, minimumSeverity string
+	var limit int
+	fs.BoolVar(&jsonOutput, "json", false, "Output raw JSON")
+	fs.StringVar(&ecosystem, "ecosystem", "", "Filter by ecosystem")
+	fs.StringVar(&packageName, "package", "", "Filter by package name")
+	fs.StringVar(&scenario, "scenario", "", "Filter by scenario")
+	fs.StringVar(&vulnerabilityID, "vulnerability", "", "Filter by vulnerability id")
+	fs.StringVar(&minimumSeverity, "minimum-severity", "", "Filter by minimum normalized severity")
+	fs.IntVar(&limit, "limit", 25, "Maximum gaps to show")
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+	if len(fs.Args()) != 0 {
+		return fmt.Errorf("usage: %s deps approved security-gaps [--ecosystem npm|go] [--package <name>] [--scenario <name>] [--vulnerability <id>] [--minimum-severity high] [--limit 25] [--json]", support.AppName)
+	}
+	requestLimit := int32(limit)
+	if jsonOutput {
+		requestLimit = 0
+	}
+	resp, err := governanceClient(core).ListSecurityGovernanceGaps(context.Background(), connect.NewRequest(&governancev1.ListSecurityGovernanceGapsRequest{
+		Ecosystem:       ecosystem,
+		PackageName:     packageName,
+		Scenario:        scenario,
+		VulnerabilityId: vulnerabilityID,
+		MinimumSeverity: minimumSeverity,
+		Limit:           requestLimit,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("list security governance gaps", err, nil)
+	}
+	if jsonOutput {
+		return printProto(resp.Msg)
+	}
+	return printSecurityGaps(resp.Msg, limit)
+}
+
+func runApproveObserved(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("deps approved approve-observed")
+	var jsonOutput bool
+	var apply bool
+	var fromFindings bool
+	var policyMode, rangeStrategy, rangePolicy, rationale, approvedBy string
+	fs.BoolVar(&jsonOutput, "json", false, "Output raw JSON")
+	fs.BoolVar(&apply, "apply", false, "Apply the change; default is dry-run preview")
+	fs.BoolVar(&fromFindings, "from-findings", false, "Build evidence from fleet governance findings and observed usage")
+	fs.StringVar(&policyMode, "policy-mode", "", "Override registry policy mode: advisory, strict, or review_gate")
+	fs.StringVar(&rangeStrategy, "range-strategy", "", "Version range strategy: observed, exact, major_line, minimum, or wildcard")
+	fs.StringVar(&rangePolicy, "range-policy", "", "Range policy override: exact, major_line, minimum, or dev_tooling")
+	fs.StringVar(&rationale, "rationale", "", "Optional approval rationale")
+	fs.StringVar(&approvedBy, "approved-by", "", "Reviewer or approving group")
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+	positionals := fs.Args()
+	if len(positionals) != 1 {
+		return fmt.Errorf("usage: %s deps approved approve-observed <ecosystem>/<package> [--from-findings] [--range-strategy observed|major_line|wildcard] [--apply] [--json]", support.AppName)
+	}
+	ecosystem, packageName, err := parseDependencyID(positionals[0])
+	if err != nil {
+		return err
+	}
+	resp, err := governanceClient(core).ApproveObservedDependency(context.Background(), connect.NewRequest(&governancev1.ApproveObservedDependencyRequest{
+		Ecosystem:     ecosystem,
+		PackageName:   packageName,
+		PolicyMode:    policyMode,
+		RangeStrategy: rangeStrategy,
+		RangePolicy:   rangePolicy,
+		Rationale:     rationale,
+		ApprovedBy:    approvedBy,
+		DryRun:        !apply,
+		FromFindings:  fromFindings,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("approve observed dependency", err, nil)
+	}
+	if jsonOutput {
+		return printProto(resp.Msg)
+	}
+	return printDecision("Approve Observed Dependency", resp.Msg)
+}
+
+func runWidenRange(core *cliapp.ScenarioApp, args []string) error {
+	fs := support.NewFlagSet("deps approved widen-range")
+	var jsonOutput bool
+	var apply bool
+	var toMajorLine bool
+	var policyMode, rationale, approvedBy string
+	fs.BoolVar(&jsonOutput, "json", false, "Output raw JSON")
+	fs.BoolVar(&apply, "apply", false, "Apply the change; default is dry-run preview")
+	fs.BoolVar(&toMajorLine, "to-major-line", false, "Widen the record to the observed major line")
+	fs.StringVar(&policyMode, "policy-mode", "", "Override registry policy mode: advisory, strict, or review_gate")
+	fs.StringVar(&rationale, "rationale", "", "Optional rationale for the range widening")
+	fs.StringVar(&approvedBy, "approved-by", "", "Reviewer or approving group")
+	if err := support.ParseFlags(fs, args); err != nil {
+		return err
+	}
+	positionals := fs.Args()
+	if len(positionals) != 1 {
+		return fmt.Errorf("usage: %s deps approved widen-range <ecosystem>/<package> --to-major-line [--apply] [--json]", support.AppName)
+	}
+	if !toMajorLine {
+		return fmt.Errorf("--to-major-line is required")
+	}
+	ecosystem, packageName, err := parseDependencyID(positionals[0])
+	if err != nil {
+		return err
+	}
+	resp, err := governanceClient(core).WidenApprovedDependencyRange(context.Background(), connect.NewRequest(&governancev1.WidenApprovedDependencyRangeRequest{
+		Ecosystem:    ecosystem,
+		PackageName:  packageName,
+		PolicyMode:   policyMode,
+		TargetPolicy: "major_line",
+		Rationale:    rationale,
+		ApprovedBy:   approvedBy,
+		DryRun:       !apply,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("widen approved dependency range", err, nil)
+	}
+	if jsonOutput {
+		return printProto(resp.Msg)
+	}
+	return printDecision("Widen Approved Dependency Range", resp.Msg)
+}
+
 func runApprove(core *cliapp.ScenarioApp, args []string) error {
 	fs := support.NewFlagSet("deps approved approve")
-	var versionRange, rationale, approvedBy, reviewExpires string
-	var surfaces, groups, scenarios, useCases string
+	var versionRange, rangePolicy, rationale, approvedBy, reviewExpires string
+	var scenarios, useCases string
 	var apply bool
 	var jsonOutput bool
 	fs.StringVar(&versionRange, "range", "*", "Approved version or version range")
+	fs.StringVar(&rangePolicy, "range-policy", "", "Range policy: exact, major_line, minimum, or dev_tooling")
 	fs.StringVar(&rationale, "rationale", "", "Approval rationale")
 	fs.StringVar(&approvedBy, "approved-by", "", "Reviewer or approving group")
 	fs.StringVar(&reviewExpires, "review-expires", "", "Review expiry date in YYYY-MM-DD format")
-	fs.StringVar(&surfaces, "surfaces", "", "Comma-separated allowed surfaces")
-	fs.StringVar(&groups, "groups", "", "Comma-separated allowed dependency groups")
 	fs.StringVar(&scenarios, "scenarios", "", "Comma-separated allowed scenarios")
 	fs.StringVar(&useCases, "use-cases", "", "Comma-separated use-case tags")
 	fs.BoolVar(&apply, "apply", false, "Apply the change; default is dry-run preview")
@@ -363,28 +737,28 @@ func runApprove(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 	record := &governancev1.ApprovedDependencyRecord{
-		Ecosystem:               ecosystem,
-		PackageName:             packageName,
-		VersionRange:            versionRange,
-		State:                   "approved",
-		AllowedSurfaces:         splitCSV(surfaces),
-		UseCases:                splitCSV(useCases),
-		Rationale:               rationale,
-		ApprovedBy:              approvedBy,
-		ReviewExpires:           reviewExpires,
-		AllowedScenarios:        splitCSV(scenarios),
-		AllowedDependencyGroups: splitCSV(groups),
+		Ecosystem:        ecosystem,
+		PackageName:      packageName,
+		VersionRange:     versionRange,
+		RangePolicy:      rangePolicy,
+		State:            "approved",
+		UseCases:         splitCSV(useCases),
+		Rationale:        rationale,
+		ApprovedBy:       approvedBy,
+		ReviewExpires:    reviewExpires,
+		AllowedScenarios: splitCSV(scenarios),
 	}
 	return runMutation(core, record, !apply, jsonOutput)
 }
 
 func runDeny(core *cliapp.ScenarioApp, args []string) error {
 	fs := support.NewFlagSet("deps approved deny")
-	var versionRange, rationale, replacement string
+	var versionRange, rangePolicy, rationale, replacement string
 	var scenarios string
 	var apply bool
 	var jsonOutput bool
 	fs.StringVar(&versionRange, "range", "*", "Denied version or version range")
+	fs.StringVar(&rangePolicy, "range-policy", "", "Range policy: exact, major_line, minimum, dev_tooling, or security_denied")
 	fs.StringVar(&rationale, "reason", "", "Denial rationale")
 	fs.StringVar(&replacement, "replacement", "", "Replacement or remediation guidance")
 	fs.StringVar(&scenarios, "scenarios", "", "Comma-separated scenarios denied by this decision")
@@ -405,6 +779,7 @@ func runDeny(core *cliapp.ScenarioApp, args []string) error {
 		Ecosystem:        ecosystem,
 		PackageName:      packageName,
 		VersionRange:     versionRange,
+		RangePolicy:      rangePolicy,
 		State:            "denied",
 		Rationale:        rationale,
 		Replacement:      replacement,
@@ -541,7 +916,7 @@ func printVulnerabilityRemediation(resp *governancev1.VulnerabilityRemediationRe
 		results = append(results, "scenario: "+scenario)
 	}
 	if record := resp.GetSuggestedRecord(); record != nil {
-		results = append(results, fmt.Sprintf("suggested decision: %s/%s %s [%s]", record.GetEcosystem(), record.GetPackageName(), record.GetVersionRange(), record.GetState()))
+		results = append(results, fmt.Sprintf("suggested decision: %s/%s %s [%s%s]", record.GetEcosystem(), record.GetPackageName(), record.GetVersionRange(), record.GetState(), rangePolicySuffix(record)))
 	}
 	report := cliapp.ListReport{
 		Summary:        summary,
@@ -550,6 +925,150 @@ func printVulnerabilityRemediation(resp *governancev1.VulnerabilityRemediationRe
 		RetrievalHints: []string{
 			fmt.Sprintf("%s deps approved deny-vulnerable %s/%s --vulnerability %s --json", support.AppName, vuln.GetEcosystem(), vuln.GetPackageName(), vuln.GetVulnerabilityId()),
 			fmt.Sprintf("%s deps approved validate --all --json", support.AppName),
+		},
+	}
+	return support.PrintList(false, report, nil)
+}
+
+func printProposals(resp *governancev1.ApprovedDependencyProposalResponse) error {
+	results := make([]string, 0, len(resp.GetRecords())+len(resp.GetWarnings()))
+	for _, record := range resp.GetRecords() {
+		results = append(results, fmt.Sprintf("proposal: %s/%s %s [%s%s]", record.GetEcosystem(), record.GetPackageName(), record.GetVersionRange(), record.GetState(), rangePolicySuffix(record)))
+	}
+	for _, warning := range resp.GetWarnings() {
+		results = append(results, "warning: "+warning)
+	}
+	report := cliapp.ListReport{
+		Summary: []string{
+			fmt.Sprintf("Proposed records: %d", len(resp.GetRecords())),
+			fmt.Sprintf("Evidence groups: %d", len(resp.GetEvidenceGroups())),
+			resp.GetGuidance(),
+		},
+		ResultsHeading: "Dependency Governance Proposals",
+		Results:        results,
+		RetrievalHints: []string{
+			fmt.Sprintf("%s deps approved propose-records --top-unrecorded 25 --json > proposals.json", support.AppName),
+			fmt.Sprintf("%s deps approved upsert-batch --file proposals.json --dry-run --json", support.AppName),
+		},
+	}
+	return support.PrintList(false, report, nil)
+}
+
+func printBatchUpsert(resp *governancev1.BatchUpsertApprovedDependenciesResponse) error {
+	results := make([]string, 0, len(resp.GetMutations())+len(resp.GetWarnings()))
+	for _, mutation := range resp.GetMutations() {
+		record := mutation.GetRecord()
+		results = append(results, fmt.Sprintf("mutation: %s/%s changed=%t %s", record.GetEcosystem(), record.GetPackageName(), mutation.GetChanged(), mutation.GetMessage()))
+	}
+	for _, warning := range resp.GetWarnings() {
+		results = append(results, "warning: "+warning)
+	}
+	report := cliapp.ListReport{
+		Summary: []string{
+			fmt.Sprintf("Dry run: %t", resp.GetDryRun()),
+			fmt.Sprintf("Changed: %t", resp.GetChanged()),
+			fmt.Sprintf("Records touched: %d", len(resp.GetMutations())),
+			fmt.Sprintf("Registry records: %d", governanceRecordCount(resp.GetSummary())),
+			resp.GetGuidance(),
+		},
+		ResultsHeading: "Batch Upsert Results",
+		Results:        results,
+		RetrievalHints: []string{
+			fmt.Sprintf("%s deps approved validate --all --json", support.AppName),
+			fmt.Sprintf("%s deps approved triage", support.AppName),
+		},
+	}
+	return support.PrintList(false, report, nil)
+}
+
+func printDecision(title string, resp *governancev1.DependencyGovernanceDecisionResponse) error {
+	record := resp.GetRecord()
+	mutation := resp.GetMutation()
+	group := resp.GetEvidenceGroup()
+	results := make([]string, 0, len(resp.GetWarnings())+len(group.GetScenarios())+1)
+	if record != nil {
+		results = append(results, fmt.Sprintf("decision: %s/%s %s [%s%s]", record.GetEcosystem(), record.GetPackageName(), record.GetVersionRange(), record.GetState(), rangePolicySuffix(record)))
+	}
+	if group != nil {
+		for _, scenario := range group.GetScenarios() {
+			results = append(results, "scenario: "+scenario)
+		}
+	}
+	for _, warning := range resp.GetWarnings() {
+		results = append(results, "warning: "+warning)
+	}
+	summary := []string{title}
+	if mutation != nil {
+		summary = append(summary,
+			mutation.GetMessage(),
+			fmt.Sprintf("Dry run: %t", mutation.GetDryRun()),
+			fmt.Sprintf("Changed: %t", mutation.GetChanged()),
+		)
+	}
+	if group != nil {
+		summary = append(summary,
+			fmt.Sprintf("Observed scenarios: %d", group.GetScenarioCount()),
+			fmt.Sprintf("Observed usages: %d", group.GetUsageCount()),
+		)
+	}
+	summary = append(summary, resp.GetGuidance())
+	hints := []string{fmt.Sprintf("%s deps approved validate --all --json", support.AppName)}
+	if record != nil {
+		hints = append([]string{fmt.Sprintf("%s deps approved explain %s/%s --json", support.AppName, record.GetEcosystem(), record.GetPackageName())}, hints...)
+	}
+	report := cliapp.ListReport{
+		Summary:        summary,
+		ResultsHeading: "Decision Evidence",
+		Results:        results,
+		RetrievalHints: hints,
+	}
+	return support.PrintList(false, report, nil)
+}
+
+func printSecurityGaps(resp *governancev1.SecurityGovernanceGapsResponse, limit int) error {
+	results := make([]string, 0, len(resp.GetGaps())+len(resp.GetWarnings()))
+	for _, gap := range resp.GetGaps() {
+		coverage := "uncovered"
+		if gap.GetDeniedRecordCovers() {
+			coverage = "denied-covered"
+		}
+		overlap := ""
+		if gap.GetApprovedRecordOverlaps() {
+			overlap = " approved-overlap"
+		}
+		results = append(results, fmt.Sprintf(
+			"%s/%s@%s %s [%s] scenarios=%d signal=%s %s%s next=%s",
+			gap.GetEcosystem(),
+			gap.GetPackageName(),
+			nonEmpty(gap.GetObservedVersion(), "unknown"),
+			strings.Join(gap.GetVulnerabilityIds(), ","),
+			nonEmpty(gap.GetNormalizedSeverity(), "unknown"),
+			len(gap.GetScenarios()),
+			nonEmpty(gap.GetSignalCategory(), "unknown"),
+			coverage,
+			overlap,
+			gap.GetSuggestedCommand(),
+		))
+	}
+	if hidden := int(resp.GetTotal()) - len(resp.GetGaps()); limit > 0 && hidden > 0 {
+		results = append(results, fmt.Sprintf("%d more security gap candidate(s) hidden; rerun with --limit %d or --json", hidden, int(resp.GetTotal())))
+	}
+	for _, warning := range resp.GetWarnings() {
+		results = append(results, "warning: "+warning)
+	}
+	report := cliapp.ListReport{
+		Summary: []string{
+			fmt.Sprintf("Total vulnerability records: %d", resp.GetTotal()),
+			fmt.Sprintf("Uncovered by denied governance: %d", resp.GetUncoveredCount()),
+			fmt.Sprintf("Denied-covered: %d", resp.GetDeniedCoveredCount()),
+			fmt.Sprintf("Approved overlaps: %d", resp.GetApprovedOverlapCount()),
+			resp.GetGuidance(),
+		},
+		ResultsHeading: "Security Governance Gaps",
+		Results:        results,
+		RetrievalHints: []string{
+			fmt.Sprintf("%s deps approved security-gaps --json", support.AppName),
+			fmt.Sprintf("%s deps approved deny-vulnerable npm/<package> --vulnerability <id> --json", support.AppName),
 		},
 	}
 	return support.PrintList(false, report, nil)
@@ -577,6 +1096,59 @@ func printFleetValidation(resp *governancev1.FleetApprovedDependencyValidationRe
 		},
 	}
 	return support.PrintList(false, report, nil)
+}
+
+func printTriage(resp *governancev1.ApprovedDependencyTriageResponse, limit int) error {
+	results := []string{}
+	results = appendTriageResults(results, "Security Actions", resp.GetSecurityActions(), limit)
+	results = appendTriageResults(results, "Registry Seeding", resp.GetRegistrySeeding(), limit)
+	results = appendTriageResults(results, "Range Policy", resp.GetRangePolicy(), limit)
+	results = appendTriageResults(results, "Scenario Hotspots", resp.GetScenarioHotspots(), limit)
+	results = appendTriageResults(results, "Stale Or Expired Reviews", resp.GetStaleOrExpiredReviews(), limit)
+	report := cliapp.ListReport{
+		Summary: []string{
+			fmt.Sprintf("Status: %s", resp.GetSummary().GetStatus()),
+			fmt.Sprintf("Findings: %d", resp.GetSummary().GetFindingCount()),
+			fmt.Sprintf("Warnings: %d", resp.GetSummary().GetWarningCount()),
+			fmt.Sprintf("Errors: %d", resp.GetSummary().GetErrorCount()),
+			fmt.Sprintf("Policy mode: %s", resp.GetSummary().GetPolicyMode()),
+			resp.GetGuidance(),
+		},
+		ResultsHeading: "Governance Triage",
+		Results:        results,
+		RetrievalHints: []string{
+			fmt.Sprintf("%s deps approved triage --json", support.AppName),
+			fmt.Sprintf("%s deps approved findings --json", support.AppName),
+		},
+	}
+	return support.PrintList(false, report, nil)
+}
+
+func appendTriageResults(results []string, heading string, groups []*governancev1.DependencyGovernanceTriageGroup, limit int) []string {
+	if len(groups) == 0 {
+		return results
+	}
+	results = append(results, heading)
+	shown := len(groups)
+	if limit > 0 && shown > limit {
+		shown = limit
+	}
+	for _, group := range groups[:shown] {
+		results = append(results, fmt.Sprintf(
+			"%s/%s: %s, findings=%d, scenarios=%d, action=%s, next=%s",
+			group.GetEcosystem(),
+			group.GetPackageName(),
+			group.GetHighestSeverity(),
+			group.GetFindingCount(),
+			group.GetScenarioCount(),
+			group.GetActionType(),
+			group.GetRecommendedCommand(),
+		))
+	}
+	if hidden := len(groups) - shown; hidden > 0 {
+		results = append(results, fmt.Sprintf("%s: %d more group(s) hidden; rerun with --limit %d or --json", heading, hidden, len(groups)))
+	}
+	return results
 }
 
 func parseDependencyID(value string) (string, string, error) {
@@ -630,7 +1202,7 @@ func printProto(msg proto.Message) error {
 func printRecords(title string, records []*governancev1.ApprovedDependencyRecord, guidance string) error {
 	results := make([]string, 0, len(records))
 	for _, record := range records {
-		results = append(results, fmt.Sprintf("%s/%s %s [%s]", record.GetEcosystem(), record.GetPackageName(), record.GetVersionRange(), record.GetState()))
+		results = append(results, fmt.Sprintf("%s/%s %s [%s%s]", record.GetEcosystem(), record.GetPackageName(), record.GetVersionRange(), record.GetState(), rangePolicySuffix(record)))
 	}
 	report := cliapp.ListReport{
 		Summary: []string{
@@ -645,4 +1217,11 @@ func printRecords(title string, records []*governancev1.ApprovedDependencyRecord
 		},
 	}
 	return support.PrintList(false, report, nil)
+}
+
+func rangePolicySuffix(record *governancev1.ApprovedDependencyRecord) string {
+	if record == nil || strings.TrimSpace(record.GetRangePolicy()) == "" {
+		return ""
+	}
+	return ", policy=" + record.GetRangePolicy()
 }

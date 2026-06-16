@@ -10,18 +10,18 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
 	"connectrpc.com/connect"
 	"github.com/gin-gonic/gin"
+	"google.golang.org/protobuf/proto"
 
 	governancev1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/dependency_governance"
 	governanceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/dependency_governance/dependency_governance_v1connect"
 )
 
-const Guidance = "These are dependencies already recorded as approved for the shown scope/range. This is not an exhaustive allowlist. If a better dependency is appropriate, suggest it with purpose, version/range, alternatives considered, and security/license notes so it can be reviewed and recorded."
+const Guidance = "These are dependencies already recorded as approved for the shown package/range. This is not an exhaustive allowlist. If a better dependency is appropriate, suggest it with purpose, version/range, alternatives considered, and security/license notes so it can be reviewed and recorded."
 
 type Surface struct {
 	ID       string
@@ -66,11 +66,17 @@ type approvedDependencyRecord struct {
 	AllowedScenarios []string `json:"allowed_scenarios"`
 	DeniedScenarios  []string `json:"denied_scenarios"`
 	AllowedGroups    []string `json:"allowed_dependency_groups"`
+	RangePolicy      string   `json:"range_policy"`
 }
 
 type securityHealthExplainResponse struct {
 	Vulnerability securityHealthVulnerability `json:"vulnerability"`
 	Found         bool                        `json:"found"`
+}
+
+type securityHealthListResponse struct {
+	Vulnerabilities []securityHealthVulnerability `json:"vulnerabilities"`
+	Total           int32                         `json:"total"`
 }
 
 type securityHealthVulnerability struct {
@@ -195,6 +201,14 @@ func (h *connectHandler) ListApprovedDependencyFindings(_ context.Context, req *
 	return connect.NewResponse(resp), nil
 }
 
+func (h *connectHandler) GetApprovedDependencyTriage(_ context.Context, req *connect.Request[governancev1.GetApprovedDependencyTriageRequest]) (*connect.Response[governancev1.ApprovedDependencyTriageResponse], error) {
+	resp, err := h.registry().GetTriage(req.Msg)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
 func (h *connectHandler) GetApprovedDependencyUsage(_ context.Context, req *connect.Request[governancev1.GetApprovedDependencyUsageRequest]) (*connect.Response[governancev1.ApprovedDependencyUsageResponse], error) {
 	resp, err := h.registry().GetUsage(req.Msg)
 	if err != nil {
@@ -205,6 +219,46 @@ func (h *connectHandler) GetApprovedDependencyUsage(_ context.Context, req *conn
 
 func (h *connectHandler) UpsertApprovedDependency(_ context.Context, req *connect.Request[governancev1.UpsertApprovedDependencyRequest]) (*connect.Response[governancev1.UpsertApprovedDependencyResponse], error) {
 	resp, err := h.registry().Upsert(req.Msg.GetRecord(), req.Msg.GetDryRun())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (h *connectHandler) ProposeApprovedDependencyRecords(_ context.Context, req *connect.Request[governancev1.ProposeApprovedDependencyRecordsRequest]) (*connect.Response[governancev1.ApprovedDependencyProposalResponse], error) {
+	resp, err := h.registry().ProposeRecords(req.Msg)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (h *connectHandler) BatchUpsertApprovedDependencies(_ context.Context, req *connect.Request[governancev1.BatchUpsertApprovedDependenciesRequest]) (*connect.Response[governancev1.BatchUpsertApprovedDependenciesResponse], error) {
+	resp, err := h.registry().BatchUpsert(req.Msg.GetRecords(), req.Msg.GetDryRun())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (h *connectHandler) ApproveObservedDependency(_ context.Context, req *connect.Request[governancev1.ApproveObservedDependencyRequest]) (*connect.Response[governancev1.DependencyGovernanceDecisionResponse], error) {
+	resp, err := h.registry().ApproveObserved(req.Msg)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (h *connectHandler) WidenApprovedDependencyRange(_ context.Context, req *connect.Request[governancev1.WidenApprovedDependencyRangeRequest]) (*connect.Response[governancev1.DependencyGovernanceDecisionResponse], error) {
+	resp, err := h.registry().WidenRange(req.Msg)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (h *connectHandler) ListSecurityGovernanceGaps(ctx context.Context, req *connect.Request[governancev1.ListSecurityGovernanceGapsRequest]) (*connect.Response[governancev1.SecurityGovernanceGapsResponse], error) {
+	resp, err := h.registry().ListSecurityGovernanceGaps(ctx, req.Msg)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
@@ -243,9 +297,6 @@ func (r *Registry) List(req *governancev1.ListApprovedDependenciesRequest) ([]*g
 	filtered := make([]*governancev1.ApprovedDependencyRecord, 0, len(records))
 	for _, record := range records {
 		if !matchesFilter(record.GetEcosystem(), req.GetEcosystem()) || !matchesFilter(record.GetState(), req.GetState()) {
-			continue
-		}
-		if req.GetSurface() != "" && !containsFold(record.GetAllowedSurfaces(), req.GetSurface()) {
 			continue
 		}
 		if req.GetUseCase() != "" && !containsFold(record.GetUseCases(), req.GetUseCase()) {
@@ -375,6 +426,34 @@ func (r *Registry) ListFindings(req *governancev1.ListApprovedDependencyFindings
 	}, nil
 }
 
+func (r *Registry) GetTriage(req *governancev1.GetApprovedDependencyTriageRequest) (*governancev1.ApprovedDependencyTriageResponse, error) {
+	fleet, err := r.ValidateFleet(req.GetPolicyMode())
+	if err != nil {
+		return nil, err
+	}
+	groups := buildTriageGroups(fleet.GetFindings(), req)
+	resp := &governancev1.ApprovedDependencyTriageResponse{
+		Summary:  fleet.GetSummary(),
+		Guidance: Guidance,
+	}
+	limit := int(req.GetLimit())
+	for _, group := range groups {
+		switch group.GetSection() {
+		case "security":
+			resp.SecurityActions = appendLimited(resp.GetSecurityActions(), group, limit)
+		case "seeding":
+			resp.RegistrySeeding = appendLimited(resp.GetRegistrySeeding(), group, limit)
+		case "ranges":
+			resp.RangePolicy = appendLimited(resp.GetRangePolicy(), group, limit)
+		case "expired":
+			resp.StaleOrExpiredReviews = appendLimited(resp.GetStaleOrExpiredReviews(), group, limit)
+		default:
+			resp.ScenarioHotspots = appendLimited(resp.GetScenarioHotspots(), group, limit)
+		}
+	}
+	return resp, nil
+}
+
 func (r *Registry) GetUsage(req *governancev1.GetApprovedDependencyUsageRequest) (*governancev1.ApprovedDependencyUsageResponse, error) {
 	ecosystem := normalize(req.GetEcosystem())
 	packageName := strings.TrimSpace(req.GetPackageName())
@@ -428,6 +507,7 @@ func (r *Registry) ValidateObserved(scenario string, observed []*governancev1.Ob
 
 	findings := make([]*governancev1.ApprovedDependencyFinding, 0)
 	for _, dep := range observed {
+		annotateDependencySignalCategory(dep)
 		record := byKey[recordKey(dep.GetEcosystem(), dep.GetPackageName())]
 		if record == nil {
 			if isUnrecordedTransitiveDependency(dep) {
@@ -443,15 +523,24 @@ func (r *Registry) ValidateObserved(scenario string, observed []*governancev1.Ob
 		state := normalize(record.GetState())
 		switch state {
 		case "blocked", "denied":
+			if state == "denied" && normalize(record.GetRangePolicy()) == "security_denied" {
+				if decision := evaluateVersionPolicy(dep.GetEcosystem(), dep.GetVersion(), record.GetVersionRange(), record.GetRangePolicy()); decision.Allowed {
+					findings = append(findings, governanceFinding(scenario, dep, "DENIED_IN_USE", "ERROR", "Denied vulnerable dependency range is in use", "This dependency version matches a security-denied governance range.", firstNonEmpty(record.GetReplacement(), "Upgrade to a non-vulnerable fixed range or remove the dependency."), dep.GetVersion(), firstNonEmpty(record.GetVersionRange(), "security-denied range"), policyMode))
+				} else if decision.FindingClass == "VERSION_RANGE_UNPARSEABLE" {
+					findings = append(findings, governanceFinding(scenario, dep, decision.FindingClass, "WARNING", decision.Title, decision.Description, decision.Remediation, dep.GetVersion(), decision.Expected, policyMode))
+				}
+				continue
+			}
 			findings = append(findings, governanceFinding(scenario, dep, "DENIED_IN_USE", "ERROR", "Denied dependency is in use", "This dependency is recorded as denied for Vrooli usage.", firstNonEmpty(record.GetReplacement(), "Replace the dependency or file an explicit governance exception with rationale and expiry."), dep.GetVersion(), "dependency absent or governance exception approved", policyMode))
 		case "deprecated":
 			findings = append(findings, governanceFinding(scenario, dep, "DEPRECATED_IN_USE", "WARNING", "Deprecated dependency is in use", "This dependency is recorded as deprecated.", firstNonEmpty(record.GetReplacement(), "Plan a migration to a maintained replacement."), dep.GetVersion(), "replacement dependency in use", policyMode))
 		case "approved", "approved_with_constraints", "needs_review", "exception", "":
-			if !versionAllowed(dep.GetEcosystem(), dep.GetVersion(), record.GetVersionRange()) {
-				findings = append(findings, governanceFinding(scenario, dep, "VERSION_OUT_OF_RANGE", "WARNING", "Dependency version is outside recorded approval", "The dependency is recorded, but the observed version/range does not match the approved range.", "Review whether the observed version should be approved, constrained, or changed.", dep.GetVersion(), firstNonEmpty(record.GetVersionRange(), "recorded approved range"), policyMode))
+			decision := evaluateVersionPolicy(dep.GetEcosystem(), dep.GetVersion(), record.GetVersionRange(), record.GetRangePolicy())
+			if !decision.Allowed {
+				findings = append(findings, governanceFinding(scenario, dep, decision.FindingClass, "WARNING", decision.Title, decision.Description, decision.Remediation, dep.GetVersion(), decision.Expected, policyMode))
 			}
-			if scopeReason := scopeViolation(scenario, dep, record); scopeReason != "" {
-				findings = append(findings, governanceFinding(scenario, dep, "SCOPE_VIOLATION", "WARNING", "Dependency is outside recorded governance scope", scopeReason, "Update the dependency scope, move usage to an approved surface/group, or choose a scoped alternative.", depScope(dep), recordScope(record), policyMode))
+			if exception := scenarioExceptionViolation(scenario, record); exception.reason != "" {
+				findings = append(findings, governanceFinding(scenario, dep, "SCENARIO_EXCEPTION_VIOLATION", exception.severity, "Dependency violates scenario-specific governance exception", exception.reason, "Update the dependency decision or remove usage from the scenario-specific exception.", scenario, recordScope(record), policyMode))
 			}
 			if expired(record.GetReviewExpires()) {
 				findings = append(findings, governanceFinding(scenario, dep, "EXPIRED_APPROVAL", "WARNING", "Dependency governance review has expired", "This dependency approval or exception has passed its review expiry date.", "Review the dependency and renew, replace, or deny it.", record.GetReviewExpires(), "unexpired review date", policyMode))
@@ -473,7 +562,7 @@ func (r *Registry) ValidateObserved(scenario string, observed []*governancev1.Ob
 			summary.Unrecorded++
 		case "VERSION_OUT_OF_RANGE":
 			summary.OutOfRange++
-		case "SCOPE_VIOLATION":
+		case "SCENARIO_EXCEPTION_VIOLATION":
 			summary.OutOfScope++
 		case "EXPIRED_APPROVAL", "EXPIRED_EXCEPTION":
 			summary.Expired++
@@ -500,6 +589,83 @@ func (r *Registry) ValidateObserved(scenario string, observed []*governancev1.Ob
 		ObservedDependencies: observed,
 		Guidance:             Guidance,
 	}, nil
+}
+
+func (r *Registry) ListSecurityGovernanceGaps(ctx context.Context, req *governancev1.ListSecurityGovernanceGapsRequest) (*governancev1.SecurityGovernanceGapsResponse, error) {
+	if req == nil {
+		req = &governancev1.ListSecurityGovernanceGapsRequest{}
+	}
+	evidence, total, err := r.securityVulnerabilityEvidenceList(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	records, err := r.loadRecords()
+	if err != nil {
+		return nil, err
+	}
+	recordByKey := make(map[string]*governancev1.ApprovedDependencyRecord, len(records))
+	for _, record := range records {
+		recordByKey[recordKey(record.GetEcosystem(), record.GetPackageName())] = record
+	}
+
+	resp := &governancev1.SecurityGovernanceGapsResponse{
+		Total:    total,
+		Guidance: Guidance,
+	}
+	minSeverity := normalize(req.GetMinimumSeverity())
+	for _, vuln := range evidence {
+		if minSeverity != "" && severityRank(vuln.GetNormalizedSeverity()) < severityRank(minSeverity) {
+			continue
+		}
+		key := recordKey(vuln.GetEcosystem(), vuln.GetPackageName())
+		record := recordByKey[key]
+		deniedCovered := securityDeniedRecordCovers(record, vuln)
+		approvedOverlap := approvedRecordOverlapsVulnerability(record, vuln)
+		gap := &governancev1.SecurityGovernanceGap{
+			GapId:                  "security-gap." + slug(key+"."+vuln.GetVulnerabilityId()+"."+vuln.GetObservedVersion()),
+			Ecosystem:              vuln.GetEcosystem(),
+			PackageName:            vuln.GetPackageName(),
+			ObservedVersion:        vuln.GetObservedVersion(),
+			VulnerabilityIds:       trimStrings(append([]string{vuln.GetVulnerabilityId()}, vuln.GetAliases()...)),
+			Severity:               vuln.GetSeverity(),
+			NormalizedSeverity:     vuln.GetNormalizedSeverity(),
+			AffectedRanges:         securityRangeStrings(vuln.GetAffectedRanges()),
+			FixedRanges:            securityFixedRangeStrings(vuln.GetFixedRanges()),
+			Scenarios:              append([]string{}, vuln.GetScenarios()...),
+			SourceFiles:            append([]string{}, vuln.GetSourceFiles()...),
+			DeniedRecordCovers:     deniedCovered,
+			ApprovedRecordOverlaps: approvedOverlap,
+			SignalCategory:         securityGapSignalCategory(vuln),
+			SuggestedCommand:       securityGapCommand(vuln),
+			Remediation:            remediationForEvidence(vuln, matchingSecurityAffectedRange(vuln)),
+		}
+		resp.Gaps = append(resp.GetGaps(), gap)
+		if deniedCovered {
+			resp.DeniedCoveredCount++
+		} else {
+			resp.UncoveredCount++
+		}
+		if approvedOverlap {
+			resp.ApprovedOverlapCount++
+			resp.Warnings = append(resp.GetWarnings(), fmt.Sprintf("%s/%s has approved governance memory overlapping vulnerable version %s for %s", vuln.GetEcosystem(), vuln.GetPackageName(), vuln.GetObservedVersion(), vuln.GetVulnerabilityId()))
+		}
+	}
+	sort.Slice(resp.Gaps, func(i, j int) bool {
+		left := resp.Gaps[i]
+		right := resp.Gaps[j]
+		if left.GetDeniedRecordCovers() != right.GetDeniedRecordCovers() {
+			return !left.GetDeniedRecordCovers()
+		}
+		if severityRank(left.GetNormalizedSeverity()) != severityRank(right.GetNormalizedSeverity()) {
+			return severityRank(left.GetNormalizedSeverity()) > severityRank(right.GetNormalizedSeverity())
+		}
+		return left.GetGapId() < right.GetGapId()
+	})
+	if limit := int(req.GetLimit()); limit > 0 && len(resp.Gaps) > limit {
+		resp.Gaps = resp.Gaps[:limit]
+	}
+	resp.WarningCount = int32(len(resp.GetWarnings()))
+	return resp, nil
 }
 
 func (r *Registry) Upsert(record *governancev1.ApprovedDependencyRecord, dryRun bool) (*governancev1.UpsertApprovedDependencyResponse, error) {
@@ -561,6 +727,231 @@ func (r *Registry) Upsert(record *governancev1.ApprovedDependencyRecord, dryRun 
 		Message:        mutationMessage(dryRun, changed, previous != nil, normalized),
 		Summary:        summarizeRecords(records),
 		Guidance:       Guidance,
+	}, nil
+}
+
+func (r *Registry) ProposeRecords(req *governancev1.ProposeApprovedDependencyRecordsRequest) (*governancev1.ApprovedDependencyProposalResponse, error) {
+	if req == nil {
+		req = &governancev1.ProposeApprovedDependencyRecordsRequest{}
+	}
+	fleet, err := r.ValidateFleet(req.GetPolicyMode())
+	if err != nil {
+		return nil, err
+	}
+	groups := buildProposalGroups(fleet, req)
+	limit := int(req.GetTopUnrecorded())
+	if limit <= 0 {
+		limit = 25
+	}
+	if len(groups) > limit {
+		groups = groups[:limit]
+	}
+	records := make([]*governancev1.ApprovedDependencyRecord, 0, len(groups))
+	warnings := make([]string, 0)
+	for _, group := range groups {
+		record := proposalRecordFromGroup(group, req.GetState(), req.GetRangeStrategy())
+		records = append(records, record)
+		if len(group.GetVulnerabilityIds()) > 0 {
+			warnings = append(warnings, fmt.Sprintf("%s/%s has security-sensitive findings: %s", group.GetEcosystem(), group.GetPackageName(), strings.Join(group.GetVulnerabilityIds(), ",")))
+		}
+		if record.GetVersionRange() == "*" {
+			warnings = append(warnings, fmt.Sprintf("%s/%s has multiple or unknown observed versions; proposal uses '*' and requires reviewer narrowing before approval", group.GetEcosystem(), group.GetPackageName()))
+		}
+	}
+	return &governancev1.ApprovedDependencyProposalResponse{
+		Records:        records,
+		EvidenceGroups: groups,
+		Warnings:       trimStrings(warnings),
+		Summary:        summarizeRecords(records),
+		Guidance:       Guidance,
+	}, nil
+}
+
+func (r *Registry) BatchUpsert(records []*governancev1.ApprovedDependencyRecord, dryRun bool) (*governancev1.BatchUpsertApprovedDependenciesResponse, error) {
+	if len(records) == 0 {
+		return nil, fmt.Errorf("at least one approved dependency record is required")
+	}
+	raw, err := r.loadRegistryFileForMutation()
+	if err != nil {
+		return nil, err
+	}
+	if raw.SchemaVersion == "" {
+		raw.SchemaVersion = "1"
+	}
+	if raw.Policy.Mode == "" {
+		raw.Policy.Mode = "advisory"
+	}
+
+	normalized := make([]*governancev1.ApprovedDependencyRecord, 0, len(records))
+	replacements := make([]approvedDependencyRecord, 0, len(records))
+	seenBatch := map[string]struct{}{}
+	for _, record := range records {
+		candidate := protoRecordToJSON(record).toProto()
+		if err := validateRecord(candidate); err != nil {
+			return nil, err
+		}
+		key := recordKey(candidate.GetEcosystem(), candidate.GetPackageName())
+		if _, ok := seenBatch[key]; ok {
+			return nil, fmt.Errorf("duplicate approved dependency record in batch: %s", key)
+		}
+		seenBatch[key] = struct{}{}
+		normalized = append(normalized, candidate)
+		replacements = append(replacements, protoRecordToJSON(candidate))
+	}
+
+	mutations := make([]*governancev1.UpsertApprovedDependencyResponse, 0, len(normalized))
+	changed := false
+	for i, replacement := range replacements {
+		record := normalized[i]
+		key := recordKey(record.GetEcosystem(), record.GetPackageName())
+		var previous *governancev1.ApprovedDependencyRecord
+		replaced := false
+		recordChanged := true
+		for j, existing := range raw.Records {
+			existingProto := existing.toProto()
+			if recordKey(existingProto.GetEcosystem(), existingProto.GetPackageName()) != key {
+				continue
+			}
+			previous = existingProto
+			recordChanged = !recordsEqual(previous, record)
+			raw.Records[j] = replacement
+			replaced = true
+			break
+		}
+		if !replaced {
+			raw.Records = append(raw.Records, replacement)
+		}
+		changed = changed || recordChanged
+		mutations = append(mutations, &governancev1.UpsertApprovedDependencyResponse{
+			Record:         record,
+			PreviousRecord: previous,
+			DryRun:         dryRun,
+			Changed:        recordChanged,
+			Message:        mutationMessage(dryRun, recordChanged, previous != nil, record),
+			Guidance:       Guidance,
+		})
+	}
+	sort.Slice(raw.Records, func(i, j int) bool {
+		left := raw.Records[i].toProto()
+		right := raw.Records[j].toProto()
+		return recordKey(left.GetEcosystem(), left.GetPackageName()) < recordKey(right.GetEcosystem(), right.GetPackageName())
+	})
+	if err := validateRegistryFile(raw); err != nil {
+		return nil, err
+	}
+	if !dryRun && changed {
+		if err := r.writeRegistryFile(raw); err != nil {
+			return nil, err
+		}
+	}
+	allRecords := make([]*governancev1.ApprovedDependencyRecord, 0, len(raw.Records))
+	for _, rawRecord := range raw.Records {
+		allRecords = append(allRecords, rawRecord.toProto())
+	}
+	summary := summarizeRecords(allRecords)
+	for _, mutation := range mutations {
+		mutation.Summary = summary
+	}
+	return &governancev1.BatchUpsertApprovedDependenciesResponse{
+		Mutations: mutations,
+		DryRun:    dryRun,
+		Changed:   changed,
+		Summary:   summary,
+		Guidance:  Guidance,
+	}, nil
+}
+
+func (r *Registry) ApproveObserved(req *governancev1.ApproveObservedDependencyRequest) (*governancev1.DependencyGovernanceDecisionResponse, error) {
+	ecosystem := normalize(req.GetEcosystem())
+	packageName := strings.TrimSpace(req.GetPackageName())
+	if ecosystem == "" || packageName == "" {
+		return nil, fmt.Errorf("ecosystem and package_name are required")
+	}
+	fleet, err := r.ValidateFleet(req.GetPolicyMode())
+	if err != nil {
+		return nil, err
+	}
+	usage := findUsageGroup(fleet.GetUsageGroups(), ecosystem, packageName)
+	if usage == nil {
+		return nil, fmt.Errorf("no observed fleet usage found for %s/%s", ecosystem, packageName)
+	}
+	group := triageGroupFromUsage(usage, "decision.approve_observed", "approve_observed", "seeding")
+	record := proposalRecordFromGroup(group, "approved", req.GetRangeStrategy())
+	if req.GetRangePolicy() != "" {
+		record.RangePolicy = normalize(req.GetRangePolicy())
+	}
+	record.Rationale = firstNonEmpty(strings.TrimSpace(req.GetRationale()), fmt.Sprintf("Approved from observed Vrooli usage across %d scenario(s). Reviewer should confirm purpose, license posture, and alternatives.", usage.GetScenarioCount()))
+	record.ApprovedBy = strings.TrimSpace(req.GetApprovedBy())
+	record.Keywords = trimStrings(append(record.GetKeywords(), "decision-recipe", "approve-observed"))
+	mutation, err := r.Upsert(record, req.GetDryRun())
+	if err != nil {
+		return nil, err
+	}
+	warnings := decisionWarnings(record, group)
+	return &governancev1.DependencyGovernanceDecisionResponse{
+		Record:        record,
+		Mutation:      mutation,
+		EvidenceGroup: group,
+		Warnings:      warnings,
+		Guidance:      Guidance,
+	}, nil
+}
+
+func (r *Registry) WidenRange(req *governancev1.WidenApprovedDependencyRangeRequest) (*governancev1.DependencyGovernanceDecisionResponse, error) {
+	ecosystem := normalize(req.GetEcosystem())
+	packageName := strings.TrimSpace(req.GetPackageName())
+	if ecosystem == "" || packageName == "" {
+		return nil, fmt.Errorf("ecosystem and package_name are required")
+	}
+	targetPolicy := firstNonEmpty(normalize(req.GetTargetPolicy()), "major_line")
+	if targetPolicy != "major_line" {
+		return nil, fmt.Errorf("unsupported target_policy %q; supported value is major_line", targetPolicy)
+	}
+	records, err := r.loadRecords()
+	if err != nil {
+		return nil, err
+	}
+	var existing *governancev1.ApprovedDependencyRecord
+	for _, record := range records {
+		if recordKey(record.GetEcosystem(), record.GetPackageName()) == recordKey(ecosystem, packageName) {
+			existing = record
+			break
+		}
+	}
+	if existing == nil {
+		return nil, fmt.Errorf("no approved dependency record found for %s/%s", ecosystem, packageName)
+	}
+	fleet, err := r.ValidateFleet(req.GetPolicyMode())
+	if err != nil {
+		return nil, err
+	}
+	usage := findUsageGroup(fleet.GetUsageGroups(), ecosystem, packageName)
+	if usage == nil {
+		return nil, fmt.Errorf("no observed fleet usage found for %s/%s", ecosystem, packageName)
+	}
+	group := triageGroupFromUsage(usage, "decision.widen_range", "widen_range", "ranges")
+	nextRange, err := observedSingleMajorRange(group.GetObservedVersions())
+	if err != nil {
+		return nil, err
+	}
+	record := proto.Clone(existing).(*governancev1.ApprovedDependencyRecord)
+	record.VersionRange = nextRange
+	record.RangePolicy = "major_line"
+	record.Rationale = firstNonEmpty(strings.TrimSpace(req.GetRationale()), existing.GetRationale(), fmt.Sprintf("Widened to the observed %s major line from fleet usage.", nextRange))
+	record.ApprovedBy = firstNonEmpty(strings.TrimSpace(req.GetApprovedBy()), existing.GetApprovedBy())
+	record.Keywords = trimStrings(append(record.GetKeywords(), "decision-recipe", "widen-range"))
+	record.ExampleScenarios = trimStrings(append(record.GetExampleScenarios(), group.GetScenarios()...))
+	mutation, err := r.Upsert(record, req.GetDryRun())
+	if err != nil {
+		return nil, err
+	}
+	warnings := decisionWarnings(record, group)
+	return &governancev1.DependencyGovernanceDecisionResponse{
+		Record:        record,
+		Mutation:      mutation,
+		EvidenceGroup: group,
+		Warnings:      warnings,
+		Guidance:      Guidance,
 	}, nil
 }
 
@@ -661,6 +1052,51 @@ func (r *Registry) securityVulnerabilityEvidence(ctx context.Context, ecosystem,
 	return evidence, true, nil
 }
 
+func (r *Registry) securityVulnerabilityEvidenceList(ctx context.Context, req *governancev1.ListSecurityGovernanceGapsRequest) ([]*governancev1.SecurityVulnerabilityEvidence, int32, error) {
+	timeoutCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
+	defer cancel()
+	args := []string{"deps", "vulnerabilities", "--json"}
+	if req.GetEcosystem() != "" {
+		args = append(args, "--ecosystem", req.GetEcosystem())
+	}
+	if req.GetPackageName() != "" {
+		args = append(args, req.GetPackageName())
+	}
+	if req.GetScenario() != "" {
+		args = append(args, "--scenario", req.GetScenario())
+	}
+	if req.GetVulnerabilityId() != "" {
+		args = append(args, "--vulnerability", req.GetVulnerabilityId())
+	}
+	if req.GetLimit() > 0 {
+		args = append(args, "--limit", fmt.Sprintf("%d", req.GetLimit()))
+	}
+	cmd := exec.CommandContext(timeoutCtx, "security-health", args...)
+	if r.repoRoot != "" {
+		cmd.Dir = r.repoRoot
+	}
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, 0, fmt.Errorf("query Security Health vulnerabilities: %w: %s", err, strings.TrimSpace(string(output)))
+	}
+	var resp securityHealthListResponse
+	if err := json.Unmarshal(output, &resp); err != nil {
+		return nil, 0, fmt.Errorf("parse Security Health vulnerabilities: %w", err)
+	}
+	out := make([]*governancev1.SecurityVulnerabilityEvidence, 0, len(resp.Vulnerabilities))
+	for _, raw := range resp.Vulnerabilities {
+		evidence := securityVulnerabilityToProto(raw)
+		if evidence.GetEcosystem() == "" && req.GetEcosystem() != "" {
+			evidence.Ecosystem = normalizeSecurityEcosystem(req.GetEcosystem())
+		}
+		if evidence.GetPackageName() == "" && req.GetPackageName() != "" {
+			evidence.PackageName = req.GetPackageName()
+		}
+		out = append(out, evidence)
+	}
+	return out, resp.Total, nil
+}
+
 func securityVulnerabilityToProto(v securityHealthVulnerability) *governancev1.SecurityVulnerabilityEvidence {
 	affected := firstRanges(v.AffectedRanges, v.AffectedRangesCamel)
 	fixed := firstRanges(v.FixedRanges, v.FixedRangesCamel)
@@ -701,9 +1137,73 @@ func securityRangesToProto(ranges []securityHealthVersionRange) []*governancev1.
 	return out
 }
 
+func securityRangeStrings(ranges []*governancev1.SecurityVersionRange) []string {
+	out := make([]string, 0, len(ranges))
+	for _, r := range ranges {
+		out = append(out, securityAffectedRangeString(r))
+	}
+	return trimStrings(out)
+}
+
+func securityFixedRangeStrings(ranges []*governancev1.SecurityVersionRange) []string {
+	out := make([]string, 0, len(ranges))
+	for _, r := range ranges {
+		out = append(out, firstNonEmpty(strings.TrimSpace(r.GetRange()), strings.TrimSpace(r.GetVersion()), strings.TrimSpace(r.GetFixed())))
+	}
+	return trimStrings(out)
+}
+
+func securityDeniedRecordCovers(record *governancev1.ApprovedDependencyRecord, evidence *governancev1.SecurityVulnerabilityEvidence) bool {
+	if record == nil || evidence == nil {
+		return false
+	}
+	if normalize(record.GetState()) != "denied" || normalize(record.GetRangePolicy()) != "security_denied" {
+		return false
+	}
+	return evaluateVersionPolicy(evidence.GetEcosystem(), evidence.GetObservedVersion(), record.GetVersionRange(), record.GetRangePolicy()).Allowed
+}
+
+func approvedRecordOverlapsVulnerability(record *governancev1.ApprovedDependencyRecord, evidence *governancev1.SecurityVulnerabilityEvidence) bool {
+	if record == nil || evidence == nil {
+		return false
+	}
+	switch normalize(record.GetState()) {
+	case "approved", "approved_with_constraints":
+	default:
+		return false
+	}
+	return evaluateVersionPolicy(evidence.GetEcosystem(), evidence.GetObservedVersion(), record.GetVersionRange(), record.GetRangePolicy()).Allowed
+}
+
+func securityGapSignalCategory(evidence *governancev1.SecurityVulnerabilityEvidence) string {
+	if evidence.GetProduction() {
+		return "security_vulnerable"
+	}
+	if evidence.GetDevOnly() {
+		return "direct_dev"
+	}
+	switch normalize(evidence.GetReachability()) {
+	case "reachable":
+		return "security_vulnerable"
+	case "lockfile_affected":
+		return "lockfile_transitive"
+	default:
+		return "security_vulnerable"
+	}
+}
+
+func securityGapCommand(evidence *governancev1.SecurityVulnerabilityEvidence) string {
+	return fmt.Sprintf(
+		"scenario-dependency-analyzer deps approved deny-vulnerable %s/%s --vulnerability %s --json",
+		evidence.GetEcosystem(),
+		evidence.GetPackageName(),
+		evidence.GetVulnerabilityId(),
+	)
+}
+
 func securityDeniedRecord(evidence *governancev1.SecurityVulnerabilityEvidence, affectedRangeOverride, fixedRangeOverride, rationaleOverride string) *governancev1.ApprovedDependencyRecord {
-	affectedRange := firstNonEmpty(strings.TrimSpace(affectedRangeOverride), firstSecurityAffectedRange(evidence), evidence.GetObservedVersion(), "*")
-	fixedRange := firstNonEmpty(strings.TrimSpace(fixedRangeOverride), firstSecurityFixedRange(evidence), "a fixed version outside the affected range")
+	affectedRange := firstNonEmpty(strings.TrimSpace(affectedRangeOverride), matchingSecurityAffectedRange(evidence), evidence.GetObservedVersion(), "*")
+	fixedRange := firstNonEmpty(strings.TrimSpace(fixedRangeOverride), securityFixedRangeForAffectedRange(evidence, affectedRange), "a fixed version outside the affected range")
 	rationale := strings.TrimSpace(rationaleOverride)
 	if rationale == "" {
 		rationale = fmt.Sprintf("%s is affected by %s according to Security Health evidence.", evidence.GetPackageName(), evidence.GetVulnerabilityId())
@@ -728,6 +1228,7 @@ func securityDeniedRecord(evidence *governancev1.SecurityVulnerabilityEvidence, 
 		Ecosystem:        evidence.GetEcosystem(),
 		PackageName:      evidence.GetPackageName(),
 		VersionRange:     affectedRange,
+		RangePolicy:      "security_denied",
 		State:            "denied",
 		Rationale:        rationale,
 		ApprovedDate:     time.Now().UTC().Format("2006-01-02"),
@@ -739,16 +1240,101 @@ func securityDeniedRecord(evidence *governancev1.SecurityVulnerabilityEvidence, 
 	}
 }
 
-func firstSecurityAffectedRange(evidence *governancev1.SecurityVulnerabilityEvidence) string {
-	for _, r := range evidence.GetAffectedRanges() {
-		if strings.TrimSpace(r.GetRange()) != "" {
-			return strings.TrimSpace(r.GetRange())
+func matchingSecurityAffectedRange(evidence *governancev1.SecurityVulnerabilityEvidence) string {
+	observed := strings.TrimSpace(evidence.GetObservedVersion())
+	if observed == "" {
+		return firstSecurityAffectedRange(evidence)
+	}
+	if paired := matchingSecurityAffectedInterval(evidence.GetEcosystem(), observed, evidence.GetAffectedRanges()); paired != "" {
+		return paired
+	}
+	if len(evidence.GetAffectedRanges()) == 1 {
+		candidate := securityAffectedRangeString(evidence.GetAffectedRanges()[0])
+		if candidate != "" && evaluateVersionPolicy(evidence.GetEcosystem(), observed, candidate, "security_denied").Allowed {
+			return candidate
 		}
-		if strings.TrimSpace(r.GetLastAffected()) != "" {
-			return "<= " + strings.TrimSpace(r.GetLastAffected())
+	}
+	for _, r := range evidence.GetAffectedRanges() {
+		candidate := securityAffectedRangeString(r)
+		if candidate == "" {
+			continue
+		}
+		if isLowerBoundRange(candidate) && evaluateVersionPolicy(evidence.GetEcosystem(), observed, candidate, "security_denied").Allowed {
+			return candidate
+		}
+	}
+	if evaluateVersionPolicy(evidence.GetEcosystem(), observed, observed, "exact").Allowed {
+		return observed
+	}
+	return firstSecurityAffectedRange(evidence)
+}
+
+func matchingSecurityAffectedInterval(ecosystem, observed string, ranges []*governancev1.SecurityVersionRange) string {
+	var introduced string
+	for _, r := range ranges {
+		if value := strings.TrimSpace(r.GetIntroduced()); value != "" {
+			introduced = value
+			continue
+		}
+		candidate := securityAffectedRangeString(r)
+		if isLowerBoundRange(candidate) {
+			introduced = rangeBoundVersion(candidate)
+			continue
+		}
+		fixed := firstNonEmpty(strings.TrimSpace(r.GetFixed()), fixedVersionFromRange(candidate))
+		if introduced == "" || fixed == "" {
+			continue
+		}
+		interval := ">=" + introduced + " <" + fixed
+		if evaluateVersionPolicy(ecosystem, observed, interval, "security_denied").Allowed {
+			return interval
 		}
 	}
 	return ""
+}
+
+func securityAffectedRangeString(r *governancev1.SecurityVersionRange) string {
+	if strings.TrimSpace(r.GetRange()) != "" {
+		return strings.TrimSpace(r.GetRange())
+	}
+	if strings.TrimSpace(r.GetLastAffected()) != "" {
+		return "<= " + strings.TrimSpace(r.GetLastAffected())
+	}
+	return ""
+}
+
+func firstSecurityAffectedRange(evidence *governancev1.SecurityVulnerabilityEvidence) string {
+	for _, r := range evidence.GetAffectedRanges() {
+		if candidate := securityAffectedRangeString(r); candidate != "" {
+			return candidate
+		}
+	}
+	return ""
+}
+
+func isLowerBoundRange(value string) bool {
+	value = strings.TrimSpace(value)
+	return strings.HasPrefix(value, ">=") || strings.HasPrefix(value, ">")
+}
+
+func fixedVersionFromRange(value string) string {
+	value = strings.TrimSpace(value)
+	for _, prefix := range []string{"<=", "<"} {
+		if strings.HasPrefix(value, prefix) {
+			return strings.TrimSpace(strings.TrimPrefix(value, prefix))
+		}
+	}
+	return ""
+}
+
+func rangeBoundVersion(value string) string {
+	value = strings.TrimSpace(value)
+	for _, prefix := range []string{">=", ">", "<=", "<"} {
+		if strings.HasPrefix(value, prefix) {
+			return strings.TrimSpace(strings.TrimPrefix(value, prefix))
+		}
+	}
+	return value
 }
 
 func firstSecurityFixedRange(evidence *governancev1.SecurityVulnerabilityEvidence) string {
@@ -766,8 +1352,27 @@ func firstSecurityFixedRange(evidence *governancev1.SecurityVulnerabilityEvidenc
 	return ""
 }
 
+func securityFixedRangeForAffectedRange(evidence *governancev1.SecurityVulnerabilityEvidence, affectedRange string) string {
+	if upperBound := upperBoundFromRange(affectedRange); upperBound != "" {
+		return ">= " + upperBound
+	}
+	return firstSecurityFixedRange(evidence)
+}
+
+func upperBoundFromRange(value string) string {
+	for _, token := range splitConstraintTokens(value) {
+		token = strings.TrimSpace(token)
+		for _, prefix := range []string{"<=", "<"} {
+			if strings.HasPrefix(token, prefix) {
+				return strings.TrimSpace(strings.TrimPrefix(token, prefix))
+			}
+		}
+	}
+	return ""
+}
+
 func remediationForEvidence(evidence *governancev1.SecurityVulnerabilityEvidence, affectedRange string) string {
-	fixedRange := firstNonEmpty(firstSecurityFixedRange(evidence), "a fixed version outside the affected range")
+	fixedRange := firstNonEmpty(securityFixedRangeForAffectedRange(evidence, affectedRange), "a fixed version outside the affected range")
 	return fmt.Sprintf("Deny %s/%s versions matching %s because of %s, then update affected scenarios to %s or record a reviewed exception with expiry.", evidence.GetEcosystem(), evidence.GetPackageName(), firstNonEmpty(affectedRange, "the affected range"), evidence.GetVulnerabilityId(), fixedRange)
 }
 
@@ -933,25 +1538,24 @@ func (r *Registry) registryPath() string {
 
 func (r approvedDependencyRecord) toProto() *governancev1.ApprovedDependencyRecord {
 	return &governancev1.ApprovedDependencyRecord{
-		Ecosystem:               normalize(r.Ecosystem),
-		PackageName:             strings.TrimSpace(r.PackageName),
-		VersionRange:            strings.TrimSpace(r.VersionRange),
-		State:                   normalize(r.State),
-		AllowedSurfaces:         trimStrings(r.AllowedSurfaces),
-		UseCases:                trimStrings(r.UseCases),
-		Rationale:               strings.TrimSpace(r.Rationale),
-		ApprovedBy:              strings.TrimSpace(r.ApprovedBy),
-		ApprovedDate:            strings.TrimSpace(r.ApprovedDate),
-		LastReviewed:            strings.TrimSpace(r.LastReviewed),
-		ReviewExpires:           strings.TrimSpace(r.ReviewExpires),
-		LicenseNotes:            strings.TrimSpace(r.LicenseNotes),
-		SecurityNotes:           strings.TrimSpace(r.SecurityNotes),
-		ExampleScenarios:        trimStrings(r.ExampleScenarios),
-		Replacement:             strings.TrimSpace(r.Replacement),
-		Keywords:                trimStrings(r.Keywords),
-		AllowedScenarios:        trimStrings(r.AllowedScenarios),
-		DeniedScenarios:         trimStrings(r.DeniedScenarios),
-		AllowedDependencyGroups: trimStrings(r.AllowedGroups),
+		Ecosystem:        normalize(r.Ecosystem),
+		PackageName:      strings.TrimSpace(r.PackageName),
+		VersionRange:     strings.TrimSpace(r.VersionRange),
+		State:            normalize(r.State),
+		UseCases:         trimStrings(r.UseCases),
+		Rationale:        strings.TrimSpace(r.Rationale),
+		ApprovedBy:       strings.TrimSpace(r.ApprovedBy),
+		ApprovedDate:     strings.TrimSpace(r.ApprovedDate),
+		LastReviewed:     strings.TrimSpace(r.LastReviewed),
+		ReviewExpires:    strings.TrimSpace(r.ReviewExpires),
+		LicenseNotes:     strings.TrimSpace(r.LicenseNotes),
+		SecurityNotes:    strings.TrimSpace(r.SecurityNotes),
+		ExampleScenarios: trimStrings(r.ExampleScenarios),
+		Replacement:      strings.TrimSpace(r.Replacement),
+		Keywords:         trimStrings(r.Keywords),
+		AllowedScenarios: trimStrings(r.AllowedScenarios),
+		DeniedScenarios:  trimStrings(r.DeniedScenarios),
+		RangePolicy:      normalize(r.RangePolicy),
 	}
 }
 
@@ -964,7 +1568,6 @@ func protoRecordToJSON(record *governancev1.ApprovedDependencyRecord) approvedDe
 		PackageName:      strings.TrimSpace(record.GetPackageName()),
 		VersionRange:     strings.TrimSpace(record.GetVersionRange()),
 		State:            normalize(record.GetState()),
-		AllowedSurfaces:  trimStrings(record.GetAllowedSurfaces()),
 		UseCases:         trimStrings(record.GetUseCases()),
 		Rationale:        strings.TrimSpace(record.GetRationale()),
 		ApprovedBy:       strings.TrimSpace(record.GetApprovedBy()),
@@ -978,7 +1581,7 @@ func protoRecordToJSON(record *governancev1.ApprovedDependencyRecord) approvedDe
 		Keywords:         trimStrings(record.GetKeywords()),
 		AllowedScenarios: trimStrings(record.GetAllowedScenarios()),
 		DeniedScenarios:  trimStrings(record.GetDeniedScenarios()),
-		AllowedGroups:    trimStrings(record.GetAllowedDependencyGroups()),
+		RangePolicy:      normalize(record.GetRangePolicy()),
 	}
 }
 
@@ -1251,7 +1854,7 @@ func summarizeFindings(findings []*governancev1.ApprovedDependencyFinding, polic
 			summary.Deprecated++
 		case "VERSION_OUT_OF_RANGE", "SECURITY_VULNERABLE_VERSION":
 			summary.OutOfRange++
-		case "SCOPE_VIOLATION":
+		case "SCENARIO_EXCEPTION_VIOLATION":
 			summary.OutOfScope++
 		case "EXPIRED_APPROVAL", "EXPIRED_EXCEPTION":
 			summary.Expired++
@@ -1298,16 +1901,24 @@ func buildUsageGroups(responses []*governancev1.ApprovedDependencyValidationResp
 				scenariosByKey[key] = map[string]struct{}{}
 			}
 			group.UsageCount++
+			annotateDependencySignalCategory(dep)
 			group.ObservedDependencies = append(group.GetObservedDependencies(), dep)
 			scenariosByKey[key][resp.GetScenario()] = struct{}{}
 		}
 	}
 	out := make([]*governancev1.DependencyUsageGroup, 0, len(groups))
 	for key, group := range groups {
+		categories := map[string]struct{}{}
+		for _, dep := range group.GetObservedDependencies() {
+			if dep.GetSignalCategory() != "" {
+				categories[dep.GetSignalCategory()] = struct{}{}
+			}
+		}
 		for scenario := range scenariosByKey[key] {
 			group.Scenarios = append(group.GetScenarios(), scenario)
 		}
 		sort.Strings(group.Scenarios)
+		group.SignalCategories = sortedKeys(categories)
 		group.ScenarioCount = int32(len(group.GetScenarios()))
 		group.FindingCount = findingsByKey[key]
 		group.HighestSeverity = firstNonEmpty(severityByKey[key], "INFO")
@@ -1319,12 +1930,508 @@ func buildUsageGroups(responses []*governancev1.ApprovedDependencyValidationResp
 	return out
 }
 
+type triageAccumulator struct {
+	group           *governancev1.DependencyGovernanceTriageGroup
+	scenarios       map[string]struct{}
+	classes         map[string]struct{}
+	versions        map[string]struct{}
+	vulnerabilities map[string]struct{}
+}
+
+func buildTriageGroups(findings []*governancev1.ApprovedDependencyFinding, req *governancev1.GetApprovedDependencyTriageRequest) []*governancev1.DependencyGovernanceTriageGroup {
+	groups := map[string]*triageAccumulator{}
+	for _, finding := range findings {
+		if !matchesFilter(finding.GetEcosystem(), req.GetEcosystem()) {
+			continue
+		}
+		if req.GetPackageName() != "" && !sameFold(finding.GetPackageName(), req.GetPackageName()) {
+			continue
+		}
+		section, action := triageSectionAndAction(finding.GetFindingClass())
+		if !matchesTriageSection(section, req.GetSection()) {
+			continue
+		}
+		groupID := strings.Join([]string{section, action, normalize(finding.GetEcosystem()), strings.ToLower(finding.GetPackageName())}, ".")
+		acc := groups[groupID]
+		if acc == nil {
+			acc = &triageAccumulator{
+				group: &governancev1.DependencyGovernanceTriageGroup{
+					GroupId:         groupID,
+					Title:           triageTitle(section, finding),
+					ActionType:      action,
+					Section:         section,
+					Ecosystem:       finding.GetEcosystem(),
+					PackageName:     finding.GetPackageName(),
+					HighestSeverity: "INFO",
+					Rationale:       triageRationale(section, finding),
+				},
+				scenarios:       map[string]struct{}{},
+				classes:         map[string]struct{}{},
+				versions:        map[string]struct{}{},
+				vulnerabilities: map[string]struct{}{},
+			}
+			groups[groupID] = acc
+		}
+		acc.group.FindingCount++
+		acc.group.UsageCount++
+		acc.group.HighestSeverity = maxSeverity(acc.group.GetHighestSeverity(), finding.GetSeverity())
+		if finding.GetScenario() != "" {
+			acc.scenarios[finding.GetScenario()] = struct{}{}
+		}
+		if finding.GetFindingClass() != "" {
+			acc.classes[finding.GetFindingClass()] = struct{}{}
+		}
+		if finding.GetObserved() != "" {
+			acc.versions[finding.GetObserved()] = struct{}{}
+		}
+		for _, vulnID := range vulnerabilityIDsFromFinding(finding) {
+			acc.vulnerabilities[vulnID] = struct{}{}
+		}
+	}
+	out := make([]*governancev1.DependencyGovernanceTriageGroup, 0, len(groups))
+	for _, acc := range groups {
+		acc.group.Scenarios = sortedKeys(acc.scenarios)
+		acc.group.ScenarioCount = int32(len(acc.group.GetScenarios()))
+		acc.group.FindingClasses = sortedKeys(acc.classes)
+		acc.group.ObservedVersions = sortedKeys(acc.versions)
+		acc.group.VulnerabilityIds = sortedKeys(acc.vulnerabilities)
+		acc.group.RecommendedCommand = triageCommand(acc.group)
+		out = append(out, acc.group)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		left := out[i]
+		right := out[j]
+		if severityRank(left.GetHighestSeverity()) != severityRank(right.GetHighestSeverity()) {
+			return severityRank(left.GetHighestSeverity()) > severityRank(right.GetHighestSeverity())
+		}
+		if left.GetFindingCount() != right.GetFindingCount() {
+			return left.GetFindingCount() > right.GetFindingCount()
+		}
+		if left.GetScenarioCount() != right.GetScenarioCount() {
+			return left.GetScenarioCount() > right.GetScenarioCount()
+		}
+		return left.GetGroupId() < right.GetGroupId()
+	})
+	return out
+}
+
+func buildProposalGroups(fleet *governancev1.FleetApprovedDependencyValidationResponse, req *governancev1.ProposeApprovedDependencyRecordsRequest) []*governancev1.DependencyGovernanceTriageGroup {
+	groups := map[string]*triageAccumulator{}
+	usageByKey := map[string]*governancev1.DependencyUsageGroup{}
+	for _, usage := range fleet.GetUsageGroups() {
+		usageByKey[recordKey(usage.GetEcosystem(), usage.GetPackageName())] = usage
+	}
+	securityFindings := map[string][]string{}
+	for _, finding := range fleet.GetFindings() {
+		if section, _ := triageSectionAndAction(finding.GetFindingClass()); section == "security" {
+			key := recordKey(finding.GetEcosystem(), finding.GetPackageName())
+			securityFindings[key] = append(securityFindings[key], vulnerabilityIDsFromFinding(finding)...)
+		}
+	}
+	for _, finding := range fleet.GetFindings() {
+		if finding.GetFindingClass() != "UNRECORDED_DIRECT" {
+			continue
+		}
+		if !matchesFilter(finding.GetScenario(), req.GetScenario()) {
+			continue
+		}
+		if !matchesFilter(finding.GetEcosystem(), req.GetEcosystem()) {
+			continue
+		}
+		if req.GetPackageName() != "" && !sameFold(finding.GetPackageName(), req.GetPackageName()) {
+			continue
+		}
+		key := recordKey(finding.GetEcosystem(), finding.GetPackageName())
+		if !proposalDependencyGroupIncluded(usageByKey[key], req) {
+			continue
+		}
+		groupID := "proposal.approve_or_review." + normalize(finding.GetEcosystem()) + "." + strings.ToLower(finding.GetPackageName())
+		acc := groups[groupID]
+		if acc == nil {
+			acc = &triageAccumulator{
+				group: &governancev1.DependencyGovernanceTriageGroup{
+					GroupId:         groupID,
+					Title:           "Draft governance review record for " + finding.GetEcosystem() + "/" + finding.GetPackageName(),
+					ActionType:      "propose_record",
+					Section:         "seeding",
+					Ecosystem:       finding.GetEcosystem(),
+					PackageName:     finding.GetPackageName(),
+					HighestSeverity: "INFO",
+					Rationale:       "This direct dependency is used but has no reviewed governance memory yet.",
+				},
+				scenarios:       map[string]struct{}{},
+				classes:         map[string]struct{}{},
+				versions:        map[string]struct{}{},
+				vulnerabilities: map[string]struct{}{},
+			}
+			groups[groupID] = acc
+		}
+		acc.group.FindingCount++
+		acc.group.UsageCount++
+		acc.group.HighestSeverity = maxSeverity(acc.group.GetHighestSeverity(), finding.GetSeverity())
+		if finding.GetScenario() != "" {
+			acc.scenarios[finding.GetScenario()] = struct{}{}
+		}
+		if finding.GetFindingClass() != "" {
+			acc.classes[finding.GetFindingClass()] = struct{}{}
+		}
+		if finding.GetObserved() != "" {
+			acc.versions[finding.GetObserved()] = struct{}{}
+		}
+		for _, vulnID := range securityFindings[key] {
+			acc.vulnerabilities[vulnID] = struct{}{}
+		}
+	}
+	out := make([]*governancev1.DependencyGovernanceTriageGroup, 0, len(groups))
+	minScenarios := int(req.GetMinimumScenarioCount())
+	for _, acc := range groups {
+		acc.group.Scenarios = sortedKeys(acc.scenarios)
+		acc.group.ScenarioCount = int32(len(acc.group.GetScenarios()))
+		if minScenarios > 0 && int(acc.group.GetScenarioCount()) < minScenarios {
+			continue
+		}
+		acc.group.FindingClasses = sortedKeys(acc.classes)
+		acc.group.ObservedVersions = sortedKeys(acc.versions)
+		acc.group.VulnerabilityIds = sortedKeys(acc.vulnerabilities)
+		acc.group.RecommendedCommand = "scenario-dependency-analyzer deps approved upsert-batch --file proposals.json --dry-run --json"
+		out = append(out, acc.group)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		left := out[i]
+		right := out[j]
+		if left.GetScenarioCount() != right.GetScenarioCount() {
+			return left.GetScenarioCount() > right.GetScenarioCount()
+		}
+		if left.GetFindingCount() != right.GetFindingCount() {
+			return left.GetFindingCount() > right.GetFindingCount()
+		}
+		return left.GetEcosystem()+"/"+left.GetPackageName() < right.GetEcosystem()+"/"+right.GetPackageName()
+	})
+	return out
+}
+
+func proposalDependencyGroupIncluded(group *governancev1.DependencyUsageGroup, req *governancev1.ProposeApprovedDependencyRecordsRequest) bool {
+	if group == nil {
+		return true
+	}
+	includeDev := req.GetIncludeDev()
+	includeRuntime := req.GetIncludeRuntime()
+	if !includeDev && !includeRuntime {
+		includeDev = true
+		includeRuntime = true
+	}
+	for _, dep := range group.GetObservedDependencies() {
+		if req.GetScenario() != "" && !containsFold(group.GetScenarios(), req.GetScenario()) {
+			continue
+		}
+		category := dependencySignalCategory(dep)
+		if includeRuntime && category == "direct_runtime" {
+			return true
+		}
+		if includeDev && category == "direct_dev" {
+			return true
+		}
+	}
+	return false
+}
+
+func findUsageGroup(groups []*governancev1.DependencyUsageGroup, ecosystem, packageName string) *governancev1.DependencyUsageGroup {
+	key := recordKey(ecosystem, packageName)
+	for _, group := range groups {
+		if recordKey(group.GetEcosystem(), group.GetPackageName()) == key {
+			return group
+		}
+	}
+	return nil
+}
+
+func triageGroupFromUsage(group *governancev1.DependencyUsageGroup, prefix, action, section string) *governancev1.DependencyGovernanceTriageGroup {
+	scenarios := map[string]struct{}{}
+	versions := map[string]struct{}{}
+	for _, scenario := range group.GetScenarios() {
+		scenarios[scenario] = struct{}{}
+	}
+	for _, dep := range group.GetObservedDependencies() {
+		if dep.GetVersion() != "" {
+			versions[dep.GetVersion()] = struct{}{}
+		}
+	}
+	out := &governancev1.DependencyGovernanceTriageGroup{
+		GroupId:          prefix + "." + normalize(group.GetEcosystem()) + "." + strings.ToLower(group.GetPackageName()),
+		Title:            fmt.Sprintf("%s %s/%s from observed usage", action, group.GetEcosystem(), group.GetPackageName()),
+		ActionType:       action,
+		Section:          section,
+		Ecosystem:        group.GetEcosystem(),
+		PackageName:      group.GetPackageName(),
+		FindingCount:     group.GetFindingCount(),
+		ScenarioCount:    group.GetScenarioCount(),
+		UsageCount:       group.GetUsageCount(),
+		HighestSeverity:  firstNonEmpty(group.GetHighestSeverity(), "INFO"),
+		FindingClasses:   []string{"OBSERVED_USAGE"},
+		Scenarios:        sortedKeys(scenarios),
+		ObservedVersions: sortedKeys(versions),
+		Rationale:        "Decision recipe built from current fleet dependency usage.",
+	}
+	return out
+}
+
+func observedSingleMajorRange(versions []string) (string, error) {
+	versions = trimStrings(versions)
+	if len(versions) == 0 {
+		return "", fmt.Errorf("no observed versions are available for range widening")
+	}
+	major := -1
+	selected := ""
+	var selectedVersion semanticVersion
+	for _, version := range versions {
+		parsed, ok := parseVersion(firstVersionToken(version))
+		if !ok {
+			return "", fmt.Errorf("cannot widen range because observed version %q is not parseable", version)
+		}
+		if major == -1 {
+			major = parsed.Major
+			selected = version
+			selectedVersion = parsed
+			continue
+		}
+		if parsed.Major != major {
+			return "", fmt.Errorf("cannot widen range automatically because observed versions span multiple majors: %s", strings.Join(versions, ", "))
+		}
+		if compareVersion(parsed, selectedVersion) < 0 {
+			selected = version
+			selectedVersion = parsed
+		}
+	}
+	return selected, nil
+}
+
+func decisionWarnings(record *governancev1.ApprovedDependencyRecord, group *governancev1.DependencyGovernanceTriageGroup) []string {
+	warnings := make([]string, 0)
+	if record.GetVersionRange() == "*" {
+		warnings = append(warnings, fmt.Sprintf("%s/%s uses '*' and should be narrowed before approval when possible", record.GetEcosystem(), record.GetPackageName()))
+	}
+	if len(group.GetObservedVersions()) > 1 {
+		warnings = append(warnings, fmt.Sprintf("%s/%s has multiple observed versions: %s", group.GetEcosystem(), group.GetPackageName(), strings.Join(group.GetObservedVersions(), ", ")))
+	}
+	return warnings
+}
+
+func proposalRecordFromGroup(group *governancev1.DependencyGovernanceTriageGroup, state, rangeStrategy string) *governancev1.ApprovedDependencyRecord {
+	versions := trimStrings(group.GetObservedVersions())
+	return &governancev1.ApprovedDependencyRecord{
+		Ecosystem:        group.GetEcosystem(),
+		PackageName:      group.GetPackageName(),
+		VersionRange:     proposedVersionRange(versions, rangeStrategy),
+		RangePolicy:      proposedRangePolicy(rangeStrategy),
+		State:            firstNonEmpty(normalize(state), "needs_review"),
+		Rationale:        "Draft record generated from observed Vrooli usage. Reviewer must confirm purpose, alternatives considered, license posture, and security posture before approving.",
+		SecurityNotes:    proposalSecurityNotes(group),
+		ExampleScenarios: append([]string{}, group.GetScenarios()...),
+		Keywords:         trimStrings([]string{"proposal", "governance-review"}),
+	}
+}
+
+func proposedVersionRange(versions []string, strategy string) string {
+	strategy = normalize(strategy)
+	if strategy == "wildcard" || len(versions) == 0 {
+		return "*"
+	}
+	if strategy == "exact" && len(versions) > 0 {
+		return versions[0]
+	}
+	if len(versions) == 1 {
+		return versions[0]
+	}
+	return "*"
+}
+
+func proposedRangePolicy(strategy string) string {
+	switch normalize(strategy) {
+	case "exact":
+		return "exact"
+	case "major", "major_line":
+		return "major_line"
+	case "minimum":
+		return "minimum"
+	case "dev", "dev_tooling":
+		return "dev_tooling"
+	default:
+		return ""
+	}
+}
+
+func proposalSecurityNotes(group *governancev1.DependencyGovernanceTriageGroup) string {
+	notes := []string{"Generated proposal; run Security Health review before approving."}
+	if len(group.GetVulnerabilityIds()) > 0 {
+		notes = append(notes, "security findings present: "+strings.Join(group.GetVulnerabilityIds(), ","))
+	}
+	return strings.Join(notes, " ")
+}
+
+func dependencySignalCategory(dep *governancev1.ObservedDependency) string {
+	if dep == nil {
+		return "direct_runtime"
+	}
+	group := normalize(dep.GetDependencyGroup())
+	switch {
+	case sameFold(dep.GetEcosystem(), "go") && group == "require_indirect":
+		return "indirect"
+	case group == "devdependencies":
+		return "direct_dev"
+	case strings.Contains(group, "lockfile"):
+		return "lockfile_transitive"
+	default:
+		return "direct_runtime"
+	}
+}
+
+func annotateDependencySignalCategory(dep *governancev1.ObservedDependency) {
+	if dep == nil || dep.GetSignalCategory() != "" {
+		return
+	}
+	dep.SignalCategory = dependencySignalCategory(dep)
+}
+
+func appendLimited(groups []*governancev1.DependencyGovernanceTriageGroup, group *governancev1.DependencyGovernanceTriageGroup, limit int) []*governancev1.DependencyGovernanceTriageGroup {
+	if limit > 0 && len(groups) >= limit {
+		return groups
+	}
+	return append(groups, group)
+}
+
+func triageSectionAndAction(findingClass string) (string, string) {
+	switch findingClass {
+	case "DENIED_IN_USE", "SECURITY_AFFECTED_RANGE_DENIED", "SECURITY_VULNERABLE_VERSION":
+		return "security", "deny_or_remove"
+	case "UNRECORDED_DIRECT":
+		return "seeding", "approve_or_review"
+	case "VERSION_OUT_OF_RANGE":
+		return "ranges", "widen_range"
+	case "EXPIRED_APPROVAL", "EXPIRED_EXCEPTION":
+		return "expired", "renew_review"
+	default:
+		return "hotspots", "review"
+	}
+}
+
+func matchesTriageSection(section, filter string) bool {
+	filter = normalize(filter)
+	if filter == "" {
+		return true
+	}
+	switch filter {
+	case "security", "security_actions":
+		return section == "security"
+	case "seeding", "registry_seeding":
+		return section == "seeding"
+	case "ranges", "range_policy":
+		return section == "ranges"
+	case "hotspots", "scenario_hotspots":
+		return section == "hotspots"
+	case "expired", "stale_or_expired_reviews":
+		return section == "expired"
+	default:
+		return section == filter
+	}
+}
+
+func triageTitle(section string, finding *governancev1.ApprovedDependencyFinding) string {
+	dep := finding.GetEcosystem() + "/" + finding.GetPackageName()
+	switch section {
+	case "security":
+		return "Resolve blocked or vulnerable dependency usage for " + dep
+	case "seeding":
+		return "Review common unrecorded dependency " + dep
+	case "ranges":
+		return "Review approved range drift for " + dep
+	case "expired":
+		return "Renew expired governance review for " + dep
+	default:
+		return "Review governance hotspot for " + dep
+	}
+}
+
+func triageRationale(section string, finding *governancev1.ApprovedDependencyFinding) string {
+	switch section {
+	case "security":
+		return "This dependency has denied or security-sensitive governance findings and should be removed, upgraded, or explicitly remediated."
+	case "seeding":
+		return "This direct dependency is used but has no reviewed governance memory yet."
+	case "ranges":
+		return "The dependency is recorded, but observed versions fall outside the reviewed range."
+	case "expired":
+		return "The dependency decision exists, but its review expiry has passed."
+	default:
+		return firstNonEmpty(finding.GetDescription(), "This dependency has governance findings that should be reviewed as a grouped operator task.")
+	}
+}
+
+func triageCommand(group *governancev1.DependencyGovernanceTriageGroup) string {
+	dep := group.GetEcosystem() + "/" + group.GetPackageName()
+	switch group.GetActionType() {
+	case "approve_or_review":
+		return "scenario-dependency-analyzer deps approved approve-observed " + dep + " --from-findings --json"
+	case "widen_range":
+		return "scenario-dependency-analyzer deps approved widen-range " + dep + " --to-major-line --json"
+	case "deny_or_remove":
+		if len(group.GetVulnerabilityIds()) > 0 {
+			return "scenario-dependency-analyzer deps approved deny-vulnerable " + dep + " --vulnerability " + group.GetVulnerabilityIds()[0] + " --json"
+		}
+		return "scenario-dependency-analyzer deps approved usage " + dep + " --json"
+	case "renew_review":
+		return "scenario-dependency-analyzer deps approved explain " + dep + " --json"
+	default:
+		return "scenario-dependency-analyzer deps approved findings --ecosystem " + group.GetEcosystem() + " --package " + group.GetPackageName() + " --json"
+	}
+}
+
+func vulnerabilityIDsFromFinding(finding *governancev1.ApprovedDependencyFinding) []string {
+	values := []string{finding.GetObserved(), finding.GetExpected(), finding.GetDescription(), finding.GetRemediation(), finding.GetTitle()}
+	var out []string
+	for _, value := range values {
+		for _, token := range strings.FieldsFunc(value, func(r rune) bool {
+			return r == ' ' || r == ',' || r == ';' || r == '(' || r == ')' || r == '[' || r == ']'
+		}) {
+			token = strings.Trim(token, ".:")
+			upper := strings.ToUpper(token)
+			if strings.HasPrefix(upper, "GHSA-") || strings.HasPrefix(upper, "CVE-") || strings.HasPrefix(upper, "GO-") {
+				out = append(out, token)
+			}
+		}
+	}
+	return trimStrings(out)
+}
+
+func sortedKeys(values map[string]struct{}) []string {
+	out := make([]string, 0, len(values))
+	for value := range values {
+		out = append(out, value)
+	}
+	sort.Strings(out)
+	return out
+}
+
 func maxSeverity(left, right string) string {
-	rank := map[string]int{"": 0, "INFO": 1, "WARNING": 2, "ERROR": 3, "BLOCKER": 4}
-	if rank[strings.ToUpper(right)] > rank[strings.ToUpper(left)] {
+	if severityRank(right) > severityRank(left) {
 		return strings.ToUpper(right)
 	}
 	return strings.ToUpper(left)
+}
+
+func severityRank(value string) int {
+	rank := map[string]int{
+		"":         0,
+		"INFO":     1,
+		"LOW":      1,
+		"WARNING":  2,
+		"MODERATE": 2,
+		"MEDIUM":   2,
+		"ERROR":    3,
+		"HIGH":     3,
+		"BLOCKER":  4,
+		"CRITICAL": 4,
+	}
+	return rank[strings.ToUpper(value)]
 }
 
 func statusFromFindings(findings []*governancev1.ApprovedDependencyFinding, notConfigured bool) (string, bool) {
@@ -1350,6 +2457,9 @@ func validateRecord(record *governancev1.ApprovedDependencyRecord) error {
 	}
 	if !validState(record.GetState()) {
 		return fmt.Errorf("approved dependency record %s has unsupported state %q", key, record.GetState())
+	}
+	if !supportedRangePolicy(normalize(record.GetRangePolicy())) {
+		return fmt.Errorf("approved dependency record %s has unsupported range_policy %q", key, record.GetRangePolicy())
 	}
 	if strings.TrimSpace(record.GetRationale()) == "" {
 		return fmt.Errorf("approved dependency record %s must include rationale", key)
@@ -1384,20 +2494,25 @@ func validPolicyMode(mode string) bool {
 	}
 }
 
-func scopeViolation(scenario string, dep *governancev1.ObservedDependency, record *governancev1.ApprovedDependencyRecord) string {
+type scenarioException struct {
+	reason   string
+	severity string
+}
+
+func scenarioExceptionViolation(scenario string, record *governancev1.ApprovedDependencyRecord) scenarioException {
 	if containsFold(record.GetDeniedScenarios(), scenario) {
-		return "This dependency is denied for the current scenario."
+		return scenarioException{
+			reason:   "This dependency is explicitly denied for the current scenario.",
+			severity: "ERROR",
+		}
 	}
 	if len(record.GetAllowedScenarios()) > 0 && !containsFold(record.GetAllowedScenarios(), scenario) {
-		return "This dependency is not approved for the current scenario."
+		return scenarioException{
+			reason:   "This dependency is only approved for explicitly listed scenario exceptions, and the current scenario is not listed.",
+			severity: "WARNING",
+		}
 	}
-	if dep.GetSurfaceId() != "" && len(record.GetAllowedSurfaces()) > 0 && !containsFold(record.GetAllowedSurfaces(), dep.GetSurfaceId()) {
-		return "This dependency is not approved for the current surface."
-	}
-	if dep.GetDependencyGroup() != "" && len(record.GetAllowedDependencyGroups()) > 0 && !containsFold(record.GetAllowedDependencyGroups(), dep.GetDependencyGroup()) {
-		return "This dependency is not approved for the current dependency group."
-	}
-	return ""
+	return scenarioException{}
 }
 
 func expired(date string) bool {
@@ -1413,29 +2528,12 @@ func expired(date string) bool {
 	return parsed.Before(today)
 }
 
-func depScope(dep *governancev1.ObservedDependency) string {
-	parts := []string{}
-	if dep.GetSurfaceId() != "" {
-		parts = append(parts, "surface="+dep.GetSurfaceId())
-	}
-	if dep.GetDependencyGroup() != "" {
-		parts = append(parts, "group="+dep.GetDependencyGroup())
-	}
-	return strings.Join(parts, ", ")
-}
-
 func recordScope(record *governancev1.ApprovedDependencyRecord) string {
 	parts := []string{}
 	if len(record.GetAllowedScenarios()) > 0 {
 		parts = append(parts, "scenarios="+strings.Join(record.GetAllowedScenarios(), ","))
 	}
-	if len(record.GetAllowedSurfaces()) > 0 {
-		parts = append(parts, "surfaces="+strings.Join(record.GetAllowedSurfaces(), ","))
-	}
-	if len(record.GetAllowedDependencyGroups()) > 0 {
-		parts = append(parts, "groups="+strings.Join(record.GetAllowedDependencyGroups(), ","))
-	}
-	return firstNonEmpty(strings.Join(parts, "; "), "recorded scope")
+	return firstNonEmpty(strings.Join(parts, "; "), "global approval")
 }
 
 func inferSurfaceID(path string) string {
@@ -1504,6 +2602,7 @@ func recordsEqual(left, right *governancev1.ApprovedDependencyRecord) bool {
 	return left.GetEcosystem() == right.GetEcosystem() &&
 		left.GetPackageName() == right.GetPackageName() &&
 		left.GetVersionRange() == right.GetVersionRange() &&
+		left.GetRangePolicy() == right.GetRangePolicy() &&
 		left.GetState() == right.GetState() &&
 		left.GetRationale() == right.GetRationale() &&
 		left.GetApprovedBy() == right.GetApprovedBy() &&
@@ -1513,13 +2612,11 @@ func recordsEqual(left, right *governancev1.ApprovedDependencyRecord) bool {
 		left.GetLicenseNotes() == right.GetLicenseNotes() &&
 		left.GetSecurityNotes() == right.GetSecurityNotes() &&
 		left.GetReplacement() == right.GetReplacement() &&
-		stringSlicesEqual(left.GetAllowedSurfaces(), right.GetAllowedSurfaces()) &&
 		stringSlicesEqual(left.GetUseCases(), right.GetUseCases()) &&
 		stringSlicesEqual(left.GetExampleScenarios(), right.GetExampleScenarios()) &&
 		stringSlicesEqual(left.GetKeywords(), right.GetKeywords()) &&
 		stringSlicesEqual(left.GetAllowedScenarios(), right.GetAllowedScenarios()) &&
-		stringSlicesEqual(left.GetDeniedScenarios(), right.GetDeniedScenarios()) &&
-		stringSlicesEqual(left.GetAllowedDependencyGroups(), right.GetAllowedDependencyGroups())
+		stringSlicesEqual(left.GetDeniedScenarios(), right.GetDeniedScenarios())
 }
 
 func stringSlicesEqual(left, right []string) bool {
@@ -1564,7 +2661,7 @@ func recordMatches(record *governancev1.ApprovedDependencyRecord, terms []string
 		record.GetLicenseNotes(),
 		record.GetSecurityNotes(),
 		record.GetReplacement(),
-	}, append(append(append(append([]string{}, record.GetAllowedSurfaces()...), record.GetUseCases()...), record.GetExampleScenarios()...), record.GetKeywords()...)...), " "))
+	}, append(append(append([]string{}, record.GetUseCases()...), record.GetExampleScenarios()...), record.GetKeywords()...)...), " "))
 	for _, term := range terms {
 		if !strings.Contains(haystack, term) {
 			return false
@@ -1584,49 +2681,6 @@ func queryTerms(query string) []string {
 	return out
 }
 
-func versionAllowed(ecosystem, observed, approvedRange string) bool {
-	approvedRange = strings.TrimSpace(approvedRange)
-	observed = strings.TrimSpace(observed)
-	if approvedRange == "" || approvedRange == "*" || observed == "" || observed == approvedRange {
-		return true
-	}
-	switch normalize(ecosystem) {
-	case "npm", "go":
-		return rangeAllowsVersion(approvedRange, observed)
-	default:
-		return false
-	}
-}
-
-func rangeAllowsVersion(constraint, observed string) bool {
-	observedVersion, ok := parseVersion(firstVersionToken(observed))
-	if !ok {
-		return false
-	}
-	for _, clause := range strings.Split(constraint, "||") {
-		if clauseAllowsVersion(strings.TrimSpace(clause), observedVersion) {
-			return true
-		}
-	}
-	return false
-}
-
-func clauseAllowsVersion(clause string, observed semanticVersion) bool {
-	if clause == "" || clause == "*" {
-		return true
-	}
-	tokens := splitConstraintTokens(clause)
-	if len(tokens) == 0 {
-		return false
-	}
-	for _, token := range tokens {
-		if !constraintTokenAllowsVersion(token, observed) {
-			return false
-		}
-	}
-	return true
-}
-
 func splitConstraintTokens(clause string) []string {
 	fields := strings.FieldsFunc(clause, func(r rune) bool {
 		return r == ',' || r == ' '
@@ -1639,102 +2693,6 @@ func splitConstraintTokens(clause string) []string {
 		}
 	}
 	return tokens
-}
-
-func constraintTokenAllowsVersion(token string, observed semanticVersion) bool {
-	token = strings.TrimSpace(token)
-	if token == "" || token == "*" || token == "x" || token == "X" {
-		return true
-	}
-	if strings.HasPrefix(token, "^") {
-		base, ok := parseVersion(strings.TrimPrefix(token, "^"))
-		return ok && compareVersion(observed, base) >= 0 && observed.Major == base.Major
-	}
-	if strings.HasPrefix(token, "~") {
-		base, ok := parseVersion(strings.TrimPrefix(token, "~"))
-		return ok && compareVersion(observed, base) >= 0 && observed.Major == base.Major && observed.Minor == base.Minor
-	}
-	for _, op := range []string{">=", "<=", ">", "<", "="} {
-		if strings.HasPrefix(token, op) {
-			want, ok := parseVersion(strings.TrimPrefix(token, op))
-			if !ok {
-				return false
-			}
-			cmp := compareVersion(observed, want)
-			switch op {
-			case ">=":
-				return cmp >= 0
-			case "<=":
-				return cmp <= 0
-			case ">":
-				return cmp > 0
-			case "<":
-				return cmp < 0
-			case "=":
-				return cmp == 0
-			}
-		}
-	}
-	want, ok := parseVersion(token)
-	return ok && compareVersion(observed, want) == 0
-}
-
-type semanticVersion struct {
-	Major int
-	Minor int
-	Patch int
-}
-
-func firstVersionToken(value string) string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return ""
-	}
-	fields := strings.FieldsFunc(value, func(r rune) bool {
-		return r == ' ' || r == ',' || r == '|'
-	})
-	if len(fields) == 0 {
-		return value
-	}
-	return fields[0]
-}
-
-func parseVersion(value string) (semanticVersion, bool) {
-	value = strings.TrimSpace(value)
-	value = strings.TrimLeft(value, "^~<>= ")
-	value = strings.TrimPrefix(value, "v")
-	value = strings.SplitN(value, "-", 2)[0]
-	value = strings.SplitN(value, "+", 2)[0]
-	if value == "" || value == "*" {
-		return semanticVersion{}, false
-	}
-	parts := strings.Split(value, ".")
-	if len(parts) == 0 || len(parts) > 3 {
-		return semanticVersion{}, false
-	}
-	nums := []int{0, 0, 0}
-	for i, part := range parts {
-		if part == "x" || part == "X" || part == "*" {
-			nums[i] = 0
-			continue
-		}
-		n, err := strconv.Atoi(part)
-		if err != nil {
-			return semanticVersion{}, false
-		}
-		nums[i] = n
-	}
-	return semanticVersion{Major: nums[0], Minor: nums[1], Patch: nums[2]}, true
-}
-
-func compareVersion(left, right semanticVersion) int {
-	if left.Major != right.Major {
-		return left.Major - right.Major
-	}
-	if left.Minor != right.Minor {
-		return left.Minor - right.Minor
-	}
-	return left.Patch - right.Patch
 }
 
 func recordKey(ecosystem, packageName string) string {

@@ -83,6 +83,251 @@
           }
         },
         {
+          "name": "deps approved propose-records",
+          "description": "Propose draft governance records from fleet findings",
+          "flags": [
+            {
+              "name": "top-unrecorded",
+              "description": "Maximum unrecorded dependency groups to propose",
+              "default": "25"
+            },
+            {
+              "name": "ecosystem",
+              "description": "Filter by ecosystem"
+            },
+            {
+              "name": "package",
+              "description": "Filter by package name"
+            },
+            {
+              "name": "scenario",
+              "description": "Filter by scenario"
+            },
+            {
+              "name": "minimum-scenario-count",
+              "description": "Require use across at least this many scenarios",
+              "default": "0"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "ProposeApprovedDependencyRecords"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "deps approved upsert-batch",
+          "description": "Preview or apply a batch of dependency governance records",
+          "flags": [
+            {
+              "name": "file",
+              "description": "Path to proposal or BatchUpsertApprovedDependenciesRequest JSON"
+            },
+            {
+              "name": "dry-run",
+              "description": "Preview the changes without writing",
+              "default": "false"
+            },
+            {
+              "name": "apply",
+              "description": "Apply the changes; default is dry-run preview",
+              "default": "false"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "BatchUpsertApprovedDependencies"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "filesystem:write:.vrooli/dependencies/approved-dependencies.json"
+            ]
+          }
+        },
+        {
+          "name": "deps approved security-gaps",
+          "description": "List vulnerable dependency exposures not yet represented in governance",
+          "flags": [
+            {
+              "name": "ecosystem",
+              "description": "Filter by ecosystem"
+            },
+            {
+              "name": "package",
+              "description": "Filter by package name"
+            },
+            {
+              "name": "scenario",
+              "description": "Filter by scenario"
+            },
+            {
+              "name": "vulnerability",
+              "description": "Filter by vulnerability id"
+            },
+            {
+              "name": "minimum-severity",
+              "description": "Filter by minimum normalized severity"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum gaps to show",
+              "default": "25"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "ListSecurityGovernanceGaps"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "deps approved approve-observed",
+          "description": "Approve a dependency from observed fleet usage",
+          "args": [
+            {
+              "name": "dependency",
+              "description": "Dependency formatted as ecosystem/package",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "from-findings",
+              "description": "Build evidence from fleet governance findings and observed usage",
+              "default": "false"
+            },
+            {
+              "name": "range-strategy",
+              "description": "Version range strategy: observed, exact, major_line, minimum, or wildcard"
+            },
+            {
+              "name": "range-policy",
+              "description": "Range policy override: exact, major_line, minimum, or dev_tooling"
+            },
+            {
+              "name": "rationale",
+              "description": "Optional approval rationale"
+            },
+            {
+              "name": "approved-by",
+              "description": "Reviewer or approving group"
+            },
+            {
+              "name": "policy-mode",
+              "description": "Override registry policy mode: advisory, strict, or review_gate"
+            },
+            {
+              "name": "apply",
+              "description": "Apply the change; default is dry-run preview",
+              "default": "false"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "ApproveObservedDependency"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "filesystem:write:.vrooli/dependencies/approved-dependencies.json"
+            ]
+          }
+        },
+        {
+          "name": "deps approved widen-range",
+          "description": "Widen an existing approval to the observed major line",
+          "args": [
+            {
+              "name": "dependency",
+              "description": "Dependency formatted as ecosystem/package",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "to-major-line",
+              "description": "Widen the record to the observed major line",
+              "default": "false"
+            },
+            {
+              "name": "rationale",
+              "description": "Optional rationale for the range widening"
+            },
+            {
+              "name": "approved-by",
+              "description": "Reviewer or approving group"
+            },
+            {
+              "name": "policy-mode",
+              "description": "Override registry policy mode: advisory, strict, or review_gate"
+            },
+            {
+              "name": "apply",
+              "description": "Apply the change; default is dry-run preview",
+              "default": "false"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "WidenApprovedDependencyRange"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "filesystem:write:.vrooli/dependencies/approved-dependencies.json"
+            ]
+          }
+        },
+        {
           "name": "deps approved approve",
           "description": "Preview or apply an approved dependency governance decision",
           "args": [
@@ -99,16 +344,12 @@
               "default": "*"
             },
             {
+              "name": "range-policy",
+              "description": "Range policy: exact, major_line, minimum, or dev_tooling"
+            },
+            {
               "name": "rationale",
               "description": "Approval rationale"
-            },
-            {
-              "name": "surfaces",
-              "description": "Comma-separated allowed surfaces"
-            },
-            {
-              "name": "groups",
-              "description": "Comma-separated allowed dependency groups"
             },
             {
               "name": "apply",
@@ -150,6 +391,10 @@
               "name": "range",
               "description": "Denied version or version range",
               "default": "*"
+            },
+            {
+              "name": "range-policy",
+              "description": "Range policy: exact, major_line, minimum, dev_tooling, or security_denied"
             },
             {
               "name": "reason",
@@ -407,6 +652,50 @@
           }
         },
         {
+          "name": "deps approved triage",
+          "description": "Show grouped approved-dependency governance decisions",
+          "flags": [
+            {
+              "name": "section",
+              "description": "Filter by section: security, seeding, ranges, hotspots, or expired"
+            },
+            {
+              "name": "ecosystem",
+              "description": "Filter by ecosystem"
+            },
+            {
+              "name": "package",
+              "description": "Filter by package name"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum groups per section in human output",
+              "default": "10"
+            },
+            {
+              "name": "policy-mode",
+              "description": "Override registry policy mode: advisory, strict, or review_gate"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "GetApprovedDependencyTriage"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "deps approved findings",
           "description": "List fleet approved-dependency governance findings",
           "flags": [
@@ -429,6 +718,11 @@
             {
               "name": "class",
               "description": "Filter by finding class"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum grouped findings in human output",
+              "default": "40"
             },
             {
               "name": "policy-mode",
