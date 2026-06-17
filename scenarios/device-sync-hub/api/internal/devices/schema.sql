@@ -5,6 +5,19 @@
 -- are no-ops; column additions land as `ALTER TABLE ... ADD COLUMN` (never
 -- recreate — Vrooli storage rule).
 
+-- hub_owner is the single-owner claim: exactly one row (id = 1) records which
+-- authenticator identity owns this hub. The CHECK pins it to a singleton; the
+-- claim is first-owner-wins via a conditional insert (INSERT ... ON CONFLICT(id)
+-- DO NOTHING) so two concurrent SetupOwnerDevice calls can never both win.
+-- Owner-authed RPCs verify the caller matches owner_id (single-owner model).
+-- The owner is established by the first SetupOwnerDevice call; ownership is an
+-- explicit hub fact, never derived from device rows.
+CREATE TABLE IF NOT EXISTS hub_owner (
+  id         INTEGER PRIMARY KEY CHECK (id = 1),
+  owner_id   TEXT NOT NULL,
+  claimed_at TEXT NOT NULL
+);
+
 -- A device is keyed to the owner (authenticator user id). token_hash is the
 -- SHA-256 of the hub-issued device token; the raw token is never stored.
 CREATE TABLE IF NOT EXISTS devices (

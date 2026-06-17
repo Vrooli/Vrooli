@@ -15,6 +15,8 @@ export interface SessionState {
   deviceToken: string | null;
   device: Device | null;
   ownerToken: string | null;
+  /** Owner email for display ("signed in as …"); best-effort, may be null. */
+  ownerEmail: string | null;
 }
 
 export interface SessionCredentials {
@@ -28,12 +30,14 @@ interface StoredSession {
   deviceToken?: string | null;
   device?: JsonValue | null;
   ownerToken?: string | null;
+  ownerEmail?: string | null;
 }
 
 export const emptySession: SessionState = {
   deviceToken: null,
   device: null,
   ownerToken: null,
+  ownerEmail: null,
 };
 
 const safeStorage = (): Storage | null => {
@@ -65,6 +69,7 @@ export function loadSession(): SessionState {
       deviceToken: parsed.deviceToken ?? null,
       device,
       ownerToken: parsed.ownerToken ?? null,
+      ownerEmail: parsed.ownerEmail ?? null,
     };
   } catch {
     return emptySession;
@@ -78,6 +83,7 @@ export function saveSession(state: SessionState): void {
     deviceToken: state.deviceToken,
     device: state.device ? toJson(DeviceSchema, state.device) : null,
     ownerToken: state.ownerToken,
+    ownerEmail: state.ownerEmail,
   };
   try {
     storage.setItem(STORAGE_KEY, JSON.stringify(stored));

@@ -88,9 +88,17 @@ UPDATE devices SET name = ?, updated_at = ?
 WHERE owner_id = ? AND id = ?
 `
 
-	resolveOwnerSQL = `
-SELECT owner_id FROM devices ORDER BY created_at DESC, id DESC LIMIT 1
+	// claimOwnerSQL is the first-owner-wins claim: the singleton row (id = 1) is
+	// inserted only if absent, so a second claimant's insert is a no-op. The
+	// caller reads owner_id back (selectHubOwnerSQL) to learn who actually holds
+	// the hub — rows-affected alone can't distinguish "already mine" from "lost".
+	claimOwnerSQL = `
+INSERT INTO hub_owner (id, owner_id, claimed_at)
+VALUES (1, ?, ?)
+ON CONFLICT(id) DO NOTHING
 `
+
+	selectHubOwnerSQL = `SELECT owner_id FROM hub_owner WHERE id = 1`
 
 	insertPairingCodeSQL = `
 INSERT INTO pairing_codes (code_hash, owner_id, device_name, expires_at,
@@ -211,14 +219,21 @@ func (r *sqliteRepository) Rename(ctx context.Context, ownerID, id, name string)
 	return r.GetDevice(ctx, ownerID, id)
 }
 
-func (r *sqliteRepository) ResolveOwner(ctx context.Context) (string, error) {
+func (r *sqliteRepository) ClaimOwner(ctx context.Context, ownerID string, now time.Time) (string, error) {
+	if _, err := r.db.ExecContext(ctx, claimOwnerSQL, ownerID, now.Format(deviceTimeFormat)); err != nil {
+		return "", fmt.Errorf("claim hub owner: %w", err)
+	}
+	return r.HubOwner(ctx)
+}
+
+func (r *sqliteRepository) HubOwner(ctx context.Context) (string, error) {
 	var ownerID string
-	err := r.db.QueryRowContext(ctx, resolveOwnerSQL).Scan(&ownerID)
+	err := r.db.QueryRowContext(ctx, selectHubOwnerSQL).Scan(&ownerID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return "", ErrDeviceConflict{Reason: "no owner yet: the first device must pair with a code"}
+		return "", ErrNoOwner
 	}
 	if err != nil {
-		return "", fmt.Errorf("resolve owner: %w", err)
+		return "", fmt.Errorf("read hub owner: %w", err)
 	}
 	return ownerID, nil
 }

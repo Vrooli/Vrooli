@@ -12,6 +12,25 @@ import (
 // test (TestProtoConnectParity) asserts every rpc has exactly one entry here.
 var Endpoints = []module.EndpointDescriptor{
 	{
+		ID:          "devices_setup_owner",
+		Path:        devicesconnect.DevicesServiceSetupOwnerDeviceProcedure,
+		Method:      "POST",
+		Summary:     "Set up this hub's first (owner) device",
+		Description: "First-run bootstrap. Claims the hub for the authenticated owner if unclaimed (first-owner-wins), then registers the calling client as a TRUSTED device directly — no pairing code needed — and returns its one-time hub device token. Owner-authed; a different identity on an already-claimed hub is rejected.",
+		Category:    "devices",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"profile": "DeviceProfile"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"device": "Device (trusted)", "device_token": "string (returned once)"}}, //nolint:gosec // "device_token" is a doc field label in an API schema descriptor, not a hardcoded credential
+		Errors: []module.ErrorDesc{
+			{Status: 401, Code: "unauthenticated", Description: "Missing or invalid owner token"},
+			{Status: 403, Code: "permission_denied", Description: "Hub already owned by a different identity"},
+			{Status: 500, Code: "internal", Description: "Claim or persistence failure"},
+		},
+		Examples: []module.Example{
+			{Name: "Set up owner device", Curl: "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.devices.DevicesService/SetupOwnerDevice -H 'Authorization: Bearer <owner-jwt>' -H 'Content-Type: application/json' -d '{\"profile\":{\"device_name\":\"Workstation\",\"kind\":\"laptop\"}}'"},
+		},
+		CLIMapping: &module.CLIMapping{Command: "device-sync-hub devices setup", Args: []string{"--name", "<name>"}},
+	},
+	{
 		ID:          "devices_list",
 		Path:        devicesconnect.DevicesServiceListDevicesProcedure,
 		Method:      "POST",

@@ -26,13 +26,13 @@ describe("authedFetch dual-credential wrapper", () => {
   });
 
   it("attaches the device token header when paired", async () => {
-    saveSession({ deviceToken: "dt-1", device: null, ownerToken: null });
+    saveSession({ deviceToken: "dt-1", device: null, ownerToken: null, ownerEmail: null });
     await authedFetch("/x");
     expect(headersOf().get(DEVICE_TOKEN_HEADER)).toBe("dt-1");
   });
 
   it("attaches both device + owner headers when both are present", async () => {
-    saveSession({ deviceToken: "dt-1", device: null, ownerToken: "owner-jwt" });
+    saveSession({ deviceToken: "dt-1", device: null, ownerToken: "owner-jwt", ownerEmail: null });
     await authedFetch("/x");
     const headers = headersOf();
     expect(headers.get(DEVICE_TOKEN_HEADER)).toBe("dt-1");
@@ -43,7 +43,7 @@ describe("authedFetch dual-credential wrapper", () => {
     await authedFetch("/x");
     expect(headersOf().has(DEVICE_TOKEN_HEADER)).toBe(false);
 
-    saveSession({ deviceToken: "late", device: null, ownerToken: null });
+    saveSession({ deviceToken: "late", device: null, ownerToken: null, ownerEmail: null });
     await authedFetch("/y");
     const second = new Headers((fetchSpy.mock.calls[1]?.[1] as RequestInit).headers);
     expect(second.get(DEVICE_TOKEN_HEADER)).toBe("late");

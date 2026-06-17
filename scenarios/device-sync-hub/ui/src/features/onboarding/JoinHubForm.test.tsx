@@ -15,12 +15,12 @@ vi.mock("../../api/devices", async (importOriginal) => {
   return { ...actual, devicesClient: { redeemPairingCode, requestPairing } };
 });
 
-import { JoinScreen } from "./JoinScreen";
+import { JoinHubForm } from "./JoinHubForm";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
-import { loadSession } from "./store";
+import { loadSession } from "../session/store";
 
-describe("JoinScreen", () => {
+describe("JoinHubForm", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
@@ -28,7 +28,7 @@ describe("JoinScreen", () => {
 
   it("validates an empty code before calling redeem", async () => {
     const user = userEvent.setup();
-    renderWithProviders(<JoinScreen />);
+    renderWithProviders(<JoinHubForm onBack={vi.fn()} />);
     await user.click(screen.getByTestId(selectors.join.redeemButton));
     expect(redeemPairingCode).not.toHaveBeenCalled();
     expect(screen.getByTestId(selectors.join.error)).toHaveTextContent(strings.join.missingCode);
@@ -40,7 +40,7 @@ describe("JoinScreen", () => {
       deviceToken: "dt-redeem",
       device: makeDevice({ id: "dev-redeem" }),
     });
-    renderWithProviders(<JoinScreen />);
+    renderWithProviders(<JoinHubForm onBack={vi.fn()} />);
 
     await user.type(screen.getByTestId(selectors.join.codeInput), "CODE-42");
     await user.click(screen.getByTestId(selectors.join.redeemButton));
@@ -48,9 +48,7 @@ describe("JoinScreen", () => {
     await waitFor(() => {
       expect(loadSession().deviceToken).toBe("dt-redeem");
     });
-    expect(redeemPairingCode).toHaveBeenCalledWith(
-      expect.objectContaining({ code: "CODE-42" }),
-    );
+    expect(redeemPairingCode).toHaveBeenCalledWith(expect.objectContaining({ code: "CODE-42" }));
   });
 
   it("shows the waiting state after requesting approval", async () => {
@@ -59,7 +57,7 @@ describe("JoinScreen", () => {
       deviceToken: "dt-pending",
       device: makeDevice({ id: "dev-pending" }),
     });
-    renderWithProviders(<JoinScreen />);
+    renderWithProviders(<JoinHubForm onBack={vi.fn()} />);
 
     await user.type(screen.getByTestId(selectors.join.deviceNameInput), "My Phone");
     await user.click(screen.getByTestId(selectors.join.requestButton));
@@ -67,5 +65,13 @@ describe("JoinScreen", () => {
     await waitFor(() => {
       expect(screen.getByTestId(selectors.join.waiting)).toBeInTheDocument();
     });
+  });
+
+  it("calls onBack from the back button", async () => {
+    const user = userEvent.setup();
+    const onBack = vi.fn();
+    renderWithProviders(<JoinHubForm onBack={onBack} />);
+    await user.click(screen.getByTestId(selectors.onboarding.back));
+    expect(onBack).toHaveBeenCalledOnce();
   });
 });

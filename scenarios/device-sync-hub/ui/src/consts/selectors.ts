@@ -355,6 +355,28 @@ const literalSelectors = {
     signOutButton: "owner-sign-out-button",
     status: "owner-status",
   },
+  onboarding: {
+    screen: "onboarding-screen",
+    setupChoice: "onboarding-setup-choice",
+    joinChoice: "onboarding-join-choice",
+    back: "onboarding-back",
+  },
+  login: {
+    form: "login-form",
+    emailInput: "login-email-input",
+    passwordInput: "login-password-input",
+    submit: "login-submit",
+    error: "login-error",
+    advancedToggle: "login-advanced-toggle",
+  },
+  setupDevice: {
+    panel: "setup-device-panel",
+    nameInput: "setup-device-name-input",
+    submit: "setup-device-submit",
+    error: "setup-device-error",
+    joinInstead: "setup-device-join-instead",
+    signOut: "setup-device-sign-out",
+  },
   session: {
     panel: "session-panel",
     signOutButton: "session-sign-out-button",

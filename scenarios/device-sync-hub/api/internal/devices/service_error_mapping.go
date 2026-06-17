@@ -31,6 +31,10 @@ func ToConnectError(err error) error {
 	if errors.As(err, &conflict) {
 		return connect.NewError(connect.CodeFailedPrecondition, conflict)
 	}
+	var notOwner ErrNotOwner
+	if errors.As(err, &notOwner) {
+		return connect.NewError(connect.CodePermissionDenied, notOwner)
+	}
 	if errors.Is(err, auth.ErrUnauthenticated) {
 		return connect.NewError(connect.CodeUnauthenticated, err)
 	}

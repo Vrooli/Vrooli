@@ -35,6 +35,7 @@ const GroupName = "devices"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
+		"DevicesService.SetupOwnerDevice":  h.setup,
 		"DevicesService.ListDevices":       h.list,
 		"DevicesService.GetDevice":         h.get,
 		"DevicesService.IssuePairingCode":  h.pair,

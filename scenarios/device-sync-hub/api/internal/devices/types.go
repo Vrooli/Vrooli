@@ -20,6 +20,7 @@
 package devices
 
 import (
+	"errors"
 	"fmt"
 	"time"
 )
@@ -99,6 +100,19 @@ type IssuedToken struct {
 }
 
 // ---- Typed sentinels (translated at the handler edge) -----------------------
+
+// ErrNoOwner is the repository sentinel for an unclaimed hub: no hub_owner row
+// exists yet (the owner has not run SetupOwnerDevice). The service translates
+// it into a caller-facing precondition rather than surfacing it raw.
+var ErrNoOwner = errors.New("hub has no owner")
+
+// ErrNotOwner is returned when an authenticated identity that is not this hub's
+// owner attempts an owner-authed operation. The hub is single-owner (v1), so a
+// second identity cannot read or manage the trust group. Translated at the
+// handler edge to Connect CodePermissionDenied.
+type ErrNotOwner struct{}
+
+func (ErrNotOwner) Error() string { return "caller is not the hub owner" }
 
 // ErrDeviceNotFound is returned when no device matches an id+owner scope.
 type ErrDeviceNotFound struct{ ID string }

@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	devicesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-sync-hub/v1/devices"
+	devicesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/device-sync-hub/v1/devices/devices_v1connect"
 )
 
 func newHandler(t *testing.T) *handlerHarness {
@@ -28,16 +29,48 @@ func newHandler(t *testing.T) *handlerHarness {
 }
 
 type handlerHarness struct {
-	h interface {
-		ListDevices(context.Context, *connect.Request[devicesv1.ListDevicesRequest]) (*connect.Response[devicesv1.ListDevicesResponse], error)
-		RedeemPairingCode(context.Context, *connect.Request[devicesv1.RedeemPairingCodeRequest]) (*connect.Response[devicesv1.RedeemPairingCodeResponse], error)
-		IssuePairingCode(context.Context, *connect.Request[devicesv1.IssuePairingCodeRequest]) (*connect.Response[devicesv1.IssuePairingCodeResponse], error)
-	}
+	h   devicesconnect.DevicesServiceHandler
 	svc internaldevices.Service
 }
 
 func ownerCtx(ownerID string) context.Context {
 	return auth.WithIdentity(context.Background(), auth.Identity{OwnerID: ownerID})
+}
+
+func TestSetupOwnerDeviceRequiresOwner(t *testing.T) {
+	t.Parallel()
+	hh := newHandler(t)
+
+	_, err := hh.h.SetupOwnerDevice(context.Background(), connect.NewRequest(&devicesv1.SetupOwnerDeviceRequest{}))
+	require.Error(t, err)
+	assert.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err), "bootstrap still needs an authenticated owner")
+}
+
+// [REQ:REQ-P0-003] Owner bootstrap admits the caller to the trust group as TRUSTED.
+func TestSetupOwnerDeviceTrustsCaller(t *testing.T) {
+	t.Parallel()
+	hh := newHandler(t)
+
+	resp, err := hh.h.SetupOwnerDevice(ownerCtx("owner-1"), connect.NewRequest(&devicesv1.SetupOwnerDeviceRequest{
+		Profile: &devicesv1.DeviceProfile{DeviceName: "Workstation", Kind: "laptop"},
+	}))
+	require.NoError(t, err)
+	assert.Equal(t, devicesv1.TrustState_TRUST_STATE_TRUSTED, resp.Msg.Device.TrustState)
+	assert.Equal(t, "Workstation", resp.Msg.Device.Name)
+	assert.NotEmpty(t, resp.Msg.DeviceToken, "one-time token returned")
+}
+
+// [REQ:REQ-P0-005] Single-owner hub rejects a second identity with PermissionDenied.
+func TestSetupOwnerDeviceRejectsSecondIdentity(t *testing.T) {
+	t.Parallel()
+	hh := newHandler(t)
+
+	_, err := hh.h.SetupOwnerDevice(ownerCtx("owner-1"), connect.NewRequest(&devicesv1.SetupOwnerDeviceRequest{}))
+	require.NoError(t, err)
+
+	_, err = hh.h.SetupOwnerDevice(ownerCtx("owner-2"), connect.NewRequest(&devicesv1.SetupOwnerDeviceRequest{}))
+	require.Error(t, err)
+	assert.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err), "single-owner hub rejects a second identity")
 }
 
 func TestListDevicesRequiresOwner(t *testing.T) {
@@ -49,10 +82,15 @@ func TestListDevicesRequiresOwner(t *testing.T) {
 	assert.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err), "owner-gated RPC rejects an anonymous caller")
 }
 
-func TestIssueThenListWithOwner(t *testing.T) {
+func TestSetupIssueRedeemList(t *testing.T) {
 	t.Parallel()
 	hh := newHandler(t)
 	ctx := ownerCtx("owner-1")
+
+	_, err := hh.h.SetupOwnerDevice(ctx, connect.NewRequest(&devicesv1.SetupOwnerDeviceRequest{
+		Profile: &devicesv1.DeviceProfile{DeviceName: "Workstation", Kind: "laptop"},
+	}))
+	require.NoError(t, err)
 
 	issue, err := hh.h.IssuePairingCode(ctx, connect.NewRequest(&devicesv1.IssuePairingCodeRequest{DeviceName: "Phone"}))
 	require.NoError(t, err)
@@ -70,8 +108,7 @@ func TestIssueThenListWithOwner(t *testing.T) {
 
 	list, err := hh.h.ListDevices(ctx, connect.NewRequest(&devicesv1.ListDevicesRequest{}))
 	require.NoError(t, err)
-	require.Len(t, list.Msg.Devices, 1)
-	assert.Equal(t, "Phone", list.Msg.Devices[0].Name)
+	require.Len(t, list.Msg.Devices, 2, "owner device + redeemed phone")
 }
 
 func TestRedeemInvalidCodeMapsToInvalidArgument(t *testing.T) {

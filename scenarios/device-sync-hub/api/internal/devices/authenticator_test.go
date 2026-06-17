@@ -20,12 +20,10 @@ func TestAuthenticator_ResolvesTrustedOnly(t *testing.T) {
 
 	// The authenticator hashes the raw token with the same one-way hash the
 	// service uses at issue time. We can't see that hash from the test package,
-	// so drive the real issue path: redeem a code to mint a TRUSTED device and
-	// capture its raw token.
+	// so drive the real bootstrap path: SetupOwnerDevice mints a TRUSTED device
+	// and returns its raw token once.
 	svc := devices.NewService(devices.Config{Repo: repo})
-	pc, err := svc.IssuePairingCode(ctx, "owner-1", "Phone")
-	require.NoError(t, err)
-	issued, err := svc.RedeemPairingCode(ctx, pc.Code, devices.Profile{Name: "Phone"})
+	issued, err := svc.SetupOwnerDevice(ctx, "owner-1", devices.Profile{Name: "Phone"})
 	require.NoError(t, err)
 
 	// A valid TRUSTED token resolves to its device.
@@ -53,10 +51,8 @@ func TestAuthenticator_PendingTokenIsInert(t *testing.T) {
 	authn := devices.NewAuthenticator(repo)
 	svc := devices.NewService(devices.Config{Repo: repo})
 
-	// Bootstrap an owner via a redeemed code, then a fallback PENDING request.
-	pc, err := svc.IssuePairingCode(ctx, "owner-1", "")
-	require.NoError(t, err)
-	_, err = svc.RedeemPairingCode(ctx, pc.Code, devices.Profile{Name: "First"})
+	// Bootstrap the owner's first device, then a fallback PENDING request.
+	_, err := svc.SetupOwnerDevice(ctx, "owner-1", devices.Profile{Name: "First"})
 	require.NoError(t, err)
 
 	pending, err := svc.RequestPairing(ctx, devices.Profile{Name: "Pending"})

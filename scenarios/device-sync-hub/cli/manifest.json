@@ -5,8 +5,19 @@
   "groups": [
     {
       "name": "devices",
-      "description": "Manage the owner's trusted devices: pairing, approval, rename, revoke",
+      "description": "Manage the owner's trusted devices: first-run setup, pairing, approval, rename, revoke",
       "commands": [
+        {
+          "name": "setup",
+          "description": "Set up this hub's first device as the owner: claims the hub (first-owner-wins) and trusts this device directly — no pairing code. Run `auth login` first.",
+          "flags": [
+            { "name": "name", "description": "This device's human-facing name" },
+            { "name": "kind", "description": "Coarse device kind (phone|laptop|tablet|server)" },
+            { "name": "platform", "description": "OS / platform string (e.g. linux, macos)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "DevicesService", "method": "SetupOwnerDevice" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
         {
           "name": "list",
           "description": "List the owner's trusted devices (newest first)",

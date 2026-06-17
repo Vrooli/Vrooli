@@ -104,21 +104,25 @@ func TestSQLiteSetTrustAndRename(t *testing.T) {
 	assert.ErrorAs(t, err, &nf)
 }
 
-func TestSQLiteResolveOwner(t *testing.T) {
+func TestSQLiteHubOwnerClaim(t *testing.T) {
 	repo, clk := newRepo(t)
 	ctx := context.Background()
 
-	_, err := repo.ResolveOwner(ctx)
-	var conflict devices.ErrDeviceConflict
-	assert.ErrorAs(t, err, &conflict, "no devices yet → no owner")
+	_, err := repo.HubOwner(ctx)
+	assert.ErrorIs(t, err, devices.ErrNoOwner, "an unclaimed hub has no owner")
 
-	_, err = repo.CreateDevice(ctx, devices.Device{OwnerID: "owner-1", Name: "A", TrustState: devices.TrustTrusted}, "h1")
+	// First claim wins and is returned.
+	holder, err := repo.ClaimOwner(ctx, "owner-1", clk.Now())
 	require.NoError(t, err)
+	assert.Equal(t, "owner-1", holder)
+
+	// A competing claim does not displace the established owner.
 	clk.Advance(time.Minute)
-	_, err = repo.CreateDevice(ctx, devices.Device{OwnerID: "owner-1", Name: "B", TrustState: devices.TrustTrusted}, "h2")
+	holder, err = repo.ClaimOwner(ctx, "owner-2", clk.Now())
 	require.NoError(t, err)
+	assert.Equal(t, "owner-1", holder, "second claimant loses; ownership is first-owner-wins")
 
-	owner, err := repo.ResolveOwner(ctx)
+	owner, err := repo.HubOwner(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, "owner-1", owner)
 }

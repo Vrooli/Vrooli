@@ -22,6 +22,11 @@ type FakeRepository struct {
 	Devices map[string]devices.Device // keyed by device id
 	Codes   map[string]storedCode     // keyed by code hash
 
+	// Owner / OwnerClaimed model the single-row hub_owner claim. Inspect Owner
+	// after a SetupOwnerDevice to assert the hub got claimed.
+	Owner        string
+	OwnerClaimed bool
+
 	// nextID lets tests get stable ids; when "" the repo derives seq ids.
 	seq int
 
@@ -32,7 +37,8 @@ type FakeRepository struct {
 	SetTrustErr     error
 	RenameErr       error
 	ByTokenErr      error
-	ResolveOwnerErr error
+	ClaimOwnerErr   error
+	HubOwnerErr     error
 	CreateCodeErr   error
 	ClaimErr        error
 
@@ -148,21 +154,25 @@ func (f *FakeRepository) DeviceByToken(_ context.Context, tokenHash string) (dev
 	return devices.Device{}, devices.ErrDeviceNotFound{}
 }
 
-func (f *FakeRepository) ResolveOwner(context.Context) (string, error) {
-	if f.ResolveOwnerErr != nil {
-		return "", f.ResolveOwnerErr
+func (f *FakeRepository) ClaimOwner(_ context.Context, ownerID string, _ time.Time) (string, error) {
+	if f.ClaimOwnerErr != nil {
+		return "", f.ClaimOwnerErr
 	}
-	var newest devices.Device
-	found := false
-	for _, d := range f.Devices {
-		if !found || d.CreatedAt.After(newest.CreatedAt) {
-			newest, found = d, true
-		}
+	if !f.OwnerClaimed {
+		f.Owner = ownerID
+		f.OwnerClaimed = true
 	}
-	if !found {
-		return "", devices.ErrDeviceConflict{Reason: "no owner yet: the first device must pair with a code"}
+	return f.Owner, nil
+}
+
+func (f *FakeRepository) HubOwner(context.Context) (string, error) {
+	if f.HubOwnerErr != nil {
+		return "", f.HubOwnerErr
 	}
-	return newest.OwnerID, nil
+	if !f.OwnerClaimed {
+		return "", devices.ErrNoOwner
+	}
+	return f.Owner, nil
 }
 
 func (f *FakeRepository) CreatePairingCode(_ context.Context, c devices.PairingCode) error {

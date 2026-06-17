@@ -1,6 +1,7 @@
 package domains
 
 import (
+	"device-sync-hub/cli/domains/auth"
 	"device-sync-hub/cli/domains/devices"
 	"device-sync-hub/cli/domains/transfer"
 
@@ -44,5 +45,7 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
-	return []cliapp.SubcommandGroup{devicesGroup, transferGroup}, nil
+	// auth is not manifest-driven: it targets the sibling scenario-authenticator
+	// (owner identity), not device-sync-hub's own connect-rpc surface.
+	return []cliapp.SubcommandGroup{auth.Register(core), devicesGroup, transferGroup}, nil
 }

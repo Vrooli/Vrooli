@@ -27,6 +27,7 @@ import (
 type devicesService struct {
 	mu sync.Mutex
 
+	setupResp   *devicesv1.SetupOwnerDeviceResponse
 	listResp    *devicesv1.ListDevicesResponse
 	getResp     *devicesv1.GetDeviceResponse
 	issueResp   *devicesv1.IssuePairingCodeResponse
@@ -40,9 +41,20 @@ type devicesService struct {
 	getErr    error
 	revokeErr error
 
+	setupInputs   []*devicesv1.DeviceProfile
 	redeemInputs  []*devicesv1.RedeemPairingCodeRequest
 	approveInputs []string
 	revokeInputs  []string
+}
+
+func (s *devicesService) SetupOwnerDevice(_ context.Context, req *connect.Request[devicesv1.SetupOwnerDeviceRequest]) (*connect.Response[devicesv1.SetupOwnerDeviceResponse], error) {
+	s.mu.Lock()
+	s.setupInputs = append(s.setupInputs, req.Msg.Profile)
+	s.mu.Unlock()
+	if s.setupResp == nil {
+		s.setupResp = &devicesv1.SetupOwnerDeviceResponse{}
+	}
+	return connect.NewResponse(s.setupResp), nil
 }
 
 func (s *devicesService) ListDevices(context.Context, *connect.Request[devicesv1.ListDevicesRequest]) (*connect.Response[devicesv1.ListDevicesResponse], error) {
@@ -188,6 +200,29 @@ func TestDevicesList_SurfacesConnectErrors(t *testing.T) {
 	require.Contains(t, err.Error(), "internal")
 }
 
+// [REQ:REQ-P0-003] `devices setup` admits this machine to the trust group as the owner's first device.
+func TestDevicesSetup_SendsProfileAndPrintsToken(t *testing.T) {
+	svc := &devicesService{setupResp: &devicesv1.SetupOwnerDeviceResponse{
+		Device:      device("owner-dev", "Workstation", devicesv1.TrustState_TRUST_STATE_TRUSTED, true),
+		DeviceToken: "hub-owner-token",
+	}}
+	core := clitest.NewTestApp(t, connectAPI(t, svc))
+	h := newHandlers(core)
+	ctx, out := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
+		Flags: []cliapp.Flag{{Name: "name"}, {Name: "kind"}, {Name: "platform"}},
+	}, cliapptest.TestRunContextOptions{Flags: map[string]string{
+		"name": "Workstation", "kind": "laptop", "platform": "linux",
+	}})
+
+	require.NoError(t, h.setup(ctx))
+	require.Len(t, svc.setupInputs, 1)
+	require.Equal(t, "Workstation", svc.setupInputs[0].DeviceName)
+	require.Equal(t, "laptop", svc.setupInputs[0].Kind)
+	require.Contains(t, out.String(), "hub-owner-token")
+	require.Contains(t, out.String(), "DEVICE_SYNC_HUB_DEVICE_TOKEN")
+	require.Contains(t, out.String(), "TRUSTED")
+}
+
 func TestDevicesPair_PrintsCode(t *testing.T) {
 	expires := timestamppb.New(time.Date(2026, 1, 1, 0, 15, 0, 0, time.UTC))
 	svc := &devicesService{issueResp: &devicesv1.IssuePairingCodeResponse{PairingCode: &devicesv1.PairingCode{
@@ -291,5 +326,5 @@ func TestRegister_Wiring(t *testing.T) {
 		names = append(names, sc.Name)
 		require.NotNil(t, sc.RunCtx, "subcommand %s should use RunCtx", sc.Name)
 	}
-	require.ElementsMatch(t, []string{"list", "get", "pair", "redeem", "request", "approve", "rename", "revoke"}, names)
+	require.ElementsMatch(t, []string{"setup", "list", "get", "pair", "redeem", "request", "approve", "rename", "revoke"}, names)
 }

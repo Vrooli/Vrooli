@@ -1,8 +1,8 @@
 /**
  * App tests — the auth gate.
  *
- * `App` shows the JoinScreen until this browser holds a device token, then the
- * routed shell. We render `<App />` directly (it owns its own providers); the
+ * `App` shows the first-run OnboardingScreen until this browser holds a device
+ * token, then the routed shell. We render `<App />` directly (it owns its own providers); the
  * gate reads the session that `SessionProvider` initialises from localStorage,
  * so seeding localStorage before mount picks the branch. `<App>` mounts
  * `createBrowserRouter`, which is fine in jsdom for a smoke assertion.
@@ -33,9 +33,9 @@ describe("App auth gate", () => {
     cleanup();
   });
 
-  it("shows the join screen when this browser is not paired", () => {
+  it("shows the first-run onboarding screen when this browser is not paired", () => {
     renderApp();
-    expect(screen.getByTestId(selectors.join.screen)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.onboarding.screen)).toBeInTheDocument();
   });
 
   it("shows the paired shell once a device token is present", () => {

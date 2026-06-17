@@ -41,6 +41,22 @@ func NewConnectHandler(d Deps) *connectHandler {
 
 // ---- Owner-gated RPCs -------------------------------------------------------
 
+func (h *connectHandler) SetupOwnerDevice(ctx context.Context, req *connect.Request[devicesv1.SetupOwnerDeviceRequest]) (*connect.Response[devicesv1.SetupOwnerDeviceResponse], error) {
+	owner, err := auth.RequireOwner(ctx)
+	if err != nil {
+		return nil, internaldevices.ToConnectError(err)
+	}
+	issued, err := h.deps.Service.SetupOwnerDevice(ctx, owner.OwnerID, profileFromProto(req.Msg.Profile))
+	if err != nil {
+		h.deps.Logger.Printf("devices.SetupOwnerDevice: %v", err)
+		return nil, internaldevices.ToConnectError(err)
+	}
+	return connect.NewResponse(&devicesv1.SetupOwnerDeviceResponse{
+		Device:      deviceToProto(issued.Device),
+		DeviceToken: issued.Token,
+	}), nil
+}
+
 func (h *connectHandler) ListDevices(ctx context.Context, _ *connect.Request[devicesv1.ListDevicesRequest]) (*connect.Response[devicesv1.ListDevicesResponse], error) {
 	owner, err := auth.RequireOwner(ctx)
 	if err != nil {

@@ -152,6 +152,42 @@
     "signOut": "Clear owner token",
     "missingToken": "Paste a token first."
   },
+  "onboarding": {
+    "welcomeTitle": "Set up Device Sync Hub",
+    "welcomeIntro": "Sync files and text across your devices. Set up this hub if it's new, or join one that already exists.",
+    "setupTitle": "Set up this hub",
+    "setupDescription": "I'm the owner. Sign in and make this my first device.",
+    "joinTitle": "Join an existing hub",
+    "joinDescription": "This hub already has an owner. Pair this device with a code or request approval.",
+    "back": "Back"
+  },
+  "login": {
+    "title": "Sign in as the owner",
+    "intro": "Sign in with your account to claim this hub.",
+    "emailLabel": "Email",
+    "emailPlaceholder": "you@example.com",
+    "passwordLabel": "Password",
+    "passwordPlaceholder": "Your password",
+    "submit": "Sign in",
+    "submitting": "Signing in…",
+    "missingFields": "Enter your email and password.",
+    "invalidCredentials": "Sign-in failed — check your email and password.",
+    "unavailable": "Couldn't reach the authenticator. Try again, or use the advanced token option.",
+    "unconfigured": "Owner sign-in isn't configured for this deployment. Use the advanced token option below.",
+    "advancedToggle": "Advanced: paste an owner token",
+    "advancedIntro": "Already have an owner token? Paste it instead of signing in."
+  },
+  "setupDevice": {
+    "title": "Make this your first device",
+    "intro": "Trust this browser as the hub's first device. You can add more devices afterward.",
+    "signedInAs": "Signed in as {{owner}}",
+    "deviceNameLabel": "Device name",
+    "deviceNamePlaceholder": "e.g. Work Laptop",
+    "submit": "Make this my first device",
+    "submitting": "Setting up…",
+    "joinInstead": "Join with a pairing code instead",
+    "signOut": "Sign out"
+  },
   "session": {
     "tokenPresent": "This browser is paired.",
     "signOut": "Sign out this device",

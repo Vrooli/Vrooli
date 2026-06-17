@@ -2,6 +2,7 @@ package devices
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -24,6 +25,14 @@ const defaultDeviceName = "New device"
 // token issuance, and the revocation hand-off to the authenticator. The
 // handler is thin around it: decode → call service → translate errors.
 type Service interface {
+	// SetupOwnerDevice is the first-run bootstrap. It claims the hub for ownerID
+	// if unclaimed (first-owner-wins) and registers the calling client as a
+	// TRUSTED device directly — no pairing code, because the owner JWT already
+	// proved identity. ErrNotOwner if the hub is already claimed by a different
+	// identity. Idempotent on ownership: the same owner calling again simply
+	// registers another trusted device.
+	SetupOwnerDevice(ctx context.Context, ownerID string, p Profile) (IssuedToken, error)
+
 	List(ctx context.Context, ownerID string) ([]Device, error)
 	Get(ctx context.Context, ownerID, id string) (Device, error)
 
@@ -39,7 +48,7 @@ type Service interface {
 	// RequestPairing registers a PENDING device for the hub's owner and returns
 	// an inert token that activates when the owner approves. Used by a device
 	// that cannot scan/enter a code. Fails if the hub has no owner yet (the
-	// first device must use the code path).
+	// owner must set up the hub's first device via SetupOwnerDevice).
 	RequestPairing(ctx context.Context, p Profile) (IssuedToken, error)
 
 	// Approve promotes a PENDING device to TRUSTED. ErrDeviceConflict if the
@@ -116,17 +125,63 @@ func NewService(cfg Config) Service {
 // Compile-time guarantee.
 var _ Service = (*service)(nil)
 
+func (s *service) SetupOwnerDevice(ctx context.Context, ownerID string, p Profile) (IssuedToken, error) {
+	if strings.TrimSpace(ownerID) == "" {
+		return IssuedToken{}, ErrInvalidDevice{Field: "owner", Reason: "required"}
+	}
+	// First-owner-wins: claim the hub, then confirm the claim is ours. A hub
+	// already owned by a different identity is rejected — single-owner v1.
+	holder, err := s.repo.ClaimOwner(ctx, ownerID, s.clock.Now().UTC())
+	if err != nil {
+		return IssuedToken{}, fmt.Errorf("claim hub owner: %w", err)
+	}
+	if holder != ownerID {
+		return IssuedToken{}, ErrNotOwner{}
+	}
+	// The owner already proved identity via their JWT, so their first device is
+	// trusted directly — no pairing-code round-trip.
+	return s.registerDevice(ctx, ownerID, s.resolveName(p, ""), p, TrustTrusted)
+}
+
+// requireHubOwner is the single-owner gate for owner-authed RPCs. It admits
+// ownerID only when it matches the hub's claimed owner: an unclaimed hub
+// returns a precondition error (set the hub up first), a mismatched identity
+// returns ErrNotOwner (PermissionDenied). SetupOwnerDevice is the sole
+// owner-authed path that runs *without* this gate (it establishes the owner).
+func (s *service) requireHubOwner(ctx context.Context, ownerID string) error {
+	holder, err := s.repo.HubOwner(ctx)
+	if errors.Is(err, ErrNoOwner) {
+		return ErrDeviceConflict{Reason: "hub has no owner yet — set up this hub first"}
+	}
+	if err != nil {
+		return fmt.Errorf("resolve hub owner: %w", err)
+	}
+	if holder != ownerID {
+		return ErrNotOwner{}
+	}
+	return nil
+}
+
 func (s *service) List(ctx context.Context, ownerID string) ([]Device, error) {
+	if err := s.requireHubOwner(ctx, ownerID); err != nil {
+		return nil, err
+	}
 	return s.repo.ListDevices(ctx, ownerID)
 }
 
 func (s *service) Get(ctx context.Context, ownerID, id string) (Device, error) {
+	if err := s.requireHubOwner(ctx, ownerID); err != nil {
+		return Device{}, err
+	}
 	return s.repo.GetDevice(ctx, ownerID, id)
 }
 
 func (s *service) IssuePairingCode(ctx context.Context, ownerID, deviceName string) (PairingCode, error) {
 	if strings.TrimSpace(ownerID) == "" {
 		return PairingCode{}, ErrInvalidDevice{Field: "owner", Reason: "required"}
+	}
+	if err := s.requireHubOwner(ctx, ownerID); err != nil {
+		return PairingCode{}, err
 	}
 	raw, err := s.secrets.PairingCode()
 	if err != nil {
@@ -162,9 +217,14 @@ func (s *service) RedeemPairingCode(ctx context.Context, rawCode string, p Profi
 }
 
 func (s *service) RequestPairing(ctx context.Context, p Profile) (IssuedToken, error) {
-	ownerID, err := s.repo.ResolveOwner(ctx)
+	ownerID, err := s.repo.HubOwner(ctx)
+	if errors.Is(err, ErrNoOwner) {
+		// The owner must establish the hub's first device before a fallback
+		// request has anyone to route the approval to.
+		return IssuedToken{}, ErrDeviceConflict{Reason: "no owner yet: the owner must set up this hub's first device"}
+	}
 	if err != nil {
-		return IssuedToken{}, err
+		return IssuedToken{}, fmt.Errorf("resolve hub owner: %w", err)
 	}
 	issued, err := s.registerDevice(ctx, ownerID, s.resolveName(p, ""), p, TrustPending)
 	if err != nil {
@@ -202,6 +262,9 @@ func (s *service) registerDevice(ctx context.Context, ownerID, name string, p Pr
 }
 
 func (s *service) Approve(ctx context.Context, ownerID, id string) (Device, error) {
+	if err := s.requireHubOwner(ctx, ownerID); err != nil {
+		return Device{}, err
+	}
 	d, err := s.repo.GetDevice(ctx, ownerID, id)
 	if err != nil {
 		return Device{}, err
@@ -216,6 +279,9 @@ func (s *service) Approve(ctx context.Context, ownerID, id string) (Device, erro
 }
 
 func (s *service) Rename(ctx context.Context, ownerID, id, name string) (Device, error) {
+	if err := s.requireHubOwner(ctx, ownerID); err != nil {
+		return Device{}, err
+	}
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return Device{}, ErrInvalidDevice{Field: "name", Reason: "required"}
@@ -224,6 +290,9 @@ func (s *service) Rename(ctx context.Context, ownerID, id, name string) (Device,
 }
 
 func (s *service) Revoke(ctx context.Context, ownerID, id string) (Device, error) {
+	if err := s.requireHubOwner(ctx, ownerID); err != nil {
+		return Device{}, err
+	}
 	d, err := s.repo.GetDevice(ctx, ownerID, id)
 	if err != nil {
 		return Device{}, err

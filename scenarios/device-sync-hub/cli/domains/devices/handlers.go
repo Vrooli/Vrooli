@@ -28,6 +28,34 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	}
 }
 
+// setup calls DevicesService.SetupOwnerDevice (owner-authed): it claims the hub
+// for the signed-in owner if unclaimed and trusts this client directly. The
+// owner JWT rides the configured token source (populate it with `auth login`).
+// The one-time hub device token is printed for the caller to export as
+// $DEVICE_SYNC_HUB_DEVICE_TOKEN before running `transfer` commands.
+func (h *handlers) setup(ctx cliapp.RunContext) error {
+	resp, err := h.client.SetupOwnerDevice(context.Background(), connect.NewRequest(&devicesv1.SetupOwnerDeviceRequest{
+		Profile: profileFromFlags(ctx),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("set up owner device (run `auth login` first if unauthenticated)", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Device == nil {
+		return fmt.Errorf("server returned no device")
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result: []string{fmt.Sprintf("Set up hub owner device %s (TRUSTED).", resp.Msg.Device.Id)},
+		Changes: []string{
+			formatDevice(resp.Msg.Device),
+			fmt.Sprintf("device_token=%s (shown once)", resp.Msg.DeviceToken),
+		},
+		NextCommand: []string{
+			fmt.Sprintf("export DEVICE_SYNC_HUB_DEVICE_TOKEN=%s", resp.Msg.DeviceToken),
+			"`devices pair --name <name>` — issue a code for an additional device",
+		},
+	})
+}
+
 // list calls DevicesService.ListDevices. Owner-authed: cli-core attaches the
 // owner JWT from the configured token source.
 func (h *handlers) list(ctx cliapp.RunContext) error {

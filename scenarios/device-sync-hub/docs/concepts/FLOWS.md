@@ -25,6 +25,7 @@ workflow model.
 
 | Flow | Domain | Trigger | Outcome | Statefulness |
 |---|---|---|---|---|
+| Owner setup (first device) | devices + auth | Owner signs in and sets up the hub's first device. | Hub is claimed (first-owner-wins) and the caller becomes its first TRUSTED device. | Stateful: unclaimed → claimed; idempotent on a re-claim by the same owner. |
 | Device pairing | devices | New device redeems a code/QR, or requests approval. | Device joins the owner's trust group. | Stateful: TTL, single-use, approve/reject branches. |
 | Send item (file/text) | transfer | Trusted device uploads a file or text item. | Item stored and fanned out to receivers. | Stateful: streaming/chunked upload, store, fan-out. |
 | Pull / download | transfer | Receiver fetches an item it has access to. | Bytes streamed back with original filename. | Lightly stateful: ACL check then stream. |
@@ -34,9 +35,37 @@ workflow model.
 
 ## Flow Details
 
+### Owner setup (first device)
+
+- Owner domains: devices (trust + ownership) + auth (identity).
+- Trigger: on a fresh hub the owner signs in (owner JWT validated by
+  scenario-authenticator) and runs `SetupOwnerDevice` (UI "Make this my
+  first device" / CLI `devices setup`).
+- Steps:
+  1. Validate the owner JWT (auth middleware injects the owner identity).
+  2. **Claim** the hub for that identity — first-owner-wins via an atomic
+     conditional insert into the single-row `hub_owner` table. A second,
+     different identity on an already-claimed hub is rejected
+     (PermissionDenied).
+  3. Register the calling client directly as a **TRUSTED** device (no
+     pairing code — the JWT already proved identity) and return its
+     one-time device token.
+- States: `unclaimed → claimed`; once claimed the hub stays owned by that
+  identity. A re-claim by the **same** owner is idempotent (it just adds
+  another trusted device).
+- Illegal transitions: a non-owner issuing codes / listing / approving on
+  a claimed hub; any owner-authed RPC (other than `SetupOwnerDevice`)
+  before the hub is claimed (FailedPrecondition — "set up this hub first").
+- Why it exists: the code/QR and request→approve paths both need an owner
+  to route to, so the **first** device cannot use them — it is established
+  here. Subsequent devices then use Device pairing below.
+- Requirements: OT-P0-002 (REQ-P0-003), OT-P0-008; owner identity REQ-P0-005.
+
 ### Device pairing
 
 - Owner domain: devices.
+- Precondition: the hub already has an owner and a first device (see
+  Owner setup above). These paths add *additional* devices.
 - Primary path (code/QR): the owner's existing trusted device (or the
   owner via UI) issues a short-TTL, single-use pairing code (rendered
   also as a QR). The new device submits the code; on a valid, unexpired,
@@ -140,7 +169,8 @@ workflow model.
 
 | Domain/Flow | States | Illegal Transitions |
 |---|---|---|
-| devices / pairing | idle, code_issued, requested, redeemed, approved, rejected, trusted | redeem expired/used code; trust without code-or-approval; trust before auth validation |
+| devices / owner setup | unclaimed, claimed | owner-authed RPC (≠ setup) before claimed; a different identity claiming an already-claimed hub |
+| devices / pairing | idle, code_issued, requested, redeemed, approved, rejected, trusted | redeem expired/used code; trust without code-or-approval; trust before auth validation; pairing before the hub is claimed |
 | transfer / send | received, quota_ok, bytes_stored, metadata_recorded, fanned_out, failed | metadata before bytes; fan-out before persist; write before quota check |
 | transfer / retention | stored, delivered, expired, pinned, purged | Live escaping purge after delivery; Pinned auto-expiring; purge of blob without metadata |
 | devices / revocation | trusted, revoking, locked_out | locked_out → trusted without re-pairing; read/write while revoking |

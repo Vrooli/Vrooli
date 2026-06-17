@@ -28,10 +28,12 @@ export interface SessionContextValue {
   isPaired: boolean;
   /** True once an owner JWT is present (device-management RPCs are reachable). */
   isOwner: boolean;
+  /** Owner email for display, when known (login captures it; token-paste may not). */
+  ownerEmail: string | null;
   /** Store the device token + device returned by a successful pairing. */
   setDeviceCredentials: (deviceToken: string, device: Device | null) => void;
-  /** Store / replace the owner JWT for owner-gated device management. */
-  setOwnerToken: (ownerToken: string) => void;
+  /** Store / replace the owner JWT (and optional email) for owner-gated device management. */
+  setOwnerToken: (ownerToken: string, ownerEmail?: string | null) => void;
   /** Drop the owner JWT but keep the device paired. */
   clearOwnerToken: () => void;
   /** Forget everything (device + owner): this browser leaves the trust group locally. */
@@ -54,9 +56,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const setOwnerToken = useCallback((ownerToken: string) => {
+  const setOwnerToken = useCallback((ownerToken: string, ownerEmail: string | null = null) => {
     setSession((prev) => {
-      const next = { ...prev, ownerToken };
+      const next = { ...prev, ownerToken, ownerEmail };
       saveSession(next);
       return next;
     });
@@ -64,7 +66,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const clearOwnerToken = useCallback(() => {
     setSession((prev) => {
-      const next = { ...prev, ownerToken: null };
+      const next = { ...prev, ownerToken: null, ownerEmail: null };
       saveSession(next);
       return next;
     });
@@ -80,6 +82,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       session,
       isPaired: Boolean(session.deviceToken),
       isOwner: Boolean(session.ownerToken),
+      ownerEmail: session.ownerEmail,
       setDeviceCredentials,
       setOwnerToken,
       clearOwnerToken,

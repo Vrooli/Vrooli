@@ -30,10 +30,12 @@ export function seedSession(opts: {
   deviceToken?: string;
   device?: Device | null;
   ownerToken?: string;
+  ownerEmail?: string | null;
 } = {}): void {
   saveSession({
     deviceToken: opts.deviceToken ?? "device-token-test",
     device: opts.device ?? makeDevice(),
     ownerToken: opts.ownerToken ?? null,
+    ownerEmail: opts.ownerEmail ?? null,
   });
 }

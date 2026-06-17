@@ -59,11 +59,11 @@ function DefaultFallback({ onRetry }: { onRetry: () => void }) {
     <div
       data-testid={selectors.errorBoundary.root}
       role="alert"
-      className="min-h-screen bg-slate-950 text-slate-50 flex flex-col items-center justify-center p-6"
+      className="flex min-h-screen flex-col items-center justify-center bg-app-background p-6 text-app-foreground"
     >
-      <div className="w-full max-w-md rounded-2xl border border-red-500/40 bg-red-950/30 p-6 text-center backdrop-blur-sm">
-        <h1 className="text-2xl font-semibold">{t(strings.errorBoundary.title)}</h1>
-        <p className="mt-3 text-slate-300">{t(strings.errorBoundary.message)}</p>
+      <div className="w-full max-w-md rounded-sheet border border-app-danger/40 bg-app-surface p-6 text-center shadow-sm">
+        <h1 className="text-2xl font-semibold text-app-danger">{t(strings.errorBoundary.title)}</h1>
+        <p className="mt-3 text-app-muted-foreground">{t(strings.errorBoundary.message)}</p>
         <Button
           data-testid={selectors.errorBoundary.retryButton}
           className="mt-5"

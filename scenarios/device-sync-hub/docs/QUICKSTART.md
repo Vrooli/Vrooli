@@ -50,28 +50,53 @@ Or check the URL directly:
 vrooli scenario port device-sync-hub UI_PORT
 ```
 
-You should see the example UI rendering live `/health` data and a
-notes pane backed by the local SQLite store.
+## 4 — Set up the hub's first device (you are the owner)
 
-## 4 — Talk to the API
+A hub has exactly one **owner** (a [scenario-authenticator](../../scenario-authenticator)
+account) and a trust group of **devices**. On a fresh install the very first
+device is set up by the owner — there is no pairing code yet because nothing
+has been paired.
 
-Through the scenario CLI (preferred — uses the resolved port and token
-automatically):
+### From the browser
+
+1. Open the UI. The first-run screen offers two paths: **Set up this hub**
+   (you're the owner) or **Join an existing hub**.
+2. Choose **Set up this hub**, sign in with your owner account, then click
+   **Make this my first device**. That claims the hub for you (first-owner-wins)
+   and trusts this browser directly — no pairing code needed.
+3. You're now in the app. To add more devices, open **Devices → Add a device**
+   to issue a pairing code (or let another device request approval).
+
+> If owner sign-in isn't configured for your deployment, the login screen offers
+> an **Advanced: paste an owner token** fallback that accepts an owner JWT
+> directly. Set `VITE_AUTH_API_BASE` to point the UI at scenario-authenticator.
+
+### From the CLI
 
 ```bash
-device-sync-hub status
-device-sync-hub notes list
-device-sync-hub notes create --title "First note" --body "Hello"
+# 1. Sign in as the owner (stores the owner token in the CLI config).
+device-sync-hub auth login --email <you@example.com> --password <password>
+device-sync-hub auth whoami            # confirm the signed-in owner
+
+# 2. Claim the hub + trust THIS machine as the first device.
+device-sync-hub devices setup --name "Workstation"
+#    prints a one-time device token — export it for transfer commands:
+export DEVICE_SYNC_HUB_DEVICE_TOKEN=<token-from-output>
+
+# 3. Add more devices: issue a code the new device redeems.
+device-sync-hub devices pair --name "Phone"
+device-sync-hub devices list
 ```
 
-Or directly via HTTP:
+`auth login` targets scenario-authenticator (resolved from `--auth-api-base`,
+`$AUTH_SERVICE_URL`, or by auto-detecting its API port); every owner-authed
+`devices` command then rides the stored owner token automatically.
+
+## 4b — Health check
 
 ```bash
 API_PORT=$(vrooli scenario port device-sync-hub API_PORT)
 curl -s "http://localhost:${API_PORT}/health"
-curl -s -X POST "http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.notes.NotesService/ListNotes" \
-  -H 'Content-Type: application/json' \
-  -d '{}'
 ```
 
 ## 5 — Run the tests

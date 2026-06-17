@@ -34,11 +34,18 @@ type Repository interface {
 	// carries that hash. Backs Phase 3 transfer trust enforcement.
 	DeviceByToken(ctx context.Context, tokenHash string) (Device, error)
 
-	// ResolveOwner returns the single owner this hub belongs to, derived from
-	// existing device rows (v1 is single-owner-many-devices). Returns
-	// ErrDeviceConflict when no device exists yet — the very first device must
-	// bootstrap via the authenticated code path, not the fallback request path.
-	ResolveOwner(ctx context.Context) (string, error)
+	// ClaimOwner records ownerID as the hub's single owner, first-owner-wins:
+	// the claim is an atomic conditional insert, so concurrent claims can never
+	// both succeed. It returns the owner that holds the hub *after* the call —
+	// ownerID when the hub was unclaimed (or already theirs), or the existing
+	// owner when someone else got there first. The caller compares the returned
+	// id to ownerID to learn whether the claim is theirs.
+	ClaimOwner(ctx context.Context, ownerID string, now time.Time) (string, error)
+
+	// HubOwner returns the hub's single owner id, or ErrNoOwner when the hub is
+	// unclaimed (no SetupOwnerDevice has run yet). Ownership is an explicit hub
+	// fact (hub_owner row), never derived from device rows.
+	HubOwner(ctx context.Context) (string, error)
 
 	// CreatePairingCode persists a freshly-issued code (hash + metadata).
 	CreatePairingCode(ctx context.Context, c PairingCode) error
