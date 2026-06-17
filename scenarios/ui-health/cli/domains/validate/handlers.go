@@ -7,8 +7,9 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/vrooli/cli-core/cliapp"
-	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/validation"
-	validationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/validation/validation_v1connect"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 )
 
 // handlers bundles the closure over *cliapp.ScenarioApp so each RunCtx
@@ -16,24 +17,24 @@ import (
 // re-resolving it.
 type handlers struct {
 	core   *cliapp.ScenarioApp
-	client validationconnect.ValidationServiceClient
+	client scenariovalidationconnect.ScenarioValidationServiceClient
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 	return &handlers{
 		core:   core,
-		client: validationconnect.NewValidationServiceClient(httpClient, baseURL),
+		client: scenariovalidationconnect.NewScenarioValidationServiceClient(httpClient, baseURL),
 	}
 }
 
-// validateScenario calls ValidationService.ValidateScenario, renders the
-// returned Findings to human / JSON output, and returns a non-nil error when
-// the report contains any SEVERITY_ERROR finding so shells get a non-zero
+// validateScenario calls ScenarioValidationService.ValidateScenario, renders
+// assessment findings to human / JSON output, and returns a non-nil error
+// when the report contains any SEVERITY_ERROR finding so shells get a non-zero
 // exit code without a duplicated stderr noise line.
 func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 	name := ctx.Positional("name")
-	resp, err := h.client.ValidateScenario(context.Background(), connect.NewRequest(&validationv1.ValidateScenarioRequest{
+	resp, err := h.client.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
 		Scenario: name,
 	}))
 	if err != nil {
@@ -43,21 +44,18 @@ func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 		return fmt.Errorf("server returned no validation response")
 	}
 	msg := resp.Msg
-	results := make([]string, 0, len(msg.Findings))
-	for _, f := range msg.Findings {
-		sev := severityLabel(f.Severity)
-		line := fmt.Sprintf("[%s] %s — %s (%s)", sev, f.Code, f.Message, f.Location)
-		if f.Suggestion != "" {
-			line += "\n    suggestion: " + f.Suggestion
-		}
+	assessment := msg.GetAssessment()
+	results := make([]string, 0, len(assessment.GetFindings()))
+	for _, f := range assessment.GetFindings() {
+		line := formatFinding(f)
 		results = append(results, line)
 	}
+	errors := int(assessment.GetFindingsBySeverity()["SEVERITY_ERROR"])
+	warnings := int(assessment.GetFindingsBySeverity()["SEVERITY_WARNING"])
+	infos := int(assessment.GetFindingsBySeverity()["SEVERITY_INFO"])
 	summaryLines := []string{
-		fmt.Sprintf("Validated %s — passed=%v errors=%d warnings=%d infos=%d",
-			msg.GetScenario(), msg.GetPassed(),
-			int(msg.GetSummary().GetErrors()),
-			int(msg.GetSummary().GetWarnings()),
-			int(msg.GetSummary().GetInfos()),
+		fmt.Sprintf("Validated %s — status=%s errors=%d warnings=%d infos=%d",
+			msg.GetScenario(), statusLabel(msg.GetStatus()), errors, warnings, infos,
 		),
 	}
 	if assessmentReport := cliapp.BuildMaturityListReport(msg.GetAssessment()); len(assessmentReport.Summary) > 0 {
@@ -74,19 +72,50 @@ func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 	}); err != nil {
 		return err
 	}
-	if !msg.GetPassed() {
-		return fmt.Errorf("scenario %s did not pass validation (%d error finding(s))", msg.GetScenario(), msg.GetSummary().GetErrors())
+	if msg.GetStatus() == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED {
+		return fmt.Errorf("scenario %s did not pass validation (%d error finding(s))", msg.GetScenario(), errors)
+	}
+	if msg.GetStatus() == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_ERROR {
+		return fmt.Errorf("scenario %s validation errored", msg.GetScenario())
 	}
 	return nil
 }
 
-func severityLabel(s validationv1.Severity) string {
+func statusLabel(s scenariovalidationv1.ValidationStatus) string {
 	switch s {
-	case validationv1.Severity_SEVERITY_ERROR:
+	case scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED:
+		return "passed"
+	case scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED:
+		return "failed"
+	case scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED:
+		return "degraded"
+	case scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_ERROR:
+		return "error"
+	case scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_SKIPPED:
+		return "skipped"
+	default:
+		return "unspecified"
+	}
+}
+
+func formatFinding(f *commonv1.AssessmentFinding) string {
+	if f == nil {
+		return ""
+	}
+	line := fmt.Sprintf("[%s] %s — %s (%s)", severityLabel(f.GetSeverity()), f.GetCode(), f.GetMessage(), f.GetLocation())
+	if f.GetRemediation() != "" {
+		line += "\n    suggestion: " + f.GetRemediation()
+	}
+	return line
+}
+
+func severityLabel(s string) string {
+	switch s {
+	case "SEVERITY_ERROR":
 		return "ERROR"
-	case validationv1.Severity_SEVERITY_WARNING:
+	case "SEVERITY_WARNING":
 		return "WARN"
-	case validationv1.Severity_SEVERITY_INFO:
+	case "SEVERITY_INFO":
 		return "INFO"
 	default:
 		return "UNSPECIFIED"

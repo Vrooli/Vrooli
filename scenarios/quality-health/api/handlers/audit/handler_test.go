@@ -26,7 +26,7 @@ func TestContractToProtoPreservesRuleIDs(t *testing.T) {
 
 func TestResponseToProtoIncludesValidSharedMaturityAssessment(t *testing.T) {
 	spec := testMaturitySpec(t)
-	resp, err := responseToProto(internalaudit.Response{
+	resp, err := ResponseToProto(internalaudit.Response{
 		RunID:   "qh-test",
 		Status:  "failed",
 		Summary: "quality failed",
@@ -54,7 +54,7 @@ func TestResponseToProtoIncludesValidSharedMaturityAssessment(t *testing.T) {
 }
 
 func TestResponseToProtoRequiresMaturitySpec(t *testing.T) {
-	_, err := responseToProto(internalaudit.Response{
+	_, err := ResponseToProto(internalaudit.Response{
 		Inventory: surfaces.Inventory{Scenario: "demo"},
 	}, nil)
 	require.ErrorContains(t, err, "maturity spec is required")

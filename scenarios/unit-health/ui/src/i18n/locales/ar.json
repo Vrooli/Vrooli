@@ -33,22 +33,6 @@
       "localeHeading": "اللغة"
     }
   },
-  "health": {
-    "title": "حالة API",
-    "loading": "جارٍ التحقق من حالة API…",
-    "error": "تعذر الوصول إلى API. تأكد من تشغيل السيناريو عبر `vrooli scenario start`.",
-    "refresh": "تحديث",
-    "refreshCount": "تم التحديث {{count}} مرات",
-    "refreshCount_one": "تم التحديث مرة واحدة",
-    "statusLabel": "الحالة:",
-    "serviceLabel": "الخدمة:",
-    "timestampLabel": "الطابع الزمني:"
-  },
-  "notifications": {
-    "summary": "{{count}} إشعارات",
-    "summary_zero": "لا توجد إشعارات",
-    "summary_one": "إشعار واحد"
-  },
   "validation": {
     "title": "التحقق من نضج اختبارات السيناريو",
     "scenarioLabel": "السيناريو",
@@ -63,6 +47,7 @@
     "surfaces": "الأسطح",
     "runId": "معرّف التشغيل",
     "targetPath": "المسار المستهدف",
+    "artifactsTitle": "مخرجات التشغيل",
     "countSummary": "{{errors}} أخطاء / {{warnings}} تحذيرات / {{infos}} معلومات",
     "unknown": "غير معروف",
     "findingsTitle": "النتائج",

@@ -67,7 +67,7 @@ func (h *Handler) AuditQuality(ctx context.Context, req *connect.Request[auditv1
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	resp, err := responseToProto(report, h.spec)
+	resp, err := ResponseToProto(report, h.spec)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build maturity assessment: %w", err))
 	}
@@ -122,7 +122,7 @@ func (h *Handler) ApplyFixConfig(ctx context.Context, req *connect.Request[audit
 	return connect.NewResponse(fixResponseToProto(inv, true, candidates)), nil
 }
 
-func responseToProto(in internalaudit.Response, spec *assessment.Spec) (*auditv1.AuditQualityResponse, error) {
+func ResponseToProto(in internalaudit.Response, spec *assessment.Spec) (*auditv1.AuditQualityResponse, error) {
 	errors, warnings, infos := findingCounts(in.Findings)
 	assessment, err := buildMaturityAssessment(in, spec)
 	if err != nil {

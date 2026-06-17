@@ -12,8 +12,8 @@ import {
   FleetEntrySchema,
   ListFleetCoverageResponseSchema,
   MeasureSummarySchema,
+  ScenarioCoverageReportSchema,
   SummarySchema,
-  ValidateScenarioResponseSchema,
 } from "@vrooli/proto-types/measures-health/v1/validation/validation_pb";
 
 import { expectNoA11yViolations, renderWithProviders } from "../../test-utils";
@@ -56,7 +56,7 @@ describe("FleetView accessibility", () => {
       }),
     );
     vi.mocked(fleetClient.validateScenario).mockResolvedValue(
-      create(ValidateScenarioResponseSchema, {
+      create(ScenarioCoverageReportSchema, {
         scenario: "swarm-manager",
         passed: false,
         summary: create(SummarySchema, { errors: 1, warnings: 0, infos: 0 }),

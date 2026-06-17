@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -764,6 +765,14 @@ func performStandardsCheck(ctx context.Context, target standardsScanTarget, spec
 	var violations []StandardsViolation
 	filesScanned := 0
 
+	// securityMiddlewarePresent records, per scenario, whether a central
+	// security-headers middleware was seen during the walk. The OWASP
+	// Security Headers rule is a per-file check that cannot see a wrapping
+	// middleware; when a scenario applies the headers centrally, its
+	// individual handler files must not be flagged for "missing security
+	// headers". Findings for such scenarios are dropped in a post-pass below.
+	securityMiddlewarePresent := map[string]bool{}
+
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -822,6 +831,10 @@ func performStandardsCheck(ctx context.Context, target standardsScanTarget, spec
 
 		contentStr := string(content)
 
+		if scenarioName != "" && looksLikeSecurityHeadersMiddleware(contentStr) {
+			securityMiddlewarePresent[scenarioName] = true
+		}
+
 		if onFile != nil {
 			onFile(scenarioName, scenarioRelative)
 		}
@@ -860,6 +873,22 @@ func performStandardsCheck(ctx context.Context, target standardsScanTarget, spec
 
 	if err != nil {
 		return violations, filesScanned, err
+	}
+
+	// Credit central security-headers middleware: drop per-file Security Headers
+	// findings for any scenario that applies the headers via a middleware. The
+	// rule cannot see middleware wrapping, so without this it false-flags every
+	// raw response writer (downloads, SSE, error writers) in a correctly
+	// hardened scenario.
+	if len(securityMiddlewarePresent) > 0 {
+		filtered := violations[:0]
+		for _, v := range violations {
+			if v.Type == "security_headers" && securityMiddlewarePresent[v.ScenarioName] {
+				continue
+			}
+			filtered = append(filtered, v)
+		}
+		violations = filtered
 	}
 
 	structureRules := collectRulesForTargets([]string{targetStructure}, ruleBuckets)
@@ -1364,6 +1393,29 @@ func isBinaryContent(content []byte) bool {
 	}
 
 	return !utf8.Valid(content)
+}
+
+// securityHeaderSetRE matches the four browser-hardening headers the OWASP
+// Security Headers rule requires, set via w.Header().Set(...). A file matching
+// all four is treated as a central security-headers middleware.
+var securityHeaderSetRE = []*regexp.Regexp{
+	regexp.MustCompile(`w\.Header\(\)\.Set\(["']X-Frame-Options["']`),
+	regexp.MustCompile(`w\.Header\(\)\.Set\(["']X-Content-Type-Options["']`),
+	regexp.MustCompile(`w\.Header\(\)\.Set\(["']X-XSS-Protection["']`),
+	regexp.MustCompile(`w\.Header\(\)\.Set\(["']Strict-Transport-Security["']`),
+}
+
+// looksLikeSecurityHeadersMiddleware reports whether a Go source file sets the
+// full set of browser-hardening security headers — the signature of a central
+// security-headers middleware. Used to credit a scenario so its individual
+// handler files are not false-flagged by the per-file Security Headers rule.
+func looksLikeSecurityHeadersMiddleware(content string) bool {
+	for _, re := range securityHeaderSetRE {
+		if !re.MatchString(content) {
+			return false
+		}
+	}
+	return true
 }
 
 func convertRuleViolationToStandards(rule RuleInfo, violation rulespkg.Violation, scenarioName, fallbackPath string) StandardsViolation {

@@ -305,6 +305,53 @@
       ]
     },
     {
+      "id": "searchcontrol_write_corpus",
+      "path": "/vrooli.search_hub.v1.control.SearchControlService/WriteCorpus",
+      "method": "POST",
+      "summary": "Write an evaluation corpus back to search.json (token-gated)",
+      "description": "Validates a new evaluation corpus (the tests block, carried as an eval EvalSuite) and atomically rewrites ONLY that block in the provider's search.json — the corpus twin of WriteConfig. The search-hub optimizer's corpus write-back verb (e.g. `evals generate --apply`); not an interactive operator command. Never triggers a reindex.",
+      "category": "searchcontrol",
+      "request": {
+        "type": "object",
+        "properties": {
+          "control_token": "string (required)",
+          "corpus": "object (full replacement tests block, as an eval EvalSuite)",
+          "dry_run": "boolean (validate + diff without writing)",
+          "provider_id": "string (required; the leaf whose corpus is rewritten)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "effective": "object (corpus now in effect, as an eval EvalSuite)",
+          "written": "boolean"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing provider_id or a malformed corpus (case missing id/query, duplicate id)"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "Control plane disabled or control token mismatch"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "provider_id not present in search.json"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Write corpus (dry-run)",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.control.SearchControlService/WriteCorpus -H 'Content-Type: application/json' -d '{\"provider_id\":\"cli-health.commands\",\"dry_run\":true,\"control_token\":\"<token>\",\"corpus\":{\"suite_id\":\"cli-health.commands.primary\",\"cases\":[]}}'"
+        }
+      ]
+    },
+    {
       "id": "validation_validate_scenario",
       "path": "/vrooli.cli_health.v1.validation.ValidationService/ValidateScenario",
       "method": "POST",
@@ -320,6 +367,7 @@
       "response": {
         "type": "object",
         "properties": {
+          "assessment": "common.v1.MaturityAssessment",
           "findings": "array<Finding>",
           "passed": "boolean",
           "scenario": "string",
@@ -349,18 +397,28 @@
   ],
   "cli_commands": [
     {
-      "name": "status",
-      "description": "Check API and dependency health (auto-provided by cli-core's StandardScenarioApp)",
-      "endpoint_id": "health"
+      "name": "configure",
+      "description": "View or update CLI settings (api_base, token)",
+      "endpoint_id": ""
     },
     {
-      "name": "validate scenario",
-      "description": "Validate a scenario's CLI manifest, proto, and endpoints.json",
-      "endpoint_id": "validation_validate_scenario"
+      "name": "reindex cancel",
+      "description": "Request cooperative cancellation of an in-flight reindex job",
+      "endpoint_id": "searchcontrol_reindex_cancel"
+    },
+    {
+      "name": "reindex run",
+      "description": "Start a reindex job",
+      "endpoint_id": "searchcontrol_reindex"
+    },
+    {
+      "name": "reindex status",
+      "description": "Poll a reindex job's progress",
+      "endpoint_id": "searchcontrol_reindex_status"
     },
     {
       "name": "search query",
-      "description": "Search CLI commands across scenarios by natural-language text",
+      "description": "Search the indexed corpus by natural-language text",
       "endpoint_id": "search_query"
     },
     {
@@ -369,19 +427,14 @@
       "endpoint_id": "search_status"
     },
     {
-      "name": "reindex run",
-      "description": "Start a reindex job that reconciles the search corpus",
-      "endpoint_id": "reindex_run"
+      "name": "status",
+      "description": "Check API health",
+      "endpoint_id": "health"
     },
     {
-      "name": "reindex status",
-      "description": "Poll a reindex job's progress",
-      "endpoint_id": "reindex_status"
-    },
-    {
-      "name": "reindex cancel",
-      "description": "Cancel an in-flight reindex job",
-      "endpoint_id": "reindex_cancel"
+      "name": "validate scenario",
+      "description": "Validate a single scenario by id",
+      "endpoint_id": "validation_validate_scenario"
     }
   ]
 }

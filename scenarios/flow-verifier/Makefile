@@ -70,7 +70,8 @@ orient: ## Show generated-scenario orientation progress
 	@vrooli scenario orient "$(SCENARIO_NAME)"
 
 endpoints: ## Regenerate .vrooli/endpoints.json from API modules
-	@cd api && go run ./cmd/gen-endpoints --output ../.vrooli/endpoints.json --seed cmd/gen-endpoints/cli_commands_seed.json
+	@cd cli && go run ./cmd/gen-cli-commands
+	@cd api && go run ./cmd/gen-endpoints --output ../.vrooli/endpoints.json
 
 run: start
 

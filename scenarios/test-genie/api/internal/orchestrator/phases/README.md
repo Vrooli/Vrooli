@@ -134,12 +134,12 @@ flowchart LR
 
 ### dependencies
 
-**File:** `phase_dependencies.go`
+**File:** `phase_validationprovider.go`
 
 Delegates dependency validation to Scenario Dependency Analyzer:
 
-- Calls `scenario-dependency-analyzer health <scenario> --json`
-- Maps SDA findings into `FINDING_SOURCE_DEPENDENCY`
+- Calls `scenario-validation/v1.ScenarioValidationService.ValidateScenario` on `scenario-dependency-analyzer`
+- Maps SDA assessment findings into `FINDING_SOURCE_DEPENDENCY`
 - Does not run native dependency checks or call SDA drift separately
 - Fails when SDA returns `ERROR` / `BLOCKER` dependency health findings or when the producer is unavailable
 
@@ -303,7 +303,7 @@ phases/
 ├── types.go                # Name, Runner, RunReport, ExecutionResult
 │
 ├── phase_structure.go      # Structure validation
-├── phase_dependencies.go   # SDA dependency health delegation
+├── phase_validationprovider.go # Shared health-provider delegation
 ├── phase_unit.go           # Unit test execution
 ├── phase_integration.go    # Integration tests
 ├── phase_playbooks.go      # BAS workflow execution

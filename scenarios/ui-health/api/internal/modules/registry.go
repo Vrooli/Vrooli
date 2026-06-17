@@ -18,7 +18,6 @@ import (
 
 	reindexv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/reindex"
 	searchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/search"
-	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/validation"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -43,7 +42,7 @@ func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "reindex", File: reindexv1.File_ui_health_v1_reindex_reindex_proto},
 		{Module: "search", File: searchv1.File_ui_health_v1_search_search_proto},
-		{Module: "validation", File: validationv1.File_ui_health_v1_validation_validation_proto},
+		{Module: "validation", File: validationH.ProtoFile},
 	}
 }
 

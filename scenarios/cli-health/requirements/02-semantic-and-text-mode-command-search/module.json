@@ -1,130 +1,112 @@
 {
-  "description": "`cli-health search \"\u003cquery\u003e\"` returns ranked commands across all adopting scenarios in AI mode; `--text` fallback operates without Ollama or Qdrant.",
-  "module_id": "MOD-P0-002",
-  "prd_ref": "OT-P0-002",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-06-17T10:22:41-04:00"
+  },
   "requirements": [
     {
-      "category": "core",
-      "dependencies": [
-        "REQ-P0-007"
-      ],
-      "description": "The `cli-health search \"\u003cquery\u003e\"` command (default mode) must embed the query using the Ollama `embedding.default` role, query the Qdrant vector store for the top-K nearest command embeddings across all indexed scenarios, and return results ranked by cosine similarity. Results must include at minimum: command name, scenario name, short description, and similarity score. The command must achieve recall@5 ≥ 0.8 on the labelled query corpus stored in the scenario-owned SSOT `scenarios/cli-health/.vrooli/search.json` (provider `cli-health.commands`, `tests` block).",
       "id": "REQ-P0-004",
-      "prd_ref": "OT-P0-002",
-      "status": "implemented",
       "title": "AI Semantic Search via Qdrant and Ollama Role Policy",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-002",
+      "category": "core",
+      "description": "The `cli-health search \"\u003cquery\u003e\"` command (default mode) must embed the query using the Ollama `embedding.default` role, query the Qdrant vector store for the top-K nearest command embeddings across all indexed scenarios, and return results ranked by cosine similarity. Results must include at minimum: command name, scenario name, short description, and similarity score. The command must achieve recall@5 ≥ 0.8 on the labelled query corpus stored in the scenario-owned SSOT `scenarios/cli-health/.vrooli/search.json` (provider `cli-health.commands`, `tests` block).",
       "validation": [
         {
-          "notes": "Given a mocked Ollama embed response and mocked Qdrant search response, search returns results sorted descending by similarity score",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Given a mocked Ollama embed response and mocked Qdrant search response, search returns results sorted descending by similarity score"
         },
         {
-          "notes": "Given a Qdrant result set, the output includes command name, scenario name, description, and score for each hit",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Given a Qdrant result set, the output includes command name, scenario name, description, and score for each hit"
         },
         {
-          "notes": "Unit test for the manifest scan discovery source: given a synthetic manifest, all non-omitted commands are emitted as indexable documents",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Unit test for the manifest scan discovery source: given a synthetic manifest, all non-omitted commands are emitted as indexable documents"
         },
         {
-          "notes": "Embedded integration test with real Qdrant and real Ollama: index a known command set, run 5 representative queries, assert top result is the expected command",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Embedded integration test with real Qdrant and real Ollama: index a known command set, run 5 representative queries, assert top result is the expected command"
         },
         {
-          "notes": "Recall@5 evaluation test: run all gradeable queries from `.vrooli/search.json` (provider cli-health.commands, tests.cases — those carrying expected_paths) against a populated index and assert recall@5 ≥ 0.8. HARNESS: api/internal/aisearch/recall_test.go::TestCommandRecall (live-gated by CLI_HEALTH_AISEARCH_LIVE=1; rebuilds a dedicated collection, reading the production tuning from the same SSOT so gate and prod cannot drift). CORPUS COLLAPSE (Search Self-Tuning Phase 1): the former testdata/search_queries.json (20 full-path cases) and the search-hub eval seed cli-health.commands.primary.json (9 leaf-id cases + 1 gibberish negative) were unified into search.json `tests` (cases + negatives) and both old files deleted. DEEP INVESTIGATION 2026-06-07 (measured matrix; see experiment_test.go / retrieval_diag_test.go / bvariants_test.go / final_test.go): recall improved 0.50 → 0.70 (14/20) and the remaining gap is now fully root-caused. WHAT MOVED IT (measured, shipped): (1) nomic task prefixes — embedding queries with 'search_query:' and passages with 'search_document:' lifts canonical commands up the RAW retrieval (e.g. 'vrooli scenario list' #17→#2, 'create a record' #32→#4); opt-in via CLI_HEALTH_EMBED_TASK_PREFIX. (2) RRF rerank BLEND — the cross-encoder was the single biggest recall destroyer (it pure-reordered, promoting literal-token siblings; rerank-ON=0.50 vs rerank-OFF=0.70). Blending its order with retrieval (CLI_HEALTH_RERANK_BLEND) recovers full recall AND keeps junk rejection (gibberish stays ~0.03/weak; pure rerank-off leaked 5 strong junk hits). WHAT DID NOT HELP (measured, NOT shipped): enriched embedding text (0.70→0.40, hurts), hybrid sparse leg (mixed/negative on this corpus), canonical-origin authority boost (0.70→0.65, hurts). THE REMAINING 6 MISSES are NOT retrieval-algorithm problems: (a) 'git-control-tower baseline snapshot' — a REAL command but git-control-tower's cli/manifest.json declares only the 'worktree' group, so manifest-first discovery never indexes the baseline group (filed: GCT manifest-completeness bug); (b) 'vrooli help' — NOT a discrete command ('--help' is a flag); the 'show available commands' label tests a non-command (filed); (c) 'prompt-manager action create' — now INDEXED after fixing the help-parser to handle 'create, add  <desc>' alias rows (helpparser.go commandLineRE), but still ranks just outside top-5 (genuine vocab gap register↔create); (d) 'cli-health search query/status' + 'app-issue-tracker issue create' — indexed, ranked just outside top-5 (vocab gap / sibling competition). Labels were NOT rewritten to match engine output (no gaming). GATE NOW PASSES — RE-MEASURED 2026-06-09 (AI-search prod-readiness plan, Phase 5): recall@5 = 0.895 (34/38), well above the 0.80 target. THE WIN was folding parent-GROUP prose into each command's embedding text uniformly on BOTH the manifest and --help discovery paths (CommandRecord.GroupDescription → composeCommandEmbeddingText; a leaf's own description is terse machine syntax, the group line carries the real query vocabulary) — a generic retrieval improvement, not a per-command tweak. The 4 remaining misses are all the previously-root-caused non-retrieval cases: (a) 'show help for available commands' expects `help`, which is the cli-core help PSEUDO-command now deliberately excluded from indexing (isHelpPseudoCommand) — testing a non-command; (b) 'report a bug or defect' → app-issue-tracker issue create + (c) 'register a reusable cli action' → prompt-manager action create — cross-scenario vocab gaps (register↔create), NOT fixed with synonyms because that would be a cli-health-side per-command hack with measured regression risk for a gate that already clears 0.80; (d) 'scenario-to-cloud process' / GCT baseline group still gated on the external GCT manifest-completeness bug knw-1780810146590717122 (out of cli-health scope). No labels gamed, no measured-to-hurt change shipped.",
-          "phase": "integration",
+          "type": "test",
           "ref": "api/internal/aisearch/recall_test.go",
-          "status": "passing",
-          "type": "test"
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Recall@5 evaluation test: run all gradeable queries from `.vrooli/search.json` (provider cli-health.commands, tests.cases — those carrying expected_paths) against a populated index and assert recall@5 ≥ 0.8. HARNESS: api/internal/aisearch/recall_test.go::TestCommandRecall (live-gated by CLI_HEALTH_AISEARCH_LIVE=1; rebuilds a dedicated collection, reading the production tuning from the same SSOT so gate and prod cannot drift). CORPUS COLLAPSE (Search Self-Tuning Phase 1): the former testdata/search_queries.json (20 full-path cases) and the search-hub eval seed cli-health.commands.primary.json (9 leaf-id cases + 1 gibberish negative) were unified into search.json `tests` (cases + negatives) and both old files deleted. DEEP INVESTIGATION 2026-06-07 (measured matrix; see experiment_test.go / retrieval_diag_test.go / bvariants_test.go / final_test.go): recall improved 0.50 → 0.70 (14/20) and the remaining gap is now fully root-caused. WHAT MOVED IT (measured, shipped): (1) nomic task prefixes — embedding queries with 'search_query:' and passages with 'search_document:' lifts canonical commands up the RAW retrieval (e.g. 'vrooli scenario list' #17→#2, 'create a record' #32→#4); opt-in via CLI_HEALTH_EMBED_TASK_PREFIX. (2) RRF rerank BLEND — the cross-encoder was the single biggest recall destroyer (it pure-reordered, promoting literal-token siblings; rerank-ON=0.50 vs rerank-OFF=0.70). Blending its order with retrieval (CLI_HEALTH_RERANK_BLEND) recovers full recall AND keeps junk rejection (gibberish stays ~0.03/weak; pure rerank-off leaked 5 strong junk hits). WHAT DID NOT HELP (measured, NOT shipped): enriched embedding text (0.70→0.40, hurts), hybrid sparse leg (mixed/negative on this corpus), canonical-origin authority boost (0.70→0.65, hurts). THE REMAINING 6 MISSES are NOT retrieval-algorithm problems: (a) 'git-control-tower baseline snapshot' — a REAL command but git-control-tower's cli/manifest.json declares only the 'worktree' group, so manifest-first discovery never indexes the baseline group (filed: GCT manifest-completeness bug); (b) 'vrooli help' — NOT a discrete command ('--help' is a flag); the 'show available commands' label tests a non-command (filed); (c) 'prompt-manager action create' — now INDEXED after fixing the help-parser to handle 'create, add  \u003cdesc\u003e' alias rows (helpparser.go commandLineRE), but still ranks just outside top-5 (genuine vocab gap register↔create); (d) 'cli-health search query/status' + 'app-issue-tracker issue create' — indexed, ranked just outside top-5 (vocab gap / sibling competition). Labels were NOT rewritten to match engine output (no gaming). GATE NOW PASSES — RE-MEASURED 2026-06-09 (AI-search prod-readiness plan, Phase 5): recall@5 = 0.895 (34/38), well above the 0.80 target. THE WIN was folding parent-GROUP prose into each command's embedding text uniformly on BOTH the manifest and --help discovery paths (CommandRecord.GroupDescription → composeCommandEmbeddingText; a leaf's own description is terse machine syntax, the group line carries the real query vocabulary) — a generic retrieval improvement, not a per-command tweak. The 4 remaining misses are all the previously-root-caused non-retrieval cases: (a) 'show help for available commands' expects `help`, which is the cli-core help PSEUDO-command now deliberately excluded from indexing (isHelpPseudoCommand) — testing a non-command; (b) 'report a bug or defect' → app-issue-tracker issue create + (c) 'register a reusable cli action' → prompt-manager action create — cross-scenario vocab gaps (register↔create), NOT fixed with synonyms because that would be a cli-health-side per-command hack with measured regression risk for a gate that already clears 0.80; (d) 'scenario-to-cloud process' / GCT baseline group still gated on the external GCT manifest-completeness bug knw-1780810146590717122 (out of cli-health scope). No labels gamed, no measured-to-hurt change shipped."
         },
         {
-          "notes": "AI search returns results within an acceptable latency budget on a warm local stack (no explicit cap defined for AI mode; cap applies to --text mode only)",
+          "type": "test",
           "phase": "performance",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "AI search returns results within an acceptable latency budget on a warm local stack (no explicit cap defined for AI mode; cap applies to --text mode only)"
         },
         {
-          "notes": "Developers can discover CLI commands across scenarios using natural language without knowing exact command names",
+          "type": "test",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Developers can discover CLI commands across scenarios using natural language without knowing exact command names"
         }
       ]
     },
     {
+      "id": "REQ-P0-005",
+      "title": "Text-mode Search Fallback Without Ollama or Qdrant",
+      "status": "pending",
+      "prd_ref": "OT-P0-002",
       "category": "cli",
       "description": "When `cli-health search \"\u003cquery\u003e\" --text` is specified, or when Ollama or Qdrant are unavailable, the command must fall back to a pure text-based search over command names, descriptions, and flag metadata loaded directly from manifest files. No network calls to Ollama or Qdrant may be made in this mode. Results must be returned in under 2 seconds on a cold local stack. The `--text` flag must be explicitly documented in the command help output.",
-      "id": "REQ-P0-005",
-      "prd_ref": "OT-P0-002",
-      "status": "draft",
-      "title": "Text-mode Search Fallback Without Ollama or Qdrant",
       "validation": [
         {
-          "notes": "Given --text flag, the Qdrant and Ollama clients are never invoked",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Given --text flag, the Qdrant and Ollama clients are never invoked"
         },
         {
-          "notes": "Given a set of synthetic manifests and a query matching a command description substring, --text search returns that command in results",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Given a set of synthetic manifests and a query matching a command description substring, --text search returns that command in results"
         },
         {
-          "notes": "Given --text flag, results are ranked by relevance heuristic (e.g., term frequency or string similarity score)",
+          "type": "test",
           "phase": "unit",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "failing",
+          "notes": "Given --text flag, results are ranked by relevance heuristic (e.g., term frequency or string similarity score)"
         },
         {
-          "notes": "Run `cli-health search \"create user\" --text` with Ollama and Qdrant services stopped; assert nonzero results returned and exit code 0",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Run `cli-health search \"create user\" --text` with Ollama and Qdrant services stopped; assert nonzero results returned and exit code 0"
         },
         {
-          "notes": "Measure wall-clock time for --text search across all 6 adopting scenarios on a cold stack and assert \u003c 2s",
+          "type": "test",
           "phase": "integration",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Measure wall-clock time for --text search across all 6 adopting scenarios on a cold stack and assert \u003c 2s"
         },
         {
-          "notes": "--text search must return results in \u003c 2 seconds on a cold local stack with all adopting scenario manifests loaded",
+          "type": "test",
           "phase": "performance",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "--text search must return results in \u003c 2 seconds on a cold local stack with all adopting scenario manifests loaded"
         },
         {
-          "notes": "Teams without GPU/Ollama infrastructure can still use CLI discovery; CI pipelines without AI services remain functional",
+          "type": "test",
           "phase": "business",
-          "ref": "",
-          "status": "pending",
-          "type": "test"
+          "status": "implemented",
+          "notes": "Teams without GPU/Ollama infrastructure can still use CLI discovery; CI pipelines without AI services remain functional"
         }
       ]
     }
-  ],
-  "title": "Semantic and text-mode command search"
+  ]
 }

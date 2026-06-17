@@ -13,8 +13,8 @@ import (
 
 	"cli-health/internal/services/manifestvalidation"
 	"github.com/vrooli/maturity-go/assessment"
-	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli-health/v1/validation"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 )
 
 type stubValidator struct {
@@ -35,8 +35,9 @@ func TestValidate_ReservedNameRejected(t *testing.T) {
 		Logger:        log.New(log.Writer(), "", 0),
 		Validator:     v,
 		ReservedNames: []string{"vrooli"},
+		MaturitySpec:  testMaturitySpec(),
 	})
-	req := connect.NewRequest(&validationv1.ValidateScenarioRequest{Scenario: "vrooli"})
+	req := connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: "vrooli"})
 	_, err := h.ValidateScenario(context.Background(), req)
 	if err == nil {
 		t.Fatal("want error, got nil")
@@ -62,8 +63,9 @@ func TestValidate_ScenarioPassesThrough(t *testing.T) {
 		Logger:        log.New(log.Writer(), "", 0),
 		Validator:     v,
 		ReservedNames: []string{"vrooli"},
+		MaturitySpec:  testMaturitySpec(),
 	})
-	req := connect.NewRequest(&validationv1.ValidateScenarioRequest{Scenario: "cli-health"})
+	req := connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: "cli-health"})
 	resp, err := h.ValidateScenario(context.Background(), req)
 	if err != nil {
 		t.Fatalf("ValidateScenario: %v", err)
@@ -71,8 +73,8 @@ func TestValidate_ScenarioPassesThrough(t *testing.T) {
 	if !v.called {
 		t.Error("validator was not called")
 	}
-	if !resp.Msg.GetPassed() {
-		t.Errorf("Passed=false; want true")
+	if resp.Msg.GetStatus() != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED {
+		t.Errorf("status=%v; want PASSED", resp.Msg.GetStatus())
 	}
 }
 

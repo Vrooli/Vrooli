@@ -273,15 +273,9 @@ func (s *Server) handleSmartScan(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, result)
 }
 
-// TidinessScanRequest defines the request body for maintainability scanning.
-type TidinessScanRequest struct {
-	ScenarioName string `json:"scenario_name"`
-	TimeoutSec   int    `json:"timeout_sec,omitempty"`
-}
-
 // TidinessScanResponse is the normalized maintainability contract consumed by
-// Test Genie and agents. It intentionally excludes lint/type/static-quality
-// policy findings, which are owned by quality-health.
+// the shared ScenarioValidationService native_detail. It intentionally excludes
+// lint/type/static-quality policy findings, which are owned by quality-health.
 type TidinessScanResponse struct {
 	Scenario   string                       `json:"scenario"`
 	Status     string                       `json:"status"`
@@ -316,53 +310,6 @@ type TidinessFinding struct {
 	RecommendedRemediation string         `json:"recommended_remediation"`
 	Remediation            string         `json:"remediation"` // compatibility alias
 	CampaignGroupHint      string         `json:"campaign_group_hint,omitempty"`
-}
-
-// handleTidinessScan scans a scenario for maintainability/tidiness debt.
-func (s *Server) handleTidinessScan(w http.ResponseWriter, r *http.Request) {
-	var req TidinessScanRequest
-	if !decodeAndValidateJSON(w, r, &req) {
-		return
-	}
-	if strings.TrimSpace(req.ScenarioName) == "" {
-		respondError(w, http.StatusBadRequest, "scenario_name is required")
-		return
-	}
-	if s.scenarioLocator == nil {
-		respondError(w, http.StatusInternalServerError, "scenario locator not initialized")
-		return
-	}
-
-	scenarioName, err := s.scenarioLocator.ValidateScenarioName(req.ScenarioName)
-	if err != nil {
-		respondError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	scenarioPath, err := s.scenarioLocator.ScenarioPath(scenarioName)
-	if err != nil {
-		respondError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	timeout := 120 * time.Second
-	if req.TimeoutSec > 0 {
-		if req.TimeoutSec > 600 {
-			respondError(w, http.StatusBadRequest, "timeout_sec cannot exceed 600 seconds")
-			return
-		}
-		timeout = time.Duration(req.TimeoutSec) * time.Second
-	}
-
-	result, err := buildTidinessScan(r.Context(), scenarioName, scenarioPath, timeout)
-	if err != nil {
-		s.log("tidiness scan failed", map[string]interface{}{
-			"error":    err.Error(),
-			"scenario": scenarioName,
-		})
-		respondError(w, http.StatusInternalServerError, "tidiness scan failed")
-		return
-	}
-	respondJSON(w, http.StatusOK, result)
 }
 
 func buildTidinessScan(ctx context.Context, scenarioName, scenarioPath string, timeout time.Duration) (*TidinessScanResponse, error) {

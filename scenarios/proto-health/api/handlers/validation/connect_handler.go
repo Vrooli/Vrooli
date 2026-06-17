@@ -14,6 +14,7 @@ import (
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/shared"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/validation"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 )
 
 type Validator interface {
@@ -39,7 +40,7 @@ func NewConnectHandler(d Deps) *connectHandler {
 	return &connectHandler{deps: d}
 }
 
-func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Request[validationv1.ValidateScenarioRequest]) (*connect.Response[validationv1.ValidateScenarioResponse], error) {
+func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
 	if h.deps.Validator == nil {
 		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("validation validator is not wired"))
 	}
@@ -51,17 +52,11 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build maturity assessment: %w", err))
 	}
-	return connect.NewResponse(&validationv1.ValidateScenarioResponse{
-		Scenario:   report.Scenario,
-		Passed:     report.Passed,
-		Findings:   findingsToProto(report.Findings),
-		Assessment: maturityAssessment,
-		Summary: &validationv1.Summary{
-			Errors:   int32(report.Summary.Errors),
-			Warnings: int32(report.Summary.Warnings),
-			Infos:    int32(report.Summary.Infos),
-		},
-	}), nil
+	resp, err := assessment.BuildValidationResponse(report.Scenario, maturityAssessment, nil)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared validation response: %w", err))
+	}
+	return connect.NewResponse(resp), nil
 }
 
 func buildMaturityAssessment(rep internal.Report, spec *assessment.Spec) (*commonv1.MaturityAssessment, error) {
@@ -72,7 +67,7 @@ func buildMaturityAssessment(rep internal.Report, spec *assessment.Spec) (*commo
 	for _, f := range rep.Findings {
 		findings = append(findings, assessment.Finding{
 			Code:        f.Code,
-			Severity:    severityToProto(f.Severity).String(),
+			Severity:    severityToken(f.Severity),
 			Message:     f.Message,
 			Location:    f.Location,
 			Remediation: f.Suggestion,
@@ -123,30 +118,16 @@ func (h *connectHandler) DescribeScenariosProtos(ctx context.Context, req *conne
 	}), nil
 }
 
-func findingsToProto(in []internal.Finding) []*validationv1.Finding {
-	out := make([]*validationv1.Finding, 0, len(in))
-	for _, f := range in {
-		out = append(out, &validationv1.Finding{
-			Severity:   severityToProto(f.Severity),
-			Code:       f.Code,
-			Location:   f.Location,
-			Message:    f.Message,
-			Suggestion: f.Suggestion,
-		})
-	}
-	return out
-}
-
-func severityToProto(s internal.Severity) validationv1.Severity {
+func severityToken(s internal.Severity) string {
 	switch s {
 	case internal.SeverityError:
-		return validationv1.Severity_SEVERITY_ERROR
+		return "SEVERITY_ERROR"
 	case internal.SeverityWarning:
-		return validationv1.Severity_SEVERITY_WARNING
+		return "SEVERITY_WARNING"
 	case internal.SeverityInfo:
-		return validationv1.Severity_SEVERITY_INFO
+		return "SEVERITY_INFO"
 	default:
-		return validationv1.Severity_SEVERITY_UNSPECIFIED
+		return "SEVERITY_UNSPECIFIED"
 	}
 }
 

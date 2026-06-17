@@ -236,24 +236,29 @@
   ],
   "cli_commands": [
     {
-      "name": "status",
-      "description": "Check API and dependency health (auto-provided by cli-core's StandardScenarioApp)",
-      "endpoint_id": "health"
+      "name": "configure",
+      "description": "View or update CLI settings (api_base, token)",
+      "endpoint_id": ""
     },
     {
       "name": "score get",
-      "description": "Fast cached status for a scenario: maturity rung as of tree digest, 0-100 composite with breakdown, recommendations with point impact, action plan, per-phase freshness verdicts (--json for machine output)",
+      "description": "Get the full status payload for a scenario (rung as of tree digest, 0-100 composite, recommendations, action plan, per-phase freshness)",
       "endpoint_id": "scoring_get"
     },
     {
+      "name": "score list",
+      "description": "List latest persisted scenario scores with server-side sort, filter, and pagination",
+      "endpoint_id": "scoring_list"
+    },
+    {
       "name": "score trend",
-      "description": "Show persisted score history for a scenario (--json for machine output)",
+      "description": "Get persisted score history for a scenario",
       "endpoint_id": "scoring_trend"
     },
     {
-      "name": "score list",
-      "description": "List latest persisted scenario scores with server-side sort, filter, and pagination (--json for machine output)",
-      "endpoint_id": "scoring_list"
+      "name": "status",
+      "description": "Check API health",
+      "endpoint_id": "health"
     }
   ]
 }

@@ -18,9 +18,14 @@ import (
 
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/validation"
 	validationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/validation/validation_v1connect"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 )
 
-var ProtoFile = validationv1.File_proto_health_v1_validation_validation_proto
+var (
+	ProtoFile                   = validationv1.File_proto_health_v1_validation_validation_proto
+	ScenarioValidationProtoFile = scenariovalidationv1.File_scenario_validation_v1_validation_proto
+)
 
 func Module(logger *log.Logger, repoRoot string) module.Module {
 	loader, err := protosurface.NewDescriptorLoaderFromFile(
@@ -40,15 +45,21 @@ func Module(logger *log.Logger, repoRoot string) module.Module {
 	if err != nil && logger != nil {
 		logger.Printf("validation: maturity assessment disabled: %v", err)
 	}
-	connectPath, connectHandler := validationconnect.NewProtoHealthServiceHandler(NewConnectHandler(Deps{
+	handler := NewConnectHandler(Deps{
 		Logger:       logger,
 		Validator:    validator,
 		MaturitySpec: spec,
-	}))
+	})
+	protoPath, protoHandler := validationconnect.NewProtoHealthServiceHandler(handler)
+	validationPath, validationHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(handler)
 	return module.Module{
 		Name: "validation",
 		Mount: func(r *mux.Router) {
-			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
+			connectx.RegisterServices(
+				r,
+				connectx.ServiceMount{Path: validationPath, Handler: validationHandler},
+				connectx.ServiceMount{Path: protoPath, Handler: protoHandler},
+			)
 		},
 		Endpoints: Endpoints,
 	}
@@ -68,7 +79,7 @@ func Schema() string { return "" }
 var Endpoints = []module.EndpointDescriptor{
 	{
 		ID:          "validation_validate_scenario",
-		Path:        validationconnect.ProtoHealthServiceValidateScenarioProcedure,
+		Path:        scenariovalidationconnect.ScenarioValidationServiceValidateScenarioProcedure,
 		Method:      "POST",
 		Summary:     "Validate a scenario's proto contracts",
 		Description: "Validates one scenario's Protocol Buffer structure, annotations, declared transport world, REST exception payload declarations, and conservative unused-message hints without computing fleet dependency graphs.",
@@ -80,18 +91,21 @@ var Endpoints = []module.EndpointDescriptor{
 		Response: &module.Schema{
 			Type: "object",
 			Properties: map[string]string{
-				"scenario":   "string",
-				"passed":     "boolean",
-				"findings":   "array<Finding>",
-				"summary":    "Summary",
-				"assessment": "common.v1.MaturityAssessment",
+				"scenario":      "string",
+				"status":        "scenario_validation.v1.ValidationStatus",
+				"assessment":    "common.v1.MaturityAssessment",
+				"native_detail": "google.protobuf.Any",
 			},
 		},
 		Errors: []module.ErrorDesc{
 			{Status: 400, Code: "invalid_argument", Description: "Missing scenario id or no proto files found for the scenario"},
 		},
 		Examples: []module.Example{
-			{Name: "Validate proto-health", Curl: "curl http://localhost:${API_PORT}/vrooli.proto_health.v1.validation.ProtoHealthService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"proto-health\"}'"},
+			{Name: "Validate proto-health", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"proto-health\"}'"},
+		},
+		CLIMapping: &module.CLIMapping{
+			Command: "proto-health validate scenario",
+			Args:    []string{"<scenario>"},
 		},
 	},
 	{
@@ -114,6 +128,10 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "Describe proto-health", Curl: "curl http://localhost:${API_PORT}/vrooli.proto_health.v1.validation.ProtoHealthService/DescribeScenarioProtos -H 'Content-Type: application/json' -d '{\"scenario\":\"proto-health\"}'"},
+		},
+		CLIMapping: &module.CLIMapping{
+			Command: "proto-health describe scenario",
+			Args:    []string{"<scenario>"},
 		},
 	},
 	{

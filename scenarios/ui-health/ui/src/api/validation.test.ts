@@ -2,9 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 import { create } from "@bufbuild/protobuf";
 
 import {
-  Severity,
+  MaturityAssessmentSchema,
+} from "@vrooli/proto-types/common/v1/maturity_pb";
+import {
+  ValidationStatus,
   ValidateScenarioResponseSchema,
-} from "@vrooli/proto-types/ui-health/v1/validation/validation_pb";
+} from "@vrooli/proto-types/scenario-validation/v1/validation_pb";
 
 import { validateScenario, validationClient } from "./validation";
 
@@ -12,31 +15,40 @@ describe("validateScenario (FromProto)", () => {
   it("converts severity + summary fields", async () => {
     const proto = create(ValidateScenarioResponseSchema, {
       scenario: "ui-health",
-      passed: false,
-      findings: [
-        {
-          severity: Severity.ERROR,
-          code: "missing-slot",
-          location: "foo.tsx",
-          message: "Missing",
-          suggestion: "Add",
+      status: ValidationStatus.FAILED,
+      assessment: create(MaturityAssessmentSchema, {
+        scenario: "ui-health",
+        provider: "ui-health",
+        phase: "ui-health",
+        findings: [
+          {
+            severity: "SEVERITY_ERROR",
+            code: "missing-slot",
+            location: "foo.tsx",
+            message: "Missing",
+            remediation: "Add",
+          },
+          {
+            severity: "SEVERITY_WARNING",
+            code: "stale",
+            location: "bar",
+            message: "Stale",
+            remediation: "",
+          },
+          {
+            severity: "SEVERITY_INFO",
+            code: "tip",
+            location: "",
+            message: "Tip",
+            remediation: "",
+          },
+        ],
+        findingsBySeverity: {
+          SEVERITY_ERROR: 1,
+          SEVERITY_WARNING: 1,
+          SEVERITY_INFO: 1,
         },
-        {
-          severity: Severity.WARNING,
-          code: "stale",
-          location: "bar",
-          message: "Stale",
-          suggestion: "",
-        },
-        {
-          severity: Severity.INFO,
-          code: "tip",
-          location: "",
-          message: "Tip",
-          suggestion: "",
-        },
-      ],
-      summary: { errors: 1, warnings: 1, infos: 1 },
+      }),
     });
     vi.spyOn(validationClient, "validateScenario").mockResolvedValueOnce(proto);
     const out = await validateScenario("ui-health");

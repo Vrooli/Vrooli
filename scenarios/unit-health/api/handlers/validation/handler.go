@@ -14,6 +14,7 @@ import (
 	"github.com/vrooli/maturity-go/assessment"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/unit-health/v1/validation"
 	validationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/unit-health/v1/validation/validation_v1connect"
 )
@@ -68,6 +69,52 @@ func (h *Handler) ValidateScenario(ctx context.Context, req *connect.Request[val
 	return connect.NewResponse(resp), nil
 }
 
+// SharedHandler adapts Unit Health's rich validation RPC to the shared
+// ScenarioValidationService contract consumed by Test Genie.
+type SharedHandler struct {
+	handler *Handler
+}
+
+func NewSharedHandler(handler *Handler) *SharedHandler {
+	return &SharedHandler{handler: handler}
+}
+
+func (h *SharedHandler) ValidateScenario(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
+	if h == nil || h.handler == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("unit validation handler not wired"))
+	}
+	native, err := h.handler.ValidateScenario(ctx, connect.NewRequest(&validationv1.ValidateScenarioRequest{
+		Scenario:         req.Msg.GetScenario(),
+		Path:             req.Msg.GetPath(),
+		IncludeExecution: req.Msg.GetIncludeExecution(),
+		UseCache:         true,
+	}))
+	if err != nil {
+		return nil, err
+	}
+	resp, err := assessment.BuildValidationResponse(
+		native.Msg.GetScenario(),
+		native.Msg.GetAssessment(),
+		native.Msg,
+		statusOverride(native.Msg)...,
+	)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared validation response: %w", err))
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func statusOverride(resp *validationv1.ValidateScenarioResponse) []assessment.ValidationResponseOption {
+	switch strings.ToLower(strings.TrimSpace(resp.GetStatus())) {
+	case "degraded":
+		return []assessment.ValidationResponseOption{assessment.WithValidationStatus(scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED)}
+	case "error":
+		return []assessment.ValidationResponseOption{assessment.WithValidationStatus(scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_ERROR)}
+	default:
+		return nil
+	}
+}
+
 func responseToProto(in internalvalidation.Response, spec *assessment.Spec) (*validationv1.ValidateScenarioResponse, error) {
 	errCount, warnCount, infoCount := findingCounts(in.Findings)
 	maturityAssessment, err := buildMaturityAssessment(in, spec)
@@ -117,7 +164,14 @@ func responseToProto(in internalvalidation.Response, spec *assessment.Spec) (*va
 	for _, d := range in.Diagnostics {
 		out.Diagnostics = append(out.Diagnostics, diagnosticToProto(d))
 	}
+	for _, a := range in.Artifacts {
+		out.Artifacts = append(out.Artifacts, artifactToProto(a))
+	}
 	return out, nil
+}
+
+func artifactToProto(in internalvalidation.Artifact) *validationv1.Artifact {
+	return &validationv1.Artifact{Label: in.Label, Kind: in.Kind, Reference: in.Reference}
 }
 
 func buildMaturityAssessment(in internalvalidation.Response, spec *assessment.Spec) (*commonv1.MaturityAssessment, error) {

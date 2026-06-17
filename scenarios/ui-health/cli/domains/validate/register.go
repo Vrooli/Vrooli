@@ -1,7 +1,5 @@
-// Package validate is the CLI's validate-domain command surface. Mirrors
-// the API's Connect-RPC ValidationService. Phase 1 wires the surface
-// end-to-end and surfaces the server's Unimplemented response so the
-// proto/Connect/manifest chain is verified.
+// Package validate is the CLI's validate-domain command surface. It calls
+// the API's shared ScenarioValidationService endpoint.
 package validate
 
 import (
@@ -18,7 +16,7 @@ const GroupName = "validate"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"ValidationService.ValidateScenario": h.validateScenario,
+		"ScenarioValidationService.ValidateScenario": h.validateScenario,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

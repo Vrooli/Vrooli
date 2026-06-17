@@ -2,8 +2,8 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Activity, FileCode2, GitBranch, RefreshCcw } from "lucide-react";
-import { Severity } from "@vrooli/proto-types/proto-health/v1/validation/validation_pb";
 import { TransportWorld } from "@vrooli/proto-types/proto-health/v1/shared/surface_pb";
+import { ValidationStatus } from "@vrooli/proto-types/scenario-validation/v1/validation_pb";
 
 import { describeScenarioProtos, validateScenario } from "../../api/protoHealth";
 import { Button } from "../../components/ui/button";
@@ -39,6 +39,8 @@ export function ProtoHealthPanel() {
   const loading = validation.isLoading || surface.isLoading;
   const error = validation.error ?? surface.error;
   const report = validation.data;
+  const assessment = report?.assessment;
+  const assessmentFindings = assessment?.findings ?? [];
   const protoSurface = surface.data?.surface;
 
   return (
@@ -127,26 +129,26 @@ export function ProtoHealthPanel() {
               <span
                 data-testid={selectors.protoHealth.status}
                 className={
-                  report.passed
+                  report.status === ValidationStatus.PASSED
                     ? "rounded-control bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-800"
                     : "rounded-control bg-red-100 px-3 py-1 text-sm font-semibold text-red-800"
                 }
               >
-                {report.passed ? t(strings.protoHealth.status.passed) : t(strings.protoHealth.status.blocked)}
+                {report.status === ValidationStatus.PASSED ? t(strings.protoHealth.status.passed) : t(strings.protoHealth.status.blocked)}
               </span>
             </div>
             <dl className="mt-4 grid grid-cols-3 gap-2 text-sm">
-              <Metric label={t(strings.protoHealth.metrics.errors)} value={report.summary?.errors ?? 0} />
-              <Metric label={t(strings.protoHealth.metrics.warnings)} value={report.summary?.warnings ?? 0} />
-              <Metric label={t(strings.protoHealth.metrics.info)} value={report.summary?.infos ?? 0} />
+              <Metric label={t(strings.protoHealth.metrics.errors)} value={severityCount(assessment, "SEVERITY_ERROR")} />
+              <Metric label={t(strings.protoHealth.metrics.warnings)} value={severityCount(assessment, "SEVERITY_WARNING")} />
+              <Metric label={t(strings.protoHealth.metrics.info)} value={severityCount(assessment, "SEVERITY_INFO")} />
             </dl>
             <div className="mt-4 flex flex-col gap-2">
-              {report.findings.length === 0 ? (
+              {assessmentFindings.length === 0 ? (
                 <p data-testid={selectors.protoHealth.empty} className="text-sm text-app-muted-foreground">
                   {t(strings.protoHealth.empty)}
                 </p>
               ) : (
-                report.findings.slice(0, 8).map((finding) => (
+                assessmentFindings.slice(0, 8).map((finding) => (
                   <article
                     key={`${finding.code}:${finding.location}:${finding.message}`}
                     data-testid={selectors.protoHealth.finding}
@@ -245,17 +247,27 @@ function Fact({ icon, label, value }: { icon: ReactNode; label: string; value: n
   );
 }
 
-function severityLabelKey(severity: Severity) {
+function severityLabelKey(severity: string) {
   switch (severity) {
-    case Severity.ERROR:
+    case "SEVERITY_ERROR":
+    case "ERROR":
       return strings.protoHealth.severity.error;
-    case Severity.WARNING:
+    case "SEVERITY_WARNING":
+    case "WARNING":
       return strings.protoHealth.severity.warning;
-    case Severity.INFO:
+    case "SEVERITY_INFO":
+    case "INFO":
       return strings.protoHealth.severity.info;
     default:
       return strings.protoHealth.severity.unspecified;
   }
+}
+
+function severityCount(
+  assessment: { findingsBySeverity?: { [key: string]: number } } | undefined,
+  severity: string,
+) {
+  return assessment?.findingsBySeverity?.[severity] ?? 0;
 }
 
 function transportWorldLabelKey(world: TransportWorld) {

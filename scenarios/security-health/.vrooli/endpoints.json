@@ -319,18 +319,18 @@
   ],
   "cli_commands": [
     {
-      "name": "status",
-      "description": "Check API and dependency health (auto-provided by cli-core's StandardScenarioApp)",
-      "endpoint_id": "health"
+      "name": "configure",
+      "description": "View or update CLI settings (api_base, token)",
+      "endpoint_id": ""
     },
     {
-      "name": "validate scenario",
-      "description": "Validate a scenario's security posture and report normalized findings (--json for the machine shape test-genie parses)",
-      "endpoint_id": "validation_validate_scenario"
+      "name": "deps explain",
+      "description": "Explain one vulnerability with affected scenarios and fixed-version guidance",
+      "endpoint_id": "dependencies_explain_vulnerability"
     },
     {
       "name": "deps search",
-      "description": "Search the fleet dependency & vulnerability index (--vulnerable-only, --ecosystem, --name-glob)",
+      "description": "Search dependencies across scenarios; answers 'who is exposed to CVE-X?'",
       "endpoint_id": "dependencies_search"
     },
     {
@@ -340,17 +340,17 @@
     },
     {
       "name": "deps vulnerabilities",
-      "description": "List structured dependency vulnerability evidence with affected ranges, fixed ranges, confidence, and scenario exposure",
+      "description": "List structured vulnerability evidence across fleet dependencies",
       "endpoint_id": "dependencies_vulnerabilities"
     },
     {
-      "name": "deps explain",
-      "description": "Explain one vulnerability with affected scenarios and fixed-version guidance",
-      "endpoint_id": "dependencies_explain_vulnerability"
+      "name": "reindex cancel",
+      "description": "Request cooperative cancellation of an in-flight reindex job",
+      "endpoint_id": "reindex_cancel"
     },
     {
       "name": "reindex run",
-      "description": "Reconcile the fleet dependency corpus (--scenario, --dry-run)",
+      "description": "Start a reindex job (or compute the plan with --dry-run)",
       "endpoint_id": "reindex_reindex"
     },
     {
@@ -359,9 +359,14 @@
       "endpoint_id": "reindex_status"
     },
     {
-      "name": "reindex cancel",
-      "description": "Cancel an in-flight reindex job",
-      "endpoint_id": "reindex_cancel"
+      "name": "status",
+      "description": "Check API health",
+      "endpoint_id": "health"
+    },
+    {
+      "name": "validate scenario",
+      "description": "Run the applicable security scanners against a scenario and report normalized findings",
+      "endpoint_id": "validation_validate_scenario"
     }
   ]
 }

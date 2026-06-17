@@ -13,13 +13,18 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/maturity-go/assessment"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/unit-health/v1/validation"
 	validationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/unit-health/v1/validation/validation_v1connect"
 )
 
 // ProtoFile is the FileDescriptor backing this Connect-mounted module; the
 // global parity test walks it against the Endpoints slice.
-var ProtoFile = validationv1.File_unit_health_v1_validation_validation_proto
+var (
+	ProtoFile                   = validationv1.File_unit_health_v1_validation_validation_proto
+	ScenarioValidationProtoFile = scenariovalidationv1.File_scenario_validation_v1_validation_proto
+)
 
 // Module mounts the ValidationService Connect handler. history persists run
 // timing/status for cross-run diagnostics; pass nil to disable persistence.
@@ -32,15 +37,18 @@ func Module(logger *log.Logger, repoRoot string, history runhistory.Store) modul
 	svc.Spec = spec
 	svc.Locator = discovery.DefaultLocator{RepoRoot: repoRoot}
 	svc.History = history
-	connectPath, connectHandler := validationconnect.NewValidationServiceHandler(NewHandlerWithDeps(Deps{
+	handler := NewHandlerWithDeps(Deps{
 		Service:      svc,
 		Logger:       logger,
 		MaturitySpec: spec,
-	}))
+	})
+	connectPath, connectHandler := validationconnect.NewValidationServiceHandler(handler)
+	sharedPath, sharedHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(NewSharedHandler(handler))
 	return module.Module{
 		Name: "validation",
 		Mount: func(r *mux.Router) {
 			r.PathPrefix(connectPath).Handler(connectHandler)
+			r.PathPrefix(sharedPath).Handler(sharedHandler)
 		},
 		Endpoints: Endpoints,
 	}
@@ -71,5 +79,16 @@ var Endpoints = []module.EndpointDescriptor{
 		Response:    &module.Schema{Type: "object", Properties: map[string]string{"status": "string", "surfaces": "array<TestSurface>", "workspaces": "array<TestWorkspace>", "findings": "array<ValidationFinding>", "coverage": "array<CoverageTarget>", "maturity": "MaturitySummary", "assessment": "common.v1.MaturityAssessment"}},
 		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Scenario/path is missing or cannot be resolved"}},
 		CLIMapping:  &module.CLIMapping{Command: "unit-health validate scenario", Args: []string{"<scenario>", "--json"}},
+	},
+	{
+		ID:          "scenario_validation_validate_scenario",
+		Path:        scenariovalidationconnect.ScenarioValidationServiceValidateScenarioProcedure,
+		Method:      "POST",
+		Summary:     "Validate scenario test maturity through the shared provider contract",
+		Description: "Runs Unit Health's validation engine and returns the shared scenario-validation response; the native unit-health ValidateScenarioResponse is packed into native_detail.",
+		Category:    "validation",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "path": "string", "include_execution": "bool"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "status": "scenario_validation.v1.ValidationStatus", "assessment": "common.v1.MaturityAssessment", "native_detail": "google.protobuf.Any<unit_health.v1.validation.ValidateScenarioResponse>"}},
+		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Scenario/path is missing or cannot be resolved"}},
 	},
 }

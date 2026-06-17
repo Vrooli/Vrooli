@@ -21,6 +21,7 @@ import (
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	kov1 "github.com/vrooli/vrooli/packages/proto/gen/go/knowledge-observatory/v1"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 )
 
 // Handler implements the generated KnowledgeObservatoryServiceHandler.
@@ -73,6 +74,31 @@ func (h *Handler) DocHealth(ctx context.Context, req *connect.Request[kov1.DocHe
 	resp, err := translate(result, h.now(), h.spec)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build docs maturity assessment: %w", err))
+	}
+	return connect.NewResponse(resp), nil
+}
+
+// ValidateScenario adapts DocHealth to the shared ScenarioValidationService
+// contract consumed by Test Genie. The full DocHealthResponse is preserved in
+// native_detail for knowledge-observatory's own clients.
+func (h *Handler) ValidateScenario(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
+	msg := req.Msg
+	if msg == nil {
+		msg = &scenariovalidationv1.ValidateScenarioRequest{}
+	}
+	scenario := strings.TrimSpace(msg.GetScenario())
+	if scenario == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario is required"))
+	}
+	native, err := h.DocHealth(ctx, connect.NewRequest(&kov1.DocHealthRequest{
+		ScenarioName: scenario,
+	}))
+	if err != nil {
+		return nil, err
+	}
+	resp, err := assessment.BuildValidationResponse(native.Msg.GetScenarioName(), native.Msg.GetAssessment(), native.Msg)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared validation response: %w", err))
 	}
 	return connect.NewResponse(resp), nil
 }

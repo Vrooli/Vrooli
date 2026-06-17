@@ -66,6 +66,7 @@
       "response": {
         "type": "object",
         "properties": {
+          "assessment": "common.v1.MaturityAssessment",
           "findings": "array<QualityFinding>",
           "maturity": "MaturitySummary",
           "status": "string",
@@ -208,38 +209,88 @@
           "<scenario>"
         ]
       }
+    },
+    {
+      "id": "validation_validate_scenario",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario",
+      "method": "POST",
+      "summary": "Validate a scenario's static quality posture",
+      "description": "Runs Quality Health's static audit and returns the shared scenario-validation response; the native AuditQualityResponse is packed into native_detail.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "include_execution": "bool (run command-backed checks)",
+          "path": "string (required when scenario is empty)",
+          "scenario": "string (required when path is empty)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "assessment": "common.v1.MaturityAssessment",
+          "native_detail": "google.protobuf.Any<quality_health.v1.audit.AuditQualityResponse>",
+          "scenario": "string",
+          "status": "scenario_validation.v1.ValidationStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario/path is missing or cannot be resolved"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Validate scenario",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"quality-health\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "quality-health audit run",
+        "args": [
+          "<scenario>",
+          "--json"
+        ]
+      }
     }
   ],
   "cli_commands": [
-    {
-      "name": "status",
-      "description": "Check API and dependency health (auto-provided by cli-core's StandardScenarioApp)",
-      "endpoint_id": "health"
-    },
     {
       "name": "audit run",
       "description": "Run a Quality Health audit for a scenario or path",
       "endpoint_id": "audit_quality"
     },
     {
+      "name": "configure",
+      "description": "View or update CLI settings (api_base, token)",
+      "endpoint_id": ""
+    },
+    {
       "name": "contracts list",
-      "description": "List Quality Health static-quality contracts",
+      "description": "List Quality Health contracts",
       "endpoint_id": "audit_contracts_list"
     },
     {
       "name": "explain finding",
-      "description": "Explain a Quality Health finding or rule",
+      "description": "Explain a finding id or rule id",
       "endpoint_id": "audit_explain_finding"
     },
     {
+      "name": "fix-config apply",
+      "description": "Apply supported safe config fixes",
+      "endpoint_id": "audit_apply_fix_config"
+    },
+    {
       "name": "fix-config run",
-      "description": "Preview or apply safe static-quality config fixes",
+      "description": "Preview or apply safe config fixes",
       "endpoint_id": "audit_preview_fix_config"
     },
     {
-      "name": "fix-config apply",
-      "description": "Apply safe static-quality config fixes",
-      "endpoint_id": "audit_apply_fix_config"
+      "name": "status",
+      "description": "Check API health",
+      "endpoint_id": "health"
     }
   ]
 }

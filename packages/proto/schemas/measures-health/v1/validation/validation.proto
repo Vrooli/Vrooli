@@ -14,13 +14,10 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/measures-hea
 // @domain validation
 // @stability unstable
 //
-// Wire contract for the ValidationService Connect-RPC service. Grades how well
-// a target scenario has adopted the Measures capability: it derives the
-// scenario's stateful domains (from its proto domain/ folder, substrate-
-// filtered), classifies each as covered / waived / uncovered against the
-// manifest `measure` blocks, grades each measure's extraction tier
-// (full/partial/fallback), and — when asked — behaviorally probes each declared
-// measure end-to-end (a hollow declaration is an ERROR).
+// Native measures-health detail types. Scenario-level validation is served
+// through the shared scenario-validation/v1.ScenarioValidationService; its
+// native_detail packs ScenarioCoverageReport so the measures-health UI can keep
+// rendering domain coverage without Test Genie reading provider-specific fields.
 //
 // Severity normalization is the load-bearing producer contract, identical in
 // shape to security-health so test-genie maps it the same way: an uncovered
@@ -30,19 +27,16 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/measures-hea
 // Finding has SEVERITY_ERROR.
 //
 // Consumed by:
-//   - API:  handlers/validation/connect_handler.go implements ValidationServiceHandler.
-//   - CLI:  cli/domains/validate/handlers.go renders `measures-health validate
-//           scenario <name> --json` and `measures-health coverage`.
-//   - UI:   ui/src/features/fleet/ renders ListFleetCoverage + the drill-down.
-//   - test-genie: the `measures` phase shells the CLI --json and maps each
-//           Finding to FINDING_SOURCE_MEASURES.
+//   - API: handlers/validation/connect_handler.go implements the shared
+//          ScenarioValidationService and this native ValidationService.
+//   - CLI: cli/domains/validate/handlers.go renders `measures-health validate
+//          scenario <name> --json` from the shared response and
+//          `measures-health coverage` from ListFleetCoverage.
+//   - UI:  ui/src/features/fleet/ renders ListFleetCoverage + the drill-down
+//          unpacked from scenario-validation native_detail.
 // =============================================================================
 
 service ValidationService {
-  // ValidateScenario grades one scenario's measure coverage + (optionally)
-  // behaviorally probes its declared measures.
-  rpc ValidateScenario(ValidateScenarioRequest) returns (ValidateScenarioResponse);
-
   // ListFleetCoverage rolls up a static coverage summary across every
   // discovered scenario, for the fleet-view UI.
   rpc ListFleetCoverage(ListFleetCoverageRequest) returns (ListFleetCoverageResponse);
@@ -95,8 +89,8 @@ message MeasureSummary {
   string effect = 4;
   // Number of example questions[] declared (the embedding key richness).
   int32 question_count = 5;
-  // Behavioral-probe outcome when ValidateScenarioRequest.probe was set:
-  // true = the endpoint answered conforming to the declared result shape.
+  // Behavioral-probe outcome when shared ValidateScenarioRequest.include_execution
+  // was set: true = the endpoint answered conforming to the declared result shape.
   bool probe_passed = 6;
   // Human detail for the probe (empty when the probe did not run).
   string probe_detail = 7;
@@ -152,20 +146,10 @@ message Summary {
   int32 infos = 3;
 }
 
-// ValidateScenarioRequest names a scenario by its scenario id (the directory
-// name under scenarios/).
-message ValidateScenarioRequest {
-  string scenario = 1;
-  // When true, run the behavioral adoption probe against the target scenario's
-  // live measure endpoints (requires the scenario to be running; if it is not
-  // reachable the probe is skipped as INFO, never a false ERROR). When false
-  // (the default test-genie path), only static coverage is graded.
-  bool probe = 2;
-}
-
-// ValidateScenarioResponse echoes the scenario id and reports coverage.
-// `passed` is true iff no Finding has SEVERITY_ERROR.
-message ValidateScenarioResponse {
+// ScenarioCoverageReport echoes the scenario id and reports coverage. `passed`
+// is true iff no Finding has SEVERITY_ERROR. This message is packed into
+// scenario-validation/v1.ValidateScenarioResponse.native_detail.
+message ScenarioCoverageReport {
   string scenario = 1;
   bool passed = 2;
   // Every derived domain (covered / waived / uncovered / not-expected), in a

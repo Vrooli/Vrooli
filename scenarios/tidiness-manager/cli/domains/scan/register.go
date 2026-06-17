@@ -1,15 +1,21 @@
 package scan
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"sort"
 	"strings"
+	"time"
 
 	"tidiness-manager/cli/internal/support"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
+	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/tidiness-manager/v1/validation"
 )
 
 const cliName = "tidiness-manager"
@@ -65,34 +71,47 @@ func runTidiness(core *cliapp.ScenarioApp, target string, timeout int, jsonOutpu
 	if strings.TrimSpace(scenario) == "" {
 		return fmt.Errorf("scenario name is required for tidiness scans")
 	}
-
-	body, err := core.Request("POST", "/scan/tidiness", nil, map[string]interface{}{
-		"scenario_name": scenario,
-		"timeout_sec":   timeout,
-	})
+	if timeout <= 0 {
+		timeout = 120
+	}
+	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(core, time.Duration(timeout)*time.Second)
+	client := scenariovalidationconnect.NewScenarioValidationServiceClient(httpClient, baseURL)
+	resp, err := client.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
+		Scenario: scenario,
+	}))
 	if err != nil {
-		return err
+		return cliapp.WrapAPIError(fmt.Sprintf("validate tidiness for %q", scenario), err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no validation response")
+	}
+	msg := resp.Msg
+	if jsonOutput {
+		return cliapp.PrintProtoJSON(os.Stdout, msg)
+	}
+	var native validationv1.TidinessScanResponse
+	if detail := msg.GetNativeDetail(); detail != nil {
+		if err := detail.UnmarshalTo(&native); err != nil {
+			return fmt.Errorf("unpack tidiness native detail: %w", err)
+		}
 	}
 
-	var result support.TidinessScanResponse
-	if err := support.Decode(body, &result); err != nil {
-		return err
-	}
-
-	findings := result.Findings
+	findings := native.GetFindings()
 	sort.SliceStable(findings, func(i, j int) bool {
-		return support.SeverityRank(findings[i].Severity) < support.SeverityRank(findings[j].Severity)
+		return support.SeverityRank(findings[i].GetSeverity()) < support.SeverityRank(findings[j].GetSeverity())
 	})
 
+	assessment := msg.GetAssessment()
+	summary := native.GetSummary()
 	report := cliapp.ListReport{
 		Summary: []string{
-			fmt.Sprintf("Scenario: %s", result.Scenario),
-			fmt.Sprintf("Status: %s", result.Status),
-			fmt.Sprintf("Findings: %d", result.Summary.TotalFindings),
-			fmt.Sprintf("Long files: %d", result.Summary.LongFiles),
-			fmt.Sprintf("Complexity: %d", result.Summary.Complexity),
-			fmt.Sprintf("Duplication: %d", result.Summary.Duplication),
-			fmt.Sprintf("Tech debt: %d", result.Summary.TechDebt),
+			fmt.Sprintf("Scenario: %s", msg.GetScenario()),
+			fmt.Sprintf("Status: %s", statusLabel(msg.GetStatus())),
+			fmt.Sprintf("Findings: %d", summary.GetTotalFindings()),
+			fmt.Sprintf("Long files: %d", summary.GetLongFiles()),
+			fmt.Sprintf("Complexity: %d", summary.GetComplexity()),
+			fmt.Sprintf("Duplication: %d", summary.GetDuplication()),
+			fmt.Sprintf("Tech debt: %d", summary.GetTechDebt()),
 		},
 		ResultsHeading: "Tidiness Findings",
 		Results:        tidinessRows(findings),
@@ -101,16 +120,22 @@ func runTidiness(core *cliapp.ScenarioApp, target string, timeout int, jsonOutpu
 			fmt.Sprintf("%s recommend-refactors %s --limit 10", cliName, scenario),
 		},
 	}
-	if result.Assessment != nil {
-		maturity := cliapp.BuildMaturityListReport(result.Assessment)
+	if assessment != nil {
+		maturity := cliapp.BuildMaturityListReport(assessment)
 		report.Summary = append(report.Summary, maturity.Summary...)
 		report.RetrievalHints = append(report.RetrievalHints, maturity.RetrievalHints...)
 	}
 
-	if jsonOutput {
-		return cliapp.PrintReportJSON(os.Stdout, report)
+	if err := cliapp.RenderListReport(os.Stdout, report); err != nil {
+		return err
 	}
-	return cliapp.RenderListReport(os.Stdout, report)
+	if msg.GetStatus() == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED {
+		return fmt.Errorf("scenario %s did not pass tidiness validation (%d error finding(s))", msg.GetScenario(), severityCount(assessment, "SEVERITY_ERROR"))
+	}
+	if msg.GetStatus() == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_ERROR {
+		return fmt.Errorf("scenario %s tidiness validation errored", msg.GetScenario())
+	}
+	return nil
 }
 
 func runLight(core *cliapp.ScenarioApp, target string, timeout int, jsonOutput bool) error {
@@ -260,14 +285,14 @@ func batchRows(batches []support.BatchResult) []string {
 	return rows
 }
 
-func tidinessRows(findings []support.TidinessFinding) []string {
+func tidinessRows(findings []*validationv1.TidinessFinding) []string {
 	rows := make([]string, 0, len(findings))
 	for _, finding := range findings {
-		loc := finding.FilePath
-		if finding.LineNumber > 0 {
-			loc = fmt.Sprintf("%s:%d", loc, finding.LineNumber)
+		loc := finding.GetFilePath()
+		if finding.GetLineNumber() > 0 {
+			loc = fmt.Sprintf("%s:%d", loc, finding.GetLineNumber())
 		}
-		line := fmt.Sprintf("[%s] %s", strings.ToUpper(finding.Severity), finding.Title)
+		line := fmt.Sprintf("[%s] %s", strings.ToUpper(finding.GetSeverity()), finding.GetTitle())
 		if strings.TrimSpace(loc) != "" {
 			line += " -> " + loc
 		}
@@ -277,4 +302,36 @@ func tidinessRows(findings []support.TidinessFinding) []string {
 		rows = append(rows, "No tidiness findings detected")
 	}
 	return rows
+}
+
+func statusLabel(status scenariovalidationv1.ValidationStatus) string {
+	switch status {
+	case scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED:
+		return "passed"
+	case scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED:
+		return "failed"
+	case scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED:
+		return "degraded"
+	case scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_ERROR:
+		return "error"
+	case scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_SKIPPED:
+		return "skipped"
+	default:
+		return "unspecified"
+	}
+}
+
+func severityCount(a interface{ GetFindingsBySeverity() map[string]int32 }, severity string) int {
+	if a == nil {
+		return 0
+	}
+	total := 0
+	want := strings.TrimPrefix(strings.ToUpper(strings.TrimSpace(severity)), "FINDING_")
+	for key, count := range a.GetFindingsBySeverity() {
+		normalized := strings.TrimPrefix(strings.ToUpper(strings.TrimSpace(key)), "FINDING_")
+		if normalized == want {
+			total += int(count)
+		}
+	}
+	return total
 }

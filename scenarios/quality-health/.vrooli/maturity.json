@@ -130,6 +130,13 @@
       "dimension": "standards",
       "severity_default": "SEVERITY_WARNING",
       "recommended_skill_ids": ["quality-health", "test"]
+    },
+    "SHELL_SYNTAX_LINT": {
+      "local_level_impact": "L4",
+      "global_impact": "hardening_gap",
+      "dimension": "standards",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["quality-health"]
     }
   },
   "fallback": {

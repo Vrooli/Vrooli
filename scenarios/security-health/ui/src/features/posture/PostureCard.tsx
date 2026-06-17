@@ -9,17 +9,16 @@ import { strings } from "../../consts/strings";
 import { formatDate } from "../../i18n/format";
 import { useTranslation } from "../../i18n";
 import { errorMessage } from "../../lib/errorMessage";
-import { validationClient } from "../../api/validation";
+import { findingsFromResponse, passedFromResponse, summaryFromResponse, validationClient } from "../../api/validation";
 import { FindingList } from "./FindingList";
 
 const DEFAULT_SCENARIO = "security-health";
 
 /**
  * PostureCard is the headline validation surface: enter a scenario id, run the
- * applicable security scanners through `ValidationService.ValidateScenario`,
- * and render the normalized findings severity-grouped with remediation. The
- * pass/fail verdict mirrors the gating contract — `passed=false` iff any
- * ERROR-severity finding is present.
+ * applicable security scanners through `ScenarioValidationService`, and render
+ * the normalized assessment findings severity-grouped with remediation. The
+ * pass/fail verdict mirrors the shared validation status.
  *
  * `scanner` and `severity` filters (e.g. the Secrets page) are applied by the
  * caller via the optional `scannerFilter` prop; the data fetch is shared.
@@ -41,12 +40,14 @@ export function PostureCard({ scannerFilter }: { scannerFilter?: string } = {}) 
   };
 
   const data = query.data;
+  const allFindings = findingsFromResponse(data);
   const findings = data
     ? scannerFilter
-      ? data.findings.filter((f) => f.scanner === scannerFilter)
-      : data.findings
+      ? allFindings.filter((f) => f.scanner === scannerFilter)
+      : allFindings
     : [];
-  const passed = data?.passed ?? false;
+  const passed = passedFromResponse(data);
+  const summary = summaryFromResponse(data);
 
   return (
     <section
@@ -104,9 +105,9 @@ export function PostureCard({ scannerFilter }: { scannerFilter?: string } = {}) 
             </span>
             <span data-testid={selectors.posture.summary} className="text-sm text-app-muted-foreground">
               {t(strings.posture.summary, {
-                errors: data.summary?.errors ?? 0,
-                warnings: data.summary?.warnings ?? 0,
-                infos: data.summary?.infos ?? 0,
+                errors: summary.errors,
+                warnings: summary.warnings,
+                infos: summary.infos,
               })}
             </span>
             {query.dataUpdatedAt > 0 && (
@@ -116,12 +117,6 @@ export function PostureCard({ scannerFilter }: { scannerFilter?: string } = {}) 
               </span>
             )}
           </div>
-
-          {data.skippedScanners.length > 0 && (
-            <p data-testid={selectors.posture.skipped} className="text-xs text-app-muted-foreground">
-              {t(strings.posture.skippedScanners, { scanners: data.skippedScanners.join(", ") })}
-            </p>
-          )}
 
           {findings.length === 0 ? (
             <p data-testid={selectors.posture.empty} className="text-emerald-300">

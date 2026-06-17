@@ -28,18 +28,24 @@ func NewBufProtoLoader(repoRoot string) *BufProtoLoader {
 	return &BufProtoLoader{RepoRoot: repoRoot}
 }
 
-// sharedControlSubPath is the shared, token-gated search control plane
-// (search-hub.v1.control.SearchControlService) — a cross-scenario contract any
-// search provider may SERVE. It is loaded alongside every scenario's own proto so
-// a provider that adopts it (e.g. cli-health) can bind its reindex verbs from the
-// CLI without the validator mistaking a legitimately-served shared service for an
-// undeclared one. Files under this path are classified as Shared (bindable, not
-// coverage-checked). For search-hub itself the path is part of its own subtree,
-// so it stays an own service there (the own-prefix check wins).
-var (
-	sharedControlSubPath = filepath.Join("schemas", "search-hub", "v1", "control")
-	sharedControlPrefix  = "search-hub/v1/control/"
-)
+// sharedProtoContracts are cross-scenario contracts a scenario may SERVE from
+// its CLI/API without owning every RPC. They are loaded alongside every
+// scenario's own proto and classified as Shared (bindable, not coverage-checked).
+// For a scenario whose own subtree contains one of these paths, the own-prefix
+// check wins so the service remains coverage-checked there.
+var sharedProtoContracts = []struct {
+	subPath string
+	prefix  string
+}{
+	{
+		subPath: filepath.Join("schemas", "search-hub", "v1", "control"),
+		prefix:  "search-hub/v1/control/",
+	},
+	{
+		subPath: filepath.Join("schemas", "scenario-validation", "v1"),
+		prefix:  "scenario-validation/v1/",
+	},
+}
 
 // Load shells out to buf to produce a binary FileDescriptorSet for the
 // scenario's proto subtree (plus the shared control plane), then walks it to
@@ -67,10 +73,10 @@ func (l *BufProtoLoader) Load(ctx context.Context, scenario string) (ProtoSurfac
 	defer os.Remove(tmp.Name())
 
 	args := []string{"build", "--path", subPath}
-	// Also load the shared control plane so adopters can bind it. buf dedups when
-	// the scenario IS search-hub (the path is already inside its subtree).
-	if _, err := os.Stat(filepath.Join(protoDir, sharedControlSubPath)); err == nil {
-		args = append(args, "--path", sharedControlSubPath)
+	for _, contract := range sharedProtoContracts {
+		if _, err := os.Stat(filepath.Join(protoDir, contract.subPath)); err == nil {
+			args = append(args, "--path", contract.subPath)
+		}
 	}
 	args = append(args, "-o", tmp.Name())
 
@@ -94,13 +100,12 @@ func (l *BufProtoLoader) Load(ctx context.Context, scenario string) (ProtoSurfac
 	return surfaceFromFDSet(&fds, scenario), nil
 }
 
-// surfaceFromFDSet collects services declared in files that belong to the
-// named scenario (own) plus the shared control plane (shared). We filter by file
-// path prefix so vendor/transitive deps (googleapis, protovalidate, errors common
-// to multiple scenarios) don't leak into the surface and produce spurious orphans.
+// surfaceFromFDSet collects services declared in files that belong to the named
+// scenario (own) plus shared proto contracts (shared). We filter by file path
+// prefix so vendor/transitive deps (googleapis, protovalidate, errors common to
+// multiple scenarios) don't leak into the surface and produce spurious orphans.
 // A file under the scenario's own prefix is classified as own even if it also
-// matches the shared prefix (the search-hub case), so the control service is an
-// own service exactly where it is defined.
+// matches a shared prefix, so shared services are own where they are defined.
 func surfaceFromFDSet(fds *descriptorpb.FileDescriptorSet, scenario string) ProtoSurface {
 	prefix := scenario + "/"
 	var own, shared []ProtoService
@@ -110,7 +115,13 @@ func surfaceFromFDSet(fds *descriptorpb.FileDescriptorSet, scenario string) Prot
 			continue
 		}
 		isOwn := startsWith(name, prefix)
-		isShared := startsWith(name, sharedControlPrefix)
+		isShared := false
+		for _, contract := range sharedProtoContracts {
+			if startsWith(name, contract.prefix) {
+				isShared = true
+				break
+			}
+		}
 		if !isOwn && !isShared {
 			continue
 		}

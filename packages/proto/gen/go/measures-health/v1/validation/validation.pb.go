@@ -207,8 +207,8 @@ type MeasureSummary struct {
 	Effect string `protobuf:"bytes,4,opt,name=effect,proto3" json:"effect,omitempty"`
 	// Number of example questions[] declared (the embedding key richness).
 	QuestionCount int32 `protobuf:"varint,5,opt,name=question_count,json=questionCount,proto3" json:"question_count,omitempty"`
-	// Behavioral-probe outcome when ValidateScenarioRequest.probe was set:
-	// true = the endpoint answered conforming to the declared result shape.
+	// Behavioral-probe outcome when shared ValidateScenarioRequest.include_execution
+	// was set: true = the endpoint answered conforming to the declared result shape.
 	ProbePassed bool `protobuf:"varint,6,opt,name=probe_passed,json=probePassed,proto3" json:"probe_passed,omitempty"`
 	// Human detail for the probe (empty when the probe did not run).
 	ProbeDetail string `protobuf:"bytes,7,opt,name=probe_detail,json=probeDetail,proto3" json:"probe_detail,omitempty"`
@@ -570,67 +570,10 @@ func (x *Summary) GetInfos() int32 {
 	return 0
 }
 
-// ValidateScenarioRequest names a scenario by its scenario id (the directory
-// name under scenarios/).
-type ValidateScenarioRequest struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	Scenario string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	// When true, run the behavioral adoption probe against the target scenario's
-	// live measure endpoints (requires the scenario to be running; if it is not
-	// reachable the probe is skipped as INFO, never a false ERROR). When false
-	// (the default test-genie path), only static coverage is graded.
-	Probe         bool `protobuf:"varint,2,opt,name=probe,proto3" json:"probe,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ValidateScenarioRequest) Reset() {
-	*x = ValidateScenarioRequest{}
-	mi := &file_measures_health_v1_validation_validation_proto_msgTypes[4]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ValidateScenarioRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ValidateScenarioRequest) ProtoMessage() {}
-
-func (x *ValidateScenarioRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_measures_health_v1_validation_validation_proto_msgTypes[4]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ValidateScenarioRequest.ProtoReflect.Descriptor instead.
-func (*ValidateScenarioRequest) Descriptor() ([]byte, []int) {
-	return file_measures_health_v1_validation_validation_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *ValidateScenarioRequest) GetScenario() string {
-	if x != nil {
-		return x.Scenario
-	}
-	return ""
-}
-
-func (x *ValidateScenarioRequest) GetProbe() bool {
-	if x != nil {
-		return x.Probe
-	}
-	return false
-}
-
-// ValidateScenarioResponse echoes the scenario id and reports coverage.
-// `passed` is true iff no Finding has SEVERITY_ERROR.
-type ValidateScenarioResponse struct {
+// ScenarioCoverageReport echoes the scenario id and reports coverage. `passed`
+// is true iff no Finding has SEVERITY_ERROR. This message is packed into
+// scenario-validation/v1.ValidateScenarioResponse.native_detail.
+type ScenarioCoverageReport struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	Scenario string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
 	Passed   bool                   `protobuf:"varint,2,opt,name=passed,proto3" json:"passed,omitempty"`
@@ -650,21 +593,21 @@ type ValidateScenarioResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ValidateScenarioResponse) Reset() {
-	*x = ValidateScenarioResponse{}
-	mi := &file_measures_health_v1_validation_validation_proto_msgTypes[5]
+func (x *ScenarioCoverageReport) Reset() {
+	*x = ScenarioCoverageReport{}
+	mi := &file_measures_health_v1_validation_validation_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ValidateScenarioResponse) String() string {
+func (x *ScenarioCoverageReport) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ValidateScenarioResponse) ProtoMessage() {}
+func (*ScenarioCoverageReport) ProtoMessage() {}
 
-func (x *ValidateScenarioResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_measures_health_v1_validation_validation_proto_msgTypes[5]
+func (x *ScenarioCoverageReport) ProtoReflect() protoreflect.Message {
+	mi := &file_measures_health_v1_validation_validation_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -675,54 +618,54 @@ func (x *ValidateScenarioResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ValidateScenarioResponse.ProtoReflect.Descriptor instead.
-func (*ValidateScenarioResponse) Descriptor() ([]byte, []int) {
-	return file_measures_health_v1_validation_validation_proto_rawDescGZIP(), []int{5}
+// Deprecated: Use ScenarioCoverageReport.ProtoReflect.Descriptor instead.
+func (*ScenarioCoverageReport) Descriptor() ([]byte, []int) {
+	return file_measures_health_v1_validation_validation_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *ValidateScenarioResponse) GetScenario() string {
+func (x *ScenarioCoverageReport) GetScenario() string {
 	if x != nil {
 		return x.Scenario
 	}
 	return ""
 }
 
-func (x *ValidateScenarioResponse) GetPassed() bool {
+func (x *ScenarioCoverageReport) GetPassed() bool {
 	if x != nil {
 		return x.Passed
 	}
 	return false
 }
 
-func (x *ValidateScenarioResponse) GetDomains() []*DomainCoverage {
+func (x *ScenarioCoverageReport) GetDomains() []*DomainCoverage {
 	if x != nil {
 		return x.Domains
 	}
 	return nil
 }
 
-func (x *ValidateScenarioResponse) GetFindings() []*Finding {
+func (x *ScenarioCoverageReport) GetFindings() []*Finding {
 	if x != nil {
 		return x.Findings
 	}
 	return nil
 }
 
-func (x *ValidateScenarioResponse) GetSummary() *Summary {
+func (x *ScenarioCoverageReport) GetSummary() *Summary {
 	if x != nil {
 		return x.Summary
 	}
 	return nil
 }
 
-func (x *ValidateScenarioResponse) GetSkippedScanners() []string {
+func (x *ScenarioCoverageReport) GetSkippedScanners() []string {
 	if x != nil {
 		return x.SkippedScanners
 	}
 	return nil
 }
 
-func (x *ValidateScenarioResponse) GetAssessment() *v1.MaturityAssessment {
+func (x *ScenarioCoverageReport) GetAssessment() *v1.MaturityAssessment {
 	if x != nil {
 		return x.Assessment
 	}
@@ -740,7 +683,7 @@ type ListFleetCoverageRequest struct {
 
 func (x *ListFleetCoverageRequest) Reset() {
 	*x = ListFleetCoverageRequest{}
-	mi := &file_measures_health_v1_validation_validation_proto_msgTypes[6]
+	mi := &file_measures_health_v1_validation_validation_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -752,7 +695,7 @@ func (x *ListFleetCoverageRequest) String() string {
 func (*ListFleetCoverageRequest) ProtoMessage() {}
 
 func (x *ListFleetCoverageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_measures_health_v1_validation_validation_proto_msgTypes[6]
+	mi := &file_measures_health_v1_validation_validation_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -765,7 +708,7 @@ func (x *ListFleetCoverageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListFleetCoverageRequest.ProtoReflect.Descriptor instead.
 func (*ListFleetCoverageRequest) Descriptor() ([]byte, []int) {
-	return file_measures_health_v1_validation_validation_proto_rawDescGZIP(), []int{6}
+	return file_measures_health_v1_validation_validation_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ListFleetCoverageRequest) GetScenarios() []string {
@@ -794,7 +737,7 @@ type FleetEntry struct {
 
 func (x *FleetEntry) Reset() {
 	*x = FleetEntry{}
-	mi := &file_measures_health_v1_validation_validation_proto_msgTypes[7]
+	mi := &file_measures_health_v1_validation_validation_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -806,7 +749,7 @@ func (x *FleetEntry) String() string {
 func (*FleetEntry) ProtoMessage() {}
 
 func (x *FleetEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_measures_health_v1_validation_validation_proto_msgTypes[7]
+	mi := &file_measures_health_v1_validation_validation_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -819,7 +762,7 @@ func (x *FleetEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FleetEntry.ProtoReflect.Descriptor instead.
 func (*FleetEntry) Descriptor() ([]byte, []int) {
-	return file_measures_health_v1_validation_validation_proto_rawDescGZIP(), []int{7}
+	return file_measures_health_v1_validation_validation_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *FleetEntry) GetScenario() string {
@@ -889,7 +832,7 @@ type ListFleetCoverageResponse struct {
 
 func (x *ListFleetCoverageResponse) Reset() {
 	*x = ListFleetCoverageResponse{}
-	mi := &file_measures_health_v1_validation_validation_proto_msgTypes[8]
+	mi := &file_measures_health_v1_validation_validation_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -901,7 +844,7 @@ func (x *ListFleetCoverageResponse) String() string {
 func (*ListFleetCoverageResponse) ProtoMessage() {}
 
 func (x *ListFleetCoverageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_measures_health_v1_validation_validation_proto_msgTypes[8]
+	mi := &file_measures_health_v1_validation_validation_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -914,7 +857,7 @@ func (x *ListFleetCoverageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListFleetCoverageResponse.ProtoReflect.Descriptor instead.
 func (*ListFleetCoverageResponse) Descriptor() ([]byte, []int) {
-	return file_measures_health_v1_validation_validation_proto_rawDescGZIP(), []int{8}
+	return file_measures_health_v1_validation_validation_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListFleetCoverageResponse) GetEntries() []*FleetEntry {
@@ -957,11 +900,8 @@ const file_measures_health_v1_validation_validation_proto_rawDesc = "" +
 	"\aSummary\x12\x16\n" +
 	"\x06errors\x18\x01 \x01(\x05R\x06errors\x12\x1a\n" +
 	"\bwarnings\x18\x02 \x01(\x05R\bwarnings\x12\x14\n" +
-	"\x05infos\x18\x03 \x01(\x05R\x05infos\"K\n" +
-	"\x17ValidateScenarioRequest\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x14\n" +
-	"\x05probe\x18\x02 \x01(\bR\x05probe\"\x9c\x03\n" +
-	"\x18ValidateScenarioResponse\x12\x1a\n" +
+	"\x05infos\x18\x03 \x01(\x05R\x05infos\"\x9a\x03\n" +
+	"\x16ScenarioCoverageReport\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x16\n" +
 	"\x06passed\x18\x02 \x01(\bR\x06passed\x12N\n" +
 	"\adomains\x18\x03 \x03(\v24.vrooli.measures_health.v1.validation.DomainCoverageR\adomains\x12I\n" +
@@ -1001,9 +941,8 @@ const file_measures_health_v1_validation_validation_proto_rawDesc = "" +
 	"\x10TIER_UNSPECIFIED\x10\x00\x12\r\n" +
 	"\tTIER_FULL\x10\x01\x12\x10\n" +
 	"\fTIER_PARTIAL\x10\x02\x12\x11\n" +
-	"\rTIER_FALLBACK\x10\x032\xbe\x02\n" +
-	"\x11ValidationService\x12\x91\x01\n" +
-	"\x10ValidateScenario\x12=.vrooli.measures_health.v1.validation.ValidateScenarioRequest\x1a>.vrooli.measures_health.v1.validation.ValidateScenarioResponse\x12\x94\x01\n" +
+	"\rTIER_FALLBACK\x10\x032\xaa\x01\n" +
+	"\x11ValidationService\x12\x94\x01\n" +
 	"\x11ListFleetCoverage\x12>.vrooli.measures_health.v1.validation.ListFleetCoverageRequest\x1a?.vrooli.measures_health.v1.validation.ListFleetCoverageResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/measures-health/v1/validation;validation_v1b\x06proto3"
 
 var (
@@ -1019,7 +958,7 @@ func file_measures_health_v1_validation_validation_proto_rawDescGZIP() []byte {
 }
 
 var file_measures_health_v1_validation_validation_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_measures_health_v1_validation_validation_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_measures_health_v1_validation_validation_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_measures_health_v1_validation_validation_proto_goTypes = []any{
 	(Severity)(0),                     // 0: vrooli.measures_health.v1.validation.Severity
 	(DomainStatus)(0),                 // 1: vrooli.measures_health.v1.validation.DomainStatus
@@ -1028,12 +967,11 @@ var file_measures_health_v1_validation_validation_proto_goTypes = []any{
 	(*DomainCoverage)(nil),            // 4: vrooli.measures_health.v1.validation.DomainCoverage
 	(*Finding)(nil),                   // 5: vrooli.measures_health.v1.validation.Finding
 	(*Summary)(nil),                   // 6: vrooli.measures_health.v1.validation.Summary
-	(*ValidateScenarioRequest)(nil),   // 7: vrooli.measures_health.v1.validation.ValidateScenarioRequest
-	(*ValidateScenarioResponse)(nil),  // 8: vrooli.measures_health.v1.validation.ValidateScenarioResponse
-	(*ListFleetCoverageRequest)(nil),  // 9: vrooli.measures_health.v1.validation.ListFleetCoverageRequest
-	(*FleetEntry)(nil),                // 10: vrooli.measures_health.v1.validation.FleetEntry
-	(*ListFleetCoverageResponse)(nil), // 11: vrooli.measures_health.v1.validation.ListFleetCoverageResponse
-	(*v1.MaturityAssessment)(nil),     // 12: common.v1.MaturityAssessment
+	(*ScenarioCoverageReport)(nil),    // 7: vrooli.measures_health.v1.validation.ScenarioCoverageReport
+	(*ListFleetCoverageRequest)(nil),  // 8: vrooli.measures_health.v1.validation.ListFleetCoverageRequest
+	(*FleetEntry)(nil),                // 9: vrooli.measures_health.v1.validation.FleetEntry
+	(*ListFleetCoverageResponse)(nil), // 10: vrooli.measures_health.v1.validation.ListFleetCoverageResponse
+	(*v1.MaturityAssessment)(nil),     // 11: common.v1.MaturityAssessment
 }
 var file_measures_health_v1_validation_validation_proto_depIdxs = []int32{
 	2,  // 0: vrooli.measures_health.v1.validation.MeasureSummary.tier:type_name -> vrooli.measures_health.v1.validation.Tier
@@ -1041,18 +979,16 @@ var file_measures_health_v1_validation_validation_proto_depIdxs = []int32{
 	2,  // 2: vrooli.measures_health.v1.validation.DomainCoverage.tier:type_name -> vrooli.measures_health.v1.validation.Tier
 	3,  // 3: vrooli.measures_health.v1.validation.DomainCoverage.measures:type_name -> vrooli.measures_health.v1.validation.MeasureSummary
 	0,  // 4: vrooli.measures_health.v1.validation.Finding.severity:type_name -> vrooli.measures_health.v1.validation.Severity
-	4,  // 5: vrooli.measures_health.v1.validation.ValidateScenarioResponse.domains:type_name -> vrooli.measures_health.v1.validation.DomainCoverage
-	5,  // 6: vrooli.measures_health.v1.validation.ValidateScenarioResponse.findings:type_name -> vrooli.measures_health.v1.validation.Finding
-	6,  // 7: vrooli.measures_health.v1.validation.ValidateScenarioResponse.summary:type_name -> vrooli.measures_health.v1.validation.Summary
-	12, // 8: vrooli.measures_health.v1.validation.ValidateScenarioResponse.assessment:type_name -> common.v1.MaturityAssessment
+	4,  // 5: vrooli.measures_health.v1.validation.ScenarioCoverageReport.domains:type_name -> vrooli.measures_health.v1.validation.DomainCoverage
+	5,  // 6: vrooli.measures_health.v1.validation.ScenarioCoverageReport.findings:type_name -> vrooli.measures_health.v1.validation.Finding
+	6,  // 7: vrooli.measures_health.v1.validation.ScenarioCoverageReport.summary:type_name -> vrooli.measures_health.v1.validation.Summary
+	11, // 8: vrooli.measures_health.v1.validation.ScenarioCoverageReport.assessment:type_name -> common.v1.MaturityAssessment
 	2,  // 9: vrooli.measures_health.v1.validation.FleetEntry.worst_tier:type_name -> vrooli.measures_health.v1.validation.Tier
-	10, // 10: vrooli.measures_health.v1.validation.ListFleetCoverageResponse.entries:type_name -> vrooli.measures_health.v1.validation.FleetEntry
-	7,  // 11: vrooli.measures_health.v1.validation.ValidationService.ValidateScenario:input_type -> vrooli.measures_health.v1.validation.ValidateScenarioRequest
-	9,  // 12: vrooli.measures_health.v1.validation.ValidationService.ListFleetCoverage:input_type -> vrooli.measures_health.v1.validation.ListFleetCoverageRequest
-	8,  // 13: vrooli.measures_health.v1.validation.ValidationService.ValidateScenario:output_type -> vrooli.measures_health.v1.validation.ValidateScenarioResponse
-	11, // 14: vrooli.measures_health.v1.validation.ValidationService.ListFleetCoverage:output_type -> vrooli.measures_health.v1.validation.ListFleetCoverageResponse
-	13, // [13:15] is the sub-list for method output_type
-	11, // [11:13] is the sub-list for method input_type
+	9,  // 10: vrooli.measures_health.v1.validation.ListFleetCoverageResponse.entries:type_name -> vrooli.measures_health.v1.validation.FleetEntry
+	8,  // 11: vrooli.measures_health.v1.validation.ValidationService.ListFleetCoverage:input_type -> vrooli.measures_health.v1.validation.ListFleetCoverageRequest
+	10, // 12: vrooli.measures_health.v1.validation.ValidationService.ListFleetCoverage:output_type -> vrooli.measures_health.v1.validation.ListFleetCoverageResponse
+	12, // [12:13] is the sub-list for method output_type
+	11, // [11:12] is the sub-list for method input_type
 	11, // [11:11] is the sub-list for extension type_name
 	11, // [11:11] is the sub-list for extension extendee
 	0,  // [0:11] is the sub-list for field type_name
@@ -1069,7 +1005,7 @@ func file_measures_health_v1_validation_validation_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_measures_health_v1_validation_validation_proto_rawDesc), len(file_measures_health_v1_validation_validation_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   9,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

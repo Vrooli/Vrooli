@@ -24,9 +24,11 @@ import (
 
 	auditH "quality-health/handlers/audit"
 	healthH "quality-health/handlers/health"
+	validationH "quality-health/handlers/validation"
 	localdb "quality-health/internal/database"
 
 	auditv1 "github.com/vrooli/vrooli/packages/proto/gen/go/quality-health/v1/audit"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -37,6 +39,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, auditH.Endpoints...)
+	out = append(out, validationH.Endpoints...)
 	return out
 }
 
@@ -64,6 +67,7 @@ type ProtoFileEntry struct {
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "audit", File: auditv1.File_quality_health_v1_audit_audit_proto},
+		{Module: "validation", File: scenariovalidationv1.File_scenario_validation_v1_validation_proto},
 	}
 }
 
@@ -79,5 +83,6 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(auditH.Schema),
+		apidb.SchemaProviderFunc(validationH.Schema),
 	}
 }

@@ -44,7 +44,7 @@ const META: Record<Severity, SeverityMeta> = {
 };
 
 export function severityMeta(severity: Severity): SeverityMeta {
-  return META[severity];
+  return META[severity] ?? META[Severity.UNSPECIFIED];
 }
 
 /** Sort findings by descending severity (ERROR first), then by rule id. */

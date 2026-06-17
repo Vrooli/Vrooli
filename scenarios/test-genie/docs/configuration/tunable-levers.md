@@ -108,7 +108,7 @@ Common remediation:
 | `dependency.readiness.*` | Run the remediation reported by `scenario-dependency-analyzer health <scenario> --json` |
 | `dependency.runtime.*` | Start or restart the reported resource/scenario dependency |
 | `dependency.graph.*` | Update `.vrooli/service.json` or remove stale dependency usage |
-| `dependency.governance.*` | Review/update `.vrooli/dependencies/approved-dependencies.json` |
+| `dependency.governance.*` | Use SDA governance verbs (never hand-edit the JSON): `scenario-dependency-analyzer deps approved explain <ecosystem>/<pkg>`, then `approve-observed --apply` / `widen-range` / `deny-vulnerable` |
 | `dependency.release_age.*` | Add/raise pnpm `minimumReleaseAge` or record an approved exclusion |
 | `dependency.security.*` | Check `security-health deps status --json` |
 

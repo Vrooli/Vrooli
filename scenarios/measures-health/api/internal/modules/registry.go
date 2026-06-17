@@ -31,6 +31,7 @@ import (
 	measuresv1 "github.com/vrooli/vrooli/packages/proto/gen/go/measures-health/v1/measures"
 	searchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/measures-health/v1/search"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/measures-health/v1/validation"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -71,6 +72,7 @@ func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "measures", File: measuresv1.File_measures_health_v1_measures_measures_proto},
 		{Module: "search", File: searchv1.File_measures_health_v1_search_search_proto},
+		{Module: "validation", File: scenariovalidationv1.File_scenario_validation_v1_validation_proto},
 		{Module: "validation", File: validationv1.File_measures_health_v1_validation_validation_proto},
 	}
 }

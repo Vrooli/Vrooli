@@ -3,6 +3,7 @@ module tidiness-manager
 go 1.25.0
 
 require (
+	connectrpc.com/connect v1.19.2
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
 	github.com/lib/pq v1.10.9
@@ -13,6 +14,7 @@ require (
 	github.com/vrooli/repo-contract-go v0.0.0
 	github.com/vrooli/vrooli-cli-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
+	google.golang.org/protobuf v1.36.11
 )
 
 replace github.com/testcontainers/testcontainers-go => github.com/testcontainers/testcontainers-go v0.27.0
@@ -71,7 +73,6 @@ require (
 	golang.org/x/tools v0.10.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	google.golang.org/grpc v1.58.3 // indirect
-	google.golang.org/protobuf v1.36.11 // indirect
 )
 
 replace github.com/vrooli/vrooli => ../../..

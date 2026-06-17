@@ -1,9 +1,7 @@
 // Package validation is the Connect-RPC surface for the measures coverage
-// validator. It is a thin translation layer: it delegates to the
-// internal/validation Validator (the pure Classify heart + filesystem seams) and
-// maps the resulting Report onto the generated proto messages. The producer
-// contract (Finding shape, severity normalization) is intentionally identical to
-// security-health so test-genie maps it uniformly.
+// validator. Scenario-level validation is served through the shared
+// ScenarioValidationService; measures-health's native coverage report is packed
+// into native_detail for its own UI.
 package validation
 
 import (
@@ -20,6 +18,7 @@ import (
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/measures-health/v1/validation"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 )
 
 // Validator is the subset of internal/validation the handler depends on (a seam
@@ -57,8 +56,8 @@ func NewConnectHandler(d Deps) *connectHandler {
 	return &connectHandler{deps: d}
 }
 
-func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Request[validationv1.ValidateScenarioRequest]) (*connect.Response[validationv1.ValidateScenarioResponse], error) {
-	rep, err := h.deps.Validator.ValidateScenario(ctx, req.Msg.GetScenario(), req.Msg.GetProbe())
+func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
+	rep, err := h.deps.Validator.ValidateScenario(ctx, req.Msg.GetScenario(), req.Msg.GetIncludeExecution())
 	if err != nil {
 		h.deps.Logger.Printf("validation.ValidateScenario(%q): %v", req.Msg.GetScenario(), err)
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -77,9 +76,13 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 			h.deps.Logger.Printf("validation.ValidateScenario(%q): record run history: %v", rep.Scenario, rerr)
 		}
 	}
-	resp, err := reportToProto(rep, h.deps.MaturitySpec)
+	native, err := reportToProto(rep, h.deps.MaturitySpec)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	resp, err := assessment.BuildValidationResponse(native.GetScenario(), native.GetAssessment(), native)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared validation response: %w", err))
 	}
 	return connect.NewResponse(resp), nil
 }
@@ -106,9 +109,9 @@ func (h *connectHandler) ListFleetCoverage(ctx context.Context, req *connect.Req
 	return connect.NewResponse(resp), nil
 }
 
-func reportToProto(rep internal.Report, spec *assessment.Spec) (*validationv1.ValidateScenarioResponse, error) {
+func reportToProto(rep internal.Report, spec *assessment.Spec) (*validationv1.ScenarioCoverageReport, error) {
 	errs, warns, infos := rep.Summary()
-	out := &validationv1.ValidateScenarioResponse{
+	out := &validationv1.ScenarioCoverageReport{
 		Scenario:        rep.Scenario,
 		Passed:          rep.Passed,
 		Summary:         &validationv1.Summary{Errors: int32(errs), Warnings: int32(warns), Infos: int32(infos)},

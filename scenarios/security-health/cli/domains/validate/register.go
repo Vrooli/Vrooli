@@ -1,6 +1,5 @@
-// Package validate is the CLI's validate-domain command surface. It mirrors
-// the API's Connect-RPC ValidationService and is the seam test-genie's
-// `security` phase shells: `security-health validate scenario <name> --json`.
+// Package validate is the CLI's validate-domain command surface. It calls the
+// API's shared ScenarioValidationService endpoint.
 package validate
 
 import (
@@ -17,7 +16,7 @@ const GroupName = "validate"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"ValidationService.ValidateScenario": h.validateScenario,
+		"ScenarioValidationService.ValidateScenario": h.validateScenario,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

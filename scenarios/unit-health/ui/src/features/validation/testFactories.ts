@@ -197,6 +197,12 @@ export const makeValidateScenarioResponse = (
       coverageTargets: 1,
     },
     nextSteps: ["Raise UI coverage above 80%.", "Stabilize the flaky HealthCard test."],
+    artifacts: [
+      { label: "Validation run", kind: "run", reference: "run-1" },
+      { label: "Target", kind: "target", reference: "/repo/scenarios/unit-health" },
+      { label: "ui test", kind: "command", reference: "scenarios/unit-health/ui" },
+      { label: "Coverage (ui)", kind: "coverage", reference: "scenarios/unit-health/ui" },
+    ],
     assessment: {
       scenario: "unit-health",
       provider: "unit-health",

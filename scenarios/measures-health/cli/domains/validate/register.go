@@ -1,8 +1,8 @@
 // Package validate is the CLI's measures coverage-validation command surface.
-// It mirrors the API's Connect-RPC ValidationService: `measures-health validate
-// scenario <name>` grades one scenario's measure adoption (the verb test-genie's
-// `measures` phase shells with --json), and `measures-health validate coverage`
-// rolls the fleet up.
+// It mirrors the API's Connect-RPC validation surface: `measures-health validate
+// scenario <name>` calls the shared ScenarioValidationService, and
+// `measures-health validate coverage` rolls the fleet up through measures-health's
+// native ValidationService.
 //
 // The manifest (cli/manifest.json, group "validate") is the single source of
 // truth for the command-line shape (flags, positionals, governance, RPC
@@ -23,8 +23,8 @@ const GroupName = "validate"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"ValidationService.ValidateScenario":  h.validateScenario,
-		"ValidationService.ListFleetCoverage": h.coverage,
+		"ScenarioValidationService.ValidateScenario": h.validateScenario,
+		"ValidationService.ListFleetCoverage":        h.coverage,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

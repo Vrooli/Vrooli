@@ -27,6 +27,7 @@ import (
 	localdb "unit-health/internal/database"
 	"unit-health/internal/runhistory"
 
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/unit-health/v1/validation"
 )
 
@@ -65,6 +66,7 @@ type ProtoFileEntry struct {
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "validation", File: validationv1.File_unit_health_v1_validation_validation_proto},
+		{Module: "validation", File: scenariovalidationv1.File_scenario_validation_v1_validation_proto},
 	}
 }
 

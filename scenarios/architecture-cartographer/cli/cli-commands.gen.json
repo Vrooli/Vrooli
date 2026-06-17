@@ -1,0 +1,144 @@
+{
+  "commands": [
+    {
+      "name": "analytics events",
+      "description": "Page the append-only analytics event log for a scenario"
+    },
+    {
+      "name": "analytics override-record",
+      "description": "Record an operator override of a verdict"
+    },
+    {
+      "name": "analytics placements",
+      "description": "List placement-outcome rows for a scenario"
+    },
+    {
+      "name": "analytics stats",
+      "description": "Show the analytics roll-up (verdict-success rate suppressed below the N>=5 threshold)"
+    },
+    {
+      "name": "apply baseline",
+      "description": "Show the toolchain build baseline (empty in v0.1; BuildGuard is unwired)"
+    },
+    {
+      "name": "apply history",
+      "description": "List apply runs for a scenario (empty in v0.1)"
+    },
+    {
+      "name": "apply plan",
+      "description": "Deterministically derive the operation list that would resolve a domain's conflicts (v0.1: read-only, no toolchain)"
+    },
+    {
+      "name": "apply run",
+      "description": "Execute a planned apply. v0.1 always returns a capability-not-available message (execution lands in the apply-execution plan)."
+    },
+    {
+      "name": "apply suppress",
+      "description": "Write an in-repo // arch:allow marker sanctioning a finding as intentional"
+    },
+    {
+      "name": "audit run",
+      "description": "Audit a scenario for architectural drift and exit 0 (clean) / 1 (findings ≥ threshold) / 2 (tool error) / 3 (usage error)"
+    },
+    {
+      "name": "audit run-all",
+      "description": "Sweep every discoverable scenario and aggregate the audit reports"
+    },
+    {
+      "name": "campaign apply",
+      "description": "Record an item fix as a status-only transition (auto-execution stays deferred to the apply-execution plan)"
+    },
+    {
+      "name": "campaign close",
+      "description": "Close a campaign"
+    },
+    {
+      "name": "campaign create",
+      "description": "Open a campaign for a scenario and ingest findings from a test-genie audit report"
+    },
+    {
+      "name": "campaign list",
+      "description": "List a scenario's campaigns (newest first), or every campaign when --scenario is omitted"
+    },
+    {
+      "name": "campaign next",
+      "description": "Show the profile-ranked worklist of open items (fast = cheapest path to green; balanced = legacy regressions→cycles→severity; long-term = structural root-causes first)"
+    },
+    {
+      "name": "campaign reaudit",
+      "description": "Reconcile a fresh audit against the tracked items: absent→validated, present→stay, (re)appeared→regression"
+    },
+    {
+      "name": "campaign resolve",
+      "description": "Mark an item resolved with an operator note (the agent fixed it by hand)"
+    },
+    {
+      "name": "campaign status",
+      "description": "Show a campaign's items and progress rollups"
+    },
+    {
+      "name": "configure",
+      "description": "View or update CLI settings (api_base, token)"
+    },
+    {
+      "name": "conflicts detect",
+      "description": "Run every registered Detector against a scenario's snapshot + manifest, persist, and list the conflicts"
+    },
+    {
+      "name": "conflicts detectors",
+      "description": "List the registered Detector plug-ins"
+    },
+    {
+      "name": "conflicts list",
+      "description": "List persisted conflicts for a scenario, filterable by type"
+    },
+    {
+      "name": "conflicts resolvers",
+      "description": "List the registered Resolver plug-ins"
+    },
+    {
+      "name": "conflicts show",
+      "description": "Show one persisted conflict with evidence and suggested fixes"
+    },
+    {
+      "name": "conflicts validate",
+      "description": "Re-run detection against the current resolution state and report cartographer-clean closure"
+    },
+    {
+      "name": "domains convergence",
+      "description": "Report where a scenario's surfaces disagree on the domain set (advisory)"
+    },
+    {
+      "name": "domains extract",
+      "description": "Derive the domain map for a scenario from the extraction ladder"
+    },
+    {
+      "name": "domains show",
+      "description": "Show the derived domain map for a scenario"
+    },
+    {
+      "name": "graph extract",
+      "description": "Extract a normalized cross-language graph for a target scenario"
+    },
+    {
+      "name": "signals boundaries",
+      "description": "Show per-domain coupling/boundary-health scores (advisory)"
+    },
+    {
+      "name": "signals explain",
+      "description": "Explain a verdict with the full per-signal evidence breakdown"
+    },
+    {
+      "name": "signals list",
+      "description": "List registered Signals with default weights and enable/disable state"
+    },
+    {
+      "name": "signals score",
+      "description": "Run every enabled Signal against a file's chunk and show the aggregated verdict"
+    },
+    {
+      "name": "status",
+      "description": "Check API health"
+    }
+  ]
+}

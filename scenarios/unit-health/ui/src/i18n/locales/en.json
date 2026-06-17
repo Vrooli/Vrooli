@@ -33,22 +33,6 @@
       "localeHeading": "Language"
     }
   },
-  "health": {
-    "title": "API Health",
-    "loading": "Checking API status…",
-    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
-    "refresh": "Refresh",
-    "refreshCount": "Refreshed {{count}} times",
-    "refreshCount_one": "Refreshed once",
-    "statusLabel": "Status:",
-    "serviceLabel": "Service:",
-    "timestampLabel": "Timestamp:"
-  },
-  "notifications": {
-    "summary": "{{count}} notifications",
-    "summary_zero": "No notifications",
-    "summary_one": "1 notification"
-  },
   "validation": {
     "title": "Scenario test-maturity validation",
     "scenarioLabel": "Scenario",
@@ -63,6 +47,7 @@
     "surfaces": "Surfaces",
     "runId": "Run ID",
     "targetPath": "Target path",
+    "artifactsTitle": "Run artifacts",
     "countSummary": "{{errors}} errors / {{warnings}} warnings / {{infos}} info",
     "unknown": "Unknown",
     "findingsTitle": "Findings",

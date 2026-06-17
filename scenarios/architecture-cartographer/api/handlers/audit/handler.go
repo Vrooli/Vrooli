@@ -20,6 +20,8 @@ import (
 	conflictsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/conflicts"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
@@ -33,6 +35,7 @@ type Handler struct {
 func NewHandler(svc audit.Service) *Handler { return &Handler{svc: svc} }
 
 var _ audit_v1connect.AuditServiceHandler = (*Handler)(nil)
+var _ scenariovalidationconnect.ScenarioValidationServiceHandler = (*Handler)(nil)
 
 func (h *Handler) RunAll(ctx context.Context, req *connect.Request[auditv1.AuditRunAllRequest]) (*connect.Response[auditv1.AuditRunAllResponse], error) {
 	sweep, err := h.svc.RunAll(ctx, audit.RunAllInput{
@@ -78,6 +81,38 @@ func (h *Handler) Run(ctx context.Context, req *connect.Request[auditv1.AuditRun
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	return connect.NewResponse(reportToProto(rep)), nil
+}
+
+func (h *Handler) ValidateScenario(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
+	msg := req.Msg
+	if msg == nil {
+		msg = &scenariovalidationv1.ValidateScenarioRequest{}
+	}
+	scenario := strings.TrimSpace(msg.GetScenario())
+	if scenario == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario is required"))
+	}
+	native, err := h.Run(ctx, connect.NewRequest(&auditv1.AuditRunRequest{
+		Scenario:          scenario,
+		AllowLowAuthority: true,
+	}))
+	if err != nil {
+		return nil, err
+	}
+	status := scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED
+	switch native.Msg.GetOutcome() {
+	case auditv1.AuditOutcome_AUDIT_OUTCOME_TOOL_ERROR:
+		status = scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_ERROR
+	case auditv1.AuditOutcome_AUDIT_OUTCOME_FINDINGS, auditv1.AuditOutcome_AUDIT_OUTCOME_PARTIAL:
+		status = scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED
+	case auditv1.AuditOutcome_AUDIT_OUTCOME_CLEAN:
+		status = scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED
+	}
+	resp, err := assessment.BuildValidationResponse(native.Msg.GetScenario(), native.Msg.GetAssessment(), native.Msg, assessment.WithValidationStatus(status))
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared validation response: %w", err))
+	}
+	return connect.NewResponse(resp), nil
 }
 
 func severityFromProto(s conflictsv1.Severity) conflicts.Severity {

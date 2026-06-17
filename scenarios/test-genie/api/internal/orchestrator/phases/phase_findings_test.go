@@ -5,21 +5,12 @@ import (
 	"strings"
 	"testing"
 
-	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/maturity-go/assessment"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
-	kov1 "github.com/vrooli/vrooli/packages/proto/gen/go/knowledge-observatory/v1"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 
 	"test-genie/internal/eligibility"
 )
-
-func cliManifestRel(t *testing.T) string {
-	t.Helper()
-	rel, err := repocontract.ScenarioCLIManifestRel("")
-	if err != nil {
-		t.Fatalf("resolve CLI manifest rel: %v", err)
-	}
-	return rel
-}
 
 // TestNormalizeFindingSeverity is the R3 anti-drift guard: every severity
 // vocabulary any producer emits must map to a defined ladder rung. Bare
@@ -51,94 +42,19 @@ func TestNormalizeFindingSeverity(t *testing.T) {
 	}
 }
 
-func TestContractsArchFindings(t *testing.T) {
-	manifestRel := cliManifestRel(t)
-	rep := &cliHealthReport{
-		Scenario: "demo",
-		Findings: []cliHealthFinding{
-			{Severity: "SEVERITY_ERROR", Code: "proto.orphan_method", Location: manifestRel, Message: "method not bound", Suggestion: "bind it"},
-			{Severity: "SEVERITY_WARNING", Code: "manifest.note", Location: "", Message: "advisory"},
-		},
-	}
-	got := contractsArchFindings("demo", rep)
-	if len(got) != 2 {
-		t.Fatalf("want 2 findings, got %d", len(got))
-	}
-	if got[0].Source != architecturev1.FindingSource_FINDING_SOURCE_CLI {
-		t.Errorf("source = %v, want CLI", got[0].Source)
-	}
-	if got[0].Severity != architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR {
-		t.Errorf("severity = %v, want ERROR", got[0].Severity)
-	}
-	if got[0].Code != "proto.orphan_method" || got[0].Locations[0] != manifestRel {
-		t.Errorf("unexpected mapping: %+v", got[0])
-	}
-	if !strings.HasPrefix(got[0].StableId, "afid:") {
-		t.Errorf("missing stable id: %q", got[0].StableId)
-	}
-	if len(got[1].Locations) != 0 {
-		t.Errorf("blank location should be dropped, got %v", got[1].Locations)
-	}
-}
-
 func TestUIHealthArchFindings(t *testing.T) {
-	rep := &uiHealthReport{
+	rep := &commonv1.MaturityAssessment{
 		Scenario: "demo",
-		Findings: []uiHealthFinding{
+		Findings: []*commonv1.AssessmentFinding{
 			{Severity: "SEVERITY_ERROR", Code: "slot.violation", Location: "ui/src/features/x", Message: "unknown slot"},
 		},
 	}
-	got := uiHealthArchFindings("demo", rep)
+	got := assessment.AssessmentToArchitectureFindings("demo", rep, architecturev1.FindingSource_FINDING_SOURCE_UI)
 	if len(got) != 1 || got[0].Source != architecturev1.FindingSource_FINDING_SOURCE_UI {
 		t.Fatalf("want 1 UI finding, got %+v", got)
 	}
 	if got[0].StableId == "" {
 		t.Errorf("missing stable id")
-	}
-}
-
-func TestDocsArchFindings(t *testing.T) {
-	refPath := "docs/y.md"
-	refLine := int32(12)
-	resp := &kov1.DocHealthResponse{
-		ScenarioName: "demo",
-		MisplacedDocs: []*kov1.DocHealthMisplacedDoc{
-			{ActualPath: "docs/x.md", ExpectedPath: "docs/concepts/x.md", Severity: kov1.DocHealthSeverity_DOC_HEALTH_SEVERITY_WARNING},
-		},
-		MissingDocs: []*kov1.DocHealthMissingDoc{
-			{DocType: "ARCHITECTURE", Path: "docs/concepts/ARCHITECTURE.md", Severity: kov1.DocHealthSeverity_DOC_HEALTH_SEVERITY_FAILURE},
-		},
-		ReferenceFindings: []*kov1.DocHealthFinding{
-			{Code: "broken_link", Message: "dead link", Path: &refPath, Line: &refLine, Severity: kov1.DocHealthSeverity_DOC_HEALTH_SEVERITY_FAILURE},
-		},
-	}
-	got := docsArchFindings("demo", resp)
-	if len(got) != 3 {
-		t.Fatalf("want 3 docs findings, got %d", len(got))
-	}
-	for _, f := range got {
-		if f.Source != architecturev1.FindingSource_FINDING_SOURCE_DOCS {
-			t.Errorf("source = %v, want DOCS", f.Source)
-		}
-		if f.StableId == "" {
-			t.Errorf("missing stable id on %+v", f)
-		}
-	}
-	// reference finding carries the family-prefixed code + path:line location.
-	var ref *architecturev1.ArchitectureFinding
-	for _, f := range got {
-		if f.Code == "reference/broken_link" {
-			ref = f
-		}
-	}
-	if ref == nil {
-		t.Fatalf("reference finding code not family-prefixed: %+v", got)
-	}
-	if ref.Locations[0] != "docs/y.md:12" {
-		t.Errorf("location = %q, want docs/y.md:12", ref.Locations[0])
-	}
-	if ref.Severity != architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR {
-		t.Errorf("FAILURE should map to ERROR, got %v", ref.Severity)
 	}
 }
 

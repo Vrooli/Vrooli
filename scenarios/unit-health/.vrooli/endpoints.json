@@ -90,17 +90,54 @@
           "--json"
         ]
       }
+    },
+    {
+      "id": "scenario_validation_validate_scenario",
+      "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario",
+      "method": "POST",
+      "summary": "Validate scenario test maturity through the shared provider contract",
+      "description": "Runs Unit Health's validation engine and returns the shared scenario-validation response; the native unit-health ValidateScenarioResponse is packed into native_detail.",
+      "category": "validation",
+      "request": {
+        "type": "object",
+        "properties": {
+          "include_execution": "bool",
+          "path": "string",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "assessment": "common.v1.MaturityAssessment",
+          "native_detail": "google.protobuf.Any<unit_health.v1.validation.ValidateScenarioResponse>",
+          "scenario": "string",
+          "status": "scenario_validation.v1.ValidationStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Scenario/path is missing or cannot be resolved"
+        }
+      ]
     }
   ],
   "cli_commands": [
     {
+      "name": "configure",
+      "description": "View or update CLI settings (api_base, token)",
+      "endpoint_id": ""
+    },
+    {
       "name": "status",
-      "description": "Check API and dependency health (auto-provided by cli-core's StandardScenarioApp)",
+      "description": "Check API health",
       "endpoint_id": "health"
     },
     {
       "name": "validate scenario",
-      "description": "Validate a scenario's test maturity: discover surfaces, plan/run tests, analyze coverage/architecture/quality, and report local maturity",
+      "description": "Validate a scenario's test execution, coverage, architecture, quality, and local test maturity",
       "endpoint_id": "validation_validate_scenario"
     }
   ]

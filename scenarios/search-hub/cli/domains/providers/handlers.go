@@ -162,7 +162,7 @@ func parseBucket(s string) (registryv1.Bucket, error) {
 	if v, ok := registryv1.Bucket_value[key]; ok && v != 0 {
 		return registryv1.Bucket(v), nil
 	}
-	return 0, fmt.Errorf("invalid --bucket %q (want one of DO, REUSE, KNOW, STATE)", s)
+	return 0, fmt.Errorf("invalid --bucket %q (want one of DO, REUSE, KNOW, STATE, ENTITY)", s)
 }
 
 // parseState maps a friendly state token to the enum. Empty means "no filter".

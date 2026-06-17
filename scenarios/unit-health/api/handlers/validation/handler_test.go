@@ -43,6 +43,10 @@ func TestResponseToProtoMapsFields(t *testing.T) {
 			{Code: "LOW_COVERAGE", Severity: "warning", Message: "c"},
 		},
 		Maturity: internalvalidation.Maturity{Rung: 5, Label: "L5"},
+		Artifacts: []internalvalidation.Artifact{
+			{Label: "Validation run", Kind: "run", Reference: "uh-123"},
+			{Label: "Coverage (api)", Kind: "coverage", Reference: "/x/api"},
+		},
 	}
 	out, err := responseToProto(in, spec)
 	if err != nil {
@@ -62,6 +66,15 @@ func TestResponseToProtoMapsFields(t *testing.T) {
 	}
 	if out.GetMaturity().GetRung() != 5 {
 		t.Errorf("maturity rung = %d, want 5", out.GetMaturity().GetRung())
+	}
+	if len(out.GetArtifacts()) != 2 {
+		t.Fatalf("artifacts not mapped: got %d, want 2", len(out.GetArtifacts()))
+	}
+	if got := out.GetArtifacts()[0]; got.GetKind() != "run" || got.GetReference() != "uh-123" {
+		t.Errorf("first artifact = %+v, want run/uh-123", got)
+	}
+	if got := out.GetArtifacts()[1]; got.GetLabel() != "Coverage (api)" || got.GetReference() != "/x/api" {
+		t.Errorf("second artifact = %+v, want Coverage (api)//x/api", got)
 	}
 }
 

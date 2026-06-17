@@ -6,18 +6,18 @@ Static-quality contracts, lint policy, type policy, and config strictness are ow
 
 ## How It Runs
 
-Test Genie resolves the `tidiness-manager` API via `api-core/discovery`, then calls:
+Test Genie resolves the `tidiness-manager` API via `api-core/discovery`, then calls the shared validation RPC:
 
 ```
-POST {tidiness-manager}/api/v1/scan/tidiness
-{ "scenario_name": "<scenario>" }
+scenario-validation/v1.ScenarioValidationService.ValidateScenario
+{ "scenario": "<scenario>" }
 ```
 
-Each returned finding becomes one `tidiness`-source finding (code = rule id or category, severity normalized, location = file path/line when available).
+Test Genie reads the shared `status` and `assessment.findings` fields only. Tidiness-manager packs its native maintainability summary and category breakdown into `native_detail` for its own CLI/UI.
 
 ## Skip Behaviour (not a failure)
 
-`tidiness` is an optional external dependency. If tidiness-manager is not reachable, or the scan call fails, the phase **skips with a clear message** and does not fail the suite — mirroring the runnability-gate pattern. Start tidiness-manager to enable it.
+`tidiness` is an optional external dependency. If tidiness-manager is not reachable, the phase **skips with a clear message** and does not fail the suite — mirroring the runnability-gate pattern. Start tidiness-manager to enable it.
 
 ## Opt-Out
 

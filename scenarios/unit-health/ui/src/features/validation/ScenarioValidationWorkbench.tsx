@@ -214,6 +214,25 @@ export function ScenarioValidationWorkbench() {
             </dl>
           )}
 
+          {data.artifacts.length > 0 && (
+            <section
+              data-testid="validation-artifacts"
+              className="rounded-panel border border-app-border bg-app-surface px-4 py-2 text-xs"
+            >
+              <h3 className="mb-1 font-semibold text-app-muted-foreground">
+                {t(strings.validation.artifactsTitle)}
+              </h3>
+              <dl className="flex flex-col gap-1">
+                {data.artifacts.map((artifact) => (
+                  <div key={`${artifact.kind}:${artifact.reference}`} className="flex flex-wrap gap-x-2">
+                    <dt className="font-semibold text-app-muted-foreground">{artifact.label}</dt>
+                    <dd className="font-mono text-app-muted-foreground">{artifact.reference}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          )}
+
           {data.maturity?.rationale && (
             <p
               data-testid={selectors.validationWorkbench.rationale}

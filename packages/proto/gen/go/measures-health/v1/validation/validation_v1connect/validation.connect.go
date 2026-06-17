@@ -33,9 +33,6 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// ValidationServiceValidateScenarioProcedure is the fully-qualified name of the ValidationService's
-	// ValidateScenario RPC.
-	ValidationServiceValidateScenarioProcedure = "/vrooli.measures_health.v1.validation.ValidationService/ValidateScenario"
 	// ValidationServiceListFleetCoverageProcedure is the fully-qualified name of the
 	// ValidationService's ListFleetCoverage RPC.
 	ValidationServiceListFleetCoverageProcedure = "/vrooli.measures_health.v1.validation.ValidationService/ListFleetCoverage"
@@ -44,9 +41,6 @@ const (
 // ValidationServiceClient is a client for the
 // vrooli.measures_health.v1.validation.ValidationService service.
 type ValidationServiceClient interface {
-	// ValidateScenario grades one scenario's measure coverage + (optionally)
-	// behaviorally probes its declared measures.
-	ValidateScenario(context.Context, *connect.Request[validation.ValidateScenarioRequest]) (*connect.Response[validation.ValidateScenarioResponse], error)
 	// ListFleetCoverage rolls up a static coverage summary across every
 	// discovered scenario, for the fleet-view UI.
 	ListFleetCoverage(context.Context, *connect.Request[validation.ListFleetCoverageRequest]) (*connect.Response[validation.ListFleetCoverageResponse], error)
@@ -64,12 +58,6 @@ func NewValidationServiceClient(httpClient connect.HTTPClient, baseURL string, o
 	baseURL = strings.TrimRight(baseURL, "/")
 	validationServiceMethods := validation.File_measures_health_v1_validation_validation_proto.Services().ByName("ValidationService").Methods()
 	return &validationServiceClient{
-		validateScenario: connect.NewClient[validation.ValidateScenarioRequest, validation.ValidateScenarioResponse](
-			httpClient,
-			baseURL+ValidationServiceValidateScenarioProcedure,
-			connect.WithSchema(validationServiceMethods.ByName("ValidateScenario")),
-			connect.WithClientOptions(opts...),
-		),
 		listFleetCoverage: connect.NewClient[validation.ListFleetCoverageRequest, validation.ListFleetCoverageResponse](
 			httpClient,
 			baseURL+ValidationServiceListFleetCoverageProcedure,
@@ -81,13 +69,7 @@ func NewValidationServiceClient(httpClient connect.HTTPClient, baseURL string, o
 
 // validationServiceClient implements ValidationServiceClient.
 type validationServiceClient struct {
-	validateScenario  *connect.Client[validation.ValidateScenarioRequest, validation.ValidateScenarioResponse]
 	listFleetCoverage *connect.Client[validation.ListFleetCoverageRequest, validation.ListFleetCoverageResponse]
-}
-
-// ValidateScenario calls vrooli.measures_health.v1.validation.ValidationService.ValidateScenario.
-func (c *validationServiceClient) ValidateScenario(ctx context.Context, req *connect.Request[validation.ValidateScenarioRequest]) (*connect.Response[validation.ValidateScenarioResponse], error) {
-	return c.validateScenario.CallUnary(ctx, req)
 }
 
 // ListFleetCoverage calls vrooli.measures_health.v1.validation.ValidationService.ListFleetCoverage.
@@ -98,9 +80,6 @@ func (c *validationServiceClient) ListFleetCoverage(ctx context.Context, req *co
 // ValidationServiceHandler is an implementation of the
 // vrooli.measures_health.v1.validation.ValidationService service.
 type ValidationServiceHandler interface {
-	// ValidateScenario grades one scenario's measure coverage + (optionally)
-	// behaviorally probes its declared measures.
-	ValidateScenario(context.Context, *connect.Request[validation.ValidateScenarioRequest]) (*connect.Response[validation.ValidateScenarioResponse], error)
 	// ListFleetCoverage rolls up a static coverage summary across every
 	// discovered scenario, for the fleet-view UI.
 	ListFleetCoverage(context.Context, *connect.Request[validation.ListFleetCoverageRequest]) (*connect.Response[validation.ListFleetCoverageResponse], error)
@@ -113,12 +92,6 @@ type ValidationServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewValidationServiceHandler(svc ValidationServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	validationServiceMethods := validation.File_measures_health_v1_validation_validation_proto.Services().ByName("ValidationService").Methods()
-	validationServiceValidateScenarioHandler := connect.NewUnaryHandler(
-		ValidationServiceValidateScenarioProcedure,
-		svc.ValidateScenario,
-		connect.WithSchema(validationServiceMethods.ByName("ValidateScenario")),
-		connect.WithHandlerOptions(opts...),
-	)
 	validationServiceListFleetCoverageHandler := connect.NewUnaryHandler(
 		ValidationServiceListFleetCoverageProcedure,
 		svc.ListFleetCoverage,
@@ -127,8 +100,6 @@ func NewValidationServiceHandler(svc ValidationServiceHandler, opts ...connect.H
 	)
 	return "/vrooli.measures_health.v1.validation.ValidationService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case ValidationServiceValidateScenarioProcedure:
-			validationServiceValidateScenarioHandler.ServeHTTP(w, r)
 		case ValidationServiceListFleetCoverageProcedure:
 			validationServiceListFleetCoverageHandler.ServeHTTP(w, r)
 		default:
@@ -139,10 +110,6 @@ func NewValidationServiceHandler(svc ValidationServiceHandler, opts ...connect.H
 
 // UnimplementedValidationServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedValidationServiceHandler struct{}
-
-func (UnimplementedValidationServiceHandler) ValidateScenario(context.Context, *connect.Request[validation.ValidateScenarioRequest]) (*connect.Response[validation.ValidateScenarioResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.measures_health.v1.validation.ValidationService.ValidateScenario is not implemented"))
-}
 
 func (UnimplementedValidationServiceHandler) ListFleetCoverage(context.Context, *connect.Request[validation.ListFleetCoverageRequest]) (*connect.Response[validation.ListFleetCoverageResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.measures_health.v1.validation.ValidationService.ListFleetCoverage is not implemented"))

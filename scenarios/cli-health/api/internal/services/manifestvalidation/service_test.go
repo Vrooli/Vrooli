@@ -167,6 +167,24 @@ func TestValidateScenario_OrphanMethod(t *testing.T) {
 	}
 }
 
+func TestValidateScenario_SharedBindingDoesNotRequireFullCoverage(t *testing.T) {
+	manifest := `{
+      "name": "fixture",
+      "groups": [{"name":"validate","commands":[{"name":"scenario","binding":{"kind":"connect-rpc","service":"ScenarioValidationService","method":"ValidateScenario"},"governance":{"effect":"read","run_eligible":true}}]}]
+    }`
+	svc := newServiceWith(
+		stubLoader{raw: []byte(manifest)},
+		stubSchema{},
+		stubProto{surface: ProtoSurface{
+			Shared: []ProtoService{{Name: "ScenarioValidationService", Methods: []string{"ValidateScenario", "FutureSharedMethod"}}},
+		}},
+	)
+	r, _ := svc.ValidateScenario(context.Background(), "s")
+	if !r.Passed {
+		t.Fatalf("shared binding should pass without orphan coverage requirements; findings=%+v", r.Findings)
+	}
+}
+
 func TestValidateScenario_OmissionCoversOrphan(t *testing.T) {
 	manifest := `{
       "name": "fixture",

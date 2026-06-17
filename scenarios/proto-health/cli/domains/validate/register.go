@@ -12,7 +12,7 @@ const GroupName = "validate"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"ProtoHealthService.ValidateScenario": h.validateScenario,
+		"ScenarioValidationService.ValidateScenario": h.validateScenario,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

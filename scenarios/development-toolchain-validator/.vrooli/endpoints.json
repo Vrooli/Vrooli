@@ -1060,14 +1060,14 @@
   ],
   "cli_commands": [
     {
-      "name": "status",
-      "description": "Check API and dependency health (auto-provided by cli-core's StandardScenarioApp)",
-      "endpoint_id": "health"
+      "name": "configure",
+      "description": "View or update CLI settings (api_base, token)",
+      "endpoint_id": ""
     },
     {
-      "name": "goldens list",
-      "description": "List registered template-pristine golden scenarios",
-      "endpoint_id": "golden_list"
+      "name": "goldens delete",
+      "description": "Delete a golden record (does not remove files on disk)",
+      "endpoint_id": "golden_delete"
     },
     {
       "name": "goldens get",
@@ -1075,8 +1075,18 @@
       "endpoint_id": "golden_get"
     },
     {
+      "name": "goldens list",
+      "description": "List all registered goldens",
+      "endpoint_id": "golden_list"
+    },
+    {
+      "name": "goldens regenerate",
+      "description": "Regenerate a golden's on-disk tree from its pinned template",
+      "endpoint_id": "golden_regenerate"
+    },
+    {
       "name": "goldens register",
-      "description": "Register a golden (--slug --template --version --path)",
+      "description": "Register a template-pristine golden scenario",
       "endpoint_id": "golden_register"
     },
     {
@@ -1085,19 +1095,9 @@
       "endpoint_id": "golden_update"
     },
     {
-      "name": "goldens delete",
-      "description": "Delete a golden (--yes to confirm)",
-      "endpoint_id": "golden_delete"
-    },
-    {
-      "name": "goldens regenerate",
-      "description": "Regenerate a golden's on-disk tree from its pinned template (--yes to confirm)",
-      "endpoint_id": "golden_regenerate"
-    },
-    {
-      "name": "manifest list",
-      "description": "List all stored (skill_id, golden_slug) manifests",
-      "endpoint_id": "manifest_list"
+      "name": "manifest clear-stale",
+      "description": "Clear staleness override for a (skill, golden) manifest",
+      "endpoint_id": "manifest_clear_stale"
     },
     {
       "name": "manifest get",
@@ -1105,24 +1105,44 @@
       "endpoint_id": "manifest_get"
     },
     {
+      "name": "manifest list",
+      "description": "List all stored manifests",
+      "endpoint_id": "manifest_list"
+    },
+    {
       "name": "manifest upsert",
-      "description": "Create or replace a manifest (--skill --golden [--allow] [--wildcard-allowed] [--convergence] [--template-version] [--skill-version])",
+      "description": "Create or replace a manifest",
       "endpoint_id": "manifest_upsert"
     },
     {
-      "name": "manifest clear-stale",
-      "description": "Clear staleness override for a (skill, golden) manifest (--skill --golden)",
-      "endpoint_id": "manifest_clear_stale"
+      "name": "record get",
+      "description": "Show one record by id",
+      "endpoint_id": "validation_record_get"
     },
     {
-      "name": "skill-catalog sync",
-      "description": "Pull current skills from prompt-manager and reconcile the local mirror",
-      "endpoint_id": "skill_catalog_sync"
+      "name": "record list",
+      "description": "List validation records (paginated)",
+      "endpoint_id": "validation_record_list"
     },
     {
-      "name": "skill-catalog list",
-      "description": "List mirrored skills",
-      "endpoint_id": "skill_catalog_list"
+      "name": "report coverage",
+      "description": "Per-skill coverage grid for one golden",
+      "endpoint_id": "report_coverage"
+    },
+    {
+      "name": "report golden-summary",
+      "description": "Latest verdict per skill and tool for a golden",
+      "endpoint_id": "report_golden_summary"
+    },
+    {
+      "name": "report skill-fitness",
+      "description": "Cross-golden trust/cost/convergence aggregate for one skill",
+      "endpoint_id": "report_skill_fitness"
+    },
+    {
+      "name": "report tuple-history",
+      "description": "Paginated record history for one (skill|tool, golden) tuple",
+      "endpoint_id": "report_tuple_history"
     },
     {
       "name": "skill-catalog get",
@@ -1130,24 +1150,24 @@
       "endpoint_id": "skill_catalog_get"
     },
     {
+      "name": "skill-catalog list",
+      "description": "List mirrored skills (id, version, content_hash)",
+      "endpoint_id": "skill_catalog_list"
+    },
+    {
+      "name": "skill-catalog sync",
+      "description": "Pull the current skill set from prompt-manager and reconcile the local mirror",
+      "endpoint_id": "skill_catalog_sync"
+    },
+    {
       "name": "staleness list",
-      "description": "List manifests whose pinned versions drift from current",
+      "description": "List stale (skill, golden) tuples",
       "endpoint_id": "staleness_list"
     },
     {
-      "name": "record list",
-      "description": "List terminal validation records (paginated, with optional filters)",
-      "endpoint_id": "validation_record_list"
-    },
-    {
-      "name": "record get",
-      "description": "Show one validation record by id",
-      "endpoint_id": "validation_record_get"
-    },
-    {
-      "name": "validation start",
-      "description": "Queue a new (skill|tool, golden) validation run",
-      "endpoint_id": "validation_run_start"
+      "name": "status",
+      "description": "Check API health",
+      "endpoint_id": "health"
     },
     {
       "name": "validation get",
@@ -1160,24 +1180,9 @@
       "endpoint_id": "validation_run_list_active"
     },
     {
-      "name": "report golden-summary",
-      "description": "Show latest verdict per skill and tool for a golden",
-      "endpoint_id": "report_golden_summary"
-    },
-    {
-      "name": "report tuple-history",
-      "description": "Paginated record history for one tuple (--skill | --tool, --golden)",
-      "endpoint_id": "report_tuple_history"
-    },
-    {
-      "name": "report coverage",
-      "description": "Per-skill coverage grid for one golden",
-      "endpoint_id": "report_coverage"
-    },
-    {
-      "name": "report skill-fitness",
-      "description": "Cross-golden trust/cost/convergence aggregate for one skill",
-      "endpoint_id": "report_skill_fitness"
+      "name": "validation start",
+      "description": "Queue a new validation run (returns immediately; use --wait to poll for terminal)",
+      "endpoint_id": "validation_run_start"
     }
   ]
 }

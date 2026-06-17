@@ -13,6 +13,8 @@ import (
 
 	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/dependency_health"
 	healthconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/dependency_health/dependency_health_v1connect"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 )
 
 const (
@@ -30,11 +32,14 @@ func RegisterConnectRoutes(router *gin.Engine, scenariosDir func() string, opts 
 	if len(opts) > 0 {
 		cfg = opts[0]
 	}
-	connectPath, connectHandler := healthconnect.NewDependencyHealthServiceHandler(&connectHandler{
+	handler := &connectHandler{
 		scenariosDir: scenariosDir,
 		spec:         cfg.MaturitySpec,
-	})
-	router.Any(connectPath+"*path", gin.WrapH(connectHandler))
+	}
+	nativePath, nativeHandler := healthconnect.NewDependencyHealthServiceHandler(handler)
+	sharedPath, sharedHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(handler)
+	router.Any(nativePath+"*path", gin.WrapH(nativeHandler))
+	router.Any(sharedPath+"*path", gin.WrapH(sharedHandler))
 }
 
 type connectHandler struct {
@@ -109,6 +114,35 @@ func (h *connectHandler) ValidateDependencyHealth(ctx context.Context, req *conn
 	return connect.NewResponse(resp), nil
 }
 
+// ValidateScenario adapts SDA's rich dependency-health report to the shared
+// ScenarioValidationService contract consumed by Test Genie. The full native
+// DependencyHealthResponse remains available in native_detail for SDA's own CLI.
+func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
+	if h == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("dependency health handler is not configured"))
+	}
+	msg := req.Msg
+	if msg == nil {
+		msg = &scenariovalidationv1.ValidateScenarioRequest{}
+	}
+	scenario := strings.TrimSpace(msg.GetScenario())
+	if scenario == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario is required"))
+	}
+	native, err := h.ValidateDependencyHealth(ctx, connect.NewRequest(&healthv1.ValidateDependencyHealthRequest{
+		Scenario: scenario,
+		UseCache: true,
+	}))
+	if err != nil {
+		return nil, err
+	}
+	resp, err := assessment.BuildValidationResponse(native.Msg.GetScenario(), native.Msg.GetAssessment(), native.Msg)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared validation response: %w", err))
+	}
+	return connect.NewResponse(resp), nil
+}
+
 func (h *connectHandler) resolveScenariosDir() string {
 	if h.scenariosDir == nil {
 		return ""
@@ -117,3 +151,4 @@ func (h *connectHandler) resolveScenariosDir() string {
 }
 
 var _ healthconnect.DependencyHealthServiceHandler = (*connectHandler)(nil)
+var _ scenariovalidationconnect.ScenarioValidationServiceHandler = (*connectHandler)(nil)

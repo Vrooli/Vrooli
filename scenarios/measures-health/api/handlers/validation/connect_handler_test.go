@@ -12,6 +12,7 @@ import (
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/measures-health/v1/validation"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 )
 
 type fakeValidator struct {
@@ -43,28 +44,32 @@ func TestValidateScenario_MapsReportToProto(t *testing.T) {
 		},
 	}
 	h := NewConnectHandler(Deps{Validator: fakeValidator{rep: rep}, MaturitySpec: testMaturitySpec()})
-	resp, err := h.ValidateScenario(context.Background(), connect.NewRequest(&validationv1.ValidateScenarioRequest{Scenario: "swarm-manager"}))
+	resp, err := h.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: "swarm-manager"}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	m := resp.Msg
-	if m.GetScenario() != "swarm-manager" || m.GetPassed() {
+	if m.GetScenario() != "swarm-manager" || m.GetStatus() != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED {
 		t.Fatalf("scenario/passed mismatch: %+v", m)
 	}
-	if m.GetSummary().GetErrors() != 1 {
-		t.Fatalf("want 1 error, got %d", m.GetSummary().GetErrors())
+	native := &validationv1.ScenarioCoverageReport{}
+	if err := m.GetNativeDetail().UnmarshalTo(native); err != nil {
+		t.Fatalf("unpack native detail: %v", err)
 	}
-	if len(m.GetDomains()) != 2 {
-		t.Fatalf("want 2 domains, got %d", len(m.GetDomains()))
+	if native.GetSummary().GetErrors() != 1 {
+		t.Fatalf("want 1 error, got %d", native.GetSummary().GetErrors())
 	}
-	d0 := m.GetDomains()[0]
+	if len(native.GetDomains()) != 2 {
+		t.Fatalf("want 2 domains, got %d", len(native.GetDomains()))
+	}
+	d0 := native.GetDomains()[0]
 	if d0.GetStatus() != validationv1.DomainStatus_DOMAIN_STATUS_COVERED || d0.GetTier() != validationv1.Tier_TIER_FULL {
 		t.Fatalf("backlog mapping wrong: %+v", d0)
 	}
 	if len(d0.GetMeasures()) != 1 || d0.GetMeasures()[0].GetName() != "backlog.completed" {
 		t.Fatalf("measure mapping wrong: %+v", d0.GetMeasures())
 	}
-	f0 := m.GetFindings()[0]
+	f0 := native.GetFindings()[0]
 	if f0.GetSeverity() != validationv1.Severity_SEVERITY_ERROR || f0.GetRuleId() != "measures.uncovered-domain" {
 		t.Fatalf("finding mapping wrong: %+v", f0)
 	}

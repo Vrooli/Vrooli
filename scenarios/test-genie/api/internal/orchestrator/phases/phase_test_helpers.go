@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 type (
@@ -34,6 +36,15 @@ func stubPhaseCommandCapture(t *testing.T, fn commandCaptureFunc) {
 	t.Cleanup(func() {
 		phaseCommandCapture = prev
 	})
+}
+
+func cliManifestRel(t *testing.T) string {
+	t.Helper()
+	rel, err := repocontract.ScenarioCLIManifestRel("")
+	if err != nil {
+		t.Fatalf("resolve CLI manifest rel: %v", err)
+	}
+	return rel
 }
 
 func createScenarioLayout(t *testing.T, root, name string) string {

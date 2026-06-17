@@ -95,4 +95,16 @@ func TestAddHandlesErrorAndBoundary(t *testing.T) {
 	if resp.Maturity.Label == "" {
 		t.Errorf("expected a maturity label, got empty")
 	}
+
+	// Run artifacts were derived end-to-end: the run id, the target, the
+	// executed command's working directory, and the coverage location.
+	kinds := map[string]bool{}
+	for _, a := range resp.Artifacts {
+		kinds[a.Kind] = true
+	}
+	for _, want := range []string{"run", "target", "command", "coverage"} {
+		if !kinds[want] {
+			t.Errorf("expected a %q artifact; got %+v", want, resp.Artifacts)
+		}
+	}
 }

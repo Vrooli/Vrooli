@@ -61,6 +61,7 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
+		{Module: "validation", File: validationH.ScenarioValidationProtoFile},
 		{Module: "validation", File: validationH.ProtoFile},
 	}
 }

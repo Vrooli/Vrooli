@@ -6,6 +6,7 @@ require (
 	connectrpc.com/connect v1.19.2
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/lib/pq v1.10.9
+	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/cli-core v0.0.0
 	github.com/vrooli/maturity-go v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
@@ -62,7 +63,6 @@ require (
 	github.com/testcontainers/testcontainers-go v0.31.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
-	github.com/vrooli/api-core v0.0.0 // indirect
 	github.com/vrooli/freshness-go v0.0.0 // indirect
 	github.com/vrooli/vrooli-cli-go v0.0.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect

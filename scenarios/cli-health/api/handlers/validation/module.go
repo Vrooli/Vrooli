@@ -14,14 +14,14 @@ import (
 	"github.com/vrooli/maturity-go/assessment"
 	"github.com/vrooli/measures-go/manifestscan"
 
-	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli-health/v1/validation"
-	validationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/cli-health/v1/validation/validation_v1connect"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 )
 
-// ProtoFile exposes the validation domain's proto FileDescriptor so the
+// ProtoFile exposes the shared validation proto FileDescriptor so the
 // global parity test (api/internal/modules/registry_test.go) can walk it
 // without importing the gen/go package directly.
-var ProtoFile = validationv1.File_cli_health_v1_validation_validation_proto
+var ProtoFile = scenariovalidationv1.File_scenario_validation_v1_validation_proto
 
 // Module returns the validation domain's contribution to the API: a single
 // Connect-RPC service handler mounted at the generated procedure path. No
@@ -39,7 +39,7 @@ func Module(logger *log.Logger, repoRoot string, reservedNames []string) module.
 	if err != nil && logger != nil {
 		logger.Printf("validation: maturity assessment disabled: %v", err)
 	}
-	connectPath, connectHandler := validationconnect.NewValidationServiceHandler(NewConnectHandler(Deps{
+	connectPath, connectHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(NewConnectHandler(Deps{
 		Logger:        logger,
 		Validator:     validator,
 		ReservedNames: reservedNames,
@@ -75,10 +75,10 @@ func Schema() string { return "" }
 var Endpoints = []module.EndpointDescriptor{
 	{
 		ID:          "validation_validate_scenario",
-		Path:        validationconnect.ValidationServiceValidateScenarioProcedure,
+		Path:        scenariovalidationconnect.ScenarioValidationServiceValidateScenarioProcedure,
 		Method:      "POST",
 		Summary:     "Validate a scenario's CLI manifest, proto, and endpoints.json",
-		Description: "Runs the cli-health validators against a scenario and returns a structured Finding list. Phase 1 stub returns Unimplemented.",
+		Description: "Runs the cli-health validators against a scenario and returns the shared scenario-validation response with findings in the maturity assessment.",
 		Category:    "validation",
 		Request: &module.Schema{
 			Type:       "object",
@@ -87,18 +87,17 @@ var Endpoints = []module.EndpointDescriptor{
 		Response: &module.Schema{
 			Type: "object",
 			Properties: map[string]string{
-				"scenario":   "string",
-				"passed":     "boolean",
-				"findings":   "array<Finding>",
-				"summary":    "Summary",
-				"assessment": "common.v1.MaturityAssessment",
+				"scenario":      "string",
+				"status":        "scenario_validation.v1.ValidationStatus",
+				"assessment":    "common.v1.MaturityAssessment",
+				"native_detail": "google.protobuf.Any",
 			},
 		},
 		Errors: []module.ErrorDesc{
-			{Status: 501, Code: "unimplemented", Description: "Phase 1 stub; Phase 2 wires the real validators"},
+			{Status: 400, Code: "invalid_argument", Description: "Missing scenario id, reserved CLI name, or validation input error"},
 		},
 		Examples: []module.Example{
-			{Name: "Validate scenario", Curl: "curl http://localhost:${API_PORT}/vrooli.cli_health.v1.validation.ValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"cli-health\"}'"},
+			{Name: "Validate scenario", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"cli-health\"}'"},
 		},
 		CLIMapping: &module.CLIMapping{
 			Command: "cli-health validate scenario",

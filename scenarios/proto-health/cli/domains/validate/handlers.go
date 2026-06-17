@@ -7,24 +7,24 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/vrooli/cli-core/cliapp"
-	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/validation"
-	validationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/validation/validation_v1connect"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 )
 
 type handlers struct {
-	client validationconnect.ProtoHealthServiceClient
+	client scenariovalidationconnect.ScenarioValidationServiceClient
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 	return &handlers{
-		client: validationconnect.NewProtoHealthServiceClient(httpClient, baseURL),
+		client: scenariovalidationconnect.NewScenarioValidationServiceClient(httpClient, baseURL),
 	}
 }
 
 func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 	name := ctx.Positional("name")
-	resp, err := h.client.ValidateScenario(context.Background(), connect.NewRequest(&validationv1.ValidateScenarioRequest{
+	resp, err := h.client.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
 		Scenario: name,
 	}))
 	if err != nil {
@@ -34,25 +34,19 @@ func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 		return fmt.Errorf("server returned no validation response")
 	}
 	msg := resp.Msg
-	results := make([]string, 0, len(msg.Findings))
-	for _, f := range msg.Findings {
-		line := fmt.Sprintf("[%s] %s - %s (%s)", severityLabel(f.Severity), f.Code, f.Message, f.Location)
-		if f.Suggestion != "" {
-			line += "\n    suggestion: " + f.Suggestion
-		}
-		results = append(results, line)
-	}
-	summary := fmt.Sprintf("Validated %s - passed=%v errors=%d warnings=%d infos=%d",
-		msg.Scenario, msg.Passed,
-		int(msg.GetSummary().GetErrors()),
-		int(msg.GetSummary().GetWarnings()),
-		int(msg.GetSummary().GetInfos()),
+	assessment := msg.GetAssessment()
+	results := make([]string, 0, len(assessment.GetFindings()))
+	summary := fmt.Sprintf("Validated %s - status=%s errors=%d warnings=%d infos=%d",
+		msg.Scenario,
+		statusLabel(msg.GetStatus()),
+		severityCount(assessment, "SEVERITY_ERROR"),
+		severityCount(assessment, "SEVERITY_WARNING"),
+		severityCount(assessment, "SEVERITY_INFO"),
 	)
 	summaryLines := []string{summary}
-	if assessmentReport := cliapp.BuildMaturityListReport(msg.GetAssessment()); len(assessmentReport.Summary) > 0 {
+	if assessmentReport := cliapp.BuildMaturityListReport(assessment); len(assessmentReport.Summary) > 0 {
 		summaryLines = append(summaryLines, assessmentReport.Summary...)
 		if len(assessmentReport.Results) > 0 {
-			results = append(results, "")
 			results = append(results, assessmentReport.Results...)
 		}
 	}
@@ -66,21 +60,32 @@ func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 	}); err != nil {
 		return err
 	}
-	if !msg.Passed {
-		return fmt.Errorf("scenario %s did not pass proto validation (%d error finding(s))", msg.Scenario, msg.GetSummary().GetErrors())
+	if msg.GetStatus() == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED {
+		return fmt.Errorf("scenario %s did not pass proto validation (%d error finding(s))", msg.Scenario, severityCount(assessment, "SEVERITY_ERROR"))
 	}
 	return nil
 }
 
-func severityLabel(s validationv1.Severity) string {
-	switch s {
-	case validationv1.Severity_SEVERITY_ERROR:
-		return "ERROR"
-	case validationv1.Severity_SEVERITY_WARNING:
-		return "WARN"
-	case validationv1.Severity_SEVERITY_INFO:
-		return "INFO"
+func statusLabel(status scenariovalidationv1.ValidationStatus) string {
+	switch status {
+	case scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED:
+		return "passed"
+	case scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED:
+		return "failed"
+	case scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED:
+		return "degraded"
+	case scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_ERROR:
+		return "error"
+	case scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_SKIPPED:
+		return "skipped"
 	default:
-		return "UNSPECIFIED"
+		return "unspecified"
 	}
+}
+
+func severityCount(a interface{ GetFindingsBySeverity() map[string]int32 }, severity string) int {
+	if a == nil {
+		return 0
+	}
+	return int(a.GetFindingsBySeverity()[severity])
 }

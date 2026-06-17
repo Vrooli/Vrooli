@@ -28,6 +28,7 @@ const (
 	RuleGoLintRequiredLinters = "GO_LINT_REQUIRED_LINTERS"
 	RuleGoDangerousPatterns   = "GO_DANGEROUS_PATTERNS"
 	RuleMakefileQualityGates  = "MAKEFILE_QUALITY_GATES"
+	RuleShellSyntaxLint       = "SHELL_SYNTAX_LINT"
 
 	// RuleCoverageGap marks a discovered surface for which no quality contract
 	// pack applies. It is an informational honesty signal, not a registry
@@ -96,6 +97,7 @@ func Registry() []Rule {
 		{ID: RuleGoLintRequiredLinters, Title: "Go lint required linters", Category: "go", Severity: "error", FixClass: FixClassAutofix, ContractID: "go-static-quality", Applies: Applicability{Language: "go"}, Evaluate: evalGoLintRequiredLinters},
 		{ID: RuleGoDangerousPatterns, Title: "Go dangerous patterns", Category: "go", Severity: "warning", FixClass: FixClassDetectionOnly, FixReason: "Source suppressions require a written reason, not automated source edits.", ContractID: "go-static-quality", Applies: Applicability{Language: "go"}, Evaluate: evalGoDangerousPatterns},
 		{ID: RuleMakefileQualityGates, Title: "Makefile quality gates", Category: "scenario", Severity: "warning", FixClass: FixClassAutofix, ContractID: "scenario-quality-gates", Applies: Applicability{SurfaceKind: "scenario", Scenario: true}, Evaluate: evalMakefile},
+		{ID: RuleShellSyntaxLint, Title: "Shell script syntax lint", Category: "shell", Severity: "warning", FixClass: FixClassDetectionOnly, FixReason: "Shell syntax fixes require human intent; quality-health detects, it does not rewrite scripts.", ContractID: "scenario-quality-gates", Applies: Applicability{SurfaceKind: "scenario", Scenario: true}, WhyItMatters: "A shell script that fails `bash -n` is broken before it runs; CLI scaffolding silently breaking is a common, undetected regression. quality-health owns shell *syntax* lint (unit-health owns bats *testing*).", Remediation: "Run `bash -n <script>` and `shellcheck <script>` locally and fix the reported syntax errors.", Evaluate: evalShellSyntax},
 	}
 }
 

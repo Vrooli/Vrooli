@@ -8,9 +8,9 @@ import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import {
-  Severity,
+  ValidationStatus,
   type ValidateScenarioResponse,
-} from "@vrooli/proto-types/cli-health/v1/validation/validation_pb";
+} from "@vrooli/proto-types/scenario-validation/v1/validation_pb";
 
 export function ValidatePanel() {
   const { t } = useTranslation();
@@ -26,15 +26,17 @@ export function ValidatePanel() {
     mutation.mutate();
   };
 
-  const severityLabel = (s: Severity): { label: string; className: string; testId: string } => {
+  const severityLabel = (s: string): { label: string; className: string; testId: string } => {
     switch (s) {
-      case Severity.ERROR:
+      case "SEVERITY_ERROR":
+      case "ERROR":
         return {
           label: t(strings.validate.severityError),
           className: "bg-red-500/20 text-red-300",
           testId: "severity-error",
         };
-      case Severity.WARNING:
+      case "SEVERITY_WARNING":
+      case "WARNING":
         return {
           label: t(strings.validate.severityWarning),
           className: "bg-yellow-500/20 text-yellow-300",
@@ -50,6 +52,12 @@ export function ValidatePanel() {
   };
 
   const data = mutation.data;
+  const assessment = data?.assessment;
+  const findings = assessment?.findings ?? [];
+  const errors = assessment?.findingsBySeverity?.["SEVERITY_ERROR"] ?? 0;
+  const warnings = assessment?.findingsBySeverity?.["SEVERITY_WARNING"] ?? 0;
+  const infos = assessment?.findingsBySeverity?.["SEVERITY_INFO"] ?? 0;
+  const passed = data?.status === ValidationStatus.PASSED;
 
   return (
     <section
@@ -83,7 +91,7 @@ export function ValidatePanel() {
       {data && (
         <div className="mt-3">
           <div className="flex items-center gap-2">
-            {data.passed ? (
+            {passed ? (
               <span
                 data-testid={selectors.validate.passed}
                 className="rounded-control bg-green-500/20 px-2 py-0.5 text-xs font-medium text-green-300"
@@ -100,19 +108,19 @@ export function ValidatePanel() {
             )}
             <span data-testid={selectors.validate.summary} className="text-xs text-app-muted-foreground">
               {t(strings.validate.summary, {
-                errors: data.summary?.errors ?? 0,
-                warnings: data.summary?.warnings ?? 0,
-                infos: data.summary?.infos ?? 0,
+                errors,
+                warnings,
+                infos,
               })}
             </span>
           </div>
-          {data.findings.length === 0 ? (
+          {findings.length === 0 ? (
             <p data-testid={selectors.validate.empty} className="mt-2 text-sm">
               {t(strings.validate.noFindings)}
             </p>
           ) : (
             <ul data-testid={selectors.validate.findings} className="mt-2 space-y-2">
-              {data.findings.map((f, i) => {
+              {findings.map((f, i) => {
                 const sev = severityLabel(f.severity);
                 return (
                   <li
@@ -134,8 +142,8 @@ export function ValidatePanel() {
                         {f.location}
                       </p>
                     )}
-                    {f.suggestion && (
-                      <p className="mt-1 text-xs text-app-muted-foreground">→ {f.suggestion}</p>
+                    {f.remediation && (
+                      <p className="mt-1 text-xs text-app-muted-foreground">→ {f.remediation}</p>
                     )}
                   </li>
                 );

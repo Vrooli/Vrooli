@@ -4,8 +4,8 @@ import { create } from "@bufbuild/protobuf";
 import {
   DomainCoverageSchema,
   MeasureSummarySchema,
+  ScenarioCoverageReportSchema,
   SummarySchema,
-  ValidateScenarioResponseSchema,
 } from "@vrooli/proto-types/measures-health/v1/validation/validation_pb";
 
 import { renderWithProviders } from "../../test-utils";
@@ -22,7 +22,7 @@ import { fleetClient, DomainStatus, Tier } from "../../api/fleet";
 const mockValidate = vi.mocked(fleetClient.validateScenario);
 
 const response = () =>
-  create(ValidateScenarioResponseSchema, {
+  create(ScenarioCoverageReportSchema, {
     scenario: "swarm-manager",
     passed: false,
     summary: create(SummarySchema, { errors: 1, warnings: 0, infos: 1 }),

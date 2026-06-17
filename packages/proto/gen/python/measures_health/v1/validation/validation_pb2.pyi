@@ -109,15 +109,7 @@ class Summary(_message.Message):
     infos: int
     def __init__(self, errors: _Optional[int] = ..., warnings: _Optional[int] = ..., infos: _Optional[int] = ...) -> None: ...
 
-class ValidateScenarioRequest(_message.Message):
-    __slots__ = ("scenario", "probe")
-    SCENARIO_FIELD_NUMBER: _ClassVar[int]
-    PROBE_FIELD_NUMBER: _ClassVar[int]
-    scenario: str
-    probe: bool
-    def __init__(self, scenario: _Optional[str] = ..., probe: _Optional[bool] = ...) -> None: ...
-
-class ValidateScenarioResponse(_message.Message):
+class ScenarioCoverageReport(_message.Message):
     __slots__ = ("scenario", "passed", "domains", "findings", "summary", "skipped_scanners", "assessment")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     PASSED_FIELD_NUMBER: _ClassVar[int]

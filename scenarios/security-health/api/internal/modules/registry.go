@@ -28,9 +28,9 @@ import (
 	validationH "security-health/handlers/validation"
 	localdb "security-health/internal/database"
 
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	dependenciesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/security-health/v1/dependencies"
 	reindexv1 "github.com/vrooli/vrooli/packages/proto/gen/go/security-health/v1/reindex"
-	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/security-health/v1/validation"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -71,7 +71,7 @@ func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "dependencies", File: dependenciesv1.File_security_health_v1_dependencies_dependencies_proto},
 		{Module: "reindex", File: reindexv1.File_security_health_v1_reindex_reindex_proto},
-		{Module: "validation", File: validationv1.File_security_health_v1_validation_validation_proto},
+		{Module: "validation", File: scenariovalidationv1.File_scenario_validation_v1_validation_proto},
 	}
 }
 

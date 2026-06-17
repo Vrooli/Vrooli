@@ -14,7 +14,8 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/dependency_health"
-	healthconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/dependency_health/dependency_health_v1connect"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 )
 
 func Register(core *cliapp.ScenarioApp) cliapp.CommandGroup {
@@ -35,9 +36,7 @@ func Register(core *cliapp.ScenarioApp) cliapp.CommandGroup {
 
 func run(core *cliapp.ScenarioApp, args []string) error {
 	fs := support.NewFlagSet("health")
-	var useCache bool
 	var jsonOutput bool
-	fs.BoolVar(&useCache, "use-cache", true, "Allow cached upstream facts")
 	fs.BoolVar(&jsonOutput, "json", false, "Output raw JSON")
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
@@ -49,10 +48,9 @@ func run(core *cliapp.ScenarioApp, args []string) error {
 	scenario := positionals[0]
 
 	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(core, 90*time.Second)
-	client := healthconnect.NewDependencyHealthServiceClient(httpClient, baseURL)
-	resp, err := client.ValidateDependencyHealth(context.Background(), connect.NewRequest(&healthv1.ValidateDependencyHealthRequest{
+	client := scenariovalidationconnect.NewScenarioValidationServiceClient(httpClient, baseURL)
+	resp, err := client.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
 		Scenario: scenario,
-		UseCache: useCache,
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("validate dependency health", err, nil)
@@ -66,21 +64,35 @@ func run(core *cliapp.ScenarioApp, args []string) error {
 		return nil
 	}
 
+	native := &healthv1.DependencyHealthResponse{}
+	if detail := resp.Msg.GetNativeDetail(); detail != nil {
+		if err := detail.UnmarshalTo(native); err != nil {
+			return fmt.Errorf("unpack dependency health detail: %w", err)
+		}
+	}
+	if native.GetScenario() == "" {
+		native.Scenario = resp.Msg.GetScenario()
+	}
+	if native.GetAssessment() == nil {
+		native.Assessment = resp.Msg.GetAssessment()
+	}
+
 	report := cliapp.ListReport{
 		Summary: []string{
-			fmt.Sprintf("Scenario: %s", resp.Msg.GetScenario()),
-			fmt.Sprintf("Passed: %t", resp.Msg.GetPassed()),
-			fmt.Sprintf("Findings: %d", resp.Msg.GetSummary().GetFindings()),
-			fmt.Sprintf("Degraded integrations: %d", resp.Msg.GetSummary().GetDegradedDependencies()),
+			fmt.Sprintf("Scenario: %s", native.GetScenario()),
+			fmt.Sprintf("Status: %s", resp.Msg.GetStatus().String()),
+			fmt.Sprintf("Passed: %t", native.GetPassed()),
+			fmt.Sprintf("Findings: %d", native.GetSummary().GetFindings()),
+			fmt.Sprintf("Degraded integrations: %d", native.GetSummary().GetDegradedDependencies()),
 		},
 		ResultsHeading: "Dependency Health Sections",
-		Results:        sectionLines(resp.Msg.GetSections()),
+		Results:        sectionLines(native.GetSections()),
 		RetrievalHints: []string{
 			fmt.Sprintf("%s health %s --json", support.AppName, strings.TrimSpace(scenario)),
 			fmt.Sprintf("%s drift %s --json", support.AppName, strings.TrimSpace(scenario)),
 		},
 	}
-	if maturity := cliapp.BuildMaturityListReport(resp.Msg.GetAssessment()); maturity.Summary != nil {
+	if maturity := cliapp.BuildMaturityListReport(native.GetAssessment()); maturity.Summary != nil {
 		report.Summary = append(report.Summary, maturity.Summary...)
 		report.RetrievalHints = append(report.RetrievalHints, maturity.RetrievalHints...)
 	}

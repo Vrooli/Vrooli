@@ -5,13 +5,13 @@
 **Optional**: No
 **Requires Runtime**: No
 
-The dependencies phase is a read-only producer-backed preflight. Test Genie calls exactly one public producer:
+The dependencies phase is a read-only producer-backed preflight. Test Genie calls exactly one public producer RPC:
 
 ```bash
-scenario-dependency-analyzer health <scenario> --json
+scenario-validation/v1.ScenarioValidationService.ValidateScenario
 ```
 
-Scenario Dependency Analyzer owns dependency interpretation. Test Genie only orchestrates the phase, maps returned findings into `FINDING_SOURCE_DEPENDENCY`, and stores the phase pointer.
+Scenario Dependency Analyzer owns dependency interpretation. Test Genie only orchestrates the phase, maps returned assessment findings into `FINDING_SOURCE_DEPENDENCY`, and stores the phase pointer. SDA's own CLI still exposes the native detail with `scenario-dependency-analyzer health <scenario>`.
 
 ## What Gets Checked
 
@@ -31,7 +31,7 @@ SDA health currently reports these machine-readable sections:
 
 - SDA `ERROR` or `BLOCKER` findings fail the phase.
 - SDA `WARNING` and `INFO` findings are surfaced as observations and architecture findings but do not fail the phase by themselves.
-- If `scenario-dependency-analyzer` is unavailable or returns no JSON report, the phase fails with a producer-unavailable dependency finding. Test Genie does not fall back to native dependency checks.
+- If `scenario-dependency-analyzer` is unavailable or returns a malformed shared validation response, the phase fails with the appropriate provider contract failure. Test Genie does not fall back to native dependency checks.
 
 ## Common Commands
 
@@ -53,7 +53,7 @@ scenario-dependency-analyzer deps approved search "React graph library" --json
 | `dependency.readiness.*` | Missing command/runtime/package state or module/package drift | Run the remediation command reported by SDA |
 | `dependency.runtime.*` | Required resource or scenario dependency stopped/unhealthy | Start or restart the reported dependency |
 | `dependency.graph.*` | Actual import/interface evidence differs from `.vrooli/service.json` declarations | Update the declaration or remove stale usage |
-| `dependency.governance.*` | Dependency is unrecorded, out of approved range, deprecated, or blocked | Review the package and update `.vrooli/dependencies/approved-dependencies.json` when appropriate |
+| `dependency.governance.*` | Dependency is unrecorded, out of approved range, deprecated, or blocked | Use the SDA governance verbs (never hand-edit the JSON): `scenario-dependency-analyzer deps approved explain <ecosystem>/<pkg>` to see the verdict, then `approve-observed --apply` / `widen-range` / `deny-vulnerable` as appropriate |
 | `dependency.release_age.*` | pnpm release-age policy missing/too low or exclusion lacks approval | Add/raise `minimumReleaseAge` or record an approved exception |
 | Security index degradation | Security Health dependency index unavailable/degraded | Check `security-health deps status --json`; vulnerability findings remain owned by the `security` phase |
 

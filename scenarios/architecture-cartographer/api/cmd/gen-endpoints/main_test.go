@@ -10,21 +10,20 @@ import (
 	"architecture-cartographer/internal/module"
 )
 
-// TestRun_ProducesValidJSON exercises the codegen end-to-end: runs the
-// pipeline against the canonical seed (the real cli_commands_seed.json),
-// reads the output back, and asserts it's valid JSON with the canonical
-// envelope shape.
+// TestRun_ProducesValidJSON exercises the codegen end-to-end against this
+// scenario's REAL committed cli/cli-commands.gen.json (not a synthetic
+// fixture), so it stays scenario-agnostic: it proves the generator runs,
+// crossCheck passes against the actual registration tree, and the output is
+// valid JSON with the canonical envelope shape. The cli-commands.gen.json must
+// be up to date (run `make endpoints`); a stale artifact fails crossCheck here
+// exactly as it would in CI.
 func TestRun_ProducesValidJSON(t *testing.T) {
 	output := filepath.Join(t.TempDir(), "endpoints.json")
-	// Use the on-disk seed so we exercise the same data the production
-	// build uses. The test runs from cmd/gen-endpoints so the relative
-	// path resolves the same way `go run ./cmd/gen-endpoints` would.
-	seed := "cli_commands_seed.json"
-	// cli/manifest.json sits at the scenario root; from cmd/gen-endpoints
-	// that is three levels up (cmd/gen-endpoints -> cmd -> api -> root).
-	cliManifest := filepath.Join("..", "..", "..", "cli", "manifest.json")
+	// Path is relative to the test working directory (api/cmd/gen-endpoints):
+	// up to the scenario root, then into cli/.
+	cliCommands := filepath.Join("..", "..", "..", "cli", "cli-commands.gen.json")
 
-	if err := run(output, seed, cliManifest); err != nil {
+	if err := run(output, cliCommands); err != nil {
 		t.Fatalf("run: %v", err)
 	}
 
@@ -52,21 +51,9 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	if len(got.Endpoints) == 0 {
 		t.Error("manifest must include at least one endpoint")
 	}
-	// At least the canonical health entry must be present; production
-	// scenarios add many more — we don't pin the exact count because new
-	// domains land alongside their CLI entries in the same commit.
+	// cli_commands[] mirrors the registered tree, so it must be non-empty.
 	if len(got.CLICommands) == 0 {
-		t.Error("cli_commands must be non-empty")
-	}
-	foundStatus := false
-	for _, c := range got.CLICommands {
-		if c.Name == "status" {
-			foundStatus = true
-			break
-		}
-	}
-	if !foundStatus {
-		t.Error("cli_commands must include the canonical 'status' entry")
+		t.Error("cli_commands must be non-empty (mirrors the registration tree)")
 	}
 
 	// Trailing newline so editors don't get angry about diff noise.
@@ -75,10 +62,10 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	}
 }
 
-// TestCrossCheck_FailsOnUnseededCommand pins the codegen-time guard:
-// an endpoint whose cli_mapping.command isn't in cli_commands_seed
+// TestCrossCheck_FailsOnUnregisteredCommand pins the codegen-time guard:
+// an endpoint whose cli_mapping.command isn't a registered CLI command
 // fails fast with a message that names the missing entry.
-func TestCrossCheck_FailsOnUnseededCommand(t *testing.T) {
+func TestCrossCheck_FailsOnUnregisteredCommand(t *testing.T) {
 	endpoints := []module.EndpointDescriptor{
 		{
 			ID: "lonely",
@@ -87,11 +74,11 @@ func TestCrossCheck_FailsOnUnseededCommand(t *testing.T) {
 			},
 		},
 	}
-	commands := []CLICommand{} // empty seed
+	registered := []registeredCommand{} // empty tree
 
-	err := crossCheck(endpoints, commands)
+	err := crossCheck(endpoints, registered)
 	if err == nil {
-		t.Fatal("expected crossCheck to fail when cli_commands seed is missing the entry")
+		t.Fatal("expected crossCheck to fail when the CLI tree is missing the command")
 	}
 	if !strings.Contains(err.Error(), "lonely subcommand") {
 		t.Errorf("error %q must name the missing command", err.Error())
@@ -101,83 +88,58 @@ func TestCrossCheck_FailsOnUnseededCommand(t *testing.T) {
 	}
 }
 
-// TestCrossCheck_PassesWhenSeeded confirms the happy path.
-func TestCrossCheck_PassesWhenSeeded(t *testing.T) {
+// TestCrossCheck_PassesWhenRegistered confirms the happy path, including
+// alias resolution.
+func TestCrossCheck_PassesWhenRegistered(t *testing.T) {
 	endpoints := []module.EndpointDescriptor{
 		{ID: "x", CLIMapping: &module.CLIMapping{Command: "architecture-cartographer x"}},
-		{ID: "y_no_cli"}, // no CLIMapping — must be allowed
+		{ID: "y_alias", CLIMapping: &module.CLIMapping{Command: "architecture-cartographer notes ll"}},
+		{ID: "z_no_cli"}, // no CLIMapping — must be allowed
 	}
-	commands := []CLICommand{{Name: "x", EndpointID: "x"}}
+	registered := []registeredCommand{
+		{Name: "x"},
+		{Name: "notes list", Aliases: []string{"notes ll"}},
+	}
 
-	if err := crossCheck(endpoints, commands); err != nil {
+	if err := crossCheck(endpoints, registered); err != nil {
 		t.Errorf("expected pass; got %v", err)
 	}
 }
 
-// TestVerifySeedRegistered_FailsOnUnregisteredCommand pins the tightened
-// (no-longer-hollow) gate: a seed command that resolves to neither a
-// cli/manifest.json group+command nor a cli-core built-in fails codegen.
-func TestVerifySeedRegistered_FailsOnUnregisteredCommand(t *testing.T) {
-	registered := map[string]struct{}{"conflicts list": {}}
-	commands := []CLICommand{
-		{Name: "status"},          // built-in — allowed
-		{Name: "conflicts list"},  // registered — allowed
-		{Name: "conflicts ghost"}, // neither — must fail
+// TestBuildCLICommands_ResolvesEndpointIDs confirms membership/order follow
+// the registered tree and endpoint_id is matched from the endpoints.
+func TestBuildCLICommands_ResolvesEndpointIDs(t *testing.T) {
+	endpoints := []module.EndpointDescriptor{
+		{ID: "health", CLIMapping: &module.CLIMapping{Command: "architecture-cartographer status"}},
+		{ID: "notes_list", CLIMapping: &module.CLIMapping{Command: "architecture-cartographer notes list"}},
 	}
-
-	err := verifySeedRegistered(commands, registered)
-	if err == nil {
-		t.Fatal("expected verifySeedRegistered to fail on an unregistered seed command")
-	}
-	if !strings.Contains(err.Error(), "conflicts ghost") {
-		t.Errorf("error %q must name the unregistered command", err.Error())
-	}
-	if strings.Contains(err.Error(), "conflicts list") {
-		t.Errorf("error %q must not flag the registered command", err.Error())
-	}
-}
-
-// TestVerifySeedRegistered_PassesWhenAllResolve confirms the happy path:
-// built-ins and registered group+command names both resolve.
-func TestVerifySeedRegistered_PassesWhenAllResolve(t *testing.T) {
-	registered := map[string]struct{}{"conflicts list": {}, "apply plan": {}}
-	commands := []CLICommand{
+	registered := []registeredCommand{
+		{Name: "configure"},
+		{Name: "notes list"},
 		{Name: "status"},
-		{Name: "conflicts list"},
-		{Name: "apply plan"},
 	}
-	if err := verifySeedRegistered(commands, registered); err != nil {
-		t.Errorf("expected pass; got %v", err)
+	got := buildCLICommands(endpoints, registered)
+	if len(got) != 3 {
+		t.Fatalf("expected 3 cli_commands, got %d", len(got))
 	}
-}
-
-// TestSeedResolvesAgainstRealManifest is the end-to-end regression guard:
-// the on-disk seed must resolve against the on-disk cli/manifest.json, so
-// the two cannot silently drift.
-func TestSeedResolvesAgainstRealManifest(t *testing.T) {
-	seed, err := loadSeed("cli_commands_seed.json")
-	if err != nil {
-		t.Fatalf("load seed: %v", err)
-	}
-	registered, err := loadRegisteredCommands(filepath.Join("..", "..", "..", "cli", "manifest.json"))
-	if err != nil {
-		t.Fatalf("load cli manifest: %v", err)
-	}
-	if err := verifySeedRegistered(seed.CLICommands, registered); err != nil {
-		t.Fatalf("seed does not resolve against cli/manifest.json: %v", err)
+	want := map[string]string{"configure": "", "notes list": "notes_list", "status": "health"}
+	for _, c := range got {
+		if want[c.Name] != c.EndpointID {
+			t.Errorf("%s endpoint_id = %q, want %q", c.Name, c.EndpointID, want[c.Name])
+		}
 	}
 }
 
 // TestStripBinaryPrefix is the smallest unit on the command-name
-// normalisation step: the endpoint's "architecture-cartographer alpha list"
-// must compare against the seed's "alpha list".
+// normalisation step: the endpoint's "architecture-cartographer notes list"
+// must compare against the artifact's "notes list".
 func TestStripBinaryPrefix(t *testing.T) {
 	cases := []struct {
 		in   string
 		want string
 	}{
 		{in: "architecture-cartographer status", want: "status"},
-		{in: "architecture-cartographer alpha list", want: "alpha list"},
+		{in: "architecture-cartographer notes list", want: "notes list"},
 		{in: "already-stripped", want: "already-stripped"},
 		{in: "architecture-cartographer", want: "architecture-cartographer"}, // no trailing space → preserved
 	}

@@ -14,7 +14,11 @@ import (
 	"github.com/vrooli/maturity-go/assessment"
 
 	validationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/measures-health/v1/validation/validation_v1connect"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 )
+
+var ProtoFile = scenariovalidationv1.File_scenario_validation_v1_validation_proto
 
 // Module returns the validation domain's contribution to the API: the generated
 // Connect-RPC ValidationService handler. The Validator is constructed with the
@@ -28,16 +32,21 @@ func Module(repoRoot string, recorder RunRecorder, logger *log.Logger) module.Mo
 	if err != nil && logger != nil {
 		logger.Printf("validation: maturity assessment disabled: %v", err)
 	}
-	connectPath, connectHandler := validationconnect.NewValidationServiceHandler(NewConnectHandler(Deps{
+	handler := NewConnectHandler(Deps{
 		Validator:    v,
 		Recorder:     recorder,
 		Logger:       logger,
 		MaturitySpec: spec,
-	}))
+	})
+	sharedPath, sharedHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(handler)
+	nativePath, nativeHandler := validationconnect.NewValidationServiceHandler(handler)
 	return module.Module{
 		Name: "validation",
 		Mount: func(r *mux.Router) {
-			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
+			connectx.RegisterServices(r,
+				connectx.ServiceMount{Path: sharedPath, Handler: sharedHandler},
+				connectx.ServiceMount{Path: nativePath, Handler: nativeHandler},
+			)
 		},
 		Endpoints: Endpoints,
 	}
@@ -63,34 +72,32 @@ func Schema() string { return "" }
 var Endpoints = []module.EndpointDescriptor{
 	{
 		ID:          "validation_validate_scenario",
-		Path:        validationconnect.ValidationServiceValidateScenarioProcedure,
+		Path:        scenariovalidationconnect.ScenarioValidationServiceValidateScenarioProcedure,
 		Method:      "POST",
 		Summary:     "Validate a scenario's measure coverage",
-		Description: "Grades a scenario's measure adoption: derives its stateful domains, classifies each covered/waived/uncovered against the manifest measure blocks, grades per-measure extraction tier, and (when probe=true) behaviorally probes each declared measure end-to-end. Returns an expected/covered/waived report with normalized producer findings and a pass/fail verdict.",
+		Description: "Grades a scenario's measure adoption through the shared scenario-validation response; the native ScenarioCoverageReport is packed into native_detail.",
 		Category:    "validation",
 		Request: &module.Schema{
 			Type: "object",
 			Properties: map[string]string{
-				"scenario": "string (required, scenario id under scenarios/)",
-				"probe":    "bool (run the behavioral adoption probe against live endpoints)",
+				"scenario":          "string (required, scenario id under scenarios/)",
+				"include_execution": "bool (run the behavioral adoption probe against live endpoints)",
 			},
 		},
 		Response: &module.Schema{
 			Type: "object",
 			Properties: map[string]string{
-				"scenario":   "string",
-				"passed":     "bool",
-				"domains":    "array<DomainCoverage>",
-				"findings":   "array<Finding>",
-				"summary":    "Summary",
-				"assessment": "common.v1.MaturityAssessment",
+				"scenario":      "string",
+				"status":        "scenario_validation.v1.ValidationStatus",
+				"assessment":    "common.v1.MaturityAssessment",
+				"native_detail": "google.protobuf.Any<measures_health.v1.validation.ScenarioCoverageReport>",
 			},
 		},
 		Errors: []module.ErrorDesc{
 			{Status: 500, Code: "internal", Description: "Manifest/proto read failure"},
 		},
 		Examples: []module.Example{
-			{Name: "Validate swarm-manager", Curl: "curl http://localhost:${API_PORT}/vrooli.measures_health.v1.validation.ValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"swarm-manager\"}'"},
+			{Name: "Validate swarm-manager", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"swarm-manager\"}'"},
 		},
 		CLIMapping: &module.CLIMapping{
 			Command: "measures-health validate scenario",

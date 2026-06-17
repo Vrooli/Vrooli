@@ -24,6 +24,7 @@ import (
 
 	auditH "quality-health/handlers/audit"
 	healthH "quality-health/handlers/health"
+	validationH "quality-health/handlers/validation"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -124,6 +125,7 @@ func main() {
 		server.Deps{Clock: clock.System{}, Logger: logger},
 		healthH.Module(db, "quality-health-api", "1.0.0"),
 		auditH.Module(logger, repoRoot),
+		validationH.Module(logger, repoRoot),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

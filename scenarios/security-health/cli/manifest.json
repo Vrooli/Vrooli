@@ -13,7 +13,7 @@
           "positionals": [
             { "name": "name", "required": true, "description": "Scenario id (directory name under scenarios/)" }
           ],
-          "binding": { "kind": "connect-rpc", "service": "ValidationService", "method": "ValidateScenario" },
+          "binding": { "kind": "connect-rpc", "service": "ScenarioValidationService", "method": "ValidateScenario" },
           "governance": {
             "effect": "read",
             "run_eligible": true,

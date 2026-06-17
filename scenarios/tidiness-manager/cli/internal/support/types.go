@@ -1,7 +1,5 @@
 package support
 
-import commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
-
 type CommandRun struct {
 	Command    string `json:"command"`
 	ExitCode   int    `json:"exit_code"`
@@ -30,42 +28,6 @@ type LightScanResult struct {
 	LintIssuesCount int         `json:"lint_issues"`
 	TypeIssuesCount int         `json:"type_issues"`
 	LongFilesCount  int         `json:"long_files_count"`
-}
-
-type TidinessScanResponse struct {
-	Scenario   string                       `json:"scenario"`
-	Status     string                       `json:"status"`
-	Findings   []TidinessFinding            `json:"findings"`
-	Violations []TidinessFinding            `json:"violations"`
-	Summary    TidinessScanSummary          `json:"summary"`
-	Assessment *commonv1.MaturityAssessment `json:"assessment"`
-}
-
-type TidinessScanSummary struct {
-	TotalFindings int `json:"total_findings"`
-	LongFiles     int `json:"long_files"`
-	Complexity    int `json:"complexity"`
-	Duplication   int `json:"duplication"`
-	TechDebt      int `json:"tech_debt"`
-	Coupling      int `json:"coupling"`
-}
-
-type TidinessFinding struct {
-	ID                     string         `json:"id"`
-	RuleID                 string         `json:"rule_id"`
-	Scenario               string         `json:"scenario"`
-	FilePath               string         `json:"file_path,omitempty"`
-	Symbol                 string         `json:"symbol,omitempty"`
-	LineNumber             int            `json:"line_number,omitempty"`
-	Category               string         `json:"category"`
-	Severity               string         `json:"severity"`
-	Title                  string         `json:"title"`
-	Description            string         `json:"description"`
-	Evidence               map[string]any `json:"evidence,omitempty"`
-	WhyItMatters           string         `json:"why_it_matters"`
-	RecommendedRemediation string         `json:"recommended_remediation"`
-	Remediation            string         `json:"remediation"`
-	CampaignGroupHint      string         `json:"campaign_group_hint,omitempty"`
 }
 
 type Issue struct {

@@ -1,0 +1,36 @@
+{
+  "commands": [
+    {
+      "name": "configure",
+      "description": "View or update CLI settings (api_base, token)"
+    },
+    {
+      "name": "measures coverage",
+      "description": "Count scenarios that passed measures validation in a window (fleet measure-coverage over time)"
+    },
+    {
+      "name": "measures failed",
+      "description": "Count scenarios that failed measures validation in a window"
+    },
+    {
+      "name": "search query",
+      "description": "Match an analytical question to a measure and return the computed answer (the search-hub measure provider)"
+    },
+    {
+      "name": "search status",
+      "description": "Report measure-index and backend availability"
+    },
+    {
+      "name": "status",
+      "description": "Check API health"
+    },
+    {
+      "name": "validate coverage",
+      "description": "Roll up measure coverage across every discovered scenario (the fleet view)"
+    },
+    {
+      "name": "validate scenario",
+      "description": "Grade a scenario's measure coverage (expected/covered/waived) and optionally probe its declared measures end-to-end"
+    }
+  ]
+}

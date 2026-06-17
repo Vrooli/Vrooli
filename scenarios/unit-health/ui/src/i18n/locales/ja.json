@@ -33,19 +33,6 @@
       "localeHeading": "言語"
     }
   },
-  "health": {
-    "title": "API ステータス",
-    "loading": "API のステータスを確認中…",
-    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
-    "refresh": "再読み込み",
-    "refreshCount": "{{count}} 回更新しました",
-    "statusLabel": "ステータス:",
-    "serviceLabel": "サービス:",
-    "timestampLabel": "タイムスタンプ:"
-  },
-  "notifications": {
-    "summary": "{{count}} 件の通知"
-  },
   "validation": {
     "title": "シナリオのテスト成熟度検証",
     "scenarioLabel": "シナリオ",
@@ -60,6 +47,7 @@
     "surfaces": "サーフェス",
     "runId": "実行 ID",
     "targetPath": "対象パス",
+    "artifactsTitle": "実行成果物",
     "countSummary": "エラー {{errors}} 件 / 警告 {{warnings}} 件 / 情報 {{infos}} 件",
     "unknown": "不明",
     "findingsTitle": "所見",

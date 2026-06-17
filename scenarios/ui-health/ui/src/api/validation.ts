@@ -1,19 +1,21 @@
 // API client for the validation domain. Thin wrapper over the generated
-// ValidationService Connect client; exports plain TS types so callers stay
-// decoupled from generated message shapes.
+// ScenarioValidationService Connect client; exports plain TS types so callers
+// stay decoupled from generated message shapes.
 import { createClient } from "@connectrpc/connect";
 
 import {
-  ValidationService,
-  Severity,
-  type Finding as ProtoFinding,
-  type Summary as ProtoSummary,
+  type AssessmentFinding as ProtoFinding,
+  type MaturityAssessment,
+} from "@vrooli/proto-types/common/v1/maturity_pb";
+import {
+  ScenarioValidationService,
+  ValidationStatus,
   type ValidateScenarioResponse as ProtoResponse,
-} from "@vrooli/proto-types/ui-health/v1/validation/validation_pb";
+} from "@vrooli/proto-types/scenario-validation/v1/validation_pb";
 
 import { transport } from "./client";
 
-export const validationClient = createClient(ValidationService, transport);
+export const validationClient = createClient(ScenarioValidationService, transport);
 
 export type FindingSeverity = "error" | "warning" | "info" | "unspecified";
 
@@ -44,13 +46,13 @@ export async function validateScenario(scenario: string): Promise<ValidationResu
   return resultFromProto(resp);
 }
 
-function severityFromProto(s: Severity): FindingSeverity {
+function severityFromProto(s: string): FindingSeverity {
   switch (s) {
-    case Severity.ERROR:
+    case "SEVERITY_ERROR":
       return "error";
-    case Severity.WARNING:
+    case "SEVERITY_WARNING":
       return "warning";
-    case Severity.INFO:
+    case "SEVERITY_INFO":
       return "info";
     default:
       return "unspecified";
@@ -63,20 +65,25 @@ function findingFromProto(p: ProtoFinding): ValidationFinding {
     code: p.code,
     location: p.location,
     message: p.message,
-    suggestion: p.suggestion,
+    suggestion: p.remediation,
   };
 }
 
-function summaryFromProto(p: ProtoSummary | undefined): ValidationSummary {
-  return { errors: p?.errors ?? 0, warnings: p?.warnings ?? 0, infos: p?.infos ?? 0 };
+function summaryFromAssessment(p: MaturityAssessment | undefined): ValidationSummary {
+  return {
+    errors: p?.findingsBySeverity["SEVERITY_ERROR"] ?? 0,
+    warnings: p?.findingsBySeverity["SEVERITY_WARNING"] ?? 0,
+    infos: p?.findingsBySeverity["SEVERITY_INFO"] ?? 0,
+  };
 }
 
 function resultFromProto(p: ProtoResponse): ValidationResult {
+  const assessment = p.assessment;
   return {
     scenario: p.scenario,
-    passed: p.passed,
-    findings: p.findings.map(findingFromProto),
-    summary: summaryFromProto(p.summary),
+    passed: p.status === ValidationStatus.PASSED,
+    findings: (assessment?.findings ?? []).map(findingFromProto),
+    summary: summaryFromAssessment(assessment),
     ranAt: new Date().toISOString(),
   };
 }

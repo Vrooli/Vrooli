@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 )
 
 func TestParseArgs(t *testing.T) {
@@ -119,14 +121,22 @@ func TestCheckDocsProviderRestartsThenValidatesRPCWrapperAssessment(t *testing.T
 		switch joined {
 		case "vrooli scenario restart knowledge-observatory":
 			return []byte("ok"), nil
-		case "knowledge-observatory docs health demo --json":
-			return []byte(validProviderJSON("demo", "knowledge-observatory", "docs", "2026-06-16", "L2")), nil
 		default:
 			t.Fatalf("unexpected command: %s", joined)
 			return nil, nil
 		}
 	})
 	defer restore()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario" {
+			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(validProviderJSON("demo", "knowledge-observatory", "docs", "2026-06-16", "L2")))
+	}))
+	defer srv.Close()
+	restoreURL := stubProviderBaseURL(t, srv.URL)
+	defer restoreURL()
 
 	probe, err := ResolveProbe("docs")
 	if err != nil {
@@ -178,7 +188,7 @@ func TestCheckTidinessProviderUsesLifecycleDiscoveredHTTPProbe(t *testing.T) {
 	defer restoreCommands()
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/scan/tidiness" {
+		if r.Method != http.MethodPost || r.URL.Path != scenariovalidationconnect.ScenarioValidationServiceValidateScenarioProcedure {
 			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
 		}
 		w.Header().Set("Content-Type", "application/json")

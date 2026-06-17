@@ -18,6 +18,7 @@ const (
 	RuleGoLintRequiredLinters = rules.RuleGoLintRequiredLinters
 	RuleGoDangerousPatterns   = rules.RuleGoDangerousPatterns
 	RuleMakefileQualityGates  = rules.RuleMakefileQualityGates
+	RuleShellSyntaxLint       = rules.RuleShellSyntaxLint
 	RuleCoverageGap           = rules.RuleCoverageGap
 )
 

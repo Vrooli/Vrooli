@@ -34,7 +34,7 @@ flowchart TB
             catalog["catalog.go"]
             types["types.go"]
             p_structure["phase_structure"]
-            p_deps["phase_dependencies"]
+            p_deps["phase_validationprovider"]
             p_unit["phase_unit"]
             p_int["phase_integration"]
             p_playbooks["phase_playbooks"]

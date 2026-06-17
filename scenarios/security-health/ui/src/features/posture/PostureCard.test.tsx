@@ -2,10 +2,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import { create } from "@bufbuild/protobuf";
 import {
-  FindingSchema,
-  SummarySchema,
   ValidateScenarioResponseSchema,
-} from "@vrooli/proto-types/security-health/v1/validation/validation_pb";
+  ValidationStatus,
+} from "@vrooli/proto-types/scenario-validation/v1/validation_pb";
+import {
+  AssessmentFindingSchema,
+  MaturityAssessmentSchema,
+} from "@vrooli/proto-types/common/v1/maturity_pb";
 
 import { renderWithProviders } from "../../test-utils";
 import { selectors } from "../../consts/selectors";
@@ -23,38 +26,44 @@ const mockValidate = vi.mocked(validationClient.validateScenario);
 const failedResponse = () =>
   create(ValidateScenarioResponseSchema, {
     scenario: "security-health",
-    passed: false,
-    summary: create(SummarySchema, { errors: 1, warnings: 1, infos: 0 }),
-    skippedScanners: ["osv-scanner"],
-    findings: [
-      create(FindingSchema, {
-        ruleId: "gitleaks.generic-api-key",
-        severity: Severity.ERROR,
-        title: "Hardcoded API key",
-        description: "A credential is committed.",
-        remediation: "Rotate the key and move it to vault.",
-        filePath: "api/config.go:12",
-        scanner: "gitleaks",
-      }),
-      create(FindingSchema, {
-        ruleId: "gosec.G404",
-        severity: Severity.WARNING,
-        title: "Weak RNG",
-        description: "math/rand used.",
-        remediation: "Use crypto/rand.",
-        filePath: "api/util.go:3",
-        scanner: "gosec",
-      }),
-    ],
+    status: ValidationStatus.FAILED,
+    assessment: create(MaturityAssessmentSchema, {
+      scenario: "security-health",
+      provider: "security-health",
+      phase: "security",
+      version: "test",
+      findingsBySeverity: { SEVERITY_ERROR: 1, SEVERITY_WARNING: 1 },
+      findings: [
+        create(AssessmentFindingSchema, {
+          code: "gitleaks.generic-api-key",
+          severity: Severity.ERROR,
+          title: "Hardcoded API key",
+          message: "A credential is committed.",
+          remediation: "Rotate the key and move it to vault.",
+          location: "api/config.go:12",
+        }),
+        create(AssessmentFindingSchema, {
+          code: "gosec.G404",
+          severity: Severity.WARNING,
+          title: "Weak RNG",
+          message: "math/rand used.",
+          remediation: "Use crypto/rand.",
+          location: "api/util.go:3",
+        }),
+      ],
+    }),
   });
 
 const cleanResponse = () =>
   create(ValidateScenarioResponseSchema, {
     scenario: "security-health",
-    passed: true,
-    summary: create(SummarySchema, { errors: 0, warnings: 0, infos: 0 }),
-    skippedScanners: [],
-    findings: [],
+    status: ValidationStatus.PASSED,
+    assessment: create(MaturityAssessmentSchema, {
+      scenario: "security-health",
+      provider: "security-health",
+      phase: "security",
+      version: "test",
+    }),
   });
 
 describe("PostureCard", () => {
@@ -63,14 +72,12 @@ describe("PostureCard", () => {
     vi.clearAllMocks();
   });
 
-  it("renders a failed verdict, summary, skipped scanners and findings", async () => {
+  it("renders a failed verdict, summary and findings", async () => {
     mockValidate.mockResolvedValue(failedResponse());
     renderWithProviders(<PostureCard />);
 
     await waitFor(() => expect(screen.getByTestId(selectors.posture.status)).toBeInTheDocument());
     expect(screen.getByTestId(selectors.posture.status)).toHaveAttribute("data-passed", "false");
-    // Interpolated values aren't rendered under i18n cimode; assert the line is present.
-    expect(screen.getByTestId(selectors.posture.skipped)).toBeInTheDocument();
 
     const list = screen.getByTestId(selectors.posture.findings);
     expect(within(list).getByText("Hardcoded API key")).toBeInTheDocument();

@@ -75,6 +75,17 @@ type Response struct {
 	Diagnostics    []Diagnostic
 	Maturity       Maturity
 	NextSteps      []string
+	Artifacts      []Artifact
+}
+
+// Artifact is a labeled, typed reference into a run's outputs (the run id, a
+// command's working directory, a coverage artifact location). It is derived
+// from the rest of the Response so callers can navigate "where is this run /
+// where are its outputs" without reconstructing paths from other fields.
+type Artifact struct {
+	Label     string
+	Kind      string
+	Reference string
 }
 
 // Surface is a discovered scenario surface from Code Facts.
@@ -282,6 +293,7 @@ func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 	resp.Maturity = s.assessMaturity(findings)
 	resp.Summary = summarize(scenario, surfaces, workspaces, findings)
 	resp.NextSteps = nextSteps(resp.Status, inv)
+	resp.Artifacts = buildArtifacts(resp)
 
 	// Persist the run for cross-run diagnostics. Only executed runs carry timing
 	// worth recording. Best-effort: a persistence failure must not fail a run.
@@ -289,6 +301,46 @@ func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 		_ = s.History.Record(ctx, buildRunRecord(resp, plan, now))
 	}
 	return resp, nil
+}
+
+// buildArtifacts derives the labeled output references for a completed run from
+// the Response. The run id anchors the list; the target root, each executed
+// command's working directory, and each coverage-producing workspace's root
+// (where coverage.out / coverage/ is written) follow. References are
+// deduplicated so a workspace with many per-file coverage targets yields one
+// coverage artifact, not one per file.
+func buildArtifacts(resp Response) []Artifact {
+	arts := make([]Artifact, 0, 2+len(resp.CommandResults)+len(resp.Workspaces))
+	if resp.RunID != "" {
+		arts = append(arts, Artifact{Label: "Validation run", Kind: "run", Reference: resp.RunID})
+	}
+	if resp.TargetPath != "" {
+		arts = append(arts, Artifact{Label: "Target", Kind: "target", Reference: resp.TargetPath})
+	}
+	for _, r := range resp.CommandResults {
+		if r.WorkingDirectory == "" {
+			continue
+		}
+		label := r.Name
+		if label == "" {
+			label = r.Command
+		}
+		arts = append(arts, Artifact{Label: label, Kind: "command", Reference: r.WorkingDirectory})
+	}
+	// Coverage artifacts live under each workspace that ran a coverage command;
+	// the per-file CoverageTarget rows carry file paths but the artifact (Go
+	// coverage.out / Vitest coverage/) is workspace-scoped.
+	covered := make(map[string]bool, len(resp.Coverage))
+	for _, c := range resp.Coverage {
+		covered[c.SurfaceID] = true
+	}
+	for _, ws := range resp.Workspaces {
+		if ws.CoverageCommand == "" || ws.RootPath == "" || !covered[ws.ID] {
+			continue
+		}
+		arts = append(arts, Artifact{Label: "Coverage (" + ws.ID + ")", Kind: "coverage", Reference: ws.RootPath})
+	}
+	return arts
 }
 
 // buildRunRecord projects a completed Response into a persisted run record.

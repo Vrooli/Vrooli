@@ -3,7 +3,7 @@ import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 
 import { renderWithProviders } from "../../test-utils";
 import { selectors } from "../../consts/selectors";
-import { Severity } from "@vrooli/proto-types/cli-health/v1/validation/validation_pb";
+import { ValidationStatus } from "@vrooli/proto-types/scenario-validation/v1/validation_pb";
 
 vi.mock("../../api/clients", () => ({
   searchClient: { search: vi.fn(), status: vi.fn() },
@@ -23,9 +23,11 @@ describe("ValidatePanel", () => {
   it("renders a passing report", async () => {
     vi.mocked(validationClient.validateScenario).mockResolvedValue({
       scenario: "development-toolchain-validator",
-      passed: true,
-      findings: [],
-      summary: { errors: 0, warnings: 0, infos: 0 },
+      status: ValidationStatus.PASSED,
+      assessment: {
+        findings: [],
+        findingsBySeverity: { SEVERITY_ERROR: 0, SEVERITY_WARNING: 0, SEVERITY_INFO: 0 },
+      },
     } as never);
 
     renderWithProviders(<ValidatePanel />);
@@ -45,24 +47,26 @@ describe("ValidatePanel", () => {
   it("renders findings with severity badges when validation fails", async () => {
     vi.mocked(validationClient.validateScenario).mockResolvedValue({
       scenario: "broken",
-      passed: false,
-      findings: [
-        {
-          severity: Severity.ERROR,
-          code: "proto.orphan_method",
-          location: "RecordingsService.GetCookies",
-          message: "method not bound",
-          suggestion: "add a command or mark omitted",
-        },
-        {
-          severity: Severity.WARNING,
-          code: "omission.orphan",
-          location: "",
-          message: "stale omission entry",
-          suggestion: "",
-        },
-      ],
-      summary: { errors: 1, warnings: 1, infos: 0 },
+      status: ValidationStatus.FAILED,
+      assessment: {
+        findings: [
+          {
+            severity: "SEVERITY_ERROR",
+            code: "proto.orphan_method",
+            location: "RecordingsService.GetCookies",
+            message: "method not bound",
+            remediation: "add a command or mark omitted",
+          },
+          {
+            severity: "SEVERITY_WARNING",
+            code: "omission.orphan",
+            location: "",
+            message: "stale omission entry",
+            remediation: "",
+          },
+        ],
+        findingsBySeverity: { SEVERITY_ERROR: 1, SEVERITY_WARNING: 1, SEVERITY_INFO: 0 },
+      },
     } as never);
 
     renderWithProviders(<ValidatePanel />);

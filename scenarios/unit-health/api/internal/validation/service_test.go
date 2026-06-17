@@ -211,3 +211,39 @@ func writeFile(t *testing.T, path, content string) {
 		t.Fatalf("write %s: %v", path, err)
 	}
 }
+
+func TestBuildArtifacts(t *testing.T) {
+	resp := Response{
+		RunID:      "uh-123",
+		TargetPath: "/repo/scenarios/demo",
+		CommandResults: []CommandResult{
+			{Name: "api test", Command: "go test ./...", WorkingDirectory: "/repo/scenarios/demo/api"},
+			{Name: "", Command: "bats cli", WorkingDirectory: "/repo/scenarios/demo/cli"},
+			{Name: "no-dir", Command: "noop"}, // no working dir -> skipped
+		},
+		Workspaces: []Workspace{
+			{ID: "api", RootPath: "/repo/scenarios/demo/api", CoverageCommand: "go test -cover ./..."},
+			{ID: "ui", RootPath: "/repo/scenarios/demo/ui", CoverageCommand: "pnpm test:coverage"}, // no coverage rows -> skipped
+			{ID: "cli", RootPath: "/repo/scenarios/demo/cli"},                                      // no coverage command -> skipped
+		},
+		Coverage: []CoverageTarget{{SurfaceID: "api", FilePath: "a.go"}, {SurfaceID: "api", FilePath: "b.go"}},
+	}
+
+	arts := buildArtifacts(resp)
+
+	want := []Artifact{
+		{Label: "Validation run", Kind: "run", Reference: "uh-123"},
+		{Label: "Target", Kind: "target", Reference: "/repo/scenarios/demo"},
+		{Label: "api test", Kind: "command", Reference: "/repo/scenarios/demo/api"},
+		{Label: "bats cli", Kind: "command", Reference: "/repo/scenarios/demo/cli"}, // empty name falls back to command
+		{Label: "Coverage (api)", Kind: "coverage", Reference: "/repo/scenarios/demo/api"},
+	}
+	if len(arts) != len(want) {
+		t.Fatalf("artifact count = %d, want %d: %+v", len(arts), len(want), arts)
+	}
+	for i, w := range want {
+		if arts[i] != w {
+			t.Errorf("artifact[%d] = %+v, want %+v", i, arts[i], w)
+		}
+	}
+}

@@ -39,10 +39,33 @@ func containsArg(args []string, target string) bool {
 	return false
 }
 
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 // ParseJSON parses JSON from a string into a target value.
 // This is the standard helper for parsing JSON across phases.
 func ParseJSON(data string, v interface{}) error {
 	return json.Unmarshal([]byte(data), v)
+}
+
+func extractCapturedJSONObject(provider string, raw []byte) ([]byte, error) {
+	text := strings.TrimSpace(string(raw))
+	if text == "" {
+		return nil, fmt.Errorf("%s produced empty output", provider)
+	}
+	start := strings.IndexByte(text, '{')
+	if start < 0 {
+		return nil, fmt.Errorf("%s output did not contain a JSON object", provider)
+	}
+	end := strings.LastIndexByte(text, '}')
+	if end < start {
+		return nil, fmt.Errorf("%s output contained an incomplete JSON object", provider)
+	}
+	return []byte(text[start : end+1]), nil
 }
 
 func EnsureCommandAvailable(name string) error {

@@ -62,7 +62,7 @@ func TestRegistryDerivesSurfaceAndScenarioApplicability(t *testing.T) {
 	}, ids(goRules))
 
 	scenarioRules := rules.ScenarioRules()
-	require.Equal(t, []string{rules.RuleTestingConfigStrict, rules.RuleMakefileQualityGates}, ids(scenarioRules))
+	require.Equal(t, []string{rules.RuleTestingConfigStrict, rules.RuleMakefileQualityGates, rules.RuleShellSyntaxLint}, ids(scenarioRules))
 }
 
 func ids(ruleList []rules.Rule) []string {

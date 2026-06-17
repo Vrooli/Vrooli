@@ -4,7 +4,7 @@ import { ShieldCheck, ShieldAlert } from "lucide-react";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
-import { Severity, validationClient } from "../../api/validation";
+import { findingsFromResponse, passedFromResponse, Severity, summaryFromResponse, validationClient } from "../../api/validation";
 import { compareSeverity, severityMeta } from "./severity";
 
 /**
@@ -32,9 +32,11 @@ export function PostureBadge({ scenario, topN = 3 }: { scenario: string; topN?: 
   });
 
   const data = query.data;
-  const passed = data?.passed ?? false;
+  const passed = passedFromResponse(data);
+  const summary = summaryFromResponse(data);
+  const findings = findingsFromResponse(data);
   const top = data
-    ? [...data.findings]
+    ? [...findings]
         .sort((a, b) => compareSeverity(a.severity, b.severity) || a.ruleId.localeCompare(b.ruleId))
         .filter((f) => f.severity === Severity.ERROR || f.severity === Severity.WARNING)
         .slice(0, topN)
@@ -86,9 +88,9 @@ export function PostureBadge({ scenario, topN = 3 }: { scenario: string; topN?: 
             </span>
             <span data-testid={selectors.widget.counts} className="text-xs text-app-muted-foreground">
               {t(strings.posture.summary, {
-                errors: data.summary?.errors ?? 0,
-                warnings: data.summary?.warnings ?? 0,
-                infos: data.summary?.infos ?? 0,
+                errors: summary.errors,
+                warnings: summary.warnings,
+                infos: summary.infos,
               })}
             </span>
           </div>

@@ -29,6 +29,7 @@ import (
 	searchregister "github.com/vrooli/searchregister-go"
 
 	knowledgeobservatoryv1connect "github.com/vrooli/vrooli/packages/proto/gen/go/knowledge-observatory/v1/knowledgeobservatoryv1connect"
+	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 
 	dochealthhandler "knowledge-observatory/handlers/dochealth"
 	"knowledge-observatory/internal/adapters/agentmanager"
@@ -438,13 +439,14 @@ func (s *Server) setupRoutes() {
 
 	// Connect-RPC: KnowledgeObservatoryService (DocHealth + future RPCs).
 	if s.docHealthService != nil {
-		path, h := knowledgeobservatoryv1connect.NewKnowledgeObservatoryServiceHandler(
-			dochealthhandler.NewWithDeps(dochealthhandler.Deps{
-				Service:      s.docHealthService,
-				MaturitySpec: s.docHealthMaturity,
-			}),
-		)
+		handler := dochealthhandler.NewWithDeps(dochealthhandler.Deps{
+			Service:      s.docHealthService,
+			MaturitySpec: s.docHealthMaturity,
+		})
+		path, h := knowledgeobservatoryv1connect.NewKnowledgeObservatoryServiceHandler(handler)
 		connectx.RegisterServices(s.router, connectx.ServiceMount{Path: path, Handler: h})
+		validationPath, validationHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(handler)
+		connectx.RegisterServices(s.router, connectx.ServiceMount{Path: validationPath, Handler: validationHandler})
 	}
 
 	// Knowledge collection inventory + maintenance (qdrant-direct utilities).

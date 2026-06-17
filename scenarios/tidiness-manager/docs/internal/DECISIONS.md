@@ -6,7 +6,7 @@ Tidiness Manager no longer owns lint/type/static-quality policy. Quality Health 
 
 ## Active Tidiness Endpoint
 
-`POST /api/v1/scan/tidiness` is the active maintainability endpoint used by Test Genie. Legacy light scan endpoints remain for compatibility and metrics workflows.
+`scenario-validation/v1.ScenarioValidationService.ValidateScenario` is the active maintainability validation endpoint used by Test Genie. The response carries the shared validation status and maturity assessment, with the native tidiness scan summary packed into `native_detail`. Legacy light scan endpoints remain for metrics workflows.
 
 ## Documentation Contract
 

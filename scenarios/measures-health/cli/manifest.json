@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "measures-health",
-  "description": "measures-health CLI surface. Single source of truth for the `validate` and `search` domains: schema-validated against cli-manifest/v1 and cross-validated against the ValidationService/SearchService proto descriptors at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "description": "measures-health CLI surface. Single source of truth for the `validate` and `search` domains: schema-validated against cli-manifest/v1 and cross-validated against the ScenarioValidationService/ValidationService/SearchService proto descriptors at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
   "groups": [
     {
       "name": "validate",
@@ -26,7 +26,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "ValidationService",
+            "service": "ScenarioValidationService",
             "method": "ValidateScenario"
           },
           "governance": {

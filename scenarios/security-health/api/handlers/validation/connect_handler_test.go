@@ -11,7 +11,7 @@ import (
 	"security-health/internal/validation"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
-	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/security-health/v1/validation"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 )
 
 type stubValidator struct {
@@ -39,29 +39,26 @@ func TestValidateScenario_MapsReport(t *testing.T) {
 		SkippedScanners: []string{"osv-scanner"},
 	}}, MaturitySpec: testMaturitySpec()})
 
-	resp, err := h.ValidateScenario(context.Background(), connect.NewRequest(&validationv1.ValidateScenarioRequest{Scenario: "demo"}))
+	resp, err := h.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: "demo"}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	msg := resp.Msg
-	if msg.GetScenario() != "demo" || msg.GetPassed() {
-		t.Errorf("unexpected scenario/passed: %v / %v", msg.GetScenario(), msg.GetPassed())
-	}
-	if len(msg.Findings) != 1 || msg.Findings[0].GetSeverity() != validationv1.Severity_SEVERITY_ERROR {
-		t.Fatalf("finding mapping wrong: %+v", msg.Findings)
-	}
-	if msg.Findings[0].GetRuleId() != "gitleaks.aws" || msg.Findings[0].GetFilePath() != "leak.go:2" {
-		t.Errorf("field mapping wrong: %+v", msg.Findings[0])
-	}
-	if msg.GetSummary().GetErrors() != 1 {
-		t.Errorf("summary errors = %d, want 1", msg.GetSummary().GetErrors())
-	}
-	if len(msg.GetSkippedScanners()) != 1 {
-		t.Errorf("skipped scanners not propagated: %v", msg.GetSkippedScanners())
+	if msg.GetScenario() != "demo" || msg.GetStatus() != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED {
+		t.Errorf("unexpected scenario/status: %v / %v", msg.GetScenario(), msg.GetStatus())
 	}
 	ma := msg.GetAssessment()
 	if ma.GetProvider() != "security-health" || ma.GetPhase() != "security" {
 		t.Fatalf("assessment identity wrong: %+v", ma)
+	}
+	if len(ma.GetFindings()) != 1 || ma.GetFindings()[0].GetSeverity() != "FINDING_SEVERITY_ERROR" {
+		t.Fatalf("finding mapping wrong: %+v", ma.GetFindings())
+	}
+	if ma.GetFindings()[0].GetCode() != "gitleaks.aws" || ma.GetFindings()[0].GetLocation() != "leak.go:2" {
+		t.Errorf("field mapping wrong: %+v", ma.GetFindings()[0])
+	}
+	if ma.GetFindingsBySeverity()["FINDING_SEVERITY_ERROR"] != 1 {
+		t.Errorf("summary errors = %d, want 1", ma.GetFindingsBySeverity()["FINDING_SEVERITY_ERROR"])
 	}
 	if ma.GetLocal().GetCurrentLevel() != "L1" || ma.GetLocal().GetNextLevel() != "L2" {
 		t.Fatalf("assessment local maturity wrong: %+v", ma.GetLocal())
@@ -76,7 +73,7 @@ func TestValidateScenario_MapsReport(t *testing.T) {
 
 func TestValidateScenario_ErrorIsInvalidArgument(t *testing.T) {
 	h := NewConnectHandler(Deps{Validator: stubValidator{err: errors.New("nope")}})
-	_, err := h.ValidateScenario(context.Background(), connect.NewRequest(&validationv1.ValidateScenarioRequest{Scenario: "x"}))
+	_, err := h.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: "x"}))
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Errorf("want InvalidArgument, got %v", connect.CodeOf(err))
 	}
@@ -84,7 +81,7 @@ func TestValidateScenario_ErrorIsInvalidArgument(t *testing.T) {
 
 func TestValidateScenario_NoValidatorUnimplemented(t *testing.T) {
 	h := NewConnectHandler(Deps{})
-	_, err := h.ValidateScenario(context.Background(), connect.NewRequest(&validationv1.ValidateScenarioRequest{Scenario: "x"}))
+	_, err := h.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: "x"}))
 	if connect.CodeOf(err) != connect.CodeUnimplemented {
 		t.Errorf("want Unimplemented, got %v", connect.CodeOf(err))
 	}

@@ -75,13 +75,13 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Runner:         runArchitecturePhase,
 		Optional:       true,
 		DefaultTimeout: 120 * time.Second,
-		Description:    "Audits structural cohesion (cycles, coupling, convergence, mislocation) via architecture-cartographer. Advisory — never gates; drives the campaign nudge.",
+		Description:    "Delegates advisory structural-cohesion validation to architecture-cartographer through ScenarioValidationService; findings never gate but drive the campaign nudge.",
 		FindingSource:  architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE,
 	})
 	register(Spec{
 		Name:          Dependencies,
 		Runner:        runDependenciesPhase,
-		Description:   "Delegates dependency readiness, runtime dependency status, governance, release-age policy, security index availability, and graph drift to scenario-dependency-analyzer health.",
+		Description:   "Delegates dependency readiness, runtime dependency status, governance, release-age policy, security index availability, and graph drift to scenario-dependency-analyzer through ScenarioValidationService.",
 		FindingSource: architecturev1.FindingSource_FINDING_SOURCE_DEPENDENCY,
 	})
 	register(Spec{
@@ -96,7 +96,7 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Runner:         runDocsPhase,
 		Optional:       false,
 		DefaultTimeout: 60 * time.Second,
-		Description:    "Validates Markdown, mermaid diagrams, links, and portability guards across scenario docs.",
+		Description:    "Delegates docs Markdown, mermaid, link, reference, and manifest validation to knowledge-observatory through ScenarioValidationService.",
 		FindingSource:  architecturev1.FindingSource_FINDING_SOURCE_DOCS,
 	})
 	register(Spec{
@@ -154,7 +154,7 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Runner:         runTidinessPhase,
 		Optional:       true,
 		DefaultTimeout: 120 * time.Second,
-		Description:    "Delegates file/function quality checks to tidiness-manager and maps violations into findings (source=tidiness).",
+		Description:    "Delegates file/function quality checks to tidiness-manager through ScenarioValidationService and maps assessment findings into the FINDING_SOURCE_TIDINESS channel.",
 		FindingSource:  architecturev1.FindingSource_FINDING_SOURCE_TIDINESS,
 	})
 	register(Spec{

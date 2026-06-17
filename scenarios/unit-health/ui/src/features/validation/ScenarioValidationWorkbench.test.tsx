@@ -64,6 +64,16 @@ describe("ScenarioValidationWorkbench", () => {
     expect(ref).toHaveTextContent("/repo/scenarios/unit-health");
   });
 
+  it("lists the run artifacts (command working dirs and coverage locations)", async () => {
+    await runDefault();
+    const artifacts = screen.getByTestId("validation-artifacts");
+    // Labeled command + coverage references are rendered so operators can find
+    // a run's outputs without reconstructing paths from other fields.
+    expect(artifacts).toHaveTextContent("ui test");
+    expect(artifacts).toHaveTextContent("Coverage (ui)");
+    expect(artifacts).toHaveTextContent("scenarios/unit-health/ui");
+  });
+
   it("renders the local-maturity summary with next-level and exit criteria", async () => {
     await runDefault();
 

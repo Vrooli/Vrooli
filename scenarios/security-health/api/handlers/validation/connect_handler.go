@@ -1,9 +1,6 @@
-// Package validation hosts the Connect-RPC handler for security-health's
-// ValidationService. The handler delegates real work to the internal
-// validation Service and maps its domain types onto the proto Finding/Severity
-// shape. It is the producer half of the test-genie `security` phase: the CLI
-// renders this RPC's output as --json, and test-genie maps each Finding to
-// FINDING_SOURCE_SECURITY.
+// Package validation hosts the shared ScenarioValidationService handler for
+// security-health. The handler delegates real work to the internal validation
+// Service and returns the common scenario-validation response shape.
 package validation
 
 import (
@@ -17,7 +14,7 @@ import (
 
 	"github.com/vrooli/maturity-go/assessment"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
-	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/security-health/v1/validation"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 )
 
 // Validator is the slice of internal/validation.Service the handler exercises.
@@ -37,8 +34,6 @@ type connectHandler struct {
 	deps Deps
 }
 
-// NewConnectHandler returns a handler satisfying the generated
-// ValidationServiceHandler interface.
 func NewConnectHandler(d Deps) *connectHandler {
 	if d.Logger == nil {
 		d.Logger = log.Default()
@@ -46,7 +41,7 @@ func NewConnectHandler(d Deps) *connectHandler {
 	return &connectHandler{deps: d}
 }
 
-func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Request[validationv1.ValidateScenarioRequest]) (*connect.Response[validationv1.ValidateScenarioResponse], error) {
+func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
 	if h.deps.Validator == nil {
 		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("validation.ValidateScenario: validator not wired"))
 	}
@@ -58,17 +53,9 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build maturity assessment: %w", err))
 	}
-	resp := &validationv1.ValidateScenarioResponse{
-		Scenario:        report.Scenario,
-		Passed:          report.Passed,
-		Findings:        findingsToProto(report.Findings),
-		SkippedScanners: report.SkippedScanners,
-		Assessment:      maturityAssessment,
-		Summary: &validationv1.Summary{
-			Errors:   int32(report.Summary.Errors),
-			Warnings: int32(report.Summary.Warnings),
-			Infos:    int32(report.Summary.Infos),
-		},
+	resp, err := assessment.BuildValidationResponse(report.Scenario, maturityAssessment, nil)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared validation response: %w", err))
 	}
 	return connect.NewResponse(resp), nil
 }
@@ -81,7 +68,7 @@ func buildMaturityAssessment(rep validation.Report, spec *assessment.Spec) (*com
 	for _, f := range rep.Findings {
 		findings = append(findings, assessment.Finding{
 			Code:        f.RuleID,
-			Severity:    severityToProto(f.Severity).String(),
+			Severity:    severityToken(f.Severity),
 			Title:       f.Title,
 			Message:     f.Description,
 			Location:    f.FilePath,
@@ -96,31 +83,15 @@ func buildMaturityAssessment(rep validation.Report, spec *assessment.Spec) (*com
 	})
 }
 
-func findingsToProto(in []validation.Finding) []*validationv1.Finding {
-	out := make([]*validationv1.Finding, 0, len(in))
-	for _, f := range in {
-		out = append(out, &validationv1.Finding{
-			RuleId:      f.RuleID,
-			Severity:    severityToProto(f.Severity),
-			Title:       f.Title,
-			Description: f.Description,
-			Remediation: f.Remediation,
-			FilePath:    f.FilePath,
-			Scanner:     f.Scanner,
-		})
-	}
-	return out
-}
-
-func severityToProto(s validation.Severity) validationv1.Severity {
+func severityToken(s validation.Severity) string {
 	switch s {
 	case validation.SeverityError:
-		return validationv1.Severity_SEVERITY_ERROR
+		return "SEVERITY_ERROR"
 	case validation.SeverityWarning:
-		return validationv1.Severity_SEVERITY_WARNING
+		return "SEVERITY_WARNING"
 	case validation.SeverityInfo:
-		return validationv1.Severity_SEVERITY_INFO
+		return "SEVERITY_INFO"
 	default:
-		return validationv1.Severity_SEVERITY_UNSPECIFIED
+		return "SEVERITY_UNSPECIFIED"
 	}
 }

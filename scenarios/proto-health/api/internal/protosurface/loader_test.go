@@ -47,9 +47,9 @@ func TestDescriptorLoaderLoadScenario(t *testing.T) {
 			continue
 		}
 		for _, rpc := range svc.RPCs {
-			if rpc.Name == "ValidateScenario" {
+			if rpc.Name == "DescribeScenarioProtos" {
 				sawRPC = true
-				require.Equal(t, "vrooli.proto_health.v1.validation.ValidateScenarioRequest", rpc.Input)
+				require.Equal(t, "vrooli.proto_health.v1.validation.DescribeScenarioProtosRequest", rpc.Input)
 				require.Equal(t, TransportKindConnect, rpc.Transport)
 			}
 		}

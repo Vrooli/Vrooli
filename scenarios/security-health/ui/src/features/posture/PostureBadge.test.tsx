@@ -2,10 +2,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import { create } from "@bufbuild/protobuf";
 import {
-  FindingSchema,
-  SummarySchema,
   ValidateScenarioResponseSchema,
-} from "@vrooli/proto-types/security-health/v1/validation/validation_pb";
+  ValidationStatus,
+} from "@vrooli/proto-types/scenario-validation/v1/validation_pb";
+import {
+  AssessmentFindingSchema,
+  MaturityAssessmentSchema,
+} from "@vrooli/proto-types/common/v1/maturity_pb";
 
 import { renderWithProviders } from "../../test-utils";
 import { selectors } from "../../consts/selectors";
@@ -30,12 +33,26 @@ describe("PostureBadge", () => {
     mockValidate.mockResolvedValue(
       create(ValidateScenarioResponseSchema, {
         scenario: "demo",
-        passed: false,
-        summary: create(SummarySchema, { errors: 1, warnings: 0, infos: 2 }),
-        findings: [
-          create(FindingSchema, { ruleId: "gitleaks.x", severity: Severity.ERROR, title: "Leaked secret", scanner: "gitleaks" }),
-          create(FindingSchema, { ruleId: "info.y", severity: Severity.INFO, title: "Informational", scanner: "osv-scanner" }),
-        ],
+        status: ValidationStatus.FAILED,
+        assessment: create(MaturityAssessmentSchema, {
+          scenario: "demo",
+          provider: "security-health",
+          phase: "security",
+          version: "test",
+          findingsBySeverity: { SEVERITY_ERROR: 1, SEVERITY_INFO: 2 },
+          findings: [
+            create(AssessmentFindingSchema, {
+              code: "gitleaks.x",
+              severity: Severity.ERROR,
+              title: "Leaked secret",
+            }),
+            create(AssessmentFindingSchema, {
+              code: "info.y",
+              severity: Severity.INFO,
+              title: "Informational",
+            }),
+          ],
+        }),
       }),
     );
     renderWithProviders(<PostureBadge scenario="demo" />);
@@ -53,9 +70,13 @@ describe("PostureBadge", () => {
     mockValidate.mockResolvedValue(
       create(ValidateScenarioResponseSchema, {
         scenario: "demo",
-        passed: true,
-        summary: create(SummarySchema, { errors: 0, warnings: 0, infos: 0 }),
-        findings: [],
+        status: ValidationStatus.PASSED,
+        assessment: create(MaturityAssessmentSchema, {
+          scenario: "demo",
+          provider: "security-health",
+          phase: "security",
+          version: "test",
+        }),
       }),
     );
     renderWithProviders(<PostureBadge scenario="demo" />);

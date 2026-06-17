@@ -1,7 +1,6 @@
-// Package validation hosts the Connect-RPC handler for cli-health's
-// ValidationService. The handler delegates real work to the
-// manifestvalidation service and maps its domain types onto the proto
-// Finding/Severity shape.
+// Package validation hosts the shared ScenarioValidationService handler for
+// cli-health. The handler delegates real work to the manifestvalidation service
+// and returns the common scenario-validation response shape.
 package validation
 
 import (
@@ -15,8 +14,8 @@ import (
 	"cli-health/internal/services/manifestvalidation"
 
 	"github.com/vrooli/maturity-go/assessment"
-	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli-health/v1/validation"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 )
 
 // Deps wires the seams the Connect validation handler needs.
@@ -41,8 +40,8 @@ type connectHandler struct {
 	deps Deps
 }
 
-// NewConnectHandler returns a handler that satisfies the generated
-// ValidationServiceHandler interface.
+// NewConnectHandler returns a handler that satisfies the generated shared
+// ScenarioValidationServiceHandler interface.
 func NewConnectHandler(d Deps) *connectHandler {
 	if d.Logger == nil {
 		d.Logger = log.Default()
@@ -50,7 +49,7 @@ func NewConnectHandler(d Deps) *connectHandler {
 	return &connectHandler{deps: d}
 }
 
-func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Request[validationv1.ValidateScenarioRequest]) (*connect.Response[validationv1.ValidateScenarioResponse], error) {
+func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
 	if h.deps.Validator == nil {
 		return nil, connect.NewError(connect.CodeUnimplemented, fmt.Errorf("validation.ValidateScenario: validator not wired"))
 	}
@@ -68,16 +67,9 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build maturity assessment: %w", err))
 	}
-	resp := &validationv1.ValidateScenarioResponse{
-		Scenario:   report.Scenario,
-		Passed:     report.Passed,
-		Findings:   findingsToProto(report.Findings),
-		Assessment: maturityAssessment,
-		Summary: &validationv1.Summary{
-			Errors:   int32(report.Summary.Errors),
-			Warnings: int32(report.Summary.Warnings),
-			Infos:    int32(report.Summary.Infos),
-		},
+	resp, err := assessment.BuildValidationResponse(report.Scenario, maturityAssessment, nil)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared validation response: %w", err))
 	}
 	return connect.NewResponse(resp), nil
 }
@@ -90,7 +82,7 @@ func buildMaturityAssessment(rep manifestvalidation.Report, spec *assessment.Spe
 	for _, f := range rep.Findings {
 		findings = append(findings, assessment.Finding{
 			Code:        f.Code,
-			Severity:    severityToProto(f.Severity).String(),
+			Severity:    severityToken(f.Severity),
 			Message:     f.Message,
 			Location:    f.Location,
 			Remediation: f.Suggestion,
@@ -104,29 +96,15 @@ func buildMaturityAssessment(rep manifestvalidation.Report, spec *assessment.Spe
 	})
 }
 
-func findingsToProto(in []manifestvalidation.Finding) []*validationv1.Finding {
-	out := make([]*validationv1.Finding, 0, len(in))
-	for _, f := range in {
-		out = append(out, &validationv1.Finding{
-			Severity:   severityToProto(f.Severity),
-			Code:       f.Code,
-			Location:   f.Location,
-			Message:    f.Message,
-			Suggestion: f.Suggestion,
-		})
-	}
-	return out
-}
-
-func severityToProto(s manifestvalidation.Severity) validationv1.Severity {
+func severityToken(s manifestvalidation.Severity) string {
 	switch s {
 	case manifestvalidation.SeverityError:
-		return validationv1.Severity_SEVERITY_ERROR
+		return "SEVERITY_ERROR"
 	case manifestvalidation.SeverityWarning:
-		return validationv1.Severity_SEVERITY_WARNING
+		return "SEVERITY_WARNING"
 	case manifestvalidation.SeverityInfo:
-		return validationv1.Severity_SEVERITY_INFO
+		return "SEVERITY_INFO"
 	default:
-		return validationv1.Severity_SEVERITY_UNSPECIFIED
+		return "SEVERITY_UNSPECIFIED"
 	}
 }

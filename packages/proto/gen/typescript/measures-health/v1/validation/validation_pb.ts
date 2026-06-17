@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file measures-health/v1/validation/validation.proto.
  */
 export const file_measures_health_v1_validation_validation: GenFile = /*@__PURE__*/
-  fileDesc("Ci5tZWFzdXJlcy1oZWFsdGgvdjEvdmFsaWRhdGlvbi92YWxpZGF0aW9uLnByb3RvEiR2cm9vbGkubWVhc3VyZXNfaGVhbHRoLnYxLnZhbGlkYXRpb24izwEKDk1lYXN1cmVTdW1tYXJ5EgwKBG5hbWUYASABKAkSDgoGaW50ZW50GAIgASgJEjgKBHRpZXIYAyABKA4yKi52cm9vbGkubWVhc3VyZXNfaGVhbHRoLnYxLnZhbGlkYXRpb24uVGllchIOCgZlZmZlY3QYBCABKAkSFgoOcXVlc3Rpb25fY291bnQYBSABKAUSFAoMcHJvYmVfcGFzc2VkGAYgASgIEhQKDHByb2JlX2RldGFpbBgHIAEoCRIRCgl0aWVyX25vdGUYCCABKAkiogIKDkRvbWFpbkNvdmVyYWdlEg4KBmRvbWFpbhgBIAEoCRJCCgZzdGF0dXMYAiABKA4yMi52cm9vbGkubWVhc3VyZXNfaGVhbHRoLnYxLnZhbGlkYXRpb24uRG9tYWluU3RhdHVzEhUKDW1lYXN1cmVfY291bnQYAyABKAUSOAoEdGllchgEIAEoDjIqLnZyb29saS5tZWFzdXJlc19oZWFsdGgudjEudmFsaWRhdGlvbi5UaWVyEhUKDXdhaXZlcl9yZWFzb24YBSABKAkSDAoEbm90ZRgGIAEoCRJGCghtZWFzdXJlcxgHIAMoCzI0LnZyb29saS5tZWFzdXJlc19oZWFsdGgudjEudmFsaWRhdGlvbi5NZWFzdXJlU3VtbWFyeSK5AQoHRmluZGluZxIPCgdydWxlX2lkGAEgASgJEkAKCHNldmVyaXR5GAIgASgOMi4udnJvb2xpLm1lYXN1cmVzX2hlYWx0aC52MS52YWxpZGF0aW9uLlNldmVyaXR5Eg0KBXRpdGxlGAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJEhMKC3JlbWVkaWF0aW9uGAUgASgJEhEKCWZpbGVfcGF0aBgGIAEoCRIPCgdzY2FubmVyGAcgASgJIjoKB1N1bW1hcnkSDgoGZXJyb3JzGAEgASgFEhAKCHdhcm5pbmdzGAIgASgFEg0KBWluZm9zGAMgASgFIjoKF1ZhbGlkYXRlU2NlbmFyaW9SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEg0KBXByb2JlGAIgASgIItECChhWYWxpZGF0ZVNjZW5hcmlvUmVzcG9uc2USEAoIc2NlbmFyaW8YASABKAkSDgoGcGFzc2VkGAIgASgIEkUKB2RvbWFpbnMYAyADKAsyNC52cm9vbGkubWVhc3VyZXNfaGVhbHRoLnYxLnZhbGlkYXRpb24uRG9tYWluQ292ZXJhZ2USPwoIZmluZGluZ3MYBCADKAsyLS52cm9vbGkubWVhc3VyZXNfaGVhbHRoLnYxLnZhbGlkYXRpb24uRmluZGluZxI+CgdzdW1tYXJ5GAUgASgLMi0udnJvb2xpLm1lYXN1cmVzX2hlYWx0aC52MS52YWxpZGF0aW9uLlN1bW1hcnkSGAoQc2tpcHBlZF9zY2FubmVycxgGIAMoCRIxCgphc3Nlc3NtZW50GAcgASgLMh0uY29tbW9uLnYxLk1hdHVyaXR5QXNzZXNzbWVudCItChhMaXN0RmxlZXRDb3ZlcmFnZVJlcXVlc3QSEQoJc2NlbmFyaW9zGAEgAygJIssBCgpGbGVldEVudHJ5EhAKCHNjZW5hcmlvGAEgASgJEg4KBnBhc3NlZBgCIAEoCBIQCghleHBlY3RlZBgDIAEoBRIPCgdjb3ZlcmVkGAQgASgFEg4KBndhaXZlZBgFIAEoBRIRCgl1bmNvdmVyZWQYBiABKAUSPgoKd29yc3RfdGllchgHIAEoDjIqLnZyb29saS5tZWFzdXJlc19oZWFsdGgudjEudmFsaWRhdGlvbi5UaWVyEhUKDW1lYXN1cmVfY291bnQYCCABKAUiXgoZTGlzdEZsZWV0Q292ZXJhZ2VSZXNwb25zZRJBCgdlbnRyaWVzGAEgAygLMjAudnJvb2xpLm1lYXN1cmVzX2hlYWx0aC52MS52YWxpZGF0aW9uLkZsZWV0RW50cnkqYQoIU2V2ZXJpdHkSGAoUU0VWRVJJVFlfVU5TUEVDSUZJRUQQABISCg5TRVZFUklUWV9FUlJPUhABEhQKEFNFVkVSSVRZX1dBUk5JTkcQAhIRCg1TRVZFUklUWV9JTkZPEAMqnwEKDERvbWFpblN0YXR1cxIdChlET01BSU5fU1RBVFVTX1VOU1BFQ0lGSUVEEAASGQoVRE9NQUlOX1NUQVRVU19DT1ZFUkVEEAESGwoXRE9NQUlOX1NUQVRVU19VTkNPVkVSRUQQAhIYChRET01BSU5fU1RBVFVTX1dBSVZFRBADEh4KGkRPTUFJTl9TVEFUVVNfTk9UX0VYUEVDVEVEEAQqUAoEVGllchIUChBUSUVSX1VOU1BFQ0lGSUVEEAASDQoJVElFUl9GVUxMEAESEAoMVElFUl9QQVJUSUFMEAISEQoNVElFUl9GQUxMQkFDSxADMr4CChFWYWxpZGF0aW9uU2VydmljZRKRAQoQVmFsaWRhdGVTY2VuYXJpbxI9LnZyb29saS5tZWFzdXJlc19oZWFsdGgudjEudmFsaWRhdGlvbi5WYWxpZGF0ZVNjZW5hcmlvUmVxdWVzdBo+LnZyb29saS5tZWFzdXJlc19oZWFsdGgudjEudmFsaWRhdGlvbi5WYWxpZGF0ZVNjZW5hcmlvUmVzcG9uc2USlAEKEUxpc3RGbGVldENvdmVyYWdlEj4udnJvb2xpLm1lYXN1cmVzX2hlYWx0aC52MS52YWxpZGF0aW9uLkxpc3RGbGVldENvdmVyYWdlUmVxdWVzdBo/LnZyb29saS5tZWFzdXJlc19oZWFsdGgudjEudmFsaWRhdGlvbi5MaXN0RmxlZXRDb3ZlcmFnZVJlc3BvbnNlQlxaWmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vbWVhc3VyZXMtaGVhbHRoL3YxL3ZhbGlkYXRpb247dmFsaWRhdGlvbl92MWIGcHJvdG8z", [file_common_v1_maturity]);
+  fileDesc("Ci5tZWFzdXJlcy1oZWFsdGgvdjEvdmFsaWRhdGlvbi92YWxpZGF0aW9uLnByb3RvEiR2cm9vbGkubWVhc3VyZXNfaGVhbHRoLnYxLnZhbGlkYXRpb24izwEKDk1lYXN1cmVTdW1tYXJ5EgwKBG5hbWUYASABKAkSDgoGaW50ZW50GAIgASgJEjgKBHRpZXIYAyABKA4yKi52cm9vbGkubWVhc3VyZXNfaGVhbHRoLnYxLnZhbGlkYXRpb24uVGllchIOCgZlZmZlY3QYBCABKAkSFgoOcXVlc3Rpb25fY291bnQYBSABKAUSFAoMcHJvYmVfcGFzc2VkGAYgASgIEhQKDHByb2JlX2RldGFpbBgHIAEoCRIRCgl0aWVyX25vdGUYCCABKAkiogIKDkRvbWFpbkNvdmVyYWdlEg4KBmRvbWFpbhgBIAEoCRJCCgZzdGF0dXMYAiABKA4yMi52cm9vbGkubWVhc3VyZXNfaGVhbHRoLnYxLnZhbGlkYXRpb24uRG9tYWluU3RhdHVzEhUKDW1lYXN1cmVfY291bnQYAyABKAUSOAoEdGllchgEIAEoDjIqLnZyb29saS5tZWFzdXJlc19oZWFsdGgudjEudmFsaWRhdGlvbi5UaWVyEhUKDXdhaXZlcl9yZWFzb24YBSABKAkSDAoEbm90ZRgGIAEoCRJGCghtZWFzdXJlcxgHIAMoCzI0LnZyb29saS5tZWFzdXJlc19oZWFsdGgudjEudmFsaWRhdGlvbi5NZWFzdXJlU3VtbWFyeSK5AQoHRmluZGluZxIPCgdydWxlX2lkGAEgASgJEkAKCHNldmVyaXR5GAIgASgOMi4udnJvb2xpLm1lYXN1cmVzX2hlYWx0aC52MS52YWxpZGF0aW9uLlNldmVyaXR5Eg0KBXRpdGxlGAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJEhMKC3JlbWVkaWF0aW9uGAUgASgJEhEKCWZpbGVfcGF0aBgGIAEoCRIPCgdzY2FubmVyGAcgASgJIjoKB1N1bW1hcnkSDgoGZXJyb3JzGAEgASgFEhAKCHdhcm5pbmdzGAIgASgFEg0KBWluZm9zGAMgASgFIs8CChZTY2VuYXJpb0NvdmVyYWdlUmVwb3J0EhAKCHNjZW5hcmlvGAEgASgJEg4KBnBhc3NlZBgCIAEoCBJFCgdkb21haW5zGAMgAygLMjQudnJvb2xpLm1lYXN1cmVzX2hlYWx0aC52MS52YWxpZGF0aW9uLkRvbWFpbkNvdmVyYWdlEj8KCGZpbmRpbmdzGAQgAygLMi0udnJvb2xpLm1lYXN1cmVzX2hlYWx0aC52MS52YWxpZGF0aW9uLkZpbmRpbmcSPgoHc3VtbWFyeRgFIAEoCzItLnZyb29saS5tZWFzdXJlc19oZWFsdGgudjEudmFsaWRhdGlvbi5TdW1tYXJ5EhgKEHNraXBwZWRfc2Nhbm5lcnMYBiADKAkSMQoKYXNzZXNzbWVudBgHIAEoCzIdLmNvbW1vbi52MS5NYXR1cml0eUFzc2Vzc21lbnQiLQoYTGlzdEZsZWV0Q292ZXJhZ2VSZXF1ZXN0EhEKCXNjZW5hcmlvcxgBIAMoCSLLAQoKRmxlZXRFbnRyeRIQCghzY2VuYXJpbxgBIAEoCRIOCgZwYXNzZWQYAiABKAgSEAoIZXhwZWN0ZWQYAyABKAUSDwoHY292ZXJlZBgEIAEoBRIOCgZ3YWl2ZWQYBSABKAUSEQoJdW5jb3ZlcmVkGAYgASgFEj4KCndvcnN0X3RpZXIYByABKA4yKi52cm9vbGkubWVhc3VyZXNfaGVhbHRoLnYxLnZhbGlkYXRpb24uVGllchIVCg1tZWFzdXJlX2NvdW50GAggASgFIl4KGUxpc3RGbGVldENvdmVyYWdlUmVzcG9uc2USQQoHZW50cmllcxgBIAMoCzIwLnZyb29saS5tZWFzdXJlc19oZWFsdGgudjEudmFsaWRhdGlvbi5GbGVldEVudHJ5KmEKCFNldmVyaXR5EhgKFFNFVkVSSVRZX1VOU1BFQ0lGSUVEEAASEgoOU0VWRVJJVFlfRVJST1IQARIUChBTRVZFUklUWV9XQVJOSU5HEAISEQoNU0VWRVJJVFlfSU5GTxADKp8BCgxEb21haW5TdGF0dXMSHQoZRE9NQUlOX1NUQVRVU19VTlNQRUNJRklFRBAAEhkKFURPTUFJTl9TVEFUVVNfQ09WRVJFRBABEhsKF0RPTUFJTl9TVEFUVVNfVU5DT1ZFUkVEEAISGAoURE9NQUlOX1NUQVRVU19XQUlWRUQQAxIeChpET01BSU5fU1RBVFVTX05PVF9FWFBFQ1RFRBAEKlAKBFRpZXISFAoQVElFUl9VTlNQRUNJRklFRBAAEg0KCVRJRVJfRlVMTBABEhAKDFRJRVJfUEFSVElBTBACEhEKDVRJRVJfRkFMTEJBQ0sQAzKqAQoRVmFsaWRhdGlvblNlcnZpY2USlAEKEUxpc3RGbGVldENvdmVyYWdlEj4udnJvb2xpLm1lYXN1cmVzX2hlYWx0aC52MS52YWxpZGF0aW9uLkxpc3RGbGVldENvdmVyYWdlUmVxdWVzdBo/LnZyb29saS5tZWFzdXJlc19oZWFsdGgudjEudmFsaWRhdGlvbi5MaXN0RmxlZXRDb3ZlcmFnZVJlc3BvbnNlQlxaWmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vbWVhc3VyZXMtaGVhbHRoL3YxL3ZhbGlkYXRpb247dmFsaWRhdGlvbl92MWIGcHJvdG8z", [file_common_v1_maturity]);
 
 /**
  * MeasureSummary is one declared measure's projection in the coverage report.
@@ -56,8 +56,8 @@ export type MeasureSummary = Message<"vrooli.measures_health.v1.validation.Measu
   questionCount: number;
 
   /**
-   * Behavioral-probe outcome when ValidateScenarioRequest.probe was set:
-   * true = the endpoint answered conforming to the declared result shape.
+   * Behavioral-probe outcome when shared ValidateScenarioRequest.include_execution
+   * was set: true = the endpoint answered conforming to the declared result shape.
    *
    * @generated from field: bool probe_passed = 6;
    */
@@ -241,42 +241,13 @@ export const SummarySchema: GenMessage<Summary> = /*@__PURE__*/
   messageDesc(file_measures_health_v1_validation_validation, 3);
 
 /**
- * ValidateScenarioRequest names a scenario by its scenario id (the directory
- * name under scenarios/).
+ * ScenarioCoverageReport echoes the scenario id and reports coverage. `passed`
+ * is true iff no Finding has SEVERITY_ERROR. This message is packed into
+ * scenario-validation/v1.ValidateScenarioResponse.native_detail.
  *
- * @generated from message vrooli.measures_health.v1.validation.ValidateScenarioRequest
+ * @generated from message vrooli.measures_health.v1.validation.ScenarioCoverageReport
  */
-export type ValidateScenarioRequest = Message<"vrooli.measures_health.v1.validation.ValidateScenarioRequest"> & {
-  /**
-   * @generated from field: string scenario = 1;
-   */
-  scenario: string;
-
-  /**
-   * When true, run the behavioral adoption probe against the target scenario's
-   * live measure endpoints (requires the scenario to be running; if it is not
-   * reachable the probe is skipped as INFO, never a false ERROR). When false
-   * (the default test-genie path), only static coverage is graded.
-   *
-   * @generated from field: bool probe = 2;
-   */
-  probe: boolean;
-};
-
-/**
- * Describes the message vrooli.measures_health.v1.validation.ValidateScenarioRequest.
- * Use `create(ValidateScenarioRequestSchema)` to create a new message.
- */
-export const ValidateScenarioRequestSchema: GenMessage<ValidateScenarioRequest> = /*@__PURE__*/
-  messageDesc(file_measures_health_v1_validation_validation, 4);
-
-/**
- * ValidateScenarioResponse echoes the scenario id and reports coverage.
- * `passed` is true iff no Finding has SEVERITY_ERROR.
- *
- * @generated from message vrooli.measures_health.v1.validation.ValidateScenarioResponse
- */
-export type ValidateScenarioResponse = Message<"vrooli.measures_health.v1.validation.ValidateScenarioResponse"> & {
+export type ScenarioCoverageReport = Message<"vrooli.measures_health.v1.validation.ScenarioCoverageReport"> & {
   /**
    * @generated from field: string scenario = 1;
    */
@@ -325,11 +296,11 @@ export type ValidateScenarioResponse = Message<"vrooli.measures_health.v1.valida
 };
 
 /**
- * Describes the message vrooli.measures_health.v1.validation.ValidateScenarioResponse.
- * Use `create(ValidateScenarioResponseSchema)` to create a new message.
+ * Describes the message vrooli.measures_health.v1.validation.ScenarioCoverageReport.
+ * Use `create(ScenarioCoverageReportSchema)` to create a new message.
  */
-export const ValidateScenarioResponseSchema: GenMessage<ValidateScenarioResponse> = /*@__PURE__*/
-  messageDesc(file_measures_health_v1_validation_validation, 5);
+export const ScenarioCoverageReportSchema: GenMessage<ScenarioCoverageReport> = /*@__PURE__*/
+  messageDesc(file_measures_health_v1_validation_validation, 4);
 
 /**
  * ListFleetCoverageRequest requests the cross-scenario coverage rollup. An
@@ -349,7 +320,7 @@ export type ListFleetCoverageRequest = Message<"vrooli.measures_health.v1.valida
  * Use `create(ListFleetCoverageRequestSchema)` to create a new message.
  */
 export const ListFleetCoverageRequestSchema: GenMessage<ListFleetCoverageRequest> = /*@__PURE__*/
-  messageDesc(file_measures_health_v1_validation_validation, 6);
+  messageDesc(file_measures_health_v1_validation_validation, 5);
 
 /**
  * FleetEntry is one scenario's static coverage rollup for the fleet dashboard.
@@ -407,7 +378,7 @@ export type FleetEntry = Message<"vrooli.measures_health.v1.validation.FleetEntr
  * Use `create(FleetEntrySchema)` to create a new message.
  */
 export const FleetEntrySchema: GenMessage<FleetEntry> = /*@__PURE__*/
-  messageDesc(file_measures_health_v1_validation_validation, 7);
+  messageDesc(file_measures_health_v1_validation_validation, 6);
 
 /**
  * ListFleetCoverageResponse lists every requested scenario's rollup, in a
@@ -427,7 +398,7 @@ export type ListFleetCoverageResponse = Message<"vrooli.measures_health.v1.valid
  * Use `create(ListFleetCoverageResponseSchema)` to create a new message.
  */
 export const ListFleetCoverageResponseSchema: GenMessage<ListFleetCoverageResponse> = /*@__PURE__*/
-  messageDesc(file_measures_health_v1_validation_validation, 8);
+  messageDesc(file_measures_health_v1_validation_validation, 7);
 
 /**
  * Severity classifies a Finding for filtering, rendering, and downstream
@@ -551,17 +522,6 @@ export const TierSchema: GenEnum<Tier> = /*@__PURE__*/
  * @generated from service vrooli.measures_health.v1.validation.ValidationService
  */
 export const ValidationService: GenService<{
-  /**
-   * ValidateScenario grades one scenario's measure coverage + (optionally)
-   * behaviorally probes its declared measures.
-   *
-   * @generated from rpc vrooli.measures_health.v1.validation.ValidationService.ValidateScenario
-   */
-  validateScenario: {
-    methodKind: "unary";
-    input: typeof ValidateScenarioRequestSchema;
-    output: typeof ValidateScenarioResponseSchema;
-  },
   /**
    * ListFleetCoverage rolls up a static coverage summary across every
    * discovered scenario, for the fleet-view UI.

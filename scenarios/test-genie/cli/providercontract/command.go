@@ -18,15 +18,18 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/maturity-go/assessment"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const usage = "usage: provider-contract check <phase|provider> <target-scenario> [--no-restart] [--json]"
 
-var commandRunner = runCommand
-var resolveProviderBaseURL = func(ctx context.Context, provider string) (string, error) {
-	return discovery.ResolveScenarioURLDefault(ctx, provider)
-}
+var (
+	commandRunner          = runCommand
+	resolveProviderBaseURL = func(ctx context.Context, provider string) (string, error) {
+		return discovery.ResolveScenarioURLDefault(ctx, provider)
+	}
+)
 var httpClient = &http.Client{Timeout: 2 * time.Minute}
 
 type Args struct {
@@ -354,8 +357,9 @@ var probes = []Probe{
 	{Phase: "security", Provider: "security-health", Invocation: []string{"security-health", "validate", "scenario", "{{target}}", "--json"}, Restartable: true},
 	{Phase: "measures", Provider: "measures-health", Invocation: []string{"measures-health", "validate", "scenario", "{{target}}", "--json"}, Restartable: true},
 	{Phase: "proto", Provider: "proto-health", Invocation: []string{"proto-health", "validate", "scenario", "{{target}}", "--json"}, Restartable: true},
+	{Phase: "unit", Provider: "unit-health", Invocation: []string{"unit-health", "validate", "scenario", "{{target}}", "--execution", "--json"}, Restartable: true},
 	{Phase: "standards", Provider: "scenario-auditor", Invocation: []string{"scenario-auditor", "standards", "scan", "{{target}}", "--wait", "--json"}, Restartable: true},
-	{Phase: "architecture", Provider: "architecture-cartographer", Invocation: []string{"architecture-cartographer", "audit", "run", "{{target}}", "--json"}, Restartable: true},
-	{Phase: "docs", Provider: "knowledge-observatory", Invocation: []string{"knowledge-observatory", "docs", "health", "{{target}}", "--json"}, Restartable: true},
-	{Phase: "tidiness", Provider: "tidiness-manager", HTTP: &HTTPProbe{Method: http.MethodPost, Path: "/api/v1/scan/tidiness", Body: map[string]any{"scenario_name": "{{target}}", "timeout_sec": 120}}, Restartable: true},
+	{Phase: "architecture", Provider: "architecture-cartographer", HTTP: &HTTPProbe{Method: http.MethodPost, Path: scenariovalidationconnect.ScenarioValidationServiceValidateScenarioProcedure, Body: map[string]any{"scenario": "{{target}}"}}, Restartable: true},
+	{Phase: "docs", Provider: "knowledge-observatory", HTTP: &HTTPProbe{Method: http.MethodPost, Path: scenariovalidationconnect.ScenarioValidationServiceValidateScenarioProcedure, Body: map[string]any{"scenario": "{{target}}"}}, Restartable: true},
+	{Phase: "tidiness", Provider: "tidiness-manager", HTTP: &HTTPProbe{Method: http.MethodPost, Path: scenariovalidationconnect.ScenarioValidationServiceValidateScenarioProcedure, Body: map[string]any{"scenario": "{{target}}"}}, Restartable: true},
 }
