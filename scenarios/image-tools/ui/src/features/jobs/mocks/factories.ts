@@ -23,12 +23,35 @@ import {
   JobState,
   ListJobsResponseSchema,
   CancelJobResponseSchema,
+  ProgressEventSchema,
   type Job,
   type ListJobsResponse,
   type CancelJobResponse,
+  type ProgressEvent,
 } from "@vrooli/proto-types/image-tools/v1/jobs/jobs_pb";
 
-export type { Job, ListJobsResponse, CancelJobResponse };
+export type { Job, ListJobsResponse, CancelJobResponse, ProgressEvent };
+
+export const makeProgressEvent = (
+  overrides: MessageInitShape<typeof ProgressEventSchema> = {},
+): ProgressEvent =>
+  create(ProgressEventSchema, {
+    jobId: "job-1",
+    state: JobState.RUNNING,
+    progress: 60,
+    message: "Working…",
+    ...overrides,
+  });
+
+/** Wrap a list of progress events as the async iterable WatchJob returns. */
+export async function* asProgressStream(
+  events: ProgressEvent[],
+): AsyncGenerator<ProgressEvent> {
+  for (const ev of events) {
+    await Promise.resolve();
+    yield ev;
+  }
+}
 
 export const makeJob = (overrides: MessageInitShape<typeof JobSchema> = {}): Job =>
   create(JobSchema, {

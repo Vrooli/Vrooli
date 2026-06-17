@@ -18,13 +18,16 @@ import (
 // ModelsService handler over the declarative registry. The registry (validated
 // seed catalog) is loaded once in main.go and shared; the enabled-state overlay
 // is persisted in SQLite via the models store.
-func Module(db *database.RoutedDB, reg *internalmodels.Registry, probe internalcaps.Probe, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, reg *internalmodels.Registry, probe internalcaps.Probe, installer *internalmodels.Installer, jobs JobSubmitter, logger *log.Logger) module.Module {
 	store := internalmodels.NewStore(db)
 	connectPath, connectHandler := modelsconnect.NewModelsServiceHandler(NewConnectHandler(Deps{
-		Registry: reg,
-		Store:    store,
-		Probe:    probe,
-		Logger:   logger,
+		Registry:   reg,
+		Store:      store,
+		Probe:      probe,
+		Installer:  installer,
+		Jobs:       jobs,
+		OpDefaults: internalmodels.NewOpDefaultStore(db),
+		Logger:     logger,
 	}))
 	return module.Module{
 		Name: "models",
@@ -184,5 +187,131 @@ var Endpoints = []module.EndpointDescriptor{
 			{Name: "List blocklist", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ListBlocklist -H 'Content-Type: application/json' -d '{}'"},
 		},
 		CLIMapping: &module.CLIMapping{Command: "image-tools models blocklist"},
+	},
+	{
+		ID:          "models_install",
+		Path:        modelsconnect.ModelsServiceInstallModelProcedure,
+		Method:      "POST",
+		Summary:     "Install (download) a model",
+		Description: "Downloads a model's weights as a durable job (checksum pinned on first download, free disk space checked first). Returns a job id + ETA; block once on jobs wait. An already-installed model returns already_installed=true with no job.",
+		Category:    "models",
+		Request: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"id": "string"},
+		},
+		Response: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"job_id":            "string (empty when already installed)",
+				"eta_seconds":       "int",
+				"size_mb_approx":    "int",
+				"already_installed": "bool",
+			},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 404, Code: "not_found", Description: "No model with that id exists"},
+			{Status: 500, Code: "internal", Description: "Install job submission failure"},
+			{Status: 501, Code: "unimplemented", Description: "Installation unavailable (read-only wiring)"},
+		},
+		Examples: []module.Example{
+			{Name: "Install sd-1.5", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/InstallModel -H 'Content-Type: application/json' -d '{\"id\":\"sd-1.5\"}'"},
+		},
+		CLIMapping: &module.CLIMapping{Command: "image-tools models install", Args: []string{"<id>", "--wait"}},
+	},
+	{
+		ID:          "models_remove",
+		Path:        modelsconnect.ModelsServiceRemoveModelProcedure,
+		Method:      "POST",
+		Summary:     "Remove a model's weights",
+		Description: "Deletes a model's downloaded weights and clears its install record. A custom local model is unlinked; its referenced path is never deleted.",
+		Category:    "models",
+		Request: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"id": "string"},
+		},
+		Response: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"removed": "bool"},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 404, Code: "not_found", Description: "No model with that id exists"},
+			{Status: 500, Code: "internal", Description: "Weight removal failure"},
+		},
+		Examples: []module.Example{
+			{Name: "Remove sd-1.5", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/RemoveModel -H 'Content-Type: application/json' -d '{\"id\":\"sd-1.5\"}'"},
+		},
+		CLIMapping: &module.CLIMapping{Command: "image-tools models remove", Args: []string{"<id>"}},
+	},
+	{
+		ID:          "models_add_custom",
+		Path:        modelsconnect.ModelsServiceAddCustomModelProcedure,
+		Method:      "POST",
+		Summary:     "Register a custom/local model",
+		Description: "Registers a custom or fine-tuned local model merged on top of the read-only seed. The id must not collide with a seed model; a declared local path is verified to exist.",
+		Category:    "models",
+		Request: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"model":        "Model (id, operations, backend required)",
+				"local_path":   "string (optional; local weights — installed by reference)",
+				"download_url": "string (optional; remote source when local_path empty)",
+			},
+		},
+		Response: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"model": "Model"},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Missing id, seed-id collision, or missing local path"},
+			{Status: 500, Code: "internal", Description: "Custom-entry persistence failure"},
+		},
+		Examples: []module.Example{
+			{Name: "Register a local upscaler", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/AddCustomModel -H 'Content-Type: application/json' -d '{\"model\":{\"id\":\"my-upscaler\",\"operations\":[\"upscale\"],\"backend\":\"onnxruntime\"},\"local_path\":\"/data/models/my-upscaler\"}'"},
+		},
+		CLIMapping: &module.CLIMapping{Command: "image-tools models add-custom", Args: []string{"<id>", "--operation", "<op>", "--local-path", "<path>"}},
+	},
+	{
+		ID:          "models_set_default",
+		Path:        modelsconnect.ModelsServiceSetDefaultModelProcedure,
+		Method:      "POST",
+		Summary:     "Pin the default model for an operation",
+		Description: "Pins (or clears, with empty model_id) the default model for an operation. Selection applies the pin when a request gives no explicit override.",
+		Category:    "models",
+		Request: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"operation": "string",
+				"model_id":  "string (empty clears the pin)",
+			},
+		},
+		Response: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"operation": "string", "model_id": "string"},
+		},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "Unknown operation or model does not serve it"},
+			{Status: 404, Code: "not_found", Description: "No model with that id exists"},
+			{Status: 500, Code: "internal", Description: "Default persistence failure"},
+		},
+		Examples: []module.Example{
+			{Name: "Pin upscale default", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/SetDefaultModel -H 'Content-Type: application/json' -d '{\"operation\":\"upscale\",\"model_id\":\"real-esrgan\"}'"},
+		},
+		CLIMapping: &module.CLIMapping{Command: "image-tools settings set-default", Args: []string{"<operation>", "<id>"}},
+	},
+	{
+		ID:          "models_list_defaults",
+		Path:        modelsconnect.ModelsServiceListDefaultsProcedure,
+		Method:      "POST",
+		Summary:     "List per-operation default models",
+		Description: "Returns the effective default model per operation, marking whether it comes from the seed or an operator pin.",
+		Category:    "models",
+		Response: &module.Schema{
+			Type:       "object",
+			Properties: map[string]string{"defaults": "array<OpDefault>"},
+		},
+		Examples: []module.Example{
+			{Name: "List defaults", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ListDefaults -H 'Content-Type: application/json' -d '{}'"},
+		},
+		CLIMapping: &module.CLIMapping{Command: "image-tools settings list"},
 	},
 }

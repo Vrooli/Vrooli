@@ -672,6 +672,228 @@
       }
     },
     {
+      "id": "models_install",
+      "path": "/vrooli.image_tools.v1.models.ModelsService/InstallModel",
+      "method": "POST",
+      "summary": "Install (download) a model",
+      "description": "Downloads a model's weights as a durable job (checksum pinned on first download, free disk space checked first). Returns a job id + ETA; block once on jobs wait. An already-installed model returns already_installed=true with no job.",
+      "category": "models",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "already_installed": "bool",
+          "eta_seconds": "int",
+          "job_id": "string (empty when already installed)",
+          "size_mb_approx": "int"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No model with that id exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Install job submission failure"
+        },
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Installation unavailable (read-only wiring)"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Install sd-1.5",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/InstallModel -H 'Content-Type: application/json' -d '{\"id\":\"sd-1.5\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "image-tools models install",
+        "args": [
+          "<id>",
+          "--wait"
+        ]
+      }
+    },
+    {
+      "id": "models_remove",
+      "path": "/vrooli.image_tools.v1.models.ModelsService/RemoveModel",
+      "method": "POST",
+      "summary": "Remove a model's weights",
+      "description": "Deletes a model's downloaded weights and clears its install record. A custom local model is unlinked; its referenced path is never deleted.",
+      "category": "models",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "removed": "bool"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No model with that id exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Weight removal failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Remove sd-1.5",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/RemoveModel -H 'Content-Type: application/json' -d '{\"id\":\"sd-1.5\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "image-tools models remove",
+        "args": [
+          "<id>"
+        ]
+      }
+    },
+    {
+      "id": "models_add_custom",
+      "path": "/vrooli.image_tools.v1.models.ModelsService/AddCustomModel",
+      "method": "POST",
+      "summary": "Register a custom/local model",
+      "description": "Registers a custom or fine-tuned local model merged on top of the read-only seed. The id must not collide with a seed model; a declared local path is verified to exist.",
+      "category": "models",
+      "request": {
+        "type": "object",
+        "properties": {
+          "download_url": "string (optional; remote source when local_path empty)",
+          "local_path": "string (optional; local weights — installed by reference)",
+          "model": "Model (id, operations, backend required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "model": "Model"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id, seed-id collision, or missing local path"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Custom-entry persistence failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Register a local upscaler",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/AddCustomModel -H 'Content-Type: application/json' -d '{\"model\":{\"id\":\"my-upscaler\",\"operations\":[\"upscale\"],\"backend\":\"onnxruntime\"},\"local_path\":\"/data/models/my-upscaler\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "image-tools models add-custom",
+        "args": [
+          "<id>",
+          "--operation",
+          "<op>",
+          "--local-path",
+          "<path>"
+        ]
+      }
+    },
+    {
+      "id": "models_set_default",
+      "path": "/vrooli.image_tools.v1.models.ModelsService/SetDefaultModel",
+      "method": "POST",
+      "summary": "Pin the default model for an operation",
+      "description": "Pins (or clears, with empty model_id) the default model for an operation. Selection applies the pin when a request gives no explicit override.",
+      "category": "models",
+      "request": {
+        "type": "object",
+        "properties": {
+          "model_id": "string (empty clears the pin)",
+          "operation": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "model_id": "string",
+          "operation": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Unknown operation or model does not serve it"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No model with that id exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Default persistence failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Pin upscale default",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/SetDefaultModel -H 'Content-Type: application/json' -d '{\"operation\":\"upscale\",\"model_id\":\"real-esrgan\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "image-tools settings set-default",
+        "args": [
+          "<operation>",
+          "<id>"
+        ]
+      }
+    },
+    {
+      "id": "models_list_defaults",
+      "path": "/vrooli.image_tools.v1.models.ModelsService/ListDefaults",
+      "method": "POST",
+      "summary": "List per-operation default models",
+      "description": "Returns the effective default model per operation, marking whether it comes from the seed or an operator pin.",
+      "category": "models",
+      "response": {
+        "type": "object",
+        "properties": {
+          "defaults": "array<OpDefault>"
+        }
+      },
+      "examples": [
+        {
+          "name": "List defaults",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ListDefaults -H 'Content-Type: application/json' -d '{}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "image-tools settings list"
+      }
+    },
+    {
       "id": "ops_list_operations",
       "path": "/vrooli.image_tools.v1.ops.OpsService/ListOperations",
       "method": "POST",
@@ -894,6 +1116,11 @@
       "endpoint_id": "jobs_watch"
     },
     {
+      "name": "models add-custom",
+      "description": "Register a custom/local model (repeat --operation per served op; --local-path or --download-url for weights)",
+      "endpoint_id": "models_add_custom"
+    },
+    {
       "name": "models blocklist",
       "description": "List license-encumbered models excluded from the catalog",
       "endpoint_id": "models_blocklist"
@@ -909,6 +1136,11 @@
       "endpoint_id": "models_get"
     },
     {
+      "name": "models install",
+      "description": "Install (download) a model's weights as a durable job (--wait to block once on completion)",
+      "endpoint_id": "models_install"
+    },
+    {
       "name": "models list",
       "description": "List model registry entries (--operation OP to filter)",
       "endpoint_id": "models_list"
@@ -917,6 +1149,16 @@
       "name": "models operations",
       "description": "List the registry operation vocabulary",
       "endpoint_id": "models_operations"
+    },
+    {
+      "name": "models remove",
+      "description": "Remove a model's downloaded weights and clear its install record",
+      "endpoint_id": "models_remove"
+    },
+    {
+      "name": "models search",
+      "description": "Find models by case-insensitive substring over id/name/operations",
+      "endpoint_id": ""
     },
     {
       "name": "models select",
@@ -992,6 +1234,21 @@
       "name": "ops thumbnail",
       "description": "Produce a fill-cropped thumbnail",
       "endpoint_id": ""
+    },
+    {
+      "name": "settings clear-default",
+      "description": "Clear the operator pin for an operation (revert to the seed default)",
+      "endpoint_id": ""
+    },
+    {
+      "name": "settings list",
+      "description": "List the effective default model per operation (seed vs operator override)",
+      "endpoint_id": "models_list_defaults"
+    },
+    {
+      "name": "settings set-default",
+      "description": "Pin the default model for an operation",
+      "endpoint_id": "models_set_default"
     },
     {
       "name": "status",

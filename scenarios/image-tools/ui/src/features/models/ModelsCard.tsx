@@ -1,38 +1,79 @@
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "../../components/ui/button";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
-import { modelsClient, type Model } from "../../api/models";
+import { CommercialUse, modelsClient, type Model } from "../../api/models";
 import { errorMessage } from "../../lib/errorMessage";
+import { hardwareFitChips } from "./hardwareFit";
 
 const MODELS_QUERY_KEY = ["models"] as const;
 
+/** Map each CommercialUse enum value to its label key (every leaf referenced). */
+const COMMERCIAL_LABEL: Record<CommercialUse, (typeof strings.models.commercial)[keyof typeof strings.models.commercial]> = {
+  [CommercialUse.UNSPECIFIED]: strings.models.commercial.unspecified,
+  [CommercialUse.YES]: strings.models.commercial.yes,
+  [CommercialUse.NO]: strings.models.commercial.no,
+  [CommercialUse.CONDITIONAL]: strings.models.commercial.conditional,
+};
+
+/** Per-install feedback surfaced inline on the model that launched it. */
+interface InstallNotice {
+  id: string;
+  jobId: string;
+  eta: number;
+  alreadyInstalled: boolean;
+}
+
 /**
- * ModelsCard is the declarative model-registry surface: it lists each
- * registered model (id, name, tier, backend, enabled) and lets the
- * operator toggle a model on/off via SetModelEnabled. Loading / empty /
- * error states mirror the other read-oriented cards.
+ * ModelsCard is the model-management surface: it lists each registered model
+ * (id, name, tier, backend, size, hardware-fit, license/capability labels,
+ * install state) and lets the operator install on-opt-in (InstallModel →
+ * durable job), enable/disable (SetModelEnabled), and remove (RemoveModel).
+ * Custom entries carry a [custom] badge. Loading / empty / error states
+ * mirror the other read-oriented cards.
  */
 export function ModelsCard() {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const [installNotice, setInstallNotice] = useState<InstallNotice | null>(null);
 
   const modelsQuery = useQuery({
     queryKey: MODELS_QUERY_KEY,
     queryFn: () => modelsClient.listModels({}),
   });
 
+  const invalidate = () => void queryClient.invalidateQueries({ queryKey: MODELS_QUERY_KEY });
+
   const setEnabledMutation = useMutation({
     mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) =>
       modelsClient.setModelEnabled({ id, enabled }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: MODELS_QUERY_KEY });
+    onSuccess: invalidate,
+  });
+
+  const installMutation = useMutation({
+    mutationFn: (id: string) => modelsClient.installModel({ id }),
+    onSuccess: (res, id) => {
+      setInstallNotice({
+        id,
+        jobId: res.jobId,
+        eta: res.etaSeconds,
+        alreadyInstalled: res.alreadyInstalled,
+      });
+      invalidate();
     },
   });
 
+  const removeMutation = useMutation({
+    mutationFn: (id: string) => modelsClient.removeModel({ id }),
+    onSuccess: invalidate,
+  });
+
   const models: Model[] = modelsQuery.data?.models ?? [];
+  const mutationError =
+    setEnabledMutation.error ?? installMutation.error ?? removeMutation.error;
 
   return (
     <section
@@ -57,40 +98,151 @@ export function ModelsCard() {
         </p>
       )}
       {models.length > 0 && (
-        <ul data-testid={selectors.models.list} className="mt-2 space-y-1 text-sm text-slate-200">
-          {models.map((model) => (
-            <li key={model.id} className="rounded-lg border border-white/10 p-3">
-              <div data-testid={selectors.models.name} className="font-medium">
-                {model.name}
-              </div>
-              <div className="mt-1 text-xs text-slate-500">{model.id}</div>
-              <div data-testid={selectors.models.tier} className="mt-1 text-xs text-slate-400">
-                {t(strings.models.tierLabel)} {model.tier}
-              </div>
-              <div data-testid={selectors.models.backend} className="mt-1 text-xs text-slate-400">
-                {t(strings.models.backendLabel)} {model.backend}
-              </div>
-              <div data-testid={selectors.models.enabledState} className="mt-1 text-xs text-slate-400">
-                {model.enabled ? t(strings.models.enabledLabel) : t(strings.models.disabledLabel)}
-              </div>
-              <Button
-                data-testid={selectors.models.toggleButton}
-                className="mt-2"
-                aria-pressed={model.enabled}
-                onClick={() =>
-                  setEnabledMutation.mutate({ id: model.id, enabled: !model.enabled })
-                }
-                disabled={setEnabledMutation.isPending}
-              >
-                {model.enabled ? t(strings.models.disable) : t(strings.models.enable)}
-              </Button>
-            </li>
-          ))}
+        <ul data-testid={selectors.models.list} className="mt-2 space-y-2 text-sm text-slate-200">
+          {models.map((model) => {
+            const installed = model.install?.installed ?? false;
+            const labels = model.capabilityLabels;
+            return (
+              <li key={model.id} className="rounded-lg border border-white/10 p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span data-testid={selectors.models.name} className="font-medium">
+                    {model.name}
+                  </span>
+                  {model.custom && (
+                    <span
+                      data-testid={selectors.models.customBadge}
+                      className="rounded bg-app-primary/20 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-app-primary"
+                    >
+                      {t(strings.models.customBadge)}
+                    </span>
+                  )}
+                  {labels?.nsfwCapable && (
+                    <span
+                      data-testid={selectors.models.nsfwBadge}
+                      className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-amber-300"
+                    >
+                      {t(strings.models.nsfwBadge)}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-1 text-xs text-slate-500">{model.id}</div>
+
+                <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-400">
+                  <div data-testid={selectors.models.tier}>
+                    <dt className="inline text-slate-500">{t(strings.models.tierLabel)} </dt>
+                    <dd className="inline">{model.tier}</dd>
+                  </div>
+                  <div data-testid={selectors.models.backend}>
+                    <dt className="inline text-slate-500">{t(strings.models.backendLabel)} </dt>
+                    <dd className="inline">{model.backend}</dd>
+                  </div>
+                  <div data-testid={selectors.models.operations}>
+                    <dt className="inline text-slate-500">{t(strings.models.operationsLabel)} </dt>
+                    <dd className="inline">{model.operations.join(", ")}</dd>
+                  </div>
+                  <div data-testid={selectors.models.size}>
+                    <dt className="inline text-slate-500">{t(strings.models.sizeLabel)} </dt>
+                    <dd className="inline">{t(strings.models.sizeValue, { mb: model.sizeMbApprox })}</dd>
+                  </div>
+                  {labels && (
+                    <div data-testid={selectors.models.license}>
+                      <dt className="inline text-slate-500">{t(strings.models.licenseLabel)} </dt>
+                      <dd className="inline">{labels.license || "—"}</dd>
+                    </div>
+                  )}
+                  {labels && (
+                    <div data-testid={selectors.models.commercial}>
+                      <dt className="inline text-slate-500">{t(strings.models.commercialLabel)} </dt>
+                      <dd className="inline">{t(COMMERCIAL_LABEL[labels.commercialUse])}</dd>
+                    </div>
+                  )}
+                </dl>
+
+                {model.hardware && (
+                  <div
+                    data-testid={selectors.models.hardware}
+                    className="mt-2 flex flex-wrap gap-1.5"
+                    aria-label={t(strings.models.hardwareLabel)}
+                  >
+                    {hardwareFitChips(model.hardware).map((chip) => (
+                      <span
+                        key={chip.key}
+                        className="rounded border border-white/15 bg-white/5 px-1.5 py-0.5 text-[10px] text-slate-300"
+                      >
+                        {t(chip.key, chip.values)}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <div
+                  data-testid={selectors.models.installState}
+                  className="mt-2 text-xs text-slate-400"
+                >
+                  {installed
+                    ? t(strings.models.installState.installed)
+                    : t(strings.models.installState.notInstalled)}
+                </div>
+
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {!installed && (
+                    <Button
+                      data-testid={selectors.models.installButton}
+                      onClick={() => installMutation.mutate(model.id)}
+                      disabled={installMutation.isPending}
+                    >
+                      {installMutation.isPending && installMutation.variables === model.id
+                        ? t(strings.models.installing)
+                        : t(strings.models.install)}
+                    </Button>
+                  )}
+                  <Button
+                    data-testid={selectors.models.toggleButton}
+                    aria-pressed={model.enabled}
+                    onClick={() =>
+                      setEnabledMutation.mutate({ id: model.id, enabled: !model.enabled })
+                    }
+                    disabled={setEnabledMutation.isPending}
+                  >
+                    {model.enabled ? t(strings.models.disable) : t(strings.models.enable)}
+                  </Button>
+                  <Button
+                    data-testid={selectors.models.removeButton}
+                    onClick={() => removeMutation.mutate(model.id)}
+                    disabled={removeMutation.isPending}
+                  >
+                    {removeMutation.isPending && removeMutation.variables === model.id
+                      ? t(strings.models.removing)
+                      : t(strings.models.remove)}
+                  </Button>
+                  <span
+                    data-testid={selectors.models.enabledState}
+                    className="self-center text-xs text-slate-500"
+                  >
+                    {model.enabled
+                      ? t(strings.models.enabledLabel)
+                      : t(strings.models.disabledLabel)}
+                  </span>
+                </div>
+
+                {installNotice?.id === model.id && (
+                  <p data-testid={selectors.models.installNotice} className="mt-2 text-xs text-emerald-400">
+                    {installNotice.alreadyInstalled
+                      ? t(strings.models.alreadyInstalled)
+                      : t(strings.models.installStarted, {
+                          jobId: installNotice.jobId,
+                          eta: installNotice.eta,
+                        })}
+                  </p>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
-      {setEnabledMutation.error && (
+      {mutationError && (
         <p data-testid={selectors.models.error} className="mt-2 text-red-400">
-          {errorMessage(setEnabledMutation.error, t)}
+          {errorMessage(mutationError, t)}
         </p>
       )}
     </section>

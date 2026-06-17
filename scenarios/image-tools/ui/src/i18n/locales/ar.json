@@ -80,7 +80,11 @@
       "succeeded": "نجح",
       "failed": "فشل",
       "canceled": "ملغى"
-    }
+    },
+    "messageLabel": "الحالة:",
+    "resultLabel": "النتيجة:",
+    "errorLabel": "خطأ:",
+    "liveBadge": "مباشر"
   },
   "models": {
     "title": "سجل النماذج",
@@ -91,7 +95,71 @@
     "enabledLabel": "مُفعّل",
     "disabledLabel": "مُعطّل",
     "enable": "تفعيل",
-    "disable": "تعطيل"
+    "disable": "تعطيل",
+    "operationsLabel": "العمليات:",
+    "sizeLabel": "الحجم:",
+    "sizeValue": "{{mb}} ميجابايت",
+    "hardwareLabel": "العتاد:",
+    "hardware": {
+      "gpuRequired": "يتطلب معالج رسوميات",
+      "cpuOk": "يعمل على المعالج",
+      "vram": "‏{{gb}} جيجابايت VRAM على الأقل",
+      "ram": "‏{{gb}} جيجابايت RAM على الأقل"
+    },
+    "licenseLabel": "الترخيص:",
+    "commercialLabel": "الاستخدام التجاري:",
+    "commercial": {
+      "unspecified": "غير معروف",
+      "yes": "مسموح",
+      "no": "غير مسموح",
+      "conditional": "مشروط"
+    },
+    "nsfwBadge": "يدعم محتوى للبالغين",
+    "customBadge": "مخصص",
+    "installState": {
+      "installed": "مثبّت",
+      "notInstalled": "غير مثبّت"
+    },
+    "install": "تثبيت",
+    "installing": "جارٍ التثبيت…",
+    "installStarted": "بدأ التثبيت (المهمة {{jobId}}، نحو {{eta}} ثانية)",
+    "alreadyInstalled": "مثبّت بالفعل",
+    "remove": "إزالة",
+    "removing": "جارٍ الإزالة…",
+    "blocklist": {
+      "title": "النماذج المحظورة",
+      "loading": "جارٍ تحميل قائمة الحظر…",
+      "empty": "لا توجد نماذج محظورة.",
+      "licenseLabel": "الترخيص:",
+      "reasonLabel": "السبب:",
+      "operationsLabel": "العمليات:",
+      "onnxWarning": "قد يبدو أن التصدير إلى ONNX/GGUF يزيل هذا القيد، لكنه في الواقع لا يفعل."
+    },
+    "addCustom": {
+      "title": "إضافة نموذج مخصص",
+      "idLabel": "معرّف النموذج",
+      "operationsLabel": "العمليات (مفصولة بفواصل)",
+      "backendLabel": "الواجهة الخلفية",
+      "localPathLabel": "المسار المحلي",
+      "downloadUrlLabel": "رابط التنزيل (اختياري)",
+      "submit": "إضافة النموذج",
+      "submitting": "جارٍ الإضافة…",
+      "success": "تمت إضافة النموذج المخصص."
+    },
+    "defaults": {
+      "title": "النموذج الافتراضي لكل عملية",
+      "loading": "جارٍ تحميل الإعدادات الافتراضية…",
+      "empty": "لا توجد عمليات متاحة.",
+      "modelLabel": "النموذج الافتراضي",
+      "sourceLabel": "المصدر",
+      "source": {
+        "seed": "مدمج",
+        "override": "مثبّت"
+      },
+      "useDefault": "استخدام الافتراضي المدمج",
+      "clear": "مسح",
+      "none": "لا شيء"
+    }
   },
   "editor": {
     "title": "محرر الصور",
@@ -138,6 +206,22 @@
       "stripAll": "إزالة الكل",
       "stripGps": "إزالة GPS",
       "autoOrient": "توجيه تلقائي"
+    },
+    "stack": {
+      "title": "مسار التحرير",
+      "apply": "تطبيق",
+      "applying": "جارٍ التطبيق…",
+      "undo": "تراجع",
+      "redo": "إعادة",
+      "reset": "إعادة تعيين",
+      "empty": "لم تُطبَّق أي عمليات بعد.",
+      "stepsHeading": "العمليات المطبَّقة",
+      "step": "{{index}}. {{operation}}"
+    },
+    "compare": {
+      "before": "قبل",
+      "after": "بعد",
+      "slider": "شريط المقارنة"
     }
   },
   "errors": {

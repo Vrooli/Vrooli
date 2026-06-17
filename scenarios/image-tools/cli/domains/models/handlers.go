@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
+	jobsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/jobs"
+	jobsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/jobs/jobs_v1connect"
 	modelsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/models"
 	modelsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/models/models_v1connect"
 
@@ -157,6 +159,184 @@ func (h *handlers) blocklist(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) install(ctx cliapp.RunContext) error {
+	id := ctx.Positional("id")
+	resp, err := h.client.InstallModel(context.Background(), connect.NewRequest(&modelsv1.InstallModelRequest{Id: id}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("install model %q", id), err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no install response")
+	}
+	if resp.Msg.AlreadyInstalled {
+		return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+			Result:  []string{fmt.Sprintf("Model %s is already installed.", id)},
+			Changes: []string{"no download job submitted"},
+			NextCommand: []string{
+				fmt.Sprintf("`models get %s` — confirm the install state", id),
+			},
+		})
+	}
+
+	submitted := fmt.Sprintf("Submitted download for %s as job %s (~%ds, ~%dMB).",
+		id, resp.Msg.JobId, resp.Msg.EtaSeconds, resp.Msg.SizeMbApprox)
+
+	if !ctx.BoolFlag("wait") || resp.Msg.JobId == "" {
+		return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+			Result: []string{submitted},
+			NextCommand: []string{
+				fmt.Sprintf("`jobs wait %s` — block once until the download finishes", resp.Msg.JobId),
+				fmt.Sprintf("`models install %s --wait` — submit and block in one step", id),
+			},
+		})
+	}
+
+	job, werr := h.waitJob(resp.Msg.JobId)
+	if werr != nil {
+		return werr
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:  []string{fmt.Sprintf("Install of %s %s (job %s).", id, stateName(job.GetState()), job.GetId())},
+		Changes: []string{submitted},
+		NextCommand: []string{
+			fmt.Sprintf("`models get %s` — confirm the install state", id),
+		},
+	})
+}
+
+func (h *handlers) remove(ctx cliapp.RunContext) error {
+	id := ctx.Positional("id")
+	resp, err := h.client.RemoveModel(context.Background(), connect.NewRequest(&modelsv1.RemoveModelRequest{Id: id}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("remove model %q", id), err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no remove response")
+	}
+	result := fmt.Sprintf("Removed weights for %s.", id)
+	if !resp.Msg.Removed {
+		result = fmt.Sprintf("Model %s had no installed weights to remove.", id)
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result: []string{result},
+		NextCommand: []string{
+			fmt.Sprintf("`models get %s` — confirm the install state", id),
+		},
+	})
+}
+
+func (h *handlers) addCustom(ctx cliapp.RunContext) error {
+	id := ctx.Positional("id")
+	operations := ctx.FlagValues("operation")
+	model := &modelsv1.Model{
+		Id:         id,
+		Name:       strings.TrimSpace(ctx.Flag("name")),
+		Operations: operations,
+		Backend:    strings.TrimSpace(ctx.Flag("backend")),
+	}
+	resp, err := h.client.AddCustomModel(context.Background(), connect.NewRequest(&modelsv1.AddCustomModelRequest{
+		Model:       model,
+		LocalPath:   strings.TrimSpace(ctx.Flag("local-path")),
+		DownloadUrl: strings.TrimSpace(ctx.Flag("download-url")),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("add custom model %q", id), err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Model == nil {
+		return fmt.Errorf("server returned no model")
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:  []string{fmt.Sprintf("Registered custom model %s.", resp.Msg.Model.Id)},
+		Changes: []string{formatModelDetail(resp.Msg.Model)},
+		NextCommand: []string{
+			fmt.Sprintf("`models get %s` — show the registered entry", resp.Msg.Model.Id),
+		},
+	})
+}
+
+func (h *handlers) search(ctx cliapp.RunContext) error {
+	query := strings.ToLower(strings.TrimSpace(ctx.Positional("query")))
+	resp, err := h.client.ListModels(context.Background(), connect.NewRequest(&modelsv1.ListModelsRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("search models", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no models response")
+	}
+	matches := make([]*modelsv1.Model, 0, len(resp.Msg.Models))
+	for _, m := range resp.Msg.Models {
+		if modelMatches(m, query) {
+			matches = append(matches, m)
+		}
+	}
+	filtered := &modelsv1.ListModelsResponse{Models: matches}
+	results := make([]string, 0, len(matches))
+	for _, m := range matches {
+		results = append(results, formatModel(m))
+	}
+	return cliapp.RenderProtoList(ctx, filtered, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Found %d model(s) matching %q.", len(matches), ctx.Positional("query"))},
+		ResultsHeading: "Models",
+		Results:        results,
+		RetrievalHints: []string{
+			"`models get <id>` — show one model in detail",
+		},
+	})
+}
+
+// modelMatches reports whether query (already lower-cased) is a substring of the
+// model's id, name, or any operation it serves.
+func modelMatches(m *modelsv1.Model, query string) bool {
+	if m == nil {
+		return false
+	}
+	if query == "" {
+		return true
+	}
+	if strings.Contains(strings.ToLower(m.Id), query) || strings.Contains(strings.ToLower(m.Name), query) {
+		return true
+	}
+	for _, op := range m.Operations {
+		if strings.Contains(strings.ToLower(op), query) {
+			return true
+		}
+	}
+	return false
+}
+
+// waitJob blocks once on JobsService.WaitJob and returns the terminal job. It
+// reuses the block-once-no-polling pattern from the ai domain.
+func (h *handlers) waitJob(jobID string) (*jobsv1.Job, error) {
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(h.core)
+	client := jobsconnect.NewJobsServiceClient(httpClient, baseURL)
+	resp, err := client.WaitJob(context.Background(), connect.NewRequest(&jobsv1.WaitJobRequest{Id: jobID}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("wait job", err, nil)
+	}
+	job := resp.Msg.GetJob()
+	if job.GetState() != jobsv1.JobState_JOB_STATE_SUCCEEDED {
+		return job, fmt.Errorf("install job %s %s: %s", jobID, stateName(job.GetState()), job.GetError())
+	}
+	return job, nil
+}
+
+func stateName(s jobsv1.JobState) string {
+	switch s {
+	case jobsv1.JobState_JOB_STATE_SUCCEEDED:
+		return "succeeded"
+	case jobsv1.JobState_JOB_STATE_FAILED:
+		return "failed"
+	case jobsv1.JobState_JOB_STATE_CANCELED:
+		return "canceled"
+	case jobsv1.JobState_JOB_STATE_RUNNING:
+		return "running"
+	case jobsv1.JobState_JOB_STATE_QUEUED:
+		return "queued"
+	default:
+		return "unknown"
+	}
+}
+
 func formatModel(m *modelsv1.Model) string {
 	if m == nil {
 		return "(nil)"
@@ -165,8 +345,20 @@ func formatModel(m *modelsv1.Model) string {
 	if m.Enabled {
 		state = "enabled"
 	}
-	return fmt.Sprintf("%s — %s [tier=%s backend=%s ops=%s %s]",
-		m.Id, m.Name, m.Tier, m.Backend, strings.Join(m.Operations, ","), state)
+	tags := installLabel(m)
+	if m.Custom {
+		tags += " custom"
+	}
+	return fmt.Sprintf("%s — %s [tier=%s backend=%s ops=%s %s %s]",
+		m.Id, m.Name, m.Tier, m.Backend, strings.Join(m.Operations, ","), state, tags)
+}
+
+// installLabel renders the on-disk install state in one token.
+func installLabel(m *modelsv1.Model) string {
+	if m.GetInstall().GetInstalled() {
+		return "installed"
+	}
+	return "not-installed"
 }
 
 func formatModelDetail(m *modelsv1.Model) string {
@@ -184,6 +376,12 @@ func formatModelDetail(m *modelsv1.Model) string {
 	}
 	if len(m.DefaultFor) > 0 {
 		lines = append(lines, "  default_for: "+strings.Join(m.DefaultFor, ","))
+	}
+	if inst := m.GetInstall(); inst.GetInstalled() {
+		lines = append(lines, fmt.Sprintf("  install: installed at %s (size_bytes=%d checksum=%s installed_at=%s)",
+			inst.GetPath(), inst.GetSizeBytes(), inst.GetChecksum(), inst.GetInstalledAt()))
+	} else {
+		lines = append(lines, "  install: not installed (run `models install "+m.Id+"`)")
 	}
 	return strings.Join(lines, "\n")
 }

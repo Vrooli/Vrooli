@@ -67,6 +67,10 @@
     "laneLabel": "Lane:",
     "stateLabel": "State:",
     "progressLabel": "{{count}}% complete",
+    "messageLabel": "Status:",
+    "resultLabel": "Result:",
+    "errorLabel": "Error:",
+    "liveBadge": "Live",
     "cancel": "Cancel",
     "lane": {
       "unspecified": "Unspecified",
@@ -88,10 +92,74 @@
     "empty": "No models registered.",
     "tierLabel": "Tier:",
     "backendLabel": "Backend:",
+    "operationsLabel": "Operations:",
+    "sizeLabel": "Size:",
+    "sizeValue": "{{mb}} MB",
+    "hardwareLabel": "Hardware:",
+    "hardware": {
+      "gpuRequired": "GPU required",
+      "cpuOk": "Runs on CPU",
+      "vram": "≥ {{gb}} GB VRAM",
+      "ram": "≥ {{gb}} GB RAM"
+    },
+    "licenseLabel": "License:",
+    "commercialLabel": "Commercial use:",
+    "commercial": {
+      "unspecified": "Unknown",
+      "yes": "Allowed",
+      "no": "Not allowed",
+      "conditional": "Conditional"
+    },
+    "nsfwBadge": "NSFW capable",
+    "customBadge": "custom",
+    "installState": {
+      "installed": "Installed",
+      "notInstalled": "Not installed"
+    },
+    "install": "Install",
+    "installing": "Installing…",
+    "installStarted": "Install started (job {{jobId}}, ~{{eta}}s)",
+    "alreadyInstalled": "Already installed",
+    "remove": "Remove",
+    "removing": "Removing…",
     "enabledLabel": "Enabled",
     "disabledLabel": "Disabled",
     "enable": "Enable",
-    "disable": "Disable"
+    "disable": "Disable",
+    "blocklist": {
+      "title": "Blocked models",
+      "loading": "Loading blocklist…",
+      "empty": "No models are blocked.",
+      "licenseLabel": "License:",
+      "reasonLabel": "Reason:",
+      "operationsLabel": "Operations:",
+      "onnxWarning": "Exporting to ONNX/GGUF would falsely appear to lift this restriction — it does not."
+    },
+    "addCustom": {
+      "title": "Add a custom model",
+      "idLabel": "Model ID",
+      "operationsLabel": "Operations (comma-separated)",
+      "backendLabel": "Backend",
+      "localPathLabel": "Local path",
+      "downloadUrlLabel": "Download URL (optional)",
+      "submit": "Add model",
+      "submitting": "Adding…",
+      "success": "Custom model added."
+    },
+    "defaults": {
+      "title": "Default model per operation",
+      "loading": "Loading defaults…",
+      "empty": "No operations available.",
+      "modelLabel": "Default model",
+      "sourceLabel": "Source",
+      "source": {
+        "seed": "Built-in",
+        "override": "Pinned"
+      },
+      "useDefault": "Use built-in default",
+      "clear": "Clear",
+      "none": "None"
+    }
   },
   "editor": {
     "title": "Image editor",
@@ -109,6 +177,22 @@
     "resultMeta": "{{width}}×{{height}} · {{format}}",
     "metadataLabel": "Metadata",
     "download": "Download result",
+    "stack": {
+      "title": "Edit pipeline",
+      "apply": "Apply",
+      "applying": "Applying…",
+      "undo": "Undo",
+      "redo": "Redo",
+      "reset": "Reset",
+      "empty": "No operations applied yet.",
+      "stepsHeading": "Applied operations",
+      "step": "{{index}}. {{operation}}"
+    },
+    "compare": {
+      "before": "Before",
+      "after": "After",
+      "slider": "Comparison slider"
+    },
     "field": {
       "width": "Width",
       "height": "Height",

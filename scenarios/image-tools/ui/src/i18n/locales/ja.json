@@ -77,7 +77,11 @@
       "succeeded": "成功",
       "failed": "失敗",
       "canceled": "キャンセル済み"
-    }
+    },
+    "messageLabel": "ステータス:",
+    "resultLabel": "結果:",
+    "errorLabel": "エラー:",
+    "liveBadge": "ライブ"
   },
   "models": {
     "title": "モデルレジストリ",
@@ -88,7 +92,71 @@
     "enabledLabel": "有効",
     "disabledLabel": "無効",
     "enable": "有効化",
-    "disable": "無効化"
+    "disable": "無効化",
+    "operationsLabel": "操作:",
+    "sizeLabel": "サイズ:",
+    "sizeValue": "{{mb}} MB",
+    "hardwareLabel": "ハードウェア:",
+    "hardware": {
+      "gpuRequired": "GPU が必要",
+      "cpuOk": "CPU で動作",
+      "vram": "VRAM {{gb}} GB 以上",
+      "ram": "RAM {{gb}} GB 以上"
+    },
+    "licenseLabel": "ライセンス:",
+    "commercialLabel": "商用利用:",
+    "commercial": {
+      "unspecified": "不明",
+      "yes": "許可",
+      "no": "不可",
+      "conditional": "条件付き"
+    },
+    "nsfwBadge": "NSFW 対応",
+    "customBadge": "カスタム",
+    "installState": {
+      "installed": "インストール済み",
+      "notInstalled": "未インストール"
+    },
+    "install": "インストール",
+    "installing": "インストール中…",
+    "installStarted": "インストールを開始しました (ジョブ {{jobId}}、約 {{eta}} 秒)",
+    "alreadyInstalled": "インストール済み",
+    "remove": "削除",
+    "removing": "削除中…",
+    "blocklist": {
+      "title": "ブロック済みモデル",
+      "loading": "ブロックリストを読み込み中…",
+      "empty": "ブロックされたモデルはありません。",
+      "licenseLabel": "ライセンス:",
+      "reasonLabel": "理由:",
+      "operationsLabel": "操作:",
+      "onnxWarning": "ONNX/GGUF へのエクスポートでこの制限が解除されるように見えますが、実際には解除されません。"
+    },
+    "addCustom": {
+      "title": "カスタムモデルを追加",
+      "idLabel": "モデル ID",
+      "operationsLabel": "操作 (カンマ区切り)",
+      "backendLabel": "バックエンド",
+      "localPathLabel": "ローカルパス",
+      "downloadUrlLabel": "ダウンロード URL (任意)",
+      "submit": "モデルを追加",
+      "submitting": "追加中…",
+      "success": "カスタムモデルを追加しました。"
+    },
+    "defaults": {
+      "title": "操作ごとのデフォルトモデル",
+      "loading": "デフォルトを読み込み中…",
+      "empty": "利用可能な操作がありません。",
+      "modelLabel": "デフォルトモデル",
+      "sourceLabel": "ソース",
+      "source": {
+        "seed": "組み込み",
+        "override": "固定"
+      },
+      "useDefault": "組み込みデフォルトを使用",
+      "clear": "クリア",
+      "none": "なし"
+    }
   },
   "editor": {
     "title": "画像エディター",
@@ -135,6 +203,22 @@
       "stripAll": "すべて削除",
       "stripGps": "GPS を削除",
       "autoOrient": "自動回転"
+    },
+    "stack": {
+      "title": "編集パイプライン",
+      "apply": "適用",
+      "applying": "適用中…",
+      "undo": "元に戻す",
+      "redo": "やり直す",
+      "reset": "リセット",
+      "empty": "まだ操作が適用されていません。",
+      "stepsHeading": "適用した操作",
+      "step": "{{index}}. {{operation}}"
+    },
+    "compare": {
+      "before": "ビフォー",
+      "after": "アフター",
+      "slider": "比較スライダー"
     }
   },
   "errors": {

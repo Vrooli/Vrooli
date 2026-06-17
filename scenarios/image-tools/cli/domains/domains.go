@@ -6,6 +6,7 @@ import (
 	"image-tools/cli/domains/jobs"
 	"image-tools/cli/domains/models"
 	"image-tools/cli/domains/ops"
+	"image-tools/cli/domains/settings"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -60,5 +61,9 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
-	return []cliapp.SubcommandGroup{jobsGroup, modelsGroup, opsGroup, aiGroup, analyzeGroup}, nil
+	settingsGroup, err := settings.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.SubcommandGroup{jobsGroup, modelsGroup, opsGroup, aiGroup, analyzeGroup, settingsGroup}, nil
 }

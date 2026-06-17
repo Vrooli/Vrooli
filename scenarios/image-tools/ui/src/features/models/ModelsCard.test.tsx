@@ -112,4 +112,91 @@ describe("ModelsCard", () => {
       expect(modelsClient.setModelEnabled).toHaveBeenCalledWith({ id: "m-off", enabled: true });
     });
   });
+
+  it("renders model metadata: size, operations, custom + NSFW badges, install state", async () => {
+    const { modelsClient } = await import("../../api/models");
+    vi.mocked(modelsClient.listModels).mockResolvedValueOnce(
+      makeListModelsResponse({
+        models: [
+          makeModel({
+            id: "m-custom",
+            operations: ["upscale", "denoise"],
+            sizeMbApprox: 128,
+            custom: true,
+            capabilityLabels: { nsfwCapable: true, license: "MIT" },
+          }),
+        ],
+      }),
+    );
+
+    renderWithProviders(<ModelsCard />);
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.models.list)).toBeInTheDocument();
+    });
+    expect(screen.getByTestId(selectors.models.size).textContent).toContain("128");
+    expect(screen.getByTestId(selectors.models.operations).textContent).toContain("denoise");
+    expect(screen.getByTestId(selectors.models.customBadge)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.models.nsfwBadge)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.models.installState).textContent).toBe("Not installed");
+  });
+
+  it("installs a not-installed model via installModel and surfaces the job notice", async () => {
+    const { modelsClient } = await import("../../api/models");
+    vi.mocked(modelsClient.listModels).mockResolvedValue(
+      makeListModelsResponse({
+        models: [makeModel({ id: "m-new", install: { installed: false } })],
+      }),
+    );
+
+    const user = userEvent.setup();
+    renderWithProviders(<ModelsCard />);
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.models.installButton)).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId(selectors.models.installButton));
+
+    await waitFor(() => {
+      expect(modelsClient.installModel).toHaveBeenCalledWith({ id: "m-new" });
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.models.installNotice).textContent).toContain(
+        "job-install-1",
+      );
+    });
+  });
+
+  it("hides the install button when the model is already installed", async () => {
+    const { modelsClient } = await import("../../api/models");
+    vi.mocked(modelsClient.listModels).mockResolvedValueOnce(
+      makeListModelsResponse({
+        models: [makeModel({ id: "m-have", install: { installed: true, path: "/w" } })],
+      }),
+    );
+
+    renderWithProviders(<ModelsCard />);
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.models.installState).textContent).toBe("Installed");
+    });
+    expect(screen.queryByTestId(selectors.models.installButton)).not.toBeInTheDocument();
+  });
+
+  it("removes a model via removeModel", async () => {
+    const { modelsClient } = await import("../../api/models");
+    vi.mocked(modelsClient.listModels).mockResolvedValue(
+      makeListModelsResponse({ models: [makeModel({ id: "m-del" })] }),
+    );
+
+    const user = userEvent.setup();
+    renderWithProviders(<ModelsCard />);
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.models.removeButton)).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId(selectors.models.removeButton));
+
+    await waitFor(() => {
+      expect(modelsClient.removeModel).toHaveBeenCalledWith({ id: "m-del" });
+    });
+  });
 });

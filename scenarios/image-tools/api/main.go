@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -16,6 +17,7 @@ import (
 	"image-tools/internal/clock"
 	"image-tools/internal/jobrunner"
 	internaljobs "image-tools/internal/jobs"
+	internalmeasures "image-tools/internal/measures"
 	internalmodels "image-tools/internal/models"
 	"image-tools/internal/modules"
 	"image-tools/internal/server"
@@ -100,6 +102,23 @@ func sqliteFileDSN(path string) (string, error) {
 	), nil
 }
 
+// jobDurationMS is a finalized job's run wall-clock (StartedAt → FinishedAt) in
+// milliseconds, or 0 when timing is incomplete.
+func jobDurationMS(j internaljobs.Job) int64 {
+	if j.StartedAt == nil || j.FinishedAt == nil {
+		return 0
+	}
+	return j.FinishedAt.Sub(*j.StartedAt).Milliseconds()
+}
+
+// jobQueueMS is a job's queue wait (CreatedAt → StartedAt) in milliseconds.
+func jobQueueMS(j internaljobs.Job) int64 {
+	if j.StartedAt == nil {
+		return 0
+	}
+	return j.StartedAt.Sub(j.CreatedAt).Milliseconds()
+}
+
 func main() {
 	// Preflight checks must run first so the binary can re-exec itself
 	// after a stale-source rebuild before any listeners are opened.
@@ -141,9 +160,25 @@ func main() {
 	// so a submitted job for an unknown op fails cleanly (and nothing submits).
 	jobCtx, cancelJobs := context.WithCancel(context.Background())
 	dispatcher := jobrunner.New()
+
+	// Runtime measures (IMG-P0-012): the recorder captures op latency + queue-wait
+	// + outcome for every finalized job via the Manager's OnComplete hook. Recorded
+	// under the server-lifetime context so it is independent of any caller.
+	measureRec := internalmeasures.NewRecorder(db)
 	jobManager := internaljobs.New(db, internaljobs.Config{
 		Runner: dispatcher.Run,
 		Clock:  clock.System{},
+		OnComplete: func(job internaljobs.Job) {
+			sample := internalmeasures.JobLike{
+				Operation:  job.Operation,
+				State:      string(job.State),
+				DurationMS: jobDurationMS(job),
+				QueueMS:    jobQueueMS(job),
+			}
+			if err := measureRec.Observe(jobCtx, sample); err != nil {
+				log.Printf("measures: observe job %s: %v", job.ID, err)
+			}
+		},
 	})
 	if err := jobManager.Start(jobCtx); err != nil {
 		cancelJobs()
@@ -168,10 +203,36 @@ func main() {
 	// model is installed, modelInstalled returns false and AI ops refuse with an
 	// actionable hint rather than launching a doomed job.
 	modelsRoot := filepath.Dir(blobStore.Root())
-	modelInstalled := func(id string) bool {
-		info, statErr := os.Stat(filepath.Join(modelsRoot, "models", id))
-		return statErr == nil && info.IsDir()
+
+	// Model management (IMG-P0-007): the Installer owns checksummed downloads,
+	// disk-space checks, removal, and custom/local entries. Install state is
+	// DB-backed (model_install) so modelInstalled reflects a completed download,
+	// not just a stray directory.
+	installer := &internalmodels.Installer{
+		Root:      modelsRoot,
+		Reg:       registry,
+		Custom:    internalmodels.NewCustomStore(db),
+		State:     internalmodels.NewInstallStore(db),
+		Download:  internalmodels.HTTPDownloader{},
+		DiskAvail: internalmodels.DefaultDiskAvail,
 	}
+	modelInstalled := func(id string) bool {
+		return installer.Installed(context.Background(), id)
+	}
+
+	// The model-download runner: a durable CPU-lane job that fetches + verifies a
+	// model's weights, emitting progress. ModelsService.InstallModel submits it.
+	dispatcher.Register(internalmodels.InstallJobOperation, func(jobCtx context.Context, job internaljobs.Job, emit func(progress int, message string)) (string, error) {
+		var p internalmodels.InstallPayload
+		if err := json.Unmarshal(job.Payload, &p); err != nil {
+			return "", fmt.Errorf("decode install payload: %w", err)
+		}
+		rec, err := installer.Install(jobCtx, p.ModelID, emit)
+		if err != nil {
+			return "", err
+		}
+		return rec.Path, nil
+	})
 
 	// Backend provider registry: register the standalone AI backends and enforce
 	// the headless tenet at boot (every AI op must have a non-ComfyUI provider).
@@ -194,6 +255,10 @@ func main() {
 		return registry.EnabledWithOverlay(overlay), nil
 	}
 
+	// Per-operation default-model pins (settings surface): selection applies a
+	// pin when a request gives no explicit override.
+	opDefaults := internalmodels.NewOpDefaultStore(db)
+
 	// Analysis service (OCR / NSFW / probe). Its NSFW path also backs the AI
 	// generation auto-scan hook.
 	analysisService, err := internalanalysis.NewService(internalanalysis.Config{
@@ -208,15 +273,16 @@ func main() {
 	// AI engine: probe → hardware-fit model select → backend select → execute →
 	// persist, with the optional NSFW auto-scan on generated output.
 	aiEngine, err := internalai.NewEngine(internalai.Deps{
-		Registry:       registry,
-		Backends:       backendReg,
-		Probe:          probe,
-		Store:          blobStore,
-		Enabled:        enabled,
-		ModelInstalled: modelInstalled,
-		ModelsRoot:     modelsRoot,
-		AutoScan:       analysisService.ScanNSFW,
-		Logger:         log.Default(),
+		Registry:        registry,
+		Backends:        backendReg,
+		Probe:           probe,
+		Store:           blobStore,
+		Enabled:         enabled,
+		DefaultOverride: opDefaults.Get,
+		ModelInstalled:  modelInstalled,
+		ModelsRoot:      modelsRoot,
+		AutoScan:        analysisService.ScanNSFW,
+		Logger:          log.Default(),
 	})
 	if err != nil {
 		log.Fatalf("ai engine init failed: %v", err)
@@ -233,7 +299,7 @@ func main() {
 		aiH.Module(aiEngine, registry, blobStore, jobManager, log.Default()),
 		analysisH.Module(analysisService, jobManager, log.Default()),
 		jobsH.Module(jobManager, log.Default()),
-		modelsH.Module(db, registry, probe, log.Default()),
+		modelsH.Module(db, registry, probe, installer, jobManager, log.Default()),
 		opsH.Module(blobStore, jobManager, log.Default()),
 	)
 

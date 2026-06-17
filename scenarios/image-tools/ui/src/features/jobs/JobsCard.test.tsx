@@ -11,7 +11,12 @@ import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../../test-utils";
 import { JobState } from "@vrooli/proto-types/image-tools/v1/jobs/jobs_pb";
-import { makeJob, makeListJobsResponse } from "./mocks/factories";
+import {
+  asProgressStream,
+  makeJob,
+  makeListJobsResponse,
+  makeProgressEvent,
+} from "./mocks/factories";
 import { makeJobsMocks } from "./mocks/jobs";
 
 vi.mock("../../api/jobs", async (importOriginal) => {
@@ -94,6 +99,47 @@ describe("JobsCard", () => {
     await waitFor(() => {
       expect(jobsClient.cancelJob).toHaveBeenCalledWith({ id: "job-run" });
     });
+  });
+
+  it("overlays live WatchJob progress for an active job", async () => {
+    const { jobsClient } = await import("../../api/jobs");
+    vi.mocked(jobsClient.listJobs).mockResolvedValueOnce(
+      makeListJobsResponse({
+        jobs: [makeJob({ id: "job-live", state: JobState.RUNNING, progress: 10 })],
+      }),
+    );
+    vi.mocked(jobsClient.watchJob).mockReturnValueOnce(
+      asProgressStream([
+        makeProgressEvent({ jobId: "job-live", progress: 75, message: "Upscaling tiles" }),
+      ]),
+    );
+
+    renderWithProviders(<JobsCard />);
+
+    await waitFor(() => {
+      expect(jobsClient.watchJob).toHaveBeenCalledWith(
+        { id: "job-live" },
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.jobs.liveBadge)).toBeInTheDocument();
+    });
+    expect(screen.getByTestId(selectors.jobs.progress).textContent).toContain("75");
+    expect(screen.getByTestId(selectors.jobs.message).textContent).toContain("Upscaling tiles");
+  });
+
+  it("does not open a WatchJob stream for terminal jobs", async () => {
+    const { jobsClient } = await import("../../api/jobs");
+    vi.mocked(jobsClient.listJobs).mockResolvedValueOnce(
+      makeListJobsResponse({ jobs: [makeJob({ id: "job-fin", state: JobState.SUCCEEDED })] }),
+    );
+
+    renderWithProviders(<JobsCard />);
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.jobs.list)).toBeInTheDocument();
+    });
+    expect(jobsClient.watchJob).not.toHaveBeenCalled();
   });
 
   it("hides the cancel button for terminal jobs", async () => {

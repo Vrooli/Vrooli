@@ -13,17 +13,22 @@
  *     return { ...actual, ...makeModelsMocks() };
  *   });
  *
- * Default behaviors:
- *   - `modelsClient.listModels` resolves to an empty list
- *   - `modelsClient.listOperations` resolves to an empty list
- *   - `modelsClient.setModelEnabled({ id, enabled })` echoes the change back
+ * The `...actual` spread keeps the re-exported proto types + enums (e.g.
+ * CommercialUse) intact — only the network-touching client methods are
+ * substituted.
  */
 import { vi } from "vitest";
 
 import {
+  makeAddCustomModelResponse,
+  makeInstallModelResponse,
+  makeListBlocklistResponse,
+  makeListDefaultsResponse,
   makeListModelsResponse,
   makeListOperationsResponse,
   makeModel,
+  makeRemoveModelResponse,
+  makeSetDefaultModelResponse,
   makeSetModelEnabledResponse,
 } from "./factories";
 
@@ -32,6 +37,12 @@ export interface ModelsMocks {
     listModels: ReturnType<typeof vi.fn>;
     listOperations: ReturnType<typeof vi.fn>;
     setModelEnabled: ReturnType<typeof vi.fn>;
+    installModel: ReturnType<typeof vi.fn>;
+    removeModel: ReturnType<typeof vi.fn>;
+    addCustomModel: ReturnType<typeof vi.fn>;
+    setDefaultModel: ReturnType<typeof vi.fn>;
+    listDefaults: ReturnType<typeof vi.fn>;
+    listBlocklist: ReturnType<typeof vi.fn>;
   };
 }
 
@@ -48,5 +59,15 @@ export const makeModelsMocks = (): ModelsMocks => ({
           }),
         ),
       ),
+    installModel: vi.fn().mockResolvedValue(makeInstallModelResponse()),
+    removeModel: vi.fn().mockResolvedValue(makeRemoveModelResponse()),
+    addCustomModel: vi.fn().mockResolvedValue(makeAddCustomModelResponse()),
+    setDefaultModel: vi
+      .fn()
+      .mockImplementation((input: { operation: string; modelId: string }) =>
+        Promise.resolve(makeSetDefaultModelResponse(input)),
+      ),
+    listDefaults: vi.fn().mockResolvedValue(makeListDefaultsResponse()),
+    listBlocklist: vi.fn().mockResolvedValue(makeListBlocklistResponse()),
   },
 });

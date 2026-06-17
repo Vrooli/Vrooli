@@ -1,5 +1,6 @@
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
+import { ModelDefaultsCard } from "../features/models/ModelDefaultsCard";
 import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTranslation } from "../i18n";
 import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
 
@@ -74,6 +75,8 @@ export function SettingsPage() {
           ))}
         </div>
       </div>
+
+      <ModelDefaultsCard />
     </section>
   );
 }

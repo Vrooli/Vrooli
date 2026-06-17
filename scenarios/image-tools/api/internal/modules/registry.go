@@ -29,6 +29,7 @@ import (
 	modelsH "image-tools/handlers/models"
 	opsH "image-tools/handlers/ops"
 	localdb "image-tools/internal/database"
+	internalmeasures "image-tools/internal/measures"
 
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai"
 	analysisv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/analysis"
@@ -97,6 +98,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(aiH.Schema),
 		apidb.SchemaProviderFunc(analysisH.Schema),
 		apidb.SchemaProviderFunc(jobsH.Schema),
+		apidb.SchemaProviderFunc(internalmeasures.Schema),
 		apidb.SchemaProviderFunc(modelsH.Schema),
 		apidb.SchemaProviderFunc(opsH.Schema),
 	}

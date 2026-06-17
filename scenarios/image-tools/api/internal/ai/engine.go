@@ -46,6 +46,10 @@ type Deps struct {
 	// Enabled resolves a model's runtime enabled-state (SQLite overlay). nil ⇒
 	// seed defaults.
 	Enabled func(ctx context.Context) (models.EnabledFunc, error)
+	// DefaultOverride resolves the operator-pinned default model for an op (the
+	// settings surface), applied when a request carries no explicit override.
+	// Returns "" when no pin exists. nil disables the seam (seed default wins).
+	DefaultOverride func(ctx context.Context, operation string) (string, error)
 	// ModelInstalled reports whether a model's weights are on disk. Required —
 	// the engine refuses to launch a job for an uninstalled model with an
 	// actionable hint instead of failing opaquely mid-run.
@@ -132,10 +136,18 @@ func (e *Engine) Plan(ctx context.Context, req PlanRequest) (Plan, error) {
 	if err != nil {
 		return Plan{}, err
 	}
+	override := req.ModelOverride
+	if override == "" && e.deps.DefaultOverride != nil {
+		pinned, derr := e.deps.DefaultOverride(ctx, req.Operation)
+		if derr != nil {
+			return Plan{}, fmt.Errorf("ai: load op default: %w", derr)
+		}
+		override = pinned
+	}
 	sel, err := e.deps.Registry.Select(models.SelectRequest{
 		Operation:  req.Operation,
 		Host:       host,
-		OverrideID: req.ModelOverride,
+		OverrideID: override,
 	}, enabled)
 	if err != nil {
 		return Plan{}, err // already actionable (no enabled model / VRAM shortfall / override invalid)

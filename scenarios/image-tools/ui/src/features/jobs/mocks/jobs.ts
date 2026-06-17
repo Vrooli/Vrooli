@@ -21,12 +21,13 @@
  */
 import { vi } from "vitest";
 
-import { makeCancelJobResponse, makeJob, makeListJobsResponse } from "./factories";
+import { asProgressStream, makeCancelJobResponse, makeJob, makeListJobsResponse } from "./factories";
 
 export interface JobsMocks {
   jobsClient: {
     listJobs: ReturnType<typeof vi.fn>;
     cancelJob: ReturnType<typeof vi.fn>;
+    watchJob: ReturnType<typeof vi.fn>;
   };
 }
 
@@ -38,5 +39,8 @@ export const makeJobsMocks = (): JobsMocks => ({
       .mockImplementation((input: { id: string }) =>
         Promise.resolve(makeCancelJobResponse({ job: makeJob({ id: input.id }) })),
       ),
+    // Default: an empty stream that completes immediately. Tests override with
+    // `asProgressStream([...])` to assert live progress overlay.
+    watchJob: vi.fn().mockImplementation(() => asProgressStream([])),
   },
 });

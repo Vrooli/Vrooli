@@ -142,6 +142,55 @@
             "run_eligible": true,
             "permissions": ["network:internal"]
           }
+        },
+        {
+          "name": "install",
+          "description": "Install (download) a model's weights as a durable job (--wait to block once on completion)",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Model id" }
+          ],
+          "flags": [
+            { "name": "wait", "bool": true, "description": "Block once until the download job is terminal (no polling)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ModelsService", "method": "InstallModel" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "remove",
+          "description": "Remove a model's downloaded weights and clear its install record",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Model id" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ModelsService", "method": "RemoveModel" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "add-custom",
+          "description": "Register a custom/local model (repeat --operation per served op; --local-path or --download-url for weights)",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Model id (must not collide with a seed model)" }
+          ],
+          "flags": [
+            { "name": "operation", "description": "An operation this model serves (repeat for several)" },
+            { "name": "backend", "description": "Inference backend (e.g. onnxruntime, diffusers)" },
+            { "name": "name", "description": "Human-readable display name" },
+            { "name": "local-path", "description": "Absolute path to local weights (installed by reference; no download)" },
+            { "name": "download-url", "description": "Remote download URL (used when --local-path is empty)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ModelsService", "method": "AddCustomModel" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
         }
       ]
     },
@@ -187,6 +236,36 @@
           "binding": { "kind": "connect-rpc", "service": "AnalysisService", "method": "ListAnalysisOperations" },
           "governance": {
             "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "settings",
+      "description": "Inspect and pin per-operation default models",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List the effective default model per operation (seed vs operator override)",
+          "binding": { "kind": "connect-rpc", "service": "ModelsService", "method": "ListDefaults" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "set-default",
+          "description": "Pin the default model for an operation",
+          "positionals": [
+            { "name": "operation", "required": true, "description": "Operation to pin a default for" },
+            { "name": "id", "required": true, "description": "Model id to pin" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ModelsService", "method": "SetDefaultModel" },
+          "governance": {
+            "effect": "write",
             "run_eligible": true,
             "permissions": ["network:internal"]
           }

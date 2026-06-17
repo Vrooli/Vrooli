@@ -37,17 +37,24 @@ type Config struct {
 	Clock clock.Clock
 	// CPUWorkers is the concurrent CPU lane size. Defaults to 4 when <= 0.
 	CPUWorkers int
+	// OnComplete, when set, is called once per job as it reaches a terminal state
+	// (succeeded/failed/canceled). The measures recorder uses it to capture op
+	// latency + queue-wait without coupling the Manager to the measures package.
+	// It must not block; it runs on the finalizing goroutine after subscribers
+	// are notified.
+	OnComplete func(job Job)
 }
 
 // Manager owns durable jobs: it serializes GPU work, runs CPU work
 // concurrently, and survives client disconnects (work runs under baseCtx).
 type Manager struct {
-	st      *store
-	runner  Runner
-	clock   clock.Clock
-	cpuN    int
-	baseCtx context.Context
-	cancel  context.CancelFunc
+	st         *store
+	runner     Runner
+	clock      clock.Clock
+	cpuN       int
+	onComplete func(Job)
+	baseCtx    context.Context
+	cancel     context.CancelFunc
 
 	mu      sync.Mutex
 	entries map[string]*jobEntry
@@ -82,13 +89,14 @@ func New(db SQLExecutor, cfg Config) *Manager {
 		n = 4
 	}
 	return &Manager{
-		st:      newStore(db),
-		runner:  cfg.Runner,
-		clock:   clk,
-		cpuN:    n,
-		entries: make(map[string]*jobEntry),
-		gpuCh:   make(chan *jobEntry, laneQueueCap),
-		cpuCh:   make(chan *jobEntry, laneQueueCap),
+		st:         newStore(db),
+		runner:     cfg.Runner,
+		clock:      clk,
+		cpuN:       n,
+		onComplete: cfg.OnComplete,
+		entries:    make(map[string]*jobEntry),
+		gpuCh:      make(chan *jobEntry, laneQueueCap),
+		cpuCh:      make(chan *jobEntry, laneQueueCap),
 	}
 }
 
@@ -252,6 +260,9 @@ func (m *Manager) Record(spec Spec, resultRef string, runErr error) (Job, error)
 	if err := m.st.insert(m.baseCtx, job); err != nil {
 		return Job{}, err
 	}
+	if m.onComplete != nil {
+		m.onComplete(job)
+	}
 	return job, nil
 }
 
@@ -350,6 +361,10 @@ func (m *Manager) finalizeEntry(entry *jobEntry, final Job) {
 	entry.subs = nil
 	close(entry.done)
 	entry.mu.Unlock()
+
+	if m.onComplete != nil && final.State.Terminal() {
+		m.onComplete(final)
+	}
 }
 
 func (m *Manager) emit(entry *jobEntry, state State, progress int, message string) {

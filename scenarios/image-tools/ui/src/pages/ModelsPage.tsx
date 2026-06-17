@@ -1,5 +1,7 @@
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
+import { AddCustomModelForm } from "../features/models/AddCustomModelForm";
+import { BlocklistCard } from "../features/models/BlocklistCard";
 import { ModelsCard } from "../features/models/ModelsCard";
 import { useTranslation } from "../i18n";
 
@@ -16,6 +18,8 @@ export function ModelsPage() {
         {t(strings.pages.models.title)}
       </h2>
       <ModelsCard />
+      <AddCustomModelForm />
+      <BlocklistCard />
     </section>
   );
 }

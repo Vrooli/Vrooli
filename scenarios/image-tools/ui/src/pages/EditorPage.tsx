@@ -1,6 +1,7 @@
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { EditorCard } from "../features/editor/EditorCard";
+import { OpStackCard } from "../features/editor/OpStackCard";
 import { useTranslation } from "../i18n";
 
 export function EditorPage() {
@@ -16,6 +17,7 @@ export function EditorPage() {
         {t(strings.pages.editor.title)}
       </h2>
       <EditorCard />
+      <OpStackCard />
     </section>
   );
 }

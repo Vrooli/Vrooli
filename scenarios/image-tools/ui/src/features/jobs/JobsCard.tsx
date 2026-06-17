@@ -6,6 +6,7 @@ import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { JobLane, JobState, jobsClient, type Job } from "../../api/jobs";
 import { errorMessage } from "../../lib/errorMessage";
+import { useJobProgress } from "./useJobProgress";
 
 const JOBS_QUERY_KEY = ["jobs"] as const;
 
@@ -24,18 +25,93 @@ const STATE_LABEL: Record<JobState, (typeof strings.jobs.state)[keyof typeof str
   [JobState.CANCELED]: strings.jobs.state.canceled,
 };
 
-/** Terminal jobs can no longer be canceled. */
-const isCancelable = (state: JobState) =>
-  state === JobState.QUEUED || state === JobState.RUNNING;
+/** Non-terminal jobs can still be canceled and stream live progress. */
+const isActive = (state: JobState) => state === JobState.QUEUED || state === JobState.RUNNING;
+
+interface JobRowProps {
+  job: Job;
+  onCancel: (id: string) => void;
+  cancelPending: boolean;
+}
 
 /**
- * JobsCard is the durable-async-work surface: it lists the most recent
- * jobs (id, operation, lane, state, progress) and lets the operator
- * cancel an in-flight job. Loading / empty / error states mirror the
- * other read-oriented cards.
- *
- * Live progress (the JobsService.WatchJob server stream) is intentionally
- * out of scope here — see the TODO in `api/jobs.ts`.
+ * One job row. While the job is active it subscribes to WatchJob and overlays
+ * the live progress/state/message on top of the polled ListJobs snapshot, so
+ * the bar advances without waiting for the next poll.
+ */
+function JobRow({ job, onCancel, cancelPending }: JobRowProps) {
+  const { t } = useTranslation();
+  const live = useJobProgress(job.id, isActive(job.state));
+
+  const state = live?.state ?? job.state;
+  const progress = live?.progress ?? job.progress;
+  const message = live?.message || job.message;
+
+  return (
+    <li className="rounded-lg border border-white/10 p-3">
+      <div className="flex items-center gap-2">
+        <span className="font-medium">{job.id}</span>
+        {live && (
+          <span
+            data-testid={selectors.jobs.liveBadge}
+            className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-emerald-300"
+          >
+            {t(strings.jobs.liveBadge)}
+          </span>
+        )}
+      </div>
+      <div data-testid={selectors.jobs.operation} className="mt-1 text-xs text-slate-400">
+        {t(strings.jobs.operationLabel)} {job.operation}
+      </div>
+      <div data-testid={selectors.jobs.lane} className="mt-1 text-xs text-slate-400">
+        {t(strings.jobs.laneLabel)} {t(LANE_LABEL[job.lane])}
+      </div>
+      <div data-testid={selectors.jobs.state} className="mt-1 text-xs text-slate-400">
+        {t(strings.jobs.stateLabel)} {t(STATE_LABEL[state])}
+      </div>
+      <div data-testid={selectors.jobs.progress} className="mt-1 text-xs text-slate-400">
+        {t(strings.jobs.progressLabel, { count: progress })}
+      </div>
+      <progress
+        className="mt-1 h-1.5 w-full overflow-hidden rounded bg-white/10 [&::-webkit-progress-bar]:bg-white/10 [&::-webkit-progress-value]:bg-app-primary"
+        value={progress}
+        max={100}
+        aria-label={t(strings.jobs.progressLabel, { count: progress })}
+      />
+      {message && (
+        <div data-testid={selectors.jobs.message} className="mt-1 text-xs text-slate-400">
+          {t(strings.jobs.messageLabel)} {message}
+        </div>
+      )}
+      {state === JobState.SUCCEEDED && job.resultRef && (
+        <div data-testid={selectors.jobs.result} className="mt-1 break-all text-xs text-slate-400">
+          {t(strings.jobs.resultLabel)} {job.resultRef}
+        </div>
+      )}
+      {state === JobState.FAILED && job.error && (
+        <div data-testid={selectors.jobs.errorDetail} className="mt-1 text-xs text-red-400">
+          {t(strings.jobs.errorLabel)} {job.error}
+        </div>
+      )}
+      {isActive(state) && (
+        <Button
+          data-testid={selectors.jobs.cancelButton}
+          className="mt-2"
+          onClick={() => onCancel(job.id)}
+          disabled={cancelPending}
+        >
+          {t(strings.jobs.cancel)}
+        </Button>
+      )}
+    </li>
+  );
+}
+
+/**
+ * JobsCard is the durable-async-work monitor: it lists recent jobs (polled via
+ * ListJobs) and, for each active job, overlays live WatchJob progress with a
+ * Cancel action (CancelJob). Loading / empty / error states mirror the other
+ * read-oriented cards.
  */
 export function JobsCard() {
   const { t } = useTranslation();
@@ -80,31 +156,12 @@ export function JobsCard() {
       {jobs.length > 0 && (
         <ul data-testid={selectors.jobs.list} className="mt-2 space-y-1 text-sm text-slate-200">
           {jobs.map((job) => (
-            <li key={job.id} className="rounded-lg border border-white/10 p-3">
-              <div className="font-medium">{job.id}</div>
-              <div data-testid={selectors.jobs.operation} className="mt-1 text-xs text-slate-400">
-                {t(strings.jobs.operationLabel)} {job.operation}
-              </div>
-              <div data-testid={selectors.jobs.lane} className="mt-1 text-xs text-slate-400">
-                {t(strings.jobs.laneLabel)} {t(LANE_LABEL[job.lane])}
-              </div>
-              <div data-testid={selectors.jobs.state} className="mt-1 text-xs text-slate-400">
-                {t(strings.jobs.stateLabel)} {t(STATE_LABEL[job.state])}
-              </div>
-              <div data-testid={selectors.jobs.progress} className="mt-1 text-xs text-slate-400">
-                {t(strings.jobs.progressLabel, { count: job.progress })}
-              </div>
-              {isCancelable(job.state) && (
-                <Button
-                  data-testid={selectors.jobs.cancelButton}
-                  className="mt-2"
-                  onClick={() => cancelJobMutation.mutate(job.id)}
-                  disabled={cancelJobMutation.isPending}
-                >
-                  {t(strings.jobs.cancel)}
-                </Button>
-              )}
-            </li>
+            <JobRow
+              key={job.id}
+              job={job}
+              onCancel={(id) => cancelJobMutation.mutate(id)}
+              cancelPending={cancelJobMutation.isPending}
+            />
           ))}
         </ul>
       )}

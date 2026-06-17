@@ -77,8 +77,10 @@ present at HEAD, unchanged by feature work):
 1. `phase-standards` fails — OWASP "Security Headers" HIGH ×4 on
    `api/internal/httpx/errors.go` (template error writer) + three template
    test files (`internal/middleware/logging_test.go`,
-   `internal/module/module_test.go`, `internal/server/server_test.go`). This is
-   the only failing phase in the full suite (17/18 green).
+   `internal/module/module_test.go`, `internal/server/server_test.go`). As of
+   Phase 4 the suite is 15/18 green; the other two reds are tracked separately
+   (playbooks `@scenario/self` infra regression; proto commit-gated) and are also
+   not feature-introduced.
 2. `pnpm lint` (`eslint .`) reports a handful of errors (plus react-refresh
    warnings): `theme.choice.{light,dark,system}` "no callsite" (dynamic-access
    false positive — they ARE used via `strings.theme.choice[c]`),
@@ -167,27 +169,60 @@ and re-embed it; flip this entry to resolved. Tracked for a later enhancement.
 
 **Refs:** `api/internal/ops/metadata.go` (`stripMetadata`); DECISIONS.md.
 
-### 2026-06-17 — Runtime op-latency measures substrate not yet mounted
+### 2026-06-17 — Runtime measures: recorder built; per-model enrichment + query surface deferred — PARTIALLY RESOLVED
 
-**Symptom:** The `/measures` substrate (op latency p50/p95, throughput,
-queue-wait, fallback-tier usage) named in the implementation plan is not yet
-served; deterministic ops record durable jobs but emit no runtime metrics.
+**Resolution (Phase 4):** `internal/measures` now records op latency (p50/p95),
+queue-wait, throughput, and terminal-state mix into SQLite `op_measure`, fed by a
+new generic `jobs.Manager.OnComplete` hook — so EVERY finalized job (deterministic
++ AI) accrues op-level metrics. `Recorder.Stats` computes the aggregates on read
+(`measures_test.go` covers it). The schema + `Sample` API carry `model_id`/`tier`/
+`fallback_used` columns.
 
-**Root cause:** Deliberately deferred (Phase 1 decision): mounting an empty
-measures substrate is dead scaffolding. Deterministic ops are instant, so
-latency percentiles are far more meaningful once heavy AI ops land (Phase 3).
-The manifest `measure` (semantic-query) blocks are a separate concern; the ops
-domain is stateless and needs none, so the test-genie measures phase stays
-green.
+**Still deferred:** (1) per-model latency + fallback-tier ENRICHMENT — the AI
+runner knows the resolved model + provider tier but does not yet call
+`Recorder.Record` with a model-backed sample (kept the AI engine decoupled from
+measures); op-level facts are captured, model attribution is not. (2) No
+read/query SURFACE (proto/handler/CLI) exposes the aggregates yet — they are
+recorded but not served. The test-genie `measures` phase is inference-based
+(stateful-domain coverage) and is GREEN without a manifest measures block.
 
-**Workaround:** Per-op timing is observable via recorded job timestamps.
-
-**Real fix:** Mount the measures-go serve registry when the first AI op declares
-runtime measures (Phase 3/4).
+**Real fix:** Have the AI runner record a model-backed `Sample` on completion
+(model id + tier + fallback flag), and add a `MeasuresService.Stats` RPC + CLI
+`measures` verb when an operator/consumer needs the aggregates.
 
 **Owner:** unassigned.
 
-**Refs:** `api/main.go` (measures-substrate comment); plan §6/§8.
+**Refs:** `api/internal/measures/`, `api/internal/jobs/manager.go` (`OnComplete`),
+`api/main.go` (recorder wiring), `api/internal/ai/engine.go` (enrichment seam).
+
+### 2026-06-17 — proto red: `shared.ErrorEnvelope` REST-error payload is commit-gated
+
+**Symptom:** `phase-proto` fails with 4 ERROR `proto.rest_payload_unknown_message`
+findings — endpoints `ai_submit`/`analysis_run`/`ops_run`/`ops_blob_get` declare
+their REST-exception error body as `vrooli.image_tools.v1.shared.ErrorEnvelope`,
+which proto-health reports as an unknown message.
+
+**Root cause:** Commit-gated, not a working-tree defect. The working tree is
+internally consistent — `packages/proto/schemas/image-tools/v1/shared/errors.proto`
+declares `package vrooli.image_tools.v1.shared` with `ErrorEnvelope`, the
+generated Go/TS/Python carry `shared`, and `.vrooli/endpoints.json` references
+`shared.ErrorEnvelope`. proto-health validates against the COMMITTED descriptor
+(HEAD), where the `errors`→`shared` move is still uncommitted (HEAD has it in
+package `errors`), so the working-tree endpoints don't match the committed
+descriptor. Same commit-gated pattern as Phases 2-3.
+
+**Workaround:** None — this branch commits via an external `image-tools pN`
+process; the working tree is correct and verified.
+
+**Real fix:** The external committer commits the working tree (including the
+regenerated descriptor with `shared`); proto goes green immediately. No code
+change required.
+
+**Owner:** the branch's phase-committer.
+
+**Refs:** `packages/proto/schemas/image-tools/v1/shared/errors.proto`,
+`scenarios/image-tools/.vrooli/endpoints.json`, proto-health
+`rest_payload_unknown_message`.
 
 ### 2026-06-17 — AI backend live-execution unverified on CI hosts (attended acceptance gate)
 
@@ -217,12 +252,22 @@ once an attended run exercises each AI op from the CLI with no GPU/ComfyUI.
 **Refs:** `api/internal/ai/`, `api/internal/analysis/`, `docs/internal/TESTING.md`
 (headless-completeness acceptance), `api/internal/models/registry.seed.json`.
 
-### 2026-06-17 — govulncheck advisories in golang.org/x/image (pre-existing dependency)
+### 2026-06-17 — govulncheck advisories in golang.org/x/image — RESOLVED for image-tools
 
-**Symptom:** `phase-security` reports 4 ERROR-severity govulncheck findings —
-GO-2026-4815 (tiff IFD-offset OOM), GO-2026-4962 (sfnt excessive allocation),
-GO-2026-5031 (bmp out-of-bounds palette panic), GO-2026-5032 (tiff PackBits
-resource consumption) — all in `golang.org/x/image`.
+**Resolution (2026-06-17):** Bumped `golang.org/x/image` v0.25.0 → **v0.42.0**
+(api/go.mod; pulled x/text → v0.38.0) with user approval; `phase-security` now
+passes (0 ERROR findings) and `phase-dependencies` stays green. Governance note
+recorded in `.vrooli/dependencies/approved-dependencies.json` (security floor
+>=0.42.0). Codec golden/round-trip tests pass on v0.42.0 (API-compatible).
+**Fleet caveat:** `chart-generator` still pins x/image v0.18.0 (indirect) and is
+also affected — its bump is tracked in the governance `security_notes` but not
+done here (out of Phase-3 scope). Kept `version_range: "*"` to avoid red-flagging
+chart-generator before its own migration.
+
+**Symptom (original):** `phase-security` reported 4 ERROR-severity govulncheck
+findings — GO-2026-4815 (tiff IFD-offset OOM), GO-2026-4962 (sfnt excessive
+allocation), GO-2026-5031 (bmp out-of-bounds palette panic), GO-2026-5032 (tiff
+PackBits resource consumption) — all in `golang.org/x/image`.
 
 **Root cause:** PRE-EXISTING. `golang.org/x/image v0.25.0` is the version at HEAD
 (added by Phase 2's codec layer), and these decoders are reachable from
