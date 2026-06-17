@@ -10,7 +10,7 @@
       "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
       "category": "system",
       "response": {
-        "type": "object",
+        "type": "Response",
         "properties": {
           "dependencies": "object",
           "readiness": "boolean",
@@ -29,6 +29,364 @@
       "rest_exception": {
         "reason": "ops_probe",
         "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client."
+      }
+    },
+    {
+      "id": "devices_list",
+      "path": "/vrooli.device_sync_hub.v1.devices.DevicesService/ListDevices",
+      "method": "POST",
+      "summary": "List trusted devices",
+      "description": "Returns every device in the authenticated owner's trust group, newest first.",
+      "category": "devices",
+      "response": {
+        "type": "object",
+        "properties": {
+          "devices": "array<Device>"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Missing or invalid owner token"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List devices",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.devices.DevicesService/ListDevices -H 'Authorization: Bearer <owner-jwt>' -H 'Content-Type: application/json' -d '{}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "device-sync-hub devices list"
+      }
+    },
+    {
+      "id": "devices_get",
+      "path": "/vrooli.device_sync_hub.v1.devices.DevicesService/GetDevice",
+      "method": "POST",
+      "summary": "Get a device by id",
+      "description": "Returns one owner-scoped device.",
+      "category": "devices",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "device": "Device"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Missing or invalid owner token"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such device for this owner"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get device",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.devices.DevicesService/GetDevice -H 'Authorization: Bearer <owner-jwt>' -d '{\"id\":\"<device-id>\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "device-sync-hub devices get",
+        "args": [
+          "<id>"
+        ]
+      }
+    },
+    {
+      "id": "devices_issue_pairing_code",
+      "path": "/vrooli.device_sync_hub.v1.devices.DevicesService/IssuePairingCode",
+      "method": "POST",
+      "summary": "Issue a pairing code",
+      "description": "Mints a short-TTL, single-use pairing code (and QR payload) for a new device to redeem. Owner-authed.",
+      "category": "devices",
+      "request": {
+        "type": "object",
+        "properties": {
+          "device_name": "string (optional slot label)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "pairing_code": "PairingCode (raw code returned once)"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Missing or invalid owner token"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Code generation or persistence failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Issue code",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.devices.DevicesService/IssuePairingCode -H 'Authorization: Bearer <owner-jwt>' -d '{\"device_name\":\"My Phone\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "device-sync-hub devices pair",
+        "args": [
+          "--name",
+          "<name>"
+        ]
+      }
+    },
+    {
+      "id": "devices_redeem_pairing_code",
+      "path": "/vrooli.device_sync_hub.v1.devices.DevicesService/RedeemPairingCode",
+      "method": "POST",
+      "summary": "Redeem a pairing code",
+      "description": "Called by a new device presenting a valid code. Registers a TRUSTED device and returns its one-time hub device token. No owner token required.",
+      "category": "devices",
+      "request": {
+        "type": "object",
+        "properties": {
+          "code": "string",
+          "profile": "DeviceProfile"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "device": "Device",
+          "device_token": "string (returned once)"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Unknown, expired, or already-used code"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Persistence failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Redeem code",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.devices.DevicesService/RedeemPairingCode -d '{\"code\":\"ABCDE-FGHIJ\",\"profile\":{\"device_name\":\"Tablet\",\"kind\":\"tablet\"}}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "device-sync-hub devices redeem",
+        "args": [
+          "--code",
+          "<code>"
+        ]
+      }
+    },
+    {
+      "id": "devices_request_pairing",
+      "path": "/vrooli.device_sync_hub.v1.devices.DevicesService/RequestPairing",
+      "method": "POST",
+      "summary": "Request pairing (fallback)",
+      "description": "Fallback join path for a device that cannot enter a code: registers a PENDING device and returns an inert token that activates when the owner approves.",
+      "category": "devices",
+      "request": {
+        "type": "object",
+        "properties": {
+          "profile": "DeviceProfile"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "device": "Device (pending)",
+          "device_token": "string (inert until approved)"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "failed_precondition",
+          "description": "No owner yet — first device must use a code"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Persistence failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Request pairing",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.devices.DevicesService/RequestPairing -d '{\"profile\":{\"device_name\":\"Tablet\"}}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "device-sync-hub devices request"
+      }
+    },
+    {
+      "id": "devices_approve_pairing",
+      "path": "/vrooli.device_sync_hub.v1.devices.DevicesService/ApprovePairing",
+      "method": "POST",
+      "summary": "Approve a pending device",
+      "description": "Promotes a PENDING device (from the request path) to TRUSTED. Owner-authed.",
+      "category": "devices",
+      "request": {
+        "type": "object",
+        "properties": {
+          "device_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "device": "Device"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Missing or invalid owner token"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such device"
+        },
+        {
+          "status": 400,
+          "code": "failed_precondition",
+          "description": "Device is revoked"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Approve device",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.devices.DevicesService/ApprovePairing -H 'Authorization: Bearer <owner-jwt>' -d '{\"device_id\":\"<id>\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "device-sync-hub devices approve",
+        "args": [
+          "<device-id>"
+        ]
+      }
+    },
+    {
+      "id": "devices_rename",
+      "path": "/vrooli.device_sync_hub.v1.devices.DevicesService/RenameDevice",
+      "method": "POST",
+      "summary": "Rename a device",
+      "description": "Updates a device's human-facing name. Owner-authed.",
+      "category": "devices",
+      "request": {
+        "type": "object",
+        "properties": {
+          "device_id": "string",
+          "name": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "device": "Device"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Missing or invalid owner token"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Blank name"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such device"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Rename device",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.devices.DevicesService/RenameDevice -H 'Authorization: Bearer <owner-jwt>' -d '{\"device_id\":\"<id>\",\"name\":\"Laptop\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "device-sync-hub devices rename",
+        "args": [
+          "<device-id>",
+          "--name",
+          "<name>"
+        ]
+      }
+    },
+    {
+      "id": "devices_revoke",
+      "path": "/vrooli.device_sync_hub.v1.devices.DevicesService/RevokeDevice",
+      "method": "POST",
+      "summary": "Revoke a device",
+      "description": "Immediately severs a device's access: flips it to REVOKED (hub token rejected at once) and revokes its authenticator session. Owner-authed.",
+      "category": "devices",
+      "request": {
+        "type": "object",
+        "properties": {
+          "device_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "device": "Device"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Missing or invalid owner token"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such device"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Revoke device",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.devices.DevicesService/RevokeDevice -H 'Authorization: Bearer <owner-jwt>' -d '{\"device_id\":\"<id>\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "device-sync-hub devices revoke",
+        "args": [
+          "<device-id>"
+        ]
       }
     },
     {
@@ -212,7 +570,7 @@
         }
       },
       "response": {
-        "type": "object",
+        "type": "UploadAttachmentResponse",
         "properties": {
           "attachment": "Attachment"
         }
@@ -259,6 +617,46 @@
       "name": "status",
       "description": "Check API and dependency health (auto-provided by cli-core's StandardScenarioApp)",
       "endpoint_id": "health"
+    },
+    {
+      "name": "devices list",
+      "description": "List the owner's trusted devices",
+      "endpoint_id": "devices_list"
+    },
+    {
+      "name": "devices get",
+      "description": "Get a device by id",
+      "endpoint_id": "devices_get"
+    },
+    {
+      "name": "devices pair",
+      "description": "Issue a short-TTL pairing code/QR for a new device (--name NAME)",
+      "endpoint_id": "devices_issue_pairing_code"
+    },
+    {
+      "name": "devices redeem",
+      "description": "Redeem a pairing code from a new device (--code CODE)",
+      "endpoint_id": "devices_redeem_pairing_code"
+    },
+    {
+      "name": "devices request",
+      "description": "Request pairing (fallback) from a device that cannot enter a code",
+      "endpoint_id": "devices_request_pairing"
+    },
+    {
+      "name": "devices approve",
+      "description": "Approve a pending device into the trust group",
+      "endpoint_id": "devices_approve_pairing"
+    },
+    {
+      "name": "devices rename",
+      "description": "Rename a device (--name NAME)",
+      "endpoint_id": "devices_rename"
+    },
+    {
+      "name": "devices revoke",
+      "description": "Revoke a device, severing its access immediately",
+      "endpoint_id": "devices_revoke"
     },
     {
       "name": "notes list",

@@ -18,6 +18,14 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	seed := filepath.Join(t.TempDir(), "seed.json")
 	writeSeed(t, seed, []CLICommand{
 		{Name: "status", Description: "Health check", EndpointID: "health"},
+		{Name: "devices list", Description: "List devices", EndpointID: "devices_list"},
+		{Name: "devices get", Description: "Get device", EndpointID: "devices_get"},
+		{Name: "devices pair", Description: "Issue pairing code", EndpointID: "devices_issue_pairing_code"},
+		{Name: "devices redeem", Description: "Redeem pairing code", EndpointID: "devices_redeem_pairing_code"},
+		{Name: "devices request", Description: "Request pairing", EndpointID: "devices_request_pairing"},
+		{Name: "devices approve", Description: "Approve pairing", EndpointID: "devices_approve_pairing"},
+		{Name: "devices rename", Description: "Rename device", EndpointID: "devices_rename"},
+		{Name: "devices revoke", Description: "Revoke device", EndpointID: "devices_revoke"},
 		{Name: "notes list", Description: "List notes", EndpointID: "notes_list"},
 		{Name: "notes create", Description: "Create note", EndpointID: "notes_create"},
 		{Name: "notes get", Description: "Get note", EndpointID: "notes_get"},
@@ -53,8 +61,8 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	if len(got.Endpoints) == 0 {
 		t.Error("manifest must include at least one endpoint")
 	}
-	if len(got.CLICommands) != 6 {
-		t.Errorf("cli_commands count = %d, want 6", len(got.CLICommands))
+	if len(got.CLICommands) != 14 {
+		t.Errorf("cli_commands count = %d, want 14", len(got.CLICommands))
 	}
 
 	// Trailing newline so editors don't get angry about diff noise.

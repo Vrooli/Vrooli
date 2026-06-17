@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"device-sync-hub/internal/auth"
 	"device-sync-hub/internal/clock"
 	"device-sync-hub/internal/modules"
 	"device-sync-hub/internal/server"
@@ -21,6 +22,7 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	devicesH "device-sync-hub/handlers/devices"
 	healthH "device-sync-hub/handlers/health"
 	notesH "device-sync-hub/handlers/notes"
 )
@@ -113,9 +115,22 @@ func main() {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
+	// Owner identity, JWTs, and sessions are delegated to scenario-authenticator
+	// over HTTP (docs/concepts/INTEGRATIONS.md). AUTH_SERVICE_URL is injected by
+	// the lifecycle from the declared dependency; default to the conventional
+	// local authenticator port for `go run`. A blank/unreachable authenticator
+	// fails closed: owner-gated RPCs reject because no Identity is injected.
+	authServiceURL := strings.TrimSpace(os.Getenv("AUTH_SERVICE_URL"))
+	if authServiceURL == "" {
+		authServiceURL = "http://localhost:15000"
+		log.Printf("AUTH_SERVICE_URL not set; defaulting to %s (owner auth fails closed if unreachable)", authServiceURL)
+	}
+	authClient := auth.NewClient(auth.Config{BaseURL: authServiceURL})
+
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "device-sync-hub-api", "1.0.0"),
+		devicesH.Module(db, clock.System{}, authClient, log.Default()),
 		notesH.Module(db, clock.System{}, log.Default()),
 	)
 
@@ -136,7 +151,11 @@ func main() {
 	}
 	rootMux.Handle("/measures/", http.StripPrefix("/measures", notesMeasures))
 
-	rootMux.Handle("/", srv.Handler())
+	// Owner-auth middleware wraps the API handler: it best-effort-validates an
+	// owner bearer token and injects the resolved Identity into the request
+	// context. Open RPCs (pairing redeem/request) proceed without one;
+	// owner-gated RPCs reject downstream via auth.RequireOwner.
+	rootMux.Handle("/", auth.Middleware(authClient, log.Default())(srv.Handler()))
 
 	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
 	// request context so *database.RoutedDB routes the call to the

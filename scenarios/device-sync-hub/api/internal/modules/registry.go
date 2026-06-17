@@ -22,10 +22,12 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	devicesH "device-sync-hub/handlers/devices"
 	healthH "device-sync-hub/handlers/health"
 	notesH "device-sync-hub/handlers/notes"
 	localdb "device-sync-hub/internal/database"
 
+	devicesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-sync-hub/v1/devices"
 	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-sync-hub/v1/notes"
 )
 
@@ -36,6 +38,7 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
+	out = append(out, devicesH.Endpoints...)
 	out = append(out, notesH.Endpoints...)
 	return out
 }
@@ -63,6 +66,7 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
+		{Module: "devices", File: devicesv1.File_device_sync_hub_v1_devices_devices_proto},
 		{Module: "notes", File: notesv1.File_device_sync_hub_v1_notes_notes_proto},
 	}
 }
@@ -78,6 +82,7 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
+		apidb.SchemaProviderFunc(devicesH.Schema),
 		apidb.SchemaProviderFunc(notesH.Schema),
 	}
 }

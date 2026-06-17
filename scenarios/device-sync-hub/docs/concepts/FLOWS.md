@@ -2,8 +2,12 @@
 
 This document is the canonical workflow and state-transition map for
 the scenario. Use it when behavior depends on ordered states, retries,
-cancellation, stale completion, background jobs, polling, or mutually
-exclusive UI modes.
+cancellation, stale completion, background jobs, presence, or mutually
+exclusive UI modes. Owning domains mirror [`DOMAINS.md`](DOMAINS.md).
+
+These flows describe the **intended** design (Phase 1). No flow is
+modeled in code yet; the maturity ladder and production shape below
+describe how each flow will be hardened as it lands.
 
 ## Purpose Of This Document
 
@@ -12,7 +16,6 @@ Use this document to answer:
 - Which user/system workflows matter?
 - Which workflows have explicit states and events?
 - Which transitions are illegal?
-- Which tests prove workflow correctness?
 - Which flows are known but not modeled yet?
 
 Plain CRUD with no meaningful ordering constraints does not need a
@@ -20,51 +23,134 @@ workflow model.
 
 ## Flow Inventory
 
-| Flow | Domain | Trigger | Outcome | Statefulness | Validation |
-|---|---|---|---|---|---|
-| Attachment upload | notes | User/CLI uploads a file for a note. | Blob is stored and metadata is persisted. | Stateful upload request with validation and failure paths. | Level 5 workflow tests: matrix, traces, declarative spec, checked Quint model, generated artifacts, and production replay. |
+| Flow | Domain | Trigger | Outcome | Statefulness |
+|---|---|---|---|---|
+| Device pairing | devices | New device redeems a code/QR, or requests approval. | Device joins the owner's trust group. | Stateful: TTL, single-use, approve/reject branches. |
+| Send item (file/text) | transfer | Trusted device uploads a file or text item. | Item stored and fanned out to receivers. | Stateful: streaming/chunked upload, store, fan-out. |
+| Pull / download | transfer | Receiver fetches an item it has access to. | Bytes streamed back with original filename. | Lightly stateful: ACL check then stream. |
+| Retention purge | transfer | Delivery (Live) or scheduler tick (Held). | Item + blob removed. | Stateful: Live/Held/Pinned lifecycle. |
+| Device revocation | devices + auth | Owner revokes a device. | Device loses all access immediately. | Stateful: atomic session-kill + trust drop. |
+| Presence | realtime | Device connects/disconnects WebSocket. | Online/offline visible to other devices. | Ephemeral state machine. |
 
 ## Flow Details
 
-### Attachment upload
+### Device pairing
 
-- Owner domain: notes.
-- Trigger: multipart upload request from UI or CLI.
-- Inputs: note id, file key/name, file bytes, content type, file size.
+- Owner domain: devices.
+- Primary path (code/QR): the owner's existing trusted device (or the
+  owner via UI) issues a short-TTL, single-use pairing code (rendered
+  also as a QR). The new device submits the code; on a valid, unexpired,
+  unused code the device is admitted to the trust group and the code is
+  burned.
+- Fallback path (request→approve): the new device requests access; a
+  `pairing-request` banner is pushed over the WebSocket to the owner's
+  online devices; the owner approves or rejects. Approve admits the
+  device; reject discards the request.
+- States: `idle → code_issued → redeemed → trusted`, with the parallel
+  `requested → approved|rejected` fallback branch.
+- Illegal transitions: redeeming an expired or already-used code;
+  admitting a device without either a valid code or an explicit approve;
+  trusting before owner identity is validated.
+- Failure modes: expired/used code, code-issue rate limit exceeded,
+  approval timeout, authenticator unavailable (fail closed — no pairing).
+- Requirements: OT-P0-002, OT-P0-008.
+
+### Send item (file/text)
+
+- Owner domain: transfer.
+- Trigger: a trusted device uploads a file (multipart, streamed) or
+  posts a text item — both first-class with no feature disparity.
 - Steps:
-  1. Parse multipart request.
-  2. Validate note id and file metadata.
-  3. Store opaque bytes through BlobStore.
-  4. Persist attachment metadata through notes repository seam.
-  5. Return proto-typed metadata response.
-- Outputs: uploaded attachment metadata or typed error response.
-- Failure modes: missing note id, missing file, invalid metadata, blob
-  write failure, metadata persistence failure.
-- Retry/cancel behavior: caller may retry after transport/storage
-  failure; duplicate handling belongs to the owning real domain when
-  product requirements demand it.
-- Tests: `api/handlers/notes/attachments_handler_test.go`,
-  `api/internal/notes/attachments_service_test.go`,
-  `api/internal/notes/flow/flow_test.go`,
-  `ui/src/features/notes/AttachmentUpload.test.tsx`, and
-  `ui/src/features/notes/flow/flow.test.ts`.
-- Generated subpackages: `api/internal/notes/flow/generated/`
-  (`model.qnt`, `artifact.json`, `runtime.go`, `replay.go`) and
-  `ui/src/features/notes/flow/generated/` (`model.qnt`, `artifact.json`,
-  `runtime.ts`, `replay.helper.ts`).
-- Requirements: template starter only.
+  1. Auth middleware validates the token; devices layer confirms trust.
+  2. Quota check (per-device + global) **before** any bytes are
+     written; reject if it would breach.
+  3. Stream bytes to the blobstore (never buffer whole files); large
+     files use chunked, resumable upload so an interruption resumes
+     rather than restarting.
+  4. Generate an image thumbnail server-side at ingest (for images).
+  5. Persist the `items` metadata row (kind, name, mime, size, refs,
+     retention stamped from the settings default, target).
+  6. Fan out an `item-arrived` event over the WebSocket to the target
+     audience: the whole trust group (broadcast default) or one chosen
+     device (directed, OT-P1-003).
+- Outputs: proto-typed item metadata, plus a live event on receivers.
+- Failure modes: quota breach, blob write failure, metadata persist
+  failure, no online receivers (item still stored per retention).
+- Retry/cancel: chunked upload resumes from the last good chunk; a
+  failed metadata persist after a blob write triggers blob cleanup.
+- Requirements: OT-P0-001, OT-P0-004, OT-P0-007, OT-P1-001, OT-P1-002,
+  OT-P1-003.
+
+### Pull / download
+
+- Owner domain: transfer.
+- Trigger: a receiver lists/opens an item it is entitled to (broadcast
+  to the trust group, or directed to that device).
+- Steps: auth + trust check → per-item ACL check (is this device a
+  valid target?) → stream blob bytes back preserving the original
+  filename. Text items return their snippet directly.
+- Illegal: a device pulling an item not targeted at it, or after its
+  trust was revoked.
+- Side effect: for a `Live` item, successful delivery to all connected
+  targets triggers purge (see below).
+- Requirements: OT-P0-001, OT-P0-007.
+
+### Retention purge
+
+- Owner domain: transfer; default sourced from settings.
+- Lifecycle by policy:
+  - **Live** — deliver-then-purge: once delivered to all connected
+    target devices, the item and its blob are removed.
+  - **Held** — auto-purge after the configured default (24 h
+    out-of-the-box) when the scheduler tick finds `expires_at` passed.
+  - **Pinned** — never auto-purged; removed only on manual delete.
+- States: `stored → (delivered | expired | pinned) → purged`, where
+  `pinned` never advances without an explicit delete.
+- Enforcement: a background purge scheduler with an injected clock for
+  deterministic tests; purge removes metadata row and blob together.
+- Requirements: OT-P0-004.
+
+### Device revocation
+
+- Owner domains: devices (trust) + auth (session).
+- Trigger: owner revokes a device from settings/devices.
+- Steps (must be atomic in effect): drop the `devices` row from the
+  trust group **and** ask `auth` to invalidate the device's
+  `scenario-authenticator` session. Any partial failure must leave the
+  device **locked out**, never half-trusted.
+- Outcome: the revoked device can perform no further reads or writes;
+  its in-flight WebSocket is dropped on the next auth/trust check.
+- Illegal: a revoked device's cached validation permitting a read/write
+  after revocation (fail-closed cache window default ≤ 60 s, and a
+  stale cache must never re-admit a revoked device).
+- Requirements: OT-P0-003, OT-P0-008.
+
+### Presence
+
+- Owner domain: realtime.
+- Trigger: a device opens/closes its authenticated WebSocket.
+- States: `offline → online → offline`; transitions broadcast to the
+  owner's other online devices so the UI shows live presence (color +
+  icon/label, never color alone).
+- Storage: ephemeral, in-memory (optionally Redis for multi-instance);
+  rebuilt as devices reconnect after a restart.
+- Requirements: OT-P0-005, OT-P1-005.
 
 ## State Machines
 
-| Domain/Flow | States | Illegal Transitions | Enforcement |
-|---|---|---|---|
-| notes / attachment upload API | received, bytes_stored, metadata_recorded, failed | metadata before bytes, terminal-state escape, duplicate terminal events | `*.flow.json` contract, generated Quint model, generated formal artifact replay, side-effect cleanup tests |
-| notes / attachment upload UI | idle, selected, uploading, succeeded, failed | start before select, stale completion after reset/reselect, retry without file context | `*.flow.json` contract, generated Quint model, generated formal artifact replay, attempt-id stale completion tests |
+| Domain/Flow | States | Illegal Transitions |
+|---|---|---|
+| devices / pairing | idle, code_issued, requested, redeemed, approved, rejected, trusted | redeem expired/used code; trust without code-or-approval; trust before auth validation |
+| transfer / send | received, quota_ok, bytes_stored, metadata_recorded, fanned_out, failed | metadata before bytes; fan-out before persist; write before quota check |
+| transfer / retention | stored, delivered, expired, pinned, purged | Live escaping purge after delivery; Pinned auto-expiring; purge of blob without metadata |
+| devices / revocation | trusted, revoking, locked_out | locked_out → trusted without re-pairing; read/write while revoking |
+| realtime / presence | offline, online | presence event for an untrusted/unauthenticated session |
 
 ## Maturity Ladder
 
 Temporal workflows mature in layers. Do not skip the executable layers
-to add a standalone formal document.
+to add a standalone formal document. The stateful flows above (pairing,
+send, retention, revocation) are the candidates to drive to Level 5.
 
 | Level | Name | What exists |
 |---|---|---|
@@ -77,11 +163,13 @@ to add a standalone formal document.
 
 ## Production Shape
 
-Three (Go) or four (UI) files per flow at the top of the feature folder,
-plus one `generated/` sibling. Everything in `generated/` is codegen output.
-
 Every flow lives in a `flow/` subdirectory next to its consumer with
-conventional file names. API domains that own durable lifecycle state use:
+conventional file names. The `*.flow.json` contract is the source of
+truth (schema v6); the `flow-verifier` scenario CLI regenerates and
+checks the Quint model and formal artifacts, and the scenario lifecycle
+runs `make temporal-models` before the test suite.
+
+API domains that own durable lifecycle state use:
 
 ```text
 api/internal/<domain>/
@@ -112,92 +200,29 @@ ui/src/features/<domain>/
       replay.helper.ts
 ```
 
-Every flow uses the same file names. The `flow/` directory IS the unit;
-the contract no longer declares any output paths or module names.
-
 The workflow owns state/status values, events, `Transition`, and
-`CheckInvariants`. It should be pure or nearly pure. Effects live
-outside the workflow behind seams: repositories, BlobStore, clocks,
-timers, HTTP clients, or UI API modules.
-
-The `*.flow.json` contract is the source of truth. Level 5 generated
-Quint models, formal artifacts, and Go/TypeScript declarations are
-checked-in source artifacts for reviewability, but they are refreshed
-and checked by the `flow-verifier` scenario CLI; the
-scenario lifecycle runs `make temporal-models` (which calls
-`flow-verifier verify check`) before the normal test
-suite. A Quint file by itself is not accepted: the model must typecheck,
-test, verify named invariants, emit deterministic artifacts, and those
-artifacts must replay against the production Go/TypeScript transition
-functions.
-
-The generated declarations keep state/event topology and formal
-freshness metadata out of hand-maintained test lists. They also provide
-pure status-transition helpers generated from the `*.flow.json`
-transition matrix. For TypeScript flows, the same declarations can own
-the discriminated state/event union shape and replay fixture contract.
-Production workflow wrappers call those helpers for abstract validity
-and next-status outcomes, while keeping payload validation, side-effect
-orchestration, and rich state construction in hand-authored code. API
-replay tests get expected paths, hashes, invariants, and generated checks
-from `generated/<folder>/runtime.go`; UI replay tests import the same metadata
-from `generated/<folder>/runtime.ts`. The generated `replay.{go,helper.ts}`
-files own the assertion calls; the hand-authored top-level test simply binds
-the wrapper's transition function and the fixtures and invokes
-`RunReplay`/`runFormalReplay` once.
-
-Formal artifacts use schema v6 coverage metadata. Matrix completeness,
-terminal transition checks, named trace coverage, and generated MBT trace
-coverage are separate fields. Do not treat generated trace
-`allPairsCovered` as required proof of correctness; replay tests require
-the complete transition matrix and named traces, while generated trace
-coverage reports how much the model explorer happened to visit.
-
-Schema v6 `flow.json` files carry no path or module information. The
-`replay` block declares only `transition.function` (plus
-`transition.statusAccessor` for TS or `transition.stateType` /
-`transition.statusField` for Go). Everything else is derived from the
-flow directory.
-
-Go flows emit `flow/generated/replay.go` and require a hand-authored
-`flow/flow_test.go` (package `flow`) that calls `generated.RunReplay`.
-TypeScript flows emit `flow/generated/replay.helper.ts` and require a
-hand-authored `flow/flow.test.ts` that calls
-`runFormalReplay({ transition, fixtures })` at module top level.
-`flow-verifier verify check` byte-compares every generated file and runs an
-AST-level lint over the hand-authored test, so a silent bypass — missing
-import, stubbed transition, or call buried inside a guarded block —
-fails the check.
-
-To scaffold a new flow:
+`CheckInvariants`, and should be pure or nearly pure. Effects live
+outside the workflow behind seams: repositories, BlobStore, the
+`AuthClient`, clocks, timers, and UI API modules. To scaffold a new
+flow:
 
 ```bash
 flow-verifier flows new ui/src/features/<feature> --flow-id <flow-id> --lang ts --root .
 flow-verifier flows new api/internal/<domain>     --flow-id <flow-id> --lang go --root .
 ```
 
-The scaffold writes the hand-authored files and immediately runs
-`generate`, so `check` is green from the moment it returns.
-
-To add or rename a state/event:
-
-1. Edit the owning `*.flow.json`.
-2. Regenerate that flow with `flow-verifier verify run --flow <flow-id>`.
-3. Update only payload-specific wrapper branches that need new runtime
-   data; the abstract transition table is generated.
-4. Update the UI replay fixture module. The generated formal replay fixture
-   interface should make missing state/event fixtures a type error.
-5. Run `make temporal-models` and the scenario tests.
-
 ## Deferred / Unmodeled Flows
 
 | Flow | Risk | Next Step |
 |---|---|---|
-| None yet. | Generated scaffold. | Add real scenario workflows when domains have stateful behavior. |
+| WebRTC same-LAN fast path | P2 speed path; relay covers all cases today. | Model only if/when OT-P2-001 lands; keep the transfer byte-flow seam ready. |
+| Multi-owner trust handoff | Out of scope in single-owner v1. | Revisit with OT-P2-002. |
 
 ## Cross-References
 
 - [`DOMAINS.md`](DOMAINS.md) — owning domain map
-- [`DATA.md`](DATA.md) — persisted state and retention
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — request path and seams
+- [`DATA.md`](DATA.md) — persisted state, retention, and quotas
+- [`INTEGRATIONS.md`](INTEGRATIONS.md) — authenticator and presence dependencies
 - [`../internal/SEAMS.md`](../internal/SEAMS.md) — side-effect boundaries
 - [`../internal/TESTING.md`](../internal/TESTING.md#temporal-workflow-tests) — matrix and trace testing

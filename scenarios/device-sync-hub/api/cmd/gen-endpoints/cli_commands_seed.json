@@ -7,6 +7,46 @@
       "endpoint_id": "health"
     },
     {
+      "name": "devices list",
+      "description": "List the owner's trusted devices",
+      "endpoint_id": "devices_list"
+    },
+    {
+      "name": "devices get",
+      "description": "Get a device by id",
+      "endpoint_id": "devices_get"
+    },
+    {
+      "name": "devices pair",
+      "description": "Issue a short-TTL pairing code/QR for a new device (--name NAME)",
+      "endpoint_id": "devices_issue_pairing_code"
+    },
+    {
+      "name": "devices redeem",
+      "description": "Redeem a pairing code from a new device (--code CODE)",
+      "endpoint_id": "devices_redeem_pairing_code"
+    },
+    {
+      "name": "devices request",
+      "description": "Request pairing (fallback) from a device that cannot enter a code",
+      "endpoint_id": "devices_request_pairing"
+    },
+    {
+      "name": "devices approve",
+      "description": "Approve a pending device into the trust group",
+      "endpoint_id": "devices_approve_pairing"
+    },
+    {
+      "name": "devices rename",
+      "description": "Rename a device (--name NAME)",
+      "endpoint_id": "devices_rename"
+    },
+    {
+      "name": "devices revoke",
+      "description": "Revoke a device, severing its access immediately",
+      "endpoint_id": "devices_revoke"
+    },
+    {
       "name": "notes list",
       "description": "List all notes (newest-first, default limit 100)",
       "endpoint_id": "notes_list"
