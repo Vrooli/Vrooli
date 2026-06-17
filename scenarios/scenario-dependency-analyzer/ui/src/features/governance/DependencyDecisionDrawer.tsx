@@ -53,8 +53,7 @@ export function DependencyDecisionDrawer({
       versionRange,
       rationale,
       approvedBy,
-      replacement,
-      allowedScenarios: group.scenarios
+      replacement
     });
   }, [approvedBy, group, rationale, replacement, state, versionRange]);
 
@@ -130,6 +129,7 @@ export function DependencyDecisionDrawer({
 
 export function VulnerabilityRemediationDrawer({
   group,
+  initialVulnerabilityId,
   open,
   preview,
   result,
@@ -140,6 +140,7 @@ export function VulnerabilityRemediationDrawer({
   onApply
 }: {
   group: DependencyUsageGroup | null;
+  initialVulnerabilityId?: string;
   open: boolean;
   preview: VulnerabilityRemediationResponse | null;
   result: VulnerabilityRemediationResponse | null;
@@ -154,6 +155,10 @@ export function VulnerabilityRemediationDrawer({
   const [approvedBy, setApprovedBy] = useState("operator");
   const affectedRange = preview?.suggestedRecord?.versionRange || preview?.vulnerability?.affectedRanges[0]?.range || preview?.vulnerability?.affectedRanges[0]?.fixed || "";
   const fixedRange = preview?.vulnerability?.fixedRanges[0]?.range || preview?.vulnerability?.fixedRanges[0]?.fixed || "";
+
+  useEffect(() => {
+    setVulnerabilityId(initialVulnerabilityId ?? "");
+  }, [initialVulnerabilityId, open]);
 
   if (!open || !group) return null;
 

@@ -18,6 +18,7 @@ import { DependencyDecisionDrawer, VulnerabilityRemediationDrawer } from "./Depe
 import { DependencyUsagePanel } from "./DependencyUsagePanel";
 import { GovernanceDependenciesTable, GovernanceFindingsTable } from "./GovernanceFindingsTable";
 import { GovernanceFleetSummary } from "./GovernanceFleetSummary";
+import { GovernanceTriagePanel } from "./GovernanceTriagePanel";
 import { defaultGovernanceFilters, type GovernanceFilters, type GovernanceView } from "./governanceTypes";
 import { useGovernanceData } from "./useGovernanceData";
 import { useGovernanceMutations } from "./useGovernanceMutations";
@@ -26,14 +27,15 @@ type DecisionState = "approved" | "denied" | "deprecated" | "needs_review";
 
 export function GovernancePage() {
   const [policyMode, setPolicyMode] = useState<"advisory" | "strict" | "review_gate">("advisory");
-  const [view, setView] = useState<GovernanceView>("findings");
+  const [view, setView] = useState<GovernanceView>("triage");
   const [filters, setFilters] = useState<GovernanceFilters>(defaultGovernanceFilters);
   const [selectedDependency, setSelectedDependency] = useState<DependencyUsageGroup | null>(null);
   const [decisionOpen, setDecisionOpen] = useState(false);
   const [decisionState, setDecisionState] = useState<DecisionState>("approved");
   const [remediationOpen, setRemediationOpen] = useState(false);
+  const [pendingVulnerabilityId, setPendingVulnerabilityId] = useState("");
 
-  const { fleet, records, recordsGuidance, loading, error, refresh } = useGovernanceData(policyMode);
+  const { fleet, records, recordsGuidance, triage, securityGaps, loading, error, refresh } = useGovernanceData(policyMode);
   const mutations = useGovernanceMutations();
 
   const ecosystems = useMemo(() => {
@@ -89,6 +91,20 @@ export function GovernancePage() {
     mutations.previewRemediation.reset();
     mutations.denyVulnerable.reset();
     setSelectedDependency(group);
+    setPendingVulnerabilityId("");
+    setRemediationOpen(true);
+  };
+
+  const openRemediationForDependency = (ecosystem: string, packageName: string, vulnerabilityId = "") => {
+    const group =
+      fleet?.usageGroups.find(
+        (candidate) => candidate.ecosystem === ecosystem && candidate.packageName === packageName
+      ) ?? null;
+    if (!group) return;
+    mutations.previewRemediation.reset();
+    mutations.denyVulnerable.reset();
+    setSelectedDependency(group);
+    setPendingVulnerabilityId(vulnerabilityId);
     setRemediationOpen(true);
   };
 
@@ -116,6 +132,7 @@ export function GovernancePage() {
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <Tabs value={view} onValueChange={(value) => setView(value as GovernanceView)}>
             <TabsList className="h-auto flex-wrap justify-start">
+              <TabsTrigger value="triage">Triage</TabsTrigger>
               <TabsTrigger value="findings">Findings</TabsTrigger>
               <TabsTrigger value="dependencies">Dependencies</TabsTrigger>
               <TabsTrigger value="scenarios">Scenarios</TabsTrigger>
@@ -140,7 +157,13 @@ export function GovernancePage() {
 
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
           <span>
-            Showing {view === "findings" ? filteredFindings.length : view === "dependencies" ? filteredUsageGroups.length : view === "records" ? filteredRecords.length : fleet?.scenarios.length ?? 0} rows
+            Showing {rowCountForView(view, {
+              findings: filteredFindings.length,
+              dependencies: filteredUsageGroups.length,
+              records: filteredRecords.length,
+              scenarios: fleet?.scenarios.length ?? 0,
+              triage: triageGroupCount(triage) + (securityGaps?.gaps.length ?? 0)
+            })} rows
           </span>
           <Button
             data-testid={selectors.governance.refreshButton}
@@ -169,6 +192,14 @@ export function GovernancePage() {
       ) : (
         <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div>
+            {view === "triage" ? (
+              <GovernanceTriagePanel
+                triage={triage}
+                securityGaps={securityGaps}
+                onSelectDependency={selectDependency}
+                onStartRemediation={openRemediationForDependency}
+              />
+            ) : null}
             {view === "findings" ? (
               <GovernanceFindingsTable findings={filteredFindings} onSelectDependency={selectDependency} />
             ) : null}
@@ -205,6 +236,7 @@ export function GovernancePage() {
 
       <VulnerabilityRemediationDrawer
         group={selectedDependency}
+        initialVulnerabilityId={pendingVulnerabilityId}
         open={remediationOpen}
         preview={mutations.previewRemediation.data ?? null}
         result={mutations.denyVulnerable.data ?? null}
@@ -333,6 +365,24 @@ function RecordsTable({
         </table>
       </div>
     </div>
+  );
+}
+
+function rowCountForView(
+  view: GovernanceView,
+  counts: Record<GovernanceView, number>
+): number {
+  return counts[view];
+}
+
+function triageGroupCount(triage: ReturnType<typeof useGovernanceData>["triage"]): number {
+  if (!triage) return 0;
+  return (
+    triage.securityActions.length +
+    triage.registrySeeding.length +
+    triage.rangePolicy.length +
+    triage.scenarioHotspots.length +
+    triage.staleOrExpiredReviews.length
   );
 }
 

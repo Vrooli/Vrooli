@@ -45,13 +45,15 @@ export async function getApprovedDependencyTriage(options: {
 export async function listSecurityGovernanceGaps(options: {
   ecosystem?: string;
   packageName?: string;
-  severity?: string;
+  minimumSeverity?: string;
   limit?: number;
 } = {}): Promise<SecurityGovernanceGapsResponse> {
   return governanceClient.listSecurityGovernanceGaps({
     ecosystem: options.ecosystem ?? "",
     packageName: options.packageName ?? "",
-    severity: options.severity ?? "",
+    scenario: "",
+    vulnerabilityId: "",
+    minimumSeverity: options.minimumSeverity ?? "",
     limit: options.limit ?? 10
   });
 }

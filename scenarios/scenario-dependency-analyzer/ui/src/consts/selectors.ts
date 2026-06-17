@@ -17,6 +17,7 @@ export const selectors = {
   },
   governance: {
     root: "sda-governance-root",
+    triagePanel: "sda-governance-triage-panel",
     refreshButton: "sda-governance-refresh",
     summary: "sda-governance-summary",
     findingRow: (id: string) => `sda-governance-finding-${id}`,

@@ -1,6 +1,6 @@
 import type { ApprovedDependencyRecord } from "../../api/governance";
 
-export type GovernanceView = "findings" | "dependencies" | "scenarios" | "records";
+export type GovernanceView = "triage" | "findings" | "dependencies" | "scenarios" | "records";
 export type GovernanceSeverity = "all" | "error" | "warning" | "info";
 export type GovernanceState = "all" | "approved" | "approved_with_constraints" | "needs_review" | "denied" | "deprecated" | "unrecorded";
 

@@ -2,11 +2,14 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { renderWithProviders } from "../../test-utils/renderWithProviders";
+import { selectors } from "../../consts/selectors";
 import { GovernancePage } from "./GovernancePage";
 
 const mocks = vi.hoisted(() => ({
   validateFleetApprovedDependencies: vi.fn(),
   listApprovedDependencies: vi.fn(),
+  getApprovedDependencyTriage: vi.fn(),
+  listSecurityGovernanceGaps: vi.fn(),
   upsertApprovedDependency: vi.fn(),
   previewVulnerabilityRemediation: vi.fn(),
   denyVulnerableDependency: vi.fn()
@@ -18,6 +21,8 @@ vi.mock("../../api/governance", async () => {
     ...actual,
     validateFleetApprovedDependencies: mocks.validateFleetApprovedDependencies,
     listApprovedDependencies: mocks.listApprovedDependencies,
+    getApprovedDependencyTriage: mocks.getApprovedDependencyTriage,
+    listSecurityGovernanceGaps: mocks.listSecurityGovernanceGaps,
     upsertApprovedDependency: mocks.upsertApprovedDependency,
     previewVulnerabilityRemediation: mocks.previewVulnerabilityRemediation,
     denyVulnerableDependency: mocks.denyVulnerableDependency
@@ -59,6 +64,17 @@ const fleetResponse = {
       findingCount: 1,
       highestSeverity: "warning",
       state: "needs_review"
+    },
+    {
+      ecosystem: "npm",
+      packageName: "vite",
+      scenarioCount: 1,
+      usageCount: 1,
+      scenarios: ["scenario-dependency-analyzer"],
+      observedDependencies: [],
+      findingCount: 1,
+      highestSeverity: "error",
+      state: "approved"
     }
   ],
   findings: [
@@ -81,11 +97,72 @@ const fleetResponse = {
   guidance: "Review dependency decisions before strict mode."
 };
 
+const triageResponse = {
+  summary: fleetResponse.summary,
+  securityActions: [],
+  registrySeeding: [
+    {
+      groupId: "seeding/npm/mermaid",
+      title: "Approve observed direct dependency",
+      actionType: "approve_observed",
+      section: "seeding",
+      ecosystem: "npm",
+      packageName: "mermaid",
+      findingCount: 1,
+      scenarioCount: 1,
+      usageCount: 1,
+      highestSeverity: "warning",
+      findingClasses: ["unrecorded_direct"],
+      scenarios: ["scenario-dependency-analyzer"],
+      observedVersions: ["^11.0.0"],
+      vulnerabilityIds: [],
+      recommendedCommand: "scenario-dependency-analyzer deps approved approve-observed npm/mermaid --from-findings",
+      rationale: "Direct dependency is used by the SDA UI."
+    }
+  ],
+  rangePolicy: [],
+  scenarioHotspots: [],
+  staleOrExpiredReviews: [],
+  guidance: "Review grouped governance decisions first."
+};
+
+const securityGapsResponse = {
+  gaps: [
+    {
+      gapId: "npm/vite/GHSA-4w7w-66w2-5vf9",
+      ecosystem: "npm",
+      packageName: "vite",
+      observedVersion: "4.5.14",
+      vulnerabilityIds: ["GHSA-4w7w-66w2-5vf9"],
+      severity: "high",
+      normalizedSeverity: "error",
+      affectedRanges: [">=0 <6.4.2"],
+      fixedRanges: [">=6.4.2"],
+      scenarios: ["scenario-dependency-analyzer"],
+      sourceFiles: ["ui/pnpm-lock.yaml"],
+      deniedRecordCovers: false,
+      approvedRecordOverlaps: true,
+      signalCategory: "direct_dev",
+      suggestedCommand: "scenario-dependency-analyzer deps approved deny-vulnerable npm/vite --vulnerability GHSA-4w7w-66w2-5vf9",
+      remediation: "Create a denied vulnerable range for affected Vite versions."
+    }
+  ],
+  total: 1,
+  uncoveredCount: 1,
+  deniedCoveredCount: 0,
+  approvedOverlapCount: 1,
+  warningCount: 0,
+  warnings: [],
+  guidance: "Review vulnerable dependencies before strict mode."
+};
+
 describe("GovernancePage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.validateFleetApprovedDependencies.mockResolvedValue(fleetResponse);
     mocks.listApprovedDependencies.mockResolvedValue({ records: [], guidance: "" });
+    mocks.getApprovedDependencyTriage.mockResolvedValue(triageResponse);
+    mocks.listSecurityGovernanceGaps.mockResolvedValue(securityGapsResponse);
     mocks.upsertApprovedDependency.mockResolvedValue({
       dryRun: true,
       changed: true,
@@ -97,11 +174,12 @@ describe("GovernancePage", () => {
     });
   });
 
-  it("renders fleet posture, filters findings, and opens dependency details", async () => {
+  it("renders triage-first governance and opens dependency details", async () => {
     renderWithProviders(<GovernancePage />);
 
     await waitFor(() => expect(screen.getByText("Dependency Governance")).toBeInTheDocument());
-    await waitFor(() => expect(screen.getAllByText("Dependency needs governance review").length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getByText("Registry seeding")).toBeInTheDocument());
+    expect(screen.getByTestId(selectors.governance.triagePanel)).toBeInTheDocument();
 
     fireEvent.click(firstElement(screen.getAllByRole("button", { name: "npm/mermaid" })));
 
@@ -112,7 +190,7 @@ describe("GovernancePage", () => {
   it("previews governance decisions through the typed mutation seam", async () => {
     renderWithProviders(<GovernancePage />);
 
-    await waitFor(() => expect(screen.getAllByText("Dependency needs governance review").length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getByText("Registry seeding")).toBeInTheDocument());
     fireEvent.click(firstElement(screen.getAllByRole("button", { name: "npm/mermaid" })));
     fireEvent.click(screen.getByRole("button", { name: "Approve" }));
     fireEvent.change(screen.getByLabelText("Rationale"), { target: { value: "reviewed for graph rendering" } });
@@ -127,9 +205,19 @@ describe("GovernancePage", () => {
       ecosystem: "npm",
       packageName: "mermaid",
       state: "approved",
-      rationale: "reviewed for graph rendering"
+      rationale: "reviewed for graph rendering",
+      allowedScenarios: []
     });
     expect(firstCall[1]).toBe(true);
+  });
+
+  it("opens security gap remediation with the vulnerability id prefilled", async () => {
+    renderWithProviders(<GovernancePage />);
+
+    await waitFor(() => expect(screen.getByTestId(selectors.governance.triagePanel)).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Deny range" }));
+
+    expect(screen.getByLabelText("Vulnerability ID")).toHaveValue("GHSA-4w7w-66w2-5vf9");
   });
 });
 

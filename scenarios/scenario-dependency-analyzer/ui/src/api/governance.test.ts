@@ -6,6 +6,8 @@ const mocks = vi.hoisted(() => ({
   client: {
     validateFleetApprovedDependencies: vi.fn(),
     listApprovedDependencies: vi.fn(),
+    getApprovedDependencyTriage: vi.fn(),
+    listSecurityGovernanceGaps: vi.fn(),
     upsertApprovedDependency: vi.fn(),
     previewVulnerabilityRemediation: vi.fn(),
     denyVulnerableDependency: vi.fn()
@@ -32,13 +34,32 @@ describe("api/governance", () => {
   });
 
   it("wraps fleet validation with the selected policy mode", async () => {
-    const { validateFleetApprovedDependencies } = await import("./governance");
+    const { getApprovedDependencyTriage, listSecurityGovernanceGaps, validateFleetApprovedDependencies } = await import("./governance");
     mocks.client.validateFleetApprovedDependencies.mockResolvedValueOnce({ passed: true });
+    mocks.client.getApprovedDependencyTriage.mockResolvedValueOnce({ guidance: "" });
+    mocks.client.listSecurityGovernanceGaps.mockResolvedValueOnce({ gaps: [] });
 
     await validateFleetApprovedDependencies("strict");
+    await getApprovedDependencyTriage({ policyMode: "review_gate", limit: 5, ecosystem: "npm" });
+    await listSecurityGovernanceGaps({ ecosystem: "npm", packageName: "vite", minimumSeverity: "high", limit: 3 });
 
     expect(mocks.client.validateFleetApprovedDependencies).toHaveBeenCalledWith({
       policyMode: "strict"
+    });
+    expect(mocks.client.getApprovedDependencyTriage).toHaveBeenCalledWith({
+      policyMode: "review_gate",
+      section: "",
+      ecosystem: "npm",
+      packageName: "",
+      limit: 5
+    });
+    expect(mocks.client.listSecurityGovernanceGaps).toHaveBeenCalledWith({
+      ecosystem: "npm",
+      packageName: "vite",
+      scenario: "",
+      vulnerabilityId: "",
+      minimumSeverity: "high",
+      limit: 3
     });
   });
 
