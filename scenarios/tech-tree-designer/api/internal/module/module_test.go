@@ -50,10 +50,10 @@ func TestEndpointDescriptorJSONShape(t *testing.T) {
 		},
 		RESTException: &module.RESTException{
 			Reason: module.RESTReasonOpsProbe,
-			ProtoPayloads: module.RESTExceptionPayloads{
-				Request:  module.RESTExceptionPayload{Transport: "none", Conformance: "none"},
-				Response: module.RESTExceptionPayload{ProtoFullName: "vrooli.tech_tree_designer.v1.health.Response", Transport: "json", Conformance: "protojson"},
-				Error:    module.RESTExceptionPayload{ProtoFullName: "vrooli.tech_tree_designer.v1.errors.ErrorEnvelope", Transport: "json", Conformance: "protojson"},
+			ProtoPayloads: &module.RESTProtoPayloads{
+				Request:  module.RESTPayload{Transport: "none", Conformance: "none"},
+				Response: module.RESTPayload{ProtoFullName: "vrooli.tech_tree_designer.v1.health.Response", Transport: "json", Conformance: "protojson"},
+				Error:    module.RESTPayload{ProtoFullName: "vrooli.tech_tree_designer.v1.errors.ErrorEnvelope", Transport: "json", Conformance: "protojson"},
 			},
 		},
 	}

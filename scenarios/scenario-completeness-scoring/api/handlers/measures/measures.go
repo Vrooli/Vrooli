@@ -356,6 +356,10 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Count scenarios below a maturity rung",
 		Description: "Counts latest score snapshots per scenario inside a time window whose working rung is below the requested threshold.",
 		Category:    "measures",
+		CLIMapping: &module.CLIMapping{
+			Command: "scenario-completeness-scoring scoring fleet-below-rung",
+			Args:    []string{"--window", "<window>", "--rung", "<rung>"},
+		},
 	},
 	{
 		ID:          "measures_average_composite",
@@ -364,6 +368,10 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Average fleet composite score",
 		Description: "Averages the latest composite score per scenario inside a time window.",
 		Category:    "measures",
+		CLIMapping: &module.CLIMapping{
+			Command: "scenario-completeness-scoring scoring average-composite",
+			Args:    []string{"--window", "<window>"},
+		},
 	},
 	{
 		ID:          "measures_score_series",
@@ -372,6 +380,10 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Fleet score series",
 		Description: "Returns a daily fleet-average completeness score series over persisted score snapshots.",
 		Category:    "measures",
+		CLIMapping: &module.CLIMapping{
+			Command: "scenario-completeness-scoring scoring score-series",
+			Args:    []string{"--window", "<window>"},
+		},
 	},
 	{
 		ID:          "measures_declarations",

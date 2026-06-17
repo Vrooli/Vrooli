@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"unit-health/internal/clock"
 	"unit-health/internal/modules"
@@ -140,11 +141,13 @@ func main() {
 	// installed test pool. Self-disables in production mode.
 	handler := apihttp.TestModeMiddleware(rootMux)
 
+	// Unit validation can execute target test suites before writing its
+	// Connect response; the api-core 30s default write timeout is too short.
 	if err := apiserver.Run(apiserver.Config{
-		Handler: handler,
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		Handler:      handler,
+		WriteTimeout: 25 * time.Minute,
+		Cleanup:      func(ctx context.Context) error { return db.Close() },
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
 }
-

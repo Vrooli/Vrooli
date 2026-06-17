@@ -90,5 +90,9 @@ var Endpoints = []module.EndpointDescriptor{
 		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "path": "string", "include_execution": "bool"}},
 		Response:    &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "status": "scenario_validation.v1.ValidationStatus", "assessment": "common.v1.MaturityAssessment", "native_detail": "google.protobuf.Any<unit_health.v1.validation.ValidateScenarioResponse>"}},
 		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Scenario/path is missing or cannot be resolved"}},
+		// Same user-facing capability as validation_validate_scenario, exposed
+		// through the shared scenario-validation provider contract. The
+		// `validate scenario` CLI command covers it; map both endpoints to it.
+		CLIMapping: &module.CLIMapping{Command: "unit-health validate scenario", Args: []string{"<scenario>", "--json"}},
 	},
 }

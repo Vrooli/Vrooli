@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -123,7 +124,7 @@ func tidinessScanToProto(result *TidinessScanResponse) (*validationv1.TidinessSc
 func tidinessFindingsToProto(findings []TidinessFinding) ([]*validationv1.TidinessFinding, error) {
 	out := make([]*validationv1.TidinessFinding, 0, len(findings))
 	for _, finding := range findings {
-		evidence, err := structpb.NewStruct(finding.Evidence)
+		evidence, err := tidinessEvidenceToStruct(finding.Evidence)
 		if err != nil {
 			return nil, fmt.Errorf("convert evidence for %s: %w", finding.RuleID, err)
 		}
@@ -146,4 +147,19 @@ func tidinessFindingsToProto(findings []TidinessFinding) ([]*validationv1.Tidine
 		})
 	}
 	return out, nil
+}
+
+func tidinessEvidenceToStruct(evidence map[string]any) (*structpb.Struct, error) {
+	if len(evidence) == 0 {
+		return &structpb.Struct{}, nil
+	}
+	payload, err := json.Marshal(evidence)
+	if err != nil {
+		return nil, err
+	}
+	var normalized map[string]any
+	if err := json.Unmarshal(payload, &normalized); err != nil {
+		return nil, err
+	}
+	return structpb.NewStruct(normalized)
 }

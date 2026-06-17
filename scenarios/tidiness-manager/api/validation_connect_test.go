@@ -51,6 +51,23 @@ func TestScenarioValidationHandlerPacksTidinessNativeDetail(t *testing.T) {
 	}
 }
 
+func TestTidinessFindingsToProtoNormalizesTypedEvidence(t *testing.T) {
+	findings, err := tidinessFindingsToProto([]TidinessFinding{{
+		RuleID:   "DUPLICATED_CODE",
+		Evidence: map[string]any{"locations": []DuplicateLocation{{Path: "api/main.go", StartLine: 10, EndLine: 20}}},
+	}})
+	if err != nil {
+		t.Fatalf("tidinessFindingsToProto() error = %v", err)
+	}
+	locations := findings[0].GetEvidence().GetFields()["locations"].GetListValue().GetValues()
+	if len(locations) != 1 {
+		t.Fatalf("locations length = %d, want 1", len(locations))
+	}
+	if got := locations[0].GetStructValue().GetFields()["path"].GetStringValue(); got != "api/main.go" {
+		t.Fatalf("location path = %q, want api/main.go", got)
+	}
+}
+
 func TestTidinessScanRESTEndpointRemoved(t *testing.T) {
 	router := http.NewServeMux()
 	path, handler := scenariovalidationconnect.NewScenarioValidationServiceHandler(newScenarioValidationHandler(&Server{}))

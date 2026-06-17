@@ -17,9 +17,9 @@ import (
 // Phase-4 timeline, but only one copy survives Phase 5: this file
 // owns them now, and graph/endpoints.go drops them in lockstep.
 //
-// cli_mapping.command MUST match the cli_commands_seed.json entries
-// ("rewrite plan" and "rewrite apply"); the gen-endpoints cross-check
-// fails the build otherwise.
+// cli_mapping.command MUST resolve to the matching command bound in
+// cli/manifest.json ("rewrite plan" and "rewrite apply"); the gen-endpoints
+// cross-check against the manifest fails the build otherwise.
 var Endpoints = []module.EndpointDescriptor{
 	{
 		ID:          "rewrite_plan",

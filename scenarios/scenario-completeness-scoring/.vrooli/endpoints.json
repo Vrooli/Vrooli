@@ -37,7 +37,16 @@
       "method": "POST",
       "summary": "Count scenarios below a maturity rung",
       "description": "Counts latest score snapshots per scenario inside a time window whose working rung is below the requested threshold.",
-      "category": "measures"
+      "category": "measures",
+      "cli_mapping": {
+        "command": "scenario-completeness-scoring scoring fleet-below-rung",
+        "args": [
+          "--window",
+          "<window>",
+          "--rung",
+          "<rung>"
+        ]
+      }
     },
     {
       "id": "measures_average_composite",
@@ -45,7 +54,14 @@
       "method": "POST",
       "summary": "Average fleet composite score",
       "description": "Averages the latest composite score per scenario inside a time window.",
-      "category": "measures"
+      "category": "measures",
+      "cli_mapping": {
+        "command": "scenario-completeness-scoring scoring average-composite",
+        "args": [
+          "--window",
+          "<window>"
+        ]
+      }
     },
     {
       "id": "measures_score_series",
@@ -53,7 +69,14 @@
       "method": "POST",
       "summary": "Fleet score series",
       "description": "Returns a daily fleet-average completeness score series over persisted score snapshots.",
-      "category": "measures"
+      "category": "measures",
+      "cli_mapping": {
+        "command": "scenario-completeness-scoring scoring score-series",
+        "args": [
+          "--window",
+          "<window>"
+        ]
+      }
     },
     {
       "id": "measures_declarations",
@@ -232,33 +255,6 @@
       "cli_mapping": {
         "command": "scenario-completeness-scoring score list"
       }
-    }
-  ],
-  "cli_commands": [
-    {
-      "name": "configure",
-      "description": "View or update CLI settings (api_base, token)",
-      "endpoint_id": ""
-    },
-    {
-      "name": "score get",
-      "description": "Get the full status payload for a scenario (rung as of tree digest, 0-100 composite, recommendations, action plan, per-phase freshness)",
-      "endpoint_id": "scoring_get"
-    },
-    {
-      "name": "score list",
-      "description": "List latest persisted scenario scores with server-side sort, filter, and pagination",
-      "endpoint_id": "scoring_list"
-    },
-    {
-      "name": "score trend",
-      "description": "Get persisted score history for a scenario",
-      "endpoint_id": "scoring_trend"
-    },
-    {
-      "name": "status",
-      "description": "Check API health",
-      "endpoint_id": "health"
     }
   ]
 }

@@ -32,5 +32,11 @@
   "measures": {
     "domains": []
   },
-  "omitted": []
+  "omitted": [
+    {
+      "service": "ScenarioValidationService",
+      "method": "ValidateScenario",
+      "reason": "Shared cross-scenario validation surface exposed alongside this scenario's own ValidationService; the CLI 'validate scenario' command targets the scenario-local ValidationService."
+    }
+  ]
 }
