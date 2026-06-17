@@ -1,5 +1,5 @@
 // Package module defines the domain-module seam: each feature in the API
-// (notes, health, …) returns a Module from its handlers package, and main.go
+// (devices, transfer, health, …) returns a Module from its handlers package, and main.go
 // passes the slice into server.New. The server iterates and calls Mount on
 // each — there is no central routes.go, no per-domain field on server.Deps,
 // and no manual editing of .vrooli/endpoints.json.
@@ -13,7 +13,7 @@ import "github.com/gorilla/mux"
 
 // Module is the contract every API feature exposes to the server.
 //
-//   - Name is for diagnostics ("notes", "health", "tasks"). Free-form;
+//   - Name is for diagnostics ("devices", "transfer", "health"). Free-form;
 //     server does not interpret it.
 //   - Mount registers the module's routes (and any subrouter middleware)
 //     on the production router. Called once during server.New.
@@ -30,7 +30,7 @@ type Module struct {
 // .vrooli/endpoints.json. JSON tags are deliberately matched so a slice
 // of these marshals byte-comparable to the hand-authored shape Pass-2
 // established. Optional fields use omitempty so health (no request, no
-// errors) and notes (full set) round-trip the same way.
+// errors) and transfer (full set) round-trip the same way.
 type EndpointDescriptor struct {
 	ID            string         `json:"id"`
 	Path          string         `json:"path"`
@@ -64,7 +64,7 @@ const (
 	// bytes via multipart/form-data. The proto-typed response payload is
 	// still the source of truth for the metadata shape; only the request
 	// transport is REST because proto cannot express multipart uploads.
-	// The notes attachments endpoint is the canonical worked example.
+	// The transfer upload endpoint is the canonical worked example.
 	RESTReasonMultipartUpload RESTReason = "multipart_upload"
 
 	// RESTReasonWebhookReceiver covers endpoints whose request shape is
@@ -77,38 +77,48 @@ const (
 	// passthrough, OAuth callbacks, etc.) we do not own.
 	RESTReasonThirdPartyShape RESTReason = "third_party_shape"
 
-	// RESTReasonOpsProbe covers operational endpoints that lifecycle
-	// systems, load balancers, and curl probes must reach without a
-	// generated client (e.g. plain GET /health, static browser-facing
-	// HTML wrappers served to iframes).
+	// RESTReasonOpsProbe covers operational and direct-GET endpoints that
+	// clients reach without a generated Connect client: lifecycle/health
+	// probes, opaque binary downloads streamed with their original filename,
+	// and long-lived server-sent-event streams consumed by the browser
+	// EventSource API. In every case the proto-typed metadata (transfer.Item,
+	// realtime.Event, the health Response) remains the source of truth and is
+	// served proto-typed; only the byte/stream/probe transport is REST because
+	// no proto message can carry it. This is the fleet's catch-all reason for a
+	// hand-authored HTTP route that is not a Connect procedure.
 	RESTReasonOpsProbe RESTReason = "ops_probe"
-
-	// RESTReasonBinaryDownload covers endpoints whose RESPONSE body is opaque
-	// streamed bytes (a file download with its original filename, optionally
-	// many GB) that no proto message can carry. It is the symmetric twin of
-	// RESTReasonMultipartUpload: upload is REST because the request is bytes,
-	// download is REST because the response is bytes. The proto-typed metadata
-	// shape (transfer.Item) is still the source of truth, served via the
-	// GetItem Connect RPC; this endpoint is purely the byte channel. The
-	// transfer domain's streaming download is the canonical worked example.
-	RESTReasonBinaryDownload RESTReason = "binary_download"
-
-	// RESTReasonEventStream covers a long-lived server-sent-events (SSE) stream:
-	// a one-directional server->client push channel (text/event-stream) consumed
-	// by the browser EventSource API, which cannot speak Connect framing. The
-	// payload of each event is still proto-typed (marshaled with protojson); only
-	// the streaming envelope is REST. The realtime domain's /events stream is the
-	// canonical worked example.
-	RESTReasonEventStream RESTReason = "event_stream"
 )
 
 // RESTException tags an EndpointDescriptor whose Path is a hand-authored
 // REST path rather than a generated Connect procedure constant. The Note
 // field surfaces in .vrooli/endpoints.json so consumers can see the
-// human-readable justification.
+// human-readable justification. ProtoPayloads declares, per payload role,
+// which proto message (if any) is the typed source of truth even when the
+// transport is REST — proto-health and the endpoints schema both require it.
 type RESTException struct {
-	Reason RESTReason `json:"reason"`
-	Note   string     `json:"note,omitempty"`
+	Reason        RESTReason    `json:"reason"`
+	Note          string        `json:"note,omitempty"`
+	ProtoPayloads ProtoPayloads `json:"proto_payloads"`
+}
+
+// ProtoPayloads documents the proto-typed shape behind a REST-exception
+// endpoint's request, response, and error roles. Each role is always present
+// (the schema requires all three); a role with no proto type uses transport
+// "none" / conformance "none".
+type ProtoPayloads struct {
+	Request  RESTPayload `json:"request"`
+	Response RESTPayload `json:"response"`
+	Error    RESTPayload `json:"error"`
+}
+
+// RESTPayload is one payload role of a RESTException. ProtoFullName is the
+// fully-qualified proto message name when the role is proto-typed. Transport
+// is one of "connect" | "json" | "multipart/form-data" | "none"; Conformance
+// is one of "protojson" | "transport_only" | "external_shape" | "none".
+type RESTPayload struct {
+	ProtoFullName string `json:"proto_full_name,omitempty"`
+	Transport     string `json:"transport"`
+	Conformance   string `json:"conformance"`
 }
 
 // Schema is the permissive shape used by .vrooli/endpoints.json's
@@ -138,7 +148,7 @@ type Example struct {
 
 // CLIMapping links the endpoint to the scenario CLI command that mirrors
 // it. Command uses device-sync-hub as the binary name placeholder, e.g.
-// "device-sync-hub notes list". Args lists positional/flag tokens for
+// "device-sync-hub devices list". Args lists positional/flag tokens for
 // commands that take parameters.
 type CLIMapping struct {
 	Command string   `json:"command"`

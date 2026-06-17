@@ -292,8 +292,6 @@ export const createSelectorRegistry = <
 const literalSelectors = {
   app: {
     title: "app-title",
-    eyebrow: "app-eyebrow",
-    description: "app-description",
   },
   health: {
     card: "health-card",
@@ -303,30 +301,63 @@ const literalSelectors = {
     serviceValue: "health-service-value",
     timestampValue: "health-timestamp-value",
     refreshButton: "health-refresh-button",
-    refreshCount: "health-refresh-count",
   },
-  notifications: {
-    summary: "notifications-summary",
+  realtime: {
+    indicator: "realtime-indicator",
   },
-  notes: {
-    card: "notes-card",
-    list: "notes-list",
-    loading: "notes-loading",
-    empty: "notes-empty",
-    error: "notes-error",
-    createButton: "notes-create-button",
-    createdAt: "notes-created-at",
-    attachmentCount: "notes-attachment-count",
-    attachmentUpload: "notes-attachment-upload",
-    attachmentFile: "notes-attachment-file",
-    attachmentButton: "notes-attachment-button",
-    attachmentStatus: "notes-attachment-status",
-    measure: {
-      card: "notes-measure-card",
-      value: "notes-measure-value",
-      loading: "notes-measure-loading",
-      error: "notes-measure-error",
-    },
+  join: {
+    screen: "join-screen",
+    codeInput: "join-code-input",
+    deviceNameInput: "join-device-name-input",
+    redeemButton: "join-redeem-button",
+    requestButton: "join-request-button",
+    waiting: "join-waiting",
+    error: "join-error",
+  },
+  receive: {
+    panel: "receive-panel",
+    loading: "receive-loading",
+    empty: "receive-empty",
+    error: "receive-error",
+    search: "receive-search",
+    sort: "receive-sort",
+    filter: "receive-filter",
+    viewToggle: "receive-view-toggle",
+    list: "receive-list",
+  },
+  send: {
+    panel: "send-panel",
+    dropZone: "send-drop-zone",
+    fileInput: "send-file-input",
+    textInput: "send-text-input",
+    addText: "send-add-text",
+    staged: "send-staged",
+    sendButton: "send-button",
+    status: "send-status",
+  },
+  devices: {
+    panel: "devices-panel",
+    loading: "devices-loading",
+    empty: "devices-empty",
+    signInPrompt: "devices-sign-in-prompt",
+    list: "devices-list",
+    issuePanel: "devices-issue-panel",
+    issueNameInput: "devices-issue-name-input",
+    issueButton: "devices-issue-button",
+    issuedCode: "devices-issued-code",
+    issuedQr: "devices-issued-qr",
+    pendingBanner: "devices-pending-banner",
+  },
+  owner: {
+    panel: "owner-panel",
+    tokenInput: "owner-token-input",
+    signInButton: "owner-sign-in-button",
+    signOutButton: "owner-sign-out-button",
+    status: "owner-status",
+  },
+  session: {
+    panel: "session-panel",
+    signOutButton: "session-sign-out-button",
   },
   locale: {
     switcher: "locale-switcher",
@@ -343,8 +374,8 @@ const literalSelectors = {
     select: "theme-select",
   },
   pages: {
-    dashboard: "page-dashboard",
-    notes: "page-notes",
+    transfer: "page-transfer",
+    devices: "page-devices",
     settings: "page-settings",
   },
   errorBoundary: {
@@ -373,12 +404,68 @@ const dynamicSelectorDefinitions = {
     sidebarLink: defineDynamicSelector({
       description: "Sidebar navigation link by canonical nav key",
       testIdPattern: "layout-sidebar-link-${key}",
-      params: { key: { type: "enum", values: ["dashboard", "notes", "settings"] as const } },
+      params: { key: { type: "enum", values: ["transfer", "devices", "settings"] as const } },
     }),
     bottomNavLink: defineDynamicSelector({
       description: "Bottom-nav link by canonical nav key",
       testIdPattern: "layout-bottom-nav-link-${key}",
-      params: { key: { type: "enum", values: ["dashboard", "notes", "settings"] as const } },
+      params: { key: { type: "enum", values: ["transfer", "devices", "settings"] as const } },
+    }),
+  },
+  receive: {
+    item: defineDynamicSelector({
+      description: "A received item card/row by item id",
+      testIdPattern: "receive-item-${id}",
+      params: { id: { type: "string" } },
+    }),
+    download: defineDynamicSelector({
+      description: "Download button for a received file item by id",
+      testIdPattern: "receive-download-${id}",
+      params: { id: { type: "string" } },
+    }),
+    copy: defineDynamicSelector({
+      description: "Copy button for a received text item by id",
+      testIdPattern: "receive-copy-${id}",
+      params: { id: { type: "string" } },
+    }),
+    remove: defineDynamicSelector({
+      description: "Remove button for a received item by id",
+      testIdPattern: "receive-remove-${id}",
+      params: { id: { type: "string" } },
+    }),
+  },
+  send: {
+    stagedItem: defineDynamicSelector({
+      description: "A staged outgoing item by its local staging id",
+      testIdPattern: "send-staged-${id}",
+      params: { id: { type: "string" } },
+    }),
+    removeStaged: defineDynamicSelector({
+      description: "Remove button for a staged outgoing item by its local id",
+      testIdPattern: "send-remove-staged-${id}",
+      params: { id: { type: "string" } },
+    }),
+  },
+  devices: {
+    row: defineDynamicSelector({
+      description: "A device row by device id",
+      testIdPattern: "devices-row-${id}",
+      params: { id: { type: "string" } },
+    }),
+    rename: defineDynamicSelector({
+      description: "Rename action for a device by id",
+      testIdPattern: "devices-rename-${id}",
+      params: { id: { type: "string" } },
+    }),
+    revoke: defineDynamicSelector({
+      description: "Revoke action for a device by id",
+      testIdPattern: "devices-revoke-${id}",
+      params: { id: { type: "string" } },
+    }),
+    approve: defineDynamicSelector({
+      description: "Approve action for a pending device by id",
+      testIdPattern: "devices-approve-${id}",
+      params: { id: { type: "string" } },
     }),
   },
   settingsPage: {

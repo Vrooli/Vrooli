@@ -1,86 +1,148 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "device-sync-hub",
-  "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "description": "Device Sync Hub CLI surface. Single source of truth for the connect-rpc command shape of the devices and transfer domains: schema-validated against cli-manifest/v1 and cross-validated against each service's proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest. The transfer REST byte edges (`transfer upload`, `transfer download`) are appended in cli/domains/transfer/register.go because cli-manifest/v1 only models connect-rpc bindings.",
   "groups": [
     {
-      "name": "notes",
-      "description": "Manage notes (CRUD reference)",
+      "name": "devices",
+      "description": "Manage the owner's trusted devices: pairing, approval, rename, revoke",
       "commands": [
         {
           "name": "list",
-          "description": "List all notes",
-          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "ListNotes" },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": ["network:internal"]
-          }
-        },
-        {
-          "name": "create",
-          "description": "Create a note",
-          "flags": [
-            { "name": "title", "required": true, "description": "Note title" },
-            { "name": "body", "description": "Note body" }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "CreateNote" },
-          "governance": {
-            "effect": "write",
-            "run_eligible": true,
-            "permissions": ["network:internal"]
-          }
+          "description": "List the owner's trusted devices (newest first)",
+          "binding": { "kind": "connect-rpc", "service": "DevicesService", "method": "ListDevices" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         },
         {
           "name": "get",
-          "description": "Get a note by id",
+          "description": "Get a device by id",
           "positionals": [
-            { "name": "id", "required": true, "description": "Note id" }
+            { "name": "id", "required": true, "description": "Device id" }
           ],
-          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "GetNote" },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": ["network:internal"]
-          }
+          "binding": { "kind": "connect-rpc", "service": "DevicesService", "method": "GetDevice" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
         },
         {
-          "name": "count",
-          "description": "Count notes created in a time window (the reference measure)",
+          "name": "pair",
+          "description": "Issue a short-TTL, single-use pairing code for a new device to redeem (owner-authed)",
           "flags": [
-            { "name": "window", "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)" }
+            { "name": "name", "description": "Optional label pre-assigned to the slot the redeeming device fills" }
           ],
-          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "CountNotes" },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": ["network:internal"]
-          },
-          "measure": {
-            "intent": "How many notes were created in a given time window.",
-            "questions": [
-              "how many notes were created this week",
-              "notes created last month",
-              "how many notes did we add in the last 7 days"
-            ],
-            "params": {
-              "window": { "type": "time_window", "default": "this_week" }
-            },
-            "result": {
-              "kind": "scalar",
-              "value_field": "count",
-              "unit": "notes",
-              "summary_template": "{count} notes created ({window})"
-            }
-          }
+          "binding": { "kind": "connect-rpc", "service": "DevicesService", "method": "IssuePairingCode" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "redeem",
+          "description": "Redeem a pairing code as a NEW device; prints the one-time hub device token",
+          "flags": [
+            { "name": "code", "required": true, "description": "Pairing code issued by the owner" },
+            { "name": "name", "description": "This device's human-facing name" },
+            { "name": "kind", "description": "Coarse device kind (phone|laptop|tablet|server)" },
+            { "name": "platform", "description": "OS / platform string (e.g. android, macos)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "DevicesService", "method": "RedeemPairingCode" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "request",
+          "description": "Fallback join path: request pairing as a NEW device; prints an inert token that activates on owner approval",
+          "flags": [
+            { "name": "name", "description": "This device's human-facing name" },
+            { "name": "kind", "description": "Coarse device kind (phone|laptop|tablet|server)" },
+            { "name": "platform", "description": "OS / platform string (e.g. android, macos)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "DevicesService", "method": "RequestPairing" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "approve",
+          "description": "Approve a PENDING device, promoting it to TRUSTED (owner-authed)",
+          "positionals": [
+            { "name": "device-id", "required": true, "description": "Pending device id (from the pairing-request banner)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "DevicesService", "method": "ApprovePairing" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "rename",
+          "description": "Rename a device (owner-authed)",
+          "positionals": [
+            { "name": "device-id", "required": true, "description": "Device id" }
+          ],
+          "flags": [
+            { "name": "name", "required": true, "description": "New human-facing name" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "DevicesService", "method": "RenameDevice" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "revoke",
+          "description": "Immediately sever a device's access: flip it to REVOKED and revoke its authenticator session (owner-authed)",
+          "positionals": [
+            { "name": "device-id", "required": true, "description": "Device id" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "DevicesService", "method": "RevokeDevice" },
+          "governance": { "effect": "destructive", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
+      "name": "transfer",
+      "description": "Send and receive files and text between the owner's trusted devices (device-token authed)",
+      "commands": [
+        {
+          "name": "send-text",
+          "description": "Send a text snippet to the trust group (or directed to one device)",
+          "positionals": [
+            { "name": "text", "required": true, "description": "Snippet body" }
+          ],
+          "flags": [
+            { "name": "device-token", "description": "Hub device token (defaults to $DEVICE_SYNC_HUB_DEVICE_TOKEN)" },
+            { "name": "name", "description": "Optional short label for the snippet" },
+            { "name": "retention", "description": "Lifetime policy (live|held|pinned; default applies global setting)" },
+            { "name": "target", "description": "Direct the snippet to a single device id (empty = broadcast)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "TransferService", "method": "CreateTextItem" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "list",
+          "description": "List the items this device may pull (broadcast, directed-to-it, or originated by it), newest first",
+          "flags": [
+            { "name": "device-token", "description": "Hub device token (defaults to $DEVICE_SYNC_HUB_DEVICE_TOKEN)" },
+            { "name": "query", "description": "Case-insensitive substring filter over item name / text" },
+            { "name": "kind", "description": "Filter by kind (text|file); omit for both" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "TransferService", "method": "ListItems" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "get",
+          "description": "Get a single item's metadata by id",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Item id" }
+          ],
+          "flags": [
+            { "name": "device-token", "description": "Hub device token (defaults to $DEVICE_SYNC_HUB_DEVICE_TOKEN)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "TransferService", "method": "GetItem" },
+          "governance": { "effect": "read", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "delete",
+          "description": "Delete an item and its blob (any trusted device of the owner may delete)",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Item id" }
+          ],
+          "flags": [
+            { "name": "device-token", "description": "Hub device token (defaults to $DEVICE_SYNC_HUB_DEVICE_TOKEN)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "TransferService", "method": "DeleteItem" },
+          "governance": { "effect": "destructive", "run_eligible": true, "permissions": ["network:internal"] }
         }
       ]
     }
   ],
-  "measures": {
-    "domains": [
-      { "domain": "notes", "stateful": true, "reason": "Notes are countable persisted rows; the notes count measure covers this domain at full tier." }
-    ]
-  },
+  "measures": { "domains": [] },
   "omitted": []
 }

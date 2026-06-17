@@ -1,18 +1,17 @@
 {
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Device Sync Hub are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
-    "title": "Device Sync Hub",
-    "eyebrow": "Scenario Template",
-    "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place."
+    "title": "Device Sync Hub"
   },
   "layout": {
-    "sidebarLabel": "Primary navigation",
-    "bottomNavLabel": "Primary navigation",
+    "sidebarLabel": "Primary",
+    "bottomNavLabel": "Primary (compact)",
     "nav": {
-      "dashboard": "Dashboard",
-      "notes": "Notes",
+      "transfer": "Transfer",
+      "devices": "Devices",
       "settings": "Settings"
-    }
+    },
+    "mainLabel": "Main content"
   },
   "theme": {
     "switcherLabel": "Theme",
@@ -22,54 +21,150 @@
       "system": "System"
     }
   },
+  "realtime": {
+    "label": "Live connection",
+    "connecting": "Connecting…",
+    "open": "Live",
+    "closed": "Offline"
+  },
   "pages": {
-    "dashboard": {
-      "title": "Dashboard",
-      "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
-      "statPlaceholderLabel": "Stat"
-    },
-    "notes": {
-      "title": "Notes"
+    "devices": {
+      "title": "Devices"
     },
     "settings": {
       "title": "Settings",
       "themeHeading": "Appearance",
-      "localeHeading": "Language"
+      "localeHeading": "Language",
+      "ownerHeading": "Owner sign-in",
+      "sessionHeading": "This device",
+      "statusHeading": "Service status"
     }
+  },
+  "join": {
+    "title": "Join this device",
+    "intro": "Pair this browser with your hub to send and receive. Enter a pairing code, or request approval from a device that's already trusted.",
+    "codeLabel": "Pairing code",
+    "codePlaceholder": "Enter your pairing code",
+    "redeem": "Pair with code",
+    "deviceNameLabel": "Device name",
+    "deviceNamePlaceholder": "e.g. Work Laptop",
+    "requestTitle": "No code?",
+    "requestIntro": "Request approval instead. A trusted device gets a prompt to let you in.",
+    "request": "Request approval",
+    "waitingTitle": "Waiting for approval",
+    "waitingIntro": "Your request was sent. Approve it from a device that's already trusted, then this screen continues automatically.",
+    "missingCode": "Enter a pairing code first.",
+    "missingName": "Name this device first."
+  },
+  "transfer": {
+    "receive": {
+      "heading": "Receive",
+      "description": "Items shared with this device.",
+      "loading": "Loading items…",
+      "empty": "Nothing here yet. Send something from another device.",
+      "searchLabel": "Search items",
+      "searchPlaceholder": "Search by name or text",
+      "sortLabel": "Sort",
+      "sortNewest": "Newest",
+      "sortName": "Name",
+      "sortSize": "Size",
+      "filterLabel": "Filter",
+      "filterAll": "All",
+      "filterFile": "Files",
+      "filterText": "Text",
+      "viewCards": "Card view",
+      "viewList": "List view",
+      "download": "Download",
+      "copy": "Copy",
+      "copied": "Copied",
+      "remove": "Remove",
+      "expiresLabel": "Expires {{when}}"
+    },
+    "retention": {
+      "live": "Live",
+      "held": "Held",
+      "pinned": "Pinned"
+    },
+    "send": {
+      "heading": "Send",
+      "description": "Drop files, pick files, or paste text.",
+      "dropHint": "Drag files here, or",
+      "browse": "Browse files",
+      "fileInputLabel": "Choose files to send",
+      "textLabel": "Text snippet",
+      "textPlaceholder": "Paste or type text to send…",
+      "addText": "Stage text",
+      "stagedHeading": "Ready to send",
+      "stagedEmpty": "Nothing staged yet.",
+      "retentionLabel": "Keep",
+      "targetLabel": "Send to",
+      "targetBroadcast": "All devices",
+      "removeStaged": "Remove",
+      "send": "Send {{count}} item",
+      "send_other": "Send {{count}} items",
+      "sending": "Sending…",
+      "sent": "Sent.",
+      "needText": "Type something to stage."
+    }
+  },
+  "devices": {
+    "loading": "Loading devices…",
+    "empty": "No devices yet.",
+    "signInPrompt": "Sign in as the owner to manage your devices.",
+    "onlineLabel": "Online",
+    "offlineLabel": "Offline",
+    "trust": {
+      "pending": "Pending",
+      "trusted": "Trusted",
+      "revoked": "Revoked",
+      "unspecified": "Unknown"
+    },
+    "rename": "Rename",
+    "renameLabel": "New name",
+    "renameSave": "Save",
+    "revoke": "Revoke",
+    "revokeConfirm": "Revoke {{name}}? This severs its access immediately.",
+    "approve": "Approve",
+    "issue": {
+      "heading": "Add a device",
+      "description": "Issue a pairing code, then enter or scan it on the new device.",
+      "deviceNameLabel": "Device name (optional)",
+      "deviceNamePlaceholder": "e.g. Phone",
+      "issue": "Issue pairing code",
+      "codeHeading": "Pairing code",
+      "codeHint": "Enter this code on the new device, or scan the QR.",
+      "expiresLabel": "Expires {{when}}",
+      "qrLabel": "Pairing code QR"
+    },
+    "pendingBanner": {
+      "title": "{{name}} wants to pair",
+      "subtitle": "{{kind}} requesting access",
+      "approve": "Approve",
+      "dismiss": "Dismiss"
+    }
+  },
+  "owner": {
+    "intro": "Owner actions (managing devices, issuing codes) need an owner token. Paste a valid token to enable them.",
+    "tokenLabel": "Owner token",
+    "tokenPlaceholder": "Paste owner JWT",
+    "signIn": "Save token",
+    "signedIn": "Owner token saved.",
+    "signOut": "Clear owner token",
+    "missingToken": "Paste a token first."
+  },
+  "session": {
+    "tokenPresent": "This browser is paired.",
+    "signOut": "Sign out this device",
+    "notPaired": "This browser is not paired."
   },
   "health": {
     "title": "API Health",
     "loading": "Checking API status…",
     "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
     "refresh": "Refresh",
-    "refreshCount": "Refreshed {{count}} times",
-    "refreshCount_one": "Refreshed once",
     "statusLabel": "Status:",
     "serviceLabel": "Service:",
     "timestampLabel": "Timestamp:"
-  },
-  "notifications": {
-    "summary": "{{count}} notifications",
-    "summary_zero": "No notifications",
-    "summary_one": "1 notification"
-  },
-  "notes": {
-    "title": "Notes",
-    "loading": "Loading notes…",
-    "empty": "No notes yet.",
-    "create": "Create note",
-    "createdAtLabel": "Created:",
-    "attachmentsLabel": "{{count}} attachments",
-    "attachmentsLabel_one": "1 attachment",
-    "uploadAttachment": "Upload attachment",
-    "attachmentFileLabel": "Attachment file",
-    "uploadSuccess": "Uploaded {{name}}.",
-    "noFileSelected": "Select a file before uploading.",
-    "measure": {
-      "title": "Notes this week",
-      "loading": "Counting…",
-      "thisWeek": "{{count}} notes created this week"
-    }
   },
   "errors": {
     "canceled": "Operation canceled.",

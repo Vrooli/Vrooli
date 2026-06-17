@@ -35,16 +35,20 @@ describe("api/client REST helpers", () => {
     expect(err.message).toContain("unexpected 502 response");
   });
 
-  it("posts multipart form data through the REST helper", async () => {
+  it("posts multipart form data through the device-token-aware REST helper", async () => {
     const formData = new FormData();
     formData.set("file", new File(["hello"], "hello.txt", { type: "text/plain" }));
     fetchSpy.mockResolvedValueOnce(new Response("{}", { status: 200 }));
 
-    await uploadFile("/things/thing-1/attachments", formData);
+    await uploadFile("/transfer/items", formData);
 
     const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
-    expect(url).toMatch(/\/api\/v1\/things\/thing-1\/attachments$/);
+    expect(url).toMatch(/\/api\/v1\/transfer\/items$/);
     expect(init).toMatchObject({ method: "POST", body: formData, cache: "no-store" });
-    expect(init.headers).toBeUndefined();
+    // authedFetch always passes a Headers object; with no session it carries no
+    // credential headers (the upload itself rides XHR with the explicit token).
+    const headers = new Headers(init.headers);
+    expect(headers.has("X-Device-Token")).toBe(false);
+    expect(headers.has("Authorization")).toBe(false);
   });
 });

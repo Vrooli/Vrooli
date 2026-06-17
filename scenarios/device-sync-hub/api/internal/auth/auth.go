@@ -131,7 +131,7 @@ func (c *Client) Validate(ctx context.Context, bearerToken string) (Identity, er
 		return Identity{}, ErrUnauthenticated
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/v1/auth/validate", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/v1/auth/validate", nil) //nolint:gosec // baseURL is the operator-configured AUTH_SERVICE_URL (trusted infra config), not user input — not an SSRF sink
 	if err != nil {
 		return Identity{}, fmt.Errorf("build validate request: %w", err)
 	}
@@ -172,7 +172,7 @@ func (c *Client) RevokeSession(ctx context.Context, sessionID string) error {
 		return nil
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.baseURL+"/api/v1/sessions/"+sessionID, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.baseURL+"/api/v1/sessions/"+sessionID, nil) //nolint:gosec // baseURL is the operator-configured AUTH_SERVICE_URL (trusted infra config), not user input — not an SSRF sink
 	if err != nil {
 		return fmt.Errorf("build revoke request: %w", err)
 	}

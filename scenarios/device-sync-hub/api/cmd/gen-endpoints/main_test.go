@@ -93,12 +93,12 @@ func TestCrossCheck_FailsOnUnregisteredCommand(t *testing.T) {
 func TestCrossCheck_PassesWhenRegistered(t *testing.T) {
 	endpoints := []module.EndpointDescriptor{
 		{ID: "x", CLIMapping: &module.CLIMapping{Command: "device-sync-hub x"}},
-		{ID: "y_alias", CLIMapping: &module.CLIMapping{Command: "device-sync-hub notes ll"}},
+		{ID: "y_alias", CLIMapping: &module.CLIMapping{Command: "device-sync-hub devices ll"}},
 		{ID: "z_no_cli"}, // no CLIMapping — must be allowed
 	}
 	registered := []registeredCommand{
 		{Name: "x"},
-		{Name: "notes list", Aliases: []string{"notes ll"}},
+		{Name: "devices list", Aliases: []string{"devices ll"}},
 	}
 
 	if err := crossCheck(endpoints, registered); err != nil {
@@ -111,18 +111,18 @@ func TestCrossCheck_PassesWhenRegistered(t *testing.T) {
 func TestBuildCLICommands_ResolvesEndpointIDs(t *testing.T) {
 	endpoints := []module.EndpointDescriptor{
 		{ID: "health", CLIMapping: &module.CLIMapping{Command: "device-sync-hub status"}},
-		{ID: "notes_list", CLIMapping: &module.CLIMapping{Command: "device-sync-hub notes list"}},
+		{ID: "devices_list", CLIMapping: &module.CLIMapping{Command: "device-sync-hub devices list"}},
 	}
 	registered := []registeredCommand{
 		{Name: "configure"},
-		{Name: "notes list"},
+		{Name: "devices list"},
 		{Name: "status"},
 	}
 	got := buildCLICommands(endpoints, registered)
 	if len(got) != 3 {
 		t.Fatalf("expected 3 cli_commands, got %d", len(got))
 	}
-	want := map[string]string{"configure": "", "notes list": "notes_list", "status": "health"}
+	want := map[string]string{"configure": "", "devices list": "devices_list", "status": "health"}
 	for _, c := range got {
 		if want[c.Name] != c.EndpointID {
 			t.Errorf("%s endpoint_id = %q, want %q", c.Name, c.EndpointID, want[c.Name])
@@ -131,15 +131,15 @@ func TestBuildCLICommands_ResolvesEndpointIDs(t *testing.T) {
 }
 
 // TestStripBinaryPrefix is the smallest unit on the command-name
-// normalisation step: the endpoint's "device-sync-hub notes list"
-// must compare against the artifact's "notes list".
+// normalisation step: the endpoint's "device-sync-hub devices list"
+// must compare against the artifact's "devices list".
 func TestStripBinaryPrefix(t *testing.T) {
 	cases := []struct {
 		in   string
 		want string
 	}{
 		{in: "device-sync-hub status", want: "status"},
-		{in: "device-sync-hub notes list", want: "notes list"},
+		{in: "device-sync-hub devices list", want: "devices list"},
 		{in: "already-stripped", want: "already-stripped"},
 		{in: "device-sync-hub", want: "device-sync-hub"}, // no trailing space → preserved
 	}

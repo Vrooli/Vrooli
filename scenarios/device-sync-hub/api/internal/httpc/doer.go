@@ -5,11 +5,10 @@
 // the compile-time assertion below. Tests substitute mocks.FakeDoer to
 // pin request shape and stub responses without touching the network.
 //
-// # Why ship the seam unwired in production
+// # Why the seam can ship ahead of a consumer
 //
-// The template has no production consumer of Doer (the notes
-// endpoints are internal-only). Defining the seam *before* the first
-// outbound call means the first scenario to need one — a webhook
+// Defining the seam *before* a domain wires its own substitutable
+// transport means the first one to need it — a webhook
 // dispatcher, an upstream-API client, an OAuth handshake — copies the
 // reference test's substitution pattern instead of inventing one. The
 // cost of an unused interface is zero; the cost of a parallel

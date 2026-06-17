@@ -2,13 +2,12 @@ import { strings } from "../consts/strings";
 
 /**
  * Canonical nav-item list shared by `Sidebar` and `BottomNav` so the two
- * surfaces never drift. Replace these entries when this scenario's routes
- * change. `key` doubles as the selector parameter so tests can target a
- * specific link without binding to the translated label.
+ * surfaces never drift. `key` doubles as the selector parameter so tests can
+ * target a specific link without binding to the translated label.
  */
 export interface NavItem {
   /** Selector parameter; stable across locales. */
-  key: "dashboard" | "notes" | "settings";
+  key: "transfer" | "devices" | "settings";
   /** Router path. */
   path: string;
   /** True when this is the index route (used for `<NavLink end>`). */
@@ -18,7 +17,7 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: readonly NavItem[] = [
-  { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard },
-  { key: "notes", path: "/notes", labelKey: strings.layout.nav.notes },
+  { key: "transfer", path: "/", end: true, labelKey: strings.layout.nav.transfer },
+  { key: "devices", path: "/devices", labelKey: strings.layout.nav.devices },
   { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings },
 ];

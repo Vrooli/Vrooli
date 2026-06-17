@@ -93,7 +93,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Description: "Fallback join path for a device that cannot enter a code: registers a PENDING device and returns an inert token that activates when the owner approves.",
 		Category:    "devices",
 		Request:     &module.Schema{Type: "object", Properties: map[string]string{"profile": "DeviceProfile"}},
-		Response:    &module.Schema{Type: "object", Properties: map[string]string{"device": "Device (pending)", "device_token": "string (inert until approved)"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"device": "Device (pending)", "device_token": "string (inert until approved)"}}, //nolint:gosec // "device_token" is a doc field label in an API schema descriptor, not a hardcoded credential
 		Errors: []module.ErrorDesc{
 			{Status: 400, Code: "failed_precondition", Description: "No owner yet — first device must use a code"},
 			{Status: 500, Code: "internal", Description: "Persistence failure"},

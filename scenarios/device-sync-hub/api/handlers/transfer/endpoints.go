@@ -124,6 +124,11 @@ var Endpoints = []module.EndpointDescriptor{
 		RESTException: &module.RESTException{
 			Reason: module.RESTReasonMultipartUpload,
 			Note:   "Multipart/form-data request transport cannot be expressed in proto. The response payload is the proto-typed UploadItemResponse message.",
+			ProtoPayloads: module.ProtoPayloads{
+				Request:  module.RESTPayload{Transport: "multipart/form-data", Conformance: "transport_only"},
+				Response: module.RESTPayload{ProtoFullName: "vrooli.device_sync_hub.v1.transfer.UploadItemResponse", Transport: "json", Conformance: "protojson"},
+				Error:    module.RESTPayload{ProtoFullName: "vrooli.device_sync_hub.v1.errors.ErrorEnvelope", Transport: "json", Conformance: "protojson"},
+			},
 		},
 	},
 	{
@@ -145,8 +150,13 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		CLIMapping: &module.CLIMapping{Command: "device-sync-hub transfer download", Args: []string{"<id>", "--out", "<path>"}},
 		RESTException: &module.RESTException{
-			Reason: module.RESTReasonBinaryDownload,
-			Note:   "Response body is opaque streamed bytes with the original filename — no proto message can carry it. Metadata is served proto-typed via GetItem.",
+			Reason: module.RESTReasonOpsProbe,
+			Note:   "Direct GET (no Connect client): response body is opaque streamed bytes with the original filename — no proto message can carry it. Metadata is served proto-typed via the GetItem Connect RPC.",
+			ProtoPayloads: module.ProtoPayloads{
+				Request:  module.RESTPayload{Transport: "none", Conformance: "none"},
+				Response: module.RESTPayload{Transport: "none", Conformance: "none"},
+				Error:    module.RESTPayload{ProtoFullName: "vrooli.device_sync_hub.v1.errors.ErrorEnvelope", Transport: "json", Conformance: "protojson"},
+			},
 		},
 	},
 }

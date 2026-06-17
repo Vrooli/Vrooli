@@ -2,8 +2,16 @@ import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTranslation } from "../i18n";
 import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
+import { THEME_CHOICE_LABEL } from "../theme/themeStrings";
+import { useRealtimeContext } from "../features/realtime/RealtimeProvider";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
+
+const REALTIME_LABEL = {
+  connecting: strings.realtime.connecting,
+  open: strings.realtime.open,
+  closed: strings.realtime.closed,
+} as const satisfies Record<string, string>;
 
 /**
  * Top app bar — title, locale switcher, theme toggle. Visible at every viewport
@@ -14,6 +22,10 @@ export function TopBar() {
   const { t } = useTranslation();
   const currentLocale = getCurrentLocale();
   const { choice, setTheme } = useTheme();
+  const { status } = useRealtimeContext();
+
+  const statusDot =
+    status === "open" ? "bg-app-success" : status === "connecting" ? "bg-app-warning" : "bg-app-muted-foreground";
 
   return (
     <header
@@ -27,6 +39,15 @@ export function TopBar() {
         {t(strings.app.title)}
       </h1>
       <div className="flex items-center gap-3">
+        <span
+          data-testid={selectors.realtime.indicator}
+          className="flex items-center gap-1.5 text-xs text-app-muted-foreground"
+          aria-label={t(strings.realtime.label)}
+          title={t(REALTIME_LABEL[status])}
+        >
+          <span className={`inline-block h-2 w-2 rounded-pill ${statusDot}`} aria-hidden="true" />
+          <span className="hidden sm:inline">{t(REALTIME_LABEL[status])}</span>
+        </span>
         <div
           role="group"
           aria-label={t(strings.locale.switcherLabel)}
@@ -64,7 +85,7 @@ export function TopBar() {
           >
             {THEME_CHOICES.map((c) => (
               <option key={c} value={c}>
-                {t(strings.theme.choice[c])}
+                {t(THEME_CHOICE_LABEL[c])}
               </option>
             ))}
           </select>

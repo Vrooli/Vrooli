@@ -1,71 +1,170 @@
 {
-  "_comment": "このファイルには2種類の補間があります。(1) 生成時: Device Sync Hub のような大文字スネークケースのプレースホルダーは、`vrooli scenario generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
+  "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Device Sync Hub are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
-    "title": "Device Sync Hub",
-    "eyebrow": "シナリオテンプレート",
-    "description": "このスターター UI は意図的に最小限です。Tailwind + shadcn のスタイル規約と API 接続を維持しながら、シナリオ固有の体験に置き換えてください。"
+    "title": "Device Sync Hub"
   },
   "layout": {
-    "sidebarLabel": "メインナビゲーション",
-    "bottomNavLabel": "メインナビゲーション",
+    "sidebarLabel": "Primary",
+    "bottomNavLabel": "Primary (compact)",
     "nav": {
-      "dashboard": "ダッシュボード",
-      "notes": "ノート",
-      "settings": "設定"
-    }
+      "transfer": "Transfer",
+      "devices": "Devices",
+      "settings": "Settings"
+    },
+    "mainLabel": "Main content"
   },
   "theme": {
-    "switcherLabel": "テーマ",
+    "switcherLabel": "Theme",
     "choice": {
-      "light": "ライト",
-      "dark": "ダーク",
-      "system": "システム"
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
     }
+  },
+  "realtime": {
+    "label": "Live connection",
+    "connecting": "Connecting…",
+    "open": "Live",
+    "closed": "Offline"
   },
   "pages": {
-    "dashboard": {
-      "title": "ダッシュボード",
-      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
-      "statPlaceholderLabel": "指標"
-    },
-    "notes": {
-      "title": "ノート"
+    "devices": {
+      "title": "Devices"
     },
     "settings": {
-      "title": "設定",
-      "themeHeading": "外観",
-      "localeHeading": "言語"
+      "title": "Settings",
+      "themeHeading": "Appearance",
+      "localeHeading": "Language",
+      "ownerHeading": "Owner sign-in",
+      "sessionHeading": "This device",
+      "statusHeading": "Service status"
     }
+  },
+  "join": {
+    "title": "Join this device",
+    "intro": "Pair this browser with your hub to send and receive. Enter a pairing code, or request approval from a device that's already trusted.",
+    "codeLabel": "Pairing code",
+    "codePlaceholder": "Enter your pairing code",
+    "redeem": "Pair with code",
+    "deviceNameLabel": "Device name",
+    "deviceNamePlaceholder": "e.g. Work Laptop",
+    "requestTitle": "No code?",
+    "requestIntro": "Request approval instead. A trusted device gets a prompt to let you in.",
+    "request": "Request approval",
+    "waitingTitle": "Waiting for approval",
+    "waitingIntro": "Your request was sent. Approve it from a device that's already trusted, then this screen continues automatically.",
+    "missingCode": "Enter a pairing code first.",
+    "missingName": "Name this device first."
+  },
+  "transfer": {
+    "receive": {
+      "heading": "Receive",
+      "description": "Items shared with this device.",
+      "loading": "Loading items…",
+      "empty": "Nothing here yet. Send something from another device.",
+      "searchLabel": "Search items",
+      "searchPlaceholder": "Search by name or text",
+      "sortLabel": "Sort",
+      "sortNewest": "Newest",
+      "sortName": "Name",
+      "sortSize": "Size",
+      "filterLabel": "Filter",
+      "filterAll": "All",
+      "filterFile": "Files",
+      "filterText": "Text",
+      "viewCards": "Card view",
+      "viewList": "List view",
+      "download": "Download",
+      "copy": "Copy",
+      "copied": "Copied",
+      "remove": "Remove",
+      "expiresLabel": "Expires {{when}}"
+    },
+    "retention": {
+      "live": "Live",
+      "held": "Held",
+      "pinned": "Pinned"
+    },
+    "send": {
+      "heading": "Send",
+      "description": "Drop files, pick files, or paste text.",
+      "dropHint": "Drag files here, or",
+      "browse": "Browse files",
+      "fileInputLabel": "Choose files to send",
+      "textLabel": "Text snippet",
+      "textPlaceholder": "Paste or type text to send…",
+      "addText": "Stage text",
+      "stagedHeading": "Ready to send",
+      "stagedEmpty": "Nothing staged yet.",
+      "retentionLabel": "Keep",
+      "targetLabel": "Send to",
+      "targetBroadcast": "All devices",
+      "removeStaged": "Remove",
+      "send": "Send {{count}} item",
+      "send_other": "Send {{count}} items",
+      "sending": "Sending…",
+      "sent": "Sent.",
+      "needText": "Type something to stage."
+    }
+  },
+  "devices": {
+    "loading": "Loading devices…",
+    "empty": "No devices yet.",
+    "signInPrompt": "Sign in as the owner to manage your devices.",
+    "onlineLabel": "Online",
+    "offlineLabel": "Offline",
+    "trust": {
+      "pending": "Pending",
+      "trusted": "Trusted",
+      "revoked": "Revoked",
+      "unspecified": "Unknown"
+    },
+    "rename": "Rename",
+    "renameLabel": "New name",
+    "renameSave": "Save",
+    "revoke": "Revoke",
+    "revokeConfirm": "Revoke {{name}}? This severs its access immediately.",
+    "approve": "Approve",
+    "issue": {
+      "heading": "Add a device",
+      "description": "Issue a pairing code, then enter or scan it on the new device.",
+      "deviceNameLabel": "Device name (optional)",
+      "deviceNamePlaceholder": "e.g. Phone",
+      "issue": "Issue pairing code",
+      "codeHeading": "Pairing code",
+      "codeHint": "Enter this code on the new device, or scan the QR.",
+      "expiresLabel": "Expires {{when}}",
+      "qrLabel": "Pairing code QR"
+    },
+    "pendingBanner": {
+      "title": "{{name}} wants to pair",
+      "subtitle": "{{kind}} requesting access",
+      "approve": "Approve",
+      "dismiss": "Dismiss"
+    }
+  },
+  "owner": {
+    "intro": "Owner actions (managing devices, issuing codes) need an owner token. Paste a valid token to enable them.",
+    "tokenLabel": "Owner token",
+    "tokenPlaceholder": "Paste owner JWT",
+    "signIn": "Save token",
+    "signedIn": "Owner token saved.",
+    "signOut": "Clear owner token",
+    "missingToken": "Paste a token first."
+  },
+  "session": {
+    "tokenPresent": "This browser is paired.",
+    "signOut": "Sign out this device",
+    "notPaired": "This browser is not paired."
   },
   "health": {
-    "title": "API ステータス",
-    "loading": "API のステータスを確認中…",
-    "error": "API に接続できません。`vrooli scenario start` でシナリオが起動していることを確認してください。",
-    "refresh": "再読み込み",
-    "refreshCount": "{{count}} 回更新しました",
-    "statusLabel": "ステータス:",
-    "serviceLabel": "サービス:",
-    "timestampLabel": "タイムスタンプ:"
-  },
-  "notifications": {
-    "summary": "{{count}} 件の通知"
-  },
-  "notes": {
-    "title": "ノート",
-    "loading": "ノートを読み込み中…",
-    "empty": "まだノートはありません。",
-    "create": "ノートを作成",
-    "createdAtLabel": "作成:",
-    "attachmentsLabel": "添付ファイル {{count}} 件",
-    "uploadAttachment": "添付ファイルをアップロード",
-    "attachmentFileLabel": "添付ファイル",
-    "uploadSuccess": "{{name}} をアップロードしました。",
-    "noFileSelected": "アップロードするファイルを選択してください。",
-    "measure": {
-      "title": "今週のノート",
-      "loading": "集計中…",
-      "thisWeek": "今週作成されたノート: {{count}} 件"
-    }
+    "title": "API Health",
+    "loading": "Checking API status…",
+    "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
+    "refresh": "Refresh",
+    "statusLabel": "Status:",
+    "serviceLabel": "Service:",
+    "timestampLabel": "Timestamp:"
   },
   "errors": {
     "canceled": "Operation canceled.",
@@ -86,11 +185,11 @@
     "unauthenticated": "Please sign in to continue."
   },
   "locale": {
-    "switcherLabel": "言語"
+    "switcherLabel": "Language"
   },
   "errorBoundary": {
-    "title": "問題が発生しました",
-    "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
-    "retry": "再試行"
+    "title": "Something went wrong",
+    "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
+    "retry": "Try again"
   }
 }

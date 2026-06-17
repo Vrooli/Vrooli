@@ -2,8 +2,7 @@
 // registry, the pairing handshake (short-TTL single-use code/QR primary path +
 // request→approve fallback), the trust group, and device revocation.
 //
-// Layering mirrors the canonical Vrooli pattern (see internal/notes for the
-// reference):
+// Layering mirrors the canonical Vrooli pattern:
 //
 //	HTTP → handler → Service (validation, pairing policy, token issuance)
 //	                     ↓

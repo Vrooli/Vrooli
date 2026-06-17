@@ -1,63 +1,48 @@
+/**
+ * Public API surface for REST + Connect plumbing.
+ *
+ * The dual-credential transport, the `ApiError` envelope type, and the
+ * device-token-aware `fetch` live in `./transport`. This module re-exports the
+ * stable pieces feature code imports, plus the generic device-token-aware
+ * multipart `uploadFile` helper used by the file-send path.
+ */
 import {
-  create,
+  ApiError,
+  authedFetch,
+  buildApiUrl,
+  decodeApiError,
   fromJson,
-  type JsonValue,
-} from "@bufbuild/protobuf";
-import { resolveApiBase, buildApiUrl, createScenarioConnectTransport } from "@vrooli/api-base";
-import {
-  ErrorEnvelopeSchema,
-  type ErrorEnvelope,
-} from "@vrooli/proto-types/device-sync-hub/v1/errors/errors_pb";
-
-export const API_BASE = resolveApiBase();
-const REST_API_BASE = resolveApiBase({ appendSuffix: true });
-const PROTO_READ_OPTIONS = { ignoreUnknownFields: true } as const;
-
-export const transport = createScenarioConnectTransport({ baseUrl: API_BASE });
+  makeApiError,
+  PROTO_READ_OPTIONS,
+  REST_API_BASE,
+  transport,
+  API_BASE,
+} from "./transport";
 
 /**
- * Typed error thrown when the API returns a non-2xx response. The
- * server-side ErrorEnvelope round-trips through here so callers branch on
- * structured code/status instead of parsing strings.
+ * POST a multipart form to a REST edge. Unlike a bare `fetch`, this rides the
+ * dual-credential `authedFetch` so the `X-Device-Token` header (required by the
+ * transfer upload endpoint) is attached automatically. Returns the raw Response
+ * so callers can branch on `res.ok` and decode the typed envelope on failure.
  */
-export class ApiError extends Error {
-  readonly code: string;
-  readonly status: number;
-
-  constructor(envelope: ErrorEnvelope, status: number) {
-    super(`${envelope.code}: ${envelope.message}`);
-    this.name = "ApiError";
-    this.code = envelope.code;
-    this.status = status;
-  }
-}
-
-export function makeApiError(code: string, message: string, status = 500): ApiError {
-  const envelope = create(ErrorEnvelopeSchema, { code, message });
-  return new ApiError(envelope, status);
-}
-
-export async function decodeApiError(res: Response): Promise<ApiError> {
-  let envelope: ErrorEnvelope;
-  try {
-    const json = (await res.json()) as JsonValue;
-    envelope = fromJson(ErrorEnvelopeSchema, json, PROTO_READ_OPTIONS);
-  } catch {
-    envelope = create(ErrorEnvelopeSchema, {
-      code: "internal",
-      message: `unexpected ${res.status} response (no envelope)`,
-    });
-  }
-  return new ApiError(envelope, res.status);
-}
-
 export async function uploadFile(path: string, formData: FormData): Promise<Response> {
-  return fetch(buildApiUrl(path, { baseUrl: REST_API_BASE }), {
+  return authedFetch(buildApiUrl(path, { baseUrl: REST_API_BASE }), {
     method: "POST",
     body: formData,
     cache: "no-store",
   });
 }
 
-export { fromJson, PROTO_READ_OPTIONS };
-export type { ErrorEnvelope, JsonValue };
+export {
+  ApiError,
+  authedFetch,
+  buildApiUrl,
+  decodeApiError,
+  fromJson,
+  makeApiError,
+  PROTO_READ_OPTIONS,
+  REST_API_BASE,
+  transport,
+  API_BASE,
+};
+export type { ErrorEnvelope, JsonValue } from "./transport";

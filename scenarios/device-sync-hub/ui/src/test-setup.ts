@@ -60,3 +60,39 @@ afterEach(() => {
 // its own beforeEach and restore it on teardown — opt-in override
 // rather than process-wide unwiring.
 vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+
+// jsdom has no EventSource; the realtime hook constructs one when a device
+// token is present. Provide a minimal inert stub so a paired render doesn't
+// throw. Tests that assert on streamed events drive it via this class's
+// recorded instances (see features/realtime tests). Constructing it never
+// auto-connects beyond setting CONNECTING, so unpaired renders never touch it.
+class MockEventSource {
+  static readonly CONNECTING = 0;
+  static readonly OPEN = 1;
+  static readonly CLOSED = 2;
+  readonly CONNECTING = 0;
+  readonly OPEN = 1;
+  readonly CLOSED = 2;
+  static instances: MockEventSource[] = [];
+  url: string;
+  readyState = 0;
+  onopen: ((this: EventSource, ev: Event) => unknown) | null = null;
+  onmessage: ((this: EventSource, ev: MessageEvent) => unknown) | null = null;
+  onerror: ((this: EventSource, ev: Event) => unknown) | null = null;
+  constructor(url: string) {
+    this.url = url;
+    MockEventSource.instances.push(this);
+  }
+  close() {
+    this.readyState = 2;
+  }
+  /** Test helper: simulate a server `data:` push. */
+  emit(data: string) {
+    this.onmessage?.call(this as unknown as EventSource, { data } as MessageEvent);
+  }
+}
+vi.stubGlobal("EventSource", MockEventSource);
+
+beforeEach(() => {
+  MockEventSource.instances = [];
+});

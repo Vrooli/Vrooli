@@ -7,16 +7,16 @@
 // substrate so each new domain stops re-implementing ~100 lines of mock
 // + ~100 lines of mock-self-tests.
 //
-// Per-domain wiring (see internal/notes/mocks/repository.go for the
-// canonical example) is a 5–15 line type alias + extractor plumbing:
+// Per-domain wiring is a 5–15 line type alias + extractor plumbing, for a
+// domain whose repository matches the simple Create/Get/List shape:
 //
-//	type FakeRepository = repokit.SliceRepo[notes.Note]
+//	type FakeRepository = repokit.SliceRepo[transfer.Item]
 //
 //	func NewFakeRepository() *FakeRepository {
 //	    return &FakeRepository{
-//	        GetID:    func(n notes.Note) string { return n.ID },
-//	        SetID:    func(n *notes.Note, id string) { n.ID = id },
-//	        NotFound: func(id string) error { return notes.ErrNoteNotFound{ID: id} },
+//	        GetID:    func(i transfer.Item) string { return i.ID },
+//	        SetID:    func(i *transfer.Item, id string) { i.ID = id },
+//	        NotFound: func(id string) error { return transfer.ErrItemNotFound{ID: id} },
 //	    }
 //	}
 //
@@ -28,8 +28,8 @@
 // # Scope
 //
 // SliceRepo covers the standard "Create(T) → T / Get(id) → T / List(limit)
-// → []T" shape. Other domain-specific shapes (e.g. notes.AttachmentsRepository
-// with its CreateAttachment / ListAttachmentKeys methods) stay hand-written
+// → []T" shape. Other domain-specific shapes (e.g. the devices repository
+// with its pairing-code issue/redeem and token-hash methods) stay hand-written
 // for now; lift to repokit only when a second consumer surfaces.
 //
 // A RecordingService generic for the FakeService shape (records inputs,

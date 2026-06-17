@@ -32,6 +32,8 @@ import { MemoryRouter } from "react-router-dom";
 
 import { i18n } from "../i18n";
 import { ThemeProvider, type ThemeChoice } from "../theme/ThemeProvider";
+import { SessionProvider } from "../features/session/SessionProvider";
+import { RealtimeProvider } from "../features/realtime/RealtimeProvider";
 
 export interface ProviderRenderOptions extends Omit<RenderOptions, "wrapper"> {
   /**
@@ -82,15 +84,27 @@ export function renderWithProviders(
   } = options;
 
   const Wrapper = ({ children }: { children: ReactNode }) => {
-    const themed = (
-      <ThemeProvider initialChoice={initialTheme}>{children}</ThemeProvider>
-    );
-    const routed = withoutRouter ? themed : (
-      <MemoryRouter initialEntries={routerEntries}>{themed}</MemoryRouter>
+    const routed = withoutRouter ? children : (
+      <MemoryRouter
+        initialEntries={routerEntries}
+        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+      >
+        {children}
+      </MemoryRouter>
     );
     return (
       <QueryClientProvider client={queryClient}>
-        <I18nextProvider i18n={i18n}>{routed}</I18nextProvider>
+        <I18nextProvider i18n={i18n}>
+          <ThemeProvider initialChoice={initialTheme}>
+            {/* Session + Realtime mirror the production `Providers` so every
+                component test gets `useSession()` / `useRealtimeContext()`.
+                With no seeded session the realtime hook stays closed (no
+                EventSource), so unpaired renders are inert. */}
+            <SessionProvider>
+              <RealtimeProvider>{routed}</RealtimeProvider>
+            </SessionProvider>
+          </ThemeProvider>
+        </I18nextProvider>
       </QueryClientProvider>
     );
   };

@@ -1,33 +1,47 @@
 /**
- * App tests — smoke only.
+ * App tests — the auth gate.
  *
- * `App` is a tiny composition of `<Providers>` + `<AppRouter>`. Per-route
- * behaviour lives in `app/routes.test.tsx`, shell wiring in
- * `layout/AppShell.test.tsx`, theme persistence in
- * `theme/ThemeProvider.test.tsx`. This file uses `TestAppRouter` directly
- * because `<App>` mounts `createBrowserRouter`, which doesn't play with the
- * memory-router wrapper inside `renderWithProviders`.
+ * `App` shows the JoinScreen until this browser holds a device token, then the
+ * routed shell. We render `<App />` directly (it owns its own providers); the
+ * gate reads the session that `SessionProvider` initialises from localStorage,
+ * so seeding localStorage before mount picks the branch. `<App>` mounts
+ * `createBrowserRouter`, which is fine in jsdom for a smoke assertion.
  */
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import { renderWithProviders } from "./test-utils";
-import { Providers } from "./app/providers";
-import { TestAppRouter } from "./app/routes";
+import App from "./App";
+import { seedSession } from "./test-utils";
 import { selectors } from "./consts/selectors";
 
-describe("App composition", () => {
+// App provides theme/session/realtime but (like production) relies on the
+// QueryClient mounted above it in main.tsx. Supply one here so the realtime
+// hook and the transfer query have a client; retry:false keeps a doomed
+// network read from retrying in jsdom.
+const renderApp = () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={client}>
+      <App />
+    </QueryClientProvider>,
+  );
+};
+
+describe("App auth gate", () => {
   afterEach(() => {
     cleanup();
   });
 
-  it("renders the shell title (smoke: providers + routes wire up)", () => {
-    renderWithProviders(
-      <Providers>
-        <TestAppRouter initialEntries={["/"]} />
-      </Providers>,
-      { withoutRouter: true },
-    );
+  it("shows the join screen when this browser is not paired", () => {
+    renderApp();
+    expect(screen.getByTestId(selectors.join.screen)).toBeInTheDocument();
+  });
+
+  it("shows the paired shell once a device token is present", () => {
+    seedSession();
+    renderApp();
     expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.pages.transfer)).toBeInTheDocument();
   });
 });

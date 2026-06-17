@@ -38,13 +38,13 @@ func NewSQLiteRepository(db SQLExecutor, clk clock.Clock) Repository {
 // Compile-time guarantee.
 var _ Repository = (*sqliteRepository)(nil)
 
-// deviceTimeFormat matches the wire format and the notes domain's round-trip:
-// RFC3339Nano sorts lexicographically in time order for a fixed zone, so string
-// range comparisons on the *_at columns are correct filters.
+// deviceTimeFormat matches the wire format used across this scenario's
+// round-trips: RFC3339Nano sorts lexicographically in time order for a fixed
+// zone, so string range comparisons on the *_at columns are correct filters.
 const deviceTimeFormat = time.RFC3339Nano
 
 // capSep is the unit separator joining capability tags in the single TEXT
-// column — same convention notes uses for attachment keys.
+// column — the ASCII unit-separator avoids collisions with tag text.
 const capSep = "\x1f"
 
 const (

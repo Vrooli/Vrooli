@@ -2,13 +2,17 @@ import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTranslation } from "../i18n";
 import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
+import { THEME_CHOICE_LABEL } from "../theme/themeStrings";
+import { OwnerSignIn } from "../features/session/OwnerSignIn";
+import { SessionPanel } from "../features/session/SessionPanel";
+import { HealthCard } from "../features/health/HealthCard";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
 
 /**
- * Settings page. Surfaces the locale and theme selectors as a real page (in
- * addition to the compact controls in the top bar). Add scenario-specific
- * preferences here as they're needed.
+ * Settings page. Appearance + language selectors (also in the top bar), owner
+ * sign-in, this-device session controls, and the API health status card folded
+ * in here (every API ships /health).
  */
 export function SettingsPage() {
   const { t } = useTranslation();
@@ -19,7 +23,7 @@ export function SettingsPage() {
     <section
       data-testid={selectors.pages.settings}
       aria-labelledby="settings-heading"
-      className="flex flex-col gap-6"
+      className="flex flex-col gap-6 overflow-auto p-6"
     >
       <h2 id="settings-heading" className="text-2xl font-semibold">
         {t(strings.pages.settings.title)}
@@ -44,7 +48,7 @@ export function SettingsPage() {
                   : "rounded-control border border-app-border px-3 py-1 text-sm text-app-foreground hover:bg-app-surface-muted"
               }
             >
-              {t(strings.theme.choice[c])}
+              {t(THEME_CHOICE_LABEL[c])}
             </button>
           ))}
         </div>
@@ -73,6 +77,27 @@ export function SettingsPage() {
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <h3 className="text-sm font-semibold uppercase text-app-muted-foreground">
+          {t(strings.pages.settings.ownerHeading)}
+        </h3>
+        <OwnerSignIn />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <h3 className="text-sm font-semibold uppercase text-app-muted-foreground">
+          {t(strings.pages.settings.sessionHeading)}
+        </h3>
+        <SessionPanel />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <h3 className="text-sm font-semibold uppercase text-app-muted-foreground">
+          {t(strings.pages.settings.statusHeading)}
+        </h3>
+        <HealthCard />
       </div>
     </section>
   );

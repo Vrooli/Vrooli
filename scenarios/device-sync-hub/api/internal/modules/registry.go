@@ -24,13 +24,11 @@ import (
 
 	devicesH "device-sync-hub/handlers/devices"
 	healthH "device-sync-hub/handlers/health"
-	notesH "device-sync-hub/handlers/notes"
 	realtimeH "device-sync-hub/handlers/realtime"
 	transferH "device-sync-hub/handlers/transfer"
 	localdb "device-sync-hub/internal/database"
 
 	devicesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-sync-hub/v1/devices"
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-sync-hub/v1/notes"
 	transferv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-sync-hub/v1/transfer"
 )
 
@@ -42,7 +40,6 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, devicesH.Endpoints...)
-	out = append(out, notesH.Endpoints...)
 	out = append(out, realtimeH.Endpoints...)
 	out = append(out, transferH.Endpoints...)
 	return out
@@ -72,7 +69,6 @@ type ProtoFileEntry struct {
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "devices", File: devicesv1.File_device_sync_hub_v1_devices_devices_proto},
-		{Module: "notes", File: notesv1.File_device_sync_hub_v1_notes_notes_proto},
 		{Module: "transfer", File: transferv1.File_device_sync_hub_v1_transfer_transfer_proto},
 	}
 }
@@ -81,7 +77,7 @@ func AllProtoFiles() []ProtoFileEntry {
 // schema (always first; cross-cutting infrastructure runs before any
 // domain table). Consumed by main.go's database.EnsureSchemas call.
 //
-// Order matters: system → health → notes → … (domains alphabetical).
+// Order matters: system → health → devices → … (domains alphabetical).
 // Postgres scenarios that put `CREATE EXTENSION ...` in system.sql rely
 // on system running before any domain that references the extension.
 func AllSchemas() []apidb.SchemaProvider {
@@ -89,7 +85,6 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(devicesH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema),
 		apidb.SchemaProviderFunc(transferH.Schema),
 	}
 }

@@ -128,7 +128,7 @@ open: ## Open the scenario in a browser
 orient: ## Show generated-scenario orientation progress
 	@vrooli scenario orient "$(SCENARIO_NAME)"
 
-endpoints: ## Regenerate .vrooli/endpoints.json from API modules
+endpoints: ## Regenerate .vrooli/endpoints.json from API modules + CLI registration tree
 	@cd cli && go run ./cmd/gen-cli-commands
 	@cd api && go run ./cmd/gen-endpoints --output ../.vrooli/endpoints.json
 

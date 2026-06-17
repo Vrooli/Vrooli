@@ -2,9 +2,9 @@
 // bytes arrive as multipart/form-data (opaque bytes + filename), which cannot
 // ride a proto Connect message. The RESPONSE stays proto-typed
 // (UploadItemResponse → Item), so Go and TypeScript clients deserialize the
-// same Item shape the Connect calls return. See handlers/notes/attachments_handler.go
-// for the canonical pattern; this one adds device-token trust, quota
-// pre-checks, retention/target form fields, and image thumbnailing.
+// same Item shape the Connect calls return. This REST byte edge carries
+// device-token trust, quota pre-checks, retention/target form fields, and
+// image thumbnailing on top of the multipart upload.
 package transfer
 
 import (

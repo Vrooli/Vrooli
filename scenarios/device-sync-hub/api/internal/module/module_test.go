@@ -34,29 +34,29 @@ func TestModuleMountRegistersRoutes(t *testing.T) {
 
 func TestEndpointDescriptorJSONShape(t *testing.T) {
 	descriptor := module.EndpointDescriptor{
-		ID:          "notes_create",
-		Path:        "/api/v1/notes",
+		ID:          "devices_rename",
+		Path:        "/api/v1/devices/rename",
 		Method:      http.MethodPost,
-		Summary:     "Create note",
-		Description: "Creates a note",
-		Category:    "notes",
+		Summary:     "Rename device",
+		Description: "Renames a trusted device",
+		Category:    "devices",
 		Request: &module.Schema{
 			Type:       "object",
-			Properties: map[string]string{"title": "string"},
+			Properties: map[string]string{"name": "string"},
 		},
 		Response: &module.Schema{Type: "object"},
 		Errors: []module.ErrorDesc{{
 			Status:      http.StatusBadRequest,
 			Code:        "invalid_argument",
-			Description: "Missing title",
+			Description: "Missing name",
 		}},
 		Examples: []module.Example{{
-			Name: "Create",
-			Curl: "curl http://localhost:${API_PORT}/api/v1/notes",
+			Name: "Rename",
+			Curl: "curl http://localhost:${API_PORT}/api/v1/devices/rename",
 		}},
 		CLIMapping: &module.CLIMapping{
-			Command: "device-sync-hub notes create",
-			Args:    []string{"--title", "<title>"},
+			Command: "device-sync-hub devices rename",
+			Args:    []string{"--name", "<name>"},
 		},
 	}
 
@@ -65,8 +65,8 @@ func TestEndpointDescriptorJSONShape(t *testing.T) {
 
 	var got map[string]any
 	require.NoError(t, json.Unmarshal(data, &got))
-	require.Equal(t, "notes_create", got["id"])
-	require.Equal(t, "/api/v1/notes", got["path"])
+	require.Equal(t, "devices_rename", got["id"])
+	require.Equal(t, "/api/v1/devices/rename", got["path"])
 	require.Equal(t, http.MethodPost, got["method"])
 	require.Contains(t, got, "request")
 	require.Contains(t, got, "response")

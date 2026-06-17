@@ -1,7 +1,8 @@
 package domains
 
 import (
-	"device-sync-hub/cli/domains/notes"
+	"device-sync-hub/cli/domains/devices"
+	"device-sync-hub/cli/domains/transfer"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -27,8 +28,7 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // This is the CLI side of the domain-module pattern; the API side uses
 // the same one-liner-per-domain shape via server.New(deps, modules...).
 // See docs/concepts/ARCHITECTURE.md "Domain modules" for the canonical
-// pattern when swapping the notes reference for your scenario's first
-// domain.
+// pattern; the devices and transfer domains are the worked examples.
 //
 // For API-backed commands the manifest carries the declarative surface
 // (governance, flags, positionals, RPC binding). Handlers stay in
@@ -36,9 +36,13 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // templates/scenarios/react-vite/docs/internal/SEAMS.md (manifest ↔
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
-	notesGroup, err := notes.Register(core, manifest)
+	devicesGroup, err := devices.Register(core, manifest)
 	if err != nil {
 		return nil, err
 	}
-	return []cliapp.SubcommandGroup{notesGroup}, nil
+	transferGroup, err := transfer.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.SubcommandGroup{devicesGroup, transferGroup}, nil
 }

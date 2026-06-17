@@ -20,12 +20,12 @@
 //	    d := db.NewSQLite(t)
 //	    require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
 //	        apidb.SchemaProviderFunc(localdb.SystemSchema),
-//	        apidb.SchemaProviderFunc(notes.Schema),
+//	        apidb.SchemaProviderFunc(devices.Schema),
 //	    ))
 //	    return d
 //	}
 //
-// See `internal/notes/sqlite_test.go` for the worked example.
+// See `internal/devices/sqlite_test.go` for the worked example.
 // The helper is intentionally inline at the consumer rather than
 // exported from this package — `db` lives under `testutil` and the
 // domain package is the consumer, so an exported helper would invert

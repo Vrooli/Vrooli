@@ -18,7 +18,7 @@ import (
 )
 
 // newRepo returns a sqlite-backed devices.Repository with the production schema
-// applied — the canonical repository-test compose pattern (see notes).
+// applied — the canonical repository-test compose pattern.
 func newRepo(t *testing.T) (devices.Repository, *mocks.FakeClock) {
 	t.Helper()
 	d := db.NewSQLite(t)

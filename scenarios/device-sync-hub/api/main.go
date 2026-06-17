@@ -13,6 +13,7 @@ import (
 	"device-sync-hub/internal/clock"
 	"device-sync-hub/internal/deviceauth"
 	internaldevices "device-sync-hub/internal/devices"
+	"device-sync-hub/internal/middleware"
 	"device-sync-hub/internal/modules"
 	internalrealtime "device-sync-hub/internal/realtime"
 	"device-sync-hub/internal/server"
@@ -28,7 +29,6 @@ import (
 
 	devicesH "device-sync-hub/handlers/devices"
 	healthH "device-sync-hub/handlers/health"
-	notesH "device-sync-hub/handlers/notes"
 	realtimeH "device-sync-hub/handlers/realtime"
 	transferH "device-sync-hub/handlers/transfer"
 )
@@ -122,14 +122,15 @@ func main() {
 	}
 
 	// Owner identity, JWTs, and sessions are delegated to scenario-authenticator
-	// over HTTP (docs/concepts/INTEGRATIONS.md). AUTH_SERVICE_URL is injected by
-	// the lifecycle from the declared dependency; default to the conventional
-	// local authenticator port for `go run`. A blank/unreachable authenticator
-	// fails closed: owner-gated RPCs reject because no Identity is injected.
+	// over HTTP (docs/concepts/INTEGRATIONS.md). The endpoint is injected by the
+	// lifecycle from the declared dependency. It is required and deliberately has
+	// NO hardcoded default: silently defaulting an auth endpoint would mask a
+	// misconfigured deployment and could point validation at an unintended host.
+	// When unset the auth client is constructed with an empty base URL and fails
+	// closed — owner-gated RPCs reject because no Identity can be injected.
 	authServiceURL := strings.TrimSpace(os.Getenv("AUTH_SERVICE_URL"))
 	if authServiceURL == "" {
-		authServiceURL = "http://localhost:15000"
-		log.Printf("AUTH_SERVICE_URL not set; defaulting to %s (owner auth fails closed if unreachable)", authServiceURL)
+		log.Print("scenario-authenticator endpoint is not configured; owner authentication will fail closed until it is set")
 	}
 	authClient := auth.NewClient(auth.Config{BaseURL: authServiceURL})
 
@@ -165,7 +166,6 @@ func main() {
 		devicesH.Module(db, clk, authClient, hub, logger),
 		transferWiring.Module,
 		realtimeH.Module(hub, logger),
-		notesH.Module(db, clk, logger),
 	)
 
 	// Retention sweep: purge expired Held items and delivered Live items on an
@@ -178,17 +178,6 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.Register(rootMux, db)
-
-	// /measures is the measures-go serve substrate: the central measures
-	// index (measures-health) harvests <prefix>/declarations and the
-	// auto-execution path POSTs <prefix>/execute. The notes domain owns the
-	// one reference measure (notes.count); a real multi-domain scenario
-	// registers each domain's measures on one shared registry here.
-	notesMeasures, err := notesH.MeasuresHandler(db, clock.System{})
-	if err != nil {
-		log.Fatalf("measures registry: %v", err)
-	}
-	rootMux.Handle("/measures/", http.StripPrefix("/measures", notesMeasures))
 
 	// Two best-effort-inject auth middlewares wrap the API handler:
 	//   - auth.Middleware validates an OWNER bearer token (Authorization header)
@@ -207,7 +196,10 @@ func main() {
 	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
 	// request context so *database.RoutedDB routes the call to the
 	// installed test pool. Self-disables in production mode.
-	handler := apihttp.TestModeMiddleware(rootMux)
+	//
+	// middleware.SecurityHeaders is the outermost wrap so every response —
+	// including error and preflight responses — carries the hardening headers.
+	handler := middleware.SecurityHeaders(apihttp.TestModeMiddleware(rootMux))
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,

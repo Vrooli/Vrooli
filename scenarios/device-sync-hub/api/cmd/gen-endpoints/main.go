@@ -234,13 +234,13 @@ func validateTransport(endpoints []module.EndpointDescriptor) error {
 			violations = append(violations, fmt.Sprintf(
 				"endpoint %q: Path %q is not a Connect procedure (must start with %q) and has no RESTException; "+
 					"either reference a generated *Procedure constant from packages/proto/gen, or tag with "+
-					"RESTException{Reason: one of multipart_upload|webhook_receiver|third_party_shape|ops_probe|binary_download}",
+					"RESTException{Reason: one of multipart_upload|webhook_receiver|third_party_shape|ops_probe}",
 				e.ID, e.Path, "/vrooli."))
 		case !isConnect && hasException:
 			if !validRESTReason(e.RESTException.Reason) {
 				violations = append(violations, fmt.Sprintf(
 					"endpoint %q: RESTException.Reason %q is not one of the allowed reasons "+
-						"(multipart_upload, webhook_receiver, third_party_shape, ops_probe, binary_download)",
+						"(multipart_upload, webhook_receiver, third_party_shape, ops_probe)",
 					e.ID, e.RESTException.Reason))
 			}
 		}
@@ -256,9 +256,7 @@ func validRESTReason(r module.RESTReason) bool {
 	case module.RESTReasonMultipartUpload,
 		module.RESTReasonWebhookReceiver,
 		module.RESTReasonThirdPartyShape,
-		module.RESTReasonOpsProbe,
-		module.RESTReasonBinaryDownload,
-		module.RESTReasonEventStream:
+		module.RESTReasonOpsProbe:
 		return true
 	}
 	return false
