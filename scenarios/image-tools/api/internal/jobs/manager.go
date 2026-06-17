@@ -211,6 +211,50 @@ func (m *Manager) Submit(ctx context.Context, spec Spec) (Job, error) {
 	}
 }
 
+// Record persists an already-completed unit of work as a terminal job. It is
+// the path for SYNCHRONOUS operations that execute inline in the request (the
+// deterministic image ops finish in milliseconds, so the durable queue's
+// disconnect-survival buys nothing) yet must still appear in List/Get and the
+// UI job monitor alongside queued async work. runErr nil records a succeeded
+// job carrying resultRef; a non-nil runErr records a failed job. The record is
+// persisted under baseCtx so it is durable regardless of the caller's context.
+func (m *Manager) Record(spec Spec, resultRef string, runErr error) (Job, error) {
+	m.mu.Lock()
+	started := m.started
+	m.mu.Unlock()
+	if !started {
+		return Job{}, ErrNotStarted
+	}
+	lane := spec.Lane
+	if lane != LaneGPU {
+		lane = LaneCPU
+	}
+	now := m.clock.Now()
+	job := Job{
+		ID:               uuid.NewString(),
+		Operation:        spec.Operation,
+		Lane:             lane,
+		Payload:          spec.Payload,
+		EstimatedSeconds: spec.EstimatedSeconds,
+		CreatedAt:        now,
+		StartedAt:        &now,
+		FinishedAt:       &now,
+		Progress:         100,
+	}
+	if runErr != nil {
+		job.State = StateFailed
+		job.Error = runErr.Error()
+		job.Progress = 0
+	} else {
+		job.State = StateSucceeded
+		job.ResultRef = resultRef
+	}
+	if err := m.st.insert(m.baseCtx, job); err != nil {
+		return Job{}, err
+	}
+	return job, nil
+}
+
 func (m *Manager) worker(ch chan *jobEntry) {
 	defer m.wg.Done()
 	for {

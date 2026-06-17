@@ -27,7 +27,17 @@ type HostInventoryResponse struct {
 	// System memory totals.
 	Memory *HostMemory `protobuf:"bytes,1,opt,name=memory,proto3" json:"memory,omitempty"`
 	// Swap totals.
-	Swap          *HostSwap `protobuf:"bytes,2,opt,name=swap,proto3" json:"swap,omitempty"`
+	Swap *HostSwap `protobuf:"bytes,2,opt,name=swap,proto3" json:"swap,omitempty"`
+	// Operating system identifier (GOOS, e.g. "linux", "darwin", "windows").
+	Os string `protobuf:"bytes,3,opt,name=os,proto3" json:"os,omitempty"`
+	// CPU architecture identifier (GOARCH, e.g. "amd64", "arm64").
+	Arch string `protobuf:"bytes,4,opt,name=arch,proto3" json:"arch,omitempty"`
+	// CPU summary (logical core count).
+	Cpu *HostCPU `protobuf:"bytes,5,opt,name=cpu,proto3" json:"cpu,omitempty"`
+	// Detected GPUs; empty when none are present or the probe degraded. A
+	// consumer that needs VRAM-fit selection must treat an empty list (or a GPU
+	// with vram_bytes == 0) as "unknown headroom" and fall back conservatively.
+	Gpus          []*HostGPU `protobuf:"bytes,6,rep,name=gpus,proto3" json:"gpus,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -72,6 +82,34 @@ func (x *HostInventoryResponse) GetMemory() *HostMemory {
 func (x *HostInventoryResponse) GetSwap() *HostSwap {
 	if x != nil {
 		return x.Swap
+	}
+	return nil
+}
+
+func (x *HostInventoryResponse) GetOs() string {
+	if x != nil {
+		return x.Os
+	}
+	return ""
+}
+
+func (x *HostInventoryResponse) GetArch() string {
+	if x != nil {
+		return x.Arch
+	}
+	return ""
+}
+
+func (x *HostInventoryResponse) GetCpu() *HostCPU {
+	if x != nil {
+		return x.Cpu
+	}
+	return nil
+}
+
+func (x *HostInventoryResponse) GetGpus() []*HostGPU {
+	if x != nil {
+		return x.Gpus
 	}
 	return nil
 }
@@ -195,14 +233,149 @@ func (x *HostSwap) GetTotalBytes() uint64 {
 	return 0
 }
 
+// HostCPU holds the CPU summary needed for capacity-fit decisions.
+type HostCPU struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Logical CPU core count.
+	Cores         int32 `protobuf:"varint,1,opt,name=cores,proto3" json:"cores,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HostCPU) Reset() {
+	*x = HostCPU{}
+	mi := &file_cli_v1_host_inventory_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HostCPU) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HostCPU) ProtoMessage() {}
+
+func (x *HostCPU) ProtoReflect() protoreflect.Message {
+	mi := &file_cli_v1_host_inventory_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HostCPU.ProtoReflect.Descriptor instead.
+func (*HostCPU) Descriptor() ([]byte, []int) {
+	return file_cli_v1_host_inventory_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *HostCPU) GetCores() int32 {
+	if x != nil {
+		return x.Cores
+	}
+	return 0
+}
+
+// HostGPU is the subset of a detected GPU needed for VRAM-fit model selection.
+// Byte counts are uint64 emitted as JSON strings (the proto3 64-bit-integer
+// convention), matching the rest of this contract. vram_bytes == 0 means the
+// probe could not determine VRAM ("unknown headroom") — never "0 bytes free".
+type HostGPU struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// GPU index.
+	Index int32 `protobuf:"varint,1,opt,name=index,proto3" json:"index,omitempty"`
+	// GPU name (e.g. "NVIDIA GeForce RTX 4070 Ti SUPER").
+	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// Total VRAM, in bytes. 0 means unknown (degraded probe).
+	VramBytes uint64 `protobuf:"varint,3,opt,name=vram_bytes,json=vramBytes,proto3" json:"vram_bytes,omitempty"`
+	// Currently used VRAM, in bytes. 0 means unknown.
+	VramUsedBytes uint64 `protobuf:"varint,4,opt,name=vram_used_bytes,json=vramUsedBytes,proto3" json:"vram_used_bytes,omitempty"`
+	// Data source for this GPU's facts (e.g. "nvidia-smi").
+	Source        string `protobuf:"bytes,5,opt,name=source,proto3" json:"source,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HostGPU) Reset() {
+	*x = HostGPU{}
+	mi := &file_cli_v1_host_inventory_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HostGPU) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HostGPU) ProtoMessage() {}
+
+func (x *HostGPU) ProtoReflect() protoreflect.Message {
+	mi := &file_cli_v1_host_inventory_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HostGPU.ProtoReflect.Descriptor instead.
+func (*HostGPU) Descriptor() ([]byte, []int) {
+	return file_cli_v1_host_inventory_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *HostGPU) GetIndex() int32 {
+	if x != nil {
+		return x.Index
+	}
+	return 0
+}
+
+func (x *HostGPU) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *HostGPU) GetVramBytes() uint64 {
+	if x != nil {
+		return x.VramBytes
+	}
+	return 0
+}
+
+func (x *HostGPU) GetVramUsedBytes() uint64 {
+	if x != nil {
+		return x.VramUsedBytes
+	}
+	return 0
+}
+
+func (x *HostGPU) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
 var File_cli_v1_host_inventory_proto protoreflect.FileDescriptor
 
 const file_cli_v1_host_inventory_proto_rawDesc = "" +
 	"\n" +
-	"\x1bcli/v1/host_inventory.proto\x12\rvrooli.cli.v1\"w\n" +
+	"\x1bcli/v1/host_inventory.proto\x12\rvrooli.cli.v1\"\xf1\x01\n" +
 	"\x15HostInventoryResponse\x121\n" +
 	"\x06memory\x18\x01 \x01(\v2\x19.vrooli.cli.v1.HostMemoryR\x06memory\x12+\n" +
-	"\x04swap\x18\x02 \x01(\v2\x17.vrooli.cli.v1.HostSwapR\x04swap\"\x9e\x01\n" +
+	"\x04swap\x18\x02 \x01(\v2\x17.vrooli.cli.v1.HostSwapR\x04swap\x12\x0e\n" +
+	"\x02os\x18\x03 \x01(\tR\x02os\x12\x12\n" +
+	"\x04arch\x18\x04 \x01(\tR\x04arch\x12(\n" +
+	"\x03cpu\x18\x05 \x01(\v2\x16.vrooli.cli.v1.HostCPUR\x03cpu\x12*\n" +
+	"\x04gpus\x18\x06 \x03(\v2\x16.vrooli.cli.v1.HostGPUR\x04gpus\"\x9e\x01\n" +
 	"\n" +
 	"HostMemory\x12\x1f\n" +
 	"\vtotal_bytes\x18\x01 \x01(\x04R\n" +
@@ -212,7 +385,16 @@ const file_cli_v1_host_inventory_proto_rawDesc = "" +
 	"\fcached_bytes\x18\x04 \x01(\x04R\vcachedBytes\"+\n" +
 	"\bHostSwap\x12\x1f\n" +
 	"\vtotal_bytes\x18\x01 \x01(\x04R\n" +
-	"totalBytesB=Z;github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1b\x06proto3"
+	"totalBytes\"\x1f\n" +
+	"\aHostCPU\x12\x14\n" +
+	"\x05cores\x18\x01 \x01(\x05R\x05cores\"\x92\x01\n" +
+	"\aHostGPU\x12\x14\n" +
+	"\x05index\x18\x01 \x01(\x05R\x05index\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n" +
+	"\n" +
+	"vram_bytes\x18\x03 \x01(\x04R\tvramBytes\x12&\n" +
+	"\x0fvram_used_bytes\x18\x04 \x01(\x04R\rvramUsedBytes\x12\x16\n" +
+	"\x06source\x18\x05 \x01(\tR\x06sourceB=Z;github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1b\x06proto3"
 
 var (
 	file_cli_v1_host_inventory_proto_rawDescOnce sync.Once
@@ -226,20 +408,24 @@ func file_cli_v1_host_inventory_proto_rawDescGZIP() []byte {
 	return file_cli_v1_host_inventory_proto_rawDescData
 }
 
-var file_cli_v1_host_inventory_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_cli_v1_host_inventory_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_cli_v1_host_inventory_proto_goTypes = []any{
 	(*HostInventoryResponse)(nil), // 0: vrooli.cli.v1.HostInventoryResponse
 	(*HostMemory)(nil),            // 1: vrooli.cli.v1.HostMemory
 	(*HostSwap)(nil),              // 2: vrooli.cli.v1.HostSwap
+	(*HostCPU)(nil),               // 3: vrooli.cli.v1.HostCPU
+	(*HostGPU)(nil),               // 4: vrooli.cli.v1.HostGPU
 }
 var file_cli_v1_host_inventory_proto_depIdxs = []int32{
 	1, // 0: vrooli.cli.v1.HostInventoryResponse.memory:type_name -> vrooli.cli.v1.HostMemory
 	2, // 1: vrooli.cli.v1.HostInventoryResponse.swap:type_name -> vrooli.cli.v1.HostSwap
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	3, // 2: vrooli.cli.v1.HostInventoryResponse.cpu:type_name -> vrooli.cli.v1.HostCPU
+	4, // 3: vrooli.cli.v1.HostInventoryResponse.gpus:type_name -> vrooli.cli.v1.HostGPU
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_cli_v1_host_inventory_proto_init() }
@@ -253,7 +439,7 @@ func file_cli_v1_host_inventory_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cli_v1_host_inventory_proto_rawDesc), len(file_cli_v1_host_inventory_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

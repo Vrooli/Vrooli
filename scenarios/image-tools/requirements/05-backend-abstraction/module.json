@@ -1,34 +1,31 @@
 {
-  "description": "Per-op provider interface with >=1 standalone-lightweight backend (required), ComfyUI optional, BYOK-cloud fallback, guaranteed CPU fallback; >=1 standalone backend enforced at registration.",
-  "module_id": "MOD-P0-005",
-  "prd_ref": "OT-P0-005",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-06-16T22:54:45-04:00"
+  },
   "requirements": [
     {
-      "category": "core",
-      "dependencies": [],
-      "description": "Per-op provider interface with >=1 standalone-lightweight backend (required), ComfyUI optional, BYOK-cloud fallback, guaranteed CPU fallback; >=1 standalone backend enforced at registration.",
       "id": "IMG-P0-005",
+      "title": "Backend Abstraction \u0026 Provider Interface",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
-      "status": "planned",
-      "title": "Backend Abstraction & Provider Interface",
+      "category": "core",
+      "description": "Per-op provider interface with \u003e=1 standalone-lightweight backend (required), ComfyUI optional, BYOK-cloud fallback, guaranteed CPU fallback; \u003e=1 standalone backend enforced at registration.",
       "validation": [
         {
-          "notes": "Provider registry rejects an op lacking a standalone backend",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/backends/registry_test.go",
-          "status": "planned",
-          "type": "test"
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Provider registry rejects an op lacking a standalone backend"
         },
         {
-          "notes": "Provider selection order standalone->comfyui->byok->cpu honored",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/backends/selection_test.go",
-          "status": "planned",
-          "type": "test"
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Provider selection order standalone-\u003ecomfyui-\u003ebyok-\u003ecpu honored"
         }
       ]
     }
-  ],
-  "title": "Backend Abstraction & Provider Interface"
+  ]
 }

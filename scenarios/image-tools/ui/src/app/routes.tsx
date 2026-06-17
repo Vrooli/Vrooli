@@ -40,7 +40,9 @@ export function AppRouter() {
   // Re-create per mount so HMR / re-mounts pick up updated routes during dev
   // and so tests that manipulate `window.history` see fresh routing each time.
   const router = createBrowserRouter(routes, { future: routerFutureFlags });
-  return <RouterProvider router={router} />;
+  // v7_startTransition is read from the RouterProvider prop (it governs React
+  // rendering), separately from the data-router future above.
+  return <RouterProvider router={router} future={{ v7_startTransition: true }} />;
 }
 
 /**
@@ -52,5 +54,5 @@ export function TestAppRouter({ initialEntries }: { initialEntries: string[] }) 
     initialEntries,
     future: routerFutureFlags,
   });
-  return <RouterProvider router={router} />;
+  return <RouterProvider router={router} future={{ v7_startTransition: true }} />;
 }

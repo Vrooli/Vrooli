@@ -1,34 +1,31 @@
 {
-  "description": "Image binaries stored via api-core storage/blobstore (outside repo) by default; save location overridable per request; outputs user-owned (copy/move/delete anywhere).",
-  "module_id": "MOD-P0-010",
-  "prd_ref": "OT-P0-010",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-06-16T22:54:45-04:00"
+  },
   "requirements": [
     {
-      "category": "core",
-      "dependencies": [],
-      "description": "Image binaries stored via api-core storage/blobstore (outside repo) by default; save location overridable per request; outputs user-owned (copy/move/delete anywhere).",
       "id": "IMG-P0-010",
+      "title": "Persistent Storage \u0026 Output Ownership",
+      "status": "complete",
       "prd_ref": "OT-P0-010",
-      "status": "planned",
-      "title": "Persistent Storage & Output Ownership",
+      "category": "core",
+      "description": "Image binaries stored via api-core storage/blobstore (outside repo) by default; save location overridable per request; outputs user-owned (copy/move/delete anywhere).",
       "validation": [
         {
-          "notes": "Storage resolver writes outside repo and honors per-request override",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/storage/resolver_test.go",
-          "status": "planned",
-          "type": "test"
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Storage resolver writes outside repo and honors per-request override"
         },
         {
-          "notes": "Output round-trips through api-core storage and is retrievable",
-          "phase": "integration",
+          "type": "test",
           "ref": "api/internal/storage/storage_test.go",
-          "status": "planned",
-          "type": "test"
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Output round-trips through api-core storage and is retrievable"
         }
       ]
     }
-  ],
-  "title": "Persistent Storage & Output Ownership"
+  ]
 }

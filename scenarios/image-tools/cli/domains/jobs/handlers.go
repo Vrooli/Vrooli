@@ -133,7 +133,9 @@ func parseLimit(raw string) (int32, error) {
 	if raw == "" {
 		return 0, nil
 	}
-	n, err := strconv.Atoi(raw)
+	// ParseInt with bitSize=32 bounds the result to int32 range, so the
+	// conversion below cannot overflow (avoids gosec G109).
+	n, err := strconv.ParseInt(raw, 10, 32)
 	if err != nil || n < 0 {
 		return 0, fmt.Errorf("invalid --limit %q (want a non-negative integer)", raw)
 	}

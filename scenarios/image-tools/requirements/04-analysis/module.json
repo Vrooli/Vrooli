@@ -1,34 +1,31 @@
 {
-  "description": "OCR/text-extraction, NSFW/safety classification (standalone op + configurable auto-scan of generated output), and image info/probe run from CLI/API with no GPU requirement.",
-  "module_id": "MOD-P0-004",
-  "prd_ref": "OT-P0-004",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-06-16T22:54:45-04:00"
+  },
   "requirements": [
     {
-      "category": "core",
-      "dependencies": [],
-      "description": "OCR/text-extraction, NSFW/safety classification (standalone op + configurable auto-scan of generated output), and image info/probe run from CLI/API with no GPU requirement.",
       "id": "IMG-P0-004",
-      "prd_ref": "OT-P0-004",
-      "status": "planned",
       "title": "Core Analysis",
+      "status": "complete",
+      "prd_ref": "OT-P0-004",
+      "category": "core",
+      "description": "OCR/text-extraction, NSFW/safety classification (standalone op + configurable auto-scan of generated output), and image info/probe run from CLI/API with no GPU requirement.",
       "validation": [
         {
-          "notes": "OCR, NSFW classify, and probe return structured results",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/analysis/analysis_test.go",
-          "status": "planned",
-          "type": "test"
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "OCR, NSFW classify, and probe return structured results"
         },
         {
-          "notes": "Auto-scan toggles NSFW classification on generated output",
-          "phase": "integration",
+          "type": "test",
           "ref": "api/internal/analysis/autoscan_test.go",
-          "status": "planned",
-          "type": "test"
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Auto-scan toggles NSFW classification on generated output"
         }
       ]
     }
-  ],
-  "title": "Core Analysis"
+  ]
 }

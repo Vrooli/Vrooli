@@ -1,41 +1,38 @@
 {
-  "description": "CLI + Settings UI list/search/install/enable/disable/remove models with size, hardware-fit, license, capability labels; checksummed opt-in downloads; disk-space awareness; custom/fine-tuned local entries.",
-  "module_id": "MOD-P0-007",
-  "prd_ref": "OT-P0-007",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-06-16T22:54:45-04:00"
+  },
   "requirements": [
     {
-      "category": "core",
-      "dependencies": [],
-      "description": "CLI + Settings UI list/search/install/enable/disable/remove models with size, hardware-fit, license, capability labels; checksummed opt-in downloads; disk-space awareness; custom/fine-tuned local entries.",
       "id": "IMG-P0-007",
-      "prd_ref": "OT-P0-007",
-      "status": "planned",
       "title": "Model Management",
+      "status": "complete",
+      "prd_ref": "OT-P0-007",
+      "category": "core",
+      "description": "CLI + Settings UI list/search/install/enable/disable/remove models with size, hardware-fit, license, capability labels; checksummed opt-in downloads; disk-space awareness; custom/fine-tuned local entries.",
       "validation": [
         {
-          "notes": "Install verifies checksum and disk space before download",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/models/install_test.go",
-          "status": "planned",
-          "type": "test"
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Install verifies checksum and disk space before download"
         },
         {
-          "notes": "Enable/disable/remove and custom local-model entry round-trip",
-          "phase": "integration",
+          "type": "test",
           "ref": "cli/domains/models/models_test.go",
-          "status": "planned",
-          "type": "test"
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Enable/disable/remove and custom local-model entry round-trip"
         },
         {
-          "notes": "Settings UI manages models with hardware-fit indicators",
-          "phase": "business",
+          "type": "manual",
           "ref": "ui/src/features/models",
-          "status": "planned",
-          "type": "manual"
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Settings UI manages models with hardware-fit indicators"
         }
       ]
     }
-  ],
-  "title": "Model Management"
+  ]
 }

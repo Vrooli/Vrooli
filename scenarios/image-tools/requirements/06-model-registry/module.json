@@ -1,34 +1,31 @@
 {
-  "description": "Schema/proto-validated registry stores per-model metadata (ops, provider, variant/quant/size, hardware reqs, I/O dimensions, capability labels, source/checksum or local path, enabled, default) and a selector picks best-fit enabled model per host honoring default + override.",
-  "module_id": "MOD-P0-006",
-  "prd_ref": "OT-P0-006",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-06-16T22:54:45-04:00"
+  },
   "requirements": [
     {
-      "category": "core",
-      "dependencies": [],
-      "description": "Schema/proto-validated registry stores per-model metadata (ops, provider, variant/quant/size, hardware reqs, I/O dimensions, capability labels, source/checksum or local path, enabled, default) and a selector picks best-fit enabled model per host honoring default + override.",
       "id": "IMG-P0-006",
-      "prd_ref": "OT-P0-006",
-      "status": "planned",
       "title": "Declarative Model Registry",
+      "status": "complete",
+      "prd_ref": "OT-P0-006",
+      "category": "core",
+      "description": "Schema/proto-validated registry stores per-model metadata (ops, provider, variant/quant/size, hardware reqs, I/O dimensions, capability labels, source/checksum or local path, enabled, default) and a selector picks best-fit enabled model per host honoring default + override.",
       "validation": [
         {
-          "notes": "Registry entries validate against schema; malformed entries rejected",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/models/registry_test.go",
-          "status": "planned",
-          "type": "test"
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Registry entries validate against schema; malformed entries rejected"
         },
         {
-          "notes": "Selector returns best-fit model for probed host with user override",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/models/selector_test.go",
-          "status": "planned",
-          "type": "test"
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Selector returns best-fit model for probed host with user override"
         }
       ]
     }
-  ],
-  "title": "Declarative Model Registry"
+  ]
 }

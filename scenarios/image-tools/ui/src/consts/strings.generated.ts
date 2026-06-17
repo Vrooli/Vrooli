@@ -14,8 +14,6 @@
 export const strings = {
   app: {
     title: "app.title",
-    eyebrow: "app.eyebrow",
-    description: "app.description",
   },
   layout: {
     sidebarLabel: "layout.sidebarLabel",

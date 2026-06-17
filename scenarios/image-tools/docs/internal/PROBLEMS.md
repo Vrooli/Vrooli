@@ -49,36 +49,77 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
-### 2026-06-16 — Documentation foundation complete; implementation not started
+### 2026-06-16 — Documentation foundation complete; implementation not started — RESOLVED 2026-06-17
 
-**Symptom:** Orientation reports 5/8 gates. The three incomplete gates —
-`scaffold-health` (`make test`), `dependency-decisions`
-(`.vrooli/service.json:dependencies.resources` not present), and
-`example-domain-removed` (the `notes` worked example still present) — are
-all red.
+**Symptom (original):** Orientation reported 5/8 gates: `scaffold-health`,
+`dependency-decisions`, and `example-domain-removed` were red because only the
+planning foundation existed.
 
-**Root cause:** This pass deliberately delivered only the planning
-foundation (PRD, requirements registry, docs). No product code has been
-written, the `notes` template example is intentionally retained as the
-worked vertical slice, and no resource dependencies have been wired into
-`.vrooli/service.json` yet.
+**Resolution (2026-06-17):** Phase 0 + Phase 1 landed. The `notes` worked
+example is **removed** end-to-end (Gate 7); the `models`/`jobs` spine domains
+replace it across api/cli/proto/ui; `.vrooli/service.json` now declares the
+optional ComfyUI resource + optional ffmpeg hostTool (`dependency-decisions`).
+Host hardware facts come from the root `vrooli host inventory --json` CLI behind
+the `capabilities` seam (not system-monitor). API/CLI/proto green + e2e boot
+test green; UI tests green (162/162). See [`PROGRESS.md`](PROGRESS.md).
 
-**Workaround:** None needed — this is the intended state at the end of the
-charter/requirements/docs phase.
+**Remaining for `scaffold-health` / full `make test`:** run the complete
+`vrooli scenario test image-tools` suite (standards/unit/coverage/measures/
+smoke) — measures phase has nothing to grade until ops declare measures
+(Phase 2+).
 
-**Real fix:** During implementation: build the first real domain (start
-with `ops` or the `models`/`jobs` spine), wire required dependencies into
-`.vrooli/service.json` (ComfyUI + per-op model resources as `required:false`;
-BYOK provider config), get `make test` green, then remove the `notes` example
-(Gate 7). Host hardware facts for the AI tier come from the root `vrooli host
-inventory --json` CLI (the shared `internal/hostinventory` collector) consumed
-behind the `capabilities` seam — not a system-monitor dependency — see
-[`../concepts/INTEGRATIONS.md`](../concepts/INTEGRATIONS.md).
+**Refs:** `PRD.md`, `requirements/`, [`DECISIONS.md`](DECISIONS.md), [`PROGRESS.md`](PROGRESS.md).
 
-**Owner:** unassigned (next implementation session).
+### 2026-06-17 — react-vite template lint + standards debt (the lone `vrooli scenario test` failure)
 
-**Refs:** `PRD.md`, `requirements/`, [`DECISIONS.md`](DECISIONS.md),
-[`../START-HERE.md`](../START-HERE.md) Gates 4/6/7.
+**Symptom:** Two surfaces, both confined to **pristine template files** (verified
+present at HEAD, unchanged by feature work):
+1. `phase-standards` fails — OWASP "Security Headers" HIGH ×4 on
+   `api/internal/httpx/errors.go` (template error writer) + three template
+   test files (`internal/middleware/logging_test.go`,
+   `internal/module/module_test.go`, `internal/server/server_test.go`). This is
+   the only failing phase in the full suite (17/18 green).
+2. `pnpm lint` (`eslint .`) reports a handful of errors (plus react-refresh
+   warnings): `theme.choice.{light,dark,system}` "no callsite" (dynamic-access
+   false positive — they ARE used via `strings.theme.choice[c]`),
+   `AppShell.tsx` aria-label string-literal, and `ThemeProvider.tsx`
+   "unnecessary conditional (always falsy)" SSR guards.
+
+**Root cause:** All are present on the **pristine react-vite scaffold at HEAD** —
+not introduced by the jobs/models migration. (Standards) the OWASP
+"Security Headers" rule flags any HTTP-response write lacking security headers,
+including template error-rendering (`httpx/errors.go`) and HTTP-constructing
+test files — a broad heuristic that over-fires on tests; this is the documented
+fleet-wide standards campaign. (Lint-1) `theme.choice.*` ARE used, via dynamic
+`t(strings.theme.choice[c])` in `TopBar`/`SettingsPage`; the
+`strings/no-unused-keys` rule only follows static member access, so dynamic keys
+read as unused (false positive). (Lint-2) The `AppShell` `aria-label="Main
+content"` literal and the `ThemeProvider` `typeof window === "undefined"` SSR
+guards live in files unchanged by this work.
+
+**Workaround:** None needed for correctness — the app and API behave correctly,
+and every other feature-introduced finding the suite raised (security G109, docs
+manifest, go-mod-tidy, pnpm release-age, structure/proto `proto_payloads`) was
+fixed. This matches the codebase's existing treatment of react-vite
+template/scaffolding standards+lint debt as a tracked **upstream-template**
+campaign (cf. the ecosystem-manager UI and the fleet standards campaign), not a
+per-scenario fix — fixing it per scenario diverges from the template and breaks
+on the next template sync.
+
+**Real fix:** Upstream in `templates/scenarios/react-vite` + api-core: add a
+security-headers middleware to the api-core server chain (so `httpx/errors.go`
+responses inherit them) and exempt `*_test.go` from the OWASP Security-Headers
+rule; teach `strings/no-unused-keys` to recognize dynamic `strings.x.y[expr]`
+namespace access; route the `AppShell` main-content label through i18n; and drop
+the dead SSR guards in `ThemeProvider` (the SPA is client-only). Then every
+generated scenario inherits the fix.
+
+**Owner:** unassigned (react-vite template + api-core maintainers).
+
+**Refs:** `api/internal/httpx/errors.go`, `api/internal/{middleware,module,server}/*_test.go`,
+`ui/src/consts/strings.generated.ts`, `ui/src/layout/AppShell.tsx`,
+`ui/src/theme/ThemeProvider.tsx`, `ui/src/layout/TopBar.tsx`,
+`ui/src/pages/SettingsPage.tsx`.
 
 ### 2026-06-16 — prd-control-tower generation gotchas (tooling, not scenario)
 

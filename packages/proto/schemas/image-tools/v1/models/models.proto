@@ -1,0 +1,178 @@
+syntax = "proto3";
+
+package vrooli.image_tools.v1.models;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/models;models_v1";
+
+// =============================================================================
+// MODELS DOMAIN — declarative model registry (read + enable/disable)
+// =============================================================================
+//
+// @stability beta
+//
+// Wire contract for ModelsService: the read and enable/disable surface over the
+// declarative model registry (api/internal/models). The registry is a
+// license-verified seed catalog (registry.seed.json) whose per-op defaults +
+// blocklist are the read-only baseline; runtime enable/disable state is overlaid
+// from SQLite by the management layer.
+//
+// This service answers "which models exist, what can they do, and which one
+// would run for an operation on this host" — and lets an operator opt a quality
+// tier in or out. Heavier model management (download with checksum pinning,
+// disk-space awareness, custom local entries, removal) lands in a later phase;
+// the messages here stay focused on the registry's read + enable surface.
+//
+// Consumed by:
+//   - API: handlers/models/connect_handler.go implements ModelsServiceHandler.
+//   - CLI: cli/domains/models calls the generated Connect-Go client
+//          (`models list`, `models select`, `models enable/disable`).
+//   - UI:  ui/src/api/models.ts wraps the generated Connect-Web client; the
+//          Settings model-management view lists + toggles models.
+// =============================================================================
+
+service ModelsService {
+  // ListModels returns catalog entries, optionally filtered to one operation.
+  rpc ListModels(ListModelsRequest) returns (ListModelsResponse);
+
+  // GetModel returns one catalog entry by id.
+  rpc GetModel(GetModelRequest) returns (GetModelResponse);
+
+  // ListOperations returns the operation vocabulary (declaration order).
+  rpc ListOperations(ListOperationsRequest) returns (ListOperationsResponse);
+
+  // SelectModel previews which enabled model would run for an operation on the
+  // probed host — honoring the per-op default and any explicit override —
+  // without executing anything. Surfaces the hardware-fit reason + warnings
+  // (CPU time warning, conservative unknown-VRAM fallback, VRAM shortfall).
+  rpc SelectModel(SelectModelRequest) returns (SelectModelResponse);
+
+  // SetModelEnabled toggles a model's runtime-enabled state (persisted in the
+  // SQLite overlay) and returns the updated entry.
+  rpc SetModelEnabled(SetModelEnabledRequest) returns (SetModelEnabledResponse);
+
+  // ListBlocklist returns the license-encumbered models that must never be
+  // seeded or adopted, with the reason each is excluded.
+  rpc ListBlocklist(ListBlocklistRequest) returns (ListBlocklistResponse);
+}
+
+// CommercialUse classifies a model's commercial-use license posture.
+enum CommercialUse {
+  COMMERCIAL_USE_UNSPECIFIED = 0;
+  COMMERCIAL_USE_YES = 1;
+  COMMERCIAL_USE_NO = 2;
+  COMMERCIAL_USE_CONDITIONAL = 3;
+}
+
+// Hardware captures a model's host requirements.
+message Hardware {
+  bool cpu_capable = 1;
+  bool gpu_required = 2;
+  // Minimum dedicated VRAM in GB; 0 means "no dedicated VRAM required".
+  int32 min_vram_gb = 3;
+  int32 min_ram_gb = 4;
+  repeated string os_arch = 5;
+  string speed_note = 6;
+}
+
+// CapabilityLabels carries the safety/license metadata surfaced to operators.
+message CapabilityLabels {
+  bool nsfw_capable = 1;
+  string license = 2;
+  CommercialUse commercial_use = 3;
+  string commercial_use_notes = 4;
+  string base_model_lineage = 5;
+  string known_risks = 6;
+}
+
+// Model is one registry entry: a concrete model/library backing one or more
+// operations. Mirrors api/internal/models.Model (the runtime `enabled` reflects
+// the SQLite overlay, not the seed default).
+message Model {
+  string id = 1;
+  string name = 2;
+  repeated string operations = 3;
+  // Operations this model is the seeded default for.
+  repeated string default_for = 4;
+  // Quality/cost class: "default", "default-variant", "quality", "nice-to-have".
+  string tier = 5;
+  string backend = 6;
+  repeated string alt_backends = 7;
+  // Always false — ComfyUI is an optional plug-in only, never required.
+  bool requires_comfyui = 8;
+  int32 size_mb_approx = 9;
+  repeated string quant_variants = 10;
+  Hardware hardware = 11;
+  CapabilityLabels capability_labels = 12;
+  // Effective enabled state (SQLite overlay over the seed default).
+  bool enabled = 13;
+}
+
+// BlocklistEntry records a license-encumbered model excluded from the catalog.
+message BlocklistEntry {
+  string id = 1;
+  repeated string operations = 2;
+  string license = 3;
+  string reason = 4;
+  // Whether exporting to ONNX/GGUF would (falsely) appear to remove the
+  // restriction — always documented so the trap is explicit.
+  bool exporting_onnx_removes_restriction = 5;
+}
+
+message ListModelsRequest {
+  // When set, return only models that serve this operation. Empty returns all.
+  string operation = 1;
+}
+
+message ListModelsResponse {
+  repeated Model models = 1;
+}
+
+message GetModelRequest {
+  string id = 1;
+}
+
+message GetModelResponse {
+  Model model = 1;
+}
+
+message ListOperationsRequest {
+}
+
+message ListOperationsResponse {
+  repeated string operations = 1;
+}
+
+message SelectModelRequest {
+  // Operation to select a model for (must be in the vocabulary).
+  string operation = 1;
+  // Optional: force a specific model id (still validated for op-support,
+  // enabled-state, and host-runnability).
+  string override_id = 2;
+}
+
+message SelectModelResponse {
+  // The chosen model.
+  Model model = 1;
+  // True when the model will run on a detected GPU with known, sufficient VRAM.
+  bool gpu_viable = 2;
+  // Short, user-facing explanation of why this model was chosen.
+  string reason = 3;
+  // Non-fatal cautions (CPU time warning, unknown-VRAM fallback, …).
+  repeated string warnings = 4;
+}
+
+message SetModelEnabledRequest {
+  string id = 1;
+  bool enabled = 2;
+}
+
+message SetModelEnabledResponse {
+  Model model = 1;
+}
+
+message ListBlocklistRequest {
+}
+
+message ListBlocklistResponse {
+  repeated BlocklistEntry entries = 1;
+}

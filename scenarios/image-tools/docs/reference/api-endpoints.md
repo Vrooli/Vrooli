@@ -208,3 +208,38 @@ reason each is excluded.
 |---|---|
 | **Response** | `ListBlocklistResponse { entries: BlocklistEntry[] }` |
 | **CLI** | `image-tools models blocklist` |
+
+---
+
+## Adding a new endpoint
+
+The endpoint surface is generated from the proto contracts and the API
+module registry — never hand-edited into `.vrooli/endpoints.json`.
+
+1. **Author the proto.** Add the RPC + messages to
+   `packages/proto/schemas/image-tools/v1/<domain>/<domain>.proto`. Prefer
+   a Connect-RPC method; only use a REST path with an allowed `RESTReason`
+   (multipart upload, webhook receiver, third-party shape, ops probe). Run
+   `cd packages/proto && make generate && make lint`.
+2. **Implement the handler.** Add `api/handlers/<domain>/` with a
+   `connect_handler.go` implementing the generated `*ServiceHandler`
+   interface and a `module.go` exporting `Module(...)`, `Schema()`, and the
+   `Endpoints` descriptors (reference the generated `*Procedure` constants
+   so a renamed RPC breaks the build).
+3. **Register it.** Add the domain to `api/internal/modules/registry.go`
+   (`AllEndpoints`, `AllProtoFiles`, `AllSchemas`) and wire its runtime
+   `Module(...)` into `main.go`'s `server.New(...)` call.
+4. **Mirror the CLI.** Add the command(s) to `cli/manifest.json` + a
+   `cli/domains/<domain>/` package, and add matching rows to
+   `api/cmd/gen-endpoints/cli_commands_seed.json`. Run `make endpoints`.
+
+The global parity test (`TestProtoConnectParity`) asserts every proto RPC
+has exactly one endpoint descriptor; `gen-endpoints` rejects unjustified
+REST paths and unseeded CLI commands.
+
+## Cross-references
+
+- [`cli-commands.md`](cli-commands.md) — the CLI commands these endpoints mirror
+- [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) — domain-module + transport architecture
+- [`../internal/SEAMS.md`](../internal/SEAMS.md) — the testability seams behind these handlers
+- `packages/proto/schemas/image-tools/v1/` — the wire-contract source of truth

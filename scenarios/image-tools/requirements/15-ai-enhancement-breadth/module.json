@@ -1,34 +1,31 @@
 {
-  "description": "Colorize, old-photo restore, face restoration (standalone op), Segment Anything (SAM), and depth/normal map via opt-in installs with CPU-capable defaults where feasible.",
-  "module_id": "MOD-P1-002",
-  "prd_ref": "OT-P1-002",
-  "priority": "P1",
+  "_metadata": {
+    "last_validated_at": "2026-06-16T22:54:45-04:00"
+  },
   "requirements": [
     {
-      "category": "feature",
-      "dependencies": [],
-      "description": "Colorize, old-photo restore, face restoration (standalone op), Segment Anything (SAM), and depth/normal map via opt-in installs with CPU-capable defaults where feasible.",
       "id": "IMG-P1-002",
-      "prd_ref": "OT-P1-002",
-      "status": "planned",
       "title": "AI Enhancement Breadth",
+      "status": "complete",
+      "prd_ref": "OT-P1-002",
+      "category": "feature",
+      "description": "Colorize, old-photo restore, face restoration (standalone op), Segment Anything (SAM), and depth/normal map via opt-in installs with CPU-capable defaults where feasible.",
       "validation": [
         {
-          "notes": "Each enhancement-breadth op runs against its standalone backend",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/ai/restoration_test.go",
-          "status": "planned",
-          "type": "test"
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Each enhancement-breadth op runs against its standalone backend"
         },
         {
-          "notes": "SAM masks feed inpaint/object-removal; face-restore standalone op works",
-          "phase": "integration",
+          "type": "test",
           "ref": "api/internal/ai/sam_test.go",
-          "status": "planned",
-          "type": "test"
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "SAM masks feed inpaint/object-removal; face-restore standalone op works"
         }
       ]
     }
-  ],
-  "title": "AI Enhancement Breadth"
+  ]
 }

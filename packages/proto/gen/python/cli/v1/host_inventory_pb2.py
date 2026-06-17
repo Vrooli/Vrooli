@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1b\x63li/v1/host_inventory.proto\x12\rvrooli.cli.v1\"w\n\x15HostInventoryResponse\x12\x31\n\x06memory\x18\x01 \x01(\x0b\x32\x19.vrooli.cli.v1.HostMemoryR\x06memory\x12+\n\x04swap\x18\x02 \x01(\x0b\x32\x17.vrooli.cli.v1.HostSwapR\x04swap\"\x9e\x01\n\nHostMemory\x12\x1f\n\x0btotal_bytes\x18\x01 \x01(\x04R\ntotalBytes\x12\'\n\x0f\x61vailable_bytes\x18\x02 \x01(\x04R\x0e\x61vailableBytes\x12#\n\rbuffers_bytes\x18\x03 \x01(\x04R\x0c\x62uffersBytes\x12!\n\x0c\x63\x61\x63hed_bytes\x18\x04 \x01(\x04R\x0b\x63\x61\x63hedBytes\"+\n\x08HostSwap\x12\x1f\n\x0btotal_bytes\x18\x01 \x01(\x04R\ntotalBytesB=Z;github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1b\x63li/v1/host_inventory.proto\x12\rvrooli.cli.v1\"\xf1\x01\n\x15HostInventoryResponse\x12\x31\n\x06memory\x18\x01 \x01(\x0b\x32\x19.vrooli.cli.v1.HostMemoryR\x06memory\x12+\n\x04swap\x18\x02 \x01(\x0b\x32\x17.vrooli.cli.v1.HostSwapR\x04swap\x12\x0e\n\x02os\x18\x03 \x01(\tR\x02os\x12\x12\n\x04\x61rch\x18\x04 \x01(\tR\x04\x61rch\x12(\n\x03\x63pu\x18\x05 \x01(\x0b\x32\x16.vrooli.cli.v1.HostCPUR\x03\x63pu\x12*\n\x04gpus\x18\x06 \x03(\x0b\x32\x16.vrooli.cli.v1.HostGPUR\x04gpus\"\x9e\x01\n\nHostMemory\x12\x1f\n\x0btotal_bytes\x18\x01 \x01(\x04R\ntotalBytes\x12\'\n\x0f\x61vailable_bytes\x18\x02 \x01(\x04R\x0e\x61vailableBytes\x12#\n\rbuffers_bytes\x18\x03 \x01(\x04R\x0c\x62uffersBytes\x12!\n\x0c\x63\x61\x63hed_bytes\x18\x04 \x01(\x04R\x0b\x63\x61\x63hedBytes\"+\n\x08HostSwap\x12\x1f\n\x0btotal_bytes\x18\x01 \x01(\x04R\ntotalBytes\"\x1f\n\x07HostCPU\x12\x14\n\x05\x63ores\x18\x01 \x01(\x05R\x05\x63ores\"\x92\x01\n\x07HostGPU\x12\x14\n\x05index\x18\x01 \x01(\x05R\x05index\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n\nvram_bytes\x18\x03 \x01(\x04R\tvramBytes\x12&\n\x0fvram_used_bytes\x18\x04 \x01(\x04R\rvramUsedBytes\x12\x16\n\x06source\x18\x05 \x01(\tR\x06sourceB=Z;github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,10 +32,14 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'cli.v1.host_inventory_pb2',
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'Z;github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1'
-  _globals['_HOSTINVENTORYRESPONSE']._serialized_start=46
-  _globals['_HOSTINVENTORYRESPONSE']._serialized_end=165
-  _globals['_HOSTMEMORY']._serialized_start=168
-  _globals['_HOSTMEMORY']._serialized_end=326
-  _globals['_HOSTSWAP']._serialized_start=328
-  _globals['_HOSTSWAP']._serialized_end=371
+  _globals['_HOSTINVENTORYRESPONSE']._serialized_start=47
+  _globals['_HOSTINVENTORYRESPONSE']._serialized_end=288
+  _globals['_HOSTMEMORY']._serialized_start=291
+  _globals['_HOSTMEMORY']._serialized_end=449
+  _globals['_HOSTSWAP']._serialized_start=451
+  _globals['_HOSTSWAP']._serialized_end=494
+  _globals['_HOSTCPU']._serialized_start=496
+  _globals['_HOSTCPU']._serialized_end=527
+  _globals['_HOSTGPU']._serialized_start=530
+  _globals['_HOSTGPU']._serialized_end=676
 # @@protoc_insertion_point(module_scope)

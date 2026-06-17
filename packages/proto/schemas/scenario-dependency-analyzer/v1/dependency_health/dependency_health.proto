@@ -18,7 +18,10 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dep
 //
 // Test Genie consumes this contract for its dependencies phase. SDA owns the
 // dependency interpretation; Code Facts remains the source of code surface
-// evidence and Security Health remains the source of vulnerability truth.
+// evidence and Security Health remains the source of vulnerability truth. SDA
+// dependency health may report Security Health dependency-index availability,
+// but vulnerability findings belong to Security Health and SDA governance
+// workflows, not this producer's findings list.
 // =============================================================================
 
 service DependencyHealthService {

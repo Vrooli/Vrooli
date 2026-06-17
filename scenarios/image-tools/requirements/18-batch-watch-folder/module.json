@@ -1,34 +1,31 @@
 {
-  "description": "Batch accepts glob/folder inputs; watch-folder triggers configured recipes/ops on new files with debounce and output routing.",
-  "module_id": "MOD-P1-005",
-  "prd_ref": "OT-P1-005",
-  "priority": "P1",
+  "_metadata": {
+    "last_validated_at": "2026-06-16T22:54:45-04:00"
+  },
   "requirements": [
     {
-      "category": "feature",
-      "dependencies": [],
-      "description": "Batch accepts glob/folder inputs; watch-folder triggers configured recipes/ops on new files with debounce and output routing.",
       "id": "IMG-P1-005",
+      "title": "Batch Processing \u0026 Watch-Folder Automation",
+      "status": "complete",
       "prd_ref": "OT-P1-005",
-      "status": "planned",
-      "title": "Batch Processing & Watch-Folder Automation",
+      "category": "feature",
+      "description": "Batch accepts glob/folder inputs; watch-folder triggers configured recipes/ops on new files with debounce and output routing.",
       "validation": [
         {
-          "notes": "Batch expands globs and fans out jobs",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/batch/batch_test.go",
-          "status": "planned",
-          "type": "test"
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Batch expands globs and fans out jobs"
         },
         {
-          "notes": "Watch-folder debounces and routes outputs on new files",
-          "phase": "integration",
+          "type": "test",
           "ref": "api/internal/watch/watch_test.go",
-          "status": "planned",
-          "type": "test"
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Watch-folder debounces and routes outputs on new files"
         }
       ]
     }
-  ],
-  "title": "Batch Processing & Watch-Folder Automation"
+  ]
 }

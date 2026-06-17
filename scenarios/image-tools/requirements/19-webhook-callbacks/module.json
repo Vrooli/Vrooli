@@ -1,27 +1,24 @@
 {
-  "description": "Each job accepts an optional signed callback URL; best-effort POST with retry on completion/failure; minimal (no event bus).",
-  "module_id": "MOD-P1-006",
-  "prd_ref": "OT-P1-006",
-  "priority": "P1",
+  "_metadata": {
+    "last_validated_at": "2026-06-16T22:54:45-04:00"
+  },
   "requirements": [
     {
-      "category": "feature",
-      "dependencies": [],
-      "description": "Each job accepts an optional signed callback URL; best-effort POST with retry on completion/failure; minimal (no event bus).",
       "id": "IMG-P1-006",
-      "prd_ref": "OT-P1-006",
-      "status": "planned",
       "title": "Webhook Callbacks",
+      "status": "complete",
+      "prd_ref": "OT-P1-006",
+      "category": "feature",
+      "description": "Each job accepts an optional signed callback URL; best-effort POST with retry on completion/failure; minimal (no event bus).",
       "validation": [
         {
-          "notes": "Callback payload is signed and retried with backoff",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/jobs/webhook_test.go",
-          "status": "planned",
-          "type": "test"
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Callback payload is signed and retried with backoff"
         }
       ]
     }
-  ],
-  "title": "Webhook Callbacks"
+  ]
 }

@@ -8,7 +8,7 @@ import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
  * Describes the file cli/v1/host_inventory.proto.
  */
 export const file_cli_v1_host_inventory = /*@__PURE__*/
-  fileDesc("ChtjbGkvdjEvaG9zdF9pbnZlbnRvcnkucHJvdG8SDXZyb29saS5jbGkudjEiaQoVSG9zdEludmVudG9yeVJlc3BvbnNlEikKBm1lbW9yeRgBIAEoCzIZLnZyb29saS5jbGkudjEuSG9zdE1lbW9yeRIlCgRzd2FwGAIgASgLMhcudnJvb2xpLmNsaS52MS5Ib3N0U3dhcCJnCgpIb3N0TWVtb3J5EhMKC3RvdGFsX2J5dGVzGAEgASgEEhcKD2F2YWlsYWJsZV9ieXRlcxgCIAEoBBIVCg1idWZmZXJzX2J5dGVzGAMgASgEEhQKDGNhY2hlZF9ieXRlcxgEIAEoBCIfCghIb3N0U3dhcBITCgt0b3RhbF9ieXRlcxgBIAEoBEI9WjtnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2NsaS92MTtjbGl2MWIGcHJvdG8z");
+  fileDesc("ChtjbGkvdjEvaG9zdF9pbnZlbnRvcnkucHJvdG8SDXZyb29saS5jbGkudjEizgEKFUhvc3RJbnZlbnRvcnlSZXNwb25zZRIpCgZtZW1vcnkYASABKAsyGS52cm9vbGkuY2xpLnYxLkhvc3RNZW1vcnkSJQoEc3dhcBgCIAEoCzIXLnZyb29saS5jbGkudjEuSG9zdFN3YXASCgoCb3MYAyABKAkSDAoEYXJjaBgEIAEoCRIjCgNjcHUYBSABKAsyFi52cm9vbGkuY2xpLnYxLkhvc3RDUFUSJAoEZ3B1cxgGIAMoCzIWLnZyb29saS5jbGkudjEuSG9zdEdQVSJnCgpIb3N0TWVtb3J5EhMKC3RvdGFsX2J5dGVzGAEgASgEEhcKD2F2YWlsYWJsZV9ieXRlcxgCIAEoBBIVCg1idWZmZXJzX2J5dGVzGAMgASgEEhQKDGNhY2hlZF9ieXRlcxgEIAEoBCIfCghIb3N0U3dhcBITCgt0b3RhbF9ieXRlcxgBIAEoBCIYCgdIb3N0Q1BVEg0KBWNvcmVzGAEgASgFImMKB0hvc3RHUFUSDQoFaW5kZXgYASABKAUSDAoEbmFtZRgCIAEoCRISCgp2cmFtX2J5dGVzGAMgASgEEhcKD3ZyYW1fdXNlZF9ieXRlcxgEIAEoBBIOCgZzb3VyY2UYBSABKAlCPVo7Z2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9jbGkvdjE7Y2xpdjFiBnByb3RvMw");
 
 /**
  * Describes the message vrooli.cli.v1.HostInventoryResponse.
@@ -30,4 +30,18 @@ export const HostMemorySchema = /*@__PURE__*/
  */
 export const HostSwapSchema = /*@__PURE__*/
   messageDesc(file_cli_v1_host_inventory, 2);
+
+/**
+ * Describes the message vrooli.cli.v1.HostCPU.
+ * Use `create(HostCPUSchema)` to create a new message.
+ */
+export const HostCPUSchema = /*@__PURE__*/
+  messageDesc(file_cli_v1_host_inventory, 3);
+
+/**
+ * Describes the message vrooli.cli.v1.HostGPU.
+ * Use `create(HostGPUSchema)` to create a new message.
+ */
+export const HostGPUSchema = /*@__PURE__*/
+  messageDesc(file_cli_v1_host_inventory, 4);
 

@@ -28,7 +28,22 @@
       },
       "rest_exception": {
         "reason": "ops_probe",
-        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client."
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.image_tools.v1.health.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "transport": "none",
+            "conformance": "none"
+          }
+        }
       }
     },
     {

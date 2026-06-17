@@ -88,9 +88,42 @@ const (
 // REST path rather than a generated Connect procedure constant. The Note
 // field surfaces in .vrooli/endpoints.json so consumers can see the
 // human-readable justification.
+//
+// ProtoPayloads declares the request/response/error payload intent for the
+// REST edge so proto stays the documented source of truth even where the
+// transport can't be a Connect call. The endpoints.json schema (and
+// proto-health's REST-exception validator) require it on every REST
+// exception: a multipart upload still returns a proto-typed response; a plain
+// ops probe declares which proto message its JSON body conforms to.
 type RESTException struct {
-	Reason RESTReason `json:"reason"`
-	Note   string     `json:"note,omitempty"`
+	Reason        RESTReason         `json:"reason"`
+	Note          string             `json:"note,omitempty"`
+	ProtoPayloads *RESTProtoPayloads `json:"proto_payloads,omitempty"`
+}
+
+// RESTProtoPayloads declares the proto intent for each role of a REST-exception
+// endpoint. All three roles are required by the endpoints.json schema; a role
+// with no body uses transport/conformance "none".
+type RESTProtoPayloads struct {
+	Request  RESTPayload `json:"request"`
+	Response RESTPayload `json:"response"`
+	Error    RESTPayload `json:"error"`
+}
+
+// RESTPayload describes one payload role of a REST-exception endpoint.
+//
+//   - Transport: how the bytes travel — "connect", "json",
+//     "multipart/form-data", or "none" (no body for this role).
+//   - Conformance: how the body relates to the proto — "protojson" (a
+//     proto message encoded as JSON), "transport_only" (proto-typed but the
+//     transport is non-proto, e.g. multipart), "external_shape" (a
+//     third-party-dictated shape), or "none".
+//   - ProtoFullName: the fully-qualified proto message when the role is
+//     proto-typed; omitted for "none".
+type RESTPayload struct {
+	ProtoFullName string `json:"proto_full_name,omitempty"`
+	Transport     string `json:"transport"`
+	Conformance   string `json:"conformance"`
 }
 
 // Schema is the permissive shape used by .vrooli/endpoints.json's

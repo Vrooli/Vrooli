@@ -1,34 +1,31 @@
 {
-  "description": "Text-to-image (seed + N variations + size presets), image-to-image, inpaint (mask/box/text), and object removal run via >=1 standalone non-ComfyUI backend per op; ComfyUI optional plug-in.",
-  "module_id": "MOD-P0-002",
-  "prd_ref": "OT-P0-002",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-06-16T22:54:45-04:00"
+  },
   "requirements": [
     {
-      "category": "core",
-      "dependencies": [],
-      "description": "Text-to-image (seed + N variations + size presets), image-to-image, inpaint (mask/box/text), and object removal run via >=1 standalone non-ComfyUI backend per op; ComfyUI optional plug-in.",
       "id": "IMG-P0-002",
+      "title": "Core AI Generation \u0026 Editing",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
-      "status": "planned",
-      "title": "Core AI Generation & Editing",
+      "category": "core",
+      "description": "Text-to-image (seed + N variations + size presets), image-to-image, inpaint (mask/box/text), and object removal run via \u003e=1 standalone non-ComfyUI backend per op; ComfyUI optional plug-in.",
       "validation": [
         {
-          "notes": "Generation/edit op invokes selected standalone backend and persists params with output",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/ai/generation_test.go",
-          "status": "planned",
-          "type": "test"
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Generation/edit op invokes selected standalone backend and persists params with output"
         },
         {
-          "notes": "Each AI gen/edit op completes headless via the async job system",
-          "phase": "integration",
+          "type": "test",
           "ref": "cli/domains/ai/generation_test.go",
-          "status": "planned",
-          "type": "test"
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Each AI gen/edit op completes headless via the async job system"
         }
       ]
     }
-  ],
-  "title": "Core AI Generation & Editing"
+  ]
 }

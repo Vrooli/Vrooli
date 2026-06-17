@@ -1,34 +1,31 @@
 {
-  "description": "Caption/alt-text, object detection/tagging, anonymous face detection (no recognition), quality assessment, duplicate/near-dup detection (perceptual hash), embedding generation, and QR/barcode read.",
-  "module_id": "MOD-P1-003",
-  "prd_ref": "OT-P1-003",
-  "priority": "P1",
+  "_metadata": {
+    "last_validated_at": "2026-06-16T22:54:45-04:00"
+  },
   "requirements": [
     {
-      "category": "feature",
-      "dependencies": [],
-      "description": "Caption/alt-text, object detection/tagging, anonymous face detection (no recognition), quality assessment, duplicate/near-dup detection (perceptual hash), embedding generation, and QR/barcode read.",
       "id": "IMG-P1-003",
-      "prd_ref": "OT-P1-003",
-      "status": "planned",
       "title": "Analysis Breadth",
+      "status": "complete",
+      "prd_ref": "OT-P1-003",
+      "category": "feature",
+      "description": "Caption/alt-text, object detection/tagging, anonymous face detection (no recognition), quality assessment, duplicate/near-dup detection (perceptual hash), embedding generation, and QR/barcode read.",
       "validation": [
         {
-          "notes": "Each analysis-breadth op returns structured results",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/analysis/breadth_test.go",
-          "status": "planned",
-          "type": "test"
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Each analysis-breadth op returns structured results"
         },
         {
-          "notes": "Embedding generation feeds semantic image search",
-          "phase": "integration",
+          "type": "test",
           "ref": "api/internal/analysis/embedding_test.go",
-          "status": "planned",
-          "type": "test"
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Embedding generation feeds semantic image search"
         }
       ]
     }
-  ],
-  "title": "Analysis Breadth"
+  ]
 }

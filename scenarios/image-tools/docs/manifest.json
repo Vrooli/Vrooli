@@ -881,7 +881,8 @@
           "validation": {
             "requiredHeadings": [
               "System",
-              "Notes (CRUD reference)",
+              "Jobs (durable async lifecycle)",
+              "Models (registry read + enable/disable)",
               "Adding a new endpoint",
               "Cross-references"
             ],
@@ -921,7 +922,8 @@
             "requiredHeadings": [
               "Global flags (provided by cli-core)",
               "Built-in commands (auto-provided by `cli-core`)",
-              "Scenario commands \u2014 `notes` (CRUD reference)",
+              "Scenario commands \u2014 `jobs` (durable async lifecycle)",
+              "Scenario commands \u2014 `models` (registry read + enable/disable)",
               "Output contracts",
               "Adding a new command",
               "Cross-references"
@@ -1029,7 +1031,9 @@
             "model-catalog"
           ],
           "maturity": "active",
-          "requiredBy": [],
+          "requiredBy": [
+            "implemented"
+          ],
           "completion": "optional",
           "validation": {
             "requiredHeadings": [

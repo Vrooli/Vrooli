@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file cli/v1/host_inventory.proto.
  */
 export const file_cli_v1_host_inventory: GenFile = /*@__PURE__*/
-  fileDesc("ChtjbGkvdjEvaG9zdF9pbnZlbnRvcnkucHJvdG8SDXZyb29saS5jbGkudjEiaQoVSG9zdEludmVudG9yeVJlc3BvbnNlEikKBm1lbW9yeRgBIAEoCzIZLnZyb29saS5jbGkudjEuSG9zdE1lbW9yeRIlCgRzd2FwGAIgASgLMhcudnJvb2xpLmNsaS52MS5Ib3N0U3dhcCJnCgpIb3N0TWVtb3J5EhMKC3RvdGFsX2J5dGVzGAEgASgEEhcKD2F2YWlsYWJsZV9ieXRlcxgCIAEoBBIVCg1idWZmZXJzX2J5dGVzGAMgASgEEhQKDGNhY2hlZF9ieXRlcxgEIAEoBCIfCghIb3N0U3dhcBITCgt0b3RhbF9ieXRlcxgBIAEoBEI9WjtnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2NsaS92MTtjbGl2MWIGcHJvdG8z");
+  fileDesc("ChtjbGkvdjEvaG9zdF9pbnZlbnRvcnkucHJvdG8SDXZyb29saS5jbGkudjEizgEKFUhvc3RJbnZlbnRvcnlSZXNwb25zZRIpCgZtZW1vcnkYASABKAsyGS52cm9vbGkuY2xpLnYxLkhvc3RNZW1vcnkSJQoEc3dhcBgCIAEoCzIXLnZyb29saS5jbGkudjEuSG9zdFN3YXASCgoCb3MYAyABKAkSDAoEYXJjaBgEIAEoCRIjCgNjcHUYBSABKAsyFi52cm9vbGkuY2xpLnYxLkhvc3RDUFUSJAoEZ3B1cxgGIAMoCzIWLnZyb29saS5jbGkudjEuSG9zdEdQVSJnCgpIb3N0TWVtb3J5EhMKC3RvdGFsX2J5dGVzGAEgASgEEhcKD2F2YWlsYWJsZV9ieXRlcxgCIAEoBBIVCg1idWZmZXJzX2J5dGVzGAMgASgEEhQKDGNhY2hlZF9ieXRlcxgEIAEoBCIfCghIb3N0U3dhcBITCgt0b3RhbF9ieXRlcxgBIAEoBCIYCgdIb3N0Q1BVEg0KBWNvcmVzGAEgASgFImMKB0hvc3RHUFUSDQoFaW5kZXgYASABKAUSDAoEbmFtZRgCIAEoCRISCgp2cmFtX2J5dGVzGAMgASgEEhcKD3ZyYW1fdXNlZF9ieXRlcxgEIAEoBBIOCgZzb3VyY2UYBSABKAlCPVo7Z2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9jbGkvdjE7Y2xpdjFiBnByb3RvMw");
 
 /**
  * HostInventoryResponse is the typed subset of `vrooli host inventory --json`.
@@ -31,6 +31,36 @@ export type HostInventoryResponse = Message<"vrooli.cli.v1.HostInventoryResponse
    * @generated from field: vrooli.cli.v1.HostSwap swap = 2;
    */
   swap?: HostSwap | undefined;
+
+  /**
+   * Operating system identifier (GOOS, e.g. "linux", "darwin", "windows").
+   *
+   * @generated from field: string os = 3;
+   */
+  os: string;
+
+  /**
+   * CPU architecture identifier (GOARCH, e.g. "amd64", "arm64").
+   *
+   * @generated from field: string arch = 4;
+   */
+  arch: string;
+
+  /**
+   * CPU summary (logical core count).
+   *
+   * @generated from field: vrooli.cli.v1.HostCPU cpu = 5;
+   */
+  cpu?: HostCPU | undefined;
+
+  /**
+   * Detected GPUs; empty when none are present or the probe degraded. A
+   * consumer that needs VRAM-fit selection must treat an empty list (or a GPU
+   * with vram_bytes == 0) as "unknown headroom" and fall back conservatively.
+   *
+   * @generated from field: repeated vrooli.cli.v1.HostGPU gpus = 6;
+   */
+  gpus: HostGPU[];
 };
 
 /**
@@ -102,4 +132,77 @@ export type HostSwap = Message<"vrooli.cli.v1.HostSwap"> & {
  */
 export const HostSwapSchema: GenMessage<HostSwap> = /*@__PURE__*/
   messageDesc(file_cli_v1_host_inventory, 2);
+
+/**
+ * HostCPU holds the CPU summary needed for capacity-fit decisions.
+ *
+ * @generated from message vrooli.cli.v1.HostCPU
+ */
+export type HostCPU = Message<"vrooli.cli.v1.HostCPU"> & {
+  /**
+   * Logical CPU core count.
+   *
+   * @generated from field: int32 cores = 1;
+   */
+  cores: number;
+};
+
+/**
+ * Describes the message vrooli.cli.v1.HostCPU.
+ * Use `create(HostCPUSchema)` to create a new message.
+ */
+export const HostCPUSchema: GenMessage<HostCPU> = /*@__PURE__*/
+  messageDesc(file_cli_v1_host_inventory, 3);
+
+/**
+ * HostGPU is the subset of a detected GPU needed for VRAM-fit model selection.
+ * Byte counts are uint64 emitted as JSON strings (the proto3 64-bit-integer
+ * convention), matching the rest of this contract. vram_bytes == 0 means the
+ * probe could not determine VRAM ("unknown headroom") — never "0 bytes free".
+ *
+ * @generated from message vrooli.cli.v1.HostGPU
+ */
+export type HostGPU = Message<"vrooli.cli.v1.HostGPU"> & {
+  /**
+   * GPU index.
+   *
+   * @generated from field: int32 index = 1;
+   */
+  index: number;
+
+  /**
+   * GPU name (e.g. "NVIDIA GeForce RTX 4070 Ti SUPER").
+   *
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * Total VRAM, in bytes. 0 means unknown (degraded probe).
+   *
+   * @generated from field: uint64 vram_bytes = 3;
+   */
+  vramBytes: bigint;
+
+  /**
+   * Currently used VRAM, in bytes. 0 means unknown.
+   *
+   * @generated from field: uint64 vram_used_bytes = 4;
+   */
+  vramUsedBytes: bigint;
+
+  /**
+   * Data source for this GPU's facts (e.g. "nvidia-smi").
+   *
+   * @generated from field: string source = 5;
+   */
+  source: string;
+};
+
+/**
+ * Describes the message vrooli.cli.v1.HostGPU.
+ * Use `create(HostGPUSchema)` to create a new message.
+ */
+export const HostGPUSchema: GenMessage<HostGPU> = /*@__PURE__*/
+  messageDesc(file_cli_v1_host_inventory, 4);
 

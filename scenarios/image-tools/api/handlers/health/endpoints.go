@@ -37,6 +37,17 @@ var Endpoints = []module.EndpointDescriptor{
 		RESTException: &module.RESTException{
 			Reason: module.RESTReasonOpsProbe,
 			Note:   "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+			ProtoPayloads: &module.RESTProtoPayloads{
+				// GET probe: no request body, never errors (always 200 with a
+				// status field); the JSON body is the health.Response proto.
+				Request: module.RESTPayload{Transport: "none", Conformance: "none"},
+				Response: module.RESTPayload{
+					ProtoFullName: "vrooli.image_tools.v1.health.Response",
+					Transport:     "json",
+					Conformance:   "protojson",
+				},
+				Error: module.RESTPayload{Transport: "none", Conformance: "none"},
+			},
 		},
 	},
 }

@@ -1,41 +1,38 @@
 {
-  "description": "All deterministic editing ops (resize, crop, rotate/flip/straighten/deskew, format convert, compress/optimize incl. target file size, adjustments, filters/effects, canvas, composite/overlay, thumbnail, metadata) run zero-download and instant from the CLI with no UI and no ComfyUI.",
-  "module_id": "MOD-P0-001",
-  "prd_ref": "OT-P0-001",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-06-16T22:54:45-04:00"
+  },
   "requirements": [
     {
-      "category": "core",
-      "dependencies": [],
-      "description": "All deterministic editing ops (resize, crop, rotate/flip/straighten/deskew, format convert, compress/optimize incl. target file size, adjustments, filters/effects, canvas, composite/overlay, thumbnail, metadata) run zero-download and instant from the CLI with no UI and no ComfyUI.",
       "id": "IMG-P0-001",
-      "prd_ref": "OT-P0-001",
-      "status": "planned",
       "title": "Deterministic Editor Ops",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "category": "core",
+      "description": "All deterministic editing ops (resize, crop, rotate/flip/straighten/deskew, format convert, compress/optimize incl. target file size, adjustments, filters/effects, canvas, composite/overlay, thumbnail, metadata) run zero-download and instant from the CLI with no UI and no ComfyUI.",
       "validation": [
         {
-          "notes": "Each op transforms pixels/metadata correctly with deterministic output",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/ops/*_test.go",
-          "status": "planned",
-          "type": "test"
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Each op transforms pixels/metadata correctly with deterministic output"
         },
         {
-          "notes": "Headless CLI runs every deterministic op end-to-end with no UI/ComfyUI present",
-          "phase": "integration",
+          "type": "test",
           "ref": "cli/domains/ops/ops_test.go",
-          "status": "planned",
-          "type": "test"
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Headless CLI runs every deterministic op end-to-end with no UI/ComfyUI present"
         },
         {
-          "notes": "Fresh machine acceptance: all deterministic ops succeed from CLI offline",
-          "phase": "business",
+          "type": "manual",
           "ref": "docs/internal/TESTING.md#headless-completeness",
-          "status": "planned",
-          "type": "manual"
+          "phase": "business",
+          "status": "implemented",
+          "notes": "Fresh machine acceptance: all deterministic ops succeed from CLI offline"
         }
       ]
     }
-  ],
-  "title": "Deterministic Editor Ops"
+  ]
 }

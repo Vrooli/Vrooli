@@ -1,0 +1,212 @@
+syntax = "proto3";
+
+package vrooli.image_tools.v1.ops;
+
+import "image-tools/v1/jobs/jobs.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ops;ops_v1";
+
+// =============================================================================
+// OPS DOMAIN — deterministic image operations (zero-download, headless)
+// =============================================================================
+//
+// @stability beta
+//
+// Wire contract for the deterministic image-editing operations: resize, crop,
+// rotate, flip, deskew, thumbnail, canvas, adjust, filter, convert, compress,
+// overlay, and metadata. These run on any host with no model download, no GPU,
+// and no ComfyUI (the IMG-P0-001 headless-completeness tenet) — pure Go pixel
+// transforms over the codec layer in api/internal/ops.
+//
+// Transport split (see docs/concepts/ARCHITECTURE.md):
+//   - DISCOVERY is Connect-RPC: OpsService.ListOperations returns the op
+//     catalog + supported formats so the CLI/UI can build their surfaces.
+//   - EXECUTION is a REST multipart edge (RESTReasonMultipartUpload):
+//     POST /api/v1/ops/{operation} accepts the image bytes (a `file` part) +
+//     the typed parameters (a `params` part carrying OpParams as protojson) +
+//     an optional `overlay` image part. Image bytes cannot ride a proto field,
+//     but the PARAMETERS stay proto-typed (OpParams) and the RESULT metadata is
+//     proto-typed (RunOpResponse) — only the transport is REST.
+//
+// Every execution is routed through the server-owned durable job Manager (the
+// same one JobsService observes), so even instant deterministic ops show up in
+// `jobs list` and the UI job monitor with a uniform lifecycle.
+//
+// Consumed by:
+//   - API: handlers/ops/connect_handler.go (ListOperations) +
+//          handlers/ops/rest.go (the multipart run edge + blob serve).
+//   - CLI: cli/domains/ops invokes the REST run edge and writes results locally.
+//   - UI:  ui/src/api/ops.ts wraps the discovery client + the run edge.
+// =============================================================================
+
+service OpsService {
+  // ListOperations returns the deterministic operation catalog (stable order)
+  // plus the formats the codec layer can decode and encode.
+  rpc ListOperations(ListOperationsRequest) returns (ListOperationsResponse);
+}
+
+// OperationInfo describes one deterministic operation for discovery.
+message OperationInfo {
+  // Canonical operation name (e.g. "resize"); the {operation} path segment.
+  string name = 1;
+  // Grouping for UIs: geometry, color, format, compose, metadata.
+  string category = 2;
+  // One-line human summary.
+  string summary = 3;
+}
+
+message ListOperationsRequest {}
+
+message ListOperationsResponse {
+  repeated OperationInfo operations = 1;
+  // Formats Decode accepts (incl. svg input, heic decode-only).
+  repeated string decodable_formats = 2;
+  // Formats Encode can write (heic/svg are intentionally absent).
+  repeated string encodable_formats = 3;
+}
+
+// =============================================================================
+// Execution payloads (REST multipart edge)
+// =============================================================================
+
+// OpParams is the typed parameter envelope sent as the `params` multipart part
+// (protojson). Exactly one case is set, matching the {operation} in the path.
+message OpParams {
+  oneof op {
+    ResizeParams resize = 1;
+    CropParams crop = 2;
+    RotateParams rotate = 3;
+    FlipParams flip = 4;
+    DeskewParams deskew = 5;
+    ThumbnailParams thumbnail = 6;
+    CanvasParams canvas = 7;
+    AdjustParams adjust = 8;
+    FilterParams filter = 9;
+    ConvertParams convert = 10;
+    CompressParams compress = 11;
+    OverlayParams overlay = 12;
+    MetadataParams metadata = 13;
+  }
+}
+
+// ResizeParams: width/height in px (0 = derive from aspect). fit is
+// "fit" (contain), "fill" (cover+crop), or "stretch" (exact). gravity anchors a
+// fill crop.
+message ResizeParams {
+  int32 width = 1;
+  int32 height = 2;
+  string fit = 3;
+  string gravity = 4;
+}
+
+// CropParams cuts the x,y,width,height rectangle; with gravity set and x=y=0 it
+// crops an anchored width×height region.
+message CropParams {
+  int32 x = 1;
+  int32 y = 2;
+  int32 width = 3;
+  int32 height = 4;
+  string gravity = 5;
+}
+
+// RotateParams rotates by angle degrees counter-clockwise. background fills
+// exposed corners for non-90° angles (hex, e.g. "#ffffff").
+message RotateParams {
+  double angle = 1;
+  bool expand = 2;
+  string background = 3;
+}
+
+// FlipParams mirrors along axis "horizontal" or "vertical".
+message FlipParams {
+  string axis = 1;
+}
+
+// DeskewParams auto-straightens a skewed scan; background fills exposed corners.
+message DeskewParams {
+  string background = 1;
+}
+
+// ThumbnailParams produces a width×height fill-cropped thumbnail.
+message ThumbnailParams {
+  int32 width = 1;
+  int32 height = 2;
+}
+
+// CanvasParams pads/extends onto a width×height background, anchored by gravity.
+message CanvasParams {
+  int32 width = 1;
+  int32 height = 2;
+  string background = 3;
+  string gravity = 4;
+}
+
+// AdjustParams applies tonal/color deltas (percent; 0 = no change). gamma 0 or
+// 1 = identity; hue is degrees -180..180.
+message AdjustParams {
+  double brightness = 1;
+  double contrast = 2;
+  double gamma = 3;
+  double saturation = 4;
+  double hue = 5;
+}
+
+// FilterParams applies one effect: grayscale|sepia|invert|blur|sharpen. amount
+// is the gaussian sigma for blur/sharpen.
+message FilterParams {
+  string filter = 1;
+  double amount = 2;
+}
+
+// ConvertParams re-encodes to format (png|jpeg|gif|webp|tiff|bmp|avif) at the
+// given quality (lossy formats) or lossless (webp).
+message ConvertParams {
+  string format = 1;
+  int32 quality = 2;
+  bool lossless = 3;
+}
+
+// CompressParams re-encodes at quality, or — when target_bytes > 0 — searches
+// quality for the best result under that byte budget (lossy formats).
+message CompressParams {
+  string format = 1;
+  int32 quality = 2;
+  bool lossless = 3;
+  int64 target_bytes = 4;
+}
+
+// OverlayParams composites a text watermark (text + color + font_size) or an
+// image watermark (sent as the `overlay` multipart part). position anchors it;
+// opacity (0..1) blends an image overlay.
+message OverlayParams {
+  string text = 1;
+  string position = 2;
+  double opacity = 3;
+  string color = 4;
+  double font_size = 5;
+}
+
+// MetadataParams reads (default), strips, or auto-orients image metadata.
+message MetadataParams {
+  bool strip_all = 1;
+  bool strip_gps = 2;
+  bool auto_orient = 3;
+}
+
+// OpResult is the proto-typed result metadata of a run. ref is the managed blob
+// key (or the caller-supplied local path) holding the output bytes.
+message OpResult {
+  string ref = 1;
+  string format = 2;
+  string mime = 3;
+  int32 width = 4;
+  int32 height = 5;
+  int64 size_bytes = 6;
+}
+
+// RunOpResponse is the JSON (protojson) body returned by the REST run edge: the
+// terminal durable Job plus the typed result metadata.
+message RunOpResponse {
+  vrooli.image_tools.v1.jobs.Job job = 1;
+  OpResult result = 2;
+}

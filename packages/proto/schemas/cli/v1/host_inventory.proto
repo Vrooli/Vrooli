@@ -12,8 +12,9 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1
 //
 // Typed view of `vrooli host inventory --json`. The full command emits a rich
 // host snapshot (cpu, load, gpus, os, probe statuses, …); this contract models
-// the fields consumers decode today (memory + swap), and `protojson` with
-// DiscardUnknown ignores the rest. Extend as consumers need more sections.
+// the fields consumers decode today (os/arch, cpu, memory, swap, and GPUs),
+// and `protojson` with DiscardUnknown ignores the rest. Extend as consumers
+// need more sections.
 //
 // IMPORTANT: byte counts are uint64. The CLI emits them as JSON *strings*
 // (e.g. "65435598848") — the proto3 JSON convention for 64-bit integers, which
@@ -34,6 +35,20 @@ message HostInventoryResponse {
 
   // Swap totals.
   HostSwap swap = 2;
+
+  // Operating system identifier (GOOS, e.g. "linux", "darwin", "windows").
+  string os = 3;
+
+  // CPU architecture identifier (GOARCH, e.g. "amd64", "arm64").
+  string arch = 4;
+
+  // CPU summary (logical core count).
+  HostCPU cpu = 5;
+
+  // Detected GPUs; empty when none are present or the probe degraded. A
+  // consumer that needs VRAM-fit selection must treat an empty list (or a GPU
+  // with vram_bytes == 0) as "unknown headroom" and fall back conservatively.
+  repeated HostGPU gpus = 6;
 }
 
 // HostMemory holds system memory counters, in bytes.
@@ -55,4 +70,31 @@ message HostMemory {
 message HostSwap {
   // Total swap space, in bytes.
   uint64 total_bytes = 1;
+}
+
+// HostCPU holds the CPU summary needed for capacity-fit decisions.
+message HostCPU {
+  // Logical CPU core count.
+  int32 cores = 1;
+}
+
+// HostGPU is the subset of a detected GPU needed for VRAM-fit model selection.
+// Byte counts are uint64 emitted as JSON strings (the proto3 64-bit-integer
+// convention), matching the rest of this contract. vram_bytes == 0 means the
+// probe could not determine VRAM ("unknown headroom") — never "0 bytes free".
+message HostGPU {
+  // GPU index.
+  int32 index = 1;
+
+  // GPU name (e.g. "NVIDIA GeForce RTX 4070 Ti SUPER").
+  string name = 2;
+
+  // Total VRAM, in bytes. 0 means unknown (degraded probe).
+  uint64 vram_bytes = 3;
+
+  // Currently used VRAM, in bytes. 0 means unknown.
+  uint64 vram_used_bytes = 4;
+
+  // Data source for this GPU's facts (e.g. "nvidia-smi").
+  string source = 5;
 }

@@ -1,34 +1,31 @@
 {
-  "description": "Local-GPU -> Local-CPU -> BYOK-cloud fallback is automatic with explicit user-visible messaging at each transition, including hardware-fit and pre-op BYOK cost estimate.",
-  "module_id": "MOD-P0-011",
-  "prd_ref": "OT-P0-011",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-06-16T22:54:45-04:00"
+  },
   "requirements": [
     {
-      "category": "core",
-      "dependencies": [],
-      "description": "Local-GPU -> Local-CPU -> BYOK-cloud fallback is automatic with explicit user-visible messaging at each transition, including hardware-fit and pre-op BYOK cost estimate.",
       "id": "IMG-P0-011",
-      "prd_ref": "OT-P0-011",
-      "status": "planned",
       "title": "Graceful Fallback with Clear Messaging",
+      "status": "complete",
+      "prd_ref": "OT-P0-011",
+      "category": "core",
+      "description": "Local-GPU -\u003e Local-CPU -\u003e BYOK-cloud fallback is automatic with explicit user-visible messaging at each transition, including hardware-fit and pre-op BYOK cost estimate.",
       "validation": [
         {
-          "notes": "Fallback chain advances tiers and records the reason",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/backends/fallback_test.go",
-          "status": "planned",
-          "type": "test"
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Fallback chain advances tiers and records the reason"
         },
         {
-          "notes": "BYOK cost estimate shown before a cloud op executes",
-          "phase": "integration",
+          "type": "test",
           "ref": "api/internal/byok/estimate_test.go",
-          "status": "planned",
-          "type": "test"
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "BYOK cost estimate shown before a cloud op executes"
         }
       ]
     }
-  ],
-  "title": "Graceful Fallback with Clear Messaging"
+  ]
 }

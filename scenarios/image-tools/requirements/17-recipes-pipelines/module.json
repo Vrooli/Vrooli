@@ -1,34 +1,31 @@
 {
-  "description": "Save/name/replay multi-step op graphs where the UI op-stack and CLI pipeline are one representation; ComfyUI-style chaining without ComfyUI required.",
-  "module_id": "MOD-P1-004",
-  "prd_ref": "OT-P1-004",
-  "priority": "P1",
+  "_metadata": {
+    "last_validated_at": "2026-06-16T22:54:45-04:00"
+  },
   "requirements": [
     {
-      "category": "feature",
-      "dependencies": [],
-      "description": "Save/name/replay multi-step op graphs where the UI op-stack and CLI pipeline are one representation; ComfyUI-style chaining without ComfyUI required.",
       "id": "IMG-P1-004",
+      "title": "Recipes \u0026 Pipelines",
+      "status": "complete",
       "prd_ref": "OT-P1-004",
-      "status": "planned",
-      "title": "Recipes & Pipelines",
+      "category": "feature",
+      "description": "Save/name/replay multi-step op graphs where the UI op-stack and CLI pipeline are one representation; ComfyUI-style chaining without ComfyUI required.",
       "validation": [
         {
-          "notes": "Recipe serializes, validates, and replays deterministically",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/recipes/recipes_test.go",
-          "status": "planned",
-          "type": "test"
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Recipe serializes, validates, and replays deterministically"
         },
         {
-          "notes": "Same recipe runs headless via CLI and in the UI op-stack",
-          "phase": "integration",
+          "type": "test",
           "ref": "cli/domains/recipes/recipes_test.go",
-          "status": "planned",
-          "type": "test"
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Same recipe runs headless via CLI and in the UI op-stack"
         }
       ]
     }
-  ],
-  "title": "Recipes & Pipelines"
+  ]
 }

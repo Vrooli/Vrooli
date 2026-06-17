@@ -1,34 +1,31 @@
 {
-  "description": "Host capability read via system-monitor capability/capacity probe (built on internal/hostinventory); cheap ops zero-download; each AI op ships a CPU-capable default; selector surfaces 'needs >=X GB VRAM' and time-warning messaging.",
-  "module_id": "MOD-P0-008",
-  "prd_ref": "OT-P0-008",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-06-16T22:54:45-04:00"
+  },
   "requirements": [
     {
-      "category": "core",
-      "dependencies": [],
-      "description": "Host capability read via system-monitor capability/capacity probe (built on internal/hostinventory); cheap ops zero-download; each AI op ships a CPU-capable default; selector surfaces 'needs >=X GB VRAM' and time-warning messaging.",
       "id": "IMG-P0-008",
-      "prd_ref": "OT-P0-008",
-      "status": "planned",
       "title": "Hardware-Aware Selection",
+      "status": "complete",
+      "prd_ref": "OT-P0-008",
+      "category": "core",
+      "description": "Host capability read via system-monitor capability/capacity probe (built on internal/hostinventory); cheap ops zero-download; each AI op ships a CPU-capable default; selector surfaces 'needs \u003e=X GB VRAM' and time-warning messaging.",
       "validation": [
         {
-          "notes": "Selector maps probed capability to a fitting model tier",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/models/hardwarefit_test.go",
-          "status": "planned",
-          "type": "test"
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Selector maps probed capability to a fitting model tier"
         },
         {
-          "notes": "Selection degrades to CPU default and emits warning when GPU absent",
-          "phase": "integration",
+          "type": "test",
           "ref": "api/internal/models/degrade_test.go",
-          "status": "planned",
-          "type": "test"
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Selection degrades to CPU default and emits warning when GPU absent"
         }
       ]
     }
-  ],
-  "title": "Hardware-Aware Selection"
+  ]
 }
