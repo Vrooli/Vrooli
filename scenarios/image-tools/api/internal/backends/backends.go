@@ -54,6 +54,10 @@ type Request struct {
 	// Model is the selected registry model (zero value for provider-intrinsic
 	// ops like deterministic edits that need no model).
 	Model models.Model
+	// ModelDir is the absolute on-disk directory holding the model's installed
+	// weights (resolved by the engine from the models root). Empty for ops whose
+	// provider needs no weights.
+	ModelDir string
 	// GPU asks the provider to run on the GPU when true.
 	GPU bool
 	// InputKeys are blob-store keys (or local paths) of the operation inputs.

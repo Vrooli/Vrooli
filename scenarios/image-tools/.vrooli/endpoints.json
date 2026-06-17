@@ -47,6 +47,203 @@
       }
     },
     {
+      "id": "ai_list_operations",
+      "path": "/vrooli.image_tools.v1.ai.AIService/ListAIOperations",
+      "method": "POST",
+      "summary": "List AI generation & enhancement operations",
+      "description": "Returns the model-backed operation catalog (which ops need an input image, which need a mask, which are prompt-driven) plus each op's seeded default model.",
+      "category": "ai",
+      "response": {
+        "type": "object",
+        "properties": {
+          "operations": "array<AIOperationInfo>"
+        }
+      },
+      "examples": [
+        {
+          "name": "List AI operations",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.ai.AIService/ListAIOperations -H 'Content-Type: application/json' -d '{}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "image-tools ai list"
+      }
+    },
+    {
+      "id": "ai_submit",
+      "path": "/api/v1/ai/{operation}",
+      "method": "POST",
+      "summary": "Submit a model-backed AI operation",
+      "description": "Submits one AI generation/enhancement op on optionally-uploaded image(s). The `file` part carries the input image (when required), `mask` carries a mask (inpaint/object_removal), and `params` carries AIParams as protojson. The op runs asynchronously on the durable job queue: the response (SubmitAIResponse) carries the job id + ETA + the resolved model/tier + any fallback warnings. Wait via the jobs verbs and fetch the output blob by the job's result ref.",
+      "category": "ai",
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_request",
+          "description": "Malformed multipart form, missing required image/mask part, or invalid params"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown AI operation"
+        },
+        {
+          "status": 409,
+          "code": "invalid_request",
+          "description": "Selected model is not installed (run `image-tools models install <id>`)"
+        },
+        {
+          "status": 413,
+          "code": "invalid_request",
+          "description": "Image exceeds the ingest byte limit"
+        },
+        {
+          "status": 422,
+          "code": "invalid_request",
+          "description": "No enabled model fits this host, or the model override is invalid"
+        },
+        {
+          "status": 503,
+          "code": "internal",
+          "description": "No standalone backend is available and BYOK is not enabled"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Generate from a prompt",
+          "curl": "curl -X POST 'http://localhost:${API_PORT}/api/v1/ai/text_to_image' -F 'params={\"prompt\":\"a red bicycle\",\"width\":512,\"height\":512}'"
+        },
+        {
+          "name": "Upscale an image",
+          "curl": "curl -X POST 'http://localhost:${API_PORT}/api/v1/ai/upscale' -F file=@in.png -F 'params={\"scale\":4}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "image-tools ai generate",
+        "args": [
+          "--prompt",
+          "<prompt>",
+          "--out",
+          "<output>"
+        ]
+      },
+      "rest_exception": {
+        "reason": "multipart_upload",
+        "note": "Image/mask bytes cannot ride a proto field; the request is multipart (file + mask + protojson params). Parameters stay proto-typed (AIParams) and the submit result is proto-typed (SubmitAIResponse).",
+        "proto_payloads": {
+          "request": {
+            "proto_full_name": "vrooli.image_tools.v1.ai.AIParams",
+            "transport": "multipart/form-data",
+            "conformance": "transport_only"
+          },
+          "response": {
+            "proto_full_name": "vrooli.image_tools.v1.ai.SubmitAIResponse",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.image_tools.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "analysis_list_operations",
+      "path": "/vrooli.image_tools.v1.analysis.AnalysisService/ListAnalysisOperations",
+      "method": "POST",
+      "summary": "List image→data analysis operations",
+      "description": "Returns the analysis operation catalog (ocr, nsfw_classify, probe) with each op's model-backing and default model.",
+      "category": "analysis",
+      "response": {
+        "type": "object",
+        "properties": {
+          "operations": "array<AnalysisOperationInfo>"
+        }
+      },
+      "examples": [
+        {
+          "name": "List analysis operations",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.analysis.AnalysisService/ListAnalysisOperations -H 'Content-Type: application/json' -d '{}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "image-tools analyze list"
+      }
+    },
+    {
+      "id": "analysis_run",
+      "path": "/api/v1/analysis/{operation}",
+      "method": "POST",
+      "summary": "Run an analysis operation on an uploaded image",
+      "description": "Executes one analysis op (ocr / nsfw_classify / probe) on a multipart-uploaded image. The `file` part carries the image bytes; the structured result is returned as AnalyzeResponse (protojson). `probe` is pure-Go and always available; `ocr`/`nsfw_classify` require their backend + model installed.",
+      "category": "analysis",
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_request",
+          "description": "Malformed multipart form or missing image part"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown analysis operation"
+        },
+        {
+          "status": 413,
+          "code": "invalid_request",
+          "description": "Image exceeds the ingest byte limit"
+        },
+        {
+          "status": 422,
+          "code": "invalid_request",
+          "description": "Undecodable image"
+        },
+        {
+          "status": 503,
+          "code": "internal",
+          "description": "Model-backed op's backend/model is not installed"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Probe an image",
+          "curl": "curl -X POST 'http://localhost:${API_PORT}/api/v1/analysis/probe' -F file=@in.png"
+        },
+        {
+          "name": "OCR an image",
+          "curl": "curl -X POST 'http://localhost:${API_PORT}/api/v1/analysis/ocr' -F file=@scan.png"
+        }
+      ],
+      "cli_mapping": {
+        "command": "image-tools analyze probe",
+        "args": [
+          "<input>"
+        ]
+      },
+      "rest_exception": {
+        "reason": "multipart_upload",
+        "note": "Image bytes cannot ride a proto field; the request is multipart. The result metadata is proto-typed (AnalyzeResponse).",
+        "proto_payloads": {
+          "request": {
+            "transport": "multipart/form-data",
+            "conformance": "transport_only"
+          },
+          "response": {
+            "proto_full_name": "vrooli.image_tools.v1.analysis.AnalyzeResponse",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.image_tools.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
       "id": "jobs_get",
       "path": "/vrooli.image_tools.v1.jobs.JobsService/GetJob",
       "method": "POST",
@@ -557,7 +754,7 @@
             "conformance": "protojson"
           },
           "error": {
-            "proto_full_name": "vrooli.image_tools.v1.errors.ErrorEnvelope",
+            "proto_full_name": "vrooli.image_tools.v1.shared.ErrorEnvelope",
             "transport": "json",
             "conformance": "protojson"
           }
@@ -593,11 +790,11 @@
             "conformance": "none"
           },
           "response": {
-            "transport": "binary",
+            "transport": "none",
             "conformance": "none"
           },
           "error": {
-            "proto_full_name": "vrooli.image_tools.v1.errors.ErrorEnvelope",
+            "proto_full_name": "vrooli.image_tools.v1.shared.ErrorEnvelope",
             "transport": "json",
             "conformance": "protojson"
           }
@@ -606,6 +803,66 @@
     }
   ],
   "cli_commands": [
+    {
+      "name": "ai bg-removal",
+      "description": "Remove the background to transparency",
+      "endpoint_id": ""
+    },
+    {
+      "name": "ai denoise",
+      "description": "Reduce noise / deblur an image",
+      "endpoint_id": ""
+    },
+    {
+      "name": "ai generate",
+      "description": "Generate an image from a text prompt",
+      "endpoint_id": "ai_submit"
+    },
+    {
+      "name": "ai img2img",
+      "description": "Transform an input image guided by a prompt",
+      "endpoint_id": ""
+    },
+    {
+      "name": "ai inpaint",
+      "description": "Regenerate a masked region from a prompt",
+      "endpoint_id": ""
+    },
+    {
+      "name": "ai list",
+      "description": "List AI generation & enhancement operations",
+      "endpoint_id": "ai_list_operations"
+    },
+    {
+      "name": "ai object-removal",
+      "description": "Remove a masked object and fill the gap",
+      "endpoint_id": ""
+    },
+    {
+      "name": "ai upscale",
+      "description": "Super-resolve / enlarge an image",
+      "endpoint_id": ""
+    },
+    {
+      "name": "analyze list",
+      "description": "List image→data analysis operations",
+      "endpoint_id": "analysis_list_operations"
+    },
+    {
+      "name": "analyze nsfw",
+      "description": "Classify an image for NSFW / unsafe content",
+      "endpoint_id": ""
+    },
+    {
+      "name": "analyze ocr",
+      "description": "Extract text from an image (OCR)",
+      "endpoint_id": ""
+    },
+    {
+      "name": "analyze probe",
+      "description": "Report structured image info (pure-Go, always available)",
+      "endpoint_id": "analysis_run"
+    },
     {
       "name": "configure",
       "description": "View or update CLI settings (api_base, token)",

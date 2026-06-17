@@ -280,6 +280,36 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `manager_test.go` records succeeded/failed jobs and asserts they surface via `Get`/`List`; the handler tests use `fakeRecorder`. |
 | **Why it exists** | Deterministic ops are instant — forcing them through the queue adds latency with no disconnect-survival benefit — yet they must be observable uniformly. Record bridges the two without a second job-history mechanism. |
 
+### ai.Engine (model-backed op execution)
+
+| | |
+|---|---|
+| **Seam** | The async AI-op engine: probe host → hardware-fit model select → backend select → materialize inputs → execute → persist, with an optional NSFW auto-scan. |
+| **Interface** | `internal/ai/engine.go::Engine` with `Plan(ctx, PlanRequest) (Plan, error)` (pre-submit selection the handler uses to refuse early + surface model/tier/ETA) and `BuildRunners() map[op]OpRunner` (registered on the jobs dispatcher). `Deps` carries the registry, backend registry, `capabilities.Probe`, `BlobStore`, `Enabled` overlay loader, `ModelInstalled` gate, `ModelsRoot`, and `NSFWScanner`. |
+| **Production wiring** | `main.go` builds the engine and registers its runners on the dispatcher; `handlers/ai/module.go` passes the engine to the submit edge. |
+| **Test fake** | `internal/ai/engine_test.go::fakeProvider` (writes a fixed output, records the request) + memory blob store + `capabilities.FakeProbe` drive the full vertical; `generation_test.go`/`enhancement_test.go` assert select→execute→persist, variations, and the auto-scan hook. |
+| **Why it exists** | Heavy AI work can't run in CI (backend binaries/models absent). Injecting the probe, providers, store, and scanner lets the entire orchestration be proven with fakes, while the real path activates when a model is installed. |
+
+### ai.execProvider arg-builders (backend invocation)
+
+| | |
+|---|---|
+| **Seam** | Each standalone backend's argv assembly, isolated from execution. |
+| **Interface** | `internal/ai/providers.go::argBuilder` (pure `func(req, modelDir) ([]string, error)`) per backend + `RegisterProviders(reg, lookPath, run)` with injectable `lookPath`/`run`. |
+| **Production wiring** | `main.go` calls `RegisterProviders(backendReg, nil, nil)` (real `exec.LookPath`/`exec.CommandContext`). |
+| **Test fake** | `providers_test.go` asserts argv assembly per backend and the boot invariant (every op has a standalone provider); availability is gated by an injected `lookPath`. |
+| **Why it exists** | The exact CLI of `sd`/`realesrgan`/`rembg`/`iopaint` can't be run in CI, but arg assembly is the bug-prone part — making it pure keeps it testable while execution stays gated on the program being present. |
+
+### analysis.Service + Probe (image→data)
+
+| | |
+|---|---|
+| **Seam** | The synchronous analysis ops: pure-Go `Probe` (no deps) + model-backed `OCR`/`NSFW` (gated on program + model), plus `ScanNSFW` adapting NSFW to the ai auto-scan hook. |
+| **Interface** | `internal/analysis/probe.go::Probe(src) (ProbeResult, error)` and `internal/analysis/service.go::Service` (`OCR`/`NSFW`/`ScanNSFW`) with injectable `LookPath`/`Run` + `ModelInstalled` + operator-tunable `NSFWThreshold`. |
+| **Production wiring** | `main.go` builds the Service; `handlers/analysis/module.go` passes it to the analyze edge; the Service's `ScanNSFW` is wired as the ai engine's `AutoScan`. |
+| **Test fake** | `analysis_test.go` drives OCR/NSFW with fake `Run` returning canned output, and `Probe` against a real generated PNG; `autoscan_test.go` proves the hook flags/clears and degrades when unavailable. |
+| **Why it exists** | Decouples the always-headless probe from the model-backed ops, lets the AI package use NSFW without importing analysis, and keeps the safety classifier optional (degrades, never fails generation). |
+
 ### module.Module (domain composition)
 
 | | |

@@ -1,6 +1,8 @@
 package domains
 
 import (
+	"image-tools/cli/domains/ai"
+	"image-tools/cli/domains/analyze"
 	"image-tools/cli/domains/jobs"
 	"image-tools/cli/domains/models"
 	"image-tools/cli/domains/ops"
@@ -50,5 +52,13 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
-	return []cliapp.SubcommandGroup{jobsGroup, modelsGroup, opsGroup}, nil
+	aiGroup, err := ai.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	analyzeGroup, err := analyze.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.SubcommandGroup{jobsGroup, modelsGroup, opsGroup, aiGroup, analyzeGroup}, nil
 }

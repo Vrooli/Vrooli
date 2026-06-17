@@ -13,8 +13,8 @@ Tests, handlers, UI clients, and CLI handlers all consume generated
 types — no hand-written struct mirror exists to drift.
 
 Connect-RPC errors use Connect's canonical error envelope and code set.
-REST exceptions, such as multipart uploads, use the template error
-envelope (`packages/proto/schemas/image-tools/v1/errors/errors.proto`):
+REST exceptions, such as multipart uploads, use the shared error
+envelope (`packages/proto/schemas/image-tools/v1/shared/errors.proto`):
 
 ```json
 { "code": "<canonical_code>", "message": "<human readable>", "details": [...] }

@@ -189,6 +189,93 @@ runtime measures (Phase 3/4).
 
 **Refs:** `api/main.go` (measures-substrate comment); plan §6/§8.
 
+### 2026-06-17 — AI backend live-execution unverified on CI hosts (attended acceptance gate)
+
+**Symptom:** `image-tools ai generate|img2img|inpaint|object-removal|upscale|bg-removal|denoise`
+and `analyze ocr|nsfw` return HTTP 409/503 with an actionable install hint on a
+host without the backend binaries/models. Only `analyze probe` runs end-to-end
+out of the box.
+
+**Root cause:** The standalone backends (`sd` / stable-diffusion.cpp, `iopaint`,
+`realesrgan-ncnn-vulkan`, `rembg`, the onnxruntime + diffusers python sidecars,
+`tesseract`) and the CPU-default model weights are not installed in CI or on this
+dev host, and model download-on-first-use is owned by the Phase-4 model
+management layer (IMG-P0-007). The selection → plan → refuse path is correct and
+live-proven (HTTP 409 `run image-tools models install sd-1.5`).
+
+**Workaround:** The full vertical (select → execute → persist → auto-scan) is
+covered by unit/integration tests with fake providers; backend arg-builders are
+unit-tested for assembly. `probe` is the live headless proof.
+
+**Real fix:** The IMG-P0-002/003/004 **headless-completeness acceptance** is an
+**attended** run on a host where the CPU default models are installed (Phase 4
+`models install`). Capture it as a checklist item; flip this entry to resolved
+once an attended run exercises each AI op from the CLI with no GPU/ComfyUI.
+
+**Owner:** unassigned (Phase 4 wires model download; then run the attended gate).
+
+**Refs:** `api/internal/ai/`, `api/internal/analysis/`, `docs/internal/TESTING.md`
+(headless-completeness acceptance), `api/internal/models/registry.seed.json`.
+
+### 2026-06-17 — govulncheck advisories in golang.org/x/image (pre-existing dependency)
+
+**Symptom:** `phase-security` reports 4 ERROR-severity govulncheck findings —
+GO-2026-4815 (tiff IFD-offset OOM), GO-2026-4962 (sfnt excessive allocation),
+GO-2026-5031 (bmp out-of-bounds palette panic), GO-2026-5032 (tiff PackBits
+resource consumption) — all in `golang.org/x/image`.
+
+**Root cause:** PRE-EXISTING. `golang.org/x/image v0.25.0` is the version at HEAD
+(added by Phase 2's codec layer), and these decoders are reachable from
+`internal/ops/codec.go::Decode` (committed in Phase 2). The advisories are
+2026-dated and were published into the vuln DB after Phase 2's green security
+run, so they surface now regardless of Phase 3. Phase 3's `analysis.Probe` reuses
+the same `Decode`, but does not introduce the reachability.
+
+**Workaround:** None at the code level — the ingest guard
+(`internal/storage/guard.go`) already bounds decode dimensions/bytes, mitigating
+the OOM/resource-consumption class at the boundary.
+
+**Real fix:** Bump `golang.org/x/image` to a patched release (cached versions up
+to v0.42.0 are available) across `scenarios/image-tools/api` (+ `cli` if it
+imports it) and update `.vrooli/dependencies/approved-dependencies.json`. This is
+a dependency change (Critical Rule #5 — requires explicit permission) and is
+fleet-wide (any scenario decoding images via x/image is affected), so it should
+land as a coordinated bump, not a silent per-scenario edit.
+
+**Owner:** unassigned (needs maintainer approval for the dep bump).
+
+**Refs:** `scenarios/image-tools/api/go.mod` (x/image v0.25.0),
+`internal/ops/codec.go`, `internal/storage/guard.go`.
+
+### 2026-06-17 — playbooks red: `@scenario/self` port resolution regression (fleet infra)
+
+**Symptom:** `phase-playbooks` fails before any step runs (0 steps, 0 asserts):
+`failed to resolve port for scenario @scenario/self: ... instance key: missing
+scenario name in "@scenario/self"`.
+
+**Root cause:** PRE-EXISTING / fleet-wide. The BAS case files use the canonical
+self-reference `"scenario": "@scenario/self"` (so does every other scenario —
+code-facts, search-hub, device-sync-hub, measures-health, …). The root CLI's
+instance-key parser now rejects it: `vrooli scenario port image-tools API_PORT`
+returns the port, but `vrooli scenario port "@scenario/self" API_PORT` errors
+`missing scenario name in "@scenario/self"`. A concurrent change to the
+`vrooli scenario port` / api-core instance-key parsing broke the `@scenario/self`
+sentinel after Phase 2's green playbooks run. Not introduced by Phase 3 (the
+editor page + ops discovery are never reached).
+
+**Workaround:** None at the scenario level — the sentinel is resolved by the BAS
+workflow runner, not editable per-scenario without diverging the case template.
+
+**Real fix:** Restore `@scenario/self` resolution in the root `vrooli scenario
+port` instance-key parser (treat `@scenario/self` as "the current scenario"
+rather than parsing it as `name@variant`). Filed to scenario-qa.
+
+**Owner:** unassigned (root vrooli CLI / api-core discovery maintainers).
+
+**Refs:** `bas/cases/deterministic-ops/ui/editor-lists-operations.json`,
+`bas/cases/routed-database/proves-test-pool-routing.json`, root `vrooli scenario
+port`.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

@@ -184,7 +184,7 @@ time. The pattern from wire to render:
 | Wire contract | `packages/proto/schemas/image-tools/v1/notes/notes.proto` | `Note`, `service NotesService`, `ListNotesResponse`, `CreateNoteRequest`, `CreateNoteResponse`, `GetNoteRequest`, `GetNoteResponse` |
 | REST metadata contract | `packages/proto/schemas/image-tools/v1/notes/attachments.proto` | `Attachment` and `UploadAttachmentResponse` for the multipart upload exception |
 | Connect error mapping | `internal/notes/service_error_mapping.go` | Typed sentinels become Connect codes (`invalid_argument`, `not_found`, `internal`) |
-| REST error envelope | `packages/proto/schemas/image-tools/v1/errors/errors.proto` + `internal/httpx/errors.go::WriteError` | Typed body for REST exceptions, with canonical codes (`invalid_request`, `not_found`, `internal`) |
+| REST error envelope | `packages/proto/schemas/image-tools/v1/shared/errors.proto` + `internal/httpx/errors.go::WriteError` | Typed body for REST exceptions, with canonical codes (`invalid_request`, `not_found`, `internal`) |
 | Domain types | `internal/notes/types.go::{Note, Attachment, CreateInput, ErrInvalidNote, ErrNoteNotFound}` | Domain-pure (no proto imports); typed sentinels translate into Connect errors at the handler edge |
 | Repository interface | `internal/notes/repository.go::Repository` | Persistence seam — `Create` / `Get` / `List` |
 | Repository impl | `internal/notes/sqlite.go::NewSQLiteRepository` | sqlite-backed `Repository`; production wires it once in `main.go` |
@@ -1049,6 +1049,41 @@ machine with the scenario started, every op succeeds from the CLI offline.
    No GPU, no ComfyUI, no model pull is involved — the AVIF/WebP/HEIC codecs
    are embedded WASM (pure Go). The BAS smoke flow automates the UI path of the
    same slice.
+
+### AI ops (req IMG-P0-002/003/004) — fakes in CI, attended live gate
+
+The model-backed ops (generation, enhancement, OCR, NSFW) cannot run in CI: the
+standalone backend binaries (`sd`, `realesrgan-ncnn-vulkan`, `rembg`, `iopaint`,
+`tesseract`) and the CPU-default model weights are not installed, and download
+is the Phase-4 model-management concern. The headless tenet still holds — it is
+verified in two layers:
+
+1. **Automated (CI):** the full vertical (host probe → hardware-fit select →
+   backend select → materialize → execute → persist → auto-scan) runs with
+   **fake providers** — `api/internal/ai/{generation,enhancement,providers}_test.go`,
+   `api/internal/analysis/*_test.go`, and the handler/CLI tests. Backend
+   arg-builders are unit-tested for assembly. The pure-Go `analyze probe` is the
+   one model-free op verified live end-to-end.
+
+2. **Attended acceptance gate (the real headless proof):** on a host where the
+   CPU default models are installed (Phase-4 `image-tools models install <id>`),
+   run each AI op from the CLI with no GPU/ComfyUI and confirm completion:
+
+   ```bash
+   image-tools analyze probe  in.png                      # always works (pure-Go)
+   image-tools ai generate    --prompt "a red bicycle" --out g.png --wait
+   image-tools ai upscale     in.png --scale 4 --out up.png --wait
+   image-tools ai bg-removal  in.png --out cut.png --wait
+   image-tools analyze ocr    scan.png
+   image-tools analyze nsfw   in.png
+   ```
+
+   Until then, an AI op on a download-free host correctly **refuses** with an
+   actionable hint — e.g. `ai generate` → HTTP 409 `run image-tools models
+   install sd-1.5` (live-proven). This refusal IS correct headless behavior:
+   no silent failure, no crash. Flip the IMG-P0-002/003/004 acceptance to "done"
+   once an attended run exercises each op with a model installed (tracked in
+   PROBLEMS.md).
 
 ## Cross-references
 

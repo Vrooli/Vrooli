@@ -1,6 +1,54 @@
 {
   "commands": [
     {
+      "name": "ai bg-removal",
+      "description": "Remove the background to transparency"
+    },
+    {
+      "name": "ai denoise",
+      "description": "Reduce noise / deblur an image"
+    },
+    {
+      "name": "ai generate",
+      "description": "Generate an image from a text prompt"
+    },
+    {
+      "name": "ai img2img",
+      "description": "Transform an input image guided by a prompt"
+    },
+    {
+      "name": "ai inpaint",
+      "description": "Regenerate a masked region from a prompt"
+    },
+    {
+      "name": "ai list",
+      "description": "List AI generation & enhancement operations"
+    },
+    {
+      "name": "ai object-removal",
+      "description": "Remove a masked object and fill the gap"
+    },
+    {
+      "name": "ai upscale",
+      "description": "Super-resolve / enlarge an image"
+    },
+    {
+      "name": "analyze list",
+      "description": "List image→data analysis operations"
+    },
+    {
+      "name": "analyze nsfw",
+      "description": "Classify an image for NSFW / unsafe content"
+    },
+    {
+      "name": "analyze ocr",
+      "description": "Extract text from an image (OCR)"
+    },
+    {
+      "name": "analyze probe",
+      "description": "Report structured image info (pure-Go, always available)"
+    },
+    {
       "name": "configure",
       "description": "View or update CLI settings (api_base, token)"
     },

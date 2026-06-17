@@ -7,7 +7,7 @@ import { resolveApiBase, buildApiUrl, createScenarioConnectTransport } from "@vr
 import {
   ErrorEnvelopeSchema,
   type ErrorEnvelope,
-} from "@vrooli/proto-types/image-tools/v1/errors/errors_pb";
+} from "@vrooli/proto-types/image-tools/v1/shared/errors_pb";
 
 export const API_BASE = resolveApiBase();
 const REST_API_BASE = resolveApiBase({ appendSuffix: true });

@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-17T00:47:48-04:00"
+    "last_validated_at": "2026-06-17T01:33:51-04:00"
   },
   "requirements": [
     {
       "id": "IMG-P1-009",
       "title": "Image Diff \u0026 Visual Comparison",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-009",
       "category": "feature",
       "description": "General-purpose image diff/visual-comparison op built as a first-class capability so test-genie can later adopt it without duplication.",
@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/internal/diff/diff_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Pixel/perceptual diff highlights changed regions"
         }
       ]

@@ -160,6 +160,38 @@
           }
         }
       ]
+    },
+    {
+      "name": "ai",
+      "description": "Run model-backed AI generation & enhancement operations (async jobs)",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List AI generation & enhancement operations",
+          "binding": { "kind": "connect-rpc", "service": "AIService", "method": "ListAIOperations" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "analyze",
+      "description": "Run image→data analysis operations (ocr, nsfw, probe)",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List image→data analysis operations",
+          "binding": { "kind": "connect-rpc", "service": "AnalysisService", "method": "ListAnalysisOperations" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
     }
   ],
   "omitted": [
@@ -167,6 +199,16 @@
       "service": "JobsService",
       "method": "WatchJob",
       "reason": "Server-streaming progress RPC. Exposed via the hand-appended `jobs watch` command (register.go) because cli-manifest/v1 bindings model unary connect-rpc calls only."
+    },
+    {
+      "service": "AIService",
+      "method": "Submit",
+      "reason": "AI op submission rides the REST multipart edge (POST /api/v1/ai/{operation}); image/mask bytes can't ride a Connect call, so the per-op submit commands (generate, img2img, …) are hand-appended in cli/domains/ai/register.go."
+    },
+    {
+      "service": "AnalysisService",
+      "method": "Analyze",
+      "reason": "Analysis execution rides the REST multipart edge (POST /api/v1/analysis/{operation}); image bytes can't ride a Connect call, so the per-op commands (probe, ocr, nsfw) are hand-appended in cli/domains/analyze/register.go."
     }
   ]
 }

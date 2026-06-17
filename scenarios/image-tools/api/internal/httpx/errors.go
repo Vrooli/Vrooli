@@ -19,7 +19,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	errorsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/errors"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/shared"
 )
 
 // Canonical error codes. Handlers reach for these constants rather than
@@ -62,7 +62,7 @@ const (
 // new shape introduces a real failure mode. If that day comes, the
 // right move is to thread the logger; do not silently drop the log.
 func WriteError(w http.ResponseWriter, status int, code, message string) {
-	envelope := &errorsv1.ErrorEnvelope{
+	envelope := &sharedv1.ErrorEnvelope{
 		Code:    code,
 		Message: message,
 	}

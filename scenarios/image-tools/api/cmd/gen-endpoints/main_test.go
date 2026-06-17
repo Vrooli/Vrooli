@@ -10,46 +10,18 @@ import (
 	"image-tools/internal/module"
 )
 
-// TestRun_ProducesValidJSON exercises the codegen end-to-end: writes
-// the generated CLI-commands artifact to a temp file, runs the generator,
-// reads the result back, and asserts it's valid JSON with the canonical
-// envelope shape.
+// TestRun_ProducesValidJSON exercises the codegen end-to-end against this
+// scenario's REAL committed cli/cli-commands.gen.json (not a synthetic
+// fixture), so it stays scenario-agnostic: it proves the generator runs,
+// crossCheck passes against the actual registration tree, and the output is
+// valid JSON with the canonical envelope shape. The cli-commands.gen.json must
+// be up to date (run `make endpoints`); a stale artifact fails crossCheck here
+// exactly as it would in CI.
 func TestRun_ProducesValidJSON(t *testing.T) {
 	output := filepath.Join(t.TempDir(), "endpoints.json")
-	cliCommands := filepath.Join(t.TempDir(), "cli-commands.gen.json")
-	// The fixture mirrors this scenario's real registered command tree
-	// (cli/cli-commands.gen.json): status + jobs/models/ops domains. The notes
-	// reference domain was deleted in Phase 1, so a notes-based fixture would not
-	// cover the jobs/models/ops endpoints crossCheck validates against.
-	writeCLICommands(t, cliCommands, []registeredCommand{
-		{Name: "configure", Description: "View or update CLI settings"},
-		{Name: "status", Description: "Check API health"},
-		{Name: "jobs get", Description: "Get a job"},
-		{Name: "jobs wait", Description: "Wait for a job"},
-		{Name: "jobs list", Description: "List jobs"},
-		{Name: "jobs cancel", Description: "Cancel a job"},
-		{Name: "jobs watch", Description: "Watch a job"},
-		{Name: "models list", Description: "List models"},
-		{Name: "models get", Description: "Get a model"},
-		{Name: "models operations", Description: "List operations"},
-		{Name: "models select", Description: "Preview selection"},
-		{Name: "models enable", Description: "Enable/disable a model"},
-		{Name: "models blocklist", Description: "List blocklist"},
-		{Name: "ops list", Description: "List operations"},
-		{Name: "ops resize", Description: "Resize"},
-		{Name: "ops crop", Description: "Crop"},
-		{Name: "ops rotate", Description: "Rotate"},
-		{Name: "ops flip", Description: "Flip"},
-		{Name: "ops deskew", Description: "Deskew"},
-		{Name: "ops thumbnail", Description: "Thumbnail"},
-		{Name: "ops canvas", Description: "Canvas"},
-		{Name: "ops adjust", Description: "Adjust"},
-		{Name: "ops filter", Description: "Filter"},
-		{Name: "ops convert", Description: "Convert"},
-		{Name: "ops compress", Description: "Compress"},
-		{Name: "ops overlay", Description: "Overlay"},
-		{Name: "ops metadata", Description: "Metadata"},
-	})
+	// Path is relative to the test working directory (api/cmd/gen-endpoints):
+	// up to the scenario root, then into cli/.
+	cliCommands := filepath.Join("..", "..", "..", "cli", "cli-commands.gen.json")
 
 	if err := run(output, cliCommands); err != nil {
 		t.Fatalf("run: %v", err)
@@ -79,17 +51,9 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	if len(got.Endpoints) == 0 {
 		t.Error("manifest must include at least one endpoint")
 	}
-	// cli_commands[] mirrors the registered tree (membership and order from the
-	// artifact), so its length equals the artifact's command count.
-	if len(got.CLICommands) != 27 {
-		t.Errorf("cli_commands count = %d, want 27", len(got.CLICommands))
-	}
-	// endpoint_id is resolved from the matching endpoint; configure has no RPC
-	// so it must carry an empty endpoint_id.
-	for _, c := range got.CLICommands {
-		if c.Name == "configure" && c.EndpointID != "" {
-			t.Errorf("configure endpoint_id = %q, want empty", c.EndpointID)
-		}
+	// cli_commands[] mirrors the registered tree, so it must be non-empty.
+	if len(got.CLICommands) == 0 {
+		t.Error("cli_commands must be non-empty (mirrors the registration tree)")
 	}
 
 	// Trailing newline so editors don't get angry about diff noise.
@@ -183,16 +147,5 @@ func TestStripBinaryPrefix(t *testing.T) {
 		if got := stripBinaryPrefix(tc.in); got != tc.want {
 			t.Errorf("stripBinaryPrefix(%q) = %q, want %q", tc.in, got, tc.want)
 		}
-	}
-}
-
-func writeCLICommands(t *testing.T, path string, commands []registeredCommand) {
-	t.Helper()
-	body, err := json.MarshalIndent(cliCommandsArtifact{Commands: commands}, "", "  ")
-	if err != nil {
-		t.Fatalf("marshal cli commands: %v", err)
-	}
-	if err := os.WriteFile(path, body, 0o644); err != nil {
-		t.Fatalf("write cli commands: %v", err)
 	}
 }

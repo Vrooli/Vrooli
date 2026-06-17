@@ -63,7 +63,7 @@ var Endpoints = []module.EndpointDescriptor{
 					Conformance:   "protojson",
 				},
 				Error: module.RESTPayload{
-					ProtoFullName: "vrooli.image_tools.v1.errors.ErrorEnvelope",
+					ProtoFullName: "vrooli.image_tools.v1.shared.ErrorEnvelope",
 					Transport:     "json",
 					Conformance:   "protojson",
 				},
@@ -88,9 +88,9 @@ var Endpoints = []module.EndpointDescriptor{
 			Note:   "Plain GET serving opaque image bytes to a browser <img>/download; no generated client applies and the body is binary, not proto.",
 			ProtoPayloads: &module.RESTProtoPayloads{
 				Request:  module.RESTPayload{Transport: "none", Conformance: "none"},
-				Response: module.RESTPayload{Transport: "binary", Conformance: "none"},
+				Response: module.RESTPayload{Transport: "none", Conformance: "none"},
 				Error: module.RESTPayload{
-					ProtoFullName: "vrooli.image_tools.v1.errors.ErrorEnvelope",
+					ProtoFullName: "vrooli.image_tools.v1.shared.ErrorEnvelope",
 					Transport:     "json",
 					Conformance:   "protojson",
 				},

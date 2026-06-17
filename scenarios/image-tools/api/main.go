@@ -9,6 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	internalai "image-tools/internal/ai"
+	internalanalysis "image-tools/internal/analysis"
+	"image-tools/internal/backends"
 	"image-tools/internal/capabilities"
 	"image-tools/internal/clock"
 	"image-tools/internal/jobrunner"
@@ -25,6 +28,8 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	aiH "image-tools/handlers/ai"
+	analysisH "image-tools/handlers/analysis"
 	healthH "image-tools/handlers/health"
 	jobsH "image-tools/handlers/jobs"
 	modelsH "image-tools/handlers/models"
@@ -157,9 +162,76 @@ func main() {
 		log.Fatalf("blob storage init failed: %v", err)
 	}
 
+	// Model weights live alongside the blob root (outside the repo): the blob
+	// store roots at <dataDir>/blobs, so the models root is <dataDir>/models.
+	// Model download-on-first-use (IMG-P0-007, Phase 4) populates it; until a
+	// model is installed, modelInstalled returns false and AI ops refuse with an
+	// actionable hint rather than launching a doomed job.
+	modelsRoot := filepath.Dir(blobStore.Root())
+	modelInstalled := func(id string) bool {
+		info, statErr := os.Stat(filepath.Join(modelsRoot, "models", id))
+		return statErr == nil && info.IsDir()
+	}
+
+	// Backend provider registry: register the standalone AI backends and enforce
+	// the headless tenet at boot (every AI op must have a non-ComfyUI provider).
+	backendReg := backends.New()
+	if err := internalai.RegisterProviders(backendReg, nil, nil); err != nil {
+		log.Fatalf("ai provider registration failed: %v", err)
+	}
+	if err := backendReg.Validate(); err != nil {
+		log.Fatalf("backend invariant failed: %v", err)
+	}
+
+	// Model enabled-state overlay (SQLite over the seed defaults), re-read per
+	// selection so runtime enable/disable changes take effect immediately.
+	modelStore := internalmodels.NewStore(db)
+	enabled := func(ctx context.Context) (internalmodels.EnabledFunc, error) {
+		overlay, lErr := modelStore.LoadOverlay(ctx)
+		if lErr != nil {
+			return nil, lErr
+		}
+		return registry.EnabledWithOverlay(overlay), nil
+	}
+
+	// Analysis service (OCR / NSFW / probe). Its NSFW path also backs the AI
+	// generation auto-scan hook.
+	analysisService, err := internalanalysis.NewService(internalanalysis.Config{
+		ModelInstalled: modelInstalled,
+		ModelsRoot:     modelsRoot,
+		Logger:         log.Default(),
+	})
+	if err != nil {
+		log.Fatalf("analysis service init failed: %v", err)
+	}
+
+	// AI engine: probe → hardware-fit model select → backend select → execute →
+	// persist, with the optional NSFW auto-scan on generated output.
+	aiEngine, err := internalai.NewEngine(internalai.Deps{
+		Registry:       registry,
+		Backends:       backendReg,
+		Probe:          probe,
+		Store:          blobStore,
+		Enabled:        enabled,
+		ModelInstalled: modelInstalled,
+		ModelsRoot:     modelsRoot,
+		AutoScan:       analysisService.ScanNSFW,
+		Logger:         log.Default(),
+	})
+	if err != nil {
+		log.Fatalf("ai engine init failed: %v", err)
+	}
+	// Register the AI op runners on the dispatcher (the jobs Manager fans its
+	// single Runner out to these per-operation handlers).
+	for op, run := range aiEngine.BuildRunners() {
+		dispatcher.Register(op, run)
+	}
+
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "image-tools-api", "1.0.0"),
+		aiH.Module(aiEngine, registry, blobStore, jobManager, log.Default()),
+		analysisH.Module(analysisService, jobManager, log.Default()),
 		jobsH.Module(jobManager, log.Default()),
 		modelsH.Module(db, registry, probe, log.Default()),
 		opsH.Module(blobStore, jobManager, log.Default()),
