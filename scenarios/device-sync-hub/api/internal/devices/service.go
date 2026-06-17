@@ -56,14 +56,24 @@ type Service interface {
 	Revoke(ctx context.Context, ownerID, id string) (Device, error)
 }
 
+// PairingNotifier is the optional realtime hook the service fires when a device
+// joins via the fallback request path, so already-trusted devices get an
+// approve/reject banner in near-real-time. Implemented at wiring by an adapter
+// over the realtime hub; nil disables the push (the device still appears in the
+// owner's list on next refresh).
+type PairingNotifier interface {
+	PairingRequested(ownerID string, device Device)
+}
+
 // Config configures NewService. Repo is required; the rest default.
 type Config struct {
-	Repo       Repository
-	Clock      clock.Clock
-	Secrets    Secrets
-	Auth       auth.Validator
-	Logger     *log.Logger
-	PairingTTL time.Duration
+	Repo         Repository
+	Clock        clock.Clock
+	Secrets      Secrets
+	Auth         auth.Validator
+	Logger       *log.Logger
+	PairingTTL   time.Duration
+	PairNotifier PairingNotifier
 }
 
 type service struct {
@@ -73,6 +83,7 @@ type service struct {
 	auth       auth.Validator
 	logger     *log.Logger
 	pairingTTL time.Duration
+	pairNotif  PairingNotifier
 }
 
 // NewService constructs the production Service, filling defaults for any
@@ -85,6 +96,7 @@ func NewService(cfg Config) Service {
 		auth:       cfg.Auth,
 		logger:     cfg.Logger,
 		pairingTTL: cfg.PairingTTL,
+		pairNotif:  cfg.PairNotifier,
 	}
 	if s.clock == nil {
 		s.clock = clock.System{}
@@ -154,7 +166,17 @@ func (s *service) RequestPairing(ctx context.Context, p Profile) (IssuedToken, e
 	if err != nil {
 		return IssuedToken{}, err
 	}
-	return s.registerDevice(ctx, ownerID, s.resolveName(p, ""), p, TrustPending)
+	issued, err := s.registerDevice(ctx, ownerID, s.resolveName(p, ""), p, TrustPending)
+	if err != nil {
+		return IssuedToken{}, err
+	}
+	// Push the approve/reject banner to the owner's online devices. Best-effort:
+	// a missing notifier or a dropped event never fails the join — the pending
+	// device still surfaces in the device list on the next refresh.
+	if s.pairNotif != nil {
+		s.pairNotif.PairingRequested(ownerID, issued.Device)
+	}
+	return issued, nil
 }
 
 // registerDevice mints a token, persists the device in the given trust state,

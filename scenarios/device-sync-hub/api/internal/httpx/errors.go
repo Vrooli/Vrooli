@@ -38,6 +38,16 @@ const (
 	// log line carrying the underlying error; the wire message stays
 	// human-safe.
 	CodeInternal = "internal"
+
+	// CodeUnauthenticated is the 401 code for a missing or untrusted device
+	// token on a device-authed REST edge (transfer upload/download, realtime
+	// SSE). It mirrors connect.CodeUnauthenticated on the Connect surface.
+	CodeUnauthenticated = "unauthenticated"
+
+	// CodeQuotaExceeded is the code for a rejected upload that would push the
+	// owner or device past its storage quota (HTTP 413). It mirrors
+	// connect.CodeResourceExhausted on the Connect surface.
+	CodeQuotaExceeded = "quota_exceeded"
 )
 
 // WriteError serialises a proto-typed ErrorEnvelope as the response

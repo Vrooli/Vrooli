@@ -11,6 +11,7 @@ import (
 
 	"device-sync-hub/internal/auth"
 	internaldevices "device-sync-hub/internal/devices"
+	internalrealtime "device-sync-hub/internal/realtime"
 
 	"connectrpc.com/connect"
 
@@ -20,7 +21,10 @@ import (
 // Deps wires the seams the Connect devices handler needs.
 type Deps struct {
 	Service internaldevices.Service
-	Logger  *log.Logger
+	// Hub (optional) supplies live online-presence so a listed device's `online`
+	// flag reflects whether the hub currently holds an SSE connection for it.
+	Hub    *internalrealtime.Hub
+	Logger *log.Logger
 }
 
 type connectHandler struct {
@@ -47,11 +51,29 @@ func (h *connectHandler) ListDevices(ctx context.Context, _ *connect.Request[dev
 		h.deps.Logger.Printf("devices.ListDevices: %v", err)
 		return nil, internaldevices.ToConnectError(err)
 	}
+	online := h.onlineSet(owner.OwnerID)
 	resp := &devicesv1.ListDevicesResponse{Devices: make([]*devicesv1.Device, 0, len(list))}
 	for _, d := range list {
+		if _, ok := online[d.ID]; ok {
+			d.Online = true
+		}
 		resp.Devices = append(resp.Devices, deviceToProto(d))
 	}
 	return connect.NewResponse(resp), nil
+}
+
+// onlineSet returns the owner's currently-online device ids from the realtime
+// hub. Empty when no hub is wired — the stored online flag (always false) stands.
+func (h *connectHandler) onlineSet(ownerID string) map[string]struct{} {
+	if h.deps.Hub == nil {
+		return nil
+	}
+	ids := h.deps.Hub.OnlineDevices(ownerID)
+	set := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		set[id] = struct{}{}
+	}
+	return set
 }
 
 func (h *connectHandler) GetDevice(ctx context.Context, req *connect.Request[devicesv1.GetDeviceRequest]) (*connect.Response[devicesv1.GetDeviceResponse], error) {
@@ -62,6 +84,9 @@ func (h *connectHandler) GetDevice(ctx context.Context, req *connect.Request[dev
 	d, err := h.deps.Service.Get(ctx, owner.OwnerID, req.Msg.Id)
 	if err != nil {
 		return nil, internaldevices.ToConnectError(err)
+	}
+	if _, ok := h.onlineSet(owner.OwnerID)[d.ID]; ok {
+		d.Online = true
 	}
 	return connect.NewResponse(&devicesv1.GetDeviceResponse{Device: deviceToProto(d)}), nil
 }

@@ -11,8 +11,12 @@ import (
 
 	"device-sync-hub/internal/auth"
 	"device-sync-hub/internal/clock"
+	"device-sync-hub/internal/deviceauth"
+	internaldevices "device-sync-hub/internal/devices"
 	"device-sync-hub/internal/modules"
+	internalrealtime "device-sync-hub/internal/realtime"
 	"device-sync-hub/internal/server"
+	internaltransfer "device-sync-hub/internal/transfer"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -25,6 +29,8 @@ import (
 	devicesH "device-sync-hub/handlers/devices"
 	healthH "device-sync-hub/handlers/health"
 	notesH "device-sync-hub/handlers/notes"
+	realtimeH "device-sync-hub/handlers/realtime"
+	transferH "device-sync-hub/handlers/transfer"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -127,12 +133,45 @@ func main() {
 	}
 	authClient := auth.NewClient(auth.Config{BaseURL: authServiceURL})
 
+	clk := clock.System{}
+	logger := log.Default()
+
+	// The realtime hub is shared across domains: transfer emits item events
+	// through it, the devices pairing path pushes approve banners, and the
+	// devices read path overlays live online presence. It holds only in-memory
+	// connection state, so a single instance per process is correct.
+	hub := internalrealtime.NewHub(clk)
+
+	// A device repository + authenticator + a read service back the cross-cutting
+	// device-token needs: the deviceauth middleware resolves a presented token to
+	// a TRUSTED device, and the transfer domain checks a directed item's target
+	// against the trust group. These read over the same pool the devices routes
+	// use; trust transitions (revoke) are seen immediately.
+	devRepo := internaldevices.NewSQLiteRepository(db, clk)
+	devAuthn := internaldevices.NewAuthenticator(devRepo)
+	devTrustSvc := internaldevices.NewService(internaldevices.Config{
+		Repo: devRepo, Clock: clk, Auth: authClient, Logger: logger,
+	})
+
+	// The transfer domain owns its blob store, retention purge, and quotas.
+	transferWiring, err := transferH.New(db, clk, devTrustSvc, hub, logger)
+	if err != nil {
+		log.Fatalf("transfer module: %v", err)
+	}
+
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: clk, Logger: logger},
 		healthH.Module(db, "device-sync-hub-api", "1.0.0"),
-		devicesH.Module(db, clock.System{}, authClient, log.Default()),
-		notesH.Module(db, clock.System{}, log.Default()),
+		devicesH.Module(db, clk, authClient, hub, logger),
+		transferWiring.Module,
+		realtimeH.Module(hub, logger),
+		notesH.Module(db, clk, logger),
 	)
+
+	// Retention sweep: purge expired Held items and delivered Live items on an
+	// interval. Cancelled on shutdown via the Cleanup hook below.
+	purgeCtx, stopPurge := context.WithCancel(context.Background())
+	go internaltransfer.RunPurgeLoop(purgeCtx, transferWiring.Service, internaltransfer.DefaultPurgeInterval, logger)
 
 	// Top-level mux that mounts the API handler plus, when in development
 	// mode, the dev-only RoutingService used by test-genie to install a
@@ -151,11 +190,19 @@ func main() {
 	}
 	rootMux.Handle("/measures/", http.StripPrefix("/measures", notesMeasures))
 
-	// Owner-auth middleware wraps the API handler: it best-effort-validates an
-	// owner bearer token and injects the resolved Identity into the request
-	// context. Open RPCs (pairing redeem/request) proceed without one;
-	// owner-gated RPCs reject downstream via auth.RequireOwner.
-	rootMux.Handle("/", auth.Middleware(authClient, log.Default())(srv.Handler()))
+	// Two best-effort-inject auth middlewares wrap the API handler:
+	//   - auth.Middleware validates an OWNER bearer token (Authorization header)
+	//     and injects the owner Identity; devices owner-gated RPCs read it.
+	//   - deviceauth.Middleware resolves a DEVICE token (X-Device-Token / ?token=)
+	//     to a TRUSTED device and injects it; transfer + realtime read it.
+	// Both inject when present and stay silent when absent, so each surface's
+	// per-handler Require* gate is what fails closed. The two credentials are
+	// independent: a device-to-device transfer call carries no owner JWT, and an
+	// owner management call carries no device token.
+	apiHandler := auth.Middleware(authClient, logger)(
+		deviceauth.Middleware(devAuthn, logger)(srv.Handler()),
+	)
+	rootMux.Handle("/", apiHandler)
 
 	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
 	// request context so *database.RoutedDB routes the call to the
@@ -164,7 +211,10 @@ func main() {
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		Cleanup: func(ctx context.Context) error {
+			stopPurge()
+			return db.Close()
+		},
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

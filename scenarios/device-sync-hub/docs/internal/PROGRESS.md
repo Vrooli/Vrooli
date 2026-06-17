@@ -11,44 +11,57 @@ work lands, not while work is still speculative.
 | Date | Author | Status | Notes |
 |---|---|---|---|
 | 2026-06-17 | agi | done | **Phase 1 (greenfield rewrite — generate + charter + docs).** Regenerated from `react-vite` (v1.1.0) + `vrooli-default` design kit over the stale 2025 scenario (old tree backed up to `/tmp/device-sync-hub-OLD-*`). Authored `PRD.md` via prd-control-tower (8 P0 / 7 P1 / 4 P2 targets; validates clean). Generated `requirements/` (15 modules, 23 requirements covering all P0+P1; validates "all linked"). Declared dependency decisions in `.vrooli/service.json` (scenario-authenticator required+try_start+degraded_behavior; redis optional). Authored real `docs/concepts/DOMAINS.md` (domains: auth, devices, transfer, realtime, settings, health) + ARCHITECTURE/DATA/FLOWS/INTEGRATIONS. Orientation 6/8 gates green. |
+| 2026-06-17 | agi | done | **Phase 2 (API foundation + auth integration + devices/pairing/trust domain).** See git: `devices.proto` (DevicesService), `internal/auth` (authenticator client + owner middleware, fail-closed), `internal/devices` (registry, single-use pairing claim, trust lifecycle, revoke), wired into `main.go` + registry. Green: build/test/e2e/lint. |
+| 2026-06-17 | agi | done | **Phase 3 (transfer domain + retention + presence + quotas + realtime).** `transfer.proto` (TransferService: CreateTextItem/ListItems/GetItem/DeleteItem) + `realtime.proto` (Event messages, no service). `internal/transfer`: items (file+text, both first-class), SQLite repo with delivery-ACL visibility (broadcast/directed/origin), retention Live/Held/Pinned + `ExpiresAt` stamping, background `RunPurgeLoop`, per-owner/per-device quotas, pure-stdlib image `Thumbnailer`. `internal/realtime`: in-memory presence + SSE event hub (item-arrived/deleted, presence-changed, pairing-requested) with delivery-ACL fan-out. `internal/deviceauth`: device-token middleware (`X-Device-Token`/`?token=`) → `RequireDevice`. `internal/devices`: added `Authenticator` (token→TRUSTED device) + `PairingNotifier` hook; devices handler now overlays live presence + pushes pairing banners. Handlers: transfer Connect handler + REST multipart upload (quota pre-check, thumbnail) + REST streaming download (original filename, `?thumb=1`, marks Live delivered). Two new REST-exception reasons (`binary_download`, `event_stream`). Wired all into `main.go` (shared hub, device authenticator, transfer wiring, purge goroutine, dual auth middleware) + registry (transfer in AllEndpoints/AllProtoFiles/AllSchemas; realtime in AllEndpoints). **Green:** `go build ./...`, `go vet`, `gofumpt`, `golangci-lint` (new pkgs), and `go test ./...`/`-tags e2e` for every package **except** the pre-existing `cmd/gen-endpoints` crossCheck (see handoff). New tests: transfer sqlite/service/thumbnail, realtime hub, devices authenticator, deviceauth middleware, transfer connect + REST upload/download roundtrip. |
 | 2026-06-17 | agi | done | **Phase 2 (API foundation + auth integration + devices domain).** Authored `packages/proto/schemas/device-sync-hub/v1/devices/devices.proto` (`DevicesService`: List/Get/IssuePairingCode/RedeemPairingCode/RequestPairing/ApprovePairing/Rename/Revoke; `TrustState` enum; `Device`/`PairingCode`/`DeviceProfile`) + `buf generate`. Built `api/internal/auth/` (AuthClient seam over scenario-authenticator `GET /auth/validate` + `DELETE /sessions/{id}`; owner `Middleware` best-effort-injects Identity; `RequireOwner` gate; fail-closed, no test bypass). Built `api/internal/devices/` (types/schema/service/repository/sqlite/secrets/error-mapping + mocks): device registry, single-use conditional pairing-code claim, hub device-token issuance (SHA-256-hashed at rest), trust lifecycle pending→trusted→revoked, owner-scoped queries, best-effort authenticator session revoke. Built `api/handlers/devices/` (connect_handler/adapter/module/endpoints) — owner-gated RPCs vs open pairing RPCs. Wired registry (3 lines: endpoints/proto-files/schemas) + `main.go` (auth client + owner middleware + devices module). Regenerated `.vrooli/endpoints.json`. **All green:** `go build ./...`, `go test ./...` (incl. proto-connect parity + sqlite round-trips), `-tags e2e`, `golangci-lint` on new packages, proto module compiles. rec pending. |
 
-## Current State & Phase 3 Handoff
+## Current State & Phase 4 Handoff
 
-**What is DONE (Phase 2):** see the 2026-06-17 Phase 2 row above. The `devices`
-domain + `auth` integration are built, wired, and green. The `notes` example is
-**deliberately still present** — per the plan it is removed only once the
-transfer domain owns the `/measures` mount (Phase 3) so `main.go` is never left
-with a dangling measures registry. So `example-domain-removed` stays open until
-Phase 3.
+**DONE through Phase 3:** charter+docs (P1), auth integration + devices/pairing/trust
+(P2), and the transfer + realtime domains with retention, quotas, presence, and
+device-token trust (P3 — see the 2026-06-17 Phase 3 row above). The API is
+feature-complete for the P0 server-relay path (pair → push file/text → pull on
+another device → retention purge → revoke severs access) plus realtime
+presence/events. `go build`/`vet`/`gofumpt`/`golangci-lint` and `go test ./...`
+(and `-tags e2e`) are green for every package **except** the one pre-existing
+failure below.
 
-**Key seams Phase 3 builds on:**
-- `internal/devices/Repository.DeviceByToken(ctx, tokenHash)` already exists — it
-  is the hook the transfer domain uses for **device-token trust enforcement**
-  (resolve a presented hub token → device → require `TrustTrusted`). Add a
-  device-auth middleware mirroring `auth.Middleware` but keyed on the device
-  token (hash it with `devices` hashing, look up via `DeviceByToken`).
-- `auth.Identity` (owner) + a future `devices.Device` (device) are the two
-  request-scoped principals. Owner gates management; device gates transfer I/O.
-- Storage: copy `handlers/notes/module.go::defaultBlobStore` for the transfer
-  blob root (`api-core/storage` ClassData + `api-core/blobstore`).
+**THE ONE RED — `cmd/gen-endpoints` crossCheck (Phase-2-introduced, Phase-4-resolved):**
+- `make endpoints` and `TestRun_ProducesValidJSON` fail with
+  `cli-commands.gen.json missing command "devices list" …`. The API declares
+  `CLIMapping`s for the `devices` and (now) `transfer` endpoints, but the CLI
+  (`cli/domains/`) only registers `notes` — **the CLI is Phase 4.** This was
+  already red entering Phase 3 (devices, Phase 2); transfer adds more pending
+  commands but doesn't change the red/green state.
+- **Phase 4 closes it:** build `cli/domains/devices/` + `cli/domains/transfer/`
+  (verbs `devices list|pair|approve|revoke`; `transfer send-text|list|get|download|
+  delete|upload`), register them in `cli/domains/domains.go`, then `make endpoints`
+  regenerates `cli-commands.gen.json` + `.vrooli/endpoints.json` cleanly and the
+  unit test passes. Update the `cmd/gen-endpoints/main_test.go` fixture to list the
+  new commands. The transfer CLI is also the **programmatic compound-value seam**
+  (other scenarios "deliver an artifact to a device").
 
-**NEXT — Phase 3 (transfer domain + retention + presence + quotas):**
-1. `transfer` proto + domain: items (file|text), streaming + chunked/resumable
-   upload (REST multipart exception like notes_attach), streaming download with
-   original filename, thumbnails, retention Live/Held(24h)/Pinned + purge
-   scheduler, delivery ACL (broadcast default / direct), per-device+global quotas.
-2. `realtime` WebSocket: presence + `item-arrived`/`pairing-request` fan-out.
-3. Then **remove `notes`** (clears `example-domain-removed` + PROTO/STRUCTURE/UNIT
-   residuals) and add security-headers middleware (clears STANDARDS high).
+**Other still-open items (deferred by plan, not Phase-3 gaps):**
+- `example-domain-removed` gate + the `notes` worked example: removed in **Final
+  Cleanup** (plan §7 Final), once a real domain owns the `/measures` mount. Today
+  `notes` still owns `/measures` in `main.go`; transfer has no measure yet. Before
+  deleting `notes`, move a measure (e.g. `items.count`) onto a transfer measures
+  registry so `main.go` is never left with a dangling mount.
+- A dedicated **`settings`** domain (owner-tunable retention default / quotas /
+  at-rest-encryption toggle) is in DOMAINS but not built — Phase 3 uses
+  `transfer.Config` defaults (24h Held / 10-min Live / 5 GiB owner / 2 GiB device /
+  1 MiB text). Build alongside the UI (Phase 5) or as a P3 follow-up.
+- **Chunked/resumable upload** (OT-P1-001) not yet implemented; streaming multipart
+  upload handles large files via temp-file spillover (the P0 path). Add the
+  resumable-session endpoint in a P1 pass.
+- **At-rest blob encryption** (OT-P1-007) toggle not yet implemented (P1).
 
 **Deferred verification:** the full `git-control-tower baseline diff --scenario
-device-sync-hub --name dsh-rewrite` (plan §6a/§10) was NOT re-run this phase — it
-runs the whole test-genie suite, whose DEPENDENCIES phase errors on the unhealthy
-`scenario-authenticator` sibling in THIS environment (pre-existing, see below).
-Phase-2 code correctness is covered by the green `go test ./...` + e2e + lint.
-Run the baseline diff once the sibling is healthy (or accept the known
-environmental DEPENDENCIES error when triaging the verdict).
+device-sync-hub --name dsh-rewrite` (plan §6a/§10) was NOT re-run — its
+DEPENDENCIES phase errors on the unhealthy `scenario-authenticator` sibling in THIS
+environment (pre-existing, environmental). Phase-3 code correctness is covered by
+the green `go test ./...` + e2e + lint. Run the baseline diff once the sibling is
+healthy (or accept the known environmental DEPENDENCIES error when triaging).
 
 ## Superseded — original Phase 2 Handoff
 

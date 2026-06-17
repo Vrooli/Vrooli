@@ -82,6 +82,24 @@ const (
 	// generated client (e.g. plain GET /health, static browser-facing
 	// HTML wrappers served to iframes).
 	RESTReasonOpsProbe RESTReason = "ops_probe"
+
+	// RESTReasonBinaryDownload covers endpoints whose RESPONSE body is opaque
+	// streamed bytes (a file download with its original filename, optionally
+	// many GB) that no proto message can carry. It is the symmetric twin of
+	// RESTReasonMultipartUpload: upload is REST because the request is bytes,
+	// download is REST because the response is bytes. The proto-typed metadata
+	// shape (transfer.Item) is still the source of truth, served via the
+	// GetItem Connect RPC; this endpoint is purely the byte channel. The
+	// transfer domain's streaming download is the canonical worked example.
+	RESTReasonBinaryDownload RESTReason = "binary_download"
+
+	// RESTReasonEventStream covers a long-lived server-sent-events (SSE) stream:
+	// a one-directional server->client push channel (text/event-stream) consumed
+	// by the browser EventSource API, which cannot speak Connect framing. The
+	// payload of each event is still proto-typed (marshaled with protojson); only
+	// the streaming envelope is REST. The realtime domain's /events stream is the
+	// canonical worked example.
+	RESTReasonEventStream RESTReason = "event_stream"
 )
 
 // RESTException tags an EndpointDescriptor whose Path is a hand-authored
