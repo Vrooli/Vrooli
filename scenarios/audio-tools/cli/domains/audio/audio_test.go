@@ -106,10 +106,14 @@ func TestTranscodeServerError(t *testing.T) {
 	require.True(t, os.IsNotExist(statErr), "output file must not be created on server error")
 }
 
-// Register smoke: confirms the audio group wires correctly.
+// Register smoke: confirms the audio group wires correctly from the
+// manifest (the single source of truth for the command surface).
 func TestRegister(t *testing.T) {
 	app := mountAudio(t, &fakeAudio{})
-	group := Register(app)
+	raw, err := os.ReadFile(filepath.Join("..", "..", "manifest.json"))
+	require.NoError(t, err)
+	group, err := Register(app, raw)
+	require.NoError(t, err)
 	require.Equal(t, "audio", group.Name)
 	require.NotEmpty(t, group.Subcommands)
 }

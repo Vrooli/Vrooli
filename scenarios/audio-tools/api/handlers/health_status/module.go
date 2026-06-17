@@ -61,10 +61,6 @@ var Endpoints = []modulekit.EndpointDescriptor{
 		Method:   "POST",
 		Summary:  "Re-run every provider checker and return the fresh rollup",
 		Category: "health_status",
-		CLIMapping: &modulekit.CLIMapping{
-			Command: "audio-tools health show",
-			Args:    []string{"--refresh", "[--json]"},
-		},
 	},
 	{
 		ID:       "health_status.stream_provider_health",

@@ -32,7 +32,7 @@ help: ## Show the supported scenario entrypoints
 	@printf "  make temporal-models            Check formal temporal-model artifacts\n"
 	@printf "  make open                       Open the scenario in a browser\n"
 	@printf "  make orient                     Show generated-scenario orientation progress\n"
-	@printf "  make endpoints                  Regenerate .vrooli/endpoints.json from API modules\n"
+	@printf "  make endpoints                  Regenerate .vrooli/endpoints.json (validated against cli/manifest.json)\n"
 	@printf "  make run                        Alias for make start\n"
 	@printf "  make dev                        Alias for make start\n"
 	@printf "\n"
@@ -124,8 +124,8 @@ open: ## Open the scenario in a browser
 orient: ## Show generated-scenario orientation progress
 	@vrooli scenario orient "$(SCENARIO_NAME)"
 
-endpoints: ## Regenerate .vrooli/endpoints.json from API modules
-	@cd api && go run ./cmd/gen-endpoints --output ../.vrooli/endpoints.json --seed cmd/gen-endpoints/cli_commands_seed.json
+endpoints: ## Regenerate .vrooli/endpoints.json from API modules (validated against cli/manifest.json)
+	@cd api && go run ./cmd/gen-endpoints --output ../.vrooli/endpoints.json
 
 run: start
 

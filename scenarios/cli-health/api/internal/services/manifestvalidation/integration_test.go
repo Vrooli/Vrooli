@@ -37,15 +37,24 @@ func requireBuf(t *testing.T) {
 }
 
 // adoptingScenarios lists scenarios known to validate cleanly at HEAD.
-// The test asserts each one returns `passed: true`. The validator
-// discovered genuine drift in react-component-library, browser-automation-studio,
-// and git-control-tower (orphan proto methods); those adopters are
-// excluded until the manifests are reconciled — adding them here without
-// fixing the manifest would just turn this test into a known-failure.
+// The test asserts each one returns `passed: true`. After the manifest-as-SSOT
+// CLI consolidation, every proto-first scenario (including the once-drifted
+// react-component-library and the three formerly code-registered holdouts —
+// web-console, audio-tools, ecosystem-manager) has its proto surface fully
+// bound-or-omitted in cli/manifest.json, so the list now spans a representative
+// cross-section of the migrated fleet. (browser-automation-studio and
+// git-control-tower remain excluded: they are not gen-endpoints proto-first
+// scenarios and still carry their own un-reconciled CLI surface.)
 var adoptingScenarios = []string{
 	"cli-health",
 	"development-toolchain-validator",
 	"flow-verifier",
+	"image-tools",
+	"proto-health",
+	"react-component-library",
+	"web-console",
+	"audio-tools",
+	"ecosystem-manager",
 }
 
 func TestIntegration_AdoptingScenariosAllPass(t *testing.T) {

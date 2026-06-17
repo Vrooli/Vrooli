@@ -1,6 +1,8 @@
 package domains
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -28,7 +30,10 @@ func TestCommandGroups(t *testing.T) {
 // but forgets to set Name or has no
 // subcommands) still fails this test loudly.
 func TestSubcommandGroups(t *testing.T) {
-	got := SubcommandGroups(&cliapp.ScenarioApp{})
+	raw, err := os.ReadFile(filepath.Join("..", "manifest.json"))
+	require.NoError(t, err)
+	got, err := SubcommandGroups(&cliapp.ScenarioApp{}, raw)
+	require.NoError(t, err)
 	require.NotNil(t, got, "SubcommandGroups must return a slice (possibly empty), not nil")
 	for i, g := range got {
 		require.NotEmpty(t, g.Name, "group[%d].Name must be set", i)

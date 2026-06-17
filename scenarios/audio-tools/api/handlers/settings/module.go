@@ -21,11 +21,11 @@ type Deps struct {
 }
 
 var Endpoints = []modulekit.EndpointDescriptor{
-	{ID: "settings.get_provider_config", Path: "/vrooli.audio_tools.v1.settings.SettingsService/GetProviderConfig", Method: "POST", Category: "settings"},
+	{ID: "settings.get_provider_config", Path: "/vrooli.audio_tools.v1.settings.SettingsService/GetProviderConfig", Method: "POST", Category: "settings", CLIMapping: &modulekit.CLIMapping{Command: "audio-tools settings provider"}},
 	{ID: "settings.update_provider_config", Path: "/vrooli.audio_tools.v1.settings.SettingsService/UpdateProviderConfig", Method: "POST", Category: "settings"},
-	{ID: "settings.list_byok_credentials", Path: "/vrooli.audio_tools.v1.settings.SettingsService/ListBYOKCredentials", Method: "POST", Category: "settings"},
-	{ID: "settings.upsert_byok_credential", Path: "/vrooli.audio_tools.v1.settings.SettingsService/UpsertBYOKCredential", Method: "POST", Category: "settings"},
-	{ID: "settings.delete_byok_credential", Path: "/vrooli.audio_tools.v1.settings.SettingsService/DeleteBYOKCredential", Method: "POST", Category: "settings"},
+	{ID: "settings.list_byok_credentials", Path: "/vrooli.audio_tools.v1.settings.SettingsService/ListBYOKCredentials", Method: "POST", Category: "settings", CLIMapping: &modulekit.CLIMapping{Command: "audio-tools settings byok-list"}},
+	{ID: "settings.upsert_byok_credential", Path: "/vrooli.audio_tools.v1.settings.SettingsService/UpsertBYOKCredential", Method: "POST", Category: "settings", CLIMapping: &modulekit.CLIMapping{Command: "audio-tools settings byok-upsert"}},
+	{ID: "settings.delete_byok_credential", Path: "/vrooli.audio_tools.v1.settings.SettingsService/DeleteBYOKCredential", Method: "POST", Category: "settings", CLIMapping: &modulekit.CLIMapping{Command: "audio-tools settings byok-delete"}},
 	{ID: "settings.get_voice_overrides", Path: "/vrooli.audio_tools.v1.settings.SettingsService/GetVoiceOverrides", Method: "POST", Category: "settings"},
 	{ID: "settings.set_voice_override", Path: "/vrooli.audio_tools.v1.settings.SettingsService/SetVoiceOverride", Method: "POST", Category: "settings"},
 }

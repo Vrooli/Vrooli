@@ -26,6 +26,17 @@ type App struct {
 
 func NewApp() (*App, error) {
 	app := &App{}
+	subcommandGroups := func(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
+		groups, err := domains.SubcommandGroups(core, manifestBytes)
+		if err != nil {
+			// Manifest parse / binding wiring is a programmer error caught
+			// at NewApp time; surface it as a panic so misconfigured builds
+			// fail loudly during the first CLI invocation rather than after
+			// a user actually runs a command.
+			panic(err)
+		}
+		return groups
+	}
 	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
 		Name:             appName,
 		Version:          appVersion,
@@ -37,7 +48,7 @@ func NewApp() (*App, error) {
 		BuildSourceRoot:  buildSourceRoot,
 		AllowAnonymous:   true,
 		CommandGroups:    domains.CommandGroups,
-		SubcommandGroups: domains.SubcommandGroups,
+		SubcommandGroups: subcommandGroups,
 		// Summarize via the qwen3 reasoning model routinely takes
 		// 30-90s on CPU because the model emits several hundred tokens
 		// of <think> reasoning before the answer (see

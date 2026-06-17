@@ -85,5 +85,8 @@
       ]
     }
   ],
-  "omitted": []
+  "omitted": [
+    {"service":"SearchControlService","method":"WriteConfig","reason":"Internal search-index write API consumed programmatically by the reindex pipeline; no standalone CLI command."},
+    {"service":"SearchControlService","method":"WriteCorpus","reason":"Internal search-index write API consumed programmatically by the reindex pipeline; no standalone CLI command."}
+  ]
 }

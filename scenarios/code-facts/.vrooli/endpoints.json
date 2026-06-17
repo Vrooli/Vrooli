@@ -131,6 +131,45 @@
       }
     },
     {
+      "id": "facts_fleet_imports",
+      "path": "/vrooli.code_facts.v1.facts.CodeFactsService/DescribeFleetImports",
+      "method": "POST",
+      "summary": "Describe fleet import facts",
+      "description": "Returns FACT_FAMILY_IMPORTS reports for many or all scenarios without resolving imports to scenario dependencies.",
+      "category": "facts",
+      "request": {
+        "type": "object",
+        "properties": {
+          "language_filter": "array<string>",
+          "limit": "integer (optional, 0 means no limit, max 500)",
+          "repo_root": "string",
+          "scenarios": "array<string> (optional, empty means all scenarios)",
+          "use_cache": "bool"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "results": "array<CodeFactsResult>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid limit or scenario enumeration failure"
+        }
+      ],
+      "cli_mapping": {
+        "command": "code-facts facts fleet-imports",
+        "args": [
+          "--scenario",
+          "<name>",
+          "--json"
+        ]
+      }
+    },
+    {
       "id": "facts_proto_adoption",
       "path": "/vrooli.code_facts.v1.facts.CodeFactsService/CheckProtoAdoption",
       "method": "POST",
@@ -317,48 +356,6 @@
           "--dry-run"
         ]
       }
-    }
-  ],
-  "cli_commands": [
-    {
-      "name": "status",
-      "description": "Check API and dependency health (auto-provided by cli-core's StandardScenarioApp)",
-      "endpoint_id": "health"
-    },
-    {
-      "name": "facts describe",
-      "description": "Describe selected code fact families for a target",
-      "endpoint_id": "facts_describe"
-    },
-    {
-      "name": "facts surfaces",
-      "description": "List target surfaces",
-      "endpoint_id": "facts_surfaces"
-    },
-    {
-      "name": "facts proto-adoption",
-      "description": "Check proto adoption evidence",
-      "endpoint_id": "facts_proto_adoption"
-    },
-    {
-      "name": "facts endpoint-proof",
-      "description": "Check endpoint implementation evidence",
-      "endpoint_id": "facts_endpoint_proof"
-    },
-    {
-      "name": "cache status",
-      "description": "Get cache status for a target",
-      "endpoint_id": "facts_cache_status"
-    },
-    {
-      "name": "cache inspect",
-      "description": "Inspect cache entries for a target",
-      "endpoint_id": "facts_cache_inspect"
-    },
-    {
-      "name": "cache clear",
-      "description": "Clear cache entries for a target",
-      "endpoint_id": "facts_cache_clear"
     }
   ]
 }

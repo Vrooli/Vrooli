@@ -2,6 +2,8 @@ package provider
 
 import (
 	"net/http"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -16,7 +18,10 @@ import (
 // drift gate: a missing or renamed verb breaks here before it ships.
 func TestRegisterShape(t *testing.T) {
 	app := testutil.NewTestApp(t, http.NewServeMux())
-	group := Register(app)
+	raw, err := os.ReadFile(filepath.Join("..", "..", "manifest.json"))
+	require.NoError(t, err)
+	group, err := Register(app, raw)
+	require.NoError(t, err)
 
 	require.Equal(t, "provider", group.Name)
 	require.True(t, group.NeedsAPI, "provider commands must declare NeedsAPI=true")

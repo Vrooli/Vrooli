@@ -60,21 +60,44 @@ func newServiceWith(loader ManifestLoader, schema SchemaValidator, protos ProtoL
 	return New(Deps{Manifests: loader, Schema: schema, Protos: protos})
 }
 
-func TestValidateScenario_ManifestMissing(t *testing.T) {
+// A genuinely proto-less scenario (no own proto surface) keeps the soft
+// skip-with-warning when it has no manifest.
+func TestValidateScenario_ManifestMissing_ProtoLess(t *testing.T) {
 	svc := newServiceWith(
 		stubLoader{err: os.ErrNotExist},
 		stubSchema{},
-		stubProto{},
+		stubProto{}, // empty surface
 	)
 	r, err := svc.ValidateScenario(context.Background(), "ghost")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if r.Passed != true {
-		t.Fatalf("missing manifest must be warning (passed=true), got passed=%v", r.Passed)
+		t.Fatalf("missing manifest for a proto-less scenario must be warning (passed=true), got passed=%v", r.Passed)
 	}
 	if len(r.Findings) != 1 || r.Findings[0].Code != CodeManifestMissing || r.Findings[0].Severity != SeverityWarning {
 		t.Fatalf("expected one manifest_missing warning, got %+v", r.Findings)
+	}
+}
+
+// The loophole fix: a scenario that exposes its own proto RPC surface but has no
+// cli/manifest.json is a hard ERROR (passed=false), not a skip — the manifest is
+// the mandatory single source of truth for its CLI.
+func TestValidateScenario_ManifestMissing_ProtoBearingIsError(t *testing.T) {
+	svc := newServiceWith(
+		stubLoader{err: os.ErrNotExist},
+		stubSchema{},
+		stubProto{surface: ProtoSurface{Services: []ProtoService{{Name: "Svc", Methods: []string{"Do"}}}}},
+	)
+	r, err := svc.ValidateScenario(context.Background(), "proto-bearing")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if r.Passed {
+		t.Fatalf("missing manifest for a proto-bearing scenario must fail (passed=false), got passed=true")
+	}
+	if len(r.Findings) != 1 || r.Findings[0].Code != CodeManifestRequired || r.Findings[0].Severity != SeverityError {
+		t.Fatalf("expected one manifest_required error, got %+v", r.Findings)
 	}
 }
 

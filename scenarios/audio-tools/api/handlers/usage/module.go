@@ -38,6 +38,6 @@ func Module(d Deps) modulekit.Module {
 func Schema() string { return "" }
 
 var Endpoints = []modulekit.EndpointDescriptor{
-	{ID: "usage.list_recent", Path: "/vrooli.audio_tools.v1.usage.UsageService/ListRecent", Method: "POST", Category: "usage"},
-	{ID: "usage.get_summary", Path: "/vrooli.audio_tools.v1.usage.UsageService/GetSummary", Method: "POST", Category: "usage"},
+	{ID: "usage.list_recent", Path: "/vrooli.audio_tools.v1.usage.UsageService/ListRecent", Method: "POST", Category: "usage", CLIMapping: &modulekit.CLIMapping{Command: "audio-tools usage list"}},
+	{ID: "usage.get_summary", Path: "/vrooli.audio_tools.v1.usage.UsageService/GetSummary", Method: "POST", Category: "usage", CLIMapping: &modulekit.CLIMapping{Command: "audio-tools usage summary"}},
 }

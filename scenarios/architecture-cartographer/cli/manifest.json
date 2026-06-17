@@ -1071,6 +1071,11 @@
       "service": "GraphService",
       "method": "ExportGraph",
       "reason": "Export is a tooling-side concern (fixture authoring, offline analysis); will land alongside the fixture-validator surface."
+    },
+    {
+      "service": "ScenarioValidationService",
+      "method": "ValidateScenario",
+      "reason": "Shared cross-scenario validation surface; exercised via the audit run command rather than a dedicated binding."
     }
   ]
 }

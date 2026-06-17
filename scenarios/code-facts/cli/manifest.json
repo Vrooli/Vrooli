@@ -146,6 +146,13 @@
       ]
     }
   ],
+  "omitted": [
+    {
+      "service": "CodeFactsService",
+      "method": "DescribeFleetImports",
+      "reason": "Fleet-wide bulk import scan exposed for programmatic/automation callers (consumed by SDA and fleet-planning tooling over Connect); it has no clean single-target CLI form alongside the per-target facts commands, so it is intentionally not bound to a CLI command."
+    }
+  ],
   "measures": {
     "domains": [
       { "domain": "facts", "stateful": false, "reason": "Fact queries are deterministic evidence reads; cache hit metadata records reuse without changing requested evidence semantics." },

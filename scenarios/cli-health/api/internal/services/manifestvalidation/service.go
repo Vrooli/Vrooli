@@ -51,7 +51,8 @@ func New(d Deps) *Service {
 }
 
 // ValidateScenario produces a Report for the named scenario. Order of checks:
-//  1. Load manifest (warning + early-return if missing).
+//  1. Load manifest. If missing: error when the scenario has its own proto
+//     surface (a manifest is mandatory there), else skip-with-warning.
 //  2. Schema-validate raw bytes (collect findings; continue if non-empty).
 //  3. Structurally parse via cliapp.ParseManifest (error + return if invalid).
 //  4. Load proto descriptors via buf (error + return if buf fails).
@@ -69,14 +70,7 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 	raw, path, err := s.manifests.Load(ctx, scenario)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			f := []Finding{{
-				Severity:   SeverityWarning,
-				Code:       CodeManifestMissing,
-				Location:   defaultManifestRel(scenario),
-				Message:    "scenario has no cli/manifest.json; cli-health validation skipped",
-				Suggestion: "generate a manifest via the scenario template or add one by hand",
-			}}
-			return finalize(scenario, f), nil
+			return s.missingManifest(ctx, scenario), nil
 		}
 		return Report{}, fmt.Errorf("load manifest for %q: %w", scenario, err)
 	}
@@ -122,6 +116,32 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 	findings = append(findings, s.measureCheck(raw, path)...)
 
 	return finalize(scenario, findings), nil
+}
+
+// missingManifest decides the verdict when a scenario has no cli/manifest.json.
+// A scenario that exposes its own proto RPC surface MUST ship a manifest — it is
+// the single source of truth for that scenario's CLI, and "no manifest" is the
+// exact loophole that let proto-first scenarios skip the API↔CLI contract. So
+// for a scenario with an own proto surface this is a hard error; only a
+// genuinely proto-less scenario (or one whose proto surface cannot even be
+// built) keeps the soft skip-with-warning.
+func (s *Service) missingManifest(ctx context.Context, scenario string) Report {
+	if surface, protoErr := s.protos.Load(ctx, scenario); protoErr == nil && surface.HasAnyMethod() {
+		return finalize(scenario, []Finding{{
+			Severity:   SeverityError,
+			Code:       CodeManifestRequired,
+			Location:   defaultManifestRel(scenario),
+			Message:    "scenario exposes proto RPC services but has no cli/manifest.json — the single source of truth for its CLI surface",
+			Suggestion: "add cli/manifest.json binding every proto method to a command (or listing it in omitted[] with a reason)",
+		}})
+	}
+	return finalize(scenario, []Finding{{
+		Severity:   SeverityWarning,
+		Code:       CodeManifestMissing,
+		Location:   defaultManifestRel(scenario),
+		Message:    "scenario has no cli/manifest.json and no own proto surface; cli-health validation skipped",
+		Suggestion: "generate a manifest via the scenario template or add one by hand",
+	}})
 }
 
 // crossCheck implements the binding/coverage rules:

@@ -1,55 +1,51 @@
 // Package settings hosts the `audio-tools settings ...` subtree.
+//
+// The proto-bound command surface (provider / byok-list / byok-upsert /
+// byok-delete) is declared in cli/manifest.json — the single source of
+// truth. Register loads the "settings" group and wires each binding to a
+// handler in handlers.go.
+//
+// `settings providers` is a client-side convenience that composes two
+// reads (SettingsService.GetProviderConfig — already bound to `settings
+// provider` — and TTSService.GetStatus) into one availability matrix. It
+// has no unique RPC of its own, so (like image-tools' `models search`)
+// it is hand-appended here rather than declared as a manifest
+// connect-rpc binding.
 package settings
 
 import (
+	"fmt"
+
 	"github.com/vrooli/cli-core/cliapp"
 )
 
-func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
+// GroupName is the manifest group name this package owns.
+const GroupName = "settings"
+
+// Register builds the settings subcommand group from the embedded
+// manifest and wires Connect-RPC bindings to handlers.
+func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	return cliapp.SubcommandGroup{
-		Name:        "settings",
-		Description: "Provider routing, BYOK credentials, voice overrides",
-		NeedsAPI:    true,
-		Subcommands: []cliapp.Command{
-			{
-				Name:        "provider",
-				Description: "Show the current provider routing config",
-				RunCtx:      h.provider,
-			},
-			{
-				Name:        "providers",
-				Description: "Print the per-tier provider-availability matrix (routing config + TTS reachability)",
-				RunCtx:      h.providers,
-			},
-			{
-				Name:        "byok-list",
-				Description: "List stored BYOK credentials (redacted)",
-				RunCtx:      h.byokList,
-			},
-			{
-				Name:        "byok-upsert",
-				Description: "Add or replace a BYOK credential",
-				Args: cliapp.ArgSchema{
-					Flags: []cliapp.Flag{
-						{Name: "provider", Required: true, Description: "Provider id (e.g. openai-tts)"},
-						{Name: "capability", Required: true, Description: "stt | tts | summarize"},
-						{Name: "key", Required: true, Description: "API key value"},
-					},
-				},
-				RunCtx: h.byokUpsert,
-			},
-			{
-				Name:        "byok-delete",
-				Description: "Delete a BYOK credential",
-				Args: cliapp.ArgSchema{
-					Flags: []cliapp.Flag{
-						{Name: "provider", Required: true, Description: "Provider id"},
-						{Name: "capability", Required: true, Description: "stt | tts | summarize"},
-					},
-				},
-				RunCtx: h.byokDelete,
-			},
-		},
+	bindings := map[string]func(cliapp.RunContext) error{
+		"SettingsService.GetProviderConfig":    h.provider,
+		"SettingsService.ListBYOKCredentials":  h.byokList,
+		"SettingsService.UpsertBYOKCredential": h.byokUpsert,
+		"SettingsService.DeleteBYOKCredential": h.byokDelete,
 	}
+	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
+	if err != nil {
+		return cliapp.SubcommandGroup{}, fmt.Errorf("settings: load from manifest: %w", err)
+	}
+	// `providers` is a client-side composite over GetProviderConfig +
+	// TTSService.GetStatus; it reuses those RPCs rather than introducing
+	// a new one, so it can't be a manifest connect-rpc binding (those are
+	// keyed by RPC method and `settings provider` already owns
+	// GetProviderConfig). It is appended directly.
+	group.Subcommands = append(group.Subcommands, cliapp.Command{
+		Name:        "providers",
+		Description: "Print the per-tier provider-availability matrix (routing config + TTS reachability)",
+		NeedsAPI:    true,
+		RunCtx:      h.providers,
+	})
+	return group, nil
 }

@@ -81,6 +81,19 @@ func hasMethodIn(svcs []ProtoService, service, method string) bool {
 	return false
 }
 
+// HasAnyMethod reports whether the scenario declares any of its OWN proto RPC
+// methods. Shared cross-scenario services it merely re-serves are excluded, so
+// this answers "does this scenario have a proto-driven CLI surface of its own
+// that a cli/manifest.json must cover?".
+func (p ProtoSurface) HasAnyMethod() bool {
+	for _, s := range p.Services {
+		if len(s.Methods) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // HasService reports whether the named service exists in any proto file (own OR
 // shared).
 func (p ProtoSurface) HasService(service string) bool {

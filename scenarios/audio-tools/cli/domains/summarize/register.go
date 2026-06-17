@@ -1,29 +1,30 @@
 // Package summarize is the CLI's summarize-domain command surface,
 // mirroring vrooli.audio_tools.v1.summarize.SummarizeService.
+//
+// The command surface is declared in cli/manifest.json — the single
+// source of truth. Register loads the "summarize" group and wires each
+// binding to a handler in handlers.go.
 package summarize
 
 import (
+	"fmt"
+
 	"github.com/vrooli/cli-core/cliapp"
 )
 
-func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
+// GroupName is the manifest group name this package owns.
+const GroupName = "summarize"
+
+// Register builds the summarize subcommand group from the embedded
+// manifest and wires Connect-RPC bindings to handlers.
+func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	return cliapp.SubcommandGroup{
-		Name:        "summarize",
-		Description: "Text summarization via the audio-tools summarize chain",
-		NeedsAPI:    true,
-		Subcommands: []cliapp.Command{
-			{
-				Name:        "text",
-				Description: "Summarize text from --text or stdin",
-				Args: cliapp.ArgSchema{
-					Flags: []cliapp.Flag{
-						{Name: "text", Required: true, Description: "Text to summarize"},
-						{Name: "level", Description: "light|moderate|heavy (default moderate)"},
-					},
-				},
-				RunCtx: h.text,
-			},
-		},
+	bindings := map[string]func(cliapp.RunContext) error{
+		"SummarizeService.Summarize": h.text,
 	}
+	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
+	if err != nil {
+		return cliapp.SubcommandGroup{}, fmt.Errorf("summarize: load from manifest: %w", err)
+	}
+	return group, nil
 }

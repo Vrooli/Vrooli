@@ -1,38 +1,35 @@
 // Package health is the CLI's health_status-domain command surface,
 // mirroring vrooli.audio_tools.v1.health_status.HealthStatusService.
+//
+// The command surface is declared in cli/manifest.json — the single
+// source of truth. Register loads the "health" group and wires each
+// binding to a handler in handlers.go. `show --refresh` bypasses the
+// registry cache (the handler issues RefreshProviderHealth when the
+// flag is set), so RefreshProviderHealth is omitted in the manifest
+// rather than bound to its own command. `watch` consumes
+// StreamProviderHealth.
 package health
 
 import (
+	"fmt"
+
 	"github.com/vrooli/cli-core/cliapp"
 )
 
-// Register returns the health SubcommandGroup. Default output is the
-// human-friendly capability/provider table per
-// feedback_cli_default_human_output; --json switches to proto JSON;
-// `show --refresh` bypasses the registry cache; `watch` consumes
-// StreamProviderHealth.
-func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
+// GroupName is the manifest group name this package owns.
+const GroupName = "health"
+
+// Register builds the health subcommand group from the embedded manifest
+// and wires Connect-RPC bindings to handlers.
+func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
-	return cliapp.SubcommandGroup{
-		Name:        "health",
-		Description: "Show per-capability provider health (capability/provider/tier/state table; `show` for one snapshot, `watch` to stream)",
-		NeedsAPI:    true,
-		Subcommands: []cliapp.Command{
-			{
-				Name:        "show",
-				Description: "Print the cached per-capability provider health (use --refresh to bypass the cache)",
-				Args: cliapp.ArgSchema{
-					Flags: []cliapp.Flag{
-						{Name: "refresh", Bool: true, Description: "Bypass the cache and re-run every checker before printing"},
-					},
-				},
-				RunCtx: h.show,
-			},
-			{
-				Name:        "watch",
-				Description: "Stream rollup events; exits on Ctrl-C",
-				RunCtx:      h.watch,
-			},
-		},
+	bindings := map[string]func(cliapp.RunContext) error{
+		"HealthStatusService.GetProviderHealth":    h.show,
+		"HealthStatusService.StreamProviderHealth": h.watch,
 	}
+	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
+	if err != nil {
+		return cliapp.SubcommandGroup{}, fmt.Errorf("health: load from manifest: %w", err)
+	}
+	return group, nil
 }

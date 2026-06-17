@@ -19,6 +19,7 @@ const (
 // Finding codes — stable, machine-readable strings. Tooling filters by code.
 const (
 	CodeManifestMissing      = "manifest.missing"
+	CodeManifestRequired     = "manifest.required"
 	CodeManifestParseError   = "manifest.parse_error"
 	CodeManifestSchemaError  = "manifest.schema_error"
 	CodeProtoBuildFailed     = "proto.build_failed"
