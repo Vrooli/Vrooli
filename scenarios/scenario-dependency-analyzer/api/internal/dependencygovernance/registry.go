@@ -17,6 +17,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"google.golang.org/protobuf/proto"
 
+	"scenario-dependency-analyzer/internal/installgateway"
+
 	governancev1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/dependency_governance"
 	governanceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/dependency_governance/dependency_governance_v1connect"
 )
@@ -31,9 +33,40 @@ type Surface struct {
 
 type Registry struct {
 	repoRoot string
+	ranker   SemanticRanker
 }
 
+// SemanticRanker ranks governance-record IDs (ecosystem/package) by semantic
+// relevance to a free-text query. It is implemented by internal/aisearch.Service
+// over packages/ai-go/search; defining it here (with primitive returns) lets the
+// registry consume AI ranking without importing the aisearch package — and lets
+// the keyword path remain the fallback when no ranker is wired or the backend is
+// down (available=false).
+type SemanticRanker interface {
+	RankIDs(ctx context.Context, query string, limit int) (ids []string, scores map[string]float64, available bool, err error)
+}
+
+// WithRanker returns the registry with a semantic ranker attached. Boot builds
+// the ranker once and threads it through the Connect handler so every search
+// request reuses the live engine.
+func (r *Registry) WithRanker(ranker SemanticRanker) *Registry {
+	r.ranker = ranker
+	return r
+}
+
+// AllRecords exposes the loaded governance records so the aisearch Source can
+// index them without reaching into the registry's unexported loader.
+func (r *Registry) AllRecords(_ context.Context) ([]*governancev1.ApprovedDependencyRecord, error) {
+	return r.loadRecords()
+}
+
+// GovernanceBanner is written to the top of approved-dependencies.json on every
+// load/write so the file always carries a do-not-hand-edit warning, even after a
+// mutation rewrites it. SDA's governance verbs are the only sanctioned editors.
+const GovernanceBanner = "DO NOT HAND-EDIT. Manage these records with `scenario-dependency-analyzer deps approved …` (search/explain/approve-observed/widen-range/deny-vulnerable/upsert) — validated, dry-run-by-default, captures evidence + a security scan. Install packages via `scenario-dependency-analyzer deps install`."
+
 type registryFile struct {
+	Governance           string                     `json:"_governance,omitempty"`
 	SchemaVersion        string                     `json:"schema_version"`
 	Version              string                     `json:"version"`
 	Guidance             string                     `json:"guidance"`
@@ -126,15 +159,28 @@ func NewRegistry(repoRoot string) *Registry {
 	return &Registry{repoRoot: strings.TrimSpace(repoRoot)}
 }
 
-func RegisterConnectRoutes(router *gin.Engine, scenariosDir func() string) {
-	connectPath, connectHandler := governanceconnect.NewDependencyGovernanceServiceHandler(&connectHandler{
-		scenariosDir: scenariosDir,
-	})
+func RegisterConnectRoutes(router *gin.Engine, scenariosDir func() string, opts ...ConnectOption) {
+	h := &connectHandler{scenariosDir: scenariosDir}
+	for _, opt := range opts {
+		opt(h)
+	}
+	connectPath, connectHandler := governanceconnect.NewDependencyGovernanceServiceHandler(h)
 	router.Any(connectPath+"*path", gin.WrapH(connectHandler))
+}
+
+// ConnectOption configures the governance Connect handler at registration.
+type ConnectOption func(*connectHandler)
+
+// WithSemanticRanker attaches the AI search ranker so SearchApprovedDependencies
+// returns relevance-ranked results (degrading to keyword search when absent).
+func WithSemanticRanker(ranker SemanticRanker) ConnectOption {
+	return func(h *connectHandler) { h.ranker = ranker }
 }
 
 type connectHandler struct {
 	scenariosDir func() string
+	ranker       SemanticRanker
+	installer    installgateway.PackageInstaller
 }
 
 func (h *connectHandler) ListApprovedDependencies(_ context.Context, req *connect.Request[governancev1.ListApprovedDependenciesRequest]) (*connect.Response[governancev1.ApprovedDependencyListResponse], error) {
@@ -149,8 +195,8 @@ func (h *connectHandler) ListApprovedDependencies(_ context.Context, req *connec
 	}), nil
 }
 
-func (h *connectHandler) SearchApprovedDependencies(_ context.Context, req *connect.Request[governancev1.SearchApprovedDependenciesRequest]) (*connect.Response[governancev1.ApprovedDependencySearchResponse], error) {
-	records, summary, err := h.registry().Search(req.Msg)
+func (h *connectHandler) SearchApprovedDependencies(ctx context.Context, req *connect.Request[governancev1.SearchApprovedDependenciesRequest]) (*connect.Response[governancev1.ApprovedDependencySearchResponse], error) {
+	records, summary, err := h.registry().Search(ctx, req.Msg)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -286,7 +332,7 @@ func (h *connectHandler) registry() *Registry {
 	if h != nil && h.scenariosDir != nil {
 		scenariosDir = h.scenariosDir()
 	}
-	return NewRegistry(filepath.Dir(scenariosDir))
+	return NewRegistry(filepath.Dir(scenariosDir)).WithRanker(h.ranker)
 }
 
 func (r *Registry) List(req *governancev1.ListApprovedDependenciesRequest) ([]*governancev1.ApprovedDependencyRecord, *governancev1.DependencyGovernanceSummary, error) {
@@ -308,26 +354,105 @@ func (r *Registry) List(req *governancev1.ListApprovedDependenciesRequest) ([]*g
 	return filtered, summarizeRecords(filtered), nil
 }
 
-func (r *Registry) Search(req *governancev1.SearchApprovedDependenciesRequest) ([]*governancev1.ApprovedDependencyRecord, *governancev1.DependencyGovernanceSummary, error) {
+// Search ranks governance records against a free-text query, narrowed by the
+// optional ecosystem/framework/surface/state facets. When a SemanticRanker is
+// attached and reachable, results come back in AI-relevance order; otherwise the
+// keyword path is the fallback (same facets, term-overlap match). An empty query
+// returns the facet-filtered records in deterministic order.
+func (r *Registry) Search(ctx context.Context, req *governancev1.SearchApprovedDependenciesRequest) ([]*governancev1.ApprovedDependencyRecord, *governancev1.DependencyGovernanceSummary, error) {
 	records, err := r.loadRecords()
 	if err != nil {
 		return nil, nil, err
 	}
-	queryTerms := queryTerms(req.GetQuery())
-	matches := make([]*governancev1.ApprovedDependencyRecord, 0, len(records))
+
+	// Hard facet filters applied before ranking.
+	candidates := make([]*governancev1.ApprovedDependencyRecord, 0, len(records))
 	for _, record := range records {
-		if !matchesFilter(record.GetEcosystem(), req.GetEcosystem()) {
-			continue
+		if recordMatchesFacets(record, req) {
+			candidates = append(candidates, record)
 		}
-		if len(queryTerms) == 0 || recordMatches(record, queryTerms) {
+	}
+
+	limit := int(req.GetLimit())
+	query := strings.TrimSpace(req.GetQuery())
+	if query == "" {
+		sortRecords(candidates)
+		candidates = applyLimit(candidates, limit)
+		return candidates, summarizeRecords(candidates), nil
+	}
+
+	// AI semantic ranking (when wired + backend reachable). The ranker returns an
+	// ordered list of record IDs; we keep the intersection with the facet-filtered
+	// candidates, in rank order.
+	if r.ranker != nil {
+		fetch := limit * 3
+		if fetch < 50 {
+			fetch = 50
+		}
+		ids, scores, available, rankErr := r.ranker.RankIDs(ctx, query, fetch)
+		if rankErr == nil && available && len(ids) > 0 {
+			byID := make(map[string]*governancev1.ApprovedDependencyRecord, len(candidates))
+			for _, c := range candidates {
+				byID[recordKey(c.GetEcosystem(), c.GetPackageName())] = c
+			}
+			ranked := make([]*governancev1.ApprovedDependencyRecord, 0, len(ids))
+			for _, id := range ids {
+				key := strings.ToLower(strings.TrimSpace(id))
+				if rec, ok := byID[key]; ok {
+					rec.RelevanceScore = scores[key]
+					ranked = append(ranked, rec)
+					delete(byID, key)
+				}
+			}
+			ranked = applyLimit(ranked, limit)
+			return ranked, summarizeRecords(ranked), nil
+		}
+	}
+
+	// Keyword fallback: facet-filtered records matching the query terms.
+	terms := queryTerms(query)
+	matches := make([]*governancev1.ApprovedDependencyRecord, 0, len(candidates))
+	for _, record := range candidates {
+		if len(terms) == 0 || recordMatches(record, terms) {
 			matches = append(matches, record)
 		}
 	}
 	sortRecords(matches)
-	if limit := int(req.GetLimit()); limit > 0 && len(matches) > limit {
-		matches = matches[:limit]
-	}
+	matches = applyLimit(matches, limit)
 	return matches, summarizeRecords(matches), nil
+}
+
+// recordMatchesFacets applies the optional ecosystem/framework/surface/state
+// facets. A facet left empty does not filter. framework matches the record's
+// keyword/use-case vocabulary; surface matches an allowed_surfaces entry (a
+// record with no allowed_surfaces applies to every surface); state matches the
+// governance state.
+func recordMatchesFacets(record *governancev1.ApprovedDependencyRecord, req *governancev1.SearchApprovedDependenciesRequest) bool {
+	if !matchesFilter(record.GetEcosystem(), req.GetEcosystem()) {
+		return false
+	}
+	if !matchesFilter(record.GetState(), req.GetState()) {
+		return false
+	}
+	if framework := strings.TrimSpace(req.GetFramework()); framework != "" {
+		if !containsFold(record.GetKeywords(), framework) && !anySubstringFold(record.GetUseCases(), framework) {
+			return false
+		}
+	}
+	if surface := strings.TrimSpace(req.GetSurface()); surface != "" {
+		allowed := record.GetAllowedSurfaces()
+		if len(allowed) > 0 && !containsFold(allowed, surface) {
+			return false
+		}
+	}
+	return true
+}
+
+func applyLimit(records []*governancev1.ApprovedDependencyRecord, limit int) []*governancev1.ApprovedDependencyRecord {
+	if limit > 0 && len(records) > limit {
+		return records[:limit]
+	}
+	return records
 }
 
 func (r *Registry) Explain(ecosystem, packageName string) (*governancev1.ApprovedDependencyRecord, bool, error) {
@@ -517,7 +642,7 @@ func (r *Registry) ValidateObserved(scenario string, observed []*governancev1.Ob
 			if policyMode == "strict" {
 				severity = "ERROR"
 			}
-			findings = append(findings, governanceFinding(scenario, dep, "UNRECORDED_DIRECT", severity, "Dependency needs governance review", "This dependency is not yet recorded in approved dependency memory.", "Keep the dependency if it is the right tool, and submit purpose, version/range, alternatives considered, and security/license notes for review.", dep.GetVersion(), "recorded approval, constraint, deprecation, or denial decision", policyMode))
+			findings = append(findings, governanceFinding(scenario, dep, "UNRECORDED_DIRECT", severity, "Dependency needs governance review", "This dependency is not yet recorded in approved dependency memory.", "If it is the right tool, record it with `scenario-dependency-analyzer deps approved approve-observed "+dep.GetEcosystem()+"/"+dep.GetPackageName()+" --from-findings --apply` (captures purpose, range, and a security scan); otherwise pick an approved alternative via `deps approved search`. Do not hand-edit the registry JSON.", dep.GetVersion(), "recorded approval, constraint, deprecation, or denial decision", policyMode))
 			continue
 		}
 		state := normalize(record.GetState())
@@ -546,10 +671,10 @@ func (r *Registry) ValidateObserved(scenario string, observed []*governancev1.Ob
 				findings = append(findings, governanceFinding(scenario, dep, "EXPIRED_APPROVAL", "WARNING", "Dependency governance review has expired", "This dependency approval or exception has passed its review expiry date.", "Review the dependency and renew, replace, or deny it.", record.GetReviewExpires(), "unexpired review date", policyMode))
 			}
 			if state == "needs_review" {
-				findings = append(findings, governanceFinding(scenario, dep, "UNRECORDED_DIRECT", "WARNING", "Dependency approval still needs review", "This dependency has a governance record but has not been approved yet.", "Complete dependency review or choose an already approved alternative if appropriate.", dep.GetVersion(), "approved or approved_with_constraints", policyMode))
+				findings = append(findings, governanceFinding(scenario, dep, "UNRECORDED_DIRECT", "WARNING", "Dependency approval still needs review", "This dependency has a governance record but has not been approved yet.", "Finish the review with `scenario-dependency-analyzer deps approved approve "+dep.GetEcosystem()+"/"+dep.GetPackageName()+" --apply`, or choose an already-approved alternative via `deps approved search`. Do not hand-edit the registry JSON.", dep.GetVersion(), "approved or approved_with_constraints", policyMode))
 			}
 		default:
-			findings = append(findings, governanceFinding(scenario, dep, "REGISTRY_INVALID", "WARNING", "Dependency has unknown governance state", "This dependency has a governance record with an unrecognized state.", "Fix the approved dependency registry state value.", state, "approved, approved_with_constraints, needs_review, denied, or deprecated", policyMode))
+			findings = append(findings, governanceFinding(scenario, dep, "REGISTRY_INVALID", "WARNING", "Dependency has unknown governance state", "This dependency has a governance record with an unrecognized state.", "Re-record the decision through an SDA governance verb (`scenario-dependency-analyzer deps approved upsert`/`approve-observed`/`deny-vulnerable`), which writes a valid state; do not hand-edit the registry JSON.", state, "approved, approved_with_constraints, needs_review, denied, or deprecated", policyMode))
 		}
 	}
 
@@ -1519,6 +1644,7 @@ func normalizeRegistryFileDefaults(raw *registryFile) {
 	if raw == nil {
 		return
 	}
+	raw.Governance = GovernanceBanner
 	if raw.SchemaVersion == "" {
 		raw.SchemaVersion = "1"
 	}
@@ -1577,6 +1703,7 @@ func (r approvedDependencyRecord) toProto() *governancev1.ApprovedDependencyReco
 		ExampleScenarios: trimStrings(r.ExampleScenarios),
 		Replacement:      strings.TrimSpace(r.Replacement),
 		Keywords:         trimStrings(r.Keywords),
+		AllowedSurfaces:  trimStrings(r.AllowedSurfaces),
 		AllowedScenarios: trimStrings(r.AllowedScenarios),
 		DeniedScenarios:  trimStrings(r.DeniedScenarios),
 		RangePolicy:      normalize(r.RangePolicy),
@@ -2739,6 +2866,21 @@ func trimStrings(values []string) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// anySubstringFold reports whether needle appears (case-insensitively) as a
+// substring of any value — used for framework matching against use-case phrases.
+func anySubstringFold(values []string, needle string) bool {
+	needle = strings.ToLower(strings.TrimSpace(needle))
+	if needle == "" {
+		return false
+	}
+	for _, value := range values {
+		if strings.Contains(strings.ToLower(value), needle) {
+			return true
+		}
+	}
+	return false
 }
 
 func containsFold(values []string, needle string) bool {

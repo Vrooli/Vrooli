@@ -24,7 +24,7 @@ func (h *connectHandler) evaluateGovernance(scenario string, surfaces []*healthv
 			SourceDomain: "governance",
 			Title:        "Approved dependency registry unavailable",
 			Description:  "SDA could not read or parse the approved dependency registry.",
-			Remediation:  "Fix .vrooli/dependencies/approved-dependencies.json, then rerun dependency health.",
+			Remediation:  "The approved dependency registry is corrupt. Re-run `scenario-dependency-analyzer deps approved list` to surface the parse error, then repair the record via the SDA governance verbs (`deps approved upsert`/`approve-observed`) rather than hand-editing the JSON; rerun dependency health.",
 			FilePath:     ".vrooli/dependencies/approved-dependencies.json",
 			RuleId:       "dependency.governance.registry_readable",
 			Observed:     err.Error(),

@@ -229,6 +229,12 @@ func packageManagerFromRoot(root string) string {
 		return "npm"
 	case fileExists(filepath.Join(root, "yarn.lock")):
 		return "yarn"
+	case fileExists(filepath.Join(root, "go.mod")):
+		return "go"
+	case fileExists(filepath.Join(root, "poetry.lock")), fileExists(filepath.Join(root, "pyproject.toml")):
+		return "poetry"
+	case fileExists(filepath.Join(root, "requirements.txt")):
+		return "pip"
 	default:
 		return ""
 	}

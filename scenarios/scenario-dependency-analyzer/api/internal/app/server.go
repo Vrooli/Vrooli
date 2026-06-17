@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -14,7 +15,9 @@ import (
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/maturity-go/assessment"
 	repocontract "github.com/vrooli/repo-contract-go"
+	searchregister "github.com/vrooli/searchregister-go"
 
+	"scenario-dependency-analyzer/internal/aisearch"
 	analysisapi "scenario-dependency-analyzer/internal/analysis"
 	"scenario-dependency-analyzer/internal/catalog"
 	appconfig "scenario-dependency-analyzer/internal/config"
@@ -59,7 +62,25 @@ func Run(cfg appconfig.Config, dbConn *sql.DB) error {
 		log.Printf("dependency-health: maturity assessment unavailable: %v", err)
 	}
 	dependencyhealthapi.RegisterConnectRoutes(router, h.scenariosDir, dependencyhealthapi.Options{MaturitySpec: spec})
-	dependencygovernanceapi.RegisterConnectRoutes(router, h.scenariosDir)
+
+	// AI semantic search over the governance records. The provider registry reads
+	// the approved-dependencies corpus; the search service indexes it into Qdrant
+	// (degrading to keyword text search when the backend is down) and is injected
+	// as the SearchApprovedDependencies ranker.
+	searchRegistry := dependencygovernanceapi.NewRegistry(filepath.Dir(h.scenariosDir()))
+	searchService := aisearch.Start(context.Background(), searchRegistry)
+	dependencygovernanceapi.RegisterConnectRoutes(router, h.scenariosDir,
+		dependencygovernanceapi.WithSemanticRanker(searchService))
+
+	// Federate the dependency-governance search into search-hub so agents reach it
+	// via `search-hub query "<purpose>" --type dependency`. Best-effort: the hub
+	// being down is logged, never fatal (upsert re-registers on next boot).
+	searchJSONPath := filepath.Join(h.scenariosDir(), "scenario-dependency-analyzer", ".vrooli", "search.json")
+	go searchregister.Register(context.Background(), searchregister.Config{
+		ScenarioID:     "scenario-dependency-analyzer",
+		SearchFilePath: searchJSONPath,
+		Logger:         log.New(os.Stderr, "[scenario-dependency-analyzer/searchregister] ", log.LstdFlags),
+	})
 
 	log.Printf("Starting Scenario Dependency Analyzer API on port %s", cfg.Port)
 	log.Printf("Scenarios directory: %s", cfg.ScenariosDir)

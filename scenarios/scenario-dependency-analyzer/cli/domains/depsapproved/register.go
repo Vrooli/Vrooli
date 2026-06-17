@@ -78,22 +78,28 @@ func runList(core *cliapp.ScenarioApp, args []string) error {
 
 func runSearch(core *cliapp.ScenarioApp, args []string) error {
 	fs := support.NewFlagSet("deps approved search")
-	var ecosystem string
+	var ecosystem, framework, surface, state string
 	var limit int
 	var jsonOutput bool
-	fs.StringVar(&ecosystem, "ecosystem", "", "Filter by ecosystem")
+	fs.StringVar(&ecosystem, "ecosystem", "", "Filter by ecosystem (npm|go|pip)")
+	fs.StringVar(&framework, "framework", "", "Filter by framework/keyword (e.g. react)")
+	fs.StringVar(&surface, "surface", "", "Filter by allowed surface (ui|api|cli)")
+	fs.StringVar(&state, "state", "", "Filter by governance state (approved|denied|needs_review|deprecated)")
 	fs.IntVar(&limit, "limit", 20, "Maximum records to return")
 	fs.BoolVar(&jsonOutput, "json", false, "Output raw JSON")
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
 	query := strings.TrimSpace(strings.Join(fs.Args(), " "))
-	if query == "" {
-		return fmt.Errorf("usage: %s deps approved search <query> [--ecosystem npm|go] [--json]", support.AppName)
+	if query == "" && framework == "" && ecosystem == "" && surface == "" && state == "" {
+		return fmt.Errorf("usage: %s deps approved search <query> [--ecosystem npm|go|pip] [--framework react] [--surface ui|api|cli] [--state approved|denied] [--json]", support.AppName)
 	}
 	resp, err := governanceClient(core).SearchApprovedDependencies(context.Background(), connect.NewRequest(&governancev1.SearchApprovedDependenciesRequest{
 		Query:     query,
 		Ecosystem: ecosystem,
+		Framework: framework,
+		Surface:   surface,
+		State:     state,
 		Limit:     int32(limit),
 	}))
 	if err != nil {
@@ -102,7 +108,41 @@ func runSearch(core *cliapp.ScenarioApp, args []string) error {
 	if jsonOutput {
 		return printProto(resp.Msg)
 	}
-	return printRecords("Approved Dependency Search", resp.Msg.GetRecords(), resp.Msg.GetGuidance())
+	return printSearchResults(resp.Msg.GetRecords(), resp.Msg.GetGuidance(), query)
+}
+
+// printSearchResults renders search hits with a governed footer: AI search over
+// the governance corpus is NOT an exhaustive allowlist, so it always tells the
+// agent how to propose a new package or install an approved one — steering every
+// dependency action back through SDA rather than a raw package manager or a
+// hand-edited JSON.
+func printSearchResults(records []*governancev1.ApprovedDependencyRecord, guidance, query string) error {
+	results := make([]string, 0, len(records))
+	for _, record := range records {
+		line := fmt.Sprintf("%s/%s %s [%s%s]", record.GetEcosystem(), record.GetPackageName(), record.GetVersionRange(), record.GetState(), rangePolicySuffix(record))
+		if notes := strings.TrimSpace(record.GetSecurityNotes()); notes != "" {
+			line += "\n    security: " + notes
+		}
+		if scenarios := record.GetExampleScenarios(); len(scenarios) > 0 {
+			line += "\n    used by: " + strings.Join(scenarios, ", ")
+		}
+		results = append(results, line)
+	}
+	report := cliapp.ListReport{
+		Summary: []string{
+			fmt.Sprintf("Records: %d", len(records)),
+			guidance,
+			"This is not an exhaustive allowlist — a better package may exist.",
+		},
+		ResultsHeading: "Dependency Search",
+		Results:        results,
+		RetrievalHints: []string{
+			fmt.Sprintf("Install an approved package: %s deps install <ecosystem>/<package> --scenario <name> --surface <ui|api|cli>", support.AppName),
+			fmt.Sprintf("Propose a new package from observed usage: %s deps approved approve-observed <ecosystem>/<package> --from-findings --apply", support.AppName),
+			fmt.Sprintf("Inspect one record: %s deps approved explain <ecosystem>/<package>", support.AppName),
+		},
+	}
+	return support.PrintList(false, report, nil)
 }
 
 func runExplain(core *cliapp.ScenarioApp, args []string) error {

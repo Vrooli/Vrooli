@@ -10,9 +10,11 @@ require (
 	github.com/joho/godotenv v1.4.0
 	github.com/rs/cors v1.11.0
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1
+	github.com/vrooli/ai-go v0.0.0
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/maturity-go v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
+	github.com/vrooli/searchregister-go v0.0.0
 	github.com/vrooli/vrooli-cli-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	google.golang.org/protobuf v1.36.11
@@ -45,6 +47,7 @@ require (
 	golang.org/x/arch v0.3.0 // indirect
 	golang.org/x/crypto v0.52.0 // indirect
 	golang.org/x/net v0.55.0 // indirect
+	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
@@ -53,6 +56,8 @@ require (
 	modernc.org/memory v1.11.0 // indirect
 )
 
+replace github.com/vrooli/ai-go => ../../../packages/ai-go
+
 replace github.com/vrooli/api-core => ../../../packages/api-core
 
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
@@ -60,6 +65,8 @@ replace github.com/vrooli/cli-core => ../../../packages/cli-core
 replace github.com/vrooli/maturity-go => ../../../packages/maturity-go
 
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
+
+replace github.com/vrooli/searchregister-go => ../../../packages/searchregister-go
 
 replace github.com/vrooli/vrooli-cli-go => ../../../packages/vrooli-cli-go
 

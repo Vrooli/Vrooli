@@ -1,0 +1,59 @@
+{
+  "$schema": "../../../.vrooli/schemas/search.schema.json",
+  "version": "1.0.0",
+  "providers": [
+    {
+      "provider_id": "scenario-dependency-analyzer.dependencies",
+      "provider_group": "scenario-dependency-analyzer",
+      "bucket": "BUCKET_REUSE",
+      "type": "dependency",
+      "description": "Third-party dependency/package selection and governance — which package to use for a purpose (for example \"a React forms library\", \"a Go HTTP router\", \"image resizing\"), the approved version ranges, and which packages are denied or vulnerable. Route here for 'what dependency/package/library should I use for X' and 'is package Y approved'. Do NOT route here for prior-work records, CLI commands, skills, docs, or scenario status.",
+      "scope": "SCOPE_PROJECT",
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "scenario-dependency-analyzer",
+          "path": "/vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService/SearchApprovedDependencies",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}}}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "result_mapping": {
+        "results_path": "records",
+        "id_field": "packageName",
+        "title_field": "packageName",
+        "score_field": "relevanceScore",
+        "snippet_field": "rationale",
+        "path_field": "packageName",
+        "score_scale": "SCORE_SCALE_COSINE_0_1"
+      },
+      "tuning": {
+        "engine": "dense",
+        "embed_model": "nomic-embed-text",
+        "embed_task_prefix": true,
+        "rerank_enabled": false,
+        "rerank_blend": false,
+        "rerank_shortlist": 50,
+        "floor": {
+          "max_gap": 0,
+          "hard_floor": 0
+        }
+      },
+      "tests": {
+        "name": "scenario-dependency-analyzer dependencies — governance corpus",
+        "description": "RANK-CENTRIC golden corpus for the dependency governance index: a purpose query should surface the approved package recorded for that purpose.",
+        "cases": [
+          {
+            "id": "connect-rpc",
+            "query": "connect rpc client and server",
+            "tags": ["strong", "go"],
+            "expect_ids": ["connect"],
+            "expect_within_top_k": 5
+          }
+        ]
+      }
+    }
+  ]
+}

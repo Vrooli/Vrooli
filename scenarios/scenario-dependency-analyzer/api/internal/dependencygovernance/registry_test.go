@@ -627,7 +627,7 @@ func TestSearchFindsRecordsByUseCaseAndPackage(t *testing.T) {
 	}`)
 	registry := NewRegistry(repoRoot)
 
-	records, _, err := registry.Search(&governancev1.SearchApprovedDependenciesRequest{Query: "React graph library"})
+	records, _, err := registry.Search(context.Background(), &governancev1.SearchApprovedDependenciesRequest{Query: "React graph library"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1305,5 +1305,128 @@ func writeScenarioPackage(t *testing.T, repoRoot, scenario, packageJSON string) 
 	}
 	if err := os.WriteFile(filepath.Join(uiRoot, "package.json"), []byte(packageJSON), 0o644); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestUnrecordedRemediationNamesGovernanceVerbsNotHandEdit(t *testing.T) {
+	repoRoot := t.TempDir()
+	writeRegistry(t, repoRoot, `{"records":[]}`)
+	registry := NewRegistry(repoRoot)
+
+	resp, err := registry.ValidateObserved("demo", []*governancev1.ObservedDependency{
+		{Ecosystem: "npm", PackageName: "react", Version: "^19.0.0", FilePath: "scenarios/demo/ui/package.json"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.GetFindings()) != 1 {
+		t.Fatalf("findings = %#v, want one", resp.GetFindings())
+	}
+	rem := resp.GetFindings()[0].GetRemediation()
+	if !strings.Contains(rem, "deps approved approve-observed") {
+		t.Fatalf("unrecorded remediation should name the SDA verb, got: %s", rem)
+	}
+	for _, banned := range []string{"submit purpose", "Fix .vrooli"} {
+		if strings.Contains(rem, banned) {
+			t.Fatalf("unrecorded remediation should not steer toward hand-editing (%q): %s", banned, rem)
+		}
+	}
+}
+
+func TestGovernanceBannerSelfHealsOnLoadAndSurvivesWrite(t *testing.T) {
+	repoRoot := t.TempDir()
+	// A registry file written WITHOUT the banner (e.g. an older file).
+	writeRegistry(t, repoRoot, `{"schema_version":"1","policy":{"mode":"advisory"},"records":[]}`)
+	registry := NewRegistry(repoRoot)
+
+	raw, err := registry.loadRegistryFile()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if raw.Governance != GovernanceBanner {
+		t.Fatalf("banner not stamped on load: %q", raw.Governance)
+	}
+	// A mutation rewrites the file; the banner must persist (not be dropped).
+	if err := registry.writeRegistryFile(raw); err != nil {
+		t.Fatal(err)
+	}
+	got := readRegistry(t, repoRoot)
+	if !strings.Contains(got, `"_governance"`) || !strings.Contains(got, "DO NOT HAND-EDIT") {
+		t.Fatalf("written registry lost the governance banner: %s", got)
+	}
+}
+
+// stubRanker implements SemanticRanker, returning a fixed ID order so the
+// registry's rank-ordering path is testable without a live Qdrant/Ollama.
+type stubRanker struct {
+	order     []string
+	available bool
+}
+
+func (s stubRanker) RankIDs(_ context.Context, _ string, _ int) ([]string, map[string]float64, bool, error) {
+	scores := make(map[string]float64, len(s.order))
+	for i, id := range s.order {
+		scores[id] = float64(len(s.order) - i)
+	}
+	return s.order, scores, s.available, nil
+}
+
+func TestSearchAppliesFrameworkAndStateFacets(t *testing.T) {
+	repoRoot := t.TempDir()
+	writeRegistry(t, repoRoot, `{
+		"records": [
+			{"ecosystem":"npm","package_name":"react-hook-form","version_range":"^7.0.0","state":"approved","rationale":"Approved forms lib.","keywords":["react","forms"],"use_cases":["react form validation"]},
+			{"ecosystem":"npm","package_name":"lodash","version_range":"^4.0.0","state":"approved","rationale":"Approved utility.","keywords":["utility"],"use_cases":["array helpers"]},
+			{"ecosystem":"npm","package_name":"left-pad","version_range":"^1.0.0","state":"denied","rationale":"Denied.","keywords":["react","padding"]}
+		]
+	}`)
+	registry := NewRegistry(repoRoot)
+
+	// framework=react narrows to the two react-tagged records.
+	records, _, err := registry.Search(context.Background(), &governancev1.SearchApprovedDependenciesRequest{Framework: "react"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(records) != 2 {
+		t.Fatalf("framework=react records = %d, want 2 (react-hook-form, left-pad)", len(records))
+	}
+
+	// framework=react + state=approved narrows to just react-hook-form.
+	records, _, err = registry.Search(context.Background(), &governancev1.SearchApprovedDependenciesRequest{Framework: "react", State: "approved"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(records) != 1 || records[0].GetPackageName() != "react-hook-form" {
+		t.Fatalf("framework=react state=approved records = %#v, want [react-hook-form]", records)
+	}
+}
+
+func TestSearchHonorsSemanticRankOrderOverKeyword(t *testing.T) {
+	repoRoot := t.TempDir()
+	writeRegistry(t, repoRoot, `{
+		"records": [
+			{"ecosystem":"npm","package_name":"alpha","version_range":"^1.0.0","state":"approved","rationale":"Approved alpha.","keywords":["forms"]},
+			{"ecosystem":"npm","package_name":"beta","version_range":"^1.0.0","state":"approved","rationale":"Approved beta.","keywords":["forms"]}
+		]
+	}`)
+	// Ranker says beta is more relevant than alpha, inverting alphabetical order.
+	registry := NewRegistry(repoRoot).WithRanker(stubRanker{order: []string{"npm/beta", "npm/alpha"}, available: true})
+
+	records, _, err := registry.Search(context.Background(), &governancev1.SearchApprovedDependenciesRequest{Query: "forms"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(records) != 2 || records[0].GetPackageName() != "beta" || records[1].GetPackageName() != "alpha" {
+		t.Fatalf("ranked order = %#v, want [beta, alpha]", records)
+	}
+
+	// When the ranker is unavailable, the keyword path (deterministic sort) runs.
+	registry = NewRegistry(repoRoot).WithRanker(stubRanker{available: false})
+	records, _, err = registry.Search(context.Background(), &governancev1.SearchApprovedDependenciesRequest{Query: "forms"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(records) != 2 || records[0].GetPackageName() != "alpha" {
+		t.Fatalf("keyword-fallback order = %#v, want alpha first", records)
 	}
 }

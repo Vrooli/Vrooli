@@ -452,14 +452,31 @@
           "positionals": [
             {
               "name": "query",
-              "description": "Search query",
-              "required": true
+              "description": "Search query (optional when a facet filter is given)",
+              "required": false
             }
           ],
           "flags": [
             {
               "name": "ecosystem",
-              "description": "Filter by ecosystem"
+              "description": "Filter by ecosystem (npm|go|pip)"
+            },
+            {
+              "name": "framework",
+              "description": "Filter by framework/keyword (e.g. react)"
+            },
+            {
+              "name": "surface",
+              "description": "Filter by allowed surface (ui|api|cli)"
+            },
+            {
+              "name": "state",
+              "description": "Filter by governance state (approved|denied|needs_review|deprecated)"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum records to return",
+              "default": "20"
             },
             {
               "name": "json",
@@ -676,6 +693,54 @@
             "run_eligible": true,
             "permissions": [
               "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "install",
+          "description": "Install a governed dependency into a scenario surface (dry-run by default; the sanctioned alternative to raw pnpm/go/pip)",
+          "positionals": [
+            {
+              "name": "package",
+              "description": "<ecosystem>/<package>[@version]",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "scenario",
+              "description": "Target scenario"
+            },
+            {
+              "name": "surface",
+              "description": "Target surface: ui, api, or cli"
+            },
+            {
+              "name": "version",
+              "description": "Optional explicit version/range"
+            },
+            {
+              "name": "apply",
+              "description": "Perform the install (default is a dry run)",
+              "default": "false"
+            },
+            {
+              "name": "json",
+              "description": "Output raw JSON",
+              "default": "false"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DependencyGovernanceService",
+            "method": "InstallDependency"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
             ]
           }
         }

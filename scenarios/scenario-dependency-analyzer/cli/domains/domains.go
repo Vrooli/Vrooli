@@ -47,5 +47,6 @@ func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
 		scenarios.Register(core),
 		bundle.Register(core),
 		depsapproved.Register(core),
+		depsapproved.RegisterInstall(core),
 	}
 }
