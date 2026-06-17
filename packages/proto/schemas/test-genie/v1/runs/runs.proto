@@ -198,6 +198,15 @@ message RunBusyInfo {
 message FollowRunRequest {
   string scenario = 1;
   string run_id = 2;
+  // suppress_heartbeats drops phase_heartbeat keep-alive events from THIS
+  // follower's stream (phase transitions and the terminal run_completed still
+  // flow). It is a per-follower filter, not a global toggle: the server's
+  // heartbeat loop keeps publishing to the shared broadcaster, so other
+  // followers (notably the browser SSE stream) still receive beats. The CLI sets
+  // it for non-interactive consumers (non-TTY stdout, --jsonl) so a backgrounded
+  // follow does not re-wake an agent on every beat; an interactive TTY follow
+  // leaves it false.
+  bool suppress_heartbeats = 3;
 }
 
 message WaitRunRequest {

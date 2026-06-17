@@ -651,11 +651,20 @@ func (x *RunBusyInfo) GetPreset() string {
 }
 
 type FollowRunRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	RunId         string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Scenario string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	RunId    string                 `protobuf:"bytes,2,opt,name=run_id,json=runId,proto3" json:"run_id,omitempty"`
+	// suppress_heartbeats drops phase_heartbeat keep-alive events from THIS
+	// follower's stream (phase transitions and the terminal run_completed still
+	// flow). It is a per-follower filter, not a global toggle: the server's
+	// heartbeat loop keeps publishing to the shared broadcaster, so other
+	// followers (notably the browser SSE stream) still receive beats. The CLI sets
+	// it for non-interactive consumers (non-TTY stdout, --jsonl) so a backgrounded
+	// follow does not re-wake an agent on every beat; an interactive TTY follow
+	// leaves it false.
+	SuppressHeartbeats bool `protobuf:"varint,3,opt,name=suppress_heartbeats,json=suppressHeartbeats,proto3" json:"suppress_heartbeats,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *FollowRunRequest) Reset() {
@@ -700,6 +709,13 @@ func (x *FollowRunRequest) GetRunId() string {
 		return x.RunId
 	}
 	return ""
+}
+
+func (x *FollowRunRequest) GetSuppressHeartbeats() bool {
+	if x != nil {
+		return x.SuppressHeartbeats
+	}
+	return false
 }
 
 type WaitRunRequest struct {
@@ -3125,10 +3141,11 @@ const file_test_genie_v1_runs_runs_proto_rawDesc = "" +
 	"\vRunBusyInfo\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12\x16\n" +
-	"\x06preset\x18\x03 \x01(\tR\x06preset\"E\n" +
+	"\x06preset\x18\x03 \x01(\tR\x06preset\"v\n" +
 	"\x10FollowRunRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x15\n" +
-	"\x06run_id\x18\x02 \x01(\tR\x05runId\"l\n" +
+	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12/\n" +
+	"\x13suppress_heartbeats\x18\x03 \x01(\bR\x12suppressHeartbeats\"l\n" +
 	"\x0eWaitRunRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x15\n" +
 	"\x06run_id\x18\x02 \x01(\tR\x05runId\x12'\n" +

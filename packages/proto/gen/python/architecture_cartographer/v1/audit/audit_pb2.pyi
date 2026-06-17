@@ -1,6 +1,7 @@
 import datetime
 
 from architecture_cartographer.v1.conflicts import conflicts_pb2 as _conflicts_pb2
+from common.v1 import maturity_pb2 as _maturity_pb2
 from google.protobuf import duration_pb2 as _duration_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
@@ -111,7 +112,7 @@ class AuditRunRequest(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., fail_on: _Optional[_Union[_conflicts_pb2.Severity, str]] = ..., include_types: _Optional[_Iterable[str]] = ..., exclude_types: _Optional[_Iterable[str]] = ..., allow_low_authority: _Optional[bool] = ..., skip_ts: _Optional[bool] = ...) -> None: ...
 
 class AuditRunResponse(_message.Message):
-    __slots__ = ("scenario", "outcome", "error", "total_findings", "by_severity", "by_type", "findings", "domains", "graph", "duration", "suppressed_findings", "by_domain", "snapshot_freshness", "authority_confidence", "outcome_reason")
+    __slots__ = ("scenario", "outcome", "error", "total_findings", "by_severity", "by_type", "findings", "domains", "graph", "duration", "suppressed_findings", "by_domain", "snapshot_freshness", "authority_confidence", "outcome_reason", "assessment")
     class BySeverityEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -148,6 +149,7 @@ class AuditRunResponse(_message.Message):
     SNAPSHOT_FRESHNESS_FIELD_NUMBER: _ClassVar[int]
     AUTHORITY_CONFIDENCE_FIELD_NUMBER: _ClassVar[int]
     OUTCOME_REASON_FIELD_NUMBER: _ClassVar[int]
+    ASSESSMENT_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     outcome: AuditOutcome
     error: str
@@ -163,7 +165,8 @@ class AuditRunResponse(_message.Message):
     snapshot_freshness: SnapshotFreshness
     authority_confidence: AuthorityConfidence
     outcome_reason: str
-    def __init__(self, scenario: _Optional[str] = ..., outcome: _Optional[_Union[AuditOutcome, str]] = ..., error: _Optional[str] = ..., total_findings: _Optional[int] = ..., by_severity: _Optional[_Mapping[str, int]] = ..., by_type: _Optional[_Mapping[str, int]] = ..., findings: _Optional[_Iterable[_Union[ConflictSummary, _Mapping]]] = ..., domains: _Optional[_Union[DerivedDomainSummary, _Mapping]] = ..., graph: _Optional[_Union[GraphSummary, _Mapping]] = ..., duration: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., suppressed_findings: _Optional[int] = ..., by_domain: _Optional[_Mapping[str, int]] = ..., snapshot_freshness: _Optional[_Union[SnapshotFreshness, str]] = ..., authority_confidence: _Optional[_Union[AuthorityConfidence, str]] = ..., outcome_reason: _Optional[str] = ...) -> None: ...
+    assessment: _maturity_pb2.MaturityAssessment
+    def __init__(self, scenario: _Optional[str] = ..., outcome: _Optional[_Union[AuditOutcome, str]] = ..., error: _Optional[str] = ..., total_findings: _Optional[int] = ..., by_severity: _Optional[_Mapping[str, int]] = ..., by_type: _Optional[_Mapping[str, int]] = ..., findings: _Optional[_Iterable[_Union[ConflictSummary, _Mapping]]] = ..., domains: _Optional[_Union[DerivedDomainSummary, _Mapping]] = ..., graph: _Optional[_Union[GraphSummary, _Mapping]] = ..., duration: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., suppressed_findings: _Optional[int] = ..., by_domain: _Optional[_Mapping[str, int]] = ..., snapshot_freshness: _Optional[_Union[SnapshotFreshness, str]] = ..., authority_confidence: _Optional[_Union[AuthorityConfidence, str]] = ..., outcome_reason: _Optional[str] = ..., assessment: _Optional[_Union[_maturity_pb2.MaturityAssessment, _Mapping]] = ...) -> None: ...
 
 class AuditRunAllRequest(_message.Message):
     __slots__ = ("fail_on", "include_types", "exclude_types", "include_scenarios", "exclude_scenarios", "allow_low_authority", "concurrency", "allow_low_authority_scenarios")

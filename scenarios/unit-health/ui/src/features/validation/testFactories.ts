@@ -57,7 +57,38 @@ export const makeValidateScenarioResponse = (
         status: "failed",
         degradedReason: "",
       },
+      {
+        id: "api",
+        language: "go",
+        rootPath: "scenarios/unit-health/api",
+        framework: "gotest",
+        canonicalFramework: "go-test",
+        testCommand: "go test ./...",
+        coverageCommand: "go test -cover ./...",
+        packageManager: "go",
+        status: "passed",
+        degradedReason: "",
+      },
     ],
+    plan: {
+      commands: [
+        {
+          workspaceId: "ui",
+          name: "ui test",
+          command: "pnpm test",
+          workingDirectory: "scenarios/unit-health/ui",
+          timeoutSeconds: 120,
+        },
+        {
+          workspaceId: "api",
+          name: "api test",
+          command: "go test ./...",
+          workingDirectory: "scenarios/unit-health/api",
+          timeoutSeconds: 300,
+        },
+      ],
+      notes: "Two workspaces discovered.",
+    },
     commandResults: [
       {
         name: "ui test",
@@ -65,7 +96,25 @@ export const makeValidateScenarioResponse = (
         workingDirectory: "scenarios/unit-health/ui",
         status: "failed",
         exitCode: 1,
+        stdoutExcerpt: "1 failed | 12 passed",
+        stderrExcerpt: "AssertionError: expected true to be false",
         timeoutSeconds: 120,
+        failureReason: "assertion failure",
+        failureClass: "test_failure",
+        durationMs: 4200n,
+      },
+      {
+        name: "api test",
+        command: "go test ./...",
+        workingDirectory: "scenarios/unit-health/api",
+        status: "passed",
+        exitCode: 0,
+        stdoutExcerpt: "",
+        stderrExcerpt: "",
+        timeoutSeconds: 300,
+        failureReason: "",
+        failureClass: "",
+        durationMs: 1800n,
       },
     ],
     coverage: [
@@ -148,6 +197,43 @@ export const makeValidateScenarioResponse = (
       coverageTargets: 1,
     },
     nextSteps: ["Raise UI coverage above 80%.", "Stabilize the flaky HealthCard test."],
+    assessment: {
+      scenario: "unit-health",
+      provider: "unit-health",
+      phase: "validate",
+      version: "1.0.0",
+      local: {
+        currentLevel: "R2 Covered",
+        nextLevel: "R3 Reliable",
+        levels: [
+          {
+            id: "R2",
+            name: "Covered",
+            description: "Test commands run and coverage is measured.",
+            entryCriteria: ["Surfaces discovered", "Commands run"],
+            exitCriteria: ["Coverage at or above threshold", "No flaky tests"],
+          },
+          {
+            id: "R3",
+            name: "Reliable",
+            description: "Tests are deterministic and coverage holds.",
+            entryCriteria: ["Coverage at or above threshold"],
+            exitCriteria: ["Zero flakes over N runs", "Mutation score above target"],
+          },
+        ],
+        blockingFindingCodes: ["UNIT_COVERAGE_BELOW_THRESHOLD", "UNIT_FLAKY_TEST"],
+      },
+      findings: [],
+      findingsByGlobalImpact: {
+        regression_risk: 2,
+        maintainability: 1,
+      },
+      findingsBySeverity: {
+        error: 1,
+        warning: 1,
+      },
+      recommendedSkillIds: ["raise-coverage", "stabilize-flaky-tests"],
+    },
   };
   return { ...base, ...overrides } as unknown as ValidateScenarioResponse;
 };

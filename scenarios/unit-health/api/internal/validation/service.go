@@ -219,10 +219,23 @@ func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 
 	surfaces, workspaces, plan, findings := buildPlan(scenario, inv, nowStr)
 
+	// Static analyzers run regardless of execution: they read source facts only.
+	findings = append(findings, analyzeArchitecture(scenario, workspaces, nowStr)...)
+	findings = append(findings, analyzeQuality(scenario, inv.RootPath, workspaces, nowStr)...)
+
 	var commandResults []CommandResult
+	var coverage []CoverageTarget
 	if req.IncludeExecution && len(plan.Commands) > 0 {
 		commandResults, findings = s.execute(ctx, scenario, plan, findings, nowStr)
+		var covFindings []Finding
+		coverage, covFindings = analyzeCoverage(scenario, inv.RootPath, workspaces, nowStr)
+		findings = append(findings, covFindings...)
 	}
+
+	// Diagnostics fold in static flake markers plus runtime/hang evidence from
+	// any executed commands (commandResults is empty on a dry run).
+	diagnostics, diagFindings := analyzeDiagnostics(scenario, workspaces, plan, commandResults, nowStr)
+	findings = append(findings, diagFindings...)
 
 	resp := Response{
 		RunID:          runID,
@@ -234,6 +247,8 @@ func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 		Workspaces:     workspaces,
 		Plan:           plan,
 		CommandResults: commandResults,
+		Coverage:       coverage,
+		Diagnostics:    diagnostics,
 		Findings:       findings,
 	}
 	resp.Status = deriveStatus(inv, findings)

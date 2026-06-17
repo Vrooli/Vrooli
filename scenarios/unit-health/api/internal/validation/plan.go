@@ -40,6 +40,22 @@ var codeSeverity = map[string]string{
 	codeTestExecutionFailure:   "error",
 	codeTestDependencyMissing:  "error",
 	codeTestTimeoutHang:        "error",
+
+	// Phase 5 analyzer codes (coverage, architecture, quality, diagnostics).
+	codeLowCoverage:             "warning",
+	codeCoverageAbsent:          "info",
+	codeTestNotColocated:        "warning",
+	codeTestUtilMissing:         "warning",
+	codeTestHelperFromProd:      "error",
+	codeMissingInjectableSeam:   "warning",
+	codeTestSkippedOrOnly:       "warning",
+	codeTestNoAssertion:         "warning",
+	codeTestRenderOnly:          "warning",
+	codeTestExcessiveSnapshots:  "info",
+	codeTestMissingEdgeCases:    "warning",
+	codeTestFlakeSuspected:      "warning",
+	codeTestRuntimeGrowth:       "info",
+	codeTestUntaggedRequirement: "warning",
 }
 
 // defaultWorkspaceTimeoutSeconds bounds each planned command. The bounded

@@ -133,12 +133,14 @@ class RunBusyInfo(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., run_id: _Optional[str] = ..., preset: _Optional[str] = ...) -> None: ...
 
 class FollowRunRequest(_message.Message):
-    __slots__ = ("scenario", "run_id")
+    __slots__ = ("scenario", "run_id", "suppress_heartbeats")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    SUPPRESS_HEARTBEATS_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     run_id: str
-    def __init__(self, scenario: _Optional[str] = ..., run_id: _Optional[str] = ...) -> None: ...
+    suppress_heartbeats: bool
+    def __init__(self, scenario: _Optional[str] = ..., run_id: _Optional[str] = ..., suppress_heartbeats: _Optional[bool] = ...) -> None: ...
 
 class WaitRunRequest(_message.Message):
     __slots__ = ("scenario", "run_id", "timeout_seconds")

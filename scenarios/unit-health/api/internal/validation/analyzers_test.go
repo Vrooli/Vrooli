@@ -1,0 +1,245 @@
+package validation
+
+import (
+	"path/filepath"
+	"testing"
+)
+
+const fixedNowStr = "2026-06-16T12:00:00Z"
+
+func findingByCode(findings []Finding, code string) (Finding, bool) {
+	for _, f := range findings {
+		if f.Code == code {
+			return f, true
+		}
+	}
+	return Finding{}, false
+}
+
+// --- Coverage analyzer ---------------------------------------------------
+
+func TestAnalyzeCoverageGoProfile(t *testing.T) {
+	root := t.TempDir()
+	wsDir := filepath.Join(root, "api")
+	// 4 statements total, 3 covered (count>0) => 75%.
+	writeFile(t, filepath.Join(wsDir, "coverage.out"), "mode: atomic\n"+
+		"mod/a.go:1.1,3.2 2 1\n"+
+		"mod/a.go:4.1,5.2 1 0\n"+
+		"mod/b.go:1.1,2.2 1 5\n")
+	writeFile(t, filepath.Join(root, ".vrooli", "testing.json"), `{"coverage":{"threshold_percent":80}}`)
+
+	ws := Workspace{ID: "api", Language: "go", RootPath: wsDir, CoverageCommand: "go test -cover ./..."}
+	targets, findings := analyzeCoverage("demo", root, []Workspace{ws}, fixedNowStr)
+
+	if len(targets) != 2 {
+		t.Fatalf("expected 2 coverage targets, got %d: %+v", len(targets), targets)
+	}
+	// Below 80% threshold => LOW_COVERAGE.
+	if _, ok := findingByCode(findings, codeLowCoverage); !ok {
+		t.Errorf("expected LOW_COVERAGE, got %v", codes(findings))
+	}
+}
+
+func TestAnalyzeCoverageAbsentArtifact(t *testing.T) {
+	root := t.TempDir()
+	ws := Workspace{ID: "api", Language: "go", RootPath: filepath.Join(root, "api"), CoverageCommand: "go test -cover ./..."}
+	_, findings := analyzeCoverage("demo", root, []Workspace{ws}, fixedNowStr)
+	if _, ok := findingByCode(findings, codeCoverageAbsent); !ok {
+		t.Errorf("expected COVERAGE_ABSENT, got %v", codes(findings))
+	}
+}
+
+func TestAnalyzeCoverageVitestSummary(t *testing.T) {
+	root := t.TempDir()
+	wsDir := filepath.Join(root, "ui")
+	writeFile(t, filepath.Join(wsDir, "coverage", "coverage-summary.json"),
+		`{"total":{"lines":{"total":10,"covered":9}},"src/App.tsx":{"lines":{"total":10,"covered":9}}}`)
+	ws := Workspace{ID: "ui", Language: "typescript", RootPath: wsDir, CoverageCommand: "pnpm test:coverage"}
+	targets, findings := analyzeCoverage("demo", root, []Workspace{ws}, fixedNowStr)
+	if len(targets) != 1 || targets[0].CoveragePercent != 90 {
+		t.Fatalf("expected one 90%% target, got %+v", targets)
+	}
+	// No threshold set => no LOW_COVERAGE.
+	if _, ok := findingByCode(findings, codeLowCoverage); ok {
+		t.Errorf("did not expect LOW_COVERAGE without a threshold")
+	}
+}
+
+func TestParseLCOV(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "lcov.info")
+	writeFile(t, path, "SF:src/a.ts\nLF:4\nLH:2\nend_of_record\n")
+	cov, ok := parseLCOV(path)
+	if !ok || cov["src/a.ts"].total != 4 || cov["src/a.ts"].covered != 2 {
+		t.Fatalf("lcov parse = %+v ok=%v", cov, ok)
+	}
+}
+
+// --- Architecture analyzer ----------------------------------------------
+
+func TestAnalyzeArchitectureProductionImportsHelper(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module demo\n\ngo 1.25\n")
+	writeFile(t, filepath.Join(root, "service.go"), "package demo\n\nimport _ \"demo/internal/testutil\"\n")
+	writeFile(t, filepath.Join(root, "internal", "testutil", "util.go"), "package testutil\n")
+
+	ws := Workspace{ID: "api", Language: "go", RootPath: root}
+	findings := analyzeArchitecture("demo", []Workspace{ws}, fixedNowStr)
+	f, ok := findingByCode(findings, codeTestHelperFromProd)
+	if !ok {
+		t.Fatalf("expected TEST_HELPER_FROM_PRODUCTION, got %v", codes(findings))
+	}
+	if f.Severity != "error" {
+		t.Errorf("helper-from-prod severity = %q, want error", f.Severity)
+	}
+}
+
+func TestAnalyzeArchitectureMissingSeam(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module demo\n\ngo 1.25\n")
+	writeFile(t, filepath.Join(root, "svc.go"), "package demo\n\nimport \"time\"\n\nfunc N() { _ = time.Now() }\n")
+	writeFile(t, filepath.Join(root, "svc_test.go"), "package demo\n\nimport \"testing\"\n\nfunc TestN(t *testing.T) { N() }\n")
+
+	ws := Workspace{ID: "api", Language: "go", RootPath: root}
+	findings := analyzeArchitecture("demo", []Workspace{ws}, fixedNowStr)
+	if _, ok := findingByCode(findings, codeMissingInjectableSeam); !ok {
+		t.Errorf("expected MISSING_INJECTABLE_SEAM, got %v", codes(findings))
+	}
+}
+
+func TestAnalyzeArchitectureTestUtilMissing(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module demo\n\ngo 1.25\n")
+	for _, n := range []string{"a", "b", "c"} {
+		writeFile(t, filepath.Join(root, n+"_test.go"), "package demo\n\nimport \"testing\"\n\nfunc Test"+n+"(t *testing.T) { t.Fatal(\"x\") }\n")
+	}
+	ws := Workspace{ID: "api", Language: "go", RootPath: root}
+	findings := analyzeArchitecture("demo", []Workspace{ws}, fixedNowStr)
+	if _, ok := findingByCode(findings, codeTestUtilMissing); !ok {
+		t.Errorf("expected TEST_UTIL_MISSING, got %v", codes(findings))
+	}
+}
+
+// --- Quality analyzer ---------------------------------------------------
+
+func TestAnalyzeQualityGoSkippedAndNoAssertion(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module demo\n\ngo 1.25\n")
+	writeFile(t, filepath.Join(root, "x_test.go"), `package demo
+
+import "testing"
+
+func TestSkipped(t *testing.T) { t.Skip("later") }
+
+func TestNoAssert(t *testing.T) { _ = 1 + 1 }
+
+func TestErrorPath(t *testing.T) {
+	if false {
+		t.Fatal("invalid input should fail")
+	}
+}
+`)
+	ws := Workspace{ID: "api", Language: "go", RootPath: root}
+	findings := analyzeQuality("demo", root, []Workspace{ws}, fixedNowStr)
+	if _, ok := findingByCode(findings, codeTestSkippedOrOnly); !ok {
+		t.Errorf("expected TEST_SKIPPED_OR_ONLY, got %v", codes(findings))
+	}
+	if _, ok := findingByCode(findings, codeTestNoAssertion); !ok {
+		t.Errorf("expected TEST_NO_ASSERTION, got %v", codes(findings))
+	}
+	// "invalid" keyword present => no missing-edge-cases.
+	if _, ok := findingByCode(findings, codeTestMissingEdgeCases); ok {
+		t.Errorf("did not expect TEST_MISSING_EDGE_CASES when edge keywords present")
+	}
+}
+
+func TestAnalyzeQualityTSRenderOnlyAndOnly(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "src", "App.test.tsx"), `
+import { render } from "@testing-library/react";
+describe.only("App", () => {
+  it("renders", () => { render(<App/>); });
+});
+`)
+	ws := Workspace{ID: "ui", Language: "typescript", RootPath: root}
+	findings := analyzeQuality("demo", root, []Workspace{ws}, fixedNowStr)
+	if _, ok := findingByCode(findings, codeTestRenderOnly); !ok {
+		t.Errorf("expected TEST_RENDER_ONLY, got %v", codes(findings))
+	}
+	if _, ok := findingByCode(findings, codeTestSkippedOrOnly); !ok {
+		t.Errorf("expected TEST_SKIPPED_OR_ONLY for .only, got %v", codes(findings))
+	}
+}
+
+func TestAnalyzeQualityUntaggedRequirement(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "requirements", "core.md"), "# Core\n\n- REQ-CORE-001: must validate\n")
+	writeFile(t, filepath.Join(root, "go.mod"), "module demo\n\ngo 1.25\n")
+	writeFile(t, filepath.Join(root, "x_test.go"), "package demo\n\nimport \"testing\"\n\nfunc TestX(t *testing.T){ t.Fatal(\"invalid\") }\n")
+	ws := Workspace{ID: "api", Language: "go", RootPath: root}
+	findings := analyzeQuality("demo", root, []Workspace{ws}, fixedNowStr)
+	if _, ok := findingByCode(findings, codeTestUntaggedRequirement); !ok {
+		t.Errorf("expected TEST_UNTAGGED_REQUIREMENT, got %v", codes(findings))
+	}
+}
+
+func TestAnalyzeQualityTaggedRequirementIsClean(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "requirements", "core.md"), "- REQ-CORE-001: must validate\n")
+	writeFile(t, filepath.Join(root, "go.mod"), "module demo\n\ngo 1.25\n")
+	writeFile(t, filepath.Join(root, "x_test.go"), "package demo\n\nimport \"testing\"\n\n// covers REQ-CORE-001\nfunc TestX(t *testing.T){ t.Fatal(\"invalid\") }\n")
+	ws := Workspace{ID: "api", Language: "go", RootPath: root}
+	findings := analyzeQuality("demo", root, []Workspace{ws}, fixedNowStr)
+	if _, ok := findingByCode(findings, codeTestUntaggedRequirement); ok {
+		t.Errorf("did not expect TEST_UNTAGGED_REQUIREMENT when a test references the REQ id")
+	}
+}
+
+// --- Diagnostics analyzer -----------------------------------------------
+
+func TestAnalyzeDiagnosticsRuntimePressureAndHang(t *testing.T) {
+	plan := ExecutionPlan{Commands: []PlannedCommand{
+		{WorkspaceID: "api", Command: "go test ./...", WorkingDirectory: "/x/api", TimeoutSeconds: 100},
+		{WorkspaceID: "ui", Command: "pnpm test", WorkingDirectory: "/x/ui", TimeoutSeconds: 100},
+	}}
+	results := []CommandResult{
+		{Name: "go", Command: "go test ./...", WorkingDirectory: "/x/api", Status: "passed", DurationMS: 90000, TimeoutSeconds: 100},
+		{Name: "ui", Command: "pnpm test", WorkingDirectory: "/x/ui", Status: "timeout", FailureClass: "timeout_hang", StderrExcerpt: "stuck", TimeoutSeconds: 100},
+	}
+	diags, findings := analyzeDiagnostics("demo", nil, plan, results, fixedNowStr)
+
+	var sawRuntime, sawHang bool
+	for _, d := range diags {
+		switch d.Kind {
+		case "runtime":
+			sawRuntime = true
+		case "hang":
+			sawHang = true
+		}
+	}
+	if !sawRuntime || !sawHang {
+		t.Fatalf("expected runtime+hang diagnostics, got %+v", diags)
+	}
+	if _, ok := findingByCode(findings, codeTestRuntimeGrowth); !ok {
+		t.Errorf("expected TEST_RUNTIME_GROWTH, got %v", codes(findings))
+	}
+}
+
+func TestAnalyzeDiagnosticsFlakeMarkers(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "x_test.go"), "package demo\n\nimport \"testing\"\n\n// this test is flaky under load\nfunc TestX(t *testing.T){}\n")
+	ws := Workspace{ID: "api", Language: "go", RootPath: root}
+	diags, findings := analyzeDiagnostics("demo", []Workspace{ws}, ExecutionPlan{}, nil, fixedNowStr)
+	if _, ok := findingByCode(findings, codeTestFlakeSuspected); !ok {
+		t.Errorf("expected TEST_FLAKE_SUSPECTED, got %v", codes(findings))
+	}
+	var sawFlake bool
+	for _, d := range diags {
+		if d.Kind == "flake" {
+			sawFlake = true
+		}
+	}
+	if !sawFlake {
+		t.Errorf("expected flake diagnostic, got %+v", diags)
+	}
+}

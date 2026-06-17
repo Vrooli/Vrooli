@@ -57,6 +57,8 @@ func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 	summary = append(summary, workspaceLines(msg.GetWorkspaces())...)
 	summary = append(summary, planLines(msg.GetPlan())...)
 	summary = append(summary, executionLines(msg.GetCommandResults())...)
+	summary = append(summary, coverageLines(msg.GetCoverage())...)
+	summary = append(summary, diagnosticLines(msg.GetDiagnostics())...)
 
 	human := cliapp.ListReport{
 		Summary:        summary,
@@ -125,6 +127,65 @@ func executionLines(results []*validationv1.CommandResult) []string {
 		line := fmt.Sprintf("  • %s: %s (exit=%d, %dms)", r.GetName(), r.GetStatus(), r.GetExitCode(), r.GetDurationMs())
 		if class := strings.TrimSpace(r.GetFailureClass()); class != "" {
 			line += " [" + class + "]"
+		}
+		lines = append(lines, line)
+	}
+	return lines
+}
+
+// coverageLines renders a per-surface coverage roll-up (covered/total units and
+// percent) so operators see hardening depth without a per-file dump.
+func coverageLines(targets []*validationv1.CoverageTarget) []string {
+	if len(targets) == 0 {
+		return nil
+	}
+	type agg struct {
+		covered, total int64
+		threshold      float64
+	}
+	order := []string{}
+	bySurface := map[string]*agg{}
+	for _, t := range targets {
+		key := t.GetSurfaceId()
+		if key == "" {
+			key = t.GetLanguage()
+		}
+		a, ok := bySurface[key]
+		if !ok {
+			a = &agg{threshold: t.GetThreshold()}
+			bySurface[key] = a
+			order = append(order, key)
+		}
+		a.covered += t.GetCoveredLines()
+		a.total += t.GetTotalLines()
+	}
+	lines := []string{fmt.Sprintf("Coverage (%d file target(s)):", len(targets))}
+	for _, key := range order {
+		a := bySurface[key]
+		pct := 0.0
+		if a.total > 0 {
+			pct = float64(a.covered) / float64(a.total) * 100
+		}
+		line := fmt.Sprintf("  • %s: %.1f%% (%d/%d units)", key, pct, a.covered, a.total)
+		if a.threshold > 0 {
+			line += fmt.Sprintf(", threshold %.0f%%", a.threshold)
+		}
+		lines = append(lines, line)
+	}
+	return lines
+}
+
+// diagnosticLines renders flake/runtime/hang diagnostics so operators see the
+// likely culprit behind a slow or hung suite.
+func diagnosticLines(diagnostics []*validationv1.Diagnostic) []string {
+	if len(diagnostics) == 0 {
+		return nil
+	}
+	lines := []string{fmt.Sprintf("Diagnostics (%d):", len(diagnostics))}
+	for _, d := range diagnostics {
+		line := fmt.Sprintf("  • [%s] %s", d.GetKind(), d.GetMessage())
+		if ws := strings.TrimSpace(d.GetWorkspaceId()); ws != "" {
+			line += " (" + ws + ")"
 		}
 		lines = append(lines, line)
 	}

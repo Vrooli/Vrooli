@@ -22,7 +22,15 @@ service DependencyGovernanceService {
   rpc ExplainApprovedDependency(ExplainApprovedDependencyRequest) returns (ApprovedDependencyExplainResponse);
   rpc ValidateApprovedDependencies(ValidateApprovedDependenciesRequest) returns (ApprovedDependencyValidationResponse);
   rpc ValidateFleetApprovedDependencies(ValidateFleetApprovedDependenciesRequest) returns (FleetApprovedDependencyValidationResponse);
+  rpc ListApprovedDependencyFindings(ListApprovedDependencyFindingsRequest) returns (ApprovedDependencyFindingsResponse);
+  rpc GetApprovedDependencyTriage(GetApprovedDependencyTriageRequest) returns (ApprovedDependencyTriageResponse);
+  rpc GetApprovedDependencyUsage(GetApprovedDependencyUsageRequest) returns (ApprovedDependencyUsageResponse);
   rpc UpsertApprovedDependency(UpsertApprovedDependencyRequest) returns (UpsertApprovedDependencyResponse);
+  rpc ProposeApprovedDependencyRecords(ProposeApprovedDependencyRecordsRequest) returns (ApprovedDependencyProposalResponse);
+  rpc BatchUpsertApprovedDependencies(BatchUpsertApprovedDependenciesRequest) returns (BatchUpsertApprovedDependenciesResponse);
+  rpc ApproveObservedDependency(ApproveObservedDependencyRequest) returns (DependencyGovernanceDecisionResponse);
+  rpc WidenApprovedDependencyRange(WidenApprovedDependencyRangeRequest) returns (DependencyGovernanceDecisionResponse);
+  rpc ListSecurityGovernanceGaps(ListSecurityGovernanceGapsRequest) returns (SecurityGovernanceGapsResponse);
   rpc PreviewVulnerabilityRemediation(PreviewVulnerabilityRemediationRequest) returns (VulnerabilityRemediationResponse);
   rpc DenyVulnerableDependency(DenyVulnerableDependencyRequest) returns (VulnerabilityRemediationResponse);
 }
@@ -30,6 +38,8 @@ service DependencyGovernanceService {
 message ListApprovedDependenciesRequest {
   string ecosystem = 1;
   string state = 2;
+  // Deprecated/ignored. Approvals are global by package/range; they are no
+  // longer scoped to api/cli/ui/worker surfaces.
   string surface = 3;
   string use_case = 4;
 }
@@ -54,9 +64,84 @@ message ValidateFleetApprovedDependenciesRequest {
   string policy_mode = 1;
 }
 
+message ListApprovedDependencyFindingsRequest {
+  string policy_mode = 1;
+  string scenario = 2;
+  string ecosystem = 3;
+  string package_name = 4;
+  string severity = 5;
+  string finding_class = 6;
+}
+
+message GetApprovedDependencyTriageRequest {
+  string policy_mode = 1;
+  // Optional section filter: security, seeding, ranges, hotspots, or expired.
+  string section = 2;
+  string ecosystem = 3;
+  string package_name = 4;
+  // Optional max groups per section. Zero means no API-level truncation.
+  int32 limit = 5;
+}
+
+message GetApprovedDependencyUsageRequest {
+  string ecosystem = 1;
+  string package_name = 2;
+  string policy_mode = 3;
+}
+
 message UpsertApprovedDependencyRequest {
   ApprovedDependencyRecord record = 1;
   bool dry_run = 2;
+}
+
+message ProposeApprovedDependencyRecordsRequest {
+  string policy_mode = 1;
+  int32 top_unrecorded = 2;
+  string ecosystem = 3;
+  string package_name = 4;
+  string scenario = 5;
+  bool include_dev = 6;
+  bool include_runtime = 7;
+  int32 minimum_scenario_count = 8;
+  string state = 9;
+  string range_strategy = 10;
+}
+
+message BatchUpsertApprovedDependenciesRequest {
+  repeated ApprovedDependencyRecord records = 1;
+  bool dry_run = 2;
+}
+
+message ApproveObservedDependencyRequest {
+  string ecosystem = 1;
+  string package_name = 2;
+  string policy_mode = 3;
+  string range_strategy = 4;
+  string range_policy = 5;
+  string rationale = 6;
+  string approved_by = 7;
+  bool dry_run = 8;
+  bool from_findings = 9;
+}
+
+message WidenApprovedDependencyRangeRequest {
+  string ecosystem = 1;
+  string package_name = 2;
+  string policy_mode = 3;
+  // Supported target: major_line. Empty defaults to major_line.
+  string target_policy = 4;
+  string rationale = 5;
+  string approved_by = 6;
+  bool dry_run = 7;
+}
+
+message ListSecurityGovernanceGapsRequest {
+  string ecosystem = 1;
+  string package_name = 2;
+  string scenario = 3;
+  string vulnerability_id = 4;
+  string minimum_severity = 5;
+  int32 limit = 6;
 }
 
 message PreviewVulnerabilityRemediationRequest {
@@ -112,6 +197,49 @@ message FleetApprovedDependencyValidationResponse {
   string guidance = 6;
 }
 
+message ApprovedDependencyFindingsResponse {
+  repeated ApprovedDependencyFinding findings = 1;
+  DependencyGovernanceSummary summary = 2;
+  string guidance = 3;
+}
+
+message ApprovedDependencyTriageResponse {
+  DependencyGovernanceSummary summary = 1;
+  repeated DependencyGovernanceTriageGroup security_actions = 2;
+  repeated DependencyGovernanceTriageGroup registry_seeding = 3;
+  repeated DependencyGovernanceTriageGroup range_policy = 4;
+  repeated DependencyGovernanceTriageGroup scenario_hotspots = 5;
+  repeated DependencyGovernanceTriageGroup stale_or_expired_reviews = 6;
+  string guidance = 7;
+}
+
+message DependencyGovernanceTriageGroup {
+  string group_id = 1;
+  string title = 2;
+  string action_type = 3;
+  string section = 4;
+  string ecosystem = 5;
+  string package_name = 6;
+  int32 finding_count = 7;
+  int32 scenario_count = 8;
+  int32 usage_count = 9;
+  string highest_severity = 10;
+  repeated string finding_classes = 11;
+  repeated string scenarios = 12;
+  repeated string observed_versions = 13;
+  repeated string vulnerability_ids = 14;
+  string recommended_command = 15;
+  string rationale = 16;
+}
+
+message ApprovedDependencyUsageResponse {
+  bool found = 1;
+  DependencyUsageGroup usage_group = 2;
+  repeated ApprovedDependencyFinding findings = 3;
+  DependencyGovernanceSummary summary = 4;
+  string guidance = 5;
+}
+
 message UpsertApprovedDependencyResponse {
   ApprovedDependencyRecord record = 1;
   ApprovedDependencyRecord previous_record = 2;
@@ -120,6 +248,61 @@ message UpsertApprovedDependencyResponse {
   string message = 5;
   DependencyGovernanceSummary summary = 6;
   string guidance = 7;
+}
+
+message ApprovedDependencyProposalResponse {
+  repeated ApprovedDependencyRecord records = 1;
+  repeated DependencyGovernanceTriageGroup evidence_groups = 2;
+  repeated string warnings = 3;
+  DependencyGovernanceSummary summary = 4;
+  string guidance = 5;
+}
+
+message BatchUpsertApprovedDependenciesResponse {
+  repeated UpsertApprovedDependencyResponse mutations = 1;
+  bool dry_run = 2;
+  bool changed = 3;
+  DependencyGovernanceSummary summary = 4;
+  repeated string warnings = 5;
+  string guidance = 6;
+}
+
+message DependencyGovernanceDecisionResponse {
+  ApprovedDependencyRecord record = 1;
+  UpsertApprovedDependencyResponse mutation = 2;
+  DependencyGovernanceTriageGroup evidence_group = 3;
+  repeated string warnings = 4;
+  string guidance = 5;
+}
+
+message SecurityGovernanceGapsResponse {
+  repeated SecurityGovernanceGap gaps = 1;
+  int32 total = 2;
+  int32 uncovered_count = 3;
+  int32 denied_covered_count = 4;
+  int32 approved_overlap_count = 5;
+  int32 warning_count = 6;
+  repeated string warnings = 7;
+  string guidance = 8;
+}
+
+message SecurityGovernanceGap {
+  string gap_id = 1;
+  string ecosystem = 2;
+  string package_name = 3;
+  string observed_version = 4;
+  repeated string vulnerability_ids = 5;
+  string severity = 6;
+  string normalized_severity = 7;
+  repeated string affected_ranges = 8;
+  repeated string fixed_ranges = 9;
+  repeated string scenarios = 10;
+  repeated string source_files = 11;
+  bool denied_record_covers = 12;
+  bool approved_record_overlaps = 13;
+  string signal_category = 14;
+  string suggested_command = 15;
+  string remediation = 16;
 }
 
 message VulnerabilityRemediationResponse {
@@ -190,6 +373,8 @@ message ApprovedDependencyRecord {
   string package_name = 2;
   string version_range = 3;
   string state = 4;
+  // Deprecated/ignored. Approval is global by package/range, not by folder or
+  // surface. Retained only to avoid a broad generated-contract migration.
   repeated string allowed_surfaces = 5;
   repeated string use_cases = 6;
   string rationale = 7;
@@ -204,7 +389,13 @@ message ApprovedDependencyRecord {
   repeated string keywords = 16;
   repeated string allowed_scenarios = 17;
   repeated string denied_scenarios = 18;
+  // Deprecated/ignored. Approval is global by package/range, not by dependency
+  // section/group. Retained only to avoid a broad generated-contract migration.
   repeated string allowed_dependency_groups = 19;
+  // Version-range interpretation policy. Supported values are exact,
+  // major_line, minimum, dev_tooling, and security_denied. Empty defaults to
+  // exact for literal versions and normal range evaluation for range strings.
+  string range_policy = 20;
 }
 
 message ObservedDependency {
@@ -214,6 +405,9 @@ message ObservedDependency {
   string surface_id = 4;
   string file_path = 5;
   string dependency_group = 6;
+  // Normalized review class derived by SDA: direct_runtime, direct_dev,
+  // indirect, lockfile_transitive, or security_vulnerable.
+  string signal_category = 7;
 }
 
 message DependencyUsageGroup {
@@ -226,6 +420,7 @@ message DependencyUsageGroup {
   int32 finding_count = 7;
   string highest_severity = 8;
   string state = 9;
+  repeated string signal_categories = 10;
 }
 
 message ApprovedDependencyFinding {

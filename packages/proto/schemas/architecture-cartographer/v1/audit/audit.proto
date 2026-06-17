@@ -3,6 +3,7 @@ syntax = "proto3";
 package vrooli.architecture_cartographer.v1.audit;
 
 import "architecture-cartographer/v1/conflicts/conflicts.proto";
+import "common/v1/maturity.proto";
 import "google/protobuf/duration.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/audit;audit_v1";
@@ -167,6 +168,8 @@ message AuditRunResponse {
   // Reason the outcome was decided as it was; populated for
   // FINDINGS to explain why (e.g., "low-authority", "severity>=warn").
   string outcome_reason = 15;
+  // Provider-owned local maturity assessment for Test Genie architecture phase.
+  common.v1.MaturityAssessment assessment = 16;
 }
 
 // =============================================================================

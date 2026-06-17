@@ -8,6 +8,7 @@ package audit_v1
 
 import (
 	conflicts "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/conflicts"
+	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	durationpb "google.golang.org/protobuf/types/known/durationpb"
@@ -586,6 +587,8 @@ type AuditRunResponse struct {
 	// Reason the outcome was decided as it was; populated for
 	// FINDINGS to explain why (e.g., "low-authority", "severity>=warn").
 	OutcomeReason string `protobuf:"bytes,15,opt,name=outcome_reason,json=outcomeReason,proto3" json:"outcome_reason,omitempty"`
+	// Provider-owned local maturity assessment for Test Genie architecture phase.
+	Assessment    *v1.MaturityAssessment `protobuf:"bytes,16,opt,name=assessment,proto3" json:"assessment,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -723,6 +726,13 @@ func (x *AuditRunResponse) GetOutcomeReason() string {
 		return x.OutcomeReason
 	}
 	return ""
+}
+
+func (x *AuditRunResponse) GetAssessment() *v1.MaturityAssessment {
+	if x != nil {
+		return x.Assessment
+	}
+	return nil
 }
 
 type AuditRunAllRequest struct {
@@ -935,7 +945,7 @@ var File_architecture_cartographer_v1_audit_audit_proto protoreflect.FileDescrip
 
 const file_architecture_cartographer_v1_audit_audit_proto_rawDesc = "" +
 	"\n" +
-	".architecture-cartographer/v1/audit/audit.proto\x12)vrooli.architecture_cartographer.v1.audit\x1a6architecture-cartographer/v1/conflicts/conflicts.proto\x1a\x1egoogle/protobuf/duration.proto\"\xd2\x02\n" +
+	".architecture-cartographer/v1/audit/audit.proto\x12)vrooli.architecture_cartographer.v1.audit\x1a6architecture-cartographer/v1/conflicts/conflicts.proto\x1a\x18common/v1/maturity.proto\x1a\x1egoogle/protobuf/duration.proto\"\xd2\x02\n" +
 	"\x0fConflictSummary\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\bdetector\x18\x02 \x01(\tR\bdetector\x12\x12\n" +
@@ -968,7 +978,7 @@ const file_architecture_cartographer_v1_audit_audit_proto_rawDesc = "" +
 	"\rinclude_types\x18\x03 \x03(\tR\fincludeTypes\x12#\n" +
 	"\rexclude_types\x18\x04 \x03(\tR\fexcludeTypes\x12.\n" +
 	"\x13allow_low_authority\x18\x05 \x01(\bR\x11allowLowAuthority\x12\x17\n" +
-	"\askip_ts\x18\x06 \x01(\bR\x06skipTs\"\x9e\n" +
+	"\askip_ts\x18\x06 \x01(\bR\x06skipTs\"\xdd\n" +
 	"\n" +
 	"\x10AuditRunResponse\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12Q\n" +
@@ -987,7 +997,10 @@ const file_architecture_cartographer_v1_audit_audit_proto_rawDesc = "" +
 	"\tby_domain\x18\f \x03(\v2I.vrooli.architecture_cartographer.v1.audit.AuditRunResponse.ByDomainEntryR\bbyDomain\x12k\n" +
 	"\x12snapshot_freshness\x18\r \x01(\x0e2<.vrooli.architecture_cartographer.v1.audit.SnapshotFreshnessR\x11snapshotFreshness\x12q\n" +
 	"\x14authority_confidence\x18\x0e \x01(\x0e2>.vrooli.architecture_cartographer.v1.audit.AuthorityConfidenceR\x13authorityConfidence\x12%\n" +
-	"\x0eoutcome_reason\x18\x0f \x01(\tR\routcomeReason\x1a=\n" +
+	"\x0eoutcome_reason\x18\x0f \x01(\tR\routcomeReason\x12=\n" +
+	"\n" +
+	"assessment\x18\x10 \x01(\v2\x1d.common.v1.MaturityAssessmentR\n" +
+	"assessment\x1a=\n" +
 	"\x0fBySeverityEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\x1a9\n" +
@@ -1058,23 +1071,24 @@ func file_architecture_cartographer_v1_audit_audit_proto_rawDescGZIP() []byte {
 var file_architecture_cartographer_v1_audit_audit_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
 var file_architecture_cartographer_v1_audit_audit_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_architecture_cartographer_v1_audit_audit_proto_goTypes = []any{
-	(AuditOutcome)(0),            // 0: vrooli.architecture_cartographer.v1.audit.AuditOutcome
-	(AuthorityConfidence)(0),     // 1: vrooli.architecture_cartographer.v1.audit.AuthorityConfidence
-	(SnapshotFreshness)(0),       // 2: vrooli.architecture_cartographer.v1.audit.SnapshotFreshness
-	(*ConflictSummary)(nil),      // 3: vrooli.architecture_cartographer.v1.audit.ConflictSummary
-	(*DerivedDomainSummary)(nil), // 4: vrooli.architecture_cartographer.v1.audit.DerivedDomainSummary
-	(*GraphSummary)(nil),         // 5: vrooli.architecture_cartographer.v1.audit.GraphSummary
-	(*AuditRunRequest)(nil),      // 6: vrooli.architecture_cartographer.v1.audit.AuditRunRequest
-	(*AuditRunResponse)(nil),     // 7: vrooli.architecture_cartographer.v1.audit.AuditRunResponse
-	(*AuditRunAllRequest)(nil),   // 8: vrooli.architecture_cartographer.v1.audit.AuditRunAllRequest
-	(*AuditRunAllResponse)(nil),  // 9: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse
-	nil,                          // 10: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.BySeverityEntry
-	nil,                          // 11: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.ByTypeEntry
-	nil,                          // 12: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.ByDomainEntry
-	nil,                          // 13: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.BySeverityEntry
-	nil,                          // 14: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.ByOutcomeEntry
-	(conflicts.Severity)(0),      // 15: vrooli.architecture_cartographer.v1.conflicts.Severity
-	(*durationpb.Duration)(nil),  // 16: google.protobuf.Duration
+	(AuditOutcome)(0),             // 0: vrooli.architecture_cartographer.v1.audit.AuditOutcome
+	(AuthorityConfidence)(0),      // 1: vrooli.architecture_cartographer.v1.audit.AuthorityConfidence
+	(SnapshotFreshness)(0),        // 2: vrooli.architecture_cartographer.v1.audit.SnapshotFreshness
+	(*ConflictSummary)(nil),       // 3: vrooli.architecture_cartographer.v1.audit.ConflictSummary
+	(*DerivedDomainSummary)(nil),  // 4: vrooli.architecture_cartographer.v1.audit.DerivedDomainSummary
+	(*GraphSummary)(nil),          // 5: vrooli.architecture_cartographer.v1.audit.GraphSummary
+	(*AuditRunRequest)(nil),       // 6: vrooli.architecture_cartographer.v1.audit.AuditRunRequest
+	(*AuditRunResponse)(nil),      // 7: vrooli.architecture_cartographer.v1.audit.AuditRunResponse
+	(*AuditRunAllRequest)(nil),    // 8: vrooli.architecture_cartographer.v1.audit.AuditRunAllRequest
+	(*AuditRunAllResponse)(nil),   // 9: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse
+	nil,                           // 10: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.BySeverityEntry
+	nil,                           // 11: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.ByTypeEntry
+	nil,                           // 12: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.ByDomainEntry
+	nil,                           // 13: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.BySeverityEntry
+	nil,                           // 14: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.ByOutcomeEntry
+	(conflicts.Severity)(0),       // 15: vrooli.architecture_cartographer.v1.conflicts.Severity
+	(*durationpb.Duration)(nil),   // 16: google.protobuf.Duration
+	(*v1.MaturityAssessment)(nil), // 17: common.v1.MaturityAssessment
 }
 var file_architecture_cartographer_v1_audit_audit_proto_depIdxs = []int32{
 	15, // 0: vrooli.architecture_cartographer.v1.audit.ConflictSummary.severity:type_name -> vrooli.architecture_cartographer.v1.conflicts.Severity
@@ -1089,20 +1103,21 @@ var file_architecture_cartographer_v1_audit_audit_proto_depIdxs = []int32{
 	12, // 9: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.by_domain:type_name -> vrooli.architecture_cartographer.v1.audit.AuditRunResponse.ByDomainEntry
 	2,  // 10: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.snapshot_freshness:type_name -> vrooli.architecture_cartographer.v1.audit.SnapshotFreshness
 	1,  // 11: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.authority_confidence:type_name -> vrooli.architecture_cartographer.v1.audit.AuthorityConfidence
-	15, // 12: vrooli.architecture_cartographer.v1.audit.AuditRunAllRequest.fail_on:type_name -> vrooli.architecture_cartographer.v1.conflicts.Severity
-	7,  // 13: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.reports:type_name -> vrooli.architecture_cartographer.v1.audit.AuditRunResponse
-	13, // 14: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.by_severity:type_name -> vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.BySeverityEntry
-	14, // 15: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.by_outcome:type_name -> vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.ByOutcomeEntry
-	16, // 16: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.duration:type_name -> google.protobuf.Duration
-	6,  // 17: vrooli.architecture_cartographer.v1.audit.AuditService.Run:input_type -> vrooli.architecture_cartographer.v1.audit.AuditRunRequest
-	8,  // 18: vrooli.architecture_cartographer.v1.audit.AuditService.RunAll:input_type -> vrooli.architecture_cartographer.v1.audit.AuditRunAllRequest
-	7,  // 19: vrooli.architecture_cartographer.v1.audit.AuditService.Run:output_type -> vrooli.architecture_cartographer.v1.audit.AuditRunResponse
-	9,  // 20: vrooli.architecture_cartographer.v1.audit.AuditService.RunAll:output_type -> vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse
-	19, // [19:21] is the sub-list for method output_type
-	17, // [17:19] is the sub-list for method input_type
-	17, // [17:17] is the sub-list for extension type_name
-	17, // [17:17] is the sub-list for extension extendee
-	0,  // [0:17] is the sub-list for field type_name
+	17, // 12: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.assessment:type_name -> common.v1.MaturityAssessment
+	15, // 13: vrooli.architecture_cartographer.v1.audit.AuditRunAllRequest.fail_on:type_name -> vrooli.architecture_cartographer.v1.conflicts.Severity
+	7,  // 14: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.reports:type_name -> vrooli.architecture_cartographer.v1.audit.AuditRunResponse
+	13, // 15: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.by_severity:type_name -> vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.BySeverityEntry
+	14, // 16: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.by_outcome:type_name -> vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.ByOutcomeEntry
+	16, // 17: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.duration:type_name -> google.protobuf.Duration
+	6,  // 18: vrooli.architecture_cartographer.v1.audit.AuditService.Run:input_type -> vrooli.architecture_cartographer.v1.audit.AuditRunRequest
+	8,  // 19: vrooli.architecture_cartographer.v1.audit.AuditService.RunAll:input_type -> vrooli.architecture_cartographer.v1.audit.AuditRunAllRequest
+	7,  // 20: vrooli.architecture_cartographer.v1.audit.AuditService.Run:output_type -> vrooli.architecture_cartographer.v1.audit.AuditRunResponse
+	9,  // 21: vrooli.architecture_cartographer.v1.audit.AuditService.RunAll:output_type -> vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse
+	20, // [20:22] is the sub-list for method output_type
+	18, // [18:20] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_architecture_cartographer_v1_audit_audit_proto_init() }
