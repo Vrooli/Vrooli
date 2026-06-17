@@ -11,10 +11,17 @@ import (
 	"strings"
 )
 
-// defaultCoverageThreshold is used when the target scenario declares no coverage
-// gate. Zero means "measure but do not gate": coverage is reported and a missing
-// artifact yields an advisory COVERAGE_ABSENT, but no LOW_COVERAGE is emitted.
-const defaultCoverageThreshold = 0.0
+// defaultCoverageThreshold is the advisory per-file coverage gate used when the
+// target scenario declares no coverage gate in `.vrooli/testing.json`. It is a
+// non-zero advisory (operator-chosen): LOW_COVERAGE is L4/advisory in the
+// maturity ladder, so it warns and surfaces under-covered files but never gates
+// maturity. Scenarios raise or lower it via `.vrooli/testing.json`.
+const defaultCoverageThreshold = 50.0
+
+// maxPerFileCoverageFindings bounds how many per-file LOW_COVERAGE findings a
+// single workspace emits so a large, low-coverage codebase does not flood the
+// report; the per-workspace roll-up still reports the true total.
+const maxPerFileCoverageFindings = 25
 
 // testingConfig is the subset of `.vrooli/testing.json` Unit Health reads for a
 // coverage threshold. The schema does not yet standardize a coverage block, so
@@ -104,10 +111,16 @@ func analyzeCoverage(scenario, scenarioRoot string, workspaces []Workspace, now 
 		}
 		sort.Strings(names)
 		var agg fileCoverage
+		type belowFile struct {
+			name    string
+			percent float64
+		}
+		var below []belowFile
 		for _, name := range names {
 			fc := fileCov[name]
 			agg.covered += fc.covered
 			agg.total += fc.total
+			status := coverageStatus(fc.percent(), threshold)
 			targets = append(targets, CoverageTarget{
 				ID:              ws.ID + ":" + name,
 				Language:        ws.Language,
@@ -117,8 +130,40 @@ func analyzeCoverage(scenario, scenarioRoot string, workspaces []Workspace, now 
 				TotalLines:      fc.total,
 				CoveragePercent: round2(fc.percent()),
 				Threshold:       threshold,
-				Status:          coverageStatus(fc.percent(), threshold),
+				Status:          status,
 			})
+			if status == "below" {
+				below = append(below, belowFile{name: name, percent: fc.percent()})
+			}
+		}
+
+		// B1: emit a per-file LOW_COVERAGE finding for each under-threshold file
+		// (lowest coverage first), bounded so a large codebase does not flood the
+		// report. The per-workspace roll-up below still reports the true total.
+		if threshold > 0 {
+			sort.SliceStable(below, func(i, j int) bool { return below[i].percent < below[j].percent })
+			for i, bf := range below {
+				if i >= maxPerFileCoverageFindings {
+					break
+				}
+				findings = append(findings, Finding{
+					ID:           codeLowCoverage + "-" + ws.ID + "-" + fileSlug(bf.name),
+					Scenario:     scenario,
+					WorkspaceID:  ws.ID,
+					Language:     ws.Language,
+					Code:         codeLowCoverage,
+					Category:     "coverage",
+					Severity:     codeSeverity[codeLowCoverage],
+					FilePath:     bf.name,
+					Message:      fmt.Sprintf("File %s coverage %.1f%% is below the %.1f%% threshold.", bf.name, bf.percent, threshold),
+					Evidence:     fmt.Sprintf("%d/%d units covered", fileCov[bf.name].covered, fileCov[bf.name].total),
+					Expected:     fmt.Sprintf("Per-file coverage at or above %.1f%%.", threshold),
+					Observed:     fmt.Sprintf("%.1f%%", bf.percent),
+					WhyItMatters: "An under-covered file hides untested branches where regressions slip through.",
+					Remediation:  "Add tests exercising the uncovered branches of this file.",
+					CreatedAt:    now,
+				})
+			}
 		}
 
 		if threshold > 0 && agg.total > 0 && agg.percent() < threshold {
@@ -142,6 +187,11 @@ func analyzeCoverage(scenario, scenarioRoot string, workspaces []Workspace, now 
 		}
 	}
 	return targets, findings
+}
+
+// fileSlug makes a stable, id-safe fragment from a file path for finding IDs.
+func fileSlug(name string) string {
+	return strings.NewReplacer("/", "_", "\\", "_", ":", "_", " ", "_").Replace(name)
 }
 
 func coverageStatus(percent, threshold float64) string {

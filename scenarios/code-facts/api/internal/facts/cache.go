@@ -481,7 +481,7 @@ func sourceFiles(roots map[string]bool) []string {
 
 func isSourceFile(path string) bool {
 	switch filepath.Ext(path) {
-	case ".go", ".ts", ".tsx", ".js", ".jsx":
+	case ".go", ".ts", ".tsx", ".js", ".jsx", ".sh", ".bats":
 		return true
 	default:
 		return false

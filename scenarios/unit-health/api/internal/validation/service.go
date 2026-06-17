@@ -18,6 +18,7 @@ import (
 
 	"unit-health/internal/discovery"
 	"unit-health/internal/executor"
+	"unit-health/internal/runhistory"
 
 	"github.com/vrooli/maturity-go/assessment"
 )
@@ -39,7 +40,11 @@ type Service struct {
 	Executor executor.Runner
 	// MaxConcurrency bounds parallel command execution. Defaults to NumCPU/2.
 	MaxConcurrency int
-	Now            func() time.Time
+	// History persists executed runs and supplies cross-run timing/status
+	// history for the diagnostics analyzer. Nil disables persistence; the
+	// diagnostics then fall back to single-run signals only.
+	History runhistory.Store
+	Now     func() time.Time
 }
 
 // Request identifies the validation target and execution options.
@@ -91,6 +96,7 @@ type Workspace struct {
 	RootPath           string
 	Framework          string
 	CanonicalFramework string
+	InstallCommand     string
 	TestCommand        string
 	CoverageCommand    string
 	PackageManager     string
@@ -111,7 +117,18 @@ type PlannedCommand struct {
 	Command          string
 	WorkingDirectory string
 	TimeoutSeconds   int
+	// Kind is "install" for a pre-test dependency install step or "test" for
+	// the test/coverage command itself. Install steps run (and are gated)
+	// before their workspace's test step so a missing dependency classifies as
+	// TEST_DEPENDENCY_MISSING instead of a generic test misconfiguration.
+	Kind string
 }
+
+// Command kinds for PlannedCommand.Kind.
+const (
+	kindInstall = "install"
+	kindTest    = "test"
+)
 
 // CommandResult is the outcome of one executed command.
 type CommandResult struct {
@@ -232,9 +249,19 @@ func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 		findings = append(findings, covFindings...)
 	}
 
-	// Diagnostics fold in static flake markers plus runtime/hang evidence from
-	// any executed commands (commandResults is empty on a dry run).
-	diagnostics, diagFindings := analyzeDiagnostics(scenario, workspaces, plan, commandResults, nowStr)
+	// Load cross-run history before computing diagnostics so runtime-growth and
+	// flake reflect prior runs (the current run is persisted afterward, so it is
+	// not double-counted). Best-effort: history failures must not fail a run.
+	var history []runhistory.CommandSample
+	if s.History != nil && req.IncludeExecution {
+		if hist, herr := s.History.CommandHistory(ctx, scenario, historyRunWindow); herr == nil {
+			history = hist
+		}
+	}
+
+	// Diagnostics fold in runtime-growth/flake from history plus runtime/hang
+	// evidence from any executed commands (commandResults is empty on a dry run).
+	diagnostics, diagFindings := analyzeDiagnostics(scenario, workspaces, plan, commandResults, history, nowStr)
 	findings = append(findings, diagFindings...)
 
 	resp := Response{
@@ -255,7 +282,43 @@ func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 	resp.Maturity = s.assessMaturity(findings)
 	resp.Summary = summarize(scenario, surfaces, workspaces, findings)
 	resp.NextSteps = nextSteps(resp.Status, inv)
+
+	// Persist the run for cross-run diagnostics. Only executed runs carry timing
+	// worth recording. Best-effort: a persistence failure must not fail a run.
+	if s.History != nil && req.IncludeExecution {
+		_ = s.History.Record(ctx, buildRunRecord(resp, plan, now))
+	}
 	return resp, nil
+}
+
+// buildRunRecord projects a completed Response into a persisted run record.
+func buildRunRecord(resp Response, plan ExecutionPlan, started time.Time) runhistory.RunRecord {
+	rec := runhistory.RunRecord{
+		RunID:        resp.RunID,
+		Scenario:     resp.Scenario,
+		StartedAt:    started,
+		Status:       resp.Status,
+		MaturityRung: resp.Maturity.Rung,
+	}
+	for _, r := range resp.CommandResults {
+		rec.Commands = append(rec.Commands, runhistory.CommandSample{
+			RunID:        resp.RunID,
+			StartedAt:    started,
+			WorkspaceID:  workspaceForCommand(plan, r),
+			Command:      r.Command,
+			DurationMS:   r.DurationMS,
+			Status:       r.Status,
+			FailureClass: r.FailureClass,
+		})
+	}
+	for _, c := range resp.Coverage {
+		rec.Coverage = append(rec.Coverage, runhistory.CoverageSample{
+			WorkspaceID: c.SurfaceID,
+			File:        c.FilePath,
+			Percent:     c.CoveragePercent,
+		})
+	}
+	return rec
 }
 
 // execute runs the planned commands under the bounded executor and appends
@@ -273,8 +336,65 @@ func (s *Service) execute(ctx context.Context, scenario string, plan ExecutionPl
 		}
 	}
 
-	cmds := make([]executor.Command, 0, len(plan.Commands))
+	// Pass 1: dependency installs. These are independent across workspaces, so
+	// they run concurrently, but each gates its own workspace's test command —
+	// a failed install means the test is never run (it would just fail with a
+	// missing-module error that misclassifies the real cause).
+	var installPlanned []PlannedCommand
 	for _, pc := range plan.Commands {
+		if pc.Kind == kindInstall {
+			installPlanned = append(installPlanned, pc)
+		}
+	}
+	out := make([]CommandResult, 0, len(plan.Commands))
+	failedInstall := map[string]bool{}
+	installResults := executor.RunAll(ctx, runner, buildExecCommands(installPlanned), concurrency)
+	for i, r := range installResults {
+		pc := installPlanned[i]
+		out = append(out, toCommandResult(r, pc))
+		if r.Status != executor.StatusPassed {
+			failedInstall[pc.WorkspaceID] = true
+			findings = append(findings, installFinding(scenario, pc, r, now))
+		}
+	}
+
+	// Pass 2: test/coverage commands, skipping workspaces whose install failed.
+	var testPlanned []PlannedCommand
+	for _, pc := range plan.Commands {
+		if pc.Kind == kindInstall {
+			continue
+		}
+		if failedInstall[pc.WorkspaceID] {
+			out = append(out, CommandResult{
+				Name:             pc.Name,
+				Command:          pc.Command,
+				WorkingDirectory: pc.WorkingDirectory,
+				Status:           statusSkipped,
+				FailureClass:     executor.ClassMissingDependency,
+				FailureReason:    "dependency install failed; test command not run",
+				TimeoutSeconds:   pc.TimeoutSeconds,
+			})
+			continue
+		}
+		testPlanned = append(testPlanned, pc)
+	}
+	testResults := executor.RunAll(ctx, runner, buildExecCommands(testPlanned), concurrency)
+	for i, r := range testResults {
+		out = append(out, toCommandResult(r, testPlanned[i]))
+		if f, ok := executionFinding(scenario, r, now); ok {
+			findings = append(findings, f)
+		}
+	}
+	return out, findings
+}
+
+// statusSkipped marks a test command that was not run because its dependency
+// install failed. It is a validation-layer outcome, not an executor result.
+const statusSkipped = "skipped"
+
+func buildExecCommands(planned []PlannedCommand) []executor.Command {
+	cmds := make([]executor.Command, 0, len(planned))
+	for _, pc := range planned {
 		cmds = append(cmds, executor.Command{
 			WorkspaceID:    pc.WorkspaceID,
 			Name:           pc.Name,
@@ -283,41 +403,51 @@ func (s *Service) execute(ctx context.Context, scenario string, plan ExecutionPl
 			TimeoutSeconds: pc.TimeoutSeconds,
 		})
 	}
-
-	results := executor.RunAll(ctx, runner, cmds, concurrency)
-	out := make([]CommandResult, 0, len(results))
-	for i, r := range results {
-		timeout := 0
-		if i < len(plan.Commands) {
-			timeout = plan.Commands[i].TimeoutSeconds
-		}
-		out = append(out, CommandResult{
-			Name:             r.Name,
-			Command:          r.Command,
-			WorkingDirectory: dirForWorkspace(plan, r.WorkspaceID),
-			Status:           r.Status,
-			ExitCode:         r.ExitCode,
-			StdoutExcerpt:    r.Stdout,
-			StderrExcerpt:    r.Stderr,
-			TimeoutSeconds:   timeout,
-			FailureReason:    r.FailureReason,
-			FailureClass:     r.FailureClass,
-			DurationMS:       r.DurationMS,
-		})
-		if f, ok := executionFinding(scenario, r, now); ok {
-			findings = append(findings, f)
-		}
-	}
-	return out, findings
+	return cmds
 }
 
-func dirForWorkspace(plan ExecutionPlan, workspaceID string) string {
-	for _, c := range plan.Commands {
-		if c.WorkspaceID == workspaceID {
-			return c.WorkingDirectory
-		}
+func toCommandResult(r executor.Result, pc PlannedCommand) CommandResult {
+	return CommandResult{
+		Name:             r.Name,
+		Command:          r.Command,
+		WorkingDirectory: pc.WorkingDirectory,
+		Status:           r.Status,
+		ExitCode:         r.ExitCode,
+		StdoutExcerpt:    r.Stdout,
+		StderrExcerpt:    r.Stderr,
+		TimeoutSeconds:   pc.TimeoutSeconds,
+		FailureReason:    r.FailureReason,
+		FailureClass:     r.FailureClass,
+		DurationMS:       r.DurationMS,
 	}
-	return ""
+}
+
+// installFinding maps a failed dependency install onto a TEST_DEPENDENCY_MISSING
+// finding so the real cause (a broken/absent install) is not misreported as a
+// test misconfiguration.
+func installFinding(scenario string, pc PlannedCommand, r executor.Result, now string) Finding {
+	evidence := r.FailureReason
+	if tail := strings.TrimSpace(r.Stderr); tail != "" {
+		evidence = r.FailureReason + "\n--- stderr tail ---\n" + tail
+	} else if tail := strings.TrimSpace(r.Stdout); tail != "" {
+		evidence = r.FailureReason + "\n--- stdout tail ---\n" + tail
+	}
+	return Finding{
+		ID:            codeTestDependencyMissing + "-" + pc.WorkspaceID,
+		Scenario:      scenario,
+		WorkspaceID:   pc.WorkspaceID,
+		Code:          codeTestDependencyMissing,
+		Category:      "execution",
+		Severity:      codeSeverity[codeTestDependencyMissing],
+		Message:       fmt.Sprintf("Dependency install %q failed for workspace %q; tests could not run.", pc.Command, pc.WorkspaceID),
+		Evidence:      evidence,
+		Expected:      "Dependencies install cleanly (lockfile-frozen) before the test command runs.",
+		Observed:      fmt.Sprintf("status=%s, class=%s, exit=%d", r.Status, r.FailureClass, r.ExitCode),
+		WhyItMatters:  "Without installed dependencies the test command cannot run, so the workspace is left unvalidated.",
+		Remediation:   "Commit a valid lockfile and ensure dependencies install; inspect the install output for the root cause.",
+		SourceCommand: pc.Command,
+		CreatedAt:     now,
+	}
 }
 
 // executionFinding maps a non-passing command result onto a maturity finding.

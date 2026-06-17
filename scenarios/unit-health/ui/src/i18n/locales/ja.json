@@ -58,6 +58,8 @@
     "maturity": "成熟度",
     "findings": "所見",
     "surfaces": "サーフェス",
+    "runId": "実行 ID",
+    "targetPath": "対象パス",
     "countSummary": "エラー {{errors}} 件 / 警告 {{warnings}} 件 / 情報 {{infos}} 件",
     "unknown": "不明",
     "findingsTitle": "所見",

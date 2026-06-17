@@ -34,29 +34,29 @@ func TestModuleMountRegistersRoutes(t *testing.T) {
 
 func TestEndpointDescriptorJSONShape(t *testing.T) {
 	descriptor := module.EndpointDescriptor{
-		ID:          "notes_create",
-		Path:        "/api/v1/notes",
+		ID:          "validation_validate_scenario",
+		Path:        "/api/v1/validation/validate-scenario",
 		Method:      http.MethodPost,
-		Summary:     "Create note",
-		Description: "Creates a note",
-		Category:    "notes",
+		Summary:     "Validate scenario test maturity",
+		Description: "Validates a scenario's test surfaces",
+		Category:    "validation",
 		Request: &module.Schema{
 			Type:       "object",
-			Properties: map[string]string{"title": "string"},
+			Properties: map[string]string{"scenario": "string"},
 		},
 		Response: &module.Schema{Type: "object"},
 		Errors: []module.ErrorDesc{{
 			Status:      http.StatusBadRequest,
 			Code:        "invalid_argument",
-			Description: "Missing title",
+			Description: "Missing scenario",
 		}},
 		Examples: []module.Example{{
-			Name: "Create",
-			Curl: "curl http://localhost:${API_PORT}/api/v1/notes",
+			Name: "Validate",
+			Curl: "curl http://localhost:${API_PORT}/api/v1/validation/validate-scenario",
 		}},
 		CLIMapping: &module.CLIMapping{
-			Command: "unit-health notes create",
-			Args:    []string{"--title", "<title>"},
+			Command: "unit-health validate scenario",
+			Args:    []string{"<scenario>", "--json"},
 		},
 	}
 
@@ -65,8 +65,8 @@ func TestEndpointDescriptorJSONShape(t *testing.T) {
 
 	var got map[string]any
 	require.NoError(t, json.Unmarshal(data, &got))
-	require.Equal(t, "notes_create", got["id"])
-	require.Equal(t, "/api/v1/notes", got["path"])
+	require.Equal(t, "validation_validate_scenario", got["id"])
+	require.Equal(t, "/api/v1/validation/validate-scenario", got["path"])
 	require.Equal(t, http.MethodPost, got["method"])
 	require.Contains(t, got, "request")
 	require.Contains(t, got, "response")

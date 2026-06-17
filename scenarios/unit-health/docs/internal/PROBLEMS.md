@@ -60,7 +60,7 @@ a migration handoff with a planned retirement path back into
 
 | Area | Drift | Maturity Impact | Real Fix |
 |---|---|---|---|
-| _None yet._ |  |  |  |
+| `docs/internal/SEAMS.md` documents `notes.Repository` / `notes.Service` seams and `ARCHITECTURE.md` references a "notes stack", but unit-health has no `internal/notes/` package (its real domain is `validation`). Template residue. | docs/architecture drift | Rewrite the notes seam/zone sections to the real `validation` + `runhistory` domains; until then treat those rows as stale. | 2026-06-16 hardening pass (scoped to fixtures/case/UI cleanup; full doc rewrite deferred) |
 
 ## Cross-references
 

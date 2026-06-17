@@ -25,6 +25,7 @@ import (
 	healthH "unit-health/handlers/health"
 	validationH "unit-health/handlers/validation"
 	localdb "unit-health/internal/database"
+	"unit-health/internal/runhistory"
 
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/unit-health/v1/validation"
 )
@@ -79,5 +80,6 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(validationH.Schema),
+		apidb.SchemaProviderFunc(runhistory.Schema),
 	}
 }

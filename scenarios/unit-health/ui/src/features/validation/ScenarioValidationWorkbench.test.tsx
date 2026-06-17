@@ -57,6 +57,13 @@ describe("ScenarioValidationWorkbench", () => {
     });
   });
 
+  it("surfaces the run reference (run id and target path) for artifact/log lookup", async () => {
+    await runDefault();
+    const ref = screen.getByTestId("validation-run-reference");
+    expect(ref).toHaveTextContent("run-1");
+    expect(ref).toHaveTextContent("/repo/scenarios/unit-health");
+  });
+
   it("renders the local-maturity summary with next-level and exit criteria", async () => {
     await runDefault();
 

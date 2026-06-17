@@ -2,6 +2,7 @@ package validation
 
 import (
 	"fmt"
+	"go/ast"
 	"go/parser"
 	"go/token"
 	"path/filepath"
@@ -31,7 +32,8 @@ func analyzeArchitecture(scenario string, workspaces []Workspace, now string) []
 type goWorkspaceScan struct {
 	testFiles      int
 	hasTestUtilPkg bool
-	prodSeamUsers  map[string]bool // seam name -> used directly in production
+	seamBypass     map[string]bool // seam category -> production bypasses it (AST)
+	seamDeclared   map[string]bool // seam category -> a seam interface/pkg exists
 	prodHelperUses []helperImport
 	rogueTestDirs  map[string]bool
 }
@@ -43,9 +45,15 @@ type helperImport struct {
 
 func analyzeGoArchitecture(scenario string, ws Workspace, now string) []Finding {
 	modulePath := goModulePath(ws.RootPath)
-	scan := goWorkspaceScan{prodSeamUsers: map[string]bool{}, rogueTestDirs: map[string]bool{}}
+	scan := goWorkspaceScan{seamBypass: map[string]bool{}, seamDeclared: map[string]bool{}, rogueTestDirs: map[string]bool{}}
 
 	walkSourceFiles(ws.RootPath, func(path string) {
+		// A seam-implementation package (clock/httpc/envx/logx) legitimately
+		// calls the ambient primitives it wraps; its presence is evidence a
+		// seam exists, and it must never count as a production bypass.
+		if cat := seamDirCategory(path); cat != "" {
+			scan.seamDeclared[cat] = true
+		}
 		switch {
 		case isGoTestFile(path):
 			scan.testFiles++
@@ -67,7 +75,7 @@ func analyzeGoArchitecture(scenario string, ws Workspace, now string) []Finding 
 					scan.prodHelperUses = append(scan.prodHelperUses, helperImport{file: path, importPath: imp})
 				}
 			}
-			detectSeamUsage(readFileString(path), scan.prodSeamUsers)
+			inspectGoSeams(path, scan.seamBypass, scan.seamDeclared)
 		}
 	})
 
@@ -136,15 +144,19 @@ func analyzeGoArchitecture(scenario string, ws Workspace, now string) []Finding 
 	}
 
 	if scan.testFiles > 0 {
-		missing := missingSeams(scan.prodSeamUsers)
-		if len(missing) > 0 {
+		bypassed := bypassedSeams(scan.seamBypass, scan.seamDeclared)
+		if len(bypassed) > 0 {
+			labels := make([]string, 0, len(bypassed))
+			for _, cat := range bypassed {
+				labels = append(labels, seamAmbientLabel[cat])
+			}
 			findings = append(findings, mk(codeMissingInjectableSeam, ws.RootPath,
-				"Production code uses non-deterministic dependencies directly without an injectable seam.",
-				"direct use of: "+strings.Join(missing, ", "),
-				"Time, env, and HTTP dependencies injected through a seam (e.g. a clock func, env reader, or http.Client interface) so tests can substitute them.",
-				"direct calls to "+strings.Join(missing, ", "),
-				"Hard-wired time/env/HTTP makes behavior non-deterministic and forces tests to touch the real world.",
-				"Introduce injectable seams (clock, env, http doer) and pass fakes in tests (see seam-discovery-and-enforcement).",
+				"Production code calls a non-deterministic dependency directly and no injectable seam exists for it.",
+				"bypassed (no seam declared) for: "+strings.Join(labels, ", "),
+				"Time/env/HTTP/logger dependencies injected through a seam (clock, env reader, http.Doer, logger interface) so tests can substitute them.",
+				"direct calls to "+strings.Join(labels, ", ")+" with no matching seam interface or package",
+				"A hard-wired ambient dependency with no seam makes behavior non-deterministic and forces tests to touch the real world; it cannot be substituted.",
+				"Introduce the missing seam (clock, env, http doer, or logger interface) and inject it (see seam-discovery-and-enforcement).",
 			))
 		}
 	}
@@ -152,27 +164,112 @@ func analyzeGoArchitecture(scenario string, ws Workspace, now string) []Finding 
 	return findings
 }
 
-// detectSeamUsage records direct, non-injectable dependency calls in source.
-func detectSeamUsage(src string, into map[string]bool) {
-	if strings.Contains(src, "time.Now(") {
-		into["time.Now"] = true
+// seamAmbientCallers maps an ambient package selector (pkg.Sel) to the seam
+// category it bypasses when called directly in production code.
+var seamAmbientCallers = map[string]map[string]string{
+	"time": {"Now": "clock"},
+	"os":   {"Getenv": "env", "LookupEnv": "env", "Environ": "env"},
+	"http": {"DefaultClient": "http", "Get": "http", "Post": "http", "PostForm": "http", "Head": "http"},
+	"slog": {"Default": "logger"},
+}
+
+// seamAmbientLabel renders a seam category for finding text.
+var seamAmbientLabel = map[string]string{
+	"clock":  "time.Now()",
+	"env":    "os.Getenv()/LookupEnv()",
+	"http":   "net/http default client",
+	"logger": "package-level logger (log.*/slog.Default)",
+}
+
+// inspectGoSeams parses a production Go file and records (a) ambient calls that
+// bypass a seam and (b) seam interfaces declared in the file. Using the AST
+// instead of substring matching excludes ambient names that appear only in
+// comments or string literals — the chief false-positive source of the old
+// detector. A file inside a seam package was already excluded by the caller.
+func inspectGoSeams(path string, bypass, declared map[string]bool) {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, path, nil, 0)
+	if err != nil || f == nil {
+		return
 	}
-	if strings.Contains(src, "os.Getenv(") || strings.Contains(src, "os.LookupEnv(") {
-		into["os.Getenv"] = true
+	// The composition root (main.go) wires seams and reads config; its direct
+	// ambient use is expected, not a bypass.
+	isMain := filepath.Base(path) == "main.go"
+	ast.Inspect(f, func(n ast.Node) bool {
+		switch x := n.(type) {
+		case *ast.SelectorExpr:
+			if isMain {
+				break
+			}
+			if id, ok := x.X.(*ast.Ident); ok {
+				if sels, ok := seamAmbientCallers[id.Name]; ok {
+					if cat, ok := sels[x.Sel.Name]; ok {
+						bypass[cat] = true
+					}
+				}
+				// log.Print*/Fatal*/Panic* — package-level logger use.
+				if id.Name == "log" && (strings.HasPrefix(x.Sel.Name, "Print") || strings.HasPrefix(x.Sel.Name, "Fatal") || strings.HasPrefix(x.Sel.Name, "Panic")) {
+					bypass["logger"] = true
+				}
+			}
+		case *ast.InterfaceType:
+			classifySeamInterface(x, declared)
+		}
+		return true
+	})
+}
+
+// classifySeamInterface marks a seam category as declared when an interface's
+// method set matches a canonical seam shape (clock.Now, httpc.Doer.Do, an env
+// reader, or a structured logger).
+func classifySeamInterface(it *ast.InterfaceType, declared map[string]bool) {
+	if it.Methods == nil {
+		return
 	}
-	if strings.Contains(src, "http.Get(") || strings.Contains(src, "http.Post(") || strings.Contains(src, "http.DefaultClient") {
-		into["net/http default client"] = true
+	for _, m := range it.Methods.List {
+		for _, name := range m.Names {
+			switch name.Name {
+			case "Now":
+				declared["clock"] = true
+			case "Do":
+				declared["http"] = true
+			case "Getenv", "LookupEnv", "Environ":
+				declared["env"] = true
+			case "Info", "Error", "Debug", "Warn", "Infof", "Errorf":
+				declared["logger"] = true
+			}
+		}
 	}
 }
 
-// missingSeams returns the sorted list of directly-used dependencies that lack a
-// seam. A workspace that provides a clock/env/http seam still trips this when
-// production code bypasses it; the heuristic is intentionally conservative and
-// only flags the direct-use forms detectSeamUsage recognizes.
-func missingSeams(used map[string]bool) []string {
-	out := make([]string, 0, len(used))
-	for k := range used {
-		out = append(out, k)
+// seamDirCategory returns the seam category a file's directory provides, or ""
+// when the file is not inside a recognized seam package.
+func seamDirCategory(path string) string {
+	for _, seg := range strings.Split(filepath.ToSlash(filepath.Dir(path)), "/") {
+		switch seg {
+		case "clock":
+			return "clock"
+		case "httpc", "httpx":
+			return "http"
+		case "envx", "envreader":
+			return "env"
+		case "logx", "logger", "logging":
+			return "logger"
+		}
+	}
+	return ""
+}
+
+// bypassedSeams returns the sorted seam categories that production code uses
+// directly AND for which no seam is declared. A workspace that declares a seam
+// (interface or package) for a category is not flagged even if some code still
+// calls the ambient primitive — the seam exists to migrate toward.
+func bypassedSeams(bypass, declared map[string]bool) []string {
+	var out []string
+	for cat := range bypass {
+		if !declared[cat] {
+			out = append(out, cat)
+		}
 	}
 	sort.Strings(out)
 	return out

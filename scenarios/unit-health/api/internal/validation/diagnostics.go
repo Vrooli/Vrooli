@@ -7,11 +7,22 @@ import (
 	"strings"
 
 	"unit-health/internal/executor"
+	"unit-health/internal/runhistory"
 )
 
 // runtimePressureRatio flags a command whose duration reaches this fraction of
 // its timeout: the suite is approaching the bound and likely to start timing out.
 const runtimePressureRatio = 0.75
+
+// Runtime-growth and flake thresholds, computed from persisted cross-run
+// history (B6). Growth needs a few historical samples to form a stable
+// baseline; flake needs at least one prior run to observe a status flip.
+const (
+	minRuntimeHistory  = 3
+	runtimeGrowthRatio = 1.5
+	minFlakeObservs    = 2
+	historyRunWindow   = runhistory.DefaultRetention
+)
 
 // flakeMarkerRe matches deliberate source signals that tests self-identify as
 // flaky. Detecting flake without reruns is best-effort, so Unit Health only
@@ -20,12 +31,15 @@ const runtimePressureRatio = 0.75
 // words like "retry" or "eventually" that appear in healthy async tests.
 var flakeMarkerRe = regexp.MustCompile(`(?i)\bflak(?:e|y)\b`)
 
-// analyzeDiagnostics derives flake/runtime/hang diagnostics. Flake markers are
-// static; runtime-pressure and hang diagnostics come from the executed
-// commands (results is empty when execution was not requested).
-func analyzeDiagnostics(scenario string, workspaces []Workspace, plan ExecutionPlan, results []CommandResult, now string) ([]Diagnostic, []Finding) {
+// analyzeDiagnostics derives flake/runtime/hang diagnostics. Hang and
+// runtime-pressure come from the current run's executed commands; runtime-growth
+// and cross-run flake come from persisted history (B6); the static "flaky"
+// source marker survives only as a weak supplementary signal. results and
+// history are empty when execution was not requested.
+func analyzeDiagnostics(scenario string, workspaces []Workspace, plan ExecutionPlan, results []CommandResult, history []runhistory.CommandSample, now string) ([]Diagnostic, []Finding) {
 	var diagnostics []Diagnostic
 	var findings []Finding
+	hist := groupCommandHistory(history)
 
 	for _, r := range results {
 		if r.FailureClass == executor.ClassTimeoutHang || r.FailureClass == executor.ClassNoOutputStall {
@@ -41,8 +55,9 @@ func analyzeDiagnostics(scenario string, workspaces []Workspace, plan ExecutionP
 		}
 	}
 
-	// Runtime pressure: a (passing or failing) command whose duration approaches
-	// its timeout.
+	// Runtime pressure (single-run): a command whose duration approaches its
+	// timeout. This is a diagnostic only; the TEST_RUNTIME_GROWTH finding below
+	// is now history-based growth, not single-run near-timeout.
 	for _, r := range results {
 		timeout := timeoutSecondsFor(plan, r)
 		if timeout <= 0 || r.DurationMS <= 0 {
@@ -52,13 +67,37 @@ func analyzeDiagnostics(scenario string, workspaces []Workspace, plan ExecutionP
 		if ratio < runtimePressureRatio {
 			continue
 		}
-		ws := workspaceForCommand(plan, r)
 		diagnostics = append(diagnostics, Diagnostic{
 			Kind:        "runtime",
-			WorkspaceID: ws,
+			WorkspaceID: workspaceForCommand(plan, r),
 			Message:     fmt.Sprintf("Command %q ran for %dms, %.0f%% of its %ds timeout.", r.Command, r.DurationMS, ratio*100, timeout),
 			Evidence:    fmt.Sprintf("duration=%dms timeout=%ds", r.DurationMS, timeout),
 			Severity:    "info",
+		})
+	}
+
+	// Runtime growth (cross-run): current duration vs the rolling median of the
+	// same command's recent passing runs.
+	for _, r := range results {
+		if r.DurationMS <= 0 || r.Status != executor.StatusPassed {
+			continue
+		}
+		ws := workspaceForCommand(plan, r)
+		prior := pastDurations(hist[ws+"|"+r.Command])
+		if len(prior) < minRuntimeHistory {
+			continue
+		}
+		baseline := medianInt64(prior)
+		if baseline <= 0 || float64(r.DurationMS) < float64(baseline)*runtimeGrowthRatio {
+			continue
+		}
+		growth := float64(r.DurationMS) / float64(baseline)
+		diagnostics = append(diagnostics, Diagnostic{
+			Kind:        "runtime",
+			WorkspaceID: ws,
+			Message:     fmt.Sprintf("Command %q runtime grew %.1f× over its rolling baseline.", r.Command, growth),
+			Evidence:    fmt.Sprintf("current=%dms baseline(median of %d runs)=%dms", r.DurationMS, len(prior), baseline),
+			Severity:    "warning",
 		})
 		findings = append(findings, Finding{
 			ID:            codeTestRuntimeGrowth + "-" + ws,
@@ -67,18 +106,57 @@ func analyzeDiagnostics(scenario string, workspaces []Workspace, plan ExecutionP
 			Code:          codeTestRuntimeGrowth,
 			Category:      "diagnostics",
 			Severity:      codeSeverity[codeTestRuntimeGrowth],
-			Message:       fmt.Sprintf("Workspace %q test runtime is approaching its timeout.", ws),
-			Evidence:      fmt.Sprintf("%dms of a %ds budget (%.0f%%)", r.DurationMS, timeout, ratio*100),
-			Expected:      "Test runtime comfortably under the per-workspace timeout.",
-			Observed:      fmt.Sprintf("%.0f%% of timeout", ratio*100),
-			WhyItMatters:  "A suite running near its timeout flakes intermittently as load varies and will eventually fail outright.",
-			Remediation:   "Profile and speed up the slowest tests, or split the workspace; avoid simply raising the timeout.",
+			Message:       fmt.Sprintf("Workspace %q test runtime grew %.1f× over its rolling baseline.", ws, growth),
+			Evidence:      fmt.Sprintf("current=%dms vs baseline=%dms (median of %d prior runs)", r.DurationMS, baseline, len(prior)),
+			Expected:      fmt.Sprintf("Runtime within %.0f%% of the rolling baseline.", runtimeGrowthRatio*100),
+			Observed:      fmt.Sprintf("%.1f× baseline", growth),
+			WhyItMatters:  "A test suite whose runtime is climbing run-over-run trends toward timeouts and flake as load varies.",
+			Remediation:   "Profile what slowed down since the baseline (new tests, fixtures, I/O) and bring the runtime back down.",
 			SourceCommand: r.Command,
 			CreatedAt:     now,
 		})
 	}
 
-	// Static flake markers.
+	// Flake (cross-run): the same command flips between pass and fail across
+	// recent runs (current + history).
+	for _, r := range results {
+		ws := workspaceForCommand(plan, r)
+		statuses := append([]string{r.Status}, pastStatuses(hist[ws+"|"+r.Command])...)
+		if len(statuses) < minFlakeObservs {
+			continue
+		}
+		if !statusesFlipFlop(statuses) {
+			continue
+		}
+		passes, fails := countStatuses(statuses)
+		findings = append(findings, Finding{
+			ID:            codeTestFlakeSuspected + "-" + ws,
+			Scenario:      scenario,
+			WorkspaceID:   ws,
+			Code:          codeTestFlakeSuspected,
+			Category:      "diagnostics",
+			Severity:      codeSeverity[codeTestFlakeSuspected],
+			Message:       fmt.Sprintf("Command %q flips between pass and fail across recent runs.", r.Command),
+			Evidence:      fmt.Sprintf("%d pass / %d fail across %d recent run(s)", passes, fails, len(statuses)),
+			Expected:      "Deterministic, stable pass/fail across runs.",
+			Observed:      "pass/fail flip-flop",
+			WhyItMatters:  "A command with inconsistent results across runs is flaky; it erodes trust and lets real regressions hide behind a passing retry.",
+			Remediation:   "Make the test deterministic (inject time/randomness, await real conditions) rather than relying on reruns.",
+			SourceCommand: r.Command,
+			CreatedAt:     now,
+		})
+		diagnostics = append(diagnostics, Diagnostic{
+			Kind:        "flake",
+			WorkspaceID: ws,
+			Message:     fmt.Sprintf("Command %q has an inconsistent pass/fail history.", r.Command),
+			Evidence:    fmt.Sprintf("%d pass / %d fail across %d run(s)", passes, fails, len(statuses)),
+			Severity:    "warning",
+		})
+	}
+
+	// Supplementary (weak) signal: tests that self-identify as flaky in source.
+	// Kept as a diagnostic only — it is not durable evidence of flake, unlike
+	// the cross-run variance above.
 	for _, ws := range workspaces {
 		markers := flakeMarkers(ws)
 		if len(markers) == 0 {
@@ -88,30 +166,72 @@ func analyzeDiagnostics(scenario string, workspaces []Workspace, plan ExecutionP
 		diagnostics = append(diagnostics, Diagnostic{
 			Kind:        "flake",
 			WorkspaceID: ws.ID,
-			Message:     "Tests self-identify as flaky or retry-prone.",
-			Evidence:    strings.Join(truncateList(markers, 10), "; "),
-			Severity:    "warning",
-		})
-		findings = append(findings, Finding{
-			ID:           codeTestFlakeSuspected + "-" + ws.ID,
-			Scenario:     scenario,
-			WorkspaceID:  ws.ID,
-			Language:     ws.Language,
-			Code:         codeTestFlakeSuspected,
-			Category:     "diagnostics",
-			Severity:     codeSeverity[codeTestFlakeSuspected],
-			FilePath:     ws.RootPath,
-			Message:      "Tests reference flake/retry handling, suggesting known nondeterminism.",
-			Evidence:     strings.Join(truncateList(markers, 10), "; "),
-			Expected:     "Deterministic tests with no flake/retry workarounds.",
-			Observed:     fmt.Sprintf("%d flake/retry marker(s)", len(markers)),
-			WhyItMatters: "Flaky tests erode trust in the suite and let real regressions hide behind retries.",
-			Remediation:  "Make the underlying test deterministic (inject time/randomness, await real conditions) instead of retrying.",
-			CreatedAt:    now,
+			Message:     "Supplementary signal: tests reference flake/retry handling in source.",
+			Evidence:    "static markers (weak): " + strings.Join(truncateList(markers, 10), "; "),
+			Severity:    "info",
 		})
 	}
 
 	return diagnostics, findings
+}
+
+func groupCommandHistory(samples []runhistory.CommandSample) map[string][]runhistory.CommandSample {
+	m := map[string][]runhistory.CommandSample{}
+	for _, s := range samples {
+		k := s.WorkspaceID + "|" + s.Command
+		m[k] = append(m[k], s)
+	}
+	return m
+}
+
+// pastDurations returns the durations of prior passing runs of a command.
+func pastDurations(samples []runhistory.CommandSample) []int64 {
+	var out []int64
+	for _, s := range samples {
+		if s.Status == executor.StatusPassed && s.DurationMS > 0 {
+			out = append(out, s.DurationMS)
+		}
+	}
+	return out
+}
+
+func pastStatuses(samples []runhistory.CommandSample) []string {
+	out := make([]string, 0, len(samples))
+	for _, s := range samples {
+		out = append(out, s.Status)
+	}
+	return out
+}
+
+func medianInt64(in []int64) int64 {
+	if len(in) == 0 {
+		return 0
+	}
+	cp := append([]int64(nil), in...)
+	sort.Slice(cp, func(i, j int) bool { return cp[i] < cp[j] })
+	mid := len(cp) / 2
+	if len(cp)%2 == 1 {
+		return cp[mid]
+	}
+	return (cp[mid-1] + cp[mid]) / 2
+}
+
+// statusesFlipFlop reports whether a command both passed and failed across runs.
+func statusesFlipFlop(statuses []string) bool {
+	passes, fails := countStatuses(statuses)
+	return passes > 0 && fails > 0
+}
+
+func countStatuses(statuses []string) (passes, fails int) {
+	for _, s := range statuses {
+		switch s {
+		case executor.StatusPassed:
+			passes++
+		case executor.StatusFailed, executor.StatusTimeout, executor.StatusError:
+			fails++
+		}
+	}
+	return passes, fails
 }
 
 func flakeMarkers(ws Workspace) []string {

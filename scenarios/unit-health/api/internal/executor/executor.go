@@ -197,7 +197,16 @@ func classifyFailure(stdout, stderr string) string {
 	switch {
 	case strings.Contains(combined, "command not found"),
 		strings.Contains(combined, "executable file not found"),
-		strings.Contains(combined, "is not recognized"):
+		strings.Contains(combined, "is not recognized"),
+		// Node "Cannot find module 'x'" / pnpm lockfile errors mean the
+		// dependency install is missing or stale, not a test misconfiguration.
+		// The quote after "module" distinguishes node from Go's unquoted
+		// "go: cannot find module providing package …".
+		strings.Contains(combined, "err_module_not_found"),
+		strings.Contains(combined, "cannot find module '"),
+		strings.Contains(combined, "err_pnpm_no_lockfile"),
+		strings.Contains(combined, "frozen-lockfile"),
+		strings.Contains(combined, "missing dependencies in the lockfile"):
 		return ClassMissingDependency
 	case strings.Contains(combined, "no such tool"),
 		strings.Contains(combined, "missing go.sum"),

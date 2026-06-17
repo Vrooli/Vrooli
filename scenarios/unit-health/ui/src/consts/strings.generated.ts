@@ -73,6 +73,8 @@ export const strings = {
     maturity: "validation.maturity",
     findings: "validation.findings",
     surfaces: "validation.surfaces",
+    runId: "validation.runId",
+    targetPath: "validation.targetPath",
     countSummary: "validation.countSummary",
     unknown: "validation.unknown",
     findingsTitle: "validation.findingsTitle",

@@ -209,14 +209,15 @@ func TestRunDependenciesPhase_HealthUnavailableFailsAsProducerDependency(t *test
 }
 
 func TestRunDependenciesPhase_MapsSDAHealthFindings(t *testing.T) {
+	// [REQ:SDA-P0-012]
 	swapDependencyHealthSeam(t, func(_ context.Context, scenario string) ([]byte, int, error) {
 		return []byte(`{
 			"scenario": "` + scenario + `",
 			"passed": false,
-			"summary": {"sections": 6, "findings": 4, "errors": 1, "warnings": 3, "degradedDependencies": 1},
+			"summary": {"sections": 6, "findings": 3, "errors": 1, "warnings": 2, "degradedDependencies": 1},
 			"sections": [
 				{"id": "release-age", "title": "Package release-age policy", "status": "fail"},
-				{"id": "security", "title": "Security Health dependency index", "status": "degraded"},
+				{"id": "security-index", "title": "Security Health dependency index", "status": "degraded"},
 				{"id": "graph", "title": "Dependency graph drift", "status": "warn"},
 				{"id": "governance", "title": "Approved dependency governance", "status": "warn"}
 			],
@@ -244,17 +245,10 @@ func TestRunDependenciesPhase_MapsSDAHealthFindings(t *testing.T) {
 					"title": "Dependency needs governance review",
 					"ruleId": "dependency.governance.needs_review",
 					"filePath": "scenarios/demo/ui/package.json"
-				},
-				{
-					"id": "security.degraded",
-					"severity": "WARNING",
-					"sourceDomain": "security",
-					"title": "Security Health dependency index unavailable",
-					"ruleId": "dependency.security.degraded"
 				}
 			],
 			"degradedDependencies": [
-				{"id": "security-health-deps-status", "dependency": "security-health dependency index", "domain": "security", "reason": "index unavailable"}
+				{"id": "security-health-deps-status", "dependency": "security-health dependency index", "domain": "security-index", "reason": "index unavailable"}
 			],
 			` + testProtoProviderAssessmentJSON(scenario, "scenario-dependency-analyzer", "dependencies", "L2", "L3") + `
 		}`), 1, nil
@@ -265,14 +259,13 @@ func TestRunDependenciesPhase_MapsSDAHealthFindings(t *testing.T) {
 	if report.Err == nil {
 		t.Fatal("expected release-age ERROR finding to fail the dependency phase")
 	}
-	if len(report.Findings) != 4 {
-		t.Fatalf("expected 4 dependency findings, got %+v", report.Findings)
+	if len(report.Findings) != 3 {
+		t.Fatalf("expected 3 dependency findings, got %+v", report.Findings)
 	}
 	wantCodes := map[string]bool{
 		"dependency.release_age.minimum_value": false,
 		"dependency.graph.undeclared":          false,
 		"dependency.governance.needs_review":   false,
-		"dependency.security.degraded":         false,
 	}
 	for _, finding := range report.Findings {
 		if finding.GetSource() != architecturev1.FindingSource_FINDING_SOURCE_DEPENDENCY {

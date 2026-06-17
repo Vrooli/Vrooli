@@ -110,6 +110,16 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `api-core/databasetest::FakeExecer` is the canonical fake when a test needs to assert schema application order or injected execution failures without opening a real database. |
 | **Why it exists** | Schema application is shared-package behavior, but each scenario owns its provider list. Keep scenario-specific schema composition local; use `databasetest.FakeExecer` only for tests of code that consumes the shared `SchemaExecer` interface directly. |
 
+### runhistory.Store (cross-run timing/status persistence)
+
+| | |
+|---|---|
+| **Seam** | Run-history persistence (record + query) |
+| **Interface** | `internal/runhistory/runhistory.go::Store` (`Record`, `CommandHistory`) |
+| **Production wiring** | `handlers/validation/module.go::Module(...)` constructs `runhistory.NewRepository(db.Primary())` and sets it on `validation.Service.History`; `main.go` passes the shared `*sql.DB`. The run-history schema is registered in `modules.AllSchemas()`. |
+| **Test fake** | A nil `Store` is the disabled state (persistence off; diagnostics fall back to single-run signals). `internal/runhistory/repository_test.go` exercises the real `*sql.DB`-backed `Repository` (insert, retention pruning, history retrieval) against the sqlite harness. |
+| **Why it exists** | The diagnostics analyzer's runtime-growth (current vs rolling baseline) and flake (cross-run pass/fail variance) signals need durable history that a single run cannot provide. The seam lets the engine run history-free in tests (nil `Store`) and persist in production, and keeps the SQLite pool-of-1 contract (single-statement reads, transactional writes) behind one interface. |
+
 ### notes.Repository (notes persistence)
 
 | | |

@@ -24,7 +24,7 @@ SDA health currently reports these machine-readable sections:
 | `runtime` | SDA | Checks required resources and required scenario dependencies from `.vrooli/service.json` |
 | `governance` | SDA | Validates dependencies against recorded approved-dependency governance without treating it as a hard allowlist |
 | `release-age` | SDA | Validates pnpm `minimumReleaseAge` policy and governed exclusions |
-| `security` | Security Health via SDA | Reports dependency-index availability without running vulnerability scanners |
+| `security-index` | Security Health via SDA | Reports dependency-index availability without running vulnerability scanners or emitting vulnerability findings |
 | `graph` | SDA | Reports declared-vs-actual scenario dependency graph drift |
 
 ## Failure Semantics
@@ -55,7 +55,7 @@ scenario-dependency-analyzer deps approved search "React graph library" --json
 | `dependency.graph.*` | Actual import/interface evidence differs from `.vrooli/service.json` declarations | Update the declaration or remove stale usage |
 | `dependency.governance.*` | Dependency is unrecorded, out of approved range, deprecated, or blocked | Review the package and update `.vrooli/dependencies/approved-dependencies.json` when appropriate |
 | `dependency.release_age.*` | pnpm release-age policy missing/too low or exclusion lacks approval | Add/raise `minimumReleaseAge` or record an approved exception |
-| `dependency.security.*` | Security Health dependency index unavailable/degraded | Check `security-health deps status --json` |
+| Security index degradation | Security Health dependency index unavailable/degraded | Check `security-health deps status --json`; vulnerability findings remain owned by the `security` phase |
 
 ## See Also
 

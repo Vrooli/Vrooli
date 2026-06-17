@@ -74,47 +74,63 @@ func qualityFinding(scenario string, ws Workspace, code, file, message, evidence
 
 func analyzeGoQuality(scenario string, ws Workspace, now string) []Finding {
 	var (
-		testFuncs    int
-		skipped      []string
-		noAssertion  []string
-		edgeKeywords bool
+		testFuncs   int
+		skipped     []string
+		noAssertion []string
+		edgeCovered bool
 	)
 
+	// Parse every test file once. Pass 1 collects the names of all functions
+	// (test entrypoints and local helpers) whose body contains a direct
+	// assertion, so a test that asserts only through a local helper such as
+	// assertEqual(t, ...) is not falsely flagged as assertion-free (B4).
+	type parsedFile struct {
+		path string
+		file *ast.File
+	}
+	var files []parsedFile
+	assertingFuncs := map[string]bool{}
 	walkSourceFiles(ws.RootPath, func(path string) {
 		if !isGoTestFile(path) {
 			return
 		}
-		src := readFileString(path)
-		if src == "" {
-			return
-		}
-		if containsAny(strings.ToLower(src), edgeCaseKeywords) {
-			edgeKeywords = true
-		}
 		fset := token.NewFileSet()
-		f, err := parser.ParseFile(fset, path, src, 0)
+		f, err := parser.ParseFile(fset, path, nil, 0)
 		if err != nil || f == nil {
 			return
 		}
+		files = append(files, parsedFile{path: path, file: f})
 		for _, decl := range f.Decls {
 			fn, ok := decl.(*ast.FuncDecl)
-			if !ok || fn.Body == nil || !strings.HasPrefix(fn.Name.Name, "Test") {
+			if !ok || fn.Body == nil {
 				continue
 			}
-			// A receiver method named Test* is not a test entrypoint.
-			if fn.Recv != nil {
+			if goFuncBodyAsserts(fn.Body) {
+				assertingFuncs[fn.Name.Name] = true
+			}
+		}
+	})
+
+	// Pass 2 evaluates each test entrypoint with helper-call resolution.
+	for _, pf := range files {
+		for _, decl := range pf.file.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || fn.Body == nil || fn.Recv != nil || !strings.HasPrefix(fn.Name.Name, "Test") {
 				continue
 			}
 			testFuncs++
-			hasSkip, hasAssert := inspectGoTestBody(fn.Body)
+			hasSkip, hasAssert := inspectGoTestBody(fn.Body, assertingFuncs)
 			if hasSkip {
 				skipped = append(skipped, fn.Name.Name)
 			}
 			if !hasAssert {
 				noAssertion = append(noAssertion, fn.Name.Name)
 			}
+			if goFuncCoversEdge(fn) {
+				edgeCovered = true
+			}
 		}
-	})
+	}
 
 	var findings []Finding
 	if len(skipped) > 0 {
@@ -139,52 +155,131 @@ func analyzeGoQuality(scenario string, ws Workspace, now string) []Finding {
 			"Add explicit assertions on the observable result of each test.",
 			now))
 	}
-	if testFuncs > 0 && !edgeKeywords {
+	if testFuncs > 0 && !edgeCovered {
 		findings = append(findings, qualityFinding(scenario, ws, codeTestMissingEdgeCases, ws.RootPath,
-			"Go tests appear to cover only the positive path.",
-			"no test names or bodies mention error/invalid/empty/boundary cases",
-			"Tests for negative, boundary, and error inputs alongside the happy path.",
+			"No Go test asserts on an error or boundary case; the suite appears positive-path only.",
+			"no test name nor error/boundary assertion (assert.Error/require.NoError/Nil/Empty/Panics or a wantErr table field) found",
+			"At least one test for negative, boundary, and error inputs alongside the happy path.",
 			"positive-path only",
 			"Without negative and boundary cases, the most common real-world failures go untested.",
-			"Add table cases for error inputs, empty/nil values, and boundaries.",
+			"Add table cases for error inputs, empty/nil values, and boundaries, and assert on them (e.g. require.Error).",
 			now))
 	}
 	return findings
 }
 
 // inspectGoTestBody reports whether a test body contains a skip and whether it
-// contains any assertion.
-func inspectGoTestBody(body *ast.BlockStmt) (hasSkip, hasAssert bool) {
+// asserts — directly (t.Error/Fatal, assert/require) or through a local helper
+// function whose own body asserts (assertingFuncs, one-level resolution).
+func inspectGoTestBody(body *ast.BlockStmt, assertingFuncs map[string]bool) (hasSkip, hasAssert bool) {
 	ast.Inspect(body, func(n ast.Node) bool {
 		call, ok := n.(*ast.CallExpr)
 		if !ok {
 			return true
 		}
-		sel, ok := call.Fun.(*ast.SelectorExpr)
-		if !ok {
-			return true
-		}
-		method := sel.Sel.Name
-		if method == "Skip" || method == "Skipf" || method == "SkipNow" {
-			hasSkip = true
-		}
-		if goAssertionMethods[method] {
-			hasAssert = true
-		}
-		if ident, ok := sel.X.(*ast.Ident); ok && goAssertionPackages[ident.Name] {
-			hasAssert = true
+		switch fun := call.Fun.(type) {
+		case *ast.SelectorExpr:
+			method := fun.Sel.Name
+			if method == "Skip" || method == "Skipf" || method == "SkipNow" {
+				hasSkip = true
+			}
+			if goAssertionMethods[method] {
+				hasAssert = true
+			}
+			if ident, ok := fun.X.(*ast.Ident); ok && goAssertionPackages[ident.Name] {
+				hasAssert = true
+			}
+		case *ast.Ident:
+			// A call to a local helper (assertEqual(t, …)) whose body asserts.
+			if assertingFuncs[fun.Name] {
+				hasAssert = true
+			}
 		}
 		return true
 	})
 	return hasSkip, hasAssert
 }
 
+// goFuncBodyAsserts reports whether a function body contains a direct assertion
+// (a *testing.T failure method or an assert/require package call). It does not
+// resolve helper calls — it is the base case used to build the helper set.
+func goFuncBodyAsserts(body *ast.BlockStmt) bool {
+	found := false
+	ast.Inspect(body, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+			if goAssertionMethods[sel.Sel.Name] {
+				found = true
+			}
+			if id, ok := sel.X.(*ast.Ident); ok && goAssertionPackages[id.Name] {
+				found = true
+			}
+		}
+		return true
+	})
+	return found
+}
+
+// edgeAssertionMethods are assertion calls that demonstrate an error/boundary
+// case is being exercised (B3 — scoped per test function via AST, not whole-file
+// keyword matching).
+var edgeAssertionMethods = map[string]bool{
+	"Error": true, "ErrorIs": true, "ErrorAs": true, "ErrorContains": true,
+	"NoError": true, "Nil": true, "NotNil": true, "Empty": true, "NotEmpty": true,
+	"Panics": true, "NotPanics": true, "Zero": true,
+}
+
+var wantErrFieldRe = regexp.MustCompile(`(?i)^(want|expect|expected)(ed)?err(or)?$`)
+
+// goFuncCoversEdge reports whether a test function exercises an error or
+// boundary case: its name signals it, it asserts via an error/boundary helper,
+// or it drives a table with a wantErr-style field. This is a real per-function
+// signal, not the old "any error/nil keyword anywhere in the file" heuristic.
+func goFuncCoversEdge(fn *ast.FuncDecl) bool {
+	if nameSignalsEdge(fn.Name.Name) {
+		return true
+	}
+	covers := false
+	ast.Inspect(fn.Body, func(n ast.Node) bool {
+		switch x := n.(type) {
+		case *ast.SelectorExpr:
+			if edgeAssertionMethods[x.Sel.Name] {
+				covers = true
+			}
+		case *ast.Ident:
+			if wantErrFieldRe.MatchString(x.Name) {
+				covers = true
+			}
+		}
+		return !covers
+	})
+	return covers
+}
+
+// nameSignalsEdge reports whether a test name embeds an edge-case keyword
+// (TestParseInvalidInput, TestEmptyList, …).
+func nameSignalsEdge(name string) bool {
+	lower := strings.ToLower(name)
+	for _, kw := range edgeCaseKeywords {
+		if strings.Contains(lower, strings.ReplaceAll(kw, " ", "")) {
+			return true
+		}
+	}
+	return false
+}
+
 var (
-	tsSkipOnlyRe  = regexp.MustCompile(`\b(describe|it|test)\s*\.\s*(skip|only)\b|\b(xit|xdescribe|fit|fdescribe)\b`)
-	tsExpectRe    = regexp.MustCompile(`\bexpect\s*\(|\bassert\b`)
-	tsRenderRe    = regexp.MustCompile(`\brender\s*\(`)
-	tsSnapshotRe  = regexp.MustCompile(`\btoMatch(Inline)?Snapshot\s*\(`)
-	tsTestBlockRe = regexp.MustCompile(`\b(it|test)\s*\(`)
+	tsSkipOnlyRe   = regexp.MustCompile(`\b(describe|it|test)\s*\.\s*(skip|only)\b|\b(xit|xdescribe|fit|fdescribe)\b`)
+	tsExpectRe     = regexp.MustCompile(`\bexpect\s*\(|\bassert\b`)
+	tsRenderRe     = regexp.MustCompile(`\brender\s*\(`)
+	tsSnapshotRe   = regexp.MustCompile(`\btoMatch(Inline)?Snapshot\s*\(`)
+	tsTestBlockRe  = regexp.MustCompile(`\b(it|test)\s*\(`)
+	tsTestTitleRe  = regexp.MustCompile("\\b(?:it|test)\\s*\\(\\s*[`'\"]([^`'\"]*)")
+	tsLineComment  = regexp.MustCompile(`//[^\n]*`)
+	tsBlockComment = regexp.MustCompile(`(?s)/\*.*?\*/`)
 )
 
 func analyzeTSQuality(scenario string, ws Workspace, now string) []Finding {
@@ -194,36 +289,45 @@ func analyzeTSQuality(scenario string, ws Workspace, now string) []Finding {
 		renderOnly    []string
 		noAssertion   []string
 		snapshotHeavy []string
-		edgeKeywords  bool
+		edgeCovered   bool
 	)
 
 	walkSourceFiles(ws.RootPath, func(path string) {
 		if !isTSTestFile(path) {
 			return
 		}
-		src := readFileString(path)
-		if src == "" {
+		raw := readFileString(path)
+		if raw == "" {
 			return
 		}
 		testFiles++
-		if containsAny(strings.ToLower(src), edgeCaseKeywords) {
-			edgeKeywords = true
-		}
+		// Strip comments so an `expect`/`error` mentioned only in a comment is
+		// not counted as a real assertion or edge case (B4).
+		src := stripTSComments(raw)
 		if tsSkipOnlyRe.MatchString(src) {
 			skipOnly++
 		}
-		hasExpect := tsExpectRe.MatchString(src)
-		hasTestBlock := tsTestBlockRe.MatchString(src)
-		hasRender := tsRenderRe.MatchString(src)
-		if hasTestBlock && !hasExpect {
-			if hasRender {
-				renderOnly = append(renderOnly, filepath.Base(path))
-			} else {
-				noAssertion = append(noAssertion, filepath.Base(path))
+
+		// Per-test-block analysis: split on it()/test() boundaries and judge
+		// each block for assertion presence and edge-case intent, rather than
+		// the whole file (B3/B4).
+		blocks := tsTestBlocks(src)
+		base := filepath.Base(path)
+		for i, b := range blocks {
+			if !tsExpectRe.MatchString(b.body) {
+				label := fmt.Sprintf("%s#%d", base, i+1)
+				if tsRenderRe.MatchString(b.body) {
+					renderOnly = append(renderOnly, label)
+				} else {
+					noAssertion = append(noAssertion, label)
+				}
+			}
+			if blockSignalsEdge(b) {
+				edgeCovered = true
 			}
 		}
 		if n := len(tsSnapshotRe.FindAllString(src, -1)); n > excessiveSnapshotThreshold {
-			snapshotHeavy = append(snapshotHeavy, fmt.Sprintf("%s (%d)", filepath.Base(path), n))
+			snapshotHeavy = append(snapshotHeavy, fmt.Sprintf("%s (%d)", base, n))
 		}
 	})
 
@@ -271,55 +375,104 @@ func analyzeTSQuality(scenario string, ws Workspace, now string) []Finding {
 			"Replace broad snapshots with targeted assertions on the meaningful output.",
 			now))
 	}
-	if testFiles > 0 && !edgeKeywords {
+	if testFiles > 0 && !edgeCovered {
 		findings = append(findings, qualityFinding(scenario, ws, codeTestMissingEdgeCases, ws.RootPath,
-			"UI tests appear to cover only the positive path.",
-			"no test references error/invalid/empty/boundary states",
+			"No UI test block names or exercises an error/empty/boundary state; the suite appears positive-path only.",
+			"no it()/test() title nor body references error/invalid/empty/boundary states",
 			"Tests for error, empty, and boundary states alongside the happy path.",
 			"positive-path only",
 			"Untested error/empty states are the states users most often hit.",
-			"Add tests for loading, empty, and error states.",
+			"Add tests for loading, empty, and error states (name them so the intent is clear).",
 			now))
 	}
 	return findings
 }
 
-// analyzeRequirementTags emits one TEST_UNTAGGED_REQUIREMENT finding when the
-// scenario declares requirement IDs but no test file references any of them.
+// tsBlock is one it()/test() block: its title and the source slice up to the
+// next test block (an approximation of its body sufficient for heuristics).
+type tsBlock struct {
+	title string
+	body  string
+}
+
+// stripTSComments removes line and block comments so heuristics do not match
+// tokens that appear only in commentary. It is intentionally simple (it does
+// not parse string literals); that is acceptable for these advisory signals.
+func stripTSComments(src string) string {
+	src = tsBlockComment.ReplaceAllString(src, " ")
+	src = tsLineComment.ReplaceAllString(src, " ")
+	return src
+}
+
+// tsTestBlocks splits comment-stripped source into per-test blocks by slicing
+// between consecutive it()/test() occurrences.
+func tsTestBlocks(src string) []tsBlock {
+	idxs := tsTestBlockRe.FindAllStringIndex(src, -1)
+	if len(idxs) == 0 {
+		return nil
+	}
+	titles := map[int]string{}
+	for _, m := range tsTestTitleRe.FindAllStringSubmatchIndex(src, -1) {
+		// m[0] is the start of the it/test( match; group 1 (m[2]:m[3]) is the
+		// title text. Pair the title to its block start position.
+		if len(m) >= 4 {
+			titles[m[0]] = src[m[2]:m[3]]
+		}
+	}
+	blocks := make([]tsBlock, 0, len(idxs))
+	for i, m := range idxs {
+		end := len(src)
+		if i+1 < len(idxs) {
+			end = idxs[i+1][0]
+		}
+		blocks = append(blocks, tsBlock{title: titles[m[0]], body: src[m[0]:end]})
+	}
+	return blocks
+}
+
+// blockSignalsEdge reports whether a test block names or exercises an error or
+// boundary state (its title or body references an edge keyword).
+func blockSignalsEdge(b tsBlock) bool {
+	if containsAny(strings.ToLower(b.title), edgeCaseKeywords) {
+		return true
+	}
+	return containsAny(strings.ToLower(b.body), edgeCaseKeywords)
+}
+
+// analyzeRequirementTags reports, per requirement, which declared requirement
+// IDs have no test reference — rather than treating one matched REQ as covering
+// the whole scenario (B5). It emits a single finding enumerating the untagged
+// IDs so traceability gaps are visible at requirement granularity.
 func analyzeRequirementTags(scenario, scenarioRoot string, workspaces []Workspace, now string) []Finding {
 	reqIDs := scenarioRequirementIDs(scenarioRoot)
 	if len(reqIDs) == 0 {
 		return nil
 	}
-	referenced := false
+	referenced := map[string]bool{}
 	for _, ws := range workspaces {
 		walkSourceFiles(ws.RootPath, func(path string) {
-			if referenced {
-				return
-			}
 			if !isGoTestFile(path) && !isTSTestFile(path) {
 				return
 			}
 			src := readFileString(path)
 			for id := range reqIDs {
-				if strings.Contains(src, id) {
-					referenced = true
-					return
+				if !referenced[id] && strings.Contains(src, id) {
+					referenced[id] = true
 				}
 			}
 		})
-		if referenced {
-			break
+	}
+
+	var untagged []string
+	for id := range reqIDs {
+		if !referenced[id] {
+			untagged = append(untagged, id)
 		}
 	}
-	if referenced {
+	if len(untagged) == 0 {
 		return nil
 	}
-	ids := make([]string, 0, len(reqIDs))
-	for id := range reqIDs {
-		ids = append(ids, id)
-	}
-	sort.Strings(ids)
+	sort.Strings(untagged)
 	return []Finding{{
 		ID:           codeTestUntaggedRequirement,
 		Scenario:     scenario,
@@ -327,12 +480,12 @@ func analyzeRequirementTags(scenario, scenarioRoot string, workspaces []Workspac
 		Category:     "quality",
 		Severity:     codeSeverity[codeTestUntaggedRequirement],
 		FilePath:     filepath.Join(scenarioRoot, "requirements"),
-		Message:      fmt.Sprintf("The scenario declares %d requirement ID(s) but no test references any of them.", len(ids)),
-		Evidence:     "requirement ids: " + strings.Join(truncateList(ids, 10), ", "),
-		Expected:     "Tests reference the requirement IDs they validate (e.g. in a test name or comment).",
-		Observed:     "no requirement-tagged tests",
-		WhyItMatters: "Untagged requirements break traceability: there is no proof a requirement is actually tested.",
-		Remediation:  "Reference the relevant REQ id in the validating test's name or a comment.",
+		Message:      fmt.Sprintf("%d of %d declared requirement ID(s) have no test reference.", len(untagged), len(reqIDs)),
+		Evidence:     "untagged requirement ids: " + strings.Join(truncateList(untagged, 15), ", "),
+		Expected:     "Every declared requirement ID is referenced by at least one validating test (test name or comment).",
+		Observed:     fmt.Sprintf("%d untagged requirement(s)", len(untagged)),
+		WhyItMatters: "Untagged requirements break traceability: there is no proof those requirements are actually tested.",
+		Remediation:  "Reference each listed REQ id in the name or a comment of the test that validates it.",
 		CreatedAt:    now,
 	}}
 }

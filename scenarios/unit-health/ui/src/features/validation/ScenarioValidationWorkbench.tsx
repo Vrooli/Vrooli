@@ -194,6 +194,26 @@ export function ScenarioValidationWorkbench() {
 
           {data.summary && <p className="text-sm text-app-muted-foreground">{data.summary}</p>}
 
+          {(data.runId || data.targetPath) && (
+            <dl
+              data-testid="validation-run-reference"
+              className="flex flex-wrap gap-x-6 gap-y-1 rounded-panel border border-app-border bg-app-surface px-4 py-2 text-xs text-app-muted-foreground"
+            >
+              {data.runId && (
+                <div className="flex gap-1">
+                  <dt className="font-semibold">{t(strings.validation.runId)}</dt>
+                  <dd className="font-mono">{data.runId}</dd>
+                </div>
+              )}
+              {data.targetPath && (
+                <div className="flex gap-1">
+                  <dt className="font-semibold">{t(strings.validation.targetPath)}</dt>
+                  <dd className="font-mono">{data.targetPath}</dd>
+                </div>
+              )}
+            </dl>
+          )}
+
           {data.maturity?.rationale && (
             <p
               data-testid={selectors.validationWorkbench.rationale}

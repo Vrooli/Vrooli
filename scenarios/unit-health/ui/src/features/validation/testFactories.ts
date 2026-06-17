@@ -162,7 +162,7 @@ export const makeValidateScenarioResponse = (
         code: "UNIT_FLAKY_TEST",
         category: "flake",
         severity: "warning",
-        filePath: "ui/src/features/health/HealthCard.test.tsx",
+        filePath: "ui/src/features/validation/ScenarioValidationWorkbench.test.tsx",
         symbol: "",
         message: "A test failed only on retry.",
         evidence: "1 of 3 runs failed without a code change.",

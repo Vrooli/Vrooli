@@ -61,6 +61,8 @@
     "maturity": "Maturity",
     "findings": "Findings",
     "surfaces": "Surfaces",
+    "runId": "Run ID",
+    "targetPath": "Target path",
     "countSummary": "{{errors}} errors / {{warnings}} warnings / {{infos}} info",
     "unknown": "Unknown",
     "findingsTitle": "Findings",

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"unit-health/internal/discovery"
+	"unit-health/internal/hostbin"
 )
 
 // Unit Health finding codes. These are the contract between the engine and
@@ -160,6 +161,8 @@ func normalizeLanguage(lang, root string) string {
 		return "typescript"
 	case "python", "py":
 		return "python"
+	case "bash", "sh", "shell":
+		return "bash"
 	case "", "unknown":
 		// Fall back to filesystem evidence.
 		switch {
@@ -169,6 +172,8 @@ func normalizeLanguage(lang, root string) string {
 			return "typescript"
 		case hasPythonFiles(root):
 			return "python"
+		case hasShellFiles(root):
+			return "bash"
 		}
 		return "unknown"
 	default:
@@ -196,6 +201,8 @@ func resolveWorkspace(scenario string, s discovery.Surface, lang, now string) (W
 		return ws, nil
 	case "typescript":
 		return resolveNodeWorkspace(scenario, s, ws, now)
+	case "bash":
+		return resolveBashWorkspace(scenario, s, ws, now)
 	case "python":
 		ws.CanonicalFramework = "pytest"
 		ws.Framework = "pytest"
@@ -343,6 +350,20 @@ func resolveNodeWorkspace(scenario string, s discovery.Surface, ws Workspace, no
 		ws.Status = "ready"
 	}
 
+	// A runnable node workspace needs its dependencies installed before vitest;
+	// a clean checkout has no node_modules. Resolve a lockfile-frozen install
+	// cross-platform so a missing install classifies as a dependency gap rather
+	// than a test misconfiguration. If no package-manager binary is available on
+	// this host we leave InstallCommand empty and note the degrade (the test may
+	// still run against pre-existing node_modules) rather than block.
+	if ws.TestCommand != "" {
+		if install, ok := nodeInstallCommand(pm); ok {
+			ws.InstallCommand = install
+		} else {
+			ws.DegradedReason = strings.TrimSpace(ws.DegradedReason + " (no pnpm/yarn/npm binary found to install dependencies before tests)")
+		}
+	}
+
 	if ws.TestCommand != "" {
 		if hasCoverageScript {
 			ws.CoverageCommand = pm + " test:coverage"
@@ -372,6 +393,124 @@ func resolveNodeWorkspace(scenario string, s discovery.Surface, ws Workspace, no
 	return ws, findings
 }
 
+// installBinaryResolver picks the first available install binary among the
+// candidate package managers, cross-platform (it probes the invoking user's
+// ~/.local/bin, ~/go/bin, ~/bin too, not just the sudo PATH). It is a seam so
+// tests can drive the resolution deterministically.
+var installBinaryResolver = hostbin.Resolve
+
+// nodeInstallCommand resolves a lockfile-frozen dependency install for a node
+// workspace, preferring the lockfile's package manager and falling back through
+// pnpm→yarn→npm. It returns false when no package-manager binary is available.
+func nodeInstallCommand(preferred string) (string, bool) {
+	bin, ok := installBinaryResolver(installCandidateOrder(preferred))
+	if !ok {
+		return "", false
+	}
+	switch bin {
+	case "pnpm":
+		// --ignore-scripts: a unit-health install must not run arbitrary
+		// postinstall scripts from the workspace under validation.
+		return "pnpm install --frozen-lockfile --ignore-scripts", true
+	case "yarn":
+		return "yarn install --frozen-lockfile --ignore-scripts", true
+	case "npm":
+		return "npm ci --ignore-scripts", true
+	default:
+		return "", false
+	}
+}
+
+// installCandidateOrder yields the preferred package manager first (when known
+// and supported) followed by the canonical fallback chain, de-duplicated.
+func installCandidateOrder(preferred string) []string {
+	order := make([]string, 0, 3)
+	seen := map[string]struct{}{}
+	add := func(name string) {
+		switch name {
+		case "pnpm", "yarn", "npm":
+			if _, ok := seen[name]; !ok {
+				seen[name] = struct{}{}
+				order = append(order, name)
+			}
+		}
+	}
+	add(normalizePackageManager(preferred))
+	add(preferred)
+	add("pnpm")
+	add("yarn")
+	add("npm")
+	return order
+}
+
+// batsBinaryResolver resolves the bats binary cross-platform. Seam for tests.
+var batsBinaryResolver = hostbin.Resolve
+
+// resolveBashWorkspace plans a Bash test surface. The canonical Vrooli shell
+// unit-test framework is bats. It emits TEST_FRAMEWORK_MISSING when shell
+// sources exist but no `*.bats` tests do, and TEST_DEPENDENCY_MISSING when bats
+// itself is not installed (an explicit degrade, never a false pass — including
+// on platforms without bats such as bare Windows).
+func resolveBashWorkspace(scenario string, s discovery.Surface, ws Workspace, now string) (Workspace, []Finding) {
+	ws.CanonicalFramework = "bats"
+	ws.Framework = "bats"
+
+	mkFinding := func(code, message, evidence, expected, observed, why, remediation string) Finding {
+		return Finding{
+			ID:           code + "-" + s.ID,
+			Scenario:     scenario,
+			SurfaceID:    s.ID,
+			WorkspaceID:  s.ID,
+			Language:     "bash",
+			Framework:    "bats",
+			Code:         code,
+			Category:     "config",
+			Severity:     codeSeverity[code],
+			FilePath:     s.RootPath,
+			Message:      message,
+			Evidence:     evidence,
+			Expected:     expected,
+			Observed:     observed,
+			WhyItMatters: why,
+			Remediation:  remediation,
+			CreatedAt:    now,
+		}
+	}
+
+	if !hasBatsFiles(s.RootPath) {
+		ws.Status = "degraded"
+		ws.DegradedReason = "shell scripts present but no bats test files (*.bats) found"
+		return ws, []Finding{mkFinding(codeTestFrameworkMissing,
+			"Shell surface has shell scripts but no bats (*.bats) tests.",
+			"shell sources present; no *.bats files under "+s.RootPath,
+			"At least one bats test file exercising the shell scripts.",
+			"no bats tests",
+			"Untested shell scripts (CLI scaffolding, lifecycle helpers) silently break; bats is the canonical Vrooli shell unit-test framework.",
+			"Add bats tests (e.g. test/*.bats) covering the shell entrypoints.",
+		)}
+	}
+
+	bin, ok := batsBinaryResolver([]string{"bats"})
+	if !ok {
+		ws.Status = "degraded"
+		ws.DegradedReason = "bats is not installed on this host"
+		return ws, []Finding{mkFinding(codeTestDependencyMissing,
+			"bats test files exist but the bats runner is not installed.",
+			"*.bats files present; no bats binary on PATH or in the user's bin dirs",
+			"The bats runner installed and resolvable.",
+			"bats not installed",
+			"Without bats the shell tests cannot run, so the shell surface is unvalidated.",
+			"Install bats (a registered Vrooli tool) so unit-health can run the shell tests.",
+		)}
+	}
+
+	// bats --recursive runs every *.bats under the working directory. The
+	// executor runs this with Dir set to the surface root, so target ".".
+	ws.TestCommand = bin + " --recursive ."
+	ws.Status = "ready"
+	return ws, nil
+}
+
 func buildExecutionPlan(workspaces []Workspace) ExecutionPlan {
 	plan := ExecutionPlan{}
 	for _, ws := range workspaces {
@@ -382,12 +521,23 @@ func buildExecutionPlan(workspaces []Workspace) ExecutionPlan {
 		if command == "" {
 			continue
 		}
+		if ws.InstallCommand != "" {
+			plan.Commands = append(plan.Commands, PlannedCommand{
+				WorkspaceID:      ws.ID,
+				Name:             ws.Language + " install",
+				Command:          ws.InstallCommand,
+				WorkingDirectory: ws.RootPath,
+				TimeoutSeconds:   defaultWorkspaceTimeoutSeconds,
+				Kind:             kindInstall,
+			})
+		}
 		plan.Commands = append(plan.Commands, PlannedCommand{
 			WorkspaceID:      ws.ID,
 			Name:             ws.Language + " test",
 			Command:          command,
 			WorkingDirectory: ws.RootPath,
 			TimeoutSeconds:   defaultWorkspaceTimeoutSeconds,
+			Kind:             kindTest,
 		})
 	}
 	switch len(plan.Commands) {
@@ -454,4 +604,31 @@ func hasPythonFiles(root string) bool {
 		}
 	}
 	return false
+}
+
+// hasShellFiles reports whether the tree rooted at root contains any .sh source.
+func hasShellFiles(root string) bool { return hasFilesWithExt(root, ".sh") }
+
+// hasBatsFiles reports whether the tree rooted at root contains any .bats test.
+func hasBatsFiles(root string) bool { return hasFilesWithExt(root, ".bats") }
+
+func hasFilesWithExt(root, ext string) bool {
+	found := false
+	_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil || found {
+			return nil
+		}
+		if d.IsDir() {
+			switch d.Name() {
+			case ".git", "node_modules", "dist", "build", ".cache", "vendor":
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if strings.EqualFold(filepath.Ext(path), ext) {
+			found = true
+		}
+		return nil
+	})
+	return found
 }

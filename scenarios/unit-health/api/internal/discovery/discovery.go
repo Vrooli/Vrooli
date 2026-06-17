@@ -268,9 +268,36 @@ func languageFromRoot(root string) string {
 		return "javascript"
 	case hasPythonIndicators(root):
 		return "python"
+	case hasShellIndicators(root):
+		return "bash"
 	default:
 		return "unknown"
 	}
+}
+
+// hasShellIndicators reports whether the tree holds shell sources (.sh/.bats)
+// and is used only on the filesystem-fallback path when Code Facts is degraded;
+// the normal path attributes bash via the Code Facts parse unit.
+func hasShellIndicators(root string) bool {
+	found := false
+	_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil || found {
+			return nil
+		}
+		if d.IsDir() {
+			switch d.Name() {
+			case ".git", "node_modules", "dist", "build", ".cache", "vendor":
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		switch strings.ToLower(filepath.Ext(path)) {
+		case ".sh", ".bats":
+			found = true
+		}
+		return nil
+	})
+	return found
 }
 
 func frameworkFromRoot(root string) string {

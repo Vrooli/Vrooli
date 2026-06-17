@@ -174,6 +174,11 @@ func nearestScenarioRoot(start string) string {
 
 func discoverNestedParseUnits(root string) []*factsv1.ParseUnit {
 	var units []*factsv1.ParseUnit
+	// Bash has no manifest file, so we infer a shell parse unit from the
+	// presence of .sh/.bats sources in a directory not already owned by a
+	// language with a manifest (go.mod/tsconfig/package.json).
+	manifestDirs := map[string]bool{}
+	shellDirs := map[string]bool{}
 	_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
@@ -186,17 +191,59 @@ func discoverNestedParseUnits(root string) []*factsv1.ParseUnit {
 		}
 		switch d.Name() {
 		case "go.mod":
-			units = append(units, goParseUnit(filepath.Dir(path), path))
+			dir := filepath.Dir(path)
+			manifestDirs[dir] = true
+			units = append(units, goParseUnit(dir, path))
 		case "tsconfig.json":
-			units = append(units, tsParseUnit(filepath.Dir(path), path))
+			dir := filepath.Dir(path)
+			manifestDirs[dir] = true
+			units = append(units, tsParseUnit(dir, path))
 		case "package.json":
 			dir := filepath.Dir(path)
+			manifestDirs[dir] = true
 			if !fileExists(filepath.Join(dir, "tsconfig.json")) && hasScriptSource(dir) {
 				units = append(units, nodePackageUnit(dir))
 			}
 		}
+		switch strings.ToLower(filepath.Ext(path)) {
+		case ".sh", ".bats":
+			shellDirs[filepath.Dir(path)] = true
+		}
 		return nil
 	})
+	units = append(units, bashParseUnits(shellDirs, manifestDirs)...)
+	return units
+}
+
+// bashParseUnits emits one bash parse unit per shell-source directory that is
+// not owned by a manifest language, collapsing nested shell directories to
+// their shallowest ancestor so a tree of scripts reports as a single unit.
+func bashParseUnits(shellDirs, manifestDirs map[string]bool) []*factsv1.ParseUnit {
+	candidates := make([]string, 0, len(shellDirs))
+	for dir := range shellDirs {
+		if manifestDirs[dir] {
+			continue
+		}
+		candidates = append(candidates, dir)
+	}
+	sort.Strings(candidates)
+	var roots []string
+	for _, dir := range candidates {
+		nested := false
+		for _, kept := range roots {
+			if dir == kept || strings.HasPrefix(dir, kept+string(filepath.Separator)) {
+				nested = true
+				break
+			}
+		}
+		if !nested {
+			roots = append(roots, dir)
+		}
+	}
+	units := make([]*factsv1.ParseUnit, 0, len(roots))
+	for _, dir := range roots {
+		units = append(units, bashParseUnit(dir))
+	}
 	return units
 }
 
@@ -231,6 +278,20 @@ func nodePackageUnit(root string) *factsv1.ParseUnit {
 		ConfigPath: packagePath,
 		Status:     factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED,
 		Evidence:   []*factsv1.Evidence{evidence(factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED, "Node package has no tsconfig.json, so it cannot route to a supported analyzer.", packagePath)},
+	}
+}
+
+// bashParseUnit reports a discovered shell-script root. Code Facts has no bash
+// analyzer, so the unit is UNSUPPORTED (like a node package without tsconfig):
+// the language and root are proven facts, but no graph is produced. Consumers
+// such as unit-health use the language + root to attribute bats test surfaces.
+func bashParseUnit(root string) *factsv1.ParseUnit {
+	return &factsv1.ParseUnit{
+		Id:       "bash:" + filepath.ToSlash(root),
+		Language: "bash",
+		RootPath: root,
+		Status:   factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED,
+		Evidence: []*factsv1.Evidence{evidence(factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED, "Shell scripts (.sh/.bats) discovered; Code Facts reports the language but has no bash graph analyzer.", root)},
 	}
 }
 

@@ -61,6 +61,8 @@
     "maturity": "النضج",
     "findings": "النتائج",
     "surfaces": "الأسطح",
+    "runId": "معرّف التشغيل",
+    "targetPath": "المسار المستهدف",
     "countSummary": "{{errors}} أخطاء / {{warnings}} تحذيرات / {{infos}} معلومات",
     "unknown": "غير معروف",
     "findingsTitle": "النتائج",

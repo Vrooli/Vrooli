@@ -8,6 +8,7 @@ import (
 
 	"unit-health/internal/discovery"
 	"unit-health/internal/module"
+	"unit-health/internal/runhistory"
 	internalvalidation "unit-health/internal/validation"
 
 	"github.com/gorilla/mux"
@@ -20,8 +21,9 @@ import (
 // global parity test walks it against the Endpoints slice.
 var ProtoFile = validationv1.File_unit_health_v1_validation_validation_proto
 
-// Module mounts the ValidationService Connect handler.
-func Module(logger *log.Logger, repoRoot string) module.Module {
+// Module mounts the ValidationService Connect handler. history persists run
+// timing/status for cross-run diagnostics; pass nil to disable persistence.
+func Module(logger *log.Logger, repoRoot string, history runhistory.Store) module.Module {
 	svc := internalvalidation.New()
 	spec, err := loadMaturitySpec(repoRoot)
 	if err != nil && logger != nil {
@@ -29,6 +31,7 @@ func Module(logger *log.Logger, repoRoot string) module.Module {
 	}
 	svc.Spec = spec
 	svc.Locator = discovery.DefaultLocator{RepoRoot: repoRoot}
+	svc.History = history
 	connectPath, connectHandler := validationconnect.NewValidationServiceHandler(NewHandlerWithDeps(Deps{
 		Service:      svc,
 		Logger:       logger,

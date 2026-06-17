@@ -33,17 +33,17 @@
     },
     {
       "id": "L4",
-      "name": "Coverage and edge-case depth",
-      "description": "Coverage meets the scenario threshold and tests include positive, negative, and boundary cases rather than render-only or assertion-free checks.",
-      "entry_criteria": ["Test architecture is sound"],
-      "exit_criteria": ["No coverage or test-quality contract emits an error"]
+      "name": "Coverage and edge-case depth (advisory)",
+      "description": "ADVISORY TIER (measured, not gating). L0–L3 are the enforced gates; L4 measures coverage and test-quality depth — per-file coverage, edge-case presence, assertion strength — and surfaces them as non-blocking warnings. A scenario clean through L3 is reported at this tier; these findings guide hardening but never block local maturity.",
+      "entry_criteria": ["Test architecture is sound (L3 clean)"],
+      "exit_criteria": ["Advisory: coverage and test-quality findings are addressed (none are blocking)"]
     },
     {
       "id": "L5",
-      "name": "Drift-gated, flake-aware, requirement-linked tests",
-      "description": "Tests are stable (flake-aware), runtime-bounded, and linked to requirements so the scenario is fleet-ready for Test Genie delegation.",
-      "entry_criteria": ["Coverage and quality baselines are clean"],
-      "exit_criteria": ["No flake, runtime-growth, or untagged-requirement finding blocks fleet validation"]
+      "name": "Drift-gated, flake-aware, requirement-linked tests (advisory)",
+      "description": "ADVISORY TIER (measured, not gating). L5 measures cross-run stability (flake), runtime growth, and requirement linkage. These signals are advisory: they inform fleet-readiness for Test Genie delegation but never block local maturity. Only L0–L3 gate.",
+      "entry_criteria": ["Coverage and quality baselines are clean (L4 advisory addressed)"],
+      "exit_criteria": ["Advisory: flake, runtime-growth, and requirement-linkage findings are addressed (none are blocking)"]
     }
   ],
   "findings": {
@@ -147,35 +147,35 @@
     },
     "LOW_COVERAGE": {
       "local_level_impact": "L4",
-      "global_impact": "hardening_gap",
+      "global_impact": "advisory",
       "dimension": "coverage",
       "severity_default": "SEVERITY_WARNING",
       "recommended_skill_ids": ["test"]
     },
     "COVERAGE_ABSENT": {
       "local_level_impact": "L4",
-      "global_impact": "hardening_gap",
+      "global_impact": "advisory",
       "dimension": "coverage",
       "severity_default": "SEVERITY_INFO",
       "recommended_skill_ids": ["test"]
     },
     "TEST_SKIPPED_OR_ONLY": {
       "local_level_impact": "L4",
-      "global_impact": "hardening_gap",
+      "global_impact": "advisory",
       "dimension": "tests",
       "severity_default": "SEVERITY_WARNING",
       "recommended_skill_ids": ["test"]
     },
     "TEST_NO_ASSERTION": {
       "local_level_impact": "L4",
-      "global_impact": "hardening_gap",
+      "global_impact": "advisory",
       "dimension": "tests",
       "severity_default": "SEVERITY_WARNING",
       "recommended_skill_ids": ["test"]
     },
     "TEST_RENDER_ONLY": {
       "local_level_impact": "L4",
-      "global_impact": "hardening_gap",
+      "global_impact": "advisory",
       "dimension": "tests",
       "severity_default": "SEVERITY_WARNING",
       "recommended_skill_ids": ["test", "unit-testing-architecture-steer"]
@@ -189,14 +189,14 @@
     },
     "TEST_MISSING_EDGE_CASES": {
       "local_level_impact": "L4",
-      "global_impact": "hardening_gap",
+      "global_impact": "advisory",
       "dimension": "tests",
       "severity_default": "SEVERITY_WARNING",
       "recommended_skill_ids": ["test", "unit-testing-architecture-steer"]
     },
     "TEST_FLAKE_SUSPECTED": {
       "local_level_impact": "L5",
-      "global_impact": "hardening_gap",
+      "global_impact": "advisory",
       "dimension": "tests",
       "severity_default": "SEVERITY_WARNING",
       "recommended_skill_ids": ["test", "scientific-debugging"]
@@ -210,7 +210,7 @@
     },
     "TEST_UNTAGGED_REQUIREMENT": {
       "local_level_impact": "L5",
-      "global_impact": "evolvability_gap",
+      "global_impact": "advisory",
       "dimension": "tests",
       "severity_default": "SEVERITY_WARNING",
       "recommended_skill_ids": ["test", "requirements-traceability-steer"]

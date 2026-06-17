@@ -11,6 +11,7 @@ import (
 
 	"unit-health/internal/clock"
 	"unit-health/internal/modules"
+	"unit-health/internal/runhistory"
 	"unit-health/internal/server"
 
 	"github.com/vrooli/api-core/apihttp"
@@ -123,7 +124,7 @@ func main() {
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: logger},
 		healthH.Module(db, "unit-health-api", "1.0.0"),
-		validationH.Module(logger, repoRoot),
+		validationH.Module(logger, repoRoot, runhistory.NewRepository(db.Primary())),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

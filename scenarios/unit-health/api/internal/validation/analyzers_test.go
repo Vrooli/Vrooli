@@ -3,6 +3,8 @@ package validation
 import (
 	"path/filepath"
 	"testing"
+
+	"unit-health/internal/runhistory"
 )
 
 const fixedNowStr = "2026-06-16T12:00:00Z"
@@ -206,7 +208,9 @@ func TestAnalyzeDiagnosticsRuntimePressureAndHang(t *testing.T) {
 		{Name: "go", Command: "go test ./...", WorkingDirectory: "/x/api", Status: "passed", DurationMS: 90000, TimeoutSeconds: 100},
 		{Name: "ui", Command: "pnpm test", WorkingDirectory: "/x/ui", Status: "timeout", FailureClass: "timeout_hang", StderrExcerpt: "stuck", TimeoutSeconds: 100},
 	}
-	diags, findings := analyzeDiagnostics("demo", nil, plan, results, fixedNowStr)
+	// No history: near-timeout is a runtime diagnostic, not a TEST_RUNTIME_GROWTH
+	// finding (growth needs cross-run history — see TestRuntimeGrowthFromHistory).
+	diags, findings := analyzeDiagnostics("demo", nil, plan, results, nil, fixedNowStr)
 
 	var sawRuntime, sawHang bool
 	for _, d := range diags {
@@ -220,8 +224,8 @@ func TestAnalyzeDiagnosticsRuntimePressureAndHang(t *testing.T) {
 	if !sawRuntime || !sawHang {
 		t.Fatalf("expected runtime+hang diagnostics, got %+v", diags)
 	}
-	if _, ok := findingByCode(findings, codeTestRuntimeGrowth); !ok {
-		t.Errorf("expected TEST_RUNTIME_GROWTH, got %v", codes(findings))
+	if _, ok := findingByCode(findings, codeTestRuntimeGrowth); ok {
+		t.Errorf("near-timeout must NOT fire TEST_RUNTIME_GROWTH without history, got %v", codes(findings))
 	}
 }
 
@@ -229,9 +233,12 @@ func TestAnalyzeDiagnosticsFlakeMarkers(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "x_test.go"), "package demo\n\nimport \"testing\"\n\n// this test is flaky under load\nfunc TestX(t *testing.T){}\n")
 	ws := Workspace{ID: "api", Language: "go", RootPath: root}
-	diags, findings := analyzeDiagnostics("demo", []Workspace{ws}, ExecutionPlan{}, nil, fixedNowStr)
-	if _, ok := findingByCode(findings, codeTestFlakeSuspected); !ok {
-		t.Errorf("expected TEST_FLAKE_SUSPECTED, got %v", codes(findings))
+	// Static "flaky" source markers are now a weak supplementary diagnostic
+	// only (info), not a TEST_FLAKE_SUSPECTED finding — that requires cross-run
+	// variance (see TestFlakeFromCrossRunVariance).
+	diags, findings := analyzeDiagnostics("demo", []Workspace{ws}, ExecutionPlan{}, nil, nil, fixedNowStr)
+	if _, ok := findingByCode(findings, codeTestFlakeSuspected); ok {
+		t.Errorf("static markers must NOT fire TEST_FLAKE_SUSPECTED, got %v", codes(findings))
 	}
 	var sawFlake bool
 	for _, d := range diags {
@@ -240,6 +247,42 @@ func TestAnalyzeDiagnosticsFlakeMarkers(t *testing.T) {
 		}
 	}
 	if !sawFlake {
-		t.Errorf("expected flake diagnostic, got %+v", diags)
+		t.Errorf("expected a supplementary flake diagnostic, got %+v", diags)
+	}
+}
+
+func TestRuntimeGrowthFromHistory(t *testing.T) {
+	plan := ExecutionPlan{Commands: []PlannedCommand{
+		{WorkspaceID: "api", Command: "go test ./...", WorkingDirectory: "/x/api", TimeoutSeconds: 600},
+	}}
+	results := []CommandResult{
+		{Command: "go test ./...", WorkingDirectory: "/x/api", Status: "passed", DurationMS: 9000, TimeoutSeconds: 600},
+	}
+	// Three prior passing runs around 3s; current run is 9s = 3× baseline.
+	hist := []runhistory.CommandSample{
+		{WorkspaceID: "api", Command: "go test ./...", DurationMS: 3000, Status: "passed"},
+		{WorkspaceID: "api", Command: "go test ./...", DurationMS: 2900, Status: "passed"},
+		{WorkspaceID: "api", Command: "go test ./...", DurationMS: 3100, Status: "passed"},
+	}
+	_, findings := analyzeDiagnostics("demo", nil, plan, results, hist, fixedNowStr)
+	if _, ok := findingByCode(findings, codeTestRuntimeGrowth); !ok {
+		t.Errorf("expected TEST_RUNTIME_GROWTH from 3× baseline growth, got %v", codes(findings))
+	}
+}
+
+func TestFlakeFromCrossRunVariance(t *testing.T) {
+	plan := ExecutionPlan{Commands: []PlannedCommand{
+		{WorkspaceID: "api", Command: "go test ./...", WorkingDirectory: "/x/api", TimeoutSeconds: 600},
+	}}
+	// Current run failed; a prior run passed → flip-flop.
+	results := []CommandResult{
+		{Command: "go test ./...", WorkingDirectory: "/x/api", Status: "failed", TimeoutSeconds: 600},
+	}
+	hist := []runhistory.CommandSample{
+		{WorkspaceID: "api", Command: "go test ./...", DurationMS: 3000, Status: "passed"},
+	}
+	_, findings := analyzeDiagnostics("demo", nil, plan, results, hist, fixedNowStr)
+	if _, ok := findingByCode(findings, codeTestFlakeSuspected); !ok {
+		t.Errorf("expected TEST_FLAKE_SUSPECTED from pass/fail flip-flop, got %v", codes(findings))
 	}
 }
