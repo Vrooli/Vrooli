@@ -54,3 +54,12 @@ func TestAttributorAttributeFleetConventions(t *testing.T) {
 		})
 	}
 }
+
+func TestAttributorIgnoresSharedProtoPackages(t *testing.T) {
+	attr := NewAttributor([]string{"scenario-dependency-analyzer", "common"})
+	attr.AddScenario("common")
+
+	if _, ok := attr.Attribute("github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"); ok {
+		t.Fatal("shared common proto package must not be attributed as a scenario dependency")
+	}
+}

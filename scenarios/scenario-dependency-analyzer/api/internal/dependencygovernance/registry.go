@@ -1032,8 +1032,12 @@ func (r *Registry) securityVulnerabilityEvidence(ctx context.Context, ecosystem,
 	if err != nil {
 		return nil, false, fmt.Errorf("query Security Health vulnerability evidence: %w: %s", err, strings.TrimSpace(string(output)))
 	}
+	payload, err := extractSecurityHealthJSON(output)
+	if err != nil {
+		return nil, false, fmt.Errorf("parse Security Health vulnerability evidence: %w", err)
+	}
 	var resp securityHealthExplainResponse
-	if err := json.Unmarshal(output, &resp); err != nil {
+	if err := json.Unmarshal(payload, &resp); err != nil {
 		return nil, false, fmt.Errorf("parse Security Health vulnerability evidence: %w", err)
 	}
 	if !resp.Found {
@@ -1079,8 +1083,12 @@ func (r *Registry) securityVulnerabilityEvidenceList(ctx context.Context, req *g
 	if err != nil {
 		return nil, 0, fmt.Errorf("query Security Health vulnerabilities: %w: %s", err, strings.TrimSpace(string(output)))
 	}
+	payload, err := extractSecurityHealthJSON(output)
+	if err != nil {
+		return nil, 0, fmt.Errorf("parse Security Health vulnerabilities: %w", err)
+	}
 	var resp securityHealthListResponse
-	if err := json.Unmarshal(output, &resp); err != nil {
+	if err := json.Unmarshal(payload, &resp); err != nil {
 		return nil, 0, fmt.Errorf("parse Security Health vulnerabilities: %w", err)
 	}
 	out := make([]*governancev1.SecurityVulnerabilityEvidence, 0, len(resp.Vulnerabilities))
@@ -1095,6 +1103,22 @@ func (r *Registry) securityVulnerabilityEvidenceList(ctx context.Context, req *g
 		out = append(out, evidence)
 	}
 	return out, resp.Total, nil
+}
+
+func extractSecurityHealthJSON(output []byte) ([]byte, error) {
+	trimmed := strings.TrimSpace(string(output))
+	if trimmed == "" {
+		return nil, fmt.Errorf("empty output")
+	}
+	if strings.HasPrefix(trimmed, "{") {
+		return []byte(trimmed), nil
+	}
+	start := strings.Index(trimmed, "{")
+	end := strings.LastIndex(trimmed, "}")
+	if start < 0 || end < start {
+		return nil, fmt.Errorf("no JSON object found in output: %s", trimmed)
+	}
+	return []byte(trimmed[start : end+1]), nil
 }
 
 func securityVulnerabilityToProto(v securityHealthVulnerability) *governancev1.SecurityVulnerabilityEvidence {

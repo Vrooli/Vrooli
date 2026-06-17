@@ -678,10 +678,12 @@ Release-age policy uses pnpm's `minimumReleaseAge` setting. Vrooli's default is
 exception is recorded in `.vrooli/dependencies/approved-dependencies.json` with
 rationale and review expiry.
 
-The security section calls `security-health deps status --json` and indexed
-`security-health deps vulnerabilities` evidence to report dependency-index
-availability, freshness, and known vulnerable dependency records. SDA does not
-run `pnpm audit`, `govulncheck`, OSV, or other vulnerability scanners.
+The `security-index` section calls `security-health deps status --json` to
+report dependency-index availability and freshness. It may include aggregate
+index counts, but it does not emit vulnerable-package findings into dependency
+health. Vulnerability scanning and security-phase gating remain owned by
+Security Health; SDA governance commands consume Security Health vulnerability
+evidence only for approval, denial, and remediation decisions.
 
 ---
 

@@ -178,7 +178,9 @@ describe("GovernancePage", () => {
     renderWithProviders(<GovernancePage />);
 
     await waitFor(() => expect(screen.getByText("Dependency Governance")).toBeInTheDocument());
+    expect(screen.getByText(/not an exhaustive allowlist/i)).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText("Registry seeding")).toBeInTheDocument());
+    expect(screen.getByText("Security Health evidence gaps")).toBeInTheDocument();
     expect(screen.getByTestId(selectors.governance.triagePanel)).toBeInTheDocument();
 
     fireEvent.click(firstElement(screen.getAllByRole("button", { name: "npm/mermaid" })));
@@ -217,6 +219,7 @@ describe("GovernancePage", () => {
     await waitFor(() => expect(screen.getByTestId(selectors.governance.triagePanel)).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "Deny range" }));
 
+    expect(screen.getByText("Security Health evidence decision")).toBeInTheDocument();
     expect(screen.getByLabelText("Vulnerability ID")).toHaveValue("GHSA-4w7w-66w2-5vf9");
   });
 });

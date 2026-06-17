@@ -462,6 +462,7 @@ func TestValidateFleetAggregatesScenariosAndUsage(t *testing.T) {
 }
 
 func TestListFindingsFiltersFleetGovernanceFindings(t *testing.T) {
+	// [REQ:SDA-P0-015]
 	repoRoot := t.TempDir()
 	writeRegistry(t, repoRoot, `{
 		"schema_version": "1",
@@ -923,6 +924,7 @@ func TestDenyVulnerableDependencyDryRunAndApply(t *testing.T) {
 }
 
 func TestListSecurityGovernanceGapsReportsCoverageAndApprovedOverlap(t *testing.T) {
+	// [REQ:SDA-P0-017] [REQ:SDA-P1-007]
 	repoRoot := t.TempDir()
 	writeRegistry(t, repoRoot, `{
 		"schema_version": "1",
@@ -1004,6 +1006,36 @@ func TestListSecurityGovernanceGapsReportsCoverageAndApprovedOverlap(t *testing.
 	}
 	if !strings.Contains(react.GetSuggestedCommand(), "deny-vulnerable npm/react --vulnerability GHSA-react") {
 		t.Fatalf("suggested command = %q", react.GetSuggestedCommand())
+	}
+}
+
+func TestListSecurityGovernanceGapsToleratesSecurityHealthPreamble(t *testing.T) {
+	// [REQ:SDA-P0-017] [REQ:SDA-P1-007]
+	repoRoot := t.TempDir()
+	writeRegistry(t, repoRoot, `{"schema_version":"1","policy":{"mode":"advisory"},"records":[]}`)
+	installFakeSecurityHealth(t, "rebuilding security-health CLI\n"+`{
+		"total": 1,
+		"vulnerabilities": [
+			{
+				"vulnerability_id": "GHSA-vite",
+				"ecosystem": "ECOSYSTEM_NPM",
+				"name": "vite",
+				"version": "5.0.0",
+				"affected_ranges": [{"range": ">=5.0.0 <5.1.0"}],
+				"fixed_ranges": [{"range": ">=5.1.0"}],
+				"normalized_severity": "high",
+				"scenarios": ["demo"]
+			}
+		]
+	}`)
+	registry := NewRegistry(repoRoot)
+
+	resp, err := registry.ListSecurityGovernanceGaps(context.Background(), &governancev1.ListSecurityGovernanceGapsRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.GetTotal() != 1 || len(resp.GetGaps()) != 1 {
+		t.Fatalf("gaps total=%d len=%d, want one parsed gap", resp.GetTotal(), len(resp.GetGaps()))
 	}
 }
 

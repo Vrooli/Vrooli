@@ -35,10 +35,10 @@ export function GovernanceTriagePanel({
         onStartRemediation={onStartRemediation}
       />
       <TriageSection
-        title="Security actions"
+        title="Security Health evidence actions"
         icon={<ShieldAlert className="h-4 w-4" aria-hidden="true" />}
         groups={triage?.securityActions ?? []}
-        empty="No security governance actions are queued."
+        empty="No Security Health evidence governance actions are queued."
         onSelectDependency={onSelectDependency}
       />
       <TriageSection
@@ -121,7 +121,7 @@ function SecurityGapsPanel({
   return (
     <section className="rounded-lg border border-border/50 bg-card/70">
       <SectionHeader
-        title="Security gaps"
+        title="Security Health evidence gaps"
         subtitle={`${response?.uncoveredCount ?? 0} uncovered, ${response?.deniedCoveredCount ?? 0} already denied`}
       />
       {response?.warnings.length ? (
@@ -171,7 +171,7 @@ function SecurityGapRow({
           </button>
           <code className="rounded bg-background/50 px-1.5 py-0.5 text-xs">{gap.observedVersion || "unknown"}</code>
         </div>
-        <p className="mt-2 text-sm text-muted-foreground">{gap.remediation || "Review the vulnerable range and create a denied governance record."}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{gap.remediation || "Review Security Health evidence and create a denied governance record for the vulnerable range."}</p>
         <MetaList
           values={[
             ["Vulnerabilities", gap.vulnerabilityIds.join(", ")],

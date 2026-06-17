@@ -395,6 +395,16 @@
             "implemented"
           ],
           "completion": "required"
+        },
+        {
+          "path": "perf/2026-06-15-sda-interface-graph.md",
+          "docType": "performance-note",
+          "title": "Interface Graph Performance Note",
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
         }
       ]
     }

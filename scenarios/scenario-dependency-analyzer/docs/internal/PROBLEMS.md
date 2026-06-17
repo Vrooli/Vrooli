@@ -88,6 +88,10 @@
 **Problem**: `proto-health validate scenario scenario-dependency-analyzer` emits informational `proto.possibly_unused` findings for graph and health messages because the validator does not yet see all served/consumed reachability.
 **Status**: Non-blocking. Keep graph contracts because SDA is the fleet interface graph authority; close reachability evidence during Phase 2.
 
+### Dependency Governance Self-Review
+**Problem**: Approved dependency governance originally had no review memory for many direct SDA dependencies, which made SDA fail its own dependency-health target with advisory warnings.
+**Status**: Improved on 2026-06-17. `scenario-dependency-analyzer deps approved validate scenario-dependency-analyzer --json` now passes with no findings after package-by-package registry review for SDA's direct Go, UI runtime, generated local, graph/i18n, Radix, accessibility-test, lint, and build-tool dependencies. The remaining governance debt is model-level: the registry currently keys one record per ecosystem/package, so packages with multiple valid major lines across the fleet need broad `minimum` policies or a future multi-record/scope-aware model to express parallel approved ranges without weakening review intent.
+
 ## Recommendations for Next Iteration
 
 1. **Priority**: Implement proper resource client libraries instead of exec calls

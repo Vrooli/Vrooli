@@ -10,7 +10,7 @@
         {
           "name": "health",
           "description": "Validate dependency health for one scenario",
-          "args": [
+          "positionals": [
             {
               "name": "scenario",
               "description": "Scenario to validate",
@@ -43,9 +43,9 @@
           }
         },
         {
-          "name": "deps approved upsert",
+          "name": "upsert",
           "description": "Preview or apply one dependency governance record from JSON",
-          "args": [
+          "positionals": [
             {
               "name": "record",
               "description": "ApprovedDependencyRecord JSON file supplied with --file",
@@ -78,12 +78,12 @@
             "run_eligible": false,
             "permissions": [
               "network:internal",
-              "filesystem:write:.vrooli/dependencies/approved-dependencies.json"
+              "filesystem:write"
             ]
           }
         },
         {
-          "name": "deps approved propose-records",
+          "name": "propose-records",
           "description": "Propose draft governance records from fleet findings",
           "flags": [
             {
@@ -128,7 +128,7 @@
           }
         },
         {
-          "name": "deps approved upsert-batch",
+          "name": "upsert-batch",
           "description": "Preview or apply a batch of dependency governance records",
           "flags": [
             {
@@ -161,12 +161,12 @@
             "run_eligible": false,
             "permissions": [
               "network:internal",
-              "filesystem:write:.vrooli/dependencies/approved-dependencies.json"
+              "filesystem:write"
             ]
           }
         },
         {
-          "name": "deps approved security-gaps",
+          "name": "security-gaps",
           "description": "List vulnerable dependency exposures not yet represented in governance",
           "flags": [
             {
@@ -214,9 +214,9 @@
           }
         },
         {
-          "name": "deps approved approve-observed",
+          "name": "approve-observed",
           "description": "Approve a dependency from observed fleet usage",
-          "args": [
+          "positionals": [
             {
               "name": "dependency",
               "description": "Dependency formatted as ecosystem/package",
@@ -270,14 +270,14 @@
             "run_eligible": false,
             "permissions": [
               "network:internal",
-              "filesystem:write:.vrooli/dependencies/approved-dependencies.json"
+              "filesystem:write"
             ]
           }
         },
         {
-          "name": "deps approved widen-range",
+          "name": "widen-range",
           "description": "Widen an existing approval to the observed major line",
-          "args": [
+          "positionals": [
             {
               "name": "dependency",
               "description": "Dependency formatted as ecosystem/package",
@@ -323,116 +323,14 @@
             "run_eligible": false,
             "permissions": [
               "network:internal",
-              "filesystem:write:.vrooli/dependencies/approved-dependencies.json"
+              "filesystem:write"
             ]
           }
         },
         {
-          "name": "deps approved approve",
-          "description": "Preview or apply an approved dependency governance decision",
-          "args": [
-            {
-              "name": "dependency",
-              "description": "Dependency formatted as ecosystem/package",
-              "required": true
-            }
-          ],
-          "flags": [
-            {
-              "name": "range",
-              "description": "Approved version or version range",
-              "default": "*"
-            },
-            {
-              "name": "range-policy",
-              "description": "Range policy: exact, major_line, minimum, or dev_tooling"
-            },
-            {
-              "name": "rationale",
-              "description": "Approval rationale"
-            },
-            {
-              "name": "apply",
-              "description": "Apply the change; default is dry-run preview",
-              "default": "false"
-            },
-            {
-              "name": "json",
-              "description": "Output raw JSON",
-              "default": "false"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "DependencyGovernanceService",
-            "method": "UpsertApprovedDependency"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": false,
-            "permissions": [
-              "network:internal",
-              "filesystem:write:.vrooli/dependencies/approved-dependencies.json"
-            ]
-          }
-        },
-        {
-          "name": "deps approved deny",
-          "description": "Preview or apply a denied dependency governance decision",
-          "args": [
-            {
-              "name": "dependency",
-              "description": "Dependency formatted as ecosystem/package",
-              "required": true
-            }
-          ],
-          "flags": [
-            {
-              "name": "range",
-              "description": "Denied version or version range",
-              "default": "*"
-            },
-            {
-              "name": "range-policy",
-              "description": "Range policy: exact, major_line, minimum, dev_tooling, or security_denied"
-            },
-            {
-              "name": "reason",
-              "description": "Denial rationale"
-            },
-            {
-              "name": "replacement",
-              "description": "Replacement or remediation guidance"
-            },
-            {
-              "name": "apply",
-              "description": "Apply the change; default is dry-run preview",
-              "default": "false"
-            },
-            {
-              "name": "json",
-              "description": "Output raw JSON",
-              "default": "false"
-            }
-          ],
-          "binding": {
-            "kind": "connect-rpc",
-            "service": "DependencyGovernanceService",
-            "method": "UpsertApprovedDependency"
-          },
-          "governance": {
-            "effect": "write",
-            "run_eligible": false,
-            "permissions": [
-              "network:internal",
-              "filesystem:write:.vrooli/dependencies/approved-dependencies.json"
-            ]
-          }
-        },
-        {
-          "name": "deps approved deny-vulnerable",
+          "name": "deny-vulnerable",
           "description": "Preview or apply a Security Health-derived denied dependency decision",
-          "args": [
+          "positionals": [
             {
               "name": "dependency",
               "description": "Dependency formatted as ecosystem/package",
@@ -473,14 +371,14 @@
             "run_eligible": false,
             "permissions": [
               "network:internal",
-              "filesystem:write:.vrooli/dependencies/approved-dependencies.json"
+              "filesystem:write"
             ]
           }
         },
         {
-          "name": "deps approved remediate",
+          "name": "remediate",
           "description": "Show Security Health vulnerability evidence and governance remediation preview",
-          "args": [
+          "positionals": [
             {
               "name": "dependency",
               "description": "Dependency formatted as ecosystem/package",
@@ -518,7 +416,7 @@
       "description": "Approved third-party dependency governance memory",
       "commands": [
         {
-          "name": "deps approved list",
+          "name": "list",
           "description": "List approved dependency records with non-allowlist guidance",
           "flags": [
             {
@@ -549,9 +447,9 @@
           }
         },
         {
-          "name": "deps approved search",
+          "name": "search",
           "description": "Search approved dependency records without treating them as an exhaustive allowlist",
-          "args": [
+          "positionals": [
             {
               "name": "query",
               "description": "Search query",
@@ -583,9 +481,9 @@
           }
         },
         {
-          "name": "deps approved explain",
+          "name": "explain",
           "description": "Explain one approved dependency record",
-          "args": [
+          "positionals": [
             {
               "name": "dependency",
               "description": "Dependency formatted as ecosystem/package",
@@ -613,9 +511,9 @@
           }
         },
         {
-          "name": "deps approved validate",
+          "name": "validate",
           "description": "Validate one scenario or the whole fleet against dependency governance records",
-          "args": [
+          "positionals": [
             {
               "name": "scenario",
               "description": "Scenario to validate unless --all is set",
@@ -652,7 +550,7 @@
           }
         },
         {
-          "name": "deps approved triage",
+          "name": "triage",
           "description": "Show grouped approved-dependency governance decisions",
           "flags": [
             {
@@ -696,7 +594,7 @@
           }
         },
         {
-          "name": "deps approved findings",
+          "name": "findings",
           "description": "List fleet approved-dependency governance findings",
           "flags": [
             {
@@ -748,9 +646,9 @@
           }
         },
         {
-          "name": "deps approved usage",
+          "name": "usage",
           "description": "Show fleet usage for one dependency",
-          "args": [
+          "positionals": [
             {
               "name": "dependency",
               "description": "Dependency formatted as ecosystem/package",
@@ -846,5 +744,11 @@
       }
     ]
   },
-  "omitted": []
+  "omitted": [
+    {
+      "service": "DependencyGovernanceService",
+      "method": "ValidateFleetApprovedDependencies",
+      "reason": "Exposed through the `deps approved validate --all` CLI path, which shares the validate command surface with single-scenario validation."
+    }
+  ]
 }

@@ -22,5 +22,8 @@ Organize requirement modules by PRD operational targets, keeping the filesystem 
 
 - Actual interface graph: compute scenario edges from upstream proto/import facts, not SDA source scanning.
 - Drift accuracy: compare declared `service.json` scenario dependencies with actual evidence and preserve asymmetric severity.
-- Programmatic seam: expose `DescribeInterfaceGraph` and CLI JSON commands for planners and test-genie.
+- Programmatic seams: expose `DescribeInterfaceGraph` for planners and `health <scenario> --json` as Test Genie's single dependencies-phase producer.
+- Dependency health: validate Code Facts-backed surfaces, runtime dependency status, package readiness, approved governance, release-age policy, Security Health index context, and graph drift without mutating dependency files.
+- Governance memory: keep approved dependency records advisory by default, with dry-run mutation commands, review guidance, and Security Health evidence consumption for denied vulnerable ranges.
+- Security boundary: Security Health owns scanners and security-phase findings; SDA dependency health reports index availability only.
 - Storage cutover: keep derived graph on demand while moving history-bearing records to SQLite domain schemas.

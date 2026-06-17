@@ -25,6 +25,12 @@ Operational targets are measurable outcomes; checkboxes may auto-update based on
 - [x] OT-P0-009 | Dependency drift reporting | Report declared-vs-actual scenario dependency drift with asymmetric severity.
 - [x] OT-P0-010 | Connect graph seam | Expose `DescribeInterfaceGraph` as a Connect RPC for downstream planning scenarios.
 - [x] OT-P0-011 | SQLite storage cutover | Run on SQLite with domain-owned schemas instead of Postgres.
+- [x] OT-P0-012 | Test Genie dependency producer | Provide the single read-only `scenario-dependency-analyzer health <scenario> --json` producer consumed by Test Genie's dependencies phase.
+- [x] OT-P0-013 | Dependency surface readiness | Discover dependency surfaces through Code Facts evidence and validate runtimes, commands, modules, package managers, lockfiles, and local install state without mutating files.
+- [x] OT-P0-014 | Runtime dependency health | Report required resources and scenario dependencies from `.vrooli/service.json` with degraded runtime status evidence.
+- [x] OT-P0-015 | Approved dependency governance | Maintain reviewable approved-dependency governance memory for package choices, ranges, constraints, and non-allowlist guidance.
+- [x] OT-P0-016 | Release-age policy validation | Validate pnpm `minimumReleaseAge` policy and governed release-age exceptions for dependency supply-chain safety.
+- [x] OT-P0-017 | Security evidence boundary | Consume Security Health dependency-index and vulnerability evidence only at the correct boundary: index context in dependency health, vulnerability evidence in governance, and security gating in Security Health.
 
 ### 🟠 P1 – Should have post-launch
 - [x] OT-P1-001 | Optimization recommendations | Recommend resource swaps and dependency reductions for lightweight deployment profiles.
@@ -33,6 +39,7 @@ Operational targets are measurable outcomes; checkboxes may auto-update based on
 - [x] OT-P1-004 | Graph export formats | Export dependency graphs as JSON, DOT/GraphViz, and image-ready data.
 - [ ] OT-P1-005 | Cycle detection | Detect and report circular scenario or resource dependency chains.
 - [ ] OT-P1-006 | Resource cost estimation | Estimate resource cost and deployment weight from dependency depth and resource classes.
+- [x] OT-P1-007 | Governance operator workflow | Provide CLI and UI workflows for dependency governance triage, fleet validation, dry-run mutation, security-gap review, and remediation preview.
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Predictive dependency planning | Predict likely dependencies for new scenario proposals from similar historical scenarios.

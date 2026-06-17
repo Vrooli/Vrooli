@@ -62,6 +62,35 @@ func TestDriftDetectorDetectsAsymmetricDrift(t *testing.T) {
 	}
 }
 
+func TestDriftDetectorIgnoresSharedCommonProtoPackage(t *testing.T) {
+	root := t.TempDir()
+	writeServiceConfig(t, root, "scenario-dependency-analyzer", nil)
+
+	builder := NewBuilder(
+		fakeProtoClient{resp: &ProtoSurfaceResponse{Results: []ProtoSurfaceResult{
+			{Scenario: "scenario-dependency-analyzer", Surface: ProtoSurface{Scenario: "scenario-dependency-analyzer"}},
+			{Scenario: "common", Surface: ProtoSurface{Scenario: "common"}},
+		}}},
+		fakeImportClient{resp: &ImportFactsResponse{Results: []ImportFactsResult{
+			{
+				Scenario: "scenario-dependency-analyzer",
+				Facts: []ImportFact{
+					{ImportPath: "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"},
+				},
+			},
+		}}},
+	)
+	detector := NewDriftDetector(builder, filepath.Join(root, "scenarios"))
+
+	report, err := detector.Detect(context.Background(), BuildRequest{Scenarios: []string{"scenario-dependency-analyzer"}})
+	if err != nil {
+		t.Fatalf("Detect() error = %v", err)
+	}
+	if len(report.Findings) != 0 {
+		t.Fatalf("findings = %#v, want none for shared common proto import", report.Findings)
+	}
+}
+
 func writeServiceConfig(t *testing.T, root, scenario string, deps []string) {
 	t.Helper()
 	dir := filepath.Join(root, "scenarios", scenario, ".vrooli")

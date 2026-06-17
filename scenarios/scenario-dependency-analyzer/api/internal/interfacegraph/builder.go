@@ -87,7 +87,7 @@ func (b *Builder) Build(ctx context.Context, req BuildRequest) (Graph, error) {
 	surfaceByScenario := map[string]ProtoSurface{}
 	for _, result := range protoResp.Results {
 		scenario := firstNonEmpty(result.Scenario, result.Surface.Scenario)
-		if scenario == "" {
+		if scenario == "" || isSharedProtoPackage(scenario) {
 			continue
 		}
 		attributor.AddScenario(scenario)
@@ -117,7 +117,7 @@ func (b *Builder) Build(ctx context.Context, req BuildRequest) (Graph, error) {
 		for _, imp := range surface.CrossScenarioImports {
 			from := firstNonEmpty(imp.FromScenario, scenario)
 			to := imp.ToScenario
-			if to == "" || from == "" || from == to {
+			if to == "" || from == "" || from == to || isSharedProtoPackage(to) {
 				continue
 			}
 			state.addEvidence(from, to, Evidence{

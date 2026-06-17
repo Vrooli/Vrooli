@@ -163,11 +163,11 @@ export function VulnerabilityRemediationDrawer({
   if (!open || !group) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/45 p-2 sm:p-4" role="dialog" aria-modal="true" aria-label="Vulnerability remediation">
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/45 p-2 sm:p-4" role="dialog" aria-modal="true" aria-label="Security Health evidence remediation">
       <div className="flex h-full w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-border/60 bg-card shadow-2xl">
         <div className="flex items-start justify-between gap-3 border-b border-border/50 p-4">
           <div>
-            <p className="text-xs uppercase text-muted-foreground">Security-derived decision</p>
+            <p className="text-xs uppercase text-muted-foreground">Security Health evidence decision</p>
             <h2 className="break-all text-lg font-semibold">{group.ecosystem}/{group.packageName}</h2>
           </div>
           <Button size="icon" variant="ghost" onClick={onClose} aria-label="Close vulnerability remediation">

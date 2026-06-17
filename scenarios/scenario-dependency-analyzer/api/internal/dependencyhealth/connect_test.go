@@ -62,7 +62,7 @@ func (r routedCommandRunner) Run(_ context.Context, _ string, name string, args 
 	if output, ok := r.outputs[key]; ok {
 		return output, nil
 	}
-	return `{}`, nil
+	return "", errors.New("unexpected command: " + key)
 }
 
 type fakeRuntimeStatusFetcher struct {
@@ -213,6 +213,7 @@ func TestStatusFromFindingsTreatsInfoOnlyAsPass(t *testing.T) {
 }
 
 func TestRuntimeDependencyHealthReportsRequiredResourceAndScenarioFailures(t *testing.T) {
+	// [REQ:SDA-P0-001] [REQ:SDA-P0-014]
 	tmp := t.TempDir()
 	scenarioDir := filepath.Join(tmp, "demo")
 	writeFile(t, filepath.Join(scenarioDir, ".vrooli", "service.json"), `{
@@ -327,6 +328,7 @@ func TestApprovedDependencyGuidanceIsNotAllowlist(t *testing.T) {
 }
 
 func TestReleaseAgeReportsMissingAndLowPNPMPolicy(t *testing.T) {
+	// [REQ:SDA-P0-016]
 	repoRoot := t.TempDir()
 	scenariosDir := filepath.Join(repoRoot, "scenarios")
 	scenarioDir := filepath.Join(scenariosDir, "demo")
@@ -362,6 +364,7 @@ func TestReleaseAgeReportsMissingAndLowPNPMPolicy(t *testing.T) {
 }
 
 func TestReleaseAgeAcceptsGovernedExcludes(t *testing.T) {
+	// [REQ:SDA-P0-016]
 	repoRoot := t.TempDir()
 	scenariosDir := filepath.Join(repoRoot, "scenarios")
 	scenarioDir := filepath.Join(scenariosDir, "demo")
@@ -442,12 +445,13 @@ func TestSecurityHealthStatusDegradesWhenUnavailable(t *testing.T) {
 	if section.GetStatus() != "degraded" {
 		t.Fatalf("security status = %q, want degraded", section.GetStatus())
 	}
-	if len(degraded) != 1 || degraded[0].GetDomain() != "security" {
-		t.Fatalf("degraded = %#v, want one security degraded dependency", degraded)
+	if len(degraded) != 1 || degraded[0].GetDomain() != "security-index" {
+		t.Fatalf("degraded = %#v, want one security-index degraded dependency", degraded)
 	}
 }
 
-func TestSecurityHealthVulnerabilityEvidenceProducesHealthFindings(t *testing.T) {
+func TestSecurityHealthVulnerabilityEvidenceStaysOutOfHealthFindings(t *testing.T) {
+	// [REQ:SDA-P0-017]
 	handler := &connectHandler{
 		scenariosDir: func() string { return filepath.Join(t.TempDir(), "scenarios") },
 		commandLookup: func(name string) (string, error) {
@@ -458,23 +462,6 @@ func TestSecurityHealthVulnerabilityEvidenceProducesHealthFindings(t *testing.T)
 		},
 		commandRunner: routedCommandRunner{outputs: map[string]string{
 			"security-health deps status --json": `{"available":true,"indexed_count":42,"vulnerable_count":1,"index_ready":true}`,
-			"security-health deps vulnerabilities --scenario demo --json": `{
-				"total": 1,
-				"vulnerabilities": [{
-					"vulnerability_id": "GHSA-1234",
-					"ecosystem": "npm",
-					"name": "vite",
-					"version": "5.0.0",
-					"fixed_ranges": [{"range": ">= 5.1.0", "version": "5.1.0"}],
-					"normalized_severity": "high",
-					"advisory_url": "https://osv.dev/vulnerability/GHSA-1234",
-					"summary": "test vulnerability",
-					"source": "VULNERABILITY_SOURCE_OSV",
-					"reachability": "REACHABILITY_LOCKFILE_AFFECTED",
-					"confidence": "EVIDENCE_CONFIDENCE_ADVISORY",
-					"source_files": ["ui/pnpm-lock.yaml"]
-				}]
-			}`,
 		}},
 	}
 
@@ -483,22 +470,22 @@ func TestSecurityHealthVulnerabilityEvidenceProducesHealthFindings(t *testing.T)
 	if len(degraded) != 0 {
 		t.Fatalf("degraded = %d, want 0", len(degraded))
 	}
-	if section.GetStatus() != "warn" {
-		t.Fatalf("security status = %q, want warn", section.GetStatus())
+	if section.GetId() != "security-index" {
+		t.Fatalf("security section id = %q, want security-index", section.GetId())
 	}
-	if len(findings) != 1 {
-		t.Fatalf("findings = %d, want 1", len(findings))
+	if section.GetStatus() != "pass" {
+		t.Fatalf("security status = %q, want pass", section.GetStatus())
 	}
-	finding := findings[0]
-	if finding.GetSeverity() != "WARNING" || finding.GetRuleId() != "dependency.security.vulnerable_version" {
-		t.Fatalf("finding mapping wrong: %+v", finding)
+	if len(findings) != 0 {
+		t.Fatalf("findings = %d, want 0", len(findings))
 	}
-	if finding.GetExpected() != ">= 5.1.0" || !strings.Contains(finding.GetRemediation(), "GHSA-1234") {
-		t.Fatalf("fixed guidance missing: %+v", finding)
+	if !strings.Contains(section.GetSummary(), "vulnerable=1") {
+		t.Fatalf("summary should keep index count context: %s", section.GetSummary())
 	}
 }
 
 func TestReadinessRoutesByDiscoveredSurfaceLanguage(t *testing.T) {
+	// [REQ:SDA-P0-013]
 	tmp := t.TempDir()
 	apiRoot := filepath.Join(tmp, "api")
 	cliRoot := filepath.Join(tmp, "custom-cli")

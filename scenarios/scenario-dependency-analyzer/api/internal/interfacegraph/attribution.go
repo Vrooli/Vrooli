@@ -14,7 +14,7 @@ func NewAttributor(scenarios []string) Attributor {
 	set := make(map[string]struct{}, len(scenarios))
 	for _, scenario := range scenarios {
 		scenario = strings.TrimSpace(scenario)
-		if scenario != "" {
+		if scenario != "" && !isSharedProtoPackage(scenario) {
 			set[scenario] = struct{}{}
 		}
 	}
@@ -26,7 +26,7 @@ func (a Attributor) AddScenario(scenario string) {
 		a.scenarios = map[string]struct{}{}
 	}
 	scenario = strings.TrimSpace(scenario)
-	if scenario != "" {
+	if scenario != "" && !isSharedProtoPackage(scenario) {
 		a.scenarios[scenario] = struct{}{}
 	}
 }
@@ -79,6 +79,15 @@ func scenarioAfter(importPath, marker string) string {
 		}
 	}
 	return ""
+}
+
+func isSharedProtoPackage(name string) bool {
+	switch strings.TrimSpace(name) {
+	case "common":
+		return true
+	default:
+		return false
+	}
 }
 
 func sameParts(a, b []string) bool {

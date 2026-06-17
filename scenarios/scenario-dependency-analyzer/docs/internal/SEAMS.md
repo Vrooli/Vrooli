@@ -143,6 +143,29 @@ The Governance route consumes `DependencyGovernanceService` through the generate
 
 Tests mock this seam at `ui/src/api/governance.ts` or `@connectrpc/connect` rather than mocking raw fetch URLs. This keeps UI behavior aligned with the long-term proto/Connect migration while existing legacy REST graph/catalog calls are migrated separately.
 
+### 3c. Dependency Health Producer (`api/internal/dependencyhealth/`)
+
+**Status: Active producer seam**
+
+Test Genie calls one SDA-owned producer for the dependencies phase:
+`scenario-dependency-analyzer health <scenario> --json`. Dependency health
+uses narrow outbound seams so tests can replace external state without running
+scenario CLIs or mutating dependency files.
+
+| Seam | Declaration | Production Implementation | Test Double | Why it exists |
+|------|-------------|---------------------------|-------------|---------------|
+| `surfaceDiscoverer` | `api/internal/dependencyhealth/seams.go` | `codeFactsSurfaceDiscoverer` | `fakeSurfaceDiscoverer` | Code Facts owns surface/import extraction; SDA owns dependency interpretation. |
+| `commandRunner` | `api/internal/dependencyhealth/seams.go` | `execRunner` | `fakeCommandRunner`, `staticCommandRunner`, `routedCommandRunner` | Read-only command probes for runtimes, modules, package managers, and Security Health index status. |
+| `runtimeStatusFetcher` | `api/internal/dependencyhealth/seams.go` | `vrooli` CLI status calls | `fakeRuntimeStatusFetcher` | Runtime resource/scenario status must be deterministic in tests. |
+| `commandLookup` | `api/internal/dependencyhealth/connect.go` | `exec.LookPath` | inline test functions | Missing CLI tools degrade the right section without shelling out in tests. |
+
+Security Health is intentionally split by use case. Dependency health calls
+`security-health deps status --json` only to report `security-index`
+availability and freshness. Approved-dependency governance may call Security
+Health vulnerability evidence commands for denial/remediation decisions, but
+the dependency-health producer must not emit vulnerability findings into Test
+Genie's dependencies phase.
+
 ### 4. Store (`internal/store/`)
 
 **Status: Interface defined, integration in progress**
