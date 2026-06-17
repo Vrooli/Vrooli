@@ -45,8 +45,10 @@ Use this document to answer:
 
 ## Launch Motion
 
-1. Land the prerequisite (system-monitor capability probe) and the
-   deterministic op core + storage + job queue + model-registry spine.
+1. Land the prerequisite (extend the root CLI host-inventory contract for
+   GPU/VRAM/CPU/os + build the image-tools `capabilities` seam consuming it via
+   `packages/vrooli-cli-go`) and the deterministic op core + storage + job
+   queue + model-registry spine.
 2. Ship as an **internal capability** consumed by marketing scenarios
    (campaign-content-studio, landing-page-business-suite) and palette-gen —
    dogfood before any external push.

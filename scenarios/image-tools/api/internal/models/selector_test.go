@@ -1,0 +1,206 @@
+package models
+
+import (
+	"errors"
+	"strings"
+	"testing"
+
+	"image-tools/internal/capabilities"
+)
+
+// testRegistry builds a small registry exercising the selector branches:
+// a CPU-capable default and a disabled GPU quality tier for "upscale".
+func testRegistry(t *testing.T) *Registry {
+	t.Helper()
+	const seed = `{
+      "schema_version": "1.0.0",
+      "operations_vocabulary": ["upscale", "ocr"],
+      "models": [
+        {
+          "id": "cpu-default", "name": "CPU Default", "operations": ["upscale"],
+          "default_for": ["upscale"], "tier": "default", "backend": "go-native",
+          "hardware": {"cpu_capable": true, "gpu_required": false, "min_vram_gb": 0, "min_ram_gb": 2, "speed_note": "slow on CPU"},
+          "capability_labels": {"commercial_use": "yes"}, "enabled": true
+        },
+        {
+          "id": "gpu-quality", "name": "GPU Quality", "operations": ["upscale"],
+          "default_for": [], "tier": "quality", "backend": "ncnn-vulkan",
+          "hardware": {"cpu_capable": false, "gpu_required": true, "min_vram_gb": 8, "min_ram_gb": 4},
+          "capability_labels": {"commercial_use": "yes"}, "enabled": false
+        },
+        {
+          "id": "ocr-default", "name": "OCR", "operations": ["ocr"],
+          "default_for": ["ocr"], "tier": "default", "backend": "tesseract",
+          "hardware": {"cpu_capable": true, "min_vram_gb": 0}, "capability_labels": {"commercial_use": "yes"}, "enabled": true
+        }
+      ],
+      "blocklist": []
+    }`
+	r, err := Parse([]byte(seed))
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	return r
+}
+
+func gpuHost(vramGB uint64) capabilities.Host {
+	return capabilities.Host{OS: "linux", Arch: "amd64", Cores: 16, GPUs: []capabilities.GPU{{Name: "test", VRAMBytes: vramGB * bytesPerGB}}}
+}
+
+func cpuHost() capabilities.Host {
+	return capabilities.Host{OS: "linux", Arch: "amd64", Cores: 8}
+}
+
+func unknownVRAMHost() capabilities.Host {
+	return capabilities.Host{OS: "linux", GPUs: []capabilities.GPU{{Name: "amd", VRAMBytes: 0}}}
+}
+
+func TestSelectDefaultOnCPUHost(t *testing.T) {
+	r := testRegistry(t)
+	sel, err := r.Select(SelectRequest{Operation: "upscale", Host: cpuHost()}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sel.Model.ID != "cpu-default" {
+		t.Fatalf("got %s want cpu-default", sel.Model.ID)
+	}
+	if sel.GPUViable {
+		t.Fatal("should not be GPU-viable on CPU host")
+	}
+	if len(sel.Warnings) == 0 {
+		t.Fatal("expected a CPU time warning")
+	}
+}
+
+// On a fitting GPU host, an enabled quality tier should be preferred over the
+// CPU default (best-fit per host).
+func TestSelectPrefersEnabledQualityOnGPU(t *testing.T) {
+	r := testRegistry(t)
+	enabled := func(id string) bool { return true } // operator enabled the quality tier
+	sel, err := r.Select(SelectRequest{Operation: "upscale", Host: gpuHost(12)}, enabled)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sel.Model.ID != "gpu-quality" {
+		t.Fatalf("got %s want gpu-quality", sel.Model.ID)
+	}
+	if !sel.GPUViable {
+		t.Fatal("expected GPU-viable")
+	}
+}
+
+// With the quality tier still disabled (seed state), the default wins even on a
+// big GPU host.
+func TestSelectDefaultWhenQualityDisabled(t *testing.T) {
+	r := testRegistry(t)
+	sel, err := r.Select(SelectRequest{Operation: "upscale", Host: gpuHost(24)}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sel.Model.ID != "cpu-default" {
+		t.Fatalf("got %s want cpu-default", sel.Model.ID)
+	}
+}
+
+// Unknown VRAM must be treated conservatively: the GPU-required quality tier is
+// NOT viable, so the CPU default is chosen even though a GPU exists.
+func TestSelectConservativeOnUnknownVRAM(t *testing.T) {
+	r := testRegistry(t)
+	enabled := func(id string) bool { return true }
+	sel, err := r.Select(SelectRequest{Operation: "upscale", Host: unknownVRAMHost()}, enabled)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sel.Model.ID != "cpu-default" {
+		t.Fatalf("got %s want cpu-default (conservative unknown-VRAM)", sel.Model.ID)
+	}
+	var sawUnknownWarn bool
+	for _, w := range sel.Warnings {
+		if strings.Contains(w, "VRAM is unknown") {
+			sawUnknownWarn = true
+		}
+	}
+	if !sawUnknownWarn {
+		t.Fatalf("expected unknown-VRAM warning, got %v", sel.Warnings)
+	}
+}
+
+// Insufficient VRAM with no CPU fallback enabled → ErrNotRunnable w/ shortfall.
+func TestSelectNotRunnableShortfall(t *testing.T) {
+	r := testRegistry(t)
+	// Only the GPU-required quality tier enabled, host has too little VRAM.
+	onlyQuality := func(id string) bool { return id == "gpu-quality" }
+	_, err := r.Select(SelectRequest{Operation: "upscale", Host: gpuHost(4)}, onlyQuality)
+	if !errors.Is(err, ErrNotRunnable) {
+		t.Fatalf("want ErrNotRunnable, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "GB more VRAM") {
+		t.Fatalf("expected VRAM shortfall hint, got %v", err)
+	}
+}
+
+func TestSelectUnknownOperation(t *testing.T) {
+	r := testRegistry(t)
+	if _, err := r.Select(SelectRequest{Operation: "teleport", Host: cpuHost()}, nil); !errors.Is(err, ErrUnknownOperation) {
+		t.Fatalf("want ErrUnknownOperation, got %v", err)
+	}
+}
+
+func TestSelectNoEnabledModel(t *testing.T) {
+	r := testRegistry(t)
+	none := func(id string) bool { return false }
+	if _, err := r.Select(SelectRequest{Operation: "upscale", Host: gpuHost(24)}, none); !errors.Is(err, ErrNoEnabledModel) {
+		t.Fatalf("want ErrNoEnabledModel, got %v", err)
+	}
+}
+
+func TestSelectOverride(t *testing.T) {
+	r := testRegistry(t)
+	enabled := func(id string) bool { return true }
+
+	// Valid override on a fitting host.
+	sel, err := r.Select(SelectRequest{Operation: "upscale", Host: gpuHost(12), OverrideID: "gpu-quality"}, enabled)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sel.Model.ID != "gpu-quality" || !strings.Contains(sel.Reason, "override") {
+		t.Fatalf("override selection wrong: %+v", sel)
+	}
+
+	// Override of a disabled model is rejected.
+	if _, err := r.Select(SelectRequest{Operation: "upscale", Host: gpuHost(12), OverrideID: "gpu-quality"}, nil); !errors.Is(err, ErrOverrideInvalid) {
+		t.Fatalf("want ErrOverrideInvalid (disabled), got %v", err)
+	}
+
+	// Override that doesn't serve the op is rejected.
+	if _, err := r.Select(SelectRequest{Operation: "ocr", Host: cpuHost(), OverrideID: "cpu-default"}, enabled); !errors.Is(err, ErrOverrideInvalid) {
+		t.Fatalf("want ErrOverrideInvalid (wrong op), got %v", err)
+	}
+
+	// Unknown override id rejected.
+	if _, err := r.Select(SelectRequest{Operation: "upscale", Host: cpuHost(), OverrideID: "ghost"}, enabled); !errors.Is(err, ErrOverrideInvalid) {
+		t.Fatalf("want ErrOverrideInvalid (unknown), got %v", err)
+	}
+
+	// Override of a GPU-required model that can't fit and isn't CPU-capable.
+	if _, err := r.Select(SelectRequest{Operation: "upscale", Host: gpuHost(4), OverrideID: "gpu-quality"}, enabled); !errors.Is(err, ErrOverrideInvalid) {
+		t.Fatalf("want ErrOverrideInvalid (shortfall), got %v", err)
+	}
+}
+
+func TestFit(t *testing.T) {
+	gpuReq := Model{Hardware: Hardware{GPURequired: true, MinVRAMGB: 8}}
+	if f := Fit(gpuReq, gpuHost(12)); !f.GPUViable || !f.Runnable {
+		t.Fatalf("expected viable+runnable, got %+v", f)
+	}
+	if f := Fit(gpuReq, gpuHost(4)); f.Runnable || f.VRAMShortfallGB != 4 {
+		t.Fatalf("expected shortfall 4 not runnable, got %+v", f)
+	}
+	if f := Fit(gpuReq, unknownVRAMHost()); f.GPUViable || f.Runnable {
+		t.Fatalf("unknown VRAM must not be viable/runnable for gpu-required, got %+v", f)
+	}
+	cpuModel := Model{Hardware: Hardware{CPUCapable: true}}
+	if f := Fit(cpuModel, cpuHost()); f.GPUViable || !f.Runnable {
+		t.Fatalf("cpu model on cpu host should be runnable, got %+v", f)
+	}
+}

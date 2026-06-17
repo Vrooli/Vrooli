@@ -1,7 +1,8 @@
 /**
- * Routing smoke — for each canonical path (`/`, `/notes`, `/settings`) the
- * matching page selector is in the document. Page-internal behaviour is
- * exercised in per-page tests; this file's job is to assert the router config.
+ * Routing smoke — for each canonical path (`/`, `/jobs`, `/models`,
+ * `/settings`) the matching page selector is in the document. Page-internal
+ * behaviour is exercised in per-page tests; this file's job is to assert the
+ * router config.
  */
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, screen } from "@testing-library/react";
@@ -20,9 +21,14 @@ describe("AppRouter", () => {
     expect(screen.getByTestId(selectors.pages.dashboard)).toBeInTheDocument();
   });
 
-  it("renders the notes page at /notes", () => {
-    renderWithProviders(<TestAppRouter initialEntries={["/notes"]} />, { withoutRouter: true });
-    expect(screen.getByTestId(selectors.pages.notes)).toBeInTheDocument();
+  it("renders the jobs page at /jobs", () => {
+    renderWithProviders(<TestAppRouter initialEntries={["/jobs"]} />, { withoutRouter: true });
+    expect(screen.getByTestId(selectors.pages.jobs)).toBeInTheDocument();
+  });
+
+  it("renders the models page at /models", () => {
+    renderWithProviders(<TestAppRouter initialEntries={["/models"]} />, { withoutRouter: true });
+    expect(screen.getByTestId(selectors.pages.models)).toBeInTheDocument();
   });
 
   it("renders the settings page at /settings", () => {

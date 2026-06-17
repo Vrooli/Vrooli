@@ -50,8 +50,8 @@ Or check the URL directly:
 vrooli scenario port image-tools UI_PORT
 ```
 
-You should see the example UI rendering live `/health` data and a
-notes pane backed by the local SQLite store.
+You should see the UI rendering live `/health` data plus the jobs and
+models panes backed by the local SQLite store.
 
 ## 4 — Talk to the API
 
@@ -60,8 +60,9 @@ automatically):
 
 ```bash
 image-tools status
-image-tools notes list
-image-tools notes create --title "First note" --body "Hello"
+image-tools models list
+image-tools models operations
+image-tools jobs list
 ```
 
 Or directly via HTTP:
@@ -69,7 +70,7 @@ Or directly via HTTP:
 ```bash
 API_PORT=$(vrooli scenario port image-tools API_PORT)
 curl -s "http://localhost:${API_PORT}/health"
-curl -s -X POST "http://localhost:${API_PORT}/vrooli.image_tools.v1.notes.NotesService/ListNotes" \
+curl -s -X POST "http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ListModels" \
   -H 'Content-Type: application/json' \
   -d '{}'
 ```

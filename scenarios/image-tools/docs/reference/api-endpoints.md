@@ -24,6 +24,12 @@ Canonical REST codes used today: `invalid_request` (400),
 `not_found` (404), `internal` (500). Add to the proto enum when a new
 REST-exception failure mode appears.
 
+> **Status:** Phase 1 exposes the spine surfaces — `jobs` (durable async
+> job lifecycle) and `models` (model registry read + enable/disable).
+> Image **operation** endpoints (generate / enhance / analyze) enqueue
+> work on the job system and land from Phase 2; they will appear here as
+> they ship.
+
 ---
 
 ## System
@@ -52,137 +58,153 @@ and mirrors `api-core/health.Response` field-for-field.
 
 ---
 
-## Notes (CRUD reference)
+## Jobs (durable async lifecycle)
 
-The `notes` domain is the canonical worked example. Copy its layering
-when adding the first non-trivial mutation in your scenario.
+The `jobs` domain is the read + control surface over the server-owned
+durable job system (`api/internal/jobs`). Jobs survive client
+disconnects: a submit returns a job id + ETA immediately, work runs under
+a server-lifetime context, callers block ONCE on `WaitJob` (never poll),
+and progress streams over `WatchJob`. GPU jobs are serialized; CPU jobs
+run concurrently. Job *submission* is op-specific and lands with each
+operation domain from Phase 2.
 
-### `POST /vrooli.image_tools.v1.notes.NotesService/ListNotes`
+Proto: `packages/proto/schemas/image-tools/v1/jobs/jobs.proto`.
 
-List notes through the generated Connect-RPC service, newest-first.
+### `POST /vrooli.image_tools.v1.jobs.JobsService/GetJob`
 
-| | |
-|---|---|
-| **Auth** | None (template default; scenarios add auth as needed) |
-| **Response** | `ListNotesResponse { notes: Note[] }` (capped at 100 by `notes.Service`) |
-| **Errors** | `500 internal` — repository read failure |
-| **CLI** | `image-tools notes list` |
-
-```bash
-curl -X POST "http://localhost:${API_PORT}/vrooli.image_tools.v1.notes.NotesService/ListNotes" \
-  -H 'Content-Type: application/json' \
-  -d '{}'
-```
-
-UI and CLI code should normally use the generated client instead of
-calling this path by hand.
-
-### `POST /vrooli.image_tools.v1.notes.NotesService/CreateNote`
-
-Create a note through the generated Connect-RPC service.
+Return the current record for one job.
 
 | | |
 |---|---|
-| **Auth** | None (template default) |
-| **Request** | `CreateNoteRequest { title: string (required), body: string (optional) }` |
-| **Response** | `CreateNoteResponse { note: Note }` |
-| **Errors** | `invalid_argument` — missing/whitespace-only title<br>`internal` — repository write failure |
-| **CLI** | `image-tools notes create --title <title> [--body <body>]` |
+| **Request** | `GetJobRequest { id: string }` |
+| **Response** | `GetJobResponse { job: Job }` |
+| **Errors** | `not_found` — no job with that id |
+| **CLI** | `image-tools jobs get <id>` |
 
-```bash
-curl -X POST "http://localhost:${API_PORT}/vrooli.image_tools.v1.notes.NotesService/CreateNote" \
-  -H 'Content-Type: application/json' \
-  -d '{"title":"first","body":"hello"}'
-```
+### `POST /vrooli.image_tools.v1.jobs.JobsService/WaitJob`
 
-Title validation (non-empty after whitespace trim) lives in
-`internal/notes/service.go`, **not** the handler. The Connect handler
-only translates `notes.ErrInvalidNote` into `invalid_argument`.
-
-### `POST /vrooli.image_tools.v1.notes.NotesService/GetNote`
-
-Fetch a note by id through the generated Connect-RPC service.
+Block server-side until the job reaches a terminal state, then return it.
+A client disconnect does NOT affect the job. This is the canonical wait
+verb — never poll `GetJob` in a loop.
 
 | | |
 |---|---|
-| **Auth** | None (template default) |
-| **Request** | `GetNoteRequest { id: string }` |
-| **Response** | `GetNoteResponse { note: Note }` |
-| **Errors** | `not_found` — no note with that id<br>`internal` — repository read failure |
-| **CLI** | `image-tools notes get <id>` |
+| **Request** | `WaitJobRequest { id: string }` |
+| **Response** | `WaitJobResponse { job: Job (terminal) }` |
+| **Errors** | `not_found` — no job with that id<br>`canceled` — the client canceled the wait (the job continues server-side) |
+| **CLI** | `image-tools jobs wait <id>` |
 
-```bash
-curl -X POST "http://localhost:${API_PORT}/vrooli.image_tools.v1.notes.NotesService/GetNote" \
-  -H 'Content-Type: application/json' \
-  -d '{"id":"abc123"}'
-```
+### `POST /vrooli.image_tools.v1.jobs.JobsService/ListJobs`
 
-`notes.ErrNoteNotFound` returned by the service is translated into the
-typed `not_found` Connect error at the handler edge.
-
-### `POST /api/v1/notes/{id}/attachments`
-
-Upload opaque file bytes through the documented REST multipart exception.
-The response is still proto-typed metadata.
+Return recent jobs, newest first.
 
 | | |
 |---|---|
-| **Auth** | None (template default) |
-| **Path params** | `id` — note identifier |
-| **Request** | `multipart/form-data` with `file` part |
-| **Response** | `UploadAttachmentResponse { attachment: Attachment }` |
-| **Errors** | `400 invalid_request` — malformed multipart or missing file<br>`404 not_found` — no note with that id<br>`500 internal` — blob or metadata persistence failure |
-| **CLI** | `image-tools notes attach <id> --file <path>` |
+| **Request** | `ListJobsRequest { limit: int32 (0 = server default) }` |
+| **Response** | `ListJobsResponse { jobs: Job[] }` |
+| **CLI** | `image-tools jobs list [--limit <n>]` |
 
-```bash
-curl -X POST "http://localhost:${API_PORT}/api/v1/notes/abc123/attachments" \
-  -F file=@./example.png
-```
+### `POST /vrooli.image_tools.v1.jobs.JobsService/CancelJob`
 
-### `Note` shape
+Abort a job: a running job's context is canceled; a still-queued job is
+marked canceled immediately. Returns the post-cancel record.
 
-| Field | Type | Notes |
-|---|---|---|
-| `id` | string (UUID) | Server-generated |
-| `title` | string | Required, non-empty after trim |
-| `body` | string | Optional |
-| `created_at` | `google.protobuf.Timestamp` | Server-set on create |
-| `updated_at` | `google.protobuf.Timestamp` | Server-set on create / future update |
-| `attachment_keys` | `string[]` | Keys of uploaded note attachments |
+| | |
+|---|---|
+| **Request** | `CancelJobRequest { id: string }` |
+| **Response** | `CancelJobResponse { job: Job }` |
+| **Errors** | `not_found` — no job with that id |
+| **CLI** | `image-tools jobs cancel <id>` |
 
-Defined in `packages/proto/schemas/image-tools/v1/notes/notes.proto`.
+### `POST /vrooli.image_tools.v1.jobs.JobsService/WatchJob` (server stream)
+
+Stream progress events for a job until it reaches a terminal state. The
+latest known event is replayed first so a late subscriber is never blind.
+Backs SSE-style live progress in the UI.
+
+| | |
+|---|---|
+| **Request** | `WatchJobRequest { id: string }` |
+| **Response** | `stream ProgressEvent { job_id, state, progress, message, at }` |
+| **Errors** | `not_found` — no job with that id |
+| **CLI** | `image-tools jobs watch <id>` |
 
 ---
 
-## Adding a new endpoint
+## Models (registry read + enable/disable)
 
-For a new domain, copy the notes vertical slice first, then replace it
-once your real domain is green.
+The `models` domain is the read and enable/disable surface over the
+declarative model registry (`api/internal/models`). The license-verified
+seed catalog is the read-only baseline; runtime enable/disable state is
+overlaid in SQLite. Heavier management (checksum-pinned download,
+disk-space awareness, custom local entries, removal) lands in a later
+phase.
 
-For an endpoint inside an existing domain:
+Proto: `packages/proto/schemas/image-tools/v1/models/models.proto`.
 
-1. Add or extend the `.proto` messages and service in
-   `packages/proto/schemas/image-tools/v1/<domain>/`, then run
-   `make generate`.
-2. Implement the generated handler method in
-   `handlers/<domain>/connect_handler.go`; keep it thin.
-3. Update endpoint metadata in `handlers/<domain>/module.go`.
-4. If the endpoint has a CLI mirror, update
-   `api/cmd/gen-endpoints/cli_commands_seed.json`.
-5. Run `make endpoints`; do not edit
-   [`.vrooli/endpoints.json`](../../.vrooli/endpoints.json) by hand.
-6. Update this document and add tests for the touched layers.
-7. Add a row to [`internal/SEAMS.md`](../internal/SEAMS.md) if you
-   introduced a new interface that production wires once and tests
-   substitute.
+### `POST /vrooli.image_tools.v1.models.ModelsService/ListModels`
 
-The CI gate enforces endpoint-manifest freshness and command-seed
-consistency.
+Return catalog entries, optionally filtered to one operation, with
+effective (overlay-aware) enabled state.
 
-## Cross-references
+| | |
+|---|---|
+| **Request** | `ListModelsRequest { operation: string (optional) }` |
+| **Response** | `ListModelsResponse { models: Model[] }` |
+| **Errors** | `invalid_argument` — unknown operation filter |
+| **CLI** | `image-tools models list [--operation <op>]` |
 
-- [`cli-commands.md`](cli-commands.md) — CLI commands that mirror these endpoints
-- [`configuration.md`](configuration.md) — env vars (e.g., `API_PORT`)
-- [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md#proto-as-the-canonical-contract) — proto bridge details
-- [`../internal/SEAMS.md`](../internal/SEAMS.md) — handler/service/repository seams
-- [`../internal/TESTING.md`](../internal/TESTING.md) — endpoint test patterns
+### `POST /vrooli.image_tools.v1.models.ModelsService/GetModel`
+
+Return one catalog entry by id with effective enabled state.
+
+| | |
+|---|---|
+| **Request** | `GetModelRequest { id: string }` |
+| **Response** | `GetModelResponse { model: Model }` |
+| **Errors** | `not_found` — no model with that id |
+| **CLI** | `image-tools models get <id>` |
+
+### `POST /vrooli.image_tools.v1.models.ModelsService/ListOperations`
+
+Return the registry operation vocabulary in declaration order.
+
+| | |
+|---|---|
+| **Response** | `ListOperationsResponse { operations: string[] }` |
+| **CLI** | `image-tools models operations` |
+
+### `POST /vrooli.image_tools.v1.models.ModelsService/SelectModel`
+
+Preview which enabled model would run for an operation on the probed host
+(honoring the per-op default and any override) without executing. Host
+facts come from `vrooli host inventory` via `vrooli-cli-go`.
+
+| | |
+|---|---|
+| **Request** | `SelectModelRequest { operation: string (required), override_id: string (optional) }` |
+| **Response** | `SelectModelResponse { model: Model, gpu_viable: bool, reason: string, warnings: string[] }` |
+| **Errors** | `invalid_argument` — unknown operation or invalid override<br>`failed_precondition` — no enabled model can run for the op on this host<br>`internal` — host probe or model-state load failure |
+| **CLI** | `image-tools models select <operation> [--override <id>]` |
+
+### `POST /vrooli.image_tools.v1.models.ModelsService/SetModelEnabled`
+
+Toggle a model's runtime-enabled state, persisted in the SQLite overlay
+over the read-only seed catalog.
+
+| | |
+|---|---|
+| **Request** | `SetModelEnabledRequest { id: string, enabled: bool }` |
+| **Response** | `SetModelEnabledResponse { model: Model }` |
+| **Errors** | `not_found` — no model with that id<br>`internal` — model-state persistence failure |
+| **CLI** | `image-tools models enable <id>` / `image-tools models enable <id> --disable` |
+
+### `POST /vrooli.image_tools.v1.models.ModelsService/ListBlocklist`
+
+Return the license-encumbered models excluded from the catalog, with the
+reason each is excluded.
+
+| | |
+|---|---|
+| **Response** | `ListBlocklistResponse { entries: BlocklistEntry[] }` |
+| **CLI** | `image-tools models blocklist` |

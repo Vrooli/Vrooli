@@ -68,9 +68,10 @@ the Level it lists when its domain is built.
   1. List/search registry entries with size, hardware-fit, license, labels.
   2. Disk-space check; checksummed opt-in download (or register local path).
   3. Mark installed → enabled.
-  4. At op time the selector reads the host probe (system-monitor /
-     hostinventory) and picks the best-fit enabled model, honoring per-op
-     default and user override.
+  4. At op time the selector reads host facts via the `capabilities` seam
+     (root `vrooli host inventory --json` over the shared
+     `internal/hostinventory` collector) and picks the best-fit enabled model,
+     honoring per-op default and user override.
 - Failure modes: insufficient disk, checksum mismatch, no host-fit model
   (surface "needs ≥X GB VRAM"), removal of a model in use.
 - Requirements: OT-P0-006, OT-P0-007, OT-P0-008.

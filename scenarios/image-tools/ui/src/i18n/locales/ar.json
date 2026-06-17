@@ -10,7 +10,8 @@
     "bottomNavLabel": "التنقل الرئيسي",
     "nav": {
       "dashboard": "لوحة التحكم",
-      "notes": "الملاحظات",
+      "jobs": "المهام",
+      "models": "النماذج",
       "settings": "الإعدادات"
     }
   },
@@ -28,8 +29,11 @@
       "description": "نظرة عامة على حالة السيناريو والمقاييس الرئيسية. استبدل هذه البطاقات بأسطح حقيقية مع نمو منتجك.",
       "statPlaceholderLabel": "إحصائية"
     },
-    "notes": {
-      "title": "الملاحظات"
+    "jobs": {
+      "title": "المهام"
+    },
+    "models": {
+      "title": "النماذج"
     },
     "settings": {
       "title": "الإعدادات",
@@ -53,23 +57,39 @@
     "summary_zero": "لا توجد إشعارات",
     "summary_one": "إشعار واحد"
   },
-  "notes": {
-    "title": "الملاحظات",
-    "loading": "جارٍ تحميل الملاحظات…",
-    "empty": "لا توجد ملاحظات بعد.",
-    "create": "إنشاء ملاحظة",
-    "createdAtLabel": "تاريخ الإنشاء:",
-    "attachmentsLabel": "{{count}} مرفقات",
-    "attachmentsLabel_one": "مرفق واحد",
-    "uploadAttachment": "رفع مرفق",
-    "attachmentFileLabel": "ملف المرفق",
-    "uploadSuccess": "تم رفع {{name}}.",
-    "noFileSelected": "اختر ملفًا قبل الرفع.",
-    "measure": {
-      "title": "ملاحظات هذا الأسبوع",
-      "loading": "جارٍ العد…",
-      "thisWeek": "{{count}} ملاحظة أُنشئت هذا الأسبوع"
+  "jobs": {
+    "title": "أحدث المهام",
+    "loading": "جارٍ تحميل المهام…",
+    "empty": "لا توجد مهام بعد.",
+    "operationLabel": "العملية:",
+    "laneLabel": "المسار:",
+    "stateLabel": "الحالة:",
+    "progressLabel": "اكتمل {{count}}%",
+    "cancel": "إلغاء",
+    "lane": {
+      "unspecified": "غير محدد",
+      "gpu": "GPU",
+      "cpu": "CPU"
+    },
+    "state": {
+      "unspecified": "غير محدد",
+      "queued": "في الانتظار",
+      "running": "قيد التشغيل",
+      "succeeded": "نجح",
+      "failed": "فشل",
+      "canceled": "ملغى"
     }
+  },
+  "models": {
+    "title": "سجل النماذج",
+    "loading": "جارٍ تحميل النماذج…",
+    "empty": "لا توجد نماذج مسجلة.",
+    "tierLabel": "الفئة:",
+    "backendLabel": "الواجهة الخلفية:",
+    "enabledLabel": "مُفعّل",
+    "disabledLabel": "مُعطّل",
+    "enable": "تفعيل",
+    "disable": "تعطيل"
   },
   "errors": {
     "canceled": "Operation canceled.",

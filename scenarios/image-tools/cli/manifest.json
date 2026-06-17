@@ -1,16 +1,19 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "image-tools",
-  "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "description": "Image Tools CLI surface. Single source of truth for the jobs and models domains: schema-validated against cli-manifest/v1 and cross-validated against the JobsService / ModelsService proto descriptors at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
   "groups": [
     {
-      "name": "notes",
-      "description": "Manage notes (CRUD reference)",
+      "name": "jobs",
+      "description": "Inspect and control durable async jobs",
       "commands": [
         {
-          "name": "list",
-          "description": "List all notes",
-          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "ListNotes" },
+          "name": "get",
+          "description": "Get a durable job by id",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Job id" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "JobsService", "method": "GetJob" },
           "governance": {
             "effect": "read",
             "run_eligible": true,
@@ -18,13 +21,112 @@
           }
         },
         {
-          "name": "create",
-          "description": "Create a note",
-          "flags": [
-            { "name": "title", "required": true, "description": "Note title" },
-            { "name": "body", "description": "Note body" }
+          "name": "wait",
+          "description": "Block once until a job is terminal, then print it (no polling)",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Job id" }
           ],
-          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "CreateNote" },
+          "binding": { "kind": "connect-rpc", "service": "JobsService", "method": "WaitJob" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List recent jobs, newest first",
+          "flags": [
+            { "name": "limit", "description": "Maximum jobs to return (0 = server default)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "JobsService", "method": "ListJobs" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "cancel",
+          "description": "Cancel a running or queued job",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Job id" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "JobsService", "method": "CancelJob" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "models",
+      "description": "Inspect the model registry and toggle models",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List model registry entries (--operation OP to filter)",
+          "flags": [
+            { "name": "operation", "description": "Filter to models serving this operation" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ModelsService", "method": "ListModels" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get a model registry entry by id",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Model id" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ModelsService", "method": "GetModel" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "operations",
+          "description": "List the registry operation vocabulary",
+          "binding": { "kind": "connect-rpc", "service": "ModelsService", "method": "ListOperations" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "select",
+          "description": "Preview which model would run for an operation on this host (--override ID)",
+          "positionals": [
+            { "name": "operation", "required": true, "description": "Operation to select a model for" }
+          ],
+          "flags": [
+            { "name": "override", "description": "Force a specific model id" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ModelsService", "method": "SelectModel" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "enable",
+          "description": "Enable or disable a model (--disable to turn off); persisted overlay over the seed catalog",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Model id" }
+          ],
+          "flags": [
+            { "name": "disable", "bool": true, "description": "Disable the model instead of enabling it" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ModelsService", "method": "SetModelEnabled" },
           "governance": {
             "effect": "write",
             "run_eligible": true,
@@ -32,55 +134,23 @@
           }
         },
         {
-          "name": "get",
-          "description": "Get a note by id",
-          "positionals": [
-            { "name": "id", "required": true, "description": "Note id" }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "GetNote" },
+          "name": "blocklist",
+          "description": "List license-encumbered models excluded from the catalog",
+          "binding": { "kind": "connect-rpc", "service": "ModelsService", "method": "ListBlocklist" },
           "governance": {
             "effect": "read",
             "run_eligible": true,
             "permissions": ["network:internal"]
-          }
-        },
-        {
-          "name": "count",
-          "description": "Count notes created in a time window (the reference measure)",
-          "flags": [
-            { "name": "window", "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)" }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "CountNotes" },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": ["network:internal"]
-          },
-          "measure": {
-            "intent": "How many notes were created in a given time window.",
-            "questions": [
-              "how many notes were created this week",
-              "notes created last month",
-              "how many notes did we add in the last 7 days"
-            ],
-            "params": {
-              "window": { "type": "time_window", "default": "this_week" }
-            },
-            "result": {
-              "kind": "scalar",
-              "value_field": "count",
-              "unit": "notes",
-              "summary_template": "{count} notes created ({window})"
-            }
           }
         }
       ]
     }
   ],
-  "measures": {
-    "domains": [
-      { "domain": "notes", "stateful": true, "reason": "Notes are countable persisted rows; the notes count measure covers this domain at full tier." }
-    ]
-  },
-  "omitted": []
+  "omitted": [
+    {
+      "service": "JobsService",
+      "method": "WatchJob",
+      "reason": "Server-streaming progress RPC. Exposed via the hand-appended `jobs watch` command (register.go) because cli-manifest/v1 bindings model unary connect-rpc calls only."
+    }
+  ]
 }

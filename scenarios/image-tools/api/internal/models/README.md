@@ -33,8 +33,10 @@ var seedBytes []byte
 3. Overlay user-managed entries (enable/disable, custom/fine-tuned local models)
    from persistent storage so the seed stays the read-only baseline.
 4. The selector picks the best-fit **enabled** model for the probed host
-   (via the system-monitor capability probe → `internal/hostinventory`),
-   honoring per-op `default_for` and any user override (per `selector_test.go`).
+   (via the `internal/capabilities` `CapabilityProbe` seam, which reads
+   `vrooli host inventory --json` through `packages/vrooli-cli-go` — **not**
+   system-monitor), honoring per-op `default_for` and any user override
+   (per `selector_test.go`).
 
 ## Field schema
 

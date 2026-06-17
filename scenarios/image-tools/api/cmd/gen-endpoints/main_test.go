@@ -18,11 +18,17 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	seed := filepath.Join(t.TempDir(), "seed.json")
 	writeSeed(t, seed, []CLICommand{
 		{Name: "status", Description: "Health check", EndpointID: "health"},
-		{Name: "notes list", Description: "List notes", EndpointID: "notes_list"},
-		{Name: "notes create", Description: "Create note", EndpointID: "notes_create"},
-		{Name: "notes get", Description: "Get note", EndpointID: "notes_get"},
-		{Name: "notes count", Description: "Count notes", EndpointID: "notes_count"},
-		{Name: "notes attach", Description: "Attach file", EndpointID: "notes_attach"},
+		{Name: "jobs get", Description: "Get a job", EndpointID: "jobs_get"},
+		{Name: "jobs wait", Description: "Wait for a job", EndpointID: "jobs_wait"},
+		{Name: "jobs list", Description: "List jobs", EndpointID: "jobs_list"},
+		{Name: "jobs cancel", Description: "Cancel a job", EndpointID: "jobs_cancel"},
+		{Name: "jobs watch", Description: "Watch a job", EndpointID: "jobs_watch"},
+		{Name: "models list", Description: "List models", EndpointID: "models_list"},
+		{Name: "models get", Description: "Get a model", EndpointID: "models_get"},
+		{Name: "models operations", Description: "List operations", EndpointID: "models_operations"},
+		{Name: "models select", Description: "Preview selection", EndpointID: "models_select"},
+		{Name: "models enable", Description: "Enable/disable a model", EndpointID: "models_set_enabled"},
+		{Name: "models blocklist", Description: "List blocklist", EndpointID: "models_blocklist"},
 	})
 
 	if err := run(output, seed); err != nil {
@@ -53,8 +59,8 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	if len(got.Endpoints) == 0 {
 		t.Error("manifest must include at least one endpoint")
 	}
-	if len(got.CLICommands) != 6 {
-		t.Errorf("cli_commands count = %d, want 6", len(got.CLICommands))
+	if len(got.CLICommands) != 12 {
+		t.Errorf("cli_commands count = %d, want 12", len(got.CLICommands))
 	}
 
 	// Trailing newline so editors don't get angry about diff noise.
@@ -103,15 +109,15 @@ func TestCrossCheck_PassesWhenSeeded(t *testing.T) {
 }
 
 // TestStripBinaryPrefix is the smallest unit on the command-name
-// normalisation step: the endpoint's "image-tools notes list"
-// must compare against the seed's "notes list".
+// normalisation step: the endpoint's "image-tools models list"
+// must compare against the seed's "models list".
 func TestStripBinaryPrefix(t *testing.T) {
 	cases := []struct {
 		in   string
 		want string
 	}{
 		{in: "image-tools status", want: "status"},
-		{in: "image-tools notes list", want: "notes list"},
+		{in: "image-tools models list", want: "models list"},
 		{in: "already-stripped", want: "already-stripped"},
 		{in: "image-tools", want: "image-tools"}, // no trailing space → preserved
 	}

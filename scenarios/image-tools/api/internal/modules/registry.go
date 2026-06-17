@@ -23,10 +23,12 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	healthH "image-tools/handlers/health"
-	notesH "image-tools/handlers/notes"
+	jobsH "image-tools/handlers/jobs"
+	modelsH "image-tools/handlers/models"
 	localdb "image-tools/internal/database"
 
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/notes"
+	jobsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/jobs"
+	modelsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/models"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -36,7 +38,8 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
-	out = append(out, notesH.Endpoints...)
+	out = append(out, jobsH.Endpoints...)
+	out = append(out, modelsH.Endpoints...)
 	return out
 }
 
@@ -63,7 +66,8 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
-		{Module: "notes", File: notesv1.File_image_tools_v1_notes_notes_proto},
+		{Module: "jobs", File: jobsv1.File_image_tools_v1_jobs_jobs_proto},
+		{Module: "models", File: modelsv1.File_image_tools_v1_models_models_proto},
 	}
 }
 
@@ -71,13 +75,14 @@ func AllProtoFiles() []ProtoFileEntry {
 // schema (always first; cross-cutting infrastructure runs before any
 // domain table). Consumed by main.go's database.EnsureSchemas call.
 //
-// Order matters: system → health → notes → … (domains alphabetical).
+// Order matters: system → health → jobs → models → … (domains alphabetical).
 // Postgres scenarios that put `CREATE EXTENSION ...` in system.sql rely
 // on system running before any domain that references the extension.
 func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema),
+		apidb.SchemaProviderFunc(jobsH.Schema),
+		apidb.SchemaProviderFunc(modelsH.Schema),
 	}
 }

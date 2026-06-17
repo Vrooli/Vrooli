@@ -10,7 +10,7 @@
       "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
       "category": "system",
       "response": {
-        "type": "object",
+        "type": "Response",
         "properties": {
           "dependencies": "object",
           "readiness": "boolean",
@@ -32,90 +32,12 @@
       }
     },
     {
-      "id": "notes_list",
-      "path": "/vrooli.image_tools.v1.notes.NotesService/ListNotes",
+      "id": "jobs_get",
+      "path": "/vrooli.image_tools.v1.jobs.JobsService/GetJob",
       "method": "POST",
-      "summary": "List notes",
-      "description": "Returns up to 100 notes ordered newest-first by created_at through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "response": {
-        "type": "object",
-        "properties": {
-          "notes": "array<Note>"
-        }
-      },
-      "errors": [
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "List notes",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.notes.NotesService/ListNotes -H 'Content-Type: application/json' -d '{}'"
-        }
-      ],
-      "cli_mapping": {
-        "command": "image-tools notes list"
-      }
-    },
-    {
-      "id": "notes_create",
-      "path": "/vrooli.image_tools.v1.notes.NotesService/CreateNote",
-      "method": "POST",
-      "summary": "Create a note",
-      "description": "Persists a new note. Title is required and validated by notes.Service; body is optional.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "body": "string",
-          "title": "string (required, non-whitespace)"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Missing or whitespace-only title"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository write failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Create note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.notes.NotesService/CreateNote -H 'Content-Type: application/json' -d '{\"title\":\"first\",\"body\":\"hello\"}'"
-        }
-      ],
-      "cli_mapping": {
-        "command": "image-tools notes create",
-        "args": [
-          "--title",
-          "<title>",
-          "--body",
-          "<body>"
-        ]
-      }
-    },
-    {
-      "id": "notes_get",
-      "path": "/vrooli.image_tools.v1.notes.NotesService/GetNote",
-      "method": "POST",
-      "summary": "Get a note by id",
-      "description": "Returns the note matching the request id through the generated Connect-RPC Notes service.",
-      "category": "notes",
+      "summary": "Get a job by id",
+      "description": "Returns the current durable-job record for one job id.",
+      "category": "jobs",
       "request": {
         "type": "object",
         "properties": {
@@ -125,132 +47,416 @@
       "response": {
         "type": "object",
         "properties": {
-          "note": "Note"
+          "job": "Job"
         }
       },
       "errors": [
         {
           "status": 404,
           "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
+          "description": "No job with that id exists"
         }
       ],
       "examples": [
         {
-          "name": "Get note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.notes.NotesService/GetNote -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
+          "name": "Get a job",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.jobs.JobsService/GetJob -H 'Content-Type: application/json' -d '{\"id\":\"<job-id>\"}'"
         }
       ],
       "cli_mapping": {
-        "command": "image-tools notes get",
+        "command": "image-tools jobs get",
         "args": [
           "<id>"
         ]
       }
     },
     {
-      "id": "notes_count",
-      "path": "/vrooli.image_tools.v1.notes.NotesService/CountNotes",
+      "id": "jobs_wait",
+      "path": "/vrooli.image_tools.v1.jobs.JobsService/WaitJob",
       "method": "POST",
-      "summary": "Count notes in a time window",
-      "description": "Counts notes created within the requested canonical time window. Bound to the `notes count` measure (read-only, run-eligible) so search-hub can answer analytical questions like \"how many notes were created this week\".",
-      "category": "notes",
+      "summary": "Wait for a job (block-once)",
+      "description": "Blocks server-side until the job reaches a terminal state, then returns it. A client disconnect does not affect the job. This is the canonical wait verb — never poll GetJob in a loop.",
+      "category": "jobs",
       "request": {
         "type": "object",
         "properties": {
-          "window": "TimeWindow (vrooli.measures.v1; e.g. {\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"})"
+          "id": "string"
         }
       },
       "response": {
         "type": "object",
         "properties": {
-          "count": "int64 (notes created in the window)"
+          "job": "Job (terminal)"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No job with that id exists"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Wait for a job",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.jobs.JobsService/WaitJob -H 'Content-Type: application/json' -d '{\"id\":\"<job-id>\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "image-tools jobs wait",
+        "args": [
+          "<id>"
+        ]
+      }
+    },
+    {
+      "id": "jobs_list",
+      "path": "/vrooli.image_tools.v1.jobs.JobsService/ListJobs",
+      "method": "POST",
+      "summary": "List recent jobs",
+      "description": "Returns recent durable jobs, newest first.",
+      "category": "jobs",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int32 (0 = server default)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "jobs": "array<Job>"
+        }
+      },
+      "examples": [
+        {
+          "name": "List jobs",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.jobs.JobsService/ListJobs -H 'Content-Type: application/json' -d '{\"limit\":20}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "image-tools jobs list",
+        "args": [
+          "--limit",
+          "<n>"
+        ]
+      }
+    },
+    {
+      "id": "jobs_cancel",
+      "path": "/vrooli.image_tools.v1.jobs.JobsService/CancelJob",
+      "method": "POST",
+      "summary": "Cancel a job",
+      "description": "Aborts a job: a running job's context is canceled; a queued job is marked canceled immediately. Returns the post-cancel record.",
+      "category": "jobs",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "job": "Job"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No job with that id exists"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Cancel a job",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.jobs.JobsService/CancelJob -H 'Content-Type: application/json' -d '{\"id\":\"<job-id>\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "image-tools jobs cancel",
+        "args": [
+          "<id>"
+        ]
+      }
+    },
+    {
+      "id": "jobs_watch",
+      "path": "/vrooli.image_tools.v1.jobs.JobsService/WatchJob",
+      "method": "POST",
+      "summary": "Watch a job's progress (server stream)",
+      "description": "Server-streams progress events for a job until it reaches a terminal state. The latest known event is replayed first. Backs SSE-style live progress in the UI.",
+      "category": "jobs",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "stream",
+        "properties": {
+          "event": "ProgressEvent (stream)"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No job with that id exists"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Watch a job",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.jobs.JobsService/WatchJob -H 'Content-Type: application/json' -d '{\"id\":\"<job-id>\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "image-tools jobs watch",
+        "args": [
+          "<id>"
+        ]
+      }
+    },
+    {
+      "id": "models_list",
+      "path": "/vrooli.image_tools.v1.models.ModelsService/ListModels",
+      "method": "POST",
+      "summary": "List models",
+      "description": "Returns model registry entries, optionally filtered to one operation, with effective (overlay-aware) enabled state.",
+      "category": "models",
+      "request": {
+        "type": "object",
+        "properties": {
+          "operation": "string (optional; filter to one op)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "models": "array<Model>"
         }
       },
       "errors": [
         {
           "status": 400,
           "code": "invalid_argument",
-          "description": "Unresolvable or malformed time window"
+          "description": "Unknown operation filter"
         },
         {
           "status": 500,
           "code": "internal",
-          "description": "Repository read failure"
+          "description": "Model-state load failure"
         }
       ],
       "examples": [
         {
-          "name": "Count this week",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.notes.NotesService/CountNotes -H 'Content-Type: application/json' -d '{\"window\":{\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"}}'"
+          "name": "List all models",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ListModels -H 'Content-Type: application/json' -d '{}'"
+        },
+        {
+          "name": "List upscale models",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ListModels -H 'Content-Type: application/json' -d '{\"operation\":\"upscale\"}'"
         }
       ],
       "cli_mapping": {
-        "command": "image-tools notes count",
+        "command": "image-tools models list",
         "args": [
-          "--window",
-          "<window>"
+          "--operation",
+          "<op>"
         ]
       }
     },
     {
-      "id": "notes_attach",
-      "path": "/api/v1/notes/{id}/attachments",
+      "id": "models_get",
+      "path": "/vrooli.image_tools.v1.models.ModelsService/GetModel",
       "method": "POST",
-      "summary": "Upload a note attachment",
-      "description": "Uploads opaque file bytes through the documented REST multipart exception and returns proto-typed attachment metadata.",
-      "category": "notes",
+      "summary": "Get a model by id",
+      "description": "Returns one model registry entry by id with effective enabled state.",
+      "category": "models",
       "request": {
-        "type": "multipart/form-data",
+        "type": "object",
         "properties": {
-          "file": "file (required)"
+          "id": "string"
         }
       },
       "response": {
         "type": "object",
         "properties": {
-          "attachment": "Attachment"
+          "model": "Model"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No model with that id exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Model-state load failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get a model",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/GetModel -H 'Content-Type: application/json' -d '{\"id\":\"sd-1.5\"}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "image-tools models get",
+        "args": [
+          "<id>"
+        ]
+      }
+    },
+    {
+      "id": "models_operations",
+      "path": "/vrooli.image_tools.v1.models.ModelsService/ListOperations",
+      "method": "POST",
+      "summary": "List operations",
+      "description": "Returns the registry operation vocabulary in declaration order.",
+      "category": "models",
+      "response": {
+        "type": "object",
+        "properties": {
+          "operations": "array<string>"
+        }
+      },
+      "examples": [
+        {
+          "name": "List operations",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ListOperations -H 'Content-Type: application/json' -d '{}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "image-tools models operations"
+      }
+    },
+    {
+      "id": "models_select",
+      "path": "/vrooli.image_tools.v1.models.ModelsService/SelectModel",
+      "method": "POST",
+      "summary": "Preview model selection for an operation",
+      "description": "Previews which enabled model would run for an operation on the probed host (honoring the per-op default and any override) without executing. Surfaces the hardware-fit reason and warnings.",
+      "category": "models",
+      "request": {
+        "type": "object",
+        "properties": {
+          "operation": "string (required; registry op)",
+          "override_id": "string (optional; force a model id)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "gpu_viable": "bool",
+          "model": "Model",
+          "reason": "string",
+          "warnings": "array<string>"
         }
       },
       "errors": [
         {
           "status": 400,
-          "code": "invalid_request",
-          "description": "Missing file or invalid multipart upload"
+          "code": "invalid_argument",
+          "description": "Unknown operation or invalid override"
         },
         {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "No enabled model can run for the operation on this host"
         },
         {
           "status": 500,
           "code": "internal",
-          "description": "BlobStore or metadata persistence failure"
+          "description": "Host probe or model-state load failure"
         }
       ],
       "examples": [
         {
-          "name": "Attach file",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/notes/abc123/attachments -F file=@./example.png"
+          "name": "Select for upscale",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/SelectModel -H 'Content-Type: application/json' -d '{\"operation\":\"upscale\"}'"
         }
       ],
       "cli_mapping": {
-        "command": "image-tools notes attach",
+        "command": "image-tools models select",
         "args": [
-          "<id>",
-          "--file",
-          "<path>"
+          "<operation>",
+          "--override",
+          "<id>"
         ]
+      }
+    },
+    {
+      "id": "models_set_enabled",
+      "path": "/vrooli.image_tools.v1.models.ModelsService/SetModelEnabled",
+      "method": "POST",
+      "summary": "Enable or disable a model",
+      "description": "Toggles a model's runtime-enabled state, persisted in the SQLite overlay over the read-only seed catalog.",
+      "category": "models",
+      "request": {
+        "type": "object",
+        "properties": {
+          "enabled": "bool",
+          "id": "string"
+        }
       },
-      "rest_exception": {
-        "reason": "multipart_upload",
-        "note": "Multipart/form-data request transport cannot be expressed in proto. The response payload is still the proto-typed UploadAttachmentResponse message."
+      "response": {
+        "type": "object",
+        "properties": {
+          "model": "Model"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No model with that id exists"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Model-state persistence failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Enable a quality tier",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/SetModelEnabled -H 'Content-Type: application/json' -d '{\"id\":\"real-esrgan\",\"enabled\":true}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "image-tools models enable",
+        "args": [
+          "<id>"
+        ]
+      }
+    },
+    {
+      "id": "models_blocklist",
+      "path": "/vrooli.image_tools.v1.models.ModelsService/ListBlocklist",
+      "method": "POST",
+      "summary": "List blocklisted models",
+      "description": "Returns the license-encumbered models that must never be seeded or adopted, with the reason each is excluded.",
+      "category": "models",
+      "response": {
+        "type": "object",
+        "properties": {
+          "entries": "array<BlocklistEntry>"
+        }
+      },
+      "examples": [
+        {
+          "name": "List blocklist",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ListBlocklist -H 'Content-Type: application/json' -d '{}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "image-tools models blocklist"
       }
     }
   ],
@@ -261,29 +467,59 @@
       "endpoint_id": "health"
     },
     {
-      "name": "notes list",
-      "description": "List all notes (newest-first, default limit 100)",
-      "endpoint_id": "notes_list"
+      "name": "jobs get",
+      "description": "Get a durable job by id",
+      "endpoint_id": "jobs_get"
     },
     {
-      "name": "notes create",
-      "description": "Create a note (--title TITLE [--body BODY])",
-      "endpoint_id": "notes_create"
+      "name": "jobs wait",
+      "description": "Block once until a job is terminal, then print it (no polling)",
+      "endpoint_id": "jobs_wait"
     },
     {
-      "name": "notes get",
-      "description": "Get a note by id",
-      "endpoint_id": "notes_get"
+      "name": "jobs list",
+      "description": "List recent jobs, newest first (--limit N)",
+      "endpoint_id": "jobs_list"
     },
     {
-      "name": "notes count",
-      "description": "Count notes created in a time window (--window WINDOW); the reference measure",
-      "endpoint_id": "notes_count"
+      "name": "jobs cancel",
+      "description": "Cancel a running or queued job",
+      "endpoint_id": "jobs_cancel"
     },
     {
-      "name": "notes attach",
-      "description": "Upload an attachment for a note (--file PATH)",
-      "endpoint_id": "notes_attach"
+      "name": "jobs watch",
+      "description": "Stream a job's progress until it reaches a terminal state",
+      "endpoint_id": "jobs_watch"
+    },
+    {
+      "name": "models list",
+      "description": "List model registry entries (--operation OP to filter)",
+      "endpoint_id": "models_list"
+    },
+    {
+      "name": "models get",
+      "description": "Get a model registry entry by id",
+      "endpoint_id": "models_get"
+    },
+    {
+      "name": "models operations",
+      "description": "List the registry operation vocabulary",
+      "endpoint_id": "models_operations"
+    },
+    {
+      "name": "models select",
+      "description": "Preview which model would run for an operation on this host (--override ID)",
+      "endpoint_id": "models_select"
+    },
+    {
+      "name": "models enable",
+      "description": "Enable or disable a model (persisted overlay over the seed catalog)",
+      "endpoint_id": "models_set_enabled"
+    },
+    {
+      "name": "models blocklist",
+      "description": "List license-encumbered models excluded from the catalog",
+      "endpoint_id": "models_blocklist"
     }
   ]
 }

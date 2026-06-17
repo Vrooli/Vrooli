@@ -183,8 +183,9 @@ enhancer, never a gate.
   disk-space awareness, checksummed opt-in downloads, custom/fine-tuned
   entries.
 - Owns: model registry records, install/enable state, selection logic.
-- Does not own: host probing (delegated to system-monitor /
-  internal/hostinventory via `backends`/selection), the inference itself.
+- Does not own: host probing (read from the root `vrooli` CLI host-inventory
+  contract over the shared `internal/hostinventory` collector, consumed via the
+  `capabilities` seam used by `backends`/selection), the inference itself.
 - API: `api/handlers/models/` (Connect-RPC).
 - CLI: `cli/domains/models/` — list/search/install/enable/disable/remove.
 - UI: `ui/src/features/models/` (Settings: size, hardware-fit indicator,
@@ -395,8 +396,10 @@ These are important but should not become product domains:
 - `api/internal/testutil/` — cross-domain test harnesses.
 - `ui/src/components/` — shared presentation primitives.
 - `ui/src/test-utils/` — cross-feature testing support.
-- Host capability/capacity probing — owned by system-monitor /
-  `internal/hostinventory`, consumed (never reimplemented) here.
+- Host capability/capacity probing — owned by the platform
+  `internal/hostinventory` collector and surfaced by the root `vrooli` CLI
+  host-inventory contract; consumed (never reimplemented) here via the
+  `capabilities` seam (`packages/vrooli-cli-go`).
 - Persistent blob storage implementation — owned by api-core blobstore;
   `storage` is only the consuming seam.
 

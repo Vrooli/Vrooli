@@ -5,9 +5,11 @@ import {
   type RouteObject,
 } from "react-router-dom";
 
+import { routerFutureFlags } from "./routerFuture";
 import { AppShell } from "../layout/AppShell";
 import { DashboardPage } from "../pages/DashboardPage";
-import { NotesPage } from "../pages/NotesPage";
+import { JobsPage } from "../pages/JobsPage";
+import { ModelsPage } from "../pages/ModelsPage";
 import { SettingsPage } from "../pages/SettingsPage";
 
 /**
@@ -22,7 +24,8 @@ export const routes: RouteObject[] = [
     element: <AppShell />,
     children: [
       { index: true, element: <DashboardPage /> },
-      { path: "notes", element: <NotesPage /> },
+      { path: "jobs", element: <JobsPage /> },
+      { path: "models", element: <ModelsPage /> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },
@@ -36,7 +39,7 @@ export const routes: RouteObject[] = [
 export function AppRouter() {
   // Re-create per mount so HMR / re-mounts pick up updated routes during dev
   // and so tests that manipulate `window.history` see fresh routing each time.
-  const router = createBrowserRouter(routes);
+  const router = createBrowserRouter(routes, { future: routerFutureFlags });
   return <RouterProvider router={router} />;
 }
 
@@ -45,6 +48,9 @@ export function AppRouter() {
  * specific starting URL. Only used by `routes.test.tsx`.
  */
 export function TestAppRouter({ initialEntries }: { initialEntries: string[] }) {
-  const router = createMemoryRouter(routes, { initialEntries });
+  const router = createMemoryRouter(routes, {
+    initialEntries,
+    future: routerFutureFlags,
+  });
   return <RouterProvider router={router} />;
 }

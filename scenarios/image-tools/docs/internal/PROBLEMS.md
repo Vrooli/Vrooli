@@ -68,10 +68,11 @@ charter/requirements/docs phase.
 
 **Real fix:** During implementation: build the first real domain (start
 with `ops` or the `models`/`jobs` spine), wire required dependencies into
-`.vrooli/service.json` (system-monitor; ComfyUI + per-op model resources
-as `required:false`; BYOK provider config), get `make test` green, then
-remove the `notes` example (Gate 7). The system-monitor hardware
-capability/capacity probe is a hard prerequisite for the AI tier — see
+`.vrooli/service.json` (ComfyUI + per-op model resources as `required:false`;
+BYOK provider config), get `make test` green, then remove the `notes` example
+(Gate 7). Host hardware facts for the AI tier come from the root `vrooli host
+inventory --json` CLI (the shared `internal/hostinventory` collector) consumed
+behind the `capabilities` seam — not a system-monitor dependency — see
 [`../concepts/INTEGRATIONS.md`](../concepts/INTEGRATIONS.md).
 
 **Owner:** unassigned (next implementation session).

@@ -18,12 +18,13 @@ Use this document to answer:
 image-tools targets the Tier 1 local Vrooli stack today. Higher tiers
 are documented in the [Deployment Hub](../../../../docs/deployment/README.md)
 but are explicitly deferred — the scenario must reach P0 maturity and
-clear cross-platform GPU hardening (deferred to P2 / system-monitor)
-before any packaged distribution.
+clear cross-platform GPU hardening (deferred to P2 in the platform
+`internal/hostinventory` collector, surfaced via the root CLI host-inventory
+contract) before any packaged distribution.
 
 | Tier | Status | Requirements | Blockers |
 |---|---|---|---|
-| Local Vrooli stack | active | Full Vrooli install, lifecycle, Go, Node/pnpm, SQLite, api-core storage | None for deterministic ops; AI ops need opt-in model installs and a working system-monitor probe. |
+| Local Vrooli stack | active | Full Vrooli install, lifecycle, Go, Node/pnpm, SQLite, api-core storage | None for deterministic ops; AI ops need opt-in model installs and host facts from the root `vrooli host inventory` CLI (via the `capabilities` seam). |
 | Desktop app | deferred | Packaged UI/API, bundled standalone backends, storage resolver | Cross-platform GPU detection (AMD/Intel/Apple-Silicon) is P2; model-weight bundling/licensing unresolved. |
 | Mobile | deferred | Remote API target, camera-capture upload path | No on-device inference; depends on a hosted API tier. |
 | Managed cloud / SaaS | deferred | Hosted GPU runtime, auth, BYOK cost model, multi-tenant storage | Requires deployment + monetization review and GPU-pool capacity planning. |
@@ -41,9 +42,12 @@ Always-on, declared and started by the lifecycle:
   measures) at `SQLITE_PATH`.
 - **api-core storage / blobstore** — image binaries stored outside the
   repo by default; per-request save-location override supported.
-- **system-monitor** — hardware capability/capacity probe (built on
-  `internal/hostinventory`). The probe endpoint is a hard prerequisite
-  for AI ops; deterministic ops do not depend on it.
+- **root `vrooli` CLI host inventory** — hardware capability/capacity facts
+  read via `vrooli host inventory --json` (the shared `internal/hostinventory`
+  collector) through `packages/vrooli-cli-go` behind the `capabilities` seam.
+  AI ops depend on these host facts; deterministic ops do not. This is the
+  local platform CLI, not a peer-scenario dependency (system-monitor is not
+  used).
 
 Declared `required:false`, NOT started by default — spin up only on demand:
 
@@ -104,5 +108,5 @@ path before release.
 
 - [`RUNBOOK.md`](RUNBOOK.md) — operator procedures
 - [`OBSERVABILITY.md`](OBSERVABILITY.md) — health and telemetry
-- [`../concepts/INTEGRATIONS.md`](../concepts/INTEGRATIONS.md) — dependencies (system-monitor, palette-gen, text-tools)
+- [`../concepts/INTEGRATIONS.md`](../concepts/INTEGRATIONS.md) — dependencies (palette-gen, text-tools; host facts via the root `vrooli` CLI)
 - [`../reference/configuration.md`](../reference/configuration.md) — env vars and lifecycle config

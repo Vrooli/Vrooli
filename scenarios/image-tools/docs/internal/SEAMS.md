@@ -200,6 +200,56 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `api-core/blobstore.MemoryBlobStore` or a domain-local fake lets handler tests assert metadata and failure behavior without touching the filesystem. |
 | **Why it exists** | Connect-RPC is the default for proto-typed payloads, but opaque bytes are not proto payloads. Keeping bytes behind `BlobStore` lets the handler stay transport-focused and lets future scenarios swap filesystem, S3, or another object store without changing domain services. |
 
+### capabilities.Probe (host hardware facts)
+
+| | |
+|---|---|
+| **Seam** | Host hardware probe for AI-tier model selection |
+| **Interface** | `internal/capabilities/capabilities.go::Probe` (`Inventory(ctx) (Host, error)`) |
+| **Production wiring** | `capabilities.NewCLIProbe()` shells `vrooli host inventory --json` through `packages/vrooli-cli-go` and decodes os/arch/cpu/mem/GPU+VRAM into the domain `Host`. |
+| **Test fake** | `capabilities.FakeProbe{Host, Err}` returns a deterministic snapshot so model-selection logic never blocks on a real host probe. |
+| **Why it exists** | Hardware-fit model selection must be testable across GPU/CPU/unknown-VRAM hosts without depending on the machine the tests run on. Reading via the root vrooli CLI (not system-monitor) keeps detection logic unforked. |
+
+### models.Registry + EnabledFunc (model catalog & selection)
+
+| | |
+|---|---|
+| **Seam** | Declarative model registry + hardware-fit selector, with a runtime enabled-state overlay |
+| **Interface** | `internal/models/registry.go::Registry` (loaded from embedded `registry.seed.json`); `internal/models/selector.go::EnabledFunc` (`func(id string) bool`) overlays SQLite enable/disable state onto the seed's `.Enabled`. |
+| **Production wiring** | `models.Load()` parses+validates the seed at boot; the management layer (Phase 4) supplies the `EnabledFunc` from persisted state. A nil `EnabledFunc` falls back to seed defaults. |
+| **Test fake** | `models.Parse([]byte)` builds a small in-test catalog; an inline `EnabledFunc` closure drives every selection branch (default/quality/unknown-VRAM/override/shortfall). |
+| **Why it exists** | Selection policy (default vs best-fit-per-host, conservative unknown-VRAM, override validation) is pure, data-driven logic that must be exhaustively unit-tested without a real catalog or host. |
+
+### backends.Provider + Registry (execution backend abstraction)
+
+| | |
+|---|---|
+| **Seam** | Per-operation execution backend + the boot invariant and selection ladder |
+| **Interface** | `internal/backends/backends.go::Provider` (`Name/Operations/Standalone/IsCloud/Available/Execute`); `Registry.Validate()` enforces ≥1 standalone (non-ComfyUI) provider per op at boot; `Registry.SelectProvider` walks Local→ComfyUI→BYOK. |
+| **Production wiring** | Real providers (sd.cpp, rembg, tesseract, ComfyUI, BYOK cloud) register at boot (Phase 2/3); `Validate()` fails loud if any op lacks a standalone backend (the headless tenet). |
+| **Test fake** | `fakeProvider` (configurable name/ops/standalone/cloud/available) drives the invariant + every ladder branch in `backends_test.go`. |
+| **Why it exists** | The headless tenet (every op runnable with no ComfyUI/GPU) must be a boot-time guarantee, and the fallback ladder's user-visible transitions must be testable without real model binaries. |
+
+### jobs.Runner + Manager (durable async execution)
+
+| | |
+|---|---|
+| **Seam** | The work-execution function behind the server-owned durable job manager |
+| **Interface** | `internal/jobs/manager.go::Runner` (`func(jobCtx, Job, emit) (ref, err)`); `jobs.SQLExecutor` is the persistence surface (both `*sql.DB` and `*database.RoutedDB`). |
+| **Production wiring** | `main.go` (Phase 1 wiring) builds `jobs.New(db, Config{Runner: ...})` where the Runner dispatches to `backends`; one GPU worker + N CPU workers run under a server-lifetime context. |
+| **Test fake** | An inline `Runner` closure (success/error/block-on-channel) drives submit/wait/cancel, GPU-serialization, CPU-concurrency, disconnect-survival, recovery, and progress streaming in `manager_test.go`. |
+| **Why it exists** | Durability + disconnect-survival + lane concurrency are subtle properties that must be proven deterministically; the Runner seam lets tests control timing without real op execution. |
+
+### storage.Store + Guard (image persistence & ingest defense)
+
+| | |
+|---|---|
+| **Seam** | Blob persistence (api-core blobstore) + the decompression-bomb ingest guard |
+| **Interface** | `internal/storage/storage.go::Store` (over `api-core/blobstore.BlobStore`, with `OutputTarget` blob/local routing); `internal/storage/guard.go::Guard.Inspect` peeks the image header before decode. |
+| **Production wiring** | `storage.New(corestorage.ScenarioNamespace("image-tools"))` resolves an outside-repo, namespace-aware blob root; `DefaultGuard()` bounds ingest (64 MiB / 128 MP / 30000 px). |
+| **Test fake** | `storage.NewWithBlobStore(blobstore.NewMemoryBlobStore(), tmpDir)` for the store; crafted PNG headers (huge declared dimensions) prove the bomb guard in `guard_test.go`. |
+| **Why it exists** | Pixels must stay out of SQLite and the repo, outputs must be user-redirectable, and a tiny file must never be able to force a huge decode — all testable without the real storage substrate. |
+
 ### module.Module (domain composition)
 
 | | |

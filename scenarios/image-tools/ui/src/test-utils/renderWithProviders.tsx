@@ -19,7 +19,7 @@
  *   const { queryClient } = renderWithProviders(<MyComponent />);
  *
  *   // Render a specific route:
- *   renderWithProviders(<App />, { routerEntries: ["/notes"] });
+ *   renderWithProviders(<App />, { routerEntries: ["/jobs"] });
  *
  * The returned `queryClient` is exposed for tests that need to seed the
  * cache or assert queries fired (e.g. `queryClient.getQueryData(...)`).
@@ -30,6 +30,7 @@ import type { ReactElement, ReactNode } from "react";
 import { I18nextProvider } from "react-i18next";
 import { MemoryRouter } from "react-router-dom";
 
+import { routerFutureFlags } from "../app/routerFuture";
 import { i18n } from "../i18n";
 import { ThemeProvider, type ThemeChoice } from "../theme/ThemeProvider";
 
@@ -42,7 +43,7 @@ export interface ProviderRenderOptions extends Omit<RenderOptions, "wrapper"> {
   queryClient?: QueryClient;
   /**
    * Initial entries for the in-memory router. Defaults to `["/"]`. Pass a
-   * specific path (e.g. `["/notes"]`) to render a particular route.
+   * specific path (e.g. `["/jobs"]`) to render a particular route.
    */
   routerEntries?: string[];
   /**
@@ -86,7 +87,9 @@ export function renderWithProviders(
       <ThemeProvider initialChoice={initialTheme}>{children}</ThemeProvider>
     );
     const routed = withoutRouter ? themed : (
-      <MemoryRouter initialEntries={routerEntries}>{themed}</MemoryRouter>
+      <MemoryRouter initialEntries={routerEntries} future={routerFutureFlags}>
+        {themed}
+      </MemoryRouter>
     );
     return (
       <QueryClientProvider client={queryClient}>

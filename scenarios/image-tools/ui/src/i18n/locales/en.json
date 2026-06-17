@@ -10,7 +10,8 @@
     "bottomNavLabel": "Primary navigation",
     "nav": {
       "dashboard": "Dashboard",
-      "notes": "Notes",
+      "jobs": "Jobs",
+      "models": "Models",
       "settings": "Settings"
     }
   },
@@ -28,8 +29,11 @@
       "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
       "statPlaceholderLabel": "Stat"
     },
-    "notes": {
-      "title": "Notes"
+    "jobs": {
+      "title": "Jobs"
+    },
+    "models": {
+      "title": "Models"
     },
     "settings": {
       "title": "Settings",
@@ -53,23 +57,39 @@
     "summary_zero": "No notifications",
     "summary_one": "1 notification"
   },
-  "notes": {
-    "title": "Notes",
-    "loading": "Loading notes…",
-    "empty": "No notes yet.",
-    "create": "Create note",
-    "createdAtLabel": "Created:",
-    "attachmentsLabel": "{{count}} attachments",
-    "attachmentsLabel_one": "1 attachment",
-    "uploadAttachment": "Upload attachment",
-    "attachmentFileLabel": "Attachment file",
-    "uploadSuccess": "Uploaded {{name}}.",
-    "noFileSelected": "Select a file before uploading.",
-    "measure": {
-      "title": "Notes this week",
-      "loading": "Counting…",
-      "thisWeek": "{{count}} notes created this week"
+  "jobs": {
+    "title": "Recent jobs",
+    "loading": "Loading jobs…",
+    "empty": "No jobs yet.",
+    "operationLabel": "Operation:",
+    "laneLabel": "Lane:",
+    "stateLabel": "State:",
+    "progressLabel": "{{count}}% complete",
+    "cancel": "Cancel",
+    "lane": {
+      "unspecified": "Unspecified",
+      "gpu": "GPU",
+      "cpu": "CPU"
+    },
+    "state": {
+      "unspecified": "Unspecified",
+      "queued": "Queued",
+      "running": "Running",
+      "succeeded": "Succeeded",
+      "failed": "Failed",
+      "canceled": "Canceled"
     }
+  },
+  "models": {
+    "title": "Model registry",
+    "loading": "Loading models…",
+    "empty": "No models registered.",
+    "tierLabel": "Tier:",
+    "backendLabel": "Backend:",
+    "enabledLabel": "Enabled",
+    "disabledLabel": "Disabled",
+    "enable": "Enable",
+    "disable": "Disable"
   },
   "errors": {
     "canceled": "Operation canceled.",

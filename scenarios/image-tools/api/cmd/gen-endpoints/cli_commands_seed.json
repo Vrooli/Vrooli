@@ -7,29 +7,59 @@
       "endpoint_id": "health"
     },
     {
-      "name": "notes list",
-      "description": "List all notes (newest-first, default limit 100)",
-      "endpoint_id": "notes_list"
+      "name": "jobs get",
+      "description": "Get a durable job by id",
+      "endpoint_id": "jobs_get"
     },
     {
-      "name": "notes create",
-      "description": "Create a note (--title TITLE [--body BODY])",
-      "endpoint_id": "notes_create"
+      "name": "jobs wait",
+      "description": "Block once until a job is terminal, then print it (no polling)",
+      "endpoint_id": "jobs_wait"
     },
     {
-      "name": "notes get",
-      "description": "Get a note by id",
-      "endpoint_id": "notes_get"
+      "name": "jobs list",
+      "description": "List recent jobs, newest first (--limit N)",
+      "endpoint_id": "jobs_list"
     },
     {
-      "name": "notes count",
-      "description": "Count notes created in a time window (--window WINDOW); the reference measure",
-      "endpoint_id": "notes_count"
+      "name": "jobs cancel",
+      "description": "Cancel a running or queued job",
+      "endpoint_id": "jobs_cancel"
     },
     {
-      "name": "notes attach",
-      "description": "Upload an attachment for a note (--file PATH)",
-      "endpoint_id": "notes_attach"
+      "name": "jobs watch",
+      "description": "Stream a job's progress until it reaches a terminal state",
+      "endpoint_id": "jobs_watch"
+    },
+    {
+      "name": "models list",
+      "description": "List model registry entries (--operation OP to filter)",
+      "endpoint_id": "models_list"
+    },
+    {
+      "name": "models get",
+      "description": "Get a model registry entry by id",
+      "endpoint_id": "models_get"
+    },
+    {
+      "name": "models operations",
+      "description": "List the registry operation vocabulary",
+      "endpoint_id": "models_operations"
+    },
+    {
+      "name": "models select",
+      "description": "Preview which model would run for an operation on this host (--override ID)",
+      "endpoint_id": "models_select"
+    },
+    {
+      "name": "models enable",
+      "description": "Enable or disable a model (persisted overlay over the seed catalog)",
+      "endpoint_id": "models_set_enabled"
+    },
+    {
+      "name": "models blocklist",
+      "description": "List license-encumbered models excluded from the catalog",
+      "endpoint_id": "models_blocklist"
     }
   ]
 }

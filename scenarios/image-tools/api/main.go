@@ -9,7 +9,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	"image-tools/internal/capabilities"
 	"image-tools/internal/clock"
+	"image-tools/internal/jobrunner"
+	internaljobs "image-tools/internal/jobs"
+	internalmodels "image-tools/internal/models"
 	"image-tools/internal/modules"
 	"image-tools/internal/server"
 
@@ -22,7 +26,8 @@ import (
 	_ "modernc.org/sqlite"
 
 	healthH "image-tools/handlers/health"
-	notesH "image-tools/handlers/notes"
+	jobsH "image-tools/handlers/jobs"
+	modelsH "image-tools/handlers/models"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -113,10 +118,35 @@ func main() {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
+	// Load the validated model registry once (its seed-integrity invariants are
+	// asserted here, so a bad seed fails loud at boot) and share it with the
+	// models domain. Host hardware facts come through the root vrooli CLI.
+	registry, err := internalmodels.Load()
+	if err != nil {
+		log.Fatalf("model registry load failed: %v", err)
+	}
+	probe := capabilities.NewCLIProbe()
+
+	// The durable job Manager runs under a server-lifetime context so a client
+	// disconnect never destroys in-flight work. Operation domains register their
+	// execution handlers on the dispatcher; in Phase 1 none are registered yet,
+	// so a submitted job for an unknown op fails cleanly (and nothing submits).
+	jobCtx, cancelJobs := context.WithCancel(context.Background())
+	dispatcher := jobrunner.New()
+	jobManager := internaljobs.New(db, internaljobs.Config{
+		Runner: dispatcher.Run,
+		Clock:  clock.System{},
+	})
+	if err := jobManager.Start(jobCtx); err != nil {
+		cancelJobs()
+		log.Fatalf("job manager start failed: %v", err)
+	}
+
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "image-tools-api", "1.0.0"),
-		notesH.Module(db, clock.System{}, log.Default()),
+		jobsH.Module(jobManager, log.Default()),
+		modelsH.Module(db, registry, probe, log.Default()),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -125,16 +155,10 @@ func main() {
 	rootMux := http.NewServeMux()
 	devrouting.Register(rootMux, db)
 
-	// /measures is the measures-go serve substrate: the central measures
-	// index (measures-health) harvests <prefix>/declarations and the
-	// auto-execution path POSTs <prefix>/execute. The notes domain owns the
-	// one reference measure (notes.count); a real multi-domain scenario
-	// registers each domain's measures on one shared registry here.
-	notesMeasures, err := notesH.MeasuresHandler(db, clock.System{})
-	if err != nil {
-		log.Fatalf("measures registry: %v", err)
-	}
-	rootMux.Handle("/measures/", http.StripPrefix("/measures", notesMeasures))
+	// No /measures substrate is mounted yet: image operations declare their
+	// op-latency / throughput / queue-wait measures as they land (Phase 2+),
+	// and the measures-go serve registry is wired here when the first measure
+	// exists. Mounting an empty substrate now would be dead scaffolding.
 
 	rootMux.Handle("/", srv.Handler())
 
@@ -145,7 +169,14 @@ func main() {
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		Cleanup: func(ctx context.Context) error {
+			// Stop the job manager (waits for in-flight jobs to observe
+			// cancellation) and release its server-lifetime context before
+			// closing the database.
+			jobManager.Close()
+			cancelJobs()
+			return db.Close()
+		},
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

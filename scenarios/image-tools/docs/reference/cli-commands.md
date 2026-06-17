@@ -21,7 +21,7 @@ RPC bindings, governance metadata) is declared in
 `cliapp.LoadFromManifest`, which:
 
 - builds each domain's `SubcommandGroup` from its manifest group
-- wires each command's `binding.method` (e.g. `NotesService.ListNotes`)
+- wires each command's `binding.method` (e.g. `ModelsService.ListModels`)
   to a handler registered in the domain's `register.go` bindings map
 - fails loudly on missing handlers, dead handlers, or unknown groups
 
@@ -36,11 +36,11 @@ The manifest's `governance` block (`effect`, `run_eligible`,
 to derive action certainty automatically; scenarios that adopt the
 manifest don't need hand-classified action-safety lists.
 
-`binding.kind` is currently `connect-rpc` only. REST-exception
-commands (the canonical example is `notes attach`, which uses
-multipart upload) are appended to the loaded group outside the manifest
-path in the domain's `register.go` and documented in the manifest's
-`omitted[]` array.
+`binding.kind` is currently `connect-rpc` only, modelling unary RPCs.
+Commands that can't be expressed that way — the canonical example is
+`jobs watch`, which consumes a server-streaming RPC — are appended to the
+loaded group outside the manifest path in the domain's `register.go` and
+documented in the manifest's `omitted[]` array.
 
 For environment-variable precedence and CLI config-file shape, see
 [`configuration.md`](configuration.md).
@@ -89,54 +89,121 @@ Read values back without an argument:
 image-tools configure api_base
 ```
 
-## Scenario commands — `notes` (CRUD reference)
+## Scenario commands — `jobs` (durable async lifecycle)
 
-The `notes` domain is the canonical worked example. Copy its layout
-when adding the first non-trivial domain to your scenario.
+Inspect and control server-owned durable jobs. `jobs wait` is the
+canonical block-once verb — it blocks server-side until the job is
+terminal and returns it. Never poll `jobs get` in a loop.
 
-### `image-tools notes list`
+### `image-tools jobs get <id>`
 
-List notes, newest-first. Calls the generated Connect-RPC
-`Notes/List` method. Uses the
-**data-retrieval contract**: `Summary → Results → Retrieval Hints`.
+Get the current record for one job. Calls `JobsService/GetJob`. Uses the
+**data-retrieval contract**.
 
 ```bash
-image-tools notes list
-image-tools notes list --json
+image-tools jobs get <job-id>
 ```
 
-### `image-tools notes create --title <title> [--body <body>]`
+### `image-tools jobs wait <id>`
 
-Create a note. Calls the generated Connect-RPC `Notes/Create` method. Uses the **mutation
-contract**: `Result → What Changed → Next Command`.
+Block once until the job is terminal, then print it. Calls
+`JobsService/WaitJob`. A client disconnect does not affect the job.
 
 ```bash
-image-tools notes create --title "First note" --body "Hello world"
+image-tools jobs wait <job-id>
 ```
 
-`--title` is required. `--body` is optional. Validation lives in the
-API service, so an empty title surfaces as an `invalid_argument`
-Connect error rather than a CLI-side check.
+### `image-tools jobs list [--limit <n>]`
 
-### `image-tools notes get <id>`
-
-Fetch a note by id. Calls the generated Connect-RPC `Notes/Get` method.
+List recent jobs, newest first. Calls `JobsService/ListJobs`.
 
 ```bash
-image-tools notes get abc123
+image-tools jobs list --limit 20
 ```
 
-A non-existent id surfaces as `not_found`; the CLI translates the
-typed Connect code to an actionable error message.
+### `image-tools jobs cancel <id>`
 
-### `image-tools notes attach <id> --file <path>`
-
-Attach a file to a note. This is the documented REST multipart
-exception because the request body contains opaque bytes. The response
-is proto-typed attachment metadata.
+Cancel a running or queued job. Calls `JobsService/CancelJob`. Uses the
+**mutation contract**.
 
 ```bash
-image-tools notes attach abc123 --file ./example.png
+image-tools jobs cancel <job-id>
+```
+
+### `image-tools jobs watch <id>`
+
+Stream a job's progress until it reaches a terminal state. Consumes the
+server-streaming `JobsService/WatchJob` RPC, so it is appended outside
+the manifest path in `register.go` and recorded in the manifest's
+`omitted[]` array. `--json` emits one `ProgressEvent` per line.
+
+```bash
+image-tools jobs watch <job-id>
+```
+
+## Scenario commands — `models` (registry read + enable/disable)
+
+Inspect the declarative model registry and toggle which models are
+enabled. The seed catalog is read-only; enable/disable writes a SQLite
+overlay.
+
+### `image-tools models list [--operation <op>]`
+
+List model registry entries, optionally filtered to one operation. Calls
+`ModelsService/ListModels`.
+
+```bash
+image-tools models list
+image-tools models list --operation upscale
+```
+
+### `image-tools models get <id>`
+
+Get one model entry by id. Calls `ModelsService/GetModel`.
+
+```bash
+image-tools models get sd-1.5
+```
+
+### `image-tools models operations`
+
+List the registry operation vocabulary. Calls
+`ModelsService/ListOperations`.
+
+```bash
+image-tools models operations
+```
+
+### `image-tools models select <operation> [--override <id>]`
+
+Preview which enabled model would run for an operation on this host
+(honoring the per-op default and any override) without executing. Calls
+`ModelsService/SelectModel` and surfaces the hardware-fit reason +
+warnings.
+
+```bash
+image-tools models select upscale
+image-tools models select upscale --override real-esrgan
+```
+
+### `image-tools models enable <id> [--disable]`
+
+Enable (default) or disable (`--disable`) a model. Calls
+`ModelsService/SetModelEnabled`, persisting the overlay. Uses the
+**mutation contract**.
+
+```bash
+image-tools models enable real-esrgan
+image-tools models enable real-esrgan --disable
+```
+
+### `image-tools models blocklist`
+
+List license-encumbered models excluded from the catalog. Calls
+`ModelsService/ListBlocklist`.
+
+```bash
+image-tools models blocklist
 ```
 
 ## Output contracts
@@ -159,8 +226,9 @@ helpers).
 
 ## Adding a new command
 
-For a new domain, copy the notes command group first, then replace it
-once your real domain is green.
+For a new domain, mirror the `jobs` / `models` command groups: a
+`Register(core, manifest)` returning a `SubcommandGroup` built via
+`cliapp.LoadFromManifest`, plus one handler per RPC in `handlers.go`.
 
 For a command inside an existing domain:
 
@@ -204,11 +272,11 @@ For a command inside an existing domain:
 
 ## Command structure principles
 
-- **Subcommand groups** (`notes list`, `notes create`) over flat
-  verbs (`list-notes`, `create-note`). Discoverability via `--help`
+- **Subcommand groups** (`jobs list`, `models get`) over flat
+  verbs (`list-jobs`, `get-model`). Discoverability via `--help`
   is the goal.
-- **Positional for required, flags for optional.** `notes get <id>`
-  not `notes get --id <id>`.
+- **Positional for required, flags for optional.** `models get <id>`
+  not `models get --id <id>`.
 - **One command per API endpoint.** If you find yourself making two
   endpoint calls, the API is missing a use-case.
 - **Error messages must be actionable.** "API unreachable" is bad;

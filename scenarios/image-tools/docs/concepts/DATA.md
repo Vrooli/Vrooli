@@ -50,8 +50,6 @@ domain needs them. Document those decisions in
 | BYOK usage / cost records | models / backends | SQLite | usage schema (audio-tools cost-tracking pattern) | Rolling window | Cost estimate before op; keys are secrets, never stored with usage rows. |
 | Image inputs and outputs (bytes) | storage | api-core blobstore (outside repo) | BlobStore implementation behind the `storage` seam | Configurable TTL / user control; outputs user-owned | Overridable save location per request; opaque bytes, never in proto or SQLite. |
 | Blob references + output-ownership metadata | storage | SQLite | `api/internal/storage/schema.sql` | Same lifecycle as referenced blob | Handle/id, owner, save-location resolution. |
-| Notes + attachment metadata (**template example, remove**) | notes | SQLite | `api/internal/notes/schema.sql` | Until deleted | Template reference data; remove with notes domain. |
-| Attachment bytes (**template example, remove**) | notes | Filesystem BlobStore by default | BlobStore in notes handler module | Same lifecycle as metadata | Opaque bytes outside proto payloads. |
 
 ## Schema Map
 
@@ -65,7 +63,6 @@ domain needs them. Document those decisions in
 | BYOK usage/cost tables | models / backends | usage schema | cost estimator, fallback messaging |
 | storage reference tables | storage | `api/internal/storage/schema.sql` | storage seam, all operation domains |
 | image blobs | storage | api-core blobstore (object store, outside repo) | every operation domain via the `storage` seam |
-| notes tables (**template, remove**) | notes | `api/internal/notes/schema.sql` | notes repository/service/handlers |
 | system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup |
 
 ## Migrations And Compatibility
@@ -112,7 +109,6 @@ backfills, add a scenario-specific migration plan here and update
 | Measure samples | Rolling window | Aggregated then pruned | Window value to be set per measures policy. |
 | BYOK usage/cost records | Rolling window | Retained for cost reporting; keys never stored | None — keys handled as secrets only. |
 | Recipes / model registry / automation config | User delete | Retained until user removes | None. |
-| Template notes data (**remove**) | Domain removal | Local development data only | Replace with the deletion semantics above. |
 
 ## Privacy Notes
 

@@ -23,7 +23,7 @@ hardware-aware (fallback tiers, GPU pressure).
 | Per-op latency (p50/p95) | performance | measures domain | Detect slow/regressed ops per model | Per-model budget; p95 spike signals contention or wrong tier. |
 | Queue depth / wait time | saturation | heavy-job queue | GPU contention visibility | Rising depth = serialized GPU backlog (expected under load, not under idle). |
 | Fallback-tier usage | reliability | provider selector | How often Local-GPU → Local-CPU → BYOK fires | Frequent CPU/BYOK fallback signals missing/over-VRAM models. |
-| VRAM headroom | saturation | system-monitor probe | GPU memory available at run time | Low headroom predicts fallback / OOM. |
+| VRAM headroom | saturation | root `vrooli host inventory` / `internal/hostinventory` probe (via `capabilities` seam) | GPU memory available at run time | Low headroom predicts fallback / OOM. |
 | Model install / health | reliability | model manager | Checksum/`/ready` state of opt-in models | Failed download or unready resource gates the op. |
 | Error rate | reliability | API | Op/job failure ratio | Near-zero in steady state; spikes warrant log review. |
 | `/health`, `/ready` | health | API + resources | Surface and dependency reachability | Healthy locally; `/ready` true before a resource serves. |
@@ -49,7 +49,7 @@ measure blocks, enforced by the test-genie measures phase (OT-P0-012).
 | Throughput | active | Completed jobs per interval. |
 | Queue wait time | active | Time from submission to start in the serialized GPU queue. |
 | Fallback-tier usage | active | Count of Local-GPU / Local-CPU / BYOK selections. |
-| VRAM headroom | active | Captured from the system-monitor probe at run time. |
+| VRAM headroom | active | Captured from the root `vrooli host inventory` probe (the shared `internal/hostinventory` collector, via the `capabilities` seam) at run time. |
 | Requirement coverage | active | Tracked through requirements + test-genie coverage artifacts. |
 | Product activation | deferred | Define after real PRD users/workflows exist. |
 | BYOK cost per op | deferred | Pre-op estimate exists; aggregated cost dashboards are not yet instrumented. |
@@ -72,7 +72,7 @@ Known gaps:
 | Gap | Impact | Revisit Trigger |
 |---|---|---|
 | BYOK cost dashboards / aggregate cost telemetry | Pre-op estimates exist, but no historical cost view; cannot evaluate hosted/SaaS unit economics. | Before managed/SaaS deployment or monetization review. |
-| Cross-vendor GPU metrics (AMD/Intel/Apple-Silicon) | VRAM/headroom metrics are reliable only for NVIDIA today. | When P2 GPU hardening lands in system-monitor/hostinventory. |
+| Cross-vendor GPU metrics (AMD/Intel/Apple-Silicon) | VRAM/headroom metrics are reliable only for NVIDIA today. | When P2 GPU hardening lands in the platform `internal/hostinventory` collector (surfaced via the root CLI host-inventory contract). |
 | Product usage telemetry (per-op adoption) | Cannot validate adoption or value delivery. | Before public launch or monetization review. |
 | Retention / storage-growth metrics | Blob storage growth is not actively tracked. | Before any hosted tier or when disk pressure recurs. |
 | Webhook delivery success/retry metrics | Best-effort callbacks are not yet instrumented. | When webhook callbacks (P1) ship. |

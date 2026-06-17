@@ -208,7 +208,26 @@
       ]
     }
   },
-  "dependencies": {},
+  "hostTools": [
+    {
+      "name": "ffmpeg",
+      "required": false,
+      "reason": "Transcode image formats Go's native imaging libraries can't fully cover (AVIF/HEIC encode, animated GIF/WebP) during deterministic format conversion",
+      "when": [
+        "setup",
+        "develop"
+      ],
+      "notes": "Deterministic ops use pure-Go imaging by default; ffmpeg is only consulted for the formats Go can't handle, and conversion degrades gracefully (clear error) when it is absent. Never required (headless tenet)."
+    }
+  ],
+  "dependencies": {
+    "resources": {
+      "comfyui": {
+        "required": false,
+        "notes": "Optional plug-in backend for AI ops, accepted only when already installed. Never required: every AI op ships at least one standalone (non-ComfyUI) backend per the headless tenet (docs/internal/DECISIONS.md). AI model download/runtime is managed internally by the model registry, not as a Vrooli resource."
+      }
+    }
+  },
   "environment": {
     "SQLITE_PATH": "${SCENARIO_DATA_DIR}/image-tools.db"
   }

@@ -118,8 +118,10 @@ The scenario does not own:
 - Vrooli resource implementation (ComfyUI, per-op model resources),
 - scenario dependencies it calls,
 - generated proto outputs under `packages/proto/gen/`,
-- **host capability/capacity probing** — owned by system-monitor and
-  `internal/hostinventory`; image-tools consumes the probe and never
+- **host capability/capacity probing** — owned by the platform
+  `internal/hostinventory` collector and surfaced by the root `vrooli` CLI
+  host-inventory contract; image-tools consumes `vrooli host inventory --json`
+  via `packages/vrooli-cli-go` behind the `capabilities` seam and never
   reimplements OS/GPU detection,
 - **persistent blob storage implementation** — owned by api-core
   storage/blobstore; image-tools owns only the consuming `storage` seam,
@@ -232,9 +234,9 @@ business-vocabulary-free and used by unrelated domains or surfaces.
 | `api/internal/clock/` | Deterministic time seam. | Time is cross-cutting and test-substitutable. | Middleware, repositories. |
 | `api/internal/testutil/` | Cross-domain test harnesses and fakes. | Used by unrelated domains; domain fakes stay domain-local. | API tests. |
 | `ui/src/test-utils/` | Cross-feature render helpers, a11y helpers, and model tests. | Used by unrelated UI features. | UI tests. |
-| `internal/hostinventory` (platform) | Source of host capability/capacity facts (GPU, VRAM, RAM, OS/arch). | OS/hardware detection is platform-owned, not a product capability. | system-monitor probe; consumed by `models` selection and `backends` fallback. |
+| `internal/hostinventory` (platform) | Source of host capability/capacity facts (GPU, VRAM, RAM, OS/arch). | OS/hardware detection is platform-owned, not a product capability. | Surfaced by the root `vrooli` CLI host-inventory contract; consumed by `models` selection and `backends` fallback. |
 | api-core storage/blobstore (platform) | Persist opaque image bytes outside the repo with an overridable save location. | Blob persistence is cross-cutting platform infrastructure. | `storage` seam, every operation domain. |
-| system-monitor (scenario) | Hardware capability/capacity probe built on `internal/hostinventory`. | Probing is owned upstream; image-tools is a consumer and hard-prerequisite caller. | `models` selector, `backends` fallback messaging. |
+| root `vrooli` CLI host inventory (`cli/v1`) | Typed host-facts contract (`vrooli host inventory --json`) over the shared `internal/hostinventory` collector. | Detection is platform-owned; image-tools is a read-only consumer, not a peer-scenario caller. | image-tools `capabilities` seam (`CapabilityProbe`/`CLIProbe` via `packages/vrooli-cli-go`), feeding `models` selector and `backends` fallback messaging. |
 
 If shared infrastructure starts using product vocabulary, move that
 piece back into the owning domain or split a new domain first.
@@ -301,7 +303,7 @@ target shape. Update it as each domain becomes green.
 | UI | Template-ready, features planned | Feature folders, typed API clients, selector/i18n registries, modeltest helpers. | Operation forms, before/after slider, mask-painting canvas, progress-with-cancel, and model-management settings are planned. |
 | CLI | Template-ready, parity planned | Domain command groups wrap API calls and render reports. | Full headless parity across every op and the block-once job wait verb are planned. |
 | Docs | Contract-ready | Manifest v2 registers docs, maturity, stages, and validation hints; concept docs authored to PRD. | Reference docs and per-domain deep docs fill in as domains land. |
-| Infra seams | Designed, not wired | `backends` ladder, `models` selector, `jobs` queue, `storage` blobstore boundary specified in this doc. | system-monitor capability probe is a hard prerequisite that must land first. |
+| Infra seams | Designed, not wired | `backends` ladder, `models` selector, `jobs` queue, `storage` blobstore boundary specified in this doc; `capabilities` seam over the root CLI host-inventory contract built (Phase 0 done). | The `capabilities` host-facts prerequisite (root CLI `cli/v1` host-inventory contract + the image-tools `capabilities` seam) is satisfied; remaining seams wire as domains land. |
 
 Use `docs/manifest.json` as the documentation contract. The declared
 `maturity` values are expected to be maintained by agents and later
@@ -316,7 +318,7 @@ when they are deliberate and durable.
 |---|---|---|---|
 | 2026-06-16 | Opaque image bytes travel over a REST `multipart/form-data` edge instead of inside proto payloads; only metadata is proto-typed and blobs are referenced by handle. | Inlining megabyte-to-hundred-megabyte image bytes in Connect-JSON is wasteful and brittle; the multipart edge is the standard `RESTReasonMultipartUpload` path. | Revisit only if proto/Connect gains efficient first-class binary streaming that obsoletes the multipart edge. |
 | 2026-06-16 | Heavy AI providers (ComfyUI, per-op model resources) and BYOK cloud are declared `required:false` and spun up on demand rather than as hard dependencies. | Deterministic ops must work zero-download; AI must be opt-in and CPU-capable so the scenario runs on a laptop or a GPU server. | Revisit if a profile mandates a fixed AI tier always present. |
-| 2026-06-16 | GPU detection is NVIDIA-first; AMD/Intel/Apple-Silicon are deferred to system-monitor/hostinventory hardening (OT-P2-003). | The detection is owned upstream and AMD/Intel/Apple support is real engineering deferred to P2. | Revisit when system-monitor lands ROCm/Intel/Apple-Silicon probing. |
+| 2026-06-16 | GPU detection is NVIDIA-first; AMD/Intel/Apple-Silicon are deferred to platform `internal/hostinventory` hardening surfaced through the root CLI host-inventory contract (OT-P2-003). | The detection is owned upstream and AMD/Intel/Apple support is real engineering deferred to P2. | Revisit when `internal/hostinventory` lands ROCm/Intel/Apple-Silicon probing. |
 
 ## Documentation Architecture
 

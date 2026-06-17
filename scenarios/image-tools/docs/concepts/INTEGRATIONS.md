@@ -20,7 +20,7 @@ Use this document to answer:
 | SQLite | embedded storage | yes | API (jobs, recipes, models, automation, measures, storage refs) | `SQLITE_PATH` lifecycle env var | API reports unhealthy if unreachable. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario should be started through lifecycle commands. |
 | api-core storage/blobstore | platform storage | yes | storage seam, all operation domains | `storage` domain seam | Image bytes cannot be persisted; ops fail with a storage error. |
-| system-monitor | scenario (hardware probe) | yes (hard prerequisite for AI tier) | models selector, backends fallback | capability/capacity probe (built on `internal/hostinventory`) | No host facts → AI ops cannot select a model; deterministic ops unaffected. |
+| root `vrooli` CLI host inventory | local platform | yes (for AI tier) | models selector, backends fallback | `vrooli host inventory --json` via `packages/vrooli-cli-go`, behind the `capabilities` seam (`internal/hostinventory` collector) | No host facts → AI ops cannot select a model; deterministic ops unaffected. |
 | ComfyUI | Vrooli resource | no (`required:false`, opt-in) | generation, enhancement | optional plug-in provider via `backends`, `/ready` gated | If absent/not ready, `backends` uses standalone or CPU provider. |
 | Per-op model resources | Vrooli resource | no (`required:false`, on-demand) | generation, enhancement, analysis | on-demand spin-up, `/ready` gated, idle-shutdown by orchestrator | If not ready, fallback ladder or "install model" prompt. |
 | BYOK cloud providers | third-party | no (optional fallback tier) | backends fallback, models cost tracking | per-provider API + key (secret) | Used only as last tier; cost estimate required before use. |
@@ -48,11 +48,16 @@ Integration strategy is shared workflows > resource CLI > direct API.
 
 | Scenario | Status | Reason | Contract |
 |---|---|---|---|
-| system-monitor | required (hard prerequisite) | Hardware capability/capacity probe (built on `internal/hostinventory`) that `models` selection and `backends` fallback depend on; the probe endpoint must ship before image-tools AI ops land. | Capability/capacity probe call. |
 | palette-gen | optional (delegated) | image-tools delegates palette extraction to palette-gen rather than reimplementing it. | Scenario call for palette extraction. |
 | text-tools | boundary peer (no call) | Clear, non-overlapping boundary: image-tools owns image→text/OCR; text-tools owns document→text. No runtime dependency. | Documented ownership boundary. |
 | rich-media-studio | future consumer (P2) | Will compose image-tools via an embeddable UI component + stable contract (OT-P2-001). | Embeddable component + internal API contract. |
 | test-genie | future consumer (P2) | Will adopt the image-diff/visual-comparison capability (OT-P1-009) as its visual-regression backend (OT-P2-002). | image-diff capability contract. |
+
+Host hardware facts (OS/arch, CPU, memory, GPU/VRAM) are **not** a peer-scenario
+dependency: they are read from the root `vrooli` CLI (`vrooli host inventory --json`,
+the shared `internal/hostinventory` collector) through `packages/vrooli-cli-go`
+behind the image-tools `capabilities` seam. image-tools does not call or depend on
+system-monitor.
 
 ## Third-Party Services
 
@@ -70,7 +75,7 @@ Integration strategy is shared workflows > resource CLI > direct API.
 | Model download / disk pressure | download failure, checksum mismatch, low disk | Disk-space check + user confirmation before install; checksummed opt-in download; clear error on mismatch. | models install tests |
 | GPU absent / insufficient VRAM | host probe reports no fit | Fallback ladder: Local-CPU (guaranteed model), then BYOK; surface "needs ≥X GB VRAM" + time warning. | selector + fallback tests |
 | BYOK cost / availability | provider down or over budget | Pre-op cost estimate gates execution; user must accept; degrade gracefully if declined/unavailable. | cost-estimate + fallback tests |
-| NVIDIA-only GPU detection | AMD/Intel/Apple-Silicon host | GPU not detected today → CPU/BYOK path; AMD/Intel/Apple hardening deferred to system-monitor (OT-P2-003). | detection tests (NVIDIA path) |
+| NVIDIA-only GPU detection | AMD/Intel/Apple-Silicon host | GPU not detected today → CPU/BYOK path; AMD/Intel/Apple hardening lands in the platform `internal/hostinventory` collector (surfaced through the root CLI host-inventory contract) and is then consumed via the `capabilities` seam (OT-P2-003). | detection tests (NVIDIA path) |
 | Decompression bomb / oversized image | abnormal dimensions/ratio at ingestion | Ingestion-boundary guard rejects before processing. | ingestion-safety tests |
 | ComfyUI / model resource not ready | `/ready` not green | `backends` falls through to standalone/CPU provider; never blocks deterministic ops. | backends fallback tests |
 

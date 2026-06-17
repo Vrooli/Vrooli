@@ -411,7 +411,7 @@
       "io": {"notes": "Background_replace pipeline: BiRefNet soft-alpha cutout -> composite over new bg (Pillow alpha_composite). The model RMBG-2.0 is built on, without the license lock."},
       "capability_labels": {"nsfw_capable": false, "license": "MIT", "commercial_use": "yes", "commercial_use_notes": "Permissive (verified). The commercial-safe alternative to bria RMBG.", "base_model_lineage": "BiRefNet (ZhengPeng7)", "known_risks": "Full model is GPU-heavy on CPU; prefer lite variant on CPU."},
       "source": {"download_url": "https://github.com/ZhengPeng7/BiRefNet", "source_repo": "https://github.com/ZhengPeng7/BiRefNet", "docs_url": "https://github.com/ZhengPeng7/BiRefNet/blob/main/LICENSE", "update_source": "https://github.com/ZhengPeng7/BiRefNet", "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
-      "enabled": false
+      "enabled": true
     },
     {
       "id": "mobilesam",
