@@ -1008,6 +1008,43 @@
               "[TODO]"
             ]
           }
+        },
+        {
+          "path": "reference/model-registry.md",
+          "docType": "model-registry-reference",
+          "title": "Model Registry",
+          "aliases": [
+            "models",
+            "registry",
+            "model-catalog"
+          ],
+          "description": "Human catalog of the AI model registry seed: per-op defaults + quality tiers, licenses, sizes, download/update sources, and the do-not-ship blocklist",
+          "audience": [
+            "operators",
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "model-registry",
+            "model-catalog"
+          ],
+          "maturity": "active",
+          "requiredBy": [],
+          "completion": "optional",
+          "validation": {
+            "requiredHeadings": [
+              "Design rules baked into the seed",
+              "Backend engines (what the Go API shells out to)",
+              "Registry by operation",
+              "Keeping this current"
+            ],
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ],
+            "requiredLinks": [
+              "../../api/internal/models/registry.seed.json"
+            ]
+          }
         }
       ]
     },
