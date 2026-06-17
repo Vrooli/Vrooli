@@ -1,141 +1,85 @@
 # Unit Phase
 
 **ID**: `unit`
-**Timeout**: 60 seconds (configurable)
+**Timeout**: 15 minutes (configurable)
 **Optional**: No
 **Requires Runtime**: No
 
-The unit phase executes unit tests for all detected languages (Go, Node.js, Python) and collects coverage metrics. Tests run in isolation without external dependencies.
+The unit phase delegates test execution, coverage analysis, test architecture,
+test quality, and flake/runtime diagnostics to the **unit-health** scenario.
+After the unit-health hard cutover, Test Genie no longer embeds a native
+Go/Node/Python test runner or a separate `coverage` phase — `unit-health` owns
+test discovery (via Code Facts), bounded execution, coverage parsing, and
+provider-local test maturity, and Test Genie normalizes its findings into the
+shared maturity assessment contract.
 
-## What Gets Tested
+## How It Works
 
 ```mermaid
-graph TB
-    subgraph "Unit Phase"
-        DETECT[Detect Languages<br/>Go, Node, Python]
-
-        subgraph "Go Runner"
-            GO_TEST[go test ./...]
-            GO_COV[Coverage Report]
-            GO_REQ[REQ Tag Extraction]
-        end
-
-        subgraph "Node Runner"
-            NODE_TEST[pnpm test --run]
-            NODE_COV[Coverage Report]
-            NODE_REQ[Vitest Reporter]
-        end
-
-        subgraph "Python Runner"
-            PY_TEST[pytest]
-            PY_COV[Coverage Report]
-            PY_REQ[Marker Extraction]
-        end
-    end
-
-    DETECT --> GO_TEST
-    DETECT --> NODE_TEST
-    DETECT --> PY_TEST
-
-    GO_TEST --> GO_COV --> GO_REQ
-    NODE_TEST --> NODE_COV --> NODE_REQ
-    PY_TEST --> PY_COV --> PY_REQ
-
-    GO_REQ --> RESULTS[Phase Results]
-    NODE_REQ --> RESULTS
-    PY_REQ --> RESULTS
-
-    style GO_TEST fill:#00ADD8
-    style NODE_TEST fill:#729B1B
-    style PY_TEST fill:#3776AB
-    style RESULTS fill:#c8e6c9
+graph LR
+    UNIT[Test Genie<br/>unit phase] -->|shells| UH[unit-health validate scenario NAME --execution --json]
+    UH -->|surfaces & parse units| CF[Code Facts]
+    UH -->|assessment + findings| UNIT
+    UNIT -->|coverage findings| COV[FINDING_SOURCE_COVERAGE channel]
+    UNIT -->|local maturity| PTR[unit phase pointer]
 ```
 
-## Language Detection
+The phase invokes:
 
-| Language | Detection (walks entire scenario) | What Runs |
-|----------|-----------------------------------|------------|
-| Go | Any `go.mod` (e.g., `api/`, extra libs) | `go test ./...` per workspace |
-| Node.js | Any `package.json` **with** `test` script | `<pkg-manager> test` per workspace |
-| Python | Dir with `pyproject.toml` / `requirements.txt` **and** `test_*.py` | `pytest` (fallback `python -m unittest discover`) per workspace |
+```bash
+unit-health validate scenario <name> --execution --json
+```
 
-## Coverage Thresholds
+and maps the result:
 
-| Level | Default | Behavior |
-|-------|---------|----------|
-| Pass | ≥80% | Phase passes |
-| Warning | 70-80% | Phase passes with warning |
-| Error | <70% | Phase fails |
+- **Coverage-category findings** are emitted into the `FINDING_SOURCE_COVERAGE`
+  channel so they continue to feed the ecosystem-manager `coverage` dimension
+  (the retired `coverage` phase's responsibility now lives here).
+- **Test execution, architecture, quality, and diagnostics findings** surface as
+  observations; the `unit` phase maps to the `tests` dimension.
+- The provider's `common.v1.MaturityAssessment` is validated (it must declare
+  `provider: unit-health`, `phase: unit`) and its local maturity summary is
+  written to the phase pointer.
+
+## Failure Behavior
+
+| Condition | Result |
+|-----------|--------|
+| unit-health CLI/API unreachable | Phase fails (`missing_dependency`) — it is a required provider |
+| Provider returns error findings / `status: failed` | Phase fails (`test_failure`) |
+| Missing/malformed assessment | Phase fails (`maturity_contract`) |
+| Warning/info findings only | Phase passes |
+
+Skip the phase locally with `TEST_GENIE_SKIP_UNIT=1` (e.g. in fast inner loops
+that don't need the provider).
 
 ## Requirement Tagging
 
-Tag tests with `[REQ:ID]` to track requirement coverage:
+Tests still carry `[REQ:ID]` tags; unit-health's quality analyzer reports
+untagged requirements. Tag tests so requirement coverage stays traceable:
 
-### Go
 ```go
 func TestCreateProject(t *testing.T) {
-    t.Run("creates project [REQ:MY-PROJECT-CREATE]", func(t *testing.T) {
-        // Test implementation
-    })
+    t.Run("creates project [REQ:MY-PROJECT-CREATE]", func(t *testing.T) { /* ... */ })
 }
 ```
 
-### TypeScript (Vitest)
 ```typescript
 describe('projectStore [REQ:MY-PROJECT-CRUD]', () => {
     it('creates project', () => { /* ... */ });
 });
 ```
 
-### Python
-```python
-@pytest.mark.requirement("MY-PROJECT-CREATE")
-def test_create_project():
-    pass
-```
+## Coverage Thresholds & Canonical Frameworks
 
-## Exit Codes
-
-| Code | Meaning |
-|------|---------|
-| 0 | All tests pass, coverage met |
-| 1 | Test failures or coverage below error threshold |
-
-## Workspace Discovery & Reporting
-
-- The unit phase now **enumerates every unit-testable workspace** across the scenario (e.g., extra Playwright drivers, helpers outside `api/`/`ui/`).
-- Before running, it emits a workspace list showing the command it will use (per language).
-- Languages that aren't detected are no longer noisy in the output; missing test scripts or missing test files show up as warnings under that language instead.
-- The runner continues through all languages/workspaces even if one fails, then reports the first failure alongside the full summary.
-
-## Configuration
-
-```json
-{
-  "phases": {
-    "unit": {
-      "timeout": 120,
-      "coverageWarn": 85,
-      "coverageError": 75,
-      "go": {
-        "race": true,
-        "packages": ["./..."]
-      },
-      "node": {
-        "framework": "vitest"
-      }
-    }
-  }
-}
-```
-
-## Related Documentation
-
-- [Scenario Unit Testing](scenario-unit-testing.md) - Writing effective unit tests
-- [Test Runners](test-runners.md) - Language-specific runner details
+Coverage thresholds, canonical test frameworks (Go `go test`, React/Vite
+`vitest`, Python `pytest`), and degraded/noncanonical detection are owned by
+unit-health and documented there. Shell syntax validation is **not** part of
+the unit phase — it belongs to static quality (Quality Health).
 
 ## See Also
 
-- [Phases Overview](../README.md) - All phases
-- [Dependencies Phase](../dependencies/README.md) - Previous phase
-- [Integration Phase](../integration/README.md) - Next phase
+- [Phases Overview](../README.md) — All phases
+- [Dependencies Phase](../dependencies/README.md) — Previous phase
+- [Integration Phase](../integration/README.md) — Next phase
+- `unit-health` scenario — the test-maturity provider this phase delegates to

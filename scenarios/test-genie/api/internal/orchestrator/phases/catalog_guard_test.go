@@ -129,7 +129,10 @@ func TestFindingSourceCoversEveryProducingPhase(t *testing.T) {
 		Dependencies: architecturev1.FindingSource_FINDING_SOURCE_DEPENDENCY,
 		Docs:         architecturev1.FindingSource_FINDING_SOURCE_DOCS,
 		Business:     architecturev1.FindingSource_FINDING_SOURCE_BUSINESS,
-		Coverage:     architecturev1.FindingSource_FINDING_SOURCE_COVERAGE,
+		// After the hard cutover the unit phase delegates to unit-health and
+		// emits coverage findings into the COVERAGE channel (the separate
+		// `coverage` phase is retired), so it is now a COVERAGE producer.
+		Unit:         architecturev1.FindingSource_FINDING_SOURCE_COVERAGE,
 		Tidiness:     architecturev1.FindingSource_FINDING_SOURCE_TIDINESS,
 		Security:     architecturev1.FindingSource_FINDING_SOURCE_SECURITY,
 		Measures:     architecturev1.FindingSource_FINDING_SOURCE_MEASURES,

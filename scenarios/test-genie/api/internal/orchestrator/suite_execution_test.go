@@ -180,6 +180,10 @@ func stubRuntimePhaseRunners(orchestrator *SuiteOrchestrator) {
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Quality, Runner: noOp, Optional: false, Weight: 60})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Performance, Runner: noOp, Optional: true, Weight: 60})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Smoke, Runner: noOp, Optional: true, Weight: 70})
+	// unit delegates to the unit-health binary against a real scenario after the
+	// hard cutover; stub it (preserving its weight-80 position) so orchestration
+	// tests don't depend on that external tool.
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Unit, Runner: noOp, Optional: false, Weight: 80})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Integration, Runner: noOp, Weight: 90})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Playbooks, Runner: noOp, Weight: 100})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Security, Runner: noOp, Optional: true, Weight: 140})

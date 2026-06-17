@@ -120,12 +120,11 @@ test-genie execute my-scenario --preset comprehensive
 | Quality | Static quality contracts via quality-health | 120s |
 | Docs | Validates Markdown, mermaid, links | 60s |
 | Smoke | UI handshake / iframe-bridge | 90s |
-| Unit | Runs unit tests | 60s |
+| Unit | Delegates test execution, coverage, and test maturity to unit-health | 15m |
 | Integration | Full API/UI testing | 120s |
 | Playbooks | BAS browser automation | 120s |
 | Business | End-to-end workflows | 180s |
 | Performance | Benchmarks and load tests | 60s |
-| Coverage | Parses coverage artifacts | 30s |
 | Tidiness | Delegates file/function quality checks | 120s |
 | Security | Delegates security posture validation | 180s |
 | Measures | Delegates measures coverage validation | 180s |

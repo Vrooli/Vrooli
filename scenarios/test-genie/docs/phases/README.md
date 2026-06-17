@@ -21,7 +21,7 @@ graph TB
     subgraph "Runtime Phases (Scenario Running)"
         P8[8. Performance<br/>Build benchmarks, Lighthouse]
         P9[9. Smoke<br/>UI load, iframe-bridge]
-        P10[10. Unit<br/>Go, Node, Python]
+        P10[10. Unit<br/>delegates to unit-health]
         P11[11. Integration<br/>API, CLI, BATS]
         P12[12. Playbooks<br/>BAS browser automation]
         P13[13. Business<br/>Requirements validation]
@@ -61,7 +61,7 @@ Listed in catalog (execution) order:
 | [Docs](docs/README.md) | 60s | No | No | Validate Markdown, mermaid, links, portability |
 | [Performance](performance/README.md) | 60s | Yes | Yes | Build benchmarks, Lighthouse audits |
 | [Smoke](smoke/README.md) | 90s | Yes | Yes | UI load and iframe-bridge validation |
-| [Unit](unit/README.md) | 60s | No | No | Run unit tests (Go, Node, Python) |
+| [Unit](unit/README.md) | 15m | No | No | Delegates test execution, coverage, and test maturity to unit-health |
 | [Integration](integration/README.md) | 120s | Yes | Yes | Test API, CLI, component interactions |
 | [Playbooks](playbooks/README.md) | 120s | Yes | Yes | Execute BAS browser automation |
 | [Business](business/README.md) | 180s | Yes | Yes | Validate requirements coverage |
@@ -132,9 +132,7 @@ Override phase settings in `.vrooli/testing.json`:
 {
   "phases": {
     "unit": {
-      "timeout": 120,
-      "coverageWarn": 85,
-      "coverageError": 75
+      "timeout": 900
     },
     "performance": {
       "enabled": false
@@ -168,7 +166,7 @@ Each phase has its own documentation folder with detailed guides:
 - **[Docs](docs/README.md)** - Markdown, mermaid, link, and portability validation
 - **[Performance](performance/README.md)** - Build benchmarks, Lighthouse audits
 - **[Smoke](smoke/README.md)** - UI load validation and iframe-bridge testing
-- **[Unit](unit/README.md)** - Test runners, coverage, requirement tagging
+- **[Unit](unit/README.md)** - Delegated test execution, coverage, and test maturity (unit-health)
 - **[Integration](integration/README.md)** - CLI testing with BATS, API health checks
 - **[Playbooks](playbooks/README.md)** - BAS browser automation workflows
 - **[Business](business/README.md)** - Requirements validation and sync

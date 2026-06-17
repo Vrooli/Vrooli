@@ -120,9 +120,11 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		},
 	})
 	register(Spec{
-		Name:        Unit,
-		Runner:      runUnitPhase,
-		Description: "Executes Go unit tests and shell syntax validation for local entrypoints.",
+		Name:           Unit,
+		Runner:         runUnitPhase,
+		DefaultTimeout: 15 * time.Minute,
+		Description:    "Delegates test execution, coverage, test architecture, test quality, and flake/runtime diagnostics to the unit-health scenario, mapping coverage findings into the FINDING_SOURCE_COVERAGE channel that feeds the ecosystem-manager `coverage` dimension.",
+		FindingSource:  architecturev1.FindingSource_FINDING_SOURCE_COVERAGE,
 	})
 	register(Spec{
 		Name:         Integration,
@@ -146,14 +148,6 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Runner:        runBusinessPhase,
 		Description:   "Audits requirements modules to guarantee operational targets stay mapped.",
 		FindingSource: architecturev1.FindingSource_FINDING_SOURCE_BUSINESS,
-	})
-	register(Spec{
-		Name:           Coverage,
-		Runner:         runCoveragePhase,
-		Optional:       true,
-		DefaultTimeout: 30 * time.Second,
-		Description:    "Parses Go coverage profiles and Node LCOV reports and flags targets below the coverage threshold (source=coverage).",
-		FindingSource:  architecturev1.FindingSource_FINDING_SOURCE_COVERAGE,
 	})
 	register(Spec{
 		Name:           Tidiness,

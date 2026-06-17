@@ -31,7 +31,6 @@ const (
 	Playbooks    Name = "playbooks"
 	Business     Name = "business"
 	Performance  Name = "performance"
-	Coverage     Name = "coverage"
 	Tidiness     Name = "tidiness"
 	Security     Name = "security"
 	Measures     Name = "measures"
@@ -190,7 +189,7 @@ type Definition struct {
 	Capabilities runnability.PhaseCapabilities
 	// FindingSource is the architecture-finding channel this phase emits into
 	// (FINDING_SOURCE_UNSPECIFIED for phases that produce no findings, e.g.
-	// unit/integration). Carried from the catalog Spec so the orchestrator
+	// integration). Carried from the catalog Spec so the orchestrator
 	// can stamp the per-phase findingSource token onto each ExecutionResult.
 	FindingSource architecturev1.FindingSource
 }
@@ -213,7 +212,7 @@ type Spec struct {
 	// manifest; the anti-drift guard asserts surface-bearing phases declare one.
 	Capabilities runnability.PhaseCapabilities
 	// FindingSource is the architecture-finding channel this phase emits into.
-	// Leave UNSPECIFIED for phases that produce no findings (unit, integration,
+	// Leave UNSPECIFIED for phases that produce no findings (integration,
 	// smoke, performance, playbooks). The orchestrator
 	// stamps the lower-case token onto each ExecutionResult so a downstream
 	// campaign reaudit can derive which sources a partial run actually covered.

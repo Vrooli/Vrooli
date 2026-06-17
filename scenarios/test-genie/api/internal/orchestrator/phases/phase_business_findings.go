@@ -15,6 +15,18 @@ import (
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
 
+// relTo renders path relative to base, falling back to the original path when
+// the two share no common root. (Previously lived in the retired coverage
+// phase; relocated here to its sole remaining caller after the unit-health
+// hard cutover.)
+func relTo(base, path string) string {
+	rel, err := filepath.Rel(base, path)
+	if err != nil {
+		return path
+	}
+	return rel
+}
+
 // starterTemplateTag marks requirements that still carry the scaffolded
 // starter registry (the scenario creator seeds requirements tagged this way;
 // they are placeholders, not real requirements).
