@@ -346,11 +346,31 @@ const literalSelectors = {
     switcher: "theme-switcher",
     select: "theme-select",
   },
+  editor: {
+    card: "editor-card",
+    loading: "editor-loading",
+    error: "editor-error",
+    dropzone: "editor-dropzone",
+    fileInput: "editor-file-input",
+    operationSelect: "editor-operation-select",
+    overlayInput: "editor-overlay-input",
+    paramsForm: "editor-params-form",
+    runButton: "editor-run-button",
+    original: "editor-original",
+    result: "editor-result",
+    resultImage: "editor-result-image",
+    resultMeta: "editor-result-meta",
+    metadataOutput: "editor-metadata-output",
+    downloadLink: "editor-download-link",
+    empty: "editor-empty",
+    runError: "editor-run-error",
+  },
   pages: {
     dashboard: "page-dashboard",
     jobs: "page-jobs",
     models: "page-models",
     settings: "page-settings",
+    editor: "page-editor",
   },
   errorBoundary: {
     root: "error-boundary-root",
@@ -378,12 +398,19 @@ const dynamicSelectorDefinitions = {
     sidebarLink: defineDynamicSelector({
       description: "Sidebar navigation link by canonical nav key",
       testIdPattern: "layout-sidebar-link-${key}",
-      params: { key: { type: "enum", values: ["dashboard", "jobs", "models", "settings"] as const } },
+      params: { key: { type: "enum", values: ["dashboard", "editor", "jobs", "models", "settings"] as const } },
     }),
     bottomNavLink: defineDynamicSelector({
       description: "Bottom-nav link by canonical nav key",
       testIdPattern: "layout-bottom-nav-link-${key}",
-      params: { key: { type: "enum", values: ["dashboard", "jobs", "models", "settings"] as const } },
+      params: { key: { type: "enum", values: ["dashboard", "editor", "jobs", "models", "settings"] as const } },
+    }),
+  },
+  editor: {
+    fieldInput: defineDynamicSelector({
+      description: "Editor params-form input by proto field name",
+      testIdPattern: "editor-field-${name}",
+      params: { name: { type: "string" } },
     }),
   },
   settingsPage: {

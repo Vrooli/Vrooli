@@ -1,0 +1,112 @@
+{
+  "commands": [
+    {
+      "name": "configure",
+      "description": "View or update CLI settings (api_base, token)"
+    },
+    {
+      "name": "jobs cancel",
+      "description": "Cancel a running or queued job"
+    },
+    {
+      "name": "jobs get",
+      "description": "Get a durable job by id"
+    },
+    {
+      "name": "jobs list",
+      "description": "List recent jobs, newest first"
+    },
+    {
+      "name": "jobs wait",
+      "description": "Block once until a job is terminal, then print it (no polling)"
+    },
+    {
+      "name": "jobs watch",
+      "description": "Stream a job's progress until it reaches a terminal state"
+    },
+    {
+      "name": "models blocklist",
+      "description": "List license-encumbered models excluded from the catalog"
+    },
+    {
+      "name": "models enable",
+      "description": "Enable or disable a model (--disable to turn off); persisted overlay over the seed catalog"
+    },
+    {
+      "name": "models get",
+      "description": "Get a model registry entry by id"
+    },
+    {
+      "name": "models list",
+      "description": "List model registry entries (--operation OP to filter)"
+    },
+    {
+      "name": "models operations",
+      "description": "List the registry operation vocabulary"
+    },
+    {
+      "name": "models select",
+      "description": "Preview which model would run for an operation on this host (--override ID)"
+    },
+    {
+      "name": "ops adjust",
+      "description": "Adjust brightness/contrast/gamma/saturation/hue"
+    },
+    {
+      "name": "ops canvas",
+      "description": "Pad/extend onto a background canvas"
+    },
+    {
+      "name": "ops compress",
+      "description": "Re-encode at a quality or to a target size"
+    },
+    {
+      "name": "ops convert",
+      "description": "Convert to another image format"
+    },
+    {
+      "name": "ops crop",
+      "description": "Crop a rectangle or an anchored region"
+    },
+    {
+      "name": "ops deskew",
+      "description": "Auto-straighten a skewed scan/document"
+    },
+    {
+      "name": "ops filter",
+      "description": "Apply grayscale/sepia/invert/blur/sharpen"
+    },
+    {
+      "name": "ops flip",
+      "description": "Mirror horizontally or vertically"
+    },
+    {
+      "name": "ops list",
+      "description": "List deterministic operations and supported formats"
+    },
+    {
+      "name": "ops metadata",
+      "description": "Read, strip, or auto-orient metadata"
+    },
+    {
+      "name": "ops overlay",
+      "description": "Composite a text or image watermark"
+    },
+    {
+      "name": "ops resize",
+      "description": "Resize an image (fit/fill/stretch)"
+    },
+    {
+      "name": "ops rotate",
+      "description": "Rotate by an angle (90° steps lossless)"
+    },
+    {
+      "name": "ops thumbnail",
+      "description": "Produce a fill-cropped thumbnail"
+    },
+    {
+      "name": "status",
+      "description": "Check API health"
+    }
+  ]
+}

@@ -8,6 +8,7 @@
     "bottomNavLabel": "Primary navigation (mobile)",
     "nav": {
       "dashboard": "Dashboard",
+      "editor": "Editor",
       "jobs": "Jobs",
       "models": "Models",
       "settings": "Settings"
@@ -37,6 +38,9 @@
       "title": "Settings",
       "themeHeading": "Appearance",
       "localeHeading": "Language"
+    },
+    "editor": {
+      "title": "Editor"
     }
   },
   "health": {
@@ -88,6 +92,53 @@
     "disabledLabel": "Disabled",
     "enable": "Enable",
     "disable": "Disable"
+  },
+  "editor": {
+    "title": "Image editor",
+    "loading": "Loading operations…",
+    "error": "Unable to load operations.",
+    "uploadLabel": "Source image",
+    "uploadHint": "Drag an image here, or choose a file.",
+    "operationLabel": "Operation",
+    "overlayLabel": "Watermark image",
+    "run": "Run",
+    "running": "Running…",
+    "empty": "Upload an image and run an operation to see the result.",
+    "originalLabel": "Original",
+    "resultLabel": "Result",
+    "resultMeta": "{{width}}×{{height}} · {{format}}",
+    "metadataLabel": "Metadata",
+    "download": "Download result",
+    "field": {
+      "width": "Width",
+      "height": "Height",
+      "fit": "Fit",
+      "gravity": "Gravity",
+      "x": "X",
+      "y": "Y",
+      "angle": "Angle",
+      "background": "Background",
+      "axis": "Axis",
+      "brightness": "Brightness",
+      "contrast": "Contrast",
+      "gamma": "Gamma",
+      "saturation": "Saturation",
+      "hue": "Hue",
+      "filter": "Filter",
+      "amount": "Amount",
+      "format": "Format",
+      "quality": "Quality",
+      "lossless": "Lossless",
+      "targetBytes": "Target bytes",
+      "text": "Text",
+      "position": "Position",
+      "opacity": "Opacity",
+      "color": "Color",
+      "fontSize": "Font size",
+      "stripAll": "Strip all",
+      "stripGps": "Strip GPS",
+      "autoOrient": "Auto-orient"
+    }
   },
   "errors": {
     "canceled": "Operation canceled.",

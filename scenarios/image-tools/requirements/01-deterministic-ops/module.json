@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-16T22:54:45-04:00"
+    "last_validated_at": "2026-06-17T00:47:48-04:00"
   },
   "requirements": [
     {
       "id": "IMG-P0-001",
       "title": "Deterministic Editor Ops",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-001",
       "category": "core",
       "description": "All deterministic editing ops (resize, crop, rotate/flip/straighten/deskew, format convert, compress/optimize incl. target file size, adjustments, filters/effects, canvas, composite/overlay, thumbnail, metadata) run zero-download and instant from the CLI with no UI and no ComfyUI.",
@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/internal/ops/*_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Each op transforms pixels/metadata correctly with deterministic output"
         },
         {

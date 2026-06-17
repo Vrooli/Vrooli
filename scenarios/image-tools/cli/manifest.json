@@ -144,6 +144,22 @@
           }
         }
       ]
+    },
+    {
+      "name": "ops",
+      "description": "Run deterministic image operations (resize, crop, convert, …)",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List deterministic operations and supported formats",
+          "binding": { "kind": "connect-rpc", "service": "OpsService", "method": "ListOperations" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
     }
   ],
   "omitted": [

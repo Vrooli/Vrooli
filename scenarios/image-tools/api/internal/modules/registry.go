@@ -25,10 +25,12 @@ import (
 	healthH "image-tools/handlers/health"
 	jobsH "image-tools/handlers/jobs"
 	modelsH "image-tools/handlers/models"
+	opsH "image-tools/handlers/ops"
 	localdb "image-tools/internal/database"
 
 	jobsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/jobs"
 	modelsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/models"
+	opsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ops"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -40,6 +42,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, healthH.Endpoints...)
 	out = append(out, jobsH.Endpoints...)
 	out = append(out, modelsH.Endpoints...)
+	out = append(out, opsH.Endpoints...)
 	return out
 }
 
@@ -68,6 +71,7 @@ func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "jobs", File: jobsv1.File_image_tools_v1_jobs_jobs_proto},
 		{Module: "models", File: modelsv1.File_image_tools_v1_models_models_proto},
+		{Module: "ops", File: opsv1.File_image_tools_v1_ops_ops_proto},
 	}
 }
 
@@ -84,5 +88,6 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(jobsH.Schema),
 		apidb.SchemaProviderFunc(modelsH.Schema),
+		apidb.SchemaProviderFunc(opsH.Schema),
 	}
 }

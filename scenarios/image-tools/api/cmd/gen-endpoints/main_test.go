@@ -11,27 +11,47 @@ import (
 )
 
 // TestRun_ProducesValidJSON exercises the codegen end-to-end: writes
-// the manifest to a temp file, reads it back, asserts it's valid JSON
-// with the canonical envelope shape.
+// the generated CLI-commands artifact to a temp file, runs the generator,
+// reads the result back, and asserts it's valid JSON with the canonical
+// envelope shape.
 func TestRun_ProducesValidJSON(t *testing.T) {
 	output := filepath.Join(t.TempDir(), "endpoints.json")
-	seed := filepath.Join(t.TempDir(), "seed.json")
-	writeSeed(t, seed, []CLICommand{
-		{Name: "status", Description: "Health check", EndpointID: "health"},
-		{Name: "jobs get", Description: "Get a job", EndpointID: "jobs_get"},
-		{Name: "jobs wait", Description: "Wait for a job", EndpointID: "jobs_wait"},
-		{Name: "jobs list", Description: "List jobs", EndpointID: "jobs_list"},
-		{Name: "jobs cancel", Description: "Cancel a job", EndpointID: "jobs_cancel"},
-		{Name: "jobs watch", Description: "Watch a job", EndpointID: "jobs_watch"},
-		{Name: "models list", Description: "List models", EndpointID: "models_list"},
-		{Name: "models get", Description: "Get a model", EndpointID: "models_get"},
-		{Name: "models operations", Description: "List operations", EndpointID: "models_operations"},
-		{Name: "models select", Description: "Preview selection", EndpointID: "models_select"},
-		{Name: "models enable", Description: "Enable/disable a model", EndpointID: "models_set_enabled"},
-		{Name: "models blocklist", Description: "List blocklist", EndpointID: "models_blocklist"},
+	cliCommands := filepath.Join(t.TempDir(), "cli-commands.gen.json")
+	// The fixture mirrors this scenario's real registered command tree
+	// (cli/cli-commands.gen.json): status + jobs/models/ops domains. The notes
+	// reference domain was deleted in Phase 1, so a notes-based fixture would not
+	// cover the jobs/models/ops endpoints crossCheck validates against.
+	writeCLICommands(t, cliCommands, []registeredCommand{
+		{Name: "configure", Description: "View or update CLI settings"},
+		{Name: "status", Description: "Check API health"},
+		{Name: "jobs get", Description: "Get a job"},
+		{Name: "jobs wait", Description: "Wait for a job"},
+		{Name: "jobs list", Description: "List jobs"},
+		{Name: "jobs cancel", Description: "Cancel a job"},
+		{Name: "jobs watch", Description: "Watch a job"},
+		{Name: "models list", Description: "List models"},
+		{Name: "models get", Description: "Get a model"},
+		{Name: "models operations", Description: "List operations"},
+		{Name: "models select", Description: "Preview selection"},
+		{Name: "models enable", Description: "Enable/disable a model"},
+		{Name: "models blocklist", Description: "List blocklist"},
+		{Name: "ops list", Description: "List operations"},
+		{Name: "ops resize", Description: "Resize"},
+		{Name: "ops crop", Description: "Crop"},
+		{Name: "ops rotate", Description: "Rotate"},
+		{Name: "ops flip", Description: "Flip"},
+		{Name: "ops deskew", Description: "Deskew"},
+		{Name: "ops thumbnail", Description: "Thumbnail"},
+		{Name: "ops canvas", Description: "Canvas"},
+		{Name: "ops adjust", Description: "Adjust"},
+		{Name: "ops filter", Description: "Filter"},
+		{Name: "ops convert", Description: "Convert"},
+		{Name: "ops compress", Description: "Compress"},
+		{Name: "ops overlay", Description: "Overlay"},
+		{Name: "ops metadata", Description: "Metadata"},
 	})
 
-	if err := run(output, seed); err != nil {
+	if err := run(output, cliCommands); err != nil {
 		t.Fatalf("run: %v", err)
 	}
 
@@ -59,8 +79,17 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	if len(got.Endpoints) == 0 {
 		t.Error("manifest must include at least one endpoint")
 	}
-	if len(got.CLICommands) != 12 {
-		t.Errorf("cli_commands count = %d, want 12", len(got.CLICommands))
+	// cli_commands[] mirrors the registered tree (membership and order from the
+	// artifact), so its length equals the artifact's command count.
+	if len(got.CLICommands) != 27 {
+		t.Errorf("cli_commands count = %d, want 27", len(got.CLICommands))
+	}
+	// endpoint_id is resolved from the matching endpoint; configure has no RPC
+	// so it must carry an empty endpoint_id.
+	for _, c := range got.CLICommands {
+		if c.Name == "configure" && c.EndpointID != "" {
+			t.Errorf("configure endpoint_id = %q, want empty", c.EndpointID)
+		}
 	}
 
 	// Trailing newline so editors don't get angry about diff noise.
@@ -69,10 +98,10 @@ func TestRun_ProducesValidJSON(t *testing.T) {
 	}
 }
 
-// TestCrossCheck_FailsOnUnseededCommand pins the codegen-time guard:
-// an endpoint whose cli_mapping.command isn't in cli_commands_seed
+// TestCrossCheck_FailsOnUnregisteredCommand pins the codegen-time guard:
+// an endpoint whose cli_mapping.command isn't a registered CLI command
 // fails fast with a message that names the missing entry.
-func TestCrossCheck_FailsOnUnseededCommand(t *testing.T) {
+func TestCrossCheck_FailsOnUnregisteredCommand(t *testing.T) {
 	endpoints := []module.EndpointDescriptor{
 		{
 			ID: "lonely",
@@ -81,11 +110,11 @@ func TestCrossCheck_FailsOnUnseededCommand(t *testing.T) {
 			},
 		},
 	}
-	commands := []CLICommand{} // empty seed
+	registered := []registeredCommand{} // empty tree
 
-	err := crossCheck(endpoints, commands)
+	err := crossCheck(endpoints, registered)
 	if err == nil {
-		t.Fatal("expected crossCheck to fail when cli_commands seed is missing the entry")
+		t.Fatal("expected crossCheck to fail when the CLI tree is missing the command")
 	}
 	if !strings.Contains(err.Error(), "lonely subcommand") {
 		t.Errorf("error %q must name the missing command", err.Error())
@@ -95,29 +124,58 @@ func TestCrossCheck_FailsOnUnseededCommand(t *testing.T) {
 	}
 }
 
-// TestCrossCheck_PassesWhenSeeded confirms the happy path.
-func TestCrossCheck_PassesWhenSeeded(t *testing.T) {
+// TestCrossCheck_PassesWhenRegistered confirms the happy path, including
+// alias resolution.
+func TestCrossCheck_PassesWhenRegistered(t *testing.T) {
 	endpoints := []module.EndpointDescriptor{
 		{ID: "x", CLIMapping: &module.CLIMapping{Command: "image-tools x"}},
-		{ID: "y_no_cli"}, // no CLIMapping — must be allowed
+		{ID: "y_alias", CLIMapping: &module.CLIMapping{Command: "image-tools notes ll"}},
+		{ID: "z_no_cli"}, // no CLIMapping — must be allowed
 	}
-	commands := []CLICommand{{Name: "x", EndpointID: "x"}}
+	registered := []registeredCommand{
+		{Name: "x"},
+		{Name: "notes list", Aliases: []string{"notes ll"}},
+	}
 
-	if err := crossCheck(endpoints, commands); err != nil {
+	if err := crossCheck(endpoints, registered); err != nil {
 		t.Errorf("expected pass; got %v", err)
 	}
 }
 
+// TestBuildCLICommands_ResolvesEndpointIDs confirms membership/order follow
+// the registered tree and endpoint_id is matched from the endpoints.
+func TestBuildCLICommands_ResolvesEndpointIDs(t *testing.T) {
+	endpoints := []module.EndpointDescriptor{
+		{ID: "health", CLIMapping: &module.CLIMapping{Command: "image-tools status"}},
+		{ID: "notes_list", CLIMapping: &module.CLIMapping{Command: "image-tools notes list"}},
+	}
+	registered := []registeredCommand{
+		{Name: "configure"},
+		{Name: "notes list"},
+		{Name: "status"},
+	}
+	got := buildCLICommands(endpoints, registered)
+	if len(got) != 3 {
+		t.Fatalf("expected 3 cli_commands, got %d", len(got))
+	}
+	want := map[string]string{"configure": "", "notes list": "notes_list", "status": "health"}
+	for _, c := range got {
+		if want[c.Name] != c.EndpointID {
+			t.Errorf("%s endpoint_id = %q, want %q", c.Name, c.EndpointID, want[c.Name])
+		}
+	}
+}
+
 // TestStripBinaryPrefix is the smallest unit on the command-name
-// normalisation step: the endpoint's "image-tools models list"
-// must compare against the seed's "models list".
+// normalisation step: the endpoint's "image-tools notes list"
+// must compare against the artifact's "notes list".
 func TestStripBinaryPrefix(t *testing.T) {
 	cases := []struct {
 		in   string
 		want string
 	}{
 		{in: "image-tools status", want: "status"},
-		{in: "image-tools models list", want: "models list"},
+		{in: "image-tools notes list", want: "notes list"},
 		{in: "already-stripped", want: "already-stripped"},
 		{in: "image-tools", want: "image-tools"}, // no trailing space → preserved
 	}
@@ -128,13 +186,13 @@ func TestStripBinaryPrefix(t *testing.T) {
 	}
 }
 
-func writeSeed(t *testing.T, path string, commands []CLICommand) {
+func writeCLICommands(t *testing.T, path string, commands []registeredCommand) {
 	t.Helper()
-	body, err := json.MarshalIndent(seedFile{CLICommands: commands}, "", "  ")
+	body, err := json.MarshalIndent(cliCommandsArtifact{Commands: commands}, "", "  ")
 	if err != nil {
-		t.Fatalf("marshal seed: %v", err)
+		t.Fatalf("marshal cli commands: %v", err)
 	}
 	if err := os.WriteFile(path, body, 0o644); err != nil {
-		t.Fatalf("write seed: %v", err)
+		t.Fatalf("write cli commands: %v", err)
 	}
 }

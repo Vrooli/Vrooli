@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-16T22:54:45-04:00"
+    "last_validated_at": "2026-06-17T00:47:48-04:00"
   },
   "requirements": [
     {
       "id": "IMG-P0-004",
       "title": "Core Analysis",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
       "category": "core",
       "description": "OCR/text-extraction, NSFW/safety classification (standalone op + configurable auto-scan of generated output), and image info/probe run from CLI/API with no GPU requirement.",
@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/internal/analysis/analysis_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "OCR, NSFW classify, and probe return structured results"
         },
         {

@@ -1,0 +1,60 @@
+{
+  "metadata": {
+    "name": "editor-lists-operations",
+    "description": "Smoke proof for the deterministic-ops vertical slice (req IMG-P0-001): navigates to the Editor page and asserts the operation picker is populated with the deterministic operations. This exercises the full live path — UI → OpsService.ListOperations (Connect-RPC) → the internal/ops registry — so a broken discovery RPC, an unmounted ops module, or a UI that fails to render the picker all fail here. The op execution path itself (multipart run edge) is covered by api/handlers/ops/rest_test.go and the headless CLI acceptance in docs/internal/TESTING.md.",
+    "requirement": "IMG-P0-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "purpose": "deterministic-ops-discovery"
+    },
+    "execution_mode": "read_only"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-editor",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "@scenario/self",
+          "scenario_path": "/editor",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Navigate to the Editor page" }
+      }
+    },
+    {
+      "id": "wait-operation-select",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/editor.operationSelect",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Operation picker visible" }
+      }
+    },
+    {
+      "id": "assert-operations-listed",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/editor.operationSelect",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": { "stringValue": "resize" },
+          "case_sensitive": true,
+          "timeout_ms": 10000,
+          "failure_message": "Operation picker does not list 'resize' — OpsService.ListOperations did not reach the UI (check the ops module is mounted in main.go, the OpsService handler is registered, and ui/src/api/ops.ts targets the right transport)."
+        },
+        "metadata": { "label": "Assert the deterministic op catalog is rendered (proves discovery end-to-end)" }
+      }
+    }
+  ]
+}

@@ -146,6 +146,49 @@ ergonomics. Captured so the next scenario author doesn't re-discover it.
 
 **Refs:** prd-control-tower CLI; `requirements/index.json`.
 
+### 2026-06-17 — metadata `strip-gps` removes ALL metadata in v1 (privacy-safe superset)
+
+**Symptom:** `image-tools ops metadata --strip-gps` and `--strip-all` behave
+identically: both produce an output with no EXIF/IPTC/XMP at all, not just GPS
+removed.
+
+**Root cause:** Selective GPS-IFD removal that preserves other EXIF requires
+rebuilding the EXIF block (dsoprea/go-exif IFD builder). v1 implements strip by
+re-encoding through Go's encoders, which write no metadata — so GPS is
+definitely gone, but so is everything else.
+
+**Workaround:** None needed for the privacy goal (location IS removed). Callers
+who must preserve non-GPS tags should not strip in v1.
+
+**Real fix:** Surgically rebuild EXIF minus the GPS IFD via the go-exif builder
+and re-embed it; flip this entry to resolved. Tracked for a later enhancement.
+
+**Owner:** unassigned.
+
+**Refs:** `api/internal/ops/metadata.go` (`stripMetadata`); DECISIONS.md.
+
+### 2026-06-17 — Runtime op-latency measures substrate not yet mounted
+
+**Symptom:** The `/measures` substrate (op latency p50/p95, throughput,
+queue-wait, fallback-tier usage) named in the implementation plan is not yet
+served; deterministic ops record durable jobs but emit no runtime metrics.
+
+**Root cause:** Deliberately deferred (Phase 1 decision): mounting an empty
+measures substrate is dead scaffolding. Deterministic ops are instant, so
+latency percentiles are far more meaningful once heavy AI ops land (Phase 3).
+The manifest `measure` (semantic-query) blocks are a separate concern; the ops
+domain is stateless and needs none, so the test-genie measures phase stays
+green.
+
+**Workaround:** Per-op timing is observable via recorded job timestamps.
+
+**Real fix:** Mount the measures-go serve registry when the first AI op declares
+runtime measures (Phase 3/4).
+
+**Owner:** unassigned.
+
+**Refs:** `api/main.go` (measures-substrate comment); plan §6/§8.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

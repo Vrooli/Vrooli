@@ -28,6 +28,9 @@ import (
 	healthH "image-tools/handlers/health"
 	jobsH "image-tools/handlers/jobs"
 	modelsH "image-tools/handlers/models"
+	opsH "image-tools/handlers/ops"
+
+	internalstorage "image-tools/internal/storage"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -142,11 +145,24 @@ func main() {
 		log.Fatalf("job manager start failed: %v", err)
 	}
 
+	// Image blobs persist under the api-core storage substrate (outside the
+	// repo, shadow/variant aware), addressed by opaque keys — pixels never go
+	// in SQLite. The ops domain stores op inputs/outputs here.
+	blobNamespace, err := storage.ScenarioNamespace("image-tools")
+	if err != nil {
+		log.Fatalf("resolve image-tools storage namespace: %v", err)
+	}
+	blobStore, err := internalstorage.New(blobNamespace)
+	if err != nil {
+		log.Fatalf("blob storage init failed: %v", err)
+	}
+
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "image-tools-api", "1.0.0"),
 		jobsH.Module(jobManager, log.Default()),
 		modelsH.Module(db, registry, probe, log.Default()),
+		opsH.Module(blobStore, jobManager, log.Default()),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

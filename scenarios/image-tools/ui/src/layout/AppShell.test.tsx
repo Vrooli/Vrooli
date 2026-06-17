@@ -43,7 +43,7 @@ describe("AppShell structure (cimode)", () => {
 
   it("renders the canonical nav links in both sidebar and bottom nav", () => {
     renderShell();
-    for (const key of ["dashboard", "jobs", "models", "settings"] as const) {
+    for (const key of ["dashboard", "editor", "jobs", "models", "settings"] as const) {
       expect(screen.getByTestId(selectors.layout.sidebarLink({ key }))).toBeInTheDocument();
       expect(screen.getByTestId(selectors.layout.bottomNavLink({ key }))).toBeInTheDocument();
     }

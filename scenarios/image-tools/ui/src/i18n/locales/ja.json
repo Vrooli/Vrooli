@@ -8,6 +8,7 @@
     "bottomNavLabel": "メインナビゲーション（モバイル）",
     "nav": {
       "dashboard": "ダッシュボード",
+      "editor": "エディター",
       "jobs": "ジョブ",
       "models": "モデル",
       "settings": "設定"
@@ -37,6 +38,9 @@
       "title": "設定",
       "themeHeading": "外観",
       "localeHeading": "言語"
+    },
+    "editor": {
+      "title": "エディター"
     }
   },
   "health": {
@@ -85,6 +89,53 @@
     "disabledLabel": "無効",
     "enable": "有効化",
     "disable": "無効化"
+  },
+  "editor": {
+    "title": "画像エディター",
+    "loading": "操作を読み込み中…",
+    "error": "操作を読み込めません。",
+    "uploadLabel": "元画像",
+    "uploadHint": "画像をここにドラッグするか、ファイルを選択してください。",
+    "operationLabel": "操作",
+    "overlayLabel": "ウォーターマーク画像",
+    "run": "実行",
+    "running": "実行中…",
+    "empty": "画像をアップロードして操作を実行すると結果が表示されます。",
+    "originalLabel": "オリジナル",
+    "resultLabel": "結果",
+    "resultMeta": "{{width}}×{{height}} · {{format}}",
+    "metadataLabel": "メタデータ",
+    "download": "結果をダウンロード",
+    "field": {
+      "width": "幅",
+      "height": "高さ",
+      "fit": "フィット",
+      "gravity": "重心",
+      "x": "X",
+      "y": "Y",
+      "angle": "角度",
+      "background": "背景",
+      "axis": "軸",
+      "brightness": "明るさ",
+      "contrast": "コントラスト",
+      "gamma": "ガンマ",
+      "saturation": "彩度",
+      "hue": "色相",
+      "filter": "フィルター",
+      "amount": "量",
+      "format": "形式",
+      "quality": "品質",
+      "lossless": "ロスレス",
+      "targetBytes": "目標バイト数",
+      "text": "テキスト",
+      "position": "位置",
+      "opacity": "不透明度",
+      "color": "色",
+      "fontSize": "フォントサイズ",
+      "stripAll": "すべて削除",
+      "stripGps": "GPS を削除",
+      "autoOrient": "自動回転"
+    }
   },
   "errors": {
     "canceled": "Operation canceled.",

@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-16T22:54:45-04:00"
+    "last_validated_at": "2026-06-17T00:47:48-04:00"
   },
   "requirements": [
     {
       "id": "IMG-P1-005",
       "title": "Batch Processing \u0026 Watch-Folder Automation",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-005",
       "category": "feature",
       "description": "Batch accepts glob/folder inputs; watch-folder triggers configured recipes/ops on new files with debounce and output routing.",
@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/internal/batch/batch_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Batch expands globs and fans out jobs"
         },
         {

@@ -250,6 +250,36 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `storage.NewWithBlobStore(blobstore.NewMemoryBlobStore(), tmpDir)` for the store; crafted PNG headers (huge declared dimensions) prove the bomb guard in `guard_test.go`. |
 | **Why it exists** | Pixels must stay out of SQLite and the repo, outputs must be user-redirectable, and a tiny file must never be able to force a huge decode — all testable without the real storage substrate. |
 
+### ops.Execute + registry (deterministic operation core)
+
+| | |
+|---|---|
+| **Seam** | The transport-agnostic deterministic-op engine: a registry of named ops over a codec layer, driven by `Execute(name, srcBytes, *Params)`. |
+| **Interface** | `internal/ops/ops.go::Execute` / `Op` / `RunResult`; the codec layer (`Decode`/`Encode`/format helpers in `codec.go`). Ops operate only on `image.Image`/`[]byte` + a flat `Params` — they know nothing about jobs, storage, proto, or HTTP. |
+| **Production wiring** | `handlers/ops/rest.go` calls `ops.Execute` synchronously inside the multipart run edge; the handler then persists the result and records a job. |
+| **Test fake** | None needed — ops are pure functions; `ops_test.go` + `codec_test.go` assert pixel/format/round-trip behavior directly (golden-style). |
+| **Why it exists** | Keeping the op engine free of transport/storage concerns makes every op unit-testable in isolation and lets the same engine back the REST edge, the (future) recipe runner, and batch processing without duplication. |
+
+### ops REST run edge (BlobStore + Recorder)
+
+| | |
+|---|---|
+| **Seam** | The two narrow surfaces the multipart run edge depends on, declared at the consumer for fakeability. |
+| **Interface** | `handlers/ops/rest.go::BlobStore` (Get/Write — satisfied by `*internal/storage.Store`) and `handlers/ops/rest.go::Recorder` (`Record` — satisfied by `*internal/jobs.Manager`). |
+| **Production wiring** | `handlers/ops/module.go::Module(store, jobs, logger)` builds the `Deps` with the real Store + Manager. |
+| **Test fake** | `fakeRecorder` (in-memory job list) + `storage.NewWithBlobStore(memory, tmp)` in `rest_test.go` drive run/blob/error/format-override flows over `httptest` without a DB. |
+| **Why it exists** | Lets the HTTP boundary (multipart parse, guard, output modes, error mapping) be tested end-to-end without standing up the durable Manager or real storage. |
+
+### jobs.Manager.Record (synchronous-op observability)
+
+| | |
+|---|---|
+| **Seam** | Persisting an already-completed unit of work as a terminal job, for ops that execute inline rather than via the async queue. |
+| **Interface** | `internal/jobs/manager.go::Manager.Record(Spec, resultRef, runErr) (Job, error)`. |
+| **Production wiring** | The ops REST edge calls it after a synchronous `ops.Execute` so deterministic ops appear in `jobs list` / the UI monitor alongside queued AI work. |
+| **Test fake** | `manager_test.go` records succeeded/failed jobs and asserts they surface via `Get`/`List`; the handler tests use `fakeRecorder`. |
+| **Why it exists** | Deterministic ops are instant — forcing them through the queue adds latency with no disconnect-survival benefit — yet they must be observable uniformly. Record bridges the two without a second job-history mechanism. |
+
 ### module.Module (domain composition)
 
 | | |

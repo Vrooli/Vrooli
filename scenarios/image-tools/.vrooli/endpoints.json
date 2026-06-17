@@ -473,28 +473,143 @@
       "cli_mapping": {
         "command": "image-tools models blocklist"
       }
+    },
+    {
+      "id": "ops_list_operations",
+      "path": "/vrooli.image_tools.v1.ops.OpsService/ListOperations",
+      "method": "POST",
+      "summary": "List deterministic operations",
+      "description": "Returns the deterministic operation catalog plus the formats the codec layer can decode and encode.",
+      "category": "ops",
+      "response": {
+        "type": "object",
+        "properties": {
+          "decodable_formats": "array<string>",
+          "encodable_formats": "array<string>",
+          "operations": "array<OperationInfo>"
+        }
+      },
+      "examples": [
+        {
+          "name": "List operations",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.ops.OpsService/ListOperations -H 'Content-Type: application/json' -d '{}'"
+        }
+      ],
+      "cli_mapping": {
+        "command": "image-tools ops list"
+      }
+    },
+    {
+      "id": "ops_run",
+      "path": "/api/v1/ops/{operation}",
+      "method": "POST",
+      "summary": "Run a deterministic operation on an uploaded image",
+      "description": "Executes one deterministic operation on a multipart-uploaded image. The `file` part carries the image bytes; the `params` part carries OpParams as protojson; an optional `overlay` part carries a watermark image. `output=bytes` (default) streams the result; `output=blob` returns RunOpResponse JSON; a `path` query writes the result to a caller-owned host path.",
+      "category": "ops",
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_request",
+          "description": "Malformed multipart form, missing image part, or invalid params"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown operation"
+        },
+        {
+          "status": 413,
+          "code": "invalid_request",
+          "description": "Image exceeds the ingest byte limit"
+        },
+        {
+          "status": 422,
+          "code": "invalid_request",
+          "description": "Undecodable image or invalid operation parameters"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Resize an image",
+          "curl": "curl -X POST 'http://localhost:${API_PORT}/api/v1/ops/resize?output=bytes' -F file=@in.png -F 'params={\"resize\":{\"width\":256}}' -o out.png"
+        }
+      ],
+      "cli_mapping": {
+        "command": "image-tools ops resize",
+        "args": [
+          "<input>",
+          "--out",
+          "<output>"
+        ]
+      },
+      "rest_exception": {
+        "reason": "multipart_upload",
+        "note": "Image bytes cannot ride a proto field; the request is multipart (file + protojson params). Parameters stay proto-typed (OpParams) and the result metadata is proto-typed (RunOpResponse).",
+        "proto_payloads": {
+          "request": {
+            "proto_full_name": "vrooli.image_tools.v1.ops.OpParams",
+            "transport": "multipart/form-data",
+            "conformance": "transport_only"
+          },
+          "response": {
+            "proto_full_name": "vrooli.image_tools.v1.ops.RunOpResponse",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.image_tools.v1.errors.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "ops_blob_get",
+      "path": "/api/v1/blobs/{key}",
+      "method": "GET",
+      "summary": "Fetch a result blob",
+      "description": "Serves the bytes of a managed result blob by key. Browser-facing binary fetch with no generated client; used by the UI to display op inputs/outputs.",
+      "category": "ops",
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No blob with that key"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Fetch a blob",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/blobs/out/<id>.png -o out.png"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET serving opaque image bytes to a browser <img>/download; no generated client applies and the body is binary, not proto.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "binary",
+            "conformance": "none"
+          },
+          "error": {
+            "proto_full_name": "vrooli.image_tools.v1.errors.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
     }
   ],
   "cli_commands": [
     {
-      "name": "status",
-      "description": "Check API and dependency health (auto-provided by cli-core's StandardScenarioApp)",
-      "endpoint_id": "health"
-    },
-    {
-      "name": "jobs get",
-      "description": "Get a durable job by id",
-      "endpoint_id": "jobs_get"
-    },
-    {
-      "name": "jobs wait",
-      "description": "Block once until a job is terminal, then print it (no polling)",
-      "endpoint_id": "jobs_wait"
-    },
-    {
-      "name": "jobs list",
-      "description": "List recent jobs, newest first (--limit N)",
-      "endpoint_id": "jobs_list"
+      "name": "configure",
+      "description": "View or update CLI settings (api_base, token)",
+      "endpoint_id": ""
     },
     {
       "name": "jobs cancel",
@@ -502,19 +617,44 @@
       "endpoint_id": "jobs_cancel"
     },
     {
+      "name": "jobs get",
+      "description": "Get a durable job by id",
+      "endpoint_id": "jobs_get"
+    },
+    {
+      "name": "jobs list",
+      "description": "List recent jobs, newest first",
+      "endpoint_id": "jobs_list"
+    },
+    {
+      "name": "jobs wait",
+      "description": "Block once until a job is terminal, then print it (no polling)",
+      "endpoint_id": "jobs_wait"
+    },
+    {
       "name": "jobs watch",
       "description": "Stream a job's progress until it reaches a terminal state",
       "endpoint_id": "jobs_watch"
     },
     {
-      "name": "models list",
-      "description": "List model registry entries (--operation OP to filter)",
-      "endpoint_id": "models_list"
+      "name": "models blocklist",
+      "description": "List license-encumbered models excluded from the catalog",
+      "endpoint_id": "models_blocklist"
+    },
+    {
+      "name": "models enable",
+      "description": "Enable or disable a model (--disable to turn off); persisted overlay over the seed catalog",
+      "endpoint_id": "models_set_enabled"
     },
     {
       "name": "models get",
       "description": "Get a model registry entry by id",
       "endpoint_id": "models_get"
+    },
+    {
+      "name": "models list",
+      "description": "List model registry entries (--operation OP to filter)",
+      "endpoint_id": "models_list"
     },
     {
       "name": "models operations",
@@ -527,14 +667,79 @@
       "endpoint_id": "models_select"
     },
     {
-      "name": "models enable",
-      "description": "Enable or disable a model (persisted overlay over the seed catalog)",
-      "endpoint_id": "models_set_enabled"
+      "name": "ops adjust",
+      "description": "Adjust brightness/contrast/gamma/saturation/hue",
+      "endpoint_id": ""
     },
     {
-      "name": "models blocklist",
-      "description": "List license-encumbered models excluded from the catalog",
-      "endpoint_id": "models_blocklist"
+      "name": "ops canvas",
+      "description": "Pad/extend onto a background canvas",
+      "endpoint_id": ""
+    },
+    {
+      "name": "ops compress",
+      "description": "Re-encode at a quality or to a target size",
+      "endpoint_id": ""
+    },
+    {
+      "name": "ops convert",
+      "description": "Convert to another image format",
+      "endpoint_id": ""
+    },
+    {
+      "name": "ops crop",
+      "description": "Crop a rectangle or an anchored region",
+      "endpoint_id": ""
+    },
+    {
+      "name": "ops deskew",
+      "description": "Auto-straighten a skewed scan/document",
+      "endpoint_id": ""
+    },
+    {
+      "name": "ops filter",
+      "description": "Apply grayscale/sepia/invert/blur/sharpen",
+      "endpoint_id": ""
+    },
+    {
+      "name": "ops flip",
+      "description": "Mirror horizontally or vertically",
+      "endpoint_id": ""
+    },
+    {
+      "name": "ops list",
+      "description": "List deterministic operations and supported formats",
+      "endpoint_id": "ops_list_operations"
+    },
+    {
+      "name": "ops metadata",
+      "description": "Read, strip, or auto-orient metadata",
+      "endpoint_id": ""
+    },
+    {
+      "name": "ops overlay",
+      "description": "Composite a text or image watermark",
+      "endpoint_id": ""
+    },
+    {
+      "name": "ops resize",
+      "description": "Resize an image (fit/fill/stretch)",
+      "endpoint_id": "ops_run"
+    },
+    {
+      "name": "ops rotate",
+      "description": "Rotate by an angle (90° steps lossless)",
+      "endpoint_id": ""
+    },
+    {
+      "name": "ops thumbnail",
+      "description": "Produce a fill-cropped thumbnail",
+      "endpoint_id": ""
+    },
+    {
+      "name": "status",
+      "description": "Check API health",
+      "endpoint_id": "health"
     }
   ]
 }

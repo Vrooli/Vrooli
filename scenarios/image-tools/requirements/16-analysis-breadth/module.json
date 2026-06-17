@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-16T22:54:45-04:00"
+    "last_validated_at": "2026-06-17T00:47:48-04:00"
   },
   "requirements": [
     {
       "id": "IMG-P1-003",
       "title": "Analysis Breadth",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-003",
       "category": "feature",
       "description": "Caption/alt-text, object detection/tagging, anonymous face detection (no recognition), quality assessment, duplicate/near-dup detection (perceptual hash), embedding generation, and QR/barcode read.",
@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/internal/analysis/breadth_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Each analysis-breadth op returns structured results"
         },
         {

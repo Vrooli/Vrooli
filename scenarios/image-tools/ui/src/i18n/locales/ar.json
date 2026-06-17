@@ -8,6 +8,7 @@
     "bottomNavLabel": "التنقل الرئيسي (للجوال)",
     "nav": {
       "dashboard": "لوحة التحكم",
+      "editor": "المحرر",
       "jobs": "المهام",
       "models": "النماذج",
       "settings": "الإعدادات"
@@ -37,6 +38,9 @@
       "title": "الإعدادات",
       "themeHeading": "المظهر",
       "localeHeading": "اللغة"
+    },
+    "editor": {
+      "title": "المحرر"
     }
   },
   "health": {
@@ -88,6 +92,53 @@
     "disabledLabel": "مُعطّل",
     "enable": "تفعيل",
     "disable": "تعطيل"
+  },
+  "editor": {
+    "title": "محرر الصور",
+    "loading": "جارٍ تحميل العمليات…",
+    "error": "تعذر تحميل العمليات.",
+    "uploadLabel": "الصورة المصدر",
+    "uploadHint": "اسحب صورة إلى هنا، أو اختر ملفًا.",
+    "operationLabel": "العملية",
+    "overlayLabel": "صورة العلامة المائية",
+    "run": "تشغيل",
+    "running": "جارٍ التشغيل…",
+    "empty": "ارفع صورة وشغّل عملية لرؤية النتيجة.",
+    "originalLabel": "الأصلية",
+    "resultLabel": "النتيجة",
+    "resultMeta": "{{width}}×{{height}} · {{format}}",
+    "metadataLabel": "البيانات الوصفية",
+    "download": "تنزيل النتيجة",
+    "field": {
+      "width": "العرض",
+      "height": "الارتفاع",
+      "fit": "الملاءمة",
+      "gravity": "الجاذبية",
+      "x": "X",
+      "y": "Y",
+      "angle": "الزاوية",
+      "background": "الخلفية",
+      "axis": "المحور",
+      "brightness": "السطوع",
+      "contrast": "التباين",
+      "gamma": "جاما",
+      "saturation": "التشبع",
+      "hue": "تدرّج اللون",
+      "filter": "المرشّح",
+      "amount": "المقدار",
+      "format": "الصيغة",
+      "quality": "الجودة",
+      "lossless": "بدون فقدان",
+      "targetBytes": "البايتات المستهدفة",
+      "text": "النص",
+      "position": "الموضع",
+      "opacity": "الشفافية",
+      "color": "اللون",
+      "fontSize": "حجم الخط",
+      "stripAll": "إزالة الكل",
+      "stripGps": "إزالة GPS",
+      "autoOrient": "توجيه تلقائي"
+    }
   },
   "errors": {
     "canceled": "Operation canceled.",

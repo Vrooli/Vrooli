@@ -1018,6 +1018,38 @@ lower the gate.
 | `var _ Pinger = (*sql.DB)(nil)` to lock the contract at compile time | Runtime "does this satisfy" check in init |
 | Adding new seams to [`SEAMS.md`](SEAMS.md) at the same commit | "We'll document it later" |
 
+## Headless-completeness
+
+`image-tools`' hard tenet (DECISIONS.md): **every operation runs from the CLI
+with no UI, no ComfyUI, and no GPU.** For the deterministic ops (req
+IMG-P0-001) this is the *whole* implementation — they are pure-Go/WASM
+transforms with zero model downloads, so the acceptance is simply: on a fresh
+machine with the scenario started, every op succeeds from the CLI offline.
+
+**How it is verified:**
+
+1. **Unit (no server):** `api/internal/ops/*_test.go` runs every op over the
+   codec layer (golden/round-trip assertions); `cli/domains/ops/ops_test.go`
+   asserts the CLI exposes one run command per op.
+2. **Handler (httptest):** `api/handlers/ops/rest_test.go` drives the multipart
+   run edge + blob serve + format override + error paths without a DB.
+3. **Live smoke (the real acceptance):** with `vrooli scenario start
+   image-tools`, run each op and confirm the output:
+
+   ```bash
+   image-tools ops resize    in.png  --out r.png   --width 256
+   image-tools ops convert   in.png  --out o.avif  --format avif
+   image-tools ops filter    in.png  --out g.webp  --filter grayscale
+   image-tools ops compress  in.png  --out c.jpg   --target-bytes 20000
+   image-tools ops overlay   in.png  --out w.png   --text "© Vrooli"
+   image-tools ops metadata  in.png            # prints EXIF/dimensions JSON
+   image-tools jobs list                        # each op recorded as a job
+   ```
+
+   No GPU, no ComfyUI, no model pull is involved — the AVIF/WebP/HEIC codecs
+   are embedded WASM (pure Go). The BAS smoke flow automates the UI path of the
+   same slice.
+
 ## Cross-references
 
 - **Seams definition + adding new seams**: [`SEAMS.md`](SEAMS.md).
