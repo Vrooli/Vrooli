@@ -6,6 +6,48 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class InstallDependencyRequest(_message.Message):
+    __slots__ = ("scenario", "surface", "ecosystem", "package_name", "version", "apply")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    SURFACE_FIELD_NUMBER: _ClassVar[int]
+    ECOSYSTEM_FIELD_NUMBER: _ClassVar[int]
+    PACKAGE_NAME_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
+    APPLY_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    surface: str
+    ecosystem: str
+    package_name: str
+    version: str
+    apply: bool
+    def __init__(self, scenario: _Optional[str] = ..., surface: _Optional[str] = ..., ecosystem: _Optional[str] = ..., package_name: _Optional[str] = ..., version: _Optional[str] = ..., apply: _Optional[bool] = ...) -> None: ...
+
+class InstallDependencyResponse(_message.Message):
+    __slots__ = ("installed", "dry_run", "verdict", "blocked", "command", "package_manager", "manifest_path", "message", "next_steps", "security_notes", "guidance")
+    INSTALLED_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    VERDICT_FIELD_NUMBER: _ClassVar[int]
+    BLOCKED_FIELD_NUMBER: _ClassVar[int]
+    COMMAND_FIELD_NUMBER: _ClassVar[int]
+    PACKAGE_MANAGER_FIELD_NUMBER: _ClassVar[int]
+    MANIFEST_PATH_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    NEXT_STEPS_FIELD_NUMBER: _ClassVar[int]
+    SECURITY_NOTES_FIELD_NUMBER: _ClassVar[int]
+    GUIDANCE_FIELD_NUMBER: _ClassVar[int]
+    installed: bool
+    dry_run: bool
+    verdict: str
+    blocked: bool
+    command: str
+    package_manager: str
+    manifest_path: str
+    message: str
+    next_steps: _containers.RepeatedScalarFieldContainer[str]
+    security_notes: _containers.RepeatedScalarFieldContainer[str]
+    guidance: str
+    def __init__(self, installed: _Optional[bool] = ..., dry_run: _Optional[bool] = ..., verdict: _Optional[str] = ..., blocked: _Optional[bool] = ..., command: _Optional[str] = ..., package_manager: _Optional[str] = ..., manifest_path: _Optional[str] = ..., message: _Optional[str] = ..., next_steps: _Optional[_Iterable[str]] = ..., security_notes: _Optional[_Iterable[str]] = ..., guidance: _Optional[str] = ...) -> None: ...
+
 class ListApprovedDependenciesRequest(_message.Message):
     __slots__ = ("ecosystem", "state", "surface", "use_case")
     ECOSYSTEM_FIELD_NUMBER: _ClassVar[int]
@@ -19,14 +61,20 @@ class ListApprovedDependenciesRequest(_message.Message):
     def __init__(self, ecosystem: _Optional[str] = ..., state: _Optional[str] = ..., surface: _Optional[str] = ..., use_case: _Optional[str] = ...) -> None: ...
 
 class SearchApprovedDependenciesRequest(_message.Message):
-    __slots__ = ("query", "ecosystem", "limit")
+    __slots__ = ("query", "ecosystem", "limit", "framework", "surface", "state")
     QUERY_FIELD_NUMBER: _ClassVar[int]
     ECOSYSTEM_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
+    FRAMEWORK_FIELD_NUMBER: _ClassVar[int]
+    SURFACE_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
     query: str
     ecosystem: str
     limit: int
-    def __init__(self, query: _Optional[str] = ..., ecosystem: _Optional[str] = ..., limit: _Optional[int] = ...) -> None: ...
+    framework: str
+    surface: str
+    state: str
+    def __init__(self, query: _Optional[str] = ..., ecosystem: _Optional[str] = ..., limit: _Optional[int] = ..., framework: _Optional[str] = ..., surface: _Optional[str] = ..., state: _Optional[str] = ...) -> None: ...
 
 class ExplainApprovedDependencyRequest(_message.Message):
     __slots__ = ("ecosystem", "package_name")
@@ -593,7 +641,7 @@ class DependencyGovernanceSummary(_message.Message):
     def __init__(self, status: _Optional[str] = ..., approved: _Optional[int] = ..., approved_with_constraints: _Optional[int] = ..., needs_review: _Optional[int] = ..., blocked: _Optional[int] = ..., deprecated: _Optional[int] = ..., unrecorded: _Optional[int] = ..., observed: _Optional[int] = ..., policy_mode: _Optional[str] = ..., denied: _Optional[int] = ..., out_of_range: _Optional[int] = ..., out_of_scope: _Optional[int] = ..., expired: _Optional[int] = ..., scenario_count: _Optional[int] = ..., dependency_count: _Optional[int] = ..., finding_count: _Optional[int] = ..., error_count: _Optional[int] = ..., warning_count: _Optional[int] = ..., info_count: _Optional[int] = ...) -> None: ...
 
 class ApprovedDependencyRecord(_message.Message):
-    __slots__ = ("ecosystem", "package_name", "version_range", "state", "allowed_surfaces", "use_cases", "rationale", "approved_by", "approved_date", "last_reviewed", "review_expires", "license_notes", "security_notes", "example_scenarios", "replacement", "keywords", "allowed_scenarios", "denied_scenarios", "allowed_dependency_groups", "range_policy")
+    __slots__ = ("ecosystem", "package_name", "version_range", "state", "allowed_surfaces", "use_cases", "rationale", "approved_by", "approved_date", "last_reviewed", "review_expires", "license_notes", "security_notes", "example_scenarios", "replacement", "keywords", "allowed_scenarios", "denied_scenarios", "allowed_dependency_groups", "range_policy", "relevance_score")
     ECOSYSTEM_FIELD_NUMBER: _ClassVar[int]
     PACKAGE_NAME_FIELD_NUMBER: _ClassVar[int]
     VERSION_RANGE_FIELD_NUMBER: _ClassVar[int]
@@ -614,6 +662,7 @@ class ApprovedDependencyRecord(_message.Message):
     DENIED_SCENARIOS_FIELD_NUMBER: _ClassVar[int]
     ALLOWED_DEPENDENCY_GROUPS_FIELD_NUMBER: _ClassVar[int]
     RANGE_POLICY_FIELD_NUMBER: _ClassVar[int]
+    RELEVANCE_SCORE_FIELD_NUMBER: _ClassVar[int]
     ecosystem: str
     package_name: str
     version_range: str
@@ -634,7 +683,8 @@ class ApprovedDependencyRecord(_message.Message):
     denied_scenarios: _containers.RepeatedScalarFieldContainer[str]
     allowed_dependency_groups: _containers.RepeatedScalarFieldContainer[str]
     range_policy: str
-    def __init__(self, ecosystem: _Optional[str] = ..., package_name: _Optional[str] = ..., version_range: _Optional[str] = ..., state: _Optional[str] = ..., allowed_surfaces: _Optional[_Iterable[str]] = ..., use_cases: _Optional[_Iterable[str]] = ..., rationale: _Optional[str] = ..., approved_by: _Optional[str] = ..., approved_date: _Optional[str] = ..., last_reviewed: _Optional[str] = ..., review_expires: _Optional[str] = ..., license_notes: _Optional[str] = ..., security_notes: _Optional[str] = ..., example_scenarios: _Optional[_Iterable[str]] = ..., replacement: _Optional[str] = ..., keywords: _Optional[_Iterable[str]] = ..., allowed_scenarios: _Optional[_Iterable[str]] = ..., denied_scenarios: _Optional[_Iterable[str]] = ..., allowed_dependency_groups: _Optional[_Iterable[str]] = ..., range_policy: _Optional[str] = ...) -> None: ...
+    relevance_score: float
+    def __init__(self, ecosystem: _Optional[str] = ..., package_name: _Optional[str] = ..., version_range: _Optional[str] = ..., state: _Optional[str] = ..., allowed_surfaces: _Optional[_Iterable[str]] = ..., use_cases: _Optional[_Iterable[str]] = ..., rationale: _Optional[str] = ..., approved_by: _Optional[str] = ..., approved_date: _Optional[str] = ..., last_reviewed: _Optional[str] = ..., review_expires: _Optional[str] = ..., license_notes: _Optional[str] = ..., security_notes: _Optional[str] = ..., example_scenarios: _Optional[_Iterable[str]] = ..., replacement: _Optional[str] = ..., keywords: _Optional[_Iterable[str]] = ..., allowed_scenarios: _Optional[_Iterable[str]] = ..., denied_scenarios: _Optional[_Iterable[str]] = ..., allowed_dependency_groups: _Optional[_Iterable[str]] = ..., range_policy: _Optional[str] = ..., relevance_score: _Optional[float] = ...) -> None: ...
 
 class ObservedDependency(_message.Message):
     __slots__ = ("ecosystem", "package_name", "version", "surface_id", "file_path", "dependency_group", "signal_category")

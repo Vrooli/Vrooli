@@ -2,93 +2,49 @@
 // @generated from file proto-health/v1/validation/validation.proto (package vrooli.proto_health.v1.validation, syntax proto3)
 /* eslint-disable */
 
-import { enumDesc, fileDesc, messageDesc, serviceDesc, tsEnum } from "@bufbuild/protobuf/codegenv2";
-import { file_common_v1_maturity } from "../../../common/v1/maturity_pb.js";
+import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_proto_health_v1_shared_surface } from "../shared/surface_pb.js";
 
 /**
  * Describes the file proto-health/v1/validation/validation.proto.
  */
 export const file_proto_health_v1_validation_validation = /*@__PURE__*/
-  fileDesc("Citwcm90by1oZWFsdGgvdjEvdmFsaWRhdGlvbi92YWxpZGF0aW9uLnByb3RvEiF2cm9vbGkucHJvdG9faGVhbHRoLnYxLnZhbGlkYXRpb24ijQEKB0ZpbmRpbmcSPQoIc2V2ZXJpdHkYASABKA4yKy52cm9vbGkucHJvdG9faGVhbHRoLnYxLnZhbGlkYXRpb24uU2V2ZXJpdHkSDAoEY29kZRgCIAEoCRIQCghsb2NhdGlvbhgDIAEoCRIPCgdtZXNzYWdlGAQgASgJEhIKCnN1Z2dlc3Rpb24YBSABKAkiOgoHU3VtbWFyeRIOCgZlcnJvcnMYASABKAUSEAoId2FybmluZ3MYAiABKAUSDQoFaW5mb3MYAyABKAUiKwoXVmFsaWRhdGVTY2VuYXJpb1JlcXVlc3QSEAoIc2NlbmFyaW8YASABKAki6gEKGFZhbGlkYXRlU2NlbmFyaW9SZXNwb25zZRIQCghzY2VuYXJpbxgBIAEoCRIOCgZwYXNzZWQYAiABKAgSPAoIZmluZGluZ3MYAyADKAsyKi52cm9vbGkucHJvdG9faGVhbHRoLnYxLnZhbGlkYXRpb24uRmluZGluZxI7CgdzdW1tYXJ5GAQgASgLMioudnJvb2xpLnByb3RvX2hlYWx0aC52MS52YWxpZGF0aW9uLlN1bW1hcnkSMQoKYXNzZXNzbWVudBgFIAEoCzIdLmNvbW1vbi52MS5NYXR1cml0eUFzc2Vzc21lbnQiMQodRGVzY3JpYmVTY2VuYXJpb1Byb3Rvc1JlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkiXgoeRGVzY3JpYmVTY2VuYXJpb1Byb3Rvc1Jlc3BvbnNlEjwKB3N1cmZhY2UYASABKAsyKy52cm9vbGkucHJvdG9faGVhbHRoLnYxLnNoYXJlZC5Qcm90b1N1cmZhY2UiXAoeRGVzY3JpYmVTY2VuYXJpb3NQcm90b3NSZXF1ZXN0EhEKCXNjZW5hcmlvcxgBIAMoCRINCgVsaW1pdBgCIAEoBRIYChBzdGFiaWxpdHlfZmlsdGVyGAMgASgJInMKElByb3RvU3VyZmFjZVJlc3VsdBIQCghzY2VuYXJpbxgBIAEoCRI8CgdzdXJmYWNlGAIgASgLMisudnJvb2xpLnByb3RvX2hlYWx0aC52MS5zaGFyZWQuUHJvdG9TdXJmYWNlEg0KBWVycm9yGAMgASgJImkKH0Rlc2NyaWJlU2NlbmFyaW9zUHJvdG9zUmVzcG9uc2USRgoHcmVzdWx0cxgBIAMoCzI1LnZyb29saS5wcm90b19oZWFsdGgudjEudmFsaWRhdGlvbi5Qcm90b1N1cmZhY2VSZXN1bHQqYQoIU2V2ZXJpdHkSGAoUU0VWRVJJVFlfVU5TUEVDSUZJRUQQABISCg5TRVZFUklUWV9FUlJPUhABEhQKEFNFVkVSSVRZX1dBUk5JTkcQAhIRCg1TRVZFUklUWV9JTkZPEAMy5QMKElByb3RvSGVhbHRoU2VydmljZRKLAQoQVmFsaWRhdGVTY2VuYXJpbxI6LnZyb29saS5wcm90b19oZWFsdGgudjEudmFsaWRhdGlvbi5WYWxpZGF0ZVNjZW5hcmlvUmVxdWVzdBo7LnZyb29saS5wcm90b19oZWFsdGgudjEudmFsaWRhdGlvbi5WYWxpZGF0ZVNjZW5hcmlvUmVzcG9uc2USnQEKFkRlc2NyaWJlU2NlbmFyaW9Qcm90b3MSQC52cm9vbGkucHJvdG9faGVhbHRoLnYxLnZhbGlkYXRpb24uRGVzY3JpYmVTY2VuYXJpb1Byb3Rvc1JlcXVlc3QaQS52cm9vbGkucHJvdG9faGVhbHRoLnYxLnZhbGlkYXRpb24uRGVzY3JpYmVTY2VuYXJpb1Byb3Rvc1Jlc3BvbnNlEqABChdEZXNjcmliZVNjZW5hcmlvc1Byb3RvcxJBLnZyb29saS5wcm90b19oZWFsdGgudjEudmFsaWRhdGlvbi5EZXNjcmliZVNjZW5hcmlvc1Byb3Rvc1JlcXVlc3QaQi52cm9vbGkucHJvdG9faGVhbHRoLnYxLnZhbGlkYXRpb24uRGVzY3JpYmVTY2VuYXJpb3NQcm90b3NSZXNwb25zZUJZWldnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Byb3RvLWhlYWx0aC92MS92YWxpZGF0aW9uO3ZhbGlkYXRpb25fdjFiBnByb3RvMw", [file_common_v1_maturity, file_proto_health_v1_shared_surface]);
-
-/**
- * Describes the message vrooli.proto_health.v1.validation.Finding.
- * Use `create(FindingSchema)` to create a new message.
- */
-export const FindingSchema = /*@__PURE__*/
-  messageDesc(file_proto_health_v1_validation_validation, 0);
-
-/**
- * Describes the message vrooli.proto_health.v1.validation.Summary.
- * Use `create(SummarySchema)` to create a new message.
- */
-export const SummarySchema = /*@__PURE__*/
-  messageDesc(file_proto_health_v1_validation_validation, 1);
-
-/**
- * Describes the message vrooli.proto_health.v1.validation.ValidateScenarioRequest.
- * Use `create(ValidateScenarioRequestSchema)` to create a new message.
- */
-export const ValidateScenarioRequestSchema = /*@__PURE__*/
-  messageDesc(file_proto_health_v1_validation_validation, 2);
-
-/**
- * Describes the message vrooli.proto_health.v1.validation.ValidateScenarioResponse.
- * Use `create(ValidateScenarioResponseSchema)` to create a new message.
- */
-export const ValidateScenarioResponseSchema = /*@__PURE__*/
-  messageDesc(file_proto_health_v1_validation_validation, 3);
+  fileDesc("Citwcm90by1oZWFsdGgvdjEvdmFsaWRhdGlvbi92YWxpZGF0aW9uLnByb3RvEiF2cm9vbGkucHJvdG9faGVhbHRoLnYxLnZhbGlkYXRpb24iMQodRGVzY3JpYmVTY2VuYXJpb1Byb3Rvc1JlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkiXgoeRGVzY3JpYmVTY2VuYXJpb1Byb3Rvc1Jlc3BvbnNlEjwKB3N1cmZhY2UYASABKAsyKy52cm9vbGkucHJvdG9faGVhbHRoLnYxLnNoYXJlZC5Qcm90b1N1cmZhY2UiXAoeRGVzY3JpYmVTY2VuYXJpb3NQcm90b3NSZXF1ZXN0EhEKCXNjZW5hcmlvcxgBIAMoCRINCgVsaW1pdBgCIAEoBRIYChBzdGFiaWxpdHlfZmlsdGVyGAMgASgJInMKElByb3RvU3VyZmFjZVJlc3VsdBIQCghzY2VuYXJpbxgBIAEoCRI8CgdzdXJmYWNlGAIgASgLMisudnJvb2xpLnByb3RvX2hlYWx0aC52MS5zaGFyZWQuUHJvdG9TdXJmYWNlEg0KBWVycm9yGAMgASgJImkKH0Rlc2NyaWJlU2NlbmFyaW9zUHJvdG9zUmVzcG9uc2USRgoHcmVzdWx0cxgBIAMoCzI1LnZyb29saS5wcm90b19oZWFsdGgudjEudmFsaWRhdGlvbi5Qcm90b1N1cmZhY2VSZXN1bHQy1wIKElByb3RvSGVhbHRoU2VydmljZRKdAQoWRGVzY3JpYmVTY2VuYXJpb1Byb3RvcxJALnZyb29saS5wcm90b19oZWFsdGgudjEudmFsaWRhdGlvbi5EZXNjcmliZVNjZW5hcmlvUHJvdG9zUmVxdWVzdBpBLnZyb29saS5wcm90b19oZWFsdGgudjEudmFsaWRhdGlvbi5EZXNjcmliZVNjZW5hcmlvUHJvdG9zUmVzcG9uc2USoAEKF0Rlc2NyaWJlU2NlbmFyaW9zUHJvdG9zEkEudnJvb2xpLnByb3RvX2hlYWx0aC52MS52YWxpZGF0aW9uLkRlc2NyaWJlU2NlbmFyaW9zUHJvdG9zUmVxdWVzdBpCLnZyb29saS5wcm90b19oZWFsdGgudjEudmFsaWRhdGlvbi5EZXNjcmliZVNjZW5hcmlvc1Byb3Rvc1Jlc3BvbnNlQllaV2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vcHJvdG8taGVhbHRoL3YxL3ZhbGlkYXRpb247dmFsaWRhdGlvbl92MWIGcHJvdG8z", [file_proto_health_v1_shared_surface]);
 
 /**
  * Describes the message vrooli.proto_health.v1.validation.DescribeScenarioProtosRequest.
  * Use `create(DescribeScenarioProtosRequestSchema)` to create a new message.
  */
 export const DescribeScenarioProtosRequestSchema = /*@__PURE__*/
-  messageDesc(file_proto_health_v1_validation_validation, 4);
+  messageDesc(file_proto_health_v1_validation_validation, 0);
 
 /**
  * Describes the message vrooli.proto_health.v1.validation.DescribeScenarioProtosResponse.
  * Use `create(DescribeScenarioProtosResponseSchema)` to create a new message.
  */
 export const DescribeScenarioProtosResponseSchema = /*@__PURE__*/
-  messageDesc(file_proto_health_v1_validation_validation, 5);
+  messageDesc(file_proto_health_v1_validation_validation, 1);
 
 /**
  * Describes the message vrooli.proto_health.v1.validation.DescribeScenariosProtosRequest.
  * Use `create(DescribeScenariosProtosRequestSchema)` to create a new message.
  */
 export const DescribeScenariosProtosRequestSchema = /*@__PURE__*/
-  messageDesc(file_proto_health_v1_validation_validation, 6);
+  messageDesc(file_proto_health_v1_validation_validation, 2);
 
 /**
  * Describes the message vrooli.proto_health.v1.validation.ProtoSurfaceResult.
  * Use `create(ProtoSurfaceResultSchema)` to create a new message.
  */
 export const ProtoSurfaceResultSchema = /*@__PURE__*/
-  messageDesc(file_proto_health_v1_validation_validation, 7);
+  messageDesc(file_proto_health_v1_validation_validation, 3);
 
 /**
  * Describes the message vrooli.proto_health.v1.validation.DescribeScenariosProtosResponse.
  * Use `create(DescribeScenariosProtosResponseSchema)` to create a new message.
  */
 export const DescribeScenariosProtosResponseSchema = /*@__PURE__*/
-  messageDesc(file_proto_health_v1_validation_validation, 8);
-
-/**
- * Describes the enum vrooli.proto_health.v1.validation.Severity.
- */
-export const SeveritySchema = /*@__PURE__*/
-  enumDesc(file_proto_health_v1_validation_validation, 0);
-
-/**
- * Severity classifies a Finding for filtering and rendering. ERROR causes
- * `passed=false`; WARNING and INFO are advisory.
- *
- * @generated from enum vrooli.proto_health.v1.validation.Severity
- */
-export const Severity = /*@__PURE__*/
-  tsEnum(SeveritySchema);
+  messageDesc(file_proto_health_v1_validation_validation, 4);
 
 /**
  * @generated from service vrooli.proto_health.v1.validation.ProtoHealthService

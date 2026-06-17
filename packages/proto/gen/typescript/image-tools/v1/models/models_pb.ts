@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file image-tools/v1/models/models.proto.
  */
 export const file_image_tools_v1_models_models: GenFile = /*@__PURE__*/
-  fileDesc("CiJpbWFnZS10b29scy92MS9tb2RlbHMvbW9kZWxzLnByb3RvEhx2cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzIoMBCghIYXJkd2FyZRITCgtjcHVfY2FwYWJsZRgBIAEoCBIUCgxncHVfcmVxdWlyZWQYAiABKAgSEwoLbWluX3ZyYW1fZ2IYAyABKAUSEgoKbWluX3JhbV9nYhgEIAEoBRIPCgdvc19hcmNoGAUgAygJEhIKCnNwZWVkX25vdGUYBiABKAkizQEKEENhcGFiaWxpdHlMYWJlbHMSFAoMbnNmd19jYXBhYmxlGAEgASgIEg8KB2xpY2Vuc2UYAiABKAkSQwoOY29tbWVyY2lhbF91c2UYAyABKA4yKy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkNvbW1lcmNpYWxVc2USHAoUY29tbWVyY2lhbF91c2Vfbm90ZXMYBCABKAkSGgoSYmFzZV9tb2RlbF9saW5lYWdlGAUgASgJEhMKC2tub3duX3Jpc2tzGAYgASgJIt8CCgVNb2RlbBIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhIKCm9wZXJhdGlvbnMYAyADKAkSEwoLZGVmYXVsdF9mb3IYBCADKAkSDAoEdGllchgFIAEoCRIPCgdiYWNrZW5kGAYgASgJEhQKDGFsdF9iYWNrZW5kcxgHIAMoCRIYChByZXF1aXJlc19jb21meXVpGAggASgIEhYKDnNpemVfbWJfYXBwcm94GAkgASgFEhYKDnF1YW50X3ZhcmlhbnRzGAogAygJEjgKCGhhcmR3YXJlGAsgASgLMiYudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5IYXJkd2FyZRJJChFjYXBhYmlsaXR5X2xhYmVscxgMIAEoCzIuLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuQ2FwYWJpbGl0eUxhYmVscxIPCgdlbmFibGVkGA0gASgIIn0KDkJsb2NrbGlzdEVudHJ5EgoKAmlkGAEgASgJEhIKCm9wZXJhdGlvbnMYAiADKAkSDwoHbGljZW5zZRgDIAEoCRIOCgZyZWFzb24YBCABKAkSKgoiZXhwb3J0aW5nX29ubnhfcmVtb3Zlc19yZXN0cmljdGlvbhgFIAEoCCImChFMaXN0TW9kZWxzUmVxdWVzdBIRCglvcGVyYXRpb24YASABKAkiSQoSTGlzdE1vZGVsc1Jlc3BvbnNlEjMKBm1vZGVscxgBIAMoCzIjLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTW9kZWwiHQoPR2V0TW9kZWxSZXF1ZXN0EgoKAmlkGAEgASgJIkYKEEdldE1vZGVsUmVzcG9uc2USMgoFbW9kZWwYASABKAsyIy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLk1vZGVsIhcKFUxpc3RPcGVyYXRpb25zUmVxdWVzdCIsChZMaXN0T3BlcmF0aW9uc1Jlc3BvbnNlEhIKCm9wZXJhdGlvbnMYASADKAkiPAoSU2VsZWN0TW9kZWxSZXF1ZXN0EhEKCW9wZXJhdGlvbhgBIAEoCRITCgtvdmVycmlkZV9pZBgCIAEoCSJ/ChNTZWxlY3RNb2RlbFJlc3BvbnNlEjIKBW1vZGVsGAEgASgLMiMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5Nb2RlbBISCgpncHVfdmlhYmxlGAIgASgIEg4KBnJlYXNvbhgDIAEoCRIQCgh3YXJuaW5ncxgEIAMoCSI1ChZTZXRNb2RlbEVuYWJsZWRSZXF1ZXN0EgoKAmlkGAEgASgJEg8KB2VuYWJsZWQYAiABKAgiTQoXU2V0TW9kZWxFbmFibGVkUmVzcG9uc2USMgoFbW9kZWwYASABKAsyIy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLk1vZGVsIhYKFExpc3RCbG9ja2xpc3RSZXF1ZXN0IlYKFUxpc3RCbG9ja2xpc3RSZXNwb25zZRI9CgdlbnRyaWVzGAEgAygLMiwudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5CbG9ja2xpc3RFbnRyeSp+Cg1Db21tZXJjaWFsVXNlEh4KGkNPTU1FUkNJQUxfVVNFX1VOU1BFQ0lGSUVEEAASFgoSQ09NTUVSQ0lBTF9VU0VfWUVTEAESFQoRQ09NTUVSQ0lBTF9VU0VfTk8QAhIeChpDT01NRVJDSUFMX1VTRV9DT05ESVRJT05BTBADMtYFCg1Nb2RlbHNTZXJ2aWNlEm8KCkxpc3RNb2RlbHMSLy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkxpc3RNb2RlbHNSZXF1ZXN0GjAudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0TW9kZWxzUmVzcG9uc2USaQoIR2V0TW9kZWwSLS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkdldE1vZGVsUmVxdWVzdBouLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuR2V0TW9kZWxSZXNwb25zZRJ7Cg5MaXN0T3BlcmF0aW9ucxIzLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTGlzdE9wZXJhdGlvbnNSZXF1ZXN0GjQudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0T3BlcmF0aW9uc1Jlc3BvbnNlEnIKC1NlbGVjdE1vZGVsEjAudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5TZWxlY3RNb2RlbFJlcXVlc3QaMS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLlNlbGVjdE1vZGVsUmVzcG9uc2USfgoPU2V0TW9kZWxFbmFibGVkEjQudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5TZXRNb2RlbEVuYWJsZWRSZXF1ZXN0GjUudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5TZXRNb2RlbEVuYWJsZWRSZXNwb25zZRJ4Cg1MaXN0QmxvY2tsaXN0EjIudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0QmxvY2tsaXN0UmVxdWVzdBozLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTGlzdEJsb2NrbGlzdFJlc3BvbnNlQlBaTmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vaW1hZ2UtdG9vbHMvdjEvbW9kZWxzO21vZGVsc192MWIGcHJvdG8z");
+  fileDesc("CiJpbWFnZS10b29scy92MS9tb2RlbHMvbW9kZWxzLnByb3RvEhx2cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzIoMBCghIYXJkd2FyZRITCgtjcHVfY2FwYWJsZRgBIAEoCBIUCgxncHVfcmVxdWlyZWQYAiABKAgSEwoLbWluX3ZyYW1fZ2IYAyABKAUSEgoKbWluX3JhbV9nYhgEIAEoBRIPCgdvc19hcmNoGAUgAygJEhIKCnNwZWVkX25vdGUYBiABKAkizQEKEENhcGFiaWxpdHlMYWJlbHMSFAoMbnNmd19jYXBhYmxlGAEgASgIEg8KB2xpY2Vuc2UYAiABKAkSQwoOY29tbWVyY2lhbF91c2UYAyABKA4yKy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkNvbW1lcmNpYWxVc2USHAoUY29tbWVyY2lhbF91c2Vfbm90ZXMYBCABKAkSGgoSYmFzZV9tb2RlbF9saW5lYWdlGAUgASgJEhMKC2tub3duX3Jpc2tzGAYgASgJIqwDCgVNb2RlbBIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhIKCm9wZXJhdGlvbnMYAyADKAkSEwoLZGVmYXVsdF9mb3IYBCADKAkSDAoEdGllchgFIAEoCRIPCgdiYWNrZW5kGAYgASgJEhQKDGFsdF9iYWNrZW5kcxgHIAMoCRIYChByZXF1aXJlc19jb21meXVpGAggASgIEhYKDnNpemVfbWJfYXBwcm94GAkgASgFEhYKDnF1YW50X3ZhcmlhbnRzGAogAygJEjgKCGhhcmR3YXJlGAsgASgLMiYudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5IYXJkd2FyZRJJChFjYXBhYmlsaXR5X2xhYmVscxgMIAEoCzIuLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuQ2FwYWJpbGl0eUxhYmVscxIPCgdlbmFibGVkGA0gASgIEjsKB2luc3RhbGwYDiABKAsyKi52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkluc3RhbGxTdGF0ZRIOCgZjdXN0b20YDyABKAgiawoMSW5zdGFsbFN0YXRlEhEKCWluc3RhbGxlZBgBIAEoCBIMCgRwYXRoGAIgASgJEhAKCGNoZWNrc3VtGAMgASgJEhIKCnNpemVfYnl0ZXMYBCABKAQSFAoMaW5zdGFsbGVkX2F0GAUgASgJIn0KDkJsb2NrbGlzdEVudHJ5EgoKAmlkGAEgASgJEhIKCm9wZXJhdGlvbnMYAiADKAkSDwoHbGljZW5zZRgDIAEoCRIOCgZyZWFzb24YBCABKAkSKgoiZXhwb3J0aW5nX29ubnhfcmVtb3Zlc19yZXN0cmljdGlvbhgFIAEoCCImChFMaXN0TW9kZWxzUmVxdWVzdBIRCglvcGVyYXRpb24YASABKAkiSQoSTGlzdE1vZGVsc1Jlc3BvbnNlEjMKBm1vZGVscxgBIAMoCzIjLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTW9kZWwiHQoPR2V0TW9kZWxSZXF1ZXN0EgoKAmlkGAEgASgJIkYKEEdldE1vZGVsUmVzcG9uc2USMgoFbW9kZWwYASABKAsyIy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLk1vZGVsIhcKFUxpc3RPcGVyYXRpb25zUmVxdWVzdCIsChZMaXN0T3BlcmF0aW9uc1Jlc3BvbnNlEhIKCm9wZXJhdGlvbnMYASADKAkiPAoSU2VsZWN0TW9kZWxSZXF1ZXN0EhEKCW9wZXJhdGlvbhgBIAEoCRITCgtvdmVycmlkZV9pZBgCIAEoCSJ/ChNTZWxlY3RNb2RlbFJlc3BvbnNlEjIKBW1vZGVsGAEgASgLMiMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5Nb2RlbBISCgpncHVfdmlhYmxlGAIgASgIEg4KBnJlYXNvbhgDIAEoCRIQCgh3YXJuaW5ncxgEIAMoCSI1ChZTZXRNb2RlbEVuYWJsZWRSZXF1ZXN0EgoKAmlkGAEgASgJEg8KB2VuYWJsZWQYAiABKAgiTQoXU2V0TW9kZWxFbmFibGVkUmVzcG9uc2USMgoFbW9kZWwYASABKAsyIy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLk1vZGVsIhYKFExpc3RCbG9ja2xpc3RSZXF1ZXN0IlYKFUxpc3RCbG9ja2xpc3RSZXNwb25zZRI9CgdlbnRyaWVzGAEgAygLMiwudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5CbG9ja2xpc3RFbnRyeSIhChNJbnN0YWxsTW9kZWxSZXF1ZXN0EgoKAmlkGAEgASgJIm4KFEluc3RhbGxNb2RlbFJlc3BvbnNlEg4KBmpvYl9pZBgBIAEoCRITCgtldGFfc2Vjb25kcxgCIAEoBRIWCg5zaXplX21iX2FwcHJveBgDIAEoBRIZChFhbHJlYWR5X2luc3RhbGxlZBgEIAEoCCIgChJSZW1vdmVNb2RlbFJlcXVlc3QSCgoCaWQYASABKAkiJgoTUmVtb3ZlTW9kZWxSZXNwb25zZRIPCgdyZW1vdmVkGAEgASgIInUKFUFkZEN1c3RvbU1vZGVsUmVxdWVzdBIyCgVtb2RlbBgBIAEoCzIjLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTW9kZWwSEgoKbG9jYWxfcGF0aBgCIAEoCRIUCgxkb3dubG9hZF91cmwYAyABKAkiTAoWQWRkQ3VzdG9tTW9kZWxSZXNwb25zZRIyCgVtb2RlbBgBIAEoCzIjLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTW9kZWwiPQoWU2V0RGVmYXVsdE1vZGVsUmVxdWVzdBIRCglvcGVyYXRpb24YASABKAkSEAoIbW9kZWxfaWQYAiABKAkiPgoXU2V0RGVmYXVsdE1vZGVsUmVzcG9uc2USEQoJb3BlcmF0aW9uGAEgASgJEhAKCG1vZGVsX2lkGAIgASgJIkAKCU9wRGVmYXVsdBIRCglvcGVyYXRpb24YASABKAkSEAoIbW9kZWxfaWQYAiABKAkSDgoGc291cmNlGAMgASgJIhUKE0xpc3REZWZhdWx0c1JlcXVlc3QiUQoUTGlzdERlZmF1bHRzUmVzcG9uc2USOQoIZGVmYXVsdHMYASADKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLk9wRGVmYXVsdCp+Cg1Db21tZXJjaWFsVXNlEh4KGkNPTU1FUkNJQUxfVVNFX1VOU1BFQ0lGSUVEEAASFgoSQ09NTUVSQ0lBTF9VU0VfWUVTEAESFQoRQ09NTUVSQ0lBTF9VU0VfTk8QAhIeChpDT01NRVJDSUFMX1VTRV9DT05ESVRJT05BTBADMrUKCg1Nb2RlbHNTZXJ2aWNlEm8KCkxpc3RNb2RlbHMSLy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkxpc3RNb2RlbHNSZXF1ZXN0GjAudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0TW9kZWxzUmVzcG9uc2USaQoIR2V0TW9kZWwSLS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkdldE1vZGVsUmVxdWVzdBouLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuR2V0TW9kZWxSZXNwb25zZRJ7Cg5MaXN0T3BlcmF0aW9ucxIzLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTGlzdE9wZXJhdGlvbnNSZXF1ZXN0GjQudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0T3BlcmF0aW9uc1Jlc3BvbnNlEnIKC1NlbGVjdE1vZGVsEjAudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5TZWxlY3RNb2RlbFJlcXVlc3QaMS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLlNlbGVjdE1vZGVsUmVzcG9uc2USfgoPU2V0TW9kZWxFbmFibGVkEjQudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5TZXRNb2RlbEVuYWJsZWRSZXF1ZXN0GjUudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5TZXRNb2RlbEVuYWJsZWRSZXNwb25zZRJ4Cg1MaXN0QmxvY2tsaXN0EjIudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0QmxvY2tsaXN0UmVxdWVzdBozLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTGlzdEJsb2NrbGlzdFJlc3BvbnNlEnUKDEluc3RhbGxNb2RlbBIxLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuSW5zdGFsbE1vZGVsUmVxdWVzdBoyLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuSW5zdGFsbE1vZGVsUmVzcG9uc2UScgoLUmVtb3ZlTW9kZWwSMC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLlJlbW92ZU1vZGVsUmVxdWVzdBoxLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuUmVtb3ZlTW9kZWxSZXNwb25zZRJ7Cg5BZGRDdXN0b21Nb2RlbBIzLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuQWRkQ3VzdG9tTW9kZWxSZXF1ZXN0GjQudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5BZGRDdXN0b21Nb2RlbFJlc3BvbnNlEn4KD1NldERlZmF1bHRNb2RlbBI0LnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuU2V0RGVmYXVsdE1vZGVsUmVxdWVzdBo1LnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuU2V0RGVmYXVsdE1vZGVsUmVzcG9uc2USdQoMTGlzdERlZmF1bHRzEjEudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0RGVmYXVsdHNSZXF1ZXN0GjIudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0RGVmYXVsdHNSZXNwb25zZUJQWk5naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2ltYWdlLXRvb2xzL3YxL21vZGVsczttb2RlbHNfdjFiBnByb3RvMw");
 
 /**
  * Hardware captures a model's host requirements.
@@ -182,6 +182,21 @@ export type Model = Message<"vrooli.image_tools.v1.models.Model"> & {
    * @generated from field: bool enabled = 13;
    */
   enabled: boolean;
+
+  /**
+   * On-disk install state (download-on-opt-in). Absent/installed=false means the
+   * weights are not present and AI ops for this model refuse with an install hint.
+   *
+   * @generated from field: vrooli.image_tools.v1.models.InstallState install = 14;
+   */
+  install?: InstallState | undefined;
+
+  /**
+   * True for operator-registered custom/local entries (not in the seed catalog).
+   *
+   * @generated from field: bool custom = 15;
+   */
+  custom: boolean;
 };
 
 /**
@@ -190,6 +205,53 @@ export type Model = Message<"vrooli.image_tools.v1.models.Model"> & {
  */
 export const ModelSchema: GenMessage<Model> = /*@__PURE__*/
   messageDesc(file_image_tools_v1_models_models, 2);
+
+/**
+ * InstallState is a model's on-disk weight status (IMG-P0-007).
+ *
+ * @generated from message vrooli.image_tools.v1.models.InstallState
+ */
+export type InstallState = Message<"vrooli.image_tools.v1.models.InstallState"> & {
+  /**
+   * @generated from field: bool installed = 1;
+   */
+  installed: boolean;
+
+  /**
+   * Absolute directory (or local file, for custom entries) the weights live in.
+   *
+   * @generated from field: string path = 2;
+   */
+  path: string;
+
+  /**
+   * sha256 pinned on first real download (never hand-written).
+   *
+   * @generated from field: string checksum = 3;
+   */
+  checksum: string;
+
+  /**
+   * On-disk size in bytes (0 until installed).
+   *
+   * @generated from field: uint64 size_bytes = 4;
+   */
+  sizeBytes: bigint;
+
+  /**
+   * RFC3339 install timestamp ("" until installed).
+   *
+   * @generated from field: string installed_at = 5;
+   */
+  installedAt: string;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.InstallState.
+ * Use `create(InstallStateSchema)` to create a new message.
+ */
+export const InstallStateSchema: GenMessage<InstallState> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 3);
 
 /**
  * BlocklistEntry records a license-encumbered model excluded from the catalog.
@@ -231,7 +293,7 @@ export type BlocklistEntry = Message<"vrooli.image_tools.v1.models.BlocklistEntr
  * Use `create(BlocklistEntrySchema)` to create a new message.
  */
 export const BlocklistEntrySchema: GenMessage<BlocklistEntry> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 3);
+  messageDesc(file_image_tools_v1_models_models, 4);
 
 /**
  * @generated from message vrooli.image_tools.v1.models.ListModelsRequest
@@ -250,7 +312,7 @@ export type ListModelsRequest = Message<"vrooli.image_tools.v1.models.ListModels
  * Use `create(ListModelsRequestSchema)` to create a new message.
  */
 export const ListModelsRequestSchema: GenMessage<ListModelsRequest> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 4);
+  messageDesc(file_image_tools_v1_models_models, 5);
 
 /**
  * @generated from message vrooli.image_tools.v1.models.ListModelsResponse
@@ -267,7 +329,7 @@ export type ListModelsResponse = Message<"vrooli.image_tools.v1.models.ListModel
  * Use `create(ListModelsResponseSchema)` to create a new message.
  */
 export const ListModelsResponseSchema: GenMessage<ListModelsResponse> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 5);
+  messageDesc(file_image_tools_v1_models_models, 6);
 
 /**
  * @generated from message vrooli.image_tools.v1.models.GetModelRequest
@@ -284,7 +346,7 @@ export type GetModelRequest = Message<"vrooli.image_tools.v1.models.GetModelRequ
  * Use `create(GetModelRequestSchema)` to create a new message.
  */
 export const GetModelRequestSchema: GenMessage<GetModelRequest> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 6);
+  messageDesc(file_image_tools_v1_models_models, 7);
 
 /**
  * @generated from message vrooli.image_tools.v1.models.GetModelResponse
@@ -301,7 +363,7 @@ export type GetModelResponse = Message<"vrooli.image_tools.v1.models.GetModelRes
  * Use `create(GetModelResponseSchema)` to create a new message.
  */
 export const GetModelResponseSchema: GenMessage<GetModelResponse> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 7);
+  messageDesc(file_image_tools_v1_models_models, 8);
 
 /**
  * @generated from message vrooli.image_tools.v1.models.ListOperationsRequest
@@ -314,7 +376,7 @@ export type ListOperationsRequest = Message<"vrooli.image_tools.v1.models.ListOp
  * Use `create(ListOperationsRequestSchema)` to create a new message.
  */
 export const ListOperationsRequestSchema: GenMessage<ListOperationsRequest> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 8);
+  messageDesc(file_image_tools_v1_models_models, 9);
 
 /**
  * @generated from message vrooli.image_tools.v1.models.ListOperationsResponse
@@ -331,7 +393,7 @@ export type ListOperationsResponse = Message<"vrooli.image_tools.v1.models.ListO
  * Use `create(ListOperationsResponseSchema)` to create a new message.
  */
 export const ListOperationsResponseSchema: GenMessage<ListOperationsResponse> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 9);
+  messageDesc(file_image_tools_v1_models_models, 10);
 
 /**
  * @generated from message vrooli.image_tools.v1.models.SelectModelRequest
@@ -358,7 +420,7 @@ export type SelectModelRequest = Message<"vrooli.image_tools.v1.models.SelectMod
  * Use `create(SelectModelRequestSchema)` to create a new message.
  */
 export const SelectModelRequestSchema: GenMessage<SelectModelRequest> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 10);
+  messageDesc(file_image_tools_v1_models_models, 11);
 
 /**
  * @generated from message vrooli.image_tools.v1.models.SelectModelResponse
@@ -398,7 +460,7 @@ export type SelectModelResponse = Message<"vrooli.image_tools.v1.models.SelectMo
  * Use `create(SelectModelResponseSchema)` to create a new message.
  */
 export const SelectModelResponseSchema: GenMessage<SelectModelResponse> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 11);
+  messageDesc(file_image_tools_v1_models_models, 12);
 
 /**
  * @generated from message vrooli.image_tools.v1.models.SetModelEnabledRequest
@@ -420,7 +482,7 @@ export type SetModelEnabledRequest = Message<"vrooli.image_tools.v1.models.SetMo
  * Use `create(SetModelEnabledRequestSchema)` to create a new message.
  */
 export const SetModelEnabledRequestSchema: GenMessage<SetModelEnabledRequest> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 12);
+  messageDesc(file_image_tools_v1_models_models, 13);
 
 /**
  * @generated from message vrooli.image_tools.v1.models.SetModelEnabledResponse
@@ -437,7 +499,7 @@ export type SetModelEnabledResponse = Message<"vrooli.image_tools.v1.models.SetM
  * Use `create(SetModelEnabledResponseSchema)` to create a new message.
  */
 export const SetModelEnabledResponseSchema: GenMessage<SetModelEnabledResponse> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 13);
+  messageDesc(file_image_tools_v1_models_models, 14);
 
 /**
  * @generated from message vrooli.image_tools.v1.models.ListBlocklistRequest
@@ -450,7 +512,7 @@ export type ListBlocklistRequest = Message<"vrooli.image_tools.v1.models.ListBlo
  * Use `create(ListBlocklistRequestSchema)` to create a new message.
  */
 export const ListBlocklistRequestSchema: GenMessage<ListBlocklistRequest> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 14);
+  messageDesc(file_image_tools_v1_models_models, 15);
 
 /**
  * @generated from message vrooli.image_tools.v1.models.ListBlocklistResponse
@@ -467,7 +529,259 @@ export type ListBlocklistResponse = Message<"vrooli.image_tools.v1.models.ListBl
  * Use `create(ListBlocklistResponseSchema)` to create a new message.
  */
 export const ListBlocklistResponseSchema: GenMessage<ListBlocklistResponse> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 15);
+  messageDesc(file_image_tools_v1_models_models, 16);
+
+/**
+ * @generated from message vrooli.image_tools.v1.models.InstallModelRequest
+ */
+export type InstallModelRequest = Message<"vrooli.image_tools.v1.models.InstallModelRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.InstallModelRequest.
+ * Use `create(InstallModelRequestSchema)` to create a new message.
+ */
+export const InstallModelRequestSchema: GenMessage<InstallModelRequest> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 17);
+
+/**
+ * @generated from message vrooli.image_tools.v1.models.InstallModelResponse
+ */
+export type InstallModelResponse = Message<"vrooli.image_tools.v1.models.InstallModelResponse"> & {
+  /**
+   * Job id of the durable download (empty when already_installed).
+   *
+   * @generated from field: string job_id = 1;
+   */
+  jobId: string;
+
+  /**
+   * Initial ETA in seconds for the download (0 when unknown/already installed).
+   *
+   * @generated from field: int32 eta_seconds = 2;
+   */
+  etaSeconds: number;
+
+  /**
+   * Approximate download size in MB (from the registry).
+   *
+   * @generated from field: int32 size_mb_approx = 3;
+   */
+  sizeMbApprox: number;
+
+  /**
+   * True when the weights were already present (no job submitted).
+   *
+   * @generated from field: bool already_installed = 4;
+   */
+  alreadyInstalled: boolean;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.InstallModelResponse.
+ * Use `create(InstallModelResponseSchema)` to create a new message.
+ */
+export const InstallModelResponseSchema: GenMessage<InstallModelResponse> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 18);
+
+/**
+ * @generated from message vrooli.image_tools.v1.models.RemoveModelRequest
+ */
+export type RemoveModelRequest = Message<"vrooli.image_tools.v1.models.RemoveModelRequest"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.RemoveModelRequest.
+ * Use `create(RemoveModelRequestSchema)` to create a new message.
+ */
+export const RemoveModelRequestSchema: GenMessage<RemoveModelRequest> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 19);
+
+/**
+ * @generated from message vrooli.image_tools.v1.models.RemoveModelResponse
+ */
+export type RemoveModelResponse = Message<"vrooli.image_tools.v1.models.RemoveModelResponse"> & {
+  /**
+   * @generated from field: bool removed = 1;
+   */
+  removed: boolean;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.RemoveModelResponse.
+ * Use `create(RemoveModelResponseSchema)` to create a new message.
+ */
+export const RemoveModelResponseSchema: GenMessage<RemoveModelResponse> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 20);
+
+/**
+ * @generated from message vrooli.image_tools.v1.models.AddCustomModelRequest
+ */
+export type AddCustomModelRequest = Message<"vrooli.image_tools.v1.models.AddCustomModelRequest"> & {
+  /**
+   * The custom entry to register. id, operations, and backend are required.
+   * The seed Model message carries no source; local_path/download_url are
+   * supplied here. A local_path is verified to exist at registration time.
+   *
+   * @generated from field: vrooli.image_tools.v1.models.Model model = 1;
+   */
+  model?: Model | undefined;
+
+  /**
+   * Absolute path to local weights (a directory or file). When set, the model is
+   * "installed" by reference — no download.
+   *
+   * @generated from field: string local_path = 2;
+   */
+  localPath: string;
+
+  /**
+   * Remote download URL (used when local_path is empty).
+   *
+   * @generated from field: string download_url = 3;
+   */
+  downloadUrl: string;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.AddCustomModelRequest.
+ * Use `create(AddCustomModelRequestSchema)` to create a new message.
+ */
+export const AddCustomModelRequestSchema: GenMessage<AddCustomModelRequest> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 21);
+
+/**
+ * @generated from message vrooli.image_tools.v1.models.AddCustomModelResponse
+ */
+export type AddCustomModelResponse = Message<"vrooli.image_tools.v1.models.AddCustomModelResponse"> & {
+  /**
+   * @generated from field: vrooli.image_tools.v1.models.Model model = 1;
+   */
+  model?: Model | undefined;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.AddCustomModelResponse.
+ * Use `create(AddCustomModelResponseSchema)` to create a new message.
+ */
+export const AddCustomModelResponseSchema: GenMessage<AddCustomModelResponse> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 22);
+
+/**
+ * @generated from message vrooli.image_tools.v1.models.SetDefaultModelRequest
+ */
+export type SetDefaultModelRequest = Message<"vrooli.image_tools.v1.models.SetDefaultModelRequest"> & {
+  /**
+   * @generated from field: string operation = 1;
+   */
+  operation: string;
+
+  /**
+   * Model id to pin as the operation's default. Empty clears the pin (revert to
+   * the seed default).
+   *
+   * @generated from field: string model_id = 2;
+   */
+  modelId: string;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.SetDefaultModelRequest.
+ * Use `create(SetDefaultModelRequestSchema)` to create a new message.
+ */
+export const SetDefaultModelRequestSchema: GenMessage<SetDefaultModelRequest> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 23);
+
+/**
+ * @generated from message vrooli.image_tools.v1.models.SetDefaultModelResponse
+ */
+export type SetDefaultModelResponse = Message<"vrooli.image_tools.v1.models.SetDefaultModelResponse"> & {
+  /**
+   * @generated from field: string operation = 1;
+   */
+  operation: string;
+
+  /**
+   * @generated from field: string model_id = 2;
+   */
+  modelId: string;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.SetDefaultModelResponse.
+ * Use `create(SetDefaultModelResponseSchema)` to create a new message.
+ */
+export const SetDefaultModelResponseSchema: GenMessage<SetDefaultModelResponse> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 24);
+
+/**
+ * OpDefault is the effective default model for one operation.
+ *
+ * @generated from message vrooli.image_tools.v1.models.OpDefault
+ */
+export type OpDefault = Message<"vrooli.image_tools.v1.models.OpDefault"> & {
+  /**
+   * @generated from field: string operation = 1;
+   */
+  operation: string;
+
+  /**
+   * @generated from field: string model_id = 2;
+   */
+  modelId: string;
+
+  /**
+   * "seed" (registry default_for) or "override" (operator pin).
+   *
+   * @generated from field: string source = 3;
+   */
+  source: string;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.OpDefault.
+ * Use `create(OpDefaultSchema)` to create a new message.
+ */
+export const OpDefaultSchema: GenMessage<OpDefault> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 25);
+
+/**
+ * @generated from message vrooli.image_tools.v1.models.ListDefaultsRequest
+ */
+export type ListDefaultsRequest = Message<"vrooli.image_tools.v1.models.ListDefaultsRequest"> & {
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.ListDefaultsRequest.
+ * Use `create(ListDefaultsRequestSchema)` to create a new message.
+ */
+export const ListDefaultsRequestSchema: GenMessage<ListDefaultsRequest> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 26);
+
+/**
+ * @generated from message vrooli.image_tools.v1.models.ListDefaultsResponse
+ */
+export type ListDefaultsResponse = Message<"vrooli.image_tools.v1.models.ListDefaultsResponse"> & {
+  /**
+   * @generated from field: repeated vrooli.image_tools.v1.models.OpDefault defaults = 1;
+   */
+  defaults: OpDefault[];
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.ListDefaultsResponse.
+ * Use `create(ListDefaultsResponseSchema)` to create a new message.
+ */
+export const ListDefaultsResponseSchema: GenMessage<ListDefaultsResponse> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 27);
 
 /**
  * CommercialUse classifies a model's commercial-use license posture.
@@ -570,6 +884,65 @@ export const ModelsService: GenService<{
     methodKind: "unary";
     input: typeof ListBlocklistRequestSchema;
     output: typeof ListBlocklistResponseSchema;
+  },
+  /**
+   * InstallModel downloads a model's weights as a durable job (checksum pinned
+   * on first download, disk space checked first). Returns the job id + ETA; the
+   * caller blocks once on JobsService.WaitJob. An already-installed model
+   * returns already_installed=true with no job.
+   *
+   * @generated from rpc vrooli.image_tools.v1.models.ModelsService.InstallModel
+   */
+  installModel: {
+    methodKind: "unary";
+    input: typeof InstallModelRequestSchema;
+    output: typeof InstallModelResponseSchema;
+  },
+  /**
+   * RemoveModel deletes a model's downloaded weights and clears its install
+   * record. A custom local model is unlinked; its referenced path is never
+   * deleted.
+   *
+   * @generated from rpc vrooli.image_tools.v1.models.ModelsService.RemoveModel
+   */
+  removeModel: {
+    methodKind: "unary";
+    input: typeof RemoveModelRequestSchema;
+    output: typeof RemoveModelResponseSchema;
+  },
+  /**
+   * AddCustomModel registers a custom/fine-tuned local model entry merged on top
+   * of the read-only seed. The id must not collide with a seed model.
+   *
+   * @generated from rpc vrooli.image_tools.v1.models.ModelsService.AddCustomModel
+   */
+  addCustomModel: {
+    methodKind: "unary";
+    input: typeof AddCustomModelRequestSchema;
+    output: typeof AddCustomModelResponseSchema;
+  },
+  /**
+   * SetDefaultModel pins (or clears, with empty model_id) the default model for
+   * an operation — the settings surface. Selection applies it when a request
+   * gives no explicit override.
+   *
+   * @generated from rpc vrooli.image_tools.v1.models.ModelsService.SetDefaultModel
+   */
+  setDefaultModel: {
+    methodKind: "unary";
+    input: typeof SetDefaultModelRequestSchema;
+    output: typeof SetDefaultModelResponseSchema;
+  },
+  /**
+   * ListDefaults returns the effective default model per operation, marking
+   * whether it comes from the seed or an operator pin.
+   *
+   * @generated from rpc vrooli.image_tools.v1.models.ModelsService.ListDefaults
+   */
+  listDefaults: {
+    methodKind: "unary";
+    input: typeof ListDefaultsRequestSchema;
+    output: typeof ListDefaultsResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_image_tools_v1_models_models, 0);

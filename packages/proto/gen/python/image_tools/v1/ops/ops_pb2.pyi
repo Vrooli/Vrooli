@@ -1,4 +1,3 @@
-from image_tools.v1.jobs import jobs_pb2 as _jobs_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -214,9 +213,9 @@ class OpResult(_message.Message):
     def __init__(self, ref: _Optional[str] = ..., format: _Optional[str] = ..., mime: _Optional[str] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., size_bytes: _Optional[int] = ...) -> None: ...
 
 class RunOpResponse(_message.Message):
-    __slots__ = ("job", "result")
-    JOB_FIELD_NUMBER: _ClassVar[int]
+    __slots__ = ("job_id", "result")
+    JOB_ID_FIELD_NUMBER: _ClassVar[int]
     RESULT_FIELD_NUMBER: _ClassVar[int]
-    job: _jobs_pb2.Job
+    job_id: str
     result: OpResult
-    def __init__(self, job: _Optional[_Union[_jobs_pb2.Job, _Mapping]] = ..., result: _Optional[_Union[OpResult, _Mapping]] = ...) -> None: ...
+    def __init__(self, job_id: _Optional[str] = ..., result: _Optional[_Union[OpResult, _Mapping]] = ...) -> None: ...

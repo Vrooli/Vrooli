@@ -83,6 +83,25 @@ message ValidateScenarioResponse {
   ValidationCounts counts = 16;
   repeated string next_steps = 17;
   common.v1.MaturityAssessment assessment = 18;
+
+  // Labeled references into this run's outputs (the run id, per-command working
+  // directories, coverage artifact locations) so operators and UIs can answer
+  // "where is this run / where are its outputs" without reconstructing paths
+  // from the other fields. Derived from the response; never authoritative state.
+  repeated Artifact artifacts = 19;
+}
+
+// Artifact is a labeled, typed reference into a validation run's outputs.
+message Artifact {
+  // Human-readable name, such as "Coverage (api)" or "go test (api)".
+  string label = 1;
+
+  // Canonical kinds: run (the run id), target (the validated root), command
+  // (a command's working directory), coverage (a coverage artifact location).
+  string kind = 2;
+
+  // The locator: a run id for kind=run, otherwise a filesystem path.
+  string reference = 3;
 }
 
 // TestSurface is a discovered scenario surface (api/cli/ui/worker/...) as

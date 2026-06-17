@@ -51,7 +51,7 @@ class CapabilityLabels(_message.Message):
     def __init__(self, nsfw_capable: _Optional[bool] = ..., license: _Optional[str] = ..., commercial_use: _Optional[_Union[CommercialUse, str]] = ..., commercial_use_notes: _Optional[str] = ..., base_model_lineage: _Optional[str] = ..., known_risks: _Optional[str] = ...) -> None: ...
 
 class Model(_message.Message):
-    __slots__ = ("id", "name", "operations", "default_for", "tier", "backend", "alt_backends", "requires_comfyui", "size_mb_approx", "quant_variants", "hardware", "capability_labels", "enabled")
+    __slots__ = ("id", "name", "operations", "default_for", "tier", "backend", "alt_backends", "requires_comfyui", "size_mb_approx", "quant_variants", "hardware", "capability_labels", "enabled", "install", "custom")
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     OPERATIONS_FIELD_NUMBER: _ClassVar[int]
@@ -65,6 +65,8 @@ class Model(_message.Message):
     HARDWARE_FIELD_NUMBER: _ClassVar[int]
     CAPABILITY_LABELS_FIELD_NUMBER: _ClassVar[int]
     ENABLED_FIELD_NUMBER: _ClassVar[int]
+    INSTALL_FIELD_NUMBER: _ClassVar[int]
+    CUSTOM_FIELD_NUMBER: _ClassVar[int]
     id: str
     name: str
     operations: _containers.RepeatedScalarFieldContainer[str]
@@ -78,7 +80,23 @@ class Model(_message.Message):
     hardware: Hardware
     capability_labels: CapabilityLabels
     enabled: bool
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., operations: _Optional[_Iterable[str]] = ..., default_for: _Optional[_Iterable[str]] = ..., tier: _Optional[str] = ..., backend: _Optional[str] = ..., alt_backends: _Optional[_Iterable[str]] = ..., requires_comfyui: _Optional[bool] = ..., size_mb_approx: _Optional[int] = ..., quant_variants: _Optional[_Iterable[str]] = ..., hardware: _Optional[_Union[Hardware, _Mapping]] = ..., capability_labels: _Optional[_Union[CapabilityLabels, _Mapping]] = ..., enabled: _Optional[bool] = ...) -> None: ...
+    install: InstallState
+    custom: bool
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., operations: _Optional[_Iterable[str]] = ..., default_for: _Optional[_Iterable[str]] = ..., tier: _Optional[str] = ..., backend: _Optional[str] = ..., alt_backends: _Optional[_Iterable[str]] = ..., requires_comfyui: _Optional[bool] = ..., size_mb_approx: _Optional[int] = ..., quant_variants: _Optional[_Iterable[str]] = ..., hardware: _Optional[_Union[Hardware, _Mapping]] = ..., capability_labels: _Optional[_Union[CapabilityLabels, _Mapping]] = ..., enabled: _Optional[bool] = ..., install: _Optional[_Union[InstallState, _Mapping]] = ..., custom: _Optional[bool] = ...) -> None: ...
+
+class InstallState(_message.Message):
+    __slots__ = ("installed", "path", "checksum", "size_bytes", "installed_at")
+    INSTALLED_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    CHECKSUM_FIELD_NUMBER: _ClassVar[int]
+    SIZE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    INSTALLED_AT_FIELD_NUMBER: _ClassVar[int]
+    installed: bool
+    path: str
+    checksum: str
+    size_bytes: int
+    installed_at: str
+    def __init__(self, installed: _Optional[bool] = ..., path: _Optional[str] = ..., checksum: _Optional[str] = ..., size_bytes: _Optional[int] = ..., installed_at: _Optional[str] = ...) -> None: ...
 
 class BlocklistEntry(_message.Message):
     __slots__ = ("id", "operations", "license", "reason", "exporting_onnx_removes_restriction")
@@ -171,3 +189,85 @@ class ListBlocklistResponse(_message.Message):
     ENTRIES_FIELD_NUMBER: _ClassVar[int]
     entries: _containers.RepeatedCompositeFieldContainer[BlocklistEntry]
     def __init__(self, entries: _Optional[_Iterable[_Union[BlocklistEntry, _Mapping]]] = ...) -> None: ...
+
+class InstallModelRequest(_message.Message):
+    __slots__ = ("id",)
+    ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    def __init__(self, id: _Optional[str] = ...) -> None: ...
+
+class InstallModelResponse(_message.Message):
+    __slots__ = ("job_id", "eta_seconds", "size_mb_approx", "already_installed")
+    JOB_ID_FIELD_NUMBER: _ClassVar[int]
+    ETA_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    SIZE_MB_APPROX_FIELD_NUMBER: _ClassVar[int]
+    ALREADY_INSTALLED_FIELD_NUMBER: _ClassVar[int]
+    job_id: str
+    eta_seconds: int
+    size_mb_approx: int
+    already_installed: bool
+    def __init__(self, job_id: _Optional[str] = ..., eta_seconds: _Optional[int] = ..., size_mb_approx: _Optional[int] = ..., already_installed: _Optional[bool] = ...) -> None: ...
+
+class RemoveModelRequest(_message.Message):
+    __slots__ = ("id",)
+    ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    def __init__(self, id: _Optional[str] = ...) -> None: ...
+
+class RemoveModelResponse(_message.Message):
+    __slots__ = ("removed",)
+    REMOVED_FIELD_NUMBER: _ClassVar[int]
+    removed: bool
+    def __init__(self, removed: _Optional[bool] = ...) -> None: ...
+
+class AddCustomModelRequest(_message.Message):
+    __slots__ = ("model", "local_path", "download_url")
+    MODEL_FIELD_NUMBER: _ClassVar[int]
+    LOCAL_PATH_FIELD_NUMBER: _ClassVar[int]
+    DOWNLOAD_URL_FIELD_NUMBER: _ClassVar[int]
+    model: Model
+    local_path: str
+    download_url: str
+    def __init__(self, model: _Optional[_Union[Model, _Mapping]] = ..., local_path: _Optional[str] = ..., download_url: _Optional[str] = ...) -> None: ...
+
+class AddCustomModelResponse(_message.Message):
+    __slots__ = ("model",)
+    MODEL_FIELD_NUMBER: _ClassVar[int]
+    model: Model
+    def __init__(self, model: _Optional[_Union[Model, _Mapping]] = ...) -> None: ...
+
+class SetDefaultModelRequest(_message.Message):
+    __slots__ = ("operation", "model_id")
+    OPERATION_FIELD_NUMBER: _ClassVar[int]
+    MODEL_ID_FIELD_NUMBER: _ClassVar[int]
+    operation: str
+    model_id: str
+    def __init__(self, operation: _Optional[str] = ..., model_id: _Optional[str] = ...) -> None: ...
+
+class SetDefaultModelResponse(_message.Message):
+    __slots__ = ("operation", "model_id")
+    OPERATION_FIELD_NUMBER: _ClassVar[int]
+    MODEL_ID_FIELD_NUMBER: _ClassVar[int]
+    operation: str
+    model_id: str
+    def __init__(self, operation: _Optional[str] = ..., model_id: _Optional[str] = ...) -> None: ...
+
+class OpDefault(_message.Message):
+    __slots__ = ("operation", "model_id", "source")
+    OPERATION_FIELD_NUMBER: _ClassVar[int]
+    MODEL_ID_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    operation: str
+    model_id: str
+    source: str
+    def __init__(self, operation: _Optional[str] = ..., model_id: _Optional[str] = ..., source: _Optional[str] = ...) -> None: ...
+
+class ListDefaultsRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class ListDefaultsResponse(_message.Message):
+    __slots__ = ("defaults",)
+    DEFAULTS_FIELD_NUMBER: _ClassVar[int]
+    defaults: _containers.RepeatedCompositeFieldContainer[OpDefault]
+    def __init__(self, defaults: _Optional[_Iterable[_Union[OpDefault, _Mapping]]] = ...) -> None: ...

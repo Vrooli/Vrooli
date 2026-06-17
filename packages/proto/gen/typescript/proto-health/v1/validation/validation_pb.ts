@@ -2,10 +2,8 @@
 // @generated from file proto-health/v1/validation/validation.proto (package vrooli.proto_health.v1.validation, syntax proto3)
 /* eslint-disable */
 
-import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
-import type { MaturityAssessment } from "../../../common/v1/maturity_pb";
-import { file_common_v1_maturity } from "../../../common/v1/maturity_pb";
+import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { ProtoSurface } from "../shared/surface_pb";
 import { file_proto_health_v1_shared_surface } from "../shared/surface_pb";
 import type { Message } from "@bufbuild/protobuf";
@@ -14,136 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file proto-health/v1/validation/validation.proto.
  */
 export const file_proto_health_v1_validation_validation: GenFile = /*@__PURE__*/
-  fileDesc("Citwcm90by1oZWFsdGgvdjEvdmFsaWRhdGlvbi92YWxpZGF0aW9uLnByb3RvEiF2cm9vbGkucHJvdG9faGVhbHRoLnYxLnZhbGlkYXRpb24ijQEKB0ZpbmRpbmcSPQoIc2V2ZXJpdHkYASABKA4yKy52cm9vbGkucHJvdG9faGVhbHRoLnYxLnZhbGlkYXRpb24uU2V2ZXJpdHkSDAoEY29kZRgCIAEoCRIQCghsb2NhdGlvbhgDIAEoCRIPCgdtZXNzYWdlGAQgASgJEhIKCnN1Z2dlc3Rpb24YBSABKAkiOgoHU3VtbWFyeRIOCgZlcnJvcnMYASABKAUSEAoId2FybmluZ3MYAiABKAUSDQoFaW5mb3MYAyABKAUiKwoXVmFsaWRhdGVTY2VuYXJpb1JlcXVlc3QSEAoIc2NlbmFyaW8YASABKAki6gEKGFZhbGlkYXRlU2NlbmFyaW9SZXNwb25zZRIQCghzY2VuYXJpbxgBIAEoCRIOCgZwYXNzZWQYAiABKAgSPAoIZmluZGluZ3MYAyADKAsyKi52cm9vbGkucHJvdG9faGVhbHRoLnYxLnZhbGlkYXRpb24uRmluZGluZxI7CgdzdW1tYXJ5GAQgASgLMioudnJvb2xpLnByb3RvX2hlYWx0aC52MS52YWxpZGF0aW9uLlN1bW1hcnkSMQoKYXNzZXNzbWVudBgFIAEoCzIdLmNvbW1vbi52MS5NYXR1cml0eUFzc2Vzc21lbnQiMQodRGVzY3JpYmVTY2VuYXJpb1Byb3Rvc1JlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkiXgoeRGVzY3JpYmVTY2VuYXJpb1Byb3Rvc1Jlc3BvbnNlEjwKB3N1cmZhY2UYASABKAsyKy52cm9vbGkucHJvdG9faGVhbHRoLnYxLnNoYXJlZC5Qcm90b1N1cmZhY2UiXAoeRGVzY3JpYmVTY2VuYXJpb3NQcm90b3NSZXF1ZXN0EhEKCXNjZW5hcmlvcxgBIAMoCRINCgVsaW1pdBgCIAEoBRIYChBzdGFiaWxpdHlfZmlsdGVyGAMgASgJInMKElByb3RvU3VyZmFjZVJlc3VsdBIQCghzY2VuYXJpbxgBIAEoCRI8CgdzdXJmYWNlGAIgASgLMisudnJvb2xpLnByb3RvX2hlYWx0aC52MS5zaGFyZWQuUHJvdG9TdXJmYWNlEg0KBWVycm9yGAMgASgJImkKH0Rlc2NyaWJlU2NlbmFyaW9zUHJvdG9zUmVzcG9uc2USRgoHcmVzdWx0cxgBIAMoCzI1LnZyb29saS5wcm90b19oZWFsdGgudjEudmFsaWRhdGlvbi5Qcm90b1N1cmZhY2VSZXN1bHQqYQoIU2V2ZXJpdHkSGAoUU0VWRVJJVFlfVU5TUEVDSUZJRUQQABISCg5TRVZFUklUWV9FUlJPUhABEhQKEFNFVkVSSVRZX1dBUk5JTkcQAhIRCg1TRVZFUklUWV9JTkZPEAMy5QMKElByb3RvSGVhbHRoU2VydmljZRKLAQoQVmFsaWRhdGVTY2VuYXJpbxI6LnZyb29saS5wcm90b19oZWFsdGgudjEudmFsaWRhdGlvbi5WYWxpZGF0ZVNjZW5hcmlvUmVxdWVzdBo7LnZyb29saS5wcm90b19oZWFsdGgudjEudmFsaWRhdGlvbi5WYWxpZGF0ZVNjZW5hcmlvUmVzcG9uc2USnQEKFkRlc2NyaWJlU2NlbmFyaW9Qcm90b3MSQC52cm9vbGkucHJvdG9faGVhbHRoLnYxLnZhbGlkYXRpb24uRGVzY3JpYmVTY2VuYXJpb1Byb3Rvc1JlcXVlc3QaQS52cm9vbGkucHJvdG9faGVhbHRoLnYxLnZhbGlkYXRpb24uRGVzY3JpYmVTY2VuYXJpb1Byb3Rvc1Jlc3BvbnNlEqABChdEZXNjcmliZVNjZW5hcmlvc1Byb3RvcxJBLnZyb29saS5wcm90b19oZWFsdGgudjEudmFsaWRhdGlvbi5EZXNjcmliZVNjZW5hcmlvc1Byb3Rvc1JlcXVlc3QaQi52cm9vbGkucHJvdG9faGVhbHRoLnYxLnZhbGlkYXRpb24uRGVzY3JpYmVTY2VuYXJpb3NQcm90b3NSZXNwb25zZUJZWldnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Byb3RvLWhlYWx0aC92MS92YWxpZGF0aW9uO3ZhbGlkYXRpb25fdjFiBnByb3RvMw", [file_common_v1_maturity, file_proto_health_v1_shared_surface]);
-
-/**
- * Finding is a single validation result tied to a location inside the scenario.
- *
- * @generated from message vrooli.proto_health.v1.validation.Finding
- */
-export type Finding = Message<"vrooli.proto_health.v1.validation.Finding"> & {
-  /**
-   * @generated from field: vrooli.proto_health.v1.validation.Severity severity = 1;
-   */
-  severity: Severity;
-
-  /**
-   * @generated from field: string code = 2;
-   */
-  code: string;
-
-  /**
-   * @generated from field: string location = 3;
-   */
-  location: string;
-
-  /**
-   * @generated from field: string message = 4;
-   */
-  message: string;
-
-  /**
-   * @generated from field: string suggestion = 5;
-   */
-  suggestion: string;
-};
-
-/**
- * Describes the message vrooli.proto_health.v1.validation.Finding.
- * Use `create(FindingSchema)` to create a new message.
- */
-export const FindingSchema: GenMessage<Finding> = /*@__PURE__*/
-  messageDesc(file_proto_health_v1_validation_validation, 0);
-
-/**
- * Summary is a rollup of Finding counts by severity.
- *
- * @generated from message vrooli.proto_health.v1.validation.Summary
- */
-export type Summary = Message<"vrooli.proto_health.v1.validation.Summary"> & {
-  /**
-   * @generated from field: int32 errors = 1;
-   */
-  errors: number;
-
-  /**
-   * @generated from field: int32 warnings = 2;
-   */
-  warnings: number;
-
-  /**
-   * @generated from field: int32 infos = 3;
-   */
-  infos: number;
-};
-
-/**
- * Describes the message vrooli.proto_health.v1.validation.Summary.
- * Use `create(SummarySchema)` to create a new message.
- */
-export const SummarySchema: GenMessage<Summary> = /*@__PURE__*/
-  messageDesc(file_proto_health_v1_validation_validation, 1);
-
-/**
- * ValidateScenarioRequest names a scenario by its directory slug.
- *
- * @generated from message vrooli.proto_health.v1.validation.ValidateScenarioRequest
- */
-export type ValidateScenarioRequest = Message<"vrooli.proto_health.v1.validation.ValidateScenarioRequest"> & {
-  /**
-   * @generated from field: string scenario = 1;
-   */
-  scenario: string;
-};
-
-/**
- * Describes the message vrooli.proto_health.v1.validation.ValidateScenarioRequest.
- * Use `create(ValidateScenarioRequestSchema)` to create a new message.
- */
-export const ValidateScenarioRequestSchema: GenMessage<ValidateScenarioRequest> = /*@__PURE__*/
-  messageDesc(file_proto_health_v1_validation_validation, 2);
-
-/**
- * ValidateScenarioResponse reports proto-health findings for the scenario.
- *
- * @generated from message vrooli.proto_health.v1.validation.ValidateScenarioResponse
- */
-export type ValidateScenarioResponse = Message<"vrooli.proto_health.v1.validation.ValidateScenarioResponse"> & {
-  /**
-   * @generated from field: string scenario = 1;
-   */
-  scenario: string;
-
-  /**
-   * @generated from field: bool passed = 2;
-   */
-  passed: boolean;
-
-  /**
-   * @generated from field: repeated vrooli.proto_health.v1.validation.Finding findings = 3;
-   */
-  findings: Finding[];
-
-  /**
-   * @generated from field: vrooli.proto_health.v1.validation.Summary summary = 4;
-   */
-  summary?: Summary | undefined;
-
-  /**
-   * Shared provider-owned maturity assessment. Automation should consume this
-   * structural object; humans should use the default CLI rendering.
-   *
-   * @generated from field: common.v1.MaturityAssessment assessment = 5;
-   */
-  assessment?: MaturityAssessment | undefined;
-};
-
-/**
- * Describes the message vrooli.proto_health.v1.validation.ValidateScenarioResponse.
- * Use `create(ValidateScenarioResponseSchema)` to create a new message.
- */
-export const ValidateScenarioResponseSchema: GenMessage<ValidateScenarioResponse> = /*@__PURE__*/
-  messageDesc(file_proto_health_v1_validation_validation, 3);
+  fileDesc("Citwcm90by1oZWFsdGgvdjEvdmFsaWRhdGlvbi92YWxpZGF0aW9uLnByb3RvEiF2cm9vbGkucHJvdG9faGVhbHRoLnYxLnZhbGlkYXRpb24iMQodRGVzY3JpYmVTY2VuYXJpb1Byb3Rvc1JlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkiXgoeRGVzY3JpYmVTY2VuYXJpb1Byb3Rvc1Jlc3BvbnNlEjwKB3N1cmZhY2UYASABKAsyKy52cm9vbGkucHJvdG9faGVhbHRoLnYxLnNoYXJlZC5Qcm90b1N1cmZhY2UiXAoeRGVzY3JpYmVTY2VuYXJpb3NQcm90b3NSZXF1ZXN0EhEKCXNjZW5hcmlvcxgBIAMoCRINCgVsaW1pdBgCIAEoBRIYChBzdGFiaWxpdHlfZmlsdGVyGAMgASgJInMKElByb3RvU3VyZmFjZVJlc3VsdBIQCghzY2VuYXJpbxgBIAEoCRI8CgdzdXJmYWNlGAIgASgLMisudnJvb2xpLnByb3RvX2hlYWx0aC52MS5zaGFyZWQuUHJvdG9TdXJmYWNlEg0KBWVycm9yGAMgASgJImkKH0Rlc2NyaWJlU2NlbmFyaW9zUHJvdG9zUmVzcG9uc2USRgoHcmVzdWx0cxgBIAMoCzI1LnZyb29saS5wcm90b19oZWFsdGgudjEudmFsaWRhdGlvbi5Qcm90b1N1cmZhY2VSZXN1bHQy1wIKElByb3RvSGVhbHRoU2VydmljZRKdAQoWRGVzY3JpYmVTY2VuYXJpb1Byb3RvcxJALnZyb29saS5wcm90b19oZWFsdGgudjEudmFsaWRhdGlvbi5EZXNjcmliZVNjZW5hcmlvUHJvdG9zUmVxdWVzdBpBLnZyb29saS5wcm90b19oZWFsdGgudjEudmFsaWRhdGlvbi5EZXNjcmliZVNjZW5hcmlvUHJvdG9zUmVzcG9uc2USoAEKF0Rlc2NyaWJlU2NlbmFyaW9zUHJvdG9zEkEudnJvb2xpLnByb3RvX2hlYWx0aC52MS52YWxpZGF0aW9uLkRlc2NyaWJlU2NlbmFyaW9zUHJvdG9zUmVxdWVzdBpCLnZyb29saS5wcm90b19oZWFsdGgudjEudmFsaWRhdGlvbi5EZXNjcmliZVNjZW5hcmlvc1Byb3Rvc1Jlc3BvbnNlQllaV2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vcHJvdG8taGVhbHRoL3YxL3ZhbGlkYXRpb247dmFsaWRhdGlvbl92MWIGcHJvdG8z", [file_proto_health_v1_shared_surface]);
 
 /**
  * DescribeScenarioProtosRequest names a scenario by its directory slug.
@@ -162,7 +31,7 @@ export type DescribeScenarioProtosRequest = Message<"vrooli.proto_health.v1.vali
  * Use `create(DescribeScenarioProtosRequestSchema)` to create a new message.
  */
 export const DescribeScenarioProtosRequestSchema: GenMessage<DescribeScenarioProtosRequest> = /*@__PURE__*/
-  messageDesc(file_proto_health_v1_validation_validation, 4);
+  messageDesc(file_proto_health_v1_validation_validation, 0);
 
 /**
  * DescribeScenarioProtosResponse returns the scenario-scoped proto surface.
@@ -181,7 +50,7 @@ export type DescribeScenarioProtosResponse = Message<"vrooli.proto_health.v1.val
  * Use `create(DescribeScenarioProtosResponseSchema)` to create a new message.
  */
 export const DescribeScenarioProtosResponseSchema: GenMessage<DescribeScenarioProtosResponse> = /*@__PURE__*/
-  messageDesc(file_proto_health_v1_validation_validation, 5);
+  messageDesc(file_proto_health_v1_validation_validation, 1);
 
 /**
  * DescribeScenariosProtosRequest requests proto surfaces for many scenarios.
@@ -211,7 +80,7 @@ export type DescribeScenariosProtosRequest = Message<"vrooli.proto_health.v1.val
  * Use `create(DescribeScenariosProtosRequestSchema)` to create a new message.
  */
 export const DescribeScenariosProtosRequestSchema: GenMessage<DescribeScenariosProtosRequest> = /*@__PURE__*/
-  messageDesc(file_proto_health_v1_validation_validation, 6);
+  messageDesc(file_proto_health_v1_validation_validation, 2);
 
 /**
  * ProtoSurfaceResult wraps one scenario's surface or per-scenario error.
@@ -240,7 +109,7 @@ export type ProtoSurfaceResult = Message<"vrooli.proto_health.v1.validation.Prot
  * Use `create(ProtoSurfaceResultSchema)` to create a new message.
  */
 export const ProtoSurfaceResultSchema: GenMessage<ProtoSurfaceResult> = /*@__PURE__*/
-  messageDesc(file_proto_health_v1_validation_validation, 7);
+  messageDesc(file_proto_health_v1_validation_validation, 3);
 
 /**
  * DescribeScenariosProtosResponse returns independent per-scenario results.
@@ -259,54 +128,12 @@ export type DescribeScenariosProtosResponse = Message<"vrooli.proto_health.v1.va
  * Use `create(DescribeScenariosProtosResponseSchema)` to create a new message.
  */
 export const DescribeScenariosProtosResponseSchema: GenMessage<DescribeScenariosProtosResponse> = /*@__PURE__*/
-  messageDesc(file_proto_health_v1_validation_validation, 8);
-
-/**
- * Severity classifies a Finding for filtering and rendering. ERROR causes
- * `passed=false`; WARNING and INFO are advisory.
- *
- * @generated from enum vrooli.proto_health.v1.validation.Severity
- */
-export enum Severity {
-  /**
-   * @generated from enum value: SEVERITY_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: SEVERITY_ERROR = 1;
-   */
-  ERROR = 1,
-
-  /**
-   * @generated from enum value: SEVERITY_WARNING = 2;
-   */
-  WARNING = 2,
-
-  /**
-   * @generated from enum value: SEVERITY_INFO = 3;
-   */
-  INFO = 3,
-}
-
-/**
- * Describes the enum vrooli.proto_health.v1.validation.Severity.
- */
-export const SeveritySchema: GenEnum<Severity> = /*@__PURE__*/
-  enumDesc(file_proto_health_v1_validation_validation, 0);
+  messageDesc(file_proto_health_v1_validation_validation, 4);
 
 /**
  * @generated from service vrooli.proto_health.v1.validation.ProtoHealthService
  */
 export const ProtoHealthService: GenService<{
-  /**
-   * @generated from rpc vrooli.proto_health.v1.validation.ProtoHealthService.ValidateScenario
-   */
-  validateScenario: {
-    methodKind: "unary";
-    input: typeof ValidateScenarioRequestSchema;
-    output: typeof ValidateScenarioResponseSchema;
-  },
   /**
    * @generated from rpc vrooli.proto_health.v1.validation.ProtoHealthService.DescribeScenarioProtos
    */

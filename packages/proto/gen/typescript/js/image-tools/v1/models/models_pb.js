@@ -8,7 +8,7 @@ import { enumDesc, fileDesc, messageDesc, serviceDesc, tsEnum } from "@bufbuild/
  * Describes the file image-tools/v1/models/models.proto.
  */
 export const file_image_tools_v1_models_models = /*@__PURE__*/
-  fileDesc("CiJpbWFnZS10b29scy92MS9tb2RlbHMvbW9kZWxzLnByb3RvEhx2cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzIoMBCghIYXJkd2FyZRITCgtjcHVfY2FwYWJsZRgBIAEoCBIUCgxncHVfcmVxdWlyZWQYAiABKAgSEwoLbWluX3ZyYW1fZ2IYAyABKAUSEgoKbWluX3JhbV9nYhgEIAEoBRIPCgdvc19hcmNoGAUgAygJEhIKCnNwZWVkX25vdGUYBiABKAkizQEKEENhcGFiaWxpdHlMYWJlbHMSFAoMbnNmd19jYXBhYmxlGAEgASgIEg8KB2xpY2Vuc2UYAiABKAkSQwoOY29tbWVyY2lhbF91c2UYAyABKA4yKy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkNvbW1lcmNpYWxVc2USHAoUY29tbWVyY2lhbF91c2Vfbm90ZXMYBCABKAkSGgoSYmFzZV9tb2RlbF9saW5lYWdlGAUgASgJEhMKC2tub3duX3Jpc2tzGAYgASgJIt8CCgVNb2RlbBIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhIKCm9wZXJhdGlvbnMYAyADKAkSEwoLZGVmYXVsdF9mb3IYBCADKAkSDAoEdGllchgFIAEoCRIPCgdiYWNrZW5kGAYgASgJEhQKDGFsdF9iYWNrZW5kcxgHIAMoCRIYChByZXF1aXJlc19jb21meXVpGAggASgIEhYKDnNpemVfbWJfYXBwcm94GAkgASgFEhYKDnF1YW50X3ZhcmlhbnRzGAogAygJEjgKCGhhcmR3YXJlGAsgASgLMiYudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5IYXJkd2FyZRJJChFjYXBhYmlsaXR5X2xhYmVscxgMIAEoCzIuLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuQ2FwYWJpbGl0eUxhYmVscxIPCgdlbmFibGVkGA0gASgIIn0KDkJsb2NrbGlzdEVudHJ5EgoKAmlkGAEgASgJEhIKCm9wZXJhdGlvbnMYAiADKAkSDwoHbGljZW5zZRgDIAEoCRIOCgZyZWFzb24YBCABKAkSKgoiZXhwb3J0aW5nX29ubnhfcmVtb3Zlc19yZXN0cmljdGlvbhgFIAEoCCImChFMaXN0TW9kZWxzUmVxdWVzdBIRCglvcGVyYXRpb24YASABKAkiSQoSTGlzdE1vZGVsc1Jlc3BvbnNlEjMKBm1vZGVscxgBIAMoCzIjLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTW9kZWwiHQoPR2V0TW9kZWxSZXF1ZXN0EgoKAmlkGAEgASgJIkYKEEdldE1vZGVsUmVzcG9uc2USMgoFbW9kZWwYASABKAsyIy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLk1vZGVsIhcKFUxpc3RPcGVyYXRpb25zUmVxdWVzdCIsChZMaXN0T3BlcmF0aW9uc1Jlc3BvbnNlEhIKCm9wZXJhdGlvbnMYASADKAkiPAoSU2VsZWN0TW9kZWxSZXF1ZXN0EhEKCW9wZXJhdGlvbhgBIAEoCRITCgtvdmVycmlkZV9pZBgCIAEoCSJ/ChNTZWxlY3RNb2RlbFJlc3BvbnNlEjIKBW1vZGVsGAEgASgLMiMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5Nb2RlbBISCgpncHVfdmlhYmxlGAIgASgIEg4KBnJlYXNvbhgDIAEoCRIQCgh3YXJuaW5ncxgEIAMoCSI1ChZTZXRNb2RlbEVuYWJsZWRSZXF1ZXN0EgoKAmlkGAEgASgJEg8KB2VuYWJsZWQYAiABKAgiTQoXU2V0TW9kZWxFbmFibGVkUmVzcG9uc2USMgoFbW9kZWwYASABKAsyIy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLk1vZGVsIhYKFExpc3RCbG9ja2xpc3RSZXF1ZXN0IlYKFUxpc3RCbG9ja2xpc3RSZXNwb25zZRI9CgdlbnRyaWVzGAEgAygLMiwudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5CbG9ja2xpc3RFbnRyeSp+Cg1Db21tZXJjaWFsVXNlEh4KGkNPTU1FUkNJQUxfVVNFX1VOU1BFQ0lGSUVEEAASFgoSQ09NTUVSQ0lBTF9VU0VfWUVTEAESFQoRQ09NTUVSQ0lBTF9VU0VfTk8QAhIeChpDT01NRVJDSUFMX1VTRV9DT05ESVRJT05BTBADMtYFCg1Nb2RlbHNTZXJ2aWNlEm8KCkxpc3RNb2RlbHMSLy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkxpc3RNb2RlbHNSZXF1ZXN0GjAudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0TW9kZWxzUmVzcG9uc2USaQoIR2V0TW9kZWwSLS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkdldE1vZGVsUmVxdWVzdBouLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuR2V0TW9kZWxSZXNwb25zZRJ7Cg5MaXN0T3BlcmF0aW9ucxIzLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTGlzdE9wZXJhdGlvbnNSZXF1ZXN0GjQudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0T3BlcmF0aW9uc1Jlc3BvbnNlEnIKC1NlbGVjdE1vZGVsEjAudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5TZWxlY3RNb2RlbFJlcXVlc3QaMS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLlNlbGVjdE1vZGVsUmVzcG9uc2USfgoPU2V0TW9kZWxFbmFibGVkEjQudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5TZXRNb2RlbEVuYWJsZWRSZXF1ZXN0GjUudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5TZXRNb2RlbEVuYWJsZWRSZXNwb25zZRJ4Cg1MaXN0QmxvY2tsaXN0EjIudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0QmxvY2tsaXN0UmVxdWVzdBozLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTGlzdEJsb2NrbGlzdFJlc3BvbnNlQlBaTmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vaW1hZ2UtdG9vbHMvdjEvbW9kZWxzO21vZGVsc192MWIGcHJvdG8z");
+  fileDesc("CiJpbWFnZS10b29scy92MS9tb2RlbHMvbW9kZWxzLnByb3RvEhx2cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzIoMBCghIYXJkd2FyZRITCgtjcHVfY2FwYWJsZRgBIAEoCBIUCgxncHVfcmVxdWlyZWQYAiABKAgSEwoLbWluX3ZyYW1fZ2IYAyABKAUSEgoKbWluX3JhbV9nYhgEIAEoBRIPCgdvc19hcmNoGAUgAygJEhIKCnNwZWVkX25vdGUYBiABKAkizQEKEENhcGFiaWxpdHlMYWJlbHMSFAoMbnNmd19jYXBhYmxlGAEgASgIEg8KB2xpY2Vuc2UYAiABKAkSQwoOY29tbWVyY2lhbF91c2UYAyABKA4yKy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkNvbW1lcmNpYWxVc2USHAoUY29tbWVyY2lhbF91c2Vfbm90ZXMYBCABKAkSGgoSYmFzZV9tb2RlbF9saW5lYWdlGAUgASgJEhMKC2tub3duX3Jpc2tzGAYgASgJIqwDCgVNb2RlbBIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhIKCm9wZXJhdGlvbnMYAyADKAkSEwoLZGVmYXVsdF9mb3IYBCADKAkSDAoEdGllchgFIAEoCRIPCgdiYWNrZW5kGAYgASgJEhQKDGFsdF9iYWNrZW5kcxgHIAMoCRIYChByZXF1aXJlc19jb21meXVpGAggASgIEhYKDnNpemVfbWJfYXBwcm94GAkgASgFEhYKDnF1YW50X3ZhcmlhbnRzGAogAygJEjgKCGhhcmR3YXJlGAsgASgLMiYudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5IYXJkd2FyZRJJChFjYXBhYmlsaXR5X2xhYmVscxgMIAEoCzIuLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuQ2FwYWJpbGl0eUxhYmVscxIPCgdlbmFibGVkGA0gASgIEjsKB2luc3RhbGwYDiABKAsyKi52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkluc3RhbGxTdGF0ZRIOCgZjdXN0b20YDyABKAgiawoMSW5zdGFsbFN0YXRlEhEKCWluc3RhbGxlZBgBIAEoCBIMCgRwYXRoGAIgASgJEhAKCGNoZWNrc3VtGAMgASgJEhIKCnNpemVfYnl0ZXMYBCABKAQSFAoMaW5zdGFsbGVkX2F0GAUgASgJIn0KDkJsb2NrbGlzdEVudHJ5EgoKAmlkGAEgASgJEhIKCm9wZXJhdGlvbnMYAiADKAkSDwoHbGljZW5zZRgDIAEoCRIOCgZyZWFzb24YBCABKAkSKgoiZXhwb3J0aW5nX29ubnhfcmVtb3Zlc19yZXN0cmljdGlvbhgFIAEoCCImChFMaXN0TW9kZWxzUmVxdWVzdBIRCglvcGVyYXRpb24YASABKAkiSQoSTGlzdE1vZGVsc1Jlc3BvbnNlEjMKBm1vZGVscxgBIAMoCzIjLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTW9kZWwiHQoPR2V0TW9kZWxSZXF1ZXN0EgoKAmlkGAEgASgJIkYKEEdldE1vZGVsUmVzcG9uc2USMgoFbW9kZWwYASABKAsyIy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLk1vZGVsIhcKFUxpc3RPcGVyYXRpb25zUmVxdWVzdCIsChZMaXN0T3BlcmF0aW9uc1Jlc3BvbnNlEhIKCm9wZXJhdGlvbnMYASADKAkiPAoSU2VsZWN0TW9kZWxSZXF1ZXN0EhEKCW9wZXJhdGlvbhgBIAEoCRITCgtvdmVycmlkZV9pZBgCIAEoCSJ/ChNTZWxlY3RNb2RlbFJlc3BvbnNlEjIKBW1vZGVsGAEgASgLMiMudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5Nb2RlbBISCgpncHVfdmlhYmxlGAIgASgIEg4KBnJlYXNvbhgDIAEoCRIQCgh3YXJuaW5ncxgEIAMoCSI1ChZTZXRNb2RlbEVuYWJsZWRSZXF1ZXN0EgoKAmlkGAEgASgJEg8KB2VuYWJsZWQYAiABKAgiTQoXU2V0TW9kZWxFbmFibGVkUmVzcG9uc2USMgoFbW9kZWwYASABKAsyIy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLk1vZGVsIhYKFExpc3RCbG9ja2xpc3RSZXF1ZXN0IlYKFUxpc3RCbG9ja2xpc3RSZXNwb25zZRI9CgdlbnRyaWVzGAEgAygLMiwudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5CbG9ja2xpc3RFbnRyeSIhChNJbnN0YWxsTW9kZWxSZXF1ZXN0EgoKAmlkGAEgASgJIm4KFEluc3RhbGxNb2RlbFJlc3BvbnNlEg4KBmpvYl9pZBgBIAEoCRITCgtldGFfc2Vjb25kcxgCIAEoBRIWCg5zaXplX21iX2FwcHJveBgDIAEoBRIZChFhbHJlYWR5X2luc3RhbGxlZBgEIAEoCCIgChJSZW1vdmVNb2RlbFJlcXVlc3QSCgoCaWQYASABKAkiJgoTUmVtb3ZlTW9kZWxSZXNwb25zZRIPCgdyZW1vdmVkGAEgASgIInUKFUFkZEN1c3RvbU1vZGVsUmVxdWVzdBIyCgVtb2RlbBgBIAEoCzIjLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTW9kZWwSEgoKbG9jYWxfcGF0aBgCIAEoCRIUCgxkb3dubG9hZF91cmwYAyABKAkiTAoWQWRkQ3VzdG9tTW9kZWxSZXNwb25zZRIyCgVtb2RlbBgBIAEoCzIjLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTW9kZWwiPQoWU2V0RGVmYXVsdE1vZGVsUmVxdWVzdBIRCglvcGVyYXRpb24YASABKAkSEAoIbW9kZWxfaWQYAiABKAkiPgoXU2V0RGVmYXVsdE1vZGVsUmVzcG9uc2USEQoJb3BlcmF0aW9uGAEgASgJEhAKCG1vZGVsX2lkGAIgASgJIkAKCU9wRGVmYXVsdBIRCglvcGVyYXRpb24YASABKAkSEAoIbW9kZWxfaWQYAiABKAkSDgoGc291cmNlGAMgASgJIhUKE0xpc3REZWZhdWx0c1JlcXVlc3QiUQoUTGlzdERlZmF1bHRzUmVzcG9uc2USOQoIZGVmYXVsdHMYASADKAsyJy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLk9wRGVmYXVsdCp+Cg1Db21tZXJjaWFsVXNlEh4KGkNPTU1FUkNJQUxfVVNFX1VOU1BFQ0lGSUVEEAASFgoSQ09NTUVSQ0lBTF9VU0VfWUVTEAESFQoRQ09NTUVSQ0lBTF9VU0VfTk8QAhIeChpDT01NRVJDSUFMX1VTRV9DT05ESVRJT05BTBADMrUKCg1Nb2RlbHNTZXJ2aWNlEm8KCkxpc3RNb2RlbHMSLy52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkxpc3RNb2RlbHNSZXF1ZXN0GjAudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0TW9kZWxzUmVzcG9uc2USaQoIR2V0TW9kZWwSLS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLkdldE1vZGVsUmVxdWVzdBouLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuR2V0TW9kZWxSZXNwb25zZRJ7Cg5MaXN0T3BlcmF0aW9ucxIzLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTGlzdE9wZXJhdGlvbnNSZXF1ZXN0GjQudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0T3BlcmF0aW9uc1Jlc3BvbnNlEnIKC1NlbGVjdE1vZGVsEjAudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5TZWxlY3RNb2RlbFJlcXVlc3QaMS52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLlNlbGVjdE1vZGVsUmVzcG9uc2USfgoPU2V0TW9kZWxFbmFibGVkEjQudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5TZXRNb2RlbEVuYWJsZWRSZXF1ZXN0GjUudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5TZXRNb2RlbEVuYWJsZWRSZXNwb25zZRJ4Cg1MaXN0QmxvY2tsaXN0EjIudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0QmxvY2tsaXN0UmVxdWVzdBozLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuTGlzdEJsb2NrbGlzdFJlc3BvbnNlEnUKDEluc3RhbGxNb2RlbBIxLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuSW5zdGFsbE1vZGVsUmVxdWVzdBoyLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuSW5zdGFsbE1vZGVsUmVzcG9uc2UScgoLUmVtb3ZlTW9kZWwSMC52cm9vbGkuaW1hZ2VfdG9vbHMudjEubW9kZWxzLlJlbW92ZU1vZGVsUmVxdWVzdBoxLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuUmVtb3ZlTW9kZWxSZXNwb25zZRJ7Cg5BZGRDdXN0b21Nb2RlbBIzLnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuQWRkQ3VzdG9tTW9kZWxSZXF1ZXN0GjQudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5BZGRDdXN0b21Nb2RlbFJlc3BvbnNlEn4KD1NldERlZmF1bHRNb2RlbBI0LnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuU2V0RGVmYXVsdE1vZGVsUmVxdWVzdBo1LnZyb29saS5pbWFnZV90b29scy52MS5tb2RlbHMuU2V0RGVmYXVsdE1vZGVsUmVzcG9uc2USdQoMTGlzdERlZmF1bHRzEjEudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0RGVmYXVsdHNSZXF1ZXN0GjIudnJvb2xpLmltYWdlX3Rvb2xzLnYxLm1vZGVscy5MaXN0RGVmYXVsdHNSZXNwb25zZUJQWk5naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2ltYWdlLXRvb2xzL3YxL21vZGVsczttb2RlbHNfdjFiBnByb3RvMw");
 
 /**
  * Describes the message vrooli.image_tools.v1.models.Hardware.
@@ -32,95 +32,179 @@ export const ModelSchema = /*@__PURE__*/
   messageDesc(file_image_tools_v1_models_models, 2);
 
 /**
+ * Describes the message vrooli.image_tools.v1.models.InstallState.
+ * Use `create(InstallStateSchema)` to create a new message.
+ */
+export const InstallStateSchema = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 3);
+
+/**
  * Describes the message vrooli.image_tools.v1.models.BlocklistEntry.
  * Use `create(BlocklistEntrySchema)` to create a new message.
  */
 export const BlocklistEntrySchema = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 3);
+  messageDesc(file_image_tools_v1_models_models, 4);
 
 /**
  * Describes the message vrooli.image_tools.v1.models.ListModelsRequest.
  * Use `create(ListModelsRequestSchema)` to create a new message.
  */
 export const ListModelsRequestSchema = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 4);
+  messageDesc(file_image_tools_v1_models_models, 5);
 
 /**
  * Describes the message vrooli.image_tools.v1.models.ListModelsResponse.
  * Use `create(ListModelsResponseSchema)` to create a new message.
  */
 export const ListModelsResponseSchema = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 5);
+  messageDesc(file_image_tools_v1_models_models, 6);
 
 /**
  * Describes the message vrooli.image_tools.v1.models.GetModelRequest.
  * Use `create(GetModelRequestSchema)` to create a new message.
  */
 export const GetModelRequestSchema = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 6);
+  messageDesc(file_image_tools_v1_models_models, 7);
 
 /**
  * Describes the message vrooli.image_tools.v1.models.GetModelResponse.
  * Use `create(GetModelResponseSchema)` to create a new message.
  */
 export const GetModelResponseSchema = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 7);
+  messageDesc(file_image_tools_v1_models_models, 8);
 
 /**
  * Describes the message vrooli.image_tools.v1.models.ListOperationsRequest.
  * Use `create(ListOperationsRequestSchema)` to create a new message.
  */
 export const ListOperationsRequestSchema = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 8);
+  messageDesc(file_image_tools_v1_models_models, 9);
 
 /**
  * Describes the message vrooli.image_tools.v1.models.ListOperationsResponse.
  * Use `create(ListOperationsResponseSchema)` to create a new message.
  */
 export const ListOperationsResponseSchema = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 9);
+  messageDesc(file_image_tools_v1_models_models, 10);
 
 /**
  * Describes the message vrooli.image_tools.v1.models.SelectModelRequest.
  * Use `create(SelectModelRequestSchema)` to create a new message.
  */
 export const SelectModelRequestSchema = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 10);
+  messageDesc(file_image_tools_v1_models_models, 11);
 
 /**
  * Describes the message vrooli.image_tools.v1.models.SelectModelResponse.
  * Use `create(SelectModelResponseSchema)` to create a new message.
  */
 export const SelectModelResponseSchema = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 11);
+  messageDesc(file_image_tools_v1_models_models, 12);
 
 /**
  * Describes the message vrooli.image_tools.v1.models.SetModelEnabledRequest.
  * Use `create(SetModelEnabledRequestSchema)` to create a new message.
  */
 export const SetModelEnabledRequestSchema = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 12);
+  messageDesc(file_image_tools_v1_models_models, 13);
 
 /**
  * Describes the message vrooli.image_tools.v1.models.SetModelEnabledResponse.
  * Use `create(SetModelEnabledResponseSchema)` to create a new message.
  */
 export const SetModelEnabledResponseSchema = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 13);
+  messageDesc(file_image_tools_v1_models_models, 14);
 
 /**
  * Describes the message vrooli.image_tools.v1.models.ListBlocklistRequest.
  * Use `create(ListBlocklistRequestSchema)` to create a new message.
  */
 export const ListBlocklistRequestSchema = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 14);
+  messageDesc(file_image_tools_v1_models_models, 15);
 
 /**
  * Describes the message vrooli.image_tools.v1.models.ListBlocklistResponse.
  * Use `create(ListBlocklistResponseSchema)` to create a new message.
  */
 export const ListBlocklistResponseSchema = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_models_models, 15);
+  messageDesc(file_image_tools_v1_models_models, 16);
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.InstallModelRequest.
+ * Use `create(InstallModelRequestSchema)` to create a new message.
+ */
+export const InstallModelRequestSchema = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 17);
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.InstallModelResponse.
+ * Use `create(InstallModelResponseSchema)` to create a new message.
+ */
+export const InstallModelResponseSchema = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 18);
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.RemoveModelRequest.
+ * Use `create(RemoveModelRequestSchema)` to create a new message.
+ */
+export const RemoveModelRequestSchema = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 19);
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.RemoveModelResponse.
+ * Use `create(RemoveModelResponseSchema)` to create a new message.
+ */
+export const RemoveModelResponseSchema = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 20);
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.AddCustomModelRequest.
+ * Use `create(AddCustomModelRequestSchema)` to create a new message.
+ */
+export const AddCustomModelRequestSchema = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 21);
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.AddCustomModelResponse.
+ * Use `create(AddCustomModelResponseSchema)` to create a new message.
+ */
+export const AddCustomModelResponseSchema = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 22);
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.SetDefaultModelRequest.
+ * Use `create(SetDefaultModelRequestSchema)` to create a new message.
+ */
+export const SetDefaultModelRequestSchema = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 23);
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.SetDefaultModelResponse.
+ * Use `create(SetDefaultModelResponseSchema)` to create a new message.
+ */
+export const SetDefaultModelResponseSchema = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 24);
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.OpDefault.
+ * Use `create(OpDefaultSchema)` to create a new message.
+ */
+export const OpDefaultSchema = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 25);
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.ListDefaultsRequest.
+ * Use `create(ListDefaultsRequestSchema)` to create a new message.
+ */
+export const ListDefaultsRequestSchema = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 26);
+
+/**
+ * Describes the message vrooli.image_tools.v1.models.ListDefaultsResponse.
+ * Use `create(ListDefaultsResponseSchema)` to create a new message.
+ */
+export const ListDefaultsResponseSchema = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_models_models, 27);
 
 /**
  * Describes the enum vrooli.image_tools.v1.models.CommercialUse.

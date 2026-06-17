@@ -33,6 +33,49 @@ service DependencyGovernanceService {
   rpc ListSecurityGovernanceGaps(ListSecurityGovernanceGapsRequest) returns (SecurityGovernanceGapsResponse);
   rpc PreviewVulnerabilityRemediation(PreviewVulnerabilityRemediationRequest) returns (VulnerabilityRemediationResponse);
   rpc DenyVulnerableDependency(DenyVulnerableDependencyRequest) returns (VulnerabilityRemediationResponse);
+  // InstallDependency is the governed install gateway: it resolves the target
+  // surface's package manager + manifest, enforces governance (approved/denied/
+  // range/allowed_surfaces), runs the install (dry-run by default), and re-scans
+  // for vulnerabilities. It is the sanctioned alternative to a raw `pnpm add`/
+  // `go get`/`pip install`.
+  rpc InstallDependency(InstallDependencyRequest) returns (InstallDependencyResponse);
+}
+
+message InstallDependencyRequest {
+  string scenario = 1;
+  // Target surface within the scenario: ui, api, or cli.
+  string surface = 2;
+  string ecosystem = 3;
+  string package_name = 4;
+  // Optional explicit version/range; empty lets the package manager resolve it
+  // (subject to the approved range when one is recorded).
+  string version = 5;
+  // apply=false (the default) is a dry run: the command + governance verdict are
+  // returned but nothing is installed. apply=true performs the install.
+  bool apply = 6;
+}
+
+message InstallDependencyResponse {
+  // installed is true only when apply was set and the install succeeded.
+  bool installed = 1;
+  bool dry_run = 2;
+  // verdict is the governance decision: approved, approved_with_constraints,
+  // denied, deprecated, unrecorded, surface_not_allowed, or out_of_range.
+  string verdict = 3;
+  // blocked is true when governance refused the install (denied/out-of-range/
+  // surface-not-allowed/unrecorded in a fail-closed mode).
+  bool blocked = 4;
+  // command is the exact argv the gateway ran (apply) or would run (dry-run).
+  string command = 5;
+  string package_manager = 6;
+  string manifest_path = 7;
+  // message is the human-friendly summary.
+  string message = 8;
+  repeated string next_steps = 9;
+  // security_notes carries the post-install (or, on dry-run, the recorded)
+  // vulnerability scan summary for the package.
+  repeated string security_notes = 10;
+  string guidance = 11;
 }
 
 message ListApprovedDependenciesRequest {
@@ -48,6 +91,14 @@ message SearchApprovedDependenciesRequest {
   string query = 1;
   string ecosystem = 2;
   int32 limit = 3;
+  // Optional facet filters narrowing the AI semantic search over governance
+  // records. Empty means "no filter". framework matches the keyword/use-case
+  // vocabulary (e.g. "react"); surface matches an allowed_surfaces entry (ui/
+  // api/cli); state matches the governance state (approved/denied/needs_review/
+  // deprecated).
+  string framework = 4;
+  string surface = 5;
+  string state = 6;
 }
 
 message ExplainApprovedDependencyRequest {
@@ -396,6 +447,10 @@ message ApprovedDependencyRecord {
   // major_line, minimum, dev_tooling, and security_denied. Empty defaults to
   // exact for literal versions and normal range evaluation for range strings.
   string range_policy = 20;
+  // Relevance score [0,1] populated by SearchApprovedDependencies when AI/keyword
+  // ranking ran (the federated search-hub result_mapping reads this). Zero on
+  // every non-search path; records are still returned in rank order.
+  double relevance_score = 21;
 }
 
 message ObservedDependency {

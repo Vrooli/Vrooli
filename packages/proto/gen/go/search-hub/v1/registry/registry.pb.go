@@ -21,7 +21,21 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Routing facet — the four search-context buckets (DO / REUSE / KNOW / STATE).
+// Routing facet — the search-context buckets. Each names what the *consumer*
+// does with a result, never the domain it came from, so the taxonomy stays
+// fully provider-agnostic (a bucket whose name could only come from one
+// scenario — e.g. "calendar" — would violate this and is disallowed):
+//
+//	DO     — execute it (actions, commands, tools)
+//	REUSE  — build with it (skills, components, templates, dependency packages)
+//	KNOW   — learn from it (docs, work records, learnings)
+//	STATE  — check its current value (health scores, metrics, status)
+//	ENTITY — retrieve a specific data record (calendar events, contacts,
+//	         emails, transactions, logs, messages) — the discrete "noun"
+//	         instances of personal/business apps that none of the above hold.
+//
+// Buckets are advisory categorization metadata; routing keys off `type` + the
+// classifier, so this enum is not load-bearing for fan-out.
 type Bucket int32
 
 const (
@@ -30,6 +44,7 @@ const (
 	Bucket_BUCKET_REUSE       Bucket = 2
 	Bucket_BUCKET_KNOW        Bucket = 3
 	Bucket_BUCKET_STATE       Bucket = 4
+	Bucket_BUCKET_ENTITY      Bucket = 5
 )
 
 // Enum value maps for Bucket.
@@ -40,6 +55,7 @@ var (
 		2: "BUCKET_REUSE",
 		3: "BUCKET_KNOW",
 		4: "BUCKET_STATE",
+		5: "BUCKET_ENTITY",
 	}
 	Bucket_value = map[string]int32{
 		"BUCKET_UNSPECIFIED": 0,
@@ -47,6 +63,7 @@ var (
 		"BUCKET_REUSE":       2,
 		"BUCKET_KNOW":        3,
 		"BUCKET_STATE":       4,
+		"BUCKET_ENTITY":      5,
 	}
 )
 
@@ -1397,13 +1414,14 @@ const file_search_hub_v1_registry_registry_proto_rawDesc = "" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
 	"providerId\"6\n" +
 	"\x1aDeregisterProviderResponse\x12\x18\n" +
-	"\aremoved\x18\x01 \x01(\bR\aremoved*d\n" +
+	"\aremoved\x18\x01 \x01(\bR\aremoved*w\n" +
 	"\x06Bucket\x12\x16\n" +
 	"\x12BUCKET_UNSPECIFIED\x10\x00\x12\r\n" +
 	"\tBUCKET_DO\x10\x01\x12\x10\n" +
 	"\fBUCKET_REUSE\x10\x02\x12\x0f\n" +
 	"\vBUCKET_KNOW\x10\x03\x12\x10\n" +
-	"\fBUCKET_STATE\x10\x04*E\n" +
+	"\fBUCKET_STATE\x10\x04\x12\x11\n" +
+	"\rBUCKET_ENTITY\x10\x05*E\n" +
 	"\x05Scope\x12\x15\n" +
 	"\x11SCOPE_UNSPECIFIED\x10\x00\x12\x11\n" +
 	"\rSCOPE_PROJECT\x10\x01\x12\x12\n" +

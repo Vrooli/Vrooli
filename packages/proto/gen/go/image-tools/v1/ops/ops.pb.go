@@ -7,7 +7,6 @@
 package ops_v1
 
 import (
-	jobs "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/jobs"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -1357,11 +1356,15 @@ func (x *OpResult) GetSizeBytes() int64 {
 	return 0
 }
 
-// RunOpResponse is the JSON (protojson) body returned by the REST run edge: the
-// terminal durable Job plus the typed result metadata.
+// RunOpResponse is the JSON (protojson) body returned by the REST run edge: a
+// reference to the durable job the op was recorded as, plus the typed result
+// metadata. Deterministic ops run synchronously and the response always
+// reflects a succeeded job, so a job id (resolvable via JobsService.GetJob) is
+// sufficient — the full Job is not duplicated here (it lives in the jobs
+// domain, the single owner of that type).
 type RunOpResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Job           *jobs.Job              `protobuf:"bytes,1,opt,name=job,proto3" json:"job,omitempty"`
+	JobId         string                 `protobuf:"bytes,1,opt,name=job_id,json=jobId,proto3" json:"job_id,omitempty"`
 	Result        *OpResult              `protobuf:"bytes,2,opt,name=result,proto3" json:"result,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1397,11 +1400,11 @@ func (*RunOpResponse) Descriptor() ([]byte, []int) {
 	return file_image_tools_v1_ops_ops_proto_rawDescGZIP(), []int{18}
 }
 
-func (x *RunOpResponse) GetJob() *jobs.Job {
+func (x *RunOpResponse) GetJobId() string {
 	if x != nil {
-		return x.Job
+		return x.JobId
 	}
-	return nil
+	return ""
 }
 
 func (x *RunOpResponse) GetResult() *OpResult {
@@ -1415,7 +1418,7 @@ var File_image_tools_v1_ops_ops_proto protoreflect.FileDescriptor
 
 const file_image_tools_v1_ops_ops_proto_rawDesc = "" +
 	"\n" +
-	"\x1cimage-tools/v1/ops/ops.proto\x12\x19vrooli.image_tools.v1.ops\x1a\x1eimage-tools/v1/jobs/jobs.proto\"Y\n" +
+	"\x1cimage-tools/v1/ops/ops.proto\x12\x19vrooli.image_tools.v1.ops\"Y\n" +
 	"\rOperationInfo\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
 	"\bcategory\x18\x02 \x01(\tR\bcategory\x12\x18\n" +
@@ -1518,9 +1521,9 @@ const file_image_tools_v1_ops_ops_proto_rawDesc = "" +
 	"\x05width\x18\x04 \x01(\x05R\x05width\x12\x16\n" +
 	"\x06height\x18\x05 \x01(\x05R\x06height\x12\x1d\n" +
 	"\n" +
-	"size_bytes\x18\x06 \x01(\x03R\tsizeBytes\"\x7f\n" +
-	"\rRunOpResponse\x121\n" +
-	"\x03job\x18\x01 \x01(\v2\x1f.vrooli.image_tools.v1.jobs.JobR\x03job\x12;\n" +
+	"size_bytes\x18\x06 \x01(\x03R\tsizeBytes\"c\n" +
+	"\rRunOpResponse\x12\x15\n" +
+	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12;\n" +
 	"\x06result\x18\x02 \x01(\v2#.vrooli.image_tools.v1.ops.OpResultR\x06result2\x83\x01\n" +
 	"\n" +
 	"OpsService\x12u\n" +
@@ -1559,7 +1562,6 @@ var file_image_tools_v1_ops_ops_proto_goTypes = []any{
 	(*MetadataParams)(nil),         // 16: vrooli.image_tools.v1.ops.MetadataParams
 	(*OpResult)(nil),               // 17: vrooli.image_tools.v1.ops.OpResult
 	(*RunOpResponse)(nil),          // 18: vrooli.image_tools.v1.ops.RunOpResponse
-	(*jobs.Job)(nil),               // 19: vrooli.image_tools.v1.jobs.Job
 }
 var file_image_tools_v1_ops_ops_proto_depIdxs = []int32{
 	0,  // 0: vrooli.image_tools.v1.ops.ListOperationsResponse.operations:type_name -> vrooli.image_tools.v1.ops.OperationInfo
@@ -1576,15 +1578,14 @@ var file_image_tools_v1_ops_ops_proto_depIdxs = []int32{
 	14, // 11: vrooli.image_tools.v1.ops.OpParams.compress:type_name -> vrooli.image_tools.v1.ops.CompressParams
 	15, // 12: vrooli.image_tools.v1.ops.OpParams.overlay:type_name -> vrooli.image_tools.v1.ops.OverlayParams
 	16, // 13: vrooli.image_tools.v1.ops.OpParams.metadata:type_name -> vrooli.image_tools.v1.ops.MetadataParams
-	19, // 14: vrooli.image_tools.v1.ops.RunOpResponse.job:type_name -> vrooli.image_tools.v1.jobs.Job
-	17, // 15: vrooli.image_tools.v1.ops.RunOpResponse.result:type_name -> vrooli.image_tools.v1.ops.OpResult
-	1,  // 16: vrooli.image_tools.v1.ops.OpsService.ListOperations:input_type -> vrooli.image_tools.v1.ops.ListOperationsRequest
-	2,  // 17: vrooli.image_tools.v1.ops.OpsService.ListOperations:output_type -> vrooli.image_tools.v1.ops.ListOperationsResponse
-	17, // [17:18] is the sub-list for method output_type
-	16, // [16:17] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	17, // 14: vrooli.image_tools.v1.ops.RunOpResponse.result:type_name -> vrooli.image_tools.v1.ops.OpResult
+	1,  // 15: vrooli.image_tools.v1.ops.OpsService.ListOperations:input_type -> vrooli.image_tools.v1.ops.ListOperationsRequest
+	2,  // 16: vrooli.image_tools.v1.ops.OpsService.ListOperations:output_type -> vrooli.image_tools.v1.ops.ListOperationsResponse
+	16, // [16:17] is the sub-list for method output_type
+	15, // [15:16] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_image_tools_v1_ops_ops_proto_init() }

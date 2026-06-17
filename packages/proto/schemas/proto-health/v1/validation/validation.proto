@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package vrooli.proto_health.v1.validation;
 
-import "common/v1/maturity.proto";
 import "proto-health/v1/shared/surface.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/validation;validation_v1";
@@ -20,50 +19,8 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/proto-health
 // =============================================================================
 
 service ProtoHealthService {
-  rpc ValidateScenario(ValidateScenarioRequest) returns (ValidateScenarioResponse);
   rpc DescribeScenarioProtos(DescribeScenarioProtosRequest) returns (DescribeScenarioProtosResponse);
   rpc DescribeScenariosProtos(DescribeScenariosProtosRequest) returns (DescribeScenariosProtosResponse);
-}
-
-// Severity classifies a Finding for filtering and rendering. ERROR causes
-// `passed=false`; WARNING and INFO are advisory.
-enum Severity {
-  SEVERITY_UNSPECIFIED = 0;
-  SEVERITY_ERROR = 1;
-  SEVERITY_WARNING = 2;
-  SEVERITY_INFO = 3;
-}
-
-// Finding is a single validation result tied to a location inside the scenario.
-message Finding {
-  Severity severity = 1;
-  string code = 2;
-  string location = 3;
-  string message = 4;
-  string suggestion = 5;
-}
-
-// Summary is a rollup of Finding counts by severity.
-message Summary {
-  int32 errors = 1;
-  int32 warnings = 2;
-  int32 infos = 3;
-}
-
-// ValidateScenarioRequest names a scenario by its directory slug.
-message ValidateScenarioRequest {
-  string scenario = 1;
-}
-
-// ValidateScenarioResponse reports proto-health findings for the scenario.
-message ValidateScenarioResponse {
-  string scenario = 1;
-  bool passed = 2;
-  repeated Finding findings = 3;
-  Summary summary = 4;
-  // Shared provider-owned maturity assessment. Automation should consume this
-  // structural object; humans should use the default CLI rendering.
-  common.v1.MaturityAssessment assessment = 5;
 }
 
 // DescribeScenarioProtosRequest names a scenario by its directory slug.

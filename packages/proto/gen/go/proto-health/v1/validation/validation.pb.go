@@ -7,7 +7,6 @@
 package validation_v1
 
 import (
-	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -23,322 +22,6 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Severity classifies a Finding for filtering and rendering. ERROR causes
-// `passed=false`; WARNING and INFO are advisory.
-type Severity int32
-
-const (
-	Severity_SEVERITY_UNSPECIFIED Severity = 0
-	Severity_SEVERITY_ERROR       Severity = 1
-	Severity_SEVERITY_WARNING     Severity = 2
-	Severity_SEVERITY_INFO        Severity = 3
-)
-
-// Enum value maps for Severity.
-var (
-	Severity_name = map[int32]string{
-		0: "SEVERITY_UNSPECIFIED",
-		1: "SEVERITY_ERROR",
-		2: "SEVERITY_WARNING",
-		3: "SEVERITY_INFO",
-	}
-	Severity_value = map[string]int32{
-		"SEVERITY_UNSPECIFIED": 0,
-		"SEVERITY_ERROR":       1,
-		"SEVERITY_WARNING":     2,
-		"SEVERITY_INFO":        3,
-	}
-)
-
-func (x Severity) Enum() *Severity {
-	p := new(Severity)
-	*p = x
-	return p
-}
-
-func (x Severity) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (Severity) Descriptor() protoreflect.EnumDescriptor {
-	return file_proto_health_v1_validation_validation_proto_enumTypes[0].Descriptor()
-}
-
-func (Severity) Type() protoreflect.EnumType {
-	return &file_proto_health_v1_validation_validation_proto_enumTypes[0]
-}
-
-func (x Severity) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use Severity.Descriptor instead.
-func (Severity) EnumDescriptor() ([]byte, []int) {
-	return file_proto_health_v1_validation_validation_proto_rawDescGZIP(), []int{0}
-}
-
-// Finding is a single validation result tied to a location inside the scenario.
-type Finding struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Severity      Severity               `protobuf:"varint,1,opt,name=severity,proto3,enum=vrooli.proto_health.v1.validation.Severity" json:"severity,omitempty"`
-	Code          string                 `protobuf:"bytes,2,opt,name=code,proto3" json:"code,omitempty"`
-	Location      string                 `protobuf:"bytes,3,opt,name=location,proto3" json:"location,omitempty"`
-	Message       string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
-	Suggestion    string                 `protobuf:"bytes,5,opt,name=suggestion,proto3" json:"suggestion,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *Finding) Reset() {
-	*x = Finding{}
-	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Finding) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Finding) ProtoMessage() {}
-
-func (x *Finding) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Finding.ProtoReflect.Descriptor instead.
-func (*Finding) Descriptor() ([]byte, []int) {
-	return file_proto_health_v1_validation_validation_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *Finding) GetSeverity() Severity {
-	if x != nil {
-		return x.Severity
-	}
-	return Severity_SEVERITY_UNSPECIFIED
-}
-
-func (x *Finding) GetCode() string {
-	if x != nil {
-		return x.Code
-	}
-	return ""
-}
-
-func (x *Finding) GetLocation() string {
-	if x != nil {
-		return x.Location
-	}
-	return ""
-}
-
-func (x *Finding) GetMessage() string {
-	if x != nil {
-		return x.Message
-	}
-	return ""
-}
-
-func (x *Finding) GetSuggestion() string {
-	if x != nil {
-		return x.Suggestion
-	}
-	return ""
-}
-
-// Summary is a rollup of Finding counts by severity.
-type Summary struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Errors        int32                  `protobuf:"varint,1,opt,name=errors,proto3" json:"errors,omitempty"`
-	Warnings      int32                  `protobuf:"varint,2,opt,name=warnings,proto3" json:"warnings,omitempty"`
-	Infos         int32                  `protobuf:"varint,3,opt,name=infos,proto3" json:"infos,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *Summary) Reset() {
-	*x = Summary{}
-	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Summary) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Summary) ProtoMessage() {}
-
-func (x *Summary) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Summary.ProtoReflect.Descriptor instead.
-func (*Summary) Descriptor() ([]byte, []int) {
-	return file_proto_health_v1_validation_validation_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *Summary) GetErrors() int32 {
-	if x != nil {
-		return x.Errors
-	}
-	return 0
-}
-
-func (x *Summary) GetWarnings() int32 {
-	if x != nil {
-		return x.Warnings
-	}
-	return 0
-}
-
-func (x *Summary) GetInfos() int32 {
-	if x != nil {
-		return x.Infos
-	}
-	return 0
-}
-
-// ValidateScenarioRequest names a scenario by its directory slug.
-type ValidateScenarioRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Scenario      string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ValidateScenarioRequest) Reset() {
-	*x = ValidateScenarioRequest{}
-	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ValidateScenarioRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ValidateScenarioRequest) ProtoMessage() {}
-
-func (x *ValidateScenarioRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ValidateScenarioRequest.ProtoReflect.Descriptor instead.
-func (*ValidateScenarioRequest) Descriptor() ([]byte, []int) {
-	return file_proto_health_v1_validation_validation_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *ValidateScenarioRequest) GetScenario() string {
-	if x != nil {
-		return x.Scenario
-	}
-	return ""
-}
-
-// ValidateScenarioResponse reports proto-health findings for the scenario.
-type ValidateScenarioResponse struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	Scenario string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	Passed   bool                   `protobuf:"varint,2,opt,name=passed,proto3" json:"passed,omitempty"`
-	Findings []*Finding             `protobuf:"bytes,3,rep,name=findings,proto3" json:"findings,omitempty"`
-	Summary  *Summary               `protobuf:"bytes,4,opt,name=summary,proto3" json:"summary,omitempty"`
-	// Shared provider-owned maturity assessment. Automation should consume this
-	// structural object; humans should use the default CLI rendering.
-	Assessment    *v1.MaturityAssessment `protobuf:"bytes,5,opt,name=assessment,proto3" json:"assessment,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ValidateScenarioResponse) Reset() {
-	*x = ValidateScenarioResponse{}
-	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ValidateScenarioResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ValidateScenarioResponse) ProtoMessage() {}
-
-func (x *ValidateScenarioResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ValidateScenarioResponse.ProtoReflect.Descriptor instead.
-func (*ValidateScenarioResponse) Descriptor() ([]byte, []int) {
-	return file_proto_health_v1_validation_validation_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *ValidateScenarioResponse) GetScenario() string {
-	if x != nil {
-		return x.Scenario
-	}
-	return ""
-}
-
-func (x *ValidateScenarioResponse) GetPassed() bool {
-	if x != nil {
-		return x.Passed
-	}
-	return false
-}
-
-func (x *ValidateScenarioResponse) GetFindings() []*Finding {
-	if x != nil {
-		return x.Findings
-	}
-	return nil
-}
-
-func (x *ValidateScenarioResponse) GetSummary() *Summary {
-	if x != nil {
-		return x.Summary
-	}
-	return nil
-}
-
-func (x *ValidateScenarioResponse) GetAssessment() *v1.MaturityAssessment {
-	if x != nil {
-		return x.Assessment
-	}
-	return nil
-}
-
 // DescribeScenarioProtosRequest names a scenario by its directory slug.
 type DescribeScenarioProtosRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -349,7 +32,7 @@ type DescribeScenarioProtosRequest struct {
 
 func (x *DescribeScenarioProtosRequest) Reset() {
 	*x = DescribeScenarioProtosRequest{}
-	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[4]
+	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -361,7 +44,7 @@ func (x *DescribeScenarioProtosRequest) String() string {
 func (*DescribeScenarioProtosRequest) ProtoMessage() {}
 
 func (x *DescribeScenarioProtosRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[4]
+	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -374,7 +57,7 @@ func (x *DescribeScenarioProtosRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DescribeScenarioProtosRequest.ProtoReflect.Descriptor instead.
 func (*DescribeScenarioProtosRequest) Descriptor() ([]byte, []int) {
-	return file_proto_health_v1_validation_validation_proto_rawDescGZIP(), []int{4}
+	return file_proto_health_v1_validation_validation_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *DescribeScenarioProtosRequest) GetScenario() string {
@@ -394,7 +77,7 @@ type DescribeScenarioProtosResponse struct {
 
 func (x *DescribeScenarioProtosResponse) Reset() {
 	*x = DescribeScenarioProtosResponse{}
-	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[5]
+	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -406,7 +89,7 @@ func (x *DescribeScenarioProtosResponse) String() string {
 func (*DescribeScenarioProtosResponse) ProtoMessage() {}
 
 func (x *DescribeScenarioProtosResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[5]
+	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -419,7 +102,7 @@ func (x *DescribeScenarioProtosResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DescribeScenarioProtosResponse.ProtoReflect.Descriptor instead.
 func (*DescribeScenarioProtosResponse) Descriptor() ([]byte, []int) {
-	return file_proto_health_v1_validation_validation_proto_rawDescGZIP(), []int{5}
+	return file_proto_health_v1_validation_validation_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *DescribeScenarioProtosResponse) GetSurface() *shared.ProtoSurface {
@@ -442,7 +125,7 @@ type DescribeScenariosProtosRequest struct {
 
 func (x *DescribeScenariosProtosRequest) Reset() {
 	*x = DescribeScenariosProtosRequest{}
-	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[6]
+	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -454,7 +137,7 @@ func (x *DescribeScenariosProtosRequest) String() string {
 func (*DescribeScenariosProtosRequest) ProtoMessage() {}
 
 func (x *DescribeScenariosProtosRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[6]
+	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -467,7 +150,7 @@ func (x *DescribeScenariosProtosRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DescribeScenariosProtosRequest.ProtoReflect.Descriptor instead.
 func (*DescribeScenariosProtosRequest) Descriptor() ([]byte, []int) {
-	return file_proto_health_v1_validation_validation_proto_rawDescGZIP(), []int{6}
+	return file_proto_health_v1_validation_validation_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *DescribeScenariosProtosRequest) GetScenarios() []string {
@@ -503,7 +186,7 @@ type ProtoSurfaceResult struct {
 
 func (x *ProtoSurfaceResult) Reset() {
 	*x = ProtoSurfaceResult{}
-	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[7]
+	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -515,7 +198,7 @@ func (x *ProtoSurfaceResult) String() string {
 func (*ProtoSurfaceResult) ProtoMessage() {}
 
 func (x *ProtoSurfaceResult) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[7]
+	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -528,7 +211,7 @@ func (x *ProtoSurfaceResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProtoSurfaceResult.ProtoReflect.Descriptor instead.
 func (*ProtoSurfaceResult) Descriptor() ([]byte, []int) {
-	return file_proto_health_v1_validation_validation_proto_rawDescGZIP(), []int{7}
+	return file_proto_health_v1_validation_validation_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ProtoSurfaceResult) GetScenario() string {
@@ -562,7 +245,7 @@ type DescribeScenariosProtosResponse struct {
 
 func (x *DescribeScenariosProtosResponse) Reset() {
 	*x = DescribeScenariosProtosResponse{}
-	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[8]
+	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -574,7 +257,7 @@ func (x *DescribeScenariosProtosResponse) String() string {
 func (*DescribeScenariosProtosResponse) ProtoMessage() {}
 
 func (x *DescribeScenariosProtosResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[8]
+	mi := &file_proto_health_v1_validation_validation_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -587,7 +270,7 @@ func (x *DescribeScenariosProtosResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DescribeScenariosProtosResponse.ProtoReflect.Descriptor instead.
 func (*DescribeScenariosProtosResponse) Descriptor() ([]byte, []int) {
-	return file_proto_health_v1_validation_validation_proto_rawDescGZIP(), []int{8}
+	return file_proto_health_v1_validation_validation_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *DescribeScenariosProtosResponse) GetResults() []*ProtoSurfaceResult {
@@ -601,29 +284,7 @@ var File_proto_health_v1_validation_validation_proto protoreflect.FileDescriptor
 
 const file_proto_health_v1_validation_validation_proto_rawDesc = "" +
 	"\n" +
-	"+proto-health/v1/validation/validation.proto\x12!vrooli.proto_health.v1.validation\x1a\x18common/v1/maturity.proto\x1a$proto-health/v1/shared/surface.proto\"\xbc\x01\n" +
-	"\aFinding\x12G\n" +
-	"\bseverity\x18\x01 \x01(\x0e2+.vrooli.proto_health.v1.validation.SeverityR\bseverity\x12\x12\n" +
-	"\x04code\x18\x02 \x01(\tR\x04code\x12\x1a\n" +
-	"\blocation\x18\x03 \x01(\tR\blocation\x12\x18\n" +
-	"\amessage\x18\x04 \x01(\tR\amessage\x12\x1e\n" +
-	"\n" +
-	"suggestion\x18\x05 \x01(\tR\n" +
-	"suggestion\"S\n" +
-	"\aSummary\x12\x16\n" +
-	"\x06errors\x18\x01 \x01(\x05R\x06errors\x12\x1a\n" +
-	"\bwarnings\x18\x02 \x01(\x05R\bwarnings\x12\x14\n" +
-	"\x05infos\x18\x03 \x01(\x05R\x05infos\"5\n" +
-	"\x17ValidateScenarioRequest\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\"\x9b\x02\n" +
-	"\x18ValidateScenarioResponse\x12\x1a\n" +
-	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x16\n" +
-	"\x06passed\x18\x02 \x01(\bR\x06passed\x12F\n" +
-	"\bfindings\x18\x03 \x03(\v2*.vrooli.proto_health.v1.validation.FindingR\bfindings\x12D\n" +
-	"\asummary\x18\x04 \x01(\v2*.vrooli.proto_health.v1.validation.SummaryR\asummary\x12=\n" +
-	"\n" +
-	"assessment\x18\x05 \x01(\v2\x1d.common.v1.MaturityAssessmentR\n" +
-	"assessment\";\n" +
+	"+proto-health/v1/validation/validation.proto\x12!vrooli.proto_health.v1.validation\x1a$proto-health/v1/shared/surface.proto\";\n" +
 	"\x1dDescribeScenarioProtosRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\"g\n" +
 	"\x1eDescribeScenarioProtosResponse\x12E\n" +
@@ -637,14 +298,8 @@ const file_proto_health_v1_validation_validation_proto_rawDesc = "" +
 	"\asurface\x18\x02 \x01(\v2+.vrooli.proto_health.v1.shared.ProtoSurfaceR\asurface\x12\x14\n" +
 	"\x05error\x18\x03 \x01(\tR\x05error\"r\n" +
 	"\x1fDescribeScenariosProtosResponse\x12O\n" +
-	"\aresults\x18\x01 \x03(\v25.vrooli.proto_health.v1.validation.ProtoSurfaceResultR\aresults*a\n" +
-	"\bSeverity\x12\x18\n" +
-	"\x14SEVERITY_UNSPECIFIED\x10\x00\x12\x12\n" +
-	"\x0eSEVERITY_ERROR\x10\x01\x12\x14\n" +
-	"\x10SEVERITY_WARNING\x10\x02\x12\x11\n" +
-	"\rSEVERITY_INFO\x10\x032\xe5\x03\n" +
-	"\x12ProtoHealthService\x12\x8b\x01\n" +
-	"\x10ValidateScenario\x12:.vrooli.proto_health.v1.validation.ValidateScenarioRequest\x1a;.vrooli.proto_health.v1.validation.ValidateScenarioResponse\x12\x9d\x01\n" +
+	"\aresults\x18\x01 \x03(\v25.vrooli.proto_health.v1.validation.ProtoSurfaceResultR\aresults2\xd7\x02\n" +
+	"\x12ProtoHealthService\x12\x9d\x01\n" +
 	"\x16DescribeScenarioProtos\x12@.vrooli.proto_health.v1.validation.DescribeScenarioProtosRequest\x1aA.vrooli.proto_health.v1.validation.DescribeScenarioProtosResponse\x12\xa0\x01\n" +
 	"\x17DescribeScenariosProtos\x12A.vrooli.proto_health.v1.validation.DescribeScenariosProtosRequest\x1aB.vrooli.proto_health.v1.validation.DescribeScenariosProtosResponseBYZWgithub.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/validation;validation_v1b\x06proto3"
 
@@ -660,41 +315,28 @@ func file_proto_health_v1_validation_validation_proto_rawDescGZIP() []byte {
 	return file_proto_health_v1_validation_validation_proto_rawDescData
 }
 
-var file_proto_health_v1_validation_validation_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_proto_health_v1_validation_validation_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_proto_health_v1_validation_validation_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_proto_health_v1_validation_validation_proto_goTypes = []any{
-	(Severity)(0),                           // 0: vrooli.proto_health.v1.validation.Severity
-	(*Finding)(nil),                         // 1: vrooli.proto_health.v1.validation.Finding
-	(*Summary)(nil),                         // 2: vrooli.proto_health.v1.validation.Summary
-	(*ValidateScenarioRequest)(nil),         // 3: vrooli.proto_health.v1.validation.ValidateScenarioRequest
-	(*ValidateScenarioResponse)(nil),        // 4: vrooli.proto_health.v1.validation.ValidateScenarioResponse
-	(*DescribeScenarioProtosRequest)(nil),   // 5: vrooli.proto_health.v1.validation.DescribeScenarioProtosRequest
-	(*DescribeScenarioProtosResponse)(nil),  // 6: vrooli.proto_health.v1.validation.DescribeScenarioProtosResponse
-	(*DescribeScenariosProtosRequest)(nil),  // 7: vrooli.proto_health.v1.validation.DescribeScenariosProtosRequest
-	(*ProtoSurfaceResult)(nil),              // 8: vrooli.proto_health.v1.validation.ProtoSurfaceResult
-	(*DescribeScenariosProtosResponse)(nil), // 9: vrooli.proto_health.v1.validation.DescribeScenariosProtosResponse
-	(*v1.MaturityAssessment)(nil),           // 10: common.v1.MaturityAssessment
-	(*shared.ProtoSurface)(nil),             // 11: vrooli.proto_health.v1.shared.ProtoSurface
+	(*DescribeScenarioProtosRequest)(nil),   // 0: vrooli.proto_health.v1.validation.DescribeScenarioProtosRequest
+	(*DescribeScenarioProtosResponse)(nil),  // 1: vrooli.proto_health.v1.validation.DescribeScenarioProtosResponse
+	(*DescribeScenariosProtosRequest)(nil),  // 2: vrooli.proto_health.v1.validation.DescribeScenariosProtosRequest
+	(*ProtoSurfaceResult)(nil),              // 3: vrooli.proto_health.v1.validation.ProtoSurfaceResult
+	(*DescribeScenariosProtosResponse)(nil), // 4: vrooli.proto_health.v1.validation.DescribeScenariosProtosResponse
+	(*shared.ProtoSurface)(nil),             // 5: vrooli.proto_health.v1.shared.ProtoSurface
 }
 var file_proto_health_v1_validation_validation_proto_depIdxs = []int32{
-	0,  // 0: vrooli.proto_health.v1.validation.Finding.severity:type_name -> vrooli.proto_health.v1.validation.Severity
-	1,  // 1: vrooli.proto_health.v1.validation.ValidateScenarioResponse.findings:type_name -> vrooli.proto_health.v1.validation.Finding
-	2,  // 2: vrooli.proto_health.v1.validation.ValidateScenarioResponse.summary:type_name -> vrooli.proto_health.v1.validation.Summary
-	10, // 3: vrooli.proto_health.v1.validation.ValidateScenarioResponse.assessment:type_name -> common.v1.MaturityAssessment
-	11, // 4: vrooli.proto_health.v1.validation.DescribeScenarioProtosResponse.surface:type_name -> vrooli.proto_health.v1.shared.ProtoSurface
-	11, // 5: vrooli.proto_health.v1.validation.ProtoSurfaceResult.surface:type_name -> vrooli.proto_health.v1.shared.ProtoSurface
-	8,  // 6: vrooli.proto_health.v1.validation.DescribeScenariosProtosResponse.results:type_name -> vrooli.proto_health.v1.validation.ProtoSurfaceResult
-	3,  // 7: vrooli.proto_health.v1.validation.ProtoHealthService.ValidateScenario:input_type -> vrooli.proto_health.v1.validation.ValidateScenarioRequest
-	5,  // 8: vrooli.proto_health.v1.validation.ProtoHealthService.DescribeScenarioProtos:input_type -> vrooli.proto_health.v1.validation.DescribeScenarioProtosRequest
-	7,  // 9: vrooli.proto_health.v1.validation.ProtoHealthService.DescribeScenariosProtos:input_type -> vrooli.proto_health.v1.validation.DescribeScenariosProtosRequest
-	4,  // 10: vrooli.proto_health.v1.validation.ProtoHealthService.ValidateScenario:output_type -> vrooli.proto_health.v1.validation.ValidateScenarioResponse
-	6,  // 11: vrooli.proto_health.v1.validation.ProtoHealthService.DescribeScenarioProtos:output_type -> vrooli.proto_health.v1.validation.DescribeScenarioProtosResponse
-	9,  // 12: vrooli.proto_health.v1.validation.ProtoHealthService.DescribeScenariosProtos:output_type -> vrooli.proto_health.v1.validation.DescribeScenariosProtosResponse
-	10, // [10:13] is the sub-list for method output_type
-	7,  // [7:10] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	5, // 0: vrooli.proto_health.v1.validation.DescribeScenarioProtosResponse.surface:type_name -> vrooli.proto_health.v1.shared.ProtoSurface
+	5, // 1: vrooli.proto_health.v1.validation.ProtoSurfaceResult.surface:type_name -> vrooli.proto_health.v1.shared.ProtoSurface
+	3, // 2: vrooli.proto_health.v1.validation.DescribeScenariosProtosResponse.results:type_name -> vrooli.proto_health.v1.validation.ProtoSurfaceResult
+	0, // 3: vrooli.proto_health.v1.validation.ProtoHealthService.DescribeScenarioProtos:input_type -> vrooli.proto_health.v1.validation.DescribeScenarioProtosRequest
+	2, // 4: vrooli.proto_health.v1.validation.ProtoHealthService.DescribeScenariosProtos:input_type -> vrooli.proto_health.v1.validation.DescribeScenariosProtosRequest
+	1, // 5: vrooli.proto_health.v1.validation.ProtoHealthService.DescribeScenarioProtos:output_type -> vrooli.proto_health.v1.validation.DescribeScenarioProtosResponse
+	4, // 6: vrooli.proto_health.v1.validation.ProtoHealthService.DescribeScenariosProtos:output_type -> vrooli.proto_health.v1.validation.DescribeScenariosProtosResponse
+	5, // [5:7] is the sub-list for method output_type
+	3, // [3:5] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_proto_health_v1_validation_validation_proto_init() }
@@ -707,14 +349,13 @@ func file_proto_health_v1_validation_validation_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_health_v1_validation_validation_proto_rawDesc), len(file_proto_health_v1_validation_validation_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   9,
+			NumEnums:      0,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_proto_health_v1_validation_validation_proto_goTypes,
 		DependencyIndexes: file_proto_health_v1_validation_validation_proto_depIdxs,
-		EnumInfos:         file_proto_health_v1_validation_validation_proto_enumTypes,
 		MessageInfos:      file_proto_health_v1_validation_validation_proto_msgTypes,
 	}.Build()
 	File_proto_health_v1_validation_validation_proto = out.File

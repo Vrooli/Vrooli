@@ -82,6 +82,9 @@ const (
 	// DependencyGovernanceServiceDenyVulnerableDependencyProcedure is the fully-qualified name of the
 	// DependencyGovernanceService's DenyVulnerableDependency RPC.
 	DependencyGovernanceServiceDenyVulnerableDependencyProcedure = "/vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService/DenyVulnerableDependency"
+	// DependencyGovernanceServiceInstallDependencyProcedure is the fully-qualified name of the
+	// DependencyGovernanceService's InstallDependency RPC.
+	DependencyGovernanceServiceInstallDependencyProcedure = "/vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService/InstallDependency"
 )
 
 // DependencyGovernanceServiceClient is a client for the
@@ -103,6 +106,12 @@ type DependencyGovernanceServiceClient interface {
 	ListSecurityGovernanceGaps(context.Context, *connect.Request[dependency_governance.ListSecurityGovernanceGapsRequest]) (*connect.Response[dependency_governance.SecurityGovernanceGapsResponse], error)
 	PreviewVulnerabilityRemediation(context.Context, *connect.Request[dependency_governance.PreviewVulnerabilityRemediationRequest]) (*connect.Response[dependency_governance.VulnerabilityRemediationResponse], error)
 	DenyVulnerableDependency(context.Context, *connect.Request[dependency_governance.DenyVulnerableDependencyRequest]) (*connect.Response[dependency_governance.VulnerabilityRemediationResponse], error)
+	// InstallDependency is the governed install gateway: it resolves the target
+	// surface's package manager + manifest, enforces governance (approved/denied/
+	// range/allowed_surfaces), runs the install (dry-run by default), and re-scans
+	// for vulnerabilities. It is the sanctioned alternative to a raw `pnpm add`/
+	// `go get`/`pip install`.
+	InstallDependency(context.Context, *connect.Request[dependency_governance.InstallDependencyRequest]) (*connect.Response[dependency_governance.InstallDependencyResponse], error)
 }
 
 // NewDependencyGovernanceServiceClient constructs a client for the
@@ -213,6 +222,12 @@ func NewDependencyGovernanceServiceClient(httpClient connect.HTTPClient, baseURL
 			connect.WithSchema(dependencyGovernanceServiceMethods.ByName("DenyVulnerableDependency")),
 			connect.WithClientOptions(opts...),
 		),
+		installDependency: connect.NewClient[dependency_governance.InstallDependencyRequest, dependency_governance.InstallDependencyResponse](
+			httpClient,
+			baseURL+DependencyGovernanceServiceInstallDependencyProcedure,
+			connect.WithSchema(dependencyGovernanceServiceMethods.ByName("InstallDependency")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -234,6 +249,7 @@ type dependencyGovernanceServiceClient struct {
 	listSecurityGovernanceGaps        *connect.Client[dependency_governance.ListSecurityGovernanceGapsRequest, dependency_governance.SecurityGovernanceGapsResponse]
 	previewVulnerabilityRemediation   *connect.Client[dependency_governance.PreviewVulnerabilityRemediationRequest, dependency_governance.VulnerabilityRemediationResponse]
 	denyVulnerableDependency          *connect.Client[dependency_governance.DenyVulnerableDependencyRequest, dependency_governance.VulnerabilityRemediationResponse]
+	installDependency                 *connect.Client[dependency_governance.InstallDependencyRequest, dependency_governance.InstallDependencyResponse]
 }
 
 // ListApprovedDependencies calls
@@ -332,6 +348,12 @@ func (c *dependencyGovernanceServiceClient) DenyVulnerableDependency(ctx context
 	return c.denyVulnerableDependency.CallUnary(ctx, req)
 }
 
+// InstallDependency calls
+// vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.InstallDependency.
+func (c *dependencyGovernanceServiceClient) InstallDependency(ctx context.Context, req *connect.Request[dependency_governance.InstallDependencyRequest]) (*connect.Response[dependency_governance.InstallDependencyResponse], error) {
+	return c.installDependency.CallUnary(ctx, req)
+}
+
 // DependencyGovernanceServiceHandler is an implementation of the
 // vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService service.
 type DependencyGovernanceServiceHandler interface {
@@ -351,6 +373,12 @@ type DependencyGovernanceServiceHandler interface {
 	ListSecurityGovernanceGaps(context.Context, *connect.Request[dependency_governance.ListSecurityGovernanceGapsRequest]) (*connect.Response[dependency_governance.SecurityGovernanceGapsResponse], error)
 	PreviewVulnerabilityRemediation(context.Context, *connect.Request[dependency_governance.PreviewVulnerabilityRemediationRequest]) (*connect.Response[dependency_governance.VulnerabilityRemediationResponse], error)
 	DenyVulnerableDependency(context.Context, *connect.Request[dependency_governance.DenyVulnerableDependencyRequest]) (*connect.Response[dependency_governance.VulnerabilityRemediationResponse], error)
+	// InstallDependency is the governed install gateway: it resolves the target
+	// surface's package manager + manifest, enforces governance (approved/denied/
+	// range/allowed_surfaces), runs the install (dry-run by default), and re-scans
+	// for vulnerabilities. It is the sanctioned alternative to a raw `pnpm add`/
+	// `go get`/`pip install`.
+	InstallDependency(context.Context, *connect.Request[dependency_governance.InstallDependencyRequest]) (*connect.Response[dependency_governance.InstallDependencyResponse], error)
 }
 
 // NewDependencyGovernanceServiceHandler builds an HTTP handler from the service implementation. It
@@ -456,6 +484,12 @@ func NewDependencyGovernanceServiceHandler(svc DependencyGovernanceServiceHandle
 		connect.WithSchema(dependencyGovernanceServiceMethods.ByName("DenyVulnerableDependency")),
 		connect.WithHandlerOptions(opts...),
 	)
+	dependencyGovernanceServiceInstallDependencyHandler := connect.NewUnaryHandler(
+		DependencyGovernanceServiceInstallDependencyProcedure,
+		svc.InstallDependency,
+		connect.WithSchema(dependencyGovernanceServiceMethods.ByName("InstallDependency")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case DependencyGovernanceServiceListApprovedDependenciesProcedure:
@@ -490,6 +524,8 @@ func NewDependencyGovernanceServiceHandler(svc DependencyGovernanceServiceHandle
 			dependencyGovernanceServicePreviewVulnerabilityRemediationHandler.ServeHTTP(w, r)
 		case DependencyGovernanceServiceDenyVulnerableDependencyProcedure:
 			dependencyGovernanceServiceDenyVulnerableDependencyHandler.ServeHTTP(w, r)
+		case DependencyGovernanceServiceInstallDependencyProcedure:
+			dependencyGovernanceServiceInstallDependencyHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -561,4 +597,8 @@ func (UnimplementedDependencyGovernanceServiceHandler) PreviewVulnerabilityRemed
 
 func (UnimplementedDependencyGovernanceServiceHandler) DenyVulnerableDependency(context.Context, *connect.Request[dependency_governance.DenyVulnerableDependencyRequest]) (*connect.Response[dependency_governance.VulnerabilityRemediationResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.DenyVulnerableDependency is not implemented"))
+}
+
+func (UnimplementedDependencyGovernanceServiceHandler) InstallDependency(context.Context, *connect.Request[dependency_governance.InstallDependencyRequest]) (*connect.Response[dependency_governance.InstallDependencyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.InstallDependency is not implemented"))
 }

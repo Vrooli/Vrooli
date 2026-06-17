@@ -1,0 +1,154 @@
+syntax = "proto3";
+
+package vrooli.image_tools.v1.analysis;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/analysis;analysis_v1";
+
+// =============================================================================
+// ANALYSIS DOMAIN — image→data operations (synchronous, structured results)
+// =============================================================================
+//
+// @stability alpha
+//
+// Wire contract for the core analysis operations (IMG-P0-004): OCR /
+// text-extraction, NSFW / safety classification (a standalone op AND the
+// configurable auto-scan applied to AI-generated output), and image info /
+// probe. These return STRUCTURED DATA rather than an output image, so — unlike
+// the generation/enhancement ops — they execute synchronously in the request
+// and are recorded as terminal durable jobs for uniform observability.
+//
+// `probe` is pure-Go and always works headless (no model, no GPU). `ocr` and
+// `nsfw_classify` are model-backed standalone ops with CPU-capable defaults;
+// when their backend/model is not installed the edge refuses with an actionable
+// install hint rather than failing opaquely.
+//
+// Transport split (see docs/concepts/ARCHITECTURE.md):
+//   - DISCOVERY is Connect-RPC: AnalysisService.ListAnalysisOperations.
+//   - EXECUTION is a REST multipart edge (RESTReasonMultipartUpload):
+//     POST /api/v1/analysis/{operation} accepts the image (`file` part). The
+//     RESULT is proto-typed (AnalyzeResponse, a oneof over the per-op results).
+//
+// Consumed by:
+//   - API: handlers/analysis/connect_handler.go (ListAnalysisOperations) +
+//          handlers/analysis/rest.go (the multipart analyze edge). The NSFW
+//          path is also invoked in-process by the AI generation auto-scan hook.
+//   - CLI: cli/domains/analyze invokes the analyze edge and prints results.
+//   - UI:  ui/src/api/analysis.ts wraps the discovery client + the analyze edge.
+// =============================================================================
+
+service AnalysisService {
+  // ListAnalysisOperations returns the analysis operation catalog (stable order).
+  rpc ListAnalysisOperations(ListAnalysisOperationsRequest) returns (ListAnalysisOperationsResponse);
+}
+
+// AnalysisOperationInfo describes one analysis operation for discovery.
+message AnalysisOperationInfo {
+  // Canonical operation name: "ocr", "nsfw_classify", or "probe".
+  string name = 1;
+  // One-line human summary.
+  string summary = 2;
+  // ModelBacked is true when the op needs a model/backend (ocr, nsfw_classify);
+  // false for the pure-Go probe.
+  bool model_backed = 3;
+  // DefaultModelId is the seeded default model for model-backed ops ("" for probe).
+  string default_model_id = 4;
+}
+
+message ListAnalysisOperationsRequest {}
+
+message ListAnalysisOperationsResponse {
+  repeated AnalysisOperationInfo operations = 1;
+}
+
+// =============================================================================
+// Result payloads (REST multipart edge)
+// =============================================================================
+
+// BoundingBox is a pixel-space rectangle (x,y = top-left).
+message BoundingBox {
+  int32 x = 1;
+  int32 y = 2;
+  int32 width = 3;
+  int32 height = 4;
+}
+
+// OCRBlock is one recognized text region.
+message OCRBlock {
+  string text = 1;
+  // Confidence 0..1 reported by the OCR engine (0 when unavailable).
+  double confidence = 2;
+  BoundingBox box = 3;
+}
+
+// OCRResult is the structured output of the `ocr` op.
+message OCRResult {
+  // FullText is the concatenated recognized text, in reading order.
+  string full_text = 1;
+  // Blocks are the per-region recognitions (empty when the engine reports only
+  // full text).
+  repeated OCRBlock blocks = 2;
+  // Language is the detected/assumed language code (e.g. "eng").
+  string language = 3;
+}
+
+// NSFWCategory is one classifier label with its score.
+message NSFWCategory {
+  string label = 1;
+  double score = 2;
+}
+
+// NSFWResult is the structured output of the `nsfw_classify` op (and the
+// auto-scan hook). `nsfw` is the boolean verdict at the configured threshold.
+message NSFWResult {
+  bool nsfw = 1;
+  // Score is the model's NSFW probability 0..1.
+  double score = 2;
+  // Label is the top category (e.g. "nsfw" / "sfw").
+  string label = 3;
+  // Threshold is the decision threshold applied to produce `nsfw`.
+  double threshold = 4;
+  // Categories are the full per-label scores.
+  repeated NSFWCategory categories = 5;
+}
+
+// DominantColor is one extracted palette swatch.
+message DominantColor {
+  // Hex is the "#rrggbb" color.
+  string hex = 1;
+  // Fraction is the share of pixels 0..1 closest to this swatch.
+  double fraction = 2;
+}
+
+// ProbeResult is the structured output of the pure-Go `probe` op.
+message ProbeResult {
+  int32 width = 1;
+  int32 height = 2;
+  // Format is the decoded container ("png", "jpeg", "webp", …).
+  string format = 3;
+  // ColorModel describes the pixel model ("rgba", "gray", "ycbcr", …).
+  string color_model = 4;
+  bool has_alpha = 5;
+  // FrameCount > 1 for animated GIF/WebP; 1 otherwise.
+  int32 frame_count = 6;
+  // Megapixels is width*height/1e6, rounded to 2 decimals.
+  double megapixels = 7;
+  int64 size_bytes = 8;
+  bool has_exif = 9;
+  // HasGps is true when the EXIF block carries GPS coordinates.
+  bool has_gps = 10;
+  // Orientation is the EXIF orientation tag (1..8; 0 when absent).
+  int32 orientation = 11;
+  // DominantColors is a small extracted palette (top swatches).
+  repeated DominantColor dominant_colors = 12;
+}
+
+// AnalyzeResponse is the protojson body returned by the analyze edge: the
+// durable job id plus exactly one structured result matching the {operation}.
+message AnalyzeResponse {
+  string job_id = 1;
+  oneof result {
+    OCRResult ocr = 2;
+    NSFWResult nsfw = 3;
+    ProbeResult probe = 4;
+  }
+}

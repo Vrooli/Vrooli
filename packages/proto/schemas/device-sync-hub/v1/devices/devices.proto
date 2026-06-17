@@ -1,0 +1,211 @@
+syntax = "proto3";
+
+package vrooli.device_sync_hub.v1.devices;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/device-sync-hub/v1/devices;devices_v1";
+
+// =============================================================================
+// DEVICES DOMAIN — device registry, pairing, and trust
+// =============================================================================
+//
+// @stability stable
+//
+// Wire contract for the DevicesService Connect-RPC service. This is the
+// trust boundary of Device Sync Hub: a "device" is a first-class entity keyed
+// to the authenticated owner (the owner's identity, JWT, and sessions are
+// delegated to the scenario-authenticator scenario — see docs/concepts/
+// INTEGRATIONS.md). This scenario owns the device, the pairing handshake, and
+// the trust group on top of that identity.
+//
+// Two pairing paths, both ending in a hub-issued device token the device
+// presents on every subsequent transfer call:
+//   - PRIMARY:  IssuePairingCode (owner) -> RedeemPairingCode (new device).
+//               The redeemed device is TRUSTED immediately.
+//   - FALLBACK: RequestPairing (new device) -> ApprovePairing (owner).
+//               The requesting device is PENDING until the owner approves; its
+//               token is inert (rejected by trust enforcement) while PENDING.
+//
+// Revocation is immediate: RevokeDevice flips the device to REVOKED, which
+// invalidates its hub token and asks the authenticator to drop the device's
+// bound session.
+//
+// Consumed by:
+//   - API: handlers/devices/connect_handler.go implements the generated
+//          DevicesServiceHandler interface.
+//   - UI:  ui/src/features/devices/ (pairing screen + device list).
+//   - CLI: cli/domains/devices/ (devices list|pair|approve|revoke).
+// =============================================================================
+
+service DevicesService {
+  // ListDevices returns every device in the owner's trust group, newest first.
+  rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse);
+
+  // GetDevice returns a single device the owner owns.
+  rpc GetDevice(GetDeviceRequest) returns (GetDeviceResponse);
+
+  // IssuePairingCode mints a short-TTL, single-use pairing code (owner-authed).
+  // Render it as text or a QR for a new device to redeem.
+  rpc IssuePairingCode(IssuePairingCodeRequest) returns (IssuePairingCodeResponse);
+
+  // RedeemPairingCode is called by a NEW (unpaired) device presenting a valid
+  // pairing code. Creates a TRUSTED device and returns its hub device token.
+  rpc RedeemPairingCode(RedeemPairingCodeRequest) returns (RedeemPairingCodeResponse);
+
+  // RequestPairing is the fallback path: a new device asks to join. Creates a
+  // PENDING device and returns an inert token that activates on approval.
+  rpc RequestPairing(RequestPairingRequest) returns (RequestPairingResponse);
+
+  // ApprovePairing promotes a PENDING device to TRUSTED (owner-authed).
+  rpc ApprovePairing(ApprovePairingRequest) returns (ApprovePairingResponse);
+
+  // RenameDevice updates a device's human-facing name (owner-authed).
+  rpc RenameDevice(RenameDeviceRequest) returns (RenameDeviceResponse);
+
+  // RevokeDevice immediately severs a device's access: flips it to REVOKED,
+  // invalidates its hub token, and revokes its authenticator session.
+  rpc RevokeDevice(RevokeDeviceRequest) returns (RevokeDeviceResponse);
+}
+
+// TrustState is the device's position in the trust lifecycle. Only TRUSTED
+// devices may list or pull transfer items; PENDING and REVOKED are denied.
+enum TrustState {
+  TRUST_STATE_UNSPECIFIED = 0;
+  // Awaiting owner approval (fallback request path). Token is inert.
+  TRUST_STATE_PENDING = 1;
+  // In the trust group. Full access.
+  TRUST_STATE_TRUSTED = 2;
+  // Access severed. Token rejected; not in the broadcast audience.
+  TRUST_STATE_REVOKED = 3;
+}
+
+// Device is the canonical wire shape for a registered device.
+message Device {
+  // UUID assigned by the hub on create.
+  string id = 1;
+
+  // Authenticator user id of the owner this device belongs to.
+  string owner_id = 2;
+
+  // Human-facing device name (e.g. "Pixel 9", "Work Laptop").
+  string name = 3;
+
+  // Coarse device kind, e.g. "phone", "laptop", "tablet", "server".
+  string kind = 4;
+
+  // OS / platform string the client self-reports, e.g. "android", "macos".
+  string platform = 5;
+
+  // Optional self-reported capability tags (e.g. "camera", "clipboard").
+  repeated string capabilities = 6;
+
+  // Position in the trust lifecycle.
+  TrustState trust_state = 7;
+
+  // Whether the hub currently holds a live presence connection for this device.
+  bool online = 8;
+
+  // Last time the hub saw activity from this device (presence or a request).
+  google.protobuf.Timestamp last_seen_at = 9;
+
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+}
+
+// PairingCode is a short-TTL, single-use credential a new device redeems to
+// join the trust group. The raw code is returned only once, at issue time.
+message PairingCode {
+  // The raw code to type or encode as a QR. Only present in the issue response.
+  string code = 1;
+
+  // Owner the code is bound to.
+  string owner_id = 2;
+
+  // Hard expiry; redeeming after this fails.
+  google.protobuf.Timestamp expires_at = 3;
+
+  google.protobuf.Timestamp created_at = 4;
+}
+
+message ListDevicesRequest {}
+
+message ListDevicesResponse {
+  repeated Device devices = 1;
+}
+
+message GetDeviceRequest {
+  string id = 1;
+}
+
+message GetDeviceResponse {
+  Device device = 1;
+}
+
+message IssuePairingCodeRequest {
+  // Optional label pre-assigned to the slot the redeeming device will fill.
+  string device_name = 1;
+}
+
+message IssuePairingCodeResponse {
+  PairingCode pairing_code = 1;
+}
+
+// Self-description a joining device supplies for both pairing paths.
+message DeviceProfile {
+  string device_name = 1;
+  string kind = 2;
+  string platform = 3;
+  repeated string capabilities = 4;
+}
+
+message RedeemPairingCodeRequest {
+  string code = 1;
+  DeviceProfile profile = 2;
+}
+
+message RedeemPairingCodeResponse {
+  Device device = 1;
+
+  // Opaque hub-issued token the device presents on subsequent calls. Returned
+  // only once, here. The hub stores only a hash.
+  string device_token = 2;
+}
+
+message RequestPairingRequest {
+  DeviceProfile profile = 1;
+}
+
+message RequestPairingResponse {
+  // The PENDING device created for this request.
+  Device device = 1;
+
+  // Inert until the owner approves; activates in place on approval.
+  string device_token = 2;
+}
+
+message ApprovePairingRequest {
+  // The PENDING device's id (surfaced to the owner via a pairing-request banner).
+  string device_id = 1;
+}
+
+message ApprovePairingResponse {
+  Device device = 1;
+}
+
+message RenameDeviceRequest {
+  string device_id = 1;
+  string name = 2;
+}
+
+message RenameDeviceResponse {
+  Device device = 1;
+}
+
+message RevokeDeviceRequest {
+  string device_id = 1;
+}
+
+message RevokeDeviceResponse {
+  Device device = 1;
+}

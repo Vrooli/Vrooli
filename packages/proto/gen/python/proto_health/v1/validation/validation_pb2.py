@@ -22,11 +22,10 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
-from common.v1 import maturity_pb2 as common_dot_v1_dot_maturity__pb2
 from proto_health.v1.shared import surface_pb2 as proto__health_dot_v1_dot_shared_dot_surface__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n+proto-health/v1/validation/validation.proto\x12!vrooli.proto_health.v1.validation\x1a\x18\x63ommon/v1/maturity.proto\x1a$proto-health/v1/shared/surface.proto\"\xbc\x01\n\x07\x46inding\x12G\n\x08severity\x18\x01 \x01(\x0e\x32+.vrooli.proto_health.v1.validation.SeverityR\x08severity\x12\x12\n\x04\x63ode\x18\x02 \x01(\tR\x04\x63ode\x12\x1a\n\x08location\x18\x03 \x01(\tR\x08location\x12\x18\n\x07message\x18\x04 \x01(\tR\x07message\x12\x1e\n\nsuggestion\x18\x05 \x01(\tR\nsuggestion\"S\n\x07Summary\x12\x16\n\x06\x65rrors\x18\x01 \x01(\x05R\x06\x65rrors\x12\x1a\n\x08warnings\x18\x02 \x01(\x05R\x08warnings\x12\x14\n\x05infos\x18\x03 \x01(\x05R\x05infos\"5\n\x17ValidateScenarioRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\"\x9b\x02\n\x18ValidateScenarioResponse\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x16\n\x06passed\x18\x02 \x01(\x08R\x06passed\x12\x46\n\x08\x66indings\x18\x03 \x03(\x0b\x32*.vrooli.proto_health.v1.validation.FindingR\x08\x66indings\x12\x44\n\x07summary\x18\x04 \x01(\x0b\x32*.vrooli.proto_health.v1.validation.SummaryR\x07summary\x12=\n\nassessment\x18\x05 \x01(\x0b\x32\x1d.common.v1.MaturityAssessmentR\nassessment\";\n\x1d\x44\x65scribeScenarioProtosRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\"g\n\x1e\x44\x65scribeScenarioProtosResponse\x12\x45\n\x07surface\x18\x01 \x01(\x0b\x32+.vrooli.proto_health.v1.shared.ProtoSurfaceR\x07surface\"\x7f\n\x1e\x44\x65scribeScenariosProtosRequest\x12\x1c\n\tscenarios\x18\x01 \x03(\tR\tscenarios\x12\x14\n\x05limit\x18\x02 \x01(\x05R\x05limit\x12)\n\x10stability_filter\x18\x03 \x01(\tR\x0fstabilityFilter\"\x8d\x01\n\x12ProtoSurfaceResult\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x45\n\x07surface\x18\x02 \x01(\x0b\x32+.vrooli.proto_health.v1.shared.ProtoSurfaceR\x07surface\x12\x14\n\x05\x65rror\x18\x03 \x01(\tR\x05\x65rror\"r\n\x1f\x44\x65scribeScenariosProtosResponse\x12O\n\x07results\x18\x01 \x03(\x0b\x32\x35.vrooli.proto_health.v1.validation.ProtoSurfaceResultR\x07results*a\n\x08Severity\x12\x18\n\x14SEVERITY_UNSPECIFIED\x10\x00\x12\x12\n\x0eSEVERITY_ERROR\x10\x01\x12\x14\n\x10SEVERITY_WARNING\x10\x02\x12\x11\n\rSEVERITY_INFO\x10\x03\x32\xe5\x03\n\x12ProtoHealthService\x12\x8b\x01\n\x10ValidateScenario\x12:.vrooli.proto_health.v1.validation.ValidateScenarioRequest\x1a;.vrooli.proto_health.v1.validation.ValidateScenarioResponse\x12\x9d\x01\n\x16\x44\x65scribeScenarioProtos\x12@.vrooli.proto_health.v1.validation.DescribeScenarioProtosRequest\x1a\x41.vrooli.proto_health.v1.validation.DescribeScenarioProtosResponse\x12\xa0\x01\n\x17\x44\x65scribeScenariosProtos\x12\x41.vrooli.proto_health.v1.validation.DescribeScenariosProtosRequest\x1a\x42.vrooli.proto_health.v1.validation.DescribeScenariosProtosResponseBYZWgithub.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/validation;validation_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n+proto-health/v1/validation/validation.proto\x12!vrooli.proto_health.v1.validation\x1a$proto-health/v1/shared/surface.proto\";\n\x1d\x44\x65scribeScenarioProtosRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\"g\n\x1e\x44\x65scribeScenarioProtosResponse\x12\x45\n\x07surface\x18\x01 \x01(\x0b\x32+.vrooli.proto_health.v1.shared.ProtoSurfaceR\x07surface\"\x7f\n\x1e\x44\x65scribeScenariosProtosRequest\x12\x1c\n\tscenarios\x18\x01 \x03(\tR\tscenarios\x12\x14\n\x05limit\x18\x02 \x01(\x05R\x05limit\x12)\n\x10stability_filter\x18\x03 \x01(\tR\x0fstabilityFilter\"\x8d\x01\n\x12ProtoSurfaceResult\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x45\n\x07surface\x18\x02 \x01(\x0b\x32+.vrooli.proto_health.v1.shared.ProtoSurfaceR\x07surface\x12\x14\n\x05\x65rror\x18\x03 \x01(\tR\x05\x65rror\"r\n\x1f\x44\x65scribeScenariosProtosResponse\x12O\n\x07results\x18\x01 \x03(\x0b\x32\x35.vrooli.proto_health.v1.validation.ProtoSurfaceResultR\x07results2\xd7\x02\n\x12ProtoHealthService\x12\x9d\x01\n\x16\x44\x65scribeScenarioProtos\x12@.vrooli.proto_health.v1.validation.DescribeScenarioProtosRequest\x1a\x41.vrooli.proto_health.v1.validation.DescribeScenarioProtosResponse\x12\xa0\x01\n\x17\x44\x65scribeScenariosProtos\x12\x41.vrooli.proto_health.v1.validation.DescribeScenariosProtosRequest\x1a\x42.vrooli.proto_health.v1.validation.DescribeScenariosProtosResponseBYZWgithub.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/validation;validation_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -34,26 +33,16 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'proto_health.v1.validation.
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZWgithub.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/validation;validation_v1'
-  _globals['_SEVERITY']._serialized_start=1318
-  _globals['_SEVERITY']._serialized_end=1415
-  _globals['_FINDING']._serialized_start=147
-  _globals['_FINDING']._serialized_end=335
-  _globals['_SUMMARY']._serialized_start=337
-  _globals['_SUMMARY']._serialized_end=420
-  _globals['_VALIDATESCENARIOREQUEST']._serialized_start=422
-  _globals['_VALIDATESCENARIOREQUEST']._serialized_end=475
-  _globals['_VALIDATESCENARIORESPONSE']._serialized_start=478
-  _globals['_VALIDATESCENARIORESPONSE']._serialized_end=761
-  _globals['_DESCRIBESCENARIOPROTOSREQUEST']._serialized_start=763
-  _globals['_DESCRIBESCENARIOPROTOSREQUEST']._serialized_end=822
-  _globals['_DESCRIBESCENARIOPROTOSRESPONSE']._serialized_start=824
-  _globals['_DESCRIBESCENARIOPROTOSRESPONSE']._serialized_end=927
-  _globals['_DESCRIBESCENARIOSPROTOSREQUEST']._serialized_start=929
-  _globals['_DESCRIBESCENARIOSPROTOSREQUEST']._serialized_end=1056
-  _globals['_PROTOSURFACERESULT']._serialized_start=1059
-  _globals['_PROTOSURFACERESULT']._serialized_end=1200
-  _globals['_DESCRIBESCENARIOSPROTOSRESPONSE']._serialized_start=1202
-  _globals['_DESCRIBESCENARIOSPROTOSRESPONSE']._serialized_end=1316
-  _globals['_PROTOHEALTHSERVICE']._serialized_start=1418
-  _globals['_PROTOHEALTHSERVICE']._serialized_end=1903
+  _globals['_DESCRIBESCENARIOPROTOSREQUEST']._serialized_start=120
+  _globals['_DESCRIBESCENARIOPROTOSREQUEST']._serialized_end=179
+  _globals['_DESCRIBESCENARIOPROTOSRESPONSE']._serialized_start=181
+  _globals['_DESCRIBESCENARIOPROTOSRESPONSE']._serialized_end=284
+  _globals['_DESCRIBESCENARIOSPROTOSREQUEST']._serialized_start=286
+  _globals['_DESCRIBESCENARIOSPROTOSREQUEST']._serialized_end=413
+  _globals['_PROTOSURFACERESULT']._serialized_start=416
+  _globals['_PROTOSURFACERESULT']._serialized_end=557
+  _globals['_DESCRIBESCENARIOSPROTOSRESPONSE']._serialized_start=559
+  _globals['_DESCRIBESCENARIOSPROTOSRESPONSE']._serialized_end=673
+  _globals['_PROTOHEALTHSERVICE']._serialized_start=676
+  _globals['_PROTOHEALTHSERVICE']._serialized_end=1019
 # @@protoc_insertion_point(module_scope)

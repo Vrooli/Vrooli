@@ -31,13 +31,26 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v
 // See docs/plans/unified-search-hub-plan.md Appendix A for the full design.
 // =============================================================================
 
-// Routing facet — the four search-context buckets (DO / REUSE / KNOW / STATE).
+// Routing facet — the search-context buckets. Each names what the *consumer*
+// does with a result, never the domain it came from, so the taxonomy stays
+// fully provider-agnostic (a bucket whose name could only come from one
+// scenario — e.g. "calendar" — would violate this and is disallowed):
+//   DO     — execute it (actions, commands, tools)
+//   REUSE  — build with it (skills, components, templates, dependency packages)
+//   KNOW   — learn from it (docs, work records, learnings)
+//   STATE  — check its current value (health scores, metrics, status)
+//   ENTITY — retrieve a specific data record (calendar events, contacts,
+//            emails, transactions, logs, messages) — the discrete "noun"
+//            instances of personal/business apps that none of the above hold.
+// Buckets are advisory categorization metadata; routing keys off `type` + the
+// classifier, so this enum is not load-bearing for fan-out.
 enum Bucket {
   BUCKET_UNSPECIFIED = 0;
   BUCKET_DO = 1;
   BUCKET_REUSE = 2;
   BUCKET_KNOW = 3;
   BUCKET_STATE = 4;
+  BUCKET_ENTITY = 5;
 }
 
 // Whether the corpus is project-internal or an external (e.g. paid) source.

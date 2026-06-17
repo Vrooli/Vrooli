@@ -22,7 +22,7 @@ class ValidateScenarioRequest(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., path: _Optional[str] = ..., workspaces: _Optional[_Iterable[str]] = ..., include_execution: _Optional[bool] = ..., use_cache: _Optional[bool] = ...) -> None: ...
 
 class ValidateScenarioResponse(_message.Message):
-    __slots__ = ("run_id", "status", "summary", "scenario", "target_kind", "target_path", "degraded_reason", "surfaces", "workspaces", "plan", "command_results", "coverage", "findings", "diagnostics", "maturity", "counts", "next_steps", "assessment")
+    __slots__ = ("run_id", "status", "summary", "scenario", "target_kind", "target_path", "degraded_reason", "surfaces", "workspaces", "plan", "command_results", "coverage", "findings", "diagnostics", "maturity", "counts", "next_steps", "assessment", "artifacts")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     SUMMARY_FIELD_NUMBER: _ClassVar[int]
@@ -41,6 +41,7 @@ class ValidateScenarioResponse(_message.Message):
     COUNTS_FIELD_NUMBER: _ClassVar[int]
     NEXT_STEPS_FIELD_NUMBER: _ClassVar[int]
     ASSESSMENT_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACTS_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     status: str
     summary: str
@@ -59,7 +60,18 @@ class ValidateScenarioResponse(_message.Message):
     counts: ValidationCounts
     next_steps: _containers.RepeatedScalarFieldContainer[str]
     assessment: _maturity_pb2.MaturityAssessment
-    def __init__(self, run_id: _Optional[str] = ..., status: _Optional[str] = ..., summary: _Optional[str] = ..., scenario: _Optional[str] = ..., target_kind: _Optional[str] = ..., target_path: _Optional[str] = ..., degraded_reason: _Optional[str] = ..., surfaces: _Optional[_Iterable[_Union[TestSurface, _Mapping]]] = ..., workspaces: _Optional[_Iterable[_Union[TestWorkspace, _Mapping]]] = ..., plan: _Optional[_Union[ExecutionPlan, _Mapping]] = ..., command_results: _Optional[_Iterable[_Union[CommandResult, _Mapping]]] = ..., coverage: _Optional[_Iterable[_Union[CoverageTarget, _Mapping]]] = ..., findings: _Optional[_Iterable[_Union[ValidationFinding, _Mapping]]] = ..., diagnostics: _Optional[_Iterable[_Union[Diagnostic, _Mapping]]] = ..., maturity: _Optional[_Union[MaturitySummary, _Mapping]] = ..., counts: _Optional[_Union[ValidationCounts, _Mapping]] = ..., next_steps: _Optional[_Iterable[str]] = ..., assessment: _Optional[_Union[_maturity_pb2.MaturityAssessment, _Mapping]] = ...) -> None: ...
+    artifacts: _containers.RepeatedCompositeFieldContainer[Artifact]
+    def __init__(self, run_id: _Optional[str] = ..., status: _Optional[str] = ..., summary: _Optional[str] = ..., scenario: _Optional[str] = ..., target_kind: _Optional[str] = ..., target_path: _Optional[str] = ..., degraded_reason: _Optional[str] = ..., surfaces: _Optional[_Iterable[_Union[TestSurface, _Mapping]]] = ..., workspaces: _Optional[_Iterable[_Union[TestWorkspace, _Mapping]]] = ..., plan: _Optional[_Union[ExecutionPlan, _Mapping]] = ..., command_results: _Optional[_Iterable[_Union[CommandResult, _Mapping]]] = ..., coverage: _Optional[_Iterable[_Union[CoverageTarget, _Mapping]]] = ..., findings: _Optional[_Iterable[_Union[ValidationFinding, _Mapping]]] = ..., diagnostics: _Optional[_Iterable[_Union[Diagnostic, _Mapping]]] = ..., maturity: _Optional[_Union[MaturitySummary, _Mapping]] = ..., counts: _Optional[_Union[ValidationCounts, _Mapping]] = ..., next_steps: _Optional[_Iterable[str]] = ..., assessment: _Optional[_Union[_maturity_pb2.MaturityAssessment, _Mapping]] = ..., artifacts: _Optional[_Iterable[_Union[Artifact, _Mapping]]] = ...) -> None: ...
+
+class Artifact(_message.Message):
+    __slots__ = ("label", "kind", "reference")
+    LABEL_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    REFERENCE_FIELD_NUMBER: _ClassVar[int]
+    label: str
+    kind: str
+    reference: str
+    def __init__(self, label: _Optional[str] = ..., kind: _Optional[str] = ..., reference: _Optional[str] = ...) -> None: ...
 
 class TestSurface(_message.Message):
     __slots__ = ("id", "kind", "language", "framework", "root_path", "package_manager", "status", "confidence")

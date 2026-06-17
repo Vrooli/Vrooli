@@ -14,6 +14,7 @@ class Bucket(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BUCKET_REUSE: _ClassVar[Bucket]
     BUCKET_KNOW: _ClassVar[Bucket]
     BUCKET_STATE: _ClassVar[Bucket]
+    BUCKET_ENTITY: _ClassVar[Bucket]
 
 class Scope(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -44,6 +45,7 @@ BUCKET_DO: Bucket
 BUCKET_REUSE: Bucket
 BUCKET_KNOW: Bucket
 BUCKET_STATE: Bucket
+BUCKET_ENTITY: Bucket
 SCOPE_UNSPECIFIED: Scope
 SCOPE_PROJECT: Scope
 SCOPE_EXTERNAL: Scope

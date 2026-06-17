@@ -17,10 +17,12 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/
 // from SQLite by the management layer.
 //
 // This service answers "which models exist, what can they do, and which one
-// would run for an operation on this host" — and lets an operator opt a quality
-// tier in or out. Heavier model management (download with checksum pinning,
-// disk-space awareness, custom local entries, removal) lands in a later phase;
-// the messages here stay focused on the registry's read + enable surface.
+// would run for an operation on this host", lets an operator opt a quality tier
+// in or out, and (IMG-P0-007) manages the on-disk weights: opt-in checksummed
+// downloads with disk-space awareness, removal, and custom/local entries. A
+// download is a durable job (InstallModel returns a job id + ETA; the caller
+// blocks once on JobsService.WaitJob — no polling), keeping a multi-GB pull on
+// the server-owned lifecycle that survives client disconnect.
 //
 // Consumed by:
 //   - API: handlers/models/connect_handler.go implements ModelsServiceHandler.
@@ -53,6 +55,30 @@ service ModelsService {
   // ListBlocklist returns the license-encumbered models that must never be
   // seeded or adopted, with the reason each is excluded.
   rpc ListBlocklist(ListBlocklistRequest) returns (ListBlocklistResponse);
+
+  // InstallModel downloads a model's weights as a durable job (checksum pinned
+  // on first download, disk space checked first). Returns the job id + ETA; the
+  // caller blocks once on JobsService.WaitJob. An already-installed model
+  // returns already_installed=true with no job.
+  rpc InstallModel(InstallModelRequest) returns (InstallModelResponse);
+
+  // RemoveModel deletes a model's downloaded weights and clears its install
+  // record. A custom local model is unlinked; its referenced path is never
+  // deleted.
+  rpc RemoveModel(RemoveModelRequest) returns (RemoveModelResponse);
+
+  // AddCustomModel registers a custom/fine-tuned local model entry merged on top
+  // of the read-only seed. The id must not collide with a seed model.
+  rpc AddCustomModel(AddCustomModelRequest) returns (AddCustomModelResponse);
+
+  // SetDefaultModel pins (or clears, with empty model_id) the default model for
+  // an operation — the settings surface. Selection applies it when a request
+  // gives no explicit override.
+  rpc SetDefaultModel(SetDefaultModelRequest) returns (SetDefaultModelResponse);
+
+  // ListDefaults returns the effective default model per operation, marking
+  // whether it comes from the seed or an operator pin.
+  rpc ListDefaults(ListDefaultsRequest) returns (ListDefaultsResponse);
 }
 
 // CommercialUse classifies a model's commercial-use license posture.
@@ -105,6 +131,24 @@ message Model {
   CapabilityLabels capability_labels = 12;
   // Effective enabled state (SQLite overlay over the seed default).
   bool enabled = 13;
+  // On-disk install state (download-on-opt-in). Absent/installed=false means the
+  // weights are not present and AI ops for this model refuse with an install hint.
+  InstallState install = 14;
+  // True for operator-registered custom/local entries (not in the seed catalog).
+  bool custom = 15;
+}
+
+// InstallState is a model's on-disk weight status (IMG-P0-007).
+message InstallState {
+  bool installed = 1;
+  // Absolute directory (or local file, for custom entries) the weights live in.
+  string path = 2;
+  // sha256 pinned on first real download (never hand-written).
+  string checksum = 3;
+  // On-disk size in bytes (0 until installed).
+  uint64 size_bytes = 4;
+  // RFC3339 install timestamp ("" until installed).
+  string installed_at = 5;
 }
 
 // BlocklistEntry records a license-encumbered model excluded from the catalog.
@@ -135,8 +179,7 @@ message GetModelResponse {
   Model model = 1;
 }
 
-message ListOperationsRequest {
-}
+message ListOperationsRequest {}
 
 message ListOperationsResponse {
   repeated string operations = 1;
@@ -170,9 +213,73 @@ message SetModelEnabledResponse {
   Model model = 1;
 }
 
-message ListBlocklistRequest {
-}
+message ListBlocklistRequest {}
 
 message ListBlocklistResponse {
   repeated BlocklistEntry entries = 1;
+}
+
+message InstallModelRequest {
+  string id = 1;
+}
+
+message InstallModelResponse {
+  // Job id of the durable download (empty when already_installed).
+  string job_id = 1;
+  // Initial ETA in seconds for the download (0 when unknown/already installed).
+  int32 eta_seconds = 2;
+  // Approximate download size in MB (from the registry).
+  int32 size_mb_approx = 3;
+  // True when the weights were already present (no job submitted).
+  bool already_installed = 4;
+}
+
+message RemoveModelRequest {
+  string id = 1;
+}
+
+message RemoveModelResponse {
+  bool removed = 1;
+}
+
+message AddCustomModelRequest {
+  // The custom entry to register. id, operations, and backend are required.
+  // The seed Model message carries no source; local_path/download_url are
+  // supplied here. A local_path is verified to exist at registration time.
+  Model model = 1;
+  // Absolute path to local weights (a directory or file). When set, the model is
+  // "installed" by reference — no download.
+  string local_path = 2;
+  // Remote download URL (used when local_path is empty).
+  string download_url = 3;
+}
+
+message AddCustomModelResponse {
+  Model model = 1;
+}
+
+message SetDefaultModelRequest {
+  string operation = 1;
+  // Model id to pin as the operation's default. Empty clears the pin (revert to
+  // the seed default).
+  string model_id = 2;
+}
+
+message SetDefaultModelResponse {
+  string operation = 1;
+  string model_id = 2;
+}
+
+// OpDefault is the effective default model for one operation.
+message OpDefault {
+  string operation = 1;
+  string model_id = 2;
+  // "seed" (registry default_for) or "override" (operator pin).
+  string source = 3;
+}
+
+message ListDefaultsRequest {}
+
+message ListDefaultsResponse {
+  repeated OpDefault defaults = 1;
 }

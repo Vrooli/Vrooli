@@ -50,6 +50,21 @@ const (
 	// ModelsServiceListBlocklistProcedure is the fully-qualified name of the ModelsService's
 	// ListBlocklist RPC.
 	ModelsServiceListBlocklistProcedure = "/vrooli.image_tools.v1.models.ModelsService/ListBlocklist"
+	// ModelsServiceInstallModelProcedure is the fully-qualified name of the ModelsService's
+	// InstallModel RPC.
+	ModelsServiceInstallModelProcedure = "/vrooli.image_tools.v1.models.ModelsService/InstallModel"
+	// ModelsServiceRemoveModelProcedure is the fully-qualified name of the ModelsService's RemoveModel
+	// RPC.
+	ModelsServiceRemoveModelProcedure = "/vrooli.image_tools.v1.models.ModelsService/RemoveModel"
+	// ModelsServiceAddCustomModelProcedure is the fully-qualified name of the ModelsService's
+	// AddCustomModel RPC.
+	ModelsServiceAddCustomModelProcedure = "/vrooli.image_tools.v1.models.ModelsService/AddCustomModel"
+	// ModelsServiceSetDefaultModelProcedure is the fully-qualified name of the ModelsService's
+	// SetDefaultModel RPC.
+	ModelsServiceSetDefaultModelProcedure = "/vrooli.image_tools.v1.models.ModelsService/SetDefaultModel"
+	// ModelsServiceListDefaultsProcedure is the fully-qualified name of the ModelsService's
+	// ListDefaults RPC.
+	ModelsServiceListDefaultsProcedure = "/vrooli.image_tools.v1.models.ModelsService/ListDefaults"
 )
 
 // ModelsServiceClient is a client for the vrooli.image_tools.v1.models.ModelsService service.
@@ -71,6 +86,25 @@ type ModelsServiceClient interface {
 	// ListBlocklist returns the license-encumbered models that must never be
 	// seeded or adopted, with the reason each is excluded.
 	ListBlocklist(context.Context, *connect.Request[models.ListBlocklistRequest]) (*connect.Response[models.ListBlocklistResponse], error)
+	// InstallModel downloads a model's weights as a durable job (checksum pinned
+	// on first download, disk space checked first). Returns the job id + ETA; the
+	// caller blocks once on JobsService.WaitJob. An already-installed model
+	// returns already_installed=true with no job.
+	InstallModel(context.Context, *connect.Request[models.InstallModelRequest]) (*connect.Response[models.InstallModelResponse], error)
+	// RemoveModel deletes a model's downloaded weights and clears its install
+	// record. A custom local model is unlinked; its referenced path is never
+	// deleted.
+	RemoveModel(context.Context, *connect.Request[models.RemoveModelRequest]) (*connect.Response[models.RemoveModelResponse], error)
+	// AddCustomModel registers a custom/fine-tuned local model entry merged on top
+	// of the read-only seed. The id must not collide with a seed model.
+	AddCustomModel(context.Context, *connect.Request[models.AddCustomModelRequest]) (*connect.Response[models.AddCustomModelResponse], error)
+	// SetDefaultModel pins (or clears, with empty model_id) the default model for
+	// an operation — the settings surface. Selection applies it when a request
+	// gives no explicit override.
+	SetDefaultModel(context.Context, *connect.Request[models.SetDefaultModelRequest]) (*connect.Response[models.SetDefaultModelResponse], error)
+	// ListDefaults returns the effective default model per operation, marking
+	// whether it comes from the seed or an operator pin.
+	ListDefaults(context.Context, *connect.Request[models.ListDefaultsRequest]) (*connect.Response[models.ListDefaultsResponse], error)
 }
 
 // NewModelsServiceClient constructs a client for the vrooli.image_tools.v1.models.ModelsService
@@ -120,6 +154,36 @@ func NewModelsServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(modelsServiceMethods.ByName("ListBlocklist")),
 			connect.WithClientOptions(opts...),
 		),
+		installModel: connect.NewClient[models.InstallModelRequest, models.InstallModelResponse](
+			httpClient,
+			baseURL+ModelsServiceInstallModelProcedure,
+			connect.WithSchema(modelsServiceMethods.ByName("InstallModel")),
+			connect.WithClientOptions(opts...),
+		),
+		removeModel: connect.NewClient[models.RemoveModelRequest, models.RemoveModelResponse](
+			httpClient,
+			baseURL+ModelsServiceRemoveModelProcedure,
+			connect.WithSchema(modelsServiceMethods.ByName("RemoveModel")),
+			connect.WithClientOptions(opts...),
+		),
+		addCustomModel: connect.NewClient[models.AddCustomModelRequest, models.AddCustomModelResponse](
+			httpClient,
+			baseURL+ModelsServiceAddCustomModelProcedure,
+			connect.WithSchema(modelsServiceMethods.ByName("AddCustomModel")),
+			connect.WithClientOptions(opts...),
+		),
+		setDefaultModel: connect.NewClient[models.SetDefaultModelRequest, models.SetDefaultModelResponse](
+			httpClient,
+			baseURL+ModelsServiceSetDefaultModelProcedure,
+			connect.WithSchema(modelsServiceMethods.ByName("SetDefaultModel")),
+			connect.WithClientOptions(opts...),
+		),
+		listDefaults: connect.NewClient[models.ListDefaultsRequest, models.ListDefaultsResponse](
+			httpClient,
+			baseURL+ModelsServiceListDefaultsProcedure,
+			connect.WithSchema(modelsServiceMethods.ByName("ListDefaults")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -131,6 +195,11 @@ type modelsServiceClient struct {
 	selectModel     *connect.Client[models.SelectModelRequest, models.SelectModelResponse]
 	setModelEnabled *connect.Client[models.SetModelEnabledRequest, models.SetModelEnabledResponse]
 	listBlocklist   *connect.Client[models.ListBlocklistRequest, models.ListBlocklistResponse]
+	installModel    *connect.Client[models.InstallModelRequest, models.InstallModelResponse]
+	removeModel     *connect.Client[models.RemoveModelRequest, models.RemoveModelResponse]
+	addCustomModel  *connect.Client[models.AddCustomModelRequest, models.AddCustomModelResponse]
+	setDefaultModel *connect.Client[models.SetDefaultModelRequest, models.SetDefaultModelResponse]
+	listDefaults    *connect.Client[models.ListDefaultsRequest, models.ListDefaultsResponse]
 }
 
 // ListModels calls vrooli.image_tools.v1.models.ModelsService.ListModels.
@@ -163,6 +232,31 @@ func (c *modelsServiceClient) ListBlocklist(ctx context.Context, req *connect.Re
 	return c.listBlocklist.CallUnary(ctx, req)
 }
 
+// InstallModel calls vrooli.image_tools.v1.models.ModelsService.InstallModel.
+func (c *modelsServiceClient) InstallModel(ctx context.Context, req *connect.Request[models.InstallModelRequest]) (*connect.Response[models.InstallModelResponse], error) {
+	return c.installModel.CallUnary(ctx, req)
+}
+
+// RemoveModel calls vrooli.image_tools.v1.models.ModelsService.RemoveModel.
+func (c *modelsServiceClient) RemoveModel(ctx context.Context, req *connect.Request[models.RemoveModelRequest]) (*connect.Response[models.RemoveModelResponse], error) {
+	return c.removeModel.CallUnary(ctx, req)
+}
+
+// AddCustomModel calls vrooli.image_tools.v1.models.ModelsService.AddCustomModel.
+func (c *modelsServiceClient) AddCustomModel(ctx context.Context, req *connect.Request[models.AddCustomModelRequest]) (*connect.Response[models.AddCustomModelResponse], error) {
+	return c.addCustomModel.CallUnary(ctx, req)
+}
+
+// SetDefaultModel calls vrooli.image_tools.v1.models.ModelsService.SetDefaultModel.
+func (c *modelsServiceClient) SetDefaultModel(ctx context.Context, req *connect.Request[models.SetDefaultModelRequest]) (*connect.Response[models.SetDefaultModelResponse], error) {
+	return c.setDefaultModel.CallUnary(ctx, req)
+}
+
+// ListDefaults calls vrooli.image_tools.v1.models.ModelsService.ListDefaults.
+func (c *modelsServiceClient) ListDefaults(ctx context.Context, req *connect.Request[models.ListDefaultsRequest]) (*connect.Response[models.ListDefaultsResponse], error) {
+	return c.listDefaults.CallUnary(ctx, req)
+}
+
 // ModelsServiceHandler is an implementation of the vrooli.image_tools.v1.models.ModelsService
 // service.
 type ModelsServiceHandler interface {
@@ -183,6 +277,25 @@ type ModelsServiceHandler interface {
 	// ListBlocklist returns the license-encumbered models that must never be
 	// seeded or adopted, with the reason each is excluded.
 	ListBlocklist(context.Context, *connect.Request[models.ListBlocklistRequest]) (*connect.Response[models.ListBlocklistResponse], error)
+	// InstallModel downloads a model's weights as a durable job (checksum pinned
+	// on first download, disk space checked first). Returns the job id + ETA; the
+	// caller blocks once on JobsService.WaitJob. An already-installed model
+	// returns already_installed=true with no job.
+	InstallModel(context.Context, *connect.Request[models.InstallModelRequest]) (*connect.Response[models.InstallModelResponse], error)
+	// RemoveModel deletes a model's downloaded weights and clears its install
+	// record. A custom local model is unlinked; its referenced path is never
+	// deleted.
+	RemoveModel(context.Context, *connect.Request[models.RemoveModelRequest]) (*connect.Response[models.RemoveModelResponse], error)
+	// AddCustomModel registers a custom/fine-tuned local model entry merged on top
+	// of the read-only seed. The id must not collide with a seed model.
+	AddCustomModel(context.Context, *connect.Request[models.AddCustomModelRequest]) (*connect.Response[models.AddCustomModelResponse], error)
+	// SetDefaultModel pins (or clears, with empty model_id) the default model for
+	// an operation — the settings surface. Selection applies it when a request
+	// gives no explicit override.
+	SetDefaultModel(context.Context, *connect.Request[models.SetDefaultModelRequest]) (*connect.Response[models.SetDefaultModelResponse], error)
+	// ListDefaults returns the effective default model per operation, marking
+	// whether it comes from the seed or an operator pin.
+	ListDefaults(context.Context, *connect.Request[models.ListDefaultsRequest]) (*connect.Response[models.ListDefaultsResponse], error)
 }
 
 // NewModelsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -228,6 +341,36 @@ func NewModelsServiceHandler(svc ModelsServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(modelsServiceMethods.ByName("ListBlocklist")),
 		connect.WithHandlerOptions(opts...),
 	)
+	modelsServiceInstallModelHandler := connect.NewUnaryHandler(
+		ModelsServiceInstallModelProcedure,
+		svc.InstallModel,
+		connect.WithSchema(modelsServiceMethods.ByName("InstallModel")),
+		connect.WithHandlerOptions(opts...),
+	)
+	modelsServiceRemoveModelHandler := connect.NewUnaryHandler(
+		ModelsServiceRemoveModelProcedure,
+		svc.RemoveModel,
+		connect.WithSchema(modelsServiceMethods.ByName("RemoveModel")),
+		connect.WithHandlerOptions(opts...),
+	)
+	modelsServiceAddCustomModelHandler := connect.NewUnaryHandler(
+		ModelsServiceAddCustomModelProcedure,
+		svc.AddCustomModel,
+		connect.WithSchema(modelsServiceMethods.ByName("AddCustomModel")),
+		connect.WithHandlerOptions(opts...),
+	)
+	modelsServiceSetDefaultModelHandler := connect.NewUnaryHandler(
+		ModelsServiceSetDefaultModelProcedure,
+		svc.SetDefaultModel,
+		connect.WithSchema(modelsServiceMethods.ByName("SetDefaultModel")),
+		connect.WithHandlerOptions(opts...),
+	)
+	modelsServiceListDefaultsHandler := connect.NewUnaryHandler(
+		ModelsServiceListDefaultsProcedure,
+		svc.ListDefaults,
+		connect.WithSchema(modelsServiceMethods.ByName("ListDefaults")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.image_tools.v1.models.ModelsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ModelsServiceListModelsProcedure:
@@ -242,6 +385,16 @@ func NewModelsServiceHandler(svc ModelsServiceHandler, opts ...connect.HandlerOp
 			modelsServiceSetModelEnabledHandler.ServeHTTP(w, r)
 		case ModelsServiceListBlocklistProcedure:
 			modelsServiceListBlocklistHandler.ServeHTTP(w, r)
+		case ModelsServiceInstallModelProcedure:
+			modelsServiceInstallModelHandler.ServeHTTP(w, r)
+		case ModelsServiceRemoveModelProcedure:
+			modelsServiceRemoveModelHandler.ServeHTTP(w, r)
+		case ModelsServiceAddCustomModelProcedure:
+			modelsServiceAddCustomModelHandler.ServeHTTP(w, r)
+		case ModelsServiceSetDefaultModelProcedure:
+			modelsServiceSetDefaultModelHandler.ServeHTTP(w, r)
+		case ModelsServiceListDefaultsProcedure:
+			modelsServiceListDefaultsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -273,4 +426,24 @@ func (UnimplementedModelsServiceHandler) SetModelEnabled(context.Context, *conne
 
 func (UnimplementedModelsServiceHandler) ListBlocklist(context.Context, *connect.Request[models.ListBlocklistRequest]) (*connect.Response[models.ListBlocklistResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.image_tools.v1.models.ModelsService.ListBlocklist is not implemented"))
+}
+
+func (UnimplementedModelsServiceHandler) InstallModel(context.Context, *connect.Request[models.InstallModelRequest]) (*connect.Response[models.InstallModelResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.image_tools.v1.models.ModelsService.InstallModel is not implemented"))
+}
+
+func (UnimplementedModelsServiceHandler) RemoveModel(context.Context, *connect.Request[models.RemoveModelRequest]) (*connect.Response[models.RemoveModelResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.image_tools.v1.models.ModelsService.RemoveModel is not implemented"))
+}
+
+func (UnimplementedModelsServiceHandler) AddCustomModel(context.Context, *connect.Request[models.AddCustomModelRequest]) (*connect.Response[models.AddCustomModelResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.image_tools.v1.models.ModelsService.AddCustomModel is not implemented"))
+}
+
+func (UnimplementedModelsServiceHandler) SetDefaultModel(context.Context, *connect.Request[models.SetDefaultModelRequest]) (*connect.Response[models.SetDefaultModelResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.image_tools.v1.models.ModelsService.SetDefaultModel is not implemented"))
+}
+
+func (UnimplementedModelsServiceHandler) ListDefaults(context.Context, *connect.Request[models.ListDefaultsRequest]) (*connect.Response[models.ListDefaultsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.image_tools.v1.models.ModelsService.ListDefaults is not implemented"))
 }

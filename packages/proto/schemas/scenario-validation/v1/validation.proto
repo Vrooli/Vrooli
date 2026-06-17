@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package vrooli.scenario_validation.v1;
+
+import "common/v1/maturity.proto";
+import "google/protobuf/any.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1;scenariovalidationv1";
+
+// =============================================================================
+// SCENARIO VALIDATION SERVICE
+// =============================================================================
+//
+// @layer 0
+// @domain scenario-validation
+// @stability beta
+//
+// ScenarioValidationService is the shared Connect-RPC contract implemented by
+// health-style provider scenarios and consumed by test-genie. Test Genie reads
+// only status and the common maturity assessment; provider-specific rich detail
+// remains opaque in native_detail for the provider's own UI/CLI.
+// =============================================================================
+
+service ScenarioValidationService {
+  rpc ValidateScenario(ValidateScenarioRequest) returns (ValidateScenarioResponse);
+}
+
+message ValidateScenarioRequest {
+  // Scenario slug, normally the directory name under scenarios/.
+  string scenario = 1;
+  // Optional explicit scenario path for callers that already resolved it.
+  string path = 2;
+  // Providers that perform execution, such as unit-health, honor this flag.
+  bool include_execution = 3;
+}
+
+enum ValidationStatus {
+  VALIDATION_STATUS_UNSPECIFIED = 0;
+  VALIDATION_STATUS_PASSED = 1;
+  VALIDATION_STATUS_FAILED = 2;
+  VALIDATION_STATUS_DEGRADED = 3;
+  VALIDATION_STATUS_ERROR = 4;
+  VALIDATION_STATUS_SKIPPED = 5;
+}
+
+message ValidateScenarioResponse {
+  string scenario = 1;
+  // Canonical provider verdict for Test Genie's gate.
+  ValidationStatus status = 2;
+  // Mandatory shared assessment. Findings live here.
+  common.v1.MaturityAssessment assessment = 3;
+  // Optional provider-native response packed for provider-owned surfaces.
+  google.protobuf.Any native_detail = 4;
+}

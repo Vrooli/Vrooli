@@ -33,9 +33,6 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// ProtoHealthServiceValidateScenarioProcedure is the fully-qualified name of the
-	// ProtoHealthService's ValidateScenario RPC.
-	ProtoHealthServiceValidateScenarioProcedure = "/vrooli.proto_health.v1.validation.ProtoHealthService/ValidateScenario"
 	// ProtoHealthServiceDescribeScenarioProtosProcedure is the fully-qualified name of the
 	// ProtoHealthService's DescribeScenarioProtos RPC.
 	ProtoHealthServiceDescribeScenarioProtosProcedure = "/vrooli.proto_health.v1.validation.ProtoHealthService/DescribeScenarioProtos"
@@ -47,7 +44,6 @@ const (
 // ProtoHealthServiceClient is a client for the vrooli.proto_health.v1.validation.ProtoHealthService
 // service.
 type ProtoHealthServiceClient interface {
-	ValidateScenario(context.Context, *connect.Request[validation.ValidateScenarioRequest]) (*connect.Response[validation.ValidateScenarioResponse], error)
 	DescribeScenarioProtos(context.Context, *connect.Request[validation.DescribeScenarioProtosRequest]) (*connect.Response[validation.DescribeScenarioProtosResponse], error)
 	DescribeScenariosProtos(context.Context, *connect.Request[validation.DescribeScenariosProtosRequest]) (*connect.Response[validation.DescribeScenariosProtosResponse], error)
 }
@@ -64,12 +60,6 @@ func NewProtoHealthServiceClient(httpClient connect.HTTPClient, baseURL string, 
 	baseURL = strings.TrimRight(baseURL, "/")
 	protoHealthServiceMethods := validation.File_proto_health_v1_validation_validation_proto.Services().ByName("ProtoHealthService").Methods()
 	return &protoHealthServiceClient{
-		validateScenario: connect.NewClient[validation.ValidateScenarioRequest, validation.ValidateScenarioResponse](
-			httpClient,
-			baseURL+ProtoHealthServiceValidateScenarioProcedure,
-			connect.WithSchema(protoHealthServiceMethods.ByName("ValidateScenario")),
-			connect.WithClientOptions(opts...),
-		),
 		describeScenarioProtos: connect.NewClient[validation.DescribeScenarioProtosRequest, validation.DescribeScenarioProtosResponse](
 			httpClient,
 			baseURL+ProtoHealthServiceDescribeScenarioProtosProcedure,
@@ -87,14 +77,8 @@ func NewProtoHealthServiceClient(httpClient connect.HTTPClient, baseURL string, 
 
 // protoHealthServiceClient implements ProtoHealthServiceClient.
 type protoHealthServiceClient struct {
-	validateScenario        *connect.Client[validation.ValidateScenarioRequest, validation.ValidateScenarioResponse]
 	describeScenarioProtos  *connect.Client[validation.DescribeScenarioProtosRequest, validation.DescribeScenarioProtosResponse]
 	describeScenariosProtos *connect.Client[validation.DescribeScenariosProtosRequest, validation.DescribeScenariosProtosResponse]
-}
-
-// ValidateScenario calls vrooli.proto_health.v1.validation.ProtoHealthService.ValidateScenario.
-func (c *protoHealthServiceClient) ValidateScenario(ctx context.Context, req *connect.Request[validation.ValidateScenarioRequest]) (*connect.Response[validation.ValidateScenarioResponse], error) {
-	return c.validateScenario.CallUnary(ctx, req)
 }
 
 // DescribeScenarioProtos calls
@@ -112,7 +96,6 @@ func (c *protoHealthServiceClient) DescribeScenariosProtos(ctx context.Context, 
 // ProtoHealthServiceHandler is an implementation of the
 // vrooli.proto_health.v1.validation.ProtoHealthService service.
 type ProtoHealthServiceHandler interface {
-	ValidateScenario(context.Context, *connect.Request[validation.ValidateScenarioRequest]) (*connect.Response[validation.ValidateScenarioResponse], error)
 	DescribeScenarioProtos(context.Context, *connect.Request[validation.DescribeScenarioProtosRequest]) (*connect.Response[validation.DescribeScenarioProtosResponse], error)
 	DescribeScenariosProtos(context.Context, *connect.Request[validation.DescribeScenariosProtosRequest]) (*connect.Response[validation.DescribeScenariosProtosResponse], error)
 }
@@ -124,12 +107,6 @@ type ProtoHealthServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewProtoHealthServiceHandler(svc ProtoHealthServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	protoHealthServiceMethods := validation.File_proto_health_v1_validation_validation_proto.Services().ByName("ProtoHealthService").Methods()
-	protoHealthServiceValidateScenarioHandler := connect.NewUnaryHandler(
-		ProtoHealthServiceValidateScenarioProcedure,
-		svc.ValidateScenario,
-		connect.WithSchema(protoHealthServiceMethods.ByName("ValidateScenario")),
-		connect.WithHandlerOptions(opts...),
-	)
 	protoHealthServiceDescribeScenarioProtosHandler := connect.NewUnaryHandler(
 		ProtoHealthServiceDescribeScenarioProtosProcedure,
 		svc.DescribeScenarioProtos,
@@ -144,8 +121,6 @@ func NewProtoHealthServiceHandler(svc ProtoHealthServiceHandler, opts ...connect
 	)
 	return "/vrooli.proto_health.v1.validation.ProtoHealthService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case ProtoHealthServiceValidateScenarioProcedure:
-			protoHealthServiceValidateScenarioHandler.ServeHTTP(w, r)
 		case ProtoHealthServiceDescribeScenarioProtosProcedure:
 			protoHealthServiceDescribeScenarioProtosHandler.ServeHTTP(w, r)
 		case ProtoHealthServiceDescribeScenariosProtosProcedure:
@@ -158,10 +133,6 @@ func NewProtoHealthServiceHandler(svc ProtoHealthServiceHandler, opts ...connect
 
 // UnimplementedProtoHealthServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedProtoHealthServiceHandler struct{}
-
-func (UnimplementedProtoHealthServiceHandler) ValidateScenario(context.Context, *connect.Request[validation.ValidateScenarioRequest]) (*connect.Response[validation.ValidateScenarioResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.proto_health.v1.validation.ProtoHealthService.ValidateScenario is not implemented"))
-}
 
 func (UnimplementedProtoHealthServiceHandler) DescribeScenarioProtos(context.Context, *connect.Request[validation.DescribeScenarioProtosRequest]) (*connect.Response[validation.DescribeScenarioProtosResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.proto_health.v1.validation.ProtoHealthService.DescribeScenarioProtos is not implemented"))

@@ -2,8 +2,6 @@ syntax = "proto3";
 
 package vrooli.image_tools.v1.ops;
 
-import "image-tools/v1/jobs/jobs.proto";
-
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ops;ops_v1";
 
 // =============================================================================
@@ -204,9 +202,13 @@ message OpResult {
   int64 size_bytes = 6;
 }
 
-// RunOpResponse is the JSON (protojson) body returned by the REST run edge: the
-// terminal durable Job plus the typed result metadata.
+// RunOpResponse is the JSON (protojson) body returned by the REST run edge: a
+// reference to the durable job the op was recorded as, plus the typed result
+// metadata. Deterministic ops run synchronously and the response always
+// reflects a succeeded job, so a job id (resolvable via JobsService.GetJob) is
+// sufficient — the full Job is not duplicated here (it lives in the jobs
+// domain, the single owner of that type).
 message RunOpResponse {
-  vrooli.image_tools.v1.jobs.Job job = 1;
+  string job_id = 1;
   OpResult result = 2;
 }

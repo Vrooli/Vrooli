@@ -21,6 +21,228 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type InstallDependencyRequest struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Scenario string                 `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	// Target surface within the scenario: ui, api, or cli.
+	Surface     string `protobuf:"bytes,2,opt,name=surface,proto3" json:"surface,omitempty"`
+	Ecosystem   string `protobuf:"bytes,3,opt,name=ecosystem,proto3" json:"ecosystem,omitempty"`
+	PackageName string `protobuf:"bytes,4,opt,name=package_name,json=packageName,proto3" json:"package_name,omitempty"`
+	// Optional explicit version/range; empty lets the package manager resolve it
+	// (subject to the approved range when one is recorded).
+	Version string `protobuf:"bytes,5,opt,name=version,proto3" json:"version,omitempty"`
+	// apply=false (the default) is a dry run: the command + governance verdict are
+	// returned but nothing is installed. apply=true performs the install.
+	Apply         bool `protobuf:"varint,6,opt,name=apply,proto3" json:"apply,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InstallDependencyRequest) Reset() {
+	*x = InstallDependencyRequest{}
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InstallDependencyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InstallDependencyRequest) ProtoMessage() {}
+
+func (x *InstallDependencyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InstallDependencyRequest.ProtoReflect.Descriptor instead.
+func (*InstallDependencyRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *InstallDependencyRequest) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *InstallDependencyRequest) GetSurface() string {
+	if x != nil {
+		return x.Surface
+	}
+	return ""
+}
+
+func (x *InstallDependencyRequest) GetEcosystem() string {
+	if x != nil {
+		return x.Ecosystem
+	}
+	return ""
+}
+
+func (x *InstallDependencyRequest) GetPackageName() string {
+	if x != nil {
+		return x.PackageName
+	}
+	return ""
+}
+
+func (x *InstallDependencyRequest) GetVersion() string {
+	if x != nil {
+		return x.Version
+	}
+	return ""
+}
+
+func (x *InstallDependencyRequest) GetApply() bool {
+	if x != nil {
+		return x.Apply
+	}
+	return false
+}
+
+type InstallDependencyResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// installed is true only when apply was set and the install succeeded.
+	Installed bool `protobuf:"varint,1,opt,name=installed,proto3" json:"installed,omitempty"`
+	DryRun    bool `protobuf:"varint,2,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	// verdict is the governance decision: approved, approved_with_constraints,
+	// denied, deprecated, unrecorded, surface_not_allowed, or out_of_range.
+	Verdict string `protobuf:"bytes,3,opt,name=verdict,proto3" json:"verdict,omitempty"`
+	// blocked is true when governance refused the install (denied/out-of-range/
+	// surface-not-allowed/unrecorded in a fail-closed mode).
+	Blocked bool `protobuf:"varint,4,opt,name=blocked,proto3" json:"blocked,omitempty"`
+	// command is the exact argv the gateway ran (apply) or would run (dry-run).
+	Command        string `protobuf:"bytes,5,opt,name=command,proto3" json:"command,omitempty"`
+	PackageManager string `protobuf:"bytes,6,opt,name=package_manager,json=packageManager,proto3" json:"package_manager,omitempty"`
+	ManifestPath   string `protobuf:"bytes,7,opt,name=manifest_path,json=manifestPath,proto3" json:"manifest_path,omitempty"`
+	// message is the human-friendly summary.
+	Message   string   `protobuf:"bytes,8,opt,name=message,proto3" json:"message,omitempty"`
+	NextSteps []string `protobuf:"bytes,9,rep,name=next_steps,json=nextSteps,proto3" json:"next_steps,omitempty"`
+	// security_notes carries the post-install (or, on dry-run, the recorded)
+	// vulnerability scan summary for the package.
+	SecurityNotes []string `protobuf:"bytes,10,rep,name=security_notes,json=securityNotes,proto3" json:"security_notes,omitempty"`
+	Guidance      string   `protobuf:"bytes,11,opt,name=guidance,proto3" json:"guidance,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InstallDependencyResponse) Reset() {
+	*x = InstallDependencyResponse{}
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InstallDependencyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InstallDependencyResponse) ProtoMessage() {}
+
+func (x *InstallDependencyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InstallDependencyResponse.ProtoReflect.Descriptor instead.
+func (*InstallDependencyResponse) Descriptor() ([]byte, []int) {
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *InstallDependencyResponse) GetInstalled() bool {
+	if x != nil {
+		return x.Installed
+	}
+	return false
+}
+
+func (x *InstallDependencyResponse) GetDryRun() bool {
+	if x != nil {
+		return x.DryRun
+	}
+	return false
+}
+
+func (x *InstallDependencyResponse) GetVerdict() string {
+	if x != nil {
+		return x.Verdict
+	}
+	return ""
+}
+
+func (x *InstallDependencyResponse) GetBlocked() bool {
+	if x != nil {
+		return x.Blocked
+	}
+	return false
+}
+
+func (x *InstallDependencyResponse) GetCommand() string {
+	if x != nil {
+		return x.Command
+	}
+	return ""
+}
+
+func (x *InstallDependencyResponse) GetPackageManager() string {
+	if x != nil {
+		return x.PackageManager
+	}
+	return ""
+}
+
+func (x *InstallDependencyResponse) GetManifestPath() string {
+	if x != nil {
+		return x.ManifestPath
+	}
+	return ""
+}
+
+func (x *InstallDependencyResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *InstallDependencyResponse) GetNextSteps() []string {
+	if x != nil {
+		return x.NextSteps
+	}
+	return nil
+}
+
+func (x *InstallDependencyResponse) GetSecurityNotes() []string {
+	if x != nil {
+		return x.SecurityNotes
+	}
+	return nil
+}
+
+func (x *InstallDependencyResponse) GetGuidance() string {
+	if x != nil {
+		return x.Guidance
+	}
+	return ""
+}
+
 type ListApprovedDependenciesRequest struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	Ecosystem string                 `protobuf:"bytes,1,opt,name=ecosystem,proto3" json:"ecosystem,omitempty"`
@@ -35,7 +257,7 @@ type ListApprovedDependenciesRequest struct {
 
 func (x *ListApprovedDependenciesRequest) Reset() {
 	*x = ListApprovedDependenciesRequest{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[0]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -47,7 +269,7 @@ func (x *ListApprovedDependenciesRequest) String() string {
 func (*ListApprovedDependenciesRequest) ProtoMessage() {}
 
 func (x *ListApprovedDependenciesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[0]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -60,7 +282,7 @@ func (x *ListApprovedDependenciesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListApprovedDependenciesRequest.ProtoReflect.Descriptor instead.
 func (*ListApprovedDependenciesRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{0}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ListApprovedDependenciesRequest) GetEcosystem() string {
@@ -92,17 +314,25 @@ func (x *ListApprovedDependenciesRequest) GetUseCase() string {
 }
 
 type SearchApprovedDependenciesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Query         string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
-	Ecosystem     string                 `protobuf:"bytes,2,opt,name=ecosystem,proto3" json:"ecosystem,omitempty"`
-	Limit         int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Query     string                 `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
+	Ecosystem string                 `protobuf:"bytes,2,opt,name=ecosystem,proto3" json:"ecosystem,omitempty"`
+	Limit     int32                  `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	// Optional facet filters narrowing the AI semantic search over governance
+	// records. Empty means "no filter". framework matches the keyword/use-case
+	// vocabulary (e.g. "react"); surface matches an allowed_surfaces entry (ui/
+	// api/cli); state matches the governance state (approved/denied/needs_review/
+	// deprecated).
+	Framework     string `protobuf:"bytes,4,opt,name=framework,proto3" json:"framework,omitempty"`
+	Surface       string `protobuf:"bytes,5,opt,name=surface,proto3" json:"surface,omitempty"`
+	State         string `protobuf:"bytes,6,opt,name=state,proto3" json:"state,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SearchApprovedDependenciesRequest) Reset() {
 	*x = SearchApprovedDependenciesRequest{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[1]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -114,7 +344,7 @@ func (x *SearchApprovedDependenciesRequest) String() string {
 func (*SearchApprovedDependenciesRequest) ProtoMessage() {}
 
 func (x *SearchApprovedDependenciesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[1]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -127,7 +357,7 @@ func (x *SearchApprovedDependenciesRequest) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use SearchApprovedDependenciesRequest.ProtoReflect.Descriptor instead.
 func (*SearchApprovedDependenciesRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{1}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *SearchApprovedDependenciesRequest) GetQuery() string {
@@ -151,6 +381,27 @@ func (x *SearchApprovedDependenciesRequest) GetLimit() int32 {
 	return 0
 }
 
+func (x *SearchApprovedDependenciesRequest) GetFramework() string {
+	if x != nil {
+		return x.Framework
+	}
+	return ""
+}
+
+func (x *SearchApprovedDependenciesRequest) GetSurface() string {
+	if x != nil {
+		return x.Surface
+	}
+	return ""
+}
+
+func (x *SearchApprovedDependenciesRequest) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
 type ExplainApprovedDependencyRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Ecosystem     string                 `protobuf:"bytes,1,opt,name=ecosystem,proto3" json:"ecosystem,omitempty"`
@@ -161,7 +412,7 @@ type ExplainApprovedDependencyRequest struct {
 
 func (x *ExplainApprovedDependencyRequest) Reset() {
 	*x = ExplainApprovedDependencyRequest{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[2]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -173,7 +424,7 @@ func (x *ExplainApprovedDependencyRequest) String() string {
 func (*ExplainApprovedDependencyRequest) ProtoMessage() {}
 
 func (x *ExplainApprovedDependencyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[2]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -186,7 +437,7 @@ func (x *ExplainApprovedDependencyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExplainApprovedDependencyRequest.ProtoReflect.Descriptor instead.
 func (*ExplainApprovedDependencyRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{2}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ExplainApprovedDependencyRequest) GetEcosystem() string {
@@ -213,7 +464,7 @@ type ValidateApprovedDependenciesRequest struct {
 
 func (x *ValidateApprovedDependenciesRequest) Reset() {
 	*x = ValidateApprovedDependenciesRequest{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[3]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -225,7 +476,7 @@ func (x *ValidateApprovedDependenciesRequest) String() string {
 func (*ValidateApprovedDependenciesRequest) ProtoMessage() {}
 
 func (x *ValidateApprovedDependenciesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[3]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -238,7 +489,7 @@ func (x *ValidateApprovedDependenciesRequest) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use ValidateApprovedDependenciesRequest.ProtoReflect.Descriptor instead.
 func (*ValidateApprovedDependenciesRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{3}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ValidateApprovedDependenciesRequest) GetScenario() string {
@@ -264,7 +515,7 @@ type ValidateFleetApprovedDependenciesRequest struct {
 
 func (x *ValidateFleetApprovedDependenciesRequest) Reset() {
 	*x = ValidateFleetApprovedDependenciesRequest{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[4]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -276,7 +527,7 @@ func (x *ValidateFleetApprovedDependenciesRequest) String() string {
 func (*ValidateFleetApprovedDependenciesRequest) ProtoMessage() {}
 
 func (x *ValidateFleetApprovedDependenciesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[4]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -289,7 +540,7 @@ func (x *ValidateFleetApprovedDependenciesRequest) ProtoReflect() protoreflect.M
 
 // Deprecated: Use ValidateFleetApprovedDependenciesRequest.ProtoReflect.Descriptor instead.
 func (*ValidateFleetApprovedDependenciesRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{4}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ValidateFleetApprovedDependenciesRequest) GetPolicyMode() string {
@@ -313,7 +564,7 @@ type ListApprovedDependencyFindingsRequest struct {
 
 func (x *ListApprovedDependencyFindingsRequest) Reset() {
 	*x = ListApprovedDependencyFindingsRequest{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[5]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -325,7 +576,7 @@ func (x *ListApprovedDependencyFindingsRequest) String() string {
 func (*ListApprovedDependencyFindingsRequest) ProtoMessage() {}
 
 func (x *ListApprovedDependencyFindingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[5]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -338,7 +589,7 @@ func (x *ListApprovedDependencyFindingsRequest) ProtoReflect() protoreflect.Mess
 
 // Deprecated: Use ListApprovedDependencyFindingsRequest.ProtoReflect.Descriptor instead.
 func (*ListApprovedDependencyFindingsRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{5}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListApprovedDependencyFindingsRequest) GetPolicyMode() string {
@@ -398,7 +649,7 @@ type GetApprovedDependencyTriageRequest struct {
 
 func (x *GetApprovedDependencyTriageRequest) Reset() {
 	*x = GetApprovedDependencyTriageRequest{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[6]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -410,7 +661,7 @@ func (x *GetApprovedDependencyTriageRequest) String() string {
 func (*GetApprovedDependencyTriageRequest) ProtoMessage() {}
 
 func (x *GetApprovedDependencyTriageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[6]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -423,7 +674,7 @@ func (x *GetApprovedDependencyTriageRequest) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use GetApprovedDependencyTriageRequest.ProtoReflect.Descriptor instead.
 func (*GetApprovedDependencyTriageRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{6}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetApprovedDependencyTriageRequest) GetPolicyMode() string {
@@ -472,7 +723,7 @@ type GetApprovedDependencyUsageRequest struct {
 
 func (x *GetApprovedDependencyUsageRequest) Reset() {
 	*x = GetApprovedDependencyUsageRequest{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[7]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -484,7 +735,7 @@ func (x *GetApprovedDependencyUsageRequest) String() string {
 func (*GetApprovedDependencyUsageRequest) ProtoMessage() {}
 
 func (x *GetApprovedDependencyUsageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[7]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -497,7 +748,7 @@ func (x *GetApprovedDependencyUsageRequest) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use GetApprovedDependencyUsageRequest.ProtoReflect.Descriptor instead.
 func (*GetApprovedDependencyUsageRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{7}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetApprovedDependencyUsageRequest) GetEcosystem() string {
@@ -531,7 +782,7 @@ type UpsertApprovedDependencyRequest struct {
 
 func (x *UpsertApprovedDependencyRequest) Reset() {
 	*x = UpsertApprovedDependencyRequest{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[8]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -543,7 +794,7 @@ func (x *UpsertApprovedDependencyRequest) String() string {
 func (*UpsertApprovedDependencyRequest) ProtoMessage() {}
 
 func (x *UpsertApprovedDependencyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[8]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -556,7 +807,7 @@ func (x *UpsertApprovedDependencyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpsertApprovedDependencyRequest.ProtoReflect.Descriptor instead.
 func (*UpsertApprovedDependencyRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{8}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *UpsertApprovedDependencyRequest) GetRecord() *ApprovedDependencyRecord {
@@ -591,7 +842,7 @@ type ProposeApprovedDependencyRecordsRequest struct {
 
 func (x *ProposeApprovedDependencyRecordsRequest) Reset() {
 	*x = ProposeApprovedDependencyRecordsRequest{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[9]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -603,7 +854,7 @@ func (x *ProposeApprovedDependencyRecordsRequest) String() string {
 func (*ProposeApprovedDependencyRecordsRequest) ProtoMessage() {}
 
 func (x *ProposeApprovedDependencyRecordsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[9]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -616,7 +867,7 @@ func (x *ProposeApprovedDependencyRecordsRequest) ProtoReflect() protoreflect.Me
 
 // Deprecated: Use ProposeApprovedDependencyRecordsRequest.ProtoReflect.Descriptor instead.
 func (*ProposeApprovedDependencyRecordsRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{9}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ProposeApprovedDependencyRecordsRequest) GetPolicyMode() string {
@@ -699,7 +950,7 @@ type BatchUpsertApprovedDependenciesRequest struct {
 
 func (x *BatchUpsertApprovedDependenciesRequest) Reset() {
 	*x = BatchUpsertApprovedDependenciesRequest{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[10]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -711,7 +962,7 @@ func (x *BatchUpsertApprovedDependenciesRequest) String() string {
 func (*BatchUpsertApprovedDependenciesRequest) ProtoMessage() {}
 
 func (x *BatchUpsertApprovedDependenciesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[10]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -724,7 +975,7 @@ func (x *BatchUpsertApprovedDependenciesRequest) ProtoReflect() protoreflect.Mes
 
 // Deprecated: Use BatchUpsertApprovedDependenciesRequest.ProtoReflect.Descriptor instead.
 func (*BatchUpsertApprovedDependenciesRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{10}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *BatchUpsertApprovedDependenciesRequest) GetRecords() []*ApprovedDependencyRecord {
@@ -758,7 +1009,7 @@ type ApproveObservedDependencyRequest struct {
 
 func (x *ApproveObservedDependencyRequest) Reset() {
 	*x = ApproveObservedDependencyRequest{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[11]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -770,7 +1021,7 @@ func (x *ApproveObservedDependencyRequest) String() string {
 func (*ApproveObservedDependencyRequest) ProtoMessage() {}
 
 func (x *ApproveObservedDependencyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[11]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -783,7 +1034,7 @@ func (x *ApproveObservedDependencyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApproveObservedDependencyRequest.ProtoReflect.Descriptor instead.
 func (*ApproveObservedDependencyRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{11}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ApproveObservedDependencyRequest) GetEcosystem() string {
@@ -865,7 +1116,7 @@ type WidenApprovedDependencyRangeRequest struct {
 
 func (x *WidenApprovedDependencyRangeRequest) Reset() {
 	*x = WidenApprovedDependencyRangeRequest{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[12]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -877,7 +1128,7 @@ func (x *WidenApprovedDependencyRangeRequest) String() string {
 func (*WidenApprovedDependencyRangeRequest) ProtoMessage() {}
 
 func (x *WidenApprovedDependencyRangeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[12]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -890,7 +1141,7 @@ func (x *WidenApprovedDependencyRangeRequest) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use WidenApprovedDependencyRangeRequest.ProtoReflect.Descriptor instead.
 func (*WidenApprovedDependencyRangeRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{12}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *WidenApprovedDependencyRangeRequest) GetEcosystem() string {
@@ -956,7 +1207,7 @@ type ListSecurityGovernanceGapsRequest struct {
 
 func (x *ListSecurityGovernanceGapsRequest) Reset() {
 	*x = ListSecurityGovernanceGapsRequest{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[13]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -968,7 +1219,7 @@ func (x *ListSecurityGovernanceGapsRequest) String() string {
 func (*ListSecurityGovernanceGapsRequest) ProtoMessage() {}
 
 func (x *ListSecurityGovernanceGapsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[13]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -981,7 +1232,7 @@ func (x *ListSecurityGovernanceGapsRequest) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use ListSecurityGovernanceGapsRequest.ProtoReflect.Descriptor instead.
 func (*ListSecurityGovernanceGapsRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{13}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ListSecurityGovernanceGapsRequest) GetEcosystem() string {
@@ -1037,7 +1288,7 @@ type PreviewVulnerabilityRemediationRequest struct {
 
 func (x *PreviewVulnerabilityRemediationRequest) Reset() {
 	*x = PreviewVulnerabilityRemediationRequest{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[14]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1049,7 +1300,7 @@ func (x *PreviewVulnerabilityRemediationRequest) String() string {
 func (*PreviewVulnerabilityRemediationRequest) ProtoMessage() {}
 
 func (x *PreviewVulnerabilityRemediationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[14]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1062,7 +1313,7 @@ func (x *PreviewVulnerabilityRemediationRequest) ProtoReflect() protoreflect.Mes
 
 // Deprecated: Use PreviewVulnerabilityRemediationRequest.ProtoReflect.Descriptor instead.
 func (*PreviewVulnerabilityRemediationRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{14}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *PreviewVulnerabilityRemediationRequest) GetEcosystem() string {
@@ -1102,7 +1353,7 @@ type DenyVulnerableDependencyRequest struct {
 
 func (x *DenyVulnerableDependencyRequest) Reset() {
 	*x = DenyVulnerableDependencyRequest{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[15]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1114,7 +1365,7 @@ func (x *DenyVulnerableDependencyRequest) String() string {
 func (*DenyVulnerableDependencyRequest) ProtoMessage() {}
 
 func (x *DenyVulnerableDependencyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[15]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1127,7 +1378,7 @@ func (x *DenyVulnerableDependencyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DenyVulnerableDependencyRequest.ProtoReflect.Descriptor instead.
 func (*DenyVulnerableDependencyRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{15}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *DenyVulnerableDependencyRequest) GetEcosystem() string {
@@ -1197,7 +1448,7 @@ type ApprovedDependencyListResponse struct {
 
 func (x *ApprovedDependencyListResponse) Reset() {
 	*x = ApprovedDependencyListResponse{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[16]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1209,7 +1460,7 @@ func (x *ApprovedDependencyListResponse) String() string {
 func (*ApprovedDependencyListResponse) ProtoMessage() {}
 
 func (x *ApprovedDependencyListResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[16]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1222,7 +1473,7 @@ func (x *ApprovedDependencyListResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApprovedDependencyListResponse.ProtoReflect.Descriptor instead.
 func (*ApprovedDependencyListResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{16}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ApprovedDependencyListResponse) GetRecords() []*ApprovedDependencyRecord {
@@ -1257,7 +1508,7 @@ type ApprovedDependencySearchResponse struct {
 
 func (x *ApprovedDependencySearchResponse) Reset() {
 	*x = ApprovedDependencySearchResponse{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[17]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1269,7 +1520,7 @@ func (x *ApprovedDependencySearchResponse) String() string {
 func (*ApprovedDependencySearchResponse) ProtoMessage() {}
 
 func (x *ApprovedDependencySearchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[17]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1282,7 +1533,7 @@ func (x *ApprovedDependencySearchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApprovedDependencySearchResponse.ProtoReflect.Descriptor instead.
 func (*ApprovedDependencySearchResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{17}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ApprovedDependencySearchResponse) GetRecords() []*ApprovedDependencyRecord {
@@ -1317,7 +1568,7 @@ type ApprovedDependencyExplainResponse struct {
 
 func (x *ApprovedDependencyExplainResponse) Reset() {
 	*x = ApprovedDependencyExplainResponse{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[18]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1329,7 +1580,7 @@ func (x *ApprovedDependencyExplainResponse) String() string {
 func (*ApprovedDependencyExplainResponse) ProtoMessage() {}
 
 func (x *ApprovedDependencyExplainResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[18]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1342,7 +1593,7 @@ func (x *ApprovedDependencyExplainResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use ApprovedDependencyExplainResponse.ProtoReflect.Descriptor instead.
 func (*ApprovedDependencyExplainResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{18}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ApprovedDependencyExplainResponse) GetRecord() *ApprovedDependencyRecord {
@@ -1380,7 +1631,7 @@ type ApprovedDependencyValidationResponse struct {
 
 func (x *ApprovedDependencyValidationResponse) Reset() {
 	*x = ApprovedDependencyValidationResponse{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[19]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1392,7 +1643,7 @@ func (x *ApprovedDependencyValidationResponse) String() string {
 func (*ApprovedDependencyValidationResponse) ProtoMessage() {}
 
 func (x *ApprovedDependencyValidationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[19]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1405,7 +1656,7 @@ func (x *ApprovedDependencyValidationResponse) ProtoReflect() protoreflect.Messa
 
 // Deprecated: Use ApprovedDependencyValidationResponse.ProtoReflect.Descriptor instead.
 func (*ApprovedDependencyValidationResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{19}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ApprovedDependencyValidationResponse) GetScenario() string {
@@ -1464,7 +1715,7 @@ type FleetApprovedDependencyValidationResponse struct {
 
 func (x *FleetApprovedDependencyValidationResponse) Reset() {
 	*x = FleetApprovedDependencyValidationResponse{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[20]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1476,7 +1727,7 @@ func (x *FleetApprovedDependencyValidationResponse) String() string {
 func (*FleetApprovedDependencyValidationResponse) ProtoMessage() {}
 
 func (x *FleetApprovedDependencyValidationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[20]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1489,7 +1740,7 @@ func (x *FleetApprovedDependencyValidationResponse) ProtoReflect() protoreflect.
 
 // Deprecated: Use FleetApprovedDependencyValidationResponse.ProtoReflect.Descriptor instead.
 func (*FleetApprovedDependencyValidationResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{20}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *FleetApprovedDependencyValidationResponse) GetPassed() bool {
@@ -1545,7 +1796,7 @@ type ApprovedDependencyFindingsResponse struct {
 
 func (x *ApprovedDependencyFindingsResponse) Reset() {
 	*x = ApprovedDependencyFindingsResponse{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[21]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1557,7 +1808,7 @@ func (x *ApprovedDependencyFindingsResponse) String() string {
 func (*ApprovedDependencyFindingsResponse) ProtoMessage() {}
 
 func (x *ApprovedDependencyFindingsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[21]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1570,7 +1821,7 @@ func (x *ApprovedDependencyFindingsResponse) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use ApprovedDependencyFindingsResponse.ProtoReflect.Descriptor instead.
 func (*ApprovedDependencyFindingsResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{21}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ApprovedDependencyFindingsResponse) GetFindings() []*ApprovedDependencyFinding {
@@ -1609,7 +1860,7 @@ type ApprovedDependencyTriageResponse struct {
 
 func (x *ApprovedDependencyTriageResponse) Reset() {
 	*x = ApprovedDependencyTriageResponse{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[22]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1621,7 +1872,7 @@ func (x *ApprovedDependencyTriageResponse) String() string {
 func (*ApprovedDependencyTriageResponse) ProtoMessage() {}
 
 func (x *ApprovedDependencyTriageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[22]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1634,7 +1885,7 @@ func (x *ApprovedDependencyTriageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApprovedDependencyTriageResponse.ProtoReflect.Descriptor instead.
 func (*ApprovedDependencyTriageResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{22}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ApprovedDependencyTriageResponse) GetSummary() *DependencyGovernanceSummary {
@@ -1710,7 +1961,7 @@ type DependencyGovernanceTriageGroup struct {
 
 func (x *DependencyGovernanceTriageGroup) Reset() {
 	*x = DependencyGovernanceTriageGroup{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[23]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1722,7 +1973,7 @@ func (x *DependencyGovernanceTriageGroup) String() string {
 func (*DependencyGovernanceTriageGroup) ProtoMessage() {}
 
 func (x *DependencyGovernanceTriageGroup) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[23]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1735,7 +1986,7 @@ func (x *DependencyGovernanceTriageGroup) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DependencyGovernanceTriageGroup.ProtoReflect.Descriptor instead.
 func (*DependencyGovernanceTriageGroup) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{23}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *DependencyGovernanceTriageGroup) GetGroupId() string {
@@ -1863,7 +2114,7 @@ type ApprovedDependencyUsageResponse struct {
 
 func (x *ApprovedDependencyUsageResponse) Reset() {
 	*x = ApprovedDependencyUsageResponse{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[24]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1875,7 +2126,7 @@ func (x *ApprovedDependencyUsageResponse) String() string {
 func (*ApprovedDependencyUsageResponse) ProtoMessage() {}
 
 func (x *ApprovedDependencyUsageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[24]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1888,7 +2139,7 @@ func (x *ApprovedDependencyUsageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApprovedDependencyUsageResponse.ProtoReflect.Descriptor instead.
 func (*ApprovedDependencyUsageResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{24}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ApprovedDependencyUsageResponse) GetFound() bool {
@@ -1941,7 +2192,7 @@ type UpsertApprovedDependencyResponse struct {
 
 func (x *UpsertApprovedDependencyResponse) Reset() {
 	*x = UpsertApprovedDependencyResponse{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[25]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1953,7 +2204,7 @@ func (x *UpsertApprovedDependencyResponse) String() string {
 func (*UpsertApprovedDependencyResponse) ProtoMessage() {}
 
 func (x *UpsertApprovedDependencyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[25]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1966,7 +2217,7 @@ func (x *UpsertApprovedDependencyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpsertApprovedDependencyResponse.ProtoReflect.Descriptor instead.
 func (*UpsertApprovedDependencyResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{25}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *UpsertApprovedDependencyResponse) GetRecord() *ApprovedDependencyRecord {
@@ -2031,7 +2282,7 @@ type ApprovedDependencyProposalResponse struct {
 
 func (x *ApprovedDependencyProposalResponse) Reset() {
 	*x = ApprovedDependencyProposalResponse{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[26]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2043,7 +2294,7 @@ func (x *ApprovedDependencyProposalResponse) String() string {
 func (*ApprovedDependencyProposalResponse) ProtoMessage() {}
 
 func (x *ApprovedDependencyProposalResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[26]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2056,7 +2307,7 @@ func (x *ApprovedDependencyProposalResponse) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use ApprovedDependencyProposalResponse.ProtoReflect.Descriptor instead.
 func (*ApprovedDependencyProposalResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{26}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *ApprovedDependencyProposalResponse) GetRecords() []*ApprovedDependencyRecord {
@@ -2108,7 +2359,7 @@ type BatchUpsertApprovedDependenciesResponse struct {
 
 func (x *BatchUpsertApprovedDependenciesResponse) Reset() {
 	*x = BatchUpsertApprovedDependenciesResponse{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[27]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2120,7 +2371,7 @@ func (x *BatchUpsertApprovedDependenciesResponse) String() string {
 func (*BatchUpsertApprovedDependenciesResponse) ProtoMessage() {}
 
 func (x *BatchUpsertApprovedDependenciesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[27]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2133,7 +2384,7 @@ func (x *BatchUpsertApprovedDependenciesResponse) ProtoReflect() protoreflect.Me
 
 // Deprecated: Use BatchUpsertApprovedDependenciesResponse.ProtoReflect.Descriptor instead.
 func (*BatchUpsertApprovedDependenciesResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{27}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *BatchUpsertApprovedDependenciesResponse) GetMutations() []*UpsertApprovedDependencyResponse {
@@ -2191,7 +2442,7 @@ type DependencyGovernanceDecisionResponse struct {
 
 func (x *DependencyGovernanceDecisionResponse) Reset() {
 	*x = DependencyGovernanceDecisionResponse{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[28]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2203,7 +2454,7 @@ func (x *DependencyGovernanceDecisionResponse) String() string {
 func (*DependencyGovernanceDecisionResponse) ProtoMessage() {}
 
 func (x *DependencyGovernanceDecisionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[28]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2216,7 +2467,7 @@ func (x *DependencyGovernanceDecisionResponse) ProtoReflect() protoreflect.Messa
 
 // Deprecated: Use DependencyGovernanceDecisionResponse.ProtoReflect.Descriptor instead.
 func (*DependencyGovernanceDecisionResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{28}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *DependencyGovernanceDecisionResponse) GetRecord() *ApprovedDependencyRecord {
@@ -2270,7 +2521,7 @@ type SecurityGovernanceGapsResponse struct {
 
 func (x *SecurityGovernanceGapsResponse) Reset() {
 	*x = SecurityGovernanceGapsResponse{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[29]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2282,7 +2533,7 @@ func (x *SecurityGovernanceGapsResponse) String() string {
 func (*SecurityGovernanceGapsResponse) ProtoMessage() {}
 
 func (x *SecurityGovernanceGapsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[29]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2295,7 +2546,7 @@ func (x *SecurityGovernanceGapsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SecurityGovernanceGapsResponse.ProtoReflect.Descriptor instead.
 func (*SecurityGovernanceGapsResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{29}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *SecurityGovernanceGapsResponse) GetGaps() []*SecurityGovernanceGap {
@@ -2378,7 +2629,7 @@ type SecurityGovernanceGap struct {
 
 func (x *SecurityGovernanceGap) Reset() {
 	*x = SecurityGovernanceGap{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[30]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2390,7 +2641,7 @@ func (x *SecurityGovernanceGap) String() string {
 func (*SecurityGovernanceGap) ProtoMessage() {}
 
 func (x *SecurityGovernanceGap) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[30]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2403,7 +2654,7 @@ func (x *SecurityGovernanceGap) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SecurityGovernanceGap.ProtoReflect.Descriptor instead.
 func (*SecurityGovernanceGap) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{30}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *SecurityGovernanceGap) GetGapId() string {
@@ -2534,7 +2785,7 @@ type VulnerabilityRemediationResponse struct {
 
 func (x *VulnerabilityRemediationResponse) Reset() {
 	*x = VulnerabilityRemediationResponse{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[31]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2546,7 +2797,7 @@ func (x *VulnerabilityRemediationResponse) String() string {
 func (*VulnerabilityRemediationResponse) ProtoMessage() {}
 
 func (x *VulnerabilityRemediationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[31]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2559,7 +2810,7 @@ func (x *VulnerabilityRemediationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VulnerabilityRemediationResponse.ProtoReflect.Descriptor instead.
 func (*VulnerabilityRemediationResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{31}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *VulnerabilityRemediationResponse) GetFound() bool {
@@ -2645,7 +2896,7 @@ type SecurityVulnerabilityEvidence struct {
 
 func (x *SecurityVulnerabilityEvidence) Reset() {
 	*x = SecurityVulnerabilityEvidence{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[32]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2657,7 +2908,7 @@ func (x *SecurityVulnerabilityEvidence) String() string {
 func (*SecurityVulnerabilityEvidence) ProtoMessage() {}
 
 func (x *SecurityVulnerabilityEvidence) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[32]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2670,7 +2921,7 @@ func (x *SecurityVulnerabilityEvidence) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SecurityVulnerabilityEvidence.ProtoReflect.Descriptor instead.
 func (*SecurityVulnerabilityEvidence) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{32}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *SecurityVulnerabilityEvidence) GetVulnerabilityId() string {
@@ -2819,7 +3070,7 @@ type SecurityVersionRange struct {
 
 func (x *SecurityVersionRange) Reset() {
 	*x = SecurityVersionRange{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[33]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2831,7 +3082,7 @@ func (x *SecurityVersionRange) String() string {
 func (*SecurityVersionRange) ProtoMessage() {}
 
 func (x *SecurityVersionRange) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[33]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2844,7 +3095,7 @@ func (x *SecurityVersionRange) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SecurityVersionRange.ProtoReflect.Descriptor instead.
 func (*SecurityVersionRange) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{33}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *SecurityVersionRange) GetRange() string {
@@ -2909,7 +3160,7 @@ type DependencyGovernanceSummary struct {
 
 func (x *DependencyGovernanceSummary) Reset() {
 	*x = DependencyGovernanceSummary{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[34]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2921,7 +3172,7 @@ func (x *DependencyGovernanceSummary) String() string {
 func (*DependencyGovernanceSummary) ProtoMessage() {}
 
 func (x *DependencyGovernanceSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[34]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2934,7 +3185,7 @@ func (x *DependencyGovernanceSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DependencyGovernanceSummary.ProtoReflect.Descriptor instead.
 func (*DependencyGovernanceSummary) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{34}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *DependencyGovernanceSummary) GetStatus() string {
@@ -3098,14 +3349,18 @@ type ApprovedDependencyRecord struct {
 	// Version-range interpretation policy. Supported values are exact,
 	// major_line, minimum, dev_tooling, and security_denied. Empty defaults to
 	// exact for literal versions and normal range evaluation for range strings.
-	RangePolicy   string `protobuf:"bytes,20,opt,name=range_policy,json=rangePolicy,proto3" json:"range_policy,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	RangePolicy string `protobuf:"bytes,20,opt,name=range_policy,json=rangePolicy,proto3" json:"range_policy,omitempty"`
+	// Relevance score [0,1] populated by SearchApprovedDependencies when AI/keyword
+	// ranking ran (the federated search-hub result_mapping reads this). Zero on
+	// every non-search path; records are still returned in rank order.
+	RelevanceScore float64 `protobuf:"fixed64,21,opt,name=relevance_score,json=relevanceScore,proto3" json:"relevance_score,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ApprovedDependencyRecord) Reset() {
 	*x = ApprovedDependencyRecord{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[35]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3117,7 +3372,7 @@ func (x *ApprovedDependencyRecord) String() string {
 func (*ApprovedDependencyRecord) ProtoMessage() {}
 
 func (x *ApprovedDependencyRecord) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[35]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3130,7 +3385,7 @@ func (x *ApprovedDependencyRecord) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApprovedDependencyRecord.ProtoReflect.Descriptor instead.
 func (*ApprovedDependencyRecord) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{35}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *ApprovedDependencyRecord) GetEcosystem() string {
@@ -3273,6 +3528,13 @@ func (x *ApprovedDependencyRecord) GetRangePolicy() string {
 	return ""
 }
 
+func (x *ApprovedDependencyRecord) GetRelevanceScore() float64 {
+	if x != nil {
+		return x.RelevanceScore
+	}
+	return 0
+}
+
 type ObservedDependency struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	Ecosystem       string                 `protobuf:"bytes,1,opt,name=ecosystem,proto3" json:"ecosystem,omitempty"`
@@ -3290,7 +3552,7 @@ type ObservedDependency struct {
 
 func (x *ObservedDependency) Reset() {
 	*x = ObservedDependency{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[36]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3302,7 +3564,7 @@ func (x *ObservedDependency) String() string {
 func (*ObservedDependency) ProtoMessage() {}
 
 func (x *ObservedDependency) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[36]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3315,7 +3577,7 @@ func (x *ObservedDependency) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ObservedDependency.ProtoReflect.Descriptor instead.
 func (*ObservedDependency) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{36}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *ObservedDependency) GetEcosystem() string {
@@ -3385,7 +3647,7 @@ type DependencyUsageGroup struct {
 
 func (x *DependencyUsageGroup) Reset() {
 	*x = DependencyUsageGroup{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[37]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3397,7 +3659,7 @@ func (x *DependencyUsageGroup) String() string {
 func (*DependencyUsageGroup) ProtoMessage() {}
 
 func (x *DependencyUsageGroup) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[37]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3410,7 +3672,7 @@ func (x *DependencyUsageGroup) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DependencyUsageGroup.ProtoReflect.Descriptor instead.
 func (*DependencyUsageGroup) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{37}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *DependencyUsageGroup) GetEcosystem() string {
@@ -3504,7 +3766,7 @@ type ApprovedDependencyFinding struct {
 
 func (x *ApprovedDependencyFinding) Reset() {
 	*x = ApprovedDependencyFinding{}
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[38]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3516,7 +3778,7 @@ func (x *ApprovedDependencyFinding) String() string {
 func (*ApprovedDependencyFinding) ProtoMessage() {}
 
 func (x *ApprovedDependencyFinding) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[38]
+	mi := &file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3529,7 +3791,7 @@ func (x *ApprovedDependencyFinding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApprovedDependencyFinding.ProtoReflect.Descriptor instead.
 func (*ApprovedDependencyFinding) Descriptor() ([]byte, []int) {
-	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{38}
+	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *ApprovedDependencyFinding) GetId() string {
@@ -3627,16 +3889,40 @@ var File_scenario_dependency_analyzer_v1_dependency_governance_dependency_govern
 
 const file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDesc = "" +
 	"\n" +
-	"Qscenario-dependency-analyzer/v1/dependency_governance/dependency_governance.proto\x12<vrooli.scenario_dependency_analyzer.v1.dependency_governance\"\x8a\x01\n" +
+	"Qscenario-dependency-analyzer/v1/dependency_governance/dependency_governance.proto\x12<vrooli.scenario_dependency_analyzer.v1.dependency_governance\"\xc1\x01\n" +
+	"\x18InstallDependencyRequest\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x18\n" +
+	"\asurface\x18\x02 \x01(\tR\asurface\x12\x1c\n" +
+	"\tecosystem\x18\x03 \x01(\tR\tecosystem\x12!\n" +
+	"\fpackage_name\x18\x04 \x01(\tR\vpackageName\x12\x18\n" +
+	"\aversion\x18\x05 \x01(\tR\aversion\x12\x14\n" +
+	"\x05apply\x18\x06 \x01(\bR\x05apply\"\xea\x02\n" +
+	"\x19InstallDependencyResponse\x12\x1c\n" +
+	"\tinstalled\x18\x01 \x01(\bR\tinstalled\x12\x17\n" +
+	"\adry_run\x18\x02 \x01(\bR\x06dryRun\x12\x18\n" +
+	"\averdict\x18\x03 \x01(\tR\averdict\x12\x18\n" +
+	"\ablocked\x18\x04 \x01(\bR\ablocked\x12\x18\n" +
+	"\acommand\x18\x05 \x01(\tR\acommand\x12'\n" +
+	"\x0fpackage_manager\x18\x06 \x01(\tR\x0epackageManager\x12#\n" +
+	"\rmanifest_path\x18\a \x01(\tR\fmanifestPath\x12\x18\n" +
+	"\amessage\x18\b \x01(\tR\amessage\x12\x1d\n" +
+	"\n" +
+	"next_steps\x18\t \x03(\tR\tnextSteps\x12%\n" +
+	"\x0esecurity_notes\x18\n" +
+	" \x03(\tR\rsecurityNotes\x12\x1a\n" +
+	"\bguidance\x18\v \x01(\tR\bguidance\"\x8a\x01\n" +
 	"\x1fListApprovedDependenciesRequest\x12\x1c\n" +
 	"\tecosystem\x18\x01 \x01(\tR\tecosystem\x12\x14\n" +
 	"\x05state\x18\x02 \x01(\tR\x05state\x12\x18\n" +
 	"\asurface\x18\x03 \x01(\tR\asurface\x12\x19\n" +
-	"\buse_case\x18\x04 \x01(\tR\auseCase\"m\n" +
+	"\buse_case\x18\x04 \x01(\tR\auseCase\"\xbb\x01\n" +
 	"!SearchApprovedDependenciesRequest\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x1c\n" +
 	"\tecosystem\x18\x02 \x01(\tR\tecosystem\x12\x14\n" +
-	"\x05limit\x18\x03 \x01(\x05R\x05limit\"c\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\x12\x1c\n" +
+	"\tframework\x18\x04 \x01(\tR\tframework\x12\x18\n" +
+	"\asurface\x18\x05 \x01(\tR\asurface\x12\x14\n" +
+	"\x05state\x18\x06 \x01(\tR\x05state\"c\n" +
 	" ExplainApprovedDependencyRequest\x12\x1c\n" +
 	"\tecosystem\x18\x01 \x01(\tR\tecosystem\x12!\n" +
 	"\fpackage_name\x18\x02 \x01(\tR\vpackageName\"b\n" +
@@ -3921,7 +4207,7 @@ const file_scenario_dependency_analyzer_v1_dependency_governance_dependency_gove
 	"errorCount\x12#\n" +
 	"\rwarning_count\x18\x12 \x01(\x05R\fwarningCount\x12\x1d\n" +
 	"\n" +
-	"info_count\x18\x13 \x01(\x05R\tinfoCount\"\xfc\x05\n" +
+	"info_count\x18\x13 \x01(\x05R\tinfoCount\"\xa5\x06\n" +
 	"\x18ApprovedDependencyRecord\x12\x1c\n" +
 	"\tecosystem\x18\x01 \x01(\tR\tecosystem\x12!\n" +
 	"\fpackage_name\x18\x02 \x01(\tR\vpackageName\x12#\n" +
@@ -3944,7 +4230,8 @@ const file_scenario_dependency_analyzer_v1_dependency_governance_dependency_gove
 	"\x11allowed_scenarios\x18\x11 \x03(\tR\x10allowedScenarios\x12)\n" +
 	"\x10denied_scenarios\x18\x12 \x03(\tR\x0fdeniedScenarios\x12:\n" +
 	"\x19allowed_dependency_groups\x18\x13 \x03(\tR\x17allowedDependencyGroups\x12!\n" +
-	"\frange_policy\x18\x14 \x01(\tR\vrangePolicy\"\xff\x01\n" +
+	"\frange_policy\x18\x14 \x01(\tR\vrangePolicy\x12'\n" +
+	"\x0frelevance_score\x18\x15 \x01(\x01R\x0erelevanceScore\"\xff\x01\n" +
 	"\x12ObservedDependency\x12\x1c\n" +
 	"\tecosystem\x18\x01 \x01(\tR\tecosystem\x12!\n" +
 	"\fpackage_name\x18\x02 \x01(\tR\vpackageName\x12\x18\n" +
@@ -3982,7 +4269,7 @@ const file_scenario_dependency_analyzer_v1_dependency_governance_dependency_gove
 	"\bscenario\x18\v \x01(\tR\bscenario\x12#\n" +
 	"\rfinding_class\x18\f \x01(\tR\ffindingClass\x12\x1f\n" +
 	"\vpolicy_mode\x18\r \x01(\tR\n" +
-	"policyMode2\xe9\x1c\n" +
+	"policyMode2\xb0\x1e\n" +
 	"\x1bDependencyGovernanceService\x12\xd7\x01\n" +
 	"\x18ListApprovedDependencies\x12].vrooli.scenario_dependency_analyzer.v1.dependency_governance.ListApprovedDependenciesRequest\x1a\\.vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyListResponse\x12\xdd\x01\n" +
 	"\x1aSearchApprovedDependencies\x12_.vrooli.scenario_dependency_analyzer.v1.dependency_governance.SearchApprovedDependenciesRequest\x1a^.vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencySearchResponse\x12\xdc\x01\n" +
@@ -3999,7 +4286,8 @@ const file_scenario_dependency_analyzer_v1_dependency_governance_dependency_gove
 	"\x1cWidenApprovedDependencyRange\x12a.vrooli.scenario_dependency_analyzer.v1.dependency_governance.WidenApprovedDependencyRangeRequest\x1ab.vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceDecisionResponse\x12\xdb\x01\n" +
 	"\x1aListSecurityGovernanceGaps\x12_.vrooli.scenario_dependency_analyzer.v1.dependency_governance.ListSecurityGovernanceGapsRequest\x1a\\.vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityGovernanceGapsResponse\x12\xe7\x01\n" +
 	"\x1fPreviewVulnerabilityRemediation\x12d.vrooli.scenario_dependency_analyzer.v1.dependency_governance.PreviewVulnerabilityRemediationRequest\x1a^.vrooli.scenario_dependency_analyzer.v1.dependency_governance.VulnerabilityRemediationResponse\x12\xd9\x01\n" +
-	"\x18DenyVulnerableDependency\x12].vrooli.scenario_dependency_analyzer.v1.dependency_governance.DenyVulnerableDependencyRequest\x1a^.vrooli.scenario_dependency_analyzer.v1.dependency_governance.VulnerabilityRemediationResponseB\x7fZ}github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/dependency_governance;dependency_governance_v1b\x06proto3"
+	"\x18DenyVulnerableDependency\x12].vrooli.scenario_dependency_analyzer.v1.dependency_governance.DenyVulnerableDependencyRequest\x1a^.vrooli.scenario_dependency_analyzer.v1.dependency_governance.VulnerabilityRemediationResponse\x12\xc4\x01\n" +
+	"\x11InstallDependency\x12V.vrooli.scenario_dependency_analyzer.v1.dependency_governance.InstallDependencyRequest\x1aW.vrooli.scenario_dependency_analyzer.v1.dependency_governance.InstallDependencyResponseB\x7fZ}github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/dependency_governance;dependency_governance_v1b\x06proto3"
 
 var (
 	file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescOnce sync.Once
@@ -4013,126 +4301,130 @@ func file_scenario_dependency_analyzer_v1_dependency_governance_dependency_gover
 	return file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDescData
 }
 
-var file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes = make([]protoimpl.MessageInfo, 39)
+var file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_msgTypes = make([]protoimpl.MessageInfo, 41)
 var file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_goTypes = []any{
-	(*ListApprovedDependenciesRequest)(nil),           // 0: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ListApprovedDependenciesRequest
-	(*SearchApprovedDependenciesRequest)(nil),         // 1: vrooli.scenario_dependency_analyzer.v1.dependency_governance.SearchApprovedDependenciesRequest
-	(*ExplainApprovedDependencyRequest)(nil),          // 2: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ExplainApprovedDependencyRequest
-	(*ValidateApprovedDependenciesRequest)(nil),       // 3: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ValidateApprovedDependenciesRequest
-	(*ValidateFleetApprovedDependenciesRequest)(nil),  // 4: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ValidateFleetApprovedDependenciesRequest
-	(*ListApprovedDependencyFindingsRequest)(nil),     // 5: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ListApprovedDependencyFindingsRequest
-	(*GetApprovedDependencyTriageRequest)(nil),        // 6: vrooli.scenario_dependency_analyzer.v1.dependency_governance.GetApprovedDependencyTriageRequest
-	(*GetApprovedDependencyUsageRequest)(nil),         // 7: vrooli.scenario_dependency_analyzer.v1.dependency_governance.GetApprovedDependencyUsageRequest
-	(*UpsertApprovedDependencyRequest)(nil),           // 8: vrooli.scenario_dependency_analyzer.v1.dependency_governance.UpsertApprovedDependencyRequest
-	(*ProposeApprovedDependencyRecordsRequest)(nil),   // 9: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ProposeApprovedDependencyRecordsRequest
-	(*BatchUpsertApprovedDependenciesRequest)(nil),    // 10: vrooli.scenario_dependency_analyzer.v1.dependency_governance.BatchUpsertApprovedDependenciesRequest
-	(*ApproveObservedDependencyRequest)(nil),          // 11: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApproveObservedDependencyRequest
-	(*WidenApprovedDependencyRangeRequest)(nil),       // 12: vrooli.scenario_dependency_analyzer.v1.dependency_governance.WidenApprovedDependencyRangeRequest
-	(*ListSecurityGovernanceGapsRequest)(nil),         // 13: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ListSecurityGovernanceGapsRequest
-	(*PreviewVulnerabilityRemediationRequest)(nil),    // 14: vrooli.scenario_dependency_analyzer.v1.dependency_governance.PreviewVulnerabilityRemediationRequest
-	(*DenyVulnerableDependencyRequest)(nil),           // 15: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DenyVulnerableDependencyRequest
-	(*ApprovedDependencyListResponse)(nil),            // 16: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyListResponse
-	(*ApprovedDependencySearchResponse)(nil),          // 17: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencySearchResponse
-	(*ApprovedDependencyExplainResponse)(nil),         // 18: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyExplainResponse
-	(*ApprovedDependencyValidationResponse)(nil),      // 19: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyValidationResponse
-	(*FleetApprovedDependencyValidationResponse)(nil), // 20: vrooli.scenario_dependency_analyzer.v1.dependency_governance.FleetApprovedDependencyValidationResponse
-	(*ApprovedDependencyFindingsResponse)(nil),        // 21: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyFindingsResponse
-	(*ApprovedDependencyTriageResponse)(nil),          // 22: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyTriageResponse
-	(*DependencyGovernanceTriageGroup)(nil),           // 23: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceTriageGroup
-	(*ApprovedDependencyUsageResponse)(nil),           // 24: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyUsageResponse
-	(*UpsertApprovedDependencyResponse)(nil),          // 25: vrooli.scenario_dependency_analyzer.v1.dependency_governance.UpsertApprovedDependencyResponse
-	(*ApprovedDependencyProposalResponse)(nil),        // 26: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyProposalResponse
-	(*BatchUpsertApprovedDependenciesResponse)(nil),   // 27: vrooli.scenario_dependency_analyzer.v1.dependency_governance.BatchUpsertApprovedDependenciesResponse
-	(*DependencyGovernanceDecisionResponse)(nil),      // 28: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceDecisionResponse
-	(*SecurityGovernanceGapsResponse)(nil),            // 29: vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityGovernanceGapsResponse
-	(*SecurityGovernanceGap)(nil),                     // 30: vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityGovernanceGap
-	(*VulnerabilityRemediationResponse)(nil),          // 31: vrooli.scenario_dependency_analyzer.v1.dependency_governance.VulnerabilityRemediationResponse
-	(*SecurityVulnerabilityEvidence)(nil),             // 32: vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityVulnerabilityEvidence
-	(*SecurityVersionRange)(nil),                      // 33: vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityVersionRange
-	(*DependencyGovernanceSummary)(nil),               // 34: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceSummary
-	(*ApprovedDependencyRecord)(nil),                  // 35: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyRecord
-	(*ObservedDependency)(nil),                        // 36: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ObservedDependency
-	(*DependencyUsageGroup)(nil),                      // 37: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyUsageGroup
-	(*ApprovedDependencyFinding)(nil),                 // 38: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyFinding
+	(*InstallDependencyRequest)(nil),                  // 0: vrooli.scenario_dependency_analyzer.v1.dependency_governance.InstallDependencyRequest
+	(*InstallDependencyResponse)(nil),                 // 1: vrooli.scenario_dependency_analyzer.v1.dependency_governance.InstallDependencyResponse
+	(*ListApprovedDependenciesRequest)(nil),           // 2: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ListApprovedDependenciesRequest
+	(*SearchApprovedDependenciesRequest)(nil),         // 3: vrooli.scenario_dependency_analyzer.v1.dependency_governance.SearchApprovedDependenciesRequest
+	(*ExplainApprovedDependencyRequest)(nil),          // 4: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ExplainApprovedDependencyRequest
+	(*ValidateApprovedDependenciesRequest)(nil),       // 5: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ValidateApprovedDependenciesRequest
+	(*ValidateFleetApprovedDependenciesRequest)(nil),  // 6: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ValidateFleetApprovedDependenciesRequest
+	(*ListApprovedDependencyFindingsRequest)(nil),     // 7: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ListApprovedDependencyFindingsRequest
+	(*GetApprovedDependencyTriageRequest)(nil),        // 8: vrooli.scenario_dependency_analyzer.v1.dependency_governance.GetApprovedDependencyTriageRequest
+	(*GetApprovedDependencyUsageRequest)(nil),         // 9: vrooli.scenario_dependency_analyzer.v1.dependency_governance.GetApprovedDependencyUsageRequest
+	(*UpsertApprovedDependencyRequest)(nil),           // 10: vrooli.scenario_dependency_analyzer.v1.dependency_governance.UpsertApprovedDependencyRequest
+	(*ProposeApprovedDependencyRecordsRequest)(nil),   // 11: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ProposeApprovedDependencyRecordsRequest
+	(*BatchUpsertApprovedDependenciesRequest)(nil),    // 12: vrooli.scenario_dependency_analyzer.v1.dependency_governance.BatchUpsertApprovedDependenciesRequest
+	(*ApproveObservedDependencyRequest)(nil),          // 13: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApproveObservedDependencyRequest
+	(*WidenApprovedDependencyRangeRequest)(nil),       // 14: vrooli.scenario_dependency_analyzer.v1.dependency_governance.WidenApprovedDependencyRangeRequest
+	(*ListSecurityGovernanceGapsRequest)(nil),         // 15: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ListSecurityGovernanceGapsRequest
+	(*PreviewVulnerabilityRemediationRequest)(nil),    // 16: vrooli.scenario_dependency_analyzer.v1.dependency_governance.PreviewVulnerabilityRemediationRequest
+	(*DenyVulnerableDependencyRequest)(nil),           // 17: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DenyVulnerableDependencyRequest
+	(*ApprovedDependencyListResponse)(nil),            // 18: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyListResponse
+	(*ApprovedDependencySearchResponse)(nil),          // 19: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencySearchResponse
+	(*ApprovedDependencyExplainResponse)(nil),         // 20: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyExplainResponse
+	(*ApprovedDependencyValidationResponse)(nil),      // 21: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyValidationResponse
+	(*FleetApprovedDependencyValidationResponse)(nil), // 22: vrooli.scenario_dependency_analyzer.v1.dependency_governance.FleetApprovedDependencyValidationResponse
+	(*ApprovedDependencyFindingsResponse)(nil),        // 23: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyFindingsResponse
+	(*ApprovedDependencyTriageResponse)(nil),          // 24: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyTriageResponse
+	(*DependencyGovernanceTriageGroup)(nil),           // 25: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceTriageGroup
+	(*ApprovedDependencyUsageResponse)(nil),           // 26: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyUsageResponse
+	(*UpsertApprovedDependencyResponse)(nil),          // 27: vrooli.scenario_dependency_analyzer.v1.dependency_governance.UpsertApprovedDependencyResponse
+	(*ApprovedDependencyProposalResponse)(nil),        // 28: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyProposalResponse
+	(*BatchUpsertApprovedDependenciesResponse)(nil),   // 29: vrooli.scenario_dependency_analyzer.v1.dependency_governance.BatchUpsertApprovedDependenciesResponse
+	(*DependencyGovernanceDecisionResponse)(nil),      // 30: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceDecisionResponse
+	(*SecurityGovernanceGapsResponse)(nil),            // 31: vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityGovernanceGapsResponse
+	(*SecurityGovernanceGap)(nil),                     // 32: vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityGovernanceGap
+	(*VulnerabilityRemediationResponse)(nil),          // 33: vrooli.scenario_dependency_analyzer.v1.dependency_governance.VulnerabilityRemediationResponse
+	(*SecurityVulnerabilityEvidence)(nil),             // 34: vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityVulnerabilityEvidence
+	(*SecurityVersionRange)(nil),                      // 35: vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityVersionRange
+	(*DependencyGovernanceSummary)(nil),               // 36: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceSummary
+	(*ApprovedDependencyRecord)(nil),                  // 37: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyRecord
+	(*ObservedDependency)(nil),                        // 38: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ObservedDependency
+	(*DependencyUsageGroup)(nil),                      // 39: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyUsageGroup
+	(*ApprovedDependencyFinding)(nil),                 // 40: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyFinding
 }
 var file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_depIdxs = []int32{
-	35, // 0: vrooli.scenario_dependency_analyzer.v1.dependency_governance.UpsertApprovedDependencyRequest.record:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyRecord
-	35, // 1: vrooli.scenario_dependency_analyzer.v1.dependency_governance.BatchUpsertApprovedDependenciesRequest.records:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyRecord
-	35, // 2: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyListResponse.records:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyRecord
-	34, // 3: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyListResponse.summary:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceSummary
-	35, // 4: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencySearchResponse.records:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyRecord
-	34, // 5: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencySearchResponse.summary:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceSummary
-	35, // 6: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyExplainResponse.record:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyRecord
-	34, // 7: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyValidationResponse.summary:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceSummary
-	38, // 8: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyValidationResponse.findings:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyFinding
-	36, // 9: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyValidationResponse.observed_dependencies:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ObservedDependency
-	34, // 10: vrooli.scenario_dependency_analyzer.v1.dependency_governance.FleetApprovedDependencyValidationResponse.summary:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceSummary
-	19, // 11: vrooli.scenario_dependency_analyzer.v1.dependency_governance.FleetApprovedDependencyValidationResponse.scenarios:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyValidationResponse
-	37, // 12: vrooli.scenario_dependency_analyzer.v1.dependency_governance.FleetApprovedDependencyValidationResponse.usage_groups:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyUsageGroup
-	38, // 13: vrooli.scenario_dependency_analyzer.v1.dependency_governance.FleetApprovedDependencyValidationResponse.findings:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyFinding
-	38, // 14: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyFindingsResponse.findings:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyFinding
-	34, // 15: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyFindingsResponse.summary:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceSummary
-	34, // 16: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyTriageResponse.summary:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceSummary
-	23, // 17: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyTriageResponse.security_actions:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceTriageGroup
-	23, // 18: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyTriageResponse.registry_seeding:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceTriageGroup
-	23, // 19: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyTriageResponse.range_policy:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceTriageGroup
-	23, // 20: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyTriageResponse.scenario_hotspots:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceTriageGroup
-	23, // 21: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyTriageResponse.stale_or_expired_reviews:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceTriageGroup
-	37, // 22: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyUsageResponse.usage_group:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyUsageGroup
-	38, // 23: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyUsageResponse.findings:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyFinding
-	34, // 24: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyUsageResponse.summary:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceSummary
-	35, // 25: vrooli.scenario_dependency_analyzer.v1.dependency_governance.UpsertApprovedDependencyResponse.record:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyRecord
-	35, // 26: vrooli.scenario_dependency_analyzer.v1.dependency_governance.UpsertApprovedDependencyResponse.previous_record:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyRecord
-	34, // 27: vrooli.scenario_dependency_analyzer.v1.dependency_governance.UpsertApprovedDependencyResponse.summary:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceSummary
-	35, // 28: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyProposalResponse.records:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyRecord
-	23, // 29: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyProposalResponse.evidence_groups:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceTriageGroup
-	34, // 30: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyProposalResponse.summary:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceSummary
-	25, // 31: vrooli.scenario_dependency_analyzer.v1.dependency_governance.BatchUpsertApprovedDependenciesResponse.mutations:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.UpsertApprovedDependencyResponse
-	34, // 32: vrooli.scenario_dependency_analyzer.v1.dependency_governance.BatchUpsertApprovedDependenciesResponse.summary:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceSummary
-	35, // 33: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceDecisionResponse.record:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyRecord
-	25, // 34: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceDecisionResponse.mutation:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.UpsertApprovedDependencyResponse
-	23, // 35: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceDecisionResponse.evidence_group:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceTriageGroup
-	30, // 36: vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityGovernanceGapsResponse.gaps:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityGovernanceGap
-	32, // 37: vrooli.scenario_dependency_analyzer.v1.dependency_governance.VulnerabilityRemediationResponse.vulnerability:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityVulnerabilityEvidence
-	35, // 38: vrooli.scenario_dependency_analyzer.v1.dependency_governance.VulnerabilityRemediationResponse.suggested_record:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyRecord
-	25, // 39: vrooli.scenario_dependency_analyzer.v1.dependency_governance.VulnerabilityRemediationResponse.mutation:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.UpsertApprovedDependencyResponse
-	33, // 40: vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityVulnerabilityEvidence.affected_ranges:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityVersionRange
-	33, // 41: vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityVulnerabilityEvidence.fixed_ranges:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityVersionRange
-	36, // 42: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyUsageGroup.observed_dependencies:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ObservedDependency
-	0,  // 43: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ListApprovedDependencies:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ListApprovedDependenciesRequest
-	1,  // 44: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.SearchApprovedDependencies:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.SearchApprovedDependenciesRequest
-	2,  // 45: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ExplainApprovedDependency:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ExplainApprovedDependencyRequest
-	3,  // 46: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ValidateApprovedDependencies:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ValidateApprovedDependenciesRequest
-	4,  // 47: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ValidateFleetApprovedDependencies:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ValidateFleetApprovedDependenciesRequest
-	5,  // 48: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ListApprovedDependencyFindings:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ListApprovedDependencyFindingsRequest
-	6,  // 49: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.GetApprovedDependencyTriage:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.GetApprovedDependencyTriageRequest
-	7,  // 50: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.GetApprovedDependencyUsage:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.GetApprovedDependencyUsageRequest
-	8,  // 51: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.UpsertApprovedDependency:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.UpsertApprovedDependencyRequest
-	9,  // 52: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ProposeApprovedDependencyRecords:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ProposeApprovedDependencyRecordsRequest
-	10, // 53: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.BatchUpsertApprovedDependencies:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.BatchUpsertApprovedDependenciesRequest
-	11, // 54: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ApproveObservedDependency:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApproveObservedDependencyRequest
-	12, // 55: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.WidenApprovedDependencyRange:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.WidenApprovedDependencyRangeRequest
-	13, // 56: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ListSecurityGovernanceGaps:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ListSecurityGovernanceGapsRequest
-	14, // 57: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.PreviewVulnerabilityRemediation:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.PreviewVulnerabilityRemediationRequest
-	15, // 58: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.DenyVulnerableDependency:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DenyVulnerableDependencyRequest
-	16, // 59: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ListApprovedDependencies:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyListResponse
-	17, // 60: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.SearchApprovedDependencies:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencySearchResponse
-	18, // 61: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ExplainApprovedDependency:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyExplainResponse
-	19, // 62: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ValidateApprovedDependencies:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyValidationResponse
-	20, // 63: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ValidateFleetApprovedDependencies:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.FleetApprovedDependencyValidationResponse
-	21, // 64: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ListApprovedDependencyFindings:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyFindingsResponse
-	22, // 65: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.GetApprovedDependencyTriage:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyTriageResponse
-	24, // 66: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.GetApprovedDependencyUsage:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyUsageResponse
-	25, // 67: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.UpsertApprovedDependency:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.UpsertApprovedDependencyResponse
-	26, // 68: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ProposeApprovedDependencyRecords:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyProposalResponse
-	27, // 69: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.BatchUpsertApprovedDependencies:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.BatchUpsertApprovedDependenciesResponse
-	28, // 70: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ApproveObservedDependency:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceDecisionResponse
-	28, // 71: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.WidenApprovedDependencyRange:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceDecisionResponse
-	29, // 72: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ListSecurityGovernanceGaps:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityGovernanceGapsResponse
-	31, // 73: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.PreviewVulnerabilityRemediation:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.VulnerabilityRemediationResponse
-	31, // 74: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.DenyVulnerableDependency:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.VulnerabilityRemediationResponse
-	59, // [59:75] is the sub-list for method output_type
-	43, // [43:59] is the sub-list for method input_type
+	37, // 0: vrooli.scenario_dependency_analyzer.v1.dependency_governance.UpsertApprovedDependencyRequest.record:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyRecord
+	37, // 1: vrooli.scenario_dependency_analyzer.v1.dependency_governance.BatchUpsertApprovedDependenciesRequest.records:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyRecord
+	37, // 2: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyListResponse.records:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyRecord
+	36, // 3: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyListResponse.summary:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceSummary
+	37, // 4: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencySearchResponse.records:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyRecord
+	36, // 5: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencySearchResponse.summary:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceSummary
+	37, // 6: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyExplainResponse.record:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyRecord
+	36, // 7: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyValidationResponse.summary:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceSummary
+	40, // 8: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyValidationResponse.findings:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyFinding
+	38, // 9: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyValidationResponse.observed_dependencies:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ObservedDependency
+	36, // 10: vrooli.scenario_dependency_analyzer.v1.dependency_governance.FleetApprovedDependencyValidationResponse.summary:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceSummary
+	21, // 11: vrooli.scenario_dependency_analyzer.v1.dependency_governance.FleetApprovedDependencyValidationResponse.scenarios:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyValidationResponse
+	39, // 12: vrooli.scenario_dependency_analyzer.v1.dependency_governance.FleetApprovedDependencyValidationResponse.usage_groups:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyUsageGroup
+	40, // 13: vrooli.scenario_dependency_analyzer.v1.dependency_governance.FleetApprovedDependencyValidationResponse.findings:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyFinding
+	40, // 14: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyFindingsResponse.findings:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyFinding
+	36, // 15: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyFindingsResponse.summary:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceSummary
+	36, // 16: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyTriageResponse.summary:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceSummary
+	25, // 17: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyTriageResponse.security_actions:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceTriageGroup
+	25, // 18: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyTriageResponse.registry_seeding:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceTriageGroup
+	25, // 19: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyTriageResponse.range_policy:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceTriageGroup
+	25, // 20: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyTriageResponse.scenario_hotspots:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceTriageGroup
+	25, // 21: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyTriageResponse.stale_or_expired_reviews:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceTriageGroup
+	39, // 22: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyUsageResponse.usage_group:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyUsageGroup
+	40, // 23: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyUsageResponse.findings:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyFinding
+	36, // 24: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyUsageResponse.summary:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceSummary
+	37, // 25: vrooli.scenario_dependency_analyzer.v1.dependency_governance.UpsertApprovedDependencyResponse.record:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyRecord
+	37, // 26: vrooli.scenario_dependency_analyzer.v1.dependency_governance.UpsertApprovedDependencyResponse.previous_record:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyRecord
+	36, // 27: vrooli.scenario_dependency_analyzer.v1.dependency_governance.UpsertApprovedDependencyResponse.summary:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceSummary
+	37, // 28: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyProposalResponse.records:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyRecord
+	25, // 29: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyProposalResponse.evidence_groups:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceTriageGroup
+	36, // 30: vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyProposalResponse.summary:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceSummary
+	27, // 31: vrooli.scenario_dependency_analyzer.v1.dependency_governance.BatchUpsertApprovedDependenciesResponse.mutations:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.UpsertApprovedDependencyResponse
+	36, // 32: vrooli.scenario_dependency_analyzer.v1.dependency_governance.BatchUpsertApprovedDependenciesResponse.summary:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceSummary
+	37, // 33: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceDecisionResponse.record:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyRecord
+	27, // 34: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceDecisionResponse.mutation:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.UpsertApprovedDependencyResponse
+	25, // 35: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceDecisionResponse.evidence_group:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceTriageGroup
+	32, // 36: vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityGovernanceGapsResponse.gaps:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityGovernanceGap
+	34, // 37: vrooli.scenario_dependency_analyzer.v1.dependency_governance.VulnerabilityRemediationResponse.vulnerability:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityVulnerabilityEvidence
+	37, // 38: vrooli.scenario_dependency_analyzer.v1.dependency_governance.VulnerabilityRemediationResponse.suggested_record:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyRecord
+	27, // 39: vrooli.scenario_dependency_analyzer.v1.dependency_governance.VulnerabilityRemediationResponse.mutation:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.UpsertApprovedDependencyResponse
+	35, // 40: vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityVulnerabilityEvidence.affected_ranges:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityVersionRange
+	35, // 41: vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityVulnerabilityEvidence.fixed_ranges:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityVersionRange
+	38, // 42: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyUsageGroup.observed_dependencies:type_name -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ObservedDependency
+	2,  // 43: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ListApprovedDependencies:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ListApprovedDependenciesRequest
+	3,  // 44: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.SearchApprovedDependencies:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.SearchApprovedDependenciesRequest
+	4,  // 45: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ExplainApprovedDependency:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ExplainApprovedDependencyRequest
+	5,  // 46: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ValidateApprovedDependencies:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ValidateApprovedDependenciesRequest
+	6,  // 47: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ValidateFleetApprovedDependencies:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ValidateFleetApprovedDependenciesRequest
+	7,  // 48: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ListApprovedDependencyFindings:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ListApprovedDependencyFindingsRequest
+	8,  // 49: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.GetApprovedDependencyTriage:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.GetApprovedDependencyTriageRequest
+	9,  // 50: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.GetApprovedDependencyUsage:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.GetApprovedDependencyUsageRequest
+	10, // 51: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.UpsertApprovedDependency:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.UpsertApprovedDependencyRequest
+	11, // 52: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ProposeApprovedDependencyRecords:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ProposeApprovedDependencyRecordsRequest
+	12, // 53: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.BatchUpsertApprovedDependencies:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.BatchUpsertApprovedDependenciesRequest
+	13, // 54: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ApproveObservedDependency:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApproveObservedDependencyRequest
+	14, // 55: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.WidenApprovedDependencyRange:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.WidenApprovedDependencyRangeRequest
+	15, // 56: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ListSecurityGovernanceGaps:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ListSecurityGovernanceGapsRequest
+	16, // 57: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.PreviewVulnerabilityRemediation:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.PreviewVulnerabilityRemediationRequest
+	17, // 58: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.DenyVulnerableDependency:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DenyVulnerableDependencyRequest
+	0,  // 59: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.InstallDependency:input_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.InstallDependencyRequest
+	18, // 60: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ListApprovedDependencies:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyListResponse
+	19, // 61: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.SearchApprovedDependencies:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencySearchResponse
+	20, // 62: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ExplainApprovedDependency:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyExplainResponse
+	21, // 63: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ValidateApprovedDependencies:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyValidationResponse
+	22, // 64: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ValidateFleetApprovedDependencies:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.FleetApprovedDependencyValidationResponse
+	23, // 65: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ListApprovedDependencyFindings:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyFindingsResponse
+	24, // 66: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.GetApprovedDependencyTriage:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyTriageResponse
+	26, // 67: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.GetApprovedDependencyUsage:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyUsageResponse
+	27, // 68: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.UpsertApprovedDependency:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.UpsertApprovedDependencyResponse
+	28, // 69: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ProposeApprovedDependencyRecords:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.ApprovedDependencyProposalResponse
+	29, // 70: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.BatchUpsertApprovedDependencies:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.BatchUpsertApprovedDependenciesResponse
+	30, // 71: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ApproveObservedDependency:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceDecisionResponse
+	30, // 72: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.WidenApprovedDependencyRange:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceDecisionResponse
+	31, // 73: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.ListSecurityGovernanceGaps:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.SecurityGovernanceGapsResponse
+	33, // 74: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.PreviewVulnerabilityRemediation:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.VulnerabilityRemediationResponse
+	33, // 75: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.DenyVulnerableDependency:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.VulnerabilityRemediationResponse
+	1,  // 76: vrooli.scenario_dependency_analyzer.v1.dependency_governance.DependencyGovernanceService.InstallDependency:output_type -> vrooli.scenario_dependency_analyzer.v1.dependency_governance.InstallDependencyResponse
+	60, // [60:77] is the sub-list for method output_type
+	43, // [43:60] is the sub-list for method input_type
 	43, // [43:43] is the sub-list for extension type_name
 	43, // [43:43] is the sub-list for extension extendee
 	0,  // [0:43] is the sub-list for field type_name
@@ -4151,7 +4443,7 @@ func file_scenario_dependency_analyzer_v1_dependency_governance_dependency_gover
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDesc), len(file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   39,
+			NumMessages:   41,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

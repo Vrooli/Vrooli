@@ -1,0 +1,131 @@
+syntax = "proto3";
+
+package vrooli.image_tools.v1.ai;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai;ai_v1";
+
+// =============================================================================
+// AI DOMAIN — generation & enhancement operations (model-backed, async)
+// =============================================================================
+//
+// @stability alpha
+//
+// Wire contract for the core AI image operations (IMG-P0-002 generation/editing
+// and IMG-P0-003 enhancement): text-to-image, image-to-image, inpaint, object
+// removal, upscale, background removal, and denoise. Unlike the deterministic
+// ops domain, these are heavy and model-backed — they run through a standalone
+// (non-ComfyUI) backend selected by hardware-fit, fall back Local-GPU →
+// Local-CPU → BYOK, and execute asynchronously on the durable job Manager's
+// GPU-serialized lane.
+//
+// Transport split (see docs/concepts/ARCHITECTURE.md):
+//   - DISCOVERY is Connect-RPC: AIService.ListAIOperations returns the op
+//     catalog (which ops need an input image, which need a mask, which are
+//     prompt-driven) so the CLI/UI can build their surfaces.
+//   - EXECUTION is a REST multipart edge (RESTReasonMultipartUpload):
+//     POST /api/v1/ai/{operation} accepts the optional input image (`file`
+//     part) + optional `mask` part + the typed parameters (a `params` part
+//     carrying AIParams as protojson). Image bytes cannot ride a proto field,
+//     but the PARAMETERS stay proto-typed (AIParams) and the SUBMIT result is
+//     proto-typed (SubmitAIResponse).
+//
+// Execution is ASYNC: the run edge SUBMITS a durable job and returns its id +
+// ETA + the resolved model/tier immediately (no polling). Callers then block
+// once on JobsService.WaitJob and fetch the output blob by the job's result
+// ref. This mirrors the test-genie run-lifecycle philosophy and keeps a client
+// disconnect from destroying in-flight GPU work.
+//
+// Consumed by:
+//   - API: handlers/ai/connect_handler.go (ListAIOperations) +
+//          handlers/ai/rest.go (the multipart submit edge).
+//   - CLI: cli/domains/ai submits the run edge and waits via the jobs verbs.
+//   - UI:  ui/src/api/ai.ts wraps the discovery client + the submit edge.
+// =============================================================================
+
+service AIService {
+  // ListAIOperations returns the model-backed operation catalog (stable order)
+  // with the input/parameter shape each op expects.
+  rpc ListAIOperations(ListAIOperationsRequest) returns (ListAIOperationsResponse);
+}
+
+// AIOperationInfo describes one model-backed operation for discovery.
+message AIOperationInfo {
+  // Canonical operation name (e.g. "text_to_image"); the {operation} segment.
+  string name = 1;
+  // Grouping for UIs: "generation" or "enhancement".
+  string category = 2;
+  // One-line human summary.
+  string summary = 3;
+  // RequiresImage is true when the op edits an input image (false for pure
+  // text-to-image generation).
+  bool requires_image = 4;
+  // RequiresMask is true when the op needs a mask image (inpaint/object_removal).
+  bool requires_mask = 5;
+  // PromptDriven is true when a text prompt is a primary input (generation/edit).
+  bool prompt_driven = 6;
+  // DefaultModelId is the seeded default model for this op (for display).
+  string default_model_id = 7;
+}
+
+message ListAIOperationsRequest {}
+
+message ListAIOperationsResponse {
+  repeated AIOperationInfo operations = 1;
+}
+
+// =============================================================================
+// Execution payloads (REST multipart edge)
+// =============================================================================
+
+// AIParams is the typed parameter envelope sent as the `params` multipart part
+// (protojson). Fields are shared across the AI ops; each op reads the subset it
+// supports (e.g. text_to_image ignores `strength`; upscale reads only `scale`).
+// Unset numeric fields fall back to per-op defaults.
+message AIParams {
+  // Prompt is the positive text prompt (generation/edit ops).
+  string prompt = 1;
+  // NegativePrompt steers generation away from unwanted content.
+  string negative_prompt = 2;
+  // Seed pins the RNG for reproducibility; 0 means "random, report the seed used".
+  int64 seed = 3;
+  // Width/Height of the generated canvas in px (generation ops); 0 = model default.
+  int32 width = 4;
+  int32 height = 5;
+  // Steps is the sampler iteration count; 0 = model default.
+  int32 steps = 6;
+  // CfgScale is the prompt-adherence strength (generation); 0 = model default.
+  double cfg_scale = 7;
+  // Variations is the number of distinct outputs to produce (1..N); 0/1 = single.
+  int32 variations = 8;
+  // Strength is the img2img denoising strength 0..1 (how far from the input).
+  double strength = 9;
+  // Scale is the upscale factor (2/4); enhancement ops.
+  int32 scale = 10;
+  // ModelOverride forces a specific registry model id instead of the hardware
+  // -fit default (still validated for op-support, enabled-state, runnability).
+  string model_override = 11;
+  // AllowByok permits falling back to a paid BYOK cloud provider when no local
+  // backend is available. Off by default — BYOK is opt-in and metered.
+  bool allow_byok = 12;
+  // AutoScanNsfw runs an NSFW classification on the generated output and records
+  // the verdict with the job. Off by default.
+  bool auto_scan_nsfw = 13;
+}
+
+// SubmitAIResponse is the protojson body returned by the REST submit edge. The
+// op runs asynchronously; this carries the durable job's id + initial ETA plus
+// the selection verdict so the caller can surface the chosen model/tier and any
+// fallback warnings before the work finishes.
+message SubmitAIResponse {
+  // JobId identifies the durable job (resolve via JobsService.GetJob/WaitJob).
+  string job_id = 1;
+  // EstimatedSeconds is the initial ETA; 0 means "unknown".
+  int32 estimated_seconds = 2;
+  // ModelId is the registry model the selector chose.
+  string model_id = 3;
+  // Tier is where the op will run: "local-gpu", "local-cpu", or "byok-cloud".
+  string tier = 4;
+  // Warnings carries non-fatal selection cautions (CPU time warning,
+  // conservative unknown-VRAM fallback, BYOK cost caution, …).
+  repeated string warnings = 5;
+}
