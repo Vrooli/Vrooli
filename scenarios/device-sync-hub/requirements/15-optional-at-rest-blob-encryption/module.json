@@ -1,0 +1,107 @@
+{
+  "description": "Owners can toggle AES-256 at-rest encryption for stored blobs; the toggle is surfaced in Settings, the key is derived from an owner-held passphrase stored nowhere on the server, and the default is off (no zero-knowledge guarantee is implied or promised).",
+  "module_id": "MOD-P1-015",
+  "prd_ref": "OT-P1-007",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "security",
+      "dependencies": [
+        "REQ-P0-012",
+        "REQ-P0-014"
+      ],
+      "description": "Owners can toggle AES-256-GCM at-rest encryption for stored blobs via Settings. When enabled, blobs are encrypted before being written to the blobstore using a key derived from an owner-held passphrase via PBKDF2 or Argon2; the derived key and passphrase are never stored on the server. When disabled, blobs are stored in plaintext. The toggle default is off. Thumbnails and metadata are not encrypted (only raw blob data). A clear UI notice informs the owner that this is not a zero-knowledge or end-to-end encryption guarantee. Switching the toggle does not retroactively re-encrypt or decrypt existing blobs.",
+      "id": "REQ-P1-009",
+      "prd_ref": "OT-P1-007",
+      "status": "draft",
+      "title": "Optional AES-256 At-Rest Blob Encryption",
+      "validation": [
+        {
+          "notes": "Unit test: encryption handler wraps blobstore writer with AES-256-GCM cipher stream when encryption is enabled for the owner",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: decryption handler wraps blobstore reader with AES-256-GCM decipher stream when encryption is enabled",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: key derivation function produces deterministic key from passphrase and stored salt; passphrase is not persisted",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: blobstore writer is not wrapped with encryption when the owner's encryption toggle is off",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: existing blobs created before the toggle change are served without attempting decryption (metadata flag per-blob)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: owner enables encryption with a passphrase; upload a file; assert raw blob bytes in blobstore are not equal to the original file bytes",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: download the encrypted file with correct passphrase; assert byte-for-byte identity with original",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: attempt to download encrypted file without providing passphrase; assert decryption error returned",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: owner disables encryption; new uploads are stored in plaintext; existing encrypted blobs are still served with passphrase",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "AES-256-GCM encryption/decryption overhead must not increase streaming upload/download latency by more than 10% for a 50 MB file",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Playbook: enable encryption in Settings; confirm disclaimer notice is displayed; upload and download a file; confirm correct content",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Security review: confirm server logs and database contain no plaintext passphrase or derived key material",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Optional At-Rest Blob Encryption"
+}

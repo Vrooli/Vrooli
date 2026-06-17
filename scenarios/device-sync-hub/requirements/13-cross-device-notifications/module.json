@@ -1,0 +1,93 @@
+{
+  "description": "\"Item arrived\" notifications and pairing-request approve/reject banners are pushed to the relevant trusted device in real-time via the existing WebSocket channel with no separate notification infrastructure required.",
+  "module_id": "MOD-P1-013",
+  "prd_ref": "OT-P1-005",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "integration",
+      "dependencies": [
+        "REQ-P0-009",
+        "REQ-P0-004"
+      ],
+      "description": "Item-arrived notifications and pairing-request approve/reject banners are delivered to relevant trusted devices in real time over the existing authenticated WebSocket channel. No separate notification infrastructure (push notification service, polling endpoint) is required or used. Item-arrived notifications include item metadata sufficient for display (name, type, size, sender device name). Pairing-request banners include candidate device metadata and approve/reject action buttons. Notifications are not persisted server-side beyond the WebSocket delivery attempt.",
+      "id": "REQ-P1-006",
+      "prd_ref": "OT-P1-005",
+      "status": "draft",
+      "title": "Cross-Device Real-Time Notifications via WebSocket",
+      "validation": [
+        {
+          "notes": "Unit test: notification dispatcher sends item-arrived event to all connected trusted devices except sender over existing WebSocket sessions",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: pairing-request event is sent only to the owner's connected trusted devices, not to the candidate device",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: notification message schema validates required fields (event_type, item_id or request_id, metadata)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: notification delivery does not create a new WebSocket connection; it reuses the existing presence hub session registry",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: Device A sends an item; Device B receives a WebSocket message with event_type='item_arrived' and correct item metadata within 1 second",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: candidate device submits pairing request; Device B receives event_type='pairing_request' banner within 1 second",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: Device B approves pairing request via WebSocket action message; candidate is admitted to trust group",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Notification delivery latency is bounded by the same 1-second SLA as item delivery",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Playbook: receive an item while watching Device B; confirm notification banner appears without page refresh",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Playbook: submit pairing request from a new device; confirm approve/reject banner appears on Device A within 1 second",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Cross-Device Notifications"
+}

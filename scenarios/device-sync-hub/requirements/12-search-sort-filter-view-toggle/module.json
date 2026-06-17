@@ -1,0 +1,101 @@
+{
+  "description": "The Receive pane provides full-text search over item names and snippets, sort by date/size/type, filter by item type or retention policy, and a toggle between card view and compact list view.",
+  "module_id": "MOD-P1-012",
+  "prd_ref": "OT-P1-004",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "ui",
+      "dependencies": [
+        "REQ-P0-011",
+        "REQ-P0-001",
+        "REQ-P0-002"
+      ],
+      "description": "The Receive pane provides: (1) full-text search over item names and text snippet content with results highlighted; (2) sort by upload date (ascending/descending), file size, and item type; (3) filter by item type (file, text) and retention policy (Live, Held, Pinned); (4) a toggle between a card view (grid with thumbnails) and a compact list view. All operations are performed server-side for pagination correctness. The URL query string reflects the current search/sort/filter/view state for shareability and browser back-navigation.",
+      "id": "REQ-P1-005",
+      "prd_ref": "OT-P1-004",
+      "status": "draft",
+      "title": "Full-Text Search, Sort, Filter, and Card/List View Toggle in Receive Pane",
+      "validation": [
+        {
+          "notes": "Vitest: search input debounces at 300 ms before triggering API call",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Vitest: sort control emits correct sort_by and sort_dir query parameters",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Vitest: filter chips emit correct type and retention_policy query parameters",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Vitest: view toggle switches between card-grid and list CSS layout classes",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: list-items API handler parses and applies search, sort_by, sort_dir, type, and retention_policy query parameters correctly",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: upload items with different types and retention policies; query with type=file filter; assert only file items returned",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: search for a text snippet content substring; assert matching items returned and non-matching items excluded",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: sort by size descending; assert items returned in correct order",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Search API response returns within 200 ms for up to 10,000 items in the owner's trust group",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Playbook: use search, sort, and filter controls in sequence; confirm URL query string updates and back-navigation restores state",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Accessibility: search input has aria-label='Search items'; filter controls have appropriate role='checkbox' or role='radio'",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Search, Sort, Filter \u0026 View Toggle"
+}

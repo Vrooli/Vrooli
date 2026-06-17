@@ -1,0 +1,177 @@
+{
+  "description": "Pushed items appear on other trusted devices within one second for payloads under 10 MB over a persistent WebSocket; each device's online/offline presence is visible in the UI.",
+  "module_id": "MOD-P0-005",
+  "prd_ref": "OT-P0-005",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "integration",
+      "dependencies": [
+        "REQ-P0-005",
+        "REQ-P0-003"
+      ],
+      "description": "When an item is pushed to the server, a delivery notification and item metadata (including download URL for files or full content for text snippets) are pushed to all relevant connected trusted devices over a persistent WebSocket connection within 1 second for payloads under 10 MB. The WebSocket connection is authenticated using the same scenario-authenticator token validation. The server maintains a per-connection authenticated session and will not deliver items to unauthenticated or untrusted connections.",
+      "id": "REQ-P0-009",
+      "prd_ref": "OT-P0-005",
+      "status": "draft",
+      "title": "Real-Time Item Delivery Under 1 Second via WebSocket",
+      "validation": [
+        {
+          "notes": "Unit test: presence hub fan-out correctly identifies all connected, trusted WebSocket sessions for a given owner and excludes the sender",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: WebSocket upgrade handler validates bearer token with scenario-authenticator before accepting the connection",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: delivery message schema includes item_id, type, retention_policy, download_url or content, and timestamp",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: fan-out is skipped for sessions whose device_id is not in the current trust group (handles concurrent revocation)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: Device A uploads a 1 MB file; measure time from upload completion to Device B receiving the WebSocket delivery event; assert \u003c 1 second",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: Device A sends a text snippet; Device B receives WebSocket push with full snippet content \u003c 1 second",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: unauthenticated WebSocket upgrade attempt is rejected with HTTP 401",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: revoked device's WebSocket connection does not receive delivery events after revocation",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "p99 delivery latency \u003c 1 second for items ≤ 10 MB under simulated 10-device concurrent send load",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "WebSocket connection establishment completes within 500 ms including auth validation",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Smoke test: send an item from Device A; observe it appears in Device B's Receive pane without manual refresh",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-009",
+        "REQ-P0-003"
+      ],
+      "description": "Each trusted device's online or offline presence is tracked server-side based on active WebSocket connections and surfaced in the UI. The Receive pane and Device Management views display a presence indicator for each device. Presence state transitions (connect/disconnect) are broadcast to all other trusted devices in the same trust group over the existing WebSocket channel within 1 second. Presence state is not persisted across server restarts and is always derived from live connection state.",
+      "id": "REQ-P0-010",
+      "prd_ref": "OT-P0-005",
+      "status": "draft",
+      "title": "Device Online/Offline Presence Visibility",
+      "validation": [
+        {
+          "notes": "Unit test: presence hub correctly marks a device as online on WebSocket connect and offline on disconnect or connection drop",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: presence change event is enqueued for broadcast to all other trusted devices in the same trust group",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: presence state is not read from a persistent store; it is always computed from the live connection registry",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: Device B connects; Device A's UI receives a presence-online event for Device B within 1 second",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: Device B disconnects; Device A's UI receives a presence-offline event for Device B within 1 second",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: revoked device's presence is marked offline and removed from all peers' presence views",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Presence state change propagation to all peers completes within 1 second",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Playbook: open two browser tabs as two devices; toggle one offline; confirm presence indicator updates in the other tab",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Accessibility: presence indicators expose aria-label='Device [name] online' or 'offline'",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Real-Time Delivery \u0026 Device Presence"
+}

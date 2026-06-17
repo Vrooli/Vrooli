@@ -1,0 +1,106 @@
+{
+  "description": "Uploads stream directly to the api-core blobstore; downloads stream back preserving original filename; image thumbnails are generated server-side at ingest; the relational metadata store uses migrations and is never recreated on schema change.",
+  "module_id": "MOD-P0-007",
+  "prd_ref": "OT-P0-007",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "dependencies": [
+        "REQ-P0-001"
+      ],
+      "description": "File uploads are streamed directly to the api-core blobstore without buffering the entire file in the hub server's memory. Downloads stream back from the blobstore to the client with the original filename preserved in the Content-Disposition header. Image thumbnails are generated server-side at ingest time and stored as a derived blob linked to the item metadata. The relational metadata store uses versioned schema migrations and is never recreated or dropped on schema change.",
+      "id": "REQ-P0-012",
+      "prd_ref": "OT-P0-007",
+      "status": "draft",
+      "title": "Streaming Blob Storage and Download via api-core",
+      "validation": [
+        {
+          "notes": "Unit test: upload handler pipes request body reader directly to blobstore writer without intermediate buffer accumulation (verified with mock blobstore seam tracking max concurrent memory usage)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: download handler sets Content-Disposition: attachment; filename='\u003coriginal_filename\u003e' header from item metadata",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: thumbnail generation is invoked for image MIME types and skipped for non-image types",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: migration runner refuses to drop or recreate tables; only additive ALTER/CREATE statements are permitted (linting rule)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: blobstore seam interface is implemented by exactly one production adapter and is the sole upload/download path",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: upload a 50 MB file; assert memory usage of hub process does not exceed 20 MB above baseline during transfer",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: download the 50 MB file; assert Content-Disposition header contains original filename",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: run all pending migrations on a fresh schema; assert no table recreation in migration SQL logs",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: run all pending migrations on a schema with existing data; assert data is preserved",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Streaming upload: hub memory overhead must not exceed 20 MB for a 100 MB file transfer",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Streaming download: first byte delivered to client within 500 ms of download request for files already in blobstore",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Playbook: upload a PNG image; confirm thumbnail renders in Receive pane; download the file; confirm original filename is preserved",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Streaming Storage via api-core"
+}

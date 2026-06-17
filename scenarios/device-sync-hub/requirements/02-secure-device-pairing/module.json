@@ -1,0 +1,189 @@
+{
+  "description": "Devices are admitted to the trust group exclusively via a short-lived, single-use pairing code or QR code (with a request-and-approve banner as fallback); an unpaired device on the same network or tunnel can see no content and perform no actions.",
+  "module_id": "MOD-P0-002",
+  "prd_ref": "OT-P0-002",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "security",
+      "dependencies": [
+        "REQ-P0-004"
+      ],
+      "description": "The server generates a cryptographically random, short-lived (TTL ≤ 5 minutes), single-use pairing code and equivalent QR code upon owner request. A candidate device redeems the code via a dedicated endpoint; on success the device is admitted to the trust group and issued credentials via scenario-authenticator. The code is immediately invalidated after a single successful redemption. Expired or already-redeemed codes are rejected with HTTP 410. An unpaired device that has never redeemed a valid code can see no content and perform no actions.",
+      "id": "REQ-P0-003",
+      "prd_ref": "OT-P0-002",
+      "status": "draft",
+      "title": "Short-Lived Single-Use Pairing Code and QR Code Issuance",
+      "validation": [
+        {
+          "notes": "Unit test: pairing code generator produces a cryptographically random token of at least 128 bits entropy",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: pairing code TTL clock seam correctly identifies expired codes and returns 410",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: second redemption of a previously consumed code returns 410 regardless of TTL",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: QR code payload encodes the pairing endpoint URL and token correctly and is parseable",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: trust group membership check denies list/pull/push for a device_id not present in the trust table",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: generate a pairing code; redeem it from a new device; assert device is present in the trust group and can read items",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: attempt to redeem the same code a second time; assert HTTP 410 is returned",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: wait for TTL expiry; attempt redemption; assert HTTP 410 is returned",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: an unpaired device_id calling any protected endpoint receives HTTP 403 with no item data in response body",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Smoke test: owner opens 'Add Device' flow; QR code renders within 500 ms; scanning with a mobile device initiates pairing within 3 seconds",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Security review: assert no pairing code appears in server logs or error responses",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    },
+    {
+      "category": "security",
+      "dependencies": [
+        "REQ-P0-003"
+      ],
+      "description": "When a candidate device cannot scan the QR code or enter the pairing code directly, it may submit a pairing request that surfaces as a real-time approve/reject banner on the owner's connected trusted devices. The owner approves or rejects within the banner. Approval triggers device admission and credential issuance; rejection purges the request with no data disclosed to the candidate. Unapproved requests expire after a server-configurable TTL. The fallback path enforces identical trust isolation as the primary code path.",
+      "id": "REQ-P0-004",
+      "prd_ref": "OT-P0-002",
+      "status": "draft",
+      "title": "Request-and-Approve Pairing Fallback",
+      "validation": [
+        {
+          "notes": "Unit test: pairing request record stores candidate device metadata without granting any trust-group membership",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: approval handler atomically admits device and invalidates request in a single transaction",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: rejection handler purges request record and returns no device data to the candidate",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Unit test: expired pending request is denied with HTTP 410 even if owner approves after TTL",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: candidate submits a pairing request; owner's Device B receives a banner notification over WebSocket within 1 second",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: owner approves; candidate device is admitted and can subsequently list items",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: owner rejects; candidate receives rejection response with no trust group data",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Integration test: candidate device before approval receives HTTP 403 on any protected endpoint",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Approve/reject banner appears on owner device within 1 second of candidate request submission",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Playbook: simulate approve flow end-to-end in UI; confirm banner UI is accessible via keyboard and screen reader",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "Playbook: simulate reject flow; confirm no device is added to device management list",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Secure Device Pairing"
+}

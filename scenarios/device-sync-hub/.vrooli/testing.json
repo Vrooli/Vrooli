@@ -1,20 +1,59 @@
 {
-  "$schema": "https://vrooli.com/schemas/testing.schema.json",
+  "$schema": "../../../../scripts/scenarios/testing/schemas/testing.schema.json",
   "_metadata": {
-    "description": "Testing configuration for device-sync-hub",
-    "last_updated": "2025-11-06T23:58:54-05:00"
+    "description": "Sample testing configuration for React + Vite template",
+    "last_updated": "2026-05-03T00:00:00Z"
   },
   "version": "1.0.0",
-  "unit": {
-    "languages": {
-      "go": {
-        "coverage": {
-          "error_threshold": 50
-        }
+  "lint": {
+    "handlers": {
+      "go_module": {
+        "enabled": true,
+        "strict": true
+      },
+      "node_package": {
+        "enabled": true,
+        "strict": true
       }
     },
-    "options": {
-      "verbose": false
+    "policy": {
+      "unconfigured_common_components": {
+        "api": "error",
+        "ui": "warning",
+        "cli": "warning"
+      },
+      "unmatched_code_components": "warning"
+    }
+  },
+  "structure": {
+    "additional_dirs": [
+      "ui"
+    ]
+  },
+  "unit": {
+    "languages": {
+      "go": {},
+      "node": {}
+    }
+  },
+  "business": {
+    "checks": {
+      "endpoints": {
+        "enabled": true
+      },
+      "cli_commands": {
+        "enabled": true
+      }
+    }
+  },
+  "performance": {
+    "checks": {
+      "lighthouse": {
+        "enabled": true
+      },
+      "bundle_size": {
+        "enabled": true
+      }
     }
   }
 }

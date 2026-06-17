@@ -1,0 +1,117 @@
+{
+  "_metadata": {
+    "entity": "device-sync-hub",
+    "generated_at": "2026-06-16T23:51:20-04:00",
+    "generator": "prd-control-tower",
+    "schema_version": "1.0"
+  },
+  "imports": [
+    "01-server-relayed-file-text-transfer/module.json",
+    "02-secure-device-pairing/module.json",
+    "03-delegated-owner-auth-immediate-revocatio/module.json",
+    "04-per-item-retention-spectrum/module.json",
+    "05-real-time-delivery-device-presence/module.json",
+    "06-polished-responsive-split-screen-ui/module.json",
+    "07-streaming-storage-via-api-core/module.json",
+    "08-device-management-settings/module.json",
+    "09-drag-and-drop-upload-with-chunked-resume/module.json",
+    "10-storage-quotas-enforced-at-upload/module.json",
+    "11-directed-single-device-delivery/module.json",
+    "12-search-sort-filter-view-toggle/module.json",
+    "13-cross-device-notifications/module.json",
+    "14-programmatic-cli-api-surface/module.json",
+    "15-optional-at-rest-blob-encryption/module.json"
+  ],
+  "modules": [
+    {
+      "id": "MOD-P0-001",
+      "path": "01-server-relayed-file-text-transfer",
+      "priority": "P0",
+      "title": "Server-Relayed File \u0026 Text Transfer"
+    },
+    {
+      "id": "MOD-P0-002",
+      "path": "02-secure-device-pairing",
+      "priority": "P0",
+      "title": "Secure Device Pairing"
+    },
+    {
+      "id": "MOD-P0-003",
+      "path": "03-delegated-owner-auth-immediate-revocatio",
+      "priority": "P0",
+      "title": "Delegated Owner Auth \u0026 Immediate Revocation"
+    },
+    {
+      "id": "MOD-P0-004",
+      "path": "04-per-item-retention-spectrum",
+      "priority": "P0",
+      "title": "Per-Item Retention Spectrum"
+    },
+    {
+      "id": "MOD-P0-005",
+      "path": "05-real-time-delivery-device-presence",
+      "priority": "P0",
+      "title": "Real-Time Delivery \u0026 Device Presence"
+    },
+    {
+      "id": "MOD-P0-006",
+      "path": "06-polished-responsive-split-screen-ui",
+      "priority": "P0",
+      "title": "Polished Responsive Split-Screen UI"
+    },
+    {
+      "id": "MOD-P0-007",
+      "path": "07-streaming-storage-via-api-core",
+      "priority": "P0",
+      "title": "Streaming Storage via api-core"
+    },
+    {
+      "id": "MOD-P0-008",
+      "path": "08-device-management-settings",
+      "priority": "P0",
+      "title": "Device Management \u0026 Settings"
+    },
+    {
+      "id": "MOD-P1-009",
+      "path": "09-drag-and-drop-upload-with-chunked-resume",
+      "priority": "P1",
+      "title": "Drag-and-Drop Upload with Chunked Resume"
+    },
+    {
+      "id": "MOD-P1-010",
+      "path": "10-storage-quotas-enforced-at-upload",
+      "priority": "P1",
+      "title": "Storage Quotas Enforced at Upload"
+    },
+    {
+      "id": "MOD-P1-011",
+      "path": "11-directed-single-device-delivery",
+      "priority": "P1",
+      "title": "Directed Single-Device Delivery"
+    },
+    {
+      "id": "MOD-P1-012",
+      "path": "12-search-sort-filter-view-toggle",
+      "priority": "P1",
+      "title": "Search, Sort, Filter \u0026 View Toggle"
+    },
+    {
+      "id": "MOD-P1-013",
+      "path": "13-cross-device-notifications",
+      "priority": "P1",
+      "title": "Cross-Device Notifications"
+    },
+    {
+      "id": "MOD-P1-014",
+      "path": "14-programmatic-cli-api-surface",
+      "priority": "P1",
+      "title": "Programmatic CLI \u0026 API Surface"
+    },
+    {
+      "id": "MOD-P1-015",
+      "path": "15-optional-at-rest-blob-encryption",
+      "priority": "P1",
+      "title": "Optional At-Rest Blob Encryption"
+    }
+  ]
+}
