@@ -12,6 +12,7 @@ import (
 func TestValidationProviderRegistryCoversDelegatingCatalogPhases(t *testing.T) {
 	expected := map[Name]string{
 		Contracts:    "cli-health",
+		Standards:    "scenario-auditor",
 		Proto:        "proto-health",
 		UIHealth:     "ui-health",
 		Security:     "security-health",
@@ -23,23 +24,41 @@ func TestValidationProviderRegistryCoversDelegatingCatalogPhases(t *testing.T) {
 		Docs:         "knowledge-observatory",
 		Tidiness:     "tidiness-manager",
 	}
-	if len(validationProvidersByPhase) != len(expected) {
-		t.Fatalf("validation provider registry has %d entries, want %d", len(validationProvidersByPhase), len(expected))
-	}
 	catalog := NewDefaultCatalog(DefaultTimeout)
+	delegatedCount := 0
+	for _, spec := range catalog.All() {
+		if spec.Delegated != nil {
+			delegatedCount++
+			if _, ok := expected[spec.Name]; !ok {
+				t.Fatalf("%s is delegated but missing from provider guard expectations", spec.Name)
+			}
+		}
+	}
+	if delegatedCount != len(expected) {
+		t.Fatalf("delegated phase count = %d, want %d", delegatedCount, len(expected))
+	}
 	for phase, providerScenario := range expected {
-		provider, ok := validationProviderForPhase(phase)
-		if !ok {
-			t.Fatalf("%s missing validation provider registration", phase)
-		}
-		if provider.ProviderScenario != providerScenario {
-			t.Fatalf("%s provider = %q, want %q", phase, provider.ProviderScenario, providerScenario)
-		}
 		spec, ok := catalog.Lookup(phase.String())
 		if !ok {
 			t.Fatalf("%s missing from default catalog", phase)
 		}
-		if phase != Unit && spec.FindingSource != provider.FindingSource {
+		if spec.Delegated == nil {
+			t.Fatalf("%s missing delegated catalog metadata", phase)
+		}
+		provider := spec.Delegated.provider()
+		if provider.Phase != phase.String() {
+			t.Fatalf("%s provider phase = %q, want %q", phase, provider.Phase, phase.String())
+		}
+		if provider.ProviderScenario != providerScenario {
+			t.Fatalf("%s provider = %q, want %q", phase, provider.ProviderScenario, providerScenario)
+		}
+		if provider.Optional != spec.Optional {
+			t.Fatalf("%s provider optional = %v, want catalog optional %v", phase, provider.Optional, spec.Optional)
+		}
+		if provider.Timeout != spec.DefaultTimeout {
+			t.Fatalf("%s provider timeout = %s, want catalog timeout %s", phase, provider.Timeout, spec.DefaultTimeout)
+		}
+		if provider.FindingSource != spec.FindingSource {
 			t.Fatalf("%s finding source = %v, want %v", phase, spec.FindingSource, provider.FindingSource)
 		}
 	}

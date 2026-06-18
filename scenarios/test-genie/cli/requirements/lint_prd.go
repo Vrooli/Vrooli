@@ -1,17 +1,12 @@
 package requirements
 
 import (
-	"context"
 	"flag"
 	"fmt"
-	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
-	"strings"
 
-	"test-genie/internal/requirements/discovery"
-	"test-genie/internal/requirements/parsing"
+	intent "intent-go"
 
 	"github.com/vrooli/cli-core/cliutil"
 )
@@ -85,38 +80,29 @@ func runLintPRD(args []string) error {
 }
 
 func lintPRD(dir string) (prdLintResult, error) {
-	ctx := context.Background()
-	discoverer := discovery.NewDefault()
-	files, err := discoverer.Discover(ctx, dir)
+	requirements, err := (intent.FileRequirementsExtractor{}).ExtractRequirementClaims(dir)
 	if err != nil {
-		return prdLintResult{Status: "error"}, fmt.Errorf("discover requirements: %w", err)
-	}
-	if len(files) == 0 {
 		return prdLintResult{Status: "missing_requirements"}, nil
-	}
-
-	parser := parsing.NewDefault()
-	index, err := parser.ParseAll(ctx, files)
-	if err != nil {
-		return prdLintResult{Status: "error"}, fmt.Errorf("parse requirements: %w", err)
 	}
 
 	prdRefs := make(map[string][]string) // target -> reqIDs
 	reqFiles := make(map[string]string)
-	for _, module := range index.Modules {
-		for _, req := range module.Requirements {
-			if req.PRDRef == "" {
-				continue
-			}
-			prd := strings.ToUpper(req.PRDRef)
-			prdRefs[prd] = append(prdRefs[prd], req.ID)
-			reqFiles[req.ID] = module.FilePath
+	for _, req := range requirements {
+		prd := intent.RequirementPRDRef(req)
+		if prd == "" {
+			continue
 		}
+		prdRefs[prd] = append(prdRefs[prd], req.ID)
+		reqFiles[req.ID] = req.Anchor
 	}
 
-	targets, err := collectTargetsFromPRD(dir)
+	targetClaims, err := (intent.FilePRDExtractor{}).ExtractPRDClaims(dir)
 	if err != nil {
 		return prdLintResult{Status: "missing_prd", MissingPRD: true}, nil
+	}
+	targets := make([]string, 0, len(targetClaims))
+	for _, target := range targetClaims {
+		targets = append(targets, target.ID)
 	}
 
 	targetSet := make(map[string]struct{})
@@ -155,26 +141,6 @@ func lintPRD(dir string) (prdLintResult, error) {
 		result.Status = "issues"
 	}
 
-	return result, nil
-}
-
-func collectTargetsFromPRD(dir string) ([]string, error) {
-	prdPath := filepath.Join(dir, "PRD.md")
-	data, err := os.ReadFile(prdPath)
-	if err != nil {
-		return nil, err
-	}
-	re := regexp.MustCompile(`OT-[Pp][0-2]-\d{3}`)
-	matches := re.FindAllString(string(data), -1)
-	unique := make(map[string]struct{})
-	for _, m := range matches {
-		unique[strings.ToUpper(m)] = struct{}{}
-	}
-	result := make([]string, 0, len(unique))
-	for m := range unique {
-		result = append(result, m)
-	}
-	sort.Strings(result)
 	return result, nil
 }
 

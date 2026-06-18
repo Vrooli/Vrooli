@@ -3,10 +3,10 @@ package eligibility
 import (
 	"context"
 	"fmt"
-	"strings"
 	"sync"
 
 	"test-genie/internal/orchestrator/workspace"
+	"test-genie/internal/shared"
 )
 
 // Rule IDs the eligibility decision keys off of.
@@ -184,18 +184,5 @@ func severityAtLeast(have, threshold string) bool {
 }
 
 func severityWeight(sev string) int {
-	switch strings.ToLower(strings.TrimSpace(sev)) {
-	case "critical":
-		return 5
-	case "high":
-		return 4
-	case "medium":
-		return 3
-	case "low":
-		return 2
-	case "info", "informational":
-		return 1
-	default:
-		return 0
-	}
+	return shared.SeverityWeight(sev)
 }

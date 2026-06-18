@@ -94,6 +94,7 @@ require (
 	golang.org/x/tools v0.42.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 	google.golang.org/grpc v1.79.3 // indirect
+	intent-go v0.0.0
 )
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
@@ -101,3 +102,5 @@ replace github.com/vrooli/api-core => ../../../packages/api-core
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
 
 replace github.com/vrooli/vrooli => ../../..
+
+replace intent-go => ../../../packages/intent-go

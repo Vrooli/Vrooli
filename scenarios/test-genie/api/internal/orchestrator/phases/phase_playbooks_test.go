@@ -324,30 +324,6 @@ func TestRunPlaybooksPhaseNoUIDirectory(t *testing.T) {
 	}
 }
 
-func TestRunPlaybooksPhaseSkipViaEnv(t *testing.T) {
-	fakeIso := &fakeIsolation{
-		result: &isolation.Result{RunID: "test-run", Env: map[string]string{}, Cleanup: func(context.Context) error { return nil }},
-	}
-	restoreIso := overrideIsolationManager(fakeIso)
-	defer restoreIso()
-	restoreCmd := overrideCommandExecNoop()
-	defer restoreCmd()
-
-	h := newPlaybooksTestHarness(t)
-
-	os.Setenv("TEST_GENIE_SKIP_PLAYBOOKS", "1")
-	defer os.Unsetenv("TEST_GENIE_SKIP_PLAYBOOKS")
-
-	report := runPlaybooksPhase(context.Background(), h.env, io.Discard)
-
-	if report.Err != nil {
-		t.Fatalf("expected success when skipped via env, got error: %v", report.Err)
-	}
-	if fakeIso.called {
-		t.Fatalf("expected isolation to be skipped when TEST_GENIE_SKIP_PLAYBOOKS is set")
-	}
-}
-
 func TestRunPlaybooksPhaseObserverModeSkipsIsolationAndRestart(t *testing.T) {
 	fakeIso := &fakeIsolation{
 		result: &isolation.Result{RunID: "test-run", Env: map[string]string{}, Cleanup: func(context.Context) error { return nil }},

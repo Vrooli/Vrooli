@@ -320,7 +320,7 @@ func buildPhaseStatusPayload(defs []phases.Definition, results []phases.Executio
 	payload := make([]phaseStatusEntry, 0, len(defs))
 	resultLookup := make(map[string]phases.ExecutionResult, len(results))
 	for _, result := range results {
-		key := strings.ToLower(strings.TrimSpace(result.Name))
+		key := phases.NormalizeKey(result.Name)
 		if key == "" {
 			continue
 		}

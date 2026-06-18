@@ -1,0 +1,23 @@
+{
+  "source": "test-genie/api/internal/orchestrator/phases.ValidPhaseNames",
+  "phases": [
+    "structure",
+    "contracts",
+    "ui-health",
+    "standards",
+    "architecture",
+    "dependencies",
+    "quality",
+    "docs",
+    "performance",
+    "smoke",
+    "unit",
+    "integration",
+    "playbooks",
+    "business",
+    "tidiness",
+    "security",
+    "measures",
+    "proto"
+  ]
+}

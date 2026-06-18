@@ -6,8 +6,10 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
+	intent "intent-go"
 	"test-genie/internal/requirements/parsing"
 	"test-genie/internal/requirements/types"
 )
@@ -102,7 +104,7 @@ func DefaultRules() []Rule {
 		&DuplicateIDRule{},
 		&MissingIDRule{},
 		&MissingTitleRule{},
-		&InvalidReferenceRule{},
+		&RefExistsRule{},
 		&CycleDetectionRule{},
 		&OrphanedChildRule{},
 		&InvalidStatusRule{},
@@ -191,155 +193,101 @@ func (r *MissingTitleRule) Check(ctx context.Context, rctx RuleContext) []types.
 	return issues
 }
 
-// InvalidReferenceRule checks for validations referencing non-existent files.
-type InvalidReferenceRule struct{}
+// RefExistsRule maps requirement validation refs through intent-go's canonical
+// ref-existence checker.
+type RefExistsRule struct{}
 
-func (r *InvalidReferenceRule) Name() string { return "invalid_reference" }
+func (r *RefExistsRule) Name() string { return intent.CodeRefMissing }
 
-// ParsedRef represents a parsed validation reference.
-// Refs can be in format "file/path.go" or "file/path.go::SymbolName"
-type ParsedRef struct {
-	FilePath string // The file path portion (before ::)
-	Symbol   string // The symbol name (after ::), empty if not specified
-	Raw      string // The original raw ref string
-}
-
-// ParseRef parses a validation ref string into its components.
-// Supports formats:
-//   - "path/to/file.go" -> FilePath="path/to/file.go", Symbol=""
-//   - "path/to/file.go::TestFunction" -> FilePath="path/to/file.go", Symbol="TestFunction"
-//   - "path/to/file.go:TestFunction" -> FilePath="path/to/file.go", Symbol="TestFunction" (legacy single-colon)
-//   - "path/to/file.bats::test name with spaces" -> FilePath="path/to/file.bats", Symbol="test name with spaces"
-//
-// Edge cases handled gracefully:
-//   - Empty ref -> empty FilePath and Symbol
-//   - "::symbol" (no file) -> FilePath="", Symbol="symbol"
-//   - "file::" (empty symbol) -> FilePath="file", Symbol=""
-//   - "file::sym::bol" (multiple ::) -> FilePath="file", Symbol="sym::bol"
-//   - "file:sym:bol" (multiple :) -> FilePath="file", Symbol="sym:bol"
-func ParseRef(ref string) ParsedRef {
-	parsed := ParsedRef{Raw: ref}
-
-	if ref == "" {
-		return parsed
-	}
-
-	// First, try the canonical :: separator
-	idx := strings.Index(ref, "::")
-	if idx != -1 {
-		// Split at the first :: (allows :: in symbol names for edge cases)
-		parsed.FilePath = ref[:idx]
-		if idx+2 < len(ref) {
-			parsed.Symbol = ref[idx+2:]
-		}
-		return parsed
-	}
-
-	// Fallback: try single : separator
-	// Be careful about Windows drive letters (e.g., C:\path) - they have : at index 1
-	// and are followed by \ or /. We only want to split on : that appears after
-	// a file extension pattern (e.g., .go:, .ts:, .bats:)
-	//
-	// Look for patterns like ".go:", ".ts:", etc. and split at that colon.
-	// This handles cases like "file.go:Test:SubTest" correctly by finding
-	// the first colon after the extension.
-	extensions := []string{".go:", ".ts:", ".tsx:", ".js:", ".jsx:", ".bats:", ".sh:", ".py:", ".json:"}
-	for _, ext := range extensions {
-		idx := strings.Index(ref, ext)
-		if idx != -1 {
-			colonIdx := idx + len(ext) - 1 // Position of the colon
-			beforeColon := ref[:colonIdx]
-			afterColon := ref[colonIdx+1:]
-
-			// Verify afterColon looks like a symbol (starts with letter or underscore)
-			isLikelySymbol := len(afterColon) > 0 &&
-				(afterColon[0] >= 'A' && afterColon[0] <= 'Z' || // Starts with uppercase
-					afterColon[0] >= 'a' && afterColon[0] <= 'z' || // Starts with lowercase
-					afterColon[0] == '_') // Starts with underscore
-
-			if isLikelySymbol {
-				parsed.FilePath = beforeColon
-				parsed.Symbol = afterColon
-				return parsed
-			}
-		}
-	}
-
-	// No valid separator found, entire ref is the file path
-	parsed.FilePath = ref
-	return parsed
-}
-
-func (r *InvalidReferenceRule) Check(ctx context.Context, rctx RuleContext) []types.ValidationIssue {
-	var issues []types.ValidationIssue
-
+func (r *RefExistsRule) Check(ctx context.Context, rctx RuleContext) []types.ValidationIssue {
 	if rctx.ScenarioRoot == "" || rctx.Reader == nil {
-		return issues
+		return nil
 	}
 
-	for _, module := range rctx.Index.Modules {
+	claims := requirementClaimsFromIndex(rctx.Index)
+	findings := intent.CheckRefExistsWithFS(rctx.ScenarioRoot, claims, readerFileSystem{reader: rctx.Reader})
+	return refFindingsToIssues(findings)
+}
+
+type readerFileSystem struct {
+	reader Reader
+}
+
+func (fs readerFileSystem) Exists(path string) bool {
+	return fs.reader != nil && fs.reader.Exists(path)
+}
+
+func (fs readerFileSystem) Glob(pattern string) ([]string, error) {
+	return filepath.Glob(pattern)
+}
+
+func requirementClaimsFromIndex(index *parsing.ModuleIndex) []intent.CapabilityClaim {
+	if index == nil {
+		return nil
+	}
+	modules := make([]*types.RequirementModule, 0, len(index.Modules))
+	modules = append(modules, index.Modules...)
+	sort.Slice(modules, func(i, j int) bool {
+		return modules[i].FilePath < modules[j].FilePath
+	})
+
+	var claims []intent.CapabilityClaim
+	for _, module := range modules {
 		for _, req := range module.Requirements {
-			for _, val := range req.Validations {
-				if val.Ref == "" {
-					continue
-				}
-
-				// Skip manual/inspection validations (these are human reviews, not automated tests)
-				normalizedType := types.NormalizeValidationType(string(val.Type))
-				if normalizedType == types.ValTypeManual {
-					continue
-				}
-
-				// Parse the ref to extract file path and optional symbol
-				parsed := ParseRef(val.Ref)
-
-				// If no file path (e.g., "::Symbol"), that's a malformed ref
-				if parsed.FilePath == "" {
-					issues = append(issues, types.ValidationIssue{
-						FilePath:      module.FilePath,
-						RequirementID: req.ID,
-						Field:         "validation.ref",
-						Message:       "validation ref is malformed (missing file path): " + val.Ref,
-						Severity:      types.SeverityWarning,
-						Rule:          "invalid_reference",
-					})
-					continue
-				}
-
-				// Check if file exists using the extracted file path
-				refPath := filepath.Join(rctx.ScenarioRoot, parsed.FilePath)
-				if !rctx.Reader.Exists(refPath) {
-					// Try alternative paths
-					altPaths := []string{
-						filepath.Join(rctx.ScenarioRoot, "api", parsed.FilePath),
-						filepath.Join(rctx.ScenarioRoot, "ui", parsed.FilePath),
-						filepath.Join(rctx.ScenarioRoot, "test", parsed.FilePath),
-					}
-
-					found := false
-					for _, alt := range altPaths {
-						if rctx.Reader.Exists(alt) {
-							found = true
-							break
-						}
-					}
-
-					if !found {
-						issues = append(issues, types.ValidationIssue{
-							FilePath:      module.FilePath,
-							RequirementID: req.ID,
-							Field:         "validation.ref",
-							Message:       "validation references non-existent file: " + parsed.FilePath,
-							Severity:      types.SeverityWarning,
-							Rule:          "invalid_reference",
-						})
-					}
-				}
+			id := strings.TrimSpace(req.ID)
+			if id == "" {
+				continue
 			}
+			refs := make([]intent.Ref, 0, len(req.Validations)+1)
+			if prdRef := strings.TrimSpace(req.PRDRef); prdRef != "" {
+				refs = append(refs, intent.Ref{Raw: prdRef, Path: prdRef, Kind: intent.RefDoc})
+			}
+			for _, validation := range req.Validations {
+				raw := strings.TrimSpace(validation.Ref)
+				if raw == "" {
+					continue
+				}
+				refs = append(refs, intent.NormalizeRef(raw, string(validation.Type)))
+			}
+			claims = append(claims, intent.CapabilityClaim{
+				ID:         id,
+				Altitude:   intent.Requirement,
+				Text:       strings.TrimSpace(req.Title + " " + req.Description),
+				Anchor:     module.FilePath,
+				Refs:       refs,
+				Provenance: "test-genie",
+			})
 		}
 	}
+	return claims
+}
 
+func refFindingsToIssues(findings []intent.Finding) []types.ValidationIssue {
+	issues := make([]types.ValidationIssue, 0, len(findings))
+	for _, finding := range findings {
+		issue := types.ValidationIssue{
+			FilePath:      firstLocation(finding.Locations),
+			RequirementID: finding.ClaimID,
+			Field:         "validation.ref",
+			Message:       finding.Message,
+			Severity:      types.SeverityError,
+			Rule:          finding.Code,
+		}
+		if strings.EqualFold(finding.Severity, string(types.SeverityWarning)) {
+			issue.Severity = types.SeverityWarning
+		} else if strings.EqualFold(finding.Severity, string(types.SeverityInfo)) {
+			issue.Severity = types.SeverityInfo
+		}
+		issues = append(issues, issue)
+	}
 	return issues
+}
+
+func firstLocation(locations []string) string {
+	if len(locations) == 0 {
+		return ""
+	}
+	return locations[0]
 }
 
 // CycleDetectionRule checks for cycles in requirement hierarchy.

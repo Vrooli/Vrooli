@@ -1,6 +1,8 @@
 package phases
 
 import (
+	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -40,6 +42,37 @@ func TestPresetsResolveAgainstCatalog(t *testing.T) {
 				t.Errorf("preset %q references unknown phase %q", preset, p)
 			}
 		}
+	}
+}
+
+func TestMergePresetsPrecedenceAndFiltering(t *testing.T) {
+	allowed := map[string]struct{}{
+		Structure.String(): {},
+		Unit.String():      {},
+		Docs.String():      {},
+	}
+	defaults := map[string][]string{
+		"quick": {"structure", "unit"},
+		"full":  {"structure", "docs"},
+	}
+	fileOverrides := map[string][]string{
+		"quick": {"docs", "missing", "docs"},
+		"file":  {"unit"},
+	}
+	configOverrides := map[string][]string{
+		"quick": {"structure"},
+		"file":  {},
+	}
+
+	got := MergePresets(defaults, fileOverrides, configOverrides, allowed)
+	if phases := strings.Join(got["quick"], ","); phases != "structure" {
+		t.Fatalf("quick preset = %q, want config override to replace file/default", phases)
+	}
+	if _, ok := got["file"]; ok {
+		t.Fatalf("empty config override should delete file preset, got %v", got["file"])
+	}
+	if phases := strings.Join(got["full"], ","); phases != "structure,docs" {
+		t.Fatalf("full preset = %q, want defaults to fill missing preset", phases)
 	}
 }
 
@@ -110,6 +143,42 @@ func TestCapabilityManifestCoversEveryPhase(t *testing.T) {
 	}
 }
 
+func TestSkipEnvVarsPreservePublishedNames(t *testing.T) {
+	expected := map[Name]string{
+		Structure:    "TEST_GENIE_SKIP_STRUCTURE",
+		Contracts:    "TEST_GENIE_SKIP_CONTRACTS",
+		UIHealth:     "TEST_GENIE_SKIP_UI_HEALTH",
+		Standards:    "TEST_GENIE_SKIP_STANDARDS",
+		Architecture: "TEST_GENIE_SKIP_ARCHITECTURE",
+		Dependencies: "TEST_GENIE_SKIP_DEPENDENCIES",
+		Quality:      "TEST_GENIE_SKIP_QUALITY",
+		Docs:         "TEST_GENIE_SKIP_DOCS",
+		Smoke:        "TEST_GENIE_SKIP_SMOKE",
+		Unit:         "TEST_GENIE_SKIP_UNIT",
+		Integration:  "TEST_GENIE_SKIP_INTEGRATION",
+		Playbooks:    "TEST_GENIE_SKIP_PLAYBOOKS",
+		Business:     "TEST_GENIE_SKIP_BUSINESS",
+		Performance:  "TEST_GENIE_SKIP_PERFORMANCE",
+		Tidiness:     "TEST_GENIE_SKIP_TIDINESS",
+		Security:     "TEST_GENIE_SKIP_SECURITY",
+		Measures:     "TEST_GENIE_SKIP_MEASURES",
+		Proto:        "TEST_GENIE_SKIP_PROTO",
+	}
+	catalog := DefaultCatalog()
+	for _, spec := range catalog.All() {
+		want, ok := expected[spec.Name]
+		if !ok {
+			t.Fatalf("phase %q missing skip env-var expectation", spec.Name)
+		}
+		if spec.SkipEnvVar != want {
+			t.Errorf("phase %q SkipEnvVar = %q, want %q", spec.Name, spec.SkipEnvVar, want)
+		}
+	}
+	if len(expected) != len(catalog.All()) {
+		t.Fatalf("skip env-var expectations = %d, catalog phases = %d", len(expected), len(catalog.All()))
+	}
+}
+
 // TestFindingSourceCoversEveryProducingPhase is the anti-drift guard for the
 // per-phase finding-source tokens that the combined findings artifact carries
 // and a campaign reaudit derives covered-sources from. Every finding-producing
@@ -173,5 +242,90 @@ func TestDocPathsCoverEveryCatalogPhase(t *testing.T) {
 	}
 	if got := DocPaths("nonexistent-phase"); got != nil {
 		t.Errorf("DocPaths(nonexistent) = %v, want nil", got)
+	}
+}
+
+func TestGeneratedPhaseDocsMatchCommitted(t *testing.T) {
+	root := scenarioRoot(t)
+	assertGeneratedDoc(t, filepath.Join(root, "docs", "phases", "README.md"), RenderPhasesMarkdown(DefaultCatalog()))
+	assertGeneratedDoc(t, filepath.Join(root, "docs", "reference", "presets.md"), RenderPresetsMarkdown(DefaultCatalog()))
+}
+
+func assertGeneratedDoc(t *testing.T, path string, want string) {
+	t.Helper()
+	if os.Getenv("UPDATE_TEST_GENIE_DOCS") == "1" {
+		if err := os.WriteFile(path, []byte(want), 0o644); err != nil {
+			t.Fatalf("update generated doc %s: %v", path, err)
+		}
+		return
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read generated doc %s: %v", path, err)
+	}
+	if string(got) != want {
+		t.Fatalf("%s is out of date; run UPDATE_TEST_GENIE_DOCS=1 go test ./internal/orchestrator/phases -run TestGeneratedPhaseDocsMatchCommitted", path)
+	}
+}
+
+func TestTestingSchemaPhasePropertiesMatchCatalog(t *testing.T) {
+	root := scenarioRoot(t)
+	raw, err := os.ReadFile(filepath.Join(root, "schemas", "testing.schema.json"))
+	if err != nil {
+		t.Fatalf("read testing schema: %v", err)
+	}
+	var schema struct {
+		Properties map[string]struct {
+			Properties map[string]json.RawMessage `json:"properties"`
+		} `json:"properties"`
+	}
+	if err := json.Unmarshal(raw, &schema); err != nil {
+		t.Fatalf("parse testing schema: %v", err)
+	}
+	phaseBlock, ok := schema.Properties["phases"]
+	if !ok {
+		t.Fatal("testing schema missing properties.phases")
+	}
+	if len(phaseBlock.Properties) == 0 {
+		t.Fatal("testing schema properties.phases.properties is empty")
+	}
+	want := ValidPhaseNames()
+	if len(phaseBlock.Properties) != len(want) {
+		t.Fatalf("testing schema phase property count = %d, want %d (%v)", len(phaseBlock.Properties), len(want), want)
+	}
+	for _, name := range want {
+		if _, ok := phaseBlock.Properties[name]; !ok {
+			t.Errorf("testing schema missing phases.%s property", name)
+		}
+	}
+}
+
+func TestMaturityGoPhaseArtifactMatchesCatalog(t *testing.T) {
+	root := scenarioRoot(t)
+	path := filepath.Clean(filepath.Join(root, "..", "..", "packages", "maturity-go", "dimensions", "testdata", "testgenie_phase_names.json"))
+	payload := struct {
+		Source string   `json:"source"`
+		Phases []string `json:"phases"`
+	}{
+		Source: "test-genie/api/internal/orchestrator/phases.ValidPhaseNames",
+		Phases: ValidPhaseNames(),
+	}
+	want, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		t.Fatalf("marshal phase artifact: %v", err)
+	}
+	want = append(want, '\n')
+	if os.Getenv("UPDATE_TEST_GENIE_DOCS") == "1" {
+		if err := os.WriteFile(path, want, 0o644); err != nil {
+			t.Fatalf("update phase artifact %s: %v", path, err)
+		}
+		return
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read phase artifact: %v", err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Fatalf("%s is out of date; run UPDATE_TEST_GENIE_DOCS=1 go test ./internal/orchestrator/phases -run TestMaturityGoPhaseArtifactMatchesCatalog", path)
 	}
 }

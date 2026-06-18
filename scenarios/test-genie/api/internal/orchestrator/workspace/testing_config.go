@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"test-genie/internal/orchestrator/phasekeys"
 )
 
 var timeoutPattern = regexp.MustCompile(`^([0-9]+)([smh]?)$`)
@@ -180,7 +182,7 @@ func LoadTestingConfig(scenarioDir string) (*Config, error) {
 	}
 
 	for name, phase := range raw.Phases {
-		normalized := strings.ToLower(strings.TrimSpace(name))
+		normalized := phasekeys.NormalizeKey(name)
 		if normalized == "" {
 			continue
 		}
@@ -195,7 +197,7 @@ func LoadTestingConfig(scenarioDir string) (*Config, error) {
 	}
 
 	for preset, phases := range raw.Presets {
-		normalized := strings.ToLower(strings.TrimSpace(preset))
+		normalized := phasekeys.NormalizeKey(preset)
 		if normalized == "" {
 			continue
 		}
@@ -259,7 +261,7 @@ func LoadTestingConfig(scenarioDir string) (*Config, error) {
 func normalizePhaseList(phases []string) []string {
 	var filtered []string
 	for _, phase := range phases {
-		normalized := strings.ToLower(strings.TrimSpace(phase))
+		normalized := phasekeys.NormalizeKey(phase)
 		if normalized != "" {
 			filtered = append(filtered, normalized)
 		}

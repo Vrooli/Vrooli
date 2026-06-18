@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	intent "intent-go"
 	"test-genie/internal/business"
 
 	reqparsing "test-genie/internal/requirements/parsing"
@@ -39,7 +40,7 @@ func TestBusinessIssueFindingsTypeEachRule(t *testing.T) {
 		{Rule: "duplicate_id", RequirementID: "REQ-A-001", FilePath: "/scenarios/demo/requirements/core.json", Message: "duplicate requirement ID", Severity: reqtypes.SeverityError},
 		{Rule: "cycle_detection", RequirementID: "REQ-A-002", Message: "cycle detected", Severity: reqtypes.SeverityError},
 		{Rule: "orphaned_child", RequirementID: "REQ-A-003", FilePath: "/scenarios/demo/requirements/core.json", Message: "references non-existent child", Severity: reqtypes.SeverityError},
-		{Rule: "invalid_reference", RequirementID: "REQ-A-004", FilePath: "/scenarios/demo/requirements/core.json", Message: "validation references non-existent file: api/x_test.go", Severity: reqtypes.SeverityWarning},
+		{Rule: intent.CodeRefMissing, RequirementID: "REQ-A-004", FilePath: "/scenarios/demo/requirements/core.json", Message: "validation references non-existent file: api/x_test.go", Severity: reqtypes.SeverityError},
 	}
 
 	findings := businessIssueFindings("demo", scenarioDir, issues)
@@ -49,18 +50,19 @@ func TestBusinessIssueFindingsTypeEachRule(t *testing.T) {
 
 	cases := []struct {
 		code     string
+		source   architecturev1.FindingSource
 		severity architecturev1.FindingSeverity
 		location string
 	}{
-		{"business_duplicate_req_id:REQ-A-001", architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR, "requirements/core.json"},
-		{"business_import_cycle:REQ-A-002", architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR, ""},
-		{"business_orphaned_ref:REQ-A-003", architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR, "requirements/core.json"},
-		{"business_validation_ref_missing:REQ-A-004", architecturev1.FindingSeverity_FINDING_SEVERITY_WARNING, "requirements/core.json"},
+		{"business_duplicate_req_id:REQ-A-001", architecturev1.FindingSource_FINDING_SOURCE_BUSINESS, architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR, "requirements/core.json"},
+		{"business_import_cycle:REQ-A-002", architecturev1.FindingSource_FINDING_SOURCE_BUSINESS, architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR, ""},
+		{"business_orphaned_ref:REQ-A-003", architecturev1.FindingSource_FINDING_SOURCE_BUSINESS, architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR, "requirements/core.json"},
+		{"intent.ref_missing:REQ-A-004", architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE, architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR, "requirements/core.json"},
 	}
 	for _, tc := range cases {
 		f := findByCode(t, findings, tc.code)
-		if f.GetSource() != architecturev1.FindingSource_FINDING_SOURCE_BUSINESS {
-			t.Errorf("%s: source = %v, want BUSINESS", tc.code, f.GetSource())
+		if f.GetSource() != tc.source {
+			t.Errorf("%s: source = %v, want %v", tc.code, f.GetSource(), tc.source)
 		}
 		if f.GetSeverity() != tc.severity {
 			t.Errorf("%s: severity = %v, want %v", tc.code, f.GetSeverity(), tc.severity)
@@ -154,23 +156,39 @@ func TestBusinessRegistryFindingsPRDRefUnmatched(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "PRD.md"), []byte(prd), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	requirementsDir := filepath.Join(dir, "requirements", "core")
+	if err := os.MkdirAll(requirementsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	modulePath := filepath.Join(requirementsDir, "module.json")
+	moduleJSON := `{"requirements":[
+{"id":"REQ-1","title":"Linked","prd_ref":"OT-P0-001","validation":[{"type":"unit","ref":"x"}]},
+{"id":"REQ-2","title":"Dangling","prd_ref":"OT-P0-999","validation":[{"type":"unit","ref":"x"}]},
+{"id":"REQ-3","title":"Non-OT ref ignored","prd_ref":"section-3","validation":[{"type":"unit","ref":"x"}]}
+]}`
+	if err := os.WriteFile(modulePath, []byte(moduleJSON), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	index := registryIndex([]reqtypes.Requirement{
 		{ID: "REQ-1", Title: "Linked", PRDRef: "OT-P0-001", Validations: []reqtypes.Validation{{Type: "unit", Ref: "x"}}},
 		{ID: "REQ-2", Title: "Dangling", PRDRef: "OT-P0-999", Validations: []reqtypes.Validation{{Type: "unit", Ref: "x"}}},
 		{ID: "REQ-3", Title: "Non-OT ref ignored", PRDRef: "section-3", Validations: []reqtypes.Validation{{Type: "unit", Ref: "x"}}},
-	}, filepath.Join(dir, "requirements", "core.json"))
+	}, modulePath)
 
 	findings := businessRegistryFindings("demo", dir, index)
 
-	dangling := findByCode(t, findings, "business_prd_ref_unmatched:REQ-2")
+	dangling := findByCode(t, findings, "intent.prd_ref_unmatched:REQ-2")
+	if dangling.GetSource() != architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE {
+		t.Errorf("unmatched prd_ref source should be ARCHITECTURE, got %v", dangling.GetSource())
+	}
 	if dangling.GetSeverity() != architecturev1.FindingSeverity_FINDING_SEVERITY_WARNING {
 		t.Errorf("unmatched prd_ref should be WARNING, got %v", dangling.GetSeverity())
 	}
 	for _, f := range findings {
-		if f.GetCode() == "business_prd_ref_unmatched:REQ-1" {
+		if f.GetCode() == "intent.prd_ref_unmatched:REQ-1" {
 			t.Error("matched prd_ref must not produce a finding")
 		}
-		if f.GetCode() == "business_prd_ref_unmatched:REQ-3" {
+		if f.GetCode() == "intent.prd_ref_unmatched:REQ-3" {
 			t.Error("non-OT prd_ref values must be skipped")
 		}
 	}
@@ -183,7 +201,7 @@ func TestBusinessRegistryFindingsSkipsPRDCheckWithoutPRD(t *testing.T) {
 	}, filepath.Join(dir, "requirements", "core.json"))
 
 	for _, f := range businessRegistryFindings("demo", dir, index) {
-		if strings.HasPrefix(f.GetCode(), "business_prd_ref_unmatched") {
+		if strings.HasPrefix(f.GetCode(), "intent.prd_ref_unmatched") {
 			t.Errorf("prd_ref check must be skipped when PRD.md is absent, got %s", f.GetCode())
 		}
 	}

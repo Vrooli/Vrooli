@@ -199,15 +199,6 @@ func runPlaybooksPhase(ctx context.Context, env workspace.Environment, logWriter
 
 	retainIsolation := isolation.ShouldRetainFromEnv()
 
-	if os.Getenv("TEST_GENIE_SKIP_PLAYBOOKS") == "1" {
-		shared.LogWarn(logWriter, "playbooks phase disabled via TEST_GENIE_SKIP_PLAYBOOKS (skipping isolation/restart)")
-		return RunReport{
-			Observations: []Observation{
-				NewSkipObservation("playbooks phase disabled via TEST_GENIE_SKIP_PLAYBOOKS"),
-			},
-		}
-	}
-
 	registry, err := playbookregistry.NewLoader(env.ScenarioDir).Load()
 	if err != nil {
 		return RunReport{

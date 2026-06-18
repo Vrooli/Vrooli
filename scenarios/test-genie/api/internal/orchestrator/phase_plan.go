@@ -45,7 +45,7 @@ func (o *SuiteOrchestrator) buildPhasePlan(env workspacepkg.Environment, cfg *wo
 	}
 	if len(selected) == 0 {
 		if len(notices.Skipped) > 0 {
-			return nil, shared.NewValidationError("no phases selected for execution; requested phases are globally disabled")
+			return nil, shared.NewValidationError("no phases selected for execution; requested phases are disabled or skipped")
 		}
 		return nil, shared.NewValidationError("no phases selected for execution")
 	}
@@ -61,6 +61,8 @@ func (o *SuiteOrchestrator) buildPhasePlan(env workspacepkg.Environment, cfg *wo
 }
 
 type phaseDisableNotice struct {
-	Name   string
-	Toggle PhaseToggle
+	Name      string
+	Toggle    PhaseToggle
+	EnvVar    string
+	Requested bool
 }

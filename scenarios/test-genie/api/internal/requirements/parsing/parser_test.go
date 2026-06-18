@@ -424,7 +424,7 @@ func TestNormalizePhase(t *testing.T) {
 		{"unittest", "unit"},
 		{"integration-test", "integration"},
 		{"integration_test", "integration"},
-		{"e2e", "integration"},
+		{"e2e", "playbooks"},
 		{"business-logic", "business"},
 		{"struct", "structure"},
 		{"deps", "dependencies"},

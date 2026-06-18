@@ -43,10 +43,32 @@ func TestIsValidPhase(t *testing.T) {
 			t.Errorf("IsValidPhase(%q) = false, want true (case-insensitive)", upper(name))
 		}
 	}
-	for _, bad := range []string{"", "  ", "e2e", "nonexistent-phase", "all"} {
+	for _, bad := range []string{"", "  ", "nonexistent-phase", "all"} {
 		if IsValidPhase(bad) {
 			t.Errorf("IsValidPhase(%q) = true, want false", bad)
 		}
+	}
+}
+
+func TestNormalizeKeyResolvesAliases(t *testing.T) {
+	tests := map[string]string{
+		" E2E ":      "playbooks",
+		"unit-test":  "unit",
+		"playbook":   "playbooks",
+		"STRUCT":     "structure",
+		"custom-one": "custom-one",
+	}
+	for input, want := range tests {
+		if got := NormalizeKey(input); got != want {
+			t.Fatalf("NormalizeKey(%q) = %q, want %q", input, got, want)
+		}
+	}
+	name, ok := NormalizeName("e2e")
+	if !ok {
+		t.Fatal("NormalizeName(e2e) returned !ok")
+	}
+	if name != Playbooks {
+		t.Fatalf("NormalizeName(e2e) = %q, want %q", name, Playbooks)
 	}
 }
 

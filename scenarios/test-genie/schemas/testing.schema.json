@@ -713,13 +713,23 @@
       "description": "Per-phase execution overrides such as timeout targets",
       "properties": {
         "structure": { "$ref": "#/definitions/phase_options" },
+        "contracts": { "$ref": "#/definitions/phase_options" },
+        "ui-health": { "$ref": "#/definitions/phase_options" },
+        "standards": { "$ref": "#/definitions/phase_options" },
+        "architecture": { "$ref": "#/definitions/phase_options" },
         "dependencies": { "$ref": "#/definitions/phase_options" },
+        "quality": { "$ref": "#/definitions/phase_options" },
+        "docs": { "$ref": "#/definitions/phase_options" },
         "smoke": { "$ref": "#/definitions/phase_options" },
         "unit": { "$ref": "#/definitions/phase_options" },
         "integration": { "$ref": "#/definitions/phase_options" },
         "playbooks": { "$ref": "#/definitions/phase_options" },
         "business": { "$ref": "#/definitions/phase_options" },
-        "performance": { "$ref": "#/definitions/phase_options" }
+        "performance": { "$ref": "#/definitions/phase_options" },
+        "tidiness": { "$ref": "#/definitions/phase_options" },
+        "security": { "$ref": "#/definitions/phase_options" },
+        "measures": { "$ref": "#/definitions/phase_options" },
+        "proto": { "$ref": "#/definitions/phase_options" }
       },
       "additionalProperties": { "$ref": "#/definitions/phase_options" }
     }

@@ -88,6 +88,10 @@ func testArchitectureResponse(t *testing.T, severity string, authority auditv1.A
 }
 
 func testArchitectureResponseWithClass(t *testing.T, severity string, authority auditv1.AuthorityConfidence, class cartosharedv1.FindingClass) *scenariovalidationv1.ValidateScenarioResponse {
+	return testArchitectureResponseWithTypeAndClass(t, "proto.gen_out_of_sync", severity, authority, class)
+}
+
+func testArchitectureResponseWithTypeAndClass(t *testing.T, findingType, severity string, authority auditv1.AuthorityConfidence, class cartosharedv1.FindingClass) *scenariovalidationv1.ValidateScenarioResponse {
 	t.Helper()
 	detail, err := anypb.New(&auditv1.AuditRunResponse{
 		Scenario:            "demo",
@@ -104,7 +108,7 @@ func testArchitectureResponseWithClass(t *testing.T, severity string, authority 
 			}},
 		}},
 		Findings: []*auditv1.ConflictSummary{{
-			Type:         "proto.gen_out_of_sync",
+			Type:         findingType,
 			Severity:     cartosharedv1.Severity_SEVERITY_BLOCKER,
 			Locations:    []string{"packages/proto/gen"},
 			FindingClass: class,
@@ -348,5 +352,43 @@ func TestArchitectureGateOffKeepsHighConfidenceBlockersAdvisory(t *testing.T) {
 	}
 	if got.Summary.GateMode != "off" {
 		t.Fatalf("gate mode = %q, want off", got.Summary.GateMode)
+	}
+}
+
+func TestArchitectureGateKeepsIntentFindingsAdvisoryByDefault(t *testing.T) {
+	prevResolve, prevClient := ResolveBaseURL, NewClient
+	ResolveBaseURL = func(context.Context, string) (string, error) { return "http://provider", nil }
+	NewClient = func(time.Duration, string) Client {
+		return fakeClient{resp: testArchitectureResponseWithTypeAndClass(t, "intent.req_unowned_domain", "SEVERITY_BLOCKER", auditv1.AuthorityConfidence_AUTHORITY_CONFIDENCE_HIGH, cartosharedv1.FindingClass_FINDING_CLASS_DETERMINISTIC)}
+	}
+	t.Cleanup(func() { ResolveBaseURL, NewClient = prevResolve, prevClient })
+	t.Setenv("TEST_GENIE_ARCHITECTURE_GATE", "")
+	t.Setenv("INTENT_ALIGNMENT_GATE", "")
+
+	got := Run(context.Background(), testArchitectureProvider(), "demo")
+	if !got.Success {
+		t.Fatalf("default intent gate should keep deterministic intent findings advisory: %v", got.Error)
+	}
+	if got.Summary.GatedBlockers != 0 {
+		t.Fatalf("gated blockers = %d, want 0", got.Summary.GatedBlockers)
+	}
+}
+
+func TestArchitectureGateStrictIntentFindingsGate(t *testing.T) {
+	prevResolve, prevClient := ResolveBaseURL, NewClient
+	ResolveBaseURL = func(context.Context, string) (string, error) { return "http://provider", nil }
+	NewClient = func(time.Duration, string) Client {
+		return fakeClient{resp: testArchitectureResponseWithTypeAndClass(t, "intent.req_unowned_domain", "SEVERITY_BLOCKER", auditv1.AuthorityConfidence_AUTHORITY_CONFIDENCE_HIGH, cartosharedv1.FindingClass_FINDING_CLASS_DETERMINISTIC)}
+	}
+	t.Cleanup(func() { ResolveBaseURL, NewClient = prevResolve, prevClient })
+	t.Setenv("TEST_GENIE_ARCHITECTURE_GATE", "")
+	t.Setenv("INTENT_ALIGNMENT_GATE", "strict")
+
+	got := Run(context.Background(), testArchitectureProvider(), "demo")
+	if got.Success {
+		t.Fatal("strict intent gate should fail deterministic intent blockers")
+	}
+	if got.Summary.GatedBlockers != 1 {
+		t.Fatalf("gated blockers = %d, want 1", got.Summary.GatedBlockers)
 	}
 }

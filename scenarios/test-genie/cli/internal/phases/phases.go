@@ -19,9 +19,7 @@ type Descriptor struct {
 }
 
 // allowedPhaseNames returns the canonical phase set the planner understands,
-// derived from the test-genie catalog (the single source of truth). The "e2e"
-// alias is resolved via NormalizeAlias before membership checks, so it need not
-// appear in this set.
+// derived from the test-genie catalog (the single source of truth).
 func allowedPhaseNames() []string {
 	return catalog.ValidPhaseNames()
 }
@@ -53,7 +51,6 @@ func NormalizeSelection(phases []string) ([]string, error) {
 		if normalizedName == "" {
 			continue
 		}
-		normalizedName = NormalizeAlias(normalizedName)
 		if _, exists := allowed[normalizedName]; !exists {
 			return nil, fmt.Errorf("unknown phase '%s' (allowed: %s)", phase, strings.Join(allowedNames, ","))
 		}
@@ -72,7 +69,7 @@ func NamesFromDescriptors(descriptors []Descriptor) []string {
 	var names []string
 	seen := make(map[string]struct{}, len(descriptors))
 	for _, desc := range descriptors {
-		name := NormalizeAlias(NormalizeName(desc.Name))
+		name := NormalizeName(desc.Name)
 		if name == "" {
 			continue
 		}
@@ -93,7 +90,7 @@ func ApplySkip(phases, skip []string) []string {
 	}
 	skipSet := make(map[string]struct{}, len(skip))
 	for _, s := range skip {
-		name := NormalizeAlias(NormalizeName(s))
+		name := NormalizeName(s)
 		if name == "" {
 			continue
 		}
@@ -103,7 +100,7 @@ func ApplySkip(phases, skip []string) []string {
 	seen := make(map[string]struct{}, len(phases))
 	var filtered []string
 	for _, phase := range phases {
-		name := NormalizeAlias(NormalizeName(phase))
+		name := NormalizeName(phase)
 		if name == "" {
 			continue
 		}
@@ -126,7 +123,7 @@ func dedupeNormalized(phases []string) []string {
 	seen := make(map[string]struct{}, len(phases))
 	var result []string
 	for _, phase := range phases {
-		name := NormalizeAlias(NormalizeName(phase))
+		name := NormalizeName(phase)
 		if name == "" {
 			continue
 		}
@@ -141,17 +138,7 @@ func dedupeNormalized(phases []string) []string {
 
 // NormalizeName lowercases and trims a phase name.
 func NormalizeName(name string) string {
-	return strings.ToLower(strings.TrimSpace(name))
-}
-
-// NormalizeAlias maps phase aliases to canonical names.
-func NormalizeAlias(name string) string {
-	switch name {
-	case "e2e":
-		return "playbooks"
-	default:
-		return name
-	}
+	return catalog.NormalizeKey(name)
 }
 
 // MakeDescriptorMaps builds lookup maps from phase descriptors.
@@ -159,7 +146,7 @@ func MakeDescriptorMaps(descriptors []Descriptor) (map[string]Descriptor, map[st
 	descMap := make(map[string]Descriptor, len(descriptors))
 	targets := make(map[string]time.Duration, len(descriptors))
 	for _, desc := range descriptors {
-		key := strings.ToLower(strings.TrimSpace(desc.Name))
+		key := NormalizeName(desc.Name)
 		if key == "" {
 			continue
 		}

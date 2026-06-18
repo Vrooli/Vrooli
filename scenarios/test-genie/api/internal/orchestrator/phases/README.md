@@ -63,8 +63,8 @@ spec, ok := catalog.Lookup("unit")
 // Get all phases for API responses
 descriptors := catalog.Descriptors()
 
-// Get phase ordering weight
-weight, ok := catalog.Weight(phases.Unit)
+// Get phase registration order
+order, ok := catalog.Order(phases.Unit)
 ```
 
 ## Runner Contract

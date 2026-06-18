@@ -284,15 +284,7 @@ func ParseSummary(raw string) (*ViolationSummary, error) {
 
 // NormalizeSeverity collapses casing variants to the canonical lowercase form.
 func NormalizeSeverity(raw string) string {
-	sev := strings.ToLower(strings.TrimSpace(raw))
-	switch sev {
-	case "critical", "high", "medium", "low", "info":
-		return sev
-	case "informational":
-		return "info"
-	default:
-		return ""
-	}
+	return shared.NormalizeAuditorSeverity(raw)
 }
 
 func firstNonEmpty(values ...string) string {

@@ -39,13 +39,6 @@ func containsArg(args []string, target string) bool {
 	return false
 }
 
-func maxInt(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 // ParseJSON parses JSON from a string into a target value.
 // This is the standard helper for parsing JSON across phases.
 func ParseJSON(data string, v interface{}) error {

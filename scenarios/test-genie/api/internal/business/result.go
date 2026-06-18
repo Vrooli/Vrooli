@@ -80,6 +80,51 @@ type RunResult struct {
 	Index *reqparsing.ModuleIndex
 }
 
+// Succeeded reports whether the runner completed without validation failure.
+func (r *RunResult) Succeeded() bool {
+	return r != nil && r.Success
+}
+
+// Err returns the first runner error, if any.
+func (r *RunResult) Err() error {
+	if r == nil {
+		return nil
+	}
+	return r.Error
+}
+
+// Failure returns the standardized failure category.
+func (r *RunResult) Failure() FailureClass {
+	if r == nil {
+		return FailureClassSystem
+	}
+	return r.FailureClass
+}
+
+// RemediationText returns human-readable remediation guidance.
+func (r *RunResult) RemediationText() string {
+	if r == nil {
+		return ""
+	}
+	return r.Remediation
+}
+
+// ObservationList returns runner observations.
+func (r *RunResult) ObservationList() []Observation {
+	if r == nil {
+		return nil
+	}
+	return r.Observations
+}
+
+// SummaryText returns the runner summary as display text.
+func (r *RunResult) SummaryText() string {
+	if r == nil {
+		return ""
+	}
+	return r.Summary.String()
+}
+
 // ValidationSummary tracks validation counts by category.
 type ValidationSummary struct {
 	ModulesFound      int

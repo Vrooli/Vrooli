@@ -68,7 +68,7 @@ func firstNonEmpty(values ...string) string {
 // records the verdict reason/remediation so downstream surfaces (CLI printer,
 // requirements sync, the report JSON) can explain the skip honestly.
 func (o *SuiteOrchestrator) newSkippedPhaseResult(def phases.Definition, runLogDir string, v runnability.Verdict) PhaseExecutionResult {
-	logPath := filepath.Join(runLogDir, def.Name.String()+".log")
+	logPath := phaseLogPath(runLogDir, def.Name)
 	if f, err := os.Create(logPath); err == nil {
 		fmt.Fprintf(f, "[SKIP] %s\n", v.Reason)
 		if strings.TrimSpace(v.Remediation) != "" {
@@ -121,17 +121,14 @@ func annotatePhaseRunnability(result *PhaseExecutionResult, v runnability.Verdic
 // otherwise a non-optional skip degrades the run to PARTIAL; an optional skip
 // stays PASS.
 func computeSuiteVerdict(results []PhaseExecutionResult, defs []phases.Definition) string {
-	optional := make(map[string]bool, len(defs))
-	for _, d := range defs {
-		optional[d.Name.Key()] = d.Optional
-	}
+	optional := optionalLookup(defs)
 	partial := false
 	for _, r := range results {
-		switch strings.ToLower(strings.TrimSpace(r.Status)) {
-		case phaseStatusFailed:
+		if strings.ToLower(strings.TrimSpace(r.Status)) == phaseStatusFailed {
 			return SuiteVerdictFail
-		case phaseStatusSkipped:
-			if !optional[normalizePhaseName(r.Name)] {
+		}
+		if isSkippedPhaseStatus(r.Status) {
+			if !optional[phases.NormalizeKey(r.Name)] {
 				partial = true
 			}
 		}
@@ -140,4 +137,12 @@ func computeSuiteVerdict(results []PhaseExecutionResult, defs []phases.Definitio
 		return SuiteVerdictPartial
 	}
 	return SuiteVerdictPass
+}
+
+func optionalLookup(defs []phases.Definition) map[string]bool {
+	optional := make(map[string]bool, len(defs))
+	for _, def := range defs {
+		optional[def.Name.Key()] = def.Optional
+	}
+	return optional
 }

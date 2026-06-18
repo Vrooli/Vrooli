@@ -35,7 +35,7 @@ class ListAIOperationsResponse(_message.Message):
     def __init__(self, operations: _Optional[_Iterable[_Union[AIOperationInfo, _Mapping]]] = ...) -> None: ...
 
 class AIParams(_message.Message):
-    __slots__ = ("prompt", "negative_prompt", "seed", "width", "height", "steps", "cfg_scale", "variations", "strength", "scale", "model_override", "allow_byok", "auto_scan_nsfw")
+    __slots__ = ("prompt", "negative_prompt", "seed", "width", "height", "steps", "cfg_scale", "variations", "strength", "scale", "model_override", "allow_byok", "auto_scan_nsfw", "realism", "face_aware")
     PROMPT_FIELD_NUMBER: _ClassVar[int]
     NEGATIVE_PROMPT_FIELD_NUMBER: _ClassVar[int]
     SEED_FIELD_NUMBER: _ClassVar[int]
@@ -49,6 +49,8 @@ class AIParams(_message.Message):
     MODEL_OVERRIDE_FIELD_NUMBER: _ClassVar[int]
     ALLOW_BYOK_FIELD_NUMBER: _ClassVar[int]
     AUTO_SCAN_NSFW_FIELD_NUMBER: _ClassVar[int]
+    REALISM_FIELD_NUMBER: _ClassVar[int]
+    FACE_AWARE_FIELD_NUMBER: _ClassVar[int]
     prompt: str
     negative_prompt: str
     seed: int
@@ -62,7 +64,9 @@ class AIParams(_message.Message):
     model_override: str
     allow_byok: bool
     auto_scan_nsfw: bool
-    def __init__(self, prompt: _Optional[str] = ..., negative_prompt: _Optional[str] = ..., seed: _Optional[int] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., steps: _Optional[int] = ..., cfg_scale: _Optional[float] = ..., variations: _Optional[int] = ..., strength: _Optional[float] = ..., scale: _Optional[int] = ..., model_override: _Optional[str] = ..., allow_byok: _Optional[bool] = ..., auto_scan_nsfw: _Optional[bool] = ...) -> None: ...
+    realism: float
+    face_aware: bool
+    def __init__(self, prompt: _Optional[str] = ..., negative_prompt: _Optional[str] = ..., seed: _Optional[int] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., steps: _Optional[int] = ..., cfg_scale: _Optional[float] = ..., variations: _Optional[int] = ..., strength: _Optional[float] = ..., scale: _Optional[int] = ..., model_override: _Optional[str] = ..., allow_byok: _Optional[bool] = ..., auto_scan_nsfw: _Optional[bool] = ..., realism: _Optional[float] = ..., face_aware: _Optional[bool] = ...) -> None: ...
 
 class SubmitAIResponse(_message.Message):
     __slots__ = ("job_id", "estimated_seconds", "model_id", "tier", "warnings")

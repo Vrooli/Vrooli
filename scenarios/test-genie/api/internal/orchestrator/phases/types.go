@@ -3,9 +3,9 @@ package phases
 import (
 	"context"
 	"io"
-	"strings"
 	"time"
 
+	"test-genie/internal/orchestrator/phasekeys"
 	"test-genie/internal/orchestrator/runnability"
 	"test-genie/internal/orchestrator/workspace"
 
@@ -59,6 +59,7 @@ type Descriptor struct {
 	Source                string `json:"source"`
 	DefaultTimeoutSeconds int    `json:"defaultTimeoutSeconds,omitempty"`
 	DocPath               string `json:"docPath,omitempty"`
+	SkipEnvVar            string `json:"skipEnvVar,omitempty"`
 }
 
 // Observation represents a single test observation with optional rich formatting.
@@ -183,6 +184,9 @@ type Definition struct {
 	Runner   Runner
 	Timeout  time.Duration
 	Optional bool
+	// SkipEnvVar is the catalog-owned environment switch that disables this
+	// phase during selection. Runners must not inspect it.
+	SkipEnvVar string
 	// Capabilities is the phase's runnability contract (surfaces, lifecycle
 	// mutation, DB isolation, resources). Sourced from the catalog Spec; the
 	// runnability gate reads it to decide RUN/RUN_DEGRADED/SKIP.
@@ -200,9 +204,12 @@ type Spec struct {
 	Runner         Runner
 	Optional       bool
 	DefaultTimeout time.Duration
-	Weight         int
-	Description    string
-	Source         string
+	// SkipEnvVar is the externally-observable environment switch that disables
+	// this phase before runnability or execution. Empty values are derived from
+	// the phase name at catalog registration.
+	SkipEnvVar  string
+	Description string
+	Source      string
 	// Doc is the repo-relative documentation path for the phase. When empty at
 	// registration it is auto-derived by convention, keeping doc lookups in
 	// lockstep with the catalog instead of a separate hand-maintained map.
@@ -217,6 +224,10 @@ type Spec struct {
 	// stamps the lower-case token onto each ExecutionResult so a downstream
 	// campaign reaudit can derive which sources a partial run actually covered.
 	FindingSource architecturev1.FindingSource
+	// Delegated is present when the phase delegates to another scenario through
+	// ScenarioValidationService. It is catalog-owned metadata, not a second
+	// provider registry.
+	Delegated *Delegated
 }
 
 // ExecutionResult captures per-phase outcome information.
@@ -250,11 +261,16 @@ type ExecutionResult struct {
 
 // NormalizeName standardizes arbitrary input into a canonical Name.
 func NormalizeName(raw string) (Name, bool) {
-	normalized := Name(strings.ToLower(strings.TrimSpace(raw)))
+	normalized := Name(NormalizeKey(raw))
 	if normalized == "" {
 		return "", false
 	}
 	return normalized, true
+}
+
+// NormalizeKey standardizes arbitrary input into a canonical phase key.
+func NormalizeKey(raw string) string {
+	return phasekeys.NormalizeKey(raw)
 }
 
 // String returns the canonical lowercase phase name.
@@ -264,7 +280,7 @@ func (n Name) String() string {
 
 // Key returns a safe map key for the phase.
 func (n Name) Key() string {
-	return strings.ToLower(strings.TrimSpace(n.String()))
+	return NormalizeKey(n.String())
 }
 
 // IsZero reports whether the name is empty.

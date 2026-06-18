@@ -55,6 +55,15 @@ func overrideScenarioAuditorBaseURL(url string, err error) func() {
 	return func() { resolveScenarioAuditorBaseURL = prev }
 }
 
+func runStandardsForTest(t *testing.T, ctx context.Context, env workspace.Environment) RunReport {
+	t.Helper()
+	spec, ok := DefaultCatalog().Lookup(Standards.String())
+	if !ok {
+		t.Fatal("standards phase missing from catalog")
+	}
+	return spec.Runner(ctx, env, io.Discard)
+}
+
 func TestRunStandardsPhaseFailsOnHighWhenFailOnHigh(t *testing.T) {
 	root := t.TempDir()
 	scenarioDir := createScenarioLayout(t, root, "demo")
@@ -85,7 +94,7 @@ func TestRunStandardsPhaseFailsOnHighWhenFailOnHigh(t *testing.T) {
 		ScenarioDir:  scenarioDir,
 		AppRoot:      filepath.Dir(filepath.Dir(scenarioDir)),
 	}
-	report := runStandardsPhase(context.Background(), env, io.Discard)
+	report := runStandardsForTest(t, context.Background(), env)
 	if report.FailureClassification != FailureClassMisconfiguration {
 		t.Fatalf("expected misconfiguration classification, got %s", report.FailureClassification)
 	}
@@ -122,7 +131,7 @@ func TestRunStandardsPhaseFailsMaturityContractWhenAssessmentMissing(t *testing.
 		ScenarioDir:  scenarioDir,
 		AppRoot:      filepath.Dir(filepath.Dir(scenarioDir)),
 	}
-	report := runStandardsPhase(context.Background(), env, io.Discard)
+	report := runStandardsForTest(t, context.Background(), env)
 	if report.FailureClassification != FailureClassMaturityContract {
 		t.Fatalf("expected maturity contract classification, got %s", report.FailureClassification)
 	}
@@ -146,7 +155,7 @@ func TestRunStandardsPhaseHandlesUnavailableScenarioAuditorAPI(t *testing.T) {
 		ScenarioDir:  scenarioDir,
 		AppRoot:      filepath.Dir(filepath.Dir(scenarioDir)),
 	}
-	report := runStandardsPhase(context.Background(), env, io.Discard)
+	report := runStandardsForTest(t, context.Background(), env)
 	if report.FailureClassification != FailureClassMissingDependency {
 		t.Fatalf("expected missing dependency classification, got %s", report.FailureClassification)
 	}
@@ -215,7 +224,7 @@ func TestRunStandardsPhaseClassifiesTimeout(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
 	defer cancel()
-	report := runStandardsPhase(ctx, env, io.Discard)
+	report := runStandardsForTest(t, ctx, env)
 	if report.FailureClassification != FailureClassTimeout {
 		t.Fatalf("expected timeout classification, got %s", report.FailureClassification)
 	}
@@ -255,7 +264,7 @@ func TestRunStandardsPhaseHonorsMinSeverityForDisplay(t *testing.T) {
 		ScenarioDir:  scenarioDir,
 		AppRoot:      filepath.Dir(filepath.Dir(scenarioDir)),
 	}
-	report := runStandardsPhase(context.Background(), env, io.Discard)
+	report := runStandardsForTest(t, context.Background(), env)
 	if report.Err != nil {
 		t.Fatalf("expected pass when fail_on=critical, got err: %v", report.Err)
 	}

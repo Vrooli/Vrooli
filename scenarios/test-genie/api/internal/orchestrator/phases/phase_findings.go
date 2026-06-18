@@ -3,6 +3,8 @@ package phases
 import (
 	"strings"
 
+	"test-genie/internal/shared"
+
 	"github.com/vrooli/vrooli/packages/proto/architecture/findingid"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 )
@@ -24,16 +26,14 @@ import (
 // Inputs may be bare ("error") or proto-style ("SEVERITY_ERROR"); both
 // normalize identically.
 func normalizeFindingSeverity(raw string) architecturev1.FindingSeverity {
-	s := strings.ToUpper(strings.TrimSpace(raw))
-	s = strings.TrimPrefix(s, "SEVERITY_")
-	switch s {
-	case "BLOCKER":
+	switch shared.NormalizeFindingSeverityLabel(raw) {
+	case "blocker":
 		return architecturev1.FindingSeverity_FINDING_SEVERITY_BLOCKER
-	case "ERROR", "FAILURE", "CRITICAL", "HIGH":
+	case "error":
 		return architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR
-	case "WARN", "WARNING", "MEDIUM":
+	case "warning":
 		return architecturev1.FindingSeverity_FINDING_SEVERITY_WARNING
-	case "INFO", "NOTICE", "LOW":
+	case "info":
 		return architecturev1.FindingSeverity_FINDING_SEVERITY_INFO
 	default:
 		return architecturev1.FindingSeverity_FINDING_SEVERITY_UNSPECIFIED

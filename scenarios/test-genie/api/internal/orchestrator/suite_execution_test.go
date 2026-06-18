@@ -149,56 +149,35 @@ esac
 	return scenarioDir
 }
 
-func skipPlaybooksForTests(t *testing.T) {
-	t.Helper()
-	t.Setenv("TEST_GENIE_SKIP_PLAYBOOKS", "1")
-}
-
-func skipStandardsForTests(t *testing.T) {
-	t.Helper()
-	t.Setenv("TEST_GENIE_SKIP_STANDARDS", "1")
-}
-
-func skipDocsForTests(t *testing.T) {
-	t.Helper()
-	t.Setenv("TEST_GENIE_SKIP_DOCS", "1")
-}
-
-func skipArchitectureForTests(t *testing.T) {
-	t.Helper()
-	t.Setenv("TEST_GENIE_SKIP_ARCHITECTURE", "1")
-}
-
 func stubRuntimePhaseRunners(orchestrator *SuiteOrchestrator) {
 	noOp := func(ctx context.Context, env workspacepkg.Environment, logWriter io.Writer) phasespkg.RunReport {
 		return phasespkg.RunReport{}
 	}
+	orchestrator.retentionGC = nil
 	// Provider-backed phases are covered in the phase package. Orchestration
 	// tests replace them so a minimal fake scenario does not depend on live
 	// health-provider APIs.
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Contracts, Runner: noOp, Optional: false, Weight: 10})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.UIHealth, Runner: noOp, Optional: false, Weight: 20})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Architecture, Runner: noOp, Optional: true, Weight: 40})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Dependencies, Runner: noOp, Optional: false, Weight: 50})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Quality, Runner: noOp, Optional: false, Weight: 60})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Docs, Runner: noOp, Optional: false, Weight: 70})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Performance, Runner: noOp, Optional: true, Weight: 80})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Smoke, Runner: noOp, Optional: true, Weight: 90})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Unit, Runner: noOp, Optional: false, Weight: 100})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Integration, Runner: noOp, Weight: 110})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Playbooks, Runner: noOp, Weight: 120})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Tidiness, Runner: noOp, Optional: true, Weight: 140})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Security, Runner: noOp, Optional: true, Weight: 150})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Measures, Runner: noOp, Optional: true, Weight: 160})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Proto, Runner: noOp, Optional: true, Weight: 170})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Contracts, Runner: noOp})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.UIHealth, Runner: noOp})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Standards, Runner: noOp})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Architecture, Runner: noOp, Optional: true})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Dependencies, Runner: noOp})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Quality, Runner: noOp})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Docs, Runner: noOp})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Performance, Runner: noOp, Optional: true})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Smoke, Runner: noOp, Optional: true})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Unit, Runner: noOp})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Integration, Runner: noOp})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Playbooks, Runner: noOp})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Business, Runner: noOp})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Tidiness, Runner: noOp, Optional: true})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Security, Runner: noOp, Optional: true})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Measures, Runner: noOp, Optional: true})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Proto, Runner: noOp, Optional: true})
 }
 
 func TestSuiteOrchestratorExecutesPhases(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] orchestrator runs go-native phases", func(t *testing.T) {
-		skipPlaybooksForTests(t)
-		skipStandardsForTests(t)
-		skipDocsForTests(t)
-		skipArchitectureForTests(t)
 		root := t.TempDir()
 		createScenarioLayout(t, root, "demo")
 		stubCommandLookup(t, func(name string) (string, error) {
@@ -424,10 +403,6 @@ func TestSuiteOrchestratorExecuteCapturesSelectionMetadata(t *testing.T) {
 
 func TestSuiteOrchestratorSyncsRequirementsAfterFullRun(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] full suites trigger requirement sync", func(t *testing.T) {
-		skipPlaybooksForTests(t)
-		skipStandardsForTests(t)
-		skipDocsForTests(t)
-		skipArchitectureForTests(t)
 		root := t.TempDir()
 		createScenarioLayout(t, root, "demo")
 		stubCommandLookup(t, func(name string) (string, error) {
@@ -550,7 +525,6 @@ func TestNewRunIDIsUniqueAndSortable(t *testing.T) {
 
 func TestSuiteOrchestratorFailFastStopsExecution(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] fail-fast halts remaining phases", func(t *testing.T) {
-		skipPlaybooksForTests(t)
 		root := t.TempDir()
 		scenarioDir := createScenarioLayout(t, root, "demo")
 		stubCommandLookup(t, func(name string) (string, error) {
@@ -642,7 +616,6 @@ func TestSuiteOrchestratorPresetFromFile(t *testing.T) {
 
 func TestSuiteOrchestratorRejectsInvalidScenarioNames(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] scenario names are validated", func(t *testing.T) {
-		skipPlaybooksForTests(t)
 		root := t.TempDir()
 		orchestrator, err := NewSuiteOrchestrator(root)
 		if err != nil {
@@ -660,7 +633,6 @@ func TestSuiteOrchestratorRejectsInvalidScenarioNames(t *testing.T) {
 
 func TestSuiteOrchestratorHonorsTestingConfigPhaseToggles(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] testing config disables phases", func(t *testing.T) {
-		skipPlaybooksForTests(t)
 		root := t.TempDir()
 		scenarioDir := createScenarioLayout(t, root, "demo")
 		configPath := filepath.Join(scenarioDir, ".vrooli", "testing.json")
@@ -709,7 +681,6 @@ func TestSuiteOrchestratorHonorsTestingConfigPhaseToggles(t *testing.T) {
 
 func TestSuiteOrchestratorHonorsTestingConfigPresets(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] config presets constrain execution order", func(t *testing.T) {
-		skipPlaybooksForTests(t)
 		root := t.TempDir()
 		scenarioDir := createScenarioLayout(t, root, "demo")
 		configPath := filepath.Join(scenarioDir, ".vrooli", "testing.json")
@@ -754,7 +725,6 @@ func TestSuiteOrchestratorHonorsTestingConfigPresets(t *testing.T) {
 
 func TestSuiteOrchestratorRespectsPhaseTimeoutOverrides(t *testing.T) {
 	t.Run("[REQ:TESTGENIE-ORCH-P0] per-phase timeouts guard against hangs", func(t *testing.T) {
-		skipPlaybooksForTests(t)
 		root := t.TempDir()
 		scenarioDir := createScenarioLayout(t, root, "demo")
 		configPath := filepath.Join(scenarioDir, ".vrooli", "testing.json")
@@ -936,6 +906,67 @@ func TestSelectPhases(t *testing.T) {
 			if def.Name == PhaseDependencies {
 				t.Fatalf("dependency phase should have been skipped")
 			}
+		}
+	})
+
+	t.Run("records skip list notices", func(t *testing.T) {
+		selected, _, notices, err := selectPhases(defs, presets, SuiteExecutionRequest{Skip: []string{"dependencies"}}, PhaseToggleConfig{})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(selected) != 2 {
+			t.Fatalf("expected 2 selected phases, got %d", len(selected))
+		}
+		if len(notices.Skipped) != 1 || notices.Skipped[0].Name != "dependencies" || !notices.Skipped[0].Requested {
+			t.Fatalf("expected requested skip notice for dependencies, got %#v", notices.Skipped)
+		}
+		if warnings := buildPlanWarnings(&phasePlan{DisabledByDefault: notices.Skipped}); len(warnings) != 1 || !strings.Contains(warnings[0], "skipped by request") {
+			t.Fatalf("expected requested skip warning, got %#v", warnings)
+		}
+	})
+
+	t.Run("honors env disabled phases before execution", func(t *testing.T) {
+		t.Setenv("TEST_GENIE_SKIP_UNIT", "1")
+		defsWithEnv := append([]phaseDefinition(nil), defs...)
+		for i := range defsWithEnv {
+			if defsWithEnv[i].Name == PhaseUnit {
+				defsWithEnv[i].SkipEnvVar = "TEST_GENIE_SKIP_UNIT"
+			}
+		}
+		selected, _, notices, err := selectPhases(defsWithEnv, presets, SuiteExecutionRequest{}, PhaseToggleConfig{})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		for _, def := range selected {
+			if def.Name == PhaseUnit {
+				t.Fatalf("unit phase should have been skipped via env before execution")
+			}
+		}
+		if len(notices.Skipped) != 1 || notices.Skipped[0].Name != "unit" || notices.Skipped[0].EnvVar != "TEST_GENIE_SKIP_UNIT" {
+			t.Fatalf("expected env skip notice for unit, got %#v", notices.Skipped)
+		}
+		if warnings := buildPlanWarnings(&phasePlan{DisabledByDefault: notices.Skipped}); len(warnings) != 1 || !strings.Contains(warnings[0], "TEST_GENIE_SKIP_UNIT=1") {
+			t.Fatalf("expected env skip warning, got %#v", warnings)
+		}
+	})
+
+	t.Run("env disabled phase is skipped even when explicit", func(t *testing.T) {
+		t.Setenv("TEST_GENIE_SKIP_UNIT", "1")
+		defsWithEnv := append([]phaseDefinition(nil), defs...)
+		for i := range defsWithEnv {
+			if defsWithEnv[i].Name == PhaseUnit {
+				defsWithEnv[i].SkipEnvVar = "TEST_GENIE_SKIP_UNIT"
+			}
+		}
+		selected, _, notices, err := selectPhases(defsWithEnv, presets, SuiteExecutionRequest{Phases: []string{"unit"}}, PhaseToggleConfig{})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(selected) != 0 {
+			t.Fatalf("expected explicit env-disabled unit to stay unselected, got %#v", selected)
+		}
+		if len(notices.Skipped) != 1 || notices.Skipped[0].EnvVar != "TEST_GENIE_SKIP_UNIT" {
+			t.Fatalf("expected env skip notice, got %#v", notices.Skipped)
 		}
 	})
 

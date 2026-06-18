@@ -52,7 +52,7 @@ func New(
 	descMap, targets := phases.MakeDescriptorMaps(descriptors)
 	disabled := make(map[string]execTypes.PhaseToggle)
 	for name, toggle := range toggles {
-		key := phases.NormalizeAlias(phases.NormalizeName(name))
+		key := phases.NormalizeName(name)
 		if key == "" || !toggle.Disabled {
 			continue
 		}
@@ -242,7 +242,7 @@ func (p *Printer) printPrePlan(phaseNames []string) {
 		timeout := p.timeoutDuration(name)
 		desc := p.lookupPhaseDescription(name)
 		doc := p.phaseDocHint(name)
-		disabled := p.disabled[phases.NormalizeAlias(phases.NormalizeName(name))]
+		disabled := p.disabled[phases.NormalizeName(name)]
 		targetText := ""
 		if target != "" {
 			targetText = fmt.Sprintf("(est ~%s", target)

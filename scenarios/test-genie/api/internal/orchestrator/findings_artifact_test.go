@@ -45,7 +45,7 @@ func TestWriteFindingsArtifact(t *testing.T) {
 	}
 
 	o := &SuiteOrchestrator{}
-	if err := o.writeFindingsArtifact(dir, "web-search", runID, SuiteVerdictFail, completed, results); err != nil {
+	if err := o.writeFindingsArtifact(dir, "web-search", runID, SuiteVerdictFail, completed, buildPhaseResultViews("", results)); err != nil {
 		t.Fatalf("writeFindingsArtifact: %v", err)
 	}
 

@@ -235,7 +235,17 @@ type AIParams struct {
 	AllowByok bool `protobuf:"varint,12,opt,name=allow_byok,json=allowByok,proto3" json:"allow_byok,omitempty"`
 	// AutoScanNsfw runs an NSFW classification on the generated output and records
 	// the verdict with the job. Off by default.
-	AutoScanNsfw  bool `protobuf:"varint,13,opt,name=auto_scan_nsfw,json=autoScanNsfw,proto3" json:"auto_scan_nsfw,omitempty"`
+	AutoScanNsfw bool `protobuf:"varint,13,opt,name=auto_scan_nsfw,json=autoScanNsfw,proto3" json:"auto_scan_nsfw,omitempty"`
+	// Realism is the naturalize fidelity↔realism knob 0..1: how much micro-texture,
+	// local contrast, and film-grain to reintroduce into an over-smoothed
+	// (restored/upscaled) image. 0/unset = a gentle default; 1 = maximum texture.
+	// Only the naturalize op reads it.
+	Realism float64 `protobuf:"fixed64,14,opt,name=realism,proto3" json:"realism,omitempty"`
+	// FaceAware biases naturalize's texture/grain toward midtone regions (where
+	// skin sits) so faces de-plasticize more than flat backgrounds. A deterministic
+	// luminance-band heuristic, not face detection (which lands with the segment /
+	// face_restore ops in a later phase). Only the naturalize op reads it.
+	FaceAware     bool `protobuf:"varint,15,opt,name=face_aware,json=faceAware,proto3" json:"face_aware,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -361,6 +371,20 @@ func (x *AIParams) GetAutoScanNsfw() bool {
 	return false
 }
 
+func (x *AIParams) GetRealism() float64 {
+	if x != nil {
+		return x.Realism
+	}
+	return 0
+}
+
+func (x *AIParams) GetFaceAware() bool {
+	if x != nil {
+		return x.FaceAware
+	}
+	return false
+}
+
 // SubmitAIResponse is the protojson body returned by the REST submit edge. The
 // op runs asynchronously; this carries the durable job's id + initial ETA plus
 // the selection verdict so the caller can surface the chosen model/tier and any
@@ -464,7 +488,7 @@ const file_image_tools_v1_ai_ai_proto_rawDesc = "" +
 	"\x18ListAIOperationsResponse\x12I\n" +
 	"\n" +
 	"operations\x18\x01 \x03(\v2).vrooli.image_tools.v1.ai.AIOperationInfoR\n" +
-	"operations\"\xfe\x02\n" +
+	"operations\"\xb7\x03\n" +
 	"\bAIParams\x12\x16\n" +
 	"\x06prompt\x18\x01 \x01(\tR\x06prompt\x12'\n" +
 	"\x0fnegative_prompt\x18\x02 \x01(\tR\x0enegativePrompt\x12\x12\n" +
@@ -482,7 +506,10 @@ const file_image_tools_v1_ai_ai_proto_rawDesc = "" +
 	"\x0emodel_override\x18\v \x01(\tR\rmodelOverride\x12\x1d\n" +
 	"\n" +
 	"allow_byok\x18\f \x01(\bR\tallowByok\x12$\n" +
-	"\x0eauto_scan_nsfw\x18\r \x01(\bR\fautoScanNsfw\"\xa1\x01\n" +
+	"\x0eauto_scan_nsfw\x18\r \x01(\bR\fautoScanNsfw\x12\x18\n" +
+	"\arealism\x18\x0e \x01(\x01R\arealism\x12\x1d\n" +
+	"\n" +
+	"face_aware\x18\x0f \x01(\bR\tfaceAware\"\xa1\x01\n" +
 	"\x10SubmitAIResponse\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12+\n" +
 	"\x11estimated_seconds\x18\x02 \x01(\x05R\x10estimatedSeconds\x12\x19\n" +

@@ -97,6 +97,10 @@ func severityName(s architecturev1.FindingSeverity) string {
 // tri-state suite outcome (PASS/PARTIAL/FAIL); artifactPath is the
 // scenario-relative findings.json the nudge command points at.
 func computeCampaignNudge(scenario, verdict, artifactPath string, phaseResults []phases.ExecutionResult) *CampaignNudge {
+	return computeCampaignNudgeFromViews(scenario, verdict, artifactPath, buildPhaseResultViews("", phaseResults))
+}
+
+func computeCampaignNudgeFromViews(scenario, verdict, artifactPath string, phaseResults []phaseResultView) *CampaignNudge {
 	bySeverity := map[string]int{}
 	total := 0
 	for _, p := range phaseResults {

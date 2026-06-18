@@ -12,6 +12,14 @@ not documented below.
 |---|---|---|---|---|
 | `Resolver` | `orchestrator/runnability/runnability.go` (`Resolver` interface) | `runnability.StandardResolver` (`orchestrator/runnability/resolver.go`) | `mocks.FakeResolver` (`orchestrator/runnability/mocks/resolver.go`) | The single per-phase RUN/RUN_DEGRADED/SKIP decision: `PhaseCapabilities × RunContext → Verdict`. Absorbs the old `runtimeNeeds` switch, the `EnsureRunning` self-clobber, the playbooks routed-vs-fallback `PathDecision`, and the requirements skip vocabulary. Pure; exhaustively unit-tested. |
 
+## Phase execution
+
+| Seam | Declaration | Production impl | Test double | Why |
+|---|---|---|---|---|
+| `StandardRunResult` | `orchestrator/phases/executor.go` (`StandardRunResult` interface) | Native runner result types: `shared.RunResult[T]` aliases plus `business.RunResult` | `RunNativePhase` unit tests use lightweight fake implementations | The native phase result contract. Structure, performance, integration, and business phases expose the same success/error/failure/remediation/observations/summary shape, so report assembly and phase-pointer writing live once in `RunNativePhase`. |
+| `DelegatedClient` | `orchestrator/phases/phase_validationprovider.go` (`DelegatedClient` type) | Default client calls `ScenarioValidationService`; standards uses `standardsDelegatedClient` for scenario-auditor's standards API | Standards phase tests override the scenario-auditor base URL and execute through the catalog runner | Keeps every delegated phase on the same provider result, finding, summary, and pointer-writing path while allowing a provider-specific client only when the provider does not expose `ScenarioValidationService`. |
+| `MergePresets` | `orchestrator/phases/presets.go` (`MergePresets`) | Orchestrator `loadPresets` supplies file/testing.json/default preset maps and the available-phase set | `TestMergePresetsPrecedenceAndFiltering` pins replacement, deletion, filtering, and default fill behavior | Keeps preset precedence beside the catalog-owned preset declarations so selection does not carry a second preset policy. |
+
 ## UI smoke (BAS workflow capture)
 
 | Seam | Declaration | Production impl | Test double | Why |

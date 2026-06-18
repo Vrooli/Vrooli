@@ -83,6 +83,59 @@ func DefaultPresets() map[string][]string {
 	return out
 }
 
+// MergePresets applies test-genie's preset precedence in one catalog-adjacent
+// place: file overrides first, testing.json overrides next, then defaults fill
+// missing presets. Every phase name is normalized and filtered to allowed.
+func MergePresets(defaults, fileOverrides, configOverrides map[string][]string, allowed map[string]struct{}) map[string][]string {
+	presets := make(map[string][]string)
+	applyPresets := func(source map[string][]string, allowDelete bool, replace bool) {
+		for key, phaseNames := range source {
+			name := NormalizeKey(key)
+			if name == "" {
+				continue
+			}
+			filtered := filterPresetPhases(phaseNames, allowed)
+			if len(filtered) == 0 {
+				if allowDelete {
+					delete(presets, name)
+				}
+				continue
+			}
+			if _, exists := presets[name]; exists && !replace {
+				continue
+			}
+			presets[name] = filtered
+		}
+	}
+	applyPresets(fileOverrides, false, true)
+	applyPresets(configOverrides, true, true)
+	applyPresets(defaults, false, false)
+	return presets
+}
+
+func filterPresetPhases(phaseNames []string, allowed map[string]struct{}) []string {
+	if len(phaseNames) == 0 || len(allowed) == 0 {
+		return nil
+	}
+	var filtered []string
+	seen := make(map[string]struct{}, len(phaseNames))
+	for _, phase := range phaseNames {
+		normalized := NormalizeKey(phase)
+		if normalized == "" {
+			continue
+		}
+		if _, exists := allowed[normalized]; !exists {
+			continue
+		}
+		if _, present := seen[normalized]; present {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		filtered = append(filtered, normalized)
+	}
+	return filtered
+}
+
 // ValidatePresets ensures every phase referenced by a curated preset resolves in
 // the supplied catalog. A non-nil catalog is required; passing nil falls back to
 // the default catalog. It returns an error naming the first offending phase so

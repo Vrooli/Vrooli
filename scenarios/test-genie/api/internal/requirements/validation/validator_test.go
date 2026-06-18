@@ -7,9 +7,25 @@ import (
 	"strings"
 	"testing"
 
+	intent "intent-go"
 	"test-genie/internal/requirements/parsing"
 	"test-genie/internal/requirements/types"
 )
+
+type parsedRefForTest struct {
+	FilePath string
+	Symbol   string
+	Raw      string
+}
+
+func ParseRef(ref string) parsedRefForTest {
+	normalized := intent.NormalizeRef(ref, "test")
+	return parsedRefForTest{
+		FilePath: normalized.Path,
+		Symbol:   normalized.Member,
+		Raw:      normalized.Raw,
+	}
+}
 
 // memReader implements Reader for testing.
 type memReader struct {
@@ -173,7 +189,7 @@ func TestDefaultRules(t *testing.T) {
 		"duplicate_id",
 		"missing_id",
 		"missing_title",
-		"invalid_reference",
+		intent.CodeRefMissing,
 		"cycle_detection",
 		"orphaned_child",
 		"invalid_status",
@@ -568,18 +584,18 @@ func TestParseRef_SingleColonNotSeparator(t *testing.T) {
 }
 
 // =============================================================================
-// InvalidReferenceRule Tests
+// RefExistsRule Tests
 // =============================================================================
 
-func TestInvalidReferenceRule_Name(t *testing.T) {
-	rule := &InvalidReferenceRule{}
-	if rule.Name() != "invalid_reference" {
-		t.Errorf("expected name 'invalid_reference', got: %s", rule.Name())
+func TestRefExistsRule_Name(t *testing.T) {
+	rule := &RefExistsRule{}
+	if rule.Name() != intent.CodeRefMissing {
+		t.Errorf("expected name %q, got: %s", intent.CodeRefMissing, rule.Name())
 	}
 }
 
-func TestInvalidReferenceRule_Check_NoScenarioRoot(t *testing.T) {
-	rule := &InvalidReferenceRule{}
+func TestRefExistsRule_Check_NoScenarioRoot(t *testing.T) {
+	rule := &RefExistsRule{}
 
 	index := parsing.NewModuleIndex()
 	module := &types.RequirementModule{
@@ -604,8 +620,8 @@ func TestInvalidReferenceRule_Check_NoScenarioRoot(t *testing.T) {
 	}
 }
 
-func TestInvalidReferenceRule_Check_ValidReference(t *testing.T) {
-	rule := &InvalidReferenceRule{}
+func TestRefExistsRule_Check_ValidReference(t *testing.T) {
+	rule := &RefExistsRule{}
 	reader := newMemReader()
 	reader.AddFile("/test/scenario/test.spec.ts", []byte("test content"))
 
@@ -631,8 +647,8 @@ func TestInvalidReferenceRule_Check_ValidReference(t *testing.T) {
 	}
 }
 
-func TestInvalidReferenceRule_Check_InvalidReference(t *testing.T) {
-	rule := &InvalidReferenceRule{}
+func TestRefExistsRule_Check_InvalidReference(t *testing.T) {
+	rule := &RefExistsRule{}
 	reader := newMemReader()
 	// Don't add the file - simulating missing reference
 
@@ -656,13 +672,16 @@ func TestInvalidReferenceRule_Check_InvalidReference(t *testing.T) {
 	if len(issues) != 1 {
 		t.Errorf("expected 1 issue for invalid reference, got: %d", len(issues))
 	}
-	if len(issues) > 0 && issues[0].Severity != types.SeverityWarning {
-		t.Errorf("expected warning severity, got: %s", issues[0].Severity)
+	if len(issues) > 0 && issues[0].Severity != types.SeverityError {
+		t.Errorf("expected error severity, got: %s", issues[0].Severity)
+	}
+	if len(issues) > 0 && issues[0].Rule != intent.CodeRefMissing {
+		t.Errorf("expected rule %q, got: %s", intent.CodeRefMissing, issues[0].Rule)
 	}
 }
 
-func TestInvalidReferenceRule_Check_ManualValidationSkipped(t *testing.T) {
-	rule := &InvalidReferenceRule{}
+func TestRefExistsRule_Check_ManualValidationSkipped(t *testing.T) {
+	rule := &RefExistsRule{}
 	reader := newMemReader()
 	// Don't add the file
 
@@ -689,8 +708,8 @@ func TestInvalidReferenceRule_Check_ManualValidationSkipped(t *testing.T) {
 	}
 }
 
-func TestInvalidReferenceRule_Check_EmptyRef(t *testing.T) {
-	rule := &InvalidReferenceRule{}
+func TestRefExistsRule_Check_EmptyRef(t *testing.T) {
+	rule := &RefExistsRule{}
 	reader := newMemReader()
 
 	index := parsing.NewModuleIndex()
@@ -716,8 +735,8 @@ func TestInvalidReferenceRule_Check_EmptyRef(t *testing.T) {
 	}
 }
 
-func TestInvalidReferenceRule_Check_AlternativePaths(t *testing.T) {
-	rule := &InvalidReferenceRule{}
+func TestRefExistsRule_Check_AlternativePaths(t *testing.T) {
+	rule := &RefExistsRule{}
 	reader := newMemReader()
 	// File exists in ui/ subdirectory
 	reader.AddFile("/test/scenario/ui/test.spec.ts", []byte("test content"))
@@ -745,9 +764,9 @@ func TestInvalidReferenceRule_Check_AlternativePaths(t *testing.T) {
 	}
 }
 
-func TestInvalidReferenceRule_Check_RefWithSymbol(t *testing.T) {
+func TestRefExistsRule_Check_RefWithSymbol(t *testing.T) {
 	// Test that refs with :: symbol separator work correctly
-	rule := &InvalidReferenceRule{}
+	rule := &RefExistsRule{}
 	reader := newMemReader()
 	reader.AddFile("/test/scenario/api/internal/handlers/handlers_test.go", []byte("package handlers\n\nfunc TestHealthHandler(t *testing.T) {}"))
 
@@ -778,9 +797,9 @@ func TestInvalidReferenceRule_Check_RefWithSymbol(t *testing.T) {
 	}
 }
 
-func TestInvalidReferenceRule_Check_BatsRefWithTestName(t *testing.T) {
+func TestRefExistsRule_Check_BatsRefWithTestName(t *testing.T) {
 	// Test BATS test refs with test names containing spaces
-	rule := &InvalidReferenceRule{}
+	rule := &RefExistsRule{}
 	reader := newMemReader()
 	reader.AddFile("/test/scenario/bas/cases/health-check/api/health_endpoint.bats", []byte("@test \"health endpoint returns 200 OK\" {}"))
 
@@ -810,9 +829,9 @@ func TestInvalidReferenceRule_Check_BatsRefWithTestName(t *testing.T) {
 	}
 }
 
-func TestInvalidReferenceRule_Check_RefWithSymbol_FileMissing(t *testing.T) {
+func TestRefExistsRule_Check_RefWithSymbol_FileMissing(t *testing.T) {
 	// Test that missing files are still detected even with :: symbol
-	rule := &InvalidReferenceRule{}
+	rule := &RefExistsRule{}
 	reader := newMemReader()
 	// Don't add the file
 
@@ -849,9 +868,9 @@ func TestInvalidReferenceRule_Check_RefWithSymbol_FileMissing(t *testing.T) {
 	}
 }
 
-func TestInvalidReferenceRule_Check_MalformedRef_NoFilePath(t *testing.T) {
+func TestRefExistsRule_Check_MalformedRef_NoFilePath(t *testing.T) {
 	// Test malformed ref with no file path (only ::symbol)
-	rule := &InvalidReferenceRule{}
+	rule := &RefExistsRule{}
 	reader := newMemReader()
 
 	index := parsing.NewModuleIndex()
@@ -882,9 +901,9 @@ func TestInvalidReferenceRule_Check_MalformedRef_NoFilePath(t *testing.T) {
 	}
 }
 
-func TestInvalidReferenceRule_Check_MultipleRefsWithSymbols(t *testing.T) {
+func TestRefExistsRule_Check_MultipleRefsWithSymbols(t *testing.T) {
 	// Test multiple refs in same requirement, some with symbols, some without
-	rule := &InvalidReferenceRule{}
+	rule := &RefExistsRule{}
 	reader := newMemReader()
 	reader.AddFile("/test/scenario/api/handlers_test.go", []byte("test"))
 	reader.AddFile("/test/scenario/api/service_test.go", []byte("test"))
@@ -919,9 +938,9 @@ func TestInvalidReferenceRule_Check_MultipleRefsWithSymbols(t *testing.T) {
 	}
 }
 
-func TestInvalidReferenceRule_Check_AlternativePathsWithSymbol(t *testing.T) {
+func TestRefExistsRule_Check_AlternativePathsWithSymbol(t *testing.T) {
 	// Test that alternative paths work with symbol refs
-	rule := &InvalidReferenceRule{}
+	rule := &RefExistsRule{}
 	reader := newMemReader()
 	// File exists in api/ subdirectory
 	reader.AddFile("/test/scenario/api/handlers_test.go", []byte("test"))
@@ -1199,9 +1218,9 @@ func TestValidator_IntegrationTest(t *testing.T) {
 		t.Error("expected warnings")
 	}
 
-	// Should have warnings for: missing title, invalid status, invalid reference
-	if result.WarningCount() < 3 {
-		t.Errorf("expected at least 3 warnings, got: %d", result.WarningCount())
+	// Should have issues for: missing title, invalid status, invalid reference.
+	if len(result.Issues) < 3 {
+		t.Errorf("expected at least 3 issues, got: %d", len(result.Issues))
 		for _, issue := range result.Issues {
 			t.Logf("  Issue: [%s] %s - %s", issue.Severity, issue.RequirementID, issue.Message)
 		}

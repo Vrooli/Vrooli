@@ -21,6 +21,7 @@ import (
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 	"google.golang.org/protobuf/encoding/protojson"
+	catalog "test-genie/internal/orchestrator/phases"
 )
 
 const usage = "usage: provider-contract check <phase|provider> <target-scenario> [--no-restart] [--json]"
@@ -229,8 +230,8 @@ func runSharedRPCProbe(ctx context.Context, args Args, probe Probe) (*commonv1.M
 }
 
 func ResolveProbe(subject string) (Probe, error) {
-	key := strings.ToLower(strings.TrimSpace(subject))
-	for _, probe := range probes {
+	key := catalog.NormalizeKey(subject)
+	for _, probe := range Probes() {
 		if key == probe.Phase || key == probe.Provider {
 			return probe, nil
 		}
@@ -309,17 +310,26 @@ func runCommand(ctx context.Context, timeout time.Duration, dir string, name str
 	return out, nil
 }
 
-var probes = []Probe{
-	{Phase: "contracts", Provider: "cli-health", Restartable: true},
-	{Phase: "ui-health", Provider: "ui-health", Restartable: true},
-	{Phase: "quality", Provider: "quality-health", Restartable: true},
-	{Phase: "dependencies", Provider: "scenario-dependency-analyzer", Restartable: true},
-	{Phase: "security", Provider: "security-health", Restartable: true},
-	{Phase: "measures", Provider: "measures-health", Restartable: true},
-	{Phase: "proto", Provider: "proto-health", Restartable: true},
-	{Phase: "unit", Provider: "unit-health", Restartable: true},
-	{Phase: "standards", Provider: "scenario-auditor", Invocation: []string{"scenario-auditor", "standards", "scan", "{{target}}", "--wait", "--json"}, Restartable: true},
-	{Phase: "architecture", Provider: "architecture-cartographer", Restartable: true},
-	{Phase: "docs", Provider: "knowledge-observatory", Restartable: true},
-	{Phase: "tidiness", Provider: "tidiness-manager", Restartable: true},
+var probeInvocationOverrides = map[catalog.Name][]string{
+	catalog.Standards: {"scenario-auditor", "standards", "scan", "{{target}}", "--wait", "--json"},
+}
+
+func Probes() []Probe {
+	specs := catalog.DefaultCatalog().All()
+	probes := make([]Probe, 0, len(specs))
+	for _, spec := range specs {
+		if spec.Delegated == nil {
+			continue
+		}
+		probe := Probe{
+			Phase:       spec.Name.String(),
+			Provider:    spec.Delegated.ProviderScenario,
+			Restartable: true,
+		}
+		if invocation, ok := probeInvocationOverrides[spec.Name]; ok {
+			probe.Invocation = append([]string(nil), invocation...)
+		}
+		probes = append(probes, probe)
+	}
+	return probes
 }

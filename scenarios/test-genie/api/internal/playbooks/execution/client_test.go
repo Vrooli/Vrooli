@@ -5,7 +5,7 @@ package execution
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -14,9 +14,60 @@ import (
 
 	"test-genie/internal/playbooks/types"
 
-	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	"connectrpc.com/connect"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api/apiconnect"
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
+	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	"google.golang.org/protobuf/encoding/protojson"
 )
+
+func timelineEntry(actionType basactions.ActionType, status basbase.StepStatus, success bool) *bastimeline.TimelineEntry {
+	entry := &bastimeline.TimelineEntry{
+		Action: &basactions.ActionDefinition{Type: actionType},
+		Context: &basbase.EventContext{
+			Success: boolPtr(success),
+		},
+	}
+	if status != basbase.StepStatus_STEP_STATUS_UNSPECIFIED {
+		entry.Aggregates = &bastimeline.TimelineEntryAggregates{Status: status}
+	}
+	if actionType == basactions.ActionType_ACTION_TYPE_ASSERT {
+		entry.Context.Assertion = &basbase.AssertionResult{Success: success}
+	}
+	return entry
+}
+
+func connectWorkflowServer(handler func(context.Context, *connect.Request[basexecution.ExecuteAdhocRequest]) (*connect.Response[basexecution.ExecuteAdhocResponse], error)) *httptest.Server {
+	mux := http.NewServeMux()
+	mux.Handle(apiconnect.WorkflowsServiceExecuteAdhocWorkflowProcedure, connect.NewUnaryHandler(
+		apiconnect.WorkflowsServiceExecuteAdhocWorkflowProcedure,
+		handler,
+	))
+	return httptest.NewServer(mux)
+}
+
+func connectExecutionServer(
+	statusHandler func(context.Context, *connect.Request[basapi.GetExecutionRequest]) (*connect.Response[basapi.GetExecutionResponse], error),
+	timelineHandler func(context.Context, *connect.Request[basapi.GetExecutionTimelineRequest]) (*connect.Response[bastimeline.ExecutionTimeline], error),
+) *httptest.Server {
+	mux := http.NewServeMux()
+	if statusHandler != nil {
+		mux.Handle(apiconnect.ExecutionsServiceGetExecutionProcedure, connect.NewUnaryHandler(
+			apiconnect.ExecutionsServiceGetExecutionProcedure,
+			statusHandler,
+		))
+	}
+	if timelineHandler != nil {
+		mux.Handle(apiconnect.ExecutionsServiceGetExecutionTimelineProcedure, connect.NewUnaryHandler(
+			apiconnect.ExecutionsServiceGetExecutionTimelineProcedure,
+			timelineHandler,
+		))
+	}
+	return httptest.NewServer(mux)
+}
 
 func TestClientHealth(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -49,20 +100,12 @@ func TestClientHealthFailure(t *testing.T) {
 
 func TestClientExecuteWorkflow(t *testing.T) {
 	expectedID := "exec-123"
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/workflows/execute-adhoc" {
-			t.Errorf("expected /workflows/execute-adhoc, got %s", r.URL.Path)
+	server := connectWorkflowServer(func(_ context.Context, req *connect.Request[basexecution.ExecuteAdhocRequest]) (*connect.Response[basexecution.ExecuteAdhocResponse], error) {
+		if req.Msg.GetMetadata().GetName() != "test workflow" {
+			t.Errorf("expected workflow metadata name, got %q", req.Msg.GetMetadata().GetName())
 		}
-		if r.Method != http.MethodPost {
-			t.Errorf("expected POST, got %s", r.Method)
-		}
-		if r.Header.Get("Content-Type") != "application/json" {
-			t.Errorf("expected application/json content type")
-		}
-
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{"execution_id": expectedID})
-	}))
+		return connect.NewResponse(&basexecution.ExecuteAdhocResponse{ExecutionId: expectedID}), nil
+	})
 	defer server.Close()
 
 	client := NewClient(server.URL)
@@ -77,10 +120,9 @@ func TestClientExecuteWorkflow(t *testing.T) {
 }
 
 func TestClientExecuteWorkflowError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("invalid workflow"))
-	}))
+	server := connectWorkflowServer(func(context.Context, *connect.Request[basexecution.ExecuteAdhocRequest]) (*connect.Response[basexecution.ExecuteAdhocResponse], error) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid workflow"))
+	})
 	defer server.Close()
 
 	client := NewClient(server.URL)
@@ -95,10 +137,9 @@ func TestClientExecuteWorkflowError(t *testing.T) {
 }
 
 func TestClientExecuteWorkflowMissingID(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{})
-	}))
+	server := connectWorkflowServer(func(context.Context, *connect.Request[basexecution.ExecuteAdhocRequest]) (*connect.Response[basexecution.ExecuteAdhocResponse], error) {
+		return connect.NewResponse(&basexecution.ExecuteAdhocResponse{}), nil
+	})
 	defer server.Close()
 
 	client := NewClient(server.URL)
@@ -109,21 +150,19 @@ func TestClientExecuteWorkflowMissingID(t *testing.T) {
 }
 
 func TestClientGetStatus(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.HasPrefix(r.URL.Path, "/executions/") {
-			t.Errorf("unexpected path: %s", r.URL.Path)
+	server := connectExecutionServer(func(_ context.Context, req *connect.Request[basapi.GetExecutionRequest]) (*connect.Response[basapi.GetExecutionResponse], error) {
+		if req.Msg.GetExecutionId() != "exec-123" {
+			t.Errorf("expected execution id exec-123, got %q", req.Msg.GetExecutionId())
 		}
-		w.WriteHeader(http.StatusOK)
-		// Response matches BAS database.Execution model (protojson format):
-		// - status uses enum name
-		// - progress is int (0-100)
-		// - current_step is string (step name/label)
-		json.NewEncoder(w).Encode(map[string]any{
-			"status":       "EXECUTION_STATUS_RUNNING",
-			"progress":     50,
-			"current_step": "Navigate to homepage",
-		})
-	}))
+		currentStep := "Navigate to homepage"
+		return connect.NewResponse(&basapi.GetExecutionResponse{
+			Execution: &basexecution.Execution{
+				Status:      basbase.ExecutionStatus_EXECUTION_STATUS_RUNNING,
+				Progress:    50,
+				CurrentStep: &currentStep,
+			},
+		}), nil
+	}, nil)
 	defer server.Close()
 
 	client := NewClient(server.URL)
@@ -134,7 +173,7 @@ func TestClientGetStatus(t *testing.T) {
 	if status == nil {
 		t.Fatalf("expected status, got nil")
 	}
-	if status.GetStatus() != browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_RUNNING {
+	if status.GetStatus() != basbase.ExecutionStatus_EXECUTION_STATUS_RUNNING {
 		t.Errorf("expected running, got %s", types.ExecutionStatusToString(status.GetStatus()))
 	}
 	if status.GetProgress() != 50 {
@@ -146,10 +185,9 @@ func TestClientGetStatus(t *testing.T) {
 }
 
 func TestClientGetStatusError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte("execution not found"))
-	}))
+	server := connectExecutionServer(func(context.Context, *connect.Request[basapi.GetExecutionRequest]) (*connect.Response[basapi.GetExecutionResponse], error) {
+		return nil, connect.NewError(connect.CodeNotFound, errors.New("execution not found"))
+	}, nil)
 	defer server.Close()
 
 	client := NewClient(server.URL)
@@ -161,15 +199,16 @@ func TestClientGetStatusError(t *testing.T) {
 
 func TestClientWaitForCompletionSuccess(t *testing.T) {
 	callCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := connectExecutionServer(func(context.Context, *connect.Request[basapi.GetExecutionRequest]) (*connect.Response[basapi.GetExecutionResponse], error) {
 		callCount++
-		status := "EXECUTION_STATUS_RUNNING"
+		status := basbase.ExecutionStatus_EXECUTION_STATUS_RUNNING
 		if callCount >= 3 {
-			status = "EXECUTION_STATUS_COMPLETED"
+			status = basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED
 		}
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{"status": status})
-	}))
+		return connect.NewResponse(&basapi.GetExecutionResponse{
+			Execution: &basexecution.Execution{Status: status},
+		}), nil
+	}, nil)
 	defer server.Close()
 
 	client := NewClient(server.URL)
@@ -186,13 +225,15 @@ func TestClientWaitForCompletionSuccess(t *testing.T) {
 }
 
 func TestClientWaitForCompletionFailed(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{
-			"status": "EXECUTION_STATUS_FAILED",
-			"error":  "element not found",
-		})
-	}))
+	server := connectExecutionServer(func(context.Context, *connect.Request[basapi.GetExecutionRequest]) (*connect.Response[basapi.GetExecutionResponse], error) {
+		failure := "element not found"
+		return connect.NewResponse(&basapi.GetExecutionResponse{
+			Execution: &basexecution.Execution{
+				Status: basbase.ExecutionStatus_EXECUTION_STATUS_FAILED,
+				Error:  &failure,
+			},
+		}), nil
+	}, nil)
 	defer server.Close()
 
 	client := NewClient(server.URL)
@@ -209,10 +250,11 @@ func TestClientWaitForCompletionFailed(t *testing.T) {
 }
 
 func TestClientWaitForCompletionCanceled(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{"status": "EXECUTION_STATUS_RUNNING"})
-	}))
+	server := connectExecutionServer(func(context.Context, *connect.Request[basapi.GetExecutionRequest]) (*connect.Response[basapi.GetExecutionResponse], error) {
+		return connect.NewResponse(&basapi.GetExecutionResponse{
+			Execution: &basexecution.Execution{Status: basbase.ExecutionStatus_EXECUTION_STATUS_RUNNING},
+		}), nil
+	}, nil)
 	defer server.Close()
 
 	client := NewClient(server.URL)
@@ -226,22 +268,21 @@ func TestClientWaitForCompletionCanceled(t *testing.T) {
 }
 
 func TestClientGetTimeline(t *testing.T) {
-	expectedTimeline := &browser_automation_studio_v1.ExecutionTimeline{
-		Frames: []*browser_automation_studio_v1.TimelineFrame{
-			{StepType: browser_automation_studio_v1.StepType_STEP_TYPE_NAVIGATE},
+	expectedTimeline := &bastimeline.ExecutionTimeline{
+		Entries: []*bastimeline.TimelineEntry{
+			{Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE}},
 		},
 	}
 	expectedData, err := protojson.MarshalOptions{UseProtoNames: true}.Marshal(expectedTimeline)
 	if err != nil {
 		t.Fatalf("failed to marshal expected timeline: %v", err)
 	}
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.HasSuffix(r.URL.Path, "/timeline") {
-			t.Errorf("expected timeline path, got %s", r.URL.Path)
+	server := connectExecutionServer(nil, func(_ context.Context, req *connect.Request[basapi.GetExecutionTimelineRequest]) (*connect.Response[bastimeline.ExecutionTimeline], error) {
+		if req.Msg.GetExecutionId() != "exec-123" {
+			t.Errorf("expected execution id exec-123, got %q", req.Msg.GetExecutionId())
 		}
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(expectedData))
-	}))
+		return connect.NewResponse(expectedTimeline), nil
+	})
 	defer server.Close()
 
 	client := NewClient(server.URL)
@@ -252,8 +293,8 @@ func TestClientGetTimeline(t *testing.T) {
 	if timeline == nil {
 		t.Fatalf("expected parsed timeline, got nil")
 	}
-	if len(timeline.GetFrames()) != 1 || timeline.GetFrames()[0].GetStepType() != browser_automation_studio_v1.StepType_STEP_TYPE_NAVIGATE {
-		t.Errorf("unexpected timeline contents: %+v", timeline.GetFrames())
+	if len(timeline.GetEntries()) != 1 || timeline.GetEntries()[0].GetAction().GetType() != basactions.ActionType_ACTION_TYPE_NAVIGATE {
+		t.Errorf("unexpected timeline contents: %+v", timeline.GetEntries())
 	}
 	if string(raw) != string(expectedData) {
 		t.Errorf("expected %s, got %s", string(expectedData), string(raw))
@@ -261,9 +302,9 @@ func TestClientGetTimeline(t *testing.T) {
 }
 
 func TestClientGetTimelineError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-	}))
+	server := connectExecutionServer(nil, func(context.Context, *connect.Request[basapi.GetExecutionTimelineRequest]) (*connect.Response[bastimeline.ExecutionTimeline], error) {
+		return nil, connect.NewError(connect.CodeInternal, errors.New("timeline unavailable"))
+	})
 	defer server.Close()
 
 	client := NewClient(server.URL)
@@ -274,8 +315,8 @@ func TestClientGetTimelineError(t *testing.T) {
 }
 
 func TestSummarizeTimeline(t *testing.T) {
-	marshalTimeline := func(frames ...*browser_automation_studio_v1.TimelineFrame) []byte {
-		tl := &browser_automation_studio_v1.ExecutionTimeline{Frames: frames}
+	marshalTimeline := func(entries ...*bastimeline.TimelineEntry) []byte {
+		tl := &bastimeline.ExecutionTimeline{Entries: entries}
 		data, err := protojson.MarshalOptions{UseProtoNames: true}.Marshal(tl)
 		if err != nil {
 			t.Fatalf("failed to marshal timeline: %v", err)
@@ -299,17 +340,20 @@ func TestSummarizeTimeline(t *testing.T) {
 			expected: "",
 		},
 		{
-			name:     "steps only",
-			input:    marshalTimeline(&browser_automation_studio_v1.TimelineFrame{StepType: browser_automation_studio_v1.StepType_STEP_TYPE_NAVIGATE}, &browser_automation_studio_v1.TimelineFrame{StepType: browser_automation_studio_v1.StepType_STEP_TYPE_CLICK}),
+			name: "steps only",
+			input: marshalTimeline(
+				timelineEntry(basactions.ActionType_ACTION_TYPE_NAVIGATE, basbase.StepStatus_STEP_STATUS_UNSPECIFIED, false),
+				timelineEntry(basactions.ActionType_ACTION_TYPE_CLICK, basbase.StepStatus_STEP_STATUS_UNSPECIFIED, false),
+			),
 			expected: " (2 steps)",
 		},
 		{
 			name: "with assertions",
 			input: marshalTimeline(
-				&browser_automation_studio_v1.TimelineFrame{StepType: browser_automation_studio_v1.StepType_STEP_TYPE_NAVIGATE, Status: browser_automation_studio_v1.StepStatus_STEP_STATUS_COMPLETED, Success: true},
-				&browser_automation_studio_v1.TimelineFrame{StepType: browser_automation_studio_v1.StepType_STEP_TYPE_ASSERT, Status: browser_automation_studio_v1.StepStatus_STEP_STATUS_COMPLETED, Success: true},
-				&browser_automation_studio_v1.TimelineFrame{StepType: browser_automation_studio_v1.StepType_STEP_TYPE_ASSERT, Status: browser_automation_studio_v1.StepStatus_STEP_STATUS_COMPLETED, Success: true},
-				&browser_automation_studio_v1.TimelineFrame{StepType: browser_automation_studio_v1.StepType_STEP_TYPE_ASSERT, Status: browser_automation_studio_v1.StepStatus_STEP_STATUS_FAILED, Success: false},
+				timelineEntry(basactions.ActionType_ACTION_TYPE_NAVIGATE, basbase.StepStatus_STEP_STATUS_COMPLETED, true),
+				timelineEntry(basactions.ActionType_ACTION_TYPE_ASSERT, basbase.StepStatus_STEP_STATUS_COMPLETED, true),
+				timelineEntry(basactions.ActionType_ACTION_TYPE_ASSERT, basbase.StepStatus_STEP_STATUS_COMPLETED, true),
+				timelineEntry(basactions.ActionType_ACTION_TYPE_ASSERT, basbase.StepStatus_STEP_STATUS_FAILED, false),
 			),
 			expected: " (4 steps, 2/3 assertions passed)",
 		},
@@ -394,25 +438,25 @@ func TestClientHealthConnectionError(t *testing.T) {
 func TestClientWaitForCompletionStatusVariations(t *testing.T) {
 	tests := []struct {
 		name        string
-		status      string
+		status      basbase.ExecutionStatus
 		shouldError bool
 		errorSubstr string
 	}{
-		{"completed status", "EXECUTION_STATUS_COMPLETED", false, ""},
-		{"failed status", "EXECUTION_STATUS_FAILED", true, "failed"},
-		{"cancelled status", "EXECUTION_STATUS_CANCELLED", true, "cancelled"},
+		{"completed status", basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED, false, ""},
+		{"failed status", basbase.ExecutionStatus_EXECUTION_STATUS_FAILED, true, "failed"},
+		{"cancelled status", basbase.ExecutionStatus_EXECUTION_STATUS_CANCELLED, true, "cancelled"},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(http.StatusOK)
-				resp := map[string]string{"status": tc.status}
-				if tc.status == "EXECUTION_STATUS_FAILED" {
-					resp["error"] = "workflow error message"
+			server := connectExecutionServer(func(context.Context, *connect.Request[basapi.GetExecutionRequest]) (*connect.Response[basapi.GetExecutionResponse], error) {
+				exec := &basexecution.Execution{Status: tc.status}
+				if tc.status == basbase.ExecutionStatus_EXECUTION_STATUS_FAILED {
+					msg := "workflow error message"
+					exec.Error = &msg
 				}
-				json.NewEncoder(w).Encode(resp)
-			}))
+				return connect.NewResponse(&basapi.GetExecutionResponse{Execution: exec}), nil
+			}, nil)
 			defer server.Close()
 
 			client := NewClient(server.URL)
@@ -437,10 +481,9 @@ func TestClientWaitForCompletionStatusVariations(t *testing.T) {
 }
 
 func TestClientWaitForCompletionGetStatusError(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("server error"))
-	}))
+	server := connectExecutionServer(func(context.Context, *connect.Request[basapi.GetExecutionRequest]) (*connect.Response[basapi.GetExecutionResponse], error) {
+		return nil, connect.NewError(connect.CodeInternal, errors.New("server error"))
+	}, nil)
 	defer server.Close()
 
 	client := NewClient(server.URL)
@@ -453,37 +496,37 @@ func TestClientWaitForCompletionGetStatusError(t *testing.T) {
 	}
 }
 
-func TestClientExecuteWorkflowInvalidJSON(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func TestClientExecuteWorkflowInvalidConnectResponse(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc(apiconnect.WorkflowsServiceExecuteAdhocWorkflowProcedure, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/proto")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("not json"))
-	}))
+		w.Write([]byte("not proto"))
+	})
+	server := httptest.NewServer(mux)
 	defer server.Close()
 
 	client := NewClient(server.URL)
 	_, err := client.ExecuteWorkflow(context.Background(), map[string]any{}, "test", "test")
 	if err == nil {
-		t.Fatal("expected error for invalid JSON response")
-	}
-	if !strings.Contains(err.Error(), "decode") {
-		t.Errorf("expected decode error, got: %v", err)
+		t.Fatal("expected error for invalid Connect response")
 	}
 }
 
-func TestClientGetStatusInvalidJSON(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func TestClientGetStatusInvalidConnectResponse(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc(apiconnect.ExecutionsServiceGetExecutionProcedure, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/proto")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("not json"))
-	}))
+		w.Write([]byte("not proto"))
+	})
+	server := httptest.NewServer(mux)
 	defer server.Close()
 
 	client := NewClient(server.URL)
 	_, err := client.GetStatus(context.Background(), "exec-123")
 	if err == nil {
-		t.Fatal("expected error for invalid JSON response")
-	}
-	if !strings.Contains(err.Error(), "decode") {
-		t.Errorf("expected decode error, got: %v", err)
+		t.Fatal("expected error for invalid Connect response")
 	}
 }
 
@@ -541,11 +584,12 @@ func TestClientWaitForHealthImmediateSuccess(t *testing.T) {
 func TestClientWaitForCompletionImmediateSuccess(t *testing.T) {
 	// Test that when workflow is already completed, WaitForCompletion returns immediately
 	callCount := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := connectExecutionServer(func(context.Context, *connect.Request[basapi.GetExecutionRequest]) (*connect.Response[basapi.GetExecutionResponse], error) {
 		callCount++
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{"status": "EXECUTION_STATUS_COMPLETED"})
-	}))
+		return connect.NewResponse(&basapi.GetExecutionResponse{
+			Execution: &basexecution.Execution{Status: basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED},
+		}), nil
+	}, nil)
 	defer server.Close()
 
 	client := NewClient(server.URL)

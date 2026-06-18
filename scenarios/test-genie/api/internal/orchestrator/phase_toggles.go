@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"test-genie/internal/orchestrator/phases"
+
 	"github.com/vrooli/api-core/storage"
 )
 
@@ -113,7 +115,7 @@ func (s *phaseToggleStore) Save(cfg PhaseToggleConfig) (PhaseToggleConfig, error
 func normalizePhaseToggleConfig(cfg PhaseToggleConfig, now time.Time) PhaseToggleConfig {
 	normalized := PhaseToggleConfig{Phases: map[string]PhaseToggle{}}
 	for name, toggle := range cfg.Phases {
-		key := normalizePhaseName(name)
+		key := phases.NormalizeKey(name)
 		if key == "" {
 			continue
 		}

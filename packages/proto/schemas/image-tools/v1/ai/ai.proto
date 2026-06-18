@@ -110,6 +110,16 @@ message AIParams {
   // AutoScanNsfw runs an NSFW classification on the generated output and records
   // the verdict with the job. Off by default.
   bool auto_scan_nsfw = 13;
+  // Realism is the naturalize fidelity↔realism knob 0..1: how much micro-texture,
+  // local contrast, and film-grain to reintroduce into an over-smoothed
+  // (restored/upscaled) image. 0/unset = a gentle default; 1 = maximum texture.
+  // Only the naturalize op reads it.
+  double realism = 14;
+  // FaceAware biases naturalize's texture/grain toward midtone regions (where
+  // skin sits) so faces de-plasticize more than flat backgrounds. A deterministic
+  // luminance-band heuristic, not face detection (which lands with the segment /
+  // face_restore ops in a later phase). Only the naturalize op reads it.
+  bool face_aware = 15;
 }
 
 // SubmitAIResponse is the protojson body returned by the REST submit edge. The

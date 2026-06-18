@@ -75,14 +75,26 @@ const (
 
 const MaxExecutionHistory = 50
 
-// Phase status vocabulary. "skipped" is recognized by isSkippedStatus
-// (requirements_decision.go) so a runnability skip flows into requirements sync
-// as a non-executed phase rather than a failure.
+// Phase status vocabulary. The shared skip-status helper lets a runnability
+// skip flow into requirements sync as a non-executed phase rather than a
+// failure.
 const (
-	phaseStatusPassed  = "passed"
-	phaseStatusFailed  = "failed"
-	phaseStatusSkipped = "skipped"
+	phaseStatusPassed        = "passed"
+	phaseStatusFailed        = "failed"
+	phaseStatusSkipped       = "skipped"
+	phaseStatusMissing       = "missing"
+	phaseStatusNotExecutable = "not_executable"
+	phaseStatusNotRun        = "not_run"
 )
+
+func isSkippedPhaseStatus(status string) bool {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case phaseStatusSkipped, phaseStatusMissing, phaseStatusNotExecutable, phaseStatusNotRun:
+		return true
+	default:
+		return false
+	}
+}
 
 // Suite verdict vocabulary (tri-state). Replaces the old binary success flag:
 //   - PASS: every selected phase ran and passed (optional-phase skips are fine).
@@ -105,6 +117,7 @@ type SuiteOrchestrator struct {
 	phaseToggles  *phaseToggleStore
 	newRuntime    func(name, scenarioDir string) *targetruntime.Manager
 	claims        *playbooksclaims.Service
+	retentionGC   func(context.Context, string)
 }
 
 // SetClaims wires the playbooks-claims service used by the playbooks phase
@@ -114,6 +127,12 @@ func (o *SuiteOrchestrator) SetClaims(svc *playbooksclaims.Service) {
 		return
 	}
 	o.claims = svc
+}
+
+func runRetentionGC(ctx context.Context, scenarioDir string) {
+	if _, err := sharedruns.GC(ctx, scenarioDir, sharedruns.DefaultRetentionPolicy()); err != nil {
+		log.Printf("run retention GC failed: %v", err)
+	}
 }
 
 // SuiteExecutionRequest configures a single test execution run.
@@ -318,6 +337,7 @@ func NewSuiteOrchestrator(scenariosRoot string) (*SuiteOrchestrator, error) {
 		requirements: requirements.NewSyncer(filepath.Dir(absRoot)),
 		phaseToggles: newPhaseToggleStore(),
 		newRuntime:   targetruntime.New,
+		retentionGC:  runRetentionGC,
 	}, nil
 }
 
@@ -589,7 +609,7 @@ func (o *SuiteOrchestrator) prepareExecution(req SuiteExecutionRequest) (*prepar
 			ScenarioName:        scenario,
 			StartedAt:           time.Now().UTC(),
 			PresetUsed:          planCtx.plan.PresetUsed,
-			RequestedPreset:     normalizePhaseName(req.Preset),
+			RequestedPreset:     phases.NormalizeKey(req.Preset),
 			RequestedPhases:     normalizePhaseList(req.Phases),
 			RequestedSkipPhases: normalizePhaseList(req.Skip),
 			PlannedPhases:       phaseDefinitionNames(planCtx.plan.Selected),
@@ -617,8 +637,9 @@ func (o *SuiteOrchestrator) finalizeExecution(
 	result.Success = result.Verdict != SuiteVerdictFail
 	_ = anyFailure // verdict derives failure from phase statuses (skips ≠ failures)
 	result.Phases = phaseResults
-	result.PhaseSummary = SummarizePhases(phaseResults)
-	result.WarningSummary = BuildWarningSummary(prepared.env.RunID, phaseResults)
+	resultViews := buildPhaseResultViews(prepared.runLogDir, phaseResults)
+	result.PhaseSummary = summarizePhaseViews(resultViews)
+	result.WarningSummary = buildWarningSummaryFromViews(prepared.env.RunID, resultViews)
 
 	// Persist the combined findings artifact BEFORE the nudge so the nudge can
 	// point at a file that already exists on disk (the on-ramp the assessment
@@ -629,13 +650,13 @@ func (o *SuiteOrchestrator) finalizeExecution(
 		prepared.runID,
 		result.Verdict,
 		result.CompletedAt,
-		phaseResults,
+		resultViews,
 	); err != nil {
 		log.Printf("failed to write findings artifact: %v", err)
 	}
 
 	artifactPath := sharedartifacts.RelativeRunFindingsArtifactPath(prepared.runID)
-	if nudge := computeCampaignNudge(result.ScenarioName, result.Verdict, artifactPath, phaseResults); nudge != nil {
+	if nudge := computeCampaignNudgeFromViews(result.ScenarioName, result.Verdict, artifactPath, resultViews); nudge != nil {
 		result.CampaignNudge = nudge
 		log.Printf("campaign nudge fired for %s: %d findings (%d blocker/error) — %s",
 			result.ScenarioName, nudge.Total, nudge.Severe, nudge.Command)
@@ -651,16 +672,15 @@ func (o *SuiteOrchestrator) finalizeExecution(
 
 	if err := o.writeLatestManifest(
 		prepared.env.ScenarioDir,
-		prepared.runLogDir,
 		prepared.runID,
 		result.StartedAt,
 		result.CompletedAt,
-		phaseResults,
+		resultViews,
 	); err != nil {
 		log.Printf("failed to write latest manifest: %v", err)
 	}
 
-	o.finalizeRunRecord(prepared.env.ScenarioDir, prepared.runID, result, phaseResults)
+	o.finalizeRunRecord(prepared.env.ScenarioDir, prepared.runID, result, resultViews)
 
 	// Enforce run retention in the background so a large/old history can't grow
 	// unbounded. Pinned runs (e.g. GCT baselines) are always preserved.
@@ -668,8 +688,8 @@ func (o *SuiteOrchestrator) finalizeExecution(
 	// Detached from the request context (it must outlive the response) but
 	// still context-aware so retention can be cancelled in the future.
 	go func(ctx context.Context) {
-		if _, err := sharedruns.GC(ctx, scenarioDir, sharedruns.DefaultRetentionPolicy()); err != nil {
-			log.Printf("run retention GC failed: %v", err)
+		if o.retentionGC != nil {
+			o.retentionGC(ctx, scenarioDir)
 		}
 	}(context.Background())
 
@@ -680,7 +700,7 @@ func (o *SuiteOrchestrator) finalizeExecution(
 // finalizeRunRecord updates the run index entry with terminal status, per-phase
 // summaries, and completion time. Pins set by external consumers are preserved
 // because Update mutates the existing record in place.
-func (o *SuiteOrchestrator) finalizeRunRecord(scenarioDir, runID string, result *SuiteExecutionResult, phaseResults []PhaseExecutionResult) {
+func (o *SuiteOrchestrator) finalizeRunRecord(scenarioDir, runID string, result *SuiteExecutionResult, phaseResults []phaseResultView) {
 	status := sharedruns.StatusPassed
 	if !result.Success {
 		status = sharedruns.StatusFailed
@@ -707,6 +727,10 @@ func (o *SuiteOrchestrator) finalizeRunRecord(scenarioDir, runID string, result 
 // BuildWarningSummary converts WARNING observations into a deterministic
 // execution-level summary while preserving the phase execution order.
 func BuildWarningSummary(runID string, results []PhaseExecutionResult) WarningSummary {
+	return buildWarningSummaryFromViews(runID, buildPhaseResultViews("", results))
+}
+
+func buildWarningSummaryFromViews(runID string, results []phaseResultView) WarningSummary {
 	summary := WarningSummary{}
 	for _, phase := range results {
 		phaseSummary := PhaseWarningSummary{Name: phase.Name}
@@ -880,6 +904,7 @@ func (o *SuiteOrchestrator) discoverPhaseDefinitions(env workspacepkg.Environmen
 				Runner:        spec.Runner,
 				Timeout:       spec.DefaultTimeout,
 				Optional:      spec.Optional,
+				SkipEnvVar:    spec.SkipEnvVar,
 				Capabilities:  spec.Capabilities,
 				FindingSource: spec.FindingSource,
 			}
@@ -950,9 +975,20 @@ func selectPhases(defs []phases.Definition, presets map[string][]string, req Sui
 		toggle, ok := toggles.Phases[name]
 		return toggle, ok && toggle.Disabled
 	}
+	isEnvDisabled := func(def phases.Definition) (string, bool) {
+		envVar := strings.TrimSpace(def.SkipEnvVar)
+		if envVar == "" {
+			return "", false
+		}
+		return envVar, strings.TrimSpace(os.Getenv(envVar)) == "1"
+	}
 
 	if len(desired) == 0 {
 		for _, def := range defs {
+			if envVar, disabled := isEnvDisabled(def); disabled {
+				notices.Skipped = append(notices.Skipped, phaseDisableNotice{Name: def.Name.String(), EnvVar: envVar})
+				continue
+			}
 			if toggle, disabled := isDisabled(def.Name.Key()); disabled {
 				notices.Skipped = append(notices.Skipped, phaseDisableNotice{Name: def.Name.String(), Toggle: toggle})
 				continue
@@ -962,13 +998,17 @@ func selectPhases(defs []phases.Definition, presets map[string][]string, req Sui
 	} else {
 		explicitRequest := len(req.Phases) > 0
 		for _, phase := range desired {
-			normalized := normalizePhaseName(phase)
+			normalized := phases.NormalizeKey(phase)
 			if normalized == "" {
 				continue
 			}
 			def, ok := index[normalized]
 			if !ok {
 				return nil, "", phaseSelectionNotices{}, shared.NewValidationError(fmt.Sprintf("phase '%s' is not defined", phase))
+			}
+			if envVar, disabled := isEnvDisabled(def); disabled {
+				notices.Skipped = append(notices.Skipped, phaseDisableNotice{Name: def.Name.String(), EnvVar: envVar})
+				continue
 			}
 			if toggle, disabled := isDisabled(def.Name.Key()); disabled && !explicitRequest {
 				notices.Skipped = append(notices.Skipped, phaseDisableNotice{Name: def.Name.String(), Toggle: toggle})
@@ -981,7 +1021,9 @@ func selectPhases(defs []phases.Definition, presets map[string][]string, req Sui
 		}
 	}
 
-	return applySkipFilters(resolved, req.Skip), presetUsed, notices, nil
+	filtered, requestedSkipNotices := applySkipFilters(resolved, req.Skip)
+	notices.Skipped = append(notices.Skipped, requestedSkipNotices...)
+	return filtered, presetUsed, notices, nil
 }
 
 func (o *SuiteOrchestrator) scriptPhaseRunner(scriptPath string) phases.Runner {
@@ -1021,7 +1063,7 @@ func (o *SuiteOrchestrator) beginPhaseRun(
 	emit ExecutionEventCallback,
 	preObservations []phases.Observation,
 ) (*phaseRunContext, error) {
-	logPath := filepath.Join(runLogDir, fmt.Sprintf("%s.log", def.Name.String()))
+	logPath := phaseLogPath(runLogDir, def.Name)
 	logFile, err := os.Create(logPath)
 	if err != nil {
 		return nil, err
@@ -1141,12 +1183,12 @@ func (o *SuiteOrchestrator) newPhaseSetupFailure(name phases.Name, runLogDir str
 		Name:            name.String(),
 		Status:          "failed",
 		DurationSeconds: 0,
-		LogPath:         filepath.Join(runLogDir, fmt.Sprintf("%s.log", name.String())),
+		LogPath:         phaseLogPath(runLogDir, name),
 		Error:           fmt.Sprintf("failed to create log file: %v", err),
 	}
 }
 
-func (o *SuiteOrchestrator) writeLatestManifest(scenarioDir, runLogDir, runID string, startedAt, completedAt time.Time, results []PhaseExecutionResult) error {
+func (o *SuiteOrchestrator) writeLatestManifest(scenarioDir, runID string, startedAt, completedAt time.Time, results []phaseResultView) error {
 	latestDir := sharedartifacts.LatestDirPath(scenarioDir)
 	if err := os.MkdirAll(latestDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create latest dir: %w", err)
@@ -1156,8 +1198,7 @@ func (o *SuiteOrchestrator) writeLatestManifest(scenarioDir, runLogDir, runID st
 	phaseEntries := make([]map[string]any, 0, len(results))
 
 	for _, res := range results {
-		logAbs := filepath.Join(runLogDir, fmt.Sprintf("%s.log", res.Name))
-		logRel := sharedartifacts.RelPath(scenarioDir, logAbs)
+		logRel := sharedartifacts.RelPath(scenarioDir, res.LogAbs)
 		logs[res.Name] = logRel
 
 		phaseEntries = append(phaseEntries, map[string]any{
@@ -1167,7 +1208,7 @@ func (o *SuiteOrchestrator) writeLatestManifest(scenarioDir, runLogDir, runID st
 			"log":              logRel,
 		})
 
-		if err := updateLatestPointer(latestDir, fmt.Sprintf("%s.log", res.Name), logAbs); err != nil {
+		if err := updateLatestPointer(latestDir, phaseLogFileName(phases.Name(res.Name)), res.LogAbs); err != nil {
 			return err
 		}
 	}
@@ -1208,7 +1249,7 @@ type findingsArtifactPhase struct {
 // coverage/runs/<runID>/findings.json and mirrors it to
 // coverage/latest/findings.json. Encoding matches the suite `--json` report
 // (encoding/json, enums as integers) so the cartographer ingest round-trips.
-func (o *SuiteOrchestrator) writeFindingsArtifact(scenarioDir, scenario, runID, verdict string, completedAt time.Time, results []PhaseExecutionResult) error {
+func (o *SuiteOrchestrator) writeFindingsArtifact(scenarioDir, scenario, runID, verdict string, completedAt time.Time, results []phaseResultView) error {
 	artifact := findingsArtifact{
 		Scenario:    scenario,
 		RunID:       runID,
@@ -1217,15 +1258,11 @@ func (o *SuiteOrchestrator) writeFindingsArtifact(scenarioDir, scenario, runID, 
 		Phases:      make([]findingsArtifactPhase, 0, len(results)),
 	}
 	for _, res := range results {
-		findings := res.Findings
-		if findings == nil {
-			findings = []*architecturev1.ArchitectureFinding{}
-		}
 		artifact.Phases = append(artifact.Phases, findingsArtifactPhase{
 			Name:          res.Name,
 			Status:        res.Status,
 			FindingSource: res.FindingSource,
-			Findings:      findings,
+			Findings:      res.Findings,
 		})
 	}
 	writer := sharedartifacts.NewBaseWriter(scenarioDir, filepath.Base(scenarioDir), runID)
@@ -1251,6 +1288,42 @@ func updateLatestPointer(latestDir, linkName, target string) error {
 		}
 	}
 	return nil
+}
+
+type phaseResultView struct {
+	Name            string
+	Status          string
+	DurationSeconds int
+	LogPath         string
+	LogAbs          string
+	Observations    []phases.Observation
+	FindingSource   string
+	Findings        []*architecturev1.ArchitectureFinding
+}
+
+func buildPhaseResultViews(runLogDir string, results []PhaseExecutionResult) []phaseResultView {
+	if len(results) == 0 {
+		return nil
+	}
+	views := make([]phaseResultView, 0, len(results))
+	for _, result := range results {
+		findings := result.Findings
+		if findings == nil {
+			findings = []*architecturev1.ArchitectureFinding{}
+		}
+		name := phases.Name(result.Name)
+		views = append(views, phaseResultView{
+			Name:            result.Name,
+			Status:          result.Status,
+			DurationSeconds: result.DurationSeconds,
+			LogPath:         result.LogPath,
+			LogAbs:          phaseLogPath(runLogDir, name),
+			Observations:    result.Observations,
+			FindingSource:   result.FindingSource,
+			Findings:        findings,
+		})
+	}
+	return views
 }
 
 // observationEmitter wraps an io.Writer and emits observation events for lines with markers.
@@ -1323,6 +1396,10 @@ func (e *observationEmitter) isSignificantLine(line string) bool {
 }
 
 func SummarizePhases(phases []PhaseExecutionResult) PhaseSummary {
+	return summarizePhaseViews(buildPhaseResultViews("", phases))
+}
+
+func summarizePhaseViews(phases []phaseResultView) PhaseSummary {
 	summary := PhaseSummary{}
 	for _, phase := range phases {
 		summary.Total++
@@ -1344,50 +1421,34 @@ func SummarizePhases(phases []PhaseExecutionResult) PhaseSummary {
 
 func phaseSortValue(name phases.Name, catalog *phases.Catalog) int {
 	if catalog != nil {
-		if weight, ok := catalog.Weight(name); ok {
-			return weight
+		if index, ok := catalog.Order(name); ok {
+			return index
 		}
 	}
 	return defaultPhaseSortFallback
 }
 
+func phaseLogPath(runLogDir string, name phases.Name) string {
+	return filepath.Join(runLogDir, phaseLogFileName(name))
+}
+
+func phaseLogFileName(name phases.Name) string {
+	return fmt.Sprintf("%s.log", name.String())
+}
+
 func (o *SuiteOrchestrator) loadPresets(testDir string, cfg *workspacepkg.Config, allowed map[string]struct{}) map[string][]string {
-	presets := make(map[string][]string)
 	configPath := filepath.Join(testDir, "presets.json")
-	applyPresets := func(source map[string][]string, allowDelete bool, replace bool) {
-		for key, phases := range source {
-			name := normalizePhaseName(key)
-			if name == "" {
-				continue
-			}
-			filtered := filterPresetPhases(phases, allowed)
-			if len(filtered) == 0 {
-				if allowDelete {
-					delete(presets, name)
-				}
-				continue
-			}
-			if _, exists := presets[name]; exists && !replace {
-				continue
-			}
-			presets[name] = filtered
-		}
-	}
-
+	var fileOverrides map[string][]string
 	if raw, err := os.ReadFile(configPath); err == nil {
-		var parsed map[string][]string
-		if err := json.Unmarshal(raw, &parsed); err == nil {
-			applyPresets(parsed, false, true)
-		}
+		_ = json.Unmarshal(raw, &fileOverrides)
 	}
 
+	var configOverrides map[string][]string
 	if cfg != nil && len(cfg.Presets) > 0 {
-		applyPresets(cfg.Presets, true, true)
+		configOverrides = cfg.Presets
 	}
 
-	applyPresets(defaultExecutionPresets, false, false)
-
-	return presets
+	return phases.MergePresets(defaultExecutionPresets, fileOverrides, configOverrides, allowed)
 }
 
 // DescribePhases exposes registered Go-native phases for HTTP clients.
@@ -1463,29 +1524,6 @@ func (o *SuiteOrchestrator) applyTestingConfig(defs []phases.Definition, cfg *wo
 	return configured
 }
 
-func filterPresetPhases(phases []string, allowed map[string]struct{}) []string {
-	if len(phases) == 0 || len(allowed) == 0 {
-		return nil
-	}
-	var filtered []string
-	seen := make(map[string]struct{}, len(phases))
-	for _, phase := range phases {
-		normalized := normalizePhaseName(phase)
-		if normalized == "" {
-			continue
-		}
-		if _, exists := allowed[normalized]; !exists {
-			continue
-		}
-		if _, present := seen[normalized]; present {
-			continue
-		}
-		seen[normalized] = struct{}{}
-		filtered = append(filtered, normalized)
-	}
-	return filtered
-}
-
 func buildCommandHistory(req SuiteExecutionRequest, plan *phasePlan) []string {
 	var history []string
 	var descriptor []string
@@ -1522,10 +1560,6 @@ func buildCommandHistory(req SuiteExecutionRequest, plan *phasePlan) []string {
 	return history
 }
 
-func normalizePhaseName(raw string) string {
-	return strings.ToLower(strings.TrimSpace(raw))
-}
-
 func normalizePhaseList(values []string) []string {
 	if len(values) == 0 {
 		return nil
@@ -1534,7 +1568,7 @@ func normalizePhaseList(values []string) []string {
 	normalized := make([]string, 0, len(values))
 	seen := make(map[string]struct{}, len(values))
 	for _, value := range values {
-		name := normalizePhaseName(value)
+		name := phases.NormalizeKey(value)
 		if name == "" {
 			continue
 		}
@@ -1557,7 +1591,7 @@ func phaseDefinitionNames(defs []phases.Definition) []string {
 
 	names := make([]string, 0, len(defs))
 	for _, def := range defs {
-		name := normalizePhaseName(def.Name.String())
+		name := phases.NormalizeKey(def.Name.String())
 		if name == "" {
 			continue
 		}
@@ -1576,7 +1610,7 @@ func resolveDesiredPhaseList(req SuiteExecutionRequest, presets map[string][]str
 	if req.Preset == "" {
 		return nil, "", nil
 	}
-	name := normalizePhaseName(req.Preset)
+	name := phases.NormalizeKey(req.Preset)
 	if name == "" {
 		return nil, "", shared.NewValidationError(fmt.Sprintf("preset '%s' is not defined", req.Preset))
 	}
@@ -1587,24 +1621,26 @@ func resolveDesiredPhaseList(req SuiteExecutionRequest, presets map[string][]str
 	return phases, name, nil
 }
 
-func applySkipFilters(selected []phases.Definition, skip []string) []phases.Definition {
+func applySkipFilters(selected []phases.Definition, skip []string) ([]phases.Definition, []phaseDisableNotice) {
 	if len(selected) == 0 || len(skip) == 0 {
-		return selected
+		return selected, nil
 	}
 	skipSet := make(map[string]struct{}, len(skip))
 	for _, phase := range skip {
-		if normalized := normalizePhaseName(phase); normalized != "" {
+		if normalized := phases.NormalizeKey(phase); normalized != "" {
 			skipSet[normalized] = struct{}{}
 		}
 	}
 	var filtered []phases.Definition
+	var notices []phaseDisableNotice
 	for _, def := range selected {
 		if _, skip := skipSet[def.Name.Key()]; skip {
+			notices = append(notices, phaseDisableNotice{Name: def.Name.String(), Requested: true})
 			continue
 		}
 		filtered = append(filtered, def)
 	}
-	return filtered
+	return filtered, notices
 }
 
 func buildPlanWarnings(plan *phasePlan) []string {
@@ -1628,12 +1664,18 @@ func buildPhaseWarningMap(plan *phasePlan) map[string][]phases.Observation {
 	}
 	for _, notice := range plan.ExplicitDisabled {
 		text := formatExplicitWarning(notice)
-		warnings[normalizePhaseName(notice.Name)] = []phases.Observation{phases.NewWarningObservation(text)}
+		warnings[phases.NormalizeKey(notice.Name)] = []phases.Observation{phases.NewWarningObservation(text)}
 	}
 	return warnings
 }
 
 func formatSkipWarning(notice phaseDisableNotice) string {
+	if notice.EnvVar != "" {
+		return fmt.Sprintf("Phase '%s' is disabled via %s=1 and was skipped by default.", notice.Name, notice.EnvVar)
+	}
+	if notice.Requested {
+		return fmt.Sprintf("Phase '%s' was skipped by request.", notice.Name)
+	}
 	base := fmt.Sprintf("Phase '%s' is globally disabled and was skipped by default.", notice.Name)
 	return base + formatToggleContext(notice.Toggle)
 }

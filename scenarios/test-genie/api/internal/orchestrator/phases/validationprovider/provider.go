@@ -36,7 +36,6 @@ type Provider struct {
 	ProviderScenario string
 	FindingSource    architecturev1.FindingSource
 	Emoji            string
-	SkipEnvVar       string
 	DetailCommand    string
 	Optional         bool
 	Timeout          time.Duration
@@ -418,6 +417,9 @@ func gateableFindings(native *auditv1.AuditRunResponse, findings []*architecture
 			if finding == nil {
 				continue
 			}
+			if isAdvisoryIntentFinding(finding.GetType()) {
+				continue
+			}
 			if finding.GetFindingClass() != cartosharedv1.FindingClass_FINDING_CLASS_DETERMINISTIC {
 				continue
 			}
@@ -433,6 +435,9 @@ func gateableFindings(native *auditv1.AuditRunResponse, findings []*architecture
 		if finding == nil {
 			continue
 		}
+		if isAdvisoryIntentFinding(finding.GetCode()) {
+			continue
+		}
 		if finding.GetFindingClass() != architecturev1.FindingClass_FINDING_CLASS_DETERMINISTIC {
 			continue
 		}
@@ -443,6 +448,13 @@ func gateableFindings(native *auditv1.AuditRunResponse, findings []*architecture
 		}
 	}
 	return total
+}
+
+func isAdvisoryIntentFinding(code string) bool {
+	if !strings.HasPrefix(strings.TrimSpace(code), "intent.") {
+		return false
+	}
+	return strings.ToLower(strings.TrimSpace(os.Getenv("INTENT_ALIGNMENT_GATE"))) != "strict"
 }
 
 func authorityLabel(authority auditv1.AuthorityConfidence) string {
@@ -595,19 +607,10 @@ func statusLabel(status scenariovalidationv1.ValidationStatus) string {
 }
 
 func normalizeSeverity(raw string) string {
-	s := strings.ToLower(strings.TrimSpace(raw))
-	s = strings.TrimPrefix(s, "finding_severity_")
-	s = strings.TrimPrefix(s, "severity_")
-	switch s {
-	case "blocker":
-		return "blocker"
-	case "error", "failure", "critical", "high":
-		return "error"
-	case "warn", "warning", "medium":
-		return "warning"
-	default:
-		return "info"
+	if normalized := shared.NormalizeFindingSeverityLabel(raw); normalized != "" {
+		return normalized
 	}
+	return "info"
 }
 
 func formatFinding(f *commonv1.AssessmentFinding) string {

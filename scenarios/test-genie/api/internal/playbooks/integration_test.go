@@ -22,11 +22,15 @@ import (
 	"test-genie/internal/playbooks/seeds"
 	"test-genie/internal/playbooks/workflow"
 
-	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
+	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
 func strPtr(s string) *string { return &s }
+func boolPtr(v bool) *bool    { return &v }
+func int32Ptr(v int32) *int32 { return &v }
 
 // TestIntegration_FullPlaybooksFlow validates the complete playbooks phase execution flow.
 // This is the comprehensive integration test that exercises:
@@ -203,15 +207,12 @@ func TestIntegration_BASHealthCheckFailure(t *testing.T) {
 			WorkflowExecutionTimeout: 5 * time.Second,
 		})),
 		playbooks.WithSeedManager(seeds.NewManager(tempDir, tempDir, testDir, io.Discard)),
-		playbooks.WithArtifactWriter(artifacts.NewWriter(tempDir, "test-scenario", tempDir)),
+		playbooks.WithArtifactWriter(artifacts.NewWriter(tempDir, "test-scenario", "", tempDir)),
 		playbooks.WithPortResolver(func(ctx context.Context, scenario, portName string) (string, error) {
 			return "8080", nil
 		}),
 		playbooks.WithScenarioStarter(func(ctx context.Context, scenario string) error {
 			return nil
-		}),
-		playbooks.WithUIBaseURLResolver(func(ctx context.Context, scenario string) (string, error) {
-			return "http://localhost:8080", nil
 		}),
 	)
 
@@ -536,27 +537,33 @@ func createMockBASServer(t *testing.T) *httptest.Server {
 
 		case strings.HasPrefix(r.URL.Path, "/executions/") && strings.HasSuffix(r.URL.Path, "/timeline"):
 			// Return timeline with assertion
-			timeline := &browser_automation_studio_v1.ExecutionTimeline{
+			timeline := &bastimeline.ExecutionTimeline{
 				ExecutionId: "exec-123",
-				Status:      browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_COMPLETED,
+				Status:      basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED,
 				Progress:    100,
-				Frames: []*browser_automation_studio_v1.TimelineFrame{
+				Entries: []*bastimeline.TimelineEntry{
 					{
-						StepIndex: 0,
-						NodeId:    "navigate-1",
-						StepType:  browser_automation_studio_v1.StepType_STEP_TYPE_NAVIGATE,
-						Status:    browser_automation_studio_v1.StepStatus_STEP_STATUS_COMPLETED,
-						Success:   true,
+						StepIndex: int32Ptr(0),
+						NodeId:    strPtr("navigate-1"),
+						Action:    &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE},
+						Aggregates: &bastimeline.TimelineEntryAggregates{
+							Status: basbase.StepStatus_STEP_STATUS_COMPLETED,
+						},
+						Context: &basbase.EventContext{Success: boolPtr(true)},
 					},
 					{
-						StepIndex: 1,
-						NodeId:    "assert-1",
-						StepType:  browser_automation_studio_v1.StepType_STEP_TYPE_ASSERT,
-						Status:    browser_automation_studio_v1.StepStatus_STEP_STATUS_COMPLETED,
-						Success:   true,
-						Assertion: &browser_automation_studio_v1.AssertionOutcome{
-							Mode:    "visible",
-							Success: true,
+						StepIndex: int32Ptr(1),
+						NodeId:    strPtr("assert-1"),
+						Action:    &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_ASSERT},
+						Aggregates: &bastimeline.TimelineEntryAggregates{
+							Status: basbase.StepStatus_STEP_STATUS_COMPLETED,
+						},
+						Context: &basbase.EventContext{
+							Success: boolPtr(true),
+							Assertion: &basbase.AssertionResult{
+								Mode:    basbase.AssertionMode_ASSERTION_MODE_VISIBLE,
+								Success: true,
+							},
 						},
 					},
 				},
@@ -628,30 +635,36 @@ func createMockBASServerWithFailedAssertion(t *testing.T) *httptest.Server {
 			json.NewEncoder(w).Encode(map[string]string{"execution_id": "exec-fail-123"})
 
 		case strings.HasPrefix(r.URL.Path, "/executions/") && strings.HasSuffix(r.URL.Path, "/timeline"):
-			timeline := &browser_automation_studio_v1.ExecutionTimeline{
+			timeline := &bastimeline.ExecutionTimeline{
 				ExecutionId: "exec-fail-123",
-				Status:      browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_FAILED,
+				Status:      basbase.ExecutionStatus_EXECUTION_STATUS_FAILED,
 				Progress:    50,
-				Frames: []*browser_automation_studio_v1.TimelineFrame{
+				Entries: []*bastimeline.TimelineEntry{
 					{
-						StepIndex: 0,
-						NodeId:    "navigate-1",
-						StepType:  browser_automation_studio_v1.StepType_STEP_TYPE_NAVIGATE,
-						Status:    browser_automation_studio_v1.StepStatus_STEP_STATUS_COMPLETED,
-						Success:   true,
+						StepIndex: int32Ptr(0),
+						NodeId:    strPtr("navigate-1"),
+						Action:    &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE},
+						Aggregates: &bastimeline.TimelineEntryAggregates{
+							Status: basbase.StepStatus_STEP_STATUS_COMPLETED,
+						},
+						Context: &basbase.EventContext{Success: boolPtr(true)},
 					},
 					{
-						StepIndex: 1,
-						NodeId:    "assert-1",
-						StepType:  browser_automation_studio_v1.StepType_STEP_TYPE_ASSERT,
-						Status:    browser_automation_studio_v1.StepStatus_STEP_STATUS_FAILED,
-						Success:   false,
-						Error:     strPtr("Element not visible: [data-testid='dashboard']"),
-						Assertion: &browser_automation_studio_v1.AssertionOutcome{
-							Mode:     "visible",
-							Selector: "[data-testid='dashboard']",
-							Success:  false,
-							Message:  "Element not visible after 10s timeout",
+						StepIndex: int32Ptr(1),
+						NodeId:    strPtr("assert-1"),
+						Action:    &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_ASSERT},
+						Aggregates: &bastimeline.TimelineEntryAggregates{
+							Status: basbase.StepStatus_STEP_STATUS_FAILED,
+						},
+						Context: &basbase.EventContext{
+							Success: boolPtr(false),
+							Error:   strPtr("Element not visible: [data-testid='dashboard']"),
+							Assertion: &basbase.AssertionResult{
+								Mode:     basbase.AssertionMode_ASSERTION_MODE_VISIBLE,
+								Selector: "[data-testid='dashboard']",
+								Success:  false,
+								Message:  strPtr("Element not visible after 10s timeout"),
+							},
 						},
 					},
 				},
@@ -697,15 +710,12 @@ func createTestRunner(t *testing.T, dir, basURL string) *playbooks.Runner {
 			WorkflowExecutionTimeout: 30 * time.Second,
 		})),
 		playbooks.WithSeedManager(seeds.NewManager(dir, dir, testDir, io.Discard)),
-		playbooks.WithArtifactWriter(artifacts.NewWriter(dir, "test-scenario", dir)),
+		playbooks.WithArtifactWriter(artifacts.NewWriter(dir, "test-scenario", "", dir)),
 		playbooks.WithPortResolver(func(ctx context.Context, scenario, portName string) (string, error) {
 			return "8080", nil
 		}),
 		playbooks.WithScenarioStarter(func(ctx context.Context, scenario string) error {
 			return nil // Mock - assume scenario is already running
-		}),
-		playbooks.WithUIBaseURLResolver(func(ctx context.Context, scenario string) (string, error) {
-			return "http://localhost:8080", nil
 		}),
 	)
 }

@@ -7,9 +7,9 @@
 
 The business phase validates requirements coverage and business logic by analyzing test results against the requirements registry. It ensures PRD requirements are properly tested. It is part of the `quick` and `smoke` presets (read-only, runs in seconds); the requirements *syncer* — the only thing that writes to `requirements/*.json` or PRD.md — stays gated behind full-coverage runs and never fires from quick/smoke.
 
-## Findings (source=BUSINESS)
+## Findings
 
-Every run emits typed `ArchitectureFinding`s (`FINDING_SOURCE_BUSINESS`) alongside the human-readable observations, feeding the ecosystem-manager `business` dimension. Findings appear in the suite `--json` output per phase; severities are capped at ERROR in v1 (never BLOCKER), and findings never change the phase's pass/fail.
+Every run emits typed `ArchitectureFinding`s alongside the human-readable observations, feeding the ecosystem-manager `business` dimension. Structural requirement-registry findings use `FINDING_SOURCE_BUSINESS`; intent-ladder findings use `FINDING_SOURCE_ARCHITECTURE` so their `afid` is stable across cartographer/test-genie producers. Findings appear in the suite `--json` output per phase; severities are capped at ERROR in v1 (never BLOCKER), and findings never change the phase's pass/fail.
 
 | Code | Severity | Meaning |
 |------|----------|---------|
@@ -17,9 +17,9 @@ Every run emits typed `ArchitectureFinding`s (`FINDING_SOURCE_BUSINESS`) alongsi
 | `business_duplicate_req_id:<ID>` | ERROR | Duplicate requirement ID |
 | `business_import_cycle:<ID>` | ERROR | Cycle in the requirement hierarchy |
 | `business_orphaned_ref:<ID>` | ERROR/WARNING | `children`/`depends_on` points at a nonexistent requirement |
-| `business_validation_ref_missing:<ID>` | WARNING | `validation[].ref` points at a nonexistent file |
+| `intent.ref_missing:<ID>` | ERROR | `validation[].ref` points at a nonexistent file |
 | `business_req_no_validation:<ID>` | WARNING (ERROR if P0) | Requirement declares no validation at all |
-| `business_prd_ref_unmatched:<ID>` | WARNING | `prd_ref` (OT-…) matches no operational target in PRD.md |
+| `intent.prd_ref_unmatched:<ID>` | WARNING | `prd_ref` (OT-…) matches no operational target in PRD.md |
 | `business_req_missing_id` / `business_req_missing_title` / `business_invalid_status` | ERROR/WARNING | Structural field defects, now typed |
 
 The autosteer skill for this dimension is `requirements-traceability-steer` (prompt-manager store). Producer: `api/internal/orchestrator/phases/phase_business_findings.go`.

@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file image-tools/v1/ai/ai.proto.
  */
 export const file_image_tools_v1_ai_ai: GenFile = /*@__PURE__*/
-  fileDesc("ChppbWFnZS10b29scy92MS9haS9haS5wcm90bxIYdnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpIqIBCg9BSU9wZXJhdGlvbkluZm8SDAoEbmFtZRgBIAEoCRIQCghjYXRlZ29yeRgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJEhYKDnJlcXVpcmVzX2ltYWdlGAQgASgIEhUKDXJlcXVpcmVzX21hc2sYBSABKAgSFQoNcHJvbXB0X2RyaXZlbhgGIAEoCBIYChBkZWZhdWx0X21vZGVsX2lkGAcgASgJIhkKF0xpc3RBSU9wZXJhdGlvbnNSZXF1ZXN0IlkKGExpc3RBSU9wZXJhdGlvbnNSZXNwb25zZRI9CgpvcGVyYXRpb25zGAEgAygLMikudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpLkFJT3BlcmF0aW9uSW5mbyL7AQoIQUlQYXJhbXMSDgoGcHJvbXB0GAEgASgJEhcKD25lZ2F0aXZlX3Byb21wdBgCIAEoCRIMCgRzZWVkGAMgASgDEg0KBXdpZHRoGAQgASgFEg4KBmhlaWdodBgFIAEoBRINCgVzdGVwcxgGIAEoBRIRCgljZmdfc2NhbGUYByABKAESEgoKdmFyaWF0aW9ucxgIIAEoBRIQCghzdHJlbmd0aBgJIAEoARINCgVzY2FsZRgKIAEoBRIWCg5tb2RlbF9vdmVycmlkZRgLIAEoCRISCgphbGxvd19ieW9rGAwgASgIEhYKDmF1dG9fc2Nhbl9uc2Z3GA0gASgIIm8KEFN1Ym1pdEFJUmVzcG9uc2USDgoGam9iX2lkGAEgASgJEhkKEWVzdGltYXRlZF9zZWNvbmRzGAIgASgFEhAKCG1vZGVsX2lkGAMgASgJEgwKBHRpZXIYBCABKAkSEAoId2FybmluZ3MYBSADKAkyhgEKCUFJU2VydmljZRJ5ChBMaXN0QUlPcGVyYXRpb25zEjEudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpLkxpc3RBSU9wZXJhdGlvbnNSZXF1ZXN0GjIudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpLkxpc3RBSU9wZXJhdGlvbnNSZXNwb25zZUJIWkZnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2ltYWdlLXRvb2xzL3YxL2FpO2FpX3YxYgZwcm90bzM");
+  fileDesc("ChppbWFnZS10b29scy92MS9haS9haS5wcm90bxIYdnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpIqIBCg9BSU9wZXJhdGlvbkluZm8SDAoEbmFtZRgBIAEoCRIQCghjYXRlZ29yeRgCIAEoCRIPCgdzdW1tYXJ5GAMgASgJEhYKDnJlcXVpcmVzX2ltYWdlGAQgASgIEhUKDXJlcXVpcmVzX21hc2sYBSABKAgSFQoNcHJvbXB0X2RyaXZlbhgGIAEoCBIYChBkZWZhdWx0X21vZGVsX2lkGAcgASgJIhkKF0xpc3RBSU9wZXJhdGlvbnNSZXF1ZXN0IlkKGExpc3RBSU9wZXJhdGlvbnNSZXNwb25zZRI9CgpvcGVyYXRpb25zGAEgAygLMikudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFpLkFJT3BlcmF0aW9uSW5mbyKgAgoIQUlQYXJhbXMSDgoGcHJvbXB0GAEgASgJEhcKD25lZ2F0aXZlX3Byb21wdBgCIAEoCRIMCgRzZWVkGAMgASgDEg0KBXdpZHRoGAQgASgFEg4KBmhlaWdodBgFIAEoBRINCgVzdGVwcxgGIAEoBRIRCgljZmdfc2NhbGUYByABKAESEgoKdmFyaWF0aW9ucxgIIAEoBRIQCghzdHJlbmd0aBgJIAEoARINCgVzY2FsZRgKIAEoBRIWCg5tb2RlbF9vdmVycmlkZRgLIAEoCRISCgphbGxvd19ieW9rGAwgASgIEhYKDmF1dG9fc2Nhbl9uc2Z3GA0gASgIEg8KB3JlYWxpc20YDiABKAESEgoKZmFjZV9hd2FyZRgPIAEoCCJvChBTdWJtaXRBSVJlc3BvbnNlEg4KBmpvYl9pZBgBIAEoCRIZChFlc3RpbWF0ZWRfc2Vjb25kcxgCIAEoBRIQCghtb2RlbF9pZBgDIAEoCRIMCgR0aWVyGAQgASgJEhAKCHdhcm5pbmdzGAUgAygJMoYBCglBSVNlcnZpY2USeQoQTGlzdEFJT3BlcmF0aW9ucxIxLnZyb29saS5pbWFnZV90b29scy52MS5haS5MaXN0QUlPcGVyYXRpb25zUmVxdWVzdBoyLnZyb29saS5pbWFnZV90b29scy52MS5haS5MaXN0QUlPcGVyYXRpb25zUmVzcG9uc2VCSFpGZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9pbWFnZS10b29scy92MS9haTthaV92MWIGcHJvdG8z");
 
 /**
  * AIOperationInfo describes one model-backed operation for discovery.
@@ -206,6 +206,26 @@ export type AIParams = Message<"vrooli.image_tools.v1.ai.AIParams"> & {
    * @generated from field: bool auto_scan_nsfw = 13;
    */
   autoScanNsfw: boolean;
+
+  /**
+   * Realism is the naturalize fidelity↔realism knob 0..1: how much micro-texture,
+   * local contrast, and film-grain to reintroduce into an over-smoothed
+   * (restored/upscaled) image. 0/unset = a gentle default; 1 = maximum texture.
+   * Only the naturalize op reads it.
+   *
+   * @generated from field: double realism = 14;
+   */
+  realism: number;
+
+  /**
+   * FaceAware biases naturalize's texture/grain toward midtone regions (where
+   * skin sits) so faces de-plasticize more than flat backgrounds. A deterministic
+   * luminance-band heuristic, not face detection (which lands with the segment /
+   * face_restore ops in a later phase). Only the naturalize op reads it.
+   *
+   * @generated from field: bool face_aware = 15;
+   */
+  faceAware: boolean;
 };
 
 /**

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"test-genie/internal/eligibility"
+	"test-genie/internal/orchestrator/phases/validationprovider"
 	"test-genie/internal/orchestrator/workspace"
 	"test-genie/internal/shared"
 
@@ -43,21 +44,8 @@ func fetchAuditorStandardsSummary(ctx context.Context, logWriter io.Writer, base
 	return eligibility.FetchSummary(ctx, logWriter, baseURL, scenarioName, mapping, summaryLimit)
 }
 
-func runStandardsPhase(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
-	if report := CheckContext(ctx); report != nil {
-		return *report
-	}
-
+func standardsDelegatedClient(ctx context.Context, env workspace.Environment, logWriter io.Writer, provider validationprovider.Provider) *validationprovider.Result {
 	cleanLog := wrapLogSansANSI(logWriter)
-
-	if os.Getenv("TEST_GENIE_SKIP_STANDARDS") == "1" {
-		shared.LogWarn(cleanLog, "standards phase disabled via TEST_GENIE_SKIP_STANDARDS")
-		return RunReport{
-			Observations: []Observation{
-				NewSkipObservation("standards phase disabled via TEST_GENIE_SKIP_STANDARDS"),
-			},
-		}
-	}
 
 	failOn := normalizeSeverity(os.Getenv("TEST_GENIE_STANDARDS_FAIL_ON"))
 	if failOn == "" {
@@ -78,17 +66,43 @@ func runStandardsPhase(ctx context.Context, env workspace.Environment, logWriter
 	baseURL, err := resolveScenarioAuditorBaseURL(ctx)
 	if err != nil {
 		classification, remediation := classifyAuditorError(err)
-		return RunReport{
-			Err:                   err,
-			FailureClassification: classification,
-			Remediation:           remediation,
-			Observations: []Observation{
-				NewSectionObservation("📏", "Standards"),
-				NewErrorObservation("scenario-auditor API unavailable"),
-			},
-		}
+		return standardsResult(validationprovider.Summary{Scenario: env.ScenarioName, Status: "error"}, false, shared.FailureClass(classification), err, remediation, []shared.Observation{
+			shared.NewSectionObservation(provider.Emoji, provider.Phase),
+			shared.NewErrorObservation("scenario-auditor API unavailable"),
+		}, nil)
 	}
 
+	mapping := standardsMapping(env)
+	summary, err := fetchAuditorStandardsSummary(ctx, cleanLog, baseURL, env.ScenarioName, mapping, summaryLimit)
+	observations := buildStandardsObservations(summary, failOn, minDisplay)
+	archFindings := standardsArchFindings(env.ScenarioName, summary)
+	providerSummary := standardsProviderSummary(env.ScenarioName, summary, "passed")
+
+	if err != nil {
+		classification, remediation := classifyAuditorError(err)
+		providerSummary.Status = "error"
+		return standardsResult(providerSummary, false, shared.FailureClass(classification), err, remediation, observations, archFindings)
+	}
+	if err := requireProtoProviderAssessment(provider.ProviderScenario, provider.Phase, summary.Assessment); err != nil {
+		providerSummary.Status = "error"
+		remediation := fmt.Sprintf("Restart scenario-auditor through Vrooli lifecycle, then run `scenario-auditor standards scan %s --wait --timeout %ds` and verify the JSON summary includes assessment.", env.ScenarioName, timeoutSeconds)
+		return standardsResult(providerSummary, false, shared.FailureClassMaturityContract, err, remediation, observations, archFindings)
+	}
+	localCurrent, localNext := localMaturitySummary(summary.Assessment)
+	providerSummary.LocalCurrentLevel = localCurrent
+	providerSummary.LocalNextLevel = localNext
+
+	if violatesFailOn(summary.HighestSeverity, failOn) {
+		err := fmt.Errorf("standards violations exceed fail_on=%s (highest=%s)", failOn, summary.HighestSeverity)
+		providerSummary.Status = "failed"
+		remediation := fmt.Sprintf("Run `scenario-auditor standards scan %s --wait --timeout %ds` and address %s+ findings.", env.ScenarioName, timeoutSeconds, strings.ToUpper(failOn))
+		return standardsResult(providerSummary, false, shared.FailureClassMisconfiguration, err, remediation, observations, archFindings)
+	}
+
+	return standardsResult(providerSummary, true, shared.FailureClassNone, nil, "", observations, archFindings)
+}
+
+func standardsMapping(env workspace.Environment) workspace.Mapping {
 	mapping := env.Mapping
 	if strings.TrimSpace(mapping.PhysicalScenarioDir) == "" {
 		mapping = workspace.Mapping{
@@ -96,89 +110,61 @@ func runStandardsPhase(ctx context.Context, env workspace.Environment, logWriter
 			PhysicalAppRoot:     strings.TrimSpace(env.PhysicalAppRoot),
 		}
 	}
-	summary, err := fetchAuditorStandardsSummary(ctx, cleanLog, baseURL, env.ScenarioName, mapping, summaryLimit)
-	observations := buildStandardsObservations(summary, failOn, minDisplay)
-	archFindings := standardsArchFindings(env.ScenarioName, summary)
+	return mapping
+}
 
-	if err != nil {
-		classification, remediation := classifyAuditorError(err)
-		writePhasePointer(env, "standards", RunReport{
-			Err:                   err,
-			FailureClassification: classification,
-			Remediation:           remediation,
-			Observations:          observations,
-		}, nil, cleanLog)
-		return RunReport{
-			Err:                   err,
-			FailureClassification: classification,
-			Remediation:           remediation,
-			Observations:          observations,
+func standardsProviderSummary(scenario string, summary *auditorViolationSummary, status string) validationprovider.Summary {
+	out := validationprovider.Summary{Scenario: scenario, Status: status}
+	if summary == nil {
+		return out
+	}
+	for severity, count := range summary.BySeverity {
+		switch normalizeFindingSeverityLabel(severity) {
+		case "blocker":
+			out.Blockers += count
+		case "error":
+			out.Errors += count
+		case "warning":
+			out.Warnings += count
+		case "info":
+			out.Infos += count
 		}
 	}
-	if err := requireProtoProviderAssessment("scenario-auditor", "standards", summary.Assessment); err != nil {
-		classification := FailureClassMaturityContract
-		remediation := fmt.Sprintf("Restart scenario-auditor through Vrooli lifecycle, then run `scenario-auditor standards scan %s --wait --timeout %ds` and verify the JSON summary includes assessment.", env.ScenarioName, timeoutSeconds)
-		writePhasePointer(env, "standards", RunReport{
-			Err:                   err,
-			FailureClassification: classification,
-			Remediation:           remediation,
-			Observations:          observations,
-		}, nil, cleanLog)
-		return RunReport{
-			Err:                   err,
-			FailureClassification: classification,
-			Remediation:           remediation,
-			Observations:          observations,
-			Findings:              archFindings,
+	if out.Blockers+out.Errors+out.Warnings+out.Infos == 0 && summary.Total > 0 {
+		switch normalizeFindingSeverityLabel(summary.HighestSeverity) {
+		case "blocker":
+			out.Blockers = summary.Total
+		case "error":
+			out.Errors = summary.Total
+		case "warning":
+			out.Warnings = summary.Total
+		default:
+			out.Infos = summary.Total
 		}
 	}
-	localCurrent, localNext := localMaturitySummary(summary.Assessment)
+	return out
+}
 
-	failedThreshold := violatesFailOn(summary.HighestSeverity, failOn)
-	if err != nil || failedThreshold {
-		if err == nil && failedThreshold {
-			err = fmt.Errorf("standards violations exceed fail_on=%s (highest=%s)", failOn, summary.HighestSeverity)
-		}
-		classification, remediation := classifyAuditorError(err)
-		if failedThreshold {
-			classification = FailureClassMisconfiguration
-			remediation = fmt.Sprintf("Run `scenario-auditor standards scan %s --wait --timeout %ds` and address %s+ findings.", env.ScenarioName, timeoutSeconds, strings.ToUpper(failOn))
-		}
-
-		extras := map[string]any{
-			"summary": map[string]any{
-				"total":               summary.Total,
-				"highest_severity":    summary.HighestSeverity,
-				"local_current_level": localCurrent,
-				"local_next_level":    localNext,
-			},
-		}
-		writePhasePointer(env, "standards", RunReport{
-			Err:                   err,
-			FailureClassification: classification,
-			Remediation:           remediation,
-			Observations:          observations,
-		}, extras, cleanLog)
-		return RunReport{
-			Err:                   err,
-			FailureClassification: classification,
-			Remediation:           remediation,
-			Observations:          observations,
-			Findings:              archFindings,
-		}
-	}
-
-	extras := map[string]any{
-		"summary": map[string]any{
-			"total":               summary.Total,
-			"highest_severity":    summary.HighestSeverity,
-			"local_current_level": localCurrent,
-			"local_next_level":    localNext,
+func standardsResult(
+	summary validationprovider.Summary,
+	success bool,
+	class shared.FailureClass,
+	err error,
+	remediation string,
+	observations []shared.Observation,
+	findings []*architecturev1.ArchitectureFinding,
+) *validationprovider.Result {
+	return &validationprovider.Result{
+		RunResult: shared.RunResult[validationprovider.Summary]{
+			Success:      success,
+			Error:        err,
+			FailureClass: class,
+			Remediation:  remediation,
+			Observations: observations,
+			Summary:      summary,
 		},
+		Findings: findings,
 	}
-	report := RunReport{Observations: observations, Findings: archFindings}
-	writePhasePointer(env, "standards", report, extras, cleanLog)
-	return report
 }
 
 // standardsArchFindings maps the auditor summary's top violations into the
@@ -216,26 +202,26 @@ func standardsArchFindings(scenario string, summary *auditorViolationSummary) []
 	return out
 }
 
-func buildStandardsObservations(summary *auditorViolationSummary, failOn, minDisplay string) []Observation {
-	obs := []Observation{
-		NewSectionObservation("📏", "Standards"),
+func buildStandardsObservations(summary *auditorViolationSummary, failOn, minDisplay string) []shared.Observation {
+	obs := []shared.Observation{
+		shared.NewSectionObservation("📏", "Standards"),
 	}
 	if summary == nil {
-		return append(obs, NewErrorObservation("No standards summary available"))
+		return append(obs, shared.NewErrorObservation("No standards summary available"))
 	}
 
 	highest := summary.HighestSeverity
 	if highest == "" {
 		highest = "none"
 	}
-	obs = append(obs, NewInfoObservation(fmt.Sprintf("Total violations: %d (highest=%s, fail_on=%s+)", summary.Total, highest, failOn)))
+	obs = append(obs, shared.NewInfoObservation(fmt.Sprintf("Total violations: %d (highest=%s, fail_on=%s+)", summary.Total, highest, failOn)))
 
 	if len(summary.BySeverity) > 0 {
-		obs = append(obs, NewInfoObservation("By severity: "+formatSeverityCounts(summary.BySeverity)))
+		obs = append(obs, shared.NewInfoObservation("By severity: "+formatSeverityCounts(summary.BySeverity)))
 	}
 
 	if summary.Artifact != nil && strings.TrimSpace(summary.Artifact.Path) != "" {
-		obs = append(obs, NewInfoObservation("Artifact: "+strings.TrimSpace(summary.Artifact.Path)))
+		obs = append(obs, shared.NewInfoObservation("Artifact: "+strings.TrimSpace(summary.Artifact.Path)))
 	}
 
 	if len(summary.ByRule) > 0 {
@@ -251,11 +237,11 @@ func buildStandardsObservations(summary *auditorViolationSummary, failOn, minDis
 			}
 			parts = append(parts, fmt.Sprintf("%s=%d", label, rc.Count))
 		}
-		obs = append(obs, NewInfoObservation("Top rules: "+strings.Join(parts, ", ")))
+		obs = append(obs, shared.NewInfoObservation("Top rules: "+strings.Join(parts, ", ")))
 	}
 
 	if len(summary.TopViolations) > 0 {
-		obs = append(obs, NewSectionObservation("🔎", "Top Violations"))
+		obs = append(obs, shared.NewSectionObservation("🔎", "Top Violations"))
 		for _, v := range summary.TopViolations {
 			if !shouldDisplaySeverity(v.Severity, minDisplay) {
 				continue
@@ -270,19 +256,19 @@ func buildStandardsObservations(summary *auditorViolationSummary, failOn, minDis
 			}
 			msg := fmt.Sprintf("[%s] %s -> %s", strings.ToUpper(v.Severity), title, line)
 			if violatesFailOn(v.Severity, failOn) {
-				obs = append(obs, NewErrorObservation(msg))
+				obs = append(obs, shared.NewErrorObservation(msg))
 			} else {
-				obs = append(obs, NewWarningObservation(msg))
+				obs = append(obs, shared.NewWarningObservation(msg))
 			}
 		}
 	}
 
 	if violatesFailOn(summary.HighestSeverity, failOn) {
-		obs = append(obs, NewErrorObservation(fmt.Sprintf("Standards violations include %s+ severity findings", strings.ToUpper(failOn))))
+		obs = append(obs, shared.NewErrorObservation(fmt.Sprintf("Standards violations include %s+ severity findings", strings.ToUpper(failOn))))
 	} else if summary.Total > 0 {
-		obs = append(obs, NewWarningObservation("Standards violations detected (below fail threshold)"))
+		obs = append(obs, shared.NewWarningObservation("Standards violations detected (below fail threshold)"))
 	} else {
-		obs = append(obs, NewSuccessObservation("No standards violations detected"))
+		obs = append(obs, shared.NewSuccessObservation("No standards violations detected"))
 	}
 
 	return obs
@@ -320,24 +306,15 @@ func envInt(name string, fallback int) int {
 }
 
 func normalizeSeverity(raw string) string {
-	return eligibility.NormalizeSeverity(raw)
+	return shared.NormalizeAuditorSeverity(raw)
+}
+
+func normalizeFindingSeverityLabel(raw string) string {
+	return shared.NormalizeFindingSeverityLabel(raw)
 }
 
 func severityWeight(sev string) int {
-	switch normalizeSeverity(sev) {
-	case "critical":
-		return 5
-	case "high":
-		return 4
-	case "medium":
-		return 3
-	case "low":
-		return 2
-	case "info":
-		return 1
-	default:
-		return 0
-	}
+	return shared.SeverityWeight(sev)
 }
 
 func violatesFailOn(severity, failOn string) bool {

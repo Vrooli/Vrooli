@@ -12,6 +12,7 @@ import (
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
+	catalog "test-genie/internal/orchestrator/phases"
 )
 
 func TestParseArgs(t *testing.T) {
@@ -35,6 +36,25 @@ func TestResolveProbeAcceptsPhaseAndProvider(t *testing.T) {
 	}
 	if byPhase.Phase != byProvider.Phase || byPhase.Provider != byProvider.Provider {
 		t.Fatalf("phase/provider resolved different probes: %#v != %#v", byPhase, byProvider)
+	}
+}
+
+func TestProbesResolveAgainstCatalog(t *testing.T) {
+	probes := Probes()
+	if len(probes) == 0 {
+		t.Fatal("Probes returned no delegated phases")
+	}
+	for _, probe := range probes {
+		spec, ok := catalog.DefaultCatalog().Lookup(probe.Phase)
+		if !ok {
+			t.Fatalf("probe phase %q missing from catalog", probe.Phase)
+		}
+		if spec.Delegated == nil {
+			t.Fatalf("probe phase %q is not delegated in catalog", probe.Phase)
+		}
+		if probe.Provider != spec.Delegated.ProviderScenario {
+			t.Fatalf("probe phase %q provider = %q, want %q", probe.Phase, probe.Provider, spec.Delegated.ProviderScenario)
+		}
 	}
 }
 

@@ -14,13 +14,16 @@ import (
 	"strings"
 	"testing"
 
-	browser_automation_studio_v1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1"
 	"test-genie/internal/playbooks/artifacts"
 	"test-genie/internal/playbooks/config"
 	"test-genie/internal/playbooks/execution"
 	"test-genie/internal/playbooks/registry"
 	"test-genie/internal/playbooks/seeds"
 	"test-genie/internal/playbooks/workflow"
+
+	basbase "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
+	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
+	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
 )
 
 // createTestWorkflow creates a minimal workflow file for testing.
@@ -58,10 +61,10 @@ type mockBASClient struct {
 	healthErr       error
 	executeID       string
 	executeErr      error
-	status          *ExecutionStatus
+	status          *basexecution.Execution
 	statusErr       error
 	waitErr         error
-	timelineProto   *browser_automation_studio_v1.ExecutionTimeline
+	timelineProto   *bastimeline.ExecutionTimeline
 	timeline        []byte
 	timelineErr     error
 	healthCallCount int
@@ -70,7 +73,7 @@ type mockBASClient struct {
 
 func (m *mockBASClient) WaitForCompletionWithProgress(ctx context.Context, executionID string, callback execution.ProgressCallback) error {
 	m.waitCallCount++
-	if callback != nil && m.status != nil && m.status.GetStatus() != browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_UNSPECIFIED {
+	if callback != nil && m.status != nil && m.status.GetStatus() != basbase.ExecutionStatus_EXECUTION_STATUS_UNSPECIFIED {
 		_ = callback(m.status, 0)
 	}
 	return m.waitErr
@@ -98,7 +101,7 @@ func (m *mockBASClient) ExecuteWorkflowWithParams(ctx context.Context, definitio
 	return m.executeID, m.executeErr
 }
 
-func (m *mockBASClient) GetStatus(ctx context.Context, executionID string) (*ExecutionStatus, error) {
+func (m *mockBASClient) GetStatus(ctx context.Context, executionID string) (*basexecution.Execution, error) {
 	return m.status, m.statusErr
 }
 
@@ -107,11 +110,23 @@ func (m *mockBASClient) WaitForCompletion(ctx context.Context, executionID strin
 	return m.waitErr
 }
 
-func (m *mockBASClient) GetTimeline(ctx context.Context, executionID string) (*browser_automation_studio_v1.ExecutionTimeline, []byte, error) {
+func (m *mockBASClient) GetTimeline(ctx context.Context, executionID string) (*bastimeline.ExecutionTimeline, []byte, error) {
 	return m.timelineProto, m.timeline, m.timelineErr
 }
 
 func (m *mockBASClient) GetScreenshots(ctx context.Context, executionID string) ([]execution.Screenshot, error) {
+	return nil, nil
+}
+
+func (m *mockBASClient) GetRecordedVideos(ctx context.Context, executionID string) ([]execution.RecordedArtifact, error) {
+	return nil, nil
+}
+
+func (m *mockBASClient) GetRecordedTraces(ctx context.Context, executionID string) ([]execution.RecordedArtifact, error) {
+	return nil, nil
+}
+
+func (m *mockBASClient) GetRecordedHar(ctx context.Context, executionID string) ([]execution.RecordedArtifact, error) {
 	return nil, nil
 }
 
@@ -449,8 +464,8 @@ func TestRunnerRunTimelineParseFailure(t *testing.T) {
 
 	bas := &mockBASClient{
 		executeID: "exec-1",
-		status: &ExecutionStatus{
-			Status: browser_automation_studio_v1.ExecutionStatus_EXECUTION_STATUS_COMPLETED,
+		status: &basexecution.Execution{
+			Status: basbase.ExecutionStatus_EXECUTION_STATUS_COMPLETED,
 		},
 		// Unknown field should trigger strict proto parse failure.
 		timeline: []byte(`{"execution_id":"exec-1","frames":[{"step_index":0,"node_id":"n1","unknown_field":true}]}`),
@@ -467,7 +482,7 @@ func TestRunnerRunTimelineParseFailure(t *testing.T) {
 		WithWorkflowResolver(&mockWorkflowResolver{definition: map[string]any{"nodes": []any{}, "edges": []any{}}}),
 		WithBASClient(bas),
 		WithSeedManager(&mockSeedManager{}),
-		WithArtifactWriter(artifacts.NewWriter(scenarioDir, "test-scenario", tempDir)),
+		WithArtifactWriter(artifacts.NewWriter(scenarioDir, "test-scenario", "", tempDir)),
 	)
 
 	result := runner.Run(context.Background())
@@ -564,8 +579,11 @@ func TestRunnerRunWithUIBaseURL(t *testing.T) {
 		WithBASClient(&mockBASClient{executeID: "exec-123"}),
 		WithSeedManager(&mockSeedManager{}),
 		WithArtifactWriter(&mockArtifactWriter{}),
-		WithUIBaseURLResolver(func(ctx context.Context, scenario string) (string, error) {
-			return "http://localhost:3000", nil
+		WithPortResolver(func(ctx context.Context, scenario, portName string) (string, error) {
+			if portName == "API_PORT" {
+				return "8080", nil
+			}
+			return "3000", nil
 		}),
 	)
 

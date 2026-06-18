@@ -2,7 +2,6 @@ package phases
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"strings"
 
@@ -26,12 +25,12 @@ import (
 //
 // See: packages/api-base/docs/concepts/websocket-support.md
 func runIntegrationPhase(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
-	var summary string
 	// Strip ANSI escape sequences from captured CLI output for cleaner logs.
 	cleanLog := wrapLogSansANSI(logWriter)
 
-	report := RunPhase(ctx, logWriter, "integration",
-		func() (*integration.RunResult, error) {
+	return RunNativePhase[struct{}](ctx, env, logWriter, Integration,
+		nil,
+		func(_ struct{}) (StandardRunResult, error) {
 			// Load testing config for integration-specific settings
 			config, err := workspace.LoadTestingConfig(env.ScenarioDir)
 			if err != nil {
@@ -50,24 +49,7 @@ func runIntegrationPhase(ctx context.Context, env workspace.Environment, logWrit
 			)
 			return runner.Run(ctx), nil
 		},
-		func(r *integration.RunResult) PhaseResult[integration.Observation] {
-			if r != nil {
-				summary = r.Summary.String()
-			}
-			return ExtractWithSummary(
-				r.Success,
-				r.Error,
-				r.FailureClass,
-				r.Remediation,
-				r.Observations,
-				"✅",
-				fmt.Sprintf("Integration validation completed (%s)", r.Summary.String()),
-			)
-		},
 	)
-
-	writePhasePointer(env, "integration", report, map[string]any{"summary": summary}, logWriter)
-	return report
 }
 
 // buildIntegrationConfig constructs the integration.Config from environment and testing.json settings.

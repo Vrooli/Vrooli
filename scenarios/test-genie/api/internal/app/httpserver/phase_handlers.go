@@ -3,7 +3,6 @@ package httpserver
 import (
 	"encoding/json"
 	"net/http"
-	"strings"
 
 	"test-genie/internal/orchestrator"
 	"test-genie/internal/orchestrator/phases"
@@ -52,12 +51,12 @@ func (s *Server) handleUpdatePhaseSettings(w http.ResponseWriter, r *http.Reques
 
 	known := make(map[string]struct{})
 	for _, descriptor := range s.phaseCatalog.DescribePhases() {
-		known[normalizePhaseName(descriptor.Name)] = struct{}{}
+		known[phases.NormalizeKey(descriptor.Name)] = struct{}{}
 	}
 
 	filtered := orchestrator.PhaseToggleConfig{Phases: map[string]orchestrator.PhaseToggle{}}
 	for name, toggle := range payload.Phases {
-		key := normalizePhaseName(name)
+		key := phases.NormalizeKey(name)
 		if key == "" {
 			continue
 		}
@@ -87,8 +86,4 @@ func (s *Server) phaseSettingsPayload(descriptors []phases.Descriptor, toggles o
 		"count":   len(descriptors),
 		"toggles": phaseToggles,
 	}
-}
-
-func normalizePhaseName(raw string) string {
-	return strings.ToLower(strings.TrimSpace(raw))
 }

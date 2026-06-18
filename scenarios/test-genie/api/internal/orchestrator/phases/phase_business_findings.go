@@ -2,11 +2,10 @@ package phases
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
+	intent "intent-go"
 	"test-genie/internal/business"
 
 	reqparsing "test-genie/internal/requirements/parsing"
@@ -54,8 +53,8 @@ var businessRuleFindings = map[string]businessRuleFindingSpec{
 		Code:       "business_orphaned_ref",
 		Suggestion: "Remove the dangling reference or add the missing requirement it points at.",
 	},
-	"invalid_reference": {
-		Code:       "business_validation_ref_missing",
+	intent.CodeRefMissing: {
+		Code:       intent.CodeRefMissing,
 		Suggestion: "Point validation.ref at an existing test file (path relative to the scenario root), or remove the stale entry.",
 	},
 	"missing_id": {
@@ -108,9 +107,13 @@ func businessIssueFindings(scenario, scenarioDir string, issues []reqtypes.Valid
 		if id := strings.TrimSpace(issue.RequirementID); id != "" {
 			code += ":" + id
 		}
+		source := architecturev1.FindingSource_FINDING_SOURCE_BUSINESS
+		if strings.HasPrefix(spec.Code, "intent.") {
+			source = architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE
+		}
 		out = append(out, newFinding(
 			scenario,
-			architecturev1.FindingSource_FINDING_SOURCE_BUSINESS,
+			source,
 			code,
 			string(issue.Severity),
 			issue.Message,
@@ -134,7 +137,8 @@ func businessRegistryFindings(scenario, scenarioDir string, index *reqparsing.Mo
 	}
 
 	var out []*architecturev1.ArchitectureFinding
-	prdTargets, prdExists := prdOperationalTargets(scenarioDir)
+	prdClaims, prdErr := (intent.FilePRDExtractor{}).ExtractPRDClaims(scenarioDir)
+	reqClaims, reqErr := (intent.FileRequirementsExtractor{}).ExtractRequirementClaims(scenarioDir)
 
 	var starterFiles []string
 	starterSeen := make(map[string]struct{})
@@ -174,21 +178,6 @@ func businessRegistryFindings(scenario, scenarioDir string, index *reqparsing.Mo
 				))
 			}
 
-			prdRef := strings.TrimSpace(req.PRDRef)
-			if prdExists && strings.HasPrefix(prdRef, "OT-") {
-				if _, ok := prdTargets[prdRef]; !ok {
-					out = append(out, newFinding(
-						scenario,
-						architecturev1.FindingSource_FINDING_SOURCE_BUSINESS,
-						"business_prd_ref_unmatched:"+id,
-						"warning",
-						fmt.Sprintf("Requirement %s references %s, which matches no operational target in PRD.md.", id, prdRef),
-						"Fix the prd_ref to an existing operational target, or add the missing target to PRD.md (Operational Targets section).",
-						nonEmptyLocations(moduleLoc, "PRD.md"),
-						nil,
-					))
-				}
-			}
 		}
 	}
 
@@ -205,27 +194,26 @@ func businessRegistryFindings(scenario, scenarioDir string, index *reqparsing.Mo
 		))
 	}
 
+	if prdErr == nil && reqErr == nil {
+		for _, finding := range intent.CheckPRDRefResolves(prdClaims, reqClaims) {
+			code := finding.Code
+			if finding.ClaimID != "" {
+				code += ":" + finding.ClaimID
+			}
+			out = append(out, newFinding(
+				scenario,
+				architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE,
+				code,
+				finding.Severity,
+				finding.Message,
+				finding.Suggestion,
+				nonEmptyLocations(finding.Locations...),
+				nil,
+			))
+		}
+	}
+
 	return out
-}
-
-// otTokenPattern matches operational-target IDs as they appear in the
-// canonical PRD template's checklists (`- [ ] OT-P0-001 | Title | ...`).
-var otTokenPattern = regexp.MustCompile(`\bOT-[A-Za-z0-9]+-[A-Za-z0-9]+\b`)
-
-// prdOperationalTargets extracts the set of operational-target IDs from the
-// scenario's PRD.md. The second return is false when no PRD.md exists, in
-// which case the prd_ref check is skipped entirely (PRD presence is the docs
-// phase's concern, not this producer's).
-func prdOperationalTargets(scenarioDir string) (map[string]struct{}, bool) {
-	data, err := os.ReadFile(filepath.Join(scenarioDir, "PRD.md"))
-	if err != nil {
-		return nil, false
-	}
-	targets := make(map[string]struct{})
-	for _, token := range otTokenPattern.FindAllString(string(data), -1) {
-		targets[token] = struct{}{}
-	}
-	return targets, true
 }
 
 func hasTag(tags []string, want string) bool {
