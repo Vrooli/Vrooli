@@ -9,6 +9,18 @@
   color-scheme: light;
 }
 
+/*
+ * Full-height chain (INTEROP-CRITICAL): the app shell uses `h-full`
+ * (height: 100%), never `h-screen`/`100vh`, so it sizes to the iframe element
+ * in the app-monitor proxy context instead of the outer viewport. That only
+ * works if every ancestor establishes a height — hence 100% on html/body/#root.
+ */
+html,
+body,
+#root {
+  height: 100%;
+}
+
 body {
   background: var(--color-background);
   color: var(--color-foreground);

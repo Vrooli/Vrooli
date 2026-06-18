@@ -7,6 +7,7 @@
   "layout": {
     "sidebarLabel": "التنقل الرئيسي",
     "bottomNavLabel": "التنقل الرئيسي (للجوال)",
+    "mainContentLabel": "المحتوى الرئيسي",
     "nav": {
       "home": "الرئيسية",
       "workspace": "مساحة العمل",

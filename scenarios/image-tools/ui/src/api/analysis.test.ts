@@ -119,6 +119,37 @@ describe("api/analysis", () => {
     }
   });
 
+  it("analyze('ocr') yields a null box when a block carries no bounding box", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      makeResponse({
+        json: {
+          job_id: "j2b",
+          ocr: {
+            full_text: "hi",
+            language: "eng",
+            blocks: [{ text: "hi", confidence: 0.9 }],
+          },
+        },
+      }),
+    );
+
+    const out = await analyze("ocr", PNG);
+
+    expect(out.kind).toBe("ocr");
+    if (out.kind === "ocr") {
+      expect(out.blocks[0]?.box).toBeNull();
+    }
+  });
+
+  it("analyze throws an internal ApiError when the response carries no result oneof", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(makeResponse({ json: { job_id: "j-empty" } }));
+
+    await expect(analyze("ocr", PNG)).rejects.toMatchObject({
+      name: "ApiError",
+      code: "internal",
+    });
+  });
+
   it("analyze throws a typed ApiError on a non-2xx response (e.g. model not installed)", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(
       makeResponse({

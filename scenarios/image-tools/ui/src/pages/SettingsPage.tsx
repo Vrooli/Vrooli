@@ -13,9 +13,8 @@ import {
   type TextDirection,
 } from "../features/settings/useSettings";
 import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTranslation } from "../i18n";
-import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
-
-const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
+import { useTheme } from "../theme/ThemeProvider";
+import { THEME_CHOICES, THEME_CHOICE_LABEL } from "../theme/themeChoiceLabel";
 
 // `satisfies` (not `: Record<…, string>`) so the literal key-path types are
 // preserved — `t()` is typed against the union of catalog key paths, and a
@@ -123,7 +122,7 @@ export function SettingsPage() {
           options={THEME_CHOICES}
           value={choice}
           onChange={setTheme}
-          labelFor={(c) => t(strings.theme.choice[c])}
+          labelFor={(c) => t(THEME_CHOICE_LABEL[c])}
           testIdFor={(c) => selectors.settingsPage.themeOption({ choice: c })}
         />
       </div>

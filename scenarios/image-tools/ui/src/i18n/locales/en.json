@@ -7,6 +7,7 @@
   "layout": {
     "sidebarLabel": "Primary navigation",
     "bottomNavLabel": "Primary navigation (mobile)",
+    "mainContentLabel": "Main content",
     "nav": {
       "home": "Home",
       "workspace": "Workspace",

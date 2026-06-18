@@ -70,4 +70,103 @@ describe("ThemeProvider", () => {
 
     matchMediaSpy.mockRestore();
   });
+
+  it("reads a valid stored choice on first load (no initialChoice)", () => {
+    window.localStorage.setItem(STORAGE_KEY, "dark");
+    const { result } = renderHook(() => useTheme(), { wrapper: wrapper() });
+    expect(result.current.choice).toBe("dark");
+    expect(result.current.resolved).toBe("dark");
+    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+  });
+
+  it("falls back to system when the stored value is not a valid choice", () => {
+    window.localStorage.setItem(STORAGE_KEY, "neon");
+    const { result } = renderHook(() => useTheme(), { wrapper: wrapper() });
+    expect(result.current.choice).toBe("system");
+  });
+
+  it("resolves system to light when matchMedia is absent (guard branch)", () => {
+    const original = window.matchMedia;
+    // Delete the global so resolveChoice's `if (!matchMedia)` guard fires.
+    delete (window as { matchMedia?: typeof window.matchMedia }).matchMedia;
+    try {
+      const { result } = renderHook(() => useTheme(), { wrapper: wrapper("system") });
+      expect(result.current.resolved).toBe("light");
+      expect(document.documentElement.hasAttribute("data-theme")).toBe(false);
+    } finally {
+      window.matchMedia = original;
+    }
+  });
+
+  it("subscribes to the media query while on system and re-resolves on change", () => {
+    let changeHandler: (() => void) | undefined;
+    const removeEventListener = vi.fn();
+    const mql = {
+      matches: false,
+      media: "(prefers-color-scheme: dark)",
+      onchange: null,
+      addEventListener: vi.fn((_evt: string, cb: () => void) => {
+        changeHandler = cb;
+      }),
+      removeEventListener,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    };
+    const matchMediaSpy = vi.spyOn(window, "matchMedia").mockReturnValue(mql);
+
+    const { result, unmount } = renderHook(() => useTheme(), { wrapper: wrapper("system") });
+    expect(result.current.resolved).toBe("light");
+    expect(mql.addEventListener).toHaveBeenCalledWith("change", expect.any(Function));
+
+    // OS flips to dark → the handler reads mql.matches and re-resolves.
+    mql.matches = true;
+    act(() => changeHandler?.());
+    expect(result.current.resolved).toBe("dark");
+
+    unmount();
+    expect(removeEventListener).toHaveBeenCalledWith("change", expect.any(Function));
+
+    matchMediaSpy.mockRestore();
+  });
+
+  it("does not subscribe to the media query for an explicit (non-system) choice", () => {
+    const addEventListener = vi.fn();
+    const matchMediaSpy = vi.spyOn(window, "matchMedia").mockReturnValue({
+      matches: false,
+      media: "(prefers-color-scheme: dark)",
+      onchange: null,
+      addEventListener,
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    });
+
+    renderHook(() => useTheme(), { wrapper: wrapper("light") });
+    // The effect's `choice !== "system"` guard returns before subscribing.
+    expect(addEventListener).not.toHaveBeenCalled();
+
+    matchMediaSpy.mockRestore();
+  });
+
+  it("tears down the system listener when the user switches away from system", () => {
+    const removeEventListener = vi.fn();
+    const matchMediaSpy = vi.spyOn(window, "matchMedia").mockReturnValue({
+      matches: false,
+      media: "(prefers-color-scheme: dark)",
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    });
+
+    const { result } = renderHook(() => useTheme(), { wrapper: wrapper("system") });
+    act(() => result.current.setTheme("light"));
+    expect(removeEventListener).toHaveBeenCalledWith("change", expect.any(Function));
+
+    matchMediaSpy.mockRestore();
+  });
 });

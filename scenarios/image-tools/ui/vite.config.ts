@@ -78,6 +78,10 @@ export default defineConfig(({ mode }): UserConfig => {
           'src/main.tsx',
           'src/test-setup.ts',
           'src/test-utils/**',
+          // Per-feature test fixtures (`features/<x>/mocks/*`). Same rationale
+          // as `test-utils/**`: scaffolding consumed only by tests, so it has
+          // no production reason to count toward the coverage denominator.
+          'src/**/mocks/**',
           'src/consts/strings.generated.ts',
           'src/i18n/locales/**',
           // Temporal-flow codegen. Everything under generated/ is

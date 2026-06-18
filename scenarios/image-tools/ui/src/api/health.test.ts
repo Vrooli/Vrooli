@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { fetchHealth } from "./health";
+import { ApiError } from "./client";
 
 describe("api/health.fetchHealth", () => {
   let fetchSpy: ReturnType<typeof vi.fn>;
@@ -30,5 +31,27 @@ describe("api/health.fetchHealth", () => {
       method: "GET",
       cache: "no-store",
     });
+  });
+
+  it("throws a typed ApiError on a non-2xx response", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response(JSON.stringify({ code: "unavailable", message: "down" }), { status: 503 }),
+    );
+
+    await expect(fetchHealth()).rejects.toBeInstanceOf(ApiError);
+  });
+
+  it("parses the body into a typed HealthResponse on success", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      new Response('{"status":"healthy","service":"image-tools","timestamp":"t","readiness":true}', {
+        status: 200,
+      }),
+    );
+
+    const out = await fetchHealth();
+
+    expect(out.status).toBe("healthy");
+    expect(out.service).toBe("image-tools");
+    expect(out.readiness).toBe(true);
   });
 });

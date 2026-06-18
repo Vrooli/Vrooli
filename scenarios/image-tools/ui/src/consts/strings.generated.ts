@@ -19,6 +19,7 @@ export const strings = {
   layout: {
     sidebarLabel: "layout.sidebarLabel",
     bottomNavLabel: "layout.bottomNavLabel",
+    mainContentLabel: "layout.mainContentLabel",
     nav: {
       home: "layout.nav.home",
       workspace: "layout.nav.workspace",

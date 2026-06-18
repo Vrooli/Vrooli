@@ -8,8 +8,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, renderHook } from "@testing-library/react";
 
-import type { RunOpImageResult } from "../../api/ops";
-import { useWorkspace, type WorkspaceRunner } from "./useWorkspace";
+import { runOp, type RunOpImageResult } from "../../api/ops";
+import { liveRunner, useWorkspace, type WorkspaceRunner } from "./useWorkspace";
+
+// Mock only the network-touching `runOp`; keep the rest of api/ops intact so
+// the typed re-exports and helpers stay real. `liveRunner` is the one path that
+// crosses the wire, so its branches are tested against the mock + a fake fetch.
+vi.mock("../../api/ops", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/ops")>();
+  return { ...actual, runOp: vi.fn() };
+});
 
 const PNG = new File(["base-bytes"], "base.png", { type: "image/png" });
 
@@ -212,5 +220,189 @@ describe("useWorkspace", () => {
     act(() => result.current.undo());
     expect(result.current.entries).toHaveLength(0);
     expect(result.current.previewUrl).toBe("blob:base");
+  });
+
+  it("setMode, setOperation, setParam and setParams mutate the controlled state", () => {
+    const { result } = setup(makeImageRunner());
+
+    act(() => result.current.setMode("enhance"));
+    expect(result.current.mode).toBe("enhance");
+
+    // setOperation seeds the form from the op's spec defaults.
+    act(() => result.current.setOperation("resize"));
+    expect(result.current.params).toEqual({ width: 256, height: 0, fit: "fit", gravity: "" });
+
+    // setParam replaces a single key, leaving the rest intact.
+    act(() => result.current.setParam("width", 512));
+    expect(result.current.params.width).toBe(512);
+    expect(result.current.params.height).toBe(0);
+
+    // setParams merges several keys in one change (e.g. a crop drag).
+    act(() => result.current.setParams({ height: 128, fit: "fill" }));
+    expect(result.current.params).toMatchObject({ width: 512, height: 128, fit: "fill" });
+  });
+
+  it("apply is a no-op when no base image is loaded (no input branch)", async () => {
+    const runner = makeImageRunner();
+    const { result } = setup(runner);
+
+    act(() => result.current.setOperation("resize"));
+    await act(async () => {
+      await result.current.apply();
+    });
+
+    expect(runner).not.toHaveBeenCalled();
+    expect(result.current.entries).toHaveLength(0);
+  });
+
+  it("apply is a no-op when no operation is selected", async () => {
+    const runner = makeImageRunner();
+    const { result } = setup(runner);
+
+    act(() => result.current.setBase(PNG));
+    // operation stays "" — the falsy-operation guard short-circuits.
+    await act(async () => {
+      await result.current.apply();
+    });
+
+    expect(runner).not.toHaveBeenCalled();
+    expect(result.current.entries).toHaveLength(0);
+  });
+
+  it("captures a runner rejection in error and clears applying", async () => {
+    const boom = new Error("op failed");
+    const runner = vi.fn<WorkspaceRunner>(() => Promise.reject(boom));
+    const { result } = setup(runner);
+
+    act(() => result.current.setBase(PNG));
+    act(() => result.current.setOperation("resize"));
+    await act(async () => {
+      await result.current.apply();
+    });
+
+    expect(result.current.error).toBe(boom);
+    expect(result.current.applying).toBe(false);
+    expect(result.current.entries).toHaveLength(0);
+  });
+
+  it("forwards an overlay to the runner only for overlay-accepting ops", async () => {
+    const runner = makeImageRunner();
+    const { result } = setup(runner);
+    const overlay = new File(["wm"], "wm.png", { type: "image/png" });
+
+    act(() => result.current.setBase(PNG));
+    act(() => result.current.setOperation("overlay"));
+    await act(async () => {
+      await result.current.apply(overlay);
+    });
+    // overlay op declares acceptsOverlay → the overlay is threaded through.
+    expect(runner.mock.calls[0]?.[3]).toEqual({ overlay });
+
+    // A non-overlay op drops the overlay (empty opts branch).
+    act(() => result.current.setOperation("resize"));
+    await act(async () => {
+      await result.current.apply(overlay);
+    });
+    expect(runner.mock.calls[1]?.[3]).toEqual({});
+  });
+
+  it("undo and redo are no-ops on empty stacks", () => {
+    const { result } = setup(makeImageRunner());
+    act(() => result.current.setBase(PNG));
+
+    act(() => result.current.undo());
+    expect(result.current.entries).toHaveLength(0);
+    expect(result.current.canUndo).toBe(false);
+
+    act(() => result.current.redo());
+    expect(result.current.entries).toHaveLength(0);
+    expect(result.current.canRedo).toBe(false);
+  });
+
+  it("revokes the prior base object URL when a new base replaces it", () => {
+    const { result } = setup(makeImageRunner());
+    const url = vi.mocked(URL);
+
+    act(() => result.current.setBase(PNG));
+    const replacement = new File(["other"], "other.png", { type: "image/png" });
+    act(() => result.current.setBase(replacement));
+
+    expect(url.revokeObjectURL).toHaveBeenCalledWith("blob:base");
+    expect(result.current.base?.file).toBe(replacement);
+  });
+});
+
+describe("liveRunner", () => {
+  beforeEach(() => {
+    vi.stubGlobal("URL", {
+      ...URL,
+      createObjectURL: vi.fn(() => "blob:live"),
+      revokeObjectURL: vi.fn(),
+    });
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it("passes a metadata result straight through (metadata branch)", async () => {
+    vi.mocked(runOp).mockResolvedValueOnce({ kind: "metadata", json: '{"k":1}' });
+
+    const out = await liveRunner("metadata", {}, PNG, {});
+    expect(out).toEqual({ kind: "metadata", json: '{"k":1}' });
+  });
+
+  it("materializes an image result's bytes as a File using the result format", async () => {
+    vi.mocked(runOp).mockResolvedValueOnce({
+      kind: "image",
+      url: "blob:remote",
+      width: 10,
+      height: 20,
+      format: "webp",
+      jobId: "j1",
+    });
+    const blob = new Blob(["png-bytes"], { type: "image/webp" });
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ blob: () => Promise.resolve(blob) })));
+
+    const out = await liveRunner("resize", { width: 10 }, PNG, {});
+    expect(out.kind).toBe("image");
+    if (out.kind !== "image") throw new Error("expected image result");
+    expect(out.outputFile.name).toBe("step.webp");
+    expect(out.outputFile.type).toBe("image/webp");
+    expect(out.result.url).toBe("blob:remote");
+  });
+
+  it("falls back to png + image/png when the result format and blob type are blank", async () => {
+    vi.mocked(runOp).mockResolvedValueOnce({
+      kind: "image",
+      url: "blob:remote",
+      width: 0,
+      height: 0,
+      format: "",
+      jobId: "",
+    });
+    // A blob with an empty type exercises the `blob.type || "image/png"` fallback.
+    const blob = new Blob(["bytes"]);
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ blob: () => Promise.resolve(blob) })));
+
+    const out = await liveRunner("rotate", {}, PNG, {});
+    if (out.kind !== "image") throw new Error("expected image result");
+    expect(out.outputFile.name).toBe("step.png");
+    expect(out.outputFile.type).toBe("image/png");
+  });
+
+  it("threads overlay opts into runOp", async () => {
+    vi.mocked(runOp).mockResolvedValueOnce({ kind: "metadata", json: "{}" });
+    const overlay = new File(["wm"], "wm.png", { type: "image/png" });
+
+    await liveRunner("overlay", { text: "hi" }, PNG, { overlay });
+    expect(vi.mocked(runOp)).toHaveBeenCalledWith(
+      "overlay",
+      PNG,
+      expect.objectContaining({ text: "hi" }),
+      { overlay },
+    );
   });
 });

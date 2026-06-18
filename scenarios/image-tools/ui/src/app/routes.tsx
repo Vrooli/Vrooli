@@ -21,7 +21,7 @@ import { WorkspacePage } from "../pages/WorkspacePage";
  * Dual-mode: `/` Home + `/workspace` + `/library` are the Studio surfaces;
  * `/activity` + `/models` + `/settings` are the Console surfaces.
  */
-export const routes: RouteObject[] = [
+const routes: RouteObject[] = [
   {
     path: "/",
     element: <AppShell />,

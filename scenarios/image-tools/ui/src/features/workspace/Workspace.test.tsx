@@ -5,7 +5,7 @@
  * placeholder are exercised without the network.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../../test-utils";
@@ -28,10 +28,18 @@ vi.mock("../../api/analysis", async (importOriginal) => {
   return { ...actual, ...makeAnalysisMocks() };
 });
 
+vi.mock("../../api/ai", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/ai")>();
+  const { makeAIMocks } = await import("./mocks/ai");
+  return { ...actual, ...makeAIMocks() };
+});
+
 import { Workspace } from "./Workspace";
 import type { WorkspaceRunner } from "./useWorkspace";
 import { selectors } from "../../consts/selectors";
 import { setLocale } from "../../i18n";
+import { makeCreateClient } from "./mocks/ai";
+import { resetWorkspaceIntent, setWorkspaceIntent } from "./workspaceIntent";
 
 const PNG = new File(["bytes"], "in.png", { type: "image/png" });
 
@@ -62,6 +70,7 @@ describe("Workspace", () => {
     cleanup();
     vi.clearAllMocks();
     vi.unstubAllGlobals();
+    resetWorkspaceIntent();
   });
 
   it("renders the error state when listOperations rejects", async () => {
@@ -254,5 +263,130 @@ describe("Workspace", () => {
     expect(
       screen.queryByTestId(selectors.workspace.opOption({ name: "bogus" })),
     ).not.toBeInTheDocument();
+  });
+
+  it("undoes and redoes an applied step via the keyboard chords", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Workspace runner={imageRunner()} />);
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.workspace.applyButton)).toBeInTheDocument();
+    });
+
+    await uploadImage(user);
+    await user.click(screen.getByTestId(selectors.workspace.applyButton));
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.workspace.historyStep({ index: 1 }))).toBeInTheDocument();
+    });
+
+    // Ctrl+Z routes through onUndo (canUndo true → handled).
+    await user.keyboard("{Control>}z{/Control}");
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId(selectors.workspace.historyStep({ index: 1 })),
+      ).not.toBeInTheDocument();
+    });
+
+    // Ctrl+Shift+Z routes through onRedo (canRedo true → handled).
+    await user.keyboard("{Control>}{Shift>}z{/Shift}{/Control}");
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.workspace.historyStep({ index: 1 }))).toBeInTheDocument();
+    });
+  });
+
+  it("no-ops the undo/redo chords when there is nothing to undo or redo", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Workspace runner={imageRunner()} />);
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.workspace.applyButton)).toBeInTheDocument();
+    });
+
+    // With an empty history both callbacks take the canUndo/canRedo === false
+    // branch and report not-handled; the surface stays put.
+    await user.keyboard("{Control>}z{/Control}");
+    await user.keyboard("{Control>}y{/Control}");
+    expect(
+      screen.queryByTestId(selectors.workspace.historyStep({ index: 1 })),
+    ).not.toBeInTheDocument();
+  });
+
+  it("seeds the crop rect from the natural image size on the canvas", async () => {
+    const { listOperations } = await import("../../api/ops");
+    vi.mocked(listOperations).mockResolvedValue(
+      makeListOperationsResponse({
+        operations: [makeOperationInfo({ name: "crop" }), makeOperationInfo({ name: "resize" })],
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<Workspace />);
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.workspace.operationSelect)).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId(selectors.workspace.opOption({ name: "crop" })));
+    await uploadImage(user);
+
+    // The crop overlay mounts once an image is on the canvas; firing the
+    // image's load with a natural size exercises seedCrop, which (because the
+    // rect is still at its default) seeds x/y/w/h into the same params the
+    // accessible numeric fallback drives.
+    const image = await screen.findByTestId(selectors.workspace.canvas.image);
+    Object.defineProperty(image, "naturalWidth", { value: 800, configurable: true });
+    Object.defineProperty(image, "naturalHeight", { value: 600, configurable: true });
+    fireEvent.load(image);
+
+    await user.click(screen.getByTestId(selectors.workspace.crop.advanced));
+    const widthField = screen.getByTestId(selectors.workspace.fieldInput({ name: "width" }));
+    // seedCrop pushed the full-image rect into params (non-default width).
+    await waitFor(() => expect(widthField).not.toHaveValue(0));
+  });
+
+  it("sends a generated variation to Enhance, switching modes with the image", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<Workspace createClient={makeCreateClient()} />);
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.workspace.modeSwitcher)).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId(selectors.workspace.modeOption({ mode: "create" })));
+    await screen.findByTestId(selectors.workspace.create.panel);
+
+    await user.type(screen.getByTestId(selectors.workspace.create.prompt), "a serene lake");
+    await user.click(screen.getByTestId(selectors.workspace.create.run));
+    await screen.findByTestId(selectors.workspace.createVariation({ index: 1 }));
+
+    // "Enhance" adopts the variation as the new base AND switches to Enhance
+    // mode. Scope to the result grid so the mode-switcher's Enhance tab (same
+    // accessible name) isn't matched.
+    const grid = within(screen.getByTestId(selectors.workspace.create.results));
+    await user.click(grid.getByRole("button", { name: /enhance/i }));
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.workspace.enhance.panel)).toBeInTheDocument();
+    });
+  });
+
+  it("applies a staged Home/Library handoff intent on mount (mode + AI action)", async () => {
+    setWorkspaceIntent({ mode: "enhance", operation: "upscale", file: PNG });
+    renderWithProviders(<Workspace />);
+
+    // The intent opens the Enhance panel with the upscale action pre-selected.
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.workspace.enhance.panel)).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(
+        screen.getByTestId(selectors.workspace.enhanceAction({ name: "upscale" })),
+      ).toHaveAttribute("aria-checked", "true");
+    });
+  });
+
+  it("applies a deterministic-op handoff intent on mount (Edit mode)", async () => {
+    setWorkspaceIntent({ mode: "edit", operation: "metadata" });
+    renderWithProviders(<Workspace />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId(selectors.workspace.fieldInput({ name: "strip_all" })),
+      ).toBeInTheDocument();
+    });
   });
 });

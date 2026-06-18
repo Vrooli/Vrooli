@@ -113,6 +113,31 @@ describe("api/ops", () => {
     expect(result).toEqual({ kind: "metadata", json: '{"width":10}' });
   });
 
+  it("treats a missing Content-Type as an image result and defaults non-numeric dimensions to 0", async () => {
+    // No Content-Type header at all (exercises the `?? ""` fallback so the
+    // application/json check is false → the image branch), and a non-numeric
+    // width header (exercises toNumber's NaN → 0 guard).
+    vi.mocked(fetch).mockResolvedValueOnce(
+      makeResponse({
+        body: new Blob(["bytes"]),
+        headers: { "X-Image-Tools-Width": "not-a-number" },
+      }),
+    );
+
+    const { runOp } = await import("./ops");
+    const file = new File(["x"], "in.png", { type: "image/png" });
+    const result = await runOp("resize", file, { width: 10 });
+
+    expect(result).toEqual({
+      kind: "image",
+      url: "blob:result",
+      width: 0,
+      height: 0,
+      format: "",
+      jobId: "",
+    });
+  });
+
   it("throws a decoded ApiError on a non-2xx response", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(
       makeResponse({ ok: false, status: 400, contentType: "application/json" }),
