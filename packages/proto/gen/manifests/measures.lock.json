@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "scenario": "measures",
+  "input_digest": "sha256:1be8ea2a08fdde87af96e4b3d70b35ffebe7b7834c3357c741d554c777de638a",
+  "input_files": [
+    "schemas/measures/v1/measures.proto",
+    "vendor/protovalidate/buf/validate/validate.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/measures/v1/measures.pb.go": "sha256:7e651ed27a0fda712554e0e95347f5fe7fa9c6ff9cc57dfbd03f59218bcecf5f",
+    "gen/python/measures/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/measures/v1/measures_pb2.py": "sha256:4887f4005d89663a71acae81ffacc7d217ae2b237e5d2c106cfa1e79b5977740",
+    "gen/python/measures/v1/measures_pb2.pyi": "sha256:cbd55526dbed8ade3d65d92c59302ac123f15fe857442cebcdc8fb7036cc3048",
+    "gen/python/measures/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/js/measures/v1/measures_pb.js": "sha256:9a62566486139c362b60da7b3fd65a9df719e95fe7cd9c6ec5d6810f6dbf44cc",
+    "gen/typescript/measures/v1/measures_pb.ts": "sha256:0186f140da5ca6ea9126c6c8609f938564cf3310751a7f5b559cea1d3fad3c5e"
+  }
+}

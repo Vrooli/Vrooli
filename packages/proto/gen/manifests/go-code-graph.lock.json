@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "scenario": "go-code-graph",
+  "input_digest": "sha256:5b9252f7c18092ecbd691a12b69d8319e96ae42e196837d90747b2b30bd7fc77",
+  "input_files": [
+    "schemas/common/v1/code_graph.proto",
+    "schemas/go-code-graph/v1/errors/errors.proto",
+    "schemas/go-code-graph/v1/graph/graph.proto",
+    "schemas/go-code-graph/v1/health/health.proto",
+    "schemas/go-code-graph/v1/rewrite/rewrite.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/go-code-graph/v1/errors/errors.pb.go": "sha256:0b92ac7da3ec85b1581b9ad7004a7baadac1bc3469701b7b648fea3a0a393129",
+    "gen/go/go-code-graph/v1/graph/graph.pb.go": "sha256:d93e1cd3166a10a727f03f244eee0aa3a7c9421a615507b148f639ef53c7073f",
+    "gen/go/go-code-graph/v1/graph/graph_v1connect/graph.connect.go": "sha256:9c674973d3fe3be45ae30605a4296fcfa31353d12024c6558bdf94cecdd91592",
+    "gen/go/go-code-graph/v1/health/health.pb.go": "sha256:a7ae6e8aaf28c2ca6236dcdec3b559ec975576e99c862293e3250510104607c1",
+    "gen/go/go-code-graph/v1/rewrite/rewrite.pb.go": "sha256:960733f811cf4bd1384b5cdfb10b293af4b7b151c3b4764a261a5f4f6f6c0571",
+    "gen/python/go_code_graph/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/go_code_graph/v1/errors/errors_pb2.py": "sha256:edb511d5d301ec922016e3d92483641334699036174df5a85acba2a6e55802ac",
+    "gen/python/go_code_graph/v1/errors/errors_pb2.pyi": "sha256:f450ddf1e711b457062360eefa5891896da1bdee9a378d78129cf75e26717dbe",
+    "gen/python/go_code_graph/v1/errors/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/go_code_graph/v1/graph/graph_pb2.py": "sha256:76c68e9f8c8f41cb8e899a4495e618dc23e0a6b4bfb8023064cedc4ebc0cbd70",
+    "gen/python/go_code_graph/v1/graph/graph_pb2.pyi": "sha256:d0522c891535402bd20d6557d9a7c976fea1a8980977f9971db2d8bf4288e6a9",
+    "gen/python/go_code_graph/v1/graph/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/go_code_graph/v1/health/health_pb2.py": "sha256:b181231915ba425d524a45f616b017a6d3fcb0e37b6f7c2a1aecbfc3860736a7",
+    "gen/python/go_code_graph/v1/health/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/go_code_graph/v1/health/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/go_code_graph/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/go_code_graph/v1/rewrite/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/go_code_graph/v1/rewrite/rewrite_pb2.py": "sha256:2432a689dfa2760dbdb477f7abf8a552e591f6d07399606d6119b35df82b87b0",
+    "gen/python/go_code_graph/v1/rewrite/rewrite_pb2.pyi": "sha256:0472d7a37158f74eb05429108798cce6cd1fd41747192a1f7ef08ae7c0e47c1e",
+    "gen/typescript/go-code-graph/v1/errors/errors_pb.ts": "sha256:a3386009a3d3d0cdd361857aa87531b76e52a27eb8a460a3c68cf3c305926ec9",
+    "gen/typescript/go-code-graph/v1/graph/graph_pb.ts": "sha256:403c7417a6ae623ea766e47022d722087ef3b6941736804173df1d52254e0bf3",
+    "gen/typescript/go-code-graph/v1/health/health_pb.ts": "sha256:1837daf5877cdbf6a42b00cc8cbfd5252ec11f8a37e18b63467cd17918c62d16",
+    "gen/typescript/go-code-graph/v1/rewrite/rewrite_pb.ts": "sha256:1d1244909bbb113a0f89dde368efd233ae374effa545f4905c03ab3dd1d9c19c",
+    "gen/typescript/js/go-code-graph/v1/errors/errors_pb.js": "sha256:0906329d0d3fffe5b40d832d54545378c02645ea6391497dcadfe8bd05e95b1b",
+    "gen/typescript/js/go-code-graph/v1/graph/graph_pb.js": "sha256:9d20648a89f9c7f9474490fa3d864d0bef49699917e46b254b2b507d9b0cc1ed",
+    "gen/typescript/js/go-code-graph/v1/health/health_pb.js": "sha256:c6437232ecda550e52237d97eeb7a660683bd0b2d452b0ff4b026a96f9096b75",
+    "gen/typescript/js/go-code-graph/v1/rewrite/rewrite_pb.js": "sha256:81bf0733313154a93215094b41c0c41c2b23fbf87b7c8ef5f2d674560c7eb814"
+  }
+}

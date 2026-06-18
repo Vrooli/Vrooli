@@ -157,12 +157,14 @@ long as the wire payload type is shared.
    and `/.well-known/*` discovery endpoints.
 2. **Static contract consistency**: declared payloads, imports,
    stability, and shared-type placement must match descriptor facts.
-3. **Generated artifact sync**: proto-health regenerates only the
-   target scenario's proto closure and compares the target generated
-   slices. Target-owned drift is `proto.gen_out_of_sync` (ERROR).
-   Upstream or unrelated proto compile failures block verification as
-   `proto.gen_check_blocked` (WARNING), so one scenario's in-progress
-   proto cannot fail an unrelated scenario's phase.
+3. **Generated artifact sync**: `packages/proto` writes committed
+   per-scenario generation manifests during `make generate`.
+   proto-health verifies the target scenario's source-closure digest,
+   generated-output hashes, orphan outputs, and committed toolchain
+   fingerprint against that manifest. Artifact drift is
+   `proto.gen_out_of_sync` (ERROR), a missing lockfile is
+   `proto.gen_manifest_missing` (ERROR), and toolchain pin drift is
+   `proto.gen_toolchain_drift` (WARNING). The hot path never runs `buf`.
 4. **Implementation proof**: `proto-health` consumes `code-facts`
    proof reports for generated proto adoption and REST exception
    handler conformance. Missing or unsupported proof is advisory; only

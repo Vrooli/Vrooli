@@ -215,6 +215,23 @@ message ControlPing {
   google.protobuf.Timestamp sent_at = 1;
 }
 
+// AbortJob is the control-plane → node push that cancels an in-flight run
+// (OT-P1-004 / the queue's node-side cancel). The operator's AbortRun marks the
+// durable run terminal-ABORTED server-side AND pushes this frame so the node's
+// runner stops the underlying process instead of running to completion as an
+// ignored stale completion. The node best-effort kills the run's process group
+// and stops reporting against run_id.
+message AbortJob {
+  // The server-owned run id to cancel; matches a prior JobPush.run_id.
+  string run_id = 1;
+
+  // Human-readable reason (operator abort, timeout, node-loss) surfaced in the
+  // node's logs.
+  string reason = 2;
+
+  reserved 3 to 15;
+}
+
 // RunEvent streams a durable run's progress back to the control plane (node →
 // control plane, OT-P0-005). The runs domain proxies these to the block-once
 // wait verb so a re-attaching client sees the same stream.
@@ -251,6 +268,7 @@ message ServerFrame {
     JobPush job = 2;
     ProvisionCommand provision = 3;
     ControlPing ping = 4;
+    AbortJob abort = 5;
   }
 }
 

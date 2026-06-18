@@ -4,9 +4,10 @@
 // 	protoc        (unknown)
 // source: scenario-to-desktop/v1/domain/build.proto
 
-package scenario_to_desktop_v1
+package domain
 
 import (
+	base "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/base"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -152,7 +153,7 @@ func (SmokeTestStatus) EnumDescriptor() ([]byte, []int) {
 type PlatformBuildResult struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Target platform.
-	Platform Platform `protobuf:"varint,1,opt,name=platform,proto3,enum=scenario_to_desktop.v1.Platform" json:"platform,omitempty"`
+	Platform base.Platform `protobuf:"varint,1,opt,name=platform,proto3,enum=scenario_to_desktop.v1.Platform" json:"platform,omitempty"`
 	// Build status for this platform.
 	Status PlatformBuildStatus `protobuf:"varint,2,opt,name=status,proto3,enum=scenario_to_desktop.v1.PlatformBuildStatus" json:"status,omitempty"`
 	// When the platform build started.
@@ -202,11 +203,11 @@ func (*PlatformBuildResult) Descriptor() ([]byte, []int) {
 	return file_scenario_to_desktop_v1_domain_build_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *PlatformBuildResult) GetPlatform() Platform {
+func (x *PlatformBuildResult) GetPlatform() base.Platform {
 	if x != nil {
 		return x.Platform
 	}
-	return Platform_PLATFORM_UNSPECIFIED
+	return base.Platform(0)
 }
 
 func (x *PlatformBuildResult) GetStatus() PlatformBuildStatus {
@@ -271,13 +272,13 @@ type BuildStatusResponse struct {
 	// Scenario being built.
 	ScenarioName string `protobuf:"bytes,2,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
 	// Overall build status.
-	Status BuildStatus `protobuf:"varint,3,opt,name=status,proto3,enum=scenario_to_desktop.v1.BuildStatus" json:"status,omitempty"`
+	Status base.BuildStatus `protobuf:"varint,3,opt,name=status,proto3,enum=scenario_to_desktop.v1.BuildStatus" json:"status,omitempty"`
 	// Target framework.
-	Framework Framework `protobuf:"varint,4,opt,name=framework,proto3,enum=scenario_to_desktop.v1.Framework" json:"framework,omitempty"`
+	Framework base.Framework `protobuf:"varint,4,opt,name=framework,proto3,enum=scenario_to_desktop.v1.Framework" json:"framework,omitempty"`
 	// Application template type.
-	TemplateType TemplateType `protobuf:"varint,5,opt,name=template_type,json=templateType,proto3,enum=scenario_to_desktop.v1.TemplateType" json:"template_type,omitempty"`
+	TemplateType base.TemplateType `protobuf:"varint,5,opt,name=template_type,json=templateType,proto3,enum=scenario_to_desktop.v1.TemplateType" json:"template_type,omitempty"`
 	// Platforms that were requested.
-	RequestedPlatforms []Platform `protobuf:"varint,6,rep,packed,name=requested_platforms,json=requestedPlatforms,proto3,enum=scenario_to_desktop.v1.Platform" json:"requested_platforms,omitempty"`
+	RequestedPlatforms []base.Platform `protobuf:"varint,6,rep,packed,name=requested_platforms,json=requestedPlatforms,proto3,enum=scenario_to_desktop.v1.Platform" json:"requested_platforms,omitempty"`
 	// Per-platform build results.
 	// Key: Platform name (win, mac, linux)
 	PlatformResults map[string]*PlatformBuildResult `protobuf:"bytes,7,rep,name=platform_results,json=platformResults,proto3" json:"platform_results,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
@@ -346,28 +347,28 @@ func (x *BuildStatusResponse) GetScenarioName() string {
 	return ""
 }
 
-func (x *BuildStatusResponse) GetStatus() BuildStatus {
+func (x *BuildStatusResponse) GetStatus() base.BuildStatus {
 	if x != nil {
 		return x.Status
 	}
-	return BuildStatus_BUILD_STATUS_UNSPECIFIED
+	return base.BuildStatus(0)
 }
 
-func (x *BuildStatusResponse) GetFramework() Framework {
+func (x *BuildStatusResponse) GetFramework() base.Framework {
 	if x != nil {
 		return x.Framework
 	}
-	return Framework_FRAMEWORK_UNSPECIFIED
+	return base.Framework(0)
 }
 
-func (x *BuildStatusResponse) GetTemplateType() TemplateType {
+func (x *BuildStatusResponse) GetTemplateType() base.TemplateType {
 	if x != nil {
 		return x.TemplateType
 	}
-	return TemplateType_TEMPLATE_TYPE_UNSPECIFIED
+	return base.TemplateType(0)
 }
 
-func (x *BuildStatusResponse) GetRequestedPlatforms() []Platform {
+func (x *BuildStatusResponse) GetRequestedPlatforms() []base.Platform {
 	if x != nil {
 		return x.RequestedPlatforms
 	}
@@ -440,7 +441,7 @@ type BuildRequest struct {
 	DesktopPath string `protobuf:"bytes,1,opt,name=desktop_path,json=desktopPath,proto3" json:"desktop_path,omitempty"`
 	// Target platforms to build.
 	// Empty means current platform only.
-	Platforms []Platform `protobuf:"varint,2,rep,packed,name=platforms,proto3,enum=scenario_to_desktop.v1.Platform" json:"platforms,omitempty"`
+	Platforms []base.Platform `protobuf:"varint,2,rep,packed,name=platforms,proto3,enum=scenario_to_desktop.v1.Platform" json:"platforms,omitempty"`
 	// Whether to sign the built artifacts.
 	Sign *bool `protobuf:"varint,3,opt,name=sign,proto3,oneof" json:"sign,omitempty"`
 	// Whether to publish after building.
@@ -486,7 +487,7 @@ func (x *BuildRequest) GetDesktopPath() string {
 	return ""
 }
 
-func (x *BuildRequest) GetPlatforms() []Platform {
+func (x *BuildRequest) GetPlatforms() []base.Platform {
 	if x != nil {
 		return x.Platforms
 	}
@@ -518,7 +519,7 @@ type ScenarioBuildRequest struct {
 	// @format path
 	DesktopPath string `protobuf:"bytes,2,opt,name=desktop_path,json=desktopPath,proto3" json:"desktop_path,omitempty"`
 	// Target platforms to build.
-	Platforms []Platform `protobuf:"varint,3,rep,packed,name=platforms,proto3,enum=scenario_to_desktop.v1.Platform" json:"platforms,omitempty"`
+	Platforms []base.Platform `protobuf:"varint,3,rep,packed,name=platforms,proto3,enum=scenario_to_desktop.v1.Platform" json:"platforms,omitempty"`
 	// Whether to clean existing build output first.
 	Clean         *bool `protobuf:"varint,4,opt,name=clean,proto3,oneof" json:"clean,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -569,7 +570,7 @@ func (x *ScenarioBuildRequest) GetDesktopPath() string {
 	return ""
 }
 
-func (x *ScenarioBuildRequest) GetPlatforms() []Platform {
+func (x *ScenarioBuildRequest) GetPlatforms() []base.Platform {
 	if x != nil {
 		return x.Platforms
 	}
@@ -662,7 +663,7 @@ type SmokeTestStatusResponse struct {
 	// Scenario being tested.
 	ScenarioName string `protobuf:"bytes,2,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
 	// Platform being tested.
-	Platform Platform `protobuf:"varint,3,opt,name=platform,proto3,enum=scenario_to_desktop.v1.Platform" json:"platform,omitempty"`
+	Platform base.Platform `protobuf:"varint,3,opt,name=platform,proto3,enum=scenario_to_desktop.v1.Platform" json:"platform,omitempty"`
 	// Smoke test status.
 	Status SmokeTestStatus `protobuf:"varint,4,opt,name=status,proto3,enum=scenario_to_desktop.v1.SmokeTestStatus" json:"status,omitempty"`
 	// Path to the artifact being tested.
@@ -728,11 +729,11 @@ func (x *SmokeTestStatusResponse) GetScenarioName() string {
 	return ""
 }
 
-func (x *SmokeTestStatusResponse) GetPlatform() Platform {
+func (x *SmokeTestStatusResponse) GetPlatform() base.Platform {
 	if x != nil {
 		return x.Platform
 	}
-	return Platform_PLATFORM_UNSPECIFIED
+	return base.Platform(0)
 }
 
 func (x *SmokeTestStatusResponse) GetStatus() SmokeTestStatus {
@@ -800,7 +801,7 @@ type SmokeTestStartRequest struct {
 	ScenarioName string `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
 	// Target platform to test.
 	// Optional - defaults to current platform.
-	Platform      *Platform `protobuf:"varint,2,opt,name=platform,proto3,enum=scenario_to_desktop.v1.Platform,oneof" json:"platform,omitempty"`
+	Platform      *base.Platform `protobuf:"varint,2,opt,name=platform,proto3,enum=scenario_to_desktop.v1.Platform,oneof" json:"platform,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -842,11 +843,11 @@ func (x *SmokeTestStartRequest) GetScenarioName() string {
 	return ""
 }
 
-func (x *SmokeTestStartRequest) GetPlatform() Platform {
+func (x *SmokeTestStartRequest) GetPlatform() base.Platform {
 	if x != nil && x.Platform != nil {
 		return *x.Platform
 	}
-	return Platform_PLATFORM_UNSPECIFIED
+	return base.Platform(0)
 }
 
 // SmokeTestStartResponse is returned when a smoke test is started.
@@ -860,7 +861,7 @@ type SmokeTestStartResponse struct {
 	// Scenario being tested.
 	ScenarioName string `protobuf:"bytes,2,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
 	// Platform being tested.
-	Platform Platform `protobuf:"varint,3,opt,name=platform,proto3,enum=scenario_to_desktop.v1.Platform" json:"platform,omitempty"`
+	Platform base.Platform `protobuf:"varint,3,opt,name=platform,proto3,enum=scenario_to_desktop.v1.Platform" json:"platform,omitempty"`
 	// Initial status.
 	Status SmokeTestStatus `protobuf:"varint,4,opt,name=status,proto3,enum=scenario_to_desktop.v1.SmokeTestStatus" json:"status,omitempty"`
 	// Artifact being tested.
@@ -918,11 +919,11 @@ func (x *SmokeTestStartResponse) GetScenarioName() string {
 	return ""
 }
 
-func (x *SmokeTestStartResponse) GetPlatform() Platform {
+func (x *SmokeTestStartResponse) GetPlatform() base.Platform {
 	if x != nil {
 		return x.Platform
 	}
-	return Platform_PLATFORM_UNSPECIFIED
+	return base.Platform(0)
 }
 
 func (x *SmokeTestStartResponse) GetStatus() SmokeTestStatus {
@@ -1114,7 +1115,7 @@ const file_scenario_to_desktop_v1_domain_build_proto_rawDesc = "" +
 	"\x1dSMOKE_TEST_STATUS_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19SMOKE_TEST_STATUS_RUNNING\x10\x01\x12\x1c\n" +
 	"\x18SMOKE_TEST_STATUS_PASSED\x10\x02\x12\x1c\n" +
-	"\x18SMOKE_TEST_STATUS_FAILED\x10\x03B^Z\\github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1;scenario_to_desktop_v1b\x06proto3"
+	"\x18SMOKE_TEST_STATUS_FAILED\x10\x03BUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain;domainb\x06proto3"
 
 var (
 	file_scenario_to_desktop_v1_domain_build_proto_rawDescOnce sync.Once
@@ -1145,11 +1146,11 @@ var file_scenario_to_desktop_v1_domain_build_proto_goTypes = []any{
 	nil,                             // 11: scenario_to_desktop.v1.BuildStatusResponse.PlatformResultsEntry
 	nil,                             // 12: scenario_to_desktop.v1.BuildStatusResponse.ArtifactsEntry
 	nil,                             // 13: scenario_to_desktop.v1.BuildStatusResponse.MetadataEntry
-	(Platform)(0),                   // 14: scenario_to_desktop.v1.Platform
+	(base.Platform)(0),              // 14: scenario_to_desktop.v1.Platform
 	(*timestamppb.Timestamp)(nil),   // 15: google.protobuf.Timestamp
-	(BuildStatus)(0),                // 16: scenario_to_desktop.v1.BuildStatus
-	(Framework)(0),                  // 17: scenario_to_desktop.v1.Framework
-	(TemplateType)(0),               // 18: scenario_to_desktop.v1.TemplateType
+	(base.BuildStatus)(0),           // 16: scenario_to_desktop.v1.BuildStatus
+	(base.Framework)(0),             // 17: scenario_to_desktop.v1.Framework
+	(base.TemplateType)(0),          // 18: scenario_to_desktop.v1.TemplateType
 }
 var file_scenario_to_desktop_v1_domain_build_proto_depIdxs = []int32{
 	14, // 0: scenario_to_desktop.v1.PlatformBuildResult.platform:type_name -> scenario_to_desktop.v1.Platform
@@ -1188,7 +1189,6 @@ func file_scenario_to_desktop_v1_domain_build_proto_init() {
 	if File_scenario_to_desktop_v1_domain_build_proto != nil {
 		return
 	}
-	file_scenario_to_desktop_v1_base_shared_proto_init()
 	file_scenario_to_desktop_v1_domain_build_proto_msgTypes[0].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_domain_build_proto_msgTypes[1].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_domain_build_proto_msgTypes[2].OneofWrappers = []any{}

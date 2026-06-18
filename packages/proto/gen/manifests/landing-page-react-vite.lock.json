@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "scenario": "landing-page-react-vite",
+  "input_digest": "sha256:d5774058dc11871a2e9c39e51c6a79aa7181ebc8edd51d682f785234165244c7",
+  "input_files": [
+    "schemas/common/v1/types.proto",
+    "schemas/landing-page-react-vite/v1/billing.proto",
+    "schemas/landing-page-react-vite/v1/pricing.proto",
+    "schemas/landing-page-react-vite/v1/settings.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/landing-page-react-vite/v1/billing.pb.go": "sha256:aed9e107e893435180cd2cbcfcf37548477803680f3d63f78791541322ce39f6",
+    "gen/go/landing-page-react-vite/v1/landing_page_react_vite_v1connect/billing.connect.go": "sha256:0e78f36644a256455aa185e92e35d43cfeffc6c9a2afb6d4510e72585ccdc1a7",
+    "gen/go/landing-page-react-vite/v1/pricing.pb.go": "sha256:8ea0b353989b7b22cf8606e6cbed9b9a4e566614d7a5805e9676ac3f2162a2e5",
+    "gen/go/landing-page-react-vite/v1/settings.pb.go": "sha256:0ae5e02dd445c98b1735e593b8d938dbd6f87fb522db6886e40738bfeee7b79b",
+    "gen/python/landing_page_react_vite/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/landing_page_react_vite/v1/billing_pb2.py": "sha256:cf6d08cdaddeb2387db0531ad553f023f18d0625aab04c7799bd177dd895f2dc",
+    "gen/python/landing_page_react_vite/v1/billing_pb2.pyi": "sha256:63865343b6f10c1b4dc52adaaa2feeba8c847bb05177e1cc49f27bca1a0ae62a",
+    "gen/python/landing_page_react_vite/v1/pricing_pb2.py": "sha256:b756d307b3327fb8bfde489f6ad74766e169a836e13a563c87e8a652754089f9",
+    "gen/python/landing_page_react_vite/v1/pricing_pb2.pyi": "sha256:8ef9147f73c5eabe3fab05632ff6c8f3b624662455585f3302d86a0b51340b78",
+    "gen/python/landing_page_react_vite/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/landing_page_react_vite/v1/settings_pb2.py": "sha256:60dff793f8c221790bf9403d55ca3e2799ad427168fa00712a2938e1e6778e77",
+    "gen/python/landing_page_react_vite/v1/settings_pb2.pyi": "sha256:72db28fe82eb1bd20049f68368444004bf0b186d1331c5f3e059d8e8d9a3d312",
+    "gen/typescript/js/landing-page-react-vite/v1/billing_pb.js": "sha256:a2e70cbea7f751f0e7d45295af7016670c10058cea89cef12c4a2890ac53291d",
+    "gen/typescript/js/landing-page-react-vite/v1/pricing_pb.js": "sha256:cdcc37b4bdefd5e066da0b95ed15f94a16bebfe3a1cb7b57285e0cc046a13c46",
+    "gen/typescript/js/landing-page-react-vite/v1/settings_pb.js": "sha256:c1750a7c8141a4397c81e2fc1458ae03f3574e540c53337eae6fdc6318354c10",
+    "gen/typescript/landing-page-react-vite/v1/billing_pb.ts": "sha256:845ee5a4f8331a0d096adf4c0bae4e9195faa1afc071101bde93a9c9cc819bd3",
+    "gen/typescript/landing-page-react-vite/v1/pricing_pb.ts": "sha256:034719135ec123ac4ba45498e6e7ad84fb64b7f2aed1e129a7978d5c72b01fd9",
+    "gen/typescript/landing-page-react-vite/v1/settings_pb.ts": "sha256:6f714b1706c5d61cbbac17eef2861f595104fea3b997a99996dba847f85dc804"
+  }
+}

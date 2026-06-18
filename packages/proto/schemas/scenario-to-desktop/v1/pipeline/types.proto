@@ -6,7 +6,7 @@ import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
 import "scenario-to-desktop/v1/base/shared.proto";
 
-option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1;scenario_to_desktop_v1";
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/pipeline;pipeline";
 
 // =============================================================================
 // PIPELINE ORCHESTRATION

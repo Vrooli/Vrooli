@@ -4,9 +4,10 @@
 // 	protoc        (unknown)
 // source: scenario-to-desktop/v1/distribution/types.proto
 
-package scenario_to_desktop_v1
+package distribution
 
 import (
+	base "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/base"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -252,7 +253,7 @@ type DistributionTarget struct {
 	// Disabled targets are skipped during distribution.
 	Enabled bool `protobuf:"varint,2,opt,name=enabled,proto3" json:"enabled,omitempty"`
 	// Cloud storage provider.
-	Provider DistributionProvider `protobuf:"varint,3,opt,name=provider,proto3,enum=scenario_to_desktop.v1.DistributionProvider" json:"provider,omitempty"`
+	Provider base.DistributionProvider `protobuf:"varint,3,opt,name=provider,proto3,enum=scenario_to_desktop.v1.DistributionProvider" json:"provider,omitempty"`
 	// S3-compatible endpoint URL (for R2 and S3_COMPATIBLE).
 	// @format uri
 	// @example "https://your-account-id.r2.cloudflarestorage.com"
@@ -331,11 +332,11 @@ func (x *DistributionTarget) GetEnabled() bool {
 	return false
 }
 
-func (x *DistributionTarget) GetProvider() DistributionProvider {
+func (x *DistributionTarget) GetProvider() base.DistributionProvider {
 	if x != nil {
 		return x.Provider
 	}
-	return DistributionProvider_DISTRIBUTION_PROVIDER_UNSPECIFIED
+	return base.DistributionProvider(0)
 }
 
 func (x *DistributionTarget) GetEndpoint() string {
@@ -482,9 +483,9 @@ func (x *DistributionConfig) GetTargets() map[string]*DistributionTarget {
 type PlatformUpload struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Platform this artifact is for.
-	Platform Platform `protobuf:"varint,1,opt,name=platform,proto3,enum=scenario_to_desktop.v1.Platform" json:"platform,omitempty"`
+	Platform base.Platform `protobuf:"varint,1,opt,name=platform,proto3,enum=scenario_to_desktop.v1.Platform" json:"platform,omitempty"`
 	// Upload status.
-	Status UploadStatus `protobuf:"varint,2,opt,name=status,proto3,enum=scenario_to_desktop.v1.UploadStatus" json:"status,omitempty"`
+	Status base.UploadStatus `protobuf:"varint,2,opt,name=status,proto3,enum=scenario_to_desktop.v1.UploadStatus" json:"status,omitempty"`
 	// Local path to the artifact.
 	// @format path
 	LocalPath string `protobuf:"bytes,3,opt,name=local_path,json=localPath,proto3" json:"local_path,omitempty"`
@@ -538,18 +539,18 @@ func (*PlatformUpload) Descriptor() ([]byte, []int) {
 	return file_scenario_to_desktop_v1_distribution_types_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *PlatformUpload) GetPlatform() Platform {
+func (x *PlatformUpload) GetPlatform() base.Platform {
 	if x != nil {
 		return x.Platform
 	}
-	return Platform_PLATFORM_UNSPECIFIED
+	return base.Platform(0)
 }
 
-func (x *PlatformUpload) GetStatus() UploadStatus {
+func (x *PlatformUpload) GetStatus() base.UploadStatus {
 	if x != nil {
 		return x.Status
 	}
-	return UploadStatus_UPLOAD_STATUS_UNSPECIFIED
+	return base.UploadStatus(0)
 }
 
 func (x *PlatformUpload) GetLocalPath() string {
@@ -1179,9 +1180,9 @@ type TargetValidation struct {
 	// Whether required permissions are available.
 	PermissionsOk bool `protobuf:"varint,4,opt,name=permissions_ok,json=permissionsOk,proto3" json:"permissions_ok,omitempty"`
 	// Validation errors.
-	Errors []*ValidationError `protobuf:"bytes,5,rep,name=errors,proto3" json:"errors,omitempty"`
+	Errors []*base.ValidationError `protobuf:"bytes,5,rep,name=errors,proto3" json:"errors,omitempty"`
 	// Validation warnings.
-	Warnings      []*ValidationWarning `protobuf:"bytes,6,rep,name=warnings,proto3" json:"warnings,omitempty"`
+	Warnings      []*base.ValidationWarning `protobuf:"bytes,6,rep,name=warnings,proto3" json:"warnings,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1244,14 +1245,14 @@ func (x *TargetValidation) GetPermissionsOk() bool {
 	return false
 }
 
-func (x *TargetValidation) GetErrors() []*ValidationError {
+func (x *TargetValidation) GetErrors() []*base.ValidationError {
 	if x != nil {
 		return x.Errors
 	}
 	return nil
 }
 
-func (x *TargetValidation) GetWarnings() []*ValidationWarning {
+func (x *TargetValidation) GetWarnings() []*base.ValidationWarning {
 	if x != nil {
 		return x.Warnings
 	}
@@ -1269,9 +1270,9 @@ type DistributionValidationResult struct {
 	// Key: Target name
 	Targets map[string]*TargetValidation `protobuf:"bytes,2,rep,name=targets,proto3" json:"targets,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Global validation errors.
-	Errors []*ValidationError `protobuf:"bytes,3,rep,name=errors,proto3" json:"errors,omitempty"`
+	Errors []*base.ValidationError `protobuf:"bytes,3,rep,name=errors,proto3" json:"errors,omitempty"`
 	// Global validation warnings.
-	Warnings []*ValidationWarning `protobuf:"bytes,4,rep,name=warnings,proto3" json:"warnings,omitempty"`
+	Warnings []*base.ValidationWarning `protobuf:"bytes,4,rep,name=warnings,proto3" json:"warnings,omitempty"`
 	// When validation was performed.
 	ValidatedAt   *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=validated_at,json=validatedAt,proto3" json:"validated_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1322,14 +1323,14 @@ func (x *DistributionValidationResult) GetTargets() map[string]*TargetValidation
 	return nil
 }
 
-func (x *DistributionValidationResult) GetErrors() []*ValidationError {
+func (x *DistributionValidationResult) GetErrors() []*base.ValidationError {
 	if x != nil {
 		return x.Errors
 	}
 	return nil
 }
 
-func (x *DistributionValidationResult) GetWarnings() []*ValidationWarning {
+func (x *DistributionValidationResult) GetWarnings() []*base.ValidationWarning {
 	if x != nil {
 		return x.Warnings
 	}
@@ -1505,7 +1506,7 @@ const file_scenario_to_desktop_v1_distribution_types_proto_rawDesc = "" +
 	"\x0fACL_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vACL_PRIVATE\x10\x01\x12\x13\n" +
 	"\x0fACL_PUBLIC_READ\x10\x02\x12\x1a\n" +
-	"\x16ACL_AUTHENTICATED_READ\x10\x03B^Z\\github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1;scenario_to_desktop_v1b\x06proto3"
+	"\x16ACL_AUTHENTICATED_READ\x10\x03BaZ_github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/distribution;distributionb\x06proto3"
 
 var (
 	file_scenario_to_desktop_v1_distribution_types_proto_rawDescOnce sync.Once
@@ -1544,12 +1545,12 @@ var file_scenario_to_desktop_v1_distribution_types_proto_goTypes = []any{
 	nil,                                  // 19: scenario_to_desktop.v1.DistributeRequest.InlineCredentialsEntry
 	nil,                                  // 20: scenario_to_desktop.v1.CheckCredentialsResponse.TargetStatusEntry
 	nil,                                  // 21: scenario_to_desktop.v1.DistributionValidationResult.TargetsEntry
-	(DistributionProvider)(0),            // 22: scenario_to_desktop.v1.DistributionProvider
+	(base.DistributionProvider)(0),       // 22: scenario_to_desktop.v1.DistributionProvider
 	(*timestamppb.Timestamp)(nil),        // 23: google.protobuf.Timestamp
-	(Platform)(0),                        // 24: scenario_to_desktop.v1.Platform
-	(UploadStatus)(0),                    // 25: scenario_to_desktop.v1.UploadStatus
-	(*ValidationError)(nil),              // 26: scenario_to_desktop.v1.ValidationError
-	(*ValidationWarning)(nil),            // 27: scenario_to_desktop.v1.ValidationWarning
+	(base.Platform)(0),                   // 24: scenario_to_desktop.v1.Platform
+	(base.UploadStatus)(0),               // 25: scenario_to_desktop.v1.UploadStatus
+	(*base.ValidationError)(nil),         // 26: scenario_to_desktop.v1.ValidationError
+	(*base.ValidationWarning)(nil),       // 27: scenario_to_desktop.v1.ValidationWarning
 }
 var file_scenario_to_desktop_v1_distribution_types_proto_depIdxs = []int32{
 	22, // 0: scenario_to_desktop.v1.DistributionTarget.provider:type_name -> scenario_to_desktop.v1.DistributionProvider
@@ -1597,7 +1598,6 @@ func file_scenario_to_desktop_v1_distribution_types_proto_init() {
 	if File_scenario_to_desktop_v1_distribution_types_proto != nil {
 		return
 	}
-	file_scenario_to_desktop_v1_base_shared_proto_init()
 	file_scenario_to_desktop_v1_distribution_types_proto_msgTypes[1].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_distribution_types_proto_msgTypes[3].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_distribution_types_proto_msgTypes[4].OneofWrappers = []any{}

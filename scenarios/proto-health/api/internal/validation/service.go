@@ -297,42 +297,48 @@ func (s *Service) checkGeneratedArtifacts(ctx context.Context, scenario string) 
 		log.Printf("proto-health gen-sync scenario=%s outcome=skipped detail=%q", scenario, status.SkipMessage)
 		return nil
 	}
-	if status.Blocked {
-		log.Printf("proto-health gen-sync scenario=%s outcome=blocked blocked_by=%q detail=%q", scenario, strings.Join(status.BlockedBy, ","), status.Detail)
-		location := "packages/proto/schemas"
-		if len(status.BlockedBy) > 0 {
-			location = filepath.ToSlash(filepath.Join("packages", "proto", status.BlockedBy[0]))
-		}
-		message := status.Detail
-		if message == "" {
-			message = "generated-artifact sync could not be verified because proto compilation failed outside the target scenario"
-		}
+	if status.ManifestMissing {
+		log.Printf("proto-health gen-sync scenario=%s outcome=manifest_missing detail=%q", scenario, status.Detail)
+		location := filepath.ToSlash(filepath.Join("packages", "proto", "gen", "manifests", scenario+".lock.json"))
 		return []Finding{{
-			Code:       CodeGenCheckBlocked,
+			Code:       CodeGenManifestMissing,
 			Location:   location,
-			Message:    message,
-			Suggestion: "fix the upstream or unrelated proto compile failure, then rerun proto-health validation",
+			Message:    "generated proto manifest is missing",
+			Suggestion: "run cd packages/proto && make generate and commit the generated manifest",
 		}}
 	}
-	if status.InSync {
+	if status.InSync && !status.ToolchainDrift {
 		log.Printf("proto-health gen-sync scenario=%s outcome=in_sync", scenario)
 		return nil
 	}
-	location := "packages/proto/gen"
+	var findings []Finding
 	if len(status.Drift) > 0 {
-		location = status.Drift[0]
+		location := "packages/proto/gen"
+		if len(status.Drift) > 0 {
+			location = status.Drift[0]
+		}
+		message := "generated proto artifacts are out of sync with schemas"
+		if status.Detail != "" {
+			message += ": " + status.Detail
+		}
+		log.Printf("proto-health gen-sync scenario=%s outcome=drift drift=%q detail=%q", scenario, strings.Join(status.Drift, ","), status.Detail)
+		findings = append(findings, Finding{
+			Code:       CodeGenOutOfSync,
+			Location:   location,
+			Message:    message,
+			Suggestion: "run cd packages/proto && make generate and commit the generated artifacts",
+		})
 	}
-	message := "generated proto artifacts are out of sync with schemas"
-	if status.Detail != "" {
-		message += ": " + status.Detail
+	if status.ToolchainDrift {
+		log.Printf("proto-health gen-sync scenario=%s outcome=toolchain_drift detail=%q", scenario, status.Detail)
+		findings = append(findings, Finding{
+			Code:       CodeGenToolchainDrift,
+			Location:   "packages/proto/gen/manifests",
+			Message:    "proto codegen toolchain pins changed since the generation manifest was written",
+			Suggestion: "run cd packages/proto && make generate and commit the refreshed manifests",
+		})
 	}
-	log.Printf("proto-health gen-sync scenario=%s outcome=drift drift=%q detail=%q", scenario, strings.Join(status.Drift, ","), status.Detail)
-	return []Finding{{
-		Code:       CodeGenOutOfSync,
-		Location:   location,
-		Message:    message,
-		Suggestion: "run cd packages/proto && make generate and commit the generated artifacts",
-	}}
+	return findings
 }
 
 func (s *Service) DescribeScenarioProtos(_ context.Context, scenario string) (protosurface.Surface, error) {

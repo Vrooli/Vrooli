@@ -45,7 +45,7 @@ func Module(logger *log.Logger, repoRoot string) module.Module {
 	}
 	validator := internal.New(internal.Deps{
 		Loader:         loader,
-		GenSyncChecker: internal.NewGeneratedArtifactChecker(repoRoot),
+		GenSyncChecker: internal.NewManifestVerifier(repoRoot),
 		RepoRoot:       repoRoot,
 		CodeFacts:      codefacts.NewClient(nil, http.DefaultClient),
 		Catalog:        catalog,

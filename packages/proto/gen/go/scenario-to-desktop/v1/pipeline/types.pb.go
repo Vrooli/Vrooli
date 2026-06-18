@@ -4,9 +4,10 @@
 // 	protoc        (unknown)
 // source: scenario-to-desktop/v1/pipeline/types.proto
 
-package scenario_to_desktop_v1
+package pipeline
 
 import (
+	base "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/base"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	structpb "google.golang.org/protobuf/types/known/structpb"
@@ -36,7 +37,7 @@ type PipelineConfig struct {
 	ScenarioName string `protobuf:"bytes,1,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
 	// Target platforms to build for.
 	// Empty means current platform only.
-	Platforms []Platform `protobuf:"varint,2,rep,packed,name=platforms,proto3,enum=scenario_to_desktop.v1.Platform" json:"platforms,omitempty"`
+	Platforms []base.Platform `protobuf:"varint,2,rep,packed,name=platforms,proto3,enum=scenario_to_desktop.v1.Platform" json:"platforms,omitempty"`
 	// Whether to skip preflight validation.
 	// @default false
 	SkipPreflight *bool `protobuf:"varint,3,opt,name=skip_preflight,json=skipPreflight,proto3,oneof" json:"skip_preflight,omitempty"`
@@ -47,11 +48,11 @@ type PipelineConfig struct {
 	// @default true
 	StopOnFailure *bool `protobuf:"varint,5,opt,name=stop_on_failure,json=stopOnFailure,proto3,oneof" json:"stop_on_failure,omitempty"`
 	// Deployment mode for the desktop application.
-	DeploymentMode DeploymentMode `protobuf:"varint,6,opt,name=deployment_mode,json=deploymentMode,proto3,enum=scenario_to_desktop.v1.DeploymentMode" json:"deployment_mode,omitempty"`
+	DeploymentMode base.DeploymentMode `protobuf:"varint,6,opt,name=deployment_mode,json=deploymentMode,proto3,enum=scenario_to_desktop.v1.DeploymentMode" json:"deployment_mode,omitempty"`
 	// Target desktop framework.
-	Framework Framework `protobuf:"varint,7,opt,name=framework,proto3,enum=scenario_to_desktop.v1.Framework" json:"framework,omitempty"`
+	Framework base.Framework `protobuf:"varint,7,opt,name=framework,proto3,enum=scenario_to_desktop.v1.Framework" json:"framework,omitempty"`
 	// Application template type.
-	TemplateType TemplateType `protobuf:"varint,8,opt,name=template_type,json=templateType,proto3,enum=scenario_to_desktop.v1.TemplateType" json:"template_type,omitempty"`
+	TemplateType base.TemplateType `protobuf:"varint,8,opt,name=template_type,json=templateType,proto3,enum=scenario_to_desktop.v1.TemplateType" json:"template_type,omitempty"`
 	// Webhook URL for pipeline notifications.
 	// @format uri
 	WebhookUrl *string `protobuf:"bytes,9,opt,name=webhook_url,json=webhookUrl,proto3,oneof" json:"webhook_url,omitempty"`
@@ -87,9 +88,9 @@ type PipelineConfig struct {
 	PreflightSecrets map[string]string `protobuf:"bytes,19,rep,name=preflight_secrets,json=preflightSecrets,proto3" json:"preflight_secrets,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Stage to stop after (for partial runs).
 	// Empty means run all stages.
-	StopAfterStage *StageName `protobuf:"varint,20,opt,name=stop_after_stage,json=stopAfterStage,proto3,enum=scenario_to_desktop.v1.StageName,oneof" json:"stop_after_stage,omitempty"`
+	StopAfterStage *base.StageName `protobuf:"varint,20,opt,name=stop_after_stage,json=stopAfterStage,proto3,enum=scenario_to_desktop.v1.StageName,oneof" json:"stop_after_stage,omitempty"`
 	// Stage to resume from (requires prior stop_after_stage run).
-	ResumeFromStage *StageName `protobuf:"varint,21,opt,name=resume_from_stage,json=resumeFromStage,proto3,enum=scenario_to_desktop.v1.StageName,oneof" json:"resume_from_stage,omitempty"`
+	ResumeFromStage *base.StageName `protobuf:"varint,21,opt,name=resume_from_stage,json=resumeFromStage,proto3,enum=scenario_to_desktop.v1.StageName,oneof" json:"resume_from_stage,omitempty"`
 	// Parent pipeline ID when resuming.
 	// @format uuid
 	ParentPipelineId *string `protobuf:"bytes,22,opt,name=parent_pipeline_id,json=parentPipelineId,proto3,oneof" json:"parent_pipeline_id,omitempty"`
@@ -138,7 +139,7 @@ func (x *PipelineConfig) GetScenarioName() string {
 	return ""
 }
 
-func (x *PipelineConfig) GetPlatforms() []Platform {
+func (x *PipelineConfig) GetPlatforms() []base.Platform {
 	if x != nil {
 		return x.Platforms
 	}
@@ -166,25 +167,25 @@ func (x *PipelineConfig) GetStopOnFailure() bool {
 	return false
 }
 
-func (x *PipelineConfig) GetDeploymentMode() DeploymentMode {
+func (x *PipelineConfig) GetDeploymentMode() base.DeploymentMode {
 	if x != nil {
 		return x.DeploymentMode
 	}
-	return DeploymentMode_DEPLOYMENT_MODE_UNSPECIFIED
+	return base.DeploymentMode(0)
 }
 
-func (x *PipelineConfig) GetFramework() Framework {
+func (x *PipelineConfig) GetFramework() base.Framework {
 	if x != nil {
 		return x.Framework
 	}
-	return Framework_FRAMEWORK_UNSPECIFIED
+	return base.Framework(0)
 }
 
-func (x *PipelineConfig) GetTemplateType() TemplateType {
+func (x *PipelineConfig) GetTemplateType() base.TemplateType {
 	if x != nil {
 		return x.TemplateType
 	}
-	return TemplateType_TEMPLATE_TYPE_UNSPECIFIED
+	return base.TemplateType(0)
 }
 
 func (x *PipelineConfig) GetWebhookUrl() string {
@@ -264,18 +265,18 @@ func (x *PipelineConfig) GetPreflightSecrets() map[string]string {
 	return nil
 }
 
-func (x *PipelineConfig) GetStopAfterStage() StageName {
+func (x *PipelineConfig) GetStopAfterStage() base.StageName {
 	if x != nil && x.StopAfterStage != nil {
 		return *x.StopAfterStage
 	}
-	return StageName_STAGE_NAME_UNSPECIFIED
+	return base.StageName(0)
 }
 
-func (x *PipelineConfig) GetResumeFromStage() StageName {
+func (x *PipelineConfig) GetResumeFromStage() base.StageName {
 	if x != nil && x.ResumeFromStage != nil {
 		return *x.ResumeFromStage
 	}
-	return StageName_STAGE_NAME_UNSPECIFIED
+	return base.StageName(0)
 }
 
 func (x *PipelineConfig) GetParentPipelineId() string {
@@ -298,9 +299,9 @@ func (x *PipelineConfig) GetIdempotencyKey() string {
 type StageResult struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stage name.
-	Stage StageName `protobuf:"varint,1,opt,name=stage,proto3,enum=scenario_to_desktop.v1.StageName" json:"stage,omitempty"`
+	Stage base.StageName `protobuf:"varint,1,opt,name=stage,proto3,enum=scenario_to_desktop.v1.StageName" json:"stage,omitempty"`
 	// Stage execution status.
-	Status StageStatus `protobuf:"varint,2,opt,name=status,proto3,enum=scenario_to_desktop.v1.StageStatus" json:"status,omitempty"`
+	Status base.StageStatus `protobuf:"varint,2,opt,name=status,proto3,enum=scenario_to_desktop.v1.StageStatus" json:"status,omitempty"`
 	// When the stage started.
 	StartedAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
 	// When the stage completed (success or failure).
@@ -346,18 +347,18 @@ func (*StageResult) Descriptor() ([]byte, []int) {
 	return file_scenario_to_desktop_v1_pipeline_types_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *StageResult) GetStage() StageName {
+func (x *StageResult) GetStage() base.StageName {
 	if x != nil {
 		return x.Stage
 	}
-	return StageName_STAGE_NAME_UNSPECIFIED
+	return base.StageName(0)
 }
 
-func (x *StageResult) GetStatus() StageStatus {
+func (x *StageResult) GetStatus() base.StageStatus {
 	if x != nil {
 		return x.Status
 	}
-	return StageStatus_STAGE_STATUS_UNSPECIFIED
+	return base.StageStatus(0)
 }
 
 func (x *StageResult) GetStartedAt() *timestamppb.Timestamp {
@@ -406,9 +407,9 @@ type PipelineStatus struct {
 	// Scenario being deployed.
 	ScenarioName string `protobuf:"bytes,2,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
 	// Overall pipeline status.
-	Status StageStatus `protobuf:"varint,3,opt,name=status,proto3,enum=scenario_to_desktop.v1.StageStatus" json:"status,omitempty"`
+	Status base.StageStatus `protobuf:"varint,3,opt,name=status,proto3,enum=scenario_to_desktop.v1.StageStatus" json:"status,omitempty"`
 	// Currently executing stage.
-	CurrentStage *StageName `protobuf:"varint,4,opt,name=current_stage,json=currentStage,proto3,enum=scenario_to_desktop.v1.StageName,oneof" json:"current_stage,omitempty"`
+	CurrentStage *base.StageName `protobuf:"varint,4,opt,name=current_stage,json=currentStage,proto3,enum=scenario_to_desktop.v1.StageName,oneof" json:"current_stage,omitempty"`
 	// Progress percentage (0-100).
 	// Calculated from completed stages / total stages.
 	ProgressPercent int32 `protobuf:"varint,5,opt,name=progress_percent,json=progressPercent,proto3" json:"progress_percent,omitempty"`
@@ -419,7 +420,7 @@ type PipelineStatus struct {
 	// Key: Stage name (bundle, preflight, generate, build, smoketest, distribution)
 	Stages map[string]*StageResult `protobuf:"bytes,7,rep,name=stages,proto3" json:"stages,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Ordered list of stages to execute.
-	StageOrder []StageName `protobuf:"varint,8,rep,packed,name=stage_order,json=stageOrder,proto3,enum=scenario_to_desktop.v1.StageName" json:"stage_order,omitempty"`
+	StageOrder []base.StageName `protobuf:"varint,8,rep,packed,name=stage_order,json=stageOrder,proto3,enum=scenario_to_desktop.v1.StageName" json:"stage_order,omitempty"`
 	// Pipeline configuration used.
 	Config *PipelineConfig `protobuf:"bytes,9,opt,name=config,proto3" json:"config,omitempty"`
 	// When the pipeline started.
@@ -432,7 +433,7 @@ type PipelineStatus struct {
 	// Key: Platform or artifact name, Value: File path
 	FinalArtifacts map[string]string `protobuf:"bytes,13,rep,name=final_artifacts,json=finalArtifacts,proto3" json:"final_artifacts,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Stage the pipeline was stopped after (if intentionally stopped).
-	StoppedAfterStage *StageName `protobuf:"varint,14,opt,name=stopped_after_stage,json=stoppedAfterStage,proto3,enum=scenario_to_desktop.v1.StageName,oneof" json:"stopped_after_stage,omitempty"`
+	StoppedAfterStage *base.StageName `protobuf:"varint,14,opt,name=stopped_after_stage,json=stoppedAfterStage,proto3,enum=scenario_to_desktop.v1.StageName,oneof" json:"stopped_after_stage,omitempty"`
 	// Parent pipeline ID if this is a resumed run.
 	// @format uuid
 	ParentPipelineId *string `protobuf:"bytes,15,opt,name=parent_pipeline_id,json=parentPipelineId,proto3,oneof" json:"parent_pipeline_id,omitempty"`
@@ -486,18 +487,18 @@ func (x *PipelineStatus) GetScenarioName() string {
 	return ""
 }
 
-func (x *PipelineStatus) GetStatus() StageStatus {
+func (x *PipelineStatus) GetStatus() base.StageStatus {
 	if x != nil {
 		return x.Status
 	}
-	return StageStatus_STAGE_STATUS_UNSPECIFIED
+	return base.StageStatus(0)
 }
 
-func (x *PipelineStatus) GetCurrentStage() StageName {
+func (x *PipelineStatus) GetCurrentStage() base.StageName {
 	if x != nil && x.CurrentStage != nil {
 		return *x.CurrentStage
 	}
-	return StageName_STAGE_NAME_UNSPECIFIED
+	return base.StageName(0)
 }
 
 func (x *PipelineStatus) GetProgressPercent() int32 {
@@ -521,7 +522,7 @@ func (x *PipelineStatus) GetStages() map[string]*StageResult {
 	return nil
 }
 
-func (x *PipelineStatus) GetStageOrder() []StageName {
+func (x *PipelineStatus) GetStageOrder() []base.StageName {
 	if x != nil {
 		return x.StageOrder
 	}
@@ -563,11 +564,11 @@ func (x *PipelineStatus) GetFinalArtifacts() map[string]string {
 	return nil
 }
 
-func (x *PipelineStatus) GetStoppedAfterStage() StageName {
+func (x *PipelineStatus) GetStoppedAfterStage() base.StageName {
 	if x != nil && x.StoppedAfterStage != nil {
 		return *x.StoppedAfterStage
 	}
-	return StageName_STAGE_NAME_UNSPECIFIED
+	return base.StageName(0)
 }
 
 func (x *PipelineStatus) GetParentPipelineId() string {
@@ -773,7 +774,7 @@ type PipelineResumeResponse struct {
 	// @format uri
 	StatusUrl string `protobuf:"bytes,3,opt,name=status_url,json=statusUrl,proto3" json:"status_url,omitempty"`
 	// Stage the resumed pipeline starts from.
-	ResumeFromStage StageName `protobuf:"varint,4,opt,name=resume_from_stage,json=resumeFromStage,proto3,enum=scenario_to_desktop.v1.StageName" json:"resume_from_stage,omitempty"`
+	ResumeFromStage base.StageName `protobuf:"varint,4,opt,name=resume_from_stage,json=resumeFromStage,proto3,enum=scenario_to_desktop.v1.StageName" json:"resume_from_stage,omitempty"`
 	// Informational message.
 	Message       *string `protobuf:"bytes,5,opt,name=message,proto3,oneof" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -831,11 +832,11 @@ func (x *PipelineResumeResponse) GetStatusUrl() string {
 	return ""
 }
 
-func (x *PipelineResumeResponse) GetResumeFromStage() StageName {
+func (x *PipelineResumeResponse) GetResumeFromStage() base.StageName {
 	if x != nil {
 		return x.ResumeFromStage
 	}
-	return StageName_STAGE_NAME_UNSPECIFIED
+	return base.StageName(0)
 }
 
 func (x *PipelineResumeResponse) GetMessage() string {
@@ -856,11 +857,11 @@ type PipelineListItem struct {
 	// Scenario name.
 	ScenarioName string `protobuf:"bytes,2,opt,name=scenario_name,json=scenarioName,proto3" json:"scenario_name,omitempty"`
 	// Pipeline status.
-	Status StageStatus `protobuf:"varint,3,opt,name=status,proto3,enum=scenario_to_desktop.v1.StageStatus" json:"status,omitempty"`
+	Status base.StageStatus `protobuf:"varint,3,opt,name=status,proto3,enum=scenario_to_desktop.v1.StageStatus" json:"status,omitempty"`
 	// Progress percentage.
 	ProgressPercent int32 `protobuf:"varint,4,opt,name=progress_percent,json=progressPercent,proto3" json:"progress_percent,omitempty"`
 	// Current stage (if running).
-	CurrentStage *StageName `protobuf:"varint,5,opt,name=current_stage,json=currentStage,proto3,enum=scenario_to_desktop.v1.StageName,oneof" json:"current_stage,omitempty"`
+	CurrentStage *base.StageName `protobuf:"varint,5,opt,name=current_stage,json=currentStage,proto3,enum=scenario_to_desktop.v1.StageName,oneof" json:"current_stage,omitempty"`
 	// When the pipeline was created.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// When the pipeline was last updated.
@@ -917,11 +918,11 @@ func (x *PipelineListItem) GetScenarioName() string {
 	return ""
 }
 
-func (x *PipelineListItem) GetStatus() StageStatus {
+func (x *PipelineListItem) GetStatus() base.StageStatus {
 	if x != nil {
 		return x.Status
 	}
-	return StageStatus_STAGE_STATUS_UNSPECIFIED
+	return base.StageStatus(0)
 }
 
 func (x *PipelineListItem) GetProgressPercent() int32 {
@@ -931,11 +932,11 @@ func (x *PipelineListItem) GetProgressPercent() int32 {
 	return 0
 }
 
-func (x *PipelineListItem) GetCurrentStage() StageName {
+func (x *PipelineListItem) GetCurrentStage() base.StageName {
 	if x != nil && x.CurrentStage != nil {
 		return *x.CurrentStage
 	}
-	return StageName_STAGE_NAME_UNSPECIFIED
+	return base.StageName(0)
 }
 
 func (x *PipelineListItem) GetCreatedAt() *timestamppb.Timestamp {
@@ -1314,7 +1315,7 @@ const file_scenario_to_desktop_v1_pipeline_types_proto_rawDesc = "" +
 	"\x12_detected_metadataB\x17\n" +
 	"\x15_install_instructionsB\x0f\n" +
 	"\r_test_commandB\r\n" +
-	"\v_status_urlB^Z\\github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1;scenario_to_desktop_v1b\x06proto3"
+	"\v_status_urlBYZWgithub.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/pipeline;pipelineb\x06proto3"
 
 var (
 	file_scenario_to_desktop_v1_pipeline_types_proto_rawDescOnce sync.Once
@@ -1343,12 +1344,12 @@ var file_scenario_to_desktop_v1_pipeline_types_proto_goTypes = []any{
 	nil,                            // 10: scenario_to_desktop.v1.PipelineConfig.PreflightSecretsEntry
 	nil,                            // 11: scenario_to_desktop.v1.PipelineStatus.StagesEntry
 	nil,                            // 12: scenario_to_desktop.v1.PipelineStatus.FinalArtifactsEntry
-	(Platform)(0),                  // 13: scenario_to_desktop.v1.Platform
-	(DeploymentMode)(0),            // 14: scenario_to_desktop.v1.DeploymentMode
-	(Framework)(0),                 // 15: scenario_to_desktop.v1.Framework
-	(TemplateType)(0),              // 16: scenario_to_desktop.v1.TemplateType
-	(StageName)(0),                 // 17: scenario_to_desktop.v1.StageName
-	(StageStatus)(0),               // 18: scenario_to_desktop.v1.StageStatus
+	(base.Platform)(0),             // 13: scenario_to_desktop.v1.Platform
+	(base.DeploymentMode)(0),       // 14: scenario_to_desktop.v1.DeploymentMode
+	(base.Framework)(0),            // 15: scenario_to_desktop.v1.Framework
+	(base.TemplateType)(0),         // 16: scenario_to_desktop.v1.TemplateType
+	(base.StageName)(0),            // 17: scenario_to_desktop.v1.StageName
+	(base.StageStatus)(0),          // 18: scenario_to_desktop.v1.StageStatus
 	(*timestamppb.Timestamp)(nil),  // 19: google.protobuf.Timestamp
 	(*structpb.Struct)(nil),        // 20: google.protobuf.Struct
 }
@@ -1396,7 +1397,6 @@ func file_scenario_to_desktop_v1_pipeline_types_proto_init() {
 	if File_scenario_to_desktop_v1_pipeline_types_proto != nil {
 		return
 	}
-	file_scenario_to_desktop_v1_base_shared_proto_init()
 	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[0].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[1].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_pipeline_types_proto_msgTypes[2].OneofWrappers = []any{}

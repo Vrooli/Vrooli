@@ -5,7 +5,7 @@ package scenario_to_desktop.v1;
 import "google/protobuf/timestamp.proto";
 import "scenario-to-desktop/v1/base/shared.proto";
 
-option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1;scenario_to_desktop_v1";
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/distribution;distribution";
 
 // =============================================================================
 // DISTRIBUTION

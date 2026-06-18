@@ -24,8 +24,9 @@ const (
 
 const (
 	CodeCycle                         = "proto.cycle"
-	CodeGenCheckBlocked               = "proto.gen_check_blocked"
+	CodeGenManifestMissing            = "proto.gen_manifest_missing"
 	CodeGenOutOfSync                  = "proto.gen_out_of_sync"
+	CodeGenToolchainDrift             = "proto.gen_toolchain_drift"
 	CodePackageMismatch               = "proto.package_mismatch"
 	CodeStabilityDishonest            = "proto.stability_dishonest"
 	CodeCrossDomainImport             = "proto.cross_domain_import"
@@ -136,8 +137,9 @@ func severityFromToken(token string) (Severity, error) {
 func AllFindingCodes() []string {
 	return []string{
 		CodeCycle,
-		CodeGenCheckBlocked,
+		CodeGenManifestMissing,
 		CodeGenOutOfSync,
+		CodeGenToolchainDrift,
 		CodePackageMismatch,
 		CodeStabilityDishonest,
 		CodeCrossDomainImport,
@@ -176,13 +178,13 @@ type SurfaceLoader interface {
 }
 
 type GenSyncStatus struct {
-	InSync      bool
-	Blocked     bool
-	BlockedBy   []string
-	Drift       []string
-	Detail      string
-	Skipped     bool
-	SkipMessage string
+	InSync          bool
+	ManifestMissing bool
+	ToolchainDrift  bool
+	Drift           []string
+	Detail          string
+	Skipped         bool
+	SkipMessage     string
 }
 
 type GenSyncChecker interface {

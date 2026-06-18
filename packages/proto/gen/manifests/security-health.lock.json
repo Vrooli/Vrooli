@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "scenario": "security-health",
+  "input_digest": "sha256:d3d320e90afb2561d38b15a718fb6ebf654cd96c1ea74b55f4652f44a524b9c8",
+  "input_files": [
+    "schemas/security-health/v1/dependencies/dependencies.proto",
+    "schemas/security-health/v1/errors/errors.proto",
+    "schemas/security-health/v1/health/health.proto",
+    "schemas/security-health/v1/reindex/reindex.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/security-health/v1/dependencies/dependencies.pb.go": "sha256:4c899e2c356fc3251fa5182520dc308b8f301ba977f2985e4ae9ee4e0f132da3",
+    "gen/go/security-health/v1/dependencies/dependencies_v1connect/dependencies.connect.go": "sha256:c3edb58562d0a42552ffe66e030b539e2892c4a3b6d97a2fe53a42f62c9361f7",
+    "gen/go/security-health/v1/errors/errors.pb.go": "sha256:7061bb8e0df8f2336ac6de813523659fb03027e2a38992c48d3e65a20fde6d1e",
+    "gen/go/security-health/v1/health/health.pb.go": "sha256:8e8b2ee1ee725cf7debceb38d2790b6c66c324045e6eb041ded57a9f37cf39a2",
+    "gen/go/security-health/v1/reindex/reindex.pb.go": "sha256:0d7c296e7b041ce38449a85584e3248063fbf84e47a5db9335fdf60c133f7461",
+    "gen/go/security-health/v1/reindex/reindex_v1connect/reindex.connect.go": "sha256:7bfd33c6a538a6f93c8b0bf404476d12e3c3c9cab975698eb679de6ef75bb2ad",
+    "gen/python/security_health/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/security_health/v1/dependencies/dependencies_pb2.py": "sha256:3c516329f0a3f672cc3a289b657126072f85d8d082e2af153052d52d2a479a66",
+    "gen/python/security_health/v1/dependencies/dependencies_pb2.pyi": "sha256:41af5c7153e3928baf4e261402e4a80971ce8e8ca8b3d88bae29739056d13940",
+    "gen/python/security_health/v1/dependencies/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/security_health/v1/errors/errors_pb2.py": "sha256:8788f079281fe5facd00c2249dabae5c16816036861ab963cc82cbece548c040",
+    "gen/python/security_health/v1/errors/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/security_health/v1/errors/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/security_health/v1/health/health_pb2.py": "sha256:7b8680155986ebe1dfece8585f55151331c5b13181c0b8705c0c01cf6cd9677e",
+    "gen/python/security_health/v1/health/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/security_health/v1/health/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/security_health/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/security_health/v1/reindex/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/security_health/v1/reindex/reindex_pb2.py": "sha256:e6064f73c29e684f77805ec9fb94827b97d02b2affc54cfbfeca70ec942190b1",
+    "gen/python/security_health/v1/reindex/reindex_pb2.pyi": "sha256:df3ebc24fa06764a9b137e31489b8dd3ba7807ea843c6ea4dab0015c8737ebb9",
+    "gen/typescript/js/security-health/v1/dependencies/dependencies_pb.js": "sha256:815a2e9369a70a6831370096d83926384d5c7234441842149cd08a4231d2a294",
+    "gen/typescript/js/security-health/v1/errors/errors_pb.js": "sha256:ceb2ff238548468447ed3efac468071b170947db3cb94cf34b2a1cd18f43df5b",
+    "gen/typescript/js/security-health/v1/health/health_pb.js": "sha256:ed7e68aaefd7ee304cb441c2e055649171ba5c49b66a933d945c34cae3396110",
+    "gen/typescript/js/security-health/v1/reindex/reindex_pb.js": "sha256:d58df2d4945bafd36b5a28f88ca3b8aae7132b0fcbb27336fd0d9c3ff9eb0874",
+    "gen/typescript/security-health/v1/dependencies/dependencies_pb.ts": "sha256:c264d7e63e679b08a5fe2b0326601054b3903e9a590c79aa7ce97cd039539737",
+    "gen/typescript/security-health/v1/errors/errors_pb.ts": "sha256:690e95c2c270d96728632af96cc47a3dc8fdfecc94192b8e3733ceae9c68f4b3",
+    "gen/typescript/security-health/v1/health/health_pb.ts": "sha256:9fcefb6f16e3d7c12329fd10c9cc328033a84ba774e227c71c42bf9bb449772b",
+    "gen/typescript/security-health/v1/reindex/reindex_pb.ts": "sha256:9865315c669edbdd964f067b830fa684562f878893ea9d3e0fd111dce5dbf5fd"
+  }
+}

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package scenario_to_desktop.v1;
 
-option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1;scenario_to_desktop_v1";
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/base;base";
 
 // =============================================================================
 // SHARED TYPES AND ENUMS

@@ -4,9 +4,10 @@
 // 	protoc        (unknown)
 // source: scenario-to-desktop/v1/domain/config.proto
 
-package scenario_to_desktop_v1
+package domain
 
 import (
+	base "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/base"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -217,7 +218,7 @@ type ServerConfig struct {
 	// @format path
 	VrooliBinaryPath *string `protobuf:"bytes,7,opt,name=vrooli_binary_path,json=vrooliBinaryPath,proto3,oneof" json:"vrooli_binary_path,omitempty"`
 	// Deployment mode determining server behavior.
-	DeploymentMode DeploymentMode `protobuf:"varint,8,opt,name=deployment_mode,json=deploymentMode,proto3,enum=scenario_to_desktop.v1.DeploymentMode" json:"deployment_mode,omitempty"`
+	DeploymentMode base.DeploymentMode `protobuf:"varint,8,opt,name=deployment_mode,json=deploymentMode,proto3,enum=scenario_to_desktop.v1.DeploymentMode" json:"deployment_mode,omitempty"`
 	// URL for proxy mode connections.
 	// Required when deployment_mode is PROXY.
 	// @format uri
@@ -312,11 +313,11 @@ func (x *ServerConfig) GetVrooliBinaryPath() string {
 	return ""
 }
 
-func (x *ServerConfig) GetDeploymentMode() DeploymentMode {
+func (x *ServerConfig) GetDeploymentMode() base.DeploymentMode {
 	if x != nil {
 		return x.DeploymentMode
 	}
-	return DeploymentMode_DEPLOYMENT_MODE_UNSPECIFIED
+	return base.DeploymentMode(0)
 }
 
 func (x *ServerConfig) GetProxyUrl() string {
@@ -861,12 +862,12 @@ type DesktopConfig struct {
 	// Main window configuration.
 	Window *WindowConfig `protobuf:"bytes,5,opt,name=window,proto3,oneof" json:"window,omitempty"`
 	// Target desktop framework.
-	Framework Framework `protobuf:"varint,6,opt,name=framework,proto3,enum=scenario_to_desktop.v1.Framework" json:"framework,omitempty"`
+	Framework base.Framework `protobuf:"varint,6,opt,name=framework,proto3,enum=scenario_to_desktop.v1.Framework" json:"framework,omitempty"`
 	// Application template type.
-	TemplateType TemplateType `protobuf:"varint,7,opt,name=template_type,json=templateType,proto3,enum=scenario_to_desktop.v1.TemplateType" json:"template_type,omitempty"`
+	TemplateType base.TemplateType `protobuf:"varint,7,opt,name=template_type,json=templateType,proto3,enum=scenario_to_desktop.v1.TemplateType" json:"template_type,omitempty"`
 	// Target platforms for building.
 	// Empty means current platform only.
-	Platforms []Platform `protobuf:"varint,8,rep,packed,name=platforms,proto3,enum=scenario_to_desktop.v1.Platform" json:"platforms,omitempty"`
+	Platforms []base.Platform `protobuf:"varint,8,rep,packed,name=platforms,proto3,enum=scenario_to_desktop.v1.Platform" json:"platforms,omitempty"`
 	// Output directory for generated files.
 	// @format path
 	OutputPath *string `protobuf:"bytes,9,opt,name=output_path,json=outputPath,proto3,oneof" json:"output_path,omitempty"`
@@ -948,21 +949,21 @@ func (x *DesktopConfig) GetWindow() *WindowConfig {
 	return nil
 }
 
-func (x *DesktopConfig) GetFramework() Framework {
+func (x *DesktopConfig) GetFramework() base.Framework {
 	if x != nil {
 		return x.Framework
 	}
-	return Framework_FRAMEWORK_UNSPECIFIED
+	return base.Framework(0)
 }
 
-func (x *DesktopConfig) GetTemplateType() TemplateType {
+func (x *DesktopConfig) GetTemplateType() base.TemplateType {
 	if x != nil {
 		return x.TemplateType
 	}
-	return TemplateType_TEMPLATE_TYPE_UNSPECIFIED
+	return base.TemplateType(0)
 }
 
-func (x *DesktopConfig) GetPlatforms() []Platform {
+func (x *DesktopConfig) GetPlatforms() []base.Platform {
 	if x != nil {
 		return x.Platforms
 	}
@@ -1205,7 +1206,7 @@ type ConnectionConfig struct {
 	// @format path
 	VrooliBinaryPath *string `protobuf:"bytes,4,opt,name=vrooli_binary_path,json=vrooliBinaryPath,proto3,oneof" json:"vrooli_binary_path,omitempty"`
 	// Deployment mode.
-	DeploymentMode DeploymentMode `protobuf:"varint,5,opt,name=deployment_mode,json=deploymentMode,proto3,enum=scenario_to_desktop.v1.DeploymentMode" json:"deployment_mode,omitempty"`
+	DeploymentMode base.DeploymentMode `protobuf:"varint,5,opt,name=deployment_mode,json=deploymentMode,proto3,enum=scenario_to_desktop.v1.DeploymentMode" json:"deployment_mode,omitempty"`
 	// Bundle manifest path.
 	// @format path
 	BundleManifestPath *string `protobuf:"bytes,6,opt,name=bundle_manifest_path,json=bundleManifestPath,proto3,oneof" json:"bundle_manifest_path,omitempty"`
@@ -1278,11 +1279,11 @@ func (x *ConnectionConfig) GetVrooliBinaryPath() string {
 	return ""
 }
 
-func (x *ConnectionConfig) GetDeploymentMode() DeploymentMode {
+func (x *ConnectionConfig) GetDeploymentMode() base.DeploymentMode {
 	if x != nil {
 		return x.DeploymentMode
 	}
-	return DeploymentMode_DEPLOYMENT_MODE_UNSPECIFIED
+	return base.DeploymentMode(0)
 }
 
 func (x *ConnectionConfig) GetBundleManifestPath() string {
@@ -1511,7 +1512,7 @@ const file_scenario_to_desktop_v1_domain_config_proto_rawDesc = "" +
 	"\x15_bundle_manifest_pathB\x13\n" +
 	"\x11_app_display_nameB\x12\n" +
 	"\x10_app_descriptionB\a\n" +
-	"\x05_iconB^Z\\github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1;scenario_to_desktop_v1b\x06proto3"
+	"\x05_iconBUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain;domainb\x06proto3"
 
 var (
 	file_scenario_to_desktop_v1_domain_config_proto_rawDescOnce sync.Once
@@ -1540,10 +1541,10 @@ var file_scenario_to_desktop_v1_domain_config_proto_goTypes = []any{
 	(*ConnectionConfig)(nil),    // 10: scenario_to_desktop.v1.ConnectionConfig
 	nil,                         // 11: scenario_to_desktop.v1.DesktopConfig.FeaturesEntry
 	nil,                         // 12: scenario_to_desktop.v1.DesktopConfig.StylingEntry
-	(DeploymentMode)(0),         // 13: scenario_to_desktop.v1.DeploymentMode
-	(Framework)(0),              // 14: scenario_to_desktop.v1.Framework
-	(TemplateType)(0),           // 15: scenario_to_desktop.v1.TemplateType
-	(Platform)(0),               // 16: scenario_to_desktop.v1.Platform
+	(base.DeploymentMode)(0),    // 13: scenario_to_desktop.v1.DeploymentMode
+	(base.Framework)(0),         // 14: scenario_to_desktop.v1.Framework
+	(base.TemplateType)(0),      // 15: scenario_to_desktop.v1.TemplateType
+	(base.Platform)(0),          // 16: scenario_to_desktop.v1.Platform
 }
 var file_scenario_to_desktop_v1_domain_config_proto_depIdxs = []int32{
 	13, // 0: scenario_to_desktop.v1.ServerConfig.deployment_mode:type_name -> scenario_to_desktop.v1.DeploymentMode
@@ -1573,7 +1574,6 @@ func file_scenario_to_desktop_v1_domain_config_proto_init() {
 	if File_scenario_to_desktop_v1_domain_config_proto != nil {
 		return
 	}
-	file_scenario_to_desktop_v1_base_shared_proto_init()
 	file_scenario_to_desktop_v1_domain_config_proto_msgTypes[0].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_domain_config_proto_msgTypes[1].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_domain_config_proto_msgTypes[2].OneofWrappers = []any{}

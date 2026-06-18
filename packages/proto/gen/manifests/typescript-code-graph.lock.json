@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "scenario": "typescript-code-graph",
+  "input_digest": "sha256:85d245f8fe7c3d21bc7f2113ddf1a5d269a8d8d03b78a2c23724023596d0e616",
+  "input_files": [
+    "schemas/common/v1/code_graph.proto",
+    "schemas/typescript-code-graph/v1/errors/errors.proto",
+    "schemas/typescript-code-graph/v1/graph/graph.proto",
+    "schemas/typescript-code-graph/v1/health/health.proto",
+    "schemas/typescript-code-graph/v1/rewrite/rewrite.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/typescript-code-graph/v1/errors/errors.pb.go": "sha256:e93db28399ba484f2fb4a18eee993f5fdba5632737af75a9dfc9782e74ef893a",
+    "gen/go/typescript-code-graph/v1/graph/graph.pb.go": "sha256:8ea77d8185d43be6b8224b083f3115eacc9368c7f064157506bb40f91df9bba6",
+    "gen/go/typescript-code-graph/v1/graph/graph_v1connect/graph.connect.go": "sha256:85b25a12b9d16ddebe2fe37b0db07571951691293acaa4f74ef551bb13ed0657",
+    "gen/go/typescript-code-graph/v1/health/health.pb.go": "sha256:d6426d814cc4d0b70c4228e2a1f5130474713eab4bc4b15fdcbc9c3868de6a6a",
+    "gen/go/typescript-code-graph/v1/rewrite/rewrite.pb.go": "sha256:c3e14886afb6fca1fd7f810d161f559f5c4e3273b7ef5490b79e9a0f7253c7ea",
+    "gen/python/typescript_code_graph/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/typescript_code_graph/v1/errors/errors_pb2.py": "sha256:72bbd162da0a4b554a13479eaa5ac5c0eeec9012e0198c31a1b3621f4308d60e",
+    "gen/python/typescript_code_graph/v1/errors/errors_pb2.pyi": "sha256:0a5704a63bac189d5e4c37e3bec07554a4be92692db2c382d77d0a1a618f1152",
+    "gen/python/typescript_code_graph/v1/errors/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/typescript_code_graph/v1/graph/graph_pb2.py": "sha256:b692ea9113eac5cc00184735b3854b4a7497d9868f2fd52f4f5c9b54fc74b79d",
+    "gen/python/typescript_code_graph/v1/graph/graph_pb2.pyi": "sha256:92f1221941663665d4366075b74edc92d4793601bf7291fa09456bcc73e8a051",
+    "gen/python/typescript_code_graph/v1/graph/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/typescript_code_graph/v1/health/health_pb2.py": "sha256:0a22eaf5dff35f003bfa9f84a4dd5c1e33c74288a274c05132f00398389c11dc",
+    "gen/python/typescript_code_graph/v1/health/health_pb2.pyi": "sha256:b7617d5303523d5576dc5431a4febd10b390269e82b5fa5db4a259a1901ac5c8",
+    "gen/python/typescript_code_graph/v1/health/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/typescript_code_graph/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/typescript_code_graph/v1/rewrite/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/typescript_code_graph/v1/rewrite/rewrite_pb2.py": "sha256:34abd446abe43ed02af01a6c00d8b840c1f6f5a4894722ba4f33f95d9f9013b6",
+    "gen/python/typescript_code_graph/v1/rewrite/rewrite_pb2.pyi": "sha256:0472d7a37158f74eb05429108798cce6cd1fd41747192a1f7ef08ae7c0e47c1e",
+    "gen/typescript/js/typescript-code-graph/v1/errors/errors_pb.js": "sha256:5ceb55b6e5fb5b988fbada74c541573567ec1202b9670fb141050a16c9328209",
+    "gen/typescript/js/typescript-code-graph/v1/graph/graph_pb.js": "sha256:69b4b07d452149aa63e183a1c5075c840ce130b46879d30b1ac6f706f363493d",
+    "gen/typescript/js/typescript-code-graph/v1/health/health_pb.js": "sha256:9b1564fc274970be41a4ee6574070526f9e7000001ae9f665916eee3173e493f",
+    "gen/typescript/js/typescript-code-graph/v1/rewrite/rewrite_pb.js": "sha256:d6058f794e939280c64b01c6e9f02d11cb49da30be613072f732f41661219a87",
+    "gen/typescript/typescript-code-graph/v1/errors/errors_pb.ts": "sha256:7a55d3621177d3704bf2d10d30bdf2bcb02fbf67550d1c9db856862f9ed40509",
+    "gen/typescript/typescript-code-graph/v1/graph/graph_pb.ts": "sha256:00fd0450980ee0af1be171188cfa37c2be0cf5a06fc1abc1959ace2b3b1512c5",
+    "gen/typescript/typescript-code-graph/v1/health/health_pb.ts": "sha256:554eb0c48fe1c7181534865d33ed3f4ad2fbe6df902710c0ce121106704837b8",
+    "gen/typescript/typescript-code-graph/v1/rewrite/rewrite_pb.ts": "sha256:2930cfbcd370ec7bafabfad676936cdfbc7a7e7f2ec189d84894fc88a355ec2b"
+  }
+}

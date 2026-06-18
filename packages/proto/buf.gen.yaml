@@ -12,11 +12,13 @@ plugins:
       - paths=source_relative
   - local: protoc-gen-es
     out: gen/typescript
+    include_imports: true
     opt:
       - target=ts
       - import_extension=none
   - local: protoc-gen-es
     out: gen/typescript/js
+    include_imports: true
     opt:
       - target=js
       - import_extension=js

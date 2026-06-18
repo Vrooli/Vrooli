@@ -106,9 +106,10 @@ and use matrix/trace helpers from the relevant testutil package.
 |---|---|
 | **Seam** | Scenario-scoped generated proto sync check |
 | **Interface** | `internal/validation::GenSyncChecker`, returning whether generated artifacts for one scenario match schema source. |
-| **Production wiring** | `handlers/validation.Module` constructs `internal/validation.NewGeneratedArtifactChecker(repoRoot)`. The checker copies `packages/proto` to a temp workspace, runs `make generate` there, and byte-compares only the target scenario's generated Go, TypeScript, JS, and Python slices. |
-| **Test fake** | A fake checker returns clean or drifted results for `proto.gen_out_of_sync` tests. |
-| **Why it exists** | `buf` already owns generation. The validator owns translating drift into a stable finding without making every unit test run codegen. |
+| **Production wiring** | `handlers/validation.Module` constructs `internal/validation.NewManifestVerifier(repoRoot)`. The verifier reads `packages/proto/gen/manifests/<scenario>.lock.json`, recomputes the scenario source-closure digest, hashes manifest-listed generated outputs, enumerates extra output files, and compares the committed toolchain fingerprint. It never runs `buf`. |
+| **Shared contract** | `packages/proto/genmanifest` owns the manifest schema, source-closure digest, output enumeration, and committed-pin toolchain fingerprint. `packages/proto/cmd/gen-manifest` writes the lockfiles during `make generate`; proto-health only reads and verifies them. |
+| **Test fake** | A fake checker returns clean, drifted, missing-manifest, or advisory toolchain-drift results for service mapping tests. `gen_sync_test.go` uses temp repo fixtures for verifier behavior. |
+| **Why it exists** | `packages/proto` owns generation. The validator owns translating committed lockfile drift into stable scenario-scoped findings without coupling every validation run to the codegen toolchain. |
 
 ### Transport facts (declaration-based)
 

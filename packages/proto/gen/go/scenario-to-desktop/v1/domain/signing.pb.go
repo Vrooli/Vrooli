@@ -4,9 +4,10 @@
 // 	protoc        (unknown)
 // source: scenario-to-desktop/v1/domain/signing.proto
 
-package scenario_to_desktop_v1
+package domain
 
 import (
+	base "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/base"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -739,7 +740,7 @@ func (x *CertificateInfo) GetDaysUntilExpiry() int32 {
 type PlatformValidation struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Target platform.
-	Platform Platform `protobuf:"varint,1,opt,name=platform,proto3,enum=scenario_to_desktop.v1.Platform" json:"platform,omitempty"`
+	Platform base.Platform `protobuf:"varint,1,opt,name=platform,proto3,enum=scenario_to_desktop.v1.Platform" json:"platform,omitempty"`
 	// Whether signing is properly configured for this platform.
 	Valid bool `protobuf:"varint,2,opt,name=valid,proto3" json:"valid,omitempty"`
 	// Whether signing is enabled for this platform.
@@ -747,9 +748,9 @@ type PlatformValidation struct {
 	// Certificate details (if discovered).
 	Certificate *CertificateInfo `protobuf:"bytes,4,opt,name=certificate,proto3,oneof" json:"certificate,omitempty"`
 	// Validation errors that block signing.
-	Errors []*ValidationError `protobuf:"bytes,5,rep,name=errors,proto3" json:"errors,omitempty"`
+	Errors []*base.ValidationError `protobuf:"bytes,5,rep,name=errors,proto3" json:"errors,omitempty"`
 	// Validation warnings that don't block signing.
-	Warnings []*ValidationWarning `protobuf:"bytes,6,rep,name=warnings,proto3" json:"warnings,omitempty"`
+	Warnings []*base.ValidationWarning `protobuf:"bytes,6,rep,name=warnings,proto3" json:"warnings,omitempty"`
 	// Whether required tools are installed.
 	ToolsAvailable bool `protobuf:"varint,7,opt,name=tools_available,json=toolsAvailable,proto3" json:"tools_available,omitempty"`
 	// Missing tool names.
@@ -788,11 +789,11 @@ func (*PlatformValidation) Descriptor() ([]byte, []int) {
 	return file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *PlatformValidation) GetPlatform() Platform {
+func (x *PlatformValidation) GetPlatform() base.Platform {
 	if x != nil {
 		return x.Platform
 	}
-	return Platform_PLATFORM_UNSPECIFIED
+	return base.Platform(0)
 }
 
 func (x *PlatformValidation) GetValid() bool {
@@ -816,14 +817,14 @@ func (x *PlatformValidation) GetCertificate() *CertificateInfo {
 	return nil
 }
 
-func (x *PlatformValidation) GetErrors() []*ValidationError {
+func (x *PlatformValidation) GetErrors() []*base.ValidationError {
 	if x != nil {
 		return x.Errors
 	}
 	return nil
 }
 
-func (x *PlatformValidation) GetWarnings() []*ValidationWarning {
+func (x *PlatformValidation) GetWarnings() []*base.ValidationWarning {
 	if x != nil {
 		return x.Warnings
 	}
@@ -859,9 +860,9 @@ type SigningValidationResult struct {
 	// Key: Platform name (win, mac, linux)
 	Platforms map[string]*PlatformValidation `protobuf:"bytes,3,rep,name=platforms,proto3" json:"platforms,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// Global validation errors.
-	Errors []*ValidationError `protobuf:"bytes,4,rep,name=errors,proto3" json:"errors,omitempty"`
+	Errors []*base.ValidationError `protobuf:"bytes,4,rep,name=errors,proto3" json:"errors,omitempty"`
 	// Global validation warnings.
-	Warnings []*ValidationWarning `protobuf:"bytes,5,rep,name=warnings,proto3" json:"warnings,omitempty"`
+	Warnings []*base.ValidationWarning `protobuf:"bytes,5,rep,name=warnings,proto3" json:"warnings,omitempty"`
 	// Timestamp of validation.
 	ValidatedAt   *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=validated_at,json=validatedAt,proto3" json:"validated_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -919,14 +920,14 @@ func (x *SigningValidationResult) GetPlatforms() map[string]*PlatformValidation 
 	return nil
 }
 
-func (x *SigningValidationResult) GetErrors() []*ValidationError {
+func (x *SigningValidationResult) GetErrors() []*base.ValidationError {
 	if x != nil {
 		return x.Errors
 	}
 	return nil
 }
 
-func (x *SigningValidationResult) GetWarnings() []*ValidationWarning {
+func (x *SigningValidationResult) GetWarnings() []*base.ValidationWarning {
 	if x != nil {
 		return x.Warnings
 	}
@@ -946,7 +947,7 @@ func (x *SigningValidationResult) GetValidatedAt() *timestamppb.Timestamp {
 type PlatformStatus struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Target platform.
-	Platform Platform `protobuf:"varint,1,opt,name=platform,proto3,enum=scenario_to_desktop.v1.Platform" json:"platform,omitempty"`
+	Platform base.Platform `protobuf:"varint,1,opt,name=platform,proto3,enum=scenario_to_desktop.v1.Platform" json:"platform,omitempty"`
 	// Whether signing is ready.
 	Ready bool `protobuf:"varint,2,opt,name=ready,proto3" json:"ready,omitempty"`
 	// Whether signing is enabled in config.
@@ -987,11 +988,11 @@ func (*PlatformStatus) Descriptor() ([]byte, []int) {
 	return file_scenario_to_desktop_v1_domain_signing_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *PlatformStatus) GetPlatform() Platform {
+func (x *PlatformStatus) GetPlatform() base.Platform {
 	if x != nil {
 		return x.Platform
 	}
-	return Platform_PLATFORM_UNSPECIFIED
+	return base.Platform(0)
 }
 
 func (x *PlatformStatus) GetReady() bool {
@@ -1272,7 +1273,7 @@ const file_scenario_to_desktop_v1_domain_signing_proto_rawDesc = "" +
 	"\x1aSIGN_ALGORITHM_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15SIGN_ALGORITHM_SHA256\x10\x01\x12\x19\n" +
 	"\x15SIGN_ALGORITHM_SHA384\x10\x02\x12\x19\n" +
-	"\x15SIGN_ALGORITHM_SHA512\x10\x03B^Z\\github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1;scenario_to_desktop_v1b\x06proto3"
+	"\x15SIGN_ALGORITHM_SHA512\x10\x03BUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain;domainb\x06proto3"
 
 var (
 	file_scenario_to_desktop_v1_domain_signing_proto_rawDescOnce sync.Once
@@ -1303,9 +1304,9 @@ var file_scenario_to_desktop_v1_domain_signing_proto_goTypes = []any{
 	(*SigningConfigResponse)(nil),   // 11: scenario_to_desktop.v1.SigningConfigResponse
 	nil,                             // 12: scenario_to_desktop.v1.SigningValidationResult.PlatformsEntry
 	(*timestamppb.Timestamp)(nil),   // 13: google.protobuf.Timestamp
-	(Platform)(0),                   // 14: scenario_to_desktop.v1.Platform
-	(*ValidationError)(nil),         // 15: scenario_to_desktop.v1.ValidationError
-	(*ValidationWarning)(nil),       // 16: scenario_to_desktop.v1.ValidationWarning
+	(base.Platform)(0),              // 14: scenario_to_desktop.v1.Platform
+	(*base.ValidationError)(nil),    // 15: scenario_to_desktop.v1.ValidationError
+	(*base.ValidationWarning)(nil),  // 16: scenario_to_desktop.v1.ValidationWarning
 }
 var file_scenario_to_desktop_v1_domain_signing_proto_depIdxs = []int32{
 	0,  // 0: scenario_to_desktop.v1.WindowsSigningConfig.certificate_source:type_name -> scenario_to_desktop.v1.CertificateSource
@@ -1339,7 +1340,6 @@ func file_scenario_to_desktop_v1_domain_signing_proto_init() {
 	if File_scenario_to_desktop_v1_domain_signing_proto != nil {
 		return
 	}
-	file_scenario_to_desktop_v1_base_shared_proto_init()
 	file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[0].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[1].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_domain_signing_proto_msgTypes[2].OneofWrappers = []any{}

@@ -4,7 +4,7 @@
 // 	protoc        (unknown)
 // source: scenario-to-desktop/v1/base/shared.proto
 
-package scenario_to_desktop_v1
+package base
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -835,7 +835,7 @@ const file_scenario_to_desktop_v1_base_shared_proto_rawDesc = "" +
 	"!DISTRIBUTION_PROVIDER_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18DISTRIBUTION_PROVIDER_S3\x10\x01\x12\x1c\n" +
 	"\x18DISTRIBUTION_PROVIDER_R2\x10\x02\x12'\n" +
-	"#DISTRIBUTION_PROVIDER_S3_COMPATIBLE\x10\x03B^Z\\github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1;scenario_to_desktop_v1b\x06proto3"
+	"#DISTRIBUTION_PROVIDER_S3_COMPATIBLE\x10\x03BQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/base;baseb\x06proto3"
 
 var (
 	file_scenario_to_desktop_v1_base_shared_proto_rawDescOnce sync.Once

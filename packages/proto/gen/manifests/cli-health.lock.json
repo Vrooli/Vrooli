@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "scenario": "cli-health",
+  "input_digest": "sha256:215e9fb7113cf24f7f9cf61ae8fd5672f7ecc6acfef5dab94c80ca160d4e0b78",
+  "input_files": [
+    "schemas/cli-health/v1/errors/errors.proto",
+    "schemas/cli-health/v1/health/health.proto",
+    "schemas/cli-health/v1/search/search.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/cli-health/v1/errors/errors.pb.go": "sha256:e26edc4c4438a8e5693d93bad6b91ff354f200804bdbf64bd85f668636350fba",
+    "gen/go/cli-health/v1/health/health.pb.go": "sha256:160fe40d862ae5752de3ca0f2f00bfebca061d9dc3a1416d0f1b6769642e044a",
+    "gen/go/cli-health/v1/search/search.pb.go": "sha256:320ef0b1a6cc8826d1d463b2ef20406f0be2e1364f8e83f13901d161ce820347",
+    "gen/go/cli-health/v1/search/search_v1connect/search.connect.go": "sha256:4284cf0bb0ff9ffc3bbc77d8a3e0bc4dabc843cb670500c03593947474aaa6a9",
+    "gen/python/cli_health/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/cli_health/v1/errors/errors_pb2.py": "sha256:4f09ad8b895c6f7b4dbd32e84076f8769ac227a10111f326ac6015cd3e8d0ac1",
+    "gen/python/cli_health/v1/errors/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/cli_health/v1/errors/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/cli_health/v1/health/health_pb2.py": "sha256:707f80aef13f529777aae57dee5a4be93ac50289e49a06663b07585e29ab5414",
+    "gen/python/cli_health/v1/health/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/cli_health/v1/health/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/cli_health/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/cli_health/v1/search/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/cli_health/v1/search/search_pb2.py": "sha256:7b21eb9a897eadaf11b4303becf581548c01612f7f83e8fdcf9019463c3d3427",
+    "gen/python/cli_health/v1/search/search_pb2.pyi": "sha256:33a47249b3244c146b5f651d41d8707abd67dda4080f259abd43d71ceb2eef75",
+    "gen/typescript/cli-health/v1/errors/errors_pb.ts": "sha256:7672b67cf6058d4c5ba1709e24305376d125bf2740c020c37e2671f249dc1376",
+    "gen/typescript/cli-health/v1/health/health_pb.ts": "sha256:9bdb2533304d743ef1242e2aece6604246fb9817b0c51d6355c6d38b89d7525a",
+    "gen/typescript/cli-health/v1/search/search_pb.ts": "sha256:a0cafb30a63db9e42f7788c01fc0e7ea75deddd15e6e8c098a3490af501e9727",
+    "gen/typescript/js/cli-health/v1/errors/errors_pb.js": "sha256:1509c41a494e5b442d7ebd5dc629522aefdc44ad191dcc6dc5f28bbaa3d7953d",
+    "gen/typescript/js/cli-health/v1/health/health_pb.js": "sha256:9d79fc27620e5062f69737142cbb17a7099156ae9066eea71eda985ff2b3d44b",
+    "gen/typescript/js/cli-health/v1/search/search_pb.js": "sha256:902ee90271453fd0408d86c47364e54c88268f3c5db1f0774255c595f6b0d30b"
+  }
+}

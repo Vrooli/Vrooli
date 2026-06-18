@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "scenario": "code-facts",
+  "input_digest": "sha256:17247914d89648cb5bd37853521e5c1a0c4821a038cabfc9fd12ba849b24848a",
+  "input_files": [
+    "schemas/code-facts/v1/facts/facts.proto",
+    "schemas/code-facts/v1/health/health.proto",
+    "schemas/code-facts/v1/shared/errors.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/code-facts/v1/facts/facts.pb.go": "sha256:4b79ebcc65157c166d921da59d5c6a818793479ffbe48cdace87c2c263330f0e",
+    "gen/go/code-facts/v1/facts/facts_v1connect/facts.connect.go": "sha256:c50c488a80c36cce05efef72231bbdf26d4b76452c4514612b70d1a141fcbf1e",
+    "gen/go/code-facts/v1/health/health.pb.go": "sha256:a1c809feeb7f9d7fc3fb4e7af3965bcb9795bb03bcdeca1246f200153ecb0544",
+    "gen/go/code-facts/v1/shared/errors.pb.go": "sha256:97e188f6e153ed85cdec31692ef55e81580d236676f0ae7ea2852ca9ec2eb320",
+    "gen/python/code_facts/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/code_facts/v1/facts/facts_pb2.py": "sha256:9155a0ff8e5d53809b193162c549c9af08d7cb11be8b4ecb19a316bb0edf79cd",
+    "gen/python/code_facts/v1/facts/facts_pb2.pyi": "sha256:e8c95636ea74dd327de9ef39aabbd0d2f7651b88fd21cde6bdf22cf588bc6101",
+    "gen/python/code_facts/v1/facts/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/code_facts/v1/health/health_pb2.py": "sha256:0fd70df1f4c255669a13472847c182e308ba847ec64f38765f732ccc343948c8",
+    "gen/python/code_facts/v1/health/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/code_facts/v1/health/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/code_facts/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/code_facts/v1/shared/errors_pb2.py": "sha256:9e0ac4d154be260720413ba74ed4457c5c5459953e615c97cf67a4c0180fcb3a",
+    "gen/python/code_facts/v1/shared/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/code_facts/v1/shared/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/code-facts/v1/facts/facts_pb.ts": "sha256:328b05f1654b9320a38fd23b06a15631619ca978d46ee7e3a267511af2d4ec30",
+    "gen/typescript/code-facts/v1/health/health_pb.ts": "sha256:c045d08af7f77a9f044c92e17ae6e0ab6e972a2778b5041e707c0f794f1fe0a6",
+    "gen/typescript/code-facts/v1/shared/errors_pb.ts": "sha256:f402712d6674259ca82bb669247521aa6a0237bbf5fe846444190f5338e1dbcf",
+    "gen/typescript/js/code-facts/v1/facts/facts_pb.js": "sha256:4bdd7eab32cf2c181e1aaf987fcb12f7aa89206c5c88d8ef9bfb244329d9b879",
+    "gen/typescript/js/code-facts/v1/health/health_pb.js": "sha256:d1aafcc68627b8c775b43eab585a2e27c0a9a2854fe4e3044aa0e35cce656317",
+    "gen/typescript/js/code-facts/v1/shared/errors_pb.js": "sha256:de6bd26db6d97cb068b5fffc0aed74a41321dfbd897635649f8b71ef0a6a8695"
+  }
+}

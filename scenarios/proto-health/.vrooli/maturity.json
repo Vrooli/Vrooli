@@ -96,11 +96,11 @@
       "severity_default": "SEVERITY_WARNING",
       "recommended_skill_ids": ["proto-contract-audit"]
     },
-    "proto.gen_check_blocked": {
+    "proto.gen_manifest_missing": {
       "local_level_impact": "L2",
-      "global_impact": "advisory",
+      "global_impact": "foundation_blocker",
       "dimension": "proto-health",
-      "severity_default": "SEVERITY_WARNING",
+      "severity_default": "SEVERITY_ERROR",
       "recommended_skill_ids": ["proto-contract-audit"]
     },
     "proto.gen_out_of_sync": {
@@ -108,6 +108,13 @@
       "global_impact": "foundation_blocker",
       "dimension": "proto-health",
       "severity_default": "SEVERITY_ERROR",
+      "recommended_skill_ids": ["proto-contract-audit"]
+    },
+    "proto.gen_toolchain_drift": {
+      "local_level_impact": "L2",
+      "global_impact": "advisory",
+      "dimension": "proto-health",
+      "severity_default": "SEVERITY_WARNING",
       "recommended_skill_ids": ["proto-contract-audit"]
     },
     "proto.hand_rolled_transport": {

@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "scenario": "architecture",
+  "input_digest": "sha256:a4c80e7e33912b15b4aa14d403d671a5d78983601de8f3c3dfbc3b80f67eeae1",
+  "input_files": [
+    "schemas/architecture/v1/findings.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/architecture/v1/findings.pb.go": "sha256:2818af74b36bc6aca6a542520cf36c1ea992cb44acd2673e755b0e3d4f17052a",
+    "gen/python/architecture/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/architecture/v1/findings_pb2.py": "sha256:da6472282a84cb7040f02be28ac5680efaf4e136715010b2c2bab33cb4c42b68",
+    "gen/python/architecture/v1/findings_pb2.pyi": "sha256:0cf148b35c6f338d19f3d35ec770da714135a498c9b0086abeeba72d65fbfd9e",
+    "gen/python/architecture/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/architecture/v1/findings_pb.ts": "sha256:ec2d5f065fdea019eea98fd7e967c774a513ed99fce464c704937199078e2aac",
+    "gen/typescript/js/architecture/v1/findings_pb.js": "sha256:0e521633bfc2779814befadad046dbc3171c78aadde1a5f0ebb47c412088b7f3"
+  }
+}

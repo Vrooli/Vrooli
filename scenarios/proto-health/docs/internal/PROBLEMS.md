@@ -100,6 +100,30 @@ proof for a language or framework it should understand.
 **Refs:** `api/internal/codefacts/`, `api/internal/validation/`,
 `docs/internal/SEAMS.md`.
 
+### 2026-06-18 - Descriptor staleness is backstopped outside proto-health
+
+**Symptom:** Structural checks read the committed descriptor image, so
+a hand-edited schema can leave descriptor-derived facts stale until
+generation runs.
+
+**Root cause:** proto-health intentionally does not rebuild descriptors
+on the hot path. The manifest verifier hashes source closures and
+generated outputs, but descriptor regeneration remains owned by
+`packages/proto`.
+
+**Workaround:** Treat `proto.gen_out_of_sync` or
+`proto.gen_manifest_missing` as a signal to run
+`cd packages/proto && make generate`.
+
+**Real fix:** Keep `make verify-committed-gen` as the authoritative
+fleet gate for generated outputs, manifests, and
+`gen/descriptor/image.binpb`.
+
+**Owner:** packages/proto maintainer.
+
+**Refs:** `packages/proto/Makefile`, `packages/proto/genmanifest/`,
+`api/internal/validation/gen_sync.go`.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

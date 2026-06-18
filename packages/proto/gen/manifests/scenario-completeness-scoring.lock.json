@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "scenario": "scenario-completeness-scoring",
+  "input_digest": "sha256:cd068f112fa94628cc5c5008c56167cbaad5dbfa6fbbf545babae302d7b52be0",
+  "input_files": [
+    "schemas/measures/v1/measures.proto",
+    "schemas/scenario-completeness-scoring/v1/domain/scoring.proto",
+    "schemas/scenario-completeness-scoring/v1/errors/errors.proto",
+    "schemas/scenario-completeness-scoring/v1/health/health.proto",
+    "schemas/scenario-completeness-scoring/v1/measures/measures.proto",
+    "schemas/scenario-completeness-scoring/v1/scoring/scoring.proto",
+    "vendor/protovalidate/buf/validate/validate.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/scenario-completeness-scoring/v1/domain/scoring.pb.go": "sha256:0dd8aaebf5e327d7851aa8d14f78da069af72decc23ced2d9e95d3063e339b7d",
+    "gen/go/scenario-completeness-scoring/v1/errors/errors.pb.go": "sha256:ab697b7dcf32bb99bcf9e98b7cbfc573d375ab013cf6131c0aac16d1393d0ff5",
+    "gen/go/scenario-completeness-scoring/v1/health/health.pb.go": "sha256:be68e3b61804cb5860cdc5892bda88038738082f6ca711b4b443549a6932be6e",
+    "gen/go/scenario-completeness-scoring/v1/measures/measures.pb.go": "sha256:a7e97e3a097652aa11e8754d3ba86b875bb0b6cc39fe69649fcbd66b0716ff13",
+    "gen/go/scenario-completeness-scoring/v1/measures/measures_v1connect/measures.connect.go": "sha256:bb82ba18c398e886986116926624650613335fdbf9e8779969e56c56babf6680",
+    "gen/go/scenario-completeness-scoring/v1/scoring/scoring.pb.go": "sha256:0e2eaa21ad6b64455b97297f4af42398391a9859b2db1bf9597649f22d88cb70",
+    "gen/go/scenario-completeness-scoring/v1/scoring/scoring_v1connect/scoring.connect.go": "sha256:d2d3326ccdf04789de92a8789a77cad6e541d324d739894a2ff9637a3025ebf3",
+    "gen/python/scenario_completeness_scoring/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/scenario_completeness_scoring/v1/domain/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/scenario_completeness_scoring/v1/domain/scoring_pb2.py": "sha256:8afadfb21394335ef8bedc323c26a201d6de9bea6c8d7b6e7ff9e40b863bb13f",
+    "gen/python/scenario_completeness_scoring/v1/domain/scoring_pb2.pyi": "sha256:42f99026b29d53f704303ccd14ea9a5255c15ce6e5073ca6e6876e635458d05a",
+    "gen/python/scenario_completeness_scoring/v1/errors/errors_pb2.py": "sha256:fd56b095866d7200012ae536422bbd26e6c065b04f9bfb1747698c9db6ed0849",
+    "gen/python/scenario_completeness_scoring/v1/errors/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/scenario_completeness_scoring/v1/errors/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/scenario_completeness_scoring/v1/health/health_pb2.py": "sha256:0b4438e8f18ea9eb3e49fd1fa53f7979bc6858d1fce131c84fecb04ea557e383",
+    "gen/python/scenario_completeness_scoring/v1/health/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/scenario_completeness_scoring/v1/health/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/scenario_completeness_scoring/v1/measures/measures_pb2.py": "sha256:bffb26ead6077a8e1b1c6e348d1de9b836a4d2fd735989c8c462d992f0c13f83",
+    "gen/python/scenario_completeness_scoring/v1/measures/measures_pb2.pyi": "sha256:ce610bec48116f09437463faf9ce6e8d5d3c22e2317ebd36d8e7e3af7b8321b5",
+    "gen/python/scenario_completeness_scoring/v1/measures/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/scenario_completeness_scoring/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/scenario_completeness_scoring/v1/scoring/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/scenario_completeness_scoring/v1/scoring/scoring_pb2.py": "sha256:e64b1be6f760676310bd8557041cc1bc49c33a169a33433fadcf232fdf6bfea4",
+    "gen/python/scenario_completeness_scoring/v1/scoring/scoring_pb2.pyi": "sha256:c417acff0e7abecd52e9a04f7889e3130cc1561227d16eb220d3efd4f0169805",
+    "gen/typescript/js/scenario-completeness-scoring/v1/domain/scoring_pb.js": "sha256:5580aaccefe86aee67b88dcfaf007629d262c21e287a582aa6c208a538b885e7",
+    "gen/typescript/js/scenario-completeness-scoring/v1/errors/errors_pb.js": "sha256:bd7b3e73878506b75c9791c9766de12143314bd3362b8bad92bd649d66c36b8d",
+    "gen/typescript/js/scenario-completeness-scoring/v1/health/health_pb.js": "sha256:f6284367c1541e7064e82ecc14031eec4bfc3cd83b7870e98001e9c78b17b963",
+    "gen/typescript/js/scenario-completeness-scoring/v1/measures/measures_pb.js": "sha256:4c13589094b21914f6189e78a59156e426d6e7aff7fe37f4c6c154f6d1a78f5c",
+    "gen/typescript/js/scenario-completeness-scoring/v1/scoring/scoring_pb.js": "sha256:f1443fdf86be6add8a7a84d4e777efba535dcde81d8f2289e3a6839c52476695",
+    "gen/typescript/scenario-completeness-scoring/v1/domain/scoring_pb.ts": "sha256:109a4c3088e7702e746bd3104063a341e3bc89abe6de98b8de38e54b4e06a385",
+    "gen/typescript/scenario-completeness-scoring/v1/errors/errors_pb.ts": "sha256:144fdba4b8e80eb70b3a42c73fe0602129b92105c777466757b939a2be8cf101",
+    "gen/typescript/scenario-completeness-scoring/v1/health/health_pb.ts": "sha256:c42304c39f7782f13c3608be031c1b092f68c2a82b4d444fc157824c3382b559",
+    "gen/typescript/scenario-completeness-scoring/v1/measures/measures_pb.ts": "sha256:238a6c8d0169f9d6abde91e6c84f5e32c9aeec9e86356b439839e037fb4cf2d5",
+    "gen/typescript/scenario-completeness-scoring/v1/scoring/scoring_pb.ts": "sha256:a30908525691b56ea41fc1308a772cbe42a34a8398743fd758ba1ef550e79b51"
+  }
+}

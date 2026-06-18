@@ -112,6 +112,36 @@ func TestValidateScenarioFindsGeneratedArtifactDrift(t *testing.T) {
 	requireFinding(t, report, CodeGenOutOfSync, SeverityError)
 }
 
+func TestValidateScenarioFindsMissingGenerationManifest(t *testing.T) {
+	svc := newTestService(t, Deps{
+		Loader: fakeLoader{surface: cleanSurface()},
+		GenSyncChecker: fakeGenSyncChecker{status: GenSyncStatus{
+			ManifestMissing: true,
+			Drift:           []string{"packages/proto/gen/manifests/demo.lock.json"},
+		}},
+	})
+
+	report, err := svc.ValidateScenario(context.Background(), "demo")
+	require.NoError(t, err)
+	require.False(t, report.Passed)
+	requireFinding(t, report, CodeGenManifestMissing, SeverityError)
+}
+
+func TestValidateScenarioWarnsOnGenerationToolchainDrift(t *testing.T) {
+	svc := newTestService(t, Deps{
+		Loader: fakeLoader{surface: cleanSurface()},
+		GenSyncChecker: fakeGenSyncChecker{status: GenSyncStatus{
+			InSync:         true,
+			ToolchainDrift: true,
+		}},
+	})
+
+	report, err := svc.ValidateScenario(context.Background(), "demo")
+	require.NoError(t, err)
+	require.True(t, report.Passed)
+	requireFinding(t, report, CodeGenToolchainDrift, SeverityWarning)
+}
+
 func TestValidateScenarioFindsMissingCodeFactsProtoAdoption(t *testing.T) {
 	svc := newTestService(t, Deps{
 		Loader: fakeLoader{surface: cleanSurface()},

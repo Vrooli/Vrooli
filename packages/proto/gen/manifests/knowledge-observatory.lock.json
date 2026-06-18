@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "scenario": "knowledge-observatory",
+  "input_digest": "sha256:82d2ff1b98a12a705bf1c58c9070d6bd08802266b108e1fa92a715766d400e7a",
+  "input_files": [
+    "schemas/common/v1/maturity.proto",
+    "schemas/knowledge-observatory/v1/api.proto",
+    "vendor/protovalidate/buf/validate/validate.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/knowledge-observatory/v1/api.pb.go": "sha256:4934f7f8cda33a53fc2aa5636e82c70753c07b5920249849eaabd0dfb8d702dd",
+    "gen/go/knowledge-observatory/v1/knowledgeobservatoryv1connect/api.connect.go": "sha256:793f49d5d5caaad9d6ac3647590597645cc33067269813dd397f749a1a82a2a8",
+    "gen/python/knowledge_observatory/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/knowledge_observatory/v1/api_pb2.py": "sha256:a1d2fdbe5e776682566552b36abe1a262a12847b03fa2105fa7148fccf7507c2",
+    "gen/python/knowledge_observatory/v1/api_pb2.pyi": "sha256:423eda6efd18b9b83c3262dfadc2b8d7ecdcee8b55d1d84ae18d43a0ded8fe81",
+    "gen/python/knowledge_observatory/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/js/knowledge-observatory/v1/api_pb.js": "sha256:5897155718a00d9c343b51a39c46e442d96d7712dcce81f71f34f52ecffd8f5e",
+    "gen/typescript/knowledge-observatory/v1/api_pb.ts": "sha256:e0c77e2556fc305167e97fdee874755a79b8e7e6bc582d033ae9dac472ae8b47"
+  }
+}

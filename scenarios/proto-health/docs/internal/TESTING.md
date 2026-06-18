@@ -49,6 +49,7 @@ The real `proto-health` domains add these test layers:
 | protosurface | descriptor reader fixtures | Prove `image.binpb` loading, source comments, service/RPC/message/field walking, imports, and deterministic ordering. |
 | protosurface | scenario filtering fixtures | Prove one scenario's files are selected without walking or judging unrelated scenarios. |
 | validation | finding-code table tests | One focused fixture per planned finding code and severity. |
+| validation | manifest verifier fixtures | Temp repo fixtures cover clean manifests, stale input digests, edited outputs, orphan files, missing manifests, and advisory toolchain drift without invoking `buf`. |
 | validation | boundary tests | Prove cross-scenario graph/dependency drift is not computed here. |
 | CLI | manifest/binding tests | Prove `validate scenario` and `describe scenario` are declared with read/run_eligible governance and call the generated Connect methods. |
 | UI | loading/error/empty/populated tests | Prove the inspection surface meets the direct-UI done obligation. |

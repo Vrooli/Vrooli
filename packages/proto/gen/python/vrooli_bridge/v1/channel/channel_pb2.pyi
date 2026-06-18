@@ -127,6 +127,14 @@ class ControlPing(_message.Message):
     sent_at: _timestamp_pb2.Timestamp
     def __init__(self, sent_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
+class AbortJob(_message.Message):
+    __slots__ = ("run_id", "reason")
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    reason: str
+    def __init__(self, run_id: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
+
 class RunEvent(_message.Message):
     __slots__ = ("run_id", "kind", "sequence", "log_chunk", "status", "exit_code", "artifact_ref", "emitted_at")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
@@ -148,16 +156,18 @@ class RunEvent(_message.Message):
     def __init__(self, run_id: _Optional[str] = ..., kind: _Optional[_Union[RunEventKind, str]] = ..., sequence: _Optional[int] = ..., log_chunk: _Optional[str] = ..., status: _Optional[str] = ..., exit_code: _Optional[int] = ..., artifact_ref: _Optional[str] = ..., emitted_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class ServerFrame(_message.Message):
-    __slots__ = ("ack", "job", "provision", "ping")
+    __slots__ = ("ack", "job", "provision", "ping", "abort")
     ACK_FIELD_NUMBER: _ClassVar[int]
     JOB_FIELD_NUMBER: _ClassVar[int]
     PROVISION_FIELD_NUMBER: _ClassVar[int]
     PING_FIELD_NUMBER: _ClassVar[int]
+    ABORT_FIELD_NUMBER: _ClassVar[int]
     ack: HandshakeAck
     job: JobPush
     provision: ProvisionCommand
     ping: ControlPing
-    def __init__(self, ack: _Optional[_Union[HandshakeAck, _Mapping]] = ..., job: _Optional[_Union[JobPush, _Mapping]] = ..., provision: _Optional[_Union[ProvisionCommand, _Mapping]] = ..., ping: _Optional[_Union[ControlPing, _Mapping]] = ...) -> None: ...
+    abort: AbortJob
+    def __init__(self, ack: _Optional[_Union[HandshakeAck, _Mapping]] = ..., job: _Optional[_Union[JobPush, _Mapping]] = ..., provision: _Optional[_Union[ProvisionCommand, _Mapping]] = ..., ping: _Optional[_Union[ControlPing, _Mapping]] = ..., abort: _Optional[_Union[AbortJob, _Mapping]] = ...) -> None: ...
 
 class NodeFrame(_message.Message):
     __slots__ = ("handshake", "heartbeat", "run_event")

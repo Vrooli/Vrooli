@@ -4,9 +4,10 @@
 // 	protoc        (unknown)
 // source: scenario-to-desktop/v1/domain/preflight.proto
 
-package scenario_to_desktop_v1
+package domain
 
 import (
+	base "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/base"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -1215,9 +1216,9 @@ type PreflightResponse struct {
 	// Service binary fingerprints.
 	ServiceFingerprints []*ServiceFingerprint `protobuf:"bytes,10,rep,name=service_fingerprints,json=serviceFingerprints,proto3" json:"service_fingerprints,omitempty"`
 	// Validation errors.
-	Errors []*ValidationError `protobuf:"bytes,11,rep,name=errors,proto3" json:"errors,omitempty"`
+	Errors []*base.ValidationError `protobuf:"bytes,11,rep,name=errors,proto3" json:"errors,omitempty"`
 	// Validation warnings.
-	Warnings []*ValidationWarning `protobuf:"bytes,12,rep,name=warnings,proto3" json:"warnings,omitempty"`
+	Warnings []*base.ValidationWarning `protobuf:"bytes,12,rep,name=warnings,proto3" json:"warnings,omitempty"`
 	// Session ID for subsequent requests.
 	// @format uuid
 	SessionId *string `protobuf:"bytes,13,opt,name=session_id,json=sessionId,proto3,oneof" json:"session_id,omitempty"`
@@ -1327,14 +1328,14 @@ func (x *PreflightResponse) GetServiceFingerprints() []*ServiceFingerprint {
 	return nil
 }
 
-func (x *PreflightResponse) GetErrors() []*ValidationError {
+func (x *PreflightResponse) GetErrors() []*base.ValidationError {
 	if x != nil {
 		return x.Errors
 	}
 	return nil
 }
 
-func (x *PreflightResponse) GetWarnings() []*ValidationWarning {
+func (x *PreflightResponse) GetWarnings() []*base.ValidationWarning {
 	if x != nil {
 		return x.Warnings
 	}
@@ -1642,7 +1643,7 @@ type ManifestResponse struct {
 	// Manifest schema version.
 	SchemaVersion *string `protobuf:"bytes,2,opt,name=schema_version,json=schemaVersion,proto3,oneof" json:"schema_version,omitempty"`
 	// Validation errors.
-	Errors        []*ValidationError `protobuf:"bytes,3,rep,name=errors,proto3" json:"errors,omitempty"`
+	Errors        []*base.ValidationError `protobuf:"bytes,3,rep,name=errors,proto3" json:"errors,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1691,7 +1692,7 @@ func (x *ManifestResponse) GetSchemaVersion() string {
 	return ""
 }
 
-func (x *ManifestResponse) GetErrors() []*ValidationError {
+func (x *ManifestResponse) GetErrors() []*base.ValidationError {
 	if x != nil {
 		return x.Errors
 	}
@@ -1921,7 +1922,7 @@ const file_scenario_to_desktop_v1_domain_preflight_proto_rawDesc = "" +
 	"\x12JOB_STATUS_PENDING\x10\x01\x12\x16\n" +
 	"\x12JOB_STATUS_RUNNING\x10\x02\x12\x18\n" +
 	"\x14JOB_STATUS_COMPLETED\x10\x03\x12\x15\n" +
-	"\x11JOB_STATUS_FAILED\x10\x04B^Z\\github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1;scenario_to_desktop_v1b\x06proto3"
+	"\x11JOB_STATUS_FAILED\x10\x04BUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain;domainb\x06proto3"
 
 var (
 	file_scenario_to_desktop_v1_domain_preflight_proto_rawDescOnce sync.Once
@@ -1938,34 +1939,34 @@ func file_scenario_to_desktop_v1_domain_preflight_proto_rawDescGZIP() []byte {
 var file_scenario_to_desktop_v1_domain_preflight_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
 var file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_scenario_to_desktop_v1_domain_preflight_proto_goTypes = []any{
-	(PreflightStatus)(0),          // 0: scenario_to_desktop.v1.PreflightStatus
-	(CheckStatus)(0),              // 1: scenario_to_desktop.v1.CheckStatus
-	(SecretClass)(0),              // 2: scenario_to_desktop.v1.SecretClass
-	(JobStatus)(0),                // 3: scenario_to_desktop.v1.JobStatus
-	(*PreflightRequest)(nil),      // 4: scenario_to_desktop.v1.PreflightRequest
-	(*PreflightSecret)(nil),       // 5: scenario_to_desktop.v1.PreflightSecret
-	(*GPUInfo)(nil),               // 6: scenario_to_desktop.v1.GPUInfo
-	(*PreflightReady)(nil),        // 7: scenario_to_desktop.v1.PreflightReady
-	(*PreflightRuntime)(nil),      // 8: scenario_to_desktop.v1.PreflightRuntime
-	(*PreflightCheck)(nil),        // 9: scenario_to_desktop.v1.PreflightCheck
-	(*ServiceLogTail)(nil),        // 10: scenario_to_desktop.v1.ServiceLogTail
-	(*ServiceFingerprint)(nil),    // 11: scenario_to_desktop.v1.ServiceFingerprint
-	(*TelemetryInfo)(nil),         // 12: scenario_to_desktop.v1.TelemetryInfo
-	(*PreflightResponse)(nil),     // 13: scenario_to_desktop.v1.PreflightResponse
-	(*JobStep)(nil),               // 14: scenario_to_desktop.v1.JobStep
-	(*JobStartResponse)(nil),      // 15: scenario_to_desktop.v1.JobStartResponse
-	(*JobStatusResponse)(nil),     // 16: scenario_to_desktop.v1.JobStatusResponse
-	(*ManifestRequest)(nil),       // 17: scenario_to_desktop.v1.ManifestRequest
-	(*ManifestResponse)(nil),      // 18: scenario_to_desktop.v1.ManifestResponse
-	nil,                           // 19: scenario_to_desktop.v1.PreflightRequest.SecretsEntry
-	nil,                           // 20: scenario_to_desktop.v1.PreflightSecret.PromptEntry
-	nil,                           // 21: scenario_to_desktop.v1.GPUInfo.RequirementsEntry
-	nil,                           // 22: scenario_to_desktop.v1.PreflightReady.DetailsEntry
-	nil,                           // 23: scenario_to_desktop.v1.PreflightResponse.PortsEntry
-	nil,                           // 24: scenario_to_desktop.v1.ManifestResponse.ManifestEntry
-	(*timestamppb.Timestamp)(nil), // 25: google.protobuf.Timestamp
-	(*ValidationError)(nil),       // 26: scenario_to_desktop.v1.ValidationError
-	(*ValidationWarning)(nil),     // 27: scenario_to_desktop.v1.ValidationWarning
+	(PreflightStatus)(0),           // 0: scenario_to_desktop.v1.PreflightStatus
+	(CheckStatus)(0),               // 1: scenario_to_desktop.v1.CheckStatus
+	(SecretClass)(0),               // 2: scenario_to_desktop.v1.SecretClass
+	(JobStatus)(0),                 // 3: scenario_to_desktop.v1.JobStatus
+	(*PreflightRequest)(nil),       // 4: scenario_to_desktop.v1.PreflightRequest
+	(*PreflightSecret)(nil),        // 5: scenario_to_desktop.v1.PreflightSecret
+	(*GPUInfo)(nil),                // 6: scenario_to_desktop.v1.GPUInfo
+	(*PreflightReady)(nil),         // 7: scenario_to_desktop.v1.PreflightReady
+	(*PreflightRuntime)(nil),       // 8: scenario_to_desktop.v1.PreflightRuntime
+	(*PreflightCheck)(nil),         // 9: scenario_to_desktop.v1.PreflightCheck
+	(*ServiceLogTail)(nil),         // 10: scenario_to_desktop.v1.ServiceLogTail
+	(*ServiceFingerprint)(nil),     // 11: scenario_to_desktop.v1.ServiceFingerprint
+	(*TelemetryInfo)(nil),          // 12: scenario_to_desktop.v1.TelemetryInfo
+	(*PreflightResponse)(nil),      // 13: scenario_to_desktop.v1.PreflightResponse
+	(*JobStep)(nil),                // 14: scenario_to_desktop.v1.JobStep
+	(*JobStartResponse)(nil),       // 15: scenario_to_desktop.v1.JobStartResponse
+	(*JobStatusResponse)(nil),      // 16: scenario_to_desktop.v1.JobStatusResponse
+	(*ManifestRequest)(nil),        // 17: scenario_to_desktop.v1.ManifestRequest
+	(*ManifestResponse)(nil),       // 18: scenario_to_desktop.v1.ManifestResponse
+	nil,                            // 19: scenario_to_desktop.v1.PreflightRequest.SecretsEntry
+	nil,                            // 20: scenario_to_desktop.v1.PreflightSecret.PromptEntry
+	nil,                            // 21: scenario_to_desktop.v1.GPUInfo.RequirementsEntry
+	nil,                            // 22: scenario_to_desktop.v1.PreflightReady.DetailsEntry
+	nil,                            // 23: scenario_to_desktop.v1.PreflightResponse.PortsEntry
+	nil,                            // 24: scenario_to_desktop.v1.ManifestResponse.ManifestEntry
+	(*timestamppb.Timestamp)(nil),  // 25: google.protobuf.Timestamp
+	(*base.ValidationError)(nil),   // 26: scenario_to_desktop.v1.ValidationError
+	(*base.ValidationWarning)(nil), // 27: scenario_to_desktop.v1.ValidationWarning
 }
 var file_scenario_to_desktop_v1_domain_preflight_proto_depIdxs = []int32{
 	19, // 0: scenario_to_desktop.v1.PreflightRequest.secrets:type_name -> scenario_to_desktop.v1.PreflightRequest.SecretsEntry
@@ -2010,7 +2011,6 @@ func file_scenario_to_desktop_v1_domain_preflight_proto_init() {
 	if File_scenario_to_desktop_v1_domain_preflight_proto != nil {
 		return
 	}
-	file_scenario_to_desktop_v1_base_shared_proto_init()
 	file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[0].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[1].OneofWrappers = []any{}
 	file_scenario_to_desktop_v1_domain_preflight_proto_msgTypes[2].OneofWrappers = []any{}

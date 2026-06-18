@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "scenario": "drift-smoke",
+  "input_digest": "sha256:cecf2b9442095766e325ea73c785b7ccf7cd073979481e39c5eb1b9bc1adaab6",
+  "input_files": [
+    "schemas/drift-smoke/v1/errors/errors.proto",
+    "schemas/drift-smoke/v1/health/health.proto",
+    "schemas/drift-smoke/v1/notes/attachments.proto",
+    "schemas/drift-smoke/v1/notes/notes.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/drift-smoke/v1/errors/errors.pb.go": "sha256:898b7095cffc200d604e78286c12f4dffad766c444e230b657324430c82d34b2",
+    "gen/go/drift-smoke/v1/health/health.pb.go": "sha256:095b353c1232e59053c7c5c1b16c6630a52048ec60a3ad34a3390bb78937d161",
+    "gen/go/drift-smoke/v1/notes/attachments.pb.go": "sha256:57090584356a8bcf34701cf8f2d4e4b36a985b315cfb27002ca34cd8017712db",
+    "gen/go/drift-smoke/v1/notes/notes.pb.go": "sha256:6a6c54eaefd87292a0c2a86ec655a33924a0e0ec48b5b7ca8abda77428832582",
+    "gen/go/drift-smoke/v1/notes/notes_v1connect/notes.connect.go": "sha256:0095fdc50913768af07386da3a57df2b704a2a2e4cafce0832bda125dc8f4304",
+    "gen/python/drift_smoke/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/drift_smoke/v1/errors/errors_pb2.py": "sha256:f4085a930a119fe960c7ef052f16b524aca6f5feb262ba1df39920b09d4fc3d1",
+    "gen/python/drift_smoke/v1/errors/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/drift_smoke/v1/errors/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/drift_smoke/v1/health/health_pb2.py": "sha256:9a30e93736f03f4102f53ccf1df0e12e62d5d9a4d41aabe4388d18544543f2f5",
+    "gen/python/drift_smoke/v1/health/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/drift_smoke/v1/health/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/drift_smoke/v1/notes/attachments_pb2.py": "sha256:5bbd78fffc30028b7d4a3e6b5369cadc86e43cb285be737d10c9ca1e1354fbe8",
+    "gen/python/drift_smoke/v1/notes/attachments_pb2.pyi": "sha256:5594188beec26dac8bb0ab7d1ece27e28d425bc57b7544c9e509610cbb5e37fa",
+    "gen/python/drift_smoke/v1/notes/notes_pb2.py": "sha256:2ab40bb969d7347d6c526ec141923b4468fb1890708953572211a5685663a4e1",
+    "gen/python/drift_smoke/v1/notes/notes_pb2.pyi": "sha256:90eb802836d26426e3329c62c578adce03436f4960a65f19c6931f527060b7a8",
+    "gen/python/drift_smoke/v1/notes/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/drift_smoke/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/drift-smoke/v1/errors/errors_pb.ts": "sha256:b6295f5251a6d4cf483015287833b22e07a10a7f6cc32ded1495c55e6e1723b3",
+    "gen/typescript/drift-smoke/v1/health/health_pb.ts": "sha256:79934606c111c04f07e8bbd3eb002294df48df190be345e1113f0ac74116b699",
+    "gen/typescript/drift-smoke/v1/notes/attachments_pb.ts": "sha256:c3789dbec008190ecede7cc7d87f6bbcbf0f6dd3386bfcab017d8b4b8fef3015",
+    "gen/typescript/drift-smoke/v1/notes/notes_pb.ts": "sha256:7e6a6e559a5844359eda13efbb2c8f7aeb67eeb1c5ab807244ecfea53d2144eb",
+    "gen/typescript/js/drift-smoke/v1/errors/errors_pb.js": "sha256:fba918168aed64234a296a21fa814168b14be05275b339f8b2c0d400ff8a7fed",
+    "gen/typescript/js/drift-smoke/v1/health/health_pb.js": "sha256:1ca26ab60d4b55052a4fc04c2fb984b998bf423d2d0d2869bd69f8dc726011a7",
+    "gen/typescript/js/drift-smoke/v1/notes/attachments_pb.js": "sha256:5f3f92106a8a8c02e2b68418459cf306c32393f4eb8cfbbbce269fafa890dd5e",
+    "gen/typescript/js/drift-smoke/v1/notes/notes_pb.js": "sha256:7fa2577a28e37046bb4fc72faba4c56fc01f43e3538dade44c0acdfd06982a37"
+  }
+}
