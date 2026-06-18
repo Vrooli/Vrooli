@@ -240,7 +240,47 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | A `fakeLastSeen` recorder in `handlers/channel/heartbeat_handler_test.go` (records ids; an injectable error proves the swallow path). |
 | **Why it exists** | Keeps the channel handler decoupled from the registry's storage internals while still persisting "last seen 2h ago" across a control-plane restart. The presence hub itself stays pure in-memory. |
 
-Note: `internal/presence.Hub` is a concrete shared component (constructed once in `main.go`, shared by the registry overlay and the channel handler), not a substitution seam — the *seam* is the narrow `Presence.IsOnline` interface the registry handler consumes. An optional Redis-backed Hub for scale-out is a declared future seam, not built while the fleet is single-instance.
+Note: `internal/presence.Hub` is a concrete shared component (constructed once in `main.go`, shared by the registry overlay and the channel handler), not a substitution seam — the *seam* is the narrow `Presence.IsOnline` interface the registry handler consumes. An optional Redis-backed Hub for scale-out is a declared future seam, not built while the fleet is single-instance. The Hub additionally exposes `Push(nodeID, payload)` (the control-plane → node frame push the SSE handler drains via `Conn.Out()`); like `IsOnline`, dispatch consumes it through the narrow `dispatch.JobPusher` seam, not the concrete Hub.
+
+### runs.Repository / runs.Service (durable run persistence + lifecycle)
+
+| | |
+|---|---|
+| **Seam** | Durable server-owned run persistence (Repository) and the block-once lifecycle + ingest coordination (Service) |
+| **Interface** | `internal/runs/repository.go::Repository` (Create/Get/List/Update/AppendEvent/ListEvents); `internal/runs/service.go::Service` (Create/Get/List/AppendEvent/Wait/Abort/Subscribe) |
+| **Production wiring** | `main.go` constructs `runs.NewService(runs.NewSQLiteRepository(db, clk), clk)` ONCE and shares the instance with `runsH.Module` (operator verbs + node-facing ReportRunEvent ingest) and `dispatchH.Module` (CreateRun), so the in-memory block-once waiter registry + live-event subscriber fan-out is one coherent instance across both call sites. |
+| **Test fake** | `internal/runs/mocks::FakeRepository` (in-memory, error knobs) for service tests; `internal/runs/mocks::FakeService` for handler tests; real sqlite in `internal/runs/sqlite_test.go`. |
+| **Why it exists** | Durability (survive disconnect, re-attach by id, block-once wait) lives in the service's coordinator; the repository is the durable source of truth a re-attaching client reads. Decoupling them lets the lifecycle be unit-tested against an in-memory repo and the persistence be integration-tested against real sqlite. |
+
+### audit.Sink / audit.Reader (append-only accountability substrate)
+
+| | |
+|---|---|
+| **Seam** | The write side (Sink.Append) and read side (Reader.List) of the append-only audit trail |
+| **Interface** | `internal/audit/sink.go::Sink` (`Append(ctx, Record)`) and `::Reader` (`List(ctx, filter)`); the dispatch domain re-declares its own narrow `dispatch.AuditSink` so it imports neither audit nor proto |
+| **Production wiring** | `main.go` constructs `audit.NewSQLiteStore(db, clk)` and shares it as the dispatch handler's write Sink and the audit handler's read Reader. A **workspace-sandbox-backed Sink** is the documented alternative behind the same Sink seam (the SECURITY.md accountability substrate), wired when that scenario is green without changing any caller — see PROBLEMS.md. |
+| **Test fake** | `internal/audit/mocks::FakeSink` / `::FakeReader`; `internal/audit/sandbox_integration_test.go` proves a substrate is swappable behind the seam; real sqlite in `audit_test.go`. |
+| **Why it exists** | Records are written only as a side effect of the operation they audit (dispatch/provision) — there is no proto RPC that writes audit, so there is no wire path to forge or mutate a record. The narrow Sink/Reader split makes the substrate (local SQLite today, workspace-sandbox later) a wiring choice, not a code change. |
+
+### dispatch seams (NodeReader / Presence / RunController / AuditSink / JobPusher)
+
+| | |
+|---|---|
+| **Seam** | The five outside-world dependencies of the allowlist gate, each declared in `internal/dispatch/seams.go` over dispatch-local DTOs |
+| **Interface** | `dispatch.NodeReader` (node scopes/revocation), `dispatch.Presence` (online), `dispatch.RunController` (CreateRun/AbortRun), `dispatch.AuditSink` (Record), `dispatch.JobPusher` (PushJob) |
+| **Production wiring** | `handlers/dispatch/adapter.go` is the single translation point binding these to the concrete registry service, presence hub, runs service, audit store, and the channel push (JobPush → ServerFrame → protojson → `Hub.Push`). The dispatch domain itself imports no sibling domain and no proto. |
+| **Test fake** | `internal/dispatch/mocks` (one fake per seam, with error/delivery knobs) drives `service_test.go`; the real adapters are exercised end-to-end in `handlers/dispatch/connect_handler_test.go`. |
+| **Why it exists** | The allowlist is the highest-stakes decision in the scenario; declaring every dependency as a narrow seam over proto-free DTOs keeps `Allow()` and the dispatch sequence pure and exhaustively table-testable, and keeps the proto/channel translation in one auditable place. |
+
+### node-agent exec seams (EventReporter / CommandRunner)
+
+| | |
+|---|---|
+| **Seam** | The node-agent runner's two effects: reporting RunEvents back, and executing the local CLI |
+| **Interface** | `agent/internal/exec/exec.go::EventReporter` (`Report(ctx, *RunEvent)`) and `::CommandRunner` (`Run(ctx, argv, dir, onLog)`) |
+| **Production wiring** | `agent/internal/channel/channel.go` wires `runEventReporter` (a signed `RunsService.ReportRunEvent` call) and the default `osCommandRunner` (`os/exec.CommandContext` over a pre-split argv — never `sh -c`). |
+| **Test fake** | `agent/internal/exec/typedjob_test.go` substitutes a collecting reporter + a canned command runner; a real-`os/exec` smoke lives in `command_test.go`. |
+| **Why it exists** | Lets the runner's lifecycle (STATUS→LOG→EXIT) and the no-shell-path proof (`BuildArgv` rejects shell metacharacters; the command seam only ever receives a `[]string`) be tested without a real `vrooli` binary or a live control plane. |
 
 ## Adding a new seam
 

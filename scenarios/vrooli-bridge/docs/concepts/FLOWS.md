@@ -40,6 +40,29 @@ Document each real flow here with its owner domain, trigger, inputs,
 ordered steps, outputs, failure modes, retry/cancel behavior, tests, and
 generated subpackages. The worked example below shows the expected shape.
 
+### Remote run
+
+The dispatch → durable-run flow (OT-P0-004/005, built in Phase 3). Owner
+dispatches a typed `{scenario, verb, args}` job to a node; the control plane
+validates it against the allowlist + the node's scopes, creates a server-owned
+run, audits the dispatch, and pushes the typed `JobPush` down the node's held
+dial-out channel. The node-agent runs it as the non-privileged runner and
+streams `RunEvent`s (STATUS/LOG/EXIT/ARTIFACT_REF) back via the node-facing
+`RunsService.ReportRunEvent`.
+
+States: `queued → running → (passed | failed | aborted)`. The run is
+**server-owned and durable**: it survives the dispatching client disconnecting
+and is re-attachable by id (`runs get`), with a block-once `runs wait` that
+returns exactly once on the terminal transition (no polling) or `timed_out` when
+its wait window elapses. **Stale-completion safety:** a late event for an
+already-terminal run is acknowledged but never changes the verdict. Implemented
+at Level 1 (inventory) today; the Level-5 Quint model is future work (the
+service's `coordinator` already centralises the transition logic for it).
+
+Code: `internal/dispatch`, `internal/runs`, `agent/internal/exec`. Tests:
+`internal/runs/durable_test.go`, `internal/runs/results_test.go`,
+`handlers/runs/connect_handler_test.go`.
+
 ## State Machines
 
 List each modeled flow's states, illegal transitions, and how they are

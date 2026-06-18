@@ -159,6 +159,97 @@ pre-dating the 2026-06-18 Ed25519 decision.
   single-owner/one-installer-per-code model, documented in service.go. Tighten to
   burn-before-register if multi-tenant ever lands.
 
+### 2026-06-18 — Phase 3 deferred: live workspace-sandbox audit wiring
+
+**Symptom:** The audit trail (OT-P0-008) persists to the local append-only
+SQLite store, not yet to the workspace-sandbox accountability substrate
+SECURITY.md names as the target.
+
+**Root cause:** workspace-sandbox is a separate scenario; wiring a live
+cross-scenario client now would risk inheriting its environmental blockers
+(cf. the device-sync-hub authenticator note), and the plan lands cross-scenario
+deps only once the dependency is green.
+
+**Workaround:** The audit domain is built around the narrow `audit.Sink` seam.
+The SQLite store is the default substrate; a workspace-sandbox-backed `Sink` is
+a drop-in behind the same seam with zero caller changes
+(`internal/audit/sandbox_integration_test.go` proves the substrate is swappable).
+
+**Real fix:** Implement an `audit.Sink` that routes to workspace-sandbox and
+wire it in `main.go` once workspace-sandbox is green; flip this entry to RESOLVED.
+
+**Owner:** unassigned.
+
+**Refs:** `internal/audit/sink.go`, `internal/audit/sqlite.go`, `docs/internal/SECURITY.md#audit`.
+
+### 2026-06-18 — Phase 3 deferred: no per-node job redelivery queue
+
+**Symptom:** If a node drops between the dispatch online-check and the channel
+push, the job is not delivered; dispatch aborts the freshly-created run and
+returns `Unavailable` rather than queuing the job for redelivery.
+
+**Root cause:** JobPush rides the ephemeral SSE stream; there is no durable
+per-node queue yet (that is OT-P1-004, Phase 5).
+
+**Workaround:** The dispatch fails closed (the run is aborted, nothing runs
+un-tracked) and the operator re-dispatches. Online nodes — the overwhelmingly
+common case — are unaffected.
+
+**Real fix:** Phase 5 per-node job queue (`requirements/12-job-queue`) holds the
+job and redelivers on reconnect; dispatch then enqueues instead of failing.
+
+**Owner:** unassigned.
+
+**Refs:** `internal/dispatch/service.go` (delivery-failure branch).
+
+### 2026-06-18 — Phase 3 deferred: AbortRun does not yet signal the node
+
+**Symptom:** `runs abort` marks the run ABORTED on the control plane and wakes
+waiters immediately, but does not push a cancel frame to the node, so a job
+already executing on the node runs to completion (its late EXIT is then ignored
+as a stale completion).
+
+**Root cause:** The channel wire contract has no node-bound abort frame yet, and
+the node-side runner does not subscribe to one.
+
+**Workaround:** The control-plane view is correct and terminal at once (stale
+completions are safely ignored). Node-side cancellation lands with the Phase 5
+queue/cancel work.
+
+**Real fix:** Add an abort `ServerFrame` kind + node-side cancel handling
+(Phase 5), then have AbortRun push it.
+
+**Owner:** unassigned.
+
+**Refs:** `internal/runs/service.go::Abort`, `packages/proto/.../v1/channel/channel.proto`.
+
+### 2026-06-18 — proto `shared_type_misplaced` (the full reuse set is now known)
+
+**Symptom:** The `proto` test-genie phase fails one ERROR:
+`proto.shared_type_misplaced: message channel.Heartbeat is reused across domains
+(channel, presence) but lives in "channel"`.
+
+**Root cause:** The versioned wire types live in `channel.proto`; the presence
+and (Phase 3) runs domains reuse them so the agent speaks one vocabulary. Phase 3
+now reveals the **complete cross-domain reuse set** the Phase 2 handoff said to
+wait for: `Heartbeat` + `HealthSnapshot` (presence) and `RunEvent` +
+`RunEventKind` (runs/dispatch). proto-health wants shared types in a package that
+signals sharing rather than a feature-named one.
+
+**Workaround:** Functionally harmless — the types ARE the shared wire contract
+and back-compat is preserved (DiscardUnknown). Deferred deliberately to avoid
+churning agent+api imports twice across Phases 3–4.
+
+**Real fix:** One proto-layout pass: move the shared wire types into a dedicated
+`vrooli-bridge/v1/wire` (or similar) package, regenerate, and update the
+channel/presence/runs imports across `api/` and `agent/`. Do it once, after
+Phase 4's `ProvisionCommand` reuse is also known.
+
+**Owner:** unassigned.
+
+**Refs:** `packages/proto/schemas/vrooli-bridge/v1/channel/channel.proto`,
+`.../presence/presence.proto`, `.../runs/runs.proto`.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

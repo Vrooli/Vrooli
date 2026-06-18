@@ -31,6 +31,7 @@ import (
 
 	"vrooli-bridge/agent/internal/buildinfo"
 	"vrooli-bridge/agent/internal/config"
+	"vrooli-bridge/agent/internal/exec"
 	"vrooli-bridge/agent/internal/health"
 	"vrooli-bridge/agent/internal/nodecred"
 
@@ -41,6 +42,8 @@ import (
 	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
 	presencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence/presence_v1connect"
+	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs/runs_v1connect"
 )
 
 // ProtocolVersion is the agent's implemented wire protocol version. It MUST
@@ -71,12 +74,18 @@ type Client struct {
 	cfg        config.Config
 	httpClient *http.Client
 	rpc        presence_v1connect.PresenceServiceClient
+	runsRPC    runs_v1connect.RunsServiceClient
 	sampler    health.Sampler
 	cred       *nodecred.Credential
 	logger     *log.Logger
 	now        func() time.Time
 	minBackoff time.Duration
 	maxBackoff time.Duration
+
+	// baseCtx is the top-level dial context, captured at Dial. Job execution is
+	// anchored to it (not the per-session SSE context) so a running job survives
+	// a brief channel reconnect and is only cancelled on agent shutdown.
+	baseCtx context.Context
 }
 
 // Option customises a Client (transport, sampler, clock, backoff) for tests and
@@ -124,7 +133,9 @@ func NewClient(cfg config.Config, opts ...Option) *Client {
 	for _, opt := range opts {
 		opt(c)
 	}
-	c.rpc = presence_v1connect.NewPresenceServiceClient(c.httpClient, strings.TrimRight(cfg.ControlPlaneURL, "/"))
+	base := strings.TrimRight(cfg.ControlPlaneURL, "/")
+	c.rpc = presence_v1connect.NewPresenceServiceClient(c.httpClient, base)
+	c.runsRPC = runs_v1connect.NewRunsServiceClient(c.httpClient, base)
 	return c
 }
 
@@ -152,6 +163,7 @@ func (c *Client) Dial(ctx context.Context) error {
 	if !c.cfg.Paired() {
 		return ErrNotConfigured
 	}
+	c.baseCtx = ctx
 
 	backoff := c.minBackoff
 	for {
@@ -304,7 +316,53 @@ func (c *Client) handleServerFrame(payload string) {
 			c.logger.Printf("channel: control plane refused the channel: %s", ack.GetReason())
 		}
 	}
-	// JobPush / ProvisionCommand handling lands in Phases 3/4.
+	if job := frame.GetJob(); job != nil {
+		// A typed job push (OT-P0-004). Run it as the non-privileged runner,
+		// anchored to the base (not session) context so it survives a reconnect.
+		// Errors are streamed back as RunEvents, not returned; a reporter
+		// transport failure is logged.
+		c.logger.Printf("channel: received job run_id=%q verb=%q scenario=%q", job.GetRunId(), job.GetVerb(), job.GetScenario())
+		go c.runJob(job)
+	}
+	// ProvisionCommand handling lands in Phase 4.
+}
+
+// runJob executes a pushed job via the non-privileged runner, streaming
+// status/log/exit RunEvents back to the control plane's RunsService (each call
+// signed with the node credential). It is launched in its own goroutine so a
+// long job does not block the SSE read loop.
+func (c *Client) runJob(job *channelv1.JobPush) {
+	ctx := c.baseCtx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	reporter := &runEventReporter{rpc: c.runsRPC, cred: c.cred, nodeID: c.cfg.NodeID, now: c.now}
+	runner := exec.NewRunner(c.cfg.VrooliBin, c.cfg.WorkDir, reporter, exec.WithClock(c.now))
+	if err := runner.Execute(ctx, job); err != nil && ctx.Err() == nil {
+		c.logger.Printf("channel: run %q: reporting events failed: %v", job.GetRunId(), err)
+	}
+}
+
+// runEventReporter implements exec.EventReporter by calling the control plane's
+// RunsService.ReportRunEvent, signing each call with the node's per-node
+// Ed25519 credential so the control plane verifies the node (and that it only
+// reports against its own runs).
+type runEventReporter struct {
+	rpc    runs_v1connect.RunsServiceClient
+	cred   *nodecred.Credential
+	nodeID string
+	now    func() time.Time
+}
+
+func (r *runEventReporter) Report(ctx context.Context, ev *channelv1.RunEvent) error {
+	req := connect.NewRequest(&runsv1.ReportRunEventRequest{Event: ev})
+	if r.cred != nil {
+		for k, v := range r.cred.Headers(r.nodeID, r.now().UTC()) {
+			req.Header().Set(k, v)
+		}
+	}
+	_, err := r.rpc.ReportRunEvent(ctx, req)
+	return err
 }
 
 // runHeartbeats sends a heartbeat immediately on connect and then on the

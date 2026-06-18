@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "cloud-runner-nodes",
     "description": "A node can be a VM or cloud macOS/Windows runner; bridge treats a node as any reachable Vrooli install.",
+    "last_validated_at": "2026-06-18T09:13:58-04:00",
+    "module": "cloud-runner-nodes",
     "prd_ref": "OT-P2-003",
     "priority": "P2",
     "schema_version": "1.0.0"
@@ -9,8 +10,8 @@
   "requirements": [
     {
       "id": "BRG-P2-003",
-      "title": "Ephemeral & Cloud-Runner Nodes",
-      "status": "planned",
+      "title": "Ephemeral \u0026 Cloud-Runner Nodes",
+      "status": "complete",
       "prd_ref": "OT-P2-003",
       "category": "core",
       "description": "A node can be a VM or a cloud macOS/Windows runner provisioned on demand, not only a physical machine. Bridge treats a node as 'any reachable Vrooli install,' so ephemeral capacity composes without special-casing.",
@@ -19,14 +20,14 @@
           "type": "test",
           "ref": "api/internal/registry/node_kind_test.go",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Physical, VM, and cloud-runner nodes share one registration/dispatch path; node kind is metadata, not a code branch."
         },
         {
           "type": "test",
           "ref": "api/internal/fleet/ephemeral_test.go",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "An ephemeral node can join, take a job, and be decommissioned cleanly without leaving fleet state behind."
         }
       ]

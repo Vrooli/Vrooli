@@ -172,6 +172,131 @@
           }
         }
       ]
+    },
+    {
+      "name": "dispatch",
+      "description": "Dispatch typed, allowlisted jobs to fleet nodes (never raw shell)",
+      "commands": [
+        {
+          "name": "job",
+          "description": "Dispatch a typed {scenario, verb, args} job to a node (allowlist + scope gated)",
+          "positionals": [
+            { "name": "node-id", "required": true, "description": "Target node id" }
+          ],
+          "flags": [
+            { "name": "verb", "required": true, "description": "Allowlisted vrooli command namespace (e.g. \"scenario test\")" },
+            { "name": "scenario", "description": "Target scenario the command operates on (trailing positional)" },
+            { "name": "args", "description": "Comma-separated additional typed args" },
+            { "name": "timeout", "description": "Wall-clock budget in seconds (0 = server default)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "DispatchService", "method": "DispatchJob" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "runs",
+      "description": "Inspect and control durable remote runs (re-attach by id, block-once wait)",
+      "commands": [
+        {
+          "name": "get",
+          "description": "Show one run by id with its event history",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Run id" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "RunsService", "method": "GetRun" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List runs newest-first",
+          "flags": [
+            { "name": "node", "description": "Filter by node id" },
+            { "name": "limit", "description": "Maximum runs to return" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "RunsService", "method": "ListRuns" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "wait",
+          "description": "Block once until a run is terminal (no polling); exits with the run's code",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Run id" }
+          ],
+          "flags": [
+            { "name": "timeout", "description": "Seconds to block before returning timed-out (0 = server default)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "RunsService", "method": "WaitRun" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "abort",
+          "description": "Abort a non-terminal run",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Run id" }
+          ],
+          "flags": [
+            { "name": "reason", "description": "Human-readable reason recorded on the run/audit trail" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "RunsService", "method": "AbortRun" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "follow",
+          "description": "Stream a run's live event output until it finishes (human follow verb)",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Run id" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "RunsService", "method": "StreamRunEvents" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "audit",
+      "description": "Read the append-only accountability trail of every dispatch/provision op",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List audit records newest-first",
+          "flags": [
+            { "name": "node", "description": "Filter by node id" },
+            { "name": "run", "description": "Filter by run id" },
+            { "name": "limit", "description": "Maximum records to return" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "AuditService", "method": "ListAuditRecords" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
     }
   ],
   "measures": {
@@ -182,6 +307,11 @@
       "service": "PresenceService",
       "method": "ReportHeartbeat",
       "reason": "Node-facing dial-out RPC called by the node-agent, not an operator. There is no `nodes heartbeat` command; the agent reports liveness/health on the channel."
+    },
+    {
+      "service": "RunsService",
+      "method": "ReportRunEvent",
+      "reason": "Node-facing dial-out RPC: the node-agent streams run events back here signed with its per-node credential. There is no operator `runs report` command; the agent reports run progress on the channel."
     }
   ]
 }

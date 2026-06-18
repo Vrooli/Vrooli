@@ -5,7 +5,7 @@
   },
   "layout": {
     "sidebarLabel": "التنقل الرئيسي",
-    "bottomNavLabel": "التنقل الرئيسي",
+    "bottomNavLabel": "التنقل السفلي",
     "mainLabel": "المحتوى الرئيسي",
     "nav": {
       "dashboard": "لوحة التحكم",

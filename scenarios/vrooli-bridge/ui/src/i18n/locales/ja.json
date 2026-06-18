@@ -5,7 +5,7 @@
   },
   "layout": {
     "sidebarLabel": "メインナビゲーション",
-    "bottomNavLabel": "メインナビゲーション",
+    "bottomNavLabel": "ボトムナビゲーション",
     "mainLabel": "メインコンテンツ",
     "nav": {
       "dashboard": "ダッシュボード",

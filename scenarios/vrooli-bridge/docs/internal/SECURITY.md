@@ -45,7 +45,7 @@ Bridge has three distinct authorization boundaries, all enforced at the API/serv
 
 | Risk | Impact | Mitigation | Status |
 |---|---|---|---|
-| Arbitrary remote code execution | An attacker (or a buggy caller) runs unintended commands on a node. | Typed `{scenario, verb, args}` jobs validated against the CLI manifest + per-node scopes; **no raw shell path exists**. | designed, unbuilt |
+| Arbitrary remote code execution | An attacker (or a buggy caller) runs unintended commands on a node. | Typed `{scenario, verb, args}` jobs validated against the CLI manifest + per-node scopes; **no raw shell path exists** (the node-agent execs a validated argv, never `sh -c`). | **built + tested (Phase 3)**: `internal/dispatch/allowlist_test.go`, `agent/internal/exec/typedjob_test.go` |
 | Privilege escalation via the runner | Everyday job runner gains provisioning/`sudo` rights. | Structural two-tier separation; the runner has no path to the privileged provisioning tier. | designed, unbuilt |
 | Node impersonation / credential theft | A rogue host receives jobs or exfiltrates results. | Mutual auth both directions; credentials hashed at rest; atomic revocation. | designed, unbuilt |
 | Control-plane impersonation (rogue coordinator) | A node executes attacker-supplied jobs. | Mutual auth — the node verifies the control plane, not just vice-versa. | designed, unbuilt |
@@ -64,8 +64,45 @@ These are open because this is the documentation-first foundation — the threat
 |---|---|---|
 | ~~Mutual-auth mechanism not yet chosen (mTLS vs signed tokens)~~ **RESOLVED 2026-06-18** | ~~high~~ closed | Decided: per-node Ed25519 keypair pinned both directions at pairing (`DECISIONS.md`). Implemented in Phase 2 (pairing/auth). |
 | ~~Runner OS-level sandboxing/least-privilege user not yet specified~~ **RESOLVED 2026-06-18** | ~~high~~ closed | Decided: dedicated non-privileged service user runs the runner; structurally separate privileged provisioning helper (`DECISIONS.md`). Implemented in Phase 0 (agent skeleton) + Phase 4 (provisioning helper). |
-| Implementation/tests still pending for each mitigation above | high | Each mitigation must ship with a test as its phase lands (Phase 2 auth, Phase 3 allowlist/no-shell-path, Phase 4 privilege separation). Track in `requirements/`. |
-| Audit tamper-evidence depends on workspace-sandbox guarantees | medium | Confirm workspace-sandbox provides the needed append-only/integrity properties (Phase 3 audit domain). |
+| Implementation/tests still pending for each mitigation above | high → reducing | Phase 2 (mutual auth) and **Phase 3 (allowlist + no-shell-path + audit)** now ship with tests; Phase 4 (privilege separation) remains. Track in `requirements/`. |
+| Audit tamper-evidence depends on workspace-sandbox guarantees | medium | The audit domain is built behind the `audit.Sink` seam (local append-only SQLite store today); a workspace-sandbox-backed Sink is a drop-in once that scenario is green. See PROBLEMS.md (2026-06-18 deferred entry). |
+
+## Allowlist
+
+The allowlist gate (OT-P0-004, `internal/dispatch`) is the only path to remote
+execution and is enforced in two layers:
+
+1. **Control plane (`dispatch.Allow`)** — a job's `verb` must be a recognised
+   manifest verb (`dispatch.DefaultManifest`: the safe operational/test
+   namespaces — `scenario test/build/start/stop/status/logs`; `scenario deploy`
+   and `secrets …` are deliberately absent and therefore never dispatchable),
+   AND covered by the target node's granted scopes (glob), AND free of shell
+   metacharacters in every token. Each failure is a distinct typed rejection
+   (`ErrVerbNotInManifest` / `ErrVerbOutOfScope` / `ErrUnsafeToken`), is
+   **audited as rejected**, and surfaces as `PermissionDenied` before any run is
+   created or anything is pushed.
+2. **Node-agent (`agent/internal/exec.BuildArgv`)** — re-validates and builds a
+   typed `[]string{bin, tokens...}` argv executed via `os/exec` directly; there
+   is no `sh -c` anywhere in the path, and any smuggled metacharacter is rejected
+   before execution.
+
+Tests: `internal/dispatch/allowlist_test.go`, `internal/dispatch/service_test.go`,
+`agent/internal/exec/typedjob_test.go`.
+
+## Audit
+
+Every dispatch — accepted or rejected — is written to the append-only audit
+trail (OT-P0-008, `internal/audit`) as an immutable record (actor, node,
+verb/args, outcome, linked run id). The domain exposes only `Sink.Append`
+(write, held by dispatch/provision) and `Reader.List` (owner-gated read, the
+`AuditService`); there is **no proto RPC, UPDATE, or DELETE** path, so a record
+cannot be forged or mutated after the fact. Acceptance auditing is fail-closed:
+if a dispatch cannot be recorded, the run is aborted and the dispatch refuses
+rather than running un-audited.
+
+Tests: `internal/audit/audit_test.go`,
+`internal/audit/sandbox_integration_test.go`, plus the audit assertions in
+`internal/dispatch/service_test.go`.
 
 ## Cross-References
 

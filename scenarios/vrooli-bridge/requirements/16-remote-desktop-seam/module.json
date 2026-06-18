@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "remote-desktop-seam",
     "description": "Expose node identity/trust/reach seam so a future remote-desktop scenario reuses it rather than reimplementing.",
+    "last_validated_at": "2026-06-18T09:13:58-04:00",
+    "module": "remote-desktop-seam",
     "prd_ref": "OT-P2-002",
     "priority": "P2",
     "schema_version": "1.0.0"
@@ -10,7 +11,7 @@
     {
       "id": "BRG-P2-002",
       "title": "remote-desktop Integration Seam",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P2-002",
       "category": "integration",
       "description": "A future remote-desktop scenario (real-time screen/input control via WebRTC/RDP/VNC) reuses bridge's node identity, trust, and reach layer rather than reimplementing it, while owning its own streaming. Bridge exposes the identity/reach seam it needs.",
@@ -19,14 +20,14 @@
           "type": "test",
           "ref": "api/internal/registry/identity_seam_test.go",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A stable identity/reach query exposes a node's trust state and reachable endpoint for a consuming scenario without leaking job-execution privileges."
         },
         {
           "type": "manual",
           "ref": "docs/concepts/INTEGRATIONS.md#remote-desktop",
           "phase": "business",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A consuming scenario can resolve which nodes are trusted and how to reach them via the documented seam."
         }
       ]

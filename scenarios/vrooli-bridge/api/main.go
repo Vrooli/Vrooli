@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	internalaudit "vrooli-bridge/internal/audit"
 	"vrooli-bridge/internal/auth"
 	"vrooli-bridge/internal/clock"
 	"vrooli-bridge/internal/cpkeys"
@@ -17,6 +18,7 @@ import (
 	internalpairing "vrooli-bridge/internal/pairing"
 	"vrooli-bridge/internal/presence"
 	internalregistry "vrooli-bridge/internal/registry"
+	internalruns "vrooli-bridge/internal/runs"
 	"vrooli-bridge/internal/server"
 
 	"github.com/vrooli/api-core/apihttp"
@@ -28,10 +30,13 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	auditH "vrooli-bridge/handlers/audit"
 	channelH "vrooli-bridge/handlers/channel"
+	dispatchH "vrooli-bridge/handlers/dispatch"
 	healthH "vrooli-bridge/handlers/health"
 	pairingH "vrooli-bridge/handlers/pairing"
 	registryH "vrooli-bridge/handlers/registry"
+	runsH "vrooli-bridge/handlers/runs"
 )
 
 // registrarAdapter bridges the registry service to the pairing domain's
@@ -208,13 +213,30 @@ func main() {
 		log.Fatalf("load control-plane identity key: %v", err)
 	}
 	pairingRepo := internalpairing.NewSQLiteRepository(db, clk)
-	registrar := registrarAdapter{svc: internalregistry.NewService(nodeLastSeen)}
+	// One registry service instance is shared by the pairing registrar (creates
+	// node records on redeem) and the dispatch handler (reads node scopes to
+	// authorize a job). Both read/write the same `nodes` table.
+	registrySvc := internalregistry.NewService(nodeLastSeen)
+	registrar := registrarAdapter{svc: registrySvc}
 	pairingSvc := internalpairing.NewService(pairingRepo, registrar, clk)
 
 	// The node mutual-auth verifier reads node public keys from the pairing
 	// repository (a revoked credential reads as absent). Threaded into the
-	// channel module so every heartbeat + dial-out is authenticated.
+	// channel + runs modules so every heartbeat, dial-out, and run-event report
+	// is authenticated.
 	nodeVerifier := nodeauth.NewVerifier(pairingRepo)
+
+	// Runs (OT-P0-005): a single durable-run service instance is shared by the
+	// runs handler (operator verbs + node-facing ReportRunEvent ingest) and the
+	// dispatch handler (Create), so the in-memory block-once waiter and
+	// live-event subscriber coordination is one coherent instance.
+	runsSvc := internalruns.NewService(internalruns.NewSQLiteRepository(db, clk), clk)
+
+	// Audit (OT-P0-008): the append-only accountability substrate. The same
+	// store is the dispatch handler's write Sink and the audit handler's read
+	// Reader. (A workspace-sandbox-backed Sink is the documented alternative
+	// behind the same seam; see docs/internal/SECURITY.md + PROBLEMS.md.)
+	auditStore := internalaudit.NewSQLiteStore(db, clk)
 
 	srv := server.New(
 		server.Deps{Clock: clk, Logger: logger},
@@ -224,6 +246,14 @@ func main() {
 		registryH.Module(db, clk, presenceHub, pairingSvc, presenceHub, logger),
 		channelH.Module(presenceHub, nodeLastSeen, nodeVerifier, logger),
 		pairingH.Module(pairingSvc, cpKeypair.PublicKeyBase64(), logger),
+		// dispatch (OT-P0-004): the allowlist gate. It reads node scopes
+		// (registrySvc), checks presence, creates durable runs (runsSvc), audits
+		// (auditStore), and pushes typed jobs down the channel (presenceHub).
+		dispatchH.Module(registrySvc, runsSvc, auditStore, presenceHub, logger),
+		// runs (OT-P0-005): durable run lifecycle + node-facing event ingest.
+		runsH.Module(runsSvc, nodeVerifier, logger),
+		// audit (OT-P0-008): owner-gated read of the append-only trail.
+		auditH.Module(auditStore, logger),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

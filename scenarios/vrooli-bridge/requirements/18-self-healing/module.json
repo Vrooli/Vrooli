@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "self-healing",
     "description": "Detect drifted/unhealthy nodes and auto-re-provision toward their target revision to stay validation-ready.",
+    "last_validated_at": "2026-06-18T09:13:58-04:00",
+    "module": "self-healing",
     "prd_ref": "OT-P2-004",
     "priority": "P2",
     "schema_version": "1.0.0"
@@ -10,7 +11,7 @@
     {
       "id": "BRG-P2-004",
       "title": "Self-Healing Re-Provisioning",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P2-004",
       "category": "core",
       "description": "The control plane detects drifted or unhealthy nodes (wrong revision, missing toolchain, repeatedly failing health) and re-provisions them automatically toward their target revision, keeping the fleet validation-ready without manual intervention.",
@@ -19,14 +20,14 @@
           "type": "test",
           "ref": "api/internal/heal/detect_test.go",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Drift detection flags wrong-revision / missing-toolchain / persistently-unhealthy nodes and schedules a re-provision toward target."
         },
         {
           "type": "test",
           "ref": "api/internal/heal/reprovision_test.go",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A drifted node is automatically brought back to its target revision and returns to ready without operator action."
         }
       ]

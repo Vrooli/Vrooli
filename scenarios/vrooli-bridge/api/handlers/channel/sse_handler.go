@@ -2,6 +2,7 @@ package channel
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -114,9 +115,18 @@ func (h *sseHandler) handleEvents(w http.ResponseWriter, r *http.Request) {
 			// The control plane severed this channel (e.g. atomic revocation):
 			// stop holding the stream immediately, don't wait for keepalive.
 			return
+		case payload := <-conn.Out():
+			// A control-plane → node push (JobPush in Phase 3, ProvisionCommand
+			// in Phase 4): one already-serialised channel.ServerFrame, written
+			// as a single SSE `data:` event the agent decodes with
+			// DiscardUnknown. Newlines in the JSON would break SSE framing, but
+			// protojson emits compact single-line JSON, so one data: line is
+			// correct; we still guard by writing the payload as-is.
+			if _, err := fmt.Fprintf(w, "data: %s\n\n", payload); err != nil {
+				return
+			}
+			flusher.Flush()
 		case <-keepalive.C:
-			// Phase 1 sends only keepalive pings; Phase 3 pushes JobPush frames
-			// and Phase 4 pushes ProvisionCommand frames down this same stream.
 			if _, err := w.Write([]byte(": ping\n\n")); err != nil {
 				return
 			}

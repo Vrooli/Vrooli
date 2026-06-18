@@ -34,6 +34,12 @@ func NewHub(clk clock.Clock) *Hub {
 	}
 }
 
+// pushBuffer bounds a connection's outbound frame queue. The control plane
+// pushes job/provision/control frames here; the SSE handler drains them to the
+// node. A wedged node whose buffer fills causes Push to report non-delivery
+// (the dispatcher then aborts the run) rather than blocking the dispatch path.
+const pushBuffer = 16
+
 // Conn represents one held dial-out channel connection. Close marks the node
 // one connection closer to offline; it is idempotent so the channel handler can
 // defer it safely. Done is closed when the connection should end — either via
@@ -44,6 +50,7 @@ type Conn struct {
 	nodeID string
 
 	done chan struct{}
+	out  chan []byte
 	once sync.Once
 }
 
@@ -52,10 +59,17 @@ type Conn struct {
 // immediately, not on the next keepalive.
 func (c *Conn) Done() <-chan struct{} { return c.done }
 
+// Out returns the connection's outbound frame channel. The SSE handler selects
+// on it and writes each payload to the node as an SSE `data:` event. Each
+// payload is one already-serialised channel.ServerFrame (the proto translation
+// happens at the handler/dispatch boundary so the presence domain stays
+// proto-free).
+func (c *Conn) Out() <-chan []byte { return c.out }
+
 // Connect registers a new live connection for nodeID and returns its Conn. The
 // node is online for as long as any Conn is open.
 func (h *Hub) Connect(nodeID string) *Conn {
-	c := &Conn{hub: h, nodeID: nodeID, done: make(chan struct{})}
+	c := &Conn{hub: h, nodeID: nodeID, done: make(chan struct{}), out: make(chan []byte, pushBuffer)}
 	h.mu.Lock()
 	set := h.conns[nodeID]
 	if set == nil {
@@ -113,6 +127,34 @@ func (h *Hub) IsOnline(nodeID string) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return len(h.conns[nodeID]) > 0
+}
+
+// Push enqueues an already-serialised ServerFrame payload to every live channel
+// the node holds, returning the number of connections it reached. It is
+// non-blocking: a connection whose outbound buffer is full is skipped (and not
+// counted), so a single wedged node can never stall the dispatch path. A return
+// of 0 means the node is offline or wedged — the caller (dispatch) treats that
+// as non-delivery. This is the control-plane → node push half of the channel
+// (JobPush in Phase 3, ProvisionCommand in Phase 4).
+func (h *Hub) Push(nodeID string, payload []byte) int {
+	h.mu.Lock()
+	set := h.conns[nodeID]
+	conns := make([]*Conn, 0, len(set))
+	for c := range set {
+		conns = append(conns, c)
+	}
+	h.mu.Unlock()
+
+	delivered := 0
+	for _, c := range conns {
+		select {
+		case c.out <- payload:
+			delivered++
+		default:
+			// Buffer full: the node is not draining; skip it.
+		}
+	}
+	return delivered
 }
 
 // Heartbeat records the node's latest self-reported health. A heartbeat from a

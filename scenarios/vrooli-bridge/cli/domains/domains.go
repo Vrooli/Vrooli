@@ -1,8 +1,11 @@
 package domains
 
 import (
+	"vrooli-bridge/cli/domains/audit"
+	"vrooli-bridge/cli/domains/dispatch"
 	"vrooli-bridge/cli/domains/nodes"
 	"vrooli-bridge/cli/domains/pairing"
+	"vrooli-bridge/cli/domains/runs"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -49,5 +52,23 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		return nil, err
 	}
 	groups = append(groups, pairGroup)
+
+	dispatchGroup, err := dispatch.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, dispatchGroup)
+
+	runsGroup, err := runs.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, runsGroup)
+
+	auditGroup, err := audit.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, auditGroup)
 	return groups, nil
 }

@@ -12,3 +12,8 @@
 # Shared @vrooli/* packages are consumed via file: references (see package.json).
 packages:
   - .
+
+# Supply-chain guard: refuse dependency versions published less than this many
+# minutes ago (7 days), so a freshly-compromised release is not pulled in before
+# the ecosystem has had time to flag it. Matches the fleet-wide default.
+minimumReleaseAge: 10080

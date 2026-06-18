@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "provisioning",
     "description": "Privileged tier: bring a node to revision R (fetch source + idempotent vrooli setup); separated from the non-privileged runner.",
+    "last_validated_at": "2026-06-18T09:13:58-04:00",
+    "module": "provisioning",
     "prd_ref": "OT-P0-006",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -10,7 +11,7 @@
     {
       "id": "BRG-P0-006",
       "title": "Privileged Provisioning Tier",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-006",
       "category": "core",
       "description": "A distinct, privileged provisioning path brings a node to a target project revision R (fetch source at R + idempotent `vrooli setup`) and reports the resulting version. Provisioning is structurally separated from the non-privileged job runner so everyday remote execution can never escalate privilege, and re-running provisioning is always safe (idempotent).",
@@ -19,21 +20,21 @@
           "type": "test",
           "ref": "api/internal/provision/provision_test.go",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Sync-to-revision-R is idempotent; re-running yields the same end state and reports the node's resulting version."
         },
         {
           "type": "test",
           "ref": "node-agent/internal/privsep/privsep_test.go",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "The job runner cannot invoke provisioning/privileged operations; provisioning requires the explicit privileged path."
         },
         {
           "type": "manual",
           "ref": "docs/internal/DECISIONS.md#two-trust-tiers",
           "phase": "business",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A node at revision A is provisioned to revision B and reports B; a runner job cannot trigger setup."
         }
       ]

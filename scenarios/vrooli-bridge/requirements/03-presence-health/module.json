@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "presence-health",
     "description": "Dial-out persistent channel per node; online/offline presence + self-reported readiness; no inbound ports.",
+    "last_validated_at": "2026-06-18T09:13:58-04:00",
+    "module": "presence-health",
     "prd_ref": "OT-P0-003",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -9,8 +10,8 @@
   "requirements": [
     {
       "id": "BRG-P0-003",
-      "title": "Dial-Out Presence & Health",
-      "status": "planned",
+      "title": "Dial-Out Presence \u0026 Health",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "core",
       "description": "Each node-agent maintains a persistent outbound channel to the control plane (no inbound ports on the node; NAT/firewall-proof). The control plane tracks online/offline presence and the node's self-reported readiness (toolchain present, disk headroom, container runtime up) so dispatch only targets capable nodes.",
@@ -19,28 +20,28 @@
           "type": "test",
           "ref": "api/internal/presence/presence_test.go",
           "phase": "unit",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Presence transitions online on channel connect and offline on disconnect/heartbeat-miss; health snapshot is stored per node."
         },
         {
           "type": "test",
           "ref": "api/internal/presence/dialout_test.go",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Agent establishes the channel purely outbound; no listening port is opened on the node side."
         },
         {
           "type": "test",
           "ref": "agent/internal/channel/channel_test.go",
           "phase": "integration",
-          "status": "planned",
+          "status": "implemented",
           "notes": "Node-agent live dial: holds the SSE stream, reports heartbeats with a health snapshot on cadence, and reconnects with backoff after a stream drop (purely outbound)."
         },
         {
           "type": "manual",
           "ref": "docs/concepts/FLOWS.md#presence",
           "phase": "business",
-          "status": "planned",
+          "status": "implemented",
           "notes": "A node behind NAT/firewall stays reachable for dispatch with no inbound configuration."
         }
       ]

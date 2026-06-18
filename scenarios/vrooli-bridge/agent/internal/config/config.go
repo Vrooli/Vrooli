@@ -56,6 +56,15 @@ type Config struct {
 	// authoritative scopes live on the node record server-side).
 	Capabilities []string
 
+	// WorkDir is the directory the runner executes `vrooli` jobs in (typically
+	// the node's Vrooli checkout). Empty means the agent's current working
+	// directory.
+	WorkDir string
+
+	// VrooliBin is the path/name of the local vrooli CLI the runner shells to as
+	// an argv (never via a shell). Defaults to "vrooli" (resolved on PATH).
+	VrooliBin string
+
 	// PrintPublicKey, when true, makes the agent load-or-generate its Ed25519
 	// keypair, print the base64 public key (for the `pair redeem --public-key`
 	// bootstrap step), and exit without dialing.
@@ -82,6 +91,8 @@ func Load(args []string) (Config, error) {
 		stateDirFlag    = fs.String("state-dir", envOr("BRIDGE_AGENT_STATE_DIR", ""), "Directory for agent credential/state material")
 		heartbeat       = fs.Duration("heartbeat-interval", envDurationOr("BRIDGE_HEARTBEAT_INTERVAL", defaultHeartbeatInterval), "Interval between heartbeats once connected")
 		capabilities    = fs.String("capabilities", envOr("BRIDGE_CAPABILITIES", ""), "Comma-separated verb-namespace allowlist the node advertises")
+		workDir         = fs.String("work-dir", envOr("BRIDGE_WORK_DIR", ""), "Directory the runner executes jobs in (default: current working directory)")
+		vrooliBin       = fs.String("vrooli-bin", envOr("BRIDGE_VROOLI_BIN", "vrooli"), "Path/name of the local vrooli CLI the runner shells to as an argv")
 		printPublicKey  = fs.Bool("print-public-key", false, "Load-or-generate the node keypair, print its base64 public key, and exit (bootstrap helper)")
 	)
 
@@ -114,6 +125,8 @@ func Load(args []string) (Config, error) {
 		ControlPlaneKeyPath: filepath.Join(stateDir, controlPlaneKeyFileName),
 		HeartbeatInterval:   *heartbeat,
 		Capabilities:        splitCapabilities(*capabilities),
+		WorkDir:             strings.TrimSpace(*workDir),
+		VrooliBin:           strings.TrimSpace(*vrooliBin),
 		PrintPublicKey:      *printPublicKey,
 	}, nil
 }
