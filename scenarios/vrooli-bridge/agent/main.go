@@ -9,8 +9,11 @@
 // handshake it presents, then holds the live dial-out channel (SSE stream +
 // heartbeat loop with reconnect/backoff) until it is signalled to stop. An
 // unpaired agent reports that and exits cleanly. The binary cross-compiles
-// CGO_ENABLED=0 for linux/darwin/windows × amd64/arm64 (see Makefile). Mutual
-// auth, the job runner, and the provisioning helper land in Phases 2–4.
+// CGO_ENABLED=0 for linux/darwin/windows × amd64/arm64 (see Makefile and
+// build/crosscompile_test.sh). Mutual auth (Phase 2), the non-privileged job
+// runner (Phase 3, internal/exec), and the structurally separate privileged
+// provisioning helper (Phase 4, internal/privsep) are all wired; --print-public-key
+// and --print-service-unit are the two bootstrap helpers the installer drives.
 package main
 
 import (
@@ -28,6 +31,7 @@ import (
 	"vrooli-bridge/agent/internal/config"
 	"vrooli-bridge/agent/internal/nodecred"
 	"vrooli-bridge/agent/internal/platform"
+	"vrooli-bridge/agent/internal/service"
 )
 
 func main() {
@@ -51,6 +55,17 @@ func run(args []string) error {
 
 	logger.Printf("vrooli-bridge-agent %s (%s service manager, state dir %s)",
 		buildinfo.Fingerprint(), platform.NativeServiceManager(), cfg.StateDir)
+
+	if cfg.PrintServiceUnit {
+		// Bootstrap helper: render this binary's platform-native service unit and
+		// exit. The installer writes it to the OS's unit location (OT-P0-007).
+		unit, err := renderServiceUnit(cfg)
+		if err != nil {
+			return fmt.Errorf("render service unit: %w", err)
+		}
+		fmt.Println(unit)
+		return nil
+	}
 
 	// The node's Ed25519 keypair is generated once (at first run / bootstrap)
 	// and held for the node's lifetime; the public key is registered with the
@@ -86,4 +101,32 @@ func run(args []string) error {
 
 	logger.Printf("channel closed (shutdown signal received)")
 	return nil
+}
+
+// renderServiceUnit builds this binary's platform-native background-service unit
+// from the resolved config. The argv it embeds re-runs THIS binary in its
+// long-lived dial mode (the same control-plane URL / node id / state dir), so
+// the installed service reconnects exactly as the foreground process would.
+func renderServiceUnit(cfg config.Config) (string, error) {
+	exe, err := os.Executable()
+	if err != nil {
+		return "", fmt.Errorf("resolve agent binary path: %w", err)
+	}
+	args := []string{
+		"--control-plane-url", cfg.ControlPlaneURL,
+		"--node-id", cfg.NodeID,
+		"--state-dir", cfg.StateDir,
+	}
+	if cfg.WorkDir != "" {
+		args = append(args, "--work-dir", cfg.WorkDir)
+	}
+	def := service.Definition{
+		Name:        "vrooli-bridge-agent",
+		Description: "Vrooli Bridge node agent",
+		ExecPath:    exe,
+		Args:        args,
+		WorkingDir:  cfg.WorkDir,
+		User:        cfg.ServiceUser,
+	}
+	return service.NewManager().Render(def)
 }

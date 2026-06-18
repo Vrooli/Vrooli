@@ -79,12 +79,47 @@ Vrooli install plus the node-agent service.
 | Control-plane UI | Vite production bundle served by `ui/server.js`. |
 | Control-plane CLI | Go CLI installed through scenario manifest install hooks; full headless parity with the UI. |
 | Proto | Wire contracts for control-plane↔CLI and control-plane↔node live under `packages/proto/schemas/vrooli-bridge/`; generated clients are shared artifacts. The node↔control-plane protocol is proto-versioned with a `DiscardUnknown` backward-compat policy. |
-| Node-agent | One Go codebase cross-compiled for `linux/amd64`, `linux/arm64`, `darwin/amd64`, `darwin/arm64`, and `windows/amd64`. Each build is wrapped in a per-OS installer that registers the agent as the platform-native service: **systemd** unit (Linux), **launchd** LaunchDaemon (macOS), **Windows Service** or Scheduled Task (Windows). Cross-compilation, per-OS installers, and code-signing are not yet implemented. |
+| Node-agent | One Go codebase cross-compiled `CGO_ENABLED=0` for `linux/amd64`, `linux/arm64`, `darwin/amd64`, `darwin/arm64`, `windows/amd64`, and `windows/arm64`. Cross-compilation is **built** (`agent/Makefile` `matrix` target + the `agent/build/crosscompile_test.sh` gate, all six targets green). Each build registers as the platform-native service via the rendered unit (see Node-agent below). Per-OS installer wrappers and code-signing are not yet implemented. |
 
 A bootstrap installer is the single intended manual touch on a new node:
 it installs Vrooli, runs `vrooli setup`, installs the node-agent service,
 and pairs the node to the control plane out-of-band (pairing code/token).
 Everything after bootstrap is remote.
+
+## Node-agent
+
+The node-agent is the cross-compiled client installed on each trusted node
+(OT-P0-007). It holds a dial-out channel to the control plane, runs allowlisted
+jobs as the **non-privileged runner** (`internal/exec`), and runs provisioning
+through the **structurally separate privileged helper** (`internal/privsep`) —
+two distinct OS principals, never one flagged process (DECISIONS.md two trust
+tiers).
+
+**Service install (built — `agent/internal/service`).** The agent renders its own
+platform-native background-service unit; the bootstrap installer writes it to the
+OS unit location and enables it:
+
+- `vrooli-bridge-agent --print-service-unit --control-plane-url <url> --node-id <id> [--service-user vrooli-agent]`
+  emits the native unit for the host OS:
+  - **Linux** → a systemd unit (`[Service] ExecStart=…`, `Restart=on-failure`,
+    `User=<service-user>`, `WantedBy=multi-user.target`).
+  - **macOS** → a launchd plist (`ProgramArguments` argv, `KeepAlive`,
+    `UserName`).
+  - **Windows** → the `sc.exe create … binPath= … start= auto` argv.
+- The renderer selects by `platform.NativeServiceManager()` (a pure function of
+  `runtime.GOOS`); there are no scattered GOOS checks and no hardcoded POSIX
+  paths — every path comes from the resolved config.
+- The **privileged provisioning helper** installs as its own unit under a
+  separate principal (`--service-user vrooli-provisioner`), so the two trust
+  tiers are distinct OS users at install time.
+
+**Provisioning (built — `internal/privsep` + control-plane `internal/provision`).**
+A `provision sync <node> --revision R` brings the node to revision R via a typed
+step plan — `git fetch` → `git checkout R` → `vrooli setup` — never a shell
+string. It is idempotent (re-running converges) and rolls back to the prior
+revision on a failed setup so a bad revision never strands the node. Progress,
+the resulting version, and the terminal outcome stream back as durable, audited
+`ProvisionEvent`s the operator blocks on with `provision wait <op-id>`.
 
 ## Release Checklist
 

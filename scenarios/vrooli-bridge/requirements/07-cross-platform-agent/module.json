@@ -18,17 +18,17 @@
       "validation": [
         {
           "type": "test",
-          "ref": "node-agent/internal/service/service_test.go",
+          "ref": "agent/internal/service/service_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Service-install adapter selects systemd/launchd/Windows-Service by GOOS; path/process abstractions carry no hardcoded POSIX paths."
+          "notes": "Service-install adapter selects systemd/launchd/Windows-Service by service-manager kind (mirrors NativeServiceManager(GOOS)); rendered units carry no hardcoded POSIX paths and the privileged helper installs under a separate OS principal."
         },
         {
           "type": "test",
-          "ref": "node-agent/build/crosscompile_test.sh",
+          "ref": "agent/build/crosscompile_test.sh",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Agent cross-compiles cleanly for linux/amd64, darwin/arm64, darwin/amd64, windows/amd64."
+          "notes": "Agent cross-compiles cleanly CGO_ENABLED=0 for all six targets: linux/darwin/windows × amd64/arm64."
         },
         {
           "type": "manual",

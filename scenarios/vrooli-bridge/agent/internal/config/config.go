@@ -69,6 +69,17 @@ type Config struct {
 	// keypair, print the base64 public key (for the `pair redeem --public-key`
 	// bootstrap step), and exit without dialing.
 	PrintPublicKey bool
+
+	// PrintServiceUnit, when true, makes the agent render the platform-native
+	// background-service unit (systemd unit / launchd plist / Windows `sc.exe`
+	// argv) for THIS binary + config and exit. The bootstrap installer pipes it
+	// into the unit file (OT-P0-007). It dials nothing.
+	PrintServiceUnit bool
+
+	// ServiceUser is the OS principal the rendered service runs as (the
+	// dedicated unprivileged service user). Empty installs under the installing
+	// user. Used only with PrintServiceUnit.
+	ServiceUser string
 }
 
 // Paired reports whether the agent has the minimum configuration to hold a
@@ -86,14 +97,16 @@ func Load(args []string) (Config, error) {
 	fs.SetOutput(os.Stderr)
 
 	var (
-		controlPlaneURL = fs.String("control-plane-url", envOr("BRIDGE_CONTROL_PLANE_URL", ""), "Base URL of the control plane to dial out to")
-		nodeID          = fs.String("node-id", envOr("BRIDGE_NODE_ID", ""), "Durable node identity assigned at registration")
-		stateDirFlag    = fs.String("state-dir", envOr("BRIDGE_AGENT_STATE_DIR", ""), "Directory for agent credential/state material")
-		heartbeat       = fs.Duration("heartbeat-interval", envDurationOr("BRIDGE_HEARTBEAT_INTERVAL", defaultHeartbeatInterval), "Interval between heartbeats once connected")
-		capabilities    = fs.String("capabilities", envOr("BRIDGE_CAPABILITIES", ""), "Comma-separated verb-namespace allowlist the node advertises")
-		workDir         = fs.String("work-dir", envOr("BRIDGE_WORK_DIR", ""), "Directory the runner executes jobs in (default: current working directory)")
-		vrooliBin       = fs.String("vrooli-bin", envOr("BRIDGE_VROOLI_BIN", "vrooli"), "Path/name of the local vrooli CLI the runner shells to as an argv")
-		printPublicKey  = fs.Bool("print-public-key", false, "Load-or-generate the node keypair, print its base64 public key, and exit (bootstrap helper)")
+		controlPlaneURL  = fs.String("control-plane-url", envOr("BRIDGE_CONTROL_PLANE_URL", ""), "Base URL of the control plane to dial out to")
+		nodeID           = fs.String("node-id", envOr("BRIDGE_NODE_ID", ""), "Durable node identity assigned at registration")
+		stateDirFlag     = fs.String("state-dir", envOr("BRIDGE_AGENT_STATE_DIR", ""), "Directory for agent credential/state material")
+		heartbeat        = fs.Duration("heartbeat-interval", envDurationOr("BRIDGE_HEARTBEAT_INTERVAL", defaultHeartbeatInterval), "Interval between heartbeats once connected")
+		capabilities     = fs.String("capabilities", envOr("BRIDGE_CAPABILITIES", ""), "Comma-separated verb-namespace allowlist the node advertises")
+		workDir          = fs.String("work-dir", envOr("BRIDGE_WORK_DIR", ""), "Directory the runner executes jobs in (default: current working directory)")
+		vrooliBin        = fs.String("vrooli-bin", envOr("BRIDGE_VROOLI_BIN", "vrooli"), "Path/name of the local vrooli CLI the runner shells to as an argv")
+		printPublicKey   = fs.Bool("print-public-key", false, "Load-or-generate the node keypair, print its base64 public key, and exit (bootstrap helper)")
+		printServiceUnit = fs.Bool("print-service-unit", false, "Render this binary's platform-native background-service unit and exit (bootstrap helper)")
+		serviceUser      = fs.String("service-user", envOr("BRIDGE_SERVICE_USER", ""), "OS principal the rendered service runs as (with --print-service-unit)")
 	)
 
 	if err := fs.Parse(args); err != nil {
@@ -128,6 +141,8 @@ func Load(args []string) (Config, error) {
 		WorkDir:             strings.TrimSpace(*workDir),
 		VrooliBin:           strings.TrimSpace(*vrooliBin),
 		PrintPublicKey:      *printPublicKey,
+		PrintServiceUnit:    *printServiceUnit,
+		ServiceUser:         strings.TrimSpace(*serviceUser),
 	}, nil
 }
 

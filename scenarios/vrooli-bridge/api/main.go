@@ -35,6 +35,7 @@ import (
 	dispatchH "vrooli-bridge/handlers/dispatch"
 	healthH "vrooli-bridge/handlers/health"
 	pairingH "vrooli-bridge/handlers/pairing"
+	provisionH "vrooli-bridge/handlers/provision"
 	registryH "vrooli-bridge/handlers/registry"
 	runsH "vrooli-bridge/handlers/runs"
 )
@@ -252,6 +253,11 @@ func main() {
 		dispatchH.Module(registrySvc, runsSvc, auditStore, presenceHub, logger),
 		// runs (OT-P0-005): durable run lifecycle + node-facing event ingest.
 		runsH.Module(runsSvc, nodeVerifier, logger),
+		// provision (OT-P0-006): the PRIVILEGED tier. Owns its durable op tables;
+		// reads node revocation (registrySvc), checks presence + pushes the
+		// privileged ProvisionCommand (presenceHub), audits (auditStore), and
+		// gates the node-facing ReportProvisionEvent on mutual auth (nodeVerifier).
+		provisionH.Module(db, clk, registrySvc, presenceHub, auditStore, nodeVerifier, logger),
 		// audit (OT-P0-008): owner-gated read of the append-only trail.
 		auditH.Module(auditStore, logger),
 	)

@@ -27,6 +27,7 @@ import (
 	dispatchH "vrooli-bridge/handlers/dispatch"
 	healthH "vrooli-bridge/handlers/health"
 	pairingH "vrooli-bridge/handlers/pairing"
+	provisionH "vrooli-bridge/handlers/provision"
 	registryH "vrooli-bridge/handlers/registry"
 	runsH "vrooli-bridge/handlers/runs"
 	localdb "vrooli-bridge/internal/database"
@@ -35,6 +36,7 @@ import (
 	dispatchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/dispatch"
 	pairingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/pairing"
 	presencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence"
+	provisionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/provision"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
 	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs"
 )
@@ -50,6 +52,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, channelH.Endpoints...)
 	out = append(out, dispatchH.Endpoints...)
 	out = append(out, pairingH.Endpoints...)
+	out = append(out, provisionH.Endpoints...)
 	out = append(out, registryH.Endpoints...)
 	out = append(out, runsH.Endpoints...)
 	return out
@@ -82,6 +85,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "channel", File: presencev1.File_vrooli_bridge_v1_presence_presence_proto},
 		{Module: "dispatch", File: dispatchv1.File_vrooli_bridge_v1_dispatch_dispatch_proto},
 		{Module: "pairing", File: pairingv1.File_vrooli_bridge_v1_pairing_pairing_proto},
+		{Module: "provision", File: provisionv1.File_vrooli_bridge_v1_provision_provision_proto},
 		{Module: "registry", File: registryv1.File_vrooli_bridge_v1_registry_registry_proto},
 		{Module: "runs", File: runsv1.File_vrooli_bridge_v1_runs_runs_proto},
 	}
@@ -101,6 +105,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(auditH.Schema),
 		apidb.SchemaProviderFunc(channelH.Schema),
 		apidb.SchemaProviderFunc(pairingH.Schema),
+		apidb.SchemaProviderFunc(provisionH.Schema),
 		apidb.SchemaProviderFunc(registryH.Schema),
 		apidb.SchemaProviderFunc(runsH.Schema),
 	}

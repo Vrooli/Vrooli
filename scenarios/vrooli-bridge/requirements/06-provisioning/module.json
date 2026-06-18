@@ -25,10 +25,10 @@
         },
         {
           "type": "test",
-          "ref": "node-agent/internal/privsep/privsep_test.go",
+          "ref": "agent/internal/privsep/privsep_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "The job runner cannot invoke provisioning/privileged operations; provisioning requires the explicit privileged path."
+          "notes": "The job runner (internal/exec) cannot invoke provisioning/privileged operations; the two trust tiers share no in-process call path (TestPrivilegeSeparation_NoCrossImport). Idempotent re-provision + rollback-on-failed-setup proven here."
         },
         {
           "type": "manual",

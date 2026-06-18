@@ -11,9 +11,11 @@
 // using a STUB ?node= credential. Phase 2 swaps in the per-node Ed25519 mutual
 // auth (SECURITY.md boundary 2): the heartbeat calls get signed and the SSE
 // token is bound to the node key, and the node verifies the control plane's
-// pushes against the key it pinned at bootstrap. JobPush/ProvisionCommand frame
-// handling lands in Phases 3/4 — readFrames already decodes the ServerFrame
-// envelope so those phases only add dispatch.
+// pushes against the key it pinned at bootstrap. Phase 3 dispatches JobPush
+// frames to the non-privileged runner (internal/exec); Phase 4 dispatches
+// ProvisionCommand frames to the STRUCTURALLY SEPARATE privileged helper
+// (internal/privsep). readFrames decodes the ServerFrame envelope with
+// DiscardUnknown so a newer control plane never breaks an older agent.
 package channel
 
 import (
@@ -34,6 +36,7 @@ import (
 	"vrooli-bridge/agent/internal/exec"
 	"vrooli-bridge/agent/internal/health"
 	"vrooli-bridge/agent/internal/nodecred"
+	"vrooli-bridge/agent/internal/privsep"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -42,6 +45,8 @@ import (
 	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
 	presencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence/presence_v1connect"
+	provisionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/provision"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/provision/provision_v1connect"
 	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs/runs_v1connect"
 )
@@ -71,16 +76,17 @@ var ErrNotConfigured = errors.New("agent not configured to dial a control plane 
 
 // Client holds the agent's channel configuration and transport seams.
 type Client struct {
-	cfg        config.Config
-	httpClient *http.Client
-	rpc        presence_v1connect.PresenceServiceClient
-	runsRPC    runs_v1connect.RunsServiceClient
-	sampler    health.Sampler
-	cred       *nodecred.Credential
-	logger     *log.Logger
-	now        func() time.Time
-	minBackoff time.Duration
-	maxBackoff time.Duration
+	cfg          config.Config
+	httpClient   *http.Client
+	rpc          presence_v1connect.PresenceServiceClient
+	runsRPC      runs_v1connect.RunsServiceClient
+	provisionRPC provision_v1connect.ProvisionServiceClient
+	sampler      health.Sampler
+	cred         *nodecred.Credential
+	logger       *log.Logger
+	now          func() time.Time
+	minBackoff   time.Duration
+	maxBackoff   time.Duration
 
 	// baseCtx is the top-level dial context, captured at Dial. Job execution is
 	// anchored to it (not the per-session SSE context) so a running job survives
@@ -136,6 +142,7 @@ func NewClient(cfg config.Config, opts ...Option) *Client {
 	base := strings.TrimRight(cfg.ControlPlaneURL, "/")
 	c.rpc = presence_v1connect.NewPresenceServiceClient(c.httpClient, base)
 	c.runsRPC = runs_v1connect.NewRunsServiceClient(c.httpClient, base)
+	c.provisionRPC = provision_v1connect.NewProvisionServiceClient(c.httpClient, base)
 	return c
 }
 
@@ -324,7 +331,14 @@ func (c *Client) handleServerFrame(payload string) {
 		c.logger.Printf("channel: received job run_id=%q verb=%q scenario=%q", job.GetRunId(), job.GetVerb(), job.GetScenario())
 		go c.runJob(job)
 	}
-	// ProvisionCommand handling lands in Phase 4.
+	if prov := frame.GetProvision(); prov != nil {
+		// A privileged provisioning command (OT-P0-006). It is executed by the
+		// STRUCTURALLY SEPARATE privileged helper (internal/privsep), never the
+		// runner, and is anchored to the base context so it survives a reconnect.
+		c.logger.Printf("channel: received provision op_id=%q target=%q rollback=%q",
+			prov.GetOpId(), prov.GetTargetRevision(), prov.GetRollbackRevision())
+		go c.runProvision(prov)
+	}
 }
 
 // runJob executes a pushed job via the non-privileged runner, streaming
@@ -340,6 +354,24 @@ func (c *Client) runJob(job *channelv1.JobPush) {
 	runner := exec.NewRunner(c.cfg.VrooliBin, c.cfg.WorkDir, reporter, exec.WithClock(c.now))
 	if err := runner.Execute(ctx, job); err != nil && ctx.Err() == nil {
 		c.logger.Printf("channel: run %q: reporting events failed: %v", job.GetRunId(), err)
+	}
+}
+
+// runProvision executes a pushed privileged provisioning command via the
+// separate privileged helper (internal/privsep), streaming status/log/version/
+// exit ProvisionEvents back to the control plane's ProvisionService (each call
+// signed with the node credential). It is launched in its own goroutine so a
+// long provision does not block the SSE read loop. The runner package is NOT in
+// this path — provisioning is structurally separate from job execution.
+func (c *Client) runProvision(cmd *channelv1.ProvisionCommand) {
+	ctx := c.baseCtx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	reporter := &provisionEventReporter{rpc: c.provisionRPC, cred: c.cred, nodeID: c.cfg.NodeID, now: c.now}
+	helper := privsep.NewHelper(c.cfg.VrooliBin, c.cfg.WorkDir, reporter, privsep.WithClock(c.now))
+	if err := helper.Provision(ctx, cmd); err != nil && ctx.Err() == nil {
+		c.logger.Printf("channel: provision %q: reporting events failed: %v", cmd.GetOpId(), err)
 	}
 }
 
@@ -362,6 +394,28 @@ func (r *runEventReporter) Report(ctx context.Context, ev *channelv1.RunEvent) e
 		}
 	}
 	_, err := r.rpc.ReportRunEvent(ctx, req)
+	return err
+}
+
+// provisionEventReporter implements privsep.Reporter by calling the control
+// plane's ProvisionService.ReportProvisionEvent, signing each call with the
+// node's per-node Ed25519 credential so the control plane verifies the node
+// (and that it only reports against its own provisioning ops).
+type provisionEventReporter struct {
+	rpc    provision_v1connect.ProvisionServiceClient
+	cred   *nodecred.Credential
+	nodeID string
+	now    func() time.Time
+}
+
+func (r *provisionEventReporter) Report(ctx context.Context, ev *provisionv1.ProvisionEvent) error {
+	req := connect.NewRequest(&provisionv1.ReportProvisionEventRequest{Event: ev})
+	if r.cred != nil {
+		for k, v := range r.cred.Headers(r.nodeID, r.now().UTC()) {
+			req.Header().Set(k, v)
+		}
+	}
+	_, err := r.rpc.ReportProvisionEvent(ctx, req)
 	return err
 }
 

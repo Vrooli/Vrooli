@@ -282,6 +282,36 @@ Note: `internal/presence.Hub` is a concrete shared component (constructed once i
 | **Test fake** | `agent/internal/exec/typedjob_test.go` substitutes a collecting reporter + a canned command runner; a real-`os/exec` smoke lives in `command_test.go`. |
 | **Why it exists** | Lets the runner's lifecycle (STATUS→LOG→EXIT) and the no-shell-path proof (`BuildArgv` rejects shell metacharacters; the command seam only ever receives a `[]string`) be tested without a real `vrooli` binary or a live control plane. |
 
+### provision seams (NodeReader / Presence / AuditSink / CommandPusher)
+
+| | |
+|---|---|
+| **Seam** | The privileged provisioning tier's outside-world dependencies, each declared in `internal/provision/seams.go` over provision-local DTOs. Unlike dispatch, the provision domain ALSO owns its durable op tables (its own `Repository` seam), so it is run-lifecycle + orchestration in one domain. |
+| **Interface** | `provision.NodeReader` (node revocation), `provision.Presence` (online), `provision.AuditSink` (Record), `provision.CommandPusher` (PushProvision → channel `ProvisionCommand`), plus `provision.Repository` (Create/Get/List/Update/AppendEvent/ListEvents/Upsert+GetNodeVersion). |
+| **Production wiring** | `handlers/provision/adapter.go` binds the seams to the concrete registry service, presence hub, audit store, and the channel push (`ProvisionCommand` → ServerFrame → protojson → `Hub.Push`). `handlers/provision/module.go` constructs the service with the sqlite repository. The provision domain imports no sibling domain and no proto. |
+| **Test fake** | `internal/provision/mocks` (in-memory `FakeRepository` + one fake per seam) drives `provision_test.go`; real sqlite in `sqlite_test.go`; the real adapters end-to-end in `handlers/provision/connect_handler_test.go`. |
+| **Why it exists** | Privileged remote provisioning is the second-highest-stakes surface; the narrow proto-free seams keep the audited orchestration (resolve → validate → audit fail-closed → create durable op → push) and the block-once op lifecycle pure and exhaustively testable, with the proto/channel translation in one auditable place. |
+
+### node-agent privsep seams (StepRunner / RevisionResolver / Reporter)
+
+| | |
+|---|---|
+| **Seam** | The PRIVILEGED provisioning helper's three effects: running a step's argv, reading the current git revision, and reporting ProvisionEvents back. Declared in `agent/internal/privsep/privsep.go`. **Structurally separate from the runner's exec seams — the two packages never import each other** (proven by `privsep_test.go::TestPrivilegeSeparation_NoCrossImport`). |
+| **Interface** | `privsep.StepRunner` (`Run(ctx, argv, dir, onLog)`), `privsep.RevisionResolver` (`Current(ctx, dir)`), `privsep.Reporter` (`Report(ctx, *ProvisionEvent)`). |
+| **Production wiring** | `agent/internal/channel/channel.go::runProvision` wires `provisionEventReporter` (a signed `ProvisionService.ReportProvisionEvent` call) and the defaults `osStepRunner` (`os/exec` over a typed argv — the privileged execution path) + `osRevisionResolver` (`git rev-parse HEAD`). Only a `ProvisionCommand` frame reaches this path. |
+| **Test fake** | `privsep_test.go` substitutes a recording step runner + scripted revision resolver + collecting reporter; covers idempotent re-provision, rollback-on-failed-setup, degraded-failure, and the no-shell typed `Steps()` plan. |
+| **Why it exists** | Lets the provisioning sequence (fetch → checkout → setup → version/exit, with rollback) and the privilege-separation guarantee be tested without a real git/`vrooli setup` or a live control plane. |
+
+### node-agent service-install adapters (Manager / unit renderers)
+
+| | |
+|---|---|
+| **Seam** | The platform-native background-service install surface: one `Definition` rendered onto systemd / launchd / Windows SCM. Declared in `agent/internal/service/service.go`. |
+| **Interface** | `service.Manager` (`Kind()`, `Render(Definition)`) selected by `service.NewManager()`/`ManagerForKind(kind)`; pure renderers `SystemdUnit` / `LaunchdPlist` / `WindowsServiceCreateArgs`. |
+| **Production wiring** | `agent/main.go::renderServiceUnit` (driven by `--print-service-unit`) builds the `Definition` from resolved config and calls `service.NewManager().Render(def)`; `NewManager` mirrors `platform.NativeServiceManager()`. The `Definition.User` field carries the OS principal, making the two trust tiers distinct principals at install time. |
+| **Test fake** | `service_test.go` asserts kind selection by `ManagerForKind`, host-GOOS match for `NewManager`, that rendered units carry only Definition-supplied paths (no hardcoded POSIX paths), and that the privileged helper renders under a separate principal. |
+| **Why it exists** | One agent codebase installs natively on Linux/macOS/Windows (OT-P0-007) with no scattered GOOS checks and no Linux-only assumptions; the pure renderers make the exact unit content testable without touching the host. |
+
 ## Adding a new seam
 
 The right time to add a seam is the moment you find yourself reaching

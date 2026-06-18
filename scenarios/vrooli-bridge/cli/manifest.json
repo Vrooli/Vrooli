@@ -11,75 +11,154 @@
           "name": "register",
           "description": "Register a trusted node",
           "flags": [
-            { "name": "name", "required": true, "description": "Human-friendly node label" },
-            { "name": "os", "required": true, "description": "Operating system (e.g. linux, darwin, windows)" },
-            { "name": "arch", "required": true, "description": "Architecture (e.g. amd64, arm64)" },
-            { "name": "endpoint", "description": "Reachable endpoint hint (informational; nodes dial out)" },
-            { "name": "capabilities", "description": "Comma-separated self-reported verb namespaces" },
-            { "name": "scopes", "description": "Comma-separated granted verb-namespace scopes" }
+            {
+              "name": "name",
+              "required": true,
+              "description": "Human-friendly node label"
+            },
+            {
+              "name": "os",
+              "required": true,
+              "description": "Operating system (e.g. linux, darwin, windows)"
+            },
+            {
+              "name": "arch",
+              "required": true,
+              "description": "Architecture (e.g. amd64, arm64)"
+            },
+            {
+              "name": "endpoint",
+              "description": "Reachable endpoint hint (informational; nodes dial out)"
+            },
+            {
+              "name": "capabilities",
+              "description": "Comma-separated self-reported verb namespaces"
+            },
+            {
+              "name": "scopes",
+              "description": "Comma-separated granted verb-namespace scopes"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "NodeRegistryService", "method": "RegisterNode" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "NodeRegistryService",
+            "method": "RegisterNode"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
           "name": "list",
           "description": "List fleet nodes with live presence",
-          "binding": { "kind": "connect-rpc", "service": "NodeRegistryService", "method": "ListNodes" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "NodeRegistryService",
+            "method": "ListNodes"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
           "name": "get",
           "description": "Show one node by id",
           "positionals": [
-            { "name": "id", "required": true, "description": "Node id" }
+            {
+              "name": "id",
+              "required": true,
+              "description": "Node id"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "NodeRegistryService", "method": "GetNode" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "NodeRegistryService",
+            "method": "GetNode"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
           "name": "update",
           "description": "Update a node's editable fields",
           "positionals": [
-            { "name": "id", "required": true, "description": "Node id" }
+            {
+              "name": "id",
+              "required": true,
+              "description": "Node id"
+            }
           ],
           "flags": [
-            { "name": "name", "required": true, "description": "Human-friendly node label" },
-            { "name": "endpoint", "description": "Reachable endpoint hint" },
-            { "name": "capabilities", "description": "Comma-separated self-reported verb namespaces" },
-            { "name": "scopes", "description": "Comma-separated granted verb-namespace scopes" },
-            { "name": "revision", "description": "Provisioned Vrooli revision" }
+            {
+              "name": "name",
+              "required": true,
+              "description": "Human-friendly node label"
+            },
+            {
+              "name": "endpoint",
+              "description": "Reachable endpoint hint"
+            },
+            {
+              "name": "capabilities",
+              "description": "Comma-separated self-reported verb namespaces"
+            },
+            {
+              "name": "scopes",
+              "description": "Comma-separated granted verb-namespace scopes"
+            },
+            {
+              "name": "revision",
+              "description": "Provisioned Vrooli revision"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "NodeRegistryService", "method": "UpdateNode" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "NodeRegistryService",
+            "method": "UpdateNode"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
           "name": "revoke",
           "description": "Revoke a node, severing its access atomically",
           "positionals": [
-            { "name": "id", "required": true, "description": "Node id" }
+            {
+              "name": "id",
+              "required": true,
+              "description": "Node id"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "NodeRegistryService", "method": "RevokeNode" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "NodeRegistryService",
+            "method": "RevokeNode"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": false,
             "requires_confirmation": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         }
       ]
@@ -92,83 +171,179 @@
           "name": "issue",
           "description": "Issue a single-use pairing code (owner)",
           "flags": [
-            { "name": "name", "description": "Intended node label" },
-            { "name": "scopes", "description": "Comma-separated granted verb-namespace scopes" },
-            { "name": "ttl", "description": "Code TTL in seconds (default server policy)" }
+            {
+              "name": "name",
+              "description": "Intended node label"
+            },
+            {
+              "name": "scopes",
+              "description": "Comma-separated granted verb-namespace scopes"
+            },
+            {
+              "name": "ttl",
+              "description": "Code TTL in seconds (default server policy)"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "PairingService", "method": "IssuePairingCode" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PairingService",
+            "method": "IssuePairingCode"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": false,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
           "name": "redeem",
           "description": "Redeem a pairing code from this node (bootstrap installer)",
           "flags": [
-            { "name": "code", "required": true, "description": "The pairing code" },
-            { "name": "public-key", "required": true, "description": "This node's base64 Ed25519 public key" },
-            { "name": "name", "description": "Node label" },
-            { "name": "os", "description": "Operating system" },
-            { "name": "arch", "description": "Architecture" },
-            { "name": "endpoint", "description": "Reachable endpoint hint" },
-            { "name": "capabilities", "description": "Comma-separated self-reported verb namespaces" }
+            {
+              "name": "code",
+              "required": true,
+              "description": "The pairing code"
+            },
+            {
+              "name": "public-key",
+              "required": true,
+              "description": "This node's base64 Ed25519 public key"
+            },
+            {
+              "name": "name",
+              "description": "Node label"
+            },
+            {
+              "name": "os",
+              "description": "Operating system"
+            },
+            {
+              "name": "arch",
+              "description": "Architecture"
+            },
+            {
+              "name": "endpoint",
+              "description": "Reachable endpoint hint"
+            },
+            {
+              "name": "capabilities",
+              "description": "Comma-separated self-reported verb namespaces"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "PairingService", "method": "RedeemPairingCode" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PairingService",
+            "method": "RedeemPairingCode"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": false,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
           "name": "request",
           "description": "Request to join the fleet with no pre-shared code (bootstrap installer)",
           "flags": [
-            { "name": "public-key", "required": true, "description": "This node's base64 Ed25519 public key" },
-            { "name": "name", "description": "Node label" },
-            { "name": "os", "description": "Operating system" },
-            { "name": "arch", "description": "Architecture" },
-            { "name": "endpoint", "description": "Reachable endpoint hint" },
-            { "name": "capabilities", "description": "Comma-separated self-reported verb namespaces" }
+            {
+              "name": "public-key",
+              "required": true,
+              "description": "This node's base64 Ed25519 public key"
+            },
+            {
+              "name": "name",
+              "description": "Node label"
+            },
+            {
+              "name": "os",
+              "description": "Operating system"
+            },
+            {
+              "name": "arch",
+              "description": "Architecture"
+            },
+            {
+              "name": "endpoint",
+              "description": "Reachable endpoint hint"
+            },
+            {
+              "name": "capabilities",
+              "description": "Comma-separated self-reported verb namespaces"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "PairingService", "method": "RequestPairing" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PairingService",
+            "method": "RequestPairing"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": false,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
           "name": "approve",
           "description": "Approve (or reject) a pending pairing request (owner)",
           "positionals": [
-            { "name": "request-id", "required": true, "description": "Pending request id" }
+            {
+              "name": "request-id",
+              "required": true,
+              "description": "Pending request id"
+            }
           ],
           "flags": [
-            { "name": "reject", "bool": true, "description": "Reject the request instead of approving it" },
-            { "name": "scopes", "description": "Comma-separated granted verb-namespace scopes" }
+            {
+              "name": "reject",
+              "bool": true,
+              "description": "Reject the request instead of approving it"
+            },
+            {
+              "name": "scopes",
+              "description": "Comma-separated granted verb-namespace scopes"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "PairingService", "method": "ApprovePairing" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PairingService",
+            "method": "ApprovePairing"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": false,
             "requires_confirmation": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
           "name": "list",
           "description": "List pending pairing requests (owner)",
           "flags": [
-            { "name": "all", "bool": true, "description": "Include already-decided requests" }
+            {
+              "name": "all",
+              "bool": true,
+              "description": "Include already-decided requests"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "PairingService", "method": "ListPairingRequests" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PairingService",
+            "method": "ListPairingRequests"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         }
       ]
@@ -181,19 +356,187 @@
           "name": "job",
           "description": "Dispatch a typed {scenario, verb, args} job to a node (allowlist + scope gated)",
           "positionals": [
-            { "name": "node-id", "required": true, "description": "Target node id" }
+            {
+              "name": "node-id",
+              "required": true,
+              "description": "Target node id"
+            }
           ],
           "flags": [
-            { "name": "verb", "required": true, "description": "Allowlisted vrooli command namespace (e.g. \"scenario test\")" },
-            { "name": "scenario", "description": "Target scenario the command operates on (trailing positional)" },
-            { "name": "args", "description": "Comma-separated additional typed args" },
-            { "name": "timeout", "description": "Wall-clock budget in seconds (0 = server default)" }
+            {
+              "name": "verb",
+              "required": true,
+              "description": "Allowlisted vrooli command namespace (e.g. \"scenario test\")"
+            },
+            {
+              "name": "scenario",
+              "description": "Target scenario the command operates on (trailing positional)"
+            },
+            {
+              "name": "args",
+              "description": "Comma-separated additional typed args"
+            },
+            {
+              "name": "timeout",
+              "description": "Wall-clock budget in seconds (0 = server default)"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "DispatchService", "method": "DispatchJob" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DispatchService",
+            "method": "DispatchJob"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "provision",
+      "description": "Privileged tier: sync fleet nodes to a project revision and inspect node versions",
+      "commands": [
+        {
+          "name": "sync",
+          "description": "Bring a node to a target git revision (git fetch + idempotent vrooli setup) via its privileged helper",
+          "positionals": [
+            {
+              "name": "node-id",
+              "required": true,
+              "description": "Target node id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "revision",
+              "required": true,
+              "description": "Target git revision to bring the node to"
+            },
+            {
+              "name": "rollback",
+              "description": "Explicit rollback revision (default: the node's last recorded version)"
+            },
+            {
+              "name": "timeout",
+              "description": "Wall-clock budget in seconds (0 = server default)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProvisionService",
+            "method": "SyncToRevision"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Show one provisioning op by id with its event history",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Provisioning op id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProvisionService",
+            "method": "GetProvisioningOp"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List provisioning ops newest-first",
+          "flags": [
+            {
+              "name": "node",
+              "description": "Filter by node id"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum ops to return"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProvisionService",
+            "method": "ListProvisioningOps"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "wait",
+          "description": "Block once until a provisioning op is terminal (no polling); exits with its code",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Provisioning op id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "timeout",
+              "description": "Seconds to block before returning timed-out (0 = server default)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProvisionService",
+            "method": "WaitProvisioningOp"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "version",
+          "description": "Show a node's current recorded project revision",
+          "positionals": [
+            {
+              "name": "node-id",
+              "required": true,
+              "description": "Node id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProvisionService",
+            "method": "GetNodeVersion"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
           }
         }
       ]
@@ -206,73 +549,131 @@
           "name": "get",
           "description": "Show one run by id with its event history",
           "positionals": [
-            { "name": "id", "required": true, "description": "Run id" }
+            {
+              "name": "id",
+              "required": true,
+              "description": "Run id"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "RunsService", "method": "GetRun" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RunsService",
+            "method": "GetRun"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
           "name": "list",
           "description": "List runs newest-first",
           "flags": [
-            { "name": "node", "description": "Filter by node id" },
-            { "name": "limit", "description": "Maximum runs to return" }
+            {
+              "name": "node",
+              "description": "Filter by node id"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum runs to return"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "RunsService", "method": "ListRuns" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RunsService",
+            "method": "ListRuns"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
           "name": "wait",
           "description": "Block once until a run is terminal (no polling); exits with the run's code",
           "positionals": [
-            { "name": "id", "required": true, "description": "Run id" }
+            {
+              "name": "id",
+              "required": true,
+              "description": "Run id"
+            }
           ],
           "flags": [
-            { "name": "timeout", "description": "Seconds to block before returning timed-out (0 = server default)" }
+            {
+              "name": "timeout",
+              "description": "Seconds to block before returning timed-out (0 = server default)"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "RunsService", "method": "WaitRun" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RunsService",
+            "method": "WaitRun"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
           "name": "abort",
           "description": "Abort a non-terminal run",
           "positionals": [
-            { "name": "id", "required": true, "description": "Run id" }
+            {
+              "name": "id",
+              "required": true,
+              "description": "Run id"
+            }
           ],
           "flags": [
-            { "name": "reason", "description": "Human-readable reason recorded on the run/audit trail" }
+            {
+              "name": "reason",
+              "description": "Human-readable reason recorded on the run/audit trail"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "RunsService", "method": "AbortRun" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RunsService",
+            "method": "AbortRun"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": false,
             "requires_confirmation": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
           "name": "follow",
           "description": "Stream a run's live event output until it finishes (human follow verb)",
           "positionals": [
-            { "name": "id", "required": true, "description": "Run id" }
+            {
+              "name": "id",
+              "required": true,
+              "description": "Run id"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "RunsService", "method": "StreamRunEvents" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RunsService",
+            "method": "StreamRunEvents"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": false,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         }
       ]
@@ -285,15 +686,30 @@
           "name": "list",
           "description": "List audit records newest-first",
           "flags": [
-            { "name": "node", "description": "Filter by node id" },
-            { "name": "run", "description": "Filter by run id" },
-            { "name": "limit", "description": "Maximum records to return" }
+            {
+              "name": "node",
+              "description": "Filter by node id"
+            },
+            {
+              "name": "run",
+              "description": "Filter by run id"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum records to return"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "AuditService", "method": "ListAuditRecords" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuditService",
+            "method": "ListAuditRecords"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         }
       ]
@@ -312,6 +728,11 @@
       "service": "RunsService",
       "method": "ReportRunEvent",
       "reason": "Node-facing dial-out RPC: the node-agent streams run events back here signed with its per-node credential. There is no operator `runs report` command; the agent reports run progress on the channel."
+    },
+    {
+      "service": "ProvisionService",
+      "method": "ReportProvisionEvent",
+      "reason": "Node-facing dial-out RPC: the node-agent's privileged helper streams provision events back here signed with its per-node credential. There is no operator `provision report` command; the agent reports provisioning progress on the channel."
     }
   ]
 }

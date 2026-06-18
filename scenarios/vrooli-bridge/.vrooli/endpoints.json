@@ -452,6 +452,283 @@
       ]
     },
     {
+      "id": "provision_sync_to_revision",
+      "path": "/vrooli.vrooli_bridge.v1.provision.ProvisionService/SyncToRevision",
+      "method": "POST",
+      "summary": "Sync a node to a project revision (privileged)",
+      "description": "Brings a node to a target git revision (`git fetch`@R + idempotent `vrooli setup`) via the node's separate privileged helper, creating a durable, audited provisioning op. Validates and rejects an unknown/revoked/offline node before any op is created. Honours X-Dry-Run. Owner-gated.",
+      "category": "provision",
+      "request": {
+        "type": "object",
+        "properties": {
+          "node_id": "string (required)",
+          "rollback_revision": "string",
+          "target_revision": "string (required)",
+          "timeout_seconds": "int64"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "dry_run": "bool",
+          "op_id": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing node_id/target_revision"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown node"
+        },
+        {
+          "status": 409,
+          "code": "failed_precondition",
+          "description": "Node revoked or offline"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "Provisioning command could not be delivered"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Sync a node to a revision",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.provision.ProvisionService/SyncToRevision -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"node_id\":\"abc123\",\"target_revision\":\"a1b2c3d\"}'"
+        }
+      ]
+    },
+    {
+      "id": "provision_get_provisioning_op",
+      "path": "/vrooli.vrooli_bridge.v1.provision.ProvisionService/GetProvisioningOp",
+      "method": "POST",
+      "summary": "Get a provisioning op by id with its event history",
+      "description": "Returns one durable provisioning op and its full persisted event history (logs/status/version/exit). Re-attaching after a client disconnect is just calling this again. Owner-gated.",
+      "category": "provision",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "events": "array<ProvisionEvent>",
+          "op": "ProvisioningOp"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No op with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get provisioning op",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.provision.ProvisionService/GetProvisioningOp -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"id\":\"op-123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "provision_list_provisioning_ops",
+      "path": "/vrooli.vrooli_bridge.v1.provision.ProvisionService/ListProvisioningOps",
+      "method": "POST",
+      "summary": "List provisioning ops",
+      "description": "Returns provisioning ops newest-first, optionally filtered by node. Owner-gated.",
+      "category": "provision",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int32",
+          "node_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "ops": "array<ProvisioningOp>"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List provisioning ops",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.provision.ProvisionService/ListProvisioningOps -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "provision_wait_provisioning_op",
+      "path": "/vrooli.vrooli_bridge.v1.provision.ProvisionService/WaitProvisioningOp",
+      "method": "POST",
+      "summary": "Block-once wait for a provisioning op to finish",
+      "description": "Blocks server-side and returns EXACTLY ONCE when the op reaches a terminal status (no polling). Returns timed_out=true if the wait deadline elapses first. Owner-gated.",
+      "category": "provision",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)",
+          "timeout_seconds": "int64"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "op": "ProvisioningOp",
+          "timed_out": "bool"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No op with that id"
+        },
+        {
+          "status": 499,
+          "code": "canceled",
+          "description": "Client cancelled the wait"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Wait for provisioning op",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.provision.ProvisionService/WaitProvisioningOp -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"id\":\"op-123\",\"timeout_seconds\":1800}'"
+        }
+      ]
+    },
+    {
+      "id": "provision_get_node_version",
+      "path": "/vrooli.vrooli_bridge.v1.provision.ProvisionService/GetNodeVersion",
+      "method": "POST",
+      "summary": "Get a node's current project revision",
+      "description": "Returns a node's current recorded project revision (the last VERSION a provisioning op reported). has_version=false when the node has never been provisioned. Owner-gated.",
+      "category": "provision",
+      "request": {
+        "type": "object",
+        "properties": {
+          "node_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "has_version": "bool",
+          "version": "NodeVersion"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get node version",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.provision.ProvisionService/GetNodeVersion -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"node_id\":\"abc123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "provision_report_provision_event",
+      "path": "/vrooli.vrooli_bridge.v1.provision.ProvisionService/ReportProvisionEvent",
+      "method": "POST",
+      "summary": "Ingest a provision event from the node-agent (node-facing)",
+      "description": "Node-facing: the node-agent's privileged helper streams ProvisionEvents back here, signed with its per-node Ed25519 credential. A node may only report against its own ops. A VERSION event records the node's current revision; a terminal EXIT flips the op terminal and wakes block-once waiters. Not an operator verb — omitted from the CLI manifest.",
+      "category": "provision",
+      "request": {
+        "type": "object",
+        "properties": {
+          "event": "ProvisionEvent"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "accepted": "bool"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing op_id"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Node mutual-auth signature required"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "A node may only report its own ops"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Report provision event (node-agent)",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.provision.ProvisionService/ReportProvisionEvent -H 'X-Bridge-Node: <node>' -H 'X-Bridge-Timestamp: <ts>' -H 'X-Bridge-Signature: <sig>' -H 'Content-Type: application/json' -d '{\"event\":{\"op_id\":\"op-123\",\"kind\":\"PROVISION_EVENT_KIND_LOG\",\"log_chunk\":\"...\"}}'"
+        }
+      ]
+    },
+    {
       "id": "registry_register_node",
       "path": "/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/RegisterNode",
       "method": "POST",

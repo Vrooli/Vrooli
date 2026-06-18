@@ -33,7 +33,7 @@ belong in [`DATA.md`](DATA.md).
 | presence | Dial-out channel management; online/offline presence and self-reported node health. | Realtime / reporting | Ephemeral presence + health snapshots (optionally Redis). | API, UI | OT-P0-003 | `api/internal/presence/` |
 | dispatch | Validate `{scenario, verb, args}` against the CLI manifest + per-node scopes; dispatch typed jobs. | Policy / command | Job definitions, allowlist decisions. | API, CLI, UI | OT-P0-004 | `api/internal/dispatch/` |
 | runs | Durable server-owned remote runs; stream exit/logs/artifacts back; re-attach by id. | Workflow / lifecycle | `runs`, logs, artifact refs. | API, CLI, UI | OT-P0-005 | `api/internal/runs/` |
-| provisioning | Privileged tier: sync a node to revision R (`vrooli setup`), update, version-pin, rollback. | Workflow / privileged | Provisioning ops, per-node version history. | API, CLI | OT-P0-006, OT-P1-001 | `api/internal/provision/` |
+| provisioning | Privileged tier: sync a node to revision R (`vrooli setup`), update, version-pin, rollback. | Workflow / privileged | `provisioning_ops`, `provision_events`, `node_versions`. | API, CLI | OT-P0-006, OT-P1-001 | `api/internal/provision/`, `api/handlers/provision/`, `cli/domains/provision/`, `agent/internal/privsep/`, `packages/proto/schemas/vrooli-bridge/v1/provision/` |
 | gate | Aggregate per-OS node verdicts into a single cross-OS deployment-readiness result. | Aggregation / reporting | Gate runs, per-OS verdicts. | API, CLI, UI | OT-P1-002 | `api/internal/gate/` |
 | audit | Append-only trail of every dispatch and provisioning op (actor/node/verb/args/outcome). | Reporting / security | Audit records (via workspace-sandbox). | API, UI | OT-P0-008 | `api/internal/audit/` |
 
