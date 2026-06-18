@@ -1,0 +1,42 @@
+{
+  "_metadata": {
+    "module": "presence-health",
+    "description": "Dial-out persistent channel per node; online/offline presence + self-reported readiness; no inbound ports.",
+    "prd_ref": "OT-P0-003",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "BRG-P0-003",
+      "title": "Dial-Out Presence & Health",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "core",
+      "description": "Each node-agent maintains a persistent outbound channel to the control plane (no inbound ports on the node; NAT/firewall-proof). The control plane tracks online/offline presence and the node's self-reported readiness (toolchain present, disk headroom, container runtime up) so dispatch only targets capable nodes.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/presence/presence_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Presence transitions online on channel connect and offline on disconnect/heartbeat-miss; health snapshot is stored per node."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/presence/dialout_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Agent establishes the channel purely outbound; no listening port is opened on the node side."
+        },
+        {
+          "type": "manual",
+          "ref": "docs/concepts/FLOWS.md#presence",
+          "phase": "business",
+          "status": "planned",
+          "notes": "A node behind NAT/firewall stays reachable for dispatch with no inbound configuration."
+        }
+      ]
+    }
+  ]
+}

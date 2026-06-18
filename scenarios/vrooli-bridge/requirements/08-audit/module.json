@@ -1,0 +1,42 @@
+{
+  "_metadata": {
+    "module": "audit",
+    "description": "Append-only audit of every job dispatch and provisioning op (who/node/verb/args/outcome) via workspace-sandbox.",
+    "prd_ref": "OT-P0-008",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "BRG-P0-008",
+      "title": "Immutable Audit Trail",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "security",
+      "description": "Every job dispatch and every provisioning operation — who, which node, what verb/args, outcome — is recorded to an append-only audit trail (workspace-sandbox as the accountability substrate), because remote code execution and remote provisioning must be fully traceable after the fact.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/audit/audit_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Each dispatch/provision writes an immutable audit record with actor, node, verb/args, and outcome; records cannot be mutated."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/audit/sandbox_integration_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Audit records are routed to the workspace-sandbox accountability substrate rather than a bespoke store."
+        },
+        {
+          "type": "manual",
+          "ref": "docs/internal/SECURITY.md#audit",
+          "phase": "business",
+          "status": "planned",
+          "notes": "After a gate run, every executed verb and provisioning step is reconstructable from the audit trail."
+        }
+      ]
+    }
+  ]
+}

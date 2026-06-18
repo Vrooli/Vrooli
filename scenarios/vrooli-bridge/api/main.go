@@ -2,585 +2,154 @@ package main
 
 import (
 	"context"
-	"database/sql"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
+	"vrooli-bridge/internal/clock"
+	"vrooli-bridge/internal/modules"
+	"vrooli-bridge/internal/server"
+
+	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
-	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/preflight"
-	"github.com/vrooli/api-core/server"
+	apiserver "github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/storage"
+	_ "modernc.org/sqlite"
 
-	"github.com/google/uuid"
-	"github.com/gorilla/mux"
-	_ "github.com/lib/pq"
+	healthH "vrooli-bridge/handlers/health"
+	notesH "vrooli-bridge/handlers/notes" // EXAMPLE-DOMAIN:notes
 )
 
-// Project represents a project in the system
-type Project struct {
-	ID               string            `json:"id"`
-	Path             string            `json:"path"`
-	Name             string            `json:"name"`
-	Type             string            `json:"type"`
-	VrooliVersion    *string           `json:"vrooli_version"`
-	BridgeVersion    *string           `json:"bridge_version"`
-	IntegrationStatus string           `json:"integration_status"`
-	LastUpdated      time.Time         `json:"last_updated"`
-	CreatedAt        time.Time         `json:"created_at"`
-	Metadata         map[string]interface{} `json:"metadata"`
+// sqliteDSN resolves the SQLite database file path and wraps it in a DSN
+// with the canonical pragma string. Resolution order:
+//
+//  1. SQLITE_PATH env — the canonical override.
+//  2. SQLITE_DB env — alias accepted for symmetry with other scenarios.
+//  3. storage.NewResolver(ProfileAuto) — the storage-steer-mandated
+//     filesystem-safe-by-default location.
+//
+// The path scope is the variant-aware namespace (storage.ScenarioNamespace),
+// not the bare slug: under a Baseline Modes shadow engagement the lifecycle
+// injects VROOLI_STORAGE_NAMESPACE, so the shadow's SQLite file lands beside
+// "<scenario>_shadow" and never shares live's database. Outside the lifecycle
+// (local `go run`, tests) it falls back to the compile-time slug, so live paths
+// are unchanged. This is why a generated scenario is shadow-safe with zero
+// per-scenario work — see packages/api-core/storage/namespace.go.
+//
+// The pragmas mirror agent-inbox; tweak in lockstep with
+// internal/testutil/db.NewSQLite so production and tests open files the
+// same way.
+func sqliteDSN() (string, error) {
+	if path := strings.TrimSpace(os.Getenv("SQLITE_PATH")); path != "" {
+		return sqliteFileDSN(path)
+	}
+	if path := strings.TrimSpace(os.Getenv("SQLITE_DB")); path != "" {
+		return sqliteFileDSN(path)
+	}
+
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return "", fmt.Errorf("create storage resolver: %w", err)
+	}
+	scenarioID, err := storage.ScenarioNamespace("vrooli-bridge")
+	if err != nil {
+		return "", fmt.Errorf("resolve vrooli-bridge storage namespace: %w", err)
+	}
+	path, err := resolver.Path(
+		storage.Options{ScenarioID: scenarioID},
+		storage.ClassData,
+		"vrooli-bridge.db",
+	)
+	if err != nil {
+		return "", fmt.Errorf("resolve vrooli-bridge db path: %w", err)
+	}
+	return sqliteFileDSN(path)
 }
 
-// ScanRequest represents a request to scan for projects
-type ScanRequest struct {
-	Directories []string `json:"directories"`
-	Depth       int      `json:"depth"`
-}
-
-// ScanResponse represents the response from a scan operation
-type ScanResponse struct {
-	Found    int       `json:"found"`
-	New      int       `json:"new"`
-	Projects []Project `json:"projects"`
-}
-
-// IntegrateRequest represents a request to integrate a project
-type IntegrateRequest struct {
-	Force bool `json:"force"`
-}
-
-// IntegrateResponse represents the response from an integration operation
-type IntegrateResponse struct {
-	Success       bool     `json:"success"`
-	FilesCreated  []string `json:"files_created"`
-	FilesUpdated  []string `json:"files_updated"`
-	Message       string   `json:"message"`
-}
-
-// ProjectType represents information about a project type
-type ProjectType struct {
-	Name                 string   `json:"name"`
-	Detection            []string `json:"detection"`
-	PreferredScenarios   []string `json:"preferred_scenarios"`
-	SpecificCapabilities string   `json:"specific_capabilities"`
-	Commands             []string `json:"commands"`
-}
-
-// App represents the main application
-type App struct {
-	db           *sql.DB
-	projectTypes map[string]ProjectType
+func sqliteFileDSN(path string) (string, error) {
+	if strings.HasPrefix(path, "file:") {
+		return path, nil
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return "", fmt.Errorf("prepare sqlite directory: %w", err)
+	}
+	return fmt.Sprintf(
+		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)",
+		path,
+	), nil
 }
 
 func main() {
-	// Preflight checks - must be first, before any initialization
-	if preflight.Run(preflight.Config{
-		ScenarioName: "vrooli-bridge",
-	}) {
-		return // Process was re-exec'd after rebuild
+	// Preflight checks must run first so the binary can re-exec itself
+	// after a stale-source rebuild before any listeners are opened.
+	if preflight.Run(preflight.Config{ScenarioName: "vrooli-bridge"}) {
+		return
 	}
 
-	app := &App{}
-	
-	// Initialize database connection
-	if err := app.initDB(); err != nil {
-		log.Fatal("Failed to initialize database:", err)
+	dsn, err := sqliteDSN()
+	if err != nil {
+		log.Fatalf("sqlite configuration failed: %v", err)
 	}
 
-	// Load project type definitions
-	if err := app.loadProjectTypes(); err != nil {
-		log.Fatal("Failed to load project types:", err)
+	db, err := database.Open(context.Background(), database.Config{
+		Driver:       database.DriverSQLite,
+		DSN:          dsn,
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
+	if err != nil {
+		log.Fatalf("Database connection failed: %v", err)
 	}
 
-	// Setup routes
-	router := app.setupRoutes()
+	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
+		log.Fatalf("schema initialization failed: %v", err)
+	}
 
-	log.Printf("Starting Vrooli Bridge API")
-	if err := server.Run(server.Config{
-		Handler: router,
-		Cleanup: func(ctx context.Context) error {
-			if app.db != nil {
-				return app.db.Close()
-			}
-			return nil
-		},
+	srv := server.New(
+		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		healthH.Module(db, "vrooli-bridge-api", "1.0.0"),
+		notesH.Module(db, clock.System{}, log.Default()), // EXAMPLE-DOMAIN:notes
+	)
+
+	// Top-level mux that mounts the API handler plus, when in development
+	// mode, the dev-only RoutingService used by test-genie to install a
+	// runtime test DB pool without restarting this scenario.
+	rootMux := http.NewServeMux()
+	devrouting.Register(rootMux, db)
+
+	// EXAMPLE-DOMAIN:notes START
+	// /measures is the measures-go serve substrate: the central measures
+	// index (measures-health) harvests <prefix>/declarations and the
+	// auto-execution path POSTs <prefix>/execute. The notes domain owns the
+	// one reference measure (notes.count); a real multi-domain scenario
+	// registers each domain's measures on one shared registry here.
+	notesMeasures, err := notesH.MeasuresHandler(db, clock.System{})
+	if err != nil {
+		log.Fatalf("measures registry: %v", err)
+	}
+	rootMux.Handle("/measures/", http.StripPrefix("/measures", notesMeasures))
+	// EXAMPLE-DOMAIN:notes END
+
+	rootMux.Handle("/", srv.Handler())
+
+	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
+	// request context so *database.RoutedDB routes the call to the
+	// installed test pool. Self-disables in production mode.
+	handler := apihttp.TestModeMiddleware(rootMux)
+
+	if err := apiserver.Run(apiserver.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error { return db.Close() },
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
 }
 
-func (app *App) initDB() error {
-	var err error
-	app.db, err = database.Connect(context.Background(), database.Config{
-		Driver: "postgres",
-	})
-	if err != nil {
-		return fmt.Errorf("database connection failed: %v", err)
-	}
-	log.Println("🎉 Database connection pool established successfully!")
-	return nil
-}
-
-func (app *App) loadProjectTypes() error {
-	// Load project types from the templates directory
-	data, err := ioutil.ReadFile("../initialization/templates/project-types.json")
-	if err != nil {
-		return err
-	}
-	
-	return json.Unmarshal(data, &app.projectTypes)
-}
-
-func (app *App) setupRoutes() *mux.Router {
-	r := mux.NewRouter()
-	
-	// Enable CORS
-	r.Use(app.corsMiddleware)
-	
-	// API routes
-	api := r.PathPrefix("/api/v1").Subrouter()
-	api.HandleFunc("/projects", app.getProjects).Methods("GET")
-	api.HandleFunc("/projects/scan", app.scanProjects).Methods("POST")
-	api.HandleFunc("/projects/{id}/integrate", app.integrateProject).Methods("POST")
-	api.HandleFunc("/projects/{id}", app.deleteProject).Methods("DELETE")
-	
-	// Health check
-	r.HandleFunc("/health", health.New().Version("1.0.0").Check(health.DB(app.db), health.Critical).Handler()).Methods("GET")
-	
-	return r
-}
-
-func (app *App) corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		
-		next.ServeHTTP(w, r)
-	})
-}
-
-func (app *App) getProjects(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	
-	rows, err := app.db.Query(`
-		SELECT id, path, name, type, vrooli_version, bridge_version, 
-		       integration_status, last_updated, created_at, metadata
-		FROM projects
-		ORDER BY last_updated DESC
-	`)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-	
-	var projects []Project
-	for rows.Next() {
-		var p Project
-		var metadataJSON []byte
-		
-		err := rows.Scan(&p.ID, &p.Path, &p.Name, &p.Type, &p.VrooliVersion, 
-			&p.BridgeVersion, &p.IntegrationStatus, &p.LastUpdated, &p.CreatedAt, &metadataJSON)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		
-		if len(metadataJSON) > 0 {
-			json.Unmarshal(metadataJSON, &p.Metadata)
-		}
-		
-		projects = append(projects, p)
-	}
-	
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"projects": projects,
-	})
-}
-
-func (app *App) scanProjects(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	
-	var req ScanRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	
-	// Default values
-	if len(req.Directories) == 0 {
-		homeDir, _ := os.UserHomeDir()
-		req.Directories = []string{homeDir}
-	}
-	if req.Depth <= 0 {
-		req.Depth = 3
-	}
-	
-	var allProjects []Project
-	var newCount int
-	
-	for _, dir := range req.Directories {
-		projects := app.scanDirectory(dir, req.Depth)
-		for _, project := range projects {
-			// Check if project already exists
-			exists, err := app.projectExists(project.Path)
-			if err != nil {
-				log.Printf("Error checking project existence: %v", err)
-				continue
-			}
-			
-			if !exists {
-				// Insert new project
-				err := app.insertProject(project)
-				if err != nil {
-					log.Printf("Error inserting project: %v", err)
-					continue
-				}
-				newCount++
-			}
-			
-			allProjects = append(allProjects, project)
-		}
-	}
-	
-	response := ScanResponse{
-		Found:    len(allProjects),
-		New:      newCount,
-		Projects: allProjects,
-	}
-	
-	json.NewEncoder(w).Encode(response)
-}
-
-func (app *App) scanDirectory(rootDir string, maxDepth int) []Project {
-	var projects []Project
-	
-	filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil // Continue scanning despite errors
-		}
-		
-		// Check depth
-		relPath, _ := filepath.Rel(rootDir, path)
-		depth := strings.Count(relPath, string(filepath.Separator))
-		if depth > maxDepth {
-			if info.IsDir() {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		
-		// Skip hidden directories and common non-project directories
-		if info.IsDir() && (strings.HasPrefix(info.Name(), ".") || 
-			info.Name() == "node_modules" || info.Name() == "target" || 
-			info.Name() == "__pycache__") {
-			return filepath.SkipDir
-		}
-		
-		if !info.IsDir() {
-			// Check if this file indicates a project
-			projectType := app.detectProjectType(path, info.Name())
-			if projectType != "" {
-				projectDir := filepath.Dir(path)
-				projectName := filepath.Base(projectDir)
-				
-				project := Project{
-					ID:               uuid.New().String(),
-					Path:             projectDir,
-					Name:             projectName,
-					Type:             projectType,
-					IntegrationStatus: "missing",
-					CreatedAt:        time.Now(),
-					LastUpdated:      time.Now(),
-					Metadata:         make(map[string]interface{}),
-				}
-				
-				projects = append(projects, project)
-			}
-		}
-		
-		return nil
-	})
-	
-	return projects
-}
-
-func (app *App) detectProjectType(filePath, fileName string) string {
-	for typeName, typeInfo := range app.projectTypes {
-		for _, pattern := range typeInfo.Detection {
-			if matched, _ := filepath.Match(pattern, fileName); matched {
-				return typeName
-			}
-		}
-	}
-	return ""
-}
-
-func (app *App) projectExists(path string) (bool, error) {
-	if app.db == nil {
-		return false, nil
-	}
-	var count int
-	err := app.db.QueryRow("SELECT COUNT(*) FROM projects WHERE path = $1", path).Scan(&count)
-	return count > 0, err
-}
-
-func (app *App) insertProject(project Project) error {
-	if app.db == nil {
-		return nil
-	}
-	metadataJSON, _ := json.Marshal(project.Metadata)
-
-	_, err := app.db.Exec(`
-		INSERT INTO projects (id, path, name, type, integration_status, created_at, last_updated, metadata)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-	`, project.ID, project.Path, project.Name, project.Type, project.IntegrationStatus,
-		project.CreatedAt, project.LastUpdated, metadataJSON)
-
-	return err
-}
-
-func (app *App) integrateProject(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	
-	vars := mux.Vars(r)
-	projectID := vars["id"]
-	
-	var req IntegrateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		// Default to non-force if request body is empty
-		req.Force = false
-	}
-	
-	// Get project from database
-	project, err := app.getProjectByID(projectID)
-	if err != nil {
-		http.Error(w, "Project not found", http.StatusNotFound)
-		return
-	}
-	
-	// Perform integration
-	filesCreated, filesUpdated, err := app.performIntegration(project, req.Force)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	
-	// Update project status
-	_, err = app.db.Exec(`
-		UPDATE projects 
-		SET integration_status = 'active', 
-		    vrooli_version = $1, 
-		    bridge_version = $2,
-		    last_updated = NOW()
-		WHERE id = $3
-	`, "1.0.0", "1.0.0", projectID)
-	
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	
-	response := IntegrateResponse{
-		Success:      true,
-		FilesCreated: filesCreated,
-		FilesUpdated: filesUpdated,
-		Message:      "Integration completed successfully",
-	}
-	
-	json.NewEncoder(w).Encode(response)
-}
-
-func (app *App) getProjectByID(id string) (*Project, error) {
-	var p Project
-	var metadataJSON []byte
-	
-	err := app.db.QueryRow(`
-		SELECT id, path, name, type, vrooli_version, bridge_version,
-		       integration_status, last_updated, created_at, metadata
-		FROM projects WHERE id = $1
-	`, id).Scan(&p.ID, &p.Path, &p.Name, &p.Type, &p.VrooliVersion,
-		&p.BridgeVersion, &p.IntegrationStatus, &p.LastUpdated, &p.CreatedAt, &metadataJSON)
-	
-	if err != nil {
-		return nil, err
-	}
-	
-	if len(metadataJSON) > 0 {
-		json.Unmarshal(metadataJSON, &p.Metadata)
-	}
-	
-	return &p, nil
-}
-
-func (app *App) performIntegration(project *Project, force bool) ([]string, []string, error) {
-	var filesCreated []string
-	var filesUpdated []string
-	
-	// Generate Vrooli integration documentation
-	integrationFile := filepath.Join(project.Path, "VROOLI_INTEGRATION.md")
-	
-	if !app.fileExists(integrationFile) || force {
-		content := app.generateIntegrationDoc(project)
-		err := ioutil.WriteFile(integrationFile, []byte(content), 0644)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to write integration file: %v", err)
-		}
-		
-		if app.fileExists(integrationFile) && !force {
-			filesUpdated = append(filesUpdated, integrationFile)
-		} else {
-			filesCreated = append(filesCreated, integrationFile)
-		}
-	}
-	
-	// Update or create CLAUDE.md additions
-	claudeFile := filepath.Join(project.Path, "CLAUDE.md")
-	claudeAddition := app.generateClaudeAddition(project)
-	
-	if app.fileExists(claudeFile) {
-		// Append to existing CLAUDE.md
-		content, err := ioutil.ReadFile(claudeFile)
-		if err == nil && !strings.Contains(string(content), "Vrooli Integration") {
-			newContent := string(content) + "\n\n" + claudeAddition
-			err = ioutil.WriteFile(claudeFile, []byte(newContent), 0644)
-			if err != nil {
-				return filesCreated, filesUpdated, fmt.Errorf("failed to update CLAUDE.md: %v", err)
-			}
-			filesUpdated = append(filesUpdated, claudeFile)
-		}
-	} else {
-		// Create new CLAUDE.md
-		err := ioutil.WriteFile(claudeFile, []byte(claudeAddition), 0644)
-		if err != nil {
-			return filesCreated, filesUpdated, fmt.Errorf("failed to create CLAUDE.md: %v", err)
-		}
-		filesCreated = append(filesCreated, claudeFile)
-	}
-	
-	return filesCreated, filesUpdated, nil
-}
-
-func (app *App) fileExists(filename string) bool {
-	_, err := os.Stat(filename)
-	return !os.IsNotExist(err)
-}
-
-func (app *App) generateIntegrationDoc(project *Project) string {
-	// Load template
-	template, err := ioutil.ReadFile("../initialization/templates/VROOLI_INTEGRATION.md.template")
-	if err != nil {
-		// Return basic template if file not found
-		return fmt.Sprintf("# Vrooli Integration\n\nThis project has been integrated with Vrooli.\n\nProject: %s\nType: %s\n", project.Name, project.Type)
-	}
-	
-	content := string(template)
-	
-	// Get project type info
-	projectTypeInfo, exists := app.projectTypes[project.Type]
-	if !exists {
-		projectTypeInfo = app.projectTypes["generic"]
-	}
-	
-	// Replace template variables
-	replacements := map[string]string{
-		"{{date}}":                    time.Now().Format("2006-01-02"),
-		"{{vrooli_version}}":          "1.0.0",
-		"{{project_type}}":            projectTypeInfo.Name,
-		"{{project_name}}":            project.Name,
-		"{{project_path}}":            project.Path,
-		"{{bridge_version}}":          "1.0.0",
-		"{{project_type_specific}}":   projectTypeInfo.SpecificCapabilities,
-		"{{preferred_scenarios}}":     strings.Join(projectTypeInfo.PreferredScenarios, ", "),
-	}
-	
-	for placeholder, value := range replacements {
-		content = strings.ReplaceAll(content, placeholder, value)
-	}
-	
-	return content
-}
-
-func (app *App) generateClaudeAddition(project *Project) string {
-	// Load template
-	template, err := ioutil.ReadFile("../initialization/templates/CLAUDE_ADDITIONS.md.template")
-	if err != nil {
-		// Return basic template if file not found
-		return fmt.Sprintf("# Vrooli Integration\n\nThis project has Vrooli integration. See VROOLI_INTEGRATION.md for details.\n")
-	}
-	
-	content := string(template)
-	
-	// Get project type info
-	projectTypeInfo, exists := app.projectTypes[project.Type]
-	if !exists {
-		projectTypeInfo = app.projectTypes["generic"]
-	}
-	
-	// Replace template variables
-	replacements := map[string]string{
-		"{{date}}":                         time.Now().Format("2006-01-02"),
-		"{{vrooli_version}}":               "1.0.0",
-		"{{project_type}}":                 projectTypeInfo.Name,
-		"{{project_name}}":                 project.Name,
-		"{{project_path}}":                 project.Path,
-		"{{bridge_version}}":               "1.0.0",
-		"{{project_specific_capabilities}}": projectTypeInfo.SpecificCapabilities,
-	}
-	
-	for placeholder, value := range replacements {
-		content = strings.ReplaceAll(content, placeholder, value)
-	}
-	
-	return content
-}
-
-func (app *App) deleteProject(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	projectID := vars["id"]
-	
-	// Get project info first
-	project, err := app.getProjectByID(projectID)
-	if err != nil {
-		http.Error(w, "Project not found", http.StatusNotFound)
-		return
-	}
-	
-	// Remove integration files
-	integrationFile := filepath.Join(project.Path, "VROOLI_INTEGRATION.md")
-	if app.fileExists(integrationFile) {
-		os.Remove(integrationFile)
-	}
-	
-	// Remove from CLAUDE.md (more complex - would need to parse and remove section)
-	// For now, we'll just mark as removed in database
-	
-	// Update project status to missing
-	_, err = app.db.Exec(`
-		UPDATE projects 
-		SET integration_status = 'missing',
-		    last_updated = NOW()
-		WHERE id = $1
-	`, projectID)
-	
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"message": "Integration removed successfully",
-	})
-}

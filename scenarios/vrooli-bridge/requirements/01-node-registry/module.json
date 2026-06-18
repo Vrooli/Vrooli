@@ -1,0 +1,42 @@
+{
+  "_metadata": {
+    "module": "node-registry",
+    "description": "Durable registry of trusted Vrooli nodes with OS/arch/version/endpoint/capabilities; register, list, inspect, revoke.",
+    "prd_ref": "OT-P0-001",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "BRG-P0-001",
+      "title": "Node Registry & Durable Identity",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "category": "core",
+      "description": "An owner can register, list, inspect, and revoke trusted Vrooli nodes. Each node has a durable, long-lived identity record (stable id, OS, architecture, current Vrooli revision, reachable endpoint, self-reported capabilities, permission scopes) — persistent infrastructure, distinct from device-sync-hub's ephemeral sync-peer grants.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/registry/registry_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Registry CRUD persists durable node records; revoke removes the node and invalidates its credentials atomically."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/nodes/nodes_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "CLI register/list/info/revoke round-trip against the API with --json proto-shaped output."
+        },
+        {
+          "type": "manual",
+          "ref": "docs/concepts/DOMAINS.md#registry",
+          "phase": "business",
+          "status": "planned",
+          "notes": "A node survives control-plane restart and reappears with its OS/arch/version/scopes intact."
+        }
+      ]
+    }
+  ]
+}

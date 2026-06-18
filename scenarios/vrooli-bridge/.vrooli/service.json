@@ -1,209 +1,32 @@
 {
-  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
+    "parent": "vrooli",
     "name": "vrooli-bridge",
     "displayName": "Vrooli Bridge",
-    "description": "Enables external projects to leverage Vrooli's intelligence by managing documentation injection and integration tracking",
-    "version": "1.0.0",
+    "description": "Fleet control plane that provisions, updates, and runs allowlisted commands across an owner's trusted Vrooli nodes on every OS",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "automation",
     "tags": [
-      "vrooli-enhancement",
-      "project-management",
-      "documentation",
-      "integration",
-      "cross-project",
-      "filesystem",
-      "go-api",
-      "postgres-storage",
-      "vanilla-ui"
-    ],
-    "parent": "vrooli",
-    "type": "scenario",
-    "category": "general",
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "support@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
-    ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scenarios/vrooli-bridge"
-    },
-    "license": "MIT",
-    "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
-    "support": {
-      "issues": "https://github.com/Vrooli/Vrooli/issues"
-    }
+      "react-ui",
+      "go-api"
+    ]
   },
-  "ports": {
-    "api": {
-      "env_var": "API_PORT",
-      "description": "Vrooli Bridge API port",
-      "range": "15000-19999"
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.1.0"
     },
-    "ui": {
-      "env_var": "UI_PORT",
-      "description": "Project management dashboard",
-      "range": "20000-24999"
-    }
-  },
-  "lifecycle": {
-    "version": "2.0.0",
-    "health": {
-      "description": "Vrooli Bridge health check configuration",
-      "endpoints": {
-        "api": "/health",
-        "ui": "/health"
-      },
-      "checks": [
-        {
-          "name": "api_endpoint",
-          "type": "http",
-          "target": "http://localhost:${API_PORT}/health",
-          "critical": true,
-          "timeout": 5000,
-          "interval": 30000
-        },
-        {
-          "name": "ui_endpoint",
-          "type": "http",
-          "target": "http://localhost:${UI_PORT}/health",
-          "critical": false,
-          "timeout": 3000,
-          "interval": 60000
-        }
-      ],
-      "timeout": 5000,
-      "interval": 30000,
-      "startup_grace_period": 15000
+    "generated_at": "2026-06-18T00:14:20Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
     },
-    "setup": {
-      "description": "Initialize Vrooli Bridge",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/vrooli-bridge-api"
-            ]
-          },
-          {
-            "type": "cli",
-            "command": "vrooli-bridge",
-            "targets": [
-              "vrooli-bridge"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "resources",
-            "populated": true
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o vrooli-bridge-api .",
-          "description": "Build Go API binary"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && npm install",
-          "description": "Install UI dependencies",
-          "condition": {
-            "file_exists": "ui/package.json"
-          }
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && npm run build",
-          "description": "Build static UI bundle from source"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start Vrooli Bridge with API server and UI",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./vrooli-bridge-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/vrooli-bridge-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && NODE_ENV=production node server.js",
-          "description": "Serve production UI bundle",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for vrooli-bridge",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute vrooli-bridge --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"vrooli-bridge-api\" || true; sleep 1; pkill -9 -f \"vrooli-bridge-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"scenarios/vrooli-bridge/ui/server.py\" || true; sleep 1; pkill -9 -f \"scenarios/vrooli-bridge/ui/server.py\" 2>/dev/null || true",
-          "description": "Stop UI process"
-        }
-      ]
-    }
-  },
-  "dependencies": {
-    "resources": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "project registry and integration metadata",
-        "initialization": [
-          {
-            "file": "initialization/storage/postgres/schema.sql",
-            "type": "schema"
-          },
-          {
-            "file": "initialization/storage/postgres/seed.sql",
-            "type": "data"
-          }
-        ]
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": false,
-        "required": false,
-        "purpose": "cache project scanning results for faster UI updates"
-      }
-    }
+    "manifest_sha": "f70bc94203f839ba4825223e7d60f8c5cb8983442653a68a6f7f07d3726f00cd",
+    "content_sha": "07c578f32d3ba10c86cc91ce06d830a48959a1fffad8348f97a9858b6313bbc8"
   },
   "cli": {
     "enabled": true,
@@ -211,6 +34,10 @@
     "adapter": {
       "kind": "go_module",
       "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
     },
     "install": [
       {
@@ -239,5 +66,150 @@
         ".vrooli/service.json"
       ]
     }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Build API and UI assets declared by the manifest-driven lifecycle contract",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/vrooli-bridge-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "vrooli-bridge"
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api \u0026\u0026 GOWORK=off go mod download \u0026\u0026 GOWORK=off go build -o vrooli-bridge-api .",
+          "description": "Build Go API server"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "if [ -f ui/package.json ]; then cd ui \u0026\u0026 (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "if [ -f ui/package.json ]; then cd ui \u0026\u0026 (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
+          "description": "Build production UI bundle"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Launch API and Vite dev server",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api \u0026\u0026 ./vrooli-bridge-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/vrooli-bridge-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui \u0026\u0026 node server.js",
+          "description": "Serve production UI bundle",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        }
+      ]
+    },
+    "build": {},
+    "deploy": {},
+    "clean": {},
+    "test": {
+      "description": "Execute phased test suite via test-genie",
+      "steps": [
+        {
+          "name": "check-temporal-models",
+          "run": "flow-verifier verify check --root .",
+          "description": "Verify formal flow artifacts via the flow-verifier scenario CLI"
+        },
+        {
+          "name": "run-tests",
+          "run": "test-genie execute vrooli-bridge --preset comprehensive",
+          "description": "Run all test phases via test-genie"
+        }
+      ]
+    },
+    "backup": {},
+    "restore": {},
+    "production": {},
+    "stop": {
+      "description": "Stop background processes",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f 'vrooli-bridge-api' || true",
+          "description": "Stop Go API"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f 'node server.js' || true",
+          "description": "Stop UI server"
+        }
+      ]
+    }
+  },
+  "dependencies": {},
+  "environment": {
+    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/vrooli-bridge.db"
   }
 }

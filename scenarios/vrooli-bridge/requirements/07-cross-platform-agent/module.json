@@ -1,0 +1,42 @@
+{
+  "_metadata": {
+    "module": "cross-platform-agent",
+    "description": "One node-agent cross-compiled for linux/darwin/windows; platform-native service install; no Linux-only assumptions.",
+    "prd_ref": "OT-P0-007",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "BRG-P0-007",
+      "title": "Cross-Platform Node-Agent",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "category": "core",
+      "description": "One node-agent codebase is cross-compiled for Linux, macOS, and Windows and installs itself as the platform-native background service (systemd / launchd / Windows Service or Scheduled Task). The agent uses platform path/process abstractions only, with no Linux-only assumptions, so a node can be any of the three OSes from day one.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "node-agent/internal/service/service_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Service-install adapter selects systemd/launchd/Windows-Service by GOOS; path/process abstractions carry no hardcoded POSIX paths."
+        },
+        {
+          "type": "test",
+          "ref": "node-agent/build/crosscompile_test.sh",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Agent cross-compiles cleanly for linux/amd64, darwin/arm64, darwin/amd64, windows/amd64."
+        },
+        {
+          "type": "manual",
+          "ref": "docs/operations/DEPLOYMENT.md#node-agent",
+          "phase": "business",
+          "status": "planned",
+          "notes": "The agent runs as a background service on at least one real macOS and one real Windows node."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "_metadata": {
+    "module": "lan-discovery",
+    "description": "Optional mDNS auto-discovery of the control plane on a trusted LAN; manual URL+code remains the cross-network default.",
+    "prd_ref": "OT-P1-006",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "BRG-P1-006",
+      "title": "LAN Auto-Discovery",
+      "status": "planned",
+      "prd_ref": "OT-P1-006",
+      "category": "core",
+      "description": "On a trusted LAN, the bootstrap can discover the control plane automatically (mDNS) so pairing is 'run the installer' rather than 'find and type the control-plane URL,' while the manual URL+code path remains the cross-network default.",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "node-agent/internal/discovery/mdns_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "mDNS discovery locates an advertised control plane on the LAN and falls back cleanly to manual URL when absent."
+        },
+        {
+          "type": "test",
+          "ref": "node-agent/internal/discovery/fallback_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Off-LAN bootstrap uses the manual URL+code path without depending on mDNS."
+        }
+      ]
+    }
+  ]
+}
