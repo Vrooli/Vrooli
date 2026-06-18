@@ -21,6 +21,7 @@ import (
 	internalmodels "image-tools/internal/models"
 	"image-tools/internal/modules"
 	"image-tools/internal/server"
+	"image-tools/internal/sidecar"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
@@ -203,6 +204,17 @@ func main() {
 	// model is installed, modelInstalled returns false and AI ops refuse with an
 	// actionable hint rather than launching a doomed job.
 	modelsRoot := filepath.Dir(blobStore.Root())
+
+	// Materialize the embedded Python sidecar (image_tools_sidecar) under the
+	// data dir and put it on PYTHONPATH, so the onnxruntime backend's
+	// `python3 -m image_tools_sidecar.<op>` invocations resolve regardless of the
+	// process working directory. The runtime packages it imports (onnxruntime,
+	// Pillow, numpy) are host provisioning — see docs/reference/backends.md.
+	if sidecarPath, scErr := sidecar.EnsureOnPath(filepath.Join(modelsRoot, "sidecar")); scErr != nil {
+		log.Printf("WARNING: sidecar materialize failed (%v); onnxruntime AI ops will be unavailable", scErr)
+	} else {
+		log.Printf("sidecar ready on PYTHONPATH: %s", sidecarPath)
+	}
 
 	// Model management (IMG-P0-007): the Installer owns checksummed downloads,
 	// disk-space checks, removal, and custom/local entries. Install state is

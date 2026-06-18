@@ -1049,6 +1049,31 @@
               "../../api/internal/models/registry.seed.json"
             ]
           }
+        },
+        {
+          "path": "reference/backends.md",
+          "docType": "backends-reference",
+          "title": "AI Backends & Provisioning",
+          "aliases": [
+            "backends",
+            "provisioning",
+            "sidecar"
+          ],
+          "description": "What each AI backend needs on the host, how model weights are resolved + artifact-validated, the in-repo onnxruntime Python sidecar, and the BYOK cloud tier",
+          "audience": [
+            "operators",
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "backends",
+            "provisioning"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "optional"
         }
       ]
     },

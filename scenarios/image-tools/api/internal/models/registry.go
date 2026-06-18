@@ -109,14 +109,64 @@ type Checksum struct {
 	Status string `json:"status"`
 }
 
+// ArtifactKind classifies a downloadable weight artifact so the installer can
+// validate that the bytes it fetched are actually that kind of file (and not,
+// e.g., an HTML landing page — the install-stub bug). Empty kind means "generic
+// binary"; only HTML rejection + a size floor are enforced for it.
+type ArtifactKind string
+
+const (
+	// ArtifactGeneric applies the page/size guards but no format-specific magic.
+	ArtifactGeneric ArtifactKind = ""
+	// ArtifactONNX is an ONNX model (protobuf; starts with the ir_version tag).
+	ArtifactONNX ArtifactKind = "onnx"
+	// ArtifactGGUF is a llama.cpp/stable-diffusion.cpp GGUF weight.
+	ArtifactGGUF ArtifactKind = "gguf"
+	// ArtifactSafetensors is a safetensors weight file.
+	ArtifactSafetensors ArtifactKind = "safetensors"
+	// ArtifactNCNNParam / ArtifactNCNNBin are the ncnn model pair (realesrgan).
+	ArtifactNCNNParam ArtifactKind = "ncnn-param"
+	ArtifactNCNNBin   ArtifactKind = "ncnn-bin"
+	// ArtifactBinary is a standalone executable artifact.
+	ArtifactBinary ArtifactKind = "binary"
+)
+
+// Asset is one downloadable artifact a model needs on disk. A model may require
+// several (e.g. an ncnn .param + .bin pair). URLs MUST be direct, resolvable
+// artifact links — never a landing/release/repo PAGE. A page URL downloads as
+// HTML and was previously recorded as a "model" (the install-stub bug, see
+// docs/internal/PROBLEMS.md 2026-06-18); the installer now validates every
+// downloaded asset against Kind + size before an install is recorded.
+type Asset struct {
+	// URL is the direct, resolvable artifact link (HF resolve/main/<file>, a
+	// GitHub release-asset download URL, etc.).
+	URL string `json:"url"`
+	// Filename is the on-disk name the backend expects under the model dir.
+	Filename string `json:"filename"`
+	// Kind drives artifact validation. Empty = generic binary.
+	Kind ArtifactKind `json:"kind"`
+	// SHA256, when set, is the upstream-published checksum and is enforced. When
+	// empty the freshly computed hash is pinned AFTER artifact validation passes.
+	SHA256 string `json:"sha256,omitempty"`
+	// MinBytes, when >0, is a lower bound used to catch truncated/page downloads.
+	MinBytes int64 `json:"min_bytes,omitempty"`
+}
+
 // Source records where the model artifact comes from.
 type Source struct {
-	DownloadURL  string   `json:"download_url"`
-	SourceRepo   string   `json:"source_repo"`
-	DocsURL      string   `json:"docs_url"`
-	UpdateSource string   `json:"update_source"`
-	LocalPath    string   `json:"local_path,omitempty"` // set for custom/local entries
-	Checksum     Checksum `json:"checksum"`
+	// DownloadURL is the single remote URL for an operator-registered CUSTOM
+	// model (the AddCustomModel API/UI field). Seed models use Assets instead;
+	// either way the downloaded bytes are artifact-validated before install.
+	DownloadURL  string `json:"download_url"`
+	SourceRepo   string `json:"source_repo"`
+	DocsURL      string `json:"docs_url"`
+	UpdateSource string `json:"update_source"`
+	LocalPath    string `json:"local_path,omitempty"` // set for custom/local entries
+	// Assets are the direct, resolvable weight artifacts for a seed model. When
+	// present they are the install source (DownloadURL is ignored). The installer
+	// downloads + validates each one into the model dir under its Filename.
+	Assets   []Asset  `json:"assets,omitempty"`
+	Checksum Checksum `json:"checksum"`
 }
 
 // Model is one registry entry: a concrete model/library backing one or more

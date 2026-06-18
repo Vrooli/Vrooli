@@ -1,6 +1,7 @@
 package models
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -35,7 +36,9 @@ func newInstallFixture(t *testing.T) *installFixture {
 		t.Fatalf("load registry: %v", err)
 	}
 	root := t.TempDir()
-	f := &installFixture{root: root, payload: []byte("fake-model-weights"), avail: int64(50) << 30}
+	// A realistic-sized generic artifact: above the 1 KiB validation floor and
+	// not HTML, so it passes artifact validation (the fake downloader writes it).
+	f := &installFixture{root: root, payload: bytes.Repeat([]byte("fake-model-weights\n"), 128), avail: int64(50) << 30}
 	f.in = &Installer{
 		Root:   root,
 		Reg:    reg,

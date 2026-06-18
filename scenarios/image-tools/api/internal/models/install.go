@@ -364,8 +364,14 @@ func (in *Installer) Install(ctx context.Context, id string, emit func(progress 
 		return rec, nil
 	}
 
-	if m.Source.DownloadURL == "" {
-		return InstallRecord{}, fmt.Errorf("%w: %q", ErrNoDownloadSource, id)
+	// Resolve the asset list. Seed models declare Source.Assets (direct,
+	// resolvable, artifact-validated weights). An operator-registered custom
+	// model carries a single Source.DownloadURL, treated as one generic asset —
+	// and now validated the same way, so a custom URL that points at a page is
+	// rejected instead of being recorded as a model.
+	assets, err := resolveAssets(m)
+	if err != nil {
+		return InstallRecord{}, err
 	}
 
 	// Disk-space awareness: refuse before downloading if there isn't room.
@@ -385,40 +391,16 @@ func (in *Installer) Install(ctx context.Context, id string, emit func(progress 
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return InstallRecord{}, fmt.Errorf("models: create model dir: %w", err)
 	}
-	dest := filepath.Join(dir, artifactName(m.Source.DownloadURL))
 
-	emit(5, "downloading "+m.Source.DownloadURL)
-	if err := in.Download.Download(ctx, m.Source.DownloadURL, dest, func(done, total int64) {
-		if total > 0 {
-			emit(5+int(float64(done)/float64(total)*80), "downloading")
-		}
-	}); err != nil {
-		_ = os.RemoveAll(dir)
-		return InstallRecord{}, fmt.Errorf("models: download %q: %w", id, err)
-	}
-
-	emit(90, "verifying checksum")
-	sum, size, err := hashFile(dest)
+	primarySum, totalSize, err := in.downloadAssets(ctx, id, dir, assets, emit)
 	if err != nil {
 		_ = os.RemoveAll(dir)
-		return InstallRecord{}, fmt.Errorf("models: hash artifact: %w", err)
-	}
-
-	// Checksum precedence: a previously pinned value wins, then the seed value.
-	// A mismatch removes the artifact; absence pins the freshly computed hash
-	// (never hand-written — see DECISIONS).
-	expected := in.pinnedChecksum(ctx, id)
-	if expected == "" {
-		expected = strings.TrimSpace(m.Source.Checksum.Value)
-	}
-	if expected != "" && !strings.EqualFold(expected, sum) {
-		_ = os.RemoveAll(dir)
-		return InstallRecord{}, fmt.Errorf("%w: %q expected %s got %s", ErrChecksumMismatch, id, expected, sum)
+		return InstallRecord{}, err
 	}
 
 	rec := InstallRecord{
-		ID: id, Installed: true, Path: dir, Checksum: sum,
-		SizeBytes: size, InstalledAt: in.now(),
+		ID: id, Installed: true, Path: dir, Checksum: primarySum,
+		SizeBytes: totalSize, InstalledAt: in.now(),
 	}
 	if in.State != nil {
 		if err := in.State.Set(ctx, rec); err != nil {
@@ -427,6 +409,86 @@ func (in *Installer) Install(ctx context.Context, id string, emit func(progress 
 	}
 	emit(100, "installed")
 	return rec, nil
+}
+
+// resolveAssets returns the artifacts to download for a model: its declared
+// Source.Assets when present, else a single generic asset synthesized from the
+// custom-model Source.DownloadURL. A model with neither cannot be installed —
+// its seed entry points only at a documentation page (the un-migrated case).
+func resolveAssets(m Model) ([]Asset, error) {
+	if len(m.Source.Assets) > 0 {
+		out := make([]Asset, 0, len(m.Source.Assets))
+		for i, a := range m.Source.Assets {
+			if a.URL == "" {
+				return nil, fmt.Errorf("models: %q asset %d has no url", m.ID, i)
+			}
+			if a.Filename == "" {
+				a.Filename = artifactName(a.URL)
+			}
+			out = append(out, a)
+		}
+		return out, nil
+	}
+	if m.Source.DownloadURL != "" {
+		// Carry the seed's published checksum (if any) onto the synthesized asset.
+		return []Asset{{
+			URL:      m.Source.DownloadURL,
+			Filename: artifactName(m.Source.DownloadURL),
+			Kind:     ArtifactGeneric,
+			SHA256:   strings.TrimSpace(m.Source.Checksum.Value),
+		}}, nil
+	}
+	return nil, fmt.Errorf("%w: %q (its source has no resolvable weight asset — only a documentation page)", ErrNoDownloadSource, m.ID)
+}
+
+// downloadAssets fetches, validates, and (where applicable) checksum-verifies
+// every asset into dir. It returns the primary (first) asset's sha256 to pin and
+// the total bytes written. Any failure leaves cleanup to the caller (the model
+// dir is removed). Validation rejects HTML pages / wrong-format / truncated
+// downloads BEFORE the install is recorded — the install-stub fix.
+func (in *Installer) downloadAssets(ctx context.Context, id, dir string, assets []Asset, emit func(progress int, message string)) (primarySum string, totalSize int64, err error) {
+	pinned := in.pinnedChecksum(ctx, id)
+	n := len(assets)
+	for i, a := range assets {
+		dest := filepath.Join(dir, a.Filename)
+		base := 5 + int(float64(i)/float64(n)*80)
+		span := 80 / n
+		emit(base, "downloading "+a.Filename)
+		if dlErr := in.Download.Download(ctx, a.URL, dest, func(done, total int64) {
+			if total > 0 {
+				emit(base+int(float64(done)/float64(total)*float64(span)), "downloading "+a.Filename)
+			}
+		}); dlErr != nil {
+			return "", 0, fmt.Errorf("models: download %q asset %q: %w", id, a.Filename, dlErr)
+		}
+
+		emit(base+span, "validating "+a.Filename)
+		if vErr := validateArtifact(dest, a); vErr != nil {
+			return "", 0, vErr
+		}
+
+		sum, size, hErr := hashFile(dest)
+		if hErr != nil {
+			return "", 0, fmt.Errorf("models: hash artifact %q: %w", a.Filename, hErr)
+		}
+		totalSize += size
+
+		// Checksum precedence for the PRIMARY asset: a previously pinned value
+		// wins; then the asset's published sha256. A mismatch fails the install.
+		// Absence pins the freshly computed hash AFTER artifact validation passed
+		// (never hand-written — see DECISIONS).
+		expected := strings.TrimSpace(a.SHA256)
+		if i == 0 && pinned != "" {
+			expected = pinned
+		}
+		if expected != "" && !strings.EqualFold(expected, sum) {
+			return "", 0, fmt.Errorf("%w: %q asset %q expected %s got %s", ErrChecksumMismatch, id, a.Filename, expected, sum)
+		}
+		if i == 0 {
+			primarySum = sum
+		}
+	}
+	return primarySum, totalSize, nil
 }
 
 // Remove deletes a model's downloaded weights and clears its install record. A

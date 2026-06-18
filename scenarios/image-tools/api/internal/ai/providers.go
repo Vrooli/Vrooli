@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 
 	"image-tools/internal/backends"
+	"image-tools/internal/models"
 )
 
 // commandRunner executes a resolved command. Injected so tests assert argument
@@ -28,18 +30,24 @@ type argBuilder func(req backends.Request, modelDir string) ([]string, error)
 // the engine applies (so it can produce a precise "model not installed" hint),
 // keeping providers model-agnostic.
 type execProvider struct {
-	name     string
-	program  string // binary or interpreter resolved on PATH (e.g. "sd", "python3")
-	ops      []string
-	build    argBuilder
-	lookPath lookPathFunc
-	run      commandRunner
+	name       string
+	program    string // binary or interpreter resolved on PATH (e.g. "sd", "python3")
+	ops        []string
+	build      argBuilder
+	gpuCapable bool // can this backend actually use the GPU? (CPU-only sidecars: false)
+	lookPath   lookPathFunc
+	run        commandRunner
 }
 
 func (p *execProvider) Name() string         { return p.name }
 func (p *execProvider) Operations() []string { return append([]string(nil), p.ops...) }
 func (p *execProvider) Standalone() bool     { return true } // none of these are ComfyUI
 func (p *execProvider) IsCloud() bool        { return false }
+
+// GPUCapable reports whether this backend can run on the GPU. The onnxruntime
+// sidecar is bound to CPUExecutionProvider, so it returns false and the selector
+// labels its runs local-cpu even on a GPU host (honest tier reporting).
+func (p *execProvider) GPUCapable() bool { return p.gpuCapable }
 
 // Available reports whether the backend program is resolvable on PATH.
 func (p *execProvider) Available(context.Context) bool {
@@ -225,39 +233,74 @@ func buildRembg(req backends.Request, _ string) ([]string, error) {
 	return []string{"i", "-m", req.Model.ID, in, req.Output.LocalPath}, nil
 }
 
-// buildOnnxDenoise assembles a denoise invocation over the onnxruntime python
-// sidecar. Shape: python3 -m image_tools_sidecar.onnx_denoise --model <dir>
-// --image <in> --out <out>.
-func buildOnnxDenoise(req backends.Request, modelDir string) ([]string, error) {
+// buildOnnxSidecar assembles an invocation of the in-repo onnxruntime python
+// sidecar (sidecar/image_tools_sidecar). The sidecar is the CPU-tractable,
+// provisionable backend: onnxruntime + Pillow run real ONNX weights with no
+// GPU. One dispatch per supported op:
+//
+//	background_removal: python3 -m image_tools_sidecar.bg_removal --model <onnx> --image <in> --out <out>
+//	denoise:            python3 -m image_tools_sidecar.denoise    --model <onnx> --image <in> --out <out>
+//
+// The model argument is the resolved ONNX weight file inside the model dir
+// (from the registry asset list), not the directory, so the sidecar loads it
+// directly.
+func buildOnnxSidecar(req backends.Request, modelDir string) ([]string, error) {
 	in, err := in0(req)
 	if err != nil {
 		return nil, err
 	}
+	model := onnxModelPath(req, modelDir)
+	var module string
+	switch req.Operation {
+	case "background_removal":
+		module = "image_tools_sidecar.bg_removal"
+	case "denoise":
+		module = "image_tools_sidecar.denoise"
+	default:
+		return nil, fmt.Errorf("onnxruntime sidecar: unsupported operation %q", req.Operation)
+	}
 	return []string{
-		"-m", "image_tools_sidecar.onnx_denoise",
-		"--model", modelDir,
+		"-m", module,
+		"--model", model,
 		"--image", in,
 		"--out", req.Output.LocalPath,
 	}, nil
 }
 
+// onnxModelPath resolves the ONNX weight file the sidecar should load: the first
+// registry asset of kind ONNX (else the first asset) under the model dir. Falls
+// back to the model dir itself when the model declares no assets.
+func onnxModelPath(req backends.Request, modelDir string) string {
+	assets := req.Model.Source.Assets
+	for _, a := range assets {
+		if a.Kind == models.ArtifactONNX && a.Filename != "" {
+			return filepath.Join(modelDir, a.Filename)
+		}
+	}
+	if len(assets) > 0 && assets[0].Filename != "" {
+		return filepath.Join(modelDir, assets[0].Filename)
+	}
+	return modelDir
+}
+
 // providerSpec declares one standalone backend provider, keyed by the registry
 // `backend` name so the selector's match-by-backend path lines up.
 type providerSpec struct {
-	name    string
-	program string // binary/interpreter resolved on PATH
-	ops     []string
-	build   argBuilder
+	name       string
+	program    string // binary/interpreter resolved on PATH
+	ops        []string
+	build      argBuilder
+	gpuCapable bool // backend can use the GPU (false for the CPU-only onnx sidecar)
 }
 
 func providerSpecs() []providerSpec {
 	return []providerSpec{
-		{name: "stable-diffusion.cpp", program: "sd", ops: []string{"text_to_image", "image_to_image"}, build: buildStableDiffusionCpp},
-		{name: "diffusers", program: "python3", ops: []string{"inpaint"}, build: buildDiffusersInpaint},
-		{name: "iopaint", program: "iopaint", ops: []string{"object_removal"}, build: buildIopaint},
-		{name: "realesrgan-ncnn-vulkan", program: "realesrgan-ncnn-vulkan", ops: []string{"upscale"}, build: buildRealesrgan},
-		{name: "rembg", program: "rembg", ops: []string{"background_removal"}, build: buildRembg},
-		{name: "onnxruntime", program: "python3", ops: []string{"denoise"}, build: buildOnnxDenoise},
+		{name: "stable-diffusion.cpp", program: "sd", ops: []string{"text_to_image", "image_to_image"}, build: buildStableDiffusionCpp, gpuCapable: true},
+		{name: "diffusers", program: "python3", ops: []string{"inpaint"}, build: buildDiffusersInpaint, gpuCapable: true},
+		{name: "iopaint", program: "iopaint", ops: []string{"object_removal"}, build: buildIopaint, gpuCapable: true},
+		{name: "realesrgan-ncnn-vulkan", program: "realesrgan-ncnn-vulkan", ops: []string{"upscale"}, build: buildRealesrgan, gpuCapable: true},
+		{name: "rembg", program: "rembg", ops: []string{"background_removal"}, build: buildRembg, gpuCapable: false},
+		{name: "onnxruntime", program: "python3", ops: []string{"denoise", "background_removal"}, build: buildOnnxSidecar, gpuCapable: false},
 	}
 }
 
@@ -265,7 +308,7 @@ func providerSpecs() []providerSpec {
 // lookPath/run to use the real os/exec implementations.
 func RegisterProviders(reg *backends.Registry, lookPath lookPathFunc, run commandRunner) error {
 	for _, s := range providerSpecs() {
-		p := &execProvider{name: s.name, program: s.program, ops: s.ops, build: s.build, lookPath: lookPath, run: run}
+		p := &execProvider{name: s.name, program: s.program, ops: s.ops, build: s.build, gpuCapable: s.gpuCapable, lookPath: lookPath, run: run}
 		if err := reg.Register(p); err != nil {
 			return fmt.Errorf("ai: register provider %q: %w", s.name, err)
 		}

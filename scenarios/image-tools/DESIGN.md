@@ -378,3 +378,26 @@ The redesign ships in stages, each green with BAS coverage: **S0** token
 foundation + Workspace shell · **S1** Edit hero · **S2** Enhance hero · **S3**
 Create hero · **S4** Home/Library/Activity + identity · **S5**
 Analyze/Models/Settings + a11y/responsive/theme passes.
+
+### Advanced editing surfaces (2026-06-18 workshop — planned)
+
+Three surfaces extend the Workspace once the AI substrate is functional
+(OT-P0-014). They share one principle: the rich UI ultimately composes a
+**{prompt + optional mask/selection + params}** request — the work is the UX and
+the compiler, not bespoke per-feature inference.
+
+- **Look / Style Library** (OT-P1-012): a thumbnail-backed picker — a modal on
+  desktop, a full-page drawer / bottom-sheet on mobile — of named Looks (style,
+  film/lens/camera emulation, mood). Selecting a Look applies its op-chain;
+  "Add a Look" captures a prompt/op-chain and auto-generates its preview by
+  running it on a reference image. Gold is the selection glow only.
+- **Smart-Select → Contextual Edit** (OT-P1-013): a canvas selection tool that
+  snaps to an object silhouette (SAM), classifies the region, and floats a
+  context-specific edit menu (for a person: naturalize, age, hair, clothing)
+  compiling to an inpaint/instruction-edit. Keyboard + file-mask fallbacks
+  preserved (no pointer-only op).
+- **Naturalize** (OT-P1-011): an Enhance-mode action with a fidelity↔realism
+  slider, surfaced right after upscale/restore where over-smoothing happens.
+
+All respect the binding contract above — semantic status colors, focus behavior,
+responsive transforms, accessibility floors, and `prefers-reduced-motion`.

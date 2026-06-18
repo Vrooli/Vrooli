@@ -224,7 +224,15 @@ change required.
 `scenarios/image-tools/.vrooli/endpoints.json`, proto-health
 `rest_payload_unknown_message`.
 
-### 2026-06-17 — AI backend live-execution unverified on CI hosts (attended acceptance gate)
+### 2026-06-17 — AI backend live-execution unverified on CI hosts (attended acceptance gate) — PARTIALLY RESOLVED 2026-06-18
+
+**Update (2026-06-18, plan Phase 1):** `background_removal` now runs end-to-end
+on CPU for real (onnxruntime sidecar + validated `u2netp.onnx`; see the
+2026-06-18 install-stub entry, RESOLVED). The headless-completeness acceptance is
+met for that op. The remaining AI ops (`generate`/`img2img`/`inpaint`/
+`object_removal`/`upscale`/`denoise`-onnx, `analyze ocr|nsfw`) still need their
+backend programs/weights provisioned and an attended run; they are built as later
+phases of the advanced-editing plan.
 
 **Symptom:** `image-tools ai generate|img2img|inpaint|object-removal|upscale|bg-removal|denoise`
 and `analyze ocr|nsfw` return HTTP 409/503 with an actionable install hint on a
@@ -326,9 +334,45 @@ rather than parsing it as `name@variant`). Filed to scenario-qa.
 `bas/cases/routed-database/proves-test-pool-routing.json`, root `vrooli scenario
 port`.
 
-### 2026-06-18 — `models install` fetches landing pages, not weights — install path is a stub for all 49 models
+### 2026-06-18 — `models install` fetches landing pages, not weights — install path is a stub for all 49 models — RESOLVED (substrate fix) 2026-06-18
 
-**Symptom:** `image-tools models install <id> --wait` reports ✅ success in ~1s
+**Resolution (2026-06-18, advanced-editing plan Phase 1):** The install-stub bug
+is fixed at the root and the first AI op now runs end-to-end on CPU:
+
+- **Artifact validation** (`api/internal/models/artifact.go`): every downloaded
+  asset is validated before an install is recorded — HTML pages are rejected via
+  `http.DetectContentType` (the exact stub symptom), size floors catch truncation,
+  and per-`Kind` magic (ONNX ir_version tag, GGUF, safetensors) rejects wrong
+  formats. A page URL can no longer be recorded as a model. Regression test:
+  `TestInstall_RejectsHTMLPageDownload`.
+- **Resolvable assets** (`Source.Assets`): seed models now declare direct,
+  validated weight URLs. The two background-removal CPU defaults (`u2netp`,
+  `isnet-general-use`) carry real rembg-release `.onnx` asset refs; the page URL
+  moved to `docs_url`. Un-migrated entries fail LOUD (page → HTML → rejected)
+  instead of false success.
+- **Provisionable CPU backend**: a real in-repo Python sidecar
+  (`api/internal/sidecar/py/image_tools_sidecar`, embedded + materialized on
+  PYTHONPATH at boot) runs the ONNX background-removal via onnxruntime —
+  CPU-only, no GPU, no `rembg` program needed. The two bg models now use
+  `backend: onnxruntime` (`rembg` is an alt).
+- **Honest tier**: the onnxruntime sidecar declares `GPUCapable()=false`, so the
+  selector labels its runs `local-cpu` even on a GPU host.
+
+**Live proof (2026-06-18):** `models install u2netp` downloaded the real 4.5 MB
+`u2netp.onnx` (validated), then `ai bg-removal … --model u2netp --wait` produced
+a correct RGBA matte (subject opaque, background transparent) — reported
+`succeeded on u2netp/local-cpu`. The host already had onnxruntime/Pillow/numpy
+(the documented provisioning step).
+
+**Remaining (separate, tracked):** the other ~46 seed models still need real
+asset refs (migrate as each op's vertical is built); the non-ONNX backends
+(`sd`, `realesrgan`, `iopaint`, `tesseract`) remain absent/unmanaged for their
+ops; BYOK cloud is designed (ladder present) but its real key-gated provider is
+not yet implemented. See the advanced-editing plan Phases 1→4.
+
+---
+
+**Symptom (original):** `image-tools models install <id> --wait` reports ✅ success in ~1s
 for any model, pins a real sha256, and marks it `installed`. The downloaded
 "weights" are not a model. Reproduced live: `models install u2netp` produced a
 **441 KB GitHub HTML page** (`<!DOCTYPE html>…`) saved as
@@ -364,6 +408,40 @@ is the foundational phase of the image-tools advanced-editing plan.
 **Refs:** `api/internal/models/` (installer / `Downloader`),
 `api/internal/models/registry.seed.json` (`source.download_url` ×49), the
 2026-06-17 attended-acceptance entry above.
+
+### 2026-06-18 — requirements registry falsely marks unbuilt P1 modules "complete" (traceability drift)
+
+**Symptom:** 23 of 28 requirement modules report `status: complete`, but modules
+**14 (gen-breadth), 15 (enh-breadth), 16 (analysis-breadth), 17 (recipes),
+18 (batch/watch), 19 (webhooks), 20 (safety/provenance), 22 (image-diff),
+23 (presets)** are NOT implemented — their ops are absent from the AI/analysis
+catalogs (`ai list` = 7 ops, `analyze list` = 3) and their packages don't exist.
+Verified phantom validation refs: `api/internal/ai/sam_test.go`,
+`api/internal/ai/restoration_test.go`, `api/internal/provenance/`,
+`api/internal/byok/` — all MISSING, yet cited with `status: implemented`.
+(Module 21/editor-layer IS genuinely built via the Lume UX; 24–28 are honestly
+`planned`.)
+
+**Root cause:** `requirements validate` checks schema + PRD linkage, not whether
+the cited validation-ref files exist or the ops are wired — so optimistic
+"complete" statuses and phantom refs pass validation. The modules were marked
+complete at generation / early-phase time and never corrected as scope reality
+diverged.
+
+**Workaround:** Trust PROGRESS.md + the live op catalogs over the requirement
+`status` fields until corrected.
+
+**Real fix:** A focused, per-module pass (NOT a mass-update script — edit each
+file individually per the repo rule): flip the 9 modules' requirement status to
+`planned`, set their validation entries to `planned`, and repoint or remove the
+phantom validation refs. Scheduled as the first task of the advanced-editing
+plan's Phase 1 prep. Consider teaching `requirements validate` to verify ref
+existence for `implemented` entries.
+
+**Owner:** unassigned (image-tools requirements).
+
+**Refs:** `requirements/{14..20,22,23}/module.json`, `requirements/index.json`,
+`api/internal/ai/catalog.go`, `docs/internal/PROGRESS.md`.
 
 ## Architecture Drift
 

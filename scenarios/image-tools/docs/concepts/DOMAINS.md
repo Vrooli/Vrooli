@@ -384,6 +384,15 @@ are real enough to affect architecture or requirements.
 | editor | Light non-destructive UI op-stack layer (OT-P1-008) lives on top of `ops`/`recipes` rather than as a separate bounded context. | If undo/redo/session state grows persistent semantics warranting ownership. |
 | imagediff | General-purpose image diff/visual-comparison (OT-P1-009, consumed by test-genie at P2) — likely an operation within `analysis` or a thin domain. | When P1 lands and test-genie adoption (OT-P2-002) requires a stable contract. |
 | consumer-embed | Embeddable UI component + stable contract for rich-media-studio (OT-P2-001). | When rich-media-studio composition work begins. |
+| looks | The Look/Style Library (OT-P1-012) — data-defined, thumbnail-backed, AI-aware Looks that compile to {prompt + mask/selection + params}; generalizes presets (OT-P1-010) + recipes (OT-P1-004). Likely owns a small `looks` store + a look→request compiler built ON the `recipes` representation. | When the advanced-editing plan reaches Phase 3. |
+| selection | Smart-Select → Classify → Contextual Edit (OT-P1-013) — a SAM-backed `segment` op + region classification + a canvas selection→edit compiler. Spans `analysis`/`enhancement` ops + a UI layer; may stay folded into those domains rather than its own context. | When Phase 3 selection work begins; split out only if it grows its own state. |
+
+> **Refined vision (2026-06-18 advanced-editing workshop).** Beyond the table
+> above, `enhancement` gains a **Naturalize** op (OT-P1-011, de-plasticize) and
+> `generation` gains an **instruction-edit** op + model class (OT-P1-014); a new
+> **Functional AI Substrate** target (OT-P0-014) makes real model+backend
+> provisioning a precondition for any AI op actually running. See
+> [`../internal/DECISIONS.md`](../internal/DECISIONS.md) (2026-06-18 rows).
 
 ## Non-Domains
 

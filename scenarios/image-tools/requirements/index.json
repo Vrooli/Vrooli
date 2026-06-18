@@ -32,6 +32,12 @@
     "25-testgenie-adoption/module.json",
     "26-gpu-hardening/module.json",
     "27-model-tiers-relight/module.json",
-    "28-deferred-ops/module.json"
+    "28-deferred-ops/module.json",
+    "29-real-provisioning/module.json",
+    "30-naturalize/module.json",
+    "31-look-style-library/module.json",
+    "32-smart-select-edit/module.json",
+    "33-instruction-edit/module.json",
+    "34-responsible-use-gate/module.json"
   ]
 }

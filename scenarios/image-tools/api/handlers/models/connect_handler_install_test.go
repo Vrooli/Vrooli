@@ -1,6 +1,7 @@
 package models
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
@@ -47,7 +48,9 @@ func newInstallHandler(t *testing.T) (*connectHandler, *internalmodels.Installer
 		Custom: internalmodels.NewCustomStore(d),
 		State:  internalmodels.NewInstallStore(d),
 		Download: downloaderTo(func(dest string) error {
-			return os.WriteFile(dest, []byte("weights"), 0o644)
+			// Above the installer's 1 KiB artifact-validation floor and not HTML,
+			// so it passes validation (the bytes stand in for a real weight).
+			return os.WriteFile(dest, bytes.Repeat([]byte("weights\n"), 256), 0o644)
 		}),
 		DiskAvail: func(string) (int64, error) { return int64(100) << 30, nil },
 	}

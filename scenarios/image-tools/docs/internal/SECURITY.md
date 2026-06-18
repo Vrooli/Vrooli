@@ -78,6 +78,29 @@ mitigations that must be built, not deficiencies in shipped code.
 | Secret isolation (no key persistence with images/logs) not yet audited | high | Before BYOK cloud tier or C2PA signing ships. |
 | NSFW auto-scan defaults and hardening policy undefined | medium | Before AI generation output is exposed to end users. |
 
+## Responsible Use & Deployment Gate
+
+image-tools can edit images of real, identifiable people (inpaint,
+instruction-edit, naturalize, smart-select). The **capability** is unrestricted
+for local / personal use and during development. **Public or monetized
+deployment** is gated behind a Responsible-Use checklist (OT-P1-015) — the
+capability is built freely; only public *exposure* is gated:
+
+| Control | Local / personal | Public / monetized deploy |
+|---|---|---|
+| NSFW/CSAM safety auto-scan | optional | **on by default** (CSAM refusal is non-negotiable) |
+| C2PA content-credential provenance | optional | **on by default** (≥ real-person edits) |
+| Acceptable-Use Policy published | n/a | **required** |
+| Consent affirmation + logging on identity-altering ops | n/a | **required** |
+| Abuse rate-limiting / monitoring | n/a | **required** |
+| Hard non-goals (no recognition / face-swap / deepfake) | enforced | enforced |
+
+Consent weight is **not uniform**: Naturalize (realism/texture only — same
+person, same everything) is low-weight; aging/makeup are low–medium; body,
+clothing (esp. removal), and pose changes are **high-weight** and carry the most
+exposure. Most of this gate is policy + a few default flips, not new
+architecture, and it must not block personal use or capability development.
+
 ## Cross-References
 
 - [`DECISIONS.md`](DECISIONS.md) — security-relevant design decisions (webhooks, C2PA, NSFW labels)

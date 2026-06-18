@@ -25,6 +25,33 @@ func (f fakeProvider) Execute(context.Context, Request) (Result, error) {
 	return Result{OutputRef: "out", Tier: TierLocalCPU}, nil
 }
 
+// cpuOnlyProvider is a standalone backend that cannot use the GPU (e.g. the
+// onnxruntime sidecar bound to CPUExecutionProvider). It implements the optional
+// GPUCapable() capability returning false.
+type cpuOnlyProvider struct{ fakeProvider }
+
+func (cpuOnlyProvider) GPUCapable() bool { return false }
+
+// TestSelectCPUOnlyBackendNeverLabelsGPU proves the honest-tier fix: a CPU-only
+// backend reports local-cpu even when the host has a GPU-viable path, with a
+// warning, so the tier label never overstates where the op ran.
+func TestSelectCPUOnlyBackendNeverLabelsGPU(t *testing.T) {
+	ctx := context.Background()
+	r := New()
+	_ = r.Register(cpuOnlyProvider{fakeProvider{name: "onnxruntime", ops: []string{"background_removal"}, standalone: true, available: true}})
+
+	sel, err := r.SelectProvider(ctx, SelectRequest{Operation: "background_removal", ModelBackend: "onnxruntime", GPUViable: true})
+	if err != nil {
+		t.Fatalf("select: %v", err)
+	}
+	if sel.Tier != TierLocalCPU {
+		t.Fatalf("CPU-only backend must report local-cpu even on a GPU host, got %s", sel.Tier)
+	}
+	if len(sel.Warnings) == 0 || !strings.Contains(strings.Join(sel.Warnings, " "), "CPU-only") {
+		t.Fatalf("expected a CPU-only warning, got %v", sel.Warnings)
+	}
+}
+
 func TestRegisterRejectsNoOps(t *testing.T) {
 	r := New()
 	if err := r.Register(fakeProvider{name: "x"}); !errors.Is(err, ErrNoOperations) {

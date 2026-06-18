@@ -5,6 +5,23 @@ import (
 	"fmt"
 )
 
+// gpuCapableProvider is an optional Provider capability: a backend that can run
+// on the GPU implements it returning true. Backends that do not implement it are
+// assumed GPU-capable (the historical default); a CPU-only backend implements it
+// returning false so the selector never labels its run "local-gpu".
+type gpuCapableProvider interface {
+	GPUCapable() bool
+}
+
+// providerGPUCapable reports whether p can use a GPU. Defaults to true when the
+// provider does not declare its capability.
+func providerGPUCapable(p Provider) bool {
+	if g, ok := p.(gpuCapableProvider); ok {
+		return g.GPUCapable()
+	}
+	return true
+}
+
 // SelectRequest drives provider selection along the ladder.
 type SelectRequest struct {
 	// Operation is the op to run.
@@ -81,34 +98,44 @@ func (r *Registry) SelectProvider(ctx context.Context, req SelectRequest) (Selec
 		}
 	}
 
-	localTier := TierLocalCPU
-	if req.GPUViable {
-		localTier = TierLocalGPU
-	}
-	cpuTransition := func(s *Selection) {
-		if !req.GPUViable {
+	// applyLocalTier sets the honest execution tier for a chosen local provider.
+	// A GPU is only claimed when the host has a GPU-viable path AND the backend
+	// can actually use it: a CPU-only backend (e.g. the onnxruntime sidecar bound
+	// to CPUExecutionProvider) reports local-cpu even on a GPU host, so the tier
+	// label never overstates where the op really runs.
+	applyLocalTier := func(s *Selection, p Provider) {
+		switch {
+		case req.GPUViable && providerGPUCapable(p):
+			s.Tier = TierLocalGPU
+		case req.GPUViable && !providerGPUCapable(p):
+			s.Tier = TierLocalCPU
+			s.Warnings = append(s.Warnings, fmt.Sprintf("backend %q is CPU-only; running on CPU despite an available GPU", p.Name()))
+		default:
+			s.Tier = TierLocalCPU
 			s.Warnings = append(s.Warnings, "no GPU-viable path; running locally on CPU (slower)")
 		}
+		s.Reason = fmt.Sprintf("local backend %q (%s)", p.Name(), s.Tier)
 	}
 
 	switch {
 	case matchLocal != nil:
-		sel := Selection{Provider: matchLocal, Tier: localTier, Reason: fmt.Sprintf("local backend %q (%s)", matchLocal.Name(), localTier)}
-		cpuTransition(&sel)
+		sel := Selection{Provider: matchLocal}
+		applyLocalTier(&sel, matchLocal)
 		return sel, nil
 
 	case otherLocal != nil:
-		sel := Selection{Provider: otherLocal, Tier: localTier, Reason: fmt.Sprintf("local backend %q (%s)", otherLocal.Name(), localTier)}
+		sel := Selection{Provider: otherLocal}
+		applyLocalTier(&sel, otherLocal)
 		if req.ModelBackend != "" {
 			sel.Warnings = append(sel.Warnings, fmt.Sprintf("model's native backend %q unavailable; substituting %q", req.ModelBackend, otherLocal.Name()))
 		}
-		cpuTransition(&sel)
 		return sel, nil
 
 	case comfy != nil:
-		sel := Selection{Provider: comfy, Tier: localTier, Reason: fmt.Sprintf("ComfyUI provider %q (%s)", comfy.Name(), localTier)}
+		sel := Selection{Provider: comfy}
+		applyLocalTier(&sel, comfy)
+		sel.Reason = fmt.Sprintf("ComfyUI provider %q (%s)", comfy.Name(), sel.Tier)
 		sel.Warnings = append(sel.Warnings, "no standalone backend available; using the optional ComfyUI plug-in")
-		cpuTransition(&sel)
 		return sel, nil
 
 	case cloud != nil && req.AllowBYOK:
