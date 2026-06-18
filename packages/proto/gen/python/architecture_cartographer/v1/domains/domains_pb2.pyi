@@ -144,3 +144,35 @@ class ConvergenceReportResponse(_message.Message):
     findings: _containers.RepeatedCompositeFieldContainer[ConvergenceFinding]
     authority_confidence: AuthorityConfidence
     def __init__(self, scenario: _Optional[str] = ..., authority: _Optional[_Union[DomainSource, str]] = ..., findings: _Optional[_Iterable[_Union[ConvergenceFinding, _Mapping]]] = ..., authority_confidence: _Optional[_Union[AuthorityConfidence, str]] = ...) -> None: ...
+
+class DraftDomainsRequest(_message.Message):
+    __slots__ = ("scenario",)
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    def __init__(self, scenario: _Optional[str] = ...) -> None: ...
+
+class ProposedDomain(_message.Message):
+    __slots__ = ("name", "paths", "archetype", "glossary", "confidence", "evidence")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    PATHS_FIELD_NUMBER: _ClassVar[int]
+    ARCHETYPE_FIELD_NUMBER: _ClassVar[int]
+    GLOSSARY_FIELD_NUMBER: _ClassVar[int]
+    CONFIDENCE_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    paths: _containers.RepeatedScalarFieldContainer[str]
+    archetype: str
+    glossary: _containers.RepeatedScalarFieldContainer[str]
+    confidence: str
+    evidence: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, name: _Optional[str] = ..., paths: _Optional[_Iterable[str]] = ..., archetype: _Optional[str] = ..., glossary: _Optional[_Iterable[str]] = ..., confidence: _Optional[str] = ..., evidence: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class DraftDomainsResponse(_message.Message):
+    __slots__ = ("scenario", "domains", "markdown")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    DOMAINS_FIELD_NUMBER: _ClassVar[int]
+    MARKDOWN_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    domains: _containers.RepeatedCompositeFieldContainer[ProposedDomain]
+    markdown: str
+    def __init__(self, scenario: _Optional[str] = ..., domains: _Optional[_Iterable[_Union[ProposedDomain, _Mapping]]] = ..., markdown: _Optional[str] = ...) -> None: ...

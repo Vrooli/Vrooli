@@ -104,6 +104,28 @@ message GraphSummary {
   int32 import_edge_count = 4;
 }
 
+// CoverageBucket reports one mutually-exclusive placement verdict bucket.
+message CoverageBucket {
+  int32 count = 1;
+  // Percent of audited files in this bucket, 0.0–100.0.
+  double percent = 2;
+}
+
+// CoverageSummary reports how completely placement signals classified
+// the audited files. Buckets are mutually exclusive; all_abstained
+// means every available signal declined to score that file, so the
+// audit lacks evidence rather than having a confident conflict.
+message CoverageSummary {
+  int32 total_files = 1;
+  CoverageBucket auto_place = 2;
+  CoverageBucket suggest = 3;
+  CoverageBucket conflict = 4;
+  CoverageBucket all_abstained = 5;
+  // Mirrors AuditRunResponse.authority_confidence as a string for
+  // script consumers that read only the coverage block.
+  string authority_confidence = 6;
+}
+
 // AuditService runs an end-to-end drift audit against a scenario and
 // returns a deterministic, machine-readable summary.
 service AuditService {
@@ -170,6 +192,8 @@ message AuditRunResponse {
   string outcome_reason = 15;
   // Provider-owned local maturity assessment for Test Genie architecture phase.
   common.v1.MaturityAssessment assessment = 16;
+  // Coverage reports placement confidence across audited files.
+  CoverageSummary coverage = 17;
 }
 
 // =============================================================================

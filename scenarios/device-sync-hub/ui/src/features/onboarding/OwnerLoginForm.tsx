@@ -1,79 +1,101 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { Code, ConnectError } from "@connectrpc/connect";
 
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
-import {
-  AuthError,
-  loginOwner,
-  resolveAuthenticatorBaseUrl,
-} from "../../api/authenticator";
+import { identityClient } from "../../api/identity";
 import { useSession } from "../session/SessionProvider";
 
+type Mode = "signin" | "register";
+
 /**
- * "Set up this hub" → owner sign-in. Posts credentials to scenario-authenticator
- * (resolved via `resolveAuthenticatorBaseUrl`) and stores the returned owner JWT
- * in the session; SetupOwnerDevice then becomes reachable. When the authenticator
- * URL can't be resolved for this deployment, the form degrades to the Advanced
- * owner-token paste, which needs no authenticator URL.
+ * Owner sign-in / registration. Posts SAME-ORIGIN to the hub's own
+ * IdentityService (`api/identity`) — the hub forwards to scenario-authenticator
+ * via api-core/discovery and relays the owner JWT, which we store in the
+ * session so SetupOwnerDevice (and every owner-gated RPC) becomes reachable. The
+ * browser never makes a cross-origin call.
+ *
+ * Used by the first-run OnboardingScreen (with a Back button) and by Settings
+ * re-auth (no Back). A fresh user picks "Create account"; an existing one signs
+ * in. Registration auto-issues a token, so either path lands signed-in.
  */
-export function OwnerLoginForm({ onBack }: { onBack: () => void }) {
+export function OwnerLoginForm({ onBack }: { onBack?: () => void }) {
   const { t } = useTranslation();
   const { setOwnerToken } = useSession();
-  const authBase = useMemo(() => resolveAuthenticatorBaseUrl(), []);
-
+  const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
-  const [advancedOpen, setAdvancedOpen] = useState(authBase === null);
-  const [token, setToken] = useState("");
 
-  const loginMutation = useMutation({
-    mutationFn: () => {
-      if (authBase === null) {
-        throw new AuthError("unavailable", t(strings.login.unconfigured));
-      }
-      return loginOwner(authBase, { email: email.trim(), password });
+  const mutation = useMutation({
+    mutationFn: async (): Promise<{ token: string; email: string }> => {
+      const trimmed = email.trim();
+      const resp =
+        mode === "register"
+          ? await identityClient.register({ email: trimmed, password, username: username.trim() })
+          : await identityClient.login({ email: trimmed, password });
+      return { token: resp.token, email: resp.email };
     },
-    onSuccess: (identity) => setOwnerToken(identity.token, identity.email ?? (email.trim() || null)),
+    onSuccess: (resp) => setOwnerToken(resp.token, resp.email || email.trim() || null),
   });
 
-  const handleLogin = () => {
+  const submit = () => {
     setLocalError(null);
-    if (authBase === null) {
-      setLocalError(t(strings.login.unconfigured));
-      setAdvancedOpen(true);
-      return;
-    }
     if (!email.trim() || !password) {
       setLocalError(t(strings.login.missingFields));
       return;
     }
-    loginMutation.mutate();
+    mutation.mutate();
   };
 
-  const handlePasteToken = () => {
+  const switchMode = (next: Mode) => {
+    setMode(next);
     setLocalError(null);
-    if (!token.trim()) {
-      setLocalError(t(strings.owner.missingToken));
-      return;
-    }
-    setOwnerToken(token.trim());
+    mutation.reset();
   };
 
-  const loginErrorMessage = (): string | null => {
+  const errorText = (): string | null => {
     if (localError) return localError;
-    const err = loginMutation.error;
+    const err = mutation.error;
     if (!err) return null;
-    if (err instanceof AuthError && err.code === "invalid_credentials") {
-      return t(strings.login.invalidCredentials);
+    if (err instanceof ConnectError) {
+      switch (err.code) {
+        case Code.Unauthenticated:
+          return t(strings.login.invalidCredentials);
+        case Code.AlreadyExists:
+          return t(strings.register.emailTaken);
+        case Code.InvalidArgument:
+          return t(strings.register.invalidInput, { detail: err.rawMessage });
+        case Code.Unavailable:
+          return t(strings.login.unavailable);
+        default:
+          return t(strings.login.unavailable);
+      }
     }
     return t(strings.login.unavailable);
   };
-  const shownError = loginErrorMessage();
+  const shownError = errorText();
+
+  const tabClass = (active: boolean) =>
+    `flex-1 rounded-control px-3 py-2 text-sm font-medium transition-colors ${
+      active
+        ? "bg-app-primary text-app-primary-foreground"
+        : "bg-app-surface-muted text-app-muted-foreground hover:text-app-foreground"
+    }`;
+
+  const submitLabel =
+    mode === "register"
+      ? mutation.isPending
+        ? t(strings.register.submitting)
+        : t(strings.register.submit)
+      : mutation.isPending
+        ? t(strings.login.submitting)
+        : t(strings.login.submit);
 
   return (
     <section
@@ -86,94 +108,84 @@ export function OwnerLoginForm({ onBack }: { onBack: () => void }) {
       </h1>
       <p className="mt-1 text-sm text-app-muted-foreground">{t(strings.login.intro)}</p>
 
-      {authBase === null && (
-        <p className="mt-4 rounded-control border border-app-border bg-app-surface-muted p-3 text-sm text-app-muted-foreground">
-          {t(strings.login.unconfigured)}
-        </p>
-      )}
-
-      {authBase !== null && (
-        <form
-          className="mt-6 flex flex-col gap-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleLogin();
-          }}
-        >
-          <div className="flex flex-col gap-2">
-            <label htmlFor="login-email" className="text-xs font-medium text-app-muted-foreground">
-              {t(strings.login.emailLabel)}
-            </label>
-            <Input
-              id="login-email"
-              data-testid={selectors.login.emailInput}
-              type="email"
-              autoComplete="username"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder={t(strings.login.emailPlaceholder)}
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <label htmlFor="login-password" className="text-xs font-medium text-app-muted-foreground">
-              {t(strings.login.passwordLabel)}
-            </label>
-            <Input
-              id="login-password"
-              data-testid={selectors.login.passwordInput}
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={t(strings.login.passwordPlaceholder)}
-            />
-          </div>
-          <Button
-            type="submit"
-            data-testid={selectors.login.submit}
-            disabled={loginMutation.isPending}
-          >
-            {loginMutation.isPending ? t(strings.login.submitting) : t(strings.login.submit)}
-          </Button>
-        </form>
-      )}
-
-      <div className="mt-6 border-t border-app-border pt-4">
+      <div role="tablist" aria-label={t(strings.login.title)} className="mt-5 flex gap-2">
         <button
           type="button"
-          data-testid={selectors.login.advancedToggle}
-          aria-expanded={advancedOpen}
-          className="text-sm font-medium text-app-muted-foreground hover:text-app-foreground"
-          onClick={() => setAdvancedOpen((v) => !v)}
+          role="tab"
+          data-testid={selectors.login.tabSignIn}
+          aria-selected={mode === "signin"}
+          className={tabClass(mode === "signin")}
+          onClick={() => switchMode("signin")}
         >
-          {t(strings.login.advancedToggle)}
+          {t(strings.login.tabSignIn)}
         </button>
-        {advancedOpen && (
-          <div className="mt-3 flex flex-col gap-2">
-            <p className="text-xs text-app-muted-foreground">{t(strings.login.advancedIntro)}</p>
-            <label htmlFor="owner-token" className="sr-only">
-              {t(strings.owner.tokenLabel)}
+        <button
+          type="button"
+          role="tab"
+          data-testid={selectors.login.tabCreate}
+          aria-selected={mode === "register"}
+          className={tabClass(mode === "register")}
+          onClick={() => switchMode("register")}
+        >
+          {t(strings.login.tabCreate)}
+        </button>
+      </div>
+
+      <form
+        className="mt-5 flex flex-col gap-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          submit();
+        }}
+      >
+        <div className="flex flex-col gap-2">
+          <label htmlFor="login-email" className="text-xs font-medium text-app-muted-foreground">
+            {t(strings.login.emailLabel)}
+          </label>
+          <Input
+            id="login-email"
+            data-testid={selectors.login.emailInput}
+            type="email"
+            autoComplete="username"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder={t(strings.login.emailPlaceholder)}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="login-password" className="text-xs font-medium text-app-muted-foreground">
+            {t(strings.login.passwordLabel)}
+          </label>
+          <Input
+            id="login-password"
+            data-testid={selectors.login.passwordInput}
+            type="password"
+            autoComplete={mode === "register" ? "new-password" : "current-password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder={t(strings.login.passwordPlaceholder)}
+          />
+        </div>
+        {mode === "register" && (
+          <div className="flex flex-col gap-2">
+            <label htmlFor="login-username" className="text-xs font-medium text-app-muted-foreground">
+              {t(strings.register.usernameLabel)}
             </label>
             <Input
-              id="owner-token"
-              data-testid={selectors.owner.tokenInput}
-              type="password"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              placeholder={t(strings.owner.tokenPlaceholder)}
+              id="login-username"
+              data-testid={selectors.login.usernameInput}
+              type="text"
+              autoComplete="nickname"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder={t(strings.register.usernamePlaceholder)}
             />
-            <Button
-              data-testid={selectors.owner.signInButton}
-              variant="outline"
-              size="sm"
-              className="w-fit"
-              onClick={handlePasteToken}
-            >
-              {t(strings.owner.signIn)}
-            </Button>
           </div>
         )}
-      </div>
+        <Button type="submit" data-testid={selectors.login.submit} disabled={mutation.isPending}>
+          {submitLabel}
+        </Button>
+      </form>
 
       {shownError && (
         <p data-testid={selectors.login.error} className="mt-4 text-sm text-app-danger">
@@ -181,15 +193,17 @@ export function OwnerLoginForm({ onBack }: { onBack: () => void }) {
         </p>
       )}
 
-      <Button
-        data-testid={selectors.onboarding.back}
-        variant="outline"
-        size="sm"
-        className="mt-6"
-        onClick={onBack}
-      >
-        {t(strings.onboarding.back)}
-      </Button>
+      {onBack && (
+        <Button
+          data-testid={selectors.onboarding.back}
+          variant="outline"
+          size="sm"
+          className="mt-6"
+          onClick={onBack}
+        >
+          {t(strings.onboarding.back)}
+        </Button>
+      )}
     </section>
   );
 }

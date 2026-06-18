@@ -43,17 +43,6 @@ UI catalog instead of string-matching messages.
 | Dependency down (Redis unreachable, signing key unavailable) | `unavailable` | Session/revocation/rate-limit op when Redis is down; token issuance when the key is missing | Signals "retry later," distinct from a client error. Redis is required, not optional ([`PERFORMANCE.md`](PERFORMANCE.md)). |
 | Unknown service/repository error | `internal` | Unexpected failure | The underlying error reaches operator logs; the **client body carries no internal detail**. |
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-The template's worked-example `notes` domain uses the generic mapping
-(removed by `vrooli scenario detemplate`):
-
-| Domain error | Connect code | UI i18n key |
-|---|---|---|
-| `ErrInvalidNote` | `invalid_argument` | `errors.invalid_argument` |
-| `ErrNoteNotFound` | `not_found` | `errors.not_found` |
-| Unknown service/repository error | `internal` | `errors.internal` |
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 When you add a domain, keep the mapping file next to that domain's service
 layer. The handler should call the mapper instead of switching on domain
 error types inline.

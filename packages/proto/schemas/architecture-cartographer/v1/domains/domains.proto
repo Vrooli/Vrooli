@@ -129,6 +129,11 @@ service DomainsService {
   // no implementation, an undeclared folder, an advisory UI gap). Findings
   // are graded signal, never a hard gate.
   rpc ConvergenceReport(ConvergenceReportRequest) returns (ConvergenceReportResponse);
+
+  // DraftDomains proposes a docs/concepts/DOMAINS.md inventory from
+  // extracted evidence. It never writes authority; humans ratify the
+  // returned markdown before committing it.
+  rpc DraftDomains(DraftDomainsRequest) returns (DraftDomainsResponse);
 }
 
 message ExtractDomainsRequest {
@@ -192,4 +197,23 @@ message ConvergenceReportResponse {
   // Trust level of the authority rung. LOW means the report is
   // comparing two inferred sets — interpret "no disagreements" carefully.
   AuthorityConfidence authority_confidence = 4;
+}
+
+message DraftDomainsRequest {
+  string scenario = 1;
+}
+
+message ProposedDomain {
+  string name = 1;
+  repeated string paths = 2;
+  string archetype = 3;
+  repeated string glossary = 4;
+  string confidence = 5;
+  repeated string evidence = 6;
+}
+
+message DraftDomainsResponse {
+  string scenario = 1;
+  repeated ProposedDomain domains = 2;
+  string markdown = 3;
 }

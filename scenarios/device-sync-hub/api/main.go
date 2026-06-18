@@ -22,6 +22,7 @@ import (
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
@@ -29,6 +30,7 @@ import (
 
 	devicesH "device-sync-hub/handlers/devices"
 	healthH "device-sync-hub/handlers/health"
+	identityH "device-sync-hub/handlers/identity"
 	realtimeH "device-sync-hub/handlers/realtime"
 	transferH "device-sync-hub/handlers/transfer"
 )
@@ -122,17 +124,17 @@ func main() {
 	}
 
 	// Owner identity, JWTs, and sessions are delegated to scenario-authenticator
-	// over HTTP (docs/concepts/INTEGRATIONS.md). The endpoint is injected by the
-	// lifecycle from the declared dependency. It is required and deliberately has
-	// NO hardcoded default: silently defaulting an auth endpoint would mask a
-	// misconfigured deployment and could point validation at an unintended host.
-	// When unset the auth client is constructed with an empty base URL and fails
-	// closed — owner-gated RPCs reject because no Identity can be injected.
-	authServiceURL := strings.TrimSpace(os.Getenv("AUTH_SERVICE_URL"))
-	if authServiceURL == "" {
-		log.Print("scenario-authenticator endpoint is not configured; owner authentication will fail closed until it is set")
-	}
-	authClient := auth.NewClient(auth.Config{BaseURL: authServiceURL})
+	// (docs/concepts/INTEGRATIONS.md). The hub verifies owner tokens LOCALLY
+	// against the authenticator's published RS256 key (JWKS); the authenticator's
+	// API URL is resolved at runtime *by name* via api-core/discovery — no
+	// AUTH_SERVICE_URL env var and no hardcoded port (discovery asks the
+	// lifecycle for the live port). The authenticator is contacted only to fetch
+	// the signing key (cached) and to revoke sessions, never per request, so a
+	// momentarily-down authenticator never breaks an already-issued session.
+	// One resolver, shared by the owner-token verifier and the identity
+	// forwarder, resolves scenario-authenticator's URL by name at call time.
+	authResolver := discovery.NewResolver(discovery.ResolverConfig{})
+	authClient := auth.NewClient(auth.Config{Resolver: authResolver})
 
 	clk := clock.System{}
 	logger := log.Default()
@@ -164,6 +166,7 @@ func main() {
 		server.Deps{Clock: clk, Logger: logger},
 		healthH.Module(db, "device-sync-hub-api", "1.0.0"),
 		devicesH.Module(db, clk, authClient, hub, logger),
+		identityH.Module(authResolver, logger),
 		transferWiring.Module,
 		realtimeH.Module(hub, logger),
 	)

@@ -4,6 +4,33 @@
   "description": "Device Sync Hub CLI surface. Single source of truth for the connect-rpc command shape of the devices and transfer domains: schema-validated against cli-manifest/v1 and cross-validated against each service's proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest. The transfer REST byte edges (`transfer upload`, `transfer download`) are appended in cli/domains/transfer/register.go because cli-manifest/v1 only models connect-rpc bindings.",
   "groups": [
     {
+      "name": "auth",
+      "description": "Sign in or create the hub owner account (via the hub's IdentityService, which forwards to scenario-authenticator)",
+      "commands": [
+        {
+          "name": "login",
+          "description": "Sign in as the owner and store the returned token",
+          "flags": [
+            { "name": "email", "required": true, "description": "Owner account email" },
+            { "name": "password", "required": true, "description": "Owner account password" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "IdentityService", "method": "Login" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        },
+        {
+          "name": "register",
+          "description": "Create the owner account and store the returned token",
+          "flags": [
+            { "name": "email", "required": true, "description": "Owner account email" },
+            { "name": "password", "required": true, "description": "Owner account password" },
+            { "name": "username", "description": "Optional display name" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "IdentityService", "method": "Register" },
+          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+        }
+      ]
+    },
+    {
       "name": "devices",
       "description": "Manage the owner's trusted devices: first-run setup, pairing, approval, rename, revoke",
       "commands": [

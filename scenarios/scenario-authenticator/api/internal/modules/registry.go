@@ -22,11 +22,15 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	authH "scenario-authenticator/handlers/auth"
 	healthH "scenario-authenticator/handlers/health"
-	notesH "scenario-authenticator/handlers/notes" // EXAMPLE-DOMAIN:notes
+	jwksH "scenario-authenticator/handlers/jwks"
+	sessionsH "scenario-authenticator/handlers/sessions"
+	auditdb "scenario-authenticator/internal/audit"
 	localdb "scenario-authenticator/internal/database"
 
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/notes" // EXAMPLE-DOMAIN:notes
+	accountsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/accounts"
+	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/sessions"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -36,7 +40,9 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
-	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
+	out = append(out, authH.Endpoints...)
+	out = append(out, jwksH.Endpoints...)
+	out = append(out, sessionsH.Endpoints...)
 	return out
 }
 
@@ -63,7 +69,8 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
-		{Module: "notes", File: notesv1.File_scenario_authenticator_v1_notes_notes_proto}, // EXAMPLE-DOMAIN:notes
+		{Module: "auth", File: accountsv1.File_scenario_authenticator_v1_accounts_accounts_proto},
+		{Module: "sessions", File: sessionsv1.File_scenario_authenticator_v1_sessions_sessions_proto},
 	}
 }
 
@@ -78,6 +85,7 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema), // EXAMPLE-DOMAIN:notes
+		apidb.SchemaProviderFunc(authH.Schema),
+		apidb.SchemaProviderFunc(auditdb.Schema),
 	}
 }

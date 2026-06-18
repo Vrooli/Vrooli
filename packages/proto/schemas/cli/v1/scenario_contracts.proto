@@ -800,3 +800,86 @@ message ScenarioOrientationCheck {
   // True when the check is optional.
   bool optional = 6;
 }
+
+// -----------------------------------------------------------------------------
+// `scenario detemplate`
+// -----------------------------------------------------------------------------
+
+// ScenarioDetemplateResponse is the envelope of `vrooli scenario detemplate
+// --json` (cliout.WriteFieldsWithSuccess; success is always true).
+message ScenarioDetemplateResponse {
+  // Standard success flag (always true for this command).
+  bool success = 1;
+
+  // The detemplate result under the "detemplate" envelope key.
+  ScenarioDetemplateResult detemplate = 2;
+}
+
+// ScenarioDetemplateResult reports what `vrooli scenario detemplate` removed
+// (scenariocli.DetemplateResult): the example-domain marker, the fenced doc
+// blocks and registration lines stripped, the whole files/dirs deleted, and
+// the finalizer outcomes.
+message ScenarioDetemplateResult {
+  // Scenario slug.
+  string scenario = 1;
+
+  // Absolute scenario path; empty if unset.
+  string scenario_path = 2;
+
+  // Example-domain marker that was removed (e.g. "notes").
+  string marker = 3;
+
+  // True when this was a --dry-run preview (nothing written or deleted).
+  bool dry_run = 4;
+
+  // Total fenced EXAMPLE-DOMAIN blocks removed across all files.
+  int32 blocks_removed = 5;
+
+  // Total registration lines stripped across all files.
+  int32 lines_stripped = 6;
+
+  // Per-file marker-removal summaries; empty when none.
+  repeated ScenarioDetemplateFile files_edited = 7;
+
+  // Whole files/dirs deleted (scenario-relative, or repo-relative for the
+  // relocated proto tree); empty when none.
+  repeated string paths_deleted = 8;
+
+  // Finalizer command outcomes; empty when none ran.
+  repeated ScenarioDetemplateFinalizer finalizers = 9;
+
+  // Status message; empty if unset.
+  string message = 10;
+}
+
+// ScenarioDetemplateFile is one file's marker-removal summary
+// (scenariocli.FileMarkerSummary).
+message ScenarioDetemplateFile {
+  // File path (scenario-relative).
+  string path = 1;
+
+  // Fenced blocks removed from this file.
+  int32 blocks_removed = 2;
+
+  // Registration lines stripped from this file.
+  int32 lines_stripped = 3;
+}
+
+// ScenarioDetemplateFinalizer is one post-strip finalizer outcome
+// (scenariocli.DetemplateFinalizer).
+message ScenarioDetemplateFinalizer {
+  // Human description of the finalizer.
+  string description = 1;
+
+  // Command line that was (or would be) run.
+  string command = 2;
+
+  // True when the finalizer actually ran (false on dry-run or when skipped).
+  bool ran = 3;
+
+  // True when the finalizer succeeded.
+  bool ok = 4;
+
+  // Finalizer message; empty if unset.
+  string message = 5;
+}

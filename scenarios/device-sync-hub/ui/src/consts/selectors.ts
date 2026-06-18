@@ -350,8 +350,6 @@ const literalSelectors = {
   },
   owner: {
     panel: "owner-panel",
-    tokenInput: "owner-token-input",
-    signInButton: "owner-sign-in-button",
     signOutButton: "owner-sign-out-button",
     status: "owner-status",
   },
@@ -363,11 +361,13 @@ const literalSelectors = {
   },
   login: {
     form: "login-form",
+    tabSignIn: "login-tab-signin",
+    tabCreate: "login-tab-create",
     emailInput: "login-email-input",
     passwordInput: "login-password-input",
+    usernameInput: "login-username-input",
     submit: "login-submit",
     error: "login-error",
-    advancedToggle: "login-advanced-toggle",
   },
   setupDevice: {
     panel: "setup-device-panel",

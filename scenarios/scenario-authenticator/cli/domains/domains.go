@@ -1,7 +1,8 @@
 package domains
 
 import (
-	"scenario-authenticator/cli/domains/notes" // EXAMPLE-DOMAIN:notes
+	"scenario-authenticator/cli/domains/auth"
+	"scenario-authenticator/cli/domains/sessions"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -37,12 +38,18 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
 	groups := []cliapp.SubcommandGroup{}
-	// EXAMPLE-DOMAIN:notes START
-	notesGroup, err := notes.Register(core, manifest)
+
+	authGroup, err := auth.Register(core, manifest)
 	if err != nil {
 		return nil, err
 	}
-	groups = append(groups, notesGroup)
-	// EXAMPLE-DOMAIN:notes END
+	groups = append(groups, authGroup)
+
+	sessionsGroup, err := sessions.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, sessionsGroup)
+
 	return groups, nil
 }

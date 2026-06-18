@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+package vrooli.scenario_authenticator.v1.sessions;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/sessions;sessions_v1";
+
+// =============================================================================
+// SESSIONS DOMAIN — session enumeration and revocation
+// =============================================================================
+//
+// @stability stable
+//
+// Wire contract for SessionsService: list a user's active sessions, revoke one
+// by id, and revoke all ("log out everywhere"). Sessions are Redis-backed hot
+// state.
+//
+// RevokeSession replaces the old REST `DELETE /api/v1/sessions/{id}` that
+// device-sync-hub called when un-pairing a device. It preserves that contract's
+// IDEMPOTENT semantics: revoking an already-gone session succeeds (the REST edge
+// returned 200/204/404 interchangeably). device-sync-hub migrates to this RPC
+// in lockstep; the REST endpoint is not retained.
+//
+// Consumed by:
+//   - API: handlers/sessions/connect_handler.go implements the generated
+//          SessionsServiceHandler.
+//   - CLI: cli/domains/auth (sessions subcommands).
+//   - RP:  device-sync-hub internal/auth.RevokeSession on device un-pair.
+// =============================================================================
+
+service SessionsService {
+  // ListSessions returns the active sessions for the access token's owner.
+  rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse);
+
+  // RevokeSession drops a single session by id. Idempotent: revoking a session
+  // that does not exist (or is already gone) returns success.
+  rpc RevokeSession(RevokeSessionRequest) returns (RevokeSessionResponse);
+
+  // RevokeAllSessions drops every session for the access token's owner
+  // ("log out everywhere") and returns how many were revoked.
+  rpc RevokeAllSessions(RevokeAllSessionsRequest) returns (RevokeAllSessionsResponse);
+}
+
+// Session is the wire shape for a single active session. Never carries the JWT
+// or refresh token material.
+message Session {
+  string id = 1;
+  string user_id = 2;
+  string ip_address = 3;
+  string user_agent = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp expires_at = 6;
+}
+
+message ListSessionsRequest {
+  // Access token identifying whose sessions to list.
+  string access_token = 1;
+}
+
+message ListSessionsResponse {
+  repeated Session sessions = 1;
+}
+
+message RevokeSessionRequest {
+  // Id of the session to revoke. A blank id is a no-op success.
+  string session_id = 1;
+}
+
+message RevokeSessionResponse {
+}
+
+message RevokeAllSessionsRequest {
+  // Access token identifying whose sessions to revoke.
+  string access_token = 1;
+}
+
+message RevokeAllSessionsResponse {
+  // Number of sessions revoked.
+  int64 revoked_count = 1;
+}

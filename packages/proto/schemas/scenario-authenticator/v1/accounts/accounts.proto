@@ -1,0 +1,158 @@
+syntax = "proto3";
+
+package vrooli.scenario_authenticator.v1.accounts;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/accounts;accounts_v1";
+
+// =============================================================================
+// ACCOUNTS DOMAIN — multi-tenant Identity Provider account lifecycle
+// =============================================================================
+//
+// @stability stable
+//
+// Wire contract for AccountsService, the P0 core of the authenticator's
+// Identity Provider surface: register, sign in, refresh, sign out, and validate
+// owner tokens. Relying parties (e.g. device-sync-hub) verify the issued RS256
+// tokens LOCALLY against the published JWKS and never call Validate per request;
+// Validate exists for diagnostic / non-RP callers.
+//
+// FROZEN wire invariants (changing any silently breaks device-sync-hub):
+//   - the issued JWT's `iss` is "scenario-authenticator"
+//   - the JWT's primary identity claim is `user_id` (not `sub`; sub is mirrored
+//     additively)
+//   - tokens are `aud`-scoped to the realm; the default realm's aud is
+//     "scenario-authenticator:default"
+//
+// Realm is the multi-tenant primitive. At P0 a single "default" realm exists;
+// the `realm` request field is carried now (additive-friendly) so explicit
+// realm selection (P1) lands without a wire break. An empty realm resolves to
+// the default.
+//
+// Consumed by:
+//   - API: handlers/auth/connect_handler.go implements the generated
+//          AccountsServiceHandler.
+//   - CLI: cli/domains/auth calls the generated Connect-Go client.
+//   - RP:  device-sync-hub internal/identity forwards Login/Register via the
+//          generated Connect client.
+// =============================================================================
+
+service AccountsService {
+  // Register creates an account in a realm and returns it auto-signed-in
+  // (access + refresh token issued). A duplicate email yields ALREADY_EXISTS;
+  // weak/invalid input yields INVALID_ARGUMENT. Responses never disclose
+  // account existence beyond these documented codes.
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+
+  // Login verifies credentials and issues a fresh access + refresh token.
+  // Invalid credentials and unknown accounts both yield UNAUTHENTICATED with an
+  // identical message (anti-enumeration). A locked account yields
+  // PERMISSION_DENIED.
+  rpc Login(LoginRequest) returns (LoginResponse);
+
+  // Refresh rotates a refresh token single-use and mints a new access token.
+  // Presenting an already-rotated token revokes the entire token family
+  // (reuse detection) and yields UNAUTHENTICATED.
+  rpc Refresh(RefreshRequest) returns (RefreshResponse);
+
+  // Logout revokes the caller's current session and blacklists the access
+  // token until its own expiry. Idempotent.
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+
+  // Validate verifies an access token server-side and returns its claims.
+  // Honors the realm aud-scoping: a token minted for a different realm is
+  // rejected. RPs should prefer local JWKS verification; this is for callers
+  // that cannot verify locally.
+  rpc Validate(ValidateRequest) returns (ValidateResponse);
+}
+
+// Account is the wire shape for a single account resource. Never carries a
+// password or any hash.
+message Account {
+  // UUID assigned by the API on create.
+  string id = 1;
+  // Login identifier, unique within a realm.
+  string email = 2;
+  // Optional display name.
+  string username = 3;
+  // Coarse realm roles (e.g. "user", "admin"). Fine-grained authorization is
+  // the relying party's concern.
+  repeated string roles = 4;
+  // Realm (tenant) the account belongs to. "default" at P0.
+  string realm = 5;
+  // Whether the email has been verified (P1 flows set this; false at P0).
+  bool email_verified = 6;
+  // Server time the account was first persisted.
+  google.protobuf.Timestamp created_at = 7;
+}
+
+// TokenPair is the issued access + refresh token, plus the access token's
+// expiry so a caller can schedule a refresh without decoding the JWT.
+message TokenPair {
+  // RS256 JWT bearer access token (short-lived).
+  string access_token = 1;
+  // Opaque refresh token (longer-lived, single-use, rotated on refresh).
+  string refresh_token = 2;
+  // Access-token expiry.
+  google.protobuf.Timestamp access_token_expires_at = 3;
+}
+
+message RegisterRequest {
+  string email = 1;
+  string password = 2;
+  string username = 3;
+  // Realm to create the account in. Empty resolves to the default realm.
+  string realm = 4;
+}
+
+message RegisterResponse {
+  Account account = 1;
+  TokenPair tokens = 2;
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+  // Realm to authenticate against. Empty resolves to the default realm.
+  string realm = 3;
+}
+
+message LoginResponse {
+  Account account = 1;
+  TokenPair tokens = 2;
+}
+
+message RefreshRequest {
+  string refresh_token = 1;
+}
+
+message RefreshResponse {
+  TokenPair tokens = 1;
+}
+
+message LogoutRequest {
+  // The access token to invalidate (blacklisted until its own expiry).
+  string access_token = 1;
+}
+
+message LogoutResponse {
+}
+
+message ValidateRequest {
+  string access_token = 1;
+}
+
+message ValidateResponse {
+  // True only when the token's signature, expiry, issuer, and realm aud all
+  // check out and it is not blacklisted.
+  bool valid = 1;
+  // The frozen primary identity claim.
+  string user_id = 2;
+  string email = 3;
+  repeated string roles = 4;
+  // Realm the token is scoped to.
+  string realm = 5;
+  // Token expiry.
+  google.protobuf.Timestamp expires_at = 6;
+}

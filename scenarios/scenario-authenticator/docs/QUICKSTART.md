@@ -98,23 +98,6 @@ Proto-typed calls hit
 `/vrooli.scenario_authenticator.v1.<domain>.<Service>/<Method>` (Connect);
 the only REST endpoints are non-RPC web standards (JWKS, OAuth callbacks).
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-The shipped worked-example `notes` domain illustrates the full shape —
-copy it, then remove it with `vrooli scenario detemplate`:
-
-```bash
-scenario-authenticator notes list
-scenario-authenticator notes create --title "First note" --body "Hello"
-```
-
-```bash
-API_PORT=$(vrooli scenario port scenario-authenticator API_PORT)
-curl -s -X POST "http://localhost:${API_PORT}/vrooli.scenario_authenticator.v1.notes.NotesService/ListNotes" \
-  -H 'Content-Type: application/json' \
-  -d '{}'
-```
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## How a Relying Party points at it
 
 This scenario is consumed **API-to-API** — never via cross-origin browser

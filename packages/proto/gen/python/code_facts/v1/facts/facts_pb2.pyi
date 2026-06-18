@@ -29,6 +29,7 @@ class FactFamily(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     FACT_FAMILY_ENDPOINT_PROOFS: _ClassVar[FactFamily]
     FACT_FAMILY_CLI_PROOFS: _ClassVar[FactFamily]
     FACT_FAMILY_UI_WIDGET_PROOFS: _ClassVar[FactFamily]
+    FACT_FAMILY_FILE_DOMAIN: _ClassVar[FactFamily]
     FACT_FAMILY_ALL: _ClassVar[FactFamily]
 
 class EvidenceStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -75,6 +76,7 @@ FACT_FAMILY_PROTO_ADOPTION: FactFamily
 FACT_FAMILY_ENDPOINT_PROOFS: FactFamily
 FACT_FAMILY_CLI_PROOFS: FactFamily
 FACT_FAMILY_UI_WIDGET_PROOFS: FactFamily
+FACT_FAMILY_FILE_DOMAIN: FactFamily
 FACT_FAMILY_ALL: FactFamily
 EVIDENCE_STATUS_UNSPECIFIED: EvidenceStatus
 EVIDENCE_STATUS_PROVEN: EvidenceStatus

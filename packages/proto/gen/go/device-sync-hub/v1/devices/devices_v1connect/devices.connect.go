@@ -33,6 +33,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// DevicesServiceSetupOwnerDeviceProcedure is the fully-qualified name of the DevicesService's
+	// SetupOwnerDevice RPC.
+	DevicesServiceSetupOwnerDeviceProcedure = "/vrooli.device_sync_hub.v1.devices.DevicesService/SetupOwnerDevice"
 	// DevicesServiceListDevicesProcedure is the fully-qualified name of the DevicesService's
 	// ListDevices RPC.
 	DevicesServiceListDevicesProcedure = "/vrooli.device_sync_hub.v1.devices.DevicesService/ListDevices"
@@ -62,6 +65,14 @@ const (
 // DevicesServiceClient is a client for the vrooli.device_sync_hub.v1.devices.DevicesService
 // service.
 type DevicesServiceClient interface {
+	// SetupOwnerDevice is the first-run bootstrap (owner-authed). It claims the
+	// hub for the calling identity if unclaimed (first-owner-wins; a different
+	// identity on an already-claimed hub is rejected PermissionDenied), then
+	// registers the calling client as a TRUSTED device directly — no pairing
+	// code, because the owner JWT already proves identity. Returns the device
+	// plus its one-time hub device token. Idempotent on ownership: the same owner
+	// calling again simply registers another trusted device.
+	SetupOwnerDevice(context.Context, *connect.Request[devices.SetupOwnerDeviceRequest]) (*connect.Response[devices.SetupOwnerDeviceResponse], error)
 	// ListDevices returns every device in the owner's trust group, newest first.
 	ListDevices(context.Context, *connect.Request[devices.ListDevicesRequest]) (*connect.Response[devices.ListDevicesResponse], error)
 	// GetDevice returns a single device the owner owns.
@@ -96,6 +107,12 @@ func NewDevicesServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 	baseURL = strings.TrimRight(baseURL, "/")
 	devicesServiceMethods := devices.File_device_sync_hub_v1_devices_devices_proto.Services().ByName("DevicesService").Methods()
 	return &devicesServiceClient{
+		setupOwnerDevice: connect.NewClient[devices.SetupOwnerDeviceRequest, devices.SetupOwnerDeviceResponse](
+			httpClient,
+			baseURL+DevicesServiceSetupOwnerDeviceProcedure,
+			connect.WithSchema(devicesServiceMethods.ByName("SetupOwnerDevice")),
+			connect.WithClientOptions(opts...),
+		),
 		listDevices: connect.NewClient[devices.ListDevicesRequest, devices.ListDevicesResponse](
 			httpClient,
 			baseURL+DevicesServiceListDevicesProcedure,
@@ -149,6 +166,7 @@ func NewDevicesServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 
 // devicesServiceClient implements DevicesServiceClient.
 type devicesServiceClient struct {
+	setupOwnerDevice  *connect.Client[devices.SetupOwnerDeviceRequest, devices.SetupOwnerDeviceResponse]
 	listDevices       *connect.Client[devices.ListDevicesRequest, devices.ListDevicesResponse]
 	getDevice         *connect.Client[devices.GetDeviceRequest, devices.GetDeviceResponse]
 	issuePairingCode  *connect.Client[devices.IssuePairingCodeRequest, devices.IssuePairingCodeResponse]
@@ -157,6 +175,11 @@ type devicesServiceClient struct {
 	approvePairing    *connect.Client[devices.ApprovePairingRequest, devices.ApprovePairingResponse]
 	renameDevice      *connect.Client[devices.RenameDeviceRequest, devices.RenameDeviceResponse]
 	revokeDevice      *connect.Client[devices.RevokeDeviceRequest, devices.RevokeDeviceResponse]
+}
+
+// SetupOwnerDevice calls vrooli.device_sync_hub.v1.devices.DevicesService.SetupOwnerDevice.
+func (c *devicesServiceClient) SetupOwnerDevice(ctx context.Context, req *connect.Request[devices.SetupOwnerDeviceRequest]) (*connect.Response[devices.SetupOwnerDeviceResponse], error) {
+	return c.setupOwnerDevice.CallUnary(ctx, req)
 }
 
 // ListDevices calls vrooli.device_sync_hub.v1.devices.DevicesService.ListDevices.
@@ -202,6 +225,14 @@ func (c *devicesServiceClient) RevokeDevice(ctx context.Context, req *connect.Re
 // DevicesServiceHandler is an implementation of the
 // vrooli.device_sync_hub.v1.devices.DevicesService service.
 type DevicesServiceHandler interface {
+	// SetupOwnerDevice is the first-run bootstrap (owner-authed). It claims the
+	// hub for the calling identity if unclaimed (first-owner-wins; a different
+	// identity on an already-claimed hub is rejected PermissionDenied), then
+	// registers the calling client as a TRUSTED device directly — no pairing
+	// code, because the owner JWT already proves identity. Returns the device
+	// plus its one-time hub device token. Idempotent on ownership: the same owner
+	// calling again simply registers another trusted device.
+	SetupOwnerDevice(context.Context, *connect.Request[devices.SetupOwnerDeviceRequest]) (*connect.Response[devices.SetupOwnerDeviceResponse], error)
 	// ListDevices returns every device in the owner's trust group, newest first.
 	ListDevices(context.Context, *connect.Request[devices.ListDevicesRequest]) (*connect.Response[devices.ListDevicesResponse], error)
 	// GetDevice returns a single device the owner owns.
@@ -231,6 +262,12 @@ type DevicesServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewDevicesServiceHandler(svc DevicesServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	devicesServiceMethods := devices.File_device_sync_hub_v1_devices_devices_proto.Services().ByName("DevicesService").Methods()
+	devicesServiceSetupOwnerDeviceHandler := connect.NewUnaryHandler(
+		DevicesServiceSetupOwnerDeviceProcedure,
+		svc.SetupOwnerDevice,
+		connect.WithSchema(devicesServiceMethods.ByName("SetupOwnerDevice")),
+		connect.WithHandlerOptions(opts...),
+	)
 	devicesServiceListDevicesHandler := connect.NewUnaryHandler(
 		DevicesServiceListDevicesProcedure,
 		svc.ListDevices,
@@ -281,6 +318,8 @@ func NewDevicesServiceHandler(svc DevicesServiceHandler, opts ...connect.Handler
 	)
 	return "/vrooli.device_sync_hub.v1.devices.DevicesService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case DevicesServiceSetupOwnerDeviceProcedure:
+			devicesServiceSetupOwnerDeviceHandler.ServeHTTP(w, r)
 		case DevicesServiceListDevicesProcedure:
 			devicesServiceListDevicesHandler.ServeHTTP(w, r)
 		case DevicesServiceGetDeviceProcedure:
@@ -305,6 +344,10 @@ func NewDevicesServiceHandler(svc DevicesServiceHandler, opts ...connect.Handler
 
 // UnimplementedDevicesServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedDevicesServiceHandler struct{}
+
+func (UnimplementedDevicesServiceHandler) SetupOwnerDevice(context.Context, *connect.Request[devices.SetupOwnerDeviceRequest]) (*connect.Response[devices.SetupOwnerDeviceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.device_sync_hub.v1.devices.DevicesService.SetupOwnerDevice is not implemented"))
+}
 
 func (UnimplementedDevicesServiceHandler) ListDevices(context.Context, *connect.Request[devices.ListDevicesRequest]) (*connect.Response[devices.ListDevicesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.device_sync_hub.v1.devices.DevicesService.ListDevices is not implemented"))

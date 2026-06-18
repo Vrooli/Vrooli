@@ -105,6 +105,20 @@ class DeviceProfile(_message.Message):
     capabilities: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, device_name: _Optional[str] = ..., kind: _Optional[str] = ..., platform: _Optional[str] = ..., capabilities: _Optional[_Iterable[str]] = ...) -> None: ...
 
+class SetupOwnerDeviceRequest(_message.Message):
+    __slots__ = ("profile",)
+    PROFILE_FIELD_NUMBER: _ClassVar[int]
+    profile: DeviceProfile
+    def __init__(self, profile: _Optional[_Union[DeviceProfile, _Mapping]] = ...) -> None: ...
+
+class SetupOwnerDeviceResponse(_message.Message):
+    __slots__ = ("device", "device_token")
+    DEVICE_FIELD_NUMBER: _ClassVar[int]
+    DEVICE_TOKEN_FIELD_NUMBER: _ClassVar[int]
+    device: Device
+    device_token: str
+    def __init__(self, device: _Optional[_Union[Device, _Mapping]] = ..., device_token: _Optional[str] = ...) -> None: ...
+
 class RedeemPairingCodeRequest(_message.Message):
     __slots__ = ("code", "profile")
     CODE_FIELD_NUMBER: _ClassVar[int]

@@ -48,27 +48,40 @@ trust, presence, and per-item ACL only. All contact goes through the
 single `AuthClient` seam (`api/internal/auth/`); no other domain calls
 the authenticator directly.
 
-Consumed endpoints:
+Consumed surface (migrated to the authenticator's typed **Connect-RPC**
+contract in lockstep with its P0 rewrite — the old REST edge was retired):
 
-| Endpoint | Purpose | Consumed By |
+| Surface | Purpose | Consumed By |
 |---|---|---|
-| `POST /api/v1/auth/login` | Owner login → access + refresh tokens. | auth (CLI/UI login) |
-| `POST /api/v1/auth/refresh` | Exchange a refresh token for a fresh access token. | auth |
-| `GET\|POST /api/v1/auth/validate` | Validate an access token on each gated request. | auth middleware |
-| `POST /api/v1/auth/logout` | End the owner's session (remote sign-out). | auth, settings |
-| `DELETE /api/v1/sessions/{id}` | Invalidate one device's session on revocation. | devices (revoke) |
+| `AccountsService.Login` (Connect) | Owner login → access + refresh tokens. | identity forwarder (CLI/UI login) |
+| `AccountsService.Register` (Connect) | Create the owner account → tokens. | identity forwarder |
+| `GET /.well-known/jwks.json` (REST) | Fetch the RS256 public key once; verify every owner token **locally**. | auth (`Client`) |
+| `SessionsService.RevokeSession` (Connect) | Invalidate one device's session on revocation. | devices (revoke) |
 
-Revocation contract: revoking a device must call
-`DELETE /api/v1/sessions/{id}` to kill that device's authenticator
-session **and** drop the device from the trust group, atomically in
-effect. A partial failure must leave the device locked out, never
+Verification is **local**, not a per-request callback: the hub fetches
+the JWKS once, caches it, and verifies each owner JWT's signature, `iss`,
+`exp`/`nbf`, and `aud` in-process. The authenticator is contacted only on
+login/register (forwarder) and on session revoke — never per request — so
+a momentarily-unavailable authenticator never breaks an issued session.
+
+**Frozen wire invariants** (the shared cross-scenario contract — see the
+authenticator's [INTEGRATIONS](../../../scenario-authenticator/docs/concepts/INTEGRATIONS.md)):
+`iss == "scenario-authenticator"`, the identity claim is `user_id`, the
+JWKS path is `/.well-known/jwks.json`, and the default-realm audience is
+the single shared constant **`scenario-authenticator:default`**, pinned
+in code as `auth.AuthExpectedAudience`. A token whose `aud` is any other
+realm is rejected even if its signature and issuer are valid (tenant
+isolation).
+
+Revocation contract: revoking a device calls
+`SessionsService.RevokeSession` (idempotent — a missing session succeeds)
+to kill that device's authenticator session **and** drops the device from
+the trust group. A partial failure must leave the device locked out, never
 half-trusted (see the revocation flow in [`FLOWS.md`](FLOWS.md)).
 
-Fail-closed contract: in production the auth middleware validates every
-gated request via `/api/v1/auth/validate`. If the authenticator is
-unreachable, requests are **rejected** — there is no shipped test-mode
-bypass. A brief validation cache (default ≤ 60 s) absorbs transient
-blips, but a stale cache must never re-admit a revoked device. See
+Fail-closed contract: an invalid/expired token, a non-RS256 `alg`, a wrong
+`aud`/`iss`, or an unobtainable signing key all yield no identity, so
+owner-gated RPCs reject. There is no shipped test-mode bypass. See
 [`DOMAINS.md`](DOMAINS.md) (`auth`) and the request path in
 [`ARCHITECTURE.md`](ARCHITECTURE.md).
 

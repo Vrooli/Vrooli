@@ -61,21 +61,25 @@ has been paired.
 
 1. Open the UI. The first-run screen offers two paths: **Set up this hub**
    (you're the owner) or **Join an existing hub**.
-2. Choose **Set up this hub**, sign in with your owner account, then click
-   **Make this my first device**. That claims the hub for you (first-owner-wins)
-   and trusts this browser directly — no pairing code needed.
+2. Choose **Set up this hub**, then **Sign in** with your owner account — or
+   **Create account** if you're new (registration signs you in immediately).
+   Then click **Make this my first device**. That claims the hub for you
+   (first-owner-wins) and trusts this browser directly — no pairing code needed.
 3. You're now in the app. To add more devices, open **Devices → Add a device**
    to issue a pairing code (or let another device request approval).
 
-> If owner sign-in isn't configured for your deployment, the login screen offers
-> an **Advanced: paste an owner token** fallback that accepts an owner JWT
-> directly. Set `VITE_AUTH_API_BASE` to point the UI at scenario-authenticator.
+> Sign-in and registration post to the hub's own API (same origin); the hub
+> forwards to scenario-authenticator, whose URL it resolves automatically by
+> name via `api-core/discovery`. There is nothing to configure — no
+> `AUTH_SERVICE_URL`, no port — and the browser never calls scenario-authenticator
+> directly.
 
 ### From the CLI
 
 ```bash
-# 1. Sign in as the owner (stores the owner token in the CLI config).
-device-sync-hub auth login --email <you@example.com> --password <password>
+# 1. Create the owner account (or `auth login` if you already have one).
+#    Either stores the returned owner token in the CLI config.
+device-sync-hub auth register --email <you@example.com> --password <password>
 device-sync-hub auth whoami            # confirm the signed-in owner
 
 # 2. Claim the hub + trust THIS machine as the first device.
@@ -88,9 +92,11 @@ device-sync-hub devices pair --name "Phone"
 device-sync-hub devices list
 ```
 
-`auth login` targets scenario-authenticator (resolved from `--auth-api-base`,
-`$AUTH_SERVICE_URL`, or by auto-detecting its API port); every owner-authed
-`devices` command then rides the stored owner token automatically.
+`auth register`/`auth login` call the hub's own `IdentityService`, which forwards
+to scenario-authenticator (resolved by name via `api-core/discovery` — no
+`AUTH_SERVICE_URL` or port to set). Every owner-authed `devices` command then
+rides the stored owner token automatically; the hub verifies it locally against
+scenario-authenticator's published RS256 key.
 
 ## 4b — Health check
 

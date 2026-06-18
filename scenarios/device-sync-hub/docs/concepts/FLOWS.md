@@ -37,12 +37,19 @@ workflow model.
 
 ### Owner setup (first device)
 
-- Owner domains: devices (trust + ownership) + auth (identity).
-- Trigger: on a fresh hub the owner signs in (owner JWT validated by
-  scenario-authenticator) and runs `SetupOwnerDevice` (UI "Make this my
-  first device" / CLI `devices setup`).
+- Owner domains: devices (trust + ownership) + identity (sign-in facade).
+- Trigger: on a fresh hub the owner signs in **or creates an account**
+  through the hub's own `IdentityService` (UI "Set up this hub" / CLI
+  `auth login`|`register`). That call is **same-origin** — the browser
+  never calls scenario-authenticator directly; the hub forwards to
+  scenario-authenticator (resolved by name via `api-core/discovery`) and
+  relays the issued owner JWT. The owner then runs `SetupOwnerDevice` (UI
+  "Make this my first device" / CLI `devices setup`).
 - Steps:
-  1. Validate the owner JWT (auth middleware injects the owner identity).
+  1. Verify the owner JWT **locally** against scenario-authenticator's
+     RS256 public key — fetched once via its JWKS endpoint and cached, so
+     there is no per-request call to the authenticator. The auth
+     middleware injects the owner identity.
   2. **Claim** the hub for that identity — first-owner-wins via an atomic
      conditional insert into the single-row `hub_owner` table. A second,
      different identity on an already-claimed hub is rejected

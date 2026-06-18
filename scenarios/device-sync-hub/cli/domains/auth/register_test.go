@@ -1,160 +1,115 @@
 package auth
 
 import (
+	"context"
+	"encoding/base64"
 	"encoding/json"
-	"io"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
+	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
-	"github.com/vrooli/cli-core/cliapp"
+	identityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-sync-hub/v1/identity"
+	identityconnect "github.com/vrooli/vrooli/packages/proto/gen/go/device-sync-hub/v1/identity/identity_v1connect"
+
+	clitest "device-sync-hub/cli/internal/testutil"
 )
 
-// newAuthTestApp builds a ScenarioApp with config isolated to a temp dir so
-// SaveConfig never touches the real CLI config. The API base is irrelevant —
-// auth talks to the authenticator, resolved per-test via --auth-api-base.
-func newAuthTestApp(t *testing.T) *cliapp.ScenarioApp {
-	t.Helper()
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
-		Name:           "device-sync-hub-authtest",
-		Version:        "0.0.0-test",
-		Description:    "auth domain test",
-		DefaultAPIBase: "http://127.0.0.1:0",
-		AllowAnonymous: true,
-	})
-	require.NoError(t, err)
-	return core
+// identityService is a fake IdentityService backing the CLI's connect client.
+type identityService struct {
+	loginResp *identityv1.LoginResponse
+	loginErr  error
+	regResp   *identityv1.RegisterResponse
+	regErr    error
+
+	lastLogin    *identityv1.LoginRequest
+	lastRegister *identityv1.RegisterRequest
 }
 
-// authServer fakes scenario-authenticator's login + validate endpoints.
-type authServer struct {
-	loginStatus int
-	loginBody   any
-	loginSeen   map[string]string
-
-	validStatus int
-	validBody   any
+func (s *identityService) Login(_ context.Context, req *connect.Request[identityv1.LoginRequest]) (*connect.Response[identityv1.LoginResponse], error) {
+	s.lastLogin = req.Msg
+	if s.loginErr != nil {
+		return nil, s.loginErr
+	}
+	return connect.NewResponse(s.loginResp), nil
 }
 
-func (a *authServer) start(t *testing.T) *httptest.Server {
+func (s *identityService) Register(_ context.Context, req *connect.Request[identityv1.RegisterRequest]) (*connect.Response[identityv1.RegisterResponse], error) {
+	s.lastRegister = req.Msg
+	if s.regErr != nil {
+		return nil, s.regErr
+	}
+	return connect.NewResponse(s.regResp), nil
+}
+
+// identityAPI mounts the fake IdentityService as a real Connect HTTP handler.
+func identityAPI(t *testing.T, svc identityconnect.IdentityServiceHandler) http.Handler {
 	t.Helper()
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/v1/auth/login", func(w http.ResponseWriter, r *http.Request) {
-		raw, _ := io.ReadAll(r.Body)
-		_ = json.Unmarshal(raw, &a.loginSeen)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(orDefault(a.loginStatus, http.StatusOK))
-		_ = json.NewEncoder(w).Encode(a.loginBody)
+	path, handler := identityconnect.NewIdentityServiceHandler(svc)
+	mux.Handle(path, handler)
+	return mux
+}
+
+func TestRunLogin(t *testing.T) {
+	t.Run("stores the issued token", func(t *testing.T) {
+		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+		svc := &identityService{loginResp: &identityv1.LoginResponse{Token: "jwt-1", Email: "o@x.io", UserId: "u-1"}}
+		core := clitest.NewTestApp(t, identityAPI(t, svc))
+
+		require.NoError(t, runLogin(core, []string{"--email", "o@x.io", "--password", "pw"}))
+		require.Equal(t, "jwt-1", core.Config.Token)
+		require.Equal(t, "o@x.io", svc.lastLogin.GetEmail())
 	})
-	mux.HandleFunc("/api/v1/auth/validate", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(orDefault(a.validStatus, http.StatusOK))
-		_ = json.NewEncoder(w).Encode(a.validBody)
+
+	t.Run("surfaces an authentication failure and stores nothing", func(t *testing.T) {
+		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+		svc := &identityService{loginErr: connect.NewError(connect.CodeUnauthenticated, context.DeadlineExceeded)}
+		core := clitest.NewTestApp(t, identityAPI(t, svc))
+
+		require.Error(t, runLogin(core, []string{"--email", "o@x.io", "--password", "bad"}))
+		require.Empty(t, core.Config.Token)
 	})
-	srv := httptest.NewServer(mux)
-	t.Cleanup(srv.Close)
-	return srv
+
+	t.Run("requires email and password", func(t *testing.T) {
+		t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+		core := clitest.NewTestApp(t, identityAPI(t, &identityService{}))
+		require.Error(t, runLogin(core, []string{"--email", "o@x.io"}))
+	})
 }
 
-func orDefault(v, def int) int {
-	if v == 0 {
-		return def
-	}
-	return v
+func TestRunRegister(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	svc := &identityService{regResp: &identityv1.RegisterResponse{Token: "jwt-new", Email: "new@x.io", UserId: "u-2"}}
+	core := clitest.NewTestApp(t, identityAPI(t, svc))
+
+	require.NoError(t, runRegister(core, []string{"--email", "new@x.io", "--password", "Str0ng!pw", "--username", "New"}))
+	require.Equal(t, "jwt-new", core.Config.Token)
+	require.Equal(t, "New", svc.lastRegister.GetUsername())
 }
 
-// [REQ:REQ-P0-005] Owner identity is delegated to scenario-authenticator; the CLI stores the returned token.
-func TestLoginStoresToken(t *testing.T) {
-	core := newAuthTestApp(t)
-	as := &authServer{loginBody: authResponse{Success: true, Token: "jwt-owner-1", User: struct {
-		ID    string `json:"id"`
-		Email string `json:"email"`
-	}{ID: "u1", Email: "owner@example.com"}}}
-	srv := as.start(t)
-
-	err := runLogin(core, []string{"--email", "owner@example.com", "--password", "hunter2", "--auth-api-base", srv.URL})
-	require.NoError(t, err)
-	require.Equal(t, "jwt-owner-1", core.Config.Token, "owner token persisted to config")
-	require.Equal(t, "owner@example.com", as.loginSeen["email"], "email forwarded to authenticator")
-	require.Equal(t, "hunter2", as.loginSeen["password"], "password forwarded to authenticator")
-}
-
-func TestLoginRequiresEmailAndPassword(t *testing.T) {
-	core := newAuthTestApp(t)
-	err := runLogin(core, []string{"--email", "owner@example.com"})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "required")
-}
-
-func TestLoginFailureLeavesNoToken(t *testing.T) {
-	core := newAuthTestApp(t)
-	as := &authServer{loginBody: authResponse{Success: false, Message: "invalid credentials"}}
-	srv := as.start(t)
-
-	err := runLogin(core, []string{"--email", "x@y.z", "--password", "bad", "--auth-api-base", srv.URL})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "invalid credentials")
-	require.Empty(t, core.Config.Token, "a failed login must not store a token")
-}
-
-func TestLoginSurfacesAuthRejection(t *testing.T) {
-	core := newAuthTestApp(t)
-	as := &authServer{loginStatus: http.StatusUnauthorized, loginBody: map[string]string{"error": "nope"}}
-	srv := as.start(t)
-
-	err := runLogin(core, []string{"--email", "x@y.z", "--password", "bad", "--auth-api-base", srv.URL})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "rejected the credentials")
-	require.Empty(t, core.Config.Token)
-}
-
-func TestLogoutClearsToken(t *testing.T) {
-	core := newAuthTestApp(t)
-	core.Config.Token = "stale"
+func TestRunLogout(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	core := clitest.NewTestApp(t, identityAPI(t, &identityService{}))
+	core.Config.Token = "jwt-x"
 	require.NoError(t, core.SaveConfig())
 
 	require.NoError(t, runLogout(core, nil))
 	require.Empty(t, core.Config.Token)
 }
 
-func TestWhoamiRequiresToken(t *testing.T) {
-	core := newAuthTestApp(t)
-	err := runWhoami(core, nil)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "not signed in")
-}
+func TestRunWhoami(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	core := clitest.NewTestApp(t, identityAPI(t, &identityService{}))
 
-func TestWhoamiValidatesStoredToken(t *testing.T) {
-	core := newAuthTestApp(t)
-	core.Config.Token = "jwt-owner-1"
-	as := &authServer{validBody: validateResponse{Valid: true, UserID: "u1", Email: "owner@example.com", Roles: []string{"user"}}}
-	srv := as.start(t)
+	// whoami decodes the stored token locally — no server round-trip.
+	payload, _ := json.Marshal(map[string]any{"user_id": "u-9", "email": "owner@x.io", "roles": []string{"user"}})
+	token := "h." + base64.RawURLEncoding.EncodeToString(payload) + ".sig"
+	core.Config.Token = token
 
-	require.NoError(t, runWhoami(core, []string{"--auth-api-base", srv.URL}))
-}
+	require.NoError(t, runWhoami(core, nil))
 
-func TestWhoamiRejectsInvalidToken(t *testing.T) {
-	core := newAuthTestApp(t)
-	core.Config.Token = "expired"
-	as := &authServer{validBody: validateResponse{Valid: false}}
-	srv := as.start(t)
-
-	err := runWhoami(core, []string{"--auth-api-base", srv.URL})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "invalid or expired")
-}
-
-func TestResolveAuthBaseURLPrefersFlagThenEnv(t *testing.T) {
-	// Flag override wins outright (and trailing slash is trimmed).
-	got, err := resolveAuthBaseURL(t.Context(), "http://flag.example/")
-	require.NoError(t, err)
-	require.Equal(t, "http://flag.example", got)
-
-	// With no flag, the AUTH_SERVICE_URL env var is used.
-	t.Setenv(envAuthServiceURL, "http://env.example")
-	got, err = resolveAuthBaseURL(t.Context(), "")
-	require.NoError(t, err)
-	require.Equal(t, "http://env.example", got)
+	// not signed in → clear error
+	core.Config.Token = ""
+	require.Error(t, runWhoami(core, nil))
 }

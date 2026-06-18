@@ -59,6 +59,7 @@ func New(d Deps, modules ...module.Module) *Server {
 		panic("server.New requires Deps.Clock")
 	}
 	s := &Server{deps: d, router: mux.NewRouter()}
+	s.router.Use(middleware.SecurityHeaders)
 	s.router.Use(middleware.NewLoggingMiddleware(d.Clock, d.Logger))
 	for _, m := range modules {
 		m.Mount(s.router)

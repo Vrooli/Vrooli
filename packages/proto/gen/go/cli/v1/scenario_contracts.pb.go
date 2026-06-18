@@ -3391,6 +3391,341 @@ func (x *ScenarioOrientationCheck) GetOptional() bool {
 	return false
 }
 
+// ScenarioDetemplateResponse is the envelope of `vrooli scenario detemplate
+// --json` (cliout.WriteFieldsWithSuccess; success is always true).
+type ScenarioDetemplateResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Standard success flag (always true for this command).
+	Success bool `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	// The detemplate result under the "detemplate" envelope key.
+	Detemplate    *ScenarioDetemplateResult `protobuf:"bytes,2,opt,name=detemplate,proto3" json:"detemplate,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScenarioDetemplateResponse) Reset() {
+	*x = ScenarioDetemplateResponse{}
+	mi := &file_cli_v1_scenario_contracts_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScenarioDetemplateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScenarioDetemplateResponse) ProtoMessage() {}
+
+func (x *ScenarioDetemplateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cli_v1_scenario_contracts_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScenarioDetemplateResponse.ProtoReflect.Descriptor instead.
+func (*ScenarioDetemplateResponse) Descriptor() ([]byte, []int) {
+	return file_cli_v1_scenario_contracts_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *ScenarioDetemplateResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *ScenarioDetemplateResponse) GetDetemplate() *ScenarioDetemplateResult {
+	if x != nil {
+		return x.Detemplate
+	}
+	return nil
+}
+
+// ScenarioDetemplateResult reports what `vrooli scenario detemplate` removed
+// (scenariocli.DetemplateResult): the example-domain marker, the fenced doc
+// blocks and registration lines stripped, the whole files/dirs deleted, and
+// the finalizer outcomes.
+type ScenarioDetemplateResult struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Scenario slug.
+	Scenario string `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	// Absolute scenario path; empty if unset.
+	ScenarioPath string `protobuf:"bytes,2,opt,name=scenario_path,json=scenarioPath,proto3" json:"scenario_path,omitempty"`
+	// Example-domain marker that was removed (e.g. "notes").
+	Marker string `protobuf:"bytes,3,opt,name=marker,proto3" json:"marker,omitempty"`
+	// True when this was a --dry-run preview (nothing written or deleted).
+	DryRun bool `protobuf:"varint,4,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	// Total fenced EXAMPLE-DOMAIN blocks removed across all files.
+	BlocksRemoved int32 `protobuf:"varint,5,opt,name=blocks_removed,json=blocksRemoved,proto3" json:"blocks_removed,omitempty"`
+	// Total registration lines stripped across all files.
+	LinesStripped int32 `protobuf:"varint,6,opt,name=lines_stripped,json=linesStripped,proto3" json:"lines_stripped,omitempty"`
+	// Per-file marker-removal summaries; empty when none.
+	FilesEdited []*ScenarioDetemplateFile `protobuf:"bytes,7,rep,name=files_edited,json=filesEdited,proto3" json:"files_edited,omitempty"`
+	// Whole files/dirs deleted (scenario-relative, or repo-relative for the
+	// relocated proto tree); empty when none.
+	PathsDeleted []string `protobuf:"bytes,8,rep,name=paths_deleted,json=pathsDeleted,proto3" json:"paths_deleted,omitempty"`
+	// Finalizer command outcomes; empty when none ran.
+	Finalizers []*ScenarioDetemplateFinalizer `protobuf:"bytes,9,rep,name=finalizers,proto3" json:"finalizers,omitempty"`
+	// Status message; empty if unset.
+	Message       string `protobuf:"bytes,10,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScenarioDetemplateResult) Reset() {
+	*x = ScenarioDetemplateResult{}
+	mi := &file_cli_v1_scenario_contracts_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScenarioDetemplateResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScenarioDetemplateResult) ProtoMessage() {}
+
+func (x *ScenarioDetemplateResult) ProtoReflect() protoreflect.Message {
+	mi := &file_cli_v1_scenario_contracts_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScenarioDetemplateResult.ProtoReflect.Descriptor instead.
+func (*ScenarioDetemplateResult) Descriptor() ([]byte, []int) {
+	return file_cli_v1_scenario_contracts_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *ScenarioDetemplateResult) GetScenario() string {
+	if x != nil {
+		return x.Scenario
+	}
+	return ""
+}
+
+func (x *ScenarioDetemplateResult) GetScenarioPath() string {
+	if x != nil {
+		return x.ScenarioPath
+	}
+	return ""
+}
+
+func (x *ScenarioDetemplateResult) GetMarker() string {
+	if x != nil {
+		return x.Marker
+	}
+	return ""
+}
+
+func (x *ScenarioDetemplateResult) GetDryRun() bool {
+	if x != nil {
+		return x.DryRun
+	}
+	return false
+}
+
+func (x *ScenarioDetemplateResult) GetBlocksRemoved() int32 {
+	if x != nil {
+		return x.BlocksRemoved
+	}
+	return 0
+}
+
+func (x *ScenarioDetemplateResult) GetLinesStripped() int32 {
+	if x != nil {
+		return x.LinesStripped
+	}
+	return 0
+}
+
+func (x *ScenarioDetemplateResult) GetFilesEdited() []*ScenarioDetemplateFile {
+	if x != nil {
+		return x.FilesEdited
+	}
+	return nil
+}
+
+func (x *ScenarioDetemplateResult) GetPathsDeleted() []string {
+	if x != nil {
+		return x.PathsDeleted
+	}
+	return nil
+}
+
+func (x *ScenarioDetemplateResult) GetFinalizers() []*ScenarioDetemplateFinalizer {
+	if x != nil {
+		return x.Finalizers
+	}
+	return nil
+}
+
+func (x *ScenarioDetemplateResult) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+// ScenarioDetemplateFile is one file's marker-removal summary
+// (scenariocli.FileMarkerSummary).
+type ScenarioDetemplateFile struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// File path (scenario-relative).
+	Path string `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	// Fenced blocks removed from this file.
+	BlocksRemoved int32 `protobuf:"varint,2,opt,name=blocks_removed,json=blocksRemoved,proto3" json:"blocks_removed,omitempty"`
+	// Registration lines stripped from this file.
+	LinesStripped int32 `protobuf:"varint,3,opt,name=lines_stripped,json=linesStripped,proto3" json:"lines_stripped,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScenarioDetemplateFile) Reset() {
+	*x = ScenarioDetemplateFile{}
+	mi := &file_cli_v1_scenario_contracts_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScenarioDetemplateFile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScenarioDetemplateFile) ProtoMessage() {}
+
+func (x *ScenarioDetemplateFile) ProtoReflect() protoreflect.Message {
+	mi := &file_cli_v1_scenario_contracts_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScenarioDetemplateFile.ProtoReflect.Descriptor instead.
+func (*ScenarioDetemplateFile) Descriptor() ([]byte, []int) {
+	return file_cli_v1_scenario_contracts_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *ScenarioDetemplateFile) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *ScenarioDetemplateFile) GetBlocksRemoved() int32 {
+	if x != nil {
+		return x.BlocksRemoved
+	}
+	return 0
+}
+
+func (x *ScenarioDetemplateFile) GetLinesStripped() int32 {
+	if x != nil {
+		return x.LinesStripped
+	}
+	return 0
+}
+
+// ScenarioDetemplateFinalizer is one post-strip finalizer outcome
+// (scenariocli.DetemplateFinalizer).
+type ScenarioDetemplateFinalizer struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Human description of the finalizer.
+	Description string `protobuf:"bytes,1,opt,name=description,proto3" json:"description,omitempty"`
+	// Command line that was (or would be) run.
+	Command string `protobuf:"bytes,2,opt,name=command,proto3" json:"command,omitempty"`
+	// True when the finalizer actually ran (false on dry-run or when skipped).
+	Ran bool `protobuf:"varint,3,opt,name=ran,proto3" json:"ran,omitempty"`
+	// True when the finalizer succeeded.
+	Ok bool `protobuf:"varint,4,opt,name=ok,proto3" json:"ok,omitempty"`
+	// Finalizer message; empty if unset.
+	Message       string `protobuf:"bytes,5,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScenarioDetemplateFinalizer) Reset() {
+	*x = ScenarioDetemplateFinalizer{}
+	mi := &file_cli_v1_scenario_contracts_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScenarioDetemplateFinalizer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScenarioDetemplateFinalizer) ProtoMessage() {}
+
+func (x *ScenarioDetemplateFinalizer) ProtoReflect() protoreflect.Message {
+	mi := &file_cli_v1_scenario_contracts_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScenarioDetemplateFinalizer.ProtoReflect.Descriptor instead.
+func (*ScenarioDetemplateFinalizer) Descriptor() ([]byte, []int) {
+	return file_cli_v1_scenario_contracts_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *ScenarioDetemplateFinalizer) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *ScenarioDetemplateFinalizer) GetCommand() string {
+	if x != nil {
+		return x.Command
+	}
+	return ""
+}
+
+func (x *ScenarioDetemplateFinalizer) GetRan() bool {
+	if x != nil {
+		return x.Ran
+	}
+	return false
+}
+
+func (x *ScenarioDetemplateFinalizer) GetOk() bool {
+	if x != nil {
+		return x.Ok
+	}
+	return false
+}
+
+func (x *ScenarioDetemplateFinalizer) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
 var File_cli_v1_scenario_contracts_proto protoreflect.FileDescriptor
 
 const file_cli_v1_scenario_contracts_proto_rawDesc = "" +
@@ -3666,7 +4001,36 @@ const file_cli_v1_scenario_contracts_proto_rawDesc = "" +
 	"\x06passed\x18\x03 \x01(\bR\x06passed\x12\x18\n" +
 	"\askipped\x18\x04 \x01(\bR\askipped\x12\x18\n" +
 	"\amessage\x18\x05 \x01(\tR\amessage\x12\x1a\n" +
-	"\boptional\x18\x06 \x01(\bR\boptionalB=Z;github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1b\x06proto3"
+	"\boptional\x18\x06 \x01(\bR\boptional\"\x7f\n" +
+	"\x1aScenarioDetemplateResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12G\n" +
+	"\n" +
+	"detemplate\x18\x02 \x01(\v2'.vrooli.cli.v1.ScenarioDetemplateResultR\n" +
+	"detemplate\"\xaf\x03\n" +
+	"\x18ScenarioDetemplateResult\x12\x1a\n" +
+	"\bscenario\x18\x01 \x01(\tR\bscenario\x12#\n" +
+	"\rscenario_path\x18\x02 \x01(\tR\fscenarioPath\x12\x16\n" +
+	"\x06marker\x18\x03 \x01(\tR\x06marker\x12\x17\n" +
+	"\adry_run\x18\x04 \x01(\bR\x06dryRun\x12%\n" +
+	"\x0eblocks_removed\x18\x05 \x01(\x05R\rblocksRemoved\x12%\n" +
+	"\x0elines_stripped\x18\x06 \x01(\x05R\rlinesStripped\x12H\n" +
+	"\ffiles_edited\x18\a \x03(\v2%.vrooli.cli.v1.ScenarioDetemplateFileR\vfilesEdited\x12#\n" +
+	"\rpaths_deleted\x18\b \x03(\tR\fpathsDeleted\x12J\n" +
+	"\n" +
+	"finalizers\x18\t \x03(\v2*.vrooli.cli.v1.ScenarioDetemplateFinalizerR\n" +
+	"finalizers\x12\x18\n" +
+	"\amessage\x18\n" +
+	" \x01(\tR\amessage\"z\n" +
+	"\x16ScenarioDetemplateFile\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12%\n" +
+	"\x0eblocks_removed\x18\x02 \x01(\x05R\rblocksRemoved\x12%\n" +
+	"\x0elines_stripped\x18\x03 \x01(\x05R\rlinesStripped\"\x95\x01\n" +
+	"\x1bScenarioDetemplateFinalizer\x12 \n" +
+	"\vdescription\x18\x01 \x01(\tR\vdescription\x12\x18\n" +
+	"\acommand\x18\x02 \x01(\tR\acommand\x12\x10\n" +
+	"\x03ran\x18\x03 \x01(\bR\x03ran\x12\x0e\n" +
+	"\x02ok\x18\x04 \x01(\bR\x02ok\x12\x18\n" +
+	"\amessage\x18\x05 \x01(\tR\amessageB=Z;github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1b\x06proto3"
 
 var (
 	file_cli_v1_scenario_contracts_proto_rawDescOnce sync.Once
@@ -3680,7 +4044,7 @@ func file_cli_v1_scenario_contracts_proto_rawDescGZIP() []byte {
 	return file_cli_v1_scenario_contracts_proto_rawDescData
 }
 
-var file_cli_v1_scenario_contracts_proto_msgTypes = make([]protoimpl.MessageInfo, 46)
+var file_cli_v1_scenario_contracts_proto_msgTypes = make([]protoimpl.MessageInfo, 50)
 var file_cli_v1_scenario_contracts_proto_goTypes = []any{
 	(*ScenarioTemplateListResponse)(nil),                  // 0: vrooli.cli.v1.ScenarioTemplateListResponse
 	(*ScenarioTemplateInfo)(nil),                          // 1: vrooli.cli.v1.ScenarioTemplateInfo
@@ -3724,19 +4088,23 @@ var file_cli_v1_scenario_contracts_proto_goTypes = []any{
 	(*ScenarioGenerationDesignRef)(nil),                   // 39: vrooli.cli.v1.ScenarioGenerationDesignRef
 	(*ScenarioOrientationStep)(nil),                       // 40: vrooli.cli.v1.ScenarioOrientationStep
 	(*ScenarioOrientationCheck)(nil),                      // 41: vrooli.cli.v1.ScenarioOrientationCheck
-	nil,                                                   // 42: vrooli.cli.v1.ScenarioTemplateManifest.RequiredVarsEntry
-	nil,                                                   // 43: vrooli.cli.v1.ScenarioTemplateManifest.OptionalVarsEntry
-	nil,                                                   // 44: vrooli.cli.v1.ScenarioTemplateManifest.DocsEntry
-	nil,                                                   // 45: vrooli.cli.v1.ScenarioDesignKitManifest.AdaptersEntry
+	(*ScenarioDetemplateResponse)(nil),                    // 42: vrooli.cli.v1.ScenarioDetemplateResponse
+	(*ScenarioDetemplateResult)(nil),                      // 43: vrooli.cli.v1.ScenarioDetemplateResult
+	(*ScenarioDetemplateFile)(nil),                        // 44: vrooli.cli.v1.ScenarioDetemplateFile
+	(*ScenarioDetemplateFinalizer)(nil),                   // 45: vrooli.cli.v1.ScenarioDetemplateFinalizer
+	nil,                                                   // 46: vrooli.cli.v1.ScenarioTemplateManifest.RequiredVarsEntry
+	nil,                                                   // 47: vrooli.cli.v1.ScenarioTemplateManifest.OptionalVarsEntry
+	nil,                                                   // 48: vrooli.cli.v1.ScenarioTemplateManifest.DocsEntry
+	nil,                                                   // 49: vrooli.cli.v1.ScenarioDesignKitManifest.AdaptersEntry
 }
 var file_cli_v1_scenario_contracts_proto_depIdxs = []int32{
 	1,  // 0: vrooli.cli.v1.ScenarioTemplateListResponse.templates:type_name -> vrooli.cli.v1.ScenarioTemplateInfo
 	2,  // 1: vrooli.cli.v1.ScenarioTemplateInfo.manifest:type_name -> vrooli.cli.v1.ScenarioTemplateManifest
 	5,  // 2: vrooli.cli.v1.ScenarioTemplateManifest.design:type_name -> vrooli.cli.v1.ScenarioTemplateDesign
 	7,  // 3: vrooli.cli.v1.ScenarioTemplateManifest.orientation:type_name -> vrooli.cli.v1.ScenarioTemplateOrientation
-	42, // 4: vrooli.cli.v1.ScenarioTemplateManifest.required_vars:type_name -> vrooli.cli.v1.ScenarioTemplateManifest.RequiredVarsEntry
-	43, // 5: vrooli.cli.v1.ScenarioTemplateManifest.optional_vars:type_name -> vrooli.cli.v1.ScenarioTemplateManifest.OptionalVarsEntry
-	44, // 6: vrooli.cli.v1.ScenarioTemplateManifest.docs:type_name -> vrooli.cli.v1.ScenarioTemplateManifest.DocsEntry
+	46, // 4: vrooli.cli.v1.ScenarioTemplateManifest.required_vars:type_name -> vrooli.cli.v1.ScenarioTemplateManifest.RequiredVarsEntry
+	47, // 5: vrooli.cli.v1.ScenarioTemplateManifest.optional_vars:type_name -> vrooli.cli.v1.ScenarioTemplateManifest.OptionalVarsEntry
+	48, // 6: vrooli.cli.v1.ScenarioTemplateManifest.docs:type_name -> vrooli.cli.v1.ScenarioTemplateManifest.DocsEntry
 	4,  // 7: vrooli.cli.v1.ScenarioTemplateManifest.post_hooks:type_name -> vrooli.cli.v1.ScenarioTemplateHook
 	6,  // 8: vrooli.cli.v1.ScenarioTemplateManifest.relocations:type_name -> vrooli.cli.v1.ScenarioTemplateRelocation
 	4,  // 9: vrooli.cli.v1.ScenarioTemplateRelocation.post:type_name -> vrooli.cli.v1.ScenarioTemplateHook
@@ -3764,7 +4132,7 @@ var file_cli_v1_scenario_contracts_proto_depIdxs = []int32{
 	30, // 31: vrooli.cli.v1.ScenarioDesignListResponse.design_kits:type_name -> vrooli.cli.v1.ScenarioDesignKitInfo
 	30, // 32: vrooli.cli.v1.ScenarioDesignShowResponse.design_kit:type_name -> vrooli.cli.v1.ScenarioDesignKitInfo
 	31, // 33: vrooli.cli.v1.ScenarioDesignKitInfo.manifest:type_name -> vrooli.cli.v1.ScenarioDesignKitManifest
-	45, // 34: vrooli.cli.v1.ScenarioDesignKitManifest.adapters:type_name -> vrooli.cli.v1.ScenarioDesignKitManifest.AdaptersEntry
+	49, // 34: vrooli.cli.v1.ScenarioDesignKitManifest.adapters:type_name -> vrooli.cli.v1.ScenarioDesignKitManifest.AdaptersEntry
 	34, // 35: vrooli.cli.v1.ScenarioDesignValidateResponse.design_validation:type_name -> vrooli.cli.v1.ScenarioDesignValidationReport
 	35, // 36: vrooli.cli.v1.ScenarioDesignValidationReport.issues:type_name -> vrooli.cli.v1.ScenarioDesignValidationIssue
 	37, // 37: vrooli.cli.v1.ScenarioOrientationResponse.orientation:type_name -> vrooli.cli.v1.ScenarioOrientationReport
@@ -3773,14 +4141,17 @@ var file_cli_v1_scenario_contracts_proto_depIdxs = []int32{
 	40, // 40: vrooli.cli.v1.ScenarioOrientationReport.steps:type_name -> vrooli.cli.v1.ScenarioOrientationStep
 	40, // 41: vrooli.cli.v1.ScenarioOrientationReport.next_step:type_name -> vrooli.cli.v1.ScenarioOrientationStep
 	41, // 42: vrooli.cli.v1.ScenarioOrientationStep.checks:type_name -> vrooli.cli.v1.ScenarioOrientationCheck
-	3,  // 43: vrooli.cli.v1.ScenarioTemplateManifest.RequiredVarsEntry.value:type_name -> vrooli.cli.v1.ScenarioTemplateVar
-	3,  // 44: vrooli.cli.v1.ScenarioTemplateManifest.OptionalVarsEntry.value:type_name -> vrooli.cli.v1.ScenarioTemplateVar
-	32, // 45: vrooli.cli.v1.ScenarioDesignKitManifest.AdaptersEntry.value:type_name -> vrooli.cli.v1.ScenarioDesignKitAdapter
-	46, // [46:46] is the sub-list for method output_type
-	46, // [46:46] is the sub-list for method input_type
-	46, // [46:46] is the sub-list for extension type_name
-	46, // [46:46] is the sub-list for extension extendee
-	0,  // [0:46] is the sub-list for field type_name
+	43, // 43: vrooli.cli.v1.ScenarioDetemplateResponse.detemplate:type_name -> vrooli.cli.v1.ScenarioDetemplateResult
+	44, // 44: vrooli.cli.v1.ScenarioDetemplateResult.files_edited:type_name -> vrooli.cli.v1.ScenarioDetemplateFile
+	45, // 45: vrooli.cli.v1.ScenarioDetemplateResult.finalizers:type_name -> vrooli.cli.v1.ScenarioDetemplateFinalizer
+	3,  // 46: vrooli.cli.v1.ScenarioTemplateManifest.RequiredVarsEntry.value:type_name -> vrooli.cli.v1.ScenarioTemplateVar
+	3,  // 47: vrooli.cli.v1.ScenarioTemplateManifest.OptionalVarsEntry.value:type_name -> vrooli.cli.v1.ScenarioTemplateVar
+	32, // 48: vrooli.cli.v1.ScenarioDesignKitManifest.AdaptersEntry.value:type_name -> vrooli.cli.v1.ScenarioDesignKitAdapter
+	49, // [49:49] is the sub-list for method output_type
+	49, // [49:49] is the sub-list for method input_type
+	49, // [49:49] is the sub-list for extension type_name
+	49, // [49:49] is the sub-list for extension extendee
+	0,  // [0:49] is the sub-list for field type_name
 }
 
 func init() { file_cli_v1_scenario_contracts_proto_init() }
@@ -3794,7 +4165,7 @@ func file_cli_v1_scenario_contracts_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cli_v1_scenario_contracts_proto_rawDesc), len(file_cli_v1_scenario_contracts_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   46,
+			NumMessages:   50,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -74,7 +74,7 @@ Phase 4 built `cli/domains/devices/` + `cli/domains/transfer/`, registered them 
 `cli/domains/domains.go`, and regenerated `cli-commands.gen.json` +
 `.vrooli/endpoints.json` via `make endpoints`. The API↔CLI parity crossCheck
 (`api/cmd/gen-endpoints` test + `cli` `TestAPICLIParity`) is now **green** — every
-endpoint `CLIMapping` resolves to a registered command. The transfer CLI doubles as
+manifest binding resolves to a registered command. The transfer CLI doubles as
 the **programmatic delivery seam** other scenarios call ("deliver an artifact to a
 device"), with `--json` proto-wire-shape output for scripting.
 

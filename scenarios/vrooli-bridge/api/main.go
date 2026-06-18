@@ -22,7 +22,6 @@ import (
 	_ "modernc.org/sqlite"
 
 	healthH "vrooli-bridge/handlers/health"
-	notesH "vrooli-bridge/handlers/notes" // EXAMPLE-DOMAIN:notes
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -116,7 +115,6 @@ func main() {
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "vrooli-bridge-api", "1.0.0"),
-		notesH.Module(db, clock.System{}, log.Default()), // EXAMPLE-DOMAIN:notes
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -124,19 +122,6 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.Register(rootMux, db)
-
-	// EXAMPLE-DOMAIN:notes START
-	// /measures is the measures-go serve substrate: the central measures
-	// index (measures-health) harvests <prefix>/declarations and the
-	// auto-execution path POSTs <prefix>/execute. The notes domain owns the
-	// one reference measure (notes.count); a real multi-domain scenario
-	// registers each domain's measures on one shared registry here.
-	notesMeasures, err := notesH.MeasuresHandler(db, clock.System{})
-	if err != nil {
-		log.Fatalf("measures registry: %v", err)
-	}
-	rootMux.Handle("/measures/", http.StripPrefix("/measures", notesMeasures))
-	// EXAMPLE-DOMAIN:notes END
 
 	rootMux.Handle("/", srv.Handler())
 
@@ -152,4 +137,3 @@ func main() {
 		log.Fatalf("Server error: %v", err)
 	}
 }
-

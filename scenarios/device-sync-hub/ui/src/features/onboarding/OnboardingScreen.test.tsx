@@ -4,12 +4,9 @@ import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders, expectNoA11yViolations } from "../../test-utils";
 
-// Onboarding renders OwnerLoginForm, which resolves the authenticator URL at
-// mount. Pin it so the login form (not just the token-paste fallback) renders.
-vi.mock("../../api/authenticator", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../api/authenticator")>();
-  return { ...actual, resolveAuthenticatorBaseUrl: vi.fn(() => "http://auth.example") };
-});
+// OwnerLoginForm posts to the hub's own same-origin IdentityService; stub the
+// client so importing the onboarding tree never reaches the network.
+vi.mock("../../api/identity", () => ({ identityClient: { login: vi.fn(), register: vi.fn() } }));
 
 import { OnboardingScreen } from "./OnboardingScreen";
 import { selectors } from "../../consts/selectors";

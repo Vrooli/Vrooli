@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file device-sync-hub/v1/devices/devices.proto.
  */
 export const file_device_sync_hub_v1_devices_devices: GenFile = /*@__PURE__*/
-  fileDesc("CihkZXZpY2Utc3luYy1odWIvdjEvZGV2aWNlcy9kZXZpY2VzLnByb3RvEiF2cm9vbGkuZGV2aWNlX3N5bmNfaHViLnYxLmRldmljZXMi0AIKBkRldmljZRIKCgJpZBgBIAEoCRIQCghvd25lcl9pZBgCIAEoCRIMCgRuYW1lGAMgASgJEgwKBGtpbmQYBCABKAkSEAoIcGxhdGZvcm0YBSABKAkSFAoMY2FwYWJpbGl0aWVzGAYgAygJEkIKC3RydXN0X3N0YXRlGAcgASgOMi0udnJvb2xpLmRldmljZV9zeW5jX2h1Yi52MS5kZXZpY2VzLlRydXN0U3RhdGUSDgoGb25saW5lGAggASgIEjAKDGxhc3Rfc2Vlbl9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKY3JlYXRlZF9hdBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAijQEKC1BhaXJpbmdDb2RlEgwKBGNvZGUYASABKAkSEAoIb3duZXJfaWQYAiABKAkSLgoKZXhwaXJlc19hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKY3JlYXRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiFAoSTGlzdERldmljZXNSZXF1ZXN0IlEKE0xpc3REZXZpY2VzUmVzcG9uc2USOgoHZGV2aWNlcxgBIAMoCzIpLnZyb29saS5kZXZpY2Vfc3luY19odWIudjEuZGV2aWNlcy5EZXZpY2UiHgoQR2V0RGV2aWNlUmVxdWVzdBIKCgJpZBgBIAEoCSJOChFHZXREZXZpY2VSZXNwb25zZRI5CgZkZXZpY2UYASABKAsyKS52cm9vbGkuZGV2aWNlX3N5bmNfaHViLnYxLmRldmljZXMuRGV2aWNlIi4KF0lzc3VlUGFpcmluZ0NvZGVSZXF1ZXN0EhMKC2RldmljZV9uYW1lGAEgASgJImAKGElzc3VlUGFpcmluZ0NvZGVSZXNwb25zZRJECgxwYWlyaW5nX2NvZGUYASABKAsyLi52cm9vbGkuZGV2aWNlX3N5bmNfaHViLnYxLmRldmljZXMuUGFpcmluZ0NvZGUiWgoNRGV2aWNlUHJvZmlsZRITCgtkZXZpY2VfbmFtZRgBIAEoCRIMCgRraW5kGAIgASgJEhAKCHBsYXRmb3JtGAMgASgJEhQKDGNhcGFiaWxpdGllcxgEIAMoCSJrChhSZWRlZW1QYWlyaW5nQ29kZVJlcXVlc3QSDAoEY29kZRgBIAEoCRJBCgdwcm9maWxlGAIgASgLMjAudnJvb2xpLmRldmljZV9zeW5jX2h1Yi52MS5kZXZpY2VzLkRldmljZVByb2ZpbGUibAoZUmVkZWVtUGFpcmluZ0NvZGVSZXNwb25zZRI5CgZkZXZpY2UYASABKAsyKS52cm9vbGkuZGV2aWNlX3N5bmNfaHViLnYxLmRldmljZXMuRGV2aWNlEhQKDGRldmljZV90b2tlbhgCIAEoCSJaChVSZXF1ZXN0UGFpcmluZ1JlcXVlc3QSQQoHcHJvZmlsZRgBIAEoCzIwLnZyb29saS5kZXZpY2Vfc3luY19odWIudjEuZGV2aWNlcy5EZXZpY2VQcm9maWxlImkKFlJlcXVlc3RQYWlyaW5nUmVzcG9uc2USOQoGZGV2aWNlGAEgASgLMikudnJvb2xpLmRldmljZV9zeW5jX2h1Yi52MS5kZXZpY2VzLkRldmljZRIUCgxkZXZpY2VfdG9rZW4YAiABKAkiKgoVQXBwcm92ZVBhaXJpbmdSZXF1ZXN0EhEKCWRldmljZV9pZBgBIAEoCSJTChZBcHByb3ZlUGFpcmluZ1Jlc3BvbnNlEjkKBmRldmljZRgBIAEoCzIpLnZyb29saS5kZXZpY2Vfc3luY19odWIudjEuZGV2aWNlcy5EZXZpY2UiNgoTUmVuYW1lRGV2aWNlUmVxdWVzdBIRCglkZXZpY2VfaWQYASABKAkSDAoEbmFtZRgCIAEoCSJRChRSZW5hbWVEZXZpY2VSZXNwb25zZRI5CgZkZXZpY2UYASABKAsyKS52cm9vbGkuZGV2aWNlX3N5bmNfaHViLnYxLmRldmljZXMuRGV2aWNlIigKE1Jldm9rZURldmljZVJlcXVlc3QSEQoJZGV2aWNlX2lkGAEgASgJIlEKFFJldm9rZURldmljZVJlc3BvbnNlEjkKBmRldmljZRgBIAEoCzIpLnZyb29saS5kZXZpY2Vfc3luY19odWIudjEuZGV2aWNlcy5EZXZpY2UqdAoKVHJ1c3RTdGF0ZRIbChdUUlVTVF9TVEFURV9VTlNQRUNJRklFRBAAEhcKE1RSVVNUX1NUQVRFX1BFTkRJTkcQARIXChNUUlVTVF9TVEFURV9UUlVTVEVEEAISFwoTVFJVU1RfU1RBVEVfUkVWT0tFRBADMrcICg5EZXZpY2VzU2VydmljZRJ8CgtMaXN0RGV2aWNlcxI1LnZyb29saS5kZXZpY2Vfc3luY19odWIudjEuZGV2aWNlcy5MaXN0RGV2aWNlc1JlcXVlc3QaNi52cm9vbGkuZGV2aWNlX3N5bmNfaHViLnYxLmRldmljZXMuTGlzdERldmljZXNSZXNwb25zZRJ2CglHZXREZXZpY2USMy52cm9vbGkuZGV2aWNlX3N5bmNfaHViLnYxLmRldmljZXMuR2V0RGV2aWNlUmVxdWVzdBo0LnZyb29saS5kZXZpY2Vfc3luY19odWIudjEuZGV2aWNlcy5HZXREZXZpY2VSZXNwb25zZRKLAQoQSXNzdWVQYWlyaW5nQ29kZRI6LnZyb29saS5kZXZpY2Vfc3luY19odWIudjEuZGV2aWNlcy5Jc3N1ZVBhaXJpbmdDb2RlUmVxdWVzdBo7LnZyb29saS5kZXZpY2Vfc3luY19odWIudjEuZGV2aWNlcy5Jc3N1ZVBhaXJpbmdDb2RlUmVzcG9uc2USjgEKEVJlZGVlbVBhaXJpbmdDb2RlEjsudnJvb2xpLmRldmljZV9zeW5jX2h1Yi52MS5kZXZpY2VzLlJlZGVlbVBhaXJpbmdDb2RlUmVxdWVzdBo8LnZyb29saS5kZXZpY2Vfc3luY19odWIudjEuZGV2aWNlcy5SZWRlZW1QYWlyaW5nQ29kZVJlc3BvbnNlEoUBCg5SZXF1ZXN0UGFpcmluZxI4LnZyb29saS5kZXZpY2Vfc3luY19odWIudjEuZGV2aWNlcy5SZXF1ZXN0UGFpcmluZ1JlcXVlc3QaOS52cm9vbGkuZGV2aWNlX3N5bmNfaHViLnYxLmRldmljZXMuUmVxdWVzdFBhaXJpbmdSZXNwb25zZRKFAQoOQXBwcm92ZVBhaXJpbmcSOC52cm9vbGkuZGV2aWNlX3N5bmNfaHViLnYxLmRldmljZXMuQXBwcm92ZVBhaXJpbmdSZXF1ZXN0GjkudnJvb2xpLmRldmljZV9zeW5jX2h1Yi52MS5kZXZpY2VzLkFwcHJvdmVQYWlyaW5nUmVzcG9uc2USfwoMUmVuYW1lRGV2aWNlEjYudnJvb2xpLmRldmljZV9zeW5jX2h1Yi52MS5kZXZpY2VzLlJlbmFtZURldmljZVJlcXVlc3QaNy52cm9vbGkuZGV2aWNlX3N5bmNfaHViLnYxLmRldmljZXMuUmVuYW1lRGV2aWNlUmVzcG9uc2USfwoMUmV2b2tlRGV2aWNlEjYudnJvb2xpLmRldmljZV9zeW5jX2h1Yi52MS5kZXZpY2VzLlJldm9rZURldmljZVJlcXVlc3QaNy52cm9vbGkuZGV2aWNlX3N5bmNfaHViLnYxLmRldmljZXMuUmV2b2tlRGV2aWNlUmVzcG9uc2VCVlpUZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9kZXZpY2Utc3luYy1odWIvdjEvZGV2aWNlcztkZXZpY2VzX3YxYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("CihkZXZpY2Utc3luYy1odWIvdjEvZGV2aWNlcy9kZXZpY2VzLnByb3RvEiF2cm9vbGkuZGV2aWNlX3N5bmNfaHViLnYxLmRldmljZXMi0AIKBkRldmljZRIKCgJpZBgBIAEoCRIQCghvd25lcl9pZBgCIAEoCRIMCgRuYW1lGAMgASgJEgwKBGtpbmQYBCABKAkSEAoIcGxhdGZvcm0YBSABKAkSFAoMY2FwYWJpbGl0aWVzGAYgAygJEkIKC3RydXN0X3N0YXRlGAcgASgOMi0udnJvb2xpLmRldmljZV9zeW5jX2h1Yi52MS5kZXZpY2VzLlRydXN0U3RhdGUSDgoGb25saW5lGAggASgIEjAKDGxhc3Rfc2Vlbl9hdBgJIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKY3JlYXRlZF9hdBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgLIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAijQEKC1BhaXJpbmdDb2RlEgwKBGNvZGUYASABKAkSEAoIb3duZXJfaWQYAiABKAkSLgoKZXhwaXJlc19hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKY3JlYXRlZF9hdBgEIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiFAoSTGlzdERldmljZXNSZXF1ZXN0IlEKE0xpc3REZXZpY2VzUmVzcG9uc2USOgoHZGV2aWNlcxgBIAMoCzIpLnZyb29saS5kZXZpY2Vfc3luY19odWIudjEuZGV2aWNlcy5EZXZpY2UiHgoQR2V0RGV2aWNlUmVxdWVzdBIKCgJpZBgBIAEoCSJOChFHZXREZXZpY2VSZXNwb25zZRI5CgZkZXZpY2UYASABKAsyKS52cm9vbGkuZGV2aWNlX3N5bmNfaHViLnYxLmRldmljZXMuRGV2aWNlIi4KF0lzc3VlUGFpcmluZ0NvZGVSZXF1ZXN0EhMKC2RldmljZV9uYW1lGAEgASgJImAKGElzc3VlUGFpcmluZ0NvZGVSZXNwb25zZRJECgxwYWlyaW5nX2NvZGUYASABKAsyLi52cm9vbGkuZGV2aWNlX3N5bmNfaHViLnYxLmRldmljZXMuUGFpcmluZ0NvZGUiWgoNRGV2aWNlUHJvZmlsZRITCgtkZXZpY2VfbmFtZRgBIAEoCRIMCgRraW5kGAIgASgJEhAKCHBsYXRmb3JtGAMgASgJEhQKDGNhcGFiaWxpdGllcxgEIAMoCSJcChdTZXR1cE93bmVyRGV2aWNlUmVxdWVzdBJBCgdwcm9maWxlGAEgASgLMjAudnJvb2xpLmRldmljZV9zeW5jX2h1Yi52MS5kZXZpY2VzLkRldmljZVByb2ZpbGUiawoYU2V0dXBPd25lckRldmljZVJlc3BvbnNlEjkKBmRldmljZRgBIAEoCzIpLnZyb29saS5kZXZpY2Vfc3luY19odWIudjEuZGV2aWNlcy5EZXZpY2USFAoMZGV2aWNlX3Rva2VuGAIgASgJImsKGFJlZGVlbVBhaXJpbmdDb2RlUmVxdWVzdBIMCgRjb2RlGAEgASgJEkEKB3Byb2ZpbGUYAiABKAsyMC52cm9vbGkuZGV2aWNlX3N5bmNfaHViLnYxLmRldmljZXMuRGV2aWNlUHJvZmlsZSJsChlSZWRlZW1QYWlyaW5nQ29kZVJlc3BvbnNlEjkKBmRldmljZRgBIAEoCzIpLnZyb29saS5kZXZpY2Vfc3luY19odWIudjEuZGV2aWNlcy5EZXZpY2USFAoMZGV2aWNlX3Rva2VuGAIgASgJIloKFVJlcXVlc3RQYWlyaW5nUmVxdWVzdBJBCgdwcm9maWxlGAEgASgLMjAudnJvb2xpLmRldmljZV9zeW5jX2h1Yi52MS5kZXZpY2VzLkRldmljZVByb2ZpbGUiaQoWUmVxdWVzdFBhaXJpbmdSZXNwb25zZRI5CgZkZXZpY2UYASABKAsyKS52cm9vbGkuZGV2aWNlX3N5bmNfaHViLnYxLmRldmljZXMuRGV2aWNlEhQKDGRldmljZV90b2tlbhgCIAEoCSIqChVBcHByb3ZlUGFpcmluZ1JlcXVlc3QSEQoJZGV2aWNlX2lkGAEgASgJIlMKFkFwcHJvdmVQYWlyaW5nUmVzcG9uc2USOQoGZGV2aWNlGAEgASgLMikudnJvb2xpLmRldmljZV9zeW5jX2h1Yi52MS5kZXZpY2VzLkRldmljZSI2ChNSZW5hbWVEZXZpY2VSZXF1ZXN0EhEKCWRldmljZV9pZBgBIAEoCRIMCgRuYW1lGAIgASgJIlEKFFJlbmFtZURldmljZVJlc3BvbnNlEjkKBmRldmljZRgBIAEoCzIpLnZyb29saS5kZXZpY2Vfc3luY19odWIudjEuZGV2aWNlcy5EZXZpY2UiKAoTUmV2b2tlRGV2aWNlUmVxdWVzdBIRCglkZXZpY2VfaWQYASABKAkiUQoUUmV2b2tlRGV2aWNlUmVzcG9uc2USOQoGZGV2aWNlGAEgASgLMikudnJvb2xpLmRldmljZV9zeW5jX2h1Yi52MS5kZXZpY2VzLkRldmljZSp0CgpUcnVzdFN0YXRlEhsKF1RSVVNUX1NUQVRFX1VOU1BFQ0lGSUVEEAASFwoTVFJVU1RfU1RBVEVfUEVORElORxABEhcKE1RSVVNUX1NUQVRFX1RSVVNURUQQAhIXChNUUlVTVF9TVEFURV9SRVZPS0VEEAMyxQkKDkRldmljZXNTZXJ2aWNlEosBChBTZXR1cE93bmVyRGV2aWNlEjoudnJvb2xpLmRldmljZV9zeW5jX2h1Yi52MS5kZXZpY2VzLlNldHVwT3duZXJEZXZpY2VSZXF1ZXN0GjsudnJvb2xpLmRldmljZV9zeW5jX2h1Yi52MS5kZXZpY2VzLlNldHVwT3duZXJEZXZpY2VSZXNwb25zZRJ8CgtMaXN0RGV2aWNlcxI1LnZyb29saS5kZXZpY2Vfc3luY19odWIudjEuZGV2aWNlcy5MaXN0RGV2aWNlc1JlcXVlc3QaNi52cm9vbGkuZGV2aWNlX3N5bmNfaHViLnYxLmRldmljZXMuTGlzdERldmljZXNSZXNwb25zZRJ2CglHZXREZXZpY2USMy52cm9vbGkuZGV2aWNlX3N5bmNfaHViLnYxLmRldmljZXMuR2V0RGV2aWNlUmVxdWVzdBo0LnZyb29saS5kZXZpY2Vfc3luY19odWIudjEuZGV2aWNlcy5HZXREZXZpY2VSZXNwb25zZRKLAQoQSXNzdWVQYWlyaW5nQ29kZRI6LnZyb29saS5kZXZpY2Vfc3luY19odWIudjEuZGV2aWNlcy5Jc3N1ZVBhaXJpbmdDb2RlUmVxdWVzdBo7LnZyb29saS5kZXZpY2Vfc3luY19odWIudjEuZGV2aWNlcy5Jc3N1ZVBhaXJpbmdDb2RlUmVzcG9uc2USjgEKEVJlZGVlbVBhaXJpbmdDb2RlEjsudnJvb2xpLmRldmljZV9zeW5jX2h1Yi52MS5kZXZpY2VzLlJlZGVlbVBhaXJpbmdDb2RlUmVxdWVzdBo8LnZyb29saS5kZXZpY2Vfc3luY19odWIudjEuZGV2aWNlcy5SZWRlZW1QYWlyaW5nQ29kZVJlc3BvbnNlEoUBCg5SZXF1ZXN0UGFpcmluZxI4LnZyb29saS5kZXZpY2Vfc3luY19odWIudjEuZGV2aWNlcy5SZXF1ZXN0UGFpcmluZ1JlcXVlc3QaOS52cm9vbGkuZGV2aWNlX3N5bmNfaHViLnYxLmRldmljZXMuUmVxdWVzdFBhaXJpbmdSZXNwb25zZRKFAQoOQXBwcm92ZVBhaXJpbmcSOC52cm9vbGkuZGV2aWNlX3N5bmNfaHViLnYxLmRldmljZXMuQXBwcm92ZVBhaXJpbmdSZXF1ZXN0GjkudnJvb2xpLmRldmljZV9zeW5jX2h1Yi52MS5kZXZpY2VzLkFwcHJvdmVQYWlyaW5nUmVzcG9uc2USfwoMUmVuYW1lRGV2aWNlEjYudnJvb2xpLmRldmljZV9zeW5jX2h1Yi52MS5kZXZpY2VzLlJlbmFtZURldmljZVJlcXVlc3QaNy52cm9vbGkuZGV2aWNlX3N5bmNfaHViLnYxLmRldmljZXMuUmVuYW1lRGV2aWNlUmVzcG9uc2USfwoMUmV2b2tlRGV2aWNlEjYudnJvb2xpLmRldmljZV9zeW5jX2h1Yi52MS5kZXZpY2VzLlJldm9rZURldmljZVJlcXVlc3QaNy52cm9vbGkuZGV2aWNlX3N5bmNfaHViLnYxLmRldmljZXMuUmV2b2tlRGV2aWNlUmVzcG9uc2VCVlpUZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9kZXZpY2Utc3luYy1odWIvdjEvZGV2aWNlcztkZXZpY2VzX3YxYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
  * Device is the canonical wire shape for a registered device.
@@ -277,6 +277,52 @@ export const DeviceProfileSchema: GenMessage<DeviceProfile> = /*@__PURE__*/
   messageDesc(file_device_sync_hub_v1_devices_devices, 8);
 
 /**
+ * @generated from message vrooli.device_sync_hub.v1.devices.SetupOwnerDeviceRequest
+ */
+export type SetupOwnerDeviceRequest = Message<"vrooli.device_sync_hub.v1.devices.SetupOwnerDeviceRequest"> & {
+  /**
+   * Self-description of the device being set up as the owner's first device.
+   *
+   * @generated from field: vrooli.device_sync_hub.v1.devices.DeviceProfile profile = 1;
+   */
+  profile?: DeviceProfile | undefined;
+};
+
+/**
+ * Describes the message vrooli.device_sync_hub.v1.devices.SetupOwnerDeviceRequest.
+ * Use `create(SetupOwnerDeviceRequestSchema)` to create a new message.
+ */
+export const SetupOwnerDeviceRequestSchema: GenMessage<SetupOwnerDeviceRequest> = /*@__PURE__*/
+  messageDesc(file_device_sync_hub_v1_devices_devices, 9);
+
+/**
+ * @generated from message vrooli.device_sync_hub.v1.devices.SetupOwnerDeviceResponse
+ */
+export type SetupOwnerDeviceResponse = Message<"vrooli.device_sync_hub.v1.devices.SetupOwnerDeviceResponse"> & {
+  /**
+   * The TRUSTED device created for the owner.
+   *
+   * @generated from field: vrooli.device_sync_hub.v1.devices.Device device = 1;
+   */
+  device?: Device | undefined;
+
+  /**
+   * Opaque hub-issued token the device presents on subsequent calls. Returned
+   * only once, here. The hub stores only a hash.
+   *
+   * @generated from field: string device_token = 2;
+   */
+  deviceToken: string;
+};
+
+/**
+ * Describes the message vrooli.device_sync_hub.v1.devices.SetupOwnerDeviceResponse.
+ * Use `create(SetupOwnerDeviceResponseSchema)` to create a new message.
+ */
+export const SetupOwnerDeviceResponseSchema: GenMessage<SetupOwnerDeviceResponse> = /*@__PURE__*/
+  messageDesc(file_device_sync_hub_v1_devices_devices, 10);
+
+/**
  * @generated from message vrooli.device_sync_hub.v1.devices.RedeemPairingCodeRequest
  */
 export type RedeemPairingCodeRequest = Message<"vrooli.device_sync_hub.v1.devices.RedeemPairingCodeRequest"> & {
@@ -296,7 +342,7 @@ export type RedeemPairingCodeRequest = Message<"vrooli.device_sync_hub.v1.device
  * Use `create(RedeemPairingCodeRequestSchema)` to create a new message.
  */
 export const RedeemPairingCodeRequestSchema: GenMessage<RedeemPairingCodeRequest> = /*@__PURE__*/
-  messageDesc(file_device_sync_hub_v1_devices_devices, 9);
+  messageDesc(file_device_sync_hub_v1_devices_devices, 11);
 
 /**
  * @generated from message vrooli.device_sync_hub.v1.devices.RedeemPairingCodeResponse
@@ -321,7 +367,7 @@ export type RedeemPairingCodeResponse = Message<"vrooli.device_sync_hub.v1.devic
  * Use `create(RedeemPairingCodeResponseSchema)` to create a new message.
  */
 export const RedeemPairingCodeResponseSchema: GenMessage<RedeemPairingCodeResponse> = /*@__PURE__*/
-  messageDesc(file_device_sync_hub_v1_devices_devices, 10);
+  messageDesc(file_device_sync_hub_v1_devices_devices, 12);
 
 /**
  * @generated from message vrooli.device_sync_hub.v1.devices.RequestPairingRequest
@@ -338,7 +384,7 @@ export type RequestPairingRequest = Message<"vrooli.device_sync_hub.v1.devices.R
  * Use `create(RequestPairingRequestSchema)` to create a new message.
  */
 export const RequestPairingRequestSchema: GenMessage<RequestPairingRequest> = /*@__PURE__*/
-  messageDesc(file_device_sync_hub_v1_devices_devices, 11);
+  messageDesc(file_device_sync_hub_v1_devices_devices, 13);
 
 /**
  * @generated from message vrooli.device_sync_hub.v1.devices.RequestPairingResponse
@@ -364,7 +410,7 @@ export type RequestPairingResponse = Message<"vrooli.device_sync_hub.v1.devices.
  * Use `create(RequestPairingResponseSchema)` to create a new message.
  */
 export const RequestPairingResponseSchema: GenMessage<RequestPairingResponse> = /*@__PURE__*/
-  messageDesc(file_device_sync_hub_v1_devices_devices, 12);
+  messageDesc(file_device_sync_hub_v1_devices_devices, 14);
 
 /**
  * @generated from message vrooli.device_sync_hub.v1.devices.ApprovePairingRequest
@@ -383,7 +429,7 @@ export type ApprovePairingRequest = Message<"vrooli.device_sync_hub.v1.devices.A
  * Use `create(ApprovePairingRequestSchema)` to create a new message.
  */
 export const ApprovePairingRequestSchema: GenMessage<ApprovePairingRequest> = /*@__PURE__*/
-  messageDesc(file_device_sync_hub_v1_devices_devices, 13);
+  messageDesc(file_device_sync_hub_v1_devices_devices, 15);
 
 /**
  * @generated from message vrooli.device_sync_hub.v1.devices.ApprovePairingResponse
@@ -400,7 +446,7 @@ export type ApprovePairingResponse = Message<"vrooli.device_sync_hub.v1.devices.
  * Use `create(ApprovePairingResponseSchema)` to create a new message.
  */
 export const ApprovePairingResponseSchema: GenMessage<ApprovePairingResponse> = /*@__PURE__*/
-  messageDesc(file_device_sync_hub_v1_devices_devices, 14);
+  messageDesc(file_device_sync_hub_v1_devices_devices, 16);
 
 /**
  * @generated from message vrooli.device_sync_hub.v1.devices.RenameDeviceRequest
@@ -422,7 +468,7 @@ export type RenameDeviceRequest = Message<"vrooli.device_sync_hub.v1.devices.Ren
  * Use `create(RenameDeviceRequestSchema)` to create a new message.
  */
 export const RenameDeviceRequestSchema: GenMessage<RenameDeviceRequest> = /*@__PURE__*/
-  messageDesc(file_device_sync_hub_v1_devices_devices, 15);
+  messageDesc(file_device_sync_hub_v1_devices_devices, 17);
 
 /**
  * @generated from message vrooli.device_sync_hub.v1.devices.RenameDeviceResponse
@@ -439,7 +485,7 @@ export type RenameDeviceResponse = Message<"vrooli.device_sync_hub.v1.devices.Re
  * Use `create(RenameDeviceResponseSchema)` to create a new message.
  */
 export const RenameDeviceResponseSchema: GenMessage<RenameDeviceResponse> = /*@__PURE__*/
-  messageDesc(file_device_sync_hub_v1_devices_devices, 16);
+  messageDesc(file_device_sync_hub_v1_devices_devices, 18);
 
 /**
  * @generated from message vrooli.device_sync_hub.v1.devices.RevokeDeviceRequest
@@ -456,7 +502,7 @@ export type RevokeDeviceRequest = Message<"vrooli.device_sync_hub.v1.devices.Rev
  * Use `create(RevokeDeviceRequestSchema)` to create a new message.
  */
 export const RevokeDeviceRequestSchema: GenMessage<RevokeDeviceRequest> = /*@__PURE__*/
-  messageDesc(file_device_sync_hub_v1_devices_devices, 17);
+  messageDesc(file_device_sync_hub_v1_devices_devices, 19);
 
 /**
  * @generated from message vrooli.device_sync_hub.v1.devices.RevokeDeviceResponse
@@ -473,7 +519,7 @@ export type RevokeDeviceResponse = Message<"vrooli.device_sync_hub.v1.devices.Re
  * Use `create(RevokeDeviceResponseSchema)` to create a new message.
  */
 export const RevokeDeviceResponseSchema: GenMessage<RevokeDeviceResponse> = /*@__PURE__*/
-  messageDesc(file_device_sync_hub_v1_devices_devices, 18);
+  messageDesc(file_device_sync_hub_v1_devices_devices, 20);
 
 /**
  * TrustState is the device's position in the trust lifecycle. Only TRUSTED
@@ -519,6 +565,22 @@ export const TrustStateSchema: GenEnum<TrustState> = /*@__PURE__*/
  * @generated from service vrooli.device_sync_hub.v1.devices.DevicesService
  */
 export const DevicesService: GenService<{
+  /**
+   * SetupOwnerDevice is the first-run bootstrap (owner-authed). It claims the
+   * hub for the calling identity if unclaimed (first-owner-wins; a different
+   * identity on an already-claimed hub is rejected PermissionDenied), then
+   * registers the calling client as a TRUSTED device directly — no pairing
+   * code, because the owner JWT already proves identity. Returns the device
+   * plus its one-time hub device token. Idempotent on ownership: the same owner
+   * calling again simply registers another trusted device.
+   *
+   * @generated from rpc vrooli.device_sync_hub.v1.devices.DevicesService.SetupOwnerDevice
+   */
+  setupOwnerDevice: {
+    methodKind: "unary";
+    input: typeof SetupOwnerDeviceRequestSchema;
+    output: typeof SetupOwnerDeviceResponseSchema;
+  },
   /**
    * ListDevices returns every device in the owner's trust group, newest first.
    *

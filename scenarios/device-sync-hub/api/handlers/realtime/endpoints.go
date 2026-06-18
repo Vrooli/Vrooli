@@ -9,9 +9,10 @@ import "device-sync-hub/internal/module"
 // is the proto-typed realtime.Event marshaled with protojson, so the wire shape
 // stays contract-bound even though the streaming envelope is REST.
 //
-// No CLIMapping: a live event stream has no meaningful CLI verb (the CLI is
-// request/response). It carries no proto Connect service, so the global parity
-// test does not cover it; it is documented here purely for endpoints.json.
+// No CLI binding: a live event stream has no meaningful CLI verb (the CLI is
+// request/response). It carries no proto Connect service, so the global
+// coverage gate does not cover it; it is documented here purely for
+// endpoints.json.
 var Endpoints = []module.EndpointDescriptor{
 	{
 		ID:          "realtime_events",
@@ -32,7 +33,7 @@ var Endpoints = []module.EndpointDescriptor{
 		RESTException: &module.RESTException{
 			Reason: module.RESTReasonOpsProbe,
 			Note:   "Long-lived SSE stream (text/event-stream) consumed by the browser EventSource API directly (no Connect client); each event payload is the proto-typed realtime.Event marshaled with protojson.",
-			ProtoPayloads: module.ProtoPayloads{
+			ProtoPayloads: &module.RESTProtoPayloads{
 				Request:  module.RESTPayload{Transport: "none", Conformance: "none"},
 				Response: module.RESTPayload{ProtoFullName: "vrooli.device_sync_hub.v1.realtime.Event", Transport: "json", Conformance: "protojson"},
 				Error:    module.RESTPayload{Transport: "none", Conformance: "none"},

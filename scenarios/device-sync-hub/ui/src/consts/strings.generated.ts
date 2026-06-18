@@ -157,12 +157,8 @@ export const strings = {
   },
   owner: {
     intro: "owner.intro",
-    tokenLabel: "owner.tokenLabel",
-    tokenPlaceholder: "owner.tokenPlaceholder",
-    signIn: "owner.signIn",
     signedIn: "owner.signedIn",
     signOut: "owner.signOut",
-    missingToken: "owner.missingToken",
   },
   onboarding: {
     welcomeTitle: "onboarding.welcomeTitle",
@@ -176,6 +172,8 @@ export const strings = {
   login: {
     title: "login.title",
     intro: "login.intro",
+    tabSignIn: "login.tabSignIn",
+    tabCreate: "login.tabCreate",
     emailLabel: "login.emailLabel",
     emailPlaceholder: "login.emailPlaceholder",
     passwordLabel: "login.passwordLabel",
@@ -185,9 +183,14 @@ export const strings = {
     missingFields: "login.missingFields",
     invalidCredentials: "login.invalidCredentials",
     unavailable: "login.unavailable",
-    unconfigured: "login.unconfigured",
-    advancedToggle: "login.advancedToggle",
-    advancedIntro: "login.advancedIntro",
+  },
+  register: {
+    usernameLabel: "register.usernameLabel",
+    usernamePlaceholder: "register.usernamePlaceholder",
+    submit: "register.submit",
+    submitting: "register.submitting",
+    emailTaken: "register.emailTaken",
+    invalidInput: "register.invalidInput",
   },
   setupDevice: {
     title: "setupDevice.title",

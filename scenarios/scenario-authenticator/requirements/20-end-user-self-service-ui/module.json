@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-17T21:30:03-04:00"
+    "last_validated_at": "2026-06-17T22:37:33-04:00"
   },
   "requirements": [
     {
       "id": "REQ-P1-008",
       "title": "End-User Self-Service UI for Profile, MFA, Sessions, and Connected Accounts",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-008",
       "category": "ui",
       "description": "Authenticated users must have a self-service portal to: update display name and email (with re-verification); change password; enroll and remove MFA methods (TOTP, passkeys); view and revoke their own active sessions (with device/IP metadata); view and unlink connected social accounts; and download or delete their account data. All destructive actions require confirmation.",
@@ -14,31 +14,31 @@
         {
           "type": "test",
           "phase": "integration",
-          "status": "pending",
+          "status": "implemented",
           "notes": "api/handlers/user/self_service_e2e_test.go: user calls password-change RPC with correct current password → 200; old password no longer works; new password works"
         },
         {
           "type": "test",
           "phase": "integration",
-          "status": "pending",
+          "status": "implemented",
           "notes": "api/handlers/session/self_service_session_e2e_test.go: user lists their own sessions and revokes one; the revoked session's token is subsequently rejected"
         },
         {
           "type": "test",
           "phase": "business",
-          "status": "pending",
+          "status": "implemented",
           "notes": "bas/user/profile_update_test: user changes display name and verifies the change persists after page reload"
         },
         {
           "type": "test",
           "phase": "business",
-          "status": "pending",
+          "status": "implemented",
           "notes": "bas/user/session_revoke_test: user views active sessions list, identifies a session by IP/device, revokes it, and confirms it disappears from the list"
         },
         {
           "type": "test",
           "phase": "business",
-          "status": "pending",
+          "status": "implemented",
           "notes": "bas/user/mfa_management_test: user enrolls TOTP, verifies it is listed under security methods, then removes it and confirms MFA is no longer required at next sign-in"
         }
       ]

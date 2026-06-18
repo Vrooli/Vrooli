@@ -31,13 +31,11 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Check health", Curl: "curl http://localhost:${API_PORT}/health"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "device-sync-hub status",
-		},
+
 		RESTException: &module.RESTException{
 			Reason: module.RESTReasonOpsProbe,
 			Note:   "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
-			ProtoPayloads: module.ProtoPayloads{
+			ProtoPayloads: &module.RESTProtoPayloads{
 				Request:  module.RESTPayload{Transport: "none", Conformance: "none"},
 				Response: module.RESTPayload{ProtoFullName: "vrooli.device_sync_hub.v1.health.Response", Transport: "json", Conformance: "protojson"},
 				Error:    module.RESTPayload{Transport: "none", Conformance: "none"},

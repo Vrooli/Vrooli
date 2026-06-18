@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"scenario-authenticator/internal/clock"
 	"scenario-authenticator/internal/modules"
@@ -21,8 +22,17 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	authH "scenario-authenticator/handlers/auth"
 	healthH "scenario-authenticator/handlers/health"
-	notesH "scenario-authenticator/handlers/notes" // EXAMPLE-DOMAIN:notes
+	jwksH "scenario-authenticator/handlers/jwks"
+	sessionsH "scenario-authenticator/handlers/sessions"
+	"scenario-authenticator/internal/accounts"
+	"scenario-authenticator/internal/audit"
+	"scenario-authenticator/internal/authcrypto"
+	"scenario-authenticator/internal/ratelimit"
+	"scenario-authenticator/internal/realm"
+	"scenario-authenticator/internal/redisstate"
+	"scenario-authenticator/internal/sessions"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -113,10 +123,42 @@ func main() {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
+	// --- Authentication stack ------------------------------------------------
+	// The signing keypair persists under the storage seam (absolute path, fatal
+	// on write failure — never silently regenerate, which would rotate the key
+	// and break every relying party). Redis is REQUIRED hot state (sessions,
+	// refresh-family revocation, blacklist are security controls); a failed
+	// connection is boot-fatal, never a silent degrade.
+	clk := clock.System{}
+	keyDir, err := authcrypto.ResolveKeyDir()
+	if err != nil {
+		log.Fatalf("resolve signing key directory: %v", err)
+	}
+	keys, err := authcrypto.LoadOrGenerate(keyDir)
+	if err != nil {
+		log.Fatalf("load/generate signing key: %v", err)
+	}
+	signer := authcrypto.NewSigner(keys, authcrypto.SignerConfig{Issuer: realm.Issuer})
+
+	redisStore, err := redisstate.NewRedisStore(context.Background())
+	if err != nil {
+		log.Fatalf("redis (required resource) unavailable: %v", err)
+	}
+	sessionMgr := sessions.NewManager(redisStore, nil)
+	authService := accounts.NewService(accounts.ServiceConfig{
+		Repo:     accounts.NewSQLiteRepository(db, clk),
+		Signer:   signer,
+		Sessions: sessionMgr,
+		Audit:    audit.NewSQLiteLogger(db, clk),
+		Clock:    clk,
+	})
+
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "scenario-authenticator-api", "1.0.0"),
-		notesH.Module(db, clock.System{}, log.Default()), // EXAMPLE-DOMAIN:notes
+		authH.Module(authService, log.Default()),
+		sessionsH.Module(authService, log.Default()),
+		jwksH.Module(keys),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -125,29 +167,31 @@ func main() {
 	rootMux := http.NewServeMux()
 	devrouting.Register(rootMux, db)
 
-	// EXAMPLE-DOMAIN:notes START
-	// /measures is the measures-go serve substrate: the central measures
-	// index (measures-health) harvests <prefix>/declarations and the
-	// auto-execution path POSTs <prefix>/execute. The notes domain owns the
-	// one reference measure (notes.count); a real multi-domain scenario
-	// registers each domain's measures on one shared registry here.
-	notesMeasures, err := notesH.MeasuresHandler(db, clock.System{})
-	if err != nil {
-		log.Fatalf("measures registry: %v", err)
-	}
-	rootMux.Handle("/measures/", http.StripPrefix("/measures", notesMeasures))
-	// EXAMPLE-DOMAIN:notes END
-
 	rootMux.Handle("/", srv.Handler())
+
+	// Backend-authoritative fixed-window rate limit on the brute-force surface
+	// (login/register). Scoped by Connect service path so health/JWKS probes are
+	// never throttled. Defense-in-depth on top of per-account lockout.
+	limiter := ratelimit.New(redisStore, ratelimit.Config{
+		Limit:  20,
+		Window: time.Minute,
+		PathPrefixes: []string{
+			"/vrooli.scenario_authenticator.v1.accounts.AccountsService/Login",
+			"/vrooli.scenario_authenticator.v1.accounts.AccountsService/Register",
+		},
+	}, nil)
 
 	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
 	// request context so *database.RoutedDB routes the call to the
 	// installed test pool. Self-disables in production mode.
-	handler := apihttp.TestModeMiddleware(rootMux)
+	handler := apihttp.TestModeMiddleware(limiter.Middleware(rootMux))
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		Cleanup: func(ctx context.Context) error {
+			_ = redisStore.Close()
+			return db.Close()
+		},
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

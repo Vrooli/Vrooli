@@ -3,9 +3,13 @@ import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders, seedSession } from "../../test-utils";
-import { OwnerSignIn } from "./OwnerSignIn";
 import { selectors } from "../../consts/selectors";
-import { strings } from "../../consts/strings";
+
+// OwnerSignIn renders OwnerLoginForm (same-origin IdentityService) when not
+// signed in; stub the client so the test never reaches the network.
+vi.mock("../../api/identity", () => ({ identityClient: { login: vi.fn(), register: vi.fn() } }));
+
+import { OwnerSignIn } from "./OwnerSignIn";
 
 describe("OwnerSignIn", () => {
   afterEach(() => {
@@ -13,28 +17,20 @@ describe("OwnerSignIn", () => {
     vi.clearAllMocks();
   });
 
-  it("validates a missing token and shows an error without persisting", async () => {
-    const user = userEvent.setup();
+  it("shows the same-origin sign-in form when no owner token is present", () => {
     renderWithProviders(<OwnerSignIn />);
-
-    await user.click(screen.getByTestId(selectors.owner.signInButton));
-
-    expect(screen.getByText(strings.owner.missingToken)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.login.form)).toBeInTheDocument();
     expect(screen.queryByTestId(selectors.owner.status)).not.toBeInTheDocument();
   });
 
-  it("stores a pasted token (trimmed) and flips to the signed-in state", async () => {
-    const user = userEvent.setup();
+  it("shows the signed-in status + sign out when an owner token is present", () => {
+    seedSession({ ownerToken: "existing-jwt" });
     renderWithProviders(<OwnerSignIn />);
-
-    await user.type(screen.getByTestId(selectors.owner.tokenInput), "  jwt-token  ");
-    await user.click(screen.getByTestId(selectors.owner.signInButton));
-
-    await waitFor(() => expect(screen.getByTestId(selectors.owner.status)).toBeInTheDocument());
+    expect(screen.getByTestId(selectors.owner.status)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.owner.signOutButton)).toBeInTheDocument();
   });
 
-  it("clears the owner token from the signed-in state", async () => {
+  it("clears the owner token and returns to the sign-in form", async () => {
     const user = userEvent.setup();
     seedSession({ ownerToken: "existing-jwt" });
     renderWithProviders(<OwnerSignIn />);
@@ -42,8 +38,6 @@ describe("OwnerSignIn", () => {
     expect(screen.getByTestId(selectors.owner.status)).toBeInTheDocument();
     await user.click(screen.getByTestId(selectors.owner.signOutButton));
 
-    await waitFor(() =>
-      expect(screen.getByTestId(selectors.owner.tokenInput)).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByTestId(selectors.login.form)).toBeInTheDocument());
   });
 });

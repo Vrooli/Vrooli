@@ -87,6 +87,25 @@ The contract an adopting scenario implements (PRD Appendix A):
    "can this principal do this action on this resource." The RP never
    sees a password and never calls back to authorize.
 
+### Frozen wire invariants (shared cross-scenario contract)
+
+These three values are a hard contract every relying party depends on;
+changing any one silently breaks every RP. The default realm at P0:
+
+| Claim / value | Frozen value |
+|---|---|
+| Issuer (`iss`) | `scenario-authenticator` |
+| Primary identity claim | `user_id` (NOT `sub`; `sub` is mirrored additively) |
+| Default-realm audience (`aud`) | `scenario-authenticator:default` |
+| JWKS path | `/.well-known/jwks.json` |
+| Token header | `{alg:"RS256", kid:<fingerprint>, typ:"JWT"}` |
+
+The single audience constant **`scenario-authenticator:default`** is the
+realm-qualified `aud` both the authenticator (issuance) and every RP
+(verification) agree on. device-sync-hub pins it as
+`auth.AuthExpectedAudience`. When realms become explicit (P1) the `aud`
+becomes the realm id; the default-realm value above is permanent.
+
 ## Third-Party Services
 
 | Service | Status | Reason | Contract |

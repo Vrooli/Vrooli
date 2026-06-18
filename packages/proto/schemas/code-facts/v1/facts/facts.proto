@@ -71,6 +71,10 @@ enum FactFamily {
   FACT_FAMILY_ENDPOINT_PROOFS = 8;
   FACT_FAMILY_CLI_PROOFS = 9;
   FACT_FAMILY_UI_WIDGET_PROOFS = 10;
+  // FILE_DOMAIN is an opinion-bearing family produced by architecture
+  // cartographer. Code Facts exposes the contract and caches returned facts,
+  // but does not infer domain ownership itself.
+  FACT_FAMILY_FILE_DOMAIN = 11;
   FACT_FAMILY_ALL = 99;
 }
 

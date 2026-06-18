@@ -1,0 +1,178 @@
+syntax = "proto3";
+
+package vrooli.vrooli_bridge.v1.registry;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry;registry_v1";
+
+// =============================================================================
+// REGISTRY DOMAIN — durable identity of trusted Vrooli nodes (OT-P0-001)
+// =============================================================================
+//
+// @stability beta
+//
+// Wire contract for the NodeRegistryService: the owner registers, lists,
+// inspects, updates, and revokes the trusted Vrooli "nodes" that make up the
+// fleet. A node is persistent infrastructure (OS/arch/revision/endpoint/
+// capabilities/scopes), distinct from device-sync-hub's ephemeral sync-peer
+// grants. Presence (online/offline + last-seen) is an ephemeral overlay the
+// presence domain layers onto the read path — the registry persists only the
+// durable identity; the handler stamps `status`/`last_seen_at` from the live
+// presence hub at read time.
+//
+// Consumed by:
+//   - API: handlers/registry/connect_handler.go implements the generated
+//          NodeRegistryServiceHandler.
+//   - CLI: cli/domains/nodes/handlers.go via the generated Connect-Go client.
+//   - UI:  ui/src/api/nodes.ts via the generated Connect-Web client.
+// =============================================================================
+
+service NodeRegistryService {
+  // RegisterNode creates a durable node record. Owner-gated. The pairing
+  // domain (Phase 2) is what mints credentials and calls this on redeem; the
+  // owner can also pre-register a node directly.
+  rpc RegisterNode(RegisterNodeRequest) returns (RegisterNodeResponse);
+
+  // ListNodes returns every node in the owner's fleet, newest-first, with the
+  // live presence overlay applied.
+  rpc ListNodes(ListNodesRequest) returns (ListNodesResponse);
+
+  // GetNode returns a single node by id with the presence overlay applied.
+  rpc GetNode(GetNodeRequest) returns (GetNodeResponse);
+
+  // UpdateNode mutates a node's owner-editable fields (name, endpoint,
+  // capabilities, scopes, revision). Owner-gated.
+  rpc UpdateNode(UpdateNodeRequest) returns (UpdateNodeResponse);
+
+  // RevokeNode severs a node atomically — it marks the record revoked and (in
+  // Phase 2) destroys its credentials and kills its channel/job/provisioning
+  // rights in one operation. Owner-gated. Idempotent: revoking an
+  // already-revoked node returns the revoked record.
+  rpc RevokeNode(RevokeNodeRequest) returns (RevokeNodeResponse);
+}
+
+// NodeStatus is the node's current state. The persisted dimension is
+// REVOKED vs not; ONLINE/OFFLINE/NEEDS_UPDATE are overlaid from the live
+// presence hub at read time (a revoked node is always REVOKED regardless of
+// any lingering connection).
+enum NodeStatus {
+  NODE_STATUS_UNSPECIFIED = 0;
+
+  // Registered but no channel currently held.
+  NODE_STATUS_OFFLINE = 1;
+
+  // Holding a dial-out channel; eligible for dispatch.
+  NODE_STATUS_ONLINE = 2;
+
+  // Connected but on an incompatible protocol version; holds presence but
+  // receives no jobs until updated (set from the channel handshake, Phase 2).
+  NODE_STATUS_NEEDS_UPDATE = 3;
+
+  // Credentials severed; rejected on every exchange. Persisted.
+  NODE_STATUS_REVOKED = 4;
+}
+
+// Node is the canonical wire shape for one trusted node. Durable fields are
+// persisted by the registry repository; `status` and `last_seen_at` are the
+// presence overlay the handler stamps at read time.
+message Node {
+  // Stable, durable id assigned at registration.
+  string id = 1;
+
+  // Human-friendly label the owner sets (e.g. "mac-mini-office").
+  string name = 2;
+
+  // Operating system and architecture the node runs (GOOS/GOARCH style),
+  // driving the cross-OS gate's per-OS fan-out.
+  string os = 3;
+  string arch = 4;
+
+  // The Vrooli git revision the node is currently provisioned to. Updated by
+  // the provisioning tier (Phase 4); empty until first provisioned.
+  string revision = 5;
+
+  // A reachable endpoint hint for the node (informational; the control plane
+  // never dials in — the node dials out). Useful for operator display and for
+  // off-LAN reach bookkeeping via tunnel-manager.
+  string endpoint = 6;
+
+  // Self-reported capability advertisement (verb namespaces the node is
+  // willing to run). Authoritative authorization is `scopes`.
+  repeated string capabilities = 7;
+
+  // The granted verb-namespace scopes that authorize what the node may be
+  // asked to run (e.g. "scenario test*"). Enforced at dispatch (Phase 3).
+  repeated string scopes = 8;
+
+  // Current status, with the presence overlay applied (see NodeStatus).
+  NodeStatus status = 9;
+
+  // True when a dial-out channel is currently held (presence overlay).
+  bool online = 10;
+
+  // When the node was first registered and last mutated.
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+
+  // Last time the node was seen online (updated on heartbeat). Survives a
+  // control-plane restart so the operator sees "last seen 2h ago".
+  google.protobuf.Timestamp last_seen_at = 13;
+
+  // When the node was revoked, if it has been. Unset on active nodes.
+  google.protobuf.Timestamp revoked_at = 14;
+}
+
+// RegisterNodeRequest carries the durable identity of a node being registered.
+message RegisterNodeRequest {
+  string name = 1;
+  string os = 2;
+  string arch = 3;
+  string endpoint = 4;
+  repeated string capabilities = 5;
+  repeated string scopes = 6;
+}
+
+message RegisterNodeResponse {
+  Node node = 1;
+}
+
+message ListNodesRequest {
+}
+
+message ListNodesResponse {
+  // Nodes ordered newest-first by created_at, presence overlay applied.
+  repeated Node nodes = 1;
+}
+
+message GetNodeRequest {
+  string id = 1;
+}
+
+message GetNodeResponse {
+  Node node = 1;
+}
+
+// UpdateNodeRequest mutates owner-editable fields. Only the fields the owner
+// intends to change need be set meaningfully; the service treats the message
+// as the desired post-state of the editable surface.
+message UpdateNodeRequest {
+  string id = 1;
+  string name = 2;
+  string endpoint = 3;
+  repeated string capabilities = 4;
+  repeated string scopes = 5;
+  string revision = 6;
+}
+
+message UpdateNodeResponse {
+  Node node = 1;
+}
+
+message RevokeNodeRequest {
+  string id = 1;
+}
+
+message RevokeNodeResponse {
+  Node node = 1;
+}

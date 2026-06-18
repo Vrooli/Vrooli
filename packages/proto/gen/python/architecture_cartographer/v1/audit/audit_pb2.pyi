@@ -95,6 +95,30 @@ class GraphSummary(_message.Message):
     import_edge_count: int
     def __init__(self, snapshot_id: _Optional[str] = ..., file_count: _Optional[int] = ..., package_count: _Optional[int] = ..., import_edge_count: _Optional[int] = ...) -> None: ...
 
+class CoverageBucket(_message.Message):
+    __slots__ = ("count", "percent")
+    COUNT_FIELD_NUMBER: _ClassVar[int]
+    PERCENT_FIELD_NUMBER: _ClassVar[int]
+    count: int
+    percent: float
+    def __init__(self, count: _Optional[int] = ..., percent: _Optional[float] = ...) -> None: ...
+
+class CoverageSummary(_message.Message):
+    __slots__ = ("total_files", "auto_place", "suggest", "conflict", "all_abstained", "authority_confidence")
+    TOTAL_FILES_FIELD_NUMBER: _ClassVar[int]
+    AUTO_PLACE_FIELD_NUMBER: _ClassVar[int]
+    SUGGEST_FIELD_NUMBER: _ClassVar[int]
+    CONFLICT_FIELD_NUMBER: _ClassVar[int]
+    ALL_ABSTAINED_FIELD_NUMBER: _ClassVar[int]
+    AUTHORITY_CONFIDENCE_FIELD_NUMBER: _ClassVar[int]
+    total_files: int
+    auto_place: CoverageBucket
+    suggest: CoverageBucket
+    conflict: CoverageBucket
+    all_abstained: CoverageBucket
+    authority_confidence: str
+    def __init__(self, total_files: _Optional[int] = ..., auto_place: _Optional[_Union[CoverageBucket, _Mapping]] = ..., suggest: _Optional[_Union[CoverageBucket, _Mapping]] = ..., conflict: _Optional[_Union[CoverageBucket, _Mapping]] = ..., all_abstained: _Optional[_Union[CoverageBucket, _Mapping]] = ..., authority_confidence: _Optional[str] = ...) -> None: ...
+
 class AuditRunRequest(_message.Message):
     __slots__ = ("scenario", "fail_on", "include_types", "exclude_types", "allow_low_authority", "skip_ts")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
@@ -112,7 +136,7 @@ class AuditRunRequest(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., fail_on: _Optional[_Union[_conflicts_pb2.Severity, str]] = ..., include_types: _Optional[_Iterable[str]] = ..., exclude_types: _Optional[_Iterable[str]] = ..., allow_low_authority: _Optional[bool] = ..., skip_ts: _Optional[bool] = ...) -> None: ...
 
 class AuditRunResponse(_message.Message):
-    __slots__ = ("scenario", "outcome", "error", "total_findings", "by_severity", "by_type", "findings", "domains", "graph", "duration", "suppressed_findings", "by_domain", "snapshot_freshness", "authority_confidence", "outcome_reason", "assessment")
+    __slots__ = ("scenario", "outcome", "error", "total_findings", "by_severity", "by_type", "findings", "domains", "graph", "duration", "suppressed_findings", "by_domain", "snapshot_freshness", "authority_confidence", "outcome_reason", "assessment", "coverage")
     class BySeverityEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -150,6 +174,7 @@ class AuditRunResponse(_message.Message):
     AUTHORITY_CONFIDENCE_FIELD_NUMBER: _ClassVar[int]
     OUTCOME_REASON_FIELD_NUMBER: _ClassVar[int]
     ASSESSMENT_FIELD_NUMBER: _ClassVar[int]
+    COVERAGE_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     outcome: AuditOutcome
     error: str
@@ -166,7 +191,8 @@ class AuditRunResponse(_message.Message):
     authority_confidence: AuthorityConfidence
     outcome_reason: str
     assessment: _maturity_pb2.MaturityAssessment
-    def __init__(self, scenario: _Optional[str] = ..., outcome: _Optional[_Union[AuditOutcome, str]] = ..., error: _Optional[str] = ..., total_findings: _Optional[int] = ..., by_severity: _Optional[_Mapping[str, int]] = ..., by_type: _Optional[_Mapping[str, int]] = ..., findings: _Optional[_Iterable[_Union[ConflictSummary, _Mapping]]] = ..., domains: _Optional[_Union[DerivedDomainSummary, _Mapping]] = ..., graph: _Optional[_Union[GraphSummary, _Mapping]] = ..., duration: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., suppressed_findings: _Optional[int] = ..., by_domain: _Optional[_Mapping[str, int]] = ..., snapshot_freshness: _Optional[_Union[SnapshotFreshness, str]] = ..., authority_confidence: _Optional[_Union[AuthorityConfidence, str]] = ..., outcome_reason: _Optional[str] = ..., assessment: _Optional[_Union[_maturity_pb2.MaturityAssessment, _Mapping]] = ...) -> None: ...
+    coverage: CoverageSummary
+    def __init__(self, scenario: _Optional[str] = ..., outcome: _Optional[_Union[AuditOutcome, str]] = ..., error: _Optional[str] = ..., total_findings: _Optional[int] = ..., by_severity: _Optional[_Mapping[str, int]] = ..., by_type: _Optional[_Mapping[str, int]] = ..., findings: _Optional[_Iterable[_Union[ConflictSummary, _Mapping]]] = ..., domains: _Optional[_Union[DerivedDomainSummary, _Mapping]] = ..., graph: _Optional[_Union[GraphSummary, _Mapping]] = ..., duration: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., suppressed_findings: _Optional[int] = ..., by_domain: _Optional[_Mapping[str, int]] = ..., snapshot_freshness: _Optional[_Union[SnapshotFreshness, str]] = ..., authority_confidence: _Optional[_Union[AuthorityConfidence, str]] = ..., outcome_reason: _Optional[str] = ..., assessment: _Optional[_Union[_maturity_pb2.MaturityAssessment, _Mapping]] = ..., coverage: _Optional[_Union[CoverageSummary, _Mapping]] = ...) -> None: ...
 
 class AuditRunAllRequest(_message.Message):
     __slots__ = ("fail_on", "include_types", "exclude_types", "include_scenarios", "exclude_scenarios", "allow_low_authority", "concurrency", "allow_low_authority_scenarios")

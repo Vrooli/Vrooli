@@ -38,7 +38,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Send text", Curl: "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.transfer.TransferService/CreateTextItem -H 'X-Device-Token: <token>' -H 'Content-Type: application/json' -d '{\"text\":\"hello\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "device-sync-hub transfer send-text", Args: []string{"<text>"}},
 	},
 	{
 		ID:          "transfer_list",
@@ -59,7 +58,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "List items", Curl: "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.transfer.TransferService/ListItems -H 'X-Device-Token: <token>' -d '{}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "device-sync-hub transfer list"},
 	},
 	{
 		ID:          "transfer_get",
@@ -77,7 +75,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Get item", Curl: "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.transfer.TransferService/GetItem -H 'X-Device-Token: <token>' -d '{\"id\":\"<item-id>\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "device-sync-hub transfer get", Args: []string{"<id>"}},
 	},
 	{
 		ID:          "transfer_delete",
@@ -95,7 +92,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Delete item", Curl: "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.transfer.TransferService/DeleteItem -H 'X-Device-Token: <token>' -d '{\"id\":\"<item-id>\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "device-sync-hub transfer delete", Args: []string{"<id>"}},
 	},
 	{
 		ID:          "transfer_upload",
@@ -120,11 +116,11 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Upload file", Curl: "curl -X POST http://localhost:${API_PORT}/api/v1/transfer/items -H 'X-Device-Token: <token>' -F file=@./photo.png -F retention=held"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "device-sync-hub transfer upload", Args: []string{"--file", "<path>"}},
+
 		RESTException: &module.RESTException{
 			Reason: module.RESTReasonMultipartUpload,
 			Note:   "Multipart/form-data request transport cannot be expressed in proto. The response payload is the proto-typed UploadItemResponse message.",
-			ProtoPayloads: module.ProtoPayloads{
+			ProtoPayloads: &module.RESTProtoPayloads{
 				Request:  module.RESTPayload{Transport: "multipart/form-data", Conformance: "transport_only"},
 				Response: module.RESTPayload{ProtoFullName: "vrooli.device_sync_hub.v1.transfer.UploadItemResponse", Transport: "json", Conformance: "protojson"},
 				Error:    module.RESTPayload{ProtoFullName: "vrooli.device_sync_hub.v1.errors.ErrorEnvelope", Transport: "json", Conformance: "protojson"},
@@ -148,11 +144,11 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Download file", Curl: "curl -OJ http://localhost:${API_PORT}/api/v1/transfer/items/<item-id>/content -H 'X-Device-Token: <token>'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "device-sync-hub transfer download", Args: []string{"<id>", "--out", "<path>"}},
+
 		RESTException: &module.RESTException{
 			Reason: module.RESTReasonOpsProbe,
 			Note:   "Direct GET (no Connect client): response body is opaque streamed bytes with the original filename — no proto message can carry it. Metadata is served proto-typed via the GetItem Connect RPC.",
-			ProtoPayloads: module.ProtoPayloads{
+			ProtoPayloads: &module.RESTProtoPayloads{
 				Request:  module.RESTPayload{Transport: "none", Conformance: "none"},
 				Response: module.RESTPayload{Transport: "none", Conformance: "none"},
 				Error:    module.RESTPayload{ProtoFullName: "vrooli.device_sync_hub.v1.errors.ErrorEnvelope", Transport: "json", Conformance: "protojson"},

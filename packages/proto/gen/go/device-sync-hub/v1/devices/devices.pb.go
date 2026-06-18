@@ -612,6 +612,106 @@ func (x *DeviceProfile) GetCapabilities() []string {
 	return nil
 }
 
+type SetupOwnerDeviceRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Self-description of the device being set up as the owner's first device.
+	Profile       *DeviceProfile `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetupOwnerDeviceRequest) Reset() {
+	*x = SetupOwnerDeviceRequest{}
+	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetupOwnerDeviceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetupOwnerDeviceRequest) ProtoMessage() {}
+
+func (x *SetupOwnerDeviceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetupOwnerDeviceRequest.ProtoReflect.Descriptor instead.
+func (*SetupOwnerDeviceRequest) Descriptor() ([]byte, []int) {
+	return file_device_sync_hub_v1_devices_devices_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *SetupOwnerDeviceRequest) GetProfile() *DeviceProfile {
+	if x != nil {
+		return x.Profile
+	}
+	return nil
+}
+
+type SetupOwnerDeviceResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The TRUSTED device created for the owner.
+	Device *Device `protobuf:"bytes,1,opt,name=device,proto3" json:"device,omitempty"`
+	// Opaque hub-issued token the device presents on subsequent calls. Returned
+	// only once, here. The hub stores only a hash.
+	DeviceToken   string `protobuf:"bytes,2,opt,name=device_token,json=deviceToken,proto3" json:"device_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetupOwnerDeviceResponse) Reset() {
+	*x = SetupOwnerDeviceResponse{}
+	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetupOwnerDeviceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetupOwnerDeviceResponse) ProtoMessage() {}
+
+func (x *SetupOwnerDeviceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetupOwnerDeviceResponse.ProtoReflect.Descriptor instead.
+func (*SetupOwnerDeviceResponse) Descriptor() ([]byte, []int) {
+	return file_device_sync_hub_v1_devices_devices_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *SetupOwnerDeviceResponse) GetDevice() *Device {
+	if x != nil {
+		return x.Device
+	}
+	return nil
+}
+
+func (x *SetupOwnerDeviceResponse) GetDeviceToken() string {
+	if x != nil {
+		return x.DeviceToken
+	}
+	return ""
+}
+
 type RedeemPairingCodeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Code          string                 `protobuf:"bytes,1,opt,name=code,proto3" json:"code,omitempty"`
@@ -622,7 +722,7 @@ type RedeemPairingCodeRequest struct {
 
 func (x *RedeemPairingCodeRequest) Reset() {
 	*x = RedeemPairingCodeRequest{}
-	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[9]
+	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -634,7 +734,7 @@ func (x *RedeemPairingCodeRequest) String() string {
 func (*RedeemPairingCodeRequest) ProtoMessage() {}
 
 func (x *RedeemPairingCodeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[9]
+	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -647,7 +747,7 @@ func (x *RedeemPairingCodeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RedeemPairingCodeRequest.ProtoReflect.Descriptor instead.
 func (*RedeemPairingCodeRequest) Descriptor() ([]byte, []int) {
-	return file_device_sync_hub_v1_devices_devices_proto_rawDescGZIP(), []int{9}
+	return file_device_sync_hub_v1_devices_devices_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *RedeemPairingCodeRequest) GetCode() string {
@@ -676,7 +776,7 @@ type RedeemPairingCodeResponse struct {
 
 func (x *RedeemPairingCodeResponse) Reset() {
 	*x = RedeemPairingCodeResponse{}
-	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[10]
+	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -688,7 +788,7 @@ func (x *RedeemPairingCodeResponse) String() string {
 func (*RedeemPairingCodeResponse) ProtoMessage() {}
 
 func (x *RedeemPairingCodeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[10]
+	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -701,7 +801,7 @@ func (x *RedeemPairingCodeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RedeemPairingCodeResponse.ProtoReflect.Descriptor instead.
 func (*RedeemPairingCodeResponse) Descriptor() ([]byte, []int) {
-	return file_device_sync_hub_v1_devices_devices_proto_rawDescGZIP(), []int{10}
+	return file_device_sync_hub_v1_devices_devices_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *RedeemPairingCodeResponse) GetDevice() *Device {
@@ -727,7 +827,7 @@ type RequestPairingRequest struct {
 
 func (x *RequestPairingRequest) Reset() {
 	*x = RequestPairingRequest{}
-	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[11]
+	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -739,7 +839,7 @@ func (x *RequestPairingRequest) String() string {
 func (*RequestPairingRequest) ProtoMessage() {}
 
 func (x *RequestPairingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[11]
+	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -752,7 +852,7 @@ func (x *RequestPairingRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RequestPairingRequest.ProtoReflect.Descriptor instead.
 func (*RequestPairingRequest) Descriptor() ([]byte, []int) {
-	return file_device_sync_hub_v1_devices_devices_proto_rawDescGZIP(), []int{11}
+	return file_device_sync_hub_v1_devices_devices_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *RequestPairingRequest) GetProfile() *DeviceProfile {
@@ -774,7 +874,7 @@ type RequestPairingResponse struct {
 
 func (x *RequestPairingResponse) Reset() {
 	*x = RequestPairingResponse{}
-	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[12]
+	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -786,7 +886,7 @@ func (x *RequestPairingResponse) String() string {
 func (*RequestPairingResponse) ProtoMessage() {}
 
 func (x *RequestPairingResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[12]
+	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -799,7 +899,7 @@ func (x *RequestPairingResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RequestPairingResponse.ProtoReflect.Descriptor instead.
 func (*RequestPairingResponse) Descriptor() ([]byte, []int) {
-	return file_device_sync_hub_v1_devices_devices_proto_rawDescGZIP(), []int{12}
+	return file_device_sync_hub_v1_devices_devices_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *RequestPairingResponse) GetDevice() *Device {
@@ -826,7 +926,7 @@ type ApprovePairingRequest struct {
 
 func (x *ApprovePairingRequest) Reset() {
 	*x = ApprovePairingRequest{}
-	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[13]
+	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -838,7 +938,7 @@ func (x *ApprovePairingRequest) String() string {
 func (*ApprovePairingRequest) ProtoMessage() {}
 
 func (x *ApprovePairingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[13]
+	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -851,7 +951,7 @@ func (x *ApprovePairingRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApprovePairingRequest.ProtoReflect.Descriptor instead.
 func (*ApprovePairingRequest) Descriptor() ([]byte, []int) {
-	return file_device_sync_hub_v1_devices_devices_proto_rawDescGZIP(), []int{13}
+	return file_device_sync_hub_v1_devices_devices_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ApprovePairingRequest) GetDeviceId() string {
@@ -870,7 +970,7 @@ type ApprovePairingResponse struct {
 
 func (x *ApprovePairingResponse) Reset() {
 	*x = ApprovePairingResponse{}
-	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[14]
+	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -882,7 +982,7 @@ func (x *ApprovePairingResponse) String() string {
 func (*ApprovePairingResponse) ProtoMessage() {}
 
 func (x *ApprovePairingResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[14]
+	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -895,7 +995,7 @@ func (x *ApprovePairingResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ApprovePairingResponse.ProtoReflect.Descriptor instead.
 func (*ApprovePairingResponse) Descriptor() ([]byte, []int) {
-	return file_device_sync_hub_v1_devices_devices_proto_rawDescGZIP(), []int{14}
+	return file_device_sync_hub_v1_devices_devices_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ApprovePairingResponse) GetDevice() *Device {
@@ -915,7 +1015,7 @@ type RenameDeviceRequest struct {
 
 func (x *RenameDeviceRequest) Reset() {
 	*x = RenameDeviceRequest{}
-	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[15]
+	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -927,7 +1027,7 @@ func (x *RenameDeviceRequest) String() string {
 func (*RenameDeviceRequest) ProtoMessage() {}
 
 func (x *RenameDeviceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[15]
+	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -940,7 +1040,7 @@ func (x *RenameDeviceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RenameDeviceRequest.ProtoReflect.Descriptor instead.
 func (*RenameDeviceRequest) Descriptor() ([]byte, []int) {
-	return file_device_sync_hub_v1_devices_devices_proto_rawDescGZIP(), []int{15}
+	return file_device_sync_hub_v1_devices_devices_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *RenameDeviceRequest) GetDeviceId() string {
@@ -966,7 +1066,7 @@ type RenameDeviceResponse struct {
 
 func (x *RenameDeviceResponse) Reset() {
 	*x = RenameDeviceResponse{}
-	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[16]
+	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -978,7 +1078,7 @@ func (x *RenameDeviceResponse) String() string {
 func (*RenameDeviceResponse) ProtoMessage() {}
 
 func (x *RenameDeviceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[16]
+	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -991,7 +1091,7 @@ func (x *RenameDeviceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RenameDeviceResponse.ProtoReflect.Descriptor instead.
 func (*RenameDeviceResponse) Descriptor() ([]byte, []int) {
-	return file_device_sync_hub_v1_devices_devices_proto_rawDescGZIP(), []int{16}
+	return file_device_sync_hub_v1_devices_devices_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *RenameDeviceResponse) GetDevice() *Device {
@@ -1010,7 +1110,7 @@ type RevokeDeviceRequest struct {
 
 func (x *RevokeDeviceRequest) Reset() {
 	*x = RevokeDeviceRequest{}
-	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[17]
+	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1022,7 +1122,7 @@ func (x *RevokeDeviceRequest) String() string {
 func (*RevokeDeviceRequest) ProtoMessage() {}
 
 func (x *RevokeDeviceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[17]
+	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1035,7 +1135,7 @@ func (x *RevokeDeviceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeDeviceRequest.ProtoReflect.Descriptor instead.
 func (*RevokeDeviceRequest) Descriptor() ([]byte, []int) {
-	return file_device_sync_hub_v1_devices_devices_proto_rawDescGZIP(), []int{17}
+	return file_device_sync_hub_v1_devices_devices_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *RevokeDeviceRequest) GetDeviceId() string {
@@ -1054,7 +1154,7 @@ type RevokeDeviceResponse struct {
 
 func (x *RevokeDeviceResponse) Reset() {
 	*x = RevokeDeviceResponse{}
-	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[18]
+	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1066,7 +1166,7 @@ func (x *RevokeDeviceResponse) String() string {
 func (*RevokeDeviceResponse) ProtoMessage() {}
 
 func (x *RevokeDeviceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[18]
+	mi := &file_device_sync_hub_v1_devices_devices_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1079,7 +1179,7 @@ func (x *RevokeDeviceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeDeviceResponse.ProtoReflect.Descriptor instead.
 func (*RevokeDeviceResponse) Descriptor() ([]byte, []int) {
-	return file_device_sync_hub_v1_devices_devices_proto_rawDescGZIP(), []int{18}
+	return file_device_sync_hub_v1_devices_devices_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *RevokeDeviceResponse) GetDevice() *Device {
@@ -1135,7 +1235,12 @@ const file_device_sync_hub_v1_devices_devices_proto_rawDesc = "" +
 	"deviceName\x12\x12\n" +
 	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x1a\n" +
 	"\bplatform\x18\x03 \x01(\tR\bplatform\x12\"\n" +
-	"\fcapabilities\x18\x04 \x03(\tR\fcapabilities\"z\n" +
+	"\fcapabilities\x18\x04 \x03(\tR\fcapabilities\"e\n" +
+	"\x17SetupOwnerDeviceRequest\x12J\n" +
+	"\aprofile\x18\x01 \x01(\v20.vrooli.device_sync_hub.v1.devices.DeviceProfileR\aprofile\"\x80\x01\n" +
+	"\x18SetupOwnerDeviceResponse\x12A\n" +
+	"\x06device\x18\x01 \x01(\v2).vrooli.device_sync_hub.v1.devices.DeviceR\x06device\x12!\n" +
+	"\fdevice_token\x18\x02 \x01(\tR\vdeviceToken\"z\n" +
 	"\x18RedeemPairingCodeRequest\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12J\n" +
 	"\aprofile\x18\x02 \x01(\v20.vrooli.device_sync_hub.v1.devices.DeviceProfileR\aprofile\"\x81\x01\n" +
@@ -1165,8 +1270,9 @@ const file_device_sync_hub_v1_devices_devices_proto_rawDesc = "" +
 	"\x17TRUST_STATE_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13TRUST_STATE_PENDING\x10\x01\x12\x17\n" +
 	"\x13TRUST_STATE_TRUSTED\x10\x02\x12\x17\n" +
-	"\x13TRUST_STATE_REVOKED\x10\x032\xb7\b\n" +
-	"\x0eDevicesService\x12|\n" +
+	"\x13TRUST_STATE_REVOKED\x10\x032\xc5\t\n" +
+	"\x0eDevicesService\x12\x8b\x01\n" +
+	"\x10SetupOwnerDevice\x12:.vrooli.device_sync_hub.v1.devices.SetupOwnerDeviceRequest\x1a;.vrooli.device_sync_hub.v1.devices.SetupOwnerDeviceResponse\x12|\n" +
 	"\vListDevices\x125.vrooli.device_sync_hub.v1.devices.ListDevicesRequest\x1a6.vrooli.device_sync_hub.v1.devices.ListDevicesResponse\x12v\n" +
 	"\tGetDevice\x123.vrooli.device_sync_hub.v1.devices.GetDeviceRequest\x1a4.vrooli.device_sync_hub.v1.devices.GetDeviceResponse\x12\x8b\x01\n" +
 	"\x10IssuePairingCode\x12:.vrooli.device_sync_hub.v1.devices.IssuePairingCodeRequest\x1a;.vrooli.device_sync_hub.v1.devices.IssuePairingCodeResponse\x12\x8e\x01\n" +
@@ -1189,7 +1295,7 @@ func file_device_sync_hub_v1_devices_devices_proto_rawDescGZIP() []byte {
 }
 
 var file_device_sync_hub_v1_devices_devices_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_device_sync_hub_v1_devices_devices_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_device_sync_hub_v1_devices_devices_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_device_sync_hub_v1_devices_devices_proto_goTypes = []any{
 	(TrustState)(0),                   // 0: vrooli.device_sync_hub.v1.devices.TrustState
 	(*Device)(nil),                    // 1: vrooli.device_sync_hub.v1.devices.Device
@@ -1201,56 +1307,62 @@ var file_device_sync_hub_v1_devices_devices_proto_goTypes = []any{
 	(*IssuePairingCodeRequest)(nil),   // 7: vrooli.device_sync_hub.v1.devices.IssuePairingCodeRequest
 	(*IssuePairingCodeResponse)(nil),  // 8: vrooli.device_sync_hub.v1.devices.IssuePairingCodeResponse
 	(*DeviceProfile)(nil),             // 9: vrooli.device_sync_hub.v1.devices.DeviceProfile
-	(*RedeemPairingCodeRequest)(nil),  // 10: vrooli.device_sync_hub.v1.devices.RedeemPairingCodeRequest
-	(*RedeemPairingCodeResponse)(nil), // 11: vrooli.device_sync_hub.v1.devices.RedeemPairingCodeResponse
-	(*RequestPairingRequest)(nil),     // 12: vrooli.device_sync_hub.v1.devices.RequestPairingRequest
-	(*RequestPairingResponse)(nil),    // 13: vrooli.device_sync_hub.v1.devices.RequestPairingResponse
-	(*ApprovePairingRequest)(nil),     // 14: vrooli.device_sync_hub.v1.devices.ApprovePairingRequest
-	(*ApprovePairingResponse)(nil),    // 15: vrooli.device_sync_hub.v1.devices.ApprovePairingResponse
-	(*RenameDeviceRequest)(nil),       // 16: vrooli.device_sync_hub.v1.devices.RenameDeviceRequest
-	(*RenameDeviceResponse)(nil),      // 17: vrooli.device_sync_hub.v1.devices.RenameDeviceResponse
-	(*RevokeDeviceRequest)(nil),       // 18: vrooli.device_sync_hub.v1.devices.RevokeDeviceRequest
-	(*RevokeDeviceResponse)(nil),      // 19: vrooli.device_sync_hub.v1.devices.RevokeDeviceResponse
-	(*timestamppb.Timestamp)(nil),     // 20: google.protobuf.Timestamp
+	(*SetupOwnerDeviceRequest)(nil),   // 10: vrooli.device_sync_hub.v1.devices.SetupOwnerDeviceRequest
+	(*SetupOwnerDeviceResponse)(nil),  // 11: vrooli.device_sync_hub.v1.devices.SetupOwnerDeviceResponse
+	(*RedeemPairingCodeRequest)(nil),  // 12: vrooli.device_sync_hub.v1.devices.RedeemPairingCodeRequest
+	(*RedeemPairingCodeResponse)(nil), // 13: vrooli.device_sync_hub.v1.devices.RedeemPairingCodeResponse
+	(*RequestPairingRequest)(nil),     // 14: vrooli.device_sync_hub.v1.devices.RequestPairingRequest
+	(*RequestPairingResponse)(nil),    // 15: vrooli.device_sync_hub.v1.devices.RequestPairingResponse
+	(*ApprovePairingRequest)(nil),     // 16: vrooli.device_sync_hub.v1.devices.ApprovePairingRequest
+	(*ApprovePairingResponse)(nil),    // 17: vrooli.device_sync_hub.v1.devices.ApprovePairingResponse
+	(*RenameDeviceRequest)(nil),       // 18: vrooli.device_sync_hub.v1.devices.RenameDeviceRequest
+	(*RenameDeviceResponse)(nil),      // 19: vrooli.device_sync_hub.v1.devices.RenameDeviceResponse
+	(*RevokeDeviceRequest)(nil),       // 20: vrooli.device_sync_hub.v1.devices.RevokeDeviceRequest
+	(*RevokeDeviceResponse)(nil),      // 21: vrooli.device_sync_hub.v1.devices.RevokeDeviceResponse
+	(*timestamppb.Timestamp)(nil),     // 22: google.protobuf.Timestamp
 }
 var file_device_sync_hub_v1_devices_devices_proto_depIdxs = []int32{
 	0,  // 0: vrooli.device_sync_hub.v1.devices.Device.trust_state:type_name -> vrooli.device_sync_hub.v1.devices.TrustState
-	20, // 1: vrooli.device_sync_hub.v1.devices.Device.last_seen_at:type_name -> google.protobuf.Timestamp
-	20, // 2: vrooli.device_sync_hub.v1.devices.Device.created_at:type_name -> google.protobuf.Timestamp
-	20, // 3: vrooli.device_sync_hub.v1.devices.Device.updated_at:type_name -> google.protobuf.Timestamp
-	20, // 4: vrooli.device_sync_hub.v1.devices.PairingCode.expires_at:type_name -> google.protobuf.Timestamp
-	20, // 5: vrooli.device_sync_hub.v1.devices.PairingCode.created_at:type_name -> google.protobuf.Timestamp
+	22, // 1: vrooli.device_sync_hub.v1.devices.Device.last_seen_at:type_name -> google.protobuf.Timestamp
+	22, // 2: vrooli.device_sync_hub.v1.devices.Device.created_at:type_name -> google.protobuf.Timestamp
+	22, // 3: vrooli.device_sync_hub.v1.devices.Device.updated_at:type_name -> google.protobuf.Timestamp
+	22, // 4: vrooli.device_sync_hub.v1.devices.PairingCode.expires_at:type_name -> google.protobuf.Timestamp
+	22, // 5: vrooli.device_sync_hub.v1.devices.PairingCode.created_at:type_name -> google.protobuf.Timestamp
 	1,  // 6: vrooli.device_sync_hub.v1.devices.ListDevicesResponse.devices:type_name -> vrooli.device_sync_hub.v1.devices.Device
 	1,  // 7: vrooli.device_sync_hub.v1.devices.GetDeviceResponse.device:type_name -> vrooli.device_sync_hub.v1.devices.Device
 	2,  // 8: vrooli.device_sync_hub.v1.devices.IssuePairingCodeResponse.pairing_code:type_name -> vrooli.device_sync_hub.v1.devices.PairingCode
-	9,  // 9: vrooli.device_sync_hub.v1.devices.RedeemPairingCodeRequest.profile:type_name -> vrooli.device_sync_hub.v1.devices.DeviceProfile
-	1,  // 10: vrooli.device_sync_hub.v1.devices.RedeemPairingCodeResponse.device:type_name -> vrooli.device_sync_hub.v1.devices.Device
-	9,  // 11: vrooli.device_sync_hub.v1.devices.RequestPairingRequest.profile:type_name -> vrooli.device_sync_hub.v1.devices.DeviceProfile
-	1,  // 12: vrooli.device_sync_hub.v1.devices.RequestPairingResponse.device:type_name -> vrooli.device_sync_hub.v1.devices.Device
-	1,  // 13: vrooli.device_sync_hub.v1.devices.ApprovePairingResponse.device:type_name -> vrooli.device_sync_hub.v1.devices.Device
-	1,  // 14: vrooli.device_sync_hub.v1.devices.RenameDeviceResponse.device:type_name -> vrooli.device_sync_hub.v1.devices.Device
-	1,  // 15: vrooli.device_sync_hub.v1.devices.RevokeDeviceResponse.device:type_name -> vrooli.device_sync_hub.v1.devices.Device
-	3,  // 16: vrooli.device_sync_hub.v1.devices.DevicesService.ListDevices:input_type -> vrooli.device_sync_hub.v1.devices.ListDevicesRequest
-	5,  // 17: vrooli.device_sync_hub.v1.devices.DevicesService.GetDevice:input_type -> vrooli.device_sync_hub.v1.devices.GetDeviceRequest
-	7,  // 18: vrooli.device_sync_hub.v1.devices.DevicesService.IssuePairingCode:input_type -> vrooli.device_sync_hub.v1.devices.IssuePairingCodeRequest
-	10, // 19: vrooli.device_sync_hub.v1.devices.DevicesService.RedeemPairingCode:input_type -> vrooli.device_sync_hub.v1.devices.RedeemPairingCodeRequest
-	12, // 20: vrooli.device_sync_hub.v1.devices.DevicesService.RequestPairing:input_type -> vrooli.device_sync_hub.v1.devices.RequestPairingRequest
-	14, // 21: vrooli.device_sync_hub.v1.devices.DevicesService.ApprovePairing:input_type -> vrooli.device_sync_hub.v1.devices.ApprovePairingRequest
-	16, // 22: vrooli.device_sync_hub.v1.devices.DevicesService.RenameDevice:input_type -> vrooli.device_sync_hub.v1.devices.RenameDeviceRequest
-	18, // 23: vrooli.device_sync_hub.v1.devices.DevicesService.RevokeDevice:input_type -> vrooli.device_sync_hub.v1.devices.RevokeDeviceRequest
-	4,  // 24: vrooli.device_sync_hub.v1.devices.DevicesService.ListDevices:output_type -> vrooli.device_sync_hub.v1.devices.ListDevicesResponse
-	6,  // 25: vrooli.device_sync_hub.v1.devices.DevicesService.GetDevice:output_type -> vrooli.device_sync_hub.v1.devices.GetDeviceResponse
-	8,  // 26: vrooli.device_sync_hub.v1.devices.DevicesService.IssuePairingCode:output_type -> vrooli.device_sync_hub.v1.devices.IssuePairingCodeResponse
-	11, // 27: vrooli.device_sync_hub.v1.devices.DevicesService.RedeemPairingCode:output_type -> vrooli.device_sync_hub.v1.devices.RedeemPairingCodeResponse
-	13, // 28: vrooli.device_sync_hub.v1.devices.DevicesService.RequestPairing:output_type -> vrooli.device_sync_hub.v1.devices.RequestPairingResponse
-	15, // 29: vrooli.device_sync_hub.v1.devices.DevicesService.ApprovePairing:output_type -> vrooli.device_sync_hub.v1.devices.ApprovePairingResponse
-	17, // 30: vrooli.device_sync_hub.v1.devices.DevicesService.RenameDevice:output_type -> vrooli.device_sync_hub.v1.devices.RenameDeviceResponse
-	19, // 31: vrooli.device_sync_hub.v1.devices.DevicesService.RevokeDevice:output_type -> vrooli.device_sync_hub.v1.devices.RevokeDeviceResponse
-	24, // [24:32] is the sub-list for method output_type
-	16, // [16:24] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	9,  // 9: vrooli.device_sync_hub.v1.devices.SetupOwnerDeviceRequest.profile:type_name -> vrooli.device_sync_hub.v1.devices.DeviceProfile
+	1,  // 10: vrooli.device_sync_hub.v1.devices.SetupOwnerDeviceResponse.device:type_name -> vrooli.device_sync_hub.v1.devices.Device
+	9,  // 11: vrooli.device_sync_hub.v1.devices.RedeemPairingCodeRequest.profile:type_name -> vrooli.device_sync_hub.v1.devices.DeviceProfile
+	1,  // 12: vrooli.device_sync_hub.v1.devices.RedeemPairingCodeResponse.device:type_name -> vrooli.device_sync_hub.v1.devices.Device
+	9,  // 13: vrooli.device_sync_hub.v1.devices.RequestPairingRequest.profile:type_name -> vrooli.device_sync_hub.v1.devices.DeviceProfile
+	1,  // 14: vrooli.device_sync_hub.v1.devices.RequestPairingResponse.device:type_name -> vrooli.device_sync_hub.v1.devices.Device
+	1,  // 15: vrooli.device_sync_hub.v1.devices.ApprovePairingResponse.device:type_name -> vrooli.device_sync_hub.v1.devices.Device
+	1,  // 16: vrooli.device_sync_hub.v1.devices.RenameDeviceResponse.device:type_name -> vrooli.device_sync_hub.v1.devices.Device
+	1,  // 17: vrooli.device_sync_hub.v1.devices.RevokeDeviceResponse.device:type_name -> vrooli.device_sync_hub.v1.devices.Device
+	10, // 18: vrooli.device_sync_hub.v1.devices.DevicesService.SetupOwnerDevice:input_type -> vrooli.device_sync_hub.v1.devices.SetupOwnerDeviceRequest
+	3,  // 19: vrooli.device_sync_hub.v1.devices.DevicesService.ListDevices:input_type -> vrooli.device_sync_hub.v1.devices.ListDevicesRequest
+	5,  // 20: vrooli.device_sync_hub.v1.devices.DevicesService.GetDevice:input_type -> vrooli.device_sync_hub.v1.devices.GetDeviceRequest
+	7,  // 21: vrooli.device_sync_hub.v1.devices.DevicesService.IssuePairingCode:input_type -> vrooli.device_sync_hub.v1.devices.IssuePairingCodeRequest
+	12, // 22: vrooli.device_sync_hub.v1.devices.DevicesService.RedeemPairingCode:input_type -> vrooli.device_sync_hub.v1.devices.RedeemPairingCodeRequest
+	14, // 23: vrooli.device_sync_hub.v1.devices.DevicesService.RequestPairing:input_type -> vrooli.device_sync_hub.v1.devices.RequestPairingRequest
+	16, // 24: vrooli.device_sync_hub.v1.devices.DevicesService.ApprovePairing:input_type -> vrooli.device_sync_hub.v1.devices.ApprovePairingRequest
+	18, // 25: vrooli.device_sync_hub.v1.devices.DevicesService.RenameDevice:input_type -> vrooli.device_sync_hub.v1.devices.RenameDeviceRequest
+	20, // 26: vrooli.device_sync_hub.v1.devices.DevicesService.RevokeDevice:input_type -> vrooli.device_sync_hub.v1.devices.RevokeDeviceRequest
+	11, // 27: vrooli.device_sync_hub.v1.devices.DevicesService.SetupOwnerDevice:output_type -> vrooli.device_sync_hub.v1.devices.SetupOwnerDeviceResponse
+	4,  // 28: vrooli.device_sync_hub.v1.devices.DevicesService.ListDevices:output_type -> vrooli.device_sync_hub.v1.devices.ListDevicesResponse
+	6,  // 29: vrooli.device_sync_hub.v1.devices.DevicesService.GetDevice:output_type -> vrooli.device_sync_hub.v1.devices.GetDeviceResponse
+	8,  // 30: vrooli.device_sync_hub.v1.devices.DevicesService.IssuePairingCode:output_type -> vrooli.device_sync_hub.v1.devices.IssuePairingCodeResponse
+	13, // 31: vrooli.device_sync_hub.v1.devices.DevicesService.RedeemPairingCode:output_type -> vrooli.device_sync_hub.v1.devices.RedeemPairingCodeResponse
+	15, // 32: vrooli.device_sync_hub.v1.devices.DevicesService.RequestPairing:output_type -> vrooli.device_sync_hub.v1.devices.RequestPairingResponse
+	17, // 33: vrooli.device_sync_hub.v1.devices.DevicesService.ApprovePairing:output_type -> vrooli.device_sync_hub.v1.devices.ApprovePairingResponse
+	19, // 34: vrooli.device_sync_hub.v1.devices.DevicesService.RenameDevice:output_type -> vrooli.device_sync_hub.v1.devices.RenameDeviceResponse
+	21, // 35: vrooli.device_sync_hub.v1.devices.DevicesService.RevokeDevice:output_type -> vrooli.device_sync_hub.v1.devices.RevokeDeviceResponse
+	27, // [27:36] is the sub-list for method output_type
+	18, // [18:27] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_device_sync_hub_v1_devices_devices_proto_init() }
@@ -1264,7 +1376,7 @@ func file_device_sync_hub_v1_devices_devices_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_device_sync_hub_v1_devices_devices_proto_rawDesc), len(file_device_sync_hub_v1_devices_devices_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   19,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

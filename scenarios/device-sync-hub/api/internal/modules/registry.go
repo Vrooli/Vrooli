@@ -24,11 +24,13 @@ import (
 
 	devicesH "device-sync-hub/handlers/devices"
 	healthH "device-sync-hub/handlers/health"
+	identityH "device-sync-hub/handlers/identity"
 	realtimeH "device-sync-hub/handlers/realtime"
 	transferH "device-sync-hub/handlers/transfer"
 	localdb "device-sync-hub/internal/database"
 
 	devicesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-sync-hub/v1/devices"
+	identityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-sync-hub/v1/identity"
 	transferv1 "github.com/vrooli/vrooli/packages/proto/gen/go/device-sync-hub/v1/transfer"
 )
 
@@ -40,6 +42,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, devicesH.Endpoints...)
+	out = append(out, identityH.Endpoints...)
 	out = append(out, realtimeH.Endpoints...)
 	out = append(out, transferH.Endpoints...)
 	return out
@@ -69,6 +72,7 @@ type ProtoFileEntry struct {
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "devices", File: devicesv1.File_device_sync_hub_v1_devices_devices_proto},
+		{Module: "identity", File: identityv1.File_device_sync_hub_v1_identity_identity_proto},
 		{Module: "transfer", File: transferv1.File_device_sync_hub_v1_transfer_transfer_proto},
 	}
 }
@@ -85,6 +89,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(devicesH.Schema),
+		apidb.SchemaProviderFunc(identityH.Schema),
 		apidb.SchemaProviderFunc(transferH.Schema),
 	}
 }

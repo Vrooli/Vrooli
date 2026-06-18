@@ -75,16 +75,6 @@ signed material are stored at rest; never a plaintext secret.**
 | Audit events | medium | `audit` | Security-relevant events (who/what/when/result). Must not contain plaintext credentials or raw tokens. |
 | Realm config (policy, branding, redirect URIs) | medium | `realms` | Per-tenant policy; misconfiguration is a tenant-isolation risk (see below). |
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-The shipped worked-example `notes` domain carries placeholder data only
-(removed by `vrooli scenario detemplate`):
-
-| Data | Sensitivity | Owner | Details |
-|---|---|---|---|
-| Template notes data | low | notes reference | Local development data only; not product scope. |
-| Attachment bytes | unknown | notes reference | Template reference; not product scope. |
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## Auth And Authorization — the IdP↔RP boundary
 
 scenario-authenticator answers **"valid principal + coarse realm

@@ -1,86 +1,229 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "scenario-authenticator",
-  "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "description": "scenario-authenticator CLI surface. Single source of truth for the auth + sessions domains: schema-validated against cli-manifest/v1 and cross-validated against the AccountsService/SessionsService proto descriptors at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
   "groups": [
     {
-      "name": "notes",
-      "description": "Manage notes (CRUD reference)",
+      "name": "auth",
+      "description": "Account lifecycle (register, login, refresh, logout, validate)",
+      "commands": [
+        {
+          "name": "register",
+          "description": "Create an account and sign in",
+          "flags": [
+            {
+              "name": "email",
+              "required": true,
+              "description": "Account email"
+            },
+            {
+              "name": "password",
+              "required": true,
+              "description": "Account password (>=8 chars, upper+lower+digit)"
+            },
+            {
+              "name": "username",
+              "description": "Optional display name"
+            },
+            {
+              "name": "realm",
+              "description": "Realm to register in (default realm if omitted)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AccountsService",
+            "method": "Register"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "login",
+          "description": "Sign in and obtain access + refresh tokens",
+          "flags": [
+            {
+              "name": "email",
+              "required": true,
+              "description": "Account email"
+            },
+            {
+              "name": "password",
+              "required": true,
+              "description": "Account password"
+            },
+            {
+              "name": "realm",
+              "description": "Realm to authenticate against"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AccountsService",
+            "method": "Login"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "refresh",
+          "description": "Rotate a refresh token and mint a new access token",
+          "flags": [
+            {
+              "name": "refresh-token",
+              "required": true,
+              "description": "The refresh token to rotate"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AccountsService",
+            "method": "Refresh"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "logout",
+          "description": "Sign out: blacklist the access token and revoke sessions",
+          "flags": [
+            {
+              "name": "access-token",
+              "required": true,
+              "description": "The access token to invalidate"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AccountsService",
+            "method": "Logout"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "validate",
+          "description": "Validate an access token and show its claims",
+          "flags": [
+            {
+              "name": "access-token",
+              "required": true,
+              "description": "The access token to validate"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AccountsService",
+            "method": "Validate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "sessions",
+      "description": "Session enumeration and revocation",
       "commands": [
         {
           "name": "list",
-          "description": "List all notes",
-          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "ListNotes" },
+          "description": "List active sessions for an access token's owner",
+          "flags": [
+            {
+              "name": "access-token",
+              "required": true,
+              "description": "Access token identifying the owner"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionsService",
+            "method": "ListSessions"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
-          "name": "create",
-          "description": "Create a note",
-          "flags": [
-            { "name": "title", "required": true, "description": "Note title" },
-            { "name": "body", "description": "Note body" }
+          "name": "revoke",
+          "description": "Revoke a single session by id (idempotent)",
+          "positionals": [
+            {
+              "name": "session-id",
+              "required": true,
+              "description": "Session id to revoke"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "CreateNote" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionsService",
+            "method": "RevokeSession"
+          },
           "governance": {
             "effect": "write",
-            "run_eligible": true,
-            "permissions": ["network:internal"]
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
-          "name": "get",
-          "description": "Get a note by id",
-          "positionals": [
-            { "name": "id", "required": true, "description": "Note id" }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "GetNote" },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": ["network:internal"]
-          }
-        },
-        {
-          "name": "count",
-          "description": "Count notes created in a time window (the reference measure)",
+          "name": "revoke-all",
+          "description": "Revoke every session for the access token's owner",
           "flags": [
-            { "name": "window", "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)" }
-          ],
-          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "CountNotes" },
-          "governance": {
-            "effect": "read",
-            "run_eligible": true,
-            "permissions": ["network:internal"]
-          },
-          "measure": {
-            "intent": "How many notes were created in a given time window.",
-            "questions": [
-              "how many notes were created this week",
-              "notes created last month",
-              "how many notes did we add in the last 7 days"
-            ],
-            "params": {
-              "window": { "type": "time_window", "default": "this_week" }
-            },
-            "result": {
-              "kind": "scalar",
-              "value_field": "count",
-              "unit": "notes",
-              "summary_template": "{count} notes created ({window})"
+            {
+              "name": "access-token",
+              "required": true,
+              "description": "Access token identifying the owner"
             }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SessionsService",
+            "method": "RevokeAllSessions"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
           }
         }
       ]
     }
   ],
   "measures": {
-    "domains": [
-      { "domain": "notes", "stateful": true, "reason": "Notes are countable persisted rows; the notes count measure covers this domain at full tier." }
-    ]
+    "domains": []
   },
   "omitted": []
 }

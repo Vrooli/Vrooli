@@ -596,3 +596,59 @@ class ScenarioOrientationCheck(_message.Message):
     message: str
     optional: bool
     def __init__(self, kind: _Optional[str] = ..., label: _Optional[str] = ..., passed: _Optional[bool] = ..., skipped: _Optional[bool] = ..., message: _Optional[str] = ..., optional: _Optional[bool] = ...) -> None: ...
+
+class ScenarioDetemplateResponse(_message.Message):
+    __slots__ = ("success", "detemplate")
+    SUCCESS_FIELD_NUMBER: _ClassVar[int]
+    DETEMPLATE_FIELD_NUMBER: _ClassVar[int]
+    success: bool
+    detemplate: ScenarioDetemplateResult
+    def __init__(self, success: _Optional[bool] = ..., detemplate: _Optional[_Union[ScenarioDetemplateResult, _Mapping]] = ...) -> None: ...
+
+class ScenarioDetemplateResult(_message.Message):
+    __slots__ = ("scenario", "scenario_path", "marker", "dry_run", "blocks_removed", "lines_stripped", "files_edited", "paths_deleted", "finalizers", "message")
+    SCENARIO_FIELD_NUMBER: _ClassVar[int]
+    SCENARIO_PATH_FIELD_NUMBER: _ClassVar[int]
+    MARKER_FIELD_NUMBER: _ClassVar[int]
+    DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    BLOCKS_REMOVED_FIELD_NUMBER: _ClassVar[int]
+    LINES_STRIPPED_FIELD_NUMBER: _ClassVar[int]
+    FILES_EDITED_FIELD_NUMBER: _ClassVar[int]
+    PATHS_DELETED_FIELD_NUMBER: _ClassVar[int]
+    FINALIZERS_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    scenario: str
+    scenario_path: str
+    marker: str
+    dry_run: bool
+    blocks_removed: int
+    lines_stripped: int
+    files_edited: _containers.RepeatedCompositeFieldContainer[ScenarioDetemplateFile]
+    paths_deleted: _containers.RepeatedScalarFieldContainer[str]
+    finalizers: _containers.RepeatedCompositeFieldContainer[ScenarioDetemplateFinalizer]
+    message: str
+    def __init__(self, scenario: _Optional[str] = ..., scenario_path: _Optional[str] = ..., marker: _Optional[str] = ..., dry_run: _Optional[bool] = ..., blocks_removed: _Optional[int] = ..., lines_stripped: _Optional[int] = ..., files_edited: _Optional[_Iterable[_Union[ScenarioDetemplateFile, _Mapping]]] = ..., paths_deleted: _Optional[_Iterable[str]] = ..., finalizers: _Optional[_Iterable[_Union[ScenarioDetemplateFinalizer, _Mapping]]] = ..., message: _Optional[str] = ...) -> None: ...
+
+class ScenarioDetemplateFile(_message.Message):
+    __slots__ = ("path", "blocks_removed", "lines_stripped")
+    PATH_FIELD_NUMBER: _ClassVar[int]
+    BLOCKS_REMOVED_FIELD_NUMBER: _ClassVar[int]
+    LINES_STRIPPED_FIELD_NUMBER: _ClassVar[int]
+    path: str
+    blocks_removed: int
+    lines_stripped: int
+    def __init__(self, path: _Optional[str] = ..., blocks_removed: _Optional[int] = ..., lines_stripped: _Optional[int] = ...) -> None: ...
+
+class ScenarioDetemplateFinalizer(_message.Message):
+    __slots__ = ("description", "command", "ran", "ok", "message")
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    COMMAND_FIELD_NUMBER: _ClassVar[int]
+    RAN_FIELD_NUMBER: _ClassVar[int]
+    OK_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    description: str
+    command: str
+    ran: bool
+    ok: bool
+    message: str
+    def __init__(self, description: _Optional[str] = ..., command: _Optional[str] = ..., ran: _Optional[bool] = ..., ok: _Optional[bool] = ..., message: _Optional[str] = ...) -> None: ...

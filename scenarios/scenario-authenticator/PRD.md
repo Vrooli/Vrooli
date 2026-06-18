@@ -39,8 +39,8 @@ Operational targets are measurable outcomes; checkboxes may auto-update based on
 - [ ] OT-P1-004 | API Keys + Client-Credentials Grant | Hashed API keys and a client-credentials grant let machine/service principals authenticate without a human session.
 - [ ] OT-P1-005 | Scopes/Permissions RBAC per Realm | Roles and scopes are defined per realm (beyond admin/user); definitions are owned here and emitted as claims, with enforcement delegated to RPs.
 - [ ] OT-P1-006 | Passkeys / WebAuthn | WebAuthn passkeys are a first-class credential and second factor.
-- [ ] OT-P1-007 | Admin Console UI | A production-polished console manages realms, users, roles/scopes, sessions, and audit, with destructive-action confirmation gates.
-- [ ] OT-P1-008 | End-User Self-Service UI | Users manage profile, MFA enrollment, active sessions (review/revoke), connected accounts, and password change.
+- [x] OT-P1-007 | Admin Console UI | A production-polished console manages realms, users, roles/scopes, sessions, and audit, with destructive-action confirmation gates.
+- [x] OT-P1-008 | End-User Self-Service UI | Users manage profile, MFA enrollment, active sessions (review/revoke), connected accounts, and password change.
 - [ ] OT-P1-009 | Account Recovery | Password-reset and email-verification flows are delivered securely (single-use, expiring tokens; no enumeration).
 
 ### 🟢 P2 – Future / expansion

@@ -144,13 +144,9 @@
     }
   },
   "owner": {
-    "intro": "Owner actions (managing devices, issuing codes) need an owner token. Paste a valid token to enable them.",
-    "tokenLabel": "Owner token",
-    "tokenPlaceholder": "Paste owner JWT",
-    "signIn": "Save token",
-    "signedIn": "Owner token saved.",
-    "signOut": "Clear owner token",
-    "missingToken": "Paste a token first."
+    "intro": "Owner actions (managing devices, issuing codes) need you to be signed in.",
+    "signedIn": "Signed in as the owner.",
+    "signOut": "Sign out"
   },
   "onboarding": {
     "welcomeTitle": "Set up Device Sync Hub",
@@ -162,8 +158,10 @@
     "back": "Back"
   },
   "login": {
-    "title": "Sign in as the owner",
-    "intro": "Sign in with your account to claim this hub.",
+    "title": "Owner sign-in",
+    "intro": "Sign in or create your owner account to set up this hub.",
+    "tabSignIn": "Sign in",
+    "tabCreate": "Create account",
     "emailLabel": "Email",
     "emailPlaceholder": "you@example.com",
     "passwordLabel": "Password",
@@ -172,10 +170,15 @@
     "submitting": "Signing in…",
     "missingFields": "Enter your email and password.",
     "invalidCredentials": "Sign-in failed — check your email and password.",
-    "unavailable": "Couldn't reach the authenticator. Try again, or use the advanced token option.",
-    "unconfigured": "Owner sign-in isn't configured for this deployment. Use the advanced token option below.",
-    "advancedToggle": "Advanced: paste an owner token",
-    "advancedIntro": "Already have an owner token? Paste it instead of signing in."
+    "unavailable": "Couldn't reach the sign-in service. Is scenario-authenticator running?"
+  },
+  "register": {
+    "usernameLabel": "Display name (optional)",
+    "usernamePlaceholder": "e.g. Alex",
+    "submit": "Create account",
+    "submitting": "Creating account…",
+    "emailTaken": "That email is already registered — switch to Sign in.",
+    "invalidInput": "Couldn't create the account: {{detail}}"
   },
   "setupDevice": {
     "title": "Make this your first device",

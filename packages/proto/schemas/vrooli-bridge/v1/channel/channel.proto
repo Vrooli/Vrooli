@@ -1,0 +1,267 @@
+syntax = "proto3";
+
+package vrooli.vrooli_bridge.v1.channel;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel;channel_v1";
+
+// =============================================================================
+// CHANNEL — node-agent ↔ control-plane dial-out wire protocol
+// =============================================================================
+//
+// @stability beta
+//
+// This file is the versioned wire contract for the persistent **dial-out**
+// channel a node-agent holds back to the control plane (ARCHITECTURE.md "the
+// fleet"). It is a message-only contract — it declares no service. The
+// transport is split per DECISIONS.md / Contract Decisions §8:
+//
+//   - Control plane → node push (HandshakeAck, JobPush, ProvisionCommand,
+//     ControlPing) rides the SSE stream the node opens; frames are wrapped in
+//     a `ServerFrame` envelope so one stream multiplexes every push kind.
+//   - Node → control plane actions (Handshake, Heartbeat, RunEvent) are
+//     Connect-RPC calls on the presence/runs domain services; the `NodeFrame`
+//     envelope documents the union those calls carry.
+//
+// Versioning / back-compat policy
+// -------------------------------
+// `protocol_version` is the single integer the handshake negotiates. The
+// current version is CHANNEL_PROTOCOL_VERSION = 1 (mirrored as a Go const in
+// the agent and api). Both sides parse with DiscardUnknown so a newer peer
+// adding fields never breaks an older peer. A node whose protocol_version the
+// control plane cannot drive is flagged NEEDS_UPDATE (or INCOMPATIBLE) in the
+// HandshakeAck and is never silently mis-driven — it holds presence but
+// receives no jobs until updated. Field numbers are never reused; removed
+// fields are `reserved`. Add new push kinds to the `ServerFrame` oneof and new
+// node actions to the `NodeFrame` oneof rather than overloading existing ones.
+//
+// Mutual auth (SECURITY.md boundary 2, DECISIONS.md 2026-06-18) is carried
+// alongside these frames, not inside them: the node signs its Connect-RPC
+// calls with its per-node Ed25519 key and the SSE token is bound to that key;
+// the control plane's pushes are verifiable against the key the node pinned at
+// bootstrap. The auth material therefore lives on the credential/transport
+// edge, keeping these payloads transport-agnostic.
+// =============================================================================
+
+// CompatibilityStatus is the control plane's verdict on a node's negotiated
+// protocol_version, returned in HandshakeAck. It is the mechanism that keeps a
+// version-drifted node from being silently mis-driven.
+enum CompatibilityStatus {
+  // Never set on the wire; a zero value means the ack predates compatibility
+  // negotiation and must be treated as INCOMPATIBLE by a strict node.
+  COMPATIBILITY_STATUS_UNSPECIFIED = 0;
+
+  // The node's protocol_version is fully drivable; it may receive jobs and
+  // provisioning commands.
+  COMPATIBILITY_STATUS_OK = 1;
+
+  // The control plane can still hold the node's presence but will not dispatch
+  // work until the agent is updated. Surfaced to the operator as "needs
+  // update".
+  COMPATIBILITY_STATUS_NEEDS_UPDATE = 2;
+
+  // The node's protocol_version cannot be driven at all; the channel is
+  // refused.
+  COMPATIBILITY_STATUS_INCOMPATIBLE = 3;
+}
+
+// RunEventKind discriminates the payload a RunEvent carries back from a node's
+// durable run. The runs domain (Phase 3) interprets these.
+enum RunEventKind {
+  RUN_EVENT_KIND_UNSPECIFIED = 0;
+
+  // log_chunk carries a slice of combined stdout/stderr.
+  RUN_EVENT_KIND_LOG = 1;
+
+  // status carries a human-readable lifecycle transition (e.g. "running").
+  RUN_EVENT_KIND_STATUS = 2;
+
+  // exit_code is the terminal process exit code; the run is terminal after it.
+  RUN_EVENT_KIND_EXIT = 3;
+
+  // artifact_ref carries a device-sync-hub reference to a produced artifact;
+  // the bytes never transit the control-plane store (DATA.md).
+  RUN_EVENT_KIND_ARTIFACT_REF = 4;
+}
+
+// Handshake is the first frame a node sends when it opens the channel. It
+// establishes durable identity and negotiates the protocol version.
+message Handshake {
+  // Negotiated wire protocol version. Current peers send
+  // CHANNEL_PROTOCOL_VERSION = 1.
+  uint32 protocol_version = 1;
+
+  // Durable node identity assigned at registration (registry domain).
+  string node_id = 2;
+
+  // The agent binary's build fingerprint, so the control plane can correlate
+  // behaviour with a specific build.
+  string agent_version = 3;
+
+  // GOOS / GOARCH the agent was built for (e.g. "linux"/"amd64"). Drives the
+  // cross-OS gate's per-OS fan-out (gate domain).
+  string os = 4;
+  string arch = 5;
+
+  // Self-reported verb-namespace capabilities the node is willing to run
+  // (e.g. "scenario test*"). Authoritative scopes live on the node record;
+  // this is the node's advertisement, reconciled at dispatch.
+  repeated string capabilities = 6;
+
+  reserved 7 to 15; // forward growth (hardware facts, agent flags)
+}
+
+// HandshakeAck is the control plane's first push after a Handshake. It accepts
+// or refuses the channel and reports the compatibility verdict.
+message HandshakeAck {
+  // True when the channel is accepted (compatibility OK or NEEDS_UPDATE with
+  // presence-only). False with COMPATIBILITY_STATUS_INCOMPATIBLE refuses it.
+  bool accepted = 1;
+
+  // The control plane's verdict on the node's protocol_version.
+  CompatibilityStatus compatibility = 2;
+
+  // The control plane's own protocol version, so the node can detect a
+  // control plane it is itself too old to drive.
+  uint32 control_plane_protocol_version = 3;
+
+  // Opaque per-connection session id correlating subsequent frames in logs and
+  // audit.
+  string session_id = 4;
+
+  // Human-readable reason, set when accepted=false or compatibility !=
+  // OK (e.g. "agent protocol 0 < minimum 1; run the bootstrap installer").
+  string reason = 5;
+}
+
+// HealthSnapshot is the node's self-reported readiness, sent on connect and on
+// every Heartbeat. Dispatch only targets nodes whose snapshot shows they can
+// do the work (OT-P0-003).
+message HealthSnapshot {
+  // The Vrooli toolchain (`vrooli` CLI + setup) is present and runnable.
+  bool toolchain_present = 1;
+
+  // Free disk headroom in bytes on the work volume.
+  int64 disk_headroom_bytes = 2;
+
+  // A container runtime (Docker/Podman) the node needs for some jobs is up.
+  bool container_runtime_up = 3;
+
+  // Free-form extra readiness facts (e.g. "go" -> "1.25.0"), kept open so the
+  // agent can report new signals without a proto change.
+  map<string, string> details = 4;
+
+  // When the agent sampled this snapshot.
+  google.protobuf.Timestamp reported_at = 5;
+}
+
+// Heartbeat is the node's periodic liveness + readiness ping (node → control
+// plane). Absence of heartbeats past the liveness window flips the node
+// offline (presence domain).
+message Heartbeat {
+  string node_id = 1;
+
+  // Monotonic per-connection counter; lets the control plane detect dropped or
+  // reordered heartbeats.
+  uint64 sequence = 2;
+
+  HealthSnapshot health = 3;
+
+  google.protobuf.Timestamp sent_at = 4;
+}
+
+// JobPush is the typed job the control plane pushes for the node to run
+// (OT-P0-004). It is NEVER a shell string: {scenario, verb, args} is validated
+// against the scenario-CLI manifest + per-node scopes before it is pushed. The
+// dispatch domain (Phase 3) owns that validation; this is only the wire shape.
+message JobPush {
+  // Server-owned durable run id; the node re-attaches and reports against it.
+  string run_id = 1;
+
+  // The target scenario, the manifest-declared verb, and its typed args.
+  string scenario = 2;
+  string verb = 3;
+  repeated string args = 4;
+
+  // Wall-clock budget after which the node aborts the run.
+  int64 timeout_seconds = 5;
+
+  reserved 6 to 15; // env scoping, artifact inputs, queue metadata
+}
+
+// ProvisionCommand is the privileged-tier push that brings a node to a target
+// revision (OT-P0-006). It is executed by the separate privileged provisioning
+// helper, never the runner (DECISIONS.md two-trust-tiers). Phase 4 fills the
+// helper; this is the wire shape.
+message ProvisionCommand {
+  // Server-owned provisioning op id, audited end to end.
+  string op_id = 1;
+
+  // The git revision to bring the node to (fetch@R + idempotent `vrooli
+  // setup`).
+  string target_revision = 2;
+
+  // The prior revision to roll back to if setup fails; empty on first
+  // provision.
+  string rollback_revision = 3;
+
+  reserved 4 to 15;
+}
+
+// ControlPing is a control-plane → node keepalive so the SSE stream stays warm
+// through intermediaries and the node can detect a stalled control plane.
+message ControlPing {
+  google.protobuf.Timestamp sent_at = 1;
+}
+
+// RunEvent streams a durable run's progress back to the control plane (node →
+// control plane, OT-P0-005). The runs domain proxies these to the block-once
+// wait verb so a re-attaching client sees the same stream.
+message RunEvent {
+  string run_id = 1;
+
+  RunEventKind kind = 2;
+
+  // Monotonic per-run sequence so the control plane can order/dedupe events on
+  // reconnect (stale-completion safety).
+  uint64 sequence = 3;
+
+  // Set when kind == RUN_EVENT_KIND_LOG: a chunk of combined output.
+  string log_chunk = 4;
+
+  // Set when kind == RUN_EVENT_KIND_STATUS: a lifecycle transition label.
+  string status = 5;
+
+  // Set when kind == RUN_EVENT_KIND_EXIT: the terminal process exit code.
+  int32 exit_code = 6;
+
+  // Set when kind == RUN_EVENT_KIND_ARTIFACT_REF: a device-sync-hub reference.
+  string artifact_ref = 7;
+
+  google.protobuf.Timestamp emitted_at = 8;
+}
+
+// ServerFrame is the multiplexed envelope every control-plane → node push is
+// wrapped in over the SSE stream. New push kinds extend this oneof; the node
+// parses with DiscardUnknown and ignores kinds it does not understand.
+message ServerFrame {
+  oneof payload {
+    HandshakeAck ack = 1;
+    JobPush job = 2;
+    ProvisionCommand provision = 3;
+    ControlPing ping = 4;
+  }
+}
+
+// NodeFrame documents the union of node → control-plane actions. In production
+// each variant is a discrete Connect-RPC call on the presence/runs services
+// (the node signs each with its Ed25519 key); this envelope keeps the contract
+// discoverable in one place and is used by in-process channel tests.
+message NodeFrame {
+  oneof payload {
+    Handshake handshake = 1;
+    Heartbeat heartbeat = 2;
+    RunEvent run_event = 3;
+  }
+}

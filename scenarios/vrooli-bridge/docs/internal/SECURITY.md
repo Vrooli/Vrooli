@@ -25,23 +25,13 @@ Bridge's security posture is unusually load-bearing: it executes code and runs p
 | Node metadata | medium | registry | Machine identities, OS/arch/revision, reachable endpoints, permission scopes — operational intelligence about the owner's fleet. |
 | Pairing tokens | high (briefly) | pairing | Single-use, short-TTL; a live token can pair a rogue node. |
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-The shipped worked-example `notes` domain carries placeholder data only
-(removed by `vrooli scenario detemplate`):
-
-| Data | Sensitivity | Owner | Details |
-|---|---|---|---|
-| Template notes data | low | notes reference | Local development data only; replace with real scenario data classification. |
-| Attachment bytes | unknown | notes reference | Treat as potentially sensitive if retained in product scope. |
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## Auth And Authorization
 
 Bridge has three distinct authorization boundaries, all enforced at the API/service layer (UI and CLI never enforce locally):
 
 1. **Owner → control plane.** Access to the control plane is gated by scenario-authenticator (fail-closed, brief validation cache), consistent with device-sync-hub. Only the owner can register/revoke nodes, dispatch jobs, or provision.
-2. **Control plane ↔ node (mutual auth).** Every exchange is mutually authenticated — the node proves it is the paired node, and the control plane proves it is the legitimate coordinator (so a node never executes a job from an impostor). The concrete mechanism (mTLS vs signed-both-ways tokens) is a near-term decision recorded in `DECISIONS.md` once chosen.
-3. **Per-node verb scopes + trust tiers.** Authorization for *what a node will run* is the manifest-validated verb allowlist plus that node's granted verb-namespaces (e.g. `scenario test*` yes, `secrets*` / `scenario deploy*` no). The non-privileged runner cannot invoke the privileged provisioning tier. Revocation is atomic and kills both job and provisioning rights immediately.
+2. **Control plane ↔ node (mutual auth).** Every exchange is mutually authenticated — the node proves it is the paired node, and the control plane proves it is the legitimate coordinator (so a node never executes a job from an impostor). **Mechanism (decided 2026-06-18, see `DECISIONS.md`): per-node Ed25519 keypair pinned both directions at pairing.** The node generates an Ed25519 keypair at pairing and registers its public key in `node_credentials`; the control plane holds its own long-lived keypair, and the node pins the control-plane public key at bootstrap (delivered out-of-band alongside the pairing code). Node→CP calls (Connect-RPC: register, heartbeat, run results) carry a signature over the request verifiable against the stored node key; the dial-out SSE token is bound to the node key. CP→node pushes are verifiable against the pinned control-plane key, so a node rejects an impostor coordinator. TLS provides transport confidentiality; the pinned keys provide identity. Full PKI/mTLS-CA was rejected as heavier than a single owner needs.
+3. **Per-node verb scopes + trust tiers.** Authorization for *what a node will run* is the manifest-validated verb allowlist plus that node's granted verb-namespaces (e.g. `scenario test*` yes, `secrets*` / `scenario deploy*` no). **Trust-tier mechanism (decided 2026-06-18, see `DECISIONS.md`): the runner executes as a dedicated non-privileged service user with no escalation path; a structurally separate privileged provisioning helper (a distinct root/admin process installed at bootstrap) performs only whitelisted provisioning ops over a local IPC the runner cannot forge.** The two tiers are different OS principals, not a flag. The non-privileged runner cannot invoke the privileged provisioning tier. Revocation is atomic and kills both job and provisioning rights immediately.
 
 ## Secrets
 
@@ -72,10 +62,10 @@ These are open because this is the documentation-first foundation — the threat
 
 | Gap | Severity | Revisit Trigger |
 |---|---|---|
-| Mutual-auth mechanism not yet chosen (mTLS vs signed tokens) | high | Decide before the pairing/auth domain is implemented; record in `DECISIONS.md`. |
-| Runner OS-level sandboxing/least-privilege user not yet specified | high | Specify before the node-agent runner is built. |
-| No implementation/tests yet for any mitigation above | high | Each mitigation must ship with tests (see `requirements/`). |
-| Audit tamper-evidence depends on workspace-sandbox guarantees | medium | Confirm workspace-sandbox provides the needed append-only/integrity properties. |
+| ~~Mutual-auth mechanism not yet chosen (mTLS vs signed tokens)~~ **RESOLVED 2026-06-18** | ~~high~~ closed | Decided: per-node Ed25519 keypair pinned both directions at pairing (`DECISIONS.md`). Implemented in Phase 2 (pairing/auth). |
+| ~~Runner OS-level sandboxing/least-privilege user not yet specified~~ **RESOLVED 2026-06-18** | ~~high~~ closed | Decided: dedicated non-privileged service user runs the runner; structurally separate privileged provisioning helper (`DECISIONS.md`). Implemented in Phase 0 (agent skeleton) + Phase 4 (provisioning helper). |
+| Implementation/tests still pending for each mitigation above | high | Each mitigation must ship with a test as its phase lands (Phase 2 auth, Phase 3 allowlist/no-shell-path, Phase 4 privilege separation). Track in `requirements/`. |
+| Audit tamper-evidence depends on workspace-sandbox guarantees | medium | Confirm workspace-sandbox provides the needed append-only/integrity properties (Phase 3 audit domain). |
 
 ## Cross-References
 

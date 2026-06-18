@@ -45,7 +45,15 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
-	// auth is not manifest-driven: it targets the sibling scenario-authenticator
-	// (owner identity), not device-sync-hub's own connect-rpc surface.
-	return []cliapp.SubcommandGroup{auth.Register(core), devicesGroup, transferGroup}, nil
+	// auth rides device-sync-hub's own connect-rpc surface: it calls the hub's
+	// IdentityService (which forwards to scenario-authenticator via
+	// api-core/discovery), so the CLI never talks to a sibling scenario directly
+	// — one identity front door, same as the UI. Its login/register commands are
+	// manifest-driven like devices/transfer; logout/whoami are token-only and
+	// appended inside auth.Register.
+	authGroup, err := auth.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.SubcommandGroup{authGroup, devicesGroup, transferGroup}, nil
 }

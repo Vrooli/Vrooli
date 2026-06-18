@@ -19,13 +19,25 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/device-sync-
 // INTEGRATIONS.md). This scenario owns the device, the pairing handshake, and
 // the trust group on top of that identity.
 //
-// Two pairing paths, both ending in a hub-issued device token the device
-// presents on every subsequent transfer call:
+// The hub has exactly one owner (single-owner v1). Ownership is an explicit,
+// first-owner-wins claim recorded on the hub — not derived from device rows.
+// The owner is established by the FIRST device the owner sets up:
+//   - BOOTSTRAP: SetupOwnerDevice (owner) claims the hub for the calling
+//                identity if unclaimed, then trusts the caller's device
+//                directly (no pairing code — the owner JWT already proves
+//                identity). This is how a fresh hub gets its first device.
+//
+// Additional devices then join via either of two paths, both ending in a
+// hub-issued device token the device presents on every subsequent transfer call:
 //   - PRIMARY:  IssuePairingCode (owner) -> RedeemPairingCode (new device).
 //               The redeemed device is TRUSTED immediately.
 //   - FALLBACK: RequestPairing (new device) -> ApprovePairing (owner).
 //               The requesting device is PENDING until the owner approves; its
 //               token is inert (rejected by trust enforcement) while PENDING.
+//
+// Every owner-authed RPC (other than the bootstrap claim) requires the caller's
+// identity to match the hub owner; a different identity is rejected
+// PermissionDenied. This pins the trust group to one owner.
 //
 // Revocation is immediate: RevokeDevice flips the device to REVOKED, which
 // invalidates its hub token and asks the authenticator to drop the device's
@@ -39,6 +51,15 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/device-sync-
 // =============================================================================
 
 service DevicesService {
+  // SetupOwnerDevice is the first-run bootstrap (owner-authed). It claims the
+  // hub for the calling identity if unclaimed (first-owner-wins; a different
+  // identity on an already-claimed hub is rejected PermissionDenied), then
+  // registers the calling client as a TRUSTED device directly — no pairing
+  // code, because the owner JWT already proves identity. Returns the device
+  // plus its one-time hub device token. Idempotent on ownership: the same owner
+  // calling again simply registers another trusted device.
+  rpc SetupOwnerDevice(SetupOwnerDeviceRequest) returns (SetupOwnerDeviceResponse);
+
   // ListDevices returns every device in the owner's trust group, newest first.
   rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse);
 
@@ -157,6 +178,20 @@ message DeviceProfile {
   string kind = 2;
   string platform = 3;
   repeated string capabilities = 4;
+}
+
+message SetupOwnerDeviceRequest {
+  // Self-description of the device being set up as the owner's first device.
+  DeviceProfile profile = 1;
+}
+
+message SetupOwnerDeviceResponse {
+  // The TRUSTED device created for the owner.
+  Device device = 1;
+
+  // Opaque hub-issued token the device presents on subsequent calls. Returned
+  // only once, here. The hub stores only a hash.
+  string device_token = 2;
 }
 
 message RedeemPairingCodeRequest {

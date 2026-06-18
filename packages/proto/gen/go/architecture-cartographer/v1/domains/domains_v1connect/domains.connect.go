@@ -42,6 +42,9 @@ const (
 	// DomainsServiceConvergenceReportProcedure is the fully-qualified name of the DomainsService's
 	// ConvergenceReport RPC.
 	DomainsServiceConvergenceReportProcedure = "/vrooli.architecture_cartographer.v1.domains.DomainsService/ConvergenceReport"
+	// DomainsServiceDraftDomainsProcedure is the fully-qualified name of the DomainsService's
+	// DraftDomains RPC.
+	DomainsServiceDraftDomainsProcedure = "/vrooli.architecture_cartographer.v1.domains.DomainsService/DraftDomains"
 )
 
 // DomainsServiceClient is a client for the
@@ -60,6 +63,10 @@ type DomainsServiceClient interface {
 	// no implementation, an undeclared folder, an advisory UI gap). Findings
 	// are graded signal, never a hard gate.
 	ConvergenceReport(context.Context, *connect.Request[domains.ConvergenceReportRequest]) (*connect.Response[domains.ConvergenceReportResponse], error)
+	// DraftDomains proposes a docs/concepts/DOMAINS.md inventory from
+	// extracted evidence. It never writes authority; humans ratify the
+	// returned markdown before committing it.
+	DraftDomains(context.Context, *connect.Request[domains.DraftDomainsRequest]) (*connect.Response[domains.DraftDomainsResponse], error)
 }
 
 // NewDomainsServiceClient constructs a client for the
@@ -92,6 +99,12 @@ func NewDomainsServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(domainsServiceMethods.ByName("ConvergenceReport")),
 			connect.WithClientOptions(opts...),
 		),
+		draftDomains: connect.NewClient[domains.DraftDomainsRequest, domains.DraftDomainsResponse](
+			httpClient,
+			baseURL+DomainsServiceDraftDomainsProcedure,
+			connect.WithSchema(domainsServiceMethods.ByName("DraftDomains")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -100,6 +113,7 @@ type domainsServiceClient struct {
 	extractDomains    *connect.Client[domains.ExtractDomainsRequest, domains.ExtractDomainsResponse]
 	getDomainMap      *connect.Client[domains.GetDomainMapRequest, domains.GetDomainMapResponse]
 	convergenceReport *connect.Client[domains.ConvergenceReportRequest, domains.ConvergenceReportResponse]
+	draftDomains      *connect.Client[domains.DraftDomainsRequest, domains.DraftDomainsResponse]
 }
 
 // ExtractDomains calls vrooli.architecture_cartographer.v1.domains.DomainsService.ExtractDomains.
@@ -118,6 +132,11 @@ func (c *domainsServiceClient) ConvergenceReport(ctx context.Context, req *conne
 	return c.convergenceReport.CallUnary(ctx, req)
 }
 
+// DraftDomains calls vrooli.architecture_cartographer.v1.domains.DomainsService.DraftDomains.
+func (c *domainsServiceClient) DraftDomains(ctx context.Context, req *connect.Request[domains.DraftDomainsRequest]) (*connect.Response[domains.DraftDomainsResponse], error) {
+	return c.draftDomains.CallUnary(ctx, req)
+}
+
 // DomainsServiceHandler is an implementation of the
 // vrooli.architecture_cartographer.v1.domains.DomainsService service.
 type DomainsServiceHandler interface {
@@ -134,6 +153,10 @@ type DomainsServiceHandler interface {
 	// no implementation, an undeclared folder, an advisory UI gap). Findings
 	// are graded signal, never a hard gate.
 	ConvergenceReport(context.Context, *connect.Request[domains.ConvergenceReportRequest]) (*connect.Response[domains.ConvergenceReportResponse], error)
+	// DraftDomains proposes a docs/concepts/DOMAINS.md inventory from
+	// extracted evidence. It never writes authority; humans ratify the
+	// returned markdown before committing it.
+	DraftDomains(context.Context, *connect.Request[domains.DraftDomainsRequest]) (*connect.Response[domains.DraftDomainsResponse], error)
 }
 
 // NewDomainsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -161,6 +184,12 @@ func NewDomainsServiceHandler(svc DomainsServiceHandler, opts ...connect.Handler
 		connect.WithSchema(domainsServiceMethods.ByName("ConvergenceReport")),
 		connect.WithHandlerOptions(opts...),
 	)
+	domainsServiceDraftDomainsHandler := connect.NewUnaryHandler(
+		DomainsServiceDraftDomainsProcedure,
+		svc.DraftDomains,
+		connect.WithSchema(domainsServiceMethods.ByName("DraftDomains")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.architecture_cartographer.v1.domains.DomainsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case DomainsServiceExtractDomainsProcedure:
@@ -169,6 +198,8 @@ func NewDomainsServiceHandler(svc DomainsServiceHandler, opts ...connect.Handler
 			domainsServiceGetDomainMapHandler.ServeHTTP(w, r)
 		case DomainsServiceConvergenceReportProcedure:
 			domainsServiceConvergenceReportHandler.ServeHTTP(w, r)
+		case DomainsServiceDraftDomainsProcedure:
+			domainsServiceDraftDomainsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -188,4 +219,8 @@ func (UnimplementedDomainsServiceHandler) GetDomainMap(context.Context, *connect
 
 func (UnimplementedDomainsServiceHandler) ConvergenceReport(context.Context, *connect.Request[domains.ConvergenceReportRequest]) (*connect.Response[domains.ConvergenceReportResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.architecture_cartographer.v1.domains.DomainsService.ConvergenceReport is not implemented"))
+}
+
+func (UnimplementedDomainsServiceHandler) DraftDomains(context.Context, *connect.Request[domains.DraftDomainsRequest]) (*connect.Response[domains.DraftDomainsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.architecture_cartographer.v1.domains.DomainsService.DraftDomains is not implemented"))
 }

@@ -28,7 +28,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Set up owner device", Curl: "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.devices.DevicesService/SetupOwnerDevice -H 'Authorization: Bearer <owner-jwt>' -H 'Content-Type: application/json' -d '{\"profile\":{\"device_name\":\"Workstation\",\"kind\":\"laptop\"}}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "device-sync-hub devices setup", Args: []string{"--name", "<name>"}},
 	},
 	{
 		ID:          "devices_list",
@@ -48,7 +47,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "List devices", Curl: "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.devices.DevicesService/ListDevices -H 'Authorization: Bearer <owner-jwt>' -H 'Content-Type: application/json' -d '{}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "device-sync-hub devices list"},
 	},
 	{
 		ID:          "devices_get",
@@ -66,7 +64,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Get device", Curl: "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.devices.DevicesService/GetDevice -H 'Authorization: Bearer <owner-jwt>' -d '{\"id\":\"<device-id>\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "device-sync-hub devices get", Args: []string{"<id>"}},
 	},
 	{
 		ID:          "devices_issue_pairing_code",
@@ -84,7 +81,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Issue code", Curl: "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.devices.DevicesService/IssuePairingCode -H 'Authorization: Bearer <owner-jwt>' -d '{\"device_name\":\"My Phone\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "device-sync-hub devices pair", Args: []string{"--name", "<name>"}},
 	},
 	{
 		ID:          "devices_redeem_pairing_code",
@@ -102,7 +98,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Redeem code", Curl: "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.devices.DevicesService/RedeemPairingCode -d '{\"code\":\"ABCDE-FGHIJ\",\"profile\":{\"device_name\":\"Tablet\",\"kind\":\"tablet\"}}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "device-sync-hub devices redeem", Args: []string{"--code", "<code>"}},
 	},
 	{
 		ID:          "devices_request_pairing",
@@ -120,7 +115,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Request pairing", Curl: "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.devices.DevicesService/RequestPairing -d '{\"profile\":{\"device_name\":\"Tablet\"}}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "device-sync-hub devices request"},
 	},
 	{
 		ID:          "devices_approve_pairing",
@@ -139,7 +133,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Approve device", Curl: "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.devices.DevicesService/ApprovePairing -H 'Authorization: Bearer <owner-jwt>' -d '{\"device_id\":\"<id>\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "device-sync-hub devices approve", Args: []string{"<device-id>"}},
 	},
 	{
 		ID:          "devices_rename",
@@ -158,7 +151,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Rename device", Curl: "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.devices.DevicesService/RenameDevice -H 'Authorization: Bearer <owner-jwt>' -d '{\"device_id\":\"<id>\",\"name\":\"Laptop\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "device-sync-hub devices rename", Args: []string{"<device-id>", "--name", "<name>"}},
 	},
 	{
 		ID:          "devices_revoke",
@@ -176,6 +168,5 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Revoke device", Curl: "curl http://localhost:${API_PORT}/vrooli.device_sync_hub.v1.devices.DevicesService/RevokeDevice -H 'Authorization: Bearer <owner-jwt>' -d '{\"device_id\":\"<id>\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "device-sync-hub devices revoke", Args: []string{"<device-id>"}},
 	},
 }

@@ -457,6 +457,150 @@ func (x *GraphSummary) GetImportEdgeCount() int32 {
 	return 0
 }
 
+// CoverageBucket reports one mutually-exclusive placement verdict bucket.
+type CoverageBucket struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Count int32                  `protobuf:"varint,1,opt,name=count,proto3" json:"count,omitempty"`
+	// Percent of audited files in this bucket, 0.0–100.0.
+	Percent       float64 `protobuf:"fixed64,2,opt,name=percent,proto3" json:"percent,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CoverageBucket) Reset() {
+	*x = CoverageBucket{}
+	mi := &file_architecture_cartographer_v1_audit_audit_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CoverageBucket) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CoverageBucket) ProtoMessage() {}
+
+func (x *CoverageBucket) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_audit_audit_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CoverageBucket.ProtoReflect.Descriptor instead.
+func (*CoverageBucket) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_audit_audit_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *CoverageBucket) GetCount() int32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
+func (x *CoverageBucket) GetPercent() float64 {
+	if x != nil {
+		return x.Percent
+	}
+	return 0
+}
+
+// CoverageSummary reports how completely placement signals classified
+// the audited files. Buckets are mutually exclusive; all_abstained
+// means every available signal declined to score that file, so the
+// audit lacks evidence rather than having a confident conflict.
+type CoverageSummary struct {
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	TotalFiles   int32                  `protobuf:"varint,1,opt,name=total_files,json=totalFiles,proto3" json:"total_files,omitempty"`
+	AutoPlace    *CoverageBucket        `protobuf:"bytes,2,opt,name=auto_place,json=autoPlace,proto3" json:"auto_place,omitempty"`
+	Suggest      *CoverageBucket        `protobuf:"bytes,3,opt,name=suggest,proto3" json:"suggest,omitempty"`
+	Conflict     *CoverageBucket        `protobuf:"bytes,4,opt,name=conflict,proto3" json:"conflict,omitempty"`
+	AllAbstained *CoverageBucket        `protobuf:"bytes,5,opt,name=all_abstained,json=allAbstained,proto3" json:"all_abstained,omitempty"`
+	// Mirrors AuditRunResponse.authority_confidence as a string for
+	// script consumers that read only the coverage block.
+	AuthorityConfidence string `protobuf:"bytes,6,opt,name=authority_confidence,json=authorityConfidence,proto3" json:"authority_confidence,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *CoverageSummary) Reset() {
+	*x = CoverageSummary{}
+	mi := &file_architecture_cartographer_v1_audit_audit_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CoverageSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CoverageSummary) ProtoMessage() {}
+
+func (x *CoverageSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_architecture_cartographer_v1_audit_audit_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CoverageSummary.ProtoReflect.Descriptor instead.
+func (*CoverageSummary) Descriptor() ([]byte, []int) {
+	return file_architecture_cartographer_v1_audit_audit_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *CoverageSummary) GetTotalFiles() int32 {
+	if x != nil {
+		return x.TotalFiles
+	}
+	return 0
+}
+
+func (x *CoverageSummary) GetAutoPlace() *CoverageBucket {
+	if x != nil {
+		return x.AutoPlace
+	}
+	return nil
+}
+
+func (x *CoverageSummary) GetSuggest() *CoverageBucket {
+	if x != nil {
+		return x.Suggest
+	}
+	return nil
+}
+
+func (x *CoverageSummary) GetConflict() *CoverageBucket {
+	if x != nil {
+		return x.Conflict
+	}
+	return nil
+}
+
+func (x *CoverageSummary) GetAllAbstained() *CoverageBucket {
+	if x != nil {
+		return x.AllAbstained
+	}
+	return nil
+}
+
+func (x *CoverageSummary) GetAuthorityConfidence() string {
+	if x != nil {
+		return x.AuthorityConfidence
+	}
+	return ""
+}
+
 type AuditRunRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Target scenario (e.g., "swarm-manager"). Required.
@@ -486,7 +630,7 @@ type AuditRunRequest struct {
 
 func (x *AuditRunRequest) Reset() {
 	*x = AuditRunRequest{}
-	mi := &file_architecture_cartographer_v1_audit_audit_proto_msgTypes[3]
+	mi := &file_architecture_cartographer_v1_audit_audit_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -498,7 +642,7 @@ func (x *AuditRunRequest) String() string {
 func (*AuditRunRequest) ProtoMessage() {}
 
 func (x *AuditRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_audit_audit_proto_msgTypes[3]
+	mi := &file_architecture_cartographer_v1_audit_audit_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -511,7 +655,7 @@ func (x *AuditRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuditRunRequest.ProtoReflect.Descriptor instead.
 func (*AuditRunRequest) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_audit_audit_proto_rawDescGZIP(), []int{3}
+	return file_architecture_cartographer_v1_audit_audit_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *AuditRunRequest) GetScenario() string {
@@ -588,14 +732,16 @@ type AuditRunResponse struct {
 	// FINDINGS to explain why (e.g., "low-authority", "severity>=warn").
 	OutcomeReason string `protobuf:"bytes,15,opt,name=outcome_reason,json=outcomeReason,proto3" json:"outcome_reason,omitempty"`
 	// Provider-owned local maturity assessment for Test Genie architecture phase.
-	Assessment    *v1.MaturityAssessment `protobuf:"bytes,16,opt,name=assessment,proto3" json:"assessment,omitempty"`
+	Assessment *v1.MaturityAssessment `protobuf:"bytes,16,opt,name=assessment,proto3" json:"assessment,omitempty"`
+	// Coverage reports placement confidence across audited files.
+	Coverage      *CoverageSummary `protobuf:"bytes,17,opt,name=coverage,proto3" json:"coverage,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AuditRunResponse) Reset() {
 	*x = AuditRunResponse{}
-	mi := &file_architecture_cartographer_v1_audit_audit_proto_msgTypes[4]
+	mi := &file_architecture_cartographer_v1_audit_audit_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -607,7 +753,7 @@ func (x *AuditRunResponse) String() string {
 func (*AuditRunResponse) ProtoMessage() {}
 
 func (x *AuditRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_audit_audit_proto_msgTypes[4]
+	mi := &file_architecture_cartographer_v1_audit_audit_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -620,7 +766,7 @@ func (x *AuditRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuditRunResponse.ProtoReflect.Descriptor instead.
 func (*AuditRunResponse) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_audit_audit_proto_rawDescGZIP(), []int{4}
+	return file_architecture_cartographer_v1_audit_audit_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *AuditRunResponse) GetScenario() string {
@@ -735,6 +881,13 @@ func (x *AuditRunResponse) GetAssessment() *v1.MaturityAssessment {
 	return nil
 }
 
+func (x *AuditRunResponse) GetCoverage() *CoverageSummary {
+	if x != nil {
+		return x.Coverage
+	}
+	return nil
+}
+
 type AuditRunAllRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Same severity threshold as Run; applied per-scenario.
@@ -762,7 +915,7 @@ type AuditRunAllRequest struct {
 
 func (x *AuditRunAllRequest) Reset() {
 	*x = AuditRunAllRequest{}
-	mi := &file_architecture_cartographer_v1_audit_audit_proto_msgTypes[5]
+	mi := &file_architecture_cartographer_v1_audit_audit_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -774,7 +927,7 @@ func (x *AuditRunAllRequest) String() string {
 func (*AuditRunAllRequest) ProtoMessage() {}
 
 func (x *AuditRunAllRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_audit_audit_proto_msgTypes[5]
+	mi := &file_architecture_cartographer_v1_audit_audit_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -787,7 +940,7 @@ func (x *AuditRunAllRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuditRunAllRequest.ProtoReflect.Descriptor instead.
 func (*AuditRunAllRequest) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_audit_audit_proto_rawDescGZIP(), []int{5}
+	return file_architecture_cartographer_v1_audit_audit_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *AuditRunAllRequest) GetFailOn() conflicts.Severity {
@@ -864,7 +1017,7 @@ type AuditRunAllResponse struct {
 
 func (x *AuditRunAllResponse) Reset() {
 	*x = AuditRunAllResponse{}
-	mi := &file_architecture_cartographer_v1_audit_audit_proto_msgTypes[6]
+	mi := &file_architecture_cartographer_v1_audit_audit_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -876,7 +1029,7 @@ func (x *AuditRunAllResponse) String() string {
 func (*AuditRunAllResponse) ProtoMessage() {}
 
 func (x *AuditRunAllResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_architecture_cartographer_v1_audit_audit_proto_msgTypes[6]
+	mi := &file_architecture_cartographer_v1_audit_audit_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -889,7 +1042,7 @@ func (x *AuditRunAllResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuditRunAllResponse.ProtoReflect.Descriptor instead.
 func (*AuditRunAllResponse) Descriptor() ([]byte, []int) {
-	return file_architecture_cartographer_v1_audit_audit_proto_rawDescGZIP(), []int{6}
+	return file_architecture_cartographer_v1_audit_audit_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *AuditRunAllResponse) GetReports() []*AuditRunResponse {
@@ -971,15 +1124,26 @@ const file_architecture_cartographer_v1_audit_audit_proto_rawDesc = "" +
 	"\n" +
 	"file_count\x18\x02 \x01(\x05R\tfileCount\x12#\n" +
 	"\rpackage_count\x18\x03 \x01(\x05R\fpackageCount\x12*\n" +
-	"\x11import_edge_count\x18\x04 \x01(\x05R\x0fimportEdgeCount\"\x92\x02\n" +
+	"\x11import_edge_count\x18\x04 \x01(\x05R\x0fimportEdgeCount\"@\n" +
+	"\x0eCoverageBucket\x12\x14\n" +
+	"\x05count\x18\x01 \x01(\x05R\x05count\x12\x18\n" +
+	"\apercent\x18\x02 \x01(\x01R\apercent\"\xcb\x03\n" +
+	"\x0fCoverageSummary\x12\x1f\n" +
+	"\vtotal_files\x18\x01 \x01(\x05R\n" +
+	"totalFiles\x12X\n" +
+	"\n" +
+	"auto_place\x18\x02 \x01(\v29.vrooli.architecture_cartographer.v1.audit.CoverageBucketR\tautoPlace\x12S\n" +
+	"\asuggest\x18\x03 \x01(\v29.vrooli.architecture_cartographer.v1.audit.CoverageBucketR\asuggest\x12U\n" +
+	"\bconflict\x18\x04 \x01(\v29.vrooli.architecture_cartographer.v1.audit.CoverageBucketR\bconflict\x12^\n" +
+	"\rall_abstained\x18\x05 \x01(\v29.vrooli.architecture_cartographer.v1.audit.CoverageBucketR\fallAbstained\x121\n" +
+	"\x14authority_confidence\x18\x06 \x01(\tR\x13authorityConfidence\"\x92\x02\n" +
 	"\x0fAuditRunRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12P\n" +
 	"\afail_on\x18\x02 \x01(\x0e27.vrooli.architecture_cartographer.v1.conflicts.SeverityR\x06failOn\x12#\n" +
 	"\rinclude_types\x18\x03 \x03(\tR\fincludeTypes\x12#\n" +
 	"\rexclude_types\x18\x04 \x03(\tR\fexcludeTypes\x12.\n" +
 	"\x13allow_low_authority\x18\x05 \x01(\bR\x11allowLowAuthority\x12\x17\n" +
-	"\askip_ts\x18\x06 \x01(\bR\x06skipTs\"\xdd\n" +
-	"\n" +
+	"\askip_ts\x18\x06 \x01(\bR\x06skipTs\"\xb5\v\n" +
 	"\x10AuditRunResponse\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12Q\n" +
 	"\aoutcome\x18\x02 \x01(\x0e27.vrooli.architecture_cartographer.v1.audit.AuditOutcomeR\aoutcome\x12\x14\n" +
@@ -1000,7 +1164,8 @@ const file_architecture_cartographer_v1_audit_audit_proto_rawDesc = "" +
 	"\x0eoutcome_reason\x18\x0f \x01(\tR\routcomeReason\x12=\n" +
 	"\n" +
 	"assessment\x18\x10 \x01(\v2\x1d.common.v1.MaturityAssessmentR\n" +
-	"assessment\x1a=\n" +
+	"assessment\x12V\n" +
+	"\bcoverage\x18\x11 \x01(\v2:.vrooli.architecture_cartographer.v1.audit.CoverageSummaryR\bcoverage\x1a=\n" +
 	"\x0fBySeverityEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\x1a9\n" +
@@ -1069,7 +1234,7 @@ func file_architecture_cartographer_v1_audit_audit_proto_rawDescGZIP() []byte {
 }
 
 var file_architecture_cartographer_v1_audit_audit_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_architecture_cartographer_v1_audit_audit_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_architecture_cartographer_v1_audit_audit_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_architecture_cartographer_v1_audit_audit_proto_goTypes = []any{
 	(AuditOutcome)(0),             // 0: vrooli.architecture_cartographer.v1.audit.AuditOutcome
 	(AuthorityConfidence)(0),      // 1: vrooli.architecture_cartographer.v1.audit.AuthorityConfidence
@@ -1077,47 +1242,54 @@ var file_architecture_cartographer_v1_audit_audit_proto_goTypes = []any{
 	(*ConflictSummary)(nil),       // 3: vrooli.architecture_cartographer.v1.audit.ConflictSummary
 	(*DerivedDomainSummary)(nil),  // 4: vrooli.architecture_cartographer.v1.audit.DerivedDomainSummary
 	(*GraphSummary)(nil),          // 5: vrooli.architecture_cartographer.v1.audit.GraphSummary
-	(*AuditRunRequest)(nil),       // 6: vrooli.architecture_cartographer.v1.audit.AuditRunRequest
-	(*AuditRunResponse)(nil),      // 7: vrooli.architecture_cartographer.v1.audit.AuditRunResponse
-	(*AuditRunAllRequest)(nil),    // 8: vrooli.architecture_cartographer.v1.audit.AuditRunAllRequest
-	(*AuditRunAllResponse)(nil),   // 9: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse
-	nil,                           // 10: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.BySeverityEntry
-	nil,                           // 11: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.ByTypeEntry
-	nil,                           // 12: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.ByDomainEntry
-	nil,                           // 13: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.BySeverityEntry
-	nil,                           // 14: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.ByOutcomeEntry
-	(conflicts.Severity)(0),       // 15: vrooli.architecture_cartographer.v1.conflicts.Severity
-	(*durationpb.Duration)(nil),   // 16: google.protobuf.Duration
-	(*v1.MaturityAssessment)(nil), // 17: common.v1.MaturityAssessment
+	(*CoverageBucket)(nil),        // 6: vrooli.architecture_cartographer.v1.audit.CoverageBucket
+	(*CoverageSummary)(nil),       // 7: vrooli.architecture_cartographer.v1.audit.CoverageSummary
+	(*AuditRunRequest)(nil),       // 8: vrooli.architecture_cartographer.v1.audit.AuditRunRequest
+	(*AuditRunResponse)(nil),      // 9: vrooli.architecture_cartographer.v1.audit.AuditRunResponse
+	(*AuditRunAllRequest)(nil),    // 10: vrooli.architecture_cartographer.v1.audit.AuditRunAllRequest
+	(*AuditRunAllResponse)(nil),   // 11: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse
+	nil,                           // 12: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.BySeverityEntry
+	nil,                           // 13: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.ByTypeEntry
+	nil,                           // 14: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.ByDomainEntry
+	nil,                           // 15: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.BySeverityEntry
+	nil,                           // 16: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.ByOutcomeEntry
+	(conflicts.Severity)(0),       // 17: vrooli.architecture_cartographer.v1.conflicts.Severity
+	(*durationpb.Duration)(nil),   // 18: google.protobuf.Duration
+	(*v1.MaturityAssessment)(nil), // 19: common.v1.MaturityAssessment
 }
 var file_architecture_cartographer_v1_audit_audit_proto_depIdxs = []int32{
-	15, // 0: vrooli.architecture_cartographer.v1.audit.ConflictSummary.severity:type_name -> vrooli.architecture_cartographer.v1.conflicts.Severity
-	15, // 1: vrooli.architecture_cartographer.v1.audit.AuditRunRequest.fail_on:type_name -> vrooli.architecture_cartographer.v1.conflicts.Severity
-	0,  // 2: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.outcome:type_name -> vrooli.architecture_cartographer.v1.audit.AuditOutcome
-	10, // 3: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.by_severity:type_name -> vrooli.architecture_cartographer.v1.audit.AuditRunResponse.BySeverityEntry
-	11, // 4: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.by_type:type_name -> vrooli.architecture_cartographer.v1.audit.AuditRunResponse.ByTypeEntry
-	3,  // 5: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.findings:type_name -> vrooli.architecture_cartographer.v1.audit.ConflictSummary
-	4,  // 6: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.domains:type_name -> vrooli.architecture_cartographer.v1.audit.DerivedDomainSummary
-	5,  // 7: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.graph:type_name -> vrooli.architecture_cartographer.v1.audit.GraphSummary
-	16, // 8: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.duration:type_name -> google.protobuf.Duration
-	12, // 9: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.by_domain:type_name -> vrooli.architecture_cartographer.v1.audit.AuditRunResponse.ByDomainEntry
-	2,  // 10: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.snapshot_freshness:type_name -> vrooli.architecture_cartographer.v1.audit.SnapshotFreshness
-	1,  // 11: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.authority_confidence:type_name -> vrooli.architecture_cartographer.v1.audit.AuthorityConfidence
-	17, // 12: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.assessment:type_name -> common.v1.MaturityAssessment
-	15, // 13: vrooli.architecture_cartographer.v1.audit.AuditRunAllRequest.fail_on:type_name -> vrooli.architecture_cartographer.v1.conflicts.Severity
-	7,  // 14: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.reports:type_name -> vrooli.architecture_cartographer.v1.audit.AuditRunResponse
-	13, // 15: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.by_severity:type_name -> vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.BySeverityEntry
-	14, // 16: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.by_outcome:type_name -> vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.ByOutcomeEntry
-	16, // 17: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.duration:type_name -> google.protobuf.Duration
-	6,  // 18: vrooli.architecture_cartographer.v1.audit.AuditService.Run:input_type -> vrooli.architecture_cartographer.v1.audit.AuditRunRequest
-	8,  // 19: vrooli.architecture_cartographer.v1.audit.AuditService.RunAll:input_type -> vrooli.architecture_cartographer.v1.audit.AuditRunAllRequest
-	7,  // 20: vrooli.architecture_cartographer.v1.audit.AuditService.Run:output_type -> vrooli.architecture_cartographer.v1.audit.AuditRunResponse
-	9,  // 21: vrooli.architecture_cartographer.v1.audit.AuditService.RunAll:output_type -> vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse
-	20, // [20:22] is the sub-list for method output_type
-	18, // [18:20] is the sub-list for method input_type
-	18, // [18:18] is the sub-list for extension type_name
-	18, // [18:18] is the sub-list for extension extendee
-	0,  // [0:18] is the sub-list for field type_name
+	17, // 0: vrooli.architecture_cartographer.v1.audit.ConflictSummary.severity:type_name -> vrooli.architecture_cartographer.v1.conflicts.Severity
+	6,  // 1: vrooli.architecture_cartographer.v1.audit.CoverageSummary.auto_place:type_name -> vrooli.architecture_cartographer.v1.audit.CoverageBucket
+	6,  // 2: vrooli.architecture_cartographer.v1.audit.CoverageSummary.suggest:type_name -> vrooli.architecture_cartographer.v1.audit.CoverageBucket
+	6,  // 3: vrooli.architecture_cartographer.v1.audit.CoverageSummary.conflict:type_name -> vrooli.architecture_cartographer.v1.audit.CoverageBucket
+	6,  // 4: vrooli.architecture_cartographer.v1.audit.CoverageSummary.all_abstained:type_name -> vrooli.architecture_cartographer.v1.audit.CoverageBucket
+	17, // 5: vrooli.architecture_cartographer.v1.audit.AuditRunRequest.fail_on:type_name -> vrooli.architecture_cartographer.v1.conflicts.Severity
+	0,  // 6: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.outcome:type_name -> vrooli.architecture_cartographer.v1.audit.AuditOutcome
+	12, // 7: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.by_severity:type_name -> vrooli.architecture_cartographer.v1.audit.AuditRunResponse.BySeverityEntry
+	13, // 8: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.by_type:type_name -> vrooli.architecture_cartographer.v1.audit.AuditRunResponse.ByTypeEntry
+	3,  // 9: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.findings:type_name -> vrooli.architecture_cartographer.v1.audit.ConflictSummary
+	4,  // 10: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.domains:type_name -> vrooli.architecture_cartographer.v1.audit.DerivedDomainSummary
+	5,  // 11: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.graph:type_name -> vrooli.architecture_cartographer.v1.audit.GraphSummary
+	18, // 12: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.duration:type_name -> google.protobuf.Duration
+	14, // 13: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.by_domain:type_name -> vrooli.architecture_cartographer.v1.audit.AuditRunResponse.ByDomainEntry
+	2,  // 14: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.snapshot_freshness:type_name -> vrooli.architecture_cartographer.v1.audit.SnapshotFreshness
+	1,  // 15: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.authority_confidence:type_name -> vrooli.architecture_cartographer.v1.audit.AuthorityConfidence
+	19, // 16: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.assessment:type_name -> common.v1.MaturityAssessment
+	7,  // 17: vrooli.architecture_cartographer.v1.audit.AuditRunResponse.coverage:type_name -> vrooli.architecture_cartographer.v1.audit.CoverageSummary
+	17, // 18: vrooli.architecture_cartographer.v1.audit.AuditRunAllRequest.fail_on:type_name -> vrooli.architecture_cartographer.v1.conflicts.Severity
+	9,  // 19: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.reports:type_name -> vrooli.architecture_cartographer.v1.audit.AuditRunResponse
+	15, // 20: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.by_severity:type_name -> vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.BySeverityEntry
+	16, // 21: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.by_outcome:type_name -> vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.ByOutcomeEntry
+	18, // 22: vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse.duration:type_name -> google.protobuf.Duration
+	8,  // 23: vrooli.architecture_cartographer.v1.audit.AuditService.Run:input_type -> vrooli.architecture_cartographer.v1.audit.AuditRunRequest
+	10, // 24: vrooli.architecture_cartographer.v1.audit.AuditService.RunAll:input_type -> vrooli.architecture_cartographer.v1.audit.AuditRunAllRequest
+	9,  // 25: vrooli.architecture_cartographer.v1.audit.AuditService.Run:output_type -> vrooli.architecture_cartographer.v1.audit.AuditRunResponse
+	11, // 26: vrooli.architecture_cartographer.v1.audit.AuditService.RunAll:output_type -> vrooli.architecture_cartographer.v1.audit.AuditRunAllResponse
+	25, // [25:27] is the sub-list for method output_type
+	23, // [23:25] is the sub-list for method input_type
+	23, // [23:23] is the sub-list for extension type_name
+	23, // [23:23] is the sub-list for extension extendee
+	0,  // [0:23] is the sub-list for field type_name
 }
 
 func init() { file_architecture_cartographer_v1_audit_audit_proto_init() }
@@ -1131,7 +1303,7 @@ func file_architecture_cartographer_v1_audit_audit_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_architecture_cartographer_v1_audit_audit_proto_rawDesc), len(file_architecture_cartographer_v1_audit_audit_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   12,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

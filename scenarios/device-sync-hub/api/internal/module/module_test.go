@@ -54,10 +54,6 @@ func TestEndpointDescriptorJSONShape(t *testing.T) {
 			Name: "Rename",
 			Curl: "curl http://localhost:${API_PORT}/api/v1/devices/rename",
 		}},
-		CLIMapping: &module.CLIMapping{
-			Command: "device-sync-hub devices rename",
-			Args:    []string{"--name", "<name>"},
-		},
 	}
 
 	data, err := json.Marshal(descriptor)
@@ -72,5 +68,5 @@ func TestEndpointDescriptorJSONShape(t *testing.T) {
 	require.Contains(t, got, "response")
 	require.Contains(t, got, "errors")
 	require.Contains(t, got, "examples")
-	require.Contains(t, got, "cli_mapping")
+	require.NotContains(t, got, "cli_mapping")
 }

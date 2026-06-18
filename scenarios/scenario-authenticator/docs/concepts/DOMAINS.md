@@ -48,35 +48,6 @@ realm tenant model are in [`../../PRD.md`](../../PRD.md) Appendix A/B.
 | federation | Inbound external identity: OAuth2/OIDC social providers (P1) and SAML (P2), with account linking and CSRF state. | Integration / adapter | Linked external identities, provider config, CSRF state. | API (+ REST callbacks), UI | OT-P1-003, OT-P2-001, OT-P2-002 | P1–P2 |
 | apikeys | Non-human principals: hashed API keys and the client-credentials grant. | Credential / lifecycle | Hashed API keys, client records. | API, CLI, UI | OT-P1-004 | P1 |
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `vrooli scenario detemplate`)
-
-The template ships `notes` as a worked CRUD vertical slice with a binary
-upload exception. It remains as a copyable reference until the first real
-domain (`identity` or `tokens`) is green, then it is removed mechanically.
-
-| Domain | Purpose | Primary Archetype | Owns Data | Surfaces | Requirements | Source Paths |
-|---|---|---|---|---|---|---|
-| notes | Worked CRUD reference with attachment upload exception. | CRUD / entity | Notes and attachment metadata. | API, CLI, UI | Template starter only. | `api/internal/notes/`, `api/handlers/notes/`, `cli/domains/notes/`, `ui/src/features/notes/`, `packages/proto/schemas/scenario-authenticator/v1/notes/` |
-
-- Purpose: demonstrate the expected vertical slice for a real domain.
-- Primary archetype: CRUD / entity.
-- Secondary traits: binary/blob attachment upload, upload workflow.
-- Owns: note records, attachment metadata, note validation, note
-  service/repository seams, UI note interactions, CLI notes commands.
-- Does not own: product scope for a generated scenario.
-- API: `api/internal/notes/`, `api/handlers/notes/`.
-- CLI: `cli/domains/notes/`.
-- UI: `ui/src/features/notes/`, `ui/src/api/notes.ts`.
-- Storage: domain-owned SQLite schema in `api/internal/notes/schema.sql`.
-- Requirements: template starter only; replace with PRD-specific
-  requirements.
-- Tests: repository, service, handler, CLI, UI, accessibility, and
-  workflow tests.
-- Related docs: [`FLOWS.md`](FLOWS.md), [`DATA.md`](DATA.md),
-  [`../internal/SEAMS.md`](../internal/SEAMS.md).
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## Domain Details
 
 ### health (shipped)
