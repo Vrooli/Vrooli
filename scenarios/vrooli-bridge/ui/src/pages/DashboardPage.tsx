@@ -1,11 +1,13 @@
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
+import { FleetPanel } from "../features/fleet/FleetPanel";
 import { HealthCard } from "../features/health/HealthCard";
 import { useTranslation } from "../i18n";
 
 /**
- * Dashboard / home page. Composes the health card plus stat placeholders.
- * Replace the cards with real surfaces when the scenario grows them.
+ * Dashboard / home page. Composes the API health card and the fleet panel —
+ * the Phase-1 control-plane surface showing the owner's trusted nodes with live
+ * presence. Later phases add dispatch, run history, and pairing surfaces.
  */
 export function DashboardPage() {
   const { t } = useTranslation();
@@ -20,20 +22,9 @@ export function DashboardPage() {
         {t(strings.pages.dashboard.title)}
       </h2>
       <p className="text-app-muted-foreground">{t(strings.pages.dashboard.description)}</p>
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         <HealthCard />
-        <div className="rounded-panel border border-app-border bg-app-surface p-4">
-          <p className="text-xs uppercase text-app-muted-foreground">
-            {t(strings.pages.dashboard.statPlaceholderLabel)}
-          </p>
-          <p className="mt-2 text-2xl font-semibold">—</p>
-        </div>
-        <div className="rounded-panel border border-app-border bg-app-surface p-4">
-          <p className="text-xs uppercase text-app-muted-foreground">
-            {t(strings.pages.dashboard.statPlaceholderLabel)}
-          </p>
-          <p className="mt-2 text-2xl font-semibold">—</p>
-        </div>
+        <FleetPanel />
       </div>
     </section>
   );

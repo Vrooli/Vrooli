@@ -22,8 +22,15 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	channelH "vrooli-bridge/handlers/channel"
 	healthH "vrooli-bridge/handlers/health"
+	pairingH "vrooli-bridge/handlers/pairing"
+	registryH "vrooli-bridge/handlers/registry"
 	localdb "vrooli-bridge/internal/database"
+
+	pairingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/pairing"
+	presencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence"
+	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -33,6 +40,9 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
+	out = append(out, channelH.Endpoints...)
+	out = append(out, pairingH.Endpoints...)
+	out = append(out, registryH.Endpoints...)
 	return out
 }
 
@@ -58,7 +68,11 @@ type ProtoFileEntry struct {
 // AllProtoFiles returns the proto FileDescriptor backing each
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
-	return []ProtoFileEntry{}
+	return []ProtoFileEntry{
+		{Module: "channel", File: presencev1.File_vrooli_bridge_v1_presence_presence_proto},
+		{Module: "pairing", File: pairingv1.File_vrooli_bridge_v1_pairing_pairing_proto},
+		{Module: "registry", File: registryv1.File_vrooli_bridge_v1_registry_registry_proto},
+	}
 }
 
 // AllSchemas returns every domain's schema provider plus the system
@@ -72,5 +86,8 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
+		apidb.SchemaProviderFunc(channelH.Schema),
+		apidb.SchemaProviderFunc(pairingH.Schema),
+		apidb.SchemaProviderFunc(registryH.Schema),
 	}
 }

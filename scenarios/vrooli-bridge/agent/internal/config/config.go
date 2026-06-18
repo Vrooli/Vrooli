@@ -20,8 +20,10 @@ import (
 // Defaults that are not derived from the OS state directory.
 const (
 	defaultHeartbeatInterval = 15 * time.Second
-	credentialFileName       = "node_credential.key" // the node's Ed25519 private key
-	controlPlaneKeyFileName  = "control_plane.pub"   // the pinned control-plane public key
+	// credentialFileName is the on-disk *file name* the Ed25519 private key is
+	// written to — not a secret value itself.
+	credentialFileName      = "node_credential.key" //nolint:gosec // G101: filename, not an embedded credential
+	controlPlaneKeyFileName = "control_plane.pub"   // the pinned control-plane public key
 )
 
 // Config is the fully-resolved agent configuration.
@@ -53,6 +55,11 @@ type Config struct {
 	// Capabilities is the verb-namespace allowlist the node advertises (the
 	// authoritative scopes live on the node record server-side).
 	Capabilities []string
+
+	// PrintPublicKey, when true, makes the agent load-or-generate its Ed25519
+	// keypair, print the base64 public key (for the `pair redeem --public-key`
+	// bootstrap step), and exit without dialing.
+	PrintPublicKey bool
 }
 
 // Paired reports whether the agent has the minimum configuration to hold a
@@ -75,6 +82,7 @@ func Load(args []string) (Config, error) {
 		stateDirFlag    = fs.String("state-dir", envOr("BRIDGE_AGENT_STATE_DIR", ""), "Directory for agent credential/state material")
 		heartbeat       = fs.Duration("heartbeat-interval", envDurationOr("BRIDGE_HEARTBEAT_INTERVAL", defaultHeartbeatInterval), "Interval between heartbeats once connected")
 		capabilities    = fs.String("capabilities", envOr("BRIDGE_CAPABILITIES", ""), "Comma-separated verb-namespace allowlist the node advertises")
+		printPublicKey  = fs.Bool("print-public-key", false, "Load-or-generate the node keypair, print its base64 public key, and exit (bootstrap helper)")
 	)
 
 	if err := fs.Parse(args); err != nil {
@@ -106,6 +114,7 @@ func Load(args []string) (Config, error) {
 		ControlPlaneKeyPath: filepath.Join(stateDir, controlPlaneKeyFileName),
 		HeartbeatInterval:   *heartbeat,
 		Capabilities:        splitCapabilities(*capabilities),
+		PrintPublicKey:      *printPublicKey,
 	}, nil
 }
 

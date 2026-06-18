@@ -14,12 +14,11 @@
 export const strings = {
   app: {
     title: "app.title",
-    eyebrow: "app.eyebrow",
-    description: "app.description",
   },
   layout: {
     sidebarLabel: "layout.sidebarLabel",
     bottomNavLabel: "layout.bottomNavLabel",
+    mainLabel: "layout.mainLabel",
     nav: {
       dashboard: "layout.nav.dashboard",
       settings: "layout.nav.settings",
@@ -37,7 +36,6 @@ export const strings = {
     dashboard: {
       title: "pages.dashboard.title",
       description: "pages.dashboard.description",
-      statPlaceholderLabel: "pages.dashboard.statPlaceholderLabel",
     },
     settings: {
       title: "pages.settings.title",
@@ -55,6 +53,24 @@ export const strings = {
     statusLabel: "health.statusLabel",
     serviceLabel: "health.serviceLabel",
     timestampLabel: "health.timestampLabel",
+  },
+  fleet: {
+    title: "fleet.title",
+    description: "fleet.description",
+    loading: "fleet.loading",
+    empty: "fleet.empty",
+    onlineLabel: "fleet.onlineLabel",
+    offlineLabel: "fleet.offlineLabel",
+    neverSeen: "fleet.neverSeen",
+    revoke: "fleet.revoke",
+    revokeConfirm: "fleet.revokeConfirm",
+    status: {
+      unspecified: "fleet.status.unspecified",
+      offline: "fleet.status.offline",
+      online: "fleet.status.online",
+      needsUpdate: "fleet.status.needsUpdate",
+      revoked: "fleet.status.revoked",
+    },
   },
   notifications: {
     summary: "notifications.summary",

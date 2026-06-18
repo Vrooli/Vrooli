@@ -5,12 +5,12 @@
 // separate privileged helper performs provisioning (DECISIONS.md two trust
 // tiers).
 //
-// Phase 0 ships the skeleton: parse configuration, report the build
-// fingerprint and the channel handshake it would present, attempt a (stubbed)
-// dial, and exit cleanly. The binary cross-compiles CGO_ENABLED=0 for
-// linux/darwin/windows × amd64/arm64 (see Makefile). The live channel,
-// heartbeat loop, mutual auth, runner, and provisioning helper land in
-// Phases 1–4.
+// The agent parses configuration, reports the build fingerprint and the channel
+// handshake it presents, then holds the live dial-out channel (SSE stream +
+// heartbeat loop with reconnect/backoff) until it is signalled to stop. An
+// unpaired agent reports that and exits cleanly. The binary cross-compiles
+// CGO_ENABLED=0 for linux/darwin/windows × amd64/arm64 (see Makefile). Mutual
+// auth, the job runner, and the provisioning helper land in Phases 2–4.
 package main
 
 import (
@@ -26,6 +26,7 @@ import (
 	"vrooli-bridge/agent/internal/buildinfo"
 	"vrooli-bridge/agent/internal/channel"
 	"vrooli-bridge/agent/internal/config"
+	"vrooli-bridge/agent/internal/nodecred"
 	"vrooli-bridge/agent/internal/platform"
 )
 
@@ -51,13 +52,29 @@ func run(args []string) error {
 	logger.Printf("vrooli-bridge-agent %s (%s service manager, state dir %s)",
 		buildinfo.Fingerprint(), platform.NativeServiceManager(), cfg.StateDir)
 
+	// The node's Ed25519 keypair is generated once (at first run / bootstrap)
+	// and held for the node's lifetime; the public key is registered with the
+	// control plane at pairing, and every dial/heartbeat is signed with it.
+	cred, err := nodecred.LoadOrCreate(cfg.CredentialPath)
+	if err != nil {
+		return fmt.Errorf("load node credential: %w", err)
+	}
+	if cfg.PrintPublicKey {
+		// Bootstrap helper: print the key the installer feeds to `pair redeem`.
+		fmt.Println(cred.PublicKeyBase64())
+		return nil
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	client := channel.NewClient(cfg)
+	client := channel.NewClient(cfg, channel.WithLogger(logger), channel.WithCredential(cred))
 	hs := client.Handshake()
 	logger.Printf("channel handshake: node_id=%q protocol_version=%d os=%s arch=%s capabilities=%v",
 		hs.GetNodeId(), hs.GetProtocolVersion(), hs.GetOs(), hs.GetArch(), hs.GetCapabilities())
+
+	logger.Printf("holding dial-out channel to %s (heartbeat every %s); send SIGINT/SIGTERM to stop",
+		cfg.ControlPlaneURL, cfg.HeartbeatInterval)
 
 	if err := client.Dial(ctx); err != nil {
 		if errors.Is(err, channel.ErrNotConfigured) {
@@ -67,6 +84,6 @@ func run(args []string) error {
 		return fmt.Errorf("dial control plane: %w", err)
 	}
 
-	logger.Printf("dial complete (Phase 0 stub: no persistent channel held yet)")
+	logger.Printf("channel closed (shutdown signal received)")
 	return nil
 }

@@ -1,6 +1,9 @@
 package domains
 
 import (
+	"vrooli-bridge/cli/domains/nodes"
+	"vrooli-bridge/cli/domains/pairing"
+
 	"github.com/vrooli/cli-core/cliapp"
 )
 
@@ -35,5 +38,16 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
 	groups := []cliapp.SubcommandGroup{}
+	nodesGroup, err := nodes.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, nodesGroup)
+
+	pairGroup, err := pairing.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, pairGroup)
 	return groups, nil
 }

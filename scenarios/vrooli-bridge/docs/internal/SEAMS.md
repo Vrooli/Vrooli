@@ -200,6 +200,48 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `internal/testutil/mocks::FakeDoer` (canned `*http.Response` queue, recorded `*http.Request` log, atomic `Calls` counter). |
 | **Why it exists** | Network calls in handler tests would be flaky and slow. Defining the seam *before* the first consumer means the first scenario to call outward doesn't reinvent ad-hoc mocking. Pattern proven in `scenarios/agent-manager/api/internal/promptmanager/client.go`. See `internal/httpc/doer_test.go` for the substitution reference. |
 
+### auth.Validator (owner identity)
+
+| | |
+|---|---|
+| **Seam** | Owner bearer-token validation against scenario-authenticator (the "Owner → control plane" boundary) |
+| **Interface** | `internal/auth/auth.go::Validator` (`Validate(ctx, bearerToken) (Identity, error)`) |
+| **Production wiring** | `main.go` constructs `auth.NewClient(auth.Config{Resolver: discovery.NewResolver(...)})` and wraps the API handler with `auth.Middleware(client, logger)` (best-effort-inject); owner-gated handlers call `auth.RequireOwner(ctx)` (fail-closed). Verification is offline against the authenticator's published RS256 JWKS, fetched once and cached. |
+| **Test fake** | `internal/auth.FakeValidator` (canned Identity/Err); handler tests inject identity directly via `auth.WithIdentity(ctx, Identity{...})`. |
+| **Why it exists** | Bridge does not own user identity; it verifies the owner JWT locally so a momentarily-unavailable authenticator never breaks a live session. Trimmed from device-sync-hub's auth (no `RevokeSession` — bridge revokes node credentials, not auth sessions). The alg-lock (RS256 only) rejects "none"/HS* confusion. |
+
+### registry.Repository / registry.Service (node persistence + application surface)
+
+| | |
+|---|---|
+| **Seam** | Durable node-record persistence (Repository) and validation/policy (Service) |
+| **Interface** | `internal/registry/repository.go::Repository` (Create/Get/List/Update/Revoke/TouchLastSeen); `internal/registry/service.go::Service` (Register/List/Get/Update/Revoke) |
+| **Production wiring** | `handlers/registry/module.go::Module` constructs `registry.NewSQLiteRepository(db, clk)` then `registry.NewService(repo)`, internal to the module. `main.go` also constructs a second SqliteRepository as the channel handler's last-seen recorder (same `nodes` table). |
+| **Test fake** | `internal/registry/mocks::FakeRepository` (in-memory map, error knobs, atomic counters) for service tests; `internal/registry/mocks::FakeService` for handler tests; real sqlite in `internal/registry/sqlite_test.go`. |
+| **Why it exists** | Domain ownership of the `nodes` table; the handler depends on `Service` so validation has a home and a backend swap doesn't ripple to transport. Two-mock split mirrors the device-sync-hub/notes convention. |
+
+### registry handler Presence (live online/offline overlay)
+
+| | |
+|---|---|
+| **Seam** | The read-path overlay that stamps live online/offline status onto stored node records |
+| **Interface** | `handlers/registry/connect_handler.go::Presence` (`IsOnline(nodeID) bool`) |
+| **Production wiring** | `main.go` passes the shared `*presence.Hub` into `registryH.Module`; the hub satisfies `IsOnline` directly. A nil Presence (or the `offlinePresence` default) reads every node offline. |
+| **Test fake** | A literal `fakePresence{online: map[string]bool{...}}` in `handlers/registry/connect_handler_test.go`. |
+| **Why it exists** | Presence is ephemeral; the registry persists only durable identity. Decoupling the overlay behind a narrow `IsOnline` seam lets the registry domain build and test without depending on the presence hub, and lets a revoked node always read REVOKED regardless of any lingering channel. |
+
+### channel.LastSeenRecorder (heartbeat → last-seen persistence)
+
+| | |
+|---|---|
+| **Seam** | Persisting a node's last-seen timestamp on heartbeat |
+| **Interface** | `handlers/channel/heartbeat_handler.go::LastSeenRecorder` (`TouchLastSeen(ctx, nodeID, t) error`) |
+| **Production wiring** | `main.go` passes the registry SqliteRepository (it satisfies `TouchLastSeen`) into `channelH.Module`. A persistence failure is logged and swallowed — the in-memory presence update is authoritative for liveness, so a DB hiccup never drops a heartbeat. |
+| **Test fake** | A `fakeLastSeen` recorder in `handlers/channel/heartbeat_handler_test.go` (records ids; an injectable error proves the swallow path). |
+| **Why it exists** | Keeps the channel handler decoupled from the registry's storage internals while still persisting "last seen 2h ago" across a control-plane restart. The presence hub itself stays pure in-memory. |
+
+Note: `internal/presence.Hub` is a concrete shared component (constructed once in `main.go`, shared by the registry overlay and the channel handler), not a substitution seam — the *seam* is the narrow `Presence.IsOnline` interface the registry handler consumes. An optional Redis-backed Hub for scale-out is a declared future seam, not built while the fleet is single-instance.
+
 ## Adding a new seam
 
 The right time to add a seam is the moment you find yourself reaching

@@ -1,0 +1,142 @@
+package pairing
+
+import (
+	"context"
+	"errors"
+	"log"
+	"time"
+
+	"vrooli-bridge/internal/auth"
+	"vrooli-bridge/internal/pairing"
+
+	"connectrpc.com/connect"
+
+	pairingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/pairing"
+)
+
+// Deps wires the seams the PairingService handler needs.
+type Deps struct {
+	Service *pairing.Service
+	// ControlPlanePublicKey is the standard-base64 CP Ed25519 public key handed
+	// to nodes to pin (from internal/cpkeys).
+	ControlPlanePublicKey string
+	Logger                *log.Logger
+}
+
+type connectHandler struct {
+	deps Deps
+}
+
+// NewConnectHandler constructs the PairingService Connect handler.
+func NewConnectHandler(d Deps) *connectHandler {
+	if d.Logger == nil {
+		d.Logger = log.Default()
+	}
+	return &connectHandler{deps: d}
+}
+
+// IssuePairingCode is owner-gated: only the owner mints bootstrap codes.
+func (h *connectHandler) IssuePairingCode(ctx context.Context, req *connect.Request[pairingv1.IssuePairingCodeRequest]) (*connect.Response[pairingv1.IssuePairingCodeResponse], error) {
+	if _, err := auth.RequireOwner(ctx); err != nil {
+		return nil, auth.ToConnectError(err)
+	}
+	ttl := time.Duration(req.Msg.GetTtlSeconds()) * time.Second
+	issued, err := h.deps.Service.IssueCode(ctx, req.Msg.GetName(), req.Msg.GetScopes(), ttl)
+	if err != nil {
+		return nil, h.toConnectError("IssuePairingCode", err)
+	}
+	return connect.NewResponse(&pairingv1.IssuePairingCodeResponse{
+		Code:                  issued.Code,
+		ControlPlanePublicKey: h.deps.ControlPlanePublicKey,
+		ExpiresAt:             timeToProto(issued.ExpiresAt),
+	}), nil
+}
+
+// RedeemPairingCode is the open, node-facing bootstrap call (authed by
+// possession of the still-valid code, not an owner token).
+func (h *connectHandler) RedeemPairingCode(ctx context.Context, req *connect.Request[pairingv1.RedeemPairingCodeRequest]) (*connect.Response[pairingv1.RedeemPairingCodeResponse], error) {
+	nodeID, err := h.deps.Service.Redeem(ctx, req.Msg.GetCode(), req.Msg.GetNodePublicKey(), pairing.NodeFacts{
+		Name:         req.Msg.GetName(),
+		OS:           req.Msg.GetOs(),
+		Arch:         req.Msg.GetArch(),
+		Endpoint:     req.Msg.GetEndpoint(),
+		Capabilities: req.Msg.GetCapabilities(),
+	})
+	if err != nil {
+		return nil, h.toConnectError("RedeemPairingCode", err)
+	}
+	return connect.NewResponse(&pairingv1.RedeemPairingCodeResponse{
+		NodeId:                nodeID,
+		ControlPlanePublicKey: h.deps.ControlPlanePublicKey,
+	}), nil
+}
+
+// RequestPairing is the open, no-code fallback enrollment ask.
+func (h *connectHandler) RequestPairing(ctx context.Context, req *connect.Request[pairingv1.RequestPairingRequest]) (*connect.Response[pairingv1.RequestPairingResponse], error) {
+	pr, err := h.deps.Service.RequestPairing(ctx, req.Msg.GetNodePublicKey(), pairing.NodeFacts{
+		Name:         req.Msg.GetName(),
+		OS:           req.Msg.GetOs(),
+		Arch:         req.Msg.GetArch(),
+		Endpoint:     req.Msg.GetEndpoint(),
+		Capabilities: req.Msg.GetCapabilities(),
+	})
+	if err != nil {
+		return nil, h.toConnectError("RequestPairing", err)
+	}
+	return connect.NewResponse(&pairingv1.RequestPairingResponse{
+		RequestId: pr.ID,
+		Status:    statusToProto(pr.Status),
+	}), nil
+}
+
+// ApprovePairing is owner-gated: only the owner decides pending requests.
+func (h *connectHandler) ApprovePairing(ctx context.Context, req *connect.Request[pairingv1.ApprovePairingRequest]) (*connect.Response[pairingv1.ApprovePairingResponse], error) {
+	if _, err := auth.RequireOwner(ctx); err != nil {
+		return nil, auth.ToConnectError(err)
+	}
+	status, nodeID, err := h.deps.Service.Approve(ctx, req.Msg.GetRequestId(), req.Msg.GetApprove(), req.Msg.GetScopes())
+	if err != nil {
+		return nil, h.toConnectError("ApprovePairing", err)
+	}
+	return connect.NewResponse(&pairingv1.ApprovePairingResponse{
+		NodeId: nodeID,
+		Status: statusToProto(status),
+	}), nil
+}
+
+// ListPairingRequests is owner-gated.
+func (h *connectHandler) ListPairingRequests(ctx context.Context, req *connect.Request[pairingv1.ListPairingRequestsRequest]) (*connect.Response[pairingv1.ListPairingRequestsResponse], error) {
+	if _, err := auth.RequireOwner(ctx); err != nil {
+		return nil, auth.ToConnectError(err)
+	}
+	reqs, err := h.deps.Service.ListRequests(ctx, req.Msg.GetIncludeDecided())
+	if err != nil {
+		return nil, h.toConnectError("ListPairingRequests", err)
+	}
+	out := &pairingv1.ListPairingRequestsResponse{Requests: make([]*pairingv1.PairingRequest, 0, len(reqs))}
+	for _, r := range reqs {
+		out.Requests = append(out.Requests, requestToProto(r))
+	}
+	return connect.NewResponse(out), nil
+}
+
+// toConnectError maps the pairing domain's typed sentinels to Connect codes. A
+// bad/expired/used code is Unauthenticated (a node failing to authenticate),
+// validation is InvalidArgument, missing request is NotFound, and an unexpected
+// error is logged + Internal.
+func (h *connectHandler) toConnectError(op string, err error) error {
+	switch {
+	case errors.Is(err, pairing.ErrCodeNotFound), errors.Is(err, pairing.ErrCodeExpired), errors.Is(err, pairing.ErrCodeUsed):
+		return connect.NewError(connect.CodeUnauthenticated, err)
+	case errors.Is(err, pairing.ErrRequestNotFound):
+		return connect.NewError(connect.CodeNotFound, err)
+	case errors.Is(err, pairing.ErrRequestDecided):
+		return connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	var invalid pairing.ErrInvalid
+	if errors.As(err, &invalid) {
+		return connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	h.deps.Logger.Printf("pairing.%s: %v", op, err)
+	return connect.NewError(connect.CodeInternal, errors.New("internal error"))
+}

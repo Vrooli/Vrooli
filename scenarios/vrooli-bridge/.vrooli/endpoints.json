@@ -25,8 +25,547 @@
       ],
       "rest_exception": {
         "reason": "ops_probe",
-        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client."
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.vrooli_bridge.v1.health.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.vrooli_bridge.v1.errors.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
       }
+    },
+    {
+      "id": "presence_report_heartbeat",
+      "path": "/vrooli.vrooli_bridge.v1.presence.PresenceService/ReportHeartbeat",
+      "method": "POST",
+      "summary": "Report a node heartbeat",
+      "description": "Node-facing: records a node's liveness + self-reported readiness in the presence hub and persists last-seen. Returns the protocol compatibility verdict. Called by the node-agent, not an operator.",
+      "category": "channel",
+      "request": {
+        "type": "object",
+        "properties": {
+          "heartbeat": "Heartbeat (node_id, sequence, health, sent_at)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "compatibility": "CompatibilityStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing node id"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Heartbeat",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.presence.PresenceService/ReportHeartbeat -H 'Content-Type: application/json' -d '{\"heartbeat\":{\"node_id\":\"abc123\",\"health\":{\"toolchain_present\":true}}}'"
+        }
+      ]
+    },
+    {
+      "id": "channel_events",
+      "path": "/api/v1/channel/events",
+      "method": "GET",
+      "summary": "Open the dial-out channel",
+      "description": "Node-facing: the node opens this server-sent-events stream and holds it open; it is online for as long as the stream is held (NAT/firewall-proof — the node always initiates, no inbound port). Phase 1 sends keepalive pings; later phases push JobPush and ProvisionCommand frames down this stream. Authenticated in Phase 1 by the ?node= stub credential (X-Bridge-Node header for non-browser clients); Phase 2 replaces it with per-node Ed25519 mutual auth.",
+      "category": "channel",
+      "response": {
+        "type": "text/event-stream",
+        "properties": {
+          "data": "ServerFrame (vrooli.vrooli_bridge.v1.channel.ServerFrame, protojson per SSE message in later phases)"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_request",
+          "description": "Missing node id"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Dial out",
+          "curl": "curl -N 'http://localhost:${API_PORT}/api/v1/channel/events?node=abc123'"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Long-lived SSE stream (text/event-stream) held open by the node-agent's EventSource directly (no Connect client). Server→node push frames are the proto-typed channel.ServerFrame marshaled with protojson.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.vrooli_bridge.v1.channel.ServerFrame",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "transport": "none",
+            "conformance": "none"
+          }
+        }
+      }
+    },
+    {
+      "id": "pairing_issue_code",
+      "path": "/vrooli.vrooli_bridge.v1.pairing.PairingService/IssuePairingCode",
+      "method": "POST",
+      "summary": "Issue a pairing code",
+      "description": "Mints a single-use, short-TTL pairing code and returns the control-plane public key to pin. Owner-gated. The plaintext code is returned once.",
+      "category": "pairing",
+      "request": {
+        "type": "object",
+        "properties": {
+          "name": "string",
+          "scopes": "array<string>",
+          "ttl_seconds": "int64"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "code": "string (shown once)",
+          "control_plane_public_key": "string (base64 Ed25519)",
+          "expires_at": "Timestamp"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Code generation/persistence failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Issue a code",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.pairing.PairingService/IssuePairingCode -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"name\":\"mac-mini\",\"scopes\":[\"scenario test*\"]}'"
+        }
+      ]
+    },
+    {
+      "id": "pairing_redeem_code",
+      "path": "/vrooli.vrooli_bridge.v1.pairing.PairingService/RedeemPairingCode",
+      "method": "POST",
+      "summary": "Redeem a pairing code",
+      "description": "Node-facing bootstrap: redeems a still-valid code, registers the node, stores its Ed25519 public key, and returns the node id + control-plane public key to pin. Open (authed by possessing the code).",
+      "category": "pairing",
+      "request": {
+        "type": "object",
+        "properties": {
+          "arch": "string",
+          "capabilities": "array<string>",
+          "code": "string (required)",
+          "endpoint": "string",
+          "name": "string",
+          "node_public_key": "string (base64 Ed25519, required)",
+          "os": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "control_plane_public_key": "string (base64 Ed25519)",
+          "node_id": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing/invalid code or public key"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Unknown, expired, or already-redeemed code"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Registration/persistence failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Redeem a code",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.pairing.PairingService/RedeemPairingCode -H 'Content-Type: application/json' -d '{\"code\":\"...\",\"node_public_key\":\"<base64>\",\"os\":\"linux\",\"arch\":\"amd64\"}'"
+        }
+      ]
+    },
+    {
+      "id": "pairing_request",
+      "path": "/vrooli.vrooli_bridge.v1.pairing.PairingService/RequestPairing",
+      "method": "POST",
+      "summary": "Request pairing (no code)",
+      "description": "Node-facing fallback when there is no pre-shared code: records a pending join request the owner approves. Open.",
+      "category": "pairing",
+      "request": {
+        "type": "object",
+        "properties": {
+          "arch": "string",
+          "capabilities": "array<string>",
+          "endpoint": "string",
+          "name": "string",
+          "node_public_key": "string (base64 Ed25519, required)",
+          "os": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "request_id": "string",
+          "status": "PairingRequestStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid public key"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Persistence failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Request pairing",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.pairing.PairingService/RequestPairing -H 'Content-Type: application/json' -d '{\"node_public_key\":\"<base64>\",\"name\":\"ci-box\"}'"
+        }
+      ]
+    },
+    {
+      "id": "pairing_approve",
+      "path": "/vrooli.vrooli_bridge.v1.pairing.PairingService/ApprovePairing",
+      "method": "POST",
+      "summary": "Approve/reject a pairing request",
+      "description": "Decides a pending join request — approving mints the node and stores its credential. Owner-gated.",
+      "category": "pairing",
+      "request": {
+        "type": "object",
+        "properties": {
+          "approve": "boolean",
+          "request_id": "string (required)",
+          "scopes": "array<string>"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "node_id": "string (set when approved)",
+          "status": "PairingRequestStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown request"
+        },
+        {
+          "status": 409,
+          "code": "failed_precondition",
+          "description": "Request already decided"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Registration/persistence failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Approve a request",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.pairing.PairingService/ApprovePairing -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"request_id\":\"...\",\"approve\":true,\"scopes\":[\"scenario test*\"]}'"
+        }
+      ]
+    },
+    {
+      "id": "pairing_list_requests",
+      "path": "/vrooli.vrooli_bridge.v1.pairing.PairingService/ListPairingRequests",
+      "method": "POST",
+      "summary": "List pairing requests",
+      "description": "Returns pending join requests awaiting owner approval (include_decided adds decided ones). Owner-gated.",
+      "category": "pairing",
+      "request": {
+        "type": "object",
+        "properties": {
+          "include_decided": "boolean"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "requests": "array<PairingRequest>"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List pending requests",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.pairing.PairingService/ListPairingRequests -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "registry_register_node",
+      "path": "/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/RegisterNode",
+      "method": "POST",
+      "summary": "Register a trusted node",
+      "description": "Creates a durable node record (OS/arch/endpoint/capabilities/scopes). Owner-gated.",
+      "category": "registry",
+      "request": {
+        "type": "object",
+        "properties": {
+          "arch": "string (required)",
+          "capabilities": "array<string>",
+          "endpoint": "string",
+          "name": "string (required)",
+          "os": "string (required)",
+          "scopes": "array<string>"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "node": "Node"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing name/os/arch"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Register a node",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/RegisterNode -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"name\":\"mac-mini\",\"os\":\"darwin\",\"arch\":\"arm64\"}'"
+        }
+      ]
+    },
+    {
+      "id": "registry_list_nodes",
+      "path": "/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/ListNodes",
+      "method": "POST",
+      "summary": "List fleet nodes",
+      "description": "Returns every node in the owner's fleet, newest-first, with the live presence overlay applied. Owner-gated.",
+      "category": "registry",
+      "response": {
+        "type": "object",
+        "properties": {
+          "nodes": "array<Node>"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List nodes",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/ListNodes -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "registry_get_node",
+      "path": "/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/GetNode",
+      "method": "POST",
+      "summary": "Get a node by id",
+      "description": "Returns one node by id with the presence overlay applied. Owner-gated.",
+      "category": "registry",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "node": "Node"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No node with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get node",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/GetNode -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "registry_update_node",
+      "path": "/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/UpdateNode",
+      "method": "POST",
+      "summary": "Update a node",
+      "description": "Mutates a node's owner-editable fields (name/endpoint/capabilities/scopes/revision). Owner-gated.",
+      "category": "registry",
+      "request": {
+        "type": "object",
+        "properties": {
+          "capabilities": "array<string>",
+          "endpoint": "string",
+          "id": "string (required)",
+          "name": "string (required)",
+          "revision": "string",
+          "scopes": "array<string>"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "node": "Node"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing id/name"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No node with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Update node",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/UpdateNode -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"id\":\"abc123\",\"name\":\"renamed\"}'"
+        }
+      ]
+    },
+    {
+      "id": "registry_revoke_node",
+      "path": "/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/RevokeNode",
+      "method": "POST",
+      "summary": "Revoke a node",
+      "description": "Severs a node atomically — marks the record revoked and (Phase 2) destroys credentials + kills channel/job/provisioning rights. Idempotent. Owner-gated.",
+      "category": "registry",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "node": "Node"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No node with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Revoke node",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.registry.NodeRegistryService/RevokeNode -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
+        }
+      ]
     }
   ]
 }

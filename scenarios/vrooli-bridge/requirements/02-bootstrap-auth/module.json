@@ -24,17 +24,45 @@
         },
         {
           "type": "test",
-          "ref": "api/internal/auth/mutual_auth_test.go",
+          "ref": "api/internal/nodeauth/nodeauth_test.go",
           "phase": "unit",
           "status": "planned",
-          "notes": "Both directions authenticate; a revoked node's credential is refused for jobs and provisioning."
+          "notes": "Node→control-plane mutual auth: a valid signed proof verifies; unknown/revoked node, cross-node replay, stale timestamp, and tampered signatures are all rejected."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/cpkeys/cpkeys_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Control-plane→node identity: a stable persisted Ed25519 key (owner-only seed) signs pushes a node can verify against the pinned public key (rejects an impostor coordinator)."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/registry/connect_handler_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Atomic revocation: a single RevokeNode revokes the durable record AND severs the mutual-auth credential AND drops the live channel in one operation."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/channel/heartbeat_handler_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Live enforcement: with the verifier wired, an unsigned or impostor-signed heartbeat is rejected; a validly-signed one is accepted."
+        },
+        {
+          "type": "test",
+          "ref": "agent/internal/nodecred/nodecred_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "Agent signing: the node keypair is stable + owner-only and its signatures match the canonical nodeauth wire format (cross-module contract)."
         },
         {
           "type": "manual",
           "ref": "docs/internal/SECURITY.md#bootstrap",
           "phase": "business",
           "status": "planned",
-          "notes": "Fresh-machine acceptance: one bootstrap invocation yields a paired, mutually-authenticated, online node."
+          "notes": "Fresh-machine acceptance: one bootstrap invocation yields a paired, mutually-authenticated, online node. The per-OS service-install step (systemd/launchd/Windows Service) lands in Phase 4."
         }
       ]
     }

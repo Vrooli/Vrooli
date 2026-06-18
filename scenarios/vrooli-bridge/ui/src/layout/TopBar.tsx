@@ -5,6 +5,14 @@ import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
 
+// Static label map so each theme key has a visible callsite (the registry's
+// no-unused-keys gate can't see dynamic `strings.theme.choice[c]` indexing).
+const THEME_CHOICE_LABEL = {
+  light: strings.theme.choice.light,
+  dark: strings.theme.choice.dark,
+  system: strings.theme.choice.system,
+} as const satisfies Record<ThemeChoice, string>;
+
 /**
  * Top app bar — title, locale switcher, theme toggle. Visible at every viewport
  * width. Replace the title with your real product surface; keep the locale and
@@ -64,7 +72,7 @@ export function TopBar() {
           >
             {THEME_CHOICES.map((c) => (
               <option key={c} value={c}>
-                {t(strings.theme.choice[c])}
+                {t(THEME_CHOICE_LABEL[c])}
               </option>
             ))}
           </select>

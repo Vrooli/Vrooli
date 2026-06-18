@@ -5,6 +5,14 @@ import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
 
+// Static label map so each theme key has a visible callsite (the registry's
+// no-unused-keys gate can't see dynamic `strings.theme.choice[c]` indexing).
+const THEME_CHOICE_LABEL = {
+  light: strings.theme.choice.light,
+  dark: strings.theme.choice.dark,
+  system: strings.theme.choice.system,
+} as const satisfies Record<ThemeChoice, string>;
+
 /**
  * Settings page. Surfaces the locale and theme selectors as a real page (in
  * addition to the compact controls in the top bar). Add scenario-specific
@@ -44,7 +52,7 @@ export function SettingsPage() {
                   : "rounded-control border border-app-border px-3 py-1 text-sm text-app-foreground hover:bg-app-surface-muted"
               }
             >
-              {t(strings.theme.choice[c])}
+              {t(THEME_CHOICE_LABEL[c])}
             </button>
           ))}
         </div>

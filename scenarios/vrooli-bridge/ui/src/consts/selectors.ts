@@ -305,6 +305,13 @@ const literalSelectors = {
     refreshButton: "health-refresh-button",
     refreshCount: "health-refresh-count",
   },
+  fleet: {
+    panel: "fleet-panel",
+    loading: "fleet-loading",
+    error: "fleet-error",
+    empty: "fleet-empty",
+    list: "fleet-list",
+  },
   notifications: {
     summary: "notifications-summary",
   },
@@ -374,6 +381,18 @@ const dynamicSelectorDefinitions = {
           ] as const,
         },
       },
+    }),
+  },
+  fleet: {
+    row: defineDynamicSelector({
+      description: "Fleet node row by node id",
+      testIdPattern: "fleet-row-${id}",
+      params: { id: { type: "string" } },
+    }),
+    revoke: defineDynamicSelector({
+      description: "Revoke action for a fleet node by id",
+      testIdPattern: "fleet-revoke-${id}",
+      params: { id: { type: "string" } },
     }),
   },
   settingsPage: {

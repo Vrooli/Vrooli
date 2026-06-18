@@ -1,0 +1,227 @@
+package pairing
+
+import (
+	"context"
+	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base32"
+	"encoding/base64"
+	"encoding/hex"
+	"fmt"
+	"strings"
+	"time"
+
+	"vrooli-bridge/internal/clock"
+)
+
+// Code/TTL policy. Codes are single-use and short-lived: a live code can enrol a
+// rogue node (SECURITY.md), so the window is deliberately tight.
+const (
+	defaultCodeTTL = 15 * time.Minute
+	maxCodeTTL     = 1 * time.Hour
+	codeBytes      = 20 // 160 bits of entropy → 32 base32 chars
+)
+
+// Service is the pairing domain's application logic: it mints/burns codes,
+// registers redeeming nodes (via the NodeRegistrar seam), stores their Ed25519
+// public keys, and runs the request/approve fallback.
+type Service struct {
+	repo      Repository
+	registrar NodeRegistrar
+	clock     clock.Clock
+}
+
+// NewService constructs the pairing service.
+func NewService(repo Repository, registrar NodeRegistrar, clk clock.Clock) *Service {
+	return &Service{repo: repo, registrar: registrar, clock: clk}
+}
+
+// IssuedCode is the result of IssueCode: the plaintext code (returned ONCE) and
+// its expiry.
+type IssuedCode struct {
+	Code      string
+	ExpiresAt time.Time
+}
+
+// IssueCode mints a single-use pairing code, stores only its hash, and returns
+// the plaintext once. ttl<=0 uses the default; it is clamped to maxCodeTTL.
+func (s *Service) IssueCode(ctx context.Context, name string, scopes []string, ttl time.Duration) (IssuedCode, error) {
+	if ttl <= 0 {
+		ttl = defaultCodeTTL
+	}
+	if ttl > maxCodeTTL {
+		ttl = maxCodeTTL
+	}
+	code, err := generateCode()
+	if err != nil {
+		return IssuedCode{}, fmt.Errorf("generate pairing code: %w", err)
+	}
+	now := s.clock.Now().UTC()
+	expires := now.Add(ttl)
+	if _, err := s.repo.CreateCode(ctx, PairingCode{
+		CodeHash:  hashCode(code),
+		Name:      strings.TrimSpace(name),
+		Scopes:    normalizeScopes(scopes),
+		CreatedAt: now,
+		ExpiresAt: expires,
+	}); err != nil {
+		return IssuedCode{}, err
+	}
+	return IssuedCode{Code: code, ExpiresAt: expires}, nil
+}
+
+// Redeem burns a valid code and enrols the redeeming node: it registers the
+// durable node record (carrying the code's name/scopes merged with the node's
+// self-reported facts), stores the node's Ed25519 public key, and marks the
+// code used. Returns the new node id. An expired/unknown/already-used code is
+// rejected before any node is created.
+func (s *Service) Redeem(ctx context.Context, code, nodePublicKeyB64 string, facts NodeFacts) (nodeID string, err error) {
+	if strings.TrimSpace(code) == "" {
+		return "", ErrInvalid{Field: "code", Reason: "is required"}
+	}
+	if err := validatePublicKey(nodePublicKeyB64); err != nil {
+		return "", err
+	}
+
+	stored, err := s.repo.GetCodeByHash(ctx, hashCode(code))
+	if err != nil {
+		return "", err // ErrCodeNotFound
+	}
+	if stored.Redeemed() {
+		return "", ErrCodeUsed
+	}
+	if s.clock.Now().UTC().After(stored.ExpiresAt) {
+		return "", ErrCodeExpired
+	}
+
+	// The owner-assigned name/scopes from the code win; os/arch/endpoint/caps are
+	// the node's self-report.
+	regFacts := facts
+	if stored.Name != "" {
+		regFacts.Name = stored.Name
+	}
+	regFacts.Scopes = normalizeScopes(stored.Scopes)
+
+	nodeID, err = s.registrar.RegisterNode(ctx, regFacts)
+	if err != nil {
+		return "", fmt.Errorf("register node: %w", err)
+	}
+	if err := s.repo.StoreCredential(ctx, Credential{NodeID: nodeID, PublicKey: nodePublicKeyB64, CreatedAt: s.clock.Now().UTC()}); err != nil {
+		return "", fmt.Errorf("store credential: %w", err)
+	}
+	// Atomic single-use gate: a concurrent second redeem loses here.
+	if err := s.repo.BurnCode(ctx, stored.ID, nodeID); err != nil {
+		return "", err // ErrCodeUsed
+	}
+	return nodeID, nil
+}
+
+// RequestPairing records a pending join request (the no-pre-shared-code path).
+func (s *Service) RequestPairing(ctx context.Context, nodePublicKeyB64 string, facts NodeFacts) (PairingRequest, error) {
+	if err := validatePublicKey(nodePublicKeyB64); err != nil {
+		return PairingRequest{}, err
+	}
+	return s.repo.CreateRequest(ctx, PairingRequest{
+		PublicKey:    nodePublicKeyB64,
+		Name:         strings.TrimSpace(facts.Name),
+		OS:           facts.OS,
+		Arch:         facts.Arch,
+		Endpoint:     facts.Endpoint,
+		Capabilities: facts.Capabilities,
+		Status:       RequestPending,
+		CreatedAt:    s.clock.Now().UTC(),
+	})
+}
+
+// Approve approves (or rejects) a pending request. On approval it registers the
+// node and stores its credential, then records the decision atomically.
+func (s *Service) Approve(ctx context.Context, requestID string, approve bool, scopes []string) (status RequestStatus, nodeID string, err error) {
+	req, err := s.repo.GetRequest(ctx, requestID)
+	if err != nil {
+		return "", "", err
+	}
+	if req.Status != RequestPending {
+		return "", "", ErrRequestDecided
+	}
+
+	if !approve {
+		if err := s.repo.DecideRequest(ctx, req.ID, RequestRejected, ""); err != nil {
+			return "", "", err
+		}
+		return RequestRejected, "", nil
+	}
+
+	nodeID, err = s.registrar.RegisterNode(ctx, NodeFacts{
+		Name:         req.Name,
+		OS:           req.OS,
+		Arch:         req.Arch,
+		Endpoint:     req.Endpoint,
+		Capabilities: req.Capabilities,
+		Scopes:       normalizeScopes(scopes),
+	})
+	if err != nil {
+		return "", "", fmt.Errorf("register node: %w", err)
+	}
+	if err := s.repo.StoreCredential(ctx, Credential{NodeID: nodeID, PublicKey: req.PublicKey, CreatedAt: s.clock.Now().UTC()}); err != nil {
+		return "", "", fmt.Errorf("store credential: %w", err)
+	}
+	if err := s.repo.DecideRequest(ctx, req.ID, RequestApproved, nodeID); err != nil {
+		return "", "", err
+	}
+	return RequestApproved, nodeID, nil
+}
+
+// ListRequests returns pending (or, with includeDecided, all) join requests.
+func (s *Service) ListRequests(ctx context.Context, includeDecided bool) ([]PairingRequest, error) {
+	return s.repo.ListRequests(ctx, includeDecided)
+}
+
+// RevokeCredential severs a node's credential. Called by the registry domain's
+// atomic revoke (so a single RevokeNode kills durable identity AND auth).
+func (s *Service) RevokeCredential(ctx context.Context, nodeID string) error {
+	return s.repo.RevokeCredential(ctx, nodeID)
+}
+
+// --- helpers ---
+
+func generateCode() (string, error) {
+	buf := make([]byte, codeBytes)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	// Crockford-ish: standard base32, no padding, uppercase — human-typeable.
+	return base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(buf), nil
+}
+
+// hashCode hashes a plaintext code with SHA-256; only the hash is stored. A code
+// is a high-entropy random token (160 bits), so a plain hash is sufficient —
+// there is nothing to brute-force as with a low-entropy password.
+func hashCode(code string) string {
+	sum := sha256.Sum256([]byte(strings.TrimSpace(code)))
+	return hex.EncodeToString(sum[:])
+}
+
+func validatePublicKey(b64 string) error {
+	raw, err := base64.StdEncoding.DecodeString(strings.TrimSpace(b64))
+	if err != nil {
+		return ErrInvalid{Field: "node_public_key", Reason: "must be standard base64"}
+	}
+	if len(raw) != ed25519.PublicKeySize {
+		return ErrInvalid{Field: "node_public_key", Reason: fmt.Sprintf("must be a %d-byte Ed25519 key", ed25519.PublicKeySize)}
+	}
+	return nil
+}
+
+func normalizeScopes(scopes []string) []string {
+	out := make([]string, 0, len(scopes))
+	for _, s := range scopes {
+		if v := strings.TrimSpace(s); v != "" {
+			out = append(out, v)
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}

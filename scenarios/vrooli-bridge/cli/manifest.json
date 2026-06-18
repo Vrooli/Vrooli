@@ -1,10 +1,187 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "vrooli-bridge",
-  "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
-  "groups": [],
+  "description": "Vrooli Bridge fleet control-plane CLI surface. Single source of truth for the operator/agent command shape: schema-validated against cli-manifest/v1 and cross-validated against each domain's proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "groups": [
+    {
+      "name": "nodes",
+      "description": "Manage trusted fleet nodes (registry)",
+      "commands": [
+        {
+          "name": "register",
+          "description": "Register a trusted node",
+          "flags": [
+            { "name": "name", "required": true, "description": "Human-friendly node label" },
+            { "name": "os", "required": true, "description": "Operating system (e.g. linux, darwin, windows)" },
+            { "name": "arch", "required": true, "description": "Architecture (e.g. amd64, arm64)" },
+            { "name": "endpoint", "description": "Reachable endpoint hint (informational; nodes dial out)" },
+            { "name": "capabilities", "description": "Comma-separated self-reported verb namespaces" },
+            { "name": "scopes", "description": "Comma-separated granted verb-namespace scopes" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "NodeRegistryService", "method": "RegisterNode" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List fleet nodes with live presence",
+          "binding": { "kind": "connect-rpc", "service": "NodeRegistryService", "method": "ListNodes" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Show one node by id",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Node id" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "NodeRegistryService", "method": "GetNode" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Update a node's editable fields",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Node id" }
+          ],
+          "flags": [
+            { "name": "name", "required": true, "description": "Human-friendly node label" },
+            { "name": "endpoint", "description": "Reachable endpoint hint" },
+            { "name": "capabilities", "description": "Comma-separated self-reported verb namespaces" },
+            { "name": "scopes", "description": "Comma-separated granted verb-namespace scopes" },
+            { "name": "revision", "description": "Provisioned Vrooli revision" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "NodeRegistryService", "method": "UpdateNode" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "revoke",
+          "description": "Revoke a node, severing its access atomically",
+          "positionals": [
+            { "name": "id", "required": true, "description": "Node id" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "NodeRegistryService", "method": "RevokeNode" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "pair",
+      "description": "Pair nodes into the fleet (one-touch bootstrap + mutual auth)",
+      "commands": [
+        {
+          "name": "issue",
+          "description": "Issue a single-use pairing code (owner)",
+          "flags": [
+            { "name": "name", "description": "Intended node label" },
+            { "name": "scopes", "description": "Comma-separated granted verb-namespace scopes" },
+            { "name": "ttl", "description": "Code TTL in seconds (default server policy)" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "PairingService", "method": "IssuePairingCode" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "redeem",
+          "description": "Redeem a pairing code from this node (bootstrap installer)",
+          "flags": [
+            { "name": "code", "required": true, "description": "The pairing code" },
+            { "name": "public-key", "required": true, "description": "This node's base64 Ed25519 public key" },
+            { "name": "name", "description": "Node label" },
+            { "name": "os", "description": "Operating system" },
+            { "name": "arch", "description": "Architecture" },
+            { "name": "endpoint", "description": "Reachable endpoint hint" },
+            { "name": "capabilities", "description": "Comma-separated self-reported verb namespaces" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "PairingService", "method": "RedeemPairingCode" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "request",
+          "description": "Request to join the fleet with no pre-shared code (bootstrap installer)",
+          "flags": [
+            { "name": "public-key", "required": true, "description": "This node's base64 Ed25519 public key" },
+            { "name": "name", "description": "Node label" },
+            { "name": "os", "description": "Operating system" },
+            { "name": "arch", "description": "Architecture" },
+            { "name": "endpoint", "description": "Reachable endpoint hint" },
+            { "name": "capabilities", "description": "Comma-separated self-reported verb namespaces" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "PairingService", "method": "RequestPairing" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "approve",
+          "description": "Approve (or reject) a pending pairing request (owner)",
+          "positionals": [
+            { "name": "request-id", "required": true, "description": "Pending request id" }
+          ],
+          "flags": [
+            { "name": "reject", "bool": true, "description": "Reject the request instead of approving it" },
+            { "name": "scopes", "description": "Comma-separated granted verb-namespace scopes" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "PairingService", "method": "ApprovePairing" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List pending pairing requests (owner)",
+          "flags": [
+            { "name": "all", "bool": true, "description": "Include already-decided requests" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "PairingService", "method": "ListPairingRequests" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    }
+  ],
   "measures": {
     "domains": []
   },
-  "omitted": []
+  "omitted": [
+    {
+      "service": "PresenceService",
+      "method": "ReportHeartbeat",
+      "reason": "Node-facing dial-out RPC called by the node-agent, not an operator. There is no `nodes heartbeat` command; the agent reports liveness/health on the channel."
+    }
+  ]
 }

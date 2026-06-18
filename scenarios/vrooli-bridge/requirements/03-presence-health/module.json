@@ -30,6 +30,13 @@
           "notes": "Agent establishes the channel purely outbound; no listening port is opened on the node side."
         },
         {
+          "type": "test",
+          "ref": "agent/internal/channel/channel_test.go",
+          "phase": "integration",
+          "status": "planned",
+          "notes": "Node-agent live dial: holds the SSE stream, reports heartbeats with a health snapshot on cadence, and reconnects with backoff after a stream drop (purely outbound)."
+        },
+        {
           "type": "manual",
           "ref": "docs/concepts/FLOWS.md#presence",
           "phase": "business",
