@@ -15,8 +15,9 @@ import (
 )
 
 type Service struct {
-	broker *Broker
-	cache  CacheRepository
+	broker      *Broker
+	cache       CacheRepository
+	fileDomains FileDomainProvider
 }
 
 type ServiceOption func(*Service)
@@ -41,6 +42,12 @@ func WithBroker(broker *Broker) ServiceOption {
 func WithCacheRepository(cache CacheRepository) ServiceOption {
 	return func(s *Service) {
 		s.cache = cache
+	}
+}
+
+func WithFileDomainProvider(provider FileDomainProvider) ServiceOption {
+	return func(s *Service) {
+		s.fileDomains = provider
 	}
 }
 
@@ -100,6 +107,15 @@ func (s *Service) Describe(ctx context.Context, req *factsv1.DescribeCodeFactsRe
 		report.Facts = append(report.Facts, proofFacts...)
 		report.Evidence = append(report.Evidence, proofEvidence...)
 		report.Warnings = append(report.Warnings, proofWarnings...)
+	}
+	if hasFamily(include, factsv1.FactFamily_FACT_FAMILY_FILE_DOMAIN) {
+		fileDomainFacts, fileDomainEvidence, fileDomainWarnings, fileDomainErr := s.describeFileDomains(ctx, target)
+		if fileDomainErr != nil {
+			return nil, fileDomainErr
+		}
+		report.Facts = append(report.Facts, fileDomainFacts...)
+		report.Evidence = append(report.Evidence, fileDomainEvidence...)
+		report.Warnings = append(report.Warnings, fileDomainWarnings...)
 	}
 	for _, family := range include {
 		if isImplementedFamily(family) {
@@ -444,6 +460,13 @@ func (s *Service) analyzeForProof(ctx context.Context, targetReq *factsv1.CodeTa
 	return s.proofInput(target, facts, warnings, evidence, cacheMeta), nil
 }
 
+func (s *Service) describeFileDomains(ctx context.Context, target *factsv1.TargetContext) ([]*factsv1.GenericFact, []*factsv1.Evidence, []*factsv1.Warning, error) {
+	if s.fileDomains == nil {
+		return []*factsv1.GenericFact{unsupportedFact(factsv1.FactFamily_FACT_FAMILY_FILE_DOMAIN)}, nil, []*factsv1.Warning{unsupportedWarning(factsv1.FactFamily_FACT_FAMILY_FILE_DOMAIN)}, nil
+	}
+	return s.fileDomains.DescribeFileDomains(ctx, target)
+}
+
 func needsAnalyzer(families []factsv1.FactFamily) bool {
 	for _, family := range families {
 		switch family {
@@ -468,7 +491,8 @@ func isImplementedFamily(family factsv1.FactFamily) bool {
 		factsv1.FactFamily_FACT_FAMILY_REFERENCES,
 		factsv1.FactFamily_FACT_FAMILY_CALLS,
 		factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION,
-		factsv1.FactFamily_FACT_FAMILY_ENDPOINT_PROOFS:
+		factsv1.FactFamily_FACT_FAMILY_ENDPOINT_PROOFS,
+		factsv1.FactFamily_FACT_FAMILY_FILE_DOMAIN:
 		return true
 	default:
 		return false
@@ -571,6 +595,7 @@ func normalizeFamilies(in []factsv1.FactFamily) []factsv1.FactFamily {
 			factsv1.FactFamily_FACT_FAMILY_ENDPOINT_PROOFS,
 			factsv1.FactFamily_FACT_FAMILY_CLI_PROOFS,
 			factsv1.FactFamily_FACT_FAMILY_UI_WIDGET_PROOFS,
+			factsv1.FactFamily_FACT_FAMILY_FILE_DOMAIN,
 		}
 	}
 	out := make([]factsv1.FactFamily, 0, len(seen))
@@ -585,6 +610,7 @@ func normalizeFamilies(in []factsv1.FactFamily) []factsv1.FactFamily {
 		factsv1.FactFamily_FACT_FAMILY_ENDPOINT_PROOFS,
 		factsv1.FactFamily_FACT_FAMILY_CLI_PROOFS,
 		factsv1.FactFamily_FACT_FAMILY_UI_WIDGET_PROOFS,
+		factsv1.FactFamily_FACT_FAMILY_FILE_DOMAIN,
 	}
 	for _, f := range order {
 		if seen[f] {
@@ -653,9 +679,16 @@ func unsupportedFact(family factsv1.FactFamily) *factsv1.GenericFact {
 		Kind:    "phase_6_contract_placeholder",
 		Subject: family.String(),
 		Evidence: []*factsv1.Evidence{
-			unsupportedEvidence("This fact family is intentionally exposed but not yet analyzer-backed."),
+			unsupportedEvidence(unsupportedMessage(family)),
 		},
 	}
+}
+
+func unsupportedMessage(family factsv1.FactFamily) string {
+	if family == factsv1.FactFamily_FACT_FAMILY_FILE_DOMAIN {
+		return "FILE_DOMAIN is produced by architecture-cartographer; Code Facts exposes the contract but does not infer domain ownership."
+	}
+	return "This fact family is intentionally exposed but not yet analyzer-backed."
 }
 
 func unsupportedEvidence(message string) *factsv1.Evidence {
@@ -668,9 +701,13 @@ func unsupportedEvidence(message string) *factsv1.Evidence {
 }
 
 func unsupportedWarning(family factsv1.FactFamily) *factsv1.Warning {
+	message := family.String() + " is exposed by the API contract but not implemented until later plan phases."
+	if family == factsv1.FactFamily_FACT_FAMILY_FILE_DOMAIN {
+		message = "FILE_DOMAIN requires architecture-cartographer verdicts; Code Facts will not synthesize domain ownership locally."
+	}
 	return &factsv1.Warning{
 		Code:    "phase_6_contract_only",
-		Message: family.String() + " is exposed by the API contract but not implemented until later plan phases.",
+		Message: message,
 		Status:  factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED,
 	}
 }

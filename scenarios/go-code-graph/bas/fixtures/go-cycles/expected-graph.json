@@ -401,6 +401,14 @@
       "to": "package:github.com/vrooli/fixtures/go-cycles/pkga",
       "attributes": [
         [
+          "symbol_ids",
+          "go_type:package:github.com/vrooli/fixtures/go-cycles/pkga:TypeA"
+        ],
+        [
+          "symbol_kinds",
+          "go_type"
+        ],
+        [
           "test_only",
           "false"
         ]

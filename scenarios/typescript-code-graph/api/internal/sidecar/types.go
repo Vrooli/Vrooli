@@ -62,6 +62,8 @@ type RawNode struct {
 	Name            string            `json:"name"`
 	Path            string            `json:"path"`
 	Attributes      map[string]string `json:"attributes,omitempty"`
+	IsTest          bool              `json:"is_test,omitempty"`
+	Lines           int32             `json:"lines,omitempty"`
 	LeadingComments []string          `json:"leading_comments,omitempty"`
 }
 
@@ -69,11 +71,14 @@ type RawNode struct {
 // numeric common.v1.EdgeKind enum value (1=IMPORT, 2=INTRA_PACKAGE_REF,
 // 3=RE_EXPORT).
 type RawEdge struct {
-	ID         string            `json:"id"`
-	Kind       int32             `json:"kind"`
-	FromNodeID string            `json:"from_node_id"`
-	ToNodeID   string            `json:"to_node_id"`
-	Attributes map[string]string `json:"attributes,omitempty"`
+	ID          string            `json:"id"`
+	Kind        int32             `json:"kind"`
+	FromNodeID  string            `json:"from_node_id"`
+	ToNodeID    string            `json:"to_node_id"`
+	Attributes  map[string]string `json:"attributes,omitempty"`
+	TestOnly    bool              `json:"test_only,omitempty"`
+	SymbolIDs   []string          `json:"symbol_ids,omitempty"`
+	SymbolKinds []string          `json:"symbol_kinds,omitempty"`
 }
 
 // Warning is a non-fatal diagnostic surfaced during extraction. The

@@ -2285,6 +2285,14 @@
       "to": "package:context",
       "attributes": [
         [
+          "symbol_ids",
+          "go_interface:package:context:Context"
+        ],
+        [
+          "symbol_kinds",
+          "go_interface"
+        ],
+        [
           "test_only",
           "false"
         ]
@@ -2297,6 +2305,14 @@
       "to": "package:example.com/usagefacts/producer",
       "attributes": [
         [
+          "symbol_ids",
+          "go_func:package:example.com/usagefacts/producer:NewResponse,go_interface:package:example.com/usagefacts/producer:Writer,go_method:package:example.com/usagefacts/producer:WriteThing,go_type:package:example.com/usagefacts/producer:Response,go_type:package:example.com/usagefacts/producer:Service,go_var:package:example.com/usagefacts/producer:Value"
+        ],
+        [
+          "symbol_kinds",
+          "go_func,go_interface,go_method,go_type,go_var"
+        ],
+        [
           "test_only",
           "false"
         ]
@@ -2308,6 +2324,14 @@
       "from": "package:example.com/usagefacts/consumer",
       "to": "package:fmt",
       "attributes": [
+        [
+          "symbol_ids",
+          "go_func:package:fmt:Println"
+        ],
+        [
+          "symbol_kinds",
+          "go_func"
+        ],
         [
           "test_only",
           "false"
@@ -2332,6 +2356,14 @@
       "from": "package:example.com/usagefacts/producer",
       "to": "package:context",
       "attributes": [
+        [
+          "symbol_ids",
+          "go_interface:package:context:Context"
+        ],
+        [
+          "symbol_kinds",
+          "go_interface"
+        ],
         [
           "test_only",
           "false"

@@ -69,6 +69,10 @@ only the resulting proof statuses and evidence.
   generic graph facts.
 - Add new proof families in the proof domain, backed by generic facts.
 - Keep provider-specific language details out of shared Code Facts evidence unless normalized.
+- Keep opinion-bearing architecture policy out of Code Facts. The `file_domain`
+  fact family is exposed here as a cache/query contract, but Architecture
+  Cartographer produces the verdicts because it owns domain-map authority,
+  signal aggregation, and confidence thresholds.
 
 ## Architecture Maturity
 
@@ -81,7 +85,7 @@ only the resulting proof statuses and evidence.
 
 ## Intentional Deviations
 
-Analyzer-backed generic language evidence is active as of Phase 8 for imports, symbols, references, calls, and provider warnings. Cache reuse is active as of Phase 9 for graph and report payloads with source/config hash evidence. Phase 10 interprets those generic facts into proto adoption and REST endpoint proof evidence while leaving CLI proof and UI widget proof for later phases.
+Analyzer-backed generic language evidence is active as of Phase 8 for imports, symbols, references, calls, and provider warnings. Cache reuse is active as of Phase 9 for graph and report payloads with source/config hash evidence. Phase 10 interprets those generic facts into proto adoption and REST endpoint proof evidence while leaving CLI proof and UI widget proof for later phases. Architecture Cartographer's Phase 6 `file_domain` family is query-backed through cartographer: Code Facts delegates verdict production to cartographer, normalizes the returned verdicts into `GenericFact`s, and emits typed unsupported evidence when no cartographer provider is configured.
 
 ## Documentation Architecture
 

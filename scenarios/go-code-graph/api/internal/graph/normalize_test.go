@@ -2,8 +2,10 @@ package graph_test
 
 import (
 	"go/ast"
+	"go/importer"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"testing"
 
 	"golang.org/x/tools/go/packages"
@@ -113,6 +115,59 @@ func TestNormalizeEmitsImportEdges(t *testing.T) {
 	}
 	if e.Kind != intgraph.EdgeKindImport {
 		t.Fatalf("want kind=import, got %q", e.Kind)
+	}
+}
+
+func TestNormalizeAnnotatesImportEdgesWithSymbolKinds(t *testing.T) {
+	t.Parallel()
+	fset := token.NewFileSet()
+	src := `package alpha
+
+import "fmt"
+
+type widget struct{}
+
+func Hello(s fmt.Stringer) string {
+	return fmt.Sprintf("%s", s)
+}
+`
+	file, err := parser.ParseFile(fset, "/scenario/alpha/alpha.go", src, 0)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	info := &types.Info{
+		Types:      map[ast.Expr]types.TypeAndValue{},
+		Defs:       map[*ast.Ident]types.Object{},
+		Uses:       map[*ast.Ident]types.Object{},
+		Selections: map[*ast.SelectorExpr]*types.Selection{},
+	}
+	conf := types.Config{Importer: importer.Default()}
+	if _, err := conf.Check("example.com/m/alpha", fset, []*ast.File{file}, info); err != nil {
+		t.Fatalf("typecheck: %v", err)
+	}
+	pkg := &packages.Package{
+		PkgPath:   "example.com/m/alpha",
+		Name:      "alpha",
+		GoFiles:   []string{"/scenario/alpha/alpha.go"},
+		Imports:   map[string]*packages.Package{"fmt": {PkgPath: "fmt", Name: "fmt"}},
+		Fset:      fset,
+		Syntax:    []*ast.File{file},
+		TypesInfo: info,
+	}
+
+	g, _ := intgraph.Normalize([]*packages.Package{pkg}, "/scenario")
+	if len(g.Edges) != 1 {
+		t.Fatalf("want one edge, got %+v", g.Edges)
+	}
+	kinds := g.Edges[0].Attributes["symbol_kinds"]
+	if kinds == "" {
+		t.Fatalf("want symbol_kinds on import edge, attrs=%+v", g.Edges[0].Attributes)
+	}
+	if kinds != "go_func,go_interface" && kinds != "go_interface,go_func" {
+		t.Fatalf("unexpected symbol_kinds %q", kinds)
+	}
+	if g.Edges[0].Attributes["symbol_ids"] == "" {
+		t.Fatalf("want symbol_ids on import edge, attrs=%+v", g.Edges[0].Attributes)
 	}
 }
 

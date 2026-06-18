@@ -12,9 +12,17 @@
 | `endpoint_proofs` | Implemented. Static REST-exception implementation evidence synthesized by comparing `.vrooli/endpoints.json` declarations with normalized endpoint implementation facts from Code Facts framework adapters. |
 | `cli_proofs` | Planned CLI implementation evidence. |
 | `ui_widget_proofs` | Planned UI widget evidence. |
+| `file_domain` | Architecture Cartographer's per-file domain verdicts. Code Facts delegates verdict production to cartographer, normalizes returned verdicts into this family, and returns typed unsupported evidence when cartographer is not configured or reachable. |
 | `all` | All supported families for the target. |
 
 Generic facts include provider-specific metadata in `attributes`. Code Facts treats those attributes as evidence payload, not policy conclusions. Proof families interpret a small, documented subset of those attributes and emit `unknown` instead of `proven` when the provider graph lacks enough detail.
+
+`file_domain` facts use the existing `GenericFact` envelope: `subject` is the
+repo-relative file path, `kind` is `file_domain`, and attributes carry
+`path`, `top_domain`, `top_value`, `tier`, `runner_up_domain`,
+`runner_up_value`, `tied`, and `authority_confidence`. The producing policy
+belongs to Architecture Cartographer so Code Facts remains a broker/cache
+surface rather than a second domain classifier.
 
 ## Endpoint Proof Support Matrix
 

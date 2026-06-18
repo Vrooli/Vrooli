@@ -36,6 +36,8 @@ func Normalize(raw sidecar.RawGraph) Graph {
 			Name:            rn.Name,
 			Path:            rn.Path,
 			Attributes:      attrs,
+			IsTest:          rn.IsTest,
+			Lines:           rn.Lines,
 			LeadingComments: append([]string(nil), rn.LeadingComments...),
 		})
 	}
@@ -43,11 +45,14 @@ func Normalize(raw sidecar.RawGraph) Graph {
 	edges := make([]Edge, 0, len(raw.Edges))
 	for _, re := range raw.Edges {
 		edges = append(edges, Edge{
-			ID:         re.ID,
-			Kind:       decodeEdgeKind(re.Kind),
-			From:       re.FromNodeID,
-			To:         re.ToNodeID,
-			Attributes: cloneAttrs(re.Attributes),
+			ID:          re.ID,
+			Kind:        decodeEdgeKind(re.Kind),
+			From:        re.FromNodeID,
+			To:          re.ToNodeID,
+			Attributes:  cloneAttrs(re.Attributes),
+			TestOnly:    re.TestOnly,
+			SymbolIDs:   append([]string(nil), re.SymbolIDs...),
+			SymbolKinds: append([]string(nil), re.SymbolKinds...),
 		})
 	}
 

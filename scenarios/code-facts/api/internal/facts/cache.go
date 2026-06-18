@@ -454,6 +454,14 @@ func sourceFingerprint(target *factsv1.TargetContext, units []*factsv1.ParseUnit
 			}
 		}
 	}
+	if target.GetRootPath() != "" {
+		for _, name := range []string{filepath.Join("docs", "concepts", "DOMAINS.md")} {
+			path := filepath.Join(target.GetRootPath(), name)
+			if fileExists(path) {
+				configs[path] = true
+			}
+		}
+	}
 	return fileStatSignature(target.GetRootPath(), sourceFiles(roots)), fileStatSignature(target.GetRootPath(), keys(configs))
 }
 

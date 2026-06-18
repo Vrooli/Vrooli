@@ -110,14 +110,22 @@ func Normalize(pkgs []*packages.Package, moduleRoot string) (Graph, []Warning) {
 				continue
 			}
 			seenEdge[edgeID] = true
+			symbolIDs, symbolKinds := importSymbolFacts(p, imp)
+			attrs := map[string]string{
+				"test_only": boolAttr(false),
+			}
+			if len(symbolIDs) > 0 {
+				attrs["symbol_ids"] = strings.Join(symbolIDs, ",")
+			}
+			if len(symbolKinds) > 0 {
+				attrs["symbol_kinds"] = strings.Join(symbolKinds, ",")
+			}
 			edges = append(edges, Edge{
-				ID:   edgeID,
-				Kind: EdgeKindImport,
-				From: pkgID,
-				To:   toID,
-				Attributes: map[string]string{
-					"test_only": boolAttr(false),
-				},
+				ID:         edgeID,
+				Kind:       EdgeKindImport,
+				From:       pkgID,
+				To:         toID,
+				Attributes: attrs,
 			})
 		}
 	}
@@ -140,6 +148,51 @@ func Normalize(pkgs []*packages.Package, moduleRoot string) (Graph, []Warning) {
 	})
 
 	return Graph{Nodes: nodes, Edges: edges}, warnings
+}
+
+func importSymbolFacts(p *packages.Package, importPath string) ([]string, []string) {
+	if p == nil || p.TypesInfo == nil {
+		return nil, nil
+	}
+	ids := map[string]struct{}{}
+	kinds := map[string]struct{}{}
+	for _, syn := range p.Syntax {
+		if syn == nil {
+			continue
+		}
+		ast.Inspect(syn, func(n ast.Node) bool {
+			ident, ok := n.(*ast.Ident)
+			if !ok {
+				return true
+			}
+			obj := usedObject(p, ident)
+			if obj == nil || objectPackagePath(obj) != importPath {
+				return true
+			}
+			id := objectSymbolID(obj)
+			kind := objectKind(obj)
+			if id != "" {
+				ids[id] = struct{}{}
+			}
+			if kind != "" {
+				kinds[kind] = struct{}{}
+			}
+			return true
+		})
+	}
+	return sortedSet(ids), sortedSet(kinds)
+}
+
+func sortedSet(in map[string]struct{}) []string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(in))
+	for item := range in {
+		out = append(out, item)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // packageUsageFacts emits generic language facts used by downstream proof

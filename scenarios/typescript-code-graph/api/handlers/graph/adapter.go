@@ -1,6 +1,9 @@
 package graph
 
 import (
+	"fmt"
+	"strings"
+
 	intgraph "typescript-code-graph/internal/graph"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
@@ -20,22 +23,44 @@ func domainToProtoGraph(g intgraph.Graph) *commonv1.CodeGraph {
 		Edges: make([]*commonv1.CodeGraphEdge, 0, len(g.Edges)),
 	}
 	for _, n := range g.Nodes {
+		attrs := cloneAttributesWithKind(n.Attributes, n.Kind)
+		if n.IsTest {
+			attrs = ensureAttrs(attrs)
+			attrs["is_test"] = "true"
+		}
+		if n.Lines > 0 {
+			attrs = ensureAttrs(attrs)
+			attrs["lines"] = int32String(n.Lines)
+		}
 		out.Nodes = append(out.Nodes, &commonv1.CodeGraphNode{
 			Id:              n.ID,
 			Kind:            nodeKindToProto(n.Kind),
 			Name:            n.Name,
 			Path:            n.Path,
-			Attributes:      cloneAttributesWithKind(n.Attributes, n.Kind),
+			Attributes:      attrs,
 			LeadingComments: append([]string(nil), n.LeadingComments...),
 		})
 	}
 	for _, e := range g.Edges {
+		attrs := cloneAttributesWithKind(e.Attributes, "")
+		if e.TestOnly {
+			attrs = ensureAttrs(attrs)
+			attrs["test_only"] = "true"
+		}
+		if len(e.SymbolIDs) > 0 {
+			attrs = ensureAttrs(attrs)
+			attrs["symbol_ids"] = joinCSV(e.SymbolIDs)
+		}
+		if len(e.SymbolKinds) > 0 {
+			attrs = ensureAttrs(attrs)
+			attrs["symbol_kinds"] = joinCSV(e.SymbolKinds)
+		}
 		out.Edges = append(out.Edges, &commonv1.CodeGraphEdge{
 			Id:         e.ID,
 			Kind:       edgeKindToProto(e.Kind),
 			FromNodeId: e.From,
 			ToNodeId:   e.To,
-			Attributes: cloneAttributesWithKind(e.Attributes, ""),
+			Attributes: attrs,
 		})
 	}
 	return out
@@ -76,6 +101,21 @@ func cloneAttributesWithKind(attrs map[string]string, nodeKind intgraph.NodeKind
 		}
 	}
 	return out
+}
+
+func ensureAttrs(attrs map[string]string) map[string]string {
+	if attrs != nil {
+		return attrs
+	}
+	return map[string]string{}
+}
+
+func int32String(n int32) string {
+	return fmt.Sprintf("%d", n)
+}
+
+func joinCSV(items []string) string {
+	return strings.Join(items, ",")
 }
 
 func isTsSymbolKind(k intgraph.NodeKind) bool {

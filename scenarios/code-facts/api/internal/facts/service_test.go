@@ -205,6 +205,88 @@ func TestDescribeScenarioReportsUnknownSidecarUnsupported(t *testing.T) {
 	requireSurface(t, report.GetSurfaces(), "sidecar", factsv1.SurfaceStatus_SURFACE_STATUS_UNSUPPORTED)
 }
 
+func TestDescribeFileDomainFamilyWithoutProviderReportsUnsupported(t *testing.T) {
+	repo, _ := writeScenarioFixture(t, "domain-demo")
+
+	report, err := NewService().Describe(context.Background(), &factsv1.DescribeCodeFactsRequest{
+		Target: &factsv1.CodeTarget{
+			Kind:     factsv1.TargetKind_TARGET_KIND_SCENARIO,
+			Scenario: "domain-demo",
+			RepoRoot: repo,
+		},
+		Include: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_FILE_DOMAIN},
+	})
+	if err != nil {
+		t.Fatalf("Describe() error = %v", err)
+	}
+	requireFactFamily(t, report.GetFacts(), factsv1.FactFamily_FACT_FAMILY_FILE_DOMAIN)
+	if len(report.GetWarnings()) != 1 || !strings.Contains(report.GetWarnings()[0].GetMessage(), "architecture-cartographer") {
+		t.Fatalf("expected architecture-cartographer unsupported warning, got %+v", report.GetWarnings())
+	}
+}
+
+func TestDescribeFileDomainFamilyUsesProvider(t *testing.T) {
+	repo, _ := writeScenarioFixture(t, "domain-demo")
+	provider := fakeFileDomainProvider{
+		facts: []*factsv1.GenericFact{{
+			Id:      "architecture-cartographer:file_domain:api_internal_orders_service.go",
+			Family:  factsv1.FactFamily_FACT_FAMILY_FILE_DOMAIN,
+			Kind:    "file_domain",
+			Subject: "api/internal/orders/service.go",
+			Attributes: map[string]string{
+				"top_domain":           "orders",
+				"tier":                 "auto_place",
+				"authority_confidence": "high",
+			},
+			Evidence: []*factsv1.Evidence{{
+				Status:     factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN,
+				Confidence: 0.97,
+				Analyzer:   "architecture-cartographer.signals",
+			}},
+		}},
+		evidence: []*factsv1.Evidence{{
+			Status:     factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN,
+			Confidence: 1,
+			Analyzer:   "architecture-cartographer",
+		}},
+	}
+
+	report, err := NewService(WithFileDomainProvider(provider)).Describe(context.Background(), &factsv1.DescribeCodeFactsRequest{
+		Target: &factsv1.CodeTarget{
+			Kind:     factsv1.TargetKind_TARGET_KIND_SCENARIO,
+			Scenario: "domain-demo",
+			RepoRoot: repo,
+		},
+		Include: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_FILE_DOMAIN},
+	})
+	if err != nil {
+		t.Fatalf("Describe() error = %v", err)
+	}
+	if len(report.GetWarnings()) != 0 {
+		t.Fatalf("warnings = %#v, want none", report.GetWarnings())
+	}
+	if len(report.GetFacts()) != 1 {
+		t.Fatalf("facts len = %d, want 1", len(report.GetFacts()))
+	}
+	fact := report.GetFacts()[0]
+	if fact.GetKind() != "file_domain" || fact.GetAttributes()["top_domain"] != "orders" || fact.GetAttributes()["authority_confidence"] != "high" {
+		t.Fatalf("file_domain fact = %#v", fact)
+	}
+	if len(report.GetEvidence()) != 1 || report.GetEvidence()[0].GetAnalyzer() != "architecture-cartographer" {
+		t.Fatalf("evidence = %#v, want cartographer evidence", report.GetEvidence())
+	}
+}
+
+func TestNormalizeFamiliesAllIncludesFileDomain(t *testing.T) {
+	got := normalizeFamilies([]factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_ALL})
+	for _, family := range got {
+		if family == factsv1.FactFamily_FACT_FAMILY_FILE_DOMAIN {
+			return
+		}
+	}
+	t.Fatalf("FACT_FAMILY_ALL did not include FILE_DOMAIN: %+v", got)
+}
+
 func TestDescribePathInsideScenarioSurface(t *testing.T) {
 	repo, scenarioRoot := writeScenarioFixture(t, "nested")
 	targetPath := filepath.Join(scenarioRoot, "api", "internal", "thing")
@@ -1582,6 +1664,17 @@ func (f fakeProvider) Extract(context.Context, *factsv1.ParseUnit) (*GraphResult
 type countingProvider struct {
 	fakeProvider
 	calls int
+}
+
+type fakeFileDomainProvider struct {
+	facts    []*factsv1.GenericFact
+	evidence []*factsv1.Evidence
+	warnings []*factsv1.Warning
+	err      error
+}
+
+func (f fakeFileDomainProvider) DescribeFileDomains(context.Context, *factsv1.TargetContext) ([]*factsv1.GenericFact, []*factsv1.Evidence, []*factsv1.Warning, error) {
+	return f.facts, f.evidence, f.warnings, f.err
 }
 
 func (f *countingProvider) Extract(ctx context.Context, unit *factsv1.ParseUnit) (*GraphResult, error) {

@@ -118,16 +118,21 @@ type Node struct {
 	Name            string            `json:"name"`
 	Path            string            `json:"path"`
 	Attributes      map[string]string `json:"attributes,omitempty"`
+	IsTest          bool              `json:"is_test,omitempty"`
+	Lines           int32             `json:"lines,omitempty"`
 	LeadingComments []string          `json:"leading_comments,omitempty"`
 }
 
 // Edge is the union row emitted on the proto wire.
 type Edge struct {
-	ID         string            `json:"id"`
-	Kind       EdgeKind          `json:"kind"`
-	From       string            `json:"from"`
-	To         string            `json:"to"`
-	Attributes map[string]string `json:"attributes,omitempty"`
+	ID          string            `json:"id"`
+	Kind        EdgeKind          `json:"kind"`
+	From        string            `json:"from"`
+	To          string            `json:"to"`
+	Attributes  map[string]string `json:"attributes,omitempty"`
+	TestOnly    bool              `json:"test_only,omitempty"`
+	SymbolIDs   []string          `json:"symbol_ids,omitempty"`
+	SymbolKinds []string          `json:"symbol_kinds,omitempty"`
 }
 
 // WarningKind classifies non-fatal extraction issues.

@@ -99,6 +99,8 @@ export interface CodeGraphNode {
   name: string;
   path: string;
   attributes: Record<string, string>;
+  is_test?: boolean;
+  lines?: number;
   leading_comments: string[];
 }
 
@@ -109,6 +111,9 @@ export interface CodeGraphEdge {
   from_node_id: string;
   to_node_id: string;
   attributes: Record<string, string>;
+  test_only?: boolean;
+  symbol_ids?: string[];
+  symbol_kinds?: string[];
 }
 
 export interface CodeGraph {

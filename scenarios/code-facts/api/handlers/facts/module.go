@@ -23,6 +23,7 @@ func Module(db *sql.DB, logger *log.Logger) module.Module {
 			internalfacts.NewGoGraphProvider(resolver, http.DefaultClient),
 			internalfacts.NewTypeScriptGraphProvider(resolver, http.DefaultClient),
 		)),
+		internalfacts.WithFileDomainProvider(internalfacts.NewCartographerFileDomainProvider(resolver, http.DefaultClient)),
 	}
 	if db != nil {
 		opts = append(opts, internalfacts.WithCacheRepository(internalfacts.NewSQLiteCacheRepository(db)))

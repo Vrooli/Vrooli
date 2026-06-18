@@ -168,6 +168,8 @@ export function extract(input: ExtractInput): ExtractOutput {
 
   for (const sf of sourceFiles) {
     const relPath = relativize(rootDir, sf.getFilePath());
+    const isTest = isTestPath(relPath);
+    const lineCount = sf.getFullText().split(/\r\n|\r|\n/).length;
 
     // FILE node
     const fileId = `file:${relPath}`;
@@ -176,7 +178,9 @@ export function extract(input: ExtractInput): ExtractOutput {
       kind: NK_FILE,
       name: path.basename(relPath),
       path: relPath,
-      attributes: { language: "typescript" },
+      attributes: { language: "typescript", is_test: String(isTest), lines: String(lineCount) },
+      is_test: isTest,
+      lines: lineCount,
       leading_comments: [],
     });
 
@@ -239,7 +243,8 @@ export function extract(input: ExtractInput): ExtractOutput {
         kind: EK_IMPORT,
         from_node_id: moduleId,
         to_node_id: res.target,
-        attributes: { specifier: spec },
+        attributes: { specifier: spec, test_only: String(isTest) },
+        test_only: isTest,
       });
     }
     for (const exp of sf.getExportDeclarations()) {
@@ -272,7 +277,8 @@ export function extract(input: ExtractInput): ExtractOutput {
         kind: EK_RE_EXPORT,
         from_node_id: moduleId,
         to_node_id: target,
-        attributes: { specifier: spec },
+        attributes: { specifier: spec, test_only: String(isTest) },
+        test_only: isTest,
       });
     }
 
@@ -312,6 +318,10 @@ export function extract(input: ExtractInput): ExtractOutput {
   });
 
   return { graph: { nodes, edges }, warnings };
+}
+
+function isTestPath(relPath: string): boolean {
+  return /\.(test|spec)\.(tsx?|jsx?)$/.test(relPath);
 }
 
 function shouldSuppressDiagnostic(code: number, message: string): boolean {

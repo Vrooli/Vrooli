@@ -97,6 +97,34 @@ func TestNormalize_KeepsAttributesIntact(t *testing.T) {
 	require.Equal(t, "true", g.Nodes[0].Attributes["exported"])
 }
 
+func TestNormalize_PreservesTestAndEdgeFacts(t *testing.T) {
+	raw := sidecar.RawGraph{
+		Nodes: []sidecar.RawNode{{
+			ID:         "file:a.test.ts",
+			Kind:       1,
+			Path:       "a.test.ts",
+			IsTest:     true,
+			Lines:      12,
+			Attributes: map[string]string{"language": "typescript", "is_test": "true", "lines": "12"},
+		}},
+		Edges: []sidecar.RawEdge{{
+			ID:          "import:m:a->m:b",
+			Kind:        1,
+			FromNodeID:  "m:a",
+			ToNodeID:    "m:b",
+			TestOnly:    true,
+			SymbolIDs:   []string{"ts_type:b:Thing"},
+			SymbolKinds: []string{"TS_NODE_KIND_TYPE"},
+		}},
+	}
+	g := graph.Normalize(raw)
+	require.True(t, g.Nodes[0].IsTest)
+	require.Equal(t, int32(12), g.Nodes[0].Lines)
+	require.True(t, g.Edges[0].TestOnly)
+	require.Equal(t, []string{"ts_type:b:Thing"}, g.Edges[0].SymbolIDs)
+	require.Equal(t, []string{"TS_NODE_KIND_TYPE"}, g.Edges[0].SymbolKinds)
+}
+
 // An unknown numeric kind falls back to NodeKindFile; the sidecar may
 // also include attributes["kind"] for future enum values — those pass
 // through unchanged.
