@@ -1,0 +1,65 @@
+{
+  "description": "Login, Register, Refresh, Logout, Validate, and session management are proto-owned Connect RPCs with full Go CLI parity; the only REST endpoints are the non-RPC web standards (JWKS, callbacks).",
+  "module_id": "MOD-P0-010",
+  "prd_ref": "OT-P0-010",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-005"
+      ],
+      "description": "Login, Register, Refresh, Logout, Validate, and all session management operations must be defined as Connect RPCs with protobuf schemas as the source of truth. A Go CLI must expose all the same operations as the Connect surface with identical semantics. The only non-RPC HTTP endpoints are web-standard ones: JWKS at /.well-known/jwks.json and OAuth callback URLs. REST shims for RPC operations are explicitly not provided.",
+      "id": "REQ-P0-010",
+      "prd_ref": "OT-P0-010",
+      "status": "planned",
+      "title": "Connect-RPC Surface with Full Go CLI Parity",
+      "validation": [
+        {
+          "notes": "api/internal/proto/proto_test.go: protobuf schema compiles cleanly; all required RPC methods (Login, Register, Refresh, Logout, Validate, ListSessions, RevokeSession) are present in the service definition",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/cli/cli_test.go: CLI command definitions map 1:1 to RPC methods; no CLI command lacks a corresponding RPC",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/auth/connect_e2e_test.go: call Login RPC via Connect HTTP/2 client → receives LoginResponse with access and refresh tokens",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/auth/connect_e2e_test.go: call Register RPC → account created; call Validate RPC with issued token → valid response with claims",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/session/connect_session_e2e_test.go: call ListSessions and RevokeSession RPCs via Connect client → correct behavior matching REST-equivalent semantics",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/auth/connect_e2e_test.go: attempt to call an RPC operation via a plain REST path (not JWKS/callback) → 404 or method-not-allowed",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Connect-RPC Surface + CLI Parity"
+}

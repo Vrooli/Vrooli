@@ -1,0 +1,61 @@
+{
+  "description": "All persistence is SQLite through the `api-core/storage` seam (no shared Postgres); Redis backs sessions, revocation, OAuth CSRF state, and rate limiting; schema changes are additive migrations, never recreation.",
+  "module_id": "MOD-P0-011",
+  "prd_ref": "OT-P0-011",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "core",
+      "description": "All durable state (users, credentials, sessions, refresh token families, realms, audit log, migrations) must be stored in SQLite accessed through the api-core/storage seam abstraction. No direct Postgres or other database dependencies are permitted. Redis is the exclusive store for hot state: session validity, revocation sets, OAuth CSRF nonces, and rate-limit counters. Schema changes must be delivered as additive migrations (add columns/tables only; no drop, rename, or recreation of existing structures).",
+      "id": "REQ-P0-011",
+      "prd_ref": "OT-P0-011",
+      "status": "planned",
+      "title": "SQLite Persistence via Storage Seam and Redis Hot State",
+      "validation": [
+        {
+          "notes": "api/internal/storage/sqlite_test.go: all CRUD operations go through the api-core/storage seam interface; no direct sql.DB calls outside the seam",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/storage/migration_test.go: apply migrations in sequence on a blank SQLite file; assert schema version increments and no existing data is lost on re-run",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/storage/migration_test.go: verify migrations are strictly additive — static analysis or schema diffing asserts no DROP TABLE, DROP COLUMN, or RENAME TABLE statements exist",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/auth/persistence_e2e_test.go: register a user, restart the service with the same SQLite file, sign in successfully — data survived restart",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/auth/persistence_e2e_test.go: revoke a session → revocation state appears in Redis within the same request cycle; new request with revoked token is rejected using Redis lookup",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/auth/persistence_e2e_test.go: OAuth CSRF nonce is written to Redis before redirect and consumed (deleted) after callback — replay of the same state param is rejected",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "SQLite Persistence via Storage Seam + Redis Hot State"
+}

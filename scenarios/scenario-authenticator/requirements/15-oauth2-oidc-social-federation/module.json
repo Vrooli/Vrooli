@@ -1,0 +1,59 @@
+{
+  "description": "Inbound social sign-in (Google, GitHub, Microsoft) with account linking and CSRF-protected callbacks, ported from the existing implementation.",
+  "module_id": "MOD-P1-015",
+  "prd_ref": "OT-P1-003",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-011",
+        "REQ-P1-001"
+      ],
+      "description": "Users must be able to sign in via OAuth2/OIDC social providers (Google, GitHub, Microsoft). The OAuth callback flow must be protected against CSRF via state parameter stored in Redis with expiry. After successful provider authentication, the service links the external identity to a local account (by verified email or explicit link action). Linked accounts appear in the user's self-service UI. Each provider is configured per realm.",
+      "id": "REQ-P1-003",
+      "prd_ref": "OT-P1-003",
+      "status": "planned",
+      "title": "OAuth2/OIDC Social Federation with Account Linking and CSRF Protection",
+      "validation": [
+        {
+          "notes": "api/internal/oauth/csrf_test.go: state nonce is generated, stored in Redis with TTL; callback with matching state succeeds and consumes the nonce; replay of the same state is rejected",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/oauth/provider_test.go: mock provider returns user info; account linking logic matches by verified email and creates a linked identity record",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/oauth/callback_e2e_test.go: initiate OAuth flow for a stubbed Google provider, receive redirect with state; submit callback with correct state and mock token → local session issued; replay callback with same state → rejected",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/oauth/callback_e2e_test.go: user with existing email account signs in via social provider with matching verified email → accounts linked; subsequent sign-in via either method works",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "bas/auth/social_signin_test: user clicks 'Sign in with Google' (mocked provider), completes OAuth flow, and arrives at authenticated state with linked account visible in profile",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "OAuth2/OIDC Social Federation"
+}

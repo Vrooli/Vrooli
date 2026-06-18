@@ -1,0 +1,51 @@
+{
+  "description": "SCIM user provisioning/deprovisioning for enterprise directory integration.",
+  "module_id": "MOD-P2-028",
+  "prd_ref": "OT-P2-007",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P1-001",
+        "REQ-P1-004"
+      ],
+      "description": "A SCIM 2.0 endpoint must allow enterprise identity providers (e.g., Azure AD, Okta) to provision, update, and deprovision users within a realm. Supported operations: create user, update user attributes, deactivate user, delete user, list users with filter. SCIM operations map to the realm-scoped user model. Deprovisioning must revoke all active sessions for the removed user. SCIM access is protected by API key or client-credentials bearer token.",
+      "id": "REQ-P2-007",
+      "prd_ref": "OT-P2-007",
+      "status": "planned",
+      "title": "SCIM 2.0 User Provisioning and Deprovisioning for Enterprise Directory Integration",
+      "validation": [
+        {
+          "notes": "api/internal/scim/scim_test.go: SCIM User resource marshals and unmarshals correctly with required attributes (userName, emails, active)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/scim/scim_test.go: SCIM filter expression (e.g., userName eq 'alice') is parsed and applied correctly to the user store",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/scim/scim_e2e_test.go: POST /scim/v2/Users to create a user → user exists in SQLite for the realm; PATCH to deactivate → user cannot sign in; DELETE → user removed and all sessions revoked",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/scim/scim_e2e_test.go: call SCIM endpoint without authentication → 401; with an invalid bearer token → 401; with a valid API key scoped to SCIM role → 200",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "SCIM Provisioning"
+}

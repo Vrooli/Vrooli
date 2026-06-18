@@ -1,0 +1,79 @@
+{
+  "description": "Auth endpoints enforce rate limiting and account lockout (brute-force defense) with in-memory primary state and Redis for cross-replica coordination.",
+  "module_id": "MOD-P0-006",
+  "prd_ref": "OT-P0-006",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "security",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-011"
+      ],
+      "description": "Authentication endpoints (login, register, password reset, MFA challenge) must enforce per-IP and per-account rate limiting. After a configurable threshold of failed attempts, the account enters a lockout state for a configurable duration. Primary rate-limit counters are in-memory for latency; Redis provides cross-replica coordination so lockout is consistent across horizontally scaled instances. Lockout state and counter reset must be auditable.",
+      "id": "REQ-P0-006",
+      "prd_ref": "OT-P0-006",
+      "status": "planned",
+      "title": "Rate Limiting and Account Lockout for Auth Endpoints",
+      "validation": [
+        {
+          "notes": "api/internal/ratelimit/ratelimit_test.go: counter increments on each failed attempt; threshold breach flips account to locked state",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/ratelimit/ratelimit_test.go: after lockout duration elapses, account returns to unlocked state automatically",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/ratelimit/ratelimit_test.go: successful login resets failed-attempt counter",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/ratelimit/ratelimit_test.go: per-IP counter is independent of per-account counter; both can trigger lockout independently",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/auth/lockout_e2e_test.go: submit N+1 failed login attempts → Nth+1 returns lockout error; subsequent correct-password attempt during lockout window is also rejected",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/auth/lockout_e2e_test.go: simulate two replica instances sharing Redis state — lockout triggered on replica-1 is enforced on replica-2",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/auth/lockout_e2e_test.go: rate-limit headers (Retry-After or equivalent) are present in lockout responses",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/ratelimit/ratelimit_bench_test.go: rate-limit check overhead (in-memory path) adds less than 1 ms to the auth endpoint hot path",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Rate Limiting + Account Lockout"
+}

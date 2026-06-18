@@ -1,0 +1,45 @@
+{
+  "description": "scenario-authenticator becomes an OIDC provider itself (\"Login with Vrooli\") and offers token introspection for opaque-token RPs.",
+  "module_id": "MOD-P2-023",
+  "prd_ref": "OT-P2-002",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-002",
+        "REQ-P0-008",
+        "REQ-P1-001"
+      ],
+      "description": "scenario-authenticator must be capable of acting as an OIDC provider (issuing ID tokens, exposing /.well-known/openid-configuration, userinfo endpoint, and authorization code flow). This enables 'Login with Vrooli' scenarios where third-party applications delegate authentication to scenario-authenticator. Additionally, a token introspection endpoint (RFC 7662) must be available for relying parties using opaque tokens.",
+      "id": "REQ-P2-002",
+      "prd_ref": "OT-P2-002",
+      "status": "planned",
+      "title": "OIDC Provider Mode and Token Introspection",
+      "validation": [
+        {
+          "notes": "api/internal/oidc/id_token_test.go: issue an OIDC ID token, verify it contains required OIDC claims (iss, sub, aud, iat, exp, nonce) and passes RS256 signature verification",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/oidc/oidc_e2e_test.go: GET /.well-known/openid-configuration returns valid discovery document; initiate authorization code flow with a test RP, complete sign-in, receive ID token and access token",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/oidc/introspection_e2e_test.go: call introspection endpoint with a valid opaque token → active=true with claims; with expired or revoked token → active=false",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "OIDC-Provider Mode + Token Introspection"
+}

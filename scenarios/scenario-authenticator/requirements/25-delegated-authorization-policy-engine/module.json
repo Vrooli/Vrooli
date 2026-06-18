@@ -1,0 +1,38 @@
+{
+  "description": "An optional fine-grained authorization engine RPs can call to delegate domain \"can-they\" decisions.",
+  "module_id": "MOD-P2-025",
+  "prd_ref": "OT-P2-004",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P1-001",
+        "REQ-P1-005",
+        "REQ-P2-003"
+      ],
+      "description": "An optional policy engine RPC endpoint allows relying parties to delegate domain-specific authorization decisions ('can user X perform action Y on resource Z?'). The engine evaluates the user's roles, scopes, and group memberships against a policy definition stored per realm. Policy definitions are manageable via admin RPC. This offloads fine-grained access decisions from individual RPs to the authenticator.",
+      "id": "REQ-P2-004",
+      "prd_ref": "OT-P2-004",
+      "status": "planned",
+      "title": "Delegated Authorization and Fine-Grained Policy Engine",
+      "validation": [
+        {
+          "notes": "api/internal/policy/policy_test.go: define a policy allowing role R to perform action A on resource type T; evaluate for user with role R → allowed; evaluate for user without role R → denied",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/policy/policy_e2e_test.go: define policy via admin RPC; call Check RPC with user token, action, and resource → allowed/denied response matches policy; update policy and re-evaluate → new decision applied",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Delegated Authorization/Policy Engine"
+}

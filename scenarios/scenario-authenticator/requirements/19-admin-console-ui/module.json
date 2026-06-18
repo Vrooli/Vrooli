@@ -1,0 +1,41 @@
+{
+  "_metadata": {
+    "last_validated_at": "2026-06-17T21:30:03-04:00"
+  },
+  "requirements": [
+    {
+      "id": "REQ-P1-007",
+      "title": "Admin Console UI for Realm, User, Role, Session, and Audit Management",
+      "status": "planned",
+      "prd_ref": "OT-P1-007",
+      "category": "ui",
+      "description": "A production-polished admin console must provide: realm CRUD and configuration; user list, search, detail, disable, and role assignment; role and scope definition per realm; session list and forced revocation for any user; and paginated, filterable audit log view. Destructive actions (delete realm, disable user, revoke all sessions) must require an explicit confirmation gate (modal or typed confirmation). The console must be accessible only to users with the admin role.",
+      "validation": [
+        {
+          "type": "test",
+          "phase": "integration",
+          "status": "pending",
+          "notes": "api/handlers/admin/admin_endpoints_e2e_test.go: all admin console API endpoints return 403 for non-admin users and 200 for admin users"
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "pending",
+          "notes": "bas/admin/realm_admin_test: admin creates a realm, sets branding, creates a user, assigns a role, views the audit log entry for the role assignment, and revokes the user's sessions"
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "pending",
+          "notes": "bas/admin/destructive_action_confirmation_test: admin attempts to delete a realm; confirm dialog appears; cancellation aborts; confirmation proceeds and realm is removed"
+        },
+        {
+          "type": "test",
+          "phase": "business",
+          "status": "pending",
+          "notes": "bas/admin/admin_access_control_test: non-admin user attempts to navigate to the admin console and is redirected to an unauthorized page"
+        }
+      ]
+    }
+  ]
+}

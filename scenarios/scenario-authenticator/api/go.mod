@@ -3,30 +3,47 @@ module scenario-authenticator
 go 1.25.0
 
 require (
-	github.com/DATA-DOG/go-sqlmock v1.5.2
-	github.com/alicebob/miniredis/v2 v2.35.0
-	github.com/go-chi/chi/v5 v5.2.3
-	github.com/go-chi/cors v1.2.2
-	github.com/go-redis/redis/v8 v8.11.5
-	github.com/golang-jwt/jwt/v5 v5.3.0
+	connectrpc.com/connect v1.19.2
 	github.com/google/uuid v1.6.0
-	github.com/lib/pq v1.10.9
+	github.com/gorilla/handlers v1.5.2
+	github.com/gorilla/mux v1.8.1
+	github.com/stretchr/testify v1.10.0
 	github.com/vrooli/api-core v0.0.0
-	github.com/vrooli/repo-contract-go v0.0.0
-	golang.org/x/crypto v0.21.0
-	golang.org/x/oauth2 v0.31.0
+	github.com/vrooli/measures-go v0.0.0
+	github.com/vrooli/vrooli/packages/proto v0.0.0
+	google.golang.org/protobuf v1.36.11
+	modernc.org/sqlite v1.50.1
 )
 
 require (
-	cloud.google.com/go/compute/metadata v0.3.0 // indirect
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20251209175733-2a1774d88802.1 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.10.0 // indirect
-	github.com/cespare/xxhash/v2 v2.2.0 // indirect
-	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
-	github.com/yuin/gopher-lua v1.1.1 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/dustin/go-humanize v1.0.1 // indirect
+	github.com/felixge/httpsnoop v1.0.3 // indirect
+	github.com/go-chi/chi/v5 v5.0.11 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/ncruces/go-strftime v1.0.0 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
+	github.com/vrooli/ai-go v0.0.0 // indirect
+	github.com/vrooli/repo-contract-go v0.0.0 // indirect
+	golang.org/x/sync v0.20.0 // indirect
+	golang.org/x/sys v0.42.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
+	modernc.org/libc v1.72.3 // indirect
+	modernc.org/mathutil v1.7.1 // indirect
+	modernc.org/memory v1.11.0 // indirect
 )
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
 
-replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
+replace github.com/vrooli/measures-go => ../../../packages/measures-go
+
+replace github.com/vrooli/ai-go => ../../../packages/ai-go
+
+replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 
 replace github.com/vrooli/vrooli => ../../..
+
+replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go

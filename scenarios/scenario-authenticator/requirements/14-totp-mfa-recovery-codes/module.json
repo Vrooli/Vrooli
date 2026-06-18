@@ -1,0 +1,73 @@
+{
+  "description": "TOTP enrollment, challenge, and recovery codes are ported and hardened, with per-realm enforcement policy.",
+  "module_id": "MOD-P1-014",
+  "prd_ref": "OT-P1-002",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "security",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-007",
+        "REQ-P1-001"
+      ],
+      "description": "Users must be able to enroll TOTP-based MFA (RFC 6238), generating a QR-encodable provisioning URI and a set of single-use recovery codes. After enrollment, sign-in requires a TOTP challenge step before a session is established. Recovery codes bypass TOTP but are single-use and audited. Realms can enforce MFA as mandatory (sign-in fails without enrolled MFA). TOTP shared secrets and recovery code hashes are stored encrypted at rest.",
+      "id": "REQ-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "planned",
+      "title": "TOTP MFA Enrollment, Challenge, and Recovery Codes with Per-Realm Enforcement",
+      "validation": [
+        {
+          "notes": "api/internal/mfa/totp_test.go: generate TOTP secret, compute TOTP code for current time window, verify it passes; verify code from previous window is accepted within clock-skew tolerance; verify code from two windows ago is rejected",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/mfa/totp_test.go: recovery codes are generated as cryptographically random strings, hashed before storage; presenting the plaintext code verifies against the hash; each code is marked used after first use and rejected on replay",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/mfa/totp_test.go: per-realm MFA enforcement: when realm requires MFA, sign-in without enrolled MFA returns MFA-required error",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/mfa/totp_e2e_test.go: enroll TOTP for a user → provisioning URI returned; sign in → password accepted → TOTP challenge issued → submit valid code → session and tokens issued",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/mfa/totp_e2e_test.go: submit invalid TOTP code → challenge fails; submit a recovery code → session issued; replay same recovery code → rejected",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/mfa/totp_e2e_test.go: MFA enrollment and removal are written to audit log",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "bas/mfa/totp_enrollment_test: user opens self-service MFA page, scans QR code with authenticator app, enters TOTP code to confirm enrollment, then signs out and signs back in completing the TOTP challenge",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "TOTP MFA + Recovery Codes"
+}

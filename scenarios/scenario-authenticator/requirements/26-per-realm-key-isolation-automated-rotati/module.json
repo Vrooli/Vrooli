@@ -1,0 +1,44 @@
+{
+  "description": "Per-realm signing keys and automated rotation with overlapping `kid`s during rollover.",
+  "module_id": "MOD-P2-026",
+  "prd_ref": "OT-P2-005",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "security",
+      "dependencies": [
+        "REQ-P0-002",
+        "REQ-P1-001"
+      ],
+      "description": "Each realm must maintain its own signing keypair independent of other realms. Key rotation must be automated on a configurable schedule: a new keypair is generated, the JWKS endpoint publishes both the old and new public keys (identified by kid) during a configurable overlap window, and newly issued tokens use the new kid. After the overlap window, the old key is retired from JWKS. Consumers transparently pick up the new key from JWKS.",
+      "id": "REQ-P2-005",
+      "prd_ref": "OT-P2-005",
+      "status": "planned",
+      "title": "Per-Realm Key Isolation and Automated Key Rotation with Overlapping kid",
+      "validation": [
+        {
+          "notes": "api/internal/crypto/rotation_test.go: initiate rotation; JWKS contains two keys (old kid + new kid); tokens signed with old kid still verify; new tokens are signed with new kid",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/crypto/rotation_test.go: after overlap window, old kid removed from JWKS; tokens signed with old kid are rejected",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/jwks/rotation_e2e_test.go: trigger key rotation for a realm; verify JWKS contains both keys during overlap; verify a token issued before rotation verifies using the old kid from JWKS; after overlap window, old kid absent and old token rejected",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Per-Realm Key Isolation + Automated Rotation"
+}

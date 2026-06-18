@@ -1,0 +1,208 @@
+{
+  "_metadata": {
+    "entity": "scenario-authenticator",
+    "generated_at": "2026-06-17T20:48:58-04:00",
+    "generator": "prd-control-tower",
+    "schema_version": "1.0"
+  },
+  "imports": [
+    "01-account-authentication/module.json",
+    "02-rs256-token-issuance-jwks-local-verify-c/module.json",
+    "03-refresh-token-rotation-with-reuse-detect/module.json",
+    "04-argon2id-password-hashing/module.json",
+    "05-sessions-revocation/module.json",
+    "06-rate-limiting-account-lockout/module.json",
+    "07-auth-event-audit-log/module.json",
+    "08-default-realm-aud-scoped-tokens/module.json",
+    "09-baseline-rbac/module.json",
+    "10-connect-rpc-surface-cli-parity/module.json",
+    "11-sqlite-persistence-via-storage-seam-redi/module.json",
+    "12-live-consumer-migration/module.json",
+    "13-realms-as-a-true-tenant-boundary/module.json",
+    "14-totp-mfa-recovery-codes/module.json",
+    "15-oauth2-oidc-social-federation/module.json",
+    "16-api-keys-client-credentials-grant/module.json",
+    "17-scopes-permissions-rbac-per-realm/module.json",
+    "18-passkeys-webauthn/module.json",
+    "19-admin-console-ui/module.json",
+    "20-end-user-self-service-ui/module.json",
+    "21-account-recovery/module.json",
+    "22-saml-2-0-enterprise-sso/module.json",
+    "23-oidc-provider-mode-token-introspection/module.json",
+    "24-groups-teams-org-hierarchy/module.json",
+    "25-delegated-authorization-policy-engine/module.json",
+    "26-per-realm-key-isolation-automated-rotati/module.json",
+    "27-managed-db-backing-multi-instance-ha/module.json",
+    "28-scim-provisioning/module.json"
+  ],
+  "modules": [
+    {
+      "id": "MOD-P0-001",
+      "path": "01-account-authentication",
+      "priority": "P0",
+      "title": "Account Authentication"
+    },
+    {
+      "id": "MOD-P0-002",
+      "path": "02-rs256-token-issuance-jwks-local-verify-c",
+      "priority": "P0",
+      "title": "RS256 Token Issuance + JWKS + Local-Verify Contract"
+    },
+    {
+      "id": "MOD-P0-003",
+      "path": "03-refresh-token-rotation-with-reuse-detect",
+      "priority": "P0",
+      "title": "Refresh-Token Rotation with Reuse Detection"
+    },
+    {
+      "id": "MOD-P0-004",
+      "path": "04-argon2id-password-hashing",
+      "priority": "P0",
+      "title": "Argon2id Password Hashing"
+    },
+    {
+      "id": "MOD-P0-005",
+      "path": "05-sessions-revocation",
+      "priority": "P0",
+      "title": "Sessions + Revocation"
+    },
+    {
+      "id": "MOD-P0-006",
+      "path": "06-rate-limiting-account-lockout",
+      "priority": "P0",
+      "title": "Rate Limiting + Account Lockout"
+    },
+    {
+      "id": "MOD-P0-007",
+      "path": "07-auth-event-audit-log",
+      "priority": "P0",
+      "title": "Auth-Event Audit Log"
+    },
+    {
+      "id": "MOD-P0-008",
+      "path": "08-default-realm-aud-scoped-tokens",
+      "priority": "P0",
+      "title": "Default Realm + aud-Scoped Tokens"
+    },
+    {
+      "id": "MOD-P0-009",
+      "path": "09-baseline-rbac",
+      "priority": "P0",
+      "title": "Baseline RBAC"
+    },
+    {
+      "id": "MOD-P0-010",
+      "path": "10-connect-rpc-surface-cli-parity",
+      "priority": "P0",
+      "title": "Connect-RPC Surface + CLI Parity"
+    },
+    {
+      "id": "MOD-P0-011",
+      "path": "11-sqlite-persistence-via-storage-seam-redi",
+      "priority": "P0",
+      "title": "SQLite Persistence via Storage Seam + Redis Hot State"
+    },
+    {
+      "id": "MOD-P0-012",
+      "path": "12-live-consumer-migration",
+      "priority": "P0",
+      "title": "Live Consumer Migration"
+    },
+    {
+      "id": "MOD-P1-013",
+      "path": "13-realms-as-a-true-tenant-boundary",
+      "priority": "P1",
+      "title": "Realms as a True Tenant Boundary"
+    },
+    {
+      "id": "MOD-P1-014",
+      "path": "14-totp-mfa-recovery-codes",
+      "priority": "P1",
+      "title": "TOTP MFA + Recovery Codes"
+    },
+    {
+      "id": "MOD-P1-015",
+      "path": "15-oauth2-oidc-social-federation",
+      "priority": "P1",
+      "title": "OAuth2/OIDC Social Federation"
+    },
+    {
+      "id": "MOD-P1-016",
+      "path": "16-api-keys-client-credentials-grant",
+      "priority": "P1",
+      "title": "API Keys + Client-Credentials Grant"
+    },
+    {
+      "id": "MOD-P1-017",
+      "path": "17-scopes-permissions-rbac-per-realm",
+      "priority": "P1",
+      "title": "Scopes/Permissions RBAC per Realm"
+    },
+    {
+      "id": "MOD-P1-018",
+      "path": "18-passkeys-webauthn",
+      "priority": "P1",
+      "title": "Passkeys / WebAuthn"
+    },
+    {
+      "id": "MOD-P1-019",
+      "path": "19-admin-console-ui",
+      "priority": "P1",
+      "title": "Admin Console UI"
+    },
+    {
+      "id": "MOD-P1-020",
+      "path": "20-end-user-self-service-ui",
+      "priority": "P1",
+      "title": "End-User Self-Service UI"
+    },
+    {
+      "id": "MOD-P1-021",
+      "path": "21-account-recovery",
+      "priority": "P1",
+      "title": "Account Recovery"
+    },
+    {
+      "id": "MOD-P2-022",
+      "path": "22-saml-2-0-enterprise-sso",
+      "priority": "P2",
+      "title": "SAML 2.0 + Enterprise SSO"
+    },
+    {
+      "id": "MOD-P2-023",
+      "path": "23-oidc-provider-mode-token-introspection",
+      "priority": "P2",
+      "title": "OIDC-Provider Mode + Token Introspection"
+    },
+    {
+      "id": "MOD-P2-024",
+      "path": "24-groups-teams-org-hierarchy",
+      "priority": "P2",
+      "title": "Groups / Teams / Org Hierarchy"
+    },
+    {
+      "id": "MOD-P2-025",
+      "path": "25-delegated-authorization-policy-engine",
+      "priority": "P2",
+      "title": "Delegated Authorization/Policy Engine"
+    },
+    {
+      "id": "MOD-P2-026",
+      "path": "26-per-realm-key-isolation-automated-rotati",
+      "priority": "P2",
+      "title": "Per-Realm Key Isolation + Automated Rotation"
+    },
+    {
+      "id": "MOD-P2-027",
+      "path": "27-managed-db-backing-multi-instance-ha",
+      "priority": "P2",
+      "title": "Managed-DB Backing + Multi-Instance HA"
+    },
+    {
+      "id": "MOD-P2-028",
+      "path": "28-scim-provisioning",
+      "priority": "P2",
+      "title": "SCIM Provisioning"
+    }
+  ]
+}

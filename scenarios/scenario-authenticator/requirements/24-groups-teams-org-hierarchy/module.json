@@ -1,0 +1,51 @@
+{
+  "description": "A grouping layer above the user (groups, teams, organizations) with inherited roles/scopes.",
+  "module_id": "MOD-P2-024",
+  "prd_ref": "OT-P2-003",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P1-001",
+        "REQ-P1-005"
+      ],
+      "description": "A grouping layer must exist above individual users: groups (flat collections), teams (groups with an owner), and organizations (hierarchical container of teams). Role and scope assignments at a group/team/org level are inherited by members. User's effective roles in a realm are the union of directly assigned roles and all inherited roles. Group membership and role inheritance must be reflected in issued token claims.",
+      "id": "REQ-P2-003",
+      "prd_ref": "OT-P2-003",
+      "status": "planned",
+      "title": "Groups, Teams, and Organization Hierarchy with Inherited Roles",
+      "validation": [
+        {
+          "notes": "api/internal/groups/inheritance_test.go: user member of a group with role R; user's effective roles include R via inheritance",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/groups/inheritance_test.go: nested org → team → user: role assigned at org level propagates to user's effective roles",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/groups/groups_e2e_test.go: create org, create team in org, add user to team, assign role to org; user logs in → token claims include inherited role",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "bas/admin/groups_test: admin creates an organization, adds a team, enrolls a user, assigns a role to the organization, and verifies the user inherits the role in their token",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Groups / Teams / Org Hierarchy"
+}

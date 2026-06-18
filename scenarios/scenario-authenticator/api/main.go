@@ -1,204 +1,154 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
-	"scenario-authenticator/auth"
-	"scenario-authenticator/db"
-	"scenario-authenticator/handlers"
-	apimiddleware "scenario-authenticator/middleware"
+	"scenario-authenticator/internal/clock"
+	"scenario-authenticator/internal/modules"
+	"scenario-authenticator/internal/server"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-chi/cors"
-	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/preflight"
-	repocontract "github.com/vrooli/repo-contract-go"
+	apiserver "github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/storage"
+	_ "modernc.org/sqlite"
+
+	healthH "scenario-authenticator/handlers/health"
+	notesH "scenario-authenticator/handlers/notes" // EXAMPLE-DOMAIN:notes
 )
 
-func main() {
-	// Preflight checks - must be first, before any initialization
-	if preflight.Run(preflight.Config{
-		ScenarioName: "scenario-authenticator",
-	}) {
-		return // Process was re-exec'd after rebuild
+// sqliteDSN resolves the SQLite database file path and wraps it in a DSN
+// with the canonical pragma string. Resolution order:
+//
+//  1. SQLITE_PATH env — the canonical override.
+//  2. SQLITE_DB env — alias accepted for symmetry with other scenarios.
+//  3. storage.NewResolver(ProfileAuto) — the storage-steer-mandated
+//     filesystem-safe-by-default location.
+//
+// The path scope is the variant-aware namespace (storage.ScenarioNamespace),
+// not the bare slug: under a Baseline Modes shadow engagement the lifecycle
+// injects VROOLI_STORAGE_NAMESPACE, so the shadow's SQLite file lands beside
+// "<scenario>_shadow" and never shares live's database. Outside the lifecycle
+// (local `go run`, tests) it falls back to the compile-time slug, so live paths
+// are unchanged. This is why a generated scenario is shadow-safe with zero
+// per-scenario work — see packages/api-core/storage/namespace.go.
+//
+// The pragmas mirror agent-inbox; tweak in lockstep with
+// internal/testutil/db.NewSQLite so production and tests open files the
+// same way.
+func sqliteDSN() (string, error) {
+	if path := strings.TrimSpace(os.Getenv("SQLITE_PATH")); path != "" {
+		return sqliteFileDSN(path)
+	}
+	if path := strings.TrimSpace(os.Getenv("SQLITE_DB")); path != "" {
+		return sqliteFileDSN(path)
 	}
 
-	// Change to project root directory for consistent file operations.
-	rootDir := resolveRepoRoot()
-	if err := os.Chdir(rootDir); err != nil {
-		log.Fatalf("[scenario-authenticator/api] ❌ Failed to change to project root (%s): %v", rootDir, err)
-	}
-
-	// Load configuration from environment variables
-	port := getRequiredEnv("API_PORT", "")
-	dbURL := getDBURL()
-	redisURL := getRequiredEnv("REDIS_URL", "")
-
-	// Initialize database
-	if err := db.InitDB(dbURL); err != nil {
-		log.Fatalf("[scenario-authenticator/api] ❌ Failed to initialize database: %v", err)
-	}
-	defer db.Close()
-
-	// Initialize Redis
-	if err := db.InitRedis(redisURL); err != nil {
-		log.Fatalf("[scenario-authenticator/api] ❌ Failed to initialize Redis: %v", err)
-	}
-
-	// Load JWT keys
-	if err := auth.LoadJWTKeys(); err != nil {
-		log.Fatalf("[scenario-authenticator/api] ❌ Failed to load JWT keys: %v", err)
-	}
-
-	// Setup Chi router
-	router := chi.NewRouter()
-
-	// Add middleware
-	router.Use(middleware.Logger)
-	router.Use(middleware.Recoverer)
-
-	// Configure CORS with environment-based origins for security
-	allowedOrigins := []string{"http://localhost:3000", "http://localhost:5173", "http://localhost:8080"}
-	if corsOrigins := os.Getenv("CORS_ALLOWED_ORIGINS"); corsOrigins != "" {
-		allowedOrigins = strings.Split(corsOrigins, ",")
-	}
-
-	router.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   allowedOrigins,
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
-		ExposedHeaders:   []string{"Link"},
-		AllowCredentials: true,
-		MaxAge:           300, // Maximum value not ignored by any of major browsers
-	}))
-
-	// Health check
-	router.Get("/health", health.Handler())
-
-	// Authentication endpoints
-	router.Post("/api/v1/auth/register", handlers.RegisterHandler)
-	router.Post("/api/v1/auth/login", handlers.LoginHandler)
-	router.Get("/api/v1/auth/validate", handlers.ValidateHandler)
-	router.Post("/api/v1/auth/validate", handlers.ValidateHandler)
-
-	// Public signing key (JWKS) so consumers can verify owner JWTs locally
-	// (offline) instead of calling /validate on every request. Public by design;
-	// exposes only the public key.
-	router.Get("/.well-known/jwks.json", handlers.JWKSHandler)
-	router.Get("/api/v1/auth/jwks", handlers.JWKSHandler)
-
-	router.Post("/api/v1/auth/refresh", handlers.RefreshHandler)
-	router.Post("/api/v1/auth/logout", handlers.LogoutHandler)
-	router.Post("/api/v1/auth/reset-password", handlers.ResetPasswordHandler)
-	router.Post("/api/v1/auth/complete-reset", handlers.CompleteResetHandler)
-
-	// Two-Factor Authentication endpoints
-	router.Post("/api/v1/auth/2fa/setup", apimiddleware.AuthMiddleware(handlers.Setup2FAHandler))
-	router.Post("/api/v1/auth/2fa/enable", apimiddleware.AuthMiddleware(handlers.Enable2FAHandler))
-	router.Post("/api/v1/auth/2fa/disable", apimiddleware.AuthMiddleware(handlers.Disable2FAHandler))
-	router.Post("/api/v1/auth/2fa/verify", handlers.Verify2FAHandler)
-
-	// User management endpoints
-	router.Get("/api/v1/users", apimiddleware.RequireRole("admin", handlers.GetUsersHandler))
-	router.Get("/api/v1/users/{id}", apimiddleware.AuthMiddleware(handlers.GetUserHandler))
-	router.Put("/api/v1/users/{id}", apimiddleware.RequireRole("admin", handlers.UpdateUserHandler))
-	router.Delete("/api/v1/users/{id}", apimiddleware.RequireRole("admin", handlers.DeleteUserHandler))
-
-	// Session management
-	router.Get("/api/v1/sessions", apimiddleware.AuthMiddleware(handlers.GetSessionsHandler))
-	router.Delete("/api/v1/sessions/{id}", apimiddleware.AuthMiddleware(handlers.RevokeSessionHandler))
-
-	// OAuth endpoints
-	handlers.InitOAuth() // Initialize OAuth configuration
-	router.Get("/api/v1/auth/oauth/providers", handlers.GetOAuthProvidersHandler)
-	router.Get("/api/v1/auth/oauth/login", handlers.OAuthLoginHandler)
-	router.Get("/api/v1/auth/oauth/google/callback", handlers.OAuthCallbackHandler)
-	router.Get("/api/v1/auth/oauth/github/callback", handlers.OAuthCallbackHandler)
-
-	// API Key management
-	router.Post("/api/v1/apikeys", apimiddleware.AuthMiddleware(handlers.CreateAPIKeyHandler))
-	router.Get("/api/v1/apikeys", apimiddleware.AuthMiddleware(handlers.ListAPIKeysHandler))
-	router.Delete("/api/v1/apikeys/{id}", apimiddleware.AuthMiddleware(handlers.RevokeAPIKeyHandler))
-	router.Post("/api/v1/apikeys/validate", handlers.ValidateAPIKeyHandler)
-
-	// Application management
-	router.Get("/api/v1/applications", apimiddleware.RequireRole("admin", handlers.GetApplicationsHandler))
-	router.Post("/api/v1/applications", apimiddleware.RequireRole("admin", handlers.RegisterApplicationHandler))
-	router.Get("/api/v1/applications/{id}", apimiddleware.RequireRole("admin", handlers.GetApplicationHandler))
-	router.Put("/api/v1/applications/{id}", apimiddleware.RequireRole("admin", handlers.UpdateApplicationHandler))
-	router.Delete("/api/v1/applications/{id}", apimiddleware.RequireRole("admin", handlers.DeleteApplicationHandler))
-	router.Get("/api/v1/applications/{id}/integration-code", apimiddleware.RequireRole("admin", handlers.GenerateIntegrationCodeHandler))
-
-	// Start server
-	log.Printf("[scenario-authenticator/api] 🚀 Authentication API server starting on port %s", port)
-	log.Printf("[scenario-authenticator/api] 📍 Health check: http://localhost:%s/health", port)
-	log.Printf("[scenario-authenticator/api] 🔑 JWT keys loaded successfully")
-	log.Printf("[scenario-authenticator/api] 🎯 Ready to process authentication requests")
-	log.Printf("[scenario-authenticator/api] ✨ CORS enabled with Chi router")
-	log.Printf("[scenario-authenticator/api] 🔒 Security headers enabled for all responses")
-
-	// Wrap router with security middleware (request size limit, then security headers)
-	handler := apimiddleware.RequestSizeLimitMiddleware(router)
-	handler = apimiddleware.SecurityHeadersMiddleware(handler)
-
-	if err := http.ListenAndServe(":"+port, handler); err != nil {
-		log.Fatalf("[scenario-authenticator/api] ❌ Server failed to start: %v", err)
-	}
-}
-
-// getRequiredEnv gets an environment variable with optional fallback
-func getRequiredEnv(primary, fallback string) string {
-	value := os.Getenv(primary)
-	if value == "" && fallback != "" {
-		value = os.Getenv(fallback)
-	}
-	if value == "" {
-		log.Fatalf("[scenario-authenticator/api] ❌ %s environment variable is required", primary)
-	}
-	return value
-}
-
-// getDBURL constructs database URL from environment variables
-func getDBURL() string {
-	// Try POSTGRES_URL first, but override the database name
-	dbURL := os.Getenv("POSTGRES_URL")
-	if dbURL != "" {
-		// Replace the database name with scenario_authenticator
-		// Parse the URL and replace the database part
-		if strings.Contains(dbURL, "vrooli?") {
-			dbURL = strings.Replace(dbURL, "vrooli?", "scenario_authenticator?", 1)
-		} else if strings.Contains(dbURL, "vrooli") && strings.Contains(dbURL, "sslmode") {
-			dbURL = strings.Replace(dbURL, "vrooli", "scenario_authenticator", 1)
-		}
-		return dbURL
-	}
-
-	// Build from individual components
-	dbHost := os.Getenv("POSTGRES_HOST")
-	dbPort := os.Getenv("POSTGRES_PORT")
-	dbUser := os.Getenv("POSTGRES_USER")
-	dbPassword := os.Getenv("POSTGRES_PASSWORD")
-	// Force scenario_authenticator database
-	dbName := "scenario_authenticator"
-
-	if dbHost == "" || dbPort == "" || dbUser == "" || dbPassword == "" {
-		log.Fatal("[scenario-authenticator/api] ❌ Database configuration missing. Provide POSTGRES_URL or all of: POSTGRES_HOST, POSTGRES_PORT, POSTGRES_USER, POSTGRES_PASSWORD")
-	}
-
-	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-		dbUser, dbPassword, dbHost, dbPort, dbName)
-}
-
-// resolveRepoRoot returns the canonical repository root required for asset loading.
-func resolveRepoRoot() string {
-	root, err := repocontract.ResolveRepoRoot()
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
 	if err != nil {
-		log.Fatalf("[scenario-authenticator/api] ❌ Failed to resolve repository root: %v", err)
+		return "", fmt.Errorf("create storage resolver: %w", err)
 	}
-	return root
+	scenarioID, err := storage.ScenarioNamespace("scenario-authenticator")
+	if err != nil {
+		return "", fmt.Errorf("resolve scenario-authenticator storage namespace: %w", err)
+	}
+	path, err := resolver.Path(
+		storage.Options{ScenarioID: scenarioID},
+		storage.ClassData,
+		"scenario-authenticator.db",
+	)
+	if err != nil {
+		return "", fmt.Errorf("resolve scenario-authenticator db path: %w", err)
+	}
+	return sqliteFileDSN(path)
+}
+
+func sqliteFileDSN(path string) (string, error) {
+	if strings.HasPrefix(path, "file:") {
+		return path, nil
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return "", fmt.Errorf("prepare sqlite directory: %w", err)
+	}
+	return fmt.Sprintf(
+		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)",
+		path,
+	), nil
+}
+
+func main() {
+	// Preflight checks must run first so the binary can re-exec itself
+	// after a stale-source rebuild before any listeners are opened.
+	if preflight.Run(preflight.Config{ScenarioName: "scenario-authenticator"}) {
+		return
+	}
+
+	dsn, err := sqliteDSN()
+	if err != nil {
+		log.Fatalf("sqlite configuration failed: %v", err)
+	}
+
+	db, err := database.Open(context.Background(), database.Config{
+		Driver:       database.DriverSQLite,
+		DSN:          dsn,
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+	})
+	if err != nil {
+		log.Fatalf("Database connection failed: %v", err)
+	}
+
+	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
+		log.Fatalf("schema initialization failed: %v", err)
+	}
+
+	srv := server.New(
+		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		healthH.Module(db, "scenario-authenticator-api", "1.0.0"),
+		notesH.Module(db, clock.System{}, log.Default()), // EXAMPLE-DOMAIN:notes
+	)
+
+	// Top-level mux that mounts the API handler plus, when in development
+	// mode, the dev-only RoutingService used by test-genie to install a
+	// runtime test DB pool without restarting this scenario.
+	rootMux := http.NewServeMux()
+	devrouting.Register(rootMux, db)
+
+	// EXAMPLE-DOMAIN:notes START
+	// /measures is the measures-go serve substrate: the central measures
+	// index (measures-health) harvests <prefix>/declarations and the
+	// auto-execution path POSTs <prefix>/execute. The notes domain owns the
+	// one reference measure (notes.count); a real multi-domain scenario
+	// registers each domain's measures on one shared registry here.
+	notesMeasures, err := notesH.MeasuresHandler(db, clock.System{})
+	if err != nil {
+		log.Fatalf("measures registry: %v", err)
+	}
+	rootMux.Handle("/measures/", http.StripPrefix("/measures", notesMeasures))
+	// EXAMPLE-DOMAIN:notes END
+
+	rootMux.Handle("/", srv.Handler())
+
+	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
+	// request context so *database.RoutedDB routes the call to the
+	// installed test pool. Self-disables in production mode.
+	handler := apihttp.TestModeMiddleware(rootMux)
+
+	if err := apiserver.Run(apiserver.Config{
+		Handler: handler,
+		Cleanup: func(ctx context.Context) error { return db.Close() },
+	}); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
 }

@@ -1,0 +1,43 @@
+{
+  "description": "The storage seam is exercised against a managed server DB with multi-instance HA behind a Redis-shared session/rate-limit layer.",
+  "module_id": "MOD-P2-027",
+  "prd_ref": "OT-P2-006",
+  "priority": "P2",
+  "requirements": [
+    {
+      "category": "integration",
+      "dependencies": [
+        "REQ-P0-011"
+      ],
+      "description": "The api-core/storage seam must be exercised against a managed server database (e.g., PostgreSQL) in addition to SQLite, enabling multi-instance deployments. Redis-shared session, revocation, and rate-limit state already provides cross-replica coordination. The storage seam abstraction must allow swapping the backing store without changes to business logic. HA deployment must be verified: a session created on instance A is honored on instance B.",
+      "id": "REQ-P2-006",
+      "prd_ref": "OT-P2-006",
+      "status": "planned",
+      "title": "Managed-Database Backing and Multi-Instance High Availability",
+      "validation": [
+        {
+          "notes": "api/internal/storage/seam_test.go: all storage operations are expressed through the seam interface; swap SQLite adapter for a mock adapter → business logic tests pass unchanged",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/auth/ha_e2e_test.go: register and sign in on instance-1 (sharing Postgres + Redis with instance-2); verify token on instance-2 via JWKS → accepted; revoke session on instance-1 → instance-2 rejects subsequent use",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/storage/storage_bench_test.go: measure login and token-verify latency against Postgres-backed storage; assert p99 \u003c 100 ms under 50 concurrent users",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Managed-DB Backing + Multi-Instance HA"
+}

@@ -1,0 +1,78 @@
+{
+  "description": "Passwords are hashed with Argon2id at a documented cost; only hashes and signed material are stored at rest, never plaintext secrets.",
+  "module_id": "MOD-P0-004",
+  "prd_ref": "OT-P0-004",
+  "priority": "P0",
+  "requirements": [
+    {
+      "category": "security",
+      "dependencies": [
+        "REQ-P0-011"
+      ],
+      "description": "All passwords must be hashed with Argon2id using documented cost parameters (memory, iterations, parallelism) that meet current security recommendations. Only the resulting hash is stored in SQLite; plaintext passwords must never be logged, stored, or transmitted. Hash verification must use constant-time comparison to prevent timing attacks. Cost parameters must be configurable and documented in code.",
+      "id": "REQ-P0-004",
+      "prd_ref": "OT-P0-004",
+      "status": "planned",
+      "title": "Argon2id Password Hashing at Documented Cost Parameters",
+      "validation": [
+        {
+          "notes": "api/internal/crypto/argon2_test.go: hash a password and verify the hash — must return true",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/crypto/argon2_test.go: verify wrong password against hash — must return false without timing difference exploitable by the test",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/crypto/argon2_test.go: assert output format encodes algorithm tag 'argon2id', version, memory, iterations, parallelism, salt, and hash",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/crypto/argon2_test.go: assert two hashes of the same password differ (unique salt per hash)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/crypto/argon2_test.go: attempt to store plaintext password — no API surface allows bypassing hash; test that the hash function is the only write path",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/auth/register_e2e_test.go: after registration, query SQLite directly and assert the stored credential is an Argon2id hash string, not plaintext",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/auth/signin_e2e_test.go: sign-in succeeds using Argon2id verify against the stored hash; assert no plaintext appears in logs during the operation",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/crypto/argon2_bench_test.go: hash operation at production cost parameters completes within an acceptable UX budget (≤ 500 ms); document the measured latency alongside cost params",
+          "phase": "performance",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Argon2id Password Hashing"
+}

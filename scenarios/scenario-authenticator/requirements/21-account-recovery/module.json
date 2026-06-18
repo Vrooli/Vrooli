@@ -1,0 +1,66 @@
+{
+  "description": "Password-reset and email-verification flows are delivered securely (single-use, expiring tokens; no enumeration).",
+  "module_id": "MOD-P1-021",
+  "prd_ref": "OT-P1-009",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-007",
+        "REQ-P0-011"
+      ],
+      "description": "Users must be able to initiate a password reset by providing their email. The service sends a single-use, time-limited token (via a delivery mechanism, e.g., email service integration or logged URL for dev). The reset link must not reveal whether the email exists (same response for registered and unregistered emails). Reset tokens expire after a configurable window (default 1 hour) and are invalidated after use. Email verification for new accounts or email changes follows the same single-use, expiring-token pattern.",
+      "id": "REQ-P1-009",
+      "prd_ref": "OT-P1-009",
+      "status": "planned",
+      "title": "Account Recovery via Password Reset and Email Verification",
+      "validation": [
+        {
+          "notes": "api/internal/recovery/token_test.go: generate recovery token, verify it within TTL → valid; verify same token again → rejected (single-use); verify after TTL expiry → rejected",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/recovery/token_test.go: password-reset initiation for unknown email returns same response shape as for known email (no enumeration)",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/recovery/reset_e2e_test.go: initiate reset for a registered email → token created in SQLite; submit token with new password → password updated; old password rejected; reset token rejected on replay",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/recovery/reset_e2e_test.go: initiate reset for an unregistered email → 200 with identical response body as for registered email; no token created",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/recovery/email_verify_e2e_test.go: register account → verification token issued; submit token → account marked verified; replay token → rejected",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "bas/auth/password_reset_test: user clicks 'Forgot Password', submits email, receives reset link (captured from dev log), sets new password, and signs in with the new password successfully",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Account Recovery"
+}

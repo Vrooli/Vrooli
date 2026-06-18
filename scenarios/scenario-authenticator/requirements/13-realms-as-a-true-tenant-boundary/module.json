@@ -1,0 +1,66 @@
+{
+  "description": "Realm CRUD with per-realm branding, password policy, token TTLs, enabled methods, and allowed redirect URIs; realm-scoped user pools (same email is distinct principals across realms); realm administrators.",
+  "module_id": "MOD-P1-013",
+  "prd_ref": "OT-P1-001",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "api",
+      "dependencies": [
+        "REQ-P0-008",
+        "REQ-P0-009",
+        "REQ-P0-011"
+      ],
+      "description": "Realms must be fully manageable via CRUD RPCs (create, read, update, delete/disable). Each realm carries: display name, branding (logo URL, colors), password policy (min length, complexity, history), token TTLs (access, refresh), enabled authentication methods, and allowed redirect URIs for OAuth. User accounts are realm-scoped: the same email address is a distinct principal in each realm with no shared credential or session state. Realm administrators are users with admin role scoped to a specific realm.",
+      "id": "REQ-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "planned",
+      "title": "Realm CRUD as True Tenant Boundary with Per-Realm Configuration",
+      "validation": [
+        {
+          "notes": "api/internal/realm/realm_test.go: create realm with all config fields, read it back — all fields match",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/realm/realm_test.go: same email registered in realm-A and realm-B creates two independent user records with separate IDs and credentials",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/realm/realm_test.go: per-realm password policy is applied at registration time; a password acceptable in realm-A may be rejected in realm-B if policies differ",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/realm/realm_crud_e2e_test.go: create realm via RPC, update branding and TTL config, read back and verify; delete realm and confirm users and sessions in that realm are also invalidated",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/realm/realm_isolation_e2e_test.go: register user with email X in realm-A and realm-B; sign in to realm-A, get token with aud=realm-A; sign in to realm-B, get token with aud=realm-B; confirm realm-A token rejected by realm-B verifier",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "bas/admin/realm_management_test: admin creates a new realm, sets branding and password policy, creates a user in the new realm, and verifies the user can sign in only within that realm",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Realms as a True Tenant Boundary"
+}

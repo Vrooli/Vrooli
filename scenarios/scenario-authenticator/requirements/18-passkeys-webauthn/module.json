@@ -1,0 +1,66 @@
+{
+  "description": "WebAuthn passkeys are a first-class credential and second factor.",
+  "module_id": "MOD-P1-018",
+  "prd_ref": "OT-P1-006",
+  "priority": "P1",
+  "requirements": [
+    {
+      "category": "security",
+      "dependencies": [
+        "REQ-P0-001",
+        "REQ-P0-007",
+        "REQ-P1-001"
+      ],
+      "description": "Users must be able to register WebAuthn passkeys as either a primary passwordless credential or a second factor. The service implements the WebAuthn relying party role: generating and validating registration and authentication ceremonies. Registered authenticators are stored in SQLite (credential ID, public key, sign count, AAGUID). Sign-count validation must detect cloned authenticators. Passkey operations are audited.",
+      "id": "REQ-P1-006",
+      "prd_ref": "OT-P1-006",
+      "status": "planned",
+      "title": "Passkeys / WebAuthn as First-Class Credential and Second Factor",
+      "validation": [
+        {
+          "notes": "api/internal/webauthn/webauthn_test.go: generate registration challenge, simulate valid authenticator response (using a software authenticator), verify credential stored with correct sign count",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/webauthn/webauthn_test.go: replay an authentication response with a stale sign count → rejected as potential cloned authenticator",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/internal/webauthn/webauthn_test.go: tampered clientDataJSON or authData fails attestation verification",
+          "phase": "unit",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/webauthn/webauthn_e2e_test.go: register passkey for a user using a software authenticator library; sign in using the passkey → session issued",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "api/handlers/webauthn/webauthn_e2e_test.go: passkey used as second factor after password — password step succeeds, then WebAuthn challenge must be satisfied before session is issued",
+          "phase": "integration",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        },
+        {
+          "notes": "bas/mfa/passkey_enrollment_test: user navigates to security settings, registers a passkey using the browser WebAuthn API (simulated), signs out, and signs back in using the passkey without a password",
+          "phase": "business",
+          "ref": "",
+          "status": "pending",
+          "type": "test"
+        }
+      ]
+    }
+  ],
+  "title": "Passkeys / WebAuthn"
+}

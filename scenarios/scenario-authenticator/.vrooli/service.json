@@ -1,259 +1,38 @@
 {
-  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
+    "parent": "vrooli",
     "name": "scenario-authenticator",
     "displayName": "Scenario Authenticator",
-    "description": "Universal authentication and authorization service that enables any scenario to secure its endpoints with user management, JWT tokens, and role-based access control",
-    "version": "1.0.0",
+    "description": "Multi-tenant identity provider (IdP) for the Vrooli fleet: realm-scoped accounts, RS256/JWKS token issuance with stateless local verification, sessions, MFA, federation, and API keys — consumed API-to-API by other scenarios and deployable as the auth backend for hosted products.",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "general",
     "tags": [
+      "react-ui",
+      "go-api",
       "security",
       "authentication",
-      "authorization",
+      "identity-provider",
       "jwt",
-      "user-management",
-      "session-management",
-      "api-security",
-      "foundational",
-      "cross-scenario",
-      "go-api",
-      "postgres-storage",
-      "redis-cache"
-    ],
-    "parent": "vrooli",
-    "type": "scenario",
-    "category": "general",
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "support@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
-    ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scenarios/scenario-authenticator"
-    },
-    "license": "MIT",
-    "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
-    "support": {
-      "issues": "https://github.com/Vrooli/Vrooli/issues"
-    }
+      "multi-tenant",
+      "foundational"
+    ]
   },
-  "ports": {
-    "api": {
-      "env_var": "API_PORT",
-      "description": "Authentication API server port",
-      "range": "15000-19999"
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.1.0"
     },
-    "ui": {
-      "env_var": "UI_PORT",
-      "description": "Authentication UI server port",
-      "range": "20000-24999"
-    }
-  },
-  "lifecycle": {
-    "version": "2.0.0",
-    "health": {
-      "description": "Authentication service health check configuration",
-      "endpoints": {
-        "api": "/health",
-        "ui": "/health"
-      },
-      "checks": [
-        {
-          "name": "api_endpoint",
-          "type": "http",
-          "target": "http://localhost:${API_PORT}/health",
-          "critical": true,
-          "timeout": 5000,
-          "interval": 30000
-        },
-        {
-          "name": "ui_endpoint",
-          "type": "http",
-          "target": "http://localhost:${UI_PORT}/health",
-          "critical": false,
-          "timeout": 5000,
-          "interval": 30000
-        },
-        {
-          "name": "postgres_connection",
-          "type": "postgres",
-          "target": "postgres",
-          "critical": true,
-          "timeout": 5000,
-          "interval": 30000
-        },
-        {
-          "name": "redis_connection",
-          "type": "redis",
-          "target": "redis",
-          "critical": true,
-          "timeout": 5000,
-          "interval": 30000
-        }
-      ],
-      "timeout": 5000,
-      "interval": 30000,
-      "startup_grace_period": 10000
+    "generated_at": "2026-06-18T00:33:06Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
     },
-    "setup": {
-      "description": "Initialize Scenario Authenticator",
-      "condition": {
-        "checks": [
-          {
-            "type": "binaries",
-            "targets": [
-              "api/scenario-authenticator-api"
-            ]
-          },
-          {
-            "type": "ui-bundle",
-            "bundle_path": "ui/dist/index.html",
-            "source_dir": "ui/src"
-          },
-          {
-            "type": "cli",
-            "command": "scenario-authenticator",
-            "targets": [
-              "scenario-authenticator"
-            ]
-          },
-          {
-            "type": "dependencies",
-            "paths": [
-              "ui/package.json"
-            ]
-          },
-          {
-            "type": "resources",
-            "populated": true
-          }
-        ]
-      },
-      "steps": [
-        {
-          "name": "initialize-database",
-          "run": "resource-postgres content create-database --instance main scenario_authenticator",
-          "description": "Create authentication database (idempotent)"
-        },
-        {
-          "name": "add-data",
-          "run": "POSTGRES_DEFAULT_DB=scenario_authenticator ../../scripts/resources/populate/populate.sh .",
-          "description": "Initialize auth data in resources"
-        },
-        {
-          "name": "build-api",
-          "run": "cd api && go mod download && go build -o scenario-authenticator-api .",
-          "description": "Build authentication API server"
-        },
-        {
-          "name": "install-ui-deps",
-          "run": "cd ui && pnpm install --ignore-workspace --frozen-lockfile --prod=false",
-          "description": "Install UI dependencies"
-        },
-        {
-          "name": "build-ui",
-          "run": "cd ui && pnpm run build",
-          "description": "Build authentication UI bundle"
-        },
-        {
-          "name": "generate-jwt-keys",
-          "run": "mkdir -p data/keys && openssl genrsa -out data/keys/private.pem 2048 && openssl rsa -in data/keys/private.pem -pubout -out data/keys/public.pem",
-          "description": "Generate JWT signing keys",
-          "condition": {
-            "file_not_exists": "data/keys/private.pem"
-          }
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start Authentication Service with API and UI",
-      "steps": [
-        {
-          "name": "start-api",
-          "run": "cd api && ./scenario-authenticator-api",
-          "description": "Start Go API server in background",
-          "background": true,
-          "condition": {
-            "file_exists": "api/scenario-authenticator-api"
-          }
-        },
-        {
-          "name": "start-ui",
-          "run": "cd ui && NODE_ENV=production node server.js",
-          "description": "Serve production UI bundle",
-          "background": true,
-          "condition": {
-            "file_exists": "ui/dist/index.html"
-          }
-        }
-      ]
-    },
-    "test": {
-      "description": "Comprehensive phased testing for scenario-authenticator",
-      "steps": [
-        {
-          "name": "run-phased-tests",
-          "run": "test-genie execute scenario-authenticator --preset comprehensive",
-          "description": "Execute phased scenario test suite"
-        }
-      ]
-    },
-    "stop": {
-      "description": "Stop services",
-      "steps": [
-        {
-          "name": "stop-api",
-          "run": "pkill -f \"scenario-authenticator-api\" || true; sleep 1; pkill -9 -f \"scenario-authenticator-api\" 2>/dev/null || true",
-          "description": "Stop API process"
-        },
-        {
-          "name": "stop-ui",
-          "run": "pkill -f \"scenarios/scenario-authenticator.*server\\.js\" || true; sleep 1; pkill -9 -f \"scenarios/scenario-authenticator.*server\\.js\" 2>/dev/null || true",
-          "description": "Stop UI process"
-        }
-      ]
-    }
-  },
-  "dependencies": {
-    "resources": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "purpose": "Store user accounts, API keys, and audit logs",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema.sql",
-            "type": "schema"
-          },
-          {
-            "file": "initialization/postgres/applications.sql",
-            "type": "schema"
-          },
-          {
-            "file": "initialization/postgres/seed.sql",
-            "type": "seed"
-          }
-        ]
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": true,
-        "purpose": "Session storage, token blacklisting, and rate limiting",
-        "initialization": [
-          {
-            "file": "initialization/redis/config.lua",
-            "type": "script"
-          }
-        ]
-      }
-    }
+    "manifest_sha": "f70bc94203f839ba4825223e7d60f8c5cb8983442653a68a6f7f07d3726f00cd",
+    "content_sha": "07c578f32d3ba10c86cc91ce06d830a48959a1fffad8348f97a9858b6313bbc8"
   },
   "cli": {
     "enabled": true,
@@ -261,6 +40,10 @@
     "adapter": {
       "kind": "go_module",
       "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
     },
     "install": [
       {
@@ -289,5 +72,159 @@
         ".vrooli/service.json"
       ]
     }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "critical": true,
+          "timeout": 10000,
+          "interval": 30000
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000
+        }
+      ],
+      "startup_grace_period": 15000
+    },
+    "setup": {
+      "description": "Build API and UI assets declared by the manifest-driven lifecycle contract",
+      "condition": {
+        "checks": [
+          {
+            "type": "binaries",
+            "targets": [
+              "api/scenario-authenticator-api"
+            ]
+          },
+          {
+            "type": "cli",
+            "command": "scenario-authenticator"
+          },
+          {
+            "type": "ui-bundle",
+            "bundle_path": "ui/dist/index.html",
+            "source_dir": "ui/src"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "name": "build-api",
+          "run": "cd api \u0026\u0026 GOWORK=off go mod download \u0026\u0026 GOWORK=off go build -o scenario-authenticator-api .",
+          "description": "Build Go API server"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "if [ -f ui/package.json ]; then cd ui \u0026\u0026 (corepack pnpm install --ignore-workspace || pnpm install --ignore-workspace); else echo 'ui/ not present yet'; fi",
+          "description": "Install UI dependencies",
+          "condition": {
+            "file_exists": "ui/package.json"
+          }
+        },
+        {
+          "name": "build-ui",
+          "run": "if [ -f ui/package.json ]; then cd ui \u0026\u0026 (corepack pnpm --ignore-workspace run build || pnpm --ignore-workspace run build); else echo 'ui/ not present yet'; fi",
+          "description": "Build production UI bundle"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Launch API and Vite dev server",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api \u0026\u0026 ./scenario-authenticator-api",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/scenario-authenticator-api"
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui \u0026\u0026 node server.js",
+          "description": "Serve production UI bundle",
+          "background": true,
+          "condition": {
+            "file_exists": "ui/dist/index.html"
+          }
+        }
+      ]
+    },
+    "build": {},
+    "deploy": {},
+    "clean": {},
+    "test": {
+      "description": "Execute phased test suite via test-genie",
+      "steps": [
+        {
+          "name": "check-temporal-models",
+          "run": "flow-verifier verify check --root .",
+          "description": "Verify formal flow artifacts via the flow-verifier scenario CLI"
+        },
+        {
+          "name": "run-tests",
+          "run": "test-genie execute scenario-authenticator --preset comprehensive",
+          "description": "Run all test phases via test-genie"
+        }
+      ]
+    },
+    "backup": {},
+    "restore": {},
+    "production": {},
+    "stop": {
+      "description": "Stop background processes",
+      "steps": [
+        {
+          "name": "stop-api",
+          "run": "pkill -f 'scenario-authenticator-api' || true",
+          "description": "Stop Go API"
+        },
+        {
+          "name": "stop-ui",
+          "run": "pkill -f 'node server.js' || true",
+          "description": "Stop UI server"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "resources": {
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "purpose": "Hot state: server-tracked sessions, token-family revocation, OAuth CSRF state, and distributed rate limiting across replicas. Persistence is SQLite via the api-core/storage seam (no shared Postgres)."
+      }
+    }
+  },
+  "environment": {
+    "SQLITE_PATH": "${SCENARIO_DATA_DIR}/scenario-authenticator.db"
   }
 }
