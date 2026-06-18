@@ -4,6 +4,7 @@ package testing
 import (
 	"database/sql"
 	"encoding/json"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -25,12 +26,24 @@ func (r *Repository) Save(result *TestResult) error {
 		result.ID = uuid.New().String()
 	}
 
-	varsJSON, _ := json.Marshal(result.InputVars)
+	var inputVars any
+	if result.InputVars != nil {
+		if json.Valid([]byte(*result.InputVars)) {
+			inputVars = *result.InputVars
+		} else {
+			varsJSON, _ := json.Marshal(result.InputVars)
+			inputVars = string(varsJSON)
+		}
+	}
+	testedAt := result.TestedAt
+	if testedAt.IsZero() {
+		testedAt = time.Now()
+	}
 
 	_, err := r.db.Exec(`
 		INSERT INTO test_results (id, skill_id, model, input_variables, response, response_time, token_count, tested_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
-	`, result.ID, result.SkillID, result.Role, string(varsJSON), result.Response, result.ResponseTime, result.TokenCount)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	`, result.ID, result.SkillID, result.Role, inputVars, result.Response, result.ResponseTime, result.TokenCount, testedAt.UTC().Format(time.RFC3339Nano))
 
 	return err
 }
@@ -44,9 +57,9 @@ func (r *Repository) GetHistory(skillID string, limit int) ([]TestResult, error)
 	query := `
 		SELECT id, skill_id, model, input_variables, response, response_time, token_count, rating, notes, tested_at
 		FROM test_results
-		WHERE skill_id = $1
+		WHERE skill_id = ?
 		ORDER BY tested_at DESC
-		LIMIT $2
+		LIMIT ?
 	`
 
 	rows, err := r.db.Query(query, skillID, limit)
@@ -57,10 +70,22 @@ func (r *Repository) GetHistory(skillID string, limit int) ([]TestResult, error)
 
 	var results []TestResult
 	for rows.Next() {
-		var tr TestResult
-		if err := rows.Scan(&tr.ID, &tr.SkillID, &tr.Role, &tr.InputVars, &tr.Response, &tr.ResponseTime, &tr.TokenCount, &tr.Rating, &tr.Notes, &tr.TestedAt); err != nil {
+		var (
+			tr          TestResult
+			inputVars   sql.NullString
+			testedAtRaw string
+		)
+		if err := rows.Scan(&tr.ID, &tr.SkillID, &tr.Role, &inputVars, &tr.Response, &tr.ResponseTime, &tr.TokenCount, &tr.Rating, &tr.Notes, &testedAtRaw); err != nil {
 			continue
 		}
+		if inputVars.Valid {
+			tr.InputVars = &inputVars.String
+		}
+		testedAt, err := time.Parse(time.RFC3339Nano, testedAtRaw)
+		if err != nil {
+			continue
+		}
+		tr.TestedAt = testedAt
 		results = append(results, tr)
 	}
 

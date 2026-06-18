@@ -180,7 +180,7 @@ Quality checks:
 While authoring, you will spot defects unrelated to the plan's surface. Use this three-part heuristic:
 
 1. **Cheap + confident + adjacent** → fix in the plan with a one-line note in §11 Risks or §5 Current Technical Context. Criteria: ≤1 file, no API change, no new tests beyond an obvious assertion, and you can name the root cause without further investigation.
-2. **Any of**: needs investigation, unrelated files, new tests, API change, unknown ripple → load `prompt-manager skill read report-bug` and file through its `prompt-manager team knowledge-add scenario-qa --topic="bug-inbox/<signal-type>/<slug>" ...` workflow.
+2. **Any of**: needs investigation, unrelated files, new tests, API change, unknown ripple → load `prompt-manager skill read report-bug` and file through the workflow it provides.
 3. **Defect is the actual plan trigger** → don't sidebar it; fold it into §3 Problem Statement.
 
 When the plan itself reaches Definition of Done (executor finishes §10 checklist), write a `kind: execute` record describing the substantive decisions:

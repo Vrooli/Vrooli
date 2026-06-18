@@ -6,7 +6,6 @@ Get the prompt-manager scenario running in 5 minutes.
 
 - Go 1.21+
 - Node.js 18+
-- PostgreSQL 14+
 - (Optional) Ollama for skill testing
 
 ## Start the Scenario
@@ -144,12 +143,13 @@ make status
 make logs
 ```
 
-### Database connection failed
+### SQLite database failed
 
-Ensure PostgreSQL is running and the database exists:
+Prompt-manager creates its SQLite database automatically under the Vrooli storage root. If you need a known location for debugging, set an explicit file path before starting:
+
 ```bash
-createdb prompt_manager
-psql -d prompt_manager < initialization/storage/postgres/schema.sql
+export SQLITE_PATH=/tmp/prompt-manager.db
+make start
 ```
 
 ### CLI can't connect to API

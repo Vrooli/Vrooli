@@ -38,7 +38,7 @@
           "type": "test"
         },
         {
-          "notes": "Qdrant-PostgreSQL synchronization",
+          "notes": "Qdrant-search synchronization",
           "phase": "integration",
           "ref": "",
           "status": "pending",

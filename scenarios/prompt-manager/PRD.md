@@ -37,7 +37,7 @@ Prompt Manager's next ontology expansion is the proposed **Action** entity: a ty
 
 ## 🧱 Tech Direction Snapshot
 - **API:** Go with versioned REST endpoints and health checks.
-- **Storage:** File-based store architecture (store/skills/, store/agents/, store/teams/, store/relations/) with PostgreSQL for metrics/analytics.
+- **Storage:** File-based store architecture (store/skills/, store/agents/, store/teams/, store/relations/) with embedded SQLite for tags, metrics, and test history.
 - **Search:** Text search first, optional semantic search via Qdrant + Ollama embeddings.
 - **UI:** React + TypeScript + React Three Fiber for 3D world visualization + Zustand for state management.
 - **CLI:** Cross-platform commands for listing, searching, and managing skills, agents, and teams.
@@ -87,7 +87,7 @@ Prompt Manager's next ontology expansion is the proposed **Action** entity: a ty
 - Reliable reindexing and status visibility for AI search resources
 
 ## 🤝 Dependencies & Launch Plan
-- **Dependencies:** File system (required), PostgreSQL (optional for analytics), Qdrant + Ollama (optional for semantic search).
+- **Dependencies:** File system and embedded SQLite (required), Qdrant + Ollama (optional for semantic search and skill testing).
 - **Launch plan:** Start resources → initialize store directories → start scenario via lifecycle → verify health/search → optional AI reindex.
 
 ## 🎯 Capability Definition
@@ -152,11 +152,11 @@ Provides a **Skills + Agents + Teams** management system that orchestrates reusa
 | Response Time | < 100ms for 95% of API requests | API monitoring |
 | Search Speed | < 200ms for semantic search | Qdrant query logs |
 | Throughput | 100 prompts/second read operations | Load testing |
-| Storage Efficiency | < 50MB for 10,000 prompts | PostgreSQL monitoring |
+| Storage Efficiency | < 50MB for 10,000 prompts | SQLite file-size monitoring |
 
 ### Quality Gates
 - [x] All P0 requirements implemented and tested
-- [x] Integration tests pass with PostgreSQL
+- [x] Integration tests pass with SQLite
 - [x] CLI commands functional
 - [x] Web UI responsive and accessible
 - [x] API endpoints documented and tested
@@ -680,7 +680,7 @@ stop:
 - API health: `/health` endpoint
 - UI health: `/health` with API connectivity check
 - Store directory accessibility check
-- Optional database connectivity check (PostgreSQL)
+- SQLite database connectivity check
 - Optional resource status (Qdrant, Ollama)
 
 ## 🚨 Risk Mitigation
@@ -688,8 +688,8 @@ stop:
 ### Technical Risks
 | Risk | Likelihood | Impact | Mitigation |
 |------|-----------|--------|------------|
-| Database schema mismatch | High | Medium | Migration scripts + validation |
-| PostgreSQL unavailable | Low | High | Connection retry logic + graceful degradation |
+| Database schema mismatch | Medium | Medium | Declarative SQLite schema validation + one-shot migration scripts |
+| SQLite file unavailable | Low | High | Storage-root validation and explicit health failure |
 | Port conflicts | Medium | Low | Dynamic port allocation via lifecycle |
 | Data loss | Low | High | Regular backups + export functionality |
 
@@ -698,7 +698,7 @@ stop:
 |------|-----------|--------|------------|
 | Single user limitation | High | Medium | Document multi-user in evolution path |
 | Prompt quality degradation | Medium | Medium | Usage tracking + effectiveness metrics |
-| Scale limitations | Low | Medium | PostgreSQL performance monitoring |
+| Scale limitations | Low | Medium | SQLite file-size and write-contention monitoring |
 
 ### Mitigation Strategies
 - **Database**: Automated schema validation on startup
@@ -747,7 +747,7 @@ stop:
 - Relations stored in `store/relations/` with composite keys
 - Generated indexes in `store/indexes/` for fast lookups
 - JSON Schemas in `store/schemas/` for validation
-- Optional PostgreSQL for analytics (table prefix: `prompt_manager_`)
+- Embedded SQLite for tags, metrics, and test history
 
 ### API Design
 - RESTful endpoints following conventions
@@ -1028,7 +1028,7 @@ stop:
   - Edge cases (empty arrays, null fields, special characters, Unicode)
 - Enhanced existing test coverage with additional edge cases
 - Documented why 50% threshold isn't met: remaining code requires database/external services
-**Status**: Unit tests comprehensive for all database-independent logic. Integration tests cover database-dependent handlers when TEST_POSTGRES_URL is configured.
+**Status**: Unit tests comprehensive for database-independent logic and active SQLite repositories.
 
 ### 2025-10-28: Auditor Analysis & Code Cleanup
 **Agent**: Ecosystem Manager Improver

@@ -69,6 +69,14 @@ func TestInferActionFromCommand(t *testing.T) {
 			wantInputs:  []string{"arg"},
 			wantUnval:   true,
 		},
+		{
+			name:        "snake_case placeholders are inferred",
+			argv:        []string{"test-genie", "provider-contract", "check", "{{phase_or_provider}}", "{{scenario}}"},
+			resolver:    commandResolver(CommandOwner{Type: "scenario", ID: "test-genie"}, EffectRead, []string{"process:start"}),
+			wantOwnerID: "test-genie",
+			wantID:      "test-genie.provider-contract",
+			wantInputs:  []string{"phase_or_provider", "scenario"},
+		},
 	}
 
 	for _, tt := range tests {

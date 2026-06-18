@@ -30,9 +30,19 @@ func (r *Repository) GetAll() ([]Tag, error) {
 
 	var tags []Tag
 	for rows.Next() {
-		var tag Tag
-		if err := rows.Scan(&tag.ID, &tag.Name, &tag.Color, &tag.Description); err != nil {
+		var (
+			tag         Tag
+			color       sql.NullString
+			description sql.NullString
+		)
+		if err := rows.Scan(&tag.ID, &tag.Name, &color, &description); err != nil {
 			continue
+		}
+		if color.Valid {
+			tag.Color = &color.String
+		}
+		if description.Valid {
+			tag.Description = &description.String
 		}
 		tags = append(tags, tag)
 	}
@@ -46,7 +56,7 @@ func (r *Repository) Create(tag *Tag) error {
 		tag.ID = uuid.New().String()
 	}
 
-	query := `INSERT INTO tags (id, name, color, description) VALUES ($1, $2, $3, $4)`
+	query := `INSERT INTO tags (id, name, color, description) VALUES (?, ?, ?, ?)`
 	_, err := r.db.Exec(query, tag.ID, tag.Name, tag.Color, tag.Description)
 	return err
 }

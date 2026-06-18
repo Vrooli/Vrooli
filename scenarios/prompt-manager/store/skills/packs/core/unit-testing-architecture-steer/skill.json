@@ -18,6 +18,10 @@
   ],
   "status": "active",
   "entry": "SKILL.md",
+  "targetDimensions": [
+    "tests"
+  ],
+  "programmaticHome": "unit-health:unit",
   "revision": 7,
   "createdAt": "2026-02-04T12:50:18Z",
   "updatedAt": "2026-02-05T01:02:59Z"

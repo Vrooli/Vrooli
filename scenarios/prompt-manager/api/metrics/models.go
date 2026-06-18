@@ -1,5 +1,5 @@
 // Package metrics provides usage tracking and effectiveness ratings for skills.
-// Metrics are stored in PostgreSQL while skills themselves are stored in files.
+// Metrics are stored in embedded SQLite while skills themselves are stored in files.
 package metrics
 
 import "time"

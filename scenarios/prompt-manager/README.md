@@ -45,7 +45,7 @@
                             │
             ┌───────────────┼───────────────┐
             ▼               ▼               ▼
-      File Store      PostgreSQL       Qdrant
+      File Store        SQLite         Qdrant
       (entities)      (metrics)       (vectors)
 ```
 
@@ -57,7 +57,7 @@
 - **React UI** (port allocated by lifecycle): Web interface with pack navigation, skill editor, and 3D world
 - **Go CLI**: Command-line tool for quick operations
 - **File-based Store**: Primary entity storage (store/skills/, store/agents/, store/teams/)
-- **PostgreSQL** (optional): Analytics and metrics storage
+- **SQLite**: Embedded storage for tags, metrics, and test history
 - **Qdrant** (optional): Vector database for semantic search
 - **Ollama** (optional): Local LLM for skill testing
 
@@ -154,7 +154,7 @@ prompt-manager test history <skill-id>
 ### App Configuration
 Located in `initialization/configuration/app-config.json`:
 - Port settings
-- Database configuration  
+- SQLite override hooks
 - Feature toggles
 - UI preferences
 - Resource limits
@@ -170,19 +170,12 @@ Located in `initialization/configuration/campaign-templates.json`:
 ### Prerequisites
 - Go 1.21+
 - Node.js 16+
-- PostgreSQL
 - (Optional) Qdrant, Ollama
 
 ### Setup
 ```bash
-# Database
-createdb prompt_manager
-psql -d prompt_manager < initialization/storage/postgres/schema.sql
-psql -d prompt_manager < initialization/storage/postgres/seed.sql
-
 # API Server
 cd api
-go mod tidy
 go run main.go
 
 # UI Development
@@ -235,7 +228,7 @@ bash deployment/validate.sh
 
 ```
 CLI/UI → Go API → File Store (skills, agents, teams)
-                → PostgreSQL (metrics, analytics)
+                → SQLite (tags, metrics, test history)
                 → Qdrant (embeddings)
                 → Ollama (testing)
 ```

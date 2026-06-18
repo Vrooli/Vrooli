@@ -1018,7 +1018,7 @@ prompt-manager action create --name "Capture Page" --command 'browser-automation
 prompt-manager action create --file=path/to/action.json [--pack=core|local|drafts] --apply
 ```
 
-`--command` and `--file` are mutually exclusive; exactly one is required. `--input name:type[:optional]` refines an inferred input (repeatable). A near-duplicate (same executable + subcommand, or high semantic similarity) is surfaced in the preview so you can `action update` an existing action instead of creating a near-duplicate. If `--pack` is omitted, the action lands in the active `local` pack so it is immediately discoverable.
+`--command` and `--file` are mutually exclusive; exactly one is required. Placeholder names may use lower camel case or snake case, such as `{{scenario}}` or `{{phase_or_provider}}`, and each placeholder infers a required input. `--input name:type[:optional]` refines an inferred input (repeatable). A near-duplicate (same executable + subcommand, or high semantic similarity) is surfaced in the preview so you can `action update` an existing action instead of creating a near-duplicate. If `--pack` is omitted, the action lands in the active `local` pack so it is immediately discoverable.
 
 ### prompt-manager action update
 

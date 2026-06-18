@@ -1,0 +1,28 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "tidiness",
+  "name": "Tidiness",
+  "description": "Maintainability cleanup, long-file and complexity debt, issue queues, and cleanup campaigns",
+  "modes": [
+    "steer",
+    "tidiness",
+    "audits"
+  ],
+  "tags": [
+    "skill",
+    "audit-technique",
+    "maintainability"
+  ],
+  "icon": "list-checks",
+  "status": "active",
+  "entry": "SKILL.md",
+  "targetDimensions": [
+    "tidiness"
+  ],
+  "targetToolId": "run-agent",
+  "programmaticHome": "test-genie:tidiness",
+  "revision": 1,
+  "createdAt": "2026-06-15T00:00:00Z",
+  "updatedAt": "2026-06-15T00:00:00Z"
+}

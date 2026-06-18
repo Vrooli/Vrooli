@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"prompt-manager/store"
 	"strings"
 	"testing"
+
+	"prompt-manager/store"
 )
 
 func TestServiceValidateRejectsUnsafeCommands(t *testing.T) {
@@ -432,6 +433,34 @@ func TestServiceRunAppliesDefaultsRendersArgvAndAudits(t *testing.T) {
 	}
 	if len(actionStore.runHistory) != 1 || actionStore.runHistory[0].Status != string(RunStatusCompleted) {
 		t.Fatalf("expected completed audit entry, got %#v", actionStore.runHistory)
+	}
+}
+
+func TestServiceRunRendersSnakeCasePlaceholder(t *testing.T) {
+	actionStore := newFakeActionStore(validAction(func(action *store.Action) {
+		action.Command.Argv = []string{"test-genie", "provider-contract", "check", "{{phase_or_provider}}", "{{scenario}}"}
+		action.Inputs = map[string]store.ActionInput{
+			"phase_or_provider": {Type: "string", Required: true},
+			"scenario":          {Type: "scenario", Required: true},
+		}
+	}))
+	runner := &stubRunner{result: CommandRunResult{ExitCode: 0, Stdout: "ok"}}
+	service := NewService(actionStore, runnableResolver())
+	service.runner = runner
+
+	result, err := service.Run(context.Background(), "team.decisions.list", RunRequest{
+		Input:  map[string]any{"phase_or_provider": "cli-health", "scenario": "test-genie"},
+		DryRun: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != RunStatusDryRun {
+		t.Fatalf("status = %s, error = %s", result.Status, result.Error)
+	}
+	wantArgv := "test-genie provider-contract check cli-health test-genie"
+	if strings.Join(result.Argv, " ") != wantArgv {
+		t.Fatalf("argv = %q, want %q", strings.Join(result.Argv, " "), wantArgv)
 	}
 }
 

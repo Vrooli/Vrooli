@@ -23,21 +23,14 @@ This guide explains the testing infrastructure and patterns used in the prompt-m
 - ✅ Helper functions
 - ✅ Error conditions
 - ✅ Concurrent operations
-- ✅ Database connection pooling
+- ✅ SQLite repository behavior
 - ✅ Performance benchmarks
 
 ## Quick Start
 
 ### Prerequisites
 
-```bash
-# Install PostgreSQL (if not already installed)
-# Create test database
-createdb prompt_manager_test
-
-# Set test database URL
-export TEST_POSTGRES_URL="postgres://user:password@localhost:5432/prompt_manager_test"
-```
+No external database is required. Repository tests open a temporary SQLite file and apply the embedded domain schemas.
 
 ### Running Tests
 
@@ -411,17 +404,14 @@ go test -run TestCampaignCRUD/Create_Success
 dlv test -- -test.run TestCampaignCRUD
 ```
 
-### Database Debugging
+### SQLite Debugging
 
 ```bash
-# Connect to test database
-psql $TEST_POSTGRES_URL
+# Run repository tests against temporary SQLite databases
+go test -v ./tags ./metrics ./testing
 
-# View test schema
-\dt prompt_mgr_test.*
-
-# Check test data
-SELECT * FROM prompt_mgr_test.campaigns;
+# Use an explicit database for local API debugging
+SQLITE_PATH=/tmp/prompt-manager-test.db go test -v .
 ```
 
 ## CI/CD Integration
@@ -435,24 +425,12 @@ on: [push, pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v4
         with:
           go-version: '1.21'
       - name: Run tests
-        env:
-          TEST_POSTGRES_URL: postgres://postgres:test@localhost:5432/postgres
         run: |
           cd scenarios/prompt-manager/api
           go test -v -coverprofile=coverage.out ./...
@@ -488,32 +466,22 @@ jobs:
 
 ## Troubleshooting
 
-### Tests Skipping
+### SQLite Open Errors
 
-**Problem**: Tests skip with "TEST_POSTGRES_URL not set"
-
-**Solution**:
-```bash
-export TEST_POSTGRES_URL="postgres://user:pass@localhost:5432/test_db"
-```
-
-### Database Connection Errors
-
-**Problem**: "connection refused" errors
+**Problem**: tests or local API startup fail opening SQLite.
 
 **Solution**:
-1. Verify PostgreSQL is running: `pg_isready`
-2. Check connection string format
-3. Verify user permissions
+1. Check that `SQLITE_PATH` or `SQLITE_DB`, when set, points at a writable directory.
+2. Unset the override to use a fresh temporary test database or the default Vrooli storage root.
+3. Run with `-count=1` to avoid cached results while debugging.
 
 ### Coverage Not Improving
 
 **Problem**: Coverage stuck at low percentage
 
 **Solution**:
-1. Ensure TEST_POSTGRES_URL is set
-2. Run with `-count=1` to avoid cache
-3. Check which functions are untested:
+1. Run with `-count=1` to avoid cache
+2. Check which functions are untested:
    ```bash
    go test -coverprofile=coverage.out ./...
    go tool cover -func=coverage.out | grep -v "100.0%"

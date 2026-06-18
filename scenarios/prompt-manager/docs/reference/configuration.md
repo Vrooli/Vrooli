@@ -11,7 +11,8 @@ Environment variables and configuration options for prompt-manager.
 | `OLLAMA_ENABLED` | `false` | Enable skill testing through `resource-ollama gateway generate` |
 | `OLLAMA_GATEWAY_BIN` | `resource-ollama` | Gateway command used for Ollama-backed skill testing and AI search embeddings |
 | `STORE_DIR` | `../store` | Path to the store directory containing skills, agents, teams, and relations |
-| `DATABASE_URL` | (from lifecycle) | PostgreSQL connection string |
+| `SQLITE_PATH` | (storage root) | Optional explicit SQLite database file path |
+| `SQLITE_DB` | (storage root) | Alias for `SQLITE_PATH` for local debugging and tests |
 | `QDRANT_URL` | `http://localhost:6333` | Qdrant vector database URL for AI search |
 | `QDRANT_API_KEY` | (none) | API key for Qdrant authentication |
 | `AI_SEARCH_COLLECTION` | `prompt-manager-skills` | Qdrant collection name for skill embeddings |
@@ -39,18 +40,14 @@ make logs | grep "listening on"
 
 ## Database Configuration
 
-PostgreSQL database with the following schema:
+Prompt-manager uses embedded SQLite for relational runtime data. By default the database is resolved through `api-core/storage` under the prompt-manager data root, for example `~/.vrooli/data/vrooli/prompt-manager/prompt-manager.db`. Use `SQLITE_PATH` or `SQLITE_DB` only when a test or local debugging session needs an explicit file.
 
 **Required Tables:**
 - `tags` - Tag definitions
 - `skill_metrics` - Usage tracking
 - `test_results` - LLM test history
 
-**Setup:**
-```bash
-createdb prompt_manager
-psql -d prompt_manager < initialization/storage/postgres/schema.sql
-```
+Schemas are embedded beside their owning API packages and are initialized at API startup.
 
 ## Store Directory Structure
 

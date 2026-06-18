@@ -70,7 +70,7 @@ type ActionPreview struct {
 	Similar    []SimilarMatch     `json:"similar"`
 }
 
-var wholePlaceholderRe = regexp.MustCompile(`^\{\{([a-z][a-zA-Z0-9]*)\}\}$`)
+var wholePlaceholderRe = regexp.MustCompile(`^\{\{([a-z][a-zA-Z0-9_]*)\}\}$`)
 
 // PreviewCreate renders the contract that `action create --apply` would write,
 // validates it, infers owner/inputs/permissions from the command, and surfaces

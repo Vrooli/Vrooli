@@ -473,7 +473,7 @@ func checkPermissionAlignment(action *store.Action, resolution CommandResolution
 func checkPlaceholders(action *store.Action, add func(string, CheckStatus, string, string)) {
 	used := map[string]bool{}
 	for index, token := range action.Command.Argv {
-		for _, match := range regexp.MustCompile(`\{\{([a-z][a-zA-Z0-9]*)\}\}`).FindAllStringSubmatch(token, -1) {
+		for _, match := range regexp.MustCompile(`\{\{([a-z][a-zA-Z0-9_]*)\}\}`).FindAllStringSubmatch(token, -1) {
 			if token != match[0] {
 				add("placeholders", CheckFailed, fmt.Sprintf("command.argv[%d]", index), "placeholders must occupy a whole argv token")
 				continue
@@ -786,7 +786,7 @@ func validateStringInput(name string, spec store.ActionInput, value string) erro
 func renderActionArgv(action *store.Action, values map[string]string) ([]string, error) {
 	argv := make([]string, 0, len(action.Command.Argv))
 	for _, token := range action.Command.Argv {
-		match := regexp.MustCompile(`^\{\{([a-z][a-zA-Z0-9]*)\}\}$`).FindStringSubmatch(token)
+		match := regexp.MustCompile(`^\{\{([a-z][a-zA-Z0-9_]*)\}\}$`).FindStringSubmatch(token)
 		if len(match) != 2 {
 			argv = append(argv, token)
 			continue

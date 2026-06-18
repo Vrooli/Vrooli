@@ -17,7 +17,7 @@ const (
 
 var (
 	actionIDRegex          = regexp.MustCompile(`^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$`)
-	actionPlaceholderRegex = regexp.MustCompile(`^\{\{([a-z][a-zA-Z0-9]*)\}\}$`)
+	actionPlaceholderRegex = regexp.MustCompile(`^\{\{([a-z][a-zA-Z0-9_]*)\}\}$`)
 	actionUnsafeTokenChars = regexp.MustCompile(`[|&;<>` + "`" + `]|\$\(`)
 )
 
@@ -215,7 +215,7 @@ func isValidActionInputName(name string) bool {
 			}
 			continue
 		}
-		if (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') && (r < '0' || r > '9') {
+		if (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') && (r < '0' || r > '9') && r != '_' {
 			return false
 		}
 	}

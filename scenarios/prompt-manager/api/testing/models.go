@@ -1,5 +1,5 @@
 // Package testing provides LLM-based skill testing via Ollama.
-// This allows users to test skills with local LLMs and track results.
+// This allows users to test skills with local LLMs and track results in SQLite.
 package testing
 
 import "time"

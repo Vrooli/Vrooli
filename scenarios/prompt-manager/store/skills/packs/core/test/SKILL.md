@@ -2,6 +2,14 @@
 
 > **Ladder position:** R0 and R3 (runnable & green, then features hardened — coverage). Green-and-runnable is the floor; real coverage of critical behavior is the hardening. See `prompt-manager skill read scenario-maturity-ladder` for rung context and `prompt-manager skill read improvement-do-and-dont` for what counts as a real improvement.
 
+> **Provider & scorer:** the **unit-health** scenario is the canonical test-maturity provider behind Test Genie's `unit` phase — it owns test execution, coverage, test architecture, test quality, and the local-maturity score. This skill is the *remediation* loop, **not** the scorer. To see a scenario's current test maturity, failing/uncovered surfaces, and the next blocker, run the human report:
+>
+> ```bash
+> unit-health validate scenario {{TARGET}}
+> ```
+>
+> (add `--execution` to actually run the test commands; `--json` is for Test Genie/programmatic consumers, not your workflow). Fix the findings it reports; don't treat this skill's prose as the authority on whether tests are "good enough" — `unit-health` is.
+
 Prioritize **test quality, coverage, and reliability** across this scenario.
 Do **not** break functionality or regress existing tests; all changes must maintain or improve overall completeness.
 

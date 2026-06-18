@@ -177,19 +177,6 @@
       }
     },
     "resources": {
-      "postgres": {
-        "type": "postgres",
-        "enabled": true,
-        "required": true,
-        "startup_policy": "must_start",
-        "description": "Metrics and test results storage (prompts stored in files)",
-        "initialization": [
-          {
-            "file": "initialization/postgres/schema_v2.sql",
-            "type": "schema"
-          }
-        ]
-      },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,

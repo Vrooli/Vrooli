@@ -4,6 +4,14 @@ Prioritize **the test infrastructure that makes unit tests trustworthy, fast, an
 
 This skill owns *what test infrastructure must exist*. The `test` skill owns *what behaviors are asserted given that infrastructure*. Architecture maturity ≥ L3 is a precondition for `test` running productively — without injectable seams, behavior tests degrade into integration smoke or brittle mocks-of-concrete-types.
 
+> **Programmatic signal:** this is a *finding-specific remediation* skill. The test-architecture findings it remediates (`TEST_HELPER_FROM_PRODUCTION`, `TEST_UTIL_MISSING`, `TEST_NOT_COLOCATED`, `MISSING_INJECTABLE_SEAM`, …) are produced by the **unit-health** scenario — the provider behind Test Genie's `unit` phase. Discover the current test-architecture maturity and the exact drift items with:
+>
+> ```bash
+> unit-health validate scenario {{TARGET}}
+> ```
+>
+> Work the architecture-category findings it reports; the ladder below is the diagnostic vocabulary for *why* each finding matters, not a competing scorer.
+
 Required reading:
 - `prompt-manager skill read knowledge-observatory-tools` — read and update scenario documentation through the canonical docs CLI.
 

@@ -1,0 +1,28 @@
+{
+  "kind": "skill",
+  "schemaVersion": 1,
+  "id": "quality-health",
+  "name": "Quality Health",
+  "description": "Static quality contracts, lint/type safety, suppressions, and config hardening",
+  "modes": [
+    "steer",
+    "quality",
+    "audits"
+  ],
+  "tags": [
+    "skill",
+    "audit-technique",
+    "quality"
+  ],
+  "icon": "shield-check",
+  "status": "active",
+  "entry": "SKILL.md",
+  "targetDimensions": [
+    "standards"
+  ],
+  "targetToolId": "run-agent",
+  "programmaticHome": "test-genie:quality",
+  "revision": 1,
+  "createdAt": "2026-06-15T00:00:00Z",
+  "updatedAt": "2026-06-15T00:00:00Z"
+}

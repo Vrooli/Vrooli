@@ -12,7 +12,7 @@ Agent-maintained document tracking development milestones.
 ### Phase 1: Core Implementation
 - [x] API server with skill CRUD operations
 - [x] File-based skill storage with metadata.json
-- [x] PostgreSQL integration for tags, metrics, test results
+- [x] SQLite integration for tags, metrics, test results
 - [x] React UI with folder-based navigation
 - [x] Basic CLI with skill operations
 

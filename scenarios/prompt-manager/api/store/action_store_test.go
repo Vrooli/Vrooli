@@ -4,10 +4,11 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"prompt-manager/internal/paths"
 	"strings"
 	"testing"
 	"time"
+
+	"prompt-manager/internal/paths"
 )
 
 func setupActionStore(t *testing.T) (*FileActionStore, string) {
@@ -116,6 +117,22 @@ func TestActionStore_CreateGetUpdateArchiveDelete(t *testing.T) {
 	}
 	if _, err := store.Get(ctx, "team.decisions.list"); err == nil {
 		t.Fatal("expected deleted action to be missing")
+	}
+}
+
+func TestActionStore_AcceptsSnakeCasePlaceholders(t *testing.T) {
+	store, _ := setupActionStore(t)
+	ctx := context.Background()
+	action := testAction("test-genie.provider-contract")
+	action.Command.Argv = []string{"test-genie", "provider-contract", "check", "{{phase_or_provider}}", "{{scenario}}"}
+	action.Inputs = map[string]ActionInput{
+		"phase_or_provider": {Type: "string", Required: true},
+		"scenario":          {Type: "scenario", Required: true},
+	}
+	action.Outputs = nil
+
+	if err := store.Create(ctx, "local", action); err != nil {
+		t.Fatalf("Create rejected snake_case placeholder: %v", err)
 	}
 }
 

@@ -9,6 +9,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -21,6 +22,7 @@ import (
 	"prompt-manager/aisearch"
 	"prompt-manager/graph"
 	"prompt-manager/heartbeat"
+	localmodules "prompt-manager/internal/modules"
 	"prompt-manager/internal/paths"
 	"prompt-manager/memberflow"
 	"prompt-manager/metrics"
@@ -40,11 +42,55 @@ import (
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/storage"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	_ "github.com/lib/pq"
+	_ "modernc.org/sqlite"
 )
+
+func sqliteDSN() (string, error) {
+	if path := strings.TrimSpace(os.Getenv("SQLITE_PATH")); path != "" {
+		return sqliteFileDSN(path)
+	}
+	if path := strings.TrimSpace(os.Getenv("SQLITE_DB")); path != "" {
+		return sqliteFileDSN(path)
+	}
+
+	resolver, err := storage.NewResolver(storage.ResolverConfig{
+		AppID:   "vrooli",
+		Profile: storage.ProfileAuto,
+	})
+	if err != nil {
+		return "", fmt.Errorf("create storage resolver: %w", err)
+	}
+	scenarioID, err := storage.ScenarioNamespace("prompt-manager")
+	if err != nil {
+		return "", fmt.Errorf("resolve prompt-manager storage namespace: %w", err)
+	}
+	path, err := resolver.Path(
+		storage.Options{ScenarioID: scenarioID},
+		storage.ClassData,
+		"prompt-manager.db",
+	)
+	if err != nil {
+		return "", fmt.Errorf("resolve prompt-manager db path: %w", err)
+	}
+	return sqliteFileDSN(path)
+}
+
+func sqliteFileDSN(path string) (string, error) {
+	if strings.HasPrefix(path, "file:") {
+		return path, nil
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return "", fmt.Errorf("prepare sqlite directory: %w", err)
+	}
+	return fmt.Sprintf(
+		"file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=cache_size(-2000)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)",
+		path,
+	), nil
+}
 
 // discoverScenarioNames returns the names of every scenario directory
 // under the repo's scenarios/ folder. The scenarios path comes from the
@@ -133,18 +179,29 @@ func main() {
 	if err != nil {
 		log.Fatalf("Storage path resolution failed: %v", err)
 	}
-	// Connect to database
-	db, err := database.Connect(context.Background(), database.Config{
-		Driver: "postgres",
+	dsn, err := sqliteDSN()
+	if err != nil {
+		log.Fatalf("SQLite configuration failed: %v", err)
+	}
+
+	// Open SQLite. Bound startup storage work so the lifecycle health gate gets
+	// a clear failure instead of killing a silent retry loop.
+	dbCtx, dbCancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer dbCancel()
+	db, err := database.Open(dbCtx, database.Config{
+		Driver:       database.DriverSQLite,
+		DSN:          dsn,
+		MaxOpenConns: 1,
+		MaxIdleConns: 1,
+		Logger:       log.Printf,
 	})
 	if err != nil {
 		log.Fatal("Database connection failed:", err)
 	}
-
-	// Set search path
-	if _, err = db.Exec("SET search_path TO public"); err != nil {
-		log.Fatal("Failed to set search_path:", err)
+	if err := database.EnsureSchemas(dbCtx, db.Primary(), localmodules.AllSchemas()...); err != nil {
+		log.Fatalf("schema initialization failed: %v", err)
 	}
+	log.Println("SQLite database connected and schemas initialized")
 
 	// Initialize the new file-based store
 	fileStore := store.NewFileStore(roots)
@@ -152,9 +209,9 @@ func main() {
 	// Initialize domain components (seams for testing)
 	// Use the store adapter to bridge new storage to existing handlers
 	skillStoreAdapter := skills.NewStoreAdapter(fileStore.FileSkills(), store.NewFileContentIO())
-	metricsRepo := metrics.NewRepository(db)
-	tagsRepo := tags.NewRepository(db)
-	testingRepo := testing.NewRepository(db)
+	metricsRepo := metrics.NewRepository(db.Primary())
+	tagsRepo := tags.NewRepository(db.Primary())
+	testingRepo := testing.NewRepository(db.Primary())
 	ollamaClient := testing.NewOllamaClient(ollamaEnabled, ollamaGatewayBin)
 
 	// Initialize handlers with interface adapters
@@ -382,7 +439,7 @@ func main() {
 	)
 
 	// Health check
-	healthHandler := health.New().Version("2.0.0").Check(health.DB(db), health.Critical).Handler()
+	healthHandler := health.New().Version("2.0.0").Check(health.DB(db.Primary()), health.Critical).Handler()
 	router.HandleFunc("/health", healthHandler).Methods("GET")
 
 	// API v1 routes

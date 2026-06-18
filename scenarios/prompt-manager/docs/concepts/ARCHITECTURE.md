@@ -31,7 +31,7 @@ This document describes the overall architecture of the prompt-manager scenario,
         │                                              │
         ▼                                              ▼
 ┌───────────────────┐                    ┌─────────────────────┐
-│   File System     │                    │     PostgreSQL      │
+│   File System     │                    │       SQLite        │
 │   (skills/*.md)   │                    │  (tags, metrics,    │
 │                   │                    │   test results)     │
 └───────────────────┘                    └─────────────────────┘
@@ -98,9 +98,9 @@ type Handlers struct {
 |-----------|---------|-----------|
 | Skills (content) | File system (`.md` files) | Human-readable, version control friendly |
 | Skill metadata | File system (`skill.json` per skill) | Colocated with content |
-| Tags | PostgreSQL | Relational queries, shared taxonomy |
-| Usage metrics | PostgreSQL | Aggregations, time-series queries |
-| Test results | PostgreSQL | History, analysis |
+| Tags | SQLite | Relational queries, shared taxonomy |
+| Usage metrics | SQLite | Aggregations and usage history |
+| Test results | SQLite | Local prompt-test history |
 | Agents | File system (`agent.json` per agent) | Normalized entity structure |
 | Teams | File system (`team.json` per team) | Normalized entity structure |
 | Relations | File system (`relations/` directory) | Agent-skill and team-member mappings |
@@ -232,7 +232,7 @@ The editor exposes **Editor / Preview** view modes so users can inspect markdown
 |------------|-------|---------|
 | Skills, Agents, Teams | API | File system (store/) |
 | Actions (proposed) | API | File system (store/actions/) |
-| Tags, Metrics, Test Results | API | PostgreSQL |
+| Tags, Metrics, Test Results | API | SQLite |
 | Relations (team-member) | API | File system (store/relations/) |
 | Favorites | UI | localStorage |
 | View preferences | UI | Component state |
