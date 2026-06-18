@@ -24,6 +24,34 @@
       "system": "システム"
     }
   },
+  "settings": {
+    "fontScale": {
+      "label": "文字サイズ",
+      "small": "小",
+      "default": "標準",
+      "large": "大",
+      "xlarge": "特大"
+    },
+    "reducedMotion": {
+      "label": "モーション",
+      "description": "アプリ全体のアニメーションを減らします。",
+      "system": "システムに合わせる",
+      "always": "減らす",
+      "never": "許可する"
+    },
+    "textDirection": {
+      "label": "文字方向",
+      "auto": "自動（言語に従う）",
+      "ltr": "左から右",
+      "rtl": "右から左"
+    },
+    "handedness": {
+      "label": "利き手",
+      "description": "モバイルの操作をどちら側に寄せるか。",
+      "left": "左",
+      "right": "右"
+    }
+  },
   "pages": {
     "home": {
       "title": "ホーム"
@@ -40,7 +68,8 @@
     "settings": {
       "title": "設定",
       "themeHeading": "外観",
-      "localeHeading": "言語"
+      "localeHeading": "言語",
+      "displayHeading": "表示とアクセシビリティ"
     },
     "workspace": {
       "title": "ワークスペース"
@@ -153,9 +182,10 @@
     "hardwareLabel": "ハードウェア:",
     "hardware": {
       "gpuRequired": "GPU が必要",
-      "cpuOk": "CPU で動作",
-      "vram": "VRAM {{gb}} GB 以上",
-      "ram": "RAM {{gb}} GB 以上"
+      "cpuOk": "✓ お使いの CPU で動作",
+      "vram": "VRAM {{gb}} GB 以上が必要",
+      "ram": "RAM {{gb}} GB 以上が必要",
+      "speedNote": "{{note}}"
     },
     "licenseLabel": "ライセンス:",
     "commercialLabel": "商用利用:",
@@ -165,8 +195,13 @@
       "no": "不可",
       "conditional": "条件付き"
     },
+    "commercialNotesLabel": "商用利用の注記:",
     "nsfwBadge": "NSFW 対応",
     "customBadge": "カスタム",
+    "defaultForBadge": "既定",
+    "defaultForLabel": "既定の操作:",
+    "downloadSizeLabel": "ダウンロード:",
+    "diskSizeLabel": "ディスク上:",
     "installState": {
       "installed": "インストール済み",
       "notInstalled": "未インストール"
@@ -251,8 +286,60 @@
       "enhance": "強調",
       "create": "生成",
       "analyze": "解析",
-      "switcherLabel": "ワークスペースモード",
-      "comingSoon": "{{mode}} は後の段階で利用可能になります。"
+      "switcherLabel": "ワークスペースモード"
+    },
+    "analyzeOp": {
+      "probe": {
+        "label": "画像を調べる",
+        "desc": "寸法・形式・EXIF・主要な配色を読み取ります。"
+      },
+      "ocr": {
+        "label": "テキスト抽出",
+        "desc": "テキストを認識し、各領域をキャンバス上に表示します。"
+      },
+      "nsfw_classify": {
+        "label": "安全性チェック",
+        "desc": "画像に不適切なコンテンツが含まれるか分類します。"
+      }
+    },
+    "analyze": {
+      "intro": "現在の画像から情報を読み取ります。画像は変更されません。",
+      "loading": "解析ツールを読み込み中…",
+      "error": "解析ツールを読み込めませんでした。",
+      "needsImage": "解析する画像を追加してください。",
+      "modelNote": "モデルを使用します。初回実行時にインストールされます。",
+      "run": "解析",
+      "running": "解析中…",
+      "retry": "再試行",
+      "failed": "解析に失敗しました。",
+      "probe": {
+        "dimensions": "寸法",
+        "format": "形式",
+        "colorModel": "カラーモデル",
+        "alpha": "透明度",
+        "frames": "フレーム数",
+        "megapixels": "メガピクセル",
+        "size": "ファイルサイズ",
+        "exif": "EXIFメタデータ",
+        "gps": "GPS位置情報",
+        "orientation": "向き",
+        "palette": "主要な色",
+        "yes": "はい",
+        "no": "いいえ"
+      },
+      "ocr": {
+        "copy": "テキストをコピー",
+        "copied": "コピーしました",
+        "empty": "テキストが見つかりませんでした。",
+        "language": "言語: {{language}}",
+        "blocks": "{{count}} 個のテキスト領域"
+      },
+      "nsfw": {
+        "flagged": "フラグあり",
+        "safe": "問題なし",
+        "score": "スコア {{score}}%",
+        "threshold": "しきい値 {{threshold}}%"
+      }
     },
     "aiOp": {
       "background_removal": {

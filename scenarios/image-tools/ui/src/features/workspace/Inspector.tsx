@@ -242,14 +242,7 @@ export function Inspector({
     >
       <h3 className="text-sm font-medium text-app-muted-foreground">{t(MODE_LABEL[mode])}</h3>
 
-      {mode !== "edit" ? (
-        <p
-          data-testid={selectors.workspace.inspectorPlaceholder}
-          className="mt-3 rounded-panel bg-app-surface-muted p-4 text-sm text-app-muted-foreground"
-        >
-          {t(strings.workspace.mode.comingSoon, { mode: t(MODE_LABEL[mode]) })}
-        </p>
-      ) : opsLoading ? (
+      {opsLoading ? (
         <p data-testid={selectors.workspace.loading} className="mt-3 text-sm text-app-foreground">
           {t(strings.workspace.loading)}
         </p>

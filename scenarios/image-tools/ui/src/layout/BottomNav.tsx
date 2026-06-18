@@ -16,6 +16,7 @@ export function BottomNav() {
   return (
     <nav
       data-testid={selectors.layout.bottomNav}
+      data-handedness-flip
       aria-label={t(strings.layout.bottomNavLabel)}
       className="flex shrink-0 items-stretch justify-around border-t border-app-border bg-app-surface md:hidden"
     >

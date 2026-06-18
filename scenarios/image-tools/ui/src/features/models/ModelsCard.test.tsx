@@ -137,7 +137,7 @@ describe("ModelsCard", () => {
     expect(screen.getByTestId(selectors.models.operations).textContent).toContain("denoise");
     expect(screen.getByTestId(selectors.models.customBadge)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.models.nsfwBadge)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.models.installState).textContent).toBe("Not installed");
+    expect(screen.getByTestId(selectors.models.installState).textContent).toContain("Not installed");
   });
 
   it("installs a not-installed model via installModel and surfaces the job notice", async () => {
@@ -176,9 +176,98 @@ describe("ModelsCard", () => {
 
     renderWithProviders(<ModelsCard />);
     await waitFor(() => {
-      expect(screen.getByTestId(selectors.models.installState).textContent).toBe("Installed");
+      expect(screen.getByTestId(selectors.models.installState).textContent).toContain("Installed");
     });
     expect(screen.queryByTestId(selectors.models.installButton)).not.toBeInTheDocument();
+  });
+
+  it("surfaces the default-for badge, default-for operations, and download size", async () => {
+    const { modelsClient } = await import("../../api/models");
+    vi.mocked(modelsClient.listModels).mockResolvedValueOnce(
+      makeListModelsResponse({
+        models: [
+          makeModel({
+            id: "m-def",
+            operations: ["upscale", "denoise"],
+            defaultFor: ["upscale"],
+            sizeMbApprox: 64,
+            install: { installed: false },
+          }),
+        ],
+      }),
+    );
+
+    renderWithProviders(<ModelsCard />);
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.models.list)).toBeInTheDocument();
+    });
+    expect(screen.getByTestId(selectors.models.defaultBadge).textContent).toContain("Default");
+    expect(screen.getByTestId(selectors.models.defaultFor).textContent).toContain("upscale");
+    // Not installed → show the download size, never the on-disk size.
+    expect(screen.getByTestId(selectors.models.downloadSize).textContent).toContain("64");
+    expect(screen.queryByTestId(selectors.models.diskSize)).not.toBeInTheDocument();
+  });
+
+  it("shows on-disk size for an installed model instead of the download size", async () => {
+    const { modelsClient } = await import("../../api/models");
+    vi.mocked(modelsClient.listModels).mockResolvedValueOnce(
+      makeListModelsResponse({
+        models: [
+          makeModel({
+            id: "m-disk",
+            install: { installed: true, path: "/w", sizeBytes: 134_217_728n }, // 128 MB
+          }),
+        ],
+      }),
+    );
+
+    renderWithProviders(<ModelsCard />);
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.models.diskSize)).toBeInTheDocument();
+    });
+    expect(screen.getByTestId(selectors.models.diskSize).textContent).toContain("128");
+    expect(screen.queryByTestId(selectors.models.downloadSize)).not.toBeInTheDocument();
+  });
+
+  it("renders commercial-use status, its notes, and tone-keyed hardware chips", async () => {
+    const { CommercialUse, modelsClient } = await import("../../api/models");
+    vi.mocked(modelsClient.listModels).mockResolvedValueOnce(
+      makeListModelsResponse({
+        models: [
+          makeModel({
+            id: "m-cap",
+            defaultFor: [],
+            capabilityLabels: {
+              license: "CreativeML-OpenRAIL-M",
+              commercialUse: CommercialUse.CONDITIONAL,
+              commercialUseNotes: "Allowed below 1M MAU",
+            },
+            hardware: {
+              cpuCapable: false,
+              gpuRequired: true,
+              minVramGb: 8,
+              minRamGb: 16,
+              speedNote: "~4s per image on a 4090",
+            },
+          }),
+        ],
+      }),
+    );
+
+    renderWithProviders(<ModelsCard />);
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.models.list)).toBeInTheDocument();
+    });
+    expect(screen.getByTestId(selectors.models.commercial).textContent).toContain("Conditional");
+    expect(screen.getByTestId(selectors.models.commercialNotes).textContent).toContain(
+      "Allowed below 1M MAU",
+    );
+    const hardware = screen.getByTestId(selectors.models.hardware);
+    expect(hardware.textContent).toContain("Needs a GPU");
+    expect(hardware.textContent).toContain("8 GB VRAM");
+    expect(hardware.textContent).toContain("~4s per image on a 4090");
+    // One chip per hardware-fit signal (GPU, VRAM, RAM, speed note).
+    expect(screen.getAllByTestId(selectors.models.hardwareChip)).toHaveLength(4);
   });
 
   it("removes a model via removeModel", async () => {

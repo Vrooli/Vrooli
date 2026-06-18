@@ -24,6 +24,34 @@
       "system": "النظام"
     }
   },
+  "settings": {
+    "fontScale": {
+      "label": "حجم النص",
+      "small": "صغير",
+      "default": "افتراضي",
+      "large": "كبير",
+      "xlarge": "كبير جدًا"
+    },
+    "reducedMotion": {
+      "label": "الحركة",
+      "description": "تقليل الرسوم المتحركة في كل أنحاء التطبيق.",
+      "system": "حسب النظام",
+      "always": "تقليل",
+      "never": "السماح"
+    },
+    "textDirection": {
+      "label": "اتجاه النص",
+      "auto": "تلقائي (حسب اللغة)",
+      "ltr": "من اليسار إلى اليمين",
+      "rtl": "من اليمين إلى اليسار"
+    },
+    "handedness": {
+      "label": "اليد المُفضّلة",
+      "description": "الجهة التي تفضّلها أزرار الإجراءات على الجوال.",
+      "left": "يسار",
+      "right": "يمين"
+    }
+  },
   "pages": {
     "home": {
       "title": "الرئيسية"
@@ -40,7 +68,8 @@
     "settings": {
       "title": "الإعدادات",
       "themeHeading": "المظهر",
-      "localeHeading": "اللغة"
+      "localeHeading": "اللغة",
+      "displayHeading": "العرض وإمكانية الوصول"
     },
     "workspace": {
       "title": "مساحة العمل"
@@ -161,9 +190,10 @@
     "hardwareLabel": "العتاد:",
     "hardware": {
       "gpuRequired": "يتطلب معالج رسوميات",
-      "cpuOk": "يعمل على المعالج",
-      "vram": "‏{{gb}} جيجابايت VRAM على الأقل",
-      "ram": "‏{{gb}} جيجابايت RAM على الأقل"
+      "cpuOk": "✓ يعمل على معالجك",
+      "vram": "‏يتطلب {{gb}} جيجابايت VRAM على الأقل",
+      "ram": "‏يتطلب {{gb}} جيجابايت RAM على الأقل",
+      "speedNote": "{{note}}"
     },
     "licenseLabel": "الترخيص:",
     "commercialLabel": "الاستخدام التجاري:",
@@ -173,8 +203,13 @@
       "no": "غير مسموح",
       "conditional": "مشروط"
     },
+    "commercialNotesLabel": "ملاحظات الاستخدام التجاري:",
     "nsfwBadge": "يدعم محتوى للبالغين",
     "customBadge": "مخصص",
+    "defaultForBadge": "افتراضي",
+    "defaultForLabel": "افتراضي للعمليات:",
+    "downloadSizeLabel": "التنزيل:",
+    "diskSizeLabel": "على القرص:",
     "installState": {
       "installed": "مثبّت",
       "notInstalled": "غير مثبّت"
@@ -259,8 +294,60 @@
       "enhance": "تحسين",
       "create": "إنشاء",
       "analyze": "تحليل",
-      "switcherLabel": "وضع مساحة العمل",
-      "comingSoon": "{{mode}} سيتوفر في مرحلة لاحقة من إعادة التصميم."
+      "switcherLabel": "وضع مساحة العمل"
+    },
+    "analyzeOp": {
+      "probe": {
+        "label": "فحص الصورة",
+        "desc": "قراءة الأبعاد والصيغة وبيانات EXIF والألوان السائدة."
+      },
+      "ocr": {
+        "label": "استخراج النص",
+        "desc": "التعرّف على النص وتحديد كل منطقة على اللوحة."
+      },
+      "nsfw_classify": {
+        "label": "فحص الأمان",
+        "desc": "تصنيف الصورة بحثًا عن محتوى غير لائق."
+      }
+    },
+    "analyze": {
+      "intro": "قراءة المعلومات من الصورة الحالية — لا يتم تغيير أي شيء.",
+      "loading": "جارٍ تحميل أدوات التحليل…",
+      "error": "تعذّر تحميل أدوات التحليل.",
+      "needsImage": "أضف صورة لتحليلها.",
+      "modelNote": "يستخدم نموذجًا — يُثبَّت عند أول تشغيل.",
+      "run": "تحليل",
+      "running": "جارٍ التحليل…",
+      "retry": "حاول مرة أخرى",
+      "failed": "فشل التحليل.",
+      "probe": {
+        "dimensions": "الأبعاد",
+        "format": "الصيغة",
+        "colorModel": "نموذج الألوان",
+        "alpha": "الشفافية",
+        "frames": "الإطارات",
+        "megapixels": "ميجابكسل",
+        "size": "حجم الملف",
+        "exif": "بيانات EXIF",
+        "gps": "موقع GPS",
+        "orientation": "الاتجاه",
+        "palette": "الألوان السائدة",
+        "yes": "نعم",
+        "no": "لا"
+      },
+      "ocr": {
+        "copy": "نسخ النص",
+        "copied": "تم النسخ",
+        "empty": "لم يُعثر على نص.",
+        "language": "اللغة: {{language}}",
+        "blocks": "{{count}} منطقة نصية"
+      },
+      "nsfw": {
+        "flagged": "مُعلَّم",
+        "safe": "يبدو آمنًا",
+        "score": "النتيجة {{score}}%",
+        "threshold": "العتبة {{threshold}}%"
+      }
     },
     "aiOp": {
       "background_removal": {

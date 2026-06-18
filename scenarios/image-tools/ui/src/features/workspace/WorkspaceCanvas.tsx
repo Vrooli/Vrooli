@@ -8,6 +8,7 @@ import { useTranslation } from "../../i18n";
 import type { RunOpImageResult } from "../../api/ops";
 import { BeforeAfter } from "./BeforeAfter";
 import { CropOverlay } from "./CropOverlay";
+import { DetectionOverlay, type DetectionBox } from "./DetectionOverlay";
 import type { Rect, Size } from "./cropMath";
 
 /** Live progress for an async op resolving in the canvas (Enhance / Create). */
@@ -39,6 +40,8 @@ export interface WorkspaceCanvasProps {
   onFile: (file: File) => void;
   /** When set, draw a draggable crop box mapped 1:1 over the image. */
   crop?: CanvasCrop | null;
+  /** When set, draw read-only detection boxes (e.g. OCR blocks) over the image. */
+  boxes?: readonly DetectionBox[] | null;
   /** When set, overlay an async op's live progress over the image. */
   progress?: CanvasProgress | null;
   /**
@@ -64,6 +67,7 @@ export function WorkspaceCanvas({
   metadata,
   onFile,
   crop = null,
+  boxes = null,
   progress = null,
   compareSignal = 0,
 }: WorkspaceCanvasProps) {
@@ -84,11 +88,13 @@ export function WorkspaceCanvas({
     }
   }, [compareSignal, hasSteps]);
 
-  // Track the rendered image's on-screen box so the crop overlay maps 1:1.
-  // ResizeObserver keeps the box correct across zoom/fit and viewport changes.
+  // Track the rendered image's on-screen box so the crop / detection overlays
+  // map 1:1. ResizeObserver keeps the box correct across zoom/fit and viewport
+  // changes. Active whenever either overlay is mounted.
+  const overlayActive = Boolean(crop) || Boolean(boxes && boxes.length > 0);
   useEffect(() => {
     const img = imgRef.current;
-    if (!crop || !img) {
+    if (!overlayActive || !img) {
       return;
     }
     const measure = () => setClient({ width: img.clientWidth, height: img.clientHeight });
@@ -96,7 +102,7 @@ export function WorkspaceCanvas({
     const observer = new ResizeObserver(measure);
     observer.observe(img);
     return () => observer.disconnect();
-  }, [crop, baseUrl, previewUrl, fit, zoom]);
+  }, [overlayActive, baseUrl, previewUrl, fit, zoom]);
 
   const zoomIn = () => {
     setFit(false);
@@ -242,6 +248,9 @@ export function WorkspaceCanvas({
                 rect={crop.rect}
                 onChange={crop.onChange}
               />
+            ) : null}
+            {boxes && boxes.length > 0 && natural && client ? (
+              <DetectionOverlay natural={natural} client={client} boxes={boxes} />
             ) : null}
           </div>
         )}

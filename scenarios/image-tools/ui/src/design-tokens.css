@@ -148,15 +148,61 @@
   color: var(--color-primary-foreground);
 }
 
+/*
+ * Reduced-motion resolution. Two layers:
+ *
+ *   1. System preference (`prefers-reduced-motion: reduce`) neutralizes motion
+ *      UNLESS the operator explicitly forced motion on (`data-reduced-motion`
+ *      = "never"). The `:not(...)` guard lets the Settings "Never" override win
+ *      over the OS preference.
+ *   2. The Settings "Always" override (`data-reduced-motion="always"`)
+ *      neutralizes motion regardless of the OS preference.
+ *
+ * "System" (the default) sets no attribute, so only layer 1's media query
+ * applies — identical to the pre-override behavior.
+ */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  :root:not([data-reduced-motion="never"]) *,
+  :root:not([data-reduced-motion="never"]) *::before,
+  :root:not([data-reduced-motion="never"]) *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+:root[data-reduced-motion="always"] *,
+:root[data-reduced-motion="always"] *::before,
+:root[data-reduced-motion="always"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+  transition-duration: 0.01ms !important;
+}
+
+/*
+ * Font-scale preference (Settings → Display). Scales the root font size so the
+ * whole rem-based UI grows/shrinks together. "default" sets no attribute.
+ */
+:root[data-font-scale="small"] {
+  font-size: 87.5%;
+}
+:root[data-font-scale="large"] {
+  font-size: 112.5%;
+}
+:root[data-font-scale="xlarge"] {
+  font-size: 125%;
+}
+
+/*
+ * Handedness preference (Settings → Display). Right-handed (default) keeps the
+ * natural bottom-nav order so the leading targets sit toward the start edge;
+ * left-handed reverses the row so they fall under a left thumb. Only the mobile
+ * bottom nav honors it — desktop has no single primary-action zone.
+ */
+:root[data-handedness="left"] [data-handedness-flip] {
+  flex-direction: row-reverse;
 }
 
 .touch-target {

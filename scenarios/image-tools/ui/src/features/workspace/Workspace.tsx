@@ -6,10 +6,13 @@ import { listOperations, type OperationInfo } from "../../api/ops";
 import { SpatialGroup } from "../../hooks/SpatialGroup";
 import { useSpatialNav } from "../../hooks/useSpatialNav";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
+import { AnalyzePanel } from "./AnalyzePanel";
 import { CanvasActionBar } from "./CanvasActionBar";
 import { CreatePanel } from "./CreatePanel";
 import { fullImageRect, type Rect, type Size } from "./cropMath";
+import { type DetectionBox } from "./DetectionOverlay";
 import { EnhancePanel } from "./EnhancePanel";
+import { useAnalyze, type AnalyzeClient } from "./useAnalyze";
 import { HistoryRail } from "./HistoryRail";
 import { Inspector } from "./Inspector";
 import { ModeSwitcher } from "./ModeSwitcher";
@@ -38,6 +41,8 @@ export interface WorkspaceProps {
   enhanceClient?: EnhanceClient;
   /** Create (generation) job-lifecycle seam; defaults to the live client. */
   createClient?: CreateClient;
+  /** Analyze (sync analysis) seam; defaults to the live client. Injected in tests. */
+  analyzeClient?: AnalyzeClient;
 }
 
 /**
@@ -47,7 +52,12 @@ export interface WorkspaceProps {
  * left rail shows the non-destructive history. Replaces the retired two-card
  * editor surface.
  */
-export function Workspace({ runner, enhanceClient, createClient }: WorkspaceProps = {}) {
+export function Workspace({
+  runner,
+  enhanceClient,
+  createClient,
+  analyzeClient,
+}: WorkspaceProps = {}) {
   const spatialNav = useSpatialNav();
   const ws = useWorkspace(runner);
   const { operation, setOperation, canUndo, canRedo, undo, redo } = ws;
@@ -138,6 +148,25 @@ export function Workspace({ runner, enhanceClient, createClient }: WorkspaceProp
   const create = useCreate({ client: createClient });
   const { setBase, setMode } = ws;
 
+  // Analyze (sync analysis) lifecycle. Its result drives the read-only panel
+  // and — for OCR — labeled boxes drawn over the canvas. Clear it when the
+  // source image changes so stale boxes never sit over a new picture.
+  const analyze = useAnalyze({ client: analyzeClient });
+  const { clear: clearAnalyze } = analyze;
+  useEffect(() => {
+    clearAnalyze();
+  }, [ws.base, clearAnalyze]);
+
+  const detectionBoxes: DetectionBox[] | null = useMemo(() => {
+    if (analyze.result?.kind !== "ocr") {
+      return null;
+    }
+    const boxed = analyze.result.blocks.flatMap((block, index) =>
+      block.box ? [{ id: `ocr-${index}`, label: block.text, box: block.box }] : [],
+    );
+    return boxed.length > 0 ? boxed : null;
+  }, [analyze.result]);
+
   // Apply a one-shot Home / Library handoff (mode + op + starting image) once
   // on mount. Token-keyed so a StrictMode re-mount or a manual /workspace visit
   // never re-applies a stale intent. The store methods are stable useCallbacks.
@@ -153,7 +182,7 @@ export function Workspace({ runner, enhanceClient, createClient }: WorkspaceProp
       setMode(intent.mode);
     }
     if (intent.operation) {
-      if (intent.mode === "enhance" || intent.mode === "create") {
+      if (intent.mode === "enhance" || intent.mode === "create" || intent.mode === "analyze") {
         setInitialAiAction(intent.operation);
       } else {
         setOperation(intent.operation);
@@ -208,6 +237,7 @@ export function Workspace({ runner, enhanceClient, createClient }: WorkspaceProp
                   ? { rect: cropRect, onChange: emitCrop, onNatural: seedCrop }
                   : null
               }
+              boxes={ws.mode === "analyze" ? detectionBoxes : null}
               progress={enhanceProgress}
               compareSignal={compareSignal}
             />
@@ -230,6 +260,8 @@ export function Workspace({ runner, enhanceClient, createClient }: WorkspaceProp
             onSendToEnhance={onSendToEnhance}
             initialAction={initialAiAction}
           />
+        ) : ws.mode === "analyze" ? (
+          <AnalyzePanel analyze={analyze} input={currentInput} initialAction={initialAiAction} />
         ) : (
           <Inspector
             mode={ws.mode}

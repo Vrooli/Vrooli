@@ -22,6 +22,12 @@ vi.mock("../../api/ops", async (importOriginal) => {
   return { ...actual, ...makeOpsMocks() };
 });
 
+vi.mock("../../api/analysis", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/analysis")>();
+  const { makeAnalysisMocks } = await import("./mocks/analysis");
+  return { ...actual, ...makeAnalysisMocks() };
+});
+
 import { Workspace } from "./Workspace";
 import type { WorkspaceRunner } from "./useWorkspace";
 import { selectors } from "../../consts/selectors";
@@ -195,16 +201,18 @@ describe("Workspace", () => {
     });
   });
 
-  it("shows a coming-soon placeholder for the not-yet-built Analyze mode", async () => {
+  it("renders the Analyze panel when the Analyze mode is selected", async () => {
     const user = userEvent.setup();
     renderWithProviders(<Workspace />);
     await waitFor(() => {
       expect(screen.getByTestId(selectors.workspace.modeSwitcher)).toBeInTheDocument();
     });
 
-    // Edit/Enhance/Create have real panels; Analyze is the remaining placeholder.
+    // Every mode now has a real panel; Analyze surfaces the analysis ops.
     await user.click(screen.getByTestId(selectors.workspace.modeOption({ mode: "analyze" })));
-    expect(screen.getByTestId(selectors.workspace.inspectorPlaceholder)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.workspace.analyze.panel)).toBeInTheDocument();
+    });
   });
 
   it("exposes the crop numeric fields under the Advanced disclosure (accessible fallback)", async () => {

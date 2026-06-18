@@ -24,6 +24,34 @@
       "system": "System"
     }
   },
+  "settings": {
+    "fontScale": {
+      "label": "Text size",
+      "small": "Small",
+      "default": "Default",
+      "large": "Large",
+      "xlarge": "Extra large"
+    },
+    "reducedMotion": {
+      "label": "Motion",
+      "description": "Reduce animations across the app.",
+      "system": "Match system",
+      "always": "Reduce",
+      "never": "Allow"
+    },
+    "textDirection": {
+      "label": "Text direction",
+      "auto": "Auto (follow language)",
+      "ltr": "Left to right",
+      "rtl": "Right to left"
+    },
+    "handedness": {
+      "label": "Handedness",
+      "description": "Which side mobile actions favor.",
+      "left": "Left",
+      "right": "Right"
+    }
+  },
   "pages": {
     "home": {
       "title": "Home"
@@ -40,7 +68,8 @@
     "settings": {
       "title": "Settings",
       "themeHeading": "Appearance",
-      "localeHeading": "Language"
+      "localeHeading": "Language",
+      "displayHeading": "Display & accessibility"
     },
     "workspace": {
       "title": "Workspace"
@@ -152,10 +181,11 @@
     "sizeValue": "{{mb}} MB",
     "hardwareLabel": "Hardware:",
     "hardware": {
-      "gpuRequired": "GPU required",
-      "cpuOk": "Runs on CPU",
-      "vram": "≥ {{gb}} GB VRAM",
-      "ram": "≥ {{gb}} GB RAM"
+      "gpuRequired": "Needs a GPU",
+      "cpuOk": "✓ Runs on your CPU",
+      "vram": "Needs ≥ {{gb}} GB VRAM",
+      "ram": "Needs ≥ {{gb}} GB RAM",
+      "speedNote": "{{note}}"
     },
     "licenseLabel": "License:",
     "commercialLabel": "Commercial use:",
@@ -165,8 +195,13 @@
       "no": "Not allowed",
       "conditional": "Conditional"
     },
+    "commercialNotesLabel": "Commercial-use notes:",
     "nsfwBadge": "NSFW capable",
     "customBadge": "custom",
+    "defaultForBadge": "Default",
+    "defaultForLabel": "Default for:",
+    "downloadSizeLabel": "Download:",
+    "diskSizeLabel": "On disk:",
     "installState": {
       "installed": "Installed",
       "notInstalled": "Not installed"
@@ -255,8 +290,60 @@
       "enhance": "Enhance",
       "create": "Create",
       "analyze": "Analyze",
-      "switcherLabel": "Workspace mode",
-      "comingSoon": "{{mode}} arrives in a later stage of the redesign."
+      "switcherLabel": "Workspace mode"
+    },
+    "analyzeOp": {
+      "probe": {
+        "label": "Inspect image",
+        "desc": "Read dimensions, format, EXIF, and the dominant palette."
+      },
+      "ocr": {
+        "label": "Extract text",
+        "desc": "Recognize text and outline each region on the canvas."
+      },
+      "nsfw_classify": {
+        "label": "Safety check",
+        "desc": "Classify the image for not-safe-for-work content."
+      }
+    },
+    "analyze": {
+      "intro": "Read information out of the current image — nothing is changed.",
+      "loading": "Loading analysis tools…",
+      "error": "Couldn't load the analysis tools.",
+      "needsImage": "Add an image to analyze.",
+      "modelNote": "Uses a model — installs on first run.",
+      "run": "Analyze",
+      "running": "Analyzing…",
+      "retry": "Try again",
+      "failed": "Analysis failed.",
+      "probe": {
+        "dimensions": "Dimensions",
+        "format": "Format",
+        "colorModel": "Color model",
+        "alpha": "Transparency",
+        "frames": "Frames",
+        "megapixels": "Megapixels",
+        "size": "File size",
+        "exif": "EXIF metadata",
+        "gps": "GPS location",
+        "orientation": "Orientation",
+        "palette": "Dominant colors",
+        "yes": "Yes",
+        "no": "No"
+      },
+      "ocr": {
+        "copy": "Copy text",
+        "copied": "Copied",
+        "empty": "No text found.",
+        "language": "Language: {{language}}",
+        "blocks": "{{count}} text regions"
+      },
+      "nsfw": {
+        "flagged": "Flagged",
+        "safe": "Looks safe",
+        "score": "Score {{score}}%",
+        "threshold": "threshold {{threshold}}%"
+      }
     },
     "aiOp": {
       "background_removal": {

@@ -60,3 +60,16 @@ afterEach(() => {
 // its own beforeEach and restore it on teardown — opt-in override
 // rather than process-wide unwiring.
 vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+
+// jsdom has no ResizeObserver — the WorkspaceCanvas overlay path (crop box /
+// detection boxes) constructs one to keep the rendered-image box measured. A
+// no-op stub keeps that effect from throwing; overlay-geometry tests pass the
+// natural/client sizes directly, so a live observer isn't needed. Assigned on
+// globalThis (not vi.stubGlobal) so per-test `vi.unstubAllGlobals()` calls
+// don't strip it mid-suite.
+class ResizeObserverStub {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+}
+globalThis.ResizeObserver = ResizeObserverStub;

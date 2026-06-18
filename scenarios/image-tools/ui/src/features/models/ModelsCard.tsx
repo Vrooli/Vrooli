@@ -7,7 +7,7 @@ import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { CommercialUse, modelsClient, type Model } from "../../api/models";
 import { errorMessage } from "../../lib/errorMessage";
-import { hardwareFitChips } from "./hardwareFit";
+import { hardwareFitChips, type HardwareFitTone } from "./hardwareFit";
 
 const MODELS_QUERY_KEY = ["models"] as const;
 
@@ -18,6 +18,38 @@ const COMMERCIAL_LABEL: Record<CommercialUse, (typeof strings.models.commercial)
   [CommercialUse.NO]: strings.models.commercial.no,
   [CommercialUse.CONDITIONAL]: strings.models.commercial.conditional,
 };
+
+/**
+ * Commercial-use posture, mapped to a chip tone so the status reads from the
+ * word AND a paired token color (never color alone): allowed = success,
+ * forbidden = danger, conditional/unknown = warning/neutral.
+ */
+const COMMERCIAL_TONE: Record<CommercialUse, ChipTone> = {
+  [CommercialUse.UNSPECIFIED]: "neutral",
+  [CommercialUse.YES]: "success",
+  [CommercialUse.NO]: "danger",
+  [CommercialUse.CONDITIONAL]: "warning",
+};
+
+type ChipTone = "neutral" | "success" | "danger" | "warning";
+
+/** Token-paired chip classes. Status color is always paired with the word. */
+const CHIP_TONE_CLASS: Record<ChipTone, string> = {
+  neutral: "border border-app-border bg-app-surface-muted text-app-foreground",
+  success: "border border-app-success/40 bg-app-success/10 text-app-success",
+  danger: "border border-app-danger/40 bg-app-danger/10 text-app-danger",
+  warning: "border border-app-warning/40 bg-app-warning/10 text-app-warning",
+};
+
+/** Hardware-fit tones reuse the shared chip tones via this small adapter. */
+const HARDWARE_TONE_CLASS: Record<HardwareFitTone, ChipTone> = {
+  positive: "success",
+  caution: "warning",
+  neutral: "neutral",
+};
+
+/** Approximate on-disk byte count to whole MB for the size-aware install line. */
+const bytesToMb = (bytes: bigint): number => Number(bytes / 1024n / 1024n);
 
 /** Per-install feedback surfaced inline on the model that launched it. */
 interface InstallNotice {
@@ -101,13 +133,23 @@ export function ModelsCard() {
         <ul data-testid={selectors.models.list} className="mt-2 space-y-2 text-sm text-app-foreground">
           {models.map((model) => {
             const installed = model.install?.installed ?? false;
+            const diskBytes = model.install?.sizeBytes ?? 0n;
             const labels = model.capabilityLabels;
+            const defaultFor = model.defaultFor;
             return (
               <li key={model.id} className="rounded-lg border border-app-border p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <span data-testid={selectors.models.name} className="font-medium">
                     {model.name}
                   </span>
+                  {defaultFor.length > 0 && (
+                    <span
+                      data-testid={selectors.models.defaultBadge}
+                      className="rounded bg-app-brand/20 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-app-brand-strong"
+                    >
+                      {t(strings.models.defaultForBadge)}
+                    </span>
+                  )}
                   {model.custom && (
                     <span
                       data-testid={selectors.models.customBadge}
@@ -144,6 +186,12 @@ export function ModelsCard() {
                     <dt className="inline text-app-muted-foreground">{t(strings.models.sizeLabel)} </dt>
                     <dd className="inline">{t(strings.models.sizeValue, { mb: model.sizeMbApprox })}</dd>
                   </div>
+                  {defaultFor.length > 0 && (
+                    <div data-testid={selectors.models.defaultFor}>
+                      <dt className="inline text-app-muted-foreground">{t(strings.models.defaultForLabel)} </dt>
+                      <dd className="inline">{defaultFor.join(", ")}</dd>
+                    </div>
+                  )}
                   {labels && (
                     <div data-testid={selectors.models.license}>
                       <dt className="inline text-app-muted-foreground">{t(strings.models.licenseLabel)} </dt>
@@ -151,9 +199,21 @@ export function ModelsCard() {
                     </div>
                   )}
                   {labels && (
-                    <div data-testid={selectors.models.commercial}>
+                    <div data-testid={selectors.models.commercial} className="flex items-center gap-1.5">
                       <dt className="inline text-app-muted-foreground">{t(strings.models.commercialLabel)} </dt>
-                      <dd className="inline">{t(COMMERCIAL_LABEL[labels.commercialUse])}</dd>
+                      <dd className="inline">
+                        <span
+                          className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${CHIP_TONE_CLASS[COMMERCIAL_TONE[labels.commercialUse]]}`}
+                        >
+                          {t(COMMERCIAL_LABEL[labels.commercialUse])}
+                        </span>
+                      </dd>
+                    </div>
+                  )}
+                  {labels && labels.commercialUseNotes.trim().length > 0 && (
+                    <div data-testid={selectors.models.commercialNotes} className="col-span-2">
+                      <dt className="inline text-app-muted-foreground">{t(strings.models.commercialNotesLabel)} </dt>
+                      <dd className="inline">{labels.commercialUseNotes}</dd>
                     </div>
                   )}
                 </dl>
@@ -167,7 +227,8 @@ export function ModelsCard() {
                     {hardwareFitChips(model.hardware).map((chip) => (
                       <span
                         key={chip.key}
-                        className="rounded border border-app-border bg-app-surface-muted px-1.5 py-0.5 text-[10px] text-app-foreground"
+                        data-testid={selectors.models.hardwareChip}
+                        className={`rounded px-1.5 py-0.5 text-[10px] ${CHIP_TONE_CLASS[HARDWARE_TONE_CLASS[chip.tone]]}`}
                       >
                         {t(chip.key, chip.values)}
                       </span>
@@ -177,11 +238,28 @@ export function ModelsCard() {
 
                 <div
                   data-testid={selectors.models.installState}
-                  className="mt-2 text-xs text-app-muted-foreground"
+                  className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"
                 >
-                  {installed
-                    ? t(strings.models.installState.installed)
-                    : t(strings.models.installState.notInstalled)}
+                  <span
+                    className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                      installed ? CHIP_TONE_CLASS.success : CHIP_TONE_CLASS.neutral
+                    }`}
+                  >
+                    {installed
+                      ? t(strings.models.installState.installed)
+                      : t(strings.models.installState.notInstalled)}
+                  </span>
+                  {installed && diskBytes > 0n ? (
+                    <span data-testid={selectors.models.diskSize} className="text-app-muted-foreground">
+                      {t(strings.models.diskSizeLabel)}{" "}
+                      {t(strings.models.sizeValue, { mb: bytesToMb(diskBytes) })}
+                    </span>
+                  ) : (
+                    <span data-testid={selectors.models.downloadSize} className="text-app-muted-foreground">
+                      {t(strings.models.downloadSizeLabel)}{" "}
+                      {t(strings.models.sizeValue, { mb: model.sizeMbApprox })}
+                    </span>
+                  )}
                 </div>
 
                 <div className="mt-2 flex flex-wrap gap-2">

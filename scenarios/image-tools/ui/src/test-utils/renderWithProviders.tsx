@@ -31,8 +31,10 @@ import { I18nextProvider } from "react-i18next";
 import { MemoryRouter } from "react-router-dom";
 
 import { routerFutureFlags } from "../app/routerFuture";
+import { SettingsProvider } from "../features/settings/SettingsProvider";
 import { i18n } from "../i18n";
 import { ThemeProvider, type ThemeChoice } from "../theme/ThemeProvider";
+import { DEFAULT_SETTINGS, type SettingsState } from "../features/settings/useSettings";
 
 export interface ProviderRenderOptions extends Omit<RenderOptions, "wrapper"> {
   /**
@@ -51,6 +53,11 @@ export interface ProviderRenderOptions extends Omit<RenderOptions, "wrapper"> {
    * never read localStorage or `prefers-color-scheme`.
    */
   initialTheme?: ThemeChoice;
+  /**
+   * Initial display/accessibility settings for the SettingsProvider. Defaults
+   * to `DEFAULT_SETTINGS` so tests never read localStorage.
+   */
+  initialSettings?: SettingsState;
   /**
    * When true, skip wrapping in MemoryRouter. Use for tests that already
    * render a `<RouterProvider>` of their own (e.g. routing tests).
@@ -78,13 +85,16 @@ export function renderWithProviders(
     queryClient = buildClient(),
     routerEntries = ["/"],
     initialTheme = "light",
+    initialSettings = DEFAULT_SETTINGS,
     withoutRouter = false,
     ...rest
   } = options;
 
   const Wrapper = ({ children }: { children: ReactNode }) => {
     const themed = (
-      <ThemeProvider initialChoice={initialTheme}>{children}</ThemeProvider>
+      <ThemeProvider initialChoice={initialTheme}>
+        <SettingsProvider initialSettings={initialSettings}>{children}</SettingsProvider>
+      </ThemeProvider>
     );
     const routed = withoutRouter ? themed : (
       <MemoryRouter initialEntries={routerEntries} future={routerFutureFlags}>
