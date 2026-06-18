@@ -9,8 +9,10 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
+	"sync"
 )
 
 const SchemaVersion = 1
@@ -169,12 +171,41 @@ func OutputDigests(opts Options, scenario string) (map[string]string, error) {
 		return nil, err
 	}
 	out := make(map[string]string, len(files))
+	type result struct {
+		rel    string
+		digest string
+		err    error
+	}
+	workers := minInt(len(files), runtime.NumCPU())
+	if workers < 1 {
+		workers = 1
+	}
+	jobs := make(chan string)
+	results := make(chan result, len(files))
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for rel := range jobs {
+				digest, err := digestOne(filepath.Join(protoRoot, filepath.FromSlash(rel)))
+				results <- result{rel: rel, digest: digest, err: err}
+			}
+		}()
+	}
 	for _, rel := range files {
-		digest, err := digestOne(filepath.Join(protoRoot, filepath.FromSlash(rel)))
-		if err != nil {
-			return nil, err
+		jobs <- rel
+	}
+	close(jobs)
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+	for result := range results {
+		if result.err != nil {
+			return nil, result.err
 		}
-		out[rel] = digest
+		out[result.rel] = result.digest
 	}
 	return out, nil
 }
@@ -349,4 +380,11 @@ func sortedKeys(m map[string]bool) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

@@ -7,6 +7,7 @@ import (
 	"architecture-cartographer/internal/campaign"
 	"architecture-cartographer/internal/clock"
 	"architecture-cartographer/internal/config"
+	"architecture-cartographer/internal/conflicts"
 	"architecture-cartographer/internal/domains"
 	"architecture-cartographer/internal/module"
 	"architecture-cartographer/internal/suppressions"
@@ -35,7 +36,8 @@ func Modules(db *database.RoutedDB, repoRoot string, cfg config.Config) []module
 	scenarioLocator := domains.NewRepoScenarioLocator(repoRoot)
 	domainsSvc := DomainsService(repoRoot, clk, cfg, resolver)
 	signalsSvc := SignalsService(graphSvc, domainsSvc, cfg)
-	conflictsSvc := ConflictsService(primary, clk, cfg, BoundaryConfig(cfg), analyticsSvc)
+	claimProvider := conflicts.NewFileClaimProvider(scenarioLocator)
+	conflictsSvc := ConflictsService(primary, clk, cfg, BoundaryConfig(cfg), analyticsSvc, claimProvider)
 
 	suppressionProvider := suppressions.NewProvider(scenarioLocator, suppressions.NewFileScanner(), clk)
 	auditSvc := audit.NewService(

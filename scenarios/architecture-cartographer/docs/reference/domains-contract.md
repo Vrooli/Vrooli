@@ -92,5 +92,6 @@ no product domain), and each path's last segment becomes a non-domain name.
 ## Cross-references
 
 - [`../concepts/DOMAINS.md`](../concepts/DOMAINS.md) — the canonical domain map this contract governs
+- [`../../../../docs/reference/intent-alignment.md`](../../../../docs/reference/intent-alignment.md) — the PRD ↔ requirements ↔ domains ↔ code doctrine that consumes the derived domain map for vertical intent checks
 - [`configuration.md`](configuration.md) — cartographer-global tunable levers (ladder trust order, heuristic thresholds)
 - [`../internal/SEAMS.md`](../internal/SEAMS.md) — the `DomainSourceExtractor` seam registry

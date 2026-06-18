@@ -59,6 +59,7 @@ type DetectOrchestrationInput struct {
 	DomainMap       domains.DerivedDomainMap
 	IdempotencyKey  string
 	VerdictProvider VerdictProvider
+	ClaimProvider   ClaimProvider
 	// Suppressions are the active in-repo `// arch:allow` markers for the
 	// scenario; matching conflicts are reported as suppressed-with-reason.
 	Suppressions []suppressions.Marker
@@ -72,22 +73,39 @@ type AnalyticsRecorder interface {
 }
 
 type service struct {
-	repo      Repository
-	detectors *Registry
-	resolvers *ResolverRegistry
-	recorder  AnalyticsRecorder
+	repo          Repository
+	detectors     *Registry
+	resolvers     *ResolverRegistry
+	recorder      AnalyticsRecorder
+	claimProvider ClaimProvider
+}
+
+type ServiceOption func(*service)
+
+func WithClaimProvider(provider ClaimProvider) ServiceOption {
+	return func(s *service) {
+		s.claimProvider = provider
+	}
 }
 
 // NewService constructs the production Service without an analytics
 // recorder; state transitions are silent.
-func NewService(repo Repository, detectors *Registry, resolvers *ResolverRegistry) Service {
-	return &service{repo: repo, detectors: detectors, resolvers: resolvers}
+func NewService(repo Repository, detectors *Registry, resolvers *ResolverRegistry, opts ...ServiceOption) Service {
+	s := &service{repo: repo, detectors: detectors, resolvers: resolvers}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 // NewServiceWithAnalytics constructs the Service with an analytics
 // recorder wired so every state transition emits an event.
-func NewServiceWithAnalytics(repo Repository, detectors *Registry, resolvers *ResolverRegistry, recorder AnalyticsRecorder) Service {
-	return &service{repo: repo, detectors: detectors, resolvers: resolvers, recorder: recorder}
+func NewServiceWithAnalytics(repo Repository, detectors *Registry, resolvers *ResolverRegistry, recorder AnalyticsRecorder, opts ...ServiceOption) Service {
+	s := &service{repo: repo, detectors: detectors, resolvers: resolvers, recorder: recorder}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 var _ Service = (*service)(nil)
@@ -110,11 +128,16 @@ func (s *service) DetectConflicts(ctx context.Context, in DetectOrchestrationInp
 	if s.detectors == nil {
 		return nil, errors.New("no detector registry registered")
 	}
+	claimProvider := in.ClaimProvider
+	if claimProvider == nil {
+		claimProvider = s.claimProvider
+	}
 	conflicts, err := s.detectors.DetectAll(ctx, DetectInput{
 		Scenario:        scenario,
 		Snapshot:        in.Snapshot,
 		DomainMap:       in.DomainMap,
 		VerdictProvider: in.VerdictProvider,
+		ClaimProvider:   claimProvider,
 	})
 	if err != nil {
 		return nil, err

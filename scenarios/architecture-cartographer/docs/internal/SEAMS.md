@@ -186,9 +186,29 @@ and use matrix/trace helpers from the relevant testutil package.
 |---|---|
 | **Seam** | Pluggable conflict-detection plug-in |
 | **Interface** | `api/internal/conflicts/detector.go::Detector` (`Name()`, `Description()`, `EmitsTypes()`, `Class()`, `Detect(ctx, DetectInput) ([]Conflict, error)`). |
-| **Production wiring** | `main.go` registers detectors through `conflicts.NewRegistryWithProfiles(conflicts.DefaultSurfaceProfiles(), ...)`. Current production detectors include `cycle`, `layering`, `naming`, `glossary_drift`, `mislocated_file`, `convergence_drift`, `coupling_smell`, `surface_coherence`, `cross_scenario`, and `domains_doc_parse_warning`; the registry stamps every emitted conflict with the detector's `finding_class` and rejects `unspecified`. Heuristic detector emissions are capped at `warn`. |
+| **Production wiring** | `main.go` registers detectors through `conflicts.NewRegistryWithProfiles(conflicts.DefaultSurfaceProfiles(), ...)`. Current production detectors include `cycle`, `layering`, `naming`, `glossary_drift`, `mislocated_file`, `convergence_drift`, `coupling_smell`, `surface_coherence`, `cross_scenario`, `domains_doc_parse_warning`, and `intent_alignment`; the registry stamps every emitted conflict with the detector's `finding_class` and rejects `unspecified`. Heuristic detector emissions are capped at `warn`. |
 | **Test fake** | `internal/conflicts/mocks::FakeDetector` (canned `[]Conflict` return, recorded inputs). Used to drive the conflicts service against deterministic finding sets without standing up a full graph + manifest fixture. |
 | **Why it exists** | Detectors are the open extension seam for the cartographer — new drift checks must be addable without changing the envelope or the resolution machinery. The registry is the single point that enumerates registered detectors; orchestration logic does not name-check detector types. See `SIGNAL_LADDER.md` for the analogous pattern on the scoring side. |
+
+### ClaimProvider (intent extraction seam)
+
+| | |
+|---|---|
+| **Seam** | Normalized PRD and requirement intent claims for detector consumption. |
+| **Interface** | `api/internal/conflicts/claim_provider.go::ClaimProvider` returns `[]intent.CapabilityClaim` for a scenario. |
+| **Production wiring** | `internal/app/modules.go` wires `conflicts.NewFileClaimProvider(domains.NewRepoScenarioLocator(repoRoot))`; the provider delegates PRD and requirements parsing to `packages/intent-go`, so cartographer does not re-parse those artifacts. |
+| **Test fake** | `conflicts.StaticClaimProvider` returns canned claims and is used by `detectors/intentalignment` tests. |
+| **Why it exists** | Intent alignment needs outcome and requirement claims, but detector code should stay independent of repository layout and extractor details. This seam keeps extraction in `intent-go` and detection in cartographer. |
+
+### Intent Matcher (lexical / semantic strategy seam)
+
+| | |
+|---|---|
+| **Seam** | Adjacent-rung intent matching strategy for the `intent_alignment` detector. |
+| **Interface** | `api/internal/conflicts/detectors/intentalignment/matcher.go::Matcher` compares outcome, requirement, and domain claims and returns normalized `Match` values. |
+| **Production wiring** | `intentalignment.New()` wires `LexicalMatcher`, which implements deterministic Tier 1 glossary-vocabulary matching and emits `intent.vocab_drift` through the detector. |
+| **Test fake** | `intentalignment.NewWithMatcher(...)` accepts any matcher implementation; focused tests exercise the lexical matcher directly. |
+| **Why it exists** | The deterministic spine and lexical matcher are production checks, while embedding and LLM strategies are explicit off-by-default seams. This keeps future semantic coverage work pluggable without changing the conflict envelope or re-parsing PRD, requirements, or DOMAINS. |
 
 ### FindingClass (deterministic vs heuristic gate)
 
@@ -206,7 +226,7 @@ and use matrix/trace helpers from the relevant testutil package.
 |---|---|
 | **Seam** | Per-surface detector selection for API/CLI/UI and language-specific graph evidence. |
 | **Interface** | `api/internal/conflicts/profiles.go::SurfaceProfile` maps `(surface, language)` to detector names; `DefaultSurfaceProfiles()` is the production matrix. |
-| **Production wiring** | The conflicts registry derives active surfaces from graph files/packages plus domain declarations, then runs only detectors selected by the matching profiles plus the universal floor (`cycle`, `glossary_drift`, `naming`, `mislocated_file`). |
+| **Production wiring** | The conflicts registry derives active surfaces from graph files/packages plus domain declarations, then runs only detectors selected by the matching profiles plus the universal floor (`cycle`, `glossary_drift`, `intent_alignment`, `naming`, `mislocated_file`). |
 | **Test fake** | `api/internal/conflicts/profiles_test.go` uses tiny named detectors and synthetic graph/domain inputs to prove profile selection without invoking real detectors. |
 | **Why it exists** | Not every detector is meaningful on every surface. Profiles keep applicability policy centralized, prevent UI-only or CLI-only scenarios from receiving irrelevant API findings, and make future surface-specific detectors addable without scattering surface checks through detector implementations. |
 

@@ -76,6 +76,8 @@ message ProtoMessage {
   string domain = 5;
   repeated ProtoField fields = 6;
   bool is_map_entry = 7;
+  repeated Annotation annotations = 8;
+  bool has_validation_rules = 9;
 }
 
 // ProtoField describes one message field.
@@ -87,6 +89,8 @@ message ProtoField {
   bool repeated = 5;
   bool optional = 6;
   int32 number = 7;
+  repeated Annotation annotations = 8;
+  bool has_validation_rules = 9;
 }
 
 // ProtoImport is an import edge recorded as a fact.

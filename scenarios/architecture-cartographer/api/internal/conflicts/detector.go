@@ -35,6 +35,9 @@ type DetectInput struct {
 	// leave this nil; detectors that do (e.g., mislocated_file) call
 	// it for the chunks they care about.
 	VerdictProvider VerdictProvider
+	// ClaimProvider returns normalized PRD and requirement claims.
+	// Detectors that do not participate in intent alignment may leave this nil.
+	ClaimProvider ClaimProvider
 }
 
 // VerdictProvider is the seam between detectors and the signals

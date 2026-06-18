@@ -698,16 +698,18 @@ func (x *ProtoRpc) GetTransport() TransportKind {
 
 // ProtoMessage describes one message and its fields.
 type ProtoMessage struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	FilePath      string                 `protobuf:"bytes,1,opt,name=file_path,json=filePath,proto3" json:"file_path,omitempty"`
-	Package       string                 `protobuf:"bytes,2,opt,name=package,proto3" json:"package,omitempty"`
-	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	FullName      string                 `protobuf:"bytes,4,opt,name=full_name,json=fullName,proto3" json:"full_name,omitempty"`
-	Domain        string                 `protobuf:"bytes,5,opt,name=domain,proto3" json:"domain,omitempty"`
-	Fields        []*ProtoField          `protobuf:"bytes,6,rep,name=fields,proto3" json:"fields,omitempty"`
-	IsMapEntry    bool                   `protobuf:"varint,7,opt,name=is_map_entry,json=isMapEntry,proto3" json:"is_map_entry,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	FilePath           string                 `protobuf:"bytes,1,opt,name=file_path,json=filePath,proto3" json:"file_path,omitempty"`
+	Package            string                 `protobuf:"bytes,2,opt,name=package,proto3" json:"package,omitempty"`
+	Name               string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	FullName           string                 `protobuf:"bytes,4,opt,name=full_name,json=fullName,proto3" json:"full_name,omitempty"`
+	Domain             string                 `protobuf:"bytes,5,opt,name=domain,proto3" json:"domain,omitempty"`
+	Fields             []*ProtoField          `protobuf:"bytes,6,rep,name=fields,proto3" json:"fields,omitempty"`
+	IsMapEntry         bool                   `protobuf:"varint,7,opt,name=is_map_entry,json=isMapEntry,proto3" json:"is_map_entry,omitempty"`
+	Annotations        []*Annotation          `protobuf:"bytes,8,rep,name=annotations,proto3" json:"annotations,omitempty"`
+	HasValidationRules bool                   `protobuf:"varint,9,opt,name=has_validation_rules,json=hasValidationRules,proto3" json:"has_validation_rules,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ProtoMessage) Reset() {
@@ -789,18 +791,34 @@ func (x *ProtoMessage) GetIsMapEntry() bool {
 	return false
 }
 
+func (x *ProtoMessage) GetAnnotations() []*Annotation {
+	if x != nil {
+		return x.Annotations
+	}
+	return nil
+}
+
+func (x *ProtoMessage) GetHasValidationRules() bool {
+	if x != nil {
+		return x.HasValidationRules
+	}
+	return false
+}
+
 // ProtoField describes one message field.
 type ProtoField struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
-	MessageType   string                 `protobuf:"bytes,3,opt,name=message_type,json=messageType,proto3" json:"message_type,omitempty"`
-	EnumType      string                 `protobuf:"bytes,4,opt,name=enum_type,json=enumType,proto3" json:"enum_type,omitempty"`
-	Repeated      bool                   `protobuf:"varint,5,opt,name=repeated,proto3" json:"repeated,omitempty"`
-	Optional      bool                   `protobuf:"varint,6,opt,name=optional,proto3" json:"optional,omitempty"`
-	Number        int32                  `protobuf:"varint,7,opt,name=number,proto3" json:"number,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Name               string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Type               string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	MessageType        string                 `protobuf:"bytes,3,opt,name=message_type,json=messageType,proto3" json:"message_type,omitempty"`
+	EnumType           string                 `protobuf:"bytes,4,opt,name=enum_type,json=enumType,proto3" json:"enum_type,omitempty"`
+	Repeated           bool                   `protobuf:"varint,5,opt,name=repeated,proto3" json:"repeated,omitempty"`
+	Optional           bool                   `protobuf:"varint,6,opt,name=optional,proto3" json:"optional,omitempty"`
+	Number             int32                  `protobuf:"varint,7,opt,name=number,proto3" json:"number,omitempty"`
+	Annotations        []*Annotation          `protobuf:"bytes,8,rep,name=annotations,proto3" json:"annotations,omitempty"`
+	HasValidationRules bool                   `protobuf:"varint,9,opt,name=has_validation_rules,json=hasValidationRules,proto3" json:"has_validation_rules,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ProtoField) Reset() {
@@ -880,6 +898,20 @@ func (x *ProtoField) GetNumber() int32 {
 		return x.Number
 	}
 	return 0
+}
+
+func (x *ProtoField) GetAnnotations() []*Annotation {
+	if x != nil {
+		return x.Annotations
+	}
+	return nil
+}
+
+func (x *ProtoField) GetHasValidationRules() bool {
+	if x != nil {
+		return x.HasValidationRules
+	}
+	return false
 }
 
 // ProtoImport is an import edge recorded as a fact.
@@ -1337,7 +1369,7 @@ const file_proto_health_v1_shared_surface_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
 	"\x05input\x18\x02 \x01(\tR\x05input\x12\x16\n" +
 	"\x06output\x18\x03 \x01(\tR\x06output\x12J\n" +
-	"\ttransport\x18\x04 \x01(\x0e2,.vrooli.proto_health.v1.shared.TransportKindR\ttransport\"\xf3\x01\n" +
+	"\ttransport\x18\x04 \x01(\x0e2,.vrooli.proto_health.v1.shared.TransportKindR\ttransport\"\xf2\x02\n" +
 	"\fProtoMessage\x12\x1b\n" +
 	"\tfile_path\x18\x01 \x01(\tR\bfilePath\x12\x18\n" +
 	"\apackage\x18\x02 \x01(\tR\apackage\x12\x12\n" +
@@ -1346,7 +1378,9 @@ const file_proto_health_v1_shared_surface_proto_rawDesc = "" +
 	"\x06domain\x18\x05 \x01(\tR\x06domain\x12A\n" +
 	"\x06fields\x18\x06 \x03(\v2).vrooli.proto_health.v1.shared.ProtoFieldR\x06fields\x12 \n" +
 	"\fis_map_entry\x18\a \x01(\bR\n" +
-	"isMapEntry\"\xc4\x01\n" +
+	"isMapEntry\x12K\n" +
+	"\vannotations\x18\b \x03(\v2).vrooli.proto_health.v1.shared.AnnotationR\vannotations\x120\n" +
+	"\x14has_validation_rules\x18\t \x01(\bR\x12hasValidationRules\"\xc3\x02\n" +
 	"\n" +
 	"ProtoField\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
@@ -1355,7 +1389,9 @@ const file_proto_health_v1_shared_surface_proto_rawDesc = "" +
 	"\tenum_type\x18\x04 \x01(\tR\benumType\x12\x1a\n" +
 	"\brepeated\x18\x05 \x01(\bR\brepeated\x12\x1a\n" +
 	"\boptional\x18\x06 \x01(\bR\boptional\x12\x16\n" +
-	"\x06number\x18\a \x01(\x05R\x06number\"\x8a\x03\n" +
+	"\x06number\x18\a \x01(\x05R\x06number\x12K\n" +
+	"\vannotations\x18\b \x03(\v2).vrooli.proto_health.v1.shared.AnnotationR\vannotations\x120\n" +
+	"\x14has_validation_rules\x18\t \x01(\bR\x12hasValidationRules\"\x8a\x03\n" +
 	"\vProtoImport\x12\x1b\n" +
 	"\tfrom_file\x18\x01 \x01(\tR\bfromFile\x12\x17\n" +
 	"\ato_file\x18\x02 \x01(\tR\x06toFile\x12#\n" +
@@ -1475,14 +1511,16 @@ var file_proto_health_v1_shared_surface_proto_depIdxs = []int32{
 	9,  // 10: vrooli.proto_health.v1.shared.ProtoService.rpcs:type_name -> vrooli.proto_health.v1.shared.ProtoRpc
 	4,  // 11: vrooli.proto_health.v1.shared.ProtoRpc.transport:type_name -> vrooli.proto_health.v1.shared.TransportKind
 	11, // 12: vrooli.proto_health.v1.shared.ProtoMessage.fields:type_name -> vrooli.proto_health.v1.shared.ProtoField
-	0,  // 13: vrooli.proto_health.v1.shared.ProtoImport.kind:type_name -> vrooli.proto_health.v1.shared.ImportKind
-	1,  // 14: vrooli.proto_health.v1.shared.RestExceptionPayloadRef.role:type_name -> vrooli.proto_health.v1.shared.RestPayloadRole
-	2,  // 15: vrooli.proto_health.v1.shared.RestExceptionPayloadRef.proof_status:type_name -> vrooli.proto_health.v1.shared.RestPayloadProofStatus
-	16, // [16:16] is the sub-list for method output_type
-	16, // [16:16] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	7,  // 13: vrooli.proto_health.v1.shared.ProtoMessage.annotations:type_name -> vrooli.proto_health.v1.shared.Annotation
+	7,  // 14: vrooli.proto_health.v1.shared.ProtoField.annotations:type_name -> vrooli.proto_health.v1.shared.Annotation
+	0,  // 15: vrooli.proto_health.v1.shared.ProtoImport.kind:type_name -> vrooli.proto_health.v1.shared.ImportKind
+	1,  // 16: vrooli.proto_health.v1.shared.RestExceptionPayloadRef.role:type_name -> vrooli.proto_health.v1.shared.RestPayloadRole
+	2,  // 17: vrooli.proto_health.v1.shared.RestExceptionPayloadRef.proof_status:type_name -> vrooli.proto_health.v1.shared.RestPayloadProofStatus
+	18, // [18:18] is the sub-list for method output_type
+	18, // [18:18] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_proto_health_v1_shared_surface_proto_init() }

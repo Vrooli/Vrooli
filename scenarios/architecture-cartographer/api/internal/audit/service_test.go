@@ -34,6 +34,7 @@ func TestApplyFilters_EmptyFiltersPassesThrough(t *testing.T) {
 }
 
 func TestDecideOutcome_FailsOnAtOrAboveThreshold(t *testing.T) {
+	t.Setenv("INTENT_ALIGNMENT_GATE", "")
 	tests := []struct {
 		name   string
 		in     []conflicts.Conflict
@@ -53,6 +54,30 @@ func TestDecideOutcome_FailsOnAtOrAboveThreshold(t *testing.T) {
 				t.Fatalf("got %s want %s", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestDecideOutcome_IntentAlignmentGate(t *testing.T) {
+	intentFinding := []conflicts.Conflict{mk("intent.req_unowned_domain", conflicts.SeverityError)}
+
+	t.Setenv("INTENT_ALIGNMENT_GATE", "")
+	if got := decideOutcome(intentFinding, conflicts.SeverityError); got != OutcomeClean {
+		t.Fatalf("default advisory intent gate outcome = %s, want clean", got)
+	}
+
+	t.Setenv("INTENT_ALIGNMENT_GATE", "off")
+	if got := decideOutcome(intentFinding, conflicts.SeverityError); got != OutcomeClean {
+		t.Fatalf("off intent gate outcome = %s, want clean", got)
+	}
+
+	t.Setenv("INTENT_ALIGNMENT_GATE", "strict")
+	if got := decideOutcome(intentFinding, conflicts.SeverityError); got != OutcomeFindings {
+		t.Fatalf("strict intent gate outcome = %s, want findings", got)
+	}
+
+	t.Setenv("INTENT_ALIGNMENT_GATE", "invalid")
+	if got := decideOutcome(intentFinding, conflicts.SeverityError); got != OutcomeClean {
+		t.Fatalf("invalid intent gate outcome = %s, want clean", got)
 	}
 }
 
@@ -173,8 +198,8 @@ func TestScoreCategoriesBuildsAdvisoryMatrix(t *testing.T) {
 		},
 	}, "high")
 
-	if len(categories) != 5 {
-		t.Fatalf("category count = %d, want 5", len(categories))
+	if len(categories) != 6 {
+		t.Fatalf("category count = %d, want 6", len(categories))
 	}
 	byKey := map[string]AuditCategory{}
 	for _, category := range categories {
@@ -191,6 +216,9 @@ func TestScoreCategoriesBuildsAdvisoryMatrix(t *testing.T) {
 	}
 	if got := byKey["naming_clarity"]; got.Score >= 1 || len(got.TopItems) != 1 || got.TopItems[0].FindingClass != conflicts.FindingClassHeuristic {
 		t.Fatalf("naming category did not surface heuristic item: %+v", got)
+	}
+	if got := byKey["intent_coverage"]; got.Score != 1 || len(got.TopItems) != 0 {
+		t.Fatalf("intent coverage category should be clean without intent findings: %+v", got)
 	}
 }
 

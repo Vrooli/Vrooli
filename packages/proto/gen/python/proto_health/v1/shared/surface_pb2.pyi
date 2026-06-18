@@ -139,7 +139,7 @@ class ProtoRpc(_message.Message):
     def __init__(self, name: _Optional[str] = ..., input: _Optional[str] = ..., output: _Optional[str] = ..., transport: _Optional[_Union[TransportKind, str]] = ...) -> None: ...
 
 class ProtoMessage(_message.Message):
-    __slots__ = ("file_path", "package", "name", "full_name", "domain", "fields", "is_map_entry")
+    __slots__ = ("file_path", "package", "name", "full_name", "domain", "fields", "is_map_entry", "annotations", "has_validation_rules")
     FILE_PATH_FIELD_NUMBER: _ClassVar[int]
     PACKAGE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
@@ -147,6 +147,8 @@ class ProtoMessage(_message.Message):
     DOMAIN_FIELD_NUMBER: _ClassVar[int]
     FIELDS_FIELD_NUMBER: _ClassVar[int]
     IS_MAP_ENTRY_FIELD_NUMBER: _ClassVar[int]
+    ANNOTATIONS_FIELD_NUMBER: _ClassVar[int]
+    HAS_VALIDATION_RULES_FIELD_NUMBER: _ClassVar[int]
     file_path: str
     package: str
     name: str
@@ -154,10 +156,12 @@ class ProtoMessage(_message.Message):
     domain: str
     fields: _containers.RepeatedCompositeFieldContainer[ProtoField]
     is_map_entry: bool
-    def __init__(self, file_path: _Optional[str] = ..., package: _Optional[str] = ..., name: _Optional[str] = ..., full_name: _Optional[str] = ..., domain: _Optional[str] = ..., fields: _Optional[_Iterable[_Union[ProtoField, _Mapping]]] = ..., is_map_entry: _Optional[bool] = ...) -> None: ...
+    annotations: _containers.RepeatedCompositeFieldContainer[Annotation]
+    has_validation_rules: bool
+    def __init__(self, file_path: _Optional[str] = ..., package: _Optional[str] = ..., name: _Optional[str] = ..., full_name: _Optional[str] = ..., domain: _Optional[str] = ..., fields: _Optional[_Iterable[_Union[ProtoField, _Mapping]]] = ..., is_map_entry: _Optional[bool] = ..., annotations: _Optional[_Iterable[_Union[Annotation, _Mapping]]] = ..., has_validation_rules: _Optional[bool] = ...) -> None: ...
 
 class ProtoField(_message.Message):
-    __slots__ = ("name", "type", "message_type", "enum_type", "repeated", "optional", "number")
+    __slots__ = ("name", "type", "message_type", "enum_type", "repeated", "optional", "number", "annotations", "has_validation_rules")
     NAME_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -165,6 +169,8 @@ class ProtoField(_message.Message):
     REPEATED_FIELD_NUMBER: _ClassVar[int]
     OPTIONAL_FIELD_NUMBER: _ClassVar[int]
     NUMBER_FIELD_NUMBER: _ClassVar[int]
+    ANNOTATIONS_FIELD_NUMBER: _ClassVar[int]
+    HAS_VALIDATION_RULES_FIELD_NUMBER: _ClassVar[int]
     name: str
     type: str
     message_type: str
@@ -172,7 +178,9 @@ class ProtoField(_message.Message):
     repeated: bool
     optional: bool
     number: int
-    def __init__(self, name: _Optional[str] = ..., type: _Optional[str] = ..., message_type: _Optional[str] = ..., enum_type: _Optional[str] = ..., repeated: _Optional[bool] = ..., optional: _Optional[bool] = ..., number: _Optional[int] = ...) -> None: ...
+    annotations: _containers.RepeatedCompositeFieldContainer[Annotation]
+    has_validation_rules: bool
+    def __init__(self, name: _Optional[str] = ..., type: _Optional[str] = ..., message_type: _Optional[str] = ..., enum_type: _Optional[str] = ..., repeated: _Optional[bool] = ..., optional: _Optional[bool] = ..., number: _Optional[int] = ..., annotations: _Optional[_Iterable[_Union[Annotation, _Mapping]]] = ..., has_validation_rules: _Optional[bool] = ...) -> None: ...
 
 class ProtoImport(_message.Message):
     __slots__ = ("from_file", "to_file", "from_scenario", "to_scenario", "from_package", "to_package", "from_version", "to_version", "from_domain", "to_domain", "kind")

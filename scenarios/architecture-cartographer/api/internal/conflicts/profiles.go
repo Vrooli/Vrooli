@@ -28,7 +28,7 @@ type SurfaceProfile struct {
 // keeps cycle, naming, and mislocated_file as the universal floor.
 func DefaultSurfaceProfiles() []SurfaceProfile {
 	return []SurfaceProfile{
-		{Surface: SurfaceAny, Detectors: []string{"cycle", "glossary_drift", "mislocated_file", "naming"}},
+		{Surface: SurfaceAny, Detectors: []string{"cycle", "glossary_drift", "intent_alignment", "mislocated_file", "naming"}},
 		{Surface: SurfaceAPI, Language: graph.LanguageGo, Detectors: []string{
 			"coupling_smell",
 			"cross_scenario",

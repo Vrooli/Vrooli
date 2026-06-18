@@ -3,6 +3,7 @@ package audit
 import (
 	"context"
 	"errors"
+	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -448,6 +449,24 @@ func scoreCategories(coverage CoverageSummary, findings []conflicts.Conflict, au
 			Score:    authorityScore(authorityConfidence),
 			TopItems: topItemsFor(findings, 3, "domain_sparse_warning", "convergence_drift"),
 		},
+		{
+			Key:   "intent_coverage",
+			Label: "Intent coverage",
+			Score: penaltyScore(findings,
+				"intent.req_unowned_domain",
+				"intent.req_transport_owned",
+				"intent.domain_unrequired",
+				"intent.ot_no_domain",
+				"intent.vocab_drift",
+			),
+			TopItems: topItemsFor(findings, 3,
+				"intent.req_unowned_domain",
+				"intent.req_transport_owned",
+				"intent.domain_unrequired",
+				"intent.ot_no_domain",
+				"intent.vocab_drift",
+			),
+		},
 	}
 }
 
@@ -589,8 +608,26 @@ func decideOutcome(in []conflicts.Conflict, failOn conflicts.Severity) Outcome {
 	}
 	for _, c := range in {
 		if c.FindingClass == conflicts.FindingClassDeterministic && severityRank(c.Severity) >= threshold {
+			if isIntentFindingType(c.Type) && intentAlignmentGateMode() != "strict" {
+				continue
+			}
 			return OutcomeFindings
 		}
 	}
 	return OutcomeClean
+}
+
+func intentAlignmentGateMode() string {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("INTENT_ALIGNMENT_GATE"))) {
+	case "strict":
+		return "strict"
+	case "off":
+		return "off"
+	default:
+		return "advisory"
+	}
+}
+
+func isIntentFindingType(code string) bool {
+	return strings.HasPrefix(strings.TrimSpace(code), "intent.")
 }

@@ -11,6 +11,7 @@ import (
 	"architecture-cartographer/internal/conflicts/detectors/cycle"
 	"architecture-cartographer/internal/conflicts/detectors/domainsparsewarning"
 	"architecture-cartographer/internal/conflicts/detectors/glossarydrift"
+	"architecture-cartographer/internal/conflicts/detectors/intentalignment"
 	"architecture-cartographer/internal/conflicts/detectors/layering"
 	"architecture-cartographer/internal/conflicts/detectors/mislocatedfile"
 	"architecture-cartographer/internal/conflicts/detectors/naming"
@@ -25,6 +26,7 @@ func ConflictsService(
 	cfg config.Config,
 	boundaryCfg boundaries.Config,
 	analyticsSvc analytics.Service,
+	claimProvider conflicts.ClaimProvider,
 ) conflicts.Service {
 	return conflicts.NewServiceWithAnalytics(
 		conflicts.NewSQLiteRepository(primary, clk),
@@ -36,6 +38,7 @@ func ConflictsService(
 			cycle.New(),
 			domainsparsewarning.New(),
 			glossarydrift.New(),
+			intentalignment.New(),
 			layering.NewWithStrict(cfg.LayeringStrict),
 			mislocatedfile.New(),
 			naming.NewWithBannedVocabulary(cfg.BannedVocabulary),
@@ -43,5 +46,6 @@ func ConflictsService(
 		),
 		conflicts.NewResolverRegistry(mislocatedresolver.New()),
 		conflicts.NewAnalyticsAdapter(analyticsSvc),
+		conflicts.WithClaimProvider(claimProvider),
 	)
 }

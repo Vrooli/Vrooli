@@ -188,6 +188,24 @@ false positive on `internal/suppressions/marker.go`'s `MarkerToken` const (the
 auditor's `token = "…"` heuristic) — was fixed by renaming the const to
 `MarkerDirective`.
 
+### 2026-06-18 — Intent finding code migration campaign re-baseline
+
+**Symptom:** The intent-alignment rollout renamed business/ref findings to the
+canonical `intent.*` registry and added new intent detector codes. Campaigns
+key reconciliation by `afid`, and `afid` includes the finding code, so existing
+campaigns will see old business codes disappear and new intent codes appear.
+
+**Root cause:** This is intentional greenfield code migration, not a runtime
+compatibility bug. The plan explicitly rejected code-alias shims because aliases
+would keep parser/finding drift alive.
+
+**Decision:** Do not add old-code compatibility aliases. The one open active
+campaign at rollout time (`web-search`, `37e32fca-8c99-43bb-bab1-0704f4c0d3df`)
+was re-audited on 2026-06-18 from
+`scenarios/web-search/coverage/latest/findings.json` after `vrooli scenario test
+web-search`. The reconciled state was 397 total, 339 open, 58 validated, and 172
+regressions. Future campaigns start from the canonical `intent.*` codes.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

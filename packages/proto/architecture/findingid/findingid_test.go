@@ -50,8 +50,8 @@ func TestComputeOrderInsensitiveLocations(t *testing.T) {
 	}
 }
 
-// TestExcludedFieldsDoNotChangeID: severity/message/suggestion/domains are
-// not hash inputs.
+// TestExcludedFieldsDoNotChangeID: severity/message/suggestion/domains/class
+// are not hash inputs.
 func TestExcludedFieldsDoNotChangeID(t *testing.T) {
 	a := finding("s", architecturev1.FindingSource_FINDING_SOURCE_DOCS, "missing_doc", "docs/x.md")
 	b := finding("s", architecturev1.FindingSource_FINDING_SOURCE_DOCS, "missing_doc", "docs/x.md")
@@ -59,6 +59,8 @@ func TestExcludedFieldsDoNotChangeID(t *testing.T) {
 	b.Message = "totally different message"
 	b.Suggestion = "do something else"
 	b.Domains = []string{"docs"}
+	b.FindingClass = architecturev1.FindingClass_FINDING_CLASS_HEURISTIC
+	b.Effort = architecturev1.EffortHint_EFFORT_HINT_LARGE
 	if For(a) != For(b) {
 		t.Fatalf("excluded fields changed ID: %s != %s", For(a), For(b))
 	}

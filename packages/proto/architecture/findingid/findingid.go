@@ -30,9 +30,10 @@ import (
 // Prefix marks an architecture-finding stable ID.
 const Prefix = "afid:"
 
-// Inputs are the frozen hash inputs. Severity, message, suggestion, and
-// domains are EXCLUDED so cosmetic changes never manufacture a false
-// regression (mirrors the cartographer's `csid:` design).
+// Inputs are the frozen hash inputs. Severity, message, suggestion, domains,
+// finding class, and effort are EXCLUDED so cosmetic changes or
+// reclassification never manufacture a false regression (mirrors the
+// cartographer's `csid:` design).
 type Inputs struct {
 	Scenario  string
 	Source    architecturev1.FindingSource
