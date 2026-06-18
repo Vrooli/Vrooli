@@ -12,14 +12,10 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
-	"strings"
 
 	"connectrpc.com/connect"
 
 	"architecture-cartographer/internal/graph"
-
-	"github.com/vrooli/api-core/discovery"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	graphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/typescript-code-graph/v1/graph"
@@ -113,91 +109,27 @@ func (c *Client) Extract(ctx context.Context, scenario string) (graph.RawGraph, 
 	}
 	baseURL, err := c.urls.ResolveScenarioURLDefault(ctx, ScenarioName)
 	if err != nil {
-		return graph.RawGraph{}, classifyResolveError(err)
+		return graph.RawGraph{}, graph.ClassifyResolveError(err, ScenarioName)
 	}
 	rpc := graph_v1connect.NewTypeScriptCodeGraphServiceClient(c.httpClient, baseURL)
 	resp, err := rpc.Extract(ctx, connect.NewRequest(&graphv1.ExtractRequest{
 		ProjectPath: projectPath,
 	}))
 	if err != nil {
-		return graph.RawGraph{}, classifyConnectError(err)
+		return graph.RawGraph{}, graph.ClassifyConnectError(err, ScenarioName)
 	}
 	raw := protoToRawGraph(resp.Msg)
 	// Rebase file paths to scenario-relative (see the matching block in
 	// gocodegraph/client.go for the full rationale — the producer rebases
 	// against the project dir it was given, cartographer needs scenario
 	// dir so RepoPath and DOMAINS.md share one namespace).
-	if subdir := scenarioSubdir(scenario, projectPath); subdir != "" {
+	if subdir := graph.ScenarioSubdir(scenario, projectPath); subdir != "" {
 		for i := range raw.Files {
 			raw.Files[i].Path = subdir + "/" + raw.Files[i].Path
 		}
 	}
 	graph.AssignPackageRepoPaths(raw.Packages, raw.Files)
 	return raw, nil
-}
-
-func scenarioSubdir(scenario, projectPath string) string {
-	marker := "/scenarios/" + scenario + "/"
-	idx := strings.LastIndex(projectPath, marker)
-	if idx < 0 {
-		return ""
-	}
-	return strings.TrimSuffix(projectPath[idx+len(marker):], "/")
-}
-
-// classifyResolveError maps an api-core discovery failure onto the typed
-// graph.IntegrationError kinds cartographer's service understands. A
-// not-running / unreachable producer becomes "scenario_unreachable" so
-// the service can skip this language rather than failing the whole
-// cross-language extract.
-func classifyResolveError(err error) error {
-	kind := "internal"
-	var de *discovery.Error
-	if errors.As(err, &de) {
-		switch de.Kind {
-		case discovery.ErrScenarioNotRunning, discovery.ErrVrooliNotFound, discovery.ErrCommandFailed, discovery.ErrInvalidPort:
-			kind = "scenario_unreachable"
-		case discovery.ErrTimeout:
-			kind = "scenario_timeout"
-		default:
-			kind = "internal"
-		}
-	}
-	return graph.IntegrationError{Kind: kind, Scenario: ScenarioName, Cause: err}
-}
-
-// classifyConnectError maps a connect.Error code to the typed
-// graph.IntegrationError.Kind cartographer's service layer
-// understands. Non-connect errors (notably context.Canceled wrapped
-// before transport, or local marshaling failures) fall through to
-// "internal" so they're at least surfaced consistently.
-func classifyConnectError(err error) error {
-	if err == nil {
-		return nil
-	}
-	kind := "internal"
-	var ce *connect.Error
-	if errors.As(err, &ce) {
-		switch ce.Code() {
-		case connect.CodeUnavailable:
-			kind = "scenario_unreachable"
-		case connect.CodeDeadlineExceeded:
-			kind = "scenario_timeout"
-		case connect.CodeInvalidArgument:
-			kind = "invalid_argument"
-		case connect.CodeNotFound:
-			kind = "not_found"
-		case connect.CodeUnimplemented:
-			kind = "unimplemented"
-		default:
-			kind = "internal"
-		}
-	}
-	return graph.IntegrationError{
-		Kind:     kind,
-		Scenario: ScenarioName,
-		Cause:    err,
-	}
 }
 
 // protoToRawGraph translates the proto envelope into the
@@ -231,7 +163,7 @@ func protoToRawGraph(resp *graphv1.ExtractResponse) graph.RawGraph {
 				Path:      n.GetPath(),
 				PackageID: attrs["package_id"],
 				Language:  graph.LanguageTypeScript,
-				Lines:     atoiAttr(attrs["lines"]),
+				Lines:     graph.ParseNonNegativeIntAttr(attrs["lines"]),
 				IsTest:    attrs["is_test"] == "true",
 			})
 		case commonv1.NodeKind_NODE_KIND_PACKAGE, commonv1.NodeKind_NODE_KIND_MODULE:
@@ -260,23 +192,12 @@ func protoToRawGraph(resp *graphv1.ExtractResponse) graph.RawGraph {
 		out.Imports = append(out.Imports, graph.ImportEdge{
 			From:        e.GetFromNodeId(),
 			ToPackageID: e.GetToNodeId(),
-			SymbolIDs:   splitCSV(attrs["symbol_ids"]),
-			SymbolKinds: splitCSV(attrs["symbol_kinds"]),
+			SymbolIDs:   graph.SplitCSV(attrs["symbol_ids"]),
+			SymbolKinds: graph.SplitCSV(attrs["symbol_kinds"]),
 			TestOnly:    attrs["test_only"] == "true",
 		})
 	}
 	return out
-}
-
-func atoiAttr(s string) int {
-	if s == "" {
-		return 0
-	}
-	n, err := strconv.Atoi(s)
-	if err != nil || n < 0 {
-		return 0
-	}
-	return n
 }
 
 func symbolKind(fallback string, attrs map[string]string) string {
@@ -284,19 +205,4 @@ func symbolKind(fallback string, attrs map[string]string) string {
 		return attrs["kind"]
 	}
 	return fallback
-}
-
-func splitCSV(s string) []string {
-	if s == "" {
-		return nil
-	}
-	parts := strings.Split(s, ",")
-	out := parts[:0]
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			out = append(out, p)
-		}
-	}
-	return out
 }

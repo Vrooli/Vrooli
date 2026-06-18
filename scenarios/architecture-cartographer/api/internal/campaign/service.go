@@ -187,91 +187,19 @@ func (s *service) Reaudit(ctx context.Context, id string, fresh []*architecturev
 		return ReauditResult{}, err
 	}
 
-	// Build the coverage set. Empty ⇒ all sources covered (full-suite).
-	covered := make(map[string]struct{}, len(coveredSources))
-	for _, src := range coveredSources {
-		if src = strings.TrimSpace(src); src != "" {
-			covered[src] = struct{}{}
-		}
-	}
-	isCovered := func(source string) bool {
-		if len(covered) == 0 {
-			return true
-		}
-		_, ok := covered[source]
-		return ok
-	}
-
-	// Index the fresh photograph by canonical afid.
-	freshByID := make(map[string]Finding, len(fresh))
-	for _, pf := range fresh {
-		f := fromProto(c.Scenario, pf)
-		if f.StableID == "" {
-			continue
-		}
-		freshByID[f.StableID] = f
-	}
-	trackedByID := make(map[string]Finding, len(tracked))
-	for _, f := range tracked {
-		trackedByID[f.StableID] = f
-	}
-
+	covered := coveredSourceSet(coveredSources)
+	freshByID := indexFreshFindings(c.Scenario, fresh)
+	trackedByID := indexTrackedFindings(tracked)
 	var result ReauditResult
 
-	// 1. Tracked findings: reconcile against the fresh photograph.
 	for _, f := range tracked {
-		if _, present := freshByID[f.StableID]; present {
-			// Still present. A finding the agent already marked terminal
-			// that reappears is a regression (the fix didn't hold).
-			if f.Status.IsTerminal() {
-				f.Status = StatusDetected
-				f.Regressed = true
-				if err := s.repo.UpsertFinding(ctx, id, f); err != nil {
-					return ReauditResult{}, err
-				}
-				s.record(ctx, c.Scenario, EventFindingRegressed, f.StableID, map[string]any{"reason": "reappeared_after_terminal"})
-				result.Regressions = append(result.Regressions, f)
-			} else {
-				result.StillOpen = append(result.StillOpen, f)
-			}
-			continue
-		}
-		// Absent from the fresh photograph. Only treat absence as evidence of
-		// a fix when this finding's source was actually covered by the audit;
-		// otherwise its phase did not run and we must leave it untouched.
-		if !isCovered(f.Source) {
-			result.NotReaudited = append(result.NotReaudited, f)
-			continue
-		}
-		// Covered and absent → fixed. Validate it (unless it was already
-		// validated/committed).
-		switch f.Status {
-		case StatusValidated, StatusCommitted:
-			// already terminal-and-gone; leave as is
-		default:
-			f.Status = StatusValidated
-			f.Regressed = false
-			if err := s.repo.UpsertFinding(ctx, id, f); err != nil {
-				return ReauditResult{}, err
-			}
-			s.record(ctx, c.Scenario, EventFindingValidated, f.StableID, nil)
-			result.Validated = append(result.Validated, f)
+		if err := s.reconcileTrackedFinding(ctx, id, c.Scenario, f, freshByID, covered, &result); err != nil {
+			return ReauditResult{}, err
 		}
 	}
 
-	// 2. Fresh findings not previously tracked → brand-new, introduced
-	// while the campaign was in flight. Add as detected + flag regression.
-	for sid, f := range freshByID {
-		if _, known := trackedByID[sid]; known {
-			continue
-		}
-		f.Status = StatusDetected
-		f.Regressed = true
-		if err := s.repo.UpsertFinding(ctx, id, f); err != nil {
-			return ReauditResult{}, err
-		}
-		s.record(ctx, c.Scenario, EventFindingRegressed, sid, map[string]any{"reason": "new_during_campaign"})
-		result.Regressions = append(result.Regressions, f)
+	if err := s.ingestNewFreshFindings(ctx, id, c.Scenario, freshByID, trackedByID, &result); err != nil {
+		return ReauditResult{}, err
 	}
 
 	status, err := s.Status(ctx, id)
@@ -280,6 +208,126 @@ func (s *service) Reaudit(ctx context.Context, id string, fresh []*architecturev
 	}
 	result.Status = status
 	return result, nil
+}
+
+func coveredSourceSet(sources []string) map[string]struct{} {
+	covered := make(map[string]struct{}, len(sources))
+	for _, src := range sources {
+		if src = strings.TrimSpace(src); src != "" {
+			covered[src] = struct{}{}
+		}
+	}
+	return covered
+}
+
+func sourceCovered(covered map[string]struct{}, source string) bool {
+	if len(covered) == 0 {
+		return true
+	}
+	_, ok := covered[source]
+	return ok
+}
+
+func indexFreshFindings(scenario string, fresh []*architecturev1.ArchitectureFinding) map[string]Finding {
+	out := make(map[string]Finding, len(fresh))
+	for _, pf := range fresh {
+		f := fromProto(scenario, pf)
+		if f.StableID != "" {
+			out[f.StableID] = f
+		}
+	}
+	return out
+}
+
+func indexTrackedFindings(tracked []Finding) map[string]Finding {
+	out := make(map[string]Finding, len(tracked))
+	for _, f := range tracked {
+		out[f.StableID] = f
+	}
+	return out
+}
+
+func (s *service) reconcileTrackedFinding(
+	ctx context.Context,
+	campaignID string,
+	scenario string,
+	f Finding,
+	freshByID map[string]Finding,
+	covered map[string]struct{},
+	result *ReauditResult,
+) error {
+	if _, present := freshByID[f.StableID]; present {
+		return s.handleStillPresentFinding(ctx, campaignID, scenario, f, result)
+	}
+	if !sourceCovered(covered, f.Source) {
+		result.NotReaudited = append(result.NotReaudited, f)
+		return nil
+	}
+	return s.validateAbsentFinding(ctx, campaignID, scenario, f, result)
+}
+
+func (s *service) handleStillPresentFinding(
+	ctx context.Context,
+	campaignID string,
+	scenario string,
+	f Finding,
+	result *ReauditResult,
+) error {
+	if !f.Status.IsTerminal() {
+		result.StillOpen = append(result.StillOpen, f)
+		return nil
+	}
+	f.Status = StatusDetected
+	f.Regressed = true
+	if err := s.repo.UpsertFinding(ctx, campaignID, f); err != nil {
+		return err
+	}
+	s.record(ctx, scenario, EventFindingRegressed, f.StableID, map[string]any{"reason": "reappeared_after_terminal"})
+	result.Regressions = append(result.Regressions, f)
+	return nil
+}
+
+func (s *service) validateAbsentFinding(
+	ctx context.Context,
+	campaignID string,
+	scenario string,
+	f Finding,
+	result *ReauditResult,
+) error {
+	if f.Status == StatusValidated || f.Status == StatusCommitted {
+		return nil
+	}
+	f.Status = StatusValidated
+	f.Regressed = false
+	if err := s.repo.UpsertFinding(ctx, campaignID, f); err != nil {
+		return err
+	}
+	s.record(ctx, scenario, EventFindingValidated, f.StableID, nil)
+	result.Validated = append(result.Validated, f)
+	return nil
+}
+
+func (s *service) ingestNewFreshFindings(
+	ctx context.Context,
+	campaignID string,
+	scenario string,
+	freshByID map[string]Finding,
+	trackedByID map[string]Finding,
+	result *ReauditResult,
+) error {
+	for sid, f := range freshByID {
+		if _, known := trackedByID[sid]; known {
+			continue
+		}
+		f.Status = StatusDetected
+		f.Regressed = true
+		if err := s.repo.UpsertFinding(ctx, campaignID, f); err != nil {
+			return err
+		}
+		s.record(ctx, scenario, EventFindingRegressed, sid, map[string]any{"reason": "new_during_campaign"})
+		result.Regressions = append(result.Regressions, f)
+	}
+	return nil
 }
 
 func (s *service) Close(ctx context.Context, id string) (Status, error) {

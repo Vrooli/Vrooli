@@ -38,6 +38,23 @@ func ValidateTransitionMatrix[S comparable, E comparable](
 	transition Transition[S, E],
 ) []error {
 	var errs []error
+	errs = append(errs, validateMatrixInputs(statuses, events, transition)...)
+	knownStatuses, statusErrs := indexKnownValues("status", statuses)
+	errs = append(errs, statusErrs...)
+	knownEvents, eventErrs := indexKnownValues("event", events)
+	errs = append(errs, eventErrs...)
+
+	seen, rowErrs := validateMatrixRows(rows, knownStatuses, knownEvents)
+	errs = append(errs, rowErrs...)
+	errs = append(errs, validateMatrixCoverage(statuses, events, seen)...)
+	if len(errs) > 0 || transition == nil {
+		return errs
+	}
+	return append(errs, validateMatrixTransitions(rows, transition)...)
+}
+
+func validateMatrixInputs[S comparable, E comparable](statuses []S, events []E, transition Transition[S, E]) []error {
+	var errs []error
 	if len(statuses) == 0 {
 		errs = append(errs, fmt.Errorf("statuses must not be empty"))
 	}
@@ -47,25 +64,28 @@ func ValidateTransitionMatrix[S comparable, E comparable](
 	if transition == nil {
 		errs = append(errs, fmt.Errorf("transition must not be nil"))
 	}
+	return errs
+}
 
-	knownStatuses := make(map[S]struct{}, len(statuses))
-	for _, status := range statuses {
-		if _, ok := knownStatuses[status]; ok {
-			errs = append(errs, fmt.Errorf("duplicate status %v", status))
+func indexKnownValues[T comparable](name string, values []T) (map[T]struct{}, []error) {
+	errs := []error{}
+	known := make(map[T]struct{}, len(values))
+	for _, value := range values {
+		if _, ok := known[value]; ok {
+			errs = append(errs, fmt.Errorf("duplicate %s %v", name, value))
 			continue
 		}
-		knownStatuses[status] = struct{}{}
+		known[value] = struct{}{}
 	}
+	return known, errs
+}
 
-	knownEvents := make(map[E]struct{}, len(events))
-	for _, event := range events {
-		if _, ok := knownEvents[event]; ok {
-			errs = append(errs, fmt.Errorf("duplicate event %v", event))
-			continue
-		}
-		knownEvents[event] = struct{}{}
-	}
-
+func validateMatrixRows[S comparable, E comparable](
+	rows []MatrixRow[S, E],
+	knownStatuses map[S]struct{},
+	knownEvents map[E]struct{},
+) (map[pair[S, E]]string, []error) {
+	var errs []error
 	seen := make(map[pair[S, E]]string, len(rows))
 	for i, row := range rows {
 		label := row.Name
@@ -89,7 +109,15 @@ func ValidateTransitionMatrix[S comparable, E comparable](
 		}
 		seen[key] = label
 	}
+	return seen, errs
+}
 
+func validateMatrixCoverage[S comparable, E comparable](
+	statuses []S,
+	events []E,
+	seen map[pair[S, E]]string,
+) []error {
+	var errs []error
 	for _, status := range statuses {
 		for _, event := range events {
 			if _, ok := seen[pair[S, E]{state: status, event: event}]; !ok {
@@ -97,10 +125,14 @@ func ValidateTransitionMatrix[S comparable, E comparable](
 			}
 		}
 	}
-	if len(errs) > 0 || transition == nil {
-		return errs
-	}
+	return errs
+}
 
+func validateMatrixTransitions[S comparable, E comparable](
+	rows []MatrixRow[S, E],
+	transition Transition[S, E],
+) []error {
+	var errs []error
 	for i, row := range rows {
 		label := row.Name
 		if label == "" {
