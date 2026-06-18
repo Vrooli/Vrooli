@@ -162,6 +162,29 @@
     "thumbnailAlt": "{{operation}} の結果",
     "tryWorkspace": "ワークスペースを開く"
   },
+  "looks": {
+    "title": "ルック＆スタイル",
+    "description": "再利用できる変換レシピ。フィルム・カメラ・スタイルのルックをワンタップで適用します。フィルムとカメラのルックはプレビューを即時表示し、スタイルのルックはワークスペースで実行します。",
+    "loading": "ルックライブラリを読み込み中…",
+    "error": "ルックライブラリを読み込めませんでした。",
+    "empty": "まだルックがありません。",
+    "preview": "プレビュー",
+    "refresh": "プレビューを更新",
+    "rendering": "生成中…",
+    "noPreview": "プレビューはまだありません",
+    "deferred": "スタイルのステップはワークスペースで描画されます",
+    "builtinBadge": "組み込み",
+    "customBadge": "カスタム",
+    "thumbnailAlt": "{{name}} ルックのプレビュー",
+    "kind": {
+      "style": "スタイル",
+      "film": "フィルム",
+      "camera": "カメラ",
+      "enhance": "強調",
+      "custom": "カスタム",
+      "unspecified": "ルック"
+    }
+  },
   "activity": {
     "description": "進行中および最近の操作。長時間かかるAI処理はページの再読み込みでも続行されます。",
     "thumbnailAlt": "{{operation}} の結果",
@@ -407,6 +430,10 @@
       "image_to_image": {
         "label": "変換",
         "desc": "現在の画像をプロンプトに沿って再構成します。"
+      },
+      "edit_instruct": {
+        "label": "指示で編集",
+        "desc": "自然言語の指示で編集し、それ以外はそのまま保ちます。"
       },
       "inpaint": {
         "label": "インペイント",

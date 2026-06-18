@@ -60,6 +60,32 @@ func TestGeneration_ImageToImageMaterializesInput(t *testing.T) {
 	}
 }
 
+// TestGeneration_EditInstructMaterializesInput proves the instruction-edit op
+// (identity-preserving, prompt-only, no mask) materializes its single input blob
+// and threads the natural-language instruction through to the backend.
+func TestGeneration_EditInstructMaterializesInput(t *testing.T) {
+	fp := &fakeProvider{out: []byte("edited-image")}
+	eng, store, modelID := newTestEngine(t, "edit_instruct", fp)
+	storeInput(t, store, "input/x.png", []byte("source-pixels"))
+
+	ref, err := runJob(t, eng, "edit_instruct", Payload{
+		Operation: "edit_instruct",
+		ModelID:   modelID,
+		InputKey:  "input/x.png",
+		Params:    map[string]string{"prompt": "add a winter coat"},
+	})
+	if err != nil {
+		t.Fatalf("run edit_instruct: %v", err)
+	}
+	if len(fp.lastReq.InputKeys) != 1 || fp.lastReq.InputKeys[0] == "" {
+		t.Fatalf("expected one materialized input path, got %v", fp.lastReq.InputKeys)
+	}
+	if got := fp.lastReq.Params["prompt"]; got != "add a winter coat" {
+		t.Errorf("backend got instruction %q, want %q", got, "add a winter coat")
+	}
+	assertBlob(t, store, ref, "edited-image")
+}
+
 // TestGeneration_InpaintRequiresMask proves the mask input is materialized as the
 // second input for mask-driven ops.
 func TestGeneration_InpaintRequiresMask(t *testing.T) {

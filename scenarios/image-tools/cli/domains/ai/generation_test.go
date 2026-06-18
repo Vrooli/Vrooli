@@ -3,6 +3,8 @@ package ai
 import (
 	"bytes"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sort"
 	"testing"
 
@@ -18,7 +20,7 @@ import (
 // Phase-3 AI op (the headless surface IMG-P0-002/003 require).
 func TestSubmitCommandsCoverP0(t *testing.T) {
 	h := newHandlers(nil) // submitCommands only captures h in closures; not invoked here
-	want := []string{"bg-removal", "denoise", "generate", "img2img", "inpaint", "naturalize", "object-removal", "upscale"}
+	want := []string{"bg-removal", "denoise", "edit", "generate", "img2img", "inpaint", "naturalize", "object-removal", "upscale"}
 	got := make([]string, 0)
 	for _, c := range h.submitCommands() {
 		if c.RunCtx == nil {
@@ -69,6 +71,36 @@ func TestGenerate_SubmitsAsyncJob(t *testing.T) {
 	})
 	if err := cmd.RunCtx(ctx); err != nil {
 		t.Fatalf("generate: %v", err)
+	}
+	if out := buf.String(); !bytes.Contains([]byte(out), []byte("job-9")) {
+		t.Errorf("expected the job id in output, got: %s", out)
+	}
+}
+
+// TestEditInstruct_SubmitsAsyncJob is the IMG-P1-014 integration: the edit
+// command (instruction-edit) takes an input image + a natural-language
+// instruction and submits to the REST edge, reporting the durable job id.
+func TestEditInstruct_SubmitsAsyncJob(t *testing.T) {
+	core := testutil.NewTestApp(t, fakeAIServer(t))
+	h := newHandlers(core)
+	cmd := findCommand(t, h.submitCommands(), "edit")
+
+	input := filepath.Join(t.TempDir(), "photo.png")
+	if err := os.WriteFile(input, []byte("\x89PNG\r\n\x1a\nsource"), 0o600); err != nil {
+		t.Fatalf("write input: %v", err)
+	}
+
+	var buf bytes.Buffer
+	ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{
+		Schema:      cmd.Args,
+		Positionals: map[string]string{"input": input},
+		Flags:       map[string]string{"prompt": "make it look like winter"},
+		Core:        core,
+		Stdout:      &buf,
+		Stderr:      &buf,
+	})
+	if err := cmd.RunCtx(ctx); err != nil {
+		t.Fatalf("edit: %v", err)
 	}
 	if out := buf.String(); !bytes.Contains([]byte(out), []byte("job-9")) {
 		t.Errorf("expected the job id in output, got: %s", out)

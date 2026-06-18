@@ -70,6 +70,8 @@ func (h *handlers) submitCommands() []cliapp.Command {
 		cmd("generate", "text_to_image", "Generate an image from a text prompt", false, false, genFlags()...),
 		cmd("img2img", "image_to_image", "Transform an input image guided by a prompt", true, false,
 			append(genFlags(), cliapp.Flag{Name: "strength", Description: "img2img denoising strength 0..1"})...),
+		cmd("edit", "edit_instruct", "Edit an image from a natural-language instruction (identity-preserving)", true, false,
+			append(genFlags(), cliapp.Flag{Name: "strength", Description: "image-guidance: how faithful to the source (higher = preserve more)"})...),
 		cmd("inpaint", "inpaint", "Regenerate a masked region from a prompt", true, true,
 			append(genFlags(), maskFlag)...),
 		cmd("object-removal", "object_removal", "Remove a masked object and fill the gap", true, true, maskFlag),

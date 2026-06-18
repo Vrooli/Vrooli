@@ -354,6 +354,13 @@ const literalSelectors = {
     clearSelection: "library-clear-selection",
     downloadSelected: "library-download-selected",
   },
+  looks: {
+    root: "looks-root",
+    loading: "looks-loading",
+    error: "looks-error",
+    empty: "looks-empty",
+    grid: "looks-grid",
+  },
   activity: {
     card: "activity-card",
     list: "activity-list",
@@ -698,6 +705,18 @@ const dynamicSelectorDefinitions = {
     select: defineDynamicSelector({
       description: "Library item selection checkbox by 1-based index",
       testIdPattern: "library-select-${index}",
+      params: { index: { type: "number" } },
+    }),
+  },
+  looks: {
+    card: defineDynamicSelector({
+      description: "Look gallery card by 1-based index",
+      testIdPattern: "looks-card-${index}",
+      params: { index: { type: "number" } },
+    }),
+    preview: defineDynamicSelector({
+      description: "Look 'render preview' button by 1-based index",
+      testIdPattern: "looks-preview-${index}",
       params: { index: { type: "number" } },
     }),
   },

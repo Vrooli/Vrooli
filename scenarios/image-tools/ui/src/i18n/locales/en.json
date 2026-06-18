@@ -166,6 +166,29 @@
     "thumbnailAlt": "Result of {{operation}}",
     "tryWorkspace": "Open the workspace"
   },
+  "looks": {
+    "title": "Looks & Styles",
+    "description": "Reusable transformation recipes — apply a film, camera, or style look in one tap. Film and camera looks render a live preview; style looks run in the workspace.",
+    "loading": "Loading the look library…",
+    "error": "Unable to load the look library.",
+    "empty": "No looks yet.",
+    "preview": "Preview",
+    "refresh": "Refresh preview",
+    "rendering": "Rendering…",
+    "noPreview": "No preview yet",
+    "deferred": "Style steps render in the workspace",
+    "builtinBadge": "Built-in",
+    "customBadge": "Custom",
+    "thumbnailAlt": "Preview of the {{name}} look",
+    "kind": {
+      "style": "Style",
+      "film": "Film",
+      "camera": "Camera",
+      "enhance": "Enhance",
+      "custom": "Custom",
+      "unspecified": "Look"
+    }
+  },
   "activity": {
     "description": "Live and recent operations. Long-running AI work survives a page refresh.",
     "thumbnailAlt": "Result of {{operation}}",
@@ -411,6 +434,10 @@
       "image_to_image": {
         "label": "Transform",
         "desc": "Reimagine the current image guided by a prompt."
+      },
+      "edit_instruct": {
+        "label": "Instruct edit",
+        "desc": "Edit with a natural-language instruction; keeps the rest intact."
       },
       "inpaint": {
         "label": "Inpaint",

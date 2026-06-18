@@ -57,6 +57,13 @@ export const makeListAIOperationsResponse = (
         promptDriven: true,
       }),
       makeAIOperationInfo({
+        name: "edit_instruct",
+        category: "generation",
+        summary: "Edit an image from a natural-language instruction (identity-preserving)",
+        requiresImage: true,
+        promptDriven: true,
+      }),
+      makeAIOperationInfo({
         name: "inpaint",
         category: "generation",
         summary: "Regenerate a masked region from a prompt",

@@ -85,6 +85,24 @@ func TestArgBuilders(t *testing.T) {
 			args: mustArgs(t, buildRembg, req("background_removal", []string{"/in.png"}, nil)),
 			want: []string{"i", "-m", "m1", "/in.png", "/out.png"},
 		},
+		{
+			name: "diffusers edit_instruct",
+			args: mustArgs(t, buildDiffusers, req("edit_instruct", []string{"/in.png"}, map[string]string{"prompt": "make it winter", "cfg_scale": "7.5", "strength": "1.5", "seed": "42"})),
+			want: []string{"-m", "image_tools_sidecar.edit_instruct", "--model", "/models/m1", "--image", "/in.png", "--prompt", "make it winter", "--out", "/out.png", "--guidance", "7.5", "--image-guidance", "1.5", "--seed", "42"},
+		},
+		{
+			name: "diffusers edit_instruct needs input",
+			err:  argErr(buildDiffusers, req("edit_instruct", nil, map[string]string{"prompt": "x"})),
+		},
+		{
+			name: "diffusers inpaint via dispatcher",
+			args: mustArgs(t, buildDiffusers, req("inpaint", []string{"/in.png", "/mask.png"}, map[string]string{"prompt": "sky"})),
+			want: []string{"-m", "image_tools_sidecar.inpaint", "--mask", "/mask.png", "--prompt", "sky"},
+		},
+		{
+			name: "diffusers rejects unknown op",
+			err:  argErr(buildDiffusers, req("text_to_image", []string{"/in.png"}, nil)),
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

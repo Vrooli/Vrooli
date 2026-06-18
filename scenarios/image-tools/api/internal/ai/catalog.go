@@ -56,6 +56,7 @@ var catalog = func() map[string]Op {
 	ops := []Op{
 		{Name: "text_to_image", Category: CategoryGeneration, Summary: "Generate an image from a text prompt", PromptDriven: true},
 		{Name: "image_to_image", Category: CategoryGeneration, Summary: "Transform an input image guided by a prompt", RequiresImage: true, PromptDriven: true},
+		{Name: "edit_instruct", Category: CategoryGeneration, Summary: "Edit an image from a natural-language instruction (identity-preserving)", RequiresImage: true, PromptDriven: true},
 		{Name: "inpaint", Category: CategoryGeneration, Summary: "Regenerate a masked region from a prompt", RequiresImage: true, RequiresMask: true, PromptDriven: true},
 		{Name: "object_removal", Category: CategoryGeneration, Summary: "Remove a masked object and fill the gap", RequiresImage: true, RequiresMask: true},
 		{Name: "upscale", Category: CategoryEnhancement, Summary: "Super-resolve / enlarge an image", RequiresImage: true},

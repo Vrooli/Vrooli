@@ -26,6 +26,7 @@ import (
 	analysisH "image-tools/handlers/analysis"
 	healthH "image-tools/handlers/health"
 	jobsH "image-tools/handlers/jobs"
+	looksH "image-tools/handlers/looks"
 	modelsH "image-tools/handlers/models"
 	opsH "image-tools/handlers/ops"
 	localdb "image-tools/internal/database"
@@ -34,6 +35,7 @@ import (
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai"
 	analysisv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/analysis"
 	jobsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/jobs"
+	looksv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/looks"
 	modelsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/models"
 	opsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ops"
 )
@@ -48,6 +50,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, aiH.Endpoints...)
 	out = append(out, analysisH.Endpoints...)
 	out = append(out, jobsH.Endpoints...)
+	out = append(out, looksH.Endpoints...)
 	out = append(out, modelsH.Endpoints...)
 	out = append(out, opsH.Endpoints...)
 	return out
@@ -79,6 +82,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "ai", File: aiv1.File_image_tools_v1_ai_ai_proto},
 		{Module: "analysis", File: analysisv1.File_image_tools_v1_analysis_analysis_proto},
 		{Module: "jobs", File: jobsv1.File_image_tools_v1_jobs_jobs_proto},
+		{Module: "looks", File: looksv1.File_image_tools_v1_looks_looks_proto},
 		{Module: "models", File: modelsv1.File_image_tools_v1_models_models_proto},
 		{Module: "ops", File: opsv1.File_image_tools_v1_ops_ops_proto},
 	}
@@ -98,6 +102,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(aiH.Schema),
 		apidb.SchemaProviderFunc(analysisH.Schema),
 		apidb.SchemaProviderFunc(jobsH.Schema),
+		apidb.SchemaProviderFunc(looksH.Schema),
 		apidb.SchemaProviderFunc(internalmeasures.Schema),
 		apidb.SchemaProviderFunc(modelsH.Schema),
 		apidb.SchemaProviderFunc(opsH.Schema),

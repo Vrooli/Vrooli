@@ -160,6 +160,21 @@ func buildStableDiffusionCpp(req backends.Request, modelDir string) ([]string, e
 	return args, nil
 }
 
+// buildDiffusers dispatches a diffusers python-sidecar invocation by operation:
+// inpaint (masked regenerate) and edit_instruct (whole-image instruction edit)
+// share the diffusers backend but invoke different sidecar modules with
+// different argv shapes.
+func buildDiffusers(req backends.Request, modelDir string) ([]string, error) {
+	switch req.Operation {
+	case "inpaint":
+		return buildDiffusersInpaint(req, modelDir)
+	case "edit_instruct":
+		return buildDiffusersEditInstruct(req, modelDir)
+	default:
+		return nil, fmt.Errorf("diffusers: unsupported operation %q", req.Operation)
+	}
+}
+
 // buildDiffusersInpaint assembles a diffusers python-sidecar inpaint invocation.
 // Shape: python3 -m image_tools_sidecar.inpaint --model <dir> --image <in>
 // --mask <mask> --prompt <p> --out <out>.
@@ -180,6 +195,39 @@ func buildDiffusersInpaint(req backends.Request, modelDir string) ([]string, err
 		"--prompt", strParam(req, "prompt"),
 		"--out", req.Output.LocalPath,
 	}, nil
+}
+
+// buildDiffusersEditInstruct assembles a diffusers instruction-edit invocation
+// (InstructPix2Pix / Qwen-Image-Edit class). The op is identity-preserving and
+// prompt-only: there is no mask, and `prompt` is the natural-language
+// instruction ("make it winter", "add sunglasses"). cfg_scale maps to the text
+// guidance scale; image_guidance (how faithful to the source) defaults inside
+// the sidecar but can be overridden via the `strength` param.
+// Shape: python3 -m image_tools_sidecar.edit_instruct --model <dir> --image <in>
+// --prompt <instruction> --out <out> [--steps n] [--guidance x] [--image-guidance x] [--seed s].
+func buildDiffusersEditInstruct(req backends.Request, modelDir string) ([]string, error) {
+	in, err := in0(req)
+	if err != nil {
+		return nil, err
+	}
+	args := []string{
+		"-m", "image_tools_sidecar.edit_instruct",
+		"--model", modelDir,
+		"--image", in,
+		"--prompt", strParam(req, "prompt"),
+		"--out", req.Output.LocalPath,
+		"--steps", strconv.Itoa(intParam(req, "steps", 20)),
+	}
+	if g := strParam(req, "cfg_scale"); g != "" {
+		args = append(args, "--guidance", g)
+	}
+	if ig := strParam(req, "strength"); ig != "" {
+		args = append(args, "--image-guidance", ig)
+	}
+	if seed := strParam(req, "seed"); seed != "" {
+		args = append(args, "--seed", seed)
+	}
+	return args, nil
 }
 
 // buildIopaint assembles an iopaint object-removal invocation.
@@ -296,7 +344,7 @@ type providerSpec struct {
 func providerSpecs() []providerSpec {
 	return []providerSpec{
 		{name: "stable-diffusion.cpp", program: "sd", ops: []string{"text_to_image", "image_to_image"}, build: buildStableDiffusionCpp, gpuCapable: true},
-		{name: "diffusers", program: "python3", ops: []string{"inpaint"}, build: buildDiffusersInpaint, gpuCapable: true},
+		{name: "diffusers", program: "python3", ops: []string{"inpaint", "edit_instruct"}, build: buildDiffusers, gpuCapable: true},
 		{name: "iopaint", program: "iopaint", ops: []string{"object_removal"}, build: buildIopaint, gpuCapable: true},
 		{name: "realesrgan-ncnn-vulkan", program: "realesrgan-ncnn-vulkan", ops: []string{"upscale"}, build: buildRealesrgan, gpuCapable: true},
 		{name: "rembg", program: "rembg", ops: []string{"background_removal"}, build: buildRembg, gpuCapable: false},

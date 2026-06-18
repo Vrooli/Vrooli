@@ -35,6 +35,7 @@ import (
 	analysisH "image-tools/handlers/analysis"
 	healthH "image-tools/handlers/health"
 	jobsH "image-tools/handlers/jobs"
+	looksH "image-tools/handlers/looks"
 	modelsH "image-tools/handlers/models"
 	opsH "image-tools/handlers/ops"
 
@@ -311,6 +312,7 @@ func main() {
 		aiH.Module(aiEngine, registry, blobStore, jobManager, log.Default()),
 		analysisH.Module(analysisService, jobManager, log.Default()),
 		jobsH.Module(jobManager, log.Default()),
+		looksH.Module(db, blobStore, log.Default()),
 		modelsH.Module(db, registry, probe, installer, jobManager, log.Default()),
 		opsH.Module(blobStore, jobManager, log.Default()),
 	)

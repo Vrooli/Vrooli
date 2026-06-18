@@ -378,6 +378,258 @@
       ]
     },
     {
+      "id": "looks_list",
+      "path": "/vrooli.image_tools.v1.looks.LooksService/ListLooks",
+      "method": "POST",
+      "summary": "List Looks",
+      "description": "Returns the Look/Style library (built-in + custom), optionally filtered by kind, built-ins first.",
+      "category": "looks",
+      "request": {
+        "type": "object",
+        "properties": {
+          "kind": "LookKind (optional filter)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "looks": "array<Look>"
+        }
+      },
+      "examples": [
+        {
+          "name": "List all Looks",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.looks.LooksService/ListLooks -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "looks_get",
+      "path": "/vrooli.image_tools.v1.looks.LooksService/GetLook",
+      "method": "POST",
+      "summary": "Get a Look by id",
+      "description": "Returns one Look (built-in or custom) by id.",
+      "category": "looks",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "look": "Look"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No Look with that id"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get the Noir look",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.looks.LooksService/GetLook -H 'Content-Type: application/json' -d '{\"id\":\"noir\"}'"
+        }
+      ]
+    },
+    {
+      "id": "looks_create",
+      "path": "/vrooli.image_tools.v1.looks.LooksService/CreateLook",
+      "method": "POST",
+      "summary": "Create a custom Look",
+      "description": "Persists a new custom Look. The id is slugified from the name when empty and must not collide with a built-in or existing custom Look.",
+      "category": "looks",
+      "request": {
+        "type": "object",
+        "properties": {
+          "look": "Look (name + steps required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "look": "Look"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing name/steps or an unknown step operation"
+        },
+        {
+          "status": 409,
+          "code": "already_exists",
+          "description": "Id collides with a built-in or existing custom Look"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Create a sepia Look",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.looks.LooksService/CreateLook -H 'Content-Type: application/json' -d '{\"look\":{\"name\":\"Sepia\",\"kind\":\"LOOK_KIND_FILM\",\"steps\":[{\"operation\":\"filter\",\"kind\":\"STEP_KIND_DETERMINISTIC\",\"params\":{\"filter\":\"sepia\"}}]}}'"
+        }
+      ]
+    },
+    {
+      "id": "looks_update",
+      "path": "/vrooli.image_tools.v1.looks.LooksService/UpdateLook",
+      "method": "POST",
+      "summary": "Update a custom Look",
+      "description": "Replaces a custom Look's mutable fields. Built-in Looks are read-only.",
+      "category": "looks",
+      "request": {
+        "type": "object",
+        "properties": {
+          "look": "Look (id required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "look": "Look"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "failed_precondition",
+          "description": "The Look is a read-only built-in"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No custom Look with that id"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Rename a custom Look",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.looks.LooksService/UpdateLook -H 'Content-Type: application/json' -d '{\"look\":{\"id\":\"sepia\",\"name\":\"Warm Sepia\",\"steps\":[{\"operation\":\"filter\",\"kind\":\"STEP_KIND_DETERMINISTIC\",\"params\":{\"filter\":\"sepia\"}}]}}'"
+        }
+      ]
+    },
+    {
+      "id": "looks_delete",
+      "path": "/vrooli.image_tools.v1.looks.LooksService/DeleteLook",
+      "method": "POST",
+      "summary": "Delete a custom Look",
+      "description": "Removes a custom Look. Built-in Looks cannot be deleted.",
+      "category": "looks",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "deleted": "bool"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "failed_precondition",
+          "description": "The Look is a read-only built-in"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No custom Look with that id"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Delete a custom Look",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.looks.LooksService/DeleteLook -H 'Content-Type: application/json' -d '{\"id\":\"sepia\"}'"
+        }
+      ]
+    },
+    {
+      "id": "looks_compile",
+      "path": "/vrooli.image_tools.v1.looks.LooksService/CompileLook",
+      "method": "POST",
+      "summary": "Compile a Look into request shapes",
+      "description": "Resolves a Look + subject/prompt into the ordered concrete op/AI request shapes (prompt template filled, params merged). The compose-seam; executes nothing.",
+      "category": "looks",
+      "request": {
+        "type": "object",
+        "properties": {
+          "has_input": "bool",
+          "look_id": "string",
+          "prompt": "string",
+          "subject": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "primary_prompt": "string",
+          "requires_image": "bool",
+          "requires_mask": "bool",
+          "steps": "array<CompiledStep>",
+          "warnings": "array<string>"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No Look with that id"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Compile the Anime look",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.looks.LooksService/CompileLook -H 'Content-Type: application/json' -d '{\"look_id\":\"anime\",\"subject\":\"a golden retriever\",\"has_input\":true}'"
+        }
+      ]
+    },
+    {
+      "id": "looks_render_preview",
+      "path": "/vrooli.image_tools.v1.looks.LooksService/RenderPreview",
+      "method": "POST",
+      "summary": "Render a Look's preview thumbnail",
+      "description": "Applies the Look's deterministic step chain to a built-in reference image, stores the preview as a blob, and (for custom Looks) records its thumbnail_ref. AI steps are deferred and reported.",
+      "category": "looks",
+      "request": {
+        "type": "object",
+        "properties": {
+          "look_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "deferred_steps": "array<string>",
+          "thumbnail_ref": "string (blob key)"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No Look with that id"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "Preview storage is not configured"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Preview the Polaroid look",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.looks.LooksService/RenderPreview -H 'Content-Type: application/json' -d '{\"look_id\":\"polaroid-600\"}'"
+        }
+      ]
+    },
+    {
       "id": "models_list",
       "path": "/vrooli.image_tools.v1.models.ModelsService/ListModels",
       "method": "POST",

@@ -178,6 +178,29 @@ export const strings = {
     thumbnailAlt: "library.thumbnailAlt",
     tryWorkspace: "library.tryWorkspace",
   },
+  looks: {
+    title: "looks.title",
+    description: "looks.description",
+    loading: "looks.loading",
+    error: "looks.error",
+    empty: "looks.empty",
+    preview: "looks.preview",
+    refresh: "looks.refresh",
+    rendering: "looks.rendering",
+    noPreview: "looks.noPreview",
+    deferred: "looks.deferred",
+    builtinBadge: "looks.builtinBadge",
+    customBadge: "looks.customBadge",
+    thumbnailAlt: "looks.thumbnailAlt",
+    kind: {
+      style: "looks.kind.style",
+      film: "looks.kind.film",
+      camera: "looks.kind.camera",
+      enhance: "looks.kind.enhance",
+      custom: "looks.kind.custom",
+      unspecified: "looks.kind.unspecified",
+    },
+  },
   activity: {
     description: "activity.description",
     thumbnailAlt: "activity.thumbnailAlt",
@@ -423,6 +446,10 @@ export const strings = {
       image_to_image: {
         label: "workspace.createOp.image_to_image.label",
         desc: "workspace.createOp.image_to_image.desc",
+      },
+      edit_instruct: {
+        label: "workspace.createOp.edit_instruct.label",
+        desc: "workspace.createOp.edit_instruct.desc",
       },
       inpaint: {
         label: "workspace.createOp.inpaint.label",

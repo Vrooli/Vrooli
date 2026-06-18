@@ -1,4 +1,4 @@
-import { ImagePlus, Replace, Stamp, Eraser, type LucideIcon } from "lucide-react";
+import { ImagePlus, Replace, Stamp, Eraser, Wand, type LucideIcon } from "lucide-react";
 
 import { strings } from "../../consts/strings";
 
@@ -28,6 +28,11 @@ export const CREATE_CATALOG: Readonly<Record<string, CreateOpPresentation>> = {
     labelKey: strings.workspace.createOp.image_to_image.label,
     descKey: strings.workspace.createOp.image_to_image.desc,
     Icon: Replace,
+  },
+  edit_instruct: {
+    labelKey: strings.workspace.createOp.edit_instruct.label,
+    descKey: strings.workspace.createOp.edit_instruct.desc,
+    Icon: Wand,
   },
   inpaint: {
     labelKey: strings.workspace.createOp.inpaint.label,

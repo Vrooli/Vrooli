@@ -73,6 +73,9 @@ describe("CreatePanel", () => {
     expect(
       screen.getByTestId(selectors.workspace.createAction({ name: "inpaint" })),
     ).toBeInTheDocument();
+    expect(
+      screen.getByTestId(selectors.workspace.createAction({ name: "edit_instruct" })),
+    ).toBeInTheDocument();
     expect(screen.getByTestId(selectors.workspace.create.prompt)).toBeInTheDocument();
   });
 
