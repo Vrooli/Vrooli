@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+
+const listGraphSnapshots = vi.fn().mockResolvedValue({ snapshots: [], nextPageToken: "" });
 
 vi.mock("../api/graph", () => ({
   graphClient: {
-    listGraphSnapshots: vi.fn().mockResolvedValue({ snapshots: [], nextPageToken: "" }),
+    listGraphSnapshots,
     extractGraph: vi.fn(),
   },
 }));
@@ -30,7 +32,10 @@ describe("OverviewPage", () => {
     expect(
       screen.getByRole("link", { name: strings.pages.overview.startExtraction }),
     ).toHaveAttribute("href", "/targets/new");
-    // Empty state inside the snapshots panel confirms the query ran.
+    expect(listGraphSnapshots).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: strings.pages.overview.loadSnapshots }));
+    // Empty state inside the snapshots panel confirms the query ran after the
+    // user requested the live panel.
     await waitFor(() =>
       expect(
         screen.getByTestId(selectors.features.targets.activeSnapshots.empty),

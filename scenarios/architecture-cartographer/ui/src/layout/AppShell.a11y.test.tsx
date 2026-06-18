@@ -5,7 +5,7 @@
  * their own a11y tests.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 
 import { expectNoA11yViolations, renderWithProviders } from "../test-utils";
 import { selectors } from "../consts/selectors";
@@ -40,9 +40,11 @@ describe("AppShell accessibility", () => {
       <TestAppRouter initialEntries={["/"]} />,
       { withoutRouter: true },
     );
-    // Wait for the overview's snapshot query to settle into its empty
-    // state so axe scans a stable DOM. Without this, useQuery's resolution
-    // races the test teardown and surfaces as an unwrapped-act warning.
+    // Load the overview's live snapshot panel explicitly, then wait for the
+    // query to settle so axe scans a stable DOM. Without this, useQuery's
+    // resolution races the test teardown and surfaces as an unwrapped-act
+    // warning.
+    fireEvent.click(screen.getByRole("button", { name: "Load snapshots" }));
     await waitFor(() => {
       expect(
         screen.getByTestId(selectors.features.targets.activeSnapshots.empty),

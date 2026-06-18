@@ -18,8 +18,6 @@ package gocodegraph
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"net/http"
 
 	"connectrpc.com/connect"
@@ -50,7 +48,7 @@ type URLResolver interface {
 // its Go project (a directory containing go.mod). found == false means
 // the scenario has no Go project; the adapter then contributes nothing
 // instead of calling the producer.
-type ProjectPathFn func(scenarioName string) (path string, found bool, err error)
+type ProjectPathFn = graph.ProjectPathFn
 
 // Config wires a Client. URLResolver and ProjectPath are required in
 // production; HTTPClient defaults to http.DefaultClient.
@@ -97,49 +95,24 @@ func (c *Client) SupportedLanguages() []graph.Language {
 // error). Discovery and Connect failures are classified into
 // graph.IntegrationError.
 func (c *Client) Extract(ctx context.Context, scenario string) (graph.RawGraph, error) {
-	if c.projectOf == nil || c.urls == nil {
-		return graph.RawGraph{}, graph.IntegrationError{
-			Kind:     "internal",
-			Scenario: ScenarioName,
-			Cause:    errors.New("gocodegraph adapter not fully configured (missing URLResolver or ProjectPath)"),
-		}
-	}
-	projectPath, found, err := c.projectOf(scenario)
-	if err != nil {
-		return graph.RawGraph{}, graph.IntegrationError{
-			Kind:     "internal",
-			Scenario: ScenarioName,
-			Cause:    fmt.Errorf("resolve Go project path for %q: %w", scenario, err),
-		}
-	}
-	if !found {
-		// Scenario has no Go project; contribute nothing.
-		return graph.RawGraph{}, nil
-	}
-	baseURL, err := c.urls.ResolveScenarioURLDefault(ctx, ScenarioName)
-	if err != nil {
-		return graph.RawGraph{}, graph.ClassifyResolveError(err, ScenarioName)
-	}
-	rpc := graph_v1connect.NewGoCodeGraphServiceClient(c.httpClient, baseURL)
-	resp, err := rpc.Extract(ctx, connect.NewRequest(&graphv1.ExtractRequest{
-		ModulePath: projectPath,
-	}))
-	if err != nil {
-		return graph.RawGraph{}, graph.ClassifyConnectError(err, ScenarioName)
-	}
-	raw := protoToRawGraph(resp.Msg)
-	// go-code-graph rebases file paths relative to the project directory
-	// it was pointed at (api/), but cartographer's domain map is
-	// scenario-rooted (api/internal/graph/, not internal/graph/). Restore
-	// the scenario-relative subdir prefix so RepoPath derivation and
-	// DOMAINS.md matching share one namespace.
-	if subdir := graph.ScenarioSubdir(scenario, projectPath); subdir != "" {
-		for i := range raw.Files {
-			raw.Files[i].Path = subdir + "/" + raw.Files[i].Path
-		}
-	}
-	graph.AssignPackageRepoPaths(raw.Packages, raw.Files)
-	return raw, nil
+	return graph.ExtractFromProject(
+		ctx,
+		c.urls,
+		c.projectOf,
+		scenario,
+		ScenarioName,
+		"go",
+		func(ctx context.Context, baseURL string, projectPath string) (graph.RawGraph, error) {
+			rpc := graph_v1connect.NewGoCodeGraphServiceClient(c.httpClient, baseURL)
+			resp, err := rpc.Extract(ctx, connect.NewRequest(&graphv1.ExtractRequest{
+				ModulePath: projectPath,
+			}))
+			if err != nil {
+				return graph.RawGraph{}, graph.ClassifyConnectError(err, ScenarioName)
+			}
+			return protoToRawGraph(resp.Msg), nil
+		},
+	)
 }
 
 // protoToRawGraph translates the proto envelope into the
@@ -183,14 +156,7 @@ func protoToRawGraph(resp *graphv1.ExtractResponse) graph.RawGraph {
 		attrs := n.GetAttributes()
 		switch n.GetKind() {
 		case commonv1.NodeKind_NODE_KIND_FILE:
-			out.Files = append(out.Files, graph.FileNode{
-				ID:        n.GetId(),
-				Path:      n.GetPath(),
-				PackageID: attrs["package_id"],
-				Language:  graph.LanguageGo,
-				Lines:     graph.ParseNonNegativeIntAttr(attrs["lines"]),
-				IsTest:    attrs["is_test"] == "true",
-			})
+			out.Files = append(out.Files, graph.FileNodeFromProto(n, graph.LanguageGo))
 		case commonv1.NodeKind_NODE_KIND_PACKAGE:
 			// Go-specific symbol kinds (go_type, go_func, …) ride
 			// under NODE_KIND_PACKAGE with attributes["kind"] set;
@@ -231,13 +197,7 @@ func protoToRawGraph(resp *graphv1.ExtractResponse) graph.RawGraph {
 		if e.GetKind() != commonv1.EdgeKind_EDGE_KIND_IMPORT {
 			continue
 		}
-		out.Imports = append(out.Imports, graph.ImportEdge{
-			From:        e.GetFromNodeId(),
-			ToPackageID: e.GetToNodeId(),
-			SymbolIDs:   graph.SplitCSV(e.GetAttributes()["symbol_ids"]),
-			SymbolKinds: graph.SplitCSV(e.GetAttributes()["symbol_kinds"]),
-			TestOnly:    e.GetAttributes()["test_only"] == "true",
-		})
+		out.Imports = append(out.Imports, graph.ImportEdgeFromProto(e))
 	}
 	return out
 }

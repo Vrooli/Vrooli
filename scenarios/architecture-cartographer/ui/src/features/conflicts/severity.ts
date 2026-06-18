@@ -1,4 +1,4 @@
-import { Severity } from "@vrooli/proto-types/architecture-cartographer/v1/conflicts/conflicts_pb";
+import { Severity } from "@vrooli/proto-types/architecture-cartographer/v1/shared/shared_pb";
 
 import type { SeverityLevel } from "../../components/SeverityBadge";
 

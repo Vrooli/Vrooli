@@ -12,7 +12,7 @@ import (
 
 	auditv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/audit"
 	auditconnect "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/audit/audit_v1connect"
-	conflictsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/conflicts"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/shared"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -244,18 +244,18 @@ func exitCodeFor(o auditv1.AuditOutcome) int {
 	}
 }
 
-func parseFailOn(in string) (conflictsv1.Severity, bool) {
+func parseFailOn(in string) (sharedv1.Severity, bool) {
 	switch in {
 	case "", "warn":
-		return conflictsv1.Severity_SEVERITY_WARN, true
+		return sharedv1.Severity_SEVERITY_WARN, true
 	case "info":
-		return conflictsv1.Severity_SEVERITY_INFO, true
+		return sharedv1.Severity_SEVERITY_INFO, true
 	case "error":
-		return conflictsv1.Severity_SEVERITY_ERROR, true
+		return sharedv1.Severity_SEVERITY_ERROR, true
 	case "blocker":
-		return conflictsv1.Severity_SEVERITY_BLOCKER, true
+		return sharedv1.Severity_SEVERITY_BLOCKER, true
 	default:
-		return conflictsv1.Severity_SEVERITY_UNSPECIFIED, false
+		return sharedv1.Severity_SEVERITY_UNSPECIFIED, false
 	}
 }
 
@@ -366,15 +366,15 @@ func outcomeName(o auditv1.AuditOutcome) string {
 	}
 }
 
-func severityName(s conflictsv1.Severity) string {
+func severityName(s sharedv1.Severity) string {
 	switch s {
-	case conflictsv1.Severity_SEVERITY_BLOCKER:
+	case sharedv1.Severity_SEVERITY_BLOCKER:
 		return "blocker"
-	case conflictsv1.Severity_SEVERITY_ERROR:
+	case sharedv1.Severity_SEVERITY_ERROR:
 		return "error"
-	case conflictsv1.Severity_SEVERITY_WARN:
+	case sharedv1.Severity_SEVERITY_WARN:
 		return "warn"
-	case conflictsv1.Severity_SEVERITY_INFO:
+	case sharedv1.Severity_SEVERITY_INFO:
 		return "info"
 	default:
 		return "unspecified"

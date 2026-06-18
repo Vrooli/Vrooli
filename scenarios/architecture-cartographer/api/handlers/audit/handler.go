@@ -17,7 +17,7 @@ import (
 	repocontract "github.com/vrooli/repo-contract-go"
 	auditv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/audit"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/audit/audit_v1connect"
-	conflictsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/conflicts"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/shared"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
@@ -117,33 +117,33 @@ func (h *Handler) ValidateScenario(ctx context.Context, req *connect.Request[sce
 	return connect.NewResponse(resp), nil
 }
 
-func severityFromProto(s conflictsv1.Severity) conflicts.Severity {
+func severityFromProto(s sharedv1.Severity) conflicts.Severity {
 	switch s {
-	case conflictsv1.Severity_SEVERITY_INFO:
+	case sharedv1.Severity_SEVERITY_INFO:
 		return conflicts.SeverityInfo
-	case conflictsv1.Severity_SEVERITY_WARN:
+	case sharedv1.Severity_SEVERITY_WARN:
 		return conflicts.SeverityWarn
-	case conflictsv1.Severity_SEVERITY_ERROR:
+	case sharedv1.Severity_SEVERITY_ERROR:
 		return conflicts.SeverityError
-	case conflictsv1.Severity_SEVERITY_BLOCKER:
+	case sharedv1.Severity_SEVERITY_BLOCKER:
 		return conflicts.SeverityBlocker
 	default:
 		return conflicts.SeverityUnspecified
 	}
 }
 
-func severityToProto(s conflicts.Severity) conflictsv1.Severity {
+func severityToProto(s conflicts.Severity) sharedv1.Severity {
 	switch s {
 	case conflicts.SeverityInfo:
-		return conflictsv1.Severity_SEVERITY_INFO
+		return sharedv1.Severity_SEVERITY_INFO
 	case conflicts.SeverityWarn:
-		return conflictsv1.Severity_SEVERITY_WARN
+		return sharedv1.Severity_SEVERITY_WARN
 	case conflicts.SeverityError:
-		return conflictsv1.Severity_SEVERITY_ERROR
+		return sharedv1.Severity_SEVERITY_ERROR
 	case conflicts.SeverityBlocker:
-		return conflictsv1.Severity_SEVERITY_BLOCKER
+		return sharedv1.Severity_SEVERITY_BLOCKER
 	default:
-		return conflictsv1.Severity_SEVERITY_UNSPECIFIED
+		return sharedv1.Severity_SEVERITY_UNSPECIFIED
 	}
 }
 

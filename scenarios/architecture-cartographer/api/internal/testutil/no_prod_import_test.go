@@ -1,7 +1,6 @@
 package testutil_test
 
 import (
-	"bufio"
 	"go/parser"
 	"go/token"
 	"os"
@@ -34,20 +33,8 @@ func TestNoProductionImports(t *testing.T) {
 	violations := []string{}
 
 	walk(t, root, func(path string) {
-		if !strings.HasSuffix(path, ".go") {
-			return
-		}
-		if strings.HasSuffix(path, "_test.go") {
-			return
-		}
 		rel := strings.TrimPrefix(path, root)
-		if strings.Contains(rel, "/vendor/") {
-			return
-		}
-		if isInMocksDir(rel) {
-			return
-		}
-		if isInGeneratedDir(rel) {
+		if shouldSkipProductionImportCheck(rel) {
 			return
 		}
 
@@ -72,25 +59,33 @@ func TestNoProductionImports(t *testing.T) {
 	}
 }
 
+func shouldSkipProductionImportCheck(rel string) bool {
+	if !strings.HasSuffix(rel, ".go") {
+		return true
+	}
+	if strings.HasSuffix(rel, "_test.go") {
+		return true
+	}
+	if strings.Contains(filepath.ToSlash(rel), "/vendor/") {
+		return true
+	}
+	return isInDir(rel, "mocks") || isInDir(rel, "generated")
+}
+
 // readModuleName returns the module path declared in the api root's
 // go.mod. The walker is at ../../go.mod relative to this test file
 // (api/internal/testutil/ is two levels deep).
 func readModuleName(t *testing.T) string {
 	t.Helper()
-	f, err := os.Open(filepath.Join("..", "..", "go.mod"))
+	data, err := os.ReadFile(filepath.Join("..", "..", "go.mod"))
 	if err != nil {
-		t.Fatalf("open go.mod: %v", err)
+		t.Fatalf("read go.mod: %v", err)
 	}
-	defer f.Close()
-	sc := bufio.NewScanner(f)
-	for sc.Scan() {
-		line := strings.TrimSpace(sc.Text())
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
 		if rest, ok := strings.CutPrefix(line, "module "); ok {
 			return strings.TrimSpace(rest)
 		}
-	}
-	if err := sc.Err(); err != nil {
-		t.Fatalf("scan go.mod: %v", err)
 	}
 	t.Fatal("module directive not found in go.mod")
 	return ""
@@ -128,13 +123,7 @@ func walk(t *testing.T, root string, fn func(path string)) {
 // from the testutil-import rule because they ARE test scaffolding,
 // just sharing-shape rather than _test.go-shape.
 func isInMocksDir(rel string) bool {
-	parts := strings.Split(filepath.ToSlash(rel), "/")
-	for _, p := range parts[:len(parts)-1] {
-		if p == "mocks" {
-			return true
-		}
-	}
-	return false
+	return isInDir(rel, "mocks")
 }
 
 // isInGeneratedDir reports whether path lives inside a `generated/`
@@ -146,9 +135,13 @@ func isInMocksDir(rel string) bool {
 // suffixes by convention, so this directory-shape check is the cleanest
 // way to express the exemption.
 func isInGeneratedDir(rel string) bool {
+	return isInDir(rel, "generated")
+}
+
+func isInDir(rel, dir string) bool {
 	parts := strings.Split(filepath.ToSlash(rel), "/")
 	for _, p := range parts[:len(parts)-1] {
-		if p == "generated" {
+		if p == dir {
 			return true
 		}
 	}

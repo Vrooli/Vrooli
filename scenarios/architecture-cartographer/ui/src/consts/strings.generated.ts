@@ -107,6 +107,8 @@ export const strings = {
       noActiveSnapshots: "pages.overview.noActiveSnapshots",
       loadingSnapshots: "pages.overview.loadingSnapshots",
       snapshotsError: "pages.overview.snapshotsError",
+      loadSnapshots: "pages.overview.loadSnapshots",
+      checkHealth: "pages.overview.checkHealth",
       startExtraction: "pages.overview.startExtraction",
     },
     newTarget: {

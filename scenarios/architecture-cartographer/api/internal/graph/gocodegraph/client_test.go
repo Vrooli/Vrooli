@@ -41,28 +41,24 @@ func (f failingResolver) ResolveScenarioURLDefault(context.Context, string) (str
 	return "", f.err
 }
 
-// fakeService is a programmable GoCodeGraphServiceHandler used by the
-// in-process Connect server tests.
+type extractFunc func(context.Context, *connect.Request[graphv1.ExtractRequest]) (*connect.Response[graphv1.ExtractResponse], error)
+
 type fakeService struct {
 	graph_v1connect.UnimplementedGoCodeGraphServiceHandler
-
-	extractFn func(ctx context.Context, req *connect.Request[graphv1.ExtractRequest]) (*connect.Response[graphv1.ExtractResponse], error)
+	extract extractFunc
 }
 
-func (f *fakeService) Extract(ctx context.Context, req *connect.Request[graphv1.ExtractRequest]) (*connect.Response[graphv1.ExtractResponse], error) {
-	if f.extractFn != nil {
-		return f.extractFn(ctx, req)
+func (f fakeService) Extract(ctx context.Context, req *connect.Request[graphv1.ExtractRequest]) (*connect.Response[graphv1.ExtractResponse], error) {
+	if f.extract == nil {
+		return connect.NewResponse(&graphv1.ExtractResponse{}), nil
 	}
-	return connect.NewResponse(&graphv1.ExtractResponse{}), nil
+	return f.extract(ctx, req)
 }
 
-// startServer spins up an httptest server mounting the fakeService on
-// the generated Connect handler path. Returns the base URL; cleanup
-// is registered via t.Cleanup.
-func startServer(t *testing.T, svc *fakeService) string {
+func startServer(t *testing.T, extract extractFunc) string {
 	t.Helper()
 	mux := http.NewServeMux()
-	path, handler := graph_v1connect.NewGoCodeGraphServiceHandler(svc)
+	path, handler := graph_v1connect.NewGoCodeGraphServiceHandler(fakeService{extract: extract})
 	mux.Handle(path, handler)
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
@@ -86,16 +82,7 @@ func TestClient_DiscoveryUnreachableReturnsScenarioUnreachable(t *testing.T) {
 		ProjectPath: passthroughProject,
 	})
 	_, err := c.Extract(context.Background(), "demo")
-	var ie graph.IntegrationError
-	if !errors.As(err, &ie) {
-		t.Fatalf("want IntegrationError, got %v", err)
-	}
-	if ie.Kind != "scenario_unreachable" {
-		t.Fatalf("Kind=%q want scenario_unreachable", ie.Kind)
-	}
-	if ie.Scenario != gocodegraph.ScenarioName {
-		t.Fatalf("Scenario=%q", ie.Scenario)
-	}
+	assertIntegrationError(t, err, "scenario_unreachable")
 }
 
 func TestClient_NoGoProject_EmptyGraph(t *testing.T) {
@@ -113,67 +100,89 @@ func TestClient_NoGoProject_EmptyGraph(t *testing.T) {
 }
 
 func TestClient_Extract_HappyPath(t *testing.T) {
-	svc := &fakeService{
-		extractFn: func(_ context.Context, req *connect.Request[graphv1.ExtractRequest]) (*connect.Response[graphv1.ExtractResponse], error) {
+	c := newClient(startServer(t,
+		func(_ context.Context, req *connect.Request[graphv1.ExtractRequest]) (*connect.Response[graphv1.ExtractResponse], error) {
 			if got := req.Msg.GetModulePath(); got != "demo" {
 				t.Fatalf("ModulePath=%q want demo", got)
 			}
-			return connect.NewResponse(&graphv1.ExtractResponse{
-				Graph: &commonv1.CodeGraph{
-					Nodes: []*commonv1.CodeGraphNode{
-						{
-							Id:   "package:example.com/foo",
-							Kind: commonv1.NodeKind_NODE_KIND_PACKAGE,
-							Name: "foo",
-							Path: "example.com/foo",
-							Attributes: map[string]string{
-								"language":    "go",
-								"import_path": "example.com/foo",
-							},
-						},
-						{
-							Id:   "file:foo/a.go",
-							Kind: commonv1.NodeKind_NODE_KIND_FILE,
-							Name: "a.go",
-							Path: "foo/a.go",
-							Attributes: map[string]string{
-								"language":   "go",
-								"package_id": "package:example.com/foo",
-							},
-						},
-						{
-							Id:   "go_func:package:example.com/foo:Bar",
-							Kind: commonv1.NodeKind_NODE_KIND_PACKAGE,
-							Name: "Bar",
-							Path: "foo/a.go",
-							Attributes: map[string]string{
-								"language":   "go",
-								"package_id": "package:example.com/foo",
-								"file_id":    "file:foo/a.go",
-								"kind":       "go_func",
-								"exported":   "true",
-							},
-						},
-					},
-					Edges: []*commonv1.CodeGraphEdge{
-						{
-							Id:         "import:package:example.com/foo->package:example.com/bar",
-							Kind:       commonv1.EdgeKind_EDGE_KIND_IMPORT,
-							FromNodeId: "package:example.com/foo",
-							ToNodeId:   "package:example.com/bar",
-						},
-					},
-				},
-				ExtractionMs: 17,
-			}), nil
+			return connect.NewResponse(goExtractResponse()), nil
 		},
-	}
-	c := newClient(startServer(t, svc))
+	))
 
 	raw, err := c.Extract(context.Background(), "demo")
 	if err != nil {
 		t.Fatalf("Extract: %v", err)
 	}
+	assertHappyRawGraph(t, raw)
+}
+
+func goExtractResponse() *graphv1.ExtractResponse {
+	return &graphv1.ExtractResponse{
+		Graph: &commonv1.CodeGraph{
+			Nodes: []*commonv1.CodeGraphNode{
+				goPackageNode(),
+				goFileNode(),
+				goSymbolNode(),
+			},
+			Edges: []*commonv1.CodeGraphEdge{goImportEdge()},
+		},
+		ExtractionMs: 17,
+	}
+}
+
+func goPackageNode() *commonv1.CodeGraphNode {
+	return &commonv1.CodeGraphNode{
+		Id:   "package:example.com/foo",
+		Kind: commonv1.NodeKind_NODE_KIND_PACKAGE,
+		Name: "foo",
+		Path: "example.com/foo",
+		Attributes: map[string]string{
+			"language":    "go",
+			"import_path": "example.com/foo",
+		},
+	}
+}
+
+func goFileNode() *commonv1.CodeGraphNode {
+	return &commonv1.CodeGraphNode{
+		Id:   "file:foo/a.go",
+		Kind: commonv1.NodeKind_NODE_KIND_FILE,
+		Name: "a.go",
+		Path: "foo/a.go",
+		Attributes: map[string]string{
+			"language":   "go",
+			"package_id": "package:example.com/foo",
+		},
+	}
+}
+
+func goSymbolNode() *commonv1.CodeGraphNode {
+	return &commonv1.CodeGraphNode{
+		Id:   "go_func:package:example.com/foo:Bar",
+		Kind: commonv1.NodeKind_NODE_KIND_PACKAGE,
+		Name: "Bar",
+		Path: "foo/a.go",
+		Attributes: map[string]string{
+			"language":   "go",
+			"package_id": "package:example.com/foo",
+			"file_id":    "file:foo/a.go",
+			"kind":       "go_func",
+			"exported":   "true",
+		},
+	}
+}
+
+func goImportEdge() *commonv1.CodeGraphEdge {
+	return &commonv1.CodeGraphEdge{
+		Id:         "import:package:example.com/foo->package:example.com/bar",
+		Kind:       commonv1.EdgeKind_EDGE_KIND_IMPORT,
+		FromNodeId: "package:example.com/foo",
+		ToNodeId:   "package:example.com/bar",
+	}
+}
+
+func assertHappyRawGraph(t *testing.T, raw graph.RawGraph) {
+	t.Helper()
 	if got, want := len(raw.Files), 1; got != want {
 		t.Fatalf("Files len=%d want %d", got, want)
 	}
@@ -220,8 +229,8 @@ func TestClient_Extract_HappyPath(t *testing.T) {
 func TestClient_Extract_ModulePromotesToPackage(t *testing.T) {
 	// go-code-graph may emit NODE_KIND_MODULE for the top-level module
 	// node; cartographer collapses modules onto PackageNode.
-	svc := &fakeService{
-		extractFn: func(_ context.Context, _ *connect.Request[graphv1.ExtractRequest]) (*connect.Response[graphv1.ExtractResponse], error) {
+	c := newClient(startServer(t,
+		func(_ context.Context, _ *connect.Request[graphv1.ExtractRequest]) (*connect.Response[graphv1.ExtractResponse], error) {
 			return connect.NewResponse(&graphv1.ExtractResponse{
 				Graph: &commonv1.CodeGraph{
 					Nodes: []*commonv1.CodeGraphNode{
@@ -235,8 +244,7 @@ func TestClient_Extract_ModulePromotesToPackage(t *testing.T) {
 				},
 			}), nil
 		},
-	}
-	c := newClient(startServer(t, svc))
+	))
 	raw, err := c.Extract(context.Background(), "demo")
 	if err != nil {
 		t.Fatalf("Extract: %v", err)
@@ -266,38 +274,24 @@ func TestClient_Extract_ErrorMapping(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			svc := &fakeService{
-				extractFn: func(_ context.Context, _ *connect.Request[graphv1.ExtractRequest]) (*connect.Response[graphv1.ExtractResponse], error) {
+			c := newClient(startServer(t,
+				func(_ context.Context, _ *connect.Request[graphv1.ExtractRequest]) (*connect.Response[graphv1.ExtractResponse], error) {
 					return nil, connect.NewError(tc.code, errors.New("simulated"))
 				},
-			}
-			c := newClient(startServer(t, svc))
+			))
 			_, err := c.Extract(context.Background(), "demo")
-			var ie graph.IntegrationError
-			if !errors.As(err, &ie) {
-				t.Fatalf("want IntegrationError, got %v", err)
-			}
-			if ie.Kind != tc.wantKind {
-				t.Fatalf("Kind=%q want %q", ie.Kind, tc.wantKind)
-			}
-			if ie.Scenario != gocodegraph.ScenarioName {
-				t.Fatalf("Scenario=%q", ie.Scenario)
-			}
-			if ie.Cause == nil {
-				t.Fatal("Cause is nil; want underlying connect error")
-			}
+			assertIntegrationError(t, err, tc.wantKind)
 		})
 	}
 }
 
 func TestClient_Extract_ContextCancellation(t *testing.T) {
-	svc := &fakeService{
-		extractFn: func(ctx context.Context, _ *connect.Request[graphv1.ExtractRequest]) (*connect.Response[graphv1.ExtractResponse], error) {
+	c := newClient(startServer(t,
+		func(ctx context.Context, _ *connect.Request[graphv1.ExtractRequest]) (*connect.Response[graphv1.ExtractResponse], error) {
 			<-ctx.Done()
 			return nil, connect.NewError(connect.CodeCanceled, ctx.Err())
 		},
-	}
-	c := newClient(startServer(t, svc))
+	))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -311,5 +305,22 @@ func TestClient_Extract_ContextCancellation(t *testing.T) {
 	}
 	if ie.Scenario != gocodegraph.ScenarioName {
 		t.Fatalf("Scenario=%q", ie.Scenario)
+	}
+}
+
+func assertIntegrationError(t *testing.T, err error, wantKind string) {
+	t.Helper()
+	var ie graph.IntegrationError
+	if !errors.As(err, &ie) {
+		t.Fatalf("want IntegrationError, got %v", err)
+	}
+	if ie.Kind != wantKind {
+		t.Fatalf("Kind=%q want %q", ie.Kind, wantKind)
+	}
+	if ie.Scenario != gocodegraph.ScenarioName {
+		t.Fatalf("Scenario=%q", ie.Scenario)
+	}
+	if ie.Cause == nil {
+		t.Fatal("Cause is nil; want underlying error")
 	}
 }

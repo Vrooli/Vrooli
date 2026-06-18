@@ -313,6 +313,7 @@ The parser is header-driven; it reads the `Domain`, `Primary Archetype`,
 These are important but should not become product domains:
 
 - `api/internal/server/` — HTTP composition substrate.
+- `api/internal/app/` — production bootstrap and domain service wiring.
 - `api/internal/module/` — shared module descriptor type.
 - `api/internal/modules/` — thin registry for boot/codegen.
 - `api/internal/database/` — cross-cutting database infrastructure.

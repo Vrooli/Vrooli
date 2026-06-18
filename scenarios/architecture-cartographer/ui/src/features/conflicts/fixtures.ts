@@ -11,7 +11,7 @@ import {
   ConflictSchema,
   Severity,
   type Conflict,
-} from "@vrooli/proto-types/architecture-cartographer/v1/conflicts/conflicts_pb";
+} from "@vrooli/proto-types/architecture-cartographer/v1/shared/shared_pb";
 
 export const makeConflict = (
   overrides: MessageInitShape<typeof ConflictSchema> = {},

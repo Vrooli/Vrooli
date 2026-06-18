@@ -10,7 +10,7 @@ import {
 import {
   ConflictSchema,
   Severity,
-} from "@vrooli/proto-types/architecture-cartographer/v1/conflicts/conflicts_pb";
+} from "@vrooli/proto-types/architecture-cartographer/v1/shared/shared_pb";
 
 import { buildGraphLayout } from "./graphAdapter";
 

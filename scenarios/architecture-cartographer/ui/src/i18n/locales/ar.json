@@ -95,6 +95,8 @@
       "noActiveSnapshots": "لم يتم استخراج أي لقطات حتى الآن.",
       "loadingSnapshots": "جارٍ تحميل اللقطات…",
       "snapshotsError": "تعذّر تحميل اللقطات.",
+      "loadSnapshots": "تحميل اللقطات",
+      "checkHealth": "فحص الصحة",
       "startExtraction": "هدف جديد"
     },
     "newTarget": {

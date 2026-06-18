@@ -95,6 +95,8 @@
       "noActiveSnapshots": "No snapshots have been extracted yet.",
       "loadingSnapshots": "Loading snapshots…",
       "snapshotsError": "Couldn't load snapshots.",
+      "loadSnapshots": "Load snapshots",
+      "checkHealth": "Check health",
       "startExtraction": "New target"
     },
     "newTarget": {

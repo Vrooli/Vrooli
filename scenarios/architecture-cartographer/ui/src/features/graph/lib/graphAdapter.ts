@@ -20,7 +20,7 @@
  * the proto-generated `GraphSnapshot` / `Conflict` shapes.
  */
 import type { GraphSnapshot } from "@vrooli/proto-types/architecture-cartographer/v1/graph/graph_pb";
-import type { Conflict } from "@vrooli/proto-types/architecture-cartographer/v1/conflicts/conflicts_pb";
+import type { Conflict } from "@vrooli/proto-types/architecture-cartographer/v1/shared/shared_pb";
 
 import { severityToLevel } from "../../conflicts/severity";
 import type { SeverityLevel } from "../../../components/SeverityBadge";

@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/shared"
 	signalsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/signals"
 	signalsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/signals/signals_v1connect"
 
@@ -51,18 +52,18 @@ func connectAPI(t *testing.T, svc *fakeService) http.Handler {
 	return mux
 }
 
-func sampleVerdict() *signalsv1.Verdict {
-	return &signalsv1.Verdict{
+func sampleVerdict() *sharedv1.Verdict {
+	return &sharedv1.Verdict{
 		ChunkId:        "f-1",
 		ChunkPath:      "api/internal/graph/x.go",
-		Tier:           signalsv1.Tier_TIER_AUTO_PLACE,
+		Tier:           sharedv1.Tier_TIER_AUTO_PLACE,
 		TopDomain:      "graph",
 		TopValue:       0.91,
 		RunnerUpDomain: "manifest",
 		RunnerUpValue:  0.12,
-		DomainValues:   []*signalsv1.DomainValue{{Domain: "graph", Value: 0.91}},
-		Scores: []*signalsv1.Score{
-			{Signal: "path-token", Domain: "graph", Value: 0.8, Reason: "matched 'graph'", Evidence: []*signalsv1.Evidence{
+		DomainValues:   []*sharedv1.DomainValue{{Domain: "graph", Value: 0.91}},
+		Scores: []*sharedv1.Score{
+			{Signal: "path-token", Domain: "graph", Value: 0.8, Reason: "matched 'graph'", Evidence: []*sharedv1.Evidence{
 				{Kind: "path_token", Summary: "token graph in path", Weight: 0.8, Locator: "api/internal/graph"},
 			}},
 		},

@@ -96,17 +96,17 @@ describe("AppRouter", () => {
     expect(screen.getByTestId(selectors.pages.overview)).toBeInTheDocument();
   });
 
-  it("renders the new-target page at /targets/new", () => {
+  it("renders the new-target page at /targets/new", async () => {
     renderWithProviders(<TestAppRouter initialEntries={["/targets/new"]} />, { withoutRouter: true });
-    expect(screen.getByTestId(selectors.pages.newTarget)).toBeInTheDocument();
+    expect(await screen.findByTestId(selectors.pages.newTarget)).toBeInTheDocument();
   });
 
-  it("renders the target workspace at /targets/:encodedPath", () => {
+  it("renders the target workspace at /targets/:encodedPath", async () => {
     renderWithProviders(
       <TestAppRouter initialEntries={["/targets/architecture-cartographer"]} />,
       { withoutRouter: true },
     );
-    expect(screen.getByTestId(selectors.pages.targetWorkspace)).toBeInTheDocument();
+    expect(await screen.findByTestId(selectors.pages.targetWorkspace)).toBeInTheDocument();
   });
 
   it("renders the graph page at /targets/:encodedPath/graph", async () => {
@@ -181,13 +181,13 @@ describe("AppRouter", () => {
     expect(await screen.findByTestId(selectors.pages.targetAnalytics)).toBeInTheDocument();
   });
 
-  it("renders the cross-target history page at /history", () => {
+  it("renders the cross-target history page at /history", async () => {
     renderWithProviders(<TestAppRouter initialEntries={["/history"]} />, { withoutRouter: true });
-    expect(screen.getByTestId(selectors.pages.history)).toBeInTheDocument();
+    expect(await screen.findByTestId(selectors.pages.history)).toBeInTheDocument();
   });
 
-  it("renders the settings page at /settings", () => {
+  it("renders the settings page at /settings", async () => {
     renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
-    expect(screen.getByTestId(selectors.pages.settings)).toBeInTheDocument();
+    expect(await screen.findByTestId(selectors.pages.settings)).toBeInTheDocument();
   });
 });

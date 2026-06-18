@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { severityToLevel } from "./severity";
-import { Severity } from "@vrooli/proto-types/architecture-cartographer/v1/conflicts/conflicts_pb";
+import { Severity } from "@vrooli/proto-types/architecture-cartographer/v1/shared/shared_pb";
 
 describe("severityToLevel", () => {
   it("maps every proto severity to a SeverityLevel", () => {

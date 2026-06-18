@@ -1,14 +1,116 @@
 package graph
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
 	"connectrpc.com/connect"
 
 	"github.com/vrooli/api-core/discovery"
+
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
+
+type ScenarioURLResolver interface {
+	ResolveScenarioURLDefault(ctx context.Context, scenarioSlug string) (string, error)
+}
+
+type ProjectPathFn func(scenarioName string) (path string, found bool, err error)
+
+func ResolveAdapterTarget(
+	ctx context.Context,
+	urls ScenarioURLResolver,
+	projectOf ProjectPathFn,
+	targetScenario string,
+	producerScenario string,
+	languageName string,
+) (projectPath string, baseURL string, found bool, err error) {
+	if projectOf == nil || urls == nil {
+		return "", "", false, IntegrationError{
+			Kind:     "internal",
+			Scenario: producerScenario,
+			Cause:    fmt.Errorf("%s adapter not fully configured (missing URLResolver or ProjectPath)", languageName),
+		}
+	}
+	projectPath, found, err = projectOf(targetScenario)
+	if err != nil {
+		return "", "", false, IntegrationError{
+			Kind:     "internal",
+			Scenario: producerScenario,
+			Cause:    fmt.Errorf("resolve %s project path for %q: %w", languageName, targetScenario, err),
+		}
+	}
+	if !found {
+		return projectPath, "", false, nil
+	}
+	baseURL, err = urls.ResolveScenarioURLDefault(ctx, producerScenario)
+	if err != nil {
+		return "", "", false, ClassifyResolveError(err, producerScenario)
+	}
+	return projectPath, baseURL, true, nil
+}
+
+func ExtractFromProject(
+	ctx context.Context,
+	urls ScenarioURLResolver,
+	projectOf ProjectPathFn,
+	targetScenario string,
+	producerScenario string,
+	languageName string,
+	call func(context.Context, string, string) (RawGraph, error),
+) (RawGraph, error) {
+	projectPath, baseURL, found, err := ResolveAdapterTarget(ctx, urls, projectOf, targetScenario, producerScenario, languageName)
+	if err != nil {
+		return RawGraph{}, err
+	}
+	if !found {
+		return RawGraph{}, nil
+	}
+	raw, err := call(ctx, baseURL, projectPath)
+	if err != nil {
+		return RawGraph{}, err
+	}
+	RebaseFilesToScenario(&raw, targetScenario, projectPath)
+	return raw, nil
+}
+
+func RebaseFilesToScenario(raw *RawGraph, scenario, projectPath string) {
+	if raw == nil {
+		return
+	}
+	if subdir := ScenarioSubdir(scenario, projectPath); subdir != "" {
+		for i := range raw.Files {
+			raw.Files[i].Path = subdir + "/" + raw.Files[i].Path
+		}
+	}
+	AssignPackageRepoPaths(raw.Packages, raw.Files)
+}
+
+func FileNodeFromProto(n *commonv1.CodeGraphNode, language Language) FileNode {
+	attrs := n.GetAttributes()
+	return FileNode{
+		ID:        n.GetId(),
+		Path:      n.GetPath(),
+		PackageID: attrs["package_id"],
+		Language:  language,
+		Lines:     ParseNonNegativeIntAttr(attrs["lines"]),
+		IsTest:    attrs["is_test"] == "true",
+	}
+}
+
+func ImportEdgeFromProto(e *commonv1.CodeGraphEdge) ImportEdge {
+	attrs := e.GetAttributes()
+	return ImportEdge{
+		From:        e.GetFromNodeId(),
+		ToPackageID: e.GetToNodeId(),
+		SymbolIDs:   SplitCSV(attrs["symbol_ids"]),
+		SymbolKinds: SplitCSV(attrs["symbol_kinds"]),
+		TestOnly:    attrs["test_only"] == "true",
+	}
+}
 
 func ParseNonNegativeIntAttr(s string) int {
 	if s == "" {

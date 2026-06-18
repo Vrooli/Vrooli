@@ -18,6 +18,7 @@ import (
 	"connectrpc.com/connect"
 	conflictsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/conflicts"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/conflicts/conflicts_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/shared"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -180,8 +181,8 @@ func (h *Handler) ListResolvers(ctx context.Context, _ *connect.Request[conflict
 
 // -------------------------- proto<->domain --------------------------
 
-func conflictToProto(c conflicts.Conflict) *conflictsv1.Conflict {
-	out := &conflictsv1.Conflict{
+func conflictToProto(c conflicts.Conflict) *sharedv1.Conflict {
+	out := &sharedv1.Conflict{
 		Id:                c.ID,
 		StableId:          c.StableID,
 		InstanceId:        c.InstanceID,
@@ -203,7 +204,7 @@ func conflictToProto(c conflicts.Conflict) *conflictsv1.Conflict {
 		out.UpdatedAt = timestamppb.New(c.UpdatedAt)
 	}
 	for _, e := range c.Evidence {
-		out.Evidence = append(out.Evidence, &conflictsv1.ConflictEvidence{
+		out.Evidence = append(out.Evidence, &sharedv1.ConflictEvidence{
 			Kind:    e.Kind,
 			Summary: e.Summary,
 			Locator: e.Locator,
@@ -211,7 +212,7 @@ func conflictToProto(c conflicts.Conflict) *conflictsv1.Conflict {
 		})
 	}
 	for _, f := range c.SuggestedFixes {
-		out.SuggestedFixes = append(out.SuggestedFixes, &conflictsv1.Fix{
+		out.SuggestedFixes = append(out.SuggestedFixes, &sharedv1.Fix{
 			Id:         f.ID,
 			Kind:       fixKindToProto(f.Kind),
 			Resolver:   f.Resolver,
@@ -223,34 +224,34 @@ func conflictToProto(c conflicts.Conflict) *conflictsv1.Conflict {
 	return out
 }
 
-func severityToProto(s conflicts.Severity) conflictsv1.Severity {
+func severityToProto(s conflicts.Severity) sharedv1.Severity {
 	switch s {
 	case conflicts.SeverityInfo:
-		return conflictsv1.Severity_SEVERITY_INFO
+		return sharedv1.Severity_SEVERITY_INFO
 	case conflicts.SeverityWarn:
-		return conflictsv1.Severity_SEVERITY_WARN
+		return sharedv1.Severity_SEVERITY_WARN
 	case conflicts.SeverityError:
-		return conflictsv1.Severity_SEVERITY_ERROR
+		return sharedv1.Severity_SEVERITY_ERROR
 	case conflicts.SeverityBlocker:
-		return conflictsv1.Severity_SEVERITY_BLOCKER
+		return sharedv1.Severity_SEVERITY_BLOCKER
 	default:
-		return conflictsv1.Severity_SEVERITY_UNSPECIFIED
+		return sharedv1.Severity_SEVERITY_UNSPECIFIED
 	}
 }
 
-func fixKindToProto(k conflicts.FixKind) conflictsv1.FixKind {
+func fixKindToProto(k conflicts.FixKind) sharedv1.FixKind {
 	switch k {
 	case conflicts.FixKindMoveFile:
-		return conflictsv1.FixKind_FIX_KIND_MOVE_FILE
+		return sharedv1.FixKind_FIX_KIND_MOVE_FILE
 	case conflicts.FixKindReassignDomain:
-		return conflictsv1.FixKind_FIX_KIND_REASSIGN_DOMAIN
+		return sharedv1.FixKind_FIX_KIND_REASSIGN_DOMAIN
 	case conflicts.FixKindBreakCycle:
-		return conflictsv1.FixKind_FIX_KIND_BREAK_CYCLE
+		return sharedv1.FixKind_FIX_KIND_BREAK_CYCLE
 	case conflicts.FixKindAddDependency:
-		return conflictsv1.FixKind_FIX_KIND_ADD_DEPENDENCY
+		return sharedv1.FixKind_FIX_KIND_ADD_DEPENDENCY
 	case conflicts.FixKindAddTransitional:
-		return conflictsv1.FixKind_FIX_KIND_ADD_TRANSITIONAL
+		return sharedv1.FixKind_FIX_KIND_ADD_TRANSITIONAL
 	default:
-		return conflictsv1.FixKind_FIX_KIND_UNSPECIFIED
+		return sharedv1.FixKind_FIX_KIND_UNSPECIFIED
 	}
 }

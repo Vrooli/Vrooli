@@ -31,5 +31,8 @@
     },
     "chrome_flags": ["--headless", "--no-sandbox"],
     "timeout_ms": 90000
+  },
+  "reporting": {
+    "formats": ["json"]
   }
 }

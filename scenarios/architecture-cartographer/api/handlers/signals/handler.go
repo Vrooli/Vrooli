@@ -14,6 +14,7 @@ import (
 
 	"connectrpc.com/connect"
 	graphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/graph"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/shared"
 	signalsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/signals"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/signals/signals_v1connect"
 )
@@ -147,8 +148,8 @@ func scoreInputFromProto(scenario string, chunk *graphv1.Chunk, fileID, repoPath
 
 // -------------------------- proto<->domain --------------------------
 
-func verdictToProto(v signals.Verdict) *signalsv1.Verdict {
-	out := &signalsv1.Verdict{
+func verdictToProto(v signals.Verdict) *sharedv1.Verdict {
+	out := &sharedv1.Verdict{
 		ChunkId:        v.ChunkID,
 		ChunkPath:      v.ChunkPath,
 		Tier:           tierToProto(v.Tier),
@@ -159,14 +160,14 @@ func verdictToProto(v signals.Verdict) *signalsv1.Verdict {
 		Tied:           v.Tied,
 	}
 	for _, s := range v.Scores {
-		ps := &signalsv1.Score{
+		ps := &sharedv1.Score{
 			Signal: s.Signal,
 			Domain: s.Domain,
 			Value:  s.Value,
 			Reason: s.Reason,
 		}
 		for _, e := range s.Evidence {
-			ps.Evidence = append(ps.Evidence, &signalsv1.Evidence{
+			ps.Evidence = append(ps.Evidence, &sharedv1.Evidence{
 				Kind:    e.Kind,
 				Summary: e.Summary,
 				Locator: e.Locator,
@@ -176,18 +177,18 @@ func verdictToProto(v signals.Verdict) *signalsv1.Verdict {
 		out.Scores = append(out.Scores, ps)
 	}
 	for _, d := range v.DomainValues {
-		out.DomainValues = append(out.DomainValues, &signalsv1.DomainValue{
+		out.DomainValues = append(out.DomainValues, &sharedv1.DomainValue{
 			Domain: d.Domain,
 			Value:  d.Value,
 		})
 	}
 	for _, a := range v.Abstentions {
-		pa := &signalsv1.Abstention{
+		pa := &sharedv1.Abstention{
 			Signal: a.Signal,
 			Reason: a.Reason,
 		}
 		for _, e := range a.Evidence {
-			pa.Evidence = append(pa.Evidence, &signalsv1.Evidence{
+			pa.Evidence = append(pa.Evidence, &sharedv1.Evidence{
 				Kind:    e.Kind,
 				Summary: e.Summary,
 				Locator: e.Locator,
@@ -199,15 +200,15 @@ func verdictToProto(v signals.Verdict) *signalsv1.Verdict {
 	return out
 }
 
-func tierToProto(t signals.Tier) signalsv1.Tier {
+func tierToProto(t signals.Tier) sharedv1.Tier {
 	switch t {
 	case signals.TierAutoPlace:
-		return signalsv1.Tier_TIER_AUTO_PLACE
+		return sharedv1.Tier_TIER_AUTO_PLACE
 	case signals.TierSuggest:
-		return signalsv1.Tier_TIER_SUGGEST
+		return sharedv1.Tier_TIER_SUGGEST
 	case signals.TierConflict:
-		return signalsv1.Tier_TIER_CONFLICT
+		return sharedv1.Tier_TIER_CONFLICT
 	default:
-		return signalsv1.Tier_TIER_UNSPECIFIED
+		return sharedv1.Tier_TIER_UNSPECIFIED
 	}
 }

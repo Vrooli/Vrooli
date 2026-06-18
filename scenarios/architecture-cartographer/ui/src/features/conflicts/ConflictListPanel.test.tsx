@@ -15,7 +15,7 @@ import { renderWithProviders } from "../../test-utils";
 import { selectors } from "../../consts/selectors";
 import { ConflictListPanel } from "./ConflictListPanel";
 import { makeConflict } from "./fixtures";
-import { Severity } from "@vrooli/proto-types/architecture-cartographer/v1/conflicts/conflicts_pb";
+import { Severity } from "@vrooli/proto-types/architecture-cartographer/v1/shared/shared_pb";
 
 afterEach(() => {
   cleanup();

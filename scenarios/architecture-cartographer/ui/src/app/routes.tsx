@@ -4,23 +4,45 @@ import {
   RouterProvider,
   type RouteObject,
 } from "react-router-dom";
+import { lazy, Suspense, type ReactNode } from "react";
 
 import { AppShell } from "../layout/AppShell";
 import { RouteErrorFallback } from "../components/RouteErrorFallback";
-import { HistoryPage } from "../pages/HistoryPage";
-import { NewTargetPage } from "../pages/NewTargetPage";
 import { OverviewPage } from "../pages/OverviewPage";
-import { SettingsPage } from "../pages/SettingsPage";
-import { TargetAnalyticsPage } from "../pages/TargetAnalyticsPage";
-import { TargetApplyDomainPage } from "../pages/TargetApplyDomainPage";
-import { TargetApplyPage } from "../pages/TargetApplyPage";
-import { TargetConflictDetailPage } from "../pages/TargetConflictDetailPage";
-import { TargetConflictsPage } from "../pages/TargetConflictsPage";
-import { TargetGraphPage } from "../pages/TargetGraphPage";
-import { TargetDomainsPage } from "../pages/TargetDomainsPage";
-import { TargetCampaignDetailPage } from "../pages/TargetCampaignDetailPage";
-import { TargetCampaignPage } from "../pages/TargetCampaignPage";
-import { TargetWorkspacePage } from "../pages/TargetWorkspacePage";
+
+const HistoryPage = lazy(() => import("../pages/HistoryPage").then((m) => ({ default: m.HistoryPage })));
+const NewTargetPage = lazy(() => import("../pages/NewTargetPage").then((m) => ({ default: m.NewTargetPage })));
+const SettingsPage = lazy(() => import("../pages/SettingsPage").then((m) => ({ default: m.SettingsPage })));
+const TargetAnalyticsPage = lazy(() =>
+  import("../pages/TargetAnalyticsPage").then((m) => ({ default: m.TargetAnalyticsPage })),
+);
+const TargetApplyDomainPage = lazy(() =>
+  import("../pages/TargetApplyDomainPage").then((m) => ({ default: m.TargetApplyDomainPage })),
+);
+const TargetApplyPage = lazy(() => import("../pages/TargetApplyPage").then((m) => ({ default: m.TargetApplyPage })));
+const TargetCampaignDetailPage = lazy(() =>
+  import("../pages/TargetCampaignDetailPage").then((m) => ({ default: m.TargetCampaignDetailPage })),
+);
+const TargetCampaignPage = lazy(() =>
+  import("../pages/TargetCampaignPage").then((m) => ({ default: m.TargetCampaignPage })),
+);
+const TargetConflictDetailPage = lazy(() =>
+  import("../pages/TargetConflictDetailPage").then((m) => ({ default: m.TargetConflictDetailPage })),
+);
+const TargetConflictsPage = lazy(() =>
+  import("../pages/TargetConflictsPage").then((m) => ({ default: m.TargetConflictsPage })),
+);
+const TargetDomainsPage = lazy(() =>
+  import("../pages/TargetDomainsPage").then((m) => ({ default: m.TargetDomainsPage })),
+);
+const TargetGraphPage = lazy(() => import("../pages/TargetGraphPage").then((m) => ({ default: m.TargetGraphPage })));
+const TargetWorkspacePage = lazy(() =>
+  import("../pages/TargetWorkspacePage").then((m) => ({ default: m.TargetWorkspacePage })),
+);
+
+function lazyElement(node: ReactNode) {
+  return <Suspense fallback={null}>{node}</Suspense>;
+}
 
 /**
  * Canonical route table. Exported so tests can construct an in-memory router
@@ -41,24 +63,24 @@ export const routes: RouteObject[] = [
     errorElement: <RouteErrorFallback />,
     children: [
       { index: true, element: <OverviewPage /> },
-      { path: "targets/new", element: <NewTargetPage /> },
+      { path: "targets/new", element: lazyElement(<NewTargetPage />) },
       {
         path: "targets/:encodedPath",
-        element: <TargetWorkspacePage />,
+        element: lazyElement(<TargetWorkspacePage />),
         children: [
-          { path: "graph", element: <TargetGraphPage /> },
-          { path: "domains", element: <TargetDomainsPage /> },
-          { path: "conflicts", element: <TargetConflictsPage /> },
-          { path: "conflicts/:conflictId", element: <TargetConflictDetailPage /> },
-          { path: "campaign", element: <TargetCampaignPage /> },
-          { path: "campaign/:campaignId", element: <TargetCampaignDetailPage /> },
-          { path: "apply", element: <TargetApplyPage /> },
-          { path: "apply/:domainKey", element: <TargetApplyDomainPage /> },
-          { path: "analytics", element: <TargetAnalyticsPage /> },
+          { path: "graph", element: lazyElement(<TargetGraphPage />) },
+          { path: "domains", element: lazyElement(<TargetDomainsPage />) },
+          { path: "conflicts", element: lazyElement(<TargetConflictsPage />) },
+          { path: "conflicts/:conflictId", element: lazyElement(<TargetConflictDetailPage />) },
+          { path: "campaign", element: lazyElement(<TargetCampaignPage />) },
+          { path: "campaign/:campaignId", element: lazyElement(<TargetCampaignDetailPage />) },
+          { path: "apply", element: lazyElement(<TargetApplyPage />) },
+          { path: "apply/:domainKey", element: lazyElement(<TargetApplyDomainPage />) },
+          { path: "analytics", element: lazyElement(<TargetAnalyticsPage />) },
         ],
       },
-      { path: "history", element: <HistoryPage /> },
-      { path: "settings", element: <SettingsPage /> },
+      { path: "history", element: lazyElement(<HistoryPage />) },
+      { path: "settings", element: lazyElement(<SettingsPage />) },
     ],
   },
 ];

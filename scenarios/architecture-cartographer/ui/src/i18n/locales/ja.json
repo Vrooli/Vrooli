@@ -95,6 +95,8 @@
       "noActiveSnapshots": "スナップショットはまだ抽出されていません。",
       "loadingSnapshots": "スナップショットを読み込み中…",
       "snapshotsError": "スナップショットを読み込めませんでした。",
+      "loadSnapshots": "スナップショットを読み込む",
+      "checkHealth": "ヘルスを確認",
       "startExtraction": "新しいターゲット"
     },
     "newTarget": {

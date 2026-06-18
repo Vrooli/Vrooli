@@ -1,5 +1,4 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
-import { Button } from "./ui/button";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
@@ -64,13 +63,14 @@ function DefaultFallback({ onRetry }: { onRetry: () => void }) {
       <div className="w-full max-w-md rounded-2xl border border-red-500/40 bg-red-950/30 p-6 text-center backdrop-blur-sm">
         <h1 className="text-2xl font-semibold">{t(strings.errorBoundary.title)}</h1>
         <p className="mt-3 text-slate-300">{t(strings.errorBoundary.message)}</p>
-        <Button
+        <button
+          type="button"
           data-testid={selectors.errorBoundary.retryButton}
-          className="mt-5"
+          className="mt-5 inline-flex h-11 items-center justify-center rounded-control bg-app-primary px-5 text-sm font-medium text-app-primary-foreground transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50"
           onClick={onRetry}
         >
           {t(strings.errorBoundary.retry)}
-        </Button>
+        </button>
       </div>
     </div>
   );

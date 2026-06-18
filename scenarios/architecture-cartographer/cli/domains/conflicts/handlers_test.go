@@ -12,6 +12,7 @@ import (
 
 	conflictsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/conflicts"
 	conflictsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/conflicts/conflicts_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/shared"
 
 	"github.com/vrooli/cli-core/cliapp"
 	cliapptest "github.com/vrooli/cli-core/cliapptest"
@@ -81,19 +82,19 @@ func connectAPI(t *testing.T, svc *fakeService) http.Handler {
 	return mux
 }
 
-func sampleConflict() *conflictsv1.Conflict {
-	return &conflictsv1.Conflict{
+func sampleConflict() *sharedv1.Conflict {
+	return &sharedv1.Conflict{
 		Id:        "c-1",
 		Scenario:  "demo",
 		Type:      "cycle",
-		Severity:  conflictsv1.Severity_SEVERITY_ERROR,
+		Severity:  sharedv1.Severity_SEVERITY_ERROR,
 		Locations: []string{"api/internal/a", "api/internal/b"},
 	}
 }
 
 func TestDetect_RendersConflictList(t *testing.T) {
 	svc := &fakeService{detectResp: &conflictsv1.DetectConflictsResponse{
-		Conflicts: []*conflictsv1.Conflict{sampleConflict()},
+		Conflicts: []*sharedv1.Conflict{sampleConflict()},
 	}}
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)

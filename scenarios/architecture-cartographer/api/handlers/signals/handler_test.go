@@ -11,6 +11,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	graphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/graph"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/shared"
 	signalsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/signals"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/signals/signals_v1connect"
 )
@@ -40,7 +41,7 @@ func TestHandler_ScoreChunk_TranslatesVerdict(t *testing.T) {
 	require.NoError(t, err)
 	v := resp.Msg.GetVerdict()
 	require.Equal(t, "chunk:f1", v.GetChunkId())
-	require.Equal(t, signalsv1.Tier_TIER_AUTO_PLACE, v.GetTier())
+	require.Equal(t, sharedv1.Tier_TIER_AUTO_PLACE, v.GetTier())
 	require.Equal(t, "graph", v.GetTopDomain())
 	require.Len(t, v.GetScores(), 1)
 	require.Equal(t, int64(1), svc.ScoreCalls.Load())

@@ -10,6 +10,7 @@ import (
 
 	conflictsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/conflicts"
 	conflictsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/conflicts/conflicts_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/shared"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -203,7 +204,7 @@ func (h *handlers) resolvers(ctx cliapp.RunContext) error {
 
 // conflictDetailLines renders the operator-focused "what / where / why /
 // next" layout shared by show and explain.
-func conflictDetailLines(c *conflictsv1.Conflict) []string {
+func conflictDetailLines(c *sharedv1.Conflict) []string {
 	lines := []string{
 		fmt.Sprintf("what     : %s (%s)", c.GetType(), c.GetSubtype()),
 		fmt.Sprintf("severity : %s", severityName(c.GetSeverity())),
@@ -238,7 +239,7 @@ func conflictDetailLines(c *conflictsv1.Conflict) []string {
 // renderConflictList is the shared list-rendering path for detect + list:
 // human consumers see one line per conflict; --json consumers see the
 // proto-typed wire shape (the full response message).
-func renderConflictList(ctx cliapp.RunContext, payload proto.Message, conflicts []*conflictsv1.Conflict, summary, hint string) error {
+func renderConflictList(ctx cliapp.RunContext, payload proto.Message, conflicts []*sharedv1.Conflict, summary, hint string) error {
 	results := make([]string, 0, len(conflicts))
 	for _, c := range conflicts {
 		results = append(results, conflictLine(c))
@@ -251,7 +252,7 @@ func renderConflictList(ctx cliapp.RunContext, payload proto.Message, conflicts 
 	})
 }
 
-func conflictLine(c *conflictsv1.Conflict) string {
+func conflictLine(c *sharedv1.Conflict) string {
 	domains := strings.Join(c.GetDomains(), ",")
 	loc := ""
 	if len(c.GetLocations()) > 0 {
@@ -264,15 +265,15 @@ func conflictLine(c *conflictsv1.Conflict) string {
 		c.GetId(), c.GetType(), severityName(c.GetSeverity()), c.GetSubtype(), domains, loc)
 }
 
-func severityName(s conflictsv1.Severity) string {
+func severityName(s sharedv1.Severity) string {
 	switch s {
-	case conflictsv1.Severity_SEVERITY_INFO:
+	case sharedv1.Severity_SEVERITY_INFO:
 		return "info"
-	case conflictsv1.Severity_SEVERITY_WARN:
+	case sharedv1.Severity_SEVERITY_WARN:
 		return "warn"
-	case conflictsv1.Severity_SEVERITY_ERROR:
+	case sharedv1.Severity_SEVERITY_ERROR:
 		return "error"
-	case conflictsv1.Severity_SEVERITY_BLOCKER:
+	case sharedv1.Severity_SEVERITY_BLOCKER:
 		return "blocker"
 	default:
 		return "unspecified"
@@ -309,17 +310,17 @@ func isHex(s string) bool {
 	return true
 }
 
-func fixKindName(k conflictsv1.FixKind) string {
+func fixKindName(k sharedv1.FixKind) string {
 	switch k {
-	case conflictsv1.FixKind_FIX_KIND_MOVE_FILE:
+	case sharedv1.FixKind_FIX_KIND_MOVE_FILE:
 		return "move_file"
-	case conflictsv1.FixKind_FIX_KIND_REASSIGN_DOMAIN:
+	case sharedv1.FixKind_FIX_KIND_REASSIGN_DOMAIN:
 		return "reassign_domain"
-	case conflictsv1.FixKind_FIX_KIND_BREAK_CYCLE:
+	case sharedv1.FixKind_FIX_KIND_BREAK_CYCLE:
 		return "break_cycle"
-	case conflictsv1.FixKind_FIX_KIND_ADD_DEPENDENCY:
+	case sharedv1.FixKind_FIX_KIND_ADD_DEPENDENCY:
 		return "add_dependency"
-	case conflictsv1.FixKind_FIX_KIND_ADD_TRANSITIONAL:
+	case sharedv1.FixKind_FIX_KIND_ADD_TRANSITIONAL:
 		return "add_transitional"
 	default:
 		return "unspecified"

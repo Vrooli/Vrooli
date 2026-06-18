@@ -16,7 +16,7 @@ import {
   useValidateConflicts,
 } from "./controllers/useConflictsController";
 import { severityToLevel } from "./severity";
-import type { Conflict } from "@vrooli/proto-types/architecture-cartographer/v1/conflicts/conflicts_pb";
+import type { Conflict } from "@vrooli/proto-types/architecture-cartographer/v1/shared/shared_pb";
 
 const SEVERITY_LABEL_KEY = {
   info: strings.shared.severity.info,

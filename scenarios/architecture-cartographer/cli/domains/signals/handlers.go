@@ -7,6 +7,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/shared"
 	signalsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/signals"
 	signalsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/signals/signals_v1connect"
 	"google.golang.org/protobuf/proto"
@@ -143,7 +144,7 @@ func couplingSeverityName(s signalsv1.CouplingSeverity) string {
 // renderVerdict is the shared rendering path for score + explain. When
 // withEvidence is true (explain), each per-signal score expands its
 // Evidence entries. --json consumers get the proto-typed response.
-func renderVerdict(ctx cliapp.RunContext, payload proto.Message, v *signalsv1.Verdict, withEvidence bool) error {
+func renderVerdict(ctx cliapp.RunContext, payload proto.Message, v *sharedv1.Verdict, withEvidence bool) error {
 	tieNote := ""
 	if v.GetTied() {
 		tieNote = " (TIED)"
@@ -220,13 +221,13 @@ func splitFileArg(arg string) (fileID, repoPath string) {
 	return "", arg
 }
 
-func tierName(t signalsv1.Tier) string {
+func tierName(t sharedv1.Tier) string {
 	switch t {
-	case signalsv1.Tier_TIER_AUTO_PLACE:
+	case sharedv1.Tier_TIER_AUTO_PLACE:
 		return "auto_place"
-	case signalsv1.Tier_TIER_SUGGEST:
+	case sharedv1.Tier_TIER_SUGGEST:
 		return "suggest"
-	case signalsv1.Tier_TIER_CONFLICT:
+	case sharedv1.Tier_TIER_CONFLICT:
 		return "conflict"
 	default:
 		return "unspecified"
