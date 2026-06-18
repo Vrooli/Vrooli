@@ -13,7 +13,7 @@ Use this document when a choice:
   testing direction,
 - needs a revisit trigger.
 
-Routine implementation notes belong in [`PROGRESS.md`](PROGRESS.md).
+Routine implementation log entries belong in [`PROGRESS.md`](PROGRESS.md).
 Known unresolved issues belong in [`PROBLEMS.md`](PROBLEMS.md).
 
 ## Decision Log
@@ -24,7 +24,7 @@ Known unresolved issues belong in [`PROBLEMS.md`](PROBLEMS.md).
 
 ## Superseded Decisions
 
-| Date | Superseded Decision | Replacement | Notes |
+| Date | Superseded Decision | Replacement | Details |
 |---|---|---|---|
 | None yet. | n/a | n/a | Add when a durable decision is replaced. |
 

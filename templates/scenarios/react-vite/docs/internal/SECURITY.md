@@ -15,10 +15,19 @@ Use this document to answer:
 
 ## Data Sensitivity
 
-| Data | Sensitivity | Owner | Notes |
+| Data | Sensitivity | Owner | Details |
+|---|---|---|---|
+| _(your product data)_ | classify per PRD | owning domain | Replace with real scenario data classification. |
+
+<!-- EXAMPLE-DOMAIN:notes START -->
+The shipped worked-example `notes` domain carries placeholder data only
+(removed by `vrooli scenario detemplate`):
+
+| Data | Sensitivity | Owner | Details |
 |---|---|---|---|
 | Template notes data | low | notes reference | Local development data only; replace with real scenario data classification. |
 | Attachment bytes | unknown | notes reference | Treat as potentially sensitive if retained in product scope. |
+<!-- EXAMPLE-DOMAIN:notes END -->
 
 ## Auth And Authorization
 
@@ -29,7 +38,7 @@ authorization belongs at the API/service layer.
 
 ## Secrets
 
-| Secret | Source | Required? | Notes |
+| Secret | Source | Required? | Details |
 |---|---|---|---|
 | None by default | n/a | no | Add entries when resources or third-party APIs require secrets. |
 

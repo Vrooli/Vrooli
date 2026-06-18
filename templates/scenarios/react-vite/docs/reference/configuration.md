@@ -102,7 +102,7 @@ versioned-migration helpers (`Migrate` / `MigrationProvider` in
 
 See [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md#domain-owned-schema)
 for the design rationale and [`../internal/SEAMS.md`](../internal/SEAMS.md)
-for the per-seam table including `notes.Schema` and
+for the per-seam table including each domain's `<domain>.Schema` and
 `database.SystemSchema`.
 
 ## CLI config file

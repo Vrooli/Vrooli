@@ -51,7 +51,7 @@ vrooli scenario port {{SCENARIO_ID}} UI_PORT
 ```
 
 You should see the example UI rendering live `/health` data and a
-notes pane backed by the local SQLite store.
+worked example feature pane backed by the local SQLite store.
 
 ## 4 — Talk to the API
 
@@ -60,8 +60,7 @@ automatically):
 
 ```bash
 {{SCENARIO_ID}} status
-{{SCENARIO_ID}} notes list
-{{SCENARIO_ID}} notes create --title "First note" --body "Hello"
+{{SCENARIO_ID}} <domain> <command>   # e.g. list/create commands for your domain
 ```
 
 Or directly via HTTP:
@@ -69,10 +68,25 @@ Or directly via HTTP:
 ```bash
 API_PORT=$(vrooli scenario port {{SCENARIO_ID}} API_PORT)
 curl -s "http://localhost:${API_PORT}/health"
+# Proto-typed calls hit /vrooli.{{SCENARIO_ID_SNAKE}}.v1.<domain>.<Service>/<Method>
+```
+
+<!-- EXAMPLE-DOMAIN:notes START -->
+The shipped worked-example `notes` domain illustrates the full shape —
+copy it, then remove it with `vrooli scenario detemplate`:
+
+```bash
+{{SCENARIO_ID}} notes list
+{{SCENARIO_ID}} notes create --title "First note" --body "Hello"
+```
+
+```bash
+API_PORT=$(vrooli scenario port {{SCENARIO_ID}} API_PORT)
 curl -s -X POST "http://localhost:${API_PORT}/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/ListNotes" \
   -H 'Content-Type: application/json' \
   -d '{}'
 ```
+<!-- EXAMPLE-DOMAIN:notes END -->
 
 ## 5 — Run the tests
 

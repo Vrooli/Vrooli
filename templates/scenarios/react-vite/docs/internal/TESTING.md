@@ -27,9 +27,8 @@ These files are the source of truth. When in doubt, copy their shape:
 - **UI feature**: `ui/src/features/health/HealthCard.test.tsx` —
   `renderWithProviders`, factory data, inline `vi.mock` factory
   closure, cimode assertions, and real-locale assertions.
-- **UI a11y**: `ui/src/components/AppShell.a11y.test.tsx`,
-  `ui/src/features/health/HealthCard.a11y.test.tsx`, and
-  `ui/src/features/notes/NotesCard.a11y.test.tsx` — shell and feature
+- **UI a11y**: `ui/src/components/AppShell.a11y.test.tsx` and
+  `ui/src/features/health/HealthCard.a11y.test.tsx` — shell and feature
   accessibility are tested at their ownership boundary.
 - **CLI**: `cli/app_test.go` — smoke gate (NewApp, --version, --help).
   When domain commands arrive, extend with `clitest.NewAPIServer` +
@@ -173,11 +172,47 @@ hand-written struct mirror to drift against. `DiscardUnknown:true` is
 wired in `MustUnmarshalProto` so the test keeps passing when the wire
 grows fields the proto hasn't caught up to.
 
-### CRUD reference — `notes` end-to-end
+### CRUD reference — an end-to-end vertical slice
 
-The `notes` domain is the canonical CRUD reference. New scenarios add
-their first non-trivial mutation by copying its layering one file at a
-time. The pattern from wire to render:
+The scaffold ships one fenced worked CRUD domain (never product scope)
+as the canonical reference. New scenarios add their first non-trivial
+mutation by copying its layering one file at a time — wire contract,
+domain types, repository, schema, service, handler, mocks, UI client,
+and CLI client — then deleting the fenced example with
+`vrooli scenario detemplate <scenario>`. The fenced example below walks
+the pattern from wire to render and pins the three-layer service-test
+split; copy its shape for `api/internal/<domain>/`.
+
+#### Compose pattern: schema-applied repository test
+
+`db.NewSQLite(t)` returns a blank handle. Repository tests apply the
+production schema before the first query so the test exercises the
+same shape `main.go` ships:
+
+```go
+func newSchemaDB(t *testing.T) *sql.DB {
+    t.Helper()
+    d := db.NewSQLite(t)
+    require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
+        apidb.SchemaProviderFunc(localdb.SystemSchema),
+        apidb.SchemaProviderFunc(<domain>.Schema),
+    ))
+    return d
+}
+```
+
+That helper is the canonical entry point for every new domain's
+`*_sqlite_test.go`. Don't reach for migrations frameworks or in-test
+`CREATE TABLE` literals — the per-domain `schema.sql` files (collected
+by `internal/modules/registry.go::AllSchemas()` in production) are the
+source of truth for both production and tests.
+
+<!-- EXAMPLE-DOMAIN:notes START -->
+### Example domain — `notes` (removed by `vrooli scenario detemplate`)
+
+The `notes` domain is the scaffold's worked CRUD reference. Copy its
+shape for your own domains, then remove it. The pattern from wire to
+render:
 
 | Layer | File | What it owns |
 |---|---|---|
@@ -200,31 +235,10 @@ time. The pattern from wire to render:
 | CLI client | `cli/domains/notes/{register,handlers,attach_handler}.go` | `Register(core)` returns a `cliapp.SubcommandGroup`; handlers use generated Connect clients or `cliapp.UploadFile` and render via cli-core reports |
 | CLI test | `cli/domains/notes/handlers_test.go` | Spins a real `httptest.Server` via `testutil.NewAPIServer`, captures stdout via `testutil.CaptureStdout` |
 
-#### Compose pattern: schema-applied repository test
+The compose pattern's `<domain>.Schema` resolves to `notes.Schema` for
+this example.
 
-`db.NewSQLite(t)` returns a blank handle. Repository tests apply the
-production schema before the first query so the test exercises the
-same shape `main.go` ships:
-
-```go
-func newSchemaDB(t *testing.T) *sql.DB {
-    t.Helper()
-    d := db.NewSQLite(t)
-    require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
-        apidb.SchemaProviderFunc(localdb.SystemSchema),
-        apidb.SchemaProviderFunc(notes.Schema),
-    ))
-    return d
-}
-```
-
-That helper is the canonical entry point for every new domain's
-`*_sqlite_test.go`. Don't reach for migrations frameworks or in-test
-`CREATE TABLE` literals — the per-domain `schema.sql` files (collected
-by `internal/modules/registry.go::AllSchemas()` in production) are the
-source of truth for both production and tests.
-
-### Service-layer tests
+#### Service-layer tests (`notes`)
 
 The notes domain uses three test layers, each with a different fake:
 
@@ -250,6 +264,7 @@ HTTP → handler → Service (validates, applies defaults) → Repository (persi
 Connect handler tests then substitute `mocks.FakeService` — they don't seed
 sqlite-shaped state to assert on routing. Two-mock split keeps each
 layer's tests focused on what that layer owns.
+<!-- EXAMPLE-DOMAIN:notes END -->
 
 ### Temporal workflow tests
 
@@ -336,9 +351,27 @@ Workflow maturity is incremental:
 | 4 | Declarative contract | A domain-local `*.flow.json` declares states, events, transitions, invariants, and named traces. |
 | 5 | Checked formal model | Quint/TLA+ or equivalent is generated from the contract, checked, and replayed by production tests. |
 
-The notes attachment upload workflow is the reference Level 5 pattern:
+The scaffold ships one fenced worked Level 5 flow (an attachment-upload
+workflow on the example domain) as the reference; copy its file layout
+for a real flow, then remove it with `vrooli scenario detemplate`. The
+generic file layout per flow is:
 
 - The `flow-verifier` scenario CLI (`flow-verifier verify check|run`, `flows list|validate|explain`)
+- `api/internal/<domain>/flow/flow.json`
+- `api/internal/<domain>/flow/transition.go` (package `flow`)
+- `api/internal/<domain>/flow/flow_test.go` (thin replay delegation, package `flow`)
+- `api/internal/<domain>/flow/generated/{model.qnt,artifact.json,runtime.go,replay.go}` (package `generated`)
+- `ui/src/features/<domain>/flow/flow.json`
+- `ui/src/features/<domain>/flow/transition.ts`
+- `ui/src/features/<domain>/flow/fixtures.ts`
+- `ui/src/features/<domain>/flow/flow.test.ts` (thin replay delegation)
+- `ui/src/features/<domain>/flow/generated/{model.qnt,artifact.json,runtime.ts,replay.helper.ts}`
+
+<!-- EXAMPLE-DOMAIN:notes START -->
+The `notes` attachment-upload workflow is the scaffold's worked Level 5
+example (removed by `vrooli scenario detemplate`). It instantiates the
+layout above as:
+
 - `api/internal/notes/flow/flow.json`
 - `api/internal/notes/flow/transition.go` (package `flow`)
 - `api/internal/notes/flow/flow_test.go` (thin replay delegation, package `flow`)
@@ -348,6 +381,7 @@ The notes attachment upload workflow is the reference Level 5 pattern:
 - `ui/src/features/notes/flow/fixtures.ts`
 - `ui/src/features/notes/flow/flow.test.ts` (thin replay delegation)
 - `ui/src/features/notes/flow/generated/{model.qnt,artifact.json,runtime.ts,replay.helper.ts}`
+<!-- EXAMPLE-DOMAIN:notes END -->
 
 `make temporal-models` invokes `flow-verifier verify check --root .`, which
 runs `quint typecheck`, `quint test`, `quint verify`, and deterministic MBT
@@ -411,7 +445,7 @@ read. Connect handler tests should use the shared helper:
 
 ```go
 logger, logBuf := connectxtest.NewLogger(t)
-client := newNotesClient(t, fakeService, logger)
+client := new<Domain>Client(t, fakeService, logger)
 ```
 
 For scenario-local helpers that do not consume `api-core/connectx`, the same
@@ -427,9 +461,14 @@ srv := server.New(server.Deps{
 
 Discard-only sinks (`log.New(io.Discard, "", 0)`) work for tests that
 don't need to inspect log output; reach for the buffer when the test
-asserts on what was logged (e.g., the 500-path test in
-`handlers/notes/connect_handler_test.go::TestConnectHandler_GetInternalError`
-checks the underlying error reaches operator logs).
+asserts on what was logged — e.g. a 500-path handler test that checks
+the underlying error reaches operator logs.
+
+<!-- EXAMPLE-DOMAIN:notes START -->
+The example domain's reference for the buffer-logger 500-path assertion
+is `handlers/notes/connect_handler_test.go::TestConnectHandler_GetInternalError`
+(removed by `vrooli scenario detemplate`).
+<!-- EXAMPLE-DOMAIN:notes END -->
 
 ### Testing context cancellation
 
@@ -611,7 +650,7 @@ CLDR plural variants (`refreshCount_one`,
 smoke-only so deleting a feature does not require rewriting the app
 composition test.
 
-### Mock builders for `api/health` and `api/notes`
+### Mock builders for `api/*` surfaces
 
 `vi.mock(path, factory)` is hoisted before any user import resolves;
 a wrapper imported from `test-utils` would be in the temporal dead
@@ -622,10 +661,37 @@ a builder function that runs when the closure executes — which is
 
 `@/test-utils` exports shared, cross-feature mock builders such as
 `makeApiMocks()`. Feature-specific builders live beside the feature so
-deleting the feature takes its mocks with it; for notes, import
-`makeNotesMocks()` from `features/notes/mocks/notes`.
+deleting the feature takes its mocks with it (import
+`make<Domain>Mocks()` from `features/<domain>/mocks/<domain>`).
 
 Canonical shape:
+
+```tsx
+import { makeApiMocks } from "@/test-utils";
+
+vi.mock("../../api/health", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/health")>();
+  return { ...actual, ...makeApiMocks() };
+});
+```
+
+Defaults are picked so the most common test paths work no-args:
+`makeApiMocks().fetchHealth` resolves to a healthy response. The
+`...actual` spread keeps non-mocked exports (the `ApiError` class,
+re-exported proto types) intact — only network-touching functions are
+substituted.
+
+A feature with its own API surface adds a second `vi.mock` for its
+client and a feature-local builder; per-test overrides use vitest's
+standard pattern *after* the mock is wired
+(`vi.mocked(client.method).mockResolvedValueOnce(...)`). The fenced
+example below shows the full two-mock shape.
+
+<!-- EXAMPLE-DOMAIN:notes START -->
+#### Example domain — `notes` mock builders (removed by `vrooli scenario detemplate`)
+
+For notes, import `makeNotesMocks()` from `features/notes/mocks/notes`
+and wire it alongside the shared `makeApiMocks()`:
 
 ```tsx
 import { makeApiMocks } from "@/test-utils";
@@ -642,11 +708,9 @@ vi.mock("../../api/notes", async (importOriginal) => {
 });
 ```
 
-Defaults are picked so the most common test paths work no-args:
-`makeApiMocks().fetchHealth` resolves to a healthy response;
-`makeNotesMocks().notesClient.listNotes` resolves to an empty list;
-`notesClient.createNote({ title })` echoes the title back as a Note.
-Per-test overrides use vitest's standard pattern *after* the mock is wired:
+Defaults: `makeNotesMocks().notesClient.listNotes` resolves to an empty
+list; `notesClient.createNote({ title })` echoes the title back as a
+Note. Per-test overrides:
 
 ```tsx
 const { notesClient } = await import("../../api/notes");
@@ -654,10 +718,7 @@ vi.mocked(notesClient.listNotes).mockResolvedValueOnce(
   makeListNotesResponse({ notes: [makeNote({ id: "a" })] }),
 );
 ```
-
-The `...actual` spread keeps non-mocked exports (the `ApiError` class,
-re-exported proto types) intact — only network-touching functions are
-substituted.
+<!-- EXAMPLE-DOMAIN:notes END -->
 
 When a third lib/* surface lands (e.g., `lib/users.ts`), follow the
 same pattern: builder in `ui/src/test-utils/mocks/<surface>.ts`, self-
@@ -889,9 +950,9 @@ Steps:
    handler test and decode via `assertx.MustUnmarshalProto`:
 
    ```go
-   import notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes"
+   import domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/<domain>"
 
-   got := assertx.MustUnmarshalProto[notesv1.ListResponse](t, body)
+   got := assertx.MustUnmarshalProto[domainv1.ListResponse](t, body)
    ```
 
    For fixtures, follow the `fixtures/health.go` pattern — re-export
@@ -899,8 +960,8 @@ Steps:
    builders:
 
    ```go
-   type ListResponse = notesv1.ListResponse
-   func NewListResponse(opts ...ListOpt) *notesv1.ListResponse { /* ... */ }
+   type ListResponse = domainv1.ListResponse
+   func NewListResponse(opts ...ListOpt) *domainv1.ListResponse { /* ... */ }
    ```
 
 4. **Wire it on the UI side.** Import the generated TS schema and use
@@ -908,7 +969,7 @@ Steps:
 
    ```ts
    import { fromJson, create } from "@bufbuild/protobuf";
-   import { ListResponseSchema } from "@vrooli/proto-types/{{SCENARIO_ID}}/v1/notes/notes_pb";
+   import { ListResponseSchema } from "@vrooli/proto-types/{{SCENARIO_ID}}/v1/<domain>/<domain>_pb";
 
    // production
    return fromJson(ListResponseSchema, json, { ignoreUnknownFields: true });
@@ -919,7 +980,7 @@ Steps:
 
 5. **Tests follow.** Connect handler tests call the generated client;
    fixture tests assert on the typed shape via `proto.Equal`. UI tests
-   mock `api/notes` and return generated response objects from the
+   mock `api/<domain>` and return generated response objects from the
    factory.
 
 Don't add a new `mocks/Fake*` interface for the proto type — the proto

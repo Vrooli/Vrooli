@@ -31,7 +31,7 @@ Use this document to answer:
 
 ## Packaging
 
-| Surface | Packaging Notes |
+| Surface | Packaging Details |
 |---|---|
 | API | Go binary built by scenario lifecycle. |
 | UI | Vite production bundle served by `ui/server.js`. |

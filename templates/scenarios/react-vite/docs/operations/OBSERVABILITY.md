@@ -22,14 +22,14 @@ Use this document to answer:
 
 ## Logs
 
-| Log | Source | How To Read | Notes |
+| Log | Source | How To Read | Details |
 |---|---|---|---|
 | API logs | lifecycle-managed API process | `make logs` | Request logging uses deterministic clock seam in tests. |
 | UI logs | lifecycle-managed UI server | `make logs` | Production bundle server logs only. |
 
 ## Metrics
 
-| Metric | Status | Notes |
+| Metric | Status | Details |
 |---|---|---|
 | Product activation | deferred | Define after PRD users and workflows are real. |
 | Requirement coverage | active | Tracked through requirements and test-genie coverage artifacts. |

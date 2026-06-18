@@ -9,7 +9,7 @@ Proto-typed UI, CLI, and inter-scenario calls use Connect-RPC. Errors
 move through three layers:
 
 1. Domain/service code returns typed sentinels such as
-   `notes.ErrInvalidNote` or `notes.ErrNoteNotFound`.
+   `<domain>.ErrInvalid<Entity>` or `<domain>.Err<Entity>NotFound`.
 2. The API transport edge maps those sentinels to `connect.Error`
    values in `internal/<domain>/service_error_mapping.go`.
 3. The UI receives `ConnectError`, maps `ConnectError.code` to an
@@ -24,8 +24,8 @@ names as the UI catalog instead of string-matching messages.
 
 | Domain error | Connect code | UI i18n key |
 |---|---|---|
-| `ErrInvalidNote` | `invalid_argument` | `errors.invalid_argument` |
-| `ErrNoteNotFound` | `not_found` | `errors.not_found` |
+| `ErrInvalid<Entity>` | `invalid_argument` | `errors.invalid_argument` |
+| `Err<Entity>NotFound` | `not_found` | `errors.not_found` |
 | Unknown service/repository error | `internal` | `errors.internal` |
 
 When you add a domain, keep the mapping file next to that domain's

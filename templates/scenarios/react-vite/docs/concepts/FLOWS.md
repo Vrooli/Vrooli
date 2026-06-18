@@ -20,13 +20,34 @@ workflow model.
 
 ## Flow Inventory
 
+`health` is a stateless reporting domain and ships no workflows. List
+each real stateful flow your domains add below, with its owner, trigger,
+outcome, statefulness, and validation level.
+
+| Flow | Domain | Trigger | Outcome | Statefulness | Validation |
+|---|---|---|---|---|---|
+| _(your flow)_ | _(owning domain)_ | What starts it. | What it produces. | States, retries, cancellation, stale completion. | Target maturity level. |
+
+## Flow Details
+
+Document each real flow here with its owner domain, trigger, inputs,
+ordered steps, outputs, failure modes, retry/cancel behavior, tests, and
+generated subpackages. The worked example below shows the expected shape.
+
+<!-- EXAMPLE-DOMAIN:notes START -->
+### Example domain — `notes` (removed by `vrooli scenario detemplate`)
+
+The template ships an `Attachment upload` flow on the `notes` domain as a
+worked Level 5 temporal-workflow vertical slice. Copy its shape for your
+own stateful flows, then remove it.
+
+Add this row to the Flow Inventory above:
+
 | Flow | Domain | Trigger | Outcome | Statefulness | Validation |
 |---|---|---|---|---|---|
 | Attachment upload | notes | User/CLI uploads a file for a note. | Blob is stored and metadata is persisted. | Stateful upload request with validation and failure paths. | Level 5 workflow tests: matrix, traces, declarative spec, checked Quint model, generated artifacts, and production replay. |
 
-## Flow Details
-
-### Attachment upload
+#### Attachment upload
 
 - Owner domain: notes.
 - Trigger: multipart upload request from UI or CLI.
@@ -54,12 +75,22 @@ workflow model.
   `runtime.ts`, `replay.helper.ts`).
 - Requirements: template starter only.
 
-## State Machines
+These example state machines belong in the State Machines table below:
 
 | Domain/Flow | States | Illegal Transitions | Enforcement |
 |---|---|---|---|
 | notes / attachment upload API | received, bytes_stored, metadata_recorded, failed | metadata before bytes, terminal-state escape, duplicate terminal events | `*.flow.json` contract, generated Quint model, generated formal artifact replay, side-effect cleanup tests |
 | notes / attachment upload UI | idle, selected, uploading, succeeded, failed | start before select, stale completion after reset/reselect, retry without file context | `*.flow.json` contract, generated Quint model, generated formal artifact replay, attempt-id stale completion tests |
+<!-- EXAMPLE-DOMAIN:notes END -->
+
+## State Machines
+
+List each modeled flow's states, illegal transitions, and how they are
+enforced. Plain CRUD with no ordering constraints does not appear here.
+
+| Domain/Flow | States | Illegal Transitions | Enforcement |
+|---|---|---|---|
+| _(your flow)_ | The ordered/terminal states. | Transitions the contract forbids. | `*.flow.json` contract, generated Quint model, replay tests. |
 
 ## Maturity Ladder
 

@@ -30,7 +30,7 @@ Use this document to answer:
 
 ## Packaging
 
-| Packaging Option | Status | Notes |
+| Packaging Option | Status | Details |
 |---|---|---|
 | Standalone app | deferred | Revisit after first real domain is implemented. |
 | Bundle component | deferred | Map in project-level monetization catalog if promoted. |

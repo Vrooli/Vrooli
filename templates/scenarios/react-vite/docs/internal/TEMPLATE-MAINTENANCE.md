@@ -61,9 +61,92 @@ When editing template files, prevent these failure modes proactively:
    under `templates/design/`), put the binding tokens/rules in one
    place and the illustrative component lists in another, clearly
    labeled. Do not interleave.
+5. For the `notes` example domain specifically, the "do not interleave"
+   rule is mechanically enforced: every example-only artifact carries an
+   `EXAMPLE-DOMAIN:notes` marker (see the next section), and a generated
+   scenario that still contains any marker fails the
+   `example-domain-removed` orientation gate. When you add notes content
+   to any template file, fence or mark it — unfenced notes prose fails
+   deep validation's residue check.
 
 This principle is the single most common cause of generated-scenario
 quality drift. Apply it whenever you touch a template file.
+
+## Example Domain Markers (`EXAMPLE-DOMAIN:notes`)
+
+The `notes` domain is an illustrative example (above) that scenario
+authors delete once their own domains are green. To make that deletion
+**mechanical and verifiable**, the example domain is marked with a single
+marker vocabulary, `EXAMPLE-DOMAIN:<marker>`, where `<marker>` is the
+example domain's slug — `notes` today, read from
+`template.json::exampleDomain.marker`. There are four placements; pick by
+file type, never invent a synonym.
+
+1. **Fenced block** (multi-line, any comment syntax) — wrap a contiguous
+   run of example-only prose *or code* between START/END sentinels. The
+   fence is comment-syntax-agnostic:
+
+   ```markdown
+   <!-- EXAMPLE-DOMAIN:notes START -->
+   ... all `notes`-specific documentation lives here ...
+   <!-- EXAMPLE-DOMAIN:notes END -->
+   ```
+
+   ```go
+   groups := []cliapp.SubcommandGroup{}
+   // EXAMPLE-DOMAIN:notes START
+   notesGroup, err := notes.Register(core, manifest)
+   if err != nil {
+       return nil, err
+   }
+   groups = append(groups, notesGroup)
+   // EXAMPLE-DOMAIN:notes END
+   return groups, nil
+   ```
+
+   Everything outside the fence is the *binding zone*: the real `health`
+   domain plus abstract "your domains go here" guidance, and — for code —
+   a structure that stays valid after the fence is removed (note the
+   `groups := {}` / `return groups, nil` binding zone above). Never
+   interleave notes content into the binding zone; concentrate it in one
+   fenced block.
+
+2. **Trailing line marker** (single line) — a registration line (import,
+   route, nav item, schema/CLI entry) carries a trailing marker comment;
+   the whole line is removed:
+
+   ```go
+   notesH "{{SCENARIO_ID}}/handlers/notes" // EXAMPLE-DOMAIN:notes
+   ```
+
+   ```ts
+   { path: "notes", element: <NotesPage /> }, // EXAMPLE-DOMAIN:notes
+   ```
+
+   For one example element inside an inline array/union, break it onto its
+   own line first so the marker removes only that element.
+
+3. **Whole file / directory** — enumerate the path in
+   `template.json::exampleDomain.paths` (template-relative; the `proto/`
+   entry is resolved through the relocation mapping, and its generated
+   artifacts are removed too). Deleted wholesale; an explicit allowlist is
+   auditable and a deleted file cannot leave a surviving marker.
+
+4. **Comment-less JSON** (i18n locales, the CLI manifest) — JSON forbids
+   comments, so example content is pruned via
+   `template.json::exampleDomain.jsonPrune`: per-file dotted object
+   key-paths (`keys`) and array-element matches (`arrayMatch`, deleting
+   elements whose fields equal the given `where`). Order and UTF-8 are
+   preserved.
+
+`vrooli scenario detemplate <scenario>` removes all four forms in one
+idempotent command (strip fenced blocks → strip marked lines → delete
+`exampleDomain.paths` → prune `jsonPrune` files → run finalizers
+`make generate` / `pnpm strings:gen` / `go mod tidy` / `gofumpt`),
+refusing if a non-example file still imports a to-be-deleted package. The `example-domain-removed` orientation gate and
+deep template validation both fail if any `EXAMPLE-DOMAIN` marker
+survives. `START-HERE.md` points scenario authors at that command, not a
+manual deletion checklist.
 
 ## Audience Split
 

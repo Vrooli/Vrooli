@@ -8,7 +8,7 @@ work lands, not while work is still speculative.
 
 ## Progress Log
 
-| Date | Author | Status | Notes |
+| Date | Author | Status | Summary |
 |---|---|---|---|
 | _No progress entries yet._ |  |  |  |
 

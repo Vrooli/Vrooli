@@ -161,7 +161,7 @@
       {
         "id": "example-domain-removed",
         "title": "Example domain removed",
-        "description": "Remove the notes and attachment reference domain after a real replacement domain is green.",
+        "description": "Remove the notes and attachment reference domain after a real replacement domain is green. Run `vrooli scenario detemplate <scenario>` to remove it mechanically; this gate fails while any EXAMPLE-DOMAIN marker survives.",
         "docs": [
           "docs/START-HERE.md",
           "docs/concepts/ARCHITECTURE.md"
@@ -186,6 +186,10 @@
           {
             "kind": "file_absent",
             "path": "ui/src/api/notes.ts"
+          },
+          {
+            "kind": "text_absent_tree",
+            "text": "EXAMPLE-DOMAIN:notes"
           }
         ]
       },
@@ -289,5 +293,39 @@
         }
       ]
     }
-  ]
+  ],
+  "exampleDomain": {
+    "marker": "notes",
+    "paths": [
+      "api/handlers/notes",
+      "api/internal/notes",
+      "cli/domains/notes",
+      "ui/src/api/notes.ts",
+      "ui/src/api/notes.test.ts",
+      "ui/src/features/notes",
+      "ui/src/pages/NotesPage.tsx",
+      "proto/v1/notes"
+    ],
+    "jsonPrune": [
+      {
+        "file": "ui/src/i18n/locales/en.json",
+        "keys": ["notes", "pages.notes", "layout.nav.notes"]
+      },
+      {
+        "file": "ui/src/i18n/locales/ar.json",
+        "keys": ["notes", "pages.notes", "layout.nav.notes"]
+      },
+      {
+        "file": "ui/src/i18n/locales/ja.json",
+        "keys": ["notes", "pages.notes", "layout.nav.notes"]
+      },
+      {
+        "file": "cli/manifest.json",
+        "arrayMatch": [
+          { "path": "groups", "where": { "name": "notes" } },
+          { "path": "measures.domains", "where": { "domain": "notes" } }
+        ]
+      }
+    ]
+  }
 }

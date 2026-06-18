@@ -52,12 +52,27 @@ and mirrors `api-core/health.Response` field-for-field.
 
 ---
 
-## Notes (CRUD reference)
+## Domain endpoints — `<domain>`
+
+Each product domain exposes its endpoints under
+`POST /vrooli.{{SCENARIO_ID_SNAKE}}.v1.<domain>.<Domain>Service/<Method>`
+for proto-typed Connect-RPC calls, with REST exceptions (such as
+multipart uploads) mounted at explicit REST paths. Document your
+domain's endpoints here as you build them — one section per RPC, with
+its auth, request/response proto shapes, error codes, and CLI mirror.
+
+The scaffold ships one fully worked CRUD vertical slice as a copyable
+reference (see the fenced example below); `vrooli scenario detemplate
+<scenario>` removes it once your real domains are green.
+
+<!-- EXAMPLE-DOMAIN:notes START -->
+### Example domain — `notes` (removed by `vrooli scenario detemplate`)
 
 The `notes` domain is the canonical worked example. Copy its layering
-when adding the first non-trivial mutation in your scenario.
+when adding the first non-trivial mutation in your scenario, then
+remove it.
 
-### `POST /vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/ListNotes`
+#### `POST /vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/ListNotes`
 
 List notes through the generated Connect-RPC service, newest-first.
 
@@ -77,7 +92,7 @@ curl -X POST "http://localhost:${API_PORT}/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes
 UI and CLI code should normally use the generated client instead of
 calling this path by hand.
 
-### `POST /vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/CreateNote`
+#### `POST /vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/CreateNote`
 
 Create a note through the generated Connect-RPC service.
 
@@ -99,7 +114,7 @@ Title validation (non-empty after whitespace trim) lives in
 `internal/notes/service.go`, **not** the handler. The Connect handler
 only translates `notes.ErrInvalidNote` into `invalid_argument`.
 
-### `POST /vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/GetNote`
+#### `POST /vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/GetNote`
 
 Fetch a note by id through the generated Connect-RPC service.
 
@@ -120,7 +135,7 @@ curl -X POST "http://localhost:${API_PORT}/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes
 `notes.ErrNoteNotFound` returned by the service is translated into the
 typed `not_found` Connect error at the handler edge.
 
-### `POST /api/v1/notes/{id}/attachments`
+#### `POST /api/v1/notes/{id}/attachments`
 
 Upload opaque file bytes through the documented REST multipart exception.
 The response is still proto-typed metadata.
@@ -139,7 +154,7 @@ curl -X POST "http://localhost:${API_PORT}/api/v1/notes/abc123/attachments" \
   -F file=@./example.png
 ```
 
-### `Note` shape
+#### `Note` shape
 
 | Field | Type | Notes |
 |---|---|---|
@@ -151,13 +166,14 @@ curl -X POST "http://localhost:${API_PORT}/api/v1/notes/abc123/attachments" \
 | `attachment_keys` | `string[]` | Keys of uploaded note attachments |
 
 Defined in `packages/proto/schemas/{{SCENARIO_ID}}/v1/notes/notes.proto`.
+<!-- EXAMPLE-DOMAIN:notes END -->
 
 ---
 
 ## Adding a new endpoint
 
-For a new domain, copy the notes vertical slice first, then replace it
-once your real domain is green.
+For a new domain, copy the worked vertical slice in the fenced example
+above first, then replace it once your real domain is green.
 
 For an endpoint inside an existing domain:
 
@@ -167,8 +183,9 @@ For an endpoint inside an existing domain:
 2. Implement the generated handler method in
    `handlers/<domain>/connect_handler.go`; keep it thin.
 3. Update endpoint metadata in `handlers/<domain>/module.go`.
-4. If the endpoint has a CLI mirror, update
-   `api/cmd/gen-endpoints/cli_commands_seed.json`.
+4. If the endpoint has a CLI mirror, bind it (or list it in `omitted[]`
+   with a reason) in `cli/manifest.json` — the single source of truth for
+   the CLI surface.
 5. Run `make endpoints`; do not edit
    [`.vrooli/endpoints.json`](../../.vrooli/endpoints.json) by hand.
 6. Update this document and add tests for the touched layers.
@@ -176,8 +193,8 @@ For an endpoint inside an existing domain:
    introduced a new interface that production wires once and tests
    substitute.
 
-The CI gate enforces endpoint-manifest freshness and command-seed
-consistency.
+The CI gate enforces endpoint-manifest freshness and the API↔CLI mapping
+contract (every Connect endpoint is bound or omitted in `cli/manifest.json`).
 
 ## Cross-references
 

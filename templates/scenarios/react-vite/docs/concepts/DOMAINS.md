@@ -4,8 +4,11 @@ This document is the canonical map of product capabilities, bounded
 contexts, and ownership for this scenario. Keep it current whenever a
 domain is added, renamed, split, merged, or removed.
 
-`notes` is a worked example from the template, not product scope.
-Replace it after the first real domain is green.
+`health` is the one real domain the scaffold ships. Add your scenario's
+domains to the inventory below as you build them. The scaffold also ships
+one clearly fenced worked example domain (never product scope) as a
+copyable reference; `vrooli scenario detemplate <scenario>` removes every
+fenced example once your real domains are green.
 
 ## Purpose Of This Document
 
@@ -25,7 +28,35 @@ belong in [`DATA.md`](DATA.md).
 | Domain | Purpose | Primary Archetype | Owns Data | Surfaces | Requirements | Source Paths |
 |---|---|---|---|---|---|---|
 | health | Report runtime readiness and dependency reachability. | Reporting / query | No product data. | API, UI | Starter scaffold health. | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/{{SCENARIO_ID}}/v1/health/` |
+| _(your domain)_ | What product capability it owns. | Pick an archetype. | Its tables, if any. | API/CLI/UI. | PRD requirement modules. | `api/internal/<domain>/`, … |
+
+<!-- EXAMPLE-DOMAIN:notes START -->
+### Example domain — `notes` (removed by `vrooli scenario detemplate`)
+
+The template ships `notes` as a worked CRUD vertical slice with a binary
+upload exception. Copy its shape for your own domains, then remove it.
+
+| Domain | Purpose | Primary Archetype | Owns Data | Surfaces | Requirements | Source Paths |
+|---|---|---|---|---|---|---|
 | notes | Worked CRUD reference with attachment upload exception. | CRUD / entity | Notes and attachment metadata. | API, CLI, UI | Template starter only. | `api/internal/notes/`, `api/handlers/notes/`, `cli/domains/notes/`, `ui/src/features/notes/`, `packages/proto/schemas/{{SCENARIO_ID}}/v1/notes/` |
+
+- Purpose: demonstrate the expected vertical slice for a real domain.
+- Primary archetype: CRUD / entity.
+- Secondary traits: binary/blob attachment upload, upload workflow.
+- Owns: note records, attachment metadata, note validation, note
+  service/repository seams, UI note interactions, CLI notes commands.
+- Does not own: product scope for a generated scenario.
+- API: `api/internal/notes/`, `api/handlers/notes/`.
+- CLI: `cli/domains/notes/`.
+- UI: `ui/src/features/notes/`, `ui/src/api/notes.ts`.
+- Storage: domain-owned SQLite schema in `api/internal/notes/schema.sql`.
+- Requirements: template starter only; replace with PRD-specific
+  requirements.
+- Tests: repository, service, handler, CLI, UI, accessibility, and
+  workflow tests.
+- Related docs: [`FLOWS.md`](FLOWS.md), [`DATA.md`](DATA.md),
+  [`../internal/SEAMS.md`](../internal/SEAMS.md).
+<!-- EXAMPLE-DOMAIN:notes END -->
 
 ## Domain Details
 
@@ -45,25 +76,6 @@ belong in [`DATA.md`](DATA.md).
 - Requirements: starter scaffold health only.
 - Tests: handler, module, UI feature, and accessibility tests.
 - Related docs: [`../reference/api-endpoints.md`](../reference/api-endpoints.md).
-
-### notes
-
-- Purpose: demonstrate the expected vertical slice for a real domain.
-- Primary archetype: CRUD / entity.
-- Secondary traits: binary/blob attachment upload, upload workflow.
-- Owns: note records, attachment metadata, note validation, note
-  service/repository seams, UI note interactions, CLI notes commands.
-- Does not own: product scope for a generated scenario.
-- API: `api/internal/notes/`, `api/handlers/notes/`.
-- CLI: `cli/domains/notes/`.
-- UI: `ui/src/features/notes/`, `ui/src/api/notes.ts`.
-- Storage: domain-owned SQLite schema in `api/internal/notes/schema.sql`.
-- Requirements: template starter only; replace with PRD-specific
-  requirements.
-- Tests: repository, service, handler, CLI, UI, accessibility, and
-  workflow tests.
-- Related docs: [`FLOWS.md`](FLOWS.md), [`DATA.md`](DATA.md),
-  [`../internal/SEAMS.md`](../internal/SEAMS.md).
 
 ## Shared Concepts
 

@@ -23,10 +23,10 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	healthH "{{SCENARIO_ID}}/handlers/health"
-	notesH "{{SCENARIO_ID}}/handlers/notes"
+	notesH "{{SCENARIO_ID}}/handlers/notes" // EXAMPLE-DOMAIN:notes
 	localdb "{{SCENARIO_ID}}/internal/database"
 
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes"
+	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes" // EXAMPLE-DOMAIN:notes
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -36,7 +36,7 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
-	out = append(out, notesH.Endpoints...)
+	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
 	return out
 }
 
@@ -63,7 +63,7 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
-		{Module: "notes", File: notesv1.File_{{SCENARIO_ID_SNAKE}}_v1_notes_notes_proto},
+		{Module: "notes", File: notesv1.File_{{SCENARIO_ID_SNAKE}}_v1_notes_notes_proto}, // EXAMPLE-DOMAIN:notes
 	}
 }
 
@@ -71,13 +71,13 @@ func AllProtoFiles() []ProtoFileEntry {
 // schema (always first; cross-cutting infrastructure runs before any
 // domain table). Consumed by main.go's database.EnsureSchemas call.
 //
-// Order matters: system → health → notes → … (domains alphabetical).
+// Order matters: system → health → … (domains alphabetical).
 // Postgres scenarios that put `CREATE EXTENSION ...` in system.sql rely
 // on system running before any domain that references the extension.
 func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema),
+		apidb.SchemaProviderFunc(notesH.Schema), // EXAMPLE-DOMAIN:notes
 	}
 }

@@ -8,7 +8,10 @@ import { strings } from "../consts/strings";
  */
 export interface NavItem {
   /** Selector parameter; stable across locales. */
-  key: "dashboard" | "notes" | "settings";
+  key:
+    | "dashboard"
+    | "notes" // EXAMPLE-DOMAIN:notes
+    | "settings";
   /** Router path. */
   path: string;
   /** True when this is the index route (used for `<NavLink end>`). */
@@ -19,6 +22,6 @@ export interface NavItem {
 
 export const NAV_ITEMS: readonly NavItem[] = [
   { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard },
-  { key: "notes", path: "/notes", labelKey: strings.layout.nav.notes },
+  { key: "notes", path: "/notes", labelKey: strings.layout.nav.notes }, // EXAMPLE-DOMAIN:notes
   { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings },
 ];

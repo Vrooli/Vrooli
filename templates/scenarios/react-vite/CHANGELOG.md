@@ -76,6 +76,45 @@ skill)" beats "modernize the API layer".
 
 ---
 
+## 1.2.0 — 2026-06-17
+
+Makes the `notes` example domain mechanically removable and its removal
+machine-verifiable: one marker vocabulary, one command, one residue gate —
+replacing the manual deletion checklist.
+
+### Added
+- `template.json::exampleDomain` (`marker`, `paths`, `jsonPrune`) declares
+  the example domain so it can be removed wholesale. New
+  `vrooli scenario detemplate <scenario>` strips fenced `EXAMPLE-DOMAIN`
+  blocks (docs **and** code), deletes the listed files/dirs (including the
+  relocated proto schema + generated artifacts), prunes the comment-less
+  JSON (i18n locales, CLI manifest), runs finalizers, and refuses if a
+  non-example file still imports a to-be-deleted package. `--dry-run` and
+  proto-typed `--json` supported; idempotent.
+- `example-domain-removed` orientation step gained a `text_absent_tree`
+  check that fails if any `EXAMPLE-DOMAIN` marker survives anywhere in the
+  tree.
+- The marker vocabulary (fenced block / trailing line marker / manifest
+  `paths` / manifest `jsonPrune`) is specified in
+  `docs/internal/TEMPLATE-MAINTENANCE.md` and
+  `docs/internal/TEMPLATE-GENERATION-CONTRACT.md`.
+
+### Changed
+- Every generated doc now concentrates its `notes` content in one fenced
+  `EXAMPLE-DOMAIN:notes` block with a binding zone that describes the real
+  `health` domain plus abstract guidance, instead of interleaving `notes`
+  as product scope. Example-only code registration lines/blocks carry
+  `EXAMPLE-DOMAIN:notes` markers.
+- `docs/START-HERE.md` Gate 7 replaces the manual 13-step deletion
+  checklist with `vrooli scenario detemplate <scenario>` + the orient gate.
+
+### Migration (for agents updating older scenarios)
+- [ ] If the scenario still carries the `notes` example, run
+      `vrooli scenario detemplate <scenario>` (preview with `--dry-run`
+      first), then `make test` and `vrooli scenario orient <scenario>`.
+- [ ] If the scenario already removed `notes` manually, no action — the
+      new gate passes when no `EXAMPLE-DOMAIN` marker is present.
+
 ## 1.1.0 — 2026-06-12
 
 Makes scenario UI dependency isolation structural instead of

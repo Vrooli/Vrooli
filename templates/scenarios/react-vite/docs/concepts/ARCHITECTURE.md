@@ -122,7 +122,7 @@ REST is allowed only for four enumerated reasons, defined as
 
 | Reason | When it applies |
 |---|---|
-| `RESTReasonMultipartUpload` | Opaque file bytes via `multipart/form-data`. The notes attachments endpoint is the worked example. |
+| `RESTReasonMultipartUpload` | Opaque file bytes via `multipart/form-data`. A binary/blob attachment-upload endpoint is the canonical case. |
 | `RESTReasonWebhookReceiver` | Endpoint shape is dictated by a third-party system (Stripe, GitHub, etc.) we do not own. |
 | `RESTReasonThirdPartyShape` | Request or response is an externally-defined contract (OAuth callbacks, OpenAPI passthrough). |
 | `RESTReasonOpsProbe` | Lifecycle systems, load balancers, and `curl` must reach the endpoint without a generated client (plain `GET /health`, static iframe-facing HTML wrappers). |
@@ -138,10 +138,11 @@ explicitly. There is no "internal endpoint, REST is fine" path —
 that rationalization is exactly what the validation pass prevents.
 
 Note: even for REST exceptions, the **payload shape** stays
-proto-typed wherever possible. The notes attachments handler returns
-the proto `UploadAttachmentResponse` message; only the request
-transport is multipart. Drift between API/UI/CLI is eliminated as
-long as the wire payload type is shared.
+proto-typed wherever possible. A multipart attachment-upload handler
+should return a proto-typed metadata message (e.g.
+`UploadAttachmentResponse`); only the request transport is multipart.
+Drift between API/UI/CLI is eliminated as long as the wire payload type
+is shared.
 
 ## Shared Infrastructure
 
@@ -191,7 +192,7 @@ reference domains. Replace this table as the scenario becomes real.
 
 | Area | Maturity | Evidence | Remaining Drift |
 |---|---|---|---|
-| API | Reference-ready | Domain-owned notes stack, module registry, per-domain schema, documented seams. | Starter domains must be replaced with scenario-specific capabilities. |
+| API | Reference-ready | Domain-owned vertical-slice stack, module registry, per-domain schema, documented seams. | Starter domains must be replaced with scenario-specific capabilities. |
 | UI | Reference-ready | Feature folders, typed API clients, selector/i18n registries, modeltest helpers. | Real scenarios may need routing/state patterns once multiple screens exist. |
 | CLI | Reference-ready | Domain command groups wrap API calls and render reports. | New domains must add commands intentionally; CLI should remain thin. |
 | Docs | Contract-ready | Manifest v2 registers docs, maturity, stages, and validation hints. | Scenario-specific stubs must be filled or marked not-applicable. |

@@ -48,6 +48,13 @@ The template's `template.json` controls generation:
   advertised after generation and run only when the user passes
   `--run-hooks`; template deep validation also runs them because it is
   the source of truth for first-run generated scenario health.
+- `exampleDomain` declares the illustrative `notes` domain so it can be
+  removed mechanically by `vrooli scenario detemplate`. `marker` is the
+  domain slug (`notes`); `paths` enumerates the example-only files/dirs
+  to delete wholesale (template-relative; the `proto/` entry is resolved
+  through the same relocation mapping the generator applied). See the
+  **Example Domain Contract** below and the **Example Domain Markers**
+  section in `docs/internal/TEMPLATE-MAINTENANCE.md`.
 
 Unsupported manifest fields are ignored by the current Go decoder.
 Add a field to `internal/cli/scenariocli.TemplateManifest` before
@@ -153,9 +160,22 @@ When maintaining the example, preserve these properties:
 - CLI commands use declarative `cliapp.ArgSchema`
 - UI strings and selectors stay centralized
 - binary uploads remain the deliberate REST multipart exception
-- deleting the notes folders plus small registration lines removes the
-  product example without orphan schema, blob, CLI, selector, or i18n
-  residue
+- every example-only artifact carries an `EXAMPLE-DOMAIN:notes` marker
+  (doc-block fence, `exampleDomain.paths` entry, or trailing
+  registration-line comment) so `vrooli scenario detemplate` removes the
+  product example in one idempotent command without orphan schema, blob,
+  CLI, selector, or i18n residue, and the residue gate can verify zero
+  markers survive
+
+The marker vocabulary and its three placements are specified in the
+**Example Domain Markers** section of
+`docs/internal/TEMPLATE-MAINTENANCE.md`. Removal is mechanical and
+verifiable, not a manual checklist:
+
+```bash
+vrooli scenario detemplate <scenario>          # strip + delete + finalize
+vrooli scenario detemplate <scenario> --dry-run # preview, no writes
+```
 
 If the mechanical replacement workflow changes, update
 `docs/START-HERE.md` in the same change.

@@ -21,8 +21,9 @@ RPC bindings, governance metadata) is declared in
 `cliapp.LoadFromManifest`, which:
 
 - builds each domain's `SubcommandGroup` from its manifest group
-- wires each command's `binding.method` (e.g. `NotesService.ListNotes`)
-  to a handler registered in the domain's `register.go` bindings map
+- wires each command's `binding.method` (e.g.
+  `<Domain>Service.List<Entity>`) to a handler registered in the
+  domain's `register.go` bindings map
 - fails loudly on missing handlers, dead handlers, or unknown groups
 
 Per-domain tests use `cliapp.RequireProtoServiceCoverage` to assert
@@ -37,10 +38,10 @@ to derive action certainty automatically; scenarios that adopt the
 manifest don't need hand-classified action-safety lists.
 
 `binding.kind` is currently `connect-rpc` only. REST-exception
-commands (the canonical example is `notes attach`, which uses
-multipart upload) are appended to the loaded group outside the manifest
-path in the domain's `register.go` and documented in the manifest's
-`omitted[]` array.
+commands (for example, a multipart file-upload command whose request
+body carries opaque bytes) are appended to the loaded group outside the
+manifest path in the domain's `register.go` and documented in the
+manifest's `omitted[]` array.
 
 For environment-variable precedence and CLI config-file shape, see
 [`configuration.md`](configuration.md).
@@ -89,12 +90,27 @@ Read values back without an argument:
 {{SCENARIO_ID}} configure api_base
 ```
 
-## Scenario commands — `notes` (CRUD reference)
+## Scenario commands — `<domain>`
+
+Each product domain exposes its commands as a subcommand group
+(`{{SCENARIO_ID}} <domain> <verb>`). Every command calls a single API
+endpoint and renders the result through one of the three output
+contracts below. Document your domain's commands here as you build
+them, one row/section per command, mirroring the endpoints they call
+in [`api-endpoints.md`](api-endpoints.md).
+
+The scaffold ships one fully worked CRUD command group as a copyable
+reference (see the fenced example below); `vrooli scenario detemplate
+<scenario>` removes it once your real domains are green.
+
+<!-- EXAMPLE-DOMAIN:notes START -->
+### Example domain — `notes` (removed by `vrooli scenario detemplate`)
 
 The `notes` domain is the canonical worked example. Copy its layout
-when adding the first non-trivial domain to your scenario.
+when adding the first non-trivial domain to your scenario, then remove
+it.
 
-### `{{SCENARIO_ID}} notes list`
+#### `{{SCENARIO_ID}} notes list`
 
 List notes, newest-first. Calls the generated Connect-RPC
 `Notes/List` method. Uses the
@@ -105,7 +121,7 @@ List notes, newest-first. Calls the generated Connect-RPC
 {{SCENARIO_ID}} notes list --json
 ```
 
-### `{{SCENARIO_ID}} notes create --title <title> [--body <body>]`
+#### `{{SCENARIO_ID}} notes create --title <title> [--body <body>]`
 
 Create a note. Calls the generated Connect-RPC `Notes/Create` method. Uses the **mutation
 contract**: `Result → What Changed → Next Command`.
@@ -118,7 +134,7 @@ contract**: `Result → What Changed → Next Command`.
 API service, so an empty title surfaces as an `invalid_argument`
 Connect error rather than a CLI-side check.
 
-### `{{SCENARIO_ID}} notes get <id>`
+#### `{{SCENARIO_ID}} notes get <id>`
 
 Fetch a note by id. Calls the generated Connect-RPC `Notes/Get` method.
 
@@ -129,7 +145,7 @@ Fetch a note by id. Calls the generated Connect-RPC `Notes/Get` method.
 A non-existent id surfaces as `not_found`; the CLI translates the
 typed Connect code to an actionable error message.
 
-### `{{SCENARIO_ID}} notes attach <id> --file <path>`
+#### `{{SCENARIO_ID}} notes attach <id> --file <path>`
 
 Attach a file to a note. This is the documented REST multipart
 exception because the request body contains opaque bytes. The response
@@ -138,6 +154,7 @@ is proto-typed attachment metadata.
 ```bash
 {{SCENARIO_ID}} notes attach abc123 --file ./example.png
 ```
+<!-- EXAMPLE-DOMAIN:notes END -->
 
 ## Output contracts
 
@@ -159,8 +176,8 @@ helpers).
 
 ## Adding a new command
 
-For a new domain, copy the notes command group first, then replace it
-once your real domain is green.
+For a new domain, copy the worked CRUD command group in the fenced
+example above first, then replace it once your real domain is green.
 
 For a command inside an existing domain:
 
@@ -190,8 +207,8 @@ For a command inside an existing domain:
      `register.go` and document them in the manifest's `omitted[]`).
    - Render proto-backed responses with `cliapp.RenderProtoList` or
      `cliapp.RenderProtoMutation`.
-6. Add endpoint metadata in the API handler module and add a matching
-   row to `api/cmd/gen-endpoints/cli_commands_seed.json`. Then run
+6. Add endpoint metadata in the API handler module and bind the method
+   (or list it in `omitted[]`) in `cli/manifest.json`. Then run
    `make endpoints`; do not edit [`.vrooli/endpoints.json`](../../.vrooli/endpoints.json)
    by hand.
 7. Add a row to this document.
@@ -204,11 +221,11 @@ For a command inside an existing domain:
 
 ## Command structure principles
 
-- **Subcommand groups** (`notes list`, `notes create`) over flat
-  verbs (`list-notes`, `create-note`). Discoverability via `--help`
-  is the goal.
-- **Positional for required, flags for optional.** `notes get <id>`
-  not `notes get --id <id>`.
+- **Subcommand groups** (`<domain> list`, `<domain> create`) over flat
+  verbs (`list-<entity>`, `create-<entity>`). Discoverability via
+  `--help` is the goal.
+- **Positional for required, flags for optional.** `<domain> get <id>`
+  not `<domain> get --id <id>`.
 - **One command per API endpoint.** If you find yourself making two
   endpoint calls, the API is missing a use-case.
 - **Error messages must be actionable.** "API unreachable" is bad;

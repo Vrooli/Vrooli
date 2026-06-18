@@ -17,8 +17,10 @@ The generated scaffold is intentionally not the product. Treat every
 generated UI surface as placeholder unless it is explicitly listed as
 durable infrastructure below. In particular:
 
-- The `notes` domain is a worked example. Build one real domain beside
-  it, prove that domain is green, then remove the example.
+- The scaffold ships one worked example domain (clearly fenced as an
+  example throughout the docs). Build one real domain beside it, prove
+  that domain is green, then remove the example with one command:
+  `vrooli scenario detemplate <scenario>`.
 - The `AppShell` layout, the centered single-panel home page, the title
   / description / eyebrow text, and the bare-minimum settings surface
   are placeholders. They exist so the template boots green; they are
@@ -34,7 +36,7 @@ durable infrastructure below. In particular:
 
 Binding contract vs. illustrative example: every reference doc this
 scenario ships with — `DESIGN.md`, `PRD.md`, the placeholder shell,
-and the `notes` example — mixes two kinds of guidance. Tokens, motion,
+and the fenced example domain — mixes two kinds of guidance. Tokens, motion,
 status-color semantics, accessibility floors, i18n, and the
 domain/proto/API/CLI/UI shape are **binding contracts**: respect them.
 Specific lists of components, settings, page surfaces, or copy
@@ -207,16 +209,38 @@ it exists, and which files it will touch before writing code.
 
 ### Gate 4 — Dependency Decisions
 
+Resources and scenario-to-scenario dependencies live in
+`.vrooli/service.json`. **Third-party packages** (npm/go/pip) are
+governed separately by **Scenario Dependency Analyzer (SDA)** — the
+dependency-intelligence authority. Just as the charter gate routes PRD
+authoring through `prd-control-tower`, dependency selection routes
+through SDA. **Never hand-edit `.vrooli/dependencies/approved-dependencies.json`
+or run a raw `pnpm add` / `go get` / `pip install`.**
+
 - [ ] Keep SQLite unless a domain truly needs a shared resource.
 - [ ] If adding resources or scenario dependencies, document the reason
       in `PRD.md` during the charter gate and in
       `docs/concepts/INTEGRATIONS.md` before editing
       `.vrooli/service.json`.
-- [ ] Confirm no dependency is added only because the example `notes`
-      domain happens to use a local SQLite store.
+- [ ] Confirm no dependency is added only because the example domain
+      happens to use a local SQLite store.
+- [ ] For any third-party package, **find** it with
+      `scenario-dependency-analyzer deps approved search "<purpose>" [--framework react] [--surface ui]`
+      (also `search-hub query "<purpose>" --type dependency`) — this
+      returns already-approved packages with version ranges and security
+      state, and is not exhaustive.
+- [ ] **Install** it through the governed gateway:
+      `scenario-dependency-analyzer deps install <ecosystem>/<package>[@ver] --scenario <name> --surface <ui|api|cli>`
+      (dry-run by default; add `--apply`). It resolves the right package
+      manager + manifest, enforces governance, and re-scans for CVEs.
+- [ ] If a package is unrecorded, record the decision with
+      `scenario-dependency-analyzer deps approved approve-observed <ecosystem>/<package> --from-findings --apply`
+      rather than editing the registry JSON.
 
-**Exit criteria:** `.vrooli/service.json` reflects only dependencies
-the real scenario needs.
+**Exit criteria:** `.vrooli/service.json` reflects only the resources/
+scenario dependencies the real scenario needs, and every third-party
+package was found + installed through SDA (no raw package-manager calls,
+no hand-edited governance JSON).
 
 ### Gate 5 — Design Language
 
@@ -294,7 +318,7 @@ deferred, or explicitly not-applicable for a reason.
 
 ### Gate 6 — First Real Vertical Slice
 
-- [ ] Add the first real domain beside the example `notes` domain.
+- [ ] Add the first real domain beside the example domain.
 - [ ] **Start in proto.** Author `packages/proto/schemas/{{SCENARIO_ID}}/v1/<domain>/<domain>.proto`
       with a `service` block FIRST, run `make generate`, then write
       handlers/CLI/UI against the generated `*Procedure` constants and
@@ -318,23 +342,24 @@ and scenario tests.
 
 ### Gate 7 — Remove The Example Domain
 
-- [ ] Delete `api/internal/notes`, `api/handlers/notes`,
-      `cli/domains/notes`, `ui/src/features/notes`,
-      `ui/src/api/notes.ts`, and `ui/src/api/notes.test.ts`.
-- [ ] Remove `notes` imports, module registrations, schema entries, CLI
-      registration, and `<NotesCard />` render.
-- [ ] Remove `notes` command rows from
-      `api/cmd/gen-endpoints/cli_commands_seed.json`, then run
-      `make endpoints`.
-- [ ] Remove notes-specific i18n keys and run `pnpm strings:gen` from
-      `ui/`.
-- [ ] Remove the `notes` block from `ui/src/consts/selectors.ts`.
-- [ ] Verify no product residue remains with focused searches for
-      `notes`, `Notes`, and `NOTES` in `api/`, `cli/`, `ui/src/`,
-      `.vrooli/`, and the scenario's proto schema directory.
-- [ ] Run `make test`.
+The example domain is removed by one idempotent command — no manual file
+deletion. It strips every fenced `EXAMPLE-DOMAIN` block (docs and code),
+deletes the example's files/dirs (including the relocated proto schema and
+its generated artifacts), prunes the example keys from the i18n locales
+and CLI manifest, then refreshes generated output (`make generate`,
+`pnpm strings:gen`, `go mod tidy`, `gofumpt`, CLI command surface):
 
-**Exit criteria:** only health plus real scenario domains remain.
+- [ ] Preview first: `vrooli scenario detemplate <scenario> --dry-run`.
+- [ ] Remove it: `vrooli scenario detemplate <scenario>`. If it refuses
+      with a dangling-reference error, a non-example file still imports the
+      example package — resolve that reference (or mark the line) and rerun.
+- [ ] Run `make test`.
+- [ ] Confirm the gate: `vrooli scenario orient <scenario>` — the
+      `example-domain-removed` step fails if any `EXAMPLE-DOMAIN` marker
+      survives anywhere in the tree.
+
+**Exit criteria:** only health plus real scenario domains remain, and the
+`example-domain-removed` orientation step passes.
 
 ### Gate 8 — Progress Handoff
 
@@ -356,16 +381,18 @@ complete, and what remains.
   business rules.
 - Domain-owned schemas live next to the domain code.
 - Generated files are regenerated, not hand-edited.
-- `notes` is a worked example, not product functionality.
+- The fenced example domain is a worked reference, not product
+  functionality.
 
 Read `docs/concepts/ARCHITECTURE.md` before changing structure, and
 read `docs/internal/TESTING.md` before adding non-trivial tests.
 
 ## Replacing The Example Domain
 
-Build your first real domain side-by-side with `notes`, then remove
-`notes`. Use plural package/folder names such as `tasks`, `profiles`,
-or `orders`; use PascalCase for components and Go exported names.
+Build your first real domain side-by-side with the example domain, then
+remove the example with `vrooli scenario detemplate <scenario>`. Use
+plural package/folder names such as `tasks`, `profiles`, or `orders`; use
+PascalCase for components and Go exported names.
 
 For a normal proto-backed CRUD domain:
 
@@ -381,17 +408,19 @@ For a normal proto-backed CRUD domain:
 4. Register the domain schema/endpoints in
    `api/internal/modules/registry.go` and mount the module in
    `api/main.go`.
-5. Add `cli/domains/<domain>/` with declarative `cliapp.ArgSchema`
-   commands that call generated Connect clients, then register the
-   domain in `cli/domains/domains.go`.
-6. Add endpoint-to-command seed rows in
-   `api/cmd/gen-endpoints/cli_commands_seed.json`, then run
-   `make endpoints`.
+5. Declare the domain's commands in `cli/manifest.json` (each bound to a
+   `connect-rpc` `service`/`method`, or listed in `omitted[]`), then wire
+   the handlers via `cliapp.LoadFromManifest` in
+   `cli/domains/<domain>/register.go` and register the group in
+   `cli/domains/domains.go`.
+6. Run the scenario's endpoint generation (`make endpoints`) after wiring
+   the domain; it regenerates `.vrooli/endpoints.json` and cross-checks
+   every Connect endpoint against `cli/manifest.json` (bound or omitted).
 7. Add `ui/src/api/<domain>.ts` and `ui/src/features/<domain>/` with
    feature components, mocks, factories, selectors, i18n strings, and
    tests.
 8. Run string/code generation as needed, then run `make test`.
 
 If the domain needs opaque binary uploads, keep bytes on a REST
-multipart edge and keep metadata proto-typed. The example `notes`
-attachments path demonstrates that exception.
+multipart edge and keep metadata proto-typed. The fenced example
+domain's attachments path demonstrates that exception.

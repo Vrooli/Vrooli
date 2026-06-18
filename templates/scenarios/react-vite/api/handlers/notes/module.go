@@ -3,7 +3,6 @@ package notes
 import (
 	"fmt"
 	"log"
-
 	"{{SCENARIO_ID}}/internal/clock"
 	"{{SCENARIO_ID}}/internal/module"
 
@@ -132,9 +131,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "List notes", Curl: "curl http://localhost:${API_PORT}/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/ListNotes -H 'Content-Type: application/json' -d '{}'"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "{{SCENARIO_ID}} notes list",
-		},
 	},
 	{
 		ID:          "notes_create",
@@ -163,10 +159,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Create note", Curl: "curl http://localhost:${API_PORT}/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/CreateNote -H 'Content-Type: application/json' -d '{\"title\":\"first\",\"body\":\"hello\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "{{SCENARIO_ID}} notes create",
-			Args:    []string{"--title", "<title>", "--body", "<body>"},
-		},
 	},
 	{
 		ID:          "notes_get",
@@ -194,10 +186,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Get note", Curl: "curl http://localhost:${API_PORT}/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/GetNote -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "{{SCENARIO_ID}} notes get",
-			Args:    []string{"<id>"},
-		},
 	},
 	{
 		ID:          "notes_count",
@@ -224,10 +212,6 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "Count this week", Curl: "curl http://localhost:${API_PORT}/vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService/CountNotes -H 'Content-Type: application/json' -d '{\"window\":{\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"}}'"},
-		},
-		CLIMapping: &module.CLIMapping{
-			Command: "{{SCENARIO_ID}} notes count",
-			Args:    []string{"--window", "<window>"},
 		},
 	},
 	{
@@ -257,13 +241,15 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Attach file", Curl: "curl -X POST http://localhost:${API_PORT}/api/v1/notes/abc123/attachments -F file=@./example.png"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "{{SCENARIO_ID}} notes attach",
-			Args:    []string{"<id>", "--file", "<path>"},
-		},
+
 		RESTException: &module.RESTException{
 			Reason: module.RESTReasonMultipartUpload,
 			Note:   "Multipart/form-data request transport cannot be expressed in proto. The response payload is still the proto-typed UploadAttachmentResponse message.",
+			ProtoPayloads: &module.RESTProtoPayloads{
+				Request:  module.RESTPayload{Transport: "multipart/form-data", Conformance: "transport_only"},
+				Response: module.RESTPayload{ProtoFullName: "vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.UploadAttachmentResponse", Transport: "json", Conformance: "protojson"},
+				Error:    module.RESTPayload{ProtoFullName: "vrooli.{{SCENARIO_ID_SNAKE}}.v1.errors.ErrorEnvelope", Transport: "json", Conformance: "protojson"},
+			},
 		},
 	},
 }

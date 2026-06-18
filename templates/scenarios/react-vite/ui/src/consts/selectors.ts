@@ -308,6 +308,7 @@ const literalSelectors = {
   notifications: {
     summary: "notifications-summary",
   },
+  // EXAMPLE-DOMAIN:notes START
   notes: {
     card: "notes-card",
     list: "notes-list",
@@ -328,6 +329,7 @@ const literalSelectors = {
       error: "notes-measure-error",
     },
   },
+  // EXAMPLE-DOMAIN:notes END
   locale: {
     switcher: "locale-switcher",
   },
@@ -344,7 +346,7 @@ const literalSelectors = {
   },
   pages: {
     dashboard: "page-dashboard",
-    notes: "page-notes",
+    notes: "page-notes", // EXAMPLE-DOMAIN:notes
     settings: "page-settings",
   },
   errorBoundary: {
@@ -373,12 +375,30 @@ const dynamicSelectorDefinitions = {
     sidebarLink: defineDynamicSelector({
       description: "Sidebar navigation link by canonical nav key",
       testIdPattern: "layout-sidebar-link-${key}",
-      params: { key: { type: "enum", values: ["dashboard", "notes", "settings"] as const } },
+      params: {
+        key: {
+          type: "enum",
+          values: [
+            "dashboard",
+            "notes", // EXAMPLE-DOMAIN:notes
+            "settings",
+          ] as const,
+        },
+      },
     }),
     bottomNavLink: defineDynamicSelector({
       description: "Bottom-nav link by canonical nav key",
       testIdPattern: "layout-bottom-nav-link-${key}",
-      params: { key: { type: "enum", values: ["dashboard", "notes", "settings"] as const } },
+      params: {
+        key: {
+          type: "enum",
+          values: [
+            "dashboard",
+            "notes", // EXAMPLE-DOMAIN:notes
+            "settings",
+          ] as const,
+        },
+      },
     }),
   },
   settingsPage: {

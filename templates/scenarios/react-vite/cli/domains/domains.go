@@ -1,7 +1,7 @@
 package domains
 
 import (
-	"{{SCENARIO_ID}}/cli/domains/notes"
+	"{{SCENARIO_ID}}/cli/domains/notes" // EXAMPLE-DOMAIN:notes
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -27,7 +27,7 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // This is the CLI side of the domain-module pattern; the API side uses
 // the same one-liner-per-domain shape via server.New(deps, modules...).
 // See docs/concepts/ARCHITECTURE.md "Domain modules" for the canonical
-// pattern when swapping the notes reference for your scenario's first
+// pattern when swapping the example domain for your scenario's first
 // domain.
 //
 // For API-backed commands the manifest carries the declarative surface
@@ -36,9 +36,13 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // templates/scenarios/react-vite/docs/internal/SEAMS.md (manifest ↔
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
+	groups := []cliapp.SubcommandGroup{}
+	// EXAMPLE-DOMAIN:notes START
 	notesGroup, err := notes.Register(core, manifest)
 	if err != nil {
 		return nil, err
 	}
-	return []cliapp.SubcommandGroup{notesGroup}, nil
+	groups = append(groups, notesGroup)
+	// EXAMPLE-DOMAIN:notes END
+	return groups, nil
 }
