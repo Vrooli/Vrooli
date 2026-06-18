@@ -185,4 +185,32 @@ describe("useWorkspace", () => {
     expect(result.current.base?.file).toBe(PNG);
     expect(result.current.previewUrl).toBe("blob:base");
   });
+
+  it("pushes an externally-produced image result as a composable step (AI path)", () => {
+    const { result } = setup(makeImageRunner());
+    act(() => result.current.setBase(PNG));
+
+    const aiResult: RunOpImageResult = {
+      kind: "image",
+      url: "blob:enhanced",
+      width: 2048,
+      height: 1536,
+      format: "png",
+      jobId: "ai-job-1",
+    };
+    const outputFile = new File(["enhanced"], "enhanced.png", { type: "image/png" });
+
+    act(() => result.current.applyImageResult("upscale", { scale: 2 }, aiResult, outputFile));
+
+    expect(result.current.entries).toHaveLength(1);
+    expect(result.current.entries[0]?.operation).toBe("upscale");
+    expect(result.current.currentResult).toBe(aiResult);
+    expect(result.current.previewUrl).toBe("blob:enhanced");
+    expect(result.current.canUndo).toBe(true);
+
+    // It composes into the same history — undo removes it like any other step.
+    act(() => result.current.undo());
+    expect(result.current.entries).toHaveLength(0);
+    expect(result.current.previewUrl).toBe("blob:base");
+  });
 });

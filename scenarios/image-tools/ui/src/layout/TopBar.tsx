@@ -1,3 +1,4 @@
+import { LumeMark } from "../components/ui/lume-mark";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTranslation } from "../i18n";
@@ -20,12 +21,12 @@ export function TopBar() {
       data-testid={selectors.layout.topBar}
       className="flex shrink-0 items-center justify-between gap-4 border-b border-app-border bg-app-surface px-4 py-3"
     >
-      <h1
-        data-testid={selectors.app.title}
-        className="text-lg font-semibold text-app-foreground"
-      >
-        {t(strings.app.title)}
-      </h1>
+      <div data-testid={selectors.app.title} className="flex items-center gap-2">
+        <LumeMark size={22} />
+        <h1 className="text-lg font-semibold tracking-tight text-app-foreground">
+          {t(strings.app.title)}
+        </h1>
+      </div>
       <div className="flex items-center gap-3">
         <div
           role="group"

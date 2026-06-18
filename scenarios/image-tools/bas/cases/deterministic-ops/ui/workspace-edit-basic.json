@@ -72,10 +72,10 @@
         "assert": {
           "selector": "@selector/workspace.operationSelect",
           "mode": "ASSERTION_MODE_TEXT_CONTAINS",
-          "expected": { "stringValue": "resize" },
+          "expected": { "stringValue": "Resize" },
           "case_sensitive": true,
           "timeout_ms": 10000,
-          "failure_message": "Operation picker does not list 'resize' — OpsService.ListOperations did not reach the Workspace (check the ops module is mounted in main.go, the OpsService handler is registered, and ui/src/api/ops.ts targets the right transport)."
+          "failure_message": "Operation picker does not list 'Resize' — OpsService.ListOperations did not reach the Workspace (check the ops module is mounted in main.go, the OpsService handler is registered, and ui/src/api/ops.ts targets the right transport)."
         },
         "metadata": { "label": "Assert the deterministic op catalog renders in the Inspector (proves discovery end-to-end)" }
       }

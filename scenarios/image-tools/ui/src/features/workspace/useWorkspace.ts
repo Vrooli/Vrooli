@@ -90,8 +90,22 @@ export interface Workspace {
   setMode: (mode: WorkspaceMode) => void;
   setOperation: (operation: string) => void;
   setParam: (name: string, value: string | number | boolean) => void;
+  /** Merge several params in one state change (e.g. a crop drag sets x/y/w/h). */
+  setParams: (partial: OpParamValues) => void;
   /** Run the current operation+params against the latest output. */
   apply: (overlay?: File) => Promise<void>;
+  /**
+   * Push an externally-produced image step onto the stack. Used by the async
+   * AI (Enhance/Create) flows, whose job lifecycle lives outside the synchronous
+   * runner seam but whose result must compose into the same history (so undo /
+   * before-after / download all work uniformly for AI results).
+   */
+  applyImageResult: (
+    operation: string,
+    params: OpParamValues,
+    result: RunOpImageResult,
+    outputFile: File,
+  ) => void;
   undo: () => void;
   redo: () => void;
   reset: () => void;
@@ -151,6 +165,11 @@ export function useWorkspace(runner: WorkspaceRunner = liveRunner): Workspace {
     [],
   );
 
+  const mergeParams = useCallback(
+    (partial: OpParamValues) => setParams((prev) => ({ ...prev, ...partial })),
+    [],
+  );
+
   const apply = useCallback(
     async (overlay?: File) => {
       const input = entries.length > 0 ? entries[entries.length - 1]?.outputFile : base?.file;
@@ -179,6 +198,21 @@ export function useWorkspace(runner: WorkspaceRunner = liveRunner): Workspace {
       }
     },
     [base, entries, operation, params, runner],
+  );
+
+  const applyImageResult = useCallback(
+    (
+      op: string,
+      opParams: OpParamValues,
+      result: RunOpImageResult,
+      outputFile: File,
+    ) => {
+      setMetadata(null);
+      setError(null);
+      setEntries((prev) => [...prev, { operation: op, params: opParams, result, outputFile }]);
+      setRedoStack([]);
+    },
+    [],
   );
 
   const undo = useCallback(() => {
@@ -235,7 +269,9 @@ export function useWorkspace(runner: WorkspaceRunner = liveRunner): Workspace {
     setMode,
     setOperation,
     setParam,
+    setParams: mergeParams,
     apply,
+    applyImageResult,
     undo,
     redo,
     reset,

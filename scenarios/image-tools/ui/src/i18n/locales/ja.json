@@ -1,15 +1,17 @@
 {
   "_comment": "このファイルには2種類の補間があります。(1) 生成時: Image Tools のような大文字スネークケースのプレースホルダーは、`vrooli scenario generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
   "app": {
-    "title": "Image Tools"
+    "title": "Lume",
+    "tagline": "光を、思いどおりに。"
   },
   "layout": {
     "sidebarLabel": "メインナビゲーション",
     "bottomNavLabel": "メインナビゲーション（モバイル）",
     "nav": {
-      "dashboard": "ダッシュボード",
+      "home": "ホーム",
       "workspace": "ワークスペース",
-      "jobs": "ジョブ",
+      "library": "ライブラリ",
+      "activity": "アクティビティ",
       "models": "モデル",
       "settings": "設定"
     }
@@ -23,13 +25,14 @@
     }
   },
   "pages": {
-    "dashboard": {
-      "title": "ダッシュボード",
-      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
-      "statPlaceholderLabel": "指標"
+    "home": {
+      "title": "ホーム"
     },
-    "jobs": {
-      "title": "ジョブ"
+    "library": {
+      "title": "ライブラリ"
+    },
+    "activity": {
+      "title": "アクティビティ"
     },
     "models": {
       "title": "モデル"
@@ -60,8 +63,6 @@
     "title": "最近のジョブ",
     "loading": "ジョブを読み込み中…",
     "empty": "ジョブはまだありません。",
-    "operationLabel": "操作:",
-    "laneLabel": "レーン:",
     "stateLabel": "状態:",
     "progressLabel": "{{count}}% 完了",
     "cancel": "キャンセル",
@@ -78,10 +79,63 @@
       "failed": "失敗",
       "canceled": "キャンセル済み"
     },
-    "messageLabel": "ステータス:",
-    "resultLabel": "結果:",
     "errorLabel": "エラー:",
     "liveBadge": "ライブ"
+  },
+  "home": {
+    "greeting": "何を作りましょうか？",
+    "entry": {
+      "title": "画像をドロップ、貼り付け、またはファイルを選択",
+      "hint": "PNG · JPEG · WebP · AVIF · HEIC · GIF · TIFF · BMP · SVG",
+      "choose": "ファイルを選択",
+      "camera": "カメラ",
+      "sample": "サンプルを試す",
+      "dropActive": "ドロップして開く",
+      "fileLabel": "画像ファイルを選択"
+    },
+    "group": {
+      "quickEdits": "クイック編集",
+      "enhance": "補正",
+      "create": "生成",
+      "analyze": "解析"
+    },
+    "needsModel": "モデルが必要",
+    "analyzeTile": "画像を解析",
+    "recent": {
+      "heading": "最近",
+      "viewAll": "ライブラリを表示",
+      "empty": "編集や作成したものがここに表示されます。",
+      "alt": "{{operation}} の最近の結果"
+    },
+    "firstRun": "はじめてですか？サンプルで試しましょう — ワンタップで背景を削除できます。",
+    "samples": {
+      "heading": "またはサンプルから始める",
+      "product": "商品写真",
+      "portrait": "ポートレート",
+      "blurry": "ぼやけた写真",
+      "receipt": "レシート"
+    }
+  },
+  "library": {
+    "description": "作成・編集したすべての画像。開いて作業を続けられます。",
+    "loading": "ライブラリを読み込み中…",
+    "empty": "まだ出力がありません。ワークスペースで何か作るとここに表示されます。",
+    "searchLabel": "操作で絞り込み",
+    "searchPlaceholder": "操作で絞り込み…",
+    "noMatches": "その絞り込みに一致する結果はありません。",
+    "count": "{{count}} 件",
+    "selected": "{{count}} 件選択中",
+    "selectAll": "すべて選択",
+    "clearSelection": "クリア",
+    "downloadSelected": "選択項目をダウンロード",
+    "open": "ワークスペースで開く",
+    "thumbnailAlt": "{{operation}} の結果",
+    "tryWorkspace": "ワークスペースを開く"
+  },
+  "activity": {
+    "description": "進行中および最近の操作。長時間かかるAI処理はページの再読み込みでも続行されます。",
+    "thumbnailAlt": "{{operation}} の結果",
+    "openOutput": "出力を開く"
   },
   "models": {
     "title": "モデルレジストリ",
@@ -162,7 +216,6 @@
     "loading": "操作を読み込み中…",
     "error": "操作を読み込めません。",
     "uploadLabel": "元画像",
-    "operationLabel": "操作",
     "overlayLabel": "ウォーターマーク画像",
     "run": "適用",
     "running": "適用中…",
@@ -200,6 +253,231 @@
       "analyze": "解析",
       "switcherLabel": "ワークスペースモード",
       "comingSoon": "{{mode}} は後の段階で利用可能になります。"
+    },
+    "aiOp": {
+      "background_removal": {
+        "label": "背景を削除",
+        "desc": "背景を透明に消去します。"
+      },
+      "upscale": {
+        "label": "アップスケール",
+        "desc": "超解像で拡大して鮮明にします。"
+      },
+      "denoise": {
+        "label": "ノイズ・ぼけ除去",
+        "desc": "ノイズを減らし、ぼけたディテールを回復します。"
+      }
+    },
+    "enhance": {
+      "intro": "ワンタップのAI補正 — アクションを選んで「補正」を押します。",
+      "loading": "AI補正を読み込み中…",
+      "error": "AI操作を読み込めません。",
+      "needsImage": "先に補正する画像を追加してください。",
+      "scaleLabel": "倍率",
+      "targetResolution": "{{from}} → {{to}}",
+      "memoryWarning": "結果が大きいため、メモリの少ないホストでは遅くなる場合があります。",
+      "run": "補正",
+      "running": "補正中…",
+      "progress": "{{percent}}%",
+      "cancel": "キャンセル",
+      "retry": "再試行",
+      "succeeded": "完了 — キャンバスに追加しました。",
+      "failed": "補正を完了できませんでした。",
+      "warningsLabel": "注意",
+      "tier": {
+        "localGpu": "GPUで実行中",
+        "localCpu": "CPUで実行中",
+        "byokCloud": "クラウドで実行中（BYOK）"
+      },
+      "install": {
+        "title": "{{model}} はまだインストールされていません",
+        "cpu": "CPUで実行できます",
+        "gpu": "VRAM {{vram}} GB以上のGPUが必要です",
+        "size": "{{size}} MB のダウンロード",
+        "run": "インストールして実行",
+        "installing": "モデルをインストール中…"
+      }
+    },
+    "createOp": {
+      "text_to_image": {
+        "label": "生成",
+        "desc": "テキストプロンプトから新しい画像を作成します。"
+      },
+      "image_to_image": {
+        "label": "変換",
+        "desc": "現在の画像をプロンプトに沿って再構成します。"
+      },
+      "inpaint": {
+        "label": "インペイント",
+        "desc": "マスクした領域をプロンプトから描き直します。"
+      },
+      "object_removal": {
+        "label": "オブジェクトを削除",
+        "desc": "マスクしたオブジェクトを消去して隙間を補完します。"
+      }
+    },
+    "create": {
+      "intro": "作りたいものを記述して「生成」を押します。結果はキャンバスに送れるバリエーションとして届きます。",
+      "loading": "ジェネレーターを読み込み中…",
+      "error": "AI操作を読み込めません。",
+      "promptLabel": "プロンプト",
+      "promptPlaceholder": "黄金色の夕暮れの静かな山の湖…",
+      "negativeLabel": "ネガティブプロンプト",
+      "negativePlaceholder": "ぼやけ、低品質、透かし",
+      "sizeLabel": "サイズ",
+      "size": {
+        "square": "正方形",
+        "portrait": "縦長",
+        "landscape": "横長"
+      },
+      "seedLabel": "シード",
+      "seedRandom": "ランダム",
+      "seedLock": "シードを固定",
+      "seedRandomize": "シードをランダム化",
+      "variationsLabel": "バリエーション",
+      "modelLabel": "モデル（任意）",
+      "modelPlaceholder": "お使いのハードウェアに最適なもの",
+      "byokLabel": "有料クラウドを許可（BYOK）",
+      "advanced": "詳細設定",
+      "usesCurrent": "現在のキャンバス画像を使用します。",
+      "needsImage": "先に変換する画像を追加してください。",
+      "needsMask": "先にマスクを描くかアップロードしてください。",
+      "run": "生成",
+      "running": "生成中…",
+      "produced": "生成済み {{done}}/{{total}}",
+      "progress": "{{percent}}%",
+      "cancel": "キャンセル",
+      "retry": "再試行",
+      "succeeded": "{{count}} 件を生成しました — キャンバスに送るものを選んでください。",
+      "failed": "生成を完了できませんでした。",
+      "warningsLabel": "注意",
+      "result": {
+        "heading": "バリエーション",
+        "slot": "バリエーション {{index}}",
+        "pending": "生成中…",
+        "sendToCanvas": "キャンバスに送る",
+        "sendToEnhance": "補正",
+        "download": "ダウンロード"
+      }
+    },
+    "mask": {
+      "title": "マスク",
+      "hint": "変更する領域を塗ります — 白が対象範囲を示します。",
+      "brushSize": "ブラシサイズ",
+      "clear": "マスクをクリア",
+      "uploadLabel": "代わりにマスク画像をアップロード",
+      "painted": "マスクの準備ができました。",
+      "uploaded": "マスクをアップロードしました: {{name}}",
+      "empty": "まだマスクがありません。"
+    },
+    "operationLabelGroup": "操作",
+    "op": {
+      "resize": {
+        "label": "リサイズ",
+        "desc": "画像を新しいサイズに拡大縮小します。"
+      },
+      "crop": {
+        "label": "切り抜き",
+        "desc": "矩形の領域を切り出します。キャンバス上で枠をドラッグします。"
+      },
+      "rotate": {
+        "label": "回転",
+        "desc": "画像を指定した角度で回転します。"
+      },
+      "flip": {
+        "label": "反転",
+        "desc": "画像を水平または垂直に反転します。"
+      },
+      "deskew": {
+        "label": "傾き補正",
+        "desc": "傾いたスキャンや写真をまっすぐにします。"
+      },
+      "thumbnail": {
+        "label": "サムネイル",
+        "desc": "枠に収まる小さなプレビューを作成します。"
+      },
+      "canvas": {
+        "label": "キャンバス",
+        "desc": "画像を大きな背景の上に配置します。"
+      },
+      "adjust": {
+        "label": "調整",
+        "desc": "明るさ、コントラスト、色、ガンマを調整します。"
+      },
+      "filter": {
+        "label": "フィルター",
+        "desc": "グレースケールやセピアなどの効果を適用します。"
+      },
+      "convert": {
+        "label": "変換",
+        "desc": "ファイル形式と品質を変更します。"
+      },
+      "compress": {
+        "label": "圧縮",
+        "desc": "目標サイズに向けてファイルを縮小します。"
+      },
+      "overlay": {
+        "label": "ウォーターマーク",
+        "desc": "テキストや画像を写真に重ねます。"
+      },
+      "metadata": {
+        "label": "メタデータ",
+        "desc": "EXIF や向きの情報を削除または読み取ります。"
+      }
+    },
+    "fitOption": {
+      "fit": "フィット",
+      "fill": "塗りつぶし",
+      "stretch": "引き伸ばし"
+    },
+    "axisOption": {
+      "horizontal": "水平",
+      "vertical": "垂直"
+    },
+    "filterOption": {
+      "grayscale": "グレースケール",
+      "sepia": "セピア",
+      "invert": "色反転",
+      "blur": "ぼかし",
+      "sharpen": "シャープ"
+    },
+    "position": {
+      "name": {
+        "topLeft": "左上",
+        "top": "上",
+        "topRight": "右上",
+        "left": "左",
+        "center": "中央",
+        "right": "右",
+        "bottomLeft": "左下",
+        "bottom": "下",
+        "bottomRight": "右下"
+      }
+    },
+    "crop": {
+      "aspect": {
+        "label": "縦横比",
+        "free": "自由",
+        "square": "1:1",
+        "standard": "4:3",
+        "wide": "16:9",
+        "original": "元の比率"
+      },
+      "advanced": "詳細設定",
+      "hint": "枠をドラッグして切り抜き範囲を設定するか、矢印キーで微調整します。",
+      "boxLabel": "切り抜き範囲"
+    },
+    "control": {
+      "reset": "既定値に戻す"
+    },
+    "color": {
+      "alpha": "不透明度",
+      "clear": "色をクリア"
+    },
+    "target": {
+      "kb": "KB",
+      "mb": "MB",
+      "noLimit": "サイズ制限なし"
     },
     "compare": {
       "before": "ビフォー",

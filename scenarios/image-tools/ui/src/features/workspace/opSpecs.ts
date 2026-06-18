@@ -1,27 +1,64 @@
 import { strings } from "../../consts/strings";
 
 /**
- * Declarative spec for each deterministic op's parameter form. The
- * discovery RPC (`ListOperations`) tells us *which* ops exist; this table
- * tells the form *which fields* each op takes and how to render them. The
- * field `name` is the proto field name (snake_case) sent inside the
+ * Declarative spec for each deterministic op's parameter form. The discovery
+ * RPC (`ListOperations`) tells us *which* ops exist; this table tells the
+ * Inspector *which fields* each op takes and *which humanized control* renders
+ * it. The field `name` is the proto field name (snake_case) sent inside the
  * operation-keyed params object — see `runOp` in `api/ops.ts`.
  *
  * Keep this in sync with the proto `OpParams` oneof. Adding a field is a
- * one-row edit here plus a label key in `i18n/locales/*`.
+ * one-row edit here plus a label key in `i18n/locales/*`. The `control` chooses
+ * the primitive; `min/max/step/unit` feed sliders; `advanced` tucks a field
+ * under the Inspector's "Advanced" disclosure (e.g. crop's numeric box, which
+ * the canvas drag-box drives directly).
  */
-export type FieldKind = "number" | "text" | "checkbox" | "select";
+
+/**
+ * Which humanized primitive renders a field.
+ * - `number` / `text` — plain inputs (last-resort fallback)
+ * - `toggle` — on/off switch (was a checkbox)
+ * - `segmented` — small pill group for a short closed set (`options`)
+ * - `slider` — numeric range with value + per-control reset (`min/max/step/unit`)
+ * - `position` — 3×3 gravity/position picker
+ * - `color` — swatch + picker + alpha (hex)
+ * - `format` — encode-format pills
+ * - `targetSize` — KB/MB target-file-size field (bytes on the wire)
+ * - `filterGrid` — visual filter-thumbnail picker
+ */
+export type ControlKind =
+  | "number"
+  | "text"
+  | "toggle"
+  | "segmented"
+  | "slider"
+  | "position"
+  | "color"
+  | "format"
+  | "targetSize"
+  | "filterGrid";
+
+type FieldLabelKey = (typeof strings.workspace.field)[keyof typeof strings.workspace.field];
 
 export interface OpField {
   /** Proto field name (snake_case); also the params object key. */
   name: string;
-  kind: FieldKind;
+  /** The humanized control that renders this field. */
+  control: ControlKind;
   /** Translation key for the field label. */
-  labelKey: (typeof strings.workspace.field)[keyof typeof strings.workspace.field];
+  labelKey: FieldLabelKey;
   /** Default value; drives the controlled input's initial state. */
   default: string | number | boolean;
-  /** Allowed values for `select` fields (technical API enum tokens). */
+  /** Allowed values for closed-set controls (technical API enum tokens). */
   options?: readonly string[];
+  /** Slider bounds (also clamps numeric entry). */
+  min?: number;
+  max?: number;
+  step?: number;
+  /** Unit symbol shown after a slider value (e.g. "px", "°", "%"). */
+  unit?: string;
+  /** When true, render under the Inspector's collapsible "Advanced" group. */
+  advanced?: boolean;
 }
 
 export interface OpSpec {
@@ -30,41 +67,43 @@ export interface OpSpec {
   acceptsOverlay?: boolean;
 }
 
+/** Encode formats offered by the format pills (decode-only HEIC/SVG excluded). */
+export const ENCODE_FORMATS = ["png", "jpeg", "webp", "avif", "gif", "tiff", "bmp"] as const;
+
 export const OP_SPECS: Readonly<Record<string, OpSpec>> = {
   resize: {
     fields: [
-      { name: "width", kind: "number", labelKey: strings.workspace.field.width, default: 256 },
-      { name: "height", kind: "number", labelKey: strings.workspace.field.height, default: 0 },
+      { name: "width", control: "number", labelKey: strings.workspace.field.width, default: 256, min: 0, unit: "px" },
+      { name: "height", control: "number", labelKey: strings.workspace.field.height, default: 0, min: 0, unit: "px" },
       {
         name: "fit",
-        kind: "select",
+        control: "segmented",
         labelKey: strings.workspace.field.fit,
         default: "fit",
         options: ["fit", "fill", "stretch"],
       },
-      { name: "gravity", kind: "text", labelKey: strings.workspace.field.gravity, default: "" },
+      { name: "gravity", control: "position", labelKey: strings.workspace.field.gravity, default: "" },
     ],
   },
   crop: {
     fields: [
-      { name: "x", kind: "number", labelKey: strings.workspace.field.x, default: 0 },
-      { name: "y", kind: "number", labelKey: strings.workspace.field.y, default: 0 },
-      { name: "width", kind: "number", labelKey: strings.workspace.field.width, default: 100 },
-      { name: "height", kind: "number", labelKey: strings.workspace.field.height, default: 100 },
-      { name: "gravity", kind: "text", labelKey: strings.workspace.field.gravity, default: "" },
+      { name: "x", control: "number", labelKey: strings.workspace.field.x, default: 0, min: 0, unit: "px", advanced: true },
+      { name: "y", control: "number", labelKey: strings.workspace.field.y, default: 0, min: 0, unit: "px", advanced: true },
+      { name: "width", control: "number", labelKey: strings.workspace.field.width, default: 100, min: 1, unit: "px", advanced: true },
+      { name: "height", control: "number", labelKey: strings.workspace.field.height, default: 100, min: 1, unit: "px", advanced: true },
     ],
   },
   rotate: {
     fields: [
-      { name: "angle", kind: "number", labelKey: strings.workspace.field.angle, default: 90 },
-      { name: "background", kind: "text", labelKey: strings.workspace.field.background, default: "" },
+      { name: "angle", control: "slider", labelKey: strings.workspace.field.angle, default: 90, min: -180, max: 180, step: 1, unit: "°" },
+      { name: "background", control: "color", labelKey: strings.workspace.field.background, default: "" },
     ],
   },
   flip: {
     fields: [
       {
         name: "axis",
-        kind: "select",
+        control: "segmented",
         labelKey: strings.workspace.field.axis,
         default: "horizontal",
         options: ["horizontal", "vertical"],
@@ -72,73 +111,73 @@ export const OP_SPECS: Readonly<Record<string, OpSpec>> = {
     ],
   },
   deskew: {
-    fields: [{ name: "background", kind: "text", labelKey: strings.workspace.field.background, default: "" }],
+    fields: [{ name: "background", control: "color", labelKey: strings.workspace.field.background, default: "" }],
   },
   thumbnail: {
     fields: [
-      { name: "width", kind: "number", labelKey: strings.workspace.field.width, default: 128 },
-      { name: "height", kind: "number", labelKey: strings.workspace.field.height, default: 128 },
+      { name: "width", control: "number", labelKey: strings.workspace.field.width, default: 128, min: 1, unit: "px" },
+      { name: "height", control: "number", labelKey: strings.workspace.field.height, default: 128, min: 1, unit: "px" },
     ],
   },
   canvas: {
     fields: [
-      { name: "width", kind: "number", labelKey: strings.workspace.field.width, default: 512 },
-      { name: "height", kind: "number", labelKey: strings.workspace.field.height, default: 512 },
-      { name: "background", kind: "text", labelKey: strings.workspace.field.background, default: "" },
-      { name: "gravity", kind: "text", labelKey: strings.workspace.field.gravity, default: "" },
+      { name: "width", control: "number", labelKey: strings.workspace.field.width, default: 512, min: 1, unit: "px" },
+      { name: "height", control: "number", labelKey: strings.workspace.field.height, default: 512, min: 1, unit: "px" },
+      { name: "background", control: "color", labelKey: strings.workspace.field.background, default: "" },
+      { name: "gravity", control: "position", labelKey: strings.workspace.field.gravity, default: "" },
     ],
   },
   adjust: {
     fields: [
-      { name: "brightness", kind: "number", labelKey: strings.workspace.field.brightness, default: 0 },
-      { name: "contrast", kind: "number", labelKey: strings.workspace.field.contrast, default: 0 },
-      { name: "gamma", kind: "number", labelKey: strings.workspace.field.gamma, default: 0 },
-      { name: "saturation", kind: "number", labelKey: strings.workspace.field.saturation, default: 0 },
-      { name: "hue", kind: "number", labelKey: strings.workspace.field.hue, default: 0 },
+      { name: "brightness", control: "slider", labelKey: strings.workspace.field.brightness, default: 0, min: -100, max: 100, step: 1 },
+      { name: "contrast", control: "slider", labelKey: strings.workspace.field.contrast, default: 0, min: -100, max: 100, step: 1 },
+      { name: "gamma", control: "slider", labelKey: strings.workspace.field.gamma, default: 0, min: 0, max: 3, step: 0.05 },
+      { name: "saturation", control: "slider", labelKey: strings.workspace.field.saturation, default: 0, min: -100, max: 100, step: 1 },
+      { name: "hue", control: "slider", labelKey: strings.workspace.field.hue, default: 0, min: -180, max: 180, step: 1, unit: "°" },
     ],
   },
   filter: {
     fields: [
       {
         name: "filter",
-        kind: "select",
+        control: "filterGrid",
         labelKey: strings.workspace.field.filter,
         default: "grayscale",
         options: ["grayscale", "sepia", "invert", "blur", "sharpen"],
       },
-      { name: "amount", kind: "number", labelKey: strings.workspace.field.amount, default: 1 },
+      { name: "amount", control: "slider", labelKey: strings.workspace.field.amount, default: 1, min: 0, max: 10, step: 0.5 },
     ],
   },
   convert: {
     fields: [
-      { name: "format", kind: "text", labelKey: strings.workspace.field.format, default: "png" },
-      { name: "quality", kind: "number", labelKey: strings.workspace.field.quality, default: 90 },
-      { name: "lossless", kind: "checkbox", labelKey: strings.workspace.field.lossless, default: false },
+      { name: "format", control: "format", labelKey: strings.workspace.field.format, default: "png", options: ENCODE_FORMATS },
+      { name: "quality", control: "slider", labelKey: strings.workspace.field.quality, default: 90, min: 1, max: 100, step: 1 },
+      { name: "lossless", control: "toggle", labelKey: strings.workspace.field.lossless, default: false },
     ],
   },
   compress: {
     fields: [
-      { name: "format", kind: "text", labelKey: strings.workspace.field.format, default: "jpeg" },
-      { name: "quality", kind: "number", labelKey: strings.workspace.field.quality, default: 80 },
-      { name: "lossless", kind: "checkbox", labelKey: strings.workspace.field.lossless, default: false },
-      { name: "target_bytes", kind: "number", labelKey: strings.workspace.field.targetBytes, default: 0 },
+      { name: "format", control: "format", labelKey: strings.workspace.field.format, default: "jpeg", options: ENCODE_FORMATS },
+      { name: "quality", control: "slider", labelKey: strings.workspace.field.quality, default: 80, min: 1, max: 100, step: 1 },
+      { name: "lossless", control: "toggle", labelKey: strings.workspace.field.lossless, default: false },
+      { name: "target_bytes", control: "targetSize", labelKey: strings.workspace.field.targetBytes, default: 0 },
     ],
   },
   overlay: {
     acceptsOverlay: true,
     fields: [
-      { name: "text", kind: "text", labelKey: strings.workspace.field.text, default: "" },
-      { name: "position", kind: "text", labelKey: strings.workspace.field.position, default: "" },
-      { name: "opacity", kind: "number", labelKey: strings.workspace.field.opacity, default: 1 },
-      { name: "color", kind: "text", labelKey: strings.workspace.field.color, default: "" },
-      { name: "font_size", kind: "number", labelKey: strings.workspace.field.fontSize, default: 0 },
+      { name: "text", control: "text", labelKey: strings.workspace.field.text, default: "" },
+      { name: "position", control: "position", labelKey: strings.workspace.field.position, default: "" },
+      { name: "opacity", control: "slider", labelKey: strings.workspace.field.opacity, default: 1, min: 0, max: 1, step: 0.05 },
+      { name: "color", control: "color", labelKey: strings.workspace.field.color, default: "" },
+      { name: "font_size", control: "slider", labelKey: strings.workspace.field.fontSize, default: 0, min: 0, max: 128, step: 1, unit: "px" },
     ],
   },
   metadata: {
     fields: [
-      { name: "strip_all", kind: "checkbox", labelKey: strings.workspace.field.stripAll, default: false },
-      { name: "strip_gps", kind: "checkbox", labelKey: strings.workspace.field.stripGps, default: false },
-      { name: "auto_orient", kind: "checkbox", labelKey: strings.workspace.field.autoOrient, default: false },
+      { name: "strip_all", control: "toggle", labelKey: strings.workspace.field.stripAll, default: false },
+      { name: "strip_gps", control: "toggle", labelKey: strings.workspace.field.stripGps, default: false },
+      { name: "auto_orient", control: "toggle", labelKey: strings.workspace.field.autoOrient, default: false },
     ],
   },
 };

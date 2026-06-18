@@ -1,9 +1,8 @@
 /**
- * Routing smoke — for each canonical path (`/`, `/workspace`, `/jobs`,
- * `/models`, `/settings`) the matching page selector is in the document.
- * Page-internal
- * behaviour is exercised in per-page tests; this file's job is to assert the
- * router config.
+ * Routing smoke — for each canonical path (`/`, `/workspace`, `/library`,
+ * `/activity`, `/models`, `/settings`) the matching page selector is in the
+ * document. Page-internal behaviour is exercised in per-page tests; this file's
+ * job is to assert the router config.
  */
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, screen } from "@testing-library/react";
@@ -17,9 +16,9 @@ describe("AppRouter", () => {
     cleanup();
   });
 
-  it("renders the dashboard at /", () => {
+  it("renders the home page at /", () => {
     renderWithProviders(<TestAppRouter initialEntries={["/"]} />, { withoutRouter: true });
-    expect(screen.getByTestId(selectors.pages.dashboard)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.pages.home)).toBeInTheDocument();
   });
 
   it("renders the workspace page at /workspace", () => {
@@ -27,9 +26,14 @@ describe("AppRouter", () => {
     expect(screen.getByTestId(selectors.pages.workspace)).toBeInTheDocument();
   });
 
-  it("renders the jobs page at /jobs", () => {
-    renderWithProviders(<TestAppRouter initialEntries={["/jobs"]} />, { withoutRouter: true });
-    expect(screen.getByTestId(selectors.pages.jobs)).toBeInTheDocument();
+  it("renders the library page at /library", () => {
+    renderWithProviders(<TestAppRouter initialEntries={["/library"]} />, { withoutRouter: true });
+    expect(screen.getByTestId(selectors.pages.library)).toBeInTheDocument();
+  });
+
+  it("renders the activity page at /activity", () => {
+    renderWithProviders(<TestAppRouter initialEntries={["/activity"]} />, { withoutRouter: true });
+    expect(screen.getByTestId(selectors.pages.activity)).toBeInTheDocument();
   });
 
   it("renders the models page at /models", () => {

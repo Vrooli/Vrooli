@@ -83,7 +83,7 @@ describe("Workspace", () => {
       expect(screen.getByTestId(selectors.workspace.operationSelect)).toBeInTheDocument();
     });
 
-    await user.selectOptions(screen.getByTestId(selectors.workspace.operationSelect), "metadata");
+    await user.click(screen.getByTestId(selectors.workspace.opOption({ name: "metadata" })));
 
     expect(
       screen.getByTestId(selectors.workspace.fieldInput({ name: "strip_all" })),
@@ -125,7 +125,7 @@ describe("Workspace", () => {
       expect(screen.getByTestId(selectors.workspace.operationSelect)).toBeInTheDocument();
     });
 
-    await user.selectOptions(screen.getByTestId(selectors.workspace.operationSelect), "metadata");
+    await user.click(screen.getByTestId(selectors.workspace.opOption({ name: "metadata" })));
     await uploadImage(user);
     await user.click(screen.getByTestId(selectors.workspace.applyButton));
 
@@ -146,7 +146,7 @@ describe("Workspace", () => {
 
     expect(screen.queryByTestId(selectors.workspace.overlayInput)).not.toBeInTheDocument();
 
-    await user.selectOptions(screen.getByTestId(selectors.workspace.operationSelect), "overlay");
+    await user.click(screen.getByTestId(selectors.workspace.opOption({ name: "overlay" })));
     expect(screen.getByTestId(selectors.workspace.overlayInput)).toBeInTheDocument();
   });
 
@@ -195,15 +195,37 @@ describe("Workspace", () => {
     });
   });
 
-  it("shows a coming-soon placeholder for non-edit modes", async () => {
+  it("shows a coming-soon placeholder for the not-yet-built Analyze mode", async () => {
     const user = userEvent.setup();
     renderWithProviders(<Workspace />);
     await waitFor(() => {
       expect(screen.getByTestId(selectors.workspace.modeSwitcher)).toBeInTheDocument();
     });
 
-    await user.click(screen.getByTestId(selectors.workspace.modeOption({ mode: "create" })));
+    // Edit/Enhance/Create have real panels; Analyze is the remaining placeholder.
+    await user.click(screen.getByTestId(selectors.workspace.modeOption({ mode: "analyze" })));
     expect(screen.getByTestId(selectors.workspace.inspectorPlaceholder)).toBeInTheDocument();
+  });
+
+  it("exposes the crop numeric fields under the Advanced disclosure (accessible fallback)", async () => {
+    const { listOperations } = await import("../../api/ops");
+    vi.mocked(listOperations).mockResolvedValueOnce(
+      makeListOperationsResponse({
+        operations: [makeOperationInfo({ name: "resize" }), makeOperationInfo({ name: "crop" })],
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<Workspace />);
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.workspace.operationSelect)).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByTestId(selectors.workspace.opOption({ name: "crop" })));
+
+    expect(screen.getByTestId(selectors.workspace.crop.advanced)).toBeInTheDocument();
+    for (const name of ["x", "y", "width", "height"]) {
+      expect(screen.getByTestId(selectors.workspace.fieldInput({ name }))).toBeInTheDocument();
+    }
   });
 
   it("filters out operations without a known params spec", async () => {
@@ -218,9 +240,11 @@ describe("Workspace", () => {
     await waitFor(() => {
       expect(screen.getByTestId(selectors.workspace.operationSelect)).toBeInTheDocument();
     });
-    const options = screen
-      .getByTestId(selectors.workspace.operationSelect)
-      .querySelectorAll("option");
-    expect([...options].map((o) => o.getAttribute("value"))).toEqual(["resize"]);
+    expect(
+      screen.getByTestId(selectors.workspace.opOption({ name: "resize" })),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId(selectors.workspace.opOption({ name: "bogus" })),
+    ).not.toBeInTheDocument();
   });
 });

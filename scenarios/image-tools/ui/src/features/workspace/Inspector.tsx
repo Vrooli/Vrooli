@@ -1,12 +1,27 @@
 import { useState } from "react";
 
 import { Button } from "../../components/ui/button";
+import { ColorField } from "../../components/ui/color-field";
+import { FilterThumbnailGrid } from "../../components/ui/filter-thumbnail-grid";
+import { FormatPills } from "../../components/ui/format-pills";
 import { Input } from "../../components/ui/input";
+import { PositionPicker, type PositionToken } from "../../components/ui/position-picker";
+import { SegmentedControl } from "../../components/ui/segmented-control";
+import { Slider } from "../../components/ui/slider";
+import { TargetSizeField } from "../../components/ui/target-size-field";
+import { Toggle } from "../../components/ui/toggle";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { errorMessage } from "../../lib/errorMessage";
 import type { OperationInfo, OpParamValues } from "../../api/ops";
+import {
+  AXIS_OPTION_LABEL,
+  FILTER_OPTION,
+  FIT_OPTION_LABEL,
+  POSITION_NAME_LABEL,
+} from "./opCatalog";
+import { OpPicker } from "./OpPicker";
 import type { OpField, OpSpec } from "./opSpecs";
 import { MODE_LABEL } from "./modeLabels";
 import type { WorkspaceMode } from "./useWorkspace";
@@ -23,16 +38,27 @@ export interface InspectorProps {
   runError: unknown;
   hasBase: boolean;
   hasSteps: boolean;
+  /** Current canvas image URL, used to preview filter thumbnails. */
+  previewUrl: string | null;
   onSelectOperation: (operation: string) => void;
   onParam: (name: string, value: string | number | boolean) => void;
   onApply: (overlay?: File) => void;
 }
 
+/** A `segmented`-control option-label map by op field name. */
+const SEGMENTED_LABELS: Record<string, typeof FIT_OPTION_LABEL | typeof AXIS_OPTION_LABEL> = {
+  fit: FIT_OPTION_LABEL,
+  axis: AXIS_OPTION_LABEL,
+};
+
 /**
- * The mode-aware right panel. In Stage 0b only Edit is wired — it hosts the
- * deterministic-op parameter form (migrated verbatim from the retired editor
- * card; humanized controls land in Stage 1). The AI modes render an honest
- * roadmap placeholder until their stage ships.
+ * The mode-aware right panel. In Edit mode it renders the humanized
+ * deterministic-op form: an icon+label op picker, the op description, and one
+ * primitive per spec field (segmented / slider / position / color / format /
+ * target-size / filter-grid / toggle), with crop's numeric box tucked under an
+ * Advanced disclosure. Each control's primary interactive element keeps the
+ * `fieldInput({ name })` test id so automation can drive the accessible path.
+ * The non-edit modes keep the honest roadmap placeholder.
  */
 export function Inspector({
   mode,
@@ -46,6 +72,7 @@ export function Inspector({
   runError,
   hasBase,
   hasSteps,
+  previewUrl,
   onSelectOperation,
   onParam,
   onApply,
@@ -53,60 +80,159 @@ export function Inspector({
   const { t } = useTranslation();
   const [overlay, setOverlay] = useState<File | null>(null);
 
-  const renderField = (field: OpField) => {
+  const renderControl = (field: OpField) => {
     const value = params[field.name];
-    const id = `workspace-field-${field.name}`;
     const testId = selectors.workspace.fieldInput({ name: field.name });
+    const label = t(field.labelKey);
 
-    if (field.kind === "checkbox") {
-      return (
-        <label key={field.name} className="flex items-center gap-2 text-sm text-app-foreground">
-          <input
-            id={id}
-            data-testid={testId}
-            type="checkbox"
+    switch (field.control) {
+      case "toggle":
+        return (
+          <Toggle
+            label={label}
             checked={Boolean(value)}
-            onChange={(e) => onParam(field.name, e.target.checked)}
-            className="h-4 w-4"
+            onChange={(checked) => onParam(field.name, checked)}
+            data-testid={testId}
           />
-          {t(field.labelKey)}
-        </label>
-      );
-    }
+        );
 
-    return (
-      <div key={field.name} className="flex flex-col gap-1">
-        <label htmlFor={id} className="text-xs text-app-muted-foreground">
-          {t(field.labelKey)}
-        </label>
-        {field.kind === "select" ? (
-          <select
-            id={id}
+      case "slider":
+        return (
+          <Slider
+            label={label}
+            value={Number(value ?? field.default)}
+            min={field.min ?? 0}
+            max={field.max ?? 100}
+            step={field.step}
+            unit={field.unit}
+            defaultValue={Number(field.default)}
+            resetLabel={t(strings.workspace.control.reset)}
+            onChange={(next) => onParam(field.name, next)}
             data-testid={testId}
-            value={String(value ?? "")}
-            onChange={(e) => onParam(field.name, e.target.value)}
-            className="h-10 rounded-control border border-app-border bg-app-surface-muted px-3 text-sm text-app-foreground focus:outline-none focus:ring-2 focus:ring-app-primary/50"
-          >
-            {field.options?.map((option) => (
-              <option key={option} value={option} className="bg-app-surface text-app-foreground">
-                {option}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <Input
-            id={id}
-            data-testid={testId}
-            type={field.kind === "number" ? "number" : "text"}
-            value={String(value ?? "")}
-            onChange={(e) =>
-              onParam(field.name, field.kind === "number" ? Number(e.target.value) : e.target.value)
-            }
           />
-        )}
-      </div>
-    );
+        );
+
+      case "segmented": {
+        const labelMap = SEGMENTED_LABELS[field.name] ?? {};
+        return (
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-app-muted-foreground">{label}</span>
+            <SegmentedControl<string>
+              label={label}
+              value={String(value ?? field.default)}
+              options={(field.options ?? []).map((token) => ({
+                value: token,
+                label: labelMap[token] ? t(labelMap[token]) : token,
+              }))}
+              onChange={(next) => onParam(field.name, next)}
+              data-testid={testId}
+            />
+          </div>
+        );
+      }
+
+      case "position":
+        return (
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-app-muted-foreground">{label}</span>
+            <PositionPicker
+              label={label}
+              value={String(value ?? "")}
+              onChange={(token) => onParam(field.name, token)}
+              cellLabel={(token: PositionToken) => t(POSITION_NAME_LABEL[token])}
+              data-testid={testId}
+            />
+          </div>
+        );
+
+      case "color":
+        return (
+          <ColorField
+            label={label}
+            value={String(value ?? "")}
+            onChange={(next) => onParam(field.name, next)}
+            clearLabel={t(strings.workspace.color.clear)}
+            alphaLabel={t(strings.workspace.color.alpha)}
+            data-testid={testId}
+          />
+        );
+
+      case "format":
+        return (
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-app-muted-foreground">{label}</span>
+            <FormatPills
+              label={label}
+              value={String(value ?? field.default)}
+              options={field.options ?? []}
+              onChange={(next) => onParam(field.name, next)}
+              data-testid={testId}
+            />
+          </div>
+        );
+
+      case "targetSize":
+        return (
+          <TargetSizeField
+            label={label}
+            valueBytes={Number(value ?? 0)}
+            onChange={(bytes) => onParam(field.name, bytes)}
+            kbLabel={t(strings.workspace.target.kb)}
+            mbLabel={t(strings.workspace.target.mb)}
+            noLimitLabel={t(strings.workspace.target.noLimit)}
+            data-testid={testId}
+          />
+        );
+
+      case "filterGrid":
+        return (
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-app-muted-foreground">{label}</span>
+            <FilterThumbnailGrid
+              label={label}
+              value={String(value ?? field.default)}
+              options={(field.options ?? []).map((token) => ({
+                value: token,
+                label: FILTER_OPTION[token] ? t(FILTER_OPTION[token].labelKey) : token,
+                css: FILTER_OPTION[token]?.css ?? "none",
+              }))}
+              previewUrl={previewUrl}
+              onChange={(next) => onParam(field.name, next)}
+              data-testid={testId}
+            />
+          </div>
+        );
+
+      case "number":
+      case "text":
+      default:
+        return (
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor={`workspace-field-${field.name}`}
+              className="text-xs text-app-muted-foreground"
+            >
+              {label}
+            </label>
+            <Input
+              id={`workspace-field-${field.name}`}
+              data-testid={testId}
+              type={field.control === "number" ? "number" : "text"}
+              value={String(value ?? "")}
+              onChange={(e) =>
+                onParam(
+                  field.name,
+                  field.control === "number" ? Number(e.target.value) : e.target.value,
+                )
+              }
+            />
+          </div>
+        );
+    }
   };
+
+  const primaryFields = (spec?.fields ?? []).filter((f) => !f.advanced);
+  const advancedFields = (spec?.fields ?? []).filter((f) => f.advanced);
 
   return (
     <section
@@ -140,30 +266,40 @@ export function Inspector({
           }}
           className="mt-3 flex flex-col gap-4"
         >
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor={selectors.workspace.operationSelect}
-              className="text-xs text-app-muted-foreground"
-            >
-              {t(strings.workspace.operationLabel)}
-            </label>
-            <select
-              id={selectors.workspace.operationSelect}
-              data-testid={selectors.workspace.operationSelect}
-              value={operation}
-              onChange={(e) => onSelectOperation(e.target.value)}
-              className="h-10 rounded-control border border-app-border bg-app-surface-muted px-3 text-sm text-app-foreground focus:outline-none focus:ring-2 focus:ring-app-primary/50"
-            >
-              {operations.map((op) => (
-                <option key={op.name} value={op.name} className="bg-app-surface text-app-foreground">
-                  {op.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <OpPicker
+            operations={operations}
+            operation={operation}
+            onSelect={onSelectOperation}
+          />
 
-          {spec && spec.fields.length > 0 && (
-            <div className="grid grid-cols-2 gap-3">{spec.fields.map(renderField)}</div>
+          {operation === "crop" && (
+            <p className="text-xs text-app-muted-foreground">
+              {t(strings.workspace.crop.hint)}
+            </p>
+          )}
+
+          {primaryFields.length > 0 && (
+            <div className="flex flex-col gap-3">
+              {primaryFields.map((field) => (
+                <div key={field.name}>{renderControl(field)}</div>
+              ))}
+            </div>
+          )}
+
+          {advancedFields.length > 0 && (
+            <details className="rounded-control border border-app-border bg-app-surface-muted p-2">
+              <summary
+                data-testid={selectors.workspace.crop.advanced}
+                className="cursor-pointer text-xs font-medium text-app-muted-foreground"
+              >
+                {t(strings.workspace.crop.advanced)}
+              </summary>
+              <div className="mt-2 grid grid-cols-2 gap-3">
+                {advancedFields.map((field) => (
+                  <div key={field.name}>{renderControl(field)}</div>
+                ))}
+              </div>
+            </details>
           )}
 
           {spec?.acceptsOverlay && (

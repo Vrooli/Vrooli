@@ -1,15 +1,17 @@
 {
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Image Tools are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
-    "title": "Image Tools"
+    "title": "Lume",
+    "tagline": "Light, handled well."
   },
   "layout": {
     "sidebarLabel": "Primary navigation",
     "bottomNavLabel": "Primary navigation (mobile)",
     "nav": {
-      "dashboard": "Dashboard",
+      "home": "Home",
       "workspace": "Workspace",
-      "jobs": "Jobs",
+      "library": "Library",
+      "activity": "Activity",
       "models": "Models",
       "settings": "Settings"
     }
@@ -23,13 +25,14 @@
     }
   },
   "pages": {
-    "dashboard": {
-      "title": "Dashboard",
-      "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
-      "statPlaceholderLabel": "Stat"
+    "home": {
+      "title": "Home"
     },
-    "jobs": {
-      "title": "Jobs"
+    "library": {
+      "title": "Library"
+    },
+    "activity": {
+      "title": "Activity"
     },
     "models": {
       "title": "Models"
@@ -63,12 +66,8 @@
     "title": "Recent jobs",
     "loading": "Loading jobs…",
     "empty": "No jobs yet.",
-    "operationLabel": "Operation:",
-    "laneLabel": "Lane:",
     "stateLabel": "State:",
     "progressLabel": "{{count}}% complete",
-    "messageLabel": "Status:",
-    "resultLabel": "Result:",
     "errorLabel": "Error:",
     "liveBadge": "Live",
     "cancel": "Cancel",
@@ -85,6 +84,62 @@
       "failed": "Failed",
       "canceled": "Canceled"
     }
+  },
+  "home": {
+    "greeting": "What are we making?",
+    "entry": {
+      "title": "Drop an image, paste, or choose a file",
+      "hint": "PNG · JPEG · WebP · AVIF · HEIC · GIF · TIFF · BMP · SVG",
+      "choose": "Choose file",
+      "camera": "Camera",
+      "sample": "Try a sample",
+      "dropActive": "Drop to open",
+      "fileLabel": "Choose an image file"
+    },
+    "group": {
+      "quickEdits": "Quick edits",
+      "enhance": "Enhance",
+      "create": "Create",
+      "analyze": "Analyze"
+    },
+    "needsModel": "Needs model",
+    "analyzeTile": "Analyze an image",
+    "recent": {
+      "heading": "Recent",
+      "viewAll": "View library",
+      "empty": "Your edits and creations show up here.",
+      "alt": "Recent result of {{operation}}"
+    },
+    "firstRun": "New here? Try a sample — remove a background in one tap.",
+    "samples": {
+      "heading": "Or start from a sample",
+      "product": "Product photo",
+      "portrait": "Portrait",
+      "blurry": "Blurry shot",
+      "receipt": "Receipt"
+    }
+  },
+  "library": {
+    "description": "Every image you've created or edited. Open one to keep working on it.",
+    "loading": "Loading your library…",
+    "empty": "No outputs yet. Make something in the workspace and it lands here.",
+    "searchLabel": "Filter by operation",
+    "searchPlaceholder": "Filter by operation…",
+    "noMatches": "No results match that filter.",
+    "count": "{{count}} items",
+    "count_one": "{{count}} item",
+    "selected": "{{count}} selected",
+    "selectAll": "Select all",
+    "clearSelection": "Clear",
+    "downloadSelected": "Download selected",
+    "open": "Open in workspace",
+    "thumbnailAlt": "Result of {{operation}}",
+    "tryWorkspace": "Open the workspace"
+  },
+  "activity": {
+    "description": "Live and recent operations. Long-running AI work survives a page refresh.",
+    "thumbnailAlt": "Result of {{operation}}",
+    "openOutput": "Open output"
   },
   "models": {
     "title": "Model registry",
@@ -165,7 +220,6 @@
     "loading": "Loading operations…",
     "error": "Unable to load operations.",
     "uploadLabel": "Source image",
-    "operationLabel": "Operation",
     "overlayLabel": "Watermark image",
     "run": "Apply",
     "running": "Applying…",
@@ -203,6 +257,231 @@
       "analyze": "Analyze",
       "switcherLabel": "Workspace mode",
       "comingSoon": "{{mode}} arrives in a later stage of the redesign."
+    },
+    "aiOp": {
+      "background_removal": {
+        "label": "Remove background",
+        "desc": "Erase the background to transparency."
+      },
+      "upscale": {
+        "label": "Upscale",
+        "desc": "Enlarge and sharpen with super-resolution."
+      },
+      "denoise": {
+        "label": "Unblur & denoise",
+        "desc": "Reduce noise and recover blurred detail."
+      }
+    },
+    "enhance": {
+      "intro": "One-tap AI enhancement — pick an action, then Enhance.",
+      "loading": "Loading AI enhancements…",
+      "error": "Unable to load AI operations.",
+      "needsImage": "Add an image to enhance first.",
+      "scaleLabel": "Scale",
+      "targetResolution": "{{from}} → {{to}}",
+      "memoryWarning": "Large result — may be slow on low-memory hosts.",
+      "run": "Enhance",
+      "running": "Enhancing…",
+      "progress": "{{percent}}%",
+      "cancel": "Cancel",
+      "retry": "Try again",
+      "succeeded": "Done — added to the canvas.",
+      "failed": "Couldn't finish the enhancement.",
+      "warningsLabel": "Heads up",
+      "tier": {
+        "localGpu": "Running on your GPU",
+        "localCpu": "Running on your CPU",
+        "byokCloud": "Running on cloud (BYOK)"
+      },
+      "install": {
+        "title": "{{model}} isn't installed yet",
+        "cpu": "Runs on your CPU",
+        "gpu": "Needs a GPU with ≥{{vram}} GB VRAM",
+        "size": "{{size}} MB download",
+        "run": "Install & run",
+        "installing": "Installing model…"
+      }
+    },
+    "createOp": {
+      "text_to_image": {
+        "label": "Generate",
+        "desc": "Create a new image from a text prompt."
+      },
+      "image_to_image": {
+        "label": "Transform",
+        "desc": "Reimagine the current image guided by a prompt."
+      },
+      "inpaint": {
+        "label": "Inpaint",
+        "desc": "Repaint a masked region from a prompt."
+      },
+      "object_removal": {
+        "label": "Remove object",
+        "desc": "Erase a masked object and fill the gap."
+      }
+    },
+    "create": {
+      "intro": "Describe what you want, then Generate. Results arrive as variations you can send to the canvas.",
+      "loading": "Loading generators…",
+      "error": "Unable to load AI operations.",
+      "promptLabel": "Prompt",
+      "promptPlaceholder": "A serene mountain lake at golden hour…",
+      "negativeLabel": "Negative prompt",
+      "negativePlaceholder": "blurry, low quality, watermark",
+      "sizeLabel": "Size",
+      "size": {
+        "square": "Square",
+        "portrait": "Portrait",
+        "landscape": "Landscape"
+      },
+      "seedLabel": "Seed",
+      "seedRandom": "Random",
+      "seedLock": "Lock seed",
+      "seedRandomize": "Randomize seed",
+      "variationsLabel": "Variations",
+      "modelLabel": "Model (optional)",
+      "modelPlaceholder": "Best fit for your hardware",
+      "byokLabel": "Allow paid cloud (BYOK)",
+      "advanced": "Advanced",
+      "usesCurrent": "Uses the current canvas image.",
+      "needsImage": "Add an image to transform first.",
+      "needsMask": "Paint or upload a mask first.",
+      "run": "Generate",
+      "running": "Generating…",
+      "produced": "Produced {{done}}/{{total}}",
+      "progress": "{{percent}}%",
+      "cancel": "Cancel",
+      "retry": "Try again",
+      "succeeded": "Generated {{count}} — pick one to send to the canvas.",
+      "failed": "Couldn't finish the generation.",
+      "warningsLabel": "Heads up",
+      "result": {
+        "heading": "Variations",
+        "slot": "Variation {{index}}",
+        "pending": "Generating…",
+        "sendToCanvas": "Send to canvas",
+        "sendToEnhance": "Enhance",
+        "download": "Download"
+      }
+    },
+    "mask": {
+      "title": "Mask",
+      "hint": "Paint over the area to change — white marks the affected region.",
+      "brushSize": "Brush size",
+      "clear": "Clear mask",
+      "uploadLabel": "Upload a mask image instead",
+      "painted": "Mask ready.",
+      "uploaded": "Mask uploaded: {{name}}",
+      "empty": "No mask yet."
+    },
+    "operationLabelGroup": "Operation",
+    "op": {
+      "resize": {
+        "label": "Resize",
+        "desc": "Scale the image to new dimensions."
+      },
+      "crop": {
+        "label": "Crop",
+        "desc": "Cut out a rectangular region — drag the box on the canvas."
+      },
+      "rotate": {
+        "label": "Rotate",
+        "desc": "Turn the image by an angle."
+      },
+      "flip": {
+        "label": "Flip",
+        "desc": "Mirror the image horizontally or vertically."
+      },
+      "deskew": {
+        "label": "Deskew",
+        "desc": "Straighten a tilted scan or photo."
+      },
+      "thumbnail": {
+        "label": "Thumbnail",
+        "desc": "Make a small preview that fits a box."
+      },
+      "canvas": {
+        "label": "Canvas",
+        "desc": "Place the image on a larger background."
+      },
+      "adjust": {
+        "label": "Adjust",
+        "desc": "Tune brightness, contrast, color, and gamma."
+      },
+      "filter": {
+        "label": "Filter",
+        "desc": "Apply a visual effect like grayscale or sepia."
+      },
+      "convert": {
+        "label": "Convert",
+        "desc": "Change the file format and quality."
+      },
+      "compress": {
+        "label": "Compress",
+        "desc": "Shrink the file toward a target size."
+      },
+      "overlay": {
+        "label": "Watermark",
+        "desc": "Stamp text or an image onto the picture."
+      },
+      "metadata": {
+        "label": "Metadata",
+        "desc": "Strip or read EXIF and orientation data."
+      }
+    },
+    "fitOption": {
+      "fit": "Fit",
+      "fill": "Fill",
+      "stretch": "Stretch"
+    },
+    "axisOption": {
+      "horizontal": "Horizontal",
+      "vertical": "Vertical"
+    },
+    "filterOption": {
+      "grayscale": "Grayscale",
+      "sepia": "Sepia",
+      "invert": "Invert",
+      "blur": "Blur",
+      "sharpen": "Sharpen"
+    },
+    "position": {
+      "name": {
+        "topLeft": "Top left",
+        "top": "Top",
+        "topRight": "Top right",
+        "left": "Left",
+        "center": "Center",
+        "right": "Right",
+        "bottomLeft": "Bottom left",
+        "bottom": "Bottom",
+        "bottomRight": "Bottom right"
+      }
+    },
+    "crop": {
+      "aspect": {
+        "label": "Aspect ratio",
+        "free": "Free",
+        "square": "1:1",
+        "standard": "4:3",
+        "wide": "16:9",
+        "original": "Original"
+      },
+      "advanced": "Advanced",
+      "hint": "Drag the box to set the crop, or use the arrow keys to nudge it.",
+      "boxLabel": "Crop region"
+    },
+    "control": {
+      "reset": "Reset to default"
+    },
+    "color": {
+      "alpha": "Opacity",
+      "clear": "Clear color"
+    },
+    "target": {
+      "kb": "KB",
+      "mb": "MB",
+      "noLimit": "No size limit"
     },
     "compare": {
       "before": "Before",

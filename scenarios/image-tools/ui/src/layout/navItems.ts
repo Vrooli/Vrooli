@@ -2,13 +2,15 @@ import { strings } from "../consts/strings";
 
 /**
  * Canonical nav-item list shared by `Sidebar` and `BottomNav` so the two
- * surfaces never drift. Replace these entries when this scenario's routes
- * change. `key` doubles as the selector parameter so tests can target a
- * specific link without binding to the translated label.
+ * surfaces never drift. `key` doubles as the selector parameter so tests can
+ * target a specific link without binding to the translated label.
+ *
+ * Dual-mode ordering: the Studio surfaces (Home, Workspace, Library) come
+ * first, then the Console surfaces (Activity, Models, Settings).
  */
 export interface NavItem {
   /** Selector parameter; stable across locales. */
-  key: "dashboard" | "workspace" | "jobs" | "models" | "settings";
+  key: "home" | "workspace" | "library" | "activity" | "models" | "settings";
   /** Router path. */
   path: string;
   /** True when this is the index route (used for `<NavLink end>`). */
@@ -18,9 +20,10 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: readonly NavItem[] = [
-  { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard },
+  { key: "home", path: "/", end: true, labelKey: strings.layout.nav.home },
   { key: "workspace", path: "/workspace", labelKey: strings.layout.nav.workspace },
-  { key: "jobs", path: "/jobs", labelKey: strings.layout.nav.jobs },
+  { key: "library", path: "/library", labelKey: strings.layout.nav.library },
+  { key: "activity", path: "/activity", labelKey: strings.layout.nav.activity },
   { key: "models", path: "/models", labelKey: strings.layout.nav.models },
   { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings },
 ];

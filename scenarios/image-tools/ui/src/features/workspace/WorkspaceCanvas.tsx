@@ -1,4 +1,5 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Loader2 } from "lucide-react";
 
 import { Button } from "../../components/ui/button";
 import { selectors } from "../../consts/selectors";
@@ -6,12 +7,28 @@ import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import type { RunOpImageResult } from "../../api/ops";
 import { BeforeAfter } from "./BeforeAfter";
+import { CropOverlay } from "./CropOverlay";
+import type { Rect, Size } from "./cropMath";
+
+/** Live progress for an async op resolving in the canvas (Enhance / Create). */
+export interface CanvasProgress {
+  percent: number;
+  message: string;
+}
 
 const ZOOM_MIN = 0.1;
 const ZOOM_MAX = 8;
 const ZOOM_STEP = 1.25;
 
 const clampZoom = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
+
+/** Crop-overlay wiring; non-null only when the crop op is the active edit. */
+export interface CanvasCrop {
+  rect: Rect;
+  onChange: (rect: Rect) => void;
+  /** Called once the image's natural size is known (to seed a full-image box). */
+  onNatural: (natural: Size) => void;
+}
 
 export interface WorkspaceCanvasProps {
   baseUrl: string | null;
@@ -20,15 +37,24 @@ export interface WorkspaceCanvasProps {
   currentResult: RunOpImageResult | null;
   metadata: string | null;
   onFile: (file: File) => void;
+  /** When set, draw a draggable crop box mapped 1:1 over the image. */
+  crop?: CanvasCrop | null;
+  /** When set, overlay an async op's live progress over the image. */
+  progress?: CanvasProgress | null;
+  /**
+   * Increments when an async op (Enhance/Create) lands a result; bumping it
+   * auto-engages the before/after compare so the change is immediately visible.
+   */
+  compareSignal?: number;
 }
 
 /**
  * The work surface: the loaded image on a transparency checkerboard, with
  * zoom / fit / actual-size, an optional before↔after compare, and a metadata
  * panel for read ops. The empty state is the single upload affordance (drag,
- * click, or mobile capture). Pan is native scroll of the viewport container —
- * no `scrollIntoView` (it would cross the iframe boundary); height uses the
- * parent's height chain (`h-full`/`min-h`), never `h-screen`.
+ * click, or mobile capture). Pan is native scroll of the viewport container
+ * (never a focus-scroll, which would cross the iframe boundary); height uses
+ * the parent's height chain (`h-full`/`min-h`), not a viewport-height class.
  */
 export function WorkspaceCanvas({
   baseUrl,
@@ -37,12 +63,40 @@ export function WorkspaceCanvas({
   currentResult,
   metadata,
   onFile,
+  crop = null,
+  progress = null,
+  compareSignal = 0,
 }: WorkspaceCanvasProps) {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
   const [zoom, setZoom] = useState(1);
   const [fit, setFit] = useState(true);
   const [comparing, setComparing] = useState(false);
+  const [natural, setNatural] = useState<Size | null>(null);
+  const [client, setClient] = useState<Size | null>(null);
+
+  // Auto-engage before/after when an async op lands a result, so the user sees
+  // the change without reaching for the compare toggle.
+  useEffect(() => {
+    if (compareSignal > 0 && hasSteps) {
+      setComparing(true);
+    }
+  }, [compareSignal, hasSteps]);
+
+  // Track the rendered image's on-screen box so the crop overlay maps 1:1.
+  // ResizeObserver keeps the box correct across zoom/fit and viewport changes.
+  useEffect(() => {
+    const img = imgRef.current;
+    if (!crop || !img) {
+      return;
+    }
+    const measure = () => setClient({ width: img.clientWidth, height: img.clientHeight });
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(img);
+    return () => observer.disconnect();
+  }, [crop, baseUrl, previewUrl, fit, zoom]);
 
   const zoomIn = () => {
     setFit(false);
@@ -165,13 +219,44 @@ export function WorkspaceCanvas({
         ) : showCompare ? (
           <BeforeAfter beforeUrl={baseUrl} afterUrl={previewUrl} />
         ) : (
-          <img
-            data-testid={selectors.workspace.canvas.image}
-            src={previewUrl ?? baseUrl}
-            alt={hasSteps ? t(strings.workspace.resultLabel) : t(strings.workspace.originalLabel)}
-            className={fit ? "max-h-full max-w-full object-contain" : "h-auto"}
-            style={fit ? undefined : { width: `${percent}%`, maxWidth: "none" }}
-          />
+          <div className="relative inline-block">
+            <img
+              ref={imgRef}
+              data-testid={selectors.workspace.canvas.image}
+              src={previewUrl ?? baseUrl}
+              alt={hasSteps ? t(strings.workspace.resultLabel) : t(strings.workspace.originalLabel)}
+              className={fit ? "max-h-full max-w-full object-contain" : "h-auto"}
+              style={fit ? undefined : { width: `${percent}%`, maxWidth: "none" }}
+              onLoad={(e) => {
+                const el = e.currentTarget;
+                const size = { width: el.naturalWidth, height: el.naturalHeight };
+                setNatural(size);
+                setClient({ width: el.clientWidth, height: el.clientHeight });
+                crop?.onNatural(size);
+              }}
+            />
+            {crop && natural && client ? (
+              <CropOverlay
+                natural={natural}
+                client={client}
+                rect={crop.rect}
+                onChange={crop.onChange}
+              />
+            ) : null}
+          </div>
+        )}
+        {progress && baseUrl !== null && (
+          <div
+            data-testid={selectors.workspace.canvas.progress}
+            aria-live="polite"
+            className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 rounded-panel bg-app-background/75"
+          >
+            <Loader2 aria-hidden="true" className="h-6 w-6 animate-spin text-app-brand" />
+            <span className="text-sm font-medium text-app-foreground">{progress.percent}%</span>
+            {progress.message && (
+              <span className="text-xs text-app-muted-foreground">{progress.message}</span>
+            )}
+          </div>
         )}
         <input
           ref={fileInputRef}

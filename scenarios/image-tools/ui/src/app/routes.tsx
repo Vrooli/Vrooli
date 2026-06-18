@@ -7,8 +7,9 @@ import {
 
 import { routerFutureFlags } from "./routerFuture";
 import { AppShell } from "../layout/AppShell";
-import { DashboardPage } from "../pages/DashboardPage";
-import { JobsPage } from "../pages/JobsPage";
+import { ActivityPage } from "../pages/ActivityPage";
+import { HomePage } from "../pages/HomePage";
+import { LibraryPage } from "../pages/LibraryPage";
 import { ModelsPage } from "../pages/ModelsPage";
 import { SettingsPage } from "../pages/SettingsPage";
 import { WorkspacePage } from "../pages/WorkspacePage";
@@ -17,16 +18,18 @@ import { WorkspacePage } from "../pages/WorkspacePage";
  * Canonical route table. Exported so tests can construct an in-memory router
  * from the same config the production app uses.
  *
- * Add new pages by appending to the `children` array.
+ * Dual-mode: `/` Home + `/workspace` + `/library` are the Studio surfaces;
+ * `/activity` + `/models` + `/settings` are the Console surfaces.
  */
 export const routes: RouteObject[] = [
   {
     path: "/",
     element: <AppShell />,
     children: [
-      { index: true, element: <DashboardPage /> },
+      { index: true, element: <HomePage /> },
       { path: "workspace", element: <WorkspacePage /> },
-      { path: "jobs", element: <JobsPage /> },
+      { path: "library", element: <LibraryPage /> },
+      { path: "activity", element: <ActivityPage /> },
       { path: "models", element: <ModelsPage /> },
       { path: "settings", element: <SettingsPage /> },
     ],

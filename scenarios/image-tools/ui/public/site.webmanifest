@@ -1,13 +1,19 @@
 {
-  "name": "Image Tools",
-  "short_name": "image-tools",
-  "description": "Local-first image toolbox: deterministic editing, on-demand AI generation/enhancement, and image analysis via CLI, UI, and API.",
+  "name": "Lume — Image Tools",
+  "short_name": "Lume",
+  "description": "Lume — a local-first image studio: deterministic editing, on-demand AI generation/enhancement, and image analysis via CLI, UI, and API.",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#0f172a",
+  "background_color": "#0b1020",
+  "theme_color": "#0b1020",
   "icons": [
+    {
+      "src": "lume-mark.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
     {
       "src": "manifest-icon-192.maskable.png",
       "sizes": "192x192",
