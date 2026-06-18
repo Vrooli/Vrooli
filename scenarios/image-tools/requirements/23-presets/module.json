@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-16T16:08:16-04:00"
+    "last_validated_at": "2026-06-18T16:53:22-04:00"
   },
   "requirements": [
     {
@@ -12,11 +12,11 @@
       "description": "Small set of compositing presets and meme-style text-overlay templates from UI and CLI.",
       "validation": [
         {
-          "type": "test",
+          "type": "manual",
           "ref": "api/internal/presets/presets_test.go",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Preset renders deterministic composite output"
+          "notes": "Planned (not yet implemented; automated test pending): Preset renders deterministic composite output"
         }
       ]
     }

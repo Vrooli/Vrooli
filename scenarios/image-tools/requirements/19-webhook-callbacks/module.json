@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-18T15:40:52-04:00"
+    "last_validated_at": "2026-06-18T16:53:22-04:00"
   },
   "requirements": [
     {
@@ -12,11 +12,11 @@
       "description": "Each job accepts an optional signed callback URL; best-effort POST with retry on completion/failure; minimal (no event bus).",
       "validation": [
         {
-          "type": "test",
+          "type": "manual",
           "ref": "api/internal/jobs/webhook_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Callback payload is signed and retried with backoff"
+          "notes": "Planned (not yet implemented; automated test pending): Callback payload is signed and retried with backoff"
         }
       ]
     }

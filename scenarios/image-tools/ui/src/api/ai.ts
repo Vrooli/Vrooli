@@ -46,6 +46,8 @@ export type AIParamsInput = Partial<{
   variations: number;
   strength: number;
   scale: number;
+  realism: number;
+  faceAware: boolean;
   modelOverride: string;
   allowByok: boolean;
   autoScanNsfw: boolean;

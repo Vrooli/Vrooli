@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-18T15:40:52-04:00"
+    "last_validated_at": "2026-06-18T16:53:22-04:00"
   },
   "requirements": [
     {
@@ -12,18 +12,18 @@
       "description": "Batch accepts glob/folder inputs; watch-folder triggers configured recipes/ops on new files with debounce and output routing.",
       "validation": [
         {
-          "type": "test",
+          "type": "manual",
           "ref": "api/internal/batch/batch_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Batch expands globs and fans out jobs"
+          "notes": "Planned (not yet implemented; automated test pending): Batch expands globs and fans out jobs"
         },
         {
-          "type": "test",
+          "type": "manual",
           "ref": "api/internal/watch/watch_test.go",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Watch-folder debounces and routes outputs on new files"
+          "notes": "Planned (not yet implemented; automated test pending): Watch-folder debounces and routes outputs on new files"
         }
       ]
     }

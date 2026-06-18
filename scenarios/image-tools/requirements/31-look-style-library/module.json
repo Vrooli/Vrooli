@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-18T15:40:52-04:00"
+    "last_validated_at": "2026-06-18T16:53:22-04:00"
   },
   "requirements": [
     {
@@ -12,18 +12,18 @@
       "description": "A data-defined, thumbnail-backed, AI-aware library that generalizes presets (OT-P1-010) + recipes (OT-P1-004). A Look = {name, thumbnail, op-chain, prompt template, params} that compiles to {prompt + optional mask/selection + backend params}. Adding a Look auto-generates its preview by applying the Look to a reference image. A UI picker (modal or full-page drawer) presents thumbnails. Film/lens/camera-emulation looks may be pure-deterministic (LUT/grain/vignette) and/or an AI pass.",
       "validation": [
         {
-          "type": "test",
+          "type": "manual",
           "ref": "api/internal/looks/compiler_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Look compiles to an AI/op request; reuses the recipe op-stack representation rather than forking it"
+          "notes": "Planned (not yet implemented; automated test pending): Look compiles to an AI/op request; reuses the recipe op-stack representation rather than forking it"
         },
         {
-          "type": "test",
+          "type": "manual",
           "ref": "ui/src/features/looks/LookPicker.test.tsx",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Apply a Look to the canvas image; add-your-own Look generates its own preview"
+          "notes": "Planned (not yet implemented; automated test pending): Apply a Look to the canvas image; add-your-own Look generates its own preview"
         }
       ]
     }

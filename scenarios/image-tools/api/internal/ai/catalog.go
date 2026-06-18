@@ -61,6 +61,7 @@ var catalog = func() map[string]Op {
 		{Name: "upscale", Category: CategoryEnhancement, Summary: "Super-resolve / enlarge an image", RequiresImage: true},
 		{Name: "background_removal", Category: CategoryEnhancement, Summary: "Remove the background to transparency", RequiresImage: true},
 		{Name: "denoise", Category: CategoryEnhancement, Summary: "Reduce noise / deblur an image", RequiresImage: true},
+		{Name: "naturalize", Category: CategoryEnhancement, Summary: "Reintroduce realistic texture/grain to over-smoothed (restored/upscaled) images", RequiresImage: true},
 	}
 	m := make(map[string]Op, len(ops))
 	for _, o := range ops {

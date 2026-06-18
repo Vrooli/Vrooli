@@ -13,24 +13,24 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/jobs/lifecycle_test.go",
+          "ref": "api/internal/jobs/manager_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "Job state machine survives simulated client disconnect"
         },
         {
           "type": "test",
-          "ref": "api/internal/jobs/queue_test.go",
+          "ref": "api/internal/jobs/manager_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "GPU jobs serialize while CPU ops run concurrently"
         },
         {
           "type": "test",
-          "ref": "cli/domains/jobs/jobs_test.go",
+          "ref": "cli/domains/jobs/jobs_manifest_test.go",
           "phase": "integration",
           "status": "implemented",
-          "notes": "CLI submit-\u003ewait returns terminal verdict + exit code"
+          "notes": "CLI submit->wait returns terminal verdict + exit code"
         }
       ]
     }

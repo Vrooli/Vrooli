@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-18T15:40:52-04:00"
+    "last_validated_at": "2026-06-18T16:53:22-04:00"
   },
   "requirements": [
     {
@@ -12,18 +12,18 @@
       "description": "Outpaint/generative-expand and background replace added as first-class ops with standalone backends, hardware-aware selection, and full CLI/API parity.",
       "validation": [
         {
-          "type": "test",
+          "type": "manual",
           "ref": "api/internal/ai/breadth_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Outpaint and background-replace ops invoke standalone backends"
+          "notes": "Planned (not yet implemented; automated test pending): Outpaint and background-replace ops invoke standalone backends"
         },
         {
-          "type": "test",
+          "type": "manual",
           "ref": "cli/domains/ai/breadth_test.go",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Both ops complete headless via the job system"
+          "notes": "Planned (not yet implemented; automated test pending): Both ops complete headless via the job system"
         }
       ]
     }

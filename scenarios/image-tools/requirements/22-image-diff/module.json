@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-18T15:40:52-04:00"
+    "last_validated_at": "2026-06-18T16:53:22-04:00"
   },
   "requirements": [
     {
@@ -12,11 +12,11 @@
       "description": "General-purpose image diff/visual-comparison op built as a first-class capability so test-genie can later adopt it without duplication.",
       "validation": [
         {
-          "type": "test",
+          "type": "manual",
           "ref": "api/internal/diff/diff_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Pixel/perceptual diff highlights changed regions"
+          "notes": "Planned (not yet implemented; automated test pending): Pixel/perceptual diff highlights changed regions"
         }
       ]
     }

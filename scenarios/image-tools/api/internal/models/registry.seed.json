@@ -30,6 +30,7 @@
   "operations_vocabulary": [
     "text_to_image", "image_to_image", "inpaint", "outpaint", "object_removal",
     "background_removal", "background_replace", "upscale", "denoise", "deblur",
+    "naturalize",
     "colorize", "old_photo_restore", "face_restore", "segment", "depth_map",
     "normal_map", "ocr", "nsfw_classify", "caption", "object_detection",
     "tagging", "face_detection", "quality_assessment", "duplicate_detect",
@@ -871,6 +872,23 @@
       "io": {"notes": "Read-focused. Add boombuler/barcode (MIT) only if generation is later needed. AVOID tuotoo/qrcode (GPL) and zbar/pyzbar (LGPL)."},
       "capability_labels": {"nsfw_capable": false, "license": "MIT", "commercial_use": "yes", "commercial_use_notes": "Permissive; pure-Go port of ZXing.", "base_model_lineage": "n/a (ZXing port)", "known_risks": "None notable."},
       "source": {"download_url": "https://github.com/makiuchi-d/gozxing", "source_repo": "https://github.com/makiuchi-d/gozxing", "docs_url": "https://github.com/makiuchi-d/gozxing", "update_source": "https://github.com/makiuchi-d/gozxing", "checksum": {"algo": "sha256", "value": "", "status": "n/a-library"}},
+      "enabled": true
+    },
+    {
+      "id": "naturalize-detail-v1",
+      "name": "Naturalize Detail Compositor (built-in)",
+      "operations": ["naturalize"],
+      "default_for": ["naturalize"],
+      "tier": "default",
+      "backend": "builtin",
+      "alt_backends": [],
+      "requires_comfyui": false,
+      "size_mb_approx": 0,
+      "quant_variants": [],
+      "hardware": {"cpu_capable": true, "gpu_required": false, "min_vram_gb": 0, "min_ram_gb": 1, "os_arch": ["linux/amd64", "linux/arm64", "darwin/amd64", "darwin/arm64", "windows/amd64"], "speed_note": "Deterministic in-process compositor; sub-second on CPU, no weights to download."},
+      "io": {"notes": "Reintroduces local contrast + film grain to over-smoothed images; no network, no model weights."},
+      "capability_labels": {"nsfw_capable": false, "license": "N/A (deterministic, no model weights)", "commercial_use": "yes", "commercial_use_notes": "Pure deterministic image processing shipped in-repo; no third-party weights.", "base_model_lineage": "n/a (deterministic image processing)", "known_risks": "Not a generative restorer — adds texture/grain; cannot invent lost structure."},
+      "source": {"download_url": "", "source_repo": "", "docs_url": "", "update_source": "", "checksum": {"algo": "", "value": "", "status": "n/a-builtin"}},
       "enabled": true
     }
   ],

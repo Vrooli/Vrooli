@@ -1,4 +1,4 @@
-import { Aperture, Scissors, Sparkles, Wand2, type LucideIcon } from "lucide-react";
+import { Aperture, Fingerprint, Scissors, Sparkles, Wand2, type LucideIcon } from "lucide-react";
 
 import { strings } from "../../consts/strings";
 
@@ -35,6 +35,11 @@ export const AI_CATALOG: Readonly<Record<string, AIOpPresentation>> = {
     labelKey: strings.workspace.aiOp.denoise.label,
     descKey: strings.workspace.aiOp.denoise.desc,
     Icon: Aperture,
+  },
+  naturalize: {
+    labelKey: strings.workspace.aiOp.naturalize.label,
+    descKey: strings.workspace.aiOp.naturalize.desc,
+    Icon: Fingerprint,
   },
 };
 

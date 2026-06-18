@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-18T15:40:52-04:00"
+    "last_validated_at": "2026-06-18T16:53:22-04:00"
   },
   "requirements": [
     {
@@ -12,18 +12,18 @@
       "description": "Editing real people is gated at DEPLOYMENT, not at the capability. Public/monetized deployment requires: NSFW/CSAM auto-scan on by default, C2PA provenance on by default (at least for real-person edits), a published Acceptable-Use Policy, a consent affirmation + logging on identity-altering ops, and abuse rate-limiting. Local/personal use is unrestricted; the hard non-goals (no recognition / face-swap / deepfake) remain enforced. Naturalize is low-weight; body/clothing/pose edits are high-weight.",
       "validation": [
         {
-          "type": "test",
+          "type": "manual",
           "ref": "api/internal/safety/gate_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Public-tier defaults enforced server-side; consent affirmation recorded on identity-altering ops"
+          "notes": "Planned (not yet implemented; automated test pending): Public-tier defaults enforced server-side; consent affirmation recorded on identity-altering ops"
         },
         {
-          "type": "test",
+          "type": "manual",
           "ref": "api/internal/safety/gate_integration_test.go",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Deployment-tier flags gate public exposure; local/personal path unrestricted"
+          "notes": "Planned (not yet implemented; automated test pending): Deployment-tier flags gate public exposure; local/personal path unrestricted"
         }
       ]
     }

@@ -98,6 +98,8 @@ func buildParams(ctx cliapp.RunContext) *aiv1.AIParams {
 		Variations:     i32(flagOr(ctx, "variations")),
 		Strength:       f64(flagOr(ctx, "strength")),
 		Scale:          i32(flagOr(ctx, "scale")),
+		Realism:        f64(flagOr(ctx, "realism")),
+		FaceAware:      boolOr(ctx, "face-aware"),
 		ModelOverride:  flagOr(ctx, "model"),
 		AllowByok:      boolOr(ctx, "byok"),
 		AutoScanNsfw:   boolOr(ctx, "auto-scan"),

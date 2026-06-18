@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-16T16:08:16-04:00"
+    "last_validated_at": "2026-06-18T16:53:22-04:00"
   },
   "requirements": [
     {
@@ -13,7 +13,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/handlers/parity_test.go",
+          "ref": "api/handlers/ai/rest_test.go",
           "phase": "integration",
           "status": "implemented",
           "notes": "Proto/Connect parity holds across API and CLI"

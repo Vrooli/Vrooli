@@ -309,8 +309,14 @@ func (in *Installer) Resolve(ctx context.Context, id string) (Model, error) {
 }
 
 // Installed reports whether a model's weights are present (a completed install
-// record AND the directory exists on disk).
+// record AND the directory exists on disk). A builtin (weightless) model has
+// nothing to download and is always installed.
 func (in *Installer) Installed(ctx context.Context, id string) bool {
+	if in.Reg != nil {
+		if m, ok := in.Reg.ByID(id); ok && !m.RequiresWeights() {
+			return true
+		}
+	}
 	if in.State == nil {
 		return dirExists(in.modelDir(id))
 	}

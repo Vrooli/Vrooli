@@ -190,6 +190,12 @@ func (e *Engine) enabledFunc(ctx context.Context) (models.EnabledFunc, error) {
 // defaults carry the "slower" expectation. Measures (Phase 4) replace this with
 // observed p50/p95 once real runs accrue.
 func estimateSeconds(op string, gpuViable bool) int {
+	// naturalize is a deterministic in-process compositor (no model inference);
+	// it finishes in well under a second regardless of GPU, so it does not carry
+	// the model-inference ETA or the CPU multiplier.
+	if op == "naturalize" {
+		return 2
+	}
 	base := 30
 	if o, ok := Get(op); ok && o.Category == CategoryEnhancement {
 		base = 15

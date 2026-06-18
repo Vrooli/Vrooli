@@ -354,6 +354,10 @@
       "denoise": {
         "label": "ノイズ・ぼけ除去",
         "desc": "ノイズを減らし、ぼけたディテールを回復します。"
+      },
+      "naturalize": {
+        "label": "ナチュラライズ",
+        "desc": "なめらかすぎる写真に自然な質感を戻します。"
       }
     },
     "enhance": {
@@ -384,6 +388,15 @@
         "size": "{{size}} MB のダウンロード",
         "run": "インストールして実行",
         "installing": "モデルをインストール中…"
+      },
+      "naturalize": {
+        "realismLabel": "リアリズム",
+        "realismHint": "高くするほど質感とグレインが増えます。",
+        "subtle": "控えめ",
+        "strong": "強め",
+        "faceAware": "顔と肌を重視",
+        "suggestTitle": "仕上がりが少し作り物っぽい？",
+        "suggest": "この結果をナチュラライズ"
       }
     },
     "createOp": {

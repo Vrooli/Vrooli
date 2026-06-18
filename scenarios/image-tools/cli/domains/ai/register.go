@@ -77,5 +77,8 @@ func (h *handlers) submitCommands() []cliapp.Command {
 			cliapp.Flag{Name: "scale", Description: "Upscale factor (2 or 4)"}),
 		cmd("bg-removal", "background_removal", "Remove the background to transparency", true, false),
 		cmd("denoise", "denoise", "Reduce noise / deblur an image", true, false),
+		cmd("naturalize", "naturalize", "Reintroduce realistic texture/grain to an over-smoothed (restored/upscaled) image", true, false,
+			cliapp.Flag{Name: "realism", Description: "Fidelity↔realism knob 0..1 (default 0.5)"},
+			cliapp.Flag{Name: "face-aware", Bool: true, Description: "Bias texture/grain toward midtone (skin) regions"}),
 	}
 }

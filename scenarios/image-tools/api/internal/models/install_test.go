@@ -202,3 +202,33 @@ func TestAddCustom_RoundTripAndLocalInstall(t *testing.T) {
 		t.Fatalf("custom local model must not download")
 	}
 }
+
+// TestInstall_BuiltinAlwaysInstalled proves a weightless builtin model
+// (RequiresWeights == false) is reported installed without any download, and
+// Install no-ops to an installed record. This is what lets the deterministic
+// naturalize op run with zero provisioning.
+func TestInstall_BuiltinAlwaysInstalled(t *testing.T) {
+	f := newInstallFixture(t)
+	const id = "naturalize-detail-v1"
+
+	m, ok := f.in.Reg.ByID(id)
+	if !ok {
+		t.Fatalf("seed missing builtin model %q", id)
+	}
+	if m.RequiresWeights() {
+		t.Fatalf("model %q should be weightless (backend %q)", id, m.Backend)
+	}
+	if !f.in.Installed(context.Background(), id) {
+		t.Fatal("builtin model should report installed before any download")
+	}
+	rec, err := f.in.Install(context.Background(), id, nil)
+	if err != nil {
+		t.Fatalf("install builtin: %v", err)
+	}
+	if !rec.Installed {
+		t.Fatal("install record for builtin model should be Installed")
+	}
+	if f.downloads != 0 {
+		t.Fatalf("builtin model must not download anything; got %d downloads", f.downloads)
+	}
+}

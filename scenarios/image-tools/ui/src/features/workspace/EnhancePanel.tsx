@@ -29,6 +29,17 @@ export interface EnhancePanelProps {
 const LARGE_RESULT_MP = 24_000_000;
 
 /**
+ * Ops whose output tends to over-smooth ("plastic") skin — after one succeeds we
+ * nudge the user toward Naturalize to put realistic texture back. Forward-listed
+ * (face_restore / old_photo_restore land in a later phase) so the suggestion
+ * lights up automatically when those ops ship.
+ */
+const OVERSMOOTHING_OPS = new Set(["upscale", "denoise", "face_restore", "old_photo_restore"]);
+
+/** Default realism for the naturalize knob (mirrors the server's gentle default). */
+const DEFAULT_REALISM = 0.5;
+
+/**
  * The Enhance-mode inspector: a one-tap AI action list (the enhancement ops
  * discovered from `AIService.ListAIOperations`), the upscale factor, a
  * hardware-fit model badge, and the full durable-job lifecycle — install gate,
@@ -49,6 +60,11 @@ export function EnhancePanel({
 
   const [operation, setOperation] = useState(initialAction ?? "");
   const [scale, setScale] = useState<string>(UPSCALE_SCALES[0]);
+  const [realism, setRealism] = useState(DEFAULT_REALISM);
+  const [faceAware, setFaceAware] = useState(false);
+  // The op that most recently launched a run — drives the post-success
+  // "naturalize this result?" nudge after an over-smoothing op.
+  const [lastRunOp, setLastRunOp] = useState("");
 
   const enhancementOps = useMemo(
     () => (aiOpsQuery.data?.operations ?? []).filter((op) => op.category === "enhancement"),
@@ -71,10 +87,23 @@ export function EnhancePanel({
     }
   }, [operation, preview]);
 
-  const params: AIParamsInput = useMemo(
-    () => (operation === "upscale" ? { scale: Number(scale) } : {}),
-    [operation, scale],
-  );
+  const params: AIParamsInput = useMemo(() => {
+    if (operation === "upscale") {
+      return { scale: Number(scale) };
+    }
+    if (operation === "naturalize") {
+      return { realism, faceAware };
+    }
+    return {};
+  }, [operation, scale, realism, faceAware]);
+
+  // After an over-smoothing op succeeds, offer Naturalize as the next step
+  // (unless the user is already on it). Cleared as soon as the op changes.
+  const suggestNaturalize =
+    enhance.phase === "succeeded" &&
+    operation !== "naturalize" &&
+    OVERSMOOTHING_OPS.has(lastRunOp) &&
+    enhancementOps.some((op) => op.name === "naturalize");
 
   const busy = isEnhanceActive(enhance.phase);
   const factor = Number(scale);
@@ -183,6 +212,70 @@ export function EnhancePanel({
             </div>
           )}
 
+          {operation === "naturalize" && (
+            <div className="flex flex-col gap-2">
+              <label className="flex flex-col gap-1">
+                <span className="flex items-center justify-between text-xs text-app-muted-foreground">
+                  <span>{t(strings.workspace.enhance.naturalize.realismLabel)}</span>
+                  <span className="tabular-nums text-app-foreground">
+                    {Math.round(realism * 100)}%
+                  </span>
+                </span>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={realism}
+                  disabled={busy}
+                  data-testid={selectors.workspace.enhance.realism}
+                  aria-label={t(strings.workspace.enhance.naturalize.realismLabel)}
+                  onChange={(e) => setRealism(Number(e.target.value))}
+                  className="w-full accent-app-primary"
+                />
+                <span className="flex justify-between text-[0.7rem] text-app-muted-foreground">
+                  <span>{t(strings.workspace.enhance.naturalize.subtle)}</span>
+                  <span>{t(strings.workspace.enhance.naturalize.strong)}</span>
+                </span>
+                <span className="text-xs text-app-muted-foreground">
+                  {t(strings.workspace.enhance.naturalize.realismHint)}
+                </span>
+              </label>
+              <label className="flex items-center gap-2 text-sm text-app-foreground">
+                <input
+                  type="checkbox"
+                  checked={faceAware}
+                  disabled={busy}
+                  data-testid={selectors.workspace.enhance.faceAware}
+                  onChange={(e) => setFaceAware(e.target.checked)}
+                  className="h-4 w-4 accent-app-primary"
+                />
+                {t(strings.workspace.enhance.naturalize.faceAware)}
+              </label>
+            </div>
+          )}
+
+          {suggestNaturalize && (
+            <div
+              data-testid={selectors.workspace.enhance.suggest}
+              className="flex flex-col gap-2 rounded-control border border-app-primary/40 bg-app-primary/5 p-3"
+            >
+              <p className="text-sm font-medium text-app-foreground">
+                {t(strings.workspace.enhance.naturalize.suggestTitle)}
+              </p>
+              <Button
+                variant="outline"
+                type="button"
+                onClick={() => {
+                  enhance.dismiss();
+                  setOperation("naturalize");
+                }}
+              >
+                {t(strings.workspace.enhance.naturalize.suggest)}
+              </Button>
+            </div>
+          )}
+
           {model && model.id !== "" && (
             <p
               data-testid={selectors.workspace.enhance.modelBadge}
@@ -220,7 +313,10 @@ export function EnhancePanel({
               <Button
                 type="button"
                 data-testid={selectors.workspace.enhance.install}
-                onClick={enhance.installAndRun}
+                onClick={() => {
+                  setLastRunOp(operation);
+                  enhance.installAndRun();
+                }}
               >
                 {t(strings.workspace.enhance.install.run)}
               </Button>
@@ -265,6 +361,7 @@ export function EnhancePanel({
               disabled={!input || !operation}
               onClick={() => {
                 if (input && operation) {
+                  setLastRunOp(operation);
                   enhance.start(operation, params, input);
                 }
               }}

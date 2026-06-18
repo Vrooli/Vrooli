@@ -5,7 +5,7 @@
   "requirements": [
     {
       "id": "IMG-P0-010",
-      "title": "Persistent Storage \u0026 Output Ownership",
+      "title": "Persistent Storage & Output Ownership",
       "status": "complete",
       "prd_ref": "OT-P0-010",
       "category": "core",
@@ -13,7 +13,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/storage/resolver_test.go",
+          "ref": "api/internal/storage/storage_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "Storage resolver writes outside repo and honors per-request override"

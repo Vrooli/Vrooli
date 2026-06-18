@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-18T15:40:52-04:00"
+    "last_validated_at": "2026-06-18T16:53:22-04:00"
   },
   "requirements": [
     {
@@ -12,11 +12,11 @@
       "description": "An instruction-edit op + model class (Flux-Kontext / Qwen-Image-Edit-style) for identity-preserving, prompt-only semantic edits ('make him older', 'change the jacket'), distinct from img2img (global + strength knob) and inpaint (masked region). Runs locally on a capable GPU; BYOK-cloud is the CPU/low-VRAM path with hardware-fit + cost surfaced up front. Seeded models must be commercial-clean per the existing license gate.",
       "validation": [
         {
-          "type": "test",
+          "type": "manual",
           "ref": "api/internal/ai/instruct_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Instruction-edit op arg-builder; distinct from img2img/inpaint routing"
+          "notes": "Planned (not yet implemented; automated test pending): Instruction-edit op arg-builder; distinct from img2img/inpaint routing"
         },
         {
           "type": "test",

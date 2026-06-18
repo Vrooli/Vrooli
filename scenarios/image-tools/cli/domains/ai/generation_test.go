@@ -18,7 +18,7 @@ import (
 // Phase-3 AI op (the headless surface IMG-P0-002/003 require).
 func TestSubmitCommandsCoverP0(t *testing.T) {
 	h := newHandlers(nil) // submitCommands only captures h in closures; not invoked here
-	want := []string{"bg-removal", "denoise", "generate", "img2img", "inpaint", "object-removal", "upscale"}
+	want := []string{"bg-removal", "denoise", "generate", "img2img", "inpaint", "naturalize", "object-removal", "upscale"}
 	got := make([]string, 0)
 	for _, c := range h.submitCommands() {
 		if c.RunCtx == nil {

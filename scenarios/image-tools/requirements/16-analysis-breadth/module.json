@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-18T15:40:52-04:00"
+    "last_validated_at": "2026-06-18T16:53:22-04:00"
   },
   "requirements": [
     {
@@ -12,18 +12,18 @@
       "description": "Caption/alt-text, object detection/tagging, anonymous face detection (no recognition), quality assessment, duplicate/near-dup detection (perceptual hash), embedding generation, and QR/barcode read.",
       "validation": [
         {
-          "type": "test",
+          "type": "manual",
           "ref": "api/internal/analysis/breadth_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Each analysis-breadth op returns structured results"
+          "notes": "Planned (not yet implemented; automated test pending): Each analysis-breadth op returns structured results"
         },
         {
-          "type": "test",
+          "type": "manual",
           "ref": "api/internal/analysis/embedding_test.go",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Embedding generation feeds semantic image search"
+          "notes": "Planned (not yet implemented; automated test pending): Embedding generation feeds semantic image search"
         }
       ]
     }

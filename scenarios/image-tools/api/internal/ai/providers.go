@@ -313,5 +313,11 @@ func RegisterProviders(reg *backends.Registry, lookPath lookPathFunc, run comman
 			return fmt.Errorf("ai: register provider %q: %w", s.name, err)
 		}
 	}
+	// In-process builtin providers (deterministic, no PATH/weights dependency).
+	for _, p := range builtinProviderSpecs() {
+		if err := reg.Register(p); err != nil {
+			return fmt.Errorf("ai: register builtin provider %q: %w", p.Name(), err)
+		}
+	}
 	return nil
 }

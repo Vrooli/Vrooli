@@ -358,6 +358,10 @@
       "denoise": {
         "label": "Unblur & denoise",
         "desc": "Reduce noise and recover blurred detail."
+      },
+      "naturalize": {
+        "label": "Naturalize",
+        "desc": "Re-add realistic texture to over-smoothed photos."
       }
     },
     "enhance": {
@@ -388,6 +392,15 @@
         "size": "{{size}} MB download",
         "run": "Install & run",
         "installing": "Installing model…"
+      },
+      "naturalize": {
+        "realismLabel": "Realism",
+        "realismHint": "Higher adds more texture and grain.",
+        "subtle": "Subtle",
+        "strong": "Strong",
+        "faceAware": "Emphasize faces & skin",
+        "suggestTitle": "Result looking a little plastic?",
+        "suggest": "Naturalize this result"
       }
     },
     "createOp": {

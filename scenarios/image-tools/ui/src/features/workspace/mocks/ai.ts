@@ -39,6 +39,10 @@ export const makeListAIOperationsResponse = (
       makeAIOperationInfo({ name: "upscale", summary: "Super-resolve / enlarge" }),
       makeAIOperationInfo({ name: "denoise", summary: "Reduce noise / deblur" }),
       makeAIOperationInfo({
+        name: "naturalize",
+        summary: "Reintroduce realistic texture/grain to over-smoothed images",
+      }),
+      makeAIOperationInfo({
         name: "text_to_image",
         category: "generation",
         summary: "Generate an image from a text prompt",

@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-18T15:40:52-04:00"
+    "last_validated_at": "2026-06-18T16:53:22-04:00"
   },
   "requirements": [
     {
@@ -20,7 +20,7 @@
         },
         {
           "type": "test",
-          "ref": "cli/domains/models/models_test.go",
+          "ref": "cli/domains/models/models_manifest_test.go",
           "phase": "integration",
           "status": "implemented",
           "notes": "Enable/disable/remove and custom local-model entry round-trip"

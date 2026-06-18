@@ -371,6 +371,10 @@ export const strings = {
         label: "workspace.aiOp.denoise.label",
         desc: "workspace.aiOp.denoise.desc",
       },
+      naturalize: {
+        label: "workspace.aiOp.naturalize.label",
+        desc: "workspace.aiOp.naturalize.desc",
+      },
     },
     enhance: {
       intro: "workspace.enhance.intro",
@@ -400,6 +404,15 @@ export const strings = {
         size: "workspace.enhance.install.size",
         run: "workspace.enhance.install.run",
         installing: "workspace.enhance.install.installing",
+      },
+      naturalize: {
+        realismLabel: "workspace.enhance.naturalize.realismLabel",
+        realismHint: "workspace.enhance.naturalize.realismHint",
+        subtle: "workspace.enhance.naturalize.subtle",
+        strong: "workspace.enhance.naturalize.strong",
+        faceAware: "workspace.enhance.naturalize.faceAware",
+        suggestTitle: "workspace.enhance.naturalize.suggestTitle",
+        suggest: "workspace.enhance.naturalize.suggest",
       },
     },
     createOp: {

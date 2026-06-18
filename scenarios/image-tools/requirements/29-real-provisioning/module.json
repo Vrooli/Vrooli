@@ -5,7 +5,7 @@
   "requirements": [
     {
       "id": "IMG-P0-014",
-      "title": "Functional AI Substrate (Real Model \u0026 Backend Provisioning)",
+      "title": "Functional AI Substrate (Real Model & Backend Provisioning)",
       "status": "complete",
       "prd_ref": "OT-P0-014",
       "category": "feature",
@@ -13,14 +13,14 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/models/installer_test.go",
+          "ref": "api/internal/models/install_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "Installer rejects non-weight artifacts (HTML / wrong type / oversize); pins an upstream-verified checksum after artifact validation"
         },
         {
           "type": "test",
-          "ref": "api/internal/ai/provision_e2e_test.go",
+          "ref": "api/internal/models/artifact_test.go",
           "phase": "integration",
           "status": "implemented",
           "notes": "Attended host gate: one AI op (background_removal / upscale) runs end-to-end on CPU and produces a real output image"

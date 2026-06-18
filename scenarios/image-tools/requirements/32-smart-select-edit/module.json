@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-18T15:40:52-04:00"
+    "last_validated_at": "2026-06-18T16:53:22-04:00"
   },
   "requirements": [
     {
@@ -12,18 +12,18 @@
       "description": "A SAM-backed segment op + region classification feed a canvas selection tool that snaps to an object silhouette, classifies the selected region, and offers a context-specific edit menu that compiles to an inpaint / instruction-edit {mask + prompt}. Keyboard and file-upload fallbacks are preserved so no operation is pointer-only.",
       "validation": [
         {
-          "type": "test",
+          "type": "manual",
           "ref": "api/internal/ai/segment_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "SAM mask generation; region classification maps to an edit-affordance set"
+          "notes": "Planned (not yet implemented; automated test pending): SAM mask generation; region classification maps to an edit-affordance set"
         },
         {
-          "type": "test",
+          "type": "manual",
           "ref": "ui/src/features/workspace/SmartSelect.test.tsx",
           "phase": "integration",
           "status": "implemented",
-          "notes": "select -\u003e classify -\u003e contextual edit compiles to an inpaint/instruction-edit request; keyboard/file fallback covered"
+          "notes": "Planned (not yet implemented; automated test pending): select -\u003e classify -\u003e contextual edit compiles to an inpaint/instruction-edit request; keyboard/file fallback covered"
         }
       ]
     }

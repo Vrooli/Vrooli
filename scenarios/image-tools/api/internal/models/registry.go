@@ -189,6 +189,19 @@ type Model struct {
 	Enabled          bool             `json:"enabled"`
 }
 
+// BackendBuiltin is the backend name for deterministic, in-process models that
+// ship in the binary and need no downloaded weights (e.g. the naturalize detail
+// compositor). The ai package registers an always-available builtin provider
+// under this name, and such models are always "installed" (RequiresWeights is
+// false) so the install/provisioning flow skips them.
+const BackendBuiltin = "builtin"
+
+// RequiresWeights reports whether a model needs downloaded artifacts on disk to
+// run. A builtin (deterministic, in-process) model has no weights and is always
+// considered installed; everything else must be fetched + artifact-validated by
+// the Installer before an AI op will launch.
+func (m Model) RequiresWeights() bool { return m.Backend != BackendBuiltin }
+
 // ServesOperation reports whether this model can run the given operation.
 func (m Model) ServesOperation(op string) bool {
 	for _, o := range m.Operations {

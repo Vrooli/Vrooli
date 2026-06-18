@@ -38,5 +38,11 @@ func paramsMap(p *aiv1.AIParams) map[string]string {
 	if v := p.GetScale(); v != 0 {
 		m["scale"] = strconv.Itoa(int(v))
 	}
+	if v := p.GetRealism(); v != 0 {
+		m["realism"] = strconv.FormatFloat(v, 'f', -1, 64)
+	}
+	if p.GetFaceAware() {
+		m["face_aware"] = "true"
+	}
 	return m
 }

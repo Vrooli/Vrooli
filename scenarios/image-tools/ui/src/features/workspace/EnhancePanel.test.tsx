@@ -5,7 +5,7 @@
  * exercised in isolation (the lifecycle itself is covered by useEnhance.test).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { expectNoA11yViolations, renderWithProviders } from "../../test-utils";
@@ -215,5 +215,64 @@ describe("EnhancePanel", () => {
     vi.mocked(listAIOperations).mockRejectedValueOnce(new Error("ai down"));
     renderPanel(fakeEnhance());
     expect(await screen.findByTestId(selectors.workspace.enhance.error)).toBeInTheDocument();
+  });
+
+  it("offers the realism knob + face-aware toggle and passes them as typed params", async () => {
+    const enhance = fakeEnhance();
+    const user = userEvent.setup();
+    renderPanel(enhance);
+
+    await user.click(
+      await screen.findByTestId(selectors.workspace.enhanceAction({ name: "naturalize" })),
+    );
+    const realism = screen.getByTestId(selectors.workspace.enhance.realism);
+    fireEvent.change(realism, { target: { value: "0.8" } });
+    await user.click(screen.getByTestId(selectors.workspace.enhance.faceAware));
+
+    await user.click(screen.getByTestId(selectors.workspace.enhance.run));
+    expect(enhance.start).toHaveBeenCalledWith(
+      "naturalize",
+      { realism: 0.8, faceAware: true },
+      PNG,
+    );
+  });
+
+  it("suggests Naturalize after an over-smoothing op succeeds, and selecting it shows the knob", async () => {
+    const enhance = fakeEnhance();
+    const user = userEvent.setup();
+    const { rerender } = renderPanel(enhance);
+
+    // Run upscale (records it as the last op).
+    await user.click(
+      await screen.findByTestId(selectors.workspace.enhanceAction({ name: "upscale" })),
+    );
+    await user.click(screen.getByTestId(selectors.workspace.enhance.run));
+    expect(enhance.start).toHaveBeenCalledWith("upscale", { scale: 2 }, PNG);
+
+    // The job succeeds → the panel nudges toward Naturalize.
+    const succeeded = fakeEnhance({ phase: "succeeded" });
+    rerender(<EnhancePanel enhance={succeeded} input={PNG} inputWidth={100} inputHeight={50} />);
+    const suggest = await screen.findByTestId(selectors.workspace.enhance.suggest);
+    expect(suggest).toBeInTheDocument();
+
+    // Accepting the suggestion switches to naturalize and reveals its knob.
+    await user.click(screen.getByText(/Naturalize this result/i));
+    expect(succeeded.dismiss).toHaveBeenCalled();
+    expect(await screen.findByTestId(selectors.workspace.enhance.realism)).toBeInTheDocument();
+  });
+
+  it("does not suggest Naturalize after a non-smoothing op (background removal) succeeds", async () => {
+    const enhance = fakeEnhance();
+    const user = userEvent.setup();
+    const { rerender } = renderPanel(enhance);
+
+    // background_removal is the default-selected op; run it.
+    await user.click(await screen.findByTestId(selectors.workspace.enhance.run));
+    expect(enhance.start).toHaveBeenCalledWith("background_removal", {}, PNG);
+
+    const succeeded = fakeEnhance({ phase: "succeeded" });
+    rerender(<EnhancePanel enhance={succeeded} input={PNG} inputWidth={100} inputHeight={50} />);
+    await screen.findByTestId(selectors.workspace.enhance.succeeded);
+    expect(screen.queryByTestId(selectors.workspace.enhance.suggest)).not.toBeInTheDocument();
   });
 });
