@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { timestampFromDate } from "@bufbuild/protobuf/wkt";
@@ -14,6 +14,7 @@ const { listNodes, revokeNode } = vi.hoisted(() => ({
   listNodes: vi.fn(),
   revokeNode: vi.fn(),
 }));
+const { listQueue } = vi.hoisted(() => ({ listQueue: vi.fn() }));
 
 vi.mock("../../api/nodes", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/nodes")>();
@@ -23,9 +24,20 @@ vi.mock("../../api/nodes", async (importOriginal) => {
   };
 });
 
+vi.mock("../../api/queue", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/queue")>();
+  return { ...actual, queueClient: { listQueue } };
+});
+
 import { FleetPanel } from "./FleetPanel";
 
 describe("FleetPanel", () => {
+  beforeEach(() => {
+    // The queue overlay is best-effort; default it to empty so the panel
+    // renders idle job status without a real network attempt.
+    listQueue.mockResolvedValue({ nodes: [] });
+  });
+
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
@@ -43,12 +55,16 @@ describe("FleetPanel", () => {
     });
     renderWithProviders(<FleetPanel />);
 
-    await waitFor(() => expect(screen.getByTestId(selectors.fleet.row({ id: "n1" }))).toBeInTheDocument());
+    const row = await screen.findByTestId(selectors.fleet.row({ id: "n1" }));
     expect(screen.getByText(/ubuntu-ci/)).toBeInTheDocument();
-    expect(screen.getByText(/linux\/amd64/)).toBeInTheDocument();
-    // presence is conveyed by a labelled dot AND a status text label
+    // OS and arch are now rendered as discrete labelled metadata fields; assert
+    // via the row's textContent (data values, not copy).
+    expect(row).toHaveTextContent("linux");
+    expect(row).toHaveTextContent("amd64");
+    // presence is conveyed by a labelled dot AND a status text label (the label
+    // also repeats as the "Health" metadata value, so >= 1 occurrence).
     expect(screen.getByLabelText(strings.fleet.onlineLabel)).toBeInTheDocument();
-    expect(screen.getByText(strings.fleet.status.online)).toBeInTheDocument();
+    expect(screen.getAllByText(strings.fleet.status.online).length).toBeGreaterThan(0);
     expect(screen.getByTestId(selectors.fleet.revoke({ id: "n1" }))).toBeInTheDocument();
   });
 
@@ -67,7 +83,7 @@ describe("FleetPanel", () => {
 
     await waitFor(() => expect(screen.getByTestId(selectors.fleet.row({ id: "off1" }))).toBeInTheDocument());
     expect(screen.getByLabelText(strings.fleet.offlineLabel)).toBeInTheDocument();
-    expect(screen.getByText(strings.fleet.status.offline)).toBeInTheDocument();
+    expect(screen.getAllByText(strings.fleet.status.offline).length).toBeGreaterThan(0);
   });
 
   it("hides revoke on an already-revoked node", async () => {
@@ -78,7 +94,7 @@ describe("FleetPanel", () => {
 
     await waitFor(() => expect(screen.getByTestId(selectors.fleet.row({ id: "r1" }))).toBeInTheDocument());
     expect(screen.queryByTestId(selectors.fleet.revoke({ id: "r1" }))).not.toBeInTheDocument();
-    expect(screen.getByText(strings.fleet.status.revoked)).toBeInTheDocument();
+    expect(screen.getAllByText(strings.fleet.status.revoked).length).toBeGreaterThan(0);
   });
 
   it("revokes a node only after confirmation", async () => {

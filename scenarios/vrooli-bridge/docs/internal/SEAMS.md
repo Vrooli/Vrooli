@@ -312,6 +312,56 @@ Note: `internal/presence.Hub` is a concrete shared component (constructed once i
 | **Test fake** | `service_test.go` asserts kind selection by `ManagerForKind`, host-GOOS match for `NewManager`, that rendered units carry only Definition-supplied paths (no hardcoded POSIX paths), and that the privileged helper renders under a separate principal. |
 | **Why it exists** | One agent codebase installs natively on Linux/macOS/Windows (OT-P0-007) with no scattered GOOS checks and no Linux-only assumptions; the pure renderers make the exact unit content testable without touching the host. |
 
+### compat + presence compatibility (protocol gating, OT-P1-001)
+
+| | |
+|---|---|
+| **Seam** | The protocol-compatibility verdict the live layer stores per node, gating WORK dispatch. |
+| **Interface** | `internal/compat::Evaluate(nodePV)`/`EvaluateAt` (pure, four-band) + `presence.Hub` `SetCompatibility`/`Compatibility`/`Dispatchable`; `dispatch.Presence` gained `Dispatchable(nodeID)`. |
+| **Production wiring** | The SSE dial-out (`handlers/channel/sse_handler.go`) reads `?pv=`, calls `compat.Evaluate`, and stores it on the hub; the heartbeat returns the stored verdict; `dispatch.service` excludes non-dispatchable nodes with `ErrNodeNeedsUpdate` (provisioning exempt). |
+| **Test fake** | `dispatch/mocks.FakePresence.Flagged`, `fleet/mocks.FakePresence.Flagged`; `compat_test.go`, `dialout_test.go`. |
+| **Why it exists** | A version-drifted node holds presence but is FLAGGED and excluded from work rather than silently mis-driven — the mechanism that keeps a fleet coherent. |
+
+### fleet seams (NodeLister / Presence / Provisioner / Repository, OT-P1-001)
+
+| | |
+|---|---|
+| **Seam** | Fleet-wide version roll: enumerate nodes, gate on presence+compat, delegate per-node provisioning, persist the rollout ledger. |
+| **Interface** | `internal/fleet/seams.go` (`NodeLister`, `Presence`, `Provisioner`) + `repository.go::Repository`. |
+| **Production wiring** | `handlers/fleet/adapter.go` binds `NodeLister`→registry.List, `Presence`→hub, `Provisioner`→the SHARED provision service (`provisionerAdapter`). `provision.Module` split into `NewService`+`Module` so one provision instance backs both the provision handler and the fleet roll. |
+| **Test fake** | `internal/fleet/mocks` (FakeNodeLister/FakePresence/FakeProvisioner/FakeRepository); `rollout_test.go` (real sqlite), `service_test.go`. |
+| **Why it exists** | Fleet NEVER reimplements provisioning — it fans out to the provision domain through the seam, keeping the privileged tier the single audited path. |
+
+### queue scheduler seams (Pusher / Aborter + runs TerminalHook / Canceller, OT-P1-004)
+
+| | |
+|---|---|
+| **Seam** | Per-node bounded-concurrency scheduling on the dispatch→push path, with run-terminal slot release and node-side cancel. |
+| **Interface** | `internal/queue/seams.go` (`Pusher`, `Aborter`); `runs.Service` options `WithTerminalHook(TerminalHook)` + `WithCanceller(Canceller)`. |
+| **Production wiring** | `main.go` builds `queue.NewScheduler(queueH.NewChannelPusher(hub), queueH.NewAborter(runsSvc), …)`; `runsSvc` is constructed with `WithCanceller(channelCanceller)` + `WithTerminalHook(scheduler.Complete)` (the hook closure captures the scheduler var, assigned just after, to break the construction cycle). Dispatch's `jobPusherAdapter` submits to the scheduler (satisfies dispatch's existing JobPusher seam unchanged). |
+| **Test fake** | `internal/queue/queue_test.go` (fakePusher/fakeAborter), `scheduling_test.go`; `internal/runs/cancel_test.go` (fakeCanceller). |
+| **Why it exists** | Each node runs ≤N jobs at once (default 1, test-genie discipline); a gate fan-out never thrashes a node, and AbortRun actually stops the node's process rather than leaving an ignored stale completion. |
+
+### artifacts.DirectedDelivery (device-sync-hub byte transport, OT-P1-003)
+
+| | |
+|---|---|
+| **Seam** | The "bridge orchestrates, device-sync-hub moves the bytes" boundary — bridge moves NO bytes and stores NO blob. |
+| **Interface** | `internal/artifacts/seams.go::DirectedDelivery` (`Deliver(DeliveryRequest) DeliveryResult`) + `NodeReader`. |
+| **Production wiring** | `handlers/artifacts/adapter.go::deviceSyncDelivery` produces a device-sync-hub delivery ref; the concrete device-sync-hub TransferService client is the documented drop-in behind this seam (mirroring audit's workspace-sandbox Sink — device-sync-hub carries an environmental authenticator blocker). |
+| **Test fake** | `internal/artifacts/mocks.FakeDelivery`; `distribute_test.go`, `devicesync_integration_test.go` (real sqlite). |
+| **Why it exists** | Bridge never reinvents file transport; the seam keeps the artifacts domain proto-free and lets the real device-sync-hub client drop in without touching the domain. |
+
+### node-agent discovery.Browser (mDNS LAN discovery, OT-P1-006)
+
+| | |
+|---|---|
+| **Seam** | LAN auto-discovery of the control plane; manual URL stays the cross-network default and the fallback. |
+| **Interface** | `agent/internal/discovery::Browser` (the mDNS querier) behind `Resolve` (manual URL wins; mDNS only when no URL given). |
+| **Production wiring** | `agent/internal/discovery/mdns.go` — a dependency-free DNS-SD querier over UDP multicast; gated by the `--discover` flag. |
+| **Test fake** | `agent/internal/discovery/mdns_test.go` (fake Browser), `fallback_test.go` (manual-URL-wins, Browser never invoked). |
+| **Why it exists** | Pairing on a trusted LAN is "run the installer" without typing the control-plane URL; off-LAN bootstrap never depends on mDNS. |
+
 ## Adding a new seam
 
 The right time to add a seam is the moment you find yourself reaching

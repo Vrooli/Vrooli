@@ -4,8 +4,8 @@
     "title": "Device Sync Hub"
   },
   "layout": {
-    "sidebarLabel": "Primary",
-    "bottomNavLabel": "Primary (compact)",
+    "sidebarLabel": "メイン",
+    "bottomNavLabel": "メイン（コンパクト）",
     "nav": {
       "transfer": "Transfer",
       "devices": "Devices",

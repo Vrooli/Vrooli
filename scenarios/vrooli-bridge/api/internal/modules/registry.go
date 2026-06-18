@@ -22,21 +22,27 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
+	artifactsH "vrooli-bridge/handlers/artifacts"
 	auditH "vrooli-bridge/handlers/audit"
 	channelH "vrooli-bridge/handlers/channel"
 	dispatchH "vrooli-bridge/handlers/dispatch"
+	fleetH "vrooli-bridge/handlers/fleet"
 	healthH "vrooli-bridge/handlers/health"
 	pairingH "vrooli-bridge/handlers/pairing"
 	provisionH "vrooli-bridge/handlers/provision"
+	queueH "vrooli-bridge/handlers/queue"
 	registryH "vrooli-bridge/handlers/registry"
 	runsH "vrooli-bridge/handlers/runs"
 	localdb "vrooli-bridge/internal/database"
 
+	artifactsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/artifacts"
 	auditv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/audit"
 	dispatchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/dispatch"
+	fleetv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/fleet"
 	pairingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/pairing"
 	presencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence"
 	provisionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/provision"
+	queuev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/queue"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
 	runsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/runs"
 )
@@ -48,11 +54,14 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
+	out = append(out, artifactsH.Endpoints...)
 	out = append(out, auditH.Endpoints...)
 	out = append(out, channelH.Endpoints...)
 	out = append(out, dispatchH.Endpoints...)
+	out = append(out, fleetH.Endpoints...)
 	out = append(out, pairingH.Endpoints...)
 	out = append(out, provisionH.Endpoints...)
+	out = append(out, queueH.Endpoints...)
 	out = append(out, registryH.Endpoints...)
 	out = append(out, runsH.Endpoints...)
 	return out
@@ -81,11 +90,14 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
+		{Module: "artifacts", File: artifactsv1.File_vrooli_bridge_v1_artifacts_artifacts_proto},
 		{Module: "audit", File: auditv1.File_vrooli_bridge_v1_audit_audit_proto},
 		{Module: "channel", File: presencev1.File_vrooli_bridge_v1_presence_presence_proto},
 		{Module: "dispatch", File: dispatchv1.File_vrooli_bridge_v1_dispatch_dispatch_proto},
+		{Module: "fleet", File: fleetv1.File_vrooli_bridge_v1_fleet_fleet_proto},
 		{Module: "pairing", File: pairingv1.File_vrooli_bridge_v1_pairing_pairing_proto},
 		{Module: "provision", File: provisionv1.File_vrooli_bridge_v1_provision_provision_proto},
+		{Module: "queue", File: queuev1.File_vrooli_bridge_v1_queue_queue_proto},
 		{Module: "registry", File: registryv1.File_vrooli_bridge_v1_registry_registry_proto},
 		{Module: "runs", File: runsv1.File_vrooli_bridge_v1_runs_runs_proto},
 	}
@@ -102,8 +114,10 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
+		apidb.SchemaProviderFunc(artifactsH.Schema),
 		apidb.SchemaProviderFunc(auditH.Schema),
 		apidb.SchemaProviderFunc(channelH.Schema),
+		apidb.SchemaProviderFunc(fleetH.Schema),
 		apidb.SchemaProviderFunc(pairingH.Schema),
 		apidb.SchemaProviderFunc(provisionH.Schema),
 		apidb.SchemaProviderFunc(registryH.Schema),

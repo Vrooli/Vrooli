@@ -21,14 +21,15 @@ func ToConnectError(err error) error {
 		return nil
 	}
 	var (
-		invalid    ErrInvalidJob
-		notInMan   ErrVerbNotInManifest
-		outOfScope ErrVerbOutOfScope
-		unsafe     ErrUnsafeToken
-		notFound   ErrNodeNotFound
-		revoked    ErrNodeRevoked
-		offline    ErrNodeOffline
-		delivery   ErrDeliveryFailed
+		invalid     ErrInvalidJob
+		notInMan    ErrVerbNotInManifest
+		outOfScope  ErrVerbOutOfScope
+		unsafe      ErrUnsafeToken
+		notFound    ErrNodeNotFound
+		revoked     ErrNodeRevoked
+		offline     ErrNodeOffline
+		needsUpdate ErrNodeNeedsUpdate
+		delivery    ErrDeliveryFailed
 	)
 	switch {
 	case errors.As(err, &invalid):
@@ -45,6 +46,8 @@ func ToConnectError(err error) error {
 		return connect.NewError(connect.CodeFailedPrecondition, revoked)
 	case errors.As(err, &offline):
 		return connect.NewError(connect.CodeFailedPrecondition, offline)
+	case errors.As(err, &needsUpdate):
+		return connect.NewError(connect.CodeFailedPrecondition, needsUpdate)
 	case errors.As(err, &delivery):
 		return connect.NewError(connect.CodeUnavailable, delivery)
 	default:
@@ -56,14 +59,16 @@ func ToConnectError(err error) error {
 // (as opposed to an internal failure). The handler uses it to decide log noise.
 func IsRejection(err error) bool {
 	var (
-		invalid    ErrInvalidJob
-		notInMan   ErrVerbNotInManifest
-		outOfScope ErrVerbOutOfScope
-		unsafe     ErrUnsafeToken
-		notFound   ErrNodeNotFound
-		revoked    ErrNodeRevoked
-		offline    ErrNodeOffline
+		invalid     ErrInvalidJob
+		notInMan    ErrVerbNotInManifest
+		outOfScope  ErrVerbOutOfScope
+		unsafe      ErrUnsafeToken
+		notFound    ErrNodeNotFound
+		revoked     ErrNodeRevoked
+		offline     ErrNodeOffline
+		needsUpdate ErrNodeNeedsUpdate
 	)
 	return errors.As(err, &invalid) || errors.As(err, &notInMan) || errors.As(err, &outOfScope) ||
-		errors.As(err, &unsafe) || errors.As(err, &notFound) || errors.As(err, &revoked) || errors.As(err, &offline)
+		errors.As(err, &unsafe) || errors.As(err, &notFound) || errors.As(err, &revoked) ||
+		errors.As(err, &offline) || errors.As(err, &needsUpdate)
 }

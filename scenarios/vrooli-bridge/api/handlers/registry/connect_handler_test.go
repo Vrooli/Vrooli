@@ -14,10 +14,16 @@ import (
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/registry"
 )
 
-// fakePresence is a Presence double keyed by node id.
-type fakePresence struct{ online map[string]bool }
+// fakePresence is a Presence double keyed by node id. flagged marks an online
+// node as protocol-incompatible (online but not dispatchable → NEEDS_UPDATE).
+type fakePresence struct {
+	online  map[string]bool
+	flagged map[string]bool
+}
 
 func (f fakePresence) IsOnline(id string) bool { return f.online[id] }
+
+func (f fakePresence) Dispatchable(id string) bool { return f.online[id] && !f.flagged[id] }
 
 func ownerCtx() context.Context {
 	return auth.WithIdentity(context.Background(), auth.Identity{OwnerID: "owner-1"})
@@ -47,6 +53,22 @@ func TestHandler_RequiresOwner(t *testing.T) {
 
 	_, err = h.RevokeNode(ctx, connect.NewRequest(&registryv1.RevokeNodeRequest{Id: "x"}))
 	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+}
+
+// [REQ:BRG-P1-001] An online node whose agent protocol is flagged
+// (online but not dispatchable) reads NEEDS_UPDATE in the overlay, so the
+// operator/UI sees it is excluded from work until the agent is updated.
+func TestHandler_GetNode_FlaggedNodeReadsNeedsUpdate(t *testing.T) {
+	svc := &mocks.FakeService{GetOut: registry.Node{ID: "n1", Name: "stale", OS: "linux", Arch: "amd64"}}
+	h := newHarness(svc, fakePresence{
+		online:  map[string]bool{"n1": true},
+		flagged: map[string]bool{"n1": true},
+	})
+
+	resp, err := h.GetNode(ownerCtx(), connect.NewRequest(&registryv1.GetNodeRequest{Id: "n1"}))
+	require.NoError(t, err)
+	require.True(t, resp.Msg.Node.Online)
+	require.Equal(t, registryv1.NodeStatus_NODE_STATUS_NEEDS_UPDATE, resp.Msg.Node.Status)
 }
 
 func TestHandler_RegisterNode_PassesInputAndOverlaysPresence(t *testing.T) {

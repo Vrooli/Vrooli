@@ -9,6 +9,7 @@
     "mainLabel": "メインコンテンツ",
     "nav": {
       "dashboard": "ダッシュボード",
+      "runs": "実行",
       "settings": "設定"
     }
   },
@@ -29,6 +30,10 @@
       "title": "設定",
       "themeHeading": "外観",
       "localeHeading": "言語"
+    },
+    "runs": {
+      "title": "実行",
+      "description": "フリート全体の永続的なリモート実行履歴。実行を開くとライブ出力を確認し、成果物をダウンロードできます。"
     }
   },
   "health": {
@@ -51,12 +56,65 @@
     "neverSeen": "未確認",
     "revoke": "失効",
     "revokeConfirm": "{{name}} を失効しますか？ノードは直ちに切断されます。",
+    "osLabel": "OS",
+    "archLabel": "アーキテクチャ",
+    "versionLabel": "バージョン",
+    "healthLabel": "ヘルス",
+    "unknownValue": "不明",
+    "jobsHeading": "実行中のジョブ",
+    "jobsIdle": "アイドル — 実行中のジョブなし",
+    "jobsBusy": "実行中 {{running}} 件 · 待機中 {{queued}} 件",
     "status": {
       "unspecified": "不明",
       "offline": "オフライン",
       "online": "オンライン",
       "needsUpdate": "要更新",
       "revoked": "失効済み"
+    },
+    "pairing": {
+      "heading": "ノードをペアリング",
+      "description": "単回限りのコードを発行し、新しいノードでブートストラップインストーラーを実行します。",
+      "nameLabel": "ノード名",
+      "namePlaceholder": "mac-mini-office",
+      "submit": "ペアリングコードを生成",
+      "submitting": "生成中…",
+      "codeHeading": "ペアリングコード",
+      "codeHelp": "一度だけ表示されます。ノードのインストーラーに帯域外で渡してください。",
+      "publicKeyLabel": "コントロールプレーンの公開鍵",
+      "expiresLabel": "有効期限",
+      "copy": "コードをコピー"
+    }
+  },
+  "runs": {
+    "title": "実行履歴",
+    "description": "永続的なリモート実行、新しい順。",
+    "loading": "実行を読み込み中…",
+    "empty": "実行はまだありません。ノードにジョブをディスパッチすると表示されます。",
+    "nodeLabel": "ノード",
+    "jobLabel": "ジョブ",
+    "startedLabel": "開始",
+    "durationLabel": "所要時間",
+    "exitLabel": "終了コード",
+    "progressLabel": "進捗",
+    "etaLabel": "完了予定",
+    "etaPending": "推定中…",
+    "view": "出力を表示",
+    "close": "閉じる",
+    "cancel": "実行をキャンセル",
+    "cancelling": "キャンセル中…",
+    "cancelConfirm": "この実行をキャンセルしますか？ノードはジョブを直ちに中止します。",
+    "outputHeading": "出力",
+    "outputEmpty": "出力はまだ記録されていません。",
+    "artifactsHeading": "成果物",
+    "artifactsEmpty": "成果物はありません。",
+    "download": "ダウンロード",
+    "status": {
+      "unspecified": "不明",
+      "queued": "待機中",
+      "running": "実行中",
+      "passed": "成功",
+      "failed": "失敗",
+      "aborted": "中止"
     }
   },
   "notifications": {

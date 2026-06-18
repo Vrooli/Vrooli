@@ -36,6 +36,9 @@ belong in [`DATA.md`](DATA.md).
 | provisioning | Privileged tier: sync a node to revision R (`vrooli setup`), update, version-pin, rollback. | Workflow / privileged | `provisioning_ops`, `provision_events`, `node_versions`. | API, CLI | OT-P0-006, OT-P1-001 | `api/internal/provision/`, `api/handlers/provision/`, `cli/domains/provision/`, `agent/internal/privsep/`, `packages/proto/schemas/vrooli-bridge/v1/provision/` |
 | gate | Aggregate per-OS node verdicts into a single cross-OS deployment-readiness result. | Aggregation / reporting | Gate runs, per-OS verdicts. | API, CLI, UI | OT-P1-002 | `api/internal/gate/` |
 | audit | Append-only trail of every dispatch and provisioning op (actor/node/verb/args/outcome). | Reporting / security | Audit records (via workspace-sandbox). | API, UI | OT-P0-008 | `api/internal/audit/` |
+| fleet | Fleet-wide version roll: pin every (or named) node to a target revision by fanning provisioning out across the fleet; per-node rollout ledger + protocol-compat gating. | Aggregation / workflow | `rollouts`, `rollout_results`. | API, CLI, UI | OT-P1-001 | `api/internal/fleet/`, `api/handlers/fleet/`, `cli/domains/fleet/` |
+| queue | Per-node bounded-concurrency + fair-FIFO scheduler on the dispatch→push path; read-only control-plane view of running-vs-queued. | Policy / realtime | In-memory scheduler state (the run is the durable record). | API, CLI, UI | OT-P1-004 | `api/internal/queue/`, `api/handlers/queue/`, `cli/domains/queue/` |
+| artifacts | Distribute non-git artifacts (installers, fixtures) to nodes via device-sync-hub directed delivery; bridge stores no bytes. | Integration / workflow | `distributions` (reference + metadata only). | API, CLI, UI | OT-P1-003 | `api/internal/artifacts/`, `api/handlers/artifacts/`, `cli/domains/artifacts/` |
 
 ## Domain Details
 
@@ -130,13 +133,14 @@ The cross-compiled **node-agent** (OT-P0-007) is not a control-plane domain — 
 Add future or intentionally deferred capabilities here only when they
 are real enough to affect architecture or requirements.
 
-Most P1/P2 capabilities extend an existing domain rather than forming a new one; a few are genuinely future.
+The remaining P2 capabilities are genuinely future. (The P1 set — fleet roll,
+artifact distribution, per-node queue, fleet UI, mDNS — shipped in Phase 5: the
+first three became their own domains above rather than extending an existing
+one, the queue is in-memory scheduling over the durable runs, and mDNS is a
+node-agent concern.)
 
 | Candidate Domain / Capability | Why Deferred | Revisit Trigger |
 |---|---|---|
-| Build-artifact distribution (OT-P1-003) | Extends dispatch/runs; delegates byte transport to device-sync-hub. | When a gate job needs a non-git artifact on a node. |
-| Per-node job queue (OT-P1-004) | Extends dispatch/runs scheduling. | When concurrent gate runs can target one node. |
-| LAN auto-discovery / mDNS (OT-P1-006) | Extends pairing/presence on the agent side. | When easier on-LAN pairing is prioritized. |
 | Control-plane portability to macOS/Windows (OT-P2-001) | Cross-cutting; gated on Vrooli-the-platform running on those OSes. | When the platform becomes installable on Mac/Win. |
 | remote-desktop seam (OT-P2-002) | A *separate future scenario* (screen/input control) that reuses bridge's identity/reach, not a bridge domain. | When real-time remote control is built. |
 | Cloud-runner / ephemeral nodes (OT-P2-003) | Extends the registry (node kind is metadata). | When on-demand VM/cloud capacity is needed. |

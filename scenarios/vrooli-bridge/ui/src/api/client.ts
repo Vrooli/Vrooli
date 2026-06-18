@@ -59,5 +59,17 @@ export async function uploadFile(path: string, formData: FormData): Promise<Resp
   });
 }
 
+/**
+ * Resolve a downloadable URL for a run artifact reference. Artifact bytes live
+ * in device-sync-hub (DATA.md) and never transit the control-plane store; the
+ * REST gateway streams them by ref, so the dashboard links directly to this URL
+ * rather than buffering the bytes through Connect.
+ */
+export function artifactDownloadUrl(ref: string): string {
+  return buildApiUrl(`/artifacts/${encodeURIComponent(ref)}/download`, {
+    baseUrl: REST_API_BASE,
+  });
+}
+
 export { fromJson, PROTO_READ_OPTIONS };
 export type { ErrorEnvelope, JsonValue };

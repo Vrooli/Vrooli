@@ -67,6 +67,68 @@ new path automatically.
   i18n-merge). Reserved for a future schema bump (`scenario-ui-manifest/v2`).
   Document the intent in the consuming scenario's PRD until then.
 
+## Fleet Dashboard
+
+> This section is the **manual-validation reference** for the Phase-5 fleet
+> dashboard (OT-P1-005, requirement `BRG-P1-005`). It documents what the
+> operator surfaces are and how they compose, so the behaviour can be checked by
+> hand against the running UI as well as by the component tests.
+
+### Surfaces
+
+The dashboard is the bridge's fleet **control plane**. Three feature surfaces
+compose it, each owning its own loading / error / empty states:
+
+- **Pairing** — `ui/src/features/fleet/PairNodeForm.tsx`. One-touch onboarding:
+  the owner types a node label and mints a **single-use pairing code**
+  (`PairingService.IssuePairingCode`). The plaintext code + control-plane public
+  key are shown **once** for out-of-band delivery to the node's bootstrap
+  installer; the server only stores the hash.
+- **Fleet panel** — `ui/src/features/fleet/FleetPanel.tsx`. The owner's trusted
+  nodes, each row showing:
+  - **Live presence** (online/offline) as a labelled dot.
+  - **OS / Arch / Version / Health** as discrete labelled metadata fields. Health
+    (node status) is conveyed by **three redundant channels** — a colored dot, a
+    distinct icon, *and* a text label — so it never relies on color alone
+    (WCAG 1.4.1).
+  - **Live per-node job status** from `QueueService.ListQueue` (running / queued
+    counts), polled on a short interval so dispatch is visible without a manual
+    refresh.
+  - An atomic **Revoke** (confirmation-gated) that severs the node server-side.
+- **Run history** — `ui/src/features/runs/RunHistory.tsx`. A newest-first feed of
+  durable runs (`RunsService.ListRuns`). Each row drills into the run's
+  **output** (persisted/live `RunEvent`s from `GetRun`) and its **downloadable
+  artifacts** (device-sync-hub refs, linked via `artifactDownloadUrl`). A
+  long / in-flight run shows a **determinate progress bar**, an **ETA** (remaining
+  wall-clock budget), and a **Cancel** control (`AbortRun`) — never a frozen
+  spinner; there is always either progress or a terminal state.
+
+The dashboard page (`ui/src/pages/DashboardPage.tsx`) composes all three plus
+the API health card. Run history also has a dedicated route at `/runs`
+(`ui/src/pages/RunsPage.tsx`), linked from the sidebar and bottom nav.
+
+### Data Layer
+
+Each surface reads through a typed Connect-Web client in `ui/src/api/`
+(`fleet.ts`, `queue.ts`, `runs.ts`, `pairing.ts` — mirroring `nodes.ts`) and a
+React Query hook in the feature's `queries.ts`. In-flight runs and the queue
+overlay poll; terminal runs stop polling. The queue overlay is **best-effort** —
+a queue error never blanks the fleet, because presence is the primary signal.
+
+### Operator Flow
+
+The end-to-end flow an operator can complete without leaving the dashboard:
+
+1. **Pair a node.** Enter a label in the pairing form → generate a code →
+   deliver it to the new node's installer. The node dials in and appears in the
+   fleet panel with live presence + OS/arch/version/health.
+2. **Dispatch a job.** A job dispatched to that node surfaces as **live job
+   status** on its fleet row (running / queued) and as a new entry in run
+   history.
+3. **Watch it complete.** Open the run in run history to follow its output, see
+   the progress bar advance toward a terminal status (with an ETA), cancel it if
+   needed, and download any artifacts it produced once it finishes.
+
 ## Cross-References
 
 - Schema: `.vrooli/schemas/scenario-ui-manifest.schema.json` (`$id:

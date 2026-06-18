@@ -10,6 +10,10 @@ import {
   NodeStatus,
   type Node,
 } from "@vrooli/proto-types/vrooli-bridge/v1/registry/registry_pb";
+import {
+  NodeQueueSchema,
+  type NodeQueue,
+} from "@vrooli/proto-types/vrooli-bridge/v1/queue/queue_pb";
 
 export const makeNode = (overrides: MessageInitShape<typeof NodeSchema> = {}): Node =>
   create(NodeSchema, {
@@ -20,5 +24,20 @@ export const makeNode = (overrides: MessageInitShape<typeof NodeSchema> = {}): N
     revision: "abc1234567def",
     status: NodeStatus.ONLINE,
     online: true,
+    ...overrides,
+  });
+
+/**
+ * A node's live scheduler snapshot. Defaults to idle (no running/queued jobs);
+ * tests override `running` / `queued` to exercise the live job-status row.
+ */
+export const makeNodeQueue = (
+  overrides: MessageInitShape<typeof NodeQueueSchema> = {},
+): NodeQueue =>
+  create(NodeQueueSchema, {
+    nodeId: "node-1",
+    concurrencyLimit: 2,
+    running: 0,
+    queued: 0,
     ...overrides,
   });

@@ -9,6 +9,7 @@
     "mainLabel": "المحتوى الرئيسي",
     "nav": {
       "dashboard": "لوحة التحكم",
+      "runs": "عمليات التشغيل",
       "settings": "الإعدادات"
     }
   },
@@ -29,6 +30,10 @@
       "title": "الإعدادات",
       "themeHeading": "المظهر",
       "localeHeading": "اللغة"
+    },
+    "runs": {
+      "title": "عمليات التشغيل",
+      "description": "سجل التنفيذ عن بُعد الدائم عبر الأسطول. افتح عملية تشغيل لمشاهدة مخرجاتها المباشرة وتنزيل المخرجات."
     }
   },
   "health": {
@@ -52,12 +57,65 @@
     "neverSeen": "لم تُشاهَد",
     "revoke": "إبطال",
     "revokeConfirm": "إبطال {{name}}؟ سيؤدي ذلك إلى فصل العقدة فورًا.",
+    "osLabel": "نظام التشغيل",
+    "archLabel": "البنية",
+    "versionLabel": "الإصدار",
+    "healthLabel": "الصحة",
+    "unknownValue": "غير معروف",
+    "jobsHeading": "المهام النشطة",
+    "jobsIdle": "خامل — لا توجد مهام نشطة",
+    "jobsBusy": "{{running}} قيد التشغيل · {{queued}} في الانتظار",
     "status": {
       "unspecified": "غير معروف",
       "offline": "غير متصل",
       "online": "متصل",
       "needsUpdate": "بحاجة إلى تحديث",
       "revoked": "مُبطَل"
+    },
+    "pairing": {
+      "heading": "إقران عقدة",
+      "description": "أصدِر رمزًا لمرة واحدة، ثم شغّل مُثبّت التهيئة على العقدة الجديدة باستخدامه.",
+      "nameLabel": "اسم العقدة",
+      "namePlaceholder": "mac-mini-office",
+      "submit": "إنشاء رمز الإقران",
+      "submitting": "جارٍ الإنشاء…",
+      "codeHeading": "رمز الإقران",
+      "codeHelp": "يُعرض مرة واحدة. سلّمه خارج النطاق إلى مُثبّت العقدة.",
+      "publicKeyLabel": "المفتاح العام لمستوى التحكم",
+      "expiresLabel": "ينتهي في",
+      "copy": "نسخ الرمز"
+    }
+  },
+  "runs": {
+    "title": "سجل التشغيل",
+    "description": "عمليات التنفيذ عن بُعد الدائمة، الأحدث أولًا.",
+    "loading": "جارٍ تحميل عمليات التشغيل…",
+    "empty": "لا توجد عمليات تشغيل بعد. أرسِل مهمة إلى عقدة لتظهر هنا.",
+    "nodeLabel": "العقدة",
+    "jobLabel": "المهمة",
+    "startedLabel": "بدأت",
+    "durationLabel": "المدة",
+    "exitLabel": "رمز الخروج",
+    "progressLabel": "التقدم",
+    "etaLabel": "الوقت المتوقع",
+    "etaPending": "جارٍ التقدير…",
+    "view": "عرض المخرجات",
+    "close": "إغلاق",
+    "cancel": "إلغاء التشغيل",
+    "cancelling": "جارٍ الإلغاء…",
+    "cancelConfirm": "إلغاء هذا التشغيل؟ ستُجهض العقدة المهمة فورًا.",
+    "outputHeading": "المخرجات",
+    "outputEmpty": "لم تُسجَّل أي مخرجات بعد.",
+    "artifactsHeading": "المُخرجات",
+    "artifactsEmpty": "لم يتم إنتاج أي مُخرجات.",
+    "download": "تنزيل",
+    "status": {
+      "unspecified": "غير معروف",
+      "queued": "في الانتظار",
+      "running": "قيد التشغيل",
+      "passed": "ناجح",
+      "failed": "فاشل",
+      "aborted": "مُجهض"
     }
   },
   "notifications": {

@@ -45,6 +45,147 @@
       }
     },
     {
+      "id": "artifacts_distribute_artifact",
+      "path": "/vrooli.vrooli_bridge.v1.artifacts.ArtifactsService/DistributeArtifact",
+      "method": "POST",
+      "summary": "Distribute a non-git artifact to a node (via device-sync-hub)",
+      "description": "Ships a non-git artifact (a built installer, a large fixture) to a node through device-sync-hub's directed delivery — bridge orchestrates, device-sync-hub moves the bytes (bridge stores no blob). Records a durable distribution. An unknown/revoked node is rejected before any delivery. Honours X-Dry-Run. Owner-gated.",
+      "category": "artifacts",
+      "request": {
+        "type": "object",
+        "properties": {
+          "destination_path": "string (required)",
+          "name": "string",
+          "node_id": "string (required)",
+          "source_ref": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "delivery_ref": "string",
+          "distribution_id": "string",
+          "dry_run": "bool",
+          "status": "DeliveryStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing node_id/source_ref/destination_path"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown node"
+        },
+        {
+          "status": 409,
+          "code": "failed_precondition",
+          "description": "Node revoked"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "device-sync-hub directed delivery failed"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Distribute an installer",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.artifacts.ArtifactsService/DistributeArtifact -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"node_id\":\"abc123\",\"name\":\"app-setup.exe\",\"source_ref\":\"blob://builds/app-setup.exe\",\"destination_path\":\"/opt/app/setup.exe\"}'"
+        }
+      ]
+    },
+    {
+      "id": "artifacts_get_distribution",
+      "path": "/vrooli.vrooli_bridge.v1.artifacts.ArtifactsService/GetDistribution",
+      "method": "POST",
+      "summary": "Get an artifact distribution by id",
+      "description": "Returns one durable distribution (reference + status + metadata). Owner-gated.",
+      "category": "artifacts",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "distribution": "Distribution"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No distribution with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get distribution",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.artifacts.ArtifactsService/GetDistribution -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"id\":\"dist-123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "artifacts_list_distributions",
+      "path": "/vrooli.vrooli_bridge.v1.artifacts.ArtifactsService/ListDistributions",
+      "method": "POST",
+      "summary": "List artifact distributions",
+      "description": "Returns distributions newest-first, optionally filtered by node. Owner-gated.",
+      "category": "artifacts",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int32",
+          "node_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "distributions": "array<Distribution>"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List distributions",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.artifacts.ArtifactsService/ListDistributions -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
       "id": "audit_list_records",
       "path": "/vrooli.vrooli_bridge.v1.audit.AuditService/ListAuditRecords",
       "method": "POST",
@@ -223,6 +364,136 @@
         {
           "name": "Dispatch a scenario test",
           "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.dispatch.DispatchService/DispatchJob -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"node_id\":\"abc123\",\"scenario\":\"web-search\",\"verb\":\"scenario test\",\"args\":[\"web-search\"]}'"
+        }
+      ]
+    },
+    {
+      "id": "fleet_roll_fleet",
+      "path": "/vrooli.vrooli_bridge.v1.fleet.FleetService/RollFleet",
+      "method": "POST",
+      "summary": "Roll the fleet (or a subset) to a target revision",
+      "description": "Pins every registered (or named) node to a target git revision: enumerates the eligible nodes, classifies each (online + protocol-compatible + not-revoked → dispatch; otherwise skip with a reason), dispatches a privileged provisioning op to each eligible node, and records a durable rollout with the per-node ledger. Honours X-Dry-Run. Owner-gated.",
+      "category": "fleet",
+      "request": {
+        "type": "object",
+        "properties": {
+          "node_ids": "array<string>",
+          "target_revision": "string (required)",
+          "timeout_seconds": "int64"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "dry_run": "bool",
+          "results": "array<NodeRolloutResult>",
+          "rollout_id": "string",
+          "status": "RolloutStatus"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing target_revision"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Roll the fleet to a revision",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.fleet.FleetService/RollFleet -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"target_revision\":\"a1b2c3d\"}'"
+        }
+      ]
+    },
+    {
+      "id": "fleet_get_rollout",
+      "path": "/vrooli.vrooli_bridge.v1.fleet.FleetService/GetRollout",
+      "method": "POST",
+      "summary": "Get a rollout by id with its per-node ledger",
+      "description": "Returns one durable rollout and its full per-node result ledger. Owner-gated.",
+      "category": "fleet",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "results": "array<NodeRolloutResult>",
+          "rollout": "Rollout"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No rollout with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get rollout",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.fleet.FleetService/GetRollout -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"id\":\"rollout-123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "fleet_list_rollouts",
+      "path": "/vrooli.vrooli_bridge.v1.fleet.FleetService/ListRollouts",
+      "method": "POST",
+      "summary": "List rollouts",
+      "description": "Returns rollouts newest-first. Owner-gated.",
+      "category": "fleet",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int32"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "rollouts": "array<Rollout>"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List rollouts",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.fleet.FleetService/ListRollouts -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{}'"
         }
       ]
     },
@@ -725,6 +996,43 @@
         {
           "name": "Report provision event (node-agent)",
           "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.provision.ProvisionService/ReportProvisionEvent -H 'X-Bridge-Node: <node>' -H 'X-Bridge-Timestamp: <ts>' -H 'X-Bridge-Signature: <sig>' -H 'Content-Type: application/json' -d '{\"event\":{\"op_id\":\"op-123\",\"kind\":\"PROVISION_EVENT_KIND_LOG\",\"log_chunk\":\"...\"}}'"
+        }
+      ]
+    },
+    {
+      "id": "queue_list_queue",
+      "path": "/vrooli.vrooli_bridge.v1.queue.QueueService/ListQueue",
+      "method": "POST",
+      "summary": "List the live per-node job queue",
+      "description": "Returns the live scheduler view: one NodeQueue per node with any running or queued job (running first, then queued in FIFO order with positions), optionally narrowed to a single node. Read-only; the queue is mutated through dispatch (enqueue) and runs AbortRun (cancel). Owner-gated.",
+      "category": "queue",
+      "request": {
+        "type": "object",
+        "properties": {
+          "node_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "nodes": "array<NodeQueue>"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List the queue",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.queue.QueueService/ListQueue -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{}'"
+        },
+        {
+          "name": "List one node's queue",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.queue.QueueService/ListQueue -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"node_id\":\"abc123\"}'"
         }
       ]
     },

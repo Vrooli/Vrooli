@@ -49,6 +49,58 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
+### 2026-06-18 — Phase 4 COMPLETE (privileged provisioning tier + cross-platform agent). P0 DONE.
+
+**Status:** RESOLVED for OT-P0-006/007. Built the `provision` control-plane
+domain (`api/internal/provision` + `handlers/provision` + `provision.proto`),
+the structurally separate privileged node-agent helper
+(`agent/internal/privsep`), the cross-platform service-install adapters
+(`agent/internal/service`), the `provision` CLI group, and the
+`agent/build/crosscompile_test.sh` matrix gate. Privilege separation is proven
+by an AST import-graph test (`internal/exec` ⊥ `internal/privsep`). All three Go
+modules pass build/vet/gofumpt/golangci-lint/test; agent cross-compiles
+CGO_ENABLED=0 for all 6 targets; go.mod tidy clean; `.vrooli/endpoints.json`
+regenerated; API↔CLI parity green.
+
+**Suite (`vrooli scenario test`, run `20260618-135225-b4213f37`): 14/18 phases
+passed.** Phase 4's own surfaces are green — `unit` (all new tests),
+`business`/requirements, `dependencies`, `security`, `integration`,
+`architecture`, `quality`, `docs`, `performance`, `structure`, `contracts`,
+`ui-health`, `measures`, `playbooks`. The 4 reds are ALL pre-existing /
+environmental carry-over, **none introduced by Phase 4**:
+- `standards` — the security-headers template campaign (`httpx`, SSE handler);
+  pre-existing across every prior run.
+- `smoke` — UI iframe-bridge handshake timeout (browser-substrate env issue,
+  `project_browser_substrate_unification`), not app-boot breakage.
+- `tidiness` — template `internal/testutil/modeltest` complexity +
+  `no_prod_import_test` duplication (template debt).
+- `proto` — the SAME 2 blocking `proto.shared_type_misplaced` errors as Phase 3
+  (`channel.Heartbeat` reused by presence; `channel.RunEvent` reused by runs).
+  **Verified `provision.proto` added ZERO new proto errors** (`proto-health
+  validate scenario vrooli-bridge` → errors=2, both the channel ones): provision
+  deliberately uses its OWN `ProvisionEvent` type rather than reusing a channel
+  type. `channel.ProvisionCommand` is now CONSUMED (provision adapter + agent),
+  so its prior `possibly_unused` INFO is the only INFO left.
+
+**The deferred proto-layout pass is now READY (reuse set is FINAL).** Phases 3–4
+revealed the complete cross-domain reuse set: `channel.Heartbeat`
+(+HealthSnapshot/CompatibilityStatus) → presence, and `channel.RunEvent` → runs.
+Provision did NOT add to it. The single deliberate layout pass (move those shared
+types to a new `v1/shared/` package and re-point channel/presence/runs imports +
+the agent) can now be executed once without re-churning. It is orthogonal to
+OT-P0-006/007 and tracked as the next proto cleanup, not a Phase-4 gap.
+
+**Environmental note (build-api flake):** mid-Phase-4 a concurrent repo process
+deleted vrooli-bridge's *untracked* generated proto packages (audit/dispatch/
+pairing/presence/runs/provision survive only as committed gen for registry/
+channel/health/errors), breaking `build-api` with "no required module provides
+package …/v1/audit". Fix = re-run `make generate` in `packages/proto` (regenerates
+from the on-disk schemas). If a future agent sees a sudden module-resolution
+failure for ALL vrooli-bridge proto packages, this is the cause — regenerate, do
+not edit go.mod.
+
+---
+
 ### 2026-06-18 — Phase 1 COMPLETE (node-agent live dial + fleet UI landed)
 
 **Status:** RESOLVED. The node-agent now holds a real dial-out channel
@@ -182,46 +234,46 @@ wire it in `main.go` once workspace-sandbox is green; flip this entry to RESOLVE
 
 **Refs:** `internal/audit/sink.go`, `internal/audit/sqlite.go`, `docs/internal/SECURITY.md#audit`.
 
-### 2026-06-18 — Phase 3 deferred: no per-node job redelivery queue
+### 2026-06-18 — Phase 5: per-node queue built (bounded concurrency); offline-redelivery still deferred
 
-**Symptom:** If a node drops between the dispatch online-check and the channel
-push, the job is not delivered; dispatch aborts the freshly-created run and
-returns `Unavailable` rather than queuing the job for redelivery.
+**Done (OT-P1-004):** The per-node scheduler (`internal/queue`) now sits on the
+dispatch → push path with **bounded concurrency + fair FIFO**: a busy node's
+extra jobs queue (their durable run stays QUEUED) and are promoted as slots
+free; the QueueService surfaces running-vs-queued per node. The scheduler
+satisfies dispatch's existing JobPusher seam, so dispatch is unchanged.
 
-**Root cause:** JobPush rides the ephemeral SSE stream; there is no durable
-per-node queue yet (that is OT-P1-004, Phase 5).
+**Still deferred:** The scheduler is **in-memory** and still requires the node to
+be ONLINE at dispatch time. If a node drops between the online-check and the
+push, dispatch aborts the run (fail-closed) rather than holding the job for
+redelivery on reconnect; and queued state does not survive a control-plane
+restart. Durable, offline-tolerant redelivery (persist the queue; promote on a
+presence-online event) is the remaining work — a presence→scheduler hook + a
+queue persistence layer.
 
-**Workaround:** The dispatch fails closed (the run is aborted, nothing runs
-un-tracked) and the operator re-dispatches. Online nodes — the overwhelmingly
-common case — are unaffected.
+**Workaround:** Online nodes — the overwhelmingly common case — queue correctly;
+a node that drops mid-dispatch is re-dispatched by the operator.
 
-**Real fix:** Phase 5 per-node job queue (`requirements/12-job-queue`) holds the
-job and redelivers on reconnect; dispatch then enqueues instead of failing.
+**Refs:** `internal/queue/scheduler.go`, `internal/dispatch/service.go` (online
+gate), `handlers/queue/`.
 
-**Owner:** unassigned.
+### 2026-06-18 — Phase 3 deferred: AbortRun does not yet signal the node — RESOLVED (Phase 5)
 
-**Refs:** `internal/dispatch/service.go` (delivery-failure branch).
+**Symptom (was):** `runs abort` marked the run ABORTED on the control plane but
+did not push a cancel frame to the node, so a job already executing ran to
+completion (its late EXIT ignored as a stale completion).
 
-### 2026-06-18 — Phase 3 deferred: AbortRun does not yet signal the node
+**Resolution (Phase 5, OT-P1-004):** Added the `channel.AbortJob` ServerFrame
+(field 5 of the ServerFrame oneof). `runs.Service` gained a `WithCanceller`
+option; `runs.Abort` now pushes an AbortJob via the channel-canceller
+(`handlers/queue.channelCanceller` → presence-hub push). The node-agent
+registers a per-run cancelable execution context (`internal/channel.runningJobs`)
+and cancels it on the AbortJob frame, killing the job's `exec.CommandContext`
+process. Proven by `internal/runs/cancel_test.go` (Abort pushes cancel + fires
+the terminal hook; a natural EXIT fires the hook WITHOUT a cancel push) and
+`agent/internal/channel/abort_test.go` (the AbortJob frame routes to cancel).
 
-**Symptom:** `runs abort` marks the run ABORTED on the control plane and wakes
-waiters immediately, but does not push a cancel frame to the node, so a job
-already executing on the node runs to completion (its late EXIT is then ignored
-as a stale completion).
-
-**Root cause:** The channel wire contract has no node-bound abort frame yet, and
-the node-side runner does not subscribe to one.
-
-**Workaround:** The control-plane view is correct and terminal at once (stale
-completions are safely ignored). Node-side cancellation lands with the Phase 5
-queue/cancel work.
-
-**Real fix:** Add an abort `ServerFrame` kind + node-side cancel handling
-(Phase 5), then have AbortRun push it.
-
-**Owner:** unassigned.
-
-**Refs:** `internal/runs/service.go::Abort`, `packages/proto/.../v1/channel/channel.proto`.
+**Refs:** `internal/runs/service.go::Abort`, `handlers/queue/adapter.go`,
+`agent/internal/channel/channel.go`, `packages/proto/.../v1/channel/channel.proto`.
 
 ### 2026-06-18 — proto `shared_type_misplaced` (the full reuse set is now known)
 
@@ -259,7 +311,8 @@ a migration handoff with a planned retirement path back into
 
 | Area | Drift | Maturity Impact | Real Fix |
 |---|---|---|---|
-| _None yet._ |  |  |  |
+| handler adapters (all domains) | `architecture-cartographer` flags `layering/handler-imports-sibling-domain` (23 error findings) because each `api/handlers/<domain>/adapter.go` imports SIBLING domains to bind its domain's proto-free seams (registry/presence/audit/provision/runs). | This is the codebase's deliberate **"single translation point"** pattern (every domain since Phase 1 — audit/channel/dispatch/registry/provision all do it; SEAMS.md + each adapter.go document it: *the domain never imports a sibling domain or proto; these adapters do*). It was previously ABSTAINED by the auditor; Phase 5 documenting the 3 new domains in DOMAINS.md raised the domain-map authority to high, which turned the abstentions into blocking findings. Not a new code smell — Phase 5's fleet/queue/artifacts handlers follow the identical established pattern. | If the auditor's rule is to be honored ecosystem-wide, move every handler's seam-binding adapter out of the handler package (e.g. a per-domain `wiring/` constructed in main.go) — a cross-cutting refactor across all 11 domains, out of Phase 5 scope. Otherwise teach the test-genie architecture phase to allow handler→sibling-domain imports via `adapter.go` (a documented exception), since the pattern is intentional. |
+| convergence/glossary drift (warn) | `convergence_drift` (per-domain) + `glossary_drift` (heuristic, on seams/mocks/types files) warnings. | Heuristic naming-consistency nudges across pre-existing and new domains; non-blocking on their own (the blocking outcome is the layering errors above). | Reconcile domain vocabulary in DOMAINS.md as the glossary stabilizes; low priority. |
 
 ## Cross-references
 

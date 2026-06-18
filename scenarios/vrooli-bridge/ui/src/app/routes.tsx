@@ -7,6 +7,7 @@ import {
 
 import { AppShell } from "../layout/AppShell";
 import { DashboardPage } from "../pages/DashboardPage";
+import { RunsPage } from "../pages/RunsPage";
 import { SettingsPage } from "../pages/SettingsPage";
 
 /**
@@ -21,6 +22,7 @@ export const routes: RouteObject[] = [
     element: <AppShell />,
     children: [
       { index: true, element: <DashboardPage /> },
+      { path: "runs", element: <RunsPage /> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },

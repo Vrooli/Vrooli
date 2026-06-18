@@ -4,8 +4,8 @@
     "title": "Device Sync Hub"
   },
   "layout": {
-    "sidebarLabel": "Primary",
-    "bottomNavLabel": "Primary (compact)",
+    "sidebarLabel": "الأساسية",
+    "bottomNavLabel": "الأساسية (مدمجة)",
     "nav": {
       "transfer": "Transfer",
       "devices": "Devices",

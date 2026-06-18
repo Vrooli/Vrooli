@@ -29,6 +29,7 @@ import (
 	"vrooli-bridge/agent/internal/buildinfo"
 	"vrooli-bridge/agent/internal/channel"
 	"vrooli-bridge/agent/internal/config"
+	"vrooli-bridge/agent/internal/discovery"
 	"vrooli-bridge/agent/internal/nodecred"
 	"vrooli-bridge/agent/internal/platform"
 	"vrooli-bridge/agent/internal/service"
@@ -82,6 +83,22 @@ func run(args []string) error {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	// LAN auto-discovery (OT-P1-006): when no control-plane URL is configured and
+	// --discover is set, browse the trusted LAN (mDNS) for the advertised control
+	// plane. The manual URL always wins (so off-LAN bootstrap never depends on
+	// mDNS); a browse that finds nothing or errors falls back cleanly to the
+	// manual path.
+	if cfg.ControlPlaneURL == "" && cfg.Discover {
+		res, derr := discovery.Resolve(ctx, cfg.ControlPlaneURL, &discovery.MDNSBrowser{}, 0)
+		if derr != nil {
+			logger.Printf("mDNS discovery error (falling back to a manual control-plane URL): %v", derr)
+		}
+		if res.Found() {
+			cfg.ControlPlaneURL = res.URL
+			logger.Printf("discovered control plane via %s: %s", res.Source, cfg.ControlPlaneURL)
+		}
+	}
 
 	client := channel.NewClient(cfg, channel.WithLogger(logger), channel.WithCredential(cred))
 	hs := client.Handshake()

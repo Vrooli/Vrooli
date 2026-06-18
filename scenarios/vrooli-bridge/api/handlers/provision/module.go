@@ -23,8 +23,13 @@ import (
 // bound to the concrete registry (node revocation), presence (online + the
 // channel push), and audit (accountability). It owns its own durable op tables,
 // so it re-exports Schema().
-func Module(db internalprovision.SQLExecutor, clk clock.Clock, registrySvc registry.Service, hub *presence.Hub, auditSink audit.Sink, verifier *nodeauth.Verifier, logger *log.Logger) module.Module {
-	svc := internalprovision.NewService(
+// NewService builds the provision domain's application service with its
+// proto-free seams bound to the concrete registry / presence / audit services.
+// main.go constructs it once and shares the single instance between this
+// module's handler and the fleet module's provisioner adapter, so the in-memory
+// op waiter/subscriber coordination stays coherent across both call sites.
+func NewService(db internalprovision.SQLExecutor, clk clock.Clock, registrySvc registry.Service, hub *presence.Hub, auditSink audit.Sink) internalprovision.Service {
+	return internalprovision.NewService(
 		internalprovision.NewSQLiteRepository(db, clk),
 		nodeReaderAdapter{svc: registrySvc},
 		hub, // *presence.Hub satisfies provision.Presence via IsOnline
@@ -32,6 +37,11 @@ func Module(db internalprovision.SQLExecutor, clk clock.Clock, registrySvc regis
 		commandPusherAdapter{hub: hub},
 		clk,
 	)
+}
+
+// Module returns the provision domain's contribution to the API given an
+// already-built service (NewService).
+func Module(svc internalprovision.Service, verifier *nodeauth.Verifier, logger *log.Logger) module.Module {
 	path, handler := provisionconnect.NewProvisionServiceHandler(NewConnectHandler(Deps{
 		Service:  svc,
 		Verifier: verifier,

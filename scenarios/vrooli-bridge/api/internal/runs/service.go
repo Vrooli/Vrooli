@@ -59,17 +59,60 @@ type Service interface {
 }
 
 type service struct {
-	repo  Repository
-	clock clock.Clock
-	coord *coordinator
+	repo         Repository
+	clock        clock.Clock
+	coord        *coordinator
+	terminalHook TerminalHook
+	canceller    Canceller
+}
+
+// TerminalHook is invoked (best-effort) whenever a run reaches a terminal status
+// — a node-reported EXIT or an operator/queue Abort. The per-node job scheduler
+// (queue domain) wires it to free the run's slot and promote the next queued
+// job. It must not block (it runs on the ingest/abort path).
+type TerminalHook func(ctx context.Context, run Run)
+
+// Canceller is the channel-push seam used to tell a node to STOP an in-flight
+// run when it is aborted (the AbortJob frame). Without it an AbortRun marks the
+// run terminal server-side but the node runs to completion as an ignored stale
+// completion (the pre-Phase-5 behaviour).
+type Canceller interface {
+	CancelJob(ctx context.Context, nodeID, runID, reason string) error
+}
+
+// Option customises the service.
+type Option func(*service)
+
+// WithTerminalHook sets the run-terminal hook (the queue scheduler's slot
+// release).
+func WithTerminalHook(h TerminalHook) Option {
+	return func(s *service) { s.terminalHook = h }
+}
+
+// WithCanceller sets the node-cancel seam so AbortRun pushes an AbortJob to the
+// node.
+func WithCanceller(c Canceller) Option {
+	return func(s *service) { s.canceller = c }
 }
 
 // NewService constructs the production Service with an empty coordinator. A
 // single instance is shared between the runs handler (operator + node ingest)
 // and the dispatch handler (Create) so the in-memory waiter/subscriber state is
 // coherent across both call sites.
-func NewService(repo Repository, clk clock.Clock) Service {
-	return &service{repo: repo, clock: clk, coord: newCoordinator()}
+func NewService(repo Repository, clk clock.Clock, opts ...Option) Service {
+	s := &service{repo: repo, clock: clk, coord: newCoordinator()}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
+}
+
+// fireTerminal best-effort notifies the terminal hook that run reached a
+// terminal status (frees a queue slot).
+func (s *service) fireTerminal(ctx context.Context, run Run) {
+	if s.terminalHook != nil {
+		s.terminalHook(ctx, run)
+	}
 }
 
 // Compile-time guarantee.
@@ -183,6 +226,9 @@ func (s *service) AppendEvent(ctx context.Context, ev RunEvent) (bool, error) {
 	s.coord.publish(ev)
 	if run.Status.Terminal() {
 		s.coord.signalTerminal(run.ID)
+		// The run finished on its own; free its queue slot so the next queued
+		// job for the node is promoted. No node-cancel push — it already exited.
+		s.fireTerminal(ctx, run)
 	}
 	return true, nil
 }
@@ -256,6 +302,13 @@ func (s *service) Abort(ctx context.Context, id, reason string) (Run, error) {
 	_ = s.repo.AppendEvent(ctx, ev)
 	s.coord.publish(ev)
 	s.coord.signalTerminal(id)
+
+	// Tell the node to STOP the run (the AbortJob frame) so it does not run to
+	// completion as an ignored stale completion, then free its queue slot.
+	if s.canceller != nil {
+		_ = s.canceller.CancelJob(ctx, run.NodeID, id, reason)
+	}
+	s.fireTerminal(ctx, run)
 	return run, nil
 }
 

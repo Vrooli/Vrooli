@@ -311,6 +311,25 @@ const literalSelectors = {
     error: "fleet-error",
     empty: "fleet-empty",
     list: "fleet-list",
+    pairing: {
+      form: "fleet-pairing-form",
+      nameInput: "fleet-pairing-name",
+      submit: "fleet-pairing-submit",
+      error: "fleet-pairing-error",
+      result: "fleet-pairing-result",
+      code: "fleet-pairing-code",
+      copy: "fleet-pairing-copy",
+    },
+  },
+  runs: {
+    panel: "runs-panel",
+    loading: "runs-loading",
+    error: "runs-error",
+    empty: "runs-empty",
+    list: "runs-list",
+    detail: "runs-detail",
+    output: "runs-output",
+    artifacts: "runs-artifacts",
   },
   notifications: {
     summary: "notifications-summary",
@@ -331,6 +350,7 @@ const literalSelectors = {
   },
   pages: {
     dashboard: "page-dashboard",
+    runs: "page-runs",
     settings: "page-settings",
   },
   errorBoundary: {
@@ -364,6 +384,7 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
+            "runs",
             "settings",
           ] as const,
         },
@@ -377,6 +398,7 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
+            "runs",
             "settings",
           ] as const,
         },
@@ -393,6 +415,33 @@ const dynamicSelectorDefinitions = {
       description: "Revoke action for a fleet node by id",
       testIdPattern: "fleet-revoke-${id}",
       params: { id: { type: "string" } },
+    }),
+    jobs: defineDynamicSelector({
+      description: "Live job-status summary for a fleet node by id",
+      testIdPattern: "fleet-jobs-${id}",
+      params: { id: { type: "string" } },
+    }),
+  },
+  runs: {
+    row: defineDynamicSelector({
+      description: "Run-history row by run id",
+      testIdPattern: "runs-row-${id}",
+      params: { id: { type: "string" } },
+    }),
+    view: defineDynamicSelector({
+      description: "View-output action for a run by id",
+      testIdPattern: "runs-view-${id}",
+      params: { id: { type: "string" } },
+    }),
+    cancel: defineDynamicSelector({
+      description: "Cancel (abort) action for an in-flight run by id",
+      testIdPattern: "runs-cancel-${id}",
+      params: { id: { type: "string" } },
+    }),
+    artifact: defineDynamicSelector({
+      description: "Downloadable artifact link by run id and ordinal index",
+      testIdPattern: "runs-artifact-${id}-${index}",
+      params: { id: { type: "string" }, index: { type: "number" } },
     }),
   },
   settingsPage: {

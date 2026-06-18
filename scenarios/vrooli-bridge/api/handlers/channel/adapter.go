@@ -7,10 +7,26 @@
 package channel
 
 import (
+	"vrooli-bridge/internal/compat"
 	"vrooli-bridge/internal/presence"
 
 	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
 )
+
+// compatToProto translates the domain compatibility verdict into the wire
+// CompatibilityStatus the heartbeat/handshake reports back to the node. An
+// Unspecified domain verdict (a node that never reported a version) maps to OK
+// on the wire — it is dispatchable, so the node should not see "needs update".
+func compatToProto(s compat.Status) channelv1.CompatibilityStatus {
+	switch s {
+	case compat.StatusNeedsUpdate:
+		return channelv1.CompatibilityStatus_COMPATIBILITY_STATUS_NEEDS_UPDATE
+	case compat.StatusIncompatible:
+		return channelv1.CompatibilityStatus_COMPATIBILITY_STATUS_INCOMPATIBLE
+	default:
+		return channelv1.CompatibilityStatus_COMPATIBILITY_STATUS_OK
+	}
+}
 
 // protoHealthToDomain translates a wire HealthSnapshot into the presence
 // domain's shape. A nil snapshot yields the zero value (not-ready).

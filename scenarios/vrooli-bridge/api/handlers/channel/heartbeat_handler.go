@@ -11,7 +11,6 @@ import (
 
 	"connectrpc.com/connect"
 
-	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
 	presencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence"
 )
 
@@ -94,6 +93,6 @@ func (h *heartbeatHandler) ReportHeartbeat(ctx context.Context, req *connect.Req
 	}
 
 	return connect.NewResponse(&presencev1.ReportHeartbeatResponse{
-		Compatibility: channelv1.CompatibilityStatus_COMPATIBILITY_STATUS_OK,
+		Compatibility: compatToProto(h.deps.Hub.Compatibility(nodeID)),
 	}), nil
 }

@@ -7,6 +7,7 @@ import (
 	"vrooli-bridge/internal/dispatch"
 	"vrooli-bridge/internal/module"
 	"vrooli-bridge/internal/presence"
+	"vrooli-bridge/internal/queue"
 	"vrooli-bridge/internal/registry"
 	"vrooli-bridge/internal/runs"
 
@@ -22,13 +23,13 @@ import (
 // registry (scopes), presence (online), runs (durable run creation), audit
 // (accountability), and the channel push (typed job delivery). Dispatch owns no
 // table, so there is no Schema() to register.
-func Module(registrySvc registry.Service, runsSvc runs.Service, auditSink audit.Sink, hub *presence.Hub, logger *log.Logger) module.Module {
+func Module(registrySvc registry.Service, runsSvc runs.Service, auditSink audit.Sink, hub *presence.Hub, scheduler *queue.Scheduler, logger *log.Logger) module.Module {
 	svc := dispatch.NewService(
 		nodeReaderAdapter{svc: registrySvc},
-		hub, // *presence.Hub satisfies dispatch.Presence via IsOnline
+		hub, // *presence.Hub satisfies dispatch.Presence via IsOnline + Dispatchable
 		runControllerAdapter{svc: runsSvc},
 		auditSinkAdapter{sink: auditSink},
-		jobPusherAdapter{hub: hub},
+		jobPusherAdapter{scheduler: scheduler}, // bounded-concurrency scheduler on the push path
 	)
 	path, handler := dispatchconnect.NewDispatchServiceHandler(NewConnectHandler(Deps{
 		Service: svc,

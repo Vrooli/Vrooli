@@ -1,5 +1,13 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
-import { ShieldOff } from "lucide-react";
+import {
+  CheckCircle2,
+  CircleSlash,
+  HelpCircle,
+  PowerOff,
+  RefreshCw,
+  ShieldOff,
+  type LucideIcon,
+} from "lucide-react";
 
 import { Button } from "../../components/ui/button";
 import { selectors } from "../../consts/selectors";
@@ -8,7 +16,8 @@ import { formatDate } from "../../i18n/format";
 import { useTranslation } from "../../i18n";
 import { errorMessage } from "../../lib/errorMessage";
 import { NodeStatus, type Node } from "../../api/nodes";
-import { useNodesQuery, useRevokeNodeMutation } from "./queries";
+import { type NodeQueue } from "../../api/queue";
+import { useFleetQueueQuery, useNodesQuery, useRevokeNodeMutation } from "./queries";
 
 const STATUS_LABEL = {
   [NodeStatus.UNSPECIFIED]: strings.fleet.status.unspecified,
@@ -18,24 +27,61 @@ const STATUS_LABEL = {
   [NodeStatus.REVOKED]: strings.fleet.status.revoked,
 } as const satisfies Record<NodeStatus, string>;
 
-// Presence is conveyed by BOTH a colored dot and a text label so it never
-// depends on color alone (WCAG 1.4.1).
+// Health is conveyed by THREE redundant channels — a colored dot, a distinct
+// icon, AND a text label — so it never depends on color alone (WCAG 1.4.1).
+const STATUS_ICON: Record<NodeStatus, LucideIcon> = {
+  [NodeStatus.UNSPECIFIED]: HelpCircle,
+  [NodeStatus.OFFLINE]: PowerOff,
+  [NodeStatus.ONLINE]: CheckCircle2,
+  [NodeStatus.NEEDS_UPDATE]: RefreshCw,
+  [NodeStatus.REVOKED]: CircleSlash,
+};
+
 function dotClass(node: Node): string {
   if (node.status === NodeStatus.REVOKED) return "bg-app-danger";
   if (node.status === NodeStatus.NEEDS_UPDATE) return "bg-app-warning";
   return node.online ? "bg-app-success" : "bg-app-muted-foreground";
 }
 
+/** A labeled OS/arch/version/health metadata cell. */
+function MetaField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-[0.65rem] uppercase tracking-wide text-app-muted-foreground">{label}</dt>
+      <dd className="truncate text-xs font-medium text-app-foreground">{value}</dd>
+    </div>
+  );
+}
+
+/** Live per-node job status from the queue overlay (best-effort). */
+function JobStatus({ nodeId, queue }: { nodeId: string; queue?: NodeQueue }) {
+  const { t } = useTranslation();
+  const running = queue?.running ?? 0;
+  const queued = queue?.queued ?? 0;
+  const busy = running > 0 || queued > 0;
+  return (
+    <p
+      data-testid={selectors.fleet.jobs({ id: nodeId })}
+      className="mt-1 text-xs text-app-muted-foreground"
+    >
+      <span className="font-medium text-app-foreground">{t(strings.fleet.jobsHeading)}: </span>
+      {busy ? t(strings.fleet.jobsBusy, { running, queued }) : t(strings.fleet.jobsIdle)}
+    </p>
+  );
+}
+
 /**
- * FleetPanel is the Phase-1 fleet surface (OT-P0-001/003): the owner's trusted
- * nodes with their live presence (online/offline + status), OS/arch, current
- * revision, last-seen, and an atomic revoke. It handles loading / error / empty
- * explicitly. Phase 5 grows this into the full dashboard (pairing, live job
- * output, run history).
+ * FleetPanel is the fleet-dashboard surface (OT-P0-001/003, OT-P1-005): the
+ * owner's trusted nodes with their live presence, OS / arch / version / health
+ * (status conveyed by icon + text, never color alone), live per-node job status
+ * from the scheduler, and an atomic revoke. Loading / error / empty are handled
+ * explicitly. Pairing lives in the sibling `PairNodeForm`; run history lives in
+ * the runs feature.
  */
 export function FleetPanel() {
   const { t } = useTranslation();
   const nodesQuery = useNodesQuery();
+  const queueQuery = useFleetQueueQuery();
   const revoke = useRevokeNodeMutation();
 
   const handleRevoke = (node: Node) => {
@@ -44,6 +90,8 @@ export function FleetPanel() {
       revoke.mutate(node.id);
     }
   };
+
+  const unknown = t(strings.fleet.unknownValue);
 
   return (
     <section
@@ -76,48 +124,64 @@ export function FleetPanel() {
 
       {nodesQuery.data && nodesQuery.data.length > 0 && (
         <ul data-testid={selectors.fleet.list} className="mt-3 flex flex-col gap-2">
-          {nodesQuery.data.map((node) => (
-            <li
-              key={node.id}
-              data-testid={selectors.fleet.row({ id: node.id })}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-panel border border-app-border bg-app-background p-3"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={["inline-block h-2 w-2 shrink-0 rounded-pill", dotClass(node)].join(" ")}
-                    role="img"
-                    aria-label={node.online ? t(strings.fleet.onlineLabel) : t(strings.fleet.offlineLabel)}
-                  />
-                  <span className="truncate text-sm font-medium text-app-foreground">
-                    {node.name || node.id}
-                  </span>
-                  <span className="text-xs text-app-muted-foreground">
-                    {t(STATUS_LABEL[node.status])}
-                  </span>
+          {nodesQuery.data.map((node) => {
+            const StatusIcon = STATUS_ICON[node.status];
+            return (
+              <li
+                key={node.id}
+                data-testid={selectors.fleet.row({ id: node.id })}
+                className="flex flex-wrap items-start justify-between gap-3 rounded-panel border border-app-border bg-app-background p-3"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={["inline-block h-2 w-2 shrink-0 rounded-pill", dotClass(node)].join(" ")}
+                      role="img"
+                      aria-label={node.online ? t(strings.fleet.onlineLabel) : t(strings.fleet.offlineLabel)}
+                    />
+                    <span className="truncate text-sm font-medium text-app-foreground">
+                      {node.name || node.id}
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-xs text-app-muted-foreground">
+                      <StatusIcon aria-hidden="true" className="h-3.5 w-3.5" />
+                      {t(STATUS_LABEL[node.status])}
+                    </span>
+                  </div>
+
+                  <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-4">
+                    <MetaField label={t(strings.fleet.osLabel)} value={node.os || unknown} />
+                    <MetaField label={t(strings.fleet.archLabel)} value={node.arch || unknown} />
+                    <MetaField
+                      label={t(strings.fleet.versionLabel)}
+                      value={node.revision ? node.revision.slice(0, 10) : unknown}
+                    />
+                    <MetaField label={t(strings.fleet.healthLabel)} value={t(STATUS_LABEL[node.status])} />
+                  </dl>
+
+                  <p className="mt-1 text-xs text-app-muted-foreground">
+                    {node.lastSeenAt
+                      ? formatDate(timestampDate(node.lastSeenAt), { dateStyle: "short", timeStyle: "short" })
+                      : t(strings.fleet.neverSeen)}
+                  </p>
+
+                  <JobStatus nodeId={node.id} queue={queueQuery.data?.get(node.id)} />
                 </div>
-                <p className="mt-1 text-xs text-app-muted-foreground">
-                  {node.os || "?"}/{node.arch || "?"}
-                  {node.revision ? ` · ${node.revision.slice(0, 10)}` : ""}
-                  {node.lastSeenAt
-                    ? ` · ${formatDate(timestampDate(node.lastSeenAt), { dateStyle: "short", timeStyle: "short" })}`
-                    : ` · ${t(strings.fleet.neverSeen)}`}
-                </p>
-              </div>
-              {node.status !== NodeStatus.REVOKED && (
-                <Button
-                  data-testid={selectors.fleet.revoke({ id: node.id })}
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleRevoke(node)}
-                  disabled={revoke.isPending}
-                  aria-label={t(strings.fleet.revoke)}
-                >
-                  <ShieldOff aria-hidden="true" className="h-4 w-4" />
-                </Button>
-              )}
-            </li>
-          ))}
+
+                {node.status !== NodeStatus.REVOKED && (
+                  <Button
+                    data-testid={selectors.fleet.revoke({ id: node.id })}
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleRevoke(node)}
+                    disabled={revoke.isPending}
+                    aria-label={t(strings.fleet.revoke)}
+                  >
+                    <ShieldOff aria-hidden="true" className="h-4 w-4" />
+                  </Button>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>

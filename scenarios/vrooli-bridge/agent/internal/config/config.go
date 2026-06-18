@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -80,6 +81,13 @@ type Config struct {
 	// dedicated unprivileged service user). Empty installs under the installing
 	// user. Used only with PrintServiceUnit.
 	ServiceUser string
+
+	// Discover, when true and no ControlPlaneURL is configured, lets the agent
+	// try mDNS LAN auto-discovery (internal/discovery, OT-P1-006) to locate the
+	// control plane on a trusted LAN. The manual URL+code path remains the
+	// cross-network default and the fallback when discovery finds nothing; an
+	// explicit ControlPlaneURL always wins over discovery.
+	Discover bool
 }
 
 // Paired reports whether the agent has the minimum configuration to hold a
@@ -107,6 +115,7 @@ func Load(args []string) (Config, error) {
 		printPublicKey   = fs.Bool("print-public-key", false, "Load-or-generate the node keypair, print its base64 public key, and exit (bootstrap helper)")
 		printServiceUnit = fs.Bool("print-service-unit", false, "Render this binary's platform-native background-service unit and exit (bootstrap helper)")
 		serviceUser      = fs.String("service-user", envOr("BRIDGE_SERVICE_USER", ""), "OS principal the rendered service runs as (with --print-service-unit)")
+		discover         = fs.Bool("discover", envBoolOr("BRIDGE_DISCOVER", false), "Try mDNS LAN auto-discovery of the control plane when no --control-plane-url is set (manual URL stays the cross-network default)")
 	)
 
 	if err := fs.Parse(args); err != nil {
@@ -143,6 +152,7 @@ func Load(args []string) (Config, error) {
 		PrintPublicKey:      *printPublicKey,
 		PrintServiceUnit:    *printServiceUnit,
 		ServiceUser:         strings.TrimSpace(*serviceUser),
+		Discover:            *discover,
 	}, nil
 }
 
@@ -168,6 +178,21 @@ func envOr(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// envBoolOr reads a boolean env var (1/t/T/TRUE/true/0/f/false/…) falling back
+// to fallback when unset, empty, or unparseable. It mirrors flag's own bool
+// parsing so --discover and BRIDGE_DISCOVER accept the same spellings.
+func envBoolOr(key string, fallback bool) bool {
+	v, ok := os.LookupEnv(key)
+	if !ok || strings.TrimSpace(v) == "" {
+		return fallback
+	}
+	b, err := strconv.ParseBool(strings.TrimSpace(v))
+	if err != nil {
+		return fallback
+	}
+	return b
 }
 
 func envDurationOr(key string, fallback time.Duration) time.Duration {

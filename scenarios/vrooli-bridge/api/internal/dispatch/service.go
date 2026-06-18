@@ -105,6 +105,15 @@ func (s *service) Dispatch(ctx context.Context, in DispatchInput) (Decision, err
 		return Decision{}, ErrNodeOffline{ID: job.NodeID}
 	}
 
+	// 5b. Protocol-compatibility gate (OT-P1-001): an online node whose agent
+	//     protocol version is flagged (needs-update / incompatible) is excluded
+	//     from work rather than mis-driven. Provisioning is exempt — bringing
+	//     the node to a new revision is how the agent is updated.
+	if !s.presence.Dispatchable(job.NodeID) {
+		s.auditReject(ctx, in, "node needs update (protocol incompatible)")
+		return Decision{}, ErrNodeNeedsUpdate{ID: job.NodeID}
+	}
+
 	// 6. Create the durable run.
 	timeout := job.TimeoutSeconds
 	if timeout <= 0 {

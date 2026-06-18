@@ -10,7 +10,11 @@
 // while the fleet is single-instance.
 package presence
 
-import "time"
+import (
+	"time"
+
+	"vrooli-bridge/internal/compat"
+)
 
 // HealthSnapshot is the node's self-reported readiness, mirroring the
 // channel.HealthSnapshot wire type. The domain layer keeps its own shape so it
@@ -42,4 +46,7 @@ type NodePresence struct {
 	// HasHealth is false when the node is online but has not yet sent its first
 	// heartbeat (so a zero-value Health is not mistaken for "all false").
 	HasHealth bool
+	// Compatibility is the node's protocol-compatibility verdict (OT-P1-001); a
+	// flagged node holds presence but is excluded from work.
+	Compatibility compat.Status
 }

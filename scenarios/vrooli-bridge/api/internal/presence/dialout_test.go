@@ -10,6 +10,7 @@ import (
 	"time"
 
 	channelH "vrooli-bridge/handlers/channel"
+	"vrooli-bridge/internal/compat"
 	"vrooli-bridge/internal/presence"
 	"vrooli-bridge/internal/testutil/mocks"
 
@@ -72,6 +73,31 @@ func TestDialOut_FlipsPresenceOnlineThenOffline(t *testing.T) {
 
 	require.Eventually(t, func() bool { return !hub.IsOnline("n1") }, 2*time.Second, 5*time.Millisecond,
 		"node flips offline when the dial-out stream drops")
+}
+
+// [REQ:BRG-P1-001] The dial-out records the node's protocol-compatibility
+// verdict from the version it advertises (?pv=). A current-version node is
+// dispatchable; a node that omits ?pv= (back-compat) is also dispatchable.
+func TestDialOut_RecordsProtocolCompatibility(t *testing.T) {
+	srv, hub := startChannelServer(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		srv.URL+"/api/v1/channel/events?node=n1&pv=1", nil)
+	require.NoError(t, err)
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	buf := make([]byte, 16)
+	_, err = resp.Body.Read(buf)
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool { return hub.Dispatchable("n1") }, time.Second, 5*time.Millisecond,
+		"a current-protocol node is dispatchable")
+	require.Equal(t, compat.StatusOK, hub.Compatibility("n1"))
 }
 
 // A dial-out attempt without a node credential (the Phase-1 stub ?node=) is

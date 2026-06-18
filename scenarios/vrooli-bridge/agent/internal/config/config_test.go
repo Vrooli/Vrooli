@@ -60,6 +60,23 @@ func TestLoad_EnvFallback(t *testing.T) {
 	require.True(t, cfg.Paired())
 }
 
+func TestLoad_DiscoverFlagAndEnv(t *testing.T) {
+	dir := t.TempDir()
+
+	cfg, err := Load([]string{"--state-dir", dir})
+	require.NoError(t, err)
+	require.False(t, cfg.Discover, "discovery is off by default")
+
+	cfg, err = Load([]string{"--state-dir", dir, "--discover"})
+	require.NoError(t, err)
+	require.True(t, cfg.Discover, "the flag enables mDNS discovery")
+
+	t.Setenv("BRIDGE_DISCOVER", "true")
+	cfg, err = Load([]string{"--state-dir", dir})
+	require.NoError(t, err)
+	require.True(t, cfg.Discover, "BRIDGE_DISCOVER enables discovery")
+}
+
 func TestLoad_RejectsNonPositiveHeartbeat(t *testing.T) {
 	dir := t.TempDir()
 	_, err := Load([]string{"--state-dir", dir, "--heartbeat-interval", "0s"})

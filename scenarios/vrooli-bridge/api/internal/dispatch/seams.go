@@ -10,8 +10,12 @@ type NodeReader interface {
 }
 
 // Presence is the live online/offline seam (the presence hub satisfies it).
+// Dispatchable reports whether the node is online AND its agent protocol
+// version is not flagged (needs-update / incompatible); a version-drifted node
+// holds presence but is excluded from work (OT-P1-001).
 type Presence interface {
 	IsOnline(nodeID string) bool
+	Dispatchable(nodeID string) bool
 }
 
 // RunController is the runs domain seam dispatch needs: create a durable run and

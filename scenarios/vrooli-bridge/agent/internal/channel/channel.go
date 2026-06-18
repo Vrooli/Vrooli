@@ -29,6 +29,7 @@ import (
 	"net/url"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"vrooli-bridge/agent/internal/buildinfo"
@@ -92,6 +93,13 @@ type Client struct {
 	// anchored to it (not the per-session SSE context) so a running job survives
 	// a brief channel reconnect and is only cancelled on agent shutdown.
 	baseCtx context.Context
+
+	// runningJobs maps an in-flight run id to the cancel func for its execution
+	// context, so a control-plane AbortJob frame (OT-P1-004) stops the run's
+	// process instead of letting it run to completion as an ignored stale
+	// completion.
+	mu          sync.Mutex
+	runningJobs map[string]context.CancelFunc
 }
 
 // Option customises a Client (transport, sampler, clock, backoff) for tests and
@@ -339,6 +347,44 @@ func (c *Client) handleServerFrame(payload string) {
 			prov.GetOpId(), prov.GetTargetRevision(), prov.GetRollbackRevision())
 		go c.runProvision(prov)
 	}
+	if abort := frame.GetAbort(); abort != nil {
+		// A control-plane cancel (OT-P1-004): stop the in-flight run's process so
+		// it does not run to completion. Unknown/finished runs are a no-op.
+		c.logger.Printf("channel: received abort run_id=%q reason=%q", abort.GetRunId(), abort.GetReason())
+		if !c.cancelJob(abort.GetRunId()) {
+			c.logger.Printf("channel: abort for unknown or already-finished run %q (ignored)", abort.GetRunId())
+		}
+	}
+}
+
+// registerJob records the cancel func for a running job so an AbortJob can stop
+// it. unregisterJob clears it when the job finishes.
+func (c *Client) registerJob(runID string, cancel context.CancelFunc) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.runningJobs == nil {
+		c.runningJobs = make(map[string]context.CancelFunc)
+	}
+	c.runningJobs[runID] = cancel
+}
+
+func (c *Client) unregisterJob(runID string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.runningJobs, runID)
+}
+
+// cancelJob cancels a running job's execution context. It reports whether a
+// matching in-flight job was found.
+func (c *Client) cancelJob(runID string) bool {
+	c.mu.Lock()
+	cancel := c.runningJobs[runID]
+	c.mu.Unlock()
+	if cancel == nil {
+		return false
+	}
+	cancel()
+	return true
 }
 
 // runJob executes a pushed job via the non-privileged runner, streaming
@@ -346,13 +392,23 @@ func (c *Client) handleServerFrame(payload string) {
 // signed with the node credential). It is launched in its own goroutine so a
 // long job does not block the SSE read loop.
 func (c *Client) runJob(job *channelv1.JobPush) {
-	ctx := c.baseCtx
-	if ctx == nil {
-		ctx = context.Background()
+	base := c.baseCtx
+	if base == nil {
+		base = context.Background()
 	}
+	// Per-job cancelable context so an AbortJob frame can stop THIS run without
+	// affecting others or the channel. Registered under the run id for the
+	// lifetime of the execution.
+	ctx, cancel := context.WithCancel(base)
+	c.registerJob(job.GetRunId(), cancel)
+	defer func() {
+		cancel()
+		c.unregisterJob(job.GetRunId())
+	}()
+
 	reporter := &runEventReporter{rpc: c.runsRPC, cred: c.cred, nodeID: c.cfg.NodeID, now: c.now}
 	runner := exec.NewRunner(c.cfg.VrooliBin, c.cfg.WorkDir, reporter, exec.WithClock(c.now))
-	if err := runner.Execute(ctx, job); err != nil && ctx.Err() == nil {
+	if err := runner.Execute(ctx, job); err != nil && base.Err() == nil {
 		c.logger.Printf("channel: run %q: reporting events failed: %v", job.GetRunId(), err)
 	}
 }

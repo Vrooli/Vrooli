@@ -106,6 +106,15 @@ func (e ErrNodeOffline) Error() string {
 	return fmt.Sprintf("node %q is offline (no dial-out channel)", e.ID)
 }
 
+// ErrNodeNeedsUpdate — the target node is online but its agent protocol version
+// is flagged (needs-update / incompatible); it is excluded from work until the
+// agent is updated (OT-P1-001 protocol-compatibility gating).
+type ErrNodeNeedsUpdate struct{ ID string }
+
+func (e ErrNodeNeedsUpdate) Error() string {
+	return fmt.Sprintf("node %q needs an agent update (protocol incompatible); excluded from dispatch", e.ID)
+}
+
 // ErrVerbNotInManifest — the verb is not a recognised manifest verb namespace.
 type ErrVerbNotInManifest struct{ Verb string }
 

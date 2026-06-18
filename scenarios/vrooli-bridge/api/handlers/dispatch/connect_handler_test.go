@@ -11,11 +11,14 @@ import (
 	"vrooli-bridge/internal/clock"
 	"vrooli-bridge/internal/dispatch"
 	"vrooli-bridge/internal/presence"
+	internalqueue "vrooli-bridge/internal/queue"
 	"vrooli-bridge/internal/registry"
 	rmocks "vrooli-bridge/internal/registry/mocks"
 	"vrooli-bridge/internal/runs"
 	runsmocks "vrooli-bridge/internal/runs/mocks"
 	tmocks "vrooli-bridge/internal/testutil/mocks"
+
+	queueH "vrooli-bridge/handlers/queue"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
@@ -89,13 +92,16 @@ func TestDispatchHandler_EndToEndPushesTypedJob(t *testing.T) {
 	conn := hub.Connect("n1")
 	defer conn.Close()
 
-	// Wire the dispatch service with the same adapters the production Module uses.
+	// Wire the dispatch service with the same adapters the production Module uses,
+	// including the per-node scheduler on the push path (a free slot pushes the
+	// job immediately, so the JobPush still lands on the channel below).
+	scheduler := internalqueue.NewScheduler(queueH.NewChannelPusher(hub), queueH.NewAborter(runsSvc), clk, 0)
 	svc := dispatch.NewService(
 		nodeReaderAdapter{svc: registrySvc},
 		hub,
 		runControllerAdapter{svc: runsSvc},
 		auditSinkAdapter{sink: auditSink},
-		jobPusherAdapter{hub: hub},
+		jobPusherAdapter{scheduler: scheduler},
 	)
 	h := NewConnectHandler(Deps{Service: svc})
 

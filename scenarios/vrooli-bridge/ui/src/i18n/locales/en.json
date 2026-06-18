@@ -9,6 +9,7 @@
     "mainLabel": "Main content",
     "nav": {
       "dashboard": "Dashboard",
+      "runs": "Runs",
       "settings": "Settings"
     }
   },
@@ -29,6 +30,10 @@
       "title": "Settings",
       "themeHeading": "Appearance",
       "localeHeading": "Language"
+    },
+    "runs": {
+      "title": "Runs",
+      "description": "Durable remote-execution history across the fleet. Drill into a run to watch its live output and download artifacts."
     }
   },
   "health": {
@@ -52,12 +57,65 @@
     "neverSeen": "never seen",
     "revoke": "Revoke",
     "revokeConfirm": "Revoke {{name}}? This severs the node immediately.",
+    "osLabel": "OS",
+    "archLabel": "Arch",
+    "versionLabel": "Version",
+    "healthLabel": "Health",
+    "unknownValue": "unknown",
+    "jobsHeading": "Active jobs",
+    "jobsIdle": "Idle — no active jobs",
+    "jobsBusy": "{{running}} running · {{queued}} queued",
     "status": {
       "unspecified": "Unknown",
       "offline": "Offline",
       "online": "Online",
       "needsUpdate": "Needs update",
       "revoked": "Revoked"
+    },
+    "pairing": {
+      "heading": "Pair a node",
+      "description": "Mint a single-use code, then run the bootstrap installer on the new node with it.",
+      "nameLabel": "Node name",
+      "namePlaceholder": "mac-mini-office",
+      "submit": "Generate pairing code",
+      "submitting": "Generating…",
+      "codeHeading": "Pairing code",
+      "codeHelp": "Shown once. Deliver it out-of-band to the node's installer.",
+      "publicKeyLabel": "Control-plane public key",
+      "expiresLabel": "Expires",
+      "copy": "Copy code"
+    }
+  },
+  "runs": {
+    "title": "Run history",
+    "description": "Durable remote-execution runs, newest first.",
+    "loading": "Loading runs…",
+    "empty": "No runs yet. Dispatch a job to a node to see it here.",
+    "nodeLabel": "Node",
+    "jobLabel": "Job",
+    "startedLabel": "Started",
+    "durationLabel": "Duration",
+    "exitLabel": "Exit",
+    "progressLabel": "Progress",
+    "etaLabel": "ETA",
+    "etaPending": "estimating…",
+    "view": "View output",
+    "close": "Close",
+    "cancel": "Cancel run",
+    "cancelling": "Cancelling…",
+    "cancelConfirm": "Cancel this run? The node aborts the job immediately.",
+    "outputHeading": "Output",
+    "outputEmpty": "No output recorded yet.",
+    "artifactsHeading": "Artifacts",
+    "artifactsEmpty": "No artifacts produced.",
+    "download": "Download",
+    "status": {
+      "unspecified": "Unknown",
+      "queued": "Queued",
+      "running": "Running",
+      "passed": "Passed",
+      "failed": "Failed",
+      "aborted": "Aborted"
     }
   },
   "notifications": {

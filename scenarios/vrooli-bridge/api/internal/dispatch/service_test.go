@@ -8,6 +8,7 @@ import (
 	"vrooli-bridge/internal/dispatch"
 	"vrooli-bridge/internal/dispatch/mocks"
 
+	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 )
 
@@ -51,6 +52,27 @@ func TestDispatch_HappyPath(t *testing.T) {
 	require.Len(t, pushed, 1, "the typed job is pushed to the node")
 	require.Equal(t, "run-1", pushed[0].RunID)
 	require.Equal(t, []string{"web-search"}, pushed[0].Args)
+}
+
+// [REQ:BRG-P1-001] A node that is online but whose agent protocol version is
+// flagged (needs-update / incompatible) is EXCLUDED from dispatch: the job is
+// rejected (FailedPrecondition) and audited as rejected before any run is
+// created or anything is pushed. Provisioning is exempt; only work is gated.
+func TestDispatch_ProtocolIncompatibleNode_Excluded(t *testing.T) {
+	svc, _, presence, runsCtl, sink, pusher := newSvc(t)
+	presence.Flagged = map[string]bool{"n1": true} // online but needs update
+
+	_, err := svc.Dispatch(context.Background(), dispatch.DispatchInput{Actor: "owner-1", Job: job()})
+	require.Error(t, err)
+	var needsUpdate dispatch.ErrNodeNeedsUpdate
+	require.ErrorAs(t, err, &needsUpdate)
+	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(dispatch.ToConnectError(err)))
+
+	require.Empty(t, runsCtl.Created, "no run created for a flagged node")
+	require.Empty(t, pusher.PushedJobs(), "nothing pushed to a flagged node")
+	recorded := sink.Recorded()
+	require.Len(t, recorded, 1)
+	require.False(t, recorded[0].Accepted, "the exclusion is audited as rejected")
 }
 
 // [REQ:BRG-P0-004] An out-of-scope verb is rejected (PermissionDenied) and

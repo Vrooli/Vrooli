@@ -19,6 +19,10 @@ import (
 type Presence interface {
 	// IsOnline reports whether the node currently holds a dial-out channel.
 	IsOnline(nodeID string) bool
+	// Dispatchable reports whether the node is online AND protocol-compatible
+	// (not flagged). An online-but-flagged node reads NEEDS_UPDATE in the
+	// overlay (OT-P1-001).
+	Dispatchable(nodeID string) bool
 }
 
 // CredentialRevoker severs a node's mutual-auth credential. The pairing service
@@ -68,6 +72,8 @@ type offlinePresence struct{}
 
 func (offlinePresence) IsOnline(string) bool { return false }
 
+func (offlinePresence) Dispatchable(string) bool { return false }
+
 func (h *connectHandler) RegisterNode(ctx context.Context, req *connect.Request[registryv1.RegisterNodeRequest]) (*connect.Response[registryv1.RegisterNodeResponse], error) {
 	if _, err := auth.RequireOwner(ctx); err != nil {
 		return nil, auth.ToConnectError(err)
@@ -88,7 +94,7 @@ func (h *connectHandler) RegisterNode(ctx context.Context, req *connect.Request[
 		return nil, connectErr
 	}
 	return connect.NewResponse(&registryv1.RegisterNodeResponse{
-		Node: domainToProto(node, h.deps.Presence.IsOnline(node.ID)),
+		Node: domainToProto(node, h.deps.Presence.IsOnline(node.ID), h.deps.Presence.Dispatchable(node.ID)),
 	}), nil
 }
 
@@ -103,7 +109,7 @@ func (h *connectHandler) ListNodes(ctx context.Context, _ *connect.Request[regis
 	}
 	resp := &registryv1.ListNodesResponse{Nodes: make([]*registryv1.Node, 0, len(nodes))}
 	for _, n := range nodes {
-		resp.Nodes = append(resp.Nodes, domainToProto(n, h.deps.Presence.IsOnline(n.ID)))
+		resp.Nodes = append(resp.Nodes, domainToProto(n, h.deps.Presence.IsOnline(n.ID), h.deps.Presence.Dispatchable(n.ID)))
 	}
 	return connect.NewResponse(resp), nil
 }
@@ -121,7 +127,7 @@ func (h *connectHandler) GetNode(ctx context.Context, req *connect.Request[regis
 		return nil, connectErr
 	}
 	return connect.NewResponse(&registryv1.GetNodeResponse{
-		Node: domainToProto(node, h.deps.Presence.IsOnline(node.ID)),
+		Node: domainToProto(node, h.deps.Presence.IsOnline(node.ID), h.deps.Presence.Dispatchable(node.ID)),
 	}), nil
 }
 
@@ -145,7 +151,7 @@ func (h *connectHandler) UpdateNode(ctx context.Context, req *connect.Request[re
 		return nil, connectErr
 	}
 	return connect.NewResponse(&registryv1.UpdateNodeResponse{
-		Node: domainToProto(node, h.deps.Presence.IsOnline(node.ID)),
+		Node: domainToProto(node, h.deps.Presence.IsOnline(node.ID), h.deps.Presence.Dispatchable(node.ID)),
 	}), nil
 }
 
@@ -178,6 +184,6 @@ func (h *connectHandler) RevokeNode(ctx context.Context, req *connect.Request[re
 
 	// A revoked node is offline by definition; do not consult presence.
 	return connect.NewResponse(&registryv1.RevokeNodeResponse{
-		Node: domainToProto(node, false),
+		Node: domainToProto(node, false, false),
 	}), nil
 }

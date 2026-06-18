@@ -29,14 +29,21 @@ func (f *FakeNodeReader) GetTarget(_ context.Context, id string) (dispatch.Targe
 	return n, nil
 }
 
-// FakePresence reports online state from a set.
+// FakePresence reports online state from a set. Flagged marks a node as
+// protocol-incompatible (online but not dispatchable); an unflagged online node
+// is dispatchable.
 type FakePresence struct {
-	Online map[string]bool
+	Online  map[string]bool
+	Flagged map[string]bool
 }
 
 var _ dispatch.Presence = (*FakePresence)(nil)
 
 func (f *FakePresence) IsOnline(nodeID string) bool { return f.Online[nodeID] }
+
+func (f *FakePresence) Dispatchable(nodeID string) bool {
+	return f.Online[nodeID] && !f.Flagged[nodeID]
+}
 
 // FakeRunController records created/aborted runs and hands out deterministic ids.
 type FakeRunController struct {

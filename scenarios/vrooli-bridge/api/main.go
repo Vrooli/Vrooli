@@ -17,6 +17,7 @@ import (
 	"vrooli-bridge/internal/nodeauth"
 	internalpairing "vrooli-bridge/internal/pairing"
 	"vrooli-bridge/internal/presence"
+	internalqueue "vrooli-bridge/internal/queue"
 	internalregistry "vrooli-bridge/internal/registry"
 	internalruns "vrooli-bridge/internal/runs"
 	"vrooli-bridge/internal/server"
@@ -30,12 +31,15 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	artifactsH "vrooli-bridge/handlers/artifacts"
 	auditH "vrooli-bridge/handlers/audit"
 	channelH "vrooli-bridge/handlers/channel"
 	dispatchH "vrooli-bridge/handlers/dispatch"
+	fleetH "vrooli-bridge/handlers/fleet"
 	healthH "vrooli-bridge/handlers/health"
 	pairingH "vrooli-bridge/handlers/pairing"
 	provisionH "vrooli-bridge/handlers/provision"
+	queueH "vrooli-bridge/handlers/queue"
 	registryH "vrooli-bridge/handlers/registry"
 	runsH "vrooli-bridge/handlers/runs"
 )
@@ -231,13 +235,36 @@ func main() {
 	// runs handler (operator verbs + node-facing ReportRunEvent ingest) and the
 	// dispatch handler (Create), so the in-memory block-once waiter and
 	// live-event subscriber coordination is one coherent instance.
-	runsSvc := internalruns.NewService(internalruns.NewSQLiteRepository(db, clk), clk)
+	//
+	// queue (OT-P1-004): the per-node job scheduler sits on the dispatch → push
+	// path (bounded concurrency + fair FIFO) and is shared with the runs terminal
+	// hook (free a slot + promote the next queued job when a run finishes) and
+	// AbortRun's node-cancel push. The hook closure captures the `scheduler` var,
+	// assigned just below, so the runs service and the scheduler reference each
+	// other without a construction cycle.
+	var scheduler *internalqueue.Scheduler
+	runsSvc := internalruns.NewService(
+		internalruns.NewSQLiteRepository(db, clk), clk,
+		internalruns.WithCanceller(queueH.NewChannelCanceller(presenceHub)),
+		internalruns.WithTerminalHook(func(ctx context.Context, run internalruns.Run) {
+			if scheduler != nil {
+				scheduler.Complete(ctx, run.NodeID, run.ID)
+			}
+		}),
+	)
+	scheduler = internalqueue.NewScheduler(queueH.NewChannelPusher(presenceHub), queueH.NewAborter(runsSvc), clk, 0)
 
 	// Audit (OT-P0-008): the append-only accountability substrate. The same
 	// store is the dispatch handler's write Sink and the audit handler's read
 	// Reader. (A workspace-sandbox-backed Sink is the documented alternative
 	// behind the same seam; see docs/internal/SECURITY.md + PROBLEMS.md.)
 	auditStore := internalaudit.NewSQLiteStore(db, clk)
+
+	// provision (OT-P0-006): the PRIVILEGED tier. Built once here so the same
+	// instance backs both the provision handler (operator verbs + node ingest)
+	// and the fleet roll's provisioner adapter — the in-memory op coordination
+	// stays coherent across both call sites.
+	provisionSvc := provisionH.NewService(db, clk, registrySvc, presenceHub, auditStore)
 
 	srv := server.New(
 		server.Deps{Clock: clk, Logger: logger},
@@ -248,16 +275,29 @@ func main() {
 		channelH.Module(presenceHub, nodeLastSeen, nodeVerifier, logger),
 		pairingH.Module(pairingSvc, cpKeypair.PublicKeyBase64(), logger),
 		// dispatch (OT-P0-004): the allowlist gate. It reads node scopes
-		// (registrySvc), checks presence, creates durable runs (runsSvc), audits
-		// (auditStore), and pushes typed jobs down the channel (presenceHub).
-		dispatchH.Module(registrySvc, runsSvc, auditStore, presenceHub, logger),
+		// (registrySvc), checks presence + protocol compatibility, creates durable
+		// runs (runsSvc), audits (auditStore), and submits typed jobs to the
+		// per-node scheduler (bounded concurrency on the channel-push path).
+		dispatchH.Module(registrySvc, runsSvc, auditStore, presenceHub, scheduler, logger),
 		// runs (OT-P0-005): durable run lifecycle + node-facing event ingest.
 		runsH.Module(runsSvc, nodeVerifier, logger),
+		// queue (OT-P1-004): read-only control-plane view over the per-node
+		// scheduler (which jobs are running vs queued, per node).
+		queueH.Module(scheduler, logger),
 		// provision (OT-P0-006): the PRIVILEGED tier. Owns its durable op tables;
 		// reads node revocation (registrySvc), checks presence + pushes the
 		// privileged ProvisionCommand (presenceHub), audits (auditStore), and
 		// gates the node-facing ReportProvisionEvent on mutual auth (nodeVerifier).
-		provisionH.Module(db, clk, registrySvc, presenceHub, auditStore, nodeVerifier, logger),
+		provisionH.Module(provisionSvc, nodeVerifier, logger),
+		// fleet (OT-P1-001): fleet-wide version roll. Enumerates nodes
+		// (registrySvc), gates on presence + protocol compatibility (presenceHub),
+		// and dispatches a privileged provisioning op per eligible node by
+		// delegating to the shared provision service (provisionSvc).
+		fleetH.Module(db, clk, registrySvc, presenceHub, provisionSvc, logger),
+		// artifacts (OT-P1-003): non-git artifact distribution. Validates node
+		// revocation (registrySvc) and delegates the byte move to device-sync-hub
+		// directed delivery (bridge stores no blob).
+		artifactsH.Module(db, clk, registrySvc, logger),
 		// audit (OT-P0-008): owner-gated read of the append-only trail.
 		auditH.Module(auditStore, logger),
 	)

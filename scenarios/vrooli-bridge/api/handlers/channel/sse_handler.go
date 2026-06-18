@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
+	"vrooli-bridge/internal/compat"
 	"vrooli-bridge/internal/httpx"
 	"vrooli-bridge/internal/nodeauth"
 	"vrooli-bridge/internal/presence"
@@ -54,6 +56,17 @@ func nodeIDFrom(r *http.Request) string {
 	return strings.TrimSpace(r.URL.Query().Get("node"))
 }
 
+// parseProtocolVersion reads the node's advertised channel wire-protocol version
+// from the ?pv= query param. An absent/garbage value yields 0 (Unspecified),
+// which the compat evaluator treats as dispatchable (back-compat).
+func parseProtocolVersion(raw string) uint32 {
+	v, err := strconv.ParseUint(strings.TrimSpace(raw), 10, 32)
+	if err != nil {
+		return 0
+	}
+	return uint32(v)
+}
+
 // handleEvents is the dial-out channel: the node opens this stream and holds it
 // open. The node is online for as long as the stream is held; when it
 // disconnects (or the control plane shuts down) the node flips offline. This is
@@ -92,6 +105,14 @@ func (h *sseHandler) handleEvents(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Accel-Buffering", "no") // disable proxy buffering (nginx)
 	w.WriteHeader(http.StatusOK)
 	flusher.Flush()
+
+	// Record the node's protocol-compatibility verdict from the version it
+	// reports on the dial-out (?pv=). A version-drifted node holds its channel
+	// (presence) but is excluded from work by dispatch / the fleet roll. Absence
+	// of ?pv= reads as Unspecified, which is dispatchable (back-compat for a node
+	// that predates version negotiation).
+	nodePV := parseProtocolVersion(r.URL.Query().Get("pv"))
+	h.deps.Hub.SetCompatibility(nodeID, compat.Evaluate(nodePV))
 
 	conn := h.deps.Hub.Connect(nodeID)
 	defer conn.Close()

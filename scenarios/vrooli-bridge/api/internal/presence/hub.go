@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"vrooli-bridge/internal/clock"
+	"vrooli-bridge/internal/compat"
 )
 
 // Hub is the in-memory presence tracker. It is safe for concurrent use and
@@ -23,6 +24,7 @@ type Hub struct {
 	mu     sync.Mutex
 	conns  map[string]map[*Conn]struct{} // nodeID -> live connections
 	health map[string]HealthSnapshot     // nodeID -> latest self-reported health
+	compat map[string]compat.Status      // nodeID -> protocol-compatibility verdict
 }
 
 // NewHub constructs an empty Hub.
@@ -31,6 +33,7 @@ func NewHub(clk clock.Clock) *Hub {
 		clock:  clk,
 		conns:  make(map[string]map[*Conn]struct{}),
 		health: make(map[string]HealthSnapshot),
+		compat: make(map[string]compat.Status),
 	}
 }
 
@@ -113,12 +116,44 @@ func (h *Hub) Disconnect(nodeID string) int {
 	}
 	delete(h.conns, nodeID)
 	delete(h.health, nodeID)
+	delete(h.compat, nodeID)
 	h.mu.Unlock()
 
 	for _, c := range conns {
 		c.once.Do(func() { close(c.done) })
 	}
 	return len(conns)
+}
+
+// SetCompatibility records a node's protocol-compatibility verdict (computed
+// from the version it reported when it dialed out). It is stored on the live
+// layer; dispatch and the fleet roll read it via Compatibility/Dispatchable to
+// exclude a version-drifted node from work rather than mis-drive it.
+func (h *Hub) SetCompatibility(nodeID string, status compat.Status) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.compat[nodeID] = status
+}
+
+// Compatibility returns a node's recorded protocol-compatibility verdict. A node
+// with no recorded verdict (never reported a version) reads as
+// compat.StatusUnspecified, which is dispatchable (back-compat).
+func (h *Hub) Compatibility(nodeID string) compat.Status {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.compat[nodeID]
+}
+
+// Dispatchable reports whether the node may currently receive WORK: it must be
+// online AND its protocol verdict must not be a flagged (needs-update /
+// incompatible) one. This is the seam dispatch and the fleet roll gate on.
+func (h *Hub) Dispatchable(nodeID string) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if len(h.conns[nodeID]) == 0 {
+		return false
+	}
+	return h.compat[nodeID].Dispatchable()
 }
 
 // IsOnline reports whether nodeID currently holds a dial-out channel. This is
@@ -199,7 +234,7 @@ func (h *Hub) Presence() []NodePresence {
 	defer h.mu.Unlock()
 	out := make([]NodePresence, 0, len(h.conns))
 	for id := range h.conns {
-		np := NodePresence{NodeID: id, Online: true}
+		np := NodePresence{NodeID: id, Online: true, Compatibility: h.compat[id]}
 		if snap, ok := h.health[id]; ok {
 			np.Health = snap
 			np.HasHealth = true

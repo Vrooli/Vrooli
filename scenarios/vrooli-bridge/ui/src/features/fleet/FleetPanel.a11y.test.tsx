@@ -18,6 +18,7 @@ const { listNodes, revokeNode } = vi.hoisted(() => ({
   listNodes: vi.fn(),
   revokeNode: vi.fn(),
 }));
+const { listQueue } = vi.hoisted(() => ({ listQueue: vi.fn() }));
 
 vi.mock("../../api/nodes", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/nodes")>();
@@ -27,11 +28,17 @@ vi.mock("../../api/nodes", async (importOriginal) => {
   };
 });
 
+vi.mock("../../api/queue", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/queue")>();
+  return { ...actual, queueClient: { listQueue } };
+});
+
 import { FleetPanel } from "./FleetPanel";
 
 describe("FleetPanel accessibility", () => {
   beforeEach(async () => {
     await setLocale("en");
+    listQueue.mockResolvedValue({ nodes: [] });
   });
 
   afterEach(() => {

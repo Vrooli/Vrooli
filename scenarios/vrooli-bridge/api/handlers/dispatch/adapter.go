@@ -6,13 +6,9 @@ import (
 
 	"vrooli-bridge/internal/audit"
 	"vrooli-bridge/internal/dispatch"
-	"vrooli-bridge/internal/presence"
+	"vrooli-bridge/internal/queue"
 	"vrooli-bridge/internal/registry"
 	"vrooli-bridge/internal/runs"
-
-	"google.golang.org/protobuf/encoding/protojson"
-
-	channelv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/channel"
 )
 
 // This file is the single translation point between the proto-free dispatch
@@ -92,29 +88,26 @@ func (a auditSinkAdapter) Record(ctx context.Context, e dispatch.Entry) error {
 	return err
 }
 
-// jobPusherAdapter translates a dispatch PushedJob into a channel.JobPush
-// wrapped in a ServerFrame, serialises it with protojson (compact single-line
-// JSON, matching what the agent decodes with DiscardUnknown), and pushes it to
-// every live channel the node holds via the presence hub.
+// jobPusherAdapter routes a dispatch PushedJob through the per-node job
+// scheduler (queue domain) instead of pushing to the channel directly. The
+// scheduler enforces bounded concurrency: a node with a free slot is pushed
+// immediately; a busy node holds the job queued (its durable run stays QUEUED
+// until a slot frees). It satisfies dispatch's existing JobPusher seam — the
+// (delivered, err) contract is unchanged, so a queued job reports delivered=1
+// (accepted) and a node that dropped reports delivered=0 (dispatch aborts the
+// run), exactly as the old direct push did.
 type jobPusherAdapter struct {
-	hub *presence.Hub
+	scheduler *queue.Scheduler
 }
 
-func (a jobPusherAdapter) PushJob(_ context.Context, nodeID string, job dispatch.PushedJob) (int, error) {
-	frame := &channelv1.ServerFrame{
-		Payload: &channelv1.ServerFrame_Job{
-			Job: &channelv1.JobPush{
-				RunId:          job.RunID,
-				Scenario:       job.Scenario,
-				Verb:           job.Verb,
-				Args:           append([]string(nil), job.Args...),
-				TimeoutSeconds: job.TimeoutSeconds,
-			},
-		},
-	}
-	payload, err := protojson.Marshal(frame)
-	if err != nil {
-		return 0, err
-	}
-	return a.hub.Push(nodeID, payload), nil
+func (a jobPusherAdapter) PushJob(ctx context.Context, nodeID string, job dispatch.PushedJob) (int, error) {
+	_, delivered, err := a.scheduler.Submit(ctx, queue.Job{
+		RunID:          job.RunID,
+		NodeID:         nodeID,
+		Scenario:       job.Scenario,
+		Verb:           job.Verb,
+		Args:           append([]string(nil), job.Args...),
+		TimeoutSeconds: job.TimeoutSeconds,
+	})
+	return delivered, err
 }

@@ -18,14 +18,14 @@
       "validation": [
         {
           "type": "test",
-          "ref": "node-agent/internal/discovery/mdns_test.go",
+          "ref": "agent/internal/discovery/mdns_test.go",
           "phase": "unit",
           "status": "implemented",
           "notes": "mDNS discovery locates an advertised control plane on the LAN and falls back cleanly to manual URL when absent."
         },
         {
           "type": "test",
-          "ref": "node-agent/internal/discovery/fallback_test.go",
+          "ref": "agent/internal/discovery/fallback_test.go",
           "phase": "integration",
           "status": "implemented",
           "notes": "Off-LAN bootstrap uses the manual URL+code path without depending on mDNS."

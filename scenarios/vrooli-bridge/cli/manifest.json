@@ -397,6 +397,210 @@
       ]
     },
     {
+      "name": "artifacts",
+      "description": "Ship non-git artifacts (installers, fixtures) to nodes via device-sync-hub directed delivery",
+      "commands": [
+        {
+          "name": "distribute",
+          "description": "Distribute a non-git artifact to a node via device-sync-hub directed delivery",
+          "positionals": [
+            {
+              "name": "node-id",
+              "required": true,
+              "description": "Target node id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "name",
+              "description": "Logical artifact name (e.g. app-1.4.0-setup.exe)"
+            },
+            {
+              "name": "source",
+              "required": true,
+              "description": "Source reference the bytes live behind (device-sync-hub content ref / URI)"
+            },
+            {
+              "name": "dest",
+              "required": true,
+              "description": "Destination path on the node"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ArtifactsService",
+            "method": "DistributeArtifact"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Show one artifact distribution by id",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Distribution id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ArtifactsService",
+            "method": "GetDistribution"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List artifact distributions newest-first",
+          "flags": [
+            {
+              "name": "node",
+              "description": "Filter by node id"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum distributions to return"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ArtifactsService",
+            "method": "ListDistributions"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "fleet",
+      "description": "Fleet-wide version rolls: pin the whole fleet (or a subset) to a target revision",
+      "commands": [
+        {
+          "name": "roll",
+          "description": "Roll the fleet (or a named subset) to a target git revision; dispatches a provisioning op per eligible node",
+          "flags": [
+            {
+              "name": "revision",
+              "required": true,
+              "description": "Target git revision to bring every eligible node to"
+            },
+            {
+              "name": "nodes",
+              "description": "Comma-separated node id subset (default: every registered node)"
+            },
+            {
+              "name": "timeout",
+              "description": "Per-node provisioning wall-clock budget in seconds (0 = server default)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FleetService",
+            "method": "RollFleet"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Show one rollout by id with its per-node ledger",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Rollout id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FleetService",
+            "method": "GetRollout"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List rollouts newest-first",
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum rollouts to return"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FleetService",
+            "method": "ListRollouts"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "queue",
+      "description": "Inspect the live per-node job queue (bounded concurrency + fair scheduling)",
+      "commands": [
+        {
+          "name": "list",
+          "description": "Show running and queued jobs per node",
+          "flags": [
+            {
+              "name": "node",
+              "description": "Filter to a single node id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "QueueService",
+            "method": "ListQueue"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "provision",
       "description": "Privileged tier: sync fleet nodes to a project revision and inspect node versions",
       "commands": [
