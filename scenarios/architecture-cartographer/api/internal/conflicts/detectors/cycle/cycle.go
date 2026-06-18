@@ -96,6 +96,9 @@ func tarjan(snap graph.GraphSnapshot) [][]string {
 	}
 	adj := make(map[string][]string, len(inScenario))
 	for _, e := range snap.Imports {
+		if e.TestOnly {
+			continue
+		}
 		from := edgePackageID(e.From, snap)
 		if from == "" {
 			continue
@@ -235,6 +238,9 @@ func onlyTypeOnlyEdges(scc []string, snap graph.GraphSnapshot) bool {
 	}
 	internal := false
 	for _, e := range snap.Imports {
+		if e.TestOnly {
+			continue
+		}
 		from := edgePackageID(e.From, snap)
 		if _, ok := memberOf[from]; !ok {
 			continue
@@ -243,15 +249,36 @@ func onlyTypeOnlyEdges(scc []string, snap graph.GraphSnapshot) bool {
 			continue
 		}
 		internal = true
-		// If any cycle-internal edge carries non-type symbol ids, it's
-		// not type-only. v0.1 treats any symbol_ids presence as "non
-		// type-only" because the snapshot doesn't yet distinguish
-		// symbol kinds per edge. Phase 5 refines this.
-		if len(e.SymbolIDs) > 0 {
+		if !edgeIsTypeOnly(e) {
 			return false
 		}
 	}
 	return internal
+}
+
+func edgeIsTypeOnly(e graph.ImportEdge) bool {
+	if len(e.SymbolKinds) == 0 {
+		// Provider-lag fallback: symbol ids without kinds are treated as
+		// value-bearing so we do not understate the cycle.
+		return len(e.SymbolIDs) == 0
+	}
+	for _, kind := range e.SymbolKinds {
+		if !isTypeSymbolKind(kind) {
+			return false
+		}
+	}
+	return true
+}
+
+func isTypeSymbolKind(kind string) bool {
+	switch kind {
+	case "go_type", "go_interface",
+		"ts_type", "ts_interface",
+		"TS_NODE_KIND_TYPE", "TS_NODE_KIND_INTERFACE":
+		return true
+	default:
+		return false
+	}
 }
 
 // isJunkDrawer flags a cycle that includes a "junk drawer" — a package
@@ -268,6 +295,9 @@ func isJunkDrawer(scc []string, snap graph.GraphSnapshot) bool {
 	}
 	inDegree := make(map[string]int, len(scc))
 	for _, e := range snap.Imports {
+		if e.TestOnly {
+			continue
+		}
 		if _, ok := memberOf[e.ToPackageID]; !ok {
 			continue
 		}

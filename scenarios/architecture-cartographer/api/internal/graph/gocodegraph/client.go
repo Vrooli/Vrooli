@@ -319,8 +319,25 @@ func protoToRawGraph(resp *graphv1.ExtractResponse) graph.RawGraph {
 		out.Imports = append(out.Imports, graph.ImportEdge{
 			From:        e.GetFromNodeId(),
 			ToPackageID: e.GetToNodeId(),
+			SymbolIDs:   splitCSV(e.GetAttributes()["symbol_ids"]),
+			SymbolKinds: splitCSV(e.GetAttributes()["symbol_kinds"]),
 			TestOnly:    e.GetAttributes()["test_only"] == "true",
 		})
+	}
+	return out
+}
+
+func splitCSV(s string) []string {
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	out := parts[:0]
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			out = append(out, p)
+		}
 	}
 	return out
 }

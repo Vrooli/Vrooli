@@ -15,10 +15,10 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strings"
 
 	"architecture-cartographer/internal/graph"
 	"architecture-cartographer/internal/signals"
+	"architecture-cartographer/internal/signals/graphindex"
 )
 
 const name = "import-cluster"
@@ -37,7 +37,7 @@ func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Ch
 	if chunk.FileID == "" {
 		return signals.Abstain(name, "chunk has no file id", chunk.Path)
 	}
-	pkgID := packageForFile(chunk.FileID, gctx.Snapshot)
+	pkgID := graphindex.PackageForFile(chunk.FileID, gctx.Snapshot)
 	if pkgID == "" {
 		return signals.Abstain(name, "file has no package in snapshot", chunk.Path)
 	}
@@ -48,7 +48,7 @@ func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Ch
 	}
 
 	// Find every package in the same cluster and tally their domains.
-	domainFor := indexDomainPackages(gctx)
+	domainFor := graphindex.DomainPackages(gctx)
 	tally := make(map[string]int)
 	total := 0
 	for pkg, cid := range clusters {
@@ -93,15 +93,6 @@ func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Ch
 	return signals.ScoreResult{Scores: out}
 }
 
-func packageForFile(fileID string, snap graph.GraphSnapshot) string {
-	for _, f := range snap.Files {
-		if f.ID == fileID {
-			return f.PackageID
-		}
-	}
-	return ""
-}
-
 // computeClusters returns a per-internal-package cluster id derived
 // from undirected connected components over the import edges.
 // Cached on GraphContext.Caches so subsequent calls in the same
@@ -121,7 +112,7 @@ func computeClusters(gctx signals.GraphContext) map[string]int {
 		adj[k] = make(map[string]struct{})
 	}
 	for _, e := range gctx.Snapshot.Imports {
-		from := resolvePkg(e.From, gctx.Snapshot)
+		from := graphindex.PackageFor(e.From, gctx.Snapshot)
 		if from == "" {
 			continue
 		}
@@ -173,50 +164,6 @@ func computeClusters(gctx signals.GraphContext) map[string]int {
 		gctx.Caches.SetCommunity(cluster)
 	}
 	return cluster
-}
-
-func resolvePkg(id string, snap graph.GraphSnapshot) string {
-	for _, f := range snap.Files {
-		if f.ID == id {
-			return f.PackageID
-		}
-	}
-	for _, p := range snap.Packages {
-		if p.ID == id {
-			return p.ID
-		}
-	}
-	return ""
-}
-
-func indexDomainPackages(gctx signals.GraphContext) map[string]string {
-	out := make(map[string]string, len(gctx.Snapshot.Packages))
-	for _, p := range gctx.Snapshot.Packages {
-		if p.RepoPath == "" {
-			continue
-		}
-		for _, d := range gctx.DomainMap.Domains {
-			for _, g := range d.Paths {
-				if matches(p.RepoPath, g) {
-					out[p.ID] = d.Name
-					break
-				}
-			}
-		}
-	}
-	return out
-}
-
-func matches(path, glob string) bool {
-	switch {
-	case glob == "**":
-		return true
-	case strings.HasSuffix(glob, "/**"):
-		prefix := glob[:len(glob)-3]
-		return path == prefix || strings.HasPrefix(path, prefix+"/")
-	default:
-		return path == glob
-	}
 }
 
 func clusterIDLabel(id int) string {

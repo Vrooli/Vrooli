@@ -81,6 +81,14 @@ func (f *FakeService) GetDomainMap(_ context.Context, _ string) (domains.Derived
 	return f.Map, nil
 }
 
+func (f *FakeService) DraftDomains(_ context.Context, _ string) (domains.DomainDraft, error) {
+	f.GetCalls.Add(1)
+	if f.Err != nil {
+		return domains.DomainDraft{}, f.Err
+	}
+	return domains.DraftFromMap(f.Map), nil
+}
+
 // NewExtraction is a small constructor that mirrors the common test shape:
 // a single-source extraction declaring the named domains (paths defaulted
 // to "<name>/").

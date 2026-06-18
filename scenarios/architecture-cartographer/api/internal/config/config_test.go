@@ -21,12 +21,16 @@ func TestLoad_DefaultsWhenEmpty(t *testing.T) {
 
 func TestLoad_ValidOverrides(t *testing.T) {
 	cfg, diags := Load(envFrom(map[string]string{
-		EnvGodDomainFanOut:     "0.75",
-		EnvAutoPlaceMin:        "0.9",
-		EnvSuggestMin:          "0.6",
-		EnvArchetypeExemptions: "composition-root, infrastructure, glue",
-		EnvNonDomainFolders:    "recipes,embeddings",
-		EnvLadderOrder:         "api_folders,domains_doc",
+		EnvGodDomainFanOut:        "0.75",
+		EnvAutoPlaceMin:           "0.9",
+		EnvSuggestMin:             "0.6",
+		EnvArchetypeExemptions:    "composition-root, infrastructure, glue",
+		EnvNonDomainFolders:       "recipes,embeddings",
+		EnvLadderOrder:            "api_folders,domains_doc",
+		EnvBannedVocab:            "bucket,drawer",
+		EnvLayeringStrict:         "false",
+		EnvFileCohesionMaxLines:   "250",
+		EnvFileCohesionMaxSymbols: "12",
 	}))
 	if len(diags) != 0 {
 		t.Fatalf("valid overrides → no diagnostics, got %+v", diags)
@@ -43,12 +47,22 @@ func TestLoad_ValidOverrides(t *testing.T) {
 	if !reflect.DeepEqual(cfg.LadderOrder, []string{"api_folders", "domains_doc"}) {
 		t.Fatalf("ladder order = %v", cfg.LadderOrder)
 	}
+	if !reflect.DeepEqual(cfg.BannedVocabulary, []string{"bucket", "drawer"}) {
+		t.Fatalf("banned vocab = %v", cfg.BannedVocabulary)
+	}
+	if cfg.LayeringStrict {
+		t.Fatal("layering strict override not applied")
+	}
+	if cfg.FileCohesionMaxLines != 250 || cfg.FileCohesionMaxSymbols != 12 {
+		t.Fatalf("file cohesion overrides not applied: %+v", cfg)
+	}
 }
 
 func TestLoad_ClampsOutOfRange(t *testing.T) {
 	cfg, diags := Load(envFrom(map[string]string{
-		EnvInstabilityWarnBand: "1.5",
-		EnvSuggestMin:          "-0.2",
+		EnvInstabilityWarnBand:  "1.5",
+		EnvSuggestMin:           "-0.2",
+		EnvFileCohesionMaxLines: "-1",
 	}))
 	if cfg.InstabilityWarnBand != 1.0 {
 		t.Fatalf("instability should clamp to 1.0, got %v", cfg.InstabilityWarnBand)
@@ -58,6 +72,9 @@ func TestLoad_ClampsOutOfRange(t *testing.T) {
 	}
 	if len(diags) < 2 {
 		t.Fatalf("expected clamp diagnostics, got %+v", diags)
+	}
+	if cfg.FileCohesionMaxLines != 0 {
+		t.Fatalf("file cohesion max lines should clamp to 0, got %v", cfg.FileCohesionMaxLines)
 	}
 }
 
@@ -106,5 +123,15 @@ func TestLoad_AllInvalidLadderKeepsDefault(t *testing.T) {
 	cfg, _ := Load(envFrom(map[string]string{EnvLadderOrder: "nope,nada"}))
 	if !reflect.DeepEqual(cfg.LadderOrder, Default().LadderOrder) {
 		t.Fatalf("all-invalid ladder must keep default, got %v", cfg.LadderOrder)
+	}
+}
+
+func TestLoad_InvalidBoolRevertsToDefault(t *testing.T) {
+	cfg, diags := Load(envFrom(map[string]string{EnvLayeringStrict: "maybe"}))
+	if cfg.LayeringStrict != Default().LayeringStrict {
+		t.Fatalf("invalid bool must keep default, got %v", cfg.LayeringStrict)
+	}
+	if len(diags) == 0 {
+		t.Fatal("expected a diagnostic for invalid bool")
 	}
 }

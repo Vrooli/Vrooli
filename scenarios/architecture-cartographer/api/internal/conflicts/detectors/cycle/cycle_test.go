@@ -108,6 +108,57 @@ func TestDetect_ExternalEdgesIgnored(t *testing.T) {
 	}
 }
 
+func TestDetect_TestOnlyCycleIgnored(t *testing.T) {
+	snap := graph.GraphSnapshot{
+		Packages: []graph.PackageNode{
+			{ID: "pkg:a", RepoPath: "a"},
+			{ID: "pkg:b", RepoPath: "b"},
+		},
+		Imports: []graph.ImportEdge{
+			{From: "pkg:a", ToPackageID: "pkg:b", TestOnly: true},
+			{From: "pkg:b", ToPackageID: "pkg:a", TestOnly: true},
+		},
+	}
+	got, _ := cycle.New().Detect(context.Background(), detectInput(snap, domains.DerivedDomainMap{}))
+	if len(got) != 0 {
+		t.Fatalf("test-only cycle should be ignored, got %+v", got)
+	}
+}
+
+func TestDetect_TypeOnlySubtypeUsesSymbolKinds(t *testing.T) {
+	snap := graph.GraphSnapshot{
+		Packages: []graph.PackageNode{
+			{ID: "pkg:a", RepoPath: "a"},
+			{ID: "pkg:b", RepoPath: "b"},
+		},
+		Imports: []graph.ImportEdge{
+			{From: "pkg:a", ToPackageID: "pkg:b", SymbolIDs: []string{"sym:B.Type"}, SymbolKinds: []string{"go_type"}},
+			{From: "pkg:b", ToPackageID: "pkg:a", SymbolIDs: []string{"sym:A.Interface"}, SymbolKinds: []string{"go_interface"}},
+		},
+	}
+	got, _ := cycle.New().Detect(context.Background(), detectInput(snap, domains.DerivedDomainMap{}))
+	if len(got) != 1 || got[0].Subtype != "type-only" {
+		t.Fatalf("want type-only cycle from symbol kinds, got %+v", got)
+	}
+}
+
+func TestDetect_ValueSymbolKindRulesOutTypeOnly(t *testing.T) {
+	snap := graph.GraphSnapshot{
+		Packages: []graph.PackageNode{
+			{ID: "pkg:a", RepoPath: "a"},
+			{ID: "pkg:b", RepoPath: "b"},
+		},
+		Imports: []graph.ImportEdge{
+			{From: "pkg:a", ToPackageID: "pkg:b", SymbolIDs: []string{"sym:B.Func"}, SymbolKinds: []string{"go_func"}},
+			{From: "pkg:b", ToPackageID: "pkg:a", SymbolIDs: []string{"sym:A.Type"}, SymbolKinds: []string{"go_type"}},
+		},
+	}
+	got, _ := cycle.New().Detect(context.Background(), detectInput(snap, domains.DerivedDomainMap{}))
+	if len(got) != 1 || got[0].Subtype == "type-only" {
+		t.Fatalf("value symbol kind must rule out type-only, got %+v", got)
+	}
+}
+
 func TestDetect_DeterministicOrder(t *testing.T) {
 	// Two independent cycles; result ordering should be stable.
 	snap := graph.GraphSnapshot{

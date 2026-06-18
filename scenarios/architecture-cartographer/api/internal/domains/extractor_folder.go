@@ -2,17 +2,10 @@ package domains
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io/fs"
-	"os"
 	"path/filepath"
 	"sort"
 )
-
-// APIInternalDir is the scenario-relative root the FolderExtractor scans
-// for de-facto domain folders.
-const APIInternalDir = "api/internal"
 
 // defaultNonDomainFolders are api/internal/ subdirectories that are
 // cross-cutting infrastructure, never product domains. The control surface
@@ -39,15 +32,25 @@ type FolderExtractor struct {
 	// nonDomains is the set of folder names treated as infrastructure. When
 	// nil the package default is used.
 	nonDomains map[string]struct{}
+	surfaces   SurfaceProvider
 }
 
 // NewFolderExtractor returns the production folder extractor using the
 // default non-domain set.
-func NewFolderExtractor() *FolderExtractor { return &FolderExtractor{} }
+func NewFolderExtractor() *FolderExtractor {
+	return NewFolderExtractorWithSurfaceProvider(nil, nil)
+}
 
 // NewFolderExtractorWithExemptions returns a folder extractor that treats
 // the given folder names as non-domains in addition to the defaults.
 func NewFolderExtractorWithExemptions(extra []string) *FolderExtractor {
+	return NewFolderExtractorWithSurfaceProvider(extra, nil)
+}
+
+// NewFolderExtractorWithSurfaceProvider returns a folder extractor that uses
+// code-facts surface inventory when available. The local provider is used
+// only as an explicit degraded fallback.
+func NewFolderExtractorWithSurfaceProvider(extra []string, surfaces SurfaceProvider) *FolderExtractor {
 	set := make(map[string]struct{}, len(defaultNonDomainFolders)+len(extra))
 	for k := range defaultNonDomainFolders {
 		set[k] = struct{}{}
@@ -55,39 +58,39 @@ func NewFolderExtractorWithExemptions(extra []string) *FolderExtractor {
 	for _, name := range extra {
 		set[name] = struct{}{}
 	}
-	return &FolderExtractor{nonDomains: set}
+	if surfaces == nil {
+		surfaces = NewLocalSurfaceProvider()
+	}
+	return &FolderExtractor{nonDomains: set, surfaces: surfaces}
 }
 
 // Source identifies this rung.
 func (*FolderExtractor) Source() Source { return SourceAPIFolders }
 
-// APIHandlersDir is the second scenario-relative root the FolderExtractor
-// scans. A handler-only domain (e.g., health) lives here without an
-// api/internal package, and must still count as an implemented domain.
-const APIHandlersDir = "api/handlers"
-
-// Extract scans api/internal/ and api/handlers/ for domain folders and
-// unions their names. A scenario with neither directory returns an empty
-// extraction. Folders in the non-domain set (infrastructure) are skipped.
-func (e *FolderExtractor) Extract(_ context.Context, scenarioDir string) (Extraction, error) {
+// Extract scans code-facts' API surface for domain package roots and unions
+// their names. A scenario with no API surface returns an empty extraction.
+// Folders in the non-domain set (infrastructure) are skipped.
+func (e *FolderExtractor) Extract(ctx context.Context, scenarioDir string) (Extraction, error) {
 	exempt := e.nonDomains
 	if exempt == nil {
 		exempt = defaultNonDomainFolders
 	}
+	provider := e.surfaces
+	if provider == nil {
+		provider = NewLocalSurfaceProvider()
+	}
+	inv, err := provider.Inspect(ctx, scenarioDir)
+	if err != nil {
+		return Extraction{}, fmt.Errorf("inspect surfaces: %w", err)
+	}
 
 	names := map[string]struct{}{}
-	for _, root := range []string{APIInternalDir, APIHandlersDir} {
-		entries, err := os.ReadDir(filepath.Join(scenarioDir, root))
+	for _, root := range apiDomainRoots(scenarioDir, inv) {
+		entries, err := readChildDirs(root)
 		if err != nil {
-			if errors.Is(err, fs.ErrNotExist) {
-				continue
-			}
-			return Extraction{}, fmt.Errorf("read %s: %w", root, err)
+			return Extraction{}, err
 		}
 		for _, ent := range entries {
-			if !ent.IsDir() {
-				continue
-			}
 			name := ent.Name()
 			if _, skip := exempt[name]; skip {
 				continue
@@ -96,26 +99,44 @@ func (e *FolderExtractor) Extract(_ context.Context, scenarioDir string) (Extrac
 		}
 	}
 
-	out := Extraction{Source: SourceAPIFolders}
+	out := Extraction{Source: SourceAPIFolders, Warnings: append([]ExtractionWarning(nil), inv.Warnings...)}
 	for name := range names {
 		out.Domains = append(out.Domains, ExtractedDomain{
 			Name:  name,
-			Paths: folderPaths(scenarioDir, name),
+			Paths: folderPaths(scenarioDir, apiDomainRoots(scenarioDir, inv), name),
 		})
 	}
 	sort.Slice(out.Domains, func(i, j int) bool { return out.Domains[i].Name < out.Domains[j].Name })
 	return out, nil
 }
 
+func apiDomainRoots(scenarioDir string, inv SurfaceInventory) []string {
+	api, ok := surfaceByID(inv, "api")
+	if !ok {
+		return nil
+	}
+	roots := []string{}
+	for _, rel := range []string{"internal", "handlers"} {
+		root := filepath.Join(api.Path, rel)
+		if entries, err := readChildDirs(root); err == nil && len(entries) > 0 {
+			roots = append(roots, root)
+		}
+	}
+	return roots
+}
+
 // folderPaths returns the repo-relative path prefixes a folder-derived
 // domain owns: whichever of its api/internal/ and api/handlers/ packages
 // exist on disk.
-func folderPaths(scenarioDir, name string) []string {
+func folderPaths(scenarioDir string, roots []string, name string) []string {
 	var paths []string
-	for _, root := range []string{APIInternalDir, APIHandlersDir} {
-		full := filepath.Join(scenarioDir, root, name)
-		if info, err := os.Stat(full); err == nil && info.IsDir() {
-			paths = append(paths, root+"/"+name+"/")
+	for _, root := range roots {
+		full := filepath.Join(root, name)
+		if dirExists(full) {
+			rel := surfaceRel(scenarioDir, full)
+			if rel != "" {
+				paths = append(paths, rel+"/")
+			}
 		}
 	}
 	return paths

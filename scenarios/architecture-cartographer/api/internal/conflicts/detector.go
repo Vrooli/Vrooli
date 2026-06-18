@@ -60,5 +60,6 @@ type Verdict struct {
 	RunnerUpDomain  string
 	RunnerUpValue   float64
 	Tied            bool
+	AllAbstained    bool
 	EvidenceSummary string
 }

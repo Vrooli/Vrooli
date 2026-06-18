@@ -26,6 +26,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"DomainsService.ExtractDomains":    h.extract,
 		"DomainsService.GetDomainMap":      h.show,
 		"DomainsService.ConvergenceReport": h.convergence,
+		"DomainsService.DraftDomains":      h.draft,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

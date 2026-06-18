@@ -143,6 +143,17 @@ the proto `UploadAttachmentResponse` message; only the request
 transport is multipart. Drift between API/UI/CLI is eliminated as
 long as the wire payload type is shared.
 
+## Code-Facts Substrate
+
+Cartographer consumes `code-facts` for scenario surface and parse-unit
+inventory. Code-facts answers "what execution surfaces and analyzer units
+exist?" Cartographer answers "which domain owns this code and is the
+architecture healthy?" The production API wires this through
+`domains.SurfaceProvider`; if code-facts is unavailable, cartographer uses a
+local filesystem fallback and emits a `code_facts.unavailable` extraction
+warning so the audit can be treated as degraded rather than silently
+authoritative.
+
 ## Shared Infrastructure
 
 Shared infrastructure is allowed only when the code is
@@ -203,6 +214,27 @@ health checks against its own **derived** domain map (from
 `docs/concepts/DOMAINS.md` via the extraction ladder — there is no per-scenario
 manifest). This is the closure that proves the tool works.
 
+Core structural detectors currently include `cycle`, `layering`, `naming`,
+`glossary_drift`, `mislocated_file`, `convergence_drift`, `coupling_smell`,
+`surface_coherence`, `file_cohesion`, `cross_scenario`, and
+`domains_doc_parse_warning`. `layering` enforces wrong-direction dependency
+rules using surface zones plus domain archetypes;
+`naming` flags generic package/domain vocabulary such as `utils` or `helpers`
+before those buckets can hide product ownership. `glossary_drift` uses the
+curated DOMAINS.md glossary as evidence and flags exported symbols that carry
+another domain's vocabulary. `surface_coherence` checks declared and
+archetype-implied API/CLI/UI domain surfaces against actual implementation
+evidence. `cross_scenario` blocks direct imports into another scenario's
+private `api/internal` packages, keeping reuse on public API, CLI, or
+shared-package contracts.
+
+The detector registry applies per-surface profiles. API/Go receives coupling,
+layering, convergence, naming, placement, cycles, cross-scenario boundary
+checks, file cohesion, and surface coherence; CLI/Go receives layering,
+convergence, naming, placement, cross-scenario boundary checks, and cycles;
+UI/TypeScript receives naming, placement, cycles, and surface coherence. The
+universal floor remains `cycle`, `naming`, and `mislocated_file`.
+
 ## Audit Contract (L5-Readiness)
 
 The `audit` domain is the CI-shaped surface over the cartographer. The
@@ -224,6 +256,15 @@ depend on it.
   `authority_confidence=low` (no curated DOMAINS.md or API manifest)
   flips the outcome to `FINDINGS` with `outcome_reason` set; callers
   opt back to `CLEAN` with `--allow-low-authority`.
+- **Test Genie gates only trusted blockers.** The `ScenarioValidationService`
+  packs the native `AuditRunResponse` into `native_detail`; Test Genie's
+  architecture phase reads that authority field and only hard-fails blocker
+  findings by default when `authority_confidence=high`.
+- **Coverage is explicit.** Every audit response includes a `coverage`
+  block with mutually-exclusive file buckets: `auto_place`, `suggest`,
+  `conflict`, and `all_abstained`. `all_abstained` separates "the
+  signals had no evidence" from a confident conflict, and the block
+  repeats authority confidence for scripts that read only coverage.
 - **Suppression is reported, never silent.** Findings sanctioned by
   active `// arch:allow` markers stay in `findings` and contribute to
   `suppressed_findings`; they do not flip the outcome.
@@ -232,6 +273,12 @@ depend on it.
 - **Sweep.** `AuditService.RunAll` walks every directory under
   `<repo>/scenarios/` and aggregates per-scenario reports plus
   totals. CLI: `architecture-cartographer audit run-all`.
+
+The domains surface also provides `domains draft <scenario>`, which
+prints a proposed `docs/concepts/DOMAINS.md` inventory from the same
+ladder evidence used by derivation. It is intentionally read-only:
+humans or review agents must ratify purpose, ownership, archetype, and
+glossary before committing the draft as authority.
 
 `DomainsDocExtractor` now reports non-fatal parse warnings (e.g. rows
 with the wrong column count) via the

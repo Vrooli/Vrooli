@@ -78,6 +78,30 @@
               "filesystem:read"
             ]
           }
+        },
+        {
+          "name": "draft",
+          "description": "Print a proposed DOMAINS.md inventory from extracted evidence without writing it",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Target scenario name"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DomainsService",
+            "method": "DraftDomains"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
         }
       ]
     },

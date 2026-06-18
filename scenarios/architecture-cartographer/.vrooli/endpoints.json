@@ -25,7 +25,23 @@
       ],
       "rest_exception": {
         "reason": "ops_probe",
-        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client."
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.architecture_cartographer.v1.health.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.architecture_cartographer.v1.errors.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
       }
     },
     {
@@ -286,6 +302,14 @@
       "method": "POST",
       "summary": "Report cross-surface domain convergence",
       "description": "Reports where a scenario's surfaces (DOMAINS.md, api folders, cli groups, ui features) disagree on the domain set. Advisory, never a hard gate.",
+      "category": "domains"
+    },
+    {
+      "id": "domains.draft",
+      "path": "/vrooli.architecture_cartographer.v1.domains.DomainsService/DraftDomains",
+      "method": "POST",
+      "summary": "Draft a DOMAINS.md inventory",
+      "description": "Proposes a docs/concepts/DOMAINS.md inventory from extracted evidence without writing authority to disk.",
       "category": "domains"
     },
     {

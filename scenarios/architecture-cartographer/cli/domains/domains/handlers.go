@@ -91,6 +91,26 @@ func (h *handlers) convergence(ctx cliapp.RunContext) error {
 	})
 }
 
+// draft proposes a DOMAINS.md inventory for human ratification.
+func (h *handlers) draft(ctx cliapp.RunContext) error {
+	scenario := ctx.Positional("scenario")
+	resp, err := h.client.DraftDomains(context.Background(), connect.NewRequest(&domainsv1.DraftDomainsRequest{Scenario: scenario}))
+	if err != nil {
+		return cliapp.WrapAPIError(fmt.Sprintf("draft domains for %q", scenario), err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no domains draft")
+	}
+	if ctx.JSON() {
+		return cliapp.PrintProtoJSON(ctx.Stdout(), resp.Msg)
+	}
+	fmt.Fprint(ctx.Stdout(), resp.Msg.GetMarkdown())
+	if !strings.HasSuffix(resp.Msg.GetMarkdown(), "\n") {
+		fmt.Fprintln(ctx.Stdout())
+	}
+	return nil
+}
+
 func confidenceName(c domainsv1.AuthorityConfidence) string {
 	switch c {
 	case domainsv1.AuthorityConfidence_AUTHORITY_CONFIDENCE_HIGH:

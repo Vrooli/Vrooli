@@ -18,9 +18,15 @@ import (
 	"architecture-cartographer/internal/conflicts"
 	"architecture-cartographer/internal/conflicts/detectors/convergencedrift"
 	"architecture-cartographer/internal/conflicts/detectors/couplingsmell"
+	"architecture-cartographer/internal/conflicts/detectors/crossscenario"
 	"architecture-cartographer/internal/conflicts/detectors/cycle"
 	"architecture-cartographer/internal/conflicts/detectors/domainsparsewarning"
+	"architecture-cartographer/internal/conflicts/detectors/filecohesion"
+	"architecture-cartographer/internal/conflicts/detectors/glossarydrift"
+	"architecture-cartographer/internal/conflicts/detectors/layering"
 	"architecture-cartographer/internal/conflicts/detectors/mislocatedfile"
+	"architecture-cartographer/internal/conflicts/detectors/naming"
+	"architecture-cartographer/internal/conflicts/detectors/surfacecoherence"
 	mislocatedresolver "architecture-cartographer/internal/conflicts/resolvers/mislocatedfile"
 	"architecture-cartographer/internal/domains"
 	"architecture-cartographer/internal/git"
@@ -234,14 +240,16 @@ func main() {
 	}
 
 	// The domains domain derives a target scenario's intended domain map
-	// from its on-disk sources (DOMAINS.md → api/internal folders → cli
-	// groups) with zero per-scenario configuration. It is stateless and
-	// resolves scenario directories relative to the repository root.
+	// from DOMAINS.md plus code-facts' surface/parse-unit inventory
+	// (API folders, CLI groups, UI features) with zero per-scenario
+	// configuration. If code-facts is unavailable, the provider falls back
+	// to local filesystem evidence and carries an extraction warning.
 	scenarioLocator := domains.NewRepoScenarioLocator(repoRoot)
+	surfaceProvider := domains.NewCodeFactsSurfaceProvider(resolver, nil, nil)
 	domainsSvc := domains.NewService(
 		scenarioLocator,
 		clk,
-		domains.ExtractorsFor(cfg.LadderOrder, cfg.ExtraNonDomainFolders)...,
+		domains.ExtractorsForWithSurfaceProvider(cfg.LadderOrder, cfg.ExtraNonDomainFolders, surfaceProvider)...,
 	)
 
 	// Durable in-repo suppression markers (`// arch:allow …`) are scanned
@@ -268,7 +276,23 @@ func main() {
 	conflictsRepo := conflicts.NewSQLiteRepository(primary, clk)
 	conflictsSvc := conflicts.NewServiceWithAnalytics(
 		conflictsRepo,
-		conflicts.NewRegistry(cycle.New(), mislocatedfile.New(), convergencedrift.New(), couplingsmell.NewWithConfig(boundaryCfg), domainsparsewarning.New()),
+		conflicts.NewRegistryWithProfiles(
+			conflicts.DefaultSurfaceProfiles(),
+			convergencedrift.New(),
+			couplingsmell.NewWithConfig(boundaryCfg),
+			crossscenario.New(),
+			cycle.New(),
+			domainsparsewarning.New(),
+			filecohesion.NewWithConfig(filecohesion.Config{
+				MaxLines:   cfg.FileCohesionMaxLines,
+				MaxSymbols: cfg.FileCohesionMaxSymbols,
+			}),
+			glossarydrift.New(),
+			layering.NewWithStrict(cfg.LayeringStrict),
+			mislocatedfile.New(),
+			naming.NewWithBannedVocabulary(cfg.BannedVocabulary),
+			surfacecoherence.New(),
+		),
 		conflicts.NewResolverRegistry(mislocatedresolver.New()),
 		conflicts.NewAnalyticsAdapter(analyticsSvc),
 	)

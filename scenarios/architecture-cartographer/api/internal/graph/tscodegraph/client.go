@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -222,12 +223,16 @@ func protoToRawGraph(resp *graphv1.ExtractResponse) graph.RawGraph {
 		return out
 	}
 	for _, n := range g.GetNodes() {
+		attrs := n.GetAttributes()
 		switch n.GetKind() {
 		case commonv1.NodeKind_NODE_KIND_FILE:
 			out.Files = append(out.Files, graph.FileNode{
-				ID:       n.GetId(),
-				Path:     n.GetPath(),
-				Language: graph.LanguageTypeScript,
+				ID:        n.GetId(),
+				Path:      n.GetPath(),
+				PackageID: attrs["package_id"],
+				Language:  graph.LanguageTypeScript,
+				Lines:     atoiAttr(attrs["lines"]),
+				IsTest:    attrs["is_test"] == "true",
 			})
 		case commonv1.NodeKind_NODE_KIND_PACKAGE, commonv1.NodeKind_NODE_KIND_MODULE:
 			out.Packages = append(out.Packages, graph.PackageNode{
@@ -241,17 +246,57 @@ func protoToRawGraph(resp *graphv1.ExtractResponse) graph.RawGraph {
 			// attributes-derived Kind string. Cartographer's Normalize()
 			// does not care about the specific enum value.
 			out.Symbols = append(out.Symbols, graph.SymbolNode{
-				ID:   n.GetId(),
-				Name: n.GetName(),
-				Kind: n.GetKind().String(),
+				ID:        n.GetId(),
+				Name:      n.GetName(),
+				PackageID: attrs["package_id"],
+				FileID:    attrs["file_id"],
+				Kind:      symbolKind(n.GetKind().String(), attrs),
+				Exported:  attrs["exported"] == "true",
 			})
 		}
 	}
 	for _, e := range g.GetEdges() {
+		attrs := e.GetAttributes()
 		out.Imports = append(out.Imports, graph.ImportEdge{
 			From:        e.GetFromNodeId(),
 			ToPackageID: e.GetToNodeId(),
+			SymbolIDs:   splitCSV(attrs["symbol_ids"]),
+			SymbolKinds: splitCSV(attrs["symbol_kinds"]),
+			TestOnly:    attrs["test_only"] == "true",
 		})
+	}
+	return out
+}
+
+func atoiAttr(s string) int {
+	if s == "" {
+		return 0
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil || n < 0 {
+		return 0
+	}
+	return n
+}
+
+func symbolKind(fallback string, attrs map[string]string) string {
+	if attrs["kind"] != "" {
+		return attrs["kind"]
+	}
+	return fallback
+}
+
+func splitCSV(s string) []string {
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	out := parts[:0]
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			out = append(out, p)
+		}
 	}
 	return out
 }

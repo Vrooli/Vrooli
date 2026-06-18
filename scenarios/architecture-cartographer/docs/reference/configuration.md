@@ -77,6 +77,10 @@ lever never fails startup. Resolved by `internal/config.Load`.
 | `CARTOGRAPHER_ARCHETYPE_EXEMPTIONS` | `composition-root,infrastructure` | CSV | Domain archetypes exempt from the `god_domain` smell (composition roots legitimately wire many domains). |
 | `CARTOGRAPHER_NON_DOMAIN_FOLDERS` | (empty) | CSV | Extra `api/internal/` folder names treated as infrastructure (extends the built-in set: server, module, modules, database, testutil, middleware, clock, git, httpc, httpx). |
 | `CARTOGRAPHER_LADDER_ORDER` | `domains_doc,api_folders,cli_groups` | CSV of source names | Domain-extraction trust order, highest first. Valid sources: `api_manifest` (reserved), `domains_doc`, `api_folders`, `cli_groups`. The UI rung is always advisory and appended regardless. |
+| `CARTOGRAPHER_BANNED_VOCAB` | `common,helpers,manager,misc,stuff,utils` | CSV | Generic domain/package names the `naming` detector flags because they hide product intent. |
+| `CARTOGRAPHER_LAYERING_STRICT` | `true` | boolean | When true, blocker-eligible `layering` violations (domain→transport and substrate→product imports) emit blocker severity; when false, they emit error severity for rollout. |
+| `CARTOGRAPHER_FILE_COHESION_MAX_LINES` | `400` | [0, 100000] | Maximum non-test source-file line count before the `file_cohesion` detector emits an oversized-file warning. `0` disables the line-count signal. |
+| `CARTOGRAPHER_FILE_COHESION_MAX_SYMBOLS` | `25` | [0, 100000] | Maximum symbols declared in one non-test source file before the `file_cohesion` detector emits an oversized-file warning. `0` disables the symbol-count signal. |
 
 **Deliberately NOT exposed.** Cartographer intentionally has no lever for:
 

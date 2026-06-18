@@ -12,6 +12,7 @@ import (
 
 	"architecture-cartographer/internal/graph"
 	"architecture-cartographer/internal/signals"
+	"architecture-cartographer/internal/signals/graphindex"
 )
 
 const name = "importer-voting"
@@ -30,7 +31,7 @@ func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Ch
 	if chunk.FileID == "" {
 		return signals.Abstain(name, "chunk has no file id", chunk.Path)
 	}
-	pkgID := packageForFile(chunk.FileID, gctx.Snapshot)
+	pkgID := graphindex.PackageForFile(chunk.FileID, gctx.Snapshot)
 	if pkgID == "" {
 		return signals.Abstain(name, "file has no package in snapshot", chunk.Path)
 	}
@@ -39,7 +40,7 @@ func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Ch
 		return signals.Abstain(name, "no importers for this file in current snapshot", chunk.Path)
 	}
 
-	domainPackages := indexDomainPackages(gctx)
+	domainPackages := graphindex.DomainPackages(gctx)
 	votes := make(map[string]int)
 	for _, imp := range importers {
 		dom := domainPackages[imp]
@@ -71,22 +72,13 @@ func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Ch
 	return signals.ScoreResult{Scores: out}
 }
 
-func packageForFile(fileID string, snap graph.GraphSnapshot) string {
-	for _, f := range snap.Files {
-		if f.ID == fileID {
-			return f.PackageID
-		}
-	}
-	return ""
-}
-
 func importersOf(pkgID string, snap graph.GraphSnapshot) []string {
 	seen := make(map[string]struct{})
 	for _, e := range snap.Imports {
 		if e.ToPackageID != pkgID {
 			continue
 		}
-		from := packageFor(e.From, snap)
+		from := graphindex.PackageFor(e.From, snap)
 		if from == "" || from == pkgID {
 			continue
 		}
@@ -97,65 +89,4 @@ func importersOf(pkgID string, snap graph.GraphSnapshot) []string {
 		out = append(out, k)
 	}
 	return out
-}
-
-func packageFor(id string, snap graph.GraphSnapshot) string {
-	for _, f := range snap.Files {
-		if f.ID == id {
-			return f.PackageID
-		}
-	}
-	for _, p := range snap.Packages {
-		if p.ID == id {
-			return p.ID
-		}
-	}
-	return ""
-}
-
-// indexDomainPackages maps package_id -> domain_name based on the
-// derived map's path globs over each package's directory.
-func indexDomainPackages(gctx signals.GraphContext) map[string]string {
-	out := make(map[string]string, len(gctx.Snapshot.Packages))
-	for _, p := range gctx.Snapshot.Packages {
-		if p.RepoPath == "" {
-			continue
-		}
-		for _, d := range gctx.DomainMap.Domains {
-			if pathInDomain(p.RepoPath, d.Paths) {
-				out[p.ID] = d.Name
-				break
-			}
-		}
-	}
-	return out
-}
-
-func pathInDomain(path string, globs []string) bool {
-	for _, g := range globs {
-		if matches(path, g) {
-			return true
-		}
-	}
-	return false
-}
-
-func matches(path, glob string) bool {
-	switch {
-	case glob == "**":
-		return true
-	case hasSuffix(glob, "/**"):
-		prefix := glob[:len(glob)-3]
-		return path == prefix || hasPrefix(path, prefix+"/")
-	default:
-		return path == glob
-	}
-}
-
-func hasSuffix(s, suffix string) bool {
-	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
-}
-
-func hasPrefix(s, prefix string) bool {
-	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
 }

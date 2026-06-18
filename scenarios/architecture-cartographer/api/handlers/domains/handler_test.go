@@ -2,6 +2,7 @@ package domains
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -22,6 +23,13 @@ func (f fakeService) ExtractDomains(context.Context, string) (domains.DerivedDom
 
 func (f fakeService) GetDomainMap(context.Context, string) (domains.DerivedDomainMap, error) {
 	return f.m, f.err
+}
+
+func (f fakeService) DraftDomains(context.Context, string) (domains.DomainDraft, error) {
+	if f.err != nil {
+		return domains.DomainDraft{}, f.err
+	}
+	return domains.DraftFromMap(f.m), nil
 }
 
 func TestHandler_ExtractDomains_Translates(t *testing.T) {
@@ -107,6 +115,41 @@ func TestHandler_ConvergenceReport(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("expected missing_implementation for conflicts, got %+v", resp.Msg.GetFindings())
+	}
+}
+
+func TestHandler_DraftDomains(t *testing.T) {
+	m, err := domains.Resolve("x", []domains.Extraction{
+		{
+			Source: domains.SourceAPIFolders,
+			Domains: []domains.ExtractedDomain{
+				{Name: "graph", Paths: []string{"api/internal/graph/"}},
+			},
+		},
+		{
+			Source: domains.SourceCLIGroups,
+			Domains: []domains.ExtractedDomain{
+				{Name: "graph", Paths: []string{"cli/domains/graph/"}},
+			},
+		},
+	}, time.Time{})
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	h := NewHandler(fakeService{m: m})
+	resp, err := h.DraftDomains(context.Background(), connect.NewRequest(&domainsv1.DraftDomainsRequest{Scenario: "x"}))
+	if err != nil {
+		t.Fatalf("DraftDomains: %v", err)
+	}
+	if resp.Msg.GetScenario() != "x" || len(resp.Msg.GetDomains()) != 1 {
+		t.Fatalf("unexpected draft response: %+v", resp.Msg)
+	}
+	d := resp.Msg.GetDomains()[0]
+	if d.GetName() != "graph" || d.GetConfidence() != "medium" {
+		t.Fatalf("unexpected proposed domain: %+v", d)
+	}
+	if !strings.Contains(resp.Msg.GetMarkdown(), "| graph |") {
+		t.Fatalf("draft markdown missing graph row:\n%s", resp.Msg.GetMarkdown())
 	}
 }
 

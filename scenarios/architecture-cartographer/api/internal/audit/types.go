@@ -72,6 +72,7 @@ type Report struct {
 	Findings      []conflicts.Conflict
 	Domains       DomainSummary
 	Graph         GraphSummary
+	Coverage      CoverageSummary
 	Duration      time.Duration
 	// SuppressedFindings is the count of findings whose `// arch:allow`
 	// marker matched. Suppressed conflicts are reported (kept in
@@ -127,6 +128,24 @@ type GraphSummary struct {
 	FileCount       int
 	PackageCount    int
 	ImportEdgeCount int
+}
+
+// CoverageSummary reports how completely placement signals classified
+// file chunks during the audit. Buckets are mutually exclusive; a chunk
+// whose signals all abstained is counted as all_abstained instead of as
+// a generic conflict so low-evidence audits are visible.
+type CoverageSummary struct {
+	TotalFiles   int
+	AutoPlace    CoverageBucket
+	Suggest      CoverageBucket
+	Conflict     CoverageBucket
+	AllAbstained CoverageBucket
+}
+
+// CoverageBucket is one count + percentage pair in CoverageSummary.
+type CoverageBucket struct {
+	Count   int
+	Percent float64
 }
 
 // ErrInvalidRunRequest is the typed sentinel returned for invalid input.

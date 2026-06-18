@@ -25,6 +25,9 @@ func (s GraphSnapshot) Clone() GraphSnapshot {
 			if e.SymbolIDs != nil {
 				imps[i].SymbolIDs = append([]string(nil), e.SymbolIDs...)
 			}
+			if e.SymbolKinds != nil {
+				imps[i].SymbolKinds = append([]string(nil), e.SymbolKinds...)
+			}
 		}
 		out.Imports = imps
 	}

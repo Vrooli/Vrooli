@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -69,5 +70,35 @@ func TestService_DomainFor(t *testing.T) {
 	}
 	if got := m.DomainFor("api/internal/other/x.go"); got != "" {
 		t.Fatalf("DomainFor = %q, want empty", got)
+	}
+}
+
+func TestDraftFromMap_ProducesMarkdownAndConfidence(t *testing.T) {
+	m, err := domains.Resolve("demo", []domains.Extraction{
+		{
+			Source: domains.SourceAPIFolders,
+			Domains: []domains.ExtractedDomain{
+				{Name: "orders", Paths: []string{"api/internal/orders/"}},
+			},
+		},
+		{
+			Source: domains.SourceCLIGroups,
+			Domains: []domains.ExtractedDomain{
+				{Name: "orders", Paths: []string{"cli/domains/orders/"}},
+			},
+		},
+	}, time.Time{})
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	draft := domains.DraftFromMap(m)
+	if draft.Scenario != "demo" || len(draft.Domains) != 1 {
+		t.Fatalf("unexpected draft: %+v", draft)
+	}
+	if draft.Domains[0].Confidence != "medium" {
+		t.Fatalf("confidence = %q, want medium", draft.Domains[0].Confidence)
+	}
+	if !strings.Contains(draft.Markdown, "| orders | TODO | TODO |") {
+		t.Fatalf("markdown did not include TODO inventory row:\n%s", draft.Markdown)
 	}
 }

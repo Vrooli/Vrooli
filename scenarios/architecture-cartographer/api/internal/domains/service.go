@@ -2,6 +2,8 @@ package domains
 
 import (
 	"context"
+	"fmt"
+	"sort"
 	"strings"
 	"time"
 )
@@ -31,6 +33,9 @@ type Service interface {
 	// cheap, so this currently re-derives; the separate method exists so a
 	// future cache can back it without an interface change.
 	GetDomainMap(ctx context.Context, scenario string) (DerivedDomainMap, error)
+	// DraftDomains proposes a DOMAINS.md inventory from extracted evidence.
+	// It never writes authority; callers render the draft for human review.
+	DraftDomains(ctx context.Context, scenario string) (DomainDraft, error)
 }
 
 type service struct {
@@ -61,14 +66,18 @@ func DefaultExtractors() []DomainSourceExtractor {
 // The advisory UI rung is always appended last. Unknown/api_manifest names
 // are skipped (no extractor emits api_manifest yet).
 func ExtractorsFor(ladderOrder, extraNonDomainFolders []string) []DomainSourceExtractor {
-	folder := NewFolderExtractor()
+	return ExtractorsForWithSurfaceProvider(ladderOrder, extraNonDomainFolders, nil)
+}
+
+func ExtractorsForWithSurfaceProvider(ladderOrder, extraNonDomainFolders []string, surfaces SurfaceProvider) []DomainSourceExtractor {
+	folder := NewFolderExtractorWithSurfaceProvider(nil, surfaces)
 	if len(extraNonDomainFolders) > 0 {
-		folder = NewFolderExtractorWithExemptions(extraNonDomainFolders)
+		folder = NewFolderExtractorWithSurfaceProvider(extraNonDomainFolders, surfaces)
 	}
 	bySource := map[Source]DomainSourceExtractor{
 		SourceDomainsDoc: NewDomainsDocExtractor(),
 		SourceAPIFolders: folder,
-		SourceCLIGroups:  NewCLIGroupExtractor(),
+		SourceCLIGroups:  NewCLIGroupExtractorWithSurfaceProvider(surfaces),
 	}
 	order := ladderOrder
 	if len(order) == 0 {
@@ -82,10 +91,10 @@ func ExtractorsFor(ladderOrder, extraNonDomainFolders []string) []DomainSourceEx
 	}
 	if len(out) == 0 {
 		// Defensive: never return an empty ladder.
-		out = append(out, NewDomainsDocExtractor(), folder, NewCLIGroupExtractor())
+		out = append(out, NewDomainsDocExtractor(), folder, NewCLIGroupExtractorWithSurfaceProvider(surfaces))
 	}
 	// UI features are always present (advisory only).
-	out = append(out, NewUIFeatureExtractor())
+	out = append(out, NewUIFeatureExtractorWithSurfaceProvider(surfaces))
 	return out
 }
 
@@ -109,6 +118,97 @@ func (s *service) ExtractDomains(ctx context.Context, scenario string) (DerivedD
 
 func (s *service) GetDomainMap(ctx context.Context, scenario string) (DerivedDomainMap, error) {
 	return s.ExtractDomains(ctx, scenario)
+}
+
+func (s *service) DraftDomains(ctx context.Context, scenario string) (DomainDraft, error) {
+	m, err := s.ExtractDomains(ctx, scenario)
+	if err != nil {
+		return DomainDraft{}, err
+	}
+	return DraftFromMap(m), nil
+}
+
+// DraftFromMap converts derived ladder evidence into a markdown draft.
+// The output is deliberately conservative: it preserves known glossary
+// and archetype data when the authority is curated, otherwise it marks
+// those cells TODO so humans ratify intent rather than inheriting guesses.
+func DraftFromMap(m DerivedDomainMap) DomainDraft {
+	out := DomainDraft{Scenario: m.Scenario}
+	for _, d := range m.Domains {
+		p := ProposedDomain{
+			Name:       d.Name,
+			Paths:      append([]string(nil), d.Paths...),
+			Glossary:   append([]string(nil), d.Glossary...),
+			Archetype:  d.Archetype,
+			Confidence: draftConfidence(m, d),
+			Evidence:   sourceEvidence(d.Provenance),
+		}
+		if p.Archetype == "" {
+			p.Archetype = "TODO"
+		}
+		out.Domains = append(out.Domains, p)
+	}
+	out.Markdown = draftMarkdown(out)
+	return out
+}
+
+func draftConfidence(m DerivedDomainMap, d DerivedDomain) string {
+	if m.AuthorityConfidence == ConfidenceHigh {
+		return "high"
+	}
+	if len(d.Provenance) > 1 {
+		return "medium"
+	}
+	return "low"
+}
+
+func sourceEvidence(sources []Source) []string {
+	if len(sources) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(sources))
+	for _, s := range sources {
+		if s == SourceUnspecified {
+			continue
+		}
+		out = append(out, string(s))
+	}
+	sort.Strings(out)
+	return out
+}
+
+func draftMarkdown(d DomainDraft) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "# Domains — %s\n\n", d.Scenario)
+	b.WriteString("## Domain Inventory\n\n")
+	b.WriteString("| Domain | Purpose | Primary Archetype | Owns Data | Surfaces | Requirements | Source Paths | Glossary |\n")
+	b.WriteString("|---|---|---|---|---|---|---|---|\n")
+	for _, domain := range d.Domains {
+		fmt.Fprintf(&b, "| %s | TODO | %s | TODO | TODO | TODO | %s | %s |\n",
+			domain.Name,
+			domain.Archetype,
+			formatDraftList(domain.Paths),
+			formatDraftList(domain.Glossary))
+	}
+	return b.String()
+}
+
+func formatDraftList(values []string) string {
+	if len(values) == 0 {
+		return "TODO"
+	}
+	quoted := make([]string, 0, len(values))
+	for _, v := range values {
+		v = strings.TrimSpace(v)
+		if v == "" {
+			continue
+		}
+		quoted = append(quoted, "`"+v+"`")
+	}
+	if len(quoted) == 0 {
+		return "TODO"
+	}
+	return strings.Join(quoted, ", ")
 }
 
 func (s *service) now() time.Time {

@@ -163,7 +163,7 @@ func (s *service) ValidateConflicts(ctx context.Context, scenario string) ([]Con
 			continue
 		}
 		outstanding = append(outstanding, c)
-		if c.Severity == SeverityError {
+		if c.Severity == SeverityError || c.Severity == SeverityBlocker {
 			clean = false
 		}
 	}

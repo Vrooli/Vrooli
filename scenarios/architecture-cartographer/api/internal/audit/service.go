@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync"
 	"time"
 
 	"architecture-cartographer/internal/clock"
@@ -95,16 +96,25 @@ func (s *service) Run(ctx context.Context, in RunInput) (Report, error) {
 		markers, _ = s.suppressions.Active(ctx, scenario)
 	}
 
+	var verdicts conflicts.VerdictProvider
+	if s.verdicts != nil {
+		verdicts = newCachedVerdictProvider(s.verdicts)
+	}
 	found, dErr := s.conflicts.DetectConflicts(ctx, conflicts.DetectOrchestrationInput{
 		Scenario:        scenario,
 		Snapshot:        snap,
 		DomainMap:       dmap,
-		VerdictProvider: s.verdicts,
+		VerdictProvider: verdicts,
 		Suppressions:    markers,
 	})
 	if dErr != nil {
 		return s.toolError(rep, "conflict detection failed: "+dErr.Error(), start), nil
 	}
+	coverage, coverageErr := coverageSummary(ctx, scenario, snap, verdicts)
+	if coverageErr != nil {
+		return s.toolError(rep, "coverage scoring failed: "+coverageErr.Error(), start), nil
+	}
+	rep.Coverage = coverage
 
 	filtered := applyFilters(found, in.IncludeTypes, in.ExcludeTypes)
 	rep.Findings = filtered
@@ -123,6 +133,102 @@ func (s *service) Run(ctx context.Context, in RunInput) (Report, error) {
 	}
 	rep.Duration = s.clock.Now().Sub(start)
 	return rep, nil
+}
+
+type cachedVerdictProvider struct {
+	upstream conflicts.VerdictProvider
+	mu       sync.Mutex
+	cache    map[string][]conflicts.Verdict
+}
+
+func newCachedVerdictProvider(upstream conflicts.VerdictProvider) *cachedVerdictProvider {
+	return &cachedVerdictProvider{upstream: upstream, cache: make(map[string][]conflicts.Verdict)}
+}
+
+func (p *cachedVerdictProvider) VerdictsFor(ctx context.Context, scenario string, chunks []graph.Chunk) ([]conflicts.Verdict, error) {
+	if p == nil || p.upstream == nil || len(chunks) == 0 {
+		return nil, nil
+	}
+	key := verdictCacheKey(scenario, chunks)
+	p.mu.Lock()
+	if got, ok := p.cache[key]; ok {
+		cp := append([]conflicts.Verdict(nil), got...)
+		p.mu.Unlock()
+		return cp, nil
+	}
+	p.mu.Unlock()
+
+	got, err := p.upstream.VerdictsFor(ctx, scenario, chunks)
+	if err != nil {
+		return nil, err
+	}
+	p.mu.Lock()
+	p.cache[key] = append([]conflicts.Verdict(nil), got...)
+	p.mu.Unlock()
+	return got, nil
+}
+
+func verdictCacheKey(scenario string, chunks []graph.Chunk) string {
+	var b strings.Builder
+	b.WriteString(scenario)
+	for _, c := range chunks {
+		b.WriteByte('\x00')
+		b.WriteString(c.ID)
+		b.WriteByte(':')
+		b.WriteString(c.FileID)
+	}
+	return b.String()
+}
+
+func coverageSummary(ctx context.Context, scenario string, snap graph.GraphSnapshot, verdicts conflicts.VerdictProvider) (CoverageSummary, error) {
+	chunks := snap.Chunks()
+	out := CoverageSummary{TotalFiles: len(chunks)}
+	if len(chunks) == 0 {
+		return out.withPercents(), nil
+	}
+	if verdicts == nil {
+		out.AllAbstained.Count = len(chunks)
+		return out.withPercents(), nil
+	}
+	scored, err := verdicts.VerdictsFor(ctx, scenario, chunks)
+	if err != nil {
+		return CoverageSummary{}, err
+	}
+	for i, v := range scored {
+		if i >= len(chunks) {
+			break
+		}
+		switch {
+		case v.AllAbstained || (strings.TrimSpace(v.TopDomain) == "" && strings.TrimSpace(v.Tier) == ""):
+			out.AllAbstained.Count++
+		case v.Tier == "auto_place":
+			out.AutoPlace.Count++
+		case v.Tier == "suggest":
+			out.Suggest.Count++
+		default:
+			out.Conflict.Count++
+		}
+	}
+	if len(scored) < len(chunks) {
+		out.AllAbstained.Count += len(chunks) - len(scored)
+	}
+	return out.withPercents(), nil
+}
+
+func (s CoverageSummary) withPercents() CoverageSummary {
+	if s.TotalFiles == 0 {
+		return s
+	}
+	denom := float64(s.TotalFiles)
+	s.AutoPlace.Percent = percent(s.AutoPlace.Count, denom)
+	s.Suggest.Percent = percent(s.Suggest.Count, denom)
+	s.Conflict.Percent = percent(s.Conflict.Count, denom)
+	s.AllAbstained.Percent = percent(s.AllAbstained.Count, denom)
+	return s
+}
+
+func percent(count int, denom float64) float64 {
+	return float64(count) * 100 / denom
 }
 
 // decideOutcomeWithAuthority extends decideOutcome with the authority-

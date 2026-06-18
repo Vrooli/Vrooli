@@ -8,7 +8,9 @@ import (
 
 	"architecture-cartographer/internal/conflicts"
 	"architecture-cartographer/internal/conflicts/detectors/cycle"
+	"architecture-cartographer/internal/conflicts/detectors/layering"
 	"architecture-cartographer/internal/conflicts/detectors/mislocatedfile"
+	"architecture-cartographer/internal/conflicts/detectors/naming"
 	conflictmocks "architecture-cartographer/internal/conflicts/mocks"
 	"architecture-cartographer/internal/domains"
 	"architecture-cartographer/internal/graph"
@@ -18,7 +20,8 @@ import (
 
 // TestDogfood_ScenarioIsArchitecturallyClean is the closure for the
 // implementation plan: cartographer must pass its own architecture
-// audit. It runs the production detector chain (cycle +
+// audit. It runs the production detector chain slice that can operate on
+// the committed self-graph fixture (cycle + layering + naming +
 // mislocated_file) against:
 //
 //   - testdata/cartographer-self-graph.json — the committed snapshot
@@ -36,8 +39,9 @@ import (
 // orchestration without a verdict source means no mislocation
 // emission.
 //
-// Failure mode: a real cycle introduced between the listed domains
-// will fail this test. That's the intent.
+// Failure mode: a real cycle, blocker layering violation, or banned generic
+// package/domain name introduced between the listed domains will fail this
+// test. That's the intent.
 func TestDogfood_ScenarioIsArchitecturallyClean(t *testing.T) {
 	graphPath := filepath.Join("testdata", "cartographer-self-graph.json")
 	scenarioRoot, err := filepath.Abs(filepath.Join("..", "..", ".."))
@@ -56,7 +60,7 @@ func TestDogfood_ScenarioIsArchitecturallyClean(t *testing.T) {
 
 	snap := graph.Normalize("architecture-cartographer", raw)
 
-	registry := conflicts.NewRegistry(cycle.New(), mislocatedfile.New())
+	registry := conflicts.NewRegistry(cycle.New(), layering.New(), mislocatedfile.New(), naming.New())
 	svc := conflicts.NewService(&conflictmocks.FakeRepository{}, registry, conflicts.NewResolverRegistry())
 
 	got, err := svc.DetectConflicts(context.Background(), conflicts.DetectOrchestrationInput{

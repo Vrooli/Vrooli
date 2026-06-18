@@ -34,6 +34,10 @@ type Caches struct {
 	// the import-cluster signal. Written once (idempotently) and read by
 	// every subsequent score.
 	community map[string]int
+	// domainPackages maps package_id -> domain_name for the derived domain
+	// map. Several signals need this same index, so it is computed once per
+	// scoring batch and cached here.
+	domainPackages map[string]string
 }
 
 // CommunitySnapshot returns the current community map, or nil if the
@@ -64,6 +68,35 @@ func (c *Caches) SetCommunity(in map[string]int) {
 	c.community = make(map[string]int, len(in))
 	for k, v := range in {
 		c.community[k] = v
+	}
+}
+
+// DomainPackagesSnapshot returns the current package-to-domain index, or nil
+// if the cache has not been populated yet. Returns a defensive copy.
+func (c *Caches) DomainPackagesSnapshot() map[string]string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if len(c.domainPackages) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(c.domainPackages))
+	for k, v := range c.domainPackages {
+		out[k] = v
+	}
+	return out
+}
+
+// SetDomainPackages replaces the package-to-domain cache atomically.
+// Subsequent calls are no-ops if the cache is already populated.
+func (c *Caches) SetDomainPackages(in map[string]string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if len(c.domainPackages) > 0 {
+		return
+	}
+	c.domainPackages = make(map[string]string, len(in))
+	for k, v := range in {
+		c.domainPackages[k] = v
 	}
 }
 

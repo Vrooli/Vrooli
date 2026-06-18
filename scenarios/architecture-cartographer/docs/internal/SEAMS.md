@@ -185,10 +185,30 @@ and use matrix/trace helpers from the relevant testutil package.
 | | |
 |---|---|
 | **Seam** | Pluggable conflict-detection plug-in |
-| **Interface** | `internal/conflicts/detector.go::Detector` (`Name() string`, `Detect(graph CodeGraph, manifest Manifest) []Conflict`) |
-| **Production wiring** | `internal/conflicts/registry.go::DefaultRegistry()` registers day-one detectors (`cycle`, `mislocated_file`). New conflict types ship as new `Detector` implementations + registry entries; the `Conflict` envelope is stable across versions. |
+| **Interface** | `api/internal/conflicts/detector.go::Detector` (`Name()`, `Description()`, `EmitsTypes()`, `Detect(ctx, DetectInput) ([]Conflict, error)`). |
+| **Production wiring** | `main.go` registers detectors through `conflicts.NewRegistryWithProfiles(conflicts.DefaultSurfaceProfiles(), ...)`. Current production detectors include `cycle`, `layering`, `naming`, `glossary_drift`, `mislocated_file`, `convergence_drift`, `coupling_smell`, `surface_coherence`, `file_cohesion`, `cross_scenario`, and `domains_doc_parse_warning`; the `Conflict` envelope is stable across detector additions. |
 | **Test fake** | `internal/conflicts/mocks::FakeDetector` (canned `[]Conflict` return, recorded inputs). Used to drive the conflicts service against deterministic finding sets without standing up a full graph + manifest fixture. |
 | **Why it exists** | Detectors are the open extension seam for the cartographer — new drift checks must be addable without changing the envelope or the resolution machinery. The registry is the single point that enumerates registered detectors; orchestration logic does not name-check detector types. See `SIGNAL_LADDER.md` for the analogous pattern on the scoring side. |
+
+### SurfaceProfile (detector applicability)
+
+| | |
+|---|---|
+| **Seam** | Per-surface detector selection for API/CLI/UI and language-specific graph evidence. |
+| **Interface** | `api/internal/conflicts/profiles.go::SurfaceProfile` maps `(surface, language)` to detector names; `DefaultSurfaceProfiles()` is the production matrix. |
+| **Production wiring** | The conflicts registry derives active surfaces from graph files/packages plus domain declarations, then runs only detectors selected by the matching profiles plus the universal floor (`cycle`, `glossary_drift`, `naming`, `mislocated_file`). |
+| **Test fake** | `api/internal/conflicts/profiles_test.go` uses tiny named detectors and synthetic graph/domain inputs to prove profile selection without invoking real detectors. |
+| **Why it exists** | Not every detector is meaningful on every surface. Profiles keep applicability policy centralized, prevent UI-only or CLI-only scenarios from receiving irrelevant API findings, and make future surface-specific detectors addable without scattering surface checks through detector implementations. |
+
+### SurfaceProvider (code-facts substrate)
+
+| | |
+|---|---|
+| **Seam** | Scenario surface and parse-unit inventory used by domain derivation. |
+| **Interface** | `api/internal/domains/surface_provider.go::SurfaceProvider` (`Inspect(ctx, scenarioDir) (SurfaceInventory, error)`). |
+| **Production wiring** | `main.go` constructs `domains.NewCodeFactsSurfaceProvider(...)` and passes it to `domains.ExtractorsForWithSurfaceProvider(...)`. |
+| **Test fake** | Domain tests pass a tiny fake provider with canned `SurfaceInventory`; offline production falls back through `LocalSurfaceProvider` and emits a `code_facts.unavailable` extraction warning. |
+| **Why it exists** | Code-facts owns surface and parse-unit discovery. Cartographer owns domain reasoning. This seam keeps those responsibilities separate, lets tests substitute deterministic inventories, and makes code-facts outages loud instead of silently reintroducing heuristic authority. |
 
 ### Resolver (mechanical fixer — pluggable)
 
@@ -266,9 +286,9 @@ and use matrix/trace helpers from the relevant testutil package.
 |---|---|
 | **Seam** | One rung of the domain-extraction ladder |
 | **Interface** | `internal/domains/extractor.go::DomainSourceExtractor` (`Source() Source`, `Extract(ctx, scenarioDir) (Extraction, error)`) |
-| **Production wiring** | `main.go` constructs `domains.DefaultExtractors()` — `DomainsDocExtractor` + `FolderExtractor` + `CLIGroupExtractor`, in trust order — and passes them to `domains.NewService(...)`. A future `APIManifestExtractor` registers ahead of the DOMAINS.md rung when api-health ships. |
+| **Production wiring** | `main.go` constructs the ladder through `domains.ExtractorsForWithSurfaceProvider(...)` — `DomainsDocExtractor` + surface-backed folder/CLI extractors, in trust order — and passes them to `domains.NewService(...)`. A future `APIManifestExtractor` registers ahead of the DOMAINS.md rung when api-health ships. |
 | **Test fake** | `internal/domains/mocks::FakeExtractor` (programmable `Extraction`/`Err`, records `scenarioDir` calls). |
-| **Why it exists** | The derived domain map replaces the deleted per-scenario architecture manifest. Each rung reads a different on-disk source (DOMAINS.md, api/internal folders, cli groups); the seam lets ladder-resolution and convergence be tested with synthetic declarations and lets new rungs register without touching resolution logic. See `internal/domains/ladder_test.go` and `service_test.go`. |
+| **Why it exists** | The derived domain map replaces the deleted per-scenario architecture manifest. Each rung reads a different source (DOMAINS.md, code-facts-backed API folders, CLI groups); the seam lets ladder-resolution, convergence, and `domains draft` authoring be tested with synthetic declarations and lets new rungs register without touching resolution logic. See `internal/domains/ladder_test.go` and `service_test.go`. |
 
 ### ScenarioLocator (scenario-directory resolution)
 

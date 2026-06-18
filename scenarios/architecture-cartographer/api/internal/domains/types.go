@@ -109,6 +109,24 @@ type DerivedDomainMap struct {
 	Warnings []ExtractionWarning
 }
 
+// DomainDraft is an operator-facing proposal for a curated DOMAINS.md.
+// It is evidence-only and never writes authority to disk.
+type DomainDraft struct {
+	Scenario string
+	Domains  []ProposedDomain
+	Markdown string
+}
+
+// ProposedDomain is one row in a DomainDraft.
+type ProposedDomain struct {
+	Name       string
+	Paths      []string
+	Archetype  string
+	Glossary   []string
+	Confidence string
+	Evidence   []string
+}
+
 // DomainFor returns the name of the domain whose paths cover the given
 // repo-relative path, or "" when no domain owns it. The first matching
 // domain in Domains order wins; callers keep Domains sorted by name for

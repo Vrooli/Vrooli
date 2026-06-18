@@ -15,6 +15,8 @@ func Normalize(scenario string, raw RawGraph) GraphSnapshot {
 	packages := dedupePackages(raw.Packages)
 	symbols := dedupeSymbols(raw.Symbols)
 	imports := dedupeImports(raw.Imports)
+	inferFileTestFlags(files)
+	inferImportTestFlags(imports, files)
 
 	sort.Slice(files, func(i, j int) bool { return files[i].ID < files[j].ID })
 	sort.Slice(packages, func(i, j int) bool { return packages[i].ID < packages[j].ID })
@@ -53,6 +55,47 @@ func dedupeFiles(in []FileNode) []FileNode {
 	return out
 }
 
+func inferFileTestFlags(files []FileNode) {
+	for i := range files {
+		if files[i].IsTest {
+			continue
+		}
+		files[i].IsTest = isLikelyTestPath(files[i].Path)
+	}
+}
+
+func inferImportTestFlags(imports []ImportEdge, files []FileNode) {
+	testFiles := make(map[string]bool, len(files))
+	for _, f := range files {
+		if f.IsTest {
+			testFiles[f.ID] = true
+		}
+	}
+	for i := range imports {
+		if imports[i].TestOnly {
+			continue
+		}
+		imports[i].TestOnly = testFiles[imports[i].From]
+	}
+}
+
+func isLikelyTestPath(path string) bool {
+	switch {
+	case hasSuffix(path, "_test.go"),
+		hasSuffix(path, ".test.ts"),
+		hasSuffix(path, ".test.tsx"),
+		hasSuffix(path, ".spec.ts"),
+		hasSuffix(path, ".spec.tsx"):
+		return true
+	default:
+		return false
+	}
+}
+
+func hasSuffix(s, suffix string) bool {
+	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
+}
+
 func dedupePackages(in []PackageNode) []PackageNode {
 	seen := make(map[string]PackageNode, len(in))
 	for _, p := range in {
@@ -86,6 +129,7 @@ func dedupeImports(in []ImportEdge) []ImportEdge {
 			// Merge symbol ids; preserve test_only=false when at least
 			// one edge is non-test.
 			existing.SymbolIDs = mergeStrings(existing.SymbolIDs, e.SymbolIDs)
+			existing.SymbolKinds = mergeStrings(existing.SymbolKinds, e.SymbolKinds)
 			if !e.TestOnly {
 				existing.TestOnly = false
 			}
@@ -97,6 +141,10 @@ func dedupeImports(in []ImportEdge) []ImportEdge {
 		if len(e.SymbolIDs) > 0 {
 			ec.SymbolIDs = append([]string(nil), e.SymbolIDs...)
 			sort.Strings(ec.SymbolIDs)
+		}
+		if len(e.SymbolKinds) > 0 {
+			ec.SymbolKinds = append([]string(nil), e.SymbolKinds...)
+			sort.Strings(ec.SymbolKinds)
 		}
 		seen[k] = ec
 	}

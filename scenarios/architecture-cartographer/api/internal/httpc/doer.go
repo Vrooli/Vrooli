@@ -31,5 +31,5 @@ type Doer interface {
 }
 
 // Compile-time guarantee that *http.Client satisfies Doer. Production
-// callers pass `&http.Client{...}` directly — no wrapper required.
+// callers pass `&http.Client{Timeout: ...}` directly — no wrapper required.
 var _ Doer = (*http.Client)(nil)

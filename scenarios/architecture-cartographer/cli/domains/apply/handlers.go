@@ -43,9 +43,12 @@ func (h *handlers) suppress(ctx cliapp.RunContext) error {
 		Expires:  strings.TrimSpace(ctx.Flag("expires")),
 	}
 	if l := strings.TrimSpace(ctx.Flag("line")); l != "" {
-		n, err := strconv.Atoi(l)
+		n, err := strconv.ParseInt(l, 10, 32)
 		if err != nil {
-			return fmt.Errorf("--line must be an integer: %w", err)
+			return fmt.Errorf("--line must be a 32-bit integer: %w", err)
+		}
+		if n <= 0 {
+			return fmt.Errorf("--line must be greater than zero")
 		}
 		req.Line = int32(n)
 	}
@@ -135,9 +138,12 @@ func (h *handlers) history(ctx cliapp.RunContext) error {
 		PageToken: ctx.Flag("page-token"),
 	}
 	if raw := strings.TrimSpace(ctx.Flag("page-size")); raw != "" {
-		n, err := strconv.Atoi(raw)
+		n, err := strconv.ParseInt(raw, 10, 32)
 		if err != nil {
-			return fmt.Errorf("--page-size must be an integer: %w", err)
+			return fmt.Errorf("--page-size must be a 32-bit integer: %w", err)
+		}
+		if n <= 0 {
+			return fmt.Errorf("--page-size must be greater than zero")
 		}
 		req.PageSize = int32(n)
 	}

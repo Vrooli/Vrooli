@@ -10,16 +10,23 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-
-	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // CLIGroupExtractor derives domains from the command groups declared in
 // the CLI command manifest. It is a lower ladder rung used for convergence.
-type CLIGroupExtractor struct{}
+type CLIGroupExtractor struct {
+	surfaces SurfaceProvider
+}
 
 // NewCLIGroupExtractor returns the production CLI-group extractor.
-func NewCLIGroupExtractor() *CLIGroupExtractor { return &CLIGroupExtractor{} }
+func NewCLIGroupExtractor() *CLIGroupExtractor { return NewCLIGroupExtractorWithSurfaceProvider(nil) }
+
+func NewCLIGroupExtractorWithSurfaceProvider(surfaces SurfaceProvider) *CLIGroupExtractor {
+	if surfaces == nil {
+		surfaces = NewLocalSurfaceProvider()
+	}
+	return &CLIGroupExtractor{surfaces: surfaces}
+}
 
 // Source identifies this rung.
 func (*CLIGroupExtractor) Source() Source { return SourceCLIGroups }
@@ -34,13 +41,25 @@ type cliManifest struct {
 
 // Extract reads the scenario CLI command manifest and maps each command group to a domain.
 // A missing manifest returns an empty extraction; a malformed one errors.
-func (e *CLIGroupExtractor) Extract(_ context.Context, scenarioDir string) (Extraction, error) {
-	manifestRel := cliManifestRel(scenarioDir)
-	path := filepath.Join(scenarioDir, filepath.FromSlash(manifestRel))
+func (e *CLIGroupExtractor) Extract(ctx context.Context, scenarioDir string) (Extraction, error) {
+	provider := e.surfaces
+	if provider == nil {
+		provider = NewLocalSurfaceProvider()
+	}
+	inv, err := provider.Inspect(ctx, scenarioDir)
+	if err != nil {
+		return Extraction{}, fmt.Errorf("inspect surfaces: %w", err)
+	}
+	cli, ok := surfaceByID(inv, "cli")
+	if !ok {
+		return Extraction{Source: SourceCLIGroups, Warnings: append([]ExtractionWarning(nil), inv.Warnings...)}, nil
+	}
+	manifestRel := filepath.ToSlash(filepath.Join(surfaceRel(scenarioDir, cli.Path), "manifest.json"))
+	path := filepath.Join(cli.Path, "manifest.json")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return Extraction{Source: SourceCLIGroups}, nil
+			return Extraction{Source: SourceCLIGroups, Warnings: append([]ExtractionWarning(nil), inv.Warnings...)}, nil
 		}
 		return Extraction{}, fmt.Errorf("read %s: %w", manifestRel, err)
 	}
@@ -48,7 +67,7 @@ func (e *CLIGroupExtractor) Extract(_ context.Context, scenarioDir string) (Extr
 	if err := json.Unmarshal(data, &m); err != nil {
 		return Extraction{}, fmt.Errorf("%s: parse: %w", manifestRel, err)
 	}
-	out := Extraction{Source: SourceCLIGroups}
+	out := Extraction{Source: SourceCLIGroups, Warnings: append([]ExtractionWarning(nil), inv.Warnings...)}
 	for _, g := range m.Groups {
 		name := strings.TrimSpace(g.Name)
 		if name == "" {
@@ -61,13 +80,4 @@ func (e *CLIGroupExtractor) Extract(_ context.Context, scenarioDir string) (Extr
 	}
 	sort.Slice(out.Domains, func(i, j int) bool { return out.Domains[i].Name < out.Domains[j].Name })
 	return out, nil
-}
-
-func cliManifestRel(scenarioDir string) string {
-	repoRoot, err := repocontract.FindRepoRootFromPath(scenarioDir)
-	if err != nil {
-		repoRoot = ""
-	}
-	rel, _ := repocontract.ScenarioCLIManifestRel(repoRoot)
-	return rel
 }

@@ -67,6 +67,7 @@ type ImportEdge struct {
 	From        string
 	ToPackageID string
 	SymbolIDs   []string
+	SymbolKinds []string
 	TestOnly    bool
 }
 

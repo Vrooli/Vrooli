@@ -62,6 +62,22 @@ func TestService_ValidateConflicts_DirtyWhenErrorSeverity(t *testing.T) {
 	}
 }
 
+func TestService_ValidateConflicts_DirtyWhenBlockerSeverity(t *testing.T) {
+	_, svc := newSvc()
+	if _, err := svc.UpsertConflicts(context.Background(), "demo", []conflicts.Conflict{
+		{Type: "layering", Severity: conflicts.SeverityBlocker},
+	}); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	_, clean, err := svc.ValidateConflicts(context.Background(), "demo")
+	if err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+	if clean {
+		t.Fatal("want dirty (a blocker-severity conflict is outstanding)")
+	}
+}
+
 func TestService_ValidateConflicts_ExcludesSuppressed(t *testing.T) {
 	_, svc := newSvc()
 	if _, err := svc.UpsertConflicts(context.Background(), "demo", []conflicts.Conflict{

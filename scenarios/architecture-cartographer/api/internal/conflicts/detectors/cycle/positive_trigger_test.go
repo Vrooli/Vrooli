@@ -73,10 +73,10 @@ func TestPositiveTrigger_TwoNodeWithinDomain(t *testing.T) {
 			{ID: "pkg:y", RepoPath: "internal/widgets/y"},
 		},
 		Imports: []graph.ImportEdge{
-			// SymbolIDs present → classifier rules out type-only and falls
+			// Value-bearing symbol kinds rule out type-only and fall
 			// through to within-domain (single shared domain).
-			{From: "pkg:x", ToPackageID: "pkg:y", SymbolIDs: []string{"sym:Y.Func"}},
-			{From: "pkg:y", ToPackageID: "pkg:x", SymbolIDs: []string{"sym:X.Func"}},
+			{From: "pkg:x", ToPackageID: "pkg:y", SymbolIDs: []string{"sym:Y.Func"}, SymbolKinds: []string{"go_func"}},
+			{From: "pkg:y", ToPackageID: "pkg:x", SymbolIDs: []string{"sym:X.Func"}, SymbolKinds: []string{"go_func"}},
 		},
 	}
 	m := domains.DerivedDomainMap{

@@ -15,6 +15,7 @@ import (
 	"architecture-cartographer/internal/git"
 	"architecture-cartographer/internal/graph"
 	"architecture-cartographer/internal/signals"
+	"architecture-cartographer/internal/signals/graphindex"
 )
 
 const name = "git-co-edit"
@@ -195,24 +196,5 @@ func isHash(s string) bool {
 }
 
 func domainForFilePath(path string, gctx signals.GraphContext) string {
-	for _, d := range gctx.DomainMap.Domains {
-		for _, glob := range d.Paths {
-			if matches(path, glob) {
-				return d.Name
-			}
-		}
-	}
-	return ""
-}
-
-func matches(path, glob string) bool {
-	switch {
-	case glob == "**":
-		return true
-	case strings.HasSuffix(glob, "/**"):
-		prefix := glob[:len(glob)-3]
-		return path == prefix || strings.HasPrefix(path, prefix+"/")
-	default:
-		return path == glob
-	}
+	return graphindex.DomainForPath(path, gctx.DomainMap)
 }

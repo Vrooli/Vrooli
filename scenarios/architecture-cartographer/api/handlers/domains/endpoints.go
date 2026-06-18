@@ -34,4 +34,12 @@ var Endpoints = []module.EndpointDescriptor{
 		Description: "Reports where a scenario's surfaces (DOMAINS.md, api folders, cli groups, ui features) disagree on the domain set. Advisory, never a hard gate.",
 		Category:    "domains",
 	},
+	{
+		ID:          "domains.draft",
+		Path:        domains_v1connect.DomainsServiceDraftDomainsProcedure,
+		Method:      "POST",
+		Summary:     "Draft a DOMAINS.md inventory",
+		Description: "Proposes a docs/concepts/DOMAINS.md inventory from extracted evidence without writing authority to disk.",
+		Category:    "domains",
+	},
 }

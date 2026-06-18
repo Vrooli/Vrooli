@@ -19,14 +19,18 @@ import (
 // Envelope of env-var keys. All levers share the CARTOGRAPHER_ prefix,
 // matching the existing project-dir overrides in main.go.
 const (
-	EnvGodDomainFanOut     = "CARTOGRAPHER_GOD_DOMAIN_FANOUT"
-	EnvInstabilityWarnBand = "CARTOGRAPHER_INSTABILITY_WARN_BAND"
-	EnvAutoPlaceMin        = "CARTOGRAPHER_AUTO_PLACE_MIN"
-	EnvSuggestMin          = "CARTOGRAPHER_SUGGEST_MIN"
-	EnvTieDelta            = "CARTOGRAPHER_TIE_DELTA"
-	EnvArchetypeExemptions = "CARTOGRAPHER_ARCHETYPE_EXEMPTIONS"
-	EnvNonDomainFolders    = "CARTOGRAPHER_NON_DOMAIN_FOLDERS"
-	EnvLadderOrder         = "CARTOGRAPHER_LADDER_ORDER"
+	EnvGodDomainFanOut        = "CARTOGRAPHER_GOD_DOMAIN_FANOUT"
+	EnvInstabilityWarnBand    = "CARTOGRAPHER_INSTABILITY_WARN_BAND"
+	EnvAutoPlaceMin           = "CARTOGRAPHER_AUTO_PLACE_MIN"
+	EnvSuggestMin             = "CARTOGRAPHER_SUGGEST_MIN"
+	EnvTieDelta               = "CARTOGRAPHER_TIE_DELTA"
+	EnvArchetypeExemptions    = "CARTOGRAPHER_ARCHETYPE_EXEMPTIONS"
+	EnvNonDomainFolders       = "CARTOGRAPHER_NON_DOMAIN_FOLDERS"
+	EnvLadderOrder            = "CARTOGRAPHER_LADDER_ORDER"
+	EnvBannedVocab            = "CARTOGRAPHER_BANNED_VOCAB"
+	EnvLayeringStrict         = "CARTOGRAPHER_LAYERING_STRICT"
+	EnvFileCohesionMaxLines   = "CARTOGRAPHER_FILE_COHESION_MAX_LINES"
+	EnvFileCohesionMaxSymbols = "CARTOGRAPHER_FILE_COHESION_MAX_SYMBOLS"
 )
 
 // Config is the resolved control surface.
@@ -52,6 +56,16 @@ type Config struct {
 	// LadderOrder is the domain-extraction trust order (highest first), by
 	// source name. UI features are always advisory and appended regardless.
 	LadderOrder []string
+	// BannedVocabulary names generic package/domain terms the naming detector
+	// treats as intent-hiding architecture drift.
+	BannedVocabulary []string
+	// LayeringStrict promotes blocker-eligible wrong-direction dependencies to
+	// blocker severity. When false, they remain error severity.
+	LayeringStrict bool
+	// FileCohesionMaxLines / FileCohesionMaxSymbols bound single-file
+	// responsibility signals. Zero disables the corresponding signal.
+	FileCohesionMaxLines   int
+	FileCohesionMaxSymbols int
 }
 
 // Diagnostic is a non-fatal config-resolution finding.
@@ -65,14 +79,18 @@ type Diagnostic struct {
 // so omitting all env vars reproduces the original behavior.
 func Default() Config {
 	return Config{
-		GodDomainFanOut:       0.6,
-		InstabilityWarnBand:   0.7,
-		AutoPlaceMin:          0.85,
-		SuggestMin:            0.55,
-		TieDelta:              0.10,
-		ArchetypeExemptions:   []string{"composition-root", "infrastructure"},
-		ExtraNonDomainFolders: nil,
-		LadderOrder:           []string{"domains_doc", "api_folders", "cli_groups"},
+		GodDomainFanOut:        0.6,
+		InstabilityWarnBand:    0.7,
+		AutoPlaceMin:           0.85,
+		SuggestMin:             0.55,
+		TieDelta:               0.10,
+		ArchetypeExemptions:    []string{"composition-root", "infrastructure"},
+		ExtraNonDomainFolders:  nil,
+		LadderOrder:            []string{"domains_doc", "api_folders", "cli_groups"},
+		BannedVocabulary:       []string{"common", "helpers", "manager", "misc", "stuff", "utils"},
+		LayeringStrict:         true,
+		FileCohesionMaxLines:   400,
+		FileCohesionMaxSymbols: 25,
 	}
 }
 
@@ -123,6 +141,16 @@ func Load(getenv func(string) string) (Config, []Diagnostic) {
 			diags = append(diags, Diagnostic{Key: EnvLadderOrder, Message: "no valid ladder sources; keeping default order"})
 		}
 	}
+	if v := strings.TrimSpace(getenv(EnvBannedVocab)); v != "" {
+		cfg.BannedVocabulary = splitCSV(v)
+		if len(cfg.BannedVocabulary) == 0 {
+			diags = append(diags, Diagnostic{Key: EnvBannedVocab, Message: "no valid banned vocabulary terms; keeping default list"})
+			cfg.BannedVocabulary = Default().BannedVocabulary
+		}
+	}
+	cfg.LayeringStrict = boolLever(getenv, EnvLayeringStrict, cfg.LayeringStrict, &diags)
+	cfg.FileCohesionMaxLines = intLever(getenv, EnvFileCohesionMaxLines, cfg.FileCohesionMaxLines, 0, 100000, &diags)
+	cfg.FileCohesionMaxSymbols = intLever(getenv, EnvFileCohesionMaxSymbols, cfg.FileCohesionMaxSymbols, 0, 100000, &diags)
 
 	return cfg, diags
 }
@@ -168,4 +196,44 @@ func splitCSV(s string) []string {
 		}
 	}
 	return out
+}
+
+func boolLever(getenv func(string) string, key string, def bool, diags *[]Diagnostic) bool {
+	raw := strings.TrimSpace(getenv(key))
+	if raw == "" {
+		return def
+	}
+	switch strings.ToLower(raw) {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		*diags = append(*diags, Diagnostic{Key: key, Message: fmt.Sprintf("%q is not a boolean; using default %t", raw, def)})
+		return def
+	}
+}
+
+func intLever(getenv func(string) string, key string, def, lo, hi int, diags *[]Diagnostic) int {
+	raw := strings.TrimSpace(getenv(key))
+	if raw == "" {
+		return def
+	}
+	v, err := strconv.Atoi(raw)
+	if err != nil {
+		*diags = append(*diags, Diagnostic{Key: key, Message: fmt.Sprintf("%q is not an integer; using default %d", raw, def)})
+		return def
+	}
+	if v < lo || v > hi {
+		clamped := v
+		if v < lo {
+			clamped = lo
+		}
+		if v > hi {
+			clamped = hi
+		}
+		*diags = append(*diags, Diagnostic{Key: key, Message: fmt.Sprintf("%d out of range [%d,%d]; clamped to %d", v, lo, hi, clamped)})
+		return clamped
+	}
+	return v
 }

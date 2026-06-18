@@ -80,6 +80,37 @@ func (h *Handler) ConvergenceReport(ctx context.Context, req *connect.Request[do
 	return connect.NewResponse(out), nil
 }
 
+// DraftDomains proposes a DOMAINS.md inventory without writing it.
+func (h *Handler) DraftDomains(ctx context.Context, req *connect.Request[domainsv1.DraftDomainsRequest]) (*connect.Response[domainsv1.DraftDomainsResponse], error) {
+	scenario := strings.TrimSpace(req.Msg.GetScenario())
+	if scenario == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scenario is required"))
+	}
+	draft, err := h.svc.DraftDomains(ctx, scenario)
+	if err != nil {
+		return nil, connect.NewError(domains.ErrorToConnectCode(err), err)
+	}
+	out := &domainsv1.DraftDomainsResponse{
+		Scenario: draft.Scenario,
+		Markdown: draft.Markdown,
+	}
+	for _, d := range draft.Domains {
+		out.Domains = append(out.Domains, proposedDomainToProto(d))
+	}
+	return connect.NewResponse(out), nil
+}
+
+func proposedDomainToProto(d domains.ProposedDomain) *domainsv1.ProposedDomain {
+	return &domainsv1.ProposedDomain{
+		Name:       d.Name,
+		Paths:      append([]string(nil), d.Paths...),
+		Archetype:  d.Archetype,
+		Glossary:   append([]string(nil), d.Glossary...),
+		Confidence: d.Confidence,
+		Evidence:   append([]string(nil), d.Evidence...),
+	}
+}
+
 func convergenceToProto(f domains.ConvergenceFinding) *domainsv1.ConvergenceFinding {
 	out := &domainsv1.ConvergenceFinding{
 		Kind:            f.Kind,

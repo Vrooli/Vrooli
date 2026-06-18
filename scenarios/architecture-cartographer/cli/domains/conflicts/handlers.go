@@ -64,9 +64,12 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 		PageToken: ctx.Flag("page-token"),
 	}
 	if raw := strings.TrimSpace(ctx.Flag("page-size")); raw != "" {
-		n, err := strconv.Atoi(raw)
+		n, err := strconv.ParseInt(raw, 10, 32)
 		if err != nil {
-			return fmt.Errorf("--page-size must be an integer: %w", err)
+			return fmt.Errorf("--page-size must be a 32-bit integer: %w", err)
+		}
+		if n <= 0 {
+			return fmt.Errorf("--page-size must be greater than zero")
 		}
 		req.PageSize = int32(n)
 	}

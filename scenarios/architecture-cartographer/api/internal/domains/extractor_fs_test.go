@@ -2,6 +2,7 @@ package domains
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -38,7 +39,9 @@ func TestFolderExtractor(t *testing.T) {
 		"api/handlers/graph",    // makes graph also own handlers path
 	)
 
-	ext, err := NewFolderExtractor().Extract(context.Background(), dir)
+	ext, err := NewFolderExtractorWithSurfaceProvider(nil, fakeSurfaceProvider{
+		inv: SurfaceInventory{Surfaces: []Surface{{ID: "api", Kind: "api", Path: filepath.Join(dir, "api"), Status: "known"}}},
+	}).Extract(context.Background(), dir)
 	if err != nil {
 		t.Fatalf("extract: %v", err)
 	}
@@ -62,7 +65,9 @@ func TestFolderExtractor(t *testing.T) {
 func TestFolderExtractor_Exemptions(t *testing.T) {
 	dir := t.TempDir()
 	mkdirs(t, dir, "api/internal/graph", "api/internal/recipes")
-	ext, err := NewFolderExtractorWithExemptions([]string{"recipes"}).Extract(context.Background(), dir)
+	ext, err := NewFolderExtractorWithSurfaceProvider([]string{"recipes"}, fakeSurfaceProvider{
+		inv: SurfaceInventory{Surfaces: []Surface{{ID: "api", Kind: "api", Path: filepath.Join(dir, "api"), Status: "known"}}},
+	}).Extract(context.Background(), dir)
 	if err != nil {
 		t.Fatalf("extract: %v", err)
 	}
@@ -81,16 +86,46 @@ func TestFolderExtractor_MissingDir(t *testing.T) {
 	}
 }
 
+func TestFolderExtractor_SurfaceProviderWarningPropagates(t *testing.T) {
+	dir := t.TempDir()
+	mkdirs(t, dir, "api/internal/graph")
+	ext, err := NewFolderExtractorWithSurfaceProvider(nil, fakeSurfaceProvider{
+		inv: SurfaceInventory{
+			Surfaces: []Surface{{ID: "api", Kind: "api", Path: filepath.Join(dir, "api"), Status: "known"}},
+			Warnings: []ExtractionWarning{{
+				Kind:    "code_facts.unavailable",
+				Summary: "fallback",
+			}},
+		},
+	}).Extract(context.Background(), dir)
+	if err != nil {
+		t.Fatalf("extract: %v", err)
+	}
+	if len(ext.Warnings) != 1 || ext.Warnings[0].Kind != "code_facts.unavailable" {
+		t.Fatalf("warnings = %+v", ext.Warnings)
+	}
+}
+
+func TestFolderExtractor_SurfaceProviderError(t *testing.T) {
+	_, err := NewFolderExtractorWithSurfaceProvider(nil, fakeSurfaceProvider{err: errors.New("boom")}).
+		Extract(context.Background(), t.TempDir())
+	if err == nil {
+		t.Fatal("expected provider error")
+	}
+}
+
 func TestCLIGroupExtractor(t *testing.T) {
 	dir := t.TempDir()
-	writeFile(t, dir, cliManifestRel(dir), `{
+	writeFile(t, dir, "cli/manifest.json", `{
       "name": "x",
       "groups": [
         {"name": "graph", "commands": []},
         {"name": "conflicts", "commands": []}
       ]
     }`)
-	ext, err := NewCLIGroupExtractor().Extract(context.Background(), dir)
+	ext, err := NewCLIGroupExtractorWithSurfaceProvider(fakeSurfaceProvider{
+		inv: SurfaceInventory{Surfaces: []Surface{{ID: "cli", Kind: "cli", Path: filepath.Join(dir, "cli"), Status: "known"}}},
+	}).Extract(context.Background(), dir)
 	if err != nil {
 		t.Fatalf("extract: %v", err)
 	}
@@ -118,8 +153,17 @@ func TestCLIGroupExtractor_MissingManifest(t *testing.T) {
 
 func TestCLIGroupExtractor_Malformed(t *testing.T) {
 	dir := t.TempDir()
-	writeFile(t, dir, cliManifestRel(dir), `{not json`)
+	writeFile(t, dir, "cli/manifest.json", `{not json`)
 	if _, err := NewCLIGroupExtractor().Extract(context.Background(), dir); err == nil {
 		t.Fatal("expected parse error for malformed manifest")
 	}
+}
+
+type fakeSurfaceProvider struct {
+	inv SurfaceInventory
+	err error
+}
+
+func (f fakeSurfaceProvider) Inspect(context.Context, string) (SurfaceInventory, error) {
+	return f.inv, f.err
 }

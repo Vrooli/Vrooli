@@ -52,6 +52,7 @@ func (a signalsVerdictAdapter) VerdictsFor(ctx context.Context, scenario string,
 			RunnerUpDomain: v.RunnerUpDomain,
 			RunnerUpValue:  v.RunnerUpValue,
 			Tied:           v.Tied,
+			AllAbstained:   len(v.Scores) == 0 && len(v.Abstentions) > 0,
 		}
 	}
 	return out, nil

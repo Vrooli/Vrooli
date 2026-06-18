@@ -291,6 +291,15 @@ func renderHuman(msg *auditv1.AuditRunResponse) {
 		freshnessName(msg.GetSnapshotFreshness()))
 	fmt.Printf("  domains: authority=%s confidence=%s count=%d\n",
 		d.GetAuthority(), d.GetConfidence(), d.GetDomainCount())
+	if c := msg.GetCoverage(); c != nil {
+		fmt.Printf("  coverage: files=%d auto_place=%d(%.1f%%) suggest=%d(%.1f%%) conflict=%d(%.1f%%) all_abstained=%d(%.1f%%) authority=%s\n",
+			c.GetTotalFiles(),
+			c.GetAutoPlace().GetCount(), c.GetAutoPlace().GetPercent(),
+			c.GetSuggest().GetCount(), c.GetSuggest().GetPercent(),
+			c.GetConflict().GetCount(), c.GetConflict().GetPercent(),
+			c.GetAllAbstained().GetCount(), c.GetAllAbstained().GetPercent(),
+			c.GetAuthorityConfidence())
+	}
 	if s := msg.GetSuppressedFindings(); s > 0 {
 		fmt.Printf("  suppressed: %d (sanctioned by // arch:allow)\n", s)
 	}
@@ -389,6 +398,7 @@ type jsonReportT struct {
 	Findings           []jsonFinding    `json:"findings,omitempty"`
 	Domains            map[string]any   `json:"domains"`
 	Graph              map[string]any   `json:"graph"`
+	Coverage           map[string]any   `json:"coverage,omitempty"`
 	Assessment         any              `json:"assessment,omitempty"`
 	DurationMS         int64            `json:"duration_ms"`
 }
@@ -432,6 +442,16 @@ func jsonReport(msg *auditv1.AuditRunResponse) jsonReportT {
 		},
 		Assessment: msg.GetAssessment(),
 	}
+	if c := msg.GetCoverage(); c != nil {
+		out.Coverage = map[string]any{
+			"total_files":          c.GetTotalFiles(),
+			"authority_confidence": c.GetAuthorityConfidence(),
+			"auto_place":           coverageBucketJSON(c.GetAutoPlace()),
+			"suggest":              coverageBucketJSON(c.GetSuggest()),
+			"conflict":             coverageBucketJSON(c.GetConflict()),
+			"all_abstained":        coverageBucketJSON(c.GetAllAbstained()),
+		}
+	}
 	for _, f := range msg.GetFindings() {
 		out.Findings = append(out.Findings, jsonFinding{
 			ID:         f.GetId(),
@@ -447,4 +467,11 @@ func jsonReport(msg *auditv1.AuditRunResponse) jsonReportT {
 		})
 	}
 	return out
+}
+
+func coverageBucketJSON(b *auditv1.CoverageBucket) map[string]any {
+	return map[string]any{
+		"count":   b.GetCount(),
+		"percent": b.GetPercent(),
+	}
 }

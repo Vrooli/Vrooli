@@ -34,8 +34,10 @@ type Handler struct {
 // NewHandler constructs the Connect handler.
 func NewHandler(svc audit.Service) *Handler { return &Handler{svc: svc} }
 
-var _ audit_v1connect.AuditServiceHandler = (*Handler)(nil)
-var _ scenariovalidationconnect.ScenarioValidationServiceHandler = (*Handler)(nil)
+var (
+	_ audit_v1connect.AuditServiceHandler                        = (*Handler)(nil)
+	_ scenariovalidationconnect.ScenarioValidationServiceHandler = (*Handler)(nil)
+)
 
 func (h *Handler) RunAll(ctx context.Context, req *connect.Request[auditv1.AuditRunAllRequest]) (*connect.Response[auditv1.AuditRunAllResponse], error) {
 	sweep, err := h.svc.RunAll(ctx, audit.RunAllInput{
@@ -185,6 +187,7 @@ func reportToProto(r audit.Report) *auditv1.AuditRunResponse {
 			PackageCount:    int32(r.Graph.PackageCount),
 			ImportEdgeCount: int32(r.Graph.ImportEdgeCount),
 		},
+		Coverage: coverageToProto(r.Coverage, r.Domains.Confidence),
 	}
 	for _, c := range r.Findings {
 		out.Findings = append(out.Findings, &auditv1.ConflictSummary{
@@ -204,6 +207,24 @@ func reportToProto(r audit.Report) *auditv1.AuditRunResponse {
 		out.Assessment = maturity
 	}
 	return out
+}
+
+func coverageToProto(c audit.CoverageSummary, authorityConfidence string) *auditv1.CoverageSummary {
+	return &auditv1.CoverageSummary{
+		TotalFiles:          int32(c.TotalFiles),
+		AutoPlace:           coverageBucketToProto(c.AutoPlace),
+		Suggest:             coverageBucketToProto(c.Suggest),
+		Conflict:            coverageBucketToProto(c.Conflict),
+		AllAbstained:        coverageBucketToProto(c.AllAbstained),
+		AuthorityConfidence: authorityConfidence,
+	}
+}
+
+func coverageBucketToProto(b audit.CoverageBucket) *auditv1.CoverageBucket {
+	return &auditv1.CoverageBucket{
+		Count:   int32(b.Count),
+		Percent: b.Percent,
+	}
 }
 
 func buildMaturityAssessment(r audit.Report) (*commonv1.MaturityAssessment, error) {
