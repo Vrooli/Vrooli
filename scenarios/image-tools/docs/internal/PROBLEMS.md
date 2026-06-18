@@ -247,6 +247,11 @@ unit-tested for assembly. `probe` is the live headless proof.
 `models install`). Capture it as a checklist item; flip this entry to resolved
 once an attended run exercises each AI op from the CLI with no GPU/ComfyUI.
 
+**Update (2026-06-18):** The attended gate was performed. It revealed a second,
+more fundamental blocker beyond absent backends — the `models install` path is a
+stub that fetches landing pages, not weights (see the 2026-06-18 entry below).
+Deterministic ops + `analyze probe` run end-to-end for real; no AI op can.
+
 **Owner:** unassigned (Phase 4 wires model download; then run the attended gate).
 
 **Refs:** `api/internal/ai/`, `api/internal/analysis/`, `docs/internal/TESTING.md`
@@ -320,6 +325,45 @@ rather than parsing it as `name@variant`). Filed to scenario-qa.
 **Refs:** `bas/cases/deterministic-ops/ui/editor-lists-operations.json`,
 `bas/cases/routed-database/proves-test-pool-routing.json`, root `vrooli scenario
 port`.
+
+### 2026-06-18 — `models install` fetches landing pages, not weights — install path is a stub for all 49 models
+
+**Symptom:** `image-tools models install <id> --wait` reports ✅ success in ~1s
+for any model, pins a real sha256, and marks it `installed`. The downloaded
+"weights" are not a model. Reproduced live: `models install u2netp` produced a
+**441 KB GitHub HTML page** (`<!DOCTYPE html>…`) saved as
+`~/.vrooli/data/vrooli/image-tools/models/u2netp/rembg`. The selection gate then
+treats the model as installed, yet no op can run.
+
+**Root cause:** The installer downloads whatever `source.download_url` returns
+and pins *its* checksum, with **no validation that the bytes are a real model
+artifact** (no content-type / magic-number / expected-extension / size-band
+check, no HF-resolve or release-asset resolution). The seed's `download_url`s
+are HuggingFace/GitHub **landing & release pages**, not direct weight assets —
+**0 of 49 seeded models** point to a `.onnx/.safetensors/.pth/.gguf/.zip` file.
+So "checksum pinned on first download" gives genuine integrity of the **wrong
+bytes** — false verification. This is independent of, and compounds, the absent
+backend programs (2026-06-17 entry above): an AI op is blocked by *both*.
+
+**Workaround:** None — AI ops cannot run end-to-end. Deterministic editing +
+`analyze probe` are the only genuinely-working paths today (both verified live
+2026-06-18).
+
+**Real fix:** (1) `models install` must resolve and fetch the actual weight
+asset(s) per model + backend file layout (HF resolve URLs / release assets),
+**validate** the downloaded artifact (expected type/magic/size, not just
+self-checksum), and pin an upstream-verified checksum. (2) Add a backend-program
+provisioning story — install/detect `rembg`/`sd`/`realesrgan`/`iopaint`/
+`tesseract`, or pivot CPU defaults toward provisionable pure-Go/ONNX-runtime
+paths — backends are currently unmanaged host prerequisites with no install
+path. (3) Make the registry/selector honest about *runnable* vs *declared*. This
+is the foundational phase of the image-tools advanced-editing plan.
+
+**Owner:** unassigned (image-tools model-management).
+
+**Refs:** `api/internal/models/` (installer / `Downloader`),
+`api/internal/models/registry.seed.json` (`source.download_url` ×49), the
+2026-06-17 attended-acceptance entry above.
 
 ## Architecture Drift
 

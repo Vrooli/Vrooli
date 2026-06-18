@@ -573,6 +573,131 @@
       ]
     },
     {
+      "name": "gate",
+      "description": "Cross-OS deployment gates: validate a scenario natively on one node per target OS and aggregate one production-readiness verdict",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Run a cross-OS deployment gate: validate a scenario on one node per target OS and aggregate the verdict",
+          "flags": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario to validate across OSes"
+            },
+            {
+              "name": "revision",
+              "required": true,
+              "description": "Git revision every target node validates at"
+            },
+            {
+              "name": "oses",
+              "required": true,
+              "description": "Comma-separated target OSes (e.g. linux,darwin,windows)"
+            },
+            {
+              "name": "verb",
+              "description": "Validation verb namespace (default: 'scenario test')"
+            },
+            {
+              "name": "args",
+              "description": "Comma-separated extra argument tokens for the validation verb"
+            },
+            {
+              "name": "timeout",
+              "description": "Per-OS validation wall-clock budget in seconds (0 = server default)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GateService",
+            "method": "RunGate"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Show one gate by id with its per-OS ledger and live cross-OS verdict",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Gate id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GateService",
+            "method": "GetGate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "wait",
+          "description": "Block once until a gate is terminal (no polling); exits non-zero unless every OS passed",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Gate id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "timeout",
+              "description": "Seconds to block before returning timed-out (0 = server default)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GateService",
+            "method": "WaitGate"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List gates newest-first",
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Maximum gates to return"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "GateService",
+            "method": "ListGates"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "queue",
       "description": "Inspect the live per-node job queue (bounded concurrency + fair scheduling)",
       "commands": [

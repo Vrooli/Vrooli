@@ -49,6 +49,34 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
+### 2026-06-18 — Phase 6 COMPLETE (cross-OS deployment gate + consumer/P2 seams). PRODUCT SURFACE DONE.
+
+The `gate` domain (OT-P1-002) is built end-to-end: `gate.proto`
+(`GateService` RunGate/GetGate/WaitGate/ListGates), `internal/gate` (select one
+eligible node per target OS → delegate each validation run to the SHARED dispatch
+service + runs lifecycle via the `Runner` seam → live-recompute the aggregate
+verdict), `handlers/gate`, `cli/domains/gate`, `gates`+`gate_os_results` schema.
+`dispatch.Module` was split into `NewService`+`Module` so one dispatch instance
+backs both the dispatch handler and the gate runner (every gate validation run
+flows through the same allowlist + scopes + audit). All tests `[REQ:BRG-P1-002]`;
+deployment-manager wired as the first consumer (`crossosgate`, Connect/JSON, no
+proto-module dep, additive + inert until `VROOLI_BRIDGE_URL` is set).
+
+**P2 future seams — recorded, deliberately NOT built (gated on separate tracks).**
+Bridge is written cross-platform from day one so it is never the blocker, but
+these are out of this plan's scope:
+
+| OT | Capability | Why deferred | Revisit trigger | Seam it reuses |
+|---|---|---|---|---|
+| OT-P2-001 | Control plane on macOS/Windows | Gated on Vrooli-the-platform becoming installable on Mac/Win (a platform-level track, not a bridge feature). Bridge code is already `CGO_ENABLED=0` + cross-compiles for the matrix. | Platform installable on Mac/Win. | (whole scenario — verified portable). |
+| OT-P2-002 | remote-desktop integration seam | A separate FUTURE scenario (screen/input control) reuses bridge node identity/reach; not a bridge domain. | Real-time remote control is built. | `registry` identity/reach. |
+| OT-P2-003 | Cloud-runner / ephemeral nodes | Extends `registry` (node kind is metadata) + a provider integration; no on-demand capacity need yet. | On-demand VM/cloud capacity required. | `registry` + `provision`. |
+| OT-P2-004 | Self-healing re-provisioning | Extends `provision` with drift detection + auto-reprovision; manual `fleet roll` suffices at current fleet size. | Fleet size makes manual re-provisioning costly. | `provision` + `compat`/`presence` gating. |
+
+The contracts these consume (`registry`/`dispatch`/`runs`/`gate`) are the
+deliverable seams — documented in [`SEAMS.md`](SEAMS.md) ("exposed (not built)
+consumer seams"); the integrations are built by their own initiatives, not here.
+
 ### 2026-06-18 — Phase 4 COMPLETE (privileged provisioning tier + cross-platform agent). P0 DONE.
 
 **Status:** RESOLVED for OT-P0-006/007. Built the `provision` control-plane
@@ -311,7 +339,7 @@ a migration handoff with a planned retirement path back into
 
 | Area | Drift | Maturity Impact | Real Fix |
 |---|---|---|---|
-| handler adapters (all domains) | `architecture-cartographer` flags `layering/handler-imports-sibling-domain` (23 error findings) because each `api/handlers/<domain>/adapter.go` imports SIBLING domains to bind its domain's proto-free seams (registry/presence/audit/provision/runs). | This is the codebase's deliberate **"single translation point"** pattern (every domain since Phase 1 — audit/channel/dispatch/registry/provision all do it; SEAMS.md + each adapter.go document it: *the domain never imports a sibling domain or proto; these adapters do*). It was previously ABSTAINED by the auditor; Phase 5 documenting the 3 new domains in DOMAINS.md raised the domain-map authority to high, which turned the abstentions into blocking findings. Not a new code smell — Phase 5's fleet/queue/artifacts handlers follow the identical established pattern. | If the auditor's rule is to be honored ecosystem-wide, move every handler's seam-binding adapter out of the handler package (e.g. a per-domain `wiring/` constructed in main.go) — a cross-cutting refactor across all 11 domains, out of Phase 5 scope. Otherwise teach the test-genie architecture phase to allow handler→sibling-domain imports via `adapter.go` (a documented exception), since the pattern is intentional. |
+| handler adapters (all domains) | `architecture-cartographer` flags `layering/handler-imports-sibling-domain` because each `api/handlers/<domain>/adapter.go` imports SIBLING domains to bind its domain's proto-free seams (registry/presence/audit/provision/runs/dispatch). Phase 6's `handlers/gate/adapter.go` adds the same pattern (it imports dispatch + registry + runs to bind the gate `Runner`/`NodeLister` seams). | This is the codebase's deliberate **"single translation point"** pattern (every domain since Phase 1 — audit/channel/dispatch/registry/provision/fleet/queue/artifacts/gate all do it; SEAMS.md + each adapter.go document it: *the domain never imports a sibling domain or proto; these adapters do*). It was previously ABSTAINED by the auditor; Phase 5 documenting the new domains in DOMAINS.md raised the domain-map authority to high, which turned the abstentions into blocking findings. Not a new code smell — gate follows the identical established pattern. | If the auditor's rule is to be honored ecosystem-wide, move every handler's seam-binding adapter out of the handler package (e.g. a per-domain `wiring/` constructed in main.go) — a cross-cutting refactor across all 12 domains, out of Phase 6 scope. Otherwise teach the test-genie architecture phase to allow handler→sibling-domain imports via `adapter.go` (a documented exception), since the pattern is intentional. |
 | convergence/glossary drift (warn) | `convergence_drift` (per-domain) + `glossary_drift` (heuristic, on seams/mocks/types files) warnings. | Heuristic naming-consistency nudges across pre-existing and new domains; non-blocking on their own (the blocking outcome is the layering errors above). | Reconcile domain vocabulary in DOMAINS.md as the glossary stabilizes; low priority. |
 
 ## Cross-references

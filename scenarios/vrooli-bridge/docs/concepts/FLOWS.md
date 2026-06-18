@@ -63,6 +63,38 @@ Code: `internal/dispatch`, `internal/runs`, `agent/internal/exec`. Tests:
 `internal/runs/durable_test.go`, `internal/runs/results_test.go`,
 `handlers/runs/connect_handler_test.go`.
 
+### Cross-OS deployment gate
+
+The cross-OS validation flow (OT-P1-002, built in Phase 6). Owner — or
+deployment-manager on the owner's behalf — calls `RunGate(scenario,
+target_revision, target_oses[])`. The gate domain:
+
+1. **Selects** one eligible node per target OS — registered + online +
+   protocol-compatible + not-revoked + matching OS (lowest node id wins for
+   determinism). A target OS with no eligible node is recorded `NO_NODE`.
+2. **Fans out** a validation run per selected node by delegating to the SHARED
+   dispatch service (the default verb is `scenario test <scenario>`), so each run
+   is allowlist-checked, scoped, audited, and tracked as a durable run exactly
+   like any other job. Gate reimplements neither dispatch nor run management.
+3. **Records** a durable `Gate` + per-OS ledger and returns the gate id
+   immediately (the per-OS runs execute concurrently on their nodes).
+
+The aggregate verdict is **recomputed live** from the per-OS runs:
+`GetGate` reads the current state without blocking; `WaitGate` blocks once until
+every target run is terminal (or the wait window elapses) and returns the final
+verdict — no polling. **Aggregation rule:** PASSED only when every OS is green;
+ANY failing OS — a non-zero/aborted run OR a `NO_NODE` target — fails the gate
+(fail-fast, even while other targets still run), with the offending OS's run id
+surfaced for log drill-in. A timed-out gate stays PENDING (`timed_out=true`); it
+is durable and re-attachable by id, never assumed green.
+
+deployment-manager consumes this over Connect/JSON (`crossosgate`) and owns the
+resulting production-readiness decision (see [`INTEGRATIONS.md`](INTEGRATIONS.md#deployment-manager)).
+
+Code: `internal/gate`, `handlers/gate` (delegates to `internal/dispatch` +
+`internal/runs`). Tests: `internal/gate/aggregate_test.go`,
+`internal/gate/service_test.go`, `handlers/gate/deployment_manager_test.go`.
+
 ## State Machines
 
 List each modeled flow's states, illegal transitions, and how they are
@@ -207,7 +239,7 @@ To add or rename a state/event:
 | Job dispatch & durable run | High — network boundary + disconnect + cancellation + stale completion; mirrors the risks test-genie's durable runs already solve. | Model at Level 5 once the runs domain exists; reuse test-genie run-lifecycle semantics rather than reinventing. |
 | Provisioning / sync-to-revision | High — partial/failed setup must roll back cleanly; idempotency is load-bearing. | Model at Level 5 with explicit rollback states when the provisioning domain exists. |
 | Node bootstrap & pairing | Medium — single-use codes, expiry, and mutual-auth handshake have ordering constraints. | Model at Level 4 when the pairing domain exists. |
-| Cross-OS deployment gate | Medium — aggregation across N nodes with partial failure. | Model at Level 4 when the gate domain exists. |
+| Cross-OS deployment gate | Modeled (Level 1 inventory + detail above) as of Phase 6. | Lift to a Level-4/5 Quint model of the fan-out + partial-failure aggregation when the live A/B warrants it. |
 | Node presence | Low — simple online/offline with heartbeat. | Model at Level 2–3 when the presence domain exists. |
 
 ## Cross-References

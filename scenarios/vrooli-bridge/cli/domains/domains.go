@@ -5,6 +5,7 @@ import (
 	"vrooli-bridge/cli/domains/audit"
 	"vrooli-bridge/cli/domains/dispatch"
 	"vrooli-bridge/cli/domains/fleet"
+	"vrooli-bridge/cli/domains/gate"
 	"vrooli-bridge/cli/domains/nodes"
 	"vrooli-bridge/cli/domains/pairing"
 	"vrooli-bridge/cli/domains/provision"
@@ -44,59 +45,27 @@ func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 // templates/scenarios/react-vite/docs/internal/SEAMS.md (manifest ↔
 // handlers bindings seam) for the contract.
 func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
-	groups := []cliapp.SubcommandGroup{}
-	nodesGroup, err := nodes.Register(core, manifest)
-	if err != nil {
-		return nil, err
+	// One registrar per domain. Adding a domain is one line here; the loop keeps
+	// this aggregator flat (no per-domain error-handling branch to grow).
+	registrars := []func(*cliapp.ScenarioApp, []byte) (cliapp.SubcommandGroup, error){
+		nodes.Register,
+		pairing.Register,
+		dispatch.Register,
+		fleet.Register,
+		gate.Register,
+		provision.Register,
+		queue.Register,
+		runs.Register,
+		audit.Register,
+		artifacts.Register,
 	}
-	groups = append(groups, nodesGroup)
-
-	pairGroup, err := pairing.Register(core, manifest)
-	if err != nil {
-		return nil, err
+	groups := make([]cliapp.SubcommandGroup, 0, len(registrars))
+	for _, register := range registrars {
+		group, err := register(core, manifest)
+		if err != nil {
+			return nil, err
+		}
+		groups = append(groups, group)
 	}
-	groups = append(groups, pairGroup)
-
-	dispatchGroup, err := dispatch.Register(core, manifest)
-	if err != nil {
-		return nil, err
-	}
-	groups = append(groups, dispatchGroup)
-
-	fleetGroup, err := fleet.Register(core, manifest)
-	if err != nil {
-		return nil, err
-	}
-	groups = append(groups, fleetGroup)
-
-	provisionGroup, err := provision.Register(core, manifest)
-	if err != nil {
-		return nil, err
-	}
-	groups = append(groups, provisionGroup)
-
-	queueGroup, err := queue.Register(core, manifest)
-	if err != nil {
-		return nil, err
-	}
-	groups = append(groups, queueGroup)
-
-	runsGroup, err := runs.Register(core, manifest)
-	if err != nil {
-		return nil, err
-	}
-	groups = append(groups, runsGroup)
-
-	auditGroup, err := audit.Register(core, manifest)
-	if err != nil {
-		return nil, err
-	}
-	groups = append(groups, auditGroup)
-
-	artifactsGroup, err := artifacts.Register(core, manifest)
-	if err != nil {
-		return nil, err
-	}
-	groups = append(groups, artifactsGroup)
 	return groups, nil
 }

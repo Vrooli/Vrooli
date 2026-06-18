@@ -48,6 +48,35 @@ These are the compositions that keep bridge from reinventing solved problems. Ea
 | deployment-manager + scenario-to-desktop | consumer (P1) | Consumers of the cross-OS validation gate; deployment-manager owns the verdict, bridge supplies the capability. | gate API contract. |
 | secrets-manager | optional (P2) | Path for any node-bound secret; bridge never ships secrets ad hoc. | secret resolution seam. |
 
+### deployment-manager
+
+The cross-OS deployment gate (OT-P1-002) is the headline consumer integration:
+**bridge supplies the capability, deployment-manager owns the verdict.**
+
+- **What bridge supplies:** `GateService` (`RunGate` / `GetGate` / `WaitGate` /
+  `ListGates`). `RunGate(scenario, target_revision, target_oses[])` selects one
+  eligible node per OS, dispatches the native validation run to each (the default
+  verb is `scenario test <scenario>`) through the allowlisted dispatch path, and
+  records a durable gate. `WaitGate` blocks once and returns the aggregate
+  cross-OS verdict — PASSED only when **every** target OS validated green; ANY
+  failing OS (a non-zero/aborted run, or a target OS with no eligible node) fails
+  the gate, with the offending OS's run id surfaced for log drill-in.
+- **What deployment-manager owns:** the promotion decision. Its
+  `crossosgate` package (`scenarios/deployment-manager/api/crossosgate/`) speaks
+  bridge's `GateService` over the Connect unary JSON protocol — **no proto-module
+  dependency on the consumer side** — and maps the aggregate gate verdict to its
+  own `ProductionReady` boolean (`POST /api/v1/cross-os-gate/evaluate`). A
+  timed-out gate is never assumed green; promotion is withheld until a real green
+  is observed (the gate is durable + re-attachable by id).
+- **Wiring:** additive and inert by default — the route returns `503` until
+  `VROOLI_BRIDGE_URL` (and optional `VROOLI_BRIDGE_TOKEN`) point at a bridge
+  control plane, so the integration never destabilizes deployment-manager's
+  existing flows.
+- **Business validation (BRG-P1-002):** a scenario is proven green on real
+  Ubuntu / macOS / Windows nodes before being marked production-ready — the
+  missing primitive behind "production-ready means validated on every OS we ship
+  to." scenario-to-desktop is a second prospective consumer of the same contract.
+
 ## Third-Party Services
 
 | Service | Status | Reason | Contract |

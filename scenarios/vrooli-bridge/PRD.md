@@ -39,9 +39,9 @@ Operational targets are measurable outcomes; checkboxes may auto-update based on
 
 ### 🟢 P2 – Future / expansion
 - [x] OT-P2-001 | Control Plane on macOS / Windows | The control plane itself runs on a macOS or Windows host, not only Linux; bridge is written cross-platform from day one so it is never the blocker, but full support is gated on Vrooli-the-platform becoming installable/runnable on those OSes (a separate project-level track outside this scenario's scope).
-- [x] OT-P2-002 | remote-desktop Integration | A future remote-desktop scenario (real-time screen/input control via WebRTC/RDP/VNC) reuses bridge's node identity, trust, and reach layer rather than reimplementing it, while owning its own streaming; bridge exposes the identity/reach seam it needs.
-- [x] OT-P2-003 | Ephemeral & Cloud-Runner Nodes | A node can be a VM or a cloud macOS/Windows runner provisioned on demand, not only a physical machine; bridge treats a node as "any reachable Vrooli install," so ephemeral capacity composes without special-casing.
-- [x] OT-P2-004 | Self-Healing Re-Provisioning | The control plane detects drifted or unhealthy nodes (wrong revision, missing toolchain, repeatedly failing health) and re-provisions them automatically toward their target revision, keeping the fleet validation-ready without manual intervention.
+- [ ] OT-P2-002 | remote-desktop Integration | A future remote-desktop scenario (real-time screen/input control via WebRTC/RDP/VNC) reuses bridge's node identity, trust, and reach layer rather than reimplementing it, while owning its own streaming; bridge exposes the identity/reach seam it needs.
+- [ ] OT-P2-003 | Ephemeral & Cloud-Runner Nodes | A node can be a VM or a cloud macOS/Windows runner provisioned on demand, not only a physical machine; bridge treats a node as "any reachable Vrooli install," so ephemeral capacity composes without special-casing.
+- [ ] OT-P2-004 | Self-Healing Re-Provisioning | The control plane detects drifted or unhealthy nodes (wrong revision, missing toolchain, repeatedly failing health) and re-provisions them automatically toward their target revision, keeping the fleet validation-ready without manual intervention.
 
 ## 🧱 Tech Direction Snapshot
 

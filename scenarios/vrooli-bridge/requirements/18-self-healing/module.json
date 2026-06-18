@@ -11,24 +11,17 @@
     {
       "id": "BRG-P2-004",
       "title": "Self-Healing Re-Provisioning",
-      "status": "complete",
+      "status": "planned",
       "prd_ref": "OT-P2-004",
       "category": "core",
-      "description": "The control plane detects drifted or unhealthy nodes (wrong revision, missing toolchain, repeatedly failing health) and re-provisions them automatically toward their target revision, keeping the fleet validation-ready without manual intervention.",
+      "description": "The control plane detects drifted or unhealthy nodes (wrong revision, missing toolchain, repeatedly failing health) and re-provisions them automatically toward their target revision, keeping the fleet validation-ready without manual intervention. P2: designed and recorded as a future seam (extends provision with drift detection + auto-reprovision), not built here — manual `fleet roll` suffices at the current single-owner fleet size.",
       "validation": [
         {
-          "type": "test",
-          "ref": "api/internal/heal/detect_test.go",
-          "phase": "unit",
-          "status": "implemented",
-          "notes": "Drift detection flags wrong-revision / missing-toolchain / persistently-unhealthy nodes and schedules a re-provision toward target."
-        },
-        {
-          "type": "test",
-          "ref": "api/internal/heal/reprovision_test.go",
-          "phase": "integration",
-          "status": "implemented",
-          "notes": "A drifted node is automatically brought back to its target revision and returns to ready without operator action."
+          "type": "manual",
+          "ref": "docs/internal/PROBLEMS.md",
+          "phase": "design",
+          "status": "planned",
+          "notes": "Recorded as a future seam (OT-P2-004) in the Phase 6 P2 table: builds on the provision domain + the compat/presence protocol-gating already in place; the auto-detect/auto-reprovision loop is deferred until fleet size makes manual re-provisioning costly. Reuses the provision + presence/compat seams."
         }
       ]
     }

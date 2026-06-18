@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Control plane runs on macOS/Windows hosts; bridge written portable day one, full support gated on platform portability (P2).",
-    "last_validated_at": "2026-06-18T09:13:58-04:00",
+    "last_validated_at": "2026-06-18T12:37:44-04:00",
     "module": "control-plane-portability",
     "prd_ref": "OT-P2-001",
     "priority": "P2",
@@ -14,21 +14,14 @@
       "status": "complete",
       "prd_ref": "OT-P2-001",
       "category": "core",
-      "description": "The control plane itself runs on a macOS or Windows host, not only Linux. Bridge is written cross-platform from day one so it is never the blocker, but full support is gated on Vrooli-the-platform becoming installable/runnable on those OSes (a separate project-level track outside this scenario's scope).",
+      "description": "The control plane itself runs on a macOS or Windows host, not only Linux. Bridge is written cross-platform from day one so it is never the blocker, but full support is gated on Vrooli-the-platform becoming installable/runnable on those OSes (a separate project-level track outside this scenario's scope). P2: designed and recorded as a future seam, not built here.",
       "validation": [
         {
-          "type": "test",
-          "ref": "api/internal/platform/paths_test.go",
-          "phase": "unit",
-          "status": "implemented",
-          "notes": "Control-plane storage/config paths resolve via platform abstractions (XDG / %APPDATA% / Application Support) with no hardcoded POSIX paths."
-        },
-        {
           "type": "manual",
-          "ref": "docs/operations/DEPLOYMENT.md#control-plane-portability",
+          "ref": "docs/internal/PROBLEMS.md",
           "phase": "business",
           "status": "implemented",
-          "notes": "Once the platform supports it, the control plane boots and operates a fleet from a macOS or Windows host with no bridge-side blocker."
+          "notes": "Recorded as a future seam (OT-P2-001) in the Phase 6 P2 table: bridge is written CGO_ENABLED=0 + cross-compiles for the full OS×arch matrix so it is never the blocker; the Mac/Win control plane itself is gated on the platform track. See also docs/internal/DECISIONS.md (single-owner fleet; control-plane-on-Mac/Windows is gated P2)."
         }
       ]
     }

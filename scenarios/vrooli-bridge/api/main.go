@@ -36,6 +36,7 @@ import (
 	channelH "vrooli-bridge/handlers/channel"
 	dispatchH "vrooli-bridge/handlers/dispatch"
 	fleetH "vrooli-bridge/handlers/fleet"
+	gateH "vrooli-bridge/handlers/gate"
 	healthH "vrooli-bridge/handlers/health"
 	pairingH "vrooli-bridge/handlers/pairing"
 	provisionH "vrooli-bridge/handlers/provision"
@@ -266,6 +267,12 @@ func main() {
 	// stays coherent across both call sites.
 	provisionSvc := provisionH.NewService(db, clk, registrySvc, presenceHub, auditStore)
 
+	// dispatch (OT-P0-004): the allowlist gate, built once here so the SAME
+	// instance backs both the dispatch handler and the gate domain's runner
+	// adapter — every cross-OS gate validation run flows through the same
+	// allowlist + per-node scopes + audit gate as any other job.
+	dispatchSvc := dispatchH.NewService(registrySvc, runsSvc, auditStore, presenceHub, scheduler)
+
 	srv := server.New(
 		server.Deps{Clock: clk, Logger: logger},
 		healthH.Module(db, "vrooli-bridge-api", "1.0.0"),
@@ -278,7 +285,7 @@ func main() {
 		// (registrySvc), checks presence + protocol compatibility, creates durable
 		// runs (runsSvc), audits (auditStore), and submits typed jobs to the
 		// per-node scheduler (bounded concurrency on the channel-push path).
-		dispatchH.Module(registrySvc, runsSvc, auditStore, presenceHub, scheduler, logger),
+		dispatchH.Module(dispatchSvc, logger),
 		// runs (OT-P0-005): durable run lifecycle + node-facing event ingest.
 		runsH.Module(runsSvc, nodeVerifier, logger),
 		// queue (OT-P1-004): read-only control-plane view over the per-node
@@ -294,6 +301,12 @@ func main() {
 		// and dispatches a privileged provisioning op per eligible node by
 		// delegating to the shared provision service (provisionSvc).
 		fleetH.Module(db, clk, registrySvc, presenceHub, provisionSvc, logger),
+		// gate (OT-P1-002): cross-OS deployment gate. Selects one eligible node
+		// per target OS (registrySvc + presenceHub), dispatches a validation run to
+		// each by delegating to the shared dispatch service (dispatchSvc) + runs
+		// service (runsSvc), and aggregates per-OS verdicts into one cross-OS
+		// result deployment-manager owns. Owns its durable gate tables.
+		gateH.Module(db, clk, registrySvc, presenceHub, dispatchSvc, runsSvc, logger),
 		// artifacts (OT-P1-003): non-git artifact distribution. Validates node
 		// revocation (registrySvc) and delegates the byte move to device-sync-hub
 		// directed delivery (bridge stores no blob).

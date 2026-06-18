@@ -362,6 +362,36 @@ Note: `internal/presence.Hub` is a concrete shared component (constructed once i
 | **Test fake** | `agent/internal/discovery/mdns_test.go` (fake Browser), `fallback_test.go` (manual-URL-wins, Browser never invoked). |
 | **Why it exists** | Pairing on a trusted LAN is "run the installer" without typing the control-plane URL; off-LAN bootstrap never depends on mDNS. |
 
+### gate seams (NodeLister / Presence / Runner / Repository, OT-P1-002)
+
+| | |
+|---|---|
+| **Seam** | Cross-OS deployment gate: select one eligible node per target OS, dispatch a validation run to each, recompute the live cross-OS verdict from the per-OS runs, persist the gate ledger. |
+| **Interface** | `internal/gate/seams.go` (`NodeLister`, `Presence`, `Runner`) + `repository.go::Repository`. `Runner` is the dispatch+runs delegation seam (`Dispatch`→runID, `Verdict`/`Wait`→RunVerdict). |
+| **Production wiring** | `handlers/gate/adapter.go` binds `NodeLister`→registry.List, `Presence`→hub, `Runner`→the SHARED dispatch service (`dispatchH.NewService`, allowlist+scopes+audit) + the runs service (durable lifecycle). `dispatch.Module` split into `NewService`+`Module` so one dispatch instance backs both the dispatch handler and the gate runner — every gate validation run flows through the same allowlist gate as any other job. |
+| **Test fake** | `internal/gate/mocks` (FakeNodeLister/FakePresence/FakeRunner/FakeRepository); `aggregate_test.go` (pure aggregation), `service_test.go`; `handlers/gate/deployment_manager_test.go` drives the real gate→dispatch→runs path. |
+| **Why it exists** | Gate NEVER reimplements dispatch or run management — it fans out to dispatch+runs through the seam, so the highest-stakes surface (remote execution) stays the single audited allowlist path even for cross-OS validation. |
+
+### cross-OS gate consumer seam (deployment-manager owns the verdict, OT-P1-002)
+
+| | |
+|---|---|
+| **Seam** | The boundary where bridge SUPPLIES the cross-OS validation capability and the *consumer* OWNS the promotion verdict. Bridge exposes `GateService` (RunGate/WaitGate); deployment-manager maps the aggregate gate verdict to its own production-readiness decision. |
+| **Interface** | Consumer side: `scenarios/deployment-manager/api/crossosgate::Bridge` (`RunGate`/`WaitGate`) + `Gate.Evaluate(Request) Verdict`. Producer side: the generated `GateService` Connect contract. |
+| **Production wiring** | deployment-manager's `crossosgate.NewHTTPBridge` speaks bridge's `GateService` over the Connect unary JSON protocol (no proto-module dependency on the consumer); route `POST /api/v1/cross-os-gate/evaluate` is additive + inert (503) until `VROOLI_BRIDGE_URL` is configured. |
+| **Test fake** | `deployment-manager/api/crossosgate/crossosgate_test.go` (fake Bridge for the Evaluate mapping; httptest-backed `httpBridge` for the wire contract). |
+| **Why it exists** | "Bridge supplies the capability, deployment-manager owns the verdict." The consumer never imports bridge internals; it speaks the wire contract, so the two scenarios evolve independently behind the proto contract. |
+
+### exposed (not built) consumer seams — emulator / contribution-verification / remote-desktop
+
+| | |
+|---|---|
+| **Seam** | Bridge exposes node identity/reach, durable dispatch, and isolated/ephemeral-node + typed-verdict capabilities that downstream scenarios consume; bridge does NOT build those integrations (out of scope, separate initiatives). |
+| **Interface** | `registry.NodeRegistryService` (identity/reach), `dispatch.DispatchService` + `runs.RunsService` (durable allowlisted execution), `gate.GateService` (cross-OS typed verdict). Consumers: vrooli-emulator-remote-node-backend (identity/reach), contribution-verification (isolated node + reset + typed verdict, OT-P2 — see [`PROBLEMS.md`](PROBLEMS.md)), remote-desktop (identity/reach, BRG-P2-002). |
+| **Production wiring** | None in bridge — these are the *deliverable seams*, consumed elsewhere. The contracts are the generated proto services above; bridge's obligation is to keep them stable + documented. |
+| **Test fake** | Each consumer wires its own client/fake against the generated Connect contract (as deployment-manager does in `crossosgate`). |
+| **Why it exists** | Hold the scope line: bridge ships reusable, drift-gated control-plane contracts; the emulator/triage/remote-desktop integrations are built by their own initiatives against these seams, not inside bridge. |
+
 ## Adding a new seam
 
 The right time to add a seam is the moment you find yourself reaching

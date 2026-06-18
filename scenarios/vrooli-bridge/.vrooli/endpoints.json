@@ -498,6 +498,185 @@
       ]
     },
     {
+      "id": "gate_run_gate",
+      "path": "/vrooli.vrooli_bridge.v1.gate.GateService/RunGate",
+      "method": "POST",
+      "summary": "Run a cross-OS deployment gate for a scenario",
+      "description": "Fans a scenario's validation out across the target OSes: selects one eligible node per OS (registered + online + protocol-compatible + not-revoked + matching OS), dispatches the validation run to each (delegating to the dispatch + runs domains), and records a durable gate with the per-OS ledger. Aggregates per-OS verdicts into one cross-OS result — any failing OS (including one with no eligible node) fails the gate. Honours X-Dry-Run. Owner-gated.",
+      "category": "gate",
+      "request": {
+        "type": "object",
+        "properties": {
+          "args": "array<string>",
+          "scenario": "string (required)",
+          "target_oses": "array<string> (required)",
+          "target_revision": "string (required)",
+          "timeout_seconds": "int64",
+          "verb": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "dry_run": "bool",
+          "gate_id": "string",
+          "results": "array<OSResult>",
+          "verdict": "GateVerdict"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing scenario / target_revision / target_oses"
+        },
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository write failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Run a cross-OS gate",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.gate.GateService/RunGate -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"scenario\":\"web-search\",\"target_revision\":\"a1b2c3d\",\"target_oses\":[\"linux\",\"darwin\",\"windows\"]}'"
+        }
+      ]
+    },
+    {
+      "id": "gate_get_gate",
+      "path": "/vrooli.vrooli_bridge.v1.gate.GateService/GetGate",
+      "method": "POST",
+      "summary": "Get a gate by id with its per-OS ledger",
+      "description": "Returns one durable gate and its per-OS result ledger, recomputing the live cross-OS verdict from the current state of each OS's validation run. Owner-gated.",
+      "category": "gate",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "gate": "Gate",
+          "results": "array<OSResult>"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No gate with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Get gate",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.gate.GateService/GetGate -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"id\":\"gate-123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "gate_wait_gate",
+      "path": "/vrooli.vrooli_bridge.v1.gate.GateService/WaitGate",
+      "method": "POST",
+      "summary": "Block once until a gate is terminal, then return its verdict",
+      "description": "Blocks server-side until every target OS's validation run is terminal (or the timeout elapses), then returns the final aggregate cross-OS verdict + per-OS ledger. timed_out is true when the deadline elapsed with targets still running. No polling — one call, one return. Owner-gated.",
+      "category": "gate",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "string (required)",
+          "timeout_seconds": "int64"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "gate": "Gate",
+          "results": "array<OSResult>",
+          "timed_out": "bool"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No gate with that id"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Wait for a gate",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.gate.GateService/WaitGate -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{\"id\":\"gate-123\"}'"
+        }
+      ]
+    },
+    {
+      "id": "gate_list_gates",
+      "path": "/vrooli.vrooli_bridge.v1.gate.GateService/ListGates",
+      "method": "POST",
+      "summary": "List gates",
+      "description": "Returns gates newest-first. Owner-gated.",
+      "category": "gate",
+      "request": {
+        "type": "object",
+        "properties": {
+          "limit": "int32"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "gates": "array<Gate>"
+        }
+      },
+      "errors": [
+        {
+          "status": 401,
+          "code": "unauthenticated",
+          "description": "Owner token required"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List gates",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.vrooli_bridge.v1.gate.GateService/ListGates -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
       "id": "pairing_issue_code",
       "path": "/vrooli.vrooli_bridge.v1.pairing.PairingService/IssuePairingCode",
       "method": "POST",

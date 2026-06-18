@@ -10,25 +10,18 @@
   "requirements": [
     {
       "id": "BRG-P2-003",
-      "title": "Ephemeral \u0026 Cloud-Runner Nodes",
-      "status": "complete",
+      "title": "Ephemeral & Cloud-Runner Nodes",
+      "status": "planned",
       "prd_ref": "OT-P2-003",
       "category": "core",
-      "description": "A node can be a VM or a cloud macOS/Windows runner provisioned on demand, not only a physical machine. Bridge treats a node as 'any reachable Vrooli install,' so ephemeral capacity composes without special-casing.",
+      "description": "A node can be a VM or a cloud macOS/Windows runner provisioned on demand, not only a physical machine. Bridge treats a node as 'any reachable Vrooli install,' so ephemeral capacity composes without special-casing. P2: designed and recorded as a future seam (extends registry node-kind metadata + a provider integration), not built here.",
       "validation": [
         {
-          "type": "test",
-          "ref": "api/internal/registry/node_kind_test.go",
-          "phase": "unit",
-          "status": "implemented",
-          "notes": "Physical, VM, and cloud-runner nodes share one registration/dispatch path; node kind is metadata, not a code branch."
-        },
-        {
-          "type": "test",
-          "ref": "api/internal/fleet/ephemeral_test.go",
-          "phase": "integration",
-          "status": "implemented",
-          "notes": "An ephemeral node can join, take a job, and be decommissioned cleanly without leaving fleet state behind."
+          "type": "manual",
+          "ref": "docs/internal/PROBLEMS.md",
+          "phase": "design",
+          "status": "planned",
+          "notes": "Recorded as a future seam (OT-P2-003) in the Phase 6 P2 table: node kind is registry metadata, not a code branch, so ephemeral/cloud nodes reuse the existing registration + dispatch path; the on-demand provider integration is a separate initiative. Reuses the registry + provision seams (SEAMS.md 'exposed (not built) consumer seams')."
         }
       ]
     }

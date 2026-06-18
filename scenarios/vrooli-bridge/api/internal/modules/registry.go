@@ -27,6 +27,7 @@ import (
 	channelH "vrooli-bridge/handlers/channel"
 	dispatchH "vrooli-bridge/handlers/dispatch"
 	fleetH "vrooli-bridge/handlers/fleet"
+	gateH "vrooli-bridge/handlers/gate"
 	healthH "vrooli-bridge/handlers/health"
 	pairingH "vrooli-bridge/handlers/pairing"
 	provisionH "vrooli-bridge/handlers/provision"
@@ -39,6 +40,7 @@ import (
 	auditv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/audit"
 	dispatchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/dispatch"
 	fleetv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/fleet"
+	gatev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/gate"
 	pairingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/pairing"
 	presencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/presence"
 	provisionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/provision"
@@ -59,6 +61,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, channelH.Endpoints...)
 	out = append(out, dispatchH.Endpoints...)
 	out = append(out, fleetH.Endpoints...)
+	out = append(out, gateH.Endpoints...)
 	out = append(out, pairingH.Endpoints...)
 	out = append(out, provisionH.Endpoints...)
 	out = append(out, queueH.Endpoints...)
@@ -95,6 +98,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "channel", File: presencev1.File_vrooli_bridge_v1_presence_presence_proto},
 		{Module: "dispatch", File: dispatchv1.File_vrooli_bridge_v1_dispatch_dispatch_proto},
 		{Module: "fleet", File: fleetv1.File_vrooli_bridge_v1_fleet_fleet_proto},
+		{Module: "gate", File: gatev1.File_vrooli_bridge_v1_gate_gate_proto},
 		{Module: "pairing", File: pairingv1.File_vrooli_bridge_v1_pairing_pairing_proto},
 		{Module: "provision", File: provisionv1.File_vrooli_bridge_v1_provision_provision_proto},
 		{Module: "queue", File: queuev1.File_vrooli_bridge_v1_queue_queue_proto},
@@ -118,6 +122,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(auditH.Schema),
 		apidb.SchemaProviderFunc(channelH.Schema),
 		apidb.SchemaProviderFunc(fleetH.Schema),
+		apidb.SchemaProviderFunc(gateH.Schema),
 		apidb.SchemaProviderFunc(pairingH.Schema),
 		apidb.SchemaProviderFunc(provisionH.Schema),
 		apidb.SchemaProviderFunc(registryH.Schema),

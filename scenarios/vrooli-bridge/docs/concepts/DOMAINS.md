@@ -34,7 +34,7 @@ belong in [`DATA.md`](DATA.md).
 | dispatch | Validate `{scenario, verb, args}` against the CLI manifest + per-node scopes; dispatch typed jobs. | Policy / command | Job definitions, allowlist decisions. | API, CLI, UI | OT-P0-004 | `api/internal/dispatch/` |
 | runs | Durable server-owned remote runs; stream exit/logs/artifacts back; re-attach by id. | Workflow / lifecycle | `runs`, logs, artifact refs. | API, CLI, UI | OT-P0-005 | `api/internal/runs/` |
 | provisioning | Privileged tier: sync a node to revision R (`vrooli setup`), update, version-pin, rollback. | Workflow / privileged | `provisioning_ops`, `provision_events`, `node_versions`. | API, CLI | OT-P0-006, OT-P1-001 | `api/internal/provision/`, `api/handlers/provision/`, `cli/domains/provision/`, `agent/internal/privsep/`, `packages/proto/schemas/vrooli-bridge/v1/provision/` |
-| gate | Aggregate per-OS node verdicts into a single cross-OS deployment-readiness result. | Aggregation / reporting | Gate runs, per-OS verdicts. | API, CLI, UI | OT-P1-002 | `api/internal/gate/` |
+| gate | Cross-OS deployment gate: select one eligible node per target OS, dispatch native validation to each (delegating to dispatch+runs), aggregate per-OS verdicts into one cross-OS deployment-readiness result. | Aggregation / workflow | `gates`, `gate_os_results`. | API, CLI | OT-P1-002 | `api/internal/gate/`, `api/handlers/gate/`, `cli/domains/gate/`, `packages/proto/schemas/vrooli-bridge/v1/gate/` |
 | audit | Append-only trail of every dispatch and provisioning op (actor/node/verb/args/outcome). | Reporting / security | Audit records (via workspace-sandbox). | API, UI | OT-P0-008 | `api/internal/audit/` |
 | fleet | Fleet-wide version roll: pin every (or named) node to a target revision by fanning provisioning out across the fleet; per-node rollout ledger + protocol-compat gating. | Aggregation / workflow | `rollouts`, `rollout_results`. | API, CLI, UI | OT-P1-001 | `api/internal/fleet/`, `api/handlers/fleet/`, `cli/domains/fleet/` |
 | queue | Per-node bounded-concurrency + fair-FIFO scheduler on the dispatch→push path; read-only control-plane view of running-vs-queued. | Policy / realtime | In-memory scheduler state (the run is the durable record). | API, CLI, UI | OT-P1-004 | `api/internal/queue/`, `api/handlers/queue/`, `cli/domains/queue/` |
@@ -103,10 +103,12 @@ belong in [`DATA.md`](DATA.md).
 
 ### gate
 
-- Purpose: the headline capability — aggregate per-OS node verdicts (native build/test of a scenario on Ubuntu/macOS/Windows nodes) into a single "production-ready on every OS" result that deployment-manager can gate on.
-- Primary archetype: aggregation / reporting. Bridge supplies the capability; deployment-manager owns the verdict.
-- Owns: gate runs and per-OS verdicts. Does not own: the individual node runs (runs) or artifact transport (delegated to device-sync-hub).
-- Related docs: [`INTEGRATIONS.md`](INTEGRATIONS.md), [`FLOWS.md`](FLOWS.md).
+- Purpose: the headline capability — validate a scenario natively on one node per target OS (Ubuntu/macOS/Windows) at a revision and aggregate the per-OS verdicts into a single "production-ready on every OS" result that deployment-manager gates promotion on. Verbs: `RunGate` (fan out + durable record), `GetGate` (live verdict), `WaitGate` (block-once for the terminal verdict, no polling), `ListGates`.
+- Primary archetype: aggregation / workflow. Bridge supplies the capability; deployment-manager owns the verdict.
+- Delegates, never reimplements: each per-OS validation is dispatched through the SHARED dispatch service (allowlist + per-node scopes + audit) and tracked as a durable run (runs domain) via the `Runner` seam. Aggregation rule: ANY failing OS — a non-zero/aborted run OR a target OS with no eligible node — fails the gate; the verdict is recomputed live from the per-OS runs on read.
+- Owns: the `gates` + `gate_os_results` ledger. Does not own: the individual node runs (runs), the allowlist gate (dispatch), or artifact transport (device-sync-hub).
+- Consumer: deployment-manager's `crossosgate` package speaks `GateService` over Connect/JSON and owns the production-readiness decision (`POST /api/v1/cross-os-gate/evaluate`, additive + inert until `VROOLI_BRIDGE_URL` is set).
+- Related docs: [`INTEGRATIONS.md`](INTEGRATIONS.md), [`FLOWS.md`](FLOWS.md), [`../internal/SEAMS.md`](../internal/SEAMS.md).
 
 ### audit
 

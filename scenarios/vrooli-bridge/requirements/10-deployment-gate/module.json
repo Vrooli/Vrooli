@@ -25,7 +25,7 @@
         },
         {
           "type": "test",
-          "ref": "api/internal/gate/deployment_manager_test.go",
+          "ref": "api/handlers/gate/deployment_manager_test.go",
           "phase": "integration",
           "status": "implemented",
           "notes": "deployment-manager invokes the gate over the API contract and receives a structured cross-OS result."
