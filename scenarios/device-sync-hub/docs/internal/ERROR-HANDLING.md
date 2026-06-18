@@ -20,12 +20,22 @@ The CLI uses the same `connect.Error` values through cli-core. Human
 output is English for now; future CLI i18n should use the same code
 names as the UI catalog instead of string-matching messages.
 
+Some UI workflows may override the global code copy when the same Connect
+code has a more specific recovery path in context. For example, first-device
+setup maps `permission_denied` to "this hub is already owned by another
+account" because `SetupOwnerDevice` is the only place where that code means
+the local hub's first-owner-wins claim is held by a different authenticator
+identity. Keep these overrides close to the workflow component so generic
+error copy remains reusable elsewhere.
+
 ## Sentinel Mapping
 
 | Domain error | Connect code | UI i18n key |
 |---|---|---|
-| `ErrInvalidNote` | `invalid_argument` | `errors.invalid_argument` |
-| `ErrNoteNotFound` | `not_found` | `errors.not_found` |
+| `ErrInvalidDevice`, `ErrInvalidPairingCode` | `invalid_argument` | `errors.invalid_argument` |
+| `ErrDeviceNotFound` | `not_found` | `errors.not_found` |
+| `ErrNotOwner` | `permission_denied` | `errors.permission_denied` or workflow-specific copy |
+| `ErrDeviceConflict` | `failed_precondition` | `errors.failed_precondition` |
 | Unknown service/repository error | `internal` | `errors.internal` |
 
 When you add a domain, keep the mapping file next to that domain's

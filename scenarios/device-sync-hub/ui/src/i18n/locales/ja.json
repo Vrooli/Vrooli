@@ -188,6 +188,8 @@
     "deviceNamePlaceholder": "e.g. Work Laptop",
     "submit": "Make this my first device",
     "submitting": "Setting up…",
+    "alreadyOwned": "This hub is already owned by another account. Sign in as that owner, or reset this local hub before setting it up with a new account.",
+    "signInExpired": "Your sign-in session expired. Sign out, then sign in again to set up this device.",
     "joinInstead": "Join with a pairing code instead",
     "signOut": "Sign out"
   },

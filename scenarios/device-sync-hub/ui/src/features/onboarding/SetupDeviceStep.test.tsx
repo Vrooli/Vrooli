@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { Code, ConnectError } from "@connectrpc/connect";
 
 import { renderWithProviders } from "../../test-utils";
 import { makeDevice } from "../../test-utils/session";
+import { strings } from "../../consts/strings";
 
 const { setupOwnerDevice } = vi.hoisted(() => ({ setupOwnerDevice: vi.fn() }));
 
@@ -66,5 +68,33 @@ describe("SetupDeviceStep", () => {
 
     await user.click(screen.getByTestId(selectors.setupDevice.joinInstead));
     expect(onJoinInstead).toHaveBeenCalledOnce();
+  });
+
+  it("explains when the hub already belongs to another owner", async () => {
+    const user = userEvent.setup();
+    setupOwnerDevice.mockRejectedValueOnce(new ConnectError("not hub owner", Code.PermissionDenied));
+    renderWithProviders(<SetupDeviceStep onJoinInstead={vi.fn()} onSignOut={vi.fn()} />);
+
+    await user.click(screen.getByTestId(selectors.setupDevice.submit));
+
+    await waitFor(() =>
+      expect(screen.getByTestId(selectors.setupDevice.error)).toHaveTextContent(
+        strings.setupDevice.alreadyOwned,
+      ),
+    );
+  });
+
+  it("explains when the owner sign-in needs refreshing", async () => {
+    const user = userEvent.setup();
+    setupOwnerDevice.mockRejectedValueOnce(new ConnectError("missing owner", Code.Unauthenticated));
+    renderWithProviders(<SetupDeviceStep onJoinInstead={vi.fn()} onSignOut={vi.fn()} />);
+
+    await user.click(screen.getByTestId(selectors.setupDevice.submit));
+
+    await waitFor(() =>
+      expect(screen.getByTestId(selectors.setupDevice.error)).toHaveTextContent(
+        strings.setupDevice.signInExpired,
+      ),
+    );
   });
 });

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { Code, ConnectError } from "@connectrpc/connect";
 
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -10,6 +11,18 @@ import { errorMessage } from "../../lib/errorMessage";
 import { devicesClient } from "../../api/devices";
 import { browserDeviceProfile } from "../session/deviceProfile";
 import { useSession } from "../session/SessionProvider";
+
+function setupDeviceErrorMessage(err: unknown, t: ReturnType<typeof useTranslation>["t"]): string {
+  if (err instanceof ConnectError) {
+    if (err.code === Code.PermissionDenied) {
+      return t(strings.setupDevice.alreadyOwned);
+    }
+    if (err.code === Code.Unauthenticated) {
+      return t(strings.setupDevice.signInExpired);
+    }
+  }
+  return errorMessage(err, t);
+}
 
 /**
  * "Make this my first device" — shown once the owner is signed in but this
@@ -87,7 +100,7 @@ export function SetupDeviceStep({
 
       {setupMutation.error && (
         <p data-testid={selectors.setupDevice.error} className="mt-4 text-sm text-app-danger">
-          {errorMessage(setupMutation.error, t)}
+          {setupDeviceErrorMessage(setupMutation.error, t)}
         </p>
       )}
 

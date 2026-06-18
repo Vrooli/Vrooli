@@ -200,6 +200,8 @@ export const strings = {
     deviceNamePlaceholder: "setupDevice.deviceNamePlaceholder",
     submit: "setupDevice.submit",
     submitting: "setupDevice.submitting",
+    alreadyOwned: "setupDevice.alreadyOwned",
+    signInExpired: "setupDevice.signInExpired",
     joinInstead: "setupDevice.joinInstead",
     signOut: "setupDevice.signOut",
   },
