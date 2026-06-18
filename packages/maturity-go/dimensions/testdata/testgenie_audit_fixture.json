@@ -19,7 +19,6 @@
     "playbooks",
     "business",
     "performance",
-    "coverage",
     "tidiness",
     "security",
     "measures",
@@ -193,7 +192,19 @@
     {
       "name": "unit",
       "status": "fail",
-      "findings": []
+      "findings": [
+        {
+          "scenario": "fixture-scenario",
+          "source": 8,
+          "code": "low_coverage:go:api",
+          "severity": 3,
+          "locations": [
+            "coverage/go/go-api.coverage.out"
+          ],
+          "message": "coverage 42.0% below target",
+          "stable_id": "afid:000000000000000b"
+        }
+      ]
     },
     {
       "name": "integration",
@@ -217,7 +228,7 @@
           "locations": [
             "requirements/core.json"
           ],
-          "message": "Requirement REQ-P0-001 (P0) declares no validation — nothing ties it to evidence.",
+          "message": "Requirement REQ-P0-001 (P0) declares no validation \u2014 nothing ties it to evidence.",
           "stable_id": "afid:0000000000000011"
         }
       ]
@@ -226,23 +237,6 @@
       "name": "performance",
       "status": "pass",
       "findings": []
-    },
-    {
-      "name": "coverage",
-      "status": "fail",
-      "findings": [
-        {
-          "scenario": "fixture-scenario",
-          "source": 8,
-          "code": "low_coverage:go:api",
-          "severity": 3,
-          "locations": [
-            "coverage/go/go-api.coverage.out"
-          ],
-          "message": "coverage 42.0% below target",
-          "stable_id": "afid:000000000000000b"
-        }
-      ]
     },
     {
       "name": "tidiness",

@@ -102,6 +102,8 @@ var architectureValidationProvider = validationprovider.Provider{
 	DetailCommand:    "architecture-cartographer audit run {{scenario}}",
 	Optional:         true,
 	Timeout:          120 * time.Second,
+	GateEnvVar:       "TEST_GENIE_ARCHITECTURE_GATE",
+	DefaultGateMode:  validationprovider.GateModeHighConfidence,
 }
 
 var docsValidationProvider = validationprovider.Provider{
@@ -125,48 +127,75 @@ var tidinessValidationProvider = validationprovider.Provider{
 	Timeout:          120 * time.Second,
 }
 
+var validationProvidersByPhase = map[Name]validationprovider.Provider{
+	Contracts:    contractsValidationProvider,
+	Proto:        protoValidationProvider,
+	UIHealth:     uiHealthValidationProvider,
+	Security:     securityValidationProvider,
+	Quality:      qualityValidationProvider,
+	Unit:         unitValidationProvider,
+	Measures:     measuresValidationProvider,
+	Dependencies: dependenciesValidationProvider,
+	Architecture: architectureValidationProvider,
+	Docs:         docsValidationProvider,
+	Tidiness:     tidinessValidationProvider,
+}
+
+func validationProviderForPhase(name Name) (validationprovider.Provider, bool) {
+	provider, ok := validationProvidersByPhase[name]
+	return provider, ok
+}
+
+func mustValidationProvider(name Name) validationprovider.Provider {
+	provider, ok := validationProviderForPhase(name)
+	if !ok {
+		panic(fmt.Sprintf("validation provider %q is not registered", name))
+	}
+	return provider
+}
+
 func runContractsPhase(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
-	return runValidationProviderPhase(ctx, env, logWriter, contractsValidationProvider)
+	return runValidationProviderPhase(ctx, env, logWriter, mustValidationProvider(Contracts))
 }
 
 func runProtoPhase(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
-	return runValidationProviderPhase(ctx, env, logWriter, protoValidationProvider)
+	return runValidationProviderPhase(ctx, env, logWriter, mustValidationProvider(Proto))
 }
 
 func runUIHealthPhase(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
-	return runValidationProviderPhase(ctx, env, logWriter, uiHealthValidationProvider)
+	return runValidationProviderPhase(ctx, env, logWriter, mustValidationProvider(UIHealth))
 }
 
 func runSecurityPhase(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
-	return runValidationProviderPhase(ctx, env, logWriter, securityValidationProvider)
+	return runValidationProviderPhase(ctx, env, logWriter, mustValidationProvider(Security))
 }
 
 func runQualityPhase(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
-	return runValidationProviderPhase(ctx, env, logWriter, qualityValidationProvider)
+	return runValidationProviderPhase(ctx, env, logWriter, mustValidationProvider(Quality))
 }
 
 func runUnitPhase(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
-	return runValidationProviderPhase(ctx, env, logWriter, unitValidationProvider)
+	return runValidationProviderPhase(ctx, env, logWriter, mustValidationProvider(Unit))
 }
 
 func runMeasuresPhase(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
-	return runValidationProviderPhase(ctx, env, logWriter, measuresValidationProvider)
+	return runValidationProviderPhase(ctx, env, logWriter, mustValidationProvider(Measures))
 }
 
 func runDependenciesPhase(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
-	return runValidationProviderPhase(ctx, env, logWriter, dependenciesValidationProvider)
+	return runValidationProviderPhase(ctx, env, logWriter, mustValidationProvider(Dependencies))
 }
 
 func runArchitecturePhase(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
-	return runValidationProviderPhase(ctx, env, logWriter, architectureValidationProvider)
+	return runValidationProviderPhase(ctx, env, logWriter, mustValidationProvider(Architecture))
 }
 
 func runDocsPhase(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
-	return runValidationProviderPhase(ctx, env, logWriter, docsValidationProvider)
+	return runValidationProviderPhase(ctx, env, logWriter, mustValidationProvider(Docs))
 }
 
 func runTidinessPhase(ctx context.Context, env workspace.Environment, logWriter io.Writer) RunReport {
-	return runValidationProviderPhase(ctx, env, logWriter, tidinessValidationProvider)
+	return runValidationProviderPhase(ctx, env, logWriter, mustValidationProvider(Tidiness))
 }
 
 func runValidationProviderPhase(ctx context.Context, env workspace.Environment, logWriter io.Writer, provider validationprovider.Provider) RunReport {

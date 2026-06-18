@@ -4,12 +4,12 @@ The `contracts` phase validates `cli/manifest.json` bindings against the proto d
 
 ## How It Runs
 
-Test Genie invokes the cli-health binding validation against the scenario's `cli/manifest.json`, comparing declared command bindings to the generated proto descriptors.
+Test Genie calls `cli-health` through `scenario-validation/v1.ScenarioValidationService.ValidateScenario`. cli-health validates the scenario's `cli/manifest.json`, comparing declared command bindings to the generated proto descriptors, and returns shared `status` plus `assessment.findings`.
 
-Equivalent operator flow:
+Equivalent human operator flow:
 
 ```bash
-cli-health search <scenario>
+cli-health validate scenario <scenario>
 ```
 
 ## Opt-Out

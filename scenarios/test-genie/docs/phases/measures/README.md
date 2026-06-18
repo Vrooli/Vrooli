@@ -1,26 +1,23 @@
 # `measures` phase
 
-The `measures` phase is a **thin delegating phase**: it shells the
-`measures-health` scenario's public CLI and maps its normalized findings into
-the shared `FINDING_SOURCE_MEASURES` channel. test-genie itself contains **no
-coverage logic** — deriving a scenario's stateful domains, classifying each
-covered/waived/uncovered, and grading per-measure extraction tier all live in
-`measures-health`. This mirrors the `security` (security-health), `contracts`
-(cli-health), and `ui-health` delegation phases.
+The `measures` phase is a **thin delegating phase**: it calls the
+`measures-health` scenario's shared `ScenarioValidationService` and maps its
+normalized findings into the shared `FINDING_SOURCE_MEASURES` channel.
+test-genie itself contains **no coverage logic** — deriving a scenario's
+stateful domains, classifying each covered/waived/uncovered, and grading
+per-measure extraction tier all live in `measures-health`.
 
 ## What it runs
 
-```
-measures-health validate scenario <name> --json
+```text
+scenario-validation/v1.ScenarioValidationService.ValidateScenario
 ```
 
-The static (no `--probe`) path is used so the producer does not require the
-target scenario to be running. The `--json` payload is the proto wire shape of
-`ValidateScenarioResponse` (snake_case field names, `SEVERITY_*` enum strings).
-Each finding is mapped to an `ArchitectureFinding{Source:
-FINDING_SOURCE_MEASURES}` via the shared `newFinding` helper, so it carries a
-deterministic stable ID, normalized severity, and the per-source effort
-default.
+The static provider path is used so the target scenario does not need to be
+running. Test Genie reads the shared `status` and `assessment.findings` fields.
+Each assessment finding is mapped to an `ArchitectureFinding{Source:
+FINDING_SOURCE_MEASURES}`, so it carries a deterministic stable ID, normalized
+severity, and the per-source effort default.
 
 ## Severity contract (load-bearing)
 
@@ -43,14 +40,14 @@ stateful domain is left uncovered and unwaived.
 - **Optional**, auto-joins the `comprehensive` preset (anti-drift guard).
 - **180s timeout** — coverage harvest reads manifests + the proto descriptor
   across the target.
-- Missing `measures-health` CLI → skip-class miss (never a hard failure).
-  Install via `vrooli scenario start measures-health`.
+- Unreachable `measures-health` API → advisory skip because the phase is
+  optional. Start it via `vrooli scenario start measures-health`.
 - `TEST_GENIE_SKIP_MEASURES=1` skips the phase entirely (matches the
   `security` escape hatch).
 
 ## Degraded producer
 
-When the `measures-health` CLI is absent or its API is unreachable, the phase
+When the `measures-health` API is unreachable, the phase
 emits a skip observation and stays green — the gate only acts on real findings,
 never on the producer's availability.
 

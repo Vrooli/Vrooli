@@ -1,8 +1,6 @@
 package phases
 
 import (
-	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -11,7 +9,6 @@ import (
 
 	"github.com/vrooli/maturity-go/assessment"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
-	"google.golang.org/protobuf/encoding/protojson"
 )
 
 var errProviderMaturityContract = errors.New("provider maturity contract violation")
@@ -25,20 +22,6 @@ func classifyProviderParseFailure(err error) shared.FailureClass {
 		return shared.FailureClassMaturityContract
 	}
 	return shared.FailureClassSystem
-}
-
-func requireProviderAssessmentJSON(provider string, phase string, raw json.RawMessage) (*commonv1.MaturityAssessment, error) {
-	if len(raw) == 0 || bytes.Equal(raw, []byte("null")) {
-		return nil, providerMaturityContractError("%s %s output is missing required assessment", provider, phase)
-	}
-	var msg commonv1.MaturityAssessment
-	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(raw, &msg); err != nil {
-		return nil, providerMaturityContractError("%s %s assessment is malformed: %v", provider, phase, err)
-	}
-	if err := requireProtoProviderAssessment(provider, phase, &msg); err != nil {
-		return nil, err
-	}
-	return &msg, nil
 }
 
 func localMaturitySummary(assessment *commonv1.MaturityAssessment) (current string, next string) {

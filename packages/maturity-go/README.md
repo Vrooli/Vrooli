@@ -13,12 +13,78 @@ Its only dependency is the generated `architecture/v1` proto types
 
 ## Packages
 
+### `github.com/vrooli/maturity-go/assessment`
+
+The shared health-scenario maturity contract helper. Health providers own their
+phase-local maturity ladder in `.vrooli/maturity.json`, emit a shared
+`common.v1.MaturityAssessment` object, and keep any richer provider-specific
+fields beside it. This package validates the local spec, normalizes finding
+maturity metadata, computes the provider-local current/next level, and preserves
+fallback behavior when older providers have not emitted maturity metadata yet.
+
+The spec shape is intentionally scenario-local:
+
+```json
+{
+  "provider": "measures-health",
+  "phase": "measures",
+  "version": "1",
+  "levels": [
+    {
+      "id": "L0",
+      "name": "No measures contract readable",
+      "description": "The target has no usable measures declaration.",
+      "entry_criteria": [],
+      "exit_criteria": ["A measures contract can be parsed."]
+    }
+  ],
+  "findings": {
+    "measures.uncovered-domain": {
+      "local_level_impact": "L2",
+      "global_impact": "capability_gap",
+      "dimension": "measures",
+      "severity_default": "ERROR",
+      "recommended_skill_ids": ["measures-adoption"]
+    }
+  },
+  "fallback": {
+    "local_level_impact": "L1",
+    "global_impact": "unknown",
+    "dimension": "measures",
+    "severity_default": "WARNING"
+  }
+}
+```
+
+Global impact vocabulary is semantic and stable:
+
+- `foundation_blocker`: cannot reliably run, build, test, or validate basics.
+- `safety_blocker`: severe security, dependency, or safety issue.
+- `evolvability_gap`: architecture, contract, docs, proto, or dependency drift.
+- `hardening_gap`: coverage, flake, UI/visual/performance, or test-depth gap.
+- `capability_gap`: missing operational target, business validation, or measures adoption.
+- `advisory`: useful but not maturity-blocking.
+- `unknown`: producer cannot classify; fallback rules apply.
+
+`assessment` remains pure logic: callers pass JSON bytes or structs, and the
+package never discovers or reads scenario files itself.
+
+For the operator-facing contract, including the human-output-first rule and
+JSON automation boundary, see
+[`docs/reference/health-maturity-assessments.md`](../../docs/reference/health-maturity-assessments.md).
+
 ### `github.com/vrooli/maturity-go/dimensions`
 
 The controller's improvement-dimension vocabulary (`standards`, `tests`,
 `structure`, …) and the SSOT mapping tables from test-genie finding sources
 and phase names into that vocabulary. The data lives in the embedded
 `dimensions.json`; edit the JSON, never the accessors.
+
+The `architecture` phase maps to the `structure` dimension because a clean
+cartographer run primarily proves domain-authority and placement coverage.
+Provider-local finding metadata can still route specific findings to `cycles`,
+so import-cycle drift remains a separate hard evolvability signal while the
+phase-level posture stays tied to structure.
 
 ```go
 dim, ok := dimensions.ForSource(architecturev1.FindingSource_FINDING_SOURCE_COVERAGE)

@@ -23,13 +23,13 @@ The phase maps Quality Health findings into Test Genie's `standards` finding cha
 
 ## Execution
 
-Test Genie runs the provider through its public CLI:
+Test Genie calls the provider through the shared validation RPC:
 
-```bash
-quality-health audit run <scenario> --json
+```text
+scenario-validation/v1.ScenarioValidationService.ValidateScenario
 ```
 
-Warnings are reported as warnings. Error findings fail the phase. If the Quality Health CLI or API is unavailable, the phase fails as a missing dependency because this is now the canonical static-quality producer.
+Quality Health packs its native `AuditQualityResponse` into `native_detail` for its own CLI/UI. Warnings are reported as warnings. Error findings fail the phase. If the Quality Health API is unavailable, the phase fails as a missing dependency because this is now the canonical static-quality producer.
 
 ## Troubleshooting
 

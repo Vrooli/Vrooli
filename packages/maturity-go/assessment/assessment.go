@@ -9,8 +9,12 @@ import (
 	"strings"
 
 	"github.com/vrooli/maturity-go/dimensions"
+	"github.com/vrooli/vrooli/packages/proto/architecture/findingid"
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 type GlobalImpact string
@@ -108,6 +112,22 @@ type BuildInput struct {
 	Scenario string
 	Spec     Spec
 	Findings []Finding
+}
+
+type validationResponseOptions struct {
+	status scenariovalidationv1.ValidationStatus
+}
+
+// ValidationResponseOption customizes BuildValidationResponse.
+type ValidationResponseOption func(*validationResponseOptions)
+
+// WithValidationStatus overrides the status derived from assessment severity
+// counts. Providers use this for DEGRADED, ERROR, or SKIPPED outcomes that are
+// not expressible as normal maturity findings.
+func WithValidationStatus(status scenariovalidationv1.ValidationStatus) ValidationResponseOption {
+	return func(opts *validationResponseOptions) {
+		opts.status = status
+	}
 }
 
 // ParseSpec parses a JSON maturity spec supplied by a caller. The package stays
@@ -284,6 +304,106 @@ func ValidateAssessment(a *commonv1.MaturityAssessment) error {
 	return nil
 }
 
+// BuildValidationResponse wraps the shared maturity assessment in the common
+// scenario-validation response and optionally packs a provider-native payload.
+func BuildValidationResponse(
+	scenario string,
+	a *commonv1.MaturityAssessment,
+	native proto.Message,
+	opts ...ValidationResponseOption,
+) (*scenariovalidationv1.ValidateScenarioResponse, error) {
+	scenario = strings.TrimSpace(scenario)
+	if scenario == "" {
+		return nil, fmt.Errorf("scenario is required")
+	}
+	if err := ValidateAssessment(a); err != nil {
+		return nil, err
+	}
+	config := validationResponseOptions{}
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&config)
+		}
+	}
+	status := config.status
+	if status == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED {
+		status = DeriveValidationStatus(a)
+	}
+	if status == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED {
+		return nil, fmt.Errorf("validation status is required")
+	}
+	var detail *anypb.Any
+	if native != nil {
+		packed, err := anypb.New(native)
+		if err != nil {
+			return nil, fmt.Errorf("pack native detail: %w", err)
+		}
+		detail = packed
+	}
+	return &scenariovalidationv1.ValidateScenarioResponse{
+		Scenario:     scenario,
+		Status:       status,
+		Assessment:   a,
+		NativeDetail: detail,
+	}, nil
+}
+
+// DeriveValidationStatus returns FAILED when the assessment reports error or
+// blocker severity findings, otherwise PASSED.
+func DeriveValidationStatus(a *commonv1.MaturityAssessment) scenariovalidationv1.ValidationStatus {
+	if a == nil {
+		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_ERROR
+	}
+	for severity, count := range a.GetFindingsBySeverity() {
+		if count <= 0 {
+			continue
+		}
+		switch normalizeSeverity(severity) {
+		case architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR,
+			architecturev1.FindingSeverity_FINDING_SEVERITY_BLOCKER:
+			return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED
+		}
+	}
+	return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED
+}
+
+// AssessmentToArchitectureFindings converts the shared assessment projection
+// into the normalized finding envelope Test Genie already emits.
+func AssessmentToArchitectureFindings(
+	scenario string,
+	a *commonv1.MaturityAssessment,
+	defaultSource architecturev1.FindingSource,
+) []*architecturev1.ArchitectureFinding {
+	if a == nil {
+		return nil
+	}
+	scenario = strings.TrimSpace(scenario)
+	if scenario == "" {
+		scenario = strings.TrimSpace(a.GetScenario())
+	}
+	out := make([]*architecturev1.ArchitectureFinding, 0, len(a.GetFindings()))
+	for _, finding := range a.GetFindings() {
+		if finding == nil {
+			continue
+		}
+		source := sourceForAssessmentFinding(finding, defaultSource)
+		archFinding := &architecturev1.ArchitectureFinding{
+			Scenario:     scenario,
+			Source:       source,
+			Code:         strings.TrimSpace(finding.GetCode()),
+			Severity:     normalizeSeverity(finding.GetSeverity()),
+			Locations:    nonEmptyStrings(finding.GetLocation()),
+			Message:      assessmentFindingMessage(finding),
+			Suggestion:   strings.TrimSpace(finding.GetRemediation()),
+			Effort:       defaultEffortForSource(source),
+			FindingClass: architecturev1.FindingClass_FINDING_CLASS_DETERMINISTIC,
+		}
+		findingid.Stamp(archFinding)
+		out = append(out, archFinding)
+	}
+	return out
+}
+
 func GlobalImpactToProto(impact GlobalImpact) commonv1.GlobalImpact {
 	switch impact {
 	case ImpactFoundationBlocker:
@@ -430,6 +550,87 @@ func normalizeSeverity(raw string) architecturev1.FindingSeverity {
 		return architecturev1.FindingSeverity_FINDING_SEVERITY_INFO
 	default:
 		return architecturev1.FindingSeverity_FINDING_SEVERITY_UNSPECIFIED
+	}
+}
+
+func sourceForAssessmentFinding(finding *commonv1.AssessmentFinding, fallback architecturev1.FindingSource) architecturev1.FindingSource {
+	if finding == nil || finding.GetMaturity() == nil {
+		return fallback
+	}
+	switch dimensions.Dimension(strings.TrimSpace(finding.GetMaturity().GetDimension())) {
+	case "contracts":
+		return architecturev1.FindingSource_FINDING_SOURCE_CLI
+	case "ui":
+		return architecturev1.FindingSource_FINDING_SOURCE_UI
+	case "docs":
+		return architecturev1.FindingSource_FINDING_SOURCE_DOCS
+	case "standards":
+		return architecturev1.FindingSource_FINDING_SOURCE_STANDARDS
+	case "cycles":
+		return architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE
+	case "tidiness":
+		return architecturev1.FindingSource_FINDING_SOURCE_TIDINESS
+	case "coverage":
+		return architecturev1.FindingSource_FINDING_SOURCE_COVERAGE
+	case "security":
+		return architecturev1.FindingSource_FINDING_SOURCE_SECURITY
+	case "measures":
+		return architecturev1.FindingSource_FINDING_SOURCE_MEASURES
+	case "business":
+		return architecturev1.FindingSource_FINDING_SOURCE_BUSINESS
+	case "proto-health":
+		return architecturev1.FindingSource_FINDING_SOURCE_PROTO
+	case "dependency-accuracy":
+		return architecturev1.FindingSource_FINDING_SOURCE_DEPENDENCY
+	case "structure":
+		return architecturev1.FindingSource_FINDING_SOURCE_STRUCTURE
+	default:
+		return fallback
+	}
+}
+
+func assessmentFindingMessage(finding *commonv1.AssessmentFinding) string {
+	title := strings.TrimSpace(finding.GetTitle())
+	message := strings.TrimSpace(finding.GetMessage())
+	switch {
+	case title == "":
+		return message
+	case message == "":
+		return title
+	default:
+		return title + ": " + message
+	}
+}
+
+func nonEmptyStrings(values ...string) []string {
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
+}
+
+func defaultEffortForSource(source architecturev1.FindingSource) architecturev1.EffortHint {
+	switch source {
+	case architecturev1.FindingSource_FINDING_SOURCE_DOCS:
+		return architecturev1.EffortHint_EFFORT_HINT_TRIVIAL
+	case architecturev1.FindingSource_FINDING_SOURCE_CLI,
+		architecturev1.FindingSource_FINDING_SOURCE_UI,
+		architecturev1.FindingSource_FINDING_SOURCE_STANDARDS,
+		architecturev1.FindingSource_FINDING_SOURCE_TIDINESS,
+		architecturev1.FindingSource_FINDING_SOURCE_PROTO,
+		architecturev1.FindingSource_FINDING_SOURCE_DEPENDENCY:
+		return architecturev1.EffortHint_EFFORT_HINT_SMALL
+	case architecturev1.FindingSource_FINDING_SOURCE_COVERAGE,
+		architecturev1.FindingSource_FINDING_SOURCE_SECURITY:
+		return architecturev1.EffortHint_EFFORT_HINT_MEDIUM
+	case architecturev1.FindingSource_FINDING_SOURCE_STRUCTURE,
+		architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE:
+		return architecturev1.EffortHint_EFFORT_HINT_LARGE
+	default:
+		return architecturev1.EffortHint_EFFORT_HINT_UNSPECIFIED
 	}
 }
 

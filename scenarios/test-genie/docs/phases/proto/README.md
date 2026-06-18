@@ -1,20 +1,20 @@
 # `proto` phase
 
-The `proto` phase is a **thin delegating phase**: it shells the
-`proto-health` scenario's public CLI and maps scenario-scoped Protocol Buffer
-contract findings into the shared `FINDING_SOURCE_PROTO` channel. test-genie
-does not parse descriptors or validate proto organization itself; those checks
-live in `proto-health`, alongside the proto-surface fact RPC.
+The `proto` phase is a **thin delegating phase**: it calls the `proto-health`
+scenario's shared `ScenarioValidationService` and maps scenario-scoped Protocol
+Buffer contract findings into the shared `FINDING_SOURCE_PROTO` channel.
+test-genie does not parse descriptors or validate proto organization itself;
+those checks live in `proto-health`, alongside the proto-surface fact RPC.
 
 ## What it runs
 
-```
-proto-health validate scenario <name> --json
+```text
+scenario-validation/v1.ScenarioValidationService.ValidateScenario
 ```
 
-The `--json` payload is the proto-health validation response. Each finding is
-mapped to an `ArchitectureFinding{Source: FINDING_SOURCE_PROTO}` via the shared
-`newFinding` helper, so it carries a deterministic stable ID, normalized
+Test Genie reads the shared `status` and `assessment.findings` fields. Each
+assessment finding is mapped to an `ArchitectureFinding{Source:
+FINDING_SOURCE_PROTO}`, so it carries a deterministic stable ID, normalized
 severity, and the per-source effort default.
 
 ## Severity contract
@@ -32,14 +32,26 @@ Only ERROR findings fail the phase. They flow into the ecosystem-manager
 `proto-health` dimension, which is a soft R2 ladder input for evolvable
 architecture and contract health.
 
+Generated-artifact drift for the target scenario is still an ERROR
+(`proto.gen_out_of_sync`). A proto-bearing scenario with no committed
+generation lockfile emits `proto.gen_manifest_missing` as an ERROR.
+Toolchain pin drift emits `proto.gen_toolchain_drift` as a WARNING, so it is
+visible but does not fail the phase.
+
+Evidence checks from code-facts are advisory unless they prove a contradiction:
+`proto.proto_adoption_missing`, `proto.endpoint_proof_missing`, and
+`*_unsupported` findings are WARNING. `*_contradicted` findings remain ERROR.
+Absence of proof therefore does not make the phase outcome depend on whether
+code-facts happens to be running.
+
 ## Classification
 
 - **Optional**, included in every built-in preset. Curated presets reference it
   explicitly; `comprehensive` auto-joins it through the default catalog.
-- **120s timeout** — descriptor and generated-artifact checks should be fast,
-  but the budget leaves room for slower worktrees.
-- Missing `proto-health` CLI or unreachable producer API -> skip observation
-  (never a hard failure).
+- **120s timeout** — descriptor and generated-artifact checks are file reads and
+  hashing; the budget mainly protects RPC startup and slow worktrees.
+- Unreachable `proto-health` API -> skip observation (never a hard failure).
+- `proto.gen_toolchain_drift` -> advisory finding (never a hard failure).
 - `TEST_GENIE_SKIP_PROTO=1` skips the phase entirely.
 
 ## See also

@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 )
 
 func validSpec() Spec {
@@ -218,5 +220,128 @@ func TestBuildProtoAssessmentDeduplicatesRecommendedSkills(t *testing.T) {
 	want := []string{"measures-adoption", "quality-health"}
 	if !slices.Equal(got.GetRecommendedSkillIds(), want) {
 		t.Fatalf("recommended skills = %#v, want %#v", got.GetRecommendedSkillIds(), want)
+	}
+}
+
+func TestBuildValidationResponseDerivesStatusAndPacksNativeDetail(t *testing.T) {
+	assessment, err := BuildProtoAssessment(BuildInput{
+		Scenario: "demo",
+		Spec:     validSpec(),
+		Findings: []Finding{{Code: "measures.uncovered-domain"}},
+	})
+	if err != nil {
+		t.Fatalf("BuildProtoAssessment returned error: %v", err)
+	}
+	native := &commonv1.LocalMaturityLevel{Id: "native"}
+	got, err := BuildValidationResponse("demo", assessment, native)
+	if err != nil {
+		t.Fatalf("BuildValidationResponse returned error: %v", err)
+	}
+	if got.GetStatus() != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED {
+		t.Fatalf("status = %v, want FAILED", got.GetStatus())
+	}
+	if got.GetNativeDetail() == nil {
+		t.Fatal("native_detail is nil")
+	}
+	unpacked := &commonv1.LocalMaturityLevel{}
+	if err := got.GetNativeDetail().UnmarshalTo(unpacked); err != nil {
+		t.Fatalf("native_detail unmarshal failed: %v", err)
+	}
+	if unpacked.GetId() != "native" {
+		t.Fatalf("native detail id = %q, want native", unpacked.GetId())
+	}
+}
+
+func TestBuildValidationResponseCanOverrideDerivedStatus(t *testing.T) {
+	assessment, err := BuildProtoAssessment(BuildInput{Scenario: "demo", Spec: validSpec()})
+	if err != nil {
+		t.Fatalf("BuildProtoAssessment returned error: %v", err)
+	}
+	got, err := BuildValidationResponse(
+		"demo",
+		assessment,
+		nil,
+		WithValidationStatus(scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED),
+	)
+	if err != nil {
+		t.Fatalf("BuildValidationResponse returned error: %v", err)
+	}
+	if got.GetStatus() != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED {
+		t.Fatalf("status = %v, want DEGRADED", got.GetStatus())
+	}
+}
+
+func TestDeriveValidationStatusPassesWithNoErrorSeverity(t *testing.T) {
+	assessment, err := BuildProtoAssessment(BuildInput{Scenario: "demo", Spec: validSpec()})
+	if err != nil {
+		t.Fatalf("BuildProtoAssessment returned error: %v", err)
+	}
+	assessment.FindingsBySeverity["FINDING_SEVERITY_WARNING"] = 2
+	if got := DeriveValidationStatus(assessment); got != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED {
+		t.Fatalf("status = %v, want PASSED", got)
+	}
+}
+
+func TestAssessmentToArchitectureFindingsRoutesByDimension(t *testing.T) {
+	assessment := &commonv1.MaturityAssessment{
+		Scenario: "demo",
+		Provider: "unit-health",
+		Phase:    "unit",
+		Version:  "1",
+		Local:    &commonv1.LocalMaturityAssessment{CurrentLevel: "L1"},
+		Findings: []*commonv1.AssessmentFinding{{
+			Code:        "coverage.low",
+			Severity:    "ERROR",
+			Title:       "Coverage below threshold",
+			Message:     "api package is under target",
+			Location:    "api/service.go",
+			Remediation: "Add focused tests",
+			Maturity: &commonv1.FindingMaturity{
+				GlobalImpact: commonv1.GlobalImpact_GLOBAL_IMPACT_HARDENING_GAP,
+				Dimension:    "coverage",
+			},
+		}},
+	}
+	got := AssessmentToArchitectureFindings("demo", assessment, architecturev1.FindingSource_FINDING_SOURCE_CLI)
+	if len(got) != 1 {
+		t.Fatalf("findings = %d, want 1", len(got))
+	}
+	finding := got[0]
+	if finding.GetSource() != architecturev1.FindingSource_FINDING_SOURCE_COVERAGE {
+		t.Fatalf("source = %v, want COVERAGE", finding.GetSource())
+	}
+	if finding.GetStableId() == "" {
+		t.Fatal("stable_id is empty")
+	}
+	if finding.GetMessage() != "Coverage below threshold: api package is under target" {
+		t.Fatalf("message = %q", finding.GetMessage())
+	}
+}
+
+func TestAssessmentToArchitectureFindingsFallsBackWhenDimensionUnknown(t *testing.T) {
+	assessment := &commonv1.MaturityAssessment{
+		Scenario: "demo",
+		Provider: "custom-health",
+		Phase:    "custom",
+		Version:  "1",
+		Local:    &commonv1.LocalMaturityAssessment{CurrentLevel: "L1"},
+		Findings: []*commonv1.AssessmentFinding{{
+			Code:     "custom.notice",
+			Severity: "INFO",
+			Maturity: &commonv1.FindingMaturity{
+				GlobalImpact: commonv1.GlobalImpact_GLOBAL_IMPACT_ADVISORY,
+				Dimension:    "custom",
+			},
+		}},
+	}
+	got := AssessmentToArchitectureFindings("", assessment, architecturev1.FindingSource_FINDING_SOURCE_MEASURES)
+	if len(got) != 1 {
+		t.Fatalf("findings = %d, want 1", len(got))
+	}
+	if got[0].GetScenario() != "demo" {
+		t.Fatalf("scenario = %q, want demo", got[0].GetScenario())
+	}
+	if got[0].GetSource() != architecturev1.FindingSource_FINDING_SOURCE_MEASURES {
+		t.Fatalf("source = %v, want MEASURES", got[0].GetSource())
 	}
 }

@@ -145,43 +145,15 @@ Delegates dependency validation to Scenario Dependency Analyzer:
 
 ### unit
 
-**File:** `phase_unit.go`
+**File:** `phase_validationprovider.go`
 
-Executes language-specific unit tests:
+Delegates test execution, coverage analysis, test architecture, and test-quality
+diagnostics to Unit Health:
 
-```mermaid
-flowchart TB
-    subgraph Go
-        go_test["go test ./..."]
-    end
-
-    subgraph Node
-        detect_pm["Detect package manager"]
-        install["Install deps if needed"]
-        npm_test["pnpm/npm/yarn test"]
-    end
-
-    subgraph Python
-        detect_py["Detect python workspace"]
-        pytest["pytest -q"]
-        unittest["unittest discover"]
-    end
-
-    subgraph Shell
-        bash_n["bash -n <scripts>"]
-    end
-
-    go_test --> Node
-    Node --> Python
-    Python --> Shell
-```
-
-| Runtime | Test Command | Detection |
-|---------|--------------|-----------|
-| Go | `go test ./...` in `api/` | `api/` directory exists |
-| Node | `pnpm test` / `npm test` | `package.json` with `scripts.test` |
-| Python | `pytest -q` or `unittest discover` | `requirements.txt`, `pyproject.toml`, or `tests/` |
-| Shell | `bash -n <file>` | CLI binary, `test/lib/*.sh` |
+- Calls `scenario-validation/v1.ScenarioValidationService.ValidateScenario` on `unit-health`
+- Sets `include_execution=true` so the provider actually runs the discovered tests
+- Uses a long provider timeout because test execution can be slow
+- Maps coverage-dimension assessment findings into `FINDING_SOURCE_COVERAGE`
 
 ### integration
 
@@ -304,7 +276,6 @@ phases/
 │
 ├── phase_structure.go      # Structure validation
 ├── phase_validationprovider.go # Shared health-provider delegation
-├── phase_unit.go           # Unit test execution
 ├── phase_integration.go    # Integration tests
 ├── phase_playbooks.go      # BAS workflow execution
 ├── phase_business.go       # Requirements auditing

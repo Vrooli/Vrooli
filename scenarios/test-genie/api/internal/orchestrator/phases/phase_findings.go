@@ -120,15 +120,16 @@ func newFindingWithEffort(
 	effort architecturev1.EffortHint,
 ) *architecturev1.ArchitectureFinding {
 	f := &architecturev1.ArchitectureFinding{
-		Scenario:   scenario,
-		Source:     source,
-		Code:       strings.TrimSpace(code),
-		Severity:   normalizeFindingSeverity(severity),
-		Locations:  locations,
-		Domains:    domains,
-		Message:    strings.TrimSpace(message),
-		Suggestion: strings.TrimSpace(suggestion),
-		Effort:     effort,
+		Scenario:     scenario,
+		Source:       source,
+		Code:         strings.TrimSpace(code),
+		Severity:     normalizeFindingSeverity(severity),
+		Locations:    locations,
+		Domains:      domains,
+		Message:      strings.TrimSpace(message),
+		Suggestion:   strings.TrimSpace(suggestion),
+		Effort:       effort,
+		FindingClass: architecturev1.FindingClass_FINDING_CLASS_DETERMINISTIC,
 	}
 	findingid.Stamp(f)
 	return f

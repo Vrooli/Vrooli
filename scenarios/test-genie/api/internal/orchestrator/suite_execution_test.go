@@ -173,22 +173,24 @@ func stubRuntimePhaseRunners(orchestrator *SuiteOrchestrator) {
 	noOp := func(ctx context.Context, env workspacepkg.Environment, logWriter io.Writer) phasespkg.RunReport {
 		return phasespkg.RunReport{}
 	}
-	// ui-health delegates to the ui-health scenario against a real scenario;
-	// stub it here (preserving its weight-20 position) so orchestration tests
-	// don't depend on that external provider.
+	// Provider-backed phases are covered in the phase package. Orchestration
+	// tests replace them so a minimal fake scenario does not depend on live
+	// health-provider APIs.
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Contracts, Runner: noOp, Optional: false, Weight: 10})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.UIHealth, Runner: noOp, Optional: false, Weight: 20})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Architecture, Runner: noOp, Optional: true, Weight: 40})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Dependencies, Runner: noOp, Optional: false, Weight: 50})
 	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Quality, Runner: noOp, Optional: false, Weight: 60})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Performance, Runner: noOp, Optional: true, Weight: 60})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Smoke, Runner: noOp, Optional: true, Weight: 70})
-	// unit delegates to the unit-health binary against a real scenario after the
-	// hard cutover; stub it (preserving its weight-80 position) so orchestration
-	// tests don't depend on that external tool.
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Unit, Runner: noOp, Optional: false, Weight: 80})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Integration, Runner: noOp, Weight: 90})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Playbooks, Runner: noOp, Weight: 100})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Security, Runner: noOp, Optional: true, Weight: 140})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Measures, Runner: noOp, Optional: true, Weight: 150})
-	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Proto, Runner: noOp, Optional: true, Weight: 160})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Docs, Runner: noOp, Optional: false, Weight: 70})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Performance, Runner: noOp, Optional: true, Weight: 80})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Smoke, Runner: noOp, Optional: true, Weight: 90})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Unit, Runner: noOp, Optional: false, Weight: 100})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Integration, Runner: noOp, Weight: 110})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Playbooks, Runner: noOp, Weight: 120})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Tidiness, Runner: noOp, Optional: true, Weight: 140})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Security, Runner: noOp, Optional: true, Weight: 150})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Measures, Runner: noOp, Optional: true, Weight: 160})
+	orchestrator.catalog.Register(phasespkg.Spec{Name: phasespkg.Proto, Runner: noOp, Optional: true, Weight: 170})
 }
 
 func TestSuiteOrchestratorExecutesPhases(t *testing.T) {

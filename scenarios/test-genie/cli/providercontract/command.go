@@ -7,17 +7,18 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/maturity-go/assessment"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -30,7 +31,6 @@ var (
 		return discovery.ResolveScenarioURLDefault(ctx, provider)
 	}
 )
-var httpClient = &http.Client{Timeout: 2 * time.Minute}
 
 type Args struct {
 	Subject   string
@@ -42,17 +42,10 @@ type Args struct {
 }
 
 type Probe struct {
-	Phase       string     `json:"phase"`
-	Provider    string     `json:"provider"`
-	Invocation  []string   `json:"invocation"`
-	HTTP        *HTTPProbe `json:"http,omitempty"`
-	Restartable bool       `json:"restartable"`
-}
-
-type HTTPProbe struct {
-	Method string         `json:"method"`
-	Path   string         `json:"path"`
-	Body   map[string]any `json:"body,omitempty"`
+	Phase       string   `json:"phase"`
+	Provider    string   `json:"provider"`
+	Invocation  []string `json:"invocation,omitempty"`
+	Restartable bool     `json:"restartable"`
 }
 
 type Result struct {
@@ -147,13 +140,9 @@ func Check(ctx context.Context, args Args, probe Probe) (Result, error) {
 		}
 		out.Restarted = true
 	}
-	raw, source, err := runProbe(ctx, args, probe)
+	assessmentMsg, _, err := probeAssessment(ctx, args, probe)
 	if err != nil {
 		return out, err
-	}
-	assessmentMsg, err := parseAssessment(raw)
-	if err != nil {
-		return out, fmt.Errorf("provider maturity contract violation from `%s`: %w", source, err)
 	}
 	if got, want := strings.TrimSpace(assessmentMsg.GetProvider()), probe.Provider; got != "" && got != want {
 		return out, fmt.Errorf("provider maturity contract violation: assessment.provider=%q, want %q", got, want)
@@ -171,7 +160,7 @@ func Check(ctx context.Context, args Args, probe Probe) (Result, error) {
 	return out, nil
 }
 
-func runProbe(ctx context.Context, args Args, probe Probe) ([]byte, string, error) {
+func probeAssessment(ctx context.Context, args Args, probe Probe) (*commonv1.MaturityAssessment, string, error) {
 	invocation := append([]string(nil), probe.Invocation...)
 	for i, part := range invocation {
 		if part == "{{target}}" {
@@ -183,23 +172,24 @@ func runProbe(ctx context.Context, args Args, probe Probe) ([]byte, string, erro
 		source := strings.Join(invocation, " ")
 		if err != nil {
 			if len(bytes.TrimSpace(raw)) > 0 {
-				return raw, source, nil
+				assessmentMsg, parseErr := parseAssessment(raw)
+				if parseErr != nil {
+					return nil, source, fmt.Errorf("provider maturity contract violation from `%s`: %w", source, parseErr)
+				}
+				return assessmentMsg, source, nil
 			}
 			return nil, source, fmt.Errorf("run provider command `%s`: %w", source, err)
 		}
-		return raw, source, nil
-	}
-	if probe.HTTP != nil {
-		raw, source, err := runHTTPProbe(ctx, args, probe)
-		if err != nil {
-			return nil, source, err
+		assessmentMsg, parseErr := parseAssessment(raw)
+		if parseErr != nil {
+			return nil, source, fmt.Errorf("provider maturity contract violation from `%s`: %w", source, parseErr)
 		}
-		return raw, source, nil
+		return assessmentMsg, source, nil
 	}
-	return nil, "", fmt.Errorf("%s has no provider contract probe configured", probe.Phase)
+	return runSharedRPCProbe(ctx, args, probe)
 }
 
-func runHTTPProbe(ctx context.Context, args Args, probe Probe) ([]byte, string, error) {
+func runSharedRPCProbe(ctx context.Context, args Args, probe Probe) (*commonv1.MaturityAssessment, string, error) {
 	timeout := args.Timeout
 	if timeout <= 0 {
 		timeout = 2 * time.Minute
@@ -212,60 +202,30 @@ func runHTTPProbe(ctx context.Context, args Args, probe Probe) ([]byte, string, 
 	if baseURL == "" {
 		return nil, probe.Provider, fmt.Errorf("provider %s base URL is empty", probe.Provider)
 	}
-	body := replaceProbeBodyTarget(probe.HTTP.Body, args.Target)
-	var reader io.Reader
-	if body != nil {
-		payload, err := json.Marshal(body)
-		if err != nil {
-			return nil, baseURL + probe.HTTP.Path, fmt.Errorf("encode HTTP probe body: %w", err)
-		}
-		reader = bytes.NewReader(payload)
-	}
 	runCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	method := strings.TrimSpace(probe.HTTP.Method)
-	if method == "" {
-		method = http.MethodGet
-	}
-	source := method + " " + baseURL + probe.HTTP.Path
-	req, err := http.NewRequestWithContext(runCtx, method, baseURL+probe.HTTP.Path, reader)
-	if err != nil {
-		return nil, source, err
-	}
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-	resp, err := httpClient.Do(req)
+	source := probe.Provider + " " + scenariovalidationconnect.ScenarioValidationServiceValidateScenarioProcedure
+	client := scenariovalidationconnect.NewScenarioValidationServiceClient(&http.Client{Timeout: timeout}, baseURL)
+	resp, err := client.ValidateScenario(runCtx, connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
+		Scenario: args.Target,
+	}))
 	if runCtx.Err() != nil {
 		return nil, source, runCtx.Err()
 	}
 	if err != nil {
-		return nil, source, fmt.Errorf("run provider HTTP probe `%s`: %w", source, err)
+		return nil, source, fmt.Errorf("provider RPC probe `%s`: %w", source, err)
 	}
-	defer resp.Body.Close()
-	raw, readErr := io.ReadAll(resp.Body)
-	if readErr != nil {
-		return nil, source, fmt.Errorf("read provider HTTP probe response: %w", readErr)
+	if resp.Msg.GetStatus() == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED {
+		return nil, source, fmt.Errorf("provider maturity contract violation from `%s`: validation status is required", source)
 	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, source, fmt.Errorf("provider HTTP probe `%s` returned %d: %s", source, resp.StatusCode, strings.TrimSpace(string(raw)))
+	assessmentMsg := resp.Msg.GetAssessment()
+	if assessmentMsg == nil {
+		return nil, source, fmt.Errorf("provider maturity contract violation from `%s`: assessment is required", source)
 	}
-	return raw, source, nil
-}
-
-func replaceProbeBodyTarget(body map[string]any, target string) map[string]any {
-	if body == nil {
-		return nil
+	if err := assessment.ValidateAssessment(assessmentMsg); err != nil {
+		return nil, source, fmt.Errorf("provider maturity contract violation from `%s`: %w", source, err)
 	}
-	out := make(map[string]any, len(body))
-	for k, v := range body {
-		if s, ok := v.(string); ok && s == "{{target}}" {
-			out[k] = target
-			continue
-		}
-		out[k] = v
-	}
-	return out
+	return assessmentMsg, source, nil
 }
 
 func ResolveProbe(subject string) (Probe, error) {
@@ -350,16 +310,16 @@ func runCommand(ctx context.Context, timeout time.Duration, dir string, name str
 }
 
 var probes = []Probe{
-	{Phase: "contracts", Provider: "cli-health", Invocation: []string{"cli-health", "validate", "scenario", "{{target}}", "--json"}, Restartable: true},
-	{Phase: "ui-health", Provider: "ui-health", Invocation: []string{"ui-health", "validate", "scenario", "{{target}}", "--json"}, Restartable: true},
-	{Phase: "quality", Provider: "quality-health", Invocation: []string{"quality-health", "audit", "run", "{{target}}", "--json"}, Restartable: true},
-	{Phase: "dependencies", Provider: "scenario-dependency-analyzer", Invocation: []string{"scenario-dependency-analyzer", "health", "{{target}}", "--json"}, Restartable: true},
-	{Phase: "security", Provider: "security-health", Invocation: []string{"security-health", "validate", "scenario", "{{target}}", "--json"}, Restartable: true},
-	{Phase: "measures", Provider: "measures-health", Invocation: []string{"measures-health", "validate", "scenario", "{{target}}", "--json"}, Restartable: true},
-	{Phase: "proto", Provider: "proto-health", Invocation: []string{"proto-health", "validate", "scenario", "{{target}}", "--json"}, Restartable: true},
-	{Phase: "unit", Provider: "unit-health", Invocation: []string{"unit-health", "validate", "scenario", "{{target}}", "--execution", "--json"}, Restartable: true},
+	{Phase: "contracts", Provider: "cli-health", Restartable: true},
+	{Phase: "ui-health", Provider: "ui-health", Restartable: true},
+	{Phase: "quality", Provider: "quality-health", Restartable: true},
+	{Phase: "dependencies", Provider: "scenario-dependency-analyzer", Restartable: true},
+	{Phase: "security", Provider: "security-health", Restartable: true},
+	{Phase: "measures", Provider: "measures-health", Restartable: true},
+	{Phase: "proto", Provider: "proto-health", Restartable: true},
+	{Phase: "unit", Provider: "unit-health", Restartable: true},
 	{Phase: "standards", Provider: "scenario-auditor", Invocation: []string{"scenario-auditor", "standards", "scan", "{{target}}", "--wait", "--json"}, Restartable: true},
-	{Phase: "architecture", Provider: "architecture-cartographer", HTTP: &HTTPProbe{Method: http.MethodPost, Path: scenariovalidationconnect.ScenarioValidationServiceValidateScenarioProcedure, Body: map[string]any{"scenario": "{{target}}"}}, Restartable: true},
-	{Phase: "docs", Provider: "knowledge-observatory", HTTP: &HTTPProbe{Method: http.MethodPost, Path: scenariovalidationconnect.ScenarioValidationServiceValidateScenarioProcedure, Body: map[string]any{"scenario": "{{target}}"}}, Restartable: true},
-	{Phase: "tidiness", Provider: "tidiness-manager", HTTP: &HTTPProbe{Method: http.MethodPost, Path: scenariovalidationconnect.ScenarioValidationServiceValidateScenarioProcedure, Body: map[string]any{"scenario": "{{target}}"}}, Restartable: true},
+	{Phase: "architecture", Provider: "architecture-cartographer", Restartable: true},
+	{Phase: "docs", Provider: "knowledge-observatory", Restartable: true},
+	{Phase: "tidiness", Provider: "tidiness-manager", Restartable: true},
 }

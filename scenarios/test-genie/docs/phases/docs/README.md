@@ -182,19 +182,19 @@ Marked inline references use the project-level syntax from `docs/reference/machi
 
 ## Implementation
 
-The docs phase is a **thin Connect-RPC client**: it calls
-`knowledge-observatory`'s `KnowledgeObservatoryService.DocHealth` and
-translates the proto response into phase observations + a `DocsSummary`
-metric rollup. There is no inline validation in test-genie — every
-markdown / mermaid / link / path / reference / manifest check lives in
-knowledge-observatory.
+The docs phase is a **thin shared validation client**: it calls
+`knowledge-observatory`'s `ScenarioValidationService.ValidateScenario` and
+maps the returned `assessment.findings` into Test Genie observations and
+architecture findings. Knowledge Observatory packs its native `DocHealthResponse`
+into `native_detail` for its own CLI/UI. There is no inline validation in
+test-genie — every markdown / mermaid / link / path / reference / manifest
+check lives in knowledge-observatory.
 
 If knowledge-observatory is unreachable, the docs phase fails fast with
 `FailureClassMissingDependency`. There is no fallback.
 
-- [CODE: api/internal/orchestrator/phases/phase_docs.go#runDocsPhase] - Resolve URL, call DocHealth RPC, translate response
-- [CODE: api/internal/orchestrator/phases/phase_docs.go#translateDocHealth] - Proto → Observations + Summary translator
-- [CODE: api/internal/orchestrator/phases/phase_docs.go#DocsSummary] - Metric rollup (mirrors proto `DocHealthCounts`)
+- [CODE: api/internal/orchestrator/phases/phase_validationprovider.go#runDocsPhase] - Docs registration for the generic provider runner
+- [CODE: api/internal/orchestrator/phases/validationprovider/provider.go] - Shared provider runner and assessment mapping
 - See knowledge-observatory's `api/internal/services/dochealth/` for the validators themselves.
 
 ## Summary Metrics

@@ -52,22 +52,6 @@ func ParseJSON(data string, v interface{}) error {
 	return json.Unmarshal([]byte(data), v)
 }
 
-func extractCapturedJSONObject(provider string, raw []byte) ([]byte, error) {
-	text := strings.TrimSpace(string(raw))
-	if text == "" {
-		return nil, fmt.Errorf("%s produced empty output", provider)
-	}
-	start := strings.IndexByte(text, '{')
-	if start < 0 {
-		return nil, fmt.Errorf("%s output did not contain a JSON object", provider)
-	}
-	end := strings.LastIndexByte(text, '}')
-	if end < start {
-		return nil, fmt.Errorf("%s output contained an incomplete JSON object", provider)
-	}
-	return []byte(text[start : end+1]), nil
-}
-
 func EnsureCommandAvailable(name string) error {
 	if _, err := commandLookup(name); err != nil {
 		return fmt.Errorf("required command '%s' is not available: %w", name, err)

@@ -3,12 +3,14 @@ package providercontract
 import (
 	"context"
 	"errors"
-	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 )
 
@@ -31,7 +33,7 @@ func TestResolveProbeAcceptsPhaseAndProvider(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResolveProbe(provider): %v", err)
 	}
-	if byPhase.Phase != byProvider.Phase || byPhase.Provider != byProvider.Provider || strings.Join(byPhase.Invocation, " ") != strings.Join(byProvider.Invocation, " ") {
+	if byPhase.Phase != byProvider.Phase || byPhase.Provider != byProvider.Provider {
 		t.Fatalf("phase/provider resolved different probes: %#v != %#v", byPhase, byProvider)
 	}
 }
@@ -50,6 +52,10 @@ func TestCheckRestartsThenValidatesAssessment(t *testing.T) {
 		}
 	})
 	defer restore()
+	srv := newValidationServer(t, validProviderResponse("demo", "cli-health", "contracts", "2026-06-16", "L3"))
+	defer srv.Close()
+	restoreURL := stubProviderBaseURL(t, srv.URL)
+	defer restoreURL()
 
 	probe, err := ResolveProbe("contracts")
 	if err != nil {
@@ -65,10 +71,13 @@ func TestCheckRestartsThenValidatesAssessment(t *testing.T) {
 }
 
 func TestCheckRejectsMissingAssessment(t *testing.T) {
-	restore := stubCommandRunner(t, func(name string, args ...string) ([]byte, error) {
-		return []byte(`{"scenario":"demo"}`), nil
+	srv := newValidationServer(t, &scenariovalidationv1.ValidateScenarioResponse{
+		Scenario: "demo",
+		Status:   scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED,
 	})
-	defer restore()
+	defer srv.Close()
+	restoreURL := stubProviderBaseURL(t, srv.URL)
+	defer restoreURL()
 
 	probe, err := ResolveProbe("contracts")
 	if err != nil {
@@ -81,10 +90,10 @@ func TestCheckRejectsMissingAssessment(t *testing.T) {
 }
 
 func TestCheckRejectsStaleProviderIdentity(t *testing.T) {
-	restore := stubCommandRunner(t, func(name string, args ...string) ([]byte, error) {
-		return []byte(validProviderJSON("demo", "old-health", "contracts", "2026-06-16", "L3")), nil
-	})
-	defer restore()
+	srv := newValidationServer(t, validProviderResponse("demo", "old-health", "contracts", "2026-06-16", "L3"))
+	defer srv.Close()
+	restoreURL := stubProviderBaseURL(t, srv.URL)
+	defer restoreURL()
 
 	probe, err := ResolveProbe("contracts")
 	if err != nil {
@@ -96,13 +105,13 @@ func TestCheckRejectsStaleProviderIdentity(t *testing.T) {
 	}
 }
 
-func TestCheckValidatesAssessmentFromNonZeroProviderOutput(t *testing.T) {
+func TestCheckStandardsValidatesAssessmentFromNonZeroProviderOutput(t *testing.T) {
 	restore := stubCommandRunner(t, func(name string, args ...string) ([]byte, error) {
-		return []byte(validProviderJSON("demo", "proto-health", "proto", "2026-06-16", "L2")), errors.New("exit status 1")
+		return []byte(`{"result":{"summary":` + validProviderJSON("demo", "scenario-auditor", "standards", "2026-06-16", "L2") + `}}`), errors.New("exit status 1")
 	})
 	defer restore()
 
-	probe, err := ResolveProbe("proto")
+	probe, err := ResolveProbe("standards")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +119,7 @@ func TestCheckValidatesAssessmentFromNonZeroProviderOutput(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Check returned error: %v", err)
 	}
-	if got.Provider != "proto-health" || got.Assessment.CurrentLevel != "L2" {
+	if got.Provider != "scenario-auditor" || got.Assessment.CurrentLevel != "L2" {
 		t.Fatalf("unexpected result: %#v", got)
 	}
 }
@@ -127,13 +136,7 @@ func TestCheckDocsProviderRestartsThenValidatesRPCWrapperAssessment(t *testing.T
 		}
 	})
 	defer restore()
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || r.URL.Path != "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario" {
-			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(validProviderJSON("demo", "knowledge-observatory", "docs", "2026-06-16", "L2")))
-	}))
+	srv := newValidationServer(t, validProviderResponse("demo", "knowledge-observatory", "docs", "2026-06-16", "L2"))
 	defer srv.Close()
 	restoreURL := stubProviderBaseURL(t, srv.URL)
 	defer restoreURL()
@@ -177,7 +180,7 @@ func TestCheckStandardsProviderAcceptsNestedSummaryAssessment(t *testing.T) {
 	}
 }
 
-func TestCheckTidinessProviderUsesLifecycleDiscoveredHTTPProbe(t *testing.T) {
+func TestCheckTidinessProviderUsesLifecycleDiscoveredRPCProbe(t *testing.T) {
 	restoreCommands := stubCommandRunner(t, func(name string, args ...string) ([]byte, error) {
 		joined := name + " " + strings.Join(args, " ")
 		if joined != "vrooli scenario restart tidiness-manager" {
@@ -187,13 +190,7 @@ func TestCheckTidinessProviderUsesLifecycleDiscoveredHTTPProbe(t *testing.T) {
 	})
 	defer restoreCommands()
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || r.URL.Path != scenariovalidationconnect.ScenarioValidationServiceValidateScenarioProcedure {
-			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(validProviderJSON("demo", "tidiness-manager", "tidiness", "2026-06-16", "L1")))
-	}))
+	srv := newValidationServer(t, validProviderResponse("demo", "tidiness-manager", "tidiness", "2026-06-16", "L1"))
 	defer srv.Close()
 	restoreURL := stubProviderBaseURL(t, srv.URL)
 	defer restoreURL()
@@ -246,6 +243,36 @@ func stubProviderBaseURL(t *testing.T, url string) func() {
 	}
 	return func() {
 		resolveProviderBaseURL = previous
+	}
+}
+
+type fakeValidationService struct {
+	resp *scenariovalidationv1.ValidateScenarioResponse
+}
+
+func (f fakeValidationService) ValidateScenario(context.Context, *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
+	return connect.NewResponse(f.resp), nil
+}
+
+func newValidationServer(t *testing.T, resp *scenariovalidationv1.ValidateScenarioResponse) *httptest.Server {
+	t.Helper()
+	_, handler := scenariovalidationconnect.NewScenarioValidationServiceHandler(fakeValidationService{resp: resp})
+	return httptest.NewServer(handler)
+}
+
+func validProviderResponse(scenario, provider, phase, version, level string) *scenariovalidationv1.ValidateScenarioResponse {
+	return &scenariovalidationv1.ValidateScenarioResponse{
+		Scenario: scenario,
+		Status:   scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED,
+		Assessment: &commonv1.MaturityAssessment{
+			Scenario: scenario,
+			Provider: provider,
+			Phase:    phase,
+			Version:  version,
+			Local: &commonv1.LocalMaturityAssessment{
+				CurrentLevel: level,
+			},
+		},
 	}
 }
 

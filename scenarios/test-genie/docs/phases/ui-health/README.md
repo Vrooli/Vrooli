@@ -4,12 +4,12 @@ The `ui-health` phase validates `ui/manifest.json` bindings, slot directories, a
 
 ## How It Runs
 
-Test Genie invokes ui-health against the scenario's `ui/manifest.json`, checking that declared slots map to existing directories and that overlay rules are well-formed.
+Test Genie calls `ui-health` through `scenario-validation/v1.ScenarioValidationService.ValidateScenario`. ui-health checks the scenario's `ui/manifest.json`, slot directories, and overlay rules, then returns shared `status` plus `assessment.findings`.
 
-Equivalent operator flow:
+Equivalent human operator flow:
 
 ```bash
-ui-health validate <scenario>
+ui-health validate scenario <scenario>
 ```
 
 ## Opt-Out

@@ -70,9 +70,17 @@ type RunRecord struct {
 	// treedigest package) captured at run START, so it identifies the
 	// byte-state the phases actually executed against. Empty on runs that
 	// predate digest stamping ("unknown" freshness).
-	TreeDigest  string            `json:"tree_digest,omitempty"`
-	Diagnostics DiagnosticsConfig `json:"diagnostics"`
-	Pins        []PinRecord       `json:"pins,omitempty"`
+	TreeDigest string `json:"tree_digest,omitempty"`
+	// Preset is the requested suite preset ("quick"|"comprehensive"|...) and
+	// CaptureProfile the capture-depth dial (""|"baseline"). Both are stamped at
+	// run start and identify WHAT suite shape executed, so a consumer can reuse a
+	// completed run only when it matches the shape it needs (git-control-tower
+	// reuses a clean-tree comprehensive+baseline run instead of re-running it).
+	// Empty on runs that predate shape stamping.
+	Preset         string            `json:"preset,omitempty"`
+	CaptureProfile string            `json:"capture_profile,omitempty"`
+	Diagnostics    DiagnosticsConfig `json:"diagnostics"`
+	Pins           []PinRecord       `json:"pins,omitempty"`
 }
 
 // IsPinned reports whether the run is protected from retention GC.

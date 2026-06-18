@@ -38,8 +38,9 @@ var curatedPresets = map[Preset][]Name{
 	// architecture-audit is the per-surface conformance battery plus the
 	// structural cohesion axis — the single command the screaming-
 	// architecture skill points at. Excludes runtime phases (unit, smoke,
-	// integration, performance). The architecture phase is advisory; the
-	// campaign nudge fires from its findings.
+	// integration, performance). The architecture phase remains advisory
+	// for low-confidence authority, but high-confidence blocker findings
+	// gate by default.
 	PresetArchitectureAudit: {
 		Structure, Contracts, UIHealth, Docs, Standards, Architecture, Proto,
 	},

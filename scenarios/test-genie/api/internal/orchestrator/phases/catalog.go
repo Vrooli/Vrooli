@@ -75,7 +75,7 @@ func NewDefaultCatalog(defaultTimeout time.Duration) *Catalog {
 		Runner:         runArchitecturePhase,
 		Optional:       true,
 		DefaultTimeout: 120 * time.Second,
-		Description:    "Delegates advisory structural-cohesion validation to architecture-cartographer through ScenarioValidationService; findings never gate but drive the campaign nudge.",
+		Description:    "Delegates structural-cohesion validation to architecture-cartographer through ScenarioValidationService; blocker findings gate only when the architecture authority is high-confidence unless TEST_GENIE_ARCHITECTURE_GATE overrides rollout mode.",
 		FindingSource:  architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE,
 	})
 	register(Spec{

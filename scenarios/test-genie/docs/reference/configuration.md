@@ -129,6 +129,16 @@ A backgrounded or interrupted run is re-attached with the streaming verb
 `runs wait` blocks to the same exit code; in human mode it also streams, while
 `--json` stays a single quiet snapshot for scripts.
 
+## Architecture Gate Levers
+
+The `architecture` phase delegates to architecture-cartographer. Its findings
+stay graded, but blocker findings can fail the phase when the domain authority
+is strong enough to trust.
+
+| Lever | Default | Values | Effect |
+|---|---|---|---|
+| `TEST_GENIE_ARCHITECTURE_GATE` | `high-confidence` | `off`, `high-confidence`, `all` | Controls whether architecture blocker findings fail the phase. `high-confidence` gates only when cartographer reports curated/high authority, `all` gates every blocker, and `off` keeps all findings advisory. Invalid values fall back to the default and emit a warning observation. |
+
 ## See Also
 
 - [API Reference](api-endpoints.md)

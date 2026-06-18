@@ -17,17 +17,18 @@ shared maturity assessment contract.
 
 ```mermaid
 graph LR
-    UNIT[Test Genie<br/>unit phase] -->|shells| UH[unit-health validate scenario NAME --execution --json]
+    UNIT[Test Genie<br/>unit phase] -->|ScenarioValidationService<br/>include_execution=true| UH[unit-health]
     UH -->|surfaces & parse units| CF[Code Facts]
-    UH -->|assessment + findings| UNIT
+    UH -->|status + assessment.findings| UNIT
     UNIT -->|coverage findings| COV[FINDING_SOURCE_COVERAGE channel]
     UNIT -->|local maturity| PTR[unit phase pointer]
 ```
 
-The phase invokes:
+The phase calls:
 
-```bash
-unit-health validate scenario <name> --execution --json
+```text
+scenario-validation/v1.ScenarioValidationService.ValidateScenario
+include_execution=true
 ```
 
 and maps the result:
@@ -45,7 +46,7 @@ and maps the result:
 
 | Condition | Result |
 |-----------|--------|
-| unit-health CLI/API unreachable | Phase fails (`missing_dependency`) — it is a required provider |
+| unit-health API unreachable | Phase fails (`missing_dependency`) — it is a required provider |
 | Provider returns error findings / `status: failed` | Phase fails (`test_failure`) |
 | Missing/malformed assessment | Phase fails (`maturity_contract`) |
 | Warning/info findings only | Phase passes |
