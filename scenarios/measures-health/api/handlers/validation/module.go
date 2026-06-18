@@ -99,10 +99,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Validate swarm-manager", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"swarm-manager\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "measures-health validate scenario",
-			Args:    []string{"<name>", "--probe"},
-		},
 	},
 	{
 		ID:          "validation_list_fleet_coverage",
@@ -128,9 +124,6 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "Fleet coverage", Curl: "curl http://localhost:${API_PORT}/vrooli.measures_health.v1.validation.ValidationService/ListFleetCoverage -H 'Content-Type: application/json' -d '{}'"},
-		},
-		CLIMapping: &module.CLIMapping{
-			Command: "measures-health validate coverage",
 		},
 	},
 }

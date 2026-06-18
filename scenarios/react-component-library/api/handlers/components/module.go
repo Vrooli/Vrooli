@@ -148,7 +148,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Errors: []module.ErrorDesc{
 			{Status: 500, Code: "internal", Description: "Repository read failure"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "react-component-library components list"},
 	},
 	{
 		ID:          "components_get",
@@ -169,7 +168,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 404, Code: "not_found", Description: "No component with that id"},
 			{Status: 500, Code: "internal", Description: "Repository read failure"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "react-component-library components get", Args: []string{"<id>"}},
 	},
 	{
 		ID:          "components_get_by_library_id",
@@ -190,7 +188,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 404, Code: "not_found", Description: "No component with that libraryId"},
 			{Status: 500, Code: "internal", Description: "Repository read failure"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "react-component-library components get-by-library-id", Args: []string{"<libraryId>"}},
 	},
 	{
 		ID:          "components_index",
@@ -213,7 +210,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Errors: []module.ErrorDesc{
 			{Status: 500, Code: "internal", Description: "Walk or upsert failure"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "react-component-library components index"},
 	},
 	{
 		ID:          "components_initialize",
@@ -238,7 +234,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 409, Code: "already_exists", Description: "Component libraryId or slug already exists"},
 			{Status: 500, Code: "internal", Description: "Filesystem or repository failure"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "react-component-library components init", Args: []string{"<slug>"}},
 	},
 	{
 		ID:          "components_version_create",
@@ -262,7 +257,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 400, Code: "invalid_argument", Description: "Invalid version, file name, or source header"},
 			{Status: 500, Code: "internal", Description: "Filesystem or repository failure"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "react-component-library components version-create", Args: []string{"<component-id>", "<version>"}},
 	},
 	{
 		ID:          "components_manifest_update",
@@ -286,7 +280,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 400, Code: "invalid_argument", Description: "Invalid manifest values"},
 			{Status: 500, Code: "internal", Description: "Filesystem or repository failure"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "react-component-library components manifest-update", Args: []string{"<component-id>"}},
 	},
 	{
 		ID:          "components_content_get",
@@ -312,7 +305,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 400, Code: "invalid_argument", Description: "Component source_path escapes configured root"},
 			{Status: 500, Code: "internal", Description: "Filesystem read failure"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "react-component-library components content-get", Args: []string{"<id>"}},
 	},
 	{
 		ID:          "components_content_set",
@@ -342,7 +334,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 412, Code: "failed_precondition", Description: "expected_sha256 did not match on-disk digest"},
 			{Status: 500, Code: "internal", Description: "Filesystem write failure"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "react-component-library components content-set", Args: []string{"<id>", "<file>"}},
 	},
 	{
 		ID:          "components_versions_list",
@@ -362,7 +353,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Errors: []module.ErrorDesc{
 			{Status: 500, Code: "internal", Description: "Repository read failure"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "react-component-library components versions", Args: []string{"<component-id>"}},
 	},
 	{
 		ID:          "components_version_content_get",
@@ -383,6 +373,5 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 404, Code: "not_found", Description: "No component version with that component_id/version pair"},
 			{Status: 500, Code: "internal", Description: "Repository read failure"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "react-component-library components show-version", Args: []string{"<component-id>", "<version>"}},
 	},
 }

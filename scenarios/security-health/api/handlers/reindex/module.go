@@ -59,7 +59,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Dry-run reindex", Curl: "curl http://localhost:${API_PORT}/vrooli.security_health.v1.reindex.ReindexService/Reindex -H 'Content-Type: application/json' -d '{\"dry_run\":true}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "security-health reindex run"},
 	},
 	{
 		ID:          "reindex_status",
@@ -73,8 +72,7 @@ var Endpoints = []module.EndpointDescriptor{
 			Type:       "object",
 			Properties: map[string]string{"job_id": "string", "state": "string", "processed": "int32", "total": "int32", "error": "string"},
 		},
-		Errors:     []module.ErrorDesc{{Status: 404, Code: "not_found", Description: "No job with that id"}},
-		CLIMapping: &module.CLIMapping{Command: "security-health reindex status", Args: []string{"<job_id>"}},
+		Errors: []module.ErrorDesc{{Status: 404, Code: "not_found", Description: "No job with that id"}},
 	},
 	{
 		ID:          "reindex_cancel",
@@ -86,6 +84,5 @@ var Endpoints = []module.EndpointDescriptor{
 		Request:     &module.Schema{Type: "object", Properties: map[string]string{"job_id": "string"}},
 		Response:    &module.Schema{Type: "object", Properties: map[string]string{"job_id": "string", "cancelled": "boolean"}},
 		Errors:      []module.ErrorDesc{{Status: 404, Code: "not_found", Description: "No job with that id"}},
-		CLIMapping:  &module.CLIMapping{Command: "security-health reindex cancel", Args: []string{"<job_id>"}},
 	},
 }

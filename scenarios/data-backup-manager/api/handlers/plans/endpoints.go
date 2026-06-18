@@ -39,10 +39,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Create a nightly plan", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.plans.PlansService/CreatePlan -H 'Content-Type: application/json' -d '{\"name\":\"nightly\",\"targetIds\":[\"tgt-1\"],\"destinationIds\":[\"dst-1\"],\"schedule\":\"24h\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "data-backup-manager plans create",
-			Args:    []string{"--name", "<name>", "--targets", "<ids>", "--destinations", "<ids>"},
-		},
 	},
 	{
 		ID:          "plans_get",
@@ -65,10 +61,6 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "Get a plan", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.plans.PlansService/GetPlan -H 'Content-Type: application/json' -d '{\"id\":\"plan-1\"}'"},
-		},
-		CLIMapping: &module.CLIMapping{
-			Command: "data-backup-manager plans get",
-			Args:    []string{"<id>"},
 		},
 	},
 	{
@@ -97,10 +89,6 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "List all plans", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.plans.PlansService/ListPlans -H 'Content-Type: application/json' -d '{}'"},
-		},
-		CLIMapping: &module.CLIMapping{
-			Command: "data-backup-manager plans list",
-			Args:    []string{},
 		},
 	},
 	{
@@ -134,10 +122,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Update a plan", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.plans.PlansService/UpdatePlan -H 'Content-Type: application/json' -d '{\"id\":\"plan-1\",\"name\":\"nightly-v2\",\"targetIds\":[\"tgt-1\"],\"destinationIds\":[\"dst-1\"]}'"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "data-backup-manager plans update",
-			Args:    []string{"<id>", "--name", "<name>"},
-		},
 	},
 	{
 		ID:          "plans_delete",
@@ -159,10 +143,6 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "Delete a plan", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.plans.PlansService/DeletePlan -H 'Content-Type: application/json' -d '{\"id\":\"plan-1\"}'"},
-		},
-		CLIMapping: &module.CLIMapping{
-			Command: "data-backup-manager plans delete",
-			Args:    []string{"<id>"},
 		},
 	},
 }

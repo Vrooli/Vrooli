@@ -23,9 +23,6 @@
           "curl": "curl http://localhost:${API_PORT}/health"
         }
       ],
-      "cli_mapping": {
-        "command": "image-tools status"
-      },
       "rest_exception": {
         "reason": "ops_probe",
         "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
@@ -64,10 +61,7 @@
           "name": "List AI operations",
           "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.ai.AIService/ListAIOperations -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "image-tools ai list"
-      }
+      ]
     },
     {
       "id": "ai_submit",
@@ -118,15 +112,6 @@
           "curl": "curl -X POST 'http://localhost:${API_PORT}/api/v1/ai/upscale' -F file=@in.png -F 'params={\"scale\":4}'"
         }
       ],
-      "cli_mapping": {
-        "command": "image-tools ai generate",
-        "args": [
-          "--prompt",
-          "<prompt>",
-          "--out",
-          "<output>"
-        ]
-      },
       "rest_exception": {
         "reason": "multipart_upload",
         "note": "Image/mask bytes cannot ride a proto field; the request is multipart (file + mask + protojson params). Parameters stay proto-typed (AIParams) and the submit result is proto-typed (SubmitAIResponse).",
@@ -167,10 +152,7 @@
           "name": "List analysis operations",
           "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.analysis.AnalysisService/ListAnalysisOperations -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "image-tools analyze list"
-      }
+      ]
     },
     {
       "id": "analysis_run",
@@ -216,12 +198,6 @@
           "curl": "curl -X POST 'http://localhost:${API_PORT}/api/v1/analysis/ocr' -F file=@scan.png"
         }
       ],
-      "cli_mapping": {
-        "command": "image-tools analyze probe",
-        "args": [
-          "<input>"
-        ]
-      },
       "rest_exception": {
         "reason": "multipart_upload",
         "note": "Image bytes cannot ride a proto field; the request is multipart. The result metadata is proto-typed (AnalyzeResponse).",
@@ -274,13 +250,7 @@
           "name": "Get a job",
           "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.jobs.JobsService/GetJob -H 'Content-Type: application/json' -d '{\"id\":\"<job-id>\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "image-tools jobs get",
-        "args": [
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "jobs_wait",
@@ -313,13 +283,7 @@
           "name": "Wait for a job",
           "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.jobs.JobsService/WaitJob -H 'Content-Type: application/json' -d '{\"id\":\"<job-id>\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "image-tools jobs wait",
-        "args": [
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "jobs_list",
@@ -345,14 +309,7 @@
           "name": "List jobs",
           "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.jobs.JobsService/ListJobs -H 'Content-Type: application/json' -d '{\"limit\":20}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "image-tools jobs list",
-        "args": [
-          "--limit",
-          "<n>"
-        ]
-      }
+      ]
     },
     {
       "id": "jobs_cancel",
@@ -385,13 +342,7 @@
           "name": "Cancel a job",
           "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.jobs.JobsService/CancelJob -H 'Content-Type: application/json' -d '{\"id\":\"<job-id>\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "image-tools jobs cancel",
-        "args": [
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "jobs_watch",
@@ -424,13 +375,7 @@
           "name": "Watch a job",
           "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.jobs.JobsService/WatchJob -H 'Content-Type: application/json' -d '{\"id\":\"<job-id>\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "image-tools jobs watch",
-        "args": [
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "models_list",
@@ -472,14 +417,7 @@
           "name": "List upscale models",
           "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ListModels -H 'Content-Type: application/json' -d '{\"operation\":\"upscale\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "image-tools models list",
-        "args": [
-          "--operation",
-          "<op>"
-        ]
-      }
+      ]
     },
     {
       "id": "models_get",
@@ -517,13 +455,7 @@
           "name": "Get a model",
           "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/GetModel -H 'Content-Type: application/json' -d '{\"id\":\"sd-1.5\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "image-tools models get",
-        "args": [
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "models_operations",
@@ -543,10 +475,7 @@
           "name": "List operations",
           "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ListOperations -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "image-tools models operations"
-      }
+      ]
     },
     {
       "id": "models_select",
@@ -593,15 +522,7 @@
           "name": "Select for upscale",
           "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/SelectModel -H 'Content-Type: application/json' -d '{\"operation\":\"upscale\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "image-tools models select",
-        "args": [
-          "<operation>",
-          "--override",
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "models_set_enabled",
@@ -640,13 +561,7 @@
           "name": "Enable a quality tier",
           "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/SetModelEnabled -H 'Content-Type: application/json' -d '{\"id\":\"real-esrgan\",\"enabled\":true}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "image-tools models enable",
-        "args": [
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "models_blocklist",
@@ -666,10 +581,7 @@
           "name": "List blocklist",
           "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ListBlocklist -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "image-tools models blocklist"
-      }
+      ]
     },
     {
       "id": "models_install",
@@ -715,14 +627,7 @@
           "name": "Install sd-1.5",
           "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/InstallModel -H 'Content-Type: application/json' -d '{\"id\":\"sd-1.5\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "image-tools models install",
-        "args": [
-          "<id>",
-          "--wait"
-        ]
-      }
+      ]
     },
     {
       "id": "models_remove",
@@ -760,13 +665,7 @@
           "name": "Remove sd-1.5",
           "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/RemoveModel -H 'Content-Type: application/json' -d '{\"id\":\"sd-1.5\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "image-tools models remove",
-        "args": [
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "models_add_custom",
@@ -806,17 +705,7 @@
           "name": "Register a local upscaler",
           "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/AddCustomModel -H 'Content-Type: application/json' -d '{\"model\":{\"id\":\"my-upscaler\",\"operations\":[\"upscale\"],\"backend\":\"onnxruntime\"},\"local_path\":\"/data/models/my-upscaler\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "image-tools models add-custom",
-        "args": [
-          "<id>",
-          "--operation",
-          "<op>",
-          "--local-path",
-          "<path>"
-        ]
-      }
+      ]
     },
     {
       "id": "models_set_default",
@@ -861,14 +750,7 @@
           "name": "Pin upscale default",
           "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/SetDefaultModel -H 'Content-Type: application/json' -d '{\"operation\":\"upscale\",\"model_id\":\"real-esrgan\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "image-tools settings set-default",
-        "args": [
-          "<operation>",
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "models_list_defaults",
@@ -888,10 +770,7 @@
           "name": "List defaults",
           "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ListDefaults -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "image-tools settings list"
-      }
+      ]
     },
     {
       "id": "ops_list_operations",
@@ -913,10 +792,7 @@
           "name": "List operations",
           "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.ops.OpsService/ListOperations -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "image-tools ops list"
-      }
+      ]
     },
     {
       "id": "ops_run",
@@ -953,14 +829,6 @@
           "curl": "curl -X POST 'http://localhost:${API_PORT}/api/v1/ops/resize?output=bytes' -F file=@in.png -F 'params={\"resize\":{\"width\":256}}' -o out.png"
         }
       ],
-      "cli_mapping": {
-        "command": "image-tools ops resize",
-        "args": [
-          "<input>",
-          "--out",
-          "<output>"
-        ]
-      },
       "rest_exception": {
         "reason": "multipart_upload",
         "note": "Image bytes cannot ride a proto field; the request is multipart (file + protojson params). Parameters stay proto-typed (OpParams) and the result metadata is proto-typed (RunOpResponse).",

@@ -23,9 +23,6 @@
           "curl": "curl http://localhost:${API_PORT}/health"
         }
       ],
-      "cli_mapping": {
-        "command": "code-facts status"
-      },
       "rest_exception": {
         "reason": "ops_probe",
         "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
@@ -84,15 +81,7 @@
           "name": "Describe this scenario",
           "curl": "curl http://localhost:${API_PORT}/vrooli.code_facts.v1.facts.CodeFactsService/DescribeCodeFacts -H 'Content-Type: application/json' -d '{\"target\":{\"kind\":\"TARGET_KIND_SCENARIO\",\"scenario\":\"code-facts\"},\"include\":[\"FACT_FAMILY_SURFACES\"]}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "code-facts facts describe",
-        "args": [
-          "<target>",
-          "--include",
-          "<families>"
-        ]
-      }
+      ]
     },
     {
       "id": "facts_surfaces",
@@ -122,13 +111,7 @@
           "code": "invalid_argument",
           "description": "Target kind or target identifier is missing"
         }
-      ],
-      "cli_mapping": {
-        "command": "code-facts facts surfaces",
-        "args": [
-          "<target>"
-        ]
-      }
+      ]
     },
     {
       "id": "facts_fleet_imports",
@@ -159,15 +142,7 @@
           "code": "invalid_argument",
           "description": "Invalid limit or scenario enumeration failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "code-facts facts fleet-imports",
-        "args": [
-          "--scenario",
-          "<name>",
-          "--json"
-        ]
-      }
+      ]
     },
     {
       "id": "facts_proto_adoption",
@@ -199,13 +174,7 @@
           "code": "invalid_argument",
           "description": "Target kind or target identifier is missing"
         }
-      ],
-      "cli_mapping": {
-        "command": "code-facts facts proto-adoption",
-        "args": [
-          "<target>"
-        ]
-      }
+      ]
     },
     {
       "id": "facts_endpoint_proof",
@@ -237,15 +206,7 @@
           "code": "invalid_argument",
           "description": "Target kind or target identifier is missing"
         }
-      ],
-      "cli_mapping": {
-        "command": "code-facts facts endpoint-proof",
-        "args": [
-          "<target>",
-          "--endpoint",
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "facts_cache_status",
@@ -273,13 +234,7 @@
           "code": "invalid_argument",
           "description": "Target kind or target identifier is missing"
         }
-      ],
-      "cli_mapping": {
-        "command": "code-facts cache status",
-        "args": [
-          "<target>"
-        ]
-      }
+      ]
     },
     {
       "id": "facts_cache_inspect",
@@ -309,15 +264,7 @@
           "code": "invalid_argument",
           "description": "Target kind or target identifier is missing"
         }
-      ],
-      "cli_mapping": {
-        "command": "code-facts cache inspect",
-        "args": [
-          "<target>",
-          "--cache-key",
-          "<key>"
-        ]
-      }
+      ]
     },
     {
       "id": "facts_cache_clear",
@@ -348,14 +295,7 @@
           "code": "invalid_argument",
           "description": "Target kind or target identifier is missing"
         }
-      ],
-      "cli_mapping": {
-        "command": "code-facts cache clear",
-        "args": [
-          "<target>",
-          "--dry-run"
-        ]
-      }
+      ]
     }
   ]
 }

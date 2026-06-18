@@ -37,7 +37,7 @@ func Module(logger logx.Logger) modulekit.Module {
 func Schema() string { return "" }
 
 var Endpoints = []modulekit.EndpointDescriptor{
-	{ID: "audio.transcode", Path: "/vrooli.audio_tools.v1.audio.AudioProcessingService/Transcode", Method: "POST", Summary: "Transcode audio (Connect-RPC)", Category: "audio", CLIMapping: &modulekit.CLIMapping{Command: "audio-tools audio transcode"}},
+	{ID: "audio.transcode", Path: "/vrooli.audio_tools.v1.audio.AudioProcessingService/Transcode", Method: "POST", Summary: "Transcode audio (Connect-RPC)", Category: "audio"},
 	{
 		ID: "audio.transcode_multipart", Path: "/api/v1/audio/transcode", Method: "POST", Summary: "Multipart audio transcode", Category: "audio",
 		RESTException: &modulekit.RESTException{Reason: modulekit.RESTReasonMultipartUpload, Note: "Audio bytes via multipart form-data."},

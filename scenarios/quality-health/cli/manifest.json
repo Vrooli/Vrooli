@@ -163,5 +163,11 @@
   "measures": {
     "domains": []
   },
-  "omitted": []
+  "omitted": [
+    {
+      "service": "ScenarioValidationService",
+      "method": "ValidateScenario",
+      "reason": "Shared cross-scenario validation surface; exercised via the audit run command rather than a dedicated binding."
+    }
+  ]
 }

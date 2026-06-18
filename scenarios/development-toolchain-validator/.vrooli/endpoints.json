@@ -23,9 +23,6 @@
           "curl": "curl http://localhost:${API_PORT}/health"
         }
       ],
-      "cli_mapping": {
-        "command": "development-toolchain-validator status"
-      },
       "rest_exception": {
         "reason": "ops_probe",
         "note": "GET /health is the standard operational probe path consumed by load balancers and infrastructure curl checks, which cannot speak Connect-RPC."
@@ -56,10 +53,7 @@
           "name": "List goldens",
           "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.golden.GoldenService/ListGoldens -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "development-toolchain-validator goldens list"
-      }
+      ]
     },
     {
       "id": "golden_get",
@@ -102,13 +96,7 @@
           "name": "Get golden",
           "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.golden.GoldenService/GetGolden -H 'Content-Type: application/json' -d '{\"slug\":\"reference-react-vite\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "development-toolchain-validator goldens get",
-        "args": [
-          "<slug>"
-        ]
-      }
+      ]
     },
     {
       "id": "golden_register",
@@ -154,20 +142,7 @@
           "name": "Register golden",
           "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.golden.GoldenService/RegisterGolden -H 'Content-Type: application/json' -d '{\"slug\":\"reference-react-vite\",\"template_id\":\"react-vite\",\"template_version\":\"1.0.1\",\"path\":\"scenarios/reference-react-vite\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "development-toolchain-validator goldens register",
-        "args": [
-          "--slug",
-          "<slug>",
-          "--template",
-          "<template>",
-          "--version",
-          "<version>",
-          "--path",
-          "<path>"
-        ]
-      }
+      ]
     },
     {
       "id": "golden_update",
@@ -212,17 +187,7 @@
           "name": "Update golden",
           "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.golden.GoldenService/UpdateGolden -H 'Content-Type: application/json' -d '{\"slug\":\"reference-react-vite\",\"template_version\":\"1.0.2\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "development-toolchain-validator goldens update",
-        "args": [
-          "<slug>",
-          "[--path",
-          "<path>]",
-          "[--version",
-          "<version>]"
-        ]
-      }
+      ]
     },
     {
       "id": "golden_delete",
@@ -259,14 +224,7 @@
           "name": "Delete golden",
           "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.golden.GoldenService/DeleteGolden -H 'Content-Type: application/json' -d '{\"slug\":\"reference-react-vite\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "development-toolchain-validator goldens delete",
-        "args": [
-          "<slug>",
-          "--yes"
-        ]
-      }
+      ]
     },
     {
       "id": "golden_regenerate",
@@ -309,14 +267,7 @@
           "name": "Regenerate golden",
           "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.golden.GoldenService/RegenerateGolden -H 'Content-Type: application/json' -d '{\"slug\":\"reference-react-vite\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "development-toolchain-validator goldens regenerate",
-        "args": [
-          "<slug>",
-          "--yes"
-        ]
-      }
+      ]
     },
     {
       "id": "manifest_list",
@@ -343,10 +294,7 @@
           "name": "List manifests",
           "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.manifest.ManifestService/ListManifests -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "development-toolchain-validator manifest list"
-      }
+      ]
     },
     {
       "id": "manifest_get",
@@ -390,14 +338,7 @@
           "name": "Get manifest",
           "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.manifest.ManifestService/GetManifest -H 'Content-Type: application/json' -d '{\"skill_id\":\"plan-skill-discovery\",\"golden_slug\":\"reference-react-vite\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "development-toolchain-validator manifest get",
-        "args": [
-          "<skill_id>",
-          "<golden_slug>"
-        ]
-      }
+      ]
     },
     {
       "id": "manifest_upsert",
@@ -435,16 +376,7 @@
           "name": "Upsert manifest",
           "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.manifest.ManifestService/UpsertManifest -H 'Content-Type: application/json' -d '{\"manifest\":{\"skill_id\":\"plan-skill-discovery\",\"golden_slug\":\"reference-react-vite\",\"wildcard_allowed\":true}}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "development-toolchain-validator manifest upsert",
-        "args": [
-          "--skill <id>",
-          "--golden <slug>",
-          "[--allow <glob>...]",
-          "[--wildcard]"
-        ]
-      }
+      ]
     },
     {
       "id": "manifest_clear_stale",
@@ -483,14 +415,7 @@
           "name": "Clear stale",
           "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.manifest.ManifestService/ClearStale -H 'Content-Type: application/json' -d '{\"skill_id\":\"plan-skill-discovery\",\"golden_slug\":\"reference-react-vite\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "development-toolchain-validator manifest clear-stale",
-        "args": [
-          "--skill <id>",
-          "--golden <slug>"
-        ]
-      }
+      ]
     },
     {
       "id": "report_golden_summary",
@@ -528,13 +453,7 @@
           "name": "Golden summary",
           "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.report.ReportService/GetGoldenSummary -H 'Content-Type: application/json' -d '{\"golden_slug\":\"reference-react-vite\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "development-toolchain-validator report golden-summary",
-        "args": [
-          "<slug>"
-        ]
-      }
+      ]
     },
     {
       "id": "report_tuple_history",
@@ -576,15 +495,7 @@
           "name": "Tuple history",
           "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.report.ReportService/GetTupleHistory -H 'Content-Type: application/json' -d '{\"tuple_kind\":1,\"subject_id\":\"plan-skill-discovery\",\"golden_slug\":\"reference-react-vite\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "development-toolchain-validator report tuple-history",
-        "args": [
-          "--kind skill|tool",
-          "--subject <id>",
-          "--golden <slug>"
-        ]
-      }
+      ]
     },
     {
       "id": "report_coverage",
@@ -622,13 +533,7 @@
           "name": "Coverage",
           "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.report.ReportService/GetCoverage -H 'Content-Type: application/json' -d '{\"golden_slug\":\"reference-react-vite\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "development-toolchain-validator report coverage",
-        "args": [
-          "<slug>"
-        ]
-      }
+      ]
     },
     {
       "id": "report_skill_fitness",
@@ -666,13 +571,7 @@
           "name": "Skill fitness",
           "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.report.ReportService/GetSkillFitness -H 'Content-Type: application/json' -d '{\"skill_id\":\"plan-skill-discovery\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "development-toolchain-validator report skill-fitness",
-        "args": [
-          "<skill_id>"
-        ]
-      }
+      ]
     },
     {
       "id": "skill_catalog_sync",
@@ -707,10 +606,7 @@
           "name": "Sync catalog",
           "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.skill_catalog.SkillCatalogService/Sync -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "development-toolchain-validator skill-catalog sync"
-      }
+      ]
     },
     {
       "id": "skill_catalog_list",
@@ -737,10 +633,7 @@
           "name": "List skills",
           "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.skill_catalog.SkillCatalogService/ListSkills -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "development-toolchain-validator skill-catalog list"
-      }
+      ]
     },
     {
       "id": "skill_catalog_get",
@@ -783,13 +676,7 @@
           "name": "Get skill",
           "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.skill_catalog.SkillCatalogService/GetSkill -H 'Content-Type: application/json' -d '{\"id\":\"plan-skill-discovery\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "development-toolchain-validator skill-catalog get",
-        "args": [
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "staleness_list",
@@ -816,10 +703,7 @@
           "name": "List stale",
           "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.staleness.StalenessService/ListStale -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "development-toolchain-validator staleness list"
-      }
+      ]
     },
     {
       "id": "validation_record_list",
@@ -862,17 +746,7 @@
           "name": "List records",
           "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.validation_record.ValidationRecordService/ListRecords -H 'Content-Type: application/json' -d '{\"golden_slug\":\"reference-react-vite\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "development-toolchain-validator record list",
-        "args": [
-          "[--golden <slug>]",
-          "[--subject <id>]",
-          "[--kind skill|tool]",
-          "[--page-size N]",
-          "[--page-token T]"
-        ]
-      }
+      ]
     },
     {
       "id": "validation_record_get",
@@ -915,13 +789,7 @@
           "name": "Get record",
           "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.validation_record.ValidationRecordService/GetRecord -H 'Content-Type: application/json' -d '{\"id\":\"<uuid>\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "development-toolchain-validator record get",
-        "args": [
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "validation_run_start",
@@ -967,16 +835,7 @@
           "name": "Start skill run",
           "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.validation_run.ValidationRunService/Start -H 'Content-Type: application/json' -d '{\"tuple_kind\":1,\"subject_id\":\"plan-skill-discovery\",\"golden_slug\":\"reference-react-vite\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "development-toolchain-validator validation start",
-        "args": [
-          "--skill <id> | --tool <name>",
-          "--golden <slug>",
-          "[--force]",
-          "[--wait]"
-        ]
-      }
+      ]
     },
     {
       "id": "validation_run_get",
@@ -1019,13 +878,7 @@
           "name": "Get run",
           "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.validation_run.ValidationRunService/Get -H 'Content-Type: application/json' -d '{\"id\":\"<uuid>\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "development-toolchain-validator validation get",
-        "args": [
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "validation_run_list_active",
@@ -1052,10 +905,7 @@
           "name": "List active",
           "curl": "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.validation_run.ValidationRunService/ListActive -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "development-toolchain-validator validation list-active"
-      }
+      ]
     }
   ]
 }

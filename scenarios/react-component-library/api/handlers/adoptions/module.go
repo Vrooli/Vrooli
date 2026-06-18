@@ -162,7 +162,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Errors: []module.ErrorDesc{
 			{Status: 500, Code: "internal", Description: "Repository read failure"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "react-component-library adoptions list"},
 	},
 	{
 		ID:          "adoptions_apply",
@@ -189,7 +188,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 400, Code: "invalid_argument", Description: "Missing required field or unknown component_id"},
 			{Status: 500, Code: "internal", Description: "Repository write failure"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "react-component-library adoptions apply", Args: []string{"<component_id>", "<scenario>", "<adopted_path>"}},
 	},
 	{
 		ID:          "adoptions_reapply",
@@ -211,7 +209,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 404, Code: "not_found", Description: "No adoption with that id"},
 			{Status: 500, Code: "internal", Description: "Repository or filesystem failure"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "react-component-library adoptions reapply", Args: []string{"<id>"}},
 	},
 	{
 		ID:          "adoptions_delete",
@@ -229,7 +226,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 404, Code: "not_found", Description: "No adoption with that id"},
 			{Status: 500, Code: "internal", Description: "Repository write failure"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "react-component-library adoptions delete", Args: []string{"<id>"}},
 	},
 	{
 		ID:          "adoptions_refresh",
@@ -255,7 +251,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Errors: []module.ErrorDesc{
 			{Status: 500, Code: "internal", Description: "Repository or filesystem failure"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "react-component-library adoptions refresh"},
 	},
 	{
 		ID:          "adoptions_resolve_path",
@@ -286,6 +281,5 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 400, Code: "invalid_argument", Description: "Missing component_id, scenario, or unsubstituted path token"},
 			{Status: 501, Code: "unimplemented", Description: "Resolver not configured (server lacks repo-root wiring)"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "react-component-library adoptions resolve-path", Args: []string{"<component_id>", "<scenario>"}},
 	},
 }

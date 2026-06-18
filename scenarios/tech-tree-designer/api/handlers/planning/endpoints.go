@@ -16,7 +16,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "planning",
 		Request:     &module.Schema{Type: "CreatePlannedScenarioRequest"},
 		Response:    &module.Schema{Type: "PlannedScenario"},
-		CLIMapping:  &module.CLIMapping{Command: "tech-tree-designer plan create", Args: []string{"<slug>"}},
 	},
 	{
 		ID:          "planning-list",
@@ -27,7 +26,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "planning",
 		Request:     &module.Schema{Type: "ListPlannedScenariosRequest"},
 		Response:    &module.Schema{Type: "ListPlannedScenariosResponse"},
-		CLIMapping:  &module.CLIMapping{Command: "tech-tree-designer plan list"},
 	},
 	{
 		ID:          "planning-get",
@@ -38,7 +36,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "planning",
 		Request:     &module.Schema{Type: "GetPlannedScenarioRequest"},
 		Response:    &module.Schema{Type: "PlannedScenario"},
-		CLIMapping:  &module.CLIMapping{Command: "tech-tree-designer plan tree", Args: []string{"<slug>"}},
 	},
 	{
 		ID:          "planning-file-put",
@@ -49,7 +46,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "planning",
 		Request:     &module.Schema{Type: "PutPlannedProtoFileRequest"},
 		Response:    &module.Schema{Type: "PlannedProtoFile"},
-		CLIMapping:  &module.CLIMapping{Command: "tech-tree-designer plan add", Args: []string{"<slug>", "<path>"}},
 	},
 	{
 		ID:          "planning-file-delete",
@@ -60,7 +56,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "planning",
 		Request:     &module.Schema{Type: "DeletePlannedProtoFileRequest"},
 		Response:    &module.Schema{Type: "DeletePlannedProtoFileResponse"},
-		CLIMapping:  &module.CLIMapping{Command: "tech-tree-designer plan rm", Args: []string{"<slug>", "<path>"}},
 	},
 	{
 		ID:          "planning-validate",
@@ -71,7 +66,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "planning",
 		Request:     &module.Schema{Type: "ValidatePlannedScenarioRequest"},
 		Response:    &module.Schema{Type: "ValidatePlannedScenarioResponse"},
-		CLIMapping:  &module.CLIMapping{Command: "tech-tree-designer plan validate", Args: []string{"<slug>"}},
 	},
 	{
 		ID:          "planning-materialize",
@@ -82,6 +76,5 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "planning",
 		Request:     &module.Schema{Type: "MaterializePlannedScenarioRequest"},
 		Response:    &module.Schema{Type: "MaterializePlannedScenarioResponse"},
-		CLIMapping:  &module.CLIMapping{Command: "tech-tree-designer plan materialize", Args: []string{"<slug>"}},
 	},
 }

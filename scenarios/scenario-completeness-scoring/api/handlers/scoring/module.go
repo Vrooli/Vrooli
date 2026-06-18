@@ -72,10 +72,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Score a scenario", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_completeness_scoring.v1.scoring.ScoreService/GetScore -H 'Content-Type: application/json' -d '{\"scenario\":\"cli-health\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "scenario-completeness-scoring score get",
-			Args:    []string{"<scenario>"},
-		},
 	},
 	{
 		ID:          "scoring_trend",
@@ -105,10 +101,6 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "Trend for a scenario", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_completeness_scoring.v1.scoring.ScoreService/GetScoreTrend -H 'Content-Type: application/json' -d '{\"scenario\":\"cli-health\",\"limit\":10}'"},
-		},
-		CLIMapping: &module.CLIMapping{
-			Command: "scenario-completeness-scoring score trend",
-			Args:    []string{"<scenario>"},
 		},
 	},
 	{
@@ -146,9 +138,6 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "List lowest scores", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_completeness_scoring.v1.scoring.ScoreService/ListScores -H 'Content-Type: application/json' -d '{\"sort_by\":\"SCORE_SORT_BY_COMPOSITE\",\"order\":\"SORT_ORDER_ASC\",\"page_size\":10}'"},
-		},
-		CLIMapping: &module.CLIMapping{
-			Command: "scenario-completeness-scoring score list",
 		},
 	},
 }

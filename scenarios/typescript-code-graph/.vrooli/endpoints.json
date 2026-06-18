@@ -23,9 +23,6 @@
           "curl": "curl http://localhost:${API_PORT}/health"
         }
       ],
-      "cli_mapping": {
-        "command": "typescript-code-graph status"
-      },
       "rest_exception": {
         "reason": "ops_probe",
         "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
@@ -101,13 +98,7 @@
           "code": "internal",
           "description": "Unexpected sidecar or normalization failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "typescript-code-graph graph extract",
-        "args": [
-          "<path>"
-        ]
-      }
+      ]
     },
     {
       "id": "graph_list_fixtures",
@@ -128,10 +119,7 @@
           "code": "internal",
           "description": "Fixtures directory unreadable"
         }
-      ],
-      "cli_mapping": {
-        "command": "typescript-code-graph graph list-fixtures"
-      }
+      ]
     },
     {
       "id": "graph_validate_fixture",
@@ -177,13 +165,7 @@
           "code": "internal",
           "description": "Extraction or comparison failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "typescript-code-graph graph validate-fixture",
-        "args": [
-          "<name>"
-        ]
-      }
+      ]
     },
     {
       "id": "rewrite_plan",
@@ -217,13 +199,7 @@
           "code": "internal",
           "description": "Plan store save failed"
         }
-      ],
-      "cli_mapping": {
-        "command": "typescript-code-graph rewrite plan",
-        "args": [
-          "<ops.json>"
-        ]
-      }
+      ]
     },
     {
       "id": "rewrite_apply",
@@ -274,13 +250,7 @@
           "code": "internal",
           "description": "Unexpected sidecar or plan store failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "typescript-code-graph rewrite apply",
-        "args": [
-          "<plan_id>"
-        ]
-      }
+      ]
     }
   ]
 }

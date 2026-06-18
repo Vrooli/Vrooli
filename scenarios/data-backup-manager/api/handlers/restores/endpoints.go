@@ -32,7 +32,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Restore a snapshot", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.restores.RestoresService/RestoreTarget -H 'Content-Type: application/json' -d '{\"targetId\":\"t-1\",\"destinationId\":\"dst-1\",\"snapshotId\":\"snap-1\",\"location\":\"/restore/dest\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "data-backup-manager restores restore", Args: []string{"--target", "<id>", "--destination", "<id>", "--snapshot", "<id>", "--location", "<path>"}},
 	},
 	{
 		ID:          "restores_verify_target",
@@ -55,7 +54,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Verify a snapshot", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.restores.RestoresService/VerifyTarget -H 'Content-Type: application/json' -d '{\"targetId\":\"t-1\",\"destinationId\":\"dst-1\",\"snapshotId\":\"snap-1\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "data-backup-manager restores verify", Args: []string{"--target", "<id>", "--destination", "<id>", "--snapshot", "<id>"}},
 	},
 	{
 		ID:          "restores_get",
@@ -68,7 +66,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Response:    &module.Schema{Type: "object", Properties: map[string]string{"restore": "Restore"}},
 		Errors:      []module.ErrorDesc{{Status: 404, Code: "not_found", Description: "No restore with that id"}},
 		Examples:    []module.Example{{Name: "Get a restore", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.restores.RestoresService/GetRestore -H 'Content-Type: application/json' -d '{\"id\":\"restore-1\"}'"}},
-		CLIMapping:  &module.CLIMapping{Command: "data-backup-manager restores get", Args: []string{"<id>"}},
 	},
 	{
 		ID:          "restores_list",
@@ -86,7 +83,6 @@ var Endpoints = []module.EndpointDescriptor{
 			"restores":        "array<Restore>",
 			"next_page_token": "string",
 		}},
-		Examples:   []module.Example{{Name: "List restores", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.restores.RestoresService/ListRestores -H 'Content-Type: application/json' -d '{}'"}},
-		CLIMapping: &module.CLIMapping{Command: "data-backup-manager restores list", Args: []string{"--target", "<id>"}},
+		Examples: []module.Example{{Name: "List restores", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.restores.RestoresService/ListRestores -H 'Content-Type: application/json' -d '{}'"}},
 	},
 }

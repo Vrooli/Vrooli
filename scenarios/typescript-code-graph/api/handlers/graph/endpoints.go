@@ -48,10 +48,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 504, Code: "deadline_exceeded", Description: "Sidecar call exceeded its deadline"},
 			{Status: 500, Code: "internal", Description: "Unexpected sidecar or normalization failure"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "typescript-code-graph graph extract",
-			Args:    []string{"<path>"},
-		},
 	},
 	{
 		ID:          "graph_list_fixtures",
@@ -68,9 +64,6 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Errors: []module.ErrorDesc{
 			{Status: 500, Code: "internal", Description: "Fixtures directory unreadable"},
-		},
-		CLIMapping: &module.CLIMapping{
-			Command: "typescript-code-graph graph list-fixtures",
 		},
 	},
 	{
@@ -101,10 +94,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 404, Code: "not_found", Description: "Fixture not found"},
 			{Status: 412, Code: "failed_precondition", Description: "Fixture has no expected-graph.json baseline"},
 			{Status: 500, Code: "internal", Description: "Extraction or comparison failure"},
-		},
-		CLIMapping: &module.CLIMapping{
-			Command: "typescript-code-graph graph validate-fixture",
-			Args:    []string{"<name>"},
 		},
 	},
 }

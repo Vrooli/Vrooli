@@ -100,10 +100,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Answer an analytical question", Curl: "curl http://localhost:${API_PORT}/vrooli.measures_health.v1.search.SearchService/Search -H 'Content-Type: application/json' -d '{\"query\":\"how many backlog items did we complete this week\",\"limit\":1}'"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "measures-health search query",
-			Args:    []string{"<question>", "--limit"},
-		},
 	},
 	{
 		ID:          "search_status",
@@ -131,9 +127,6 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "Index status", Curl: "curl http://localhost:${API_PORT}/vrooli.measures_health.v1.search.SearchService/Status -H 'Content-Type: application/json' -d '{}'"},
-		},
-		CLIMapping: &module.CLIMapping{
-			Command: "measures-health search status",
 		},
 	},
 }

@@ -54,10 +54,6 @@ func TestEndpointDescriptorJSONShape(t *testing.T) {
 			Name: "Validate",
 			Curl: "curl http://localhost:${API_PORT}/api/v1/validation/validate-scenario",
 		}},
-		CLIMapping: &module.CLIMapping{
-			Command: "unit-health validate scenario",
-			Args:    []string{"<scenario>", "--json"},
-		},
 	}
 
 	data, err := json.Marshal(descriptor)
@@ -72,5 +68,5 @@ func TestEndpointDescriptorJSONShape(t *testing.T) {
 	require.Contains(t, got, "response")
 	require.Contains(t, got, "errors")
 	require.Contains(t, got, "examples")
-	require.Contains(t, got, "cli_mapping")
+	require.NotContains(t, got, "cli_mapping")
 }

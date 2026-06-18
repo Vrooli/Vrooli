@@ -23,9 +23,6 @@
           "curl": "curl http://localhost:${API_PORT}/health"
         }
       ],
-      "cli_mapping": {
-        "command": "audio-tools status"
-      },
       "rest_exception": {
         "reason": "ops_probe",
         "note": "Operational liveness/readiness probe; load balancers and `curl` must reach it without a Connect client."
@@ -37,13 +34,7 @@
       "method": "POST",
       "summary": "Return the cached per-capability provider-health rollup",
       "description": "",
-      "category": "health_status",
-      "cli_mapping": {
-        "command": "audio-tools health show",
-        "args": [
-          "[--json]"
-        ]
-      }
+      "category": "health_status"
     },
     {
       "id": "health_status.refresh_provider_health",
@@ -59,10 +50,7 @@
       "method": "POST",
       "summary": "Server-streaming feed of provider-health rollups (one event per registry tick)",
       "description": "",
-      "category": "health_status",
-      "cli_mapping": {
-        "command": "audio-tools health watch"
-      }
+      "category": "health_status"
     },
     {
       "id": "provider_lifecycle.list_local_providers",
@@ -70,10 +58,7 @@
       "method": "POST",
       "summary": "List local-tier providers, their process_state, and supported lifecycle actions",
       "description": "",
-      "category": "provider_lifecycle",
-      "cli_mapping": {
-        "command": "audio-tools provider list"
-      }
+      "category": "provider_lifecycle"
     },
     {
       "id": "provider_lifecycle.start_provider",
@@ -81,14 +66,7 @@
       "method": "POST",
       "summary": "Start a local provider (wraps `vrooli resource start <slug>`); honors X-Dry-Run",
       "description": "",
-      "category": "provider_lifecycle",
-      "cli_mapping": {
-        "command": "audio-tools provider start",
-        "args": [
-          "<provider-id>",
-          "[--dry-run]"
-        ]
-      }
+      "category": "provider_lifecycle"
     },
     {
       "id": "provider_lifecycle.stop_provider",
@@ -96,14 +74,7 @@
       "method": "POST",
       "summary": "Stop a local provider (wraps `vrooli resource stop <slug>`); honors X-Dry-Run",
       "description": "",
-      "category": "provider_lifecycle",
-      "cli_mapping": {
-        "command": "audio-tools provider stop",
-        "args": [
-          "<provider-id>",
-          "[--dry-run]"
-        ]
-      }
+      "category": "provider_lifecycle"
     },
     {
       "id": "provider_lifecycle.restart_provider",
@@ -111,14 +82,7 @@
       "method": "POST",
       "summary": "Restart a local provider (wraps `vrooli resource restart <slug>`); honors X-Dry-Run",
       "description": "",
-      "category": "provider_lifecycle",
-      "cli_mapping": {
-        "command": "audio-tools provider restart",
-        "args": [
-          "<provider-id>",
-          "[--dry-run]"
-        ]
-      }
+      "category": "provider_lifecycle"
     },
     {
       "id": "provider_lifecycle.pull_model",
@@ -126,14 +90,7 @@
       "method": "POST",
       "summary": "Pull a model on the ollama provider; honors X-Dry-Run",
       "description": "",
-      "category": "provider_lifecycle",
-      "cli_mapping": {
-        "command": "audio-tools provider pull-model",
-        "args": [
-          "<model-name>",
-          "[--dry-run]"
-        ]
-      }
+      "category": "provider_lifecycle"
     },
     {
       "id": "provider_lifecycle.get_provider_logs",
@@ -141,15 +98,7 @@
       "method": "POST",
       "summary": "Stream stdout/stderr lines from a local provider's backing resource",
       "description": "",
-      "category": "provider_lifecycle",
-      "cli_mapping": {
-        "command": "audio-tools provider logs",
-        "args": [
-          "<provider-id>",
-          "[--follow]",
-          "[--tail N]"
-        ]
-      }
+      "category": "provider_lifecycle"
     },
     {
       "id": "audio.transcode",
@@ -157,10 +106,7 @@
       "method": "POST",
       "summary": "Transcode audio (Connect-RPC)",
       "description": "",
-      "category": "audio",
-      "cli_mapping": {
-        "command": "audio-tools audio transcode"
-      }
+      "category": "audio"
     },
     {
       "id": "audio.transcode_multipart",
@@ -236,14 +182,7 @@
       "method": "POST",
       "summary": "Run the audio-tools capability suite end-to-end against bundled fixtures",
       "description": "",
-      "category": "diagnostics",
-      "cli_mapping": {
-        "command": "audio-tools diagnostics run",
-        "args": [
-          "[--capability stt,tts,summarize,transcode]",
-          "[--json]"
-        ]
-      }
+      "category": "diagnostics"
     },
     {
       "id": "diagnostics.get_last_run",
@@ -251,13 +190,7 @@
       "method": "POST",
       "summary": "Return the most recent RunSuite result, or an empty envelope when no run has executed",
       "description": "",
-      "category": "diagnostics",
-      "cli_mapping": {
-        "command": "audio-tools diagnostics last",
-        "args": [
-          "[--json]"
-        ]
-      }
+      "category": "diagnostics"
     },
     {
       "id": "diagnostics.list_fixtures",
@@ -313,10 +246,7 @@
       "method": "POST",
       "summary": "",
       "description": "",
-      "category": "settings",
-      "cli_mapping": {
-        "command": "audio-tools settings provider"
-      }
+      "category": "settings"
     },
     {
       "id": "settings.update_provider_config",
@@ -332,10 +262,7 @@
       "method": "POST",
       "summary": "",
       "description": "",
-      "category": "settings",
-      "cli_mapping": {
-        "command": "audio-tools settings byok-list"
-      }
+      "category": "settings"
     },
     {
       "id": "settings.upsert_byok_credential",
@@ -343,10 +270,7 @@
       "method": "POST",
       "summary": "",
       "description": "",
-      "category": "settings",
-      "cli_mapping": {
-        "command": "audio-tools settings byok-upsert"
-      }
+      "category": "settings"
     },
     {
       "id": "settings.delete_byok_credential",
@@ -354,10 +278,7 @@
       "method": "POST",
       "summary": "",
       "description": "",
-      "category": "settings",
-      "cli_mapping": {
-        "command": "audio-tools settings byok-delete"
-      }
+      "category": "settings"
     },
     {
       "id": "settings.get_voice_overrides",
@@ -381,10 +302,7 @@
       "method": "POST",
       "summary": "Transcribe audio via STT provider chain (Connect-RPC)",
       "description": "",
-      "category": "stt",
-      "cli_mapping": {
-        "command": "audio-tools stt transcribe"
-      }
+      "category": "stt"
     },
     {
       "id": "stt.transcribe_stream",
@@ -392,10 +310,7 @@
       "method": "POST",
       "summary": "Bidi-stream Connect mirror of /api/v1/voice/stream for non-browser consumers",
       "description": "",
-      "category": "stt",
-      "cli_mapping": {
-        "command": "audio-tools stt transcribe-stream"
-      }
+      "category": "stt"
     },
     {
       "id": "stt.transcribe_multipart",
@@ -427,10 +342,7 @@
       "method": "POST",
       "summary": "Report the STT ingress audio-format capability matrix",
       "description": "",
-      "category": "stt",
-      "cli_mapping": {
-        "command": "audio-tools stt formats"
-      }
+      "category": "stt"
     },
     {
       "id": "stt.list_engines",
@@ -438,10 +350,7 @@
       "method": "POST",
       "summary": "List selectable STT engines (manifest-derived) with availability",
       "description": "",
-      "category": "stt",
-      "cli_mapping": {
-        "command": "audio-tools stt engines"
-      }
+      "category": "stt"
     },
     {
       "id": "stt.get_stream_config",
@@ -449,10 +358,7 @@
       "method": "POST",
       "summary": "",
       "description": "",
-      "category": "stt",
-      "cli_mapping": {
-        "command": "audio-tools stt stream-config"
-      }
+      "category": "stt"
     },
     {
       "id": "stt.update_stream_config",
@@ -460,10 +366,7 @@
       "method": "POST",
       "summary": "",
       "description": "",
-      "category": "stt",
-      "cli_mapping": {
-        "command": "audio-tools stt stream-config-set"
-      }
+      "category": "stt"
     },
     {
       "id": "stt.get_engine_switch_impact",
@@ -471,10 +374,7 @@
       "method": "POST",
       "summary": "Report shared-resource impact of switching the active engine",
       "description": "",
-      "category": "stt",
-      "cli_mapping": {
-        "command": "audio-tools stt engine-impact"
-      }
+      "category": "stt"
     },
     {
       "id": "stt.get_wakeword_config",
@@ -514,10 +414,7 @@
       "method": "POST",
       "summary": "",
       "description": "",
-      "category": "stt",
-      "cli_mapping": {
-        "command": "audio-tools stt speaker-config"
-      }
+      "category": "stt"
     },
     {
       "id": "stt.get_speaker_status",
@@ -525,10 +422,7 @@
       "method": "POST",
       "summary": "",
       "description": "",
-      "category": "stt",
-      "cli_mapping": {
-        "command": "audio-tools stt speaker-status"
-      }
+      "category": "stt"
     },
     {
       "id": "stt.list_speaker_profiles",
@@ -544,10 +438,7 @@
       "method": "POST",
       "summary": "",
       "description": "",
-      "category": "stt",
-      "cli_mapping": {
-        "command": "audio-tools stt speaker-enroll"
-      }
+      "category": "stt"
     },
     {
       "id": "stt.clear_speaker_profile_binding",
@@ -579,10 +470,7 @@
       "method": "POST",
       "summary": "",
       "description": "",
-      "category": "stt",
-      "cli_mapping": {
-        "command": "audio-tools stt speaker-clips"
-      }
+      "category": "stt"
     },
     {
       "id": "stt.delete_speaker_profile_clip",
@@ -590,10 +478,7 @@
       "method": "POST",
       "summary": "",
       "description": "",
-      "category": "stt",
-      "cli_mapping": {
-        "command": "audio-tools stt speaker-delete-clip"
-      }
+      "category": "stt"
     },
     {
       "id": "summarize.summarize",
@@ -601,10 +486,7 @@
       "method": "POST",
       "summary": "Summarize text via the summarization provider chain",
       "description": "",
-      "category": "summarize",
-      "cli_mapping": {
-        "command": "audio-tools summarize text"
-      }
+      "category": "summarize"
     },
     {
       "id": "summarize.get_config",
@@ -636,10 +518,7 @@
       "method": "POST",
       "summary": "Synthesize speech audio via the TTS provider chain",
       "description": "BYOK -> Vrooli -> Local. Audio bytes returned inline; voice_overrides and event_id cache controls supported.",
-      "category": "tts",
-      "cli_mapping": {
-        "command": "audio-tools tts synthesize"
-      }
+      "category": "tts"
     },
     {
       "id": "tts.synthesize_stream",
@@ -647,10 +526,7 @@
       "method": "POST",
       "summary": "Stream synthesized audio frames via the TTS provider chain",
       "description": "Server-streaming variant of Synthesize. Streaming-capable providers (future) emit incremental frames; non-streaming providers emit a single is_final=true frame with the full audio. Provider trace fields are populated only on the final frame.",
-      "category": "tts",
-      "cli_mapping": {
-        "command": "audio-tools tts synthesize-stream"
-      }
+      "category": "tts"
     },
     {
       "id": "tts.list_voices",
@@ -658,10 +534,7 @@
       "method": "POST",
       "summary": "List canonical voices",
       "description": "Returns the five canonical voice IDs with their human labels.",
-      "category": "tts",
-      "cli_mapping": {
-        "command": "audio-tools tts voices"
-      }
+      "category": "tts"
     },
     {
       "id": "tts.get_cache",
@@ -701,10 +574,7 @@
       "method": "POST",
       "summary": "Report the TTS egress audio-format capability matrix",
       "description": "",
-      "category": "tts",
-      "cli_mapping": {
-        "command": "audio-tools tts formats"
-      }
+      "category": "tts"
     },
     {
       "id": "tts.record_playback_event",
@@ -736,10 +606,7 @@
       "method": "POST",
       "summary": "",
       "description": "",
-      "category": "usage",
-      "cli_mapping": {
-        "command": "audio-tools usage list"
-      }
+      "category": "usage"
     },
     {
       "id": "usage.get_summary",
@@ -747,10 +614,7 @@
       "method": "POST",
       "summary": "",
       "description": "",
-      "category": "usage",
-      "cli_mapping": {
-        "command": "audio-tools usage summary"
-      }
+      "category": "usage"
     }
   ]
 }

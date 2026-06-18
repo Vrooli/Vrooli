@@ -16,7 +16,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "graph",
 		Request:     &module.Schema{Type: "DescribeTechTreeRequest"},
 		Response:    &module.Schema{Type: "DescribeTechTreeResponse"},
-		CLIMapping:  &module.CLIMapping{Command: "tech-tree-designer graph describe"},
 	},
 	{
 		ID:          "graph-neighborhood",
@@ -27,7 +26,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "graph",
 		Request:     &module.Schema{Type: "GetNeighborhoodRequest"},
 		Response:    &module.Schema{Type: "DescribeTechTreeResponse"},
-		CLIMapping:  &module.CLIMapping{Command: "tech-tree-designer graph neighbors", Args: []string{"<scenario>"}},
 	},
 	{
 		ID:          "graph-path",
@@ -38,7 +36,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "graph",
 		Request:     &module.Schema{Type: "FindPathRequest"},
 		Response:    &module.Schema{Type: "DescribeTechTreeResponse"},
-		CLIMapping:  &module.CLIMapping{Command: "tech-tree-designer graph path", Args: []string{"<from>", "<to>"}},
 	},
 	{
 		ID:          "graph-ancestors",
@@ -49,7 +46,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "graph",
 		Request:     &module.Schema{Type: "ListAncestorsRequest"},
 		Response:    &module.Schema{Type: "DescribeTechTreeResponse"},
-		CLIMapping:  &module.CLIMapping{Command: "tech-tree-designer graph ancestors", Args: []string{"<scenario>"}},
 	},
 	{
 		ID:          "graph-export",
@@ -60,6 +56,5 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "graph",
 		Request:     &module.Schema{Type: "ExportTechTreeRequest"},
 		Response:    &module.Schema{Type: "ExportTechTreeResponse"},
-		CLIMapping:  &module.CLIMapping{Command: "tech-tree-designer graph export"},
 	},
 }

@@ -54,10 +54,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 400, Code: "invalid_argument", Description: "Empty operations list or malformed op"},
 			{Status: 500, Code: "internal", Description: "Plan persistence failure"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "go-code-graph rewrite plan",
-			Args:    []string{"<ops.json>"},
-		},
 	},
 	{
 		ID:          "rewrite_apply",
@@ -86,10 +82,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 400, Code: "invalid_argument", Description: "Unknown plan_id, apply=false, or malformed input"},
 			{Status: 412, Code: "failed_precondition", Description: "Plan was created for a different module_path"},
 			{Status: 500, Code: "internal", Description: "Executor or persistence failure"},
-		},
-		CLIMapping: &module.CLIMapping{
-			Command: "go-code-graph rewrite apply",
-			Args:    []string{"<plan_id>", "[--dry-run]"},
 		},
 	},
 }

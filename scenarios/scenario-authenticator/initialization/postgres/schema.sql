@@ -31,11 +31,11 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- Create indexes for users table
-CREATE INDEX idx_users_email ON users(email) WHERE deleted_at IS NULL;
-CREATE INDEX idx_users_username ON users(username) WHERE deleted_at IS NULL;
-CREATE INDEX idx_users_created_at ON users(created_at);
-CREATE INDEX idx_users_roles ON users USING GIN(roles);
-CREATE INDEX idx_users_metadata ON users USING GIN(metadata);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(username) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at);
+CREATE INDEX IF NOT EXISTS idx_users_roles ON users USING GIN(roles);
+CREATE INDEX IF NOT EXISTS idx_users_metadata ON users USING GIN(metadata);
 
 -- Create API keys table
 CREATE TABLE IF NOT EXISTS api_keys (
@@ -53,9 +53,9 @@ CREATE TABLE IF NOT EXISTS api_keys (
 );
 
 -- Create indexes for API keys table
-CREATE INDEX idx_api_keys_user_id ON api_keys(user_id) WHERE revoked_at IS NULL;
-CREATE INDEX idx_api_keys_key_hash ON api_keys(key_hash) WHERE revoked_at IS NULL;
-CREATE INDEX idx_api_keys_expires_at ON api_keys(expires_at) WHERE revoked_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_api_keys_user_id ON api_keys(user_id) WHERE revoked_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_api_keys_key_hash ON api_keys(key_hash) WHERE revoked_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_api_keys_expires_at ON api_keys(expires_at) WHERE revoked_at IS NULL;
 
 -- Create audit log table
 CREATE TABLE IF NOT EXISTS audit_logs (
@@ -73,10 +73,10 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 );
 
 -- Create indexes for audit logs
-CREATE INDEX idx_audit_logs_user_id ON audit_logs(user_id);
-CREATE INDEX idx_audit_logs_action ON audit_logs(action);
-CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
-CREATE INDEX idx_audit_logs_resource ON audit_logs(resource_type, resource_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_resource ON audit_logs(resource_type, resource_id);
 
 -- Create refresh tokens table (for JWT refresh)
 CREATE TABLE IF NOT EXISTS refresh_tokens (
@@ -92,9 +92,9 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
 );
 
 -- Create indexes for refresh tokens
-CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens(user_id) WHERE revoked_at IS NULL;
-CREATE INDEX idx_refresh_tokens_token_hash ON refresh_tokens(token_hash) WHERE revoked_at IS NULL;
-CREATE INDEX idx_refresh_tokens_expires_at ON refresh_tokens(expires_at);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id) WHERE revoked_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token_hash ON refresh_tokens(token_hash) WHERE revoked_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at ON refresh_tokens(expires_at);
 
 -- Create roles table for RBAC
 CREATE TABLE IF NOT EXISTS roles (
@@ -138,8 +138,8 @@ CREATE TABLE IF NOT EXISTS oauth_providers (
 );
 
 -- Create indexes for oauth providers
-CREATE INDEX idx_oauth_providers_user_id ON oauth_providers(user_id);
-CREATE INDEX idx_oauth_providers_provider ON oauth_providers(provider, provider_user_id);
+CREATE INDEX IF NOT EXISTS idx_oauth_providers_user_id ON oauth_providers(user_id);
+CREATE INDEX IF NOT EXISTS idx_oauth_providers_provider ON oauth_providers(provider, provider_user_id);
 
 -- Create rate_limits table
 CREATE TABLE IF NOT EXISTS rate_limits (
@@ -153,8 +153,8 @@ CREATE TABLE IF NOT EXISTS rate_limits (
 );
 
 -- Create indexes for rate limits
-CREATE INDEX idx_rate_limits_identifier ON rate_limits(identifier, endpoint);
-CREATE INDEX idx_rate_limits_window ON rate_limits(window_end);
+CREATE INDEX IF NOT EXISTS idx_rate_limits_identifier ON rate_limits(identifier, endpoint);
+CREATE INDEX IF NOT EXISTS idx_rate_limits_window ON rate_limits(window_end);
 
 -- Create function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()

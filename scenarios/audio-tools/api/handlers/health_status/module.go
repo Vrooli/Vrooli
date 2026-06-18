@@ -50,10 +50,6 @@ var Endpoints = []modulekit.EndpointDescriptor{
 		Method:   "POST",
 		Summary:  "Return the cached per-capability provider-health rollup",
 		Category: "health_status",
-		CLIMapping: &modulekit.CLIMapping{
-			Command: "audio-tools health show",
-			Args:    []string{"[--json]"},
-		},
 	},
 	{
 		ID:       "health_status.refresh_provider_health",
@@ -68,8 +64,5 @@ var Endpoints = []modulekit.EndpointDescriptor{
 		Method:   "POST",
 		Summary:  "Server-streaming feed of provider-health rollups (one event per registry tick)",
 		Category: "health_status",
-		CLIMapping: &modulekit.CLIMapping{
-			Command: "audio-tools health watch",
-		},
 	},
 }

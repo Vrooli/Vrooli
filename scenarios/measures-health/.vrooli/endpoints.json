@@ -23,9 +23,6 @@
           "curl": "curl http://localhost:${API_PORT}/health"
         }
       ],
-      "cli_mapping": {
-        "command": "measures-health status"
-      },
       "rest_exception": {
         "reason": "ops_probe",
         "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client."
@@ -55,13 +52,7 @@
           "name": "Failed this week",
           "curl": "curl http://localhost:${API_PORT}/vrooli.measures_health.v1.measures.MeasuresService/CountFailedValidations -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "measures-health measures failed",
-        "args": [
-          "--window"
-        ]
-      }
+      ]
     },
     {
       "id": "measures_count_validation_coverage",
@@ -87,13 +78,7 @@
           "name": "Coverage this week",
           "curl": "curl http://localhost:${API_PORT}/vrooli.measures_health.v1.measures.MeasuresService/CountValidationCoverage -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "measures-health measures coverage",
-        "args": [
-          "--window"
-        ]
-      }
+      ]
     },
     {
       "id": "search_search",
@@ -128,14 +113,7 @@
           "name": "Answer an analytical question",
           "curl": "curl http://localhost:${API_PORT}/vrooli.measures_health.v1.search.SearchService/Search -H 'Content-Type: application/json' -d '{\"query\":\"how many backlog items did we complete this week\",\"limit\":1}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "measures-health search query",
-        "args": [
-          "<question>",
-          "--limit"
-        ]
-      }
+      ]
     },
     {
       "id": "search_status",
@@ -169,10 +147,7 @@
           "name": "Index status",
           "curl": "curl http://localhost:${API_PORT}/vrooli.measures_health.v1.search.SearchService/Status -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "measures-health search status"
-      }
+      ]
     },
     {
       "id": "validation_validate_scenario",
@@ -209,14 +184,7 @@
           "name": "Validate swarm-manager",
           "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"swarm-manager\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "measures-health validate scenario",
-        "args": [
-          "<name>",
-          "--probe"
-        ]
-      }
+      ]
     },
     {
       "id": "validation_list_fleet_coverage",
@@ -249,52 +217,7 @@
           "name": "Fleet coverage",
           "curl": "curl http://localhost:${API_PORT}/vrooli.measures_health.v1.validation.ValidationService/ListFleetCoverage -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "measures-health validate coverage"
-      }
-    }
-  ],
-  "cli_commands": [
-    {
-      "name": "configure",
-      "description": "View or update CLI settings (api_base, token)",
-      "endpoint_id": ""
-    },
-    {
-      "name": "measures coverage",
-      "description": "Count scenarios that passed measures validation in a window (fleet measure-coverage over time)",
-      "endpoint_id": "measures_count_validation_coverage"
-    },
-    {
-      "name": "measures failed",
-      "description": "Count scenarios that failed measures validation in a window",
-      "endpoint_id": "measures_count_failed_validations"
-    },
-    {
-      "name": "search query",
-      "description": "Match an analytical question to a measure and return the computed answer (the search-hub measure provider)",
-      "endpoint_id": "search_search"
-    },
-    {
-      "name": "search status",
-      "description": "Report measure-index and backend availability",
-      "endpoint_id": "search_status"
-    },
-    {
-      "name": "status",
-      "description": "Check API health",
-      "endpoint_id": "health"
-    },
-    {
-      "name": "validate coverage",
-      "description": "Roll up measure coverage across every discovered scenario (the fleet view)",
-      "endpoint_id": "validation_list_fleet_coverage"
-    },
-    {
-      "name": "validate scenario",
-      "description": "Grade a scenario's measure coverage (expected/covered/waived) and optionally probe its declared measures end-to-end",
-      "endpoint_id": "validation_validate_scenario"
+      ]
     }
   ]
 }

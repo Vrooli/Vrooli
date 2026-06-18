@@ -56,10 +56,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Search", Curl: "curl http://localhost:${API_PORT}/vrooli.ui_health.v1.search.SearchService/Search -H 'Content-Type: application/json' -d '{\"query\":\"date picker\",\"limit\":10}'"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "ui-health search query",
-			Args:    []string{"<text>"},
-		},
 	},
 	{
 		ID:          "search_status",
@@ -81,9 +77,6 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "Status", Curl: "curl http://localhost:${API_PORT}/vrooli.ui_health.v1.search.SearchService/Status -H 'Content-Type: application/json' -d '{}'"},
-		},
-		CLIMapping: &module.CLIMapping{
-			Command: "ui-health search status",
 		},
 	},
 }

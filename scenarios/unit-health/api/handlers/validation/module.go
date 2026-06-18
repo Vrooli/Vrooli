@@ -78,7 +78,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Request:     &module.Schema{Type: "object", Properties: map[string]string{"scenario": "string", "path": "string", "workspaces": "array<string>", "include_execution": "bool", "use_cache": "bool"}},
 		Response:    &module.Schema{Type: "object", Properties: map[string]string{"status": "string", "surfaces": "array<TestSurface>", "workspaces": "array<TestWorkspace>", "findings": "array<ValidationFinding>", "coverage": "array<CoverageTarget>", "maturity": "MaturitySummary", "assessment": "common.v1.MaturityAssessment"}},
 		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Scenario/path is missing or cannot be resolved"}},
-		CLIMapping:  &module.CLIMapping{Command: "unit-health validate scenario", Args: []string{"<scenario>", "--json"}},
 	},
 	{
 		ID:          "scenario_validation_validate_scenario",
@@ -93,6 +92,6 @@ var Endpoints = []module.EndpointDescriptor{
 		// Same user-facing capability as validation_validate_scenario, exposed
 		// through the shared scenario-validation provider contract. The
 		// `validate scenario` CLI command covers it; map both endpoints to it.
-		CLIMapping: &module.CLIMapping{Command: "unit-health validate scenario", Args: []string{"<scenario>", "--json"}},
+
 	},
 }

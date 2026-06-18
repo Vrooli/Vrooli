@@ -40,10 +40,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Register provider", Curl: "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.registry.RegistryService/RegisterProvider -H 'Content-Type: application/json' -d '{\"descriptor\":{\"provider_id\":\"example-provider.commands\",\"provider_group\":\"example-provider\",\"bucket\":\"BUCKET_DO\",\"type\":\"command\",\"description\":\"CLI command corpus\"}}'"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "search-hub providers register",
-			Args:    []string{"--descriptor", "<json>"},
-		},
 	},
 	{
 		ID:          "providers_list",
@@ -72,9 +68,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "List providers", Curl: "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.registry.RegistryService/ListProviders -H 'Content-Type: application/json' -d '{}'"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "search-hub providers list",
-		},
 	},
 	{
 		ID:          "providers_remove",
@@ -100,10 +93,6 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "Deregister provider", Curl: "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.registry.RegistryService/DeregisterProvider -H 'Content-Type: application/json' -d '{\"provider_id\":\"example-provider.commands\"}'"},
-		},
-		CLIMapping: &module.CLIMapping{
-			Command: "search-hub providers remove",
-			Args:    []string{"<provider_id>"},
 		},
 	},
 }

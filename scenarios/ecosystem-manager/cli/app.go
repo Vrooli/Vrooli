@@ -27,6 +27,17 @@ type App struct {
 // NewApp creates a new ecosystem-manager CLI application.
 func NewApp() (*App, error) {
 	app := &App{}
+	subcommandGroups := func(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
+		groups, err := domains.SubcommandGroups(core, manifestBytes)
+		if err != nil {
+			// Manifest parse / binding wiring is a programmer error caught
+			// at NewApp time; surface it as a panic so misconfigured builds
+			// fail loudly during the first CLI invocation rather than after
+			// a user actually runs a command.
+			panic(err)
+		}
+		return groups
+	}
 	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
 		Name:             appName,
 		Version:          appVersion,
@@ -40,8 +51,9 @@ func NewApp() (*App, error) {
 		AllowAnonymous:   true,
 		CommandGroups: func(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 			app.core = core
-			return domains.CommandGroups(appctx.New(core), core)
+			return domains.CommandGroups(appctx.New(core))
 		},
+		SubcommandGroups: subcommandGroups,
 	})
 	if err != nil {
 		return nil, err

@@ -18,7 +18,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Inspect a flow's generated/ tree",
 		Description: "Returns each expected artifact path with its existence/mtime, plus an overall fresh|missing status. Pure inspection — no mutation.",
 		Category:    "artifacts",
-		CLIMapping:  &module.CLIMapping{Command: "flow-verifier artifacts status"},
 	},
 	{
 		ID:          "flows.artifacts.generate",
@@ -27,7 +26,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Generate or regenerate a flow's artifacts",
 		Description: "Runs the pipeline in generate mode for one flow. Returns the new artifacts status alongside the recorded run.",
 		Category:    "artifacts",
-		CLIMapping:  &module.CLIMapping{Command: "flow-verifier artifacts generate"},
 	},
 	{
 		ID:          "flows.artifacts.clear",
@@ -36,6 +34,5 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Clear a flow's generated/ tree",
 		Description: "Removes every file under <flow-dir>/generated/. Refuses crafted paths that would escape the scenario root.",
 		Category:    "artifacts",
-		CLIMapping:  &module.CLIMapping{Command: "flow-verifier artifacts clear"},
 	},
 }

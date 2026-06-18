@@ -8,13 +8,11 @@ import (
 
 // Endpoints describes the graph domain's Connect-RPC routes.
 //
-// Only graph.extract carries a CLIMapping: it is the single graph RPC
-// wired into the CLI today. GetGraphSnapshot, ListGraphSnapshots,
-// ClearGraphSnapshots, and ExportGraph are intentionally NOT exposed as
-// CLI commands yet — they are documented in cli/manifest.json::omitted
-// with reasons. The parity gate (cmd/gen-endpoints) enforces the
-// invariant that a CLIMapping is present iff a registered CLI command
-// mirrors it, so these stay CLIMapping-free until their commands land.
+// Only graph.extract is bound to the CLI today. GetGraphSnapshot,
+// ListGraphSnapshots, ClearGraphSnapshots, and ExportGraph are intentionally
+// NOT exposed as CLI commands yet — they are documented in
+// cli/manifest.json::omitted with reasons. The gen-endpoints coverage gate
+// enforces that each Connect procedure is either bound or omitted.
 var Endpoints = []module.EndpointDescriptor{
 	{
 		ID:          "graph.extract",
@@ -23,7 +21,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Extract and persist a graph snapshot",
 		Description: "Delegates to the language code-graph adapter(s), normalizes, dedupes, and persists the resulting snapshot.",
 		Category:    "graph",
-		CLIMapping:  &module.CLIMapping{Command: "arch-cart graph extract"},
 	},
 	{
 		ID:          "graph.get",

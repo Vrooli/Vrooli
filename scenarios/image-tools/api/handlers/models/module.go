@@ -70,7 +70,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Name: "List all models", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ListModels -H 'Content-Type: application/json' -d '{}'"},
 			{Name: "List upscale models", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ListModels -H 'Content-Type: application/json' -d '{\"operation\":\"upscale\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "image-tools models list", Args: []string{"--operation", "<op>"}},
 	},
 	{
 		ID:          "models_get",
@@ -94,7 +93,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Get a model", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/GetModel -H 'Content-Type: application/json' -d '{\"id\":\"sd-1.5\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "image-tools models get", Args: []string{"<id>"}},
 	},
 	{
 		ID:          "models_operations",
@@ -110,7 +108,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "List operations", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ListOperations -H 'Content-Type: application/json' -d '{}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "image-tools models operations"},
 	},
 	{
 		ID:          "models_select",
@@ -143,7 +140,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Select for upscale", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/SelectModel -H 'Content-Type: application/json' -d '{\"operation\":\"upscale\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "image-tools models select", Args: []string{"<operation>", "--override", "<id>"}},
 	},
 	{
 		ID:          "models_set_enabled",
@@ -170,7 +166,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Enable a quality tier", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/SetModelEnabled -H 'Content-Type: application/json' -d '{\"id\":\"real-esrgan\",\"enabled\":true}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "image-tools models enable", Args: []string{"<id>"}},
 	},
 	{
 		ID:          "models_blocklist",
@@ -186,7 +181,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "List blocklist", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ListBlocklist -H 'Content-Type: application/json' -d '{}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "image-tools models blocklist"},
 	},
 	{
 		ID:          "models_install",
@@ -216,7 +210,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Install sd-1.5", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/InstallModel -H 'Content-Type: application/json' -d '{\"id\":\"sd-1.5\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "image-tools models install", Args: []string{"<id>", "--wait"}},
 	},
 	{
 		ID:          "models_remove",
@@ -240,7 +233,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Remove sd-1.5", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/RemoveModel -H 'Content-Type: application/json' -d '{\"id\":\"sd-1.5\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "image-tools models remove", Args: []string{"<id>"}},
 	},
 	{
 		ID:          "models_add_custom",
@@ -268,7 +260,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Register a local upscaler", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/AddCustomModel -H 'Content-Type: application/json' -d '{\"model\":{\"id\":\"my-upscaler\",\"operations\":[\"upscale\"],\"backend\":\"onnxruntime\"},\"local_path\":\"/data/models/my-upscaler\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "image-tools models add-custom", Args: []string{"<id>", "--operation", "<op>", "--local-path", "<path>"}},
 	},
 	{
 		ID:          "models_set_default",
@@ -296,7 +287,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Pin upscale default", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/SetDefaultModel -H 'Content-Type: application/json' -d '{\"operation\":\"upscale\",\"model_id\":\"real-esrgan\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "image-tools settings set-default", Args: []string{"<operation>", "<id>"}},
 	},
 	{
 		ID:          "models_list_defaults",
@@ -312,6 +302,5 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "List defaults", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ListDefaults -H 'Content-Type: application/json' -d '{}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "image-tools settings list"},
 	},
 }

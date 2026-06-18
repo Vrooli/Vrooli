@@ -26,7 +26,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 400, Code: "invalid_argument", Description: "Suite failed validation"},
 			{Status: 500, Code: "internal", Description: "Eval store write failure"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "search-hub evals register", Args: []string{"--suite", "<json>"}},
 	},
 	{
 		ID:          "evals_list_suites",
@@ -38,7 +37,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Request:     &module.Schema{Type: "object", Properties: map[string]string{"provider_id": "string (optional filter)"}},
 		Response:    &module.Schema{Type: "object", Properties: map[string]string{"suites": "array<EvalSuite>"}},
 		Errors:      []module.ErrorDesc{{Status: 500, Code: "internal", Description: "Eval store read failure"}},
-		CLIMapping:  &module.CLIMapping{Command: "search-hub evals list"},
 	},
 	{
 		ID:          "evals_get_suite",
@@ -53,7 +51,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 404, Code: "not_found", Description: "No such suite"},
 			{Status: 500, Code: "internal", Description: "Eval store read failure"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "search-hub evals show", Args: []string{"<suite_id>"}},
 	},
 	{
 		ID:          "evals_run_suite",
@@ -69,7 +66,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 400, Code: "failed_precondition", Description: "Suite's provider is not registered/reachable"},
 			{Status: 500, Code: "internal", Description: "Eval store write failure"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "search-hub evals run", Args: []string{"<suite_id>", "--tag", "<tag>"}},
 	},
 	{
 		ID:          "evals_validate_corpus",
@@ -84,7 +80,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 404, Code: "not_found", Description: "No such suite"},
 			{Status: 400, Code: "failed_precondition", Description: "Suite's provider is not registered/reachable"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "search-hub evals validate", Args: []string{"<suite_id>", "--deep-k", "<n>"}},
 	},
 	{
 		ID:          "evals_list_runs",
@@ -96,7 +91,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Request:     &module.Schema{Type: "object", Properties: map[string]string{"suite_id": "string (required)", "tag": "string (optional filter)", "limit": "int (optional cap)"}},
 		Response:    &module.Schema{Type: "object", Properties: map[string]string{"runs": "array<EvalRun>"}},
 		Errors:      []module.ErrorDesc{{Status: 500, Code: "internal", Description: "Eval store read failure"}},
-		CLIMapping:  &module.CLIMapping{Command: "search-hub evals runs", Args: []string{"<suite_id>"}},
 	},
 	{
 		ID:          "evals_get_run",
@@ -111,7 +105,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 404, Code: "not_found", Description: "No such run"},
 			{Status: 500, Code: "internal", Description: "Eval store read failure"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "search-hub evals show-run", Args: []string{"<run_id>"}},
 	},
 	{
 		ID:          "evals_compare_runs",
@@ -126,7 +119,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 404, Code: "not_found", Description: "No such run"},
 			{Status: 500, Code: "internal", Description: "Eval store read failure"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "search-hub evals compare", Args: []string{"<run_a>", "<run_b>"}},
 	},
 	{
 		ID:          "evals_sweep",
@@ -141,7 +133,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 404, Code: "not_found", Description: "No such suite"},
 			{Status: 400, Code: "failed_precondition", Description: "Provider unregistered / declares no control plane / suite has no positive cases"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "search-hub evals sweep", Args: []string{"<suite_id>", "--apply"}},
 	},
 	{
 		ID:          "evals_generate",
@@ -156,7 +147,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 404, Code: "not_found", Description: "No such suite"},
 			{Status: 400, Code: "failed_precondition", Description: "Provider unregistered / index could not be sampled / proposals failed validation"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "search-hub evals generate", Args: []string{"<suite_id>", "--count", "<n>", "--negatives", "--apply"}},
 	},
 	{
 		ID:          "evals_promote_cases",
@@ -172,6 +162,5 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 404, Code: "not_found", Description: "No such suite"},
 			{Status: 400, Code: "failed_precondition", Description: "Provider unregistered / declares no control plane / corpus write-back unavailable"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "search-hub evals promote", Args: []string{"<suite_id>", "--case", "<case_id>", "--all"}},
 	},
 }

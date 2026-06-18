@@ -1,0 +1,61 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "ecosystem-manager",
+  "description": "Ecosystem Manager CLI surface. Single source of truth for the proto-bound discovery domain: schema-validated against cli-manifest/v1 and cross-validated against the DiscoveryService proto descriptors at endpoints-generation time. Loaded by cli/main.go via cliapp.LoadFromManifest. The REST domains (tasks, queue, steer, logs) are not proto-bound and remain code-registered CommandGroups.",
+  "groups": [
+    {
+      "name": "discovery",
+      "description": "Discover local resources and scenarios",
+      "commands": [
+        {
+          "name": "resources",
+          "description": "List discovered local resources (--refresh to bypass the discovery cache)",
+          "flags": [
+            { "name": "refresh", "bool": true, "description": "Bypass the discovery cache" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "DiscoveryService", "method": "ListResources" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "scenarios",
+          "description": "List discovered scenarios (--refresh to bypass the discovery cache)",
+          "flags": [
+            { "name": "refresh", "bool": true, "description": "Bypass the discovery cache" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "DiscoveryService", "method": "ListScenarios" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
+    }
+  ],
+  "omitted": [
+    {
+      "service": "DiscoveryService",
+      "method": "GetResource",
+      "reason": "Exposed via the API/UI DiscoveryService only; no CLI command today."
+    },
+    {
+      "service": "DiscoveryService",
+      "method": "GetScenario",
+      "reason": "Exposed via the API/UI DiscoveryService only; no CLI command today."
+    },
+    {
+      "service": "DiscoveryService",
+      "method": "ListOperations",
+      "reason": "Exposed via the API/UI DiscoveryService only; no CLI command today."
+    },
+    {
+      "service": "DiscoveryService",
+      "method": "ListCategories",
+      "reason": "Exposed via the API/UI DiscoveryService only; no CLI command today."
+    }
+  ]
+}

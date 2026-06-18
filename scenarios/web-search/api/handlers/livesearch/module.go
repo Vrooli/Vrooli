@@ -46,6 +46,5 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Live web search (L0) with optional snippet synthesis (L1)",
 		Description: "Fans the query out to SearXNG and returns normalized results. With --synthesis, runs an optional always-cited LLM pass over the returned snippets (abstains rather than fabricates). Budget-governed: returns degraded without calling SearXNG when the live budget is exhausted.",
 		Category:    "livesearch",
-		CLIMapping:  &module.CLIMapping{Command: "web-search search", Args: []string{"<query>", "--limit", "<n>", "--synthesis"}},
 	},
 }

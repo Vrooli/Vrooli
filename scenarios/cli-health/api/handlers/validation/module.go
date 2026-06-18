@@ -99,9 +99,5 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Validate scenario", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"cli-health\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "cli-health validate scenario",
-			Args:    []string{"<name>"},
-		},
 	},
 }

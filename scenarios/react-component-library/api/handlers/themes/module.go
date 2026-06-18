@@ -61,7 +61,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Errors: []module.ErrorDesc{
 			{Status: 500, Code: "internal", Description: "Repository read failure"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "react-component-library themes list-builtin"},
 	},
 	{
 		ID:          "themes_get_builtin",
@@ -82,7 +81,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 404, Code: "not_found", Description: "No built-in theme with that id"},
 			{Status: 500, Code: "internal", Description: "Repository read failure"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "react-component-library themes get-builtin", Args: []string{"<id>"}},
 	},
 	{
 		ID:          "themes_get_from_scenario",
@@ -104,6 +102,5 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 400, Code: "invalid_argument", Description: "DESIGN.md is malformed or does not project to a recognizable theme"},
 			{Status: 500, Code: "internal", Description: "Filesystem read or parse failure"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "react-component-library themes get-from-scenario", Args: []string{"<scenario_id>"}},
 	},
 }

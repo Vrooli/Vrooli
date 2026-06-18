@@ -40,10 +40,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Register a filesystem target", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.targets.TargetsService/RegisterTarget -H 'Content-Type: application/json' -d '{\"owner\":\"prompt-manager\",\"name\":\"store\",\"sourceKind\":\"SOURCE_KIND_FILESYSTEM\",\"locator\":\"store/teams\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "data-backup-manager targets register",
-			Args:    []string{"--owner", "<owner>", "--name", "<name>", "--kind", "<kind>", "--locator", "<locator>"},
-		},
 	},
 	{
 		ID:          "targets_deregister",
@@ -67,10 +63,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Deregister a target", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.targets.TargetsService/DeregisterTarget -H 'Content-Type: application/json' -d '{\"owner\":\"prompt-manager\",\"name\":\"store\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "data-backup-manager targets deregister",
-			Args:    []string{"--owner", "<owner>", "--name", "<name>"},
-		},
 	},
 	{
 		ID:          "targets_get",
@@ -93,10 +85,6 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "Get a target", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.targets.TargetsService/GetTarget -H 'Content-Type: application/json' -d '{\"id\":\"tgt-1\"}'"},
-		},
-		CLIMapping: &module.CLIMapping{
-			Command: "data-backup-manager targets get",
-			Args:    []string{"<id>"},
 		},
 	},
 	{
@@ -126,10 +114,6 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "List all targets", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.targets.TargetsService/ListTargets -H 'Content-Type: application/json' -d '{}'"},
-		},
-		CLIMapping: &module.CLIMapping{
-			Command: "data-backup-manager targets list",
-			Args:    []string{"--owner", "<owner>"},
 		},
 	},
 }

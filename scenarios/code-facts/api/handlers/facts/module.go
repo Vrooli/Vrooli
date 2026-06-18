@@ -72,7 +72,6 @@ var Endpoints = []module.EndpointDescriptor{
 			Name: "Describe this scenario",
 			Curl: "curl http://localhost:${API_PORT}/vrooli.code_facts.v1.facts.CodeFactsService/DescribeCodeFacts -H 'Content-Type: application/json' -d '{\"target\":{\"kind\":\"TARGET_KIND_SCENARIO\",\"scenario\":\"code-facts\"},\"include\":[\"FACT_FAMILY_SURFACES\"]}'",
 		}},
-		CLIMapping: &module.CLIMapping{Command: "code-facts facts describe", Args: []string{"<target>", "--include", "<families>"}},
 	},
 	{
 		ID:          "facts_surfaces",
@@ -88,8 +87,7 @@ var Endpoints = []module.EndpointDescriptor{
 			"warnings": "array<Warning>",
 			"cache":    "CacheMetadata",
 		}},
-		Errors:     []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Target kind or target identifier is missing"}},
-		CLIMapping: &module.CLIMapping{Command: "code-facts facts surfaces", Args: []string{"<target>"}},
+		Errors: []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Target kind or target identifier is missing"}},
 	},
 	{
 		ID:          "facts_fleet_imports",
@@ -108,8 +106,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Response: &module.Schema{Type: "object", Properties: map[string]string{
 			"results": "array<CodeFactsResult>",
 		}},
-		Errors:     []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Invalid limit or scenario enumeration failure"}},
-		CLIMapping: &module.CLIMapping{Command: "code-facts facts fleet-imports", Args: []string{"--scenario", "<name>", "--json"}},
+		Errors: []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Invalid limit or scenario enumeration failure"}},
 	},
 	{
 		ID:          "facts_proto_adoption",
@@ -121,7 +118,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Request:     targetRequestSchema(),
 		Response:    proofResponseSchema(),
 		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Target kind or target identifier is missing"}},
-		CLIMapping:  &module.CLIMapping{Command: "code-facts facts proto-adoption", Args: []string{"<target>"}},
 	},
 	{
 		ID:          "facts_endpoint_proof",
@@ -133,7 +129,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Request:     targetRequestSchema(),
 		Response:    proofResponseSchema(),
 		Errors:      []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Target kind or target identifier is missing"}},
-		CLIMapping:  &module.CLIMapping{Command: "code-facts facts endpoint-proof", Args: []string{"<target>", "--endpoint", "<id>"}},
 	},
 	{
 		ID:          "facts_cache_status",
@@ -147,8 +142,7 @@ var Endpoints = []module.EndpointDescriptor{
 			"cache_key": "string",
 			"entries":   "int64",
 		}},
-		Errors:     []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Target kind or target identifier is missing"}},
-		CLIMapping: &module.CLIMapping{Command: "code-facts cache status", Args: []string{"<target>"}},
+		Errors: []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Target kind or target identifier is missing"}},
 	},
 	{
 		ID:          "facts_cache_inspect",
@@ -166,8 +160,7 @@ var Endpoints = []module.EndpointDescriptor{
 			"entries":          "int64",
 			"entries_metadata": "array<CacheMetadata>",
 		}},
-		Errors:     []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Target kind or target identifier is missing"}},
-		CLIMapping: &module.CLIMapping{Command: "code-facts cache inspect", Args: []string{"<target>", "--cache-key", "<key>"}},
+		Errors: []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Target kind or target identifier is missing"}},
 	},
 	{
 		ID:          "facts_cache_clear",
@@ -186,8 +179,7 @@ var Endpoints = []module.EndpointDescriptor{
 			"cleared_entries": "int64",
 			"dry_run":         "bool",
 		}},
-		Errors:     []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Target kind or target identifier is missing"}},
-		CLIMapping: &module.CLIMapping{Command: "code-facts cache clear", Args: []string{"<target>", "--dry-run"}},
+		Errors: []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Target kind or target identifier is missing"}},
 	},
 }
 

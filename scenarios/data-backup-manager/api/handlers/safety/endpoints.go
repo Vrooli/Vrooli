@@ -24,7 +24,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Ensure safety destination", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.safety.SafetyService/EnsureSafetyDestination -H 'Content-Type: application/json' -d '{}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "data-backup-manager safety ensure-destination"},
 	},
 	{
 		ID:          "safety_backup_scenario_now",
@@ -43,7 +42,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Back up a scenario now", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.safety.SafetyService/BackupScenarioNow -H 'Content-Type: application/json' -d '{\"scenario\":\"swarm-manager\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "data-backup-manager safety backup-now", Args: []string{"--scenario", "<scenario>"}},
 	},
 	{
 		ID:          "safety_register_scenario_targets",
@@ -61,7 +59,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Register a scenario's targets", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.safety.SafetyService/RegisterScenarioTargets -H 'Content-Type: application/json' -d '{\"scenario\":\"swarm-manager\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "data-backup-manager safety register-targets", Args: []string{"--scenario", "<scenario>"}},
 	},
 	{
 		ID:          "safety_populate_shadow",
@@ -80,6 +77,5 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Populate a shadow's postgres + data", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.safety.SafetyService/PopulateShadow -H 'Content-Type: application/json' -d '{\"scenario\":\"swarm-manager\",\"mappings\":[{\"target_name\":\"postgres\",\"location\":\"vrooli_swarm-manager_shadow\"}]}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "data-backup-manager safety populate-shadow", Args: []string{"--scenario", "<scenario>", "--mappings", "<name=location,...>"}},
 	},
 }

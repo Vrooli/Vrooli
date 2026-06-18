@@ -23,9 +23,6 @@
           "curl": "curl http://localhost:${API_PORT}/health"
         }
       ],
-      "cli_mapping": {
-        "command": "data-backup-manager status"
-      },
       "rest_exception": {
         "reason": "ops_probe",
         "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client."
@@ -76,18 +73,7 @@
           "name": "Run a snapshot audit",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.audits.AuditsService/RunSnapshotAudit -H 'Content-Type: application/json' -d '{\"targetId\":\"t-1\",\"destinationId\":\"dst-1\",\"snapshotId\":\"snap-1\",\"includeContentHash\":true,\"includeSqliteChecks\":true}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager audits run",
-        "args": [
-          "--target",
-          "<id>",
-          "--destination",
-          "<id>",
-          "--snapshot",
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "audits_get",
@@ -120,13 +106,7 @@
           "name": "Get an audit",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.audits.AuditsService/GetAudit -H 'Content-Type: application/json' -d '{\"id\":\"audit-1\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager audits get",
-        "args": [
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "audits_list",
@@ -155,14 +135,7 @@
           "name": "List audits",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.audits.AuditsService/ListAudits -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager audits list",
-        "args": [
-          "--target",
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "coverage_report",
@@ -192,10 +165,7 @@
           "name": "Get coverage report",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.coverage.CoverageService/GetCoverageReport -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager coverage report"
-      }
+      ]
     },
     {
       "id": "coverage_accept_defaults",
@@ -236,10 +206,7 @@
           "name": "Register non-sensitive defaults",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.coverage.CoverageService/AcceptDefaultTargets -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager coverage accept-defaults"
-      }
+      ]
     },
     {
       "id": "destinations_create",
@@ -281,18 +248,7 @@
           "name": "Create a filesystem destination",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/CreateDestination -H 'Content-Type: application/json' -d '{\"name\":\"local-backup\",\"backendKind\":\"BACKEND_KIND_FILESYSTEM\",\"location\":\"/mnt/backup\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager destinations create",
-        "args": [
-          "--name",
-          "<name>",
-          "--backend",
-          "<backend>",
-          "--location",
-          "<location>"
-        ]
-      }
+      ]
     },
     {
       "id": "destinations_get",
@@ -330,13 +286,7 @@
           "name": "Get a destination",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/GetDestination -H 'Content-Type: application/json' -d '{\"id\":\"dst-1\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager destinations get",
-        "args": [
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "destinations_list",
@@ -371,10 +321,7 @@
           "name": "List all destinations",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/ListDestinations -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager destinations list"
-      }
+      ]
     },
     {
       "id": "destinations_update",
@@ -419,15 +366,7 @@
           "name": "Set a 10 GiB cap",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/UpdateDestination -H 'Content-Type: application/json' -d '{\"id\":\"dst-1\",\"capBytes\":10737418240}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager destinations update",
-        "args": [
-          "<id>",
-          "--cap-bytes",
-          "<bytes>"
-        ]
-      }
+      ]
     },
     {
       "id": "destinations_delete",
@@ -466,13 +405,7 @@
           "name": "Delete a destination",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/DeleteDestination -H 'Content-Type: application/json' -d '{\"id\":\"dst-1\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager destinations delete",
-        "args": [
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "destinations_get_usage",
@@ -513,13 +446,7 @@
           "name": "Get destination usage",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/GetDestinationUsage -H 'Content-Type: application/json' -d '{\"id\":\"dst-1\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager destinations usage",
-        "args": [
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "destinations_analyze",
@@ -561,14 +488,7 @@
           "name": "Analyze a mounted USB drive",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/AnalyzeDestination -H 'Content-Type: application/json' -d '{\"location\":\"/media/user/USB\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager destinations readiness",
-        "args": [
-          "--location",
-          "<path>"
-        ]
-      }
+      ]
     },
     {
       "id": "destinations_prepare_plan",
@@ -616,16 +536,7 @@
           "name": "Plan a backup subdirectory",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/PlanDestinationPreparation -H 'Content-Type: application/json' -d '{\"location\":\"/media/user/USB\",\"action\":\"PREPARATION_ACTION_CREATE_SUBDIR\",\"desiredSubdir\":\"vrooli-backups\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager destinations prepare-plan",
-        "args": [
-          "--location",
-          "<path>",
-          "--action",
-          "<action>"
-        ]
-      }
+      ]
     },
     {
       "id": "destinations_prepare_execute",
@@ -674,16 +585,7 @@
           "name": "Dry-run a preparation plan",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/ExecuteDestinationPreparation -H 'Content-Type: application/json' -d '{\"plan\":{\"id\":\"plan-id\"},\"dryRun\":true}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager destinations prepare-execute",
-        "args": [
-          "--plan-json",
-          "<json>",
-          "--confirm",
-          "<phrase>"
-        ]
-      }
+      ]
     },
     {
       "id": "discovery_target_suggestions",
@@ -713,10 +615,7 @@
           "name": "List target suggestions",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.discovery.DiscoveryService/ListTargetSuggestions -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager discovery targets"
-      }
+      ]
     },
     {
       "id": "discovery_destination_suggestions",
@@ -746,10 +645,7 @@
           "name": "List destination suggestions",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.discovery.DiscoveryService/ListDestinationSuggestions -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager discovery destinations"
-      }
+      ]
     },
     {
       "id": "discovery_dismiss",
@@ -787,14 +683,7 @@
           "name": "Dismiss a suggestion",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.discovery.DiscoveryService/DismissSuggestion -H 'Content-Type: application/json' -d '{\"id\":\"b0e3a8fa79aefd10\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager discovery dismiss",
-        "args": [
-          "--id",
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "plans_create",
@@ -836,18 +725,7 @@
           "name": "Create a nightly plan",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.plans.PlansService/CreatePlan -H 'Content-Type: application/json' -d '{\"name\":\"nightly\",\"targetIds\":[\"tgt-1\"],\"destinationIds\":[\"dst-1\"],\"schedule\":\"24h\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager plans create",
-        "args": [
-          "--name",
-          "<name>",
-          "--targets",
-          "<ids>",
-          "--destinations",
-          "<ids>"
-        ]
-      }
+      ]
     },
     {
       "id": "plans_get",
@@ -885,13 +763,7 @@
           "name": "Get a plan",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.plans.PlansService/GetPlan -H 'Content-Type: application/json' -d '{\"id\":\"plan-1\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager plans get",
-        "args": [
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "plans_list",
@@ -926,10 +798,7 @@
           "name": "List all plans",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.plans.PlansService/ListPlans -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager plans list"
-      }
+      ]
     },
     {
       "id": "plans_update",
@@ -978,15 +847,7 @@
           "name": "Update a plan",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.plans.PlansService/UpdatePlan -H 'Content-Type: application/json' -d '{\"id\":\"plan-1\",\"name\":\"nightly-v2\",\"targetIds\":[\"tgt-1\"],\"destinationIds\":[\"dst-1\"]}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager plans update",
-        "args": [
-          "<id>",
-          "--name",
-          "<name>"
-        ]
-      }
+      ]
     },
     {
       "id": "plans_delete",
@@ -1019,13 +880,7 @@
           "name": "Delete a plan",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.plans.PlansService/DeletePlan -H 'Content-Type: application/json' -d '{\"id\":\"plan-1\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager plans delete",
-        "args": [
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "restores_restore_target",
@@ -1071,20 +926,7 @@
           "name": "Restore a snapshot",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.restores.RestoresService/RestoreTarget -H 'Content-Type: application/json' -d '{\"targetId\":\"t-1\",\"destinationId\":\"dst-1\",\"snapshotId\":\"snap-1\",\"location\":\"/restore/dest\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager restores restore",
-        "args": [
-          "--target",
-          "<id>",
-          "--destination",
-          "<id>",
-          "--snapshot",
-          "<id>",
-          "--location",
-          "<path>"
-        ]
-      }
+      ]
     },
     {
       "id": "restores_verify_target",
@@ -1129,18 +971,7 @@
           "name": "Verify a snapshot",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.restores.RestoresService/VerifyTarget -H 'Content-Type: application/json' -d '{\"targetId\":\"t-1\",\"destinationId\":\"dst-1\",\"snapshotId\":\"snap-1\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager restores verify",
-        "args": [
-          "--target",
-          "<id>",
-          "--destination",
-          "<id>",
-          "--snapshot",
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "restores_get",
@@ -1173,13 +1004,7 @@
           "name": "Get a restore",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.restores.RestoresService/GetRestore -H 'Content-Type: application/json' -d '{\"id\":\"restore-1\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager restores get",
-        "args": [
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "restores_list",
@@ -1208,14 +1033,7 @@
           "name": "List restores",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.restores.RestoresService/ListRestores -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager restores list",
-        "args": [
-          "--target",
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "runs_trigger",
@@ -1258,14 +1076,7 @@
           "name": "Trigger a run",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.runs.RunsService/TriggerRun -H 'Content-Type: application/json' -d '{\"planId\":\"plan-1\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager runs trigger",
-        "args": [
-          "--plan",
-          "<plan_id>"
-        ]
-      }
+      ]
     },
     {
       "id": "runs_get",
@@ -1298,13 +1109,7 @@
           "name": "Get a run",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.runs.RunsService/GetRun -H 'Content-Type: application/json' -d '{\"id\":\"run-1\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager runs get",
-        "args": [
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "runs_list",
@@ -1333,14 +1138,7 @@
           "name": "List runs",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.runs.RunsService/ListRuns -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager runs list",
-        "args": [
-          "--plan",
-          "<plan_id>"
-        ]
-      }
+      ]
     },
     {
       "id": "runs_target_status",
@@ -1366,10 +1164,7 @@
           "name": "Target status",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.runs.RunsService/ListTargetStatus -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager runs status"
-      }
+      ]
     },
     {
       "id": "runs_browse_snapshot",
@@ -1397,16 +1192,7 @@
           "name": "Browse snapshot",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.runs.RunsService/BrowseSnapshot -H 'Content-Type: application/json' -d '{\"destinationId\":\"dst-1\",\"snapshotId\":\"snap-1\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager runs browse",
-        "args": [
-          "--destination",
-          "<id>",
-          "--snapshot",
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "runs_stats",
@@ -1432,14 +1218,7 @@
           "name": "Run stats",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.runs.RunsService/GetRunStats -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager runs stats",
-        "args": [
-          "--plan",
-          "<plan_id>"
-        ]
-      }
+      ]
     },
     {
       "id": "safety_ensure_destination",
@@ -1473,10 +1252,7 @@
           "name": "Ensure safety destination",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.safety.SafetyService/EnsureSafetyDestination -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager safety ensure-destination"
-      }
+      ]
     },
     {
       "id": "safety_backup_scenario_now",
@@ -1524,14 +1300,7 @@
           "name": "Back up a scenario now",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.safety.SafetyService/BackupScenarioNow -H 'Content-Type: application/json' -d '{\"scenario\":\"swarm-manager\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager safety backup-now",
-        "args": [
-          "--scenario",
-          "<scenario>"
-        ]
-      }
+      ]
     },
     {
       "id": "safety_register_scenario_targets",
@@ -1571,14 +1340,7 @@
           "name": "Register a scenario's targets",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.safety.SafetyService/RegisterScenarioTargets -H 'Content-Type: application/json' -d '{\"scenario\":\"swarm-manager\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager safety register-targets",
-        "args": [
-          "--scenario",
-          "<scenario>"
-        ]
-      }
+      ]
     },
     {
       "id": "safety_populate_shadow",
@@ -1626,16 +1388,7 @@
           "name": "Populate a shadow's postgres + data",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.safety.SafetyService/PopulateShadow -H 'Content-Type: application/json' -d '{\"scenario\":\"swarm-manager\",\"mappings\":[{\"target_name\":\"postgres\",\"location\":\"vrooli_swarm-manager_shadow\"}]}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager safety populate-shadow",
-        "args": [
-          "--scenario",
-          "<scenario>",
-          "--mappings",
-          "<name=location,...>"
-        ]
-      }
+      ]
     },
     {
       "id": "targets_register",
@@ -1676,20 +1429,7 @@
           "name": "Register a filesystem target",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.targets.TargetsService/RegisterTarget -H 'Content-Type: application/json' -d '{\"owner\":\"prompt-manager\",\"name\":\"store\",\"sourceKind\":\"SOURCE_KIND_FILESYSTEM\",\"locator\":\"store/teams\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager targets register",
-        "args": [
-          "--owner",
-          "<owner>",
-          "--name",
-          "<name>",
-          "--kind",
-          "<kind>",
-          "--locator",
-          "<locator>"
-        ]
-      }
+      ]
     },
     {
       "id": "targets_deregister",
@@ -1728,16 +1468,7 @@
           "name": "Deregister a target",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.targets.TargetsService/DeregisterTarget -H 'Content-Type: application/json' -d '{\"owner\":\"prompt-manager\",\"name\":\"store\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager targets deregister",
-        "args": [
-          "--owner",
-          "<owner>",
-          "--name",
-          "<name>"
-        ]
-      }
+      ]
     },
     {
       "id": "targets_get",
@@ -1775,13 +1506,7 @@
           "name": "Get a target",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.targets.TargetsService/GetTarget -H 'Content-Type: application/json' -d '{\"id\":\"tgt-1\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager targets get",
-        "args": [
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "targets_list",
@@ -1817,14 +1542,7 @@
           "name": "List all targets",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.targets.TargetsService/ListTargets -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "data-backup-manager targets list",
-        "args": [
-          "--owner",
-          "<owner>"
-        ]
-      }
+      ]
     }
   ]
 }

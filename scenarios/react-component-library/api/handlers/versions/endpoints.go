@@ -29,7 +29,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Errors: []module.ErrorDesc{
 			{Status: 500, Code: "internal", Description: "Repository read failure"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "react-component-library versions list", Args: []string{"<component_id>"}},
 	},
 	{
 		ID:          "versions_get",
@@ -57,7 +56,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 404, Code: "not_found", Description: "No version with that component_id/version pair"},
 			{Status: 500, Code: "internal", Description: "Repository read failure"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "react-component-library versions show", Args: []string{"<component_id>", "<version>"}},
 	},
 	{
 		ID:          "versions_diff",
@@ -89,6 +87,5 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 404, Code: "not_found", Description: "Referenced version or adoption does not exist"},
 			{Status: 500, Code: "internal", Description: "Repository or filesystem failure"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "react-component-library versions diff", Args: []string{"<component_id>", "<from>", "<to>"}},
 	},
 }

@@ -65,7 +65,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Vulnerable deps", Curl: "curl http://localhost:${API_PORT}/vrooli.security_health.v1.dependencies.DependencyService/Search -H 'Content-Type: application/json' -d '{\"vulnerable_only\":true}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "security-health deps search", Args: []string{"<query>"}},
 	},
 	{
 		ID:          "dependencies_status",
@@ -85,7 +84,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Status", Curl: "curl http://localhost:${API_PORT}/vrooli.security_health.v1.dependencies.DependencyService/Status -H 'Content-Type: application/json' -d '{}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "security-health deps status"},
 	},
 	{
 		ID:          "dependencies_vulnerabilities",
@@ -112,7 +110,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Vulnerable dependencies", Curl: "curl http://localhost:${API_PORT}/vrooli.security_health.v1.dependencies.DependencyService/ListVulnerabilities -H 'Content-Type: application/json' -d '{}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "security-health deps vulnerabilities"},
 	},
 	{
 		ID:          "dependencies_explain_vulnerability",
@@ -136,6 +133,5 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Explain advisory", Curl: "curl http://localhost:${API_PORT}/vrooli.security_health.v1.dependencies.DependencyService/ExplainVulnerability -H 'Content-Type: application/json' -d '{\"vulnerability_id\":\"GHSA-example\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "security-health deps explain", Args: []string{"<vulnerability>"}},
 	},
 }

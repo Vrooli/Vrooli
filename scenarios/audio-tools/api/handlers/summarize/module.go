@@ -58,8 +58,7 @@ var Endpoints = []modulekit.EndpointDescriptor{
 	{
 		ID: "summarize.summarize", Path: "/vrooli.audio_tools.v1.summarize.SummarizeService/Summarize",
 		Method: "POST", Summary: "Summarize text via the summarization provider chain",
-		Category:   "summarize",
-		CLIMapping: &modulekit.CLIMapping{Command: "audio-tools summarize text"},
+		Category: "summarize",
 	},
 	{
 		ID: "summarize.get_config", Path: "/vrooli.audio_tools.v1.summarize.SummarizeService/GetSummarizeConfig",

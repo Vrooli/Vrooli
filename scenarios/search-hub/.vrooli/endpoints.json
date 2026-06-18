@@ -23,9 +23,6 @@
           "curl": "curl http://localhost:${API_PORT}/health"
         }
       ],
-      "cli_mapping": {
-        "command": "search-hub status"
-      },
       "rest_exception": {
         "reason": "ops_probe",
         "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client."
@@ -62,14 +59,7 @@
           "code": "internal",
           "description": "Eval store write failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "search-hub evals register",
-        "args": [
-          "--suite",
-          "<json>"
-        ]
-      }
+      ]
     },
     {
       "id": "evals_list_suites",
@@ -96,10 +86,7 @@
           "code": "internal",
           "description": "Eval store read failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "search-hub evals list"
-      }
+      ]
     },
     {
       "id": "evals_get_suite",
@@ -131,13 +118,7 @@
           "code": "internal",
           "description": "Eval store read failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "search-hub evals show",
-        "args": [
-          "<suite_id>"
-        ]
-      }
+      ]
     },
     {
       "id": "evals_run_suite",
@@ -176,15 +157,7 @@
           "code": "internal",
           "description": "Eval store write failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "search-hub evals run",
-        "args": [
-          "<suite_id>",
-          "--tag",
-          "<tag>"
-        ]
-      }
+      ]
     },
     {
       "id": "evals_validate_corpus",
@@ -218,15 +191,7 @@
           "code": "failed_precondition",
           "description": "Suite's provider is not registered/reachable"
         }
-      ],
-      "cli_mapping": {
-        "command": "search-hub evals validate",
-        "args": [
-          "<suite_id>",
-          "--deep-k",
-          "<n>"
-        ]
-      }
+      ]
     },
     {
       "id": "evals_list_runs",
@@ -255,13 +220,7 @@
           "code": "internal",
           "description": "Eval store read failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "search-hub evals runs",
-        "args": [
-          "<suite_id>"
-        ]
-      }
+      ]
     },
     {
       "id": "evals_get_run",
@@ -293,13 +252,7 @@
           "code": "internal",
           "description": "Eval store read failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "search-hub evals show-run",
-        "args": [
-          "<run_id>"
-        ]
-      }
+      ]
     },
     {
       "id": "evals_compare_runs",
@@ -334,14 +287,7 @@
           "code": "internal",
           "description": "Eval store read failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "search-hub evals compare",
-        "args": [
-          "<run_a>",
-          "<run_b>"
-        ]
-      }
+      ]
     },
     {
       "id": "evals_sweep",
@@ -376,14 +322,7 @@
           "code": "failed_precondition",
           "description": "Provider unregistered / declares no control plane / suite has no positive cases"
         }
-      ],
-      "cli_mapping": {
-        "command": "search-hub evals sweep",
-        "args": [
-          "<suite_id>",
-          "--apply"
-        ]
-      }
+      ]
     },
     {
       "id": "evals_generate",
@@ -422,17 +361,7 @@
           "code": "failed_precondition",
           "description": "Provider unregistered / index could not be sampled / proposals failed validation"
         }
-      ],
-      "cli_mapping": {
-        "command": "search-hub evals generate",
-        "args": [
-          "<suite_id>",
-          "--count",
-          "<n>",
-          "--negatives",
-          "--apply"
-        ]
-      }
+      ]
     },
     {
       "id": "evals_promote_cases",
@@ -474,16 +403,7 @@
           "code": "failed_precondition",
           "description": "Provider unregistered / declares no control plane / corpus write-back unavailable"
         }
-      ],
-      "cli_mapping": {
-        "command": "search-hub evals promote",
-        "args": [
-          "<suite_id>",
-          "--case",
-          "<case_id>",
-          "--all"
-        ]
-      }
+      ]
     },
     {
       "id": "metrics_insights",
@@ -527,14 +447,7 @@
           "name": "Last 7 days",
           "curl": "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.metrics.MetricsService/Insights -H 'Content-Type: application/json' -d '{\"window_days\":7}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "search-hub insights",
-        "args": [
-          "--window",
-          "<days>"
-        ]
-      }
+      ]
     },
     {
       "id": "providers_register",
@@ -573,14 +486,7 @@
           "name": "Register provider",
           "curl": "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.registry.RegistryService/RegisterProvider -H 'Content-Type: application/json' -d '{\"descriptor\":{\"provider_id\":\"example-provider.commands\",\"provider_group\":\"example-provider\",\"bucket\":\"BUCKET_DO\",\"type\":\"command\",\"description\":\"CLI command corpus\"}}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "search-hub providers register",
-        "args": [
-          "--descriptor",
-          "<json>"
-        ]
-      }
+      ]
     },
     {
       "id": "providers_list",
@@ -615,10 +521,7 @@
           "name": "List providers",
           "curl": "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.registry.RegistryService/ListProviders -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "search-hub providers list"
-      }
+      ]
     },
     {
       "id": "providers_remove",
@@ -651,13 +554,7 @@
           "name": "Deregister provider",
           "curl": "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.registry.RegistryService/DeregisterProvider -H 'Content-Type: application/json' -d '{\"provider_id\":\"example-provider.commands\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "search-hub providers remove",
-        "args": [
-          "<provider_id>"
-        ]
-      }
+      ]
     },
     {
       "id": "routing_query",
@@ -705,18 +602,7 @@
           "name": "Explicit-type query",
           "curl": "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.routing.RoutingService/Query -H 'Content-Type: application/json' -d '{\"query\":\"restart a scenario\",\"types\":[\"command\"],\"limit\":5}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "search-hub query",
-        "args": [
-          "<text>",
-          "--type",
-          "<types>",
-          "--all",
-          "--limit",
-          "<n>"
-        ]
-      }
+      ]
     },
     {
       "id": "routing_status",
@@ -748,10 +634,7 @@
           "name": "Federation status",
           "curl": "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.routing.RoutingService/Status -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "search-hub federation"
-      }
+      ]
     }
   ]
 }

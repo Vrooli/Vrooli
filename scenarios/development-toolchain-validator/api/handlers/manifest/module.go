@@ -63,7 +63,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "List manifests", Curl: "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.manifest.ManifestService/ListManifests -H 'Content-Type: application/json' -d '{}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "development-toolchain-validator manifest list"},
 	},
 	{
 		ID:          "manifest_get",
@@ -91,7 +90,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Get manifest", Curl: "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.manifest.ManifestService/GetManifest -H 'Content-Type: application/json' -d '{\"skill_id\":\"plan-skill-discovery\",\"golden_slug\":\"reference-react-vite\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "development-toolchain-validator manifest get", Args: []string{"<skill_id>", "<golden_slug>"}},
 	},
 	{
 		ID:          "manifest_upsert",
@@ -115,7 +113,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Upsert manifest", Curl: "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.manifest.ManifestService/UpsertManifest -H 'Content-Type: application/json' -d '{\"manifest\":{\"skill_id\":\"plan-skill-discovery\",\"golden_slug\":\"reference-react-vite\",\"wildcard_allowed\":true}}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "development-toolchain-validator manifest upsert", Args: []string{"--skill <id>", "--golden <slug>", "[--allow <glob>...]", "[--wildcard]"}},
 	},
 	{
 		ID:          "manifest_clear_stale",
@@ -142,6 +139,5 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Clear stale", Curl: "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.manifest.ManifestService/ClearStale -H 'Content-Type: application/json' -d '{\"skill_id\":\"plan-skill-discovery\",\"golden_slug\":\"reference-react-vite\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "development-toolchain-validator manifest clear-stale", Args: []string{"--skill <id>", "--golden <slug>"}},
 	},
 }

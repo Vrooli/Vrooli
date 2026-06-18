@@ -23,9 +23,6 @@
           "curl": "curl http://localhost:${API_PORT}/health"
         }
       ],
-      "cli_mapping": {
-        "command": "architecture-cartographer status"
-      },
       "rest_exception": {
         "reason": "ops_probe",
         "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client."
@@ -37,10 +34,7 @@
       "method": "POST",
       "summary": "List append-only events",
       "description": "Cursor-paginated event log with optional kind + since filters.",
-      "category": "analytics",
-      "cli_mapping": {
-        "command": "arch-cart analytics events"
-      }
+      "category": "analytics"
     },
     {
       "id": "analytics.get-stats",
@@ -48,10 +42,7 @@
       "method": "POST",
       "summary": "Get stats roll-up",
       "description": "Returns counts + verdict success rate with N<5 suppression.",
-      "category": "analytics",
-      "cli_mapping": {
-        "command": "arch-cart analytics stats"
-      }
+      "category": "analytics"
     },
     {
       "id": "analytics.list-placements",
@@ -59,10 +50,7 @@
       "method": "POST",
       "summary": "List placement outcomes",
       "description": "Cursor-paginated placement rows for a scenario.",
-      "category": "analytics",
-      "cli_mapping": {
-        "command": "arch-cart analytics placements"
-      }
+      "category": "analytics"
     },
     {
       "id": "analytics.record-override",
@@ -70,10 +58,7 @@
       "method": "POST",
       "summary": "Record an operator override",
       "description": "Appends an Override row. Honors Idempotency-Key and X-Dry-Run.",
-      "category": "analytics",
-      "cli_mapping": {
-        "command": "arch-cart analytics override-record"
-      }
+      "category": "analytics"
     },
     {
       "id": "apply.plan",
@@ -81,10 +66,7 @@
       "method": "POST",
       "summary": "Plan a per-domain apply",
       "description": "Deterministically derives the operation list from resolved/validated conflicts. v0.1 returns the plan envelope; RunApply is unimplemented.",
-      "category": "apply",
-      "cli_mapping": {
-        "command": "arch-cart apply plan"
-      }
+      "category": "apply"
     },
     {
       "id": "apply.run",
@@ -92,10 +74,7 @@
       "method": "POST",
       "summary": "Run an apply plan (v0.1: unimplemented)",
       "description": "Executes the supplied plan. v0.1 surfaces CodeUnimplemented; v0.2 wires the executor.",
-      "category": "apply",
-      "cli_mapping": {
-        "command": "arch-cart apply run"
-      }
+      "category": "apply"
     },
     {
       "id": "apply.list-history",
@@ -103,10 +82,7 @@
       "method": "POST",
       "summary": "List apply runs",
       "description": "Cursor-paginated history of apply runs (empty in v0.1).",
-      "category": "apply",
-      "cli_mapping": {
-        "command": "arch-cart apply history"
-      }
+      "category": "apply"
     },
     {
       "id": "apply.get-build-baseline",
@@ -114,10 +90,7 @@
       "method": "POST",
       "summary": "Get the current build baseline",
       "description": "Returns the toolchain build-green snapshot. v0.1 returns an empty baseline.",
-      "category": "apply",
-      "cli_mapping": {
-        "command": "arch-cart apply baseline"
-      }
+      "category": "apply"
     },
     {
       "id": "apply.write-suppression",
@@ -125,10 +98,7 @@
       "method": "POST",
       "summary": "Write an in-repo suppression marker",
       "description": "Inserts a durable `// arch:allow` marker into a source file, sanctioning a finding as intentional. Safe, non-destructive (comment-only) write.",
-      "category": "apply",
-      "cli_mapping": {
-        "command": "arch-cart apply suppress"
-      }
+      "category": "apply"
     },
     {
       "id": "audit.run",
@@ -136,10 +106,7 @@
       "method": "POST",
       "summary": "Run a CI-shaped drift audit",
       "description": "Orchestrates graph extract (if needed), domains derivation, and conflicts detection; applies severity / type filters; returns a deterministic summary and exit code mapping.",
-      "category": "audit",
-      "cli_mapping": {
-        "command": "architecture-cartographer audit run"
-      }
+      "category": "audit"
     },
     {
       "id": "audit.run-all",
@@ -147,10 +114,7 @@
       "method": "POST",
       "summary": "Sweep every discoverable scenario",
       "description": "Walks scenarios/*/.vrooli/service.json, runs Audit on each, and returns per-scenario reports plus a totals rollup. Honors include_scenarios / exclude_scenarios filters.",
-      "category": "audit",
-      "cli_mapping": {
-        "command": "architecture-cartographer audit run-all"
-      }
+      "category": "audit"
     },
     {
       "id": "validation.validate-scenario",
@@ -186,14 +150,7 @@
           "name": "Validate architecture",
           "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"proto-health\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "architecture-cartographer audit run",
-        "args": [
-          "<scenario>",
-          "--json"
-        ]
-      }
+      ]
     },
     {
       "id": "campaign.create",
@@ -201,10 +158,7 @@
       "method": "POST",
       "summary": "Open a campaign and ingest findings",
       "description": "Opens a tracked scenario-improvement campaign and ingests the initial ArchitectureFinding set (all start detected).",
-      "category": "campaign",
-      "cli_mapping": {
-        "command": "arch-cart campaign create"
-      }
+      "category": "campaign"
     },
     {
       "id": "campaign.list",
@@ -212,10 +166,7 @@
       "method": "POST",
       "summary": "List a scenario's campaigns",
       "description": "Returns the campaign headers for a scenario (newest first), or every campaign when scenario is empty.",
-      "category": "campaign",
-      "cli_mapping": {
-        "command": "arch-cart campaign list"
-      }
+      "category": "campaign"
     },
     {
       "id": "campaign.status",
@@ -223,10 +174,7 @@
       "method": "POST",
       "summary": "Get campaign status",
       "description": "Returns the campaign plus every tracked item and rollup counts.",
-      "category": "campaign",
-      "cli_mapping": {
-        "command": "arch-cart campaign status"
-      }
+      "category": "campaign"
     },
     {
       "id": "campaign.next",
@@ -234,10 +182,7 @@
       "method": "POST",
       "summary": "Get the next worklist chunk",
       "description": "Returns the profile-ranked worklist of open items (fast / balanced / long-term).",
-      "category": "campaign",
-      "cli_mapping": {
-        "command": "arch-cart campaign next"
-      }
+      "category": "campaign"
     },
     {
       "id": "campaign.resolve",
@@ -245,10 +190,7 @@
       "method": "POST",
       "summary": "Mark an item resolved",
       "description": "Records that the agent fixed an item by hand, with an operator note.",
-      "category": "campaign",
-      "cli_mapping": {
-        "command": "arch-cart campaign resolve"
-      }
+      "category": "campaign"
     },
     {
       "id": "campaign.apply",
@@ -256,10 +198,7 @@
       "method": "POST",
       "summary": "Apply an item fix (status-only)",
       "description": "Records a hand-fix as a status-only transition. Auto-execution of file-op fixes stays deferred to the apply-execution plan.",
-      "category": "campaign",
-      "cli_mapping": {
-        "command": "arch-cart campaign apply"
-      }
+      "category": "campaign"
     },
     {
       "id": "campaign.reaudit",
@@ -267,10 +206,7 @@
       "method": "POST",
       "summary": "Reconcile a re-audit",
       "description": "Reconciles a fresh findings set against the tracked set by stable id: absent→validated, present→stay, (re)appeared→regression.",
-      "category": "campaign",
-      "cli_mapping": {
-        "command": "arch-cart campaign reaudit"
-      }
+      "category": "campaign"
     },
     {
       "id": "campaign.close",
@@ -278,10 +214,7 @@
       "method": "POST",
       "summary": "Close a campaign",
       "description": "Marks the campaign closed.",
-      "category": "campaign",
-      "cli_mapping": {
-        "command": "arch-cart campaign close"
-      }
+      "category": "campaign"
     },
     {
       "id": "conflicts.detect",
@@ -289,10 +222,7 @@
       "method": "POST",
       "summary": "Detect conflicts",
       "description": "Runs every registered Detector against a scenario's graph snapshot + manifest, persists the resulting Conflict envelopes, and emits one analytics event per detection.",
-      "category": "conflicts",
-      "cli_mapping": {
-        "command": "arch-cart conflicts detect"
-      }
+      "category": "conflicts"
     },
     {
       "id": "conflicts.list",
@@ -300,10 +230,7 @@
       "method": "POST",
       "summary": "List persisted conflicts",
       "description": "Cursor-paginated list of stored conflicts, filterable by scenario and type.",
-      "category": "conflicts",
-      "cli_mapping": {
-        "command": "arch-cart conflicts list"
-      }
+      "category": "conflicts"
     },
     {
       "id": "conflicts.get",
@@ -311,10 +238,7 @@
       "method": "POST",
       "summary": "Get one conflict",
       "description": "Returns the Conflict envelope for the supplied id.",
-      "category": "conflicts",
-      "cli_mapping": {
-        "command": "arch-cart conflicts show"
-      }
+      "category": "conflicts"
     },
     {
       "id": "conflicts.validate",
@@ -322,10 +246,7 @@
       "method": "POST",
       "summary": "Validate cartographer-clean closure",
       "description": "Returns outstanding conflicts and a clean=true gate when zero error-severity rows remain. Used by the dogfood test.",
-      "category": "conflicts",
-      "cli_mapping": {
-        "command": "arch-cart conflicts validate"
-      }
+      "category": "conflicts"
     },
     {
       "id": "conflicts.list-detectors",
@@ -333,10 +254,7 @@
       "method": "POST",
       "summary": "List registered detectors",
       "description": "Returns the set of Detector plug-ins compiled into this binary.",
-      "category": "conflicts",
-      "cli_mapping": {
-        "command": "arch-cart conflicts detectors"
-      }
+      "category": "conflicts"
     },
     {
       "id": "conflicts.list-resolvers",
@@ -344,10 +262,7 @@
       "method": "POST",
       "summary": "List registered resolvers",
       "description": "Returns the set of Resolver plug-ins compiled into this binary.",
-      "category": "conflicts",
-      "cli_mapping": {
-        "command": "arch-cart conflicts resolvers"
-      }
+      "category": "conflicts"
     },
     {
       "id": "domains.extract",
@@ -355,10 +270,7 @@
       "method": "POST",
       "summary": "Derive the domain map for a scenario",
       "description": "Walks the domain-extraction ladder (DOMAINS.md → api/internal folders → cli groups) and returns the canonical derived domain map with per-source provenance.",
-      "category": "domains",
-      "cli_mapping": {
-        "command": "arch-cart domains extract"
-      }
+      "category": "domains"
     },
     {
       "id": "domains.show",
@@ -366,10 +278,7 @@
       "method": "POST",
       "summary": "Show the derived domain map",
       "description": "Returns the derived domain map for a scenario (re-derived per call; deterministic).",
-      "category": "domains",
-      "cli_mapping": {
-        "command": "arch-cart domains show"
-      }
+      "category": "domains"
     },
     {
       "id": "domains.convergence",
@@ -377,10 +286,7 @@
       "method": "POST",
       "summary": "Report cross-surface domain convergence",
       "description": "Reports where a scenario's surfaces (DOMAINS.md, api folders, cli groups, ui features) disagree on the domain set. Advisory, never a hard gate.",
-      "category": "domains",
-      "cli_mapping": {
-        "command": "arch-cart domains convergence"
-      }
+      "category": "domains"
     },
     {
       "id": "graph.extract",
@@ -388,10 +294,7 @@
       "method": "POST",
       "summary": "Extract and persist a graph snapshot",
       "description": "Delegates to the language code-graph adapter(s), normalizes, dedupes, and persists the resulting snapshot.",
-      "category": "graph",
-      "cli_mapping": {
-        "command": "arch-cart graph extract"
-      }
+      "category": "graph"
     },
     {
       "id": "graph.get",
@@ -431,10 +334,7 @@
       "method": "POST",
       "summary": "Score a chunk",
       "description": "Runs every registered Signal on the chunk and aggregates them into a Verdict (auto_place / suggest / conflict).",
-      "category": "signals",
-      "cli_mapping": {
-        "command": "arch-cart signals score"
-      }
+      "category": "signals"
     },
     {
       "id": "signals.explain",
@@ -442,10 +342,7 @@
       "method": "POST",
       "summary": "Explain a verdict",
       "description": "Returns the same Verdict shape as ScoreChunk with full per-signal evidence so operators can inspect the placement decision.",
-      "category": "signals",
-      "cli_mapping": {
-        "command": "arch-cart signals explain"
-      }
+      "category": "signals"
     },
     {
       "id": "signals.list",
@@ -453,10 +350,7 @@
       "method": "POST",
       "summary": "List registered signals",
       "description": "Returns the set of Signal plug-ins, their default weights, and per-scenario manifest-overlaid weights when scenario is supplied.",
-      "category": "signals",
-      "cli_mapping": {
-        "command": "arch-cart signals list"
-      }
+      "category": "signals"
     },
     {
       "id": "signals.boundaries",
@@ -464,10 +358,7 @@
       "method": "POST",
       "summary": "Domain boundary-health scores",
       "description": "Computes per-domain coupling metrics (efferent/afferent, instability, fan-out, stable-kernel) and a graded boundary-health score with advisory smells.",
-      "category": "signals",
-      "cli_mapping": {
-        "command": "arch-cart signals boundaries"
-      }
+      "category": "signals"
     }
   ]
 }

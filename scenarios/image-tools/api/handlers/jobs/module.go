@@ -61,7 +61,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Get a job", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.jobs.JobsService/GetJob -H 'Content-Type: application/json' -d '{\"id\":\"<job-id>\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "image-tools jobs get", Args: []string{"<id>"}},
 	},
 	{
 		ID:          "jobs_wait",
@@ -84,7 +83,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Wait for a job", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.jobs.JobsService/WaitJob -H 'Content-Type: application/json' -d '{\"id\":\"<job-id>\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "image-tools jobs wait", Args: []string{"<id>"}},
 	},
 	{
 		ID:          "jobs_list",
@@ -104,7 +102,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "List jobs", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.jobs.JobsService/ListJobs -H 'Content-Type: application/json' -d '{\"limit\":20}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "image-tools jobs list", Args: []string{"--limit", "<n>"}},
 	},
 	{
 		ID:          "jobs_cancel",
@@ -127,7 +124,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Cancel a job", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.jobs.JobsService/CancelJob -H 'Content-Type: application/json' -d '{\"id\":\"<job-id>\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "image-tools jobs cancel", Args: []string{"<id>"}},
 	},
 	{
 		ID:          "jobs_watch",
@@ -150,6 +146,5 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Watch a job", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.jobs.JobsService/WatchJob -H 'Content-Type: application/json' -d '{\"id\":\"<job-id>\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "image-tools jobs watch", Args: []string{"<id>"}},
 	},
 }

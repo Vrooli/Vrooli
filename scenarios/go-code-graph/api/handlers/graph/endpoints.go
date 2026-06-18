@@ -48,10 +48,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 501, Code: "unimplemented", Description: "go.work multi-module workspaces are not supported in v1"},
 			{Status: 500, Code: "internal", Description: "Loader failure"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "go-code-graph graph extract",
-			Args:    []string{"<path>", "[--include-vendor]"},
-		},
 	},
 	{
 		ID:          "graph_list_fixtures",
@@ -68,9 +64,6 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Errors: []module.ErrorDesc{
 			{Status: 500, Code: "internal", Description: "Fixtures directory unreadable"},
-		},
-		CLIMapping: &module.CLIMapping{
-			Command: "go-code-graph graph list-fixtures",
 		},
 	},
 	{
@@ -101,10 +94,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 404, Code: "not_found", Description: "Fixture not found"},
 			{Status: 412, Code: "failed_precondition", Description: "Fixture has no expected-graph.json baseline"},
 			{Status: 500, Code: "internal", Description: "Extraction or comparison failure"},
-		},
-		CLIMapping: &module.CLIMapping{
-			Command: "go-code-graph graph validate-fixture",
-			Args:    []string{"<name>"},
 		},
 	},
 }

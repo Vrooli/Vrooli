@@ -40,7 +40,6 @@ type (
 	Schema             = endpoints.Schema
 	ErrorDesc          = endpoints.ErrorDesc
 	Example            = endpoints.Example
-	CLIMapping         = endpoints.CLIMapping
 )
 
 // Canonical REST-exception reasons, re-exported from api-core/endpoints.

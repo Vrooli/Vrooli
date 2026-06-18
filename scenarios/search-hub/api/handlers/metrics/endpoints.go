@@ -46,9 +46,5 @@ var Endpoints = []module.EndpointDescriptor{
 			{Name: "All-time insights", Curl: "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.metrics.MetricsService/Insights -H 'Content-Type: application/json' -d '{}'"},
 			{Name: "Last 7 days", Curl: "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.metrics.MetricsService/Insights -H 'Content-Type: application/json' -d '{\"window_days\":7}'"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "search-hub insights",
-			Args:    []string{"--window", "<days>"},
-		},
 	},
 }

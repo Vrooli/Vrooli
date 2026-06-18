@@ -35,8 +35,5 @@ var Endpoints = []modulekit.EndpointDescriptor{
 		Examples: []modulekit.Example{
 			{Name: "Check health", Curl: "curl http://localhost:${API_PORT}/health"},
 		},
-		CLIMapping: &modulekit.CLIMapping{
-			Command: "audio-tools status",
-		},
 	},
 }

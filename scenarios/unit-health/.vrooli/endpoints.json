@@ -23,9 +23,6 @@
           "curl": "curl http://localhost:${API_PORT}/health"
         }
       ],
-      "cli_mapping": {
-        "command": "unit-health status"
-      },
       "rest_exception": {
         "reason": "ops_probe",
         "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
@@ -82,14 +79,7 @@
           "code": "invalid_argument",
           "description": "Scenario/path is missing or cannot be resolved"
         }
-      ],
-      "cli_mapping": {
-        "command": "unit-health validate scenario",
-        "args": [
-          "<scenario>",
-          "--json"
-        ]
-      }
+      ]
     },
     {
       "id": "scenario_validation_validate_scenario",
@@ -121,14 +111,7 @@
           "code": "invalid_argument",
           "description": "Scenario/path is missing or cannot be resolved"
         }
-      ],
-      "cli_mapping": {
-        "command": "unit-health validate scenario",
-        "args": [
-          "<scenario>",
-          "--json"
-        ]
-      }
+      ]
     }
   ]
 }

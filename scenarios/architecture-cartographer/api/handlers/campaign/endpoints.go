@@ -15,7 +15,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Open a campaign and ingest findings",
 		Description: "Opens a tracked scenario-improvement campaign and ingests the initial ArchitectureFinding set (all start detected).",
 		Category:    "campaign",
-		CLIMapping:  &module.CLIMapping{Command: "arch-cart campaign create"},
 	},
 	{
 		ID:          "campaign.list",
@@ -24,7 +23,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "List a scenario's campaigns",
 		Description: "Returns the campaign headers for a scenario (newest first), or every campaign when scenario is empty.",
 		Category:    "campaign",
-		CLIMapping:  &module.CLIMapping{Command: "arch-cart campaign list"},
 	},
 	{
 		ID:          "campaign.status",
@@ -33,7 +31,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Get campaign status",
 		Description: "Returns the campaign plus every tracked item and rollup counts.",
 		Category:    "campaign",
-		CLIMapping:  &module.CLIMapping{Command: "arch-cart campaign status"},
 	},
 	{
 		ID:          "campaign.next",
@@ -42,7 +39,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Get the next worklist chunk",
 		Description: "Returns the profile-ranked worklist of open items (fast / balanced / long-term).",
 		Category:    "campaign",
-		CLIMapping:  &module.CLIMapping{Command: "arch-cart campaign next"},
 	},
 	{
 		ID:          "campaign.resolve",
@@ -51,7 +47,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Mark an item resolved",
 		Description: "Records that the agent fixed an item by hand, with an operator note.",
 		Category:    "campaign",
-		CLIMapping:  &module.CLIMapping{Command: "arch-cart campaign resolve"},
 	},
 	{
 		ID:          "campaign.apply",
@@ -60,7 +55,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Apply an item fix (status-only)",
 		Description: "Records a hand-fix as a status-only transition. Auto-execution of file-op fixes stays deferred to the apply-execution plan.",
 		Category:    "campaign",
-		CLIMapping:  &module.CLIMapping{Command: "arch-cart campaign apply"},
 	},
 	{
 		ID:          "campaign.reaudit",
@@ -69,7 +63,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Reconcile a re-audit",
 		Description: "Reconciles a fresh findings set against the tracked set by stable id: absent→validated, present→stay, (re)appeared→regression.",
 		Category:    "campaign",
-		CLIMapping:  &module.CLIMapping{Command: "arch-cart campaign reaudit"},
 	},
 	{
 		ID:          "campaign.close",
@@ -78,6 +71,5 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Close a campaign",
 		Description: "Marks the campaign closed.",
 		Category:    "campaign",
-		CLIMapping:  &module.CLIMapping{Command: "arch-cart campaign close"},
 	},
 }

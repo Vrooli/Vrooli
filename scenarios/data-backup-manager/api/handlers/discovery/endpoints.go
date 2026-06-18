@@ -33,9 +33,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "List target suggestions", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.discovery.DiscoveryService/ListTargetSuggestions -H 'Content-Type: application/json' -d '{}'"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "data-backup-manager discovery targets",
-		},
 	},
 	{
 		ID:          "discovery_destination_suggestions",
@@ -57,9 +54,6 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "List destination suggestions", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.discovery.DiscoveryService/ListDestinationSuggestions -H 'Content-Type: application/json' -d '{}'"},
-		},
-		CLIMapping: &module.CLIMapping{
-			Command: "data-backup-manager discovery destinations",
 		},
 	},
 	{
@@ -83,10 +77,6 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "Dismiss a suggestion", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.discovery.DiscoveryService/DismissSuggestion -H 'Content-Type: application/json' -d '{\"id\":\"b0e3a8fa79aefd10\"}'"},
-		},
-		CLIMapping: &module.CLIMapping{
-			Command: "data-backup-manager discovery dismiss",
-			Args:    []string{"--id", "<id>"},
 		},
 	},
 }

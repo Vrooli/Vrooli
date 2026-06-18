@@ -14,7 +14,6 @@ var Endpoints = []modulekit.EndpointDescriptor{
 		Summary:     "Synthesize speech audio via the TTS provider chain",
 		Description: "BYOK -> Vrooli -> Local. Audio bytes returned inline; voice_overrides and event_id cache controls supported.",
 		Category:    "tts",
-		CLIMapping:  &modulekit.CLIMapping{Command: "audio-tools tts synthesize"},
 	},
 	{
 		ID:          "tts.synthesize_stream",
@@ -23,7 +22,6 @@ var Endpoints = []modulekit.EndpointDescriptor{
 		Summary:     "Stream synthesized audio frames via the TTS provider chain",
 		Description: "Server-streaming variant of Synthesize. Streaming-capable providers (future) emit incremental frames; non-streaming providers emit a single is_final=true frame with the full audio. Provider trace fields are populated only on the final frame.",
 		Category:    "tts",
-		CLIMapping:  &modulekit.CLIMapping{Command: "audio-tools tts synthesize-stream"},
 	},
 	{
 		ID:          "tts.list_voices",
@@ -32,7 +30,6 @@ var Endpoints = []modulekit.EndpointDescriptor{
 		Summary:     "List canonical voices",
 		Description: "Returns the five canonical voice IDs with their human labels.",
 		Category:    "tts",
-		CLIMapping:  &modulekit.CLIMapping{Command: "audio-tools tts voices"},
 	},
 	{
 		ID:          "tts.get_cache",
@@ -64,12 +61,11 @@ var Endpoints = []modulekit.EndpointDescriptor{
 		Category: "tts",
 	},
 	{
-		ID:         "tts.get_supported_formats",
-		Path:       "/vrooli.audio_tools.v1.tts.TTSService/GetSupportedFormats",
-		Method:     "POST",
-		Summary:    "Report the TTS egress audio-format capability matrix",
-		Category:   "tts",
-		CLIMapping: &modulekit.CLIMapping{Command: "audio-tools tts formats"},
+		ID:       "tts.get_supported_formats",
+		Path:     "/vrooli.audio_tools.v1.tts.TTSService/GetSupportedFormats",
+		Method:   "POST",
+		Summary:  "Report the TTS egress audio-format capability matrix",
+		Category: "tts",
 	},
 	{
 		ID:       "tts.record_playback_event",

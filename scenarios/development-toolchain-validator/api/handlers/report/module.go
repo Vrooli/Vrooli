@@ -85,7 +85,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Golden summary", Curl: "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.report.ReportService/GetGoldenSummary -H 'Content-Type: application/json' -d '{\"golden_slug\":\"reference-react-vite\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "development-toolchain-validator report golden-summary", Args: []string{"<slug>"}},
 	},
 	{
 		ID:          "report_tuple_history",
@@ -115,7 +114,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Tuple history", Curl: "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.report.ReportService/GetTupleHistory -H 'Content-Type: application/json' -d '{\"tuple_kind\":1,\"subject_id\":\"plan-skill-discovery\",\"golden_slug\":\"reference-react-vite\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "development-toolchain-validator report tuple-history", Args: []string{"--kind skill|tool", "--subject <id>", "--golden <slug>"}},
 	},
 	{
 		ID:          "report_coverage",
@@ -139,7 +137,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Coverage", Curl: "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.report.ReportService/GetCoverage -H 'Content-Type: application/json' -d '{\"golden_slug\":\"reference-react-vite\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "development-toolchain-validator report coverage", Args: []string{"<slug>"}},
 	},
 	{
 		ID:          "report_skill_fitness",
@@ -163,6 +160,5 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Skill fitness", Curl: "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.report.ReportService/GetSkillFitness -H 'Content-Type: application/json' -d '{\"skill_id\":\"plan-skill-discovery\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "development-toolchain-validator report skill-fitness", Args: []string{"<skill_id>"}},
 	},
 }

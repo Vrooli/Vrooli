@@ -54,10 +54,6 @@ func TestEndpointDescriptorJSONShape(t *testing.T) {
 			Name: "Register",
 			Curl: "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.registry.RegistryService/RegisterProvider",
 		}},
-		CLIMapping: &module.CLIMapping{
-			Command: "search-hub providers register",
-			Args:    []string{"--descriptor", "<json>"},
-		},
 	}
 
 	data, err := json.Marshal(descriptor)
@@ -72,5 +68,5 @@ func TestEndpointDescriptorJSONShape(t *testing.T) {
 	require.Contains(t, got, "response")
 	require.Contains(t, got, "errors")
 	require.Contains(t, got, "examples")
-	require.Contains(t, got, "cli_mapping")
+	require.NotContains(t, got, "cli_mapping")
 }

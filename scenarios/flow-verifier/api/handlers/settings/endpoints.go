@@ -18,7 +18,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Get UI/CLI preferences",
 		Description: "Returns the local principal's persisted UI/CLI preferences. Hard-coded defaults are returned when no row exists; never NotFound.",
 		Category:    "settings",
-		CLIMapping:  &module.CLIMapping{Command: "flow-verifier settings get"},
 	},
 	{
 		ID:          "settings.update",
@@ -27,6 +26,5 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Update UI/CLI preferences",
 		Description: "Partial-update of the local principal's preferences. The FieldMask names which fields of the supplied Settings message are merged into the stored row.",
 		Category:    "settings",
-		CLIMapping:  &module.CLIMapping{Command: "flow-verifier settings set"},
 	},
 }

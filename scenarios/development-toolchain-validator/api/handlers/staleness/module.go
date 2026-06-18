@@ -76,6 +76,5 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "List stale", Curl: "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.staleness.StalenessService/ListStale -H 'Content-Type: application/json' -d '{}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "development-toolchain-validator staleness list"},
 	},
 }

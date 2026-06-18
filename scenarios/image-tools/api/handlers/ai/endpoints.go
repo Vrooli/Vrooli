@@ -25,7 +25,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "List AI operations", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.ai.AIService/ListAIOperations -H 'Content-Type: application/json' -d '{}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "image-tools ai list"},
 	},
 	{
 		ID:          "ai_submit",
@@ -46,7 +45,7 @@ var Endpoints = []module.EndpointDescriptor{
 			{Name: "Generate from a prompt", Curl: "curl -X POST 'http://localhost:${API_PORT}/api/v1/ai/text_to_image' -F 'params={\"prompt\":\"a red bicycle\",\"width\":512,\"height\":512}'"},
 			{Name: "Upscale an image", Curl: "curl -X POST 'http://localhost:${API_PORT}/api/v1/ai/upscale' -F file=@in.png -F 'params={\"scale\":4}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "image-tools ai generate", Args: []string{"--prompt", "<prompt>", "--out", "<output>"}},
+
 		RESTException: &module.RESTException{
 			Reason: module.RESTReasonMultipartUpload,
 			Note:   "Image/mask bytes cannot ride a proto field; the request is multipart (file + mask + protojson params). Parameters stay proto-typed (AIParams) and the submit result is proto-typed (SubmitAIResponse).",

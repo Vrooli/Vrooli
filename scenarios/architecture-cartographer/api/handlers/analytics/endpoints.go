@@ -15,7 +15,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "List append-only events",
 		Description: "Cursor-paginated event log with optional kind + since filters.",
 		Category:    "analytics",
-		CLIMapping:  &module.CLIMapping{Command: "arch-cart analytics events"},
 	},
 	{
 		ID:          "analytics.get-stats",
@@ -24,7 +23,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Get stats roll-up",
 		Description: "Returns counts + verdict success rate with N<5 suppression.",
 		Category:    "analytics",
-		CLIMapping:  &module.CLIMapping{Command: "arch-cart analytics stats"},
 	},
 	{
 		ID:          "analytics.list-placements",
@@ -33,7 +31,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "List placement outcomes",
 		Description: "Cursor-paginated placement rows for a scenario.",
 		Category:    "analytics",
-		CLIMapping:  &module.CLIMapping{Command: "arch-cart analytics placements"},
 	},
 	{
 		ID:          "analytics.record-override",
@@ -42,6 +39,5 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Record an operator override",
 		Description: "Appends an Override row. Honors Idempotency-Key and X-Dry-Run.",
 		Category:    "analytics",
-		CLIMapping:  &module.CLIMapping{Command: "arch-cart analytics override-record"},
 	},
 }

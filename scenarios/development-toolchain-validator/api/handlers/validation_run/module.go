@@ -80,7 +80,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Start skill run", Curl: "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.validation_run.ValidationRunService/Start -H 'Content-Type: application/json' -d '{\"tuple_kind\":1,\"subject_id\":\"plan-skill-discovery\",\"golden_slug\":\"reference-react-vite\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "development-toolchain-validator validation start", Args: []string{"--skill <id> | --tool <name>", "--golden <slug>", "[--force]", "[--wait]"}},
 	},
 	{
 		ID:          "validation_run_get",
@@ -105,7 +104,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Get run", Curl: "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.validation_run.ValidationRunService/Get -H 'Content-Type: application/json' -d '{\"id\":\"<uuid>\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "development-toolchain-validator validation get", Args: []string{"<id>"}},
 	},
 	{
 		ID:          "validation_run_list_active",
@@ -124,6 +122,5 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "List active", Curl: "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.validation_run.ValidationRunService/ListActive -H 'Content-Type: application/json' -d '{}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "development-toolchain-validator validation list-active"},
 	},
 }

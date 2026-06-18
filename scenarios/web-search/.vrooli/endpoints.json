@@ -23,9 +23,6 @@
           "curl": "curl http://localhost:${API_PORT}/health"
         }
       ],
-      "cli_mapping": {
-        "command": "web-search status"
-      },
       "rest_exception": {
         "reason": "ops_probe",
         "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client."
@@ -37,10 +34,7 @@
       "method": "POST",
       "summary": "List findings",
       "description": "Lists findings newest-first. Superseded are excluded unless include_archived; an explicit status filters to one lifecycle state.",
-      "category": "findings",
-      "cli_mapping": {
-        "command": "web-search findings list"
-      }
+      "category": "findings"
     },
     {
       "id": "findings_get",
@@ -48,13 +42,7 @@
       "method": "POST",
       "summary": "Get a finding by id",
       "description": "Returns the finding (with citations) matching the request id.",
-      "category": "findings",
-      "cli_mapping": {
-        "command": "web-search findings get",
-        "args": [
-          "<id>"
-        ]
-      }
+      "category": "findings"
     },
     {
       "id": "findings_add",
@@ -62,18 +50,7 @@
       "method": "POST",
       "summary": "Add a finding",
       "description": "Persists a citation-backed claim. Claim is required; confidence is clamped to [0,1].",
-      "category": "findings",
-      "cli_mapping": {
-        "command": "web-search findings add",
-        "args": [
-          "--claim",
-          "<claim>",
-          "--confidence",
-          "<c>",
-          "--citations",
-          "<url|title,...>"
-        ]
-      }
+      "category": "findings"
     },
     {
       "id": "findings_edit",
@@ -81,17 +58,7 @@
       "method": "POST",
       "summary": "Edit a finding",
       "description": "Overwrites the claim and confidence of an existing finding; appends an audit row.",
-      "category": "findings",
-      "cli_mapping": {
-        "command": "web-search findings edit",
-        "args": [
-          "<id>",
-          "--claim",
-          "<claim>",
-          "--confidence",
-          "<c>"
-        ]
-      }
+      "category": "findings"
     },
     {
       "id": "findings_supersede",
@@ -99,17 +66,7 @@
       "method": "POST",
       "summary": "Supersede a finding",
       "description": "Soft-retires a finding (status=superseded, superseded_by=replacement). Never deletes; excluded from default search.",
-      "category": "findings",
-      "cli_mapping": {
-        "command": "web-search findings supersede",
-        "args": [
-          "<id>",
-          "--replacement",
-          "<id>",
-          "--reason",
-          "<reason>"
-        ]
-      }
+      "category": "findings"
     },
     {
       "id": "findings_flag",
@@ -117,15 +74,7 @@
       "method": "POST",
       "summary": "Flag a finding as disputed",
       "description": "Moves a finding to DISPUTED with a dispute note. Disputed findings are returned by search with a flag.",
-      "category": "findings",
-      "cli_mapping": {
-        "command": "web-search findings flag",
-        "args": [
-          "<id>",
-          "--reason",
-          "<reason>"
-        ]
-      }
+      "category": "findings"
     },
     {
       "id": "findings_disputes_list",
@@ -133,14 +82,7 @@
       "method": "POST",
       "summary": "List disputed findings",
       "description": "Returns the DISPUTED findings — the dispute review queue's read side. Convenience over ListFindings(status=disputed).",
-      "category": "findings",
-      "cli_mapping": {
-        "command": "web-search disputes list",
-        "args": [
-          "--limit",
-          "<n>"
-        ]
-      }
+      "category": "findings"
     },
     {
       "id": "findings_resolve",
@@ -148,19 +90,7 @@
       "method": "POST",
       "summary": "Resolve a disputed finding",
       "description": "Closes a DISPUTED finding: --resolution keep returns it to ACTIVE (clearing the dispute); --resolution supersede retires it in favor of --replacement. Writes an audit row.",
-      "category": "findings",
-      "cli_mapping": {
-        "command": "web-search disputes resolve",
-        "args": [
-          "<id>",
-          "--resolution",
-          "<keep|supersede>",
-          "--replacement",
-          "<id>",
-          "--reason",
-          "<reason>"
-        ]
-      }
+      "category": "findings"
     },
     {
       "id": "findings_prune",
@@ -168,13 +98,7 @@
       "method": "POST",
       "summary": "Prune superseded findings",
       "description": "Archives (hard-deletes) superseded findings. --dry-run reports what would be pruned.",
-      "category": "findings",
-      "cli_mapping": {
-        "command": "web-search findings prune",
-        "args": [
-          "--dry-run"
-        ]
-      }
+      "category": "findings"
     },
     {
       "id": "findings_search",
@@ -182,16 +106,7 @@
       "method": "POST",
       "summary": "Semantic search over findings",
       "description": "Runs the aisearch-go read path over the findings corpus. Default excludes superseded; disputed returned flagged.",
-      "category": "findings",
-      "cli_mapping": {
-        "command": "web-search findings search",
-        "args": [
-          "<query>",
-          "--limit",
-          "<n>",
-          "--include-archived"
-        ]
-      }
+      "category": "findings"
     },
     {
       "id": "findings_count",
@@ -199,14 +114,7 @@
       "method": "POST",
       "summary": "Count findings in a time window",
       "description": "Counts findings captured within the requested canonical time window. Bound to the `findings count` measure.",
-      "category": "findings",
-      "cli_mapping": {
-        "command": "web-search findings count",
-        "args": [
-          "--window",
-          "<window>"
-        ]
-      }
+      "category": "findings"
     },
     {
       "id": "findings_effectiveness",
@@ -214,15 +122,7 @@
       "method": "POST",
       "summary": "List findings by usage effectiveness",
       "description": "Pairs each finding with its usage telemetry (surfaced/used counts, last-surfaced age) and the blended effective score (age-decayed confidence × usage factor). The OT-P2-001 curation signal.",
-      "category": "findings",
-      "cli_mapping": {
-        "command": "web-search findings effectiveness",
-        "args": [
-          "--limit",
-          "<n>",
-          "--include-disputed"
-        ]
-      }
+      "category": "findings"
     },
     {
       "id": "findings_record_usage",
@@ -230,13 +130,7 @@
       "method": "POST",
       "summary": "Record explicit finding usage",
       "description": "Records an explicit 'this finding was used' signal (distinct from the implicit surfacing counted automatically on search).",
-      "category": "findings",
-      "cli_mapping": {
-        "command": "web-search findings use",
-        "args": [
-          "<id>"
-        ]
-      }
+      "category": "findings"
     },
     {
       "id": "findings_gc",
@@ -244,13 +138,7 @@
       "method": "POST",
       "summary": "Run the store-consistency GC",
       "description": "Runs the periodic full-store consistency pass: soft-retires never-surfaced, fully-decayed findings (confidence-gated) and reports cold-archive candidates, stale disputes, and orphans. --dry-run reports without mutating. Never hard-deletes; never auto-resolves a dispute.",
-      "category": "findings",
-      "cli_mapping": {
-        "command": "web-search findings gc",
-        "args": [
-          "--dry-run"
-        ]
-      }
+      "category": "findings"
     },
     {
       "id": "livesearch_search",
@@ -258,16 +146,7 @@
       "method": "POST",
       "summary": "Live web search (L0) with optional snippet synthesis (L1)",
       "description": "Fans the query out to SearXNG and returns normalized results. With --synthesis, runs an optional always-cited LLM pass over the returned snippets (abstains rather than fabricates). Budget-governed: returns degraded without calling SearXNG when the live budget is exhausted.",
-      "category": "livesearch",
-      "cli_mapping": {
-        "command": "web-search search",
-        "args": [
-          "<query>",
-          "--limit",
-          "<n>",
-          "--synthesis"
-        ]
-      }
+      "category": "livesearch"
     },
     {
       "id": "research_l2",
@@ -275,16 +154,7 @@
       "method": "POST",
       "summary": "L2 fetch, read, and single-pass cited synthesis",
       "description": "Fetches the top-N result pages (HTTP-first, escalating to a browser-automation-studio capture for JS-heavy pages), extracts readable text, and produces one always-cited synthesis grounded in full page content (richer than L1 snippet synthesis, at higher latency). With --capture, distills the synthesis into the findings store (L2 capture is opt-in).",
-      "category": "research",
-      "cli_mapping": {
-        "command": "web-search research l2",
-        "args": [
-          "<query>",
-          "--top-n",
-          "<n>",
-          "--capture"
-        ]
-      }
+      "category": "research"
     },
     {
       "id": "research_l3",
@@ -292,13 +162,7 @@
       "method": "POST",
       "summary": "Start an L3 iterative research-and-reconcile run",
       "description": "Spawns an agent-manager run that gathers nearby findings, researches the gap with L2 tools, and reconciles (distill, supersede outdated, flag low-confidence contradictions). Returns a run handle to poll. L3 auto-captures findings.",
-      "category": "research",
-      "cli_mapping": {
-        "command": "web-search research l3",
-        "args": [
-          "<query>"
-        ]
-      }
+      "category": "research"
     },
     {
       "id": "research_status",
@@ -306,13 +170,7 @@
       "method": "POST",
       "summary": "Poll an L3 research run",
       "description": "Returns the current status (and final summary when complete) of an L3 research run by id.",
-      "category": "research",
-      "cli_mapping": {
-        "command": "web-search research status",
-        "args": [
-          "<id>"
-        ]
-      }
+      "category": "research"
     },
     {
       "id": "research_gather",
@@ -320,15 +178,7 @@
       "method": "POST",
       "summary": "Bounded GATHER of findings near a query",
       "description": "Returns the findings semantically near the query for the GATHER step of the research-and-reconcile loop. The sweep is bounded server-side (hard cap 20) — the L3 agent uses this instead of a free-form findings search, so it never scans the whole store.",
-      "category": "research",
-      "cli_mapping": {
-        "command": "web-search research gather",
-        "args": [
-          "<query>",
-          "--max",
-          "<n>"
-        ]
-      }
+      "category": "research"
     }
   ]
 }

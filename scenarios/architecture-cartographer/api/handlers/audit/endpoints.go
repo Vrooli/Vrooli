@@ -16,7 +16,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Run a CI-shaped drift audit",
 		Description: "Orchestrates graph extract (if needed), domains derivation, and conflicts detection; applies severity / type filters; returns a deterministic summary and exit code mapping.",
 		Category:    "audit",
-		CLIMapping:  &module.CLIMapping{Command: "architecture-cartographer audit run"},
 	},
 	{
 		ID:          "audit.run-all",
@@ -25,7 +24,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Sweep every discoverable scenario",
 		Description: "Walks scenarios/*/.vrooli/service.json, runs Audit on each, and returns per-scenario reports plus a totals rollup. Honors include_scenarios / exclude_scenarios filters.",
 		Category:    "audit",
-		CLIMapping:  &module.CLIMapping{Command: "architecture-cartographer audit run-all"},
 	},
 	{
 		ID:          "validation.validate-scenario",
@@ -54,10 +52,6 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "Validate architecture", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"proto-health\"}'"},
-		},
-		CLIMapping: &module.CLIMapping{
-			Command: "architecture-cartographer audit run",
-			Args:    []string{"<scenario>", "--json"},
 		},
 	},
 }

@@ -51,10 +51,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Explicit-type query", Curl: "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.routing.RoutingService/Query -H 'Content-Type: application/json' -d '{\"query\":\"restart a scenario\",\"types\":[\"command\"],\"limit\":5}'"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "search-hub query",
-			Args:    []string{"<text>", "--type", "<types>", "--all", "--limit", "<n>"},
-		},
 	},
 	{
 		ID:          "routing_status",
@@ -77,9 +73,6 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "Federation status", Curl: "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.routing.RoutingService/Status -H 'Content-Type: application/json' -d '{}'"},
-		},
-		CLIMapping: &module.CLIMapping{
-			Command: "search-hub federation",
 		},
 	},
 }

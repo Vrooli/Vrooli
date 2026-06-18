@@ -277,5 +277,37 @@
         }
       ]
     }
+  ],
+  "omitted": [
+    {
+      "service": "DepsService",
+      "method": "ListDeclarations",
+      "reason": "Internal/UI-only surface. DepsService is consumed by the UI and the adoption-validation flow, not by the CLI. No deps CLI domain exists (cli/domains has only adoptions, components, preview, versions); the endpoint is intentionally omitted from CLI coverage, and promoting it would require authoring a net-new deps CLI domain + handlers, not wiring an existing hand-appended command. Documented intent in this manifest's description."
+    },
+    {
+      "service": "DepsService",
+      "method": "ValidateAdoption",
+      "reason": "Internal/UI-only surface. Consumed by the UI adoption modal's deps-validation step, not the CLI. No deps CLI domain exists; promotion would require net-new handlers rather than wiring an existing command. Documented intent in this manifest's description."
+    },
+    {
+      "service": "ThemesService",
+      "method": "ListBuiltinThemes",
+      "reason": "Internal/UI-only surface. ThemesService powers the UI theme picker; no themes CLI domain exists. The endpoint is intentionally omitted from CLI coverage; promotion would require a net-new themes CLI domain + handlers. Documented intent in this manifest's description."
+    },
+    {
+      "service": "ThemesService",
+      "method": "GetBuiltinTheme",
+      "reason": "Internal/UI-only surface. UI-only theme retrieval; no themes CLI domain exists. Promotion would require net-new handlers rather than wiring an existing command. Documented intent in this manifest's description."
+    },
+    {
+      "service": "ThemesService",
+      "method": "GetThemeFromScenario",
+      "reason": "Internal/UI-only surface. UI resolves a target scenario's DESIGN.md theme via this RPC; no themes CLI domain exists. Promotion would require net-new handlers. Documented intent in this manifest's description."
+    },
+    {
+      "service": "InventoryService",
+      "method": "ScanScenario",
+      "reason": "Shared cross-scenario service exposed alongside this scenario's own services. InventoryService is ui-health's contract (vrooli.ui_health.v1.inventory) implemented here for React scenarios; it is invoked by ui-health over Connect-RPC, not via this scenario's CLI. No inventory CLI domain exists; this is the pre-approved omit-with-reason case for a shared service surfaced alongside the scenario's own."
+    }
   ]
 }

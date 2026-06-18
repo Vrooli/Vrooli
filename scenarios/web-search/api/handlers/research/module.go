@@ -46,7 +46,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "L2 fetch, read, and single-pass cited synthesis",
 		Description: "Fetches the top-N result pages (HTTP-first, escalating to a browser-automation-studio capture for JS-heavy pages), extracts readable text, and produces one always-cited synthesis grounded in full page content (richer than L1 snippet synthesis, at higher latency). With --capture, distills the synthesis into the findings store (L2 capture is opt-in).",
 		Category:    "research",
-		CLIMapping:  &module.CLIMapping{Command: "web-search research l2", Args: []string{"<query>", "--top-n", "<n>", "--capture"}},
 	},
 	{
 		ID:          "research_l3",
@@ -55,7 +54,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Start an L3 iterative research-and-reconcile run",
 		Description: "Spawns an agent-manager run that gathers nearby findings, researches the gap with L2 tools, and reconciles (distill, supersede outdated, flag low-confidence contradictions). Returns a run handle to poll. L3 auto-captures findings.",
 		Category:    "research",
-		CLIMapping:  &module.CLIMapping{Command: "web-search research l3", Args: []string{"<query>"}},
 	},
 	{
 		ID:          "research_status",
@@ -64,7 +62,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Poll an L3 research run",
 		Description: "Returns the current status (and final summary when complete) of an L3 research run by id.",
 		Category:    "research",
-		CLIMapping:  &module.CLIMapping{Command: "web-search research status", Args: []string{"<id>"}},
 	},
 	{
 		ID:          "research_gather",
@@ -73,6 +70,5 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Bounded GATHER of findings near a query",
 		Description: "Returns the findings semantically near the query for the GATHER step of the research-and-reconcile loop. The sweep is bounded server-side (hard cap 20) — the L3 agent uses this instead of a free-form findings search, so it never scans the whole store.",
 		Category:    "research",
-		CLIMapping:  &module.CLIMapping{Command: "web-search research gather", Args: []string{"<query>", "--max", "<n>"}},
 	},
 }

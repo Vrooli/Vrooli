@@ -73,6 +73,5 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 400, Code: "invalid_argument", Description: "Bundler rejected the file (syntax error or unresolved import) or source_path escapes root"},
 			{Status: 500, Code: "internal", Description: "Filesystem read or bundler internal failure"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "react-component-library preview bundle", Args: []string{"<id>"}},
 	},
 }

@@ -85,6 +85,13 @@ func main() {
 	router.Post("/api/v1/auth/login", handlers.LoginHandler)
 	router.Get("/api/v1/auth/validate", handlers.ValidateHandler)
 	router.Post("/api/v1/auth/validate", handlers.ValidateHandler)
+
+	// Public signing key (JWKS) so consumers can verify owner JWTs locally
+	// (offline) instead of calling /validate on every request. Public by design;
+	// exposes only the public key.
+	router.Get("/.well-known/jwks.json", handlers.JWKSHandler)
+	router.Get("/api/v1/auth/jwks", handlers.JWKSHandler)
+
 	router.Post("/api/v1/auth/refresh", handlers.RefreshHandler)
 	router.Post("/api/v1/auth/logout", handlers.LogoutHandler)
 	router.Post("/api/v1/auth/reset-password", handlers.ResetPasswordHandler)

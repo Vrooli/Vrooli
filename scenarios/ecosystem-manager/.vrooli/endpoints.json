@@ -357,10 +357,7 @@
           "name": "List resources",
           "curl": "curl http://localhost:${API_PORT}/vrooli.ecosystem_manager.v1.discovery.DiscoveryService/ListResources -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "ecosystem-manager discovery resources"
-      }
+      ]
     },
     {
       "id": "discovery_list_scenarios",
@@ -387,10 +384,7 @@
           "name": "List scenarios",
           "curl": "curl http://localhost:${API_PORT}/vrooli.ecosystem_manager.v1.discovery.DiscoveryService/ListScenarios -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "ecosystem-manager discovery scenarios"
-      }
+      ]
     },
     {
       "id": "discovery_get_resource",

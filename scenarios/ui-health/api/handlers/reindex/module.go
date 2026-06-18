@@ -57,10 +57,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Reindex (dry-run)", Curl: "curl http://localhost:${API_PORT}/vrooli.ui_health.v1.reindex.ReindexService/Reindex -H 'Content-Type: application/json' -d '{\"dry_run\":true}'"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "ui-health reindex run",
-			Args:    []string{"[--scenario", "<name>]", "[--dry-run]"},
-		},
 	},
 	{
 		ID:          "reindex_status",
@@ -86,10 +82,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Job status", Curl: "curl http://localhost:${API_PORT}/vrooli.ui_health.v1.reindex.ReindexService/ReindexStatus -H 'Content-Type: application/json' -d '{\"job_id\":\"job-abc\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "ui-health reindex status",
-			Args:    []string{"<job_id>"},
-		},
 	},
 	{
 		ID:          "reindex_cancel",
@@ -111,10 +103,6 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "Cancel job", Curl: "curl http://localhost:${API_PORT}/vrooli.ui_health.v1.reindex.ReindexService/ReindexCancel -H 'Content-Type: application/json' -d '{\"job_id\":\"job-abc\"}'"},
-		},
-		CLIMapping: &module.CLIMapping{
-			Command: "ui-health reindex cancel",
-			Args:    []string{"<job_id>"},
 		},
 	},
 }

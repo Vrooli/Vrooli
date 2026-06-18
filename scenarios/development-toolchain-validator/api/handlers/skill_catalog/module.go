@@ -77,7 +77,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Sync catalog", Curl: "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.skill_catalog.SkillCatalogService/Sync -H 'Content-Type: application/json' -d '{}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "development-toolchain-validator skill-catalog sync"},
 	},
 	{
 		ID:          "skill_catalog_list",
@@ -96,7 +95,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "List skills", Curl: "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.skill_catalog.SkillCatalogService/ListSkills -H 'Content-Type: application/json' -d '{}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "development-toolchain-validator skill-catalog list"},
 	},
 	{
 		ID:          "skill_catalog_get",
@@ -121,6 +119,5 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Get skill", Curl: "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.skill_catalog.SkillCatalogService/GetSkill -H 'Content-Type: application/json' -d '{\"id\":\"plan-skill-discovery\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "development-toolchain-validator skill-catalog get", Args: []string{"<id>"}},
 	},
 }

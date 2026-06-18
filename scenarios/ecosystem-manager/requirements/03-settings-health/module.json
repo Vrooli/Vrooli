@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "settings-health",
     "description": "Persisted settings with validated partial updates and processor side-effects, plus health endpoint and stale-task recovery (OT-P0-003, OT-P0-004).",
+    "last_validated_at": "2026-06-17T16:13:39-04:00",
+    "module": "settings-health",
     "prd_ref": "OT-P0-003",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -9,133 +10,152 @@
   "requirements": [
     {
       "id": "EM-SET-001",
-      "category": "settings",
       "title": "Settings persist across restarts",
-      "description": "Slots/cooldown/agent settings are persisted to disk and reloaded on startup; reads return the persisted state.",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
-      "status": "complete",
-      "tags": ["settings", "persistence"],
+      "category": "settings",
+      "description": "Slots/cooldown/agent settings are persisted to disk and reloaded on startup; reads return the persisted state.",
+      "tags": [
+        "settings",
+        "persistence"
+      ],
       "validation": [
         {
           "type": "test",
           "ref": "api/pkg/settings/settings_test.go::TestSaveAndLoadToDisk",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         },
         {
           "type": "test",
           "ref": "api/pkg/settings/settings_test.go::TestGetSettings",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "EM-SET-002",
-      "category": "settings",
       "title": "Validated partial updates",
-      "description": "Partial settings updates are validated and normalized before being applied; invalid values are rejected and UI-range constraints are honored.",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
-      "status": "complete",
-      "tags": ["settings", "validation"],
+      "category": "settings",
+      "description": "Partial settings updates are validated and normalized before being applied; invalid values are rejected and UI-range constraints are honored.",
+      "tags": [
+        "settings",
+        "validation"
+      ],
       "validation": [
         {
           "type": "test",
           "ref": "api/pkg/settings/settings_test.go::TestUpdateSettings",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         },
         {
           "type": "test",
           "ref": "api/pkg/settings/settings_test.go::TestValidateAndNormalize",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         },
         {
           "type": "test",
           "ref": "api/pkg/settings/settings_test.go::TestMaxTurnsAcceptsUIRange",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "EM-SET-003",
-      "category": "settings",
       "title": "Reset to defaults and concurrent access safety",
-      "description": "Settings can be reset to defaults, and concurrent reads/writes are safe.",
+      "status": "in_progress",
       "prd_ref": "OT-P0-003",
-      "status": "complete",
-      "tags": ["settings", "concurrency"],
+      "category": "settings",
+      "description": "Settings can be reset to defaults, and concurrent reads/writes are safe.",
+      "tags": [
+        "settings",
+        "concurrency"
+      ],
       "validation": [
         {
           "type": "test",
           "ref": "api/pkg/settings/settings_test.go::TestResetSettings",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         },
         {
           "type": "test",
           "ref": "api/pkg/settings/settings_test.go::TestConcurrentAccess",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "EM-HLTH-001",
-      "category": "health",
       "title": "/health endpoint on the root router",
-      "description": "The /health endpoint responds on the dynamically configured path, reports database connectivity state, and serves over the real HTTP server.",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
-      "status": "complete",
-      "tags": ["health", "api"],
+      "category": "health",
+      "description": "The /health endpoint responds on the dynamically configured path, reports database connectivity state, and serves over the real HTTP server.",
+      "tags": [
+        "health",
+        "api"
+      ],
       "validation": [
         {
           "type": "test",
           "ref": "api/pkg/handlers/handlers_test.go::TestHealthCheckHandler",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         },
         {
           "type": "test",
           "ref": "api/pkg/server/server_test.go::TestSetupRoutesHealthUsesDynamicPath",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "EM-HLTH-002",
-      "category": "health",
       "title": "Stale-task recovery on startup",
-      "description": "On startup the processor reconciles in-progress tasks left behind by a crash, without moving tasks whose cleanup is already verified.",
+      "status": "in_progress",
       "prd_ref": "OT-P0-004",
-      "status": "complete",
-      "tags": ["health", "recovery"],
+      "category": "health",
+      "description": "On startup the processor reconciles in-progress tasks left behind by a crash, without moving tasks whose cleanup is already verified.",
+      "tags": [
+        "health",
+        "recovery"
+      ],
       "validation": [
         {
           "type": "test",
           "ref": "api/pkg/queue/processor_test.go::TestProcessor_ReconcileInProgressTasks",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         },
         {
           "type": "test",
           "ref": "api/pkg/queue/execution_test.go::TestReconciliation_DoesNotMoveTasksWithVerifiedCleanup",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "EM-HLTH-003",
-      "category": "health",
       "title": "Automatic WebSocket reconnection",
-      "description": "The UI WebSocket client reconnects automatically after a dropped connection and resumes live task updates without a page reload.",
-      "prd_ref": "OT-P0-004",
       "status": "in_progress",
-      "tags": ["health", "websocket", "ui"],
+      "prd_ref": "OT-P0-004",
+      "category": "health",
+      "description": "The UI WebSocket client reconnects automatically after a dropped connection and resumes live task updates without a page reload.",
+      "tags": [
+        "health",
+        "websocket",
+        "ui"
+      ],
       "validation": [
         {
           "type": "manual",

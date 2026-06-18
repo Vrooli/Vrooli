@@ -23,9 +23,6 @@
           "curl": "curl http://localhost:${API_PORT}/health"
         }
       ],
-      "cli_mapping": {
-        "command": "scenario-completeness-scoring status"
-      },
       "rest_exception": {
         "reason": "ops_probe",
         "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client."
@@ -37,16 +34,7 @@
       "method": "POST",
       "summary": "Count scenarios below a maturity rung",
       "description": "Counts latest score snapshots per scenario inside a time window whose working rung is below the requested threshold.",
-      "category": "measures",
-      "cli_mapping": {
-        "command": "scenario-completeness-scoring scoring fleet-below-rung",
-        "args": [
-          "--window",
-          "<window>",
-          "--rung",
-          "<rung>"
-        ]
-      }
+      "category": "measures"
     },
     {
       "id": "measures_average_composite",
@@ -54,14 +42,7 @@
       "method": "POST",
       "summary": "Average fleet composite score",
       "description": "Averages the latest composite score per scenario inside a time window.",
-      "category": "measures",
-      "cli_mapping": {
-        "command": "scenario-completeness-scoring scoring average-composite",
-        "args": [
-          "--window",
-          "<window>"
-        ]
-      }
+      "category": "measures"
     },
     {
       "id": "measures_score_series",
@@ -69,14 +50,7 @@
       "method": "POST",
       "summary": "Fleet score series",
       "description": "Returns a daily fleet-average completeness score series over persisted score snapshots.",
-      "category": "measures",
-      "cli_mapping": {
-        "command": "scenario-completeness-scoring scoring score-series",
-        "args": [
-          "--window",
-          "<window>"
-        ]
-      }
+      "category": "measures"
     },
     {
       "id": "measures_declarations",
@@ -146,13 +120,7 @@
           "name": "Score a scenario",
           "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_completeness_scoring.v1.scoring.ScoreService/GetScore -H 'Content-Type: application/json' -d '{\"scenario\":\"cli-health\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "scenario-completeness-scoring score get",
-        "args": [
-          "<scenario>"
-        ]
-      }
+      ]
     },
     {
       "id": "scoring_trend",
@@ -193,13 +161,7 @@
           "name": "Trend for a scenario",
           "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_completeness_scoring.v1.scoring.ScoreService/GetScoreTrend -H 'Content-Type: application/json' -d '{\"scenario\":\"cli-health\",\"limit\":10}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "scenario-completeness-scoring score trend",
-        "args": [
-          "<scenario>"
-        ]
-      }
+      ]
     },
     {
       "id": "scoring_list",
@@ -251,10 +213,7 @@
           "name": "List lowest scores",
           "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_completeness_scoring.v1.scoring.ScoreService/ListScores -H 'Content-Type: application/json' -d '{\"sort_by\":\"SCORE_SORT_BY_COMPOSITE\",\"order\":\"SORT_ORDER_ASC\",\"page_size\":10}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "scenario-completeness-scoring score list"
-      }
+      ]
     }
   ]
 }

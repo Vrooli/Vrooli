@@ -1,7 +1,8 @@
 {
   "_metadata": {
-    "module": "template-conformance",
     "description": "EM's own migration to the react-vite template contract: validation gates, screaming architecture, CLI manifest/measures, proto conventions, and the per-domain Connect-RPC migration (OT-P0-005, OT-P1-001).",
+    "last_validated_at": "2026-06-17T16:13:39-04:00",
+    "module": "template-conformance",
     "prd_ref": "OT-P0-005",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -9,28 +10,34 @@
   "requirements": [
     {
       "id": "EM-TPL-001",
-      "category": "template-conformance",
       "title": "Requirements registry conforms to the template contract",
-      "description": "requirements/index.json is a thin imports-only registry over per-target module files, every prd_ref matches a PRD operational target, and the test-genie business phase discovers and validates the registry without findings.",
-      "prd_ref": "OT-P0-005",
       "status": "in_progress",
-      "tags": ["template", "requirements"],
+      "prd_ref": "OT-P0-005",
+      "category": "template-conformance",
+      "description": "requirements/index.json is a thin imports-only registry over per-target module files, every prd_ref matches a PRD operational target, and the test-genie business phase discovers and validates the registry without findings.",
+      "tags": [
+        "template",
+        "requirements"
+      ],
       "validation": [
         {
           "type": "manual",
           "status": "planned",
-          "notes": "Evidence: test-genie business phase green with >0 modules discovered (vrooli scenario test ecosystem-manager business)."
+          "notes": "Evidence: test-genie business phase green with \u003e0 modules discovered (vrooli scenario test ecosystem-manager business)."
         }
       ]
     },
     {
       "id": "EM-TPL-002",
-      "category": "template-conformance",
       "title": "Screaming architecture by domain",
-      "description": "Business logic lives in api/internal/<domain>/, UI features under ui/src/features/<domain>/, CLI commands under cli/domains/<domain>/; cross-domain code goes through seams declared in docs/internal/SEAMS.md.",
-      "prd_ref": "OT-P0-005",
       "status": "planned",
-      "tags": ["template", "architecture"],
+      "prd_ref": "OT-P0-005",
+      "category": "template-conformance",
+      "description": "Business logic lives in api/internal/\u003cdomain\u003e/, UI features under ui/src/features/\u003cdomain\u003e/, CLI commands under cli/domains/\u003cdomain\u003e/; cross-domain code goes through seams declared in docs/internal/SEAMS.md.",
+      "tags": [
+        "template",
+        "architecture"
+      ],
       "validation": [
         {
           "type": "manual",
@@ -41,12 +48,16 @@
     },
     {
       "id": "EM-TPL-003",
-      "category": "template-conformance",
       "title": "CLI manifest with measures coverage",
-      "description": "cli/manifest.json declares every domain's commands on proto-first bindings, and every stateful domain declares a measure or an explicit waiver so the test-genie measures phase passes.",
-      "prd_ref": "OT-P0-005",
       "status": "planned",
-      "tags": ["template", "cli", "measures"],
+      "prd_ref": "OT-P0-005",
+      "category": "template-conformance",
+      "description": "cli/manifest.json declares every domain's commands on proto-first bindings, and every stateful domain declares a measure or an explicit waiver so the test-genie measures phase passes.",
+      "tags": [
+        "template",
+        "cli",
+        "measures"
+      ],
       "validation": [
         {
           "type": "manual",
@@ -57,12 +68,15 @@
     },
     {
       "id": "EM-TPL-004",
-      "category": "template-conformance",
       "title": "Proto packages follow the fleet convention",
-      "description": "Every proto file under packages/proto/schemas/ecosystem-manager/ uses the vrooli.ecosystem_manager.v1.<domain> package convention with per-domain go_package, and shared types live in their canonical locations.",
-      "prd_ref": "OT-P0-005",
       "status": "planned",
-      "tags": ["template", "proto"],
+      "prd_ref": "OT-P0-005",
+      "category": "template-conformance",
+      "description": "Every proto file under packages/proto/schemas/ecosystem-manager/ uses the vrooli.ecosystem_manager.v1.\u003cdomain\u003e package convention with per-domain go_package, and shared types live in their canonical locations.",
+      "tags": [
+        "template",
+        "proto"
+      ],
       "validation": [
         {
           "type": "manual",
@@ -73,35 +87,41 @@
     },
     {
       "id": "EM-CONN-001",
-      "category": "transport",
       "title": "Discovery is the Connect-RPC reference domain",
-      "description": "The discovery domain serves a proto-defined DiscoveryService over Connect-RPC end-to-end (proto schema, generated handlers, generated clients), demonstrating the migration shape for the remaining domains.",
+      "status": "in_progress",
       "prd_ref": "OT-P1-001",
-      "status": "complete",
-      "tags": ["transport", "connect-rpc"],
+      "category": "transport",
+      "description": "The discovery domain serves a proto-defined DiscoveryService over Connect-RPC end-to-end (proto schema, generated handlers, generated clients), demonstrating the migration shape for the remaining domains.",
+      "tags": [
+        "transport",
+        "connect-rpc"
+      ],
       "validation": [
         {
           "type": "test",
           "ref": "api/handlers/discovery/connect_handler_test.go::TestListCategoriesReturnsGroupings",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         },
         {
           "type": "test",
           "ref": "api/internal/discovery/service_test.go::TestServiceResourcesDegradesToLastGoodOnFailure",
           "phase": "unit",
-          "status": "implemented"
+          "status": "failing"
         }
       ]
     },
     {
       "id": "EM-CONN-002",
-      "category": "transport",
       "title": "Remaining domains migrate to Connect-RPC per-domain",
-      "description": "The seven REST domains (tasks, queue, autosteer, settings, prompts, insights, skills/importance) gain proto service definitions and Connect handlers/clients, one domain at a time per docs/internal/MIGRATION-GUIDE.md, with no REST/Connect coexistence within a migrated domain.",
-      "prd_ref": "OT-P1-001",
       "status": "planned",
-      "tags": ["transport", "connect-rpc"],
+      "prd_ref": "OT-P1-001",
+      "category": "transport",
+      "description": "The seven REST domains (tasks, queue, autosteer, settings, prompts, insights, skills/importance) gain proto service definitions and Connect handlers/clients, one domain at a time per docs/internal/MIGRATION-GUIDE.md, with no REST/Connect coexistence within a migrated domain.",
+      "tags": [
+        "transport",
+        "connect-rpc"
+      ],
       "validation": [
         {
           "type": "manual",

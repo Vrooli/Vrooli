@@ -67,10 +67,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Failed this week", Curl: "curl http://localhost:${API_PORT}/vrooli.measures_health.v1.measures.MeasuresService/CountFailedValidations -H 'Content-Type: application/json' -d '{}'"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "measures-health measures failed",
-			Args:    []string{"--window"},
-		},
 	},
 	{
 		ID:          "measures_count_validation_coverage",
@@ -89,10 +85,6 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "Coverage this week", Curl: "curl http://localhost:${API_PORT}/vrooli.measures_health.v1.measures.MeasuresService/CountValidationCoverage -H 'Content-Type: application/json' -d '{}'"},
-		},
-		CLIMapping: &module.CLIMapping{
-			Command: "measures-health measures coverage",
-			Args:    []string{"--window"},
 		},
 	},
 }

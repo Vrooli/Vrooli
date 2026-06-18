@@ -23,9 +23,6 @@
           "curl": "curl http://localhost:${API_PORT}/health"
         }
       ],
-      "cli_mapping": {
-        "command": "cli-health status"
-      },
       "rest_exception": {
         "reason": "ops_probe",
         "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client."
@@ -65,13 +62,7 @@
           "name": "Search",
           "curl": "curl http://localhost:${API_PORT}/vrooli.cli_health.v1.search.SearchService/Search -H 'Content-Type: application/json' -d '{\"query\":\"list goldens\",\"limit\":10}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "cli-health search query",
-        "args": [
-          "<text>"
-        ]
-      }
+      ]
     },
     {
       "id": "search_status",
@@ -103,10 +94,7 @@
           "name": "Status",
           "curl": "curl http://localhost:${API_PORT}/vrooli.cli_health.v1.search.SearchService/Status -H 'Content-Type: application/json' -d '{}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "cli-health search status"
-      }
+      ]
     },
     {
       "id": "searchcontrol_reindex",
@@ -149,17 +137,7 @@
           "name": "Reindex (dry-run)",
           "curl": "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.control.SearchControlService/Reindex -H 'Content-Type: application/json' -d '{\"dry_run\":true,\"control_token\":\"<token>\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "cli-health reindex run",
-        "args": [
-          "[--scenario",
-          "<name>]",
-          "[--dry-run]",
-          "[--control-token",
-          "<token>]"
-        ]
-      }
+      ]
     },
     {
       "id": "searchcontrol_reindex_status",
@@ -202,15 +180,7 @@
           "name": "Job status",
           "curl": "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.control.SearchControlService/ReindexStatus -H 'Content-Type: application/json' -d '{\"job_id\":\"job-abc\",\"control_token\":\"<token>\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "cli-health reindex status",
-        "args": [
-          "<job_id>",
-          "[--control-token",
-          "<token>]"
-        ]
-      }
+      ]
     },
     {
       "id": "searchcontrol_reindex_cancel",
@@ -245,15 +215,7 @@
           "name": "Cancel job",
           "curl": "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.control.SearchControlService/ReindexCancel -H 'Content-Type: application/json' -d '{\"job_id\":\"job-abc\",\"control_token\":\"<token>\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "cli-health reindex cancel",
-        "args": [
-          "<job_id>",
-          "[--control-token",
-          "<token>]"
-        ]
-      }
+      ]
     },
     {
       "id": "searchcontrol_write_config",
@@ -385,13 +347,7 @@
           "name": "Validate scenario",
           "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"cli-health\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "cli-health validate scenario",
-        "args": [
-          "<name>"
-        ]
-      }
+      ]
     }
   ]
 }

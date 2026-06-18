@@ -103,10 +103,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Validate proto-health", Curl: "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"proto-health\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "proto-health validate scenario",
-			Args:    []string{"<scenario>"},
-		},
 	},
 	{
 		ID:          "validation_describe_scenario_protos",
@@ -128,10 +124,6 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "Describe proto-health", Curl: "curl http://localhost:${API_PORT}/vrooli.proto_health.v1.validation.ProtoHealthService/DescribeScenarioProtos -H 'Content-Type: application/json' -d '{\"scenario\":\"proto-health\"}'"},
-		},
-		CLIMapping: &module.CLIMapping{
-			Command: "proto-health describe scenario",
-			Args:    []string{"<scenario>"},
 		},
 	},
 	{

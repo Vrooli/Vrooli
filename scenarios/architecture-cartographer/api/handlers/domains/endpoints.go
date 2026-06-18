@@ -17,7 +17,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Derive the domain map for a scenario",
 		Description: "Walks the domain-extraction ladder (DOMAINS.md → api/internal folders → cli groups) and returns the canonical derived domain map with per-source provenance.",
 		Category:    "domains",
-		CLIMapping:  &module.CLIMapping{Command: "arch-cart domains extract"},
 	},
 	{
 		ID:          "domains.show",
@@ -26,7 +25,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Show the derived domain map",
 		Description: "Returns the derived domain map for a scenario (re-derived per call; deterministic).",
 		Category:    "domains",
-		CLIMapping:  &module.CLIMapping{Command: "arch-cart domains show"},
 	},
 	{
 		ID:          "domains.convergence",
@@ -35,6 +33,5 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Report cross-surface domain convergence",
 		Description: "Reports where a scenario's surfaces (DOMAINS.md, api folders, cli groups, ui features) disagree on the domain set. Advisory, never a hard gate.",
 		Category:    "domains",
-		CLIMapping:  &module.CLIMapping{Command: "arch-cart domains convergence"},
 	},
 }

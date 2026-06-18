@@ -57,7 +57,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "List findings",
 		Description: "Lists findings newest-first. Superseded are excluded unless include_archived; an explicit status filters to one lifecycle state.",
 		Category:    "findings",
-		CLIMapping:  &module.CLIMapping{Command: "web-search findings list"},
 	},
 	{
 		ID:          "findings_get",
@@ -66,7 +65,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Get a finding by id",
 		Description: "Returns the finding (with citations) matching the request id.",
 		Category:    "findings",
-		CLIMapping:  &module.CLIMapping{Command: "web-search findings get", Args: []string{"<id>"}},
 	},
 	{
 		ID:          "findings_add",
@@ -75,7 +73,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Add a finding",
 		Description: "Persists a citation-backed claim. Claim is required; confidence is clamped to [0,1].",
 		Category:    "findings",
-		CLIMapping:  &module.CLIMapping{Command: "web-search findings add", Args: []string{"--claim", "<claim>", "--confidence", "<c>", "--citations", "<url|title,...>"}},
 	},
 	{
 		ID:          "findings_edit",
@@ -84,7 +81,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Edit a finding",
 		Description: "Overwrites the claim and confidence of an existing finding; appends an audit row.",
 		Category:    "findings",
-		CLIMapping:  &module.CLIMapping{Command: "web-search findings edit", Args: []string{"<id>", "--claim", "<claim>", "--confidence", "<c>"}},
 	},
 	{
 		ID:          "findings_supersede",
@@ -93,7 +89,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Supersede a finding",
 		Description: "Soft-retires a finding (status=superseded, superseded_by=replacement). Never deletes; excluded from default search.",
 		Category:    "findings",
-		CLIMapping:  &module.CLIMapping{Command: "web-search findings supersede", Args: []string{"<id>", "--replacement", "<id>", "--reason", "<reason>"}},
 	},
 	{
 		ID:          "findings_flag",
@@ -102,7 +97,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Flag a finding as disputed",
 		Description: "Moves a finding to DISPUTED with a dispute note. Disputed findings are returned by search with a flag.",
 		Category:    "findings",
-		CLIMapping:  &module.CLIMapping{Command: "web-search findings flag", Args: []string{"<id>", "--reason", "<reason>"}},
 	},
 	{
 		ID:          "findings_disputes_list",
@@ -111,7 +105,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "List disputed findings",
 		Description: "Returns the DISPUTED findings — the dispute review queue's read side. Convenience over ListFindings(status=disputed).",
 		Category:    "findings",
-		CLIMapping:  &module.CLIMapping{Command: "web-search disputes list", Args: []string{"--limit", "<n>"}},
 	},
 	{
 		ID:          "findings_resolve",
@@ -120,7 +113,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Resolve a disputed finding",
 		Description: "Closes a DISPUTED finding: --resolution keep returns it to ACTIVE (clearing the dispute); --resolution supersede retires it in favor of --replacement. Writes an audit row.",
 		Category:    "findings",
-		CLIMapping:  &module.CLIMapping{Command: "web-search disputes resolve", Args: []string{"<id>", "--resolution", "<keep|supersede>", "--replacement", "<id>", "--reason", "<reason>"}},
 	},
 	{
 		ID:          "findings_prune",
@@ -129,7 +121,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Prune superseded findings",
 		Description: "Archives (hard-deletes) superseded findings. --dry-run reports what would be pruned.",
 		Category:    "findings",
-		CLIMapping:  &module.CLIMapping{Command: "web-search findings prune", Args: []string{"--dry-run"}},
 	},
 	{
 		ID:          "findings_search",
@@ -138,7 +129,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Semantic search over findings",
 		Description: "Runs the aisearch-go read path over the findings corpus. Default excludes superseded; disputed returned flagged.",
 		Category:    "findings",
-		CLIMapping:  &module.CLIMapping{Command: "web-search findings search", Args: []string{"<query>", "--limit", "<n>", "--include-archived"}},
 	},
 	{
 		ID:          "findings_count",
@@ -147,7 +137,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Count findings in a time window",
 		Description: "Counts findings captured within the requested canonical time window. Bound to the `findings count` measure.",
 		Category:    "findings",
-		CLIMapping:  &module.CLIMapping{Command: "web-search findings count", Args: []string{"--window", "<window>"}},
 	},
 	{
 		ID:          "findings_effectiveness",
@@ -156,7 +145,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "List findings by usage effectiveness",
 		Description: "Pairs each finding with its usage telemetry (surfaced/used counts, last-surfaced age) and the blended effective score (age-decayed confidence × usage factor). The OT-P2-001 curation signal.",
 		Category:    "findings",
-		CLIMapping:  &module.CLIMapping{Command: "web-search findings effectiveness", Args: []string{"--limit", "<n>", "--include-disputed"}},
 	},
 	{
 		ID:          "findings_record_usage",
@@ -165,7 +153,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Record explicit finding usage",
 		Description: "Records an explicit 'this finding was used' signal (distinct from the implicit surfacing counted automatically on search).",
 		Category:    "findings",
-		CLIMapping:  &module.CLIMapping{Command: "web-search findings use", Args: []string{"<id>"}},
 	},
 	{
 		ID:          "findings_gc",
@@ -174,6 +161,5 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Run the store-consistency GC",
 		Description: "Runs the periodic full-store consistency pass: soft-retires never-surfaced, fully-decayed findings (confidence-gated) and reports cold-archive candidates, stale disputes, and orphans. --dry-run reports without mutating. Never hard-deletes; never auto-resolves a dispute.",
 		Category:    "findings",
-		CLIMapping:  &module.CLIMapping{Command: "web-search findings gc", Args: []string{"--dry-run"}},
 	},
 }

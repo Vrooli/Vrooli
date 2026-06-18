@@ -31,9 +31,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Check health", Curl: "curl http://localhost:${API_PORT}/health"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "development-toolchain-validator status",
-		},
+
 		RESTException: &module.RESTException{
 			Reason: module.RESTReasonOpsProbe,
 			Note:   "GET /health is the standard operational probe path consumed by load balancers and infrastructure curl checks, which cannot speak Connect-RPC.",

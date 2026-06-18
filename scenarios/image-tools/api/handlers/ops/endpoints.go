@@ -29,7 +29,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "List operations", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.ops.OpsService/ListOperations -H 'Content-Type: application/json' -d '{}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "image-tools ops list"},
 	},
 	{
 		ID:          "ops_run",
@@ -47,7 +46,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Resize an image", Curl: "curl -X POST 'http://localhost:${API_PORT}/api/v1/ops/resize?output=bytes' -F file=@in.png -F 'params={\"resize\":{\"width\":256}}' -o out.png"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "image-tools ops resize", Args: []string{"<input>", "--out", "<output>"}},
+
 		RESTException: &module.RESTException{
 			Reason: module.RESTReasonMultipartUpload,
 			Note:   "Image bytes cannot ride a proto field; the request is multipart (file + protojson params). Parameters stay proto-typed (OpParams) and the result metadata is proto-typed (RunOpResponse).",

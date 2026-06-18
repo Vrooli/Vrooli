@@ -15,7 +15,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Start a verification",
 		Description: "Kicks off pipeline (discover → compile → artifact → codegen → lint) for one or all flows under the given root and returns the recorded run rows.",
 		Category:    "verifications",
-		CLIMapping:  &module.CLIMapping{Command: "flow-verifier verify run"},
 	},
 	{
 		ID:          "verifications.get",
@@ -24,6 +23,5 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Verification status",
 		Description: "Returns status + result for one verification run.",
 		Category:    "verifications",
-		CLIMapping:  &module.CLIMapping{Command: "flow-verifier verify show"},
 	},
 }

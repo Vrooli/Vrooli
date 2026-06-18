@@ -29,10 +29,7 @@
           "code": "internal",
           "description": "Repository read failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "react-component-library adoptions list"
-      }
+      ]
     },
     {
       "id": "adoptions_apply",
@@ -69,15 +66,7 @@
           "code": "internal",
           "description": "Repository write failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "react-component-library adoptions apply",
-        "args": [
-          "<component_id>",
-          "<scenario>",
-          "<adopted_path>"
-        ]
-      }
+      ]
     },
     {
       "id": "adoptions_reapply",
@@ -117,13 +106,7 @@
           "code": "internal",
           "description": "Repository or filesystem failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "react-component-library adoptions reapply",
-        "args": [
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "adoptions_delete",
@@ -152,13 +135,7 @@
           "code": "internal",
           "description": "Repository write failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "react-component-library adoptions delete",
-        "args": [
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "adoptions_refresh",
@@ -189,10 +166,45 @@
           "code": "internal",
           "description": "Repository or filesystem failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "react-component-library adoptions refresh"
-      }
+      ]
+    },
+    {
+      "id": "adoptions_resolve_path",
+      "path": "/vrooli.react_component_library.v1.adoptions.AdoptionsService/ResolveAdoptionPath",
+      "method": "POST",
+      "summary": "Resolve the canonical adopted path for a component+scenario",
+      "description": "Computes the filesystem path an adoption would land at, using the target scenario's UI manifest (template-manifest source), a heuristic, or a fallback. Read-only.",
+      "category": "adoptions",
+      "request": {
+        "type": "object",
+        "properties": {
+          "component_id": "string",
+          "feature": "string (optional, when slot requiresFeature)",
+          "override_path": "string (optional)",
+          "scenario": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "path": "string (relative to scenario root)",
+          "slot": "string (slot name used)",
+          "source": "ResolveSource enum",
+          "warnings": "array<string>"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing component_id, scenario, or unsubstituted path token"
+        },
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Resolver not configured (server lacks repo-root wiring)"
+        }
+      ]
     },
     {
       "id": "components_list",
@@ -221,10 +233,7 @@
           "code": "internal",
           "description": "Repository read failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "react-component-library components list"
-      }
+      ]
     },
     {
       "id": "components_get",
@@ -256,13 +265,7 @@
           "code": "internal",
           "description": "Repository read failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "react-component-library components get",
-        "args": [
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "components_get_by_library_id",
@@ -294,13 +297,7 @@
           "code": "internal",
           "description": "Repository read failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "react-component-library components get-by-library-id",
-        "args": [
-          "<libraryId>"
-        ]
-      }
+      ]
     },
     {
       "id": "components_index",
@@ -326,10 +323,7 @@
           "code": "internal",
           "description": "Walk or upsert failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "react-component-library components index"
-      }
+      ]
     },
     {
       "id": "components_initialize",
@@ -375,13 +369,7 @@
           "code": "internal",
           "description": "Filesystem or repository failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "react-component-library components init",
-        "args": [
-          "<slug>"
-        ]
-      }
+      ]
     },
     {
       "id": "components_version_create",
@@ -426,14 +414,7 @@
           "code": "internal",
           "description": "Filesystem or repository failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "react-component-library components version-create",
-        "args": [
-          "<component-id>",
-          "<version>"
-        ]
-      }
+      ]
     },
     {
       "id": "components_manifest_update",
@@ -476,13 +457,7 @@
           "code": "internal",
           "description": "Filesystem or repository failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "react-component-library components manifest-update",
-        "args": [
-          "<component-id>"
-        ]
-      }
+      ]
     },
     {
       "id": "components_content_get",
@@ -521,13 +496,7 @@
           "code": "internal",
           "description": "Filesystem read failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "react-component-library components content-get",
-        "args": [
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "components_content_set",
@@ -572,14 +541,7 @@
           "code": "internal",
           "description": "Filesystem write failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "react-component-library components content-set",
-        "args": [
-          "<id>",
-          "<file>"
-        ]
-      }
+      ]
     },
     {
       "id": "components_versions_list",
@@ -607,13 +569,7 @@
           "code": "internal",
           "description": "Repository read failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "react-component-library components versions",
-        "args": [
-          "<component-id>"
-        ]
-      }
+      ]
     },
     {
       "id": "components_version_content_get",
@@ -647,14 +603,7 @@
           "code": "internal",
           "description": "Repository read failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "react-component-library components show-version",
-        "args": [
-          "<component-id>",
-          "<version>"
-        ]
-      }
+      ]
     },
     {
       "id": "deps_list_declarations",
@@ -681,13 +630,7 @@
           "code": "internal",
           "description": "Repository read failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "react-component-library deps list",
-        "args": [
-          "<component_id>"
-        ]
-      }
+      ]
     },
     {
       "id": "deps_validate_adoption",
@@ -726,14 +669,7 @@
           "code": "internal",
           "description": "Repository or filesystem failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "react-component-library deps validate",
-        "args": [
-          "<component_id>",
-          "<scenario>"
-        ]
-      }
+      ]
     },
     {
       "id": "health",
@@ -756,13 +692,39 @@
           "curl": "curl http://localhost:${API_PORT}/health"
         }
       ],
-      "cli_mapping": {
-        "command": "react-component-library status"
-      },
       "rest_exception": {
         "reason": "ops_probe",
         "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client."
       }
+    },
+    {
+      "id": "inventory_scan_scenario",
+      "path": "/vrooli.ui_health.v1.inventory.InventoryService/ScanScenario",
+      "method": "POST",
+      "summary": "Scan a scenario's UI tree for provenance + widgets + surfaces",
+      "description": "Implements ui-health's InventoryService.ScanScenario for React scenarios. SQLite adoptions store is authoritative; JSDoc blocks are the heal-from signal.",
+      "category": "inventory",
+      "request": {
+        "type": "object",
+        "properties": {
+          "scenario": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "provenance": "array<ComponentProvenance>",
+          "scenario": "string",
+          "surfaces": "array<SurfaceRecord>",
+          "widgets": "array<WidgetDeclaration>"
+        }
+      },
+      "examples": [
+        {
+          "name": "Scan scenario",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.ui_health.v1.inventory.InventoryService/ScanScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"ui-health\"}'"
+        }
+      ]
     },
     {
       "id": "preview_get_bundle",
@@ -802,13 +764,7 @@
           "code": "internal",
           "description": "Filesystem read or bundler internal failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "react-component-library preview bundle",
-        "args": [
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "themes_list_builtin",
@@ -832,10 +788,7 @@
           "code": "internal",
           "description": "Repository read failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "react-component-library themes list-builtin"
-      }
+      ]
     },
     {
       "id": "themes_get_builtin",
@@ -867,13 +820,7 @@
           "code": "internal",
           "description": "Repository read failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "react-component-library themes get-builtin",
-        "args": [
-          "<id>"
-        ]
-      }
+      ]
     },
     {
       "id": "themes_get_from_scenario",
@@ -910,13 +857,7 @@
           "code": "internal",
           "description": "Filesystem read or parse failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "react-component-library themes get-from-scenario",
-        "args": [
-          "<scenario_id>"
-        ]
-      }
+      ]
     },
     {
       "id": "versions_list",
@@ -944,13 +885,7 @@
           "code": "internal",
           "description": "Repository read failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "react-component-library versions list",
-        "args": [
-          "<component_id>"
-        ]
-      }
+      ]
     },
     {
       "id": "versions_get",
@@ -985,14 +920,7 @@
           "code": "internal",
           "description": "Repository read failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "react-component-library versions show",
-        "args": [
-          "<component_id>",
-          "<version>"
-        ]
-      }
+      ]
     },
     {
       "id": "versions_diff",
@@ -1035,147 +963,7 @@
           "code": "internal",
           "description": "Repository or filesystem failure"
         }
-      ],
-      "cli_mapping": {
-        "command": "react-component-library versions diff",
-        "args": [
-          "<component_id>",
-          "<from>",
-          "<to>"
-        ]
-      }
-    }
-  ],
-  "cli_commands": [
-    {
-      "name": "status",
-      "description": "Check API and dependency health (auto-provided by cli-core's StandardScenarioApp)",
-      "endpoint_id": "health"
-    },
-    {
-      "name": "adoptions list",
-      "description": "List adoption records (--component-id ID, --scenario NAME, --limit N)",
-      "endpoint_id": "adoptions_list"
-    },
-    {
-      "name": "adoptions apply",
-      "description": "Copy a component version into a target scenario and record the adoption",
-      "endpoint_id": "adoptions_apply"
-    },
-    {
-      "name": "adoptions reapply",
-      "description": "Overwrite an adoption from a selected library version",
-      "endpoint_id": "adoptions_reapply"
-    },
-    {
-      "name": "adoptions delete",
-      "description": "Delete an adoption record by id",
-      "endpoint_id": "adoptions_delete"
-    },
-    {
-      "name": "adoptions refresh",
-      "description": "Recompute drift status for every adoption (or one component's; use --component-id ID)",
-      "endpoint_id": "adoptions_refresh"
-    },
-    {
-      "name": "components index",
-      "description": "Walk the source root and refresh the components registry",
-      "endpoint_id": "components_index"
-    },
-    {
-      "name": "components list",
-      "description": "List indexed components (--match SUBSTR, --tag TAG, --tags a,b, --category CAT, --limit N)",
-      "endpoint_id": "components_list"
-    },
-    {
-      "name": "components get",
-      "description": "Get a component by id",
-      "endpoint_id": "components_get"
-    },
-    {
-      "name": "components get-by-library-id",
-      "description": "Get a component by its @libraryId header value",
-      "endpoint_id": "components_get_by_library_id"
-    },
-    {
-      "name": "components init",
-      "description": "Initialize a new Git-tracked component folder and first version",
-      "endpoint_id": "components_initialize"
-    },
-    {
-      "name": "components version-create",
-      "description": "Create a new component version folder",
-      "endpoint_id": "components_version_create"
-    },
-    {
-      "name": "components manifest-update",
-      "description": "Update component manifest metadata and version pointers",
-      "endpoint_id": "components_manifest_update"
-    },
-    {
-      "name": "components content-get",
-      "description": "Read a component's source file",
-      "endpoint_id": "components_content_get"
-    },
-    {
-      "name": "components content-set",
-      "description": "Write a component's source file (use - to read from stdin)",
-      "endpoint_id": "components_content_set"
-    },
-    {
-      "name": "components versions",
-      "description": "List indexed versions for a component",
-      "endpoint_id": "components_versions_list"
-    },
-    {
-      "name": "components show-version",
-      "description": "Read the source for a component version",
-      "endpoint_id": "components_version_content_get"
-    },
-    {
-      "name": "deps list",
-      "description": "List parsed @deps declarations for a component (req 10)",
-      "endpoint_id": "deps_list_declarations"
-    },
-    {
-      "name": "deps validate",
-      "description": "Validate a component's @deps against a target scenario's package.json (verdict: ok/warn/block)",
-      "endpoint_id": "deps_validate_adoption"
-    },
-    {
-      "name": "preview bundle",
-      "description": "Print the esbuild-transpiled ES module for a component (used by the live-preview iframe and for diagnostics)",
-      "endpoint_id": "preview_get_bundle"
-    },
-    {
-      "name": "themes list-builtin",
-      "description": "List the built-in themes seeded into the registry (req 12)",
-      "endpoint_id": "themes_list_builtin"
-    },
-    {
-      "name": "themes get-builtin",
-      "description": "Get a built-in theme by id, including its CSS-custom-property token map",
-      "endpoint_id": "themes_get_builtin"
-    },
-    {
-      "name": "themes get-from-scenario",
-      "description": "Resolve a theme from a target scenario's DESIGN.md (server-side; client never parses DESIGN.md directly)",
-      "endpoint_id": "themes_get_from_scenario"
-    },
-    {
-      "name": "versions list",
-      "description": "List recorded versions for a component (--limit N)",
-      "endpoint_id": "versions_list"
-    },
-    {
-      "name": "versions show",
-      "description": "Show a specific recorded version (--with-content to include the body)",
-      "endpoint_id": "versions_get"
-    },
-    {
-      "name": "versions diff",
-      "description": "Diff two versions or a version and an adoption:<id>",
-      "endpoint_id": "versions_diff"
+      ]
     }
   ]
 }

@@ -39,10 +39,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Create a filesystem destination", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/CreateDestination -H 'Content-Type: application/json' -d '{\"name\":\"local-backup\",\"backendKind\":\"BACKEND_KIND_FILESYSTEM\",\"location\":\"/mnt/backup\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "data-backup-manager destinations create",
-			Args:    []string{"--name", "<name>", "--backend", "<backend>", "--location", "<location>"},
-		},
 	},
 	{
 		ID:          "destinations_get",
@@ -65,10 +61,6 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "Get a destination", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/GetDestination -H 'Content-Type: application/json' -d '{\"id\":\"dst-1\"}'"},
-		},
-		CLIMapping: &module.CLIMapping{
-			Command: "data-backup-manager destinations get",
-			Args:    []string{"<id>"},
 		},
 	},
 	{
@@ -98,9 +90,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "List all destinations", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/ListDestinations -H 'Content-Type: application/json' -d '{}'"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "data-backup-manager destinations list",
-		},
 	},
 	{
 		ID:          "destinations_update",
@@ -129,10 +118,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Set a 10 GiB cap", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/UpdateDestination -H 'Content-Type: application/json' -d '{\"id\":\"dst-1\",\"capBytes\":10737418240}'"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "data-backup-manager destinations update",
-			Args:    []string{"<id>", "--cap-bytes", "<bytes>"},
-		},
 	},
 	{
 		ID:          "destinations_delete",
@@ -158,10 +143,6 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "Delete a destination", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/DeleteDestination -H 'Content-Type: application/json' -d '{\"id\":\"dst-1\"}'"},
-		},
-		CLIMapping: &module.CLIMapping{
-			Command: "data-backup-manager destinations delete",
-			Args:    []string{"<id>"},
 		},
 	},
 	{
@@ -191,10 +172,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Get destination usage", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/GetDestinationUsage -H 'Content-Type: application/json' -d '{\"id\":\"dst-1\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "data-backup-manager destinations usage",
-			Args:    []string{"<id>"},
-		},
 	},
 	{
 		ID:          "destinations_analyze",
@@ -223,10 +200,6 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "Analyze a mounted USB drive", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/AnalyzeDestination -H 'Content-Type: application/json' -d '{\"location\":\"/media/user/USB\"}'"},
-		},
-		CLIMapping: &module.CLIMapping{
-			Command: "data-backup-manager destinations readiness",
-			Args:    []string{"--location", "<path>"},
 		},
 	},
 	{
@@ -258,10 +231,6 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "Plan a backup subdirectory", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/PlanDestinationPreparation -H 'Content-Type: application/json' -d '{\"location\":\"/media/user/USB\",\"action\":\"PREPARATION_ACTION_CREATE_SUBDIR\",\"desiredSubdir\":\"vrooli-backups\"}'"},
-		},
-		CLIMapping: &module.CLIMapping{
-			Command: "data-backup-manager destinations prepare-plan",
-			Args:    []string{"--location", "<path>", "--action", "<action>"},
 		},
 	},
 	{
@@ -296,10 +265,6 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "Dry-run a preparation plan", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/ExecuteDestinationPreparation -H 'Content-Type: application/json' -d '{\"plan\":{\"id\":\"plan-id\"},\"dryRun\":true}'"},
-		},
-		CLIMapping: &module.CLIMapping{
-			Command: "data-backup-manager destinations prepare-execute",
-			Args:    []string{"--plan-json", "<json>", "--confirm", "<phrase>"},
 		},
 	},
 }

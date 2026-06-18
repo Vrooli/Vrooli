@@ -16,7 +16,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "ontology",
 		Request:     &module.Schema{Type: "ListCapabilitiesRequest"},
 		Response:    &module.Schema{Type: "ListCapabilitiesResponse"},
-		CLIMapping:  &module.CLIMapping{Command: "tech-tree-designer ontology capabilities"},
 	},
 	{
 		ID:          "ontology-capability-get",
@@ -27,7 +26,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "ontology",
 		Request:     &module.Schema{Type: "GetCapabilityRequest"},
 		Response:    &module.Schema{Type: "Capability"},
-		CLIMapping:  &module.CLIMapping{Command: "tech-tree-designer ontology capability", Args: []string{"<slug>"}},
 	},
 	{
 		ID:          "ontology-capability-upsert",
@@ -38,7 +36,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "ontology",
 		Request:     &module.Schema{Type: "UpsertCapabilityRequest"},
 		Response:    &module.Schema{Type: "Capability"},
-		CLIMapping:  &module.CLIMapping{Command: "tech-tree-designer ontology capability-upsert"},
 	},
 	{
 		ID:          "ontology-capability-delete",
@@ -49,7 +46,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "ontology",
 		Request:     &module.Schema{Type: "DeleteCapabilityRequest"},
 		Response:    &module.Schema{Type: "DeleteCapabilityResponse"},
-		CLIMapping:  &module.CLIMapping{Command: "tech-tree-designer ontology capability-rm", Args: []string{"<slug>"}},
 	},
 	{
 		ID:          "ontology-edge-upsert",
@@ -60,7 +56,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "ontology",
 		Request:     &module.Schema{Type: "UpsertCapabilityEdgeRequest"},
 		Response:    &module.Schema{Type: "CapabilityEdge"},
-		CLIMapping:  &module.CLIMapping{Command: "tech-tree-designer ontology edge-add", Args: []string{"<from>", "<to>"}},
 	},
 	{
 		ID:          "ontology-edge-delete",
@@ -71,7 +66,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "ontology",
 		Request:     &module.Schema{Type: "DeleteCapabilityEdgeRequest"},
 		Response:    &module.Schema{Type: "DeleteCapabilityEdgeResponse"},
-		CLIMapping:  &module.CLIMapping{Command: "tech-tree-designer ontology edge-rm", Args: []string{"<from>", "<to>"}},
 	},
 	{
 		ID:          "ontology-import-topology",
@@ -82,7 +76,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "ontology",
 		Request:     &module.Schema{Type: "ImportTopologyRequest"},
 		Response:    &module.Schema{Type: "ImportTopologyResponse"},
-		CLIMapping:  &module.CLIMapping{Command: "tech-tree-designer ontology import", Args: []string{"--from-file", "<path>"}},
 	},
 	{
 		ID:          "ontology-fulfillment-link",
@@ -93,7 +86,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "ontology",
 		Request:     &module.Schema{Type: "LinkFulfillmentRequest"},
 		Response:    &module.Schema{Type: "Fulfillment"},
-		CLIMapping:  &module.CLIMapping{Command: "tech-tree-designer ontology fulfill", Args: []string{"<capability>", "<scenario>"}},
 	},
 	{
 		ID:          "ontology-fulfillment-unlink",
@@ -104,7 +96,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "ontology",
 		Request:     &module.Schema{Type: "UnlinkFulfillmentRequest"},
 		Response:    &module.Schema{Type: "UnlinkFulfillmentResponse"},
-		CLIMapping:  &module.CLIMapping{Command: "tech-tree-designer ontology unfulfill", Args: []string{"<capability>", "<scenario>"}},
 	},
 	{
 		ID:          "ontology-fulfillments-list",
@@ -115,7 +106,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "ontology",
 		Request:     &module.Schema{Type: "ListFulfillmentsRequest"},
 		Response:    &module.Schema{Type: "ListFulfillmentsResponse"},
-		CLIMapping:  &module.CLIMapping{Command: "tech-tree-designer ontology fulfillments"},
 	},
 	{
 		ID:          "ontology-coverage",
@@ -126,7 +116,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "ontology",
 		Request:     &module.Schema{Type: "GetCoverageRequest"},
 		Response:    &module.Schema{Type: "CoverageSummary"},
-		CLIMapping:  &module.CLIMapping{Command: "tech-tree-designer ontology coverage"},
 	},
 	{
 		ID:          "ontology-focus",
@@ -137,7 +126,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "ontology",
 		Request:     &module.Schema{Type: "ListFocusRequest"},
 		Response:    &module.Schema{Type: "ListFocusResponse"},
-		CLIMapping:  &module.CLIMapping{Command: "tech-tree-designer ontology focus"},
 	},
 	{
 		ID:          "ontology-capability-scenarios",
@@ -148,7 +136,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "ontology",
 		Request:     &module.Schema{Type: "GetCapabilityScenariosRequest"},
 		Response:    &module.Schema{Type: "CapabilityScenarios"},
-		CLIMapping:  &module.CLIMapping{Command: "tech-tree-designer ontology capability-scenarios", Args: []string{"<slug>"}},
 	},
 	{
 		ID:          "ontology-scenario-capabilities",
@@ -159,7 +146,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "ontology",
 		Request:     &module.Schema{Type: "GetScenarioCapabilitiesRequest"},
 		Response:    &module.Schema{Type: "ScenarioCapabilities"},
-		CLIMapping:  &module.CLIMapping{Command: "tech-tree-designer ontology scenario", Args: []string{"<slug>"}},
 	},
 	{
 		ID:          "ontology-overlay-graph",
@@ -170,6 +156,5 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "ontology",
 		Request:     &module.Schema{Type: "DescribeOverlayGraphRequest"},
 		Response:    &module.Schema{Type: "DescribeOverlayGraphResponse"},
-		CLIMapping:  &module.CLIMapping{Command: "tech-tree-designer ontology overlay"},
 	},
 }

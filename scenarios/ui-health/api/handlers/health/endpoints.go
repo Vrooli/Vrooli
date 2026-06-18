@@ -31,9 +31,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Check health", Curl: "curl http://localhost:${API_PORT}/health"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "ui-health status",
-		},
+
 		RESTException: &module.RESTException{
 			Reason: module.RESTReasonOpsProbe,
 			Note:   "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",

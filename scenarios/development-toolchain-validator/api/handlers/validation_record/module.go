@@ -72,7 +72,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "List records", Curl: "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.validation_record.ValidationRecordService/ListRecords -H 'Content-Type: application/json' -d '{\"golden_slug\":\"reference-react-vite\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "development-toolchain-validator record list", Args: []string{"[--golden <slug>]", "[--subject <id>]", "[--kind skill|tool]", "[--page-size N]", "[--page-token T]"}},
 	},
 	{
 		ID:          "validation_record_get",
@@ -97,6 +96,5 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Get record", Curl: "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.validation_record.ValidationRecordService/GetRecord -H 'Content-Type: application/json' -d '{\"id\":\"<uuid>\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "development-toolchain-validator record get", Args: []string{"<id>"}},
 	},
 }

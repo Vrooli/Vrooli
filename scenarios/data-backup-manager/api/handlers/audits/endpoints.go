@@ -32,7 +32,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Run a snapshot audit", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.audits.AuditsService/RunSnapshotAudit -H 'Content-Type: application/json' -d '{\"targetId\":\"t-1\",\"destinationId\":\"dst-1\",\"snapshotId\":\"snap-1\",\"includeContentHash\":true,\"includeSqliteChecks\":true}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "data-backup-manager audits run", Args: []string{"--target", "<id>", "--destination", "<id>", "--snapshot", "<id>"}},
 	},
 	{
 		ID:          "audits_get",
@@ -45,7 +44,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Response:    &module.Schema{Type: "object", Properties: map[string]string{"audit": "Audit"}},
 		Errors:      []module.ErrorDesc{{Status: 404, Code: "not_found", Description: "No audit with that id"}},
 		Examples:    []module.Example{{Name: "Get an audit", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.audits.AuditsService/GetAudit -H 'Content-Type: application/json' -d '{\"id\":\"audit-1\"}'"}},
-		CLIMapping:  &module.CLIMapping{Command: "data-backup-manager audits get", Args: []string{"<id>"}},
 	},
 	{
 		ID:          "audits_list",
@@ -63,7 +61,6 @@ var Endpoints = []module.EndpointDescriptor{
 			"audits":          "array<Audit>",
 			"next_page_token": "string",
 		}},
-		Examples:   []module.Example{{Name: "List audits", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.audits.AuditsService/ListAudits -H 'Content-Type: application/json' -d '{}'"}},
-		CLIMapping: &module.CLIMapping{Command: "data-backup-manager audits list", Args: []string{"--target", "<id>"}},
+		Examples: []module.Example{{Name: "List audits", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.audits.AuditsService/ListAudits -H 'Content-Type: application/json' -d '{}'"}},
 	},
 }

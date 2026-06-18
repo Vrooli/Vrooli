@@ -66,10 +66,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Reindex (dry-run)", Curl: "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.control.SearchControlService/Reindex -H 'Content-Type: application/json' -d '{\"dry_run\":true,\"control_token\":\"<token>\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "cli-health reindex run",
-			Args:    []string{"[--scenario", "<name>]", "[--dry-run]", "[--control-token", "<token>]"},
-		},
 	},
 	{
 		ID:          "searchcontrol_reindex_status",
@@ -99,10 +95,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Job status", Curl: "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.control.SearchControlService/ReindexStatus -H 'Content-Type: application/json' -d '{\"job_id\":\"job-abc\",\"control_token\":\"<token>\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "cli-health reindex status",
-			Args:    []string{"<job_id>", "[--control-token", "<token>]"},
-		},
 	},
 	{
 		ID:          "searchcontrol_reindex_cancel",
@@ -127,10 +119,6 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "Cancel job", Curl: "curl http://localhost:${API_PORT}/vrooli.search_hub.v1.control.SearchControlService/ReindexCancel -H 'Content-Type: application/json' -d '{\"job_id\":\"job-abc\",\"control_token\":\"<token>\"}'"},
-		},
-		CLIMapping: &module.CLIMapping{
-			Command: "cli-health reindex cancel",
-			Args:    []string{"<job_id>", "[--control-token", "<token>]"},
 		},
 	},
 	{

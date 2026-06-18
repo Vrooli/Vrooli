@@ -70,7 +70,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "List goldens", Curl: "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.golden.GoldenService/ListGoldens -H 'Content-Type: application/json' -d '{}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "development-toolchain-validator goldens list"},
 	},
 	{
 		ID:          "golden_get",
@@ -95,7 +94,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Get golden", Curl: "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.golden.GoldenService/GetGolden -H 'Content-Type: application/json' -d '{\"slug\":\"reference-react-vite\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "development-toolchain-validator goldens get", Args: []string{"<slug>"}},
 	},
 	{
 		ID:          "golden_register",
@@ -125,10 +123,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Register golden", Curl: "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.golden.GoldenService/RegisterGolden -H 'Content-Type: application/json' -d '{\"slug\":\"reference-react-vite\",\"template_id\":\"react-vite\",\"template_version\":\"1.0.1\",\"path\":\"scenarios/reference-react-vite\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "development-toolchain-validator goldens register",
-			Args:    []string{"--slug", "<slug>", "--template", "<template>", "--version", "<version>", "--path", "<path>"},
-		},
 	},
 	{
 		ID:          "golden_update",
@@ -157,10 +151,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Update golden", Curl: "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.golden.GoldenService/UpdateGolden -H 'Content-Type: application/json' -d '{\"slug\":\"reference-react-vite\",\"template_version\":\"1.0.2\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "development-toolchain-validator goldens update",
-			Args:    []string{"<slug>", "[--path", "<path>]", "[--version", "<version>]"},
-		},
 	},
 	{
 		ID:          "golden_delete",
@@ -181,7 +171,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Delete golden", Curl: "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.golden.GoldenService/DeleteGolden -H 'Content-Type: application/json' -d '{\"slug\":\"reference-react-vite\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "development-toolchain-validator goldens delete", Args: []string{"<slug>", "--yes"}},
 	},
 	{
 		ID:          "golden_regenerate",
@@ -206,6 +195,5 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Regenerate golden", Curl: "curl http://localhost:${API_PORT}/vrooli.development_toolchain_validator.v1.golden.GoldenService/RegenerateGolden -H 'Content-Type: application/json' -d '{\"slug\":\"reference-react-vite\"}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "development-toolchain-validator goldens regenerate", Args: []string{"<slug>", "--yes"}},
 	},
 }

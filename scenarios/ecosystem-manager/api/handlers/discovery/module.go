@@ -38,7 +38,6 @@ var Endpoints = []module.EndpointDescriptor{
 			Name: "List resources",
 			Curl: "curl http://localhost:${API_PORT}/vrooli.ecosystem_manager.v1.discovery.DiscoveryService/ListResources -H 'Content-Type: application/json' -d '{}'",
 		}},
-		CLIMapping: &module.CLIMapping{Command: "ecosystem-manager discovery resources"},
 	},
 	{
 		ID:          "discovery_list_scenarios",
@@ -53,7 +52,6 @@ var Endpoints = []module.EndpointDescriptor{
 			Name: "List scenarios",
 			Curl: "curl http://localhost:${API_PORT}/vrooli.ecosystem_manager.v1.discovery.DiscoveryService/ListScenarios -H 'Content-Type: application/json' -d '{}'",
 		}},
-		CLIMapping: &module.CLIMapping{Command: "ecosystem-manager discovery scenarios"},
 	},
 	{
 		ID:          "discovery_get_resource",

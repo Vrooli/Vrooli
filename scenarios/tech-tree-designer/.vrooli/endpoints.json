@@ -23,9 +23,6 @@
           "curl": "curl http://localhost:${API_PORT}/health"
         }
       ],
-      "cli_mapping": {
-        "command": "tech-tree-designer status"
-      },
       "rest_exception": {
         "reason": "ops_probe",
         "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
@@ -59,9 +56,6 @@
       },
       "response": {
         "type": "DescribeTechTreeResponse"
-      },
-      "cli_mapping": {
-        "command": "tech-tree-designer graph describe"
       }
     },
     {
@@ -76,12 +70,6 @@
       },
       "response": {
         "type": "DescribeTechTreeResponse"
-      },
-      "cli_mapping": {
-        "command": "tech-tree-designer graph neighbors",
-        "args": [
-          "<scenario>"
-        ]
       }
     },
     {
@@ -96,13 +84,6 @@
       },
       "response": {
         "type": "DescribeTechTreeResponse"
-      },
-      "cli_mapping": {
-        "command": "tech-tree-designer graph path",
-        "args": [
-          "<from>",
-          "<to>"
-        ]
       }
     },
     {
@@ -117,12 +98,6 @@
       },
       "response": {
         "type": "DescribeTechTreeResponse"
-      },
-      "cli_mapping": {
-        "command": "tech-tree-designer graph ancestors",
-        "args": [
-          "<scenario>"
-        ]
       }
     },
     {
@@ -137,9 +112,6 @@
       },
       "response": {
         "type": "ExportTechTreeResponse"
-      },
-      "cli_mapping": {
-        "command": "tech-tree-designer graph export"
       }
     },
     {
@@ -154,9 +126,6 @@
       },
       "response": {
         "type": "ListCapabilitiesResponse"
-      },
-      "cli_mapping": {
-        "command": "tech-tree-designer ontology capabilities"
       }
     },
     {
@@ -171,12 +140,6 @@
       },
       "response": {
         "type": "Capability"
-      },
-      "cli_mapping": {
-        "command": "tech-tree-designer ontology capability",
-        "args": [
-          "<slug>"
-        ]
       }
     },
     {
@@ -191,9 +154,6 @@
       },
       "response": {
         "type": "Capability"
-      },
-      "cli_mapping": {
-        "command": "tech-tree-designer ontology capability-upsert"
       }
     },
     {
@@ -208,12 +168,6 @@
       },
       "response": {
         "type": "DeleteCapabilityResponse"
-      },
-      "cli_mapping": {
-        "command": "tech-tree-designer ontology capability-rm",
-        "args": [
-          "<slug>"
-        ]
       }
     },
     {
@@ -228,13 +182,6 @@
       },
       "response": {
         "type": "CapabilityEdge"
-      },
-      "cli_mapping": {
-        "command": "tech-tree-designer ontology edge-add",
-        "args": [
-          "<from>",
-          "<to>"
-        ]
       }
     },
     {
@@ -249,13 +196,6 @@
       },
       "response": {
         "type": "DeleteCapabilityEdgeResponse"
-      },
-      "cli_mapping": {
-        "command": "tech-tree-designer ontology edge-rm",
-        "args": [
-          "<from>",
-          "<to>"
-        ]
       }
     },
     {
@@ -270,13 +210,6 @@
       },
       "response": {
         "type": "ImportTopologyResponse"
-      },
-      "cli_mapping": {
-        "command": "tech-tree-designer ontology import",
-        "args": [
-          "--from-file",
-          "<path>"
-        ]
       }
     },
     {
@@ -291,13 +224,6 @@
       },
       "response": {
         "type": "Fulfillment"
-      },
-      "cli_mapping": {
-        "command": "tech-tree-designer ontology fulfill",
-        "args": [
-          "<capability>",
-          "<scenario>"
-        ]
       }
     },
     {
@@ -312,13 +238,6 @@
       },
       "response": {
         "type": "UnlinkFulfillmentResponse"
-      },
-      "cli_mapping": {
-        "command": "tech-tree-designer ontology unfulfill",
-        "args": [
-          "<capability>",
-          "<scenario>"
-        ]
       }
     },
     {
@@ -333,9 +252,6 @@
       },
       "response": {
         "type": "ListFulfillmentsResponse"
-      },
-      "cli_mapping": {
-        "command": "tech-tree-designer ontology fulfillments"
       }
     },
     {
@@ -350,9 +266,6 @@
       },
       "response": {
         "type": "CoverageSummary"
-      },
-      "cli_mapping": {
-        "command": "tech-tree-designer ontology coverage"
       }
     },
     {
@@ -367,9 +280,6 @@
       },
       "response": {
         "type": "ListFocusResponse"
-      },
-      "cli_mapping": {
-        "command": "tech-tree-designer ontology focus"
       }
     },
     {
@@ -384,12 +294,6 @@
       },
       "response": {
         "type": "CapabilityScenarios"
-      },
-      "cli_mapping": {
-        "command": "tech-tree-designer ontology capability-scenarios",
-        "args": [
-          "<slug>"
-        ]
       }
     },
     {
@@ -404,12 +308,6 @@
       },
       "response": {
         "type": "ScenarioCapabilities"
-      },
-      "cli_mapping": {
-        "command": "tech-tree-designer ontology scenario",
-        "args": [
-          "<slug>"
-        ]
       }
     },
     {
@@ -424,9 +322,6 @@
       },
       "response": {
         "type": "DescribeOverlayGraphResponse"
-      },
-      "cli_mapping": {
-        "command": "tech-tree-designer ontology overlay"
       }
     },
     {
@@ -441,12 +336,6 @@
       },
       "response": {
         "type": "PlannedScenario"
-      },
-      "cli_mapping": {
-        "command": "tech-tree-designer plan create",
-        "args": [
-          "<slug>"
-        ]
       }
     },
     {
@@ -461,9 +350,6 @@
       },
       "response": {
         "type": "ListPlannedScenariosResponse"
-      },
-      "cli_mapping": {
-        "command": "tech-tree-designer plan list"
       }
     },
     {
@@ -478,12 +364,6 @@
       },
       "response": {
         "type": "PlannedScenario"
-      },
-      "cli_mapping": {
-        "command": "tech-tree-designer plan tree",
-        "args": [
-          "<slug>"
-        ]
       }
     },
     {
@@ -498,13 +378,6 @@
       },
       "response": {
         "type": "PlannedProtoFile"
-      },
-      "cli_mapping": {
-        "command": "tech-tree-designer plan add",
-        "args": [
-          "<slug>",
-          "<path>"
-        ]
       }
     },
     {
@@ -519,13 +392,6 @@
       },
       "response": {
         "type": "DeletePlannedProtoFileResponse"
-      },
-      "cli_mapping": {
-        "command": "tech-tree-designer plan rm",
-        "args": [
-          "<slug>",
-          "<path>"
-        ]
       }
     },
     {
@@ -540,12 +406,6 @@
       },
       "response": {
         "type": "ValidatePlannedScenarioResponse"
-      },
-      "cli_mapping": {
-        "command": "tech-tree-designer plan validate",
-        "args": [
-          "<slug>"
-        ]
       }
     },
     {
@@ -560,12 +420,6 @@
       },
       "response": {
         "type": "MaterializePlannedScenarioResponse"
-      },
-      "cli_mapping": {
-        "command": "tech-tree-designer plan materialize",
-        "args": [
-          "<slug>"
-        ]
       }
     }
   ]

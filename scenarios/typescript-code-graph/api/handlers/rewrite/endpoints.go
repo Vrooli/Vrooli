@@ -17,9 +17,10 @@ import (
 // Phase-4 timeline, but only one copy survives Phase 5: this file
 // owns them now, and graph/endpoints.go drops them in lockstep.
 //
-// cli_mapping.command MUST resolve to the matching command bound in
-// cli/manifest.json ("rewrite plan" and "rewrite apply"); the gen-endpoints
-// cross-check against the manifest fails the build otherwise.
+// cli/manifest.json binds the CLI commands ("rewrite plan" and
+// "rewrite apply") to these methods; the gen-endpoints coverage gate fails
+// the build if a binding or explicit omission drifts from the registered
+// endpoint set.
 var Endpoints = []module.EndpointDescriptor{
 	{
 		ID:          "rewrite_plan",
@@ -45,10 +46,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Errors: []module.ErrorDesc{
 			{Status: 400, Code: "invalid_argument", Description: "Missing project_path, empty operations, absolute/parent path, or both/neither oneof arm set"},
 			{Status: 500, Code: "internal", Description: "Plan store save failed"},
-		},
-		CLIMapping: &module.CLIMapping{
-			Command: "typescript-code-graph rewrite plan",
-			Args:    []string{"<ops.json>"},
 		},
 	},
 	{
@@ -80,10 +77,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 503, Code: "unavailable", Description: "Node sidecar is unhealthy or permanently failed"},
 			{Status: 504, Code: "deadline_exceeded", Description: "Sidecar call exceeded its deadline"},
 			{Status: 500, Code: "internal", Description: "Unexpected sidecar or plan store failure"},
-		},
-		CLIMapping: &module.CLIMapping{
-			Command: "typescript-code-graph rewrite apply",
-			Args:    []string{"<plan_id>"},
 		},
 	},
 }

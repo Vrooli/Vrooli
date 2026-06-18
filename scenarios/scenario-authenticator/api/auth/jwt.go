@@ -119,11 +119,11 @@ func GenerateJWTKeys() error {
 	}
 
 	// Try to save keys (non-critical if it fails)
-	if err := ioutil.WriteFile(privateKeyPath, pem.EncodeToMemory(privateKeyPEM), 0600); err != nil {
+	if err := ioutil.WriteFile(privateKeyPath, pem.EncodeToMemory(privateKeyPEM), 0o600); err != nil {
 		log.Printf("Warning: Could not save private key: %v", err)
 	}
 
-	if err := ioutil.WriteFile(publicKeyPath, pem.EncodeToMemory(publicKeyPEM), 0644); err != nil {
+	if err := ioutil.WriteFile(publicKeyPath, pem.EncodeToMemory(publicKeyPEM), 0o644); err != nil {
 		log.Printf("Warning: Could not save public key: %v", err)
 	}
 
@@ -168,7 +168,6 @@ func ValidateToken(tokenString string) (*models.Claims, error) {
 		}
 		return publicKey, nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -208,4 +207,12 @@ func GenerateSecureToken(length int) (string, error) {
 func SetTestKeys(priv *rsa.PrivateKey, pub *rsa.PublicKey) {
 	privateKey = priv
 	publicKey = pub
+}
+
+// PublicKey returns the loaded RSA public key used to verify JWTs, or nil if
+// keys have not been loaded yet. Exposed so the JWKS endpoint can publish the
+// key for consumers that verify owner tokens locally (offline) rather than
+// calling /validate on every request. The private key is never exposed.
+func PublicKey() *rsa.PublicKey {
+	return publicKey
 }

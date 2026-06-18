@@ -23,9 +23,6 @@
           "curl": "curl http://localhost:${API_PORT}/health"
         }
       ],
-      "cli_mapping": {
-        "command": "quality-health status"
-      },
       "rest_exception": {
         "reason": "ops_probe",
         "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
@@ -79,14 +76,7 @@
           "code": "invalid_argument",
           "description": "Scenario/path is missing or cannot be resolved"
         }
-      ],
-      "cli_mapping": {
-        "command": "quality-health audit run",
-        "args": [
-          "<scenario>",
-          "--json"
-        ]
-      }
+      ]
     },
     {
       "id": "audit_contracts_list",
@@ -109,12 +99,6 @@
         "properties": {
           "contracts": "array<QualityContract>"
         }
-      },
-      "cli_mapping": {
-        "command": "quality-health contracts list",
-        "args": [
-          "--json"
-        ]
       }
     },
     {
@@ -139,14 +123,6 @@
           "finding": "QualityFinding",
           "next_steps": "array<string>"
         }
-      },
-      "cli_mapping": {
-        "command": "quality-health explain finding",
-        "args": [
-          "<finding-id>",
-          "--scenario",
-          "<scenario>"
-        ]
       }
     },
     {
@@ -170,13 +146,6 @@
           "candidates": "array<AutofixCandidate>",
           "messages": "array<string>"
         }
-      },
-      "cli_mapping": {
-        "command": "quality-health fix-config run",
-        "args": [
-          "<scenario>",
-          "--dry-run"
-        ]
       }
     },
     {
@@ -202,12 +171,6 @@
           "candidates": "array<AutofixCandidate>",
           "messages": "array<string>"
         }
-      },
-      "cli_mapping": {
-        "command": "quality-health fix-config apply",
-        "args": [
-          "<scenario>"
-        ]
       }
     },
     {
@@ -246,51 +209,7 @@
           "name": "Validate scenario",
           "curl": "curl http://localhost:${API_PORT}/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario -H 'Content-Type: application/json' -d '{\"scenario\":\"quality-health\"}'"
         }
-      ],
-      "cli_mapping": {
-        "command": "quality-health audit run",
-        "args": [
-          "<scenario>",
-          "--json"
-        ]
-      }
-    }
-  ],
-  "cli_commands": [
-    {
-      "name": "audit run",
-      "description": "Run a Quality Health audit for a scenario or path",
-      "endpoint_id": "audit_quality"
-    },
-    {
-      "name": "configure",
-      "description": "View or update CLI settings (api_base, token)",
-      "endpoint_id": ""
-    },
-    {
-      "name": "contracts list",
-      "description": "List Quality Health contracts",
-      "endpoint_id": "audit_contracts_list"
-    },
-    {
-      "name": "explain finding",
-      "description": "Explain a finding id or rule id",
-      "endpoint_id": "audit_explain_finding"
-    },
-    {
-      "name": "fix-config apply",
-      "description": "Apply supported safe config fixes",
-      "endpoint_id": "audit_apply_fix_config"
-    },
-    {
-      "name": "fix-config run",
-      "description": "Preview or apply safe config fixes",
-      "endpoint_id": "audit_preview_fix_config"
-    },
-    {
-      "name": "status",
-      "description": "Check API health",
-      "endpoint_id": "health"
+      ]
     }
   ]
 }

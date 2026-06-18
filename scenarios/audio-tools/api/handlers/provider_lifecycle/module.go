@@ -54,9 +54,6 @@ var Endpoints = []modulekit.EndpointDescriptor{
 		Method:   "POST",
 		Summary:  "List local-tier providers, their process_state, and supported lifecycle actions",
 		Category: "provider_lifecycle",
-		CLIMapping: &modulekit.CLIMapping{
-			Command: "audio-tools provider list",
-		},
 	},
 	{
 		ID:       "provider_lifecycle.start_provider",
@@ -64,10 +61,6 @@ var Endpoints = []modulekit.EndpointDescriptor{
 		Method:   "POST",
 		Summary:  "Start a local provider (wraps `vrooli resource start <slug>`); honors X-Dry-Run",
 		Category: "provider_lifecycle",
-		CLIMapping: &modulekit.CLIMapping{
-			Command: "audio-tools provider start",
-			Args:    []string{"<provider-id>", "[--dry-run]"},
-		},
 	},
 	{
 		ID:       "provider_lifecycle.stop_provider",
@@ -75,10 +68,6 @@ var Endpoints = []modulekit.EndpointDescriptor{
 		Method:   "POST",
 		Summary:  "Stop a local provider (wraps `vrooli resource stop <slug>`); honors X-Dry-Run",
 		Category: "provider_lifecycle",
-		CLIMapping: &modulekit.CLIMapping{
-			Command: "audio-tools provider stop",
-			Args:    []string{"<provider-id>", "[--dry-run]"},
-		},
 	},
 	{
 		ID:       "provider_lifecycle.restart_provider",
@@ -86,10 +75,6 @@ var Endpoints = []modulekit.EndpointDescriptor{
 		Method:   "POST",
 		Summary:  "Restart a local provider (wraps `vrooli resource restart <slug>`); honors X-Dry-Run",
 		Category: "provider_lifecycle",
-		CLIMapping: &modulekit.CLIMapping{
-			Command: "audio-tools provider restart",
-			Args:    []string{"<provider-id>", "[--dry-run]"},
-		},
 	},
 	{
 		ID:       "provider_lifecycle.pull_model",
@@ -97,10 +82,6 @@ var Endpoints = []modulekit.EndpointDescriptor{
 		Method:   "POST",
 		Summary:  "Pull a model on the ollama provider; honors X-Dry-Run",
 		Category: "provider_lifecycle",
-		CLIMapping: &modulekit.CLIMapping{
-			Command: "audio-tools provider pull-model",
-			Args:    []string{"<model-name>", "[--dry-run]"},
-		},
 	},
 	{
 		ID:       "provider_lifecycle.get_provider_logs",
@@ -108,9 +89,5 @@ var Endpoints = []modulekit.EndpointDescriptor{
 		Method:   "POST",
 		Summary:  "Stream stdout/stderr lines from a local provider's backing resource",
 		Category: "provider_lifecycle",
-		CLIMapping: &modulekit.CLIMapping{
-			Command: "audio-tools provider logs",
-			Args:    []string{"<provider-id>", "[--follow]", "[--tail N]"},
-		},
 	},
 }

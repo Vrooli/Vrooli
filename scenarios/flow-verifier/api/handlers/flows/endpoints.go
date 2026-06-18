@@ -16,7 +16,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "List discovered flows",
 		Description: "Walks the configured root and returns one entry per flow/flow.json with id, contract path, language, and schema version.",
 		Category:    "flows",
-		CLIMapping:  &module.CLIMapping{Command: "flow-verifier flows list"},
 	},
 	{
 		ID:          "flows.get",
@@ -25,7 +24,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Flow detail",
 		Description: "Returns the typed flow.json projection consumed by the UI's flow-detail page.",
 		Category:    "flows",
-		CLIMapping:  &module.CLIMapping{Command: "flow-verifier flows show"},
 	},
 	{
 		ID:          "flows.create",
@@ -34,7 +32,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Scaffold a new flow",
 		Description: "Creates a fresh flow directory with hand-authored transition + test sidecars. Replaces the legacy in-process CLI command.",
 		Category:    "flows",
-		CLIMapping:  &module.CLIMapping{Command: "flow-verifier flows new"},
 	},
 	{
 		ID:          "flows.validate",
@@ -43,7 +40,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Validate every flow under root",
 		Description: "Compiles every flow.json and returns the first compilation/contract error encountered, or empty on success.",
 		Category:    "flows",
-		CLIMapping:  &module.CLIMapping{Command: "flow-verifier flows validate"},
 	},
 	{
 		ID:          "flows.explain",
@@ -52,7 +48,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Human-readable explain report",
 		Description: "Renders the markdown explanation consumed by the UI Overview tab and CLI explain output.",
 		Category:    "flows",
-		CLIMapping:  &module.CLIMapping{Command: "flow-verifier flows explain"},
 	},
 	{
 		ID:          "flows.codegen",
@@ -61,7 +56,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Emit codegen artifacts",
 		Description: "Runs the navigation kind's codegen (routes.generated.ts) and optionally writes the output to disk.",
 		Category:    "flows",
-		CLIMapping:  &module.CLIMapping{Command: "flow-verifier flows codegen"},
 	},
 	{
 		ID:          "flows.reconcile",
@@ -70,7 +64,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Reconcile spec against source",
 		Description: "Walks the scenario's ui/src tree and asserts every route declared in code matches a spec route (and vice-versa).",
 		Category:    "flows",
-		CLIMapping:  &module.CLIMapping{Command: "flow-verifier flows reconcile"},
 	},
 	{
 		ID:          "flows.navigationStudio",
@@ -79,6 +72,5 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Flow Studio descriptor for a navigation flow",
 		Description: "Returns the Flow Studio renderer payload (routes, affordances, containers, context toggles, invariant pass/fail) consumed by the UI's navigation graph view.",
 		Category:    "flows",
-		CLIMapping:  &module.CLIMapping{Command: "flow-verifier flows studio"},
 	},
 }

@@ -45,9 +45,7 @@ func TestEndpointDescriptorJSONShape(t *testing.T) {
 			Name: "Check",
 			Curl: "curl http://localhost:${API_PORT}/health",
 		}},
-		CLIMapping: &module.CLIMapping{
-			Command: "tech-tree-designer status",
-		},
+
 		RESTException: &module.RESTException{
 			Reason: module.RESTReasonOpsProbe,
 			ProtoPayloads: &module.RESTProtoPayloads{
@@ -68,6 +66,6 @@ func TestEndpointDescriptorJSONShape(t *testing.T) {
 	require.Equal(t, http.MethodGet, got["method"])
 	require.Contains(t, got, "response")
 	require.Contains(t, got, "examples")
-	require.Contains(t, got, "cli_mapping")
+	require.NotContains(t, got, "cli_mapping")
 	require.Contains(t, got, "rest_exception")
 }

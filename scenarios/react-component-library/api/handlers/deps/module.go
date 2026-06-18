@@ -73,7 +73,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Errors: []module.ErrorDesc{
 			{Status: 500, Code: "internal", Description: "Repository read failure"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "react-component-library deps list", Args: []string{"<component_id>"}},
 	},
 	{
 		ID:          "deps_validate_adoption",
@@ -101,6 +100,5 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 412, Code: "failed_precondition", Description: "Component has no declarations on file (re-run components index)"},
 			{Status: 500, Code: "internal", Description: "Repository or filesystem failure"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "react-component-library deps validate", Args: []string{"<component_id>", "<scenario>"}},
 	},
 }

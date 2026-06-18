@@ -25,7 +25,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "List analysis operations", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.analysis.AnalysisService/ListAnalysisOperations -H 'Content-Type: application/json' -d '{}'"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "image-tools analyze list"},
 	},
 	{
 		ID:          "analysis_run",
@@ -45,7 +44,7 @@ var Endpoints = []module.EndpointDescriptor{
 			{Name: "Probe an image", Curl: "curl -X POST 'http://localhost:${API_PORT}/api/v1/analysis/probe' -F file=@in.png"},
 			{Name: "OCR an image", Curl: "curl -X POST 'http://localhost:${API_PORT}/api/v1/analysis/ocr' -F file=@scan.png"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "image-tools analyze probe", Args: []string{"<input>"}},
+
 		RESTException: &module.RESTException{
 			Reason: module.RESTReasonMultipartUpload,
 			Note:   "Image bytes cannot ride a proto field; the request is multipart. The result metadata is proto-typed (AnalyzeResponse).",

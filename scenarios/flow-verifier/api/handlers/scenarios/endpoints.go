@@ -16,7 +16,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "List discovered scenarios",
 		Description: "Walks <vrooli-root>/scenarios/* for .vrooli/service.json descriptors and returns one row per scenario.",
 		Category:    "scenarios",
-		CLIMapping:  &module.CLIMapping{Command: "flow-verifier scenarios list"},
 	},
 	{
 		ID:          "scenarios.get",
@@ -25,7 +24,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Scenario detail",
 		Description: "Returns the scenario descriptor plus the flow summaries discovered inside it.",
 		Category:    "scenarios",
-		CLIMapping:  &module.CLIMapping{Command: "flow-verifier scenarios show"},
 	},
 	{
 		ID:          "scenarios.generate_artifacts",
@@ -34,7 +32,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Generate every flow's artifacts in a scenario (server-stream)",
 		Description: "Server-streams one ScenarioArtifactsProgress per flow as artifacts are regenerated.",
 		Category:    "scenarios",
-		CLIMapping:  &module.CLIMapping{Command: "flow-verifier artifacts generate --scenario <id>"},
 	},
 	{
 		ID:          "scenarios.clear_artifacts",
@@ -43,6 +40,5 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Clear every flow's generated/ tree in a scenario",
 		Description: "Removes every generated/ tree under the scenario root. Refuses traversal outside root.",
 		Category:    "scenarios",
-		CLIMapping:  &module.CLIMapping{Command: "flow-verifier artifacts clear --scenario <id> --yes"},
 	},
 }

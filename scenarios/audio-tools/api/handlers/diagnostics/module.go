@@ -45,14 +45,12 @@ var Endpoints = []modulekit.EndpointDescriptor{
 	{
 		ID: "diagnostics.run_suite", Path: "/vrooli.audio_tools.v1.diagnostics.DiagnosticsService/RunSuite",
 		Method: "POST", Summary: "Run the audio-tools capability suite end-to-end against bundled fixtures",
-		Category:   "diagnostics",
-		CLIMapping: &modulekit.CLIMapping{Command: "audio-tools diagnostics run", Args: []string{"[--capability stt,tts,summarize,transcode]", "[--json]"}},
+		Category: "diagnostics",
 	},
 	{
 		ID: "diagnostics.get_last_run", Path: "/vrooli.audio_tools.v1.diagnostics.DiagnosticsService/GetLastRun",
 		Method: "POST", Summary: "Return the most recent RunSuite result, or an empty envelope when no run has executed",
-		Category:   "diagnostics",
-		CLIMapping: &modulekit.CLIMapping{Command: "audio-tools diagnostics last", Args: []string{"[--json]"}},
+		Category: "diagnostics",
 	},
 	{
 		ID: "diagnostics.list_fixtures", Path: "/vrooli.audio_tools.v1.diagnostics.DiagnosticsService/ListFixtures",

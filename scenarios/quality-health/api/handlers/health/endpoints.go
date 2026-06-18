@@ -31,23 +31,21 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Check health", Curl: "curl http://localhost:${API_PORT}/health"},
 		},
-		CLIMapping: &module.CLIMapping{
-			Command: "quality-health status",
-		},
+
 		RESTException: &module.RESTException{
 			Reason: module.RESTReasonOpsProbe,
 			Note:   "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
-			ProtoPayloads: module.RESTExceptionPayloads{
-				Request: module.RESTExceptionPayload{
+			ProtoPayloads: &module.RESTProtoPayloads{
+				Request: module.RESTPayload{
 					Transport:   "none",
 					Conformance: "none",
 				},
-				Response: module.RESTExceptionPayload{
+				Response: module.RESTPayload{
 					ProtoFullName: "vrooli.quality_health.v1.health.Response",
 					Transport:     "json",
 					Conformance:   "protojson",
 				},
-				Error: module.RESTExceptionPayload{
+				Error: module.RESTPayload{
 					ProtoFullName: "vrooli.quality_health.v1.errors.ErrorEnvelope",
 					Transport:     "json",
 					Conformance:   "protojson",
