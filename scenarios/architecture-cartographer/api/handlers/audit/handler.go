@@ -189,24 +189,60 @@ func reportToProto(r audit.Report) *auditv1.AuditRunResponse {
 		},
 		Coverage: coverageToProto(r.Coverage, r.Domains.Confidence),
 	}
+	for _, category := range r.Categories {
+		out.Categories = append(out.Categories, categoryToProto(category))
+	}
 	for _, c := range r.Findings {
 		out.Findings = append(out.Findings, &auditv1.ConflictSummary{
-			Id:         c.ID,
-			StableId:   c.StableID,
-			InstanceId: c.InstanceID,
-			Detector:   c.Detector,
-			Type:       c.Type,
-			Subtype:    c.Subtype,
-			Severity:   severityToProto(c.Severity),
-			Locations:  append([]string(nil), c.Locations...),
-			Domains:    append([]string(nil), c.Domains...),
-			Headline:   headlineFor(c),
+			Id:           c.ID,
+			StableId:     c.StableID,
+			InstanceId:   c.InstanceID,
+			Detector:     c.Detector,
+			Type:         c.Type,
+			Subtype:      c.Subtype,
+			Severity:     severityToProto(c.Severity),
+			FindingClass: findingClassToProto(c.FindingClass),
+			Locations:    append([]string(nil), c.Locations...),
+			Domains:      append([]string(nil), c.Domains...),
+			Headline:     headlineFor(c),
 		})
 	}
 	if maturity, err := buildMaturityAssessment(r); err == nil {
 		out.Assessment = maturity
 	}
 	return out
+}
+
+func categoryToProto(category audit.AuditCategory) *auditv1.AuditCategory {
+	out := &auditv1.AuditCategory{
+		Key:   category.Key,
+		Label: category.Label,
+		Score: category.Score,
+	}
+	for _, item := range category.TopItems {
+		out.TopItems = append(out.TopItems, &auditv1.CategoryTopItem{
+			Id:           item.ID,
+			StableId:     item.StableID,
+			Type:         item.Type,
+			Subtype:      item.Subtype,
+			Severity:     severityToProto(item.Severity),
+			FindingClass: findingClassToProto(item.FindingClass),
+			Locations:    append([]string(nil), item.Locations...),
+			Headline:     item.Headline,
+		})
+	}
+	return out
+}
+
+func findingClassToProto(c conflicts.FindingClass) sharedv1.FindingClass {
+	switch c {
+	case conflicts.FindingClassDeterministic:
+		return sharedv1.FindingClass_FINDING_CLASS_DETERMINISTIC
+	case conflicts.FindingClassHeuristic:
+		return sharedv1.FindingClass_FINDING_CLASS_HEURISTIC
+	default:
+		return sharedv1.FindingClass_FINDING_CLASS_UNSPECIFIED
+	}
 }
 
 func coverageToProto(c audit.CoverageSummary, authorityConfidence string) *auditv1.CoverageSummary {

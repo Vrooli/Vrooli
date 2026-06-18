@@ -55,6 +55,18 @@ cd scenarios/<scenario-name>
 make test
 ```
 
+For domain-specific health maturity findings, run the provider CLI in human mode first:
+
+```bash
+proto-health validate scenario <name>
+measures-health validate scenario <name>
+security-health validate scenario <name>
+cli-health validate scenario <name>
+ui-health validate scenario <name>
+```
+
+Those reports are provider-owned maturity views. Use `--json` only when a programmatic consumer needs the shared `common.v1.MaturityAssessment` structure. See [health-maturity-assessments.md](health-maturity-assessments.md).
+
 ## What `vrooli build` Means
 
 `vrooli build` is the root CLI build lifecycle command. Treat the CLI help and current lifecycle definitions as the final authority for its exact behavior.

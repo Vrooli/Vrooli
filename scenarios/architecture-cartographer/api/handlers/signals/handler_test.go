@@ -23,7 +23,7 @@ func sampleVerdict() signals.Verdict {
 		Tier:      signals.TierAutoPlace,
 		TopDomain: "graph", TopValue: 0.92,
 		RunnerUpDomain: "signals", RunnerUpValue: 0.31,
-		DomainValues: []signals.DomainValue{{Domain: "graph", Value: 0.92}},
+		DomainValues: []signals.DomainValue{{Domain: "graph", DirectionValue: 0.92}},
 		Scores: []signals.Score{
 			{Signal: "path-token", Domain: "graph", Value: 0.95, Reason: "exact dir match", Evidence: []signals.Evidence{{Kind: "path_token", Summary: "internal/graph"}}},
 		},

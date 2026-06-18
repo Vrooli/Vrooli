@@ -35,7 +35,6 @@ func DefaultSurfaceProfiles() []SurfaceProfile {
 			"cycle",
 			"convergence_drift",
 			"domains_doc_parse_warning",
-			"file_cohesion",
 			"layering",
 			"mislocated_file",
 			"naming",

@@ -209,7 +209,7 @@ func computeDomain(name, archetype string, dependsSet, dependedSet map[string]st
 
 	exempt := cfg.ExemptArchetypes[archetype]
 
-	if !exempt && !dc.StableKernel && others > 0 && dc.FanOut >= cfg.GodDomainFanOut {
+	if !exempt && !dc.StableKernel && godDomainCandidate(dc, others, cfg) {
 		dc.Smells = append(dc.Smells, Smell{
 			Kind:     SmellGodDomain,
 			Severity: SeverityWarn,
@@ -226,6 +226,10 @@ func computeDomain(name, archetype string, dependsSet, dependedSet map[string]st
 
 	dc.HealthScore = scoreFrom(dc.Smells)
 	return dc
+}
+
+func godDomainCandidate(dc DomainCoupling, others int, cfg Config) bool {
+	return others >= 3 && dc.Efferent >= 2 && dc.FanOut >= cfg.GodDomainFanOut
 }
 
 // scoreFrom grades health from the smells: 1.0 baseline, warn costs 0.4,

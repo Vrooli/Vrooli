@@ -185,10 +185,20 @@ and use matrix/trace helpers from the relevant testutil package.
 | | |
 |---|---|
 | **Seam** | Pluggable conflict-detection plug-in |
-| **Interface** | `api/internal/conflicts/detector.go::Detector` (`Name()`, `Description()`, `EmitsTypes()`, `Detect(ctx, DetectInput) ([]Conflict, error)`). |
-| **Production wiring** | `main.go` registers detectors through `conflicts.NewRegistryWithProfiles(conflicts.DefaultSurfaceProfiles(), ...)`. Current production detectors include `cycle`, `layering`, `naming`, `glossary_drift`, `mislocated_file`, `convergence_drift`, `coupling_smell`, `surface_coherence`, `file_cohesion`, `cross_scenario`, and `domains_doc_parse_warning`; the `Conflict` envelope is stable across detector additions. |
+| **Interface** | `api/internal/conflicts/detector.go::Detector` (`Name()`, `Description()`, `EmitsTypes()`, `Class()`, `Detect(ctx, DetectInput) ([]Conflict, error)`). |
+| **Production wiring** | `main.go` registers detectors through `conflicts.NewRegistryWithProfiles(conflicts.DefaultSurfaceProfiles(), ...)`. Current production detectors include `cycle`, `layering`, `naming`, `glossary_drift`, `mislocated_file`, `convergence_drift`, `coupling_smell`, `surface_coherence`, `cross_scenario`, and `domains_doc_parse_warning`; the registry stamps every emitted conflict with the detector's `finding_class` and rejects `unspecified`. Heuristic detector emissions are capped at `warn`. |
 | **Test fake** | `internal/conflicts/mocks::FakeDetector` (canned `[]Conflict` return, recorded inputs). Used to drive the conflicts service against deterministic finding sets without standing up a full graph + manifest fixture. |
 | **Why it exists** | Detectors are the open extension seam for the cartographer — new drift checks must be addable without changing the envelope or the resolution machinery. The registry is the single point that enumerates registered detectors; orchestration logic does not name-check detector types. See `SIGNAL_LADDER.md` for the analogous pattern on the scoring side. |
+
+### FindingClass (deterministic vs heuristic gate)
+
+| | |
+|---|---|
+| **Seam** | Finding classification shared by cartographer, test-genie, and campaign consumers. |
+| **Interface** | `packages/proto/schemas/architecture-cartographer/v1/shared/shared.proto::FindingClass` and `packages/proto/schemas/architecture/v1/findings.proto::FindingClass`. Native `Conflict`, audit `ConflictSummary`, and shared `ArchitectureFinding` all carry the enum. |
+| **Production wiring** | `conflicts.Registry.DetectAll` stamps detector-native class; `audit.Service.decideOutcome` gates only `deterministic` findings at `error` or `blocker`; test-genie reads the native `AuditRunResponse` from `ScenarioValidationService.native_detail` and applies the same class-aware gate. |
+| **Test fake** | `internal/conflicts/mocks::FakeDetector` lets tests emit deterministic or heuristic classes. `test-genie/internal/orchestrator/phases/validationprovider` has fixtures proving heuristic native blockers remain advisory. |
+| **Why it exists** | Severity alone cannot distinguish a deterministic broken boundary from an advisory placement/naming/coupling signal. The class seam keeps the report useful while preventing heuristic findings from hard-failing CI. `finding_class` is deliberately excluded from `csid:` and `afid:` stable identity. |
 
 ### SurfaceProfile (detector applicability)
 
@@ -226,7 +236,7 @@ and use matrix/trace helpers from the relevant testutil package.
 |---|---|
 | **Seam** | Pluggable scoring signal in the auto-placement ladder |
 | **Interface** | `internal/signals/signal.go::Signal` (`Name() string`, `Score(chunk Chunk, domain Domain, ctx GraphContext) Score`) |
-| **Production wiring** | `internal/signals/registry.go::DefaultRegistry()` registers the six day-one signals (`path-token`, `import-cluster`, `importer-voting`, `test-coupling`, `symbol-glossary`, `git-co-edit`). Aggregation logic in `internal/signals/aggregator.go` invokes them. All signals are pure functions over an immutable graph snapshot. |
+| **Production wiring** | `internal/signals/registry.go::DefaultRegistry()` registers the six day-one signals (`path-token`, `import-cluster`, `importer-voting`, `test-coupling`, `symbol-glossary`, `git-co-edit`). Aggregation logic in `internal/signals/aggregator.go` invokes them. All signals are pure functions over an immutable graph snapshot. `import-cluster` computes deterministic Louvain communities once per graph context and shares them through `signals.Caches`. |
 | **Test fake** | `internal/signals/mocks::FakeSignal` (returns canned `Score`, records inputs). Used to test the aggregator and verdict-tier logic in isolation from real signals. |
 | **Why it exists** | Auto-placement explainability requires that every verdict be decomposable into per-signal contributions. The seam enforces purity (no graph mutation, no side effects during scoring) and bounds output to `[0.0, 1.0]` so the aggregator math is well-defined. See [`../concepts/SIGNAL_LADDER.md`](../concepts/SIGNAL_LADDER.md). |
 

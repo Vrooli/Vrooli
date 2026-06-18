@@ -2,6 +2,7 @@ package conflicts
 
 import (
 	"context"
+	"fmt"
 	"sort"
 )
 
@@ -40,13 +41,32 @@ func (r *Registry) All() []Detector {
 func (r *Registry) DetectAll(ctx context.Context, in DetectInput) ([]Conflict, error) {
 	var out []Conflict
 	for _, d := range r.activeDetectors(in) {
+		class := d.Class()
+		if class == FindingClassUnspecified {
+			return nil, fmt.Errorf("detector %q returned unspecified finding class", d.Name())
+		}
 		conflicts, err := d.Detect(ctx, in)
 		if err != nil {
 			return nil, err
 		}
+		for i := range conflicts {
+			conflicts[i].FindingClass = class
+			if class == FindingClassHeuristic {
+				conflicts[i].Severity = capHeuristicSeverity(conflicts[i].Severity)
+			}
+		}
 		out = append(out, conflicts...)
 	}
 	return out, nil
+}
+
+func capHeuristicSeverity(sev Severity) Severity {
+	switch sev {
+	case SeverityError, SeverityBlocker:
+		return SeverityWarn
+	default:
+		return sev
+	}
 }
 
 func (r *Registry) activeDetectors(in DetectInput) []Detector {
@@ -72,6 +92,7 @@ func (r *Registry) Describe() []DetectorDescriptor {
 			Description: d.Description(),
 			Stability:   "beta",
 			EmitsTypes:  d.EmitsTypes(),
+			Class:       d.Class(),
 		})
 	}
 	return out

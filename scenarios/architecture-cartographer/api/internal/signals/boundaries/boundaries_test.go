@@ -103,6 +103,28 @@ func TestAnalyze_GodDomainSmell(t *testing.T) {
 	}
 }
 
+func TestAnalyze_SmallGraphsDoNotCreateGodDomainSmell(t *testing.T) {
+	pkg := func(id, dir string) graph.PackageNode {
+		return graph.PackageNode{ID: id, RepoPath: dir}
+	}
+	snap := graph.GraphSnapshot{
+		Packages: []graph.PackageNode{pkg("p-a", "api/internal/a"), pkg("p-b", "api/internal/b")},
+		Imports:  []graph.ImportEdge{{From: "p-a", ToPackageID: "p-b"}},
+	}
+	m := domains.DerivedDomainMap{Domains: []domains.DerivedDomain{
+		{Name: "a", Paths: []string{"api/internal/a/"}},
+		{Name: "b", Paths: []string{"api/internal/b/"}},
+	}}
+	rep := boundaries.Analyze("demo", snap, m, boundaries.DefaultConfig())
+	a := find(rep, "a")
+	if hasSmell(a, boundaries.SmellGodDomain) {
+		t.Fatalf("single dependency in a two-domain graph must not be a god_domain smell; smells=%+v", a.Smells)
+	}
+	if a.HealthScore != 1.0 {
+		t.Fatalf("small healthy graph should keep full health, got %v", a.HealthScore)
+	}
+}
+
 func TestAnalyze_StableKernelNoSmellFullHealth(t *testing.T) {
 	snap, m := fourDomainGraph()
 	rep := boundaries.Analyze("demo", snap, m, boundaries.DefaultConfig())

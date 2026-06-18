@@ -34,6 +34,10 @@ func (Detector) Description() string {
 
 func (Detector) EmitsTypes() []string { return []string{"coupling_smell"} }
 
+func (Detector) Class() conflicts.FindingClass {
+	return conflicts.FindingClassHeuristic
+}
+
 // Detect analyzes coupling and emits a conflict per smell. Healthy domains
 // produce nothing.
 func (d Detector) Detect(_ context.Context, in conflicts.DetectInput) ([]conflicts.Conflict, error) {

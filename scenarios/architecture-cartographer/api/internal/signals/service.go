@@ -22,6 +22,10 @@ type Service interface {
 	// one Verdict per input Chunk, aligned by index, so a detector
 	// can correlate results positionally.
 	ScoreBatch(ctx context.Context, in ScoreBatchInput) ([]Verdict, error)
+	// ContentScoreBatch scores chunks with path-token authority disabled.
+	// This is the content-verdict seam used by placement detectors so a
+	// file's current path cannot vote for itself.
+	ContentScoreBatch(ctx context.Context, in ScoreBatchInput) ([]Verdict, error)
 	ListSignals(ctx context.Context, scenario string) ([]SignalDescriptor, error)
 	// BoundaryHealth computes domain-level coupling/boundary-health over the
 	// latest snapshot + derived domain map.
@@ -158,6 +162,15 @@ func (s *service) ListSignals(ctx context.Context, _ string) ([]SignalDescriptor
 }
 
 func (s *service) ScoreBatch(ctx context.Context, in ScoreBatchInput) ([]Verdict, error) {
+	return s.scoreBatch(ctx, in, s.aggregator)
+}
+
+func (s *service) ContentScoreBatch(ctx context.Context, in ScoreBatchInput) ([]Verdict, error) {
+	contentAggregator := s.aggregator.WithWeightOverrides(map[string]float64{"path-token": 0})
+	return s.scoreBatch(ctx, in, contentAggregator)
+}
+
+func (s *service) scoreBatch(ctx context.Context, in ScoreBatchInput, aggregator *Aggregator) ([]Verdict, error) {
 	if strings.TrimSpace(in.Scenario) == "" {
 		return nil, ErrInvalidScoreRequest{Field: "scenario", Reason: "required"}
 	}
@@ -201,7 +214,7 @@ func (s *service) ScoreBatch(ctx context.Context, in ScoreBatchInput) ([]Verdict
 		go func() {
 			defer wg.Done()
 			for i := range idxCh {
-				out[i] = s.aggregator.Aggregate(ctx, gctx, in.Chunks[i])
+				out[i] = aggregator.Aggregate(ctx, gctx, in.Chunks[i])
 			}
 		}()
 	}

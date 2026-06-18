@@ -22,7 +22,11 @@ func (s stubVerdictProvider) VerdictsFor(_ context.Context, _ string, chunks []g
 	return out, nil
 }
 
-func TestDetect_EmitsWhenVerdictDisagreesWithDomainMap(t *testing.T) {
+func (s stubVerdictProvider) ContentVerdictsFor(ctx context.Context, scenario string, chunks []graph.Chunk) ([]conflicts.Verdict, error) {
+	return s.VerdictsFor(ctx, scenario, chunks)
+}
+
+func TestDetect_EmitsWhenContentVerdictDisagreesWithDomainMap(t *testing.T) {
 	snap := graph.GraphSnapshot{
 		Files: []graph.FileNode{
 			{ID: "file:a", Path: "internal/graph/service.go", PackageID: "pkg:graph"},
@@ -76,7 +80,7 @@ func TestDetect_NoConflictWhenVerdictMatchesDomainMap(t *testing.T) {
 	}
 }
 
-func TestDetect_SkipsNonAutoPlaceTiers(t *testing.T) {
+func TestDetect_SuggestTierEmitsInfoSeverity(t *testing.T) {
 	snap := graph.GraphSnapshot{
 		Files: []graph.FileNode{
 			{ID: "file:a", Path: "internal/graph/service.go"},
@@ -93,8 +97,11 @@ func TestDetect_SkipsNonAutoPlaceTiers(t *testing.T) {
 		VerdictProvider: stubVerdictProvider{v: conflicts.Verdict{Tier: "suggest", TopDomain: "conflicts"}},
 	}
 	got, _ := mislocatedfile.New().Detect(context.Background(), in)
-	if len(got) != 0 {
-		t.Fatalf("non-auto_place tier must not emit, got %+v", got)
+	if len(got) != 1 {
+		t.Fatalf("suggest tier should emit advisory mislocation, got %+v", got)
+	}
+	if got[0].Severity != conflicts.SeverityInfo {
+		t.Fatalf("suggest tier should be info severity, got %s", got[0].Severity)
 	}
 }
 

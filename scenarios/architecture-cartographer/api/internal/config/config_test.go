@@ -21,22 +21,25 @@ func TestLoad_DefaultsWhenEmpty(t *testing.T) {
 
 func TestLoad_ValidOverrides(t *testing.T) {
 	cfg, diags := Load(envFrom(map[string]string{
-		EnvGodDomainFanOut:        "0.75",
-		EnvAutoPlaceMin:           "0.9",
-		EnvSuggestMin:             "0.6",
-		EnvArchetypeExemptions:    "composition-root, infrastructure, glue",
-		EnvNonDomainFolders:       "recipes,embeddings",
-		EnvLadderOrder:            "api_folders,domains_doc",
-		EnvBannedVocab:            "bucket,drawer",
-		EnvLayeringStrict:         "false",
-		EnvFileCohesionMaxLines:   "250",
-		EnvFileCohesionMaxSymbols: "12",
+		EnvGodDomainFanOut:     "0.75",
+		EnvAutoPlaceMin:        "0.9",
+		EnvSuggestMin:          "0.6",
+		EnvQuorumHigh:          "0.5",
+		EnvQuorumLow:           "0.35",
+		EnvArchetypeExemptions: "composition-root, infrastructure, glue",
+		EnvNonDomainFolders:    "recipes,embeddings",
+		EnvLadderOrder:         "api_folders,domains_doc",
+		EnvBannedVocab:         "bucket,drawer",
+		EnvLayeringStrict:      "false",
 	}))
 	if len(diags) != 0 {
 		t.Fatalf("valid overrides → no diagnostics, got %+v", diags)
 	}
 	if cfg.GodDomainFanOut != 0.75 || cfg.AutoPlaceMin != 0.9 || cfg.SuggestMin != 0.6 {
 		t.Fatalf("float overrides not applied: %+v", cfg)
+	}
+	if cfg.QuorumHigh != 0.5 || cfg.QuorumLow != 0.35 {
+		t.Fatalf("quorum overrides not applied: %+v", cfg)
 	}
 	if !reflect.DeepEqual(cfg.ArchetypeExemptions, []string{"composition-root", "infrastructure", "glue"}) {
 		t.Fatalf("archetypes = %v", cfg.ArchetypeExemptions)
@@ -53,16 +56,12 @@ func TestLoad_ValidOverrides(t *testing.T) {
 	if cfg.LayeringStrict {
 		t.Fatal("layering strict override not applied")
 	}
-	if cfg.FileCohesionMaxLines != 250 || cfg.FileCohesionMaxSymbols != 12 {
-		t.Fatalf("file cohesion overrides not applied: %+v", cfg)
-	}
 }
 
 func TestLoad_ClampsOutOfRange(t *testing.T) {
 	cfg, diags := Load(envFrom(map[string]string{
-		EnvInstabilityWarnBand:  "1.5",
-		EnvSuggestMin:           "-0.2",
-		EnvFileCohesionMaxLines: "-1",
+		EnvInstabilityWarnBand: "1.5",
+		EnvSuggestMin:          "-0.2",
 	}))
 	if cfg.InstabilityWarnBand != 1.0 {
 		t.Fatalf("instability should clamp to 1.0, got %v", cfg.InstabilityWarnBand)
@@ -72,9 +71,6 @@ func TestLoad_ClampsOutOfRange(t *testing.T) {
 	}
 	if len(diags) < 2 {
 		t.Fatalf("expected clamp diagnostics, got %+v", diags)
-	}
-	if cfg.FileCohesionMaxLines != 0 {
-		t.Fatalf("file cohesion max lines should clamp to 0, got %v", cfg.FileCohesionMaxLines)
 	}
 }
 
@@ -106,6 +102,16 @@ func TestLoad_AutoPlaceBelowSuggestRaised(t *testing.T) {
 	}
 	if len(diags) == 0 {
 		t.Fatal("expected a diagnostic for auto_place < suggest")
+	}
+}
+
+func TestLoad_QuorumHighBelowLowRaised(t *testing.T) {
+	cfg, diags := Load(envFrom(map[string]string{EnvQuorumHigh: "0.2", EnvQuorumLow: "0.4"}))
+	if cfg.QuorumHigh < cfg.QuorumLow {
+		t.Fatalf("quorum_high must be raised to >= quorum_low, got %+v", cfg)
+	}
+	if len(diags) == 0 {
+		t.Fatal("expected a diagnostic for quorum_high < quorum_low")
 	}
 }
 

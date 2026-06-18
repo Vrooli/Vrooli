@@ -44,7 +44,7 @@ These are the substantive content the lens applies to a qualifying artifact. The
 
 **Per-replica cost.** Walk the artifact and count duplicated infrastructure that scales per copy. For each candidate, record (a) line count per replica, (b) replication factor (templates: N future scenarios; references: 1; canonical examples: N future domains in this scenario), (c) proposed substrate home, (d) does that home exist today? Anything > ~20 lines of pure infrastructure repeated per copy is a substrate-extraction candidate.
 
-**Drift surface map.** Enumerate every place where N future copies must agree but only convention enforces it. For each: type-system, CI check, or hope? Examples surfaced on the react-vite template (2026-05-04): `lib/api.ts`'s plain `Error` vs `lib/notes.ts`'s typed `ApiError` (already drifted inside the template); `cli_commands_seed.json` as a third source of truth for CLI commands beyond `register.go` and `cli_mapping.command`.
+**Drift surface map.** Enumerate every place where N future copies must agree but only convention enforces it. For each: type-system, CI check, or hope? Examples surfaced on the react-vite template (2026-05-04): `lib/api.ts`'s plain `Error` vs `lib/notes.ts`'s typed `ApiError` (already drifted inside the template); legacy `cli_commands_seed.json` and `cli_mapping.command` as duplicate CLI surfaces beyond the manifest and command registration.
 
 Hand-rolled fakes of shared-package interfaces are also drift surfaces. When a
 shared package owns a public surface that consumers need to fake or harness in
@@ -102,14 +102,14 @@ This worked example is frozen as of 2026-05-04. Future audits create typed knowl
 
 `path:scenarios/prompt-manager/store/skills/packs/core/reference-pattern-fitness/SKILL.md` — the executable spec. Tagged `template-fitness` (deliberately not `audit-technique` — keeps the skill out of scenario-qa's registry coherence test). Required reading: this PoR doc, [`REFERENCE_SCENARIOS.md`](REFERENCE_SCENARIOS.md), `prompt-manager skills read knowledge-observatory-tools`, plus the single-instance lens(es) appropriate to the artifact.
 
-## Relation to audit-shaped skill ladders
+## Relation to audit-shaped skill maturity sources
 
-Audit-shaped skills (the steer audit cohort) carry their own maturity ladders per [`SKILL_AUTHORING.md`](SKILL_AUTHORING.md) §"Destination over direction: maturity ladders for audit-shaped skills". Those ladders are the structural expectations `development-toolchain-validator` mechanizes via its Skill Maturity Score (P1-005). This lens consumes that signal indirectly: a reference scenario whose dirtiness traces back to a skill that has no named destination is a different finding than one where the skill is well-defined but the substrate is missing. When triaging a finding, check whether the relevant audit-shaped skill has destination clarity before attributing the rot to template or substrate.
+Audit-shaped skills (the steer audit cohort) declare a named maturity source per [`SKILL_AUTHORING.md`](SKILL_AUTHORING.md) §"Destination over direction: maturity sources for audit-shaped skills". Some skills own their ladder directly; provider-backed health skills route to the provider's human CLI maturity report instead. Those destination sources are the structural expectations `development-toolchain-validator` mechanizes via its Skill Maturity Score (P1-005). This lens consumes that signal indirectly: a reference scenario whose dirtiness traces back to a skill that has no named destination is a different finding than one where the skill is well-defined but the substrate is missing. When triaging a finding, check whether the relevant audit-shaped skill has destination clarity before attributing the rot to template or substrate.
 
 ## Cross-references
 
 - [`TEMPLATE_CONVERGENCE_LOOP.md`](TEMPLATE_CONVERGENCE_LOOP.md) — the end-to-end workflow this lens is Stage 1 of (improve the ideal → validate → distill a convergence skill → mechanize detection + application). Read it to see where the findings this lens produces flow next.
-- [`SKILL_AUTHORING.md`](SKILL_AUTHORING.md) §"Destination over direction" — the canon section that defines the maturity-ladder contract this lens depends on.
+- [`SKILL_AUTHORING.md`](SKILL_AUTHORING.md) §"Destination over direction" — the canon section that defines the maturity-source contract this lens depends on.
 - [`REFERENCE_SCENARIOS.md`](REFERENCE_SCENARIOS.md) — registry of templates and the references generated from them. Confirms applicability before running this lens.
 - [`README.md`](README.md) — agent-system canon-doc index.
 - [`../scenario-qa/methods/audit/README.md`](../scenario-qa/methods/audit/README.md) — sibling registry for the seven single-instance lenses. This lens is **not** in it, by design (see "Composition with single-instance lenses" above).

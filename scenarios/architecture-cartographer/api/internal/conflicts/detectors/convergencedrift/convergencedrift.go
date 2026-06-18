@@ -30,6 +30,10 @@ func (Detector) Description() string {
 
 func (Detector) EmitsTypes() []string { return []string{"convergence_drift"} }
 
+func (Detector) Class() conflicts.FindingClass {
+	return conflicts.FindingClassDeterministic
+}
+
 // Detect maps each domains.ConvergenceFinding to a Conflict. Advisory
 // (info) findings become info-severity conflicts; real disagreements
 // (warn) become warn-severity. Each finding carries a templated

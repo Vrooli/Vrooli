@@ -47,6 +47,10 @@ func (Detector) Description() string {
 
 func (Detector) EmitsTypes() []string { return []string{"naming"} }
 
+func (Detector) Class() conflicts.FindingClass {
+	return conflicts.FindingClassHeuristic
+}
+
 func (d Detector) Detect(_ context.Context, in conflicts.DetectInput) ([]conflicts.Conflict, error) {
 	var out []conflicts.Conflict
 	seenDomains := make(map[string]struct{}, len(in.DomainMap.Domains))

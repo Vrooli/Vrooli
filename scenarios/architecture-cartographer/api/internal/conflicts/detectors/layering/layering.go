@@ -14,12 +14,13 @@ import (
 )
 
 const (
-	zoneUnknown   = ""
-	zoneTransport = "transport"
-	zoneDomain    = "domain"
-	zoneSubstrate = "substrate"
-	zoneCLI       = "cli"
-	zoneUI        = "ui"
+	zoneUnknown         = ""
+	zoneTransport       = "transport"
+	zoneDomain          = "domain"
+	zoneSubstrate       = "substrate"
+	zoneCompositionRoot = "composition-root"
+	zoneCLI             = "cli"
+	zoneUI              = "ui"
 )
 
 var builtInSubstrateSegments = map[string]struct{}{
@@ -30,11 +31,15 @@ var builtInSubstrateSegments = map[string]struct{}{
 	"httpc":        {},
 	"httpx":        {},
 	"middleware":   {},
-	"module":       {},
-	"modules":      {},
 	"server":       {},
 	"suppressions": {},
 	"testutil":     {},
+}
+
+var builtInCompositionRootSegments = map[string]struct{}{
+	"app":     {},
+	"module":  {},
+	"modules": {},
 }
 
 var orchestrationArchetypes = map[string]struct{}{
@@ -65,6 +70,10 @@ func (Detector) Description() string {
 }
 
 func (Detector) EmitsTypes() []string { return []string{"layering"} }
+
+func (Detector) Class() conflicts.FindingClass {
+	return conflicts.FindingClassDeterministic
+}
 
 func (d Detector) Detect(_ context.Context, in conflicts.DetectInput) ([]conflicts.Conflict, error) {
 	packages := packageIndex(in.Snapshot)
@@ -146,6 +155,9 @@ type violation struct {
 }
 
 func classifyViolation(from, to packageZone) violation {
+	if from.zone == zoneCompositionRoot || to.zone == zoneCompositionRoot {
+		return violation{}
+	}
 	if from.zone == zoneDomain && to.zone == zoneTransport {
 		return violation{
 			kind:            "domain-imports-transport",
@@ -197,6 +209,9 @@ func classifyPackage(pkg graph.PackageNode, m domains.DerivedDomainMap) packageZ
 	case strings.HasPrefix(path, "api/handlers/"):
 		return packageZone{path: path, zone: zoneTransport, domain: firstNonEmpty(domain, segmentAfter(path, "api/handlers/")), archetype: archetype}
 	case strings.HasPrefix(path, "api/internal/"):
+		if isBuiltInCompositionRoot(path) {
+			return packageZone{path: path, zone: zoneCompositionRoot, archetype: "composition-root"}
+		}
 		if m.IsSharedSubstrate(path) || isBuiltInSubstrate(path) {
 			return packageZone{path: path, zone: zoneSubstrate}
 		}
@@ -214,6 +229,12 @@ func classifyPackage(pkg graph.PackageNode, m domains.DerivedDomainMap) packageZ
 func isBuiltInSubstrate(path string) bool {
 	seg := segmentAfter(path, "api/internal/")
 	_, ok := builtInSubstrateSegments[seg]
+	return ok
+}
+
+func isBuiltInCompositionRoot(path string) bool {
+	seg := segmentAfter(path, "api/internal/")
+	_, ok := builtInCompositionRootSegments[seg]
 	return ok
 }
 

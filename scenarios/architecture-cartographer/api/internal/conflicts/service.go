@@ -163,11 +163,18 @@ func (s *service) ValidateConflicts(ctx context.Context, scenario string) ([]Con
 			continue
 		}
 		outstanding = append(outstanding, c)
-		if c.Severity == SeverityError || c.Severity == SeverityBlocker {
+		if IsDeterministicGateFinding(c) {
 			clean = false
 		}
 	}
 	return outstanding, clean, nil
+}
+
+// IsDeterministicGateFinding is the single gate predicate for conflict
+// findings: only deterministic ERROR/BLOCKER findings can fail an audit.
+func IsDeterministicGateFinding(c Conflict) bool {
+	return c.FindingClass == FindingClassDeterministic &&
+		(c.Severity == SeverityError || c.Severity == SeverityBlocker)
 }
 
 func (s *service) UpsertConflicts(ctx context.Context, scenario string, conflicts []Conflict) ([]Conflict, error) {

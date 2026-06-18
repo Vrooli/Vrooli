@@ -60,6 +60,31 @@ func TestDetect_AllowsCurrentDomainGlossary(t *testing.T) {
 	}
 }
 
+func TestDetect_IgnoresTransportHandlers(t *testing.T) {
+	got, err := glossarydrift.New().Detect(context.Background(), conflicts.DetectInput{
+		Scenario: "demo",
+		Snapshot: graph.GraphSnapshot{
+			Files: []graph.FileNode{{ID: "file:handler", Path: "api/handlers/billing/handler.go"}},
+			Symbols: []graph.SymbolNode{{
+				ID:       "sym:invoice-handler",
+				Name:     "InvoiceLedgerHandler",
+				FileID:   "file:handler",
+				Exported: true,
+			}},
+		},
+		DomainMap: domains.DerivedDomainMap{Domains: []domains.DerivedDomain{
+			{Name: "billing", Paths: []string{"api/handlers/billing/**", "api/internal/billing/**"}, Glossary: []string{"Payment"}},
+			{Name: "invoices", Paths: []string{"api/internal/invoices/**"}, Glossary: []string{"Invoice"}},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("Detect: %v", err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("transport handlers translate foreign domain vocabulary and must not be flagged, got %+v", got)
+	}
+}
+
 func TestDetect_IgnoresUnexportedSymbolsAndMissingGlossary(t *testing.T) {
 	got, err := glossarydrift.New().Detect(context.Background(), conflicts.DetectInput{
 		Scenario: "demo",

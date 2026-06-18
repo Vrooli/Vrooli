@@ -37,7 +37,7 @@ func SignalsService(graphSvc graph.Service, domainsSvc domains.Service, cfg conf
 	)
 	return signals.NewService(
 		reg,
-		signals.NewAggregator(reg, nil).WithThresholds(cfg.AutoPlaceMin, cfg.SuggestMin, cfg.TieDelta),
+		signals.NewAggregator(reg, nil).WithThresholds(cfg.AutoPlaceMin, cfg.SuggestMin, cfg.TieDelta, cfg.QuorumHigh, cfg.QuorumLow),
 		signals.NewGraphSnapshotProvider(graphSvc),
 		domainsSvc,
 		signals.WithBoundaryConfig(BoundaryConfig(cfg)),

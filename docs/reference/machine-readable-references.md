@@ -57,6 +57,7 @@ The marker and qualifier are metadata. They are not part of the literal value. F
 | `route` | HTTP, API, or UI route path. |
 | `package` | Package, module, or import path. |
 | `literal` | A string that looks machine-readable but should not be semantically validated. |
+| `num` | An intentional, owner-backed number in prose that the derived-count lint should not flag. Carries a category (see below): `num[target]:1000`. |
 
 ### Qualifiers
 
@@ -71,6 +72,21 @@ Qualifiers modify validation, not the value.
 | `external` | Outside this repo or local Vrooli installation. |
 | `literal` | Intentionally not semantic despite using a marker-shaped form. |
 
+### Number categories
+
+The `num` marker takes exactly one **category** (written in the qualifier slot) stating *why* the number is owner-backed and therefore exempt from the derived-count lint. These categories are specific to `num`; they are not general-purpose qualifiers.
+
+| Category | Use for |
+|---|---|
+| `target` | A goal value the system is steering toward (changes by decision, not drift). |
+| `threshold` | A limit or gate baked into behavior (rate limit, retry count, timeout). |
+| `price` | A monetary amount (SKU price, tier cost). |
+| `version` | A pinned version, protocol number, or schema revision. |
+| `decision` | A count fixed by an explicit operator decision. |
+| `sot` | Mirrors a named source of truth (reserve-and-generate candidate). |
+
+A `num` marker with no recognized category is itself flagged ("intentional number, no stated reason") — tagging must carry a reason, so it stays the documented exception rather than a cheap way to silence the lint.
+
 Examples:
 
 ```markdown
@@ -79,6 +95,7 @@ Use `topic[example]:friction-report/<scope>/*` for routed friction observations.
 Generated scenarios may have `path[example]:scenarios/<name>/docs/README.md`.
 The target platform is `platform:darwin/arm64`.
 The string `literal:if/else` is prose, not a topic or path.
+The free tier allows `num[threshold]:100` requests/day; we target `num[target]:1000` paying users.
 ```
 
 ## Choosing The Right Syntax
@@ -94,6 +111,8 @@ Use `doc:` when mentioning a documentation path as a typed inline literal.
 Use `topic:` when mentioning a current prompt-manager knowledge topic that should resolve to the topic graph. Use `topic[example]:` for illustrative topic strings.
 
 Use `literal:` when the string looks machine-readable but should not be interpreted by scanners.
+
+Use `num[<category>]:` only for a number that is genuinely owner-backed (a target, threshold, price, version, decision, or source-of-truth mirror). The default for a count in prose is to **reword it out** or point at its source of truth — most counts drift. Tagging is the exception, not the reflex. The derived-count lint (`docs health … numbers`) surfaces untagged counts as warnings.
 
 For operational instructions that tell an agent exactly what to run, prefer a full command. For example, use `prompt-manager team knowledge-list meta-optimization --topic-prefix=friction-inbox/` instead of only `topic:friction-inbox/*` when the command itself is the instruction.
 

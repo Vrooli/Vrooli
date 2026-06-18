@@ -111,6 +111,13 @@ type FakeDetector struct {
 func (f *FakeDetector) Name() string         { return f.NameValue }
 func (f *FakeDetector) Description() string  { return f.DescriptionValue }
 func (f *FakeDetector) EmitsTypes() []string { return f.TypesEmitted }
+func (f *FakeDetector) Class() conflicts.FindingClass {
+	if len(f.Conflicts) > 0 && f.Conflicts[0].FindingClass != conflicts.FindingClassUnspecified {
+		return f.Conflicts[0].FindingClass
+	}
+	return conflicts.FindingClassDeterministic
+}
+
 func (f *FakeDetector) Detect(_ context.Context, _ conflicts.DetectInput) ([]conflicts.Conflict, error) {
 	f.DetectCalls.Add(1)
 	if f.DetectErr != nil {

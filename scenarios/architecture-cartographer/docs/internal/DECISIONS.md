@@ -39,7 +39,9 @@ Known unresolved issues belong in [`PROBLEMS.md`](PROBLEMS.md).
 
 | Date | Superseded Decision | Replacement | Notes |
 |---|---|---|---|
-| None yet. | n/a | n/a | Add when a durable decision is replaced. |
+| 2026-06-18 | Aggregator includes abstaining signal weights in the verdict denominator so abstentions cannot inflate surviving signals. | Aggregator splits direction from confidence: `direction_value` normalizes over scoring signals only, while `confidence` records scoring-weight / available-weight participation and gates `auto_place` / `suggest` via quorum thresholds. | Fresh dogfood evidence showed the old denominator math made placement empirically dark: clearly placed files with several abstentions could never reach `suggest` or `auto_place`. The replacement preserves the false-confidence guard through explicit quorum instead of denominator dilution. |
+| 2026-06-18 | Cartographer owns `file_cohesion` / `oversized_file` warnings for long files and high symbol counts. | File/function size and related tidiness checks belong to `tidiness-manager`; cartographer owns structural architecture only. | Fresh audit evidence showed file-size warnings dominated cartographer output and buried structural signals. This aligns with `docs/reference/architecture-validation-responsibilities.md` responsibility B vs C. |
+| 2026-06-18 | Conflict envelope shape is stable across versions. | The envelope now carries `finding_class` (`deterministic` or `heuristic`) on native conflicts, audit summaries, and the shared `architecture.v1.ArchitectureFinding`. `finding_class` is excluded from `csid:` and `afid:` stable IDs. | The previous single severity ladder conflated deterministic architectural facts with advisory taste/placement heuristics. The class split is a deliberate greenfield contract break so test-genie can gate only deterministic error/blocker findings while preserving advisory output. |
 
 ## Cross-References
 

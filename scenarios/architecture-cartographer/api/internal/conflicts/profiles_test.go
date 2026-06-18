@@ -13,6 +13,7 @@ type namedDetector string
 func (d namedDetector) Name() string         { return string(d) }
 func (d namedDetector) Description() string  { return string(d) }
 func (d namedDetector) EmitsTypes() []string { return []string{string(d)} }
+func (d namedDetector) Class() FindingClass  { return FindingClassDeterministic }
 func (d namedDetector) Detect(context.Context, DetectInput) ([]Conflict, error) {
 	return []Conflict{{Detector: string(d), Type: string(d)}}, nil
 }
@@ -38,8 +39,11 @@ func TestProfiledRegistrySelectsAPIAndUniversalDetectors(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DetectAll: %v", err)
 	}
-	if detectors(got)["cross_scenario"] == false || detectors(got)["cycle"] == false || detectors(got)["file_cohesion"] == false || detectors(got)["glossary_drift"] == false || detectors(got)["layering"] == false || detectors(got)["surface_coherence"] == false {
+	if detectors(got)["cross_scenario"] == false || detectors(got)["cycle"] == false || detectors(got)["glossary_drift"] == false || detectors(got)["layering"] == false || detectors(got)["surface_coherence"] == false {
 		t.Fatalf("expected api + universal detectors, got %+v", got)
+	}
+	if detectors(got)["file_cohesion"] {
+		t.Fatalf("file_cohesion belongs to tidiness-manager and must not be selected by cartographer: %+v", got)
 	}
 	if detectors(got)["unused_ui_only"] {
 		t.Fatalf("unexpected detector selected: %+v", got)

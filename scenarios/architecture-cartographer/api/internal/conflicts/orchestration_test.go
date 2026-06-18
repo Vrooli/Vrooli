@@ -77,8 +77,8 @@ func TestService_ValidateConflicts_ListsOutstandingExcludingSuppressed(t *testin
 	// Detection-only: every non-suppressed conflict is outstanding. A
 	// suppressed finding is intentional and never counts.
 	for _, c := range []conflicts.Conflict{
-		{ID: "a", Scenario: "demo", Severity: conflicts.SeverityError, Suppressed: true, SuppressionReason: "intentional"},
-		{ID: "b", Scenario: "demo", Severity: conflicts.SeverityError},
+		{ID: "a", Scenario: "demo", Severity: conflicts.SeverityError, FindingClass: conflicts.FindingClassDeterministic, Suppressed: true, SuppressionReason: "intentional"},
+		{ID: "b", Scenario: "demo", Severity: conflicts.SeverityError, FindingClass: conflicts.FindingClassDeterministic},
 	} {
 		if _, err := repo.UpsertConflict(context.Background(), c); err != nil {
 			t.Fatalf("seed %s: %v", c.ID, err)

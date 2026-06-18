@@ -35,6 +35,10 @@ func (Detector) Description() string {
 
 func (Detector) EmitsTypes() []string { return []string{"surface_coherence"} }
 
+func (Detector) Class() conflicts.FindingClass {
+	return conflicts.FindingClassDeterministic
+}
+
 func (d Detector) Detect(_ context.Context, in conflicts.DetectInput) ([]conflicts.Conflict, error) {
 	actual := actualSurfaces(in)
 	active := activeSurfaces(in)

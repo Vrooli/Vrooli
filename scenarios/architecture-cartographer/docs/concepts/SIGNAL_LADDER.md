@@ -56,11 +56,10 @@ Five invariants are non-negotiable:
    Every `Score` carries a non-empty `Reason` and ≥1 `Evidence`.
    A signal that has no data for a chunk emits an explicit
    `Abstention` (also with `Reason` + ≥1 `Evidence`) — never an
-   empty `ScoreResult`. The aggregator includes abstaining signals'
-   weights in the verdict denominator so abstentions cannot inflate
-   the surviving signals' apparent contribution; a "silent skip"
-   would amount to letting one signal hide while another speaks
-   louder.
+   empty `ScoreResult`. The aggregator counts abstaining signals
+   toward participation confidence, but not toward the direction
+   denominator; a "silent skip" would amount to letting one signal
+   disappear from the quorum calculation.
 4. **Bounded** — `Score.Value` is always in `[0.0, 1.0]`. No
    negative scores; no scores above 1.0. Aggregation logic depends
    on this.
@@ -71,38 +70,66 @@ Five invariants are non-negotiable:
 ## The Aggregator
 
 The Aggregator combines all registered signals into a verdict per
-`(chunk, candidate_domain)` pair:
+`(chunk, candidate_domain)` pair. It keeps direction and confidence
+separate:
 
 ```
-verdict_value = Σ(signal_weight × signal_score) / Σ(signal_weights)
+direction_value = Σ(signal_weight × signal_score) / Σ(scoring_signal_weights)
+confidence      = Σ(scoring_signal_weights) / Σ(available_signal_weights)
 ```
 
-Weights use the day-one defaults below. Tier thresholds are
+An unavailable signal is skipped entirely. An abstaining signal is
+available-but-non-scoring: it does not dilute `direction_value`, but it
+does lower `confidence`. This preserves the original goal ("one
+surviving signal cannot pretend to be certainty") through an explicit
+quorum gate instead of by suppressing every directional score.
+
+Weights use the day-one defaults below. Tier and quorum thresholds are
 cartographer-**global** tunable levers (`CARTOGRAPHER_AUTO_PLACE_MIN`,
-`CARTOGRAPHER_SUGGEST_MIN`, `CARTOGRAPHER_TIE_DELTA` — see
+`CARTOGRAPHER_SUGGEST_MIN`, `CARTOGRAPHER_TIE_DELTA`,
+`CARTOGRAPHER_QUORUM_HIGH`, `CARTOGRAPHER_QUORUM_LOW` — see
 [`../reference/configuration.md`](../reference/configuration.md)), NOT
 per-scenario declarations. The candidate domain with the highest
-`verdict_value` is selected; its confidence tier is determined by those
-thresholds:
+`direction_value` is selected; its confidence tier is determined by
+the direction thresholds plus quorum:
 
 | Tier | Default Threshold | Action |
 |---|---|---|
-| `auto_place` | `verdict_value ≥ 0.85` | Auto-assign the chunk to this domain. |
-| `suggest` | `0.55 ≤ verdict_value < 0.85` | Surface as a ranked suggestion; agent must confirm. |
-| `conflict` | `verdict_value < 0.55` OR top-two domains within 0.10 | Emit a `mislocated_file` (or similar) conflict for agent decision. |
+| `auto_place` | `direction_value ≥ 0.85` AND `confidence ≥ 0.45` | Auto-assign the chunk to this domain. |
+| `suggest` | `direction_value ≥ 0.55` AND `confidence ≥ 0.30` | Surface as a ranked suggestion; agent must confirm. |
+| `conflict` | Below `suggest`, below low quorum, or top-two domains within 0.10 | Emit a `mislocated_file` (or similar) conflict for agent decision. |
 
 Aggregation produces explainability output that combines every
 signal's `Reason` and `Evidence` into a single verdict explanation.
 Sample output:
 
 ```
-Verdict: auto-place session.go in `auth` (verdict_value=0.91)
+Verdict: auto-place session.go in `auth` (direction_value=0.91, confidence=0.83)
   Evidence:
     [path-token, w=1.5] file path contains "auth" segment
     [import-cluster, w=1.0] file is in import-graph community {auth} (purity=0.92)
     [symbol-glossary, w=0.9] defines symbols matching auth glossary: Token, Session
     [importer-voting, w=0.8] 6 of 7 importers are in `auth` domain
 ```
+
+## Finding Classes
+
+Signals feed both deterministic checks and advisory checks. The output
+contract keeps those separate:
+
+- **Deterministic** findings are graph or declaration facts (for example
+  import cycles, wrong-direction layering imports, missing declared
+  surfaces). Deterministic `error`/`blocker` findings can gate audit
+  outcomes.
+- **Heuristic** findings are taste, placement, vocabulary, or coupling
+  signals (for example `mislocated_file`, `naming`, `glossary_drift`, and
+  `coupling_smell`). They remain visible and actionable, but are capped at
+  `warn` and never hard-fail CI.
+
+`finding_class` is excluded from stable identity for both native
+cartographer conflicts (`csid:`) and shared architecture findings (`afid:`).
+Reclassifying a finding is therefore a policy correction, not a new
+regression.
 
 ## Day-One Signals
 
@@ -140,8 +167,10 @@ weight chosen to reflect its independence and reliability.
   noisy purity scores; cycles inside a cluster can blur boundaries.
 - **When to disable**: extremely small scenarios where community
   detection has insufficient signal (≤20 files).
-- **Implementation note**: community detection runs once per graph
-  snapshot; results cached. Signal looks up cached community.
+- **Implementation note**: deterministic Louvain community detection
+  runs once per graph snapshot; results are cached on the signal graph
+  context. Stable node ordering and tie-breaks make repeated runs over
+  the same graph return the same communities.
 
 ### 3. `importer-voting`
 

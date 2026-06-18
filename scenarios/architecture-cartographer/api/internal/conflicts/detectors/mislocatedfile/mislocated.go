@@ -1,8 +1,8 @@
 // Package mislocatedfile is the mislocated-file detector. For each
 // file in the snapshot, it asks the aggregator (via
-// DetectInput.VerdictProvider) for the verdict, and emits a conflict
-// when the verdict's auto_place domain differs from the domain the
-// derived map assigns to the file's path.
+// DetectInput.VerdictProvider) for the content verdict, and emits a
+// conflict when the verdict's suggested domain differs from the domain
+// the derived map assigns to the file's path.
 //
 // The verdict's evidence travels into the conflict's evidence so the
 // operator + analytics see the exact basis the aggregator used.
@@ -30,6 +30,10 @@ func (Detector) EmitsTypes() []string {
 	return []string{"mislocated_file"}
 }
 
+func (Detector) Class() conflicts.FindingClass {
+	return conflicts.FindingClassHeuristic
+}
+
 func (d Detector) Detect(ctx context.Context, in conflicts.DetectInput) ([]conflicts.Conflict, error) {
 	if in.VerdictProvider == nil {
 		return nil, nil
@@ -42,7 +46,7 @@ func (d Detector) Detect(ctx context.Context, in conflicts.DetectInput) ([]confl
 	// are built once and the aggregator runs concurrently across chunks.
 	// This replaces the previous per-chunk loop that made detect
 	// O(F²×D×S) on large scenarios.
-	verdicts, err := in.VerdictProvider.VerdictsFor(ctx, in.Scenario, chunks)
+	verdicts, err := in.VerdictProvider.ContentVerdictsFor(ctx, in.Scenario, chunks)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +54,7 @@ func (d Detector) Detect(ctx context.Context, in conflicts.DetectInput) ([]confl
 	for i, chunk := range chunks {
 		v := verdicts[i]
 		current := in.DomainMap.DomainFor(chunk.Path)
-		if v.Tier != "auto_place" || v.TopDomain == "" {
+		if !emitsForTier(v.Tier) || v.TopDomain == "" {
 			continue
 		}
 		if v.TopDomain == current {
@@ -62,13 +66,13 @@ func (d Detector) Detect(ctx context.Context, in conflicts.DetectInput) ([]confl
 			Detector:  d.Name(),
 			Type:      "mislocated_file",
 			Subtype:   classifyMove(current, v.TopDomain),
-			Severity:  conflicts.SeverityWarn,
+			Severity:  severityForTier(v.Tier),
 			Locations: []string{chunk.Path},
 			Domains:   filterEmpty(current, v.TopDomain),
 			Evidence: []conflicts.Evidence{
 				{
 					Kind:    "verdict_top_domain",
-					Summary: fmt.Sprintf("aggregator suggests %s (value=%.3f)", v.TopDomain, v.TopValue),
+					Summary: fmt.Sprintf("content verdict suggests %s (tier=%s, value=%.3f)", v.TopDomain, v.Tier, v.TopValue),
 					Locator: chunk.Path,
 				},
 				{
@@ -89,6 +93,17 @@ func (d Detector) Detect(ctx context.Context, in conflicts.DetectInput) ([]confl
 		out = append(out, conflict)
 	}
 	return out, nil
+}
+
+func emitsForTier(tier string) bool {
+	return tier == "auto_place" || tier == "suggest"
+}
+
+func severityForTier(tier string) conflicts.Severity {
+	if tier == "auto_place" {
+		return conflicts.SeverityWarn
+	}
+	return conflicts.SeverityInfo
 }
 
 func classifyMove(from, to string) string {

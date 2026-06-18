@@ -5,8 +5,10 @@
 // the campaign domain, which ingests these findings and tracks them over
 // time.
 //
-// Conflict envelope shape is locked in v0.1: adding a new Detector does
-// not add fields to Conflict; only optional fields on Fix may be added.
+// Conflict envelope changes are deliberate contract work: greenfield
+// redesigns may add fields only when every in-repo producer and consumer is
+// updated in the same plan. The current envelope carries FindingClass so
+// deterministic gates and heuristic advice stay separate.
 package conflicts
 
 import (
@@ -25,6 +27,16 @@ const (
 	SeverityWarn        Severity = "warn"
 	SeverityError       Severity = "error"
 	SeverityBlocker     Severity = "blocker"
+)
+
+// FindingClass separates deterministic findings that can gate audit
+// outcomes from heuristic findings that remain advisory.
+type FindingClass string
+
+const (
+	FindingClassUnspecified   FindingClass = ""
+	FindingClassDeterministic FindingClass = "deterministic"
+	FindingClassHeuristic     FindingClass = "heuristic"
 )
 
 // FixKind enumerates the operator-facing fix categories.
@@ -76,6 +88,7 @@ type Conflict struct {
 	Type           string
 	Subtype        string
 	Severity       Severity
+	FindingClass   FindingClass
 	Locations      []string
 	Domains        []string
 	Evidence       []Evidence
@@ -98,6 +111,7 @@ type DetectorDescriptor struct {
 	Description string
 	Stability   string
 	EmitsTypes  []string
+	Class       FindingClass
 }
 
 // ResolverDescriptor describes one registered resolver.

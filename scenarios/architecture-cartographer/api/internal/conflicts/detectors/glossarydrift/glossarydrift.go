@@ -35,6 +35,10 @@ func (Detector) Description() string {
 
 func (Detector) EmitsTypes() []string { return []string{"glossary_drift"} }
 
+func (Detector) Class() conflicts.FindingClass {
+	return conflicts.FindingClassHeuristic
+}
+
 func (Detector) Detect(_ context.Context, in conflicts.DetectInput) ([]conflicts.Conflict, error) {
 	ownerByToken := glossaryTokenOwners(in.DomainMap.Domains)
 	if len(ownerByToken) == 0 {
@@ -49,6 +53,9 @@ func (Detector) Detect(_ context.Context, in conflicts.DetectInput) ([]conflicts
 		}
 		filePath := symbolPath(sym, files, packages)
 		if filePath == "" {
+			continue
+		}
+		if isTransportPath(filePath) {
 			continue
 		}
 		currentDomain := in.DomainMap.DomainFor(filePath)
@@ -146,6 +153,17 @@ func symbolPath(sym graph.SymbolNode, files map[string]graph.FileNode, packages 
 		return p.RepoPath
 	}
 	return ""
+}
+
+func isTransportPath(path string) bool {
+	path = strings.Trim(strings.ToLower(path), "/")
+	if path == "" {
+		return false
+	}
+	return strings.HasPrefix(path, "api/handlers/") ||
+		strings.Contains(path, "/api/handlers/") ||
+		strings.HasPrefix(path, "handlers/") ||
+		strings.Contains(path, "/handlers/")
 }
 
 func tokens(s string) []string {

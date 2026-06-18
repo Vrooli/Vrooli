@@ -18,11 +18,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestDogfood_ScenarioIsArchitecturallyClean is the closure for the
-// implementation plan: cartographer must pass its own architecture
-// audit. It runs the production detector chain slice that can operate on
-// the committed self-graph fixture (cycle + layering + naming +
-// mislocated_file) against:
+// TestDogfood_ScenarioHasNoDeterministicGateFindings is the closure for the
+// placement-engine and two-tier-findings redesign: cartographer must not
+// fail its own deterministic architecture gate. It runs the production detector
+// chain slice that can operate on the committed self-graph fixture
+// (cycle + layering + naming + mislocated_file) against:
 //
 //   - testdata/cartographer-self-graph.json — the committed snapshot
 //     of cartographer's own internal/ package import graph (hand-
@@ -31,18 +31,18 @@ import (
 //     (docs/concepts/DOMAINS.md via the extraction ladder) — there is
 //     no per-scenario architecture manifest.
 //
-// The closure requires that conflicts.Service.ValidateConflicts (or,
-// equivalently, the conflict list immediately after DetectConflicts)
-// reports zero error-severity conflicts. Mislocated_file is included
-// in the detector chain but receives nil VerdictProvider, so it
-// becomes a no-op — exactly mirroring v0.1 production: no signals
-// orchestration without a verdict source means no mislocation
-// emission.
+// The closure requires that the conflict list immediately after
+// DetectConflicts reports zero deterministic error/blocker conflicts. Heuristic
+// findings may still be reported as advisory warnings, but they must not
+// hard-fail the dogfood gate. mislocated_file is included in the detector chain;
+// with a nil VerdictProvider it skips, matching production behavior when the
+// caller did not wire the signals service.
 //
-// Failure mode: a real cycle, blocker layering violation, or banned generic
-// package/domain name introduced between the listed domains will fail this
-// test. That's the intent.
-func TestDogfood_ScenarioIsArchitecturallyClean(t *testing.T) {
+// Failure mode: a real cycle or blocker layering violation introduced between
+// the listed domains will fail this test. A cartographer-owned file-size
+// detector would also fail, because that responsibility belongs to
+// tidiness-manager.
+func TestDogfood_ScenarioHasNoDeterministicGateFindings(t *testing.T) {
 	graphPath := filepath.Join("testdata", "cartographer-self-graph.json")
 	scenarioRoot, err := filepath.Abs(filepath.Join("..", "..", ".."))
 	require.NoError(t, err)
@@ -71,7 +71,12 @@ func TestDogfood_ScenarioIsArchitecturallyClean(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	if len(got) != 0 {
-		t.Fatalf("dogfood gate broken: %d conflicts detected; first=%+v", len(got), got[0])
+	for _, finding := range got {
+		if finding.Type == "file_cohesion" {
+			t.Fatalf("cartographer must not emit tidiness-manager file_cohesion findings: %+v", finding)
+		}
+		if conflicts.IsDeterministicGateFinding(finding) {
+			t.Fatalf("dogfood deterministic gate broken: %+v", finding)
+		}
 	}
 }

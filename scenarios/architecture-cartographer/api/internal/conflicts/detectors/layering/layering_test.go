@@ -78,6 +78,32 @@ func TestDetect_SubstrateImportingDomainIsBlocker(t *testing.T) {
 	}
 }
 
+func TestDetect_CompositionRootMayImportHandlers(t *testing.T) {
+	got := detect(t, graph.GraphSnapshot{
+		Packages: []graph.PackageNode{
+			{ID: "pkg:app", RepoPath: "api/internal/app"},
+			{ID: "pkg:handler", RepoPath: "api/handlers/billing"},
+		},
+		Imports: []graph.ImportEdge{{From: "pkg:app", ToPackageID: "pkg:handler"}},
+	})
+	if len(got) != 0 {
+		t.Fatalf("composition root importing handlers should be allowed, got %+v", got)
+	}
+}
+
+func TestDetect_ModulesCompositionRootMayImportDomains(t *testing.T) {
+	got := detect(t, graph.GraphSnapshot{
+		Packages: []graph.PackageNode{
+			{ID: "pkg:modules", RepoPath: "api/internal/modules"},
+			{ID: "pkg:domain", RepoPath: "api/internal/billing"},
+		},
+		Imports: []graph.ImportEdge{{From: "pkg:modules", ToPackageID: "pkg:domain"}},
+	})
+	if len(got) != 0 {
+		t.Fatalf("modules composition root importing domains should be allowed, got %+v", got)
+	}
+}
+
 func TestDetect_NonCoordinatorDomainImportingSiblingDomain(t *testing.T) {
 	got := detect(t, graph.GraphSnapshot{
 		Packages: []graph.PackageNode{

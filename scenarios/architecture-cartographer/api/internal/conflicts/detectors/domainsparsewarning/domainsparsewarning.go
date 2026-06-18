@@ -28,6 +28,10 @@ func (Detector) Description() string {
 
 func (Detector) EmitsTypes() []string { return []string{"domains_doc_parse_warning"} }
 
+func (Detector) Class() conflicts.FindingClass {
+	return conflicts.FindingClassDeterministic
+}
+
 // Detect emits one warn-severity conflict per ladder warning. The
 // underlying warning's Kind becomes the conflict subtype; its
 // path:line becomes the Location; its Summary becomes the evidence.

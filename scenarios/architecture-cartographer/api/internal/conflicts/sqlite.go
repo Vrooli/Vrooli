@@ -63,6 +63,7 @@ LIMIT ?`
 type conflictPayload struct {
 	Locations         []string         `json:"locations,omitempty"`
 	Domains           []string         `json:"domains,omitempty"`
+	FindingClass      FindingClass     `json:"finding_class,omitempty"`
 	Evidence          []Evidence       `json:"evidence,omitempty"`
 	SuggestedFixes    []Fix            `json:"suggested_fixes,omitempty"`
 	Verdict           *signals.Verdict `json:"verdict,omitempty"`
@@ -93,6 +94,7 @@ func (r *sqliteRepository) UpsertConflict(ctx context.Context, c Conflict) (Conf
 	payload, err := json.Marshal(conflictPayload{
 		Locations:         c.Locations,
 		Domains:           c.Domains,
+		FindingClass:      c.FindingClass,
 		Evidence:          c.Evidence,
 		SuggestedFixes:    c.SuggestedFixes,
 		Verdict:           c.Verdict,
@@ -192,6 +194,7 @@ func scanConflict(s rowScanner) (Conflict, error) {
 		}
 		c.Locations = p.Locations
 		c.Domains = p.Domains
+		c.FindingClass = p.FindingClass
 		c.Evidence = p.Evidence
 		c.SuggestedFixes = p.SuggestedFixes
 		c.Verdict = p.Verdict

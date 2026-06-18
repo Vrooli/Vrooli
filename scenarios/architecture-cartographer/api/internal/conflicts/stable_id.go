@@ -12,9 +12,9 @@ import (
 // same StableID; an unrelated drift produces a different one.
 //
 // Inputs to the hash are intentionally minimal: scenario, detector,
-// type, subtype, sorted locations, sorted domains. Severity, evidence,
-// suggested fixes, and timestamps are excluded — they may evolve while
-// the underlying drift is "the same thing".
+// type, subtype, sorted locations, sorted domains. Severity, finding class,
+// evidence, suggested fixes, and timestamps are excluded — they may evolve
+// while the underlying drift is "the same thing".
 //
 // The output is "csid:" + first 16 hex chars of sha256(canonical).
 // Short enough to read in a CLI; long enough (64 bits) to avoid

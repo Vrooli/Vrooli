@@ -38,8 +38,8 @@ type Evidence struct {
 // Score is one signal's output for one (chunk, domain) pair. The
 // aggregator validates that Evidence is non-empty; signals that
 // produce a Score with empty Evidence violate the self-explaining
-// invariant and are treated as broken (their weight is preserved in
-// the denominator and the verdict carries a synthetic abstention).
+// invariant and are treated as broken (their weight counts toward
+// participation confidence and the verdict carries a synthetic abstention).
 type Score struct {
 	Signal   string
 	Domain   string
@@ -51,9 +51,8 @@ type Score struct {
 // Abstention is an explicit "I have no data for this chunk" emission
 // from a signal. Reason describes why; Evidence carries at least one
 // concrete pointer (e.g., {Kind:"abstain", Summary:"no importers",
-// Locator:chunk.Path}). The aggregator includes abstaining signals'
-// weights in the verdict denominator so abstentions cannot inflate
-// the surviving signals' apparent contribution.
+// Locator:chunk.Path}). The aggregator counts abstaining signals toward
+// available participation weight, but not toward direction normalization.
 type Abstention struct {
 	Signal   string
 	Reason   string
@@ -65,11 +64,11 @@ type Abstention struct {
 //   - Scores non-empty (each entry with ≥1 Evidence): signal contributed
 //     positive evidence for the listed domains.
 //   - Abstention non-nil: signal had nothing to say; the verdict still
-//     accounts for its weight in the denominator.
+//     accounts for its weight in participation confidence.
 //
 // A ScoreResult that is empty in both fields violates the self-
 // explaining invariant; the aggregator records this as a synthetic
-// broken-signal abstention so it surfaces in the verdict.
+// broken-signal abstention so it surfaces in the verdict confidence.
 type ScoreResult struct {
 	Scores     []Score
 	Abstention *Abstention
@@ -77,8 +76,8 @@ type ScoreResult struct {
 
 // DomainValue is one row of the aggregator's per-domain summary.
 type DomainValue struct {
-	Domain string
-	Value  float64
+	Domain         string
+	DirectionValue float64
 }
 
 // Verdict is the aggregator's output for one chunk.
@@ -88,6 +87,9 @@ type Verdict struct {
 	Tier           Tier
 	TopDomain      string
 	TopValue       float64
+	DirectionValue float64
+	Confidence     float64
+	QuorumMet      bool
 	RunnerUpDomain string
 	RunnerUpValue  float64
 	Scores         []Score

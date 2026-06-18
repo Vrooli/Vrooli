@@ -329,13 +329,61 @@ func renderHuman(msg *auditv1.AuditRunResponse) {
 			fmt.Printf("  %s\n", line)
 		}
 	}
+	renderCategoryMatrix(msg.GetCategories())
 	for _, f := range msg.GetFindings() {
 		sid := f.GetStableId()
 		if sid == "" {
 			sid = f.GetId()
 		}
-		fmt.Printf("  [%s] %s %s — %s\n", severityName(f.GetSeverity()), sid, f.GetType(), f.GetHeadline())
+		fmt.Printf("  [%s/%s] %s %s — %s\n", severityName(f.GetSeverity()), findingClassName(f.GetFindingClass()), sid, f.GetType(), f.GetHeadline())
 	}
+}
+
+func renderCategoryMatrix(categories []*auditv1.AuditCategory) {
+	if len(categories) == 0 {
+		return
+	}
+	fmt.Println("  score matrix:")
+	for _, category := range categories {
+		fmt.Printf("    %-22s %s %.0f%%\n", category.GetLabel(), progressBar(category.GetScore(), 16), category.GetScore()*100)
+	}
+	var advisory []string
+	for _, category := range categories {
+		for _, item := range category.GetTopItems() {
+			advisory = append(advisory, fmt.Sprintf("%s: [%s/%s] %s",
+				category.GetLabel(), severityName(item.GetSeverity()), findingClassName(item.GetFindingClass()), item.GetHeadline()))
+			if len(advisory) == 5 {
+				break
+			}
+		}
+		if len(advisory) == 5 {
+			break
+		}
+	}
+	if len(advisory) == 0 {
+		return
+	}
+	fmt.Println("  top things to consider:")
+	for _, item := range advisory {
+		fmt.Printf("    - %s\n", item)
+	}
+}
+
+func progressBar(score float64, width int) string {
+	if width <= 0 {
+		return ""
+	}
+	if score < 0 {
+		score = 0
+	}
+	if score > 1 {
+		score = 1
+	}
+	filled := int(score*float64(width) + 0.5)
+	if filled > width {
+		filled = width
+	}
+	return "[" + strings.Repeat("#", filled) + strings.Repeat("-", width-filled) + "]"
 }
 
 func freshnessName(f auditv1.SnapshotFreshness) string {
@@ -381,6 +429,17 @@ func severityName(s sharedv1.Severity) string {
 	}
 }
 
+func findingClassName(c sharedv1.FindingClass) string {
+	switch c {
+	case sharedv1.FindingClass_FINDING_CLASS_DETERMINISTIC:
+		return "deterministic"
+	case sharedv1.FindingClass_FINDING_CLASS_HEURISTIC:
+		return "heuristic"
+	default:
+		return "unspecified"
+	}
+}
+
 // jsonReport renders the proto message into a stable-field-name struct
 // for --json consumers (CI pipelines, scripts). Avoids leaking proto
 // camelCase field names by hand-mapping the user-visible shape.
@@ -399,8 +458,27 @@ type jsonReportT struct {
 	Domains            map[string]any   `json:"domains"`
 	Graph              map[string]any   `json:"graph"`
 	Coverage           map[string]any   `json:"coverage,omitempty"`
+	Categories         []jsonCategory   `json:"categories,omitempty"`
 	Assessment         any              `json:"assessment,omitempty"`
 	DurationMS         int64            `json:"duration_ms"`
+}
+
+type jsonCategory struct {
+	Key      string             `json:"key"`
+	Label    string             `json:"label"`
+	Score    float64            `json:"score"`
+	TopItems []jsonCategoryItem `json:"top_items,omitempty"`
+}
+
+type jsonCategoryItem struct {
+	ID           string   `json:"id"`
+	StableID     string   `json:"stable_id,omitempty"`
+	Type         string   `json:"type"`
+	Subtype      string   `json:"subtype,omitempty"`
+	Severity     string   `json:"severity"`
+	FindingClass string   `json:"finding_class"`
+	Locations    []string `json:"locations,omitempty"`
+	Headline     string   `json:"headline"`
 }
 
 type jsonFinding struct {
@@ -411,6 +489,7 @@ type jsonFinding struct {
 	Type       string   `json:"type"`
 	Subtype    string   `json:"subtype,omitempty"`
 	Severity   string   `json:"severity"`
+	Class      string   `json:"finding_class"`
 	Locations  []string `json:"locations,omitempty"`
 	Domains    []string `json:"domains,omitempty"`
 	Headline   string   `json:"headline"`
@@ -461,9 +540,34 @@ func jsonReport(msg *auditv1.AuditRunResponse) jsonReportT {
 			Type:       f.GetType(),
 			Subtype:    f.GetSubtype(),
 			Severity:   severityName(f.GetSeverity()),
+			Class:      findingClassName(f.GetFindingClass()),
 			Locations:  f.GetLocations(),
 			Domains:    f.GetDomains(),
 			Headline:   f.GetHeadline(),
+		})
+	}
+	for _, category := range msg.GetCategories() {
+		out.Categories = append(out.Categories, categoryJSON(category))
+	}
+	return out
+}
+
+func categoryJSON(category *auditv1.AuditCategory) jsonCategory {
+	out := jsonCategory{
+		Key:   category.GetKey(),
+		Label: category.GetLabel(),
+		Score: category.GetScore(),
+	}
+	for _, item := range category.GetTopItems() {
+		out.TopItems = append(out.TopItems, jsonCategoryItem{
+			ID:           item.GetId(),
+			StableID:     item.GetStableId(),
+			Type:         item.GetType(),
+			Subtype:      item.GetSubtype(),
+			Severity:     severityName(item.GetSeverity()),
+			FindingClass: findingClassName(item.GetFindingClass()),
+			Locations:    item.GetLocations(),
+			Headline:     item.GetHeadline(),
 		})
 	}
 	return out

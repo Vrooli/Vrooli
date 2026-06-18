@@ -29,6 +29,10 @@ func (Detector) Description() string {
 
 func (Detector) EmitsTypes() []string { return []string{"cross_scenario"} }
 
+func (Detector) Class() conflicts.FindingClass {
+	return conflicts.FindingClassDeterministic
+}
+
 func (d Detector) Detect(_ context.Context, in conflicts.DetectInput) ([]conflicts.Conflict, error) {
 	packages := packageIndex(in.Snapshot)
 	files := fileIndex(in.Snapshot)

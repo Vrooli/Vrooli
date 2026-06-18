@@ -69,18 +69,18 @@ lever never fails startup. Resolved by `internal/config.Load`.
 
 | Variable | Default | Range | Purpose |
 |---|---|---|---|
-| `CARTOGRAPHER_GOD_DOMAIN_FANOUT` | `0.6` | (0, 1] | Efferent fan-out fraction at/above which a non-exempt domain earns a `god_domain` coupling smell. |
+| `CARTOGRAPHER_GOD_DOMAIN_FANOUT` | `0.6` | (0, 1] | Efferent fan-out fraction at/above which a non-exempt domain earns a `god_domain` coupling smell. The smell also requires at least two outgoing domain dependencies in a graph with at least three peer domains, so tiny two-domain graphs do not look like hubs. |
 | `CARTOGRAPHER_INSTABILITY_WARN_BAND` | `0.7` | [0, 1] | Instability (I = Ce/(Ce+Ca)) at/above which a depended-upon domain earns an `unstable_dependency` smell. |
 | `CARTOGRAPHER_AUTO_PLACE_MIN` | `0.85` | [0, 1] | Aggregator tier threshold: verdicts at/above this value are `auto_place`. Must be ≥ suggest-min (raised if not). |
 | `CARTOGRAPHER_SUGGEST_MIN` | `0.55` | [0, 1] | Aggregator tier threshold: verdicts at/above this value (but below auto-place) are `suggest`. |
 | `CARTOGRAPHER_TIE_DELTA` | `0.10` | [0, 1] | Minimum gap between the top and runner-up domain before a verdict is treated as a tie (→ `conflict`). |
+| `CARTOGRAPHER_QUORUM_HIGH` | `0.45` | [0, 1] | Minimum signal participation confidence required before a high-direction verdict may become `auto_place`. Must be ≥ quorum-low (raised if not). |
+| `CARTOGRAPHER_QUORUM_LOW` | `0.30` | [0, 1] | Minimum signal participation confidence required before a high-direction verdict may become `suggest`. |
 | `CARTOGRAPHER_ARCHETYPE_EXEMPTIONS` | `composition-root,infrastructure` | CSV | Domain archetypes exempt from the `god_domain` smell (composition roots legitimately wire many domains). |
 | `CARTOGRAPHER_NON_DOMAIN_FOLDERS` | (empty) | CSV | Extra `api/internal/` folder names treated as infrastructure (extends the built-in set: server, module, modules, database, testutil, middleware, clock, git, httpc, httpx). |
 | `CARTOGRAPHER_LADDER_ORDER` | `domains_doc,api_folders,cli_groups` | CSV of source names | Domain-extraction trust order, highest first. Valid sources: `api_manifest` (reserved), `domains_doc`, `api_folders`, `cli_groups`. The UI rung is always advisory and appended regardless. |
 | `CARTOGRAPHER_BANNED_VOCAB` | `common,helpers,manager,misc,stuff,utils` | CSV | Generic domain/package names the `naming` detector flags because they hide product intent. |
 | `CARTOGRAPHER_LAYERING_STRICT` | `true` | boolean | When true, blocker-eligible `layering` violations (domain→transport and substrate→product imports) emit blocker severity; when false, they emit error severity for rollout. |
-| `CARTOGRAPHER_FILE_COHESION_MAX_LINES` | `400` | [0, 100000] | Maximum non-test source-file line count before the `file_cohesion` detector emits an oversized-file warning. `0` disables the line-count signal. |
-| `CARTOGRAPHER_FILE_COHESION_MAX_SYMBOLS` | `25` | [0, 100000] | Maximum symbols declared in one non-test source file before the `file_cohesion` detector emits an oversized-file warning. `0` disables the symbol-count signal. |
 
 **Deliberately NOT exposed.** Cartographer intentionally has no lever for:
 
@@ -90,6 +90,9 @@ lever never fails startup. Resolved by `internal/config.Load`.
   specific acyclic forbidden dependency is therefore undetectable by design;
   this trade-off buys zero-maintenance, zero-config operation. (It may return
   later as an optional overlay.)
+- **File or function size thresholds.** File length, symbol count, and similar
+  tidiness signals belong to `tidiness-manager`, not to cartographer's
+  structural architecture surface.
 - **Per-scenario thresholds or signal weights.** These levers are global to
   the cartographer instance, never declared inside a target scenario.
 - **Stable-kernel detection bounds.** The shared-substrate (stable-kernel)

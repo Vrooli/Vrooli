@@ -208,6 +208,7 @@ func conflictDetailLines(c *sharedv1.Conflict) []string {
 	lines := []string{
 		fmt.Sprintf("what     : %s (%s)", c.GetType(), c.GetSubtype()),
 		fmt.Sprintf("severity : %s", severityName(c.GetSeverity())),
+		fmt.Sprintf("class    : %s", findingClassName(c.GetFindingClass())),
 		fmt.Sprintf("stable_id: %s", c.GetStableId()),
 	}
 	if iid := c.GetInstanceId(); iid != "" {
@@ -261,8 +262,8 @@ func conflictLine(c *sharedv1.Conflict) string {
 			loc = fmt.Sprintf("%s (+%d more)", loc, len(c.GetLocations())-1)
 		}
 	}
-	return fmt.Sprintf("%s [%s/%s] %s domain=%s loc=%s",
-		c.GetId(), c.GetType(), severityName(c.GetSeverity()), c.GetSubtype(), domains, loc)
+	return fmt.Sprintf("%s [%s/%s/%s] %s domain=%s loc=%s",
+		c.GetId(), c.GetType(), severityName(c.GetSeverity()), findingClassName(c.GetFindingClass()), c.GetSubtype(), domains, loc)
 }
 
 func severityName(s sharedv1.Severity) string {
@@ -275,6 +276,17 @@ func severityName(s sharedv1.Severity) string {
 		return "error"
 	case sharedv1.Severity_SEVERITY_BLOCKER:
 		return "blocker"
+	default:
+		return "unspecified"
+	}
+}
+
+func findingClassName(c sharedv1.FindingClass) string {
+	switch c {
+	case sharedv1.FindingClass_FINDING_CLASS_DETERMINISTIC:
+		return "deterministic"
+	case sharedv1.FindingClass_FINDING_CLASS_HEURISTIC:
+		return "heuristic"
 	default:
 		return "unspecified"
 	}

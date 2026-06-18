@@ -108,10 +108,11 @@ func TestAggregator_DropsEmptyEvidenceAndSynthesizesBrokenContractAbstention(t *
 	}
 }
 
-func TestAggregator_AbstainingSignalIncludedInDenominator(t *testing.T) {
+func TestAggregator_AbstainingSignalDoesNotDiluteDirectionValue(t *testing.T) {
 	// Scored signal weight=2.0 emits domain=graph value=1.0.
 	// Abstaining signal weight=1.0 emits no score.
-	// Verdict denominator should include both weights, so graph value = 2/3 ≈ 0.667 (suggest).
+	// Direction should be 1.0 because only scoring signals normalize it;
+	// confidence should record participation as 2/3.
 	scored := &mocks.FakeSignal{
 		NameValue: "fake-scored",
 		Weight:    2.0,
@@ -133,14 +134,52 @@ func TestAggregator_AbstainingSignalIncludedInDenominator(t *testing.T) {
 	}
 	agg := signals.NewAggregator(newReg(scored, abstaining), nil)
 	v := agg.Aggregate(context.Background(), signals.NewGraphContext("demo", graph.GraphSnapshot{}, emptyDomainMap()), graph.Chunk{ID: "c1"})
-	if got := v.TopValue; got < 0.66 || got > 0.67 {
-		t.Fatalf("abstaining signal must contribute to denominator: top=%v want ~0.667", got)
+	if got := v.TopValue; got != 1.0 {
+		t.Fatalf("abstaining signal must not dilute direction value: got %v want 1.0", got)
+	}
+	if got := v.Confidence; got < 0.66 || got > 0.67 {
+		t.Fatalf("confidence should capture participation: got %v want ~0.667", got)
 	}
 	if len(v.Abstentions) != 1 || v.Abstentions[0].Signal != "fake-abstain" {
 		t.Fatalf("expected one abstention for fake-abstain, got %+v", v.Abstentions)
 	}
-	if v.Tier != signals.TierSuggest {
-		t.Fatalf("expected suggest tier at ~0.667, got %s", v.Tier)
+	if v.Tier != signals.TierAutoPlace {
+		t.Fatalf("expected auto_place with direction=1.0 and confidence above high quorum, got %s", v.Tier)
+	}
+}
+
+func TestAggregator_SingleSignalCannotAutoPlaceWithoutHighQuorum(t *testing.T) {
+	scored := &mocks.FakeSignal{
+		NameValue: "fake-scored",
+		Weight:    1.0,
+		Available: true,
+		Returns: []signals.Score{{
+			Signal: "fake-scored", Domain: "graph", Value: 1.0,
+			Evidence: []signals.Evidence{{Kind: "demo", Summary: "x"}},
+		}},
+	}
+	abstainA := &mocks.FakeSignal{NameValue: "fake-abstain-a", Weight: 1.0, Available: true, Abstain: &signals.Abstention{
+		Signal: "fake-abstain-a", Reason: "no data", Evidence: []signals.Evidence{{Kind: "abstain", Summary: "no data"}},
+	}}
+	abstainB := &mocks.FakeSignal{NameValue: "fake-abstain-b", Weight: 1.0, Available: true, Abstain: &signals.Abstention{
+		Signal: "fake-abstain-b", Reason: "no data", Evidence: []signals.Evidence{{Kind: "abstain", Summary: "no data"}},
+	}}
+	abstainC := &mocks.FakeSignal{NameValue: "fake-abstain-c", Weight: 1.0, Available: true, Abstain: &signals.Abstention{
+		Signal: "fake-abstain-c", Reason: "no data", Evidence: []signals.Evidence{{Kind: "abstain", Summary: "no data"}},
+	}}
+	agg := signals.NewAggregator(newReg(scored, abstainA, abstainB, abstainC), nil)
+	v := agg.Aggregate(context.Background(), signals.NewGraphContext("demo", graph.GraphSnapshot{}, emptyDomainMap()), graph.Chunk{ID: "c1"})
+	if v.TopValue != 1.0 {
+		t.Fatalf("direction should remain unanimous at 1.0, got %v", v.TopValue)
+	}
+	if v.Confidence != 0.25 {
+		t.Fatalf("confidence = %v, want 0.25", v.Confidence)
+	}
+	if v.Tier != signals.TierConflict {
+		t.Fatalf("low-quorum unanimous verdict should conflict, got %s", v.Tier)
+	}
+	if v.QuorumMet {
+		t.Fatal("quorum should not be met below low quorum")
 	}
 }
 

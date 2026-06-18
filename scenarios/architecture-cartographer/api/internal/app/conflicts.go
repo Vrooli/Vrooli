@@ -10,7 +10,6 @@ import (
 	"architecture-cartographer/internal/conflicts/detectors/crossscenario"
 	"architecture-cartographer/internal/conflicts/detectors/cycle"
 	"architecture-cartographer/internal/conflicts/detectors/domainsparsewarning"
-	"architecture-cartographer/internal/conflicts/detectors/filecohesion"
 	"architecture-cartographer/internal/conflicts/detectors/glossarydrift"
 	"architecture-cartographer/internal/conflicts/detectors/layering"
 	"architecture-cartographer/internal/conflicts/detectors/mislocatedfile"
@@ -36,10 +35,6 @@ func ConflictsService(
 			crossscenario.New(),
 			cycle.New(),
 			domainsparsewarning.New(),
-			filecohesion.NewWithConfig(filecohesion.Config{
-				MaxLines:   cfg.FileCohesionMaxLines,
-				MaxSymbols: cfg.FileCohesionMaxSymbols,
-			}),
 			glossarydrift.New(),
 			layering.NewWithStrict(cfg.LayeringStrict),
 			mislocatedfile.New(),

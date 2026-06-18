@@ -3,6 +3,7 @@ package audit
 import (
 	"context"
 	"errors"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -123,6 +124,7 @@ func (s *service) Run(ctx context.Context, in RunInput) (Report, error) {
 	rep.ByType = countByType(filtered)
 	rep.ByDomain = countByDomain(filtered)
 	rep.SuppressedFindings = countSuppressed(filtered)
+	rep.Categories = scoreCategories(rep.Coverage, filtered, rep.Domains.Confidence)
 	rep.Outcome, rep.OutcomeReason = decideOutcomeWithAuthority(scenario, filtered, failOn, rep.Domains.Confidence, in.AllowLowAuthority)
 	if rep.Outcome == OutcomeClean && len(snap.SkippedAdapters) > 0 {
 		// Graph extract degraded silently (--skip-ts or workspace_unsupported
@@ -139,31 +141,50 @@ type cachedVerdictProvider struct {
 	upstream conflicts.VerdictProvider
 	mu       sync.Mutex
 	cache    map[string][]conflicts.Verdict
+	content  map[string][]conflicts.Verdict
 }
 
 func newCachedVerdictProvider(upstream conflicts.VerdictProvider) *cachedVerdictProvider {
-	return &cachedVerdictProvider{upstream: upstream, cache: make(map[string][]conflicts.Verdict)}
+	return &cachedVerdictProvider{
+		upstream: upstream,
+		cache:    make(map[string][]conflicts.Verdict),
+		content:  make(map[string][]conflicts.Verdict),
+	}
 }
 
 func (p *cachedVerdictProvider) VerdictsFor(ctx context.Context, scenario string, chunks []graph.Chunk) ([]conflicts.Verdict, error) {
+	return p.verdictsFor(ctx, scenario, chunks, false)
+}
+
+func (p *cachedVerdictProvider) ContentVerdictsFor(ctx context.Context, scenario string, chunks []graph.Chunk) ([]conflicts.Verdict, error) {
+	return p.verdictsFor(ctx, scenario, chunks, true)
+}
+
+func (p *cachedVerdictProvider) verdictsFor(ctx context.Context, scenario string, chunks []graph.Chunk, contentOnly bool) ([]conflicts.Verdict, error) {
 	if p == nil || p.upstream == nil || len(chunks) == 0 {
 		return nil, nil
 	}
 	key := verdictCacheKey(scenario, chunks)
+	cache := p.cache
+	fetch := p.upstream.VerdictsFor
+	if contentOnly {
+		cache = p.content
+		fetch = p.upstream.ContentVerdictsFor
+	}
 	p.mu.Lock()
-	if got, ok := p.cache[key]; ok {
+	if got, ok := cache[key]; ok {
 		cp := append([]conflicts.Verdict(nil), got...)
 		p.mu.Unlock()
 		return cp, nil
 	}
 	p.mu.Unlock()
 
-	got, err := p.upstream.VerdictsFor(ctx, scenario, chunks)
+	got, err := fetch(ctx, scenario, chunks)
 	if err != nil {
 		return nil, err
 	}
 	p.mu.Lock()
-	p.cache[key] = append([]conflicts.Verdict(nil), got...)
+	cache[key] = append([]conflicts.Verdict(nil), got...)
 	p.mu.Unlock()
 	return got, nil
 }
@@ -395,6 +416,154 @@ func countByType(in []conflicts.Conflict) map[string]int {
 	return out
 }
 
+func scoreCategories(coverage CoverageSummary, findings []conflicts.Conflict, authorityConfidence string) []AuditCategory {
+	return []AuditCategory{
+		{
+			Key:      "placement_legibility",
+			Label:    "Placement legibility",
+			Score:    placementScore(coverage),
+			TopItems: topItemsFor(findings, 3, "mislocated_file"),
+		},
+		{
+			Key:      "surface_alignment",
+			Label:    "Surface alignment",
+			Score:    penaltyScore(findings, "surface_coherence"),
+			TopItems: topItemsFor(findings, 3, "surface_coherence"),
+		},
+		{
+			Key:      "boundary_cleanliness",
+			Label:    "Boundary cleanliness",
+			Score:    penaltyScore(findings, "layering", "cycle", "cross_scenario"),
+			TopItems: topItemsFor(findings, 3, "layering", "cycle", "cross_scenario"),
+		},
+		{
+			Key:      "naming_clarity",
+			Label:    "Naming clarity",
+			Score:    penaltyScore(findings, "naming", "glossary_drift"),
+			TopItems: topItemsFor(findings, 3, "naming", "glossary_drift"),
+		},
+		{
+			Key:      "authority",
+			Label:    "Authority",
+			Score:    authorityScore(authorityConfidence),
+			TopItems: topItemsFor(findings, 3, "domain_sparse_warning", "convergence_drift"),
+		},
+	}
+}
+
+func placementScore(coverage CoverageSummary) float64 {
+	if coverage.TotalFiles == 0 {
+		return 1
+	}
+	return clamp01((coverage.AutoPlace.Percent + coverage.Suggest.Percent) / 100)
+}
+
+func penaltyScore(findings []conflicts.Conflict, types ...string) float64 {
+	if len(findings) == 0 {
+		return 1
+	}
+	typeSet := newSet(types)
+	penalty := 0.0
+	for _, finding := range findings {
+		if _, ok := typeSet[finding.Type]; !ok {
+			continue
+		}
+		switch finding.Severity {
+		case conflicts.SeverityBlocker:
+			penalty += 0.35
+		case conflicts.SeverityError:
+			penalty += 0.25
+		case conflicts.SeverityWarn:
+			penalty += 0.12
+		case conflicts.SeverityInfo:
+			penalty += 0.05
+		default:
+			penalty += 0.05
+		}
+	}
+	return clamp01(1 - penalty)
+}
+
+func authorityScore(confidence string) float64 {
+	switch confidence {
+	case string(domains.ConfidenceHigh):
+		return 1
+	case "medium":
+		return 0.75
+	case string(domains.ConfidenceLow):
+		return 0.4
+	case string(domains.ConfidenceMissing):
+		return 0
+	default:
+		return 0.5
+	}
+}
+
+func topItemsFor(findings []conflicts.Conflict, limit int, types ...string) []CategoryTopItem {
+	if limit <= 0 {
+		return nil
+	}
+	typeSet := newSet(types)
+	matches := make([]conflicts.Conflict, 0, len(findings))
+	for _, finding := range findings {
+		if _, ok := typeSet[finding.Type]; ok {
+			matches = append(matches, finding)
+		}
+	}
+	sortConflicts(matches)
+	if len(matches) > limit {
+		matches = matches[:limit]
+	}
+	out := make([]CategoryTopItem, 0, len(matches))
+	for _, finding := range matches {
+		out = append(out, CategoryTopItem{
+			ID:           finding.ID,
+			StableID:     finding.StableID,
+			Type:         finding.Type,
+			Subtype:      finding.Subtype,
+			Severity:     finding.Severity,
+			FindingClass: finding.FindingClass,
+			Locations:    append([]string(nil), finding.Locations...),
+			Headline:     headlineForCategory(finding),
+		})
+	}
+	return out
+}
+
+func sortConflicts(findings []conflicts.Conflict) {
+	sort.SliceStable(findings, func(i, j int) bool {
+		left, right := findings[i], findings[j]
+		if severityRank(left.Severity) != severityRank(right.Severity) {
+			return severityRank(left.Severity) > severityRank(right.Severity)
+		}
+		if left.Type != right.Type {
+			return left.Type < right.Type
+		}
+		if left.Subtype != right.Subtype {
+			return left.Subtype < right.Subtype
+		}
+		return strings.Join(left.Locations, "\x00") < strings.Join(right.Locations, "\x00")
+	})
+}
+
+func headlineForCategory(c conflicts.Conflict) string {
+	if len(c.Locations) == 0 {
+		return c.Type
+	}
+	return c.Type + " @ " + c.Locations[0]
+}
+
+func clamp01(v float64) float64 {
+	switch {
+	case v < 0:
+		return 0
+	case v > 1:
+		return 1
+	default:
+		return v
+	}
+}
+
 // severityRank orders severities; higher rank = more blocking.
 func severityRank(s conflicts.Severity) int {
 	switch s {
@@ -411,13 +580,15 @@ func severityRank(s conflicts.Severity) int {
 	}
 }
 
-// decideOutcome returns Findings when ANY conflict's severity is ≥
-// failOn; otherwise Clean (even if lower-severity advisory findings
-// exist — they are reported but do not flip the outcome).
+// decideOutcome returns Findings only when a deterministic conflict reaches
+// ERROR/BLOCKER severity. Heuristic findings are reported but never gate.
 func decideOutcome(in []conflicts.Conflict, failOn conflicts.Severity) Outcome {
 	threshold := severityRank(failOn)
+	if threshold < severityRank(conflicts.SeverityError) {
+		threshold = severityRank(conflicts.SeverityError)
+	}
 	for _, c := range in {
-		if severityRank(c.Severity) >= threshold {
+		if c.FindingClass == conflicts.FindingClassDeterministic && severityRank(c.Severity) >= threshold {
 			return OutcomeFindings
 		}
 	}

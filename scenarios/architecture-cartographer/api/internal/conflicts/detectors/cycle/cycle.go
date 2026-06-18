@@ -41,6 +41,10 @@ func (Detector) EmitsTypes() []string {
 	return []string{"cycle"}
 }
 
+func (Detector) Class() conflicts.FindingClass {
+	return conflicts.FindingClassDeterministic
+}
+
 func (d Detector) Detect(_ context.Context, in conflicts.DetectInput) ([]conflicts.Conflict, error) {
 	sccs := tarjan(in.Snapshot)
 	if len(sccs) == 0 {

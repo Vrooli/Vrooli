@@ -179,7 +179,7 @@ func verdictToProto(v signals.Verdict) *sharedv1.Verdict {
 	for _, d := range v.DomainValues {
 		out.DomainValues = append(out.DomainValues, &sharedv1.DomainValue{
 			Domain: d.Domain,
-			Value:  d.Value,
+			Value:  d.DirectionValue,
 		})
 	}
 	for _, a := range v.Abstentions {

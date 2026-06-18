@@ -19,18 +19,18 @@ import (
 // Envelope of env-var keys. All levers share the CARTOGRAPHER_ prefix,
 // matching the existing project-dir overrides in main.go.
 const (
-	EnvGodDomainFanOut        = "CARTOGRAPHER_GOD_DOMAIN_FANOUT"
-	EnvInstabilityWarnBand    = "CARTOGRAPHER_INSTABILITY_WARN_BAND"
-	EnvAutoPlaceMin           = "CARTOGRAPHER_AUTO_PLACE_MIN"
-	EnvSuggestMin             = "CARTOGRAPHER_SUGGEST_MIN"
-	EnvTieDelta               = "CARTOGRAPHER_TIE_DELTA"
-	EnvArchetypeExemptions    = "CARTOGRAPHER_ARCHETYPE_EXEMPTIONS"
-	EnvNonDomainFolders       = "CARTOGRAPHER_NON_DOMAIN_FOLDERS"
-	EnvLadderOrder            = "CARTOGRAPHER_LADDER_ORDER"
-	EnvBannedVocab            = "CARTOGRAPHER_BANNED_VOCAB"
-	EnvLayeringStrict         = "CARTOGRAPHER_LAYERING_STRICT"
-	EnvFileCohesionMaxLines   = "CARTOGRAPHER_FILE_COHESION_MAX_LINES"
-	EnvFileCohesionMaxSymbols = "CARTOGRAPHER_FILE_COHESION_MAX_SYMBOLS"
+	EnvGodDomainFanOut     = "CARTOGRAPHER_GOD_DOMAIN_FANOUT"
+	EnvInstabilityWarnBand = "CARTOGRAPHER_INSTABILITY_WARN_BAND"
+	EnvAutoPlaceMin        = "CARTOGRAPHER_AUTO_PLACE_MIN"
+	EnvSuggestMin          = "CARTOGRAPHER_SUGGEST_MIN"
+	EnvTieDelta            = "CARTOGRAPHER_TIE_DELTA"
+	EnvQuorumHigh          = "CARTOGRAPHER_QUORUM_HIGH"
+	EnvQuorumLow           = "CARTOGRAPHER_QUORUM_LOW"
+	EnvArchetypeExemptions = "CARTOGRAPHER_ARCHETYPE_EXEMPTIONS"
+	EnvNonDomainFolders    = "CARTOGRAPHER_NON_DOMAIN_FOLDERS"
+	EnvLadderOrder         = "CARTOGRAPHER_LADDER_ORDER"
+	EnvBannedVocab         = "CARTOGRAPHER_BANNED_VOCAB"
+	EnvLayeringStrict      = "CARTOGRAPHER_LAYERING_STRICT"
 )
 
 // Config is the resolved control surface.
@@ -45,6 +45,11 @@ type Config struct {
 	// [0,1]; AutoPlaceMin must be >= SuggestMin.
 	AutoPlaceMin float64
 	SuggestMin   float64
+	// QuorumHigh / QuorumLow are the participation thresholds required before
+	// a directional score may become auto_place or suggest. Range [0,1];
+	// QuorumHigh must be >= QuorumLow.
+	QuorumHigh float64
+	QuorumLow  float64
 	// TieDelta is the minimum gap between top and runner-up before a verdict
 	// is a tie (→ conflict). Range [0,1].
 	TieDelta float64
@@ -62,10 +67,6 @@ type Config struct {
 	// LayeringStrict promotes blocker-eligible wrong-direction dependencies to
 	// blocker severity. When false, they remain error severity.
 	LayeringStrict bool
-	// FileCohesionMaxLines / FileCohesionMaxSymbols bound single-file
-	// responsibility signals. Zero disables the corresponding signal.
-	FileCohesionMaxLines   int
-	FileCohesionMaxSymbols int
 }
 
 // Diagnostic is a non-fatal config-resolution finding.
@@ -79,18 +80,18 @@ type Diagnostic struct {
 // so omitting all env vars reproduces the original behavior.
 func Default() Config {
 	return Config{
-		GodDomainFanOut:        0.6,
-		InstabilityWarnBand:    0.7,
-		AutoPlaceMin:           0.85,
-		SuggestMin:             0.55,
-		TieDelta:               0.10,
-		ArchetypeExemptions:    []string{"composition-root", "infrastructure"},
-		ExtraNonDomainFolders:  nil,
-		LadderOrder:            []string{"domains_doc", "api_folders", "cli_groups"},
-		BannedVocabulary:       []string{"common", "helpers", "manager", "misc", "stuff", "utils"},
-		LayeringStrict:         true,
-		FileCohesionMaxLines:   400,
-		FileCohesionMaxSymbols: 25,
+		GodDomainFanOut:       0.6,
+		InstabilityWarnBand:   0.7,
+		AutoPlaceMin:          0.85,
+		SuggestMin:            0.55,
+		QuorumHigh:            0.45,
+		QuorumLow:             0.30,
+		TieDelta:              0.10,
+		ArchetypeExemptions:   []string{"composition-root", "infrastructure"},
+		ExtraNonDomainFolders: nil,
+		LadderOrder:           []string{"domains_doc", "api_folders", "cli_groups"},
+		BannedVocabulary:      []string{"common", "helpers", "manager", "misc", "stuff", "utils"},
+		LayeringStrict:        true,
 	}
 }
 
@@ -112,11 +113,17 @@ func Load(getenv func(string) string) (Config, []Diagnostic) {
 	cfg.InstabilityWarnBand = floatLever(getenv, EnvInstabilityWarnBand, cfg.InstabilityWarnBand, 0, 1, true, &diags)
 	cfg.AutoPlaceMin = floatLever(getenv, EnvAutoPlaceMin, cfg.AutoPlaceMin, 0, 1, true, &diags)
 	cfg.SuggestMin = floatLever(getenv, EnvSuggestMin, cfg.SuggestMin, 0, 1, true, &diags)
+	cfg.QuorumHigh = floatLever(getenv, EnvQuorumHigh, cfg.QuorumHigh, 0, 1, true, &diags)
+	cfg.QuorumLow = floatLever(getenv, EnvQuorumLow, cfg.QuorumLow, 0, 1, true, &diags)
 	cfg.TieDelta = floatLever(getenv, EnvTieDelta, cfg.TieDelta, 0, 1, true, &diags)
 
 	if cfg.AutoPlaceMin < cfg.SuggestMin {
 		diags = append(diags, Diagnostic{Key: EnvAutoPlaceMin, Message: fmt.Sprintf("auto_place_min (%.2f) < suggest_min (%.2f); raising auto_place_min to suggest_min", cfg.AutoPlaceMin, cfg.SuggestMin)})
 		cfg.AutoPlaceMin = cfg.SuggestMin
+	}
+	if cfg.QuorumHigh < cfg.QuorumLow {
+		diags = append(diags, Diagnostic{Key: EnvQuorumHigh, Message: fmt.Sprintf("quorum_high (%.2f) < quorum_low (%.2f); raising quorum_high to quorum_low", cfg.QuorumHigh, cfg.QuorumLow)})
+		cfg.QuorumHigh = cfg.QuorumLow
 	}
 
 	if v := strings.TrimSpace(getenv(EnvArchetypeExemptions)); v != "" {
@@ -149,8 +156,6 @@ func Load(getenv func(string) string) (Config, []Diagnostic) {
 		}
 	}
 	cfg.LayeringStrict = boolLever(getenv, EnvLayeringStrict, cfg.LayeringStrict, &diags)
-	cfg.FileCohesionMaxLines = intLever(getenv, EnvFileCohesionMaxLines, cfg.FileCohesionMaxLines, 0, 100000, &diags)
-	cfg.FileCohesionMaxSymbols = intLever(getenv, EnvFileCohesionMaxSymbols, cfg.FileCohesionMaxSymbols, 0, 100000, &diags)
 
 	return cfg, diags
 }

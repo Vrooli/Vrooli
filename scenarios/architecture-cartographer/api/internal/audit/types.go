@@ -73,6 +73,7 @@ type Report struct {
 	Domains       DomainSummary
 	Graph         GraphSummary
 	Coverage      CoverageSummary
+	Categories    []AuditCategory
 	Duration      time.Duration
 	// SuppressedFindings is the count of findings whose `// arch:allow`
 	// marker matched. Suppressed conflicts are reported (kept in
@@ -146,6 +147,27 @@ type CoverageSummary struct {
 type CoverageBucket struct {
 	Count   int
 	Percent float64
+}
+
+// AuditCategory is one score-matrix row. Scores are normalized advisory
+// signals and never participate directly in audit outcome gating.
+type AuditCategory struct {
+	Key      string
+	Label    string
+	Score    float64
+	TopItems []CategoryTopItem
+}
+
+// CategoryTopItem is the compact finding reference shown under a category.
+type CategoryTopItem struct {
+	ID           string
+	StableID     string
+	Type         string
+	Subtype      string
+	Severity     conflicts.Severity
+	FindingClass conflicts.FindingClass
+	Locations    []string
+	Headline     string
 }
 
 // ErrInvalidRunRequest is the typed sentinel returned for invalid input.

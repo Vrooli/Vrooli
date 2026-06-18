@@ -14,6 +14,7 @@ type Detector interface {
 	Name() string
 	Description() string
 	EmitsTypes() []string
+	Class() FindingClass
 
 	// Detect runs over the snapshot + domain map and emits conflicts. The
 	// implementation must not mutate inputs. Order of returned conflicts
@@ -46,6 +47,7 @@ type DetectInput struct {
 // input slice.
 type VerdictProvider interface {
 	VerdictsFor(ctx context.Context, scenario string, chunks []graph.Chunk) ([]Verdict, error)
+	ContentVerdictsFor(ctx context.Context, scenario string, chunks []graph.Chunk) ([]Verdict, error)
 }
 
 // Verdict is the local view of signals.Verdict so detector code does

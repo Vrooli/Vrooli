@@ -20,10 +20,12 @@ func godDomainInput() conflicts.DetectInput {
 			pkg("p-a", "api/internal/a"),
 			pkg("p-b", "api/internal/b"),
 			pkg("p-c", "api/internal/c"),
+			pkg("p-d", "api/internal/d"),
 		},
 		Imports: []graph.ImportEdge{
 			{From: "p-a", ToPackageID: "p-b"},
 			{From: "p-a", ToPackageID: "p-c"},
+			{From: "p-a", ToPackageID: "p-d"},
 		},
 	}
 	dom := func(n string) domains.DerivedDomain {
@@ -31,13 +33,13 @@ func godDomainInput() conflicts.DetectInput {
 	}
 	m := domains.DerivedDomainMap{
 		Scenario: "demo",
-		Domains:  []domains.DerivedDomain{dom("a"), dom("b"), dom("c")},
+		Domains:  []domains.DerivedDomain{dom("a"), dom("b"), dom("c"), dom("d")},
 	}
 	return conflicts.DetectInput{Scenario: "demo", Snapshot: snap, DomainMap: m}
 }
 
 func TestDetect_EmitsGodDomainConflict(t *testing.T) {
-	// a depends on b and c (both others) → fan-out 1.0 → god_domain.
+	// a depends on every peer in a 4-domain graph → fan-out 1.0 → god_domain.
 	got, err := couplingsmell.New().Detect(context.Background(), godDomainInput())
 	if err != nil {
 		t.Fatalf("Detect: %v", err)
@@ -138,12 +140,51 @@ func TestDetect_HealthyNoConflicts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Detect: %v", err)
 	}
-	// a→b with only 2 domains: fan-out = 1/1 = 1.0 which is ≥0.6 → a is a
-	// god_domain by the default threshold even in a 2-domain graph. Assert
-	// the detector runs cleanly and any emitted conflict is well-formed.
+	if len(got) != 0 {
+		t.Fatalf("a single dependency in a two-domain graph is not a god-domain smell, got %+v", got)
+	}
+}
+
+func TestDetect_CartographerConflictsDomainFanOutSurfaces(t *testing.T) {
+	pkg := func(id, dir string) graph.PackageNode {
+		return graph.PackageNode{ID: id, RepoPath: dir}
+	}
+	snap := graph.GraphSnapshot{
+		Packages: []graph.PackageNode{
+			pkg("p-conflicts", "api/internal/conflicts"),
+			pkg("p-domains", "api/internal/domains"),
+			pkg("p-graph", "api/internal/graph"),
+			pkg("p-signals", "api/internal/signals"),
+			pkg("p-audit", "api/internal/audit"),
+		},
+		Imports: []graph.ImportEdge{
+			{From: "p-conflicts", ToPackageID: "p-domains"},
+			{From: "p-conflicts", ToPackageID: "p-graph"},
+			{From: "p-conflicts", ToPackageID: "p-signals"},
+		},
+	}
+	dom := func(name string) domains.DerivedDomain {
+		return domains.DerivedDomain{Name: name, Paths: []string{"api/internal/" + name + "/"}}
+	}
+	in := conflicts.DetectInput{
+		Scenario: "architecture-cartographer",
+		Snapshot: snap,
+		DomainMap: domains.DerivedDomainMap{Scenario: "architecture-cartographer", Domains: []domains.DerivedDomain{
+			dom("audit"),
+			dom("conflicts"),
+			dom("domains"),
+			dom("graph"),
+			dom("signals"),
+		}},
+	}
+	got, err := couplingsmell.New().Detect(context.Background(), in)
+	if err != nil {
+		t.Fatalf("Detect: %v", err)
+	}
 	for _, c := range got {
-		if c.Type != "coupling_smell" {
-			t.Fatalf("unexpected conflict type %q", c.Type)
+		if c.Subtype == "god_domain" && len(c.Domains) == 1 && c.Domains[0] == "conflicts" {
+			return
 		}
 	}
+	t.Fatalf("expected conflicts domain fan-out to surface as god_domain, got %+v", got)
 }

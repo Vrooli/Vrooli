@@ -54,6 +54,22 @@ vrooli scenario requirements snapshot
 
 For the deeper testing stack, use the Test Genie docs via [../TESTING.md](../TESTING.md).
 
+## Health Maturity Reports
+
+Health scenarios that have adopted the shared maturity assessment contract own their local maturity ladder in `scenarios/<provider>/.vrooli/maturity.json`.
+
+When investigating a single validation domain, run the provider CLI without `--json` and treat the human report as the source of truth for current local maturity, next level, blockers, global-impact groups, and recommended skills:
+
+```bash
+proto-health validate scenario <name>
+measures-health validate scenario <name>
+security-health validate scenario <name>
+cli-health validate scenario <name>
+ui-health validate scenario <name>
+```
+
+Use `--json` only for automation such as Test Genie phase ingestion. See [../reference/health-maturity-assessments.md](../reference/health-maturity-assessments.md).
+
 ## Guidance
 
 - Prefer validating one named scenario intentionally.

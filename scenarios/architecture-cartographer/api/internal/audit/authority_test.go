@@ -13,7 +13,7 @@ import (
 // three confidence values (missing/low/high) plus the unspecified
 // fallback (treated as clean by default, mirroring legacy behavior).
 func TestDecideOutcomeWithAuthority_Table(t *testing.T) {
-	withFinding := []conflicts.Conflict{{Type: "cycle", Severity: conflicts.SeverityError}}
+	withFinding := []conflicts.Conflict{{Type: "cycle", Severity: conflicts.SeverityError, FindingClass: conflicts.FindingClassDeterministic}}
 
 	cases := []struct {
 		name        string

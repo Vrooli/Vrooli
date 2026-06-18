@@ -152,10 +152,11 @@ func (h *Handler) ListDetectors(ctx context.Context, _ *connect.Request[conflict
 	out := &conflictsv1.ListDetectorsResponse{}
 	for _, d := range descs {
 		out.Detectors = append(out.Detectors, &conflictsv1.DetectorDescriptor{
-			Name:        d.Name,
-			Description: d.Description,
-			Stability:   d.Stability,
-			EmitsTypes:  append([]string(nil), d.EmitsTypes...),
+			Name:         d.Name,
+			Description:  d.Description,
+			Stability:    d.Stability,
+			EmitsTypes:   append([]string(nil), d.EmitsTypes...),
+			FindingClass: findingClassToProto(d.Class),
 		})
 	}
 	return connect.NewResponse(out), nil
@@ -191,6 +192,7 @@ func conflictToProto(c conflicts.Conflict) *sharedv1.Conflict {
 		Type:              c.Type,
 		Subtype:           c.Subtype,
 		Severity:          severityToProto(c.Severity),
+		FindingClass:      findingClassToProto(c.FindingClass),
 		Locations:         append([]string(nil), c.Locations...),
 		Domains:           append([]string(nil), c.Domains...),
 		SnapshotId:        c.SnapshotID,
@@ -222,6 +224,17 @@ func conflictToProto(c conflicts.Conflict) *sharedv1.Conflict {
 		})
 	}
 	return out
+}
+
+func findingClassToProto(c conflicts.FindingClass) sharedv1.FindingClass {
+	switch c {
+	case conflicts.FindingClassDeterministic:
+		return sharedv1.FindingClass_FINDING_CLASS_DETERMINISTIC
+	case conflicts.FindingClassHeuristic:
+		return sharedv1.FindingClass_FINDING_CLASS_HEURISTIC
+	default:
+		return sharedv1.FindingClass_FINDING_CLASS_UNSPECIFIED
+	}
 }
 
 func severityToProto(s conflicts.Severity) sharedv1.Severity {

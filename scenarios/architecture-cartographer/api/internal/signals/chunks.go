@@ -30,9 +30,9 @@ type GraphContext struct {
 // goroutine-safe: ScoreBatch shares one *Caches across workers.
 type Caches struct {
 	mu sync.RWMutex
-	// community is the per-package connected-component cluster id used by
-	// the import-cluster signal. Written once (idempotently) and read by
-	// every subsequent score.
+	// community is the per-package Louvain community id used by the
+	// import-cluster signal. Written once (idempotently) and read by every
+	// subsequent score.
 	community map[string]int
 	// domainPackages maps package_id -> domain_name for the derived domain
 	// map. Several signals need this same index, so it is computed once per

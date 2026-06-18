@@ -34,9 +34,9 @@
     {
       "id": "L4",
       "name": "Boundary drift controlled",
-      "description": "No blocker or error architecture findings remain in active code paths.",
+      "description": "No deterministic blocker or error architecture findings remain in active code paths; heuristic findings remain advisory.",
       "entry_criteria": ["Boundary drift is visible"],
-      "exit_criteria": ["No blocker or error architecture findings remain"]
+      "exit_criteria": ["No deterministic blocker or error architecture findings remain"]
     },
     {
       "id": "L5",

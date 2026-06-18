@@ -11,19 +11,21 @@ import (
 // configured weights and the tier thresholds (defaults below,
 // overridable via the global control surface).
 //
-// Weight bookkeeping:
-//   - Every available signal that is invoked contributes its weight to
-//     the verdict denominator (weightSum), whether it returned Scores
-//     or an Abstention. This prevents abstentions from inflating
-//     the surviving signals' apparent contribution.
-//   - Unavailable signals (IsAvailable=false) are silently skipped and
-//     do NOT contribute weight; they aren't running.
+// Weight bookkeeping separates two concerns:
+//   - DirectionValue is normalized by scoring signals only, so an abstaining
+//     signal never lowers a domain's directional score.
+//   - Confidence is the scoring-weight / available-weight participation
+//     fraction, so sparse evidence cannot masquerade as high certainty.
+//   - Unavailable signals (IsAvailable=false) are silently skipped and do NOT
+//     contribute weight; they aren't running.
 type Aggregator struct {
 	registry         *Registry
 	weights          map[string]float64
 	autoPlaceMinimum float64
 	suggestMinimum   float64
 	tieDelta         float64
+	quorumHigh       float64
+	quorumLow        float64
 }
 
 // Default tier thresholds. Per SIGNAL_LADDER.md.
@@ -31,6 +33,8 @@ const (
 	DefaultAutoPlaceMinimum = 0.85
 	DefaultSuggestMinimum   = 0.55
 	DefaultTieDelta         = 0.10
+	DefaultQuorumHigh       = 0.45
+	DefaultQuorumLow        = 0.30
 )
 
 // NewAggregator constructs the aggregator. weightOverrides apply on
@@ -49,32 +53,55 @@ func NewAggregator(reg *Registry, weightOverrides map[string]float64) *Aggregato
 		autoPlaceMinimum: DefaultAutoPlaceMinimum,
 		suggestMinimum:   DefaultSuggestMinimum,
 		tieDelta:         DefaultTieDelta,
+		quorumHigh:       DefaultQuorumHigh,
+		quorumLow:        DefaultQuorumLow,
 	}
 }
 
 // WithThresholds returns a copy of the aggregator with custom
 // thresholds (from the global control surface).
-func (a *Aggregator) WithThresholds(autoPlace, suggest, tieDelta float64) *Aggregator {
+func (a *Aggregator) WithThresholds(autoPlace, suggest, tieDelta, quorumHigh, quorumLow float64) *Aggregator {
 	cp := *a
 	cp.autoPlaceMinimum = autoPlace
 	cp.suggestMinimum = suggest
 	cp.tieDelta = tieDelta
+	cp.quorumHigh = quorumHigh
+	cp.quorumLow = quorumLow
+	return &cp
+}
+
+// WithWeightOverrides returns a copy of the aggregator with selected
+// signal weights replaced. Used by content-only verdicts to remove
+// path-token authority without rebuilding the registry.
+func (a *Aggregator) WithWeightOverrides(overrides map[string]float64) *Aggregator {
+	cp := *a
+	cp.weights = make(map[string]float64, len(a.weights))
+	for name, weight := range a.weights {
+		cp.weights[name] = weight
+	}
+	for name, weight := range overrides {
+		cp.weights[name] = weight
+	}
 	return &cp
 }
 
 // Aggregate runs every registered + available signal against the chunk
 // and returns the verdict.
 func (a *Aggregator) Aggregate(ctx context.Context, gctx GraphContext, chunk graph.Chunk) Verdict {
-	scores, abstentions, weightSum := a.collect(ctx, gctx, chunk)
+	scores, abstentions, availableWeight, scoringWeight := a.collect(ctx, gctx, chunk)
 	domainTotals := sumByDomain(scores, a.weights)
-	domainValues := normalizeDomainValues(domainTotals, weightSum)
+	domainValues := normalizeDomainValues(domainTotals, scoringWeight)
+	confidence := participationConfidence(scoringWeight, availableWeight)
 
 	v := Verdict{
-		ChunkID:      chunk.ID,
-		ChunkPath:    chunk.Path,
-		Scores:       scores,
-		Abstentions:  abstentions,
-		DomainValues: domainValues,
+		ChunkID:        chunk.ID,
+		ChunkPath:      chunk.Path,
+		Confidence:     confidence,
+		QuorumMet:      confidence >= a.quorumLow,
+		Scores:         scores,
+		Abstentions:    abstentions,
+		DomainValues:   domainValues,
+		DirectionValue: 0,
 	}
 
 	if len(domainValues) == 0 {
@@ -82,10 +109,11 @@ func (a *Aggregator) Aggregate(ctx context.Context, gctx GraphContext, chunk gra
 		return v
 	}
 	v.TopDomain = domainValues[0].Domain
-	v.TopValue = domainValues[0].Value
+	v.TopValue = domainValues[0].DirectionValue
+	v.DirectionValue = v.TopValue
 	if len(domainValues) > 1 {
 		v.RunnerUpDomain = domainValues[1].Domain
-		v.RunnerUpValue = domainValues[1].Value
+		v.RunnerUpValue = domainValues[1].DirectionValue
 	}
 
 	if v.RunnerUpValue > 0 && v.TopValue-v.RunnerUpValue < a.tieDelta {
@@ -95,30 +123,35 @@ func (a *Aggregator) Aggregate(ctx context.Context, gctx GraphContext, chunk gra
 	}
 
 	switch {
-	case v.TopValue >= a.autoPlaceMinimum:
+	case v.TopValue >= a.autoPlaceMinimum && v.Confidence >= a.quorumHigh:
 		v.Tier = TierAutoPlace
-	case v.TopValue >= a.suggestMinimum:
+		v.QuorumMet = true
+	case v.TopValue >= a.suggestMinimum && v.Confidence >= a.quorumLow:
 		v.Tier = TierSuggest
+		v.QuorumMet = true
 	default:
 		v.Tier = TierConflict
+		v.QuorumMet = false
 	}
 	return v
 }
 
 // collect runs every available signal, validates the self-explaining
-// invariant, and returns the (scores, abstentions, weightSum) triple.
-// Any invoked-and-available signal contributes its weight to weightSum
-// regardless of whether it scored or abstained.
-func (a *Aggregator) collect(ctx context.Context, gctx GraphContext, chunk graph.Chunk) ([]Score, []Abstention, float64) {
+// invariant, and returns scores, abstentions, available weight, and scoring
+// weight. Any invoked-and-available signal contributes to available weight;
+// only signals with valid scores contribute to scoring weight.
+func (a *Aggregator) collect(ctx context.Context, gctx GraphContext, chunk graph.Chunk) ([]Score, []Abstention, float64, float64) {
 	var scores []Score
 	var abstentions []Abstention
-	weightSum := 0.0
+	availableWeight := 0.0
+	scoringWeight := 0.0
 	for _, s := range a.registry.All() {
 		if ok, _ := s.IsAvailable(ctx); !ok {
 			continue
 		}
 		name := s.Name()
 		weight := a.weights[name]
+		availableWeight += weight
 		result := s.Score(ctx, gctx, chunk)
 		// Self-explaining invariant: a signal must emit either non-empty
 		// Scores (each with ≥1 Evidence) or a non-nil Abstention with
@@ -131,10 +164,9 @@ func (a *Aggregator) collect(ctx context.Context, gctx GraphContext, chunk graph
 		switch {
 		case len(validScores) > 0:
 			scores = append(scores, validScores...)
-			weightSum += weight
+			scoringWeight += weight
 		case validAbstention != nil:
 			abstentions = append(abstentions, *validAbstention)
-			weightSum += weight
 		default:
 			abstentions = append(abstentions, Abstention{
 				Signal: name,
@@ -145,7 +177,6 @@ func (a *Aggregator) collect(ctx context.Context, gctx GraphContext, chunk graph
 					Locator: chunk.Path,
 				}},
 			})
-			weightSum += weight
 		}
 	}
 	sort.SliceStable(scores, func(i, j int) bool {
@@ -157,12 +188,12 @@ func (a *Aggregator) collect(ctx context.Context, gctx GraphContext, chunk graph
 	sort.SliceStable(abstentions, func(i, j int) bool {
 		return abstentions[i].Signal < abstentions[j].Signal
 	})
-	return scores, abstentions, weightSum
+	return scores, abstentions, availableWeight, scoringWeight
 }
 
 // validScores filters out Scores that lack Evidence (contract
-// violation) so they don't contribute to the numerator but the
-// signal's weight still counts in the denominator.
+// violation) so they don't contribute to direction. The signal's weight still
+// counts toward available participation through the synthetic abstention path.
 func validScores(in []Score, signal string) []Score {
 	if len(in) == 0 {
 		return nil
@@ -221,13 +252,27 @@ func normalizeDomainValues(totals map[string]float64, weightSum float64) []Domai
 				val = 0
 			}
 		}
-		out = append(out, DomainValue{Domain: d, Value: val})
+		out = append(out, DomainValue{Domain: d, DirectionValue: val})
 	}
 	sort.SliceStable(out, func(i, j int) bool {
-		if out[i].Value != out[j].Value {
-			return out[i].Value > out[j].Value
+		if out[i].DirectionValue != out[j].DirectionValue {
+			return out[i].DirectionValue > out[j].DirectionValue
 		}
 		return out[i].Domain < out[j].Domain
 	})
 	return out
+}
+
+func participationConfidence(scoringWeight, availableWeight float64) float64 {
+	if availableWeight <= 0 {
+		return 0
+	}
+	v := scoringWeight / availableWeight
+	if v > 1 {
+		return 1
+	}
+	if v < 0 {
+		return 0
+	}
+	return v
 }

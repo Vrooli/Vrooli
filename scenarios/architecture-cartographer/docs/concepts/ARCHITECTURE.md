@@ -33,8 +33,8 @@ This document does not own:
 
 ## Scenario Shape
 
-A scenario is one product expressed through three coordinated surfaces
-and one canonical contract layer.
+A scenario is one product expressed through coordinated runtime surfaces
+and a canonical contract layer.
 
 ```
                        ┌─────────────────────────────┐
@@ -117,7 +117,7 @@ Use Connect-RPC by default:
 - CLI to API for proto-typed payloads,
 - API to API / inter-scenario calls with Vrooli-owned protos.
 
-REST is allowed only for four enumerated reasons, defined as
+REST is allowed only for enumerated reasons, defined as
 `RESTReason` constants in `api/internal/module/module.go`:
 
 | Reason | When it applies |
@@ -130,7 +130,7 @@ REST is allowed only for four enumerated reasons, defined as
 Mechanical enforcement: `cmd/gen-endpoints` rejects any
 `EndpointDescriptor.Path` that is not a generated Connect procedure
 constant (i.e. does not start with `/vrooli.`) unless the descriptor
-carries a `RESTException` with one of the four reasons. A REST
+carries a `RESTException` with one of the enumerated reasons. A REST
 endpoint without that tag fails `make endpoints`, which fails
 `make test`, which fails CI. The fix is either to author a proto
 service method (the preferred path) or to tag the exception
@@ -203,11 +203,11 @@ is bound by exactly the rules it enforces on other scenarios.
 
 | Area | Maturity | Evidence | Remaining Drift |
 |---|---|---|---|
-| API | Charter-defined | PRD published with 10 P0 targets; proto-first contract mandated; module registry pattern inherited from template. | Product domains (`graph`, `domains`, `conflicts`, `signals`, `apply`, `analytics`) implemented; the per-scenario architecture manifest was deleted in favor of zero-config derivation (the `domains` domain). |
-| UI | Charter-defined | UX direction set to dense operational workbench; design tokens inherited from vrooli-default. | Conflict workbench, graph view, history dashboards all to be built. |
-| CLI | Charter-defined | Human-friendly CLI contract specified (classified pattern + ranked fixes + evidence + caveats per conflict). | All `arch-cart` subcommands to be implemented. |
-| Docs | Active | Manifest v2 registers all docs; required headings present in every concept doc; signal ladder and conflict model documented before implementation. | Maturity values flip to `draft` → `active` as each domain ships. |
-| Contracts | Pre-implementation | Conflict envelope shape pinned in PRD and SIGNAL_LADDER doc; pluggable Detector / Resolver / Signal / Recipe interfaces defined as durable seams. | Proto schemas to be authored before any handler code. |
+| API | Active | Product domains (`graph`, `domains`, `conflicts`, `signals`, `apply`, `analytics`, `audit`, `campaign`) are implemented behind domain services and Connect handlers; the per-scenario architecture manifest was deleted in favor of zero-config derivation. | Destructive apply execution remains intentionally deferred; the safe suppression-write path is the only mutating apply behavior. |
+| UI | Draft | Dense operational-workbench direction and design tokens are in place. | Browser workbench maturity trails the API/CLI surfaces; CLI remains the primary agent-facing surface. |
+| CLI | Active | `arch-cart` exposes graph, domains, conflicts, signals, analytics, audit, apply, and campaign commands as thin Connect wrappers. | Apply run still reports the API's unimplemented state until the apply-execution plan lands. |
+| Docs | Active | Manifest v2 registers all docs; signal ladder, finding-class gate, score matrix, and responsibility boundaries are documented. | Keep docs updated with future detector or contract changes. |
+| Contracts | Active | Proto schemas and shared architecture finding identity are generated from `packages/proto`; `finding_class` and audit categories are first-class wire fields. | Contract changes must update all in-repo consumers in the same plan. |
 
 The cartographer dogfoods itself: its own scenario must pass cartographer
 health checks against its own **derived** domain map (from
@@ -216,21 +216,27 @@ manifest). This is the closure that proves the tool works.
 
 Core structural detectors currently include `cycle`, `layering`, `naming`,
 `glossary_drift`, `mislocated_file`, `convergence_drift`, `coupling_smell`,
-`surface_coherence`, `file_cohesion`, `cross_scenario`, and
+`surface_coherence`, `cross_scenario`, and
 `domains_doc_parse_warning`. `layering` enforces wrong-direction dependency
 rules using surface zones plus domain archetypes;
 `naming` flags generic package/domain vocabulary such as `utils` or `helpers`
 before those buckets can hide product ownership. `glossary_drift` uses the
-curated DOMAINS.md glossary as evidence and flags exported symbols that carry
-another domain's vocabulary. `surface_coherence` checks declared and
+curated DOMAINS.md glossary as evidence and flags exported domain-core symbols
+that carry another domain's vocabulary; transport handler packages are excluded
+because they legitimately translate request/response vocabulary from multiple
+domains. `coupling_smell` treats `god_domain` as a real multi-domain hub signal,
+not a single edge in a tiny graph. `surface_coherence` checks declared and
 archetype-implied API/CLI/UI domain surfaces against actual implementation
 evidence. `cross_scenario` blocks direct imports into another scenario's
 private `api/internal` packages, keeping reuse on public API, CLI, or
 shared-package contracts.
 
+File length, symbol count, and related tidiness checks belong to
+`tidiness-manager`; cartographer does not emit file-size findings.
+
 The detector registry applies per-surface profiles. API/Go receives coupling,
 layering, convergence, naming, placement, cycles, cross-scenario boundary
-checks, file cohesion, and surface coherence; CLI/Go receives layering,
+checks, and surface coherence; CLI/Go receives layering,
 convergence, naming, placement, cross-scenario boundary checks, and cycles;
 UI/TypeScript receives naming, placement, cycles, and surface coherence. The
 universal floor remains `cycle`, `naming`, and `mislocated_file`.
@@ -245,7 +251,9 @@ depend on it.
   `stable_id` (prefix `csid:`) derived from
   `(scenario, detector, type, subtype, sorted locations, sorted domains)`.
   Two runs that detect the same underlying drift collapse onto the
-  same row. The per-run `instance_id` is preserved on the wire for log
+  same row. `finding_class`, severity, evidence, fixes, and timestamps
+  are excluded from identity so reclassification never manufactures a
+  regression. The per-run `instance_id` is preserved on the wire for log
   correlation.
 - **Snapshot freshness.** The audit always invokes `ExtractGraph`,
   which is hash-aware: the response's `snapshot_freshness` reports
@@ -256,10 +264,16 @@ depend on it.
   `authority_confidence=low` (no curated DOMAINS.md or API manifest)
   flips the outcome to `FINDINGS` with `outcome_reason` set; callers
   opt back to `CLEAN` with `--allow-low-authority`.
-- **Test Genie gates only trusted blockers.** The `ScenarioValidationService`
-  packs the native `AuditRunResponse` into `native_detail`; Test Genie's
-  architecture phase reads that authority field and only hard-fails blocker
-  findings by default when `authority_confidence=high`.
+- **Finding class is the gate boundary.** Every native conflict and audit
+  summary carries `finding_class=deterministic|heuristic`. Deterministic
+  `error`/`blocker` findings can flip the audit outcome. Heuristic findings
+  (mislocation, naming, glossary drift, coupling smell) are reported and
+  capped at `warn`, but they never hard-fail the audit.
+- **Test Genie gates only trusted deterministic findings.** The
+  `ScenarioValidationService` packs the native `AuditRunResponse` into
+  `native_detail`; Test Genie's architecture phase reads both
+  `finding_class` and authority confidence and only hard-fails deterministic
+  error/blocker findings by default when `authority_confidence=high`.
 - **Coverage is explicit.** Every audit response includes a `coverage`
   block with mutually-exclusive file buckets: `auto_place`, `suggest`,
   `conflict`, and `all_abstained`. `all_abstained` separates "the
@@ -292,13 +306,13 @@ when they are deliberate and durable.
 
 | Date | Deviation | Reason | Revisit Trigger |
 |---|---|---|---|
-| 2026-05-21 | Layered scenario design: cartographer depends on two new scenarios (`go-code-graph`, `typescript-code-graph`). Both initialized 2026-05-23 (PRD + requirements + docs in place at `scenarios/go-code-graph/` and `scenarios/typescript-code-graph/`); neither implemented. | Cartographer must not parse source code itself — language parsing is a separate concern that belongs in language-specific scenarios so multiple consumers (cartographer, react-component-library) can share it. See [`INTEGRATIONS.md`](INTEGRATIONS.md) for the dependency contract. | Revisit if the layering proves too granular in practice; consolidate only when a measured friction point emerges. |
+| 2026-05-21 | Layered scenario design: cartographer depends on `go-code-graph` and `typescript-code-graph`. Both initialized 2026-05-23 (PRD + requirements + docs in place at `scenarios/go-code-graph/` and `scenarios/typescript-code-graph/`); neither implemented. | Cartographer must not parse source code itself — language parsing is a separate concern that belongs in language-specific scenarios so multiple consumers (cartographer, react-component-library) can share it. See [`INTEGRATIONS.md`](INTEGRATIONS.md) for the dependency contract. | Revisit if the layering proves too granular in practice; consolidate only when a measured friction point emerges. |
 | 2026-05-21 | Analytics (SQLite-backed) shipped in v0.1, not deferred to P1 like most scenarios. | Analytics is a precondition for both ladder calibration and recipe-emergence detection. Ranked CLI suggestions depend on having a minimum N=5 historical sample before showing success rates; that requires capturing data from the first conflict resolution onward. | None — this is permanent. |
 | 2026-05-21 | No embedding/Ollama dependency in v1, even though `scenario-dependency-analyzer` already proves the pattern. | Auto-placement requires deterministic signals; embeddings introduce silently-wrong placements. Deterministic ladder (path tokens, import clusters, importer voting, test coupling, symbol glossary, git co-edit) is expected to cover the vast majority of placements. Embeddings are a P2 *suggestion* mechanism, never auto-applied. | Promote to v2 only if measured residual conflicts the deterministic ladder cannot answer are high *and* embedding ranking demonstrably reduces them in offline evaluation. |
 
 ## Signal Ladder And Conflict Model
 
-Two concepts have their own canonical homes because they are
+Companion concepts have their own canonical homes because they are
 load-bearing for the entire cartographer workflow:
 
 - [`SIGNAL_LADDER.md`](SIGNAL_LADDER.md) — pluggable scoring signals

@@ -96,16 +96,17 @@ var _ signals.DomainMapProvider = (*FakeDomainMapProvider)(nil)
 
 // FakeService satisfies signals.Service for handler tests.
 type FakeService struct {
-	Verdict       signals.Verdict
-	BatchVerdicts []signals.Verdict
-	Signals       []signals.SignalDescriptor
-	Boundary      boundaries.Report
-	NextErr       error
-	ScoreCalls    atomic.Int64
-	BatchCalls    atomic.Int64
-	ExplainCalls  atomic.Int64
-	ListCalls     atomic.Int64
-	BoundaryCalls atomic.Int64
+	Verdict         signals.Verdict
+	BatchVerdicts   []signals.Verdict
+	ContentVerdicts []signals.Verdict
+	Signals         []signals.SignalDescriptor
+	Boundary        boundaries.Report
+	NextErr         error
+	ScoreCalls      atomic.Int64
+	BatchCalls      atomic.Int64
+	ExplainCalls    atomic.Int64
+	ListCalls       atomic.Int64
+	BoundaryCalls   atomic.Int64
 }
 
 // ScoreBatch returns the canned batch verdict slice (or, when nil, a
@@ -123,6 +124,19 @@ func (f *FakeService) ScoreBatch(_ context.Context, in signals.ScoreBatchInput) 
 		out[i] = f.Verdict
 	}
 	return out, nil
+}
+
+// ContentScoreBatch returns canned content verdicts when provided,
+// otherwise it mirrors ScoreBatch.
+func (f *FakeService) ContentScoreBatch(ctx context.Context, in signals.ScoreBatchInput) ([]signals.Verdict, error) {
+	if f.ContentVerdicts != nil {
+		f.BatchCalls.Add(1)
+		if f.NextErr != nil {
+			return nil, f.NextErr
+		}
+		return f.ContentVerdicts, nil
+	}
+	return f.ScoreBatch(ctx, in)
 }
 
 // BoundaryHealth returns the canned report.

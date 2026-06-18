@@ -29,7 +29,7 @@ func TestService_UpsertConflicts_AssignsScenario(t *testing.T) {
 func TestService_ValidateConflicts_CleanWhenNoErrorSeverity(t *testing.T) {
 	_, svc := newSvc()
 	_, err := svc.UpsertConflicts(context.Background(), "demo", []conflicts.Conflict{
-		{Type: "coupling_smell", Severity: conflicts.SeverityWarn},
+		{Type: "coupling_smell", Severity: conflicts.SeverityWarn, FindingClass: conflicts.FindingClassHeuristic},
 	})
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -49,7 +49,7 @@ func TestService_ValidateConflicts_CleanWhenNoErrorSeverity(t *testing.T) {
 func TestService_ValidateConflicts_DirtyWhenErrorSeverity(t *testing.T) {
 	_, svc := newSvc()
 	if _, err := svc.UpsertConflicts(context.Background(), "demo", []conflicts.Conflict{
-		{Type: "cycle", Severity: conflicts.SeverityError},
+		{Type: "cycle", Severity: conflicts.SeverityError, FindingClass: conflicts.FindingClassDeterministic},
 	}); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
@@ -65,7 +65,7 @@ func TestService_ValidateConflicts_DirtyWhenErrorSeverity(t *testing.T) {
 func TestService_ValidateConflicts_DirtyWhenBlockerSeverity(t *testing.T) {
 	_, svc := newSvc()
 	if _, err := svc.UpsertConflicts(context.Background(), "demo", []conflicts.Conflict{
-		{Type: "layering", Severity: conflicts.SeverityBlocker},
+		{Type: "layering", Severity: conflicts.SeverityBlocker, FindingClass: conflicts.FindingClassDeterministic},
 	}); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestService_ValidateConflicts_DirtyWhenBlockerSeverity(t *testing.T) {
 func TestService_ValidateConflicts_ExcludesSuppressed(t *testing.T) {
 	_, svc := newSvc()
 	if _, err := svc.UpsertConflicts(context.Background(), "demo", []conflicts.Conflict{
-		{Type: "cycle", Severity: conflicts.SeverityError, Suppressed: true, SuppressionReason: "intentional"},
+		{Type: "cycle", Severity: conflicts.SeverityError, FindingClass: conflicts.FindingClassDeterministic, Suppressed: true, SuppressionReason: "intentional"},
 	}); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
@@ -104,5 +104,29 @@ func TestRegistry_DetectAll_AlphabeticalOrder(t *testing.T) {
 	}
 	if out[0].Type != "a" || out[1].Type != "z" {
 		t.Fatalf("registry order broken: %+v", out)
+	}
+}
+
+func TestRegistry_DetectAll_StampsClassAndCapsHeuristicSeverity(t *testing.T) {
+	reg := conflicts.NewRegistry(&mocks.FakeDetector{
+		NameValue: "heuristic",
+		Conflicts: []conflicts.Conflict{{
+			Type:         "mislocated_file",
+			Severity:     conflicts.SeverityBlocker,
+			FindingClass: conflicts.FindingClassHeuristic,
+		}},
+	})
+	out, err := reg.DetectAll(context.Background(), conflicts.DetectInput{})
+	if err != nil {
+		t.Fatalf("DetectAll: %v", err)
+	}
+	if len(out) != 1 {
+		t.Fatalf("conflicts = %d, want 1", len(out))
+	}
+	if out[0].FindingClass != conflicts.FindingClassHeuristic {
+		t.Fatalf("class = %q, want heuristic", out[0].FindingClass)
+	}
+	if out[0].Severity != conflicts.SeverityWarn {
+		t.Fatalf("heuristic severity = %q, want warn", out[0].Severity)
 	}
 }

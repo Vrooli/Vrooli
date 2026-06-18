@@ -135,8 +135,8 @@ The parser is header-driven; it reads the `Domain`, `Primary Archetype`,
   `Resolver` interface (executes a mechanical fix for a specific
   conflict type). Current detectors: `cycle`, `layering`, `naming`,
   `glossary_drift`, `mislocated_file`, `convergence_drift`,
-  `coupling_smell`, `surface_coherence`, `file_cohesion`,
-  `cross_scenario`, and `domains_doc_parse_warning`.
+  `coupling_smell`, `surface_coherence`, `cross_scenario`, and
+  `domains_doc_parse_warning`.
 - Tests: unit (envelope serialization, detector invocation, cycle
   classification, severity), integration (against fixture scenarios
   with known cycles, mislocations, orphans).

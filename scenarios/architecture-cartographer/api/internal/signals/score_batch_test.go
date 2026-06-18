@@ -77,6 +77,41 @@ func TestScoreBatch_EmptyInputReturnsNil(t *testing.T) {
 	}
 }
 
+func TestContentScoreBatch_DisablesPathTokenAuthority(t *testing.T) {
+	snap := graph.GraphSnapshot{
+		Scenario: "demo",
+		Files: []graph.FileNode{
+			{ID: "file:a", Path: "internal/graph/service.go", PackageID: "pkg:g", Language: graph.LanguageGo},
+		},
+		Packages: []graph.PackageNode{{ID: "pkg:g", RepoPath: "internal/graph", Language: graph.LanguageGo}},
+	}
+	dmap := domains.DerivedDomainMap{
+		Scenario: "demo",
+		Domains:  []domains.DerivedDomain{{Name: "graph", Paths: []string{"internal/graph/**"}}},
+	}
+	reg := signals.NewRegistry(pathtoken.New())
+	svc := signals.NewService(reg, signals.NewAggregator(reg, nil), batchStubSnap{snap: snap}, batchStubDmap{dmap: dmap})
+	chunks := snap.Chunks()
+
+	normal, err := svc.ScoreBatch(context.Background(), signals.ScoreBatchInput{Scenario: "demo", Chunks: chunks})
+	if err != nil {
+		t.Fatalf("ScoreBatch: %v", err)
+	}
+	content, err := svc.ContentScoreBatch(context.Background(), signals.ScoreBatchInput{Scenario: "demo", Chunks: chunks})
+	if err != nil {
+		t.Fatalf("ContentScoreBatch: %v", err)
+	}
+	if normal[0].TopDomain != "graph" {
+		t.Fatalf("normal verdict should use path-token, got %+v", normal[0])
+	}
+	if content[0].TopDomain != "" || content[0].DirectionValue != 0 || content[0].Confidence != 0 {
+		t.Fatalf("content verdict must not count path-token authority, got %+v", content[0])
+	}
+	if len(content[0].Scores) == 0 {
+		t.Fatalf("content verdict should retain signal evidence for explainability")
+	}
+}
+
 type batchStubSnap struct {
 	snap graph.GraphSnapshot
 }

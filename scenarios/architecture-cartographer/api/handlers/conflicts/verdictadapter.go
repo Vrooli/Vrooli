@@ -31,13 +31,26 @@ func NewSignalsVerdictAdapter(s signals.Service) conflicts.VerdictProvider {
 }
 
 func (a signalsVerdictAdapter) VerdictsFor(ctx context.Context, scenario string, chunks []graph.Chunk) ([]conflicts.Verdict, error) {
+	return a.verdictsFor(ctx, scenario, chunks, false)
+}
+
+func (a signalsVerdictAdapter) ContentVerdictsFor(ctx context.Context, scenario string, chunks []graph.Chunk) ([]conflicts.Verdict, error) {
+	return a.verdictsFor(ctx, scenario, chunks, true)
+}
+
+func (a signalsVerdictAdapter) verdictsFor(ctx context.Context, scenario string, chunks []graph.Chunk, contentOnly bool) ([]conflicts.Verdict, error) {
 	if len(chunks) == 0 {
 		return nil, nil
 	}
-	verdicts, err := a.signals.ScoreBatch(ctx, signals.ScoreBatchInput{
+	input := signals.ScoreBatchInput{
 		Scenario: scenario,
 		Chunks:   chunks,
-	})
+	}
+	scoreBatch := a.signals.ScoreBatch
+	if contentOnly {
+		scoreBatch = a.signals.ContentScoreBatch
+	}
+	verdicts, err := scoreBatch(ctx, input)
 	if err != nil {
 		return nil, err
 	}
