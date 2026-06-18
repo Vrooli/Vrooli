@@ -152,15 +152,23 @@ long as the wire payload type is shared.
 `proto-health` validates contracts in tiers:
 
 1. **Declaration completeness**: endpoint metadata must explicitly
-   declare REST exception request, response, and error payload intent.
+   declare REST exception request, response, and error payload intent,
+   except for narrow infrastructure probes such as `/health`, `jwks`,
+   and `/.well-known/*` discovery endpoints.
 2. **Static contract consistency**: declared payloads, imports,
    stability, and shared-type placement must match descriptor facts.
-3. **Implementation proof**: `proto-health` consumes `code-facts`
+3. **Generated artifact sync**: proto-health regenerates only the
+   target scenario's proto closure and compares the target generated
+   slices. Target-owned drift is `proto.gen_out_of_sync` (ERROR).
+   Upstream or unrelated proto compile failures block verification as
+   `proto.gen_check_blocked` (WARNING), so one scenario's in-progress
+   proto cannot fail an unrelated scenario's phase.
+4. **Implementation proof**: `proto-health` consumes `code-facts`
    proof reports for generated proto adoption and REST exception
-   handler conformance. Missing or contradicted proof becomes a
-   proto-health finding; unsupported or unavailable analyzers degrade
-   to warnings. Language/framework coverage depends on the Code Facts
-   support matrix; `proto-health` does not parse Go or TypeScript source.
+   handler conformance. Missing or unsupported proof is advisory; only
+   contradictory proof is a hard proto-health finding. Language/framework
+   coverage depends on the Code Facts support matrix; `proto-health`
+   does not parse Go or TypeScript source.
 
 The generated `notes` domain remains in the scaffold as a reference
 vertical until `validation` and `protosurface` are implemented. It is

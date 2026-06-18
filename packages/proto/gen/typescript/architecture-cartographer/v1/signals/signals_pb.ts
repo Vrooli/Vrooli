@@ -6,274 +6,15 @@ import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobu
 import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Chunk } from "../graph/graph_pb";
 import { file_architecture_cartographer_v1_graph_graph } from "../graph/graph_pb";
+import type { Verdict } from "../shared/shared_pb";
+import { file_architecture_cartographer_v1_shared_shared } from "../shared/shared_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file architecture-cartographer/v1/signals/signals.proto.
  */
 export const file_architecture_cartographer_v1_signals_signals: GenFile = /*@__PURE__*/
-  fileDesc("CjJhcmNoaXRlY3R1cmUtY2FydG9ncmFwaGVyL3YxL3NpZ25hbHMvc2lnbmFscy5wcm90bxIrdnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscyJKCghFdmlkZW5jZRIMCgRraW5kGAEgASgJEg8KB3N1bW1hcnkYAiABKAkSDwoHbG9jYXRvchgDIAEoCRIOCgZ3ZWlnaHQYBCABKAEijwEKBVNjb3JlEg4KBnNpZ25hbBgBIAEoCRIOCgZkb21haW4YAiABKAkSDQoFdmFsdWUYAyABKAESDgoGcmVhc29uGAQgASgJEkcKCGV2aWRlbmNlGAUgAygLMjUudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5FdmlkZW5jZSJ1CgpBYnN0ZW50aW9uEg4KBnNpZ25hbBgBIAEoCRIOCgZyZWFzb24YAiABKAkSRwoIZXZpZGVuY2UYAyADKAsyNS52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaWduYWxzLkV2aWRlbmNlIrsDCgdWZXJkaWN0EhAKCGNodW5rX2lkGAEgASgJEhIKCmNodW5rX3BhdGgYAiABKAkSPwoEdGllchgDIAEoDjIxLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNpZ25hbHMuVGllchISCgp0b3BfZG9tYWluGAQgASgJEhEKCXRvcF92YWx1ZRgFIAEoARIYChBydW5uZXJfdXBfZG9tYWluGAYgASgJEhcKD3J1bm5lcl91cF92YWx1ZRgHIAEoARJCCgZzY29yZXMYCCADKAsyMi52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaWduYWxzLlNjb3JlEk8KDWRvbWFpbl92YWx1ZXMYCSADKAsyOC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaWduYWxzLkRvbWFpblZhbHVlEgwKBHRpZWQYCiABKAgSTAoLYWJzdGVudGlvbnMYCyADKAsyNy52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaWduYWxzLkFic3RlbnRpb24iLAoLRG9tYWluVmFsdWUSDgoGZG9tYWluGAEgASgJEg0KBXZhbHVlGAIgASgBIosBChBTaWduYWxEZXNjcmlwdG9yEgwKBG5hbWUYASABKAkSFgoOZGVmYXVsdF93ZWlnaHQYAiABKAESEQoJc3RhYmlsaXR5GAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJEhAKCGRpc2FibGVkGAUgASgIEhcKD2Rpc2FibGVkX3JlYXNvbhgGIAEoCSJ/Cg1Db3VwbGluZ1NtZWxsEgwKBGtpbmQYASABKAkSTwoIc2V2ZXJpdHkYAiABKA4yPS52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaWduYWxzLkNvdXBsaW5nU2V2ZXJpdHkSDwoHbWVzc2FnZRgDIAEoCSKfAgoORG9tYWluQ291cGxpbmcSDgoGZG9tYWluGAEgASgJEhEKCWFyY2hldHlwZRgCIAEoCRIQCghlZmZlcmVudBgDIAEoBRIQCghhZmZlcmVudBgEIAEoBRITCgtpbnN0YWJpbGl0eRgFIAEoARIPCgdmYW5fb3V0GAYgASgBEhIKCmRlcGVuZHNfb24YByADKAkSEwoLZGVwZW5kZWRfYnkYCCADKAkSFQoNc3RhYmxlX2tlcm5lbBgJIAEoCBIUCgxoZWFsdGhfc2NvcmUYCiABKAESSgoGc21lbGxzGAsgAygLMjoudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5Db3VwbGluZ1NtZWxsIikKFUJvdW5kYXJ5SGVhbHRoUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCSKPAQoWQm91bmRhcnlIZWFsdGhSZXNwb25zZRIQCghzY2VuYXJpbxgBIAEoCRIVCg10b3RhbF9kb21haW5zGAIgASgFEkwKB2RvbWFpbnMYAyADKAsyOy52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaWduYWxzLkRvbWFpbkNvdXBsaW5nIooBChFTY29yZUNodW5rUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRI/CgVjaHVuaxgCIAEoCzIwLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmdyYXBoLkNodW5rEg8KB2ZpbGVfaWQYAyABKAkSEQoJcmVwb19wYXRoGAQgASgJIlsKElNjb3JlQ2h1bmtSZXNwb25zZRJFCgd2ZXJkaWN0GAEgASgLMjQudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5WZXJkaWN0Io4BChVFeHBsYWluVmVyZGljdFJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSPwoFY2h1bmsYAiABKAsyMC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5ncmFwaC5DaHVuaxIPCgdmaWxlX2lkGAMgASgJEhEKCXJlcG9fcGF0aBgEIAEoCSJfChZFeHBsYWluVmVyZGljdFJlc3BvbnNlEkUKB3ZlcmRpY3QYASABKAsyNC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaWduYWxzLlZlcmRpY3QiJgoSTGlzdFNpZ25hbHNSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJImUKE0xpc3RTaWduYWxzUmVzcG9uc2USTgoHc2lnbmFscxgBIAMoCzI9LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNpZ25hbHMuU2lnbmFsRGVzY3JpcHRvcipWCgRUaWVyEhQKEFRJRVJfVU5TUEVDSUZJRUQQABITCg9USUVSX0FVVE9fUExBQ0UQARIQCgxUSUVSX1NVR0dFU1QQAhIRCg1USUVSX0NPTkZMSUNUEAMqbQoQQ291cGxpbmdTZXZlcml0eRIhCh1DT1VQTElOR19TRVZFUklUWV9VTlNQRUNJRklFRBAAEhoKFkNPVVBMSU5HX1NFVkVSSVRZX0lORk8QARIaChZDT1VQTElOR19TRVZFUklUWV9XQVJOEAIy6wQKDlNpZ25hbHNTZXJ2aWNlEo0BCgpTY29yZUNodW5rEj4udnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5TY29yZUNodW5rUmVxdWVzdBo/LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNpZ25hbHMuU2NvcmVDaHVua1Jlc3BvbnNlEpkBCg5FeHBsYWluVmVyZGljdBJCLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNpZ25hbHMuRXhwbGFpblZlcmRpY3RSZXF1ZXN0GkMudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5FeHBsYWluVmVyZGljdFJlc3BvbnNlEpABCgtMaXN0U2lnbmFscxI/LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNpZ25hbHMuTGlzdFNpZ25hbHNSZXF1ZXN0GkAudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5MaXN0U2lnbmFsc1Jlc3BvbnNlEpkBCg5Cb3VuZGFyeUhlYWx0aBJCLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNpZ25hbHMuQm91bmRhcnlIZWFsdGhSZXF1ZXN0GkMudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5Cb3VuZGFyeUhlYWx0aFJlc3BvbnNlQmBaXmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYXJjaGl0ZWN0dXJlLWNhcnRvZ3JhcGhlci92MS9zaWduYWxzO3NpZ25hbHNfdjFiBnByb3RvMw", [file_architecture_cartographer_v1_graph_graph]);
-
-/**
- * Evidence is one piece of justification for a Score.
- *
- * Evidence kinds (extensible; v0.1 supports the following):
- *   - "path_token"      — token match on the file path
- *   - "import_cluster"  — community-detection cluster membership
- *   - "symbol_glossary" — matched glossary term
- *   - "importer_voting" — N importers, M agree on domain X
- *   - "test_coupling"   — test/source file pairing
- *   - "git_co_edit"     — co-edit frequency over the lookback window
- *
- * @generated from message vrooli.architecture_cartographer.v1.signals.Evidence
- */
-export type Evidence = Message<"vrooli.architecture_cartographer.v1.signals.Evidence"> & {
-  /**
-   * Stable kind identifier (see list above).
-   *
-   * @generated from field: string kind = 1;
-   */
-  kind: string;
-
-  /**
-   * Human-readable summary shown in CLI/UI (e.g., "8 of 10 importers
-   * belong to 'conflicts'").
-   *
-   * @generated from field: string summary = 2;
-   */
-  summary: string;
-
-  /**
-   * Optional locator (e.g., path, edge string) the evidence references.
-   *
-   * @generated from field: string locator = 3;
-   */
-  locator: string;
-
-  /**
-   * Numeric weight contribution this piece of evidence supplied
-   * (informational, in [0, 1]). Sum across Evidence is not required to
-   * equal Score.value; the field exists for explainability tooling.
-   *
-   * @generated from field: double weight = 4;
-   */
-  weight: number;
-};
-
-/**
- * Describes the message vrooli.architecture_cartographer.v1.signals.Evidence.
- * Use `create(EvidenceSchema)` to create a new message.
- */
-export const EvidenceSchema: GenMessage<Evidence> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 0);
-
-/**
- * Score is one signal's output for one chunk.
- *
- * @generated from message vrooli.architecture_cartographer.v1.signals.Score
- */
-export type Score = Message<"vrooli.architecture_cartographer.v1.signals.Score"> & {
-  /**
-   * Signal name (e.g., "path-token", "import-cluster").
-   *
-   * @generated from field: string signal = 1;
-   */
-  signal: string;
-
-  /**
-   * Candidate domain this score endorses (e.g., "conflicts").
-   *
-   * @generated from field: string domain = 2;
-   */
-  domain: string;
-
-  /**
-   * Score value in [0, 1]. 0 means "no signal", 1 means "maximum
-   * confidence."
-   *
-   * @generated from field: double value = 3;
-   */
-  value: number;
-
-  /**
-   * Free-form short reason (e.g., "matched token 'conflict'").
-   *
-   * @generated from field: string reason = 4;
-   */
-  reason: string;
-
-  /**
-   * At least one Evidence entry is required by signal invariants.
-   *
-   * @generated from field: repeated vrooli.architecture_cartographer.v1.signals.Evidence evidence = 5;
-   */
-  evidence: Evidence[];
-};
-
-/**
- * Describes the message vrooli.architecture_cartographer.v1.signals.Score.
- * Use `create(ScoreSchema)` to create a new message.
- */
-export const ScoreSchema: GenMessage<Score> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 1);
-
-/**
- * Abstention is an explicit "I have no data for this chunk" emission
- * from a signal. Reason describes why; Evidence carries at least one
- * concrete pointer. Aggregator includes abstaining signals' weights
- * in the verdict denominator so abstentions cannot inflate the
- * surviving signals' apparent contribution.
- *
- * @generated from message vrooli.architecture_cartographer.v1.signals.Abstention
- */
-export type Abstention = Message<"vrooli.architecture_cartographer.v1.signals.Abstention"> & {
-  /**
-   * Signal name (e.g., "importer-voting").
-   *
-   * @generated from field: string signal = 1;
-   */
-  signal: string;
-
-  /**
-   * Free-form short reason (e.g., "no importers for this file in current snapshot").
-   *
-   * @generated from field: string reason = 2;
-   */
-  reason: string;
-
-  /**
-   * At least one Evidence entry is required by signal invariants.
-   *
-   * @generated from field: repeated vrooli.architecture_cartographer.v1.signals.Evidence evidence = 3;
-   */
-  evidence: Evidence[];
-};
-
-/**
- * Describes the message vrooli.architecture_cartographer.v1.signals.Abstention.
- * Use `create(AbstentionSchema)` to create a new message.
- */
-export const AbstentionSchema: GenMessage<Abstention> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 2);
-
-/**
- * Verdict is the aggregator's output for one chunk.
- *
- * @generated from message vrooli.architecture_cartographer.v1.signals.Verdict
- */
-export type Verdict = Message<"vrooli.architecture_cartographer.v1.signals.Verdict"> & {
-  /**
-   * The chunk being scored.
-   *
-   * @generated from field: string chunk_id = 1;
-   */
-  chunkId: string;
-
-  /**
-   * Repo-relative path of the chunk (denormalized for log readability).
-   *
-   * @generated from field: string chunk_path = 2;
-   */
-  chunkPath: string;
-
-  /**
-   * Tier classification.
-   *
-   * @generated from field: vrooli.architecture_cartographer.v1.signals.Tier tier = 3;
-   */
-  tier: Tier;
-
-  /**
-   * Top candidate domain (the highest-aggregated value).
-   *
-   * @generated from field: string top_domain = 4;
-   */
-  topDomain: string;
-
-  /**
-   * Top aggregated value, in [0, 1].
-   *
-   * @generated from field: double top_value = 5;
-   */
-  topValue: number;
-
-  /**
-   * Runner-up candidate domain (for tie detection / CLI display).
-   *
-   * @generated from field: string runner_up_domain = 6;
-   */
-  runnerUpDomain: string;
-
-  /**
-   * Runner-up aggregated value, in [0, 1].
-   *
-   * @generated from field: double runner_up_value = 7;
-   */
-  runnerUpValue: number;
-
-  /**
-   * Per-signal scores that contributed to the verdict. Order is
-   * alphabetical by Score.signal then Score.domain for determinism.
-   *
-   * @generated from field: repeated vrooli.architecture_cartographer.v1.signals.Score scores = 8;
-   */
-  scores: Score[];
-
-  /**
-   * Aggregated values per candidate domain, alphabetical by domain.
-   *
-   * @generated from field: repeated vrooli.architecture_cartographer.v1.signals.DomainValue domain_values = 9;
-   */
-  domainValues: DomainValue[];
-
-  /**
-   * True when the aggregator detected a tie (top-two within 0.10).
-   *
-   * @generated from field: bool tied = 10;
-   */
-  tied: boolean;
-
-  /**
-   * Per-signal abstentions: signals that ran but had no data. Their
-   * weights are included in the verdict denominator so abstentions do
-   * not inflate the surviving signals' contributions. Order is
-   * alphabetical by Abstention.signal for determinism.
-   *
-   * @generated from field: repeated vrooli.architecture_cartographer.v1.signals.Abstention abstentions = 11;
-   */
-  abstentions: Abstention[];
-};
-
-/**
- * Describes the message vrooli.architecture_cartographer.v1.signals.Verdict.
- * Use `create(VerdictSchema)` to create a new message.
- */
-export const VerdictSchema: GenMessage<Verdict> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 3);
-
-/**
- * DomainValue is one row of the aggregator's per-domain summary.
- *
- * @generated from message vrooli.architecture_cartographer.v1.signals.DomainValue
- */
-export type DomainValue = Message<"vrooli.architecture_cartographer.v1.signals.DomainValue"> & {
-  /**
-   * @generated from field: string domain = 1;
-   */
-  domain: string;
-
-  /**
-   * @generated from field: double value = 2;
-   */
-  value: number;
-};
-
-/**
- * Describes the message vrooli.architecture_cartographer.v1.signals.DomainValue.
- * Use `create(DomainValueSchema)` to create a new message.
- */
-export const DomainValueSchema: GenMessage<DomainValue> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 4);
+  fileDesc("CjJhcmNoaXRlY3R1cmUtY2FydG9ncmFwaGVyL3YxL3NpZ25hbHMvc2lnbmFscy5wcm90bxIrdnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscyKLAQoQU2lnbmFsRGVzY3JpcHRvchIMCgRuYW1lGAEgASgJEhYKDmRlZmF1bHRfd2VpZ2h0GAIgASgBEhEKCXN0YWJpbGl0eRgDIAEoCRITCgtkZXNjcmlwdGlvbhgEIAEoCRIQCghkaXNhYmxlZBgFIAEoCBIXCg9kaXNhYmxlZF9yZWFzb24YBiABKAkifwoNQ291cGxpbmdTbWVsbBIMCgRraW5kGAEgASgJEk8KCHNldmVyaXR5GAIgASgOMj0udnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5Db3VwbGluZ1NldmVyaXR5Eg8KB21lc3NhZ2UYAyABKAkinwIKDkRvbWFpbkNvdXBsaW5nEg4KBmRvbWFpbhgBIAEoCRIRCglhcmNoZXR5cGUYAiABKAkSEAoIZWZmZXJlbnQYAyABKAUSEAoIYWZmZXJlbnQYBCABKAUSEwoLaW5zdGFiaWxpdHkYBSABKAESDwoHZmFuX291dBgGIAEoARISCgpkZXBlbmRzX29uGAcgAygJEhMKC2RlcGVuZGVkX2J5GAggAygJEhUKDXN0YWJsZV9rZXJuZWwYCSABKAgSFAoMaGVhbHRoX3Njb3JlGAogASgBEkoKBnNtZWxscxgLIAMoCzI6LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNpZ25hbHMuQ291cGxpbmdTbWVsbCIpChVCb3VuZGFyeUhlYWx0aFJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkijwEKFkJvdW5kYXJ5SGVhbHRoUmVzcG9uc2USEAoIc2NlbmFyaW8YASABKAkSFQoNdG90YWxfZG9tYWlucxgCIAEoBRJMCgdkb21haW5zGAMgAygLMjsudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5Eb21haW5Db3VwbGluZyKKAQoRU2NvcmVDaHVua1JlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSPwoFY2h1bmsYAiABKAsyMC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5ncmFwaC5DaHVuaxIPCgdmaWxlX2lkGAMgASgJEhEKCXJlcG9fcGF0aBgEIAEoCSJaChJTY29yZUNodW5rUmVzcG9uc2USRAoHdmVyZGljdBgBIAEoCzIzLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNoYXJlZC5WZXJkaWN0Io4BChVFeHBsYWluVmVyZGljdFJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSPwoFY2h1bmsYAiABKAsyMC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5ncmFwaC5DaHVuaxIPCgdmaWxlX2lkGAMgASgJEhEKCXJlcG9fcGF0aBgEIAEoCSJeChZFeHBsYWluVmVyZGljdFJlc3BvbnNlEkQKB3ZlcmRpY3QYASABKAsyMy52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaGFyZWQuVmVyZGljdCImChJMaXN0U2lnbmFsc1JlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkiZQoTTGlzdFNpZ25hbHNSZXNwb25zZRJOCgdzaWduYWxzGAEgAygLMj0udnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5TaWduYWxEZXNjcmlwdG9yKm0KEENvdXBsaW5nU2V2ZXJpdHkSIQodQ09VUExJTkdfU0VWRVJJVFlfVU5TUEVDSUZJRUQQABIaChZDT1VQTElOR19TRVZFUklUWV9JTkZPEAESGgoWQ09VUExJTkdfU0VWRVJJVFlfV0FSThACMusECg5TaWduYWxzU2VydmljZRKNAQoKU2NvcmVDaHVuaxI+LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNpZ25hbHMuU2NvcmVDaHVua1JlcXVlc3QaPy52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaWduYWxzLlNjb3JlQ2h1bmtSZXNwb25zZRKZAQoORXhwbGFpblZlcmRpY3QSQi52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaWduYWxzLkV4cGxhaW5WZXJkaWN0UmVxdWVzdBpDLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNpZ25hbHMuRXhwbGFpblZlcmRpY3RSZXNwb25zZRKQAQoLTGlzdFNpZ25hbHMSPy52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaWduYWxzLkxpc3RTaWduYWxzUmVxdWVzdBpALnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNpZ25hbHMuTGlzdFNpZ25hbHNSZXNwb25zZRKZAQoOQm91bmRhcnlIZWFsdGgSQi52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaWduYWxzLkJvdW5kYXJ5SGVhbHRoUmVxdWVzdBpDLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNpZ25hbHMuQm91bmRhcnlIZWFsdGhSZXNwb25zZUJgWl5naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2FyY2hpdGVjdHVyZS1jYXJ0b2dyYXBoZXIvdjEvc2lnbmFscztzaWduYWxzX3YxYgZwcm90bzM", [file_architecture_cartographer_v1_graph_graph, file_architecture_cartographer_v1_shared_shared]);
 
 /**
  * SignalDescriptor describes one registered signal.
@@ -330,7 +71,7 @@ export type SignalDescriptor = Message<"vrooli.architecture_cartographer.v1.sign
  * Use `create(SignalDescriptorSchema)` to create a new message.
  */
 export const SignalDescriptorSchema: GenMessage<SignalDescriptor> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 5);
+  messageDesc(file_architecture_cartographer_v1_signals_signals, 0);
 
 /**
  * CouplingSmell is one advisory boundary-health finding for a domain.
@@ -361,7 +102,7 @@ export type CouplingSmell = Message<"vrooli.architecture_cartographer.v1.signals
  * Use `create(CouplingSmellSchema)` to create a new message.
  */
 export const CouplingSmellSchema: GenMessage<CouplingSmell> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 6);
+  messageDesc(file_architecture_cartographer_v1_signals_signals, 1);
 
 /**
  * DomainCoupling is the coupling profile of one domain.
@@ -442,7 +183,7 @@ export type DomainCoupling = Message<"vrooli.architecture_cartographer.v1.signal
  * Use `create(DomainCouplingSchema)` to create a new message.
  */
 export const DomainCouplingSchema: GenMessage<DomainCoupling> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 7);
+  messageDesc(file_architecture_cartographer_v1_signals_signals, 2);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.signals.BoundaryHealthRequest
@@ -459,7 +200,7 @@ export type BoundaryHealthRequest = Message<"vrooli.architecture_cartographer.v1
  * Use `create(BoundaryHealthRequestSchema)` to create a new message.
  */
 export const BoundaryHealthRequestSchema: GenMessage<BoundaryHealthRequest> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 8);
+  messageDesc(file_architecture_cartographer_v1_signals_signals, 3);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.signals.BoundaryHealthResponse
@@ -486,7 +227,7 @@ export type BoundaryHealthResponse = Message<"vrooli.architecture_cartographer.v
  * Use `create(BoundaryHealthResponseSchema)` to create a new message.
  */
 export const BoundaryHealthResponseSchema: GenMessage<BoundaryHealthResponse> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 9);
+  messageDesc(file_architecture_cartographer_v1_signals_signals, 4);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.signals.ScoreChunkRequest
@@ -528,14 +269,14 @@ export type ScoreChunkRequest = Message<"vrooli.architecture_cartographer.v1.sig
  * Use `create(ScoreChunkRequestSchema)` to create a new message.
  */
 export const ScoreChunkRequestSchema: GenMessage<ScoreChunkRequest> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 10);
+  messageDesc(file_architecture_cartographer_v1_signals_signals, 5);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.signals.ScoreChunkResponse
  */
 export type ScoreChunkResponse = Message<"vrooli.architecture_cartographer.v1.signals.ScoreChunkResponse"> & {
   /**
-   * @generated from field: vrooli.architecture_cartographer.v1.signals.Verdict verdict = 1;
+   * @generated from field: vrooli.architecture_cartographer.v1.shared.Verdict verdict = 1;
    */
   verdict?: Verdict | undefined;
 };
@@ -545,7 +286,7 @@ export type ScoreChunkResponse = Message<"vrooli.architecture_cartographer.v1.si
  * Use `create(ScoreChunkResponseSchema)` to create a new message.
  */
 export const ScoreChunkResponseSchema: GenMessage<ScoreChunkResponse> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 11);
+  messageDesc(file_architecture_cartographer_v1_signals_signals, 6);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.signals.ExplainVerdictRequest
@@ -579,14 +320,14 @@ export type ExplainVerdictRequest = Message<"vrooli.architecture_cartographer.v1
  * Use `create(ExplainVerdictRequestSchema)` to create a new message.
  */
 export const ExplainVerdictRequestSchema: GenMessage<ExplainVerdictRequest> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 12);
+  messageDesc(file_architecture_cartographer_v1_signals_signals, 7);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.signals.ExplainVerdictResponse
  */
 export type ExplainVerdictResponse = Message<"vrooli.architecture_cartographer.v1.signals.ExplainVerdictResponse"> & {
   /**
-   * @generated from field: vrooli.architecture_cartographer.v1.signals.Verdict verdict = 1;
+   * @generated from field: vrooli.architecture_cartographer.v1.shared.Verdict verdict = 1;
    */
   verdict?: Verdict | undefined;
 };
@@ -596,7 +337,7 @@ export type ExplainVerdictResponse = Message<"vrooli.architecture_cartographer.v
  * Use `create(ExplainVerdictResponseSchema)` to create a new message.
  */
 export const ExplainVerdictResponseSchema: GenMessage<ExplainVerdictResponse> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 13);
+  messageDesc(file_architecture_cartographer_v1_signals_signals, 8);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.signals.ListSignalsRequest
@@ -616,7 +357,7 @@ export type ListSignalsRequest = Message<"vrooli.architecture_cartographer.v1.si
  * Use `create(ListSignalsRequestSchema)` to create a new message.
  */
 export const ListSignalsRequestSchema: GenMessage<ListSignalsRequest> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 14);
+  messageDesc(file_architecture_cartographer_v1_signals_signals, 9);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.signals.ListSignalsResponse
@@ -633,48 +374,7 @@ export type ListSignalsResponse = Message<"vrooli.architecture_cartographer.v1.s
  * Use `create(ListSignalsResponseSchema)` to create a new message.
  */
 export const ListSignalsResponseSchema: GenMessage<ListSignalsResponse> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 15);
-
-/**
- * Tier classifies an aggregated verdict by confidence band.
- *
- *   - TIER_AUTO_PLACE: aggregator value >= manifest's auto_place threshold
- *     (default 0.85). Cartographer may auto-place the chunk.
- *   - TIER_SUGGEST:    aggregator value >= manifest's suggest threshold
- *     (default 0.55) and below auto_place. Cartographer suggests but
- *     defers to the operator.
- *   - TIER_CONFLICT:   below suggest, or top-two within 0.10 of each
- *     other (tied). Cartographer emits a conflict for human review.
- *
- * @generated from enum vrooli.architecture_cartographer.v1.signals.Tier
- */
-export enum Tier {
-  /**
-   * @generated from enum value: TIER_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: TIER_AUTO_PLACE = 1;
-   */
-  AUTO_PLACE = 1,
-
-  /**
-   * @generated from enum value: TIER_SUGGEST = 2;
-   */
-  SUGGEST = 2,
-
-  /**
-   * @generated from enum value: TIER_CONFLICT = 3;
-   */
-  CONFLICT = 3,
-}
-
-/**
- * Describes the enum vrooli.architecture_cartographer.v1.signals.Tier.
- */
-export const TierSchema: GenEnum<Tier> = /*@__PURE__*/
-  enumDesc(file_architecture_cartographer_v1_signals_signals, 0);
+  messageDesc(file_architecture_cartographer_v1_signals_signals, 10);
 
 /**
  * CouplingSeverity grades a boundary-health smell. Advisory only.
@@ -702,7 +402,7 @@ export enum CouplingSeverity {
  * Describes the enum vrooli.architecture_cartographer.v1.signals.CouplingSeverity.
  */
 export const CouplingSeveritySchema: GenEnum<CouplingSeverity> = /*@__PURE__*/
-  enumDesc(file_architecture_cartographer_v1_signals_signals, 1);
+  enumDesc(file_architecture_cartographer_v1_signals_signals, 0);
 
 /**
  * @generated from service vrooli.architecture_cartographer.v1.signals.SignalsService

@@ -1,0 +1,195 @@
+syntax = "proto3";
+
+package vrooli.vrooli_bridge.v1.pairing;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/pairing;pairing_v1";
+
+// =============================================================================
+// PAIRING DOMAIN — one-touch bootstrap + mutual-auth enrollment (OT-P0-002)
+// =============================================================================
+//
+// @stability beta
+//
+// PairingService is how a new node joins the fleet with exactly one manual
+// touch (SECURITY.md "Bootstrap chicken-and-egg" — accept one manual step, then
+// everything is remote). Two enrollment paths:
+//
+//   1. Pre-shared code (default): the owner issues a single-use, short-TTL
+//      pairing code out-of-band (IssuePairingCode, owner-gated) and runs the
+//      bootstrap installer on the node; the node redeems it (RedeemPairingCode,
+//      open but authed by possessing the code), registering its Ed25519 public
+//      key and pinning the control-plane public key returned in the response.
+//   2. Request/approve fallback (no pre-shared code): the node asks to join
+//      (RequestPairing, open) and the owner approves it from the console
+//      (ApprovePairing, owner-gated).
+//
+// Mutual auth (DECISIONS.md / SECURITY.md boundary 2, decided 2026-06-18): a
+// per-node Ed25519 keypair pinned both directions at pairing. The node keeps the
+// PRIVATE key (it never leaves the node — strictly better than a shared secret
+// at rest); the control plane stores the node's PUBLIC key (non-secret, kept
+// verifiable) and returns its OWN public key for the node to pin. Thereafter
+// every node→CP call carries an Ed25519 signature verifiable against the stored
+// node key, and every CP→node push is verifiable against the pinned CP key.
+//
+// The pairing CODE itself is the one genuinely-secret, short-lived bootstrap
+// token: it is single-use, short-TTL, and stored only as a hash (burned on
+// redeem). A live code can enroll a rogue node, so it is shown once and never
+// persisted in plaintext.
+// =============================================================================
+
+service PairingService {
+  // IssuePairingCode mints a single-use, short-TTL pairing code and returns the
+  // control-plane public key the node will pin. Owner-gated. The plaintext code
+  // is returned ONCE (only its hash is stored); show it to the operator and do
+  // not log it.
+  rpc IssuePairingCode(IssuePairingCodeRequest) returns (IssuePairingCodeResponse);
+
+  // RedeemPairingCode is the node-facing bootstrap call. It is open (no owner
+  // token) but authenticated by possession of the still-valid code: the node
+  // presents the code plus its freshly-generated Ed25519 public key and its
+  // facts; the control plane burns the code (single-use), registers the node,
+  // stores the node's public key, and returns the node id + control-plane
+  // public key to pin. Redeeming an expired, unknown, or already-burned code is
+  // rejected.
+  rpc RedeemPairingCode(RedeemPairingCodeRequest) returns (RedeemPairingCodeResponse);
+
+  // RequestPairing is the no-pre-shared-code fallback: a node asks to join and
+  // its request sits pending until the owner approves it. Open (the node has no
+  // credential yet); rate/uniqueness is enforced server-side.
+  rpc RequestPairing(RequestPairingRequest) returns (RequestPairingResponse);
+
+  // ApprovePairing approves (or rejects) a pending pairing request, minting the
+  // node the same way a redeemed code does. Owner-gated.
+  rpc ApprovePairing(ApprovePairingRequest) returns (ApprovePairingResponse);
+
+  // ListPairingRequests returns the pending join requests awaiting owner
+  // approval. Owner-gated (console surface).
+  rpc ListPairingRequests(ListPairingRequestsRequest) returns (ListPairingRequestsResponse);
+}
+
+// PairingRequestStatus is the lifecycle of a request/approve enrollment.
+enum PairingRequestStatus {
+  PAIRING_REQUEST_STATUS_UNSPECIFIED = 0;
+  PAIRING_REQUEST_STATUS_PENDING = 1;   // awaiting owner decision
+  PAIRING_REQUEST_STATUS_APPROVED = 2;  // approved; node minted
+  PAIRING_REQUEST_STATUS_REJECTED = 3;  // owner declined
+}
+
+// IssuePairingCodeRequest carries the owner's intent for the node being paired.
+// The node's own facts (os/arch/endpoint/capabilities) arrive at redeem time;
+// the owner pre-assigns the human label and the granted verb-namespace scopes.
+message IssuePairingCodeRequest {
+  // Intended human label for the node (e.g. "mac-mini-office"). The node may
+  // also propose one at redeem; this wins if set.
+  string name = 1;
+
+  // Granted verb-namespace scopes the node will be authorized for (e.g.
+  // "scenario test*"). Empty mints a node with no dispatch scopes until updated.
+  repeated string scopes = 2;
+
+  // Time-to-live for the code in seconds; clamped server-side to a safe short
+  // window. Zero uses the server default.
+  int64 ttl_seconds = 3;
+}
+
+message IssuePairingCodeResponse {
+  // The single-use plaintext pairing code. Returned ONCE; only its hash is
+  // stored. Deliver out-of-band to the node's bootstrap installer.
+  string code = 1;
+
+  // The control-plane Ed25519 public key (standard base64), which the node pins
+  // at bootstrap and verifies every CP→node push against.
+  string control_plane_public_key = 2;
+
+  // When the code expires (single-use also burns it earlier on redeem).
+  google.protobuf.Timestamp expires_at = 3;
+}
+
+// RedeemPairingCodeRequest is what the node's bootstrap installer sends.
+message RedeemPairingCodeRequest {
+  // The single-use code issued out-of-band.
+  string code = 1;
+
+  // The node's freshly-generated Ed25519 public key (standard base64). The
+  // control plane stores it and verifies the node's signatures against it.
+  string node_public_key = 2;
+
+  // Node-proposed facts. The owner-assigned name from IssuePairingCode wins if
+  // it was set; os/arch/endpoint/capabilities are the node's self-report.
+  string name = 3;
+  string os = 4;
+  string arch = 5;
+  string endpoint = 6;
+  repeated string capabilities = 7;
+}
+
+message RedeemPairingCodeResponse {
+  // The durable node id assigned at registration; the agent uses it as its
+  // identity on every subsequent exchange.
+  string node_id = 1;
+
+  // The control-plane Ed25519 public key to pin (same value as the issue
+  // response; echoed so a node that only has the code learns it here).
+  string control_plane_public_key = 2;
+}
+
+// RequestPairingRequest is the open, no-code fallback enrollment ask.
+message RequestPairingRequest {
+  string node_public_key = 1;
+  string name = 2;
+  string os = 3;
+  string arch = 4;
+  string endpoint = 5;
+  repeated string capabilities = 6;
+}
+
+message RequestPairingResponse {
+  // The pending request id the owner approves; the node polls this until
+  // approved, then receives its node id + the CP key (ApprovePairing result is
+  // surfaced to the node out of band / on a follow-up redeem).
+  string request_id = 1;
+  PairingRequestStatus status = 2;
+}
+
+// ApprovePairingRequest is the owner's decision on a pending request.
+message ApprovePairingRequest {
+  string request_id = 1;
+
+  // True approves and mints the node; false rejects it.
+  bool approve = 2;
+
+  // Granted verb-namespace scopes (applied on approval).
+  repeated string scopes = 3;
+}
+
+message ApprovePairingResponse {
+  // Set when approved: the minted node id.
+  string node_id = 1;
+  PairingRequestStatus status = 2;
+}
+
+// PairingRequest is a pending/decided join request surfaced to the owner.
+message PairingRequest {
+  string id = 1;
+  string name = 2;
+  string os = 3;
+  string arch = 4;
+  string endpoint = 5;
+  repeated string capabilities = 6;
+  PairingRequestStatus status = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp decided_at = 9;
+  // The minted node id once approved.
+  string node_id = 10;
+}
+
+message ListPairingRequestsRequest {
+  // When true, include already-decided requests; default returns only pending.
+  bool include_decided = 1;
+}
+
+message ListPairingRequestsResponse {
+  repeated PairingRequest requests = 1;
+}

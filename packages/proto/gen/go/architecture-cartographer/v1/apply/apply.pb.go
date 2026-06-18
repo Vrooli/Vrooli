@@ -7,7 +7,7 @@
 package apply_v1
 
 import (
-	conflicts "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/conflicts"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -1104,7 +1104,7 @@ func (x *GetBuildBaselineResponse) GetBaseline() *BuildBaseline {
 type PlanWithContext struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Plan          *Plan                  `protobuf:"bytes,1,opt,name=plan,proto3" json:"plan,omitempty"`
-	Conflicts     []*conflicts.Conflict  `protobuf:"bytes,2,rep,name=conflicts,proto3" json:"conflicts,omitempty"`
+	Conflicts     []*shared.Conflict     `protobuf:"bytes,2,rep,name=conflicts,proto3" json:"conflicts,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1146,7 +1146,7 @@ func (x *PlanWithContext) GetPlan() *Plan {
 	return nil
 }
 
-func (x *PlanWithContext) GetConflicts() []*conflicts.Conflict {
+func (x *PlanWithContext) GetConflicts() []*shared.Conflict {
 	if x != nil {
 		return x.Conflicts
 	}
@@ -1157,7 +1157,7 @@ var File_architecture_cartographer_v1_apply_apply_proto protoreflect.FileDescrip
 
 const file_architecture_cartographer_v1_apply_apply_proto_rawDesc = "" +
 	"\n" +
-	".architecture-cartographer/v1/apply/apply.proto\x12)vrooli.architecture_cartographer.v1.apply\x1a6architecture-cartographer/v1/conflicts/conflicts.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xed\x01\n" +
+	".architecture-cartographer/v1/apply/apply.proto\x12)vrooli.architecture_cartographer.v1.apply\x1a0architecture-cartographer/v1/shared/shared.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xed\x01\n" +
 	"\tOperation\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12L\n" +
 	"\x04kind\x18\x02 \x01(\x0e28.vrooli.architecture_cartographer.v1.apply.OperationKindR\x04kind\x12\x1b\n" +
@@ -1229,10 +1229,10 @@ const file_architecture_cartographer_v1_apply_apply_proto_rawDesc = "" +
 	"\x17GetBuildBaselineRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\"p\n" +
 	"\x18GetBuildBaselineResponse\x12T\n" +
-	"\bbaseline\x18\x01 \x01(\v28.vrooli.architecture_cartographer.v1.apply.BuildBaselineR\bbaseline\"\xad\x01\n" +
+	"\bbaseline\x18\x01 \x01(\v28.vrooli.architecture_cartographer.v1.apply.BuildBaselineR\bbaseline\"\xaa\x01\n" +
 	"\x0fPlanWithContext\x12C\n" +
-	"\x04plan\x18\x01 \x01(\v2/.vrooli.architecture_cartographer.v1.apply.PlanR\x04plan\x12U\n" +
-	"\tconflicts\x18\x02 \x03(\v27.vrooli.architecture_cartographer.v1.conflicts.ConflictR\tconflicts*\xb0\x01\n" +
+	"\x04plan\x18\x01 \x01(\v2/.vrooli.architecture_cartographer.v1.apply.PlanR\x04plan\x12R\n" +
+	"\tconflicts\x18\x02 \x03(\v24.vrooli.architecture_cartographer.v1.shared.ConflictR\tconflicts*\xb0\x01\n" +
 	"\rOperationKind\x12\x1e\n" +
 	"\x1aOPERATION_KIND_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18OPERATION_KIND_MOVE_FILE\x10\x01\x12!\n" +
@@ -1287,7 +1287,7 @@ var file_architecture_cartographer_v1_apply_apply_proto_goTypes = []any{
 	(*GetBuildBaselineResponse)(nil), // 15: vrooli.architecture_cartographer.v1.apply.GetBuildBaselineResponse
 	(*PlanWithContext)(nil),          // 16: vrooli.architecture_cartographer.v1.apply.PlanWithContext
 	(*timestamppb.Timestamp)(nil),    // 17: google.protobuf.Timestamp
-	(*conflicts.Conflict)(nil),       // 18: vrooli.architecture_cartographer.v1.conflicts.Conflict
+	(*shared.Conflict)(nil),          // 18: vrooli.architecture_cartographer.v1.shared.Conflict
 }
 var file_architecture_cartographer_v1_apply_apply_proto_depIdxs = []int32{
 	0,  // 0: vrooli.architecture_cartographer.v1.apply.Operation.kind:type_name -> vrooli.architecture_cartographer.v1.apply.OperationKind
@@ -1302,7 +1302,7 @@ var file_architecture_cartographer_v1_apply_apply_proto_depIdxs = []int32{
 	4,  // 9: vrooli.architecture_cartographer.v1.apply.ListApplyHistoryResponse.runs:type_name -> vrooli.architecture_cartographer.v1.apply.ApplyRun
 	5,  // 10: vrooli.architecture_cartographer.v1.apply.GetBuildBaselineResponse.baseline:type_name -> vrooli.architecture_cartographer.v1.apply.BuildBaseline
 	3,  // 11: vrooli.architecture_cartographer.v1.apply.PlanWithContext.plan:type_name -> vrooli.architecture_cartographer.v1.apply.Plan
-	18, // 12: vrooli.architecture_cartographer.v1.apply.PlanWithContext.conflicts:type_name -> vrooli.architecture_cartographer.v1.conflicts.Conflict
+	18, // 12: vrooli.architecture_cartographer.v1.apply.PlanWithContext.conflicts:type_name -> vrooli.architecture_cartographer.v1.shared.Conflict
 	8,  // 13: vrooli.architecture_cartographer.v1.apply.ApplyService.PlanApply:input_type -> vrooli.architecture_cartographer.v1.apply.PlanApplyRequest
 	10, // 14: vrooli.architecture_cartographer.v1.apply.ApplyService.RunApply:input_type -> vrooli.architecture_cartographer.v1.apply.RunApplyRequest
 	12, // 15: vrooli.architecture_cartographer.v1.apply.ApplyService.ListApplyHistory:input_type -> vrooli.architecture_cartographer.v1.apply.ListApplyHistoryRequest

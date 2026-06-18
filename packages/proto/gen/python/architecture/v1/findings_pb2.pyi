@@ -32,6 +32,12 @@ class FindingSeverity(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     FINDING_SEVERITY_ERROR: _ClassVar[FindingSeverity]
     FINDING_SEVERITY_BLOCKER: _ClassVar[FindingSeverity]
 
+class FindingClass(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    FINDING_CLASS_UNSPECIFIED: _ClassVar[FindingClass]
+    FINDING_CLASS_DETERMINISTIC: _ClassVar[FindingClass]
+    FINDING_CLASS_HEURISTIC: _ClassVar[FindingClass]
+
 class EffortHint(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     EFFORT_HINT_UNSPECIFIED: _ClassVar[EffortHint]
@@ -58,6 +64,9 @@ FINDING_SEVERITY_INFO: FindingSeverity
 FINDING_SEVERITY_WARNING: FindingSeverity
 FINDING_SEVERITY_ERROR: FindingSeverity
 FINDING_SEVERITY_BLOCKER: FindingSeverity
+FINDING_CLASS_UNSPECIFIED: FindingClass
+FINDING_CLASS_DETERMINISTIC: FindingClass
+FINDING_CLASS_HEURISTIC: FindingClass
 EFFORT_HINT_UNSPECIFIED: EffortHint
 EFFORT_HINT_TRIVIAL: EffortHint
 EFFORT_HINT_SMALL: EffortHint
@@ -93,7 +102,7 @@ class SuggestedFix(_message.Message):
     def __init__(self, id: _Optional[str] = ..., kind: _Optional[str] = ..., resolver: _Optional[str] = ..., summary: _Optional[str] = ..., payload: _Optional[bytes] = ..., confidence: _Optional[float] = ...) -> None: ...
 
 class ArchitectureFinding(_message.Message):
-    __slots__ = ("scenario", "source", "code", "severity", "locations", "domains", "message", "suggestion", "stable_id", "evidence", "suggested_fixes", "effort")
+    __slots__ = ("scenario", "source", "code", "severity", "locations", "domains", "message", "suggestion", "stable_id", "evidence", "suggested_fixes", "effort", "finding_class")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     SOURCE_FIELD_NUMBER: _ClassVar[int]
     CODE_FIELD_NUMBER: _ClassVar[int]
@@ -106,6 +115,7 @@ class ArchitectureFinding(_message.Message):
     EVIDENCE_FIELD_NUMBER: _ClassVar[int]
     SUGGESTED_FIXES_FIELD_NUMBER: _ClassVar[int]
     EFFORT_FIELD_NUMBER: _ClassVar[int]
+    FINDING_CLASS_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     source: FindingSource
     code: str
@@ -118,4 +128,5 @@ class ArchitectureFinding(_message.Message):
     evidence: _containers.RepeatedCompositeFieldContainer[Evidence]
     suggested_fixes: _containers.RepeatedCompositeFieldContainer[SuggestedFix]
     effort: EffortHint
-    def __init__(self, scenario: _Optional[str] = ..., source: _Optional[_Union[FindingSource, str]] = ..., code: _Optional[str] = ..., severity: _Optional[_Union[FindingSeverity, str]] = ..., locations: _Optional[_Iterable[str]] = ..., domains: _Optional[_Iterable[str]] = ..., message: _Optional[str] = ..., suggestion: _Optional[str] = ..., stable_id: _Optional[str] = ..., evidence: _Optional[_Iterable[_Union[Evidence, _Mapping]]] = ..., suggested_fixes: _Optional[_Iterable[_Union[SuggestedFix, _Mapping]]] = ..., effort: _Optional[_Union[EffortHint, str]] = ...) -> None: ...
+    finding_class: FindingClass
+    def __init__(self, scenario: _Optional[str] = ..., source: _Optional[_Union[FindingSource, str]] = ..., code: _Optional[str] = ..., severity: _Optional[_Union[FindingSeverity, str]] = ..., locations: _Optional[_Iterable[str]] = ..., domains: _Optional[_Iterable[str]] = ..., message: _Optional[str] = ..., suggestion: _Optional[str] = ..., stable_id: _Optional[str] = ..., evidence: _Optional[_Iterable[_Union[Evidence, _Mapping]]] = ..., suggested_fixes: _Optional[_Iterable[_Union[SuggestedFix, _Mapping]]] = ..., effort: _Optional[_Union[EffortHint, str]] = ..., finding_class: _Optional[_Union[FindingClass, str]] = ...) -> None: ...

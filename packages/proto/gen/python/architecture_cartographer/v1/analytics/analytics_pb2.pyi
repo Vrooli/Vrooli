@@ -1,7 +1,6 @@
 import datetime
 
-from architecture_cartographer.v1.conflicts import conflicts_pb2 as _conflicts_pb2
-from architecture_cartographer.v1.signals import signals_pb2 as _signals_pb2
+from architecture_cartographer.v1.shared import shared_pb2 as _shared_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
@@ -87,11 +86,11 @@ class Placement(_message.Message):
     scenario: str
     chunk_id: str
     chunk_path: str
-    verdict: _signals_pb2.Verdict
+    verdict: _shared_pb2.Verdict
     outcome: str
     auto_acted: bool
     recorded_at: _timestamp_pb2.Timestamp
-    def __init__(self, id: _Optional[str] = ..., scenario: _Optional[str] = ..., chunk_id: _Optional[str] = ..., chunk_path: _Optional[str] = ..., verdict: _Optional[_Union[_signals_pb2.Verdict, _Mapping]] = ..., outcome: _Optional[str] = ..., auto_acted: _Optional[bool] = ..., recorded_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    def __init__(self, id: _Optional[str] = ..., scenario: _Optional[str] = ..., chunk_id: _Optional[str] = ..., chunk_path: _Optional[str] = ..., verdict: _Optional[_Union[_shared_pb2.Verdict, _Mapping]] = ..., outcome: _Optional[str] = ..., auto_acted: _Optional[bool] = ..., recorded_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class Override(_message.Message):
     __slots__ = ("id", "scenario", "chunk_id", "verdict_domain", "chosen_domain", "note", "verdict_event_id", "recorded_at")
@@ -222,11 +221,11 @@ class RecordOverrideResponse(_message.Message):
 class VerdictPayload(_message.Message):
     __slots__ = ("verdict",)
     VERDICT_FIELD_NUMBER: _ClassVar[int]
-    verdict: _signals_pb2.Verdict
-    def __init__(self, verdict: _Optional[_Union[_signals_pb2.Verdict, _Mapping]] = ...) -> None: ...
+    verdict: _shared_pb2.Verdict
+    def __init__(self, verdict: _Optional[_Union[_shared_pb2.Verdict, _Mapping]] = ...) -> None: ...
 
 class ConflictPayload(_message.Message):
     __slots__ = ("conflict",)
     CONFLICT_FIELD_NUMBER: _ClassVar[int]
-    conflict: _conflicts_pb2.Conflict
-    def __init__(self, conflict: _Optional[_Union[_conflicts_pb2.Conflict, _Mapping]] = ...) -> None: ...
+    conflict: _shared_pb2.Conflict
+    def __init__(self, conflict: _Optional[_Union[_shared_pb2.Conflict, _Mapping]] = ...) -> None: ...

@@ -4,152 +4,96 @@
 
 import { enumDesc, fileDesc, messageDesc, serviceDesc, tsEnum } from "@bufbuild/protobuf/codegenv2";
 import { file_architecture_cartographer_v1_graph_graph } from "../graph/graph_pb.js";
+import { file_architecture_cartographer_v1_shared_shared } from "../shared/shared_pb.js";
 
 /**
  * Describes the file architecture-cartographer/v1/signals/signals.proto.
  */
 export const file_architecture_cartographer_v1_signals_signals = /*@__PURE__*/
-  fileDesc("CjJhcmNoaXRlY3R1cmUtY2FydG9ncmFwaGVyL3YxL3NpZ25hbHMvc2lnbmFscy5wcm90bxIrdnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscyJKCghFdmlkZW5jZRIMCgRraW5kGAEgASgJEg8KB3N1bW1hcnkYAiABKAkSDwoHbG9jYXRvchgDIAEoCRIOCgZ3ZWlnaHQYBCABKAEijwEKBVNjb3JlEg4KBnNpZ25hbBgBIAEoCRIOCgZkb21haW4YAiABKAkSDQoFdmFsdWUYAyABKAESDgoGcmVhc29uGAQgASgJEkcKCGV2aWRlbmNlGAUgAygLMjUudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5FdmlkZW5jZSJ1CgpBYnN0ZW50aW9uEg4KBnNpZ25hbBgBIAEoCRIOCgZyZWFzb24YAiABKAkSRwoIZXZpZGVuY2UYAyADKAsyNS52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaWduYWxzLkV2aWRlbmNlIrsDCgdWZXJkaWN0EhAKCGNodW5rX2lkGAEgASgJEhIKCmNodW5rX3BhdGgYAiABKAkSPwoEdGllchgDIAEoDjIxLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNpZ25hbHMuVGllchISCgp0b3BfZG9tYWluGAQgASgJEhEKCXRvcF92YWx1ZRgFIAEoARIYChBydW5uZXJfdXBfZG9tYWluGAYgASgJEhcKD3J1bm5lcl91cF92YWx1ZRgHIAEoARJCCgZzY29yZXMYCCADKAsyMi52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaWduYWxzLlNjb3JlEk8KDWRvbWFpbl92YWx1ZXMYCSADKAsyOC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaWduYWxzLkRvbWFpblZhbHVlEgwKBHRpZWQYCiABKAgSTAoLYWJzdGVudGlvbnMYCyADKAsyNy52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaWduYWxzLkFic3RlbnRpb24iLAoLRG9tYWluVmFsdWUSDgoGZG9tYWluGAEgASgJEg0KBXZhbHVlGAIgASgBIosBChBTaWduYWxEZXNjcmlwdG9yEgwKBG5hbWUYASABKAkSFgoOZGVmYXVsdF93ZWlnaHQYAiABKAESEQoJc3RhYmlsaXR5GAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJEhAKCGRpc2FibGVkGAUgASgIEhcKD2Rpc2FibGVkX3JlYXNvbhgGIAEoCSJ/Cg1Db3VwbGluZ1NtZWxsEgwKBGtpbmQYASABKAkSTwoIc2V2ZXJpdHkYAiABKA4yPS52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaWduYWxzLkNvdXBsaW5nU2V2ZXJpdHkSDwoHbWVzc2FnZRgDIAEoCSKfAgoORG9tYWluQ291cGxpbmcSDgoGZG9tYWluGAEgASgJEhEKCWFyY2hldHlwZRgCIAEoCRIQCghlZmZlcmVudBgDIAEoBRIQCghhZmZlcmVudBgEIAEoBRITCgtpbnN0YWJpbGl0eRgFIAEoARIPCgdmYW5fb3V0GAYgASgBEhIKCmRlcGVuZHNfb24YByADKAkSEwoLZGVwZW5kZWRfYnkYCCADKAkSFQoNc3RhYmxlX2tlcm5lbBgJIAEoCBIUCgxoZWFsdGhfc2NvcmUYCiABKAESSgoGc21lbGxzGAsgAygLMjoudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5Db3VwbGluZ1NtZWxsIikKFUJvdW5kYXJ5SGVhbHRoUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCSKPAQoWQm91bmRhcnlIZWFsdGhSZXNwb25zZRIQCghzY2VuYXJpbxgBIAEoCRIVCg10b3RhbF9kb21haW5zGAIgASgFEkwKB2RvbWFpbnMYAyADKAsyOy52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaWduYWxzLkRvbWFpbkNvdXBsaW5nIooBChFTY29yZUNodW5rUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRI/CgVjaHVuaxgCIAEoCzIwLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmdyYXBoLkNodW5rEg8KB2ZpbGVfaWQYAyABKAkSEQoJcmVwb19wYXRoGAQgASgJIlsKElNjb3JlQ2h1bmtSZXNwb25zZRJFCgd2ZXJkaWN0GAEgASgLMjQudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5WZXJkaWN0Io4BChVFeHBsYWluVmVyZGljdFJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSPwoFY2h1bmsYAiABKAsyMC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5ncmFwaC5DaHVuaxIPCgdmaWxlX2lkGAMgASgJEhEKCXJlcG9fcGF0aBgEIAEoCSJfChZFeHBsYWluVmVyZGljdFJlc3BvbnNlEkUKB3ZlcmRpY3QYASABKAsyNC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaWduYWxzLlZlcmRpY3QiJgoSTGlzdFNpZ25hbHNSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJImUKE0xpc3RTaWduYWxzUmVzcG9uc2USTgoHc2lnbmFscxgBIAMoCzI9LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNpZ25hbHMuU2lnbmFsRGVzY3JpcHRvcipWCgRUaWVyEhQKEFRJRVJfVU5TUEVDSUZJRUQQABITCg9USUVSX0FVVE9fUExBQ0UQARIQCgxUSUVSX1NVR0dFU1QQAhIRCg1USUVSX0NPTkZMSUNUEAMqbQoQQ291cGxpbmdTZXZlcml0eRIhCh1DT1VQTElOR19TRVZFUklUWV9VTlNQRUNJRklFRBAAEhoKFkNPVVBMSU5HX1NFVkVSSVRZX0lORk8QARIaChZDT1VQTElOR19TRVZFUklUWV9XQVJOEAIy6wQKDlNpZ25hbHNTZXJ2aWNlEo0BCgpTY29yZUNodW5rEj4udnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5TY29yZUNodW5rUmVxdWVzdBo/LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNpZ25hbHMuU2NvcmVDaHVua1Jlc3BvbnNlEpkBCg5FeHBsYWluVmVyZGljdBJCLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNpZ25hbHMuRXhwbGFpblZlcmRpY3RSZXF1ZXN0GkMudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5FeHBsYWluVmVyZGljdFJlc3BvbnNlEpABCgtMaXN0U2lnbmFscxI/LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNpZ25hbHMuTGlzdFNpZ25hbHNSZXF1ZXN0GkAudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5MaXN0U2lnbmFsc1Jlc3BvbnNlEpkBCg5Cb3VuZGFyeUhlYWx0aBJCLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNpZ25hbHMuQm91bmRhcnlIZWFsdGhSZXF1ZXN0GkMudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5Cb3VuZGFyeUhlYWx0aFJlc3BvbnNlQmBaXmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYXJjaGl0ZWN0dXJlLWNhcnRvZ3JhcGhlci92MS9zaWduYWxzO3NpZ25hbHNfdjFiBnByb3RvMw", [file_architecture_cartographer_v1_graph_graph]);
-
-/**
- * Describes the message vrooli.architecture_cartographer.v1.signals.Evidence.
- * Use `create(EvidenceSchema)` to create a new message.
- */
-export const EvidenceSchema = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 0);
-
-/**
- * Describes the message vrooli.architecture_cartographer.v1.signals.Score.
- * Use `create(ScoreSchema)` to create a new message.
- */
-export const ScoreSchema = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 1);
-
-/**
- * Describes the message vrooli.architecture_cartographer.v1.signals.Abstention.
- * Use `create(AbstentionSchema)` to create a new message.
- */
-export const AbstentionSchema = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 2);
-
-/**
- * Describes the message vrooli.architecture_cartographer.v1.signals.Verdict.
- * Use `create(VerdictSchema)` to create a new message.
- */
-export const VerdictSchema = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 3);
-
-/**
- * Describes the message vrooli.architecture_cartographer.v1.signals.DomainValue.
- * Use `create(DomainValueSchema)` to create a new message.
- */
-export const DomainValueSchema = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 4);
+  fileDesc("CjJhcmNoaXRlY3R1cmUtY2FydG9ncmFwaGVyL3YxL3NpZ25hbHMvc2lnbmFscy5wcm90bxIrdnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscyKLAQoQU2lnbmFsRGVzY3JpcHRvchIMCgRuYW1lGAEgASgJEhYKDmRlZmF1bHRfd2VpZ2h0GAIgASgBEhEKCXN0YWJpbGl0eRgDIAEoCRITCgtkZXNjcmlwdGlvbhgEIAEoCRIQCghkaXNhYmxlZBgFIAEoCBIXCg9kaXNhYmxlZF9yZWFzb24YBiABKAkifwoNQ291cGxpbmdTbWVsbBIMCgRraW5kGAEgASgJEk8KCHNldmVyaXR5GAIgASgOMj0udnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5Db3VwbGluZ1NldmVyaXR5Eg8KB21lc3NhZ2UYAyABKAkinwIKDkRvbWFpbkNvdXBsaW5nEg4KBmRvbWFpbhgBIAEoCRIRCglhcmNoZXR5cGUYAiABKAkSEAoIZWZmZXJlbnQYAyABKAUSEAoIYWZmZXJlbnQYBCABKAUSEwoLaW5zdGFiaWxpdHkYBSABKAESDwoHZmFuX291dBgGIAEoARISCgpkZXBlbmRzX29uGAcgAygJEhMKC2RlcGVuZGVkX2J5GAggAygJEhUKDXN0YWJsZV9rZXJuZWwYCSABKAgSFAoMaGVhbHRoX3Njb3JlGAogASgBEkoKBnNtZWxscxgLIAMoCzI6LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNpZ25hbHMuQ291cGxpbmdTbWVsbCIpChVCb3VuZGFyeUhlYWx0aFJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkijwEKFkJvdW5kYXJ5SGVhbHRoUmVzcG9uc2USEAoIc2NlbmFyaW8YASABKAkSFQoNdG90YWxfZG9tYWlucxgCIAEoBRJMCgdkb21haW5zGAMgAygLMjsudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5Eb21haW5Db3VwbGluZyKKAQoRU2NvcmVDaHVua1JlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSPwoFY2h1bmsYAiABKAsyMC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5ncmFwaC5DaHVuaxIPCgdmaWxlX2lkGAMgASgJEhEKCXJlcG9fcGF0aBgEIAEoCSJaChJTY29yZUNodW5rUmVzcG9uc2USRAoHdmVyZGljdBgBIAEoCzIzLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNoYXJlZC5WZXJkaWN0Io4BChVFeHBsYWluVmVyZGljdFJlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSPwoFY2h1bmsYAiABKAsyMC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5ncmFwaC5DaHVuaxIPCgdmaWxlX2lkGAMgASgJEhEKCXJlcG9fcGF0aBgEIAEoCSJeChZFeHBsYWluVmVyZGljdFJlc3BvbnNlEkQKB3ZlcmRpY3QYASABKAsyMy52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaGFyZWQuVmVyZGljdCImChJMaXN0U2lnbmFsc1JlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkiZQoTTGlzdFNpZ25hbHNSZXNwb25zZRJOCgdzaWduYWxzGAEgAygLMj0udnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2lnbmFscy5TaWduYWxEZXNjcmlwdG9yKm0KEENvdXBsaW5nU2V2ZXJpdHkSIQodQ09VUExJTkdfU0VWRVJJVFlfVU5TUEVDSUZJRUQQABIaChZDT1VQTElOR19TRVZFUklUWV9JTkZPEAESGgoWQ09VUExJTkdfU0VWRVJJVFlfV0FSThACMusECg5TaWduYWxzU2VydmljZRKNAQoKU2NvcmVDaHVuaxI+LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNpZ25hbHMuU2NvcmVDaHVua1JlcXVlc3QaPy52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaWduYWxzLlNjb3JlQ2h1bmtSZXNwb25zZRKZAQoORXhwbGFpblZlcmRpY3QSQi52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaWduYWxzLkV4cGxhaW5WZXJkaWN0UmVxdWVzdBpDLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNpZ25hbHMuRXhwbGFpblZlcmRpY3RSZXNwb25zZRKQAQoLTGlzdFNpZ25hbHMSPy52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaWduYWxzLkxpc3RTaWduYWxzUmVxdWVzdBpALnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNpZ25hbHMuTGlzdFNpZ25hbHNSZXNwb25zZRKZAQoOQm91bmRhcnlIZWFsdGgSQi52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaWduYWxzLkJvdW5kYXJ5SGVhbHRoUmVxdWVzdBpDLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNpZ25hbHMuQm91bmRhcnlIZWFsdGhSZXNwb25zZUJgWl5naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2FyY2hpdGVjdHVyZS1jYXJ0b2dyYXBoZXIvdjEvc2lnbmFscztzaWduYWxzX3YxYgZwcm90bzM", [file_architecture_cartographer_v1_graph_graph, file_architecture_cartographer_v1_shared_shared]);
 
 /**
  * Describes the message vrooli.architecture_cartographer.v1.signals.SignalDescriptor.
  * Use `create(SignalDescriptorSchema)` to create a new message.
  */
 export const SignalDescriptorSchema = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 5);
+  messageDesc(file_architecture_cartographer_v1_signals_signals, 0);
 
 /**
  * Describes the message vrooli.architecture_cartographer.v1.signals.CouplingSmell.
  * Use `create(CouplingSmellSchema)` to create a new message.
  */
 export const CouplingSmellSchema = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 6);
+  messageDesc(file_architecture_cartographer_v1_signals_signals, 1);
 
 /**
  * Describes the message vrooli.architecture_cartographer.v1.signals.DomainCoupling.
  * Use `create(DomainCouplingSchema)` to create a new message.
  */
 export const DomainCouplingSchema = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 7);
+  messageDesc(file_architecture_cartographer_v1_signals_signals, 2);
 
 /**
  * Describes the message vrooli.architecture_cartographer.v1.signals.BoundaryHealthRequest.
  * Use `create(BoundaryHealthRequestSchema)` to create a new message.
  */
 export const BoundaryHealthRequestSchema = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 8);
+  messageDesc(file_architecture_cartographer_v1_signals_signals, 3);
 
 /**
  * Describes the message vrooli.architecture_cartographer.v1.signals.BoundaryHealthResponse.
  * Use `create(BoundaryHealthResponseSchema)` to create a new message.
  */
 export const BoundaryHealthResponseSchema = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 9);
+  messageDesc(file_architecture_cartographer_v1_signals_signals, 4);
 
 /**
  * Describes the message vrooli.architecture_cartographer.v1.signals.ScoreChunkRequest.
  * Use `create(ScoreChunkRequestSchema)` to create a new message.
  */
 export const ScoreChunkRequestSchema = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 10);
+  messageDesc(file_architecture_cartographer_v1_signals_signals, 5);
 
 /**
  * Describes the message vrooli.architecture_cartographer.v1.signals.ScoreChunkResponse.
  * Use `create(ScoreChunkResponseSchema)` to create a new message.
  */
 export const ScoreChunkResponseSchema = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 11);
+  messageDesc(file_architecture_cartographer_v1_signals_signals, 6);
 
 /**
  * Describes the message vrooli.architecture_cartographer.v1.signals.ExplainVerdictRequest.
  * Use `create(ExplainVerdictRequestSchema)` to create a new message.
  */
 export const ExplainVerdictRequestSchema = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 12);
+  messageDesc(file_architecture_cartographer_v1_signals_signals, 7);
 
 /**
  * Describes the message vrooli.architecture_cartographer.v1.signals.ExplainVerdictResponse.
  * Use `create(ExplainVerdictResponseSchema)` to create a new message.
  */
 export const ExplainVerdictResponseSchema = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 13);
+  messageDesc(file_architecture_cartographer_v1_signals_signals, 8);
 
 /**
  * Describes the message vrooli.architecture_cartographer.v1.signals.ListSignalsRequest.
  * Use `create(ListSignalsRequestSchema)` to create a new message.
  */
 export const ListSignalsRequestSchema = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 14);
+  messageDesc(file_architecture_cartographer_v1_signals_signals, 9);
 
 /**
  * Describes the message vrooli.architecture_cartographer.v1.signals.ListSignalsResponse.
  * Use `create(ListSignalsResponseSchema)` to create a new message.
  */
 export const ListSignalsResponseSchema = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_signals_signals, 15);
-
-/**
- * Describes the enum vrooli.architecture_cartographer.v1.signals.Tier.
- */
-export const TierSchema = /*@__PURE__*/
-  enumDesc(file_architecture_cartographer_v1_signals_signals, 0);
-
-/**
- * Tier classifies an aggregated verdict by confidence band.
- *
- *   - TIER_AUTO_PLACE: aggregator value >= manifest's auto_place threshold
- *     (default 0.85). Cartographer may auto-place the chunk.
- *   - TIER_SUGGEST:    aggregator value >= manifest's suggest threshold
- *     (default 0.55) and below auto_place. Cartographer suggests but
- *     defers to the operator.
- *   - TIER_CONFLICT:   below suggest, or top-two within 0.10 of each
- *     other (tied). Cartographer emits a conflict for human review.
- *
- * @generated from enum vrooli.architecture_cartographer.v1.signals.Tier
- */
-export const Tier = /*@__PURE__*/
-  tsEnum(TierSchema);
+  messageDesc(file_architecture_cartographer_v1_signals_signals, 10);
 
 /**
  * Describes the enum vrooli.architecture_cartographer.v1.signals.CouplingSeverity.
  */
 export const CouplingSeveritySchema = /*@__PURE__*/
-  enumDesc(file_architecture_cartographer_v1_signals_signals, 1);
+  enumDesc(file_architecture_cartographer_v1_signals_signals, 0);
 
 /**
  * CouplingSeverity grades a boundary-health smell. Advisory only.

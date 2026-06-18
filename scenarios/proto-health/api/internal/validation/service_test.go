@@ -3,14 +3,29 @@ package validation
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/maturity-go/assessment"
 
 	"proto-health/internal/protosurface"
 
 	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 )
+
+func newTestService(t *testing.T, deps Deps) *Service {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join("..", "..", "..", ".vrooli", "maturity.json"))
+	require.NoError(t, err)
+	spec, err := assessment.ParseSpec(raw)
+	require.NoError(t, err)
+	catalog, err := NewFindingCatalog(spec)
+	require.NoError(t, err)
+	deps.Catalog = catalog
+	return New(deps)
+}
 
 type fakeLoader struct {
 	surface   protosurface.Surface
@@ -72,7 +87,7 @@ func (f *fakeCodeFactsClient) CheckEndpointProof(_ context.Context, _ string, en
 }
 
 func TestValidateScenarioCleanSurfacePasses(t *testing.T) {
-	svc := New(Deps{Loader: fakeLoader{surface: cleanSurface()}})
+	svc := newTestService(t, Deps{Loader: fakeLoader{surface: cleanSurface()}})
 
 	report, err := svc.ValidateScenario(context.Background(), "demo")
 	require.NoError(t, err)
@@ -82,7 +97,7 @@ func TestValidateScenarioCleanSurfacePasses(t *testing.T) {
 }
 
 func TestValidateScenarioFindsGeneratedArtifactDrift(t *testing.T) {
-	svc := New(Deps{
+	svc := newTestService(t, Deps{
 		Loader: fakeLoader{surface: cleanSurface()},
 		GenSyncChecker: fakeGenSyncChecker{status: GenSyncStatus{
 			InSync: false,
@@ -98,7 +113,7 @@ func TestValidateScenarioFindsGeneratedArtifactDrift(t *testing.T) {
 }
 
 func TestValidateScenarioFindsMissingCodeFactsProtoAdoption(t *testing.T) {
-	svc := New(Deps{
+	svc := newTestService(t, Deps{
 		Loader: fakeLoader{surface: cleanSurface()},
 		CodeFacts: &fakeCodeFactsClient{
 			adoptionReport: proofReport(factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION,
@@ -109,12 +124,12 @@ func TestValidateScenarioFindsMissingCodeFactsProtoAdoption(t *testing.T) {
 
 	report, err := svc.ValidateScenario(context.Background(), "demo")
 	require.NoError(t, err)
-	require.False(t, report.Passed)
-	requireFinding(t, report, CodeProtoAdoptionMissing, SeverityError)
+	require.True(t, report.Passed)
+	requireFinding(t, report, CodeProtoAdoptionMissing, SeverityWarning)
 }
 
 func TestValidateScenarioWarnsWhenCodeFactsUnavailable(t *testing.T) {
-	svc := New(Deps{
+	svc := newTestService(t, Deps{
 		Loader: fakeLoader{surface: cleanSurface()},
 		CodeFacts: &fakeCodeFactsClient{
 			adoptionErr: errors.New("code-facts not running"),
@@ -128,7 +143,7 @@ func TestValidateScenarioWarnsWhenCodeFactsUnavailable(t *testing.T) {
 }
 
 func TestValidateScenarioIgnoresNonProofCodeFactsWarnings(t *testing.T) {
-	svc := New(Deps{
+	svc := newTestService(t, Deps{
 		Loader: fakeLoader{surface: cleanSurface()},
 		CodeFacts: &fakeCodeFactsClient{
 			adoptionReport: &factsv1.ProofReport{
@@ -159,7 +174,7 @@ func TestValidateScenarioFindsContradictedEndpointProof(t *testing.T) {
 			proofFact("endpoint_proof:health", factsv1.FactFamily_FACT_FAMILY_ENDPOINT_PROOFS, "health", factsv1.EvidenceStatus_EVIDENCE_STATUS_CONTRADICTED, "health writes a different response proto"),
 		),
 	}
-	svc := New(Deps{Loader: fakeLoader{surface: surfaceWithRESTException()}, CodeFacts: client})
+	svc := newTestService(t, Deps{Loader: fakeLoader{surface: surfaceWithRESTException()}, CodeFacts: client})
 
 	report, err := svc.ValidateScenario(context.Background(), "demo")
 	require.NoError(t, err)
@@ -169,7 +184,7 @@ func TestValidateScenarioFindsContradictedEndpointProof(t *testing.T) {
 }
 
 func TestValidateScenarioFindsMissingEndpointProof(t *testing.T) {
-	svc := New(Deps{
+	svc := newTestService(t, Deps{
 		Loader: fakeLoader{surface: surfaceWithRESTException()},
 		CodeFacts: &fakeCodeFactsClient{
 			adoptionReport: proofReport(factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION),
@@ -181,12 +196,12 @@ func TestValidateScenarioFindsMissingEndpointProof(t *testing.T) {
 
 	report, err := svc.ValidateScenario(context.Background(), "demo")
 	require.NoError(t, err)
-	require.False(t, report.Passed)
-	requireFinding(t, report, CodeEndpointProofMissing, SeverityError)
+	require.True(t, report.Passed)
+	requireFinding(t, report, CodeEndpointProofMissing, SeverityWarning)
 }
 
 func TestValidateScenarioWarnsForUnsupportedEndpointProof(t *testing.T) {
-	svc := New(Deps{
+	svc := newTestService(t, Deps{
 		Loader: fakeLoader{surface: surfaceWithRESTException()},
 		CodeFacts: &fakeCodeFactsClient{
 			adoptionReport: proofReport(factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION),
@@ -203,7 +218,7 @@ func TestValidateScenarioWarnsForUnsupportedEndpointProof(t *testing.T) {
 }
 
 func TestValidateScenarioAcceptsProvenCodeFactsEvidence(t *testing.T) {
-	svc := New(Deps{
+	svc := newTestService(t, Deps{
 		Loader: fakeLoader{surface: surfaceWithRESTException()},
 		CodeFacts: &fakeCodeFactsClient{
 			adoptionReport: proofReport(factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION,
@@ -272,7 +287,7 @@ func TestValidateScenarioFindsPolicyViolations(t *testing.T) {
 		protosurface.Import{FromFile: "demo/v1/orders/orders.proto", ToFile: "demo/v3/billing/billing.proto", FromDomain: "orders", ToDomain: "billing"},
 	)
 
-	svc := New(Deps{Loader: fakeLoader{surface: surface}})
+	svc := newTestService(t, Deps{Loader: fakeLoader{surface: surface}})
 	report, err := svc.ValidateScenario(context.Background(), "demo")
 	require.NoError(t, err)
 	require.False(t, report.Passed)
@@ -288,7 +303,7 @@ func TestValidateScenarioFindsTemplateSource(t *testing.T) {
 	surface := cleanSurface()
 	surface.Files[0].Annotations = append(surface.Files[0].Annotations, protosurface.Annotation{Name: "template", Value: "react-vite/example"})
 
-	svc := New(Deps{Loader: fakeLoader{surface: surface}})
+	svc := newTestService(t, Deps{Loader: fakeLoader{surface: surface}})
 	report, err := svc.ValidateScenario(context.Background(), "demo")
 	require.NoError(t, err)
 	require.True(t, report.Passed)
@@ -312,11 +327,30 @@ func TestValidateScenarioReportsStableMessageNotLocallyReachable(t *testing.T) {
 		Domain:   "notes",
 	})
 
-	svc := New(Deps{Loader: fakeLoader{surface: surface}})
+	svc := newTestService(t, Deps{Loader: fakeLoader{surface: surface}})
 	report, err := svc.ValidateScenario(context.Background(), "demo")
 	require.NoError(t, err)
 	require.True(t, report.Passed)
 	requireFinding(t, report, CodePossiblyUnused, SeverityInfo)
+}
+
+func TestValidateScenarioSkipsMapEntryPossiblyUnused(t *testing.T) {
+	surface := cleanSurface()
+	surface.Messages = append(surface.Messages, protosurface.Message{
+		FilePath:   "demo/v1/notes/notes.proto",
+		Package:    "vrooli.demo.v1.notes",
+		Name:       "LabelsEntry",
+		FullName:   "vrooli.demo.v1.notes.Note.LabelsEntry",
+		Domain:     "notes",
+		IsMapEntry: true,
+	})
+
+	svc := newTestService(t, Deps{Loader: fakeLoader{surface: surface}})
+	report, err := svc.ValidateScenario(context.Background(), "demo")
+	require.NoError(t, err)
+	for _, finding := range report.Findings {
+		require.NotEqual(t, CodePossiblyUnused, finding.Code)
+	}
 }
 
 func TestValidateScenarioTreatsRESTExceptionResponseAsReachable(t *testing.T) {
@@ -359,7 +393,7 @@ func TestValidateScenarioTreatsRESTExceptionResponseAsReachable(t *testing.T) {
 		FullName:   "vrooli.demo.v1.notes.UploadAttachmentResponse",
 	}}
 
-	svc := New(Deps{Loader: fakeLoader{surface: surface}})
+	svc := newTestService(t, Deps{Loader: fakeLoader{surface: surface}})
 	report, err := svc.ValidateScenario(context.Background(), "demo")
 	require.NoError(t, err)
 	for _, finding := range report.Findings {
@@ -370,18 +404,33 @@ func TestValidateScenarioTreatsRESTExceptionResponseAsReachable(t *testing.T) {
 func TestValidateScenarioRequiresRESTExceptionPayloadDeclarations(t *testing.T) {
 	surface := cleanSurface()
 	surface.RESTExceptions = []protosurface.RESTExceptionEndpoint{{
-		EndpointID: "health",
-		Path:       "/health",
+		EndpointID: "notes_export",
+		Path:       "/api/v1/notes/export",
 		Method:     "GET",
-		Domain:     "system",
-		Reason:     "ops_probe",
+		Domain:     "notes",
+		Reason:     "third_party_shape",
 	}}
 
-	svc := New(Deps{Loader: fakeLoader{surface: surface}})
+	svc := newTestService(t, Deps{Loader: fakeLoader{surface: surface}})
 	report, err := svc.ValidateScenario(context.Background(), "demo")
 	require.NoError(t, err)
 	require.False(t, report.Passed)
 	requireFinding(t, report, CodeRESTPayloadMissingDeclaration, SeverityError)
+}
+
+func TestValidateScenarioExemptsConventionalInfraRESTExceptionPayloadDeclarations(t *testing.T) {
+	surface := cleanSurface()
+	surface.RESTExceptions = []protosurface.RESTExceptionEndpoint{
+		{EndpointID: "health", Path: "/health", Method: "GET", Domain: "system", Reason: "ops_probe"},
+		{EndpointID: "jwks", Path: "/.well-known/jwks.json", Method: "GET", Domain: "auth", Reason: "third_party_shape"},
+	}
+
+	svc := newTestService(t, Deps{Loader: fakeLoader{surface: surface}})
+	report, err := svc.ValidateScenario(context.Background(), "demo")
+	require.NoError(t, err)
+	for _, finding := range report.Findings {
+		require.NotEqual(t, CodeRESTPayloadMissingDeclaration, finding.Code, "infra endpoints should not require payload declarations: %+v", report.Findings)
+	}
 }
 
 func TestValidateScenarioFindsUnknownRESTExceptionPayloadMessage(t *testing.T) {
@@ -400,7 +449,7 @@ func TestValidateScenarioFindsUnknownRESTExceptionPayloadMessage(t *testing.T) {
 		{EndpointID: "health", Path: "/health", Method: "GET", Role: protosurface.RESTPayloadRoleError, Transport: "json", Conformance: "external_shape", ProofStatus: protosurface.RESTPayloadProofNotEvaluated},
 	}
 
-	svc := New(Deps{Loader: fakeLoader{surface: surface}})
+	svc := newTestService(t, Deps{Loader: fakeLoader{surface: surface}})
 	report, err := svc.ValidateScenario(context.Background(), "demo")
 	require.NoError(t, err)
 	require.False(t, report.Passed)
@@ -423,7 +472,7 @@ func TestValidateScenarioFindsInvalidRESTExceptionConformance(t *testing.T) {
 		{EndpointID: "health", Path: "/health", Method: "GET", Role: protosurface.RESTPayloadRoleError, Transport: "json", Conformance: "external_shape", ProofStatus: protosurface.RESTPayloadProofNotEvaluated},
 	}
 
-	svc := New(Deps{Loader: fakeLoader{surface: surface}})
+	svc := newTestService(t, Deps{Loader: fakeLoader{surface: surface}})
 	report, err := svc.ValidateScenario(context.Background(), "demo")
 	require.NoError(t, err)
 	require.False(t, report.Passed)
@@ -439,7 +488,7 @@ func TestValidateScenarioFindsUnknownImportKind(t *testing.T) {
 		ToDomain:   "shared",
 	}}
 
-	svc := New(Deps{Loader: fakeLoader{surface: surface}})
+	svc := newTestService(t, Deps{Loader: fakeLoader{surface: surface}})
 	report, err := svc.ValidateScenario(context.Background(), "demo")
 	require.NoError(t, err)
 	requireFinding(t, report, CodeImportKindUnknown, SeverityWarning)
@@ -494,7 +543,7 @@ func TestValidateScenarioFindsStableTransitiveDependencyMismatch(t *testing.T) {
 		{FilePath: "demo/v1/shared/draft.proto", Package: "vrooli.demo.v1.shared", Name: "DraftMetadata", FullName: "vrooli.demo.v1.shared.DraftMetadata", Domain: "shared"},
 	}
 
-	svc := New(Deps{Loader: fakeLoader{surface: surface}})
+	svc := newTestService(t, Deps{Loader: fakeLoader{surface: surface}})
 	report, err := svc.ValidateScenario(context.Background(), "demo")
 	require.NoError(t, err)
 	require.False(t, report.Passed)
@@ -522,7 +571,7 @@ func TestValidateScenarioFindsReusableTypeOutsideSharedDomain(t *testing.T) {
 		{EndpointID: "notes_attach", Domain: "notes", Role: protosurface.RESTPayloadRoleError, ProtoFullName: "vrooli.demo.v1.errors.ErrorEnvelope", Conformance: "protojson"},
 	}
 
-	svc := New(Deps{Loader: fakeLoader{surface: surface}})
+	svc := newTestService(t, Deps{Loader: fakeLoader{surface: surface}})
 	report, err := svc.ValidateScenario(context.Background(), "demo")
 	require.NoError(t, err)
 	require.False(t, report.Passed)
@@ -543,7 +592,7 @@ func TestValidateScenarioFindsImportCycle(t *testing.T) {
 		Stability: "stable",
 	})
 
-	svc := New(Deps{Loader: fakeLoader{surface: surface}})
+	svc := newTestService(t, Deps{Loader: fakeLoader{surface: surface}})
 	report, err := svc.ValidateScenario(context.Background(), "demo")
 	require.NoError(t, err)
 	requireFinding(t, report, CodeCycle, SeverityError)
@@ -551,7 +600,7 @@ func TestValidateScenarioFindsImportCycle(t *testing.T) {
 
 func TestDescribeScenarioProtosReturnsSurface(t *testing.T) {
 	surface := cleanSurface()
-	svc := New(Deps{Loader: fakeLoader{surface: surface}})
+	svc := newTestService(t, Deps{Loader: fakeLoader{surface: surface}})
 
 	got, err := svc.DescribeScenarioProtos(context.Background(), "demo")
 	require.NoError(t, err)
@@ -563,7 +612,7 @@ func TestDescribeScenariosProtosUsesExplicitSubset(t *testing.T) {
 	demo.Scenario = "demo"
 	other := cleanSurface()
 	other.Scenario = "other"
-	svc := New(Deps{Loader: fakeLoader{
+	svc := newTestService(t, Deps{Loader: fakeLoader{
 		surfaces: map[string]protosurface.Surface{
 			"demo":  demo,
 			"other": other,
@@ -580,7 +629,7 @@ func TestDescribeScenariosProtosUsesExplicitSubset(t *testing.T) {
 }
 
 func TestDescribeScenariosProtosListsAllAndAppliesLimit(t *testing.T) {
-	svc := New(Deps{Loader: fakeLoader{
+	svc := newTestService(t, Deps{Loader: fakeLoader{
 		scenarios: []string{"alpha", "beta", "gamma"},
 		surfaces: map[string]protosurface.Surface{
 			"alpha": {Scenario: "alpha"},
@@ -597,7 +646,7 @@ func TestDescribeScenariosProtosListsAllAndAppliesLimit(t *testing.T) {
 }
 
 func TestDescribeScenariosProtosIsolatesPerScenarioErrors(t *testing.T) {
-	svc := New(Deps{Loader: fakeLoader{
+	svc := newTestService(t, Deps{Loader: fakeLoader{
 		surfaces: map[string]protosurface.Surface{
 			"ok": {Scenario: "ok"},
 		},
@@ -628,7 +677,7 @@ func TestDescribeScenariosProtosFiltersByStability(t *testing.T) {
 	surface.Messages = append(surface.Messages,
 		protosurface.Message{FilePath: "demo/v1/experimental/preview.proto", Domain: "experimental", Name: "Preview"},
 	)
-	svc := New(Deps{Loader: fakeLoader{surface: surface}})
+	svc := newTestService(t, Deps{Loader: fakeLoader{surface: surface}})
 
 	results, err := svc.DescribeScenariosProtos(context.Background(), []string{"demo"}, 0, "experimental")
 	require.NoError(t, err)
@@ -640,7 +689,7 @@ func TestDescribeScenariosProtosFiltersByStability(t *testing.T) {
 }
 
 func TestDescribeScenariosProtosRejectsInvalidLimit(t *testing.T) {
-	svc := New(Deps{Loader: fakeLoader{surface: cleanSurface()}})
+	svc := newTestService(t, Deps{Loader: fakeLoader{surface: cleanSurface()}})
 
 	_, err := svc.DescribeScenariosProtos(context.Background(), []string{"demo"}, 501, "")
 	require.ErrorContains(t, err, "limit must be between 0 and 500")

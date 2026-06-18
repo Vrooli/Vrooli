@@ -1,0 +1,113 @@
+syntax = "proto3";
+
+package vrooli.vrooli_bridge.v1.audit;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/audit;audit_v1";
+
+// =============================================================================
+// AUDIT DOMAIN — append-only accountability trail (OT-P0-008)
+// =============================================================================
+//
+// @stability beta
+//
+// Wire contract for the AuditService: an append-only, immutable record of every
+// dispatch and (Phase 4) provisioning operation — who, which node, what
+// verb/args, and the outcome — because remote code execution and remote
+// provisioning must be fully reconstructable after the fact.
+//
+// AuditService exposes ONLY a read verb. Records are written internally by the
+// dispatch and provision domains through the audit Sink seam (not via a proto
+// RPC), so there is no wire path to forge or mutate a record. The sink routes
+// to the workspace-sandbox accountability substrate when wired; a local
+// append-only store is the default substrate behind the same seam.
+//
+// Consumed by:
+//   - API: handlers/audit/connect_handler.go implements the generated handler.
+//   - CLI: cli/domains/audit/handlers.go via the generated Connect-Go client.
+// =============================================================================
+
+// AuditAction is the kind of operation an audit record describes.
+enum AuditAction {
+  AUDIT_ACTION_UNSPECIFIED = 0;
+
+  // A job dispatch (dispatch domain).
+  AUDIT_ACTION_DISPATCH = 1;
+
+  // A provisioning operation (provision domain, Phase 4).
+  AUDIT_ACTION_PROVISION = 2;
+}
+
+// AuditOutcome is the result recorded for an audited operation.
+enum AuditOutcome {
+  AUDIT_OUTCOME_UNSPECIFIED = 0;
+
+  // The operation was authorized and accepted (job dispatched / op started).
+  AUDIT_OUTCOME_ACCEPTED = 1;
+
+  // The operation was denied by the allowlist / scope check / precondition.
+  AUDIT_OUTCOME_REJECTED = 2;
+
+  // The operation completed successfully (terminal).
+  AUDIT_OUTCOME_COMPLETED = 3;
+
+  // The operation failed (terminal).
+  AUDIT_OUTCOME_FAILED = 4;
+}
+
+// AuditRecord is one immutable accountability entry.
+message AuditRecord {
+  // Stable record id.
+  string id = 1;
+
+  // What kind of operation this records.
+  AuditAction action = 2;
+
+  // The owner identity (subject) that initiated the operation; "system" for
+  // control-plane-initiated transitions.
+  string actor = 3;
+
+  // The target node (registry id).
+  string node_id = 4;
+
+  // The typed job/operation detail (verb/args are never a shell string).
+  string scenario = 5;
+  string verb = 6;
+  repeated string args = 7;
+
+  // The outcome recorded.
+  AuditOutcome outcome = 8;
+
+  // Human-readable detail (the rejection reason, exit code, etc.).
+  string detail = 9;
+
+  // The run this record is linked to, when the action is a dispatch.
+  string run_id = 10;
+
+  // When the record was appended. Immutable.
+  google.protobuf.Timestamp recorded_at = 11;
+}
+
+service AuditService {
+  // ListAuditRecords returns audit records newest-first, optionally filtered by
+  // node or run. Owner-gated. Read-only — there is no create/update/delete verb
+  // on the wire; records are appended internally by the operations they record.
+  rpc ListAuditRecords(ListAuditRecordsRequest) returns (ListAuditRecordsResponse);
+}
+
+message ListAuditRecordsRequest {
+  // Optional node filter; empty returns every node's records.
+  string node_id = 1;
+
+  // Optional run filter; empty returns records for any run.
+  string run_id = 2;
+
+  // Optional cap on the number of records returned (0 = server default).
+  int32 limit = 3;
+}
+
+message ListAuditRecordsResponse {
+  // Records ordered newest-first by recorded_at.
+  repeated AuditRecord records = 1;
+}

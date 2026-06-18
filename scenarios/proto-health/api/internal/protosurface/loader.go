@@ -216,12 +216,13 @@ func appendMessages(path, pkg, domain string, messages protoreflect.MessageDescr
 		msg := messages.Get(i)
 		fields := msg.Fields()
 		m := Message{
-			FilePath: path,
-			Package:  pkg,
-			Name:     string(msg.Name()),
-			FullName: string(msg.FullName()),
-			Domain:   domain,
-			Fields:   make([]Field, 0, fields.Len()),
+			FilePath:   path,
+			Package:    pkg,
+			Name:       string(msg.Name()),
+			FullName:   string(msg.FullName()),
+			Domain:     domain,
+			IsMapEntry: msg.IsMapEntry(),
+			Fields:     make([]Field, 0, fields.Len()),
 		}
 		for j := 0; j < fields.Len(); j++ {
 			fd := fields.Get(j)

@@ -23,9 +23,10 @@ _sym_db = _symbol_database.Default()
 
 
 from architecture_cartographer.v1.graph import graph_pb2 as architecture__cartographer_dot_v1_dot_graph_dot_graph__pb2
+from architecture_cartographer.v1.shared import shared_pb2 as architecture__cartographer_dot_v1_dot_shared_dot_shared__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n2architecture-cartographer/v1/signals/signals.proto\x12+vrooli.architecture_cartographer.v1.signals\x1a.architecture-cartographer/v1/graph/graph.proto\"j\n\x08\x45vidence\x12\x12\n\x04kind\x18\x01 \x01(\tR\x04kind\x12\x18\n\x07summary\x18\x02 \x01(\tR\x07summary\x12\x18\n\x07locator\x18\x03 \x01(\tR\x07locator\x12\x16\n\x06weight\x18\x04 \x01(\x01R\x06weight\"\xb8\x01\n\x05Score\x12\x16\n\x06signal\x18\x01 \x01(\tR\x06signal\x12\x16\n\x06\x64omain\x18\x02 \x01(\tR\x06\x64omain\x12\x14\n\x05value\x18\x03 \x01(\x01R\x05value\x12\x16\n\x06reason\x18\x04 \x01(\tR\x06reason\x12Q\n\x08\x65vidence\x18\x05 \x03(\x0b\x32\x35.vrooli.architecture_cartographer.v1.signals.EvidenceR\x08\x65vidence\"\x8f\x01\n\nAbstention\x12\x16\n\x06signal\x18\x01 \x01(\tR\x06signal\x12\x16\n\x06reason\x18\x02 \x01(\tR\x06reason\x12Q\n\x08\x65vidence\x18\x03 \x03(\x0b\x32\x35.vrooli.architecture_cartographer.v1.signals.EvidenceR\x08\x65vidence\"\xb2\x04\n\x07Verdict\x12\x19\n\x08\x63hunk_id\x18\x01 \x01(\tR\x07\x63hunkId\x12\x1d\n\nchunk_path\x18\x02 \x01(\tR\tchunkPath\x12\x45\n\x04tier\x18\x03 \x01(\x0e\x32\x31.vrooli.architecture_cartographer.v1.signals.TierR\x04tier\x12\x1d\n\ntop_domain\x18\x04 \x01(\tR\ttopDomain\x12\x1b\n\ttop_value\x18\x05 \x01(\x01R\x08topValue\x12(\n\x10runner_up_domain\x18\x06 \x01(\tR\x0erunnerUpDomain\x12&\n\x0frunner_up_value\x18\x07 \x01(\x01R\rrunnerUpValue\x12J\n\x06scores\x18\x08 \x03(\x0b\x32\x32.vrooli.architecture_cartographer.v1.signals.ScoreR\x06scores\x12]\n\rdomain_values\x18\t \x03(\x0b\x32\x38.vrooli.architecture_cartographer.v1.signals.DomainValueR\x0c\x64omainValues\x12\x12\n\x04tied\x18\n \x01(\x08R\x04tied\x12Y\n\x0b\x61\x62stentions\x18\x0b \x03(\x0b\x32\x37.vrooli.architecture_cartographer.v1.signals.AbstentionR\x0b\x61\x62stentions\";\n\x0b\x44omainValue\x12\x16\n\x06\x64omain\x18\x01 \x01(\tR\x06\x64omain\x12\x14\n\x05value\x18\x02 \x01(\x01R\x05value\"\xd2\x01\n\x10SignalDescriptor\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12%\n\x0e\x64\x65\x66\x61ult_weight\x18\x02 \x01(\x01R\rdefaultWeight\x12\x1c\n\tstability\x18\x03 \x01(\tR\tstability\x12 \n\x0b\x64\x65scription\x18\x04 \x01(\tR\x0b\x64\x65scription\x12\x1a\n\x08\x64isabled\x18\x05 \x01(\x08R\x08\x64isabled\x12\'\n\x0f\x64isabled_reason\x18\x06 \x01(\tR\x0e\x64isabledReason\"\x98\x01\n\rCouplingSmell\x12\x12\n\x04kind\x18\x01 \x01(\tR\x04kind\x12Y\n\x08severity\x18\x02 \x01(\x0e\x32=.vrooli.architecture_cartographer.v1.signals.CouplingSeverityR\x08severity\x12\x18\n\x07message\x18\x03 \x01(\tR\x07message\"\x95\x03\n\x0e\x44omainCoupling\x12\x16\n\x06\x64omain\x18\x01 \x01(\tR\x06\x64omain\x12\x1c\n\tarchetype\x18\x02 \x01(\tR\tarchetype\x12\x1a\n\x08\x65\x66\x66\x65rent\x18\x03 \x01(\x05R\x08\x65\x66\x66\x65rent\x12\x1a\n\x08\x61\x66\x66\x65rent\x18\x04 \x01(\x05R\x08\x61\x66\x66\x65rent\x12 \n\x0binstability\x18\x05 \x01(\x01R\x0binstability\x12\x17\n\x07\x66\x61n_out\x18\x06 \x01(\x01R\x06\x66\x61nOut\x12\x1d\n\ndepends_on\x18\x07 \x03(\tR\tdependsOn\x12\x1f\n\x0b\x64\x65pended_by\x18\x08 \x03(\tR\ndependedBy\x12#\n\rstable_kernel\x18\t \x01(\x08R\x0cstableKernel\x12!\n\x0chealth_score\x18\n \x01(\x01R\x0bhealthScore\x12R\n\x06smells\x18\x0b \x03(\x0b\x32:.vrooli.architecture_cartographer.v1.signals.CouplingSmellR\x06smells\"3\n\x15\x42oundaryHealthRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\"\xb0\x01\n\x16\x42oundaryHealthResponse\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12#\n\rtotal_domains\x18\x02 \x01(\x05R\x0ctotalDomains\x12U\n\x07\x64omains\x18\x03 \x03(\x0b\x32;.vrooli.architecture_cartographer.v1.signals.DomainCouplingR\x07\x64omains\"\xad\x01\n\x11ScoreChunkRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x46\n\x05\x63hunk\x18\x02 \x01(\x0b\x32\x30.vrooli.architecture_cartographer.v1.graph.ChunkR\x05\x63hunk\x12\x17\n\x07\x66ile_id\x18\x03 \x01(\tR\x06\x66ileId\x12\x1b\n\trepo_path\x18\x04 \x01(\tR\x08repoPath\"d\n\x12ScoreChunkResponse\x12N\n\x07verdict\x18\x01 \x01(\x0b\x32\x34.vrooli.architecture_cartographer.v1.signals.VerdictR\x07verdict\"\xb1\x01\n\x15\x45xplainVerdictRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x46\n\x05\x63hunk\x18\x02 \x01(\x0b\x32\x30.vrooli.architecture_cartographer.v1.graph.ChunkR\x05\x63hunk\x12\x17\n\x07\x66ile_id\x18\x03 \x01(\tR\x06\x66ileId\x12\x1b\n\trepo_path\x18\x04 \x01(\tR\x08repoPath\"h\n\x16\x45xplainVerdictResponse\x12N\n\x07verdict\x18\x01 \x01(\x0b\x32\x34.vrooli.architecture_cartographer.v1.signals.VerdictR\x07verdict\"0\n\x12ListSignalsRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\"n\n\x13ListSignalsResponse\x12W\n\x07signals\x18\x01 \x03(\x0b\x32=.vrooli.architecture_cartographer.v1.signals.SignalDescriptorR\x07signals*V\n\x04Tier\x12\x14\n\x10TIER_UNSPECIFIED\x10\x00\x12\x13\n\x0fTIER_AUTO_PLACE\x10\x01\x12\x10\n\x0cTIER_SUGGEST\x10\x02\x12\x11\n\rTIER_CONFLICT\x10\x03*m\n\x10\x43ouplingSeverity\x12!\n\x1d\x43OUPLING_SEVERITY_UNSPECIFIED\x10\x00\x12\x1a\n\x16\x43OUPLING_SEVERITY_INFO\x10\x01\x12\x1a\n\x16\x43OUPLING_SEVERITY_WARN\x10\x02\x32\xeb\x04\n\x0eSignalsService\x12\x8d\x01\n\nScoreChunk\x12>.vrooli.architecture_cartographer.v1.signals.ScoreChunkRequest\x1a?.vrooli.architecture_cartographer.v1.signals.ScoreChunkResponse\x12\x99\x01\n\x0e\x45xplainVerdict\x12\x42.vrooli.architecture_cartographer.v1.signals.ExplainVerdictRequest\x1a\x43.vrooli.architecture_cartographer.v1.signals.ExplainVerdictResponse\x12\x90\x01\n\x0bListSignals\x12?.vrooli.architecture_cartographer.v1.signals.ListSignalsRequest\x1a@.vrooli.architecture_cartographer.v1.signals.ListSignalsResponse\x12\x99\x01\n\x0e\x42oundaryHealth\x12\x42.vrooli.architecture_cartographer.v1.signals.BoundaryHealthRequest\x1a\x43.vrooli.architecture_cartographer.v1.signals.BoundaryHealthResponseB`Z^github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/signals;signals_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n2architecture-cartographer/v1/signals/signals.proto\x12+vrooli.architecture_cartographer.v1.signals\x1a.architecture-cartographer/v1/graph/graph.proto\x1a\x30\x61rchitecture-cartographer/v1/shared/shared.proto\"\xd2\x01\n\x10SignalDescriptor\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12%\n\x0e\x64\x65\x66\x61ult_weight\x18\x02 \x01(\x01R\rdefaultWeight\x12\x1c\n\tstability\x18\x03 \x01(\tR\tstability\x12 \n\x0b\x64\x65scription\x18\x04 \x01(\tR\x0b\x64\x65scription\x12\x1a\n\x08\x64isabled\x18\x05 \x01(\x08R\x08\x64isabled\x12\'\n\x0f\x64isabled_reason\x18\x06 \x01(\tR\x0e\x64isabledReason\"\x98\x01\n\rCouplingSmell\x12\x12\n\x04kind\x18\x01 \x01(\tR\x04kind\x12Y\n\x08severity\x18\x02 \x01(\x0e\x32=.vrooli.architecture_cartographer.v1.signals.CouplingSeverityR\x08severity\x12\x18\n\x07message\x18\x03 \x01(\tR\x07message\"\x95\x03\n\x0e\x44omainCoupling\x12\x16\n\x06\x64omain\x18\x01 \x01(\tR\x06\x64omain\x12\x1c\n\tarchetype\x18\x02 \x01(\tR\tarchetype\x12\x1a\n\x08\x65\x66\x66\x65rent\x18\x03 \x01(\x05R\x08\x65\x66\x66\x65rent\x12\x1a\n\x08\x61\x66\x66\x65rent\x18\x04 \x01(\x05R\x08\x61\x66\x66\x65rent\x12 \n\x0binstability\x18\x05 \x01(\x01R\x0binstability\x12\x17\n\x07\x66\x61n_out\x18\x06 \x01(\x01R\x06\x66\x61nOut\x12\x1d\n\ndepends_on\x18\x07 \x03(\tR\tdependsOn\x12\x1f\n\x0b\x64\x65pended_by\x18\x08 \x03(\tR\ndependedBy\x12#\n\rstable_kernel\x18\t \x01(\x08R\x0cstableKernel\x12!\n\x0chealth_score\x18\n \x01(\x01R\x0bhealthScore\x12R\n\x06smells\x18\x0b \x03(\x0b\x32:.vrooli.architecture_cartographer.v1.signals.CouplingSmellR\x06smells\"3\n\x15\x42oundaryHealthRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\"\xb0\x01\n\x16\x42oundaryHealthResponse\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12#\n\rtotal_domains\x18\x02 \x01(\x05R\x0ctotalDomains\x12U\n\x07\x64omains\x18\x03 \x03(\x0b\x32;.vrooli.architecture_cartographer.v1.signals.DomainCouplingR\x07\x64omains\"\xad\x01\n\x11ScoreChunkRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x46\n\x05\x63hunk\x18\x02 \x01(\x0b\x32\x30.vrooli.architecture_cartographer.v1.graph.ChunkR\x05\x63hunk\x12\x17\n\x07\x66ile_id\x18\x03 \x01(\tR\x06\x66ileId\x12\x1b\n\trepo_path\x18\x04 \x01(\tR\x08repoPath\"c\n\x12ScoreChunkResponse\x12M\n\x07verdict\x18\x01 \x01(\x0b\x32\x33.vrooli.architecture_cartographer.v1.shared.VerdictR\x07verdict\"\xb1\x01\n\x15\x45xplainVerdictRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x46\n\x05\x63hunk\x18\x02 \x01(\x0b\x32\x30.vrooli.architecture_cartographer.v1.graph.ChunkR\x05\x63hunk\x12\x17\n\x07\x66ile_id\x18\x03 \x01(\tR\x06\x66ileId\x12\x1b\n\trepo_path\x18\x04 \x01(\tR\x08repoPath\"g\n\x16\x45xplainVerdictResponse\x12M\n\x07verdict\x18\x01 \x01(\x0b\x32\x33.vrooli.architecture_cartographer.v1.shared.VerdictR\x07verdict\"0\n\x12ListSignalsRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\"n\n\x13ListSignalsResponse\x12W\n\x07signals\x18\x01 \x03(\x0b\x32=.vrooli.architecture_cartographer.v1.signals.SignalDescriptorR\x07signals*m\n\x10\x43ouplingSeverity\x12!\n\x1d\x43OUPLING_SEVERITY_UNSPECIFIED\x10\x00\x12\x1a\n\x16\x43OUPLING_SEVERITY_INFO\x10\x01\x12\x1a\n\x16\x43OUPLING_SEVERITY_WARN\x10\x02\x32\xeb\x04\n\x0eSignalsService\x12\x8d\x01\n\nScoreChunk\x12>.vrooli.architecture_cartographer.v1.signals.ScoreChunkRequest\x1a?.vrooli.architecture_cartographer.v1.signals.ScoreChunkResponse\x12\x99\x01\n\x0e\x45xplainVerdict\x12\x42.vrooli.architecture_cartographer.v1.signals.ExplainVerdictRequest\x1a\x43.vrooli.architecture_cartographer.v1.signals.ExplainVerdictResponse\x12\x90\x01\n\x0bListSignals\x12?.vrooli.architecture_cartographer.v1.signals.ListSignalsRequest\x1a@.vrooli.architecture_cartographer.v1.signals.ListSignalsResponse\x12\x99\x01\n\x0e\x42oundaryHealth\x12\x42.vrooli.architecture_cartographer.v1.signals.BoundaryHealthRequest\x1a\x43.vrooli.architecture_cartographer.v1.signals.BoundaryHealthResponseB`Z^github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/signals;signals_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,42 +34,30 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'architecture_cartographer.v
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'Z^github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/signals;signals_v1'
-  _globals['_TIER']._serialized_start=2948
-  _globals['_TIER']._serialized_end=3034
-  _globals['_COUPLINGSEVERITY']._serialized_start=3036
-  _globals['_COUPLINGSEVERITY']._serialized_end=3145
-  _globals['_EVIDENCE']._serialized_start=147
-  _globals['_EVIDENCE']._serialized_end=253
-  _globals['_SCORE']._serialized_start=256
-  _globals['_SCORE']._serialized_end=440
-  _globals['_ABSTENTION']._serialized_start=443
-  _globals['_ABSTENTION']._serialized_end=586
-  _globals['_VERDICT']._serialized_start=589
-  _globals['_VERDICT']._serialized_end=1151
-  _globals['_DOMAINVALUE']._serialized_start=1153
-  _globals['_DOMAINVALUE']._serialized_end=1212
-  _globals['_SIGNALDESCRIPTOR']._serialized_start=1215
-  _globals['_SIGNALDESCRIPTOR']._serialized_end=1425
-  _globals['_COUPLINGSMELL']._serialized_start=1428
-  _globals['_COUPLINGSMELL']._serialized_end=1580
-  _globals['_DOMAINCOUPLING']._serialized_start=1583
-  _globals['_DOMAINCOUPLING']._serialized_end=1988
-  _globals['_BOUNDARYHEALTHREQUEST']._serialized_start=1990
-  _globals['_BOUNDARYHEALTHREQUEST']._serialized_end=2041
-  _globals['_BOUNDARYHEALTHRESPONSE']._serialized_start=2044
-  _globals['_BOUNDARYHEALTHRESPONSE']._serialized_end=2220
-  _globals['_SCORECHUNKREQUEST']._serialized_start=2223
-  _globals['_SCORECHUNKREQUEST']._serialized_end=2396
-  _globals['_SCORECHUNKRESPONSE']._serialized_start=2398
-  _globals['_SCORECHUNKRESPONSE']._serialized_end=2498
-  _globals['_EXPLAINVERDICTREQUEST']._serialized_start=2501
-  _globals['_EXPLAINVERDICTREQUEST']._serialized_end=2678
-  _globals['_EXPLAINVERDICTRESPONSE']._serialized_start=2680
-  _globals['_EXPLAINVERDICTRESPONSE']._serialized_end=2784
-  _globals['_LISTSIGNALSREQUEST']._serialized_start=2786
-  _globals['_LISTSIGNALSREQUEST']._serialized_end=2834
-  _globals['_LISTSIGNALSRESPONSE']._serialized_start=2836
-  _globals['_LISTSIGNALSRESPONSE']._serialized_end=2946
-  _globals['_SIGNALSSERVICE']._serialized_start=3148
-  _globals['_SIGNALSSERVICE']._serialized_end=3767
+  _globals['_COUPLINGSEVERITY']._serialized_start=1929
+  _globals['_COUPLINGSEVERITY']._serialized_end=2038
+  _globals['_SIGNALDESCRIPTOR']._serialized_start=198
+  _globals['_SIGNALDESCRIPTOR']._serialized_end=408
+  _globals['_COUPLINGSMELL']._serialized_start=411
+  _globals['_COUPLINGSMELL']._serialized_end=563
+  _globals['_DOMAINCOUPLING']._serialized_start=566
+  _globals['_DOMAINCOUPLING']._serialized_end=971
+  _globals['_BOUNDARYHEALTHREQUEST']._serialized_start=973
+  _globals['_BOUNDARYHEALTHREQUEST']._serialized_end=1024
+  _globals['_BOUNDARYHEALTHRESPONSE']._serialized_start=1027
+  _globals['_BOUNDARYHEALTHRESPONSE']._serialized_end=1203
+  _globals['_SCORECHUNKREQUEST']._serialized_start=1206
+  _globals['_SCORECHUNKREQUEST']._serialized_end=1379
+  _globals['_SCORECHUNKRESPONSE']._serialized_start=1381
+  _globals['_SCORECHUNKRESPONSE']._serialized_end=1480
+  _globals['_EXPLAINVERDICTREQUEST']._serialized_start=1483
+  _globals['_EXPLAINVERDICTREQUEST']._serialized_end=1660
+  _globals['_EXPLAINVERDICTRESPONSE']._serialized_start=1662
+  _globals['_EXPLAINVERDICTRESPONSE']._serialized_end=1765
+  _globals['_LISTSIGNALSREQUEST']._serialized_start=1767
+  _globals['_LISTSIGNALSREQUEST']._serialized_end=1815
+  _globals['_LISTSIGNALSRESPONSE']._serialized_start=1817
+  _globals['_LISTSIGNALSRESPONSE']._serialized_end=1927
+  _globals['_SIGNALSSERVICE']._serialized_start=2041
+  _globals['_SIGNALSSERVICE']._serialized_end=2660
 # @@protoc_insertion_point(module_scope)

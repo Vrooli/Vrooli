@@ -108,6 +108,15 @@ enum FindingSeverity {
   FINDING_SEVERITY_BLOCKER = 4;
 }
 
+// FindingClass separates deterministic findings that may gate a phase from
+// heuristic findings that should remain advisory. It is EXCLUDED from the
+// stable-ID hash so reclassification does not manufacture regressions.
+enum FindingClass {
+  FINDING_CLASS_UNSPECIFIED = 0;
+  FINDING_CLASS_DETERMINISTIC = 1;
+  FINDING_CLASS_HEURISTIC = 2;
+}
+
 // EffortHint is a coarse, normalized estimate of how much work a finding
 // takes to resolve. It is advisory ranking input only and is EXCLUDED from
 // the stable-ID hash — effort can be re-estimated without re-keying the
@@ -199,4 +208,6 @@ message ArchitectureFinding {
   // Coarse effort estimate used for profile-aware ranking. Advisory only —
   // EXCLUDED from the stable-ID hash.
   EffortHint effort = 12;
+  // Deterministic vs heuristic class. EXCLUDED from the stable-ID hash.
+  FindingClass finding_class = 13;
 }

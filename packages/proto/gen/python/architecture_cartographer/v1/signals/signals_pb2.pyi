@@ -1,4 +1,5 @@
 from architecture_cartographer.v1.graph import graph_pb2 as _graph_pb2
+from architecture_cartographer.v1.shared import shared_pb2 as _shared_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -8,95 +9,14 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
-class Tier(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    TIER_UNSPECIFIED: _ClassVar[Tier]
-    TIER_AUTO_PLACE: _ClassVar[Tier]
-    TIER_SUGGEST: _ClassVar[Tier]
-    TIER_CONFLICT: _ClassVar[Tier]
-
 class CouplingSeverity(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     COUPLING_SEVERITY_UNSPECIFIED: _ClassVar[CouplingSeverity]
     COUPLING_SEVERITY_INFO: _ClassVar[CouplingSeverity]
     COUPLING_SEVERITY_WARN: _ClassVar[CouplingSeverity]
-TIER_UNSPECIFIED: Tier
-TIER_AUTO_PLACE: Tier
-TIER_SUGGEST: Tier
-TIER_CONFLICT: Tier
 COUPLING_SEVERITY_UNSPECIFIED: CouplingSeverity
 COUPLING_SEVERITY_INFO: CouplingSeverity
 COUPLING_SEVERITY_WARN: CouplingSeverity
-
-class Evidence(_message.Message):
-    __slots__ = ("kind", "summary", "locator", "weight")
-    KIND_FIELD_NUMBER: _ClassVar[int]
-    SUMMARY_FIELD_NUMBER: _ClassVar[int]
-    LOCATOR_FIELD_NUMBER: _ClassVar[int]
-    WEIGHT_FIELD_NUMBER: _ClassVar[int]
-    kind: str
-    summary: str
-    locator: str
-    weight: float
-    def __init__(self, kind: _Optional[str] = ..., summary: _Optional[str] = ..., locator: _Optional[str] = ..., weight: _Optional[float] = ...) -> None: ...
-
-class Score(_message.Message):
-    __slots__ = ("signal", "domain", "value", "reason", "evidence")
-    SIGNAL_FIELD_NUMBER: _ClassVar[int]
-    DOMAIN_FIELD_NUMBER: _ClassVar[int]
-    VALUE_FIELD_NUMBER: _ClassVar[int]
-    REASON_FIELD_NUMBER: _ClassVar[int]
-    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
-    signal: str
-    domain: str
-    value: float
-    reason: str
-    evidence: _containers.RepeatedCompositeFieldContainer[Evidence]
-    def __init__(self, signal: _Optional[str] = ..., domain: _Optional[str] = ..., value: _Optional[float] = ..., reason: _Optional[str] = ..., evidence: _Optional[_Iterable[_Union[Evidence, _Mapping]]] = ...) -> None: ...
-
-class Abstention(_message.Message):
-    __slots__ = ("signal", "reason", "evidence")
-    SIGNAL_FIELD_NUMBER: _ClassVar[int]
-    REASON_FIELD_NUMBER: _ClassVar[int]
-    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
-    signal: str
-    reason: str
-    evidence: _containers.RepeatedCompositeFieldContainer[Evidence]
-    def __init__(self, signal: _Optional[str] = ..., reason: _Optional[str] = ..., evidence: _Optional[_Iterable[_Union[Evidence, _Mapping]]] = ...) -> None: ...
-
-class Verdict(_message.Message):
-    __slots__ = ("chunk_id", "chunk_path", "tier", "top_domain", "top_value", "runner_up_domain", "runner_up_value", "scores", "domain_values", "tied", "abstentions")
-    CHUNK_ID_FIELD_NUMBER: _ClassVar[int]
-    CHUNK_PATH_FIELD_NUMBER: _ClassVar[int]
-    TIER_FIELD_NUMBER: _ClassVar[int]
-    TOP_DOMAIN_FIELD_NUMBER: _ClassVar[int]
-    TOP_VALUE_FIELD_NUMBER: _ClassVar[int]
-    RUNNER_UP_DOMAIN_FIELD_NUMBER: _ClassVar[int]
-    RUNNER_UP_VALUE_FIELD_NUMBER: _ClassVar[int]
-    SCORES_FIELD_NUMBER: _ClassVar[int]
-    DOMAIN_VALUES_FIELD_NUMBER: _ClassVar[int]
-    TIED_FIELD_NUMBER: _ClassVar[int]
-    ABSTENTIONS_FIELD_NUMBER: _ClassVar[int]
-    chunk_id: str
-    chunk_path: str
-    tier: Tier
-    top_domain: str
-    top_value: float
-    runner_up_domain: str
-    runner_up_value: float
-    scores: _containers.RepeatedCompositeFieldContainer[Score]
-    domain_values: _containers.RepeatedCompositeFieldContainer[DomainValue]
-    tied: bool
-    abstentions: _containers.RepeatedCompositeFieldContainer[Abstention]
-    def __init__(self, chunk_id: _Optional[str] = ..., chunk_path: _Optional[str] = ..., tier: _Optional[_Union[Tier, str]] = ..., top_domain: _Optional[str] = ..., top_value: _Optional[float] = ..., runner_up_domain: _Optional[str] = ..., runner_up_value: _Optional[float] = ..., scores: _Optional[_Iterable[_Union[Score, _Mapping]]] = ..., domain_values: _Optional[_Iterable[_Union[DomainValue, _Mapping]]] = ..., tied: _Optional[bool] = ..., abstentions: _Optional[_Iterable[_Union[Abstention, _Mapping]]] = ...) -> None: ...
-
-class DomainValue(_message.Message):
-    __slots__ = ("domain", "value")
-    DOMAIN_FIELD_NUMBER: _ClassVar[int]
-    VALUE_FIELD_NUMBER: _ClassVar[int]
-    domain: str
-    value: float
-    def __init__(self, domain: _Optional[str] = ..., value: _Optional[float] = ...) -> None: ...
 
 class SignalDescriptor(_message.Message):
     __slots__ = ("name", "default_weight", "stability", "description", "disabled", "disabled_reason")
@@ -181,8 +101,8 @@ class ScoreChunkRequest(_message.Message):
 class ScoreChunkResponse(_message.Message):
     __slots__ = ("verdict",)
     VERDICT_FIELD_NUMBER: _ClassVar[int]
-    verdict: Verdict
-    def __init__(self, verdict: _Optional[_Union[Verdict, _Mapping]] = ...) -> None: ...
+    verdict: _shared_pb2.Verdict
+    def __init__(self, verdict: _Optional[_Union[_shared_pb2.Verdict, _Mapping]] = ...) -> None: ...
 
 class ExplainVerdictRequest(_message.Message):
     __slots__ = ("scenario", "chunk", "file_id", "repo_path")
@@ -199,8 +119,8 @@ class ExplainVerdictRequest(_message.Message):
 class ExplainVerdictResponse(_message.Message):
     __slots__ = ("verdict",)
     VERDICT_FIELD_NUMBER: _ClassVar[int]
-    verdict: Verdict
-    def __init__(self, verdict: _Optional[_Union[Verdict, _Mapping]] = ...) -> None: ...
+    verdict: _shared_pb2.Verdict
+    def __init__(self, verdict: _Optional[_Union[_shared_pb2.Verdict, _Mapping]] = ...) -> None: ...
 
 class ListSignalsRequest(_message.Message):
     __slots__ = ("scenario",)

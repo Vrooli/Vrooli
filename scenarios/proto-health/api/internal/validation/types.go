@@ -4,9 +4,13 @@ package validation
 
 import (
 	"context"
+	"fmt"
+	"sort"
+	"strings"
 
 	"proto-health/internal/protosurface"
 
+	"github.com/vrooli/maturity-go/assessment"
 	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 )
 
@@ -20,6 +24,7 @@ const (
 
 const (
 	CodeCycle                         = "proto.cycle"
+	CodeGenCheckBlocked               = "proto.gen_check_blocked"
 	CodeGenOutOfSync                  = "proto.gen_out_of_sync"
 	CodePackageMismatch               = "proto.package_mismatch"
 	CodeStabilityDishonest            = "proto.stability_dishonest"
@@ -67,6 +72,98 @@ type Report struct {
 	Summary  Summary
 }
 
+type FindingMetadata struct {
+	Severity            Severity
+	LocalLevelImpact    string
+	GlobalImpact        assessment.GlobalImpact
+	Dimension           string
+	RecommendedSkillIDs []string
+}
+
+type FindingCatalog map[string]FindingMetadata
+
+func NewFindingCatalog(spec *assessment.Spec) (FindingCatalog, error) {
+	if spec == nil {
+		return nil, fmt.Errorf("maturity spec is required")
+	}
+	out := make(FindingCatalog, len(spec.Findings))
+	for _, code := range AllFindingCodes() {
+		mapping, ok := spec.Findings[code]
+		if !ok {
+			return nil, fmt.Errorf("maturity spec missing finding %s", code)
+		}
+		severity, err := severityFromToken(mapping.SeverityDefault)
+		if err != nil {
+			return nil, fmt.Errorf("maturity spec finding %s: %w", code, err)
+		}
+		out[code] = FindingMetadata{
+			Severity:            severity,
+			LocalLevelImpact:    mapping.LocalLevelImpact,
+			GlobalImpact:        mapping.GlobalImpact,
+			Dimension:           mapping.Dimension,
+			RecommendedSkillIDs: append([]string(nil), mapping.RecommendedSkillIDs...),
+		}
+	}
+	for code := range spec.Findings {
+		if _, ok := out[code]; !ok {
+			return nil, fmt.Errorf("maturity spec has orphaned finding %s", code)
+		}
+	}
+	return out, nil
+}
+
+func (c FindingCatalog) ResolveSeverity(code string) (Severity, error) {
+	meta, ok := c[code]
+	if !ok {
+		return "", fmt.Errorf("finding code %s is not in maturity catalog", code)
+	}
+	return meta.Severity, nil
+}
+
+func severityFromToken(token string) (Severity, error) {
+	switch strings.TrimSpace(token) {
+	case "SEVERITY_ERROR", "ERROR", "FINDING_SEVERITY_ERROR":
+		return SeverityError, nil
+	case "SEVERITY_WARNING", "WARNING", "FINDING_SEVERITY_WARNING":
+		return SeverityWarning, nil
+	case "SEVERITY_INFO", "INFO", "FINDING_SEVERITY_INFO":
+		return SeverityInfo, nil
+	default:
+		return "", fmt.Errorf("unsupported severity_default %q", token)
+	}
+}
+
+func AllFindingCodes() []string {
+	return []string{
+		CodeCycle,
+		CodeGenCheckBlocked,
+		CodeGenOutOfSync,
+		CodePackageMismatch,
+		CodeStabilityDishonest,
+		CodeCrossDomainImport,
+		CodeUnsupportedAnnotation,
+		CodeTemplateSource,
+		CodeHandRolledTransport,
+		CodeVersionNaming,
+		CodeDomainMismatch,
+		CodeMissingHealthProto,
+		CodePossiblyUnused,
+		CodeRESTPayloadMissingDeclaration,
+		CodeRESTPayloadUnknownMessage,
+		CodeRESTPayloadInvalidConformance,
+		CodeStabilityDependencyMismatch,
+		CodeSharedTypeMisplaced,
+		CodeImportKindUnknown,
+		CodeCodeFactsUnavailable,
+		CodeProtoAdoptionMissing,
+		CodeProtoAdoptionUnsupported,
+		CodeProtoAdoptionContradicted,
+		CodeEndpointProofMissing,
+		CodeEndpointProofUnsupported,
+		CodeEndpointProofContradicted,
+	}
+}
+
 type SurfaceResult struct {
 	Scenario string
 	Surface  protosurface.Surface
@@ -79,9 +176,13 @@ type SurfaceLoader interface {
 }
 
 type GenSyncStatus struct {
-	InSync bool
-	Drift  []string
-	Detail string
+	InSync      bool
+	Blocked     bool
+	BlockedBy   []string
+	Drift       []string
+	Detail      string
+	Skipped     bool
+	SkipMessage string
 }
 
 type GenSyncChecker interface {
@@ -116,4 +217,13 @@ func finalize(scenario string, findings []Finding) Report {
 		Findings: findings,
 		Summary:  summary,
 	}
+}
+
+func SortedCatalogCodes(c FindingCatalog) []string {
+	out := make([]string, 0, len(c))
+	for code := range c {
+		out = append(out, code)
+	}
+	sort.Strings(out)
+	return out
 }

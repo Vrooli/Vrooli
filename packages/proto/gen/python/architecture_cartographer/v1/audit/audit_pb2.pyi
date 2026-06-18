@@ -1,6 +1,6 @@
 import datetime
 
-from architecture_cartographer.v1.conflicts import conflicts_pb2 as _conflicts_pb2
+from architecture_cartographer.v1.shared import shared_pb2 as _shared_pb2
 from common.v1 import maturity_pb2 as _maturity_pb2
 from google.protobuf import duration_pb2 as _duration_pb2
 from google.protobuf.internal import containers as _containers
@@ -50,7 +50,7 @@ SNAPSHOT_FRESHNESS_RE_EXTRACTED: SnapshotFreshness
 SNAPSHOT_FRESHNESS_FRESH: SnapshotFreshness
 
 class ConflictSummary(_message.Message):
-    __slots__ = ("id", "detector", "type", "subtype", "severity", "locations", "domains", "headline", "stable_id", "instance_id")
+    __slots__ = ("id", "detector", "type", "subtype", "severity", "locations", "domains", "headline", "stable_id", "instance_id", "finding_class")
     ID_FIELD_NUMBER: _ClassVar[int]
     DETECTOR_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -61,17 +61,19 @@ class ConflictSummary(_message.Message):
     HEADLINE_FIELD_NUMBER: _ClassVar[int]
     STABLE_ID_FIELD_NUMBER: _ClassVar[int]
     INSTANCE_ID_FIELD_NUMBER: _ClassVar[int]
+    FINDING_CLASS_FIELD_NUMBER: _ClassVar[int]
     id: str
     detector: str
     type: str
     subtype: str
-    severity: _conflicts_pb2.Severity
+    severity: _shared_pb2.Severity
     locations: _containers.RepeatedScalarFieldContainer[str]
     domains: _containers.RepeatedScalarFieldContainer[str]
     headline: str
     stable_id: str
     instance_id: str
-    def __init__(self, id: _Optional[str] = ..., detector: _Optional[str] = ..., type: _Optional[str] = ..., subtype: _Optional[str] = ..., severity: _Optional[_Union[_conflicts_pb2.Severity, str]] = ..., locations: _Optional[_Iterable[str]] = ..., domains: _Optional[_Iterable[str]] = ..., headline: _Optional[str] = ..., stable_id: _Optional[str] = ..., instance_id: _Optional[str] = ...) -> None: ...
+    finding_class: _shared_pb2.FindingClass
+    def __init__(self, id: _Optional[str] = ..., detector: _Optional[str] = ..., type: _Optional[str] = ..., subtype: _Optional[str] = ..., severity: _Optional[_Union[_shared_pb2.Severity, str]] = ..., locations: _Optional[_Iterable[str]] = ..., domains: _Optional[_Iterable[str]] = ..., headline: _Optional[str] = ..., stable_id: _Optional[str] = ..., instance_id: _Optional[str] = ..., finding_class: _Optional[_Union[_shared_pb2.FindingClass, str]] = ...) -> None: ...
 
 class DerivedDomainSummary(_message.Message):
     __slots__ = ("authority", "confidence", "domain_count")
@@ -119,6 +121,38 @@ class CoverageSummary(_message.Message):
     authority_confidence: str
     def __init__(self, total_files: _Optional[int] = ..., auto_place: _Optional[_Union[CoverageBucket, _Mapping]] = ..., suggest: _Optional[_Union[CoverageBucket, _Mapping]] = ..., conflict: _Optional[_Union[CoverageBucket, _Mapping]] = ..., all_abstained: _Optional[_Union[CoverageBucket, _Mapping]] = ..., authority_confidence: _Optional[str] = ...) -> None: ...
 
+class CategoryTopItem(_message.Message):
+    __slots__ = ("id", "stable_id", "type", "subtype", "severity", "finding_class", "locations", "headline")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    STABLE_ID_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    SUBTYPE_FIELD_NUMBER: _ClassVar[int]
+    SEVERITY_FIELD_NUMBER: _ClassVar[int]
+    FINDING_CLASS_FIELD_NUMBER: _ClassVar[int]
+    LOCATIONS_FIELD_NUMBER: _ClassVar[int]
+    HEADLINE_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    stable_id: str
+    type: str
+    subtype: str
+    severity: _shared_pb2.Severity
+    finding_class: _shared_pb2.FindingClass
+    locations: _containers.RepeatedScalarFieldContainer[str]
+    headline: str
+    def __init__(self, id: _Optional[str] = ..., stable_id: _Optional[str] = ..., type: _Optional[str] = ..., subtype: _Optional[str] = ..., severity: _Optional[_Union[_shared_pb2.Severity, str]] = ..., finding_class: _Optional[_Union[_shared_pb2.FindingClass, str]] = ..., locations: _Optional[_Iterable[str]] = ..., headline: _Optional[str] = ...) -> None: ...
+
+class AuditCategory(_message.Message):
+    __slots__ = ("key", "label", "score", "top_items")
+    KEY_FIELD_NUMBER: _ClassVar[int]
+    LABEL_FIELD_NUMBER: _ClassVar[int]
+    SCORE_FIELD_NUMBER: _ClassVar[int]
+    TOP_ITEMS_FIELD_NUMBER: _ClassVar[int]
+    key: str
+    label: str
+    score: float
+    top_items: _containers.RepeatedCompositeFieldContainer[CategoryTopItem]
+    def __init__(self, key: _Optional[str] = ..., label: _Optional[str] = ..., score: _Optional[float] = ..., top_items: _Optional[_Iterable[_Union[CategoryTopItem, _Mapping]]] = ...) -> None: ...
+
 class AuditRunRequest(_message.Message):
     __slots__ = ("scenario", "fail_on", "include_types", "exclude_types", "allow_low_authority", "skip_ts")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
@@ -128,15 +162,15 @@ class AuditRunRequest(_message.Message):
     ALLOW_LOW_AUTHORITY_FIELD_NUMBER: _ClassVar[int]
     SKIP_TS_FIELD_NUMBER: _ClassVar[int]
     scenario: str
-    fail_on: _conflicts_pb2.Severity
+    fail_on: _shared_pb2.Severity
     include_types: _containers.RepeatedScalarFieldContainer[str]
     exclude_types: _containers.RepeatedScalarFieldContainer[str]
     allow_low_authority: bool
     skip_ts: bool
-    def __init__(self, scenario: _Optional[str] = ..., fail_on: _Optional[_Union[_conflicts_pb2.Severity, str]] = ..., include_types: _Optional[_Iterable[str]] = ..., exclude_types: _Optional[_Iterable[str]] = ..., allow_low_authority: _Optional[bool] = ..., skip_ts: _Optional[bool] = ...) -> None: ...
+    def __init__(self, scenario: _Optional[str] = ..., fail_on: _Optional[_Union[_shared_pb2.Severity, str]] = ..., include_types: _Optional[_Iterable[str]] = ..., exclude_types: _Optional[_Iterable[str]] = ..., allow_low_authority: _Optional[bool] = ..., skip_ts: _Optional[bool] = ...) -> None: ...
 
 class AuditRunResponse(_message.Message):
-    __slots__ = ("scenario", "outcome", "error", "total_findings", "by_severity", "by_type", "findings", "domains", "graph", "duration", "suppressed_findings", "by_domain", "snapshot_freshness", "authority_confidence", "outcome_reason", "assessment", "coverage")
+    __slots__ = ("scenario", "outcome", "error", "total_findings", "by_severity", "by_type", "findings", "domains", "graph", "duration", "suppressed_findings", "by_domain", "snapshot_freshness", "authority_confidence", "outcome_reason", "assessment", "coverage", "categories")
     class BySeverityEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -175,6 +209,7 @@ class AuditRunResponse(_message.Message):
     OUTCOME_REASON_FIELD_NUMBER: _ClassVar[int]
     ASSESSMENT_FIELD_NUMBER: _ClassVar[int]
     COVERAGE_FIELD_NUMBER: _ClassVar[int]
+    CATEGORIES_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     outcome: AuditOutcome
     error: str
@@ -192,7 +227,8 @@ class AuditRunResponse(_message.Message):
     outcome_reason: str
     assessment: _maturity_pb2.MaturityAssessment
     coverage: CoverageSummary
-    def __init__(self, scenario: _Optional[str] = ..., outcome: _Optional[_Union[AuditOutcome, str]] = ..., error: _Optional[str] = ..., total_findings: _Optional[int] = ..., by_severity: _Optional[_Mapping[str, int]] = ..., by_type: _Optional[_Mapping[str, int]] = ..., findings: _Optional[_Iterable[_Union[ConflictSummary, _Mapping]]] = ..., domains: _Optional[_Union[DerivedDomainSummary, _Mapping]] = ..., graph: _Optional[_Union[GraphSummary, _Mapping]] = ..., duration: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., suppressed_findings: _Optional[int] = ..., by_domain: _Optional[_Mapping[str, int]] = ..., snapshot_freshness: _Optional[_Union[SnapshotFreshness, str]] = ..., authority_confidence: _Optional[_Union[AuthorityConfidence, str]] = ..., outcome_reason: _Optional[str] = ..., assessment: _Optional[_Union[_maturity_pb2.MaturityAssessment, _Mapping]] = ..., coverage: _Optional[_Union[CoverageSummary, _Mapping]] = ...) -> None: ...
+    categories: _containers.RepeatedCompositeFieldContainer[AuditCategory]
+    def __init__(self, scenario: _Optional[str] = ..., outcome: _Optional[_Union[AuditOutcome, str]] = ..., error: _Optional[str] = ..., total_findings: _Optional[int] = ..., by_severity: _Optional[_Mapping[str, int]] = ..., by_type: _Optional[_Mapping[str, int]] = ..., findings: _Optional[_Iterable[_Union[ConflictSummary, _Mapping]]] = ..., domains: _Optional[_Union[DerivedDomainSummary, _Mapping]] = ..., graph: _Optional[_Union[GraphSummary, _Mapping]] = ..., duration: _Optional[_Union[datetime.timedelta, _duration_pb2.Duration, _Mapping]] = ..., suppressed_findings: _Optional[int] = ..., by_domain: _Optional[_Mapping[str, int]] = ..., snapshot_freshness: _Optional[_Union[SnapshotFreshness, str]] = ..., authority_confidence: _Optional[_Union[AuthorityConfidence, str]] = ..., outcome_reason: _Optional[str] = ..., assessment: _Optional[_Union[_maturity_pb2.MaturityAssessment, _Mapping]] = ..., coverage: _Optional[_Union[CoverageSummary, _Mapping]] = ..., categories: _Optional[_Iterable[_Union[AuditCategory, _Mapping]]] = ...) -> None: ...
 
 class AuditRunAllRequest(_message.Message):
     __slots__ = ("fail_on", "include_types", "exclude_types", "include_scenarios", "exclude_scenarios", "allow_low_authority", "concurrency", "allow_low_authority_scenarios")
@@ -204,7 +240,7 @@ class AuditRunAllRequest(_message.Message):
     ALLOW_LOW_AUTHORITY_FIELD_NUMBER: _ClassVar[int]
     CONCURRENCY_FIELD_NUMBER: _ClassVar[int]
     ALLOW_LOW_AUTHORITY_SCENARIOS_FIELD_NUMBER: _ClassVar[int]
-    fail_on: _conflicts_pb2.Severity
+    fail_on: _shared_pb2.Severity
     include_types: _containers.RepeatedScalarFieldContainer[str]
     exclude_types: _containers.RepeatedScalarFieldContainer[str]
     include_scenarios: _containers.RepeatedScalarFieldContainer[str]
@@ -212,7 +248,7 @@ class AuditRunAllRequest(_message.Message):
     allow_low_authority: bool
     concurrency: int
     allow_low_authority_scenarios: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, fail_on: _Optional[_Union[_conflicts_pb2.Severity, str]] = ..., include_types: _Optional[_Iterable[str]] = ..., exclude_types: _Optional[_Iterable[str]] = ..., include_scenarios: _Optional[_Iterable[str]] = ..., exclude_scenarios: _Optional[_Iterable[str]] = ..., allow_low_authority: _Optional[bool] = ..., concurrency: _Optional[int] = ..., allow_low_authority_scenarios: _Optional[_Iterable[str]] = ...) -> None: ...
+    def __init__(self, fail_on: _Optional[_Union[_shared_pb2.Severity, str]] = ..., include_types: _Optional[_Iterable[str]] = ..., exclude_types: _Optional[_Iterable[str]] = ..., include_scenarios: _Optional[_Iterable[str]] = ..., exclude_scenarios: _Optional[_Iterable[str]] = ..., allow_low_authority: _Optional[bool] = ..., concurrency: _Optional[int] = ..., allow_low_authority_scenarios: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class AuditRunAllResponse(_message.Message):
     __slots__ = ("reports", "total_scenarios", "total_findings", "total_suppressed", "by_severity", "by_outcome", "duration")

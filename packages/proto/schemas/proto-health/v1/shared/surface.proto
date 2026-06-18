@@ -75,6 +75,7 @@ message ProtoMessage {
   string full_name = 4;
   string domain = 5;
   repeated ProtoField fields = 6;
+  bool is_map_entry = 7;
 }
 
 // ProtoField describes one message field.

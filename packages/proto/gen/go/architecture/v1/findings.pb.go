@@ -201,6 +201,58 @@ func (FindingSeverity) EnumDescriptor() ([]byte, []int) {
 	return file_architecture_v1_findings_proto_rawDescGZIP(), []int{1}
 }
 
+// FindingClass separates deterministic findings that may gate a phase from
+// heuristic findings that should remain advisory. It is EXCLUDED from the
+// stable-ID hash so reclassification does not manufacture regressions.
+type FindingClass int32
+
+const (
+	FindingClass_FINDING_CLASS_UNSPECIFIED   FindingClass = 0
+	FindingClass_FINDING_CLASS_DETERMINISTIC FindingClass = 1
+	FindingClass_FINDING_CLASS_HEURISTIC     FindingClass = 2
+)
+
+// Enum value maps for FindingClass.
+var (
+	FindingClass_name = map[int32]string{
+		0: "FINDING_CLASS_UNSPECIFIED",
+		1: "FINDING_CLASS_DETERMINISTIC",
+		2: "FINDING_CLASS_HEURISTIC",
+	}
+	FindingClass_value = map[string]int32{
+		"FINDING_CLASS_UNSPECIFIED":   0,
+		"FINDING_CLASS_DETERMINISTIC": 1,
+		"FINDING_CLASS_HEURISTIC":     2,
+	}
+)
+
+func (x FindingClass) Enum() *FindingClass {
+	p := new(FindingClass)
+	*p = x
+	return p
+}
+
+func (x FindingClass) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (FindingClass) Descriptor() protoreflect.EnumDescriptor {
+	return file_architecture_v1_findings_proto_enumTypes[2].Descriptor()
+}
+
+func (FindingClass) Type() protoreflect.EnumType {
+	return &file_architecture_v1_findings_proto_enumTypes[2]
+}
+
+func (x FindingClass) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use FindingClass.Descriptor instead.
+func (FindingClass) EnumDescriptor() ([]byte, []int) {
+	return file_architecture_v1_findings_proto_rawDescGZIP(), []int{2}
+}
+
 // EffortHint is a coarse, normalized estimate of how much work a finding
 // takes to resolve. It is advisory ranking input only and is EXCLUDED from
 // the stable-ID hash — effort can be re-estimated without re-keying the
@@ -251,11 +303,11 @@ func (x EffortHint) String() string {
 }
 
 func (EffortHint) Descriptor() protoreflect.EnumDescriptor {
-	return file_architecture_v1_findings_proto_enumTypes[2].Descriptor()
+	return file_architecture_v1_findings_proto_enumTypes[3].Descriptor()
 }
 
 func (EffortHint) Type() protoreflect.EnumType {
-	return &file_architecture_v1_findings_proto_enumTypes[2]
+	return &file_architecture_v1_findings_proto_enumTypes[3]
 }
 
 func (x EffortHint) Number() protoreflect.EnumNumber {
@@ -264,7 +316,7 @@ func (x EffortHint) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use EffortHint.Descriptor instead.
 func (EffortHint) EnumDescriptor() ([]byte, []int) {
-	return file_architecture_v1_findings_proto_rawDescGZIP(), []int{2}
+	return file_architecture_v1_findings_proto_rawDescGZIP(), []int{3}
 }
 
 // Evidence is one producer-supplied piece of justification for a finding.
@@ -475,7 +527,9 @@ type ArchitectureFinding struct {
 	SuggestedFixes []*SuggestedFix `protobuf:"bytes,11,rep,name=suggested_fixes,json=suggestedFixes,proto3" json:"suggested_fixes,omitempty"`
 	// Coarse effort estimate used for profile-aware ranking. Advisory only —
 	// EXCLUDED from the stable-ID hash.
-	Effort        EffortHint `protobuf:"varint,12,opt,name=effort,proto3,enum=vrooli.architecture.v1.EffortHint" json:"effort,omitempty"`
+	Effort EffortHint `protobuf:"varint,12,opt,name=effort,proto3,enum=vrooli.architecture.v1.EffortHint" json:"effort,omitempty"`
+	// Deterministic vs heuristic class. EXCLUDED from the stable-ID hash.
+	FindingClass  FindingClass `protobuf:"varint,13,opt,name=finding_class,json=findingClass,proto3,enum=vrooli.architecture.v1.FindingClass" json:"finding_class,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -594,6 +648,13 @@ func (x *ArchitectureFinding) GetEffort() EffortHint {
 	return EffortHint_EFFORT_HINT_UNSPECIFIED
 }
 
+func (x *ArchitectureFinding) GetFindingClass() FindingClass {
+	if x != nil {
+		return x.FindingClass
+	}
+	return FindingClass_FINDING_CLASS_UNSPECIFIED
+}
+
 var File_architecture_v1_findings_proto protoreflect.FileDescriptor
 
 const file_architecture_v1_findings_proto_rawDesc = "" +
@@ -612,7 +673,7 @@ const file_architecture_v1_findings_proto_rawDesc = "" +
 	"\apayload\x18\x05 \x01(\fR\apayload\x12\x1e\n" +
 	"\n" +
 	"confidence\x18\x06 \x01(\x01R\n" +
-	"confidence\"\xa1\x04\n" +
+	"confidence\"\xec\x04\n" +
 	"\x13ArchitectureFinding\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12=\n" +
 	"\x06source\x18\x02 \x01(\x0e2%.vrooli.architecture.v1.FindingSourceR\x06source\x12\x12\n" +
@@ -628,7 +689,8 @@ const file_architecture_v1_findings_proto_rawDesc = "" +
 	"\bevidence\x18\n" +
 	" \x03(\v2 .vrooli.architecture.v1.EvidenceR\bevidence\x12M\n" +
 	"\x0fsuggested_fixes\x18\v \x03(\v2$.vrooli.architecture.v1.SuggestedFixR\x0esuggestedFixes\x12:\n" +
-	"\x06effort\x18\f \x01(\x0e2\".vrooli.architecture.v1.EffortHintR\x06effort*\x9e\x03\n" +
+	"\x06effort\x18\f \x01(\x0e2\".vrooli.architecture.v1.EffortHintR\x06effort\x12I\n" +
+	"\rfinding_class\x18\r \x01(\x0e2$.vrooli.architecture.v1.FindingClassR\ffindingClass*\x9e\x03\n" +
 	"\rFindingSource\x12\x1e\n" +
 	"\x1aFINDING_SOURCE_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18FINDING_SOURCE_STRUCTURE\x10\x01\x12\x16\n" +
@@ -650,7 +712,11 @@ const file_architecture_v1_findings_proto_rawDesc = "" +
 	"\x15FINDING_SEVERITY_INFO\x10\x01\x12\x1c\n" +
 	"\x18FINDING_SEVERITY_WARNING\x10\x02\x12\x1a\n" +
 	"\x16FINDING_SEVERITY_ERROR\x10\x03\x12\x1c\n" +
-	"\x18FINDING_SEVERITY_BLOCKER\x10\x04*\x88\x01\n" +
+	"\x18FINDING_SEVERITY_BLOCKER\x10\x04*k\n" +
+	"\fFindingClass\x12\x1d\n" +
+	"\x19FINDING_CLASS_UNSPECIFIED\x10\x00\x12\x1f\n" +
+	"\x1bFINDING_CLASS_DETERMINISTIC\x10\x01\x12\x1b\n" +
+	"\x17FINDING_CLASS_HEURISTIC\x10\x02*\x88\x01\n" +
 	"\n" +
 	"EffortHint\x12\x1b\n" +
 	"\x17EFFORT_HINT_UNSPECIFIED\x10\x00\x12\x17\n" +
@@ -671,27 +737,29 @@ func file_architecture_v1_findings_proto_rawDescGZIP() []byte {
 	return file_architecture_v1_findings_proto_rawDescData
 }
 
-var file_architecture_v1_findings_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_architecture_v1_findings_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
 var file_architecture_v1_findings_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_architecture_v1_findings_proto_goTypes = []any{
 	(FindingSource)(0),          // 0: vrooli.architecture.v1.FindingSource
 	(FindingSeverity)(0),        // 1: vrooli.architecture.v1.FindingSeverity
-	(EffortHint)(0),             // 2: vrooli.architecture.v1.EffortHint
-	(*Evidence)(nil),            // 3: vrooli.architecture.v1.Evidence
-	(*SuggestedFix)(nil),        // 4: vrooli.architecture.v1.SuggestedFix
-	(*ArchitectureFinding)(nil), // 5: vrooli.architecture.v1.ArchitectureFinding
+	(FindingClass)(0),           // 2: vrooli.architecture.v1.FindingClass
+	(EffortHint)(0),             // 3: vrooli.architecture.v1.EffortHint
+	(*Evidence)(nil),            // 4: vrooli.architecture.v1.Evidence
+	(*SuggestedFix)(nil),        // 5: vrooli.architecture.v1.SuggestedFix
+	(*ArchitectureFinding)(nil), // 6: vrooli.architecture.v1.ArchitectureFinding
 }
 var file_architecture_v1_findings_proto_depIdxs = []int32{
 	0, // 0: vrooli.architecture.v1.ArchitectureFinding.source:type_name -> vrooli.architecture.v1.FindingSource
 	1, // 1: vrooli.architecture.v1.ArchitectureFinding.severity:type_name -> vrooli.architecture.v1.FindingSeverity
-	3, // 2: vrooli.architecture.v1.ArchitectureFinding.evidence:type_name -> vrooli.architecture.v1.Evidence
-	4, // 3: vrooli.architecture.v1.ArchitectureFinding.suggested_fixes:type_name -> vrooli.architecture.v1.SuggestedFix
-	2, // 4: vrooli.architecture.v1.ArchitectureFinding.effort:type_name -> vrooli.architecture.v1.EffortHint
-	5, // [5:5] is the sub-list for method output_type
-	5, // [5:5] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	4, // 2: vrooli.architecture.v1.ArchitectureFinding.evidence:type_name -> vrooli.architecture.v1.Evidence
+	5, // 3: vrooli.architecture.v1.ArchitectureFinding.suggested_fixes:type_name -> vrooli.architecture.v1.SuggestedFix
+	3, // 4: vrooli.architecture.v1.ArchitectureFinding.effort:type_name -> vrooli.architecture.v1.EffortHint
+	2, // 5: vrooli.architecture.v1.ArchitectureFinding.finding_class:type_name -> vrooli.architecture.v1.FindingClass
+	6, // [6:6] is the sub-list for method output_type
+	6, // [6:6] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_architecture_v1_findings_proto_init() }
@@ -704,7 +772,7 @@ func file_architecture_v1_findings_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_architecture_v1_findings_proto_rawDesc), len(file_architecture_v1_findings_proto_rawDesc)),
-			NumEnums:      3,
+			NumEnums:      4,
 			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,

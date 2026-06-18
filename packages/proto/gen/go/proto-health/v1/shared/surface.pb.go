@@ -705,6 +705,7 @@ type ProtoMessage struct {
 	FullName      string                 `protobuf:"bytes,4,opt,name=full_name,json=fullName,proto3" json:"full_name,omitempty"`
 	Domain        string                 `protobuf:"bytes,5,opt,name=domain,proto3" json:"domain,omitempty"`
 	Fields        []*ProtoField          `protobuf:"bytes,6,rep,name=fields,proto3" json:"fields,omitempty"`
+	IsMapEntry    bool                   `protobuf:"varint,7,opt,name=is_map_entry,json=isMapEntry,proto3" json:"is_map_entry,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -779,6 +780,13 @@ func (x *ProtoMessage) GetFields() []*ProtoField {
 		return x.Fields
 	}
 	return nil
+}
+
+func (x *ProtoMessage) GetIsMapEntry() bool {
+	if x != nil {
+		return x.IsMapEntry
+	}
+	return false
 }
 
 // ProtoField describes one message field.
@@ -1329,14 +1337,16 @@ const file_proto_health_v1_shared_surface_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x14\n" +
 	"\x05input\x18\x02 \x01(\tR\x05input\x12\x16\n" +
 	"\x06output\x18\x03 \x01(\tR\x06output\x12J\n" +
-	"\ttransport\x18\x04 \x01(\x0e2,.vrooli.proto_health.v1.shared.TransportKindR\ttransport\"\xd1\x01\n" +
+	"\ttransport\x18\x04 \x01(\x0e2,.vrooli.proto_health.v1.shared.TransportKindR\ttransport\"\xf3\x01\n" +
 	"\fProtoMessage\x12\x1b\n" +
 	"\tfile_path\x18\x01 \x01(\tR\bfilePath\x12\x18\n" +
 	"\apackage\x18\x02 \x01(\tR\apackage\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12\x1b\n" +
 	"\tfull_name\x18\x04 \x01(\tR\bfullName\x12\x16\n" +
 	"\x06domain\x18\x05 \x01(\tR\x06domain\x12A\n" +
-	"\x06fields\x18\x06 \x03(\v2).vrooli.proto_health.v1.shared.ProtoFieldR\x06fields\"\xc4\x01\n" +
+	"\x06fields\x18\x06 \x03(\v2).vrooli.proto_health.v1.shared.ProtoFieldR\x06fields\x12 \n" +
+	"\fis_map_entry\x18\a \x01(\bR\n" +
+	"isMapEntry\"\xc4\x01\n" +
 	"\n" +
 	"ProtoField\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package vrooli.architecture_cartographer.v1.apply;
 
-import "architecture-cartographer/v1/conflicts/conflicts.proto";
+import "architecture-cartographer/v1/shared/shared.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/apply;apply_v1";
@@ -220,5 +220,5 @@ message GetBuildBaselineResponse {
 // the bundled view without re-fetching the source conflicts.
 message PlanWithContext {
   Plan plan = 1;
-  repeated vrooli.architecture_cartographer.v1.conflicts.Conflict conflicts = 2;
+  repeated vrooli.architecture_cartographer.v1.shared.Conflict conflicts = 2;
 }

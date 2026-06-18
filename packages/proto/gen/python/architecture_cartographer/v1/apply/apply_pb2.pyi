@@ -1,6 +1,6 @@
 import datetime
 
-from architecture_cartographer.v1.conflicts import conflicts_pb2 as _conflicts_pb2
+from architecture_cartographer.v1.shared import shared_pb2 as _shared_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
@@ -204,5 +204,5 @@ class PlanWithContext(_message.Message):
     PLAN_FIELD_NUMBER: _ClassVar[int]
     CONFLICTS_FIELD_NUMBER: _ClassVar[int]
     plan: Plan
-    conflicts: _containers.RepeatedCompositeFieldContainer[_conflicts_pb2.Conflict]
-    def __init__(self, plan: _Optional[_Union[Plan, _Mapping]] = ..., conflicts: _Optional[_Iterable[_Union[_conflicts_pb2.Conflict, _Mapping]]] = ...) -> None: ...
+    conflicts: _containers.RepeatedCompositeFieldContainer[_shared_pb2.Conflict]
+    def __init__(self, plan: _Optional[_Union[Plan, _Mapping]] = ..., conflicts: _Optional[_Iterable[_Union[_shared_pb2.Conflict, _Mapping]]] = ...) -> None: ...

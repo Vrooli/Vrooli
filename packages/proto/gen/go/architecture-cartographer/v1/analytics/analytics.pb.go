@@ -7,8 +7,7 @@
 package analytics_v1
 
 import (
-	conflicts "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/conflicts"
-	signals "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/signals"
+	shared "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/shared"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -268,7 +267,7 @@ type Placement struct {
 	ChunkId   string                 `protobuf:"bytes,3,opt,name=chunk_id,json=chunkId,proto3" json:"chunk_id,omitempty"`
 	ChunkPath string                 `protobuf:"bytes,4,opt,name=chunk_path,json=chunkPath,proto3" json:"chunk_path,omitempty"`
 	// Verdict the aggregator produced.
-	Verdict *signals.Verdict `protobuf:"bytes,5,opt,name=verdict,proto3" json:"verdict,omitempty"`
+	Verdict *shared.Verdict `protobuf:"bytes,5,opt,name=verdict,proto3" json:"verdict,omitempty"`
 	// Did the operator accept the auto-placement (or did they override)?
 	// Empty when the verdict is in SUGGEST tier and no operator action
 	// has been taken yet.
@@ -338,7 +337,7 @@ func (x *Placement) GetChunkPath() string {
 	return ""
 }
 
-func (x *Placement) GetVerdict() *signals.Verdict {
+func (x *Placement) GetVerdict() *shared.Verdict {
 	if x != nil {
 		return x.Verdict
 	}
@@ -1101,7 +1100,7 @@ func (x *RecordOverrideResponse) GetDryRun() bool {
 // events table.
 type VerdictPayload struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Verdict       *signals.Verdict       `protobuf:"bytes,1,opt,name=verdict,proto3" json:"verdict,omitempty"`
+	Verdict       *shared.Verdict        `protobuf:"bytes,1,opt,name=verdict,proto3" json:"verdict,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1136,7 +1135,7 @@ func (*VerdictPayload) Descriptor() ([]byte, []int) {
 	return file_architecture_cartographer_v1_analytics_analytics_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *VerdictPayload) GetVerdict() *signals.Verdict {
+func (x *VerdictPayload) GetVerdict() *shared.Verdict {
 	if x != nil {
 		return x.Verdict
 	}
@@ -1147,7 +1146,7 @@ func (x *VerdictPayload) GetVerdict() *signals.Verdict {
 // kind ∈ {DETECTED, ASSIGNED, RESOLVED, REOPENED, FORCE_RESOLVED}.
 type ConflictPayload struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Conflict      *conflicts.Conflict    `protobuf:"bytes,1,opt,name=conflict,proto3" json:"conflict,omitempty"`
+	Conflict      *shared.Conflict       `protobuf:"bytes,1,opt,name=conflict,proto3" json:"conflict,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1182,7 +1181,7 @@ func (*ConflictPayload) Descriptor() ([]byte, []int) {
 	return file_architecture_cartographer_v1_analytics_analytics_proto_rawDescGZIP(), []int{13}
 }
 
-func (x *ConflictPayload) GetConflict() *conflicts.Conflict {
+func (x *ConflictPayload) GetConflict() *shared.Conflict {
 	if x != nil {
 		return x.Conflict
 	}
@@ -1193,7 +1192,7 @@ var File_architecture_cartographer_v1_analytics_analytics_proto protoreflect.Fil
 
 const file_architecture_cartographer_v1_analytics_analytics_proto_rawDesc = "" +
 	"\n" +
-	"6architecture-cartographer/v1/analytics/analytics.proto\x12-vrooli.architecture_cartographer.v1.analytics\x1a6architecture-cartographer/v1/conflicts/conflicts.proto\x1a2architecture-cartographer/v1/signals/signals.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9e\x03\n" +
+	"6architecture-cartographer/v1/analytics/analytics.proto\x12-vrooli.architecture_cartographer.v1.analytics\x1a0architecture-cartographer/v1/shared/shared.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9e\x03\n" +
 	"\x05Event\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12L\n" +
 	"\x04kind\x18\x02 \x01(\x0e28.vrooli.architecture_cartographer.v1.analytics.EventKindR\x04kind\x12\x1a\n" +
@@ -1209,14 +1208,14 @@ const file_architecture_cartographer_v1_analytics_analytics_proto_rawDesc = "" +
 	" \x01(\fR\apayload\x12\x14\n" +
 	"\x05actor\x18\v \x01(\tR\x05actor\x12;\n" +
 	"\vrecorded_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"recordedAt\"\xb7\x02\n" +
+	"recordedAt\"\xb6\x02\n" +
 	"\tPlacement\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x19\n" +
 	"\bchunk_id\x18\x03 \x01(\tR\achunkId\x12\x1d\n" +
 	"\n" +
-	"chunk_path\x18\x04 \x01(\tR\tchunkPath\x12N\n" +
-	"\averdict\x18\x05 \x01(\v24.vrooli.architecture_cartographer.v1.signals.VerdictR\averdict\x12\x18\n" +
+	"chunk_path\x18\x04 \x01(\tR\tchunkPath\x12M\n" +
+	"\averdict\x18\x05 \x01(\v23.vrooli.architecture_cartographer.v1.shared.VerdictR\averdict\x12\x18\n" +
 	"\aoutcome\x18\x06 \x01(\tR\aoutcome\x12\x1d\n" +
 	"\n" +
 	"auto_acted\x18\a \x01(\bR\tautoActed\x12;\n" +
@@ -1280,11 +1279,11 @@ const file_architecture_cartographer_v1_analytics_analytics_proto_rawDesc = "" +
 	"\adry_run\x18\b \x01(\bR\x06dryRun\"\x86\x01\n" +
 	"\x16RecordOverrideResponse\x12S\n" +
 	"\boverride\x18\x01 \x01(\v27.vrooli.architecture_cartographer.v1.analytics.OverrideR\boverride\x12\x17\n" +
-	"\adry_run\x18\x02 \x01(\bR\x06dryRun\"`\n" +
-	"\x0eVerdictPayload\x12N\n" +
-	"\averdict\x18\x01 \x01(\v24.vrooli.architecture_cartographer.v1.signals.VerdictR\averdict\"f\n" +
-	"\x0fConflictPayload\x12S\n" +
-	"\bconflict\x18\x01 \x01(\v27.vrooli.architecture_cartographer.v1.conflicts.ConflictR\bconflict*\xf4\x03\n" +
+	"\adry_run\x18\x02 \x01(\bR\x06dryRun\"_\n" +
+	"\x0eVerdictPayload\x12M\n" +
+	"\averdict\x18\x01 \x01(\v23.vrooli.architecture_cartographer.v1.shared.VerdictR\averdict\"c\n" +
+	"\x0fConflictPayload\x12P\n" +
+	"\bconflict\x18\x01 \x01(\v24.vrooli.architecture_cartographer.v1.shared.ConflictR\bconflict*\xf4\x03\n" +
 	"\tEventKind\x12\x1a\n" +
 	"\x16EVENT_KIND_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cEVENT_KIND_CONFLICT_DETECTED\x10\x01\x12 \n" +
@@ -1340,13 +1339,13 @@ var file_architecture_cartographer_v1_analytics_analytics_proto_goTypes = []any{
 	(*VerdictPayload)(nil),         // 13: vrooli.architecture_cartographer.v1.analytics.VerdictPayload
 	(*ConflictPayload)(nil),        // 14: vrooli.architecture_cartographer.v1.analytics.ConflictPayload
 	(*timestamppb.Timestamp)(nil),  // 15: google.protobuf.Timestamp
-	(*signals.Verdict)(nil),        // 16: vrooli.architecture_cartographer.v1.signals.Verdict
-	(*conflicts.Conflict)(nil),     // 17: vrooli.architecture_cartographer.v1.conflicts.Conflict
+	(*shared.Verdict)(nil),         // 16: vrooli.architecture_cartographer.v1.shared.Verdict
+	(*shared.Conflict)(nil),        // 17: vrooli.architecture_cartographer.v1.shared.Conflict
 }
 var file_architecture_cartographer_v1_analytics_analytics_proto_depIdxs = []int32{
 	0,  // 0: vrooli.architecture_cartographer.v1.analytics.Event.kind:type_name -> vrooli.architecture_cartographer.v1.analytics.EventKind
 	15, // 1: vrooli.architecture_cartographer.v1.analytics.Event.recorded_at:type_name -> google.protobuf.Timestamp
-	16, // 2: vrooli.architecture_cartographer.v1.analytics.Placement.verdict:type_name -> vrooli.architecture_cartographer.v1.signals.Verdict
+	16, // 2: vrooli.architecture_cartographer.v1.analytics.Placement.verdict:type_name -> vrooli.architecture_cartographer.v1.shared.Verdict
 	15, // 3: vrooli.architecture_cartographer.v1.analytics.Placement.recorded_at:type_name -> google.protobuf.Timestamp
 	15, // 4: vrooli.architecture_cartographer.v1.analytics.Override.recorded_at:type_name -> google.protobuf.Timestamp
 	0,  // 5: vrooli.architecture_cartographer.v1.analytics.ListEventsRequest.kinds:type_name -> vrooli.architecture_cartographer.v1.analytics.EventKind
@@ -1355,8 +1354,8 @@ var file_architecture_cartographer_v1_analytics_analytics_proto_depIdxs = []int3
 	4,  // 8: vrooli.architecture_cartographer.v1.analytics.GetStatsResponse.stats:type_name -> vrooli.architecture_cartographer.v1.analytics.StatsSummary
 	2,  // 9: vrooli.architecture_cartographer.v1.analytics.ListPlacementsResponse.placements:type_name -> vrooli.architecture_cartographer.v1.analytics.Placement
 	3,  // 10: vrooli.architecture_cartographer.v1.analytics.RecordOverrideResponse.override:type_name -> vrooli.architecture_cartographer.v1.analytics.Override
-	16, // 11: vrooli.architecture_cartographer.v1.analytics.VerdictPayload.verdict:type_name -> vrooli.architecture_cartographer.v1.signals.Verdict
-	17, // 12: vrooli.architecture_cartographer.v1.analytics.ConflictPayload.conflict:type_name -> vrooli.architecture_cartographer.v1.conflicts.Conflict
+	16, // 11: vrooli.architecture_cartographer.v1.analytics.VerdictPayload.verdict:type_name -> vrooli.architecture_cartographer.v1.shared.Verdict
+	17, // 12: vrooli.architecture_cartographer.v1.analytics.ConflictPayload.conflict:type_name -> vrooli.architecture_cartographer.v1.shared.Conflict
 	5,  // 13: vrooli.architecture_cartographer.v1.analytics.AnalyticsService.ListEvents:input_type -> vrooli.architecture_cartographer.v1.analytics.ListEventsRequest
 	7,  // 14: vrooli.architecture_cartographer.v1.analytics.AnalyticsService.GetStats:input_type -> vrooli.architecture_cartographer.v1.analytics.GetStatsRequest
 	9,  // 15: vrooli.architecture_cartographer.v1.analytics.AnalyticsService.ListPlacements:input_type -> vrooli.architecture_cartographer.v1.analytics.ListPlacementsRequest

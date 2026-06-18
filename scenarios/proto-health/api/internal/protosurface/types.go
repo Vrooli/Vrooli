@@ -48,12 +48,13 @@ type RPC struct {
 }
 
 type Message struct {
-	FilePath string
-	Package  string
-	Name     string
-	FullName string
-	Domain   string
-	Fields   []Field
+	FilePath   string
+	Package    string
+	Name       string
+	FullName   string
+	Domain     string
+	IsMapEntry bool
+	Fields     []Field
 }
 
 type Field struct {

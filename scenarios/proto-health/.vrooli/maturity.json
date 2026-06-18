@@ -62,7 +62,7 @@
       "recommended_skill_ids": ["proto-contract-audit", "screaming-architecture-audit"]
     },
     "proto.cycle": {
-      "local_level_impact": "L5",
+      "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "cycles",
       "severity_default": "SEVERITY_ERROR",
@@ -72,7 +72,7 @@
       "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "proto-health",
-      "severity_default": "SEVERITY_ERROR",
+      "severity_default": "SEVERITY_WARNING",
       "recommended_skill_ids": ["proto-contract-audit"]
     },
     "proto.endpoint_proof_contradicted": {
@@ -84,13 +84,20 @@
     },
     "proto.endpoint_proof_missing": {
       "local_level_impact": "L4",
-      "global_impact": "evolvability_gap",
+      "global_impact": "advisory",
       "dimension": "proto-health",
-      "severity_default": "SEVERITY_ERROR",
+      "severity_default": "SEVERITY_WARNING",
       "recommended_skill_ids": ["proto-contract-audit", "api-steer"]
     },
     "proto.endpoint_proof_unsupported": {
       "local_level_impact": "L4",
+      "global_impact": "advisory",
+      "dimension": "proto-health",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["proto-contract-audit"]
+    },
+    "proto.gen_check_blocked": {
+      "local_level_impact": "L2",
       "global_impact": "advisory",
       "dimension": "proto-health",
       "severity_default": "SEVERITY_WARNING",
@@ -107,7 +114,7 @@
       "local_level_impact": "L3",
       "global_impact": "evolvability_gap",
       "dimension": "proto-health",
-      "severity_default": "SEVERITY_ERROR",
+      "severity_default": "SEVERITY_WARNING",
       "recommended_skill_ids": ["proto-contract-audit", "api-steer"]
     },
     "proto.import_kind_unknown": {
@@ -121,7 +128,7 @@
       "local_level_impact": "L3",
       "global_impact": "hardening_gap",
       "dimension": "proto-health",
-      "severity_default": "SEVERITY_ERROR",
+      "severity_default": "SEVERITY_WARNING",
       "recommended_skill_ids": ["proto-contract-audit", "test"]
     },
     "proto.package_mismatch": {
@@ -147,9 +154,9 @@
     },
     "proto.proto_adoption_missing": {
       "local_level_impact": "L4",
-      "global_impact": "evolvability_gap",
+      "global_impact": "advisory",
       "dimension": "proto-health",
-      "severity_default": "SEVERITY_ERROR",
+      "severity_default": "SEVERITY_WARNING",
       "recommended_skill_ids": ["proto-contract-audit", "api-steer"]
     },
     "proto.proto_adoption_unsupported": {
@@ -188,7 +195,7 @@
       "recommended_skill_ids": ["proto-contract-audit"]
     },
     "proto.stability_dependency_mismatch": {
-      "local_level_impact": "L5",
+      "local_level_impact": "L1",
       "global_impact": "evolvability_gap",
       "dimension": "proto-health",
       "severity_default": "SEVERITY_ERROR",

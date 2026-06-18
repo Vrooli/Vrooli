@@ -1,9 +1,5 @@
-import datetime
-
-from architecture_cartographer.v1.signals import signals_pb2 as _signals_pb2
-from google.protobuf import timestamp_pb2 as _timestamp_pb2
+from architecture_cartographer.v1.shared import shared_pb2 as _shared_pb2
 from google.protobuf.internal import containers as _containers
-from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from collections.abc import Iterable as _Iterable, Mapping as _Mapping
@@ -11,113 +7,19 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
-class Severity(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    SEVERITY_UNSPECIFIED: _ClassVar[Severity]
-    SEVERITY_INFO: _ClassVar[Severity]
-    SEVERITY_WARN: _ClassVar[Severity]
-    SEVERITY_ERROR: _ClassVar[Severity]
-    SEVERITY_BLOCKER: _ClassVar[Severity]
-
-class FixKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    FIX_KIND_UNSPECIFIED: _ClassVar[FixKind]
-    FIX_KIND_MOVE_FILE: _ClassVar[FixKind]
-    FIX_KIND_REASSIGN_DOMAIN: _ClassVar[FixKind]
-    FIX_KIND_BREAK_CYCLE: _ClassVar[FixKind]
-    FIX_KIND_ADD_DEPENDENCY: _ClassVar[FixKind]
-    FIX_KIND_ADD_TRANSITIONAL: _ClassVar[FixKind]
-SEVERITY_UNSPECIFIED: Severity
-SEVERITY_INFO: Severity
-SEVERITY_WARN: Severity
-SEVERITY_ERROR: Severity
-SEVERITY_BLOCKER: Severity
-FIX_KIND_UNSPECIFIED: FixKind
-FIX_KIND_MOVE_FILE: FixKind
-FIX_KIND_REASSIGN_DOMAIN: FixKind
-FIX_KIND_BREAK_CYCLE: FixKind
-FIX_KIND_ADD_DEPENDENCY: FixKind
-FIX_KIND_ADD_TRANSITIONAL: FixKind
-
-class ConflictEvidence(_message.Message):
-    __slots__ = ("kind", "summary", "locator", "payload")
-    KIND_FIELD_NUMBER: _ClassVar[int]
-    SUMMARY_FIELD_NUMBER: _ClassVar[int]
-    LOCATOR_FIELD_NUMBER: _ClassVar[int]
-    PAYLOAD_FIELD_NUMBER: _ClassVar[int]
-    kind: str
-    summary: str
-    locator: str
-    payload: bytes
-    def __init__(self, kind: _Optional[str] = ..., summary: _Optional[str] = ..., locator: _Optional[str] = ..., payload: _Optional[bytes] = ...) -> None: ...
-
-class Fix(_message.Message):
-    __slots__ = ("id", "kind", "resolver", "summary", "payload", "confidence")
-    ID_FIELD_NUMBER: _ClassVar[int]
-    KIND_FIELD_NUMBER: _ClassVar[int]
-    RESOLVER_FIELD_NUMBER: _ClassVar[int]
-    SUMMARY_FIELD_NUMBER: _ClassVar[int]
-    PAYLOAD_FIELD_NUMBER: _ClassVar[int]
-    CONFIDENCE_FIELD_NUMBER: _ClassVar[int]
-    id: str
-    kind: FixKind
-    resolver: str
-    summary: str
-    payload: bytes
-    confidence: float
-    def __init__(self, id: _Optional[str] = ..., kind: _Optional[_Union[FixKind, str]] = ..., resolver: _Optional[str] = ..., summary: _Optional[str] = ..., payload: _Optional[bytes] = ..., confidence: _Optional[float] = ...) -> None: ...
-
-class Conflict(_message.Message):
-    __slots__ = ("id", "scenario", "detector", "type", "subtype", "severity", "locations", "domains", "evidence", "suggested_fixes", "snapshot_id", "verdict", "detected_at", "updated_at", "suppressed", "suppression_reason", "stable_id", "instance_id")
-    ID_FIELD_NUMBER: _ClassVar[int]
-    SCENARIO_FIELD_NUMBER: _ClassVar[int]
-    DETECTOR_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
-    SUBTYPE_FIELD_NUMBER: _ClassVar[int]
-    SEVERITY_FIELD_NUMBER: _ClassVar[int]
-    LOCATIONS_FIELD_NUMBER: _ClassVar[int]
-    DOMAINS_FIELD_NUMBER: _ClassVar[int]
-    EVIDENCE_FIELD_NUMBER: _ClassVar[int]
-    SUGGESTED_FIXES_FIELD_NUMBER: _ClassVar[int]
-    SNAPSHOT_ID_FIELD_NUMBER: _ClassVar[int]
-    VERDICT_FIELD_NUMBER: _ClassVar[int]
-    DETECTED_AT_FIELD_NUMBER: _ClassVar[int]
-    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
-    SUPPRESSED_FIELD_NUMBER: _ClassVar[int]
-    SUPPRESSION_REASON_FIELD_NUMBER: _ClassVar[int]
-    STABLE_ID_FIELD_NUMBER: _ClassVar[int]
-    INSTANCE_ID_FIELD_NUMBER: _ClassVar[int]
-    id: str
-    scenario: str
-    detector: str
-    type: str
-    subtype: str
-    severity: Severity
-    locations: _containers.RepeatedScalarFieldContainer[str]
-    domains: _containers.RepeatedScalarFieldContainer[str]
-    evidence: _containers.RepeatedCompositeFieldContainer[ConflictEvidence]
-    suggested_fixes: _containers.RepeatedCompositeFieldContainer[Fix]
-    snapshot_id: str
-    verdict: _signals_pb2.Verdict
-    detected_at: _timestamp_pb2.Timestamp
-    updated_at: _timestamp_pb2.Timestamp
-    suppressed: bool
-    suppression_reason: str
-    stable_id: str
-    instance_id: str
-    def __init__(self, id: _Optional[str] = ..., scenario: _Optional[str] = ..., detector: _Optional[str] = ..., type: _Optional[str] = ..., subtype: _Optional[str] = ..., severity: _Optional[_Union[Severity, str]] = ..., locations: _Optional[_Iterable[str]] = ..., domains: _Optional[_Iterable[str]] = ..., evidence: _Optional[_Iterable[_Union[ConflictEvidence, _Mapping]]] = ..., suggested_fixes: _Optional[_Iterable[_Union[Fix, _Mapping]]] = ..., snapshot_id: _Optional[str] = ..., verdict: _Optional[_Union[_signals_pb2.Verdict, _Mapping]] = ..., detected_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., updated_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., suppressed: _Optional[bool] = ..., suppression_reason: _Optional[str] = ..., stable_id: _Optional[str] = ..., instance_id: _Optional[str] = ...) -> None: ...
-
 class DetectorDescriptor(_message.Message):
-    __slots__ = ("name", "description", "stability", "emits_types")
+    __slots__ = ("name", "description", "stability", "emits_types", "finding_class")
     NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     STABILITY_FIELD_NUMBER: _ClassVar[int]
     EMITS_TYPES_FIELD_NUMBER: _ClassVar[int]
+    FINDING_CLASS_FIELD_NUMBER: _ClassVar[int]
     name: str
     description: str
     stability: str
     emits_types: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., stability: _Optional[str] = ..., emits_types: _Optional[_Iterable[str]] = ...) -> None: ...
+    finding_class: _shared_pb2.FindingClass
+    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., stability: _Optional[str] = ..., emits_types: _Optional[_Iterable[str]] = ..., finding_class: _Optional[_Union[_shared_pb2.FindingClass, str]] = ...) -> None: ...
 
 class ResolverDescriptor(_message.Message):
     __slots__ = ("name", "description", "stability", "handles_kinds", "requires_apply")
@@ -129,9 +31,9 @@ class ResolverDescriptor(_message.Message):
     name: str
     description: str
     stability: str
-    handles_kinds: _containers.RepeatedScalarFieldContainer[FixKind]
+    handles_kinds: _containers.RepeatedScalarFieldContainer[_shared_pb2.FixKind]
     requires_apply: bool
-    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., stability: _Optional[str] = ..., handles_kinds: _Optional[_Iterable[_Union[FixKind, str]]] = ..., requires_apply: _Optional[bool] = ...) -> None: ...
+    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., stability: _Optional[str] = ..., handles_kinds: _Optional[_Iterable[_Union[_shared_pb2.FixKind, str]]] = ..., requires_apply: _Optional[bool] = ...) -> None: ...
 
 class DetectConflictsRequest(_message.Message):
     __slots__ = ("scenario", "snapshot_id", "idempotency_key")
@@ -146,8 +48,8 @@ class DetectConflictsRequest(_message.Message):
 class DetectConflictsResponse(_message.Message):
     __slots__ = ("conflicts",)
     CONFLICTS_FIELD_NUMBER: _ClassVar[int]
-    conflicts: _containers.RepeatedCompositeFieldContainer[Conflict]
-    def __init__(self, conflicts: _Optional[_Iterable[_Union[Conflict, _Mapping]]] = ...) -> None: ...
+    conflicts: _containers.RepeatedCompositeFieldContainer[_shared_pb2.Conflict]
+    def __init__(self, conflicts: _Optional[_Iterable[_Union[_shared_pb2.Conflict, _Mapping]]] = ...) -> None: ...
 
 class ListConflictsRequest(_message.Message):
     __slots__ = ("scenario", "types", "page_size", "page_token")
@@ -165,9 +67,9 @@ class ListConflictsResponse(_message.Message):
     __slots__ = ("conflicts", "next_page_token")
     CONFLICTS_FIELD_NUMBER: _ClassVar[int]
     NEXT_PAGE_TOKEN_FIELD_NUMBER: _ClassVar[int]
-    conflicts: _containers.RepeatedCompositeFieldContainer[Conflict]
+    conflicts: _containers.RepeatedCompositeFieldContainer[_shared_pb2.Conflict]
     next_page_token: str
-    def __init__(self, conflicts: _Optional[_Iterable[_Union[Conflict, _Mapping]]] = ..., next_page_token: _Optional[str] = ...) -> None: ...
+    def __init__(self, conflicts: _Optional[_Iterable[_Union[_shared_pb2.Conflict, _Mapping]]] = ..., next_page_token: _Optional[str] = ...) -> None: ...
 
 class GetConflictRequest(_message.Message):
     __slots__ = ("id",)
@@ -178,8 +80,8 @@ class GetConflictRequest(_message.Message):
 class GetConflictResponse(_message.Message):
     __slots__ = ("conflict",)
     CONFLICT_FIELD_NUMBER: _ClassVar[int]
-    conflict: Conflict
-    def __init__(self, conflict: _Optional[_Union[Conflict, _Mapping]] = ...) -> None: ...
+    conflict: _shared_pb2.Conflict
+    def __init__(self, conflict: _Optional[_Union[_shared_pb2.Conflict, _Mapping]] = ...) -> None: ...
 
 class ValidateConflictsRequest(_message.Message):
     __slots__ = ("scenario",)
@@ -191,9 +93,9 @@ class ValidateConflictsResponse(_message.Message):
     __slots__ = ("conflicts", "clean")
     CONFLICTS_FIELD_NUMBER: _ClassVar[int]
     CLEAN_FIELD_NUMBER: _ClassVar[int]
-    conflicts: _containers.RepeatedCompositeFieldContainer[Conflict]
+    conflicts: _containers.RepeatedCompositeFieldContainer[_shared_pb2.Conflict]
     clean: bool
-    def __init__(self, conflicts: _Optional[_Iterable[_Union[Conflict, _Mapping]]] = ..., clean: _Optional[bool] = ...) -> None: ...
+    def __init__(self, conflicts: _Optional[_Iterable[_Union[_shared_pb2.Conflict, _Mapping]]] = ..., clean: _Optional[bool] = ...) -> None: ...
 
 class ListDetectorsRequest(_message.Message):
     __slots__ = ()

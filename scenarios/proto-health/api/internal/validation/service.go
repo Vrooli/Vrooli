@@ -3,6 +3,7 @@ package validation
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -22,6 +23,7 @@ type Service struct {
 	genSyncChecker GenSyncChecker
 	codeFacts      CodeFactsClient
 	repoRoot       string
+	catalog        FindingCatalog
 }
 
 type Deps struct {
@@ -29,10 +31,11 @@ type Deps struct {
 	GenSyncChecker GenSyncChecker
 	CodeFacts      CodeFactsClient
 	RepoRoot       string
+	Catalog        FindingCatalog
 }
 
 func New(d Deps) *Service {
-	return &Service{loader: d.Loader, genSyncChecker: d.GenSyncChecker, codeFacts: d.CodeFacts, repoRoot: d.RepoRoot}
+	return &Service{loader: d.Loader, genSyncChecker: d.GenSyncChecker, codeFacts: d.CodeFacts, repoRoot: d.RepoRoot, catalog: d.Catalog}
 }
 
 func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report, error) {
@@ -65,8 +68,25 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 	findings = append(findings, checkPossiblyUnused(surface)...)
 	findings = append(findings, s.checkDomainMismatch(surface)...)
 	findings = append(findings, s.checkCodeFacts(ctx, scenario, surface)...)
+	findings, err = s.resolveSeverities(findings)
+	if err != nil {
+		return Report{}, err
+	}
 	sortFindings(findings)
 	return finalize(scenario, findings), nil
+}
+
+func (s *Service) resolveSeverities(findings []Finding) ([]Finding, error) {
+	out := make([]Finding, len(findings))
+	for i, finding := range findings {
+		severity, err := s.catalog.ResolveSeverity(finding.Code)
+		if err != nil {
+			return nil, err
+		}
+		finding.Severity = severity
+		out[i] = finding
+	}
+	return out, nil
 }
 
 func (s *Service) checkCodeFacts(ctx context.Context, scenario string, surface protosurface.Surface) []Finding {
@@ -95,7 +115,6 @@ func (s *Service) checkProtoAdoptionFacts(ctx context.Context, scenario string) 
 	for _, warning := range report.GetWarnings() {
 		if isCodeFactsProofWarning(warning) {
 			findings = append(findings, Finding{
-				Severity:   SeverityWarning,
 				Code:       CodeProtoAdoptionUnsupported,
 				Location:   "scenarios/" + scenario,
 				Message:    "code-facts proto adoption analyzer warning: " + warning.GetMessage(),
@@ -111,7 +130,6 @@ func (s *Service) checkProtoAdoptionFacts(ctx context.Context, scenario string) 
 		switch status {
 		case factsv1.EvidenceStatus_EVIDENCE_STATUS_MISSING:
 			findings = append(findings, Finding{
-				Severity:   SeverityError,
 				Code:       CodeProtoAdoptionMissing,
 				Location:   codeFactLocation(fact, "scenarios/"+scenario),
 				Message:    fmt.Sprintf("surface %q has no code-facts evidence for generated proto adoption", fact.GetSubject()),
@@ -119,7 +137,6 @@ func (s *Service) checkProtoAdoptionFacts(ctx context.Context, scenario string) 
 			})
 		case factsv1.EvidenceStatus_EVIDENCE_STATUS_CONTRADICTED:
 			findings = append(findings, Finding{
-				Severity:   SeverityError,
 				Code:       CodeProtoAdoptionContradicted,
 				Location:   codeFactLocation(fact, "scenarios/"+scenario),
 				Message:    fmt.Sprintf("surface %q has contradictory code-facts proto adoption evidence", fact.GetSubject()),
@@ -127,7 +144,6 @@ func (s *Service) checkProtoAdoptionFacts(ctx context.Context, scenario string) 
 			})
 		case factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED, factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN:
 			findings = append(findings, Finding{
-				Severity:   SeverityWarning,
 				Code:       CodeProtoAdoptionUnsupported,
 				Location:   codeFactLocation(fact, "scenarios/"+scenario),
 				Message:    fmt.Sprintf("surface %q proto adoption proof is %s", fact.GetSubject(), evidenceStatusLabel(status)),
@@ -147,7 +163,6 @@ func (s *Service) checkEndpointProofFacts(ctx context.Context, scenario string, 
 	for _, warning := range report.GetWarnings() {
 		if isCodeFactsProofWarning(warning) {
 			findings = append(findings, Finding{
-				Severity:   SeverityWarning,
 				Code:       CodeEndpointProofUnsupported,
 				Location:   "scenarios/" + scenario + "/.vrooli/endpoints.json",
 				Message:    "code-facts endpoint analyzer warning: " + warning.GetMessage(),
@@ -163,7 +178,6 @@ func (s *Service) checkEndpointProofFacts(ctx context.Context, scenario string, 
 		switch status {
 		case factsv1.EvidenceStatus_EVIDENCE_STATUS_MISSING:
 			findings = append(findings, Finding{
-				Severity:   SeverityError,
 				Code:       CodeEndpointProofMissing,
 				Location:   codeFactLocation(fact, "scenarios/"+scenario+"/.vrooli/endpoints.json"),
 				Message:    fmt.Sprintf("REST exception endpoint %q has declarations but no code-facts implementation proof", fact.GetSubject()),
@@ -171,7 +185,6 @@ func (s *Service) checkEndpointProofFacts(ctx context.Context, scenario string, 
 			})
 		case factsv1.EvidenceStatus_EVIDENCE_STATUS_CONTRADICTED:
 			findings = append(findings, Finding{
-				Severity:   SeverityError,
 				Code:       CodeEndpointProofContradicted,
 				Location:   codeFactLocation(fact, "scenarios/"+scenario+"/.vrooli/endpoints.json"),
 				Message:    fmt.Sprintf("REST exception endpoint %q implementation contradicts its declared proto payload", fact.GetSubject()),
@@ -179,7 +192,6 @@ func (s *Service) checkEndpointProofFacts(ctx context.Context, scenario string, 
 			})
 		case factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED, factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN:
 			findings = append(findings, Finding{
-				Severity:   SeverityWarning,
 				Code:       CodeEndpointProofUnsupported,
 				Location:   codeFactLocation(fact, "scenarios/"+scenario+"/.vrooli/endpoints.json"),
 				Message:    fmt.Sprintf("REST exception endpoint %q implementation proof is %s", fact.GetSubject(), evidenceStatusLabel(status)),
@@ -192,7 +204,6 @@ func (s *Service) checkEndpointProofFacts(ctx context.Context, scenario string, 
 
 func codeFactsUnavailableFinding(scope string, err error) Finding {
 	return Finding{
-		Severity:   SeverityWarning,
 		Code:       CodeCodeFactsUnavailable,
 		Location:   "code-facts",
 		Message:    fmt.Sprintf("code-facts %s evidence is unavailable: %v", scope, err),
@@ -274,15 +285,37 @@ func (s *Service) checkGeneratedArtifacts(ctx context.Context, scenario string) 
 	}
 	status, err := s.genSyncChecker.CheckScenario(ctx, scenario)
 	if err != nil {
+		log.Printf("proto-health gen-sync scenario=%s outcome=error detail=%q", scenario, err.Error())
 		return []Finding{{
-			Severity:   SeverityError,
 			Code:       CodeGenOutOfSync,
 			Location:   "packages/proto/gen",
 			Message:    "generated proto artifact sync check failed: " + err.Error(),
 			Suggestion: "run cd packages/proto && make generate, then rerun proto-health validation",
 		}}
 	}
+	if status.Skipped {
+		log.Printf("proto-health gen-sync scenario=%s outcome=skipped detail=%q", scenario, status.SkipMessage)
+		return nil
+	}
+	if status.Blocked {
+		log.Printf("proto-health gen-sync scenario=%s outcome=blocked blocked_by=%q detail=%q", scenario, strings.Join(status.BlockedBy, ","), status.Detail)
+		location := "packages/proto/schemas"
+		if len(status.BlockedBy) > 0 {
+			location = filepath.ToSlash(filepath.Join("packages", "proto", status.BlockedBy[0]))
+		}
+		message := status.Detail
+		if message == "" {
+			message = "generated-artifact sync could not be verified because proto compilation failed outside the target scenario"
+		}
+		return []Finding{{
+			Code:       CodeGenCheckBlocked,
+			Location:   location,
+			Message:    message,
+			Suggestion: "fix the upstream or unrelated proto compile failure, then rerun proto-health validation",
+		}}
+	}
 	if status.InSync {
+		log.Printf("proto-health gen-sync scenario=%s outcome=in_sync", scenario)
 		return nil
 	}
 	location := "packages/proto/gen"
@@ -293,8 +326,8 @@ func (s *Service) checkGeneratedArtifacts(ctx context.Context, scenario string) 
 	if status.Detail != "" {
 		message += ": " + status.Detail
 	}
+	log.Printf("proto-health gen-sync scenario=%s outcome=drift drift=%q detail=%q", scenario, strings.Join(status.Drift, ","), status.Detail)
 	return []Finding{{
-		Severity:   SeverityError,
 		Code:       CodeGenOutOfSync,
 		Location:   location,
 		Message:    message,
@@ -462,7 +495,6 @@ func checkCycles(surface protosurface.Surface) []Finding {
 				}
 				cycle = append(cycle, next)
 				findings = append(findings, Finding{
-					Severity:   SeverityError,
 					Code:       CodeCycle,
 					Location:   path,
 					Message:    "proto imports form a cycle: " + strings.Join(cycle, " -> "),
@@ -494,7 +526,6 @@ func checkPackages(scenario string, surface protosurface.Surface) []Finding {
 		parts := strings.Split(f.Package, ".")
 		if len(parts) < 4 || parts[0] != "vrooli" || parts[1] != wantScenario {
 			findings = append(findings, Finding{
-				Severity:   SeverityError,
 				Code:       CodePackageMismatch,
 				Location:   f.Path,
 				Message:    fmt.Sprintf("package %q does not match scenario %q", f.Package, scenario),
@@ -504,7 +535,6 @@ func checkPackages(scenario string, surface protosurface.Surface) []Finding {
 		}
 		if parts[2] != f.Version || parts[3] != strings.ReplaceAll(f.Domain, "-", "_") {
 			findings = append(findings, Finding{
-				Severity:   SeverityError,
 				Code:       CodePackageMismatch,
 				Location:   f.Path,
 				Message:    fmt.Sprintf("package %q does not match path version/domain %s/%s", f.Package, f.Version, f.Domain),
@@ -523,7 +553,6 @@ func checkVersions(surface protosurface.Surface) []Finding {
 		raw[f.Version] = true
 		if !versionDirRE.MatchString(f.Version) {
 			findings = append(findings, Finding{
-				Severity:   SeverityWarning,
 				Code:       CodeVersionNaming,
 				Location:   f.Path,
 				Message:    fmt.Sprintf("version directory %q is not a natural proto version", f.Version),
@@ -546,7 +575,6 @@ func checkVersions(surface protosurface.Surface) []Finding {
 	for n := 1; n <= max; n++ {
 		if !seen[n] {
 			findings = append(findings, Finding{
-				Severity:   SeverityWarning,
 				Code:       CodeVersionNaming,
 				Location:   "packages/proto/schemas/" + surface.Scenario,
 				Message:    fmt.Sprintf("scenario proto versions are not contiguous; missing v%d", n),
@@ -580,7 +608,6 @@ func checkUnsupportedAnnotations(surface protosurface.Surface) []Finding {
 				msg = fmt.Sprintf("annotation @%s is deprecated; the value is derivable from proto structure", a.Name)
 			}
 			findings = append(findings, Finding{
-				Severity:   SeverityWarning,
 				Code:       CodeUnsupportedAnnotation,
 				Location:   f.Path,
 				Message:    msg,
@@ -599,7 +626,6 @@ func checkTemplateSource(surface protosurface.Surface) []Finding {
 				continue
 			}
 			findings = append(findings, Finding{
-				Severity:   SeverityWarning,
 				Code:       CodeTemplateSource,
 				Location:   f.Path,
 				Message:    fmt.Sprintf("proto file is marked as template-sourced (%s)", a.Value),
@@ -617,7 +643,6 @@ func checkCrossDomainImports(surface protosurface.Surface) []Finding {
 			continue
 		}
 		findings = append(findings, Finding{
-			Severity:   SeverityWarning,
 			Code:       CodeCrossDomainImport,
 			Location:   imp.FromFile,
 			Message:    fmt.Sprintf("domain %q imports scenario domain %q via %s", imp.FromDomain, imp.ToDomain, imp.ToFile),
@@ -634,7 +659,6 @@ func checkImportClassification(surface protosurface.Surface) []Finding {
 			continue
 		}
 		findings = append(findings, Finding{
-			Severity:   SeverityWarning,
 			Code:       CodeImportKindUnknown,
 			Location:   imp.FromFile,
 			Message:    fmt.Sprintf("proto import %s -> %s has no classified import kind", imp.FromFile, imp.ToFile),
@@ -649,7 +673,6 @@ func checkTransport(surface protosurface.Surface) []Finding {
 		return nil
 	}
 	return []Finding{{
-		Severity:   SeverityWarning,
 		Code:       CodeHandRolledTransport,
 		Location:   "scenarios/" + surface.Scenario + "/api",
 		Message:    fmt.Sprintf("scenario proto transport world is %s", surface.TransportWorld),
@@ -671,8 +694,10 @@ func checkRESTPayloadDeclarations(surface protosurface.Surface) []Finding {
 	for _, endpoint := range surface.RESTExceptions {
 		payloads := payloadsByEndpoint[endpoint.EndpointID]
 		if !endpoint.HasPayloadDeclarations || len(payloads) == 0 {
+			if isConventionalInfraEndpoint(endpoint) {
+				continue
+			}
 			findings = append(findings, Finding{
-				Severity:   SeverityError,
 				Code:       CodeRESTPayloadMissingDeclaration,
 				Location:   endpoint.Path,
 				Message:    fmt.Sprintf("REST exception endpoint %q does not declare request, response, and error proto payload intent", endpoint.EndpointID),
@@ -685,7 +710,6 @@ func checkRESTPayloadDeclarations(surface protosurface.Surface) []Finding {
 			seenRoles[ref.Role] = true
 			if !validRESTPayloadConformance(ref.Conformance) {
 				findings = append(findings, Finding{
-					Severity:   SeverityError,
 					Code:       CodeRESTPayloadInvalidConformance,
 					Location:   ref.Path,
 					Message:    fmt.Sprintf("REST exception endpoint %q %s conformance %q is unsupported", ref.EndpointID, ref.Role, ref.Conformance),
@@ -694,7 +718,6 @@ func checkRESTPayloadDeclarations(surface protosurface.Surface) []Finding {
 			}
 			if ref.Conformance == "protojson" && ref.ProtoFullName == "" {
 				findings = append(findings, Finding{
-					Severity:   SeverityError,
 					Code:       CodeRESTPayloadMissingDeclaration,
 					Location:   ref.Path,
 					Message:    fmt.Sprintf("REST exception endpoint %q %s declares protojson without proto_full_name", ref.EndpointID, ref.Role),
@@ -707,7 +730,6 @@ func checkRESTPayloadDeclarations(surface protosurface.Surface) []Finding {
 			}
 			if _, ok := messageByName[ref.ProtoFullName]; !ok {
 				findings = append(findings, Finding{
-					Severity:   SeverityError,
 					Code:       CodeRESTPayloadUnknownMessage,
 					Location:   ref.Path,
 					Message:    fmt.Sprintf("REST exception endpoint %q %s declares unknown proto message %q", ref.EndpointID, ref.Role, ref.ProtoFullName),
@@ -720,7 +742,6 @@ func checkRESTPayloadDeclarations(surface protosurface.Surface) []Finding {
 				continue
 			}
 			findings = append(findings, Finding{
-				Severity:   SeverityError,
 				Code:       CodeRESTPayloadMissingDeclaration,
 				Location:   endpoint.Path,
 				Message:    fmt.Sprintf("REST exception endpoint %q is missing %s payload intent", endpoint.EndpointID, role),
@@ -729,6 +750,19 @@ func checkRESTPayloadDeclarations(surface protosurface.Surface) []Finding {
 		}
 	}
 	return findings
+}
+
+func isConventionalInfraEndpoint(endpoint protosurface.RESTExceptionEndpoint) bool {
+	// Liveness and IdP discovery endpoints are infrastructure probes, not
+	// business contracts. Keep this allowlist narrow so REST exceptions cannot
+	// bypass payload declarations for product APIs.
+	id := strings.ToLower(strings.TrimSpace(endpoint.EndpointID))
+	path := strings.ToLower(strings.TrimSpace(endpoint.Path))
+	switch id {
+	case "health", "jwks":
+		return true
+	}
+	return path == "/health" || path == "/jwks" || strings.HasPrefix(path, "/.well-known/")
 }
 
 func validRESTPayloadConformance(v string) bool {
@@ -754,7 +788,6 @@ func checkStability(surface protosurface.Surface) []Finding {
 	for _, f := range surface.Files {
 		if servedFiles[f.Path] && f.Stability == "experimental" {
 			findings = append(findings, Finding{
-				Severity:   SeverityError,
 				Code:       CodeStabilityDishonest,
 				Location:   f.Path,
 				Message:    "served proto service is still marked @stability experimental",
@@ -763,7 +796,6 @@ func checkStability(surface protosurface.Surface) []Finding {
 		}
 		if f.Stability == "stable" && fileHasService(surface, f.Path) && !servedFiles[f.Path] {
 			findings = append(findings, Finding{
-				Severity:   SeverityError,
 				Code:       CodeStabilityDishonest,
 				Location:   f.Path,
 				Message:    "stable proto service has no discovered implementation",
@@ -807,7 +839,6 @@ func checkStabilityDependencies(surface protosurface.Surface) []Finding {
 					}
 					reported[key] = true
 					findings = append(findings, Finding{
-						Severity:   SeverityError,
 						Code:       CodeStabilityDependencyMismatch,
 						Location:   dep.FilePath + "#" + dep.Name,
 						Message:    fmt.Sprintf("stable RPC %s/%s depends on less-stable message %s (%s)", svc.FullName, rpc.Name, dep.FullName, stabilityLabel(depStability)),
@@ -880,7 +911,6 @@ func checkMissingHealth(surface protosurface.Surface) []Finding {
 		}
 	}
 	return []Finding{{
-		Severity:   SeverityWarning,
 		Code:       CodeMissingHealthProto,
 		Location:   "packages/proto/schemas/" + surface.Scenario,
 		Message:    "scenario has no health proto",
@@ -921,7 +951,6 @@ func checkSharedTypePlacement(surface protosurface.Surface) []Finding {
 			continue
 		}
 		findings = append(findings, Finding{
-			Severity:   SeverityError,
 			Code:       CodeSharedTypeMisplaced,
 			Location:   msg.FilePath + "#" + msg.Name,
 			Message:    fmt.Sprintf("message %s is reused across domains (%s) but lives in %q", msg.FullName, strings.Join(domains, ", "), msg.Domain),
@@ -977,20 +1006,40 @@ func checkPossiblyUnused(surface protosurface.Surface) []Finding {
 		walk(name)
 	}
 
-	var findings []Finding
+	var unused []protosurface.Message
 	for _, m := range surface.Messages {
-		if reachable[m.FullName] {
+		if reachable[m.FullName] || m.IsMapEntry {
 			continue
 		}
-		findings = append(findings, Finding{
-			Severity:   SeverityInfo,
-			Code:       CodePossiblyUnused,
-			Location:   m.FilePath + "#" + m.Name,
-			Message:    fmt.Sprintf("message %s is not reachable from this scenario's served RPCs", m.FullName),
-			Suggestion: "remove the message if it is dead, or keep it if a downstream scenario consumes it; fleet-aware usage belongs to scenario-dependency-analyzer",
-		})
+		unused = append(unused, m)
 	}
-	return findings
+	if len(unused) == 0 {
+		return nil
+	}
+	sort.Slice(unused, func(i, j int) bool {
+		return unused[i].FullName < unused[j].FullName
+	})
+	const maxListed = 12
+	names := make([]string, 0, minInt(len(unused), maxListed))
+	for i := 0; i < len(unused) && i < maxListed; i++ {
+		names = append(names, unused[i].FullName)
+	}
+	if len(unused) > maxListed {
+		names = append(names, fmt.Sprintf("+%d more", len(unused)-maxListed))
+	}
+	return []Finding{{
+		Code:       CodePossiblyUnused,
+		Location:   "packages/proto/schemas/" + surface.Scenario,
+		Message:    fmt.Sprintf("%d message(s) are not reachable from this scenario's served RPCs: %s", len(unused), strings.Join(names, ", ")),
+		Suggestion: "remove dead messages if they are scenario-local, or keep them if downstream scenarios consume them; fleet-aware usage belongs to scenario-dependency-analyzer",
+	}}
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func (s *Service) checkDomainMismatch(surface protosurface.Surface) []Finding {
@@ -1020,7 +1069,6 @@ func (s *Service) checkDomainMismatch(surface protosurface.Surface) []Finding {
 			continue
 		}
 		findings = append(findings, Finding{
-			Severity:   SeverityWarning,
 			Code:       CodeDomainMismatch,
 			Location:   "packages/proto/schemas/" + surface.Scenario + "/v1/" + domain,
 			Message:    fmt.Sprintf("proto domain %q has no matching api/handlers/%s directory", domain, domain),
@@ -1032,7 +1080,6 @@ func (s *Service) checkDomainMismatch(surface protosurface.Surface) []Finding {
 			continue
 		}
 		findings = append(findings, Finding{
-			Severity:   SeverityWarning,
 			Code:       CodeDomainMismatch,
 			Location:   filepath.Join("scenarios", surface.Scenario, "api", "handlers", domain),
 			Message:    fmt.Sprintf("handler domain %q has no matching proto domain", domain),

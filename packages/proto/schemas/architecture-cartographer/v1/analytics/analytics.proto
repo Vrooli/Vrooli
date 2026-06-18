@@ -2,8 +2,7 @@ syntax = "proto3";
 
 package vrooli.architecture_cartographer.v1.analytics;
 
-import "architecture-cartographer/v1/conflicts/conflicts.proto";
-import "architecture-cartographer/v1/signals/signals.proto";
+import "architecture-cartographer/v1/shared/shared.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/analytics;analytics_v1";
@@ -88,7 +87,7 @@ message Placement {
   string chunk_id = 3;
   string chunk_path = 4;
   // Verdict the aggregator produced.
-  vrooli.architecture_cartographer.v1.signals.Verdict verdict = 5;
+  vrooli.architecture_cartographer.v1.shared.Verdict verdict = 5;
   // Did the operator accept the auto-placement (or did they override)?
   // Empty when the verdict is in SUGGEST tier and no operator action
   // has been taken yet.
@@ -221,11 +220,11 @@ message RecordOverrideResponse {
 // into Event) so consumers can import the type without scanning the
 // events table.
 message VerdictPayload {
-  vrooli.architecture_cartographer.v1.signals.Verdict verdict = 1;
+  vrooli.architecture_cartographer.v1.shared.Verdict verdict = 1;
 }
 
 // ConflictPayload is the canonical decode target for Event.payload when
 // kind ∈ {DETECTED, ASSIGNED, RESOLVED, REOPENED, FORCE_RESOLVED}.
 message ConflictPayload {
-  vrooli.architecture_cartographer.v1.conflicts.Conflict conflict = 1;
+  vrooli.architecture_cartographer.v1.shared.Conflict conflict = 1;
 }

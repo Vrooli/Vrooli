@@ -2,8 +2,7 @@ syntax = "proto3";
 
 package vrooli.architecture_cartographer.v1.conflicts;
 
-import "architecture-cartographer/v1/signals/signals.proto";
-import "google/protobuf/timestamp.proto";
+import "architecture-cartographer/v1/shared/shared.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/conflicts;conflicts_v1";
 
@@ -34,121 +33,10 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture
 //   - Severity          (manifest-driven severity tag)
 // =============================================================================
 
-// Severity classifies how blocking a conflict is. Mirrors the manifest's
-// severity declaration for each conflict type.
-enum Severity {
-  SEVERITY_UNSPECIFIED = 0;
-  SEVERITY_INFO = 1;
-  SEVERITY_WARN = 2;
-  SEVERITY_ERROR = 3;
-  SEVERITY_BLOCKER = 4;
-}
-
 // NOTE: the per-conflict lifecycle (ResolutionStatus) was removed when the
 // conflicts domain became detection-only. The lifecycle now lives in the
 // migration domain as TrackedFindingStatus (MigrationService). Detection is
 // a stateless photograph; tracking has the memory.
-
-// FixKind enumerates the operator-facing categories of suggested fixes.
-// New kinds are added through a manifest schema bump (manifest_version).
-enum FixKind {
-  FIX_KIND_UNSPECIFIED = 0;
-  FIX_KIND_MOVE_FILE = 1;
-  FIX_KIND_REASSIGN_DOMAIN = 2;
-  FIX_KIND_BREAK_CYCLE = 3;
-  FIX_KIND_ADD_DEPENDENCY = 4;
-  FIX_KIND_ADD_TRANSITIONAL = 5;
-}
-
-// ConflictEvidence is one detector-supplied piece of justification.
-message ConflictEvidence {
-  // Stable kind identifier (e.g., "scc_member", "import_edge",
-  // "verdict_top_domain", "manifest_declared_domain").
-  string kind = 1;
-  // Human-readable summary shown in CLI/UI.
-  string summary = 2;
-  // Optional locator (e.g., file path, edge string, scc id).
-  string locator = 3;
-  // Optional structured payload bytes (canonical-form JSON). Reserved
-  // for detectors that need to round-trip more than a string.
-  bytes payload = 4;
-}
-
-// Fix is one suggested resolution attached to a Conflict by a detector.
-// Fixes are advisory; resolvers may run a fix only when the operator
-// (or apply) selects it.
-message Fix {
-  // Stable identifier within the Conflict.
-  string id = 1;
-  FixKind kind = 2;
-  // Resolver name expected to execute this fix (e.g., "mislocated_file").
-  string resolver = 3;
-  // Human-readable summary shown in CLI/UI.
-  string summary = 4;
-  // Optional structured payload (canonical-form JSON) the resolver
-  // consumes to perform the fix.
-  bytes payload = 5;
-  // Confidence score in [0, 1] attached to this fix (e.g., the verdict
-  // value that drove a mislocated_file detection).
-  double confidence = 6;
-}
-
-// Conflict is the canonical envelope a Detector emits. Shape is stable
-// in v0.1; adding optional fields on Fix is allowed; adding required
-// fields on Conflict is forbidden.
-message Conflict {
-  // Stable identifier (UUID).
-  string id = 1;
-  // Target scenario name.
-  string scenario = 2;
-  // Detector name (e.g., "cycle", "mislocated_file").
-  string detector = 3;
-  // Conflict type (e.g., "cycle", "mislocated_file"). Often matches
-  // detector but distinguished for cases where one detector emits
-  // multiple types.
-  string type = 4;
-  // Optional sub-classification (e.g., for cycle: "type-only",
-  // "junk-drawer", "cross-domain", "within-domain").
-  string subtype = 5;
-  Severity severity = 6;
-  // Repo-relative locations the conflict touches.
-  repeated string locations = 7;
-  // Domains the conflict touches (manifest-declared; empty when the
-  // locations are not yet assigned to any domain).
-  repeated string domains = 8;
-  // Detector-supplied evidence.
-  repeated ConflictEvidence evidence = 9;
-  // Suggested resolutions, ranked best-first by the detector.
-  repeated Fix suggested_fixes = 10;
-  // 11-13 were status / assigned_domain / resolution_note — removed when
-  // conflicts became detection-only. The lifecycle moved to the migration
-  // domain (TrackedFinding). Reserved so the field numbers are never reused.
-  reserved 11, 12, 13;
-  reserved "status", "assigned_domain", "resolution_note";
-  // Snapshot id the conflict was detected against.
-  string snapshot_id = 14;
-  // Optional verdict that the detector consulted (e.g., for
-  // mislocated_file). Provided so analytics can pair the verdict to
-  // the conflict it produced without round-tripping the registry.
-  vrooli.architecture_cartographer.v1.signals.Verdict verdict = 15;
-  google.protobuf.Timestamp detected_at = 16;
-  google.protobuf.Timestamp updated_at = 17;
-  // True when an active in-repo `// arch:allow` marker sanctions this
-  // finding. A suppressed conflict is reported (not dropped) so the
-  // operator sees what is being excused and why.
-  bool suppressed = 18;
-  // The marker's reason, when suppressed.
-  string suppression_reason = 19;
-  // Deterministic content-hash key derived from
-  // (scenario, detector, type, subtype, sorted domains, sorted locations,
-  // sorted evidence). Format: "cf_" + 16 hex chars. This is the canonical
-  // primary key from v0.2 onward; `id` is kept as an alias.
-  string stable_id = 20;
-  // Per-run UUID preserved from the v0.1 surface so external systems can
-  // continue to dedupe on the prior key during the transition. Will be
-  // dropped in a future minor version.
-  string instance_id = 21;
-}
 
 // DetectorDescriptor describes one registered detector.
 message DetectorDescriptor {
@@ -157,6 +45,7 @@ message DetectorDescriptor {
   string stability = 3;
   // Conflict types this detector can emit.
   repeated string emits_types = 4;
+  vrooli.architecture_cartographer.v1.shared.FindingClass finding_class = 5;
 }
 
 // ResolverDescriptor describes one registered resolver.
@@ -165,7 +54,7 @@ message ResolverDescriptor {
   string description = 2;
   string stability = 3;
   // Fix kinds this resolver handles.
-  repeated FixKind handles_kinds = 4;
+  repeated vrooli.architecture_cartographer.v1.shared.FixKind handles_kinds = 4;
   // True when the resolver requires `apply` to execute (v0.1 surfaces
   // this so the CLI can communicate the deferral).
   bool requires_apply = 5;
@@ -209,7 +98,7 @@ message DetectConflictsRequest {
 }
 
 message DetectConflictsResponse {
-  repeated Conflict conflicts = 1;
+  repeated vrooli.architecture_cartographer.v1.shared.Conflict conflicts = 1;
 }
 
 message ListConflictsRequest {
@@ -225,7 +114,7 @@ message ListConflictsRequest {
 }
 
 message ListConflictsResponse {
-  repeated Conflict conflicts = 1;
+  repeated vrooli.architecture_cartographer.v1.shared.Conflict conflicts = 1;
   string next_page_token = 2;
 }
 
@@ -234,7 +123,7 @@ message GetConflictRequest {
 }
 
 message GetConflictResponse {
-  Conflict conflict = 1;
+  vrooli.architecture_cartographer.v1.shared.Conflict conflict = 1;
 }
 
 message ValidateConflictsRequest {
@@ -243,8 +132,9 @@ message ValidateConflictsRequest {
 
 message ValidateConflictsResponse {
   // Conflicts still outstanding after resolution state is applied.
-  repeated Conflict conflicts = 1;
-  // True when there are zero outstanding conflicts of severity >= ERROR.
+  repeated vrooli.architecture_cartographer.v1.shared.Conflict conflicts = 1;
+  // True when there are zero outstanding deterministic conflicts of
+  // severity >= ERROR.
   bool clean = 2;
 }
 

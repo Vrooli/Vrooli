@@ -179,12 +179,13 @@ func surfaceToProto(in protosurface.Surface) *sharedv1.ProtoSurface {
 	}
 	for _, m := range in.Messages {
 		pm := &sharedv1.ProtoMessage{
-			FilePath: m.FilePath,
-			Package:  m.Package,
-			Name:     m.Name,
-			FullName: m.FullName,
-			Domain:   m.Domain,
-			Fields:   make([]*sharedv1.ProtoField, 0, len(m.Fields)),
+			FilePath:   m.FilePath,
+			Package:    m.Package,
+			Name:       m.Name,
+			FullName:   m.FullName,
+			Domain:     m.Domain,
+			IsMapEntry: m.IsMapEntry,
+			Fields:     make([]*sharedv1.ProtoField, 0, len(m.Fields)),
 		}
 		for _, f := range m.Fields {
 			pm.Fields = append(pm.Fields, &sharedv1.ProtoField{

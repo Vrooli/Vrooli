@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package vrooli.architecture_cartographer.v1.audit;
 
-import "architecture-cartographer/v1/conflicts/conflicts.proto";
+import "architecture-cartographer/v1/shared/shared.proto";
 import "common/v1/maturity.proto";
 import "google/protobuf/duration.proto";
 
@@ -73,7 +73,7 @@ message ConflictSummary {
   string detector = 2;
   string type = 3;
   string subtype = 4;
-  vrooli.architecture_cartographer.v1.conflicts.Severity severity = 5;
+  vrooli.architecture_cartographer.v1.shared.Severity severity = 5;
   repeated string locations = 6;
   repeated string domains = 7;
   string headline = 8; // one-line summary suitable for a CI annotation
@@ -85,6 +85,9 @@ message ConflictSummary {
   // identical drifts across runs share stable_id but differ in
   // instance_id.
   string instance_id = 10;
+  // finding_class separates deterministic gateable findings from
+  // advisory heuristics.
+  vrooli.architecture_cartographer.v1.shared.FindingClass finding_class = 11;
 }
 
 // DerivedDomainSummary is a compact projection of the derived domain
@@ -126,6 +129,28 @@ message CoverageSummary {
   string authority_confidence = 6;
 }
 
+// CategoryTopItem is the compact finding reference rendered under an
+// advisory score-matrix category.
+message CategoryTopItem {
+  string id = 1;
+  string stable_id = 2;
+  string type = 3;
+  string subtype = 4;
+  vrooli.architecture_cartographer.v1.shared.Severity severity = 5;
+  vrooli.architecture_cartographer.v1.shared.FindingClass finding_class = 6;
+  repeated string locations = 7;
+  string headline = 8;
+}
+
+// AuditCategory is one advisory score-matrix row. Score is normalized
+// 0.0–1.0 and is never itself a gate.
+message AuditCategory {
+  string key = 1;
+  string label = 2;
+  double score = 3;
+  repeated CategoryTopItem top_items = 4;
+}
+
 // AuditService runs an end-to-end drift audit against a scenario and
 // returns a deterministic, machine-readable summary.
 service AuditService {
@@ -142,7 +167,7 @@ message AuditRunRequest {
   // Minimum severity that counts as "FINDINGS" (anything strictly less
   // than this floor is reported but does not flip the outcome). Defaults
   // to SEVERITY_WARN when SEVERITY_UNSPECIFIED.
-  vrooli.architecture_cartographer.v1.conflicts.Severity fail_on = 2;
+  vrooli.architecture_cartographer.v1.shared.Severity fail_on = 2;
   // Optional whitelist of conflict types to include. Empty = all types.
   repeated string include_types = 3;
   // Optional blacklist of conflict types to exclude. Applied after
@@ -194,6 +219,9 @@ message AuditRunResponse {
   common.v1.MaturityAssessment assessment = 16;
   // Coverage reports placement confidence across audited files.
   CoverageSummary coverage = 17;
+  // Categories carries the advisory score matrix shown by audit CLI and
+  // Test Genie. It frames evidence; it does not change outcome semantics.
+  repeated AuditCategory categories = 18;
 }
 
 // =============================================================================
@@ -202,7 +230,7 @@ message AuditRunResponse {
 
 message AuditRunAllRequest {
   // Same severity threshold as Run; applied per-scenario.
-  vrooli.architecture_cartographer.v1.conflicts.Severity fail_on = 1;
+  vrooli.architecture_cartographer.v1.shared.Severity fail_on = 1;
   repeated string include_types = 2;
   repeated string exclude_types = 3;
   // Optional whitelist of scenario names to include. Empty = all

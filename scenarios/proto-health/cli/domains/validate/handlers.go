@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/vrooli/cli-core/cliapp"
+	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 )
@@ -39,9 +40,9 @@ func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 	summary := fmt.Sprintf("Validated %s - status=%s errors=%d warnings=%d infos=%d",
 		msg.Scenario,
 		statusLabel(msg.GetStatus()),
-		severityCount(assessment, "SEVERITY_ERROR"),
-		severityCount(assessment, "SEVERITY_WARNING"),
-		severityCount(assessment, "SEVERITY_INFO"),
+		severityCount(assessment, architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR),
+		severityCount(assessment, architecturev1.FindingSeverity_FINDING_SEVERITY_WARNING),
+		severityCount(assessment, architecturev1.FindingSeverity_FINDING_SEVERITY_INFO),
 	)
 	summaryLines := []string{summary}
 	if assessmentReport := cliapp.BuildMaturityListReport(assessment); len(assessmentReport.Summary) > 0 {
@@ -61,7 +62,7 @@ func (h *handlers) validateScenario(ctx cliapp.RunContext) error {
 		return err
 	}
 	if msg.GetStatus() == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED {
-		return fmt.Errorf("scenario %s did not pass proto validation (%d error finding(s))", msg.Scenario, severityCount(assessment, "SEVERITY_ERROR"))
+		return fmt.Errorf("scenario %s did not pass proto validation (%d error finding(s))", msg.Scenario, failedFindingCount(assessment))
 	}
 	return nil
 }
@@ -83,9 +84,14 @@ func statusLabel(status scenariovalidationv1.ValidationStatus) string {
 	}
 }
 
-func severityCount(a interface{ GetFindingsBySeverity() map[string]int32 }, severity string) int {
+func severityCount(a interface{ GetFindingsBySeverity() map[string]int32 }, severity architecturev1.FindingSeverity) int {
 	if a == nil {
 		return 0
 	}
-	return int(a.GetFindingsBySeverity()[severity])
+	return int(a.GetFindingsBySeverity()[severity.String()])
+}
+
+func failedFindingCount(a interface{ GetFindingsBySeverity() map[string]int32 }) int {
+	return severityCount(a, architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR) +
+		severityCount(a, architecturev1.FindingSeverity_FINDING_SEVERITY_BLOCKER)
 }

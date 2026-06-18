@@ -3,6 +3,7 @@ package validation
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -17,38 +18,21 @@ func TestMaturitySpecCoversProtoHealthFindings(t *testing.T) {
 
 	require.Equal(t, "proto-health", spec.Provider)
 	require.Equal(t, "proto", spec.Phase)
-	for _, code := range allFindingCodes() {
+	catalog, err := NewFindingCatalog(spec)
+	require.NoError(t, err)
+	for _, code := range AllFindingCodes() {
 		_, ok := spec.Findings[code]
 		require.Truef(t, ok, "missing maturity mapping for %s", code)
+		severity, err := catalog.ResolveSeverity(code)
+		require.NoError(t, err)
+		require.NotEmpty(t, severity)
 	}
-}
-
-func allFindingCodes() []string {
-	return []string{
-		CodeCycle,
-		CodeGenOutOfSync,
-		CodePackageMismatch,
-		CodeStabilityDishonest,
-		CodeCrossDomainImport,
-		CodeUnsupportedAnnotation,
-		CodeTemplateSource,
-		CodeHandRolledTransport,
-		CodeVersionNaming,
-		CodeDomainMismatch,
-		CodeMissingHealthProto,
-		CodePossiblyUnused,
-		CodeRESTPayloadMissingDeclaration,
-		CodeRESTPayloadUnknownMessage,
-		CodeRESTPayloadInvalidConformance,
-		CodeStabilityDependencyMismatch,
-		CodeSharedTypeMisplaced,
-		CodeImportKindUnknown,
-		CodeCodeFactsUnavailable,
-		CodeProtoAdoptionMissing,
-		CodeProtoAdoptionUnsupported,
-		CodeProtoAdoptionContradicted,
-		CodeEndpointProofMissing,
-		CodeEndpointProofUnsupported,
-		CodeEndpointProofContradicted,
+	want := append([]string{}, AllFindingCodes()...)
+	got := make([]string, 0, len(spec.Findings))
+	for code := range spec.Findings {
+		got = append(got, code)
 	}
+	sort.Strings(want)
+	sort.Strings(got)
+	require.Equal(t, want, got)
 }

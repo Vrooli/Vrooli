@@ -56,6 +56,18 @@ func TestDescriptorLoaderLoadScenario(t *testing.T) {
 	}
 	require.True(t, sawRPC)
 
+	var sawMapEntry bool
+	for _, msg := range surface.Messages {
+		if msg.FullName == "vrooli.proto_health.v1.shared.ErrorEnvelope.DetailsEntry" {
+			sawMapEntry = true
+			require.True(t, msg.IsMapEntry)
+		}
+		if msg.FullName == "vrooli.proto_health.v1.shared.ErrorEnvelope" {
+			require.False(t, msg.IsMapEntry)
+		}
+	}
+	require.True(t, sawMapEntry)
+
 	// proto-health's only REST exception is the ops_probe health endpoint;
 	// every domain RPC is Connect, so no other exception should appear.
 	require.Contains(t, surface.RESTExceptions, RESTExceptionEndpoint{

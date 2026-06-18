@@ -35,16 +35,21 @@ func Module(logger *log.Logger, repoRoot string) module.Module {
 	if err != nil {
 		logger.Fatalf("proto descriptor loader: %v", err)
 	}
+	spec, err := loadMaturitySpec(repoRoot)
+	if err != nil {
+		logger.Fatalf("validation: load maturity spec: %v", err)
+	}
+	catalog, err := internal.NewFindingCatalog(spec)
+	if err != nil {
+		logger.Fatalf("validation: build finding catalog: %v", err)
+	}
 	validator := internal.New(internal.Deps{
 		Loader:         loader,
 		GenSyncChecker: internal.NewGeneratedArtifactChecker(repoRoot),
 		RepoRoot:       repoRoot,
 		CodeFacts:      codefacts.NewClient(nil, http.DefaultClient),
+		Catalog:        catalog,
 	})
-	spec, err := loadMaturitySpec(repoRoot)
-	if err != nil && logger != nil {
-		logger.Printf("validation: maturity assessment disabled: %v", err)
-	}
 	handler := NewConnectHandler(Deps{
 		Logger:       logger,
 		Validator:    validator,

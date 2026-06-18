@@ -139,20 +139,22 @@ class ProtoRpc(_message.Message):
     def __init__(self, name: _Optional[str] = ..., input: _Optional[str] = ..., output: _Optional[str] = ..., transport: _Optional[_Union[TransportKind, str]] = ...) -> None: ...
 
 class ProtoMessage(_message.Message):
-    __slots__ = ("file_path", "package", "name", "full_name", "domain", "fields")
+    __slots__ = ("file_path", "package", "name", "full_name", "domain", "fields", "is_map_entry")
     FILE_PATH_FIELD_NUMBER: _ClassVar[int]
     PACKAGE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     FULL_NAME_FIELD_NUMBER: _ClassVar[int]
     DOMAIN_FIELD_NUMBER: _ClassVar[int]
     FIELDS_FIELD_NUMBER: _ClassVar[int]
+    IS_MAP_ENTRY_FIELD_NUMBER: _ClassVar[int]
     file_path: str
     package: str
     name: str
     full_name: str
     domain: str
     fields: _containers.RepeatedCompositeFieldContainer[ProtoField]
-    def __init__(self, file_path: _Optional[str] = ..., package: _Optional[str] = ..., name: _Optional[str] = ..., full_name: _Optional[str] = ..., domain: _Optional[str] = ..., fields: _Optional[_Iterable[_Union[ProtoField, _Mapping]]] = ...) -> None: ...
+    is_map_entry: bool
+    def __init__(self, file_path: _Optional[str] = ..., package: _Optional[str] = ..., name: _Optional[str] = ..., full_name: _Optional[str] = ..., domain: _Optional[str] = ..., fields: _Optional[_Iterable[_Union[ProtoField, _Mapping]]] = ..., is_map_entry: _Optional[bool] = ...) -> None: ...
 
 class ProtoField(_message.Message):
     __slots__ = ("name", "type", "message_type", "enum_type", "repeated", "optional", "number")

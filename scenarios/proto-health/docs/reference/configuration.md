@@ -32,6 +32,8 @@ for the full policy.
 | `SQLITE_PATH` | `${SCENARIO_DATA_DIR}/proto-health.db` | Override SQLite file location. The default routes through `api-core/storage` and resolves to a writable per-scenario data directory. |
 | `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth (only enforce in production deployments). |
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
+| `PROTO_HEALTH_SKIP_GEN_SYNC` | unset / false | Skip generated-artifact regeneration checks. Use only when an operator intentionally wants faster advisory validation while generated output is being handled elsewhere. |
+| `PROTO_HEALTH_GEN_SYNC_TIMEOUT` | `2m` | Timeout for the generated-artifact regeneration check. Go duration syntax is accepted, for example `30s` or `3m`. Invalid or non-positive values fall back to `2m`. |
 
 The browser UI does not read `API_PORT` directly. It resolves API calls through
 the UI origin, and `ui/server.js` proxies `/api/*` plus the scenario's Connect

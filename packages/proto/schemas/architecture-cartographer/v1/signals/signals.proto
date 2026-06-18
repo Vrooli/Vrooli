@@ -3,6 +3,7 @@ syntax = "proto3";
 package vrooli.architecture_cartographer.v1.signals;
 
 import "architecture-cartographer/v1/graph/graph.proto";
+import "architecture-cartographer/v1/shared/shared.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/signals;signals_v1";
 
@@ -36,110 +37,6 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/architecture
 //   5. Cheap — signals are called per-chunk; caches (community detection,
 //      glossary lookups) live on GraphContext, not on the signal.
 // =============================================================================
-
-// Tier classifies an aggregated verdict by confidence band.
-//
-//   - TIER_AUTO_PLACE: aggregator value >= manifest's auto_place threshold
-//     (default 0.85). Cartographer may auto-place the chunk.
-//   - TIER_SUGGEST:    aggregator value >= manifest's suggest threshold
-//     (default 0.55) and below auto_place. Cartographer suggests but
-//     defers to the operator.
-//   - TIER_CONFLICT:   below suggest, or top-two within 0.10 of each
-//     other (tied). Cartographer emits a conflict for human review.
-enum Tier {
-  TIER_UNSPECIFIED = 0;
-  TIER_AUTO_PLACE = 1;
-  TIER_SUGGEST = 2;
-  TIER_CONFLICT = 3;
-}
-
-// Evidence is one piece of justification for a Score.
-//
-// Evidence kinds (extensible; v0.1 supports the following):
-//   - "path_token"      — token match on the file path
-//   - "import_cluster"  — community-detection cluster membership
-//   - "symbol_glossary" — matched glossary term
-//   - "importer_voting" — N importers, M agree on domain X
-//   - "test_coupling"   — test/source file pairing
-//   - "git_co_edit"     — co-edit frequency over the lookback window
-message Evidence {
-  // Stable kind identifier (see list above).
-  string kind = 1;
-  // Human-readable summary shown in CLI/UI (e.g., "8 of 10 importers
-  // belong to 'conflicts'").
-  string summary = 2;
-  // Optional locator (e.g., path, edge string) the evidence references.
-  string locator = 3;
-  // Numeric weight contribution this piece of evidence supplied
-  // (informational, in [0, 1]). Sum across Evidence is not required to
-  // equal Score.value; the field exists for explainability tooling.
-  double weight = 4;
-}
-
-// Score is one signal's output for one chunk.
-message Score {
-  // Signal name (e.g., "path-token", "import-cluster").
-  string signal = 1;
-  // Candidate domain this score endorses (e.g., "conflicts").
-  string domain = 2;
-  // Score value in [0, 1]. 0 means "no signal", 1 means "maximum
-  // confidence."
-  double value = 3;
-  // Free-form short reason (e.g., "matched token 'conflict'").
-  string reason = 4;
-  // At least one Evidence entry is required by signal invariants.
-  repeated Evidence evidence = 5;
-}
-
-// Abstention is an explicit "I have no data for this chunk" emission
-// from a signal. Reason describes why; Evidence carries at least one
-// concrete pointer. Aggregator includes abstaining signals' weights
-// in the verdict denominator so abstentions cannot inflate the
-// surviving signals' apparent contribution.
-message Abstention {
-  // Signal name (e.g., "importer-voting").
-  string signal = 1;
-  // Free-form short reason (e.g., "no importers for this file in current snapshot").
-  string reason = 2;
-  // At least one Evidence entry is required by signal invariants.
-  repeated Evidence evidence = 3;
-}
-
-// Verdict is the aggregator's output for one chunk.
-message Verdict {
-  // The chunk being scored.
-  string chunk_id = 1;
-  // Repo-relative path of the chunk (denormalized for log readability).
-  string chunk_path = 2;
-  // Tier classification.
-  Tier tier = 3;
-  // Top candidate domain (the highest-aggregated value).
-  string top_domain = 4;
-  // Top aggregated value, in [0, 1].
-  double top_value = 5;
-  // Runner-up candidate domain (for tie detection / CLI display).
-  string runner_up_domain = 6;
-  // Runner-up aggregated value, in [0, 1].
-  double runner_up_value = 7;
-  // Per-signal scores that contributed to the verdict. Order is
-  // alphabetical by Score.signal then Score.domain for determinism.
-  repeated Score scores = 8;
-  // Aggregated values per candidate domain, alphabetical by domain.
-  repeated DomainValue domain_values = 9;
-  // True when the aggregator detected a tie (top-two within 0.10).
-  bool tied = 10;
-  // Per-signal abstentions: signals that ran but had no data. Their
-  // weights are included in the verdict denominator so abstentions do
-  // not inflate the surviving signals' contributions. Order is
-  // alphabetical by Abstention.signal for determinism.
-  repeated Abstention abstentions = 11;
-}
-
-// DomainValue is one row of the aggregator's per-domain summary.
-message DomainValue {
-  string domain = 1;
-  double value = 2;
-}
 
 // SignalDescriptor describes one registered signal.
 message SignalDescriptor {
@@ -244,7 +141,7 @@ message ScoreChunkRequest {
 }
 
 message ScoreChunkResponse {
-  Verdict verdict = 1;
+  vrooli.architecture_cartographer.v1.shared.Verdict verdict = 1;
 }
 
 message ExplainVerdictRequest {
@@ -256,7 +153,7 @@ message ExplainVerdictRequest {
 }
 
 message ExplainVerdictResponse {
-  Verdict verdict = 1;
+  vrooli.architecture_cartographer.v1.shared.Verdict verdict = 1;
 }
 
 message ListSignalsRequest {

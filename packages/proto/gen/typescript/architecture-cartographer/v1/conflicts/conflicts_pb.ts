@@ -2,270 +2,17 @@
 // @generated from file architecture-cartographer/v1/conflicts/conflicts.proto (package vrooli.architecture_cartographer.v1.conflicts, syntax proto3)
 /* eslint-disable */
 
-import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
-import type { Verdict } from "../signals/signals_pb";
-import { file_architecture_cartographer_v1_signals_signals } from "../signals/signals_pb";
-import type { Timestamp } from "@bufbuild/protobuf/wkt";
-import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
+import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { Conflict, FindingClass, FixKind } from "../shared/shared_pb";
+import { file_architecture_cartographer_v1_shared_shared } from "../shared/shared_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file architecture-cartographer/v1/conflicts/conflicts.proto.
  */
 export const file_architecture_cartographer_v1_conflicts_conflicts: GenFile = /*@__PURE__*/
-  fileDesc("CjZhcmNoaXRlY3R1cmUtY2FydG9ncmFwaGVyL3YxL2NvbmZsaWN0cy9jb25mbGljdHMucHJvdG8SLXZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmNvbmZsaWN0cyJTChBDb25mbGljdEV2aWRlbmNlEgwKBGtpbmQYASABKAkSDwoHc3VtbWFyeRgCIAEoCRIPCgdsb2NhdG9yGAMgASgJEg8KB3BheWxvYWQYBCABKAwinwEKA0ZpeBIKCgJpZBgBIAEoCRJECgRraW5kGAIgASgOMjYudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuY29uZmxpY3RzLkZpeEtpbmQSEAoIcmVzb2x2ZXIYAyABKAkSDwoHc3VtbWFyeRgEIAEoCRIPCgdwYXlsb2FkGAUgASgMEhIKCmNvbmZpZGVuY2UYBiABKAEiuQUKCENvbmZsaWN0EgoKAmlkGAEgASgJEhAKCHNjZW5hcmlvGAIgASgJEhAKCGRldGVjdG9yGAMgASgJEgwKBHR5cGUYBCABKAkSDwoHc3VidHlwZRgFIAEoCRJJCghzZXZlcml0eRgGIAEoDjI3LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmNvbmZsaWN0cy5TZXZlcml0eRIRCglsb2NhdGlvbnMYByADKAkSDwoHZG9tYWlucxgIIAMoCRJRCghldmlkZW5jZRgJIAMoCzI/LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmNvbmZsaWN0cy5Db25mbGljdEV2aWRlbmNlEksKD3N1Z2dlc3RlZF9maXhlcxgKIAMoCzIyLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmNvbmZsaWN0cy5GaXgSEwoLc25hcHNob3RfaWQYDiABKAkSRQoHdmVyZGljdBgPIAEoCzI0LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNpZ25hbHMuVmVyZGljdBIvCgtkZXRlY3RlZF9hdBgQIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgRIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEgoKc3VwcHJlc3NlZBgSIAEoCBIaChJzdXBwcmVzc2lvbl9yZWFzb24YEyABKAkSEQoJc3RhYmxlX2lkGBQgASgJEhMKC2luc3RhbmNlX2lkGBUgASgJSgQICxAMSgQIDBANSgQIDRAOUgZzdGF0dXNSD2Fzc2lnbmVkX2RvbWFpblIPcmVzb2x1dGlvbl9ub3RlIl8KEkRldGVjdG9yRGVzY3JpcHRvchIMCgRuYW1lGAEgASgJEhMKC2Rlc2NyaXB0aW9uGAIgASgJEhEKCXN0YWJpbGl0eRgDIAEoCRITCgtlbWl0c190eXBlcxgEIAMoCSKxAQoSUmVzb2x2ZXJEZXNjcmlwdG9yEgwKBG5hbWUYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAkSEQoJc3RhYmlsaXR5GAMgASgJEk0KDWhhbmRsZXNfa2luZHMYBCADKA4yNi52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5jb25mbGljdHMuRml4S2luZBIWCg5yZXF1aXJlc19hcHBseRgFIAEoCCJYChZEZXRlY3RDb25mbGljdHNSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEhMKC3NuYXBzaG90X2lkGAIgASgJEhcKD2lkZW1wb3RlbmN5X2tleRgDIAEoCSJlChdEZXRlY3RDb25mbGljdHNSZXNwb25zZRJKCgljb25mbGljdHMYASADKAsyNy52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5jb25mbGljdHMuQ29uZmxpY3QibgoUTGlzdENvbmZsaWN0c1JlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSDQoFdHlwZXMYAyADKAkSEQoJcGFnZV9zaXplGAQgASgFEhIKCnBhZ2VfdG9rZW4YBSABKAlKBAgCEANSCHN0YXR1c2VzInwKFUxpc3RDb25mbGljdHNSZXNwb25zZRJKCgljb25mbGljdHMYASADKAsyNy52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5jb25mbGljdHMuQ29uZmxpY3QSFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJIiAKEkdldENvbmZsaWN0UmVxdWVzdBIKCgJpZBgBIAEoCSJgChNHZXRDb25mbGljdFJlc3BvbnNlEkkKCGNvbmZsaWN0GAEgASgLMjcudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuY29uZmxpY3RzLkNvbmZsaWN0IiwKGFZhbGlkYXRlQ29uZmxpY3RzUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCSJ2ChlWYWxpZGF0ZUNvbmZsaWN0c1Jlc3BvbnNlEkoKCWNvbmZsaWN0cxgBIAMoCzI3LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmNvbmZsaWN0cy5Db25mbGljdBINCgVjbGVhbhgCIAEoCCIWChRMaXN0RGV0ZWN0b3JzUmVxdWVzdCJtChVMaXN0RGV0ZWN0b3JzUmVzcG9uc2USVAoJZGV0ZWN0b3JzGAEgAygLMkEudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuY29uZmxpY3RzLkRldGVjdG9yRGVzY3JpcHRvciIWChRMaXN0UmVzb2x2ZXJzUmVxdWVzdCJtChVMaXN0UmVzb2x2ZXJzUmVzcG9uc2USVAoJcmVzb2x2ZXJzGAEgAygLMkEudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuY29uZmxpY3RzLlJlc29sdmVyRGVzY3JpcHRvcip0CghTZXZlcml0eRIYChRTRVZFUklUWV9VTlNQRUNJRklFRBAAEhEKDVNFVkVSSVRZX0lORk8QARIRCg1TRVZFUklUWV9XQVJOEAISEgoOU0VWRVJJVFlfRVJST1IQAxIUChBTRVZFUklUWV9CTE9DS0VSEAQqrwEKB0ZpeEtpbmQSGAoURklYX0tJTkRfVU5TUEVDSUZJRUQQABIWChJGSVhfS0lORF9NT1ZFX0ZJTEUQARIcChhGSVhfS0lORF9SRUFTU0lHTl9ET01BSU4QAhIYChRGSVhfS0lORF9CUkVBS19DWUNMRRADEhsKF0ZJWF9LSU5EX0FERF9ERVBFTkRFTkNZEAQSHQoZRklYX0tJTkRfQUREX1RSQU5TSVRJT05BTBAFMswHChBDb25mbGljdHNTZXJ2aWNlEqABCg9EZXRlY3RDb25mbGljdHMSRS52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5jb25mbGljdHMuRGV0ZWN0Q29uZmxpY3RzUmVxdWVzdBpGLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmNvbmZsaWN0cy5EZXRlY3RDb25mbGljdHNSZXNwb25zZRKaAQoNTGlzdENvbmZsaWN0cxJDLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmNvbmZsaWN0cy5MaXN0Q29uZmxpY3RzUmVxdWVzdBpELnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmNvbmZsaWN0cy5MaXN0Q29uZmxpY3RzUmVzcG9uc2USlAEKC0dldENvbmZsaWN0EkEudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuY29uZmxpY3RzLkdldENvbmZsaWN0UmVxdWVzdBpCLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmNvbmZsaWN0cy5HZXRDb25mbGljdFJlc3BvbnNlEqYBChFWYWxpZGF0ZUNvbmZsaWN0cxJHLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmNvbmZsaWN0cy5WYWxpZGF0ZUNvbmZsaWN0c1JlcXVlc3QaSC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5jb25mbGljdHMuVmFsaWRhdGVDb25mbGljdHNSZXNwb25zZRKaAQoNTGlzdERldGVjdG9ycxJDLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmNvbmZsaWN0cy5MaXN0RGV0ZWN0b3JzUmVxdWVzdBpELnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmNvbmZsaWN0cy5MaXN0RGV0ZWN0b3JzUmVzcG9uc2USmgEKDUxpc3RSZXNvbHZlcnMSQy52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5jb25mbGljdHMuTGlzdFJlc29sdmVyc1JlcXVlc3QaRC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5jb25mbGljdHMuTGlzdFJlc29sdmVyc1Jlc3BvbnNlQmRaYmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYXJjaGl0ZWN0dXJlLWNhcnRvZ3JhcGhlci92MS9jb25mbGljdHM7Y29uZmxpY3RzX3YxYgZwcm90bzM", [file_architecture_cartographer_v1_signals_signals, file_google_protobuf_timestamp]);
-
-/**
- * ConflictEvidence is one detector-supplied piece of justification.
- *
- * @generated from message vrooli.architecture_cartographer.v1.conflicts.ConflictEvidence
- */
-export type ConflictEvidence = Message<"vrooli.architecture_cartographer.v1.conflicts.ConflictEvidence"> & {
-  /**
-   * Stable kind identifier (e.g., "scc_member", "import_edge",
-   * "verdict_top_domain", "manifest_declared_domain").
-   *
-   * @generated from field: string kind = 1;
-   */
-  kind: string;
-
-  /**
-   * Human-readable summary shown in CLI/UI.
-   *
-   * @generated from field: string summary = 2;
-   */
-  summary: string;
-
-  /**
-   * Optional locator (e.g., file path, edge string, scc id).
-   *
-   * @generated from field: string locator = 3;
-   */
-  locator: string;
-
-  /**
-   * Optional structured payload bytes (canonical-form JSON). Reserved
-   * for detectors that need to round-trip more than a string.
-   *
-   * @generated from field: bytes payload = 4;
-   */
-  payload: Uint8Array;
-};
-
-/**
- * Describes the message vrooli.architecture_cartographer.v1.conflicts.ConflictEvidence.
- * Use `create(ConflictEvidenceSchema)` to create a new message.
- */
-export const ConflictEvidenceSchema: GenMessage<ConflictEvidence> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_conflicts_conflicts, 0);
-
-/**
- * Fix is one suggested resolution attached to a Conflict by a detector.
- * Fixes are advisory; resolvers may run a fix only when the operator
- * (or apply) selects it.
- *
- * @generated from message vrooli.architecture_cartographer.v1.conflicts.Fix
- */
-export type Fix = Message<"vrooli.architecture_cartographer.v1.conflicts.Fix"> & {
-  /**
-   * Stable identifier within the Conflict.
-   *
-   * @generated from field: string id = 1;
-   */
-  id: string;
-
-  /**
-   * @generated from field: vrooli.architecture_cartographer.v1.conflicts.FixKind kind = 2;
-   */
-  kind: FixKind;
-
-  /**
-   * Resolver name expected to execute this fix (e.g., "mislocated_file").
-   *
-   * @generated from field: string resolver = 3;
-   */
-  resolver: string;
-
-  /**
-   * Human-readable summary shown in CLI/UI.
-   *
-   * @generated from field: string summary = 4;
-   */
-  summary: string;
-
-  /**
-   * Optional structured payload (canonical-form JSON) the resolver
-   * consumes to perform the fix.
-   *
-   * @generated from field: bytes payload = 5;
-   */
-  payload: Uint8Array;
-
-  /**
-   * Confidence score in [0, 1] attached to this fix (e.g., the verdict
-   * value that drove a mislocated_file detection).
-   *
-   * @generated from field: double confidence = 6;
-   */
-  confidence: number;
-};
-
-/**
- * Describes the message vrooli.architecture_cartographer.v1.conflicts.Fix.
- * Use `create(FixSchema)` to create a new message.
- */
-export const FixSchema: GenMessage<Fix> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_conflicts_conflicts, 1);
-
-/**
- * Conflict is the canonical envelope a Detector emits. Shape is stable
- * in v0.1; adding optional fields on Fix is allowed; adding required
- * fields on Conflict is forbidden.
- *
- * @generated from message vrooli.architecture_cartographer.v1.conflicts.Conflict
- */
-export type Conflict = Message<"vrooli.architecture_cartographer.v1.conflicts.Conflict"> & {
-  /**
-   * Stable identifier (UUID).
-   *
-   * @generated from field: string id = 1;
-   */
-  id: string;
-
-  /**
-   * Target scenario name.
-   *
-   * @generated from field: string scenario = 2;
-   */
-  scenario: string;
-
-  /**
-   * Detector name (e.g., "cycle", "mislocated_file").
-   *
-   * @generated from field: string detector = 3;
-   */
-  detector: string;
-
-  /**
-   * Conflict type (e.g., "cycle", "mislocated_file"). Often matches
-   * detector but distinguished for cases where one detector emits
-   * multiple types.
-   *
-   * @generated from field: string type = 4;
-   */
-  type: string;
-
-  /**
-   * Optional sub-classification (e.g., for cycle: "type-only",
-   * "junk-drawer", "cross-domain", "within-domain").
-   *
-   * @generated from field: string subtype = 5;
-   */
-  subtype: string;
-
-  /**
-   * @generated from field: vrooli.architecture_cartographer.v1.conflicts.Severity severity = 6;
-   */
-  severity: Severity;
-
-  /**
-   * Repo-relative locations the conflict touches.
-   *
-   * @generated from field: repeated string locations = 7;
-   */
-  locations: string[];
-
-  /**
-   * Domains the conflict touches (manifest-declared; empty when the
-   * locations are not yet assigned to any domain).
-   *
-   * @generated from field: repeated string domains = 8;
-   */
-  domains: string[];
-
-  /**
-   * Detector-supplied evidence.
-   *
-   * @generated from field: repeated vrooli.architecture_cartographer.v1.conflicts.ConflictEvidence evidence = 9;
-   */
-  evidence: ConflictEvidence[];
-
-  /**
-   * Suggested resolutions, ranked best-first by the detector.
-   *
-   * @generated from field: repeated vrooli.architecture_cartographer.v1.conflicts.Fix suggested_fixes = 10;
-   */
-  suggestedFixes: Fix[];
-
-  /**
-   * Snapshot id the conflict was detected against.
-   *
-   * @generated from field: string snapshot_id = 14;
-   */
-  snapshotId: string;
-
-  /**
-   * Optional verdict that the detector consulted (e.g., for
-   * mislocated_file). Provided so analytics can pair the verdict to
-   * the conflict it produced without round-tripping the registry.
-   *
-   * @generated from field: vrooli.architecture_cartographer.v1.signals.Verdict verdict = 15;
-   */
-  verdict?: Verdict | undefined;
-
-  /**
-   * @generated from field: google.protobuf.Timestamp detected_at = 16;
-   */
-  detectedAt?: Timestamp | undefined;
-
-  /**
-   * @generated from field: google.protobuf.Timestamp updated_at = 17;
-   */
-  updatedAt?: Timestamp | undefined;
-
-  /**
-   * True when an active in-repo `// arch:allow` marker sanctions this
-   * finding. A suppressed conflict is reported (not dropped) so the
-   * operator sees what is being excused and why.
-   *
-   * @generated from field: bool suppressed = 18;
-   */
-  suppressed: boolean;
-
-  /**
-   * The marker's reason, when suppressed.
-   *
-   * @generated from field: string suppression_reason = 19;
-   */
-  suppressionReason: string;
-
-  /**
-   * Deterministic content-hash key derived from
-   * (scenario, detector, type, subtype, sorted domains, sorted locations,
-   * sorted evidence). Format: "cf_" + 16 hex chars. This is the canonical
-   * primary key from v0.2 onward; `id` is kept as an alias.
-   *
-   * @generated from field: string stable_id = 20;
-   */
-  stableId: string;
-
-  /**
-   * Per-run UUID preserved from the v0.1 surface so external systems can
-   * continue to dedupe on the prior key during the transition. Will be
-   * dropped in a future minor version.
-   *
-   * @generated from field: string instance_id = 21;
-   */
-  instanceId: string;
-};
-
-/**
- * Describes the message vrooli.architecture_cartographer.v1.conflicts.Conflict.
- * Use `create(ConflictSchema)` to create a new message.
- */
-export const ConflictSchema: GenMessage<Conflict> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_conflicts_conflicts, 2);
+  fileDesc("CjZhcmNoaXRlY3R1cmUtY2FydG9ncmFwaGVyL3YxL2NvbmZsaWN0cy9jb25mbGljdHMucHJvdG8SLXZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmNvbmZsaWN0cyKwAQoSRGV0ZWN0b3JEZXNjcmlwdG9yEgwKBG5hbWUYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAkSEQoJc3RhYmlsaXR5GAMgASgJEhMKC2VtaXRzX3R5cGVzGAQgAygJEk8KDWZpbmRpbmdfY2xhc3MYBSABKA4yOC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaGFyZWQuRmluZGluZ0NsYXNzIq4BChJSZXNvbHZlckRlc2NyaXB0b3ISDAoEbmFtZRgBIAEoCRITCgtkZXNjcmlwdGlvbhgCIAEoCRIRCglzdGFiaWxpdHkYAyABKAkSSgoNaGFuZGxlc19raW5kcxgEIAMoDjIzLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNoYXJlZC5GaXhLaW5kEhYKDnJlcXVpcmVzX2FwcGx5GAUgASgIIlgKFkRldGVjdENvbmZsaWN0c1JlcXVlc3QSEAoIc2NlbmFyaW8YASABKAkSEwoLc25hcHNob3RfaWQYAiABKAkSFwoPaWRlbXBvdGVuY3lfa2V5GAMgASgJImIKF0RldGVjdENvbmZsaWN0c1Jlc3BvbnNlEkcKCWNvbmZsaWN0cxgBIAMoCzI0LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNoYXJlZC5Db25mbGljdCJuChRMaXN0Q29uZmxpY3RzUmVxdWVzdBIQCghzY2VuYXJpbxgBIAEoCRINCgV0eXBlcxgDIAMoCRIRCglwYWdlX3NpemUYBCABKAUSEgoKcGFnZV90b2tlbhgFIAEoCUoECAIQA1IIc3RhdHVzZXMieQoVTGlzdENvbmZsaWN0c1Jlc3BvbnNlEkcKCWNvbmZsaWN0cxgBIAMoCzI0LnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLnNoYXJlZC5Db25mbGljdBIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkiIAoSR2V0Q29uZmxpY3RSZXF1ZXN0EgoKAmlkGAEgASgJIl0KE0dldENvbmZsaWN0UmVzcG9uc2USRgoIY29uZmxpY3QYASABKAsyNC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5zaGFyZWQuQ29uZmxpY3QiLAoYVmFsaWRhdGVDb25mbGljdHNSZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJInMKGVZhbGlkYXRlQ29uZmxpY3RzUmVzcG9uc2USRwoJY29uZmxpY3RzGAEgAygLMjQudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuc2hhcmVkLkNvbmZsaWN0Eg0KBWNsZWFuGAIgASgIIhYKFExpc3REZXRlY3RvcnNSZXF1ZXN0Im0KFUxpc3REZXRlY3RvcnNSZXNwb25zZRJUCglkZXRlY3RvcnMYASADKAsyQS52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5jb25mbGljdHMuRGV0ZWN0b3JEZXNjcmlwdG9yIhYKFExpc3RSZXNvbHZlcnNSZXF1ZXN0Im0KFUxpc3RSZXNvbHZlcnNSZXNwb25zZRJUCglyZXNvbHZlcnMYASADKAsyQS52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5jb25mbGljdHMuUmVzb2x2ZXJEZXNjcmlwdG9yMswHChBDb25mbGljdHNTZXJ2aWNlEqABCg9EZXRlY3RDb25mbGljdHMSRS52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5jb25mbGljdHMuRGV0ZWN0Q29uZmxpY3RzUmVxdWVzdBpGLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmNvbmZsaWN0cy5EZXRlY3RDb25mbGljdHNSZXNwb25zZRKaAQoNTGlzdENvbmZsaWN0cxJDLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmNvbmZsaWN0cy5MaXN0Q29uZmxpY3RzUmVxdWVzdBpELnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmNvbmZsaWN0cy5MaXN0Q29uZmxpY3RzUmVzcG9uc2USlAEKC0dldENvbmZsaWN0EkEudnJvb2xpLmFyY2hpdGVjdHVyZV9jYXJ0b2dyYXBoZXIudjEuY29uZmxpY3RzLkdldENvbmZsaWN0UmVxdWVzdBpCLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmNvbmZsaWN0cy5HZXRDb25mbGljdFJlc3BvbnNlEqYBChFWYWxpZGF0ZUNvbmZsaWN0cxJHLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmNvbmZsaWN0cy5WYWxpZGF0ZUNvbmZsaWN0c1JlcXVlc3QaSC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5jb25mbGljdHMuVmFsaWRhdGVDb25mbGljdHNSZXNwb25zZRKaAQoNTGlzdERldGVjdG9ycxJDLnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmNvbmZsaWN0cy5MaXN0RGV0ZWN0b3JzUmVxdWVzdBpELnZyb29saS5hcmNoaXRlY3R1cmVfY2FydG9ncmFwaGVyLnYxLmNvbmZsaWN0cy5MaXN0RGV0ZWN0b3JzUmVzcG9uc2USmgEKDUxpc3RSZXNvbHZlcnMSQy52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5jb25mbGljdHMuTGlzdFJlc29sdmVyc1JlcXVlc3QaRC52cm9vbGkuYXJjaGl0ZWN0dXJlX2NhcnRvZ3JhcGhlci52MS5jb25mbGljdHMuTGlzdFJlc29sdmVyc1Jlc3BvbnNlQmRaYmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vYXJjaGl0ZWN0dXJlLWNhcnRvZ3JhcGhlci92MS9jb25mbGljdHM7Y29uZmxpY3RzX3YxYgZwcm90bzM", [file_architecture_cartographer_v1_shared_shared]);
 
 /**
  * DetectorDescriptor describes one registered detector.
@@ -294,6 +41,11 @@ export type DetectorDescriptor = Message<"vrooli.architecture_cartographer.v1.co
    * @generated from field: repeated string emits_types = 4;
    */
   emitsTypes: string[];
+
+  /**
+   * @generated from field: vrooli.architecture_cartographer.v1.shared.FindingClass finding_class = 5;
+   */
+  findingClass: FindingClass;
 };
 
 /**
@@ -301,7 +53,7 @@ export type DetectorDescriptor = Message<"vrooli.architecture_cartographer.v1.co
  * Use `create(DetectorDescriptorSchema)` to create a new message.
  */
 export const DetectorDescriptorSchema: GenMessage<DetectorDescriptor> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_conflicts_conflicts, 3);
+  messageDesc(file_architecture_cartographer_v1_conflicts_conflicts, 0);
 
 /**
  * ResolverDescriptor describes one registered resolver.
@@ -327,7 +79,7 @@ export type ResolverDescriptor = Message<"vrooli.architecture_cartographer.v1.co
   /**
    * Fix kinds this resolver handles.
    *
-   * @generated from field: repeated vrooli.architecture_cartographer.v1.conflicts.FixKind handles_kinds = 4;
+   * @generated from field: repeated vrooli.architecture_cartographer.v1.shared.FixKind handles_kinds = 4;
    */
   handlesKinds: FixKind[];
 
@@ -345,7 +97,7 @@ export type ResolverDescriptor = Message<"vrooli.architecture_cartographer.v1.co
  * Use `create(ResolverDescriptorSchema)` to create a new message.
  */
 export const ResolverDescriptorSchema: GenMessage<ResolverDescriptor> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_conflicts_conflicts, 4);
+  messageDesc(file_architecture_cartographer_v1_conflicts_conflicts, 1);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.conflicts.DetectConflictsRequest
@@ -374,14 +126,14 @@ export type DetectConflictsRequest = Message<"vrooli.architecture_cartographer.v
  * Use `create(DetectConflictsRequestSchema)` to create a new message.
  */
 export const DetectConflictsRequestSchema: GenMessage<DetectConflictsRequest> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_conflicts_conflicts, 5);
+  messageDesc(file_architecture_cartographer_v1_conflicts_conflicts, 2);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.conflicts.DetectConflictsResponse
  */
 export type DetectConflictsResponse = Message<"vrooli.architecture_cartographer.v1.conflicts.DetectConflictsResponse"> & {
   /**
-   * @generated from field: repeated vrooli.architecture_cartographer.v1.conflicts.Conflict conflicts = 1;
+   * @generated from field: repeated vrooli.architecture_cartographer.v1.shared.Conflict conflicts = 1;
    */
   conflicts: Conflict[];
 };
@@ -391,7 +143,7 @@ export type DetectConflictsResponse = Message<"vrooli.architecture_cartographer.
  * Use `create(DetectConflictsResponseSchema)` to create a new message.
  */
 export const DetectConflictsResponseSchema: GenMessage<DetectConflictsResponse> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_conflicts_conflicts, 6);
+  messageDesc(file_architecture_cartographer_v1_conflicts_conflicts, 3);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.conflicts.ListConflictsRequest
@@ -425,14 +177,14 @@ export type ListConflictsRequest = Message<"vrooli.architecture_cartographer.v1.
  * Use `create(ListConflictsRequestSchema)` to create a new message.
  */
 export const ListConflictsRequestSchema: GenMessage<ListConflictsRequest> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_conflicts_conflicts, 7);
+  messageDesc(file_architecture_cartographer_v1_conflicts_conflicts, 4);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.conflicts.ListConflictsResponse
  */
 export type ListConflictsResponse = Message<"vrooli.architecture_cartographer.v1.conflicts.ListConflictsResponse"> & {
   /**
-   * @generated from field: repeated vrooli.architecture_cartographer.v1.conflicts.Conflict conflicts = 1;
+   * @generated from field: repeated vrooli.architecture_cartographer.v1.shared.Conflict conflicts = 1;
    */
   conflicts: Conflict[];
 
@@ -447,7 +199,7 @@ export type ListConflictsResponse = Message<"vrooli.architecture_cartographer.v1
  * Use `create(ListConflictsResponseSchema)` to create a new message.
  */
 export const ListConflictsResponseSchema: GenMessage<ListConflictsResponse> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_conflicts_conflicts, 8);
+  messageDesc(file_architecture_cartographer_v1_conflicts_conflicts, 5);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.conflicts.GetConflictRequest
@@ -464,14 +216,14 @@ export type GetConflictRequest = Message<"vrooli.architecture_cartographer.v1.co
  * Use `create(GetConflictRequestSchema)` to create a new message.
  */
 export const GetConflictRequestSchema: GenMessage<GetConflictRequest> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_conflicts_conflicts, 9);
+  messageDesc(file_architecture_cartographer_v1_conflicts_conflicts, 6);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.conflicts.GetConflictResponse
  */
 export type GetConflictResponse = Message<"vrooli.architecture_cartographer.v1.conflicts.GetConflictResponse"> & {
   /**
-   * @generated from field: vrooli.architecture_cartographer.v1.conflicts.Conflict conflict = 1;
+   * @generated from field: vrooli.architecture_cartographer.v1.shared.Conflict conflict = 1;
    */
   conflict?: Conflict | undefined;
 };
@@ -481,7 +233,7 @@ export type GetConflictResponse = Message<"vrooli.architecture_cartographer.v1.c
  * Use `create(GetConflictResponseSchema)` to create a new message.
  */
 export const GetConflictResponseSchema: GenMessage<GetConflictResponse> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_conflicts_conflicts, 10);
+  messageDesc(file_architecture_cartographer_v1_conflicts_conflicts, 7);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.conflicts.ValidateConflictsRequest
@@ -498,7 +250,7 @@ export type ValidateConflictsRequest = Message<"vrooli.architecture_cartographer
  * Use `create(ValidateConflictsRequestSchema)` to create a new message.
  */
 export const ValidateConflictsRequestSchema: GenMessage<ValidateConflictsRequest> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_conflicts_conflicts, 11);
+  messageDesc(file_architecture_cartographer_v1_conflicts_conflicts, 8);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.conflicts.ValidateConflictsResponse
@@ -507,12 +259,13 @@ export type ValidateConflictsResponse = Message<"vrooli.architecture_cartographe
   /**
    * Conflicts still outstanding after resolution state is applied.
    *
-   * @generated from field: repeated vrooli.architecture_cartographer.v1.conflicts.Conflict conflicts = 1;
+   * @generated from field: repeated vrooli.architecture_cartographer.v1.shared.Conflict conflicts = 1;
    */
   conflicts: Conflict[];
 
   /**
-   * True when there are zero outstanding conflicts of severity >= ERROR.
+   * True when there are zero outstanding deterministic conflicts of
+   * severity >= ERROR.
    *
    * @generated from field: bool clean = 2;
    */
@@ -524,7 +277,7 @@ export type ValidateConflictsResponse = Message<"vrooli.architecture_cartographe
  * Use `create(ValidateConflictsResponseSchema)` to create a new message.
  */
 export const ValidateConflictsResponseSchema: GenMessage<ValidateConflictsResponse> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_conflicts_conflicts, 12);
+  messageDesc(file_architecture_cartographer_v1_conflicts_conflicts, 9);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.conflicts.ListDetectorsRequest
@@ -537,7 +290,7 @@ export type ListDetectorsRequest = Message<"vrooli.architecture_cartographer.v1.
  * Use `create(ListDetectorsRequestSchema)` to create a new message.
  */
 export const ListDetectorsRequestSchema: GenMessage<ListDetectorsRequest> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_conflicts_conflicts, 13);
+  messageDesc(file_architecture_cartographer_v1_conflicts_conflicts, 10);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.conflicts.ListDetectorsResponse
@@ -554,7 +307,7 @@ export type ListDetectorsResponse = Message<"vrooli.architecture_cartographer.v1
  * Use `create(ListDetectorsResponseSchema)` to create a new message.
  */
 export const ListDetectorsResponseSchema: GenMessage<ListDetectorsResponse> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_conflicts_conflicts, 14);
+  messageDesc(file_architecture_cartographer_v1_conflicts_conflicts, 11);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.conflicts.ListResolversRequest
@@ -567,7 +320,7 @@ export type ListResolversRequest = Message<"vrooli.architecture_cartographer.v1.
  * Use `create(ListResolversRequestSchema)` to create a new message.
  */
 export const ListResolversRequestSchema: GenMessage<ListResolversRequest> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_conflicts_conflicts, 15);
+  messageDesc(file_architecture_cartographer_v1_conflicts_conflicts, 12);
 
 /**
  * @generated from message vrooli.architecture_cartographer.v1.conflicts.ListResolversResponse
@@ -584,90 +337,7 @@ export type ListResolversResponse = Message<"vrooli.architecture_cartographer.v1
  * Use `create(ListResolversResponseSchema)` to create a new message.
  */
 export const ListResolversResponseSchema: GenMessage<ListResolversResponse> = /*@__PURE__*/
-  messageDesc(file_architecture_cartographer_v1_conflicts_conflicts, 16);
-
-/**
- * Severity classifies how blocking a conflict is. Mirrors the manifest's
- * severity declaration for each conflict type.
- *
- * @generated from enum vrooli.architecture_cartographer.v1.conflicts.Severity
- */
-export enum Severity {
-  /**
-   * @generated from enum value: SEVERITY_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: SEVERITY_INFO = 1;
-   */
-  INFO = 1,
-
-  /**
-   * @generated from enum value: SEVERITY_WARN = 2;
-   */
-  WARN = 2,
-
-  /**
-   * @generated from enum value: SEVERITY_ERROR = 3;
-   */
-  ERROR = 3,
-
-  /**
-   * @generated from enum value: SEVERITY_BLOCKER = 4;
-   */
-  BLOCKER = 4,
-}
-
-/**
- * Describes the enum vrooli.architecture_cartographer.v1.conflicts.Severity.
- */
-export const SeveritySchema: GenEnum<Severity> = /*@__PURE__*/
-  enumDesc(file_architecture_cartographer_v1_conflicts_conflicts, 0);
-
-/**
- * FixKind enumerates the operator-facing categories of suggested fixes.
- * New kinds are added through a manifest schema bump (manifest_version).
- *
- * @generated from enum vrooli.architecture_cartographer.v1.conflicts.FixKind
- */
-export enum FixKind {
-  /**
-   * @generated from enum value: FIX_KIND_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: FIX_KIND_MOVE_FILE = 1;
-   */
-  MOVE_FILE = 1,
-
-  /**
-   * @generated from enum value: FIX_KIND_REASSIGN_DOMAIN = 2;
-   */
-  REASSIGN_DOMAIN = 2,
-
-  /**
-   * @generated from enum value: FIX_KIND_BREAK_CYCLE = 3;
-   */
-  BREAK_CYCLE = 3,
-
-  /**
-   * @generated from enum value: FIX_KIND_ADD_DEPENDENCY = 4;
-   */
-  ADD_DEPENDENCY = 4,
-
-  /**
-   * @generated from enum value: FIX_KIND_ADD_TRANSITIONAL = 5;
-   */
-  ADD_TRANSITIONAL = 5,
-}
-
-/**
- * Describes the enum vrooli.architecture_cartographer.v1.conflicts.FixKind.
- */
-export const FixKindSchema: GenEnum<FixKind> = /*@__PURE__*/
-  enumDesc(file_architecture_cartographer_v1_conflicts_conflicts, 1);
+  messageDesc(file_architecture_cartographer_v1_conflicts_conflicts, 13);
 
 /**
  * @generated from service vrooli.architecture_cartographer.v1.conflicts.ConflictsService

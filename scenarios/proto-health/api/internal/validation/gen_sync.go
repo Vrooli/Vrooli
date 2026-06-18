@@ -9,11 +9,19 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
 
-const genSyncTimeout = 2 * time.Minute
+const (
+	genSyncDefaultTimeout = 2 * time.Minute
+	envSkipGenSync        = "PROTO_HEALTH_SKIP_GEN_SYNC"
+	envGenSyncTimeout     = "PROTO_HEALTH_GEN_SYNC_TIMEOUT"
+)
+
+var bufPathRE = regexp.MustCompile(`(?:^|\s)([A-Za-z0-9_./-]+\.proto):\d+:\d+`)
 
 type GeneratedArtifactChecker struct {
 	repoRoot string
@@ -28,6 +36,9 @@ func (c *GeneratedArtifactChecker) CheckScenario(ctx context.Context, scenario s
 	if scenario == "" {
 		return GenSyncStatus{}, fmt.Errorf("scenario name is required")
 	}
+	if truthy(os.Getenv(envSkipGenSync)) {
+		return GenSyncStatus{InSync: true, Skipped: true, SkipMessage: envSkipGenSync + " is set"}, nil
+	}
 	protoRoot := filepath.Join(c.repoRoot, "packages", "proto")
 	tempRoot, err := os.MkdirTemp("", "proto-health-gen-sync-*")
 	if err != nil {
@@ -36,22 +47,37 @@ func (c *GeneratedArtifactChecker) CheckScenario(ctx context.Context, scenario s
 	defer os.RemoveAll(tempRoot)
 
 	tempProtoRoot := filepath.Join(tempRoot, "proto")
-	if err := copyDir(protoRoot, tempProtoRoot); err != nil {
-		return GenSyncStatus{}, fmt.Errorf("copy packages/proto: %w", err)
+	if err := copyGenSyncInputs(protoRoot, tempProtoRoot); err != nil {
+		return GenSyncStatus{}, fmt.Errorf("copy packages/proto inputs: %w", err)
 	}
 
-	runCtx, cancel := context.WithTimeout(ctx, genSyncTimeout)
+	timeout := genSyncTimeout()
+	runCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
-	cmd := exec.CommandContext(runCtx, "make", "generate")
+	cmd := exec.CommandContext(runCtx, "buf", "generate", "--path", filepath.ToSlash(filepath.Join("schemas", scenario)))
 	cmd.Dir = tempProtoRoot
 	var stderr bytes.Buffer
 	cmd.Stdout = io.Discard
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
 		if runCtx.Err() != nil {
-			return GenSyncStatus{}, fmt.Errorf("run make generate: %w", runCtx.Err())
+			return GenSyncStatus{
+				Blocked: true,
+				Detail:  fmt.Sprintf("generated-artifact sync could not be verified: buf generate exceeded %s", timeout),
+			}, nil
 		}
-		return GenSyncStatus{}, fmt.Errorf("run make generate: %w: %s", err, strings.TrimSpace(stderr.String()))
+		files := offendingProtoFiles(stderr.String())
+		if hasTargetProtoFile(files, scenario) {
+			return GenSyncStatus{}, fmt.Errorf("run buf generate for %s: %w: %s", scenario, err, strings.TrimSpace(stderr.String()))
+		}
+		detail := "generated-artifact sync could not be verified: proto compilation failed outside the target scenario"
+		if len(files) > 0 {
+			detail = fmt.Sprintf("generated-artifact sync could not be verified: upstream proto %s failed to compile", strings.Join(files, ", "))
+		}
+		return GenSyncStatus{Blocked: true, BlockedBy: files, Detail: detail}, nil
+	}
+	if err := markPythonTyped(filepath.Join(tempProtoRoot, "gen", "python")); err != nil {
+		return GenSyncStatus{}, fmt.Errorf("mark generated python packages typed: %w", err)
 	}
 
 	paths := scenarioGenDirs(scenario)
@@ -73,6 +99,106 @@ func (c *GeneratedArtifactChecker) CheckScenario(ctx context.Context, scenario s
 		Drift:  drift,
 		Detail: fmt.Sprintf("%d generated slice(s) differ after regeneration", len(drift)),
 	}, nil
+}
+
+func genSyncTimeout() time.Duration {
+	raw := strings.TrimSpace(os.Getenv(envGenSyncTimeout))
+	if raw == "" {
+		return genSyncDefaultTimeout
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil || d <= 0 {
+		return genSyncDefaultTimeout
+	}
+	return d
+}
+
+func truthy(raw string) bool {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "1", "t", "true", "y", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
+func offendingProtoFiles(stderr string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, match := range bufPathRE.FindAllStringSubmatch(stderr, -1) {
+		if len(match) < 2 {
+			continue
+		}
+		path := filepath.ToSlash(strings.TrimSpace(match[1]))
+		path = strings.TrimPrefix(path, "packages/proto/")
+		if path == "" || seen[path] {
+			continue
+		}
+		seen[path] = true
+		out = append(out, path)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func hasTargetProtoFile(files []string, scenario string) bool {
+	prefix := filepath.ToSlash(filepath.Join("schemas", scenario)) + "/"
+	for _, file := range files {
+		if strings.HasPrefix(file, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func copyGenSyncInputs(protoRoot, tempProtoRoot string) error {
+	for _, name := range []string{"buf.yaml", "buf.gen.yaml", "buf.lock"} {
+		src := filepath.Join(protoRoot, name)
+		info, err := os.Stat(src)
+		if err != nil {
+			if os.IsNotExist(err) && name == "buf.lock" {
+				continue
+			}
+			return err
+		}
+		if err := copyFile(src, filepath.Join(tempProtoRoot, name), info.Mode().Perm()); err != nil {
+			return err
+		}
+	}
+	if err := copyDir(filepath.Join(protoRoot, "schemas"), filepath.Join(tempProtoRoot, "schemas")); err != nil {
+		return err
+	}
+	vendorRoot := filepath.Join(protoRoot, "vendor")
+	if _, err := os.Stat(vendorRoot); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	return copyDir(vendorRoot, filepath.Join(tempProtoRoot, "vendor"))
+}
+
+func markPythonTyped(root string) error {
+	if _, err := os.Stat(root); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	return filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !entry.IsDir() {
+			return nil
+		}
+		file := filepath.Join(path, "py.typed")
+		f, err := os.OpenFile(file, os.O_CREATE|os.O_WRONLY, 0o644)
+		if err != nil {
+			return err
+		}
+		return f.Close()
+	})
 }
 
 func scenarioGenDirs(scenario string) []string {
