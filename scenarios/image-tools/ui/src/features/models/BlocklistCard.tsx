@@ -27,51 +27,51 @@ export function BlocklistCard() {
     <section
       data-testid={selectors.models.blocklist.card}
       aria-label={t(strings.models.blocklist.title)}
-      className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4"
+      className="mt-4 rounded-xl border border-app-border bg-app-surface p-4"
     >
-      <h2 className="text-sm font-medium text-slate-400">{t(strings.models.blocklist.title)}</h2>
+      <h2 className="text-sm font-medium text-app-muted-foreground">{t(strings.models.blocklist.title)}</h2>
       {blocklistQuery.isLoading && (
-        <p data-testid={selectors.models.blocklist.loading} className="mt-2 text-slate-200">
+        <p data-testid={selectors.models.blocklist.loading} className="mt-2 text-app-foreground">
           {t(strings.models.blocklist.loading)}
         </p>
       )}
       {blocklistQuery.error && (
-        <p data-testid={selectors.models.blocklist.error} className="mt-2 text-red-400">
+        <p data-testid={selectors.models.blocklist.error} className="mt-2 text-app-danger">
           {errorMessage(blocklistQuery.error, t)}
         </p>
       )}
       {blocklistQuery.data && entries.length === 0 && (
-        <p data-testid={selectors.models.blocklist.empty} className="mt-2 text-slate-200">
+        <p data-testid={selectors.models.blocklist.empty} className="mt-2 text-app-foreground">
           {t(strings.models.blocklist.empty)}
         </p>
       )}
       {entries.length > 0 && (
         <ul
           data-testid={selectors.models.blocklist.list}
-          className="mt-2 space-y-2 text-sm text-slate-200"
+          className="mt-2 space-y-2 text-sm text-app-foreground"
         >
           {entries.map((entry) => (
             <li
               key={entry.id}
               data-testid={selectors.models.blocklist.entry}
-              className="rounded-lg border border-white/10 p-3"
+              className="rounded-lg border border-app-border p-3"
             >
               <div className="font-medium">{entry.id}</div>
               {entry.operations.length > 0 && (
-                <div className="mt-1 text-xs text-slate-400">
+                <div className="mt-1 text-xs text-app-muted-foreground">
                   {t(strings.models.blocklist.operationsLabel)} {entry.operations.join(", ")}
                 </div>
               )}
-              <div className="mt-1 text-xs text-slate-400">
+              <div className="mt-1 text-xs text-app-muted-foreground">
                 {t(strings.models.blocklist.licenseLabel)} {entry.license || "—"}
               </div>
-              <div className="mt-1 text-xs text-slate-400">
+              <div className="mt-1 text-xs text-app-muted-foreground">
                 {t(strings.models.blocklist.reasonLabel)} {entry.reason}
               </div>
               {entry.exportingOnnxRemovesRestriction && (
                 <p
                   data-testid={selectors.models.blocklist.onnxWarning}
-                  className="mt-1 text-xs text-amber-300"
+                  className="mt-1 text-xs text-app-warning"
                 >
                   {t(strings.models.blocklist.onnxWarning)}
                 </p>

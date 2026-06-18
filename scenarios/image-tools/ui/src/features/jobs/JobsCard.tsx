@@ -48,48 +48,48 @@ function JobRow({ job, onCancel, cancelPending }: JobRowProps) {
   const message = live?.message || job.message;
 
   return (
-    <li className="rounded-lg border border-white/10 p-3">
+    <li className="rounded-lg border border-app-border p-3">
       <div className="flex items-center gap-2">
         <span className="font-medium">{job.id}</span>
         {live && (
           <span
             data-testid={selectors.jobs.liveBadge}
-            className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-emerald-300"
+            className="rounded border border-app-success/60 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-app-success"
           >
             {t(strings.jobs.liveBadge)}
           </span>
         )}
       </div>
-      <div data-testid={selectors.jobs.operation} className="mt-1 text-xs text-slate-400">
+      <div data-testid={selectors.jobs.operation} className="mt-1 text-xs text-app-muted-foreground">
         {t(strings.jobs.operationLabel)} {job.operation}
       </div>
-      <div data-testid={selectors.jobs.lane} className="mt-1 text-xs text-slate-400">
+      <div data-testid={selectors.jobs.lane} className="mt-1 text-xs text-app-muted-foreground">
         {t(strings.jobs.laneLabel)} {t(LANE_LABEL[job.lane])}
       </div>
-      <div data-testid={selectors.jobs.state} className="mt-1 text-xs text-slate-400">
+      <div data-testid={selectors.jobs.state} className="mt-1 text-xs text-app-muted-foreground">
         {t(strings.jobs.stateLabel)} {t(STATE_LABEL[state])}
       </div>
-      <div data-testid={selectors.jobs.progress} className="mt-1 text-xs text-slate-400">
+      <div data-testid={selectors.jobs.progress} className="mt-1 text-xs text-app-muted-foreground">
         {t(strings.jobs.progressLabel, { count: progress })}
       </div>
       <progress
-        className="mt-1 h-1.5 w-full overflow-hidden rounded bg-white/10 [&::-webkit-progress-bar]:bg-white/10 [&::-webkit-progress-value]:bg-app-primary"
+        className="mt-1 h-1.5 w-full overflow-hidden rounded bg-app-surface-muted [&::-webkit-progress-bar]:bg-app-surface-muted [&::-webkit-progress-value]:bg-app-primary"
         value={progress}
         max={100}
         aria-label={t(strings.jobs.progressLabel, { count: progress })}
       />
       {message && (
-        <div data-testid={selectors.jobs.message} className="mt-1 text-xs text-slate-400">
+        <div data-testid={selectors.jobs.message} className="mt-1 text-xs text-app-muted-foreground">
           {t(strings.jobs.messageLabel)} {message}
         </div>
       )}
       {state === JobState.SUCCEEDED && job.resultRef && (
-        <div data-testid={selectors.jobs.result} className="mt-1 break-all text-xs text-slate-400">
+        <div data-testid={selectors.jobs.result} className="mt-1 break-all text-xs text-app-muted-foreground">
           {t(strings.jobs.resultLabel)} {job.resultRef}
         </div>
       )}
       {state === JobState.FAILED && job.error && (
-        <div data-testid={selectors.jobs.errorDetail} className="mt-1 text-xs text-red-400">
+        <div data-testid={selectors.jobs.errorDetail} className="mt-1 text-xs text-app-danger">
           {t(strings.jobs.errorLabel)} {job.error}
         </div>
       )}
@@ -135,26 +135,26 @@ export function JobsCard() {
     <section
       data-testid={selectors.jobs.card}
       aria-label={t(strings.jobs.title)}
-      className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4"
+      className="mt-4 rounded-xl border border-app-border bg-app-surface p-4"
     >
-      <h2 className="text-sm font-medium text-slate-400">{t(strings.jobs.title)}</h2>
+      <h2 className="text-sm font-medium text-app-muted-foreground">{t(strings.jobs.title)}</h2>
       {jobsQuery.isLoading && (
-        <p data-testid={selectors.jobs.loading} className="mt-2 text-slate-200">
+        <p data-testid={selectors.jobs.loading} className="mt-2 text-app-foreground">
           {t(strings.jobs.loading)}
         </p>
       )}
       {jobsQuery.error && (
-        <p data-testid={selectors.jobs.error} className="mt-2 text-red-400">
+        <p data-testid={selectors.jobs.error} className="mt-2 text-app-danger">
           {errorMessage(jobsQuery.error, t)}
         </p>
       )}
       {jobsQuery.data && jobs.length === 0 && (
-        <p data-testid={selectors.jobs.empty} className="mt-2 text-slate-200">
+        <p data-testid={selectors.jobs.empty} className="mt-2 text-app-foreground">
           {t(strings.jobs.empty)}
         </p>
       )}
       {jobs.length > 0 && (
-        <ul data-testid={selectors.jobs.list} className="mt-2 space-y-1 text-sm text-slate-200">
+        <ul data-testid={selectors.jobs.list} className="mt-2 space-y-1 text-sm text-app-foreground">
           {jobs.map((job) => (
             <JobRow
               key={job.id}
@@ -166,7 +166,7 @@ export function JobsCard() {
         </ul>
       )}
       {cancelJobMutation.error && (
-        <p data-testid={selectors.jobs.error} className="mt-2 text-red-400">
+        <p data-testid={selectors.jobs.error} className="mt-2 text-app-danger">
           {errorMessage(cancelJobMutation.error, t)}
         </p>
       )}

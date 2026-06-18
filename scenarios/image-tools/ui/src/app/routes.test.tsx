@@ -1,5 +1,5 @@
 /**
- * Routing smoke — for each canonical path (`/`, `/editor`, `/jobs`,
+ * Routing smoke — for each canonical path (`/`, `/workspace`, `/jobs`,
  * `/models`, `/settings`) the matching page selector is in the document.
  * Page-internal
  * behaviour is exercised in per-page tests; this file's job is to assert the
@@ -22,9 +22,9 @@ describe("AppRouter", () => {
     expect(screen.getByTestId(selectors.pages.dashboard)).toBeInTheDocument();
   });
 
-  it("renders the editor page at /editor", () => {
-    renderWithProviders(<TestAppRouter initialEntries={["/editor"]} />, { withoutRouter: true });
-    expect(screen.getByTestId(selectors.pages.editor)).toBeInTheDocument();
+  it("renders the workspace page at /workspace", () => {
+    renderWithProviders(<TestAppRouter initialEntries={["/workspace"]} />, { withoutRouter: true });
+    expect(screen.getByTestId(selectors.pages.workspace)).toBeInTheDocument();
   });
 
   it("renders the jobs page at /jobs", () => {

@@ -61,16 +61,16 @@ export function AddCustomModelForm() {
   return (
     <section
       aria-label={t(strings.models.addCustom.title)}
-      className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4"
+      className="mt-4 rounded-xl border border-app-border bg-app-surface p-4"
     >
-      <h2 className="text-sm font-medium text-slate-400">{t(strings.models.addCustom.title)}</h2>
+      <h2 className="text-sm font-medium text-app-muted-foreground">{t(strings.models.addCustom.title)}</h2>
       <form
         data-testid={selectors.models.addCustom.form}
         onSubmit={onSubmit}
         className="mt-3 flex flex-col gap-3"
       >
         <div className="flex flex-col gap-1">
-          <label htmlFor={fieldId("id")} className="text-xs text-slate-400">
+          <label htmlFor={fieldId("id")} className="text-xs text-app-muted-foreground">
             {t(strings.models.addCustom.idLabel)}
           </label>
           <Input
@@ -82,7 +82,7 @@ export function AddCustomModelForm() {
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={fieldId("operations")} className="text-xs text-slate-400">
+          <label htmlFor={fieldId("operations")} className="text-xs text-app-muted-foreground">
             {t(strings.models.addCustom.operationsLabel)}
           </label>
           <Input
@@ -93,7 +93,7 @@ export function AddCustomModelForm() {
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={fieldId("backend")} className="text-xs text-slate-400">
+          <label htmlFor={fieldId("backend")} className="text-xs text-app-muted-foreground">
             {t(strings.models.addCustom.backendLabel)}
           </label>
           <Input
@@ -104,7 +104,7 @@ export function AddCustomModelForm() {
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={fieldId("local-path")} className="text-xs text-slate-400">
+          <label htmlFor={fieldId("local-path")} className="text-xs text-app-muted-foreground">
             {t(strings.models.addCustom.localPathLabel)}
           </label>
           <Input
@@ -115,7 +115,7 @@ export function AddCustomModelForm() {
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={fieldId("download-url")} className="text-xs text-slate-400">
+          <label htmlFor={fieldId("download-url")} className="text-xs text-app-muted-foreground">
             {t(strings.models.addCustom.downloadUrlLabel)}
           </label>
           <Input
@@ -136,12 +136,12 @@ export function AddCustomModelForm() {
         </Button>
       </form>
       {addMutation.isSuccess && (
-        <p data-testid={selectors.models.addCustom.success} className="mt-2 text-xs text-emerald-400">
+        <p data-testid={selectors.models.addCustom.success} className="mt-2 text-xs text-app-success">
           {t(strings.models.addCustom.success)}
         </p>
       )}
       {addMutation.error && (
-        <p data-testid={selectors.models.addCustom.error} className="mt-2 text-xs text-red-400">
+        <p data-testid={selectors.models.addCustom.error} className="mt-2 text-xs text-app-danger">
           {errorMessage(addMutation.error, t)}
         </p>
       )}

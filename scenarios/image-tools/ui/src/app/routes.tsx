@@ -8,10 +8,10 @@ import {
 import { routerFutureFlags } from "./routerFuture";
 import { AppShell } from "../layout/AppShell";
 import { DashboardPage } from "../pages/DashboardPage";
-import { EditorPage } from "../pages/EditorPage";
 import { JobsPage } from "../pages/JobsPage";
 import { ModelsPage } from "../pages/ModelsPage";
 import { SettingsPage } from "../pages/SettingsPage";
+import { WorkspacePage } from "../pages/WorkspacePage";
 
 /**
  * Canonical route table. Exported so tests can construct an in-memory router
@@ -25,7 +25,7 @@ export const routes: RouteObject[] = [
     element: <AppShell />,
     children: [
       { index: true, element: <DashboardPage /> },
-      { path: "editor", element: <EditorPage /> },
+      { path: "workspace", element: <WorkspacePage /> },
       { path: "jobs", element: <JobsPage /> },
       { path: "models", element: <ModelsPage /> },
       { path: "settings", element: <SettingsPage /> },

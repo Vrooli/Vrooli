@@ -1,6 +1,6 @@
 /**
- * Self-tests for the editor-domain test factories. Co-located with the
- * feature so deleting `features/editor/` takes them along.
+ * Self-tests for the workspace-domain test factories. Co-located with the
+ * feature so deleting `features/workspace/` takes them along.
  */
 import { fromJson, toJson } from "@bufbuild/protobuf";
 import { describe, expect, it } from "vitest";

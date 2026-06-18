@@ -79,31 +79,31 @@ export function ModelsCard() {
     <section
       data-testid={selectors.models.card}
       aria-label={t(strings.models.title)}
-      className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4"
+      className="mt-4 rounded-xl border border-app-border bg-app-surface p-4"
     >
-      <h2 className="text-sm font-medium text-slate-400">{t(strings.models.title)}</h2>
+      <h2 className="text-sm font-medium text-app-muted-foreground">{t(strings.models.title)}</h2>
       {modelsQuery.isLoading && (
-        <p data-testid={selectors.models.loading} className="mt-2 text-slate-200">
+        <p data-testid={selectors.models.loading} className="mt-2 text-app-foreground">
           {t(strings.models.loading)}
         </p>
       )}
       {modelsQuery.error && (
-        <p data-testid={selectors.models.error} className="mt-2 text-red-400">
+        <p data-testid={selectors.models.error} className="mt-2 text-app-danger">
           {errorMessage(modelsQuery.error, t)}
         </p>
       )}
       {modelsQuery.data && models.length === 0 && (
-        <p data-testid={selectors.models.empty} className="mt-2 text-slate-200">
+        <p data-testid={selectors.models.empty} className="mt-2 text-app-foreground">
           {t(strings.models.empty)}
         </p>
       )}
       {models.length > 0 && (
-        <ul data-testid={selectors.models.list} className="mt-2 space-y-2 text-sm text-slate-200">
+        <ul data-testid={selectors.models.list} className="mt-2 space-y-2 text-sm text-app-foreground">
           {models.map((model) => {
             const installed = model.install?.installed ?? false;
             const labels = model.capabilityLabels;
             return (
-              <li key={model.id} className="rounded-lg border border-white/10 p-3">
+              <li key={model.id} className="rounded-lg border border-app-border p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <span data-testid={selectors.models.name} className="font-medium">
                     {model.name}
@@ -119,40 +119,40 @@ export function ModelsCard() {
                   {labels?.nsfwCapable && (
                     <span
                       data-testid={selectors.models.nsfwBadge}
-                      className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-amber-300"
+                      className="rounded bg-app-warning/20 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-app-warning"
                     >
                       {t(strings.models.nsfwBadge)}
                     </span>
                   )}
                 </div>
-                <div className="mt-1 text-xs text-slate-500">{model.id}</div>
+                <div className="mt-1 text-xs text-app-muted-foreground">{model.id}</div>
 
-                <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-400">
+                <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-app-muted-foreground">
                   <div data-testid={selectors.models.tier}>
-                    <dt className="inline text-slate-500">{t(strings.models.tierLabel)} </dt>
+                    <dt className="inline text-app-muted-foreground">{t(strings.models.tierLabel)} </dt>
                     <dd className="inline">{model.tier}</dd>
                   </div>
                   <div data-testid={selectors.models.backend}>
-                    <dt className="inline text-slate-500">{t(strings.models.backendLabel)} </dt>
+                    <dt className="inline text-app-muted-foreground">{t(strings.models.backendLabel)} </dt>
                     <dd className="inline">{model.backend}</dd>
                   </div>
                   <div data-testid={selectors.models.operations}>
-                    <dt className="inline text-slate-500">{t(strings.models.operationsLabel)} </dt>
+                    <dt className="inline text-app-muted-foreground">{t(strings.models.operationsLabel)} </dt>
                     <dd className="inline">{model.operations.join(", ")}</dd>
                   </div>
                   <div data-testid={selectors.models.size}>
-                    <dt className="inline text-slate-500">{t(strings.models.sizeLabel)} </dt>
+                    <dt className="inline text-app-muted-foreground">{t(strings.models.sizeLabel)} </dt>
                     <dd className="inline">{t(strings.models.sizeValue, { mb: model.sizeMbApprox })}</dd>
                   </div>
                   {labels && (
                     <div data-testid={selectors.models.license}>
-                      <dt className="inline text-slate-500">{t(strings.models.licenseLabel)} </dt>
+                      <dt className="inline text-app-muted-foreground">{t(strings.models.licenseLabel)} </dt>
                       <dd className="inline">{labels.license || "—"}</dd>
                     </div>
                   )}
                   {labels && (
                     <div data-testid={selectors.models.commercial}>
-                      <dt className="inline text-slate-500">{t(strings.models.commercialLabel)} </dt>
+                      <dt className="inline text-app-muted-foreground">{t(strings.models.commercialLabel)} </dt>
                       <dd className="inline">{t(COMMERCIAL_LABEL[labels.commercialUse])}</dd>
                     </div>
                   )}
@@ -167,7 +167,7 @@ export function ModelsCard() {
                     {hardwareFitChips(model.hardware).map((chip) => (
                       <span
                         key={chip.key}
-                        className="rounded border border-white/15 bg-white/5 px-1.5 py-0.5 text-[10px] text-slate-300"
+                        className="rounded border border-app-border bg-app-surface-muted px-1.5 py-0.5 text-[10px] text-app-foreground"
                       >
                         {t(chip.key, chip.values)}
                       </span>
@@ -177,7 +177,7 @@ export function ModelsCard() {
 
                 <div
                   data-testid={selectors.models.installState}
-                  className="mt-2 text-xs text-slate-400"
+                  className="mt-2 text-xs text-app-muted-foreground"
                 >
                   {installed
                     ? t(strings.models.installState.installed)
@@ -217,7 +217,7 @@ export function ModelsCard() {
                   </Button>
                   <span
                     data-testid={selectors.models.enabledState}
-                    className="self-center text-xs text-slate-500"
+                    className="self-center text-xs text-app-muted-foreground"
                   >
                     {model.enabled
                       ? t(strings.models.enabledLabel)
@@ -226,7 +226,7 @@ export function ModelsCard() {
                 </div>
 
                 {installNotice?.id === model.id && (
-                  <p data-testid={selectors.models.installNotice} className="mt-2 text-xs text-emerald-400">
+                  <p data-testid={selectors.models.installNotice} className="mt-2 text-xs text-app-success">
                     {installNotice.alreadyInstalled
                       ? t(strings.models.alreadyInstalled)
                       : t(strings.models.installStarted, {
@@ -241,7 +241,7 @@ export function ModelsCard() {
         </ul>
       )}
       {mutationError && (
-        <p data-testid={selectors.models.error} className="mt-2 text-red-400">
+        <p data-testid={selectors.models.error} className="mt-2 text-app-danger">
           {errorMessage(mutationError, t)}
         </p>
       )}

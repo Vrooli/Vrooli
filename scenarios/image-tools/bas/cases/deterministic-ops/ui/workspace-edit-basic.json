@@ -1,0 +1,84 @@
+{
+  "metadata": {
+    "name": "workspace-edit-basic",
+    "description": "Smoke proof for the unified Workspace (Stage 0b): navigates to /workspace and asserts the surface composes end-to-end — the mode switcher renders, the canvas exposes its upload dropzone, and the Edit-mode operation picker is populated via OpsService.ListOperations (UI -> Connect-RPC -> internal/ops registry). A broken discovery RPC, an unmounted ops module, or a Workspace that fails to compose all fail here. Op execution + crop drag-box are covered by the Stage-1 Edit-hero journey; the multipart run edge is covered by api/handlers/ops/rest_test.go and the headless CLI acceptance in docs/internal/TESTING.md.",
+    "requirement": "IMG-P0-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "purpose": "workspace-edit-smoke"
+    },
+    "execution_mode": "read_only"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-workspace",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "@scenario/self",
+          "scenario_path": "/workspace",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": { "label": "Navigate to the Workspace" }
+      }
+    },
+    {
+      "id": "wait-mode-switcher",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.modeSwitcher",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Mode switcher visible (Workspace shell composed)" }
+      }
+    },
+    {
+      "id": "wait-canvas-dropzone",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.dropzone",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Canvas upload dropzone visible" }
+      }
+    },
+    {
+      "id": "wait-operation-select",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.operationSelect",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": { "label": "Edit-mode operation picker visible" }
+      }
+    },
+    {
+      "id": "assert-operations-listed",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workspace.operationSelect",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": { "stringValue": "resize" },
+          "case_sensitive": true,
+          "timeout_ms": 10000,
+          "failure_message": "Operation picker does not list 'resize' — OpsService.ListOperations did not reach the Workspace (check the ops module is mounted in main.go, the OpsService handler is registered, and ui/src/api/ops.ts targets the right transport)."
+        },
+        "metadata": { "label": "Assert the deterministic op catalog renders in the Inspector (proves discovery end-to-end)" }
+      }
+    }
+  ]
+}

@@ -49,28 +49,28 @@ export function ModelDefaultsCard() {
     <section
       data-testid={selectors.models.defaults.card}
       aria-label={t(strings.models.defaults.title)}
-      className="rounded-xl border border-white/10 bg-black/20 p-4"
+      className="rounded-xl border border-app-border bg-app-surface p-4"
     >
-      <h2 className="text-sm font-medium text-slate-400">{t(strings.models.defaults.title)}</h2>
+      <h2 className="text-sm font-medium text-app-muted-foreground">{t(strings.models.defaults.title)}</h2>
       {defaultsQuery.isLoading && (
-        <p data-testid={selectors.models.defaults.loading} className="mt-2 text-slate-200">
+        <p data-testid={selectors.models.defaults.loading} className="mt-2 text-app-foreground">
           {t(strings.models.defaults.loading)}
         </p>
       )}
       {defaultsQuery.error && (
-        <p data-testid={selectors.models.defaults.error} className="mt-2 text-red-400">
+        <p data-testid={selectors.models.defaults.error} className="mt-2 text-app-danger">
           {errorMessage(defaultsQuery.error, t)}
         </p>
       )}
       {defaultsQuery.data && defaults.length === 0 && (
-        <p data-testid={selectors.models.defaults.empty} className="mt-2 text-slate-200">
+        <p data-testid={selectors.models.defaults.empty} className="mt-2 text-app-foreground">
           {t(strings.models.defaults.empty)}
         </p>
       )}
       {defaults.length > 0 && (
         <ul
           data-testid={selectors.models.defaults.list}
-          className="mt-2 space-y-2 text-sm text-slate-200"
+          className="mt-2 space-y-2 text-sm text-app-foreground"
         >
           {defaults.map((d) => {
             const isOverride = d.source === "override";
@@ -80,13 +80,13 @@ export function ModelDefaultsCard() {
               <li
                 key={d.operation}
                 data-testid={selectors.models.defaults.row}
-                className="flex flex-wrap items-end gap-3 rounded-lg border border-white/10 p-3"
+                className="flex flex-wrap items-end gap-3 rounded-lg border border-app-border p-3"
               >
                 <div data-testid={selectors.models.defaults.operation} className="font-medium">
                   {d.operation}
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label htmlFor={selectId} className="text-xs text-slate-400">
+                  <label htmlFor={selectId} className="text-xs text-app-muted-foreground">
                     {t(strings.models.defaults.modelLabel)}
                   </label>
                   <select
@@ -97,19 +97,19 @@ export function ModelDefaultsCard() {
                       setDefaultMutation.mutate({ operation: d.operation, modelId: e.target.value })
                     }
                     disabled={setDefaultMutation.isPending}
-                    className="h-10 rounded-md border border-white/20 bg-white/5 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-white/40"
+                    className="h-10 rounded-md border border-app-border bg-app-surface-muted px-3 text-sm text-app-foreground focus:outline-none focus:ring-2 focus:ring-app-primary/50"
                   >
-                    <option value="" className="bg-slate-900">
+                    <option value="" className="bg-app-surface text-app-foreground">
                       {t(strings.models.defaults.useDefault)}
                     </option>
                     {options.map((m) => (
-                      <option key={m.id} value={m.id} className="bg-slate-900">
+                      <option key={m.id} value={m.id} className="bg-app-surface text-app-foreground">
                         {m.name}
                       </option>
                     ))}
                   </select>
                 </div>
-                <div data-testid={selectors.models.defaults.source} className="text-xs text-slate-400">
+                <div data-testid={selectors.models.defaults.source} className="text-xs text-app-muted-foreground">
                   {t(strings.models.defaults.sourceLabel)}{" "}
                   {isOverride
                     ? t(strings.models.defaults.source.override)
@@ -134,7 +134,7 @@ export function ModelDefaultsCard() {
         </ul>
       )}
       {setDefaultMutation.error && (
-        <p data-testid={selectors.models.defaults.error} className="mt-2 text-red-400">
+        <p data-testid={selectors.models.defaults.error} className="mt-2 text-app-danger">
           {errorMessage(setDefaultMutation.error, t)}
         </p>
       )}

@@ -8,7 +8,7 @@
     "bottomNavLabel": "Primary navigation (mobile)",
     "nav": {
       "dashboard": "Dashboard",
-      "editor": "Editor",
+      "workspace": "Workspace",
       "jobs": "Jobs",
       "models": "Models",
       "settings": "Settings"
@@ -39,8 +39,8 @@
       "themeHeading": "Appearance",
       "localeHeading": "Language"
     },
-    "editor": {
-      "title": "Editor"
+    "workspace": {
+      "title": "Workspace"
     }
   },
   "health": {
@@ -161,32 +161,48 @@
       "none": "None"
     }
   },
-  "editor": {
-    "title": "Image editor",
+  "workspace": {
     "loading": "Loading operations…",
     "error": "Unable to load operations.",
     "uploadLabel": "Source image",
-    "uploadHint": "Drag an image here, or choose a file.",
     "operationLabel": "Operation",
     "overlayLabel": "Watermark image",
-    "run": "Run",
-    "running": "Running…",
-    "empty": "Upload an image and run an operation to see the result.",
+    "run": "Apply",
+    "running": "Applying…",
+    "empty": "Pick an operation and apply it to build your edit.",
     "originalLabel": "Original",
     "resultLabel": "Result",
     "resultMeta": "{{width}}×{{height}} · {{format}}",
     "metadataLabel": "Metadata",
-    "download": "Download result",
-    "stack": {
-      "title": "Edit pipeline",
-      "apply": "Apply",
-      "applying": "Applying…",
+    "canvas": {
+      "empty": "Drop an image to begin, or choose a file.",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "zoomFit": "Fit",
+      "zoomActual": "Actual size",
+      "zoomLevel": "{{percent}}%",
+      "compareToggle": "Before / after",
+      "replace": "Replace"
+    },
+    "actions": {
       "undo": "Undo",
       "redo": "Redo",
       "reset": "Reset",
-      "empty": "No operations applied yet.",
-      "stepsHeading": "Applied operations",
+      "download": "Download"
+    },
+    "history": {
+      "title": "History",
+      "empty": "No edits yet.",
+      "source": "Source",
       "step": "{{index}}. {{operation}}"
+    },
+    "mode": {
+      "edit": "Edit",
+      "enhance": "Enhance",
+      "create": "Create",
+      "analyze": "Analyze",
+      "switcherLabel": "Workspace mode",
+      "comingSoon": "{{mode}} arrives in a later stage of the redesign."
     },
     "compare": {
       "before": "Before",

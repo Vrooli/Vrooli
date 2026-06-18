@@ -1,9 +1,7 @@
 /**
- * EditorCard accessibility regression tests.
- *
- * Editor owns its discovery query and run mutation, so the a11y waits and
- * mocks live with the feature instead of leaking into shell-level a11y
- * tests.
+ * Workspace accessibility regression tests. The form, in-canvas result, and
+ * error states must each pass axe. The Workspace owns its discovery query and
+ * op runner, so the a11y waits + mocks live with the feature.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
@@ -14,14 +12,23 @@ import { selectors } from "../../consts/selectors";
 import { setLocale } from "../../i18n";
 import { makeRunOpImageResult } from "./mocks/factories";
 import { makeOpsMocks } from "./mocks/ops";
-import { EditorCard } from "./EditorCard";
 
 vi.mock("../../api/ops", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/ops")>();
   return { ...actual, ...makeOpsMocks() };
 });
 
-describe("EditorCard accessibility", () => {
+import { Workspace } from "./Workspace";
+import type { WorkspaceRunner } from "./useWorkspace";
+
+const imageRunner: WorkspaceRunner = () =>
+  Promise.resolve({
+    kind: "image",
+    result: makeRunOpImageResult(),
+    outputFile: new File(["x"], "out.png", { type: "image/png" }),
+  });
+
+describe("Workspace accessibility", () => {
   beforeEach(async () => {
     await setLocale("en");
     vi.stubGlobal("URL", {
@@ -38,34 +45,31 @@ describe("EditorCard accessibility", () => {
   });
 
   it("renders the form state without axe violations", async () => {
-    const { container } = renderWithProviders(<EditorCard />);
+    const { container } = renderWithProviders(<Workspace />);
 
     await waitFor(() => {
-      expect(screen.getByTestId(selectors.editor.paramsForm)).toBeInTheDocument();
+      expect(screen.getByTestId(selectors.workspace.paramsForm)).toBeInTheDocument();
     });
 
     await expectNoA11yViolations(container);
   });
 
   it("renders the result state without axe violations", async () => {
-    const { runOp } = await import("../../api/ops");
-    vi.mocked(runOp).mockResolvedValueOnce(makeRunOpImageResult());
-
     const user = userEvent.setup();
-    const { container } = renderWithProviders(<EditorCard />);
+    const { container } = renderWithProviders(<Workspace runner={imageRunner} />);
 
     await waitFor(() => {
-      expect(screen.getByTestId(selectors.editor.runButton)).toBeInTheDocument();
+      expect(screen.getByTestId(selectors.workspace.applyButton)).toBeInTheDocument();
     });
 
     await user.upload(
-      screen.getByTestId(selectors.editor.fileInput),
+      screen.getByTestId(selectors.workspace.fileInput),
       new File(["bytes"], "in.png", { type: "image/png" }),
     );
-    await user.click(screen.getByTestId(selectors.editor.runButton));
+    await user.click(screen.getByTestId(selectors.workspace.applyButton));
 
     await waitFor(() => {
-      expect(screen.getByTestId(selectors.editor.resultImage)).toBeInTheDocument();
+      expect(screen.getByTestId(selectors.workspace.canvas.image)).toBeInTheDocument();
     });
 
     await expectNoA11yViolations(container);
@@ -75,10 +79,10 @@ describe("EditorCard accessibility", () => {
     const { listOperations } = await import("../../api/ops");
     vi.mocked(listOperations).mockRejectedValueOnce(new Error("ops down"));
 
-    const { container } = renderWithProviders(<EditorCard />);
+    const { container } = renderWithProviders(<Workspace />);
 
     await waitFor(() => {
-      expect(screen.getByTestId(selectors.editor.error)).toBeInTheDocument();
+      expect(screen.getByTestId(selectors.workspace.error)).toBeInTheDocument();
     });
 
     await expectNoA11yViolations(container);

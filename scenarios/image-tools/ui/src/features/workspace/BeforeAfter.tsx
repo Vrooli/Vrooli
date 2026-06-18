@@ -20,35 +20,35 @@ export function BeforeAfter({ beforeUrl, afterUrl }: BeforeAfterProps) {
   const [split, setSplit] = useState(50);
 
   return (
-    <div data-testid={selectors.editor.compare.root} className="flex flex-col gap-2">
-      <div className="relative max-h-64 w-full overflow-hidden rounded-lg border border-white/10">
+    <div data-testid={selectors.workspace.compare.root} className="flex flex-col gap-2">
+      <div className="relative max-h-64 w-full overflow-hidden rounded-lg border border-app-border">
         <img
-          data-testid={selectors.editor.compare.before}
+          data-testid={selectors.workspace.compare.before}
           src={beforeUrl}
-          alt={t(strings.editor.compare.before)}
+          alt={t(strings.workspace.compare.before)}
           className="block max-h-64 w-full object-contain"
         />
         <img
-          data-testid={selectors.editor.compare.after}
+          data-testid={selectors.workspace.compare.after}
           src={afterUrl}
-          alt={t(strings.editor.compare.after)}
+          alt={t(strings.workspace.compare.after)}
           className="absolute inset-0 block max-h-64 w-full object-contain"
           style={{ clipPath: `inset(0 ${100 - split}% 0 0)` }}
         />
       </div>
-      <label className="flex items-center gap-2 text-xs text-slate-400">
-        <span>{t(strings.editor.compare.before)}</span>
+      <label className="flex items-center gap-2 text-xs text-app-muted-foreground">
+        <span>{t(strings.workspace.compare.before)}</span>
         <input
-          data-testid={selectors.editor.compare.slider}
+          data-testid={selectors.workspace.compare.slider}
           type="range"
           min={0}
           max={100}
           value={split}
-          aria-label={t(strings.editor.compare.slider)}
+          aria-label={t(strings.workspace.compare.slider)}
           onChange={(e) => setSplit(Number(e.target.value))}
           className="flex-1"
         />
-        <span>{t(strings.editor.compare.after)}</span>
+        <span>{t(strings.workspace.compare.after)}</span>
       </label>
     </div>
   );

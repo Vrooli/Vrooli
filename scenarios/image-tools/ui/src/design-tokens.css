@@ -1,22 +1,32 @@
 :root {
-  --color-background: #f8fafc;
-  --color-shell: #020617;
-  --color-surface: #ffffff;
-  --color-surface-muted: #f1f5f9;
-  --color-surface-raised: #ffffff;
-  --color-foreground: #0f172a;
-  --color-muted-foreground: #64748b;
-  --color-border: #cbd5e1;
+  /* Lume product theme — warm-ivory studio surfaces over a slate/gold
+     identity. Primary commands stay semantic blue; gold is identity only. */
+  --color-background: #faf8f3;
+  --color-shell: #1c1917;
+  --color-surface: #fffdf8;
+  --color-surface-muted: #f1ece1;
+  --color-surface-raised: #fffefb;
+  --color-foreground: #1f1b16;
+  --color-muted-foreground: #78716c;
+  --color-border: #e7e1d4;
   --color-primary: #2563eb;
   --color-primary-foreground: #ffffff;
   --color-accent: #0891b2;
+  /* Lume gold — IDENTITY ONLY (mark, accent line, selected glow, generation
+     shimmer). Never a primary command color and never a status color. */
+  --color-brand: #b8860b;
+  --color-brand-strong: #8a6410;
+  --color-brand-foreground: #1f1b16;
   --color-success: #16a34a;
   --color-danger: #dc2626;
   --color-warning: #d97706;
   --color-info: #0284c7;
   --color-focus: #2563eb;
-  --scrollbar-thumb: #94a3b8;
-  --scrollbar-thumb-hover: #64748b;
+  /* Transparency checkerboard for the canvas workspace. */
+  --canvas-checker-a: #ffffff;
+  --canvas-checker-b: #ece7dc;
+  --scrollbar-thumb: #c9c0ac;
+  --scrollbar-thumb-hover: #a8a08c;
   --radius-control: 0.375rem;
   --radius-panel: 0.5rem;
   --radius-sheet: 1rem;
@@ -28,9 +38,23 @@
   --sidebar-width: 20rem;
   --sidebar-min-width: 16.25rem;
   --sidebar-max-width: 30rem;
+  /* Motion scale. The "develop" reveal is Lume's signature — results ease in
+     like a print coming up in a tray. Reduced-motion collapses these below. */
+  --motion-fast: 150ms;
+  --motion-base: 220ms;
+  --motion-develop: 280ms;
+  --ease-develop: cubic-bezier(0.16, 1, 0.3, 1);
   color-scheme: light;
 }
 
+/*
+ * Dark = deep-slate "darkroom" mode. `ThemeProvider` sets `data-theme` on
+ * <html>, so the dark primitives MUST key off `data-theme` (the legacy
+ * `data-resolved-theme`/`.dark` selectors are kept for back-compat). Without
+ * the `data-theme` selector the `app-*` Tailwind classes — which resolve to
+ * these `--color-*` vars — never switched on an explicit dark/light choice.
+ */
+:root[data-theme="dark"],
 :root[data-resolved-theme="dark"],
 .dark {
   --color-background: #020617;
@@ -38,40 +62,50 @@
   --color-surface: #0f172a;
   --color-surface-muted: #1e293b;
   --color-surface-raised: #172033;
-  --color-foreground: #f8fafc;
-  --color-muted-foreground: #94a3b8;
+  --color-foreground: #f6f4ee;
+  --color-muted-foreground: #9aa3b8;
   --color-border: #334155;
   --color-primary: #60a5fa;
   --color-primary-foreground: #020617;
   --color-accent: #22d3ee;
+  --color-brand: #e4c77a;
+  --color-brand-strong: #f0d999;
+  --color-brand-foreground: #1f1b16;
   --color-success: #22c55e;
   --color-danger: #f87171;
   --color-warning: #f59e0b;
   --color-info: #38bdf8;
   --color-focus: #60a5fa;
+  --canvas-checker-a: #131c30;
+  --canvas-checker-b: #0d1424;
   --scrollbar-thumb: #475569;
   --scrollbar-thumb-hover: #64748b;
   color-scheme: dark;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-resolved-theme="light"]) {
+  :root:not([data-theme="light"]):not([data-resolved-theme="light"]) {
     --color-background: #020617;
     --color-shell: #020617;
     --color-surface: #0f172a;
     --color-surface-muted: #1e293b;
     --color-surface-raised: #172033;
-    --color-foreground: #f8fafc;
-    --color-muted-foreground: #94a3b8;
+    --color-foreground: #f6f4ee;
+    --color-muted-foreground: #9aa3b8;
     --color-border: #334155;
     --color-primary: #60a5fa;
     --color-primary-foreground: #020617;
     --color-accent: #22d3ee;
+    --color-brand: #e4c77a;
+    --color-brand-strong: #f0d999;
+    --color-brand-foreground: #1f1b16;
     --color-success: #22c55e;
     --color-danger: #f87171;
     --color-warning: #f59e0b;
     --color-info: #38bdf8;
     --color-focus: #60a5fa;
+    --canvas-checker-a: #131c30;
+    --canvas-checker-b: #0d1424;
     --scrollbar-thumb: #475569;
     --scrollbar-thumb-hover: #64748b;
     color-scheme: dark;

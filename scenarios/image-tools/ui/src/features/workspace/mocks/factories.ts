@@ -1,6 +1,6 @@
 /**
- * Test data factories for the editor domain. Co-located with the feature
- * so deleting `features/editor/` takes the factories with it (no central
+ * Test data factories for the workspace domain. Co-located with the feature
+ * so deleting `features/workspace/` takes the factories with it (no central
  * residue).
  *
  * `ListOperationsResponse` is a GENERATED proto message; the factory uses

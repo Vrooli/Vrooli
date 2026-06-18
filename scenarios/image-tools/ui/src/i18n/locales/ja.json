@@ -8,7 +8,7 @@
     "bottomNavLabel": "メインナビゲーション（モバイル）",
     "nav": {
       "dashboard": "ダッシュボード",
-      "editor": "エディター",
+      "workspace": "ワークスペース",
       "jobs": "ジョブ",
       "models": "モデル",
       "settings": "設定"
@@ -39,8 +39,8 @@
       "themeHeading": "外観",
       "localeHeading": "言語"
     },
-    "editor": {
-      "title": "エディター"
+    "workspace": {
+      "title": "ワークスペース"
     }
   },
   "health": {
@@ -158,22 +158,54 @@
       "none": "なし"
     }
   },
-  "editor": {
-    "title": "画像エディター",
+  "workspace": {
     "loading": "操作を読み込み中…",
     "error": "操作を読み込めません。",
     "uploadLabel": "元画像",
-    "uploadHint": "画像をここにドラッグするか、ファイルを選択してください。",
     "operationLabel": "操作",
     "overlayLabel": "ウォーターマーク画像",
-    "run": "実行",
-    "running": "実行中…",
-    "empty": "画像をアップロードして操作を実行すると結果が表示されます。",
+    "run": "適用",
+    "running": "適用中…",
+    "empty": "操作を選んで適用すると編集が作成されます。",
     "originalLabel": "オリジナル",
     "resultLabel": "結果",
     "resultMeta": "{{width}}×{{height}} · {{format}}",
     "metadataLabel": "メタデータ",
-    "download": "結果をダウンロード",
+    "canvas": {
+      "empty": "画像をここにドロップするか、ファイルを選択してください。",
+      "zoomIn": "拡大",
+      "zoomOut": "縮小",
+      "zoomFit": "フィット",
+      "zoomActual": "実寸",
+      "zoomLevel": "{{percent}}%",
+      "compareToggle": "ビフォー / アフター",
+      "replace": "差し替え"
+    },
+    "actions": {
+      "undo": "元に戻す",
+      "redo": "やり直す",
+      "reset": "リセット",
+      "download": "ダウンロード"
+    },
+    "history": {
+      "title": "履歴",
+      "empty": "まだ編集がありません。",
+      "source": "ソース",
+      "step": "{{index}}. {{operation}}"
+    },
+    "mode": {
+      "edit": "編集",
+      "enhance": "強調",
+      "create": "生成",
+      "analyze": "解析",
+      "switcherLabel": "ワークスペースモード",
+      "comingSoon": "{{mode}} は後の段階で利用可能になります。"
+    },
+    "compare": {
+      "before": "ビフォー",
+      "after": "アフター",
+      "slider": "比較スライダー"
+    },
     "field": {
       "width": "幅",
       "height": "高さ",
@@ -203,22 +235,6 @@
       "stripAll": "すべて削除",
       "stripGps": "GPS を削除",
       "autoOrient": "自動回転"
-    },
-    "stack": {
-      "title": "編集パイプライン",
-      "apply": "適用",
-      "applying": "適用中…",
-      "undo": "元に戻す",
-      "redo": "やり直す",
-      "reset": "リセット",
-      "empty": "まだ操作が適用されていません。",
-      "stepsHeading": "適用した操作",
-      "step": "{{index}}. {{operation}}"
-    },
-    "compare": {
-      "before": "ビフォー",
-      "after": "アフター",
-      "slider": "比較スライダー"
     }
   },
   "errors": {

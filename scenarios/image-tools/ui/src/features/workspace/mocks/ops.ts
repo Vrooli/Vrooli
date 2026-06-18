@@ -1,6 +1,6 @@
 /**
  * Mock builders for `api/ops` — the UI ↔ API ops boundary. Co-located
- * with the editor feature; deleting `features/editor/` takes these with it.
+ * with the workspace feature; deleting `features/workspace/` takes these with it.
  *
  * Canonical usage (vitest hoists `vi.mock`, so the builder is called from
  * inside the factory closure):

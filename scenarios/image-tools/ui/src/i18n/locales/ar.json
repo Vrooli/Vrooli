@@ -8,7 +8,7 @@
     "bottomNavLabel": "التنقل الرئيسي (للجوال)",
     "nav": {
       "dashboard": "لوحة التحكم",
-      "editor": "المحرر",
+      "workspace": "مساحة العمل",
       "jobs": "المهام",
       "models": "النماذج",
       "settings": "الإعدادات"
@@ -39,8 +39,8 @@
       "themeHeading": "المظهر",
       "localeHeading": "اللغة"
     },
-    "editor": {
-      "title": "المحرر"
+    "workspace": {
+      "title": "مساحة العمل"
     }
   },
   "health": {
@@ -161,22 +161,54 @@
       "none": "لا شيء"
     }
   },
-  "editor": {
-    "title": "محرر الصور",
+  "workspace": {
     "loading": "جارٍ تحميل العمليات…",
     "error": "تعذر تحميل العمليات.",
     "uploadLabel": "الصورة المصدر",
-    "uploadHint": "اسحب صورة إلى هنا، أو اختر ملفًا.",
     "operationLabel": "العملية",
     "overlayLabel": "صورة العلامة المائية",
-    "run": "تشغيل",
-    "running": "جارٍ التشغيل…",
-    "empty": "ارفع صورة وشغّل عملية لرؤية النتيجة.",
+    "run": "تطبيق",
+    "running": "جارٍ التطبيق…",
+    "empty": "اختر عملية وطبّقها لبناء تعديلك.",
     "originalLabel": "الأصلية",
     "resultLabel": "النتيجة",
     "resultMeta": "{{width}}×{{height}} · {{format}}",
     "metadataLabel": "البيانات الوصفية",
-    "download": "تنزيل النتيجة",
+    "canvas": {
+      "empty": "أفلِت صورة هنا للبدء، أو اختر ملفًا.",
+      "zoomIn": "تكبير",
+      "zoomOut": "تصغير",
+      "zoomFit": "ملاءمة",
+      "zoomActual": "الحجم الفعلي",
+      "zoomLevel": "{{percent}}%",
+      "compareToggle": "قبل / بعد",
+      "replace": "استبدال"
+    },
+    "actions": {
+      "undo": "تراجع",
+      "redo": "إعادة",
+      "reset": "إعادة تعيين",
+      "download": "تنزيل"
+    },
+    "history": {
+      "title": "السجل",
+      "empty": "لا توجد تعديلات بعد.",
+      "source": "المصدر",
+      "step": "{{index}}. {{operation}}"
+    },
+    "mode": {
+      "edit": "تحرير",
+      "enhance": "تحسين",
+      "create": "إنشاء",
+      "analyze": "تحليل",
+      "switcherLabel": "وضع مساحة العمل",
+      "comingSoon": "{{mode}} سيتوفر في مرحلة لاحقة من إعادة التصميم."
+    },
+    "compare": {
+      "before": "قبل",
+      "after": "بعد",
+      "slider": "شريط المقارنة"
+    },
     "field": {
       "width": "العرض",
       "height": "الارتفاع",
@@ -206,22 +238,6 @@
       "stripAll": "إزالة الكل",
       "stripGps": "إزالة GPS",
       "autoOrient": "توجيه تلقائي"
-    },
-    "stack": {
-      "title": "مسار التحرير",
-      "apply": "تطبيق",
-      "applying": "جارٍ التطبيق…",
-      "undo": "تراجع",
-      "redo": "إعادة",
-      "reset": "إعادة تعيين",
-      "empty": "لم تُطبَّق أي عمليات بعد.",
-      "stepsHeading": "العمليات المطبَّقة",
-      "step": "{{index}}. {{operation}}"
-    },
-    "compare": {
-      "before": "قبل",
-      "after": "بعد",
-      "slider": "شريط المقارنة"
     }
   },
   "errors": {

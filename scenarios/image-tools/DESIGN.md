@@ -289,3 +289,92 @@ Respect reduced-motion preferences. Animations should clarify spatial change, su
 - Introduce a new product theme without updating the scenario's root `DESIGN.md`.
 - Leave users without visible feedback after they submit, save, generate, refresh, or delete something.
 - Use silent failure, blank panels, disabled controls without explanation, or toasts as the only record of a blocking error.
+
+## Lume — Product Theme (image-tools)
+
+> This section extends the Vrooli Operational Console with image-tools' own
+> product identity, **Lume**. Per the "Customization" rule above (introducing a
+> product theme requires updating the scenario's root `DESIGN.md`), this is the
+> authoritative record of that theme. Every binding contract above stays intact
+> — semantic status roles, focus behavior, responsive transformations, and the
+> accessibility floors are unchanged. Lume only adds warmth, a single identity
+> accent, and a calmer motion signature on top.
+
+### Direction: dual-mode
+
+image-tools serves two audiences at once: end users who want a lovable,
+professional image toolbox, and agents/scenarios that compose it as a
+primitive. The UI is therefore **dual-mode**:
+
+- **Studio zone** (Home + the Workspace) — warm, branded, task-first; the
+  consumer-pro surface.
+- **Console zone** (Activity/Jobs, Models, Settings) — dense, technical,
+  operational; the unchanged operational-console feel.
+
+### Spine: one Workspace, four modes
+
+The image is the document. A single **Workspace** (canvas + inspector + a
+unified non-destructive history) hosts four modes the loaded image flows
+across: **Edit · Enhance · Create · Analyze**. Deterministic steps apply
+instantly; AI steps resolve as durable jobs that land back as steps in the same
+history. **Home** is a launchpad of intent tiles ("Remove background",
+"Upscale", "Generate an image", "Extract text", …) that drop the user into the
+Workspace pre-set to a task. This replaces the prior two stacked editor cards
+(`EditorCard` + `OpStackCard`), which duplicated upload + op-select + run.
+
+The first three hero flows are **Edit** (crop/adjust/convert/compress),
+**Enhance** (background-removal + upscale + unblur), and **Create**
+(text-to-image). Direct manipulation is **targeted** (drag-box crop, mask brush
+where an op needs it) with coordinate/file fallbacks preserved so no op is
+pointer-only; a full free-form canvas is deferred.
+
+### Palette
+
+- **Warm-ivory studio base** in light mode (ivory background, warm
+  surfaces/borders, warm near-black text) — photographic and calm, distinct
+  from a cold dashboard.
+- **Deep-slate console** in dark mode (the "darkroom" feel) — first-class.
+- **Primary commands stay semantic blue** (`--color-primary`). **Gold
+  (`--color-brand`) is identity ONLY** — the mark, a focus/selection glow, hero
+  accents, the generation shimmer — never a primary button and never a status
+  color. This keeps the semantic roles (blue/cyan/green/amber/red) intact and
+  keeps gold special.
+- No gradients in content fields. The single sanctioned gradient is a small
+  gold→transparent radial in the mark and the loading motif.
+
+### Mark & voice
+
+- **Mark:** a soft luminous dot / aperture — a filled circle with a gentle gold
+  radial glow. It drives the app icon and the loading/first-run motif and
+  replaces the placeholder PWA icons.
+- **Voice:** plainspoken, calm, photographic. Short, no hype — "Background
+  removed." not "✨ Done! ✨". Errors state what happened, what is still safe,
+  and the next step.
+- **Tagline:** "Light, handled well."
+
+### Motion
+
+The signature is a **"develop" reveal** — results fade+ease in (~
+`--motion-develop`, `--ease-develop`) like a print coming up in a tray.
+Before/after is a smooth wipe; loading is the gold dot softly pulsing. All
+motion respects `prefers-reduced-motion` (instant static states).
+
+### Tokens (added to `ui/src/design-tokens.css`)
+
+- `--color-brand` / `--color-brand-strong` / `--color-brand-foreground` — Lume
+  gold (identity only).
+- `--canvas-checker-a` / `--canvas-checker-b` — transparency checkerboard for
+  the canvas.
+- `--motion-fast|base|develop` + `--ease-develop` — the calm motion scale.
+
+Exposed to Tailwind as `app-brand*`. Surfaces must consume tokens
+(`bg-app-surface`, `text-app-foreground`, `text-app-brand`, …), never raw
+palette classes (`bg-black/20`, `text-slate-400`) — see the react-coherence
+styling contract.
+
+### Staging
+
+The redesign ships in stages, each green with BAS coverage: **S0** token
+foundation + Workspace shell · **S1** Edit hero · **S2** Enhance hero · **S3**
+Create hero · **S4** Home/Library/Activity + identity · **S5**
+Analyze/Models/Settings + a11y/responsive/theme passes.
