@@ -11,7 +11,7 @@
     {
       "id": "CLI-001",
       "title": "Provide the full command set status/routes/expose/lease/probe/audit/recover/config",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-012",
       "category": "cli",
       "criticality": "P0",
@@ -23,16 +23,16 @@
       "validation": [
         {
           "type": "test",
-          "ref": "cli/domains/commands_test.go",
+          "ref": "cli/domains/domains_test.go",
           "phase": "cli",
-          "status": "planned"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "CLI-002",
       "title": "Emit proto-typed --json from every command",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-012",
       "category": "cli",
       "criticality": "P0",
@@ -45,9 +45,9 @@
       "validation": [
         {
           "type": "test",
-          "ref": "cli/domains/json_output_test.go",
+          "ref": "cli/domains/domains_test.go",
           "phase": "cli",
-          "status": "planned"
+          "status": "implemented"
         }
       ]
     },
@@ -67,7 +67,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "cli/domains/exposure/expose_cli_test.go",
+          "ref": "cli/domains/exposure/exposure_manifest_test.go",
           "phase": "integration",
           "status": "implemented"
         }

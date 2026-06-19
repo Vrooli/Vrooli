@@ -223,8 +223,14 @@ func parseIntMetric(line string) int {
 	if len(parts) < 2 {
 		return 0
 	}
-	v, _ := strconv.Atoi(parts[len(parts)-1])
-	return v
+	// Parse with an explicit 32-bit width so the value provably fits the int32
+	// proto field downstream (cloudflared counters never exceed this) — avoids
+	// the unbounded Atoi→int32 overflow gosec flags as G109.
+	v, err := strconv.ParseInt(parts[len(parts)-1], 10, 32)
+	if err != nil {
+		return 0
+	}
+	return int(v)
 }
 
 func parseFloatMetric(line string) float64 {

@@ -10,7 +10,7 @@
     {
       "id": "CFING-001",
       "title": "Add a scenario's public hostname via the Cloudflare API",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "config",
       "criticality": "P0",
@@ -24,15 +24,15 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
-          "ref": "api/internal/config/cloudflare_test.go"
+          "status": "implemented",
+          "ref": "api/internal/config/service_test.go"
         }
       ]
     },
     {
       "id": "CFING-002",
       "title": "Remove a scenario's public hostname via the Cloudflare API",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "config",
       "criticality": "P0",
@@ -46,15 +46,15 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
-          "ref": "api/internal/config/cloudflare_test.go"
+          "status": "implemented",
+          "ref": "api/internal/config/service_test.go"
         }
       ]
     },
     {
       "id": "CFING-003",
       "title": "Sync Cloudflare ingress to match the manifest with hot-reload",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "config",
       "criticality": "P0",
@@ -68,15 +68,15 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
-          "ref": "api/internal/config/sync_test.go"
+          "status": "implemented",
+          "ref": "api/internal/config/service_test.go"
         }
       ]
     },
     {
       "id": "CFING-004",
       "title": "Generate ~/.cloudflared/config.yml from the manifest in local mode",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-002",
       "category": "config",
       "criticality": "P1",
@@ -90,15 +90,15 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
-          "ref": "api/internal/config/localconfig_test.go"
+          "status": "implemented",
+          "ref": "api/internal/config/service_test.go"
         }
       ]
     },
     {
       "id": "CFING-005",
       "title": "Switch between remote and local modes with migration",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-002",
       "category": "config",
       "criticality": "P1",
@@ -111,8 +111,8 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
-          "ref": "api/internal/config/mode_test.go"
+          "status": "implemented",
+          "ref": "api/internal/config/service_test.go"
         }
       ]
     }

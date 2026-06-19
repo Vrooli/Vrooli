@@ -1,16 +1,18 @@
 {
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Tunnel Manager are uppercase-snake-case placeholders replaced by `vrooli scenario generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
-    "title": "Tunnel Manager",
-    "eyebrow": "Scenario Template",
-    "description": "This starter UI is intentionally minimal. Replace it with your scenario-specific experience while keeping the styling conventions (Tailwind + shadcn) and API wiring in place."
+    "title": "Tunnel Manager"
   },
   "layout": {
     "sidebarLabel": "Primary navigation",
-    "bottomNavLabel": "Primary navigation",
+    "bottomNavLabel": "Primary navigation (compact)",
+    "mainLabel": "Main content",
     "nav": {
-      "dashboard": "Dashboard",
-      "notes": "Notes",
+      "overview": "Overview",
+      "exposure": "Exposure",
+      "recovery": "Recovery",
+      "metrics": "Metrics",
+      "audit": "Audit",
       "settings": "Settings"
     }
   },
@@ -22,19 +24,181 @@
       "system": "System"
     }
   },
+  "common": {
+    "loading": "Loading…",
+    "empty": "Nothing to show yet.",
+    "refresh": "Refresh",
+    "never": "Never"
+  },
   "pages": {
-    "dashboard": {
-      "title": "Dashboard",
-      "description": "Overview of the scenario's health and key metrics. Replace these cards with real surfaces as your product grows.",
-      "statPlaceholderLabel": "Stat"
+    "overview": {
+      "title": "Overview",
+      "description": "Tunnel health, exposed scenarios, and active recovery at a glance."
     },
-    "notes": {
-      "title": "Notes"
+    "exposure": {
+      "title": "Exposure",
+      "description": "Every scenario reachable through the tunnel — core (always-on) and leased (time-boxed)."
+    },
+    "recovery": {
+      "title": "Recovery & Events",
+      "description": "The auto-recovery state machine and the durable log of every restart attempt."
+    },
+    "metrics": {
+      "title": "Metrics",
+      "description": "Tunnel health metrics over time and per-route liveness probe history."
+    },
+    "audit": {
+      "title": "Audit",
+      "description": "Port-compliance findings: where a scenario's service.json drifts from the manifest."
     },
     "settings": {
       "title": "Settings",
       "themeHeading": "Appearance",
       "localeHeading": "Language"
+    }
+  },
+  "overview": {
+    "tunnelHeading": "Tunnel health",
+    "scoreLabel": "Health score",
+    "exposureHeading": "Exposure",
+    "coreLabel": "Core scenarios",
+    "leasedLabel": "Leased scenarios",
+    "recoveryHeading": "Recovery",
+    "circuitOpenWarning": "Circuit breaker is open — automatic recovery is paused.",
+    "viewExposure": "Manage exposure",
+    "viewRecovery": "View recovery"
+  },
+  "exposure": {
+    "heading": "Exposed scenarios",
+    "loading": "Loading exposures…",
+    "error": "Unable to load exposures.",
+    "empty": "No scenarios are currently exposed.",
+    "colScenario": "Scenario",
+    "colTier": "Tier",
+    "colUrl": "Public URL",
+    "colPort": "Port",
+    "colLease": "Lease",
+    "colActions": "Actions",
+    "tier": {
+      "core": "Core",
+      "leased": "Leased",
+      "unknown": "—"
+    },
+    "leaseActive": "Expires {{when}}",
+    "leaseNone": "—",
+    "exposeHeading": "Expose a scenario",
+    "exposePlaceholder": "scenario-name",
+    "exposeButton": "Expose",
+    "extendButton": "Extend",
+    "revokeButton": "Revoke",
+    "actionError": "Action failed. Please retry."
+  },
+  "recovery": {
+    "stateHeading": "Recovery state",
+    "loading": "Loading recovery state…",
+    "error": "Unable to load recovery state.",
+    "statusLabel": "Status",
+    "consecFailuresLabel": "Consecutive failures",
+    "backoffLabel": "Backoff level",
+    "failedRecoveriesLabel": "Failed recoveries",
+    "lastCheckLabel": "Last check",
+    "lastRecoveryLabel": "Last recovery",
+    "nextRetryLabel": "Next retry",
+    "circuitOpenLabel": "Circuit breaker",
+    "circuitOpen": "Open",
+    "circuitClosed": "Closed",
+    "status": {
+      "idle": "Idle",
+      "monitoring": "Monitoring",
+      "recovering": "Recovering",
+      "circuitOpen": "Circuit open",
+      "unknown": "Unknown"
+    },
+    "timelineHeading": "Recovery events",
+    "timelineEmpty": "No recovery events recorded yet.",
+    "timelineError": "Unable to load recovery events.",
+    "colTrigger": "Trigger",
+    "colAction": "Action",
+    "colOutcome": "Outcome",
+    "colAttempt": "Attempt",
+    "colWhen": "When",
+    "outcome": {
+      "success": "Success",
+      "failure": "Failure",
+      "skipped": "Skipped",
+      "unknown": "Unknown"
+    },
+    "recoverButton": "Recover now",
+    "recoverForce": "Force (bypass breaker)",
+    "recoverConfirmTitle": "Trigger a manual recovery?",
+    "recoverConfirmBody": "This restarts cloudflared and re-pushes ingress. Tunnel Manager is the single restart owner, so this is safe — but it briefly interrupts the tunnel.",
+    "recoverConfirm": "Recover",
+    "recoverCancel": "Cancel",
+    "recoverError": "Recovery attempt failed."
+  },
+  "metrics": {
+    "heading": "Tunnel metrics",
+    "loading": "Loading metrics…",
+    "error": "Unable to load metrics.",
+    "empty": "No metrics samples have been scraped yet.",
+    "scrapeButton": "Scrape now",
+    "colTime": "Time",
+    "colHaConnections": "HA conns",
+    "colActiveStreams": "Streams",
+    "colRequestErrors": "Errors",
+    "colRtt": "RTT (ms)",
+    "probesHeading": "Probe history",
+    "probesEmpty": "No probes recorded yet.",
+    "probesError": "Unable to load probe history.",
+    "runProbesButton": "Run probes",
+    "colRoute": "Route",
+    "colKind": "Kind",
+    "colStatus": "Status",
+    "colLatency": "Latency",
+    "kind": {
+      "internal": "Internal",
+      "external": "External",
+      "unknown": "—"
+    },
+    "probeStatus": {
+      "up": "Up",
+      "down": "Down",
+      "timeout": "Timeout",
+      "error": "Error",
+      "unknown": "Unknown"
+    },
+    "classificationHeading": "Route diagnosis",
+    "class": {
+      "healthy": "Healthy",
+      "tunnelDown": "Tunnel down",
+      "scenarioDown": "Scenario down",
+      "cloudflareOutage": "Cloudflare outage",
+      "dnsFailure": "DNS failure",
+      "configDrift": "Config drift",
+      "unknown": "Unknown"
+    }
+  },
+  "audit": {
+    "heading": "Port compliance",
+    "loading": "Running audit…",
+    "error": "Unable to run the audit.",
+    "empty": "No routes to audit.",
+    "runButton": "Run audit",
+    "violations": "{{count}} violations",
+    "violations_zero": "No violations",
+    "violations_one": "1 violation",
+    "colScenario": "Scenario",
+    "colSubdomain": "Subdomain",
+    "colExpected": "Expected port",
+    "colActual": "Actual port",
+    "colStatus": "Status",
+    "colDetail": "Detail",
+    "status": {
+      "compliant": "Compliant",
+      "mismatch": "Mismatch",
+      "missingScenario": "Missing scenario",
+      "missingPort": "No fixed port",
+      "unknown": "Unknown"
     }
   },
   "health": {
@@ -52,24 +216,6 @@
     "summary": "{{count}} notifications",
     "summary_zero": "No notifications",
     "summary_one": "1 notification"
-  },
-  "notes": {
-    "title": "Notes",
-    "loading": "Loading notes…",
-    "empty": "No notes yet.",
-    "create": "Create note",
-    "createdAtLabel": "Created:",
-    "attachmentsLabel": "{{count}} attachments",
-    "attachmentsLabel_one": "1 attachment",
-    "uploadAttachment": "Upload attachment",
-    "attachmentFileLabel": "Attachment file",
-    "uploadSuccess": "Uploaded {{name}}.",
-    "noFileSelected": "Select a file before uploading.",
-    "measure": {
-      "title": "Notes this week",
-      "loading": "Counting…",
-      "thisWeek": "{{count}} notes created this week"
-    }
   },
   "errors": {
     "canceled": "Operation canceled.",

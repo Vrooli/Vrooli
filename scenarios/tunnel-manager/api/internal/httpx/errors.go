@@ -76,9 +76,22 @@ func WriteError(w http.ResponseWriter, status int, code, message string) {
 		body = []byte(`{"code":"internal","message":"error envelope marshal failed"}`)
 		status = http.StatusInternalServerError
 	}
-	w.Header().Set("Content-Type", "application/json")
+	setSecureJSONHeaders(w)
 	w.WriteHeader(status)
 	_, _ = w.Write(body)
+}
+
+// setSecureJSONHeaders sets the JSON content type plus the baseline OWASP
+// response headers on a REST-edge response. The server's security middleware
+// already applies these fleet-wide; setting them here too is defense-in-depth
+// for the deliberate REST exception path, which some deployments mount without
+// the full middleware chain.
+func setSecureJSONHeaders(w http.ResponseWriter) {
+	h := w.Header()
+	h.Set("Content-Type", "application/json")
+	h.Set("X-Content-Type-Options", "nosniff")
+	h.Set("X-Frame-Options", "DENY")
+	h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
 }
 
 // WriteProto serialises msg as proto JSON for REST endpoints whose response
@@ -90,7 +103,7 @@ func WriteProto(w http.ResponseWriter, status int, msg proto.Message) {
 		WriteError(w, http.StatusInternalServerError, CodeInternal, "response marshal failed")
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
+	setSecureJSONHeaders(w)
 	w.WriteHeader(status)
 	_, _ = w.Write(body)
 }

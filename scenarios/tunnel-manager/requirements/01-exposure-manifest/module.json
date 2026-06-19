@@ -10,7 +10,7 @@
     {
       "id": "EXPOSE-001",
       "title": "Persist routes in a SQLite-backed exposure manifest",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "routes",
       "criticality": "P0",
@@ -24,15 +24,15 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
-          "ref": "api/internal/routes/repository_test.go"
+          "status": "implemented",
+          "ref": "api/internal/routes/sqlite_test.go"
         }
       ]
     },
     {
       "id": "EXPOSE-002",
       "title": "Reject a route whose subdomain is not a valid DNS label",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "routes",
       "criticality": "P0",
@@ -45,15 +45,15 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
-          "ref": "api/internal/routes/route_test.go"
+          "status": "implemented",
+          "ref": "api/internal/routes/service_test.go"
         }
       ]
     },
     {
       "id": "EXPOSE-003",
       "title": "Enforce one route per subdomain",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "routes",
       "criticality": "P0",
@@ -66,15 +66,15 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
-          "ref": "api/internal/routes/repository_test.go"
+          "status": "implemented",
+          "ref": "api/internal/routes/sqlite_test.go"
         }
       ]
     },
     {
       "id": "EXPOSE-004",
       "title": "Derive public_url from subdomain and domain",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "routes",
       "criticality": "P0",
@@ -87,8 +87,8 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
-          "ref": "api/internal/routes/route_test.go"
+          "status": "implemented",
+          "ref": "api/internal/routes/service_test.go"
         }
       ]
     }

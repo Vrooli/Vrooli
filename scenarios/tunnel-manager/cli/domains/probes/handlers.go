@@ -51,7 +51,10 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 func (h *handlers) history(ctx cliapp.RunContext) error {
 	var limit int32
 	if v := strings.TrimSpace(ctx.Flag("limit")); v != "" {
-		n, err := strconv.Atoi(v)
+		// Parse with an explicit 32-bit width so the value provably fits int32
+		// (the proto Limit field) — avoids the unbounded Atoi→int32 overflow
+		// gosec flags as G109.
+		n, err := strconv.ParseInt(v, 10, 32)
 		if err != nil {
 			return fmt.Errorf("--limit must be an integer: %w", err)
 		}

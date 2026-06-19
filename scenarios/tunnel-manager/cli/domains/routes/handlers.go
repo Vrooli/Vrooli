@@ -70,7 +70,7 @@ func (h *handlers) get(ctx cliapp.RunContext) error {
 }
 
 func (h *handlers) create(ctx cliapp.RunContext) error {
-	port, err := strconv.Atoi(strings.TrimSpace(ctx.Flag("local-port")))
+	port, err := strconv.ParseInt(strings.TrimSpace(ctx.Flag("local-port")), 10, 32)
 	if err != nil {
 		return fmt.Errorf("--local-port must be an integer: %w", err)
 	}
@@ -111,7 +111,7 @@ func (h *handlers) update(ctx cliapp.RunContext) error {
 		HealthPath: ctx.Flag("health-path"),
 	}
 	if v := strings.TrimSpace(ctx.Flag("local-port")); v != "" {
-		port, err := strconv.Atoi(v)
+		port, err := strconv.ParseInt(v, 10, 32)
 		if err != nil {
 			return fmt.Errorf("--local-port must be an integer: %w", err)
 		}

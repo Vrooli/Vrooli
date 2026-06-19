@@ -97,6 +97,21 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Owner:** unassigned. **Refs:** `PRD.md` (note under P2).
 
+### 2026-06-18 — SUPERSEDES the two entries above: implementation is built; 3 residual template/fleet reds
+
+**Symptom:** `vrooli scenario test tunnel-manager` = **15/18 phases green** (completeness 83/100, nearly_ready). All scenario-owned phases pass (structure, contracts, ui-health, architecture, dependencies, quality, docs, performance, smoke, unit, integration, playbooks, business, security, measures). Three phases still fail: `standards`, `tidiness`, `proto`.
+
+**Root cause:** All three residual reds originate in **react-vite template-provided code or fleet rules**, not this scenario's logic (confirmed by per-finding locations; matches the image-tools / security-health precedent for the same template):
+- **standards (1 ERROR):** OWASP "Security Headers" anchored on `api/internal/httpx/errors.go` (template REST error writer). NOT satisfied by the real security-headers middleware (`api/internal/middleware/security.go`, wired in `server.go`) nor by setting headers directly in the writer — the analyzer is a per-file/template heuristic. The **security phase passes**, so the substantive control is in place.
+- **tidiness (5 ERROR):** template `internal/testutil/modeltest/formal.go` (`ValidateFormalArtifactFresh` cyclo 38) + `matrix.go` (`ValidateTransitionMatrix` cyclo 25); template `internal/testutil/no_prod_import_test.go` (61-line block duplicated api↔cli); plus two per-domain pattern duplications (handler `module.go` ×N, `*_manifest_test.go` ×7) inherent to the screaming-architecture per-domain copy.
+- **proto (1 ERROR):** `proto.shared_type_misplaced` on `tunnel-manager/v1/errors/ErrorEnvelope` (template-sourced proto, `@template react-vite/example`); the shared error envelope is the template's design.
+
+**Workaround:** Track, do not chase (plan §11/§12). Genuinely-mine findings WERE fixed this pass: BUSINESS validation-ref reconciliation, gosec G109 ×4 (`ParseInt` width bound), DEPENDENCIES `minimumReleaseAge`, security-headers middleware.
+
+**Real fix:** Belongs in the `react-vite` template, not here — reduce `testutil/modeltest` cyclomatic complexity, dedupe `no_prod_import_test`, teach the standards OWASP analyzer to honor a security-headers middleware, and decide whether `ErrorEnvelope` should be per-domain. Until the template ships those, every regenerated react-vite scenario inherits these 3.
+
+**Owner:** unassigned (template team). **Refs:** `templates/scenarios/react-vite/`, `test-genie` phases standards/tidiness/proto; `/tmp/tm_final.json` (per-finding locations from this run).
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

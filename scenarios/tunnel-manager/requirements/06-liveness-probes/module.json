@@ -10,7 +10,7 @@
     {
       "id": "PROBE-001",
       "title": "Probe each exposed route's local port (internal liveness)",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-009",
       "category": "probes",
       "criticality": "P0",
@@ -23,15 +23,15 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
-          "ref": "api/internal/probes/internal_test.go"
+          "status": "implemented",
+          "ref": "api/internal/probes/service_test.go"
         }
       ]
     },
     {
       "id": "PROBE-002",
       "title": "Probe each exposed route via its public URL (external liveness)",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-010",
       "category": "probes",
       "criticality": "P0",
@@ -45,15 +45,15 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
-          "ref": "api/internal/probes/external_test.go"
+          "status": "implemented",
+          "ref": "api/internal/probes/service_test.go"
         }
       ]
     },
     {
       "id": "PROBE-003",
       "title": "Persist probe history per route and kind",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-009",
       "category": "probes",
       "criticality": "P0",
@@ -66,15 +66,15 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
-          "ref": "api/internal/probes/repository_test.go"
+          "status": "implemented",
+          "ref": "api/internal/probes/sqlite_test.go"
         }
       ]
     },
     {
       "id": "PROBE-004",
       "title": "Classify failures into targeted categories",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-001",
       "category": "probes",
       "criticality": "P1",
@@ -87,8 +87,8 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
-          "ref": "api/internal/probes/classify_test.go"
+          "status": "implemented",
+          "ref": "api/internal/probes/service_test.go"
         }
       ]
     }

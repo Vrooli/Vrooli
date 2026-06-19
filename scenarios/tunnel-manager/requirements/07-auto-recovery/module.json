@@ -10,7 +10,7 @@
     {
       "id": "RECOV-001",
       "title": "Restart cloudflared / re-push config on /ready failure or HA=0",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-011",
       "category": "recovery",
       "criticality": "P0",
@@ -24,15 +24,15 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
-          "ref": "api/internal/recovery/engine_test.go"
+          "status": "implemented",
+          "ref": "api/internal/recovery/service_test.go"
         }
       ]
     },
     {
       "id": "RECOV-002",
       "title": "Apply exponential backoff and a circuit breaker to recovery attempts",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-011",
       "category": "recovery",
       "criticality": "P0",
@@ -45,15 +45,15 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
-          "ref": "api/internal/recovery/backoff_test.go"
+          "status": "implemented",
+          "ref": "api/internal/recovery/service_test.go"
         }
       ]
     },
     {
       "id": "RECOV-003",
       "title": "Act as the single authoritative owner of cloudflared restart",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-011",
       "category": "recovery",
       "criticality": "P0",
@@ -66,15 +66,15 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
-          "ref": "api/internal/recovery/owner_test.go"
+          "status": "implemented",
+          "ref": "api/internal/recovery/service_test.go"
         }
       ]
     },
     {
       "id": "RECOV-004",
       "title": "Persist a recovery event log of attempts, actions, and outcomes",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-005",
       "category": "recovery",
       "criticality": "P1",
@@ -88,8 +88,8 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
-          "ref": "api/internal/recovery/repository_test.go"
+          "status": "implemented",
+          "ref": "api/internal/recovery/sqlite_test.go"
         }
       ]
     }

@@ -26,7 +26,6 @@ import (
 	configH "tunnel-manager/handlers/config"
 	exposureH "tunnel-manager/handlers/exposure"
 	healthH "tunnel-manager/handlers/health"
-	notesH "tunnel-manager/handlers/notes" // EXAMPLE-DOMAIN:notes
 	probesH "tunnel-manager/handlers/probes"
 	recoveryH "tunnel-manager/handlers/recovery"
 	routesH "tunnel-manager/handlers/routes"
@@ -36,7 +35,6 @@ import (
 	auditv1 "github.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/audit"
 	configv1 "github.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/config"
 	exposurev1 "github.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/exposure"
-	notesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/notes" // EXAMPLE-DOMAIN:notes
 	probesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/probes"
 	recoveryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/recovery"
 	routesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/routes"
@@ -50,7 +48,6 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
-	out = append(out, notesH.Endpoints...) // EXAMPLE-DOMAIN:notes
 	out = append(out, auditH.Endpoints...)
 	out = append(out, configH.Endpoints...)
 	out = append(out, exposureH.Endpoints...)
@@ -84,7 +81,6 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
-		{Module: "notes", File: notesv1.File_tunnel_manager_v1_notes_notes_proto}, // EXAMPLE-DOMAIN:notes
 		{Module: "audit", File: auditv1.File_tunnel_manager_v1_audit_audit_proto},
 		{Module: "config", File: configv1.File_tunnel_manager_v1_config_config_proto},
 		{Module: "exposure", File: exposurev1.File_tunnel_manager_v1_exposure_exposure_proto},
@@ -106,7 +102,6 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
-		apidb.SchemaProviderFunc(notesH.Schema), // EXAMPLE-DOMAIN:notes
 		// audit owns no table (computed/reporting domain) — no schema.
 		apidb.SchemaProviderFunc(configH.Schema),
 		apidb.SchemaProviderFunc(exposureH.Schema),

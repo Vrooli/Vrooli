@@ -1,16 +1,18 @@
 {
   "_comment": "このファイルには2種類の補間があります。(1) 生成時: Tunnel Manager のような大文字スネークケースのプレースホルダーは、`vrooli scenario generate` がシナリオビルド前に置換します。実行時にはリテラル表示値として扱われます。(2) 実行時: {{count}} のようなトークンは i18next の補間で、`t(key, { count })` によりレンダー時に置換されます。アンダースコアで始まるキー（このキーのような）はセンチネルで、コード生成・パリティテスト・未使用キー監査からスキップされます。",
   "app": {
-    "title": "Tunnel Manager",
-    "eyebrow": "シナリオテンプレート",
-    "description": "このスターター UI は意図的に最小限です。Tailwind + shadcn のスタイル規約と API 接続を維持しながら、シナリオ固有の体験に置き換えてください。"
+    "title": "Tunnel Manager"
   },
   "layout": {
     "sidebarLabel": "メインナビゲーション",
-    "bottomNavLabel": "メインナビゲーション",
+    "bottomNavLabel": "メインナビゲーション（コンパクト）",
+    "mainLabel": "メインコンテンツ",
     "nav": {
-      "dashboard": "ダッシュボード",
-      "notes": "ノート",
+      "overview": "概要",
+      "exposure": "公開",
+      "recovery": "復旧",
+      "metrics": "メトリクス",
+      "audit": "監査",
       "settings": "設定"
     }
   },
@@ -22,19 +24,180 @@
       "system": "システム"
     }
   },
+  "common": {
+    "loading": "読み込み中…",
+    "empty": "表示するものはまだありません。",
+    "refresh": "再読み込み",
+    "never": "なし"
+  },
   "pages": {
-    "dashboard": {
-      "title": "ダッシュボード",
-      "description": "シナリオのヘルスと主要指標の概要。製品の成長に合わせてこれらのカードを実際のサーフェスに置き換えてください。",
-      "statPlaceholderLabel": "指標"
+    "overview": {
+      "title": "概要",
+      "description": "トンネルの状態、公開中のシナリオ、進行中の復旧を一目で確認できます。"
     },
-    "notes": {
-      "title": "ノート"
+    "exposure": {
+      "title": "公開",
+      "description": "トンネル経由で到達可能なすべてのシナリオ — コア（常時）とリース（時間制限付き）。"
+    },
+    "recovery": {
+      "title": "復旧とイベント",
+      "description": "自動復旧ステートマシンと、すべての再起動試行の永続ログ。"
+    },
+    "metrics": {
+      "title": "メトリクス",
+      "description": "トンネルの状態メトリクスの推移と、ルートごとの生存プローブ履歴。"
+    },
+    "audit": {
+      "title": "監査",
+      "description": "ポート整合性の検出結果: シナリオの service.json がマニフェストからずれている箇所。"
     },
     "settings": {
       "title": "設定",
       "themeHeading": "外観",
       "localeHeading": "言語"
+    }
+  },
+  "overview": {
+    "tunnelHeading": "トンネルの状態",
+    "scoreLabel": "ヘルススコア",
+    "exposureHeading": "公開",
+    "coreLabel": "コアシナリオ",
+    "leasedLabel": "リースシナリオ",
+    "recoveryHeading": "復旧",
+    "circuitOpenWarning": "サーキットブレーカーが開いています — 自動復旧は一時停止中です。",
+    "viewExposure": "公開を管理",
+    "viewRecovery": "復旧を表示"
+  },
+  "exposure": {
+    "heading": "公開中のシナリオ",
+    "loading": "公開状況を読み込み中…",
+    "error": "公開状況を読み込めません。",
+    "empty": "現在公開中のシナリオはありません。",
+    "colScenario": "シナリオ",
+    "colTier": "ティア",
+    "colUrl": "公開 URL",
+    "colPort": "ポート",
+    "colLease": "リース",
+    "colActions": "操作",
+    "tier": {
+      "core": "コア",
+      "leased": "リース",
+      "unknown": "—"
+    },
+    "leaseActive": "有効期限 {{when}}",
+    "leaseNone": "—",
+    "exposeHeading": "シナリオを公開",
+    "exposePlaceholder": "scenario-name",
+    "exposeButton": "公開",
+    "extendButton": "延長",
+    "revokeButton": "取り消し",
+    "actionError": "操作に失敗しました。再試行してください。"
+  },
+  "recovery": {
+    "stateHeading": "復旧の状態",
+    "loading": "復旧の状態を読み込み中…",
+    "error": "復旧の状態を読み込めません。",
+    "statusLabel": "ステータス",
+    "consecFailuresLabel": "連続失敗回数",
+    "backoffLabel": "バックオフレベル",
+    "failedRecoveriesLabel": "復旧失敗回数",
+    "lastCheckLabel": "最終チェック",
+    "lastRecoveryLabel": "最終復旧",
+    "nextRetryLabel": "次回リトライ",
+    "circuitOpenLabel": "サーキットブレーカー",
+    "circuitOpen": "開",
+    "circuitClosed": "閉",
+    "status": {
+      "idle": "アイドル",
+      "monitoring": "監視中",
+      "recovering": "復旧中",
+      "circuitOpen": "サーキット開",
+      "unknown": "不明"
+    },
+    "timelineHeading": "復旧イベント",
+    "timelineEmpty": "復旧イベントはまだ記録されていません。",
+    "timelineError": "復旧イベントを読み込めません。",
+    "colTrigger": "トリガー",
+    "colAction": "アクション",
+    "colOutcome": "結果",
+    "colAttempt": "試行",
+    "colWhen": "日時",
+    "outcome": {
+      "success": "成功",
+      "failure": "失敗",
+      "skipped": "スキップ",
+      "unknown": "不明"
+    },
+    "recoverButton": "今すぐ復旧",
+    "recoverForce": "強制（ブレーカーを無視）",
+    "recoverConfirmTitle": "手動復旧を実行しますか？",
+    "recoverConfirmBody": "cloudflared を再起動し、ingress を再プッシュします。Tunnel Manager が唯一の再起動オーナーのため安全ですが、トンネルが一時的に中断されます。",
+    "recoverConfirm": "復旧",
+    "recoverCancel": "キャンセル",
+    "recoverError": "復旧の試行に失敗しました。"
+  },
+  "metrics": {
+    "heading": "トンネルメトリクス",
+    "loading": "メトリクスを読み込み中…",
+    "error": "メトリクスを読み込めません。",
+    "empty": "メトリクスサンプルはまだ取得されていません。",
+    "scrapeButton": "今すぐ取得",
+    "colTime": "時刻",
+    "colHaConnections": "HA 接続",
+    "colActiveStreams": "ストリーム",
+    "colRequestErrors": "エラー",
+    "colRtt": "RTT (ms)",
+    "probesHeading": "プローブ履歴",
+    "probesEmpty": "プローブはまだ記録されていません。",
+    "probesError": "プローブ履歴を読み込めません。",
+    "runProbesButton": "プローブ実行",
+    "colRoute": "ルート",
+    "colKind": "種別",
+    "colStatus": "ステータス",
+    "colLatency": "レイテンシ",
+    "kind": {
+      "internal": "内部",
+      "external": "外部",
+      "unknown": "—"
+    },
+    "probeStatus": {
+      "up": "稼働",
+      "down": "停止",
+      "timeout": "タイムアウト",
+      "error": "エラー",
+      "unknown": "不明"
+    },
+    "classificationHeading": "ルート診断",
+    "class": {
+      "healthy": "正常",
+      "tunnelDown": "トンネル停止",
+      "scenarioDown": "シナリオ停止",
+      "cloudflareOutage": "Cloudflare 障害",
+      "dnsFailure": "DNS 障害",
+      "configDrift": "設定ドリフト",
+      "unknown": "不明"
+    }
+  },
+  "audit": {
+    "heading": "ポート整合性",
+    "loading": "監査を実行中…",
+    "error": "監査を実行できません。",
+    "empty": "監査するルートがありません。",
+    "runButton": "監査を実行",
+    "violations": "{{count}} 件の違反",
+    "violations_one": "1 件の違反",
+    "colScenario": "シナリオ",
+    "colSubdomain": "サブドメイン",
+    "colExpected": "期待ポート",
+    "colActual": "実際のポート",
+    "colStatus": "ステータス",
+    "colDetail": "詳細",
+    "status": {
+      "compliant": "適合",
+      "mismatch": "不一致",
+      "missingScenario": "シナリオ不明",
+      "missingPort": "固定ポートなし",
+      "unknown": "不明"
     }
   },
   "health": {
@@ -49,23 +212,6 @@
   },
   "notifications": {
     "summary": "{{count}} 件の通知"
-  },
-  "notes": {
-    "title": "ノート",
-    "loading": "ノートを読み込み中…",
-    "empty": "まだノートはありません。",
-    "create": "ノートを作成",
-    "createdAtLabel": "作成:",
-    "attachmentsLabel": "添付ファイル {{count}} 件",
-    "uploadAttachment": "添付ファイルをアップロード",
-    "attachmentFileLabel": "添付ファイル",
-    "uploadSuccess": "{{name}} をアップロードしました。",
-    "noFileSelected": "アップロードするファイルを選択してください。",
-    "measure": {
-      "title": "今週のノート",
-      "loading": "集計中…",
-      "thisWeek": "今週作成されたノート: {{count}} 件"
-    }
   },
   "errors": {
     "canceled": "Operation canceled.",

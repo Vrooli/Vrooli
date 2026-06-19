@@ -10,7 +10,7 @@
     {
       "id": "TIER-001",
       "title": "Guarantee every core-set scenario is always exposed",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "exposure",
       "criticality": "P0",
@@ -24,15 +24,15 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
-          "ref": "api/internal/exposure/coretier_test.go"
+          "status": "implemented",
+          "ref": "api/internal/exposure/service_test.go"
         }
       ]
     },
     {
       "id": "TIER-002",
       "title": "Request, extend, revoke, and reap time-bounded leases",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-004",
       "category": "exposure",
       "criticality": "P0",
@@ -46,15 +46,15 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
-          "ref": "api/internal/exposure/lease_test.go"
+          "status": "implemented",
+          "ref": "api/internal/exposure/service_test.go"
         }
       ]
     },
     {
       "id": "TIER-003",
       "title": "Expose a scenario on demand via the exposure-request API",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "exposure",
       "criticality": "P0",
@@ -67,15 +67,15 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
-          "ref": "api/handlers/exposure/expose_handler_test.go"
+          "status": "implemented",
+          "ref": "api/handlers/exposure/connect_handler_test.go"
         }
       ]
     },
     {
       "id": "TIER-004",
       "title": "Ensure the scenario is running via the lifecycle seam when exposing",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-006",
       "category": "exposure",
       "criticality": "P0",
@@ -89,15 +89,15 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
-          "ref": "api/internal/exposure/ensure_running_test.go"
+          "status": "implemented",
+          "ref": "api/internal/exposure/service_test.go"
         }
       ]
     },
     {
       "id": "TIER-005",
       "title": "Track hostname budget and evict LRU idle leased routes near the cap",
-      "status": "planned",
+      "status": "not_implemented",
       "prd_ref": "OT-P2-001",
       "category": "exposure",
       "criticality": "P2",
@@ -109,9 +109,9 @@
       ],
       "validation": [
         {
-          "type": "test",
+          "type": "manual",
           "phase": "api",
-          "status": "planned",
+          "status": "not_implemented",
           "ref": "api/internal/exposure/budget_test.go"
         }
       ]
@@ -119,7 +119,7 @@
     {
       "id": "TIER-006",
       "title": "Spin down idle leased scenarios before TTL based on usage",
-      "status": "planned",
+      "status": "not_implemented",
       "prd_ref": "OT-P2-003",
       "category": "exposure",
       "criticality": "P2",
@@ -130,9 +130,9 @@
       ],
       "validation": [
         {
-          "type": "test",
+          "type": "manual",
           "phase": "api",
-          "status": "planned",
+          "status": "not_implemented",
           "ref": "api/internal/exposure/idle_spindown_test.go"
         }
       ]

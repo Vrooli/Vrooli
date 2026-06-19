@@ -10,7 +10,7 @@
     {
       "id": "PORT-001",
       "title": "Detect a manifest port that does not match the scenario's service.json",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-007",
       "category": "audit",
       "criticality": "P0",
@@ -24,15 +24,15 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
-          "ref": "api/internal/audit/audit_test.go"
+          "status": "implemented",
+          "ref": "api/internal/audit/service_test.go"
         }
       ]
     },
     {
       "id": "PORT-002",
       "title": "Report a scenario that declares no fixed UI port",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-007",
       "category": "audit",
       "criticality": "P0",
@@ -45,15 +45,15 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
-          "ref": "api/internal/audit/audit_test.go"
+          "status": "implemented",
+          "ref": "api/internal/audit/service_test.go"
         }
       ]
     },
     {
       "id": "PORT-003",
       "title": "Flag a ranged (non-fixed) UI port as non-compliant",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-007",
       "category": "audit",
       "criticality": "P0",
@@ -66,15 +66,15 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
-          "ref": "api/internal/audit/audit_test.go"
+          "status": "implemented",
+          "ref": "api/internal/audit/service_test.go"
         }
       ]
     },
     {
       "id": "PORT-004",
       "title": "Return a clean report when all exposed ports comply",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-007",
       "category": "audit",
       "criticality": "P0",
@@ -87,8 +87,8 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
-          "ref": "api/internal/audit/audit_test.go"
+          "status": "implemented",
+          "ref": "api/internal/audit/service_test.go"
         }
       ]
     }

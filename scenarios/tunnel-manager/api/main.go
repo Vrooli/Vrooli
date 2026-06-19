@@ -25,7 +25,6 @@ import (
 	configH "tunnel-manager/handlers/config"
 	exposureH "tunnel-manager/handlers/exposure"
 	healthH "tunnel-manager/handlers/health"
-	notesH "tunnel-manager/handlers/notes" // EXAMPLE-DOMAIN:notes
 	probesH "tunnel-manager/handlers/probes"
 	recoveryH "tunnel-manager/handlers/recovery"
 	routesH "tunnel-manager/handlers/routes"
@@ -123,7 +122,6 @@ func main() {
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "tunnel-manager-api", "1.0.0"),
-		notesH.Module(db, clock.System{}, log.Default()), // EXAMPLE-DOMAIN:notes
 		routesH.Module(db, clock.System{}, log.Default()),
 		auditH.Module(db, clock.System{}, log.Default()),
 		configH.Module(db, clock.System{}, log.Default()),
@@ -138,19 +136,6 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.Register(rootMux, db)
-
-	// EXAMPLE-DOMAIN:notes START
-	// /measures is the measures-go serve substrate: the central measures
-	// index (measures-health) harvests <prefix>/declarations and the
-	// auto-execution path POSTs <prefix>/execute. The notes domain owns the
-	// one reference measure (notes.count); a real multi-domain scenario
-	// registers each domain's measures on one shared registry here.
-	notesMeasures, err := notesH.MeasuresHandler(db, clock.System{})
-	if err != nil {
-		log.Fatalf("measures registry: %v", err)
-	}
-	rootMux.Handle("/measures/", http.StripPrefix("/measures", notesMeasures))
-	// EXAMPLE-DOMAIN:notes END
 
 	rootMux.Handle("/", srv.Handler())
 

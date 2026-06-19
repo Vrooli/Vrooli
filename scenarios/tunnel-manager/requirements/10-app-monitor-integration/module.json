@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "description": "Exposure-query API for app-monitor: answer is-\u003cscenario\u003e-exposed and create-lease-and-return-tunnel-URL, backing app-monitor's open-in-new-tab feature.",
+    "description": "Exposure-query API for app-monitor: answer is-<scenario>-exposed and create-lease-and-return-tunnel-URL, backing app-monitor's open-in-new-tab feature.",
     "last_validated_at": "2026-06-18T20:12:10-04:00",
     "module": "exposure-query",
     "prd_ref": "PRD.md",
@@ -11,7 +11,7 @@
     {
       "id": "APPMON-001",
       "title": "Answer whether a scenario is currently exposed",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-007",
       "category": "exposure",
       "criticality": "P1",
@@ -24,16 +24,16 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/handlers/exposure/is_exposed_test.go",
+          "ref": "api/handlers/exposure/connect_handler_test.go",
           "phase": "api",
-          "status": "planned"
+          "status": "implemented"
         }
       ]
     },
     {
       "id": "APPMON-002",
       "title": "Create a lease on demand and return the tunnel URL",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-007",
       "category": "exposure",
       "criticality": "P1",
@@ -46,9 +46,9 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/handlers/exposure/expose_and_get_url_test.go",
+          "ref": "api/handlers/exposure/connect_handler_test.go",
           "phase": "api",
-          "status": "planned"
+          "status": "implemented"
         }
       ]
     },
@@ -68,7 +68,7 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/handlers/exposure/contract_test.go",
+          "ref": "api/handlers/exposure/connect_handler_test.go",
           "phase": "integration",
           "status": "implemented"
         }

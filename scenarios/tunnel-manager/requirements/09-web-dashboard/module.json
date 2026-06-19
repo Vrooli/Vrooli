@@ -10,11 +10,11 @@
     {
       "id": "DASH-001",
       "title": "Render the five operator dashboard surfaces",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-004",
       "category": "ui",
       "criticality": "P1",
-      "description": "The dashboard provides five navigable surfaces — Overview, Exposure, Recovery & Events, Metrics, and Audit — each rendering live backend state.",
+      "description": "The dashboard provides five navigable surfaces \u2014 Overview, Exposure, Recovery & Events, Metrics, and Audit \u2014 each rendering live backend state.",
       "tags": [
         "dashboard",
         "5-surface"
@@ -23,15 +23,15 @@
         {
           "type": "test",
           "phase": "ui",
-          "status": "planned",
-          "ref": "ui/src/features/dashboard/Dashboard.test.tsx"
+          "status": "implemented",
+          "ref": "ui/src/features/overview/OverviewPanel.test.tsx"
         }
       ]
     },
     {
       "id": "DASH-002",
       "title": "Manage leases from the Exposure surface",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-004",
       "category": "ui",
       "criticality": "P1",
@@ -44,7 +44,7 @@
         {
           "type": "test",
           "phase": "ui",
-          "status": "planned",
+          "status": "implemented",
           "ref": "ui/src/features/exposure/ExposurePanel.test.tsx"
         }
       ]
@@ -52,7 +52,7 @@
     {
       "id": "DASH-003",
       "title": "Display color-coded health on the Overview surface",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-004",
       "category": "ui",
       "criticality": "P1",
@@ -66,15 +66,15 @@
         {
           "type": "test",
           "phase": "ui",
-          "status": "planned",
-          "ref": "ui/src/features/dashboard/Overview.test.tsx"
+          "status": "implemented",
+          "ref": "ui/src/features/overview/OverviewPanel.test.tsx"
         }
       ]
     },
     {
       "id": "DASH-004",
       "title": "Show metrics, recovery events, and audit findings on their surfaces",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-004",
       "category": "ui",
       "criticality": "P1",
@@ -88,7 +88,7 @@
         {
           "type": "test",
           "phase": "ui",
-          "status": "planned",
+          "status": "implemented",
           "ref": "ui/src/features/metrics/MetricsPanel.test.tsx"
         }
       ]

@@ -22,27 +22,27 @@
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-- [ ] OT-P0-001 | Exposure manifest (SSOT) | SQLite-backed manifest of routes: subdomain, scenario, domain (a field, not a constant), local UI port, tier (core/leased), lease expiry, enabled flag, health path — the single source of truth for what is publicly exposed
-- [ ] OT-P0-002 | Programmatic Cloudflare ingress management | Add/remove/sync a scenario's public hostname → `localhost:<fixed UI port>` via the Cloudflare API (remote mode), with hot-reload and no manual dashboard step
-- [ ] OT-P0-003 | Core-tier always-on exposure | Reconcile the manifest so every scenario in `packages/api-core/coreset` is always exposed and never auto-expired
-- [ ] OT-P0-004 | Leased-tier on-demand exposure | Request/extend/revoke a time-bounded exposure (default TTL ≈ 1 week) with automatic reaping of expired leases
-- [ ] OT-P0-005 | Exposure-request API | Other scenarios (and the operator) can request exposure of a scenario via API ("expose me, I'll be used soon")
-- [ ] OT-P0-006 | Ensure-running delegation | When exposing a scenario, ensure it is running via the existing `internal/lifecycle` seam; Tunnel Manager does not reimplement lifecycle/process management
-- [ ] OT-P0-007 | Port-compliance auditor | Verify each exposed scenario declares a fixed UI port in `service.json` matching the manifest; report violations
-- [ ] OT-P0-008 | Tunnel health monitor | Monitor cloudflared via systemd status, Prometheus metrics endpoint, and `/ready`
-- [ ] OT-P0-009 | Internal liveness probes | HTTP-probe each exposed route's local port to verify the scenario is listening
-- [ ] OT-P0-010 | External liveness probes | HTTP-probe each exposed route via its public URL to verify end-to-end connectivity
-- [ ] OT-P0-011 | Auto-recovery engine (live) | Automatically restart cloudflared / re-push config on `/ready` failure or HA-connections=0, with exponential backoff + circuit breaker; Tunnel Manager is the single authoritative owner of cloudflared restart
-- [ ] OT-P0-012 | CLI surface | `status`, `routes`, `expose`, `lease`, `probe`, `audit`, `recover`, `config` — all with proto-typed `--json`
+- [x] OT-P0-001 | Exposure manifest (SSOT) | SQLite-backed manifest of routes: subdomain, scenario, domain (a field, not a constant), local UI port, tier (core/leased), lease expiry, enabled flag, health path — the single source of truth for what is publicly exposed
+- [x] OT-P0-002 | Programmatic Cloudflare ingress management | Add/remove/sync a scenario's public hostname → `localhost:<fixed UI port>` via the Cloudflare API (remote mode), with hot-reload and no manual dashboard step
+- [x] OT-P0-003 | Core-tier always-on exposure | Reconcile the manifest so every scenario in `packages/api-core/coreset` is always exposed and never auto-expired
+- [x] OT-P0-004 | Leased-tier on-demand exposure | Request/extend/revoke a time-bounded exposure (default TTL ≈ 1 week) with automatic reaping of expired leases
+- [x] OT-P0-005 | Exposure-request API | Other scenarios (and the operator) can request exposure of a scenario via API ("expose me, I'll be used soon")
+- [x] OT-P0-006 | Ensure-running delegation | When exposing a scenario, ensure it is running via the existing `internal/lifecycle` seam; Tunnel Manager does not reimplement lifecycle/process management
+- [x] OT-P0-007 | Port-compliance auditor | Verify each exposed scenario declares a fixed UI port in `service.json` matching the manifest; report violations
+- [x] OT-P0-008 | Tunnel health monitor | Monitor cloudflared via systemd status, Prometheus metrics endpoint, and `/ready`
+- [x] OT-P0-009 | Internal liveness probes | HTTP-probe each exposed route's local port to verify the scenario is listening
+- [x] OT-P0-010 | External liveness probes | HTTP-probe each exposed route via its public URL to verify end-to-end connectivity
+- [x] OT-P0-011 | Auto-recovery engine (live) | Automatically restart cloudflared / re-push config on `/ready` failure or HA-connections=0, with exponential backoff + circuit breaker; Tunnel Manager is the single authoritative owner of cloudflared restart
+- [x] OT-P0-012 | CLI surface | `status`, `routes`, `expose`, `lease`, `probe`, `audit`, `recover`, `config` — all with proto-typed `--json`
 
 ### 🟠 P1 – Should have post-launch
-- [ ] OT-P1-001 | Failure classification | Categorize failures as tunnel-down / scenario-down / cloudflare-outage / dns-failure / config-drift to drive targeted recovery and alerts
-- [ ] OT-P1-002 | Local config mode + switching | Generate/maintain `~/.cloudflared/config.yml` from the manifest as a fallback, with remote↔local mode switching and migration
-- [ ] OT-P1-003 | Prometheus metrics scraping | Scrape cloudflared's metrics endpoint for HA connections, request errors, RTT, active streams; persist time-series in SQLite
-- [ ] OT-P1-004 | Web UI dashboard (5-surface) | Overview, Exposure (lease management), Recovery & Events, Metrics, Audit
-- [ ] OT-P1-005 | Recovery event log | Persist recovery attempts with timestamps, actions, and outcomes for post-incident review
-- [ ] OT-P1-006 | Degraded-mode detection | Detect HA connections < 4 or RTT spikes and report degraded status before full failure
-- [ ] OT-P1-007 | Exposure-query API for app-monitor | `is-<scenario>-exposed?` + create-lease-and-return-tunnel-URL, consumed by app-monitor's "open in new tab" feature (the app-monitor-side change is a separate task)
+- [x] OT-P1-001 | Failure classification | Categorize failures as tunnel-down / scenario-down / cloudflare-outage / dns-failure / config-drift to drive targeted recovery and alerts
+- [x] OT-P1-002 | Local config mode + switching | Generate/maintain `~/.cloudflared/config.yml` from the manifest as a fallback, with remote↔local mode switching and migration
+- [x] OT-P1-003 | Prometheus metrics scraping | Scrape cloudflared's metrics endpoint for HA connections, request errors, RTT, active streams; persist time-series in SQLite
+- [x] OT-P1-004 | Web UI dashboard (5-surface) | Overview, Exposure (lease management), Recovery & Events, Metrics, Audit
+- [x] OT-P1-005 | Recovery event log | Persist recovery attempts with timestamps, actions, and outcomes for post-incident review
+- [x] OT-P1-006 | Degraded-mode detection | Detect HA connections < 4 or RTT spikes and report degraded status before full failure
+- [x] OT-P1-007 | Exposure-query API for app-monitor | `is-<scenario>-exposed?` + create-lease-and-return-tunnel-URL, consumed by app-monitor's "open in new tab" feature (the app-monitor-side change is a separate task)
 
 ### 🟢 P2 – Future / expansion
 - [ ] OT-P2-001 | Hostname-budget management | Track exposed-hostname count vs the Cloudflare cap; warn near cap; evict LRU expired/idle leased routes to make room

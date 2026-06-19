@@ -32,16 +32,6 @@ Use this document to answer:
 | Metrics / probe / recovery history | low | `tunnel`/`probes`/`recovery` | Operational telemetry (HA connections, RTT, probe results, restart outcomes). No secrets; must not capture token or request payloads. |
 | Other scenarios' `service.json` ports | low | `audit` | Read **read-only** for port-compliance auditing. Tunnel Manager never writes another scenario's files. |
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-The shipped worked-example `notes` domain carries placeholder data only
-(removed by `vrooli scenario detemplate`):
-
-| Data | Sensitivity | Owner | Details |
-|---|---|---|---|
-| Template notes data | low | notes reference | Local development data only; replace with real scenario data classification. |
-| Attachment bytes | unknown | notes reference | Treat as potentially sensitive if retained in product scope. |
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## Auth And Authorization
 
 > **Status: planned, not built.**

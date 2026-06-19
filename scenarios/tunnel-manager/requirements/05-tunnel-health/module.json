@@ -10,7 +10,7 @@
     {
       "id": "THEALTH-001",
       "title": "Report cloudflared health from systemd status and /ready",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-008",
       "category": "tunnel",
       "criticality": "P0",
@@ -24,15 +24,15 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
-          "ref": "api/internal/tunnel/health_test.go"
+          "status": "implemented",
+          "ref": "api/internal/tunnel/service_test.go"
         }
       ]
     },
     {
       "id": "THEALTH-002",
       "title": "Scrape cloudflared Prometheus metrics into SQLite time-series",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-003",
       "category": "tunnel",
       "criticality": "P1",
@@ -46,15 +46,15 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
-          "ref": "api/internal/tunnel/metrics_test.go"
+          "status": "implemented",
+          "ref": "api/internal/tunnel/sqlite_test.go"
         }
       ]
     },
     {
       "id": "THEALTH-003",
       "title": "Detect degraded mode before full failure",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P1-006",
       "category": "tunnel",
       "criticality": "P1",
@@ -68,8 +68,8 @@
         {
           "type": "test",
           "phase": "api",
-          "status": "planned",
-          "ref": "api/internal/tunnel/degraded_test.go"
+          "status": "implemented",
+          "ref": "api/internal/tunnel/service_test.go"
         }
       ]
     }

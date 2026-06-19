@@ -9,8 +9,11 @@ import { strings } from "../consts/strings";
 export interface NavItem {
   /** Selector parameter; stable across locales. */
   key:
-    | "dashboard"
-    | "notes" // EXAMPLE-DOMAIN:notes
+    | "overview"
+    | "exposure"
+    | "recovery"
+    | "metrics"
+    | "audit"
     | "settings";
   /** Router path. */
   path: string;
@@ -21,7 +24,10 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: readonly NavItem[] = [
-  { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard },
-  { key: "notes", path: "/notes", labelKey: strings.layout.nav.notes }, // EXAMPLE-DOMAIN:notes
+  { key: "overview", path: "/", end: true, labelKey: strings.layout.nav.overview },
+  { key: "exposure", path: "/exposure", labelKey: strings.layout.nav.exposure },
+  { key: "recovery", path: "/recovery", labelKey: strings.layout.nav.recovery },
+  { key: "metrics", path: "/metrics", labelKey: strings.layout.nav.metrics },
+  { key: "audit", path: "/audit", labelKey: strings.layout.nav.audit },
   { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings },
 ];

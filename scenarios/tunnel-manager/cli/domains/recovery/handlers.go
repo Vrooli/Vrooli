@@ -48,7 +48,7 @@ func (h *handlers) state(ctx cliapp.RunContext) error {
 func (h *handlers) events(ctx cliapp.RunContext) error {
 	var limit int32
 	if v := strings.TrimSpace(ctx.Flag("limit")); v != "" {
-		n, err := strconv.Atoi(v)
+		n, err := strconv.ParseInt(v, 10, 32)
 		if err != nil {
 			return fmt.Errorf("--limit must be an integer: %w", err)
 		}
