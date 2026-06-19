@@ -179,6 +179,10 @@ type SurfaceLoader interface {
 	ListScenarios() ([]string, error)
 }
 
+type FleetReachabilityIndex interface {
+	Consumers(messageFullName string) []string
+}
+
 type GenSyncStatus struct {
 	InSync          bool
 	ManifestMissing bool

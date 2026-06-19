@@ -417,6 +417,43 @@ func TestValidateScenarioFindsTemplateSource(t *testing.T) {
 	requireFinding(t, report, CodeTemplateSource, SeverityWarning)
 }
 
+func TestValidateScenarioKeepsTemplateSourceForUndivergedTemplate(t *testing.T) {
+	root := t.TempDir()
+	templatePath := filepath.Join(root, "templates", "scenarios", "react-vite", "proto", "v1", "shared", "health.proto")
+	scenarioPath := filepath.Join(root, "packages", "proto", "schemas", "demo", "v1", "shared", "health.proto")
+	template := []byte("syntax = \"proto3\";\npackage vrooli.{{SCENARIO_ID_SNAKE}}.v1.shared;\nmessage Response {}\n")
+	require.NoError(t, os.MkdirAll(filepath.Dir(templatePath), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Dir(scenarioPath), 0o755))
+	require.NoError(t, os.WriteFile(templatePath, template, 0o644))
+	require.NoError(t, os.WriteFile(scenarioPath, []byte("syntax = \"proto3\";\npackage vrooli.demo.v1.shared;\nmessage Response {}\n"), 0o644))
+
+	surface := cleanSurface()
+	surface.Files[0].Annotations = append(surface.Files[0].Annotations, protosurface.Annotation{Name: "template", Value: "react-vite/example"})
+	svc := newTestService(t, Deps{Loader: fakeLoader{surface: surface}, RepoRoot: root})
+
+	report, err := svc.ValidateScenario(context.Background(), "demo")
+	require.NoError(t, err)
+	requireFinding(t, report, CodeTemplateSource, SeverityWarning)
+}
+
+func TestValidateScenarioClearsTemplateSourceAfterContentDiverges(t *testing.T) {
+	root := t.TempDir()
+	templatePath := filepath.Join(root, "templates", "scenarios", "react-vite", "proto", "v1", "shared", "health.proto")
+	scenarioPath := filepath.Join(root, "packages", "proto", "schemas", "demo", "v1", "shared", "health.proto")
+	require.NoError(t, os.MkdirAll(filepath.Dir(templatePath), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Dir(scenarioPath), 0o755))
+	require.NoError(t, os.WriteFile(templatePath, []byte("syntax = \"proto3\";\npackage vrooli.{{SCENARIO_ID_SNAKE}}.v1.shared;\nmessage Response {}\n"), 0o644))
+	require.NoError(t, os.WriteFile(scenarioPath, []byte("syntax = \"proto3\";\npackage vrooli.demo.v1.shared;\nmessage ScenarioHealthResponse {}\n"), 0o644))
+
+	surface := cleanSurface()
+	surface.Files[0].Annotations = append(surface.Files[0].Annotations, protosurface.Annotation{Name: "template", Value: "react-vite/example"})
+	svc := newTestService(t, Deps{Loader: fakeLoader{surface: surface}, RepoRoot: root})
+
+	report, err := svc.ValidateScenario(context.Background(), "demo")
+	require.NoError(t, err)
+	requireNoFinding(t, report, CodeTemplateSource)
+}
+
 func TestValidateScenarioReportsStableMessageNotLocallyReachable(t *testing.T) {
 	surface := cleanSurface()
 	surface.Files = append(surface.Files, protosurface.File{
@@ -438,7 +475,135 @@ func TestValidateScenarioReportsStableMessageNotLocallyReachable(t *testing.T) {
 	report, err := svc.ValidateScenario(context.Background(), "demo")
 	require.NoError(t, err)
 	require.True(t, report.Passed)
-	requireFinding(t, report, CodePossiblyUnused, SeverityInfo)
+	requireFinding(t, report, CodePossiblyUnused, SeverityWarning)
+}
+
+func TestValidateScenarioExemptsExperimentalUnservedMessageFromPossiblyUnused(t *testing.T) {
+	surface := cleanSurface()
+	surface.Files = append(surface.Files, protosurface.File{
+		Path:      "demo/v1/preview/preview.proto",
+		Package:   "vrooli.demo.v1.preview",
+		Version:   "v1",
+		Domain:    "preview",
+		Stability: "experimental",
+	})
+	surface.Messages = append(surface.Messages, protosurface.Message{
+		FilePath: "demo/v1/preview/preview.proto",
+		Package:  "vrooli.demo.v1.preview",
+		Name:     "PreviewEnvelope",
+		FullName: "vrooli.demo.v1.preview.PreviewEnvelope",
+		Domain:   "preview",
+	})
+
+	svc := newTestService(t, Deps{Loader: fakeLoader{surface: surface}})
+	report, err := svc.ValidateScenario(context.Background(), "demo")
+	require.NoError(t, err)
+	requireNoFinding(t, report, CodePossiblyUnused)
+}
+
+func TestValidateScenarioUsesFleetReachabilityForPossiblyUnused(t *testing.T) {
+	producer := surfaceWithExportedMessage("producer")
+	consumer := cleanSurface()
+	consumer.Scenario = "consumer"
+	consumer.Files = append(consumer.Files, protosurface.File{
+		Path:      "consumer/v1/notes/notes.proto",
+		Package:   "vrooli.consumer.v1.notes",
+		Version:   "v1",
+		Domain:    "notes",
+		Stability: "stable",
+	})
+	consumer.Services = []protosurface.Service{{
+		FilePath: "consumer/v1/notes/notes.proto",
+		Package:  "vrooli.consumer.v1.notes",
+		Name:     "NotesService",
+		FullName: "vrooli.consumer.v1.notes.NotesService",
+		Domain:   "notes",
+		RPCs: []protosurface.RPC{{
+			Name:      "ListNotes",
+			Input:     "vrooli.consumer.v1.notes.ListNotesRequest",
+			Output:    "vrooli.consumer.v1.notes.ListNotesResponse",
+			Transport: protosurface.TransportKindConnect,
+		}},
+	}}
+	consumer.Messages = append(consumer.Messages,
+		protosurface.Message{FilePath: "consumer/v1/notes/notes.proto", Package: "vrooli.consumer.v1.notes", Name: "ListNotesRequest", FullName: "vrooli.consumer.v1.notes.ListNotesRequest", Domain: "notes"},
+		protosurface.Message{
+			FilePath: "consumer/v1/notes/notes.proto",
+			Package:  "vrooli.consumer.v1.notes",
+			Name:     "ListNotesResponse",
+			FullName: "vrooli.consumer.v1.notes.ListNotesResponse",
+			Domain:   "notes",
+			Fields: []protosurface.Field{{
+				Name:        "producer_item",
+				Type:        "message",
+				MessageType: "vrooli.producer.v1.shared.ProducerItem",
+				Number:      1,
+			}},
+		},
+	)
+	consumer.CrossScenarioImports = []protosurface.Import{{
+		FromScenario: "consumer",
+		ToScenario:   "producer",
+		FromFile:     "consumer/v1/notes/notes.proto",
+		ToFile:       "producer/v1/shared/items.proto",
+		Kind:         protosurface.ImportKindCrossScenario,
+	}}
+
+	svc := newTestService(t, Deps{Loader: fakeLoader{
+		scenarios: []string{"producer", "consumer"},
+		surfaces: map[string]protosurface.Surface{
+			"producer": producer,
+			"consumer": consumer,
+		},
+	}})
+	report, err := svc.ValidateScenario(context.Background(), "producer")
+	require.NoError(t, err)
+	require.True(t, report.Passed)
+	requireNoFinding(t, report, CodePossiblyUnused)
+}
+
+func TestValidateScenarioReportsPossiblyUnusedWithoutFleetConsumer(t *testing.T) {
+	producer := surfaceWithExportedMessage("producer")
+	svc := newTestService(t, Deps{Loader: fakeLoader{
+		scenarios: []string{"producer"},
+		surfaces:  map[string]protosurface.Surface{"producer": producer},
+	}})
+
+	report, err := svc.ValidateScenario(context.Background(), "producer")
+	require.NoError(t, err)
+	require.True(t, report.Passed)
+	requireFinding(t, report, CodePossiblyUnused, SeverityWarning)
+}
+
+func TestValidateScenarioAcceptsRetainedExternalStableMessage(t *testing.T) {
+	surface := surfaceWithExportedMessage("producer")
+	surface.Messages[0].Annotations = []protosurface.Annotation{{Name: "see", Value: "external:published-api"}}
+	svc := newTestService(t, Deps{Loader: fakeLoader{
+		scenarios: []string{"producer"},
+		surfaces:  map[string]protosurface.Surface{"producer": surface},
+	}})
+
+	report, err := svc.ValidateScenario(context.Background(), "producer")
+	require.NoError(t, err)
+	requireNoFinding(t, report, CodePossiblyUnused)
+}
+
+func TestValidateScenarioReflagsRetainedConsumerWhenDrifted(t *testing.T) {
+	producer := surfaceWithExportedMessage("producer")
+	producer.Messages[0].Annotations = []protosurface.Annotation{{Name: "see", Value: "consumer:consumer"}}
+	consumer := cleanSurface()
+	consumer.Scenario = "consumer"
+
+	svc := newTestService(t, Deps{Loader: fakeLoader{
+		scenarios: []string{"producer", "consumer"},
+		surfaces: map[string]protosurface.Surface{
+			"producer": producer,
+			"consumer": consumer,
+		},
+	}})
+	report, err := svc.ValidateScenario(context.Background(), "producer")
+	require.NoError(t, err)
+	requireFinding(t, report, CodePossiblyUnused, SeverityWarning)
 }
 
 func TestValidateScenarioExemptsConventionalSharedEnvelopeFromPossiblyUnused(t *testing.T) {
@@ -463,6 +628,41 @@ func TestValidateScenarioExemptsConventionalSharedEnvelopeFromPossiblyUnused(t *
 	require.NoError(t, err)
 	require.True(t, report.Passed)
 	requireNoFinding(t, report, CodePossiblyUnused)
+}
+
+func TestValidateScenarioExemptsConventionalHealthAndErrorMessagesFromPossiblyUnused(t *testing.T) {
+	surface := cleanSurface()
+	surface.Files = append(surface.Files,
+		protosurface.File{Path: "demo/v1/health/health.proto", Package: "vrooli.demo.v1.health", Version: "v1", Domain: "health", Stability: "stable"},
+		protosurface.File{Path: "demo/v1/errors/errors.proto", Package: "vrooli.demo.v1.errors", Version: "v1", Domain: "errors", Stability: "stable"},
+	)
+	surface.Messages = append(surface.Messages,
+		protosurface.Message{FilePath: "demo/v1/health/health.proto", Package: "vrooli.demo.v1.health", Name: "Response", FullName: "vrooli.demo.v1.health.Response", Domain: "health"},
+		protosurface.Message{FilePath: "demo/v1/health/health.proto", Package: "vrooli.demo.v1.health", Name: "DependencyStatus", FullName: "vrooli.demo.v1.health.DependencyStatus", Domain: "health"},
+		protosurface.Message{FilePath: "demo/v1/errors/errors.proto", Package: "vrooli.demo.v1.errors", Name: "ErrorEnvelope", FullName: "vrooli.demo.v1.errors.ErrorEnvelope", Domain: "errors"},
+	)
+
+	svc := newTestService(t, Deps{Loader: fakeLoader{surface: surface}})
+	report, err := svc.ValidateScenario(context.Background(), "demo")
+	require.NoError(t, err)
+	require.True(t, report.Passed)
+	requireNoFinding(t, report, CodePossiblyUnused)
+}
+
+func TestCheckDomainMismatchExemptsConventionalHealthAndErrorsDomains(t *testing.T) {
+	root := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "scenarios", "demo", "api", "handlers", "health"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "scenarios", "demo", "api", "handlers", "errors"), 0o755))
+	svc := &Service{repoRoot: root}
+	surface := protosurface.Surface{
+		Scenario: "demo",
+		Files: []protosurface.File{
+			{Path: "demo/v1/health/health.proto", Domain: "health"},
+			{Path: "demo/v1/errors/errors.proto", Domain: "errors"},
+		},
+	}
+
+	require.Empty(t, svc.checkDomainMismatch(surface))
 }
 
 func TestValidateScenarioSkipsMapEntryPossiblyUnused(t *testing.T) {
@@ -890,6 +1090,28 @@ func cleanSurface() protosurface.Surface {
 			Annotations: []protosurface.Annotation{{Name: "stability", Value: "stable"}},
 		}},
 	}
+}
+
+func surfaceWithExportedMessage(scenario string) protosurface.Surface {
+	surface := cleanSurface()
+	surface.Scenario = scenario
+	surface.Files[0].Path = scenario + "/v1/shared/health.proto"
+	surface.Files[0].Package = "vrooli." + scenario + ".v1.shared"
+	surface.Files = append(surface.Files, protosurface.File{
+		Path:      scenario + "/v1/shared/items.proto",
+		Package:   "vrooli." + scenario + ".v1.shared",
+		Version:   "v1",
+		Domain:    "shared",
+		Stability: "stable",
+	})
+	surface.Messages = append(surface.Messages, protosurface.Message{
+		FilePath: scenario + "/v1/shared/items.proto",
+		Package:  "vrooli." + scenario + ".v1.shared",
+		Name:     "ProducerItem",
+		FullName: "vrooli." + scenario + ".v1.shared.ProducerItem",
+		Domain:   "shared",
+	})
+	return surface
 }
 
 func surfaceWithRESTException() protosurface.Surface {

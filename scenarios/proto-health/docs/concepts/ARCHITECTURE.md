@@ -62,7 +62,7 @@ proto-surface fact for downstream tools.
 
 | Surface | Role | Owns | Does Not Own |
 |---|---|---|---|
-| API (`api/`) | Scenario core | Descriptor reading, per-scenario validation, proto-surface facts, transport edge | Fleet graph computation, dependency drift analysis |
+| API (`api/`) | Scenario core | Descriptor reading, per-scenario validation, proto-surface facts, message-level fleet reachability for proto findings, transport edge | Service dependency drift analysis |
 | UI (`ui/`) | Browser presentation | Fleet/status inspection, findings and surface rendering, loading/error/empty states | Validation rules, descriptor parsing |
 | CLI (`cli/`) | Operator/agent wrapper | `validate scenario` and `describe scenario` commands, output formatting, API invocation | Duplicated validation logic |
 | Contracts (`packages/proto/schemas/proto-health/`) | Wire shape | `ProtoHealthService` and generated clients | Hand-written route/type mirrors |
@@ -90,8 +90,15 @@ The scenario does not own:
 - Vrooli resource implementation,
 - scenario dependencies it calls,
 - generated proto outputs under `packages/proto/gen/`,
-- cross-scenario graph computation, service dependency drift, or
-  fleet-aware dead-proto detection.
+- service dependency drift or scenario-level dependency graph authority.
+
+`proto-health` owns message-level fleet reachability only for proto-surface
+findings such as `proto.possibly_unused`. It suppresses that finding when a
+message is reached by another scenario's reachable proto surface, when an
+unserved message is explicitly staged behind `@stability experimental`, or when
+a stable message has a drift-checked retention annotation such as
+`@see consumer:<scenario>` / `@see external:<name>`. Scenario-level dependency
+graph authority remains with `scenario-dependency-analyzer`.
 
 Document dependency and resource decisions in
 [`INTEGRATIONS.md`](INTEGRATIONS.md), not here.
@@ -165,7 +172,13 @@ long as the wire payload type is shared.
    `proto.gen_out_of_sync` (ERROR), a missing lockfile is
    `proto.gen_manifest_missing` (ERROR), and toolchain pin drift is
    `proto.gen_toolchain_drift` (WARNING). The hot path never runs `buf`.
-4. **Implementation proof**: `proto-health` consumes `code-facts`
+4. **Convergence-to-clean ownership**: `@template react-vite/example`
+   marks example-domain scaffold. Proto-health compares the scenario file with
+   the template source after placeholder substitution; identical scaffold stays
+   `proto.template_source`, while diverged content is treated as adopted.
+   `proto.possibly_unused` is REQUIRED debt after fleet reachability, staged
+   experimental messages, and typed retention declarations have been applied.
+5. **Implementation proof**: `proto-health` consumes `code-facts`
    proof reports for generated proto adoption and REST exception
    handler conformance. Missing or unsupported proof is advisory; only
    contradictory proof is a hard proto-health finding. Language/framework

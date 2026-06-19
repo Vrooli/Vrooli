@@ -23,6 +23,8 @@ func TestMaturitySpecCoversProtoHealthFindings(t *testing.T) {
 	for _, code := range AllFindingCodes() {
 		_, ok := spec.Findings[code]
 		require.Truef(t, ok, "missing maturity mapping for %s", code)
+		require.NotEmptyf(t, spec.Findings[code].CleanRequirement, "missing clean_requirement for %s", code)
+		require.Truef(t, assessment.IsValidCleanRequirement(assessment.CleanRequirement(spec.Findings[code].CleanRequirement)), "invalid clean_requirement for %s", code)
 		severity, err := catalog.ResolveSeverity(code)
 		require.NoError(t, err)
 		require.NotEmpty(t, severity)

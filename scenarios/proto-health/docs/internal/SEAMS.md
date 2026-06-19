@@ -20,7 +20,7 @@ shape consumed by multiple processes)? Wire contracts belong in
 NOT in interfaces. The generated Go + TypeScript types are the
 canonical types every test, handler, and UI component reads from.
 
-The `health` proto in `packages/proto/schemas/proto-health/v1/health/`
+The `health` proto in `packages/proto/schemas/proto-health/v1/shared/`
 is the worked example. The Go fixture (`api/internal/testutil/fixtures/health.go`)
 re-exports the generated `Response` and provides functional-options
 builders; the UI factory (`ui/src/test-utils/factories.ts`) builds
@@ -89,6 +89,16 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Production wiring** | `handlers/validation.Module` constructs `DescriptorLoader` from the committed descriptor image and passes it into `internal/validation.Service`. |
 | **Test fake** | `internal/validation` tests use fake `SurfaceLoader` values; `internal/protosurface` has a descriptor smoke test over the committed image. |
 | **Why it exists** | Validation must be table-driven and deterministic. Tests should not mutate the real fleet descriptor or depend on unrelated proto churn to exercise one finding code. |
+
+### FleetReachabilityIndex (message-level fleet usage)
+
+| | |
+|---|---|
+| **Seam** | Cross-scenario proto message reachability |
+| **Interface** | `internal/validation::FleetReachabilityIndex`, returning consumer scenarios for a producer message full name. |
+| **Production wiring** | `internal/validation.Service` builds the default index from the configured `SurfaceLoader` by scanning reachable RPC and REST payload surfaces across listed scenarios. It is also used to drift-check `@see consumer:<scenario>` retention annotations. |
+| **Test fake** | Validation tests can inject a custom index through `validation.Deps` or use fake loader surfaces for producer/consumer fixtures. |
+| **Why it exists** | `proto.possibly_unused` must not flag a producer message that is actually consumed by another scenario, and a retained-for-consumer declaration must become invalid when the consumer drifts away. The seam keeps message-level proto reachability in proto-health while leaving scenario-level dependency graph authority with scenario-dependency-analyzer. |
 
 ### Planned: ScenarioLocator (repo filesystem facts)
 
