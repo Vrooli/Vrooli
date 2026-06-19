@@ -113,31 +113,6 @@ func walk(t *testing.T, root string, fn func(path string)) {
 	}
 }
 
-// isInMocksDir reports whether path lives inside a `mocks/` directory.
-// Per-domain mocks/ folders hold test-only fakes that must lack the
-// _test.go suffix (so sibling _test.go files in other packages can
-// import them), but they're never linked into production binaries:
-// production code never imports `<dom>/mocks`, and the
-// TestNoProductionImports walker catches any production file that
-// reaches for testutil directly. mocks files themselves are exempt
-// from the testutil-import rule because they ARE test scaffolding,
-// just sharing-shape rather than _test.go-shape.
-func isInMocksDir(rel string) bool {
-	return isInDir(rel, "mocks")
-}
-
-// isInGeneratedDir reports whether path lives inside a `generated/`
-// directory. Code emitted by the temporal-model generator (replay.go,
-// runtime.go, etc.) lives under `<flow>/generated/` and legitimately
-// imports the modeltest test-only helpers — it IS the bridge between
-// production transition functions and the formal-model test harness,
-// so it must reach into testutil. Generated files lack `_test.go`
-// suffixes by convention, so this directory-shape check is the cleanest
-// way to express the exemption.
-func isInGeneratedDir(rel string) bool {
-	return isInDir(rel, "generated")
-}
-
 func isInDir(rel, dir string) bool {
 	parts := strings.Split(filepath.ToSlash(rel), "/")
 	for _, p := range parts[:len(parts)-1] {

@@ -3,7 +3,9 @@ package signals_test
 import (
 	"context"
 	"reflect"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"architecture-cartographer/internal/domains"
 	"architecture-cartographer/internal/graph"
@@ -112,6 +114,49 @@ func TestContentScoreBatch_DisablesPathTokenAuthority(t *testing.T) {
 	}
 }
 
+func TestScoreBatch_RespectsConfiguredWorkerLimit(t *testing.T) {
+	snap := graph.GraphSnapshot{
+		Scenario: "demo",
+		Files: []graph.FileNode{
+			{ID: "file:a", Path: "a.go"},
+			{ID: "file:b", Path: "b.go"},
+			{ID: "file:c", Path: "c.go"},
+		},
+	}
+	sig := &concurrencySignal{}
+	reg := signals.NewRegistry(sig)
+	svc := signals.NewService(
+		reg,
+		signals.NewAggregator(reg, nil),
+		batchStubSnap{snap: snap},
+		batchStubDmap{},
+		signals.WithMaxBatchWorkers(1),
+	)
+	if _, err := svc.ScoreBatch(context.Background(), signals.ScoreBatchInput{Scenario: "demo", Chunks: snap.Chunks()}); err != nil {
+		t.Fatalf("ScoreBatch: %v", err)
+	}
+	if got := sig.max.Load(); got != 1 {
+		t.Fatalf("max concurrent signal calls=%d want 1", got)
+	}
+}
+
+func TestScoreBatch_CanceledContextReturnsError(t *testing.T) {
+	snap := graph.GraphSnapshot{
+		Scenario: "demo",
+		Files: []graph.FileNode{
+			{ID: "file:a", Path: "a.go"},
+			{ID: "file:b", Path: "b.go"},
+		},
+	}
+	reg := signals.NewRegistry(&concurrencySignal{})
+	svc := signals.NewService(reg, signals.NewAggregator(reg, nil), batchStubSnap{snap: snap}, batchStubDmap{})
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := svc.ScoreBatch(ctx, signals.ScoreBatchInput{Scenario: "demo", Chunks: snap.Chunks()}); err == nil {
+		t.Fatal("ScoreBatch with canceled context must return an error")
+	}
+}
+
 type batchStubSnap struct {
 	snap graph.GraphSnapshot
 }
@@ -126,4 +171,42 @@ type batchStubDmap struct {
 
 func (d batchStubDmap) GetDomainMap(_ context.Context, _ string) (domains.DerivedDomainMap, error) {
 	return d.dmap, nil
+}
+
+type concurrencySignal struct {
+	active atomic.Int64
+	max    atomic.Int64
+}
+
+func (s *concurrencySignal) Name() string { return "concurrency" }
+
+func (s *concurrencySignal) DefaultWeight() float64 { return 1 }
+
+func (s *concurrencySignal) IsAvailable(context.Context) (bool, string) { return true, "" }
+
+func (s *concurrencySignal) Score(ctx context.Context, _ signals.GraphContext, chunk graph.Chunk) signals.ScoreResult {
+	active := s.active.Add(1)
+	for {
+		max := s.max.Load()
+		if active <= max || s.max.CompareAndSwap(max, active) {
+			break
+		}
+	}
+	defer s.active.Add(-1)
+
+	select {
+	case <-ctx.Done():
+		return signals.Abstain(s.Name(), ctx.Err().Error(), chunk.Path)
+	case <-time.After(10 * time.Millisecond):
+	}
+	return signals.ScoreResult{Scores: []signals.Score{{
+		Signal: s.Name(),
+		Domain: "demo",
+		Value:  1,
+		Evidence: []signals.Evidence{{
+			Kind:    "test",
+			Summary: "configured worker limit test",
+			Locator: chunk.Path,
+		}},
+	}}}
 }

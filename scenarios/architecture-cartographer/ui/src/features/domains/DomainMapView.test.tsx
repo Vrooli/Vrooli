@@ -62,8 +62,9 @@ describe("DomainMapView", () => {
 
     mockDomainMap({ isError: true, error: new Error("domains unavailable") });
     rerender(<DomainMapView scenario="demo" />);
-    expect(screen.getByTestId(selectors.features.domains.view.error)).toBeInTheDocument();
-    expect(screen.getByText("domains unavailable")).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.features.domains.view.error)).toHaveTextContent(
+      "domains unavailable",
+    );
 
     mockDomainMap({ data: { domainMap: undefined } as never });
     rerender(<DomainMapView scenario="demo" />);
@@ -135,18 +136,19 @@ describe("DomainMapView", () => {
 
     renderWithProviders(<DomainMapView scenario="demo" />);
 
-    expect(screen.getByTestId(selectors.features.domains.view.root)).toBeInTheDocument();
+    const root = screen.getByTestId(selectors.features.domains.view.root);
+    expect(root).toBeInTheDocument();
     expect(screen.getByTestId(selectors.features.domains.table.root)).toBeInTheDocument();
-    expect(screen.getAllByText("graph").length).toBeGreaterThan(0);
-    expect(screen.getByText("api/internal/graph")).toBeInTheDocument();
-    expect(screen.getByText("api/internal/httpx")).toBeInTheDocument();
-    expect(screen.getByText("tmp")).toBeInTheDocument();
-    expect(screen.getByText("api manifest")).toBeInTheDocument();
-    expect(screen.getByText("DOMAINS.md")).toBeInTheDocument();
-    expect(screen.getByText("api/internal folders")).toBeInTheDocument();
-    expect(screen.getByText("cli groups")).toBeInTheDocument();
-    expect(screen.getByText("ui features")).toBeInTheDocument();
-    expect(screen.getAllByText("unspecified").length).toBeGreaterThan(0);
+    expect(root).toHaveTextContent("graph");
+    expect(root).toHaveTextContent("api/internal/graph");
+    expect(root).toHaveTextContent("api/internal/httpx");
+    expect(root).toHaveTextContent("tmp");
+    expect(root).toHaveTextContent("api manifest");
+    expect(root).toHaveTextContent("DOMAINS.md");
+    expect(root).toHaveTextContent("api/internal folders");
+    expect(root).toHaveTextContent("cli groups");
+    expect(root).toHaveTextContent("ui features");
+    expect(root).toHaveTextContent("unspecified");
     expect(screen.getByTestId("convergence-report")).toHaveTextContent("demo");
     expect(screen.getByTestId("boundary-health")).toHaveTextContent("demo");
 

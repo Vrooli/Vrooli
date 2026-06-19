@@ -83,16 +83,17 @@ type Chunk struct {
 // language graph. Cartographer never mutates a snapshot after
 // construction.
 type GraphSnapshot struct {
-	ID           string
-	Scenario     string
-	ContentHash  string
-	Languages    []Language
-	ExtractedAt  time.Time
-	ExtractionMS int64
-	Files        []FileNode
-	Packages     []PackageNode
-	Symbols      []SymbolNode
-	Imports      []ImportEdge
+	ID                string
+	Scenario          string
+	ContentHash       string
+	SourceFingerprint string
+	Languages         []Language
+	ExtractedAt       time.Time
+	ExtractionMS      int64
+	Files             []FileNode
+	Packages          []PackageNode
+	Symbols           []SymbolNode
+	Imports           []ImportEdge
 	// SkippedAdapters records adapter names the service dropped during
 	// this extract — either because the producer scenario returned an
 	// `unimplemented` error (e.g., typescript-code-graph hitting a pnpm

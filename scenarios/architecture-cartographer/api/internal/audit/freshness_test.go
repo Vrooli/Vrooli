@@ -25,6 +25,11 @@ import (
 //   - FRESH      → Snapshots empty       AND FromCache=false
 func runFreshness(t *testing.T, snaps []graph.GraphSnapshot, fromCache bool) audit.SnapshotFreshness {
 	t.Helper()
+	for i := range snaps {
+		if snaps[i].Scenario == "" {
+			snaps[i].Scenario = "demo"
+		}
+	}
 	g := &graphmocks.FakeService{Snapshots: append([]graph.GraphSnapshot(nil), snaps...), FromCache: fromCache}
 	d := &domainsmocks.FakeService{Map: domains.DerivedDomainMap{
 		Authority:           domains.SourceAPIFolders,

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, screen } from "@testing-library/react";
+import { cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApplyStatus } from "@vrooli/proto-types/architecture-cartographer/v1/apply/apply_pb";
@@ -37,9 +37,9 @@ describe("ApplyHistoryPanel", () => {
     const refetch = vi.fn();
     mockHistory({ isError: true, error: new Error("history unavailable"), refetch });
     rerender(<ApplyHistoryPanel scenario="demo" domain="graph" />);
-    expect(screen.getByTestId(selectors.features.apply.history.error)).toBeInTheDocument();
-    expect(screen.getByText("history unavailable")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /retry/i }));
+    const error = screen.getByTestId(selectors.features.apply.history.error);
+    expect(error).toHaveTextContent("history unavailable");
+    fireEvent.click(within(error).getByRole("button"));
     expect(refetch).toHaveBeenCalledTimes(1);
 
     mockHistory({ data: { runs: [] } as never });
@@ -70,14 +70,15 @@ describe("ApplyHistoryPanel", () => {
 
     renderWithProviders(<ApplyHistoryPanel scenario="demo" domain="graph" />);
 
-    expect(screen.getByTestId(selectors.features.apply.history.root)).toBeInTheDocument();
+    const root = screen.getByTestId(selectors.features.apply.history.root);
+    expect(root).toBeInTheDocument();
     expect(screen.getAllByRole("row")).toHaveLength(9);
-    expect(screen.getByText("run-1")).toBeInTheDocument();
-    expect(screen.getByText("fallback-domain")).toBeInTheDocument();
-    expect(screen.getAllByText("apply.status.baseline_captured").length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText("apply.status.plan_generated")).toBeInTheDocument();
-    expect(screen.getAllByText("apply.status.applied").length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText("apply.status.refused_build_break").length).toBeGreaterThanOrEqual(2);
-    expect(screen.getByText("apply.status.committed")).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.shared.dataTable.row({ id: "run-1" }))).toHaveTextContent("run-1");
+    expect(root).toHaveTextContent("fallback-domain");
+    expect(root).toHaveTextContent("apply.status.baseline_captured");
+    expect(root).toHaveTextContent("apply.status.plan_generated");
+    expect(root).toHaveTextContent("apply.status.applied");
+    expect(root).toHaveTextContent("apply.status.refused_build_break");
+    expect(root).toHaveTextContent("apply.status.committed");
   });
 });

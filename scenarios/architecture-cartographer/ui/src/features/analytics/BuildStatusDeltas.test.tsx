@@ -65,12 +65,13 @@ describe("BuildStatusDeltas", () => {
 
     renderWithProviders(<BuildStatusDeltas scenario="demo" />);
 
-    expect(screen.getByTestId(selectors.features.analytics.buildDeltas.root)).toBeInTheDocument();
-    expect(screen.getByText("run-green")).toBeInTheDocument();
-    expect(screen.getByText("run-red")).toBeInTheDocument();
-    expect(screen.getByText("reverted-event")).toBeInTheDocument();
-    expect(screen.getByText("green")).toBeInTheDocument();
-    expect(screen.getByText("red")).toBeInTheDocument();
-    expect(screen.getByText("reverted")).toBeInTheDocument();
+    const root = screen.getByTestId(selectors.features.analytics.buildDeltas.root);
+    expect(root).toBeInTheDocument();
+    expect(root).toHaveTextContent("run-green");
+    expect(root).toHaveTextContent("run-red");
+    expect(root).toHaveTextContent("reverted-event");
+    expect(root).toHaveTextContent("green");
+    expect(root).toHaveTextContent("red");
+    expect(root).toHaveTextContent("reverted");
   });
 });

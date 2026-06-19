@@ -27,15 +27,18 @@ func (Signal) Name() string                               { return name }
 func (Signal) DefaultWeight() float64                     { return 0.8 }
 func (Signal) IsAvailable(context.Context) (bool, string) { return true, "" }
 
-func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Chunk) signals.ScoreResult {
+func (Signal) Score(ctx context.Context, gctx signals.GraphContext, chunk graph.Chunk) signals.ScoreResult {
+	if err := ctx.Err(); err != nil {
+		return signals.Abstain(name, err.Error(), chunk.Path)
+	}
 	if chunk.FileID == "" {
 		return signals.Abstain(name, "chunk has no file id", chunk.Path)
 	}
-	pkgID := graphindex.PackageForFile(chunk.FileID, gctx.Snapshot)
+	pkgID := graphindex.PackageForFileIn(chunk.FileID, gctx)
 	if pkgID == "" {
 		return signals.Abstain(name, "file has no package in snapshot", chunk.Path)
 	}
-	importers := importersOf(pkgID, gctx.Snapshot)
+	importers := graphindex.PackageImporters(pkgID, gctx)
 	if len(importers) == 0 {
 		return signals.Abstain(name, "no importers for this file in current snapshot", chunk.Path)
 	}
@@ -70,23 +73,4 @@ func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Ch
 		})
 	}
 	return signals.ScoreResult{Scores: out}
-}
-
-func importersOf(pkgID string, snap graph.GraphSnapshot) []string {
-	seen := make(map[string]struct{})
-	for _, e := range snap.Imports {
-		if e.ToPackageID != pkgID {
-			continue
-		}
-		from := graphindex.PackageFor(e.From, snap)
-		if from == "" || from == pkgID {
-			continue
-		}
-		seen[from] = struct{}{}
-	}
-	out := make([]string, 0, len(seen))
-	for k := range seen {
-		out = append(out, k)
-	}
-	return out
 }

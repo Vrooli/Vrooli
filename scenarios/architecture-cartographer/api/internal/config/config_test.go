@@ -2,6 +2,7 @@ package config
 
 import (
 	"reflect"
+	"runtime"
 	"testing"
 )
 
@@ -31,6 +32,9 @@ func TestLoad_ValidOverrides(t *testing.T) {
 		EnvLadderOrder:         "api_folders,domains_doc",
 		EnvBannedVocab:         "bucket,drawer",
 		EnvLayeringStrict:      "false",
+		EnvValidateConcurrency: "2",
+		EnvSignalWorkers:       "3",
+		EnvPprofEnabled:        "true",
 	}))
 	if len(diags) != 0 {
 		t.Fatalf("valid overrides → no diagnostics, got %+v", diags)
@@ -56,6 +60,12 @@ func TestLoad_ValidOverrides(t *testing.T) {
 	if cfg.LayeringStrict {
 		t.Fatal("layering strict override not applied")
 	}
+	if cfg.ValidateConcurrency != 2 || cfg.SignalWorkers != 3 {
+		t.Fatalf("concurrency overrides not applied: %+v", cfg)
+	}
+	if !cfg.PprofEnabled {
+		t.Fatal("pprof override not applied")
+	}
 }
 
 func TestLoad_ClampsOutOfRange(t *testing.T) {
@@ -68,6 +78,35 @@ func TestLoad_ClampsOutOfRange(t *testing.T) {
 	}
 	if cfg.SuggestMin != 0.0 {
 		t.Fatalf("suggest min should clamp to 0.0, got %v", cfg.SuggestMin)
+	}
+	if len(diags) < 2 {
+		t.Fatalf("expected clamp diagnostics, got %+v", diags)
+	}
+}
+
+func TestLoad_ConcurrencyDefaultsAreBounded(t *testing.T) {
+	cfg, diags := Load(envFrom(nil))
+	if len(diags) != 0 {
+		t.Fatalf("empty env diagnostics: %+v", diags)
+	}
+	if cfg.ValidateConcurrency != 1 {
+		t.Fatalf("validate concurrency default=%d want 1", cfg.ValidateConcurrency)
+	}
+	if cfg.SignalWorkers < 1 || cfg.SignalWorkers > 4 {
+		t.Fatalf("signal workers default=%d want [1,4]", cfg.SignalWorkers)
+	}
+}
+
+func TestLoad_ConcurrencyLeversClamp(t *testing.T) {
+	cfg, diags := Load(envFrom(map[string]string{
+		EnvValidateConcurrency: "9999",
+		EnvSignalWorkers:       "9999",
+	}))
+	if cfg.ValidateConcurrency != runtime.NumCPU() {
+		t.Fatalf("validate concurrency should clamp to NumCPU=%d, got %d", runtime.NumCPU(), cfg.ValidateConcurrency)
+	}
+	if cfg.SignalWorkers != 8 {
+		t.Fatalf("signal workers should clamp to 8, got %d", cfg.SignalWorkers)
 	}
 	if len(diags) < 2 {
 		t.Fatalf("expected clamp diagnostics, got %+v", diags)

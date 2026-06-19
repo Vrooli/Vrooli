@@ -81,6 +81,9 @@ lever never fails startup. Resolved by `internal/config.Load`.
 | `CARTOGRAPHER_LADDER_ORDER` | `domains_doc,api_folders,cli_groups` | CSV of source names | Domain-extraction trust order, highest first. Valid sources: `api_manifest` (reserved), `domains_doc`, `api_folders`, `cli_groups`. The UI rung is always advisory and appended regardless. |
 | `CARTOGRAPHER_BANNED_VOCAB` | `common,helpers,manager,misc,stuff,utils` | CSV | Generic domain/package names the `naming` detector flags because they hide product intent. |
 | `CARTOGRAPHER_LAYERING_STRICT` | `true` | boolean | When true, blocker-eligible `layering` violations (domain→transport and substrate→product imports) emit blocker severity; when false, they emit error severity for rollout. |
+| `CARTOGRAPHER_VALIDATE_CONCURRENCY` | `1` | [1, CPU count] | Process-wide cap for `audit.run`, `audit.run-all` workers, and scenario-validation RPCs. Raise only when the host has headroom; queued requests respect client cancellation. |
+| `CARTOGRAPHER_SIGNAL_WORKERS` | `min(4, CPU count)` | [1, 8] | Per-request worker cap for batched signal scoring. Higher values can reduce one validation's latency but multiply CPU use when several validations overlap. |
+| `CARTOGRAPHER_PPROF_ENABLED` | `false` | boolean | Mounts dev-only stdlib pprof routes at `/debug/pprof/*` on the API listener. Keep disabled except during local profiling of high CPU or memory incidents. |
 
 **Deliberately NOT exposed.** Cartographer intentionally has no lever for:
 

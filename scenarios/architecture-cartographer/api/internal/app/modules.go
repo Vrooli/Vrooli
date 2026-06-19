@@ -48,6 +48,7 @@ func Modules(db *database.RoutedDB, repoRoot string, cfg config.Config) []module
 		suppressionProvider,
 		audit.NewDirScenarioLister(repoRoot),
 		clk,
+		audit.WithMaxConcurrentRuns(cfg.ValidateConcurrency),
 	)
 	applySvc := apply.NewService(
 		apply.NewSQLiteRepository(primary, clk),

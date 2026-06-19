@@ -27,7 +27,7 @@ cache is warm where applicable.
 |---|---|---|---|---|
 | `arch-cart graph extract` (small) | ≤200 files | < 5s | Integration timing test against `bas/fixtures/small/` | budgeted |
 | `arch-cart graph extract` (medium) | ≤2000 files | < 30s | Integration timing test against `bas/fixtures/medium-realistic/` | budgeted |
-| `arch-cart graph extract` (cached, unchanged) | any size | < 500ms | Cache hit returns the persisted snapshot | budgeted |
+| `arch-cart graph extract` (cached, unchanged) | any size | < 500ms | Source-fingerprint cache hit returns before language adapters | active |
 | Signal scoring (full ladder) | 2000-file graph, all candidate domains | < 2s | Unit benchmark | budgeted |
 | `arch-cart conflicts list` | 2000-file graph, detectors complete | < 3s | Integration timing test | budgeted |
 | `arch-cart conflicts show <id>` | one conflict + source range | < 200ms | Unit + integration | budgeted |
@@ -38,12 +38,20 @@ cache is warm where applicable.
 | UI build | full vite production build | accepted at 5–10 min | lifecycle/test-genie build logs | inherited |
 | API health | `/health` | responsive under lifecycle health timeout | `/health` check | active |
 | UI health | `/health` | responsive under lifecycle health timeout | `/health` check | active |
+| Audit validation concurrency | concurrent `audit.Run` / scenario-validation requests | default 1 active request | `CARTOGRAPHER_VALIDATE_CONCURRENCY`, limiter tests | active |
+| Signal scoring fan-out | per-request `ScoreBatch` workers | default `min(4, CPU count)`, max 8 | `CARTOGRAPHER_SIGNAL_WORKERS`, worker-cap tests | active |
+| Signal graph indexes | batch scoring over repeated chunks | package, symbol, importer, test-coupling, and domain indexes are built once per scoring context | graphindex + signal package tests | active |
+| `git-co-edit` history reads | batch scoring over repeated chunks | one `git log` parse per scoring context | `gitcoedit.TestScore_ReusesBatchGitHistoryCache` | active |
+| Dev profiling | local CPU/memory incident reproduction | pprof disabled by default; `/debug/pprof/*` only when `CARTOGRAPHER_PPROF_ENABLED=true` | observability tests | active |
+| Latest snapshot freshness check | prior-snapshot check before extraction | metadata-only, no payload decode | `LatestSnapshotMeta` repository test with invalid payload | active |
 
 ## Current Measurements
 
 | Measurement | Value | Source | Date |
 |---|---|---|---|
-| None captured yet — implementation pre-flight. | n/a | n/a | 2026-05-21 |
+| Baseline `arch-cart-validation-cpu-hardening` | failed existing dirty-tree baseline: standards, unit, smoke failed; structure/workflows passed | `test-genie runs wait --json architecture-cartographer 20260619-021644-986de6d5` | 2026-06-19 |
+| Focused config/audit/graph/signals/conflicts tests after limiter + cache slices | pass | `go test ./internal/config ./internal/audit ./internal/graph ./internal/signals ./internal/conflicts/...` | 2026-06-19 |
+| Focused config/observability/signals/conflicts tests after indexing + git batching + pprof slice | pass | `go test ./internal/config ./internal/observability ./internal/signals/... ./internal/conflicts/...` | 2026-06-19 |
 
 Measurements are added as integration tests land. Each row records the
 benchmark's source file so regressions can be traced to a specific
@@ -71,10 +79,26 @@ commit.
   incremental TS builds where possible, and `--skip-build-check`
   available as an opt-out (with a `--note` requirement, logged in
   analytics, same as `--force`).
-- **Signal scoring is parallelizable** because signals are pure
-  functions over an immutable snapshot. Reach for goroutine
-  parallelism only if benchmarks show single-threaded scoring exceeds
-  budget; default is sequential for simplicity.
+- **Signal scoring is bounded parallel work** because signals are pure
+  functions over an immutable snapshot. The per-request worker cap is
+  `CARTOGRAPHER_SIGNAL_WORKERS` (default `min(4, CPU count)`, max 8).
+  Keep the validation-concurrency cap in mind: total runnable signal
+  workers can approach `CARTOGRAPHER_VALIDATE_CONCURRENCY *
+  CARTOGRAPHER_SIGNAL_WORKERS`.
+- **Signal indexes are per-scoring-context.** `GraphContext.Caches`
+  owns package lookup, domain-package, symbol, importer, test-coupling,
+  import-cluster, and git co-edit caches. Batch scoring should reuse one
+  `GraphContext`; constructing a new context per chunk is a performance
+  regression.
+- **Git co-edit is intentionally batched.** The signal parses one git
+  history snapshot per scoring context and then scores each chunk from
+  the parsed cache. Reintroducing per-chunk `git log -- <path>` calls is
+  a host-saturation risk under validation batches.
+- **Scenario validation is host-safety-first.** The default
+  `CARTOGRAPHER_VALIDATE_CONCURRENCY=1` serializes audits and
+  Test Genie delegated validation requests inside the cartographer
+  process. Raise it only for controlled benchmark runs or hosts with
+  spare CPU.
 
 ## Regression Procedure
 
@@ -95,9 +119,14 @@ provided capture template (inherited from the react-vite template).
 
 ## Performance Anti-Patterns
 
-- **Re-extracting unchanged graphs.** Always check the content-hash
-  cache first. Bypassing the cache without a reason is a regression
-  in itself.
+- **Re-extracting unchanged graphs.** Always check the source cache
+  first. Production graph extraction now computes a cheap
+  `source_fingerprint` and checks it before calling language graph
+  adapters. Bypassing that cache without a reason is a regression in
+  itself.
+- **Decoding graph payloads for metadata checks.** Audit freshness uses
+  `LatestSnapshotMeta`; latest-snapshot existence checks must not load
+  or decode the graph JSON payload.
 - **Running signals inside a transaction or with side effects.**
   Signals are pure; if a signal needs to log, it logs through the
   analytics recorder seam, not inline.

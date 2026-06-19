@@ -27,15 +27,18 @@ func (Signal) Name() string                               { return name }
 func (Signal) DefaultWeight() float64                     { return 0.7 }
 func (Signal) IsAvailable(context.Context) (bool, string) { return true, "" }
 
-func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Chunk) signals.ScoreResult {
+func (Signal) Score(ctx context.Context, gctx signals.GraphContext, chunk graph.Chunk) signals.ScoreResult {
+	if err := ctx.Err(); err != nil {
+		return signals.Abstain(name, err.Error(), chunk.Path)
+	}
 	if chunk.FileID == "" {
 		return signals.Abstain(name, "chunk has no file id", chunk.Path)
 	}
-	pkgID := graphindex.PackageForFile(chunk.FileID, gctx.Snapshot)
+	pkgID := graphindex.PackageForFileIn(chunk.FileID, gctx)
 	if pkgID == "" {
 		return signals.Abstain(name, "file has no package in snapshot", chunk.Path)
 	}
-	tests := importingTestFiles(pkgID, gctx.Snapshot)
+	tests := graphindex.PackageImportingTests(pkgID, gctx)
 	if len(tests) == 0 {
 		return signals.Abstain(name, "no test files import this package", chunk.Path)
 	}
@@ -70,28 +73,4 @@ func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Ch
 		})
 	}
 	return signals.ScoreResult{Scores: out}
-}
-
-func importingTestFiles(pkgID string, snap graph.GraphSnapshot) []graph.FileNode {
-	importers := make(map[string]struct{})
-	for _, e := range snap.Imports {
-		if e.ToPackageID != pkgID {
-			continue
-		}
-		importers[e.From] = struct{}{}
-	}
-	var out []graph.FileNode
-	for _, f := range snap.Files {
-		if !f.IsTest {
-			continue
-		}
-		if _, ok := importers[f.ID]; ok {
-			out = append(out, f)
-			continue
-		}
-		if _, ok := importers[f.PackageID]; ok {
-			out = append(out, f)
-		}
-	}
-	return out
 }

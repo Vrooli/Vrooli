@@ -23,6 +23,7 @@ Use this document to answer:
 | Signal | Type | Source | Purpose | Threshold |
 |---|---|---|---|---|
 | `/health` status | health | API | API and dependency reachability | healthy for local development |
+| `/debug/pprof/*` | dev profiling | API when `CARTOGRAPHER_PPROF_ENABLED=true` | CPU, goroutine, heap, and trace profiles during local incidents | disabled by default; enable only for a profiling session |
 | UI health endpoint | health | UI server | UI bundle/server reachability | responds during lifecycle health check |
 | `go-code-graph` reachability | dependency-health | `arch-cart status` | Cartographer can extract Go graphs | reachable when needed |
 | `typescript-code-graph` reachability | dependency-health | `arch-cart status` | Cartographer can extract TS graphs | reachable when needed |
@@ -43,6 +44,31 @@ Use this document to answer:
 | Apply audit log | SQLite `apply_runs` table | `arch-cart analytics events --filter applies` | Includes baseline status, post status, force notes. |
 | Force-note audit | derived from analytics | `arch-cart analytics events --filter force-notes` | Quarterly review per [`RUNBOOK.md`](RUNBOOK.md). |
 | Calibration proposals | analytics + signal weights | `arch-cart calibrate --dry-run` | Monthly review per [`RUNBOOK.md`](RUNBOOK.md). |
+
+## High-CPU Debugging
+
+Use lifecycle first. If the API is saturating the host, stop it with
+`cd scenarios/architecture-cartographer && make stop` before profiling
+or restarting. When a controlled reproduction is needed, enable pprof
+only for that run:
+
+```bash
+CARTOGRAPHER_PPROF_ENABLED=true make start
+```
+
+Then capture profiles from the API port reported by the lifecycle:
+
+```bash
+curl -o /tmp/arch-cart.cpu.pb.gz "http://127.0.0.1:${API_PORT}/debug/pprof/profile?seconds=30"
+curl -o /tmp/arch-cart.goroutine.pb.gz "http://127.0.0.1:${API_PORT}/debug/pprof/goroutine"
+```
+
+For validation-specific CPU spikes, inspect these controls first:
+
+- `CARTOGRAPHER_VALIDATE_CONCURRENCY` — process-wide audit and scenario-validation concurrency.
+- `CARTOGRAPHER_SIGNAL_WORKERS` — per-validation signal worker fan-out.
+- Graph cache hit rate — unchanged source should use the source-fingerprint cache before language graph adapters.
+- `git-co-edit` cost — scoring now parses one git history snapshot per scoring context and reuses it across chunks.
 
 ## Metrics
 

@@ -12,6 +12,7 @@ import (
 
 	"architecture-cartographer/internal/graph"
 	"architecture-cartographer/internal/signals"
+	"architecture-cartographer/internal/signals/graphindex"
 )
 
 const name = "symbol-glossary"
@@ -26,11 +27,14 @@ func (Signal) Name() string                               { return name }
 func (Signal) DefaultWeight() float64                     { return 0.9 }
 func (Signal) IsAvailable(context.Context) (bool, string) { return true, "" }
 
-func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Chunk) signals.ScoreResult {
+func (Signal) Score(ctx context.Context, gctx signals.GraphContext, chunk graph.Chunk) signals.ScoreResult {
+	if err := ctx.Err(); err != nil {
+		return signals.Abstain(name, err.Error(), chunk.Path)
+	}
 	if chunk.FileID == "" {
 		return signals.Abstain(name, "chunk has no file id", chunk.Path)
 	}
-	symbols := symbolsForFile(chunk.FileID, gctx.Snapshot)
+	symbols := graphindex.ExportedSymbolsForFile(chunk.FileID, gctx)
 	if len(symbols) == 0 {
 		return signals.Abstain(name, "file has no exported symbols in snapshot", chunk.Path)
 	}
@@ -73,14 +77,4 @@ func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Ch
 		return signals.Abstain(name, "no glossary terms matched any domain", chunk.Path)
 	}
 	return signals.ScoreResult{Scores: out}
-}
-
-func symbolsForFile(fileID string, snap graph.GraphSnapshot) []string {
-	var out []string
-	for _, s := range snap.Symbols {
-		if s.FileID == fileID && s.Exported {
-			out = append(out, s.Name)
-		}
-	}
-	return out
 }

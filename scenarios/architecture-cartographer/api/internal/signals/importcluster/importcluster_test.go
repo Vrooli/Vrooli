@@ -149,3 +149,18 @@ func TestScore_NoClusterAbstains(t *testing.T) {
 		t.Fatal("expected abstention when file has no cluster")
 	}
 }
+
+func TestScore_CanceledContextAbstains(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	out := importcluster.New().Score(ctx,
+		signals.NewGraphContext("demo", graph.GraphSnapshot{}, domains.DerivedDomainMap{}),
+		graph.Chunk{FileID: "file:none", Path: "none.go"},
+	)
+	if len(out.Scores) != 0 {
+		t.Fatalf("canceled context must not produce scores, got %+v", out.Scores)
+	}
+	if out.Abstention == nil {
+		t.Fatal("expected cancellation abstention")
+	}
+}

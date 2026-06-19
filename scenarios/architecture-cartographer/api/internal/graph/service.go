@@ -13,6 +13,7 @@ import (
 type Service interface {
 	ExtractGraph(ctx context.Context, req ExtractGraphInput) (GraphSnapshot, bool, error)
 	GetSnapshot(ctx context.Context, id string) (GraphSnapshot, error)
+	LatestSnapshotMeta(ctx context.Context, scenario string) (GraphSnapshotMeta, error)
 	ListSnapshots(ctx context.Context, f ListSnapshotsFilter) (SnapshotPage, error)
 	ClearSnapshots(ctx context.Context, scenario string, dryRun bool) (int, bool, error)
 }
@@ -29,15 +30,22 @@ type ExtractGraphInput struct {
 }
 
 type service struct {
-	repo     Repository
-	adapters []CodeGraphAdapter
-	clock    clock.Clock
+	repo          Repository
+	adapters      []CodeGraphAdapter
+	clock         clock.Clock
+	fingerprinter SourceFingerprinter
 }
 
 // NewService constructs the production Service. Adapters in priority
 // order; the first adapter that supports the requested language wins.
 func NewService(repo Repository, clk clock.Clock, adapters ...CodeGraphAdapter) Service {
 	return &service{repo: repo, adapters: adapters, clock: clk}
+}
+
+// NewServiceWithFingerprinter constructs a Service that can check the
+// source-fingerprint cache before invoking language graph adapters.
+func NewServiceWithFingerprinter(repo Repository, clk clock.Clock, fingerprinter SourceFingerprinter, adapters ...CodeGraphAdapter) Service {
+	return &service{repo: repo, adapters: adapters, clock: clk, fingerprinter: fingerprinter}
 }
 
 var _ Service = (*service)(nil)
@@ -52,6 +60,27 @@ func (s *service) ExtractGraph(ctx context.Context, in ExtractGraphInput) (Graph
 			Kind:     "no_adapter_registered",
 			Scenario: scenario,
 			Cause:    errors.New("no CodeGraphAdapter registered"),
+		}
+	}
+
+	sourceFingerprint, err := s.sourceFingerprint(ctx, in)
+	if err != nil {
+		return GraphSnapshot{}, false, err
+	}
+	if sourceFingerprint != "" {
+		existing, err := s.repo.FindBySourceFingerprint(ctx, scenario, sourceFingerprint)
+		switch {
+		case err == nil && len(existing.SkippedAdapters) == 0:
+			return existing, true, nil
+		case err == nil:
+			// Degraded snapshots are persisted for explainability, but they
+			// are not a safe fast-path cache hit because an adapter that was
+			// unreachable or unimplemented may now be healthy.
+		default:
+			var notFound ErrSnapshotNotFound
+			if !errors.As(err, &notFound) {
+				return GraphSnapshot{}, false, err
+			}
 		}
 	}
 
@@ -93,6 +122,7 @@ func (s *service) ExtractGraph(ctx context.Context, in ExtractGraphInput) (Graph
 	snap := Normalize(scenario, combined)
 	snap.ExtractedAt = s.clock.Now().UTC()
 	snap.SkippedAdapters = skipped
+	snap.SourceFingerprint = sourceFingerprint
 
 	// Cache hit?
 	if existing, err := s.repo.FindByHash(ctx, snap.Scenario, snap.ContentHash); err == nil {
@@ -113,6 +143,10 @@ func (s *service) ExtractGraph(ctx context.Context, in ExtractGraphInput) (Graph
 
 func (s *service) GetSnapshot(ctx context.Context, id string) (GraphSnapshot, error) {
 	return s.repo.GetSnapshot(ctx, id)
+}
+
+func (s *service) LatestSnapshotMeta(ctx context.Context, scenario string) (GraphSnapshotMeta, error) {
+	return s.repo.LatestSnapshotMeta(ctx, scenario)
 }
 
 func (s *service) ListSnapshots(ctx context.Context, f ListSnapshotsFilter) (SnapshotPage, error) {
@@ -148,4 +182,11 @@ func adapterSupports(a CodeGraphAdapter, requested []Language) bool {
 		}
 	}
 	return false
+}
+
+func (s *service) sourceFingerprint(ctx context.Context, in ExtractGraphInput) (string, error) {
+	if s.fingerprinter == nil {
+		return "", nil
+	}
+	return s.fingerprinter.Fingerprint(ctx, in)
 }

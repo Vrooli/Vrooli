@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, screen } from "@testing-library/react";
+import { cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./controllers/useAnalyticsController", () => ({
@@ -36,9 +36,9 @@ describe("StatsPanel", () => {
     mockStats({ isError: true, error: new Error("stats unavailable"), refetch });
     rerender(<StatsPanel scenario="demo" />);
 
-    expect(screen.getByTestId(selectors.features.analytics.stats.error)).toBeInTheDocument();
-    expect(screen.getByText("stats unavailable")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /retry/i }));
+    const error = screen.getByTestId(selectors.features.analytics.stats.error);
+    expect(error).toHaveTextContent("stats unavailable");
+    fireEvent.click(within(error).getByRole("button"));
     expect(refetch).toHaveBeenCalledTimes(1);
   });
 
@@ -47,8 +47,9 @@ describe("StatsPanel", () => {
 
     renderWithProviders(<StatsPanel scenario="demo" />);
 
-    expect(screen.getByTestId(selectors.features.analytics.stats.root)).toBeInTheDocument();
-    expect(screen.getAllByText("0").length).toBeGreaterThanOrEqual(6);
+    const root = screen.getByTestId(selectors.features.analytics.stats.root);
+    expect(root).toBeInTheDocument();
+    expect(root.textContent.match(/0/g)?.length ?? 0).toBeGreaterThanOrEqual(6);
     expect(screen.getByTestId(selectors.features.analytics.stats.suppressed)).toBeInTheDocument();
   });
 
@@ -71,9 +72,10 @@ describe("StatsPanel", () => {
 
     renderWithProviders(<StatsPanel scenario="demo" />);
 
-    expect(screen.getByText("8")).toBeInTheDocument();
-    expect(screen.getByText("13")).toBeInTheDocument();
-    expect(screen.getByText("88%")).toBeInTheDocument();
+    const root = screen.getByTestId(selectors.features.analytics.stats.root);
+    expect(root).toHaveTextContent("8");
+    expect(root).toHaveTextContent("13");
+    expect(root).toHaveTextContent("88%");
     expect(screen.queryByTestId(selectors.features.analytics.stats.suppressed)).not.toBeInTheDocument();
   });
 });

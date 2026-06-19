@@ -9,7 +9,9 @@ import (
 	"architecture-cartographer/internal/app"
 	"architecture-cartographer/internal/clock"
 	"architecture-cartographer/internal/config"
+	"architecture-cartographer/internal/graph"
 	"architecture-cartographer/internal/modules"
+	"architecture-cartographer/internal/observability"
 	"architecture-cartographer/internal/server"
 
 	"github.com/vrooli/api-core/apihttp"
@@ -43,6 +45,9 @@ func main() {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 
+	if err := graph.MigrateSchema(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("schema migration failed: %v", err)
+	}
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
@@ -71,6 +76,7 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.Register(rootMux, db)
+	observability.RegisterPprof(rootMux, cfg.PprofEnabled)
 	rootMux.Handle("/", srv.Handler())
 
 	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the

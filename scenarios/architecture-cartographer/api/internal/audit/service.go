@@ -36,20 +36,45 @@ type service struct {
 	suppressions SuppressionLoader
 	scenarios    ScenarioLister
 	clock        clock.Clock
+	limiter      *RunLimiter
+}
+
+// Option customizes the audit service.
+type Option func(*service)
+
+// WithRunLimiter installs the process-wide audit/validation concurrency gate.
+func WithRunLimiter(l *RunLimiter) Option {
+	return func(s *service) { s.limiter = l }
+}
+
+// WithMaxConcurrentRuns installs a RunLimiter when max is positive.
+func WithMaxConcurrentRuns(max int) Option {
+	return func(s *service) { s.limiter = NewRunLimiter(max) }
 }
 
 // NewService constructs the audit orchestrator. verdicts may be nil
 // (the mislocated_file detector skips when no provider is wired —
 // see conflicts.DetectInput.VerdictProvider). scenarios may be nil
 // when the caller never invokes RunAll.
-func NewService(g graph.Service, d domains.Service, c conflicts.Service, verdicts conflicts.VerdictProvider, sup SuppressionLoader, scenarios ScenarioLister, clk clock.Clock) Service {
-	return &service{graph: g, domains: d, conflicts: c, verdicts: verdicts, suppressions: sup, scenarios: scenarios, clock: clk}
+func NewService(g graph.Service, d domains.Service, c conflicts.Service, verdicts conflicts.VerdictProvider, sup SuppressionLoader, scenarios ScenarioLister, clk clock.Clock, opts ...Option) Service {
+	s := &service{graph: g, domains: d, conflicts: c, verdicts: verdicts, suppressions: sup, scenarios: scenarios, clock: clk}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 func (s *service) Run(ctx context.Context, in RunInput) (Report, error) {
 	scenario := strings.TrimSpace(in.Scenario)
 	if scenario == "" {
 		return Report{}, ErrInvalidRunRequest{Field: "scenario", Reason: "required"}
+	}
+	if s.limiter != nil {
+		release, err := s.limiter.Acquire(ctx)
+		if err != nil {
+			return Report{}, err
+		}
+		defer release()
 	}
 	failOn := in.FailOn
 	if failOn == conflicts.SeverityUnspecified {
@@ -307,8 +332,8 @@ func lowAuthorityMessage(scenario string) string {
 //     differed from the current source tree.
 //   - FRESH:        no prior persisted snapshot existed.
 func (s *service) freshSnapshot(ctx context.Context, scenario string, skipTS bool) (graph.GraphSnapshot, SnapshotFreshness, error) {
-	page, lsErr := s.graph.ListSnapshots(ctx, graph.ListSnapshotsFilter{Scenario: scenario, PageSize: 1})
-	priorExists := lsErr == nil && len(page.Snapshots) > 0
+	_, lsErr := s.graph.LatestSnapshotMeta(ctx, scenario)
+	priorExists := lsErr == nil
 	snap, cacheHit, err := s.graph.ExtractGraph(ctx, graph.ExtractGraphInput{Scenario: scenario, SkipTS: skipTS})
 	if err != nil {
 		return graph.GraphSnapshot{}, SnapshotFreshnessUnspecified, err

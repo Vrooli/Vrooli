@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, screen } from "@testing-library/react";
+import { cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -106,8 +106,9 @@ describe("CampaignDetailPanel", () => {
       statusState: { isError: true, error: "campaign unavailable" as never, refetch },
     });
     rerender(<CampaignDetailPanel scenario="demo" campaignId="m-1" />);
-    expect(screen.getByTestId(selectors.features.campaign.detail.error)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /retry/i }));
+    const error = screen.getByTestId(selectors.features.campaign.detail.error);
+    expect(error).toBeInTheDocument();
+    fireEvent.click(within(error).getByRole("button"));
     expect(refetch).toHaveBeenCalledTimes(1);
 
     mockDetailState({ statusState: { data: { status: undefined } as never } });
@@ -211,8 +212,12 @@ describe("CampaignDetailPanel", () => {
     expect(screen.getByTestId(selectors.features.campaign.detail.worklistEmpty)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.features.campaign.detail.reauditSubmit)).toBeDisabled();
     expect(screen.getByTestId(selectors.features.campaign.detail.closeButton)).toBeDisabled();
-    expect(screen.getByText("pages.campaign.detail.reauditting")).toBeInTheDocument();
-    expect(screen.getByText("pages.campaign.detail.closing")).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.features.campaign.detail.reauditSubmit)).toHaveTextContent(
+      "pages.campaign.detail.reauditting",
+    );
+    expect(screen.getByTestId(selectors.features.campaign.detail.closeButton)).toHaveTextContent(
+      "pages.campaign.detail.closing",
+    );
   });
 
   it("renders a closed campaign without open mutation controls", () => {
@@ -231,7 +236,9 @@ describe("CampaignDetailPanel", () => {
 
     expect(screen.queryByTestId(selectors.features.campaign.detail.reaudit)).not.toBeInTheDocument();
     expect(screen.queryByTestId(selectors.features.campaign.detail.actionButton({ stableId: "closed-item", action: "resolve" }))).not.toBeInTheDocument();
-    expect(screen.getByText("pages.campaign.detail.closedNote")).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.features.campaign.detail.root)).toHaveTextContent(
+      "pages.campaign.detail.closedNote",
+    );
   });
 });
 

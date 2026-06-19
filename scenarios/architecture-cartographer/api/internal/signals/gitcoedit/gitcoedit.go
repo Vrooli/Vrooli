@@ -58,6 +58,9 @@ func (s *Signal) IsAvailable(ctx context.Context) (bool, string) {
 }
 
 func (s *Signal) Score(ctx context.Context, gctx signals.GraphContext, chunk graph.Chunk) signals.ScoreResult {
+	if err := ctx.Err(); err != nil {
+		return signals.Abstain(name, err.Error(), chunk.Path)
+	}
 	if chunk.Path == "" {
 		return signals.Abstain(name, "chunk has no path", "")
 	}
@@ -66,15 +69,14 @@ func (s *Signal) Score(ctx context.Context, gctx signals.GraphContext, chunk gra
 		// if someone calls Score directly we still satisfy the contract.
 		return signals.Abstain(name, "git unavailable: "+reason, chunk.Path)
 	}
-	// `git log --since=<lookback> --name-only --pretty=format:%H -- <path>`
-	logOut, err := s.runner.Log(ctx, "--since="+s.lookback, "--name-only", "--pretty=format:%H", "--", chunk.Path)
+	cache, err := s.coEditCache(ctx, gctx)
 	if err != nil {
 		return signals.Abstain(name, "git log failed: "+err.Error(), chunk.Path)
 	}
-	if strings.TrimSpace(logOut) == "" {
+	if len(cache.commitsByPath) == 0 {
 		return signals.Abstain(name, "no git history for this file in the lookback window", chunk.Path)
 	}
-	commits := parseCommits(logOut)
+	commits := cache.commitsByPath[chunk.Path]
 	if len(commits) < MinCoEditCommits {
 		return signals.Abstain(name, fmt.Sprintf("fewer than %d co-edit commits in lookback window", MinCoEditCommits), chunk.Path)
 	}
@@ -142,6 +144,47 @@ func (s *Signal) Score(ctx context.Context, gctx signals.GraphContext, chunk gra
 		})
 	}
 	return signals.ScoreResult{Scores: out}
+}
+
+type coEditCache struct {
+	commitsByPath map[string][]commit
+}
+
+func (s *Signal) coEditCache(ctx context.Context, gctx signals.GraphContext) (coEditCache, error) {
+	if gctx.Caches != nil {
+		value, err := gctx.Caches.GitCoEditGetOrCompute(ctx, func(ctx context.Context) (any, error) {
+			return s.readCoEditCache(ctx)
+		})
+		if err != nil {
+			return coEditCache{}, err
+		}
+		if cached, ok := value.(coEditCache); ok {
+			return cached, nil
+		}
+		return coEditCache{}, fmt.Errorf("git co-edit cache has unexpected type %T", value)
+	}
+	return s.readCoEditCache(ctx)
+}
+
+func (s *Signal) readCoEditCache(ctx context.Context) (coEditCache, error) {
+	logOut, err := s.runner.Log(ctx, "--since="+s.lookback, "--name-only", "--pretty=format:%H")
+	if err != nil {
+		return coEditCache{}, err
+	}
+	if err := ctx.Err(); err != nil {
+		return coEditCache{}, err
+	}
+	return coEditCache{commitsByPath: commitsByPath(parseCommits(logOut))}, nil
+}
+
+func commitsByPath(commits []commit) map[string][]commit {
+	out := make(map[string][]commit)
+	for _, c := range commits {
+		for _, f := range c.Files {
+			out[f] = append(out[f], c)
+		}
+	}
+	return out
 }
 
 type commit struct {

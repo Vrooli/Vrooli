@@ -24,11 +24,13 @@ type FakeRepository struct {
 	ListErr  error
 	ClearErr error
 
-	SaveCalls  atomic.Int64
-	GetCalls   atomic.Int64
-	FindCalls  atomic.Int64
-	ListCalls  atomic.Int64
-	ClearCalls atomic.Int64
+	SaveCalls       atomic.Int64
+	GetCalls        atomic.Int64
+	MetaCalls       atomic.Int64
+	FindCalls       atomic.Int64
+	SourceFindCalls atomic.Int64
+	ListCalls       atomic.Int64
+	ClearCalls      atomic.Int64
 }
 
 func (f *FakeRepository) SaveSnapshot(_ context.Context, s graph.GraphSnapshot) (graph.GraphSnapshot, error) {
@@ -60,14 +62,26 @@ func (f *FakeRepository) GetSnapshot(_ context.Context, id string) (graph.GraphS
 	if f.GetErr != nil {
 		return graph.GraphSnapshot{}, f.GetErr
 	}
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	for _, s := range f.Snapshots {
-		if s.ID == id {
-			return s, nil
-		}
+	return f.findSnapshot(func(s graph.GraphSnapshot) bool { return s.ID == id }, id)
+}
+
+func (f *FakeRepository) LatestSnapshotMeta(_ context.Context, scenario string) (graph.GraphSnapshotMeta, error) {
+	f.MetaCalls.Add(1)
+	if f.GetErr != nil {
+		return graph.GraphSnapshotMeta{}, f.GetErr
 	}
-	return graph.GraphSnapshot{}, graph.ErrSnapshotNotFound{ID: id}
+	s, err := f.findLatestSnapshot(func(s graph.GraphSnapshot) bool { return s.Scenario == scenario }, "scenario="+scenario)
+	if err != nil {
+		return graph.GraphSnapshotMeta{}, err
+	}
+	return graph.GraphSnapshotMeta{
+		ID:                s.ID,
+		Scenario:          s.Scenario,
+		ContentHash:       s.ContentHash,
+		SourceFingerprint: s.SourceFingerprint,
+		ExtractedAt:       s.ExtractedAt,
+		ExtractionMS:      s.ExtractionMS,
+	}, nil
 }
 
 func (f *FakeRepository) FindByHash(_ context.Context, scenario, contentHash string) (graph.GraphSnapshot, error) {
@@ -75,14 +89,46 @@ func (f *FakeRepository) FindByHash(_ context.Context, scenario, contentHash str
 	if f.FindErr != nil {
 		return graph.GraphSnapshot{}, f.FindErr
 	}
+	return f.findSnapshot(
+		func(s graph.GraphSnapshot) bool { return s.Scenario == scenario && s.ContentHash == contentHash },
+		scenario+":"+contentHash,
+	)
+}
+
+func (f *FakeRepository) FindBySourceFingerprint(_ context.Context, scenario, sourceFingerprint string) (graph.GraphSnapshot, error) {
+	f.SourceFindCalls.Add(1)
+	if f.FindErr != nil {
+		return graph.GraphSnapshot{}, f.FindErr
+	}
+	return f.findLatestSnapshot(
+		func(s graph.GraphSnapshot) bool {
+			return s.Scenario == scenario && s.SourceFingerprint == sourceFingerprint
+		},
+		scenario+":"+sourceFingerprint,
+	)
+}
+
+func (f *FakeRepository) findSnapshot(match func(graph.GraphSnapshot) bool, notFoundID string) (graph.GraphSnapshot, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	for _, s := range f.Snapshots {
-		if s.Scenario == scenario && s.ContentHash == contentHash {
+		if match(s) {
 			return s, nil
 		}
 	}
-	return graph.GraphSnapshot{}, graph.ErrSnapshotNotFound{ID: scenario + ":" + contentHash}
+	return graph.GraphSnapshot{}, graph.ErrSnapshotNotFound{ID: notFoundID}
+}
+
+func (f *FakeRepository) findLatestSnapshot(match func(graph.GraphSnapshot) bool, notFoundID string) (graph.GraphSnapshot, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for i := len(f.Snapshots) - 1; i >= 0; i-- {
+		s := f.Snapshots[i]
+		if match(s) {
+			return s, nil
+		}
+	}
+	return graph.GraphSnapshot{}, graph.ErrSnapshotNotFound{ID: notFoundID}
 }
 
 func (f *FakeRepository) ListSnapshots(_ context.Context, filter graph.ListSnapshotsFilter) (graph.SnapshotPage, error) {

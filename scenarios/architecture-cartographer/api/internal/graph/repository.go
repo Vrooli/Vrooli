@@ -1,6 +1,9 @@
 package graph
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 // Repository is the persistence seam for graph snapshots. Production
 // wires the sqlite-backed implementation; service unit tests wire
@@ -14,9 +17,17 @@ type Repository interface {
 	// ErrSnapshotNotFound{ID} when no row matches.
 	GetSnapshot(ctx context.Context, id string) (GraphSnapshot, error)
 
+	// LatestSnapshotMeta returns the latest snapshot metadata for a scenario
+	// without decoding the payload.
+	LatestSnapshotMeta(ctx context.Context, scenario string) (GraphSnapshotMeta, error)
+
 	// FindByHash returns the snapshot for (scenario, contentHash) or
 	// ErrSnapshotNotFound when none is cached.
 	FindByHash(ctx context.Context, scenario, contentHash string) (GraphSnapshot, error)
+
+	// FindBySourceFingerprint returns the latest snapshot extracted from
+	// the same source tree/options fingerprint.
+	FindBySourceFingerprint(ctx context.Context, scenario, sourceFingerprint string) (GraphSnapshot, error)
 
 	// ListSnapshots paginates snapshots; scenario filter when set.
 	ListSnapshots(ctx context.Context, f ListSnapshotsFilter) (SnapshotPage, error)
@@ -37,4 +48,15 @@ type ListSnapshotsFilter struct {
 type SnapshotPage struct {
 	Snapshots     []GraphSnapshot
 	NextPageToken string
+}
+
+// GraphSnapshotMeta is the payload-free metadata view of a snapshot.
+type GraphSnapshotMeta struct {
+	ID                string
+	Scenario          string
+	ContentHash       string
+	SourceFingerprint string
+	ExtractedAt       time.Time
+	ExtractionMS      int64
+	PayloadBytes      int64
 }

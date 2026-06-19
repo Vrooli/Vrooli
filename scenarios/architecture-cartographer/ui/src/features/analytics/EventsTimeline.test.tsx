@@ -36,8 +36,9 @@ describe("EventsTimeline", () => {
 
     mockEvents({ isError: true, error: new Error("events unavailable") });
     rerender(<EventsTimeline scenario="demo" />);
-    expect(screen.getByTestId(selectors.features.analytics.events.error)).toBeInTheDocument();
-    expect(screen.getByText("events unavailable")).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.features.analytics.events.error)).toHaveTextContent(
+      "events unavailable",
+    );
 
     mockEvents({ data: { events: [] } as never });
     rerender(<EventsTimeline scenario="demo" />);
@@ -77,7 +78,7 @@ describe("EventsTimeline", () => {
 
     expect(screen.getByTestId(selectors.features.analytics.events.root)).toBeInTheDocument();
     expect(screen.getAllByRole("row")).toHaveLength(16);
-    expect(screen.getAllByText("graph").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("—").length).toBeGreaterThan(0);
+    expect(screen.getByTestId(selectors.shared.dataTable.row({ id: "event-0" }))).toHaveTextContent("graph");
+    expect(screen.getByTestId(selectors.shared.dataTable.row({ id: "event-1" }))).toHaveTextContent("—");
   });
 });

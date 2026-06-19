@@ -124,7 +124,9 @@ describe("ApplyWorkspace", () => {
 
     expect(screen.getByTestId(selectors.features.apply.plan.planButton)).toBeDisabled();
     expect(screen.getByTestId(selectors.features.apply.plan.applyButton)).toBeDisabled();
-    expect(screen.getByText("pages.targetApply.applyUnimplementedTitle")).toBeInTheDocument();
+    expect(screen.getAllByTestId(selectors.shared.emptyState.root).at(1)).toHaveTextContent(
+      "pages.targetApply.applyUnimplementedTitle",
+    );
     expect(screen.getByTestId(selectors.features.apply.overview.baseline)).toHaveTextContent(
       "pages.targetApply.baselineUnknown",
     );

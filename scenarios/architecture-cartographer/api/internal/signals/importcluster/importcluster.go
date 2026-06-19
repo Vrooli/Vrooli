@@ -29,15 +29,21 @@ func (Signal) Name() string                               { return name }
 func (Signal) DefaultWeight() float64                     { return 1.0 }
 func (Signal) IsAvailable(context.Context) (bool, string) { return true, "" }
 
-func (Signal) Score(_ context.Context, gctx signals.GraphContext, chunk graph.Chunk) signals.ScoreResult {
+func (Signal) Score(ctx context.Context, gctx signals.GraphContext, chunk graph.Chunk) signals.ScoreResult {
+	if err := ctx.Err(); err != nil {
+		return signals.Abstain(name, err.Error(), chunk.Path)
+	}
 	if chunk.FileID == "" {
 		return signals.Abstain(name, "chunk has no file id", chunk.Path)
 	}
-	pkgID := graphindex.PackageForFile(chunk.FileID, gctx.Snapshot)
+	pkgID := graphindex.PackageForFileIn(chunk.FileID, gctx)
 	if pkgID == "" {
 		return signals.Abstain(name, "file has no package in snapshot", chunk.Path)
 	}
-	clusters := computeClusters(gctx)
+	clusters, err := computeClusters(ctx, gctx)
+	if err != nil {
+		return signals.Abstain(name, err.Error(), chunk.Path)
+	}
 	clusterID, ok := clusters[pkgID]
 	if !ok {
 		return signals.Abstain(name, "package is not in any import cluster", chunk.Path)
@@ -95,20 +101,26 @@ const modularityEpsilon = 1e-9
 // from deterministic Louvain modularity communities over the import graph.
 // Cached on GraphContext.Caches so subsequent calls in the same
 // scoring batch share the work; access is goroutine-safe.
-func computeClusters(gctx signals.GraphContext) map[string]int {
+func computeClusters(ctx context.Context, gctx signals.GraphContext) (map[string]int, error) {
 	if gctx.Caches != nil {
 		if cached := gctx.Caches.CommunitySnapshot(); cached != nil {
-			return cached
+			return cached, nil
 		}
 	}
 	graph := newWeightedGraph()
 	inScenario := make(map[string]struct{}, len(gctx.Snapshot.Packages))
 	for _, p := range gctx.Snapshot.Packages {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		inScenario[p.ID] = struct{}{}
 		graph.addNode(p.ID)
 	}
 	for _, e := range gctx.Snapshot.Imports {
-		from := graphindex.PackageFor(e.From, gctx.Snapshot)
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		from := graphindex.PackageForIn(e.From, gctx)
 		if from == "" {
 			continue
 		}
@@ -121,11 +133,14 @@ func computeClusters(gctx signals.GraphContext) map[string]int {
 		graph.addEdge(from, e.ToPackageID, 1)
 	}
 
-	cluster := louvainCommunities(graph)
+	cluster, err := louvainCommunities(ctx, graph)
+	if err != nil {
+		return nil, err
+	}
 	if gctx.Caches != nil {
 		gctx.Caches.SetCommunity(cluster)
 	}
-	return cluster
+	return cluster, nil
 }
 
 func clusterIDLabel(id int) string {
@@ -181,28 +196,40 @@ func (g weightedGraph) totalEdgeWeight() float64 {
 	return total / 2
 }
 
-func louvainCommunities(g weightedGraph) map[string]int {
+func louvainCommunities(ctx context.Context, g weightedGraph) (map[string]int, error) {
 	if len(g.nodes) == 0 {
-		return map[string]int{}
+		return map[string]int{}, nil
 	}
 	if g.totalEdgeWeight() == 0 {
-		return singletonCommunities(g.nodes)
+		return singletonCommunities(g.nodes), nil
 	}
 
 	originalToNode := make(map[string]string, len(g.nodes))
 	for _, node := range g.nodes {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		originalToNode[node] = node
 	}
 
 	current := g
 	previousModularity := math.Inf(-1)
 	for {
-		partition := optimizePartition(current)
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		partition, err := optimizePartition(ctx, current)
+		if err != nil {
+			return nil, err
+		}
 		for original, node := range originalToNode {
 			originalToNode[original] = partition[node]
 		}
 
-		modularity := modularity(current, partition)
+		modularity, err := modularity(ctx, current, partition)
+		if err != nil {
+			return nil, err
+		}
 		if modularity <= previousModularity+modularityEpsilon {
 			break
 		}
@@ -215,27 +242,39 @@ func louvainCommunities(g weightedGraph) map[string]int {
 		current = next
 	}
 
-	return normalizeCommunities(originalToNode)
+	return normalizeCommunities(originalToNode), nil
 }
 
-func optimizePartition(g weightedGraph) map[string]string {
+func optimizePartition(ctx context.Context, g weightedGraph) (map[string]string, error) {
 	partition := make(map[string]string, len(g.nodes))
 	for _, node := range g.nodes {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		partition[node] = node
 	}
 
 	for improved := true; improved; {
 		improved = false
 		for _, node := range g.nodes {
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
 			bestCommunity := partition[node]
-			bestModularity := modularity(g, partition)
+			bestModularity, err := modularity(ctx, g, partition)
+			if err != nil {
+				return nil, err
+			}
 			for _, community := range candidateCommunities(g, partition, node) {
 				if community == partition[node] {
 					continue
 				}
 				trial := clonePartition(partition)
 				trial[node] = community
-				score := modularity(g, trial)
+				score, err := modularity(ctx, g, trial)
+				if err != nil {
+					return nil, err
+				}
 				if betterCommunity(score, bestModularity, community, bestCommunity) {
 					bestCommunity = community
 					bestModularity = score
@@ -247,7 +286,7 @@ func optimizePartition(g weightedGraph) map[string]string {
 			}
 		}
 	}
-	return partition
+	return partition, nil
 }
 
 func candidateCommunities(g weightedGraph, partition map[string]string, node string) []string {
@@ -270,14 +309,17 @@ func betterCommunity(score, bestScore float64, community, bestCommunity string) 
 	return math.Abs(score-bestScore) <= modularityEpsilon && community < bestCommunity
 }
 
-func modularity(g weightedGraph, partition map[string]string) float64 {
+func modularity(ctx context.Context, g weightedGraph, partition map[string]string) (float64, error) {
 	totalWeight := g.totalEdgeWeight()
 	if totalWeight == 0 {
-		return 0
+		return 0, nil
 	}
 	twoM := 2 * totalWeight
 	degrees := make(map[string]float64, len(g.nodes))
 	for _, node := range g.nodes {
+		if err := ctx.Err(); err != nil {
+			return 0, err
+		}
 		for _, weight := range g.adj[node] {
 			degrees[node] += weight
 		}
@@ -285,6 +327,9 @@ func modularity(g weightedGraph, partition map[string]string) float64 {
 
 	var sum float64
 	for _, a := range g.nodes {
+		if err := ctx.Err(); err != nil {
+			return 0, err
+		}
 		for _, b := range g.nodes {
 			if partition[a] != partition[b] {
 				continue
@@ -293,7 +338,7 @@ func modularity(g weightedGraph, partition map[string]string) float64 {
 			sum += g.edgeWeight(a, b) - expected
 		}
 	}
-	return sum / twoM
+	return sum / twoM, nil
 }
 
 func aggregateGraph(g weightedGraph, partition map[string]string) weightedGraph {

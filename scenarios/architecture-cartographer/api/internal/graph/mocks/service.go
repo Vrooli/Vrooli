@@ -19,6 +19,7 @@ type FakeService struct {
 
 	ExtractCalls atomic.Int64
 	GetCalls     atomic.Int64
+	MetaCalls    atomic.Int64
 	ListCalls    atomic.Int64
 	ClearCalls   atomic.Int64
 }
@@ -49,6 +50,29 @@ func (f *FakeService) GetSnapshot(_ context.Context, id string) (graph.GraphSnap
 		}
 	}
 	return graph.GraphSnapshot{}, graph.ErrSnapshotNotFound{ID: id}
+}
+
+func (f *FakeService) LatestSnapshotMeta(_ context.Context, scenario string) (graph.GraphSnapshotMeta, error) {
+	f.MetaCalls.Add(1)
+	if f.NextErr != nil {
+		return graph.GraphSnapshotMeta{}, f.NextErr
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for i := len(f.Snapshots) - 1; i >= 0; i-- {
+		s := f.Snapshots[i]
+		if s.Scenario == scenario {
+			return graph.GraphSnapshotMeta{
+				ID:                s.ID,
+				Scenario:          s.Scenario,
+				ContentHash:       s.ContentHash,
+				SourceFingerprint: s.SourceFingerprint,
+				ExtractedAt:       s.ExtractedAt,
+				ExtractionMS:      s.ExtractionMS,
+			}, nil
+		}
+	}
+	return graph.GraphSnapshotMeta{}, graph.ErrSnapshotNotFound{ID: "scenario=" + scenario}
 }
 
 func (f *FakeService) ListSnapshots(_ context.Context, _ graph.ListSnapshotsFilter) (graph.SnapshotPage, error) {

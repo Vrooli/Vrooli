@@ -41,10 +41,15 @@ describe("PlanPreview", () => {
       />,
     );
 
-    expect(screen.getByTestId(selectors.features.apply.plan.root)).toBeInTheDocument();
+    const root = screen.getByTestId(selectors.features.apply.plan.root);
+    expect(root).toBeInTheDocument();
     expect(screen.getAllByRole("row")).toHaveLength(6);
-    expect(screen.getByText("from-0.go")).toBeInTheDocument();
-    expect(screen.getByText("to-1.go")).toBeInTheDocument();
-    expect(screen.getAllByText("—").length).toBeGreaterThan(0);
+    expect(screen.getByTestId(selectors.shared.dataTable.row({ id: "op-0" }))).toHaveTextContent(
+      "from-0.go",
+    );
+    expect(screen.getByTestId(selectors.shared.dataTable.row({ id: "op-1" }))).toHaveTextContent(
+      "to-1.go",
+    );
+    expect(root).toHaveTextContent("—");
   });
 });

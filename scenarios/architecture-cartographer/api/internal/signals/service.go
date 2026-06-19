@@ -75,6 +75,7 @@ type service struct {
 	snapshots   SnapshotProvider
 	domainMaps  DomainMapProvider
 	boundaryCfg boundaries.Config
+	maxWorkers  int
 }
 
 // Option customizes the signals service.
@@ -86,8 +87,21 @@ func WithBoundaryConfig(cfg boundaries.Config) Option {
 	return func(s *service) { s.boundaryCfg = cfg }
 }
 
+// WithMaxBatchWorkers caps per-request ScoreBatch worker fan-out.
+func WithMaxBatchWorkers(workers int) Option {
+	return func(s *service) {
+		if workers < 1 {
+			workers = 1
+		}
+		if workers > MaxBatchWorkers {
+			workers = MaxBatchWorkers
+		}
+		s.maxWorkers = workers
+	}
+}
+
 func NewService(reg *Registry, agg *Aggregator, snapshots SnapshotProvider, domainMaps DomainMapProvider, opts ...Option) Service {
-	s := &service{registry: reg, aggregator: agg, snapshots: snapshots, domainMaps: domainMaps, boundaryCfg: boundaries.DefaultConfig()}
+	s := &service{registry: reg, aggregator: agg, snapshots: snapshots, domainMaps: domainMaps, boundaryCfg: boundaries.DefaultConfig(), maxWorkers: defaultBatchWorkers()}
 	for _, o := range opts {
 		o(s)
 	}
@@ -197,10 +211,7 @@ func (s *service) scoreBatch(ctx context.Context, in ScoreBatchInput, aggregator
 	gctx := NewGraphContext(in.Scenario, snap, dmap)
 
 	out := make([]Verdict, len(in.Chunks))
-	workers := runtime.NumCPU()
-	if workers > MaxBatchWorkers {
-		workers = MaxBatchWorkers
-	}
+	workers := s.maxWorkers
 	if workers > len(in.Chunks) {
 		workers = len(in.Chunks)
 	}
@@ -214,6 +225,9 @@ func (s *service) scoreBatch(ctx context.Context, in ScoreBatchInput, aggregator
 		go func() {
 			defer wg.Done()
 			for i := range idxCh {
+				if ctx.Err() != nil {
+					return
+				}
 				out[i] = aggregator.Aggregate(ctx, gctx, in.Chunks[i])
 			}
 		}()
@@ -229,7 +243,21 @@ func (s *service) scoreBatch(ctx context.Context, in ScoreBatchInput, aggregator
 	}
 	close(idxCh)
 	wg.Wait()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	return out, nil
+}
+
+func defaultBatchWorkers() int {
+	workers := runtime.NumCPU()
+	if workers > MaxBatchWorkers {
+		workers = MaxBatchWorkers
+	}
+	if workers < 1 {
+		workers = 1
+	}
+	return workers
 }
 
 func (s *service) BoundaryHealth(ctx context.Context, scenario string) (boundaries.Report, error) {

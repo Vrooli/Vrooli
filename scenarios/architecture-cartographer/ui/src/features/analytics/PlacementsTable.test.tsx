@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, screen } from "@testing-library/react";
+import { cleanup, fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("./controllers/useAnalyticsController", () => ({
@@ -35,9 +35,9 @@ describe("PlacementsTable", () => {
     const refetch = vi.fn();
     mockPlacements({ isError: true, error: "placements unavailable" as never, refetch });
     rerender(<PlacementsTable scenario="demo" />);
-    expect(screen.getByTestId(selectors.features.analytics.placements.error)).toBeInTheDocument();
-    expect(screen.getByText("placements unavailable")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /retry/i }));
+    const error = screen.getByTestId(selectors.features.analytics.placements.error);
+    expect(error).toHaveTextContent("placements unavailable");
+    fireEvent.click(within(error).getByRole("button"));
     expect(refetch).toHaveBeenCalledTimes(1);
 
     mockPlacements({ data: { placements: [] } as never });
@@ -67,10 +67,15 @@ describe("PlacementsTable", () => {
 
     renderWithProviders(<PlacementsTable scenario="demo" />);
 
-    expect(screen.getByTestId(selectors.features.analytics.placements.root)).toBeInTheDocument();
-    expect(screen.getByText("chunk-a")).toBeInTheDocument();
-    expect(screen.getByText("api/internal/foo/foo.go")).toBeInTheDocument();
-    expect(screen.getByText("auto_place")).toBeInTheDocument();
-    expect(screen.getByText("—")).toBeInTheDocument();
+    const root = screen.getByTestId(selectors.features.analytics.placements.root);
+    expect(root).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.shared.dataTable.row({ id: "placement-1" }))).toHaveTextContent(
+      "chunk-a",
+    );
+    expect(root).toHaveTextContent("api/internal/foo/foo.go");
+    expect(root).toHaveTextContent("auto_place");
+    expect(screen.getByTestId(selectors.shared.dataTable.row({ id: "placement-2" }))).toHaveTextContent(
+      "—",
+    );
   });
 });

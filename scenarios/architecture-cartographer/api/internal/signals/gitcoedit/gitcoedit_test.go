@@ -86,3 +86,38 @@ internal/conflicts/foo.go
 		t.Fatal("expected abstention when below min commits")
 	}
 }
+
+func TestScore_ReusesBatchGitHistoryCache(t *testing.T) {
+	log := `abc1234abc1234abc1234abc1234abc1234ab12
+internal/conflicts/service.go
+target/one.go
+target/two.go
+
+def5678def5678def5678def5678def5678ef34
+internal/conflicts/registry.go
+target/one.go
+target/two.go
+
+aaa1111aaa1111aaa1111aaa1111aaa1111aa55
+internal/conflicts/types.go
+target/one.go
+target/two.go
+`
+	runner := &gitmocks.FakeRunner{Available: true, LogOutput: log}
+	sig := gitcoedit.New(runner)
+	m := domains.DerivedDomainMap{
+		Domains: []domains.DerivedDomain{
+			{Name: "conflicts", Paths: []string{"internal/conflicts/**"}},
+		},
+	}
+	gctx := signals.NewGraphContext("demo", graph.GraphSnapshot{}, m)
+	for _, path := range []string{"target/one.go", "target/two.go"} {
+		out := sig.Score(context.Background(), gctx, graph.Chunk{Path: path})
+		if len(out.Scores) != 1 {
+			t.Fatalf("%s: want 1 score, got %+v", path, out)
+		}
+	}
+	if got := runner.LogCalls.Load(); got != 1 {
+		t.Fatalf("git log calls=%d want 1", got)
+	}
+}

@@ -146,6 +146,18 @@ func (a *Aggregator) collect(ctx context.Context, gctx GraphContext, chunk graph
 	availableWeight := 0.0
 	scoringWeight := 0.0
 	for _, s := range a.registry.All() {
+		if ctx.Err() != nil {
+			abstentions = append(abstentions, Abstention{
+				Signal: "aggregator",
+				Reason: ctx.Err().Error(),
+				Evidence: []Evidence{{
+					Kind:    "cancelled",
+					Summary: "scoring stopped because the request context was cancelled",
+					Locator: chunk.Path,
+				}},
+			})
+			break
+		}
 		if ok, _ := s.IsAvailable(ctx); !ok {
 			continue
 		}

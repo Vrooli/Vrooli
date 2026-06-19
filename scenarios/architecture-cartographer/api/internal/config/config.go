@@ -12,6 +12,7 @@ package config
 
 import (
 	"fmt"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -31,6 +32,9 @@ const (
 	EnvLadderOrder         = "CARTOGRAPHER_LADDER_ORDER"
 	EnvBannedVocab         = "CARTOGRAPHER_BANNED_VOCAB"
 	EnvLayeringStrict      = "CARTOGRAPHER_LAYERING_STRICT"
+	EnvValidateConcurrency = "CARTOGRAPHER_VALIDATE_CONCURRENCY"
+	EnvSignalWorkers       = "CARTOGRAPHER_SIGNAL_WORKERS"
+	EnvPprofEnabled        = "CARTOGRAPHER_PPROF_ENABLED"
 )
 
 // Config is the resolved control surface.
@@ -67,6 +71,13 @@ type Config struct {
 	// LayeringStrict promotes blocker-eligible wrong-direction dependencies to
 	// blocker severity. When false, they remain error severity.
 	LayeringStrict bool
+	// ValidateConcurrency is the process-wide cap for audit/validation runs.
+	// Range [1, runtime.NumCPU()].
+	ValidateConcurrency int
+	// SignalWorkers caps per-request batch signal scoring workers. Range [1,8].
+	SignalWorkers int
+	// PprofEnabled mounts dev-only net/http/pprof routes when true.
+	PprofEnabled bool
 }
 
 // Diagnostic is a non-fatal config-resolution finding.
@@ -92,6 +103,9 @@ func Default() Config {
 		LadderOrder:           []string{"domains_doc", "api_folders", "cli_groups"},
 		BannedVocabulary:      []string{"common", "helpers", "manager", "misc", "stuff", "utils"},
 		LayeringStrict:        true,
+		ValidateConcurrency:   1,
+		SignalWorkers:         minInt(4, maxInt(1, runtime.NumCPU())),
+		PprofEnabled:          false,
 	}
 }
 
@@ -156,6 +170,9 @@ func Load(getenv func(string) string) (Config, []Diagnostic) {
 		}
 	}
 	cfg.LayeringStrict = boolLever(getenv, EnvLayeringStrict, cfg.LayeringStrict, &diags)
+	cfg.ValidateConcurrency = intLever(getenv, EnvValidateConcurrency, cfg.ValidateConcurrency, 1, maxInt(1, runtime.NumCPU()), &diags)
+	cfg.SignalWorkers = intLever(getenv, EnvSignalWorkers, cfg.SignalWorkers, 1, 8, &diags)
+	cfg.PprofEnabled = boolLever(getenv, EnvPprofEnabled, cfg.PprofEnabled, &diags)
 
 	return cfg, diags
 }
@@ -241,4 +258,18 @@ func intLever(getenv func(string) string, key string, def, lo, hi int, diags *[]
 		return clamped
 	}
 	return v
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }

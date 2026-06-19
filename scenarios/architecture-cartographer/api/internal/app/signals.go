@@ -41,6 +41,7 @@ func SignalsService(graphSvc graph.Service, domainsSvc domains.Service, cfg conf
 		signals.NewGraphSnapshotProvider(graphSvc),
 		domainsSvc,
 		signals.WithBoundaryConfig(BoundaryConfig(cfg)),
+		signals.WithMaxBatchWorkers(cfg.SignalWorkers),
 	)
 }
 

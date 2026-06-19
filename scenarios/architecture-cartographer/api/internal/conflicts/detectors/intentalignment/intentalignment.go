@@ -261,9 +261,9 @@ func outcomeNoDomain(detector, scenario string, outcome intent.CapabilityClaim) 
 
 func vocabDrift(detector, scenario string, match Match) conflicts.Conflict {
 	domain := match.Domain.ID
-	token := strings.Join(match.Tokens, ", ")
-	if token == "" {
-		token = "glossary"
+	vocabularyLabel := strings.Join(match.Tokens, ", ")
+	if vocabularyLabel == "" {
+		vocabularyLabel = "glossary"
 	}
 	return conflicts.Conflict{
 		Scenario:  scenario,
@@ -275,7 +275,7 @@ func vocabDrift(detector, scenario string, match Match) conflicts.Conflict {
 		Locations: compactLocations(match.Domain.Anchor),
 		Evidence: []conflicts.Evidence{{
 			Kind:    "intent.lexical_vocabulary_alignment",
-			Summary: fmt.Sprintf("Domain %s declares vocabulary %q that is absent from the outcome and requirement text pointing at that domain.", domain, token),
+			Summary: fmt.Sprintf("Domain %s declares vocabulary %q that is absent from the outcome and requirement text pointing at that domain.", domain, vocabularyLabel),
 			Locator: match.Domain.Anchor,
 		}},
 		SuggestedFixes: []conflicts.Fix{{

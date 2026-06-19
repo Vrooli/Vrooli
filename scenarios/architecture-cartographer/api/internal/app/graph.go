@@ -18,9 +18,10 @@ func GraphService(primary graph.SQLExecutor, clk clock.Clock, repoRoot string, r
 	}
 	tsProjects := scenariopath.NewResolver(repoRoot, TSProjectCandidates())
 	goProjects := scenariopath.NewResolver(repoRoot, GoProjectCandidates())
-	return graph.NewService(
+	return graph.NewServiceWithFingerprinter(
 		graph.NewSQLiteRepository(primary, clk),
 		clk,
+		graph.NewFileSystemFingerprinter(repoRoot),
 		gocodegraph.New(gocodegraph.Config{URLResolver: resolver, ProjectPath: goProjects.Resolve}),
 		tscodegraph.New(tscodegraph.Config{URLResolver: resolver, ProjectPath: tsProjects.Resolve}),
 	)
