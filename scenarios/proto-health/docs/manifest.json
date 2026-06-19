@@ -368,6 +368,22 @@
             "requiredHeadings": ["Lifecycle and ports", "API and CLI", "Build and dependencies", "Tests", "Storage", "Proto codegen", "When to add a new entry here", "Cross-references"],
             "forbiddenPlaceholders": ["[TODO]"]
           }
+        },
+        {
+          "path": "guides/contract-impact.md",
+          "docType": "guide",
+          "title": "Contract Impact",
+          "aliases": ["impact", "breaking-changes", "proto-impact"],
+          "description": "How to compare proto contracts against baselines and interpret consumer impact.",
+          "audience": ["developers", "agents", "operators"],
+          "canonicalFor": ["contract-impact", "proto-breaking-change-review"],
+          "maturity": "active",
+          "requiredBy": ["implemented"],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": ["Scopes", "Reading The Report", "Promotion Gate", "Cross-References"],
+            "forbiddenPlaceholders": ["[TODO]"]
+          }
         }
       ]
     },

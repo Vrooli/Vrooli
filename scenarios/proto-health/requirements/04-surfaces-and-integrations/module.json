@@ -125,6 +125,80 @@
           "notes": "Run `code-facts describe proto-health --include proto_adoption,endpoint_proofs --json` and `proto-health validate scenario proto-health --json`."
         }
       ]
+    },
+    {
+      "id": "PROTO-SURFACES-008",
+      "title": "Report proto contract impact",
+      "status": "planned",
+      "prd_ref": "OT-P1-006",
+      "category": "cli",
+      "criticality": "P1",
+      "description": "proto-health exposes an impact command and RPC that compare a scenario's current proto surface against a git or git-control-tower baseline, classify breaking changes, and report file-level unreconciled consumers.",
+      "tags": ["impact", "buf", "baseline", "reconciliation"],
+      "validation": [
+        {
+          "type": "unit",
+          "status": "planned",
+          "ref": "api/internal/impact/service_test.go",
+          "notes": "Impact service tests cover buf finding parsing, scope metadata, and unreconciled consumer derivation."
+        },
+        {
+          "type": "cli",
+          "status": "planned",
+          "notes": "Run `proto-health impact scenario proto-health --against HEAD` and `cd packages/proto && make breaking SCENARIO=proto-health`."
+        }
+      ]
+    },
+    {
+      "id": "PROTO-SURFACES-009",
+      "title": "Handoff proto surface facts to dependency analysis",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "category": "integration",
+      "criticality": "P2",
+      "description": "scenario-dependency-analyzer can consume DescribeScenarioProtos for fleet graph analysis instead of re-reading descriptor images.",
+      "tags": ["dependency-analyzer", "protosurface", "future"],
+      "validation": [
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Future integration test in scenario-dependency-analyzer should prove it reads proto-health surface facts."
+        }
+      ]
+    },
+    {
+      "id": "PROTO-SURFACES-010",
+      "title": "Enable semantic proto reuse search",
+      "status": "planned",
+      "prd_ref": "OT-P2-002",
+      "category": "search",
+      "criticality": "P2",
+      "description": "A future provider can index ProtoSurface facts and suggest existing proto types for reuse.",
+      "tags": ["search", "reuse", "future"],
+      "validation": [
+        {
+          "type": "integration",
+          "status": "planned",
+          "notes": "Future search provider tests should prove indexed ProtoSurface facts return reusable type suggestions."
+        }
+      ]
+    },
+    {
+      "id": "PROTO-SURFACES-011",
+      "title": "Ratchet warning checks after fleet migration",
+      "status": "planned",
+      "prd_ref": "OT-P2-003",
+      "category": "maturity",
+      "criticality": "P2",
+      "description": "Warning-level maturity checks can be promoted after fleet migration evidence shows the warning debt is intentionally resolved.",
+      "tags": ["maturity", "ratchet", "future"],
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Future ratchet decision should cite fleet migration evidence and rerun shared health consumers."
+        }
+      ]
     }
   ]
 }

@@ -179,24 +179,35 @@ func surfaceToProto(in protosurface.Surface) *sharedv1.ProtoSurface {
 	}
 	for _, m := range in.Messages {
 		pm := &sharedv1.ProtoMessage{
-			FilePath:   m.FilePath,
-			Package:    m.Package,
-			Name:       m.Name,
-			FullName:   m.FullName,
-			Domain:     m.Domain,
-			IsMapEntry: m.IsMapEntry,
-			Fields:     make([]*sharedv1.ProtoField, 0, len(m.Fields)),
+			FilePath:           m.FilePath,
+			Package:            m.Package,
+			Name:               m.Name,
+			FullName:           m.FullName,
+			Domain:             m.Domain,
+			IsMapEntry:         m.IsMapEntry,
+			Annotations:        make([]*sharedv1.Annotation, 0, len(m.Annotations)),
+			HasValidationRules: m.HasValidationRules,
+			Fields:             make([]*sharedv1.ProtoField, 0, len(m.Fields)),
+		}
+		for _, a := range m.Annotations {
+			pm.Annotations = append(pm.Annotations, &sharedv1.Annotation{Name: a.Name, Value: a.Value})
 		}
 		for _, f := range m.Fields {
-			pm.Fields = append(pm.Fields, &sharedv1.ProtoField{
-				Name:        f.Name,
-				Type:        f.Type,
-				MessageType: f.MessageType,
-				EnumType:    f.EnumType,
-				Repeated:    f.Repeated,
-				Optional:    f.Optional,
-				Number:      f.Number,
-			})
+			pf := &sharedv1.ProtoField{
+				Name:               f.Name,
+				Type:               f.Type,
+				MessageType:        f.MessageType,
+				EnumType:           f.EnumType,
+				Repeated:           f.Repeated,
+				Optional:           f.Optional,
+				Number:             f.Number,
+				Annotations:        make([]*sharedv1.Annotation, 0, len(f.Annotations)),
+				HasValidationRules: f.HasValidationRules,
+			}
+			for _, a := range f.Annotations {
+				pf.Annotations = append(pf.Annotations, &sharedv1.Annotation{Name: a.Name, Value: a.Value})
+			}
+			pm.Fields = append(pm.Fields, pf)
 		}
 		out.Messages = append(out.Messages, pm)
 	}

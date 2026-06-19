@@ -23,33 +23,34 @@ const (
 )
 
 const (
-	CodeCycle                         = "proto.cycle"
-	CodeGenManifestMissing            = "proto.gen_manifest_missing"
-	CodeGenOutOfSync                  = "proto.gen_out_of_sync"
-	CodeGenToolchainDrift             = "proto.gen_toolchain_drift"
-	CodePackageMismatch               = "proto.package_mismatch"
-	CodeStabilityDishonest            = "proto.stability_dishonest"
-	CodeCrossDomainImport             = "proto.cross_domain_import"
-	CodeUnsupportedAnnotation         = "proto.unsupported_annotation"
-	CodeTemplateSource                = "proto.template_source"
-	CodeHandRolledTransport           = "proto.hand_rolled_transport"
-	CodeVersionNaming                 = "proto.version_naming"
-	CodeDomainMismatch                = "proto.domain_mismatch"
-	CodeMissingHealthProto            = "proto.missing_health_proto"
-	CodePossiblyUnused                = "proto.possibly_unused"
-	CodeRESTPayloadMissingDeclaration = "proto.rest_payload_missing_declaration"
-	CodeRESTPayloadUnknownMessage     = "proto.rest_payload_unknown_message"
-	CodeRESTPayloadInvalidConformance = "proto.rest_payload_invalid_conformance"
-	CodeStabilityDependencyMismatch   = "proto.stability_dependency_mismatch"
-	CodeSharedTypeMisplaced           = "proto.shared_type_misplaced"
-	CodeImportKindUnknown             = "proto.import_kind_unknown"
-	CodeCodeFactsUnavailable          = "proto.code_facts_unavailable"
-	CodeProtoAdoptionMissing          = "proto.proto_adoption_missing"
-	CodeProtoAdoptionUnsupported      = "proto.proto_adoption_unsupported"
-	CodeProtoAdoptionContradicted     = "proto.proto_adoption_contradicted"
-	CodeEndpointProofMissing          = "proto.endpoint_proof_missing"
-	CodeEndpointProofUnsupported      = "proto.endpoint_proof_unsupported"
-	CodeEndpointProofContradicted     = "proto.endpoint_proof_contradicted"
+	CodeCycle                          = "proto.cycle"
+	CodeGenManifestMissing             = "proto.gen_manifest_missing"
+	CodeGenOutOfSync                   = "proto.gen_out_of_sync"
+	CodeGenToolchainDrift              = "proto.gen_toolchain_drift"
+	CodePackageMismatch                = "proto.package_mismatch"
+	CodeStabilityDishonest             = "proto.stability_dishonest"
+	CodeCrossDomainImport              = "proto.cross_domain_import"
+	CodeUnsupportedAnnotation          = "proto.unsupported_annotation"
+	CodeConstraintMissingProtovalidate = "proto.constraint_missing_protovalidate"
+	CodeTemplateSource                 = "proto.template_source"
+	CodeHandRolledTransport            = "proto.hand_rolled_transport"
+	CodeVersionNaming                  = "proto.version_naming"
+	CodeDomainMismatch                 = "proto.domain_mismatch"
+	CodeMissingHealthProto             = "proto.missing_health_proto"
+	CodePossiblyUnused                 = "proto.possibly_unused"
+	CodeRESTPayloadMissingDeclaration  = "proto.rest_payload_missing_declaration"
+	CodeRESTPayloadUnknownMessage      = "proto.rest_payload_unknown_message"
+	CodeRESTPayloadInvalidConformance  = "proto.rest_payload_invalid_conformance"
+	CodeStabilityDependencyMismatch    = "proto.stability_dependency_mismatch"
+	CodeSharedTypeMisplaced            = "proto.shared_type_misplaced"
+	CodeImportKindUnknown              = "proto.import_kind_unknown"
+	CodeCodeFactsUnavailable           = "proto.code_facts_unavailable"
+	CodeProtoAdoptionMissing           = "proto.proto_adoption_missing"
+	CodeProtoAdoptionUnsupported       = "proto.proto_adoption_unsupported"
+	CodeProtoAdoptionContradicted      = "proto.proto_adoption_contradicted"
+	CodeEndpointProofMissing           = "proto.endpoint_proof_missing"
+	CodeEndpointProofUnsupported       = "proto.endpoint_proof_unsupported"
+	CodeEndpointProofContradicted      = "proto.endpoint_proof_contradicted"
 )
 
 type Finding struct {
@@ -144,6 +145,7 @@ func AllFindingCodes() []string {
 		CodeStabilityDishonest,
 		CodeCrossDomainImport,
 		CodeUnsupportedAnnotation,
+		CodeConstraintMissingProtovalidate,
 		CodeTemplateSource,
 		CodeHandRolledTransport,
 		CodeVersionNaming,

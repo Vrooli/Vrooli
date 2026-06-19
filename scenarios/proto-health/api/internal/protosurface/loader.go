@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -207,31 +208,36 @@ func servicesForFile(fd protoreflect.FileDescriptor, domain string) []Service {
 
 func messagesForFile(fd protoreflect.FileDescriptor, domain string) []Message {
 	var out []Message
-	appendMessages(fd.Path(), string(fd.Package()), domain, fd.Messages(), &out)
+	appendMessages(fd.Path(), string(fd.Package()), domain, fd.SourceLocations(), fd.Messages(), &out)
 	return out
 }
 
-func appendMessages(path, pkg, domain string, messages protoreflect.MessageDescriptors, out *[]Message) {
+func appendMessages(path, pkg, domain string, srcLocs protoreflect.SourceLocations, messages protoreflect.MessageDescriptors, out *[]Message) {
 	for i := 0; i < messages.Len(); i++ {
 		msg := messages.Get(i)
 		fields := msg.Fields()
+		annotations := annotationsForDescriptor(srcLocs, msg)
 		m := Message{
-			FilePath:   path,
-			Package:    pkg,
-			Name:       string(msg.Name()),
-			FullName:   string(msg.FullName()),
-			Domain:     domain,
-			IsMapEntry: msg.IsMapEntry(),
-			Fields:     make([]Field, 0, fields.Len()),
+			FilePath:           path,
+			Package:            pkg,
+			Name:               string(msg.Name()),
+			FullName:           string(msg.FullName()),
+			Domain:             domain,
+			IsMapEntry:         msg.IsMapEntry(),
+			Annotations:        annotations,
+			HasValidationRules: hasMessageValidationRules(msg),
+			Fields:             make([]Field, 0, fields.Len()),
 		}
 		for j := 0; j < fields.Len(); j++ {
 			fd := fields.Get(j)
 			f := Field{
-				Name:     string(fd.Name()),
-				Type:     fieldType(fd),
-				Repeated: fd.Cardinality() == protoreflect.Repeated,
-				Optional: fd.HasOptionalKeyword(),
-				Number:   int32(fd.Number()),
+				Name:               string(fd.Name()),
+				Type:               fieldType(fd),
+				Repeated:           fd.Cardinality() == protoreflect.Repeated,
+				Optional:           fd.HasOptionalKeyword(),
+				Number:             int32(fd.Number()),
+				Annotations:        annotationsForDescriptor(srcLocs, fd),
+				HasValidationRules: hasFieldValidationRules(fd),
 			}
 			if fd.Kind() == protoreflect.MessageKind || fd.Kind() == protoreflect.GroupKind {
 				f.MessageType = string(fd.Message().FullName())
@@ -242,8 +248,51 @@ func appendMessages(path, pkg, domain string, messages protoreflect.MessageDescr
 			m.Fields = append(m.Fields, f)
 		}
 		*out = append(*out, m)
-		appendMessages(path, pkg, domain, msg.Messages(), out)
+		appendMessages(path, pkg, domain, srcLocs, msg.Messages(), out)
 	}
+}
+
+func annotationsForDescriptor(srcLocs protoreflect.SourceLocations, d protoreflect.Descriptor) []Annotation {
+	var out []Annotation
+	appendLocationAnnotations(&out, srcLocs.ByDescriptor(d))
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Name != out[j].Name {
+			return out[i].Name < out[j].Name
+		}
+		return out[i].Value < out[j].Value
+	})
+	return out
+}
+
+func hasMessageValidationRules(md protoreflect.MessageDescriptor) bool {
+	return hasProtovalidateRules(md.Options())
+}
+
+func hasFieldValidationRules(fd protoreflect.FieldDescriptor) bool {
+	return hasProtovalidateRules(fd.Options())
+}
+
+func hasProtovalidateRules(opts proto.Message) bool {
+	if opts == nil {
+		return false
+	}
+	b := opts.ProtoReflect().GetUnknown()
+	for len(b) > 0 {
+		num, typ, n := protowire.ConsumeTag(b)
+		if n < 0 {
+			return false
+		}
+		b = b[n:]
+		if num == 1159 {
+			return true
+		}
+		m := protowire.ConsumeFieldValue(num, typ, b)
+		if m < 0 {
+			return false
+		}
+		b = b[m:]
+	}
+	return false
 }
 
 func fieldType(fd protoreflect.FieldDescriptor) string {

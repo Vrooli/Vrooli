@@ -40,6 +40,28 @@
           }
         }
       ]
+    },
+    {
+      "name": "impact",
+      "description": "Report proto contract impact against a git baseline descriptor",
+      "commands": [
+        {
+          "name": "scenario",
+          "description": "Compare one scenario's current proto contracts against a baseline, git scope, ref, or SHA",
+          "positionals": [
+            { "name": "scenario", "required": true, "description": "Scenario id (directory name under scenarios/)" }
+          ],
+          "flags": [
+            { "name": "against", "description": "Scope to compare against: empty = newest git-control-tower baseline with merge-base fallback; also accepts HEAD, merge-base, master, baseline:<name>, git ref, or SHA" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ImpactService", "method": "GetImpact" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        }
+      ]
     }
   ],
   "omitted": [

@@ -131,6 +131,26 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | Validation unit tests inject fake proof reports for proven, missing, contradicted, unsupported, and unavailable states. |
 | **Why it exists** | `proto-health` owns proto policy and finding taxonomy, while `code-facts` owns language analyzers and source evidence. This seam keeps Go/TypeScript parsing out of proto-health and makes analyzer outages degrade to explicit warnings. |
 
+### BaselineLister (contract impact baseline lookup)
+
+| | |
+|---|---|
+| **Seam** | git-control-tower baseline lookup for contract impact |
+| **Interface** | `internal/impact::BaselineLister`, implemented by `internal/baselines.Client`, returning git-control-tower baseline manifests. |
+| **Production wiring** | `handlers/impact.Module` constructs `internal/baselines.NewClient` and passes it into `internal/impact.Service`. |
+| **Test fake** | `internal/impact` tests can substitute a fake lister for resolver behavior without starting git-control-tower. |
+| **Why it exists** | `impact` must prefer recent git-control-tower baselines when available but keep git-only scopes (`HEAD`, `merge-base`, `master`, raw SHA) working when git-control-tower is down. |
+
+### BreakingRunner (Buf compatibility engine)
+
+| | |
+|---|---|
+| **Seam** | Buf breaking invocation for contract impact |
+| **Interface** | `internal/impact::BreakingRunner`, returning Buf JSON/text output for one comparison. |
+| **Production wiring** | `internal/impact.Service` defaults to `commandRunner`, which shells `buf breaking packages/proto --against <temp-baseline>`. |
+| **Test fake** | `internal/impact` tests parse fixed Buf outputs and can replace `Runner` for service-level behavior. |
+| **Why it exists** | Buf owns wire compatibility rules. Proto-health owns scope resolution, baseline extraction, stability enrichment, consumer reconciliation, and report rendering. |
+
 ### Clock
 
 | | |

@@ -26,6 +26,7 @@ belong in [`DATA.md`](DATA.md).
 | Domain | Purpose | Primary Archetype | Owns Data | Surfaces | Requirements | Source Paths |
 |---|---|---|---|---|---|---|
 | health | Report runtime readiness and dependency reachability. | Reporting / query | No product data. | API, UI | Starter scaffold health. | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/proto-health/v1/health/` |
+| impact | Compare proto contracts against baselines and report downstream file-level blast radius. | Advisory impact analysis | No persisted product data. | API, CLI | PROTO-SURFACES-008 | `api/internal/impact/`, `api/handlers/impact/`, `cli/domains/impact/`, `packages/proto/schemas/proto-health/v1/impact/` |
 | validation | Validate one scenario's proto contract structure and return stable findings. | Validator / findings producer | No persisted product data in v1. | API, CLI, UI, test-genie | PROTO-VAL-001, PROTO-VAL-002 | Planned: `api/internal/validation/`, `api/handlers/validation/`, `cli/domains/validation/`, `ui/src/features/validation/`, `packages/proto/schemas/proto-health/v1/validation/` |
 | protosurface | Read descriptor/repo facts and expose one scenario's proto inventory. | Fact surface / read model | No persisted product data in v1. | API, CLI, UI, downstream analyzers | PROTO-SURF-001, PROTO-SURF-002 | Planned: `api/internal/protosurface/`, `api/handlers/protosurface/`, `ui/src/features/protosurface/`, `packages/proto/schemas/proto-health/v1/protosurface/` |
 | notes | Worked CRUD reference with attachment upload exception. | CRUD / entity | Notes and attachment metadata. | API, CLI, UI | Template starter only. | `api/internal/notes/`, `api/handlers/notes/`, `cli/domains/notes/`, `ui/src/features/notes/`, `packages/proto/schemas/proto-health/v1/notes/` |
@@ -67,6 +68,27 @@ belong in [`DATA.md`](DATA.md).
   workflow tests.
 - Related docs: [`FLOWS.md`](FLOWS.md), [`DATA.md`](DATA.md),
   [`../internal/SEAMS.md`](../internal/SEAMS.md).
+
+### impact
+
+- Purpose: compare current proto contracts against a baseline and make
+  breaking-change blast radius visible before promotion.
+- Primary archetype: advisory impact analysis.
+- Secondary traits: baseline resolver, Buf compatibility parser,
+  consumer reconciliation report.
+- Owns: impact RPC/CLI, baseline scope resolution, Buf breaking command
+  execution, compatibility classification, and v1 file-level consumer
+  reconciliation.
+- Does not own: git-control-tower baseline storage, symbol-level
+  consumer proof, or code-facts/code-graph language analysis.
+- API: `api/handlers/impact/`.
+- CLI: `cli/domains/impact/`.
+- Storage: none required; baselines are read from git and
+  git-control-tower.
+- Requirements: PROTO-SURFACES-008.
+- Tests: impact service unit tests over parser, scope metadata, and
+  consumer reconciliation.
+- Related docs: [`../guides/contract-impact.md`](../guides/contract-impact.md).
 
 ### validation
 

@@ -56,27 +56,29 @@ func (v *ManifestVerifier) CheckScenario(_ context.Context, scenario string) (Ge
 		drift = append(drift, inputFiles...)
 	}
 
-	actualOutputs, err := genmanifest.OutputDigests(opts, scenario)
-	if err != nil {
-		return GenSyncStatus{}, err
-	}
-	for rel, want := range manifest.Outputs {
-		got, ok := actualOutputs[rel]
-		if !ok || got != want {
-			drift = append(drift, rel)
-		}
-	}
-	for rel := range actualOutputs {
-		if _, ok := manifest.Outputs[rel]; !ok {
-			drift = append(drift, rel)
-		}
-	}
-
 	toolchain, err := genmanifest.ToolchainFingerprint(opts)
 	if err != nil {
 		return GenSyncStatus{}, err
 	}
 	toolchainDrift := !sameToolchain(toolchain, manifest.Toolchain)
+
+	if inputDigest != manifest.InputDigest {
+		actualOutputs, err := genmanifest.OutputDigests(opts, scenario)
+		if err != nil {
+			return GenSyncStatus{}, err
+		}
+		for rel, want := range manifest.Outputs {
+			got, ok := actualOutputs[rel]
+			if !ok || got != want {
+				drift = append(drift, rel)
+			}
+		}
+		for rel := range actualOutputs {
+			if _, ok := manifest.Outputs[rel]; !ok {
+				drift = append(drift, rel)
+			}
+		}
+	}
 
 	drift = uniqueSortedPackageProtoPaths(drift)
 	if len(drift) == 0 && !toolchainDrift {

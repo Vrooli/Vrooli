@@ -23,6 +23,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	healthH "proto-health/handlers/health"
+	impactH "proto-health/handlers/impact"
 	validationH "proto-health/handlers/validation"
 	localdb "proto-health/internal/database"
 )
@@ -34,6 +35,7 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
+	out = append(out, impactH.Endpoints...)
 	out = append(out, validationH.Endpoints...)
 	return out
 }
@@ -61,6 +63,7 @@ type ProtoFileEntry struct {
 // Connect-mounted domain module, in registration order.
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
+		{Module: "impact", File: impactH.ProtoFile},
 		{Module: "validation", File: validationH.ScenarioValidationProtoFile},
 		{Module: "validation", File: validationH.ProtoFile},
 	}
@@ -77,6 +80,7 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
+		apidb.SchemaProviderFunc(impactH.Schema),
 		apidb.SchemaProviderFunc(validationH.Schema),
 	}
 }

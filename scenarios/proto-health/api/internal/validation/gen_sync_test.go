@@ -36,26 +36,40 @@ func TestManifestVerifierReportsCleanAndDrift(t *testing.T) {
 			},
 		},
 		{
-			name: "output hash mismatch",
+			name: "output hash mismatch ignored when inputs are unchanged",
 			mutate: func(t *testing.T, repoRoot string) {
 				path := filepath.Join(repoRoot, "packages", "proto", "gen", "go", "demo", "v1", "core", "core.pb.go")
 				require.NoError(t, os.WriteFile(path, []byte("changed"), 0o644))
 			},
 			assert: func(t *testing.T, status GenSyncStatus) {
-				require.False(t, status.InSync)
-				require.Contains(t, status.Drift, "packages/proto/gen/go/demo/v1/core/core.pb.go")
+				require.True(t, status.InSync)
+				require.Empty(t, status.Drift)
 			},
 		},
 		{
-			name: "orphan output",
+			name: "orphan output ignored when inputs are unchanged",
 			mutate: func(t *testing.T, repoRoot string) {
 				path := filepath.Join(repoRoot, "packages", "proto", "gen", "python", "demo", "v1", "old", "py.typed")
 				require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
 				require.NoError(t, os.WriteFile(path, []byte{}, 0o644))
 			},
 			assert: func(t *testing.T, status GenSyncStatus) {
+				require.True(t, status.InSync)
+				require.Empty(t, status.Drift)
+			},
+		},
+		{
+			name: "output hash checked when input digest is stale",
+			mutate: func(t *testing.T, repoRoot string) {
+				inputPath := filepath.Join(repoRoot, "packages", "proto", "schemas", "demo", "v1", "core", "core.proto")
+				require.NoError(t, os.WriteFile(inputPath, []byte("syntax = \"proto3\";\npackage demo.v1.core;\nmessage Changed {}\n"), 0o644))
+				outputPath := filepath.Join(repoRoot, "packages", "proto", "gen", "go", "demo", "v1", "core", "core.pb.go")
+				require.NoError(t, os.WriteFile(outputPath, []byte("changed"), 0o644))
+			},
+			assert: func(t *testing.T, status GenSyncStatus) {
 				require.False(t, status.InSync)
-				require.Contains(t, status.Drift, "packages/proto/gen/python/demo/v1/old/py.typed")
+				require.Contains(t, status.Drift, "packages/proto/schemas/demo/v1/core/core.proto")
+				require.Contains(t, status.Drift, "packages/proto/gen/go/demo/v1/core/core.pb.go")
 			},
 		},
 		{

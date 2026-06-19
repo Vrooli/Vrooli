@@ -48,23 +48,27 @@ type RPC struct {
 }
 
 type Message struct {
-	FilePath   string
-	Package    string
-	Name       string
-	FullName   string
-	Domain     string
-	IsMapEntry bool
-	Fields     []Field
+	FilePath           string
+	Package            string
+	Name               string
+	FullName           string
+	Domain             string
+	IsMapEntry         bool
+	Annotations        []Annotation
+	HasValidationRules bool
+	Fields             []Field
 }
 
 type Field struct {
-	Name        string
-	Type        string
-	MessageType string
-	EnumType    string
-	Repeated    bool
-	Optional    bool
-	Number      int32
+	Name               string
+	Type               string
+	MessageType        string
+	EnumType           string
+	Repeated           bool
+	Optional           bool
+	Number             int32
+	Annotations        []Annotation
+	HasValidationRules bool
 }
 
 type Import struct {

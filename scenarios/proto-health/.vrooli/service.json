@@ -214,6 +214,11 @@
         "enabled": true,
         "required": true,
         "description": "Provides proto adoption and endpoint proof evidence used by proto validation."
+      },
+      "git-control-tower": {
+        "enabled": true,
+        "required": false,
+        "description": "Provides named baseline metadata for contract impact default scope resolution."
       }
     },
     "resources": {}

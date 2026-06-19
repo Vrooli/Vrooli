@@ -2,6 +2,7 @@ package domains
 
 import (
 	"proto-health/cli/domains/describe"
+	"proto-health/cli/domains/impact"
 	"proto-health/cli/domains/validate"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -41,6 +42,7 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	for _, reg := range []func(*cliapp.ScenarioApp, []byte) (cliapp.SubcommandGroup, error){
 		validate.Register,
 		describe.Register,
+		impact.Register,
 	} {
 		group, err := reg(core, manifest)
 		if err != nil {

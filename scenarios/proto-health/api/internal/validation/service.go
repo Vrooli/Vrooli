@@ -57,6 +57,7 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 	findings = append(findings, checkPackages(scenario, surface)...)
 	findings = append(findings, checkVersions(surface)...)
 	findings = append(findings, checkUnsupportedAnnotations(surface)...)
+	findings = append(findings, checkConstraintProtovalidateCoverage(surface)...)
 	findings = append(findings, checkTemplateSource(surface)...)
 	findings = append(findings, checkCrossDomainImports(surface)...)
 	findings = append(findings, checkImportClassification(surface)...)
@@ -412,49 +413,74 @@ func filterSurfaceByStability(surface protosurface.Surface, stability string) pr
 		filtered.Files = append(filtered.Files, file)
 		keptFiles[file.Path] = true
 	}
-	filtered.Services = nil
-	for _, service := range surface.Services {
+	filtered.Services = filterServicesByFiles(surface.Services, keptFiles)
+	filtered.Messages = filterMessagesByFiles(surface.Messages, keptFiles)
+	filtered.IntraScenarioImports = filterImportsBySourceFile(surface.IntraScenarioImports, keptFiles)
+	filtered.CrossScenarioImports = filterImportsBySourceFile(surface.CrossScenarioImports, keptFiles)
+	filtered.RESTExceptionRefs = filterRESTExceptionRefsByKeptDomains(surface, keptFiles)
+	filtered.RESTExceptions = filterRESTExceptionsByKeptDomains(surface, keptFiles)
+	filtered.RESTExceptionPayloads = filterRESTPayloadsByKeptDomains(surface, keptFiles)
+	return filtered
+}
+
+func filterServicesByFiles(services []protosurface.Service, keptFiles map[string]bool) []protosurface.Service {
+	var out []protosurface.Service
+	for _, service := range services {
 		if keptFiles[service.FilePath] {
-			filtered.Services = append(filtered.Services, service)
+			out = append(out, service)
 		}
 	}
-	filtered.Messages = nil
-	for _, message := range surface.Messages {
+	return out
+}
+
+func filterMessagesByFiles(messages []protosurface.Message, keptFiles map[string]bool) []protosurface.Message {
+	var out []protosurface.Message
+	for _, message := range messages {
 		if keptFiles[message.FilePath] {
-			filtered.Messages = append(filtered.Messages, message)
+			out = append(out, message)
 		}
 	}
-	filtered.IntraScenarioImports = nil
-	for _, imp := range surface.IntraScenarioImports {
+	return out
+}
+
+func filterImportsBySourceFile(imports []protosurface.Import, keptFiles map[string]bool) []protosurface.Import {
+	var out []protosurface.Import
+	for _, imp := range imports {
 		if keptFiles[imp.FromFile] {
-			filtered.IntraScenarioImports = append(filtered.IntraScenarioImports, imp)
+			out = append(out, imp)
 		}
 	}
-	filtered.CrossScenarioImports = nil
-	for _, imp := range surface.CrossScenarioImports {
-		if keptFiles[imp.FromFile] {
-			filtered.CrossScenarioImports = append(filtered.CrossScenarioImports, imp)
-		}
-	}
-	filtered.RESTExceptionRefs = nil
+	return out
+}
+
+func filterRESTExceptionRefsByKeptDomains(surface protosurface.Surface, keptFiles map[string]bool) []protosurface.RESTExceptionRef {
+	var out []protosurface.RESTExceptionRef
 	for _, ref := range surface.RESTExceptionRefs {
 		if ref.Domain == "" || domainHasKeptFile(surface, keptFiles, ref.Domain) {
-			filtered.RESTExceptionRefs = append(filtered.RESTExceptionRefs, ref)
+			out = append(out, ref)
 		}
 	}
-	filtered.RESTExceptions = nil
+	return out
+}
+
+func filterRESTExceptionsByKeptDomains(surface protosurface.Surface, keptFiles map[string]bool) []protosurface.RESTExceptionEndpoint {
+	var out []protosurface.RESTExceptionEndpoint
 	for _, endpoint := range surface.RESTExceptions {
 		if endpoint.Domain == "" || domainHasKeptFile(surface, keptFiles, endpoint.Domain) {
-			filtered.RESTExceptions = append(filtered.RESTExceptions, endpoint)
+			out = append(out, endpoint)
 		}
 	}
-	filtered.RESTExceptionPayloads = nil
+	return out
+}
+
+func filterRESTPayloadsByKeptDomains(surface protosurface.Surface, keptFiles map[string]bool) []protosurface.RESTExceptionPayloadRef {
+	var out []protosurface.RESTExceptionPayloadRef
 	for _, payload := range surface.RESTExceptionPayloads {
 		if payload.Domain == "" || domainHasKeptFile(surface, keptFiles, payload.Domain) {
-			filtered.RESTExceptionPayloads = append(filtered.RESTExceptionPayloads, payload)
+			out = append(out, payload)
 		}
 	}
-	return filtered
+	return out
 }
 
 func domainHasKeptFile(surface protosurface.Surface, keptFiles map[string]bool, domain string) bool {
@@ -601,6 +627,7 @@ func checkUnsupportedAnnotations(surface protosurface.Surface) []Finding {
 		"unit":       true,
 		"default":    true,
 		"template":   true,
+		"constraint": true,
 	}
 	deprecated := map[string]bool{"layer": true, "domain": true, "imports": true}
 	var findings []Finding
@@ -624,6 +651,40 @@ func checkUnsupportedAnnotations(surface protosurface.Surface) []Finding {
 	return findings
 }
 
+func checkConstraintProtovalidateCoverage(surface protosurface.Surface) []Finding {
+	var findings []Finding
+	for _, msg := range surface.Messages {
+		if hasAnnotation(msg.Annotations, "constraint") && !msg.HasValidationRules {
+			findings = append(findings, Finding{
+				Code:       CodeConstraintMissingProtovalidate,
+				Location:   msg.FilePath,
+				Message:    fmt.Sprintf("message %s uses @constraint without a Protovalidate message rule", msg.FullName),
+				Suggestion: "move enforceable constraints into (buf.validate.message); keep prose only for semantic guidance that cannot be machine-checked",
+			})
+		}
+		for _, field := range msg.Fields {
+			if hasAnnotation(field.Annotations, "constraint") && !field.HasValidationRules {
+				findings = append(findings, Finding{
+					Code:       CodeConstraintMissingProtovalidate,
+					Location:   msg.FilePath,
+					Message:    fmt.Sprintf("field %s.%s uses @constraint without a Protovalidate field rule", msg.FullName, field.Name),
+					Suggestion: "move enforceable constraints into (buf.validate.field); keep prose only for semantic guidance that cannot be machine-checked",
+				})
+			}
+		}
+	}
+	return findings
+}
+
+func hasAnnotation(annotations []protosurface.Annotation, name string) bool {
+	for _, a := range annotations {
+		if a.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
 func checkTemplateSource(surface protosurface.Surface) []Finding {
 	var findings []Finding
 	for _, f := range surface.Files {
@@ -643,9 +704,13 @@ func checkTemplateSource(surface protosurface.Surface) []Finding {
 }
 
 func checkCrossDomainImports(surface protosurface.Surface) []Finding {
+	suppressed := crossDomainImportsCoveredBySharedTypeErrors(surface)
 	var findings []Finding
 	for _, imp := range surface.IntraScenarioImports {
 		if imp.FromDomain == "" || imp.ToDomain == "" || imp.FromDomain == imp.ToDomain || imp.ToDomain == "shared" {
+			continue
+		}
+		if suppressed[crossDomainImportKey(imp.FromFile, imp.ToFile)] {
 			continue
 		}
 		findings = append(findings, Finding{
@@ -656,6 +721,30 @@ func checkCrossDomainImports(surface protosurface.Surface) []Finding {
 		})
 	}
 	return findings
+}
+
+func crossDomainImportsCoveredBySharedTypeErrors(surface protosurface.Surface) map[string]bool {
+	referenceDomains := sharedTypeReferenceDomains(surface)
+	suppressed := map[string]bool{}
+	for _, msg := range surface.Messages {
+		domains := referenceDomains[msg.FullName]
+		if msg.Domain == "shared" || len(domains) < 2 {
+			continue
+		}
+		for _, imp := range surface.IntraScenarioImports {
+			if imp.ToFile != msg.FilePath || imp.FromDomain == "" || imp.FromDomain == imp.ToDomain || imp.ToDomain == "shared" {
+				continue
+			}
+			if domains[imp.FromDomain] && domains[msg.Domain] {
+				suppressed[crossDomainImportKey(imp.FromFile, imp.ToFile)] = true
+			}
+		}
+	}
+	return suppressed
+}
+
+func crossDomainImportKey(fromFile, toFile string) string {
+	return fromFile + "\x00" + toFile
 }
 
 func checkImportClassification(surface protosurface.Surface) []Finding {
@@ -925,6 +1014,24 @@ func checkMissingHealth(surface protosurface.Surface) []Finding {
 }
 
 func checkSharedTypePlacement(surface protosurface.Surface) []Finding {
+	referenceDomains := sharedTypeReferenceDomains(surface)
+	var findings []Finding
+	for _, msg := range surface.Messages {
+		domains := sortedDomains(referenceDomains[msg.FullName])
+		if len(domains) < 2 || msg.Domain == "shared" {
+			continue
+		}
+		findings = append(findings, Finding{
+			Code:       CodeSharedTypeMisplaced,
+			Location:   msg.FilePath + "#" + msg.Name,
+			Message:    fmt.Sprintf("message %s is reused across domains (%s) but lives in %q", msg.FullName, strings.Join(domains, ", "), msg.Domain),
+			Suggestion: "move reusable scenario-local support messages into v1/shared/ and update imports/declarations",
+		})
+	}
+	return findings
+}
+
+func sharedTypeReferenceDomains(surface protosurface.Surface) map[string]map[string]bool {
 	referenceDomains := map[string]map[string]bool{}
 	addRef := func(fullName, domain string) {
 		if fullName == "" || domain == "" {
@@ -949,21 +1056,7 @@ func checkSharedTypePlacement(surface protosurface.Surface) []Finding {
 	for _, ref := range surface.RESTExceptionPayloads {
 		addRef(ref.ProtoFullName, ref.Domain)
 	}
-
-	var findings []Finding
-	for _, msg := range surface.Messages {
-		domains := sortedDomains(referenceDomains[msg.FullName])
-		if len(domains) < 2 || msg.Domain == "shared" {
-			continue
-		}
-		findings = append(findings, Finding{
-			Code:       CodeSharedTypeMisplaced,
-			Location:   msg.FilePath + "#" + msg.Name,
-			Message:    fmt.Sprintf("message %s is reused across domains (%s) but lives in %q", msg.FullName, strings.Join(domains, ", "), msg.Domain),
-			Suggestion: "move reusable scenario-local support messages into v1/shared/ and update imports/declarations",
-		})
-	}
-	return findings
+	return referenceDomains
 }
 
 func sortedDomains(domains map[string]bool) []string {
@@ -976,14 +1069,33 @@ func sortedDomains(domains map[string]bool) []string {
 }
 
 func checkPossiblyUnused(surface protosurface.Surface) []Finding {
+	reachable := reachableMessages(surface)
+	unused := unusedMessages(surface.Messages, reachable)
+	if len(unused) == 0 {
+		return nil
+	}
+	return []Finding{{
+		Code:       CodePossiblyUnused,
+		Location:   "packages/proto/schemas/" + surface.Scenario,
+		Message:    fmt.Sprintf("%d message(s) are not reachable from this scenario's served RPCs: %s", len(unused), strings.Join(formatUnusedMessageNames(unused), ", ")),
+		Suggestion: "remove dead messages if they are scenario-local, or keep them if downstream scenarios consume them; fleet-aware usage belongs to scenario-dependency-analyzer",
+	}}
+}
+
+func reachableMessages(surface protosurface.Surface) map[string]bool {
+	reachable := reachableRoots(surface)
+	byFullName := messagesByFullName(surface.Messages)
+	for name := range reachable {
+		walkReachableMessage(name, byFullName, reachable)
+	}
+	return reachable
+}
+
+func reachableRoots(surface protosurface.Surface) map[string]bool {
 	reachable := map[string]bool{}
 	for _, svc := range surface.Services {
 		for _, rpc := range svc.RPCs {
-			if rpc.Transport != protosurface.TransportKindConnect && rpc.Transport != protosurface.TransportKindREST && rpc.Transport != protosurface.TransportKindHandRolled {
-				continue
-			}
-			reachable[rpc.Input] = true
-			reachable[rpc.Output] = true
+			markReachableRPC(reachable, rpc)
 		}
 	}
 	for _, ref := range surface.RESTExceptionRefs {
@@ -991,40 +1103,56 @@ func checkPossiblyUnused(surface protosurface.Surface) []Finding {
 			reachable[ref.FullName] = true
 		}
 	}
+	return reachable
+}
+
+func markReachableRPC(reachable map[string]bool, rpc protosurface.RPC) {
+	if rpc.Transport != protosurface.TransportKindConnect &&
+		rpc.Transport != protosurface.TransportKindREST &&
+		rpc.Transport != protosurface.TransportKindHandRolled {
+		return
+	}
+	reachable[rpc.Input] = true
+	reachable[rpc.Output] = true
+}
+
+func messagesByFullName(messages []protosurface.Message) map[string]protosurface.Message {
 	byFullName := map[string]protosurface.Message{}
-	for _, m := range surface.Messages {
+	for _, m := range messages {
 		byFullName[m.FullName] = m
 	}
-	var walk func(string)
-	walk = func(name string) {
-		m, ok := byFullName[name]
-		if !ok {
-			return
-		}
-		for _, f := range m.Fields {
-			if f.MessageType != "" && !reachable[f.MessageType] {
-				reachable[f.MessageType] = true
-				walk(f.MessageType)
-			}
-		}
-	}
-	for name := range reachable {
-		walk(name)
-	}
+	return byFullName
+}
 
+func walkReachableMessage(name string, byFullName map[string]protosurface.Message, reachable map[string]bool) {
+	m, ok := byFullName[name]
+	if !ok {
+		return
+	}
+	for _, f := range m.Fields {
+		if f.MessageType == "" || reachable[f.MessageType] {
+			continue
+		}
+		reachable[f.MessageType] = true
+		walkReachableMessage(f.MessageType, byFullName, reachable)
+	}
+}
+
+func unusedMessages(messages []protosurface.Message, reachable map[string]bool) []protosurface.Message {
 	var unused []protosurface.Message
-	for _, m := range surface.Messages {
-		if reachable[m.FullName] || m.IsMapEntry {
+	for _, m := range messages {
+		if reachable[m.FullName] || m.IsMapEntry || isConventionalReachabilityRoot(m) {
 			continue
 		}
 		unused = append(unused, m)
 	}
-	if len(unused) == 0 {
-		return nil
-	}
 	sort.Slice(unused, func(i, j int) bool {
 		return unused[i].FullName < unused[j].FullName
 	})
+	return unused
+}
+
+func formatUnusedMessageNames(unused []protosurface.Message) []string {
 	const maxListed = 12
 	names := make([]string, 0, minInt(len(unused), maxListed))
 	for i := 0; i < len(unused) && i < maxListed; i++ {
@@ -1033,12 +1161,19 @@ func checkPossiblyUnused(surface protosurface.Surface) []Finding {
 	if len(unused) > maxListed {
 		names = append(names, fmt.Sprintf("+%d more", len(unused)-maxListed))
 	}
-	return []Finding{{
-		Code:       CodePossiblyUnused,
-		Location:   "packages/proto/schemas/" + surface.Scenario,
-		Message:    fmt.Sprintf("%d message(s) are not reachable from this scenario's served RPCs: %s", len(unused), strings.Join(names, ", ")),
-		Suggestion: "remove dead messages if they are scenario-local, or keep them if downstream scenarios consume them; fleet-aware usage belongs to scenario-dependency-analyzer",
-	}}
+	return names
+}
+
+func isConventionalReachabilityRoot(m protosurface.Message) bool {
+	if m.Domain != "shared" {
+		return false
+	}
+	switch m.Name {
+	case "ErrorEnvelope":
+		return true
+	default:
+		return strings.HasPrefix(m.Name, "Health") || strings.HasSuffix(m.Name, "HealthStatus")
+	}
 }
 
 func minInt(a, b int) int {

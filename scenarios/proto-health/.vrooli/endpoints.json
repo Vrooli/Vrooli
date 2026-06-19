@@ -44,6 +44,40 @@
       }
     },
     {
+      "id": "impact_get",
+      "path": "/vrooli.proto_health.v1.impact.ImpactService/GetImpact",
+      "method": "POST",
+      "summary": "Report proto contract impact",
+      "description": "Compares the current scenario proto surface against a git baseline descriptor with buf breaking and returns classified compatibility findings.",
+      "category": "impact",
+      "request": {
+        "type": "object",
+        "properties": {
+          "against": "string (optional, scope/ref; empty uses newest git-control-tower baseline with merge-base fallback)",
+          "scenario": "string (required, scenario id)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "report": "ImpactReport"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Missing scenario id, invalid git ref, missing baseline descriptor, or buf breaking failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Impact default scope",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.proto_health.v1.impact.ImpactService/GetImpact -H 'Content-Type: application/json' -d '{\"scenario\":\"proto-health\"}'"
+        }
+      ]
+    },
+    {
       "id": "validation_validate_scenario",
       "path": "/vrooli.scenario_validation.v1.ScenarioValidationService/ValidateScenario",
       "method": "POST",

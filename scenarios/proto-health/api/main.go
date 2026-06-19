@@ -23,6 +23,7 @@ import (
 	_ "modernc.org/sqlite"
 
 	healthH "proto-health/handlers/health"
+	impactH "proto-health/handlers/impact"
 	validationH "proto-health/handlers/validation"
 )
 
@@ -121,6 +122,7 @@ func main() {
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "proto-health-api", "1.0.0"),
+		impactH.Module(log.Default(), repoRoot),
 		validationH.Module(log.Default(), repoRoot),
 	)
 

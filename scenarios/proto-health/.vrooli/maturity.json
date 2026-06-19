@@ -229,6 +229,13 @@
       "severity_default": "SEVERITY_WARNING",
       "recommended_skill_ids": ["proto-contract-audit"]
     },
+    "proto.constraint_missing_protovalidate": {
+      "local_level_impact": "L4",
+      "global_impact": "advisory",
+      "dimension": "proto-health",
+      "severity_default": "SEVERITY_WARNING",
+      "recommended_skill_ids": ["proto-contract-audit"]
+    },
     "proto.version_naming": {
       "local_level_impact": "L1",
       "global_impact": "advisory",

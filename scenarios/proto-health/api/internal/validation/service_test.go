@@ -329,6 +329,83 @@ func TestValidateScenarioFindsPolicyViolations(t *testing.T) {
 	requireFinding(t, report, CodeVersionNaming, SeverityWarning)
 }
 
+func TestValidateScenarioAcceptsConstraintAnnotation(t *testing.T) {
+	surface := cleanSurface()
+	surface.Files[0].Annotations = append(surface.Files[0].Annotations, protosurface.Annotation{Name: "constraint", Value: "one of: healthy, degraded"})
+
+	svc := newTestService(t, Deps{Loader: fakeLoader{surface: surface}})
+	report, err := svc.ValidateScenario(context.Background(), "demo")
+	require.NoError(t, err)
+	require.True(t, report.Passed)
+	requireNoFinding(t, report, CodeUnsupportedAnnotation)
+	requireNoFinding(t, report, CodeConstraintMissingProtovalidate)
+}
+
+func TestValidateScenarioWarnsWhenFieldConstraintLacksProtovalidate(t *testing.T) {
+	surface := cleanSurface()
+	surface.Messages = append(surface.Messages, protosurface.Message{
+		FilePath: "demo/v1/shared/health.proto",
+		Package:  "vrooli.demo.v1.shared",
+		Name:     "HealthRequest",
+		FullName: "vrooli.demo.v1.shared.HealthRequest",
+		Domain:   "shared",
+		Fields: []protosurface.Field{{
+			Name:        "status",
+			Type:        "string",
+			Number:      1,
+			Annotations: []protosurface.Annotation{{Name: "constraint", Value: "one of: healthy, degraded"}},
+		}},
+	})
+
+	svc := newTestService(t, Deps{Loader: fakeLoader{surface: surface}})
+	report, err := svc.ValidateScenario(context.Background(), "demo")
+	require.NoError(t, err)
+	require.True(t, report.Passed)
+	requireFinding(t, report, CodeConstraintMissingProtovalidate, SeverityWarning)
+}
+
+func TestValidateScenarioAcceptsFieldConstraintWithProtovalidate(t *testing.T) {
+	surface := cleanSurface()
+	surface.Messages = append(surface.Messages, protosurface.Message{
+		FilePath: "demo/v1/shared/health.proto",
+		Package:  "vrooli.demo.v1.shared",
+		Name:     "HealthRequest",
+		FullName: "vrooli.demo.v1.shared.HealthRequest",
+		Domain:   "shared",
+		Fields: []protosurface.Field{{
+			Name:               "status",
+			Type:               "string",
+			Number:             1,
+			Annotations:        []protosurface.Annotation{{Name: "constraint", Value: "one of: healthy, degraded"}},
+			HasValidationRules: true,
+		}},
+	})
+
+	svc := newTestService(t, Deps{Loader: fakeLoader{surface: surface}})
+	report, err := svc.ValidateScenario(context.Background(), "demo")
+	require.NoError(t, err)
+	require.True(t, report.Passed)
+	requireNoFinding(t, report, CodeConstraintMissingProtovalidate)
+}
+
+func TestValidateScenarioWarnsWhenMessageConstraintLacksProtovalidate(t *testing.T) {
+	surface := cleanSurface()
+	surface.Messages = append(surface.Messages, protosurface.Message{
+		FilePath:    "demo/v1/shared/health.proto",
+		Package:     "vrooli.demo.v1.shared",
+		Name:        "HealthRequest",
+		FullName:    "vrooli.demo.v1.shared.HealthRequest",
+		Domain:      "shared",
+		Annotations: []protosurface.Annotation{{Name: "constraint", Value: "status and reason must agree"}},
+	})
+
+	svc := newTestService(t, Deps{Loader: fakeLoader{surface: surface}})
+	report, err := svc.ValidateScenario(context.Background(), "demo")
+	require.NoError(t, err)
+	require.True(t, report.Passed)
+	requireFinding(t, report, CodeConstraintMissingProtovalidate, SeverityWarning)
+}
+
 func TestValidateScenarioFindsTemplateSource(t *testing.T) {
 	surface := cleanSurface()
 	surface.Files[0].Annotations = append(surface.Files[0].Annotations, protosurface.Annotation{Name: "template", Value: "react-vite/example"})
@@ -362,6 +439,30 @@ func TestValidateScenarioReportsStableMessageNotLocallyReachable(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, report.Passed)
 	requireFinding(t, report, CodePossiblyUnused, SeverityInfo)
+}
+
+func TestValidateScenarioExemptsConventionalSharedEnvelopeFromPossiblyUnused(t *testing.T) {
+	surface := cleanSurface()
+	surface.Files = append(surface.Files, protosurface.File{
+		Path:      "demo/v1/shared/errors.proto",
+		Package:   "vrooli.demo.v1.shared",
+		Version:   "v1",
+		Domain:    "shared",
+		Stability: "stable",
+	})
+	surface.Messages = append(surface.Messages, protosurface.Message{
+		FilePath: "demo/v1/shared/errors.proto",
+		Package:  "vrooli.demo.v1.shared",
+		Name:     "ErrorEnvelope",
+		FullName: "vrooli.demo.v1.shared.ErrorEnvelope",
+		Domain:   "shared",
+	})
+
+	svc := newTestService(t, Deps{Loader: fakeLoader{surface: surface}})
+	report, err := svc.ValidateScenario(context.Background(), "demo")
+	require.NoError(t, err)
+	require.True(t, report.Passed)
+	requireNoFinding(t, report, CodePossiblyUnused)
 }
 
 func TestValidateScenarioSkipsMapEntryPossiblyUnused(t *testing.T) {
@@ -608,6 +709,57 @@ func TestValidateScenarioFindsReusableTypeOutsideSharedDomain(t *testing.T) {
 	requireFinding(t, report, CodeSharedTypeMisplaced, SeverityError)
 }
 
+func TestValidateScenarioSuppressesCrossDomainImportCoveredBySharedTypePlacement(t *testing.T) {
+	surface := cleanSurface()
+	surface.Files = append(surface.Files,
+		protosurface.File{Path: "demo/v1/runs/runs.proto", Package: "vrooli.demo.v1.runs", Version: "v1", Domain: "runs", Stability: "stable"},
+		protosurface.File{Path: "demo/v1/presence/presence.proto", Package: "vrooli.demo.v1.presence", Version: "v1", Domain: "presence", Stability: "stable"},
+	)
+	surface.Messages = append(surface.Messages,
+		protosurface.Message{FilePath: "demo/v1/runs/runs.proto", Package: "vrooli.demo.v1.runs", Name: "RunEvent", FullName: "vrooli.demo.v1.runs.RunEvent", Domain: "runs"},
+		protosurface.Message{
+			FilePath: "demo/v1/presence/presence.proto",
+			Package:  "vrooli.demo.v1.presence",
+			Name:     "Heartbeat",
+			FullName: "vrooli.demo.v1.presence.Heartbeat",
+			Domain:   "presence",
+			Fields: []protosurface.Field{{
+				Name:        "event",
+				Type:        "message",
+				MessageType: "vrooli.demo.v1.runs.RunEvent",
+				Number:      1,
+			}},
+		},
+	)
+	surface.Services = append(surface.Services, protosurface.Service{
+		FilePath: "demo/v1/runs/runs.proto",
+		Package:  "vrooli.demo.v1.runs",
+		Name:     "RunsService",
+		FullName: "vrooli.demo.v1.runs.RunsService",
+		Domain:   "runs",
+		RPCs: []protosurface.RPC{{
+			Name:      "WatchRuns",
+			Input:     "vrooli.demo.v1.runs.RunEvent",
+			Output:    "vrooli.demo.v1.runs.RunEvent",
+			Transport: protosurface.TransportKindConnect,
+		}},
+	})
+	surface.IntraScenarioImports = append(surface.IntraScenarioImports, protosurface.Import{
+		FromFile:   "demo/v1/presence/presence.proto",
+		ToFile:     "demo/v1/runs/runs.proto",
+		FromDomain: "presence",
+		ToDomain:   "runs",
+		Kind:       protosurface.ImportKindScenarioLocal,
+	})
+
+	svc := newTestService(t, Deps{Loader: fakeLoader{surface: surface}})
+	report, err := svc.ValidateScenario(context.Background(), "demo")
+	require.NoError(t, err)
+	require.False(t, report.Passed)
+	requireFinding(t, report, CodeSharedTypeMisplaced, SeverityError)
+	requireNoFinding(t, report, CodeCrossDomainImport)
+}
+
 func TestValidateScenarioFindsImportCycle(t *testing.T) {
 	surface := cleanSurface()
 	surface.IntraScenarioImports = []protosurface.Import{
@@ -798,4 +950,11 @@ func requireFinding(t *testing.T, report Report, code string, severity Severity)
 		}
 	}
 	require.Failf(t, "missing finding", "code=%s severity=%s findings=%+v", code, severity, report.Findings)
+}
+
+func requireNoFinding(t *testing.T, report Report, code string) {
+	t.Helper()
+	for _, finding := range report.Findings {
+		require.NotEqual(t, code, finding.Code, "unexpected finding: %+v", report.Findings)
+	}
 }

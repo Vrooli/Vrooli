@@ -29,6 +29,7 @@
 - [ ] OT-P1-003 | Direct UI | The UI lists fleet proto-health status and per-scenario findings/surface facts with loading, error, and empty states.
 - [ ] OT-P1-004 | Proto contract audit skill | `proto-contract-audit` steer skill loads through prompt-manager and routes deep API/interoperability decisions to the existing sibling skills.
 - [ ] OT-P1-005 | CI gen-sync gate | CI runs `cd packages/proto && make verify-committed-gen` so committed generated artifacts cannot drift from schema sources.
+- [ ] OT-P1-006 | Contract impact advisory | `proto-health impact scenario <name>` compares the current proto surface against a git or git-control-tower baseline, classifies breaking changes, and reports file-level unreconciled consumers.
 
 ### 🟢 P2 – Future / expansion
 
