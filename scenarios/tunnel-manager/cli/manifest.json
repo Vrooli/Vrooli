@@ -10,51 +10,89 @@
         {
           "name": "list",
           "description": "List all notes",
-          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "ListNotes" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "NotesService",
+            "method": "ListNotes"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
           "name": "create",
           "description": "Create a note",
           "flags": [
-            { "name": "title", "required": true, "description": "Note title" },
-            { "name": "body", "description": "Note body" }
+            {
+              "name": "title",
+              "required": true,
+              "description": "Note title"
+            },
+            {
+              "name": "body",
+              "description": "Note body"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "CreateNote" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "NotesService",
+            "method": "CreateNote"
+          },
           "governance": {
             "effect": "write",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
           "name": "get",
           "description": "Get a note by id",
           "positionals": [
-            { "name": "id", "required": true, "description": "Note id" }
+            {
+              "name": "id",
+              "required": true,
+              "description": "Note id"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "GetNote" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "NotesService",
+            "method": "GetNote"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           }
         },
         {
           "name": "count",
           "description": "Count notes created in a time window (the reference measure)",
           "flags": [
-            { "name": "window", "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)" }
+            {
+              "name": "window",
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
+            }
           ],
-          "binding": { "kind": "connect-rpc", "service": "NotesService", "method": "CountNotes" },
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "NotesService",
+            "method": "CountNotes"
+          },
           "governance": {
             "effect": "read",
             "run_eligible": true,
-            "permissions": ["network:internal"]
+            "permissions": [
+              "network:internal"
+            ]
           },
           "measure": {
             "intent": "How many notes were created in a given time window.",
@@ -64,7 +102,10 @@
               "how many notes did we add in the last 7 days"
             ],
             "params": {
-              "window": { "type": "time_window", "default": "this_week" }
+              "window": {
+                "type": "time_window",
+                "default": "this_week"
+              }
             },
             "result": {
               "kind": "scalar",
@@ -75,11 +116,642 @@
           }
         }
       ]
+    },
+    {
+      "name": "routes",
+      "description": "Manage the exposure manifest (which scenario is exposed where)",
+      "commands": [
+        {
+          "name": "list",
+          "description": "List manifest routes",
+          "flags": [
+            {
+              "name": "tier",
+              "description": "Filter by tier (core or leased)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RoutesService",
+            "method": "ListRoutes"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "get",
+          "description": "Get a route by id",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Route id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RoutesService",
+            "method": "GetRoute"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "create",
+          "description": "Create a manifest route",
+          "flags": [
+            {
+              "name": "subdomain",
+              "required": true,
+              "description": "DNS-label subdomain"
+            },
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario the route exposes"
+            },
+            {
+              "name": "local-port",
+              "required": true,
+              "description": "Local port (1-65535)"
+            },
+            {
+              "name": "domain",
+              "description": "Apex domain (default itsagitime.com)"
+            },
+            {
+              "name": "tier",
+              "description": "Tier: core or leased (default leased)"
+            },
+            {
+              "name": "health-path",
+              "description": "Health probe path (default /health)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RoutesService",
+            "method": "CreateRoute"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "update",
+          "description": "Update a route (partial)",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Route id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "subdomain",
+              "description": "New subdomain"
+            },
+            {
+              "name": "scenario",
+              "description": "New scenario"
+            },
+            {
+              "name": "local-port",
+              "description": "New local port"
+            },
+            {
+              "name": "domain",
+              "description": "New apex domain"
+            },
+            {
+              "name": "tier",
+              "description": "New tier"
+            },
+            {
+              "name": "health-path",
+              "description": "New health path"
+            },
+            {
+              "name": "enabled",
+              "description": "Set enabled (true/false)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RoutesService",
+            "method": "UpdateRoute"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "delete",
+          "description": "Delete a route by id",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Route id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RoutesService",
+            "method": "DeleteRoute"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "audit",
+      "description": "Audit exposure-manifest port compliance against scenario service.json files",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Run a port-compliance audit across all enabled manifest routes",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AuditService",
+            "method": "RunAudit"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "config",
+      "description": "Manage tunnel configuration and reconcile Cloudflare ingress with the routes manifest",
+      "commands": [
+        {
+          "name": "get",
+          "description": "Get the persisted tunnel configuration",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConfigService",
+            "method": "GetConfig"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "sync",
+          "description": "Reconcile ingress with the routes manifest (use --dry-run to preview)",
+          "flags": [
+            {
+              "name": "dry-run",
+              "description": "Compute the diff without applying it"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConfigService",
+            "method": "Sync"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "mode",
+          "description": "Switch tunnel management mode (remote or local)",
+          "flags": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "Target mode: remote or local"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ConfigService",
+            "method": "SwitchMode"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:external"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "exposure",
+      "description": "Tiered exposure broker — request/extend/revoke leases, list exposures, reconcile",
+      "commands": [
+        {
+          "name": "expose",
+          "description": "Expose a scenario on demand (creates a TTL lease)",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario to expose"
+            }
+          ],
+          "flags": [
+            {
+              "name": "ttl-seconds",
+              "description": "Lease duration in seconds (default ~1 week)"
+            },
+            {
+              "name": "requested-by",
+              "description": "Caller identity recorded on the lease"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExposureService",
+            "method": "Expose"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:external",
+              "admin"
+            ]
+          }
+        },
+        {
+          "name": "extend",
+          "description": "Extend a lease's expiry",
+          "positionals": [
+            {
+              "name": "lease_id",
+              "required": true,
+              "description": "Lease id"
+            }
+          ],
+          "flags": [
+            {
+              "name": "ttl-seconds",
+              "description": "New duration from now in seconds (default ~1 week)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExposureService",
+            "method": "ExtendLease"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "revoke",
+          "description": "Revoke a lease (retracts ingress unless also CORE)",
+          "positionals": [
+            {
+              "name": "lease_id",
+              "required": true,
+              "description": "Lease id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExposureService",
+            "method": "RevokeLease"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:external"
+            ]
+          }
+        },
+        {
+          "name": "leases",
+          "description": "List leases (optionally by status)",
+          "flags": [
+            {
+              "name": "status",
+              "description": "Filter: active, expired, or revoked"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExposureService",
+            "method": "ListLeases"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "list",
+          "description": "List the reconciled exposure state per scenario",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExposureService",
+            "method": "ListExposures"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "check",
+          "description": "Check whether a scenario is currently exposed",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario name"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExposureService",
+            "method": "IsExposed"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "reconcile",
+          "description": "Re-derive CORE routes and reap expired leases",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ExposureService",
+            "method": "Reconcile"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:external",
+              "admin"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "probes",
+      "description": "Liveness probing & failure classification",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Run one probe cycle across all enabled routes (internal + external) and persist results",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProbesService",
+            "method": "RunProbes"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "history",
+          "description": "List recent probe history newest-first, optionally filtered by subdomain",
+          "flags": [
+            {
+              "name": "subdomain",
+              "description": "Filter history to a single route subdomain"
+            },
+            {
+              "name": "limit",
+              "description": "Max rows to return (0 = server default)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProbesService",
+            "method": "ListProbes"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "classify",
+          "description": "Diagnose per-route reachability from the latest stored internal+external probes",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ProbesService",
+            "method": "Classify"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "recovery",
+      "description": "Inspect and trigger cloudflared auto-recovery (state, events, manual recover)",
+      "commands": [
+        {
+          "name": "state",
+          "description": "Show the live recovery state machine",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RecoveryService",
+            "method": "GetState"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "events",
+          "description": "List recovery events (newest first)",
+          "flags": [
+            {
+              "name": "limit",
+              "description": "Max events to return (default 50)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RecoveryService",
+            "method": "ListEvents"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "run",
+          "description": "Trigger a manual recovery attempt (restart cloudflared)",
+          "flags": [
+            {
+              "name": "force",
+              "description": "Bypass the circuit breaker (true/false)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "RecoveryService",
+            "method": "Recover"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "admin"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "tunnel",
+      "description": "Inspect tunnel-wide health and scraped cloudflared metrics",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Show composite tunnel health (systemd + /ready) and latest metrics",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TunnelService",
+            "method": "GetStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "metrics",
+          "description": "List scraped metrics samples within an optional time window",
+          "flags": [
+            {
+              "name": "from",
+              "description": "Window start (RFC3339)"
+            },
+            {
+              "name": "to",
+              "description": "Window end (RFC3339)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TunnelService",
+            "method": "ListMetrics"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "scrape",
+          "description": "Force one Prometheus scrape and persist the sample",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "TunnelService",
+            "method": "Scrape"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
     }
   ],
   "measures": {
     "domains": [
-      { "domain": "notes", "stateful": true, "reason": "Notes are countable persisted rows; the notes count measure covers this domain at full tier." }
+      {
+        "domain": "notes",
+        "stateful": true,
+        "reason": "Notes are countable persisted rows; the notes count measure covers this domain at full tier."
+      }
     ]
   },
   "omitted": []

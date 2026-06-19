@@ -202,18 +202,31 @@ and use matrix/trace helpers from the relevant testutil package.
 
 ## Planned product seams (Phase 2)
 
-> **Status: planned, not built.** The seams below are the
-> test-substitutable boundaries the seven product domains
-> ([`../concepts/DOMAINS.md`](../concepts/DOMAINS.md)) will need. None
-> exist in code yet — this is the documentation-first inventory that
-> Phase 2 implementation wires. Each describes what it abstracts, why
-> the seam is required for deterministic tests, and the intended
-> production-vs-test wiring. Tunnel Manager actuates live infrastructure
-> (cloudflared, the Cloudflare API, other scenarios' run state), so
-> almost every product seam exists to keep those side effects out of the
-> test path entirely — no test ever touches real cloudflared, the real
-> Cloudflare API, or systemd. See [`DECISIONS.md`](DECISIONS.md)
-> (auto-recovery LIVE) for why this discipline is load-bearing.
+> **Status: REALIZED (all seven domains built and green).** The seams
+> below are the test-substitutable boundaries the seven product domains
+> ([`../concepts/DOMAINS.md`](../concepts/DOMAINS.md)) need; they are now
+> implemented and exercised by passing tests. The descriptions remain the
+> authoritative intent; the as-built symbol names differ in a few places
+> from the original planned names (the boundary and behaviour are
+> identical). As-built map:
+>
+> | Planned name | As built |
+> |---|---|
+> | `internal/exec/runner.go::CommandRunner` (cross-cutting) | `internal/cmdrunner/runner.go::Runner` + `cmdrunner.Default`; fake `internal/testutil/mocks::FakeCmdRunner`. Wired domain-locally in each `handlers/<d>/module.go` (tunnel/config/recovery), not on `server.Deps`. |
+> | `internal/config/cloudflare.go::CloudflareAPI` | `internal/config` `IngressClient` + `NewCFClient` over `httpc.Doer`; nil when CF creds absent → `ErrRemoteUnavailable`. |
+> | `internal/tunnel/scrape.go::MetricsSource` | folded into `internal/tunnel` service over `httpc.Doer` + `cmdrunner.Runner` (Prometheus parse + `/ready`). |
+> | `internal/probes/prober.go::Prober` | folded into `internal/probes` service over `httpc.Doer`. |
+> | `internal/exposure/coreset.go::CoreSetProvider` (`CoreSet(ctx)([]string,error)`) | `exposure.CoreSetProvider func() []string`, wired to `coreset.CoreSeedScenarios`. |
+> | `internal/exposure/lifecycle.go::LifecycleEnsurer` | `exposure.Runner` (`EnsureRunning(ctx, scenario)`) + `exposure.CLIRunner` over `cmdrunner` (`vrooli scenario start`). |
+> | `internal/audit/servicejson.go::ServiceManifestReader` | `audit` service reads `service.json` directly with an injectable scenarios-root; `exposure.FilePortResolver` does the same for the UI port. |
+> | Per-domain `Repository` + `<domain>.Schema` | built as specified for routes/exposure/config/tunnel/probes/recovery; `audit` owns no table. |
+>
+> Tunnel Manager actuates live infrastructure (cloudflared, the Cloudflare
+> API, other scenarios' run state), so almost every product seam exists to
+> keep those side effects out of the test path entirely — no test touches
+> real cloudflared, the real Cloudflare API, or systemd. See
+> [`DECISIONS.md`](DECISIONS.md) (auto-recovery LIVE) for why this
+> discipline is load-bearing.
 
 ### CloudflareAPI client (`config` domain — planned)
 

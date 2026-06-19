@@ -21,8 +21,15 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	auditH "tunnel-manager/handlers/audit"
+	configH "tunnel-manager/handlers/config"
+	exposureH "tunnel-manager/handlers/exposure"
 	healthH "tunnel-manager/handlers/health"
 	notesH "tunnel-manager/handlers/notes" // EXAMPLE-DOMAIN:notes
+	probesH "tunnel-manager/handlers/probes"
+	recoveryH "tunnel-manager/handlers/recovery"
+	routesH "tunnel-manager/handlers/routes"
+	tunnelH "tunnel-manager/handlers/tunnel"
 )
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
@@ -117,6 +124,13 @@ func main() {
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "tunnel-manager-api", "1.0.0"),
 		notesH.Module(db, clock.System{}, log.Default()), // EXAMPLE-DOMAIN:notes
+		routesH.Module(db, clock.System{}, log.Default()),
+		auditH.Module(db, clock.System{}, log.Default()),
+		configH.Module(db, clock.System{}, log.Default()),
+		exposureH.Module(db, clock.System{}, log.Default()),
+		probesH.Module(db, clock.System{}, log.Default()),
+		recoveryH.Module(db, clock.System{}, log.Default()),
+		tunnelH.Module(db, clock.System{}, log.Default()),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -152,4 +166,3 @@ func main() {
 		log.Fatalf("Server error: %v", err)
 	}
 }
-

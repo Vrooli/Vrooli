@@ -1,7 +1,14 @@
 package domains
 
 import (
+	"tunnel-manager/cli/domains/audit"
+	"tunnel-manager/cli/domains/config"
+	"tunnel-manager/cli/domains/exposure"
 	"tunnel-manager/cli/domains/notes" // EXAMPLE-DOMAIN:notes
+	"tunnel-manager/cli/domains/probes"
+	"tunnel-manager/cli/domains/recovery"
+	"tunnel-manager/cli/domains/routes"
+	"tunnel-manager/cli/domains/tunnel"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -44,5 +51,26 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	}
 	groups = append(groups, notesGroup)
 	// EXAMPLE-DOMAIN:notes END
+
+	routesGroup, err := routes.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, routesGroup)
+
+	for _, reg := range []func(*cliapp.ScenarioApp, []byte) (cliapp.SubcommandGroup, error){
+		audit.Register,
+		config.Register,
+		exposure.Register,
+		probes.Register,
+		recovery.Register,
+		tunnel.Register,
+	} {
+		group, err := reg(core, manifest)
+		if err != nil {
+			return nil, err
+		}
+		groups = append(groups, group)
+	}
 	return groups, nil
 }
