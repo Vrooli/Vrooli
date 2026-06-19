@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package vrooli.proto_health.v1.impact;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/impact;impact_v1";
+
+// =============================================================================
+// IMPACT DOMAIN - proto contract change impact
+// =============================================================================
+//
+// @stability stable
+//
+// Contract-impact reporting compares the current proto surface against a git
+// baseline descriptor and classifies compatibility findings for one scenario.
+// =============================================================================
+
+service ImpactService {
+  rpc GetImpact(GetImpactRequest) returns (GetImpactResponse);
+}
+
+message GetImpactRequest {
+  string scenario = 1;
+  string against = 2;
+}
+
+message GetImpactResponse {
+  ImpactReport report = 1;
+}
+
+message ImpactReport {
+  string scenario = 1;
+  string scope = 2;
+  string baseline_sha = 3;
+  repeated ImpactChange changes = 4;
+  int32 wire_breaking_count = 5;
+  int32 json_breaking_count = 6;
+  string scope_kind = 7;
+  string baseline_name = 8;
+  int32 commits_since_baseline = 9;
+  bool likely_stale = 10;
+  string fallback_reason = 11;
+  repeated ImpactConsumer unreconciled_consumers = 12;
+  int32 unreconciled_consumer_count = 13;
+  int32 stable_unreconciled_breaking_count = 14;
+}
+
+message ImpactChange {
+  string file = 1;
+  string path = 2;
+  ImpactChangeKind kind = 3;
+  bool wire_breaking = 4;
+  bool json_breaking = 5;
+  string stability = 6;
+  string message = 7;
+  repeated ImpactConsumer unreconciled_consumers = 8;
+}
+
+message ImpactConsumer {
+  string scenario = 1;
+  string from_file = 2;
+  string to_file = 3;
+  bool unreconciled = 4;
+}
+
+enum ImpactChangeKind {
+  IMPACT_CHANGE_KIND_UNSPECIFIED = 0;
+  IMPACT_CHANGE_KIND_ADD = 1;
+  IMPACT_CHANGE_KIND_RENAME = 2;
+  IMPACT_CHANGE_KIND_RENUMBER = 3;
+  IMPACT_CHANGE_KIND_RETYPE = 4;
+  IMPACT_CHANGE_KIND_REMOVE = 5;
+}

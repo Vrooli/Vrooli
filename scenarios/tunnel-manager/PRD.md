@@ -6,110 +6,94 @@
 > **Policy**: Generated once and treated as read-only (checkboxes may auto-update)
 
 ## 🎯 Overview
-
-- **Purpose**: Central management, monitoring, and self-healing for the Cloudflare secure tunnel that provides remote access to all Vrooli scenarios. Maintains a route manifest as the single source of truth, enforces fixed-port contracts on published scenarios, and auto-recovers from tunnel failures.
-- **Primary users/verticals**: Vrooli operators, automated infrastructure agents, DevOps engineers
-- **Deployment surfaces**: CLI (`tunnel-manager status/routes/probe/audit/recover`), API (route management, health metrics, configuration), UI (real-time route status dashboard)
-- **Value promise**: Guarantees that published Vrooli scenarios remain accessible remotely through Cloudflare Tunnel, even after outages, config drift, or scenario port changes. Eliminates the need for manual tunnel babysitting.
+- **Purpose**: Tunnel Manager is Vrooli's external-access control plane — an **exposure broker** and **self-healing tunnel manager**. It programmatically controls which scenarios are reachable from the public internet through the Cloudflare tunnel, maintains a route/exposure manifest as the single source of truth, enforces fixed-port contracts, and auto-recovers the tunnel from failure. It replaces the operator's current manual step of adding public hostnames in the Cloudflare dashboard.
+- **Primary users/verticals**: Vrooli operators; automated infrastructure agents; other scenarios that need to be (or need another scenario to be) publicly reachable.
+- **Deployment surfaces**: CLI (`tunnel-manager status/routes/expose/lease/probe/audit/recover/config`), API (Connect-RPC: exposure broker, health/metrics, configuration, exposure-query for app-monitor), UI (5-surface operator dashboard).
+- **Value promise**: Published Vrooli scenarios stay reachable remotely without manual tunnel babysitting. Exposure becomes programmatic, tiered, and budget-aware; the tunnel self-heals; and other scenarios can request their own reachability on demand.
 
 ### Why It Matters
-
-1. **Remote access is mission-critical**: Without the tunnel, Vrooli is inaccessible outside the local network. Every minute of tunnel downtime means lost productivity and unreachable scenarios.
-2. **Port drift prevention**: AI agents building scenarios can inadvertently change fixed ports. Tunnel Manager catches this before it breaks published routes.
-3. **Intelligent failure diagnosis**: Distinguishes between "tunnel is down," "scenario is down," and "Cloudflare is having an outage" — enabling targeted recovery instead of blind restarts.
-4. **Hands-off recovery**: Auto-recovers from common tunnel failures (process crash, stale connections, Cloudflare edge rotation) without requiring physical access to the server.
-5. **Foundation for multi-server future**: When Vrooli scales to multiple servers, centralized tunnel management becomes the networking control plane.
+1. **Remote access is mission-critical.** Without the tunnel, Vrooli is unreachable outside the local network. Every minute of downtime means unreachable scenarios.
+2. **Exposure is manual today.** Exposing a scenario means hand-adding a public hostname in the Cloudflare dashboard, pointed at the scenario's fixed UI port. This must be programmatic and native.
+3. **The hostname budget is finite.** A Cloudflare tunnel supports a limited number of public hostnames. Exposure must be tiered (core always-on vs. leased on-demand) and budget-aware so essential scenarios are never crowded out.
+4. **Core scenarios must always be reachable.** The self-improvement loop depends on a known core set; those must be guaranteed exposed.
+5. **Intelligent, live self-healing.** Distinguishing "tunnel down" from "scenario down" from "Cloudflare outage" enables targeted, automatic recovery instead of blind restarts.
+6. **Foundation for multi-server.** Centralized tunnel/exposure management becomes the networking control plane as Vrooli scales to multiple servers.
 
 ## 🎯 Operational Targets
 
 ### 🔴 P0 – Must ship for viability
-
-- [ ] OT-P0-001 | Route manifest | Declarative route manifest (`routes.json`) mapping subdomains to scenarios and expected UI ports, serving as the single source of truth for published routes
-- [ ] OT-P0-002 | Port compliance auditor | Scan scenario `service.json` files to verify published scenarios have fixed `port` fields matching the route manifest; report violations
-- [ ] OT-P0-003 | Tunnel health monitor | Monitor cloudflared process health via systemd status, Prometheus metrics endpoint (`/metrics`), and `/ready` endpoint
-- [ ] OT-P0-004 | Internal liveness probes | HTTP probe each published route's local port to verify the scenario is listening
-- [ ] OT-P0-005 | External liveness probes | HTTP probe each published route via its public URL (e.g., `https://agent-manager.itsagitime.com`) to verify end-to-end connectivity
-- [ ] OT-P0-006 | Auto-recovery engine | Automatically restart cloudflared when `/ready` returns non-200 or HA connections drop to 0, with exponential backoff and circuit breaker
-- [ ] OT-P0-007 | CLI status command | `tunnel-manager status` showing tunnel health, HA connections, error rate, management mode
-- [ ] OT-P0-008 | CLI routes command | `tunnel-manager routes` displaying the route manifest with live per-route status (up/down/degraded)
-- [ ] OT-P0-009 | CLI probe command | `tunnel-manager probe` running all internal + external probes and reporting results
-- [ ] OT-P0-010 | CLI audit command | `tunnel-manager audit` checking port compliance and reporting violations
+- [ ] OT-P0-001 | Exposure manifest (SSOT) | SQLite-backed manifest of routes: subdomain, scenario, domain (a field, not a constant), local UI port, tier (core/leased), lease expiry, enabled flag, health path — the single source of truth for what is publicly exposed
+- [ ] OT-P0-002 | Programmatic Cloudflare ingress management | Add/remove/sync a scenario's public hostname → `localhost:<fixed UI port>` via the Cloudflare API (remote mode), with hot-reload and no manual dashboard step
+- [ ] OT-P0-003 | Core-tier always-on exposure | Reconcile the manifest so every scenario in `packages/api-core/coreset` is always exposed and never auto-expired
+- [ ] OT-P0-004 | Leased-tier on-demand exposure | Request/extend/revoke a time-bounded exposure (default TTL ≈ 1 week) with automatic reaping of expired leases
+- [ ] OT-P0-005 | Exposure-request API | Other scenarios (and the operator) can request exposure of a scenario via API ("expose me, I'll be used soon")
+- [ ] OT-P0-006 | Ensure-running delegation | When exposing a scenario, ensure it is running via the existing `internal/lifecycle` seam; Tunnel Manager does not reimplement lifecycle/process management
+- [ ] OT-P0-007 | Port-compliance auditor | Verify each exposed scenario declares a fixed UI port in `service.json` matching the manifest; report violations
+- [ ] OT-P0-008 | Tunnel health monitor | Monitor cloudflared via systemd status, Prometheus metrics endpoint, and `/ready`
+- [ ] OT-P0-009 | Internal liveness probes | HTTP-probe each exposed route's local port to verify the scenario is listening
+- [ ] OT-P0-010 | External liveness probes | HTTP-probe each exposed route via its public URL to verify end-to-end connectivity
+- [ ] OT-P0-011 | Auto-recovery engine (live) | Automatically restart cloudflared / re-push config on `/ready` failure or HA-connections=0, with exponential backoff + circuit breaker; Tunnel Manager is the single authoritative owner of cloudflared restart
+- [ ] OT-P0-012 | CLI surface | `status`, `routes`, `expose`, `lease`, `probe`, `audit`, `recover`, `config` — all with proto-typed `--json`
 
 ### 🟠 P1 – Should have post-launch
-
-- [ ] OT-P1-001 | Cloudflare API integration (remote mode) | Read/write tunnel configuration via Cloudflare API for hot-reload route management without cloudflared restart
-- [ ] OT-P1-002 | Local config management (local mode) | Generate and maintain `~/.cloudflared/config.yml` from the route manifest, with restart on config change
-- [ ] OT-P1-003 | Management mode switching | CLI command to switch between remote and local management modes with configuration migration
-- [ ] OT-P1-004 | Prometheus metrics scraping | Scrape cloudflared's Prometheus endpoint for HA connections, request errors, RTT, active streams; store time-series data
-- [ ] OT-P1-005 | Web UI dashboard | React dashboard showing: tunnel status, per-route health, metrics charts, recent recovery events, management mode
-- [ ] OT-P1-006 | Route config sync | `tunnel-manager config sync` to push the route manifest to cloudflared config (local mode) or Cloudflare API (remote mode)
-- [ ] OT-P1-007 | Recovery event log | Persist recovery attempts with timestamps, actions taken, and outcomes for post-incident review
-- [ ] OT-P1-008 | Failure classification | Categorize failures as: tunnel-down, scenario-down, cloudflare-outage, dns-failure, config-drift — enabling targeted alerts and recovery
-- [ ] OT-P1-009 | Degraded mode detection | Detect when HA connections < 4 or RTT spikes, reporting degraded status before full failure
+- [ ] OT-P1-001 | Failure classification | Categorize failures as tunnel-down / scenario-down / cloudflare-outage / dns-failure / config-drift to drive targeted recovery and alerts
+- [ ] OT-P1-002 | Local config mode + switching | Generate/maintain `~/.cloudflared/config.yml` from the manifest as a fallback, with remote↔local mode switching and migration
+- [ ] OT-P1-003 | Prometheus metrics scraping | Scrape cloudflared's metrics endpoint for HA connections, request errors, RTT, active streams; persist time-series in SQLite
+- [ ] OT-P1-004 | Web UI dashboard (5-surface) | Overview, Exposure (lease management), Recovery & Events, Metrics, Audit
+- [ ] OT-P1-005 | Recovery event log | Persist recovery attempts with timestamps, actions, and outcomes for post-incident review
+- [ ] OT-P1-006 | Degraded-mode detection | Detect HA connections < 4 or RTT spikes and report degraded status before full failure
+- [ ] OT-P1-007 | Exposure-query API for app-monitor | `is-<scenario>-exposed?` + create-lease-and-return-tunnel-URL, consumed by app-monitor's "open in new tab" feature (the app-monitor-side change is a separate task)
 
 ### 🟢 P2 – Future / expansion
+- [ ] OT-P2-001 | Hostname-budget management | Track exposed-hostname count vs the Cloudflare cap; warn near cap; evict LRU expired/idle leased routes to make room
+- [ ] OT-P2-002 | Multi-tunnel / multi-domain support | Manage multiple tunnels/domains for different server roles (networking control plane for multi-server)
+- [ ] OT-P2-003 | Usage-based idle spin-down | Spin down idle leased scenarios before TTL based on observed usage
+- [ ] OT-P2-004 | Webhook / notification alerts | Alert to Slack/Discord/email on tunnel failures, route outages, or port-compliance violations
+- [ ] OT-P2-005 | Cloudflare dashboard deep-link | Deep-link to the Zero Trust dashboard for the managed tunnel
+- [ ] OT-P2-006 | Certificate monitoring | Monitor tunnel/SSL certificate expiration and warn before renewal
+- [ ] OT-P2-007 | Per-route analytics | Track per-route request volumes and bandwidth from cloudflared metrics
+- [ ] OT-P2-008 | Grafana dashboard export | Generate Grafana dashboard JSON for cloudflared metrics visualization
 
-- [ ] OT-P2-001 | Multi-tunnel support | Manage multiple tunnels for different domains or server roles
-- [ ] OT-P2-002 | Automatic route registration | When a new scenario with a fixed port is started, auto-add a route entry and sync config
-- [ ] OT-P2-003 | Webhook/notification alerts | Send alerts to Slack/Discord/email on tunnel failures, route outages, or port compliance violations
-- [ ] OT-P2-004 | Cloudflare dashboard link integration | Deep-link to the Cloudflare Zero Trust dashboard for the managed tunnel
-- [ ] OT-P2-005 | SSL certificate monitoring | Monitor tunnel certificate expiration and warn before renewal is needed
-- [ ] OT-P2-006 | Bandwidth and request analytics | Track per-route request volumes and bandwidth using cloudflared metrics
-- [ ] OT-P2-007 | Grafana dashboard export | Generate Grafana dashboard JSON for cloudflared metrics visualization
-- [ ] OT-P2-008 | Mobile status view | Lightweight mobile-friendly view of tunnel and route status
-
-## 🎨 UX & Branding
-
-- **Visual style**: Clean infrastructure dashboard. Status-oriented with color-coded health indicators (green/yellow/red). Minimal UI — operators need quick status glances, not complex interactions.
-- **Key interaction patterns**: Route table with live status, tunnel health overview panel, one-click manual recovery, CLI-first with UI as optional dashboard.
-- **Accessibility**: CLI output must be parseable (supports `--json` flag). UI follows standard Vrooli React component patterns.
+> **Note on budget tiering.** OT-P2-001 (hostname-budget management) is parked at P2 because the Cloudflare cap is likely relaxed under API/config-managed exposure (vs. the ~100 dashboard limit), and core+leased tiering already bounds growth. If the real cap is confirmed low against the live plan, promote it to P0.
 
 ## 🧱 Tech Direction Snapshot
-
-- **Preferred stacks/frameworks**: Go API (lightweight, matches cloudflared ecosystem), React + Vite UI (TypeScript), Go CLI binary
-- **Data + storage expectations**: SQLite for route manifest, recovery event log, and metrics history (no external database dependency — this is foundational infrastructure that must work even when other resources are down)
-- **Integration strategy**:
-  - Scrapes cloudflared Prometheus metrics endpoint (configurable, default `127.0.0.1:20241`)
-  - Reads scenario `service.json` files directly from filesystem for port auditing
-  - Uses Cloudflare API v4 for remote tunnel configuration (`/accounts/{id}/cfd_tunnel/{tunnel_id}/configurations`)
-  - Uses `systemctl` for cloudflared service management (Linux)
-- **Non-goals / guardrails**:
-  - Will NOT replace vrooli-autoheal's basic cloudflared check (defense-in-depth)
-  - Will NOT manage cloudflared installation (handled by setup scripts)
-  - Will NOT manage scenario lifecycle (starting/stopping scenarios is out of scope — only monitors their ports)
-  - Will NOT implement a full Cloudflare Zero Trust dashboard replacement
+- Preferred stacks / frameworks: Go API on **Connect-RPC** (proto contracts under `packages/proto/schemas/tunnel-manager`), React + Vite + Tailwind UI (vrooli-default design kit), Go CLI via `cli-core`/`cliapp.ArgSchema`. Screaming-architecture domains: `routes`, `audit`, `tunnel`, `probes`, `recovery`, `config`, `exposure` (+ `health`).
+- Data + storage expectations: **SQLite only** (manifest, leases, metrics history, probe history, recovery log). No external database — foundational infra must keep working when other resources are down.
+- Integration strategy: Cloudflare API v4 for remote ingress config; scrape cloudflared Prometheus endpoint (default `127.0.0.1:20241`); read scenario `service.json` for port auditing; `api-core/coreset` for the core set; `internal/lifecycle` for ensure-running; `systemctl` for cloudflared service management.
+- Non-goals / guardrails: will NOT reimplement scenario lifecycle (delegates to `internal/lifecycle`); will NOT replace app-monitor's reverse proxy (stays in `packages/api-base`; only the new-tab feature integrates); will NOT manage cloudflared installation (setup handles it); will NOT replace vrooli-autoheal — autoheal's cloudflared check downgrades to alert-only but remains as defense-in-depth.
 
 ## 🤝 Dependencies & Launch Plan
+- Required resources: none (SQLite, self-contained).
+- Optional resources: `redis` (UI pub/sub for real-time updates; fallback to HTTP polling).
+- External dependencies: `cloudflared` daemon (systemd); Cloudflare API token (remote mode only).
+- Scenario dependencies (runtime seams, not hard deps): `packages/api-core/coreset` (core set), `internal/lifecycle` (ensure-running).
+- Operational risks: live auto-recovery acting on foundational infra (mitigated by circuit breaker + single-owner restart contract with vrooli-autoheal); hostname-budget exhaustion (mitigated by tiering and, later, budget management/LRU eviction); Tunnel Manager must itself declare a fixed UI port — the very contract it enforces on others.
+- Launch sequencing: (1) CLI + API first, then the dashboard; (2) seed core-tier exposure; (3) enable leasing; (4) confirm the real Cloudflare hostname cap against the live plan; (5) flip vrooli-autoheal's cloudflared check to alert-only.
 
-- **Required resources**: None (self-contained with SQLite)
-- **Optional resources**:
-  - `redis` — Pub/sub for real-time UI updates (fallback: HTTP polling)
-- **External dependencies**:
-  - `cloudflared` daemon (must be installed and running as systemd service)
-  - Cloudflare API token (remote mode only, stored securely)
-- **Scenario dependencies**: None (foundational infrastructure — other scenarios benefit from it, not the reverse)
-- **Launch prerequisites**:
-  1. cloudflared installed and running with at least one tunnel configured
-  2. At least one published route to validate against
-  3. Fixed Prometheus metrics port configured on cloudflared (`--metrics 127.0.0.1:20241`)
+## 🎨 UX & Branding
+- Look & feel: clean infrastructure dashboard, status-oriented, color-coded health (green/yellow/red), minimal — operators need quick glances, not complex interactions. vrooli-default tokens, light/dark.
+- Accessibility: CLI output parseable (`--json` everywhere); UI follows standard Vrooli React a11y (roles, `aria-*`, `data-testid` selectors, i18n, WCAG AA contrast).
+- Voice & messaging: terse, operational, factual.
+- Branding hooks: keep the seeded PWA manifest/icons valid; replace generic icons with tunnel-manager branding when available.
 
 ## 🎯 Capability Definition
 
 ### Core Capability
-**What permanent capability does this scenario add to Vrooli?**
-Reliable, self-healing external access management. Vrooli gains the ability to guarantee that its published scenarios remain reachable remotely, detect and diagnose connectivity issues automatically, and recover without human intervention.
+Reliable, self-healing, **programmable external-access management**. Vrooli gains the ability to decide — by policy and on demand — which scenarios are reachable from the internet, to guarantee core scenarios are always reachable, to lease temporary reachability to others, and to detect, diagnose, and recover connectivity failures automatically.
 
 ### Intelligence Amplification
-**How does this capability make future agents smarter?**
-- Agents can verify their deployed scenarios are publicly accessible without manual testing
-- Infrastructure agents gain a reliable signal for "is remote access working?" to inform recovery decisions
-- The route manifest provides a machine-readable inventory of all publicly available Vrooli services
-- Failure classification data trains future agents to diagnose network issues
+- Agents can expose a scenario they just built and verify it is publicly reachable, with no manual Cloudflare steps.
+- Infrastructure agents get a reliable "is remote access working?" signal to inform recovery decisions.
+- The exposure manifest is a machine-readable inventory of everything publicly reachable, with tier and lease state.
+- Failure-classification data trains future agents to diagnose network issues.
 
 ### Recursive Value
-**What new scenarios become possible after this exists?**
-1. **Deployment Manager**: Can verify deployments are reachable post-deploy using tunnel probes
-2. **SLA Monitor**: Track uptime percentages per route using probe history
-3. **Multi-Server Networking**: Extend tunnel management across multiple Vrooli instances
-4. **Customer-Facing Status Page**: Expose route status for external users
-5. **Automated DNS Manager**: Coordinate tunnel routes with DNS records programmatically
+1. **Deployment Manager**: verify deployments are reachable post-deploy via tunnel probes.
+2. **SLA Monitor**: track per-route uptime from probe history.
+3. **Multi-Server Networking**: extend exposure management across Vrooli instances.
+4. **Customer-Facing Status Page**: expose route status to external users.
+5. **On-demand compute fabric**: scenarios lease their own reachability for bounded windows, enabling spin-up-on-intent workflows.
+
+## 📎 Appendix
+- Regeneration & adoption plan: `docs/plans/tunnel-manager-regen-adoption-plan.md` (repo root).
+- Pre-regen reference (port source): `/tmp/tunnel-manager-OLD-reference`.

@@ -1,0 +1,141 @@
+{
+  "_metadata": {
+    "module": "exposure",
+    "description": "Tiered exposure broker: CORE always-on exposure from api-core/coreset and LEASED on-demand exposure (request/extend/revoke/reap), ensure-running delegation, plus budget-aware and usage-based controls.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "TIER-001",
+      "title": "Guarantee every core-set scenario is always exposed",
+      "status": "planned",
+      "prd_ref": "OT-P0-003",
+      "category": "exposure",
+      "criticality": "P0",
+      "description": "Reconciliation ensures every scenario in packages/api-core/coreset has a CORE-tier route that is never auto-expired, recreating it if missing.",
+      "tags": [
+        "core-tier",
+        "coreset",
+        "reconcile"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/internal/exposure/coretier_test.go"
+        }
+      ]
+    },
+    {
+      "id": "TIER-002",
+      "title": "Request, extend, revoke, and reap time-bounded leases",
+      "status": "planned",
+      "prd_ref": "OT-P0-004",
+      "category": "exposure",
+      "criticality": "P0",
+      "description": "A leased exposure is created with a default TTL (~1 week), can be extended and revoked, and a reaper removes expired leases plus their ingress unless the scenario is also CORE.",
+      "tags": [
+        "leased-tier",
+        "ttl",
+        "reaper"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/internal/exposure/lease_test.go"
+        }
+      ]
+    },
+    {
+      "id": "TIER-003",
+      "title": "Expose a scenario on demand via the exposure-request API",
+      "status": "planned",
+      "prd_ref": "OT-P0-005",
+      "category": "exposure",
+      "criticality": "P0",
+      "description": "Another scenario or the operator can call Expose(scenario, ttl) over the API to create a LEASED route, recording requested_by, and receive the resulting exposure state.",
+      "tags": [
+        "exposure-request",
+        "api"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/handlers/exposure/expose_handler_test.go"
+        }
+      ]
+    },
+    {
+      "id": "TIER-004",
+      "title": "Ensure the scenario is running via the lifecycle seam when exposing",
+      "status": "planned",
+      "prd_ref": "OT-P0-006",
+      "category": "exposure",
+      "criticality": "P0",
+      "description": "Exposing a scenario ensures it is running by delegating to the internal/lifecycle seam rather than reimplementing process management; a substitutable seam lets tests assert the delegation.",
+      "tags": [
+        "ensure-running",
+        "lifecycle",
+        "seam"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/internal/exposure/ensure_running_test.go"
+        }
+      ]
+    },
+    {
+      "id": "TIER-005",
+      "title": "Track hostname budget and evict LRU idle leased routes near the cap",
+      "status": "planned",
+      "prd_ref": "OT-P2-001",
+      "category": "exposure",
+      "criticality": "P2",
+      "description": "The broker tracks exposed-hostname count against the Cloudflare cap, warns near the cap, and evicts the least-recently-used expired/idle LEASED routes to make room, never evicting CORE routes.",
+      "tags": [
+        "budget",
+        "lru",
+        "eviction"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/internal/exposure/budget_test.go"
+        }
+      ]
+    },
+    {
+      "id": "TIER-006",
+      "title": "Spin down idle leased scenarios before TTL based on usage",
+      "status": "planned",
+      "prd_ref": "OT-P2-003",
+      "category": "exposure",
+      "criticality": "P2",
+      "description": "A LEASED route with no observed usage for a configured idle window is spun down before its TTL expiry, freeing the hostname while leaving CORE routes untouched.",
+      "tags": [
+        "idle-spindown",
+        "usage"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/internal/exposure/idle_spindown_test.go"
+        }
+      ]
+    }
+  ]
+}

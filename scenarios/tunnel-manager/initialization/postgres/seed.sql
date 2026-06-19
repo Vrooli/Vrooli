@@ -1,1 +1,0 @@
--- Placeholder seed file. Add INSERT statements once data requirements are defined.

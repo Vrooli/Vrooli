@@ -1,0 +1,96 @@
+{
+  "_metadata": {
+    "module": "audit",
+    "description": "Port-compliance auditor: verify each exposed scenario declares a fixed UI port in service.json matching the manifest, and report violations.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "PORT-001",
+      "title": "Detect a manifest port that does not match the scenario's service.json",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "category": "audit",
+      "criticality": "P0",
+      "description": "For each manifested route the auditor reads the scenario's service.json fixed UI port and reports a violation when it differs from the route's local_port.",
+      "tags": [
+        "port-audit",
+        "service-json",
+        "mismatch"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/internal/audit/audit_test.go"
+        }
+      ]
+    },
+    {
+      "id": "PORT-002",
+      "title": "Report a scenario that declares no fixed UI port",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "category": "audit",
+      "criticality": "P0",
+      "description": "An exposed scenario whose service.json declares no UI port produces a missing-port finding rather than being silently passed.",
+      "tags": [
+        "port-audit",
+        "missing-port"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/internal/audit/audit_test.go"
+        }
+      ]
+    },
+    {
+      "id": "PORT-003",
+      "title": "Flag a ranged (non-fixed) UI port as non-compliant",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "category": "audit",
+      "criticality": "P0",
+      "description": "A scenario whose service.json declares a port range instead of a single fixed UI port is flagged as non-compliant, since ranged ports break stable ingress.",
+      "tags": [
+        "port-audit",
+        "ranged-port"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/internal/audit/audit_test.go"
+        }
+      ]
+    },
+    {
+      "id": "PORT-004",
+      "title": "Return a clean report when all exposed ports comply",
+      "status": "planned",
+      "prd_ref": "OT-P0-007",
+      "category": "audit",
+      "criticality": "P0",
+      "description": "When every manifested route's local_port matches a fixed UI port in the scenario's service.json the audit reports zero violations.",
+      "tags": [
+        "port-audit",
+        "compliant"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/internal/audit/audit_test.go"
+        }
+      ]
+    }
+  ]
+}

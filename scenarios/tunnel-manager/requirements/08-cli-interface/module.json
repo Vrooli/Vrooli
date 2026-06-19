@@ -1,0 +1,77 @@
+{
+  "_metadata": {
+    "description": "CLI surface: status, routes, expose, lease, probe, audit, recover, and config commands, all emitting proto-typed --json output via cli-core.",
+    "last_validated_at": "2026-06-18T20:12:10-04:00",
+    "module": "cli",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "CLI-001",
+      "title": "Provide the full command set status/routes/expose/lease/probe/audit/recover/config",
+      "status": "planned",
+      "prd_ref": "OT-P0-012",
+      "category": "cli",
+      "criticality": "P0",
+      "description": "The CLI registers status, routes, expose, lease, probe, audit, recover, and config commands wired through cli-core/cliapp.ArgSchema to the corresponding API surfaces.",
+      "tags": [
+        "cli",
+        "commands"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "cli/domains/commands_test.go",
+          "phase": "cli",
+          "status": "planned"
+        }
+      ]
+    },
+    {
+      "id": "CLI-002",
+      "title": "Emit proto-typed --json from every command",
+      "status": "planned",
+      "prd_ref": "OT-P0-012",
+      "category": "cli",
+      "criticality": "P0",
+      "description": "Every command accepts --json and emits a generated tunnel-manager proto message (snake_case, deterministic), so output is machine-parseable and contract-stable.",
+      "tags": [
+        "json",
+        "proto",
+        "contract"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "cli/domains/json_output_test.go",
+          "phase": "cli",
+          "status": "planned"
+        }
+      ]
+    },
+    {
+      "id": "CLI-003",
+      "title": "Expose and lease commands round-trip through the exposure API",
+      "status": "complete",
+      "prd_ref": "OT-P0-012",
+      "category": "cli",
+      "criticality": "P0",
+      "description": "tunnel-manager expose and lease (request/extend/revoke) drive the exposure broker over the API and return the resulting route/lease state in --json.",
+      "tags": [
+        "cli",
+        "exposure",
+        "integration"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "ref": "cli/domains/exposure/expose_cli_test.go",
+          "phase": "integration",
+          "status": "implemented"
+        }
+      ]
+    }
+  ]
+}

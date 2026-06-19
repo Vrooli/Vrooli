@@ -1,0 +1,197 @@
+# Domains — Tunnel Manager
+
+This document is the canonical map of product capabilities, bounded
+contexts, and ownership for this scenario. Keep it current whenever a
+domain is added, renamed, split, merged, or removed.
+
+`health` is the one real domain the scaffold ships. Tunnel Manager adds
+seven real domains beside it (below). The scaffold also ships one clearly
+fenced worked example domain (`notes`, never product scope) as a copyable
+reference; `vrooli scenario detemplate tunnel-manager` removes every
+fenced example once the real domains are green (Phase 2, Gate 7).
+
+## Purpose Of This Document
+
+Use this document to answer:
+
+- What product capabilities does this scenario expose?
+- Which domain owns each concept, table, proto, endpoint, UI feature,
+  CLI command, and test surface?
+- Which concepts are shared, deferred, or deliberately not domains?
+
+System-level architecture belongs in [`ARCHITECTURE.md`](ARCHITECTURE.md).
+Workflow details belong in [`FLOWS.md`](FLOWS.md). Storage details
+belong in [`DATA.md`](DATA.md).
+
+## Domain Inventory
+
+| Domain | Purpose | Primary Archetype | Owns Data | Surfaces | Requirements | Source Paths |
+|---|---|---|---|---|---|---|
+| `routes` | Exposure manifest (SSOT): which scenario is exposed at which subdomain/port, tier, lease, enabled. | CRUD / entity | `routes` table | API, CLI, UI | 01-exposure-manifest (OT-P0-001) | `api/internal/routes/`, `api/handlers/routes/`, `cli/domains/routes/`, `ui/src/features/routes/`, `packages/proto/schemas/tunnel-manager/v1/routes/` |
+| `exposure` | Tiered exposure broker: CORE always-on (from `api-core/coreset`) + LEASED on-demand (TTL request/extend/revoke/reap); ensure-running delegation; exposure-query for app-monitor. | Policy / orchestration | `leases` table | API, CLI, UI | 03-exposure-tiers (OT-P0-003/004/005/006), 10-app-monitor-integration (OT-P1-007) | `api/internal/exposure/`, `api/handlers/exposure/`, `cli/domains/exposure/`, `ui/src/features/exposure/`, `packages/proto/schemas/tunnel-manager/v1/exposure/` |
+| `config` | Cloudflare API ingress management (remote), local `config.yml` generation (fallback), mode switching, config sync. | Adapter / integration | `tunnel_config` | API, CLI | 02-cloudflare-ingress (OT-P0-002, OT-P1-002) | `api/internal/config/`, `api/handlers/config/`, `cli/domains/config/`, `packages/proto/schemas/tunnel-manager/v1/config/` |
+| `audit` | Port-compliance auditor: verify exposed scenarios declare fixed UI ports in `service.json` matching the manifest. | Reporting / query | None (computed) | API, CLI, UI | 04-port-compliance (OT-P0-007) | `api/internal/audit/`, `api/handlers/audit/`, `cli/domains/audit/`, `ui/src/features/audit/`, `packages/proto/schemas/tunnel-manager/v1/audit/` |
+| `tunnel` | Tunnel health (systemd + `/ready`), Prometheus metrics scraping + time-series, degraded-mode detection. | Monitoring | `metrics` table | API, CLI, UI | 05-tunnel-health (OT-P0-008, OT-P1-003/006) | `api/internal/tunnel/`, `api/handlers/tunnel/`, `cli/domains/tunnel/`, `ui/src/features/metrics/`, `packages/proto/schemas/tunnel-manager/v1/tunnel/` |
+| `probes` | Internal + external liveness probing, scheduler, failure classification, probe history. | Monitoring | `probes` table | API, CLI, UI | 06-liveness-probes (OT-P0-009/010, OT-P1-001) | `api/internal/probes/`, `api/handlers/probes/`, `cli/domains/probes/`, `ui/src/features/probes/`, `packages/proto/schemas/tunnel-manager/v1/probes/` |
+| `recovery` | Auto-recovery engine (backoff + circuit breaker, live), recovery event log; single cloudflared-restart owner. | Control / actuation | `recovery_events` table | API, CLI, UI | 07-auto-recovery (OT-P0-011, OT-P1-005) | `api/internal/recovery/`, `api/handlers/recovery/`, `cli/domains/recovery/`, `ui/src/features/recovery/`, `packages/proto/schemas/tunnel-manager/v1/recovery/` |
+| `health` | Report runtime readiness and dependency reachability. | Reporting / query | No product data. | API, UI | Scaffold health. | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/tunnel-manager/v1/health/` |
+
+<!-- EXAMPLE-DOMAIN:notes START -->
+### Example domain — `notes` (removed by `vrooli scenario detemplate`)
+
+The template ships `notes` as a worked CRUD vertical slice with a binary
+upload exception. Copy its shape for your own domains, then remove it.
+
+| Domain | Purpose | Primary Archetype | Owns Data | Surfaces | Requirements | Source Paths |
+|---|---|---|---|---|---|---|
+| notes | Worked CRUD reference with attachment upload exception. | CRUD / entity | Notes and attachment metadata. | API, CLI, UI | Template starter only. | `api/internal/notes/`, `api/handlers/notes/`, `cli/domains/notes/`, `ui/src/features/notes/`, `packages/proto/schemas/tunnel-manager/v1/notes/` |
+
+- Purpose: demonstrate the expected vertical slice for a real domain.
+- Primary archetype: CRUD / entity.
+- Secondary traits: binary/blob attachment upload, upload workflow.
+- Owns: note records, attachment metadata, note validation, note
+  service/repository seams, UI note interactions, CLI notes commands.
+- Does not own: product scope for a generated scenario.
+- API: `api/internal/notes/`, `api/handlers/notes/`.
+- CLI: `cli/domains/notes/`.
+- UI: `ui/src/features/notes/`, `ui/src/api/notes.ts`.
+- Storage: domain-owned SQLite schema in `api/internal/notes/schema.sql`.
+- Requirements: template starter only; replace with PRD-specific
+  requirements.
+- Tests: repository, service, handler, CLI, UI, accessibility, and
+  workflow tests.
+- Related docs: [`FLOWS.md`](FLOWS.md), [`DATA.md`](DATA.md),
+  [`../internal/SEAMS.md`](../internal/SEAMS.md).
+<!-- EXAMPLE-DOMAIN:notes END -->
+
+## Domain Details
+
+### `routes` — exposure manifest (SSOT)
+- Owns the `routes` table: `subdomain`, `scenario`, `domain` (a field,
+  not a constant; default `itsagitime.com`), `local_port`, `tier`
+  (`core`|`leased`), `lease_id` (nullable), `enabled`, `health_path`.
+  Derives `public_url` = `https://<subdomain>.<domain>`.
+- Does not own ingress creation (`config`) or tier policy (`exposure`);
+  it is the record of truth other domains reconcile against.
+- Validation: subdomain is a valid DNS label; port matches the
+  scenario's fixed UI port; one route per subdomain.
+- Why: every other domain reads the manifest, so it is foundational.
+
+### `exposure` — tiered exposure broker
+- Owns the `leases` table: `scenario`, `requested_by`, `created_at`,
+  `expires_at`, `extended_count`, `status`. Owns the reconciliation
+  policy: every `api-core/coreset` scenario is a CORE route; leased
+  scenarios are LEASED routes that auto-expire.
+- Behavior: `Expose(scenario, ttl)` → ensure a route exists (LEASED) →
+  ensure the scenario is running (delegate to `internal/lifecycle`) →
+  request ingress (delegate to `config`); `Extend`/`Revoke`; a reaper
+  removes expired leases + ingress unless the scenario is also CORE.
+  `IsExposed` + `ExposeAndGetURL` back the app-monitor new-tab feature.
+- Does not own process lifecycle (delegates), the manifest schema
+  (`routes`), or Cloudflare calls (`config`).
+- Why: the conceptual heart — turns "should this be reachable, for how
+  long?" into manifest + ingress + run state.
+
+### `config` — Cloudflare ingress & mode management
+- Owns `tunnel_config`: mode (`remote`|`local`), tunnel id, account id,
+  credential reference, Prometheus endpoint.
+- Behavior: remote mode pushes ingress via Cloudflare API v4
+  (hot-reload); local mode generates `~/.cloudflared/config.yml` from
+  the manifest (restart on change); `Sync` reconciles ingress with the
+  manifest; `SwitchMode` migrates.
+- Why: the adapter that makes exposure programmatic — replacing the
+  operator's manual dashboard step.
+
+### `audit` — port-compliance auditor
+- Owns nothing persistent; computes findings from scenario
+  `service.json` files vs the manifest.
+- Behavior: confirm each manifested route's scenario declares a fixed UI
+  port matching the route; report mismatches, missing ports, and ranged
+  (non-fixed) ports.
+- Why: drifted ports silently break ingress; auditing catches it.
+
+### `tunnel` — tunnel health & metrics
+- Owns the `metrics` table: time-series of HA connections, request
+  errors, RTT, active streams.
+- Behavior: read cloudflared systemd status + `/ready`; scrape the
+  Prometheus endpoint; detect degraded mode (HA < 4 or RTT spikes).
+- Why: recovery and operators need a truthful health signal distinct
+  from per-route probes.
+
+### `probes` — liveness probing & classification
+- Owns the `probes` table: probe history (route, kind
+  internal|external, status, latency, error).
+- Behavior: probe each exposed route's local port (internal) and public
+  URL (external) on a schedule; classify failures (tunnel-down /
+  scenario-down / cloudflare-outage / dns-failure / config-drift).
+- Why: knowing where a failure is lets recovery act precisely.
+
+### `recovery` — auto-recovery engine (live)
+- Owns the `recovery_events` table: attempts, trigger, action, outcome,
+  timestamps.
+- Behavior: on `/ready` failure or HA=0, restart cloudflared / re-push
+  config with exponential backoff + circuit breaker; acts live from day
+  one. Single authoritative owner of cloudflared restart
+  (vrooli-autoheal downgrades to alert-only).
+- Why: hands-off recovery is the core value promise; live action is an
+  explicit operator decision (see
+  [`../internal/DECISIONS.md`](../internal/DECISIONS.md)).
+
+### health
+
+- Purpose: expose API/database readiness and show the UI can read live
+  backend state.
+- Primary archetype: reporting / query.
+- Secondary traits: operational health.
+- Owns: health response construction and dependency status mapping.
+- Does not own: product data, business rules, or scenario-specific
+  domain behavior.
+- API: `api/handlers/health/`.
+- CLI: built-in `status` command is provided through cli-core.
+- UI: `ui/src/features/health/HealthCard.tsx`.
+- Storage: none; probes configured database reachability.
+- Requirements: starter scaffold health only.
+- Tests: handler, module, UI feature, and accessibility tests.
+- Related docs: [`../reference/api-endpoints.md`](../reference/api-endpoints.md).
+
+## Shared Concepts
+
+| Concept | Meaning | Owner |
+|---|---|---|
+| Domain | Product capability boundary that should be easy to find, test, and delete. | `DOMAINS.md` defines the map; code owns implementation. |
+| Surface | API, UI, CLI, or contract layer exposing the same product capability. | `ARCHITECTURE.md`. |
+| Seam | Test-substitutable boundary wired once in production. | `../internal/SEAMS.md`. |
+| Requirement | Implementation-facing measurement tied back to the PRD. | `requirements/`. |
+
+## Deferred Domains
+
+Add future or intentionally deferred capabilities here only when they
+are real enough to affect architecture or requirements.
+
+| Candidate Domain | Why Deferred | Revisit Trigger |
+|---|---|---|
+| None yet. | Generated scaffold. | Add after PRD-specific requirements identify future capability boundaries. |
+
+## Non-Domains
+
+These are important but should not become product domains:
+
+- `api/internal/server/` — HTTP composition substrate.
+- `api/internal/module/` — shared module descriptor type.
+- `api/internal/modules/` — thin registry for boot/codegen.
+- `api/internal/database/` — cross-cutting database infrastructure.
+- `api/internal/testutil/` — cross-domain test harnesses.
+- `ui/src/components/` — shared presentation primitives.
+- `ui/src/test-utils/` — cross-feature testing support.
+
+If one of these starts using product vocabulary, split the product
+piece into an owning domain instead of growing infrastructure.
+
+## Cross-References
+
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — system shape and extension rules
+- [`FLOWS.md`](FLOWS.md) — workflows and state transitions
+- [`DATA.md`](DATA.md) — data ownership and storage
+- [`INTEGRATIONS.md`](INTEGRATIONS.md) — dependency contracts
+- [`../internal/SEAMS.md`](../internal/SEAMS.md) — boundary registry
+- [`../internal/TESTING.md`](../internal/TESTING.md) — test strategy

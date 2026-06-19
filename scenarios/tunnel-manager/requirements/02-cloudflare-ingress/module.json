@@ -1,0 +1,120 @@
+{
+  "_metadata": {
+    "module": "config",
+    "description": "Cloudflare ingress & mode management: programmatic remote ingress via Cloudflare API v4, local config.yml fallback generation, and remote<->local mode switching/migration.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "CFING-001",
+      "title": "Add a scenario's public hostname via the Cloudflare API",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "config",
+      "criticality": "P0",
+      "description": "In remote mode, adding a route pushes an ingress rule mapping <subdomain>.<domain> -> localhost:<fixed UI port> through the Cloudflare API v4 with no manual dashboard step.",
+      "tags": [
+        "cloudflare",
+        "ingress",
+        "remote"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/internal/config/cloudflare_test.go"
+        }
+      ]
+    },
+    {
+      "id": "CFING-002",
+      "title": "Remove a scenario's public hostname via the Cloudflare API",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "config",
+      "criticality": "P0",
+      "description": "Removing a route removes the corresponding Cloudflare ingress rule so the hostname is no longer publicly routed.",
+      "tags": [
+        "cloudflare",
+        "ingress",
+        "remote"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/internal/config/cloudflare_test.go"
+        }
+      ]
+    },
+    {
+      "id": "CFING-003",
+      "title": "Sync Cloudflare ingress to match the manifest with hot-reload",
+      "status": "planned",
+      "prd_ref": "OT-P0-002",
+      "category": "config",
+      "criticality": "P0",
+      "description": "A Sync operation reconciles live Cloudflare ingress against the route manifest (adding missing, removing stale rules) and applies changes via hot-reload without restarting the tunnel.",
+      "tags": [
+        "cloudflare",
+        "sync",
+        "reconcile"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/internal/config/sync_test.go"
+        }
+      ]
+    },
+    {
+      "id": "CFING-004",
+      "title": "Generate ~/.cloudflared/config.yml from the manifest in local mode",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "config",
+      "criticality": "P1",
+      "description": "In local mode the manifest is rendered to a valid ~/.cloudflared/config.yml ingress block as a fallback to the remote API, regenerated whenever the manifest changes.",
+      "tags": [
+        "local-mode",
+        "config-yml",
+        "fallback"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/internal/config/localconfig_test.go"
+        }
+      ]
+    },
+    {
+      "id": "CFING-005",
+      "title": "Switch between remote and local modes with migration",
+      "status": "planned",
+      "prd_ref": "OT-P1-002",
+      "category": "config",
+      "criticality": "P1",
+      "description": "SwitchMode migrates configuration between remote (Cloudflare API) and local (config.yml) modes so the active ingress source reflects the same manifest after switching.",
+      "tags": [
+        "mode-switch",
+        "migration"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/internal/config/mode_test.go"
+        }
+      ]
+    }
+  ]
+}

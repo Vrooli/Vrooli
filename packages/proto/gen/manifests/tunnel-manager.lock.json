@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "scenario": "tunnel-manager",
+  "input_digest": "sha256:0efae683fb5abdb50fa5d71977b8da1682a65cdfd88cc3971567441e7e808e4f",
+  "input_files": [
+    "schemas/measures/v1/measures.proto",
+    "schemas/tunnel-manager/v1/errors/errors.proto",
+    "schemas/tunnel-manager/v1/health/health.proto",
+    "schemas/tunnel-manager/v1/notes/attachments.proto",
+    "schemas/tunnel-manager/v1/notes/notes.proto",
+    "vendor/protovalidate/buf/validate/validate.proto"
+  ],
+  "toolchain": {
+    "buf": "1.37.0",
+    "buf_gen_yaml_digest": "sha256:25a429d557cd66037be08fe549418750c7bd895d3e6078c5afe55a84afd37e84",
+    "plugins": {
+      "protoc": "34.1",
+      "protoc-gen-connect-go": "v1.19.2",
+      "protoc-gen-es": "2.12.0",
+      "protoc-gen-go": "v1.36.11"
+    }
+  },
+  "outputs": {
+    "gen/go/tunnel-manager/v1/errors/errors.pb.go": "sha256:78d828cca2019d4ac358435b62281b0f40ada256f8a9bb4bb8cd6b1fa54e0e8b",
+    "gen/go/tunnel-manager/v1/health/health.pb.go": "sha256:6407508d3535507c81dd66cbba62ab35e7631246ea6d3bec660d20a1ff54a75d",
+    "gen/go/tunnel-manager/v1/notes/attachments.pb.go": "sha256:701ccd69223766def42a3a8aeb09ef5c7b5b7b96354dc9f31d8ea0aaa1f4dc9c",
+    "gen/go/tunnel-manager/v1/notes/notes.pb.go": "sha256:dd259f944ce1611edcaf3464520eba99ed875ac5f3b7523f3fa9305f18c64c1a",
+    "gen/go/tunnel-manager/v1/notes/notes_v1connect/notes.connect.go": "sha256:c774a8c7f43a5a25186efac06f973b8ad814bddd6ac2e3d2b2772c287794e4be",
+    "gen/python/tunnel_manager/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/tunnel_manager/v1/errors/errors_pb2.py": "sha256:3673050f194f3ba5f0c7abc9a181e7fa442c7f353af1891791d1c81688037ef4",
+    "gen/python/tunnel_manager/v1/errors/errors_pb2.pyi": "sha256:4fab4b85533131b72b50e57a69d84a6878a0c10aa64e5b6791a598b7b9716dd1",
+    "gen/python/tunnel_manager/v1/errors/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/tunnel_manager/v1/health/health_pb2.py": "sha256:7e2a8c0f0aa0ae1cb1208f6c6b8eac4af5814f1a3d32d93ea52ebb5adc3eaaad",
+    "gen/python/tunnel_manager/v1/health/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
+    "gen/python/tunnel_manager/v1/health/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/tunnel_manager/v1/notes/attachments_pb2.py": "sha256:595f9f214e6a6c15bc7e91368bb56c23bbef11d1033b76e7a6b275870cf9e90e",
+    "gen/python/tunnel_manager/v1/notes/attachments_pb2.pyi": "sha256:5594188beec26dac8bb0ab7d1ece27e28d425bc57b7544c9e509610cbb5e37fa",
+    "gen/python/tunnel_manager/v1/notes/notes_pb2.py": "sha256:e24a0f4ab42bd58666359635c1f06b56f5d0db3f788855cc738d83353129f18e",
+    "gen/python/tunnel_manager/v1/notes/notes_pb2.pyi": "sha256:359aac5d47799ae41e88608988e03caee63bd56ec270e6b9959e4bcd3b139386",
+    "gen/python/tunnel_manager/v1/notes/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/python/tunnel_manager/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gen/typescript/js/tunnel-manager/v1/errors/errors_pb.js": "sha256:a2d953ba5bafe004c4d32cad28494010a6e1d6fa77682922bc311211c2e8e1ff",
+    "gen/typescript/js/tunnel-manager/v1/health/health_pb.js": "sha256:08511602f0171f8e548a4456f4fe014ebf4f673f014aa59145474c0ffff5a498",
+    "gen/typescript/js/tunnel-manager/v1/notes/attachments_pb.js": "sha256:5c24af3f966e9bb3403e469b2ed50f3959a082e7eb6d17f0ff11cb50acf72ecb",
+    "gen/typescript/js/tunnel-manager/v1/notes/notes_pb.js": "sha256:9c638d1f9bdfcd8a112ff273237f8528c347508b70c52096fdd89cc0eaa5d366",
+    "gen/typescript/tunnel-manager/v1/errors/errors_pb.ts": "sha256:a92ad06996fd29f22b8aef486cb2bcc53e81c368f814c23718fdcce2e77841bc",
+    "gen/typescript/tunnel-manager/v1/health/health_pb.ts": "sha256:52fa2da0d1868f96f0bb3815cdd0ef2f517c0ed0e063a1df65fb41034b53a4c8",
+    "gen/typescript/tunnel-manager/v1/notes/attachments_pb.ts": "sha256:bd82ce26a586c39e2ed3f42d9567e8ecf8c6393c2d9163b202b8b948ae56de87",
+    "gen/typescript/tunnel-manager/v1/notes/notes_pb.ts": "sha256:fa6742ed0dabec9f0fea811f2f49fdbe13cb84c9f8371903450509b9c2e853bf"
+  }
+}

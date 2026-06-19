@@ -1,0 +1,77 @@
+{
+  "_metadata": {
+    "module": "tunnel",
+    "description": "Tunnel health & metrics: cloudflared systemd/ready health, Prometheus metrics scraping with SQLite time-series, and degraded-mode detection.",
+    "prd_ref": "PRD.md",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "id": "THEALTH-001",
+      "title": "Report cloudflared health from systemd status and /ready",
+      "status": "planned",
+      "prd_ref": "OT-P0-008",
+      "category": "tunnel",
+      "criticality": "P0",
+      "description": "The tunnel monitor combines cloudflared systemd unit status and the cloudflared /ready endpoint into a single health status, reporting unhealthy when either signal fails.",
+      "tags": [
+        "health",
+        "systemd",
+        "ready"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/internal/tunnel/health_test.go"
+        }
+      ]
+    },
+    {
+      "id": "THEALTH-002",
+      "title": "Scrape cloudflared Prometheus metrics into SQLite time-series",
+      "status": "planned",
+      "prd_ref": "OT-P1-003",
+      "category": "tunnel",
+      "criticality": "P1",
+      "description": "The monitor scrapes the cloudflared Prometheus endpoint (default 127.0.0.1:20241) for HA connections, request errors, RTT, and active streams, and persists timestamped samples in the metrics table.",
+      "tags": [
+        "prometheus",
+        "metrics",
+        "time-series"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/internal/tunnel/metrics_test.go"
+        }
+      ]
+    },
+    {
+      "id": "THEALTH-003",
+      "title": "Detect degraded mode before full failure",
+      "status": "planned",
+      "prd_ref": "OT-P1-006",
+      "category": "tunnel",
+      "criticality": "P1",
+      "description": "When HA connections drop below 4 or RTT spikes beyond threshold the monitor reports a degraded status distinct from healthy and failed, ahead of a full outage.",
+      "tags": [
+        "degraded",
+        "ha-connections",
+        "rtt"
+      ],
+      "validation": [
+        {
+          "type": "test",
+          "phase": "api",
+          "status": "planned",
+          "ref": "api/internal/tunnel/degraded_test.go"
+        }
+      ]
+    }
+  ]
+}
