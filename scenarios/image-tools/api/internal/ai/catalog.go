@@ -48,21 +48,27 @@ type Op struct {
 	PromptDriven bool
 }
 
-// catalog is the canonical AI-op table: the P0 generation + enhancement subset
-// (the breadth ops in IMG-P1-014/015 land in Phase 5). It is the single source
-// of truth consumed by the runner factory (execution), the AIService (discovery),
-// and the CLI surface.
+// catalog is the canonical AI-op table: the P0 generation + enhancement ops plus
+// the Phase-4 breadth ops (outpaint / background_replace generation; colorize /
+// depth_map enhancement — IMG-P1-001/002). It is the single source of truth
+// consumed by the runner factory (execution), the AIService (discovery), and the
+// CLI surface. Each op's model is forward-declared in registry.seed.json and the
+// op gates honestly (HTTP 409) until its backend program + weights are installed.
 var catalog = func() map[string]Op {
 	ops := []Op{
 		{Name: "text_to_image", Category: CategoryGeneration, Summary: "Generate an image from a text prompt", PromptDriven: true},
 		{Name: "image_to_image", Category: CategoryGeneration, Summary: "Transform an input image guided by a prompt", RequiresImage: true, PromptDriven: true},
 		{Name: "edit_instruct", Category: CategoryGeneration, Summary: "Edit an image from a natural-language instruction (identity-preserving)", RequiresImage: true, PromptDriven: true},
 		{Name: "inpaint", Category: CategoryGeneration, Summary: "Regenerate a masked region from a prompt", RequiresImage: true, RequiresMask: true, PromptDriven: true},
+		{Name: "outpaint", Category: CategoryGeneration, Summary: "Expand an image beyond its borders, generating the new region from a prompt", RequiresImage: true, RequiresMask: true, PromptDriven: true},
 		{Name: "object_removal", Category: CategoryGeneration, Summary: "Remove a masked object and fill the gap", RequiresImage: true, RequiresMask: true},
+		{Name: "background_replace", Category: CategoryGeneration, Summary: "Replace the background behind a masked subject from a prompt", RequiresImage: true, RequiresMask: true, PromptDriven: true},
 		{Name: "upscale", Category: CategoryEnhancement, Summary: "Super-resolve / enlarge an image", RequiresImage: true},
 		{Name: "background_removal", Category: CategoryEnhancement, Summary: "Remove the background to transparency", RequiresImage: true},
 		{Name: "denoise", Category: CategoryEnhancement, Summary: "Reduce noise / deblur an image", RequiresImage: true},
 		{Name: "naturalize", Category: CategoryEnhancement, Summary: "Reintroduce realistic texture/grain to over-smoothed (restored/upscaled) images", RequiresImage: true},
+		{Name: "colorize", Category: CategoryEnhancement, Summary: "Add realistic colour to a grayscale / black-and-white image", RequiresImage: true},
+		{Name: "depth_map", Category: CategoryEnhancement, Summary: "Estimate a per-pixel depth map from a single image", RequiresImage: true},
 	}
 	m := make(map[string]Op, len(ops))
 	for _, o := range ops {

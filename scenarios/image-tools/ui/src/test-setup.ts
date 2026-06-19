@@ -73,3 +73,16 @@ class ResizeObserverStub {
   disconnect(): void {}
 }
 globalThis.ResizeObserver = ResizeObserverStub;
+
+// jsdom has no URL.createObjectURL/revokeObjectURL — the Smart-Select surface
+// (and any future image-loading feature) creates an object URL to preview the
+// loaded File. Deterministic no-op stubs keep that effect from throwing; the
+// blob-key→URL helper (api/client.blobUrl) is a plain string path and doesn't
+// touch these. Assigned on the prototype (not vi.stubGlobal) so per-test
+// `vi.unstubAllGlobals()` calls don't strip them mid-suite.
+if (typeof URL.createObjectURL !== "function") {
+  URL.createObjectURL = () => "blob:mock/object-url";
+}
+if (typeof URL.revokeObjectURL !== "function") {
+  URL.revokeObjectURL = () => {};
+}

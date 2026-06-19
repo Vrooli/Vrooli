@@ -38,6 +38,15 @@ const (
 	// log line carrying the underlying error; the wire message stays
 	// human-safe.
 	CodeInternal = "internal"
+
+	// CodeForbidden is the canonical 403 code. Use when a request is well-formed
+	// but policy refuses it (e.g. the Responsible-Use deployment gate requiring a
+	// consent affirmation for an identity-altering op on the public tier).
+	CodeForbidden = "forbidden"
+
+	// CodeRateLimited is the canonical 429 code. Use when a tier's abuse throttle
+	// rejects a request that would otherwise be allowed.
+	CodeRateLimited = "rate_limited"
 )
 
 // WriteError serialises a proto-typed ErrorEnvelope as the response

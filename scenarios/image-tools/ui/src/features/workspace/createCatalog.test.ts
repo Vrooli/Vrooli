@@ -46,13 +46,23 @@ describe("parseVariationKeys", () => {
 
 describe("createPresentation", () => {
   it("maps every generation op to a label/desc/icon", () => {
-    for (const op of ["text_to_image", "image_to_image", "edit_instruct", "inpaint", "object_removal"]) {
+    for (const op of [
+      "text_to_image",
+      "image_to_image",
+      "edit_instruct",
+      "inpaint",
+      "object_removal",
+      "outpaint",
+      "background_replace",
+    ]) {
       const meta = createPresentation(op);
       expect(meta).toBeDefined();
       // lucide icons are forwardRef components (objects), not plain functions.
       expect(meta?.Icon).toBeTruthy();
     }
     expect(Object.keys(CREATE_CATALOG)).toContain("text_to_image");
+    expect(Object.keys(CREATE_CATALOG)).toContain("outpaint");
+    expect(Object.keys(CREATE_CATALOG)).toContain("background_replace");
   });
 
   it("returns undefined for an unknown op", () => {

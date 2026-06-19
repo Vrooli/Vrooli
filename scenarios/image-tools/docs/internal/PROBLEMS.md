@@ -438,10 +438,53 @@ phantom validation refs. Scheduled as the first task of the advanced-editing
 plan's Phase 1 prep. Consider teaching `requirements validate` to verify ref
 existence for `implemented` entries.
 
+**Update (2026-06-18, plan Phase 3.3):** The drift cuts BOTH ways. A
+prd-control-tower auto-sync (it syncs requirement statuses from the latest
+`test-genie` run) flipped the *genuinely shipped* modules 31 (looks), 32
+(smart-select), 33 (instruction-edit) to `status: in_progress` and their
+test-ref statuses to `failing` — because the run it synced from
+(`20260618-230047`) had a **flaky** unit-phase failure under concurrent load
+(that same unit phase passes deterministically in isolation: api/cli
+multi-package `-covermode=atomic` runs + a unit-only `test-genie execute …
+unit` → PASS, and the new code is `-race`-clean). Corrected all three back to
+`complete`/`implemented`; re-validated; the correction **held** (auto-sync is a
+one-time-on-run sync, not a continuous re-writer). Takeaway: the auto-sync
+trusts a single run's verdict, so a flaky red silently rewrites honest module
+statuses to failing — confirm against an isolated re-run before believing it.
+
 **Owner:** unassigned (image-tools requirements).
 
 **Refs:** `requirements/{14..20,22,23}/module.json`, `requirements/index.json`,
 `api/internal/ai/catalog.go`, `docs/internal/PROGRESS.md`.
+
+### 2026-06-18 — Phase 4 suite residuals: proto commit-gating (now incl. diff/safety), unit flake, DCT-hash duplication
+
+**Symptom:** Full `vrooli scenario test image-tools` after Phase 4 = 13 pass / 6 red.
+Three things to know for the next agent (none a Phase-4 code defect — confirmed
+by `test-genie runs compare` vs `20260618-230047` + isolated re-runs):
+
+1. **`proto` regression is commit-gated** (extends the 2026-06-17 ErrorEnvelope
+   entry). The NEW `diff` + `safety` proto domains + the `analysis` oneof
+   (`DuplicateResult`/`QualityResult`) + `AIParams.consent_affirmed` are correct
+   in the working tree — `packages/proto/gen/descriptor/image.binpb` carries them
+   (verified) — but proto-health validates **committed HEAD**, so
+   `diff_compare → DiffResult unknown` / `handler domain "diff"/"safety" has no
+   matching proto domain` fire until the branch's committer commits the proto +
+   regenerated code. Agents never commit; goes green on commit.
+2. **`unit` red is a concurrent-load flake** (the recurring pattern): under suite
+   parallelism `pnpm test:coverage` (ui) intermittently fails; **in isolation**
+   go `-covermode=atomic ./...` PASSES and ui `pnpm test:coverage` = 740 @98.16%.
+   Confirm unit reds with an isolated re-run before trusting them; the
+   prd-control-tower auto-sync will flip requirement modules to `failing` off such
+   a run (corrected modules 14/22/34 back to `implemented` 2026-06-18).
+3. **Minor self-introduced debt (deliberate, scoped):** the DCT perceptual-hash +
+   2D-DCT + median helpers are duplicated between `internal/diff/metrics.go` and
+   `internal/analysis/duplicate.go` (~70 lines). They can't share directly (the
+   sibling-domain layering rule), so the clean fix is to extract a leaf
+   `internal/imagehash` package both import. Not done now: the `tidiness`
+   duplication phase is a fleet-wide campaign red already (plan §4/§12 out-of-scope),
+   so deduping would not flip it; tracked here as the right follow-up. Owner:
+   unassigned.
 
 ## Architecture Drift
 

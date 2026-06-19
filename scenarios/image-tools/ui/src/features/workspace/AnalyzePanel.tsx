@@ -8,9 +8,11 @@ import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import {
   listAnalysisOperations,
+  type AnalyzeDuplicate,
   type AnalyzeNsfw,
   type AnalyzeOcr,
   type AnalyzeProbe,
+  type AnalyzeQuality,
 } from "../../api/analysis";
 import { ANALYZE_FALLBACK_ICON, analyzePresentation } from "./analyzeCatalog";
 import { MODE_LABEL } from "./modeLabels";
@@ -217,6 +219,138 @@ function NsfwView({ result }: { result: AnalyzeNsfw }) {
   );
 }
 
+/** A copyable hex-fingerprint row for the duplicate view. */
+function HashRow({
+  label,
+  value,
+  testId,
+}: {
+  label: string;
+  value: string;
+  testId: string;
+}) {
+  const { t } = useTranslation();
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => setCopied(false), [value]);
+
+  const onCopy = () => {
+    if (!value) return;
+    try {
+      void navigator.clipboard.writeText(value).then(
+        () => setCopied(true),
+        () => setCopied(false),
+      );
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-xs text-app-muted-foreground">{label}</span>
+      <div className="flex items-center gap-2">
+        <code
+          data-testid={testId}
+          className="flex-1 overflow-x-auto rounded-control border border-app-border bg-app-surface-muted p-2 font-mono text-xs text-app-foreground"
+        >
+          {value || "—"}
+        </code>
+        <Button
+          variant="outline"
+          size="sm"
+          type="button"
+          onClick={onCopy}
+          disabled={!value}
+          aria-label={
+            copied
+              ? t(strings.workspace.analyze.duplicate.copied)
+              : t(strings.workspace.analyze.duplicate.copy)
+          }
+        >
+          {copied ? (
+            <Check aria-hidden="true" className="h-3.5 w-3.5 text-app-success" />
+          ) : (
+            <Copy aria-hidden="true" className="h-3.5 w-3.5" />
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/** Duplicate-detect result: perceptual fingerprints with a comparison hint. */
+function DuplicateView({ result }: { result: AnalyzeDuplicate }) {
+  const { t } = useTranslation();
+  return (
+    <div data-testid={selectors.workspace.analyze.duplicate} className="flex flex-col gap-3">
+      <p className="text-xs text-app-muted-foreground">
+        {t(strings.workspace.analyze.duplicate.hint)}
+      </p>
+      <HashRow
+        label={t(strings.workspace.analyze.duplicate.phash)}
+        value={result.phashHex}
+        testId={selectors.workspace.analyze.duplicatePhash}
+      />
+      <HashRow
+        label={t(strings.workspace.analyze.duplicate.ahash)}
+        value={result.ahashHex}
+        testId={selectors.workspace.analyze.duplicateAhash}
+      />
+      {result.hashBits > 0 && (
+        <p className="text-xs text-app-muted-foreground">
+          {t(strings.workspace.analyze.duplicate.bits, { count: result.hashBits })}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Quality-assessment result: overall score, sharpness, exposure, notes. */
+function QualityView({ result }: { result: AnalyzeQuality }) {
+  const { t } = useTranslation();
+  return (
+    <div data-testid={selectors.workspace.analyze.quality} className="flex flex-col gap-3 text-xs">
+      <dl className="rounded-control border border-app-border bg-app-surface-muted p-3">
+        <MetaRow
+          label={t(strings.workspace.analyze.quality.overall)}
+          value={`${Math.round(result.overallScore * 100)}%`}
+        />
+        <MetaRow
+          label={t(strings.workspace.analyze.quality.sharpness)}
+          value={`${result.sharpness.toFixed(2)} · ${
+            result.blurry
+              ? t(strings.workspace.analyze.quality.blurry)
+              : t(strings.workspace.analyze.quality.sharp)
+          }`}
+        />
+        <MetaRow
+          label={t(strings.workspace.analyze.quality.brightness)}
+          value={`${result.brightness.toFixed(2)} · ${t(strings.workspace.analyze.quality.exposure, {
+            exposure: result.exposure || "—",
+          })}`}
+        />
+        <MetaRow
+          label={t(strings.workspace.analyze.quality.contrast)}
+          value={result.contrast.toFixed(2)}
+        />
+      </dl>
+      {result.notes.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <span className="text-app-muted-foreground">
+            {t(strings.workspace.analyze.quality.notesHeading)}
+          </span>
+          <ul className="list-disc pl-4 text-app-muted-foreground">
+            {result.notes.map((note, i) => (
+              <li key={`${i}-${note}`}>{note}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /**
  * The Analyze-mode inspector: a one-tap list of the analysis ops discovered
  * from `AnalysisService.ListAnalysisOperations` (Inspect/probe, Extract text,
@@ -411,6 +545,8 @@ export function AnalyzePanel({ analyze, input, initialAction }: AnalyzePanelProp
               {analyze.result.kind === "probe" && <ProbeView result={analyze.result} />}
               {analyze.result.kind === "ocr" && <OcrView result={analyze.result} />}
               {analyze.result.kind === "nsfw" && <NsfwView result={analyze.result} />}
+              {analyze.result.kind === "duplicate" && <DuplicateView result={analyze.result} />}
+              {analyze.result.kind === "quality" && <QualityView result={analyze.result} />}
             </div>
           )}
         </div>

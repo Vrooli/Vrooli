@@ -117,6 +117,49 @@ func TestAnalyze_OCRUnavailable(t *testing.T) {
 	}
 }
 
+// TestAnalyze_Duplicate drives the pure-Go duplicate_detect op end to end.
+func TestAnalyze_Duplicate(t *testing.T) {
+	svc := mustService(t, internalanalysis.Config{ModelInstalled: func(string) bool { return true }})
+	r, _ := newTestServer(t, svc)
+	w := postImage(t, r, "duplicate_detect", pngBytes(t, 64, 64))
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", w.Code, w.Body.String())
+	}
+	var resp analysisv1.AnalyzeResponse
+	if err := protojson.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	d := resp.GetDuplicate()
+	if d == nil {
+		t.Fatal("expected a duplicate result")
+	}
+	if d.GetHashBits() != 64 || len(d.GetPhashHex()) != 16 {
+		t.Errorf("unexpected fingerprint: bits=%d phash=%q", d.GetHashBits(), d.GetPhashHex())
+	}
+}
+
+// TestAnalyze_Quality drives the pure-Go quality_assessment op end to end.
+func TestAnalyze_Quality(t *testing.T) {
+	svc := mustService(t, internalanalysis.Config{ModelInstalled: func(string) bool { return true }})
+	r, _ := newTestServer(t, svc)
+	w := postImage(t, r, "quality_assessment", pngBytes(t, 64, 64))
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", w.Code, w.Body.String())
+	}
+	var resp analysisv1.AnalyzeResponse
+	if err := protojson.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	q := resp.GetQuality()
+	if q == nil {
+		t.Fatal("expected a quality result")
+	}
+	// A solid fill has zero contrast → blurry + a low-contrast note.
+	if !q.GetBlurry() || q.GetExposure() == "" {
+		t.Errorf("unexpected quality: blurry=%v exposure=%q", q.GetBlurry(), q.GetExposure())
+	}
+}
+
 // TestAnalyze_UnknownOperation returns 404.
 func TestAnalyze_UnknownOperation(t *testing.T) {
 	svc := mustService(t, internalanalysis.Config{ModelInstalled: func(string) bool { return true }})

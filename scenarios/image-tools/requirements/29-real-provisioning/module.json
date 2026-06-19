@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-18T15:40:52-04:00"
+    "last_validated_at": "2026-06-18T19:07:34-04:00"
   },
   "requirements": [
     {
       "id": "IMG-P0-014",
-      "title": "Functional AI Substrate (Real Model & Backend Provisioning)",
-      "status": "complete",
+      "title": "Functional AI Substrate (Real Model \u0026 Backend Provisioning)",
+      "status": "in_progress",
       "prd_ref": "OT-P0-014",
       "category": "feature",
       "description": "models install resolves and fetches the REAL weight asset(s) per model + backend file layout, validates the downloaded artifact (type/magic/size, not just self-checksum), and pins an upstream-verified checksum. A backend-program provisioning/detection path exists (or CPU defaults are provisionable pure-Go/ONNX). The selector reports runnable-vs-declared honestly, and at least one AI op runs end-to-end on CPU from the CLI and UI. Closes the validate-first gap (PROBLEMS 2026-06-18: the prior install path fetched landing pages, not weights).",
@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/internal/models/install_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Installer rejects non-weight artifacts (HTML / wrong type / oversize); pins an upstream-verified checksum after artifact validation"
         },
         {

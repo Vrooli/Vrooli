@@ -166,7 +166,11 @@ func buildStableDiffusionCpp(req backends.Request, modelDir string) ([]string, e
 // different argv shapes.
 func buildDiffusers(req backends.Request, modelDir string) ([]string, error) {
 	switch req.Operation {
-	case "inpaint":
+	case "inpaint", "outpaint", "background_replace":
+		// All three are masked-regenerate ops with the same argv shape: the mask
+		// marks the region to synthesize (the hole for inpaint, the new border
+		// region for outpaint, the background for background_replace) and the
+		// prompt steers it. They share the inpaint sidecar module.
 		return buildDiffusersInpaint(req, modelDir)
 	case "edit_instruct":
 		return buildDiffusersEditInstruct(req, modelDir)
@@ -304,6 +308,10 @@ func buildOnnxSidecar(req backends.Request, modelDir string) ([]string, error) {
 		module = "image_tools_sidecar.bg_removal"
 	case "denoise":
 		module = "image_tools_sidecar.denoise"
+	case "colorize":
+		module = "image_tools_sidecar.colorize"
+	case "depth_map":
+		module = "image_tools_sidecar.depth"
 	default:
 		return nil, fmt.Errorf("onnxruntime sidecar: unsupported operation %q", req.Operation)
 	}
@@ -344,11 +352,11 @@ type providerSpec struct {
 func providerSpecs() []providerSpec {
 	return []providerSpec{
 		{name: "stable-diffusion.cpp", program: "sd", ops: []string{"text_to_image", "image_to_image"}, build: buildStableDiffusionCpp, gpuCapable: true},
-		{name: "diffusers", program: "python3", ops: []string{"inpaint", "edit_instruct"}, build: buildDiffusers, gpuCapable: true},
+		{name: "diffusers", program: "python3", ops: []string{"inpaint", "outpaint", "background_replace", "edit_instruct"}, build: buildDiffusers, gpuCapable: true},
 		{name: "iopaint", program: "iopaint", ops: []string{"object_removal"}, build: buildIopaint, gpuCapable: true},
 		{name: "realesrgan-ncnn-vulkan", program: "realesrgan-ncnn-vulkan", ops: []string{"upscale"}, build: buildRealesrgan, gpuCapable: true},
 		{name: "rembg", program: "rembg", ops: []string{"background_removal"}, build: buildRembg, gpuCapable: false},
-		{name: "onnxruntime", program: "python3", ops: []string{"denoise", "background_removal"}, build: buildOnnxSidecar, gpuCapable: false},
+		{name: "onnxruntime", program: "python3", ops: []string{"denoise", "background_removal", "colorize", "depth_map"}, build: buildOnnxSidecar, gpuCapable: false},
 	}
 }
 

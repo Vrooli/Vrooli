@@ -8,6 +8,7 @@ import (
 	internaljobs "image-tools/internal/jobs"
 	"image-tools/internal/models"
 	"image-tools/internal/module"
+	"image-tools/internal/safety"
 	"image-tools/internal/storage"
 
 	"github.com/gorilla/mux"
@@ -18,8 +19,9 @@ import (
 
 // Module returns the ai domain's contribution: the AIService discovery handler
 // (Connect-RPC) plus the REST multipart submit edge (POST /api/v1/ai/{operation}).
-// Execution is asynchronous on the durable job Manager's GPU-serialized lane.
-func Module(engine *internalai.Engine, registry *models.Registry, store *storage.Store, jobs *internaljobs.Manager, logger *log.Logger) module.Module {
+// Execution is asynchronous on the durable job Manager's GPU-serialized lane. The
+// gate is the Responsible-Use deployment gate enforced on the submit edge.
+func Module(engine *internalai.Engine, registry *models.Registry, store *storage.Store, jobs *internaljobs.Manager, gate *safety.Gate, logger *log.Logger) module.Module {
 	if logger == nil {
 		logger = log.Default()
 	}
@@ -28,6 +30,7 @@ func Module(engine *internalai.Engine, registry *models.Registry, store *storage
 		Store:  store,
 		Jobs:   jobs,
 		Guard:  storage.DefaultGuard(),
+		Gate:   gate,
 		Logger: logger,
 	}
 	connectPath, connectHandler := aiconnect.NewAIServiceHandler(NewConnectHandler(registry))

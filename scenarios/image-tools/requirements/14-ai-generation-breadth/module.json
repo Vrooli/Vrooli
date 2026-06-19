@@ -1,29 +1,36 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-18T16:53:22-04:00"
+    "last_validated_at": "2026-06-18T20:38:03-04:00"
   },
   "requirements": [
     {
       "id": "IMG-P1-001",
-      "title": "AI Generation \u0026 Editing Breadth",
-      "status": "complete",
+      "title": "AI Generation & Editing Breadth",
+      "status": "implemented",
       "prd_ref": "OT-P1-001",
       "category": "feature",
-      "description": "Outpaint/generative-expand and background replace added as first-class ops with standalone backends, hardware-aware selection, and full CLI/API parity.",
+      "description": "Outpaint/generative-expand and background replace added as first-class ops with standalone backends, hardware-aware selection, and full CLI/API parity. Both are masked-regenerate ops on the diffusers backend (seeded sd-1.5-inpainting / ic-light-v1), wired into the AI catalog + the generic submit edge + CLI (`ai outpaint`, `ai background-replace`). They gate honestly (HTTP 409) until the diffusers backend + weights are installed.",
       "validation": [
         {
-          "type": "manual",
-          "ref": "api/internal/ai/breadth_test.go",
+          "type": "test",
+          "ref": "api/internal/ai/catalog_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned (not yet implemented; automated test pending): Outpaint and background-replace ops invoke standalone backends"
+          "notes": "outpaint + background_replace registered in the AI catalog (generation, RequiresImage+RequiresMask+PromptDriven) and each gets a dispatcher runner."
         },
         {
-          "type": "manual",
-          "ref": "cli/domains/ai/breadth_test.go",
+          "type": "test",
+          "ref": "api/internal/ai/providers_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "outpaint + background_replace dispatch through the diffusers inpaint sidecar (image+mask+prompt argv); a missing mask errors."
+        },
+        {
+          "type": "test",
+          "ref": "cli/domains/ai/generation_test.go",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Planned (not yet implemented; automated test pending): Both ops complete headless via the job system"
+          "notes": "CLI exposes `ai outpaint` + `ai background-replace` submit commands over the headless job edge."
         }
       ]
     }

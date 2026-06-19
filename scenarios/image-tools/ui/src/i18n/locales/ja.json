@@ -14,7 +14,9 @@
       "library": "ライブラリ",
       "activity": "アクティビティ",
       "models": "モデル",
-      "settings": "設定"
+      "settings": "設定",
+      "select": "選択",
+      "compare": "比較"
     }
   },
   "theme": {
@@ -51,6 +53,34 @@
       "description": "モバイルの操作をどちら側に寄せるか。",
       "left": "左",
       "right": "右"
+    },
+    "responsibleUse": {
+      "loading": "責任ある利用ポリシーを読み込み中…",
+      "error": "責任ある利用ポリシーを読み込めませんでした。",
+      "tierLabel": "デプロイ階層",
+      "tier": {
+        "unspecified": "未指定",
+        "local": "ローカル",
+        "public": "公開"
+      },
+      "controlsHeading": "適用される制御",
+      "consent": "本人確認が必要な編集には同意が必須",
+      "nsfwScan": "AI出力を不適切コンテンツとして自動スキャン",
+      "provenance": "出力に来歴情報を付与",
+      "rateLimit": "レート制限：1分あたり{{count}}回の送信",
+      "rateLimitNone": "レート制限：なし",
+      "on": "オン",
+      "off": "オフ",
+      "weightsHeading": "操作ごとの同意ウェイト",
+      "weightOperation": "操作",
+      "weightLevel": "同意ウェイト",
+      "weight": {
+        "unspecified": "未指定",
+        "none": "なし",
+        "low": "低",
+        "high": "高"
+      },
+      "empty": "操作ウェイトは設定されていません。"
     }
   },
   "pages": {
@@ -70,7 +100,8 @@
       "title": "設定",
       "themeHeading": "外観",
       "localeHeading": "言語",
-      "displayHeading": "表示とアクセシビリティ"
+      "displayHeading": "表示とアクセシビリティ",
+      "responsibleUseHeading": "責任ある利用"
     },
     "workspace": {
       "title": "ワークスペース"
@@ -166,7 +197,6 @@
     "title": "ルック＆スタイル",
     "description": "再利用できる変換レシピ。フィルム・カメラ・スタイルのルックをワンタップで適用します。フィルムとカメラのルックはプレビューを即時表示し、スタイルのルックはワークスペースで実行します。",
     "loading": "ルックライブラリを読み込み中…",
-    "error": "ルックライブラリを読み込めませんでした。",
     "empty": "まだルックがありません。",
     "preview": "プレビュー",
     "refresh": "プレビューを更新",
@@ -324,6 +354,14 @@
       "nsfw_classify": {
         "label": "安全性チェック",
         "desc": "画像に不適切なコンテンツが含まれるか分類します。"
+      },
+      "duplicate_detect": {
+        "label": "重複を検出",
+        "desc": "知覚ハッシュを計算して類似画像を見つけます。"
+      },
+      "quality_assessment": {
+        "label": "品質を評価",
+        "desc": "鮮明さ・露出・コントラストを即座に採点します。"
       }
     },
     "analyze": {
@@ -363,6 +401,24 @@
         "safe": "問題なし",
         "score": "スコア {{score}}%",
         "threshold": "しきい値 {{threshold}}%"
+      },
+      "duplicate": {
+        "hint": "これらの指紋を比較して類似画像を見つけます。",
+        "phash": "知覚ハッシュ（pHash）",
+        "ahash": "平均ハッシュ（aHash）",
+        "bits": "{{count}}ビットのハッシュ",
+        "copy": "コピー",
+        "copied": "コピーしました"
+      },
+      "quality": {
+        "overall": "総合品質",
+        "sharpness": "鮮明さ",
+        "blurry": "ぼやけて見えます",
+        "sharp": "鮮明に見えます",
+        "brightness": "明るさ",
+        "contrast": "コントラスト",
+        "exposure": "露出：{{exposure}}",
+        "notesHeading": "メモ"
       }
     },
     "aiOp": {
@@ -381,6 +437,14 @@
       "naturalize": {
         "label": "ナチュラライズ",
         "desc": "なめらかすぎる写真に自然な質感を戻します。"
+      },
+      "colorize": {
+        "label": "色付け",
+        "desc": "白黒写真に自然な色を追加します。"
+      },
+      "depth_map": {
+        "label": "深度マップ",
+        "desc": "画像から深度マップを推定します。"
       }
     },
     "enhance": {
@@ -442,6 +506,14 @@
       "object_removal": {
         "label": "オブジェクトを削除",
         "desc": "マスクしたオブジェクトを消去して隙間を補完します。"
+      },
+      "outpaint": {
+        "label": "アウトペイント",
+        "desc": "マスクした端からプロンプトで画像を拡張します。"
+      },
+      "background_replace": {
+        "label": "背景を置換",
+        "desc": "マスクした背景をプロンプトの新しいシーンに差し替えます。"
       }
     },
     "create": {
@@ -479,6 +551,10 @@
       "succeeded": "{{count}} 件を生成しました — キャンバスに送るものを選んでください。",
       "failed": "生成を完了できませんでした。",
       "warningsLabel": "注意",
+      "consent": {
+        "label": "この画像内の人物を編集する権利を持っています。",
+        "required": "続行する前に、この画像内の人物を編集する権利があることを確認してください。"
+      },
       "result": {
         "heading": "バリエーション",
         "slot": "バリエーション {{index}}",
@@ -668,5 +744,74 @@
     "title": "問題が発生しました",
     "message": "ページの表示中に予期しないエラーが発生しました。再試行するか、解決しない場合はページを再読み込みしてください。",
     "retry": "再試行"
+  },
+  "select": {
+    "title": "スマート選択",
+    "description": "画像の領域をクリックして選択すると、エッジが輪郭にスナップします。続いて状況に応じた編集を選びます。",
+    "chooseImage": "画像を選択",
+    "pointerHint": "画像をクリックして領域を選択するか、下のコントロールを使用します。",
+    "autoSelect": "被写体を自動選択",
+    "selectPoint": "点を選択",
+    "pointX": "X（％）",
+    "pointY": "Y（％）",
+    "tolerance": "ディテール許容度",
+    "segmenting": "選択中…",
+    "region": "領域：{{class}}",
+    "confidence": "信頼度 {{percent}}％",
+    "editsHeading": "おすすめの編集",
+    "noEdits": "この領域に利用できる編集はありません。",
+    "promptPlaceholder": "変更内容を記述…",
+    "applying": "適用中…",
+    "submitted": "ジョブ {{jobId}} として送信しました。アクティビティで確認できます。",
+    "gate": "この編集にはモデルバックエンドが必要です。モデルでインストールするか、BYOK を有効にしてください。",
+    "reset": "やり直す",
+    "imageAlt": "あなたの画像",
+    "maskAlt": "選択領域のマスク",
+    "error": "選択を完了できませんでした。",
+    "class": {
+      "person": "人物",
+      "sky": "空",
+      "foliage": "植物",
+      "background": "背景",
+      "object": "オブジェクト"
+    }
+  },
+  "compare": {
+    "title": "ビジュアル比較",
+    "description": "2 枚の画像（基準画像と候補画像）をドロップすると、変更点が一目でわかります。判定結果、差分のヒートマップ、その根拠となる指標を表示します。",
+    "baseLabel": "基準画像",
+    "compareLabel": "比較画像",
+    "chooseBase": "基準画像を選択",
+    "chooseCompare": "比較画像を選択",
+    "dropHint": "ここに画像をドロップするか、ファイルを選択してください。",
+    "baseAlt": "基準画像",
+    "compareAlt": "比較画像",
+    "mode": "比較モード",
+    "modePixel": "ピクセル",
+    "modePerceptual": "知覚的",
+    "tolerance": "ピクセル許容差",
+    "toleranceReset": "許容差をリセット",
+    "run": "比較する",
+    "reset": "やり直す",
+    "comparing": "比較中…",
+    "error": "比較を完了できませんでした。",
+    "verdictHeading": "判定",
+    "verdictIdentical": "同一",
+    "verdictSimilar": "類似",
+    "verdictDifferent": "相違",
+    "dimensionsMismatch": "画像のサイズが異なります。比較画像は基準画像に合わせてリサイズされました。",
+    "heatmapHeading": "差分ヒートマップ",
+    "heatmapAlt": "変更されたピクセルを強調表示するヒートマップ",
+    "metricsHeading": "指標",
+    "metricChanged": "変更されたピクセル",
+    "metricChangedValue": "{{percent}}%（{{total}} 中 {{changed}}）",
+    "metricMae": "MAE",
+    "metricRmse": "RMSE",
+    "metricPsnr": "PSNR",
+    "metricPsnrValue": "{{value}} dB",
+    "metricPhashDistance": "pHash 距離",
+    "metricPhashSimilarity": "pHash 類似度",
+    "metricSsim": "SSIM",
+    "warningsHeading": "警告"
   }
 }

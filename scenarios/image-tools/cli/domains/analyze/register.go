@@ -37,5 +37,7 @@ func (h *handlers) runCommands() []cliapp.Command {
 		cmd("probe", "probe", "Report structured image info (pure-Go, always available)"),
 		cmd("ocr", "ocr", "Extract text from an image (OCR)"),
 		cmd("nsfw", "nsfw_classify", "Classify an image for NSFW / unsafe content"),
+		cmd("duplicate", "duplicate_detect", "Compute perceptual fingerprints for near-duplicate detection (pure-Go)"),
+		cmd("quality", "quality_assessment", "Assess no-reference image quality — sharpness/exposure/contrast (pure-Go)"),
 	}
 }

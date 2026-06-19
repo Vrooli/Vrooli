@@ -6,6 +6,7 @@ import {
   type AIImageResult,
   type AIParamsInput,
 } from "../../api/ai";
+import { ApiError } from "../../api/client";
 import { JobState, jobsClient } from "../../api/jobs";
 import type { RunOpImageResult } from "../../api/ops";
 import { parseVariationKeys } from "./createCatalog";
@@ -111,6 +112,12 @@ export interface UseCreate {
   tier: string;
   warnings: string[];
   error: string | null;
+  /**
+   * True when the last submit was rejected by the public-tier consent gate
+   * (HTTP 403). The panel surfaces the server's message and directs the user to
+   * the consent checkbox.
+   */
+  consentBlocked: boolean;
   /** The variations produced by the last successful run (empty until then). */
   results: CreateVariation[];
   /** How many variations the in-flight run requested (drives skeleton slots). */
@@ -141,6 +148,7 @@ export function useCreate({ client = liveCreateClient }: UseCreateArgs = {}): Us
   const [tier, setTier] = useState("");
   const [warnings, setWarnings] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [consentBlocked, setConsentBlocked] = useState(false);
   const [results, setResults] = useState<CreateVariation[]>([]);
   const [requestedCount, setRequestedCount] = useState(1);
 
@@ -166,6 +174,7 @@ export function useCreate({ client = liveCreateClient }: UseCreateArgs = {}): Us
       setPhase("submitting");
       setProgress(IDLE_PROGRESS);
       setError(null);
+      setConsentBlocked(false);
       setWarnings([]);
       setResults([]);
 
@@ -175,6 +184,7 @@ export function useCreate({ client = liveCreateClient }: UseCreateArgs = {}): Us
       } catch (err) {
         if (live(id)) {
           setError(errorText(err));
+          setConsentBlocked(err instanceof ApiError && err.status === 403);
           setPhase("failed");
         }
         return;
@@ -255,6 +265,7 @@ export function useCreate({ client = liveCreateClient }: UseCreateArgs = {}): Us
       pending.current = run;
       setRequestedCount(Math.max(1, params.variations ?? 1));
       setError(null);
+      setConsentBlocked(false);
       setResults([]);
       setPhase("submitting");
 
@@ -375,6 +386,7 @@ export function useCreate({ client = liveCreateClient }: UseCreateArgs = {}): Us
     abortRef.current?.abort();
     setPhase("idle");
     setError(null);
+    setConsentBlocked(false);
     setResults([]);
     setProgress(IDLE_PROGRESS);
   }, []);
@@ -386,6 +398,7 @@ export function useCreate({ client = liveCreateClient }: UseCreateArgs = {}): Us
     tier,
     warnings,
     error,
+    consentBlocked,
     results,
     requestedCount,
     preview,

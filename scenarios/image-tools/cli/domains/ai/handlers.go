@@ -88,21 +88,22 @@ func (h *handlers) submit(operation string, needsInput, needsMask bool) func(cli
 // buildParams assembles AIParams from whichever flags the command declared.
 func buildParams(ctx cliapp.RunContext) *aiv1.AIParams {
 	p := &aiv1.AIParams{
-		Prompt:         flagOr(ctx, "prompt"),
-		NegativePrompt: flagOr(ctx, "negative"),
-		Seed:           i64(flagOr(ctx, "seed")),
-		Width:          i32(flagOr(ctx, "width")),
-		Height:         i32(flagOr(ctx, "height")),
-		Steps:          i32(flagOr(ctx, "steps")),
-		CfgScale:       f64(flagOr(ctx, "cfg-scale")),
-		Variations:     i32(flagOr(ctx, "variations")),
-		Strength:       f64(flagOr(ctx, "strength")),
-		Scale:          i32(flagOr(ctx, "scale")),
-		Realism:        f64(flagOr(ctx, "realism")),
-		FaceAware:      boolOr(ctx, "face-aware"),
-		ModelOverride:  flagOr(ctx, "model"),
-		AllowByok:      boolOr(ctx, "byok"),
-		AutoScanNsfw:   boolOr(ctx, "auto-scan"),
+		Prompt:          flagOr(ctx, "prompt"),
+		NegativePrompt:  flagOr(ctx, "negative"),
+		Seed:            i64(flagOr(ctx, "seed")),
+		Width:           i32(flagOr(ctx, "width")),
+		Height:          i32(flagOr(ctx, "height")),
+		Steps:           i32(flagOr(ctx, "steps")),
+		CfgScale:        f64(flagOr(ctx, "cfg-scale")),
+		Variations:      i32(flagOr(ctx, "variations")),
+		Strength:        f64(flagOr(ctx, "strength")),
+		Scale:           i32(flagOr(ctx, "scale")),
+		Realism:         f64(flagOr(ctx, "realism")),
+		FaceAware:       boolOr(ctx, "face-aware"),
+		ModelOverride:   flagOr(ctx, "model"),
+		AllowByok:       boolOr(ctx, "byok"),
+		AutoScanNsfw:    boolOr(ctx, "auto-scan"),
+		ConsentAffirmed: boolOr(ctx, "consent"),
 	}
 	return p
 }

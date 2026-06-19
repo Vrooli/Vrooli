@@ -13,7 +13,14 @@ import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../../test-utils";
 import { selectors } from "../../consts/selectors";
 import { setLocale } from "../../i18n";
-import { makeAnalysisMocks, makeNsfwResult, makeOcrResult, makeProbeResult } from "./mocks/analysis";
+import {
+  makeAnalysisMocks,
+  makeDuplicateResult,
+  makeNsfwResult,
+  makeOcrResult,
+  makeProbeResult,
+  makeQualityResult,
+} from "./mocks/analysis";
 import { makeSelectedModel } from "./mocks/ai";
 
 vi.mock("../../api/analysis", async (importOriginal) => {
@@ -286,6 +293,61 @@ describe("AnalyzePanel", () => {
     });
     renderPanel(analyze);
     expect(await screen.findByTestId(selectors.workspace.analyze.nsfw)).toBeInTheDocument();
+  });
+
+  it("renders the duplicate fingerprints with a working hash copy affordance", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue(undefined);
+    const analyze = fakeAnalyze({
+      phase: "done",
+      result: makeDuplicateResult({ phashHex: "abcd1234", ahashHex: "5678ef00", hashBits: 64 }),
+    });
+    renderPanel(analyze);
+
+    const dup = await screen.findByTestId(selectors.workspace.analyze.duplicate);
+    expect(dup).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.workspace.analyze.duplicatePhash)).toHaveTextContent(
+      "abcd1234",
+    );
+    expect(screen.getByTestId(selectors.workspace.analyze.duplicateAhash)).toHaveTextContent(
+      "5678ef00",
+    );
+
+    // The pHash copy button (labelled "Copy") copies the pHash value.
+    const copyButtons = screen.getAllByRole("button", { name: /copy/i });
+    await user.click(copyButtons[0] as HTMLElement);
+    expect(writeText).toHaveBeenCalledWith("abcd1234");
+  });
+
+  it("renders the quality assessment with scores, the blurry flag, and notes", async () => {
+    const analyze = fakeAnalyze({
+      phase: "done",
+      result: makeQualityResult({
+        overallScore: 0.4,
+        sharpness: 0.12,
+        blurry: true,
+        exposure: "underexposed",
+        notes: ["low contrast", "underexposed"],
+      }),
+    });
+    renderPanel(analyze);
+
+    const quality = await screen.findByTestId(selectors.workspace.analyze.quality);
+    expect(quality).toBeInTheDocument();
+    expect(quality).toHaveTextContent("40%");
+    expect(quality).toHaveTextContent(/blurry/i);
+    expect(quality).toHaveTextContent("underexposed");
+    expect(quality).toHaveTextContent("low contrast");
+  });
+
+  it("renders a sharp quality verdict and tolerates no notes", async () => {
+    const analyze = fakeAnalyze({
+      phase: "done",
+      result: makeQualityResult({ blurry: false, notes: [] }),
+    });
+    renderPanel(analyze);
+    const quality = await screen.findByTestId(selectors.workspace.analyze.quality);
+    expect(quality).toHaveTextContent(/sharp/i);
   });
 
   it("renders the discovery error state when op discovery rejects", async () => {

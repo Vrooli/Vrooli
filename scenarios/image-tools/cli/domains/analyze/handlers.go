@@ -87,6 +87,30 @@ func render(ctx cliapp.RunContext, resp *analysisv1.AnalyzeResponse) error {
 		return cliapp.RenderProtoList(ctx, resp, cliapp.ListReport{
 			Summary: []string{fmt.Sprintf("NSFW: %v (%.3f)", n.Nsfw, n.Score)}, ResultsHeading: "Scores", Results: results,
 		})
+	case *analysisv1.AnalyzeResponse_Duplicate:
+		d := r.Duplicate
+		return cliapp.RenderProtoList(ctx, resp, cliapp.ListReport{
+			Summary:        []string{fmt.Sprintf("Perceptual fingerprint (%d-bit)", d.HashBits)},
+			ResultsHeading: "Hashes",
+			Results: []string{
+				fmt.Sprintf("phash: %s", d.PhashHex),
+				fmt.Sprintf("ahash: %s", d.AhashHex),
+			},
+		})
+	case *analysisv1.AnalyzeResponse_Quality:
+		q := r.Quality
+		results := []string{
+			fmt.Sprintf("overall    : %.2f", q.OverallScore),
+			fmt.Sprintf("sharpness  : %.2f (blurry=%v)", q.Sharpness, q.Blurry),
+			fmt.Sprintf("brightness : %.1f (%s)", q.Brightness, q.Exposure),
+			fmt.Sprintf("contrast   : %.1f", q.Contrast),
+		}
+		for _, n := range q.Notes {
+			results = append(results, "note       : "+n)
+		}
+		return cliapp.RenderProtoList(ctx, resp, cliapp.ListReport{
+			Summary: []string{fmt.Sprintf("Quality: %.2f", q.OverallScore)}, ResultsHeading: "Metrics", Results: results,
+		})
 	default:
 		return fmt.Errorf("empty analysis result")
 	}

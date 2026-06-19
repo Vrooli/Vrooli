@@ -51,6 +51,7 @@ export type AIParamsInput = Partial<{
   modelOverride: string;
   allowByok: boolean;
   autoScanNsfw: boolean;
+  consentAffirmed: boolean;
 }>;
 
 /** Parsed `SubmitAIResponse`: the job to watch plus the resolved plan. */

@@ -20,6 +20,7 @@ import (
 	internalmeasures "image-tools/internal/measures"
 	internalmodels "image-tools/internal/models"
 	"image-tools/internal/modules"
+	"image-tools/internal/safety"
 	"image-tools/internal/server"
 	"image-tools/internal/sidecar"
 
@@ -33,11 +34,14 @@ import (
 
 	aiH "image-tools/handlers/ai"
 	analysisH "image-tools/handlers/analysis"
+	diffH "image-tools/handlers/diff"
 	healthH "image-tools/handlers/health"
 	jobsH "image-tools/handlers/jobs"
 	looksH "image-tools/handlers/looks"
 	modelsH "image-tools/handlers/models"
 	opsH "image-tools/handlers/ops"
+	safetyH "image-tools/handlers/safety"
+	selectionH "image-tools/handlers/selection"
 
 	internalstorage "image-tools/internal/storage"
 )
@@ -306,15 +310,25 @@ func main() {
 		dispatcher.Register(op, run)
 	}
 
+	// Responsible-Use deployment gate (IMG-P1-015): the tier is chosen at deploy
+	// time (IMAGE_TOOLS_DEPLOYMENT_TIER), defaulting to local/unrestricted. The
+	// gate the AI submit edge enforces bundles the resolved policy, the consent
+	// audit log, and the public-tier abuse throttle.
+	deployTier := safety.ResolveTier()
+	safetyGate := safety.NewGate(deployTier, safety.NewConsentLog(db.Primary()))
+
 	srv := server.New(
 		server.Deps{Clock: clock.System{}, Logger: log.Default()},
 		healthH.Module(db, "image-tools-api", "1.0.0"),
-		aiH.Module(aiEngine, registry, blobStore, jobManager, log.Default()),
+		aiH.Module(aiEngine, registry, blobStore, jobManager, safetyGate, log.Default()),
 		analysisH.Module(analysisService, jobManager, log.Default()),
+		diffH.Module(blobStore, jobManager, log.Default()),
 		jobsH.Module(jobManager, log.Default()),
 		looksH.Module(db, blobStore, log.Default()),
 		modelsH.Module(db, registry, probe, installer, jobManager, log.Default()),
 		opsH.Module(blobStore, jobManager, log.Default()),
+		safetyH.Module(deployTier),
+		selectionH.Module(blobStore, jobManager, log.Default()),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

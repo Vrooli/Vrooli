@@ -220,6 +220,81 @@
       }
     },
     {
+      "id": "diff_list_modes",
+      "path": "/vrooli.image_tools.v1.diff.DiffService/ListDiffModes",
+      "method": "POST",
+      "summary": "List image-comparison modes",
+      "description": "Returns the comparison modes the diff engine supports (pixel, perceptual), each with a one-line summary. Pure discovery (executes nothing).",
+      "category": "diff",
+      "response": {
+        "type": "object",
+        "properties": {
+          "modes": "array<DiffModeInfo>"
+        }
+      },
+      "examples": [
+        {
+          "name": "List diff modes",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.diff.DiffService/ListDiffModes -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "diff_compare",
+      "path": "/api/v1/diff/compare",
+      "method": "POST",
+      "summary": "Compare two images (pixel + perceptual diff)",
+      "description": "Compares two uploaded images and returns DiffResult: a headline verdict, pixel metrics (changed-pixel fraction + MAE/RMSE/PSNR), perceptual metrics (pHash distance + structural similarity), and a heat-map overlay blob highlighting the changed regions. Pure-Go, no model — runs on any host. The `base` and `compare` parts carry the images; the `params` part carries DiffParams (protojson).",
+      "category": "diff",
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_request",
+          "description": "Malformed multipart form, missing base/compare image part, or invalid params"
+        },
+        {
+          "status": 413,
+          "code": "invalid_request",
+          "description": "An image exceeds the ingest byte limit"
+        },
+        {
+          "status": 422,
+          "code": "invalid_request",
+          "description": "An undecodable image"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Pixel-diff two images",
+          "curl": "curl -X POST 'http://localhost:${API_PORT}/api/v1/diff/compare' -F base=@a.png -F compare=@b.png"
+        },
+        {
+          "name": "Perceptual same-picture check",
+          "curl": "curl -X POST 'http://localhost:${API_PORT}/api/v1/diff/compare' -F base=@a.png -F compare=@b.jpg -F 'params={\"mode\":\"DIFF_MODE_PERCEPTUAL\"}'"
+        }
+      ],
+      "rest_exception": {
+        "reason": "multipart_upload",
+        "note": "Two image payloads cannot ride proto fields; the request is multipart. The result metadata is proto-typed (DiffResult).",
+        "proto_payloads": {
+          "request": {
+            "transport": "multipart/form-data",
+            "conformance": "transport_only"
+          },
+          "response": {
+            "proto_full_name": "vrooli.image_tools.v1.diff.DiffResult",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.image_tools.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
       "id": "jobs_get",
       "path": "/vrooli.image_tools.v1.jobs.JobsService/GetJob",
       "method": "POST",
@@ -1134,6 +1209,134 @@
           "response": {
             "transport": "none",
             "conformance": "none"
+          },
+          "error": {
+            "proto_full_name": "vrooli.image_tools.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "safety_get_policy",
+      "path": "/vrooli.image_tools.v1.safety.SafetyService/GetPolicy",
+      "method": "POST",
+      "summary": "Get the resolved Responsible-Use deployment policy",
+      "description": "Returns the resolved Responsible-Use policy for the running deployment tier (local = unrestricted; public = consent-gated + NSFW auto-scan + provenance + rate-limit), plus the per-operation consent-weight table. Pure discovery; enforcement happens server-side on the AI submit edge.",
+      "category": "safety",
+      "response": {
+        "type": "object",
+        "properties": {
+          "force_nsfw_scan": "bool",
+          "op_weights": "array<OpWeight>",
+          "rate_limit_per_min": "int32",
+          "require_consent": "bool",
+          "require_provenance": "bool",
+          "summary": "string",
+          "tier": "DeploymentTier"
+        }
+      },
+      "examples": [
+        {
+          "name": "Get the active policy",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.safety.SafetyService/GetPolicy -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "selection_list_region_classes",
+      "path": "/vrooli.image_tools.v1.selection.SelectionService/ListRegionClasses",
+      "method": "POST",
+      "summary": "List region classes + their contextual edit menus",
+      "description": "Returns the region classes the classifier can label (person, sky, foliage, background, object), each with its contextual edit menu.",
+      "category": "selection",
+      "response": {
+        "type": "object",
+        "properties": {
+          "classes": "array<RegionClassInfo>"
+        }
+      },
+      "examples": [
+        {
+          "name": "List region classes",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.selection.SelectionService/ListRegionClasses -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "selection_suggest_edits",
+      "path": "/vrooli.image_tools.v1.selection.SelectionService/SuggestEdits",
+      "method": "POST",
+      "summary": "Suggest contextual edits for a region class",
+      "description": "Returns the contextual edit menu for a region class — each edit compiled to a ready-to-submit AI request shape (operation + prompt + requires_mask). Unknown/empty class returns the generic object menu. The compose-seam; executes nothing.",
+      "category": "selection",
+      "request": {
+        "type": "object",
+        "properties": {
+          "region_class": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "edits": "array<SuggestedEdit>",
+          "region_class": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Suggest edits for a sky",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.selection.SelectionService/SuggestEdits -H 'Content-Type: application/json' -d '{\"region_class\":\"sky\"}'"
+        }
+      ]
+    },
+    {
+      "id": "selection_segment",
+      "path": "/api/v1/selection/segment",
+      "method": "POST",
+      "summary": "Smart-select a region from an uploaded image",
+      "description": "Turns a click point / box / auto-subject prompt into a mask that snaps to the region's silhouette (built-in region-grow, runs on any host), classifies the region, stores the mask as a blob, and returns SegmentResult (mask_ref + class + contextual edit menu). The `file` part carries the image; the `params` part carries SegmentParams (protojson).",
+      "category": "selection",
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_request",
+          "description": "Malformed multipart form, missing image part, or invalid params"
+        },
+        {
+          "status": 413,
+          "code": "invalid_request",
+          "description": "Image exceeds the ingest byte limit"
+        },
+        {
+          "status": 422,
+          "code": "invalid_request",
+          "description": "Undecodable image or an invalid mode/seed (e.g. point mode without a point)"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Point-select the center of an image",
+          "curl": "curl -X POST 'http://localhost:${API_PORT}/api/v1/selection/segment' -F file=@in.png -F 'params={\"mode\":\"SEGMENT_MODE_POINT\",\"points\":[{\"x\":0.5,\"y\":0.5}]}'"
+        },
+        {
+          "name": "Auto-extract the subject",
+          "curl": "curl -X POST 'http://localhost:${API_PORT}/api/v1/selection/segment' -F file=@in.png -F 'params={\"mode\":\"SEGMENT_MODE_AUTO\"}'"
+        }
+      ],
+      "rest_exception": {
+        "reason": "multipart_upload",
+        "note": "Image bytes cannot ride a proto field; the request is multipart. The result metadata is proto-typed (SegmentResult).",
+        "proto_payloads": {
+          "request": {
+            "transport": "multipart/form-data",
+            "conformance": "transport_only"
+          },
+          "response": {
+            "proto_full_name": "vrooli.image_tools.v1.selection.SegmentResult",
+            "transport": "json",
+            "conformance": "protojson"
           },
           "error": {
             "proto_full_name": "vrooli.image_tools.v1.shared.ErrorEnvelope",

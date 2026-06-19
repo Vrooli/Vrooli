@@ -101,6 +101,40 @@ clothing (esp. removal), and pose changes are **high-weight** and carry the most
 exposure. Most of this gate is policy + a few default flips, not new
 architecture, and it must not block personal use or capability development.
 
+### Enforcement (as built — IMG-P1-015)
+
+The gate is **server-side** in `api/internal/safety` and enforced on the AI
+submit edge (`POST /api/v1/ai/{operation}`), so no client (UI, CLI, or a
+composing scenario) can bypass it:
+
+- **Tier resolution.** The deployment chooses its tier at deploy time via the
+  `IMAGE_TOOLS_DEPLOYMENT_TIER` environment variable (`local` — the default — vs
+  `public`/`prod`/`monetized`/`saas`). It is **not** a runtime end-user toggle:
+  a user-flippable gate would defeat the gate. `local` is fully unrestricted.
+- **Consent weights.** `safety.OpWeight` is the canonical table: `naturalize` is
+  **low**; `edit_instruct` / `inpaint` / `object_removal` / `image_to_image` are
+  **high** (they can alter a real person's identity / body / clothing / pose);
+  everything else (`text_to_image`, `upscale`, `background_removal`, `denoise`,
+  analysis, diff) is **none**.
+- **On the public tier, per submit:** an abuse rate limit (60/min) is applied; a
+  **high-weight** op is rejected with **HTTP 403** + an actionable recovery hint
+  unless the request carries `consent_affirmed=true` (the `AIParams.consent_affirmed`
+  field); an affirmed high-weight op is appended to the **consent audit log**
+  (`consent_log` table); and the output NSFW auto-scan is **forced on** regardless
+  of what the caller requested. Low/none-weight ops are never consent-gated.
+- **On the local tier**, `safety.Gate.Evaluate` allows everything, forces nothing,
+  and records nothing — personal use is unrestricted.
+- **Discovery.** `SafetyService.GetPolicy` (Connect) returns the resolved policy +
+  the op-weight table so the UI Settings "Responsible Use" panel and `image-tools
+  safety policy` can show exactly what is enforced.
+- **Hard non-goals** (no recognition / face-swap / deepfake / try-on) hold on
+  **every** tier — they are enforced by *absence* (those ops do not exist in the
+  catalog), not by this policy.
+- **Provenance** is marked as required on the public tier (`require_provenance`);
+  full C2PA content-credential signing of outputs is the documented upgrade
+  (the marker + policy exist today; cryptographic signing is future work, tracked
+  in PROBLEMS.md).
+
 ## Cross-References
 
 - [`DECISIONS.md`](DECISIONS.md) — security-relevant design decisions (webhooks, C2PA, NSFW labels)

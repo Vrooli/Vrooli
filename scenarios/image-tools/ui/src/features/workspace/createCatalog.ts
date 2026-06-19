@@ -1,4 +1,13 @@
-import { ImagePlus, Replace, Stamp, Eraser, Wand, type LucideIcon } from "lucide-react";
+import {
+  Expand,
+  ImagePlus,
+  Images,
+  Replace,
+  Stamp,
+  Eraser,
+  Wand,
+  type LucideIcon,
+} from "lucide-react";
 
 import { strings } from "../../consts/strings";
 
@@ -43,6 +52,16 @@ export const CREATE_CATALOG: Readonly<Record<string, CreateOpPresentation>> = {
     labelKey: strings.workspace.createOp.object_removal.label,
     descKey: strings.workspace.createOp.object_removal.desc,
     Icon: Eraser,
+  },
+  outpaint: {
+    labelKey: strings.workspace.createOp.outpaint.label,
+    descKey: strings.workspace.createOp.outpaint.desc,
+    Icon: Expand,
+  },
+  background_replace: {
+    labelKey: strings.workspace.createOp.background_replace.label,
+    descKey: strings.workspace.createOp.background_replace.desc,
+    Icon: Images,
   },
 };
 

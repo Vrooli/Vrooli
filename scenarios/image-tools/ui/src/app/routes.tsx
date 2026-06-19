@@ -8,9 +8,11 @@ import {
 import { routerFutureFlags } from "./routerFuture";
 import { AppShell } from "../layout/AppShell";
 import { ActivityPage } from "../pages/ActivityPage";
+import { ComparePage } from "../pages/ComparePage";
 import { HomePage } from "../pages/HomePage";
 import { LibraryPage } from "../pages/LibraryPage";
 import { ModelsPage } from "../pages/ModelsPage";
+import { SelectPage } from "../pages/SelectPage";
 import { SettingsPage } from "../pages/SettingsPage";
 import { WorkspacePage } from "../pages/WorkspacePage";
 
@@ -29,6 +31,8 @@ const routes: RouteObject[] = [
       { index: true, element: <HomePage /> },
       { path: "workspace", element: <WorkspacePage /> },
       { path: "library", element: <LibraryPage /> },
+      { path: "select", element: <SelectPage /> },
+      { path: "compare", element: <ComparePage /> },
       { path: "activity", element: <ActivityPage /> },
       { path: "models", element: <ModelsPage /> },
       { path: "settings", element: <SettingsPage /> },

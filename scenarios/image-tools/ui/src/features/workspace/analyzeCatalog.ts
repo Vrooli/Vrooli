@@ -1,4 +1,12 @@
-import { FileSearch, ScanSearch, ScanText, ShieldAlert, type LucideIcon } from "lucide-react";
+import {
+  Copy,
+  FileSearch,
+  Gauge,
+  ScanSearch,
+  ScanText,
+  ShieldAlert,
+  type LucideIcon,
+} from "lucide-react";
 
 import { strings } from "../../consts/strings";
 
@@ -34,6 +42,16 @@ export const ANALYZE_CATALOG: Readonly<Record<string, AnalyzeOpPresentation>> = 
     labelKey: strings.workspace.analyzeOp.nsfw_classify.label,
     descKey: strings.workspace.analyzeOp.nsfw_classify.desc,
     Icon: ShieldAlert,
+  },
+  duplicate_detect: {
+    labelKey: strings.workspace.analyzeOp.duplicate_detect.label,
+    descKey: strings.workspace.analyzeOp.duplicate_detect.desc,
+    Icon: Copy,
+  },
+  quality_assessment: {
+    labelKey: strings.workspace.analyzeOp.quality_assessment.label,
+    descKey: strings.workspace.analyzeOp.quality_assessment.desc,
+    Icon: Gauge,
   },
 };
 

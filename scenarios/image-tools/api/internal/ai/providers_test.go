@@ -100,6 +100,34 @@ func TestArgBuilders(t *testing.T) {
 			want: []string{"-m", "image_tools_sidecar.inpaint", "--mask", "/mask.png", "--prompt", "sky"},
 		},
 		{
+			name: "diffusers outpaint reuses the inpaint sidecar",
+			args: mustArgs(t, buildDiffusers, req("outpaint", []string{"/in.png", "/mask.png"}, map[string]string{"prompt": "extend the beach"})),
+			want: []string{"-m", "image_tools_sidecar.inpaint", "--mask", "/mask.png", "--prompt", "extend the beach"},
+		},
+		{
+			name: "diffusers background_replace reuses the inpaint sidecar",
+			args: mustArgs(t, buildDiffusers, req("background_replace", []string{"/in.png", "/mask.png"}, map[string]string{"prompt": "a studio backdrop"})),
+			want: []string{"-m", "image_tools_sidecar.inpaint", "--mask", "/mask.png", "--prompt", "a studio backdrop"},
+		},
+		{
+			name: "diffusers outpaint needs a mask",
+			err:  argErr(buildDiffusers, req("outpaint", []string{"/in.png"}, map[string]string{"prompt": "x"})),
+		},
+		{
+			name: "onnx colorize sidecar dispatch",
+			args: mustArgs(t, buildOnnxSidecar, req("colorize", []string{"/in.png"}, nil)),
+			want: []string{"-m", "image_tools_sidecar.colorize", "--image", "/in.png", "--out", "/out.png"},
+		},
+		{
+			name: "onnx depth sidecar dispatch",
+			args: mustArgs(t, buildOnnxSidecar, req("depth_map", []string{"/in.png"}, nil)),
+			want: []string{"-m", "image_tools_sidecar.depth", "--image", "/in.png", "--out", "/out.png"},
+		},
+		{
+			name: "onnx rejects unknown op",
+			err:  argErr(buildOnnxSidecar, req("text_to_image", []string{"/in.png"}, nil)),
+		},
+		{
 			name: "diffusers rejects unknown op",
 			err:  argErr(buildDiffusers, req("text_to_image", []string{"/in.png"}, nil)),
 		},

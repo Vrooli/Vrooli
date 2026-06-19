@@ -14,7 +14,9 @@
       "library": "Library",
       "activity": "Activity",
       "models": "Models",
-      "settings": "Settings"
+      "settings": "Settings",
+      "select": "Select",
+      "compare": "Compare"
     }
   },
   "theme": {
@@ -51,6 +53,34 @@
       "description": "Which side mobile actions favor.",
       "left": "Left",
       "right": "Right"
+    },
+    "responsibleUse": {
+      "loading": "Loading the responsible-use policy…",
+      "error": "Couldn't load the responsible-use policy.",
+      "tierLabel": "Deployment tier",
+      "tier": {
+        "unspecified": "Unspecified",
+        "local": "Local",
+        "public": "Public"
+      },
+      "controlsHeading": "Enforced controls",
+      "consent": "Consent required for identity edits",
+      "nsfwScan": "AI output auto-scanned for unsafe content",
+      "provenance": "Outputs marked with provenance",
+      "rateLimit": "Rate limit: {{count}} submits/min",
+      "rateLimitNone": "Rate limit: none",
+      "on": "On",
+      "off": "Off",
+      "weightsHeading": "Operation consent weights",
+      "weightOperation": "Operation",
+      "weightLevel": "Consent weight",
+      "weight": {
+        "unspecified": "Unspecified",
+        "none": "None",
+        "low": "Low",
+        "high": "High"
+      },
+      "empty": "No operation weights are configured."
     }
   },
   "pages": {
@@ -70,7 +100,8 @@
       "title": "Settings",
       "themeHeading": "Appearance",
       "localeHeading": "Language",
-      "displayHeading": "Display & accessibility"
+      "displayHeading": "Display & accessibility",
+      "responsibleUseHeading": "Responsible use"
     },
     "workspace": {
       "title": "Workspace"
@@ -170,7 +201,6 @@
     "title": "Looks & Styles",
     "description": "Reusable transformation recipes — apply a film, camera, or style look in one tap. Film and camera looks render a live preview; style looks run in the workspace.",
     "loading": "Loading the look library…",
-    "error": "Unable to load the look library.",
     "empty": "No looks yet.",
     "preview": "Preview",
     "refresh": "Refresh preview",
@@ -328,6 +358,14 @@
       "nsfw_classify": {
         "label": "Safety check",
         "desc": "Classify the image for not-safe-for-work content."
+      },
+      "duplicate_detect": {
+        "label": "Find duplicates",
+        "desc": "Compute perceptual fingerprints to spot near-duplicate images."
+      },
+      "quality_assessment": {
+        "label": "Assess quality",
+        "desc": "Score sharpness, exposure, and contrast instantly."
       }
     },
     "analyze": {
@@ -367,6 +405,24 @@
         "safe": "Looks safe",
         "score": "Score {{score}}%",
         "threshold": "threshold {{threshold}}%"
+      },
+      "duplicate": {
+        "hint": "Compare these fingerprints to find near-duplicates.",
+        "phash": "Perceptual hash (pHash)",
+        "ahash": "Average hash (aHash)",
+        "bits": "{{count}}-bit hash",
+        "copy": "Copy",
+        "copied": "Copied"
+      },
+      "quality": {
+        "overall": "Overall quality",
+        "sharpness": "Sharpness",
+        "blurry": "Looks blurry",
+        "sharp": "Looks sharp",
+        "brightness": "Brightness",
+        "contrast": "Contrast",
+        "exposure": "Exposure: {{exposure}}",
+        "notesHeading": "Notes"
       }
     },
     "aiOp": {
@@ -385,6 +441,14 @@
       "naturalize": {
         "label": "Naturalize",
         "desc": "Re-add realistic texture to over-smoothed photos."
+      },
+      "colorize": {
+        "label": "Colorize",
+        "desc": "Add natural color to a black-and-white photo."
+      },
+      "depth_map": {
+        "label": "Depth map",
+        "desc": "Estimate a depth map from the image."
       }
     },
     "enhance": {
@@ -446,6 +510,14 @@
       "object_removal": {
         "label": "Remove object",
         "desc": "Erase a masked object and fill the gap."
+      },
+      "outpaint": {
+        "label": "Outpaint",
+        "desc": "Extend the image beyond a masked edge from a prompt."
+      },
+      "background_replace": {
+        "label": "Replace background",
+        "desc": "Swap the masked background for a new prompted scene."
       }
     },
     "create": {
@@ -483,6 +555,10 @@
       "succeeded": "Generated {{count}} — pick one to send to the canvas.",
       "failed": "Couldn't finish the generation.",
       "warningsLabel": "Heads up",
+      "consent": {
+        "label": "I have the right to edit the people in this image.",
+        "required": "Confirm you have the right to edit the people in this image before continuing."
+      },
       "result": {
         "heading": "Variations",
         "slot": "Variation {{index}}",
@@ -672,5 +748,74 @@
     "title": "Something went wrong",
     "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
     "retry": "Try again"
+  },
+  "select": {
+    "title": "Smart Select",
+    "description": "Click a region in your image to select it — the edge snaps to the silhouette — then pick a context-aware edit.",
+    "chooseImage": "Choose an image",
+    "pointerHint": "Click the image to select a region, or use the controls below.",
+    "autoSelect": "Auto-select subject",
+    "selectPoint": "Select point",
+    "pointX": "X (%)",
+    "pointY": "Y (%)",
+    "tolerance": "Detail tolerance",
+    "segmenting": "Selecting…",
+    "region": "Region: {{class}}",
+    "confidence": "{{percent}}% confidence",
+    "editsHeading": "Suggested edits",
+    "noEdits": "No edits available for this region.",
+    "promptPlaceholder": "Describe the change…",
+    "applying": "Applying…",
+    "submitted": "Submitted as job {{jobId}} — track it in Activity.",
+    "gate": "This edit needs a model backend. Install one in Models, or enable BYOK.",
+    "reset": "Start over",
+    "imageAlt": "Your image",
+    "maskAlt": "Selected region mask",
+    "error": "Could not complete the selection.",
+    "class": {
+      "person": "Person",
+      "sky": "Sky",
+      "foliage": "Foliage",
+      "background": "Background",
+      "object": "Object"
+    }
+  },
+  "compare": {
+    "title": "Visual Compare",
+    "description": "Drop in two images — a base and a candidate — to see exactly what changed: a verdict, a heat-map of the differences, and the metrics behind it.",
+    "baseLabel": "Base image",
+    "compareLabel": "Compare image",
+    "chooseBase": "Choose base image",
+    "chooseCompare": "Choose compare image",
+    "dropHint": "Drop an image here, or choose a file.",
+    "baseAlt": "Base image",
+    "compareAlt": "Compare image",
+    "mode": "Comparison mode",
+    "modePixel": "Pixel",
+    "modePerceptual": "Perceptual",
+    "tolerance": "Pixel tolerance",
+    "toleranceReset": "Reset tolerance",
+    "run": "Compare",
+    "reset": "Start over",
+    "comparing": "Comparing…",
+    "error": "Could not complete the comparison.",
+    "verdictHeading": "Verdict",
+    "verdictIdentical": "Identical",
+    "verdictSimilar": "Similar",
+    "verdictDifferent": "Different",
+    "dimensionsMismatch": "Images differ in size — the compare image was resized to the base.",
+    "heatmapHeading": "Difference heat-map",
+    "heatmapAlt": "Heat-map highlighting the changed pixels",
+    "metricsHeading": "Metrics",
+    "metricChanged": "Changed pixels",
+    "metricChangedValue": "{{percent}}% ({{changed}} of {{total}})",
+    "metricMae": "MAE",
+    "metricRmse": "RMSE",
+    "metricPsnr": "PSNR",
+    "metricPsnrValue": "{{value}} dB",
+    "metricPhashDistance": "pHash distance",
+    "metricPhashSimilarity": "pHash similarity",
+    "metricSsim": "SSIM",
+    "warningsHeading": "Warnings"
   }
 }

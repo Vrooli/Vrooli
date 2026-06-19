@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-18T16:53:22-04:00"
+    "last_validated_at": "2026-06-18T19:07:34-04:00"
   },
   "requirements": [
     {
       "id": "IMG-P0-012",
       "title": "Observability Measures",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-012",
       "category": "core",
       "description": "cli/manifest.json measure blocks (test-genie measures phase) capture per-model op latency (p50/p95), throughput, queue wait time, fallback-tier usage, and VRAM headroom.",
@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/internal/measures/measures_test.go",
           "phase": "unit",
-          "status": "implemented",
+          "status": "failing",
           "notes": "Measure values are recorded per op/model and queryable"
         },
         {

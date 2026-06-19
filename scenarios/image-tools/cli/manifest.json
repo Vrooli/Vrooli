@@ -634,6 +634,95 @@
           }
         }
       ]
+    },
+    {
+      "name": "select",
+      "description": "Smart-select a region, classify it, and get its contextual edit menu",
+      "commands": [
+        {
+          "name": "classes",
+          "description": "List region classes + their contextual edit menus",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SelectionService",
+            "method": "ListRegionClasses"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "suggest",
+          "description": "Show the contextual edit menu for a region class",
+          "positionals": [
+            {
+              "name": "class",
+              "required": false,
+              "description": "Region class: person|sky|foliage|background|object (empty = object)"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SelectionService",
+            "method": "SuggestEdits"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "diff",
+      "description": "Compare two images (pixel + perceptual diff)",
+      "commands": [
+        {
+          "name": "modes",
+          "description": "List image-comparison modes",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DiffService",
+            "method": "ListDiffModes"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "safety",
+      "description": "Inspect the Responsible-Use deployment policy",
+      "commands": [
+        {
+          "name": "policy",
+          "description": "Show the resolved Responsible-Use deployment policy + per-op consent weights",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SafetyService",
+            "method": "GetPolicy"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
     }
   ],
   "omitted": [
@@ -651,6 +740,11 @@
       "service": "AnalysisService",
       "method": "Analyze",
       "reason": "Analysis execution rides the REST multipart edge (POST /api/v1/analysis/{operation}); image bytes can't ride a Connect call, so the per-op commands (probe, ocr, nsfw) are hand-appended in cli/domains/analyze/register.go."
+    },
+    {
+      "service": "SelectionService",
+      "method": "Segment",
+      "reason": "Smart-select execution rides the REST multipart edge (POST /api/v1/selection/segment); image bytes can't ride a Connect call, so the segment command is hand-appended in cli/domains/selection/register.go."
     }
   ]
 }

@@ -66,6 +66,16 @@ describe("AppRouter", () => {
     expect(screen.getByTestId(selectors.pages.library)).toBeInTheDocument();
   });
 
+  it("renders the select page at /select", () => {
+    renderWithProviders(<TestAppRouter initialEntries={["/select"]} />, { withoutRouter: true });
+    expect(screen.getByTestId(selectors.pages.select)).toBeInTheDocument();
+  });
+
+  it("renders the compare page at /compare", () => {
+    renderWithProviders(<TestAppRouter initialEntries={["/compare"]} />, { withoutRouter: true });
+    expect(screen.getByTestId(selectors.pages.compare)).toBeInTheDocument();
+  });
+
   it("renders the activity page at /activity", () => {
     renderWithProviders(<TestAppRouter initialEntries={["/activity"]} />, { withoutRouter: true });
     expect(screen.getByTestId(selectors.pages.activity)).toBeInTheDocument();

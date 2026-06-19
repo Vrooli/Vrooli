@@ -1,6 +1,7 @@
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { ModelDefaultsCard } from "../features/models/ModelDefaultsCard";
+import { ResponsibleUsePanel } from "../features/settings/ResponsibleUsePanel";
 import { useSettings } from "../features/settings/SettingsProvider";
 import {
   FONT_SCALES,
@@ -213,6 +214,8 @@ export function SettingsPage() {
       </div>
 
       <ModelDefaultsCard />
+
+      <ResponsibleUsePanel />
     </section>
   );
 }

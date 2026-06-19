@@ -9,6 +9,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
+import { create, type MessageInitShape } from "@bufbuild/protobuf";
+import {
+  ConsentWeight,
+  DeploymentTier,
+  SafetyPolicySchema,
+  type SafetyPolicy,
+} from "@vrooli/proto-types/image-tools/v1/safety/safety_pb";
+
 import { expectNoA11yViolations, renderWithProviders } from "../../test-utils";
 import { selectors } from "../../consts/selectors";
 import { setLocale } from "../../i18n";
@@ -18,6 +26,18 @@ vi.mock("../../api/ai", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/ai")>();
   return { ...actual, ...makeAIMocks() };
 });
+
+const policyMock = vi.hoisted(
+  (): { data: SafetyPolicy | undefined; error: unknown; isLoading: boolean } => ({
+    data: undefined,
+    error: null,
+    isLoading: false,
+  }),
+);
+vi.mock("../safety/useSafetyPolicy", () => ({
+  useSafetyPolicy: () => policyMock,
+  SAFETY_POLICY_QUERY_KEY: ["safety-policy"],
+}));
 
 import { CreatePanel } from "./CreatePanel";
 import type { UseCreate } from "./useCreate";
@@ -31,6 +51,7 @@ const fakeCreate = (overrides: Partial<UseCreate> = {}): UseCreate => ({
   tier: "",
   warnings: [],
   error: null,
+  consentBlocked: false,
   results: [],
   requestedCount: 1,
   preview: vi.fn(),
@@ -60,7 +81,21 @@ beforeEach(async () => {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  policyMock.data = undefined;
 });
+
+const publicPolicy = (
+  overrides: MessageInitShape<typeof SafetyPolicySchema> = {},
+): SafetyPolicy =>
+  create(SafetyPolicySchema, {
+    tier: DeploymentTier.PUBLIC,
+    requireConsent: true,
+    opWeights: [
+      { operation: "text_to_image", weight: ConsentWeight.NONE },
+      { operation: "edit_instruct", weight: ConsentWeight.HIGH },
+    ],
+    ...overrides,
+  });
 
 describe("CreatePanel", () => {
   it("populates the generation-op list from discovery and shows the prompt", async () => {
@@ -324,5 +359,75 @@ describe("CreatePanel", () => {
     vi.mocked(listAIOperations).mockRejectedValueOnce(new Error("ai down"));
     renderPanel(fakeCreate());
     expect(await screen.findByTestId(selectors.workspace.create.error)).toBeInTheDocument();
+  });
+
+  describe("consent gate", () => {
+    it("shows no consent checkbox on the local tier (requireConsent off)", async () => {
+      policyMock.data = publicPolicy({ tier: DeploymentTier.LOCAL, requireConsent: false });
+      const user = userEvent.setup();
+      renderPanel(fakeCreate(), PNG, "blob:img");
+
+      await user.click(
+        await screen.findByTestId(selectors.workspace.createAction({ name: "edit_instruct" })),
+      );
+      expect(screen.queryByTestId(selectors.workspace.create.consent)).not.toBeInTheDocument();
+    });
+
+    it("requires consent for a high-weight op on the public tier and threads it into params", async () => {
+      policyMock.data = publicPolicy();
+      const user = userEvent.setup();
+      const createHook = fakeCreate();
+      renderPanel(createHook, PNG, "blob:img");
+
+      await user.click(
+        await screen.findByTestId(selectors.workspace.createAction({ name: "edit_instruct" })),
+      );
+      // edit_instruct is prompt-driven; supply a prompt so only consent gates run.
+      await user.type(screen.getByTestId(selectors.workspace.create.prompt), "make it sunset");
+
+      const consent = screen.getByTestId(selectors.workspace.create.consent);
+      expect(consent).toBeInTheDocument();
+      expect(screen.getByTestId(selectors.workspace.create.run)).toBeDisabled();
+      expect(screen.getByTestId(selectors.workspace.create.consentRequired)).toBeInTheDocument();
+
+      await user.click(consent);
+      expect(screen.getByTestId(selectors.workspace.create.run)).toBeEnabled();
+      await user.click(screen.getByTestId(selectors.workspace.create.run));
+
+      expect(createHook.start).toHaveBeenCalledWith(
+        "edit_instruct",
+        expect.objectContaining({ consentAffirmed: true }),
+        PNG,
+        undefined,
+      );
+    });
+
+    it("does not gate a none-weight op even on the public tier", async () => {
+      policyMock.data = publicPolicy();
+      const user = userEvent.setup();
+      renderPanel(fakeCreate());
+
+      // text_to_image is the default first generation op (none-weight).
+      await user.type(
+        await screen.findByTestId(selectors.workspace.create.prompt),
+        "a serene lake",
+      );
+      expect(screen.queryByTestId(selectors.workspace.create.consent)).not.toBeInTheDocument();
+      expect(screen.getByTestId(selectors.workspace.create.run)).toBeEnabled();
+    });
+
+    it("surfaces a 403 consent rejection with the actionable hint", async () => {
+      policyMock.data = publicPolicy();
+      const failed = fakeCreate({
+        phase: "failed",
+        error: "forbidden: consent required to edit people",
+        consentBlocked: true,
+      });
+      renderPanel(failed, PNG, "blob:img");
+
+      const fail = await screen.findByTestId(selectors.workspace.create.failed);
+      expect(fail.textContent).toContain("consent required to edit people");
+      expect(screen.getByTestId(selectors.workspace.create.consentBlocked)).toBeInTheDocument();
+    });
   });
 });

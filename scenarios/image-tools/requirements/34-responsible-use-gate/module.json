@@ -1,29 +1,36 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-18T16:53:22-04:00"
+    "last_validated_at": "2026-06-18T20:38:03-04:00"
   },
   "requirements": [
     {
       "id": "IMG-P1-015",
       "title": "Responsible-Use Deployment Gate",
-      "status": "complete",
+      "status": "implemented",
       "prd_ref": "OT-P1-015",
       "category": "feature",
-      "description": "Editing real people is gated at DEPLOYMENT, not at the capability. Public/monetized deployment requires: NSFW/CSAM auto-scan on by default, C2PA provenance on by default (at least for real-person edits), a published Acceptable-Use Policy, a consent affirmation + logging on identity-altering ops, and abuse rate-limiting. Local/personal use is unrestricted; the hard non-goals (no recognition / face-swap / deepfake) remain enforced. Naturalize is low-weight; body/clothing/pose edits are high-weight.",
+      "description": "Editing real people is gated at DEPLOYMENT, not at the capability. Public/monetized deployment requires: NSFW/CSAM auto-scan on by default, C2PA provenance on by default (at least for real-person edits), a published Acceptable-Use Policy, a consent affirmation + logging on identity-altering ops, and abuse rate-limiting. Local/personal use is unrestricted; the hard non-goals (no recognition / face-swap / deepfake) remain enforced. Naturalize is low-weight; body/clothing/pose edits are high-weight. Built in api/internal/safety (tier resolution + policy + op-weight table + consent log + rate limiter) and enforced on the AI submit edge (handlers/ai); discovery via SafetyService.GetPolicy.",
       "validation": [
         {
-          "type": "manual",
-          "ref": "api/internal/safety/gate_test.go",
+          "type": "test",
+          "ref": "api/internal/safety/safety_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned (not yet implemented; automated test pending): Public-tier defaults enforced server-side; consent affirmation recorded on identity-altering ops"
+          "notes": "Policy/tier/op-weight/consent-log/rate-limiter logic: local unrestricted; public blocks high-weight ops without consent, forces NSFW scan, records affirmed consent."
         },
         {
-          "type": "manual",
-          "ref": "api/internal/safety/gate_integration_test.go",
+          "type": "test",
+          "ref": "api/handlers/ai/gate_test.go",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Planned (not yet implemented; automated test pending): Deployment-tier flags gate public exposure; local/personal path unrestricted"
+          "notes": "Submit-edge enforcement: public tier returns 403 for an identity-altering op without consent_affirmed; never blocks none-weight ops or the local tier."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/safety/connect_handler_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "SafetyService.GetPolicy reports the resolved policy + op-weight table for local and public tiers."
         }
       ]
     }

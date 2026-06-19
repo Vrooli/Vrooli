@@ -17,10 +17,12 @@ import (
 )
 
 // TestSubmitCommandsCoverP0 asserts the CLI exposes one submit command per
-// Phase-3 AI op (the headless surface IMG-P0-002/003 require).
+// AI op (the P0 generation/enhancement ops + the Phase-4 breadth ops:
+// outpaint / background-replace / colorize / depth — the headless surface
+// IMG-P0-002/003 + IMG-P1-001/002 require).
 func TestSubmitCommandsCoverP0(t *testing.T) {
 	h := newHandlers(nil) // submitCommands only captures h in closures; not invoked here
-	want := []string{"bg-removal", "denoise", "edit", "generate", "img2img", "inpaint", "naturalize", "object-removal", "upscale"}
+	want := []string{"background-replace", "bg-removal", "colorize", "denoise", "depth", "edit", "generate", "img2img", "inpaint", "naturalize", "object-removal", "outpaint", "upscale"}
 	got := make([]string, 0)
 	for _, c := range h.submitCommands() {
 		if c.RunCtx == nil {

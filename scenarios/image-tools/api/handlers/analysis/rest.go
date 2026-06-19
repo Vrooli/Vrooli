@@ -90,6 +90,18 @@ func (h *Deps) analyze(ctx context.Context, op string, img []byte) (*analysisv1.
 			return nil, err
 		}
 		return &analysisv1.AnalyzeResponse{Result: &analysisv1.AnalyzeResponse_Nsfw{Nsfw: nsfwToProto(res)}}, nil
+	case internalanalysis.OpDuplicate:
+		res, err := internalanalysis.DuplicateDetect(img)
+		if err != nil {
+			return nil, err
+		}
+		return &analysisv1.AnalyzeResponse{Result: &analysisv1.AnalyzeResponse_Duplicate{Duplicate: duplicateToProto(res)}}, nil
+	case internalanalysis.OpQuality:
+		res, err := internalanalysis.QualityAssess(img)
+		if err != nil {
+			return nil, err
+		}
+		return &analysisv1.AnalyzeResponse{Result: &analysisv1.AnalyzeResponse_Quality{Quality: qualityToProto(res)}}, nil
 	default:
 		return nil, fmt.Errorf("unsupported analysis operation %q", op)
 	}

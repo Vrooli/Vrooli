@@ -141,6 +141,59 @@ describe("api/analysis", () => {
     }
   });
 
+  it("analyze('duplicate_detect') normalizes the DuplicateResult", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      makeResponse({
+        json: {
+          job_id: "jd",
+          duplicate: {
+            phash_hex: "f0e1d2c3b4a59687",
+            ahash_hex: "0011223344556677",
+            hash_bits: 64,
+          },
+        },
+      }),
+    );
+
+    const out = await analyze("duplicate_detect", PNG);
+
+    expect(out.kind).toBe("duplicate");
+    if (out.kind === "duplicate") {
+      expect(out.phashHex).toBe("f0e1d2c3b4a59687");
+      expect(out.ahashHex).toBe("0011223344556677");
+      expect(out.hashBits).toBe(64);
+    }
+  });
+
+  it("analyze('quality_assessment') normalizes the QualityResult", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      makeResponse({
+        json: {
+          job_id: "jq",
+          quality: {
+            overall_score: 0.82,
+            sharpness: 0.71,
+            blurry: false,
+            brightness: 0.55,
+            contrast: 0.48,
+            exposure: "balanced",
+            notes: ["well exposed"],
+          },
+        },
+      }),
+    );
+
+    const out = await analyze("quality_assessment", PNG);
+
+    expect(out.kind).toBe("quality");
+    if (out.kind === "quality") {
+      expect(out.overallScore).toBeCloseTo(0.82);
+      expect(out.blurry).toBe(false);
+      expect(out.exposure).toBe("balanced");
+      expect(out.notes).toEqual(["well exposed"]);
+    }
+  });
+
   it("analyze throws an internal ApiError when the response carries no result oneof", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(makeResponse({ json: { job_id: "j-empty" } }));
 

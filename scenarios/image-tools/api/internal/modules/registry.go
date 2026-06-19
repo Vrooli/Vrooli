@@ -24,20 +24,26 @@ import (
 
 	aiH "image-tools/handlers/ai"
 	analysisH "image-tools/handlers/analysis"
+	diffH "image-tools/handlers/diff"
 	healthH "image-tools/handlers/health"
 	jobsH "image-tools/handlers/jobs"
 	looksH "image-tools/handlers/looks"
 	modelsH "image-tools/handlers/models"
 	opsH "image-tools/handlers/ops"
+	safetyH "image-tools/handlers/safety"
+	selectionH "image-tools/handlers/selection"
 	localdb "image-tools/internal/database"
 	internalmeasures "image-tools/internal/measures"
 
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai"
 	analysisv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/analysis"
+	diffv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/diff"
 	jobsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/jobs"
 	looksv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/looks"
 	modelsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/models"
 	opsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ops"
+	safetyv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/safety"
+	selectionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/selection"
 )
 
 // AllEndpoints returns every domain's static endpoint descriptors in a
@@ -49,10 +55,13 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, healthH.Endpoints...)
 	out = append(out, aiH.Endpoints...)
 	out = append(out, analysisH.Endpoints...)
+	out = append(out, diffH.Endpoints...)
 	out = append(out, jobsH.Endpoints...)
 	out = append(out, looksH.Endpoints...)
 	out = append(out, modelsH.Endpoints...)
 	out = append(out, opsH.Endpoints...)
+	out = append(out, safetyH.Endpoints...)
+	out = append(out, selectionH.Endpoints...)
 	return out
 }
 
@@ -81,10 +90,13 @@ func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "ai", File: aiv1.File_image_tools_v1_ai_ai_proto},
 		{Module: "analysis", File: analysisv1.File_image_tools_v1_analysis_analysis_proto},
+		{Module: "diff", File: diffv1.File_image_tools_v1_diff_diff_proto},
 		{Module: "jobs", File: jobsv1.File_image_tools_v1_jobs_jobs_proto},
 		{Module: "looks", File: looksv1.File_image_tools_v1_looks_looks_proto},
 		{Module: "models", File: modelsv1.File_image_tools_v1_models_models_proto},
 		{Module: "ops", File: opsv1.File_image_tools_v1_ops_ops_proto},
+		{Module: "safety", File: safetyv1.File_image_tools_v1_safety_safety_proto},
+		{Module: "selection", File: selectionv1.File_image_tools_v1_selection_selection_proto},
 	}
 }
 
@@ -106,5 +118,6 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(internalmeasures.Schema),
 		apidb.SchemaProviderFunc(modelsH.Schema),
 		apidb.SchemaProviderFunc(opsH.Schema),
+		apidb.SchemaProviderFunc(safetyH.Schema),
 	}
 }

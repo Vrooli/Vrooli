@@ -1,29 +1,36 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-18T16:53:22-04:00"
+    "last_validated_at": "2026-06-18T19:07:34-04:00"
   },
   "requirements": [
     {
       "id": "IMG-P1-002",
       "title": "AI Enhancement Breadth",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P1-002",
       "category": "feature",
-      "description": "Colorize, old-photo restore, face restoration (standalone op), Segment Anything (SAM), and depth/normal map via opt-in installs with CPU-capable defaults where feasible.",
+      "description": "Colorize, old-photo restore, face restoration (standalone op), Segment Anything (SAM), and depth/normal map via opt-in installs with CPU-capable defaults where feasible. SHIPPED: SAM (the selection domain's segment op, built-in region-grow + seeded SAM upgrade), colorize and depth_map (onnxruntime CPU sidecar modules colorize.py/depth.py, seeded ddcolor/depth-anything; wired into the AI catalog + submit edge + CLI). REMAINING (forward-declared, seeded, not yet wired): face_restore, old_photo_restore (torch python-sidecar), normal_map (computed-from-depth).",
       "validation": [
         {
-          "type": "manual",
-          "ref": "api/internal/ai/restoration_test.go",
+          "type": "test",
+          "ref": "api/internal/ai/catalog_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned (not yet implemented; automated test pending): Each enhancement-breadth op runs against its standalone backend"
+          "notes": "colorize + depth_map registered in the AI catalog (enhancement, RequiresImage) and each gets a dispatcher runner."
         },
         {
-          "type": "manual",
-          "ref": "api/internal/ai/sam_test.go",
+          "type": "test",
+          "ref": "api/internal/ai/providers_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "colorize + depth_map dispatch through the onnxruntime CPU sidecar (image_tools_sidecar.colorize / .depth)."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/selection/segment_test.go",
           "phase": "integration",
           "status": "implemented",
-          "notes": "Planned (not yet implemented; automated test pending): SAM masks feed inpaint/object-removal; face-restore standalone op works"
+          "notes": "SAM segmentation (the selection domain) produces masks that feed inpaint/object-removal. face_restore/old_photo_restore/normal_map remain forward-declared (seeded, unwired)."
         }
       ]
     }

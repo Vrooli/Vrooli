@@ -10,6 +10,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 
 import { isCreateActive, useCreate } from "./useCreate";
+import { makeApiError } from "../../api/client";
 import { makeCreateClient, makeSelectedModel } from "./mocks/ai";
 
 const PNG = new File(["bytes"], "in.png", { type: "image/png" });
@@ -152,6 +153,38 @@ describe("useCreate", () => {
     await waitFor(() => expect(result.current.phase).toBe("failed"));
     expect(result.current.error).toBe("queue is full");
     expect(result.current.results).toHaveLength(0);
+    expect(result.current.consentBlocked).toBe(false);
+  });
+
+  it("flags consentBlocked when the submit is rejected with a 403 ApiError", async () => {
+    const client = makeCreateClient({
+      submit: vi.fn(() =>
+        Promise.reject(makeApiError("forbidden", "consent required to edit people", 403)),
+      ),
+    });
+    const { result } = renderHook(() => useCreate({ client }));
+
+    act(() => result.current.start("edit_instruct", { prompt: "edit", variations: 1 }, PNG));
+
+    await waitFor(() => expect(result.current.phase).toBe("failed"));
+    expect(result.current.consentBlocked).toBe(true);
+    expect(result.current.error).toContain("consent required to edit people");
+
+    // A fresh start clears the flag.
+    act(() => result.current.start("text_to_image", { prompt: "a lake", variations: 1 }));
+    await waitFor(() => expect(result.current.consentBlocked).toBe(false));
+  });
+
+  it("does not flag consentBlocked for a non-403 ApiError", async () => {
+    const client = makeCreateClient({
+      submit: vi.fn(() => Promise.reject(makeApiError("conflict", "model not installed", 409))),
+    });
+    const { result } = renderHook(() => useCreate({ client }));
+
+    act(() => result.current.start("edit_instruct", { prompt: "edit", variations: 1 }, PNG));
+
+    await waitFor(() => expect(result.current.phase).toBe("failed"));
+    expect(result.current.consentBlocked).toBe(false);
   });
 
   it("stringifies a non-Error rejection (selectModel) for the failure text", async () => {

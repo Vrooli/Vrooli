@@ -15,6 +15,7 @@ import (
 	"image-tools/internal/httpx"
 	internaljobs "image-tools/internal/jobs"
 	"image-tools/internal/models"
+	"image-tools/internal/safety"
 	"image-tools/internal/storage"
 
 	"github.com/google/uuid"
@@ -36,12 +37,22 @@ type Submitter interface {
 	Submit(ctx context.Context, spec internaljobs.Spec) (internaljobs.Job, error)
 }
 
+// Gate is the Responsible-Use deployment gate the submit edge enforces
+// (satisfied by *internal/safety.Gate). Nil disables the gate (the local
+// behaviour: unrestricted).
+type Gate interface {
+	Evaluate(op string, consentAffirmed bool) safety.Decision
+	AllowRate() bool
+	RecordConsent(ctx context.Context, op string, weight safety.Weight) error
+}
+
 // Deps wires the AI submit edge's seams.
 type Deps struct {
 	Engine *ai.Engine
 	Store  BlobStore
 	Jobs   Submitter
 	Guard  storage.Guard
+	Gate   Gate
 	Logger *log.Logger
 }
 
@@ -71,6 +82,29 @@ func (h *Deps) submitHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Responsible-Use deployment gate (IMG-P1-015). On the public tier this
+	// enforces the abuse throttle, requires a consent affirmation for
+	// identity-altering ops, forces the NSFW output scan, and audits consent.
+	// On the local tier it is a no-op (personal use is unrestricted).
+	forceScan := false
+	if h.Gate != nil {
+		if !h.Gate.AllowRate() {
+			httpx.WriteError(w, http.StatusTooManyRequests, httpx.CodeRateLimited, "rate limit exceeded for this deployment tier; retry shortly")
+			return
+		}
+		decision := h.Gate.Evaluate(op, params.GetConsentAffirmed())
+		if !decision.Allowed {
+			httpx.WriteError(w, http.StatusForbidden, httpx.CodeForbidden, decision.Reason+" — "+decision.RecoveryHint)
+			return
+		}
+		forceScan = decision.ForceNSFWScan
+		if decision.RecordConsent {
+			if err := h.Gate.RecordConsent(r.Context(), op, decision.Weight); err != nil {
+				h.logf("ai.submit consent log: %v", err)
+			}
+		}
+	}
+
 	inputKey, ok := h.storeOptionalInput(w, r, "file", meta.RequiresImage, "input")
 	if !ok {
 		return
@@ -97,7 +131,7 @@ func (h *Deps) submitHandler(w http.ResponseWriter, r *http.Request) {
 		ModelID:      plan.ModelID,
 		GPU:          plan.GPUViable,
 		AllowBYOK:    params.GetAllowByok(),
-		AutoScanNSFW: params.GetAutoScanNsfw(),
+		AutoScanNSFW: params.GetAutoScanNsfw() || forceScan,
 		Variations:   int(params.GetVariations()),
 		Params:       paramsMap(params),
 	}

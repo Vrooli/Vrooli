@@ -94,8 +94,35 @@ export interface AnalyzeProbe {
   dominantColors: AnalyzeColor[];
 }
 
+/** Structured pure-Go `duplicate_detect` output: perceptual fingerprints. */
+export interface AnalyzeDuplicate {
+  kind: "duplicate";
+  jobId: string;
+  phashHex: string;
+  ahashHex: string;
+  hashBits: number;
+}
+
+/** Structured pure-Go `quality_assessment` output: no-reference quality scores. */
+export interface AnalyzeQuality {
+  kind: "quality";
+  jobId: string;
+  overallScore: number;
+  sharpness: number;
+  blurry: boolean;
+  brightness: number;
+  contrast: number;
+  exposure: string;
+  notes: string[];
+}
+
 /** The normalized result of one analysis op, discriminated by `kind`. */
-export type AnalyzeResult = AnalyzeOcr | AnalyzeNsfw | AnalyzeProbe;
+export type AnalyzeResult =
+  | AnalyzeOcr
+  | AnalyzeNsfw
+  | AnalyzeProbe
+  | AnalyzeDuplicate
+  | AnalyzeQuality;
 
 const boxOf = (box: { x: number; y: number; width: number; height: number } | undefined): AnalyzeBox | null =>
   box ? { x: box.x, y: box.y, width: box.width, height: box.height } : null;
@@ -164,6 +191,30 @@ export async function analyze(operation: string, file: File): Promise<AnalyzeRes
         hasGps: probe.hasGps,
         orientation: probe.orientation,
         dominantColors: probe.dominantColors.map((d) => ({ hex: d.hex, fraction: d.fraction })),
+      };
+    }
+    case "duplicate": {
+      const dup = parsed.result.value;
+      return {
+        kind: "duplicate",
+        jobId,
+        phashHex: dup.phashHex,
+        ahashHex: dup.ahashHex,
+        hashBits: dup.hashBits,
+      };
+    }
+    case "quality": {
+      const q = parsed.result.value;
+      return {
+        kind: "quality",
+        jobId,
+        overallScore: q.overallScore,
+        sharpness: q.sharpness,
+        blurry: q.blurry,
+        brightness: q.brightness,
+        contrast: q.contrast,
+        exposure: q.exposure,
+        notes: q.notes,
       };
     }
     default:

@@ -11,6 +11,8 @@ import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { listAIOperations, type AIOperationInfo, type AIParamsInput } from "../../api/ai";
+import { needsConsent } from "../../api/safety";
+import { useSafetyPolicy } from "../safety/useSafetyPolicy";
 import { TIER_LABEL } from "./aiCatalog";
 import {
   CREATE_FALLBACK_ICON,
@@ -61,8 +63,10 @@ export function CreatePanel({
 }: CreatePanelProps) {
   const { t } = useTranslation();
   const aiOpsQuery = useQuery({ queryKey: AI_OPS_QUERY_KEY, queryFn: listAIOperations });
+  const policyQuery = useSafetyPolicy();
 
   const [operation, setOperation] = useState(initialAction ?? "");
+  const [consentAffirmed, setConsentAffirmed] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [negative, setNegative] = useState("");
   const [sizeKey, setSizeKey] = useState<string>(DEFAULT_SIZE_PRESET.key);
@@ -99,14 +103,18 @@ export function CreatePanel({
     }
   }, [operation, preview]);
 
-  // A new op means a new input contract; drop a stale mask.
+  // A new op means a new input contract; drop a stale mask and re-affirm consent.
   useEffect(() => {
     setMask(null);
+    setConsentAffirmed(false);
   }, [operation]);
 
   const requiresImage = opInfo?.requiresImage ?? false;
   const requiresMask = opInfo?.requiresMask ?? false;
   const promptDriven = opInfo?.promptDriven ?? false;
+  // Public-tier identity-altering ops need an affirmed-consent checkbox; on the
+  // local tier `requireConsent` is false so this is always false (no checkbox).
+  const requiresConsent = needsConsent(policyQuery.data, operation);
   const showSize = operation === "text_to_image";
   const showVariations = !requiresMask;
 
@@ -143,6 +151,9 @@ export function CreatePanel({
     if (allowByok) {
       out.allowByok = true;
     }
+    if (consentAffirmed) {
+      out.consentAffirmed = true;
+    }
     return out;
   }, [
     sizeKey,
@@ -156,12 +167,15 @@ export function CreatePanel({
     seed,
     modelOverride,
     allowByok,
+    consentAffirmed,
   ]);
 
   const missingImage = requiresImage && !input;
   const missingMask = requiresMask && !mask;
   const missingPrompt = promptDriven && !prompt.trim();
-  const canRun = !busy && !!operation && !missingImage && !missingMask && !missingPrompt;
+  const missingConsent = requiresConsent && !consentAffirmed;
+  const canRun =
+    !busy && !!operation && !missingImage && !missingMask && !missingPrompt && !missingConsent;
 
   const randomizeSeed = () => {
     setSeed(String(Math.floor(Math.random() * 1_000_000_000)));
@@ -390,6 +404,25 @@ export function CreatePanel({
             </div>
           </details>
 
+          {requiresConsent && (
+            <div className="flex flex-col gap-1 rounded-control border border-app-warning/50 bg-app-surface-muted p-3">
+              <Toggle
+                label={t(strings.workspace.create.consent.label)}
+                checked={consentAffirmed}
+                onChange={setConsentAffirmed}
+                data-testid={selectors.workspace.create.consent}
+              />
+              {missingConsent && (
+                <p
+                  data-testid={selectors.workspace.create.consentRequired}
+                  className="text-xs text-app-warning"
+                >
+                  {t(strings.workspace.create.consent.required)}
+                </p>
+              )}
+            </div>
+          )}
+
           {model && model.id !== "" && (
             <p
               data-testid={selectors.workspace.create.modelBadge}
@@ -504,6 +537,14 @@ export function CreatePanel({
               <p data-testid={selectors.workspace.create.failed} className="text-sm text-app-danger">
                 {create.error ?? t(strings.workspace.create.failed)}
               </p>
+              {create.consentBlocked && (
+                <p
+                  data-testid={selectors.workspace.create.consentBlocked}
+                  className="text-xs text-app-warning"
+                >
+                  {t(strings.workspace.create.consent.required)}
+                </p>
+              )}
               <Button
                 variant="outline"
                 type="button"

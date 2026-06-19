@@ -50,3 +50,23 @@ func nsfwToProto(r internalanalysis.NSFWResult) *analysisv1.NSFWResult {
 	}
 	return out
 }
+
+func duplicateToProto(r internalanalysis.DuplicateResult) *analysisv1.DuplicateResult {
+	return &analysisv1.DuplicateResult{
+		PhashHex: r.PhashHex,
+		AhashHex: r.AhashHex,
+		HashBits: int32(r.HashBits),
+	}
+}
+
+func qualityToProto(r internalanalysis.QualityResult) *analysisv1.QualityResult {
+	return &analysisv1.QualityResult{
+		OverallScore: r.OverallScore,
+		Sharpness:    r.Sharpness,
+		Blurry:       r.Blurry,
+		Brightness:   r.Brightness,
+		Contrast:     r.Contrast,
+		Exposure:     r.Exposure,
+		Notes:        r.Notes,
+	}
+}

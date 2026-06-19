@@ -34,6 +34,7 @@ func commonFlags() []cliapp.Flag {
 		{Name: "wait", Bool: true, Description: "Block once until the job finishes and download the result"},
 		{Name: "model", Description: "Force a specific model id (override hardware-fit)"},
 		{Name: "byok", Bool: true, Description: "Allow a paid BYOK cloud provider when no local backend is available"},
+		{Name: "consent", Bool: true, Description: "Affirm you have the right to edit the people in this image (required for identity-altering ops on a public deployment)"},
 	}
 }
 
@@ -74,11 +75,17 @@ func (h *handlers) submitCommands() []cliapp.Command {
 			append(genFlags(), cliapp.Flag{Name: "strength", Description: "image-guidance: how faithful to the source (higher = preserve more)"})...),
 		cmd("inpaint", "inpaint", "Regenerate a masked region from a prompt", true, true,
 			append(genFlags(), maskFlag)...),
+		cmd("outpaint", "outpaint", "Expand an image beyond its borders, generating the new region from a prompt", true, true,
+			append(genFlags(), maskFlag)...),
 		cmd("object-removal", "object_removal", "Remove a masked object and fill the gap", true, true, maskFlag),
+		cmd("background-replace", "background_replace", "Replace the background behind a masked subject from a prompt", true, true,
+			append(genFlags(), maskFlag)...),
 		cmd("upscale", "upscale", "Super-resolve / enlarge an image", true, false,
 			cliapp.Flag{Name: "scale", Description: "Upscale factor (2 or 4)"}),
 		cmd("bg-removal", "background_removal", "Remove the background to transparency", true, false),
 		cmd("denoise", "denoise", "Reduce noise / deblur an image", true, false),
+		cmd("colorize", "colorize", "Add realistic colour to a grayscale / black-and-white image", true, false),
+		cmd("depth", "depth_map", "Estimate a per-pixel depth map from a single image", true, false),
 		cmd("naturalize", "naturalize", "Reintroduce realistic texture/grain to an over-smoothed (restored/upscaled) image", true, false,
 			cliapp.Flag{Name: "realism", Description: "Fidelity↔realism knob 0..1 (default 0.5)"},
 			cliapp.Flag{Name: "face-aware", Bool: true, Description: "Bias texture/grain toward midtone (skin) regions"}),

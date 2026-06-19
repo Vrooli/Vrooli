@@ -16,7 +16,14 @@ import {
   type ListAnalysisOperationsResponse,
 } from "@vrooli/proto-types/image-tools/v1/analysis/analysis_pb";
 
-import type { AnalyzeNsfw, AnalyzeOcr, AnalyzeProbe, AnalyzeResult } from "../../../api/analysis";
+import type {
+  AnalyzeDuplicate,
+  AnalyzeNsfw,
+  AnalyzeOcr,
+  AnalyzeProbe,
+  AnalyzeQuality,
+  AnalyzeResult,
+} from "../../../api/analysis";
 import type { AnalyzeClient } from "../useAnalyze";
 import { makeSelectedModel } from "./ai";
 
@@ -48,6 +55,16 @@ export const makeListAnalysisOperationsResponse = (
         summary: "Safety check",
         modelBacked: true,
         defaultModelId: "nsfw-classifier",
+      }),
+      makeAnalysisOperationInfo({
+        name: "duplicate_detect",
+        summary: "Find duplicates",
+        modelBacked: false,
+      }),
+      makeAnalysisOperationInfo({
+        name: "quality_assessment",
+        summary: "Assess quality",
+        modelBacked: false,
       }),
     ],
     ...overrides,
@@ -99,6 +116,30 @@ export const makeNsfwResult = (overrides: Partial<AnalyzeNsfw> = {}): AnalyzeNsf
     { label: "sfw", score: 0.97 },
     { label: "nsfw", score: 0.03 },
   ],
+  ...overrides,
+});
+
+export const makeDuplicateResult = (
+  overrides: Partial<AnalyzeDuplicate> = {},
+): AnalyzeDuplicate => ({
+  kind: "duplicate",
+  jobId: "job-dup",
+  phashHex: "f0e1d2c3b4a59687",
+  ahashHex: "0011223344556677",
+  hashBits: 64,
+  ...overrides,
+});
+
+export const makeQualityResult = (overrides: Partial<AnalyzeQuality> = {}): AnalyzeQuality => ({
+  kind: "quality",
+  jobId: "job-quality",
+  overallScore: 0.82,
+  sharpness: 0.71,
+  blurry: false,
+  brightness: 0.55,
+  contrast: 0.48,
+  exposure: "balanced",
+  notes: ["well exposed"],
   ...overrides,
 });
 

@@ -23,9 +23,11 @@ import (
 
 // Operation names (match the registry operation vocabulary where model-backed).
 const (
-	OpOCR   = "ocr"
-	OpNSFW  = "nsfw_classify"
-	OpProbe = "probe"
+	OpOCR       = "ocr"
+	OpNSFW      = "nsfw_classify"
+	OpProbe     = "probe"
+	OpDuplicate = "duplicate_detect"
+	OpQuality   = "quality_assessment"
 )
 
 // ErrBackendUnavailable is returned when a model-backed op's program/model is
@@ -48,6 +50,8 @@ var catalog = []OpInfo{
 	{Name: OpOCR, Summary: "Extract text from an image (OCR)", ModelBacked: true, DefaultModelID: "tesseract"},
 	{Name: OpNSFW, Summary: "Classify an image for NSFW / unsafe content", ModelBacked: true, DefaultModelID: "adamcodd-vit-nsfw"},
 	{Name: OpProbe, Summary: "Report structured image info (dimensions, format, metadata, palette)", ModelBacked: false},
+	{Name: OpDuplicate, Summary: "Compute perceptual fingerprints (pHash/aHash) to find near-duplicate images", ModelBacked: false},
+	{Name: OpQuality, Summary: "Assess no-reference image quality (sharpness, exposure, contrast)", ModelBacked: false},
 }
 
 // List returns the analysis catalog in stable (sorted) order.
@@ -123,6 +127,25 @@ type ProbeResult struct {
 	HasGPS         bool
 	Orientation    int
 	DominantColors []DominantColor
+}
+
+// DuplicateResult is the structured output of the pure-Go duplicate_detect op:
+// perceptual fingerprints for near-duplicate detection across a set.
+type DuplicateResult struct {
+	PhashHex string
+	AhashHex string
+	HashBits int
+}
+
+// QualityResult is the structured output of the pure-Go quality_assessment op.
+type QualityResult struct {
+	OverallScore float64
+	Sharpness    float64
+	Blurry       bool
+	Brightness   float64
+	Contrast     float64
+	Exposure     string
+	Notes        []string
 }
 
 // cmdOutput runs a program and returns its stdout. Injected so OCR/NSFW are
