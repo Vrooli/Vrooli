@@ -118,14 +118,46 @@ class ProbeResult(_message.Message):
     dominant_colors: _containers.RepeatedCompositeFieldContainer[DominantColor]
     def __init__(self, width: _Optional[int] = ..., height: _Optional[int] = ..., format: _Optional[str] = ..., color_model: _Optional[str] = ..., has_alpha: _Optional[bool] = ..., frame_count: _Optional[int] = ..., megapixels: _Optional[float] = ..., size_bytes: _Optional[int] = ..., has_exif: _Optional[bool] = ..., has_gps: _Optional[bool] = ..., orientation: _Optional[int] = ..., dominant_colors: _Optional[_Iterable[_Union[DominantColor, _Mapping]]] = ...) -> None: ...
 
+class DuplicateResult(_message.Message):
+    __slots__ = ("phash_hex", "ahash_hex", "hash_bits")
+    PHASH_HEX_FIELD_NUMBER: _ClassVar[int]
+    AHASH_HEX_FIELD_NUMBER: _ClassVar[int]
+    HASH_BITS_FIELD_NUMBER: _ClassVar[int]
+    phash_hex: str
+    ahash_hex: str
+    hash_bits: int
+    def __init__(self, phash_hex: _Optional[str] = ..., ahash_hex: _Optional[str] = ..., hash_bits: _Optional[int] = ...) -> None: ...
+
+class QualityResult(_message.Message):
+    __slots__ = ("overall_score", "sharpness", "blurry", "brightness", "contrast", "exposure", "notes")
+    OVERALL_SCORE_FIELD_NUMBER: _ClassVar[int]
+    SHARPNESS_FIELD_NUMBER: _ClassVar[int]
+    BLURRY_FIELD_NUMBER: _ClassVar[int]
+    BRIGHTNESS_FIELD_NUMBER: _ClassVar[int]
+    CONTRAST_FIELD_NUMBER: _ClassVar[int]
+    EXPOSURE_FIELD_NUMBER: _ClassVar[int]
+    NOTES_FIELD_NUMBER: _ClassVar[int]
+    overall_score: float
+    sharpness: float
+    blurry: bool
+    brightness: float
+    contrast: float
+    exposure: str
+    notes: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, overall_score: _Optional[float] = ..., sharpness: _Optional[float] = ..., blurry: _Optional[bool] = ..., brightness: _Optional[float] = ..., contrast: _Optional[float] = ..., exposure: _Optional[str] = ..., notes: _Optional[_Iterable[str]] = ...) -> None: ...
+
 class AnalyzeResponse(_message.Message):
-    __slots__ = ("job_id", "ocr", "nsfw", "probe")
+    __slots__ = ("job_id", "ocr", "nsfw", "probe", "duplicate", "quality")
     JOB_ID_FIELD_NUMBER: _ClassVar[int]
     OCR_FIELD_NUMBER: _ClassVar[int]
     NSFW_FIELD_NUMBER: _ClassVar[int]
     PROBE_FIELD_NUMBER: _ClassVar[int]
+    DUPLICATE_FIELD_NUMBER: _ClassVar[int]
+    QUALITY_FIELD_NUMBER: _ClassVar[int]
     job_id: str
     ocr: OCRResult
     nsfw: NSFWResult
     probe: ProbeResult
-    def __init__(self, job_id: _Optional[str] = ..., ocr: _Optional[_Union[OCRResult, _Mapping]] = ..., nsfw: _Optional[_Union[NSFWResult, _Mapping]] = ..., probe: _Optional[_Union[ProbeResult, _Mapping]] = ...) -> None: ...
+    duplicate: DuplicateResult
+    quality: QualityResult
+    def __init__(self, job_id: _Optional[str] = ..., ocr: _Optional[_Union[OCRResult, _Mapping]] = ..., nsfw: _Optional[_Union[NSFWResult, _Mapping]] = ..., probe: _Optional[_Union[ProbeResult, _Mapping]] = ..., duplicate: _Optional[_Union[DuplicateResult, _Mapping]] = ..., quality: _Optional[_Union[QualityResult, _Mapping]] = ...) -> None: ...

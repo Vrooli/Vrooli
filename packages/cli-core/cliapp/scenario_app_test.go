@@ -223,6 +223,43 @@ func TestScenarioAppHTTPTimeoutFromEnv(t *testing.T) {
 	}
 }
 
+func TestScenarioAppDefaultHTTPTimeoutAllowsLongValidation(t *testing.T) {
+	configDir := t.TempDir()
+	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", configDir)
+
+	app, err := NewScenarioApp(ScenarioOptions{
+		Name:             "demo",
+		ConfigDirEnvVars: []string{"CLI_CONFIG_DIR_OVERRIDE"},
+		AllowAnonymous:   true,
+	})
+	if err != nil {
+		t.Fatalf("NewScenarioApp: %v", err)
+	}
+
+	if app.HTTPClient == nil || app.HTTPClient.Timeout() != 120*time.Second {
+		t.Fatalf("expected long default http timeout, got %v", app.HTTPClient.Timeout())
+	}
+}
+
+func TestScenarioAppDefaultHTTPTimeoutCanBeOverridden(t *testing.T) {
+	configDir := t.TempDir()
+	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", configDir)
+
+	app, err := NewScenarioApp(ScenarioOptions{
+		Name:               "demo",
+		ConfigDirEnvVars:   []string{"CLI_CONFIG_DIR_OVERRIDE"},
+		DefaultHTTPTimeout: 10 * time.Second,
+		AllowAnonymous:     true,
+	})
+	if err != nil {
+		t.Fatalf("NewScenarioApp: %v", err)
+	}
+
+	if app.HTTPClient == nil || app.HTTPClient.Timeout() != 10*time.Second {
+		t.Fatalf("expected custom default http timeout, got %v", app.HTTPClient.Timeout())
+	}
+}
+
 func TestNewStandardScenarioAppUsesStandardWiring(t *testing.T) {
 	configDir := t.TempDir()
 	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", configDir)

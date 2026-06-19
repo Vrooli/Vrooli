@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file image-tools/v1/analysis/analysis.proto.
  */
 export const file_image_tools_v1_analysis_analysis: GenFile = /*@__PURE__*/
-  fileDesc("CiZpbWFnZS10b29scy92MS9hbmFseXNpcy9hbmFseXNpcy5wcm90bxIednJvb2xpLmltYWdlX3Rvb2xzLnYxLmFuYWx5c2lzImYKFUFuYWx5c2lzT3BlcmF0aW9uSW5mbxIMCgRuYW1lGAEgASgJEg8KB3N1bW1hcnkYAiABKAkSFAoMbW9kZWxfYmFja2VkGAMgASgIEhgKEGRlZmF1bHRfbW9kZWxfaWQYBCABKAkiHwodTGlzdEFuYWx5c2lzT3BlcmF0aW9uc1JlcXVlc3QiawoeTGlzdEFuYWx5c2lzT3BlcmF0aW9uc1Jlc3BvbnNlEkkKCm9wZXJhdGlvbnMYASADKAsyNS52cm9vbGkuaW1hZ2VfdG9vbHMudjEuYW5hbHlzaXMuQW5hbHlzaXNPcGVyYXRpb25JbmZvIkIKC0JvdW5kaW5nQm94EgkKAXgYASABKAUSCQoBeRgCIAEoBRINCgV3aWR0aBgDIAEoBRIOCgZoZWlnaHQYBCABKAUiZgoIT0NSQmxvY2sSDAoEdGV4dBgBIAEoCRISCgpjb25maWRlbmNlGAIgASgBEjgKA2JveBgDIAEoCzIrLnZyb29saS5pbWFnZV90b29scy52MS5hbmFseXNpcy5Cb3VuZGluZ0JveCJqCglPQ1JSZXN1bHQSEQoJZnVsbF90ZXh0GAEgASgJEjgKBmJsb2NrcxgCIAMoCzIoLnZyb29saS5pbWFnZV90b29scy52MS5hbmFseXNpcy5PQ1JCbG9jaxIQCghsYW5ndWFnZRgDIAEoCSIsCgxOU0ZXQ2F0ZWdvcnkSDQoFbGFiZWwYASABKAkSDQoFc2NvcmUYAiABKAEijQEKCk5TRldSZXN1bHQSDAoEbnNmdxgBIAEoCBINCgVzY29yZRgCIAEoARINCgVsYWJlbBgDIAEoCRIRCgl0aHJlc2hvbGQYBCABKAESQAoKY2F0ZWdvcmllcxgFIAMoCzIsLnZyb29saS5pbWFnZV90b29scy52MS5hbmFseXNpcy5OU0ZXQ2F0ZWdvcnkiLgoNRG9taW5hbnRDb2xvchILCgNoZXgYASABKAkSEAoIZnJhY3Rpb24YAiABKAEioQIKC1Byb2JlUmVzdWx0Eg0KBXdpZHRoGAEgASgFEg4KBmhlaWdodBgCIAEoBRIOCgZmb3JtYXQYAyABKAkSEwoLY29sb3JfbW9kZWwYBCABKAkSEQoJaGFzX2FscGhhGAUgASgIEhMKC2ZyYW1lX2NvdW50GAYgASgFEhIKCm1lZ2FwaXhlbHMYByABKAESEgoKc2l6ZV9ieXRlcxgIIAEoAxIQCghoYXNfZXhpZhgJIAEoCBIPCgdoYXNfZ3BzGAogASgIEhMKC29yaWVudGF0aW9uGAsgASgFEkYKD2RvbWluYW50X2NvbG9ycxgMIAMoCzItLnZyb29saS5pbWFnZV90b29scy52MS5hbmFseXNpcy5Eb21pbmFudENvbG9yIt8BCg9BbmFseXplUmVzcG9uc2USDgoGam9iX2lkGAEgASgJEjgKA29jchgCIAEoCzIpLnZyb29saS5pbWFnZV90b29scy52MS5hbmFseXNpcy5PQ1JSZXN1bHRIABI6CgRuc2Z3GAMgASgLMioudnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFuYWx5c2lzLk5TRldSZXN1bHRIABI8CgVwcm9iZRgEIAEoCzIrLnZyb29saS5pbWFnZV90b29scy52MS5hbmFseXNpcy5Qcm9iZVJlc3VsdEgAQggKBnJlc3VsdDKrAQoPQW5hbHlzaXNTZXJ2aWNlEpcBChZMaXN0QW5hbHlzaXNPcGVyYXRpb25zEj0udnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFuYWx5c2lzLkxpc3RBbmFseXNpc09wZXJhdGlvbnNSZXF1ZXN0Gj4udnJvb2xpLmltYWdlX3Rvb2xzLnYxLmFuYWx5c2lzLkxpc3RBbmFseXNpc09wZXJhdGlvbnNSZXNwb25zZUJUWlJnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2ltYWdlLXRvb2xzL3YxL2FuYWx5c2lzO2FuYWx5c2lzX3YxYgZwcm90bzM");
+  fileDesc("CiZpbWFnZS10b29scy92MS9hbmFseXNpcy9hbmFseXNpcy5wcm90bxIednJvb2xpLmltYWdlX3Rvb2xzLnYxLmFuYWx5c2lzImYKFUFuYWx5c2lzT3BlcmF0aW9uSW5mbxIMCgRuYW1lGAEgASgJEg8KB3N1bW1hcnkYAiABKAkSFAoMbW9kZWxfYmFja2VkGAMgASgIEhgKEGRlZmF1bHRfbW9kZWxfaWQYBCABKAkiHwodTGlzdEFuYWx5c2lzT3BlcmF0aW9uc1JlcXVlc3QiawoeTGlzdEFuYWx5c2lzT3BlcmF0aW9uc1Jlc3BvbnNlEkkKCm9wZXJhdGlvbnMYASADKAsyNS52cm9vbGkuaW1hZ2VfdG9vbHMudjEuYW5hbHlzaXMuQW5hbHlzaXNPcGVyYXRpb25JbmZvIkIKC0JvdW5kaW5nQm94EgkKAXgYASABKAUSCQoBeRgCIAEoBRINCgV3aWR0aBgDIAEoBRIOCgZoZWlnaHQYBCABKAUiZgoIT0NSQmxvY2sSDAoEdGV4dBgBIAEoCRISCgpjb25maWRlbmNlGAIgASgBEjgKA2JveBgDIAEoCzIrLnZyb29saS5pbWFnZV90b29scy52MS5hbmFseXNpcy5Cb3VuZGluZ0JveCJqCglPQ1JSZXN1bHQSEQoJZnVsbF90ZXh0GAEgASgJEjgKBmJsb2NrcxgCIAMoCzIoLnZyb29saS5pbWFnZV90b29scy52MS5hbmFseXNpcy5PQ1JCbG9jaxIQCghsYW5ndWFnZRgDIAEoCSIsCgxOU0ZXQ2F0ZWdvcnkSDQoFbGFiZWwYASABKAkSDQoFc2NvcmUYAiABKAEijQEKCk5TRldSZXN1bHQSDAoEbnNmdxgBIAEoCBINCgVzY29yZRgCIAEoARINCgVsYWJlbBgDIAEoCRIRCgl0aHJlc2hvbGQYBCABKAESQAoKY2F0ZWdvcmllcxgFIAMoCzIsLnZyb29saS5pbWFnZV90b29scy52MS5hbmFseXNpcy5OU0ZXQ2F0ZWdvcnkiLgoNRG9taW5hbnRDb2xvchILCgNoZXgYASABKAkSEAoIZnJhY3Rpb24YAiABKAEioQIKC1Byb2JlUmVzdWx0Eg0KBXdpZHRoGAEgASgFEg4KBmhlaWdodBgCIAEoBRIOCgZmb3JtYXQYAyABKAkSEwoLY29sb3JfbW9kZWwYBCABKAkSEQoJaGFzX2FscGhhGAUgASgIEhMKC2ZyYW1lX2NvdW50GAYgASgFEhIKCm1lZ2FwaXhlbHMYByABKAESEgoKc2l6ZV9ieXRlcxgIIAEoAxIQCghoYXNfZXhpZhgJIAEoCBIPCgdoYXNfZ3BzGAogASgIEhMKC29yaWVudGF0aW9uGAsgASgFEkYKD2RvbWluYW50X2NvbG9ycxgMIAMoCzItLnZyb29saS5pbWFnZV90b29scy52MS5hbmFseXNpcy5Eb21pbmFudENvbG9yIkoKD0R1cGxpY2F0ZVJlc3VsdBIRCglwaGFzaF9oZXgYASABKAkSEQoJYWhhc2hfaGV4GAIgASgJEhEKCWhhc2hfYml0cxgDIAEoBSKQAQoNUXVhbGl0eVJlc3VsdBIVCg1vdmVyYWxsX3Njb3JlGAEgASgBEhEKCXNoYXJwbmVzcxgCIAEoARIOCgZibHVycnkYAyABKAgSEgoKYnJpZ2h0bmVzcxgEIAEoARIQCghjb250cmFzdBgFIAEoARIQCghleHBvc3VyZRgGIAEoCRINCgVub3RlcxgHIAMoCSLnAgoPQW5hbHl6ZVJlc3BvbnNlEg4KBmpvYl9pZBgBIAEoCRI4CgNvY3IYAiABKAsyKS52cm9vbGkuaW1hZ2VfdG9vbHMudjEuYW5hbHlzaXMuT0NSUmVzdWx0SAASOgoEbnNmdxgDIAEoCzIqLnZyb29saS5pbWFnZV90b29scy52MS5hbmFseXNpcy5OU0ZXUmVzdWx0SAASPAoFcHJvYmUYBCABKAsyKy52cm9vbGkuaW1hZ2VfdG9vbHMudjEuYW5hbHlzaXMuUHJvYmVSZXN1bHRIABJECglkdXBsaWNhdGUYBSABKAsyLy52cm9vbGkuaW1hZ2VfdG9vbHMudjEuYW5hbHlzaXMuRHVwbGljYXRlUmVzdWx0SAASQAoHcXVhbGl0eRgGIAEoCzItLnZyb29saS5pbWFnZV90b29scy52MS5hbmFseXNpcy5RdWFsaXR5UmVzdWx0SABCCAoGcmVzdWx0MqsBCg9BbmFseXNpc1NlcnZpY2USlwEKFkxpc3RBbmFseXNpc09wZXJhdGlvbnMSPS52cm9vbGkuaW1hZ2VfdG9vbHMudjEuYW5hbHlzaXMuTGlzdEFuYWx5c2lzT3BlcmF0aW9uc1JlcXVlc3QaPi52cm9vbGkuaW1hZ2VfdG9vbHMudjEuYW5hbHlzaXMuTGlzdEFuYWx5c2lzT3BlcmF0aW9uc1Jlc3BvbnNlQlRaUmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vaW1hZ2UtdG9vbHMvdjEvYW5hbHlzaXM7YW5hbHlzaXNfdjFiBnByb3RvMw");
 
 /**
  * AnalysisOperationInfo describes one analysis operation for discovery.
@@ -375,6 +375,109 @@ export const ProbeResultSchema: GenMessage<ProbeResult> = /*@__PURE__*/
   messageDesc(file_image_tools_v1_analysis_analysis, 9);
 
 /**
+ * DuplicateResult is the structured output of the pure-Go `duplicate_detect` op:
+ * perceptual fingerprints of the image so callers can find near-duplicates by
+ * comparing hashes (Hamming distance) across a set. No model — runs on any host.
+ *
+ * @generated from message vrooli.image_tools.v1.analysis.DuplicateResult
+ */
+export type DuplicateResult = Message<"vrooli.image_tools.v1.analysis.DuplicateResult"> & {
+  /**
+   * PhashHex is the 64-bit DCT perceptual hash as a 16-char hex string (robust
+   * to re-encode / scale / minor edits — the primary dedup key).
+   *
+   * @generated from field: string phash_hex = 1;
+   */
+  phashHex: string;
+
+  /**
+   * AhashHex is the 64-bit average hash (cheaper, more sensitive to exposure).
+   *
+   * @generated from field: string ahash_hex = 2;
+   */
+  ahashHex: string;
+
+  /**
+   * HashBits is the hash width (64) so callers can normalize Hamming distance.
+   *
+   * @generated from field: int32 hash_bits = 3;
+   */
+  hashBits: number;
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.analysis.DuplicateResult.
+ * Use `create(DuplicateResultSchema)` to create a new message.
+ */
+export const DuplicateResultSchema: GenMessage<DuplicateResult> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_analysis_analysis, 10);
+
+/**
+ * QualityResult is the structured output of the pure-Go `quality_assessment`
+ * op: no-reference image-quality heuristics (sharpness, exposure, contrast) and
+ * a derived overall score. No model — runs on any host.
+ *
+ * @generated from message vrooli.image_tools.v1.analysis.QualityResult
+ */
+export type QualityResult = Message<"vrooli.image_tools.v1.analysis.QualityResult"> & {
+  /**
+   * OverallScore is a 0..1 quality estimate (higher = better).
+   *
+   * @generated from field: double overall_score = 1;
+   */
+  overallScore: number;
+
+  /**
+   * Sharpness is the variance of the Laplacian (higher = sharper); 0..~large.
+   *
+   * @generated from field: double sharpness = 2;
+   */
+  sharpness: number;
+
+  /**
+   * Blurry is true when sharpness falls below the blur threshold.
+   *
+   * @generated from field: bool blurry = 3;
+   */
+  blurry: boolean;
+
+  /**
+   * Brightness is the mean luma 0..255.
+   *
+   * @generated from field: double brightness = 4;
+   */
+  brightness: number;
+
+  /**
+   * Contrast is the luma standard deviation 0..~127.
+   *
+   * @generated from field: double contrast = 5;
+   */
+  contrast: number;
+
+  /**
+   * Exposure is a human label: "well-exposed", "underexposed", or "overexposed".
+   *
+   * @generated from field: string exposure = 6;
+   */
+  exposure: string;
+
+  /**
+   * Notes carries human-readable quality observations (e.g. "low contrast").
+   *
+   * @generated from field: repeated string notes = 7;
+   */
+  notes: string[];
+};
+
+/**
+ * Describes the message vrooli.image_tools.v1.analysis.QualityResult.
+ * Use `create(QualityResultSchema)` to create a new message.
+ */
+export const QualityResultSchema: GenMessage<QualityResult> = /*@__PURE__*/
+  messageDesc(file_image_tools_v1_analysis_analysis, 11);
+
+/**
  * AnalyzeResponse is the protojson body returned by the analyze edge: the
  * durable job id plus exactly one structured result matching the {operation}.
  *
@@ -407,6 +510,18 @@ export type AnalyzeResponse = Message<"vrooli.image_tools.v1.analysis.AnalyzeRes
      */
     value: ProbeResult;
     case: "probe";
+  } | {
+    /**
+     * @generated from field: vrooli.image_tools.v1.analysis.DuplicateResult duplicate = 5;
+     */
+    value: DuplicateResult;
+    case: "duplicate";
+  } | {
+    /**
+     * @generated from field: vrooli.image_tools.v1.analysis.QualityResult quality = 6;
+     */
+    value: QualityResult;
+    case: "quality";
   } | { case: undefined; value?: undefined };
 };
 
@@ -415,7 +530,7 @@ export type AnalyzeResponse = Message<"vrooli.image_tools.v1.analysis.AnalyzeRes
  * Use `create(AnalyzeResponseSchema)` to create a new message.
  */
 export const AnalyzeResponseSchema: GenMessage<AnalyzeResponse> = /*@__PURE__*/
-  messageDesc(file_image_tools_v1_analysis_analysis, 10);
+  messageDesc(file_image_tools_v1_analysis_analysis, 12);
 
 /**
  * @generated from service vrooli.image_tools.v1.analysis.AnalysisService

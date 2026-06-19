@@ -1,9 +1,12 @@
 BUF_BASE_BRANCH ?= master
 DESCRIPTOR_DIR ?= gen/descriptor
 
-.PHONY: generate descriptor lint format breaking verify-committed-gen clean refresh-vendor
+.PHONY: generate gen-code descriptor gen-manifests lint format breaking verify-committed-gen clean refresh-vendor
 
-generate: descriptor
+generate: gen-code descriptor gen-manifests
+
+gen-code:
+	go run ./cmd/prune-gen
 	buf generate
 	# Mark every generated Python package directory as typed (PEP 561).
 	# Recursive find replaces the previous hardcoded list so adding a new
@@ -16,12 +19,14 @@ generate: descriptor
 # message param schemas — buf.validate constraints, enum values, optionality,
 # and leading comments — are runtime-introspectable by packages/measures-go and
 # any other consumer. This is a `buf build` invocation, not a `buf generate`
-# plugin. image.binpb is committed (the canonical artifact); image.json is an
-# optional human/debug rendering and is gitignored.
+# plugin. image.binpb is committed as the canonical descriptor artifact.
 descriptor:
 	@mkdir -p $(DESCRIPTOR_DIR)
 	buf build -o $(DESCRIPTOR_DIR)/image.binpb
-	buf build -o $(DESCRIPTOR_DIR)/image.json
+
+gen-manifests:
+	rm -rf gen/manifests
+	go run ./cmd/gen-manifest
 
 lint:
 	buf lint
@@ -30,15 +35,17 @@ format:
 	buf format -w
 
 breaking:
-	@if ! git show-ref --quiet refs/heads/$(BUF_BASE_BRANCH); then \
-		echo "buf breaking baseline branch '$(BUF_BASE_BRANCH)' not found" >&2; exit 1; \
+	@if [ -n "$(SCENARIO)" ]; then \
+		proto-health impact scenario "$(SCENARIO)"; \
+	else \
+		for dir in schemas/*; do \
+			if [ -d "$$dir" ]; then \
+				proto-health impact scenario "$$(basename "$$dir")"; \
+			fi; \
+		done; \
 	fi
-	buf breaking --against ".git#branch=$(BUF_BASE_BRANCH),subdir=packages/proto"
 
-verify-committed-gen: lint
-	buf generate
-	@mkdir -p $(DESCRIPTOR_DIR)
-	buf build -o $(DESCRIPTOR_DIR)/image.binpb
+verify-committed-gen: lint generate
 	@if ! git diff --quiet gen/; then \
 		echo "ERROR: Committed generated code (or descriptor) does not match schemas. Run 'make generate' and commit the generated artifacts.'"; \
 		git diff --stat gen/; \

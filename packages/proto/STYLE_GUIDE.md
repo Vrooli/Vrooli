@@ -212,6 +212,7 @@ Use exactly these values. Avoid synonyms such as `unstable`.
 | `@format` | field | Parseable scalar format when not expressed by type | `@format uuid` |
 | `@unit` | field | Unit for numeric values | `@unit milliseconds` |
 | `@default` | field | Non-obvious default behavior | `@default 30000` |
+| `@constraint` | message, field | Legacy prose constraint that cannot yet be expressed in Protovalidate | `@constraint mutually exclusive with ...` |
 
 Validation constraints belong in Protovalidate rules whenever they are
 enforceable. Use prose for semantics, not as the only source of truth for a
@@ -525,11 +526,13 @@ make breaking
 make verify-committed-gen
 ```
 
-`gen/` and `gen/descriptor/image.binpb` are committed artifacts. They must stay
-in sync with `schemas/`. Do not hand-edit generated code.
+`gen/`, `gen/descriptor/image.binpb`, and `gen/manifests/*.lock.json` are
+committed artifacts. They must stay in sync with `schemas/`. Do not hand-edit
+generated code or manifests.
 
-`make verify-committed-gen` is the CI-style sync gate: it regenerates code and
-fails if committed generated artifacts drift from schema sources.
+`make verify-committed-gen` is the CI-style sync gate: it runs the same
+prune-clean generation path as `make generate` and fails if committed generated
+artifacts, descriptors, or manifests drift from schema sources.
 
 ---
 

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "scenario-authenticator",
-  "input_digest": "sha256:b28378a6686401342ca6ed674213f316f60c9cd561f93a8900d9e08d325d8513",
+  "input_digest": "sha256:bb67d5096cb39c82694dfb136166b856e97e24afc812d5e466ca88ecaf0d6f61",
   "input_files": [
     "schemas/scenario-authenticator/v1/accounts/accounts.proto",
     "schemas/scenario-authenticator/v1/errors/errors.proto",

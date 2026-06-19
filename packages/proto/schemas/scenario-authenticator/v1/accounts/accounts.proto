@@ -136,8 +136,7 @@ message LogoutRequest {
   string access_token = 1;
 }
 
-message LogoutResponse {
-}
+message LogoutResponse {}
 
 message ValidateRequest {
   string access_token = 1;

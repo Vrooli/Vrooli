@@ -67,8 +67,7 @@ message RevokeSessionRequest {
   string session_id = 1;
 }
 
-message RevokeSessionResponse {
-}
+message RevokeSessionResponse {}
 
 message RevokeAllSessionsRequest {
   // Access token identifying whose sessions to revoke.

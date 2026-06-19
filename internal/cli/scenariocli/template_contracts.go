@@ -64,6 +64,43 @@ type TemplateManifest struct {
 	CopyExcludes  []string               `json:"copyExcludes,omitempty"`
 	PostHooks     []TemplateHook         `json:"postHooks,omitempty"`
 	Relocations   []TemplateRelocation   `json:"relocations,omitempty"`
+	ExampleDomain *TemplateExampleDomain `json:"exampleDomain,omitempty"`
+}
+
+// TemplateExampleDomain declares the template's illustrative example domain
+// (the `notes` worked vertical slice) so it can be removed mechanically and
+// verifiably by `vrooli scenario detemplate`. There is exactly one marker
+// vocabulary, placed three ways:
+//
+//   - doc block: <!-- EXAMPLE-DOMAIN:<marker> START --> ... <!-- EXAMPLE-DOMAIN:<marker> END -->
+//   - whole file/dir: enumerated in Paths (template-relative)
+//   - registration line: a trailing `EXAMPLE-DOMAIN:<marker>` comment marker
+//
+// Marker is the example domain's slug (e.g. "notes"); detemplate reads it so
+// the command stays domain-name-agnostic.
+type TemplateExampleDomain struct {
+	Marker    string                  `json:"marker,omitempty"`
+	Paths     []string                `json:"paths,omitempty"`
+	JSONPrune []TemplateJSONPruneEntry `json:"jsonPrune,omitempty"`
+}
+
+// TemplateJSONPruneEntry removes example-domain content from a hand-authored
+// JSON file that cannot carry comment markers (i18n locales, the CLI
+// manifest). Keys lists dotted object key-paths to delete; ArrayMatch removes
+// array elements whose object fields all equal the given values. The file is
+// rewritten preserving key order and UTF-8 content.
+type TemplateJSONPruneEntry struct {
+	File       string                  `json:"file"`
+	Keys       []string                `json:"keys,omitempty"`
+	ArrayMatch []TemplateJSONArrayMatch `json:"arrayMatch,omitempty"`
+}
+
+// TemplateJSONArrayMatch selects array elements to delete: at the dotted Path
+// to an array, remove every element that is an object matching all Where
+// field==value pairs.
+type TemplateJSONArrayMatch struct {
+	Path  string            `json:"path"`
+	Where map[string]string `json:"where,omitempty"`
 }
 
 type TemplateOrientation struct {

@@ -54,10 +54,12 @@ func (r *recordingTB) Helper() { r.helperCalls++ }
 func (r *recordingTB) Cleanup(fn func()) {
 	r.cleanups = append(r.cleanups, fn)
 }
+
 func (r *recordingTB) Fatalf(format string, args ...any) {
 	r.fatalCalled = true
 	r.fatalMessage = format
 }
+
 func (r *recordingTB) runCleanups() {
 	for i := len(r.cleanups) - 1; i >= 0; i-- {
 		r.cleanups[i]()

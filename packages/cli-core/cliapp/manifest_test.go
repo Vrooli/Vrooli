@@ -104,19 +104,19 @@ func TestParseManifestRejectsInvalid(t *testing.T) {
 		name, manifest, want string
 	}{
 		{
-			name: "missing name",
+			name:     "missing name",
 			manifest: `{"groups": [{"name":"g","commands":[{"name":"c","binding":{"kind":"connect-rpc","service":"S","method":"M"},"governance":{"effect":"read","run_eligible":true}}]}]}`,
-			want: "name is required",
+			want:     "name is required",
 		},
 		{
-			name: "unknown binding kind",
+			name:     "unknown binding kind",
 			manifest: `{"name":"d","groups":[{"name":"g","commands":[{"name":"c","binding":{"kind":"rest"},"governance":{"effect":"read","run_eligible":true}}]}]}`,
-			want: "binding.kind",
+			want:     "binding.kind",
 		},
 		{
-			name: "invalid effect",
+			name:     "invalid effect",
 			manifest: `{"name":"d","groups":[{"name":"g","commands":[{"name":"c","binding":{"kind":"connect-rpc","service":"S","method":"M"},"governance":{"effect":"mutate","run_eligible":true}}]}]}`,
-			want: "governance.effect",
+			want:     "governance.effect",
 		},
 	}
 	for _, tc := range cases {
@@ -139,4 +139,3 @@ func findCommand(t *testing.T, g SubcommandGroup, name string) Command {
 	t.Fatalf("command %q not found in group %q", name, g.Name)
 	return Command{}
 }
-

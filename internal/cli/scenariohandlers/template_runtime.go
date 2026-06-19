@@ -1565,6 +1565,10 @@ func validateOrientationSource(info TemplateInfo) []TemplateValidationIssue {
 				if strings.TrimSpace(check.Text) == "" {
 					add(checkPath+".text", "text is required")
 				}
+			case "text_absent_tree":
+				if strings.TrimSpace(check.Text) == "" {
+					add(checkPath+".text", "text is required")
+				}
 			case "command":
 				if strings.TrimSpace(check.Run) == "" {
 					add(checkPath+".run", "run is required")
@@ -1596,7 +1600,7 @@ func orientationStepRequired(step TemplateOrientationStep) bool {
 
 func validOrientationCheckKind(kind string) bool {
 	switch strings.TrimSpace(kind) {
-	case "file_exists", "file_absent", "directory_exists", "glob_present", "glob_absent", "json_path_exists", "text_contains", "text_absent", "command":
+	case "file_exists", "file_absent", "directory_exists", "glob_present", "glob_absent", "json_path_exists", "text_contains", "text_absent", "text_absent_tree", "command":
 		return true
 	default:
 		return false

@@ -40,8 +40,7 @@ type ScenarioRuntime struct {
 
 var (
 	isPIDRunningFn           = IsPIDRunning
-	findProcessFn            = os.FindProcess
-	processIsAliveFn         = processIsAlive
+	pidIsAliveFn             = pidIsAlive
 	readProcessEnvironmentFn = readProcessEnvironment
 )
 
@@ -75,6 +74,17 @@ func ScenarioLifecycleLogPath(home, name string) (string, error) {
 		return "", err
 	}
 	return filepath.Join(root, name+".log"), nil
+}
+
+// ScenarioTestRunsDir resolves <home>/.vrooli/test-runs/<name> — the stable
+// per-scenario root under which each test run gets its own <run-id>/ artifact
+// directory (run.json + future Layer-2 phase logs/validator output).
+func ScenarioTestRunsDir(home, name string) (string, error) {
+	root, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyTestRuns)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, name), nil
 }
 
 // ScenarioStateDir resolves <home>/.vrooli/state/scenarios.
@@ -260,16 +270,17 @@ func DiscoverRunningScenarios(home string, valid func(string) bool) ([]ScenarioR
 	return runtimes, nil
 }
 
+// IsPIDRunning reports process liveness straight from the PID. It must never
+// route through os.FindProcess: on Windows FindProcess opens the process and
+// fails with ERROR_ACCESS_DENIED for other-user/elevated PIDs, which would
+// short-circuit a live process into false-dead before the platform primitive
+// (whose access-denied⇒alive mapping exists for exactly that case) ever runs.
+// False-dead evidence expires valid registry claims downstream.
 func IsPIDRunning(pid int) bool {
 	if pid <= 0 {
 		return false
 	}
-
-	process, err := findProcessFn(pid)
-	if err != nil {
-		return false
-	}
-	return processIsAliveFn(process)
+	return pidIsAliveFn(pid)
 }
 
 func ReadEnvironmentPorts(records []Record, keys []string) map[string]int {

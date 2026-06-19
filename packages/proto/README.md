@@ -179,7 +179,9 @@ Each file should include a header with `@layer`, `@domain`, `@imports`, and `@st
 cd packages/proto && make generate
 ```
 
-This regenerates all language outputs (Go, TypeScript, Python) and creates `py.typed` markers.
+This prune-cleans and regenerates all language outputs (Go, TypeScript,
+Python), creates `py.typed` markers, rebuilds the descriptor image, and writes
+per-scenario generation manifests under `gen/manifests/`.
 
 ### 4. Verify your changes
 
@@ -190,7 +192,7 @@ make lint
 # Check for breaking changes (against master)
 make breaking
 
-# Ensure committed generated code is in sync
+# Ensure committed generated code, descriptors, and manifests are in sync
 make verify-committed-gen
 ```
 

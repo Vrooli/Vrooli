@@ -15,12 +15,18 @@ import (
 
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
-
-	// Register the pure-Go SQLite driver ("sqlite") used by sql.Open below.
-	_ "modernc.org/sqlite"
+	// Importing modernc.org/sqlite registers the pure-Go SQLite driver.
+	sqlite "modernc.org/sqlite"
+	sqlite3 "modernc.org/sqlite/lib"
 )
 
 const defaultBindHost = "127.0.0.1"
+
+const (
+	runtimeRegistryTxRetryAttempts = 5
+	runtimeRegistryTxRetryBase     = 25 * time.Millisecond
+	runtimeRegistryTxRetryMax      = 250 * time.Millisecond
+)
 
 type Config struct {
 	HomeDir  string
@@ -365,7 +371,7 @@ func (s *SQLiteStore) ReleaseActivePortClaimsForInstance(ctx context.Context, in
 	}
 	now := s.now()
 	var released []PortClaim
-	err := s.withTx(ctx, func(tx *sql.Tx) error {
+	err := s.withRetryableTx(ctx, func(tx *sql.Tx) error {
 		rows, err := tx.QueryContext(ctx, portClaimSelectSQL+`
 WHERE instance_id = ? AND status IN (?, ?)
 ORDER BY port ASC`,
@@ -788,6 +794,41 @@ func (s *SQLiteStore) withTx(ctx context.Context, fn func(*sql.Tx) error) error 
 		return fmt.Errorf("commit runtime registry transaction: %w", err)
 	}
 	return nil
+}
+
+func (s *SQLiteStore) withRetryableTx(ctx context.Context, fn func(*sql.Tx) error) error {
+	var err error
+	delay := runtimeRegistryTxRetryBase
+	for attempt := 1; attempt <= runtimeRegistryTxRetryAttempts; attempt++ {
+		err = s.withTx(ctx, fn)
+		if err == nil || !isSQLiteLockContention(err) || attempt == runtimeRegistryTxRetryAttempts {
+			return err
+		}
+		timer := time.NewTimer(delay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+		}
+		delay *= 2
+		if delay > runtimeRegistryTxRetryMax {
+			delay = runtimeRegistryTxRetryMax
+		}
+	}
+	return err
+}
+
+func isSQLiteLockContention(err error) bool {
+	var sqliteErr *sqlite.Error
+	if errors.As(err, &sqliteErr) {
+		switch sqliteErr.Code() & 0xff {
+		case sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED:
+			return true
+		}
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "database is locked") || strings.Contains(msg, "table in the database is locked")
 }
 
 func buildDSN(path string) string {

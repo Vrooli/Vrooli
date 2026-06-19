@@ -120,6 +120,14 @@ message AIParams {
   // luminance-band heuristic, not face detection (which lands with the segment /
   // face_restore ops in a later phase). Only the naturalize op reads it.
   bool face_aware = 15;
+  // ConsentAffirmed records that the caller affirmed they have the right to edit
+  // the subject of an identity-altering op. On a PUBLIC deployment tier the
+  // Responsible-Use gate (internal/safety) REQUIRES this for high-consent-weight
+  // ops (edit_instruct / inpaint / object_removal / image_to_image) and rejects
+  // the submit without it; the affirmation is recorded to the consent log. On the
+  // local/personal tier it is unenforced (personal use is unrestricted). Naturalize
+  // is low-weight and never requires it. See docs/internal/SECURITY.md.
+  bool consent_affirmed = 16;
 }
 
 // SubmitAIResponse is the protojson body returned by the REST submit edge. The

@@ -251,17 +251,18 @@ func defaultInstallDir() string {
 // replaceBinary atomically and durably replaces dst with the file at src.
 //
 // Why fsync explicitly rather than relying on rename(2) alone:
-//   On Linux ext4 with the default data=ordered journal mode, rename(2) is
-//   atomic for the directory entry but says NOTHING about when the source
-//   file's data blocks reach disk. The metadata commit (which makes the
-//   rename visible after a crash) can land in the journal before the data
-//   blocks are flushed. If power is cut in that window, dst ends up with
-//   valid metadata — correct size, exec bit, mtime — but ZERO-FILLED
-//   contents. The kernel refuses to exec it ("Exec format error") even
-//   though `ls` and `stat` look fine. We were burned by exactly this on
-//   2026-05-07: an in-flight install left ~/.vrooli/bin/vrooli as 10 MB of
-//   nulls, and the orphaned `cli-build-*` zero-byte files in that directory
-//   show this had been silently happening to scenario installs too.
+//
+//	On Linux ext4 with the default data=ordered journal mode, rename(2) is
+//	atomic for the directory entry but says NOTHING about when the source
+//	file's data blocks reach disk. The metadata commit (which makes the
+//	rename visible after a crash) can land in the journal before the data
+//	blocks are flushed. If power is cut in that window, dst ends up with
+//	valid metadata — correct size, exec bit, mtime — but ZERO-FILLED
+//	contents. The kernel refuses to exec it ("Exec format error") even
+//	though `ls` and `stat` look fine. We were burned by exactly this on
+//	2026-05-07: an in-flight install left ~/.vrooli/bin/vrooli as 10 MB of
+//	nulls, and the orphaned `cli-build-*` zero-byte files in that directory
+//	show this had been silently happening to scenario installs too.
 //
 // Crash-safe sequence:
 //  1. fsync(src) — force the freshly-built binary's data blocks to stable

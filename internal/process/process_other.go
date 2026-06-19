@@ -4,13 +4,14 @@ package process
 
 import (
 	"fmt"
-	"os"
 )
 
-func processIsAlive(process *os.Process) bool {
-	// No liveness primitive on this platform; report dead so callers treat
-	// the evidence as absent rather than trusting a stale record.
-	return false
+func pidIsAlive(pid int) bool {
+	// No liveness primitive on this platform. Fail toward alive: callers wrap
+	// the answer as affirmative evidence (Known:true), and false-dead evidence
+	// expires valid registry claims downstream. An unverifiable process must
+	// read as alive, never dead.
+	return true
 }
 
 func readProcessEnvironment(pid int) (map[string]string, error) {

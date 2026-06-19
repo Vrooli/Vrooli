@@ -91,9 +91,9 @@ func TestCLIManifestSchemaRejectsBrokenVariants(t *testing.T) {
 	schema := compileCLIManifestSchema(t)
 
 	cases := []struct {
-		name       string
-		manifest   string
-		mustMatch  string // optional substring expected somewhere in the validation error
+		name      string
+		manifest  string
+		mustMatch string // optional substring expected somewhere in the validation error
 	}{
 		{
 			name: "missing top-level groups",

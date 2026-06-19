@@ -72,9 +72,9 @@ service PairingService {
 // PairingRequestStatus is the lifecycle of a request/approve enrollment.
 enum PairingRequestStatus {
   PAIRING_REQUEST_STATUS_UNSPECIFIED = 0;
-  PAIRING_REQUEST_STATUS_PENDING = 1;   // awaiting owner decision
-  PAIRING_REQUEST_STATUS_APPROVED = 2;  // approved; node minted
-  PAIRING_REQUEST_STATUS_REJECTED = 3;  // owner declined
+  PAIRING_REQUEST_STATUS_PENDING = 1; // awaiting owner decision
+  PAIRING_REQUEST_STATUS_APPROVED = 2; // approved; node minted
+  PAIRING_REQUEST_STATUS_REJECTED = 3; // owner declined
 }
 
 // IssuePairingCodeRequest carries the owner's intent for the node being paired.

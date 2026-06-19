@@ -701,6 +701,175 @@ func (x *ProbeResult) GetDominantColors() []*DominantColor {
 	return nil
 }
 
+// DuplicateResult is the structured output of the pure-Go `duplicate_detect` op:
+// perceptual fingerprints of the image so callers can find near-duplicates by
+// comparing hashes (Hamming distance) across a set. No model — runs on any host.
+type DuplicateResult struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// PhashHex is the 64-bit DCT perceptual hash as a 16-char hex string (robust
+	// to re-encode / scale / minor edits — the primary dedup key).
+	PhashHex string `protobuf:"bytes,1,opt,name=phash_hex,json=phashHex,proto3" json:"phash_hex,omitempty"`
+	// AhashHex is the 64-bit average hash (cheaper, more sensitive to exposure).
+	AhashHex string `protobuf:"bytes,2,opt,name=ahash_hex,json=ahashHex,proto3" json:"ahash_hex,omitempty"`
+	// HashBits is the hash width (64) so callers can normalize Hamming distance.
+	HashBits      int32 `protobuf:"varint,3,opt,name=hash_bits,json=hashBits,proto3" json:"hash_bits,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DuplicateResult) Reset() {
+	*x = DuplicateResult{}
+	mi := &file_image_tools_v1_analysis_analysis_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DuplicateResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DuplicateResult) ProtoMessage() {}
+
+func (x *DuplicateResult) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_analysis_analysis_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DuplicateResult.ProtoReflect.Descriptor instead.
+func (*DuplicateResult) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_analysis_analysis_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *DuplicateResult) GetPhashHex() string {
+	if x != nil {
+		return x.PhashHex
+	}
+	return ""
+}
+
+func (x *DuplicateResult) GetAhashHex() string {
+	if x != nil {
+		return x.AhashHex
+	}
+	return ""
+}
+
+func (x *DuplicateResult) GetHashBits() int32 {
+	if x != nil {
+		return x.HashBits
+	}
+	return 0
+}
+
+// QualityResult is the structured output of the pure-Go `quality_assessment`
+// op: no-reference image-quality heuristics (sharpness, exposure, contrast) and
+// a derived overall score. No model — runs on any host.
+type QualityResult struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// OverallScore is a 0..1 quality estimate (higher = better).
+	OverallScore float64 `protobuf:"fixed64,1,opt,name=overall_score,json=overallScore,proto3" json:"overall_score,omitempty"`
+	// Sharpness is the variance of the Laplacian (higher = sharper); 0..~large.
+	Sharpness float64 `protobuf:"fixed64,2,opt,name=sharpness,proto3" json:"sharpness,omitempty"`
+	// Blurry is true when sharpness falls below the blur threshold.
+	Blurry bool `protobuf:"varint,3,opt,name=blurry,proto3" json:"blurry,omitempty"`
+	// Brightness is the mean luma 0..255.
+	Brightness float64 `protobuf:"fixed64,4,opt,name=brightness,proto3" json:"brightness,omitempty"`
+	// Contrast is the luma standard deviation 0..~127.
+	Contrast float64 `protobuf:"fixed64,5,opt,name=contrast,proto3" json:"contrast,omitempty"`
+	// Exposure is a human label: "well-exposed", "underexposed", or "overexposed".
+	Exposure string `protobuf:"bytes,6,opt,name=exposure,proto3" json:"exposure,omitempty"`
+	// Notes carries human-readable quality observations (e.g. "low contrast").
+	Notes         []string `protobuf:"bytes,7,rep,name=notes,proto3" json:"notes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QualityResult) Reset() {
+	*x = QualityResult{}
+	mi := &file_image_tools_v1_analysis_analysis_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QualityResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QualityResult) ProtoMessage() {}
+
+func (x *QualityResult) ProtoReflect() protoreflect.Message {
+	mi := &file_image_tools_v1_analysis_analysis_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QualityResult.ProtoReflect.Descriptor instead.
+func (*QualityResult) Descriptor() ([]byte, []int) {
+	return file_image_tools_v1_analysis_analysis_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *QualityResult) GetOverallScore() float64 {
+	if x != nil {
+		return x.OverallScore
+	}
+	return 0
+}
+
+func (x *QualityResult) GetSharpness() float64 {
+	if x != nil {
+		return x.Sharpness
+	}
+	return 0
+}
+
+func (x *QualityResult) GetBlurry() bool {
+	if x != nil {
+		return x.Blurry
+	}
+	return false
+}
+
+func (x *QualityResult) GetBrightness() float64 {
+	if x != nil {
+		return x.Brightness
+	}
+	return 0
+}
+
+func (x *QualityResult) GetContrast() float64 {
+	if x != nil {
+		return x.Contrast
+	}
+	return 0
+}
+
+func (x *QualityResult) GetExposure() string {
+	if x != nil {
+		return x.Exposure
+	}
+	return ""
+}
+
+func (x *QualityResult) GetNotes() []string {
+	if x != nil {
+		return x.Notes
+	}
+	return nil
+}
+
 // AnalyzeResponse is the protojson body returned by the analyze edge: the
 // durable job id plus exactly one structured result matching the {operation}.
 type AnalyzeResponse struct {
@@ -711,6 +880,8 @@ type AnalyzeResponse struct {
 	//	*AnalyzeResponse_Ocr
 	//	*AnalyzeResponse_Nsfw
 	//	*AnalyzeResponse_Probe
+	//	*AnalyzeResponse_Duplicate
+	//	*AnalyzeResponse_Quality
 	Result        isAnalyzeResponse_Result `protobuf_oneof:"result"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -718,7 +889,7 @@ type AnalyzeResponse struct {
 
 func (x *AnalyzeResponse) Reset() {
 	*x = AnalyzeResponse{}
-	mi := &file_image_tools_v1_analysis_analysis_proto_msgTypes[10]
+	mi := &file_image_tools_v1_analysis_analysis_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -730,7 +901,7 @@ func (x *AnalyzeResponse) String() string {
 func (*AnalyzeResponse) ProtoMessage() {}
 
 func (x *AnalyzeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_image_tools_v1_analysis_analysis_proto_msgTypes[10]
+	mi := &file_image_tools_v1_analysis_analysis_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -743,7 +914,7 @@ func (x *AnalyzeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnalyzeResponse.ProtoReflect.Descriptor instead.
 func (*AnalyzeResponse) Descriptor() ([]byte, []int) {
-	return file_image_tools_v1_analysis_analysis_proto_rawDescGZIP(), []int{10}
+	return file_image_tools_v1_analysis_analysis_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *AnalyzeResponse) GetJobId() string {
@@ -787,6 +958,24 @@ func (x *AnalyzeResponse) GetProbe() *ProbeResult {
 	return nil
 }
 
+func (x *AnalyzeResponse) GetDuplicate() *DuplicateResult {
+	if x != nil {
+		if x, ok := x.Result.(*AnalyzeResponse_Duplicate); ok {
+			return x.Duplicate
+		}
+	}
+	return nil
+}
+
+func (x *AnalyzeResponse) GetQuality() *QualityResult {
+	if x != nil {
+		if x, ok := x.Result.(*AnalyzeResponse_Quality); ok {
+			return x.Quality
+		}
+	}
+	return nil
+}
+
 type isAnalyzeResponse_Result interface {
 	isAnalyzeResponse_Result()
 }
@@ -803,11 +992,23 @@ type AnalyzeResponse_Probe struct {
 	Probe *ProbeResult `protobuf:"bytes,4,opt,name=probe,proto3,oneof"`
 }
 
+type AnalyzeResponse_Duplicate struct {
+	Duplicate *DuplicateResult `protobuf:"bytes,5,opt,name=duplicate,proto3,oneof"`
+}
+
+type AnalyzeResponse_Quality struct {
+	Quality *QualityResult `protobuf:"bytes,6,opt,name=quality,proto3,oneof"`
+}
+
 func (*AnalyzeResponse_Ocr) isAnalyzeResponse_Result() {}
 
 func (*AnalyzeResponse_Nsfw) isAnalyzeResponse_Result() {}
 
 func (*AnalyzeResponse_Probe) isAnalyzeResponse_Result() {}
+
+func (*AnalyzeResponse_Duplicate) isAnalyzeResponse_Result() {}
+
+func (*AnalyzeResponse_Quality) isAnalyzeResponse_Result() {}
 
 var File_image_tools_v1_analysis_analysis_proto protoreflect.FileDescriptor
 
@@ -872,12 +1073,28 @@ const file_image_tools_v1_analysis_analysis_proto_rawDesc = "" +
 	"\ahas_gps\x18\n" +
 	" \x01(\bR\x06hasGps\x12 \n" +
 	"\vorientation\x18\v \x01(\x05R\vorientation\x12V\n" +
-	"\x0fdominant_colors\x18\f \x03(\v2-.vrooli.image_tools.v1.analysis.DominantColorR\x0edominantColors\"\xf8\x01\n" +
+	"\x0fdominant_colors\x18\f \x03(\v2-.vrooli.image_tools.v1.analysis.DominantColorR\x0edominantColors\"h\n" +
+	"\x0fDuplicateResult\x12\x1b\n" +
+	"\tphash_hex\x18\x01 \x01(\tR\bphashHex\x12\x1b\n" +
+	"\tahash_hex\x18\x02 \x01(\tR\bahashHex\x12\x1b\n" +
+	"\thash_bits\x18\x03 \x01(\x05R\bhashBits\"\xd8\x01\n" +
+	"\rQualityResult\x12#\n" +
+	"\roverall_score\x18\x01 \x01(\x01R\foverallScore\x12\x1c\n" +
+	"\tsharpness\x18\x02 \x01(\x01R\tsharpness\x12\x16\n" +
+	"\x06blurry\x18\x03 \x01(\bR\x06blurry\x12\x1e\n" +
+	"\n" +
+	"brightness\x18\x04 \x01(\x01R\n" +
+	"brightness\x12\x1a\n" +
+	"\bcontrast\x18\x05 \x01(\x01R\bcontrast\x12\x1a\n" +
+	"\bexposure\x18\x06 \x01(\tR\bexposure\x12\x14\n" +
+	"\x05notes\x18\a \x03(\tR\x05notes\"\x94\x03\n" +
 	"\x0fAnalyzeResponse\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12=\n" +
 	"\x03ocr\x18\x02 \x01(\v2).vrooli.image_tools.v1.analysis.OCRResultH\x00R\x03ocr\x12@\n" +
 	"\x04nsfw\x18\x03 \x01(\v2*.vrooli.image_tools.v1.analysis.NSFWResultH\x00R\x04nsfw\x12C\n" +
-	"\x05probe\x18\x04 \x01(\v2+.vrooli.image_tools.v1.analysis.ProbeResultH\x00R\x05probeB\b\n" +
+	"\x05probe\x18\x04 \x01(\v2+.vrooli.image_tools.v1.analysis.ProbeResultH\x00R\x05probe\x12O\n" +
+	"\tduplicate\x18\x05 \x01(\v2/.vrooli.image_tools.v1.analysis.DuplicateResultH\x00R\tduplicate\x12I\n" +
+	"\aquality\x18\x06 \x01(\v2-.vrooli.image_tools.v1.analysis.QualityResultH\x00R\aqualityB\b\n" +
 	"\x06result2\xab\x01\n" +
 	"\x0fAnalysisService\x12\x97\x01\n" +
 	"\x16ListAnalysisOperations\x12=.vrooli.image_tools.v1.analysis.ListAnalysisOperationsRequest\x1a>.vrooli.image_tools.v1.analysis.ListAnalysisOperationsResponseBTZRgithub.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/analysis;analysis_v1b\x06proto3"
@@ -894,7 +1111,7 @@ func file_image_tools_v1_analysis_analysis_proto_rawDescGZIP() []byte {
 	return file_image_tools_v1_analysis_analysis_proto_rawDescData
 }
 
-var file_image_tools_v1_analysis_analysis_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_image_tools_v1_analysis_analysis_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_image_tools_v1_analysis_analysis_proto_goTypes = []any{
 	(*AnalysisOperationInfo)(nil),          // 0: vrooli.image_tools.v1.analysis.AnalysisOperationInfo
 	(*ListAnalysisOperationsRequest)(nil),  // 1: vrooli.image_tools.v1.analysis.ListAnalysisOperationsRequest
@@ -906,24 +1123,28 @@ var file_image_tools_v1_analysis_analysis_proto_goTypes = []any{
 	(*NSFWResult)(nil),                     // 7: vrooli.image_tools.v1.analysis.NSFWResult
 	(*DominantColor)(nil),                  // 8: vrooli.image_tools.v1.analysis.DominantColor
 	(*ProbeResult)(nil),                    // 9: vrooli.image_tools.v1.analysis.ProbeResult
-	(*AnalyzeResponse)(nil),                // 10: vrooli.image_tools.v1.analysis.AnalyzeResponse
+	(*DuplicateResult)(nil),                // 10: vrooli.image_tools.v1.analysis.DuplicateResult
+	(*QualityResult)(nil),                  // 11: vrooli.image_tools.v1.analysis.QualityResult
+	(*AnalyzeResponse)(nil),                // 12: vrooli.image_tools.v1.analysis.AnalyzeResponse
 }
 var file_image_tools_v1_analysis_analysis_proto_depIdxs = []int32{
-	0, // 0: vrooli.image_tools.v1.analysis.ListAnalysisOperationsResponse.operations:type_name -> vrooli.image_tools.v1.analysis.AnalysisOperationInfo
-	3, // 1: vrooli.image_tools.v1.analysis.OCRBlock.box:type_name -> vrooli.image_tools.v1.analysis.BoundingBox
-	4, // 2: vrooli.image_tools.v1.analysis.OCRResult.blocks:type_name -> vrooli.image_tools.v1.analysis.OCRBlock
-	6, // 3: vrooli.image_tools.v1.analysis.NSFWResult.categories:type_name -> vrooli.image_tools.v1.analysis.NSFWCategory
-	8, // 4: vrooli.image_tools.v1.analysis.ProbeResult.dominant_colors:type_name -> vrooli.image_tools.v1.analysis.DominantColor
-	5, // 5: vrooli.image_tools.v1.analysis.AnalyzeResponse.ocr:type_name -> vrooli.image_tools.v1.analysis.OCRResult
-	7, // 6: vrooli.image_tools.v1.analysis.AnalyzeResponse.nsfw:type_name -> vrooli.image_tools.v1.analysis.NSFWResult
-	9, // 7: vrooli.image_tools.v1.analysis.AnalyzeResponse.probe:type_name -> vrooli.image_tools.v1.analysis.ProbeResult
-	1, // 8: vrooli.image_tools.v1.analysis.AnalysisService.ListAnalysisOperations:input_type -> vrooli.image_tools.v1.analysis.ListAnalysisOperationsRequest
-	2, // 9: vrooli.image_tools.v1.analysis.AnalysisService.ListAnalysisOperations:output_type -> vrooli.image_tools.v1.analysis.ListAnalysisOperationsResponse
-	9, // [9:10] is the sub-list for method output_type
-	8, // [8:9] is the sub-list for method input_type
-	8, // [8:8] is the sub-list for extension type_name
-	8, // [8:8] is the sub-list for extension extendee
-	0, // [0:8] is the sub-list for field type_name
+	0,  // 0: vrooli.image_tools.v1.analysis.ListAnalysisOperationsResponse.operations:type_name -> vrooli.image_tools.v1.analysis.AnalysisOperationInfo
+	3,  // 1: vrooli.image_tools.v1.analysis.OCRBlock.box:type_name -> vrooli.image_tools.v1.analysis.BoundingBox
+	4,  // 2: vrooli.image_tools.v1.analysis.OCRResult.blocks:type_name -> vrooli.image_tools.v1.analysis.OCRBlock
+	6,  // 3: vrooli.image_tools.v1.analysis.NSFWResult.categories:type_name -> vrooli.image_tools.v1.analysis.NSFWCategory
+	8,  // 4: vrooli.image_tools.v1.analysis.ProbeResult.dominant_colors:type_name -> vrooli.image_tools.v1.analysis.DominantColor
+	5,  // 5: vrooli.image_tools.v1.analysis.AnalyzeResponse.ocr:type_name -> vrooli.image_tools.v1.analysis.OCRResult
+	7,  // 6: vrooli.image_tools.v1.analysis.AnalyzeResponse.nsfw:type_name -> vrooli.image_tools.v1.analysis.NSFWResult
+	9,  // 7: vrooli.image_tools.v1.analysis.AnalyzeResponse.probe:type_name -> vrooli.image_tools.v1.analysis.ProbeResult
+	10, // 8: vrooli.image_tools.v1.analysis.AnalyzeResponse.duplicate:type_name -> vrooli.image_tools.v1.analysis.DuplicateResult
+	11, // 9: vrooli.image_tools.v1.analysis.AnalyzeResponse.quality:type_name -> vrooli.image_tools.v1.analysis.QualityResult
+	1,  // 10: vrooli.image_tools.v1.analysis.AnalysisService.ListAnalysisOperations:input_type -> vrooli.image_tools.v1.analysis.ListAnalysisOperationsRequest
+	2,  // 11: vrooli.image_tools.v1.analysis.AnalysisService.ListAnalysisOperations:output_type -> vrooli.image_tools.v1.analysis.ListAnalysisOperationsResponse
+	11, // [11:12] is the sub-list for method output_type
+	10, // [10:11] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_image_tools_v1_analysis_analysis_proto_init() }
@@ -931,10 +1152,12 @@ func file_image_tools_v1_analysis_analysis_proto_init() {
 	if File_image_tools_v1_analysis_analysis_proto != nil {
 		return
 	}
-	file_image_tools_v1_analysis_analysis_proto_msgTypes[10].OneofWrappers = []any{
+	file_image_tools_v1_analysis_analysis_proto_msgTypes[12].OneofWrappers = []any{
 		(*AnalyzeResponse_Ocr)(nil),
 		(*AnalyzeResponse_Nsfw)(nil),
 		(*AnalyzeResponse_Probe)(nil),
+		(*AnalyzeResponse_Duplicate)(nil),
+		(*AnalyzeResponse_Quality)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -942,7 +1165,7 @@ func file_image_tools_v1_analysis_analysis_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_image_tools_v1_analysis_analysis_proto_rawDesc), len(file_image_tools_v1_analysis_analysis_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

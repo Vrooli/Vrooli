@@ -108,6 +108,11 @@ type LocalResult struct {
 	Findings             []FindingAssessment
 }
 
+type DebtCounts struct {
+	Total      int
+	BySeverity map[architecturev1.FindingSeverity]int
+}
+
 type BuildInput struct {
 	Scenario string
 	Spec     Spec
@@ -530,12 +535,89 @@ func LocalMaturity(spec Spec, findings []Finding) LocalResult {
 	}
 }
 
+func DebtByLevel(findings []FindingAssessment) map[string]DebtCounts {
+	out := make(map[string]DebtCounts)
+	for _, item := range findings {
+		if !isDebtFinding(item) {
+			continue
+		}
+		level := strings.TrimSpace(item.Mapping.LocalLevelImpact)
+		if level == "" {
+			level = "unknown"
+		}
+		counts := out[level]
+		if counts.BySeverity == nil {
+			counts.BySeverity = make(map[architecturev1.FindingSeverity]int)
+		}
+		counts.Total++
+		counts.BySeverity[item.Severity]++
+		out[level] = counts
+	}
+	return out
+}
+
+func DebtScore(findings []FindingAssessment) int {
+	score := 0
+	for _, counts := range DebtByLevel(findings) {
+		score += counts.Total
+	}
+	return score
+}
+
+func AssessmentDebtByLevel(a *commonv1.MaturityAssessment) map[string]DebtCounts {
+	if a == nil {
+		return nil
+	}
+	findings := make([]FindingAssessment, 0, len(a.GetFindings()))
+	for _, finding := range a.GetFindings() {
+		if finding == nil {
+			continue
+		}
+		maturity := finding.GetMaturity()
+		mapping := FindingMapping{}
+		if maturity != nil {
+			mapping.LocalLevelImpact = maturity.GetLocalLevel()
+			mapping.GlobalImpact = ProtoToGlobalImpact(maturity.GetGlobalImpact())
+			mapping.Dimension = maturity.GetDimension()
+			mapping.RecommendedSkillIDs = append([]string(nil), maturity.GetRecommendedSkillIds()...)
+		}
+		findings = append(findings, FindingAssessment{
+			Code:     finding.GetCode(),
+			Mapping:  mapping,
+			Severity: normalizeSeverity(finding.GetSeverity()),
+		})
+	}
+	return DebtByLevel(findings)
+}
+
+func AssessmentDebtScore(a *commonv1.MaturityAssessment) int {
+	score := 0
+	for _, counts := range AssessmentDebtByLevel(a) {
+		score += counts.Total
+	}
+	return score
+}
+
 func blocksLocalMaturity(item FindingAssessment) bool {
 	if item.Mapping.GlobalImpact == ImpactAdvisory {
 		return false
 	}
 	return item.Severity == architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR ||
 		item.Severity == architecturev1.FindingSeverity_FINDING_SEVERITY_BLOCKER
+}
+
+func isDebtFinding(item FindingAssessment) bool {
+	if blocksLocalMaturity(item) {
+		return false
+	}
+	switch item.Severity {
+	case architecturev1.FindingSeverity_FINDING_SEVERITY_WARNING,
+		architecturev1.FindingSeverity_FINDING_SEVERITY_INFO,
+		architecturev1.FindingSeverity_FINDING_SEVERITY_UNSPECIFIED:
+		return true
+	default:
+		return item.Mapping.GlobalImpact == ImpactAdvisory
+	}
 }
 
 func normalizeSeverity(raw string) architecturev1.FindingSeverity {
@@ -550,6 +632,27 @@ func normalizeSeverity(raw string) architecturev1.FindingSeverity {
 		return architecturev1.FindingSeverity_FINDING_SEVERITY_INFO
 	default:
 		return architecturev1.FindingSeverity_FINDING_SEVERITY_UNSPECIFIED
+	}
+}
+
+func ProtoToGlobalImpact(impact commonv1.GlobalImpact) GlobalImpact {
+	switch impact {
+	case commonv1.GlobalImpact_GLOBAL_IMPACT_FOUNDATION_BLOCKER:
+		return ImpactFoundationBlocker
+	case commonv1.GlobalImpact_GLOBAL_IMPACT_SAFETY_BLOCKER:
+		return ImpactSafetyBlocker
+	case commonv1.GlobalImpact_GLOBAL_IMPACT_EVOLVABILITY_GAP:
+		return ImpactEvolvabilityGap
+	case commonv1.GlobalImpact_GLOBAL_IMPACT_HARDENING_GAP:
+		return ImpactHardeningGap
+	case commonv1.GlobalImpact_GLOBAL_IMPACT_CAPABILITY_GAP:
+		return ImpactCapabilityGap
+	case commonv1.GlobalImpact_GLOBAL_IMPACT_ADVISORY:
+		return ImpactAdvisory
+	case commonv1.GlobalImpact_GLOBAL_IMPACT_UNKNOWN:
+		return ImpactUnknown
+	default:
+		return ImpactUnknown
 	}
 }
 

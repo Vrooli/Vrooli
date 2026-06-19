@@ -126,6 +126,90 @@ func TestAdvisoryDoesNotBlockLocalMaturity(t *testing.T) {
 	}
 }
 
+func TestDebtByLevelCountsOnlyNonBlockingFindings(t *testing.T) {
+	spec := validSpec()
+	spec.Findings["measures.warning"] = FindingMapping{
+		LocalLevelImpact: "L3",
+		GlobalImpact:     ImpactHardeningGap,
+		Dimension:        "measures",
+		SeverityDefault:  "WARNING",
+	}
+	spec.Findings["measures.info"] = FindingMapping{
+		LocalLevelImpact: "L2",
+		GlobalImpact:     ImpactAdvisory,
+		Dimension:        "measures",
+		SeverityDefault:  "INFO",
+	}
+	spec.Findings["measures.advisory-error"] = FindingMapping{
+		LocalLevelImpact: "L1",
+		GlobalImpact:     ImpactAdvisory,
+		Dimension:        "measures",
+		SeverityDefault:  "ERROR",
+	}
+
+	local := LocalMaturity(spec, []Finding{
+		{Code: "measures.uncovered-domain"},
+		{Code: "measures.warning"},
+		{Code: "measures.info"},
+		{Code: "measures.advisory-error"},
+	})
+
+	if local.CurrentLevel != "L1" {
+		t.Fatalf("CurrentLevel = %q, want L1", local.CurrentLevel)
+	}
+	got := DebtByLevel(local.Findings)
+	if DebtScore(local.Findings) != 3 {
+		t.Fatalf("DebtScore = %d, want 3", DebtScore(local.Findings))
+	}
+	if got["L3"].Total != 1 || got["L2"].Total != 1 || got["L1"].Total != 1 {
+		t.Fatalf("DebtByLevel = %#v, want one debt finding at L1, L2, and L3", got)
+	}
+	if _, exists := got["L2"].BySeverity[architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR]; exists {
+		t.Fatalf("blocking error was counted as debt: %#v", got)
+	}
+}
+
+func TestAssessmentDebtByLevelDerivesFromProtoAssessment(t *testing.T) {
+	assessment := &commonv1.MaturityAssessment{
+		Scenario: "demo",
+		Provider: "measures-health",
+		Phase:    "measures",
+		Version:  "1",
+		Local:    &commonv1.LocalMaturityAssessment{CurrentLevel: "L3"},
+		Findings: []*commonv1.AssessmentFinding{
+			{
+				Code:     "measures.warning",
+				Severity: "WARNING",
+				Maturity: &commonv1.FindingMaturity{
+					LocalLevel:   "L3",
+					GlobalImpact: commonv1.GlobalImpact_GLOBAL_IMPACT_HARDENING_GAP,
+					Dimension:    "measures",
+				},
+			},
+			{
+				Code:     "measures.error",
+				Severity: "ERROR",
+				Maturity: &commonv1.FindingMaturity{
+					LocalLevel:   "L2",
+					GlobalImpact: commonv1.GlobalImpact_GLOBAL_IMPACT_CAPABILITY_GAP,
+					Dimension:    "measures",
+				},
+			},
+		},
+	}
+
+	got := AssessmentDebtByLevel(assessment)
+	if AssessmentDebtScore(assessment) != 1 {
+		t.Fatalf("AssessmentDebtScore = %d, want 1", AssessmentDebtScore(assessment))
+	}
+	if got["L3"].Total != 1 {
+		t.Fatalf("L3 debt = %#v, want one warning", got["L3"])
+	}
+	if got["L2"].Total != 0 {
+		t.Fatalf("L2 debt = %#v, want no blocking errors counted", got["L2"])
+	}
+}
+
 func TestBuildProtoAssessmentWithZeroFindings(t *testing.T) {
 	got, err := BuildProtoAssessment(BuildInput{
 		Scenario: "demo",

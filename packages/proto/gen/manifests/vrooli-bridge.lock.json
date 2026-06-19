@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "vrooli-bridge",
-  "input_digest": "sha256:0facbd1306eefad8bdc92d56caec8e1fc130ae74301851c6231525a6092b4ddf",
+  "input_digest": "sha256:c313c88d6fadb5306f42751c01671a45b57b683a2aa7aab332974e5b568bca06",
   "input_files": [
     "schemas/vrooli-bridge/v1/artifacts/artifacts.proto",
     "schemas/vrooli-bridge/v1/audit/audit.proto",

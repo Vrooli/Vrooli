@@ -36,11 +36,15 @@ func TestBufGenYamlContainsNoRemotePlugins(t *testing.T) {
 // it runs via `go test ./...`, from the package dir, or from a workspace.
 func bufGenYamlPath(t *testing.T) string {
 	t.Helper()
+	// internal/protocodegen/buf_gen_guard_test.go → repo root → packages/proto/buf.gen.yaml
+	return filepath.Join(repoRootPath(t), "packages", "proto", "buf.gen.yaml")
+}
+
+func repoRootPath(t *testing.T) string {
+	t.Helper()
 	_, thisFile, _, ok := runtime.Caller(0)
 	if !ok {
 		t.Fatal("runtime.Caller failed")
 	}
-	// internal/protocodegen/buf_gen_guard_test.go → repo root → packages/proto/buf.gen.yaml
-	repoRoot := filepath.Dir(filepath.Dir(filepath.Dir(thisFile)))
-	return filepath.Join(repoRoot, "packages", "proto", "buf.gen.yaml")
+	return filepath.Dir(filepath.Dir(filepath.Dir(thisFile)))
 }

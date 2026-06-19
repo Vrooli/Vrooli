@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "proto-health",
-  "input_digest": "sha256:46a5acee1ff127ef760385ef8679d3d6646bad05096a6e9d4683c97ac5ce5eda",
+  "input_digest": "sha256:6afb2a79dd89d0327dd241d006965a1f97681e58cbb831e8109f688fb076e32a",
   "input_files": [
     "schemas/proto-health/v1/health/health.proto",
     "schemas/proto-health/v1/impact/impact.proto",
@@ -21,7 +21,7 @@
   },
   "outputs": {
     "gen/go/proto-health/v1/health/health.pb.go": "sha256:0e63e127a60277162ba89cbf60a487dfa15943d989ae579ab2246033a9629e2a",
-    "gen/go/proto-health/v1/impact/impact.pb.go": "sha256:f2e423fcf2fe61f506ed9dcc823694fc2d92ef737484adfb610a2d61eed4d112",
+    "gen/go/proto-health/v1/impact/impact.pb.go": "sha256:a7b85bdae91b4d4b8aa10edb1ad6af1dd179f36786c66dbdc618f6452caddd52",
     "gen/go/proto-health/v1/impact/impact_v1connect/impact.connect.go": "sha256:c0f59968c8b02f77bd1ba795e8ebc3fed19ee3a34ff69a9e22c907fa8c53648e",
     "gen/go/proto-health/v1/shared/errors.pb.go": "sha256:fec507a3d5910c6a5290dda590e8073143e122c8f98ccb8782b54c11e713449d",
     "gen/go/proto-health/v1/shared/surface.pb.go": "sha256:a5704fc396f1f6523a1f3370f2feb9ec9a779b14ea8111114eb5d3d5a6b8dfa8",
@@ -31,8 +31,8 @@
     "gen/python/proto_health/v1/health/health_pb2.py": "sha256:dd55fc3b56cec4ab21f80e905cbeebff4857d3c1aaf76819514bc9cb8bd040da",
     "gen/python/proto_health/v1/health/health_pb2.pyi": "sha256:b9ec00d86e0bdde26187240212eb1746c8be4ebac7b5320be40d8097822a8a04",
     "gen/python/proto_health/v1/health/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/proto_health/v1/impact/impact_pb2.py": "sha256:bc37c5814412a0bcb2562824926646eb1fe90cdd627088b90c22d334236519d4",
-    "gen/python/proto_health/v1/impact/impact_pb2.pyi": "sha256:36af37f476b8e6724b17ba1e39d051cd4a5bad996eb3af8437db190d070cc2e0",
+    "gen/python/proto_health/v1/impact/impact_pb2.py": "sha256:a89cf4008f1e7c5f486d6680c3650ee0a099543f173f367ef634f135370650c8",
+    "gen/python/proto_health/v1/impact/impact_pb2.pyi": "sha256:9b15db98f79e1fb3b059e730c684c6ab3da540fc54801150d6d822629a9bcca6",
     "gen/python/proto_health/v1/impact/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/proto_health/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/proto_health/v1/shared/errors_pb2.py": "sha256:a0722643dd0e61bb0f71737564c0a5270bc22828c412fc54cfefa74a98421071",
@@ -44,12 +44,12 @@
     "gen/python/proto_health/v1/validation/validation_pb2.py": "sha256:53897953bff5a7055a8ff9ccc7b36205ddf92bc0bfad3221210d2d327cf58745",
     "gen/python/proto_health/v1/validation/validation_pb2.pyi": "sha256:7aef26c1f4204b6bc08f0c203897ec3a4d991ed213e470aa130c4f5d56d805d0",
     "gen/typescript/js/proto-health/v1/health/health_pb.js": "sha256:fc5487686ee303e289d53ff735fa286be09278d13d43dc16b6894cf4be6d58b7",
-    "gen/typescript/js/proto-health/v1/impact/impact_pb.js": "sha256:f2528b64fd4af79df8d249d57db33395a59c3721ae9196ffbffad1493b0f83aa",
+    "gen/typescript/js/proto-health/v1/impact/impact_pb.js": "sha256:86d8488127588aa72f5d39a5aaed7521235e68df4db1fcc50a0bc68bf0e73599",
     "gen/typescript/js/proto-health/v1/shared/errors_pb.js": "sha256:c138845d433c75fa6ee3e61f211c38c1b511c0d382ff9498e9cd9f49119ea986",
     "gen/typescript/js/proto-health/v1/shared/surface_pb.js": "sha256:33d87769fbf2100e05ef6aa86b1278e8b4fa3fbad90a2086bf6c7756ea603392",
     "gen/typescript/js/proto-health/v1/validation/validation_pb.js": "sha256:a4be4e095873c40f188331a333d05dbc0656a40ab1864479483be7e4f49586fe",
     "gen/typescript/proto-health/v1/health/health_pb.ts": "sha256:1e113a0965e3eb4425457a79d6a1cf78d40fb0e2bfe98c4b483000513097179b",
-    "gen/typescript/proto-health/v1/impact/impact_pb.ts": "sha256:baa24d72c100b3dac0722c99dab670c50125284783eb4b91c9d6bb6d47583106",
+    "gen/typescript/proto-health/v1/impact/impact_pb.ts": "sha256:7fd98c6bf288013112ec69e338e13e668897a482b1ee53f37538233a6506a04a",
     "gen/typescript/proto-health/v1/shared/errors_pb.ts": "sha256:b529e957ae5b3148c3f8af89b963b945180099eb2007e159c5ed47ecd091666d",
     "gen/typescript/proto-health/v1/shared/surface_pb.ts": "sha256:b4d12bc8cc3fe9477b80b21d37e56c53d0c05814f43c1b045d99f827525918fc",
     "gen/typescript/proto-health/v1/validation/validation_pb.ts": "sha256:68cf91e12b724c7f4c0a6d94590c9f9e35ea7154e59afb94f9222e13e56d0abe"

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -293,6 +294,117 @@ func TestSQLiteStoreBindsAndReleasesActiveClaimsForInstance(t *testing.T) {
 	}
 	if len(released) != 1 || released[0].Status != ClaimStatusReleased {
 		t.Fatalf("released = %#v, want one released claim", released)
+	}
+}
+
+func TestSQLiteStoreRetryableTxRetriesRuntimeRegistryLockContention(t *testing.T) {
+	ctx := context.Background()
+	clk := newFixedClock(time.Date(2026, 6, 16, 12, 0, 0, 0, time.UTC))
+	store := newTestStore(t, clk)
+	instance, err := store.CreateInstance(ctx, Instance{InstanceID: "inst-alpha", Scenario: "alpha"})
+	if err != nil {
+		t.Fatalf("CreateInstance() error = %v", err)
+	}
+	if _, err := store.AcquirePortClaim(ctx, PortClaim{
+		ClaimID:    "claim-alpha-api",
+		InstanceID: instance.InstanceID,
+		Scenario:   instance.Scenario,
+		PortName:   "api",
+		EnvVar:     "API_PORT",
+		Port:       15080,
+	}); err != nil {
+		t.Fatalf("AcquirePortClaim() error = %v", err)
+	}
+
+	attempts := 0
+	err = store.withRetryableTx(ctx, func(tx *sql.Tx) error {
+		attempts++
+		if attempts < 3 {
+			return fmt.Errorf("release active runtime port claims: database is locked (517)")
+		}
+		_, err := tx.ExecContext(ctx, `
+UPDATE runtime_port_claims
+SET status = ?, updated_at = ?
+WHERE claim_id = ?`, ClaimStatusReleased, formatTime(clk.Now()), "claim-alpha-api")
+		return err
+	})
+	if err != nil {
+		t.Fatalf("withRetryableTx() error = %v", err)
+	}
+	if attempts != 3 {
+		t.Fatalf("attempts = %d, want 3", attempts)
+	}
+	claims, err := store.ListPortClaims(ctx, PortClaimFilter{InstanceID: instance.InstanceID})
+	if err != nil {
+		t.Fatalf("ListPortClaims() error = %v", err)
+	}
+	if len(claims) != 1 || claims[0].Status != ClaimStatusReleased {
+		t.Fatalf("claims = %#v, want released claim", claims)
+	}
+}
+
+// TestRenewReservedPortClaimsForInstance pins the heartbeat renewal contract:
+// only the instance's still-reserved claims get a new expires_at — bound
+// claims and other instances' claims are untouched.
+func TestRenewReservedPortClaimsForInstance(t *testing.T) {
+	ctx := context.Background()
+	clk := newFixedClock(time.Date(2026, 6, 12, 12, 0, 0, 0, time.UTC))
+	store := newTestStore(t, clk)
+	instance, err := store.CreateInstance(ctx, Instance{InstanceID: "inst-alpha", Scenario: "alpha"})
+	if err != nil {
+		t.Fatalf("CreateInstance: %v", err)
+	}
+	other, err := store.CreateInstance(ctx, Instance{InstanceID: "inst-beta", Scenario: "beta"})
+	if err != nil {
+		t.Fatalf("CreateInstance(other): %v", err)
+	}
+	oldExpiry := clk.Now().Add(time.Minute)
+	acquire := func(claimID, instanceID, scenario string, port int) {
+		t.Helper()
+		if _, err := store.AcquirePortClaim(ctx, PortClaim{
+			ClaimID:    claimID,
+			InstanceID: instanceID,
+			Scenario:   scenario,
+			PortName:   "api",
+			EnvVar:     "API_PORT",
+			Port:       port,
+			ExpiresAt:  &oldExpiry,
+		}); err != nil {
+			t.Fatalf("AcquirePortClaim(%s): %v", claimID, err)
+		}
+	}
+	acquire("claim-alpha-reserved", instance.InstanceID, instance.Scenario, 16383)
+	acquire("claim-alpha-bound", instance.InstanceID, instance.Scenario, 16384)
+	acquire("claim-beta-reserved", other.InstanceID, other.Scenario, 16385)
+	if _, err := store.BindPortClaim(ctx, "claim-alpha-bound"); err != nil {
+		t.Fatalf("BindPortClaim: %v", err)
+	}
+
+	newExpiry := clk.Now().Add(DefaultReservedClaimTTL)
+	renewed, err := store.RenewReservedPortClaimsForInstance(ctx, instance.InstanceID, newExpiry)
+	if err != nil {
+		t.Fatalf("RenewReservedPortClaimsForInstance: %v", err)
+	}
+	if renewed != 1 {
+		t.Fatalf("renewed = %d, want 1 (only the reserved claim)", renewed)
+	}
+
+	claims, err := store.ListPortClaims(ctx, PortClaimFilter{})
+	if err != nil {
+		t.Fatalf("ListPortClaims: %v", err)
+	}
+	byID := map[string]PortClaim{}
+	for _, claim := range claims {
+		byID[claim.ClaimID] = claim
+	}
+	if got := byID["claim-alpha-reserved"].ExpiresAt; got == nil || !got.Equal(newExpiry) {
+		t.Fatalf("reserved claim expires_at = %v, want %v", got, newExpiry)
+	}
+	if got := byID["claim-alpha-bound"].ExpiresAt; got != nil {
+		t.Fatalf("bound claim expires_at = %v, want nil (cleared on bind, never renewed)", got)
+	}
+	if got := byID["claim-beta-reserved"].ExpiresAt; got == nil || !got.Equal(oldExpiry) {
+		t.Fatalf("other instance's claim expires_at = %v, want untouched %v", got, oldExpiry)
 	}
 }
 

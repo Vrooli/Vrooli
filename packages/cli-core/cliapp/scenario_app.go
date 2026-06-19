@@ -35,13 +35,6 @@ func defaultIfEmpty(value, fallback string) string {
 	return value
 }
 
-func defaultStringSlice(value, fallback []string) []string {
-	if len(value) == 0 {
-		return append([]string(nil), fallback...)
-	}
-	return append([]string(nil), value...)
-}
-
 // ScenarioOptions bundles common wiring for scenario CLIs so individual
 // scenarios don't have to repeat config loading, API client setup, stale
 // checking, and configure command plumbing.
@@ -164,7 +157,7 @@ func NewScenarioApp(opts ScenarioOptions) (*ScenarioApp, error) {
 		opts.HTTPTimeoutEnvVars = []string{slug + "_HTTP_TIMEOUT", "VROOLI_HTTP_TIMEOUT"}
 	}
 	if opts.DefaultHTTPTimeout == 0 {
-		opts.DefaultHTTPTimeout = 30 * time.Second
+		opts.DefaultHTTPTimeout = 120 * time.Second
 	}
 
 	configFile, cfg, err := cliutil.LoadAPIConfig(opts.Name, opts.ConfigDirEnvVars...)
@@ -676,13 +669,4 @@ func (a *ScenarioApp) tryAutoStart() error {
 	}
 
 	return fmt.Errorf("timeout waiting for API to become available")
-}
-
-func firstNonEmpty(values []string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return value
-		}
-	}
-	return ""
 }

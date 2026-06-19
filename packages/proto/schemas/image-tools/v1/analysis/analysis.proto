@@ -142,6 +142,39 @@ message ProbeResult {
   repeated DominantColor dominant_colors = 12;
 }
 
+// DuplicateResult is the structured output of the pure-Go `duplicate_detect` op:
+// perceptual fingerprints of the image so callers can find near-duplicates by
+// comparing hashes (Hamming distance) across a set. No model — runs on any host.
+message DuplicateResult {
+  // PhashHex is the 64-bit DCT perceptual hash as a 16-char hex string (robust
+  // to re-encode / scale / minor edits — the primary dedup key).
+  string phash_hex = 1;
+  // AhashHex is the 64-bit average hash (cheaper, more sensitive to exposure).
+  string ahash_hex = 2;
+  // HashBits is the hash width (64) so callers can normalize Hamming distance.
+  int32 hash_bits = 3;
+}
+
+// QualityResult is the structured output of the pure-Go `quality_assessment`
+// op: no-reference image-quality heuristics (sharpness, exposure, contrast) and
+// a derived overall score. No model — runs on any host.
+message QualityResult {
+  // OverallScore is a 0..1 quality estimate (higher = better).
+  double overall_score = 1;
+  // Sharpness is the variance of the Laplacian (higher = sharper); 0..~large.
+  double sharpness = 2;
+  // Blurry is true when sharpness falls below the blur threshold.
+  bool blurry = 3;
+  // Brightness is the mean luma 0..255.
+  double brightness = 4;
+  // Contrast is the luma standard deviation 0..~127.
+  double contrast = 5;
+  // Exposure is a human label: "well-exposed", "underexposed", or "overexposed".
+  string exposure = 6;
+  // Notes carries human-readable quality observations (e.g. "low contrast").
+  repeated string notes = 7;
+}
+
 // AnalyzeResponse is the protojson body returned by the analyze edge: the
 // durable job id plus exactly one structured result matching the {operation}.
 message AnalyzeResponse {
@@ -150,5 +183,7 @@ message AnalyzeResponse {
     OCRResult ocr = 2;
     NSFWResult nsfw = 3;
     ProbeResult probe = 4;
+    DuplicateResult duplicate = 5;
+    QualityResult quality = 6;
   }
 }

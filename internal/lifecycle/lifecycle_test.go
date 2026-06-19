@@ -2714,8 +2714,15 @@ func TestInjectTestGenieTestFlags(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := injectTestGenieTestFlags(tc.in); got != tc.want {
+			got := injectTestGenieTestFlags(tc.in)
+			if got != tc.want {
 				t.Fatalf("injectTestGenieTestFlags(%q) = %q, want %q", tc.in, got, tc.want)
+			}
+			// Idempotency: re-injecting the result must be a no-op. A
+			// non-idempotent splice is how the lifecycle path corrupts a command
+			// across repeated passes (guards rec-5b60f74e40badb04).
+			if again := injectTestGenieTestFlags(got); again != got {
+				t.Fatalf("injection not idempotent: first %q, second %q", got, again)
 			}
 		})
 	}

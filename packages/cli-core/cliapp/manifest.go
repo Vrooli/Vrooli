@@ -19,18 +19,18 @@ type Manifest struct {
 }
 
 type ManifestGroup struct {
-	Name        string             `json:"name"`
-	Description string             `json:"description,omitempty"`
-	Commands    []ManifestCommand  `json:"commands"`
+	Name        string            `json:"name"`
+	Description string            `json:"description,omitempty"`
+	Commands    []ManifestCommand `json:"commands"`
 }
 
 type ManifestCommand struct {
-	Name        string                  `json:"name"`
-	Description string                  `json:"description,omitempty"`
-	Positionals []ManifestPositional    `json:"positionals,omitempty"`
-	Flags       []ManifestFlag          `json:"flags,omitempty"`
-	Binding     ManifestBinding         `json:"binding"`
-	Governance  ManifestGovernance      `json:"governance"`
+	Name        string               `json:"name"`
+	Description string               `json:"description,omitempty"`
+	Positionals []ManifestPositional `json:"positionals,omitempty"`
+	Flags       []ManifestFlag       `json:"flags,omitempty"`
+	Binding     ManifestBinding      `json:"binding"`
+	Governance  ManifestGovernance   `json:"governance"`
 }
 
 type ManifestPositional struct {
@@ -41,13 +41,13 @@ type ManifestPositional struct {
 }
 
 type ManifestFlag struct {
-	Name        string             `json:"name"`
-	Aliases     []string           `json:"aliases,omitempty"`
-	Description string             `json:"description,omitempty"`
-	Required    bool               `json:"required,omitempty"`
-	Default     string             `json:"default,omitempty"`
-	Bool        bool               `json:"bool,omitempty"`
-	Bind        *ManifestFlagBind  `json:"bind,omitempty"`
+	Name        string            `json:"name"`
+	Aliases     []string          `json:"aliases,omitempty"`
+	Description string            `json:"description,omitempty"`
+	Required    bool              `json:"required,omitempty"`
+	Default     string            `json:"default,omitempty"`
+	Bool        bool              `json:"bool,omitempty"`
+	Bind        *ManifestFlagBind `json:"bind,omitempty"`
 }
 
 // ManifestFlagBind, when set, declares how the flag's parsed value maps
@@ -211,12 +211,7 @@ func LoadFromManifest(raw []byte, groupName string, bindings map[string]func(Run
 func manifestArgs(c ManifestCommand) (ArgSchema, error) {
 	args := ArgSchema{}
 	for _, p := range c.Positionals {
-		args.Positionals = append(args.Positionals, Positional{
-			Name:        p.Name,
-			Description: p.Description,
-			Required:    p.Required,
-			Repeated:    p.Repeated,
-		})
+		args.Positionals = append(args.Positionals, Positional(p))
 	}
 	for _, f := range c.Flags {
 		flag := Flag{

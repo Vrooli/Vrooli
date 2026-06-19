@@ -232,6 +232,25 @@ func evaluateOrientationCheck[C any](deps HandlerDeps[C], ctx C, scenarioRoot st
 		if !report.Passed {
 			report.Message = "text condition not satisfied"
 		}
+	case "text_absent_tree":
+		// Recursively scan the scenario tree (text files only, skipping
+		// vendored/build dirs) and fail if any file contains check.Text. This
+		// is the EXAMPLE-DOMAIN residue gate: a finalized scenario must carry
+		// zero example-domain markers anywhere.
+		hits, err := scanTreeForText(scenarioRoot, check.Text)
+		if err != nil {
+			report.Message = err.Error()
+			return report
+		}
+		report.Passed = len(hits) == 0
+		if !report.Passed {
+			shown := hits
+			if len(shown) > 5 {
+				shown = shown[:5]
+			}
+			report.Message = fmt.Sprintf("found %q in %d file(s): %s — run `vrooli scenario detemplate %s`",
+				check.Text, len(hits), strings.Join(shown, ", "), filepath.Base(scenarioRoot))
+		}
 	case "json_path_exists":
 		path, err := resolve(check.Path)
 		if err != nil {
@@ -294,6 +313,8 @@ func orientationCheckLabel(check TemplateOrientationCheck) string {
 		return strings.TrimSpace(check.Path + ":" + check.Query)
 	case "text_contains", "text_absent":
 		return check.Path
+	case "text_absent_tree":
+		return check.Text
 	case "command":
 		return check.Run
 	default:

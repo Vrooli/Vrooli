@@ -156,6 +156,49 @@ func writeScenarioOrientationJSON(w io.Writer, report OrientationReport) error {
 }
 
 // -----------------------------------------------------------------------------
+// `scenario detemplate`
+// -----------------------------------------------------------------------------
+
+// ScenarioDetemplateResponse maps a DetemplateResult onto the wire contract
+// (cliout.WriteFieldsWithSuccess; success is always true).
+func ScenarioDetemplateResponse(result DetemplateResult) *cliv1.ScenarioDetemplateResponse {
+	msg := &cliv1.ScenarioDetemplateResult{
+		Scenario:      result.Scenario,
+		ScenarioPath:  result.ScenarioPath,
+		Marker:        result.Marker,
+		DryRun:        result.DryRun,
+		BlocksRemoved: int32(result.BlocksRemoved),
+		LinesStripped: int32(result.LinesStripped),
+		PathsDeleted:  append([]string(nil), result.PathsDeleted...),
+		Message:       result.Message,
+	}
+	for _, f := range result.FilesEdited {
+		msg.FilesEdited = append(msg.FilesEdited, &cliv1.ScenarioDetemplateFile{
+			Path:          f.Path,
+			BlocksRemoved: int32(f.BlocksRemoved),
+			LinesStripped: int32(f.LinesStripped),
+		})
+	}
+	for _, fin := range result.Finalizers {
+		msg.Finalizers = append(msg.Finalizers, &cliv1.ScenarioDetemplateFinalizer{
+			Description: fin.Description,
+			Command:     fin.Command,
+			Ran:         fin.Ran,
+			Ok:          fin.OK,
+			Message:     fin.Message,
+		})
+	}
+	return &cliv1.ScenarioDetemplateResponse{
+		Success:    true,
+		Detemplate: msg,
+	}
+}
+
+func writeScenarioDetemplateJSON(w io.Writer, result DetemplateResult) error {
+	return marshalScenarioStatus(w, ScenarioDetemplateResponse(result))
+}
+
+// -----------------------------------------------------------------------------
 // `scenario validate-env`
 // -----------------------------------------------------------------------------
 

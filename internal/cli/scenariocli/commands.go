@@ -59,6 +59,7 @@ const (
 	CommandTemplate        CommandID = "template"
 	CommandGenerate        CommandID = "generate"
 	CommandOrient          CommandID = "orient"
+	CommandDetemplate      CommandID = "detemplate"
 	CommandCompleteness    CommandID = "completeness"
 	CommandHealFromSandbox CommandID = "heal-from-sandbox"
 )
@@ -138,6 +139,13 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Args: commandtree.ArgSchema{
 				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}},
 				Options:     []commandtree.OptionArg{commandtree.JSONOption(), {Name: "--finalize", Description: "Remove temporary orientation metadata after required checks pass"}},
+			},
+		},
+		{
+			Name: string(CommandDetemplate), Group: "Lifecycle and Utility Commands", Summary: "Remove the template's example domain from a generated scenario", Handler: CommandDetemplate, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
+			Args: commandtree.ArgSchema{
+				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}},
+				Options:     []commandtree.OptionArg{commandtree.JSONOption(), {Name: "--dry-run", Description: "Preview removals without writing, deleting, or running finalizers"}},
 			},
 		},
 		{Name: string(CommandCompleteness), Group: "Lifecycle and Utility Commands", Summary: "Calculate a completeness score", Handler: CommandCompleteness, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
@@ -613,6 +621,19 @@ func ParseOrientationRequest(globalsJSON bool, args []string) (OrientationReques
 		Name:     parsed.Positionals[0],
 		JSON:     globalsJSON || parsed.HasFlag("--json"),
 		Finalize: parsed.HasFlag("--finalize"),
+	}, nil
+}
+
+func ParseDetemplateRequest(globalsJSON bool, args []string) (DetemplateRequest, error) {
+	spec := commandSpec(CommandDetemplate)
+	parsed, err := commandtree.ParseArgs("scenario detemplate", commandHelpText(CommandDetemplate), spec.Args, args)
+	if err != nil {
+		return DetemplateRequest{}, err
+	}
+	return DetemplateRequest{
+		Name:   parsed.Positionals[0],
+		JSON:   globalsJSON || parsed.HasFlag("--json"),
+		DryRun: parsed.HasFlag("--dry-run"),
 	}, nil
 }
 
