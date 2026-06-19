@@ -257,6 +257,9 @@ func main() {
 	if err := internalai.RegisterProviders(backendReg, nil, nil); err != nil {
 		log.Fatalf("ai provider registration failed: %v", err)
 	}
+	if err := internalanalysis.RegisterBackendProviders(backendReg); err != nil {
+		log.Fatalf("analysis provider registration failed: %v", err)
+	}
 	if err := backendReg.Validate(); err != nil {
 		log.Fatalf("backend invariant failed: %v", err)
 	}
@@ -325,7 +328,7 @@ func main() {
 		diffH.Module(blobStore, jobManager, log.Default()),
 		jobsH.Module(jobManager, log.Default()),
 		looksH.Module(db, blobStore, log.Default()),
-		modelsH.Module(db, registry, probe, installer, jobManager, log.Default()),
+		modelsH.Module(db, registry, probe, installer, backendReg, jobManager, log.Default()),
 		opsH.Module(blobStore, jobManager, log.Default()),
 		safetyH.Module(deployTier),
 		selectionH.Module(blobStore, jobManager, log.Default()),

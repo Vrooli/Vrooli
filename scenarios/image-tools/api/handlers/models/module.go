@@ -3,6 +3,7 @@ package models
 import (
 	"log"
 
+	internalbackends "image-tools/internal/backends"
 	internalcaps "image-tools/internal/capabilities"
 	internalmodels "image-tools/internal/models"
 	"image-tools/internal/module"
@@ -18,13 +19,14 @@ import (
 // ModelsService handler over the declarative registry. The registry (validated
 // seed catalog) is loaded once in main.go and shared; the enabled-state overlay
 // is persisted in SQLite via the models store.
-func Module(db *database.RoutedDB, reg *internalmodels.Registry, probe internalcaps.Probe, installer *internalmodels.Installer, jobs JobSubmitter, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, reg *internalmodels.Registry, probe internalcaps.Probe, installer *internalmodels.Installer, backendReg *internalbackends.Registry, jobs JobSubmitter, logger *log.Logger) module.Module {
 	store := internalmodels.NewStore(db)
 	connectPath, connectHandler := modelsconnect.NewModelsServiceHandler(NewConnectHandler(Deps{
 		Registry:   reg,
 		Store:      store,
 		Probe:      probe,
 		Installer:  installer,
+		Backends:   backendReg,
 		Jobs:       jobs,
 		OpDefaults: internalmodels.NewOpDefaultStore(db),
 		Logger:     logger,
@@ -198,6 +200,24 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Examples: []module.Example{
 			{Name: "Doctor catalog", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/DoctorCatalog -H 'Content-Type: application/json' -d '{}'"},
+		},
+	},
+	{
+		ID:          "backends_doctor",
+		Path:        modelsconnect.ModelsServiceDoctorBackendsProcedure,
+		Method:      "POST",
+		Summary:     "Diagnose backend software availability",
+		Description: "Checks registered inference backends for host software readiness (PATH/module presence), overlays enabled catalog backend families that have no runtime provider yet, and returns provisioning guidance. Hardware fit remains reported by model selection.",
+		Category:    "models",
+		Response: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"ok":       "bool",
+				"backends": "array<BackendStatus>",
+			},
+		},
+		Examples: []module.Example{
+			{Name: "Doctor backends", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/DoctorBackends -H 'Content-Type: application/json' -d '{}'"},
 		},
 	},
 	{

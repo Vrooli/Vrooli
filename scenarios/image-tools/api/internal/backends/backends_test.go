@@ -5,6 +5,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"image-tools/internal/models"
 )
 
 // fakeProvider is a configurable Provider for table tests.
@@ -14,6 +16,8 @@ type fakeProvider struct {
 	standalone bool
 	cloud      bool
 	available  bool
+	detail     string
+	provision  string
 }
 
 func (f fakeProvider) Name() string                   { return f.name }
@@ -21,6 +25,10 @@ func (f fakeProvider) Operations() []string           { return f.ops }
 func (f fakeProvider) Standalone() bool               { return f.standalone }
 func (f fakeProvider) IsCloud() bool                  { return f.cloud }
 func (f fakeProvider) Available(context.Context) bool { return f.available }
+func (f fakeProvider) Availability(context.Context) Availability {
+	return Availability{Available: f.available, Detail: f.detail, Provision: f.provision}
+}
+
 func (f fakeProvider) Execute(context.Context, Request) (Result, error) {
 	return Result{OutputRef: "out", Tier: TierLocalCPU}, nil
 }
@@ -185,8 +193,125 @@ func TestSelectNoProvider(t *testing.T) {
 
 func TestSelectNoneAvailable(t *testing.T) {
 	r := New()
-	_ = r.Register(fakeProvider{name: "sd.cpp", ops: []string{"generate"}, standalone: true, available: false})
-	if _, err := r.SelectProvider(context.Background(), SelectRequest{Operation: "generate"}); !errors.Is(err, ErrNoneAvailable) {
+	_ = r.Register(fakeProvider{name: "sd.cpp", ops: []string{"generate"}, standalone: true, available: false, detail: "sd missing", provision: "install sd"})
+	_, err := r.SelectProvider(context.Background(), SelectRequest{Operation: "generate"})
+	if !errors.Is(err, ErrNoneAvailable) {
 		t.Fatalf("want ErrNoneAvailable, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "sd missing") || !strings.Contains(err.Error(), "install sd") {
+		t.Fatalf("error should include availability detail and provision guidance, got %v", err)
+	}
+}
+
+func TestDoctorReportsBackendAvailability(t *testing.T) {
+	r := New()
+	_ = r.Register(fakeProvider{name: "onnxruntime", ops: []string{"background_removal", "denoise"}, standalone: true, available: true, detail: "python ready", provision: "install python deps"})
+	_ = r.Register(fakeProvider{name: "sd.cpp", ops: []string{"text_to_image"}, standalone: true, available: false, detail: "sd missing", provision: "install sd"})
+	_ = r.Register(fakeProvider{name: "openai", ops: []string{"text_to_image"}, standalone: true, cloud: true, available: false, detail: "api key missing", provision: "set API key"})
+
+	report := r.Doctor(context.Background())
+	if report.OK {
+		t.Fatalf("missing local backend should make doctor red")
+	}
+	if len(report.Backends) != 3 {
+		t.Fatalf("got %d backend rows, want 3", len(report.Backends))
+	}
+	var sawONNX, sawSD, sawCloud bool
+	for _, b := range report.Backends {
+		switch b.Name {
+		case "onnxruntime":
+			sawONNX = true
+			if !b.Available || !b.Standalone || b.Cloud || len(b.Operations) != 2 {
+				t.Fatalf("bad onnxruntime row: %+v", b)
+			}
+		case "sd.cpp":
+			sawSD = true
+			if b.Available || b.Detail != "sd missing" || b.Provision != "install sd" {
+				t.Fatalf("bad sd row: %+v", b)
+			}
+		case "openai":
+			sawCloud = true
+			if !b.Cloud {
+				t.Fatalf("cloud row should be marked cloud: %+v", b)
+			}
+		}
+	}
+	if !sawONNX || !sawSD || !sawCloud {
+		t.Fatalf("missing expected rows: onnx=%t sd=%t cloud=%t", sawONNX, sawSD, sawCloud)
+	}
+}
+
+func TestDoctorForModelsReportsDeclaredButUnregisteredBackends(t *testing.T) {
+	r := New()
+	_ = r.Register(fakeProvider{name: "builtin", ops: []string{"naturalize"}, standalone: true, available: true, detail: "built in", provision: "none"})
+
+	report := r.DoctorForModels(context.Background(), []models.Model{
+		{ID: "naturalize-detail-v1", Backend: models.BackendBuiltin, Enabled: true, Operations: []string{"naturalize"}},
+		{ID: "caption-default", Backend: "llama.cpp", Enabled: true, Operations: []string{"caption"}},
+		{ID: "disabled-gap", Backend: "python-sidecar", Enabled: false, Operations: []string{"face_restore"}},
+	})
+	if report.OK {
+		t.Fatalf("declared but unregistered local backend should make doctor red")
+	}
+	var sawBuiltin, sawLlama, sawDisabled bool
+	for _, b := range report.Backends {
+		switch b.Name {
+		case "builtin":
+			sawBuiltin = true
+			if !b.Available {
+				t.Fatalf("registered builtin row should stay available: %+v", b)
+			}
+		case "llama.cpp":
+			sawLlama = true
+			if b.Available || !strings.Contains(b.Detail, "no runtime provider") || !strings.Contains(strings.Join(b.Operations, ","), "caption") {
+				t.Fatalf("bad llama.cpp gap row: %+v", b)
+			}
+		case "python-sidecar":
+			sawDisabled = true
+		}
+	}
+	if !sawBuiltin || !sawLlama {
+		t.Fatalf("missing expected rows: %+v", report.Backends)
+	}
+	if sawDisabled {
+		t.Fatalf("disabled catalog models must not create backend doctor gaps: %+v", report.Backends)
+	}
+}
+
+func TestDoctorKeepsSameBackendDistinctProviderRows(t *testing.T) {
+	r := New()
+	_ = r.Register(fakeProvider{name: "library-cgo", ops: []string{"ocr"}, standalone: true, available: false, detail: "tesseract missing", provision: "install tesseract"})
+	_ = r.Register(fakeProvider{name: "library-cgo", ops: []string{"face_detection"}, standalone: true, available: true, detail: "opencv ready", provision: "opencv present"})
+
+	report := r.DoctorForModels(context.Background(), []models.Model{
+		{ID: "tesseract", Backend: "library-cgo", Enabled: true, Operations: []string{"ocr"}},
+		{ID: "yunet", Backend: "library-cgo", Enabled: true, Operations: []string{"face_detection"}},
+	})
+	if report.OK {
+		t.Fatalf("missing tesseract should keep report red: %+v", report.Backends)
+	}
+	var sawOCR, sawFace bool
+	for _, b := range report.Backends {
+		if b.Name != "library-cgo" {
+			continue
+		}
+		ops := strings.Join(b.Operations, ",")
+		switch ops {
+		case "ocr":
+			sawOCR = true
+			if b.Available || b.Detail != "tesseract missing" {
+				t.Fatalf("bad OCR row: %+v", b)
+			}
+		case "face_detection":
+			sawFace = true
+			if !b.Available || b.Detail != "opencv ready" {
+				t.Fatalf("bad face_detection row: %+v", b)
+			}
+		default:
+			t.Fatalf("unexpected merged library-cgo row: %+v", b)
+		}
+	}
+	if !sawOCR || !sawFace {
+		t.Fatalf("missing distinct provider rows: %+v", report.Backends)
 	}
 }

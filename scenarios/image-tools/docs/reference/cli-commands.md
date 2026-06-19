@@ -218,6 +218,21 @@ image-tools models doctor
 image-tools models doctor --json
 ```
 
+## Scenario commands — `backends` (AI backend software readiness)
+
+### `image-tools backends doctor`
+
+Diagnose host software availability for registered inference backends and flag
+enabled catalog backend families that do not yet have a runtime provider. Calls
+`ModelsService/DoctorBackends` and exits non-zero when a local backend is
+missing or a catalog-declared backend cannot be probed/executed yet. Hardware
+fit remains reported by `models select`.
+
+```bash
+image-tools backends doctor
+image-tools backends doctor --json
+```
+
 ## Output contracts
 
 Every scenario command should render through one of three human

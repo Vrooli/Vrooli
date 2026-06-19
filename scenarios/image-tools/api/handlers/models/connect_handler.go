@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 
+	internalbackends "image-tools/internal/backends"
 	internalcaps "image-tools/internal/capabilities"
 	internaljobs "image-tools/internal/jobs"
 	internalmodels "image-tools/internal/models"
@@ -31,6 +32,8 @@ type Deps struct {
 	Probe internalcaps.Probe
 	// Installer manages on-disk weights (install/remove/custom) and install state.
 	Installer *internalmodels.Installer
+	// Backends is the runtime provider registry used by AI selection.
+	Backends *internalbackends.Registry
 	// Jobs submits the durable download job (may be nil in read-only wiring).
 	Jobs JobSubmitter
 	// OpDefaults persists per-operation default-model pins (settings surface).
@@ -381,6 +384,13 @@ func (h *connectHandler) ListDefaults(ctx context.Context, _ *connect.Request[mo
 
 func (h *connectHandler) DoctorCatalog(_ context.Context, _ *connect.Request[modelsv1.DoctorCatalogRequest]) (*connect.Response[modelsv1.DoctorCatalogResponse], error) {
 	return connect.NewResponse(doctorReportToProto(h.deps.Registry.DoctorCatalog())), nil
+}
+
+func (h *connectHandler) DoctorBackends(ctx context.Context, _ *connect.Request[modelsv1.DoctorBackendsRequest]) (*connect.Response[modelsv1.DoctorBackendsResponse], error) {
+	if h.deps.Backends == nil {
+		return nil, connect.NewError(connect.CodeInternal, errors.New("backend registry is not configured"))
+	}
+	return connect.NewResponse(backendReportToProto(h.deps.Backends.DoctorForModels(ctx, h.deps.Registry.Models()))), nil
 }
 
 // selectError maps selector errors to actionable Connect codes.

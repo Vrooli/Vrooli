@@ -932,6 +932,27 @@
       ]
     },
     {
+      "id": "backends_doctor",
+      "path": "/vrooli.image_tools.v1.models.ModelsService/DoctorBackends",
+      "method": "POST",
+      "summary": "Diagnose backend software availability",
+      "description": "Checks registered inference backends for host software readiness (PATH/module presence), overlays enabled catalog backend families that have no runtime provider yet, and returns provisioning guidance. Hardware fit remains reported by model selection.",
+      "category": "models",
+      "response": {
+        "type": "object",
+        "properties": {
+          "backends": "array<BackendStatus>",
+          "ok": "bool"
+        }
+      },
+      "examples": [
+        {
+          "name": "Doctor backends",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/DoctorBackends -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
       "id": "models_install",
       "path": "/vrooli.image_tools.v1.models.ModelsService/InstallModel",
       "method": "POST",

@@ -21,25 +21,38 @@ but backend program missing → "no available provider" / enable BYOK. Both must
 line up. The tier label (`local-gpu` / `local-cpu` / `byok-cloud`) reflects where
 the op *actually* ran — a CPU-only backend reports `local-cpu` even on a GPU host.
 
+Run the backend doctor before an attended AI run:
+
+```bash
+image-tools backends doctor
+image-tools backends doctor --json
+```
+
+It calls `ModelsService/DoctorBackends` and reports, per backend, whether the
+software is present on this host, which ops it serves, whether it can claim GPU,
+and the provisioning path. It also reports enabled catalog backend families that
+do not yet have a registered runtime provider, so declared-but-unpromoted
+verticals are visible before an operator tries a job. Hardware fit is still
+reported by `models select` / AI planning; backend doctor answers "is this
+backend actually probeable/executable on this host?".
+
 ## Backends
 
-| Backend | Program | Ops | GPU-capable | Provisioning |
+| Backend | Program | Ops | GPU-capable | Management decision |
 |---|---|---|---|---|
-| `onnxruntime` (sidecar) | `python3` + onnxruntime | `background_removal`, `deblur`, `segment`, detection/tagging/embeddings | no (CPU) | Python + `onnxruntime`, `pillow`, `numpy` (see below) |
-| `rembg` | `rembg` | `background_removal` (alt) | no (CPU) | `pip install rembg` (optional alt to the sidecar) |
-| `stable-diffusion.cpp` | `sd` | `text_to_image`, `image_to_image` | yes | build/install the `sd` binary |
-| `diffusers` (sidecar) | `python3` + diffusers | `edit_instruct`, `inpaint`, `outpaint` | yes | Python + `diffusers`/`torch` (heavy) |
-| `iopaint` | `iopaint` | `object_removal` | yes (`--device cuda`) | `pip install iopaint` |
-| `realesrgan-ncnn-vulkan` | `realesrgan-ncnn-vulkan` | `upscale`, `denoise` | yes (Vulkan) | install the ncnn-vulkan release binary + models |
-| `builtin` | in-process Go | `naturalize` | no (CPU) | no provisioning; always installed |
-| `computed` | in-process math | `normal_map` | no (CPU) | no model weights; depends on the depth-map input |
-| `library-go` | linked Go library | `duplicate_detect`, `qr_barcode_read` | no (CPU) | no model weights; shipped in the API binary |
-| `library-cgo` | host C/C++ library | `ocr`, `face_detection`, `quality_assessment` | no (CPU) | Phase 2 backend doctor will probe libraries/binaries and data files |
-
-> Status (2026-06-18): only the **onnxruntime sidecar `background_removal`** path
-> is wired + proven end-to-end on CPU. The other backends are declared; their
-> verticals (weights resolution + provisioning + proof) are built in later phases
-> of the advanced-editing plan.
+| `onnxruntime` (sidecar) | `python3` + onnxruntime | `background_removal`, `denoise`, `colorize`, `depth_map` | no (CPU) | Embedded sidecar code; Python runtime deps managed through Scenario Dependency Analyzer (SDA). |
+| `python-sidecar` | `python3` modules | restoration/color/depth quality tiers | mixed | Embedded sidecar pattern; Python runtime deps managed through SDA before enabling a vertical. |
+| `diffusers` (sidecar) | `python3` + diffusers | `edit_instruct`, `inpaint`, `outpaint`, `background_replace` | yes | Embedded sidecar pattern; `diffusers`/`torch` runtime deps managed through SDA. |
+| `stable-diffusion.cpp` | `sd` | `text_to_image`, `image_to_image` | yes | Standalone binary managed through SDA / host-tool provisioning. |
+| `iopaint` | `iopaint` | `object_removal` | yes (`--device cuda`) | Standalone CLI managed through SDA. |
+| `llama.cpp` | `llama-mtmd-cli` / compatible `llama-cli` | `caption` | yes | Registered runtime provider; standalone multimodal llama.cpp binary managed through SDA before caption E2E is promoted. |
+| `rembg` | `rembg` | `background_removal` (alt) | no (CPU) | Optional standalone CLI managed through SDA; ONNX sidecar remains the CPU floor. |
+| `realesrgan-ncnn-vulkan` | `realesrgan-ncnn-vulkan` | `upscale` | yes (Vulkan) | Standalone ncnn-vulkan release binary managed through SDA / host-tool provisioning. |
+| `realcugan-ncnn-vulkan` | `realcugan-ncnn-vulkan` | anime upscale variants | yes (Vulkan) | Standalone ncnn-vulkan release binary managed through SDA before enabling. |
+| `builtin` | in-process Go | `naturalize` | no (CPU) | Shipped in the API binary; no provisioning. |
+| `computed` | in-process math | `normal_map`, `quality_assessment` | no (CPU) | Registered runtime provider shipped in the API binary; no provisioning. |
+| `library-go` | linked Go library | `duplicate_detect`, `qr_barcode_read` | no (CPU) | Registered runtime provider shipped in the API binary; no model weights. |
+| `library-cgo` | host C/C++ library / binary | `ocr`, `face_detection` | no (CPU) | Registered Tesseract OCR and OpenCV YuNet providers; host binaries/libraries/data are managed through SDA. |
 
 > Status (2026-06-19): Phase 1 catalog hardening has direct install assets for
 > every enabled weight-backed seed model. The final migrated slice added
@@ -49,6 +62,51 @@ the op *actually* ran — a CPU-only backend reports `local-cpu` even on a GPU h
 > future enabled weight-backed model without direct `source.assets[]` is a
 > regression.
 
+> Status (2026-06-19): Phase 2 backend doctor is wired and catalog-aware.
+> `backends doctor` reports software readiness for registered runtime providers
+> (`stable-diffusion.cpp`, `diffusers`, `iopaint`, `realesrgan-ncnn-vulkan`,
+> `rembg`, `onnxruntime`, `llama.cpp`, `builtin`, `computed`, `library-go`,
+> `library-cgo`) and
+> also emits red rows for enabled catalog-declared backend operations with no
+> runtime provider yet (currently `python-sidecar`, plus operation-level gaps
+> under otherwise registered families such as `onnxruntime`
+> classifiers/detectors, `realesrgan-ncnn-vulkan` `denoise`, and `rembg`
+> `background_replace`).
+> Selection errors include the same provisioning details for registered
+> providers; the declared-but-unregistered rows become green as their operation
+> verticals are promoted.
+
+> Status (2026-06-19): The first in-process Phase 2 promotion is complete.
+> `computed` now has a CPU provider for `normal_map` (depth/luma to normal-map
+> PNG) and `quality_assessment` (structured quality metrics). `library-go` now
+> has a CPU provider for `duplicate_detect` and `qr_barcode_read`; duplicate
+> detection reuses the production pure-Go perceptual-hash implementation, while
+> QR/barcode read is a registered lightweight seam pending the full decoder
+> vertical. These rows require no host provisioning and should report available
+> in `image-tools backends doctor`.
+
+> Status (2026-06-19): `llama.cpp` is promoted to a registered caption backend.
+> The provider probes `llama-mtmd-cli` first, then compatible `llama-cli`
+> installations, builds argv from the installed text-model GGUF plus `mmproj`
+> GGUF assets, captures the runner's stdout, and writes a structured caption JSON
+> result. On hosts without a llama.cpp multimodal binary, `backends doctor`
+> reports the row red with SDA provisioning guidance instead of the older
+> "no runtime provider" catalog gap.
+
+> Status (2026-06-19): `library-cgo` is partially promoted. The OCR vertical is
+> now a registered provider that probes the Tesseract binary, executes the same
+> `tesseract <image> stdout -l eng` command used by the synchronous analysis API,
+> and writes structured OCR JSON when selected through the shared backend seam.
+> Backend doctor now compares catalog backend+operation coverage, so this OCR
+> provider did not hide the former `library-cgo` `face_detection` gap.
+
+> Status (2026-06-19): `library-cgo` `face_detection` is promoted to a
+> registered OpenCV YuNet provider. It probes `python3` plus `cv2`/`numpy`, runs
+> the embedded `image_tools_sidecar.face_detection` module against the installed
+> YuNet ONNX asset, and writes anonymous face-count/bounding-box JSON. On hosts
+> without OpenCV Python/native libraries, `backends doctor` reports the row red
+> with SDA provisioning guidance instead of "no runtime provider."
+
 ## The in-repo Python sidecar (`image_tools_sidecar`)
 
 The CPU-tractable backend is a small Python package shipped **inside the Go
@@ -57,10 +115,15 @@ materializes it under `<data-dir>/sidecar/` and prepends that directory to
 `PYTHONPATH`, so `python3 -m image_tools_sidecar.<op>` resolves regardless of the
 working directory. You do **not** install the sidecar code separately.
 
-What you *do* provision is the Python runtime it imports:
+What you *do* provision is the Python runtime it imports. Use Scenario
+Dependency Analyzer rather than a raw package manager; the package names below
+are the runtime requirements the SDA action should install/approve for this
+scenario surface:
 
 ```bash
-python3 -m pip install onnxruntime pillow numpy
+scenario-dependency-analyzer deps install pip/onnxruntime --scenario image-tools --surface api --apply
+scenario-dependency-analyzer deps install pip/pillow --scenario image-tools --surface api --apply
+scenario-dependency-analyzer deps install pip/numpy --scenario image-tools --surface api --apply
 ```
 
 `bg_removal.py` runs a U^2-Net / IS-Net family ONNX model on

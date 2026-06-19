@@ -3,6 +3,7 @@ package models
 import (
 	"time"
 
+	internalbackends "image-tools/internal/backends"
 	internalmodels "image-tools/internal/models"
 
 	modelsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/models"
@@ -167,6 +168,26 @@ func doctorReportToProto(r internalmodels.CatalogDoctorReport) *modelsv1.DoctorC
 			ModelId:   f.ModelID,
 			Operation: f.Operation,
 			Message:   f.Message,
+		})
+	}
+	return out
+}
+
+func backendReportToProto(r internalbackends.DoctorReport) *modelsv1.DoctorBackendsResponse {
+	out := &modelsv1.DoctorBackendsResponse{
+		Ok:       r.OK,
+		Backends: make([]*modelsv1.BackendStatus, 0, len(r.Backends)),
+	}
+	for _, b := range r.Backends {
+		out.Backends = append(out.Backends, &modelsv1.BackendStatus{
+			Name:       b.Name,
+			Operations: append([]string(nil), b.Operations...),
+			Available:  b.Available,
+			Standalone: b.Standalone,
+			Cloud:      b.Cloud,
+			GpuCapable: b.GPUCapable,
+			Detail:     b.Detail,
+			Provision:  b.Provision,
 		})
 	}
 	return out

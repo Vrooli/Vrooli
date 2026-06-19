@@ -357,6 +357,28 @@
       ]
     },
     {
+      "name": "backends",
+      "description": "Inspect inference backend software availability",
+      "commands": [
+        {
+          "name": "doctor",
+          "description": "Diagnose host software availability for inference backends",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ModelsService",
+            "method": "DoctorBackends"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "ops",
       "description": "Run deterministic image operations (resize, crop, convert, …)",
       "commands": [

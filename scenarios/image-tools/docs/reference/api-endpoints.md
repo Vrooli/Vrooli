@@ -221,6 +221,19 @@ blocklist, and checksum metadata is coherent.
 | **Response** | `DoctorCatalogResponse { ok: bool, findings: CatalogFinding[] }` |
 | **CLI** | `image-tools models doctor` |
 
+### `POST /vrooli.image_tools.v1.models.ModelsService/DoctorBackends`
+
+Return backend readiness rows for the runtime provider registry plus every
+enabled backend family declared by the model catalog. The doctor checks host
+software presence, flags catalog-declared families with no registered runtime
+provider, and returns provisioning guidance; hardware fit is reported by
+`SelectModel`.
+
+| | |
+|---|---|
+| **Response** | `DoctorBackendsResponse { ok: bool, backends: BackendStatus[] }` |
+| **CLI** | `image-tools backends doctor` |
+
 ---
 
 ## Adding a new endpoint

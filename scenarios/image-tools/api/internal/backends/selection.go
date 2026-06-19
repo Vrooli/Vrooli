@@ -69,14 +69,23 @@ func (r *Registry) SelectProvider(ctx context.Context, req SelectRequest) (Selec
 	}
 
 	var (
-		matchLocal   Provider // standalone, name == ModelBackend
-		otherLocal   Provider // standalone, different backend
-		comfy        Provider // non-standalone local (ComfyUI)
-		cloud        Provider // BYOK cloud
-		anyAvailable bool
+		matchLocal        Provider // standalone, name == ModelBackend
+		otherLocal        Provider // standalone, different backend
+		comfy             Provider // non-standalone local (ComfyUI)
+		cloud             Provider // BYOK cloud
+		anyAvailable      bool
+		unavailable       []Provider
+		unavailableCloud  []Provider
+		unavailableLocals []Provider
 	)
 	for _, p := range providers {
-		if !p.Available(ctx) {
+		if !providerAvailability(ctx, p).Available {
+			unavailable = append(unavailable, p)
+			if p.IsCloud() {
+				unavailableCloud = append(unavailableCloud, p)
+			} else {
+				unavailableLocals = append(unavailableLocals, p)
+			}
 			continue
 		}
 		anyAvailable = true
@@ -147,9 +156,16 @@ func (r *Registry) SelectProvider(ctx context.Context, req SelectRequest) (Selec
 		return Selection{}, fmt.Errorf("%w for %q: only a BYOK cloud provider is available and BYOK is not enabled for this request", ErrNoneAvailable, req.Operation)
 
 	case !anyAvailable:
-		return Selection{}, fmt.Errorf("%w for %q: providers are registered but none is ready (install a model/backend, or enable BYOK)", ErrNoneAvailable, req.Operation)
+		details := unavailableProviderDetails(ctx, unavailable)
+		if details == "" {
+			details = "install a model/backend, or enable BYOK"
+		}
+		return Selection{}, fmt.Errorf("%w for %q: providers are registered but none is ready (%s)", ErrNoneAvailable, req.Operation, details)
 
 	default:
+		if len(unavailableLocals) > 0 && len(unavailableCloud) > 0 {
+			return Selection{}, fmt.Errorf("%w for %q: local providers unavailable (%s); BYOK providers unavailable (%s)", ErrNoneAvailable, req.Operation, unavailableProviderDetails(ctx, unavailableLocals), unavailableProviderDetails(ctx, unavailableCloud))
+		}
 		return Selection{}, fmt.Errorf("%w for %q", ErrNoneAvailable, req.Operation)
 	}
 }

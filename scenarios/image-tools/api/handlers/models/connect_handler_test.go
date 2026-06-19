@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/connect"
 	apidb "github.com/vrooli/api-core/database"
 
+	internalbackends "image-tools/internal/backends"
 	"image-tools/internal/capabilities"
 	internalmodels "image-tools/internal/models"
 	"image-tools/internal/testutil/db"
@@ -28,8 +29,45 @@ func newTestHandler(t *testing.T, host capabilities.Host) (*connectHandler, *int
 		Registry: reg,
 		Store:    internalmodels.NewStore(d),
 		Probe:    capabilities.FakeProbe{Host: host},
+		Backends: testBackendRegistry(t),
 	})
 	return h, reg
+}
+
+type testProvider struct {
+	name      string
+	ops       []string
+	available bool
+}
+
+func (p testProvider) Name() string         { return p.name }
+func (p testProvider) Operations() []string { return append([]string(nil), p.ops...) }
+func (p testProvider) Standalone() bool     { return true }
+func (p testProvider) IsCloud() bool        { return false }
+func (p testProvider) GPUCapable() bool     { return false }
+func (p testProvider) Available(context.Context) bool {
+	return p.available
+}
+
+func (p testProvider) Availability(context.Context) internalbackends.Availability {
+	return internalbackends.Availability{
+		Available: p.available,
+		Detail:    "test backend readiness",
+		Provision: "test provision",
+	}
+}
+
+func (p testProvider) Execute(context.Context, internalbackends.Request) (internalbackends.Result, error) {
+	return internalbackends.Result{}, nil
+}
+
+func testBackendRegistry(t *testing.T) *internalbackends.Registry {
+	t.Helper()
+	reg := internalbackends.New()
+	if err := reg.Register(testProvider{name: "builtin", ops: []string{"naturalize"}, available: true}); err != nil {
+		t.Fatalf("register backend: %v", err)
+	}
+	return reg
 }
 
 // cpuOnlyHost is a deterministic GPU-less host so selection takes the
@@ -197,6 +235,40 @@ func TestDoctorCatalogReportsGreenSeed(t *testing.T) {
 		if f.Severity == modelsv1.CatalogFindingSeverity_CATALOG_FINDING_SEVERITY_ERROR {
 			t.Fatalf("doctor returned error finding after Phase 1 catalog hardening: %+v", f)
 		}
+	}
+}
+
+func TestDoctorBackendsReportsCatalogDeclaredBackendGaps(t *testing.T) {
+	h, _ := newTestHandler(t, cpuOnlyHost)
+	resp, err := h.DoctorBackends(context.Background(), connect.NewRequest(&modelsv1.DoctorBackendsRequest{}))
+	if err != nil {
+		t.Fatalf("doctor backends: %v", err)
+	}
+	if resp.Msg == nil || resp.Msg.Ok {
+		t.Fatalf("doctor backends should flag enabled catalog backends missing runtime providers: %+v", resp.Msg)
+	}
+	var sawBuiltin, sawPythonSidecar, sawLlama bool
+	for _, b := range resp.Msg.Backends {
+		switch b.Name {
+		case "builtin":
+			sawBuiltin = true
+			if !b.Available {
+				t.Fatalf("registered builtin backend should remain available: %+v", b)
+			}
+		case "python-sidecar":
+			sawPythonSidecar = true
+			if b.Available || !containsStr(b.Operations, "colorize") {
+				t.Fatalf("python-sidecar row should be an unavailable catalog-declared gap: %+v", b)
+			}
+		case "llama.cpp":
+			sawLlama = true
+			if b.Available || !containsStr(b.Operations, "caption") {
+				t.Fatalf("llama.cpp row should be an unavailable catalog-declared gap: %+v", b)
+			}
+		}
+	}
+	if !sawBuiltin || !sawPythonSidecar || !sawLlama {
+		t.Fatalf("missing expected backend rows (builtin=%t python-sidecar=%t llama=%t): %+v", sawBuiltin, sawPythonSidecar, sawLlama, resp.Msg.Backends)
 	}
 }
 
