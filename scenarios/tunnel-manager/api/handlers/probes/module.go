@@ -33,11 +33,19 @@ const probeHTTPTimeout = 5 * time.Second
 // *http.Client (the httpc.Doer seam) so a slow scenario cannot wedge the
 // cycle.
 func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
+	return ModuleWithService(NewProductionService(db, clk), logger)
+}
+
+// NewProductionService wires the probes service with the same production
+// seams used by the Connect handler and the background scheduler.
+func NewProductionService(db *database.RoutedDB, clk clock.Clock) internalprobes.Service {
 	routesReader := internalroutes.NewService(internalroutes.NewSQLiteRepository(db, clk))
 	repo := internalprobes.NewSQLiteRepository(db, clk)
 	httpClient := &http.Client{Timeout: probeHTTPTimeout}
-	svc := internalprobes.NewService(routesReader, repo, httpClient, clk)
+	return internalprobes.NewService(routesReader, repo, httpClient, clk)
+}
 
+func ModuleWithService(svc internalprobes.Service, logger *log.Logger) module.Module {
 	connectPath, connectHandler := probesconnect.NewProbesServiceHandler(NewConnectHandler(Deps{
 		Service: svc,
 		Logger:  logger,

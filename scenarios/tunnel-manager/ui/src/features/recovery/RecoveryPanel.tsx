@@ -2,7 +2,11 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
-import type { RecoveryEvent } from "@vrooli/proto-types/tunnel-manager/v1/recovery/recovery_pb";
+import {
+  RecoveryStatus,
+  type RecoveryEvent,
+  type RecoveryState,
+} from "@vrooli/proto-types/tunnel-manager/v1/recovery/recovery_pb";
 
 import { Button } from "../../components/ui/button";
 import { QueryState } from "../../components/ui/QueryState";
@@ -22,9 +26,47 @@ import {
 const STATE_KEY = ["recovery-state"] as const;
 const EVENTS_KEY = ["recovery-events"] as const;
 
+type RecoverySummaryKey =
+  | typeof strings.recovery.summaryHealthy
+  | typeof strings.recovery.summaryFailure
+  | typeof strings.recovery.summaryCircuitOpen
+  | typeof strings.recovery.summaryRecovering;
+
+type RecoveryNextActionKey =
+  | typeof strings.recovery.nextActionHealthy
+  | typeof strings.recovery.nextActionFailure
+  | typeof strings.recovery.nextActionCircuitOpen
+  | typeof strings.recovery.nextActionRecovering;
+
 function whenLabel(t: ReturnType<typeof useTranslation>["t"], ts?: Timestamp): string {
   if (!ts) return t(strings.common.never);
   return formatDate(timestampDate(ts), { dateStyle: "medium", timeStyle: "short" });
+}
+
+function summaryKey(state: RecoveryState): RecoverySummaryKey {
+  if (state.circuitOpen || state.status === RecoveryStatus.CIRCUIT_OPEN) {
+    return strings.recovery.summaryCircuitOpen;
+  }
+  if (state.status === RecoveryStatus.RECOVERING) {
+    return strings.recovery.summaryRecovering;
+  }
+  if (state.consecFailures > 0) {
+    return strings.recovery.summaryFailure;
+  }
+  return strings.recovery.summaryHealthy;
+}
+
+function nextActionKey(state: RecoveryState): RecoveryNextActionKey {
+  if (state.circuitOpen || state.status === RecoveryStatus.CIRCUIT_OPEN) {
+    return strings.recovery.nextActionCircuitOpen;
+  }
+  if (state.status === RecoveryStatus.RECOVERING) {
+    return strings.recovery.nextActionRecovering;
+  }
+  if (state.consecFailures > 0) {
+    return strings.recovery.nextActionFailure;
+  }
+  return strings.recovery.nextActionHealthy;
 }
 
 /**
@@ -76,50 +118,84 @@ export function RecoveryPanel() {
           errorLabel={t(strings.recovery.error)}
         >
           {state && (
-            <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="flex flex-col gap-1">
-                <dt className="text-xs uppercase text-app-muted-foreground">{t(strings.recovery.statusLabel)}</dt>
-                <dd>
-                  <StatusBadge tone={recoveryStatusTone(state.status)} data-testid={selectors.recovery.statusValue}>
-                    {t(recoveryStatusLabel(state.status))}
-                  </StatusBadge>
-                </dd>
+            <div className="flex flex-col gap-4">
+              <div
+                data-testid={selectors.recovery.summary}
+                className="grid gap-3 rounded-panel bg-app-surface-muted p-4 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,0.7fr)]"
+              >
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs font-semibold uppercase text-app-muted-foreground">
+                    {t(strings.recovery.summaryHeading)}
+                  </p>
+                  <p className="text-sm text-app-foreground">
+                    {t(summaryKey(state), { count: state.consecFailures })}
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs font-semibold uppercase text-app-muted-foreground">
+                    {t(strings.recovery.nextRetryLabel)}
+                  </p>
+                  <p data-testid={selectors.recovery.nextAction} className="text-sm text-app-muted-foreground">
+                    {t(nextActionKey(state))}
+                  </p>
+                </div>
               </div>
-              <div className="flex flex-col gap-1">
-                <dt className="text-xs uppercase text-app-muted-foreground">{t(strings.recovery.circuitOpenLabel)}</dt>
-                <dd>
-                  <StatusBadge
-                    tone={state.circuitOpen ? "danger" : "success"}
-                    data-testid={selectors.recovery.circuitValue}
-                  >
-                    {state.circuitOpen ? t(strings.recovery.circuitOpen) : t(strings.recovery.circuitClosed)}
-                  </StatusBadge>
-                </dd>
-              </div>
-              <Stat label={t(strings.recovery.consecFailuresLabel)} value={state.consecFailures} />
-              <Stat label={t(strings.recovery.backoffLabel)} value={state.backoffLevel} />
-              <Stat label={t(strings.recovery.failedRecoveriesLabel)} value={state.failedRecoveries} />
-              <Stat label={t(strings.recovery.lastCheckLabel)} value={whenLabel(t, state.lastCheck)} />
-              <Stat label={t(strings.recovery.lastRecoveryLabel)} value={whenLabel(t, state.lastRecovery)} />
-              <Stat label={t(strings.recovery.nextRetryLabel)} value={whenLabel(t, state.nextRetryAfter)} />
-            </dl>
+
+              <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="flex flex-col gap-1">
+                  <dt className="text-xs uppercase text-app-muted-foreground">{t(strings.recovery.statusLabel)}</dt>
+                  <dd>
+                    <StatusBadge tone={recoveryStatusTone(state.status)} data-testid={selectors.recovery.statusValue}>
+                      {t(recoveryStatusLabel(state.status))}
+                    </StatusBadge>
+                  </dd>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <dt className="text-xs uppercase text-app-muted-foreground">{t(strings.recovery.circuitOpenLabel)}</dt>
+                  <dd>
+                    <StatusBadge
+                      tone={state.circuitOpen ? "danger" : "success"}
+                      data-testid={selectors.recovery.circuitValue}
+                    >
+                      {state.circuitOpen ? t(strings.recovery.circuitOpen) : t(strings.recovery.circuitClosed)}
+                    </StatusBadge>
+                  </dd>
+                </div>
+                <Stat label={t(strings.recovery.consecFailuresLabel)} value={state.consecFailures} />
+                <Stat label={t(strings.recovery.backoffLabel)} value={state.backoffLevel} />
+                <Stat label={t(strings.recovery.failedRecoveriesLabel)} value={state.failedRecoveries} />
+                <Stat label={t(strings.recovery.lastCheckLabel)} value={whenLabel(t, state.lastCheck)} />
+                <Stat label={t(strings.recovery.lastRecoveryLabel)} value={whenLabel(t, state.lastRecovery)} />
+                <Stat label={t(strings.recovery.nextRetryLabel)} value={whenLabel(t, state.nextRetryAfter)} />
+              </dl>
+            </div>
           )}
         </QueryState>
 
-        <div className="flex flex-wrap items-center gap-3 border-t border-app-border pt-4">
-          <Button data-testid={selectors.recovery.recoverButton} onClick={() => setConfirming(true)}>
-            {t(strings.recovery.recoverButton)}
-          </Button>
-          <label className="flex items-center gap-2 text-sm text-app-muted-foreground">
-            <input
-              type="checkbox"
-              data-testid={selectors.recovery.forceToggle}
-              checked={force}
-              onChange={(e) => setForce(e.target.checked)}
-            />
-            {t(strings.recovery.recoverForce)}
-          </label>
+        <div className="grid gap-3 border-t border-app-border pt-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+          <p data-testid={selectors.recovery.policyNote} className="text-sm text-app-muted-foreground">
+            {t(strings.recovery.policyNote)}
+          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button data-testid={selectors.recovery.recoverButton} onClick={() => setConfirming(true)}>
+              {t(strings.recovery.recoverButton)}
+            </Button>
+            <label className="flex items-center gap-2 text-sm text-app-muted-foreground">
+              <input
+                type="checkbox"
+                data-testid={selectors.recovery.forceToggle}
+                checked={force}
+                onChange={(e) => setForce(e.target.checked)}
+              />
+              {t(strings.recovery.recoverForce)}
+            </label>
+          </div>
         </div>
+        {force && (
+          <p data-testid={selectors.recovery.forceWarning} className="text-sm text-app-warning">
+            {t(strings.recovery.forceWarning)}
+          </p>
+        )}
         {recoverMutation.error && (
           <p data-testid={selectors.recovery.actionError} role="alert" className="text-sm text-app-danger">
             {t(strings.recovery.recoverError)}
@@ -174,6 +250,7 @@ export function RecoveryPanel() {
                   <th className="px-3 py-2">{t(strings.recovery.colAction)}</th>
                   <th className="px-3 py-2">{t(strings.recovery.colOutcome)}</th>
                   <th className="px-3 py-2">{t(strings.recovery.colAttempt)}</th>
+                  <th className="px-3 py-2">{t(strings.recovery.colDetails)}</th>
                 </tr>
               </thead>
               <tbody>
@@ -192,6 +269,12 @@ export function RecoveryPanel() {
                       </StatusBadge>
                     </td>
                     <td className="px-3 py-2 tabular-nums">{event.attempt}</td>
+                    <td
+                      data-testid={selectors.recovery.eventDetails}
+                      className="max-w-sm px-3 py-2 text-app-muted-foreground"
+                    >
+                      {event.details || "—"}
+                    </td>
                   </tr>
                 ))}
               </tbody>

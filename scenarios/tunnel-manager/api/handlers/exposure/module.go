@@ -33,19 +33,21 @@ import (
 // CORE set comes from api-core/coreset; UI ports come from each scenario's
 // service.json via the FilePortResolver.
 func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
+	return ModuleWithService(NewProductionService(db, clk), logger)
+}
+
+// NewProductionService wires the exposure broker with the same production
+// seams used by the Connect handler and the background scheduler.
+func NewProductionService(db *database.RoutedDB, clk clock.Clock) internalexposure.Service {
 	repo := internalexposure.NewSQLiteRepository(db, clk)
 	manifest := internalroutes.NewService(internalroutes.NewSQLiteRepository(db, clk))
 
 	// Reuse the config service's Sync as the ingress reconciler so exposure
-	// never owns Cloudflare calls.
-	configSvc := internalconfig.NewService(internalconfig.Deps{
-		Repo:   internalconfig.NewSQLiteRepository(db),
-		Routes: manifest,
-		Clock:  clk,
-	})
+	// never owns Cloudflare calls or local cloudflared restart behavior.
+	configSvc := internalconfig.NewProductionService(db, clk, internalconfig.ProductionOptions{})
 
 	scenariosRoot := resolveScenariosRoot()
-	svc := internalexposure.NewService(
+	return internalexposure.NewService(
 		repo,
 		manifest,
 		ingressAdapter{cfg: configSvc},
@@ -54,7 +56,9 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 		coreset.CoreSeedScenarios,
 		clk,
 	)
+}
 
+func ModuleWithService(svc internalexposure.Service, logger *log.Logger) module.Module {
 	connectPath, connectHandler := exposureconnect.NewExposureServiceHandler(NewConnectHandler(Deps{
 		Service: svc,
 		Logger:  logger,

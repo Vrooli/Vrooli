@@ -95,38 +95,29 @@ tunnel-manager configure api_base
 Each product domain exposes its commands as a subcommand group
 (`tunnel-manager <domain> <verb>`). Every command calls a single API
 endpoint and renders the result through one of the three output
-contracts below. Document your domain's commands here as you build
-them, one row/section per command, mirroring the endpoints they call
-in [`api-endpoints.md`](api-endpoints.md).
+contracts below, mirroring the endpoints in
+[`api-endpoints.md`](api-endpoints.md).
 
-The scaffold ships one fully worked CRUD command group as a copyable
-reference (see the fenced example below); `vrooli scenario detemplate
-<scenario>` removes it once your real domains are green.
+## Tunnel Manager commands
 
-## Planned Tunnel Manager commands
+The command groups below are implemented in `cli/manifest.json` and
+validated against the proto descriptors. Every command emits proto-typed
+`--json` through the global flag above.
 
-> **Planned (not yet implemented).** The command groups below are the
-> Phase 2 CLI surface, mirroring the planned API one command per endpoint
-> (see [`api-endpoints.md`](api-endpoints.md)). Only `status` (scaffold
-> health) and the fenced `notes` example work today. Every command emits
-> proto-typed `--json` (the global `--json` flag above).
+### `tunnel-manager tunnel status`
 
-### `tunnel-manager status`
+Tunnel health overview. Operational contract (Status → Triage → Next Steps).
 
-Tunnel + exposure health overview. Operational contract
-(Status → Triage → Next Steps).
-
-### `tunnel-manager routes`
+### `tunnel-manager routes <list|get|create|update|delete>`
 
 List the exposure manifest (SSOT) — subdomain, scenario, domain, local
 port, tier, lease, enabled. Data-retrieval contract.
 
 | Flag | Purpose |
 |---|---|
-| `--scenario <name>` | Filter to one scenario. |
 | `--tier <core\|leased>` | Filter by tier. |
 
-### `tunnel-manager expose <scenario>`
+### `tunnel-manager exposure expose <scenario>`
 
 Request **leased** exposure of a scenario. Ensures a route, ensures the
 scenario is running (delegated to `internal/lifecycle`), and requests
@@ -134,49 +125,55 @@ ingress. Mutation contract.
 
 | Flag | Purpose |
 |---|---|
-| `--ttl <duration>` | Lease lifetime (default ≈ 1 week). |
+| `--ttl-seconds <seconds>` | Lease lifetime (default ≈ 1 week). |
 | `--requested-by <id>` | Record the requester (operator or scenario). |
 
-### `tunnel-manager lease <extend\|revoke\|list>`
+### `tunnel-manager exposure <leases|extend|revoke|list|check|reconcile>`
 
 Manage leased exposure.
 
 | Subcommand | Purpose | Key args/flags |
 |---|---|---|
-| `lease list` | List active/expired leases. | `--scenario <name>` |
-| `lease extend <id>` | Extend a lease's TTL. | `--ttl <duration>` |
-| `lease revoke <id>` | Revoke a lease early and tear down ingress. | — |
+| `exposure leases` | List active/expired/revoked leases. | `--status <active\|expired\|revoked>` |
+| `exposure extend <lease_id>` | Extend a lease's TTL. | `--ttl-seconds <seconds>` |
+| `exposure revoke <lease_id>` | Revoke a lease early and tear down ingress. | — |
+| `exposure list` | List reconciled exposure state. | — |
+| `exposure check <scenario>` | Check whether a scenario is exposed. | — |
+| `exposure reconcile` | Re-derive CORE routes and reap expired leases. | — |
 
-### `tunnel-manager probe`
+### `tunnel-manager probes <run|history|classify>`
 
 Run internal (local port) and external (public URL) liveness probes for
-exposed routes and report classified results. Operational contract.
+exposed routes, list probe history, or classify latest probe pairs.
+Operational contract.
 
 | Flag | Purpose |
 |---|---|
-| `--scenario <name>` | Probe a single route. |
-| `--kind <internal\|external>` | Restrict to one probe kind. |
+| `history --subdomain <name>` | Filter history to a single route subdomain. |
+| `history --limit <n>` | Limit returned history rows. |
 
-### `tunnel-manager audit`
+### `tunnel-manager audit run`
 
 Port-compliance findings: exposed scenarios must declare a fixed UI port
 in `service.json` matching the manifest. Operational contract.
 
-### `tunnel-manager recover`
+### `tunnel-manager recovery <state|events|run>`
 
 Inspect recovery state (backoff / circuit breaker) and the recovery event
 log; optionally trigger a recovery attempt. Operational contract.
 
 | Flag | Purpose |
 |---|---|
-| `--trigger` | Manually trigger a recovery attempt. |
+| `events --limit <n>` | Limit returned recovery events. |
+| `run --force true` | Bypass the circuit breaker for a manual recovery attempt. |
 
-### `tunnel-manager config <sync\|mode>`
+### `tunnel-manager config <get|sync|mode>`
 
 Manage Cloudflare ingress and mode.
 
 | Subcommand | Purpose | Key args/flags |
 |---|---|---|
+| `config get` | Show browser-safe configuration readiness. | — |
 | `config sync` | Reconcile ingress (remote API or local `config.yml`) with the manifest. | — |
 | `config mode <remote\|local>` | Switch and migrate ingress mode. | positional `remote`/`local` |
 

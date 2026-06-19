@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import type { MetricsSample } from "@vrooli/proto-types/tunnel-manager/v1/tunnel/tunnel_pb";
 import type { ProbeResult, RouteClassification } from "@vrooli/proto-types/tunnel-manager/v1/probes/probes_pb";
+import { FailureClass } from "@vrooli/proto-types/tunnel-manager/v1/probes/probes_pb";
 
 import { Button } from "../../components/ui/button";
 import { QueryState } from "../../components/ui/QueryState";
@@ -12,11 +13,33 @@ import { formatDate } from "../../i18n/format";
 import { useTranslation } from "../../i18n";
 import { tunnelClient } from "../../api/tunnel";
 import { probesClient } from "../../api/probes";
-import { probeKindLabel, probeStatusLabel, probeStatusTone, failureClassLabel, failureClassTone } from "./labels";
+import {
+  probeKindLabel,
+  probeStatusLabel,
+  probeStatusTone,
+  failureClassLabel,
+  failureClassTone,
+} from "./labels";
 
 const METRICS_KEY = ["metrics"] as const;
 const PROBES_KEY = ["probes"] as const;
 const CLASSIFY_KEY = ["probes-classify"] as const;
+
+function sampleTime(sample: MetricsSample): number {
+  return sample.scrapedAt ? timestampDate(sample.scrapedAt).getTime() : 0;
+}
+
+function latestSample(samples: MetricsSample[]): MetricsSample | undefined {
+  return [...samples].sort((a, b) => sampleTime(b) - sampleTime(a))[0];
+}
+
+function latestProbe(probes: ProbeResult[]): ProbeResult | undefined {
+  return [...probes].sort((a, b) => {
+    const bTime = b.createdAt ? timestampDate(b.createdAt).getTime() : 0;
+    const aTime = a.createdAt ? timestampDate(a.createdAt).getTime() : 0;
+    return bTime - aTime;
+  })[0];
+}
 
 /**
  * MetricsPanel pairs the tunnel-wide Prometheus metrics time-series with the
@@ -48,6 +71,11 @@ export function MetricsPanel() {
   const samples = metricsQuery.data?.samples ?? [];
   const probes = probesQuery.data?.results ?? [];
   const classifications = classifyQuery.data?.classifications ?? [];
+  const latest = latestSample(samples);
+  const latestProbeResult = latestProbe(probes);
+  const unhealthyRoutes = classifications.filter(
+    (cls) => cls.classification !== FailureClass.HEALTHY && cls.classification !== FailureClass.UNSPECIFIED,
+  );
 
   return (
     <div className="flex flex-col gap-8">
@@ -62,6 +90,32 @@ export function MetricsPanel() {
             {t(strings.metrics.scrapeButton)}
           </Button>
         </div>
+
+        <div data-testid={selectors.metrics.summary} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <SummaryStat
+            label={t(strings.metrics.latestHaConnections)}
+            value={latest ? latest.haConnections : t(strings.common.notAvailable)}
+            tone={latest && latest.haConnections < 4 ? "warning" : "success"}
+          />
+          <SummaryStat
+            label={t(strings.metrics.latestRequestErrors)}
+            value={latest ? latest.requestErrors : t(strings.common.notAvailable)}
+            tone={latest && latest.requestErrors > 0 ? "warning" : "success"}
+          />
+          <SummaryStat
+            label={t(strings.metrics.latestRtt)}
+            value={latest ? latest.smoothedRttMs.toFixed(1) : t(strings.common.notAvailable)}
+          />
+          <SummaryStat
+            label={t(strings.metrics.latestScrape)}
+            value={
+              latest?.scrapedAt
+                ? formatDate(timestampDate(latest.scrapedAt), { dateStyle: "short", timeStyle: "short" })
+                : t(strings.common.never)
+            }
+          />
+        </div>
+
         <QueryState
           isLoading={metricsQuery.isLoading}
           error={metricsQuery.error}
@@ -117,6 +171,31 @@ export function MetricsPanel() {
           </Button>
         </div>
 
+        <div className="grid gap-3 sm:grid-cols-3">
+          <SummaryStat label={t(strings.metrics.classifiedRoutes)} value={classifications.length} />
+          <SummaryStat
+            label={t(strings.metrics.routesNeedingAttention)}
+            value={unhealthyRoutes.length}
+            tone={unhealthyRoutes.length > 0 ? "danger" : "success"}
+            testId={selectors.metrics.classCount}
+          />
+          <SummaryStat
+            label={t(strings.metrics.latestProbe)}
+            value={
+              latestProbeResult?.createdAt
+                ? formatDate(timestampDate(latestProbeResult.createdAt), { dateStyle: "short", timeStyle: "short" })
+                : t(strings.common.never)
+            }
+          />
+        </div>
+
+        <p
+          data-testid={selectors.metrics.limitation}
+          className="rounded-panel border border-app-border bg-app-surface-muted px-3 py-2 text-sm text-app-muted-foreground"
+        >
+          {t(strings.metrics.classificationScope)}
+        </p>
+
         {classifications.length > 0 && (
           <div data-testid={selectors.metrics.classification} className="flex flex-col gap-2">
             <h3 className="text-sm font-semibold uppercase text-app-muted-foreground">
@@ -124,11 +203,17 @@ export function MetricsPanel() {
             </h3>
             <ul className="flex flex-wrap gap-2">
               {classifications.map((cls: RouteClassification) => (
-                <li key={cls.subdomain} className="flex items-center gap-2 text-sm">
+                <li
+                  key={cls.subdomain}
+                  className="flex max-w-full flex-wrap items-center gap-2 rounded-panel border border-app-border bg-app-surface px-3 py-2 text-sm"
+                >
                   <span className="font-medium">{cls.subdomain}</span>
                   <StatusBadge tone={failureClassTone(cls.classification)}>
                     {t(failureClassLabel(cls.classification))}
                   </StatusBadge>
+                  {cls.assessment && (
+                    <span className="text-app-muted-foreground">{cls.assessment}</span>
+                  )}
                 </li>
               ))}
             </ul>
@@ -180,6 +265,32 @@ export function MetricsPanel() {
           </div>
         </QueryState>
       </section>
+    </div>
+  );
+}
+
+function SummaryStat({
+  label,
+  value,
+  tone = "neutral",
+  testId,
+}: {
+  label: string;
+  value: string | number;
+  tone?: "success" | "warning" | "danger" | "neutral";
+  testId?: string;
+}) {
+  const toneClass = {
+    success: "text-app-success",
+    warning: "text-app-warning",
+    danger: "text-app-danger",
+    neutral: "text-app-foreground",
+  }[tone];
+
+  return (
+    <div data-testid={testId} className="rounded-panel border border-app-border bg-app-surface p-3">
+      <div className="text-xs uppercase text-app-muted-foreground">{label}</div>
+      <div className={`mt-1 text-lg font-semibold tabular-nums ${toneClass}`}>{value}</div>
     </div>
   );
 }

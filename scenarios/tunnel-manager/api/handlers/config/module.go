@@ -2,12 +2,8 @@ package config
 
 import (
 	"log"
-	"net/http"
-	"os"
-	"time"
 
 	"tunnel-manager/internal/clock"
-	"tunnel-manager/internal/cmdrunner"
 	"tunnel-manager/internal/module"
 
 	"github.com/gorilla/mux"
@@ -17,7 +13,6 @@ import (
 	configconnect "github.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/config/config_v1connect"
 
 	internalconfig "tunnel-manager/internal/config"
-	internalroutes "tunnel-manager/internal/routes"
 )
 
 // Module returns the config domain's contribution to the API: the
@@ -28,26 +23,11 @@ import (
 // The config service reconciles ingress against the routes manifest, so it
 // reads routes through internalroutes.Service (the RoutesReader seam) and
 // actuates Cloudflare through the IngressClient built from env credentials
-// (CF_API_TOKEN / CF_ACCOUNT_ID / CF_TUNNEL_ID). When credentials are
-// absent the IngressClient is nil and remote operations return
-// ErrRemoteUnavailable (mapped to FailedPrecondition).
+// (canonical CLOUDFLARE_* names, with deterministic legacy CF_* fallback).
+// When credentials are absent the IngressClient is nil and remote apply
+// operations return ErrRemoteUnavailable (mapped to FailedPrecondition).
 func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
-	routesReader := internalroutes.NewService(internalroutes.NewSQLiteRepository(db, clk))
-
-	httpDoer := &http.Client{Timeout: 15 * time.Second}
-	ingress := internalconfig.NewCFClient(httpDoer, internalconfig.CFConfig{
-		APIToken:  os.Getenv("CF_API_TOKEN"),
-		AccountID: os.Getenv("CF_ACCOUNT_ID"),
-		TunnelID:  os.Getenv("CF_TUNNEL_ID"),
-	})
-
-	svc := internalconfig.NewService(internalconfig.Deps{
-		Repo:    internalconfig.NewSQLiteRepository(db),
-		Routes:  routesReader,
-		Ingress: ingress,
-		Runner:  cmdrunner.Default,
-		Clock:   clk,
-	})
+	svc := internalconfig.NewProductionService(db, clk, internalconfig.ProductionOptions{})
 
 	connectPath, connectHandler := configconnect.NewConfigServiceHandler(NewConnectHandler(Deps{
 		Service: svc,
@@ -86,7 +66,7 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Response: &module.Schema{
 			Type:       "object",
-			Properties: map[string]string{"config": "TunnelConfig"},
+			Properties: map[string]string{"config": "TunnelConfig", "readiness": "ConfigReadiness"},
 		},
 		Errors: []module.ErrorDesc{
 			{Status: 500, Code: "internal", Description: "Repository read failure"},
@@ -109,10 +89,13 @@ var Endpoints = []module.EndpointDescriptor{
 		Response: &module.Schema{
 			Type: "object",
 			Properties: map[string]string{
-				"mode":       "Mode",
-				"added":      "array<string> (hostnames added)",
-				"removed":    "array<string> (hostnames removed)",
-				"no_changes": "bool (manifest already matched live ingress)",
+				"mode":           "Mode",
+				"added":          "array<string> (hostnames added)",
+				"removed":        "array<string> (hostnames removed)",
+				"no_changes":     "bool (manifest already matched live ingress)",
+				"setup_required": "bool (dry-run found missing setup)",
+				"missing_fields": "array<string> (canonical env names)",
+				"message":        "string (operator explanation)",
 			},
 		},
 		Errors: []module.ErrorDesc{

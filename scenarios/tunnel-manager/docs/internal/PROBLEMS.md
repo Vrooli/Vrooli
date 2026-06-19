@@ -49,6 +49,20 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
+### 2026-06-19 — Production readiness truth map gaps
+
+**Symptom:** Fresh Tunnel Manager instances could report or imply remote-mode readiness even when Cloudflare credentials were absent; some docs still described Phase 1 planned behavior while the PRD marked P0/P1 targets complete; probe/recovery scheduling and UI flows needed reconciliation with live behavior.
+
+**Root cause:** The regenerated implementation landed broad API/CLI/UI surfaces before a production truth pass. Config docs used canonical `CLOUDFLARE_*` names while runtime code read `CF_*`; the config service defaulted to remote mode; exposure/recovery/probe scheduling and UI setup workflows needed to be reconciled against the product contract.
+
+**Workaround:** Treat config readiness as the first source of truth. As of the 2026-06-19 config pass, canonical `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_TUNNEL_ID`, and `CLOUDFLARE_API_TOKEN` are supported first, legacy `CF_*` names are fallback only, fresh config defaults to local mode, and `config sync --dry-run` reports missing remote setup instead of failing when remote credentials are absent. As of the follow-up exposure passes, `exposure` composes the same production config-service builder as `config`, so remote-mode `Expose`/`Reconcile` use the configured Cloudflare ingress client instead of an unwired config service; the API also starts a cancellable exposure scheduler that runs CORE reconcile and expired-lease reaping at boot and on `TUNNEL_MANAGER_EXPOSURE_RECONCILE_INTERVAL`. As of the probe/recovery pass, probes run at boot and periodically by default (`TUNNEL_MANAGER_PROBE_INTERVAL`), while background recovery evaluation is implemented but opt-in (`TUNNEL_MANAGER_RECOVERY_SCHEDULER_ENABLED`) because an acted evaluation restarts cloudflared. As of the UI redesign slices, Overview shows config readiness/mode/missing fields; Settings owns local/remote mode, Cloudflare readiness, sync preview, and sync apply; Exposure owns search, CORE/LEASED filtering, reconcile feedback, lease actions, and route-classification badges; Diagnostics/Metrics owns latest tunnel metrics, route classification counts, diagnostic-signal limits, probe history, and manual scrape/probe actions; Audit owns fixed-port compliance summaries, status filtering, and remediation hints; and Recovery owns the state-machine summary, breaker/backoff risk, next operator action, manual force warning, and event details.
+
+**Real fix:** Finish the remaining production-readiness redesign phases: reconcile any remaining CLI/docs stale command names, run scenario-level validation/baseline diff, and implement richer DNS/Cloudflare outage classification signals or keep them clearly deferred.
+
+**Owner:** unassigned.
+
+**Refs:** `api/internal/config/{types.go,cfclient.go,service.go,production.go}`, `api/handlers/{config,exposure,probes,recovery}/module.go`, `api/internal/{exposure,probes,recovery}/scheduler.go`, `packages/proto/schemas/tunnel-manager/v1/config/config.proto`, user plan `tunnel-manager-production-readiness-redesign`.
+
 ### 2026-06-18 — Product implementation not yet built (documentation-first)
 
 **Symptom:** API/CLI/UI describe domains and endpoints that do not exist as code yet; only the template scaffold + fenced `notes` example are present.

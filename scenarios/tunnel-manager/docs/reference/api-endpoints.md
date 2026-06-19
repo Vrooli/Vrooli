@@ -127,14 +127,14 @@ reference (see the fenced example below); `vrooli scenario detemplate
 |---|---|
 | `RunProbes` | Probe each exposed route internally (local port) and externally (public URL). |
 | `ListProbeHistory` | Probe history (route, kind, status, latency, error). |
-| `ClassifyFailure` | Classify a failure (tunnel-down / scenario-down / cloudflare-outage / dns-failure / config-drift). |
+| `Classify` | Classify latest probe pairs (healthy / tunnel-down / scenario-down / config-drift). Cloudflare-outage and DNS-failure are planned richer signals, not currently produced. |
 
-### `recovery` — `RecoveryService` (auto-recovery, live)
+### `recovery` — `RecoveryService` (manual + opt-in scheduled recovery)
 
 | RPC | Purpose |
 |---|---|
 | `GetRecoveryState` | Current backoff / circuit-breaker state. |
-| `TriggerRecovery` | Manually trigger a recovery attempt (restart cloudflared / re-push config). |
+| `Recover` | Manually trigger a recovery attempt (restart cloudflared). |
 | `ListRecoveryEvents` | Recovery event log (trigger, action, outcome, timestamps). |
 
 ### `health` — `HealthService` (scaffold)

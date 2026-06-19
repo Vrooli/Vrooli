@@ -10,10 +10,16 @@ import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../../test-utils";
 import { makeExposureMocks, makeExposure, makeLeasedExposure } from "../../test-utils/mocks/exposure";
+import { makeProbesMocks, makeRouteClassification } from "../../test-utils/mocks/probes";
 
 vi.mock("../../api/exposure", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/exposure")>();
   return { ...actual, ...makeExposureMocks() };
+});
+
+vi.mock("../../api/probes", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/probes")>();
+  return { ...actual, ...makeProbesMocks() };
 });
 
 import { ExposurePanel } from "./ExposurePanel";
@@ -51,9 +57,47 @@ describe("ExposurePanel", () => {
     expect(screen.getAllByTestId(selectors.exposure.row)).toHaveLength(2);
     expect(screen.getAllByTestId(selectors.exposure.tierBadge)[0]?.textContent).toContain("Core");
     expect(screen.getAllByTestId(selectors.exposure.tierBadge)[1]?.textContent).toContain("Leased");
+    expect(screen.getByTestId(selectors.exposure.coreCount)).toHaveTextContent("1");
     // Leased row carries an expiry; core row shows the placeholder.
     const expiries = screen.getAllByTestId(selectors.exposure.leaseExpiry);
     expect(expiries.some((el) => el.textContent.includes("Expires"))).toBe(true);
+  });
+
+  it("filters exposures by search text and tier", async () => {
+    const { exposureClient } = await import("../../api/exposure");
+    vi.mocked(exposureClient.listExposures).mockResolvedValue({
+      exposures: [makeExposure(), makeLeasedExposure()],
+    } as never);
+
+    const user = userEvent.setup();
+    renderWithProviders(<ExposurePanel />);
+    await waitFor(() => expect(screen.getAllByTestId(selectors.exposure.row)).toHaveLength(2));
+
+    await user.type(screen.getByTestId(selectors.exposure.searchInput), "image");
+    expect(screen.getAllByTestId(selectors.exposure.row)).toHaveLength(1);
+    expect(screen.getByText("image-tools")).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByTestId(selectors.exposure.tierFilter), "core");
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.queryState.empty)).toHaveTextContent("No exposures match");
+    });
+  });
+
+  it("shows classification badges from probe classifications", async () => {
+    const { exposureClient } = await import("../../api/exposure");
+    const { probesClient } = await import("../../api/probes");
+    vi.mocked(exposureClient.listExposures).mockResolvedValue({
+      exposures: [makeExposure()],
+    } as never);
+    vi.mocked(probesClient.classify).mockResolvedValue({
+      classifications: [makeRouteClassification({ classification: 3, assessment: "local port is down" })],
+    } as never);
+
+    renderWithProviders(<ExposurePanel />);
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.exposure.healthBadge)).toHaveTextContent("Scenario down");
+    });
+    expect(screen.getByTestId(selectors.exposure.unhealthyCount)).toHaveTextContent("1");
   });
 
   it("calls expose with the entered scenario name", async () => {
@@ -92,6 +136,25 @@ describe("ExposurePanel", () => {
 
     await user.click(screen.getByTestId(selectors.exposure.revokeButton));
     await waitFor(() => expect(exposureClient.revokeLease).toHaveBeenCalledWith({ leaseId: "lease-1" }));
+  });
+
+  it("runs reconcile and renders the operator result", async () => {
+    const { exposureClient } = await import("../../api/exposure");
+    vi.mocked(exposureClient.reconcile).mockResolvedValueOnce({
+      coreEnsured: 2,
+      leasesReaped: 1,
+    } as never);
+
+    const user = userEvent.setup();
+    renderWithProviders(<ExposurePanel />);
+    await user.click(screen.getByTestId(selectors.exposure.reconcileButton));
+
+    await waitFor(() => {
+      expect(exposureClient.reconcile).toHaveBeenCalledTimes(1);
+    });
+    expect(screen.getByTestId(selectors.exposure.reconcileResult)).toHaveTextContent(
+      "Core ensured: 2 · leases reaped: 1",
+    );
   });
 
   it("surfaces the error state when listExposures rejects", async () => {

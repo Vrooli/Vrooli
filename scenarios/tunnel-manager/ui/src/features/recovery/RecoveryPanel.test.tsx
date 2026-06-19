@@ -34,6 +34,8 @@ describe("RecoveryPanel", () => {
       expect(screen.getByTestId(selectors.recovery.statusValue)).toHaveTextContent("Monitoring");
     });
     expect(screen.getByTestId(selectors.recovery.circuitValue)).toHaveTextContent("Closed");
+    expect(screen.getByTestId(selectors.recovery.summary)).toHaveTextContent("No restart is queued");
+    expect(screen.getByTestId(selectors.recovery.policyNote)).toHaveTextContent("Automatic recovery follows server policy");
   });
 
   it("shows the open circuit breaker when the state reports it", async () => {
@@ -46,6 +48,21 @@ describe("RecoveryPanel", () => {
     await waitFor(() => {
       expect(screen.getByTestId(selectors.recovery.circuitValue)).toHaveTextContent("Open");
     });
+    expect(screen.getByTestId(selectors.recovery.summary)).toHaveTextContent("circuit breaker is open");
+    expect(screen.getByTestId(selectors.recovery.nextAction)).toHaveTextContent("Wait for the retry window");
+  });
+
+  it("guides operators when failures are accumulating", async () => {
+    const { recoveryClient } = await import("../../api/recovery");
+    vi.mocked(recoveryClient.getState).mockResolvedValueOnce({
+      state: makeRecoveryState({ consecFailures: 2, backoffLevel: 1 }),
+    } as never);
+
+    renderWithProviders(<RecoveryPanel />);
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.recovery.summary)).toHaveTextContent("2 consecutive failure");
+    });
+    expect(screen.getByTestId(selectors.recovery.nextAction)).toHaveTextContent("Inspect probe and tunnel metrics");
   });
 
   it("renders the event timeline when events exist", async () => {
@@ -59,6 +76,7 @@ describe("RecoveryPanel", () => {
       expect(screen.getByTestId(selectors.recovery.timeline)).toBeInTheDocument();
     });
     expect(screen.getAllByTestId(selectors.recovery.timelineRow)).toHaveLength(2);
+    expect(screen.getAllByTestId(selectors.recovery.eventDetails)[0]).toHaveTextContent("restarted cloudflared");
   });
 
   it("requires confirmation before recovering, then calls recover", async () => {
@@ -84,6 +102,7 @@ describe("RecoveryPanel", () => {
     await waitFor(() => expect(screen.getByTestId(selectors.recovery.forceToggle)).toBeInTheDocument());
 
     await user.click(screen.getByTestId(selectors.recovery.forceToggle));
+    expect(screen.getByTestId(selectors.recovery.forceWarning)).toHaveTextContent("bypasses the breaker");
     await user.click(screen.getByTestId(selectors.recovery.recoverButton));
     await user.click(screen.getByTestId(selectors.recovery.confirmButton));
 

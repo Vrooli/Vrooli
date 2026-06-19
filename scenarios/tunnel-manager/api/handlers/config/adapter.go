@@ -19,13 +19,29 @@ func domainConfigToProto(c internalconfig.TunnelConfig) *configv1.TunnelConfig {
 	}
 }
 
+func readinessToProto(r internalconfig.ConfigReadiness) *configv1.ConfigReadiness {
+	return &configv1.ConfigReadiness{
+		DesiredMode:      modeToProto(r.DesiredMode),
+		RemoteAvailable:  r.RemoteAvailable,
+		MissingFields:    r.MissingFields,
+		CredentialSource: r.CredentialSource,
+		CredentialRef:    r.CredentialRef,
+		LocalConfigPath:  r.LocalConfigPath,
+		SyncReady:        r.SyncReady,
+		ModeReason:       r.ModeReason,
+	}
+}
+
 // syncResultToProto converts a SyncResult into the SyncResponse wire shape.
 func syncResultToProto(r internalconfig.SyncResult) *configv1.SyncResponse {
 	return &configv1.SyncResponse{
-		Mode:      modeToProto(r.Mode),
-		Added:     r.Added,
-		Removed:   r.Removed,
-		NoChanges: r.NoChanges,
+		Mode:          modeToProto(r.Mode),
+		Added:         r.Added,
+		Removed:       r.Removed,
+		NoChanges:     r.NoChanges,
+		SetupRequired: r.SetupRequired,
+		MissingFields: r.MissingFields,
+		Message:       r.Message,
 	}
 }
 

@@ -23,6 +23,10 @@ type Service interface {
 	// none has been written yet).
 	GetConfig(ctx context.Context) (TunnelConfig, error)
 
+	// GetConfigState returns the persisted tunnel configuration plus
+	// process-level readiness derived from non-secret credential presence.
+	GetConfigState(ctx context.Context) (ConfigState, error)
+
 	// Sync reconciles live ingress with the routes manifest. It computes
 	// the desired ingress (enabled routes → subdomain.domain hostnames →
 	// http://localhost:<port>, plus a catch-all 404), diffs it against the
@@ -44,6 +48,7 @@ type Deps struct {
 	Repo    ConfigRepository
 	Routes  RoutesReader
 	Ingress IngressClient
+	CF      CFConfig
 	Runner  cmdrunner.Runner
 	Clock   clock.Clock
 	// LocalConfigPath is where local mode writes the cloudflared config.yml.
@@ -76,6 +81,17 @@ func (s *service) GetConfig(ctx context.Context) (TunnelConfig, error) {
 	return s.deps.Repo.Get(ctx)
 }
 
+func (s *service) GetConfigState(ctx context.Context) (ConfigState, error) {
+	cfg, err := s.deps.Repo.Get(ctx)
+	if err != nil {
+		return ConfigState{}, err
+	}
+	return ConfigState{
+		Config:    cfg,
+		Readiness: s.readiness(cfg),
+	}, nil
+}
+
 func (s *service) Sync(ctx context.Context, dryRun bool) (SyncResult, error) {
 	cfg, err := s.deps.Repo.Get(ctx)
 	if err != nil {
@@ -85,6 +101,16 @@ func (s *service) Sync(ctx context.Context, dryRun bool) (SyncResult, error) {
 	desired, err := s.desiredIngress(ctx)
 	if err != nil {
 		return SyncResult{}, err
+	}
+
+	if cfg.Mode == ModeRemote && s.deps.Ingress == nil && dryRun {
+		readiness := s.readiness(cfg)
+		return SyncResult{
+			Mode:          cfg.Mode,
+			SetupRequired: true,
+			MissingFields: readiness.MissingFields,
+			Message:       readiness.ModeReason,
+		}, nil
 	}
 
 	live, err := s.liveIngress(ctx, cfg.Mode)
@@ -98,6 +124,13 @@ func (s *service) Sync(ctx context.Context, dryRun bool) (SyncResult, error) {
 		Added:     added,
 		Removed:   removed,
 		NoChanges: len(added) == 0 && len(removed) == 0,
+	}
+	if result.NoChanges {
+		result.Message = fmt.Sprintf("Ingress already matches the routes manifest in %s mode.", cfg.Mode)
+	} else if dryRun {
+		result.Message = fmt.Sprintf("Dry-run found %d hostnames to add and %d to remove in %s mode.", len(added), len(removed), cfg.Mode)
+	} else {
+		result.Message = fmt.Sprintf("Ingress reconciled in %s mode.", cfg.Mode)
 	}
 
 	if dryRun || result.NoChanges {
@@ -197,6 +230,44 @@ func (s *service) applyIngress(ctx context.Context, cfg TunnelConfig, desired []
 		return fmt.Errorf("push ingress: %w", err)
 	}
 	return nil
+}
+
+func (s *service) readiness(cfg TunnelConfig) ConfigReadiness {
+	missing := s.deps.CF.Missing
+	if len(missing) == 0 && (s.deps.CF.APIToken == "" || s.deps.CF.AccountID == "" || s.deps.CF.TunnelID == "") {
+		missing = []string{"CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_TUNNEL_ID", "CLOUDFLARE_API_TOKEN"}
+	}
+	remoteAvailable := len(missing) == 0 && s.deps.CF.APIToken != "" && s.deps.CF.AccountID != "" && s.deps.CF.TunnelID != ""
+	if s.deps.Ingress != nil {
+		remoteAvailable = true
+	}
+	source := s.deps.CF.Source
+	if source == "" {
+		source = "none"
+	}
+	desiredMode := cfg.Mode
+	if desiredMode == ModeUnspecified {
+		desiredMode = DefaultMode
+	}
+	syncReady := desiredMode == ModeLocal || remoteAvailable
+	reason := "Local mode is ready; sync writes the cloudflared config file and restarts cloudflared."
+	if desiredMode == ModeRemote {
+		if remoteAvailable {
+			reason = "Remote mode is ready; Cloudflare API credentials are present."
+		} else {
+			reason = "Remote mode is unavailable until CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_TUNNEL_ID, and CLOUDFLARE_API_TOKEN are configured."
+		}
+	}
+	return ConfigReadiness{
+		DesiredMode:      desiredMode,
+		RemoteAvailable:  remoteAvailable,
+		MissingFields:    append([]string(nil), missing...),
+		CredentialSource: source,
+		CredentialRef:    s.deps.CF.TokenRef,
+		LocalConfigPath:  s.deps.LocalConfigPath,
+		SyncReady:        syncReady,
+		ModeReason:       reason,
+	}
 }
 
 // readLocalIngress parses the ingress hostnames/services out of the local

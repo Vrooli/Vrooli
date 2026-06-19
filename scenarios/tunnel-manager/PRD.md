@@ -8,7 +8,7 @@
 ## 🎯 Overview
 - **Purpose**: Tunnel Manager is Vrooli's external-access control plane — an **exposure broker** and **self-healing tunnel manager**. It programmatically controls which scenarios are reachable from the public internet through the Cloudflare tunnel, maintains a route/exposure manifest as the single source of truth, enforces fixed-port contracts, and auto-recovers the tunnel from failure. It replaces the operator's current manual step of adding public hostnames in the Cloudflare dashboard.
 - **Primary users/verticals**: Vrooli operators; automated infrastructure agents; other scenarios that need to be (or need another scenario to be) publicly reachable.
-- **Deployment surfaces**: CLI (`tunnel-manager status/routes/expose/lease/probe/audit/recover/config`), API (Connect-RPC: exposure broker, health/metrics, configuration, exposure-query for app-monitor), UI (5-surface operator dashboard).
+- **Deployment surfaces**: CLI (`tunnel-manager tunnel|routes|exposure|probes|audit|recovery|config`), API (Connect-RPC: exposure broker, health/metrics, configuration, exposure-query for app-monitor), UI (5-surface operator dashboard).
 - **Value promise**: Published Vrooli scenarios stay reachable remotely without manual tunnel babysitting. Exposure becomes programmatic, tiered, and budget-aware; the tunnel self-heals; and other scenarios can request their own reachability on demand.
 
 ### Why It Matters
@@ -33,10 +33,10 @@
 - [x] OT-P0-009 | Internal liveness probes | HTTP-probe each exposed route's local port to verify the scenario is listening
 - [x] OT-P0-010 | External liveness probes | HTTP-probe each exposed route via its public URL to verify end-to-end connectivity
 - [x] OT-P0-011 | Auto-recovery engine (live) | Automatically restart cloudflared / re-push config on `/ready` failure or HA-connections=0, with exponential backoff + circuit breaker; Tunnel Manager is the single authoritative owner of cloudflared restart
-- [x] OT-P0-012 | CLI surface | `status`, `routes`, `expose`, `lease`, `probe`, `audit`, `recover`, `config` — all with proto-typed `--json`
+- [x] OT-P0-012 | CLI surface | `tunnel`, `routes`, `exposure`, `probes`, `audit`, `recovery`, `config` command groups — all with proto-typed `--json`
 
 ### 🟠 P1 – Should have post-launch
-- [x] OT-P1-001 | Failure classification | Categorize failures as tunnel-down / scenario-down / cloudflare-outage / dns-failure / config-drift to drive targeted recovery and alerts
+- [x] OT-P1-001 | Failure classification | Categorize failures as tunnel-down / scenario-down / cloudflare-outage / dns-failure / config-drift to drive targeted recovery and alerts. Current implementation produces healthy / tunnel-down / scenario-down / config-drift from internal/external probe pairs; Cloudflare-outage and DNS-failure need additional signals.
 - [x] OT-P1-002 | Local config mode + switching | Generate/maintain `~/.cloudflared/config.yml` from the manifest as a fallback, with remote↔local mode switching and migration
 - [x] OT-P1-003 | Prometheus metrics scraping | Scrape cloudflared's metrics endpoint for HA connections, request errors, RTT, active streams; persist time-series in SQLite
 - [x] OT-P1-004 | Web UI dashboard (5-surface) | Overview, Exposure (lease management), Recovery & Events, Metrics, Audit

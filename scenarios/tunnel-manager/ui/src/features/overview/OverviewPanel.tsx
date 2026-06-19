@@ -1,11 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
+import { Mode } from "@vrooli/proto-types/tunnel-manager/v1/config/config_pb";
 
 import { QueryState } from "../../components/ui/QueryState";
 import { StatusBadge, type BadgeTone } from "../../components/ui/StatusBadge";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
+import { configClient } from "../../api/config";
 import { tunnelClient } from "../../api/tunnel";
 import { exposureClient } from "../../api/exposure";
 import { recoveryClient } from "../../api/recovery";
@@ -16,6 +18,18 @@ function tunnelTone(status: string): BadgeTone {
   if (status === "degraded") return "warning";
   if (status === "unhealthy") return "danger";
   return "neutral";
+}
+
+function modeLabelKey(mode: Mode) {
+  if (mode === Mode.REMOTE) return strings.config.mode.remote;
+  if (mode === Mode.LOCAL) return strings.config.mode.local;
+  return strings.config.mode.unspecified;
+}
+
+function readinessTone(remoteAvailable: boolean, syncReady: boolean): BadgeTone {
+  if (syncReady && remoteAvailable) return "success";
+  if (syncReady) return "info";
+  return "warning";
 }
 
 function Card({
@@ -44,17 +58,53 @@ function Card({
 export function OverviewPanel() {
   const { t } = useTranslation();
 
+  const configQuery = useQuery({ queryKey: ["config-state"], queryFn: () => configClient.getConfig({}) });
   const tunnelQuery = useQuery({ queryKey: ["tunnel-status"], queryFn: () => tunnelClient.getStatus({}) });
   const exposuresQuery = useQuery({ queryKey: ["exposures"], queryFn: () => exposureClient.listExposures({}) });
   const recoveryQuery = useQuery({ queryKey: ["recovery-state"], queryFn: () => recoveryClient.getState({}) });
 
+  const config = configQuery.data?.config;
+  const readiness = configQuery.data?.readiness;
   const exposures = exposuresQuery.data?.exposures ?? [];
   const coreCount = exposures.filter((e) => e.tier === "core").length;
   const leasedCount = exposures.filter((e) => e.tier === "leased").length;
   const recoveryState = recoveryQuery.data?.state;
 
   return (
-    <div className="grid gap-4 md:grid-cols-3">
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <Card testId={selectors.overview.readinessCard} heading={t(strings.overview.readinessHeading)}>
+        <QueryState isLoading={configQuery.isLoading} error={configQuery.error}>
+          {config && readiness && (
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusBadge
+                  tone={readinessTone(readiness.remoteAvailable, readiness.syncReady)}
+                  data-testid={selectors.overview.readinessStatus}
+                >
+                  {readiness.syncReady
+                    ? t(strings.overview.readinessReady)
+                    : t(strings.overview.readinessSetupRequired)}
+                </StatusBadge>
+                <StatusBadge tone="neutral" data-testid={selectors.overview.modeBadge}>
+                  {t(modeLabelKey(config.mode))}
+                </StatusBadge>
+              </div>
+              <p className="text-sm text-app-muted-foreground">
+                {readiness.modeReason || t(strings.overview.readinessFallback)}
+              </p>
+              {readiness.missingFields.length > 0 && (
+                <p data-testid={selectors.overview.missingFields} className="text-sm text-app-warning">
+                  {t(strings.config.missingFields, { fields: readiness.missingFields.join(", ") })}
+                </p>
+              )}
+              <Link to="/settings" className="text-sm text-app-primary underline-offset-2 hover:underline">
+                {t(strings.overview.configure)}
+              </Link>
+            </div>
+          )}
+        </QueryState>
+      </Card>
+
       <Card testId={selectors.overview.tunnelCard} heading={t(strings.overview.tunnelHeading)}>
         <QueryState isLoading={tunnelQuery.isLoading} error={tunnelQuery.error}>
           {tunnelQuery.data?.status && (

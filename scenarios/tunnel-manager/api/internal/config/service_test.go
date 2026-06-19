@@ -152,6 +152,19 @@ func TestSync_RemoteWithoutCredsUnavailable(t *testing.T) {
 	require.ErrorAs(t, err, &unavailable)
 }
 
+func TestSync_DryRunRemoteWithoutCredsReturnsSetupReport(t *testing.T) {
+	repo := &fakeRepo{cfg: config.TunnelConfig{Mode: config.ModeRemote}}
+	routes := &fakeRoutes{routes: []internalroutes.Route{route("agent-manager", 21100, true)}}
+	svc := newSvc(repo, routes, nil /* no IngressClient */, &mocks.FakeCmdRunner{})
+
+	res, err := svc.Sync(context.Background(), true)
+	require.NoError(t, err)
+	require.True(t, res.SetupRequired)
+	require.Equal(t, config.ModeRemote, res.Mode)
+	require.ElementsMatch(t, []string{"CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_TUNNEL_ID", "CLOUDFLARE_API_TOKEN"}, res.MissingFields)
+	require.Contains(t, res.Message, "Remote mode is unavailable")
+}
+
 func TestSwitchMode_RemoteWithoutCredsUnavailable(t *testing.T) {
 	repo := &fakeRepo{cfg: config.TunnelConfig{Mode: config.ModeLocal}}
 	routes := &fakeRoutes{routes: []internalroutes.Route{route("agent-manager", 21100, true)}}
@@ -230,4 +243,18 @@ func TestGetConfig_PassesThrough(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "tid", got.TunnelID)
 	require.Equal(t, config.ModeRemote, got.Mode)
+}
+
+func TestGetConfigState_ReportsLocalReadinessByDefault(t *testing.T) {
+	repo := &fakeRepo{cfg: config.TunnelConfig{Mode: config.ModeLocal}}
+	svc := newSvc(repo, &fakeRoutes{}, nil, &mocks.FakeCmdRunner{})
+
+	state, err := svc.GetConfigState(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, config.ModeLocal, state.Readiness.DesiredMode)
+	require.False(t, state.Readiness.RemoteAvailable)
+	require.True(t, state.Readiness.SyncReady)
+	require.Equal(t, "none", state.Readiness.CredentialSource)
+	require.NotEmpty(t, state.Readiness.LocalConfigPath)
+	require.ElementsMatch(t, []string{"CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_TUNNEL_ID", "CLOUDFLARE_API_TOKEN"}, state.Readiness.MissingFields)
 }

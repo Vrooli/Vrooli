@@ -2,7 +2,9 @@ import { createClient } from "@connectrpc/connect";
 import {
   ConfigService,
   Mode,
+  type ConfigReadiness,
   type TunnelConfig,
+  type GetConfigResponse,
   type SyncResponse,
 } from "@vrooli/proto-types/tunnel-manager/v1/config/config_pb";
 
@@ -13,9 +15,14 @@ import { transport } from "./client";
 // Sync/SwitchMode are operator actions.
 export const configClient = createClient(ConfigService, transport);
 
+/** getConfigState returns persisted config plus browser-safe readiness. */
+export async function getConfigState(): Promise<GetConfigResponse> {
+  return configClient.getConfig({});
+}
+
 /** getConfig returns the persisted tunnel configuration. */
 export async function getConfig(): Promise<TunnelConfig | undefined> {
-  const resp = await configClient.getConfig({});
+  const resp = await getConfigState();
   return resp.config;
 }
 
@@ -25,4 +32,4 @@ export async function sync(dryRun = false): Promise<SyncResponse> {
 }
 
 export { Mode };
-export type { TunnelConfig, SyncResponse };
+export type { ConfigReadiness, GetConfigResponse, TunnelConfig, SyncResponse };

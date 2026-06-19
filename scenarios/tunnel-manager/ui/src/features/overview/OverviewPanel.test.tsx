@@ -7,10 +7,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 
 import { renderWithProviders } from "../../test-utils";
+import { makeConfigMocks, makeConfigReadiness, makeConfigResponse, makeTunnelConfig } from "../../test-utils/mocks/config";
 import { makeTunnelMocks, makeTunnelStatus } from "../../test-utils/mocks/tunnel";
 import { makeExposureMocks, makeExposure, makeLeasedExposure } from "../../test-utils/mocks/exposure";
 import { makeRecoveryMocks, makeRecoveryState } from "../../test-utils/mocks/recovery";
 
+vi.mock("../../api/config", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/config")>();
+  return { ...actual, ...makeConfigMocks() };
+});
 vi.mock("../../api/tunnel", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/tunnel")>();
   return { ...actual, ...makeTunnelMocks() };
@@ -38,8 +43,15 @@ describe("OverviewPanel", () => {
     vi.clearAllMocks();
   });
 
-  it("shows tunnel status, the core/leased split, and recovery status", async () => {
+  it("shows readiness, tunnel status, the core/leased split, and recovery status", async () => {
     const { exposureClient } = await import("../../api/exposure");
+    const { configClient } = await import("../../api/config");
+    vi.mocked(configClient.getConfig).mockResolvedValueOnce(
+      makeConfigResponse({
+        config: makeTunnelConfig({ mode: 2 }),
+        readiness: makeConfigReadiness({ syncReady: true, remoteAvailable: false, missingFields: [] }),
+      }) as never,
+    );
     vi.mocked(exposureClient.listExposures).mockResolvedValueOnce({
       exposures: [makeExposure(), makeExposure({ scenario: "swarm-manager" }), makeLeasedExposure()],
     } as never);
@@ -47,12 +59,32 @@ describe("OverviewPanel", () => {
     renderWithProviders(<OverviewPanel />);
 
     await waitFor(() => {
+      expect(screen.getByTestId(selectors.overview.readinessStatus)).toHaveTextContent("Sync ready");
       expect(screen.getByTestId(selectors.overview.tunnelStatus)).toHaveTextContent("healthy");
     });
+    expect(screen.getByTestId(selectors.overview.modeBadge)).toHaveTextContent("Local");
     expect(screen.getByTestId(selectors.overview.tunnelScore)).toHaveTextContent("100");
     expect(screen.getByTestId(selectors.overview.coreCount)).toHaveTextContent("2");
     expect(screen.getByTestId(selectors.overview.leasedCount)).toHaveTextContent("1");
     expect(screen.getByTestId(selectors.overview.recoveryStatus)).toHaveTextContent("Monitoring");
+  });
+
+  it("shows missing Cloudflare fields when remote setup is incomplete", async () => {
+    const { configClient } = await import("../../api/config");
+    vi.mocked(configClient.getConfig).mockResolvedValueOnce(
+      makeConfigResponse({
+        readiness: makeConfigReadiness({
+          syncReady: false,
+          missingFields: ["CLOUDFLARE_API_TOKEN"],
+        }),
+      }) as never,
+    );
+
+    renderWithProviders(<OverviewPanel />);
+    await waitFor(() => {
+      expect(screen.getByTestId(selectors.overview.readinessStatus)).toHaveTextContent("Setup required");
+    });
+    expect(screen.getByTestId(selectors.overview.missingFields)).toHaveTextContent("CLOUDFLARE_API_TOKEN");
   });
 
   it("warns when the recovery circuit breaker is open", async () => {

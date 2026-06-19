@@ -29,9 +29,9 @@ Use this document to answer:
 | Tunnel RTT | metric (planned) | cloudflared Prometheus | latency to Cloudflare edge | degraded on spike |
 | Request errors | metric (planned) | cloudflared Prometheus | tunnel-level error rate | alert on sustained rise |
 | Active streams | metric (planned) | cloudflared Prometheus | live request volume | informational |
-| Internal/external probe results | health (planned) | `probes` domain | per-route end-to-end reachability | route healthy when both probes pass |
+| Internal/external probe results | health | `probes` domain | per-route end-to-end reachability | route healthy when both probes pass |
 | Degraded-mode signal | health (planned) | `tunnel` domain | early-warning before full failure | reported when HA `< 4` or RTT spikes |
-| Recovery events | event (planned) | `recovery` domain | auto-recovery attempts + outcomes | reviewed per incident |
+| Recovery events | event | `recovery` domain | manual or opt-in background recovery attempts + outcomes | reviewed per incident |
 
 ## Logs
 
@@ -41,7 +41,7 @@ Use this document to answer:
 | UI logs | lifecycle-managed UI server | `make logs` | Production bundle server logs only. |
 | cloudflared logs | systemd journal | `journalctl -u cloudflared` | Tunnel daemon logs; consulted during recovery (not produced by this scenario). |
 
-## Stored Telemetry (planned)
+## Stored Telemetry
 
 All time-series and history are persisted in **SQLite** (DECISIONS:
 "SQLite only"), co-located with the manifest under `SQLITE_PATH`. There
@@ -51,7 +51,7 @@ other resources are down.
 | Store | Domain / Table | Contents | Retention / Purge |
 |---|---|---|---|
 | Metrics history | `tunnel` / `metrics` | scraped HA conns, RTT, errors, active streams (time-series) | Bounded retention with periodic purge (window TBD in Phase 2). |
-| Probe history | `probes` / `probes` | per-route internal/external probe results, latency, error, classification | Bounded retention with periodic purge (window TBD). |
+| Probe history | `probes` / `probes` | per-route internal/external probe results, latency, error | Bounded retention with periodic purge (window TBD). |
 | Recovery event log | `recovery` / `recovery_events` | attempts, trigger, action, outcome, timestamps (OT-P1-005) | Retained for post-incident review. |
 
 ## Metrics
@@ -59,8 +59,8 @@ other resources are down.
 | Metric | Status | Details |
 |---|---|---|
 | Tunnel health (HA conns / RTT / errors / streams) | planned | Scraped from cloudflared Prometheus; persisted to SQLite (`tunnel` domain). |
-| Per-route reachability | planned | From probe history (`probes` domain). |
-| Recovery success rate | planned | Derived from the recovery event log. |
+| Per-route reachability | active | From probe history (`probes` domain); background probes run unless disabled. |
+| Recovery success rate | active when events exist | Derived from the recovery event log; background event production requires `TUNNEL_MANAGER_RECOVERY_SCHEDULER_ENABLED`, while manual recovery always records events. |
 | Requirement coverage | active | Tracked through requirements and test-genie coverage artifacts. |
 | Product activation | deferred | Foundational infra; adoption measured via exposure manifest, not user activation. |
 | Performance budgets | deferred | Define in `../internal/PERFORMANCE.md`. |

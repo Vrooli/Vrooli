@@ -34,10 +34,14 @@ func (h *handlers) get(ctx cliapp.RunContext) error {
 	if resp == nil || resp.Msg == nil || resp.Msg.Config == nil {
 		return fmt.Errorf("server returned no config")
 	}
+	results := []string{formatConfig(resp.Msg.Config)}
+	if resp.Msg.Readiness != nil {
+		results = append(results, formatReadiness(resp.Msg.Readiness))
+	}
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
 		Summary:        []string{"Fetched tunnel configuration."},
 		ResultsHeading: "Config",
-		Results:        []string{formatConfig(resp.Msg.Config)},
+		Results:        results,
 		RetrievalHints: []string{
 			"`config sync --dry-run` — preview ingress reconciliation",
 			"`config mode --target remote|local` — switch management mode",
@@ -71,8 +75,16 @@ func (h *handlers) sync(ctx cliapp.RunContext) error {
 	result := fmt.Sprintf("Synced ingress (%s mode).", strings.ToLower(resp.Msg.Mode.String()))
 	if resp.Msg.NoChanges {
 		result = fmt.Sprintf("Ingress already in sync (%s mode); no changes.", strings.ToLower(resp.Msg.Mode.String()))
+	} else if resp.Msg.SetupRequired {
+		result = "Dry-run: remote mode setup is incomplete; no live ingress diff was attempted."
 	} else if dryRun {
 		result = fmt.Sprintf("Dry-run: %d added, %d removed (not applied).", len(resp.Msg.Added), len(resp.Msg.Removed))
+	}
+	if resp.Msg.Message != "" {
+		result = result + " " + resp.Msg.Message
+	}
+	if len(resp.Msg.MissingFields) > 0 {
+		changes = append(changes, "missing: "+strings.Join(resp.Msg.MissingFields, ", "))
 	}
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
 		Result:  []string{result},
@@ -118,4 +130,27 @@ func formatConfig(c *configv1.TunnelConfig) string {
 	}
 	return fmt.Sprintf("mode=%s tunnel_id=%s account_id=%s cred_ref=%s prom=%s",
 		strings.ToLower(c.Mode.String()), c.TunnelId, c.AccountId, c.CredRef, c.PromEndpoint)
+}
+
+func formatReadiness(r *configv1.ConfigReadiness) string {
+	if r == nil {
+		return "readiness=(nil)"
+	}
+	parts := []string{
+		fmt.Sprintf("desired_mode=%s", strings.ToLower(r.DesiredMode.String())),
+		fmt.Sprintf("remote_available=%t", r.RemoteAvailable),
+		fmt.Sprintf("sync_ready=%t", r.SyncReady),
+		fmt.Sprintf("credential_source=%s", r.CredentialSource),
+		fmt.Sprintf("local_config_path=%s", r.LocalConfigPath),
+	}
+	if r.CredentialRef != "" {
+		parts = append(parts, "credential_ref="+r.CredentialRef)
+	}
+	if len(r.MissingFields) > 0 {
+		parts = append(parts, "missing="+strings.Join(r.MissingFields, ","))
+	}
+	if r.ModeReason != "" {
+		parts = append(parts, "reason="+r.ModeReason)
+	}
+	return "readiness " + strings.Join(parts, " ")
 }

@@ -41,32 +41,32 @@ CLI verbs (see [`../concepts/DOMAINS.md`](../concepts/DOMAINS.md)).
 
 | Goal | Command | Notes |
 |---|---|---|
-| Check tunnel + overall status | `tunnel-manager status` | cloudflared systemd state, `/ready`, HA connections, degraded-mode signal. |
-| List / inspect exposure | `tunnel-manager routes [--scenario <s>]` | Reads the exposure manifest (SSOT): subdomain, scenario, port, tier, lease, enabled. |
-| Expose / lease a scenario | `tunnel-manager expose <scenario>` or `tunnel-manager lease create <scenario> [--ttl 7d]` | Creates a LEASED route, ensures the scenario is running (delegates to `internal/lifecycle`), and requests ingress. Default TTL ≈ 1 week. |
-| Extend a lease | `tunnel-manager lease extend <scenario>` | Pushes out `expires_at`; expired leases are auto-reaped unless the scenario is also CORE. |
-| Revoke a lease | `tunnel-manager lease revoke <scenario>` | Removes the LEASED route + ingress (CORE routes are never revoked this way). |
-| Run probes | `tunnel-manager probe [--scenario <s>] [--kind internal\|external]` | Internal probes the local port; external probes the public URL end-to-end. |
-| Run port audit | `tunnel-manager audit` | Verifies each exposed scenario's `service.json` fixed UI port matches the manifest; reports mismatches/missing/ranged ports. |
-| Manually trigger recovery | `tunnel-manager recover` | Forces a recovery cycle (restart cloudflared / re-push config). Normally automatic; use when escalating an incident. |
+| Check tunnel status | `tunnel-manager tunnel status` | cloudflared systemd state, `/ready`, HA connections, degraded-mode signal. |
+| List / inspect exposure | `tunnel-manager routes list` / `tunnel-manager exposure list` | Reads the exposure manifest (SSOT) or reconciled exposure state. |
+| Expose / lease a scenario | `tunnel-manager exposure expose <scenario>` | Creates a LEASED route, ensures the scenario is running, and requests ingress. Default TTL ≈ 1 week. |
+| Extend a lease | `tunnel-manager exposure extend <lease_id>` | Pushes out `expires_at`; expired leases are auto-reaped unless the scenario is also CORE. |
+| Revoke a lease | `tunnel-manager exposure revoke <lease_id>` | Removes the LEASED route + ingress (CORE routes are never revoked this way). |
+| Run probes | `tunnel-manager probes run` | Internal probes the local port; external probes the public URL end-to-end. |
+| Run port audit | `tunnel-manager audit run` | Verifies each exposed scenario's `service.json` fixed UI port matches the manifest; reports mismatches/missing/ranged ports. |
+| Manually trigger recovery | `tunnel-manager recovery run` | Forces a recovery cycle (restart cloudflared). Background recovery is opt-in with `TUNNEL_MANAGER_RECOVERY_SCHEDULER_ENABLED`; use manual recovery when escalating an incident. |
 | Switch remote/local mode | `tunnel-manager config mode <remote\|local>` | Remote = Cloudflare API ingress (needs API token); local = generate `~/.cloudflared/config.yml`. Migrates ingress on switch. |
-| Inspect / sync config | `tunnel-manager config show` / `tunnel-manager config sync` | Reconciles ingress with the manifest. |
+| Inspect / sync config | `tunnel-manager config get` / `tunnel-manager config sync` | Reconciles ingress with the manifest. |
 
 ### When auto-recovery trips the circuit breaker
 
-The `recovery` engine acts **live** with exponential backoff and a
-circuit breaker (DECISIONS: "Auto-recovery LIVE from day one"). When the
-breaker opens, auto-restart stops to avoid a restart storm:
+The `recovery` engine uses exponential backoff and a circuit breaker.
+Background evaluation is opt-in (`TUNNEL_MANAGER_RECOVERY_SCHEDULER_ENABLED`)
+because acted evaluations restart cloudflared. When the breaker opens,
+recovery attempts stop to avoid a restart storm:
 
-1. `tunnel-manager status` and `tunnel-manager probe` — classify the
-   failure (tunnel-down / scenario-down / cloudflare-outage /
-   dns-failure / config-drift).
-2. If it is a **Cloudflare outage or DNS failure**, do not force-restart;
-   wait for upstream recovery.
-3. If it is **config drift**, run `tunnel-manager config sync`.
-4. Once root cause is addressed, `tunnel-manager recover` resets and
+1. `tunnel-manager tunnel status`, `tunnel-manager probes run`, and
+   `tunnel-manager probes classify` — classify the failure. Current
+   classes are healthy / tunnel-down / scenario-down / config-drift;
+   Cloudflare outage and DNS failure require future signals.
+2. If it is **config drift**, run `tunnel-manager config sync`.
+3. Once root cause is addressed, `tunnel-manager recovery run --force true` resets and
    re-attempts; this clears the breaker on success.
-5. Review the recovery event log (see
+4. Review the recovery event log (see
    [`OBSERVABILITY.md`](OBSERVABILITY.md)) before and after.
 
 ### Relationship with vrooli-autoheal (single owner)

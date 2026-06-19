@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "tunnel-manager",
-  "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "description": "Tunnel Manager operator CLI surface. Single source of truth for config, exposure, routes, probes, recovery, tunnel, and audit command groups; schema-validated against cli-manifest/v1 and cross-validated against proto descriptors at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
   "groups": [
     {
       "name": "routes",

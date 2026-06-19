@@ -213,7 +213,7 @@ and use matrix/trace helpers from the relevant testutil package.
 > | Planned name | As built |
 > |---|---|
 > | `internal/exec/runner.go::CommandRunner` (cross-cutting) | `internal/cmdrunner/runner.go::Runner` + `cmdrunner.Default`; fake `internal/testutil/mocks::FakeCmdRunner`. Wired domain-locally in each `handlers/<d>/module.go` (tunnel/config/recovery), not on `server.Deps`. |
-> | `internal/config/cloudflare.go::CloudflareAPI` | `internal/config` `IngressClient` + `NewCFClient` over `httpc.Doer`; nil when CF creds absent → `ErrRemoteUnavailable`. |
+> | `internal/config/cloudflare.go::CloudflareAPI` | `internal/config` `IngressClient` + `NewCFClient` over `httpc.Doer`; nil when CF creds absent → `ErrRemoteUnavailable`. `internal/config.NewProductionService` is the canonical production builder used by both `handlers/config` and `handlers/exposure` so ingress wiring cannot drift. |
 > | `internal/tunnel/scrape.go::MetricsSource` | folded into `internal/tunnel` service over `httpc.Doer` + `cmdrunner.Runner` (Prometheus parse + `/ready`). |
 > | `internal/probes/prober.go::Prober` | folded into `internal/probes` service over `httpc.Doer`. |
 > | `internal/exposure/coreset.go::CoreSetProvider` (`CoreSet(ctx)([]string,error)`) | `exposure.CoreSetProvider func() []string`, wired to `coreset.CoreSeedScenarios`. |
@@ -228,25 +228,35 @@ and use matrix/trace helpers from the relevant testutil package.
 > [`DECISIONS.md`](DECISIONS.md) (auto-recovery LIVE) for why this
 > discipline is load-bearing.
 
-### CloudflareAPI client (`config` domain — planned)
+### Cloudflare ingress client (`config` domain)
 
 | | |
 |---|---|
 | **Seam** | Cloudflare API v4 ingress management (remote-mode hostname → `localhost:<port>` config push, hot-reload) |
-| **Interface** | `internal/config/cloudflare.go::CloudflareAPI` (planned) — e.g. `PutIngress(ctx, []IngressRule) error`, `GetIngress(ctx) ([]IngressRule, error)`, `ListTunnels(ctx) ([]Tunnel, error)`. |
-| **Production wiring** | `handlers/config/module.go::Module(...)` constructs a concrete client over `internal/httpc.Doer` (already a declared seam) bound to the v4 base URL with the credential reference resolved at boot. Domain-local; does not appear on `server.Deps`. |
-| **Test fake** | `internal/config/mocks::FakeCloudflareAPI` (records pushed ingress rule sets, per-method error knobs for outage/auth-failure paths, canned `GetIngress` state). |
+| **Interface** | `internal/config/types.go::IngressClient` with `ReadIngress(ctx)` and `PushIngress(ctx, []IngressRule)`. |
+| **Production wiring** | `internal/config/production.go::NewProductionService(...)` resolves canonical `CLOUDFLARE_*` credentials with legacy `CF_*` fallback, constructs `NewCFClient` over `internal/httpc.Doer`, and wires the routes manifest reader plus local-mode runner. Both `handlers/config/module.go` and `handlers/exposure/module.go` use this builder; exposure wraps the resulting config service with `ingressAdapter{cfg}.Reconcile`. |
+| **Test fake** | Service tests use a small fake `IngressClient`; builder/adapter integration tests use `internal/testutil/mocks::FakeDoer` to assert Cloudflare GET/PUT request shape without network I/O. |
 | **Why it exists** | Live ingress pushes against a real account would be destructive and non-deterministic. The fake lets `Sync`/`SwitchMode`/remote-mode reconciliation be asserted (correct rule set derived from the manifest, idempotent re-push, error classification on 5xx/auth-fail) without a Cloudflare account or network. OT-P0-002, OT-P1-002. |
 
-### Systemd / process-exec (`tunnel` + `recovery` domains — planned)
+### Exposure reconcile scheduler (`exposure` domain)
+
+| | |
+|---|---|
+| **Seam** | Boot + periodic CORE reconcile and expired-lease reaping. |
+| **Interface** | `internal/exposure/scheduler.go::Scheduler`, configured with the existing `exposure.Service` interface and an injectable tick channel (`SchedulerConfig.Ticks`) for tests. |
+| **Production wiring** | `api/main.go` constructs one production exposure service via `handlers/exposure.NewProductionService`, mounts that same service in `ModuleWithService`, and starts `Scheduler.Run` in a cancellable goroutine. Cleanup cancels the scheduler and waits for it before closing SQLite. `TUNNEL_MANAGER_EXPOSURE_RECONCILE_INTERVAL` controls cadence; `TUNNEL_MANAGER_EXPOSURE_SCHEDULER_DISABLED` disables the loop while preserving manual reconcile. |
+| **Test fake** | `internal/exposure/scheduler_test.go` uses a fake `Service` plus an injected tick channel to prove boot reconcile, periodic reconcile, retry-after-error, and context cancellation without sleeps or live Cloudflare calls. |
+| **Why it exists** | CORE routes and expired leases are temporal guarantees, not only manual RPCs. Keeping the scheduler on the exposure service seam makes it idempotent, serial, cancellable, and independent of HTTP transport while reusing the same config/ingress wiring as operator-triggered reconcile. OT-P0-003, OT-P0-004. |
+
+### Systemd / process-exec (`tunnel` + `recovery` domains)
 
 | | |
 |---|---|
 | **Seam** | Out-of-process command execution against the cloudflared systemd unit (`systemctl status/restart cloudflared`) and any cloudflared invocation |
-| **Interface** | `internal/exec/runner.go::CommandRunner` (planned) — e.g. `Run(ctx, name string, args ...string) (Result, error)` returning exit code, stdout, stderr. |
-| **Production wiring** | `main.go` (cross-cutting — shared by `tunnel` health reads and `recovery` actuation) constructs an `os/exec`-backed runner and passes it via `server.Deps`. Single concrete implementation; the *only* place a real `systemctl restart` is issued. |
-| **Test fake** | `internal/testutil/mocks::FakeCommandRunner` (scripted per-command results keyed by argv, recorded invocation log, error injection for "unit not found"/"permission denied"). |
-| **Why it exists** | **Auto-recovery is LIVE from day one** ([`DECISIONS.md`](DECISIONS.md)). A test must NEVER restart real cloudflared — that is foundational infra for the whole host. The seam makes "on `/ready` failure → restart with backoff → circuit-break after N attempts" fully assertable against recorded fake invocations. This is the single most safety-critical seam in the scenario. OT-P0-008, OT-P0-011. |
+| **Interface** | `internal/cmdrunner.Runner`, a function seam `func(context.Context, string, ...string) (Result, error)` returning exit code, stdout, and stderr. |
+| **Production wiring** | `handlers/recovery.NewProductionService` constructs the recovery engine over `cmdrunner.Default`. `api/main.go` constructs one recovery service and shares it between `RecoveryService` and the optional recovery scheduler. A real restart is issued only through `recovery.Service` after threshold/backoff/circuit checks. |
+| **Test fake** | `internal/testutil/mocks::FakeCmdRunner` records invocations and injects command errors. |
+| **Why it exists** | A test must NEVER restart real cloudflared — that is foundational infra for the whole host. The seam makes "on `/ready` failure → restart with backoff → circuit-break after N attempts" fully assertable against recorded fake invocations. Background recovery evaluation is opt-in with `TUNNEL_MANAGER_RECOVERY_SCHEDULER_ENABLED`; manual recovery remains available. OT-P0-008, OT-P0-011. |
 
 ### Prometheus-scrape HTTP (`tunnel` domain — planned)
 
@@ -258,15 +268,25 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `internal/testutil/mocks::FakeDoer` (existing) supplies canned Prometheus text-format bodies and `/ready` responses; `internal/tunnel/mocks::FakeMetricsSource` substitutes the parsed-result level for degraded-mode logic tests. |
 | **Why it exists** | HA-connection / RTT / request-error parsing and degraded-mode detection (HA < 4, RTT spikes) must be deterministic. Canned scrape bodies pin the parse + threshold logic without a running cloudflared. OT-P0-008, OT-P1-003/006. |
 
-### HTTP-prober (`probes` domain — planned)
+### HTTP prober + probe scheduler (`probes` domain)
 
 | | |
 |---|---|
 | **Seam** | Liveness probing of a route's local port (internal) and public URL (external) |
-| **Interface** | `internal/probes/prober.go::Prober` (planned) — e.g. `Probe(ctx, target ProbeTarget) (ProbeResult, error)` carrying status, latency, and error; built over the existing `internal/httpc.Doer` for the actual request. |
-| **Production wiring** | `handlers/probes/module.go::Module(...)` constructs the prober over the shared `Doer`. The scheduler (see Clock seam) drives it on cadence. |
-| **Test fake** | `internal/probes/mocks::FakeProber` (scripted per-target results) for scheduler + classification tests; `FakeDoer` for prober-internal request-shaping tests. |
-| **Why it exists** | Failure classification (tunnel-down / scenario-down / cloudflare-outage / dns-failure / config-drift, see [`ERROR-HANDLING.md`](ERROR-HANDLING.md)) is derived from the *pattern* of internal-vs-external probe results. The fake lets every classification branch be reached deterministically — e.g. "internal OK + external fail ⇒ tunnel-down" — without standing up real routes. OT-P0-009/010, OT-P1-001. |
+| **Interface** | `internal/httpc.Doer` for each outbound GET plus `internal/probes.Service.RunProbes` for scheduler-level execution. `internal/probes.Scheduler` accepts the service interface and an injectable tick channel. |
+| **Production wiring** | `handlers/probes.NewProductionService` constructs the service over routes, SQLite, a timeout-bounded `*http.Client`, and the clock. `api/main.go` mounts that same service in `ModuleWithService` and starts `Scheduler.Run` in a cancellable goroutine unless `TUNNEL_MANAGER_PROBE_SCHEDULER_DISABLED` is set. |
+| **Test fake** | Service tests use `internal/testutil/mocks::FakeDoer`; scheduler tests use a fake `probes.Service` plus injected ticks. |
+| **Why it exists** | Failure classification currently derives from the *pattern* of internal-vs-external probe results: healthy, tunnel-down, scenario-down, or config-drift. DNS failure and Cloudflare outage require future resolver/edge signals and are not produced yet. The seams let probe execution, scheduler retry, and classification branches be tested without live routes. OT-P0-009/010, partial OT-P1-001. |
+
+### Recovery evaluation scheduler (`recovery` domain)
+
+| | |
+|---|---|
+| **Seam** | Boot + periodic recovery evaluation. |
+| **Interface** | `internal/recovery/scheduler.go::Scheduler`, configured with the existing `recovery.Service` interface and an injectable tick channel (`SchedulerConfig.Ticks`) for tests. |
+| **Production wiring** | `api/main.go` constructs one recovery service via `handlers/recovery.NewProductionService`, mounts that same service in `ModuleWithService`, and starts `Scheduler.Run` only when `TUNNEL_MANAGER_RECOVERY_SCHEDULER_ENABLED` is truthy. Cleanup cancels the scheduler and waits for it before closing SQLite. `TUNNEL_MANAGER_RECOVERY_EVALUATE_INTERVAL` controls cadence. |
+| **Test fake** | `internal/recovery/scheduler_test.go` uses a fake `Service` plus an injected tick channel to prove boot evaluation, periodic evaluation, retry-after-error, action logging, and context cancellation without sleeps or systemd. |
+| **Why it exists** | Recovery evaluation is temporal but potentially destructive. Keeping it behind the service seam makes the scheduler lifecycle-owned and testable while leaving all restart decisions to the engine's threshold/backoff/circuit policy. OT-P0-011. |
 
 ### Clock (leases TTL + backoff — planned reuse)
 

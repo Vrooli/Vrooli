@@ -12,25 +12,26 @@ both when adding or renaming a slot.
 | `schema` | `scenario-ui-manifest/v1` |
 | `template` | `react-vite` |
 
-## Tunnel Manager UI surfaces (planned)
+## Tunnel Manager UI surfaces
 
-> **Planned (not yet implemented).** The 5 operator surfaces below are
-> the Phase 2 UI, organized around the exposure lifecycle (the prior UI
-> sprawled to 7 score-chasing pages contradicting the PRD's "minimal UI"
-> — see [`../internal/DECISIONS.md`](../internal/DECISIONS.md)). Each
-> surface maps to a domain feature folder under `ui/src/features/<domain>/`.
+> The 5 operator surfaces below are the production information architecture,
+> organized around the exposure lifecycle (the prior UI sprawled to 7
+> score-chasing pages contradicting the PRD's "minimal UI" — see
+> [`../internal/DECISIONS.md`](../internal/DECISIONS.md)). The current
+> production-readiness redesign has started with the first-run
+> Settings/Setup workflow, config-readiness summary on Overview, and
+> Exposure, Diagnostics, Recovery, and Audit operator workflow polish.
 
 | Surface | Feature folder | Shows |
 |---|---|---|
 | **Overview** | `ui/src/features/routes/` | Tunnel + exposure health at a glance: the manifest (routes, tiers, leases), color-coded status. |
-| **Exposure** | `ui/src/features/exposure/` | Lease management — request / extend / revoke leased exposure; CORE vs LEASED tiers. |
-| **Recovery & Events** | `ui/src/features/recovery/` | Auto-recovery state (backoff / circuit breaker) and the recovery event log. |
-| **Metrics** | `ui/src/features/metrics/` | cloudflared Prometheus metrics + time-series (HA connections, RTT, errors, active streams); degraded-mode signal. Backed by the `tunnel` domain. |
-| **Audit** | `ui/src/features/audit/` | Port-compliance findings (mismatched / missing / ranged UI ports). |
+| **Exposure** | `ui/src/features/exposure/` | Lease management and reconcile workflow — request / extend / revoke leased exposure; CORE vs LEASED filtering; search; route-classification badges from probes. |
+| **Recovery & Events** | `ui/src/features/recovery/` | Auto-recovery state, breaker/backoff risk, next operator action, guarded manual recover/force action, and recovery event details. |
+| **Metrics** | `ui/src/features/metrics/` | cloudflared Prometheus summary + time-series (HA connections, RTT, errors, active streams), probe history, route classifications, current diagnostic-signal limits, and scrape/probe actions. Backed by the `tunnel` and `probes` domains. |
+| **Audit** | `ui/src/features/audit/` | Port-compliance summary, status filters, findings, and remediation hints for mismatched / missing / ranged UI ports. |
+| **Settings / Setup** | `ui/src/pages/SettingsPage.tsx`, `ui/src/api/config.ts` | Local/remote mode, Cloudflare credential readiness, missing fields, local config path, sync dry-run, sync apply, theme, and locale. |
 
-The scaffold `health` feature lives at `ui/src/features/health/`; the
-fenced `notes` example feature is removed by `vrooli scenario
-detemplate`.
+The scaffold `health` feature lives at `ui/src/features/health/`.
 
 ### Durable seams (preserve across UI rewrites)
 

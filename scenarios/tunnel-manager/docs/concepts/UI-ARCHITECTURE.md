@@ -7,24 +7,36 @@ from the `react-vite` template, and the **slot taxonomy** that lets external
 tools (notably `react-component-library`'s adoption resolver) place components
 without asking the user for a path.
 
-## Tunnel Manager UI (planned)
+## Tunnel Manager UI
 
-> Status: documentation-first (Phase 1). The UI below is **designed, not
-> built** — only the template scaffold + the fenced `notes` example exist.
-> See [`PRD.md`](../../PRD.md) (OT-P1-004) and the "UI reimagined as 5
-> surfaces" decision in [`../internal/DECISIONS.md`](../internal/DECISIONS.md).
+> Status: production-readiness redesign in progress. The five routed operator
+> surfaces are implemented; current work is hardening them around real setup,
+> exposure, diagnostics, recovery, and audit workflows. The setup/readiness
+> slice is wired to the config API and surfaces Cloudflare credential
+> availability, local/remote mode, sync preview, and sync apply actions. The
+> Exposure slice now composes the exposure and probes APIs for search,
+> CORE/LEASED filtering, reconcile feedback, lease actions, and current
+> route-classification badges. The Diagnostics/Metrics slice now summarizes
+> latest cloudflared metrics, per-route classifications, current
+> classification limits, probe history, and manual scrape/probe actions. The
+> Audit slice now summarizes fixed-port compliance with status filtering and
+> remediation hints for each finding. The Recovery slice now summarizes the
+> state machine, breaker/backoff risk, next operator action, manual recovery
+> force semantics, and durable event details.
 
 The dashboard is intentionally minimal and glanceable: operators need quick
-status reads, not complex interactions. It is organized as exactly **five
-surfaces** (not score-chasing pages), each routed under `<Outlet />`:
+status reads, not complex interactions. It is organized around the five PRD
+operator surfaces plus the Settings/Setup support surface, each routed under
+`<Outlet />`:
 
 | Surface | Purpose | Backing domains |
 |---|---|---|
 | **Overview** | Tunnel health at a glance: cloudflared status, core/leased route grid, current recovery state, active alerts. | `tunnel`, `routes`, `exposure`, `recovery` |
-| **Exposure** | Unified route table — per row: tier badge (CORE/LEASED), internal + external status, local port, public URL, lease TTL countdown. Actions: request-expose, pin/unpin-core, extend/revoke lease, probe-now. | `routes`, `exposure`, `probes` |
-| **Recovery & Events** | Recovery-attempt timeline, circuit-breaker state (closed/open/half-open), manual-recover action. | `recovery` |
-| **Metrics** | cloudflared time-series (HA connections, request errors, RTT, active streams) + per-route probe history. | `tunnel`, `probes` |
-| **Audit** | Port-compliance findings: scenarios whose `service.json` UI port is missing, ranged, or mismatched vs the manifest. | `audit` |
+| **Exposure** | Unified route table with operator summary, search, CORE/LEASED filtering, classification badge, local port, public URL, lease TTL countdown, and reconcile feedback. Actions: request-expose, extend/revoke lease, refresh, reconcile. | `routes`, `exposure`, `probes` |
+| **Recovery & Events** | Recovery state machine, breaker/backoff summary, next operator action, guarded manual recover/force action, and recovery-attempt timeline. | `recovery` |
+| **Metrics** | cloudflared metric summary/time-series (HA connections, request errors, RTT, active streams), probe history, route classifications, and the current diagnostic-signal boundary. | `tunnel`, `probes` |
+| **Audit** | Port-compliance summary and filtered findings: scenarios whose `service.json` UI port is missing, ranged, or mismatched vs the manifest, with remediation hints. | `audit` |
+| **Settings / Setup** | Mode visibility, credential source, missing `CLOUDFLARE_*` fields, local config path, metrics endpoint, sync dry-run, sync apply, and local/remote mode switching. | `config` |
 
 ### Feature-folder mapping
 
@@ -38,6 +50,7 @@ matching the domain source paths in [`DOMAINS.md`](DOMAINS.md):
 | Recovery & Events | `ui/src/features/recovery/` |
 | Metrics | `ui/src/features/metrics/` (the `tunnel` domain's UI surface) + `features/probes/` |
 | Audit | `ui/src/features/audit/` |
+| Settings / Setup | `ui/src/pages/SettingsPage.tsx` + `ui/src/api/config.ts` |
 
 Typed Connect-RPC clients live in `ui/src/api/<domain>.ts`. Real-time
 updates use redis pub/sub when available and fall back to HTTP polling

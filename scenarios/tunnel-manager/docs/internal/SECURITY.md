@@ -15,17 +15,16 @@ Use this document to answer:
 
 ## Data Sensitivity
 
-> **Status: planned, not built.** Implementation is Phase 2; the rows
-> below classify the data the seven product domains
-> ([`../concepts/DOMAINS.md`](../concepts/DOMAINS.md)) will own.
-> Threat-model depth is deliberately scoped to foundational
-> infrastructure — concrete enough to drive the API-layer controls, not
-> a full external-pentest model. **SQLite only** ([`DECISIONS.md`](DECISIONS.md));
-> no external store.
+The rows below classify the data the product domains
+([`../concepts/DOMAINS.md`](../concepts/DOMAINS.md)) own or consume.
+Threat-model depth is deliberately scoped to foundational
+infrastructure — concrete enough to drive the API-layer controls, not
+a full external-pentest model. **SQLite only** ([`DECISIONS.md`](DECISIONS.md));
+no external store.
 
 | Data | Sensitivity | Owner | Details |
 |---|---|---|---|
-| Cloudflare API token | **high (secret)** | `config` | Remote-mode credential. Stored as a **credential reference**, never inline in `tunnel_config`, SQLite rows, or logs. Resolved at boot from the secret source (env/vault), held in memory only. |
+| Cloudflare API token | **high (secret)** | `config` | Remote-mode credential. Resolved from process env (`CLOUDFLARE_API_TOKEN`, legacy fallback `CF_API_TOKEN`), held in memory only, and represented to clients only as a non-secret reference such as `env:CLOUDFLARE_API_TOKEN`. Never inline in `tunnel_config`, SQLite rows, UI payloads, CLI output, or logs. |
 | Tunnel id / account id | medium | `config` | Identifies the managed tunnel/account; not a secret but enables targeted action if combined with the token. |
 | Exposure manifest (`routes`) | medium | `routes` | The list of what is publicly reachable, at which subdomain/port/tier. Disclosure reveals public attack surface and internal port mapping. |
 | Leases (`leases`) | low-medium | `exposure` | Who requested exposure of what, and until when. Useful for attribution; no secrets. |
@@ -34,7 +33,7 @@ Use this document to answer:
 
 ## Auth And Authorization
 
-> **Status: planned, not built.**
+> **Status: authn/authz planned, not built.**
 
 The most security-relevant surface is the **exposure-request API**
 (OT-P0-005): other scenarios and the operator can ask Tunnel Manager to
@@ -58,7 +57,7 @@ opens an internet-facing route — so it must be authorized.
 
 | Secret | Source | Required? | Details |
 |---|---|---|---|
-| Cloudflare API token | secret source (env/vault), referenced — not inlined | remote mode only | Least-privilege token scoped to the managed tunnel's ingress config. Held as a **credential reference** in `tunnel_config`; resolved at boot, kept in memory, never persisted in SQLite or written to logs. Local config-mode (`~/.cloudflared/config.yml`) needs no API token. |
+| Cloudflare API token | process env (`CLOUDFLARE_API_TOKEN`; legacy fallback `CF_API_TOKEN`) | remote mode only | Least-privilege token scoped to the managed tunnel's ingress config. Resolved at boot, kept in memory, and exposed only as a non-secret env reference. Local config-mode (`~/.cloudflared/config.yml`) needs no API token. |
 
 ## Threat Model
 
@@ -67,11 +66,11 @@ opens an internet-facing route — so it must be authorized.
 
 | Risk | Impact | Mitigation | Status |
 |---|---|---|---|
-| Cloudflare API token leakage | Full control of the tunnel's public ingress (expose/hijack any route). | Least-privilege token; credential **reference** only (never inline/SQLite/logs); resolved in-memory at boot. | planned |
-| Live auto-recovery blast radius | A false-positive restart loop could take down remote access for the whole Vrooli instance (foundational infra). | **Circuit breaker** (cap attempts, exponential backoff) + **single-owner restart contract** (Tunnel Manager is the sole cloudflared-restart owner; vrooli-autoheal downgrades to alert-only). Recovery actuation behind the exec/systemd seam so it is testable and bounded. | planned |
-| Unauthorized exposure request | An attacker/buggy caller exposes an internal scenario to the internet. | Authn/authz on the exposure-request API at the service layer; exposure is tiered + lease-bounded (auto-reaped). | planned |
-| Exposure as attack surface growth | Each leased route is a new internet-facing entry point. | Tiering (CORE vs LEASED), TTL auto-reaping, and (P2) hostname-budget/LRU eviction bound the live surface. | planned |
-| Secret/PII capture in telemetry | Token or request payloads leak into metrics/probe/recovery rows or logs. | Telemetry stores only operational signals (HA, RTT, probe status, restart outcome); explicit no-secrets-in-SQLite/logs rule. | planned |
+| Cloudflare API token leakage | Full control of the tunnel's public ingress (expose/hijack any route). | Least-privilege token; credential **reference** only (never inline/SQLite/logs/UI/CLI); resolved in-memory at boot. | implemented for env-sourced credentials; vault/provider references deferred |
+| Live auto-recovery blast radius | A false-positive restart loop could take down remote access for the whole Vrooli instance (foundational infra). | **Circuit breaker** (cap attempts, exponential backoff) + **single-owner restart contract** (Tunnel Manager is the sole cloudflared-restart owner; vrooli-autoheal downgrades to alert-only). Recovery actuation is behind the `cmdrunner`/systemd seam and the background scheduler is opt-in via `TUNNEL_MANAGER_RECOVERY_SCHEDULER_ENABLED`; manual recovery remains available. | implemented, opt-in background actuation |
+| Unauthorized exposure request | An attacker/buggy caller exposes an internal scenario to the internet. | Authn/authz on the exposure-request API at the service layer; exposure is tiered + lease-bounded (auto-reaped). | authz planned; tiering/reaping implemented |
+| Exposure as attack surface growth | Each leased route is a new internet-facing entry point. | Tiering (CORE vs LEASED), boot/periodic TTL auto-reaping, and (P2) hostname-budget/LRU eviction bound the live surface. | implemented except P2 budget/LRU |
+| Secret/PII capture in telemetry | Token or request payloads leak into metrics/probe/recovery rows or logs. | Telemetry stores only operational signals (HA, RTT, probe status, restart outcome); explicit no-secrets-in-SQLite/logs/UI/CLI rule. | partially implemented; continue validating as probe/recovery surfaces evolve |
 | Tampering via other scenarios' files | Audit reads could be abused to mutate another scenario. | `audit` reader is **read-only** by contract; no write path. | planned |
 
 ## Security Gaps
@@ -80,8 +79,7 @@ opens an internet-facing route — so it must be authorized.
 |---|---|---|
 | Exposure-request authn/authz not yet wired | high | Required before the exposure-request API is reachable by non-operator callers (OT-P0-005). |
 | Recovery actuation authz not yet wired | medium | Required before recovery RPCs are exposed beyond the operator. |
-| Credential-reference resolution mechanism unimplemented | high | Required before remote mode (OT-P0-002) ships. |
-| No product code yet | informational | Resolve as Phase 2 implements each domain; this doc is the spec to build to. |
+| Vault/provider credential-reference resolution not implemented | medium | Required if remote credentials need to come from a Vrooli credential provider instead of process env. |
 
 ## Cross-References
 

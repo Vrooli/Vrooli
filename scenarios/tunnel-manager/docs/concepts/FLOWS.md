@@ -24,18 +24,24 @@ workflow model.
 each real stateful flow your domains add below, with its owner, trigger,
 outcome, statefulness, and validation level.
 
-> Status: documentation-first (Phase 1). The flows below describe the
-> **planned** behavior; none are implemented and none have `flow/`
-> contracts or Quint models yet. Target validation levels are intentions,
-> not current state. Owning domains are authoritative per
+> Status: product implementation is in progress. Exposure lease
+> creation/revocation, CORE reconcile, lease reaping, route probes, and
+> recovery evaluation are implemented in their owning domains. Exposure
+> and probes run at boot + periodic ticks by default; recovery evaluation
+> uses the same scheduler shape but is opt-in with
+> `TUNNEL_MANAGER_RECOVERY_SCHEDULER_ENABLED` because it can restart
+> cloudflared. These flows do not yet have `flow/` contracts or Quint
+> models; target validation levels remain the desired next maturity step.
+> Owning domains are authoritative per
 > [`DOMAINS.md`](DOMAINS.md).
 
 | Flow | Domain | Trigger | Outcome | Statefulness | Validation |
 |---|---|---|---|---|---|
 | Expose-on-demand (lease) | `exposure` | API/CLI/operator/another scenario requests exposure with a TTL. | Scenario reachable at a public URL; LEASED route + lease persisted. | Ordered: ensure route → ensure running → push ingress → probe; partial-failure rollback. | Target Level 4–5 (ordered, externally-effecting). |
-| Core reconcile | `exposure` | Boot + periodic tick + coreset change. | Every `api-core/coreset` scenario is a CORE route, always exposed, never reaped. | Idempotent converge: add missing CORE routes/ingress, never auto-expire CORE. | Target Level 3 (idempotent reconcile). |
-| Lease expiry / reap | `exposure` | Scheduler tick finds `expires_at` < now. | Expired LEASED routes + ingress removed unless also CORE; lease marked expired. | Time-driven; skip-if-CORE guard; safe re-run. | Target Level 3. |
-| Auto-recovery (live) | `recovery` | `/ready` failure or HA-connections=0 (from `tunnel`/`probes`). | cloudflared restarted or config re-pushed; recovery event logged. | Backoff + circuit breaker; states open/half-open/closed; single-owner restart. | Target Level 5 (live action on foundational infra). |
+| Core reconcile | `exposure` | Boot + periodic tick + manual RPC. | Every `api-core/coreset` scenario is a CORE route, always exposed, never reaped. | Idempotent converge: add missing CORE routes/ingress, never auto-expire CORE. | Implemented with service tests + scheduler tests; target Level 3 model remains. |
+| Lease expiry / reap | `exposure` | Scheduler tick finds `expires_at` < now, or manual `Reconcile`. | Expired LEASED routes + ingress removed unless also CORE; lease marked expired. | Time-driven; skip-if-CORE guard; safe re-run. | Implemented with service tests + scheduler tests; target Level 3 model remains. |
+| Probe cycle | `probes` | Boot + periodic tick + manual RPC. | Internal/external reachability results are persisted for each enabled route. | Concurrent bounded HTTP probes; best-effort per-result persistence; safe re-run. | Implemented with service tests + scheduler tests; target Level 3 model remains. |
+| Auto-recovery evaluation | `recovery` | Opt-in boot + periodic tick (`TUNNEL_MANAGER_RECOVERY_SCHEDULER_ENABLED`) + manual RPC. | cloudflared restarted after thresholded `/ready` failures; recovery event logged. | Backoff + circuit breaker; states open/closed (half-open planned); single-owner restart. | Implemented with policy tests + scheduler tests; target Level 5 model remains. |
 | app-monitor exposure-query | `exposure` | app-monitor "open in new tab" calls `IsExposed` / `ExposeAndGetURL`. | Tunnel URL returned (creating a short lease if needed). | Read-or-create; reuses Expose-on-demand when not yet exposed. | Target Level 3 (consumer change is a separate task). |
 
 ## Flow Details
@@ -84,7 +90,9 @@ return public_url + lease
 ### Core reconcile
 
 - Owner domain: `exposure`.
-- Trigger: API boot, periodic tick, or a detected coreset change.
+- Trigger: API boot, periodic scheduler tick, or manual
+  `ExposureService.Reconcile`. Coreset changes converge on the next tick
+  or manual reconcile.
 
 ```
 load core set (api-core/coreset)
@@ -109,7 +117,7 @@ guarantee: no CORE route is ever auto-expired
 ### Lease expiry / reap
 
 - Owner domain: `exposure`.
-- Trigger: scheduler tick.
+- Trigger: scheduler tick or manual `ExposureService.Reconcile`.
 
 ```
 for each lease where expires_at < now and status = active:
@@ -123,24 +131,55 @@ for each lease where expires_at < now and status = active:
 - Retry/cancel: idempotent; skip-if-CORE guard prevents reaping always-on
   scenarios.
 
-### Auto-recovery (live)
+### Probe cycle
+
+- Owner domain: `probes` (reads `routes`, writes probe history).
+- Trigger: API boot, periodic scheduler tick, or manual
+  `ProbesService.RunProbes`.
+- Inputs: enabled routes from the exposure manifest.
+
+```
+load enabled routes
+  │
+  ▼
+for each route:
+    GET http://localhost:<port><health_path>
+    GET https://<subdomain>.<domain><health_path>
+  │
+  ▼
+persist internal + external results
+  │
+  ▼
+classify latest internal/external pairs
+```
+
+- Outputs: probe history rows and route classifications.
+- Failure modes: route manifest read failure aborts the cycle; individual
+  probe transport/status failures persist as probe results; individual
+  persistence failures are best-effort and do not fail the full cycle.
+- Retry/cancel: scheduler retries on the next tick; HTTP requests receive
+  context cancellation from API shutdown.
+
+### Auto-recovery evaluation
 
 - Owner domain: `recovery` (reads `tunnel`/`probes`; single authoritative
   owner of cloudflared restart).
-- Trigger: `/ready` failure or HA-connections=0.
+- Trigger: manual `Recover`, or background `Evaluate` when
+  `TUNNEL_MANAGER_RECOVERY_SCHEDULER_ENABLED` is set. The current
+  automatic signal is `/ready`; HA-connection driven evaluation is
+  deferred until the tunnel metrics scheduler feeds that state.
 
 ```
-detect (tunnel: /ready, HA connections; probes: external failures)
+detect (recovery: /ready; future: tunnel HA connections + probes)
   │
   ▼
-classify (probes): tunnel-down | scenario-down | cloudflare-outage | dns-failure | config-drift
+classify (probes): healthy | tunnel-down | scenario-down | config-drift
   │
   ▼
 if circuit breaker OPEN → alert only, do not act
 else select action by class:
     tunnel-down / HA=0   → restart cloudflared (systemctl)
     config-drift         → re-push ingress (config Sync)
-    cloudflare-outage    → wait + alert (do not restart; not our fault)
     scenario-down        → defer to exposure/lifecycle, not a tunnel restart
   │
   ▼
@@ -180,14 +219,15 @@ IsExposed(scenario)?
 List each modeled flow's states, illegal transitions, and how they are
 enforced. Plain CRUD with no ordering constraints does not appear here.
 
-> Planned (Phase 1). No `*.flow.json` contracts or Quint models exist yet;
-> these are the intended state machines for the stateful flows above.
+> No `*.flow.json` contracts or Quint models exist yet. The exposure
+> service currently enforces the rules in Go with unit tests; formal flow
+> contracts remain a maturity follow-up.
 
 | Domain/Flow | States | Illegal Transitions | Enforcement |
 |---|---|---|---|
 | `exposure` / Expose-on-demand | requested, route_ensured, running_ensured, ingress_pushed, lease_active, probed_ok, failed | ingress before route, lease_active before ingress, probe before ingress, terminal-state escape | Planned `*.flow.json` + generated Quint model + replay tests (Phase 2). |
 | `exposure` / lease lifecycle | active, extended, expired, revoked | extend after expired/revoked, reap a CORE-backed scenario's route, resurrect a revoked lease | Planned `*.flow.json` + replay tests (Phase 2). |
-| `recovery` / circuit breaker | closed, open, half_open | act while open, skip half_open after open, restart on cloudflare-outage class | Planned `*.flow.json` + generated Quint model + replay tests (Phase 2). |
+| `recovery` / circuit breaker | closed, open | act while open unless forced; restart before threshold; restart during backoff window | Implemented in `api/internal/recovery` with service + scheduler tests; formal flow contract remains planned. |
 
 ## Maturity Ladder
 

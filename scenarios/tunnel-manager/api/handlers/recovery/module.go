@@ -29,14 +29,22 @@ import (
 // closed over by the handler. The readiness probe and the cloudflared
 // restart go through the httpc / cmdrunner seams.
 func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.Module {
+	return ModuleWithService(NewProductionService(db, clk), logger)
+}
+
+// NewProductionService wires the recovery engine with the same production
+// seams used by the Connect handler and the optional background scheduler.
+func NewProductionService(db *database.RoutedDB, clk clock.Clock) internalrecovery.Service {
 	repo := internalrecovery.NewSQLiteRepository(db, clk)
 	readyURL := strings.TrimSpace(os.Getenv("TUNNEL_READY_URL"))
 	if readyURL == "" {
 		readyURL = internalrecovery.DefaultReadyURL
 	}
 	health := internalrecovery.NewHTTPHealthChecker(&http.Client{Timeout: 5 * time.Second}, readyURL)
-	svc := internalrecovery.NewService(repo, health, cmdrunner.Default, clk, internalrecovery.Config{}, nil)
+	return internalrecovery.NewService(repo, health, cmdrunner.Default, clk, internalrecovery.Config{}, nil)
+}
 
+func ModuleWithService(svc internalrecovery.Service, logger *log.Logger) module.Module {
 	connectPath, connectHandler := recoveryconnect.NewRecoveryServiceHandler(NewConnectHandler(Deps{
 		Service: svc,
 		Logger:  logger,

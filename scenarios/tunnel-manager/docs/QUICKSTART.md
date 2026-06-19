@@ -63,29 +63,28 @@ tunnel-manager status
 tunnel-manager <domain> <command>   # e.g. list/create commands for your domain
 ```
 
-### Planned Tunnel Manager commands
+### Tunnel Manager commands
 
-> **Planned (not yet implemented).** The commands below are the Phase 2
-> contract surface mirroring the API. Only `status` (scaffold health) and
-> the fenced `notes` example work today. See
+> The commands below are the implemented operator CLI groups. See
 > [`reference/cli-commands.md`](reference/cli-commands.md) for the full
-> planned reference and [`../PRD.md`](../PRD.md) for scope.
+> reference and [`../PRD.md`](../PRD.md) for scope.
 
 ```bash
-tunnel-manager status                  # tunnel + exposure health overview
-tunnel-manager routes                  # list the exposure manifest (SSOT)
-tunnel-manager expose <scenario>       # request leased exposure (default TTL ~1 week)
-tunnel-manager lease list              # list active leases
-tunnel-manager lease extend <id>       # extend a lease TTL
-tunnel-manager lease revoke <id>       # revoke a lease early
-tunnel-manager probe                   # run internal + external liveness probes
-tunnel-manager audit                   # port-compliance findings
-tunnel-manager recover                 # inspect / trigger auto-recovery
+tunnel-manager tunnel status           # tunnel health overview
+tunnel-manager routes list             # list the exposure manifest (SSOT)
+tunnel-manager exposure expose <scenario>  # request leased exposure (default TTL ~1 week)
+tunnel-manager exposure leases         # list active leases
+tunnel-manager exposure extend <id>    # extend a lease TTL
+tunnel-manager exposure revoke <id>    # revoke a lease early
+tunnel-manager probes run              # run internal + external liveness probes
+tunnel-manager audit run               # port-compliance findings
+tunnel-manager recovery state          # inspect recovery state
+tunnel-manager recovery run            # manually trigger recovery
 tunnel-manager config sync             # reconcile Cloudflare ingress with the manifest
 tunnel-manager config mode <remote|local>  # switch ingress mode
 ```
 
-Every command will support proto-typed `--json` output.
+Every command supports proto-typed `--json` output.
 
 Or directly via HTTP:
 

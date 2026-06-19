@@ -32,9 +32,83 @@ type CFConfig struct {
 	APIToken  string
 	AccountID string
 	TunnelID  string
+	TokenRef  string
+	Source    string
+	Missing   []string
 	// BaseURL overrides the Cloudflare API base (tests/staging). Defaults
 	// to the production v4 endpoint when empty.
 	BaseURL string
+}
+
+// ResolveCloudflareEnv reads Cloudflare credentials from the process
+// environment. Canonical CLOUDFLARE_* names win; legacy CF_* names remain a
+// deterministic fallback for existing local tooling.
+func ResolveCloudflareEnv(lookup func(string) string) CFConfig {
+	if lookup == nil {
+		lookup = func(string) string { return "" }
+	}
+	accountID, accountSource := firstEnv(lookup, "CLOUDFLARE_ACCOUNT_ID", "CF_ACCOUNT_ID")
+	tunnelID, tunnelSource := firstEnv(lookup, "CLOUDFLARE_TUNNEL_ID", "CF_TUNNEL_ID")
+	apiToken, tokenSource := firstEnv(lookup, "CLOUDFLARE_API_TOKEN", "CF_API_TOKEN")
+
+	missing := make([]string, 0, 3)
+	if accountID == "" {
+		missing = append(missing, "CLOUDFLARE_ACCOUNT_ID")
+	}
+	if tunnelID == "" {
+		missing = append(missing, "CLOUDFLARE_TUNNEL_ID")
+	}
+	if apiToken == "" {
+		missing = append(missing, "CLOUDFLARE_API_TOKEN")
+	}
+
+	source := credentialSource(accountSource, tunnelSource, tokenSource)
+	tokenRef := ""
+	if tokenSource != "" {
+		tokenRef = "env:" + tokenSource
+	}
+	return CFConfig{
+		APIToken:  apiToken,
+		AccountID: accountID,
+		TunnelID:  tunnelID,
+		TokenRef:  tokenRef,
+		Source:    source,
+		Missing:   missing,
+	}
+}
+
+func firstEnv(lookup func(string) string, canonical, legacy string) (string, string) {
+	if v := lookup(canonical); v != "" {
+		return v, canonical
+	}
+	if v := lookup(legacy); v != "" {
+		return v, legacy
+	}
+	return "", ""
+}
+
+func credentialSource(fields ...string) string {
+	hasCanonical := false
+	hasLegacy := false
+	for _, field := range fields {
+		switch {
+		case field == "":
+		case len(field) >= len("CLOUDFLARE_") && field[:len("CLOUDFLARE_")] == "CLOUDFLARE_":
+			hasCanonical = true
+		case len(field) >= len("CF_") && field[:len("CF_")] == "CF_":
+			hasLegacy = true
+		}
+	}
+	switch {
+	case hasCanonical && hasLegacy:
+		return "env:mixed"
+	case hasCanonical:
+		return "env:CLOUDFLARE_*"
+	case hasLegacy:
+		return "env:CF_*"
+	default:
+		return "none"
+	}
 }
 
 // NewCFClient builds the production IngressClient. It returns nil when any

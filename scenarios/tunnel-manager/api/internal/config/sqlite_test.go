@@ -29,6 +29,7 @@ func TestSQLite_GetUnsetReturnsDefaults(t *testing.T) {
 	got, err := repo.Get(context.Background())
 	require.NoError(t, err)
 	require.Equal(t, config.DefaultMode, got.Mode)
+	require.Equal(t, config.ModeLocal, got.Mode)
 	require.Equal(t, config.DefaultPromEndpoint, got.PromEndpoint)
 }
 

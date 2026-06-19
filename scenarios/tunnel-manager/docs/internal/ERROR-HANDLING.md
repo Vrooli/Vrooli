@@ -41,16 +41,19 @@ on domain error types inline.
 > **where** connectivity broke; the `recovery` engine maps each
 > classification to a targeted action (OT-P1-001, OT-P0-011).
 
-Classification is derived from the *pattern* of internal-vs-external
-probe results plus tunnel health (HA connections, `/ready`):
+Current classification is derived from the *pattern* of the latest
+internal-vs-external probe results. Tunnel health (HA connections,
+`/ready`), DNS resolver detail, and Cloudflare edge-wide outage signals
+are planned inputs, not currently part of `probes.Classify`.
 
 | Classification | Signal pattern | Meaning |
 |---|---|---|
-| `tunnel-down` | `/ready` fails or HA-connections = 0; internal probes OK | cloudflared itself is unhealthy; scenarios are up but unreachable. |
-| `scenario-down` | Internal probe of a route's local port fails | The scenario behind a route isn't listening; tunnel is fine. |
-| `cloudflare-outage` | External probes fail broadly; internal OK and `/ready` OK | The failure is upstream at Cloudflare, not local. |
-| `dns-failure` | External probe fails to resolve the public hostname | DNS/hostname misconfiguration, not a process failure. |
-| `config-drift` | Live ingress disagrees with the exposure manifest | The manifest and Cloudflare/`config.yml` are out of sync. |
+| `healthy` | Internal and external probes both pass. | The route is reachable locally and through the tunnel. |
+| `tunnel-down` | Internal probe passes; external probe fails. | The scenario is running locally but is not reachable through the tunnel/edge layer. |
+| `scenario-down` | Internal and external probes both fail. | The scenario is the most likely culprit. |
+| `config-drift` | Internal probe fails; external probe passes. | The public route still serves while the configured local port/path does not, so manifest/config likely drifted. |
+| `cloudflare-outage` | Not currently produced. Future signal: broad external failures while internal + `/ready` remain healthy and Cloudflare/API status indicates upstream trouble. | The failure is upstream at Cloudflare, not local. |
+| `dns-failure` | Not currently produced. Future signal: resolver-specific hostname failure from the external probe. | DNS/hostname misconfiguration, not a process failure. |
 
 ### Classification → recovery action
 
@@ -58,8 +61,8 @@ probe results plus tunnel health (HA connections, `/ready`):
 |---|---|
 | `tunnel-down` | Restart cloudflared via the exec/systemd seam, with exponential backoff + circuit breaker. Tunnel Manager is the **single authoritative owner** of this restart ([`DECISIONS.md`](DECISIONS.md)). |
 | `scenario-down` | Ensure the scenario is running via the lifecycle seam (delegate, never reimplement); do **not** restart cloudflared. |
-| `cloudflare-outage` | Do not actuate — alert/record only; restarting local infra cannot fix an upstream outage. Avoids false-positive restart loops. |
-| `dns-failure` | Surface a config/DNS error to the operator; do not restart cloudflared. |
+| `cloudflare-outage` | Planned: do not actuate — alert/record only; restarting local infra cannot fix an upstream outage. |
+| `dns-failure` | Planned: surface a config/DNS error to the operator; do not restart cloudflared. |
 | `config-drift` | Re-push ingress / regenerate config from the manifest (`config.Sync`) to reconcile; no restart unless drift persists. |
 
 Every attempt — trigger classification, action, and outcome — is

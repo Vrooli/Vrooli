@@ -45,8 +45,10 @@ describe("AuditPanel", () => {
     await waitFor(() => {
       expect(screen.getByTestId(selectors.audit.table)).toBeInTheDocument();
     });
+    expect(screen.getByTestId(selectors.audit.summary)).toHaveTextContent("1");
     expect(screen.getByTestId(selectors.audit.violationCount)).toHaveTextContent("No violations");
     expect(screen.getByTestId(selectors.audit.statusBadge)).toHaveTextContent("Compliant");
+    expect(screen.getByTestId(selectors.audit.remediation)).toHaveTextContent("No action required");
   });
 
   it("surfaces violations with their status and count", async () => {
@@ -67,6 +69,27 @@ describe("AuditPanel", () => {
     expect(
       screen.getAllByTestId(selectors.audit.statusBadge).some((el) => el.textContent.includes("Mismatch")),
     ).toBe(true);
+  });
+
+  it("filters findings by actionable violations", async () => {
+    const { auditClient } = await import("../../api/audit");
+    vi.mocked(auditClient.runAudit).mockResolvedValueOnce({
+      results: [
+        makeAuditResult(),
+        makeAuditResult({ subdomain: "drift", scenario: "drift", actualPort: 9999, status: 2, detail: "port drift" }),
+      ],
+      violationCount: 1,
+    } as never);
+    const user = userEvent.setup();
+
+    renderWithProviders(<AuditPanel />);
+    await waitFor(() => {
+      expect(screen.getAllByTestId(selectors.audit.row)).toHaveLength(2);
+    });
+
+    await user.selectOptions(screen.getByTestId(selectors.audit.statusFilter), "violations");
+    expect(screen.getAllByTestId(selectors.audit.row)).toHaveLength(1);
+    expect(screen.getByTestId(selectors.audit.remediation)).toHaveTextContent("reconcile exposure");
   });
 
   it("re-runs the audit from the run button", async () => {

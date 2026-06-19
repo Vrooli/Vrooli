@@ -29,12 +29,15 @@ func NewConnectHandler(d Deps) *connectHandler {
 }
 
 func (h *connectHandler) GetConfig(ctx context.Context, _ *connect.Request[configv1.GetConfigRequest]) (*connect.Response[configv1.GetConfigResponse], error) {
-	cfg, err := h.deps.Service.GetConfig(ctx)
+	state, err := h.deps.Service.GetConfigState(ctx)
 	if err != nil {
 		h.deps.Logger.Printf("config.GetConfig: %v", err)
 		return nil, internalconfig.ToConnectError(err)
 	}
-	return connect.NewResponse(&configv1.GetConfigResponse{Config: domainConfigToProto(cfg)}), nil
+	return connect.NewResponse(&configv1.GetConfigResponse{
+		Config:    domainConfigToProto(state.Config),
+		Readiness: readinessToProto(state.Readiness),
+	}), nil
 }
 
 func (h *connectHandler) Sync(ctx context.Context, req *connect.Request[configv1.SyncRequest]) (*connect.Response[configv1.SyncResponse], error) {

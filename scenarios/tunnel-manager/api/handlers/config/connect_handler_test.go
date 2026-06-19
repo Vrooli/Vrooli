@@ -20,6 +20,7 @@ import (
 // fakeService implements internalconfig.Service for handler tests.
 type fakeService struct {
 	getOut  internalconfig.TunnelConfig
+	ready   internalconfig.ConfigReadiness
 	getErr  error
 	syncOut internalconfig.SyncResult
 	syncErr error
@@ -32,6 +33,10 @@ type fakeService struct {
 
 func (f *fakeService) GetConfig(context.Context) (internalconfig.TunnelConfig, error) {
 	return f.getOut, f.getErr
+}
+
+func (f *fakeService) GetConfigState(context.Context) (internalconfig.ConfigState, error) {
+	return internalconfig.ConfigState{Config: f.getOut, Readiness: f.ready}, f.getErr
 }
 
 func (f *fakeService) Sync(_ context.Context, dryRun bool) (internalconfig.SyncResult, error) {
@@ -55,6 +60,14 @@ func newClient(t *testing.T, svc internalconfig.Service) configconnect.ConfigSer
 func TestHandlerGetConfigMapsMode(t *testing.T) {
 	client := newClient(t, &fakeService{getOut: internalconfig.TunnelConfig{
 		Mode: internalconfig.ModeRemote, TunnelID: "tid", AccountID: "acct", PromEndpoint: "127.0.0.1:20241",
+	}, ready: internalconfig.ConfigReadiness{
+		DesiredMode:      internalconfig.ModeRemote,
+		RemoteAvailable:  true,
+		CredentialSource: "env:CLOUDFLARE_*",
+		CredentialRef:    "env:CLOUDFLARE_API_TOKEN",
+		LocalConfigPath:  "/tmp/config.yml",
+		SyncReady:        true,
+		ModeReason:       "ready",
 	}})
 
 	resp, err := client.GetConfig(context.Background(), connect.NewRequest(&configv1.GetConfigRequest{}))
@@ -62,6 +75,9 @@ func TestHandlerGetConfigMapsMode(t *testing.T) {
 	require.Equal(t, configv1.Mode_MODE_REMOTE, resp.Msg.Config.Mode)
 	require.Equal(t, "tid", resp.Msg.Config.TunnelId)
 	require.Equal(t, "127.0.0.1:20241", resp.Msg.Config.PromEndpoint)
+	require.Equal(t, configv1.Mode_MODE_REMOTE, resp.Msg.Readiness.DesiredMode)
+	require.True(t, resp.Msg.Readiness.RemoteAvailable)
+	require.Equal(t, "env:CLOUDFLARE_API_TOKEN", resp.Msg.Readiness.CredentialRef)
 }
 
 func TestHandlerSyncMapsResponse(t *testing.T) {
@@ -69,6 +85,7 @@ func TestHandlerSyncMapsResponse(t *testing.T) {
 		Mode:    internalconfig.ModeLocal,
 		Added:   []string{"agent-manager.itsagitime.com"},
 		Removed: []string{"legacy.itsagitime.com"},
+		Message: "dry-run complete",
 	}}
 	client := newClient(t, fake)
 
@@ -79,6 +96,7 @@ func TestHandlerSyncMapsResponse(t *testing.T) {
 	require.Equal(t, []string{"agent-manager.itsagitime.com"}, resp.Msg.Added)
 	require.Equal(t, []string{"legacy.itsagitime.com"}, resp.Msg.Removed)
 	require.False(t, resp.Msg.NoChanges)
+	require.Equal(t, "dry-run complete", resp.Msg.Message)
 }
 
 func TestHandlerSyncRemoteUnavailableMapsFailedPrecondition(t *testing.T) {

@@ -5,6 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 
 import { renderWithProviders } from "../../test-utils";
 import { makeTunnelMocks, makeMetricsSample } from "../../test-utils/mocks/tunnel";
@@ -43,13 +44,22 @@ describe("MetricsPanel", () => {
   it("renders metrics samples when present", async () => {
     const { tunnelClient } = await import("../../api/tunnel");
     vi.mocked(tunnelClient.listMetrics).mockResolvedValueOnce({
-      samples: [makeMetricsSample(), makeMetricsSample({ id: "sample-2", haConnections: 3 })],
+      samples: [
+        makeMetricsSample(),
+        makeMetricsSample({
+          id: "sample-2",
+          haConnections: 3,
+          scrapedAt: timestampFromDate(new Date(2026, 5, 18, 12, 5, 0)),
+        }),
+      ],
     } as never);
 
     renderWithProviders(<MetricsPanel />);
     await waitFor(() => {
       expect(screen.getByTestId(selectors.metrics.table)).toBeInTheDocument();
     });
+    expect(screen.getByTestId(selectors.metrics.summary)).toHaveTextContent("Latest HA conns");
+    expect(screen.getByTestId(selectors.metrics.summary)).toHaveTextContent("3");
     expect(screen.getAllByTestId(selectors.metrics.row)).toHaveLength(2);
   });
 
@@ -68,6 +78,8 @@ describe("MetricsPanel", () => {
     });
     expect(screen.getAllByTestId(selectors.metrics.probesRow)).toHaveLength(2);
     expect(screen.getByTestId(selectors.metrics.classification)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.metrics.classCount)).toHaveTextContent("1");
+    expect(screen.getByTestId(selectors.metrics.limitation)).toHaveTextContent("DNS failure");
   });
 
   it("triggers a scrape and a probe run from the action buttons", async () => {

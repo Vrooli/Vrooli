@@ -8,11 +8,11 @@ source of truth, enforces fixed-port contracts, and auto-recovers the
 tunnel from failure. It replaces the operator's current manual step of
 adding public hostnames in the Cloudflare dashboard.
 
-> **Status: documentation-first.** Only the `react-vite` scaffold and the
-> fenced `notes` worked example exist today. The CLI, API, and UI
-> described below are the **planned contract surface** — implementation is
-> Phase 2. See [`docs/internal/DECISIONS.md`](docs/internal/DECISIONS.md)
-> and [`PRD.md`](PRD.md) for the authoritative scope.
+> **Status: implementation in progress.** The proto/API/CLI domains are
+> implemented and production-readiness hardening is underway. The current
+> work has reconciled scheduler behavior, first-run setup/readiness, and
+> the Exposure, Diagnostics, Audit, and Recovery operator workflows; full
+> scenario validation remains in flight against [`PRD.md`](PRD.md).
 
 This scenario was **regenerated from `react-vite` 1.1** (rather than
 migrated in place) and ports the prior tunnel-manager logic onto a clean
@@ -24,9 +24,10 @@ adoption plan at the repo root:
 
 - **Remote access is mission-critical.** Without the tunnel, Vrooli is
   unreachable outside the local network.
-- **Exposure is manual today.** Exposing a scenario means hand-adding a
-  public hostname in the Cloudflare dashboard, pointed at the scenario's
-  fixed UI port. This must be programmatic and native.
+- **Exposure used to be manual.** Exposing a scenario meant hand-adding
+  a public hostname in the Cloudflare dashboard, pointed at the
+  scenario's fixed UI port. Tunnel Manager makes that programmatic and
+  native.
 - **The hostname budget is finite.** Exposure is **tiered** and
   budget-aware so essential scenarios are never crowded out.
 - **The tunnel must self-heal.** Distinguishing "tunnel down" from
@@ -60,18 +61,18 @@ map):
 | `recovery` | `recovery_events` table | Auto-recovery engine (backoff + circuit breaker, live); single cloudflared-restart owner. |
 | `health` | none | Runtime readiness + dependency reachability (scaffold). |
 
-## Key Planned CLI Commands
+## Key CLI Commands
 
-All commands are **planned (Phase 2)** and emit proto-typed `--json`:
+Commands emit proto-typed `--json`:
 
 ```bash
-tunnel-manager status          # tunnel + exposure health overview
-tunnel-manager routes          # list the exposure manifest
-tunnel-manager expose <scenario>      # request exposure (leased)
-tunnel-manager lease extend|revoke|list
-tunnel-manager probe           # run internal + external liveness probes
-tunnel-manager audit           # port-compliance findings
-tunnel-manager recover         # inspect / trigger auto-recovery
+tunnel-manager tunnel status          # tunnel health overview
+tunnel-manager routes list            # list the exposure manifest
+tunnel-manager exposure expose <scenario>      # request exposure (leased)
+tunnel-manager exposure leases|extend|revoke
+tunnel-manager probes run             # run internal + external liveness probes
+tunnel-manager audit run              # port-compliance findings
+tunnel-manager recovery state|events|run       # inspect / trigger recovery
 tunnel-manager config sync|mode       # reconcile ingress / switch remote↔local
 ```
 
@@ -82,8 +83,16 @@ tunnel-manager config sync|mode       # reconcile ingress / switch remote↔loca
 - **CLI** — Go via `cli-core` / `cliapp` manifest, a thin wrapper that
   mirrors the API one command per endpoint.
 - **UI** — React + Vite + Tailwind, **5 operator surfaces** (Overview,
-  Exposure, Recovery & Events, Metrics, Audit), one feature folder per
-  domain.
+  Exposure, Recovery & Events, Metrics, Audit) plus Settings/Setup for
+  local/remote mode and Cloudflare readiness. The Exposure surface now
+  includes search, CORE/LEASED filtering, reconcile feedback, and
+  probe-classification badges over the generated Connect clients. The
+  Metrics/Diagnostics surface summarizes latest tunnel metrics, probe
+  classifications, known classification limits, and manual scrape/probe
+  actions; Audit summarizes fixed-port compliance with filters and
+  per-finding remediation hints; Recovery summarizes the state machine,
+  breaker/backoff risk, next operator action, force semantics, and event
+  details.
 - **Storage** — **SQLite only** (manifest, leases, metrics history,
   probe history, recovery log). No external database — foundational infra
   must keep working when other resources are down.
@@ -156,7 +165,9 @@ the real UX, treat these as **placeholders** to replace:
 - The `notes` domain (proto, API, CLI, UI feature) — a worked vertical
   slice meant to be copied once and then deleted.
 - The `AppShell` and the centered single-panel home page in `ui/src/`.
-- The bare-minimum settings surface (currently just locale switching).
+- Remaining endpoint-shaped UI gaps outside the setup/readiness,
+  Exposure, Diagnostics, Recovery, and Audit workflows; Settings now owns
+  first-run setup/readiness, theme, and locale.
 
 Treat these as **durable seams** to preserve, even as you rewrite the
 visual layout:

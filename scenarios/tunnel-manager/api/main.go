@@ -2,15 +2,20 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"tunnel-manager/internal/clock"
+	internalexposure "tunnel-manager/internal/exposure"
 	"tunnel-manager/internal/modules"
+	internalprobes "tunnel-manager/internal/probes"
+	internalrecovery "tunnel-manager/internal/recovery"
 	"tunnel-manager/internal/server"
 
 	"github.com/vrooli/api-core/apihttp"
@@ -119,16 +124,86 @@ func main() {
 		log.Fatalf("schema initialization failed: %v", err)
 	}
 
+	clk := clock.System{}
+	logger := log.Default()
+	exposureSvc := exposureH.NewProductionService(db, clk)
+	probesSvc := probesH.NewProductionService(db, clk)
+	recoverySvc := recoveryH.NewProductionService(db, clk)
+
+	var schedulerStops []func(context.Context)
+	if exposureSchedulerEnabledFromEnv() {
+		scheduler, err := internalexposure.NewScheduler(internalexposure.SchedulerConfig{
+			Service:  exposureSvc,
+			Interval: exposureSchedulerIntervalFromEnv(),
+			Logger:   logger,
+		})
+		if err != nil {
+			log.Fatalf("exposure scheduler initialization failed: %v", err)
+		}
+		schedulerCtx, cancel := context.WithCancel(context.Background())
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			scheduler.Run(schedulerCtx)
+		}()
+		schedulerStops = append(schedulerStops, func(ctx context.Context) {
+			cancel()
+			waitForScheduler(ctx, done)
+		})
+	}
+
+	if probeSchedulerEnabledFromEnv() {
+		scheduler, err := internalprobes.NewScheduler(internalprobes.SchedulerConfig{
+			Service:  probesSvc,
+			Interval: probeSchedulerIntervalFromEnv(),
+			Logger:   logger,
+		})
+		if err != nil {
+			log.Fatalf("probe scheduler initialization failed: %v", err)
+		}
+		schedulerCtx, cancel := context.WithCancel(context.Background())
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			scheduler.Run(schedulerCtx)
+		}()
+		schedulerStops = append(schedulerStops, func(ctx context.Context) {
+			cancel()
+			waitForScheduler(ctx, done)
+		})
+	}
+
+	if recoverySchedulerEnabledFromEnv() {
+		scheduler, err := internalrecovery.NewScheduler(internalrecovery.SchedulerConfig{
+			Service:  recoverySvc,
+			Interval: recoverySchedulerIntervalFromEnv(),
+			Logger:   logger,
+		})
+		if err != nil {
+			log.Fatalf("recovery scheduler initialization failed: %v", err)
+		}
+		schedulerCtx, cancel := context.WithCancel(context.Background())
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			scheduler.Run(schedulerCtx)
+		}()
+		schedulerStops = append(schedulerStops, func(ctx context.Context) {
+			cancel()
+			waitForScheduler(ctx, done)
+		})
+	}
+
 	srv := server.New(
-		server.Deps{Clock: clock.System{}, Logger: log.Default()},
+		server.Deps{Clock: clk, Logger: logger},
 		healthH.Module(db, "tunnel-manager-api", "1.0.0"),
-		routesH.Module(db, clock.System{}, log.Default()),
-		auditH.Module(db, clock.System{}, log.Default()),
-		configH.Module(db, clock.System{}, log.Default()),
-		exposureH.Module(db, clock.System{}, log.Default()),
-		probesH.Module(db, clock.System{}, log.Default()),
-		recoveryH.Module(db, clock.System{}, log.Default()),
-		tunnelH.Module(db, clock.System{}, log.Default()),
+		routesH.Module(db, clk, logger),
+		auditH.Module(db, clk, logger),
+		configH.Module(db, clk, logger),
+		exposureH.ModuleWithService(exposureSvc, logger),
+		probesH.ModuleWithService(probesSvc, logger),
+		recoveryH.ModuleWithService(recoverySvc, logger),
+		tunnelH.Module(db, clk, logger),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
@@ -146,8 +221,74 @@ func main() {
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
-		Cleanup: func(ctx context.Context) error { return db.Close() },
+		Cleanup: func(ctx context.Context) error {
+			for i := len(schedulerStops) - 1; i >= 0; i-- {
+				schedulerStops[i](ctx)
+			}
+			return errors.Join(ctx.Err(), db.Close())
+		},
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
+	}
+}
+
+func exposureSchedulerEnabledFromEnv() bool {
+	raw := strings.ToLower(strings.TrimSpace(os.Getenv("TUNNEL_MANAGER_EXPOSURE_SCHEDULER_DISABLED")))
+	return raw != "1" && raw != "true" && raw != "yes"
+}
+
+func exposureSchedulerIntervalFromEnv() time.Duration {
+	raw := strings.TrimSpace(os.Getenv("TUNNEL_MANAGER_EXPOSURE_RECONCILE_INTERVAL"))
+	if raw == "" {
+		return internalexposure.DefaultReconcileInterval
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil || d <= 0 {
+		log.Printf("invalid TUNNEL_MANAGER_EXPOSURE_RECONCILE_INTERVAL=%q; using %s", raw, internalexposure.DefaultReconcileInterval)
+		return internalexposure.DefaultReconcileInterval
+	}
+	return d
+}
+
+func probeSchedulerEnabledFromEnv() bool {
+	raw := strings.ToLower(strings.TrimSpace(os.Getenv("TUNNEL_MANAGER_PROBE_SCHEDULER_DISABLED")))
+	return raw != "1" && raw != "true" && raw != "yes"
+}
+
+func probeSchedulerIntervalFromEnv() time.Duration {
+	raw := strings.TrimSpace(os.Getenv("TUNNEL_MANAGER_PROBE_INTERVAL"))
+	if raw == "" {
+		return internalprobes.DefaultProbeInterval
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil || d <= 0 {
+		log.Printf("invalid TUNNEL_MANAGER_PROBE_INTERVAL=%q; using %s", raw, internalprobes.DefaultProbeInterval)
+		return internalprobes.DefaultProbeInterval
+	}
+	return d
+}
+
+func recoverySchedulerEnabledFromEnv() bool {
+	raw := strings.ToLower(strings.TrimSpace(os.Getenv("TUNNEL_MANAGER_RECOVERY_SCHEDULER_ENABLED")))
+	return raw == "1" || raw == "true" || raw == "yes"
+}
+
+func recoverySchedulerIntervalFromEnv() time.Duration {
+	raw := strings.TrimSpace(os.Getenv("TUNNEL_MANAGER_RECOVERY_EVALUATE_INTERVAL"))
+	if raw == "" {
+		return internalrecovery.DefaultEvaluationInterval
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil || d <= 0 {
+		log.Printf("invalid TUNNEL_MANAGER_RECOVERY_EVALUATE_INTERVAL=%q; using %s", raw, internalrecovery.DefaultEvaluationInterval)
+		return internalrecovery.DefaultEvaluationInterval
+	}
+	return d
+}
+
+func waitForScheduler(ctx context.Context, done <-chan struct{}) {
+	select {
+	case <-done:
+	case <-ctx.Done():
 	}
 }

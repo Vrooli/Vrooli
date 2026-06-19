@@ -39,8 +39,9 @@ const (
 )
 
 // DefaultMode is the mode a fresh config defaults to when none is
-// persisted. Remote is the live tunnel's operating mode.
-const DefaultMode = ModeRemote
+// persisted. Local is safe on first boot because it does not require
+// Cloudflare API credentials.
+const DefaultMode = ModeLocal
 
 // DefaultPromEndpoint is the cloudflared Prometheus metrics endpoint used
 // when none is configured.
@@ -60,13 +61,37 @@ type TunnelConfig struct {
 	PromEndpoint string
 }
 
+// ConfigState combines the persisted config with process-level readiness.
+// Readiness is derived from non-secret credential presence and local path
+// wiring; it is safe for UI and CLI consumers.
+type ConfigState struct {
+	Config    TunnelConfig
+	Readiness ConfigReadiness
+}
+
+// ConfigReadiness reports whether each operating mode is usable right now.
+// It never carries the Cloudflare API token value.
+type ConfigReadiness struct {
+	DesiredMode      Mode
+	RemoteAvailable  bool
+	MissingFields    []string
+	CredentialSource string
+	CredentialRef    string
+	LocalConfigPath  string
+	SyncReady        bool
+	ModeReason       string
+}
+
 // SyncResult is the outcome of a reconcile: which hostnames changed and
 // whether anything changed at all.
 type SyncResult struct {
-	Mode      Mode
-	Added     []string
-	Removed   []string
-	NoChanges bool
+	Mode          Mode
+	Added         []string
+	Removed       []string
+	NoChanges     bool
+	SetupRequired bool
+	MissingFields []string
+	Message       string
 }
 
 // IngressRule is one desired ingress mapping: a public hostname routed to
@@ -104,7 +129,7 @@ type ErrRemoteUnavailable struct {
 
 func (e ErrRemoteUnavailable) Error() string {
 	if e.Reason == "" {
-		return "remote mode unavailable: CF_API_TOKEN, CF_ACCOUNT_ID, and CF_TUNNEL_ID are required"
+		return "remote mode unavailable: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, and CLOUDFLARE_TUNNEL_ID are required"
 	}
 	return fmt.Sprintf("remote mode unavailable: %s", e.Reason)
 }
