@@ -2,7 +2,8 @@
   "edges": [
     {
       "attributes": {
-        "specifier": "./gen/client"
+        "specifier": "./gen/client",
+        "test_only": "false"
       },
       "from_node_id": "ts_module:src/widget.tsx",
       "id": "import:ts_module:src/widget.tsx->ts_module:src/gen/client.ts",
@@ -11,7 +12,8 @@
     },
     {
       "attributes": {
-        "specifier": "./gen/client"
+        "specifier": "./gen/client",
+        "test_only": "false"
       },
       "from_node_id": "ts_module:src/widget.tsx",
       "id": "import:ts_module:src/widget.tsx->ts_module:src/gen/client.ts",
@@ -20,7 +22,8 @@
     },
     {
       "attributes": {
-        "specifier": "./lib"
+        "specifier": "./lib",
+        "test_only": "false"
       },
       "from_node_id": "ts_module:src/widget.tsx",
       "id": "import:ts_module:src/widget.tsx->ts_module:src/lib.ts",
@@ -31,7 +34,9 @@
   "nodes": [
     {
       "attributes": {
-        "language": "typescript"
+        "is_test": "false",
+        "language": "typescript",
+        "lines": "16"
       },
       "id": "file:src/gen/client.ts",
       "kind": 1,
@@ -41,7 +46,9 @@
     },
     {
       "attributes": {
-        "language": "typescript"
+        "is_test": "false",
+        "language": "typescript",
+        "lines": "14"
       },
       "id": "file:src/lib.ts",
       "kind": 1,
@@ -51,7 +58,9 @@
     },
     {
       "attributes": {
-        "language": "typescript"
+        "is_test": "false",
+        "language": "typescript",
+        "lines": "18"
       },
       "id": "file:src/widget.tsx",
       "kind": 1,

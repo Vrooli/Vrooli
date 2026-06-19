@@ -51,11 +51,35 @@ message TunnelConfig {
   string prom_endpoint = 5;
 }
 
+// ConfigReadiness reports whether the current process has enough
+// non-secret configuration to operate each mode. It is safe to return to UI
+// clients: it reports presence/source only, never the API token value.
+message ConfigReadiness {
+  // Desired mode after applying first-run defaults.
+  Mode desired_mode = 1;
+  // True when Cloudflare account, tunnel, and token inputs are all present.
+  bool remote_available = 2;
+  // Canonical missing inputs, e.g. CLOUDFLARE_API_TOKEN.
+  repeated string missing_fields = 3;
+  // Human-readable source label such as "env:CLOUDFLARE_*",
+  // "env:CF_*", "env:mixed", or "none".
+  string credential_source = 4;
+  // Non-secret token reference, e.g. "env:CLOUDFLARE_API_TOKEN".
+  string credential_ref = 5;
+  // Local cloudflared config path used in local mode.
+  string local_config_path = 6;
+  // True when config sync can execute in the desired/current mode.
+  bool sync_ready = 7;
+  // Short operator explanation for the current mode/readiness.
+  string mode_reason = 8;
+}
+
 message GetConfigRequest {
 }
 
 message GetConfigResponse {
   TunnelConfig config = 1;
+  ConfigReadiness readiness = 2;
 }
 
 message SyncRequest {
@@ -71,6 +95,12 @@ message SyncResponse {
   repeated string removed = 3;
   // True when the manifest and live ingress already matched.
   bool no_changes = 4;
+  // True when dry-run detected missing setup and did not attempt live diff.
+  bool setup_required = 5;
+  // Canonical missing inputs when setup_required is true.
+  repeated string missing_fields = 6;
+  // Operator-facing explanation of the sync result.
+  string message = 7;
 }
 
 message SwitchModeRequest {

@@ -222,6 +222,22 @@ machine-checkable constraint.
 legitimate scenario-owned concepts from scaffold examples with generic names
 such as `notes`. Remove it only when the contract is deliberately adopted as
 scenario-owned surface or replaced by the scenario's real domain contract.
+Proto-health compares the generated file with its template source after
+placeholder substitution: byte-identical scaffold remains a finding, while a
+diverged contract is treated as adopted and the marker no longer blocks clean.
+
+`@see` may carry typed retention declarations for messages that are intentionally
+kept even when no local RPC reaches them:
+
+- `@see consumer:<scenario>` means the named in-fleet scenario is the consumer.
+  Proto-health accepts the retention only when that scenario actually references
+  the message through its reachable proto surface.
+- `@see external:<name>` means the consumer is outside the local fleet. Use this
+  only on stable published messages; experimental or beta messages should stay
+  staged until a real consumer exists.
+
+Do not use retention annotations as a mute. If the named in-fleet consumer
+drifts away, proto-health reports the message as `proto.possibly_unused` again.
 
 ### Deprecated Annotations
 

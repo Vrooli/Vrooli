@@ -66,15 +66,7 @@ func TestSupervisorRespawnsAfterCrash(t *testing.T) {
 func TestInFlightRequestDrainsOnCrash(t *testing.T) {
 	requireNode(t)
 
-	// SLOW_EXTRACT_MS=10000 + KILL_AFTER_N=2: handshake (1) then
-	// extract (2) is what triggers the exit, but the extract reply
-	// itself is deferred 10s — the child exits before sending it.
-	// Note: KILL_AFTER_N counts on the post-reply branch, so we use
-	// a different mechanism: send a shutdown-like signal via process
-	// kill. Instead: rely on heartbeat-induced kill. Cleaner: use
-	// IGNORE_HEARTBEAT plus tight heartbeat timeout, which the
-	// supervisor will satisfy by killing the child mid-extract.
-	s := newTestSupervisor(t, "SLOW_EXTRACT_MS=10000", "IGNORE_HEARTBEAT=1")
+	s := newTestSupervisor(t, "SLOW_EXTRACT_MS=10000")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
@@ -92,6 +84,17 @@ func TestInFlightRequestDrainsOnCrash(t *testing.T) {
 		_, err := s.Extract(ctx, "/tmp/example")
 		errCh <- err
 	}()
+
+	require.Eventually(t, func() bool {
+		s.mu.Lock()
+		active := s.activeRequests
+		cmd := s.cmd
+		s.mu.Unlock()
+		if active == 0 || cmd == nil || cmd.Process == nil {
+			return false
+		}
+		return cmd.Process.Kill() == nil
+	}, 2*time.Second, 25*time.Millisecond)
 
 	select {
 	case err := <-errCh:

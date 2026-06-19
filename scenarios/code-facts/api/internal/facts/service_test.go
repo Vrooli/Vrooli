@@ -474,6 +474,27 @@ func TestProtoAdoptionRecognizesGeneratedProtoTypeScriptAlias(t *testing.T) {
 	requireProofFact(t, report.GetFacts(), "ui", factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN)
 }
 
+func TestProtoAdoptionMarksSurfaceUnknownWhenAnalyzerUnavailable(t *testing.T) {
+	repo, _ := writeScenarioFixture(t, "proto-health")
+	provider := fakeProvider{
+		language: "typescript",
+		analyzer: "typescript-code-graph",
+		err:      ProviderUnavailableError{Analyzer: "typescript-code-graph", Err: errors.New("sidecar unavailable")},
+	}
+
+	report, err := NewService(WithBroker(NewBroker(provider))).ProtoAdoption(context.Background(), &factsv1.CheckProtoAdoptionRequest{
+		Target:   &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_SCENARIO, Scenario: "proto-health", RepoRoot: repo},
+		Surfaces: []string{"ui"},
+	})
+	if err != nil {
+		t.Fatalf("ProtoAdoption() error = %v", err)
+	}
+	requireProofFact(t, report.GetFacts(), "ui", factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN)
+	if len(report.GetWarnings()) == 0 || report.GetWarnings()[0].GetStatus() != factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN {
+		t.Fatalf("warnings = %#v, want unknown analyzer warning", report.GetWarnings())
+	}
+}
+
 func TestProtoAdoptionScopesGeneratedImportsToSurfaceParseUnit(t *testing.T) {
 	repo, scenarioRoot := writeScenarioFixture(t, "proto-health")
 	provider := unitProvider{

@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file tunnel-manager/v1/config/config.proto.
  */
 export const file_tunnel_manager_v1_config_config: GenFile = /*@__PURE__*/
-  fileDesc("CiV0dW5uZWwtbWFuYWdlci92MS9jb25maWcvY29uZmlnLnByb3RvEh92cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnIpMBCgxUdW5uZWxDb25maWcSMwoEbW9kZRgBIAEoDjIlLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuTW9kZRIRCgl0dW5uZWxfaWQYAiABKAkSEgoKYWNjb3VudF9pZBgDIAEoCRIQCghjcmVkX3JlZhgEIAEoCRIVCg1wcm9tX2VuZHBvaW50GAUgASgJIhIKEEdldENvbmZpZ1JlcXVlc3QiUgoRR2V0Q29uZmlnUmVzcG9uc2USPQoGY29uZmlnGAEgASgLMi0udnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5UdW5uZWxDb25maWciHgoLU3luY1JlcXVlc3QSDwoHZHJ5X3J1bhgBIAEoCCJ3CgxTeW5jUmVzcG9uc2USMwoEbW9kZRgBIAEoDjIlLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuTW9kZRINCgVhZGRlZBgCIAMoCRIPCgdyZW1vdmVkGAMgAygJEhIKCm5vX2NoYW5nZXMYBCABKAgiTwoRU3dpdGNoTW9kZVJlcXVlc3QSOgoLdGFyZ2V0X21vZGUYASABKA4yJS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLk1vZGUijwEKElN3aXRjaE1vZGVSZXNwb25zZRI8Cg1wcmV2aW91c19tb2RlGAEgASgOMiUudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5Nb2RlEjsKDGN1cnJlbnRfbW9kZRgCIAEoDjIlLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuTW9kZSo9CgRNb2RlEhQKEE1PREVfVU5TUEVDSUZJRUQQABIPCgtNT0RFX1JFTU9URRABEg4KCk1PREVfTE9DQUwQAjLfAgoNQ29uZmlnU2VydmljZRJyCglHZXRDb25maWcSMS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLkdldENvbmZpZ1JlcXVlc3QaMi52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLkdldENvbmZpZ1Jlc3BvbnNlEmMKBFN5bmMSLC52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLlN5bmNSZXF1ZXN0Gi0udnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5TeW5jUmVzcG9uc2USdQoKU3dpdGNoTW9kZRIyLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuU3dpdGNoTW9kZVJlcXVlc3QaMy52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLlN3aXRjaE1vZGVSZXNwb25zZUJTWlFnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3R1bm5lbC1tYW5hZ2VyL3YxL2NvbmZpZztjb25maWdfdjFiBnByb3RvMw");
+  fileDesc("CiV0dW5uZWwtbWFuYWdlci92MS9jb25maWcvY29uZmlnLnByb3RvEh92cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnIpMBCgxUdW5uZWxDb25maWcSMwoEbW9kZRgBIAEoDjIlLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuTW9kZRIRCgl0dW5uZWxfaWQYAiABKAkSEgoKYWNjb3VudF9pZBgDIAEoCRIQCghjcmVkX3JlZhgEIAEoCRIVCg1wcm9tX2VuZHBvaW50GAUgASgJIvcBCg9Db25maWdSZWFkaW5lc3MSOwoMZGVzaXJlZF9tb2RlGAEgASgOMiUudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5Nb2RlEhgKEHJlbW90ZV9hdmFpbGFibGUYAiABKAgSFgoObWlzc2luZ19maWVsZHMYAyADKAkSGQoRY3JlZGVudGlhbF9zb3VyY2UYBCABKAkSFgoOY3JlZGVudGlhbF9yZWYYBSABKAkSGQoRbG9jYWxfY29uZmlnX3BhdGgYBiABKAkSEgoKc3luY19yZWFkeRgHIAEoCBITCgttb2RlX3JlYXNvbhgIIAEoCSISChBHZXRDb25maWdSZXF1ZXN0IpcBChFHZXRDb25maWdSZXNwb25zZRI9CgZjb25maWcYASABKAsyLS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLlR1bm5lbENvbmZpZxJDCglyZWFkaW5lc3MYAiABKAsyMC52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLkNvbmZpZ1JlYWRpbmVzcyIeCgtTeW5jUmVxdWVzdBIPCgdkcnlfcnVuGAEgASgIIrgBCgxTeW5jUmVzcG9uc2USMwoEbW9kZRgBIAEoDjIlLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuTW9kZRINCgVhZGRlZBgCIAMoCRIPCgdyZW1vdmVkGAMgAygJEhIKCm5vX2NoYW5nZXMYBCABKAgSFgoOc2V0dXBfcmVxdWlyZWQYBSABKAgSFgoObWlzc2luZ19maWVsZHMYBiADKAkSDwoHbWVzc2FnZRgHIAEoCSJPChFTd2l0Y2hNb2RlUmVxdWVzdBI6Cgt0YXJnZXRfbW9kZRgBIAEoDjIlLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuTW9kZSKPAQoSU3dpdGNoTW9kZVJlc3BvbnNlEjwKDXByZXZpb3VzX21vZGUYASABKA4yJS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLk1vZGUSOwoMY3VycmVudF9tb2RlGAIgASgOMiUudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5Nb2RlKj0KBE1vZGUSFAoQTU9ERV9VTlNQRUNJRklFRBAAEg8KC01PREVfUkVNT1RFEAESDgoKTU9ERV9MT0NBTBACMt8CCg1Db25maWdTZXJ2aWNlEnIKCUdldENvbmZpZxIxLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuR2V0Q29uZmlnUmVxdWVzdBoyLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuR2V0Q29uZmlnUmVzcG9uc2USYwoEU3luYxIsLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuU3luY1JlcXVlc3QaLS52cm9vbGkudHVubmVsX21hbmFnZXIudjEuY29uZmlnLlN5bmNSZXNwb25zZRJ1CgpTd2l0Y2hNb2RlEjIudnJvb2xpLnR1bm5lbF9tYW5hZ2VyLnYxLmNvbmZpZy5Td2l0Y2hNb2RlUmVxdWVzdBozLnZyb29saS50dW5uZWxfbWFuYWdlci52MS5jb25maWcuU3dpdGNoTW9kZVJlc3BvbnNlQlNaUWdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vdHVubmVsLW1hbmFnZXIvdjEvY29uZmlnO2NvbmZpZ192MWIGcHJvdG8z");
 
 /**
  * TunnelConfig is the persisted configuration for the tunnel.
@@ -57,6 +57,79 @@ export const TunnelConfigSchema: GenMessage<TunnelConfig> = /*@__PURE__*/
   messageDesc(file_tunnel_manager_v1_config_config, 0);
 
 /**
+ * ConfigReadiness reports whether the current process has enough
+ * non-secret configuration to operate each mode. It is safe to return to UI
+ * clients: it reports presence/source only, never the API token value.
+ *
+ * @generated from message vrooli.tunnel_manager.v1.config.ConfigReadiness
+ */
+export type ConfigReadiness = Message<"vrooli.tunnel_manager.v1.config.ConfigReadiness"> & {
+  /**
+   * Desired mode after applying first-run defaults.
+   *
+   * @generated from field: vrooli.tunnel_manager.v1.config.Mode desired_mode = 1;
+   */
+  desiredMode: Mode;
+
+  /**
+   * True when Cloudflare account, tunnel, and token inputs are all present.
+   *
+   * @generated from field: bool remote_available = 2;
+   */
+  remoteAvailable: boolean;
+
+  /**
+   * Canonical missing inputs, e.g. CLOUDFLARE_API_TOKEN.
+   *
+   * @generated from field: repeated string missing_fields = 3;
+   */
+  missingFields: string[];
+
+  /**
+   * Human-readable source label such as "env:CLOUDFLARE_*",
+   * "env:CF_*", "env:mixed", or "none".
+   *
+   * @generated from field: string credential_source = 4;
+   */
+  credentialSource: string;
+
+  /**
+   * Non-secret token reference, e.g. "env:CLOUDFLARE_API_TOKEN".
+   *
+   * @generated from field: string credential_ref = 5;
+   */
+  credentialRef: string;
+
+  /**
+   * Local cloudflared config path used in local mode.
+   *
+   * @generated from field: string local_config_path = 6;
+   */
+  localConfigPath: string;
+
+  /**
+   * True when config sync can execute in the desired/current mode.
+   *
+   * @generated from field: bool sync_ready = 7;
+   */
+  syncReady: boolean;
+
+  /**
+   * Short operator explanation for the current mode/readiness.
+   *
+   * @generated from field: string mode_reason = 8;
+   */
+  modeReason: string;
+};
+
+/**
+ * Describes the message vrooli.tunnel_manager.v1.config.ConfigReadiness.
+ * Use `create(ConfigReadinessSchema)` to create a new message.
+ */
+export const ConfigReadinessSchema: GenMessage<ConfigReadiness> = /*@__PURE__*/
+  messageDesc(file_tunnel_manager_v1_config_config, 1);
+
+/**
  * @generated from message vrooli.tunnel_manager.v1.config.GetConfigRequest
  */
 export type GetConfigRequest = Message<"vrooli.tunnel_manager.v1.config.GetConfigRequest"> & {
@@ -67,7 +140,7 @@ export type GetConfigRequest = Message<"vrooli.tunnel_manager.v1.config.GetConfi
  * Use `create(GetConfigRequestSchema)` to create a new message.
  */
 export const GetConfigRequestSchema: GenMessage<GetConfigRequest> = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 1);
+  messageDesc(file_tunnel_manager_v1_config_config, 2);
 
 /**
  * @generated from message vrooli.tunnel_manager.v1.config.GetConfigResponse
@@ -77,6 +150,11 @@ export type GetConfigResponse = Message<"vrooli.tunnel_manager.v1.config.GetConf
    * @generated from field: vrooli.tunnel_manager.v1.config.TunnelConfig config = 1;
    */
   config?: TunnelConfig | undefined;
+
+  /**
+   * @generated from field: vrooli.tunnel_manager.v1.config.ConfigReadiness readiness = 2;
+   */
+  readiness?: ConfigReadiness | undefined;
 };
 
 /**
@@ -84,7 +162,7 @@ export type GetConfigResponse = Message<"vrooli.tunnel_manager.v1.config.GetConf
  * Use `create(GetConfigResponseSchema)` to create a new message.
  */
 export const GetConfigResponseSchema: GenMessage<GetConfigResponse> = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 2);
+  messageDesc(file_tunnel_manager_v1_config_config, 3);
 
 /**
  * @generated from message vrooli.tunnel_manager.v1.config.SyncRequest
@@ -103,7 +181,7 @@ export type SyncRequest = Message<"vrooli.tunnel_manager.v1.config.SyncRequest">
  * Use `create(SyncRequestSchema)` to create a new message.
  */
 export const SyncRequestSchema: GenMessage<SyncRequest> = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 3);
+  messageDesc(file_tunnel_manager_v1_config_config, 4);
 
 /**
  * @generated from message vrooli.tunnel_manager.v1.config.SyncResponse
@@ -134,6 +212,27 @@ export type SyncResponse = Message<"vrooli.tunnel_manager.v1.config.SyncResponse
    * @generated from field: bool no_changes = 4;
    */
   noChanges: boolean;
+
+  /**
+   * True when dry-run detected missing setup and did not attempt live diff.
+   *
+   * @generated from field: bool setup_required = 5;
+   */
+  setupRequired: boolean;
+
+  /**
+   * Canonical missing inputs when setup_required is true.
+   *
+   * @generated from field: repeated string missing_fields = 6;
+   */
+  missingFields: string[];
+
+  /**
+   * Operator-facing explanation of the sync result.
+   *
+   * @generated from field: string message = 7;
+   */
+  message: string;
 };
 
 /**
@@ -141,7 +240,7 @@ export type SyncResponse = Message<"vrooli.tunnel_manager.v1.config.SyncResponse
  * Use `create(SyncResponseSchema)` to create a new message.
  */
 export const SyncResponseSchema: GenMessage<SyncResponse> = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 4);
+  messageDesc(file_tunnel_manager_v1_config_config, 5);
 
 /**
  * @generated from message vrooli.tunnel_manager.v1.config.SwitchModeRequest
@@ -158,7 +257,7 @@ export type SwitchModeRequest = Message<"vrooli.tunnel_manager.v1.config.SwitchM
  * Use `create(SwitchModeRequestSchema)` to create a new message.
  */
 export const SwitchModeRequestSchema: GenMessage<SwitchModeRequest> = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 5);
+  messageDesc(file_tunnel_manager_v1_config_config, 6);
 
 /**
  * @generated from message vrooli.tunnel_manager.v1.config.SwitchModeResponse
@@ -180,7 +279,7 @@ export type SwitchModeResponse = Message<"vrooli.tunnel_manager.v1.config.Switch
  * Use `create(SwitchModeResponseSchema)` to create a new message.
  */
 export const SwitchModeResponseSchema: GenMessage<SwitchModeResponse> = /*@__PURE__*/
-  messageDesc(file_tunnel_manager_v1_config_config, 6);
+  messageDesc(file_tunnel_manager_v1_config_config, 7);
 
 /**
  * Mode is the tunnel management mode.

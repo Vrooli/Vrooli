@@ -3,7 +3,9 @@
   "nodes": [
     {
       "attributes": {
-        "language": "typescript"
+        "is_test": "false",
+        "language": "typescript",
+        "lines": "18"
       },
       "id": "file:src/widget.tsx",
       "kind": 1,

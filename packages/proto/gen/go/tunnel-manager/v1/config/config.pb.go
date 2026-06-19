@@ -153,6 +153,118 @@ func (x *TunnelConfig) GetPromEndpoint() string {
 	return ""
 }
 
+// ConfigReadiness reports whether the current process has enough
+// non-secret configuration to operate each mode. It is safe to return to UI
+// clients: it reports presence/source only, never the API token value.
+type ConfigReadiness struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Desired mode after applying first-run defaults.
+	DesiredMode Mode `protobuf:"varint,1,opt,name=desired_mode,json=desiredMode,proto3,enum=vrooli.tunnel_manager.v1.config.Mode" json:"desired_mode,omitempty"`
+	// True when Cloudflare account, tunnel, and token inputs are all present.
+	RemoteAvailable bool `protobuf:"varint,2,opt,name=remote_available,json=remoteAvailable,proto3" json:"remote_available,omitempty"`
+	// Canonical missing inputs, e.g. CLOUDFLARE_API_TOKEN.
+	MissingFields []string `protobuf:"bytes,3,rep,name=missing_fields,json=missingFields,proto3" json:"missing_fields,omitempty"`
+	// Human-readable source label such as "env:CLOUDFLARE_*",
+	// "env:CF_*", "env:mixed", or "none".
+	CredentialSource string `protobuf:"bytes,4,opt,name=credential_source,json=credentialSource,proto3" json:"credential_source,omitempty"`
+	// Non-secret token reference, e.g. "env:CLOUDFLARE_API_TOKEN".
+	CredentialRef string `protobuf:"bytes,5,opt,name=credential_ref,json=credentialRef,proto3" json:"credential_ref,omitempty"`
+	// Local cloudflared config path used in local mode.
+	LocalConfigPath string `protobuf:"bytes,6,opt,name=local_config_path,json=localConfigPath,proto3" json:"local_config_path,omitempty"`
+	// True when config sync can execute in the desired/current mode.
+	SyncReady bool `protobuf:"varint,7,opt,name=sync_ready,json=syncReady,proto3" json:"sync_ready,omitempty"`
+	// Short operator explanation for the current mode/readiness.
+	ModeReason    string `protobuf:"bytes,8,opt,name=mode_reason,json=modeReason,proto3" json:"mode_reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigReadiness) Reset() {
+	*x = ConfigReadiness{}
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigReadiness) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigReadiness) ProtoMessage() {}
+
+func (x *ConfigReadiness) ProtoReflect() protoreflect.Message {
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigReadiness.ProtoReflect.Descriptor instead.
+func (*ConfigReadiness) Descriptor() ([]byte, []int) {
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ConfigReadiness) GetDesiredMode() Mode {
+	if x != nil {
+		return x.DesiredMode
+	}
+	return Mode_MODE_UNSPECIFIED
+}
+
+func (x *ConfigReadiness) GetRemoteAvailable() bool {
+	if x != nil {
+		return x.RemoteAvailable
+	}
+	return false
+}
+
+func (x *ConfigReadiness) GetMissingFields() []string {
+	if x != nil {
+		return x.MissingFields
+	}
+	return nil
+}
+
+func (x *ConfigReadiness) GetCredentialSource() string {
+	if x != nil {
+		return x.CredentialSource
+	}
+	return ""
+}
+
+func (x *ConfigReadiness) GetCredentialRef() string {
+	if x != nil {
+		return x.CredentialRef
+	}
+	return ""
+}
+
+func (x *ConfigReadiness) GetLocalConfigPath() string {
+	if x != nil {
+		return x.LocalConfigPath
+	}
+	return ""
+}
+
+func (x *ConfigReadiness) GetSyncReady() bool {
+	if x != nil {
+		return x.SyncReady
+	}
+	return false
+}
+
+func (x *ConfigReadiness) GetModeReason() string {
+	if x != nil {
+		return x.ModeReason
+	}
+	return ""
+}
+
 type GetConfigRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -161,7 +273,7 @@ type GetConfigRequest struct {
 
 func (x *GetConfigRequest) Reset() {
 	*x = GetConfigRequest{}
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[1]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -173,7 +285,7 @@ func (x *GetConfigRequest) String() string {
 func (*GetConfigRequest) ProtoMessage() {}
 
 func (x *GetConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[1]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -186,19 +298,20 @@ func (x *GetConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetConfigRequest.ProtoReflect.Descriptor instead.
 func (*GetConfigRequest) Descriptor() ([]byte, []int) {
-	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{1}
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{2}
 }
 
 type GetConfigResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Config        *TunnelConfig          `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	Readiness     *ConfigReadiness       `protobuf:"bytes,2,opt,name=readiness,proto3" json:"readiness,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetConfigResponse) Reset() {
 	*x = GetConfigResponse{}
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[2]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -210,7 +323,7 @@ func (x *GetConfigResponse) String() string {
 func (*GetConfigResponse) ProtoMessage() {}
 
 func (x *GetConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[2]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -223,12 +336,19 @@ func (x *GetConfigResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetConfigResponse.ProtoReflect.Descriptor instead.
 func (*GetConfigResponse) Descriptor() ([]byte, []int) {
-	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{2}
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GetConfigResponse) GetConfig() *TunnelConfig {
 	if x != nil {
 		return x.Config
+	}
+	return nil
+}
+
+func (x *GetConfigResponse) GetReadiness() *ConfigReadiness {
+	if x != nil {
+		return x.Readiness
 	}
 	return nil
 }
@@ -243,7 +363,7 @@ type SyncRequest struct {
 
 func (x *SyncRequest) Reset() {
 	*x = SyncRequest{}
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[3]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -255,7 +375,7 @@ func (x *SyncRequest) String() string {
 func (*SyncRequest) ProtoMessage() {}
 
 func (x *SyncRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[3]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -268,7 +388,7 @@ func (x *SyncRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncRequest.ProtoReflect.Descriptor instead.
 func (*SyncRequest) Descriptor() ([]byte, []int) {
-	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{3}
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *SyncRequest) GetDryRun() bool {
@@ -286,14 +406,20 @@ type SyncResponse struct {
 	// Hostnames removed from ingress this sync.
 	Removed []string `protobuf:"bytes,3,rep,name=removed,proto3" json:"removed,omitempty"`
 	// True when the manifest and live ingress already matched.
-	NoChanges     bool `protobuf:"varint,4,opt,name=no_changes,json=noChanges,proto3" json:"no_changes,omitempty"`
+	NoChanges bool `protobuf:"varint,4,opt,name=no_changes,json=noChanges,proto3" json:"no_changes,omitempty"`
+	// True when dry-run detected missing setup and did not attempt live diff.
+	SetupRequired bool `protobuf:"varint,5,opt,name=setup_required,json=setupRequired,proto3" json:"setup_required,omitempty"`
+	// Canonical missing inputs when setup_required is true.
+	MissingFields []string `protobuf:"bytes,6,rep,name=missing_fields,json=missingFields,proto3" json:"missing_fields,omitempty"`
+	// Operator-facing explanation of the sync result.
+	Message       string `protobuf:"bytes,7,opt,name=message,proto3" json:"message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SyncResponse) Reset() {
 	*x = SyncResponse{}
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[4]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -305,7 +431,7 @@ func (x *SyncResponse) String() string {
 func (*SyncResponse) ProtoMessage() {}
 
 func (x *SyncResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[4]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -318,7 +444,7 @@ func (x *SyncResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncResponse.ProtoReflect.Descriptor instead.
 func (*SyncResponse) Descriptor() ([]byte, []int) {
-	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{4}
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *SyncResponse) GetMode() Mode {
@@ -349,6 +475,27 @@ func (x *SyncResponse) GetNoChanges() bool {
 	return false
 }
 
+func (x *SyncResponse) GetSetupRequired() bool {
+	if x != nil {
+		return x.SetupRequired
+	}
+	return false
+}
+
+func (x *SyncResponse) GetMissingFields() []string {
+	if x != nil {
+		return x.MissingFields
+	}
+	return nil
+}
+
+func (x *SyncResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
 type SwitchModeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	TargetMode    Mode                   `protobuf:"varint,1,opt,name=target_mode,json=targetMode,proto3,enum=vrooli.tunnel_manager.v1.config.Mode" json:"target_mode,omitempty"`
@@ -358,7 +505,7 @@ type SwitchModeRequest struct {
 
 func (x *SwitchModeRequest) Reset() {
 	*x = SwitchModeRequest{}
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[5]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -370,7 +517,7 @@ func (x *SwitchModeRequest) String() string {
 func (*SwitchModeRequest) ProtoMessage() {}
 
 func (x *SwitchModeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[5]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -383,7 +530,7 @@ func (x *SwitchModeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SwitchModeRequest.ProtoReflect.Descriptor instead.
 func (*SwitchModeRequest) Descriptor() ([]byte, []int) {
-	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{5}
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *SwitchModeRequest) GetTargetMode() Mode {
@@ -403,7 +550,7 @@ type SwitchModeResponse struct {
 
 func (x *SwitchModeResponse) Reset() {
 	*x = SwitchModeResponse{}
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[6]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -415,7 +562,7 @@ func (x *SwitchModeResponse) String() string {
 func (*SwitchModeResponse) ProtoMessage() {}
 
 func (x *SwitchModeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[6]
+	mi := &file_tunnel_manager_v1_config_config_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -428,7 +575,7 @@ func (x *SwitchModeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SwitchModeResponse.ProtoReflect.Descriptor instead.
 func (*SwitchModeResponse) Descriptor() ([]byte, []int) {
-	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{6}
+	return file_tunnel_manager_v1_config_config_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *SwitchModeResponse) GetPreviousMode() Mode {
@@ -456,18 +603,33 @@ const file_tunnel_manager_v1_config_config_proto_rawDesc = "" +
 	"\n" +
 	"account_id\x18\x03 \x01(\tR\taccountId\x12\x19\n" +
 	"\bcred_ref\x18\x04 \x01(\tR\acredRef\x12#\n" +
-	"\rprom_endpoint\x18\x05 \x01(\tR\fpromEndpoint\"\x12\n" +
-	"\x10GetConfigRequest\"Z\n" +
+	"\rprom_endpoint\x18\x05 \x01(\tR\fpromEndpoint\"\xed\x02\n" +
+	"\x0fConfigReadiness\x12H\n" +
+	"\fdesired_mode\x18\x01 \x01(\x0e2%.vrooli.tunnel_manager.v1.config.ModeR\vdesiredMode\x12)\n" +
+	"\x10remote_available\x18\x02 \x01(\bR\x0fremoteAvailable\x12%\n" +
+	"\x0emissing_fields\x18\x03 \x03(\tR\rmissingFields\x12+\n" +
+	"\x11credential_source\x18\x04 \x01(\tR\x10credentialSource\x12%\n" +
+	"\x0ecredential_ref\x18\x05 \x01(\tR\rcredentialRef\x12*\n" +
+	"\x11local_config_path\x18\x06 \x01(\tR\x0flocalConfigPath\x12\x1d\n" +
+	"\n" +
+	"sync_ready\x18\a \x01(\bR\tsyncReady\x12\x1f\n" +
+	"\vmode_reason\x18\b \x01(\tR\n" +
+	"modeReason\"\x12\n" +
+	"\x10GetConfigRequest\"\xaa\x01\n" +
 	"\x11GetConfigResponse\x12E\n" +
-	"\x06config\x18\x01 \x01(\v2-.vrooli.tunnel_manager.v1.config.TunnelConfigR\x06config\"&\n" +
+	"\x06config\x18\x01 \x01(\v2-.vrooli.tunnel_manager.v1.config.TunnelConfigR\x06config\x12N\n" +
+	"\treadiness\x18\x02 \x01(\v20.vrooli.tunnel_manager.v1.config.ConfigReadinessR\treadiness\"&\n" +
 	"\vSyncRequest\x12\x17\n" +
-	"\adry_run\x18\x01 \x01(\bR\x06dryRun\"\x98\x01\n" +
+	"\adry_run\x18\x01 \x01(\bR\x06dryRun\"\x80\x02\n" +
 	"\fSyncResponse\x129\n" +
 	"\x04mode\x18\x01 \x01(\x0e2%.vrooli.tunnel_manager.v1.config.ModeR\x04mode\x12\x14\n" +
 	"\x05added\x18\x02 \x03(\tR\x05added\x12\x18\n" +
 	"\aremoved\x18\x03 \x03(\tR\aremoved\x12\x1d\n" +
 	"\n" +
-	"no_changes\x18\x04 \x01(\bR\tnoChanges\"[\n" +
+	"no_changes\x18\x04 \x01(\bR\tnoChanges\x12%\n" +
+	"\x0esetup_required\x18\x05 \x01(\bR\rsetupRequired\x12%\n" +
+	"\x0emissing_fields\x18\x06 \x03(\tR\rmissingFields\x12\x18\n" +
+	"\amessage\x18\a \x01(\tR\amessage\"[\n" +
 	"\x11SwitchModeRequest\x12F\n" +
 	"\vtarget_mode\x18\x01 \x01(\x0e2%.vrooli.tunnel_manager.v1.config.ModeR\n" +
 	"targetMode\"\xaa\x01\n" +
@@ -498,35 +660,38 @@ func file_tunnel_manager_v1_config_config_proto_rawDescGZIP() []byte {
 }
 
 var file_tunnel_manager_v1_config_config_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_tunnel_manager_v1_config_config_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_tunnel_manager_v1_config_config_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_tunnel_manager_v1_config_config_proto_goTypes = []any{
 	(Mode)(0),                  // 0: vrooli.tunnel_manager.v1.config.Mode
 	(*TunnelConfig)(nil),       // 1: vrooli.tunnel_manager.v1.config.TunnelConfig
-	(*GetConfigRequest)(nil),   // 2: vrooli.tunnel_manager.v1.config.GetConfigRequest
-	(*GetConfigResponse)(nil),  // 3: vrooli.tunnel_manager.v1.config.GetConfigResponse
-	(*SyncRequest)(nil),        // 4: vrooli.tunnel_manager.v1.config.SyncRequest
-	(*SyncResponse)(nil),       // 5: vrooli.tunnel_manager.v1.config.SyncResponse
-	(*SwitchModeRequest)(nil),  // 6: vrooli.tunnel_manager.v1.config.SwitchModeRequest
-	(*SwitchModeResponse)(nil), // 7: vrooli.tunnel_manager.v1.config.SwitchModeResponse
+	(*ConfigReadiness)(nil),    // 2: vrooli.tunnel_manager.v1.config.ConfigReadiness
+	(*GetConfigRequest)(nil),   // 3: vrooli.tunnel_manager.v1.config.GetConfigRequest
+	(*GetConfigResponse)(nil),  // 4: vrooli.tunnel_manager.v1.config.GetConfigResponse
+	(*SyncRequest)(nil),        // 5: vrooli.tunnel_manager.v1.config.SyncRequest
+	(*SyncResponse)(nil),       // 6: vrooli.tunnel_manager.v1.config.SyncResponse
+	(*SwitchModeRequest)(nil),  // 7: vrooli.tunnel_manager.v1.config.SwitchModeRequest
+	(*SwitchModeResponse)(nil), // 8: vrooli.tunnel_manager.v1.config.SwitchModeResponse
 }
 var file_tunnel_manager_v1_config_config_proto_depIdxs = []int32{
-	0, // 0: vrooli.tunnel_manager.v1.config.TunnelConfig.mode:type_name -> vrooli.tunnel_manager.v1.config.Mode
-	1, // 1: vrooli.tunnel_manager.v1.config.GetConfigResponse.config:type_name -> vrooli.tunnel_manager.v1.config.TunnelConfig
-	0, // 2: vrooli.tunnel_manager.v1.config.SyncResponse.mode:type_name -> vrooli.tunnel_manager.v1.config.Mode
-	0, // 3: vrooli.tunnel_manager.v1.config.SwitchModeRequest.target_mode:type_name -> vrooli.tunnel_manager.v1.config.Mode
-	0, // 4: vrooli.tunnel_manager.v1.config.SwitchModeResponse.previous_mode:type_name -> vrooli.tunnel_manager.v1.config.Mode
-	0, // 5: vrooli.tunnel_manager.v1.config.SwitchModeResponse.current_mode:type_name -> vrooli.tunnel_manager.v1.config.Mode
-	2, // 6: vrooli.tunnel_manager.v1.config.ConfigService.GetConfig:input_type -> vrooli.tunnel_manager.v1.config.GetConfigRequest
-	4, // 7: vrooli.tunnel_manager.v1.config.ConfigService.Sync:input_type -> vrooli.tunnel_manager.v1.config.SyncRequest
-	6, // 8: vrooli.tunnel_manager.v1.config.ConfigService.SwitchMode:input_type -> vrooli.tunnel_manager.v1.config.SwitchModeRequest
-	3, // 9: vrooli.tunnel_manager.v1.config.ConfigService.GetConfig:output_type -> vrooli.tunnel_manager.v1.config.GetConfigResponse
-	5, // 10: vrooli.tunnel_manager.v1.config.ConfigService.Sync:output_type -> vrooli.tunnel_manager.v1.config.SyncResponse
-	7, // 11: vrooli.tunnel_manager.v1.config.ConfigService.SwitchMode:output_type -> vrooli.tunnel_manager.v1.config.SwitchModeResponse
-	9, // [9:12] is the sub-list for method output_type
-	6, // [6:9] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	0,  // 0: vrooli.tunnel_manager.v1.config.TunnelConfig.mode:type_name -> vrooli.tunnel_manager.v1.config.Mode
+	0,  // 1: vrooli.tunnel_manager.v1.config.ConfigReadiness.desired_mode:type_name -> vrooli.tunnel_manager.v1.config.Mode
+	1,  // 2: vrooli.tunnel_manager.v1.config.GetConfigResponse.config:type_name -> vrooli.tunnel_manager.v1.config.TunnelConfig
+	2,  // 3: vrooli.tunnel_manager.v1.config.GetConfigResponse.readiness:type_name -> vrooli.tunnel_manager.v1.config.ConfigReadiness
+	0,  // 4: vrooli.tunnel_manager.v1.config.SyncResponse.mode:type_name -> vrooli.tunnel_manager.v1.config.Mode
+	0,  // 5: vrooli.tunnel_manager.v1.config.SwitchModeRequest.target_mode:type_name -> vrooli.tunnel_manager.v1.config.Mode
+	0,  // 6: vrooli.tunnel_manager.v1.config.SwitchModeResponse.previous_mode:type_name -> vrooli.tunnel_manager.v1.config.Mode
+	0,  // 7: vrooli.tunnel_manager.v1.config.SwitchModeResponse.current_mode:type_name -> vrooli.tunnel_manager.v1.config.Mode
+	3,  // 8: vrooli.tunnel_manager.v1.config.ConfigService.GetConfig:input_type -> vrooli.tunnel_manager.v1.config.GetConfigRequest
+	5,  // 9: vrooli.tunnel_manager.v1.config.ConfigService.Sync:input_type -> vrooli.tunnel_manager.v1.config.SyncRequest
+	7,  // 10: vrooli.tunnel_manager.v1.config.ConfigService.SwitchMode:input_type -> vrooli.tunnel_manager.v1.config.SwitchModeRequest
+	4,  // 11: vrooli.tunnel_manager.v1.config.ConfigService.GetConfig:output_type -> vrooli.tunnel_manager.v1.config.GetConfigResponse
+	6,  // 12: vrooli.tunnel_manager.v1.config.ConfigService.Sync:output_type -> vrooli.tunnel_manager.v1.config.SyncResponse
+	8,  // 13: vrooli.tunnel_manager.v1.config.ConfigService.SwitchMode:output_type -> vrooli.tunnel_manager.v1.config.SwitchModeResponse
+	11, // [11:14] is the sub-list for method output_type
+	8,  // [8:11] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_tunnel_manager_v1_config_config_proto_init() }
@@ -540,7 +705,7 @@ func file_tunnel_manager_v1_config_config_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_tunnel_manager_v1_config_config_proto_rawDesc), len(file_tunnel_manager_v1_config_config_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   7,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

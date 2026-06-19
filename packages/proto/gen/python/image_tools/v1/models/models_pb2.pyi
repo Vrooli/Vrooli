@@ -306,3 +306,35 @@ class DoctorCatalogResponse(_message.Message):
     ok: bool
     findings: _containers.RepeatedCompositeFieldContainer[CatalogFinding]
     def __init__(self, ok: _Optional[bool] = ..., findings: _Optional[_Iterable[_Union[CatalogFinding, _Mapping]]] = ...) -> None: ...
+
+class BackendStatus(_message.Message):
+    __slots__ = ("name", "operations", "available", "standalone", "cloud", "gpu_capable", "detail", "provision")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    OPERATIONS_FIELD_NUMBER: _ClassVar[int]
+    AVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    STANDALONE_FIELD_NUMBER: _ClassVar[int]
+    CLOUD_FIELD_NUMBER: _ClassVar[int]
+    GPU_CAPABLE_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    PROVISION_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    operations: _containers.RepeatedScalarFieldContainer[str]
+    available: bool
+    standalone: bool
+    cloud: bool
+    gpu_capable: bool
+    detail: str
+    provision: str
+    def __init__(self, name: _Optional[str] = ..., operations: _Optional[_Iterable[str]] = ..., available: _Optional[bool] = ..., standalone: _Optional[bool] = ..., cloud: _Optional[bool] = ..., gpu_capable: _Optional[bool] = ..., detail: _Optional[str] = ..., provision: _Optional[str] = ...) -> None: ...
+
+class DoctorBackendsRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class DoctorBackendsResponse(_message.Message):
+    __slots__ = ("ok", "backends")
+    OK_FIELD_NUMBER: _ClassVar[int]
+    BACKENDS_FIELD_NUMBER: _ClassVar[int]
+    ok: bool
+    backends: _containers.RepeatedCompositeFieldContainer[BackendStatus]
+    def __init__(self, ok: _Optional[bool] = ..., backends: _Optional[_Iterable[_Union[BackendStatus, _Mapping]]] = ...) -> None: ...

@@ -2,7 +2,8 @@
   "edges": [
     {
       "attributes": {
-        "specifier": "./lib/types"
+        "specifier": "./lib/types",
+        "test_only": "false"
       },
       "from_node_id": "ts_module:src/index.ts",
       "id": "re_export:ts_module:src/index.ts->ts_module:src/lib/types.ts",
@@ -11,7 +12,8 @@
     },
     {
       "attributes": {
-        "specifier": "./lib/utils"
+        "specifier": "./lib/utils",
+        "test_only": "false"
       },
       "from_node_id": "ts_module:src/index.ts",
       "id": "re_export:ts_module:src/index.ts->ts_module:src/lib/utils.ts",
@@ -22,7 +24,9 @@
   "nodes": [
     {
       "attributes": {
-        "language": "typescript"
+        "is_test": "false",
+        "language": "typescript",
+        "lines": "4"
       },
       "id": "file:src/components/Button.tsx",
       "kind": 1,
@@ -32,7 +36,9 @@
     },
     {
       "attributes": {
-        "language": "typescript"
+        "is_test": "false",
+        "language": "typescript",
+        "lines": "10"
       },
       "id": "file:src/hooks/useCounter.ts",
       "kind": 1,
@@ -42,7 +48,9 @@
     },
     {
       "attributes": {
-        "language": "typescript"
+        "is_test": "false",
+        "language": "typescript",
+        "lines": "3"
       },
       "id": "file:src/index.ts",
       "kind": 1,
@@ -52,7 +60,9 @@
     },
     {
       "attributes": {
-        "language": "typescript"
+        "is_test": "false",
+        "language": "typescript",
+        "lines": "10"
       },
       "id": "file:src/lib/Service.ts",
       "kind": 1,
@@ -62,7 +72,9 @@
     },
     {
       "attributes": {
-        "language": "typescript"
+        "is_test": "false",
+        "language": "typescript",
+        "lines": "7"
       },
       "id": "file:src/lib/types.ts",
       "kind": 1,
@@ -72,7 +84,9 @@
     },
     {
       "attributes": {
-        "language": "typescript"
+        "is_test": "false",
+        "language": "typescript",
+        "lines": "8"
       },
       "id": "file:src/lib/utils.ts",
       "kind": 1,

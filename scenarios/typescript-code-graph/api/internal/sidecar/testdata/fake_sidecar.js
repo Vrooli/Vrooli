@@ -6,6 +6,7 @@
 //   KILL_AFTER_N=<n>      exit(0) after processing N messages (after replying)
 //   IGNORE_HEARTBEAT=1    swallow heartbeat requests without replying
 //   SLOW_EXTRACT_MS=<n>   delay extract reply by N ms (for cancel tests)
+//   BLOCK_EXTRACT_MS=<n>  block the event loop before extract reply
 //   PROTOCOL_VERSION=<n>  override handshake reply protocol_version
 //
 // Stderr is fine for noise; stdout is framed JSON only.
@@ -15,6 +16,7 @@ const readline = require('readline');
 const killAfter = parseInt(process.env.KILL_AFTER_N || '0', 10);
 const ignoreHeartbeat = process.env.IGNORE_HEARTBEAT === '1';
 const slowExtractMs = parseInt(process.env.SLOW_EXTRACT_MS || '0', 10);
+const blockExtractMs = parseInt(process.env.BLOCK_EXTRACT_MS || '0', 10);
 const protoVersion = parseInt(process.env.PROTOCOL_VERSION || '1', 10);
 
 let processed = 0;
@@ -28,6 +30,13 @@ function maybeExit() {
   if (killAfter > 0 && processed >= killAfter) {
     process.stderr.write('fake_sidecar: exiting after ' + processed + ' messages\n');
     process.exit(0);
+  }
+}
+
+function blockFor(ms) {
+  const deadline = Date.now() + ms;
+  while (Date.now() < deadline) {
+    // Intentionally block the event loop to mimic synchronous ts-morph work.
   }
 }
 
@@ -61,6 +70,19 @@ rl.on('line', (line) => {
       maybeExit();
       break;
     case 'extract':
+      if (blockExtractMs > 0) {
+        blockFor(blockExtractMs);
+        send({
+          type: 'extract',
+          request_id: msg.request_id,
+          graph: { nodes: [], edges: [] },
+          warnings: [],
+          extraction_ms: blockExtractMs,
+          graph_hash: 'deadbeef',
+        });
+        maybeExit();
+        break;
+      }
       if (slowExtractMs > 0) {
         setTimeout(() => {
           send({

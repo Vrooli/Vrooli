@@ -30,15 +30,37 @@ class TunnelConfig(_message.Message):
     prom_endpoint: str
     def __init__(self, mode: _Optional[_Union[Mode, str]] = ..., tunnel_id: _Optional[str] = ..., account_id: _Optional[str] = ..., cred_ref: _Optional[str] = ..., prom_endpoint: _Optional[str] = ...) -> None: ...
 
+class ConfigReadiness(_message.Message):
+    __slots__ = ("desired_mode", "remote_available", "missing_fields", "credential_source", "credential_ref", "local_config_path", "sync_ready", "mode_reason")
+    DESIRED_MODE_FIELD_NUMBER: _ClassVar[int]
+    REMOTE_AVAILABLE_FIELD_NUMBER: _ClassVar[int]
+    MISSING_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    CREDENTIAL_SOURCE_FIELD_NUMBER: _ClassVar[int]
+    CREDENTIAL_REF_FIELD_NUMBER: _ClassVar[int]
+    LOCAL_CONFIG_PATH_FIELD_NUMBER: _ClassVar[int]
+    SYNC_READY_FIELD_NUMBER: _ClassVar[int]
+    MODE_REASON_FIELD_NUMBER: _ClassVar[int]
+    desired_mode: Mode
+    remote_available: bool
+    missing_fields: _containers.RepeatedScalarFieldContainer[str]
+    credential_source: str
+    credential_ref: str
+    local_config_path: str
+    sync_ready: bool
+    mode_reason: str
+    def __init__(self, desired_mode: _Optional[_Union[Mode, str]] = ..., remote_available: _Optional[bool] = ..., missing_fields: _Optional[_Iterable[str]] = ..., credential_source: _Optional[str] = ..., credential_ref: _Optional[str] = ..., local_config_path: _Optional[str] = ..., sync_ready: _Optional[bool] = ..., mode_reason: _Optional[str] = ...) -> None: ...
+
 class GetConfigRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 
 class GetConfigResponse(_message.Message):
-    __slots__ = ("config",)
+    __slots__ = ("config", "readiness")
     CONFIG_FIELD_NUMBER: _ClassVar[int]
+    READINESS_FIELD_NUMBER: _ClassVar[int]
     config: TunnelConfig
-    def __init__(self, config: _Optional[_Union[TunnelConfig, _Mapping]] = ...) -> None: ...
+    readiness: ConfigReadiness
+    def __init__(self, config: _Optional[_Union[TunnelConfig, _Mapping]] = ..., readiness: _Optional[_Union[ConfigReadiness, _Mapping]] = ...) -> None: ...
 
 class SyncRequest(_message.Message):
     __slots__ = ("dry_run",)
@@ -47,16 +69,22 @@ class SyncRequest(_message.Message):
     def __init__(self, dry_run: _Optional[bool] = ...) -> None: ...
 
 class SyncResponse(_message.Message):
-    __slots__ = ("mode", "added", "removed", "no_changes")
+    __slots__ = ("mode", "added", "removed", "no_changes", "setup_required", "missing_fields", "message")
     MODE_FIELD_NUMBER: _ClassVar[int]
     ADDED_FIELD_NUMBER: _ClassVar[int]
     REMOVED_FIELD_NUMBER: _ClassVar[int]
     NO_CHANGES_FIELD_NUMBER: _ClassVar[int]
+    SETUP_REQUIRED_FIELD_NUMBER: _ClassVar[int]
+    MISSING_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
     mode: Mode
     added: _containers.RepeatedScalarFieldContainer[str]
     removed: _containers.RepeatedScalarFieldContainer[str]
     no_changes: bool
-    def __init__(self, mode: _Optional[_Union[Mode, str]] = ..., added: _Optional[_Iterable[str]] = ..., removed: _Optional[_Iterable[str]] = ..., no_changes: _Optional[bool] = ...) -> None: ...
+    setup_required: bool
+    missing_fields: _containers.RepeatedScalarFieldContainer[str]
+    message: str
+    def __init__(self, mode: _Optional[_Union[Mode, str]] = ..., added: _Optional[_Iterable[str]] = ..., removed: _Optional[_Iterable[str]] = ..., no_changes: _Optional[bool] = ..., setup_required: _Optional[bool] = ..., missing_fields: _Optional[_Iterable[str]] = ..., message: _Optional[str] = ...) -> None: ...
 
 class SwitchModeRequest(_message.Message):
     __slots__ = ("target_mode",)

@@ -85,6 +85,11 @@ service ModelsService {
   // model, commercial-use policy must be clean, and checksum/source metadata
   // must be coherent.
   rpc DoctorCatalog(DoctorCatalogRequest) returns (DoctorCatalogResponse);
+
+  // DoctorBackends checks host software availability for registered inference
+  // backends. Hardware fit remains reported by SelectModel; this answers
+  // whether the backend program/module is actually provisioned on this host.
+  rpc DoctorBackends(DoctorBackendsRequest) returns (DoctorBackendsResponse);
 }
 
 // CommercialUse classifies a model's commercial-use license posture.
@@ -311,4 +316,22 @@ message DoctorCatalogRequest {}
 message DoctorCatalogResponse {
   bool ok = 1;
   repeated CatalogFinding findings = 2;
+}
+
+message BackendStatus {
+  string name = 1;
+  repeated string operations = 2;
+  bool available = 3;
+  bool standalone = 4;
+  bool cloud = 5;
+  bool gpu_capable = 6;
+  string detail = 7;
+  string provision = 8;
+}
+
+message DoctorBackendsRequest {}
+
+message DoctorBackendsResponse {
+  bool ok = 1;
+  repeated BackendStatus backends = 2;
 }

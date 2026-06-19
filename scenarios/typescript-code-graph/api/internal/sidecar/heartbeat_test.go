@@ -44,3 +44,27 @@ func TestHeartbeatKillsUnresponsiveChild(t *testing.T) {
 	}
 	require.True(t, respawned, "supervisor did not respawn unresponsive child")
 }
+
+func TestHeartbeatSkipsWhileExtractIsActive(t *testing.T) {
+	requireNode(t)
+
+	s := newTestSupervisor(t, "BLOCK_EXTRACT_MS=500")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	require.NoError(t, s.Start(ctx))
+	t.Cleanup(func() {
+		shutdownCtx, c := context.WithTimeout(context.Background(), 2*time.Second)
+		defer c()
+		_ = s.Shutdown(shutdownCtx)
+	})
+
+	res, err := s.Extract(ctx, "/tmp/example")
+	require.NoError(t, err)
+	require.NotEmpty(t, res.RequestID)
+	require.Equal(t, StatusReady, s.Status())
+
+	s.mu.Lock()
+	gen := s.generation
+	s.mu.Unlock()
+	require.Equal(t, 1, gen, "heartbeat must not kill and respawn a busy sidecar")
+}

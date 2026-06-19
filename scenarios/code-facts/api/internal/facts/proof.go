@@ -108,11 +108,18 @@ func synthesizeProtoAdoption(input proofInput, selected []string) ([]*factsv1.Ge
 			status = factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN
 			message = fmt.Sprintf("Found %d generated proto import(s) for %s.", len(matches), id)
 			confidence = 1
+		} else if degraded, degradedMessage, ok := surfaceAnalyzerDegraded(input, surface); ok {
+			status = degraded
+			message = degradedMessage
+			confidence = 0
 		}
 		attrs := map[string]string{
 			"surface":        id,
 			"scenario":       input.target.GetScenario(),
 			"classification": protoImportClassification(input.target.GetScenario(), matches),
+		}
+		if len(matches) == 0 && (status == factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN || status == factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED) {
+			attrs["classification"] = "uncheckable"
 		}
 		ev := &factsv1.Evidence{Status: status, Confidence: confidence, Analyzer: proofAnalyzer, Message: message}
 		if len(matches) > 0 {
@@ -138,6 +145,62 @@ func synthesizeProtoAdoption(input proofInput, selected []string) ([]*factsv1.Ge
 		evidenceOut = append(evidenceOut, ev)
 	}
 	return out, evidenceOut, warnings
+}
+
+func surfaceAnalyzerDegraded(input proofInput, surface *factsv1.Surface) (factsv1.EvidenceStatus, string, bool) {
+	language := surfaceLanguage(surface.GetId())
+	if language == "" {
+		return factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSPECIFIED, "", false
+	}
+	for _, warning := range input.warnings {
+		status := warning.GetStatus()
+		if status != factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN && status != factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED {
+			continue
+		}
+		if warningMentionsSurfaceAnalyzer(warning, language) {
+			return status, "Cannot prove generated proto adoption for " + surface.GetId() + ": " + warning.GetMessage(), true
+		}
+	}
+	for _, evidence := range input.evidence {
+		status := evidence.GetStatus()
+		if status != factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN && status != factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED {
+			continue
+		}
+		if evidenceMentionsSurfaceAnalyzer(evidence, language, surface.GetPath()) {
+			return status, "Cannot prove generated proto adoption for " + surface.GetId() + ": " + evidence.GetMessage(), true
+		}
+	}
+	return factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSPECIFIED, "", false
+}
+
+func surfaceLanguage(id string) string {
+	switch id {
+	case "api", "cli":
+		return "go"
+	case "ui":
+		return "typescript"
+	default:
+		return ""
+	}
+}
+
+func warningMentionsSurfaceAnalyzer(warning *factsv1.Warning, language string) bool {
+	needle := strings.ToLower(language)
+	return strings.Contains(strings.ToLower(warning.GetCode()), needle) ||
+		strings.Contains(strings.ToLower(warning.GetMessage()), needle)
+}
+
+func evidenceMentionsSurfaceAnalyzer(evidence *factsv1.Evidence, language string, surfacePath string) bool {
+	needle := strings.ToLower(language)
+	analyzer := strings.ToLower(evidence.GetAnalyzer())
+	message := strings.ToLower(evidence.GetMessage())
+	if strings.Contains(analyzer, needle) || strings.Contains(message, needle) {
+		return true
+	}
+	if surfacePath != "" && strings.Contains(message, strings.ToLower(filepath.Clean(surfacePath))) {
+		return true
+	}
+	return false
 }
 
 func synthesizeEndpointProofs(input proofInput, selected []string) ([]*factsv1.GenericFact, []*factsv1.Evidence, []*factsv1.Warning) {

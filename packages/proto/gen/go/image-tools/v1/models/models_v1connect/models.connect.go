@@ -68,6 +68,9 @@ const (
 	// ModelsServiceDoctorCatalogProcedure is the fully-qualified name of the ModelsService's
 	// DoctorCatalog RPC.
 	ModelsServiceDoctorCatalogProcedure = "/vrooli.image_tools.v1.models.ModelsService/DoctorCatalog"
+	// ModelsServiceDoctorBackendsProcedure is the fully-qualified name of the ModelsService's
+	// DoctorBackends RPC.
+	ModelsServiceDoctorBackendsProcedure = "/vrooli.image_tools.v1.models.ModelsService/DoctorBackends"
 )
 
 // ModelsServiceClient is a client for the vrooli.image_tools.v1.models.ModelsService service.
@@ -113,6 +116,10 @@ type ModelsServiceClient interface {
 	// model, commercial-use policy must be clean, and checksum/source metadata
 	// must be coherent.
 	DoctorCatalog(context.Context, *connect.Request[models.DoctorCatalogRequest]) (*connect.Response[models.DoctorCatalogResponse], error)
+	// DoctorBackends checks host software availability for registered inference
+	// backends. Hardware fit remains reported by SelectModel; this answers
+	// whether the backend program/module is actually provisioned on this host.
+	DoctorBackends(context.Context, *connect.Request[models.DoctorBackendsRequest]) (*connect.Response[models.DoctorBackendsResponse], error)
 }
 
 // NewModelsServiceClient constructs a client for the vrooli.image_tools.v1.models.ModelsService
@@ -198,6 +205,12 @@ func NewModelsServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(modelsServiceMethods.ByName("DoctorCatalog")),
 			connect.WithClientOptions(opts...),
 		),
+		doctorBackends: connect.NewClient[models.DoctorBackendsRequest, models.DoctorBackendsResponse](
+			httpClient,
+			baseURL+ModelsServiceDoctorBackendsProcedure,
+			connect.WithSchema(modelsServiceMethods.ByName("DoctorBackends")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -215,6 +228,7 @@ type modelsServiceClient struct {
 	setDefaultModel *connect.Client[models.SetDefaultModelRequest, models.SetDefaultModelResponse]
 	listDefaults    *connect.Client[models.ListDefaultsRequest, models.ListDefaultsResponse]
 	doctorCatalog   *connect.Client[models.DoctorCatalogRequest, models.DoctorCatalogResponse]
+	doctorBackends  *connect.Client[models.DoctorBackendsRequest, models.DoctorBackendsResponse]
 }
 
 // ListModels calls vrooli.image_tools.v1.models.ModelsService.ListModels.
@@ -277,6 +291,11 @@ func (c *modelsServiceClient) DoctorCatalog(ctx context.Context, req *connect.Re
 	return c.doctorCatalog.CallUnary(ctx, req)
 }
 
+// DoctorBackends calls vrooli.image_tools.v1.models.ModelsService.DoctorBackends.
+func (c *modelsServiceClient) DoctorBackends(ctx context.Context, req *connect.Request[models.DoctorBackendsRequest]) (*connect.Response[models.DoctorBackendsResponse], error) {
+	return c.doctorBackends.CallUnary(ctx, req)
+}
+
 // ModelsServiceHandler is an implementation of the vrooli.image_tools.v1.models.ModelsService
 // service.
 type ModelsServiceHandler interface {
@@ -321,6 +340,10 @@ type ModelsServiceHandler interface {
 	// model, commercial-use policy must be clean, and checksum/source metadata
 	// must be coherent.
 	DoctorCatalog(context.Context, *connect.Request[models.DoctorCatalogRequest]) (*connect.Response[models.DoctorCatalogResponse], error)
+	// DoctorBackends checks host software availability for registered inference
+	// backends. Hardware fit remains reported by SelectModel; this answers
+	// whether the backend program/module is actually provisioned on this host.
+	DoctorBackends(context.Context, *connect.Request[models.DoctorBackendsRequest]) (*connect.Response[models.DoctorBackendsResponse], error)
 }
 
 // NewModelsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -402,6 +425,12 @@ func NewModelsServiceHandler(svc ModelsServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(modelsServiceMethods.ByName("DoctorCatalog")),
 		connect.WithHandlerOptions(opts...),
 	)
+	modelsServiceDoctorBackendsHandler := connect.NewUnaryHandler(
+		ModelsServiceDoctorBackendsProcedure,
+		svc.DoctorBackends,
+		connect.WithSchema(modelsServiceMethods.ByName("DoctorBackends")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.image_tools.v1.models.ModelsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ModelsServiceListModelsProcedure:
@@ -428,6 +457,8 @@ func NewModelsServiceHandler(svc ModelsServiceHandler, opts ...connect.HandlerOp
 			modelsServiceListDefaultsHandler.ServeHTTP(w, r)
 		case ModelsServiceDoctorCatalogProcedure:
 			modelsServiceDoctorCatalogHandler.ServeHTTP(w, r)
+		case ModelsServiceDoctorBackendsProcedure:
+			modelsServiceDoctorBackendsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -483,4 +514,8 @@ func (UnimplementedModelsServiceHandler) ListDefaults(context.Context, *connect.
 
 func (UnimplementedModelsServiceHandler) DoctorCatalog(context.Context, *connect.Request[models.DoctorCatalogRequest]) (*connect.Response[models.DoctorCatalogResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.image_tools.v1.models.ModelsService.DoctorCatalog is not implemented"))
+}
+
+func (UnimplementedModelsServiceHandler) DoctorBackends(context.Context, *connect.Request[models.DoctorBackendsRequest]) (*connect.Response[models.DoctorBackendsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.image_tools.v1.models.ModelsService.DoctorBackends is not implemented"))
 }

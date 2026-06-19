@@ -94,6 +94,10 @@ type Supervisor struct {
 	writer   *frameWriter
 	pendings map[string]*pending
 	ledger   restartLedger
+	// activeRequests counts extract/rewrite requests currently waiting
+	// on the sidecar. The Node sidecar runs ts-morph on one event loop,
+	// so long parser work can delay heartbeat replies even when healthy.
+	activeRequests int
 	// generation increments per successful start; tests can use it for
 	// crash detection.
 	generation int
@@ -467,9 +471,14 @@ func (s *Supervisor) heartbeatOnce() bool {
 	s.mu.Lock()
 	w := s.writer
 	st := s.status
+	active := s.activeRequests
+	pendingCount := len(s.pendings)
 	s.mu.Unlock()
 	if w == nil || st != StatusReady {
 		return true // skip; nothing to do until READY
+	}
+	if active > 0 || pendingCount > 0 {
+		return true // parser work may legitimately block heartbeat replies
 	}
 
 	reqID := uuid.NewString()
@@ -575,7 +584,9 @@ func (s *Supervisor) Extract(ctx context.Context, projectPath string) (ExtractRe
 
 	s.mu.Lock()
 	w := s.writer
+	s.activeRequests++
 	s.mu.Unlock()
+	defer s.finishActiveRequest()
 	if w == nil {
 		return ExtractResult{}, ErrSidecarUnavailable
 	}
@@ -626,7 +637,9 @@ func (s *Supervisor) RewriteApply(ctx context.Context, projectPath string, ops [
 
 	s.mu.Lock()
 	w := s.writer
+	s.activeRequests++
 	s.mu.Unlock()
+	defer s.finishActiveRequest()
 	if w == nil {
 		return nil, ErrSidecarUnavailable
 	}
@@ -667,6 +680,14 @@ func (s *Supervisor) decodeRewriteResponse(resp rawResponse) ([]OperationResult,
 	default:
 		return nil, fmt.Errorf("unexpected response kind %q", resp.kind)
 	}
+}
+
+func (s *Supervisor) finishActiveRequest() {
+	s.mu.Lock()
+	if s.activeRequests > 0 {
+		s.activeRequests--
+	}
+	s.mu.Unlock()
 }
 
 // statusErr maps a non-READY status to the canonical sentinel.
