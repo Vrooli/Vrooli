@@ -248,7 +248,7 @@ var Endpoints = []module.EndpointDescriptor{
 			ProtoPayloads: &module.RESTProtoPayloads{
 				Request:  module.RESTPayload{Transport: "multipart/form-data", Conformance: "transport_only"},
 				Response: module.RESTPayload{ProtoFullName: "vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.UploadAttachmentResponse", Transport: "json", Conformance: "protojson"},
-				Error:    module.RESTPayload{ProtoFullName: "vrooli.{{SCENARIO_ID_SNAKE}}.v1.errors.ErrorEnvelope", Transport: "json", Conformance: "protojson"},
+				Error:    module.RESTPayload{ProtoFullName: "vrooli.{{SCENARIO_ID_SNAKE}}.v1.shared.ErrorEnvelope", Transport: "json", Conformance: "protojson"},
 			},
 		},
 	},

@@ -15,24 +15,26 @@ import generated Go and TypeScript types immediately.
 
 ## What's here
 
-- `v1/health/health.proto` — wire contract for the `/health` endpoint.
+- `v1/shared/health.proto` — wire contract for the `/health` endpoint.
   Mirrors `packages/api-core/health/health.go`'s `Response` and
   `DependencyStatus` types field-for-field with matching JSON names so
   the api-core handler chain produces JSON that decodes into the
   generated proto type without translation.
 
   After relocation this lands at
-  `packages/proto/schemas/<your-scenario>/v1/health/health.proto`. The
+  `packages/proto/schemas/<your-scenario>/v1/shared/health.proto`. The
   namespace comes from the relocation `to` path in `template.json`,
   not from a directory inside `proto/` — matching the convention used
   by every existing scenario in `packages/proto/schemas/`.
 
-Every proto file in this template carries `@template react-vite/example`.
+The `notes` example-domain proto files carry `@template react-vite/example`.
 That annotation is intentional. It lets proto-health distinguish scaffold
 reference contracts from scenario-owned contracts without guessing based on
-generic domain names such as `notes`. Generated scenarios should remove the
-annotation only when the contract is intentionally adopted as real scenario
-surface or replaced by the scenario's own domain proto.
+generic domain names. Generated scenarios should remove the annotation only
+when the contract is intentionally adopted as real scenario surface or
+replaced by the scenario's own domain proto. The shared `health` and `errors`
+contracts are conventional infrastructure contracts, not example-domain
+scaffold, so they do not carry `@template`.
 
 ## Adding a new schema
 

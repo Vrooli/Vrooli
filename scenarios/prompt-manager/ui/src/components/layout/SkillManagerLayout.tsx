@@ -45,8 +45,10 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useSidebarPersistence, loadSidebarState } from '@/hooks/useSidebarPersistence'
 import { useRunningAgentStatusSync } from '@/hooks/useRunningAgentStatusSync'
 import { usePendingDecisionSync } from '@/hooks/usePendingDecisionSync'
+import { useHeartbeatControlStatus } from '@/hooks/useHeartbeatControlStatus'
 import { RunningAgentsPopover } from '@/components/tree/RunningAgentsPopover'
 import { PendingDecisionsPopover } from '@/components/tree/PendingDecisionsPopover'
+import { HeartbeatControlPopover } from '@/components/tree/HeartbeatControlPopover'
 import { useGraphStore, selectEffectiveHealthScores } from '@/stores/graphStore'
 import { useEditorStore } from '@/stores/editorStore'
 import { useAgentEditorStore } from '@/stores/agentEditorStore'
@@ -145,6 +147,7 @@ function SkillManagerLayoutImpl() {
   const runningAgentsData = useRunningAgentStatusSync()
   // Pending decision sync (single polling instance, feeds sidebar + world view)
   const pendingDecisionsData = usePendingDecisionSync()
+  const heartbeatControlData = useHeartbeatControlStatus()
 
   // Mobile state
   const [isMobile, setIsMobile] = useState(
@@ -1408,6 +1411,7 @@ function SkillManagerLayoutImpl() {
         onNavigateToRunningAgent={handleNavigateToRunningAgent}
         runningAgentsData={runningAgentsData}
         pendingDecisionsData={pendingDecisionsData}
+        heartbeatControlData={heartbeatControlData}
         onNavigateToDecision={handleNavigateToDecision}
         onOpenTopicWizard={() => navigate(topicWizardPath())}
         onDuplicateAgent={(id) => void handleDuplicateAgentById(id)}
@@ -1649,6 +1653,12 @@ function SkillManagerLayoutImpl() {
                 <h2 className="text-sm font-semibold text-foreground truncate">Skills</h2>
               </div>
               <div className="flex items-center gap-1">
+                <HeartbeatControlPopover
+                  status={heartbeatControlData.status}
+                  isLoading={heartbeatControlData.isLoading}
+                  onPause={() => heartbeatControlData.pause('manual pause from UI')}
+                  onResume={heartbeatControlData.resume}
+                />
                 {runningAgentsData.count > 0 && (
                   <RunningAgentsPopover
                     onNavigateToMember={(teamId, agentId) => {
@@ -1790,8 +1800,9 @@ function SkillManagerLayoutImpl() {
                 onContentMatchesChange={setContentMatches}
                 onNavigateToRunningAgent={handleNavigateToRunningAgent}
                 runningAgentsData={runningAgentsData}
-        pendingDecisionsData={pendingDecisionsData}
-        onNavigateToDecision={handleNavigateToDecision}
+                pendingDecisionsData={pendingDecisionsData}
+                heartbeatControlData={heartbeatControlData}
+                onNavigateToDecision={handleNavigateToDecision}
                 onOpenTopicWizard={() => navigate(topicWizardPath())}
                 onDuplicateAgent={(id) => void handleDuplicateAgentById(id)}
                 onCustomizeAgent={handleCustomizeAgentById}

@@ -2,11 +2,13 @@ package heartbeat
 
 import (
 	"context"
+	"errors"
 	"log"
-	"prompt-manager/store"
-	"prompt-manager/teamconfig"
 	"sync"
 	"time"
+
+	"prompt-manager/store"
+	"prompt-manager/teamconfig"
 
 	"github.com/robfig/cron/v3"
 )
@@ -42,6 +44,7 @@ type Scheduler struct {
 	agentClient   AgentClient
 	configStore   HeartbeatConfigStore
 	teamExecStore *TeamExecutionStore
+	controlStore  *HeartbeatControlStore
 }
 
 // NewScheduler creates a new heartbeat scheduler
@@ -55,6 +58,15 @@ func NewScheduler(executor HeartbeatExecutor, agentClient AgentClient, configSto
 		configStore:   configStore,
 		teamExecStore: teamExecStore,
 	}
+}
+
+// SetControlStore attaches the heartbeat engagement guard. The scheduler
+// treats a paused gate as "do not schedule/start" without mutating heartbeat
+// configs, so resume can restore the same enabled configs later.
+func (s *Scheduler) SetControlStore(controlStore *HeartbeatControlStore) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.controlStore = controlStore
 }
 
 // Start begins the scheduler
@@ -107,6 +119,16 @@ func (s *Scheduler) Stop() {
 func (s *Scheduler) Schedule(teamID, agentID, schedule string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	if s.controlStore != nil {
+		if paused, err := s.controlStore.AllowStart(context.Background(), teamID); err != nil {
+			if errors.Is(err, ErrHeartbeatPaused) {
+				log.Printf("Heartbeat schedule held for %s/%s: %s", teamID, agentID, paused.Message)
+				return nil
+			}
+			return err
+		}
+	}
 
 	key := makeKey(teamID, agentID)
 
@@ -230,6 +252,17 @@ func (s *Scheduler) IsScheduled(teamID, agentID string) bool {
 // executeHeartbeat runs a heartbeat execution
 func (s *Scheduler) executeHeartbeat(ctx context.Context, teamID, agentID string) {
 	log.Printf("Executing heartbeat for %s/%s", teamID, agentID)
+
+	if s.controlStore != nil {
+		if paused, err := s.controlStore.AllowStart(ctx, teamID); err != nil {
+			if errors.Is(err, ErrHeartbeatPaused) {
+				log.Printf("Heartbeat execution skipped for %s/%s: %s", teamID, agentID, paused.Message)
+				return
+			}
+			log.Printf("Heartbeat execution gate failed for %s/%s: %v", teamID, agentID, err)
+			return
+		}
+	}
 
 	// Start with empty profileKey; Execute() resolves the default based on
 	// the team's runtime mode when the key is empty.

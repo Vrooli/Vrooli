@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { cleanup, screen, waitFor } from "@testing-library/react";
 
 import { renderWithProviders } from "../../test-utils";
 import { selectors } from "../../consts/selectors";
@@ -7,10 +7,9 @@ import { selectors } from "../../consts/selectors";
 vi.mock("../../api/clients", () => ({
   searchClient: { status: vi.fn(), search: vi.fn() },
   validationClient: { validateScenario: vi.fn() },
-  reindexClient: { reindex: vi.fn() },
 }));
 
-import { reindexClient, searchClient } from "../../api/clients";
+import { searchClient } from "../../api/clients";
 import { StatusPanel } from "./StatusPanel";
 
 describe("StatusPanel", () => {
@@ -41,7 +40,7 @@ describe("StatusPanel", () => {
     expect(screen.getByTestId(selectors.status.qdrant)).toHaveTextContent("status.yes");
   });
 
-  it("clicking reindex triggers a non-dry-run reconcile", async () => {
+  it("does not expose the removed unauthenticated reindex action", async () => {
     vi.mocked(searchClient.status).mockResolvedValue({
       available: false,
       ollama: false,
@@ -49,12 +48,6 @@ describe("StatusPanel", () => {
       indexedCount: 0,
       lastReconcileAt: "",
       lastReconcileOutcome: "",
-    } as never);
-    vi.mocked(reindexClient.reindex).mockResolvedValue({
-      jobId: "job-1",
-      plannedUpserts: 5,
-      plannedDeletes: 1,
-      dryRun: false,
     } as never);
 
     renderWithProviders(<StatusPanel />);
@@ -64,15 +57,8 @@ describe("StatusPanel", () => {
         "status.availableNo",
       ),
     );
-    fireEvent.click(screen.getByTestId(selectors.status.reindex));
-
-    await waitFor(() => {
-      expect(reindexClient.reindex).toHaveBeenCalledWith({
-        scenario: "",
-        dryRun: false,
-      });
-    });
-    expect(await screen.findByTestId(selectors.status.reindexed)).toBeInTheDocument();
+    expect(screen.queryByTestId(selectors.status.reindex)).not.toBeInTheDocument();
+    expect(screen.queryByTestId(selectors.status.reindexed)).not.toBeInTheDocument();
   });
 
   it("renders an error when status() rejects", async () => {

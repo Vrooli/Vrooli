@@ -6,6 +6,37 @@ Heartbeats enable team members (agents) to execute autonomous tasks on a schedul
 
 Each team member can have at most one heartbeat configuration. Heartbeats are **disabled by default** to prevent accidental expensive LLM usage - they must be explicitly enabled.
 
+## Engagement Auto-Pause
+
+Prompt-manager also has a global heartbeat control layer that can pause future scheduled/manual heartbeat starts when operator engagement goes idle. This is separate from `heartbeat.json.enabled`: auto-pause never disables or deletes member heartbeat configs.
+
+Default policy:
+- Auto-pause enabled.
+- Warning after 10 days without operator engagement.
+- Pause after 14 days without operator engagement.
+- Resume mode is manual.
+- A new/missing control store initializes `lastHumanEngagementAt` to the current time so upgrades do not immediately pause all teams.
+
+Operator engagement signals:
+- `operator-direct` decision status transitions such as accepted, rejected, deferred, or pending.
+- `operator-direct` manual heartbeat or team trigger.
+- `operator-direct` heartbeat control/policy changes.
+- `operator-direct` heartbeat config changes.
+
+Non-signals:
+- Agent-member decision transitions.
+- Writer-skill or agent knowledge writes.
+- Scheduled heartbeat starts/completions.
+- Read-only UI polling.
+
+Visible states:
+- `active`: scheduling and manual triggers are allowed.
+- `warning-idle-soon`: scheduling is allowed, but the warning threshold has elapsed.
+- `paused-auto-idle`: new scheduled/manual starts are blocked because the idle threshold elapsed.
+- `paused-manual`: new scheduled/manual starts are blocked by an explicit operator pause.
+
+Manual resume clears pause state and reschedules enabled heartbeats for enabled teams. Already-running agent-manager runs are not cancelled by auto-pause.
+
 ## Architecture
 
 ```
@@ -197,9 +228,10 @@ See [CODE: api/heartbeat/client.go] for the client implementation.
 
 1. **Off by Default**: Heartbeats must be explicitly enabled
 2. **Team Gating**: Heartbeats (scheduled or manual) only run when the team is enabled
-3. **Profile Controls**: Agent-manager profiles control permissions and resources
-4. **Logging**: All executions are logged for audit
-5. **Manual Override**: Heartbeats can be manually triggered for testing
+3. **Engagement Gate**: Auto-pause blocks new starts when operator engagement has gone idle
+4. **Profile Controls**: Agent-manager profiles control permissions and resources
+5. **Logging**: All executions are logged for audit
+6. **Manual Trigger**: Heartbeats can be manually triggered for testing while the engagement gate is `active` or `warning-idle-soon`
 
 ## Team Execution Model
 

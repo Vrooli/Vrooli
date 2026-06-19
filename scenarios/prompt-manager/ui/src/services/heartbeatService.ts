@@ -102,6 +102,62 @@ export interface MemberDocRequest {
   content: string
 }
 
+export type HeartbeatControlStatusValue =
+  | 'active'
+  | 'warning-idle-soon'
+  | 'paused-auto-idle'
+  | 'paused-manual'
+
+export interface HeartbeatControlPolicy {
+  enabled: boolean
+  pauseAfterDaysWithoutHumanEngagement: number
+  warningAfterDaysWithoutHumanEngagement: number
+  resumeMode: 'manual'
+}
+
+export interface HeartbeatControlTeamOverride {
+  mode: 'inherit' | 'disabled' | 'custom'
+  pauseAfterDaysWithoutHumanEngagement?: number | null
+  warningAfterDaysWithoutHumanEngagement?: number | null
+  resumeMode?: 'manual'
+}
+
+export interface HeartbeatControlStatus {
+  scope: 'global' | 'team'
+  teamId?: string
+  status: HeartbeatControlStatusValue
+  effectivePolicy: HeartbeatControlPolicy
+  globalPolicy?: HeartbeatControlPolicy
+  teamOverride?: HeartbeatControlTeamOverride | null
+  lastHumanEngagementAt?: string | null
+  lastHumanEngagementReason?: string
+  lastHumanEngagementTeamId?: string
+  pausedAt?: string | null
+  pausedReason?: string
+  warningAt?: string | null
+  autoPauseAt?: string | null
+  resumeHint?: string
+  teams?: HeartbeatControlStatus[]
+}
+
+export interface HeartbeatControlPolicyRequest {
+  enabled?: boolean
+  pauseAfterDaysWithoutHumanEngagement?: number
+  warningAfterDaysWithoutHumanEngagement?: number
+  resumeMode?: 'manual'
+}
+
+export interface HeartbeatControlTeamPolicyRequest {
+  mode?: 'inherit' | 'disabled' | 'custom'
+  pauseAfterDaysWithoutHumanEngagement?: number
+  warningAfterDaysWithoutHumanEngagement?: number
+  resumeMode?: 'manual'
+}
+
+export interface HeartbeatControlPauseRequest {
+  reason?: string
+}
+
 // --- Team State Types ---
 
 export interface HandoffResponse {
@@ -569,6 +625,61 @@ export async function triggerHeartbeat(teamId: string, agentId: string): Promise
   )
   invalidateHeartbeatListCache(teamId)
   return response
+}
+
+// ============================================================================
+// Heartbeat Control Operations
+// ============================================================================
+
+export async function getHeartbeatControlStatus(): Promise<HeartbeatControlStatus> {
+  return apiRequest<HeartbeatControlStatus>('/heartbeats/control')
+}
+
+export async function getTeamHeartbeatControlStatus(teamId: string): Promise<HeartbeatControlStatus> {
+  return apiRequest<HeartbeatControlStatus>(`/teams/${encodeURIComponent(teamId)}/heartbeats/control`)
+}
+
+export async function pauseHeartbeatControl(request?: HeartbeatControlPauseRequest): Promise<HeartbeatControlStatus> {
+  return apiRequest<HeartbeatControlStatus>('/heartbeats/control/pause', {
+    method: 'POST',
+    body: JSON.stringify(request ?? {}),
+  })
+}
+
+export async function resumeHeartbeatControl(): Promise<HeartbeatControlStatus> {
+  return apiRequest<HeartbeatControlStatus>('/heartbeats/control/resume', {
+    method: 'POST',
+  })
+}
+
+export async function updateHeartbeatControlPolicy(request: HeartbeatControlPolicyRequest): Promise<HeartbeatControlStatus> {
+  return apiRequest<HeartbeatControlStatus>('/heartbeats/control/policy', {
+    method: 'PUT',
+    body: JSON.stringify(request),
+  })
+}
+
+export async function pauseTeamHeartbeatControl(teamId: string, request?: HeartbeatControlPauseRequest): Promise<HeartbeatControlStatus> {
+  return apiRequest<HeartbeatControlStatus>(`/teams/${encodeURIComponent(teamId)}/heartbeats/control/pause`, {
+    method: 'POST',
+    body: JSON.stringify(request ?? {}),
+  })
+}
+
+export async function resumeTeamHeartbeatControl(teamId: string): Promise<HeartbeatControlStatus> {
+  return apiRequest<HeartbeatControlStatus>(`/teams/${encodeURIComponent(teamId)}/heartbeats/control/resume`, {
+    method: 'POST',
+  })
+}
+
+export async function updateTeamHeartbeatControlPolicy(
+  teamId: string,
+  request: HeartbeatControlTeamPolicyRequest
+): Promise<HeartbeatControlStatus> {
+  return apiRequest<HeartbeatControlStatus>(`/teams/${encodeURIComponent(teamId)}/heartbeats/control/policy`, {
+    method: 'PUT',
+    body: JSON.stringify(request),
+  })
 }
 
 // ============================================================================

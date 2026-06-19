@@ -27,7 +27,6 @@ var Endpoints = []module.EndpointDescriptor{
 				"default_backend":  "string",
 			},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console capabilities"},
 	},
 	{
 		ID:          "capabilities_liveness",
@@ -43,6 +42,5 @@ var Endpoints = []module.EndpointDescriptor{
 				"timestamp":    "string",
 			},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console capabilities", Args: []string{"--liveness"}},
 	},
 }

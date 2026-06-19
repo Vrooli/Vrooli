@@ -379,6 +379,10 @@ func (h *connectHandler) ListDefaults(ctx context.Context, _ *connect.Request[mo
 	return connect.NewResponse(resp), nil
 }
 
+func (h *connectHandler) DoctorCatalog(_ context.Context, _ *connect.Request[modelsv1.DoctorCatalogRequest]) (*connect.Response[modelsv1.DoctorCatalogResponse], error) {
+	return connect.NewResponse(doctorReportToProto(h.deps.Registry.DoctorCatalog())), nil
+}
+
 // selectError maps selector errors to actionable Connect codes.
 func selectError(err error) error {
 	switch {

@@ -23,9 +23,6 @@
           "curl": "curl http://localhost:${API_PORT}/health"
         }
       ],
-      "cli_mapping": {
-        "command": "web-console status"
-      },
       "rest_exception": {
         "reason": "ops_probe",
         "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client."
@@ -63,13 +60,7 @@
           "code": "unavailable",
           "description": "All AI providers failed"
         }
-      ],
-      "cli_mapping": {
-        "command": "web-console ai generate",
-        "args": [
-          "--body-file"
-        ]
-      }
+      ]
     },
     {
       "id": "ai_suggest",
@@ -103,13 +94,7 @@
           "code": "unavailable",
           "description": "All AI providers failed"
         }
-      ],
-      "cli_mapping": {
-        "command": "web-console ai suggest",
-        "args": [
-          "--body-file"
-        ]
-      }
+      ]
     },
     {
       "id": "ai_config_get",
@@ -124,9 +109,6 @@
           "health": "[]ProviderHealth",
           "providers": "[]ProviderConfig"
         }
-      },
-      "cli_mapping": {
-        "command": "web-console ai config-get"
       }
     },
     {
@@ -149,13 +131,7 @@
           "code": "invalid_argument",
           "description": "Unknown provider or out-of-range value"
         }
-      ],
-      "cli_mapping": {
-        "command": "web-console ai config-set",
-        "args": [
-          "--body-file"
-        ]
-      }
+      ]
     },
     {
       "id": "ai_health_get",
@@ -169,9 +145,6 @@
         "properties": {
           "health": "[]ProviderHealth"
         }
-      },
-      "cli_mapping": {
-        "command": "web-console ai health"
       }
     },
     {
@@ -381,9 +354,6 @@
           "session_backends": "BackendOption[]",
           "timestamp": "string"
         }
-      },
-      "cli_mapping": {
-        "command": "web-console capabilities"
       }
     },
     {
@@ -399,12 +369,6 @@
           "capabilities": "CapabilityState[]",
           "timestamp": "string"
         }
-      },
-      "cli_mapping": {
-        "command": "web-console capabilities",
-        "args": [
-          "--liveness"
-        ]
       }
     },
     {
@@ -435,14 +399,7 @@
           "code": "invalid_argument",
           "description": "Missing session_id"
         }
-      ],
-      "cli_mapping": {
-        "command": "web-console conversation get",
-        "args": [
-          "--session",
-          "--since"
-        ]
-      }
+      ]
     },
     {
       "id": "conversation_cursor_update",
@@ -463,13 +420,7 @@
           "code": "invalid_argument",
           "description": "Missing session_id"
         }
-      ],
-      "cli_mapping": {
-        "command": "web-console conversation cursor-set",
-        "args": [
-          "--body-file"
-        ]
-      }
+      ]
     },
     {
       "id": "conversation_event_summarize",
@@ -497,14 +448,7 @@
           "code": "not_found",
           "description": "Session or event not found"
         }
-      ],
-      "cli_mapping": {
-        "command": "web-console conversation summarize",
-        "args": [
-          "--session",
-          "--event"
-        ]
-      }
+      ]
     },
     {
       "id": "conversation_file_resolve",
@@ -542,14 +486,7 @@
           "code": "not_found",
           "description": "Session or file not found"
         }
-      ],
-      "cli_mapping": {
-        "command": "web-console conversation file-resolve",
-        "args": [
-          "--session",
-          "--path"
-        ]
-      }
+      ]
     },
     {
       "id": "conversation_file_content",
@@ -591,14 +528,7 @@
           "code": "failed_precondition",
           "description": "File type not previewable or too large"
         }
-      ],
-      "cli_mapping": {
-        "command": "web-console conversation file-content",
-        "args": [
-          "--session",
-          "--path"
-        ]
-      }
+      ]
     },
     {
       "id": "events_list",
@@ -613,9 +543,6 @@
           "events": "Event[]",
           "total": "int32"
         }
-      },
-      "cli_mapping": {
-        "command": "web-console events"
       }
     },
     {
@@ -663,9 +590,6 @@
           "uptime": "string",
           "voice_skip_verification_total": "int64"
         }
-      },
-      "cli_mapping": {
-        "command": "web-console metrics"
       }
     },
     {
@@ -697,13 +621,7 @@
           "code": "unavailable",
           "description": "Backend unavailable (e.g. tmux missing)"
         }
-      ],
-      "cli_mapping": {
-        "command": "web-console session create",
-        "args": [
-          "--body-file"
-        ]
-      }
+      ]
     },
     {
       "id": "sessions_list",
@@ -717,9 +635,6 @@
         "properties": {
           "sessions": "[]Session"
         }
-      },
-      "cli_mapping": {
-        "command": "web-console session list"
       }
     },
     {
@@ -746,13 +661,7 @@
           "code": "not_found",
           "description": "Session not found"
         }
-      ],
-      "cli_mapping": {
-        "command": "web-console session get",
-        "args": [
-          "--id"
-        ]
-      }
+      ]
     },
     {
       "id": "sessions_delete",
@@ -767,13 +676,7 @@
           "code": "invalid_argument",
           "description": "Missing id"
         }
-      ],
-      "cli_mapping": {
-        "command": "web-console session delete",
-        "args": [
-          "--id"
-        ]
-      }
+      ]
     },
     {
       "id": "sessions_recoverable_list",
@@ -787,9 +690,6 @@
         "properties": {
           "sessions": "[]RecoverableSession"
         }
-      },
-      "cli_mapping": {
-        "command": "web-console session list-recoverable"
       }
     },
     {
@@ -815,13 +715,7 @@
           "code": "failed_precondition",
           "description": "Session is not in awaiting_recovery status"
         }
-      ],
-      "cli_mapping": {
-        "command": "web-console session dismiss",
-        "args": [
-          "--id"
-        ]
-      }
+      ]
     },
     {
       "id": "sessions_recover",
@@ -861,13 +755,7 @@
           "code": "resource_exhausted",
           "description": "Session limit reached while spawning replacement"
         }
-      ],
-      "cli_mapping": {
-        "command": "web-console session recover",
-        "args": [
-          "--id"
-        ]
-      }
+      ]
     },
     {
       "id": "sessions_policy_get",
@@ -893,13 +781,7 @@
           "code": "not_found",
           "description": "Session not found"
         }
-      ],
-      "cli_mapping": {
-        "command": "web-console session policy-get",
-        "args": [
-          "--id"
-        ]
-      }
+      ]
     },
     {
       "id": "sessions_policy_update",
@@ -925,14 +807,7 @@
           "code": "not_found",
           "description": "Session not found"
         }
-      ],
-      "cli_mapping": {
-        "command": "web-console session policy-set",
-        "args": [
-          "--id",
-          "--body-file"
-        ]
-      }
+      ]
     },
     {
       "id": "settings_session_defaults_get",
@@ -946,9 +821,6 @@
         "properties": {
           "defaults": "SessionDefaults"
         }
-      },
-      "cli_mapping": {
-        "command": "web-console settings session-defaults-get"
       }
     },
     {
@@ -977,13 +849,7 @@
           "code": "invalid_argument",
           "description": "Unknown backend or malformed expiration policy"
         }
-      ],
-      "cli_mapping": {
-        "command": "web-console settings session-defaults-set",
-        "args": [
-          "--body-file"
-        ]
-      }
+      ]
     },
     {
       "id": "shortcuts_get_effective",
@@ -997,9 +863,6 @@
         "properties": {
           "shortcuts": "[]Shortcut"
         }
-      },
-      "cli_mapping": {
-        "command": "web-console shortcuts effective"
       }
     },
     {
@@ -1014,9 +877,6 @@
         "properties": {
           "profiles": "[]Profile"
         }
-      },
-      "cli_mapping": {
-        "command": "web-console shortcuts list"
       }
     },
     {
@@ -1047,13 +907,7 @@
           "code": "invalid_argument",
           "description": "Unknown scope, blank id/name, or shortcut entry missing label/command"
         }
-      ],
-      "cli_mapping": {
-        "command": "web-console shortcuts upsert",
-        "args": [
-          "--body-file"
-        ]
-      }
+      ]
     },
     {
       "id": "shortcuts_delete_profile",
@@ -1067,12 +921,6 @@
         "properties": {
           "id": "string"
         }
-      },
-      "cli_mapping": {
-        "command": "web-console shortcuts delete",
-        "args": [
-          "<id>"
-        ]
       }
     },
     {
@@ -1137,9 +985,6 @@
           "groups": "[]Group",
           "panes": "[]Pane"
         }
-      },
-      "cli_mapping": {
-        "command": "web-console workspace layout-get"
       }
     },
     {
@@ -1155,12 +1000,6 @@
           "active_pane": "string",
           "pane_order": "[]string"
         }
-      },
-      "cli_mapping": {
-        "command": "web-console workspace layout-save",
-        "args": [
-          "--body-file"
-        ]
       }
     },
     {
@@ -1175,12 +1014,6 @@
         "properties": {
           "pane": "Pane"
         }
-      },
-      "cli_mapping": {
-        "command": "web-console workspace pane-update",
-        "args": [
-          "--body-file"
-        ]
       }
     },
     {
@@ -1189,13 +1022,7 @@
       "method": "POST",
       "summary": "Delete a pane",
       "description": "Idempotent: succeeds whether the session_id exists or not.",
-      "category": "workspace",
-      "cli_mapping": {
-        "command": "web-console workspace pane-delete",
-        "args": [
-          "<session-id>"
-        ]
-      }
+      "category": "workspace"
     },
     {
       "id": "workspace_create_group",
@@ -1209,12 +1036,6 @@
         "properties": {
           "group": "Group"
         }
-      },
-      "cli_mapping": {
-        "command": "web-console workspace group-create",
-        "args": [
-          "--body-file"
-        ]
       }
     },
     {
@@ -1236,13 +1057,7 @@
           "code": "not_found",
           "description": "Group id does not exist"
         }
-      ],
-      "cli_mapping": {
-        "command": "web-console workspace group-update",
-        "args": [
-          "--body-file"
-        ]
-      }
+      ]
     },
     {
       "id": "workspace_delete_group",
@@ -1250,315 +1065,7 @@
       "method": "POST",
       "summary": "Delete a tab group",
       "description": "Idempotent. Panes in the group have their group_id cleared.",
-      "category": "workspace",
-      "cli_mapping": {
-        "command": "web-console workspace group-delete",
-        "args": [
-          "<group-id>"
-        ]
-      }
-    }
-  ],
-  "cli_commands": [
-    {
-      "name": "status",
-      "description": "Check API and dependency health",
-      "endpoint_id": "health"
-    },
-    {
-      "name": "capabilities",
-      "description": "Inspect runtime capabilities (full snapshot)",
-      "endpoint_id": "capabilities_get"
-    },
-    {
-      "name": "capabilities --liveness",
-      "description": "Fast capability liveness probe",
-      "endpoint_id": "capabilities_liveness"
-    },
-    {
-      "name": "settings session-defaults-get",
-      "description": "Show default values applied to new sessions",
-      "endpoint_id": "settings_session_defaults_get"
-    },
-    {
-      "name": "settings session-defaults-set",
-      "description": "Update default session settings",
-      "endpoint_id": "settings_session_defaults_update"
-    },
-    {
-      "name": "shortcuts effective",
-      "description": "Show the effective shortcut list",
-      "endpoint_id": "shortcuts_get_effective"
-    },
-    {
-      "name": "shortcuts list",
-      "description": "List all shortcut profiles",
-      "endpoint_id": "shortcuts_list_profiles"
-    },
-    {
-      "name": "shortcuts upsert",
-      "description": "Create or update a shortcut profile",
-      "endpoint_id": "shortcuts_upsert_profile"
-    },
-    {
-      "name": "shortcuts delete",
-      "description": "Delete a shortcut profile",
-      "endpoint_id": "shortcuts_delete_profile"
-    },
-    {
-      "name": "ai generate",
-      "description": "Generate a shell command from natural language",
-      "endpoint_id": "ai_generate"
-    },
-    {
-      "name": "ai suggest",
-      "description": "Suggest 1-3 candidate shell commands",
-      "endpoint_id": "ai_suggest"
-    },
-    {
-      "name": "ai config-get",
-      "description": "Get AI provider configuration and health",
-      "endpoint_id": "ai_config_get"
-    },
-    {
-      "name": "ai config-set",
-      "description": "Update an AI provider's configuration",
-      "endpoint_id": "ai_config_update"
-    },
-    {
-      "name": "ai health",
-      "description": "Get AI provider health",
-      "endpoint_id": "ai_health_get"
-    },
-    {
-      "name": "conversation get",
-      "description": "Get a session's conversation history",
-      "endpoint_id": "conversation_get"
-    },
-    {
-      "name": "conversation cursor-set",
-      "description": "Update a session's read/listened cursor",
-      "endpoint_id": "conversation_cursor_update"
-    },
-    {
-      "name": "conversation summarize",
-      "description": "Summarize one assistant event for TTS",
-      "endpoint_id": "conversation_event_summarize"
-    },
-    {
-      "name": "conversation file-resolve",
-      "description": "Resolve a file reference for a session",
-      "endpoint_id": "conversation_file_resolve"
-    },
-    {
-      "name": "conversation file-content",
-      "description": "Read a previewable file referenced by a session",
-      "endpoint_id": "conversation_file_content"
-    },
-    {
-      "name": "session create",
-      "description": "Create a terminal session",
-      "endpoint_id": "sessions_create"
-    },
-    {
-      "name": "session list",
-      "description": "List active sessions",
-      "endpoint_id": "sessions_list"
-    },
-    {
-      "name": "session get",
-      "description": "Show one session",
-      "endpoint_id": "sessions_get"
-    },
-    {
-      "name": "session delete",
-      "description": "Terminate a session",
-      "endpoint_id": "sessions_delete"
-    },
-    {
-      "name": "session list-recoverable",
-      "description": "List orphaned persistent sessions awaiting recovery",
-      "endpoint_id": "sessions_recoverable_list"
-    },
-    {
-      "name": "session dismiss",
-      "description": "Dismiss a recoverable session",
-      "endpoint_id": "sessions_recoverable_dismiss"
-    },
-    {
-      "name": "session recover",
-      "description": "Recover an orphaned session",
-      "endpoint_id": "sessions_recover"
-    },
-    {
-      "name": "session policy-get",
-      "description": "Show the expiration policy for a session",
-      "endpoint_id": "sessions_policy_get"
-    },
-    {
-      "name": "session policy-set",
-      "description": "Update a session's expiration policy",
-      "endpoint_id": "sessions_policy_update"
-    },
-    {
-      "name": "tts config-get",
-      "description": "Get the auto-TTS configuration",
-      "endpoint_id": "tts_config_get"
-    },
-    {
-      "name": "tts config-set",
-      "description": "Update auto-TTS configuration",
-      "endpoint_id": "tts_config_update"
-    },
-    {
-      "name": "tts status",
-      "description": "Show the live TTS runtime status snapshot",
-      "endpoint_id": "tts_status"
-    },
-    {
-      "name": "tts event",
-      "description": "Record a TTS playback lifecycle event",
-      "endpoint_id": "tts_event_record"
-    },
-    {
-      "name": "tts summarize-config-get",
-      "description": "Get long-response summarization config",
-      "endpoint_id": "tts_summarize_config_get"
-    },
-    {
-      "name": "tts summarize-config-set",
-      "description": "Update long-response summarization config",
-      "endpoint_id": "tts_summarize_config_update"
-    },
-    {
-      "name": "tts synthesize",
-      "description": "Synthesize text to audio (returns audio bytes)",
-      "endpoint_id": "tts_synthesize"
-    },
-    {
-      "name": "tts cache-get",
-      "description": "Fetch cached TTS audio for an event",
-      "endpoint_id": "tts_cache_get"
-    },
-    {
-      "name": "tts voices",
-      "description": "List available TTS voices",
-      "endpoint_id": "tts_voices"
-    },
-    {
-      "name": "voice transcribe",
-      "description": "Transcribe audio bytes via Whisper",
-      "endpoint_id": "voice_transcribe"
-    },
-    {
-      "name": "voice config-get",
-      "description": "Show voice stream config",
-      "endpoint_id": "voice_config_get"
-    },
-    {
-      "name": "voice config-set",
-      "description": "Update voice stream config",
-      "endpoint_id": "voice_config_update"
-    },
-    {
-      "name": "voice wakeword-get",
-      "description": "Show wake word config",
-      "endpoint_id": "voice_wakeword_get"
-    },
-    {
-      "name": "voice wakeword-set",
-      "description": "Upload/update a wake word template",
-      "endpoint_id": "voice_wakeword_update"
-    },
-    {
-      "name": "voice wakeword-delete",
-      "description": "Delete the wake word template",
-      "endpoint_id": "voice_wakeword_delete"
-    },
-    {
-      "name": "voice speaker-config-get",
-      "description": "Show speaker verification config",
-      "endpoint_id": "voice_speaker_config_get"
-    },
-    {
-      "name": "voice speaker-config-set",
-      "description": "Update speaker verification config",
-      "endpoint_id": "voice_speaker_config_update"
-    },
-    {
-      "name": "voice speaker-status",
-      "description": "Show speaker verification status",
-      "endpoint_id": "voice_speaker_status"
-    },
-    {
-      "name": "voice speaker-profiles",
-      "description": "List speaker verification profiles",
-      "endpoint_id": "voice_speaker_profiles"
-    },
-    {
-      "name": "voice speaker-enroll",
-      "description": "Enroll a speaker profile from audio bytes",
-      "endpoint_id": "voice_speaker_enroll"
-    },
-    {
-      "name": "voice speaker-clear",
-      "description": "Clear the bound speaker profile",
-      "endpoint_id": "voice_speaker_clear"
-    },
-    {
-      "name": "voice speaker-remove",
-      "description": "Remove a speaker profile from the active list",
-      "endpoint_id": "voice_speaker_remove"
-    },
-    {
-      "name": "voice speaker-delete",
-      "description": "Hard-delete a speaker profile",
-      "endpoint_id": "voice_speaker_delete"
-    },
-    {
-      "name": "workspace layout-get",
-      "description": "Show workspace layout",
-      "endpoint_id": "workspace_get_layout"
-    },
-    {
-      "name": "workspace layout-save",
-      "description": "Persist workspace layout",
-      "endpoint_id": "workspace_save_layout"
-    },
-    {
-      "name": "workspace pane-update",
-      "description": "Create or update a pane",
-      "endpoint_id": "workspace_update_pane"
-    },
-    {
-      "name": "workspace pane-delete",
-      "description": "Delete a pane",
-      "endpoint_id": "workspace_delete_pane"
-    },
-    {
-      "name": "workspace group-create",
-      "description": "Create a tab group",
-      "endpoint_id": "workspace_create_group"
-    },
-    {
-      "name": "workspace group-update",
-      "description": "Update a tab group",
-      "endpoint_id": "workspace_update_group"
-    },
-    {
-      "name": "workspace group-delete",
-      "description": "Delete a tab group",
-      "endpoint_id": "workspace_delete_group"
-    },
-    {
-      "name": "events",
-      "description": "Show recent lifecycle events from the in-memory ring buffer",
-      "endpoint_id": "events_list"
-    },
-    {
-      "name": "metrics",
-      "description": "Show runtime metrics (active sessions, totals, TTS/voice counters)",
-      "endpoint_id": "metrics_get"
+      "category": "workspace"
     }
   ]
 }

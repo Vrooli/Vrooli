@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-18T19:07:34-04:00"
+    "last_validated_at": "2026-06-18T21:52:32-04:00"
   },
   "requirements": [
     {
       "id": "IMG-P0-010",
       "title": "Persistent Storage \u0026 Output Ownership",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-010",
       "category": "core",
       "description": "Image binaries stored via api-core storage/blobstore (outside repo) by default; save location overridable per request; outputs user-owned (copy/move/delete anywhere).",
@@ -15,7 +15,7 @@
           "type": "test",
           "ref": "api/internal/storage/storage_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Storage resolver writes outside repo and honors per-request override"
         },
         {

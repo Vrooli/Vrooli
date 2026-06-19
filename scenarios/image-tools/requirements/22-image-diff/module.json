@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-18T20:38:03-04:00"
+    "last_validated_at": "2026-06-18T21:52:32-04:00"
   },
   "requirements": [
     {
       "id": "IMG-P1-009",
-      "title": "Image Diff & Visual Comparison",
-      "status": "implemented",
+      "title": "Image Diff \u0026 Visual Comparison",
+      "status": "complete",
       "prd_ref": "OT-P1-009",
       "category": "feature",
       "description": "General-purpose image diff/visual-comparison op built as a first-class capability so test-genie can later adopt it without duplication. Pure-Go (no model): pixel metrics (changed-pixel fraction + MAE/RMSE/PSNR), perceptual metrics (DCT pHash distance + structural similarity), and a heat-map overlay. Proto DiffService + REST POST /api/v1/diff/compare edge + CLI `diff` + UI Compare view.",

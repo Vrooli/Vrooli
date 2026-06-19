@@ -65,6 +65,9 @@ const (
 	// ModelsServiceListDefaultsProcedure is the fully-qualified name of the ModelsService's
 	// ListDefaults RPC.
 	ModelsServiceListDefaultsProcedure = "/vrooli.image_tools.v1.models.ModelsService/ListDefaults"
+	// ModelsServiceDoctorCatalogProcedure is the fully-qualified name of the ModelsService's
+	// DoctorCatalog RPC.
+	ModelsServiceDoctorCatalogProcedure = "/vrooli.image_tools.v1.models.ModelsService/DoctorCatalog"
 )
 
 // ModelsServiceClient is a client for the vrooli.image_tools.v1.models.ModelsService service.
@@ -105,6 +108,11 @@ type ModelsServiceClient interface {
 	// ListDefaults returns the effective default model per operation, marking
 	// whether it comes from the seed or an operator pin.
 	ListDefaults(context.Context, *connect.Request[models.ListDefaultsRequest]) (*connect.Response[models.ListDefaultsResponse], error)
+	// DoctorCatalog checks seed catalog integrity: enabled models must be
+	// installable, operation coverage must have at least one installable enabled
+	// model, commercial-use policy must be clean, and checksum/source metadata
+	// must be coherent.
+	DoctorCatalog(context.Context, *connect.Request[models.DoctorCatalogRequest]) (*connect.Response[models.DoctorCatalogResponse], error)
 }
 
 // NewModelsServiceClient constructs a client for the vrooli.image_tools.v1.models.ModelsService
@@ -184,6 +192,12 @@ func NewModelsServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(modelsServiceMethods.ByName("ListDefaults")),
 			connect.WithClientOptions(opts...),
 		),
+		doctorCatalog: connect.NewClient[models.DoctorCatalogRequest, models.DoctorCatalogResponse](
+			httpClient,
+			baseURL+ModelsServiceDoctorCatalogProcedure,
+			connect.WithSchema(modelsServiceMethods.ByName("DoctorCatalog")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -200,6 +214,7 @@ type modelsServiceClient struct {
 	addCustomModel  *connect.Client[models.AddCustomModelRequest, models.AddCustomModelResponse]
 	setDefaultModel *connect.Client[models.SetDefaultModelRequest, models.SetDefaultModelResponse]
 	listDefaults    *connect.Client[models.ListDefaultsRequest, models.ListDefaultsResponse]
+	doctorCatalog   *connect.Client[models.DoctorCatalogRequest, models.DoctorCatalogResponse]
 }
 
 // ListModels calls vrooli.image_tools.v1.models.ModelsService.ListModels.
@@ -257,6 +272,11 @@ func (c *modelsServiceClient) ListDefaults(ctx context.Context, req *connect.Req
 	return c.listDefaults.CallUnary(ctx, req)
 }
 
+// DoctorCatalog calls vrooli.image_tools.v1.models.ModelsService.DoctorCatalog.
+func (c *modelsServiceClient) DoctorCatalog(ctx context.Context, req *connect.Request[models.DoctorCatalogRequest]) (*connect.Response[models.DoctorCatalogResponse], error) {
+	return c.doctorCatalog.CallUnary(ctx, req)
+}
+
 // ModelsServiceHandler is an implementation of the vrooli.image_tools.v1.models.ModelsService
 // service.
 type ModelsServiceHandler interface {
@@ -296,6 +316,11 @@ type ModelsServiceHandler interface {
 	// ListDefaults returns the effective default model per operation, marking
 	// whether it comes from the seed or an operator pin.
 	ListDefaults(context.Context, *connect.Request[models.ListDefaultsRequest]) (*connect.Response[models.ListDefaultsResponse], error)
+	// DoctorCatalog checks seed catalog integrity: enabled models must be
+	// installable, operation coverage must have at least one installable enabled
+	// model, commercial-use policy must be clean, and checksum/source metadata
+	// must be coherent.
+	DoctorCatalog(context.Context, *connect.Request[models.DoctorCatalogRequest]) (*connect.Response[models.DoctorCatalogResponse], error)
 }
 
 // NewModelsServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -371,6 +396,12 @@ func NewModelsServiceHandler(svc ModelsServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(modelsServiceMethods.ByName("ListDefaults")),
 		connect.WithHandlerOptions(opts...),
 	)
+	modelsServiceDoctorCatalogHandler := connect.NewUnaryHandler(
+		ModelsServiceDoctorCatalogProcedure,
+		svc.DoctorCatalog,
+		connect.WithSchema(modelsServiceMethods.ByName("DoctorCatalog")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.image_tools.v1.models.ModelsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ModelsServiceListModelsProcedure:
@@ -395,6 +426,8 @@ func NewModelsServiceHandler(svc ModelsServiceHandler, opts ...connect.HandlerOp
 			modelsServiceSetDefaultModelHandler.ServeHTTP(w, r)
 		case ModelsServiceListDefaultsProcedure:
 			modelsServiceListDefaultsHandler.ServeHTTP(w, r)
+		case ModelsServiceDoctorCatalogProcedure:
+			modelsServiceDoctorCatalogHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -446,4 +479,8 @@ func (UnimplementedModelsServiceHandler) SetDefaultModel(context.Context, *conne
 
 func (UnimplementedModelsServiceHandler) ListDefaults(context.Context, *connect.Request[models.ListDefaultsRequest]) (*connect.Response[models.ListDefaultsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.image_tools.v1.models.ModelsService.ListDefaults is not implemented"))
+}
+
+func (UnimplementedModelsServiceHandler) DoctorCatalog(context.Context, *connect.Request[models.DoctorCatalogRequest]) (*connect.Response[models.DoctorCatalogResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.image_tools.v1.models.ModelsService.DoctorCatalog is not implemented"))
 }

@@ -35,7 +35,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Errors: []module.ErrorDesc{
 			{Status: 400, Code: "invalid_argument", Description: "Missing session_id"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console conversation get", Args: []string{"--session", "--since"}},
 	},
 	{
 		ID:          "conversation_cursor_update",
@@ -51,7 +50,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Errors: []module.ErrorDesc{
 			{Status: 400, Code: "invalid_argument", Description: "Missing session_id"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console conversation cursor-set", Args: []string{"--body-file"}},
 	},
 	{
 		ID:          "conversation_event_summarize",
@@ -72,7 +70,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 400, Code: "invalid_argument", Description: "Missing ids or event is not assistant-authored"},
 			{Status: 404, Code: "not_found", Description: "Session or event not found"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console conversation summarize", Args: []string{"--session", "--event"}},
 	},
 	{
 		ID:          "conversation_file_resolve",
@@ -99,7 +96,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 403, Code: "permission_denied", Description: "Path resolved outside allowed roots"},
 			{Status: 404, Code: "not_found", Description: "Session or file not found"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console conversation file-resolve", Args: []string{"--session", "--path"}},
 	},
 	{
 		ID:          "conversation_file_content",
@@ -126,6 +122,5 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 404, Code: "not_found", Description: "Session or file not found"},
 			{Status: 412, Code: "failed_precondition", Description: "File type not previewable or too large"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console conversation file-content", Args: []string{"--session", "--path"}},
 	},
 }

@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package vrooli.tunnel_manager.v1.audit;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/audit;audit_v1";
+
+// =============================================================================
+// AUDIT DOMAIN — port-compliance auditor
+// =============================================================================
+//
+// @stability stable
+//
+// Wire contract for AuditService. Computes findings (owns no persistent data)
+// by comparing each manifested route's scenario service.json against the
+// manifest: a drifted or ranged UI port silently breaks ingress, so this
+// surfaces mismatches, missing scenarios, and non-fixed ports.
+//
+// Consumed by:
+//   - API: handlers/audit/connect_handler.go implements AuditServiceHandler.
+//   - CLI: cli/domains/audit/handlers.go (audit run).
+//   - UI:  ui/src/features/audit/.
+// =============================================================================
+
+service AuditService {
+  // RunAudit computes port-compliance findings across all manifested routes.
+  rpc RunAudit(RunAuditRequest) returns (RunAuditResponse);
+}
+
+// AuditStatus classifies a single route's port-compliance finding.
+enum AuditStatus {
+  AUDIT_STATUS_UNSPECIFIED = 0;
+  AUDIT_STATUS_COMPLIANT = 1;
+  // service.json port does not match the manifest local_port.
+  AUDIT_STATUS_MISMATCH = 2;
+  // No scenario / service.json found for the route.
+  AUDIT_STATUS_MISSING_SCENARIO = 3;
+  // service.json declares no fixed UI port (ranged/dynamic).
+  AUDIT_STATUS_MISSING_PORT = 4;
+}
+
+// PortAuditResult is one route's compliance finding.
+message PortAuditResult {
+  string subdomain = 1;
+  string scenario = 2;
+  // Port the manifest expects (the route's local_port).
+  int32 expected_port = 3;
+  // Port found in the scenario's service.json; 0 when none.
+  int32 actual_port = 4;
+  AuditStatus status = 5;
+  // Human-readable explanation of the finding.
+  string detail = 6;
+}
+
+message RunAuditRequest {
+}
+
+message RunAuditResponse {
+  repeated PortAuditResult results = 1;
+  // Count of results whose status != COMPLIANT.
+  int32 violation_count = 2;
+}

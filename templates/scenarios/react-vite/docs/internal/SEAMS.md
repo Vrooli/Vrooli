@@ -20,7 +20,7 @@ shape consumed by multiple processes)? Wire contracts belong in
 NOT in interfaces. The generated Go + TypeScript types are the
 canonical types every test, handler, and UI component reads from.
 
-The `health` proto in `packages/proto/schemas/{{SCENARIO_ID}}/v1/health/`
+The `health` proto in `packages/proto/schemas/{{SCENARIO_ID}}/v1/shared/`
 is the worked example. The Go fixture (`api/internal/testutil/fixtures/health.go`)
 re-exports the generated `Response` and provides functional-options
 builders; the UI factory (`ui/src/test-utils/factories.ts`) builds

@@ -15,26 +15,74 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 )
 
-// CommandGroups aggregates flat command groups. Single-verb domains like
-// `events`, `metrics`, and `capabilities` live here so the invocation stays
-// `web-console events` instead of `web-console events list`.
+// CommandGroups aggregates flat command groups. Every proto-bound domain now
+// flows through SubcommandGroups (built from cli/manifest.json via
+// cliapp.LoadFromManifest), so there are no code-built flat groups today.
 func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
-	return []cliapp.CommandGroup{
-		events.Register(core),
-		metrics.Register(core),
-		capabilities.Register(core),
-	}
+	_ = core
+	return nil
 }
 
-// SubcommandGroups aggregates hierarchical command groups from domain packages.
-func SubcommandGroups(core *cliapp.ScenarioApp) []cliapp.SubcommandGroup {
-	return []cliapp.SubcommandGroup{
-		session.Register(core),
-		terminal.Register(core),
-		workspace.Register(core),
-		settings.Register(core),
-		shortcuts.Register(core),
-		ai.Register(core),
-		conversation.Register(core),
+// SubcommandGroups aggregates hierarchical command groups. Proto-bound
+// domains (ai, capabilities, conversation, events, metrics, session,
+// settings, shortcuts, workspace) are built from the embedded
+// cli/manifest.json — the single source of truth for the CLI surface — by
+// each domain's Register(core, manifest) calling cliapp.LoadFromManifest.
+// The capabilities/events/metrics groups expose a single command whose name
+// matches the group, so they set DefaultSubcommand to preserve the flat
+// `web-console <group>` invocation.
+//
+// terminal stays code-registered: its commands (screen, send-text,
+// send-keys, wait-idle) can't be expressed as one-command-per-method
+// manifest bindings (send-text and send-keys both map to SendInput), so its
+// TerminalService methods are declared in cli/manifest.json's omitted[].
+func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.SubcommandGroup, error) {
+	aiGroup, err := ai.Register(core, manifest)
+	if err != nil {
+		return nil, err
 	}
+	capabilitiesGroup, err := capabilities.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	conversationGroup, err := conversation.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	eventsGroup, err := events.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	metricsGroup, err := metrics.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	sessionGroup, err := session.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	settingsGroup, err := settings.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	shortcutsGroup, err := shortcuts.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	workspaceGroup, err := workspace.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.SubcommandGroup{
+		sessionGroup,
+		terminal.Register(core),
+		workspaceGroup,
+		settingsGroup,
+		shortcutsGroup,
+		aiGroup,
+		conversationGroup,
+		eventsGroup,
+		metricsGroup,
+		capabilitiesGroup,
+	}, nil
 }

@@ -24,6 +24,8 @@ type fakeSubmitter struct {
 	submitted int
 }
 
+const handlerInstallTestModelID = "handler-install-test-model"
+
 func (f *fakeSubmitter) Submit(_ context.Context, spec internaljobs.Spec) (internaljobs.Job, error) {
 	f.submitted++
 	f.last = spec
@@ -53,6 +55,18 @@ func newInstallHandler(t *testing.T) (*connectHandler, *internalmodels.Installer
 			return os.WriteFile(dest, bytes.Repeat([]byte("weights\n"), 256), 0o644)
 		}),
 		DiskAvail: func(string) (int64, error) { return int64(100) << 30, nil },
+	}
+	if err := installer.AddCustom(context.Background(), internalmodels.Model{
+		ID:           handlerInstallTestModelID,
+		Name:         "Handler Install Test Model",
+		Operations:   []string{"upscale"},
+		Tier:         internalmodels.TierNiceToHave,
+		Backend:      "onnxruntime",
+		SizeMBApprox: 16,
+		Hardware:     internalmodels.Hardware{CPUCapable: true},
+		Source:       internalmodels.Source{DownloadURL: "https://example.test/handler-install-test-model.bin"},
+	}); err != nil {
+		t.Fatalf("add handler install test model: %v", err)
 	}
 	sub := &fakeSubmitter{}
 	h := NewConnectHandler(Deps{
@@ -110,7 +124,7 @@ func (fn downloaderTo) Download(_ context.Context, _, dest string, _ func(int64,
 
 func TestInstallModelSubmitsJob(t *testing.T) {
 	h, _, sub := newInstallHandler(t)
-	resp, err := h.InstallModel(context.Background(), connect.NewRequest(&modelsv1.InstallModelRequest{Id: "sd-1.5"}))
+	resp, err := h.InstallModel(context.Background(), connect.NewRequest(&modelsv1.InstallModelRequest{Id: handlerInstallTestModelID}))
 	if err != nil {
 		t.Fatalf("install: %v", err)
 	}
@@ -128,10 +142,10 @@ func TestInstallModelSubmitsJob(t *testing.T) {
 func TestInstallModelAlreadyInstalledSkipsJob(t *testing.T) {
 	h, installer, sub := newInstallHandler(t)
 	ctx := context.Background()
-	if _, err := installer.Install(ctx, "sd-1.5", nil); err != nil {
+	if _, err := installer.Install(ctx, handlerInstallTestModelID, nil); err != nil {
 		t.Fatalf("pre-install: %v", err)
 	}
-	resp, err := h.InstallModel(ctx, connect.NewRequest(&modelsv1.InstallModelRequest{Id: "sd-1.5"}))
+	resp, err := h.InstallModel(ctx, connect.NewRequest(&modelsv1.InstallModelRequest{Id: handlerInstallTestModelID}))
 	if err != nil {
 		t.Fatalf("install: %v", err)
 	}
@@ -154,10 +168,10 @@ func TestInstallModelUnknownNotFound(t *testing.T) {
 func TestInstallStateSurfacesInListAndGet(t *testing.T) {
 	h, installer, _ := newInstallHandler(t)
 	ctx := context.Background()
-	if _, err := installer.Install(ctx, "sd-1.5", nil); err != nil {
+	if _, err := installer.Install(ctx, handlerInstallTestModelID, nil); err != nil {
 		t.Fatalf("install: %v", err)
 	}
-	got, err := h.GetModel(ctx, connect.NewRequest(&modelsv1.GetModelRequest{Id: "sd-1.5"}))
+	got, err := h.GetModel(ctx, connect.NewRequest(&modelsv1.GetModelRequest{Id: handlerInstallTestModelID}))
 	if err != nil {
 		t.Fatalf("get: %v", err)
 	}
@@ -172,13 +186,13 @@ func TestInstallStateSurfacesInListAndGet(t *testing.T) {
 func TestRemoveModelClearsInstall(t *testing.T) {
 	h, installer, _ := newInstallHandler(t)
 	ctx := context.Background()
-	if _, err := installer.Install(ctx, "sd-1.5", nil); err != nil {
+	if _, err := installer.Install(ctx, handlerInstallTestModelID, nil); err != nil {
 		t.Fatalf("install: %v", err)
 	}
-	if _, err := h.RemoveModel(ctx, connect.NewRequest(&modelsv1.RemoveModelRequest{Id: "sd-1.5"})); err != nil {
+	if _, err := h.RemoveModel(ctx, connect.NewRequest(&modelsv1.RemoveModelRequest{Id: handlerInstallTestModelID})); err != nil {
 		t.Fatalf("remove: %v", err)
 	}
-	if installer.Installed(ctx, "sd-1.5") {
+	if installer.Installed(ctx, handlerInstallTestModelID) {
 		t.Fatal("model should not be installed after remove")
 	}
 }

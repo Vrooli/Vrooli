@@ -26,6 +26,7 @@ import { MemberPromptPipelineSection } from './MemberPromptPipelineSection'
 import { MemberPromptPreview } from './MemberPromptPreview'
 import { MemberInboxTab } from './MemberInboxTab'
 import { useRunningAgentsStore } from '@/stores/runningAgentsStore'
+import { useHeartbeatControlStatus } from '@/hooks/useHeartbeatControlStatus'
 import { ToastAction } from '@/components/ui/toast'
 import { runDetailPath } from '@/app/routes/route-paths'
 
@@ -112,6 +113,10 @@ export function MemberDetailPanel({
   const navigate = useNavigate()
   // Running agent state from shared store
   const runningAgent = useRunningAgentsStore((s) => s.agentMap.get(member.agentId))
+  const heartbeatControl = useHeartbeatControlStatus()
+  const teamHeartbeatControlStatus = useMemo(() => {
+    return heartbeatControl.status?.teams?.find((entry) => entry.teamId === team.id) ?? null
+  }, [heartbeatControl.status?.teams, team.id])
 
   // Internal section state for uncontrolled use; ignored when `section` is supplied.
   const [internalSection, setInternalSection] = useState<MemberDetailSection>(
@@ -599,6 +604,7 @@ export function MemberDetailPanel({
               runDuration={runningAgent?.duration}
               runningRunId={runningAgent?.runId}
               onOpenRun={(runId) => navigate(runDetailPath(runId))}
+              heartbeatControlStatus={teamHeartbeatControlStatus}
             />
 
             <section>

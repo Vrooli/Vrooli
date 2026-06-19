@@ -3,7 +3,7 @@ package fixtures
 import (
 	"testing"
 
-	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/health"
+	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/shared"
 	"google.golang.org/protobuf/proto"
 )
 

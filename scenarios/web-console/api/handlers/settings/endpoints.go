@@ -22,7 +22,6 @@ var Endpoints = []module.EndpointDescriptor{
 			Type:       "object",
 			Properties: map[string]string{"defaults": "SessionDefaults"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console settings session-defaults-get"},
 	},
 	{
 		ID:          "settings_session_defaults_update",
@@ -45,6 +44,5 @@ var Endpoints = []module.EndpointDescriptor{
 		Errors: []module.ErrorDesc{
 			{Status: 400, Code: "invalid_argument", Description: "Unknown backend or malformed expiration policy"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console settings session-defaults-set", Args: []string{"--body-file"}},
 	},
 }

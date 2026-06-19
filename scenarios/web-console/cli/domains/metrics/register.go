@@ -3,7 +3,6 @@ package metrics
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"connectrpc.com/connect"
 
@@ -11,40 +10,41 @@ import (
 	metricsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/metrics/metrics_v1connect"
 
 	"github.com/vrooli/cli-core/cliapp"
-	"github.com/vrooli/cli-core/cliutil"
 
 	"web-console/cli/internal/support"
 )
 
-// Register exposes `web-console metrics` as a flat read-only command
-// over MetricsService.Get.
-func Register(core *cliapp.ScenarioApp) cliapp.CommandGroup {
-	return cliapp.CommandGroup{
-		Title: "Metrics",
-		Commands: []cliapp.Command{
-			{
-				Name:        "metrics",
-				Description: "Show runtime metrics (active sessions, totals, TTS/voice counters)",
-				NeedsAPI:    true,
-				Run:         func(args []string) error { return run(core, args) },
-			},
-		},
-	}
+type handlers struct {
+	core   *cliapp.ScenarioApp
+	client metricsconnect.MetricsServiceClient
 }
 
-func newClient(core *cliapp.ScenarioApp) metricsconnect.MetricsServiceClient {
+func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
-	return metricsconnect.NewMetricsServiceClient(httpClient, baseURL)
+	return &handlers{
+		core:   core,
+		client: metricsconnect.NewMetricsServiceClient(httpClient, baseURL),
+	}
 }
 
-func run(core *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("metrics")
-	jsonOutput := cliutil.JSONFlag(fs)
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
+// Register exposes `web-console metrics` as a flat read-only command over
+// MetricsService.Get. Built from the embedded manifest; DefaultSubcommand
+// preserves the flat invocation.
+func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
+	h := newHandlers(core)
+	bindings := map[string]func(cliapp.RunContext) error{
+		"MetricsService.Get": h.run,
 	}
+	group, err := cliapp.LoadFromManifest(manifest, "metrics", bindings)
+	if err != nil {
+		return cliapp.SubcommandGroup{}, fmt.Errorf("metrics: load from manifest: %w", err)
+	}
+	group.DefaultSubcommand = "metrics"
+	return group, nil
+}
 
-	resp, err := newClient(core).Get(context.Background(), connect.NewRequest(&metricsv1.GetRequest{}))
+func (h *handlers) run(rc cliapp.RunContext) error {
+	resp, err := h.client.Get(context.Background(), connect.NewRequest(&metricsv1.GetRequest{}))
 	if err != nil {
 		return cliapp.WrapAPIError("metrics get", err, nil)
 	}
@@ -55,10 +55,10 @@ func run(core *cliapp.ScenarioApp, args []string) error {
 		Results:        metricRows(resp.Msg),
 		RetrievalHints: []string{fmt.Sprintf("%s events", support.CLIName)},
 	}
-	if *jsonOutput {
-		return cliapp.PrintReportJSON(os.Stdout, report)
+	if rc.JSON() {
+		return cliapp.PrintReportJSON(rc.Stdout(), report)
 	}
-	return cliapp.RenderListReport(os.Stdout, report)
+	return cliapp.RenderListReport(rc.Stdout(), report)
 }
 
 func metricRows(m *metricsv1.GetResponse) []string {

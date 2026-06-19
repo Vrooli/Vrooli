@@ -27,7 +27,7 @@ belong in [`DATA.md`](DATA.md).
 
 | Domain | Purpose | Primary Archetype | Owns Data | Surfaces | Requirements | Source Paths |
 |---|---|---|---|---|---|---|
-| health | Report runtime readiness and dependency reachability. | Reporting / query | No product data. | API, UI | Starter scaffold health. | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/{{SCENARIO_ID}}/v1/health/` |
+| health | Report runtime readiness and dependency reachability. | Reporting / query | No product data. | API, UI | Starter scaffold health. | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/{{SCENARIO_ID}}/v1/shared/health.proto` |
 | _(your domain)_ | What product capability it owns. | Pick an archetype. | Its tables, if any. | API/CLI/UI. | PRD requirement modules. | `api/internal/<domain>/`, … |
 
 <!-- EXAMPLE-DOMAIN:notes START -->

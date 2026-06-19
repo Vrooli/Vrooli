@@ -1,87 +1,80 @@
 {
-  "description": "Spawn an agent-manager–managed research run that uses L2 endpoints and web-search CLI commands as tools, plans and decomposes the query, loops (search → read → find gaps → re-search), verifies across sources, and emits a cited brief, reusing existing agentic infrastructure with no hand-rolled loop plumbing.",
-  "module_id": "MOD-P1-010",
-  "prd_ref": "OT-P1-002",
-  "priority": "P1",
+  "_metadata": {
+    "last_validated_at": "2026-06-18T14:15:16-04:00"
+  },
   "requirements": [
     {
-      "category": "integration",
-      "dependencies": [
-        "REQ-P1-001",
-        "REQ-P0-005",
-        "REQ-P0-006"
-      ],
-      "description": "Spawn a research run via the agent-manager lifecycle (no hand-rolled loop plumbing) that uses L2 endpoints and web-search CLI commands as registered tools. The agent plans and decomposes the input query, iterates through a search → read → gap-identification → re-search loop, verifies claims across multiple sources, and emits a cited brief upon completion. The agent reuses existing agentic infrastructure exclusively.",
       "id": "REQ-P1-002",
-      "prd_ref": "OT-P1-002",
-      "status": "complete",
       "title": "L3 Iterative Research Agent — Agent-Manager-Managed Research Run",
+      "status": "in_progress",
+      "prd_ref": "OT-P1-002",
+      "category": "integration",
+      "description": "Spawn a research run via the agent-manager lifecycle (no hand-rolled loop plumbing) that uses L2 endpoints and web-search CLI commands as registered tools. The agent plans and decomposes the input query, iterates through a search → read → gap-identification → re-search loop, verifies claims across multiple sources, and emits a cited brief upon completion. The agent reuses existing agentic infrastructure exclusively.",
       "validation": [
         {
-          "notes": "The L3 task contract directs the agent to decompose the input into focused sub-queries [criterion revised from auto-generated 'in-process decomposition function' framing: by design (DECISIONS.md — L3 is an agent-manager run, no hand-rolled loop plumbing) decomposition is delegated to the agent LLM via the task prompt; the testable surface is the prompt contract, which mandates researching gaps via focused L2 sub-queries. LLM output cardinality is validated live, not in unit tests]",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/research/l3_test.go::TestRunL3EncodesGapIterationBeyondSingleL2",
-          "status": "implemented",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The L3 task contract directs the agent to decompose the input into focused sub-queries [criterion revised from auto-generated 'in-process decomposition function' framing: by design (DECISIONS.md — L3 is an agent-manager run, no hand-rolled loop plumbing) decomposition is delegated to the agent LLM via the task prompt; the testable surface is the prompt contract, which mandates researching gaps via focused L2 sub-queries. LLM output cardinality is validated live, not in unit tests]"
         },
         {
-          "notes": "The L3 task contract directs the agent to identify what the gathered findings do NOT cover and re-search those gaps [criterion revised from auto-generated 'in-process gap-identification step' framing: gap identification is delegated to the agent LLM via the task prompt by design (DECISIONS.md); the prompt contract mandating gap-directed iteration over the gathered set is the testable surface]",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/research/l3_test.go::TestRunL3EncodesGapIterationBeyondSingleL2",
-          "status": "implemented",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "The L3 task contract directs the agent to identify what the gathered findings do NOT cover and re-search those gaps [criterion revised from auto-generated 'in-process gap-identification step' framing: gap identification is delegated to the agent LLM via the task prompt by design (DECISIONS.md); the prompt contract mandating gap-directed iteration over the gathered set is the testable surface]"
         },
         {
-          "notes": "Agent tool registry for a research run includes L2 fetch endpoint and findings CLI commands as callable tools",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/research/l3_test.go::TestRunL3PromptRegistersResearchTools",
-          "status": "implemented",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Agent tool registry for a research run includes L2 fetch endpoint and findings CLI commands as callable tools"
         },
         {
-          "notes": "L3 agent-manager run smoke test: spawn a research run, verify the agent invokes L2 tools at least once, completes within the configured iteration budget, and emits a brief with at least one finding [ATTENDED live validation — needs agent-manager + ollama + searxng live, so it cannot be a hermetic test; run via the monthly runbook scripts/live-validate.sh which asserts these post-conditions and logs evidence with `test-genie requirements manual-log --expires-in 30`; the 30-day TTL means the requirement regresses honestly when evidence lapses — re-run the runbook]",
-          "phase": "integration",
+          "type": "manual",
           "ref": "scripts/live-validate.sh",
+          "phase": "integration",
           "status": "implemented",
-          "type": "manual"
+          "notes": "L3 agent-manager run smoke test: spawn a research run, verify the agent invokes L2 tools at least once, completes within the configured iteration budget, and emits a brief with at least one finding [ATTENDED live validation — needs agent-manager + ollama + searxng live, so it cannot be a hermetic test; run via the monthly runbook scripts/live-validate.sh which asserts these post-conditions and logs evidence with `test-genie requirements manual-log --expires-in 30`; the 30-day TTL means the requirement regresses honestly when evidence lapses — re-run the runbook]"
         },
         {
-          "notes": "Verify the L3 run uses agent-manager run lifecycle (spawn, step, complete) and does not implement its own loop",
-          "phase": "integration",
+          "type": "test",
           "ref": "api/internal/research/l3_test.go::TestRunL3SpawnsAndPolls",
-          "status": "implemented",
-          "type": "test"
-        },
-        {
-          "notes": "Verify the agent re-searches at least once when gap identification produces unresolved questions [ATTENDED live validation — gap-iteration is LLM behavior observable only in a real run; the monthly runbook scripts/live-validate.sh inspects the run transcript for >1 search/L2 invocation and logs evidence via `test-genie requirements manual-log --expires-in 30` (30-day TTL, honest regression on lapse)]",
           "phase": "integration",
+          "status": "implemented",
+          "notes": "Verify the L3 run uses agent-manager run lifecycle (spawn, step, complete) and does not implement its own loop"
+        },
+        {
+          "type": "manual",
           "ref": "scripts/live-validate.sh",
+          "phase": "integration",
           "status": "implemented",
-          "type": "manual"
+          "notes": "Verify the agent re-searches at least once when gap identification produces unresolved questions [ATTENDED live validation — gap-iteration is LLM behavior observable only in a real run; the monthly runbook scripts/live-validate.sh inspects the run transcript for \u003e1 search/L2 invocation and logs evidence via `test-genie requirements manual-log --expires-in 30` (30-day TTL, honest regression on lapse)]"
         },
         {
-          "notes": "L3 research run completes within a configurable maximum iteration budget (default: 10 loops) and does not run indefinitely [budget implemented as a task-contract directive: every L3 prompt carries the loop budget (default research.DefaultMaxResearchLoops=10, lever WEB_SEARCH_L3_MAX_LOOPS) with an explicit converge-when-spent instruction; the hard run lifecycle bound (timeout/cancel) is owned by agent-manager per the L3 design decision]",
-          "phase": "performance",
+          "type": "test",
           "ref": "api/internal/research/l3_test.go::TestL3PromptBoundsIterationBudget",
+          "phase": "performance",
           "status": "implemented",
-          "type": "test"
+          "notes": "L3 research run completes within a configurable maximum iteration budget (default: 10 loops) and does not run indefinitely [budget implemented as a task-contract directive: every L3 prompt carries the loop budget (default research.DefaultMaxResearchLoops=10, lever WEB_SEARCH_L3_MAX_LOOPS) with an explicit converge-when-spent instruction; the hard run lifecycle bound (timeout/cancel) is owned by agent-manager per the L3 design decision]"
         },
         {
-          "notes": "A user can request a deep research run and receive a cited brief without manually orchestrating multiple searches",
-          "phase": "business",
+          "type": "test",
           "ref": "api/handlers/research/connect_handler_test.go::TestRunL3AndStatusProjectToProto",
+          "phase": "business",
           "status": "implemented",
-          "type": "test"
+          "notes": "A user can request a deep research run and receive a cited brief without manually orchestrating multiple searches"
         },
         {
-          "notes": "The L3 agent produces more thorough results than a single L2 call by iterating over gaps",
-          "phase": "business",
+          "type": "test",
           "ref": "api/internal/research/l3_test.go::TestRunL3EncodesGapIterationBeyondSingleL2",
+          "phase": "business",
           "status": "implemented",
-          "type": "test"
+          "notes": "The L3 agent produces more thorough results than a single L2 call by iterating over gaps"
         }
       ]
     }
-  ],
-  "title": "L3 Iterative Research Agent"
+  ]
 }

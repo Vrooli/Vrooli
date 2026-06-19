@@ -24,6 +24,5 @@ var Endpoints = []module.EndpointDescriptor{
 				"total":  "int32",
 			},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console events"},
 	},
 }

@@ -241,6 +241,22 @@
           }
         },
         {
+          "name": "doctor",
+          "description": "Diagnose model catalog installability and policy integrity",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ModelsService",
+            "method": "DoctorCatalog"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "install",
           "description": "Install (download) a model's weights as a durable job (--wait to block once on completion)",
           "positionals": [

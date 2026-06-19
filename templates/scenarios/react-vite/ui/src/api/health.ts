@@ -1,7 +1,7 @@
 import { type JsonValue, fromJson } from "@bufbuild/protobuf";
 import { buildApiUrl } from "@vrooli/api-base";
-import { ResponseSchema } from "@vrooli/proto-types/{{SCENARIO_ID}}/v1/health/health_pb";
-import type { Response as HealthResponse } from "@vrooli/proto-types/{{SCENARIO_ID}}/v1/health/health_pb";
+import { ResponseSchema } from "@vrooli/proto-types/{{SCENARIO_ID}}/v1/shared/health_pb";
+import type { Response as HealthResponse } from "@vrooli/proto-types/{{SCENARIO_ID}}/v1/shared/health_pb";
 
 import { API_BASE, PROTO_READ_OPTIONS, decodeApiError } from "./client";
 

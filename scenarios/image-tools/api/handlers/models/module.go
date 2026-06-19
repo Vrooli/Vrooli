@@ -183,6 +183,24 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 	},
 	{
+		ID:          "models_doctor",
+		Path:        modelsconnect.ModelsServiceDoctorCatalogProcedure,
+		Method:      "POST",
+		Summary:     "Diagnose model catalog integrity",
+		Description: "Checks seed catalog installability, operation coverage, commercial-use policy, blocklist overlap, and checksum/source metadata coherence.",
+		Category:    "models",
+		Response: &module.Schema{
+			Type: "object",
+			Properties: map[string]string{
+				"ok":       "bool",
+				"findings": "array<CatalogFinding>",
+			},
+		},
+		Examples: []module.Example{
+			{Name: "Doctor catalog", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/DoctorCatalog -H 'Content-Type: application/json' -d '{}'"},
+		},
+	},
+	{
 		ID:          "models_install",
 		Path:        modelsconnect.ModelsServiceInstallModelProcedure,
 		Method:      "POST",

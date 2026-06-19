@@ -27,6 +27,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"ModelsService.SelectModel":     h.selectModel,
 		"ModelsService.SetModelEnabled": h.setEnabled,
 		"ModelsService.ListBlocklist":   h.blocklist,
+		"ModelsService.DoctorCatalog":   h.doctor,
 		"ModelsService.InstallModel":    h.install,
 		"ModelsService.RemoveModel":     h.remove,
 		"ModelsService.AddCustomModel":  h.addCustom,

@@ -911,6 +911,27 @@
       ]
     },
     {
+      "id": "models_doctor",
+      "path": "/vrooli.image_tools.v1.models.ModelsService/DoctorCatalog",
+      "method": "POST",
+      "summary": "Diagnose model catalog integrity",
+      "description": "Checks seed catalog installability, operation coverage, commercial-use policy, blocklist overlap, and checksum/source metadata coherence.",
+      "category": "models",
+      "response": {
+        "type": "object",
+        "properties": {
+          "findings": "array<CatalogFinding>",
+          "ok": "bool"
+        }
+      },
+      "examples": [
+        {
+          "name": "Doctor catalog",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/DoctorCatalog -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
       "id": "models_install",
       "path": "/vrooli.image_tools.v1.models.ModelsService/InstallModel",
       "method": "POST",

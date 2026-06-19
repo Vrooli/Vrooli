@@ -19,11 +19,26 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
 )
 
 // CLIName is the invocation name used in retrieval hints and next-command strings.
 const CLIName = "web-console"
+
+// ApplyAliases re-attaches command aliases to a manifest-loaded subcommand
+// group. cli-manifest/v1 has no per-command alias field, so domains that
+// shipped subcommand aliases before the manifest migration (e.g. `session
+// list` aliased as `ls`) restore them here, post-LoadFromManifest, to keep
+// the observable CLI surface byte-identical. The map is subcommand name →
+// aliases; names not present in the group are ignored.
+func ApplyAliases(subs []cliapp.Command, aliases map[string][]string) {
+	for i := range subs {
+		if a, ok := aliases[subs[i].Name]; ok {
+			subs[i].Aliases = append(subs[i].Aliases, a...)
+		}
+	}
+}
 
 // NewFlagSet returns a flag set configured for library-style usage with suppressed output.
 func NewFlagSet(name string) *flag.FlagSet {

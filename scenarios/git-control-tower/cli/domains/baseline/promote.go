@@ -46,6 +46,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
+	impactv1 "github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/impact"
 )
 
 // defaultDrainTimeout bounds the quiesce wait before promote aborts (or, with
@@ -135,6 +136,14 @@ func promoteEngagement(core *cliapp.ScenarioApp, p promoteParams) (promoteResult
 		return promoteResult{}, err
 	}
 	res := promoteResult{Scenario: scenario, Slug: slug, Mode: eng.Mode}
+	if p.force {
+		res.Steps = append(res.Steps, "proto impact gate bypassed (--force)")
+	} else if err := checkProtoImpactGate(ctx, scenario); err != nil {
+		res.Message = "promote aborted: proto impact gate failed"
+		return res, err
+	} else {
+		res.Steps = append(res.Steps, "proto impact gate passed")
+	}
 
 	// Live-mode promote = accept in place: the working tree was edited+validated
 	// live, so there is nothing to swap — just drop the safety net.
@@ -252,6 +261,25 @@ func promoteEngagement(core *cliapp.ScenarioApp, p promoteParams) (promoteResult
 	res.Promoted = true
 	res.Message = "promoted (shadow → live)"
 	return res, nil
+}
+
+func checkProtoImpactGate(ctx context.Context, scenario string) error {
+	out, err := runCommand(ctx, "proto-health", "impact", "scenario", scenario, "--json")
+	if err != nil {
+		return fmt.Errorf("proto impact gate: %w", err)
+	}
+	if strings.TrimSpace(string(out)) == "" {
+		return nil
+	}
+	var resp impactv1.GetImpactResponse
+	if err := protojson.Unmarshal(out, &resp); err != nil {
+		return fmt.Errorf("proto impact gate: parse impact report: %w", err)
+	}
+	report := resp.GetReport()
+	if report == nil || report.GetStableUnreconciledBreakingCount() == 0 {
+		return nil
+	}
+	return fmt.Errorf("promote blocked: %d stable proto breaking change(s) still have unreconciled consumers; rerun `proto-health impact scenario %s` or use --force with a recorded reason", report.GetStableUnreconciledBreakingCount(), scenario)
 }
 
 // drainLiveRuns shells the agent-manager promote-quiesce primitive (P6) and

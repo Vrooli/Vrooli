@@ -12,10 +12,13 @@ those checks live in `proto-health`, alongside the proto-surface fact RPC.
 scenario-validation/v1.ScenarioValidationService.ValidateScenario
 ```
 
-Test Genie reads the shared `status` and `assessment.findings` fields. Each
-assessment finding is mapped to an `ArchitectureFinding{Source:
-FINDING_SOURCE_PROTO}`, so it carries a deterministic stable ID, normalized
-severity, and the per-source effort default.
+Test Genie reads the shared `status`, `assessment.local`, and
+`assessment.findings` fields. Each assessment finding is mapped to an
+`ArchitectureFinding{Source: FINDING_SOURCE_PROTO}`, so it carries a
+deterministic stable ID, normalized severity, and the per-source effort
+default. The phase summary carries proto-health's `current_level`, `next_level`,
+`clean`, and `unknown_count` convergence signals; phase pass/fail still comes
+only from `status`.
 
 ## Severity contract
 
@@ -31,6 +34,12 @@ normalizes the emitted severity string:
 Only ERROR findings fail the phase. They flow into the ecosystem-manager
 `proto-health` dimension, which is a soft R2 ladder input for evolvable
 architecture and contract health.
+
+proto-health also marks each finding with a `clean_requirement`. REQUIRED
+findings gate proto-health's local rung even when they are WARNING-level debt;
+UNCHECKABLE findings are excluded from the rung and surfaced as unknown. This
+lets agents continue fixing a scenario toward a clean proto surface without
+turning warning-level debt into a Test Genie failure.
 
 Generated-artifact drift for the target scenario is still an ERROR
 (`proto.gen_out_of_sync`). A proto-bearing scenario with no committed

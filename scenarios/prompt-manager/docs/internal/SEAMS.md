@@ -199,6 +199,13 @@ Heartbeat execution uses three explicit seams:
   tests to substitute fake executors to validate scheduling behavior without running agent-manager.
 - **Scheduler → Config Store**: `heartbeat.Scheduler` depends on `HeartbeatConfigStore` to resolve
   per-member profile keys and enabled state at run time.
+- **Heartbeat Control Store** (`heartbeat/control.go`): persisted runtime-data state for global/per-team
+  auto-pause policy, manual pause/resume state, and last operator engagement. `Scheduler.Schedule`,
+  cron fire execution, and manual trigger handlers consult this gate before starting new work. The
+  gate never mutates `heartbeat.json.enabled`; resume reschedules enabled configs separately.
+- **Structured Engagement Detection**: decision updates and heartbeat control/config mutations parse
+  `X-Vrooli-Attribution` and record engagement only for `kind=operator-direct`. Agent-member and
+  writer-skill activity never resets the idle clock.
 
 ### Timeout Serialization Seam
 

@@ -48,7 +48,7 @@ func testAssessment(severity string) *commonv1.MaturityAssessment {
 		Provider: "proto-health",
 		Phase:    "proto",
 		Version:  "1",
-		Local:    &commonv1.LocalMaturityAssessment{CurrentLevel: "L1", NextLevel: "L2"},
+		Local:    &commonv1.LocalMaturityAssessment{CurrentLevel: "L1", NextLevel: "L2", Clean: true, UnknownCount: 1},
 		FindingsBySeverity: map[string]int32{
 			severity: 1,
 		},
@@ -179,6 +179,9 @@ func TestRunFailedStatusEmitsFindingAndFails(t *testing.T) {
 	}
 	if got.Summary.LocalCurrentLevel != "L1" || got.Summary.LocalNextLevel != "L2" {
 		t.Fatalf("summary local = %q/%q, want L1/L2", got.Summary.LocalCurrentLevel, got.Summary.LocalNextLevel)
+	}
+	if !got.Summary.LocalClean || got.Summary.LocalUnknownCount != 1 {
+		t.Fatalf("summary clean/unknown = %v/%d, want true/1", got.Summary.LocalClean, got.Summary.LocalUnknownCount)
 	}
 }
 

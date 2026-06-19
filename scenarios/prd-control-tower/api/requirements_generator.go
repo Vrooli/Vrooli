@@ -1172,7 +1172,7 @@ func executeRequirementsValidate(entityType, entityName string, useCache bool, c
 		"requirements_readme":              true,
 		"prd_operational_target_linkage":   true,
 		"prd_requirements_without_targets": true,
-		"prd_prd_ref_integrity":            true,
+		prdRefIntegrityRuleID:              true,
 	}
 
 	for _, v := range allViolations {

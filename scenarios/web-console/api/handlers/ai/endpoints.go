@@ -35,7 +35,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 400, Code: "invalid_argument", Description: "Prompt missing"},
 			{Status: 503, Code: "unavailable", Description: "All AI providers failed"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console ai generate", Args: []string{"--body-file"}},
 	},
 	{
 		ID:          "ai_suggest",
@@ -62,7 +61,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 400, Code: "invalid_argument", Description: "Prompt missing"},
 			{Status: 503, Code: "unavailable", Description: "All AI providers failed"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console ai suggest", Args: []string{"--body-file"}},
 	},
 	{
 		ID:          "ai_config_get",
@@ -78,7 +76,6 @@ var Endpoints = []module.EndpointDescriptor{
 				"health":    "[]ProviderHealth",
 			},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console ai config-get"},
 	},
 	{
 		ID:          "ai_config_update",
@@ -97,7 +94,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Errors: []module.ErrorDesc{
 			{Status: 400, Code: "invalid_argument", Description: "Unknown provider or out-of-range value"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console ai config-set", Args: []string{"--body-file"}},
 	},
 	{
 		ID:          "ai_health_get",
@@ -110,6 +106,5 @@ var Endpoints = []module.EndpointDescriptor{
 			Type:       "object",
 			Properties: map[string]string{"health": "[]ProviderHealth"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console ai health"},
 	},
 }

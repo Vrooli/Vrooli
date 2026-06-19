@@ -33,6 +33,16 @@ enum GlobalImpact {
   GLOBAL_IMPACT_UNKNOWN = 7;
 }
 
+// CleanRequirement declares whether a provider finding must be resolved for
+// the provider-local top rung. It is orthogonal to severity, which continues to
+// determine phase pass/fail.
+enum CleanRequirement {
+  CLEAN_REQUIREMENT_UNSPECIFIED = 0;
+  CLEAN_REQUIREMENT_REQUIRED = 1;
+  CLEAN_REQUIREMENT_ADVISORY = 2;
+  CLEAN_REQUIREMENT_UNCHECKABLE = 3;
+}
+
 // LocalMaturityLevel is one provider-local rung from `.vrooli/maturity.json`.
 message LocalMaturityLevel {
   string id = 1;
@@ -50,6 +60,7 @@ message FindingMaturity {
   // Canonical maturity-go dimension id, e.g. "measures" or "security".
   string dimension = 3;
   repeated string recommended_skill_ids = 4;
+  CleanRequirement clean_requirement = 5;
 }
 
 // AssessmentFinding is the shared finding projection used by the assessment.
@@ -70,6 +81,8 @@ message LocalMaturityAssessment {
   string next_level = 2;
   repeated LocalMaturityLevel levels = 3;
   repeated string blocking_finding_codes = 4;
+  bool clean = 5;
+  int32 unknown_count = 6;
 }
 
 // MaturityAssessment is the single structural object health providers emit.
@@ -83,4 +96,5 @@ message MaturityAssessment {
   map<string, int32> findings_by_global_impact = 7;
   map<string, int32> findings_by_severity = 8;
   repeated string recommended_skill_ids = 9;
+  map<string, int32> findings_by_clean_requirement = 10;
 }

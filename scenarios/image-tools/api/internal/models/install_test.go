@@ -25,6 +25,8 @@ type installFixture struct {
 	downloads int
 }
 
+const installTestModelID = "install-test-model"
+
 func newInstallFixture(t *testing.T) *installFixture {
 	t.Helper()
 	d := db.NewSQLite(t)
@@ -50,6 +52,18 @@ func newInstallFixture(t *testing.T) *installFixture {
 		}),
 		DiskAvail: func(string) (int64, error) { return f.avail, nil },
 	}
+	if err := f.in.AddCustom(context.Background(), Model{
+		ID:           installTestModelID,
+		Name:         "Install Test Model",
+		Operations:   []string{"upscale"},
+		Tier:         TierNiceToHave,
+		Backend:      "onnxruntime",
+		SizeMBApprox: 16,
+		Hardware:     Hardware{CPUCapable: true},
+		Source:       Source{DownloadURL: "https://example.test/install-test-model.bin"},
+	}); err != nil {
+		t.Fatalf("add install test model: %v", err)
+	}
 	return f
 }
 
@@ -71,7 +85,7 @@ func TestInstall_DownloadsPinsChecksumAndRecords(t *testing.T) {
 	ctx := context.Background()
 	f := newInstallFixture(t)
 
-	rec, err := f.in.Install(ctx, "sd-1.5", nil)
+	rec, err := f.in.Install(ctx, installTestModelID, nil)
 	if err != nil {
 		t.Fatalf("install: %v", err)
 	}
@@ -81,10 +95,10 @@ func TestInstall_DownloadsPinsChecksumAndRecords(t *testing.T) {
 	if rec.Checksum != sha256Hex(f.payload) {
 		t.Fatalf("checksum not pinned to computed hash: %q", rec.Checksum)
 	}
-	if !f.in.Installed(ctx, "sd-1.5") {
+	if !f.in.Installed(ctx, installTestModelID) {
 		t.Fatalf("Installed should report true after install")
 	}
-	got, ok, err := f.in.State.Get(ctx, "sd-1.5")
+	got, ok, err := f.in.State.Get(ctx, installTestModelID)
 	if err != nil || !ok {
 		t.Fatalf("get install: ok=%v err=%v", ok, err)
 	}
@@ -97,10 +111,10 @@ func TestInstall_DownloadsPinsChecksumAndRecords(t *testing.T) {
 func TestInstall_Idempotent(t *testing.T) {
 	ctx := context.Background()
 	f := newInstallFixture(t)
-	if _, err := f.in.Install(ctx, "sd-1.5", nil); err != nil {
+	if _, err := f.in.Install(ctx, installTestModelID, nil); err != nil {
 		t.Fatalf("first install: %v", err)
 	}
-	if _, err := f.in.Install(ctx, "sd-1.5", nil); err != nil {
+	if _, err := f.in.Install(ctx, installTestModelID, nil); err != nil {
 		t.Fatalf("second install: %v", err)
 	}
 	if f.downloads != 1 {
@@ -115,7 +129,7 @@ func TestInstall_InsufficientDisk(t *testing.T) {
 	f := newInstallFixture(t)
 	f.avail = 1 << 20 // 1 MiB, far below sd-1.5's ~2.1 GB
 
-	_, err := f.in.Install(ctx, "sd-1.5", nil)
+	_, err := f.in.Install(ctx, installTestModelID, nil)
 	if !errors.Is(err, ErrInsufficientDisk) {
 		t.Fatalf("expected ErrInsufficientDisk, got %v", err)
 	}
@@ -131,14 +145,14 @@ func TestInstall_ChecksumMismatch(t *testing.T) {
 	f := newInstallFixture(t)
 
 	// Pre-pin a checksum that won't match the fake payload.
-	if err := f.in.State.Set(ctx, InstallRecord{ID: "sd-1.5", Checksum: "deadbeef"}); err != nil {
+	if err := f.in.State.Set(ctx, InstallRecord{ID: installTestModelID, Checksum: "deadbeef"}); err != nil {
 		t.Fatalf("pre-pin: %v", err)
 	}
-	_, err := f.in.Install(ctx, "sd-1.5", nil)
+	_, err := f.in.Install(ctx, installTestModelID, nil)
 	if !errors.Is(err, ErrChecksumMismatch) {
 		t.Fatalf("expected ErrChecksumMismatch, got %v", err)
 	}
-	if dirExists(filepath.Join(f.root, "models", "sd-1.5")) {
+	if dirExists(filepath.Join(f.root, "models", installTestModelID)) {
 		t.Fatalf("partial download dir should be removed on mismatch")
 	}
 }
@@ -147,16 +161,16 @@ func TestInstall_ChecksumMismatch(t *testing.T) {
 func TestRemove_DeletesWeightsAndRecord(t *testing.T) {
 	ctx := context.Background()
 	f := newInstallFixture(t)
-	if _, err := f.in.Install(ctx, "sd-1.5", nil); err != nil {
+	if _, err := f.in.Install(ctx, installTestModelID, nil); err != nil {
 		t.Fatalf("install: %v", err)
 	}
-	if err := f.in.Remove(ctx, "sd-1.5"); err != nil {
+	if err := f.in.Remove(ctx, installTestModelID); err != nil {
 		t.Fatalf("remove: %v", err)
 	}
-	if f.in.Installed(ctx, "sd-1.5") {
+	if f.in.Installed(ctx, installTestModelID) {
 		t.Fatalf("Installed should be false after remove")
 	}
-	if _, ok, _ := f.in.State.Get(ctx, "sd-1.5"); ok {
+	if _, ok, _ := f.in.State.Get(ctx, installTestModelID); ok {
 		t.Fatalf("install record should be gone after remove")
 	}
 }
@@ -203,32 +217,34 @@ func TestAddCustom_RoundTripAndLocalInstall(t *testing.T) {
 	}
 }
 
-// TestInstall_BuiltinAlwaysInstalled proves a weightless builtin model
-// (RequiresWeights == false) is reported installed without any download, and
-// Install no-ops to an installed record. This is what lets the deterministic
-// naturalize op run with zero provisioning.
-func TestInstall_BuiltinAlwaysInstalled(t *testing.T) {
-	f := newInstallFixture(t)
-	const id = "naturalize-detail-v1"
-
-	m, ok := f.in.Reg.ByID(id)
-	if !ok {
-		t.Fatalf("seed missing builtin model %q", id)
-	}
-	if m.RequiresWeights() {
-		t.Fatalf("model %q should be weightless (backend %q)", id, m.Backend)
-	}
-	if !f.in.Installed(context.Background(), id) {
-		t.Fatal("builtin model should report installed before any download")
-	}
-	rec, err := f.in.Install(context.Background(), id, nil)
-	if err != nil {
-		t.Fatalf("install builtin: %v", err)
-	}
-	if !rec.Installed {
-		t.Fatal("install record for builtin model should be Installed")
-	}
-	if f.downloads != 0 {
-		t.Fatalf("builtin model must not download anything; got %d downloads", f.downloads)
+// TestInstall_WeightlessModelsAlwaysInstalled proves weightless models
+// (RequiresWeights == false) are reported installed without any download, and
+// Install no-ops to an installed record. This is what lets deterministic and
+// pure-Go ops run with zero model provisioning.
+func TestInstall_WeightlessModelsAlwaysInstalled(t *testing.T) {
+	for _, id := range []string{"naturalize-detail-v1", "normals-from-depth", "laplacian-blur", "goimagehash", "gozxing"} {
+		t.Run(id, func(t *testing.T) {
+			f := newInstallFixture(t)
+			m, ok := f.in.Reg.ByID(id)
+			if !ok {
+				t.Fatalf("seed missing model %q", id)
+			}
+			if m.RequiresWeights() {
+				t.Fatalf("model %q should be weightless (backend %q)", id, m.Backend)
+			}
+			if !f.in.Installed(context.Background(), id) {
+				t.Fatal("weightless model should report installed before any download")
+			}
+			rec, err := f.in.Install(context.Background(), id, nil)
+			if err != nil {
+				t.Fatalf("install weightless model: %v", err)
+			}
+			if !rec.Installed {
+				t.Fatal("install record for weightless model should be Installed")
+			}
+			if f.downloads != 0 {
+				t.Fatalf("weightless model must not download anything; got %d downloads", f.downloads)
+			}
+		})
 	}
 }

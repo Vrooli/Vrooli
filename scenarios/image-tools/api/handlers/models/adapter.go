@@ -154,3 +154,31 @@ func blocklistToProto(b internalmodels.BlocklistEntry) *modelsv1.BlocklistEntry 
 		ExportingOnnxRemovesRestriction: b.ExportingONNXRemovesRestriction,
 	}
 }
+
+func doctorReportToProto(r internalmodels.CatalogDoctorReport) *modelsv1.DoctorCatalogResponse {
+	out := &modelsv1.DoctorCatalogResponse{
+		Ok:       r.OK,
+		Findings: make([]*modelsv1.CatalogFinding, 0, len(r.Findings)),
+	}
+	for _, f := range r.Findings {
+		out.Findings = append(out.Findings, &modelsv1.CatalogFinding{
+			Severity:  findingSeverityToProto(f.Severity),
+			Code:      f.Code,
+			ModelId:   f.ModelID,
+			Operation: f.Operation,
+			Message:   f.Message,
+		})
+	}
+	return out
+}
+
+func findingSeverityToProto(s internalmodels.FindingSeverity) modelsv1.CatalogFindingSeverity {
+	switch s {
+	case internalmodels.FindingWarning:
+		return modelsv1.CatalogFindingSeverity_CATALOG_FINDING_SEVERITY_WARNING
+	case internalmodels.FindingError:
+		return modelsv1.CatalogFindingSeverity_CATALOG_FINDING_SEVERITY_ERROR
+	default:
+		return modelsv1.CatalogFindingSeverity_CATALOG_FINDING_SEVERITY_UNSPECIFIED
+	}
+}

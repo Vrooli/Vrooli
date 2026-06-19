@@ -196,11 +196,23 @@ type Model struct {
 // false) so the install/provisioning flow skips them.
 const BackendBuiltin = "builtin"
 
+const (
+	BackendComputed  = "computed"
+	BackendLibraryGo = "library-go"
+)
+
 // RequiresWeights reports whether a model needs downloaded artifacts on disk to
-// run. A builtin (deterministic, in-process) model has no weights and is always
-// considered installed; everything else must be fetched + artifact-validated by
-// the Installer before an AI op will launch.
-func (m Model) RequiresWeights() bool { return m.Backend != BackendBuiltin }
+// run. In-process deterministic/Go-library models have no weights and are
+// always considered installed; everything else must be fetched +
+// artifact-validated by the Installer before an AI op will launch.
+func (m Model) RequiresWeights() bool {
+	switch m.Backend {
+	case BackendBuiltin, BackendComputed, BackendLibraryGo:
+		return false
+	default:
+		return true
+	}
+}
 
 // ServesOperation reports whether this model can run the given operation.
 func (m Model) ServesOperation(op string) bool {

@@ -24,6 +24,7 @@ import { useCombineStore, type CombineFormat } from '@/stores/combineStore'
 import type { ContentSearchMatch, AISearchResponse, AIActionSearchResponse, AIAgentSearchResponse, AITeamSearchResponse, TopicMatchResponse, DiscoverResponse, BudgetConfig, DiscoverFilterConfig } from '@/lib/schemas'
 import type { UseRunningAgentsResult } from '@/hooks/useRunningAgents'
 import type { UsePendingDecisionsResult } from '@/hooks/usePendingDecisions'
+import type { UseHeartbeatControlStatusResult } from '@/hooks/useHeartbeatControlStatus'
 import type { FilterState, SortConfig, ViewMode, DetailMode } from '@/types/filterSort'
 import { DEFAULT_FILTER_STATE } from '@/types/filterSort'
 import { TreeNodeComponent } from './TreeNode'
@@ -56,6 +57,7 @@ import type { CopySetEntry } from '@/lib/copySetStorage'
 import { UnsavedChangesMenu, UnsavedChangesCollapsedBadge } from './UnsavedChangesMenu'
 import { RunningAgentsPopover } from './RunningAgentsPopover'
 import { PendingDecisionsPopover } from './PendingDecisionsPopover'
+import { HeartbeatControlPopover } from './HeartbeatControlPopover'
 import { getModesPathFromNode, getAllItemIdsInSubtree } from '@/services/treeService'
 import { buildDirtyCountIndex, buildSelectionStateIndex } from '@/services/treeService'
 import { getAISearchStatus, searchSkillContent } from '@/services/skillService'
@@ -405,6 +407,8 @@ interface SkillTreeSidebarProps {
   runningAgentsData?: UseRunningAgentsResult
   /** Pre-fetched pending decisions data from the sync hook */
   pendingDecisionsData?: UsePendingDecisionsResult
+  /** Pre-fetched heartbeat control data from the sync hook */
+  heartbeatControlData?: UseHeartbeatControlStatusResult
   /** Callback to navigate to a team's decision log */
   onNavigateToDecision?: (teamId: string) => void
   /** Callback to open the topic discovery wizard route */
@@ -510,6 +514,7 @@ export function SkillTreeSidebar({
   onNavigateToRunningAgent,
   runningAgentsData,
   pendingDecisionsData,
+  heartbeatControlData,
   onNavigateToDecision,
   onOpenTopicWizard,
   onDuplicateAgent,
@@ -1219,6 +1224,14 @@ export function SkillTreeSidebar({
                     >
                       <Home className="h-4 w-4" />
                     </button>
+                  )}
+                  {heartbeatControlData && (
+                    <HeartbeatControlPopover
+                      status={heartbeatControlData.status}
+                      isLoading={heartbeatControlData.isLoading}
+                      onPause={() => heartbeatControlData.pause('manual pause from UI')}
+                      onResume={heartbeatControlData.resume}
+                    />
                   )}
                   {onNavigateToRunningAgent && (
                     <RunningAgentsPopover
@@ -2044,6 +2057,7 @@ export function SkillTreeSidebar({
               selectedTeamId={selectedTeamId}
               onSelectTeam={onSelectTeamFromMenu ?? (() => {})}
               searchQuery={teamSearchQuery}
+              heartbeatControlStatus={heartbeatControlData?.status}
               onToggleTeamEnabled={onToggleTeamEnabled}
               className="flex-1"
               isSelectMode={combineMode && combineEntityType === 'teams'}

@@ -435,7 +435,7 @@ func main() {
 	corsHandler := handlers.CORS(
 		handlers.AllowedOrigins([]string{"*"}),
 		handlers.AllowedMethods([]string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}),
-		handlers.AllowedHeaders([]string{"Content-Type", "Authorization"}),
+		handlers.AllowedHeaders([]string{"Content-Type", "Authorization", "X-Vrooli-Attribution", "X-Caller-ID"}),
 	)
 
 	// Health check
@@ -660,6 +660,7 @@ func main() {
 		roots.RuntimeData,
 		agentManagerClient,
 	)
+	heartbeatControlStore := heartbeat.NewHeartbeatControlStore(roots.RuntimeData)
 	heartbeatExecutor.OnComplete = teamExecStore.OnComplete
 	heartbeatExecutor.SetTeamExecStore(teamExecStore)
 	heartbeatScheduler := heartbeat.NewScheduler(
@@ -668,6 +669,7 @@ func main() {
 		fileStore.Teams().(*store.FileTeamStore),
 		teamExecStore,
 	)
+	heartbeatScheduler.SetControlStore(heartbeatControlStore)
 	heartbeatHandlers := heartbeat.NewHandlers(
 		fileStore.Teams().(*store.FileTeamStore),
 		fileStore.Agents().(*store.FileAgentStore),
@@ -678,6 +680,7 @@ func main() {
 		agentManagerClient,
 		teamExecStore,
 	)
+	heartbeatHandlers.SetControlStore(heartbeatControlStore)
 	teamHandlers.SetHeartbeatScheduler(heartbeatScheduler)
 
 	// Recover any active runs from a previous process
@@ -718,11 +721,19 @@ func main() {
 	v1.HandleFunc("/runs/{runId}/retry", heartbeatHandlers.RetryRun).Methods("POST")
 	v1.HandleFunc("/runs/{runId}/events", heartbeatHandlers.GetRunEvents).Methods("GET")
 	v1.HandleFunc("/runs/{runId}/continue", heartbeatHandlers.ContinueRun).Methods("POST")
+	v1.HandleFunc("/heartbeats/control", heartbeatHandlers.GetHeartbeatControl).Methods("GET")
+	v1.HandleFunc("/heartbeats/control/policy", heartbeatHandlers.UpdateHeartbeatControlPolicy).Methods("PUT")
+	v1.HandleFunc("/heartbeats/control/pause", heartbeatHandlers.PauseHeartbeatControl).Methods("POST")
+	v1.HandleFunc("/heartbeats/control/resume", heartbeatHandlers.ResumeHeartbeatControl).Methods("POST")
 	v1.HandleFunc("/heartbeats/running", heartbeatHandlers.ListRunning).Methods("GET")
 	v1.HandleFunc("/heartbeats/running/{teamId}/{agentId}/stop", heartbeatHandlers.StopRunning).Methods("POST")
 	v1.HandleFunc("/prompt-preview", heartbeatHandlers.PreviewPrompt).Methods("POST")
 	v1.HandleFunc("/prompt-preview-structured", heartbeatHandlers.PreviewPromptStructured).Methods("POST")
 	v1.HandleFunc("/teams/{id}/prompt-matrix", heartbeatHandlers.PreviewPromptMatrix).Methods("GET")
+	v1.HandleFunc("/teams/{id}/heartbeats/control", heartbeatHandlers.GetTeamHeartbeatControl).Methods("GET")
+	v1.HandleFunc("/teams/{id}/heartbeats/control/policy", heartbeatHandlers.UpdateTeamHeartbeatControlPolicy).Methods("PUT")
+	v1.HandleFunc("/teams/{id}/heartbeats/control/pause", heartbeatHandlers.PauseTeamHeartbeatControl).Methods("POST")
+	v1.HandleFunc("/teams/{id}/heartbeats/control/resume", heartbeatHandlers.ResumeTeamHeartbeatControl).Methods("POST")
 	v1.HandleFunc("/teams/{id}/heartbeats", heartbeatHandlers.ListHeartbeats).Methods("GET")
 	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}", heartbeatHandlers.GetHeartbeat).Methods("GET")
 	v1.HandleFunc("/teams/{id}/heartbeats/{agentId}", heartbeatHandlers.CreateHeartbeat).Methods("POST")

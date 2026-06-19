@@ -11,12 +11,13 @@ import (
 	"io"
 	"net/url"
 	"os"
-	"prompt-manager/cli/internal/appctx"
-	"prompt-manager/teamconfig"
-	"prompt-manager/teamcontract"
 	"strconv"
 	"strings"
 	"time"
+
+	"prompt-manager/cli/internal/appctx"
+	"prompt-manager/teamconfig"
+	"prompt-manager/teamcontract"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
@@ -610,6 +611,15 @@ func Commands(ctx appctx.Context) cliapp.CommandGroup {
 					return cmdDecisionsPending(ctx, args)
 				},
 			},
+			{
+				Name:        "heartbeat-control",
+				Aliases:     []string{"heartbeats-control"},
+				NeedsAPI:    true,
+				Description: "Manage global heartbeat auto-pause status, policy, pause, and resume",
+				Run: func(args []string) error {
+					return cmdHeartbeatControl(ctx, args)
+				},
+			},
 		},
 	}
 }
@@ -668,6 +678,8 @@ func route(ctx appctx.Context, args []string) error {
 		return cmdHeartbeatTrigger(ctx, subArgs)
 	case "heartbeat-logs":
 		return cmdHeartbeatLogs(ctx, subArgs)
+	case "heartbeat-control":
+		return cmdTeamHeartbeatControl(ctx, subArgs)
 	case "queue-clear":
 		return cmdQueueClear(ctx, subArgs)
 	case "responsibilities":
@@ -776,6 +788,7 @@ Heartbeat Commands:
   heartbeat-disable <team-id> <agent-id>      Disable heartbeat
   heartbeat-trigger <team-id> <agent-id>      Manually trigger heartbeat
   heartbeat-logs <team-id> <agent-id>         List execution logs
+  heartbeat-control <team-id> <action>        Status, pause, resume, or set team auto-pause policy
   queue-clear <team-id> <agent-id>            Clear a stuck running entry from the team queue
 
 Member Document Commands:
@@ -1629,6 +1642,319 @@ type MemberDocResponse struct {
 // MemberDocRequest is the request for setting member documents
 type MemberDocRequest struct {
 	Content string `json:"content"`
+}
+
+type HeartbeatControlPolicy struct {
+	Enabled                                bool   `json:"enabled"`
+	PauseAfterDaysWithoutHumanEngagement   int    `json:"pauseAfterDaysWithoutHumanEngagement"`
+	WarningAfterDaysWithoutHumanEngagement int    `json:"warningAfterDaysWithoutHumanEngagement"`
+	ResumeMode                             string `json:"resumeMode"`
+}
+
+type HeartbeatControlTeamOverride struct {
+	Mode                                   string `json:"mode"`
+	PauseAfterDaysWithoutHumanEngagement   *int   `json:"pauseAfterDaysWithoutHumanEngagement,omitempty"`
+	WarningAfterDaysWithoutHumanEngagement *int   `json:"warningAfterDaysWithoutHumanEngagement,omitempty"`
+	ResumeMode                             string `json:"resumeMode,omitempty"`
+}
+
+type HeartbeatControlStatus struct {
+	Scope                     string                        `json:"scope"`
+	TeamID                    string                        `json:"teamId,omitempty"`
+	Status                    string                        `json:"status"`
+	EffectivePolicy           HeartbeatControlPolicy        `json:"effectivePolicy"`
+	GlobalPolicy              HeartbeatControlPolicy        `json:"globalPolicy,omitempty"`
+	TeamOverride              *HeartbeatControlTeamOverride `json:"teamOverride,omitempty"`
+	LastHumanEngagementAt     *string                       `json:"lastHumanEngagementAt,omitempty"`
+	LastHumanEngagementReason string                        `json:"lastHumanEngagementReason,omitempty"`
+	LastHumanEngagementTeamID string                        `json:"lastHumanEngagementTeamId,omitempty"`
+	PausedAt                  *string                       `json:"pausedAt,omitempty"`
+	PausedReason              string                        `json:"pausedReason,omitempty"`
+	WarningAt                 *string                       `json:"warningAt,omitempty"`
+	AutoPauseAt               *string                       `json:"autoPauseAt,omitempty"`
+	ResumeHint                string                        `json:"resumeHint,omitempty"`
+	Teams                     []HeartbeatControlStatus      `json:"teams,omitempty"`
+}
+
+type HeartbeatControlPolicyRequest struct {
+	Enabled                                *bool   `json:"enabled,omitempty"`
+	PauseAfterDaysWithoutHumanEngagement   *int    `json:"pauseAfterDaysWithoutHumanEngagement,omitempty"`
+	WarningAfterDaysWithoutHumanEngagement *int    `json:"warningAfterDaysWithoutHumanEngagement,omitempty"`
+	ResumeMode                             *string `json:"resumeMode,omitempty"`
+}
+
+type HeartbeatControlTeamPolicyRequest struct {
+	Mode                                   *string `json:"mode,omitempty"`
+	PauseAfterDaysWithoutHumanEngagement   *int    `json:"pauseAfterDaysWithoutHumanEngagement,omitempty"`
+	WarningAfterDaysWithoutHumanEngagement *int    `json:"warningAfterDaysWithoutHumanEngagement,omitempty"`
+	ResumeMode                             *string `json:"resumeMode,omitempty"`
+}
+
+type HeartbeatControlPauseRequest struct {
+	Reason string `json:"reason,omitempty"`
+}
+
+func cmdHeartbeatControl(ctx appctx.Context, args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("usage: heartbeat-control <status|pause|resume|policy> [args]")
+	}
+	switch args[0] {
+	case "status":
+		return cmdHeartbeatControlStatus(ctx, args[1:], "")
+	case "pause":
+		return cmdHeartbeatControlPause(ctx, args[1:], "")
+	case "resume":
+		return cmdHeartbeatControlResume(ctx, args[1:], "")
+	case "policy":
+		return cmdHeartbeatControlPolicy(ctx, args[1:], "")
+	default:
+		return fmt.Errorf("unknown heartbeat-control action %q", args[0])
+	}
+}
+
+func cmdTeamHeartbeatControl(ctx appctx.Context, args []string) error {
+	if len(args) < 2 {
+		return fmt.Errorf("usage: team heartbeat-control <team-id> <status|pause|resume|policy> [args]")
+	}
+	teamID := args[0]
+	switch args[1] {
+	case "status":
+		return cmdHeartbeatControlStatus(ctx, args[2:], teamID)
+	case "pause":
+		return cmdHeartbeatControlPause(ctx, args[2:], teamID)
+	case "resume":
+		return cmdHeartbeatControlResume(ctx, args[2:], teamID)
+	case "policy":
+		return cmdHeartbeatControlPolicy(ctx, args[2:], teamID)
+	default:
+		return fmt.Errorf("unknown team heartbeat-control action %q", args[1])
+	}
+}
+
+func cmdHeartbeatControlStatus(ctx appctx.Context, args []string, teamID string) error {
+	fs := flag.NewFlagSet("heartbeat-control status", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	var resp HeartbeatControlStatus
+	path := "/heartbeats/control"
+	if teamID != "" {
+		path = fmt.Sprintf("/teams/%s/heartbeats/control", teamID)
+	}
+	if err := ctx.Get(path, &resp); err != nil {
+		return fmt.Errorf("failed to get heartbeat control status: %w", err)
+	}
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+	printHeartbeatControlStatus(resp)
+	return nil
+}
+
+func cmdHeartbeatControlPause(ctx appctx.Context, args []string, teamID string) error {
+	fs := flag.NewFlagSet("heartbeat-control pause", flag.ContinueOnError)
+	reason := fs.String("reason", "", "Pause reason")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	var resp HeartbeatControlStatus
+	path := "/heartbeats/control/pause"
+	if teamID != "" {
+		path = fmt.Sprintf("/teams/%s/heartbeats/control/pause", teamID)
+	}
+	req := HeartbeatControlPauseRequest{Reason: *reason}
+	if err := ctx.Post(path, req, &resp); err != nil {
+		return fmt.Errorf("failed to pause heartbeats: %w", err)
+	}
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+	fmt.Printf("Heartbeats paused (%s)\n", resp.Status)
+	if resp.ResumeHint != "" {
+		fmt.Println(resp.ResumeHint)
+	}
+	return nil
+}
+
+func cmdHeartbeatControlResume(ctx appctx.Context, args []string, teamID string) error {
+	fs := flag.NewFlagSet("heartbeat-control resume", flag.ContinueOnError)
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	var resp HeartbeatControlStatus
+	path := "/heartbeats/control/resume"
+	if teamID != "" {
+		path = fmt.Sprintf("/teams/%s/heartbeats/control/resume", teamID)
+	}
+	if err := ctx.Post(path, nil, &resp); err != nil {
+		return fmt.Errorf("failed to resume heartbeats: %w", err)
+	}
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+	fmt.Printf("Heartbeats resumed (%s)\n", resp.Status)
+	if resp.AutoPauseAt != nil {
+		fmt.Printf("Next auto-pause check: %s\n", *resp.AutoPauseAt)
+	}
+	return nil
+}
+
+func cmdHeartbeatControlPolicy(ctx appctx.Context, args []string, teamID string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("usage: heartbeat-control policy <show|set> [args]")
+	}
+	switch args[0] {
+	case "show":
+		return cmdHeartbeatControlStatus(ctx, args[1:], teamID)
+	case "set":
+		return cmdHeartbeatControlPolicySet(ctx, args[1:], teamID)
+	default:
+		return fmt.Errorf("unknown heartbeat-control policy action %q", args[0])
+	}
+}
+
+func cmdHeartbeatControlPolicySet(ctx appctx.Context, args []string, teamID string) error {
+	fs := flag.NewFlagSet("heartbeat-control policy set", flag.ContinueOnError)
+	enabledRaw := fs.String("enabled", "", "Enable global auto-pause (true|false)")
+	modeRaw := fs.String("mode", "", "Team override mode (inherit|disabled|custom)")
+	pauseAfterRaw := fs.String("pause-after", "", "Days before auto-pause, e.g. 14d")
+	warningAfterRaw := fs.String("warning-after", "", "Days before warning, e.g. 10d")
+	resumeModeRaw := fs.String("resume-mode", "", "Resume mode (manual)")
+	jsonOut := fs.Bool("json", false, "Output as JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	var resp HeartbeatControlStatus
+	if teamID == "" {
+		req := HeartbeatControlPolicyRequest{}
+		if strings.TrimSpace(*enabledRaw) != "" {
+			v, err := strconv.ParseBool(strings.TrimSpace(*enabledRaw))
+			if err != nil {
+				return fmt.Errorf("invalid --enabled: %w", err)
+			}
+			req.Enabled = &v
+		}
+		if strings.TrimSpace(*pauseAfterRaw) != "" {
+			v, err := parseDaysFlag(*pauseAfterRaw)
+			if err != nil {
+				return err
+			}
+			req.PauseAfterDaysWithoutHumanEngagement = &v
+		}
+		if strings.TrimSpace(*warningAfterRaw) != "" {
+			v, err := parseDaysFlag(*warningAfterRaw)
+			if err != nil {
+				return err
+			}
+			req.WarningAfterDaysWithoutHumanEngagement = &v
+		}
+		if strings.TrimSpace(*resumeModeRaw) != "" {
+			v := strings.TrimSpace(*resumeModeRaw)
+			req.ResumeMode = &v
+		}
+		if err := ctx.Put("/heartbeats/control/policy", req, &resp); err != nil {
+			return fmt.Errorf("failed to update heartbeat control policy: %w", err)
+		}
+	} else {
+		req := HeartbeatControlTeamPolicyRequest{}
+		if strings.TrimSpace(*modeRaw) != "" {
+			v := strings.TrimSpace(*modeRaw)
+			req.Mode = &v
+		}
+		if strings.TrimSpace(*pauseAfterRaw) != "" {
+			v, err := parseDaysFlag(*pauseAfterRaw)
+			if err != nil {
+				return err
+			}
+			req.PauseAfterDaysWithoutHumanEngagement = &v
+		}
+		if strings.TrimSpace(*warningAfterRaw) != "" {
+			v, err := parseDaysFlag(*warningAfterRaw)
+			if err != nil {
+				return err
+			}
+			req.WarningAfterDaysWithoutHumanEngagement = &v
+		}
+		if strings.TrimSpace(*resumeModeRaw) != "" {
+			v := strings.TrimSpace(*resumeModeRaw)
+			req.ResumeMode = &v
+		}
+		if err := ctx.Put(fmt.Sprintf("/teams/%s/heartbeats/control/policy", teamID), req, &resp); err != nil {
+			return fmt.Errorf("failed to update team heartbeat control policy: %w", err)
+		}
+	}
+	if *jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(resp)
+	}
+	fmt.Println("Heartbeat auto-pause policy updated")
+	printHeartbeatControlStatus(resp)
+	return nil
+}
+
+func parseDaysFlag(raw string) (int, error) {
+	raw = strings.TrimSpace(strings.TrimSuffix(raw, "d"))
+	v, err := strconv.Atoi(raw)
+	if err != nil || v <= 0 {
+		return 0, fmt.Errorf("invalid day duration %q", raw)
+	}
+	return v, nil
+}
+
+func printHeartbeatControlStatus(resp HeartbeatControlStatus) {
+	label := "Global"
+	if resp.TeamID != "" {
+		label = "Team " + resp.TeamID
+	}
+	fmt.Printf("%s heartbeat control: %s\n", label, resp.Status)
+	if resp.LastHumanEngagementAt != nil {
+		fmt.Printf("Last human engagement: %s", *resp.LastHumanEngagementAt)
+		if resp.LastHumanEngagementReason != "" {
+			fmt.Printf(" (%s)", resp.LastHumanEngagementReason)
+		}
+		fmt.Println()
+	}
+	fmt.Printf("Auto-pause: enabled=%v warning=%dd pause=%dd resume=%s\n",
+		resp.EffectivePolicy.Enabled,
+		resp.EffectivePolicy.WarningAfterDaysWithoutHumanEngagement,
+		resp.EffectivePolicy.PauseAfterDaysWithoutHumanEngagement,
+		resp.EffectivePolicy.ResumeMode,
+	)
+	if resp.PausedAt != nil {
+		fmt.Printf("Paused at: %s\n", *resp.PausedAt)
+	}
+	if resp.PausedReason != "" {
+		fmt.Printf("Paused reason: %s\n", resp.PausedReason)
+	}
+	if resp.WarningAt != nil {
+		fmt.Printf("Warning at: %s\n", *resp.WarningAt)
+	}
+	if resp.AutoPauseAt != nil {
+		fmt.Printf("Auto-pause at: %s\n", *resp.AutoPauseAt)
+	}
+	if resp.ResumeHint != "" && strings.HasPrefix(resp.Status, "paused") {
+		fmt.Println(resp.ResumeHint)
+	}
+	if len(resp.Teams) > 0 {
+		fmt.Println("Teams:")
+		for _, team := range resp.Teams {
+			fmt.Printf("  %s: %s", team.TeamID, team.Status)
+			if team.Scope == "global" && team.Status != "active" {
+				fmt.Print(" (global)")
+			}
+			fmt.Println()
+		}
+	}
 }
 
 func cmdHeartbeatList(ctx appctx.Context, args []string) error {

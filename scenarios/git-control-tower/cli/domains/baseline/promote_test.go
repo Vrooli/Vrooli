@@ -6,6 +6,10 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"google.golang.org/protobuf/encoding/protojson"
+
+	impactv1 "github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/impact"
 )
 
 // quiesceJSON builds a protojson-shaped QuiesceScenarioResponse for the fake
@@ -33,6 +37,16 @@ func statusJSON(status string) []byte {
 	return b
 }
 
+func impactJSON(stableUnreconciled int32) []byte {
+	b, _ := protojson.Marshal(&impactv1.GetImpactResponse{
+		Report: &impactv1.ImpactReport{
+			Scenario:                        "demo-scenario",
+			StableUnreconciledBreakingCount: stableUnreconciled,
+		},
+	})
+	return b
+}
+
 // installShadowEngagement wires recovery show + a drained quiesce + a running
 // probe so a promote happy-path can run end to end. Returns the fake runner.
 func installShadowEngagement(t *testing.T) (*fakeRunner, func()) {
@@ -47,6 +61,7 @@ func installShadowEngagement(t *testing.T) (*fakeRunner, func()) {
 
 func TestPromoteShadowHappyPath(t *testing.T) {
 	f, restore := installShadowEngagement(t)
+	f.stdout["proto-health impact"] = impactJSON(0)
 	defer restore()
 
 	res, err := promoteEngagement(nil, promoteParams{scenario: "demo-scenario", slug: "wip"})
@@ -84,6 +99,43 @@ func TestPromoteShadowHappyPath(t *testing.T) {
 	// The drain must carry a timeout (default) and JSON.
 	if !f.sawCommand("run quiesce --scenario demo-scenario --json --timeout 5m0s") {
 		t.Errorf("quiesce should default the timeout + request JSON; calls=%v", f.calls)
+	}
+}
+
+func TestPromoteBlocksStableUnreconciledProtoImpact(t *testing.T) {
+	f, restore := installShadowEngagement(t)
+	f.stdout["proto-health impact"] = impactJSON(2)
+	defer restore()
+
+	res, err := promoteEngagement(nil, promoteParams{scenario: "demo-scenario", slug: "wip"})
+	if err == nil {
+		t.Fatal("expected proto impact gate to block promote")
+	}
+	if res.Promoted {
+		t.Fatalf("blocked promote must not be promoted: %+v", res)
+	}
+	if !strings.Contains(err.Error(), "stable proto breaking") {
+		t.Fatalf("expected stable proto breaking gate error, got %v", err)
+	}
+	if f.sawCommand("scenario restart") {
+		t.Fatalf("blocked promote must not restart live; calls=%v", f.calls)
+	}
+}
+
+func TestPromoteForceBypassesProtoImpactGate(t *testing.T) {
+	f, restore := installShadowEngagement(t)
+	f.stdout["proto-health impact"] = impactJSON(2)
+	defer restore()
+
+	res, err := promoteEngagement(nil, promoteParams{scenario: "demo-scenario", slug: "wip", force: true})
+	if err != nil {
+		t.Fatalf("force should bypass proto impact gate: %v", err)
+	}
+	if !res.Promoted {
+		t.Fatalf("force bypass should allow promote, got %+v", res)
+	}
+	if f.sawCommand("proto-health impact") {
+		t.Fatalf("force bypass should not call proto-health impact; calls=%v", f.calls)
 	}
 }
 

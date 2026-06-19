@@ -25,17 +25,29 @@ the op *actually* ran — a CPU-only backend reports `local-cpu` even on a GPU h
 
 | Backend | Program | Ops | GPU-capable | Provisioning |
 |---|---|---|---|---|
-| `onnxruntime` (sidecar) | `python3` + onnxruntime | `background_removal`, `denoise` | no (CPU) | Python + `onnxruntime`, `pillow`, `numpy` (see below) |
+| `onnxruntime` (sidecar) | `python3` + onnxruntime | `background_removal`, `deblur`, `segment`, detection/tagging/embeddings | no (CPU) | Python + `onnxruntime`, `pillow`, `numpy` (see below) |
 | `rembg` | `rembg` | `background_removal` (alt) | no (CPU) | `pip install rembg` (optional alt to the sidecar) |
 | `stable-diffusion.cpp` | `sd` | `text_to_image`, `image_to_image` | yes | build/install the `sd` binary |
-| `diffusers` (sidecar) | `python3` + diffusers | `inpaint` | yes | Python + `diffusers`/`torch` (heavy) |
+| `diffusers` (sidecar) | `python3` + diffusers | `edit_instruct`, `inpaint`, `outpaint` | yes | Python + `diffusers`/`torch` (heavy) |
 | `iopaint` | `iopaint` | `object_removal` | yes (`--device cuda`) | `pip install iopaint` |
-| `realesrgan-ncnn-vulkan` | `realesrgan-ncnn-vulkan` | `upscale` | yes (Vulkan) | install the ncnn-vulkan release binary + models |
+| `realesrgan-ncnn-vulkan` | `realesrgan-ncnn-vulkan` | `upscale`, `denoise` | yes (Vulkan) | install the ncnn-vulkan release binary + models |
+| `builtin` | in-process Go | `naturalize` | no (CPU) | no provisioning; always installed |
+| `computed` | in-process math | `normal_map` | no (CPU) | no model weights; depends on the depth-map input |
+| `library-go` | linked Go library | `duplicate_detect`, `qr_barcode_read` | no (CPU) | no model weights; shipped in the API binary |
+| `library-cgo` | host C/C++ library | `ocr`, `face_detection`, `quality_assessment` | no (CPU) | Phase 2 backend doctor will probe libraries/binaries and data files |
 
 > Status (2026-06-18): only the **onnxruntime sidecar `background_removal`** path
 > is wired + proven end-to-end on CPU. The other backends are declared; their
 > verticals (weights resolution + provisioning + proof) are built in later phases
 > of the advanced-editing plan.
+
+> Status (2026-06-19): Phase 1 catalog hardening has direct install assets for
+> every enabled weight-backed seed model. The final migrated slice added
+> `instruct-pix2pix`, `sd-1.5-inpainting`, `mi-gan`, `real-esrgan`, `dncnn`,
+> `nafnet`, `ddcolor-tiny`, `restoreformer-plus-plus`, `mobilesam`,
+> `moondream2`, and `smolvlm-256m`. `models doctor` should now be green; any
+> future enabled weight-backed model without direct `source.assets[]` is a
+> regression.
 
 ## The in-repo Python sidecar (`image_tools_sidecar`)
 

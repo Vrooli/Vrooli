@@ -7,19 +7,19 @@
 // # Wire shape lives in proto, not here
 //
 // The HealthResponse type is the GENERATED proto message at
-// `packages/proto/gen/go/{{SCENARIO_ID}}/v1/health/health.pb.go`. The
+// `packages/proto/gen/go/{{SCENARIO_ID}}/v1/shared/health.pb.go`. The
 // fixture re-exports it so callers don't have to type the long generated
 // import path, and provides functional-options builders for the fields
 // scenarios most commonly override in tests.
 //
 // Adding a new option: add another `WithHealth*` helper here. The
 // underlying type is the proto, so JSON tags, presence semantics, and
-// the wire shape itself live in `packages/proto/schemas/{{SCENARIO_ID}}/v1/health/health.proto`
+// the wire shape itself live in `packages/proto/schemas/{{SCENARIO_ID}}/v1/shared/health.proto`
 // — never duplicate them in this file.
 package fixtures
 
 import (
-	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/health"
+	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/shared"
 )
 
 // HealthResponse is the canonical wire-shape type for /health responses.

@@ -1,11 +1,9 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
-import { reindexClient, searchClient } from "../../api/clients";
-import { Button } from "../../components/ui/button";
+import { searchClient } from "../../api/clients";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
-import type { ReindexResponse } from "@vrooli/proto-types/cli-health/v1/reindex/reindex_pb";
 import type { StatusResponse } from "@vrooli/proto-types/cli-health/v1/search/search_pb";
 
 const formatTimestamp = (ts: string) => {
@@ -22,13 +20,6 @@ export function StatusPanel() {
     queryKey: ["search-status"],
     queryFn: () => searchClient.status({}),
     refetchInterval: 30_000,
-  });
-
-  const reindex = useMutation<ReindexResponse>({
-    mutationFn: () => reindexClient.reindex({ scenario: "", dryRun: false }),
-    onSuccess: () => {
-      void status.refetch();
-    },
   });
 
   const yesNo = (b: boolean) => (b ? t(strings.status.yes) : t(strings.status.no));
@@ -76,25 +67,6 @@ export function StatusPanel() {
           </dd>
         </dl>
       )}
-
-      <div className="mt-3">
-        <Button
-          data-testid={selectors.status.reindex}
-          onClick={() => reindex.mutate()}
-          disabled={reindex.isPending}
-        >
-          {reindex.isPending ? t(strings.status.reindexing) : t(strings.status.reindex)}
-        </Button>
-        {reindex.data && (
-          <p data-testid={selectors.status.reindexed} className="mt-2 text-xs text-app-muted-foreground">
-            {t(strings.status.reindexed, {
-              jobId: reindex.data.jobId,
-              upserts: reindex.data.plannedUpserts,
-              deletes: reindex.data.plannedDeletes,
-            })}
-          </p>
-        )}
-      </div>
     </section>
   );
 }

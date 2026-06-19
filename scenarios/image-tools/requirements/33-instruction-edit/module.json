@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-18T20:38:03-04:00"
+    "last_validated_at": "2026-06-18T21:52:32-04:00"
   },
   "requirements": [
     {
       "id": "IMG-P1-014",
       "title": "Instruction-Edit Model Class",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-014",
       "category": "feature",
       "description": "An instruction-edit op + model class (Flux-Kontext / Qwen-Image-Edit-style) for identity-preserving, prompt-only semantic edits ('make him older', 'change the jacket'), distinct from img2img (global + strength knob) and inpaint (masked region). Runs locally on a capable GPU; BYOK-cloud is the CPU/low-VRAM path with hardware-fit + cost surfaced up front. Seeded models must be commercial-clean per the existing license gate.",
@@ -15,28 +15,28 @@
           "type": "test",
           "ref": "api/internal/ai/providers_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "buildDiffusers dispatches edit_instruct to the instruction-edit sidecar module (distinct argv from inpaint), threads the instruction + guidance, and rejects a missing input — TestArgBuilders cases 'diffusers edit_instruct', 'diffusers inpaint via dispatcher'."
         },
         {
           "type": "test",
           "ref": "api/internal/ai/generation_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Full edit_instruct vertical over fake providers: materializes the single input, threads the natural-language instruction, persists output — TestGeneration_EditInstructMaterializesInput."
         },
         {
           "type": "test",
           "ref": "api/internal/models/registry_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Instruction-edit models (instruct-pix2pix default CPU-capable, qwen-image-edit GPU quality) seeded with hardware-fit + commercial-clean licenses; flux-1-kontext-dev blocklisted — seed-invariant validation in Load()."
         },
         {
           "type": "test",
           "ref": "cli/domains/ai/generation_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "CLI `image-tools ai edit \u003cinput\u003e --prompt` submits the async instruction-edit job — TestEditInstruct_SubmitsAsyncJob; TestSubmitCommandsCoverP0 pins the verb set."
         }
       ]

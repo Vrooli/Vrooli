@@ -53,6 +53,8 @@ type Summary struct {
 	Infos               int               `json:"infos"`
 	LocalCurrentLevel   string            `json:"local_current_level,omitempty"`
 	LocalNextLevel      string            `json:"local_next_level,omitempty"`
+	LocalClean          bool              `json:"local_clean"`
+	LocalUnknownCount   int               `json:"local_unknown_count,omitempty"`
 	AuthorityConfidence string            `json:"authority_confidence,omitempty"`
 	GateMode            string            `json:"gate_mode,omitempty"`
 	GatedBlockers       int               `json:"gated_blockers,omitempty"`
@@ -73,6 +75,9 @@ func (s Summary) String() string {
 	text := fmt.Sprintf("%s status=%s blockers=%d errors=%d warnings=%d infos=%d", s.Scenario, s.Status, s.Blockers, s.Errors, s.Warnings, s.Infos)
 	if s.LocalCurrentLevel != "" || s.LocalNextLevel != "" {
 		text += fmt.Sprintf(" local=%s next=%s", s.LocalCurrentLevel, s.LocalNextLevel)
+	}
+	if s.LocalClean || s.LocalUnknownCount > 0 {
+		text += fmt.Sprintf(" clean=%t unknown=%d", s.LocalClean, s.LocalUnknownCount)
 	}
 	if s.AuthorityConfidence != "" {
 		text += fmt.Sprintf(" authority=%s", s.AuthorityConfidence)
@@ -192,6 +197,8 @@ func summarize(scenario string, status scenariovalidationv1.ValidationStatus, a 
 	if local := a.GetLocal(); local != nil {
 		s.LocalCurrentLevel = local.GetCurrentLevel()
 		s.LocalNextLevel = local.GetNextLevel()
+		s.LocalClean = local.GetClean()
+		s.LocalUnknownCount = int(local.GetUnknownCount())
 	}
 	return s
 }

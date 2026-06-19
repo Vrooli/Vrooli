@@ -88,6 +88,61 @@ func (GlobalImpact) EnumDescriptor() ([]byte, []int) {
 	return file_common_v1_maturity_proto_rawDescGZIP(), []int{0}
 }
 
+// CleanRequirement declares whether a provider finding must be resolved for
+// the provider-local top rung. It is orthogonal to severity, which continues to
+// determine phase pass/fail.
+type CleanRequirement int32
+
+const (
+	CleanRequirement_CLEAN_REQUIREMENT_UNSPECIFIED CleanRequirement = 0
+	CleanRequirement_CLEAN_REQUIREMENT_REQUIRED    CleanRequirement = 1
+	CleanRequirement_CLEAN_REQUIREMENT_ADVISORY    CleanRequirement = 2
+	CleanRequirement_CLEAN_REQUIREMENT_UNCHECKABLE CleanRequirement = 3
+)
+
+// Enum value maps for CleanRequirement.
+var (
+	CleanRequirement_name = map[int32]string{
+		0: "CLEAN_REQUIREMENT_UNSPECIFIED",
+		1: "CLEAN_REQUIREMENT_REQUIRED",
+		2: "CLEAN_REQUIREMENT_ADVISORY",
+		3: "CLEAN_REQUIREMENT_UNCHECKABLE",
+	}
+	CleanRequirement_value = map[string]int32{
+		"CLEAN_REQUIREMENT_UNSPECIFIED": 0,
+		"CLEAN_REQUIREMENT_REQUIRED":    1,
+		"CLEAN_REQUIREMENT_ADVISORY":    2,
+		"CLEAN_REQUIREMENT_UNCHECKABLE": 3,
+	}
+)
+
+func (x CleanRequirement) Enum() *CleanRequirement {
+	p := new(CleanRequirement)
+	*p = x
+	return p
+}
+
+func (x CleanRequirement) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (CleanRequirement) Descriptor() protoreflect.EnumDescriptor {
+	return file_common_v1_maturity_proto_enumTypes[1].Descriptor()
+}
+
+func (CleanRequirement) Type() protoreflect.EnumType {
+	return &file_common_v1_maturity_proto_enumTypes[1]
+}
+
+func (x CleanRequirement) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use CleanRequirement.Descriptor instead.
+func (CleanRequirement) EnumDescriptor() ([]byte, []int) {
+	return file_common_v1_maturity_proto_rawDescGZIP(), []int{1}
+}
+
 // LocalMaturityLevel is one provider-local rung from `.vrooli/maturity.json`.
 type LocalMaturityLevel struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -172,8 +227,9 @@ type FindingMaturity struct {
 	LocalLevel   string       `protobuf:"bytes,1,opt,name=local_level,json=localLevel,proto3" json:"local_level,omitempty"`
 	GlobalImpact GlobalImpact `protobuf:"varint,2,opt,name=global_impact,json=globalImpact,proto3,enum=common.v1.GlobalImpact" json:"global_impact,omitempty"`
 	// Canonical maturity-go dimension id, e.g. "measures" or "security".
-	Dimension           string   `protobuf:"bytes,3,opt,name=dimension,proto3" json:"dimension,omitempty"`
-	RecommendedSkillIds []string `protobuf:"bytes,4,rep,name=recommended_skill_ids,json=recommendedSkillIds,proto3" json:"recommended_skill_ids,omitempty"`
+	Dimension           string           `protobuf:"bytes,3,opt,name=dimension,proto3" json:"dimension,omitempty"`
+	RecommendedSkillIds []string         `protobuf:"bytes,4,rep,name=recommended_skill_ids,json=recommendedSkillIds,proto3" json:"recommended_skill_ids,omitempty"`
+	CleanRequirement    CleanRequirement `protobuf:"varint,5,opt,name=clean_requirement,json=cleanRequirement,proto3,enum=common.v1.CleanRequirement" json:"clean_requirement,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -234,6 +290,13 @@ func (x *FindingMaturity) GetRecommendedSkillIds() []string {
 		return x.RecommendedSkillIds
 	}
 	return nil
+}
+
+func (x *FindingMaturity) GetCleanRequirement() CleanRequirement {
+	if x != nil {
+		return x.CleanRequirement
+	}
+	return CleanRequirement_CLEAN_REQUIREMENT_UNSPECIFIED
 }
 
 // AssessmentFinding is the shared finding projection used by the assessment.
@@ -337,6 +400,8 @@ type LocalMaturityAssessment struct {
 	NextLevel            string                 `protobuf:"bytes,2,opt,name=next_level,json=nextLevel,proto3" json:"next_level,omitempty"`
 	Levels               []*LocalMaturityLevel  `protobuf:"bytes,3,rep,name=levels,proto3" json:"levels,omitempty"`
 	BlockingFindingCodes []string               `protobuf:"bytes,4,rep,name=blocking_finding_codes,json=blockingFindingCodes,proto3" json:"blocking_finding_codes,omitempty"`
+	Clean                bool                   `protobuf:"varint,5,opt,name=clean,proto3" json:"clean,omitempty"`
+	UnknownCount         int32                  `protobuf:"varint,6,opt,name=unknown_count,json=unknownCount,proto3" json:"unknown_count,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -399,20 +464,35 @@ func (x *LocalMaturityAssessment) GetBlockingFindingCodes() []string {
 	return nil
 }
 
+func (x *LocalMaturityAssessment) GetClean() bool {
+	if x != nil {
+		return x.Clean
+	}
+	return false
+}
+
+func (x *LocalMaturityAssessment) GetUnknownCount() int32 {
+	if x != nil {
+		return x.UnknownCount
+	}
+	return 0
+}
+
 // MaturityAssessment is the single structural object health providers emit.
 type MaturityAssessment struct {
-	state                  protoimpl.MessageState   `protogen:"open.v1"`
-	Scenario               string                   `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
-	Provider               string                   `protobuf:"bytes,2,opt,name=provider,proto3" json:"provider,omitempty"`
-	Phase                  string                   `protobuf:"bytes,3,opt,name=phase,proto3" json:"phase,omitempty"`
-	Version                string                   `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`
-	Local                  *LocalMaturityAssessment `protobuf:"bytes,5,opt,name=local,proto3" json:"local,omitempty"`
-	Findings               []*AssessmentFinding     `protobuf:"bytes,6,rep,name=findings,proto3" json:"findings,omitempty"`
-	FindingsByGlobalImpact map[string]int32         `protobuf:"bytes,7,rep,name=findings_by_global_impact,json=findingsByGlobalImpact,proto3" json:"findings_by_global_impact,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
-	FindingsBySeverity     map[string]int32         `protobuf:"bytes,8,rep,name=findings_by_severity,json=findingsBySeverity,proto3" json:"findings_by_severity,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
-	RecommendedSkillIds    []string                 `protobuf:"bytes,9,rep,name=recommended_skill_ids,json=recommendedSkillIds,proto3" json:"recommended_skill_ids,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	state                      protoimpl.MessageState   `protogen:"open.v1"`
+	Scenario                   string                   `protobuf:"bytes,1,opt,name=scenario,proto3" json:"scenario,omitempty"`
+	Provider                   string                   `protobuf:"bytes,2,opt,name=provider,proto3" json:"provider,omitempty"`
+	Phase                      string                   `protobuf:"bytes,3,opt,name=phase,proto3" json:"phase,omitempty"`
+	Version                    string                   `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`
+	Local                      *LocalMaturityAssessment `protobuf:"bytes,5,opt,name=local,proto3" json:"local,omitempty"`
+	Findings                   []*AssessmentFinding     `protobuf:"bytes,6,rep,name=findings,proto3" json:"findings,omitempty"`
+	FindingsByGlobalImpact     map[string]int32         `protobuf:"bytes,7,rep,name=findings_by_global_impact,json=findingsByGlobalImpact,proto3" json:"findings_by_global_impact,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	FindingsBySeverity         map[string]int32         `protobuf:"bytes,8,rep,name=findings_by_severity,json=findingsBySeverity,proto3" json:"findings_by_severity,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	RecommendedSkillIds        []string                 `protobuf:"bytes,9,rep,name=recommended_skill_ids,json=recommendedSkillIds,proto3" json:"recommended_skill_ids,omitempty"`
+	FindingsByCleanRequirement map[string]int32         `protobuf:"bytes,10,rep,name=findings_by_clean_requirement,json=findingsByCleanRequirement,proto3" json:"findings_by_clean_requirement,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
 }
 
 func (x *MaturityAssessment) Reset() {
@@ -508,6 +588,13 @@ func (x *MaturityAssessment) GetRecommendedSkillIds() []string {
 	return nil
 }
 
+func (x *MaturityAssessment) GetFindingsByCleanRequirement() map[string]int32 {
+	if x != nil {
+		return x.FindingsByCleanRequirement
+	}
+	return nil
+}
+
 var File_common_v1_maturity_proto protoreflect.FileDescriptor
 
 const file_common_v1_maturity_proto_rawDesc = "" +
@@ -518,13 +605,14 @@ const file_common_v1_maturity_proto_rawDesc = "" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12%\n" +
 	"\x0eentry_criteria\x18\x04 \x03(\tR\rentryCriteria\x12#\n" +
-	"\rexit_criteria\x18\x05 \x03(\tR\fexitCriteria\"\xc2\x01\n" +
+	"\rexit_criteria\x18\x05 \x03(\tR\fexitCriteria\"\x8c\x02\n" +
 	"\x0fFindingMaturity\x12\x1f\n" +
 	"\vlocal_level\x18\x01 \x01(\tR\n" +
 	"localLevel\x12<\n" +
 	"\rglobal_impact\x18\x02 \x01(\x0e2\x17.common.v1.GlobalImpactR\fglobalImpact\x12\x1c\n" +
 	"\tdimension\x18\x03 \x01(\tR\tdimension\x122\n" +
-	"\x15recommended_skill_ids\x18\x04 \x03(\tR\x13recommendedSkillIds\"\xe9\x01\n" +
+	"\x15recommended_skill_ids\x18\x04 \x03(\tR\x13recommendedSkillIds\x12H\n" +
+	"\x11clean_requirement\x18\x05 \x01(\x0e2\x1b.common.v1.CleanRequirementR\x10cleanRequirement\"\xe9\x01\n" +
 	"\x11AssessmentFinding\x12\x12\n" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x1a\n" +
 	"\bseverity\x18\x02 \x01(\tR\bseverity\x12\x14\n" +
@@ -532,13 +620,15 @@ const file_common_v1_maturity_proto_rawDesc = "" +
 	"\amessage\x18\x04 \x01(\tR\amessage\x12\x1a\n" +
 	"\blocation\x18\x05 \x01(\tR\blocation\x12 \n" +
 	"\vremediation\x18\x06 \x01(\tR\vremediation\x126\n" +
-	"\bmaturity\x18\a \x01(\v2\x1a.common.v1.FindingMaturityR\bmaturity\"\xca\x01\n" +
+	"\bmaturity\x18\a \x01(\v2\x1a.common.v1.FindingMaturityR\bmaturity\"\x85\x02\n" +
 	"\x17LocalMaturityAssessment\x12#\n" +
 	"\rcurrent_level\x18\x01 \x01(\tR\fcurrentLevel\x12\x1d\n" +
 	"\n" +
 	"next_level\x18\x02 \x01(\tR\tnextLevel\x125\n" +
 	"\x06levels\x18\x03 \x03(\v2\x1d.common.v1.LocalMaturityLevelR\x06levels\x124\n" +
-	"\x16blocking_finding_codes\x18\x04 \x03(\tR\x14blockingFindingCodes\"\x95\x05\n" +
+	"\x16blocking_finding_codes\x18\x04 \x03(\tR\x14blockingFindingCodes\x12\x14\n" +
+	"\x05clean\x18\x05 \x01(\bR\x05clean\x12#\n" +
+	"\runknown_count\x18\x06 \x01(\x05R\funknownCount\"\xe7\x06\n" +
 	"\x12MaturityAssessment\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x1a\n" +
 	"\bprovider\x18\x02 \x01(\tR\bprovider\x12\x14\n" +
@@ -548,11 +638,16 @@ const file_common_v1_maturity_proto_rawDesc = "" +
 	"\bfindings\x18\x06 \x03(\v2\x1c.common.v1.AssessmentFindingR\bfindings\x12t\n" +
 	"\x19findings_by_global_impact\x18\a \x03(\v29.common.v1.MaturityAssessment.FindingsByGlobalImpactEntryR\x16findingsByGlobalImpact\x12g\n" +
 	"\x14findings_by_severity\x18\b \x03(\v25.common.v1.MaturityAssessment.FindingsBySeverityEntryR\x12findingsBySeverity\x122\n" +
-	"\x15recommended_skill_ids\x18\t \x03(\tR\x13recommendedSkillIds\x1aI\n" +
+	"\x15recommended_skill_ids\x18\t \x03(\tR\x13recommendedSkillIds\x12\x80\x01\n" +
+	"\x1dfindings_by_clean_requirement\x18\n" +
+	" \x03(\v2=.common.v1.MaturityAssessment.FindingsByCleanRequirementEntryR\x1afindingsByCleanRequirement\x1aI\n" +
 	"\x1bFindingsByGlobalImpactEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\x1aE\n" +
 	"\x17FindingsBySeverityEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\x1aM\n" +
+	"\x1fFindingsByCleanRequirementEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01*\x93\x02\n" +
 	"\fGlobalImpact\x12\x1d\n" +
@@ -563,7 +658,12 @@ const file_common_v1_maturity_proto_rawDesc = "" +
 	"\x1bGLOBAL_IMPACT_HARDENING_GAP\x10\x04\x12 \n" +
 	"\x1cGLOBAL_IMPACT_CAPABILITY_GAP\x10\x05\x12\x1a\n" +
 	"\x16GLOBAL_IMPACT_ADVISORY\x10\x06\x12\x19\n" +
-	"\x15GLOBAL_IMPACT_UNKNOWN\x10\aBCZAgithub.com/vrooli/vrooli/packages/proto/gen/go/common/v1;commonv1b\x06proto3"
+	"\x15GLOBAL_IMPACT_UNKNOWN\x10\a*\x98\x01\n" +
+	"\x10CleanRequirement\x12!\n" +
+	"\x1dCLEAN_REQUIREMENT_UNSPECIFIED\x10\x00\x12\x1e\n" +
+	"\x1aCLEAN_REQUIREMENT_REQUIRED\x10\x01\x12\x1e\n" +
+	"\x1aCLEAN_REQUIREMENT_ADVISORY\x10\x02\x12!\n" +
+	"\x1dCLEAN_REQUIREMENT_UNCHECKABLE\x10\x03BCZAgithub.com/vrooli/vrooli/packages/proto/gen/go/common/v1;commonv1b\x06proto3"
 
 var (
 	file_common_v1_maturity_proto_rawDescOnce sync.Once
@@ -577,31 +677,35 @@ func file_common_v1_maturity_proto_rawDescGZIP() []byte {
 	return file_common_v1_maturity_proto_rawDescData
 }
 
-var file_common_v1_maturity_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_common_v1_maturity_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_common_v1_maturity_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_common_v1_maturity_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_common_v1_maturity_proto_goTypes = []any{
 	(GlobalImpact)(0),               // 0: common.v1.GlobalImpact
-	(*LocalMaturityLevel)(nil),      // 1: common.v1.LocalMaturityLevel
-	(*FindingMaturity)(nil),         // 2: common.v1.FindingMaturity
-	(*AssessmentFinding)(nil),       // 3: common.v1.AssessmentFinding
-	(*LocalMaturityAssessment)(nil), // 4: common.v1.LocalMaturityAssessment
-	(*MaturityAssessment)(nil),      // 5: common.v1.MaturityAssessment
-	nil,                             // 6: common.v1.MaturityAssessment.FindingsByGlobalImpactEntry
-	nil,                             // 7: common.v1.MaturityAssessment.FindingsBySeverityEntry
+	(CleanRequirement)(0),           // 1: common.v1.CleanRequirement
+	(*LocalMaturityLevel)(nil),      // 2: common.v1.LocalMaturityLevel
+	(*FindingMaturity)(nil),         // 3: common.v1.FindingMaturity
+	(*AssessmentFinding)(nil),       // 4: common.v1.AssessmentFinding
+	(*LocalMaturityAssessment)(nil), // 5: common.v1.LocalMaturityAssessment
+	(*MaturityAssessment)(nil),      // 6: common.v1.MaturityAssessment
+	nil,                             // 7: common.v1.MaturityAssessment.FindingsByGlobalImpactEntry
+	nil,                             // 8: common.v1.MaturityAssessment.FindingsBySeverityEntry
+	nil,                             // 9: common.v1.MaturityAssessment.FindingsByCleanRequirementEntry
 }
 var file_common_v1_maturity_proto_depIdxs = []int32{
 	0, // 0: common.v1.FindingMaturity.global_impact:type_name -> common.v1.GlobalImpact
-	2, // 1: common.v1.AssessmentFinding.maturity:type_name -> common.v1.FindingMaturity
-	1, // 2: common.v1.LocalMaturityAssessment.levels:type_name -> common.v1.LocalMaturityLevel
-	4, // 3: common.v1.MaturityAssessment.local:type_name -> common.v1.LocalMaturityAssessment
-	3, // 4: common.v1.MaturityAssessment.findings:type_name -> common.v1.AssessmentFinding
-	6, // 5: common.v1.MaturityAssessment.findings_by_global_impact:type_name -> common.v1.MaturityAssessment.FindingsByGlobalImpactEntry
-	7, // 6: common.v1.MaturityAssessment.findings_by_severity:type_name -> common.v1.MaturityAssessment.FindingsBySeverityEntry
-	7, // [7:7] is the sub-list for method output_type
-	7, // [7:7] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	1, // 1: common.v1.FindingMaturity.clean_requirement:type_name -> common.v1.CleanRequirement
+	3, // 2: common.v1.AssessmentFinding.maturity:type_name -> common.v1.FindingMaturity
+	2, // 3: common.v1.LocalMaturityAssessment.levels:type_name -> common.v1.LocalMaturityLevel
+	5, // 4: common.v1.MaturityAssessment.local:type_name -> common.v1.LocalMaturityAssessment
+	4, // 5: common.v1.MaturityAssessment.findings:type_name -> common.v1.AssessmentFinding
+	7, // 6: common.v1.MaturityAssessment.findings_by_global_impact:type_name -> common.v1.MaturityAssessment.FindingsByGlobalImpactEntry
+	8, // 7: common.v1.MaturityAssessment.findings_by_severity:type_name -> common.v1.MaturityAssessment.FindingsBySeverityEntry
+	9, // 8: common.v1.MaturityAssessment.findings_by_clean_requirement:type_name -> common.v1.MaturityAssessment.FindingsByCleanRequirementEntry
+	9, // [9:9] is the sub-list for method output_type
+	9, // [9:9] is the sub-list for method input_type
+	9, // [9:9] is the sub-list for extension type_name
+	9, // [9:9] is the sub-list for extension extendee
+	0, // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_common_v1_maturity_proto_init() }
@@ -614,8 +718,8 @@ func file_common_v1_maturity_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_common_v1_maturity_proto_rawDesc), len(file_common_v1_maturity_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   7,
+			NumEnums:      2,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

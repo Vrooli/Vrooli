@@ -47,16 +47,22 @@ plug-in only), `size_mb_approx` + `quant_variants`, `hardware`
 (`cpu_capable`/`gpu_required`/`min_vram_gb`/`min_ram_gb`/`os_arch`/`speed_note`),
 `io`, `capability_labels` (`nsfw_capable`/`license`/`commercial_use`/
 `commercial_use_notes`/`base_model_lineage`/`known_risks`), `source`
-(`download_url`/`source_repo`/`docs_url`/`update_source`/`checksum`), and `enabled`.
+(`download_url`/`source_repo`/`docs_url`/`update_source`/`assets[]`/`checksum`),
+and `enabled`.
 
 ## ⚠️ Checksum policy — do NOT fabricate hashes
 
 Every `source.checksum.value` is intentionally **empty** with
 `status: "unverified-capture-on-download"` (or `"n/a-library"` /
-`"n/a-computed"` where there is no downloadable weight). Hashes are
-**captured and pinned on first real download**, then `status` flips to
-`"pinned"`; later downloads must match or fail. Hand-written hashes would be
+`"n/a-computed"` / `"n/a-builtin"` where there is no downloadable model weight).
+Hashes are **captured and pinned on first real download**, then `status` flips
+to `"pinned"`; later downloads must match or fail. Hand-written hashes would be
 false verification — never invent them.
+
+Enabled weight-backed seed models must use `assets[]` with direct artifact URLs,
+artifact `kind`, and positive `min_bytes`. A source repository, model card, or
+release page is documentation, not an install source, and `models doctor` reports
+it until the entry is migrated or disabled.
 
 ## ⚠️ License discipline (commercial product)
 

@@ -21,7 +21,6 @@ var Endpoints = []module.EndpointDescriptor{
 			Type:       "object",
 			Properties: map[string]string{"shortcuts": "[]Shortcut"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console shortcuts effective"},
 	},
 	{
 		ID:          "shortcuts_list_profiles",
@@ -34,7 +33,6 @@ var Endpoints = []module.EndpointDescriptor{
 			Type:       "object",
 			Properties: map[string]string{"profiles": "[]Profile"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console shortcuts list"},
 	},
 	{
 		ID:          "shortcuts_upsert_profile",
@@ -59,7 +57,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Errors: []module.ErrorDesc{
 			{Status: 400, Code: "invalid_argument", Description: "Unknown scope, blank id/name, or shortcut entry missing label/command"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console shortcuts upsert", Args: []string{"--body-file"}},
 	},
 	{
 		ID:          "shortcuts_delete_profile",
@@ -72,6 +69,5 @@ var Endpoints = []module.EndpointDescriptor{
 			Type:       "object",
 			Properties: map[string]string{"id": "string"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console shortcuts delete", Args: []string{"<id>"}},
 	},
 }

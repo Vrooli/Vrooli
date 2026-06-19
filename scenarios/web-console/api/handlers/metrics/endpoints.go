@@ -32,6 +32,5 @@ var Endpoints = []module.EndpointDescriptor{
 				"uptime":                        "string",
 			},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console metrics"},
 	},
 }

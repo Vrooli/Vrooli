@@ -11,6 +11,7 @@ import { buildDefaultCreateTeamRequest } from '@/lib/schemas'
 import * as teamService from '@/services/teamService'
 import { CCTeamImportModal } from './CCTeamImportModal'
 import { TeamContextMenu } from '@/components/team/TeamContextMenu'
+import type { HeartbeatControlStatus } from '@/services/heartbeatService'
 
 interface TeamListPanelProps {
   selectedTeamId: string | null
@@ -26,6 +27,7 @@ interface TeamListPanelProps {
   selectedIds?: Set<string>
   /** Called when an item is toggled in selection mode */
   onToggleSelection?: (id: string) => void
+  heartbeatControlStatus?: HeartbeatControlStatus | null
 }
 
 /**
@@ -55,6 +57,7 @@ export function TeamListPanel({
   isSelectMode,
   selectedIds,
   onToggleSelection,
+  heartbeatControlStatus,
 }: TeamListPanelProps) {
   const { teams, isLoading, isError, createTeam, deleteTeam, refetch } = useTeamData()
 
@@ -116,6 +119,33 @@ export function TeamListPanel({
       onSelectTeam(id)
     }
   }, [isSelectMode, onToggleSelection, onSelectTeam])
+
+  const statusByTeam = useMemo(() => {
+    const map = new Map<string, HeartbeatControlStatus>()
+    for (const team of heartbeatControlStatus?.teams ?? []) {
+      if (team.teamId) map.set(team.teamId, team)
+    }
+    return map
+  }, [heartbeatControlStatus?.teams])
+
+  const renderHeartbeatChip = (teamId: string) => {
+    const status = statusByTeam.get(teamId)
+    if (!status || status.status === 'active') return null
+    const isPaused = status.status === 'paused-auto-idle' || status.status === 'paused-manual'
+    return (
+      <span
+        className={cn(
+          'px-1.5 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wide',
+          isPaused
+            ? 'bg-red-500/15 text-red-500'
+            : 'bg-amber-500/15 text-amber-500'
+        )}
+        title={status.pausedReason || status.resumeHint || 'Heartbeat auto-pause state'}
+      >
+        {status.status === 'warning-idle-soon' ? 'Idle soon' : status.scope === 'global' ? 'Paused global' : 'Paused'}
+      </span>
+    )
+  }
 
   if (isLoading) {
     return (
@@ -222,6 +252,7 @@ export function TeamListPanel({
                   >
                     {team.enabled ? 'On' : 'Off'}
                   </span>
+                  {renderHeartbeatChip(team.id)}
                 </div>
               </div>
 

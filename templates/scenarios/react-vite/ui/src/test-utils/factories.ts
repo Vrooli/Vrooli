@@ -18,15 +18,15 @@
  * # Wire shape lives in proto, not here
  *
  * The HealthResponse type is a GENERATED proto message at
- * `packages/proto/gen/typescript/js/{{SCENARIO_ID}}/v1/health/...`.
+ * `packages/proto/gen/typescript/js/{{SCENARIO_ID}}/v1/shared/...`.
  * Factories use `create(<Schema>, overrides)` so the runtime instance
  * includes proto's internal `$typeName` / reflection state, field
  * defaults match proto3 semantics, and adding a field to the proto
  * schema makes it instantly available without editing this file.
  */
 import { create, type MessageInitShape } from "@bufbuild/protobuf";
-import { ResponseSchema } from "@vrooli/proto-types/{{SCENARIO_ID}}/v1/health/health_pb";
-import type { Response as HealthResponse } from "@vrooli/proto-types/{{SCENARIO_ID}}/v1/health/health_pb";
+import { ResponseSchema } from "@vrooli/proto-types/{{SCENARIO_ID}}/v1/shared/health_pb";
+import type { Response as HealthResponse } from "@vrooli/proto-types/{{SCENARIO_ID}}/v1/shared/health_pb";
 
 export type { HealthResponse };
 

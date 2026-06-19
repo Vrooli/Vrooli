@@ -1,99 +1,94 @@
 {
-  "description": "Deliver an optional LLM-generated cited answer over the snippets SearXNG already returned (no page fetching), always additive to raw hits, always cited, and configured to abstain when sources conflict or are thin, never blocking raw results.",
-  "module_id": "MOD-P0-002",
-  "prd_ref": "OT-P0-002",
-  "priority": "P0",
+  "_metadata": {
+    "last_validated_at": "2026-06-18T14:15:16-04:00"
+  },
   "requirements": [
     {
-      "category": "core",
-      "dependencies": [
-        "REQ-P0-001"
-      ],
-      "description": "Provide an optional LLM-generated cited answer synthesized from the snippets already returned by SearXNG (no additional page fetching). The synthesis is always additive to raw hits (raw hits are never withheld pending synthesis), always includes inline citations back to source URLs, and is configured to abstain (return a structured 'insufficient/conflicting sources' response) when sources conflict or coverage is thin. Synthesis must never block or delay delivery of raw SearchHit results.",
       "id": "REQ-P0-002",
-      "prd_ref": "OT-P0-002",
-      "status": "complete",
       "title": "L1 LLM Snippet Synthesis — Cited, Additive, Non-Blocking",
+      "status": "in_progress",
+      "prd_ref": "OT-P0-002",
+      "category": "core",
+      "description": "Provide an optional LLM-generated cited answer synthesized from the snippets already returned by SearXNG (no additional page fetching). The synthesis is always additive to raw hits (raw hits are never withheld pending synthesis), always includes inline citations back to source URLs, and is configured to abstain (return a structured 'insufficient/conflicting sources' response) when sources conflict or coverage is thin. Synthesis must never block or delay delivery of raw SearchHit results.",
       "validation": [
         {
-          "notes": "Given conflicting snippets across sources, the synthesizer returns an abstain response with a conflict reason and no answer text",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/livesearch/synthesis_internal_test.go::TestParseSynthesisReplyAbstainsOnConflict",
-          "status": "implemented",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Given conflicting snippets across sources, the synthesizer returns an abstain response with a conflict reason and no answer text"
         },
         {
-          "notes": "Given fewer than the configured minimum snippet threshold, the synthesizer returns an abstain response citing thin coverage",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/livesearch/synthesis_internal_test.go::TestSynthesizeAbstainsOnZeroResults",
-          "status": "implemented",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Given fewer than the configured minimum snippet threshold, the synthesizer returns an abstain response citing thin coverage"
         },
         {
-          "notes": "Every non-abstain synthesis response contains at least one inline citation referencing a URL present in the input SearchHit set",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/livesearch/synthesis_internal_test.go::TestParseSynthesisReplyAbstainsWhenUncited",
-          "status": "implemented",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Every non-abstain synthesis response contains at least one inline citation referencing a URL present in the input SearchHit set"
         },
         {
-          "notes": "Synthesis output object is structurally additive: it is appended to the existing SearchHit list and does not replace or remove any raw hit",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/livesearch/service_test.go::TestServiceSynthesisCitedWhenRequested",
-          "status": "implemented",
-          "type": "test"
-        },
-        {
-          "notes": "Unit test asserts that the raw hits array is identical before and after synthesis is triggered",
           "phase": "unit",
-          "ref": "api/internal/livesearch/service_test.go::TestServiceSynthesisLeavesRawHitsIdentical",
-          "status": "implemented",
-          "type": "test"
+          "status": "failing",
+          "notes": "Synthesis output object is structurally additive: it is appended to the existing SearchHit list and does not replace or remove any raw hit"
         },
         {
-          "notes": "End-to-end L1 query delivers the raw SearchHit results unaltered alongside the optional synthesis, confirming non-blocking delivery [criterion revised from auto-generated 'streamed subsequent event' wording: the RPC is deliberately unary with synthesis additive in the same envelope (DECISIONS.md — synthesis is opt-in, always additive, never blocks raw results); non-blocking is enforced as raw-hits-identical-with-or-without-synthesis plus opt-in default-off, both pinned by tests]",
-          "phase": "integration",
+          "type": "test",
           "ref": "api/internal/livesearch/service_test.go::TestServiceSynthesisLeavesRawHitsIdentical",
-          "status": "implemented",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "Unit test asserts that the raw hits array is identical before and after synthesis is triggered"
         },
         {
-          "notes": "Verify synthesis cites only URLs present in the returned SearXNG hits (no hallucinated sources)",
+          "type": "test",
+          "ref": "api/internal/livesearch/service_test.go::TestServiceSynthesisLeavesRawHitsIdentical",
           "phase": "integration",
+          "status": "implemented",
+          "notes": "End-to-end L1 query delivers the raw SearchHit results unaltered alongside the optional synthesis, confirming non-blocking delivery [criterion revised from auto-generated 'streamed subsequent event' wording: the RPC is deliberately unary with synthesis additive in the same envelope (DECISIONS.md — synthesis is opt-in, always additive, never blocks raw results); non-blocking is enforced as raw-hits-identical-with-or-without-synthesis plus opt-in default-off, both pinned by tests]"
+        },
+        {
+          "type": "test",
           "ref": "api/internal/livesearch/synthesis_internal_test.go::TestParseSynthesisReplyCited",
+          "phase": "integration",
           "status": "implemented",
-          "type": "test"
+          "notes": "Verify synthesis cites only URLs present in the returned SearXNG hits (no hallucinated sources)"
         },
         {
-          "notes": "Raw SearchHit results must be observable by the client before synthesis completes — synthesis latency must not increase time-to-first-result",
-          "phase": "performance",
+          "type": "test",
           "ref": "api/internal/livesearch/service_test.go::TestServiceSynthesisOffByDefault",
-          "status": "implemented",
-          "type": "test"
-        },
-        {
-          "notes": "L1 synthesis completion time must not exceed raw L0 latency by more than 5000ms at p95",
           "phase": "performance",
+          "status": "implemented",
+          "notes": "Raw SearchHit results must be observable by the client before synthesis completes — synthesis latency must not increase time-to-first-result"
+        },
+        {
+          "type": "test",
           "ref": "api/internal/livesearch/synthesis_internal_test.go::TestSynthesizeHonorsTimeout",
+          "phase": "performance",
           "status": "implemented",
-          "type": "test"
+          "notes": "L1 synthesis completion time must not exceed raw L0 latency by more than 5000ms at p95"
         },
         {
-          "notes": "A user opting into L1 receives both the raw ranked hits and a cited synthesized answer in the same response envelope, with the synthesis clearly labeled as optional and additional",
-          "phase": "business",
+          "type": "test",
           "ref": "api/handlers/livesearch/connect_handler_test.go::TestSearchSurfacesCitedSynthesis",
+          "phase": "business",
           "status": "implemented",
-          "type": "test"
+          "notes": "A user opting into L1 receives both the raw ranked hits and a cited synthesized answer in the same response envelope, with the synthesis clearly labeled as optional and additional"
         },
         {
-          "notes": "When sources conflict, the UI receives an explicit abstain signal rather than a potentially misleading synthesized answer",
-          "phase": "business",
+          "type": "test",
           "ref": "api/handlers/livesearch/connect_handler_test.go::TestSearchSurfacesAbstainSignal",
+          "phase": "business",
           "status": "implemented",
-          "type": "test"
+          "notes": "When sources conflict, the UI receives an explicit abstain signal rather than a potentially misleading synthesized answer"
         }
       ]
     }
-  ],
-  "title": "L1 Snippet Synthesis"
+  ]
 }

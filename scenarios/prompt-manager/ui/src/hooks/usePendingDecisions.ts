@@ -8,6 +8,7 @@ import {
   updateDecision,
   type PendingDecisionTeamGroup,
 } from '@/services/heartbeatService'
+import { refreshHeartbeatControlStatus } from './useHeartbeatControlStatus'
 
 const POLL_INTERVAL_MS = 10_000
 
@@ -158,6 +159,7 @@ export function usePendingDecisions(): UsePendingDecisionsResult {
             .filter((g) => g.entries.length > 0),
         )
       }
+      void refreshHeartbeatControlStatus()
     } catch {
       // Will be corrected on next poll
     } finally {
@@ -190,6 +192,7 @@ export function usePendingDecisions(): UsePendingDecisionsResult {
             .filter((g) => g.entries.length > 0),
         )
       }
+      void refreshHeartbeatControlStatus()
     } catch {
       // Will be corrected on next poll
     } finally {

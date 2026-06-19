@@ -64,6 +64,38 @@ func TestLoadSeed(t *testing.T) {
 	}
 }
 
+func TestSeedDoctorCatalogIsInstallable(t *testing.T) {
+	r, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	report := r.DoctorCatalog()
+	if !report.OK {
+		t.Fatalf("seed doctor should pass after Phase 1 catalog hardening; findings: %+v", report.Findings)
+	}
+	for _, f := range report.Findings {
+		if f.Severity == FindingError {
+			t.Fatalf("seed doctor returned error finding after Phase 1 catalog hardening: %+v", f)
+		}
+	}
+}
+
+func TestWeightlessBackendsDoNotRequireInstallAssets(t *testing.T) {
+	r, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	for _, id := range []string{"naturalize-detail-v1", "normals-from-depth", "laplacian-blur", "goimagehash", "gozxing"} {
+		m, ok := r.ByID(id)
+		if !ok {
+			t.Fatalf("seed missing %q", id)
+		}
+		if m.RequiresWeights() {
+			t.Fatalf("%s should not require downloadable model weights", id)
+		}
+	}
+}
+
 // validSeed is a minimal well-formed catalog used to test rejection of mutations.
 const validSeed = `{
   "schema_version": "1.0.0",

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "architecture-cartographer",
-  "input_digest": "sha256:9d4372273be058979e7959872a002d9abc304828c628fb25e5499b3d646a5209",
+  "input_digest": "sha256:69c6eb5bad03a5130b1aceef630f75a79006149e95592525efa8e01c13d34e7f",
   "input_files": [
     "schemas/architecture-cartographer/v1/analytics/analytics.proto",
     "schemas/architecture-cartographer/v1/apply/apply.proto",

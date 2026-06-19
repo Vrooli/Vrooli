@@ -81,9 +81,6 @@
     "lastReconcileLabel": "آخر مزامنة:",
     "yes": "نعم",
     "no": "لا",
-    "never": "لا يوجد",
-    "reindex": "أعد الفهرسة الآن",
-    "reindexing": "جارٍ إعادة الفهرسة…",
-    "reindexed": "بدأت إعادة الفهرسة: {{jobId}} ({{upserts}} تحديث، {{deletes}} حذف مخطط)"
+    "never": "لا يوجد"
   }
 }

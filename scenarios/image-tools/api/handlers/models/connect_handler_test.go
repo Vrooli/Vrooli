@@ -184,6 +184,22 @@ func TestListOperationsAndBlocklist(t *testing.T) {
 	}
 }
 
+func TestDoctorCatalogReportsGreenSeed(t *testing.T) {
+	h, _ := newTestHandler(t, cpuOnlyHost)
+	resp, err := h.DoctorCatalog(context.Background(), connect.NewRequest(&modelsv1.DoctorCatalogRequest{}))
+	if err != nil {
+		t.Fatalf("doctor catalog: %v", err)
+	}
+	if !resp.Msg.Ok {
+		t.Fatalf("doctor should pass after Phase 1 catalog hardening; findings: %+v", resp.Msg.Findings)
+	}
+	for _, f := range resp.Msg.Findings {
+		if f.Severity == modelsv1.CatalogFindingSeverity_CATALOG_FINDING_SEVERITY_ERROR {
+			t.Fatalf("doctor returned error finding after Phase 1 catalog hardening: %+v", f)
+		}
+	}
+}
+
 func containsStr(ss []string, want string) bool {
 	for _, s := range ss {
 		if s == want {

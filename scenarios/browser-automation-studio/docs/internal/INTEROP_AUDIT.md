@@ -117,6 +117,11 @@ on a generated service descriptor under `packages/proto/gen/go/...`.
 | Go client (CLI) | same | 100% — dispatched via `protodispatch` |
 | TS client (UI) | `@vrooli/proto-types` (`packages/proto/gen/ts/...`) — Connect-Web | Proto-owned domains all import generated clients under `ui/src/api/<dom>.ts`; residual `fetch(`/`axios.` calls only target the `RESTReason*`-tagged endpoints in `REST_EXCEPTIONS.md` |
 
+Enum display names in the UI are derived from protobuf-es enum descriptors at
+runtime. The executions mapper uses the descriptor `sharedPrefix` and enum value
+metadata instead of importing a hand-authored `packages/proto/gen/.../enum-names`
+side artifact, keeping `packages/proto/gen/` limited to buf output.
+
 ## REST exceptions
 
 See [`REST_EXCEPTIONS.md`](./REST_EXCEPTIONS.md) for the full table.

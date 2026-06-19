@@ -54,9 +54,9 @@ export function ValidatePanel() {
   const data = mutation.data;
   const assessment = data?.assessment;
   const findings = assessment?.findings ?? [];
-  const errors = assessment?.findingsBySeverity?.["SEVERITY_ERROR"] ?? 0;
-  const warnings = assessment?.findingsBySeverity?.["SEVERITY_WARNING"] ?? 0;
-  const infos = assessment?.findingsBySeverity?.["SEVERITY_INFO"] ?? 0;
+  const errors = assessment?.findingsBySeverity["SEVERITY_ERROR"] ?? 0;
+  const warnings = assessment?.findingsBySeverity["SEVERITY_WARNING"] ?? 0;
+  const infos = assessment?.findingsBySeverity["SEVERITY_INFO"] ?? 0;
   const passed = data?.status === ValidationStatus.PASSED;
 
   return (

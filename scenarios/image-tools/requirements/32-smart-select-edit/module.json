@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-18T20:38:03-04:00"
+    "last_validated_at": "2026-06-18T21:52:32-04:00"
   },
   "requirements": [
     {
       "id": "IMG-P1-013",
       "title": "Smart-Select -\u003e Classify -\u003e Contextual Edit",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-013",
       "category": "feature",
       "description": "A built-in region-grow segment op + heuristic region classification feed a canvas selection tool that snaps to a region's silhouette, classifies the selected region, and offers a context-specific edit menu that compiles to an inpaint / object_removal / instruction-edit {mask + prompt}. A model-backed SAM path (mobilesam/sam-2.1/hq-sam, seeded) is the documented accuracy upgrade. Keyboard and file-upload fallbacks (auto-select + X/Y coordinate inputs) are preserved so no operation is pointer-only.",
@@ -15,28 +15,28 @@
           "type": "test",
           "ref": "api/internal/selection/segment_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Built-in region-grow segmenter: point/box/auto modes produce a silhouette-snapped mask at source resolution, deterministic, tolerance widens the region, the service classifies + attaches the contextual menu, and a model override falls back to the built-in with a warning (no vaporware SAM claim)."
         },
         {
           "type": "test",
           "ref": "api/internal/selection/classify_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Heuristic region classifier: position + colour + saturation + skin-tone + border-contact map a region to person/sky/foliage/background/object. Skin detection is tone-only (never identity/face recognition, a hard non-goal)."
         },
         {
           "type": "test",
           "ref": "api/internal/selection/menu_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Contextual-edit compiler: every menu edit references an existing AI op, whole-image background_removal does not require the mask, requires-prompt edits carry completable hints, and an unknown class falls back to the generic object menu."
         },
         {
           "type": "test",
           "ref": "api/handlers/selection/rest_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "SelectionService segment edge end to end: multipart image + SegmentParams -\u003e stored mask blob + classified region + menu + recorded job; missing image -\u003e 400, invalid params -\u003e 400, point mode without a seed -\u003e 422."
         },
         {

@@ -21,7 +21,7 @@
 import { fromJson, toJson } from "@bufbuild/protobuf";
 import { describe, expect, it } from "vitest";
 
-import { ResponseSchema } from "@vrooli/proto-types/{{SCENARIO_ID}}/v1/health/health_pb";
+import { ResponseSchema } from "@vrooli/proto-types/{{SCENARIO_ID}}/v1/shared/health_pb";
 
 import { makeHealthResponse } from "./factories";
 

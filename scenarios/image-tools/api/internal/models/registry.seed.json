@@ -52,7 +52,7 @@
       "hardware": {"cpu_capable": true, "gpu_required": false, "min_vram_gb": 2, "min_ram_gb": 8, "os_arch": ["linux/amd64", "linux/arm64", "darwin/arm64", "windows/amd64"], "speed_note": "CPU: seconds to ~2 min/image; the only genuinely CPU-viable t2i tier. Add LCM-LoRA to cut steps."},
       "io": {"native_resolution": "512x512", "notes": "Higher res via tiling/hires-fix; quality drops far from 512."},
       "capability_labels": {"nsfw_capable": true, "license": "CreativeML OpenRAIL-M", "commercial_use": "yes", "commercial_use_notes": "No revenue cap. OpenRAIL use-based restrictions apply: ship a license copy and propagate restrictions to end users.", "base_model_lineage": "Stable Diffusion 1.5 (RunwayML/CompVis, LAION-trained)", "known_risks": "Can generate NSFW; inherent copyright/likeness risk from LAION training data; finetunes are tagged 'license: other' — verify each."},
-      "source": {"download_url": "https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5", "source_repo": "https://github.com/leejet/stable-diffusion.cpp", "docs_url": "https://github.com/leejet/stable-diffusion.cpp#readme", "update_source": "https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5", "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
+      "source": {"download_url": "https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5", "source_repo": "https://github.com/leejet/stable-diffusion.cpp", "docs_url": "https://github.com/leejet/stable-diffusion.cpp#readme", "update_source": "https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5", "assets": [{"url": "https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5/resolve/main/v1-5-pruned-emaonly.safetensors", "filename": "v1-5-pruned-emaonly.safetensors", "kind": "safetensors", "min_bytes": 4000000000}], "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
       "enabled": true
     },
     {
@@ -69,7 +69,7 @@
       "hardware": {"cpu_capable": true, "gpu_required": false, "min_vram_gb": 4, "min_ram_gb": 8, "os_arch": ["linux/amd64", "linux/arm64", "darwin/arm64", "windows/amd64"], "speed_note": "SD1.5-based instruction edit; CPU-viable but slow (~1-3 min/edit). The identity-preserving CPU default; GPU strongly recommended."},
       "io": {"native_resolution": "512x512", "notes": "Whole-image natural-language edit ('make it winter', 'add sunglasses'); preserves composition/identity better than img2img. Drive with `prompt` (the instruction) + `cfg_scale` (image guidance)."},
       "capability_labels": {"nsfw_capable": true, "license": "CreativeML OpenRAIL-M", "commercial_use": "yes", "commercial_use_notes": "No revenue cap. OpenRAIL use-based restrictions apply (same posture as sd-1.5): ship a license copy and propagate restrictions.", "base_model_lineage": "InstructPix2Pix (Brooks et al.) fine-tuned from Stable Diffusion 1.5", "known_risks": "Can generate NSFW; LAION-derived copyright/likeness risk; instruction edits of real people carry the deployment-gate consent weight (SECURITY.md)."},
-      "source": {"download_url": "https://huggingface.co/timbrooks/instruct-pix2pix", "source_repo": "https://github.com/timothybrooks/instruct-pix2pix", "docs_url": "https://huggingface.co/docs/diffusers/en/api/pipelines/pix2pix", "update_source": "https://huggingface.co/timbrooks/instruct-pix2pix", "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
+      "source": {"download_url": "https://huggingface.co/timbrooks/instruct-pix2pix", "source_repo": "https://github.com/timothybrooks/instruct-pix2pix", "docs_url": "https://huggingface.co/docs/diffusers/en/api/pipelines/pix2pix", "update_source": "https://huggingface.co/timbrooks/instruct-pix2pix", "assets": [{"url": "https://huggingface.co/timbrooks/instruct-pix2pix/resolve/main/instruct-pix2pix-00-22000.safetensors", "filename": "instruct-pix2pix-00-22000.safetensors", "kind": "safetensors", "min_bytes": 7700000000}], "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
       "enabled": true
     },
     {
@@ -137,7 +137,7 @@
       "hardware": {"cpu_capable": true, "gpu_required": false, "min_vram_gb": 4, "min_ram_gb": 8, "os_arch": ["linux/amd64", "darwin/arm64", "windows/amd64"], "speed_note": "Dedicated 9-channel UNet = cleaner seams than base+mask. CPU via sd.cpp."},
       "io": {"native_resolution": "512x512", "notes": "Outpaint = extend canvas + mask the new border. Dedicated checkpoint beats base+mask (no seam outline)."},
       "capability_labels": {"nsfw_capable": true, "license": "CreativeML OpenRAIL-M", "commercial_use": "yes", "commercial_use_notes": "No revenue cap; OpenRAIL restrictions apply.", "base_model_lineage": "SD 1.5 inpainting (use stable-diffusion-v1-5 mirror; runwayml repo was deleted in 2024)", "known_risks": "Can generate NSFW. stable-diffusion.cpp issue #1309 (Mar 2026): dedicated-inpaint checkpoints can misbehave on some builds — pin a known-good build or use diffusers where reliability matters."},
-      "source": {"download_url": "https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-inpainting", "source_repo": "https://github.com/leejet/stable-diffusion.cpp/issues/1309", "docs_url": "https://huggingface.co/docs/diffusers/en/using-diffusers/inpaint", "update_source": "https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-inpainting", "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
+      "source": {"download_url": "https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-inpainting", "source_repo": "https://github.com/leejet/stable-diffusion.cpp/issues/1309", "docs_url": "https://huggingface.co/docs/diffusers/en/using-diffusers/inpaint", "update_source": "https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-inpainting", "assets": [{"url": "https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-inpainting/resolve/main/sd-v1-5-inpainting.ckpt", "filename": "sd-v1-5-inpainting.ckpt", "kind": "binary", "min_bytes": 4260000000}], "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
       "enabled": true
     },
     {
@@ -171,7 +171,7 @@
       "hardware": {"cpu_capable": true, "gpu_required": false, "min_vram_gb": 0, "min_ram_gb": 4, "os_arch": ["linux/amd64", "linux/arm64", "darwin/arm64", "windows/amd64"], "speed_note": "Fastest CPU/edge eraser; cleanest deploy (MIT + ONNX + tiny)."},
       "io": {"notes": "Prompt-free mask inpaint. Slightly below Big-LaMa on very large masks."},
       "capability_labels": {"nsfw_capable": false, "license": "MIT", "commercial_use": "yes", "commercial_use_notes": "Fully permissive.", "base_model_lineage": "Picsart AI Research MI-GAN", "known_risks": "Weak on faces/text regions (general inpainting limitation)."},
-      "source": {"download_url": "https://github.com/Picsart-AI-Research/MI-GAN", "source_repo": "https://github.com/Picsart-AI-Research/MI-GAN", "docs_url": "https://www.iopaint.com/models", "update_source": "https://www.iopaint.com/models", "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
+      "source": {"download_url": "https://github.com/Picsart-AI-Research/MI-GAN", "source_repo": "https://github.com/Picsart-AI-Research/MI-GAN", "docs_url": "https://www.iopaint.com/models", "update_source": "https://github.com/Sanster/models/releases/tag/migan", "assets": [{"url": "https://github.com/Sanster/models/releases/download/migan/migan_traced.pt", "filename": "migan_traced.pt", "kind": "binary", "min_bytes": 27000000}], "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
       "enabled": true
     },
     {
@@ -188,7 +188,7 @@
       "hardware": {"cpu_capable": true, "gpu_required": false, "min_vram_gb": 0, "min_ram_gb": 4, "os_arch": ["linux/amd64", "linux/arm64", "darwin/arm64", "windows/amd64"], "speed_note": "Best general remover; a few seconds/image on CPU."},
       "io": {"notes": "Prompt-free mask inpaint. Best general-purpose object remover."},
       "capability_labels": {"nsfw_capable": false, "license": "Apache-2.0", "commercial_use": "yes", "commercial_use_notes": "Fully permissive.", "base_model_lineage": "LaMa / Big-LaMa (Samsung AI / advimman)", "known_risks": "Weak on faces/text regions."},
-      "source": {"download_url": "https://github.com/advimman/lama", "source_repo": "https://github.com/advimman/lama", "docs_url": "https://www.iopaint.com/models", "update_source": "https://www.iopaint.com/models", "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
+      "source": {"download_url": "https://github.com/advimman/lama", "source_repo": "https://github.com/advimman/lama", "docs_url": "https://www.iopaint.com/models", "update_source": "https://www.iopaint.com/models", "assets": [{"url": "https://huggingface.co/Carve/LaMa-ONNX/resolve/main/lama_fp32.onnx", "filename": "lama_fp32.onnx", "kind": "onnx", "min_bytes": 200000000}], "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
       "enabled": true
     },
     {
@@ -223,7 +223,7 @@
       "hardware": {"cpu_capable": true, "gpu_required": false, "min_vram_gb": 0, "min_ram_gb": 4, "os_arch": ["linux/amd64", "darwin/amd64", "darwin/arm64", "windows/amd64"], "speed_note": "ncnn-vulkan binary is GPU/Vulkan-first (cross-vendor); ship ONNX for CPU machines (slower). denoise via realesr-general-x4v3 -dn is coupled to 4x upscale, not pure 1x."},
       "io": {"native_scale": "4x (also 2x models)", "notes": "Two source repos = two licenses; attribute both."},
       "capability_labels": {"nsfw_capable": false, "license": "BSD-3-Clause (repo) / MIT (ncnn binary)", "commercial_use": "yes", "commercial_use_notes": "Use only official weights — community .pth (4x-UltraSharp, Remacri, etc.) are CC-BY-NC-SA and BLOCKED.", "base_model_lineage": "Real-ESRGAN (Tencent ARC / xinntao)", "known_risks": "Beware community model zoo: most popular ESRGAN .pth are non-commercial despite 'mit' mislabels."},
-      "source": {"download_url": "https://github.com/xinntao/Real-ESRGAN/releases", "source_repo": "https://github.com/xinntao/Real-ESRGAN", "docs_url": "https://github.com/xinntao/Real-ESRGAN-ncnn-vulkan", "update_source": "https://github.com/xinntao/Real-ESRGAN/releases", "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
+      "source": {"download_url": "https://github.com/xinntao/Real-ESRGAN/releases", "source_repo": "https://github.com/xinntao/Real-ESRGAN", "docs_url": "https://github.com/xinntao/Real-ESRGAN-ncnn-vulkan", "update_source": "https://github.com/xinntao/Real-ESRGAN/releases", "assets": [{"url": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-general-x4v3.pth", "filename": "realesr-general-x4v3.pth", "kind": "binary", "min_bytes": 4800000}, {"url": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-general-wdn-x4v3.pth", "filename": "realesr-general-wdn-x4v3.pth", "kind": "binary", "min_bytes": 4800000}], "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
       "enabled": true
     },
     {
@@ -274,7 +274,7 @@
       "hardware": {"cpu_capable": true, "gpu_required": false, "min_vram_gb": 0, "min_ram_gb": 2, "os_arch": ["linux/amd64", "linux/arm64", "darwin/arm64", "windows/amd64"], "speed_note": "Fully CPU-capable and fast; trivial ONNX export. Great lightweight CPU fallback."},
       "io": {"notes": "2017 model, Gaussian/known-noise oriented; weaker on blind real-world noise (use SCUNet for that)."},
       "capability_labels": {"nsfw_capable": false, "license": "BSD-3-Clause (DnCNN) / MIT (KAIR)", "commercial_use": "yes", "commercial_use_notes": "Permissive.", "base_model_lineage": "DnCNN (cszn)", "known_risks": "Less effective on blind/real noise than SCUNet."},
-      "source": {"download_url": "https://github.com/cszn/KAIR", "source_repo": "https://github.com/cszn/DnCNN", "docs_url": "https://github.com/cszn/KAIR", "update_source": "https://github.com/cszn/KAIR", "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
+      "source": {"download_url": "https://github.com/cszn/KAIR", "source_repo": "https://github.com/cszn/DnCNN", "docs_url": "https://github.com/cszn/KAIR", "update_source": "https://github.com/cszn/KAIR/releases/tag/v1.0", "assets": [{"url": "https://github.com/cszn/KAIR/releases/download/v1.0/dncnn_color_blind.pth", "filename": "dncnn_color_blind.pth", "kind": "binary", "min_bytes": 2600000}], "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
       "enabled": true
     },
     {
@@ -300,15 +300,15 @@
       "operations": ["deblur"],
       "default_for": ["deblur"],
       "tier": "default",
-      "backend": "python-sidecar",
-      "alt_backends": ["nafnetlib", "onnxruntime (3rd-party)"],
+      "backend": "onnxruntime",
+      "alt_backends": ["python-sidecar", "nafnetlib"],
       "requires_comfyui": false,
-      "size_mb_approx": 257,
-      "quant_variants": ["width64 ~257MB", "width32 smaller (CPU-friendlier)"],
+      "size_mb_approx": 92,
+      "quant_variants": ["OpenCV ONNX export ~92MB", "width64 PyTorch ~257MB"],
       "hardware": {"cpu_capable": true, "gpu_required": false, "min_vram_gb": 4, "min_ram_gb": 8, "os_arch": ["linux/amd64", "windows/amd64"], "speed_note": "GPU preferred; CPU feasible (pure conv), width32 friendlier. 'Non-commercial' reputation is a MYTH — LICENSE is MIT."},
       "io": {},
       "capability_labels": {"nsfw_capable": false, "license": "MIT", "commercial_use": "yes", "commercial_use_notes": "Verified MIT (+ Apache for BasicSR). Pin repo state in a NOTICE file.", "base_model_lineage": "NAFNet (Megvii)", "known_risks": "Reputation lag (often wrongly called non-commercial)."},
-      "source": {"download_url": "https://github.com/megvii-research/NAFNet", "source_repo": "https://github.com/megvii-research/NAFNet", "docs_url": "https://github.com/megvii-research/NAFNet", "update_source": "https://github.com/megvii-research/NAFNet", "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
+      "source": {"download_url": "https://github.com/megvii-research/NAFNet", "source_repo": "https://github.com/megvii-research/NAFNet", "docs_url": "https://huggingface.co/opencv/deblurring_nafnet", "update_source": "https://huggingface.co/opencv/deblurring_nafnet", "assets": [{"url": "https://huggingface.co/opencv/deblurring_nafnet/resolve/main/deblurring_nafnet_2025may.onnx", "filename": "deblurring_nafnet_2025may.onnx", "kind": "onnx", "min_bytes": 91000000}], "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
       "enabled": true
     },
     {
@@ -334,15 +334,15 @@
       "operations": ["colorize"],
       "default_for": ["colorize"],
       "tier": "default",
-      "backend": "onnxruntime",
-      "alt_backends": ["openvino", "python-sidecar"],
+      "backend": "python-sidecar",
+      "alt_backends": ["openvino", "onnxruntime (DIY export)"],
       "requires_comfyui": false,
       "size_mb_approx": 215,
       "quant_variants": ["tiny ~215MB .pth", "quant w8a8 ~55MB"],
       "hardware": {"cpu_capable": true, "gpu_required": false, "min_vram_gb": 0, "min_ram_gb": 4, "os_arch": ["linux/amd64", "linux/arm64", "darwin/arm64", "windows/amd64"], "speed_note": "CPU-feasible via ONNX/OpenVINO (esp. tiny/quantized). Official ONNX available."},
       "io": {},
       "capability_labels": {"nsfw_capable": false, "license": "Apache-2.0", "commercial_use": "yes", "commercial_use_notes": "Best license + deployment story for colorization.", "base_model_lineage": "DDColor (DAMO Academy / piddnad)", "known_risks": "None notable."},
-      "source": {"download_url": "https://huggingface.co/piddnad/DDColor-models", "source_repo": "https://github.com/piddnad/DDColor", "docs_url": "https://github.com/piddnad/DDColor", "update_source": "https://github.com/piddnad/DDColor", "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
+      "source": {"download_url": "https://huggingface.co/piddnad/DDColor-models", "source_repo": "https://github.com/piddnad/DDColor", "docs_url": "https://github.com/piddnad/DDColor", "update_source": "https://huggingface.co/piddnad/DDColor-models", "assets": [{"url": "https://huggingface.co/piddnad/DDColor-models/resolve/main/ddcolor_paper_tiny.pth", "filename": "ddcolor_paper_tiny.pth", "kind": "binary", "min_bytes": 220000000}], "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
       "enabled": true
     },
     {
@@ -376,7 +376,7 @@
       "hardware": {"cpu_capable": true, "gpu_required": false, "min_vram_gb": 4, "min_ram_gb": 8, "os_arch": ["linux/amd64", "windows/amd64"], "speed_note": "The ONLY cleanly-licensed face restorer. PyTorch-only (no ONNX/ncnn), GPU-oriented, CPU slow."},
       "io": {"notes": "Used standalone for face_restore and as the face stage of the old_photo_restore pipeline (with real-esrgan + ddcolor)."},
       "capability_labels": {"nsfw_capable": false, "license": "Apache-2.0", "commercial_use": "yes", "commercial_use_notes": "Verified Apache-2.0. Chosen specifically because CodeFormer (S-Lab NC) and GFPGAN (StyleGAN2/DFDNet NC) are NOT commercial-safe.", "base_model_lineage": "RestoreFormer++ (wzhouxiff)", "known_risks": "Heavier to self-host (PyTorch). No ONNX path yet."},
-      "source": {"download_url": "https://github.com/wzhouxiff/RestoreFormerPlusPlus", "source_repo": "https://github.com/wzhouxiff/RestoreFormerPlusPlus", "docs_url": "https://github.com/wzhouxiff/RestoreFormerPlusPlus", "update_source": "https://github.com/wzhouxiff/RestoreFormerPlusPlus", "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
+      "source": {"download_url": "https://github.com/wzhouxiff/RestoreFormerPlusPlus", "source_repo": "https://github.com/wzhouxiff/RestoreFormerPlusPlus", "docs_url": "https://github.com/wzhouxiff/RestoreFormerPlusPlus", "update_source": "https://github.com/wzhouxiff/RestoreFormerPlusPlus/releases/tag/v1.0.0", "assets": [{"url": "https://github.com/wzhouxiff/RestoreFormerPlusPlus/releases/download/v1.0.0/RestoreFormer%2B%2B.ckpt", "filename": "RestoreFormer++.ckpt", "kind": "binary", "min_bytes": 294000000}], "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
       "enabled": true
     },
     {
@@ -445,7 +445,7 @@
       "hardware": {"cpu_capable": true, "gpu_required": false, "min_vram_gb": 4, "min_ram_gb": 8, "os_arch": ["linux/amd64", "darwin/arm64", "windows/amd64"], "speed_note": "SOTA commercially-safe quality; GPU preferred (ONNX CPU ~75-90% slower). Use birefnet-general-lite for CPU-only hosts."},
       "io": {"notes": "Background_replace pipeline: BiRefNet soft-alpha cutout -> composite over new bg (Pillow alpha_composite). The model RMBG-2.0 is built on, without the license lock."},
       "capability_labels": {"nsfw_capable": false, "license": "MIT", "commercial_use": "yes", "commercial_use_notes": "Permissive (verified). The commercial-safe alternative to bria RMBG.", "base_model_lineage": "BiRefNet (ZhengPeng7)", "known_risks": "Full model is GPU-heavy on CPU; prefer lite variant on CPU."},
-      "source": {"download_url": "https://github.com/ZhengPeng7/BiRefNet", "source_repo": "https://github.com/ZhengPeng7/BiRefNet", "docs_url": "https://github.com/ZhengPeng7/BiRefNet/blob/main/LICENSE", "update_source": "https://github.com/ZhengPeng7/BiRefNet", "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
+      "source": {"download_url": "https://github.com/ZhengPeng7/BiRefNet", "source_repo": "https://github.com/ZhengPeng7/BiRefNet", "docs_url": "https://github.com/ZhengPeng7/BiRefNet/blob/main/LICENSE", "update_source": "https://github.com/ZhengPeng7/BiRefNet", "assets": [{"url": "https://github.com/ZhengPeng7/BiRefNet/releases/download/v1/BiRefNet-general-bb_swin_v1_tiny-epoch_232.onnx", "filename": "BiRefNet-general-bb_swin_v1_tiny-epoch_232.onnx", "kind": "onnx", "min_bytes": 220000000}], "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
       "enabled": true
     },
     {
@@ -462,7 +462,7 @@
       "hardware": {"cpu_capable": true, "gpu_required": false, "min_vram_gb": 0, "min_ram_gb": 4, "os_arch": ["linux/amd64", "linux/arm64", "darwin/arm64", "windows/amd64"], "speed_note": "Excellent CPU latency; ~10ms/img GPU. TinyViT encoder, SAM-compatible API. Export via samexporter. Cache the image embedding, reuse decoder per click/box."},
       "io": {"notes": "Powers smart masking for inpaint/object-removal (click/box -> mask)."},
       "capability_labels": {"nsfw_capable": false, "license": "Apache-2.0", "commercial_use": "yes", "commercial_use_notes": "Permissive. (Avoid FastSAM — AGPL via Ultralytics.)", "base_model_lineage": "MobileSAM (ChaoningZhang), distilled from SAM", "known_risks": "Lower mask quality than full SAM2/HQ-SAM."},
-      "source": {"download_url": "https://github.com/ChaoningZhang/MobileSAM", "source_repo": "https://github.com/ChaoningZhang/MobileSAM", "docs_url": "https://github.com/vietanhdev/samexporter", "update_source": "https://github.com/ChaoningZhang/MobileSAM", "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
+      "source": {"download_url": "https://github.com/ChaoningZhang/MobileSAM", "source_repo": "https://github.com/ChaoningZhang/MobileSAM", "docs_url": "https://huggingface.co/PulpCut/mobilesam-onnx", "update_source": "https://huggingface.co/PulpCut/mobilesam-onnx", "assets": [{"url": "https://huggingface.co/PulpCut/mobilesam-onnx/resolve/main/mobilesam.encoder.onnx", "filename": "mobilesam.encoder.onnx", "kind": "onnx", "min_bytes": 28000000}, {"url": "https://huggingface.co/PulpCut/mobilesam-onnx/resolve/main/mobilesam.decoder.onnx", "filename": "mobilesam.decoder.onnx", "kind": "onnx", "min_bytes": 16000000}], "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
       "enabled": true
     },
     {
@@ -513,7 +513,7 @@
       "hardware": {"cpu_capable": true, "gpu_required": false, "min_vram_gb": 0, "min_ram_gb": 4, "os_arch": ["linux/amd64", "linux/arm64", "darwin/arm64", "windows/amd64"], "speed_note": "CPU ~100ms/frame via ONNX (onnxruntime + OpenCV, no PyTorch). Relative depth."},
       "io": {},
       "capability_labels": {"nsfw_capable": false, "license": "Apache-2.0", "commercial_use": "yes", "commercial_use_notes": "ONLY the Small (vits) checkpoint is Apache. Base/Large/Giant are CC-BY-NC-4.0 — do NOT silently upgrade.", "base_model_lineage": "Depth Anything V2 (TikTok/HKU)", "known_risks": "Per-size license trap: never auto-upgrade to V2 Base/Large/Giant (non-commercial)."},
-      "source": {"download_url": "https://huggingface.co/depth-anything/Depth-Anything-V2-Small", "source_repo": "https://github.com/DepthAnything/Depth-Anything-V2", "docs_url": "https://github.com/fabio-sim/Depth-Anything-ONNX", "update_source": "https://huggingface.co/depth-anything/Depth-Anything-V2-Small", "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
+      "source": {"download_url": "", "source_repo": "https://github.com/DepthAnything/Depth-Anything-V2", "docs_url": "https://github.com/fabio-sim/Depth-Anything-ONNX", "update_source": "https://github.com/fabio-sim/Depth-Anything-ONNX/releases", "assets": [{"url": "https://github.com/fabio-sim/Depth-Anything-ONNX/releases/download/v2.0.0/depth_anything_v2_vits.onnx", "filename": "depth_anything_v2_vits.onnx", "kind": "onnx", "min_bytes": 99000000}], "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
       "enabled": true
     },
     {
@@ -582,7 +582,7 @@
       "hardware": {"cpu_capable": true, "gpu_required": false, "min_vram_gb": 0, "min_ram_gb": 1, "os_arch": ["linux/amd64", "linux/arm64", "darwin/amd64", "darwin/arm64", "windows/amd64"], "speed_note": "Go-native via gosseract (CGo, libtesseract). No Python. Weaker on dense/tabular layouts."},
       "io": {"notes": "Per-language traineddata downloaded on demand."},
       "capability_labels": {"nsfw_capable": false, "license": "Apache-2.0 (Tesseract) / MIT (gosseract)", "commercial_use": "yes", "commercial_use_notes": "Permissive. Requires C build deps (libtesseract).", "base_model_lineage": "Tesseract OCR (Google)", "known_risks": "Lower accuracy than PaddleOCR on complex layouts."},
-      "source": {"download_url": "https://github.com/tesseract-ocr/tessdata_best", "source_repo": "https://github.com/tesseract-ocr/tesseract", "docs_url": "https://github.com/otiai10/gosseract", "update_source": "https://github.com/tesseract-ocr/tessdata_best", "checksum": {"algo": "sha256", "value": "", "status": "n/a-library"}},
+      "source": {"download_url": "https://github.com/tesseract-ocr/tessdata_fast", "source_repo": "https://github.com/tesseract-ocr/tesseract", "docs_url": "https://github.com/otiai10/gosseract", "update_source": "https://github.com/tesseract-ocr/tessdata_fast", "assets": [{"url": "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/main/eng.traineddata", "filename": "eng.traineddata", "kind": "binary", "min_bytes": 4000000}], "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
       "enabled": true
     },
     {
@@ -616,7 +616,7 @@
       "hardware": {"cpu_capable": true, "gpu_required": false, "min_vram_gb": 0, "min_ram_gb": 2, "os_arch": ["linux/amd64", "linux/arm64", "darwin/arm64", "windows/amd64"], "speed_note": "Ships ready ONNX (the only NSFW model that does); quantize to ~85MB. CPU."},
       "io": {"notes": "Used both as a standalone op and for configurable auto-scan of generated output. Expose the threshold."},
       "capability_labels": {"nsfw_capable": false, "license": "Apache-2.0", "commercial_use": "yes", "commercial_use_notes": "Permissive.", "base_model_lineage": "ViT-base fine-tune (AdamCodd)", "known_risks": "Over-blocks skin/cleavage (expose threshold); weaker on AI-generated images."},
-      "source": {"download_url": "https://huggingface.co/AdamCodd/vit-base-nsfw-detector", "source_repo": "https://huggingface.co/AdamCodd/vit-base-nsfw-detector", "docs_url": "https://huggingface.co/AdamCodd/vit-base-nsfw-detector", "update_source": "https://huggingface.co/AdamCodd/vit-base-nsfw-detector", "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
+      "source": {"download_url": "", "source_repo": "https://huggingface.co/AdamCodd/vit-base-nsfw-detector", "docs_url": "https://huggingface.co/AdamCodd/vit-base-nsfw-detector", "update_source": "https://huggingface.co/AdamCodd/vit-base-nsfw-detector/tree/main/onnx", "assets": [{"url": "https://huggingface.co/AdamCodd/vit-base-nsfw-detector/resolve/main/onnx/model_int8.onnx", "filename": "model_int8.onnx", "kind": "onnx", "min_bytes": 88000000}], "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
       "enabled": true
     },
     {
@@ -650,7 +650,7 @@
       "hardware": {"cpu_capable": true, "gpu_required": false, "min_vram_gb": 0, "min_ram_gb": 4, "os_arch": ["linux/amd64", "linux/arm64", "darwin/arm64", "windows/amd64"], "speed_note": "Built for edge; CGo via llama.cpp (GGUF). No Python. Cleanest permissive caption path."},
       "io": {"notes": "Caption + alt-text. Also supports visual Q&A."},
       "capability_labels": {"nsfw_capable": false, "license": "Apache-2.0", "commercial_use": "yes", "commercial_use_notes": "Permissive.", "base_model_lineage": "moondream2 (vikhyatk)", "known_risks": "None notable."},
-      "source": {"download_url": "https://huggingface.co/vikhyatk/moondream2", "source_repo": "https://github.com/vikhyat/moondream", "docs_url": "https://github.com/ggml-org/llama.cpp", "update_source": "https://huggingface.co/vikhyatk/moondream2", "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
+      "source": {"download_url": "https://huggingface.co/vikhyatk/moondream2", "source_repo": "https://github.com/vikhyat/moondream", "docs_url": "https://github.com/ggml-org/llama.cpp", "update_source": "https://huggingface.co/ggml-org/moondream2-20250414-GGUF", "assets": [{"url": "https://huggingface.co/ggml-org/moondream2-20250414-GGUF/resolve/main/moondream2-text-model-f16_ct-vicuna.gguf", "filename": "moondream2-text-model-f16_ct-vicuna.gguf", "kind": "gguf", "min_bytes": 2800000000}, {"url": "https://huggingface.co/ggml-org/moondream2-20250414-GGUF/resolve/main/moondream2-mmproj-f16-20250414.gguf", "filename": "moondream2-mmproj-f16-20250414.gguf", "kind": "gguf", "min_bytes": 900000000}], "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
       "enabled": true
     },
     {
@@ -667,7 +667,7 @@
       "hardware": {"cpu_capable": true, "gpu_required": false, "min_vram_gb": 0, "min_ram_gb": 2, "os_arch": ["linux/amd64", "linux/arm64", "darwin/arm64", "windows/amd64"], "speed_note": "Smallest VLM available; low-RAM fallback for tiny hosts."},
       "io": {},
       "capability_labels": {"nsfw_capable": false, "license": "Apache-2.0", "commercial_use": "yes", "commercial_use_notes": "Permissive.", "base_model_lineage": "SmolVLM (HuggingFaceTB)", "known_risks": "Lower caption quality than moondream2."},
-      "source": {"download_url": "https://huggingface.co/HuggingFaceTB/SmolVLM-256M-Instruct", "source_repo": "https://huggingface.co/HuggingFaceTB/SmolVLM-256M-Instruct", "docs_url": "https://github.com/ggml-org/llama.cpp", "update_source": "https://huggingface.co/HuggingFaceTB/SmolVLM-256M-Instruct", "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
+      "source": {"download_url": "https://huggingface.co/HuggingFaceTB/SmolVLM-256M-Instruct", "source_repo": "https://huggingface.co/HuggingFaceTB/SmolVLM-256M-Instruct", "docs_url": "https://github.com/ggml-org/llama.cpp", "update_source": "https://huggingface.co/ggml-org/SmolVLM-256M-Instruct-GGUF", "assets": [{"url": "https://huggingface.co/ggml-org/SmolVLM-256M-Instruct-GGUF/resolve/main/SmolVLM-256M-Instruct-Q8_0.gguf", "filename": "SmolVLM-256M-Instruct-Q8_0.gguf", "kind": "gguf", "min_bytes": 175000000}, {"url": "https://huggingface.co/ggml-org/SmolVLM-256M-Instruct-GGUF/resolve/main/mmproj-SmolVLM-256M-Instruct-Q8_0.gguf", "filename": "mmproj-SmolVLM-256M-Instruct-Q8_0.gguf", "kind": "gguf", "min_bytes": 103000000}], "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
       "enabled": true
     },
     {
@@ -701,7 +701,7 @@
       "hardware": {"cpu_capable": true, "gpu_required": false, "min_vram_gb": 0, "min_ram_gb": 2, "os_arch": ["linux/amd64", "linux/arm64", "darwin/arm64", "windows/amd64"], "speed_note": "Excellent CPU; the clean AGPL-free YOLO (use instead of Ultralytics YOLOv8/v11)."},
       "io": {"notes": "Bounding boxes. Pair with WD14/RAM++ for tagging."},
       "capability_labels": {"nsfw_capable": false, "license": "Apache-2.0", "commercial_use": "yes", "commercial_use_notes": "Permissive. CRITICAL: do NOT use Ultralytics YOLOv8/v11 (AGPL-3.0) or YOLO-NAS (Deci non-commercial weights).", "base_model_lineage": "YOLOX (Megvii)", "known_risks": "Lower accuracy than the newest (AGPL/NC) detectors — acceptable tradeoff for license cleanliness."},
-      "source": {"download_url": "https://github.com/Megvii-BaseDetection/YOLOX/releases", "source_repo": "https://github.com/Megvii-BaseDetection/YOLOX", "docs_url": "https://github.com/Megvii-BaseDetection/YOLOX", "update_source": "https://github.com/Megvii-BaseDetection/YOLOX/releases", "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
+      "source": {"download_url": "", "source_repo": "https://github.com/Megvii-BaseDetection/YOLOX", "docs_url": "https://github.com/Megvii-BaseDetection/YOLOX", "update_source": "https://github.com/Megvii-BaseDetection/YOLOX/releases", "assets": [{"url": "https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_tiny.onnx", "filename": "yolox_tiny.onnx", "kind": "onnx", "min_bytes": 20000000}], "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
       "enabled": true
     },
     {
@@ -752,7 +752,7 @@
       "hardware": {"cpu_capable": true, "gpu_required": false, "min_vram_gb": 0, "min_ram_gb": 4, "os_arch": ["linux/amd64", "darwin/arm64", "windows/amd64"], "speed_note": "Fast on CPU. Anime/booru-tuned; weaker on generic photos (use RAM++ for those)."},
       "io": {},
       "capability_labels": {"nsfw_capable": false, "license": "Apache-2.0", "commercial_use": "yes", "commercial_use_notes": "Permissive.", "base_model_lineage": "WD14 tagger (SmilingWolf)", "known_risks": "Booru tag vocabulary; weaker on natural photos."},
-      "source": {"download_url": "https://huggingface.co/SmilingWolf/wd-vit-tagger-v3", "source_repo": "https://huggingface.co/SmilingWolf/wd-vit-tagger-v3", "docs_url": "https://huggingface.co/SmilingWolf/wd-vit-tagger-v3", "update_source": "https://huggingface.co/SmilingWolf/wd-vit-tagger-v3", "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
+      "source": {"download_url": "", "source_repo": "https://huggingface.co/SmilingWolf/wd-vit-tagger-v3", "docs_url": "https://huggingface.co/SmilingWolf/wd-vit-tagger-v3", "update_source": "https://huggingface.co/SmilingWolf/wd-vit-tagger-v3", "assets": [{"url": "https://huggingface.co/SmilingWolf/wd-vit-tagger-v3/resolve/main/model.onnx", "filename": "model.onnx", "kind": "onnx", "min_bytes": 378000000}], "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
       "enabled": true
     },
     {
@@ -786,7 +786,7 @@
       "hardware": {"cpu_capable": true, "gpu_required": false, "min_vram_gb": 0, "min_ram_gb": 1, "os_arch": ["linux/amd64", "linux/arm64", "darwin/amd64", "darwin/arm64", "windows/amd64"], "speed_note": "Best accuracy/size/license combo; CPU real-time; already an OpenCV citizen (cv.FaceDetectorYN)."},
       "io": {"notes": "Anonymous count + bounding boxes ONLY. No recognition/identity (non-goal). AVOID InsightFace SCRFD/RetinaFace (non-commercial weights)."},
       "capability_labels": {"nsfw_capable": false, "license": "MIT (code AND weights)", "commercial_use": "yes", "commercial_use_notes": "Fully permissive. The commercial-safe face detector (InsightFace weights are non-commercial).", "base_model_lineage": "YuNet (OpenCV Zoo / ShiqiYu)", "known_risks": "Detection only — never extend to recognition (project non-goal)."},
-      "source": {"download_url": "https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet", "source_repo": "https://github.com/opencv/opencv_zoo", "docs_url": "https://docs.opencv.org/4.x/df/d20/classcv_1_1FaceDetectorYN.html", "update_source": "https://github.com/opencv/opencv_zoo", "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
+      "source": {"download_url": "https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet", "source_repo": "https://github.com/opencv/opencv_zoo", "docs_url": "https://docs.opencv.org/4.x/df/d20/classcv_1_1FaceDetectorYN.html", "update_source": "https://github.com/opencv/opencv_zoo", "assets": [{"url": "https://media.githubusercontent.com/media/opencv/opencv_zoo/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx", "filename": "face_detection_yunet_2023mar.onnx", "kind": "onnx", "min_bytes": 200000}], "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
       "enabled": true
     },
     {
@@ -795,8 +795,8 @@
       "operations": ["quality_assessment"],
       "default_for": ["quality_assessment"],
       "tier": "default",
-      "backend": "library-cgo",
-      "alt_backends": ["gocv (OpenCV)", "pure-go"],
+      "backend": "computed",
+      "alt_backends": ["pure-go", "gocv (OpenCV)"],
       "requires_comfyui": false,
       "size_mb_approx": 0,
       "quant_variants": [],
@@ -871,7 +871,7 @@
       "hardware": {"cpu_capable": true, "gpu_required": false, "min_vram_gb": 0, "min_ram_gb": 4, "os_arch": ["linux/amd64", "linux/arm64", "darwin/arm64", "windows/amd64"], "speed_note": "CPU. 768-dim; shares embedding space with nomic-embed-text -> text<->image search out of the box."},
       "io": {"notes": "Feeds semantic image search (e.g. into qdrant via search-hub)."},
       "capability_labels": {"nsfw_capable": false, "license": "Apache-2.0", "commercial_use": "yes", "commercial_use_notes": "Permissive.", "base_model_lineage": "Nomic AI", "known_risks": "None notable."},
-      "source": {"download_url": "https://huggingface.co/nomic-ai/nomic-embed-vision-v1.5", "source_repo": "https://huggingface.co/nomic-ai/nomic-embed-vision-v1.5", "docs_url": "https://huggingface.co/nomic-ai/nomic-embed-vision-v1.5", "update_source": "https://huggingface.co/nomic-ai/nomic-embed-vision-v1.5", "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
+      "source": {"download_url": "", "source_repo": "https://huggingface.co/nomic-ai/nomic-embed-vision-v1.5", "docs_url": "https://huggingface.co/nomic-ai/nomic-embed-vision-v1.5", "update_source": "https://huggingface.co/nomic-ai/nomic-embed-vision-v1.5/tree/main/onnx", "assets": [{"url": "https://huggingface.co/nomic-ai/nomic-embed-vision-v1.5/resolve/main/onnx/model_int8.onnx", "filename": "model_int8.onnx", "kind": "onnx", "min_bytes": 96000000}], "checksum": {"algo": "sha256", "value": "", "status": "unverified-capture-on-download"}},
       "enabled": true
     },
     {

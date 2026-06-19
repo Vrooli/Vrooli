@@ -26,7 +26,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 429, Code: "resource_exhausted", Description: "Configured session limit reached"},
 			{Status: 503, Code: "unavailable", Description: "Backend unavailable (e.g. tmux missing)"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console session create", Args: []string{"--body-file"}},
 	},
 	{
 		ID:          "sessions_list",
@@ -39,7 +38,6 @@ var Endpoints = []module.EndpointDescriptor{
 			Type:       "object",
 			Properties: map[string]string{"sessions": "[]Session"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console session list"},
 	},
 	{
 		ID:          "sessions_get",
@@ -56,7 +54,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 400, Code: "invalid_argument", Description: "Missing id"},
 			{Status: 404, Code: "not_found", Description: "Session not found"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console session get", Args: []string{"--id"}},
 	},
 	{
 		ID:          "sessions_delete",
@@ -68,7 +65,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Errors: []module.ErrorDesc{
 			{Status: 400, Code: "invalid_argument", Description: "Missing id"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console session delete", Args: []string{"--id"}},
 	},
 	{
 		ID:          "sessions_recoverable_list",
@@ -81,7 +77,6 @@ var Endpoints = []module.EndpointDescriptor{
 			Type:       "object",
 			Properties: map[string]string{"sessions": "[]RecoverableSession"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console session list-recoverable"},
 	},
 	{
 		ID:          "sessions_recoverable_dismiss",
@@ -95,7 +90,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 404, Code: "not_found", Description: "No such session row"},
 			{Status: 412, Code: "failed_precondition", Description: "Session is not in awaiting_recovery status"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console session dismiss", Args: []string{"--id"}},
 	},
 	{
 		ID:          "sessions_recover",
@@ -120,7 +114,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 412, Code: "failed_precondition", Description: "Session is not awaiting_recovery, or no agent identity recorded"},
 			{Status: 429, Code: "resource_exhausted", Description: "Session limit reached while spawning replacement"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console session recover", Args: []string{"--id"}},
 	},
 	{
 		ID:          "sessions_policy_get",
@@ -137,7 +130,6 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 400, Code: "invalid_argument", Description: "Missing id"},
 			{Status: 404, Code: "not_found", Description: "Session not found"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console session policy-get", Args: []string{"--id"}},
 	},
 	{
 		ID:          "sessions_policy_update",
@@ -154,6 +146,5 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 400, Code: "invalid_argument", Description: "Missing id, missing policy, or invalid mode/duration"},
 			{Status: 404, Code: "not_found", Description: "Session not found"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console session policy-set", Args: []string{"--id", "--body-file"}},
 	},
 }

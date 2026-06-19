@@ -1,0 +1,111 @@
+syntax = "proto3";
+
+package vrooli.tunnel_manager.v1.recovery;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/recovery;recovery_v1";
+
+// =============================================================================
+// RECOVERY DOMAIN — auto-recovery engine (live)
+// =============================================================================
+//
+// @stability stable
+//
+// Wire contract for RecoveryService. On /ready failure or HA=0, restarts
+// cloudflared / re-pushes config with exponential backoff + a circuit breaker;
+// acts LIVE from day one. Tunnel Manager is the single authoritative owner of
+// cloudflared restart (vrooli-autoheal downgrades to alert-only). Recovery is
+// idempotent and replay-safe: a restart already in flight is not re-triggered,
+// and the recovery_events log is the durable record of every attempt.
+//
+// Consumed by:
+//   - API: handlers/recovery/connect_handler.go implements RecoveryServiceHandler.
+//   - CLI: cli/domains/recovery/handlers.go (recover, recover events).
+//   - UI:  ui/src/features/recovery/ (timeline + manual recover).
+// =============================================================================
+
+service RecoveryService {
+  // GetState returns the live recovery state machine snapshot.
+  rpc GetState(GetStateRequest) returns (GetStateResponse);
+  // ListEvents returns the recovery event log, newest first.
+  rpc ListEvents(ListEventsRequest) returns (ListEventsResponse);
+  // Recover triggers a manual recovery attempt. Idempotent while a recovery is
+  // already in flight (returns the in-flight outcome rather than restarting
+  // twice); rejected while the circuit breaker is open unless force is set.
+  rpc Recover(RecoverRequest) returns (RecoverResponse);
+}
+
+// RecoveryStatus is the state-machine phase.
+enum RecoveryStatus {
+  RECOVERY_STATUS_UNSPECIFIED = 0;
+  RECOVERY_STATUS_IDLE = 1;
+  RECOVERY_STATUS_MONITORING = 2;
+  RECOVERY_STATUS_RECOVERING = 3;
+  RECOVERY_STATUS_CIRCUIT_OPEN = 4;
+}
+
+// EventOutcome is the result of a recovery attempt.
+enum EventOutcome {
+  EVENT_OUTCOME_UNSPECIFIED = 0;
+  EVENT_OUTCOME_SUCCESS = 1;
+  EVENT_OUTCOME_FAILURE = 2;
+  EVENT_OUTCOME_SKIPPED = 3;
+}
+
+// RecoveryState is the live state-machine snapshot.
+message RecoveryState {
+  RecoveryStatus status = 1;
+  // Consecutive health-check failures observed.
+  int32 consec_failures = 2;
+  // Current exponential-backoff level.
+  int32 backoff_level = 3;
+  // Count of recovery attempts that failed.
+  int32 failed_recoveries = 4;
+  // True when the circuit breaker is open (recovery paused).
+  bool circuit_open = 5;
+  google.protobuf.Timestamp last_check = 6;
+  google.protobuf.Timestamp last_recovery = 7;
+  // When the next retry is permitted (backoff / circuit cooldown).
+  google.protobuf.Timestamp next_retry_after = 8;
+}
+
+// RecoveryEvent is one durable log entry for a recovery attempt.
+message RecoveryEvent {
+  string id = 1;
+  // "ready_failure", "ha_connection_loss", or "manual".
+  string trigger = 2;
+  // Action taken (e.g., "systemctl_restart", "config_repush").
+  string action = 3;
+  EventOutcome outcome = 4;
+  string details = 5;
+  // Backoff attempt number this event corresponds to.
+  int32 attempt = 6;
+  google.protobuf.Timestamp created_at = 7;
+}
+
+message GetStateRequest {
+}
+
+message GetStateResponse {
+  RecoveryState state = 1;
+}
+
+message ListEventsRequest {
+  // Max rows to return; 0 uses the default.
+  int32 limit = 1;
+}
+
+message ListEventsResponse {
+  repeated RecoveryEvent events = 1;
+}
+
+message RecoverRequest {
+  // Bypass the circuit breaker / backoff window when true (operator override).
+  bool force = 1;
+}
+
+message RecoverResponse {
+  EventOutcome outcome = 1;
+  RecoveryEvent event = 2;
+}

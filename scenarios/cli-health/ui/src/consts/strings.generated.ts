@@ -94,9 +94,6 @@ export const strings = {
     yes: "status.yes",
     no: "status.no",
     never: "status.never",
-    reindex: "status.reindex",
-    reindexing: "status.reindexing",
-    reindexed: "status.reindexed",
   },
 } as const;
 

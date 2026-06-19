@@ -9,12 +9,13 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"prompt-manager/store"
-	"prompt-manager/teamconfig"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"prompt-manager/store"
+	"prompt-manager/teamconfig"
 
 	"github.com/gorilla/mux"
 )
@@ -29,10 +30,16 @@ type Handlers struct {
 	runRegistry   *RunRegistry
 	agentClient   AgentClient
 	teamExecStore *TeamExecutionStore
+	controlStore  *HeartbeatControlStore
 	// swarmClient is the HTTP client used to invoke swarm-manager when
 	// auto-creating an initiative on decision-accept. Lazily initialised the
 	// first time it is used; tests inject a stub via SetSwarmInitiativeClient.
 	swarmClient *SwarmInitiativeClient
+}
+
+// SetControlStore attaches the heartbeat engagement guard.
+func (h *Handlers) SetControlStore(controlStore *HeartbeatControlStore) {
+	h.controlStore = controlStore
 }
 
 // SetSwarmInitiativeClient overrides the swarm-manager initiative client.
@@ -384,12 +391,21 @@ func (h *Handlers) CreateHeartbeat(w http.ResponseWriter, r *http.Request) {
 		}
 		config.TimeoutSeconds = v
 	}
+	engagementEvent, err := h.operatorEngagementEventFromRequest(r, teamID, "heartbeat-config-created")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	if err := h.teamStore.SetHeartbeatConfig(ctx, teamID, agentID, config); err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			http.Error(w, "Team not found", http.StatusNotFound)
 			return
 		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := h.recordOperatorEngagementEvent(ctx, engagementEvent); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -485,8 +501,17 @@ func (h *Handlers) UpdateHeartbeat(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	engagementEvent, err := h.operatorEngagementEventFromRequest(r, teamID, "heartbeat-config-updated")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	if err := h.teamStore.SetHeartbeatConfig(ctx, teamID, agentID, config); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := h.recordOperatorEngagementEvent(ctx, engagementEvent); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -555,9 +580,29 @@ func (h *Handlers) TriggerHeartbeat(w http.ResponseWriter, r *http.Request) {
 	teamID := vars["id"]
 	agentID := vars["agentId"]
 
+	if h.controlStore != nil {
+		if paused, err := h.controlStore.AllowStart(ctx, teamID); err != nil {
+			if errors.Is(err, ErrHeartbeatPaused) {
+				writeHeartbeatPaused(w, paused)
+				return
+			}
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	engagementEvent, err := h.operatorEngagementEventFromRequest(r, teamID, "heartbeat-manual-trigger")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	resp, status, err := h.triggerHeartbeatMember(ctx, teamID, agentID)
 	if err != nil {
 		http.Error(w, err.Error(), status)
+		return
+	}
+	if err := h.recordOperatorEngagementEvent(ctx, engagementEvent); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -1202,6 +1247,279 @@ func (h *Handlers) StopRunning(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// GetHeartbeatControl returns global heartbeat pause/policy status.
+func (h *Handlers) GetHeartbeatControl(w http.ResponseWriter, r *http.Request) {
+	if h.controlStore == nil {
+		http.Error(w, "heartbeat control store not configured", http.StatusServiceUnavailable)
+		return
+	}
+	teams, err := h.teamStore.List(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	resp, err := h.controlStore.Status(r.Context(), teams)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
+// UpdateHeartbeatControlPolicy updates the global auto-pause policy.
+func (h *Handlers) UpdateHeartbeatControlPolicy(w http.ResponseWriter, r *http.Request) {
+	if h.controlStore == nil {
+		http.Error(w, "heartbeat control store not configured", http.StatusServiceUnavailable)
+		return
+	}
+	attr, isHuman, err := attributionFromRequest(r, "")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if !isHuman {
+		http.Error(w, "operator-direct attribution is required", http.StatusForbidden)
+		return
+	}
+	var req HeartbeatControlPolicyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	resp, err := h.controlStore.UpdateGlobalPolicy(r.Context(), req, attr)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
+// PauseHeartbeatControl manually pauses global heartbeat starts.
+func (h *Handlers) PauseHeartbeatControl(w http.ResponseWriter, r *http.Request) {
+	h.handleHeartbeatControlPause(w, r, "")
+}
+
+// ResumeHeartbeatControl resumes global heartbeat starts.
+func (h *Handlers) ResumeHeartbeatControl(w http.ResponseWriter, r *http.Request) {
+	h.handleHeartbeatControlResume(w, r, "")
+}
+
+// GetTeamHeartbeatControl returns heartbeat pause/policy status for one team.
+func (h *Handlers) GetTeamHeartbeatControl(w http.ResponseWriter, r *http.Request) {
+	if h.controlStore == nil {
+		http.Error(w, "heartbeat control store not configured", http.StatusServiceUnavailable)
+		return
+	}
+	teamID := mux.Vars(r)["id"]
+	if _, err := h.teamStore.Get(r.Context(), teamID); err != nil {
+		http.Error(w, "Team not found", http.StatusNotFound)
+		return
+	}
+	resp, err := h.controlStore.TeamStatus(r.Context(), teamID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
+// UpdateTeamHeartbeatControlPolicy updates one team's auto-pause override.
+func (h *Handlers) UpdateTeamHeartbeatControlPolicy(w http.ResponseWriter, r *http.Request) {
+	if h.controlStore == nil {
+		http.Error(w, "heartbeat control store not configured", http.StatusServiceUnavailable)
+		return
+	}
+	teamID := mux.Vars(r)["id"]
+	if _, err := h.teamStore.Get(r.Context(), teamID); err != nil {
+		http.Error(w, "Team not found", http.StatusNotFound)
+		return
+	}
+	attr, isHuman, err := attributionFromRequest(r, teamID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if !isHuman {
+		http.Error(w, "operator-direct attribution is required", http.StatusForbidden)
+		return
+	}
+	var req HeartbeatControlTeamPolicyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	resp, err := h.controlStore.UpdateTeamPolicy(r.Context(), teamID, req, attr)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
+// PauseTeamHeartbeatControl manually pauses heartbeat starts for one team.
+func (h *Handlers) PauseTeamHeartbeatControl(w http.ResponseWriter, r *http.Request) {
+	h.handleHeartbeatControlPause(w, r, mux.Vars(r)["id"])
+}
+
+// ResumeTeamHeartbeatControl resumes heartbeat starts for one team.
+func (h *Handlers) ResumeTeamHeartbeatControl(w http.ResponseWriter, r *http.Request) {
+	h.handleHeartbeatControlResume(w, r, mux.Vars(r)["id"])
+}
+
+func (h *Handlers) handleHeartbeatControlPause(w http.ResponseWriter, r *http.Request, teamID string) {
+	if h.controlStore == nil {
+		http.Error(w, "heartbeat control store not configured", http.StatusServiceUnavailable)
+		return
+	}
+	if teamID != "" {
+		if _, err := h.teamStore.Get(r.Context(), teamID); err != nil {
+			http.Error(w, "Team not found", http.StatusNotFound)
+			return
+		}
+	}
+	attr, isHuman, err := attributionFromRequest(r, teamID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if !isHuman {
+		http.Error(w, "operator-direct attribution is required", http.StatusForbidden)
+		return
+	}
+	var req HeartbeatControlPauseRequest
+	if r.Body != nil {
+		_ = json.NewDecoder(r.Body).Decode(&req)
+	}
+	resp, err := h.controlStore.Pause(r.Context(), teamID, req.Reason, attr)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	h.unscheduleHeartbeats(r.Context(), teamID)
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
+func (h *Handlers) handleHeartbeatControlResume(w http.ResponseWriter, r *http.Request, teamID string) {
+	if h.controlStore == nil {
+		http.Error(w, "heartbeat control store not configured", http.StatusServiceUnavailable)
+		return
+	}
+	if teamID != "" {
+		if _, err := h.teamStore.Get(r.Context(), teamID); err != nil {
+			http.Error(w, "Team not found", http.StatusNotFound)
+			return
+		}
+	}
+	attr, isHuman, err := attributionFromRequest(r, teamID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if !isHuman {
+		http.Error(w, "operator-direct attribution is required", http.StatusForbidden)
+		return
+	}
+	resp, err := h.controlStore.Resume(r.Context(), teamID, attr)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	h.scheduleEnabledHeartbeats(r.Context(), teamID)
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
+}
+
+func (h *Handlers) operatorEngagementEventFromRequest(r *http.Request, teamID, reason string) (*HumanEngagementEvent, error) {
+	if h.controlStore == nil {
+		return nil, nil
+	}
+	attr, isHuman, err := attributionFromRequest(r, teamID)
+	if err != nil {
+		return nil, err
+	}
+	if !isHuman {
+		return nil, nil
+	}
+	return &HumanEngagementEvent{
+		TeamID:      teamID,
+		Reason:      reason,
+		Attribution: attr,
+	}, nil
+}
+
+func (h *Handlers) recordOperatorEngagementEvent(ctx context.Context, event *HumanEngagementEvent) error {
+	if h.controlStore == nil || event == nil {
+		return nil
+	}
+	return h.controlStore.RecordHumanEngagement(ctx, *event)
+}
+
+func (h *Handlers) scheduleEnabledHeartbeats(ctx context.Context, teamID string) {
+	if h.scheduler == nil {
+		return
+	}
+	teams, err := h.teamStore.List(ctx)
+	if err != nil {
+		log.Printf("heartbeat control: list teams for resume failed: %v", err)
+		return
+	}
+	for _, team := range teams {
+		if teamID != "" && team.ID != teamID {
+			continue
+		}
+		if !team.Enabled {
+			continue
+		}
+		configs, err := h.teamStore.ListHeartbeatConfigs(ctx, team.ID)
+		if err != nil {
+			log.Printf("heartbeat control: list heartbeat configs for %s failed: %v", team.ID, err)
+			continue
+		}
+		for _, config := range configs {
+			if !config.Enabled {
+				continue
+			}
+			if err := h.scheduler.Schedule(config.TeamID, config.AgentID, config.Schedule); err != nil {
+				log.Printf("heartbeat control: schedule %s/%s after resume failed: %v", config.TeamID, config.AgentID, err)
+			}
+		}
+	}
+}
+
+func (h *Handlers) unscheduleHeartbeats(ctx context.Context, teamID string) {
+	if h.scheduler == nil {
+		return
+	}
+	teams, err := h.teamStore.List(ctx)
+	if err != nil {
+		log.Printf("heartbeat control: list teams for pause failed: %v", err)
+		return
+	}
+	for _, team := range teams {
+		if teamID != "" && team.ID != teamID {
+			continue
+		}
+		configs, err := h.teamStore.ListHeartbeatConfigs(ctx, team.ID)
+		if err != nil {
+			continue
+		}
+		for _, config := range configs {
+			h.scheduler.Unschedule(config.TeamID, config.AgentID)
+		}
+	}
+}
+
+func writeHeartbeatPaused(w http.ResponseWriter, paused *HeartbeatPausedErrorResponse) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusLocked)
+	_ = json.NewEncoder(w).Encode(paused)
+}
+
 // TriggerTeam handles POST /teams/{id}/trigger - triggers the team according to its runtime and coordination policy.
 func (h *Handlers) TriggerTeam(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -1221,6 +1539,21 @@ func (h *Handlers) TriggerTeam(w http.ResponseWriter, r *http.Request) {
 
 	if !team.Enabled {
 		http.Error(w, "Team is disabled; enable the team to run heartbeats", http.StatusConflict)
+		return
+	}
+	if h.controlStore != nil {
+		if paused, err := h.controlStore.AllowStart(ctx, teamID); err != nil {
+			if errors.Is(err, ErrHeartbeatPaused) {
+				writeHeartbeatPaused(w, paused)
+				return
+			}
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	engagementEvent, err := h.operatorEngagementEventFromRequest(r, teamID, "team-heartbeat-manual-trigger")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -1253,6 +1586,10 @@ func (h *Handlers) TriggerTeam(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, enqErr.Error(), http.StatusInternalServerError)
 				return
 			}
+			if err := h.recordOperatorEngagementEvent(ctx, engagementEvent); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusAccepted)
@@ -1268,6 +1605,10 @@ func (h *Handlers) TriggerTeam(w http.ResponseWriter, r *http.Request) {
 
 		result, err := h.executor.TriggerManual(ctx, teamID, leadAgentID)
 		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if err := h.recordOperatorEngagementEvent(ctx, engagementEvent); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -1337,6 +1678,10 @@ func (h *Handlers) TriggerTeam(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	if err := h.recordOperatorEngagementEvent(ctx, engagementEvent); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
 	_ = json.NewEncoder(w).Encode(TriggerTeamResponse{
@@ -2351,6 +2696,19 @@ func (h *Handlers) UpdateDecisionHandler(w http.ResponseWriter, r *http.Request)
 			return
 		}
 	}
+	var engagementAttribution store.AttributionInfo
+	shouldRecordEngagement := false
+	if effectiveStatus != nil && isHumanDecisionEngagementStatus(*effectiveStatus) && h.controlStore != nil {
+		attr, isHuman, err := attributionFromRequest(r, teamID)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if isHuman {
+			engagementAttribution = attr
+			shouldRecordEngagement = true
+		}
+	}
 
 	// d5: accepting an initiative-proposal decision requires initiative_metadata
 	// to be present (either already on the decision or supplied in this PATCH).
@@ -2465,6 +2823,16 @@ func (h *Handlers) UpdateDecisionHandler(w http.ResponseWriter, r *http.Request)
 		http.Error(w, "decision updated but not found in response", http.StatusInternalServerError)
 		return
 	}
+	if shouldRecordEngagement {
+		if err := h.controlStore.RecordHumanEngagement(r.Context(), HumanEngagementEvent{
+			TeamID:      teamID,
+			Reason:      "decision-" + *effectiveStatus,
+			Attribution: engagementAttribution,
+		}); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
 
 	// Auto-create initiative when transitioning an initiative-proposal decision
 	// to accepted. Failure does not roll back the accept (per d4=A); the
@@ -2503,6 +2871,15 @@ func (h *Handlers) UpdateDecisionHandler(w http.ResponseWriter, r *http.Request)
 		DecisionEntry:     *updated,
 		AutoCreateOutcome: autoOutcome,
 	})
+}
+
+func isHumanDecisionEngagementStatus(status string) bool {
+	switch status {
+	case store.DecisionStatusAccepted, store.DecisionStatusRejected, store.DecisionStatusDeferred, store.DecisionStatusPending:
+		return true
+	default:
+		return false
+	}
 }
 
 // UpdateDecisionResponse extends the persisted decision with an optional

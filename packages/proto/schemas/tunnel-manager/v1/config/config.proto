@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+package vrooli.tunnel_manager.v1.config;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/tunnel-manager/v1/config;config_v1";
+
+// =============================================================================
+// CONFIG DOMAIN — Cloudflare ingress & mode management
+// =============================================================================
+//
+// @stability stable
+//
+// Wire contract for ConfigService. The adapter that makes exposure
+// programmatic: remote mode pushes ingress via the Cloudflare API v4
+// (hot-reload, no operator dashboard step); local mode generates
+// ~/.cloudflared/config.yml from the manifest. Sync reconciles live ingress
+// with the routes manifest; SwitchMode migrates between modes.
+//
+// Consumed by:
+//   - API: handlers/config/connect_handler.go implements ConfigServiceHandler.
+//   - CLI: cli/domains/config/handlers.go (config get|sync|mode).
+// =============================================================================
+
+service ConfigService {
+  rpc GetConfig(GetConfigRequest) returns (GetConfigResponse);
+  // Sync reconciles ingress (remote API or local config.yml) with the routes
+  // manifest. Idempotent: a no-drift sync applies nothing.
+  rpc Sync(SyncRequest) returns (SyncResponse);
+  // SwitchMode migrates between "remote" and "local" management modes.
+  rpc SwitchMode(SwitchModeRequest) returns (SwitchModeResponse);
+}
+
+// Mode is the tunnel management mode.
+enum Mode {
+  MODE_UNSPECIFIED = 0;
+  // Ingress managed through the Cloudflare API v4 (hot reload).
+  MODE_REMOTE = 1;
+  // Ingress managed through a local cloudflared config.yml file.
+  MODE_LOCAL = 2;
+}
+
+// TunnelConfig is the persisted configuration for the tunnel.
+message TunnelConfig {
+  Mode mode = 1;
+  string tunnel_id = 2;
+  string account_id = 3;
+  // Reference (not the secret itself) to the Cloudflare API credential.
+  string cred_ref = 4;
+  // Prometheus metrics endpoint exposed by cloudflared (e.g.
+  // "127.0.0.1:20241").
+  string prom_endpoint = 5;
+}
+
+message GetConfigRequest {
+}
+
+message GetConfigResponse {
+  TunnelConfig config = 1;
+}
+
+message SyncRequest {
+  // When true, compute the diff but do not apply it.
+  bool dry_run = 1;
+}
+
+message SyncResponse {
+  Mode mode = 1;
+  // Hostnames added to ingress this sync.
+  repeated string added = 2;
+  // Hostnames removed from ingress this sync.
+  repeated string removed = 3;
+  // True when the manifest and live ingress already matched.
+  bool no_changes = 4;
+}
+
+message SwitchModeRequest {
+  Mode target_mode = 1;
+}
+
+message SwitchModeResponse {
+  Mode previous_mode = 1;
+  Mode current_mode = 2;
+}

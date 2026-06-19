@@ -282,7 +282,7 @@ Replaces the pre-Phase-3 `stripANSI` helper that lived in `package main`.
 
 | Component | Surface |
 |-----------|---------|
-| `TestAPICLIParity` | Loads `.vrooli/endpoints.json`, enumerates registered CLI commands via `domains.CommandGroups` + `domains.SubcommandGroups`, asserts: (a) every Connect-procedure endpoint has a `cli_mapping`, (b) every `cli_mapping.command` resolves to a registered CLI command, (c) every `cli_commands[]` seed entry has a registered command |
+| `gen-endpoints` manifest coverage gate | Loads `cli/manifest.json` and registered endpoint descriptors, then asserts every Connect procedure is either bound in the manifest or explicitly omitted there. |
 | `parityCLISkipIDs` | Explicit opt-out map for endpoints that genuinely cannot have a CLI form (server streams, long-lived subscriptions). Adding here requires justification |
 | Note marker | An endpoint's `rest_exception.note` can contain `cli:skip` to opt out without touching test code |
 | `builtinCLICommands` | Allowlist for commands provided by cli-core's `NewStandardScenarioApp` (e.g. `status`) that domain registration doesn't surface |

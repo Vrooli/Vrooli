@@ -1,87 +1,80 @@
 {
-  "description": "Execute a scheduled, store-wide garbage-collection and consistency pass separate from the per-query reconcile step to prune permanently unresolvable or fully decayed findings.",
-  "module_id": "MOD-P2-018",
-  "prd_ref": "OT-P2-003",
-  "priority": "P2",
+  "_metadata": {
+    "last_validated_at": "2026-06-18T14:15:16-04:00"
+  },
   "requirements": [
     {
-      "category": "core",
-      "dependencies": [
-        "REQ-P0-005",
-        "REQ-P1-005",
-        "REQ-P2-001"
-      ],
-      "description": "[PLANNED/DEFERRED] Execute a scheduled, store-wide garbage-collection and consistency pass separate from the per-query reconcile step. The GC run: (1) identifies findings that have been in superseded status beyond the configurable retention period and permanently archives them (moves to a cold archive table); (2) prunes fully decayed findings (confidence below minimum threshold and zero effectiveness for the full decay window); (3) identifies and resolves simple consistency anomalies (e.g., orphaned findings with no brief reference). GC runs are logged with a full report of actions taken.",
       "id": "REQ-P2-003",
-      "prd_ref": "OT-P2-003",
-      "status": "complete",
       "title": "Periodic Full-Store Consistency GC Run",
+      "status": "in_progress",
+      "prd_ref": "OT-P2-003",
+      "category": "core",
+      "description": "[PLANNED/DEFERRED] Execute a scheduled, store-wide garbage-collection and consistency pass separate from the per-query reconcile step. The GC run: (1) identifies findings that have been in superseded status beyond the configurable retention period and permanently archives them (moves to a cold archive table); (2) prunes fully decayed findings (confidence below minimum threshold and zero effectiveness for the full decay window); (3) identifies and resolves simple consistency anomalies (e.g., orphaned findings with no brief reference). GC runs are logged with a full report of actions taken.",
       "validation": [
         {
-          "notes": "GC run identifies superseded findings older than the retention threshold and reports them as cold-archive candidates [criterion revised from auto-generated 'moves them to cold archive table' wording: by design (DECISIONS.md — findings are never hard-deleted and the GC never mutates beyond the confidence-gated supersede) there is no cold-archive table and no automatic move; the GC reports ColdArchiveCandidates and the operator-invoked `findings prune` is the only delete path]",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/findings/gc_test.go::TestGCReportsColdArchiveStaleDisputesOrphans",
-          "status": "implemented",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "GC run identifies superseded findings older than the retention threshold and reports them as cold-archive candidates [criterion revised from auto-generated 'moves them to cold archive table' wording: by design (DECISIONS.md — findings are never hard-deleted and the GC never mutates beyond the confidence-gated supersede) there is no cold-archive table and no automatic move; the GC reports ColdArchiveCandidates and the operator-invoked `findings prune` is the only delete path]"
         },
         {
-          "notes": "GC run identifies findings with confidence below minimum threshold AND zero effectiveness and marks them for pruning",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/findings/gc_test.go::TestGCSupersedesDecayedNeverSurfaced",
-          "status": "implemented",
-          "type": "test"
+          "phase": "unit",
+          "status": "failing",
+          "notes": "GC run identifies findings with confidence below minimum threshold AND zero effectiveness and marks them for pruning"
         },
         {
-          "notes": "GC run identifies orphaned findings (brief_id references non-existent brief) and flags them",
-          "phase": "unit",
+          "type": "test",
           "ref": "api/internal/findings/gc_test.go::TestGCReportsColdArchiveStaleDisputesOrphans",
-          "status": "implemented",
-          "type": "test"
-        },
-        {
-          "notes": "GC run produces a structured report listing counts of each action type taken",
           "phase": "unit",
-          "ref": "api/internal/findings/gc_test.go::TestGCFullSweepHandlesAllCategories",
-          "status": "implemented",
-          "type": "test"
+          "status": "failing",
+          "notes": "GC run identifies orphaned findings (brief_id references non-existent brief) and flags them"
         },
         {
-          "notes": "GC dry-run mode reports intended actions without mutating the database",
+          "type": "test",
+          "ref": "api/internal/findings/gc_test.go::TestGCFullSweepHandlesAllCategories",
           "phase": "unit",
-          "ref": "api/internal/findings/gc_test.go::TestGCSupersedesDecayedNeverSurfaced",
-          "status": "implemented",
-          "type": "test"
+          "status": "failing",
+          "notes": "GC run produces a structured report listing counts of each action type taken"
         },
         {
-          "notes": "Seed database with expired superseded findings, decayed zero-effectiveness findings, and orphaned findings; run GC; verify each category is handled correctly and report is generated",
-          "phase": "integration",
+          "type": "test",
+          "ref": "api/internal/findings/gc_test.go::TestGCSupersedesDecayedNeverSurfaced",
+          "phase": "unit",
+          "status": "failing",
+          "notes": "GC dry-run mode reports intended actions without mutating the database"
+        },
+        {
+          "type": "test",
           "ref": "api/internal/findings/gc_test.go::TestGCFullSweepHandlesAllCategories",
-          "status": "implemented",
-          "type": "test"
-        },
-        {
-          "notes": "Verify that active findings with recent effectiveness events are not touched by the GC run",
           "phase": "integration",
-          "ref": "api/internal/findings/gc_test.go::TestGCSupersedesDecayedNeverSurfaced",
           "status": "implemented",
-          "type": "test"
+          "notes": "Seed database with expired superseded findings, decayed zero-effectiveness findings, and orphaned findings; run GC; verify each category is handled correctly and report is generated"
         },
         {
-          "notes": "GC run over a 100,000-finding database completes within 5 minutes",
-          "phase": "performance",
+          "type": "test",
+          "ref": "api/internal/findings/gc_test.go::TestGCSupersedesDecayedNeverSurfaced",
+          "phase": "integration",
+          "status": "implemented",
+          "notes": "Verify that active findings with recent effectiveness events are not touched by the GC run"
+        },
+        {
+          "type": "test",
           "ref": "api/internal/findings/gc_test.go::TestGCRunCompletesWithinScaledBudget",
+          "phase": "performance",
           "status": "implemented",
-          "type": "test"
+          "notes": "GC run over a 100,000-finding database completes within 5 minutes"
         },
         {
-          "notes": "The findings database does not grow unboundedly; stale and unresolvable findings are periodically cleaned up to maintain store quality and query performance",
-          "phase": "business",
+          "type": "test",
           "ref": "api/internal/findings/gc_test.go::TestGCFullSweepHandlesAllCategories",
+          "phase": "business",
           "status": "implemented",
-          "type": "test"
+          "notes": "The findings database does not grow unboundedly; stale and unresolvable findings are periodically cleaned up to maintain store quality and query performance"
         }
       ]
     }
-  ],
-  "title": "Periodic Full-Store Consistency GC Run"
+  ]
 }

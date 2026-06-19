@@ -25,7 +25,6 @@ var Endpoints = []module.EndpointDescriptor{
 				"groups":      "[]Group",
 			},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console workspace layout-get"},
 	},
 	{
 		ID:          "workspace_save_layout",
@@ -41,7 +40,6 @@ var Endpoints = []module.EndpointDescriptor{
 				"pane_order":  "[]string",
 			},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console workspace layout-save", Args: []string{"--body-file"}},
 	},
 	{
 		ID:          "workspace_update_pane",
@@ -54,7 +52,6 @@ var Endpoints = []module.EndpointDescriptor{
 			Type:       "object",
 			Properties: map[string]string{"pane": "Pane"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console workspace pane-update", Args: []string{"--body-file"}},
 	},
 	{
 		ID:          "workspace_delete_pane",
@@ -63,7 +60,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Delete a pane",
 		Description: "Idempotent: succeeds whether the session_id exists or not.",
 		Category:    "workspace",
-		CLIMapping:  &module.CLIMapping{Command: "web-console workspace pane-delete", Args: []string{"<session-id>"}},
 	},
 	{
 		ID:          "workspace_create_group",
@@ -76,7 +72,6 @@ var Endpoints = []module.EndpointDescriptor{
 			Type:       "object",
 			Properties: map[string]string{"group": "Group"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console workspace group-create", Args: []string{"--body-file"}},
 	},
 	{
 		ID:          "workspace_update_group",
@@ -92,7 +87,6 @@ var Endpoints = []module.EndpointDescriptor{
 		Errors: []module.ErrorDesc{
 			{Status: 404, Code: "not_found", Description: "Group id does not exist"},
 		},
-		CLIMapping: &module.CLIMapping{Command: "web-console workspace group-update", Args: []string{"--body-file"}},
 	},
 	{
 		ID:          "workspace_delete_group",
@@ -101,6 +95,5 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Delete a tab group",
 		Description: "Idempotent. Panes in the group have their group_id cleared.",
 		Category:    "workspace",
-		CLIMapping:  &module.CLIMapping{Command: "web-console workspace group-delete", Args: []string{"<group-id>"}},
 	},
 }

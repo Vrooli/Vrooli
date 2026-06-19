@@ -14,7 +14,10 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	intent "intent-go"
 )
+
+const prdRefIntegrityRuleID = intent.CodePRDRefUnmatched
 
 type ScenarioQualityReport struct {
 	EntityType                 string                       `json:"entity_type"`
@@ -725,7 +728,7 @@ func buildStandardsViolationsFromReport(report ScenarioQualityReport) []Standard
 			severity = "high"
 		}
 		appendViolation(StandardsViolation{
-			RuleID:         "prd_prd_ref_integrity",
+			RuleID:         prdRefIntegrityRuleID,
 			Severity:       severity,
 			Title:          fmt.Sprintf("Requirement %s references missing PRD content", issue.RequirementID),
 			Description:    issue.Message,

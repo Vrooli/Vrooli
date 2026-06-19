@@ -17,7 +17,7 @@ These files are the source of truth. When in doubt, copy their shape:
   middleware via `httpx.NewLiveServer`, fake pinger from `mocks/`,
   typed-proto decode via
   `assertx.MustUnmarshalProto[healthv1.Response]` (the wire shape lives
-  in `packages/proto/schemas/{{SCENARIO_ID}}/v1/health/health.proto`;
+  in `packages/proto/schemas/{{SCENARIO_ID}}/v1/shared/health.proto`;
   assert on typed proto fields, not `map[string]any` chains). For
   endpoints whose wire shape isn't in proto yet, `MustDecodeJSON[T]`
   is the fallback — but adding the proto first is the right move.
@@ -90,7 +90,7 @@ api/
 5. **Generated proto types** — every endpoint's wire shape lives in
    `packages/proto/schemas/{{SCENARIO_ID}}/v1/<domain>/<file>.proto`.
    Tests import the generated Go type directly
-   (`healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/health"`)
+   (`healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/shared"`)
    and decode wire bodies into it via `MustUnmarshalProto`. The
    `fixtures` package re-exports the proto type as a short alias
    (`fixtures.HealthResponse = healthv1.Response`) so test code reads
@@ -110,7 +110,7 @@ import (
 
     "github.com/gorilla/mux"
     "github.com/stretchr/testify/require"
-    healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/health"
+    healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/shared"
 
     "{{SCENARIO_ID}}/handlers/health"
     "{{SCENARIO_ID}}/internal/clock"
@@ -164,7 +164,7 @@ func TestHealthHandler(t *testing.T) {
 }
 ```
 
-The proto schema in `packages/proto/schemas/{{SCENARIO_ID}}/v1/health/health.proto`
+The proto schema in `packages/proto/schemas/{{SCENARIO_ID}}/v1/shared/health.proto`
 mirrors `api-core/health.Response` field-for-field, so `MustUnmarshalProto`
 round-trips the wire shape directly into the generated Go type — no
 `map[string]any` chains, no per-test `interface{}` casts, no parallel
@@ -219,7 +219,7 @@ render:
 | Wire contract | `packages/proto/schemas/{{SCENARIO_ID}}/v1/notes/notes.proto` | `Note`, `service NotesService`, `ListNotesResponse`, `CreateNoteRequest`, `CreateNoteResponse`, `GetNoteRequest`, `GetNoteResponse` |
 | REST metadata contract | `packages/proto/schemas/{{SCENARIO_ID}}/v1/notes/attachments.proto` | `Attachment` and `UploadAttachmentResponse` for the multipart upload exception |
 | Connect error mapping | `internal/notes/service_error_mapping.go` | Typed sentinels become Connect codes (`invalid_argument`, `not_found`, `internal`) |
-| REST error envelope | `packages/proto/schemas/{{SCENARIO_ID}}/v1/errors/errors.proto` + `internal/httpx/errors.go::WriteError` | Typed body for REST exceptions, with canonical codes (`invalid_request`, `not_found`, `internal`) |
+| REST error envelope | `packages/proto/schemas/{{SCENARIO_ID}}/v1/shared/errors.proto` + `internal/httpx/errors.go::WriteError` | Typed body for REST exceptions, with canonical codes (`invalid_request`, `not_found`, `internal`) |
 | Domain types | `internal/notes/types.go::{Note, Attachment, CreateInput, ErrInvalidNote, ErrNoteNotFound}` | Domain-pure (no proto imports); typed sentinels translate into Connect errors at the handler edge |
 | Repository interface | `internal/notes/repository.go::Repository` | Persistence seam — `Create` / `Get` / `List` |
 | Repository impl | `internal/notes/sqlite.go::NewSQLiteRepository` | sqlite-backed `Repository`; production wires it once in `main.go` |

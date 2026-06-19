@@ -11,6 +11,57 @@ Heartbeat commands are subcommands of `prompt-manager team`. They manage:
 
 ---
 
+## Heartbeat Auto-Pause Control
+
+### prompt-manager heartbeat-control status
+
+Show global heartbeat control state and per-team summaries.
+
+```bash
+prompt-manager heartbeat-control status [--json]
+```
+
+### prompt-manager heartbeat-control pause
+
+Manually pause future heartbeat starts globally.
+
+```bash
+prompt-manager heartbeat-control pause [--reason "quiet period"] [--json]
+```
+
+### prompt-manager heartbeat-control resume
+
+Resume global heartbeat scheduling and reschedule enabled heartbeat configs for enabled teams.
+
+```bash
+prompt-manager heartbeat-control resume [--json]
+```
+
+### prompt-manager heartbeat-control policy
+
+Show or update the global auto-pause policy.
+
+```bash
+prompt-manager heartbeat-control policy show [--json]
+prompt-manager heartbeat-control policy set --enabled=true --pause-after=14d --warning-after=10d --resume-mode=manual [--json]
+```
+
+### prompt-manager team heartbeat-control
+
+Show or update one team's control state.
+
+```bash
+prompt-manager team heartbeat-control <team-id> status [--json]
+prompt-manager team heartbeat-control <team-id> pause [--reason "quiet period"] [--json]
+prompt-manager team heartbeat-control <team-id> resume [--json]
+prompt-manager team heartbeat-control <team-id> policy show [--json]
+prompt-manager team heartbeat-control <team-id> policy set --mode=inherit|disabled|custom --pause-after=21d --warning-after=14d [--json]
+```
+
+Pause is separate from member heartbeat `enabled`. A paused team can still have enabled heartbeat configs; they simply will not start until resumed.
+
+---
+
 ## Heartbeat Configuration
 
 ### prompt-manager team heartbeat-list

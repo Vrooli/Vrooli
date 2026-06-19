@@ -13,10 +13,19 @@ class CommercialUse(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     COMMERCIAL_USE_YES: _ClassVar[CommercialUse]
     COMMERCIAL_USE_NO: _ClassVar[CommercialUse]
     COMMERCIAL_USE_CONDITIONAL: _ClassVar[CommercialUse]
+
+class CatalogFindingSeverity(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    CATALOG_FINDING_SEVERITY_UNSPECIFIED: _ClassVar[CatalogFindingSeverity]
+    CATALOG_FINDING_SEVERITY_ERROR: _ClassVar[CatalogFindingSeverity]
+    CATALOG_FINDING_SEVERITY_WARNING: _ClassVar[CatalogFindingSeverity]
 COMMERCIAL_USE_UNSPECIFIED: CommercialUse
 COMMERCIAL_USE_YES: CommercialUse
 COMMERCIAL_USE_NO: CommercialUse
 COMMERCIAL_USE_CONDITIONAL: CommercialUse
+CATALOG_FINDING_SEVERITY_UNSPECIFIED: CatalogFindingSeverity
+CATALOG_FINDING_SEVERITY_ERROR: CatalogFindingSeverity
+CATALOG_FINDING_SEVERITY_WARNING: CatalogFindingSeverity
 
 class Hardware(_message.Message):
     __slots__ = ("cpu_capable", "gpu_required", "min_vram_gb", "min_ram_gb", "os_arch", "speed_note")
@@ -271,3 +280,29 @@ class ListDefaultsResponse(_message.Message):
     DEFAULTS_FIELD_NUMBER: _ClassVar[int]
     defaults: _containers.RepeatedCompositeFieldContainer[OpDefault]
     def __init__(self, defaults: _Optional[_Iterable[_Union[OpDefault, _Mapping]]] = ...) -> None: ...
+
+class CatalogFinding(_message.Message):
+    __slots__ = ("severity", "code", "model_id", "operation", "message")
+    SEVERITY_FIELD_NUMBER: _ClassVar[int]
+    CODE_FIELD_NUMBER: _ClassVar[int]
+    MODEL_ID_FIELD_NUMBER: _ClassVar[int]
+    OPERATION_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    severity: CatalogFindingSeverity
+    code: str
+    model_id: str
+    operation: str
+    message: str
+    def __init__(self, severity: _Optional[_Union[CatalogFindingSeverity, str]] = ..., code: _Optional[str] = ..., model_id: _Optional[str] = ..., operation: _Optional[str] = ..., message: _Optional[str] = ...) -> None: ...
+
+class DoctorCatalogRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class DoctorCatalogResponse(_message.Message):
+    __slots__ = ("ok", "findings")
+    OK_FIELD_NUMBER: _ClassVar[int]
+    FINDINGS_FIELD_NUMBER: _ClassVar[int]
+    ok: bool
+    findings: _containers.RepeatedCompositeFieldContainer[CatalogFinding]
+    def __init__(self, ok: _Optional[bool] = ..., findings: _Optional[_Iterable[_Union[CatalogFinding, _Mapping]]] = ...) -> None: ...

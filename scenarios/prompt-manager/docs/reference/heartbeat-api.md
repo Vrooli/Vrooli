@@ -11,6 +11,104 @@ the agent is currently a member of the team. Requests for non-members return `40
 
 ---
 
+## Heartbeat Control
+
+Heartbeat control manages global and per-team auto-pause state. Pause state is independent from member heartbeat config `enabled` flags.
+
+### Get Global Control Status
+
+```
+GET /heartbeats/control
+```
+
+Returns global policy/state plus per-team summaries.
+
+```json
+{
+  "scope": "global",
+  "status": "active",
+  "effectivePolicy": {
+    "enabled": true,
+    "pauseAfterDaysWithoutHumanEngagement": 14,
+    "warningAfterDaysWithoutHumanEngagement": 10,
+    "resumeMode": "manual"
+  },
+  "lastHumanEngagementAt": "2026-06-19T12:00:00Z",
+  "lastHumanEngagementReason": "decision-accepted",
+  "warningAt": "2026-06-29T12:00:00Z",
+  "autoPauseAt": "2026-07-03T12:00:00Z",
+  "teams": []
+}
+```
+
+### Update Global Policy
+
+```
+PUT /heartbeats/control/policy
+```
+
+Requires `X-Vrooli-Attribution` with `kind=operator-direct`.
+
+```json
+{
+  "enabled": true,
+  "pauseAfterDaysWithoutHumanEngagement": 14,
+  "warningAfterDaysWithoutHumanEngagement": 10,
+  "resumeMode": "manual"
+}
+```
+
+### Pause or Resume Global Scheduling
+
+```
+POST /heartbeats/control/pause
+POST /heartbeats/control/resume
+```
+
+Pause accepts an optional reason:
+
+```json
+{ "reason": "operator requested quiet period" }
+```
+
+### Team Control
+
+```
+GET /teams/{teamId}/heartbeats/control
+PUT /teams/{teamId}/heartbeats/control/policy
+POST /teams/{teamId}/heartbeats/control/pause
+POST /teams/{teamId}/heartbeats/control/resume
+```
+
+Team policy accepts an override:
+
+```json
+{
+  "mode": "custom",
+  "pauseAfterDaysWithoutHumanEngagement": 21,
+  "warningAfterDaysWithoutHumanEngagement": 14,
+  "resumeMode": "manual"
+}
+```
+
+`mode=inherit` follows the global policy. `mode=disabled` disables team-specific auto-pause, but a global pause still blocks the team.
+
+### Paused Error Contract
+
+Manual trigger endpoints return `423 Locked` when blocked by heartbeat control:
+
+```json
+{
+  "error": "heartbeat_paused",
+  "scope": "global",
+  "status": "paused-auto-idle",
+  "message": "Heartbeats are auto-paused because no human engagement was recorded since 2026-06-01T00:00:00Z.",
+  "resumeHint": "Run prompt-manager heartbeat-control resume or use the UI Resume button."
+}
+```
+
+---
+
 ## Heartbeat Configuration
 
 ### List Heartbeats
@@ -166,6 +264,7 @@ POST /teams/{teamId}/heartbeats/{agentId}/trigger
 **Errors:**
 - `404 Not Found` - Team, member, or heartbeat config not found
 - `409 Conflict` - Team is disabled, or member is already queued/running
+- `423 Locked` - Heartbeat control is paused (`heartbeat_paused`)
 
 ---
 
@@ -203,6 +302,7 @@ POST /teams/{teamId}/trigger
 - `400 Bad Request` - Invalid leader-led single-process configuration, inactive/missing lead member, or missing lead heartbeat config
 - `404 Not Found` - Team not found
 - `409 Conflict` - Team is disabled, or the requested member is already queued/running
+- `423 Locked` - Heartbeat control is paused (`heartbeat_paused`)
 - `503 Service Unavailable` - Executor not configured
 
 ---

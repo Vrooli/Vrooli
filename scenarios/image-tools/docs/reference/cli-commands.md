@@ -206,6 +206,18 @@ List license-encumbered models excluded from the catalog. Calls
 image-tools models blocklist
 ```
 
+### `image-tools models doctor`
+
+Diagnose catalog installability and policy integrity. Calls
+`ModelsService/DoctorCatalog` and exits non-zero when enabled seed models lack
+direct installable assets, an operation has no installable enabled model, or
+commercial/checksum policy is incoherent.
+
+```bash
+image-tools models doctor
+image-tools models doctor --json
+```
+
 ## Output contracts
 
 Every scenario command should render through one of three human

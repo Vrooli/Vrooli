@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-18T20:38:03-04:00"
+    "last_validated_at": "2026-06-18T21:52:32-04:00"
   },
   "requirements": [
     {
       "id": "IMG-P1-015",
       "title": "Responsible-Use Deployment Gate",
-      "status": "implemented",
+      "status": "complete",
       "prd_ref": "OT-P1-015",
       "category": "feature",
       "description": "Editing real people is gated at DEPLOYMENT, not at the capability. Public/monetized deployment requires: NSFW/CSAM auto-scan on by default, C2PA provenance on by default (at least for real-person edits), a published Acceptable-Use Policy, a consent affirmation + logging on identity-altering ops, and abuse rate-limiting. Local/personal use is unrestricted; the hard non-goals (no recognition / face-swap / deepfake) remain enforced. Naturalize is low-weight; body/clothing/pose edits are high-weight. Built in api/internal/safety (tier resolution + policy + op-weight table + consent log + rate limiter) and enforced on the AI submit edge (handlers/ai); discovery via SafetyService.GetPolicy.",

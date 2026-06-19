@@ -81,9 +81,6 @@
     "lastReconcileLabel": "前回の同期:",
     "yes": "はい",
     "no": "いいえ",
-    "never": "なし",
-    "reindex": "今すぐ再インデックス",
-    "reindexing": "再インデックス中…",
-    "reindexed": "再インデックス開始: {{jobId}}（計画 {{upserts}} 件 upsert、{{deletes}} 件削除）"
+    "never": "なし"
   }
 }

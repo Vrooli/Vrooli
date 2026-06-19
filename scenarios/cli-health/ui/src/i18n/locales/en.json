@@ -81,9 +81,6 @@
     "lastReconcileLabel": "Last reconcile:",
     "yes": "yes",
     "no": "no",
-    "never": "never",
-    "reindex": "Reindex now",
-    "reindexing": "Reindexing…",
-    "reindexed": "Reindex started: {{jobId}} ({{upserts}} upserts, {{deletes}} deletes planned)"
+    "never": "never"
   }
 }

@@ -428,6 +428,7 @@ export default defineConfig(({ mode }): UserConfig => {
           name: 'shared',
           include: [
             'src/shared/**/*.test.{ts,tsx}',
+            'src/domains/executions/utils/protoEnumName.test.ts',
             'src/domains/**/services/**/*.test.{ts,tsx}',
             'src/views/**/controllers/**/*.test.{ts,tsx}',
           ],

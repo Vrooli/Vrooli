@@ -133,12 +133,11 @@ Backs SSE-style live progress in the UI.
 
 ## Models (registry read + enable/disable)
 
-The `models` domain is the read and enable/disable surface over the
-declarative model registry (`api/internal/models`). The license-verified
-seed catalog is the read-only baseline; runtime enable/disable state is
-overlaid in SQLite. Heavier management (checksum-pinned download,
-disk-space awareness, custom local entries, removal) lands in a later
-phase.
+The `models` domain is the read, doctor, enable/disable, and weight-management
+surface over the declarative model registry (`api/internal/models`). The
+license-verified seed catalog is the read-only baseline; runtime enable/disable
+state, install records, custom local entries, and per-operation default pins are
+overlaid in SQLite.
 
 Proto: `packages/proto/schemas/image-tools/v1/models/models.proto`.
 
@@ -208,6 +207,19 @@ reason each is excluded.
 |---|---|
 | **Response** | `ListBlocklistResponse { entries: BlocklistEntry[] }` |
 | **CLI** | `image-tools models blocklist` |
+
+### `POST /vrooli.image_tools.v1.models.ModelsService/DoctorCatalog`
+
+Return model-catalog integrity findings. The doctor checks that enabled
+weight-backed seed models have direct `source.assets[]` entries with artifact
+`kind` and positive `min_bytes`, every operation has at least one installable
+enabled model, commercial-use policy is clean, seed ids do not overlap the
+blocklist, and checksum metadata is coherent.
+
+| | |
+|---|---|
+| **Response** | `DoctorCatalogResponse { ok: bool, findings: CatalogFinding[] }` |
+| **CLI** | `image-tools models doctor` |
 
 ---
 

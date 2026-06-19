@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	intent "intent-go"
 )
 
 // PRDValidationIssue represents a problem with a requirement's prd_ref field
@@ -39,8 +41,8 @@ func validatePRDReferences(entityType, entityName string, requirements []Require
 	sections := extractPRDSections(prdText)
 	checkboxes := extractPRDCheckboxes(prdText)
 
-	// Extract operational targets and build a set of valid target IDs
-	targets, _ := extractOperationalTargets(entityType, entityName)
+	// Extract operational targets and build a set of valid target IDs.
+	targets, _ := (intent.FilePRDExtractor{}).ExtractPRDClaims(filepath.Dir(prdPath))
 	validTargetIDs := make(map[string]bool)
 	for _, t := range targets {
 		validTargetIDs[t.ID] = true

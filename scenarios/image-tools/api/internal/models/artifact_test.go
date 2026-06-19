@@ -97,14 +97,14 @@ func TestInstall_RejectsHTMLPageDownload(t *testing.T) {
 	f := newInstallFixture(t)
 	f.payload = append([]byte("<!DOCTYPE html><html><head></head><body>rembg releases</body></html>"), bytes.Repeat([]byte(" "), 4096)...)
 
-	_, err := f.in.Install(ctx, "sd-1.5", nil)
+	_, err := f.in.Install(ctx, installTestModelID, nil)
 	if !errors.Is(err, ErrArtifactNotWeight) {
 		t.Fatalf("an HTML-page download must be rejected, got %v", err)
 	}
-	if f.in.Installed(ctx, "sd-1.5") {
+	if f.in.Installed(ctx, installTestModelID) {
 		t.Fatalf("model must NOT be recorded as installed after a rejected page download")
 	}
-	if dirExists(filepath.Join(f.root, "models", "sd-1.5")) {
+	if dirExists(filepath.Join(f.root, "models", installTestModelID)) {
 		t.Fatalf("partial download dir should be removed after rejection")
 	}
 }

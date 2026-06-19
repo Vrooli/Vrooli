@@ -159,6 +159,42 @@ func (h *handlers) blocklist(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) doctor(ctx cliapp.RunContext) error {
+	resp, err := h.client.DoctorCatalog(context.Background(), connect.NewRequest(&modelsv1.DoctorCatalogRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("doctor model catalog", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no doctor response")
+	}
+	results := make([]string, 0, len(resp.Msg.Findings))
+	for _, f := range resp.Msg.Findings {
+		results = append(results, formatFinding(f))
+	}
+	if len(results) == 0 {
+		results = append(results, "no findings")
+	}
+	status := "Catalog doctor passed."
+	if !resp.Msg.Ok {
+		status = fmt.Sprintf("Catalog doctor found %d issue(s).", len(resp.Msg.Findings))
+	}
+	if err := cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{status},
+		ResultsHeading: "Findings",
+		Results:        results,
+		RetrievalHints: []string{
+			"Enabled weight-backed seed models need direct `source.assets[]` entries with `kind` and `min_bytes`.",
+			"`models list` — inspect effective enabled state",
+		},
+	}); err != nil {
+		return err
+	}
+	if !resp.Msg.Ok {
+		return fmt.Errorf("model catalog doctor failed")
+	}
+	return nil
+}
+
 func (h *handlers) install(ctx cliapp.RunContext) error {
 	id := ctx.Positional("id")
 	resp, err := h.client.InstallModel(context.Background(), connect.NewRequest(&modelsv1.InstallModelRequest{Id: id}))
@@ -396,5 +432,31 @@ func commercialUseLabel(c modelsv1.CommercialUse) string {
 		return "conditional"
 	default:
 		return "unspecified"
+	}
+}
+
+func formatFinding(f *modelsv1.CatalogFinding) string {
+	if f == nil {
+		return "(nil)"
+	}
+	subject := f.GetModelId()
+	if subject == "" {
+		subject = f.GetOperation()
+	}
+	if subject == "" {
+		subject = "catalog"
+	}
+	return fmt.Sprintf("%s %s %s — %s",
+		findingSeverityLabel(f.GetSeverity()), f.GetCode(), subject, f.GetMessage())
+}
+
+func findingSeverityLabel(s modelsv1.CatalogFindingSeverity) string {
+	switch s {
+	case modelsv1.CatalogFindingSeverity_CATALOG_FINDING_SEVERITY_ERROR:
+		return "error"
+	case modelsv1.CatalogFindingSeverity_CATALOG_FINDING_SEVERITY_WARNING:
+		return "warning"
+	default:
+		return "unknown"
 	}
 }

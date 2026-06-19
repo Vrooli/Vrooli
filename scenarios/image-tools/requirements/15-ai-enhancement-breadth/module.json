@@ -1,12 +1,12 @@
 {
   "_metadata": {
-    "last_validated_at": "2026-06-18T19:07:34-04:00"
+    "last_validated_at": "2026-06-18T21:52:32-04:00"
   },
   "requirements": [
     {
       "id": "IMG-P1-002",
       "title": "AI Enhancement Breadth",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-002",
       "category": "feature",
       "description": "Colorize, old-photo restore, face restoration (standalone op), Segment Anything (SAM), and depth/normal map via opt-in installs with CPU-capable defaults where feasible. SHIPPED: SAM (the selection domain's segment op, built-in region-grow + seeded SAM upgrade), colorize and depth_map (onnxruntime CPU sidecar modules colorize.py/depth.py, seeded ddcolor/depth-anything; wired into the AI catalog + submit edge + CLI). REMAINING (forward-declared, seeded, not yet wired): face_restore, old_photo_restore (torch python-sidecar), normal_map (computed-from-depth).",

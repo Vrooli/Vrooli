@@ -1,5 +1,11 @@
 package server
 
+import (
+	"os"
+
+	"deployment-manager/crossosgate"
+)
+
 // setupRoutes configures all HTTP routes for the server.
 func (s *Server) setupRoutes() {
 	s.Router.Use(LoggingMiddleware)
@@ -112,4 +118,14 @@ func (s *Server) setupRoutes() {
 	s.Router.HandleFunc("/api/v1/build/auto", s.BuildHandler.AutoBuild).Methods("POST")
 	s.Router.HandleFunc("/api/v1/build/auto/{build_id}", s.BuildHandler.AutoBuildStatus).Methods("GET")
 	s.Router.HandleFunc("/api/v1/build/{build_id}", s.BuildHandler.BuildStatus).Methods("GET")
+
+	// Cross-OS deployment gate (delegates to vrooli-bridge GateService, OT-P1-002):
+	// validate a scenario natively on one node per target OS and aggregate one
+	// production-readiness verdict. Bridge SUPPLIES the capability; this service
+	// OWNS the verdict that gates promotion. Additive + inert by default: the
+	// handler responds 503 until VROOLI_BRIDGE_URL is configured, so existing
+	// flows are untouched.
+	s.Router.HandleFunc("/api/v1/cross-os-gate/evaluate",
+		crossosgate.NewHTTPHandler(os.Getenv("VROOLI_BRIDGE_URL"), os.Getenv("VROOLI_BRIDGE_TOKEN")).Evaluate).
+		Methods("POST")
 }
