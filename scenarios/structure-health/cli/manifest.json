@@ -1,0 +1,83 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "structure-health",
+  "description": "Structure Health CLI surface. Single source of truth for the `validate` domain: schema-validated against cli-manifest/v1 and cross-validated against the ValidationService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "groups": [
+    {
+      "name": "validate",
+      "description": "Validate scenario structure and lifecycle wiring",
+      "commands": [
+        {
+          "name": "scenario",
+          "description": "Validate a scenario's skeleton and lifecycle wiring by reconciling code-facts ground truth against declared service.json intent",
+          "positionals": [
+            { "name": "scenario", "required": true, "description": "Scenario slug to validate" }
+          ],
+          "flags": [
+            { "name": "path", "description": "Filesystem path to validate instead of a scenario slug" },
+            { "name": "json", "description": "Emit JSON output" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ValidationService", "method": "ValidateScenario" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["filesystem:read", "network:internal"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "fix-config",
+      "description": "Preview or apply deterministic structure and service.json fixes",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Preview (or, with --apply, apply) deterministic structure/service.json fixes for a scenario's auto-fixable findings",
+          "positionals": [
+            { "name": "scenario", "required": true, "description": "Scenario slug to repair" }
+          ],
+          "flags": [
+            { "name": "rule", "description": "Restrict fixes to one or more finding codes (repeatable / comma-separated)" },
+            { "name": "path", "description": "Filesystem path to repair instead of a scenario slug" },
+            { "name": "apply", "description": "Apply the fixes (default is a dry-run preview)" },
+            { "name": "json", "description": "Emit JSON output" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ValidationService", "method": "PreviewFixConfig" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": ["filesystem:read", "filesystem:write", "network:internal"]
+          }
+        },
+        {
+          "name": "apply",
+          "description": "Apply deterministic structure/service.json fixes for a scenario's auto-fixable findings",
+          "positionals": [
+            { "name": "scenario", "required": true, "description": "Scenario slug to repair" }
+          ],
+          "flags": [
+            { "name": "rule", "description": "Restrict fixes to one or more finding codes (repeatable / comma-separated)" },
+            { "name": "path", "description": "Filesystem path to repair instead of a scenario slug" },
+            { "name": "json", "description": "Emit JSON output" }
+          ],
+          "binding": { "kind": "connect-rpc", "service": "ValidationService", "method": "ApplyFixConfig" },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": ["filesystem:read", "filesystem:write", "network:internal"]
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": []
+  },
+  "omitted": [
+    {
+      "service": "ScenarioValidationService",
+      "method": "ValidateScenario",
+      "reason": "Shared cross-scenario validation surface exposed alongside this scenario's own ValidationService; the CLI 'validate scenario' command targets the scenario-local ValidationService."
+    }
+  ]
+}

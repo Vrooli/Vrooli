@@ -1,0 +1,247 @@
+{
+  "provider": "structure-health",
+  "phase": "structure",
+  "version": "1.0.0",
+  "levels": [
+    {
+      "id": "L0",
+      "name": "Scenario skeleton unresolvable",
+      "description": "The target scenario cannot be resolved, its service.json is missing or invalid, or no surface can be detected.",
+      "entry_criteria": ["A scenario id or path is provided"],
+      "exit_criteria": ["service.json is present and valid", "service.name matches the directory", "at least one surface is detectable"]
+    },
+    {
+      "id": "L1",
+      "name": "Skeleton present",
+      "description": "Required top-level files and per-surface directories exist for every declared surface.",
+      "entry_criteria": ["service.json is valid"],
+      "exit_criteria": ["Required top-level files exist", "every declared surface has its directory and entrypoint"]
+    },
+    {
+      "id": "L2",
+      "name": "Lifecycle wiring complete",
+      "description": "Each declared surface has a complete build to start to port/env to health-check chain, and buildable surfaces declare freshness checks.",
+      "entry_criteria": ["Skeleton is present"],
+      "exit_criteria": ["No surface is missing a lifecycle-wiring step", "every buildable surface declares a well-formed freshness check", "dependency declarations are well-formed and acyclic"]
+    },
+    {
+      "id": "L3",
+      "name": "Production-serving conformant",
+      "description": "UI surfaces serve the built production bundle (not a dev server), and declared-vs-actual surfaces reconcile cleanly.",
+      "entry_criteria": ["Lifecycle wiring is complete"],
+      "exit_criteria": ["UI develop step serves the built bundle with NODE_ENV=production", "no declared surface lacks an actual implementation and vice versa"]
+    },
+    {
+      "id": "L4",
+      "name": "Profile-conformant",
+      "description": "The scenario conforms to its detected profile's structural conventions (naming, layout, port bands, lifecycle-protect markers).",
+      "entry_criteria": ["Production-serving is conformant"],
+      "exit_criteria": ["No profile-conformance error remains for the detected profile"]
+    }
+  ],
+  "findings": {
+    "SERVICE_JSON_MISSING": {
+      "local_level_impact": "L0",
+      "global_impact": "foundation_blocker",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_ERROR",
+      "clean_requirement": "required"
+    },
+    "SERVICE_JSON_INVALID": {
+      "local_level_impact": "L0",
+      "global_impact": "foundation_blocker",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_ERROR",
+      "clean_requirement": "required"
+    },
+    "SERVICE_NAME_MISMATCH": {
+      "local_level_impact": "L0",
+      "global_impact": "foundation_blocker",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_ERROR",
+      "clean_requirement": "required"
+    },
+    "REQUIRED_FILE_MISSING": {
+      "local_level_impact": "L1",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_ERROR",
+      "clean_requirement": "required"
+    },
+    "SURFACE_DIR_MISSING": {
+      "local_level_impact": "L1",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_ERROR",
+      "clean_requirement": "required"
+    },
+    "LIFECYCLE_STEP_MISSING": {
+      "local_level_impact": "L2",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_ERROR",
+      "clean_requirement": "required"
+    },
+    "FRESHNESS_CHECK_MISSING": {
+      "local_level_impact": "L2",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_WARNING",
+      "clean_requirement": "advisory"
+    },
+    "HEALTH_CHECK_MISSING": {
+      "local_level_impact": "L2",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_ERROR",
+      "clean_requirement": "required"
+    },
+    "DEPENDENCY_DECLARATION_INVALID": {
+      "local_level_impact": "L2",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_ERROR",
+      "clean_requirement": "required"
+    },
+    "PRODUCTION_SERVE_NONCONFORMANT": {
+      "local_level_impact": "L3",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_WARNING",
+      "clean_requirement": "advisory"
+    },
+    "SURFACE_RECONCILE_MISMATCH": {
+      "local_level_impact": "L3",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_WARNING",
+      "clean_requirement": "advisory"
+    },
+    "PROFILE_CONFORMANCE_VIOLATION": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_WARNING",
+      "clean_requirement": "advisory"
+    },
+    "PROFILE_REQUIRED_STRUCTURE": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_ERROR",
+      "clean_requirement": "required"
+    },
+    "PROFILE_TEST_COVERAGE": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_WARNING",
+      "clean_requirement": "advisory"
+    },
+    "PROFILE_UI_STRUCTURE": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_ERROR",
+      "clean_requirement": "required"
+    },
+    "PROFILE_UI_LIFECYCLE_LAUNCH": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_ERROR",
+      "clean_requirement": "required"
+    },
+    "PROFILE_DEVELOP_STEPS": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_WARNING",
+      "clean_requirement": "advisory"
+    },
+    "PROFILE_HEALTH_LIFECYCLE": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_ERROR",
+      "clean_requirement": "required"
+    },
+    "PROFILE_PORTS": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_ERROR",
+      "clean_requirement": "required"
+    },
+    "PROFILE_SETUP_CONDITIONS": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_ERROR",
+      "clean_requirement": "required"
+    },
+    "PROFILE_TEST_STEPS": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_ERROR",
+      "clean_requirement": "required"
+    },
+    "PROFILE_SETUP_STEPS": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_WARNING",
+      "clean_requirement": "advisory"
+    },
+    "PROFILE_ENV_VALIDATION": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_WARNING",
+      "clean_requirement": "advisory"
+    },
+    "PROFILE_HARDCODED_VALUES": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_ERROR",
+      "clean_requirement": "required"
+    },
+    "PROFILE_RUNTIME_STORAGE": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_ERROR",
+      "clean_requirement": "required"
+    },
+    "PROFILE_FOCUS_VISIBLE": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_WARNING",
+      "clean_requirement": "advisory"
+    },
+    "PROFILE_HELMET_FRAME": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_ERROR",
+      "clean_requirement": "required"
+    },
+    "PROFILE_SPATIAL_NAV": {
+      "local_level_impact": "L4",
+      "global_impact": "evolvability_gap",
+      "dimension": "structure",
+      "severity_default": "SEVERITY_WARNING",
+      "clean_requirement": "advisory"
+    }
+  },
+  "fallback": {
+    "local_level_impact": "L4",
+    "global_impact": "evolvability_gap",
+    "dimension": "structure",
+    "severity_default": "SEVERITY_WARNING",
+    "clean_requirement": "advisory"
+  }
+}
