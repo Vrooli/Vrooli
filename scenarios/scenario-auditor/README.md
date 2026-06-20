@@ -15,7 +15,7 @@ The Scenario Auditor is Vrooli's permanent quality gatekeeper, ensuring every sc
 ### 🔧 Rule Engine
 - **Modular YAML Rules**: Easy to read, write, and maintain
 - **Toggleable Preferences**: Enable/disable rules with persistent storage
-- **Category Organization**: Rules grouped by api, config, ui, testing
+- **Category Organization**: Rules grouped by api, cli, test, makefile (structure/config/ui rules migrated to the `structure-health` scenario)
 - **AI-Powered Creation**: Generate and edit rules using natural language
 
 ### 📊 Quality Dashboard
@@ -58,7 +58,7 @@ open http://localhost:35001
 
 # Use the CLI
 scenario-auditor standards scan current --wait
-scenario-auditor rules list --category config
+scenario-auditor rules list --category api
 scenario-auditor fixes status
 scenario-auditor standards violations --scenario browser-automation-studio
 ```
@@ -155,9 +155,11 @@ scenario-auditor scan agent-dashboard --rule service_json_ports --wait --timeout
 
 ### Rule Categories
 1. **API Standards** (`api/rules/api/`): Go best practices, security patterns
-2. **Configuration Standards** (`api/rules/config/`): service.json compliance
-3. **UI Standards** (`api/rules/ui/`): Browserless testing best practices
-4. **Testing Standards** (`api/rules/testing/`): Phase-based testing structure
+2. **CLI Standards** (`api/rules/cli/`): CLI conventions and output patterns
+3. **Testing Standards** (`api/rules/test/`): Phase-based testing structure
+4. **Makefile Standards** (`api/rules/makefile/`): Makefile conventions and targets
+
+> **Note**: The structure, config, and UI rule packs (e.g. `required_layout`, `env_validation`, `service_ports`, `helmet`, `focus_visible`, `spatial_nav`) have been migrated to the **`structure-health`** scenario, which now backs test-genie's Structure phase. Scenario Auditor retains only the cross-cutting policy/content standards rules: api, cli, test, makefile.
 
 ### Technology Stack
 - **Backend**: Go with Gorilla Mux, PostgreSQL
@@ -264,9 +266,10 @@ scenario-auditor/
 │   ├── handlers_*.go     # API handlers
 │   ├── rules/        # Interpreted rule sources (organized by category)
 │   │   ├── api/          # API standards
-│   │   ├── config/       # Configuration rules
-│   │   ├── ui/           # UI standards
-│   │   └── testing/      # Testing requirements
+│   │   ├── cli/          # CLI standards
+│   │   ├── test/         # Testing requirements
+│   │   └── makefile/     # Makefile standards
+│   │   # NOTE: structure/, config/, ui/ rule packs migrated to the structure-health scenario
 │   └── storage/          # Data persistence
 ├── cli/                  # Command-line tool
 │   ├── main.go          # CLI entry point

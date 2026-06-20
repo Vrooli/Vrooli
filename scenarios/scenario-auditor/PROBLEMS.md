@@ -605,6 +605,8 @@ $ make test
 
 ## Current Status Summary (Updated 2025-10-11)
 
+> **Note**: The `structure`, `config`, and `ui` rule packs (including `env_validation`, `service_ports`, `required_layout`, etc.) referenced in older entries below have since been **migrated to the `structure-health` scenario**, which now backs test-genie's Structure phase. Scenario Auditor now retains only the api, cli, test, and makefile rule packs. Historical entries below are kept as-is for the record.
+
 ### ✅ FULLY OPERATIONAL - Environment Isolation Fixed
 The scenario-auditor **now works correctly in all environments** after fixing environment variable pollution in the lifecycle system. See "Critical Issue: Environment Variable Pollution (RESOLVED)" section above.
 

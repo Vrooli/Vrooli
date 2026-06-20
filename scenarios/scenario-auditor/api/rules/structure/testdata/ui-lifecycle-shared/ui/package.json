@@ -1,5 +1,0 @@
-{
-  "scripts": {
-    "start": "vrooli lifecycle protect -- node server.js"
-  }
-}

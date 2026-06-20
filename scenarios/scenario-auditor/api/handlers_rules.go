@@ -873,13 +873,6 @@ func testRuleOnScenarioHandler(w http.ResponseWriter, r *http.Request) {
 
 	sortedTargets := append([]string(nil), normalizedTargets...)
 	sort.Strings(sortedTargets)
-	containsStructure := false
-	for _, target := range sortedTargets {
-		if target == targetStructure {
-			containsStructure = true
-			break
-		}
-	}
 
 	// Normalize and filter scenario list before evaluation
 	validScenarios := make([]string, 0, len(scenarios))
@@ -943,7 +936,7 @@ func testRuleOnScenarioHandler(w http.ResponseWriter, r *http.Request) {
 				}
 			} else {
 				warning := ""
-				if filesScanned == 0 && len(violations) == 0 && !containsStructure {
+				if filesScanned == 0 && len(violations) == 0 {
 					warning = fmt.Sprintf("No matching files were scanned for this rule in the selected scenario. Targets evaluated: %s.", strings.Join(sortedTargets, ", "))
 				}
 

@@ -21,7 +21,7 @@ func TestRuleStateStorePersistsToConfigClass(t *testing.T) {
 	if filepath.Base(store.filePath) != "rule-preferences.json" {
 		t.Fatalf("unexpected file path %q", store.filePath)
 	}
-	if err := store.SetState("required_layout", false); err != nil {
+	if err := store.SetState("health_check", false); err != nil {
 		t.Fatalf("SetState: %v", err)
 	}
 	if _, err := os.Stat(store.filePath); err != nil {

@@ -47,34 +47,6 @@
     }
   ],
   "findings": {
-    "config_service_health": {
-      "local_level_impact": "L2",
-      "global_impact": "foundation_blocker",
-      "dimension": "standards",
-      "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["ecosystem-fit", "cross-platform-readiness"]
-    },
-    "config_service_ports": {
-      "local_level_impact": "L2",
-      "global_impact": "foundation_blocker",
-      "dimension": "standards",
-      "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["ecosystem-fit", "cross-platform-readiness"]
-    },
-    "config_service_port_usage": {
-      "local_level_impact": "L2",
-      "global_impact": "evolvability_gap",
-      "dimension": "standards",
-      "severity_default": "SEVERITY_WARNING",
-      "recommended_skill_ids": ["cross-platform-readiness"]
-    },
-    "required_layout": {
-      "local_level_impact": "L2",
-      "global_impact": "foundation_blocker",
-      "dimension": "structure",
-      "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["ecosystem-fit"]
-    },
     "routed-test-db-v1": {
       "local_level_impact": "L4",
       "global_impact": "hardening_gap",
@@ -116,13 +88,6 @@
       "dimension": "standards",
       "severity_default": "SEVERITY_WARNING",
       "recommended_skill_ids": ["api-steer"]
-    },
-    "env_validation": {
-      "local_level_impact": "L3",
-      "global_impact": "safety_blocker",
-      "dimension": "standards",
-      "severity_default": "SEVERITY_ERROR",
-      "recommended_skill_ids": ["security", "api-steer"]
     }
   },
   "fallback": {

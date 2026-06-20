@@ -51,7 +51,9 @@ func NewLoader(opts Options) (*Loader, error) {
 func (l *Loader) Load() (map[string]Info, error) {
 	rules := make(map[string]Info)
 
-	categories := []string{"api", "cli", "config", "test", "ui", "makefile", "structure"}
+	// structure/config/ui rule packs were migrated to the structure-health
+	// scenario; scenario-auditor retains only cross-cutting policy/content rules.
+	categories := []string{"api", "cli", "test", "makefile"}
 
 	err := l.walkRuleFiles(func(info Info) error {
 		exec, status := compileGoRule(&info, l.opts.ModuleRoot)

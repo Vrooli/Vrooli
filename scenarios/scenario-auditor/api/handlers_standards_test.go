@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -197,99 +196,6 @@ func TestClassifyFileTargetsDocsMarkdown(t *testing.T) {
 	}
 	if len(targets) != 1 || targets[0] != targetDocumentation {
 		t.Fatalf("expected targets [%s], got %v", targetDocumentation, targets)
-	}
-}
-
-func TestPerformStandardsCheckRunsStructureRules(t *testing.T) {
-	tmp := t.TempDir()
-	root := filepath.Join(tmp, "project")
-	scenariosDir := filepath.Join(root, "scenarios")
-	if err := os.MkdirAll(scenariosDir, 0o755); err != nil {
-		t.Fatalf("failed to create scenarios directory: %v", err)
-	}
-
-	rulesDir := filepath.Join(root, "scenarios", "scenario-auditor", "api", "rules", "structure")
-	if err := os.MkdirAll(rulesDir, 0o755); err != nil {
-		t.Fatalf("failed to create rules directory: %v", err)
-	}
-
-	sourceRulePath := filepath.Join("rules", "structure", "required_layout.go")
-	ruleContents, err := os.ReadFile(sourceRulePath)
-	if err != nil {
-		t.Fatalf("failed to load structure rule source: %v", err)
-	}
-
-	rulePath := filepath.Join(rulesDir, "required_layout.go")
-	if err := os.WriteFile(rulePath, ruleContents, 0o644); err != nil {
-		t.Fatalf("failed to write structure rule: %v", err)
-	}
-
-	scenarioPath := filepath.Join(scenariosDir, "demo")
-	if err := os.MkdirAll(scenarioPath, 0o755); err != nil {
-		t.Fatalf("failed to create scenario directory: %v", err)
-	}
-
-	apiPath := filepath.Join(scenarioPath, "api")
-	if err := os.MkdirAll(apiPath, 0o755); err != nil {
-		t.Fatalf("failed to create api directory: %v", err)
-	}
-
-	cliPath := filepath.Join(scenarioPath, "cli")
-	if err := os.MkdirAll(cliPath, 0o755); err != nil {
-		t.Fatalf("failed to create cli directory: %v", err)
-	}
-
-	testPath := filepath.Join(scenarioPath, "test")
-	if err := os.MkdirAll(testPath, 0o755); err != nil {
-		t.Fatalf("failed to create test directory: %v", err)
-	}
-
-	// Create all required files except the Makefile to trigger a single violation.
-	// Note: Testing is now handled by test-genie via .vrooli/service.json lifecycle.test.
-	// Scenarios only need a test/ directory for artifacts (playbooks, fixtures, logs).
-	requiredFiles := map[string]string{
-		".vrooli/service.json": "{}\n",
-		"api/main.go":          "package main\nfunc main() {}\n",
-		"cli/install.sh":       "#!/usr/bin/env bash\n",
-		"cli/demo":             "#!/usr/bin/env bash\n",
-		"test/.gitkeep":        "",
-		"PRD.md":               "# Product Requirements\n",
-		"README.md":            "# README\n",
-	}
-
-	for rel, contents := range requiredFiles {
-		abs := filepath.Join(scenarioPath, filepath.FromSlash(rel))
-		if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
-			t.Fatalf("failed to create directory for %s: %v", rel, err)
-		}
-		if err := os.WriteFile(abs, []byte(contents), 0o755); err != nil {
-			t.Fatalf("failed to write %s: %v", rel, err)
-		}
-	}
-
-	t.Setenv("VROOLI_ROOT", root)
-
-	violations, _, err := performStandardsCheck(context.Background(), standardsScanTarget{
-		Name: filepath.Base(scenarioPath),
-		Path: scenarioPath,
-	}, nil, false, nil)
-	if err != nil {
-		t.Fatalf("performStandardsCheck returned error: %v", err)
-	}
-	beforeCount := 0
-	for _, v := range violations {
-		if v.FilePath == "Makefile" {
-			beforeCount++
-		}
-	}
-	if beforeCount == 0 {
-		t.Fatalf("expected violations referencing Makefile, got %+v", violations)
-	}
-
-	makefilePath := filepath.Join(scenarioPath, "Makefile")
-	makefileTemplate := "fmt:\n\t@$(MAKE) fmt-go\n\t@$(MAKE) fmt-ui\n\nfmt-go:\n\t@if [ -d api ] && find api -name \"*.go\" | head -1 | grep -q .; then \\\n\t\techo \"Formatting Go code...\"; \\\n\t\tif command -v gofumpt >/dev/null 2>&1; then \\\n\t\t\tcd api && gofumpt -w .; \\\n\t\telif command -v gofmt >/dev/null 2>&1; then \\\n\t\t\tcd api && gofmt -w .; \\\n\t\tfi; \\\n\t\techo \"$(GREEN)✓ Go code formatted$(RESET)\"; \\\n\tfi\n\nfmt-ui:\n\t@echo \"Formatting UI assets...\"\n\nlint:\n\t@$(MAKE) lint-go\n\t@$(MAKE) lint-ui\n\nlint-go:\n\t@if [ -d api ] && find api -name \"*.go\" | head -1 | grep -q .; then \\\n\t\techo \"Linting Go code...\"; \\\n\t\tif command -v golangci-lint >/dev/null 2>&1; then \\\n\t\t\tcd api && golangci-lint run; \\\n\t\telse \\\n\t\t\tcd api && go vet ./...; \\\n\t\tfi; \\\n\t\techo \"$(GREEN)✓ Go code linted$(RESET)\"; \\\n\tfi\n\nlint-ui:\n\t@echo \"Linting UI code...\"\n\ncheck:\n\t@$(MAKE) fmt\n\t@$(MAKE) lint\n\t@$(MAKE) test\n"
-	if err := os.WriteFile(makefilePath, []byte(makefileTemplate), 0o644); err != nil {
-		t.Fatalf("failed to write Makefile: %v", err)
 	}
 }
 

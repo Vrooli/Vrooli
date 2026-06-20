@@ -1,8 +1,0 @@
-{
-  "scripts": {
-    "dev": "vite"
-  },
-  "dependencies": {
-    "@vrooli/api-base": "file:../../../packages/api-base"
-  }
-}

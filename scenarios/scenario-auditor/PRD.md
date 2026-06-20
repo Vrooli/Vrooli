@@ -33,7 +33,7 @@ The Scenario Auditor adds the permanent capability to **comprehensively enforce 
   - [x] Toggleable rule system with persistent user preferences
   - [x] AI-powered rule creation capabilities (via `/api/v1/rules/create` endpoint)
   - [x] AI-powered rule editing capabilities (via `/api/v1/rules/ai/edit/{ruleId}` endpoint)
-  - [x] Standards rules organized by category (api, config, ui, testing)
+  - [x] Standards rules organized by category (api, cli, test, makefile; structure/config/ui migrated to the `structure-health` scenario)
   
 - **Should Have (P1)**
   - [ ] Real-time standards violations dashboard
@@ -65,7 +65,7 @@ The Scenario Auditor adds the permanent capability to **comprehensively enforce 
 - [x] AI rule creation working (createRuleHandler implemented, endpoint functional)
 - [x] AI rule editing working (editRuleWithAIHandler implemented, endpoint functional)
 - [x] Preferences system maintains state across sessions (rule-preferences.json persistence working)
-- [x] All rule categories have comprehensive coverage (api, config, ui, testing categories all populated)
+- [x] All rule categories have comprehensive coverage (api, cli, test, makefile categories all populated; structure/config/ui migrated to the `structure-health` scenario)
 - [x] **FIXED (2025-10-11)**: Service lifecycle environment isolation implemented - multi-scenario environments now work correctly (see PROBLEMS.md "Environment Variable Pollution (RESOLVED)")
 
 ## 🏗️ Technical Architecture
@@ -79,9 +79,11 @@ The Scenario Auditor adds the permanent capability to **comprehensively enforce 
 
 ### Rule Categories
 1. **API Standards**: Go best practices, security patterns, documentation requirements
-2. **Configuration Standards**: service.json schema compliance, lifecycle completeness
-3. **UI Standards**: Browserless testing practices, accessibility, performance
-4. **Testing Standards**: Phase-based structure, coverage requirements, integration patterns
+2. **CLI Standards**: CLI conventions and output patterns
+3. **Testing Standards**: Phase-based structure, coverage requirements, integration patterns
+4. **Makefile Standards**: Makefile conventions and required targets
+
+> **Note**: The structure, config, and UI rule packs (`required_layout`, `env_validation`, `service_ports`, `ui_lifecycle`, `focus_visible`, etc.) were migrated to the **`structure-health`** scenario, which now backs test-genie's Structure phase. Scenario Auditor retains only the cross-cutting policy/content standards categories: api, cli, test, makefile.
 
 ### Resource Dependencies
 - **PostgreSQL**: Rule definitions, scan results, user preferences, audit history

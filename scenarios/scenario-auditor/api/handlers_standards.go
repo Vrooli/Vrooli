@@ -63,7 +63,6 @@ const (
 	targetTest                = "test"
 	targetServiceJSON         = "service_json"
 	targetMakefile            = "makefile"
-	targetStructure           = "structure"
 	targetDocumentation       = "documentation"
 	maxStandardsFileSizeBytes = 1 << 20 // 1 MiB guardrail to avoid pathological inputs
 )
@@ -725,38 +724,6 @@ func performStandardsCheck(ctx context.Context, target standardsScanTarget, spec
 		return nil, 0, nil
 	}
 
-	type structureScenarioInfo struct {
-		files map[string]struct{}
-	}
-
-	structureData := make(map[string]*structureScenarioInfo)
-	structurePaths := make(map[string]string)
-	repoCtx, err := repoContext()
-	if err != nil {
-		return nil, 0, err
-	}
-	scenariosRoot := repoCtx.ScenariosRoot()
-	ensureStructureScenario := func(name string) *structureScenarioInfo {
-		if strings.TrimSpace(name) == "" {
-			return nil
-		}
-		info, ok := structureData[name]
-		if !ok {
-			info = &structureScenarioInfo{files: make(map[string]struct{})}
-			structureData[name] = info
-		}
-		if _, exists := structurePaths[name]; !exists {
-			structurePaths[name] = filepath.Join(scenariosRoot, name)
-		}
-		return info
-	}
-
-	rootScenario := filepath.Base(scanPath)
-	if rootScenario != "" {
-		ensureStructureScenario(rootScenario)
-		structurePaths[rootScenario] = scanPath
-	}
-
 	requestedSet := make(map[string]struct{}, len(normalizedStandards))
 	for _, id := range normalizedStandards {
 		requestedSet[id] = struct{}{}
@@ -808,12 +775,6 @@ func performStandardsCheck(ctx context.Context, target standardsScanTarget, spec
 		}
 
 		scenarioName, scenarioRelative, targets := classifyFileTargets(path)
-		if scenarioName != "" && scenarioRelative != "" {
-			if info := ensureStructureScenario(scenarioName); info != nil {
-				relative := filepath.ToSlash(scenarioRelative)
-				info.files[relative] = struct{}{}
-			}
-		}
 		if len(targets) == 0 {
 			return nil
 		}
@@ -891,45 +852,6 @@ func performStandardsCheck(ctx context.Context, target standardsScanTarget, spec
 		violations = filtered
 	}
 
-	structureRules := collectRulesForTargets([]string{targetStructure}, ruleBuckets)
-	if len(structureRules) > 0 {
-		for scenario, info := range structureData {
-			files := make([]string, 0, len(info.files))
-			for relative := range info.files {
-				files = append(files, relative)
-			}
-			sort.Strings(files)
-			payload := struct {
-				Scenario string   `json:"scenario"`
-				Files    []string `json:"files"`
-			}{
-				Scenario: scenario,
-				Files:    files,
-			}
-			encoded, marshalErr := json.Marshal(payload)
-			if marshalErr != nil {
-				logger.Error("Failed to encode structure payload", marshalErr)
-				continue
-			}
-			scenarioPath := structurePaths[scenario]
-			for _, rule := range structureRules {
-				if !rule.Implementation.Valid {
-					continue
-				}
-
-				ruleViolations, execErr := rule.Check(string(encoded), scenarioPath, scenario)
-				if execErr != nil {
-					logger.Error(fmt.Sprintf("Structure rule %s execution failed for %s", rule.ID, scenario), execErr)
-					continue
-				}
-
-				for _, rv := range ruleViolations {
-					violations = append(violations, convertRuleViolationToStandards(rule, rv, scenario, rv.FilePath))
-				}
-			}
-		}
-	}
-
 	effectiveScenario := scenarioName
 	if strings.TrimSpace(effectiveScenario) == "" {
 		effectiveScenario = filepath.Base(scanPath)
@@ -988,16 +910,8 @@ func evaluateRuleOnScenario(rule RuleInfo, scenarioName string) ([]StandardsViol
 		allowedTargets[target] = struct{}{}
 	}
 
-	structureRequested := false
-	if _, ok := allowedTargets[targetStructure]; ok {
-		structureRequested = true
-	}
-
-	structureFiles := make(map[string]struct{})
-	orderedStructureFiles := make([]string, 0)
 	filesScanned := 0
 	var violations []StandardsViolation
-	ruleCategory := strings.ToLower(strings.TrimSpace(rule.Rule.Category))
 
 	err = filepath.Walk(scenarioPath, func(path string, entry os.FileInfo, walkErr error) error {
 		if walkErr != nil {
@@ -1028,23 +942,10 @@ func evaluateRuleOnScenario(rule RuleInfo, scenarioName string) ([]StandardsViol
 			return nil
 		}
 
-		if structureRequested && relative != "" {
-			relative = filepath.ToSlash(relative)
-			if _, exists := structureFiles[relative]; !exists {
-				structureFiles[relative] = struct{}{}
-				orderedStructureFiles = append(orderedStructureFiles, relative)
-			}
-		}
-
 		runRule := false
 		for _, target := range fileTargets {
 			if _, ok := allowedTargets[target]; !ok {
 				continue
-			}
-			if ruleCategory == "structure" {
-				if target != targetStructure && target != targetDocumentation {
-					continue
-				}
 			}
 			runRule = true
 			break
@@ -1083,30 +984,6 @@ func evaluateRuleOnScenario(rule RuleInfo, scenarioName string) ([]StandardsViol
 	})
 	if err != nil {
 		return violations, filesScanned, targets, err
-	}
-
-	if structureRequested {
-		sort.Strings(orderedStructureFiles)
-		payload := struct {
-			Scenario string   `json:"scenario"`
-			Files    []string `json:"files"`
-		}{
-			Scenario: scenarioName,
-			Files:    orderedStructureFiles,
-		}
-		encoded, marshalErr := json.Marshal(payload)
-		if marshalErr != nil {
-			return violations, filesScanned, targets, marshalErr
-		}
-
-		ruleViolations, execErr := rule.Check(string(encoded), scenarioPath, scenarioName)
-		if execErr != nil {
-			return violations, filesScanned, targets, execErr
-		}
-
-		for _, rv := range ruleViolations {
-			violations = append(violations, convertRuleViolationToStandards(rule, rv, scenarioName, rv.FilePath))
-		}
 	}
 
 	return violations, filesScanned, targets, nil
@@ -1221,16 +1098,10 @@ func defaultTargetsForRule(rule RuleInfo) []string {
 		return []string{targetAPI}
 	case "cli":
 		return []string{targetCLI}
-	case "ui":
-		return []string{targetUI}
 	case "test":
 		return []string{targetTest}
-	case "config":
-		return []string{targetAPI, targetCLI}
 	case "makefile":
 		return []string{targetMakefile}
-	case "structure":
-		return []string{targetStructure}
 	default:
 		return nil
 	}

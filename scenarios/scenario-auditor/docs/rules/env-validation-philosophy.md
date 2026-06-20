@@ -1,5 +1,7 @@
 # Environment Variable Validation Rule - Design Philosophy
 
+> **Migration note**: The `env_validation` rule has been **migrated to the `structure-health` scenario**, which now backs test-genie's Structure phase. It is no longer part of Scenario Auditor's rule set (Scenario Auditor now retains only the api, cli, test, and makefile rule packs). This document is retained for the rule's rationale and design philosophy; the descriptions below explain *why* the rule behaves the way it does and remain authoritative for that behavior wherever the rule now lives.
+
 ## Overview
 
 The `env_validation` rule enforces explicit, fail-fast validation of environment variables across Go, Bash, and JavaScript/TypeScript. This document explains the intentional design decisions that make this rule strict and opinionated.
