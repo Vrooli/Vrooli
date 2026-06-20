@@ -59,6 +59,14 @@ func ModuleWithService(svc internalprobes.Service, logger *log.Logger) module.Mo
 	}
 }
 
+func probeResultsProperty() map[string]string {
+	return map[string]string{"results": "array<ProbeResult>"}
+}
+
+func internalProbeErrors(description string) []module.ErrorDesc {
+	return []module.ErrorDesc{{Status: 500, Code: "internal", Description: description}}
+}
+
 // Schema re-exports internalprobes.Schema so the modules registry collects
 // endpoint descriptors and schema from one symbol per handler package.
 func Schema() string { return internalprobes.Schema() }
@@ -83,11 +91,9 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Response: &module.Schema{
 			Type:       "object",
-			Properties: map[string]string{"results": "array<ProbeResult>"},
+			Properties: probeResultsProperty(),
 		},
-		Errors: []module.ErrorDesc{
-			{Status: 500, Code: "internal", Description: "Route manifest read failure"},
-		},
+		Errors: internalProbeErrors("Route manifest read failure"),
 		Examples: []module.Example{
 			{Name: "Run probes", Curl: "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.probes.ProbesService/RunProbes -H 'Content-Type: application/json' -d '{}'"},
 		},
@@ -108,11 +114,9 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Response: &module.Schema{
 			Type:       "object",
-			Properties: map[string]string{"results": "array<ProbeResult>"},
+			Properties: probeResultsProperty(),
 		},
-		Errors: []module.ErrorDesc{
-			{Status: 500, Code: "internal", Description: "Repository read failure"},
-		},
+		Errors: internalProbeErrors("Repository read failure"),
 		Examples: []module.Example{
 			{Name: "List probes", Curl: "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.probes.ProbesService/ListProbes -H 'Content-Type: application/json' -d '{\"subdomain\":\"agent-manager\",\"limit\":20}'"},
 		},
@@ -132,9 +136,7 @@ var Endpoints = []module.EndpointDescriptor{
 			Type:       "object",
 			Properties: map[string]string{"classifications": "array<RouteClassification>"},
 		},
-		Errors: []module.ErrorDesc{
-			{Status: 500, Code: "internal", Description: "Repository read failure"},
-		},
+		Errors: internalProbeErrors("Repository read failure"),
 		Examples: []module.Example{
 			{Name: "Classify routes", Curl: "curl http://localhost:${API_PORT}/vrooli.tunnel_manager.v1.probes.ProbesService/Classify -H 'Content-Type: application/json' -d '{}'"},
 		},

@@ -4,11 +4,10 @@ This document is the canonical map of product capabilities, bounded
 contexts, and ownership for this scenario. Keep it current whenever a
 domain is added, renamed, split, merged, or removed.
 
-`health` is the one real domain the scaffold ships. Tunnel Manager adds
-seven real domains beside it (below). The scaffold also ships one clearly
-fenced worked example domain (`notes`, never product scope) as a copyable
-reference; `vrooli scenario detemplate tunnel-manager` removes every
-fenced example once the real domains are green (Phase 2, Gate 7).
+`health` is the scaffold domain. Tunnel Manager adds seven product
+domains beside it (below). The old template example domain has been
+removed; if `notes` reappears, treat it as regression unless a new PRD
+explicitly introduces that product scope.
 
 ## Purpose Of This Document
 
@@ -94,8 +93,9 @@ belong in [`DATA.md`](DATA.md).
 - Owns the `probes` table: probe history (route, kind
   internal|external, status, latency, error).
 - Behavior: probe each exposed route's local port (internal) and public
-  URL (external) on a schedule; classify failures (tunnel-down /
-  scenario-down / cloudflare-outage / dns-failure / config-drift).
+  URL (external) on a schedule; classify current probe pairs as healthy,
+  tunnel-down, scenario-down, or config-drift. DNS-failure and
+  Cloudflare-outage isolation require future resolver/upstream signals.
 - Why: knowing where a failure is lets recovery act precisely.
 
 ### `recovery` — auto-recovery engine (live)
@@ -142,7 +142,7 @@ are real enough to affect architecture or requirements.
 
 | Candidate Domain | Why Deferred | Revisit Trigger |
 |---|---|---|
-| None yet. | Generated scaffold. | Add after PRD-specific requirements identify future capability boundaries. |
+| DNS/upstream diagnostics | Current probe data cannot isolate resolver failure or Cloudflare-wide outage. | Add resolver and upstream-status/API signals for OT-P1-001. |
 
 ## Non-Domains
 

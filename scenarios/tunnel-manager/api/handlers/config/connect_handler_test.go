@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"tunnel-manager/handlers/config"
+	"tunnel-manager/internal/authz"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
@@ -19,16 +20,18 @@ import (
 
 // fakeService implements internalconfig.Service for handler tests.
 type fakeService struct {
-	getOut  internalconfig.TunnelConfig
-	ready   internalconfig.ConfigReadiness
-	getErr  error
-	syncOut internalconfig.SyncResult
-	syncErr error
-	syncDry bool
-	swPrev  internalconfig.Mode
-	swCur   internalconfig.Mode
-	swErr   error
-	swTgt   internalconfig.Mode
+	getOut    internalconfig.TunnelConfig
+	ready     internalconfig.ConfigReadiness
+	getErr    error
+	syncOut   internalconfig.SyncResult
+	syncErr   error
+	syncDry   bool
+	syncCalls int
+	swPrev    internalconfig.Mode
+	swCur     internalconfig.Mode
+	swErr     error
+	swTgt     internalconfig.Mode
+	swCalls   int
 }
 
 func (f *fakeService) GetConfig(context.Context) (internalconfig.TunnelConfig, error) {
@@ -40,19 +43,30 @@ func (f *fakeService) GetConfigState(context.Context) (internalconfig.ConfigStat
 }
 
 func (f *fakeService) Sync(_ context.Context, dryRun bool) (internalconfig.SyncResult, error) {
+	f.syncCalls++
 	f.syncDry = dryRun
 	return f.syncOut, f.syncErr
 }
 
 func (f *fakeService) SwitchMode(_ context.Context, target internalconfig.Mode) (internalconfig.Mode, internalconfig.Mode, error) {
+	f.swCalls++
 	f.swTgt = target
 	return f.swPrev, f.swCur, f.swErr
 }
 
 func newClient(t *testing.T, svc internalconfig.Service) configconnect.ConfigServiceClient {
 	t.Helper()
+	return newClientWithAuthorizer(t, svc, nil)
+}
+
+func newClientWithAuthorizer(t *testing.T, svc internalconfig.Service, authorizer authz.Authorizer) configconnect.ConfigServiceClient {
+	t.Helper()
 	logger, _ := connectxtest.NewLogger(t)
-	path, handler := configconnect.NewConfigServiceHandler(config.NewConnectHandler(config.Deps{Service: svc, Logger: logger}))
+	path, handler := configconnect.NewConfigServiceHandler(config.NewConnectHandler(config.Deps{
+		Service:    svc,
+		Logger:     logger,
+		Authorizer: authorizer,
+	}))
 	server := connectxtest.StartTestServer(t, connectx.ServiceMount{Path: path, Handler: handler})
 	return configconnect.NewConfigServiceClient(server.Client(), server.URL)
 }
@@ -104,6 +118,27 @@ func TestHandlerSyncRemoteUnavailableMapsFailedPrecondition(t *testing.T) {
 	_, err := client.Sync(context.Background(), connect.NewRequest(&configv1.SyncRequest{}))
 	require.Error(t, err)
 	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+}
+
+func TestHandlerSyncRequiresOperatorTokenWhenEnforced(t *testing.T) {
+	fake := &fakeService{}
+	client := newClientWithAuthorizer(t, fake, authz.StaticTokenAuthorizer{Enforced: true, Token: "secret"})
+
+	_, err := client.Sync(context.Background(), connect.NewRequest(&configv1.SyncRequest{}))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+	require.Zero(t, fake.syncCalls, "denied sync must not reach the service")
+}
+
+func TestHandlerSyncAcceptsOperatorBearer(t *testing.T) {
+	fake := &fakeService{}
+	client := newClientWithAuthorizer(t, fake, authz.StaticTokenAuthorizer{Enforced: true, Token: "secret"})
+	req := connect.NewRequest(&configv1.SyncRequest{DryRun: true})
+	req.Header().Set("Authorization", "Bearer secret")
+
+	_, err := client.Sync(context.Background(), req)
+	require.NoError(t, err)
+	require.Equal(t, 1, fake.syncCalls)
 }
 
 func TestHandlerSwitchModeMapsModes(t *testing.T) {

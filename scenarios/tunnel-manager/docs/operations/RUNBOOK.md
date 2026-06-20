@@ -12,11 +12,10 @@ Use this document to answer:
 - How do I back up or restore state?
 - Where should operational issues be recorded?
 
-> **Status (Phase 1, documentation-first):** No product code exists yet
-> beyond the template scaffold. The `tunnel-manager ...` commands below
-> are the **planned CLI surface** (PRD OT-P0-012); they are not yet
-> implemented. Lifecycle commands (`make`, `vrooli scenario`) work today.
-> Runs in the Tier 1 local stack alongside `cloudflared` (systemd).
+> **Status:** The API, CLI, UI, and background schedulers are implemented
+> for the Tier 1 local stack. Run all lifecycle operations through
+> `make`/`vrooli scenario`; use the `tunnel-manager ...` CLI commands
+> below for operator workflows.
 
 ## Start / Stop / Status
 
@@ -34,10 +33,10 @@ make test
 Do not start API/UI binaries directly. The lifecycle owns process
 naming, ports, health checks, and logs.
 
-## Operator Procedures (planned CLI surface)
+## Operator Procedures
 
-All commands support proto-typed `--json`. Domains map to the planned
-CLI verbs (see [`../concepts/DOMAINS.md`](../concepts/DOMAINS.md)).
+All scenario commands support proto-typed `--json`. Domains map to the
+CLI verbs in [`../concepts/DOMAINS.md`](../concepts/DOMAINS.md).
 
 | Goal | Command | Notes |
 |---|---|---|
@@ -89,13 +88,14 @@ confirm autoheal is alert-only before manually recovering. See
 
 ## Backup / Restore
 
-The generated template uses local SQLite state. Product scenarios must
-define backup and restore procedures before production deployment.
+Tunnel Manager uses local SQLite state under `SQLITE_PATH`. Back up the
+database before major host maintenance or before replacing the local
+stack data directory.
 
 | Data | Backup Procedure | Restore Procedure | Status |
 |---|---|---|---|
-| SQLite database | deferred | deferred | Define before deployment. |
-| Blob files | deferred | deferred | Define if binary/blob domains remain. |
+| SQLite database | Stop the scenario, copy the file referenced by `SQLITE_PATH` or `${SCENARIO_DATA_DIR}/tunnel-manager.db`, then restart. | Stop the scenario, restore the copied DB file to the configured path, ensure ownership/permissions match the runtime user, then `make start`. | active |
+| Blob files | n/a | n/a | No blob domains today. |
 
 ## Maintenance Tasks
 

@@ -5,6 +5,11 @@ import (
 	"time"
 )
 
+// MetricsRetentionWindow bounds the cloudflared metrics time-series retained
+// in SQLite. Two weeks keeps enough recent signal for operator diagnostics
+// without letting scheduled/manual scrapes grow the local DB forever.
+const MetricsRetentionWindow = 14 * 24 * time.Hour
+
 // MetricsRepository is the persistence seam the tunnel service depends on.
 // Production wires the sqlite-backed implementation from sqlite.go; service
 // unit tests wire a fake. Keep the surface narrow — new methods land here when

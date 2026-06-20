@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 
+	"tunnel-manager/internal/authz"
 	internalconfig "tunnel-manager/internal/config"
 
 	"connectrpc.com/connect"
@@ -13,8 +14,9 @@ import (
 
 // Deps wires the seams the Connect config handler needs.
 type Deps struct {
-	Service internalconfig.Service
-	Logger  *log.Logger
+	Service    internalconfig.Service
+	Logger     *log.Logger
+	Authorizer authz.Authorizer
 }
 
 type connectHandler struct {
@@ -24,6 +26,9 @@ type connectHandler struct {
 func NewConnectHandler(d Deps) *connectHandler {
 	if d.Logger == nil {
 		d.Logger = log.Default()
+	}
+	if d.Authorizer == nil {
+		d.Authorizer = authz.AllowLocalOperator()
 	}
 	return &connectHandler{deps: d}
 }
@@ -41,6 +46,9 @@ func (h *connectHandler) GetConfig(ctx context.Context, _ *connect.Request[confi
 }
 
 func (h *connectHandler) Sync(ctx context.Context, req *connect.Request[configv1.SyncRequest]) (*connect.Response[configv1.SyncResponse], error) {
+	if err := h.deps.Authorizer.Authorize(ctx, authz.OperationConfigSync, req.Header()); err != nil {
+		return nil, authz.ToConnectError(err)
+	}
 	result, err := h.deps.Service.Sync(ctx, req.Msg.DryRun)
 	if err != nil {
 		connectErr := internalconfig.ToConnectError(err)
@@ -53,6 +61,9 @@ func (h *connectHandler) Sync(ctx context.Context, req *connect.Request[configv1
 }
 
 func (h *connectHandler) SwitchMode(ctx context.Context, req *connect.Request[configv1.SwitchModeRequest]) (*connect.Response[configv1.SwitchModeResponse], error) {
+	if err := h.deps.Authorizer.Authorize(ctx, authz.OperationConfigSwitchMode, req.Header()); err != nil {
+		return nil, authz.ToConnectError(err)
+	}
 	prev, cur, err := h.deps.Service.SwitchMode(ctx, modeFromProto(req.Msg.TargetMode))
 	if err != nil {
 		connectErr := internalconfig.ToConnectError(err)

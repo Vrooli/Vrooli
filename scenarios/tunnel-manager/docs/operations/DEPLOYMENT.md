@@ -12,17 +12,15 @@ Use this document to answer:
 - What blocks desktop, mobile, cloud, SaaS, or enterprise packaging?
 - What must pass before deployment?
 
-> **Status (Phase 1, documentation-first):** No product code exists yet
-> beyond the template scaffold. This document describes the **planned**
-> deployment shape. Implementation is Phase 2. The only deployment
-> context today is the **Tier 1 local stack** (full Vrooli install +
-> app-monitor Cloudflare tunnel); there is no container or cloud target.
+> **Status:** Tier 1 local-stack deployment is implemented and validated.
+> Tunnel Manager runs where the host `cloudflared` daemon runs; container,
+> hosted cloud, SaaS, desktop, and mobile packaging remain deferred.
 
 ## Supported Tiers
 
 | Tier | Status | Requirements | Blockers |
 |---|---|---|---|
-| Tier 1 local stack | planned (target) | Vrooli lifecycle, Go, Node/pnpm, SQLite path, `cloudflared` (systemd), Cloudflare API token (remote mode) | Phase 2 implementation; reference `notes` domain still present. |
+| Tier 1 local stack | supported | Vrooli lifecycle, Go, Node/pnpm, SQLite path, `cloudflared` (systemd), Cloudflare API token (remote mode) | Operator-attended live Cloudflare credential validation when deploying remote mode. |
 | Desktop/mobile app | deferred | Cross-platform runtime, packaged UI/API, storage resolver | Out of scope; see [Deployment Hub](../../../../docs/deployment/README.md) tiers. |
 | Managed cloud/SaaS | deferred | Hosted runtime, auth, observability, cost model | Foundational infra runs co-located with the host's cloudflared; no hosted target planned. See Deployment Hub. |
 | Enterprise/self-host | deferred | Install docs, backup/restore, support model | Future tier; see Deployment Hub. |
@@ -86,14 +84,17 @@ mobile, SaaS, enterprise) is deferred to the
 
 ## Release Checklist
 
-- [ ] `make setup` passes.
-- [ ] `make test` passes.
-- [ ] PRD operational targets have linked requirements.
-- [ ] Template reference domain has been replaced or explicitly retained
-      with product justification.
-- [ ] `docs/manifest.json` maturity reflects current docs.
-- [ ] `RUNBOOK.md`, `OBSERVABILITY.md`, `SECURITY.md`, and
+- [x] `make setup` passes in recorded implementation slices.
+- [x] `make test` / `vrooli scenario test tunnel-manager` passes (latest
+      recorded result: 18/18 phases green).
+- [x] PRD operational targets have linked requirements.
+- [x] Template reference domain has been removed from product code.
+- [x] `RUNBOOK.md`, `OBSERVABILITY.md`, `SECURITY.md`, and
       `MONETIZATION.md` are active or explicitly not-applicable.
+- [ ] Operator-attended live Cloudflare remote-mode validation is complete
+      for the target host/account.
+- [ ] P2 deployment additions such as alert webhooks, dashboard exports,
+      and multi-tunnel support are promoted or explicitly left deferred.
 
 ## Rollback
 

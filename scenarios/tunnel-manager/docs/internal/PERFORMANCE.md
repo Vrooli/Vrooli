@@ -24,50 +24,45 @@ Use this document to answer:
 
 | Measurement | Value | Source | Date |
 |---|---|---|---|
-| None captured yet. | n/a | n/a | 2026-06-18 |
+| Scenario validation | 18/18 phases passed, 1m42s | `vrooli scenario test tunnel-manager` | 2026-06-19 |
+| Lighthouse home page | performance 99%, accessibility 100%, best-practices 100%, SEO 91% | test-genie performance phase | 2026-06-19 |
 
-## Planned product targets (Phase 2)
+## Runtime Budgets And Tunables
 
-> **Status: planned, not measured.** Implementation is Phase 2; the
-> numbers below are target budgets for the seven product domains
-> ([`../concepts/DOMAINS.md`](../concepts/DOMAINS.md)), not measurements.
-> They size the scheduling cadence, scrape interval, recovery timings,
-> and SQLite write/retention volume so the workload is bounded before
-> code lands. Tunnel Manager is **SQLite only** ([`DECISIONS.md`](DECISIONS.md))
-> and must stay lightweight — it is foundational infra that runs
-> continuously.
+Tunnel Manager is **SQLite only** ([`DECISIONS.md`](DECISIONS.md)) and
+must stay lightweight because it is foundational infra that runs
+continuously. The budgets below are the implemented defaults or
+operator-tunable targets; live Cloudflare latency and retention windows
+still need operator-environment measurements.
 
-| Concern | Planned target | Rationale | Domain |
+| Concern | Budget / default | Rationale | Domain |
 |---|---|---|---|
-| Internal/external probe cadence | every 30s per route (planned; tunable) | Fast enough to catch outages within the recovery window without hammering routes or the public tunnel. | `probes` |
-| Prometheus scrape interval | every 15s from `127.0.0.1:20241` | Aligns with typical Prometheus scrape granularity for HA-connection/RTT trends; cheap local-loopback read. | `tunnel` |
-| `/ready` health check | every 15s | Primary trigger for recovery; must detect `/ready` failure / HA=0 quickly. | `tunnel` |
-| Recovery backoff | exponential, base ≈ 5s, doubling, cap ≈ 5min | Avoids restart storms on a flapping tunnel while still recovering promptly. | `recovery` |
-| Circuit breaker | open after ≈ 5 consecutive failed attempts | Bounds blast radius of live actuation (see [`SECURITY.md`](SECURITY.md)); stops infinite restart loops. | `recovery` |
+| Internal/external probe cadence | `TUNNEL_MANAGER_PROBE_INTERVAL`, default `1m` | Frequent enough for operator visibility without hammering local scenarios or the public tunnel. | `probes` |
+| Exposure reconcile cadence | `TUNNEL_MANAGER_EXPOSURE_RECONCILE_INTERVAL`, default `5m` | Keeps CORE routes and expired leases converged without turning ingress sync into a hot loop. | `exposure` |
+| Recovery evaluation cadence | `TUNNEL_MANAGER_RECOVERY_EVALUATE_INTERVAL`, default `1m`, opt-in scheduler | Recovery can restart cloudflared, so background actuation is explicit and bounded. | `recovery` |
+| Recovery backoff | exponential, service-owned | Avoids restart storms on a flapping tunnel while still recovering promptly. | `recovery` |
+| Circuit breaker | service-owned threshold/cap | Bounds blast radius of live actuation (see [`SECURITY.md`](SECURITY.md)); stops infinite restart loops. | `recovery` |
 | Cloudflare API hot-reload latency | ingress push applied within seconds of a manifest change | Remote-mode exposure should feel immediate; bounded by Cloudflare API v4 round-trip. | `config` |
 | Expected route count | ~9 CORE (`api-core/coreset`) + leased on demand | Sizes the manifest, reconciliation loop, and probe schedule; well within SQLite/single-host limits. | `routes`/`exposure` |
-| Metrics time-series write volume | ~1 row / scrape-interval / metric series, retained then purged | At 15s scrape, ~5.7k samples/day/series; retention + periodic purge keeps the `metrics` table bounded. | `tunnel` |
-| Probe history write volume | ~1 row / cadence / route / kind (internal+external), retained then purged | At 30s cadence over ~9+ routes × 2 kinds, retention + purge keeps the `probes` table bounded. | `probes` |
+| Metrics time-series write volume | bounded by scrape actions and 14-day retention prune | Repository writes delete rows older than `tunnel.MetricsRetentionWindow`. | `tunnel` |
+| Probe history write volume | ~1 row / cadence / route / kind (internal+external), 14-day retention prune | At `1m` over ~9+ routes × 2 kinds, the rolling window stays bounded in SQLite. | `probes` |
 | Recovery event volume | low (only on actual recovery attempts) | Append-only audit log; small even under failure. | `recovery` |
-| Retention / purge | time-windowed retention with a periodic purge job for `metrics` and `probes` | Continuous telemetry on SQLite must not grow unbounded; recovery + audit history kept longer (lower volume). | `tunnel`/`probes` |
-
-All numbers above are **planned defaults to validate against the live
-tunnel**, not commitments; capture real measurements in the table above
-once Phase 2 ships and tune cadence/retention from observed volume.
+| Retention / purge | 14 days for metrics/probes; 90 days for recovery events | Pruning happens on repository writes, so no extra long-lived purge scheduler is required. | `tunnel`/`probes`/`recovery` |
 
 ## Known Constraints
 
 - Vite production builds may process thousands of modules and take
   several minutes.
 - Foundational-infra constraint: continuous probing + scraping writes to
-  SQLite on every cycle, so retention/purge for `metrics` and `probes`
-  is a correctness concern (unbounded growth), not just a tuning one.
+  SQLite on every cycle. Repository-level retention pruning is part of the
+  correctness contract, not just a tuning detail.
 - Live auto-recovery timings (backoff + circuit breaker) are bounded by
   the safety contract in [`SECURITY.md`](SECURITY.md), not purely by
   performance — never tune the breaker open-threshold up for "faster
   recovery" without re-checking blast radius.
-- Performance budgets for real product workflows are the planned targets
-  above; replace with measurements as domains and UX flows land.
+- Retention pruning is write-triggered. If a future domain adds a higher
+  volume table, document its window here and keep pruning close to the
+  owning repository.
 
 ## Regression Procedure
 

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"tunnel-manager/internal/authz"
 	"tunnel-manager/internal/clock"
 	"tunnel-manager/internal/cmdrunner"
 	"tunnel-manager/internal/module"
@@ -60,8 +61,9 @@ func NewProductionService(db *database.RoutedDB, clk clock.Clock) internalexposu
 
 func ModuleWithService(svc internalexposure.Service, logger *log.Logger) module.Module {
 	connectPath, connectHandler := exposureconnect.NewExposureServiceHandler(NewConnectHandler(Deps{
-		Service: svc,
-		Logger:  logger,
+		Service:    svc,
+		Logger:     logger,
+		Authorizer: authz.FromEnv(),
 	}))
 	return module.Module{
 		Name: "exposure",

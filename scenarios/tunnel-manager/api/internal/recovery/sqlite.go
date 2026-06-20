@@ -60,7 +60,18 @@ func (s *sqliteRepository) PersistEvent(ctx context.Context, e RecoveryEvent) (R
 	if err != nil {
 		return RecoveryEvent{}, fmt.Errorf("insert recovery event %q: %w", e.ID, err)
 	}
+	if err := s.pruneBefore(ctx, e.CreatedAt.Add(-EventRetentionWindow)); err != nil {
+		return RecoveryEvent{}, err
+	}
 	return e, nil
+}
+
+func (s *sqliteRepository) pruneBefore(ctx context.Context, cutoff time.Time) error {
+	_, err := s.db.ExecContext(ctx, "DELETE FROM recovery_events WHERE created_at < ?", cutoff.UTC().Format(eventTimeFormat))
+	if err != nil {
+		return fmt.Errorf("prune recovery events before %s: %w", cutoff.UTC().Format(eventTimeFormat), err)
+	}
+	return nil
 }
 
 func (s *sqliteRepository) ListEvents(ctx context.Context, limit int) ([]RecoveryEvent, error) {

@@ -36,6 +36,10 @@ import (
 	tunnelH "tunnel-manager/handlers/tunnel"
 )
 
+type lifecycleScheduler interface {
+	Run(context.Context)
+}
+
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
 // with the canonical pragma string. Resolution order:
 //
@@ -140,16 +144,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("exposure scheduler initialization failed: %v", err)
 		}
-		schedulerCtx, cancel := context.WithCancel(context.Background())
-		done := make(chan struct{})
-		go func() {
-			defer close(done)
-			scheduler.Run(schedulerCtx)
-		}()
-		schedulerStops = append(schedulerStops, func(ctx context.Context) {
-			cancel()
-			waitForScheduler(ctx, done)
-		})
+		schedulerStops = append(schedulerStops, startScheduler(scheduler))
 	}
 
 	if probeSchedulerEnabledFromEnv() {
@@ -161,16 +156,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("probe scheduler initialization failed: %v", err)
 		}
-		schedulerCtx, cancel := context.WithCancel(context.Background())
-		done := make(chan struct{})
-		go func() {
-			defer close(done)
-			scheduler.Run(schedulerCtx)
-		}()
-		schedulerStops = append(schedulerStops, func(ctx context.Context) {
-			cancel()
-			waitForScheduler(ctx, done)
-		})
+		schedulerStops = append(schedulerStops, startScheduler(scheduler))
 	}
 
 	if recoverySchedulerEnabledFromEnv() {
@@ -182,16 +168,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("recovery scheduler initialization failed: %v", err)
 		}
-		schedulerCtx, cancel := context.WithCancel(context.Background())
-		done := make(chan struct{})
-		go func() {
-			defer close(done)
-			scheduler.Run(schedulerCtx)
-		}()
-		schedulerStops = append(schedulerStops, func(ctx context.Context) {
-			cancel()
-			waitForScheduler(ctx, done)
-		})
+		schedulerStops = append(schedulerStops, startScheduler(scheduler))
 	}
 
 	srv := server.New(
@@ -284,6 +261,19 @@ func recoverySchedulerIntervalFromEnv() time.Duration {
 		return internalrecovery.DefaultEvaluationInterval
 	}
 	return d
+}
+
+func startScheduler(s lifecycleScheduler) func(context.Context) {
+	schedulerCtx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		s.Run(schedulerCtx)
+	}()
+	return func(ctx context.Context) {
+		cancel()
+		waitForScheduler(ctx, done)
+	}
 }
 
 func waitForScheduler(ctx context.Context, done <-chan struct{}) {

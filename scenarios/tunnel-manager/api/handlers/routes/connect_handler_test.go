@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"tunnel-manager/handlers/routes"
+	"tunnel-manager/internal/authz"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
@@ -20,16 +21,19 @@ import (
 
 // fakeService implements internalroutes.Service for handler tests.
 type fakeService struct {
-	listOut    []internalroutes.Route
-	getOut     internalroutes.Route
-	getErr     error
-	createOut  internalroutes.Route
-	createErr  error
-	createIn   internalroutes.CreateInput
-	deletedOut bool
+	listOut     []internalroutes.Route
+	getOut      internalroutes.Route
+	getErr      error
+	createOut   internalroutes.Route
+	createErr   error
+	createIn    internalroutes.CreateInput
+	createCalls int
+	deletedOut  bool
+	deleteCalls int
 }
 
 func (f *fakeService) Create(_ context.Context, in internalroutes.CreateInput) (internalroutes.Route, error) {
+	f.createCalls++
 	f.createIn = in
 	return f.createOut, f.createErr
 }
@@ -47,13 +51,23 @@ func (f *fakeService) Update(_ context.Context, _ string, _ internalroutes.Updat
 }
 
 func (f *fakeService) Delete(_ context.Context, _ string) (bool, error) {
+	f.deleteCalls++
 	return f.deletedOut, nil
 }
 
 func newClient(t *testing.T, svc internalroutes.Service) routesconnect.RoutesServiceClient {
 	t.Helper()
+	return newClientWithAuthorizer(t, svc, nil)
+}
+
+func newClientWithAuthorizer(t *testing.T, svc internalroutes.Service, authorizer authz.Authorizer) routesconnect.RoutesServiceClient {
+	t.Helper()
 	logger, _ := connectxtest.NewLogger(t)
-	path, handler := routesconnect.NewRoutesServiceHandler(routes.NewConnectHandler(routes.Deps{Service: svc, Logger: logger}))
+	path, handler := routesconnect.NewRoutesServiceHandler(routes.NewConnectHandler(routes.Deps{
+		Service:    svc,
+		Logger:     logger,
+		Authorizer: authorizer,
+	}))
 	server := connectxtest.StartTestServer(t, connectx.ServiceMount{Path: path, Handler: handler})
 	return routesconnect.NewRoutesServiceClient(server.Client(), server.URL)
 }
@@ -98,6 +112,30 @@ func TestHandlerCreateConflict(t *testing.T) {
 	_, err := client.CreateRoute(context.Background(), connect.NewRequest(&routesv1.CreateRouteRequest{Subdomain: "dup", Scenario: "s", LocalPort: 1}))
 	require.Error(t, err)
 	require.Equal(t, connect.CodeAlreadyExists, connect.CodeOf(err))
+}
+
+func TestHandlerCreateRequiresOperatorTokenWhenEnforced(t *testing.T) {
+	fake := &fakeService{}
+	client := newClientWithAuthorizer(t, fake, authz.StaticTokenAuthorizer{Enforced: true, Token: "secret"})
+
+	_, err := client.CreateRoute(context.Background(), connect.NewRequest(&routesv1.CreateRouteRequest{
+		Subdomain: "web-console", Scenario: "web-console", LocalPort: 3000,
+	}))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+	require.Zero(t, fake.createCalls, "denied create must not reach the service")
+}
+
+func TestHandlerDeleteAcceptsOperatorBearer(t *testing.T) {
+	fake := &fakeService{deletedOut: true}
+	client := newClientWithAuthorizer(t, fake, authz.StaticTokenAuthorizer{Enforced: true, Token: "secret"})
+	req := connect.NewRequest(&routesv1.DeleteRouteRequest{Id: "x"})
+	req.Header().Set("Authorization", "Bearer secret")
+
+	resp, err := client.DeleteRoute(context.Background(), req)
+	require.NoError(t, err)
+	require.True(t, resp.Msg.Deleted)
+	require.Equal(t, 1, fake.deleteCalls)
 }
 
 func TestHandlerGetNotFound(t *testing.T) {

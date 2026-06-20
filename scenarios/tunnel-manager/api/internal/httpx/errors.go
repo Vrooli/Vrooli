@@ -87,11 +87,15 @@ func WriteError(w http.ResponseWriter, status int, code, message string) {
 // for the deliberate REST exception path, which some deployments mount without
 // the full middleware chain.
 func setSecureJSONHeaders(w http.ResponseWriter) {
-	h := w.Header()
-	h.Set("Content-Type", "application/json")
-	h.Set("X-Content-Type-Options", "nosniff")
-	h.Set("X-Frame-Options", "DENY")
-	h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "same-origin")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("X-Frame-Options", "DENY")
+	w.Header().Set("X-XSS-Protection", "0")
+	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
+	w.Header().Set("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+	w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 }
 
 // WriteProto serialises msg as proto JSON for REST endpoints whose response

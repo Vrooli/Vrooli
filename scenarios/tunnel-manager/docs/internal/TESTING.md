@@ -965,26 +965,25 @@ lower the gate.
 | `var _ Pinger = (*sql.DB)(nil)` to lock the contract at compile time | Runtime "does this satisfy" check in init |
 | Adding new seams to [`SEAMS.md`](SEAMS.md) at the same commit | "We'll document it later" |
 
-## Planned product test strategy (Phase 2)
+## Product Test Strategy
 
-> **Status: planned, not built.** No product tests exist yet — the
-> scenario ships the template scaffold tests plus the fenced `notes`
-> example only. The inventory below is the documentation-first plan for
-> the seven product domains ([`../concepts/DOMAINS.md`](../concepts/DOMAINS.md)),
-> mapped to the planned seams in [`SEAMS.md`](SEAMS.md). Every entry
-> reuses a canonical pattern above; nothing here introduces a new test
-> primitive.
+> **Status: implemented and evolving.** Product tests now cover the seven
+> domains ([`../concepts/DOMAINS.md`](../concepts/DOMAINS.md)), scheduler
+> behavior, config readiness, UI operator workflows, and CLI manifest
+> parity. The inventory below is the durable strategy for maintaining and
+> extending that coverage; every entry reuses a canonical pattern above
+> rather than introducing a new test primitive.
 
 ### Per-layer plan
 
 | Layer | Pattern (reused from above) | What the product domains will test |
 |---|---|---|
-| Go repository | Real sqlite via `db.NewSQLite(t)` + `apidb.EnsureSchemas` (compose pattern) | `routes`/`exposure`/`config`/`tunnel`/`probes`/`recovery` SQL semantics: manifest CRUD + one-route-per-subdomain, lease lifecycle rows, metrics time-series insert + retention window, probe-history append, recovery-event append. |
-| Go service | `FakeRepository` (co-located `internal/<domain>/mocks/`) + `FakeClock` | Exposure tier policy (CORE never-expire, LEASED TTL/extend/revoke), reaper eligibility, route validation (DNS-label subdomain, port-matches-fixed-port), failure classification rules. |
-| Go service (seam-driven) | Domain seam fakes (`FakeCloudflareAPI`, `FakeCommandRunner`, `FakeProber`, `FakeMetricsSource`, `FakeCoreSetProvider`, `FakeLifecycleEnsurer`, `FakeServiceManifestReader`) | Cloudflare ingress sync (idempotent re-push, outage error path), tunnel health + degraded-mode thresholds, probe scheduling + classification, ensure-running delegation, port-compliance findings. |
+| Go repository | Real sqlite via `db.NewSQLite(t)` + `apidb.EnsureSchemas` (compose pattern) | `routes`/`exposure`/`config`/`tunnel`/`probes`/`recovery` SQL semantics: manifest CRUD + one-route-per-subdomain, lease lifecycle rows, metrics time-series insert/query, probe-history append, recovery-event append. |
+| Go service | Domain fakes + `FakeClock` where time matters | Exposure tier policy (CORE never-expire, LEASED TTL/extend/revoke), reaper eligibility, route validation (DNS-label subdomain, port-matches-fixed-port), failure classification rules. |
+| Go service (seam-driven) | Domain seam fakes (`FakeCloudflareAPI`/ingress client, `FakeCommandRunner`, `FakeProber`, metrics/client fakes, core-set/lifecycle/audit readers) | Cloudflare ingress sync (idempotent re-push, remote-unavailable setup path), tunnel health + degraded-mode thresholds, probe scheduling + classification, ensure-running delegation, port-compliance findings. |
 | Connect handler | `connectxtest.StartTestServer` + `FakeService` + buffer logger | Per-domain RPC routing, request/response proto shapes, Connect error envelope (codes per [`ERROR-HANDLING.md`](ERROR-HANDLING.md)), 500-path operator-log assertion. |
-| CLI | `clitest.NewAPIServer` + `clitest.CaptureStdout` | `status`/`routes`/`expose`/`lease`/`probe`/`audit`/`recover`/`config` — one success-path + one error-path each, both human-render and `--json` proto contract. |
-| UI vitest | `renderWithProviders` + inline `vi.mock("./api/<domain>")` + factories | The 5 dashboard surfaces (Overview / Exposure / Recovery & Events / Metrics / Audit): render, loading/error states, lease request/extend/revoke interactions. |
+| CLI | `clitest.NewAPIServer` + `clitest.CaptureStdout` | `tunnel`/`routes`/`exposure`/`probes`/`audit`/`recovery`/`config` — success and error paths, both human-render and `--json` proto contract. |
+| UI vitest | `renderWithProviders` + inline `vi.mock("./api/<domain>")` + factories | Overview, Settings/Setup, Exposure, Recovery, Metrics/Diagnostics, and Audit: render, loading/error/setup states, filtering, sync/reconcile feedback, and safe recovery guidance. |
 | UI a11y | `expectNoA11yViolations(container)` at the feature boundary | Each dashboard feature's accessibility at its ownership boundary; `App.test.tsx` stays composition-smoke only. |
 | Integration | E2E binary smoke gate (`//go:build e2e`) + seam-driven flow tests | Lease lifecycle (request → ensure-running → ingress → expiry → reap) and recovery flow (probe-fail → classify → restart-via-seam → backoff → circuit-break), all behind fakes. |
 

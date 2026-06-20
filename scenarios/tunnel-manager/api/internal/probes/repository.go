@@ -1,6 +1,14 @@
 package probes
 
-import "context"
+import (
+	"context"
+	"time"
+)
+
+// HistoryRetentionWindow bounds probe history retained in SQLite. Two weeks
+// preserves recent route-diagnosis evidence while keeping periodic probe
+// writes bounded.
+const HistoryRetentionWindow = 14 * 24 * time.Hour
 
 // LatestPair holds the most recent internal and external probe for one
 // subdomain. Either pointer is nil when no probe of that kind has been

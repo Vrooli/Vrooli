@@ -3,6 +3,7 @@ package config
 import (
 	"log"
 
+	"tunnel-manager/internal/authz"
 	"tunnel-manager/internal/clock"
 	"tunnel-manager/internal/module"
 
@@ -30,8 +31,9 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 	svc := internalconfig.NewProductionService(db, clk, internalconfig.ProductionOptions{})
 
 	connectPath, connectHandler := configconnect.NewConfigServiceHandler(NewConnectHandler(Deps{
-		Service: svc,
-		Logger:  logger,
+		Service:    svc,
+		Logger:     logger,
+		Authorizer: authz.FromEnv(),
 	}))
 	return module.Module{
 		Name: "config",

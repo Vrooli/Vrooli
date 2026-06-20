@@ -57,24 +57,24 @@ and mirrors `api-core/health.Response` field-for-field.
 Each product domain exposes its endpoints under
 `POST /vrooli.tunnel_manager.v1.<domain>.<Domain>Service/<Method>`
 for proto-typed Connect-RPC calls, with REST exceptions (such as
-multipart uploads) mounted at explicit REST paths. Document your
-domain's endpoints here as you build them — one section per RPC, with
-its auth, request/response proto shapes, error codes, and CLI mirror.
+multipart uploads) mounted at explicit REST paths. Endpoint metadata is
+generated from the handler modules and mirrored by CLI manifest coverage.
 
-The scaffold ships one fully worked CRUD vertical slice as a copyable
-reference (see the fenced example below); `vrooli scenario detemplate
-<scenario>` removes it once your real domains are green.
+Read RPCs are local/operator-readable by default. Privileged mutation
+RPCs can be fail-closed with `TUNNEL_MANAGER_AUTHZ_ENFORCED=1`; when
+enabled, they require `Authorization: Bearer <token>` or
+`X-Vrooli-Operator-Token: <token>` matching
+`TUNNEL_MANAGER_OPERATOR_TOKEN`, falling back to `API_TOKEN`. Missing
+tokens return Connect `Unauthenticated`; wrong tokens return
+`PermissionDenied`.
 
-## Planned Connect-RPC services
+## Implemented Connect-RPC services
 
-> **Planned — contracts authored in Phase 2 under
-> `packages/proto/schemas/tunnel-manager`.** None of the services below
-> are implemented yet; this is the contract surface the API will expose,
-> one service per domain. Each RPC is reached at
-> `POST /vrooli.tunnel_manager.v1.<domain>.<Service>/<Method>`. See
-> [`../concepts/DOMAINS.md`](../concepts/DOMAINS.md) for domain ownership
-> and [`../../PRD.md`](../../PRD.md) for the operational targets each
-> method satisfies.
+Each RPC is reached at
+`POST /vrooli.tunnel_manager.v1.<domain>.<Service>/<Method>`. See
+[`../concepts/DOMAINS.md`](../concepts/DOMAINS.md) for domain ownership
+and [`../../PRD.md`](../../PRD.md) for the operational targets each
+method satisfies.
 
 ### `routes` — `RoutesService` (exposure manifest SSOT)
 
@@ -82,29 +82,29 @@ reference (see the fenced example below); `vrooli scenario detemplate
 |---|---|
 | `ListRoutes` | List the exposure manifest (subdomain, scenario, domain, local port, tier, lease, enabled). |
 | `GetRoute` | Fetch a single route by subdomain or scenario. |
-| `UpsertRoute` | Create or update a manifest entry. |
-| `SetRouteEnabled` | Enable / disable a route without deleting it. |
-| `DeleteRoute` | Remove a manifest entry. |
+| `CreateRoute` | Create a manifest entry. Privileged mutation. |
+| `UpdateRoute` | Update a manifest entry, including enabled state. Privileged mutation. |
+| `DeleteRoute` | Remove a manifest entry. Privileged mutation. |
 
 ### `exposure` — `ExposureService` (tiered broker)
 
 | RPC | Purpose |
 |---|---|
-| `Expose` | Request leased exposure of a scenario (default TTL ≈ 1 week); ensures a route + running scenario + ingress. |
-| `ExtendLease` | Extend an active lease's TTL. |
-| `RevokeLease` | Revoke a lease early and tear down its ingress. |
+| `Expose` | Request leased exposure of a scenario (default TTL ≈ 1 week); ensures a route + running scenario + ingress. Privileged mutation. |
+| `ExtendLease` | Extend an active lease's TTL. Privileged mutation. |
+| `RevokeLease` | Revoke a lease early and tear down its ingress. Privileged mutation. |
 | `ListLeases` | List active/expired leases. |
+| `ListExposures` | List current exposure state with route and probe classification context. |
 | `IsExposed` | Query whether a scenario is currently exposed (backs app-monitor). |
-| `ExposeAndGetURL` | Ensure exposure and return the public tunnel URL (backs app-monitor's open-in-new-tab). |
-| `ReconcileCore` | Reconcile every `api-core/coreset` member as always-on CORE exposure. |
+| `Reconcile` | Reconcile every `api-core/coreset` member as always-on CORE exposure and reap expired leases. Privileged mutation. |
 
 ### `config` — `ConfigService` (Cloudflare ingress & mode)
 
 | RPC | Purpose |
 |---|---|
 | `GetConfig` | Read current mode (`remote`/`local`), tunnel/account id, Prometheus endpoint. |
-| `Sync` | Reconcile Cloudflare ingress (remote) or `~/.cloudflared/config.yml` (local) with the manifest. |
-| `SwitchMode` | Switch and migrate between remote and local mode. |
+| `Sync` | Reconcile Cloudflare ingress (remote) or `~/.cloudflared/config.yml` (local) with the manifest. Privileged mutation. |
+| `SwitchMode` | Switch and migrate between remote and local mode. Privileged mutation. |
 
 ### `audit` — `AuditService` (port-compliance)
 
@@ -117,27 +117,27 @@ reference (see the fenced example below); `vrooli scenario detemplate
 
 | RPC | Purpose |
 |---|---|
-| `GetTunnelHealth` | Read cloudflared systemd status + `/ready` + degraded-mode signal. |
-| `GetMetrics` | Current HA connections, request errors, RTT, active streams. |
-| `ListMetricsHistory` | Time-series metrics from the `metrics` table. |
+| `GetStatus` | Read cloudflared systemd status + `/ready` + degraded-mode signal. |
+| `ListMetrics` | Time-series metrics from the `metrics` table. |
+| `Scrape` | Scrape current cloudflared metrics and persist the sample. |
 
 ### `probes` — `ProbesService` (liveness & classification)
 
 | RPC | Purpose |
 |---|---|
 | `RunProbes` | Probe each exposed route internally (local port) and externally (public URL). |
-| `ListProbeHistory` | Probe history (route, kind, status, latency, error). |
+| `ListProbes` | Probe history (route, kind, status, latency, error). |
 | `Classify` | Classify latest probe pairs (healthy / tunnel-down / scenario-down / config-drift). Cloudflare-outage and DNS-failure are planned richer signals, not currently produced. |
 
 ### `recovery` — `RecoveryService` (manual + opt-in scheduled recovery)
 
 | RPC | Purpose |
 |---|---|
-| `GetRecoveryState` | Current backoff / circuit-breaker state. |
-| `Recover` | Manually trigger a recovery attempt (restart cloudflared). |
-| `ListRecoveryEvents` | Recovery event log (trigger, action, outcome, timestamps). |
+| `GetState` | Current backoff / circuit-breaker state. |
+| `Recover` | Manually trigger a recovery attempt (restart cloudflared). Privileged mutation. |
+| `ListEvents` | Recovery event log (trigger, action, outcome, timestamps). |
 
-### `health` — `HealthService` (scaffold)
+### `health` — `HealthService`
 
 | RPC | Purpose |
 |---|---|
@@ -146,9 +146,6 @@ reference (see the fenced example below); `vrooli scenario detemplate
 ---
 
 ## Adding a new endpoint
-
-For a new domain, copy the worked vertical slice in the fenced example
-above first, then replace it once your real domain is green.
 
 For an endpoint inside an existing domain:
 

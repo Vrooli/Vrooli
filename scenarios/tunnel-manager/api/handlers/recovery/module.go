@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"tunnel-manager/internal/authz"
 	"tunnel-manager/internal/clock"
 	"tunnel-manager/internal/cmdrunner"
 	"tunnel-manager/internal/module"
@@ -46,8 +47,9 @@ func NewProductionService(db *database.RoutedDB, clk clock.Clock) internalrecove
 
 func ModuleWithService(svc internalrecovery.Service, logger *log.Logger) module.Module {
 	connectPath, connectHandler := recoveryconnect.NewRecoveryServiceHandler(NewConnectHandler(Deps{
-		Service: svc,
-		Logger:  logger,
+		Service:    svc,
+		Logger:     logger,
+		Authorizer: authz.FromEnv(),
 	}))
 	return module.Module{
 		Name: "recovery",

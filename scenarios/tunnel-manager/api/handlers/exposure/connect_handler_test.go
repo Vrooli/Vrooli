@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"tunnel-manager/handlers/exposure"
+	"tunnel-manager/internal/authz"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
@@ -20,20 +21,23 @@ import (
 
 // fakeService implements internalexposure.Service for handler tests.
 type fakeService struct {
-	exposeLease internalexposure.Lease
-	exposeURL   string
-	exposeErr   error
-	revoked     bool
-	leases      []internalexposure.Lease
-	exposures   []internalexposure.Exposure
-	isExposed   bool
-	isURL       string
-	coreEnsured int
-	reaped      int
-	lastInput   internalexposure.ExposeInput
+	exposeLease    internalexposure.Lease
+	exposeURL      string
+	exposeErr      error
+	revoked        bool
+	leases         []internalexposure.Lease
+	exposures      []internalexposure.Exposure
+	isExposed      bool
+	isURL          string
+	coreEnsured    int
+	reaped         int
+	lastInput      internalexposure.ExposeInput
+	exposeCalls    int
+	reconcileCalls int
 }
 
 func (f *fakeService) Expose(_ context.Context, in internalexposure.ExposeInput) (internalexposure.Lease, string, error) {
+	f.exposeCalls++
 	f.lastInput = in
 	return f.exposeLease, f.exposeURL, f.exposeErr
 }
@@ -59,13 +63,23 @@ func (f *fakeService) IsExposed(context.Context, string) (bool, string, error) {
 }
 
 func (f *fakeService) Reconcile(context.Context) (int, int, error) {
+	f.reconcileCalls++
 	return f.coreEnsured, f.reaped, nil
 }
 
 func newClient(t *testing.T, svc internalexposure.Service) exposureconnect.ExposureServiceClient {
 	t.Helper()
+	return newClientWithAuthorizer(t, svc, nil)
+}
+
+func newClientWithAuthorizer(t *testing.T, svc internalexposure.Service, authorizer authz.Authorizer) exposureconnect.ExposureServiceClient {
+	t.Helper()
 	logger, _ := connectxtest.NewLogger(t)
-	path, handler := exposureconnect.NewExposureServiceHandler(exposure.NewConnectHandler(exposure.Deps{Service: svc, Logger: logger}))
+	path, handler := exposureconnect.NewExposureServiceHandler(exposure.NewConnectHandler(exposure.Deps{
+		Service:    svc,
+		Logger:     logger,
+		Authorizer: authorizer,
+	}))
 	server := connectxtest.StartTestServer(t, connectx.ServiceMount{Path: path, Handler: handler})
 	return exposureconnect.NewExposureServiceClient(server.Client(), server.URL)
 }
@@ -98,6 +112,28 @@ func TestHandlerExposePortUnresolvedFailedPrecondition(t *testing.T) {
 	_, err := client.Expose(context.Background(), connect.NewRequest(&exposurev1.ExposeRequest{Scenario: "x"}))
 	require.Error(t, err)
 	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+}
+
+func TestHandlerExposeRequiresOperatorTokenWhenEnforced(t *testing.T) {
+	fake := &fakeService{}
+	client := newClientWithAuthorizer(t, fake, authz.StaticTokenAuthorizer{Enforced: true, Token: "secret"})
+
+	_, err := client.Expose(context.Background(), connect.NewRequest(&exposurev1.ExposeRequest{Scenario: "web-console"}))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err))
+	require.Zero(t, fake.exposeCalls, "denied expose must not reach the service")
+}
+
+func TestHandlerReconcileAcceptsOperatorBearer(t *testing.T) {
+	fake := &fakeService{coreEnsured: 1}
+	client := newClientWithAuthorizer(t, fake, authz.StaticTokenAuthorizer{Enforced: true, Token: "secret"})
+	req := connect.NewRequest(&exposurev1.ReconcileRequest{})
+	req.Header().Set("Authorization", "Bearer secret")
+
+	resp, err := client.Reconcile(context.Background(), req)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, resp.Msg.CoreEnsured)
+	require.Equal(t, 1, fake.reconcileCalls)
 }
 
 func TestHandlerRevokeReportsRetracted(t *testing.T) {

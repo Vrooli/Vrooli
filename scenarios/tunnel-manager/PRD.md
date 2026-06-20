@@ -36,7 +36,7 @@
 - [x] OT-P0-012 | CLI surface | `tunnel`, `routes`, `exposure`, `probes`, `audit`, `recovery`, `config` command groups — all with proto-typed `--json`
 
 ### 🟠 P1 – Should have post-launch
-- [x] OT-P1-001 | Failure classification | Categorize failures as tunnel-down / scenario-down / cloudflare-outage / dns-failure / config-drift to drive targeted recovery and alerts. Current implementation produces healthy / tunnel-down / scenario-down / config-drift from internal/external probe pairs; Cloudflare-outage and DNS-failure need additional signals.
+- [ ] OT-P1-001 | Failure classification | Categorize failures as tunnel-down / scenario-down / cloudflare-outage / dns-failure / config-drift to drive targeted recovery and alerts. Current implementation produces healthy / tunnel-down / scenario-down / config-drift from internal/external probe pairs; Cloudflare-outage and DNS-failure need additional resolver/upstream signals.
 - [x] OT-P1-002 | Local config mode + switching | Generate/maintain `~/.cloudflared/config.yml` from the manifest as a fallback, with remote↔local mode switching and migration
 - [x] OT-P1-003 | Prometheus metrics scraping | Scrape cloudflared's metrics endpoint for HA connections, request errors, RTT, active streams; persist time-series in SQLite
 - [x] OT-P1-004 | Web UI dashboard (5-surface) | Overview, Exposure (lease management), Recovery & Events, Metrics, Audit

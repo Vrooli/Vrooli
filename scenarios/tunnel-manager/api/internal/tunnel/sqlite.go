@@ -63,7 +63,18 @@ func (s *sqliteRepository) Store(ctx context.Context, m MetricsSample) (MetricsS
 	if err != nil {
 		return MetricsSample{}, fmt.Errorf("insert metrics %q: %w", m.ID, err)
 	}
+	if err := s.pruneBefore(ctx, m.ScrapedAt.Add(-MetricsRetentionWindow)); err != nil {
+		return MetricsSample{}, err
+	}
 	return m, nil
+}
+
+func (s *sqliteRepository) pruneBefore(ctx context.Context, cutoff time.Time) error {
+	_, err := s.db.ExecContext(ctx, "DELETE FROM metrics WHERE scraped_at < ?", cutoff.UTC().Format(metricsTimeFormat))
+	if err != nil {
+		return fmt.Errorf("prune metrics before %s: %w", cutoff.UTC().Format(metricsTimeFormat), err)
+	}
+	return nil
 }
 
 func (s *sqliteRepository) Query(ctx context.Context, from, to time.Time) ([]MetricsSample, error) {

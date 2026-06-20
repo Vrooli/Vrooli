@@ -8,11 +8,12 @@ source of truth, enforces fixed-port contracts, and auto-recovers the
 tunnel from failure. It replaces the operator's current manual step of
 adding public hostnames in the Cloudflare dashboard.
 
-> **Status: implementation in progress.** The proto/API/CLI domains are
-> implemented and production-readiness hardening is underway. The current
-> work has reconciled scheduler behavior, first-run setup/readiness, and
-> the Exposure, Diagnostics, Audit, and Recovery operator workflows; full
-> scenario validation remains in flight against [`PRD.md`](PRD.md).
+> **Status: production-readiness validation green.** The proto/API/CLI
+> domains, lifecycle-owned schedulers, first-run setup/readiness UI, and
+> operator workflows are implemented. The latest recorded validation is
+> `vrooli scenario test tunnel-manager` at 18/18 phases green; remaining
+> work is advisory cleanup and deferred P2 expansion, not scaffold
+> replacement.
 
 This scenario was **regenerated from `react-vite` 1.1** (rather than
 migrated in place) and ports the prior tunnel-manager logic onto a clean
@@ -30,9 +31,10 @@ adoption plan at the repo root:
   native.
 - **The hostname budget is finite.** Exposure is **tiered** and
   budget-aware so essential scenarios are never crowded out.
-- **The tunnel must self-heal.** Distinguishing "tunnel down" from
-  "scenario down" from "Cloudflare outage" enables targeted, automatic
-  recovery instead of blind restarts.
+- **The tunnel must self-heal.** Current probes distinguish healthy,
+  tunnel-down, scenario-down, and config-drift states from internal and
+  external probe pairs. Richer DNS-failure and Cloudflare-outage signals
+  are tracked as future diagnostic inputs.
 
 ## Exposure Tiering Model
 
@@ -119,7 +121,7 @@ tunnel-manager config sync|mode       # reconcile ingress / switch remote↔loca
 
 ---
 
-The scaffold also ships the standard full-stack Vrooli scenario shape:
+The scenario preserves the standard full-stack Vrooli shape:
 
 - Go API (`api/`)
 - React + TypeScript + Vite UI (`ui/`)
@@ -145,29 +147,15 @@ The scaffold also ships the standard full-stack Vrooli scenario shape:
 - UI/CLI guardrails for i18n, accessibility, API base resolution,
   declarative command args, generated Connect clients, and report-shaped
   output.
-- Baseline PWA branding metadata: web app manifest, standalone-mode
-  mobile tags, and generic placeholder icons ready for scenario-specific
-  replacement.
+- Baseline PWA branding metadata: web app manifest and standalone-mode
+  mobile tags.
 - Root-level `DESIGN.md` plus generated UI token assets from the
   selected design kit.
-- A documentation contract in `docs/manifest.json`, with stubs for
-  domains, flows, data, integrations, monetization, deployment,
-  runbooks, observability, security, performance, and durable
-  decisions.
+- A documentation contract in `docs/manifest.json`, covering domains,
+  flows, data, integrations, monetization, deployment, runbooks,
+  observability, security, performance, and durable decisions.
 
-## Customize Safely
-
-> Placeholders vs. durable scaffolding — what to replace and what to keep.
-
-The generated scaffold is intentionally not the product. When you build
-the real UX, treat these as **placeholders** to replace:
-
-- The `notes` domain (proto, API, CLI, UI feature) — a worked vertical
-  slice meant to be copied once and then deleted.
-- The `AppShell` and the centered single-panel home page in `ui/src/`.
-- Remaining endpoint-shaped UI gaps outside the setup/readiness,
-  Exposure, Diagnostics, Recovery, and Audit workflows; Settings now owns
-  first-run setup/readiness, theme, and locale.
+## Extend Safely
 
 Treat these as **durable seams** to preserve, even as you rewrite the
 visual layout:
@@ -185,8 +173,7 @@ an `EndpointDescriptor`, stop — use a proto service method instead.
 Codegen rejects literal Paths that lack an explicit `RESTException`
 tag; the four allowed REST reasons (multipart upload, webhook
 receiver, third-party shape, ops probe) are enumerated in
-`api/internal/module/module.go`. The notes attachments endpoint is
-the worked REST example.
+`api/internal/module/module.go`.
 
 [`docs/START-HERE.md`](docs/START-HERE.md) describes the replacement
 workflow in full.

@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"tunnel-manager/internal/authz"
 	"tunnel-manager/internal/exposure"
 
 	"connectrpc.com/connect"
@@ -14,8 +15,9 @@ import (
 
 // Deps wires the seams the Connect exposure handler needs.
 type Deps struct {
-	Service exposure.Service
-	Logger  *log.Logger
+	Service    exposure.Service
+	Logger     *log.Logger
+	Authorizer authz.Authorizer
 }
 
 type connectHandler struct {
@@ -26,10 +28,16 @@ func NewConnectHandler(d Deps) *connectHandler {
 	if d.Logger == nil {
 		d.Logger = log.Default()
 	}
+	if d.Authorizer == nil {
+		d.Authorizer = authz.AllowLocalOperator()
+	}
 	return &connectHandler{deps: d}
 }
 
 func (h *connectHandler) Expose(ctx context.Context, req *connect.Request[exposurev1.ExposeRequest]) (*connect.Response[exposurev1.ExposeResponse], error) {
+	if err := h.deps.Authorizer.Authorize(ctx, authz.OperationExposureExpose, req.Header()); err != nil {
+		return nil, authz.ToConnectError(err)
+	}
 	lease, url, err := h.deps.Service.Expose(ctx, exposure.ExposeInput{
 		Scenario:    req.Msg.Scenario,
 		TTL:         time.Duration(req.Msg.TtlSeconds) * time.Second,
@@ -46,6 +54,9 @@ func (h *connectHandler) Expose(ctx context.Context, req *connect.Request[exposu
 }
 
 func (h *connectHandler) ExtendLease(ctx context.Context, req *connect.Request[exposurev1.ExtendLeaseRequest]) (*connect.Response[exposurev1.ExtendLeaseResponse], error) {
+	if err := h.deps.Authorizer.Authorize(ctx, authz.OperationExposureExtend, req.Header()); err != nil {
+		return nil, authz.ToConnectError(err)
+	}
 	lease, err := h.deps.Service.ExtendLease(ctx, req.Msg.LeaseId, time.Duration(req.Msg.TtlSeconds)*time.Second)
 	if err != nil {
 		connectErr := exposure.ToConnectError(err)
@@ -58,6 +69,9 @@ func (h *connectHandler) ExtendLease(ctx context.Context, req *connect.Request[e
 }
 
 func (h *connectHandler) RevokeLease(ctx context.Context, req *connect.Request[exposurev1.RevokeLeaseRequest]) (*connect.Response[exposurev1.RevokeLeaseResponse], error) {
+	if err := h.deps.Authorizer.Authorize(ctx, authz.OperationExposureRevoke, req.Header()); err != nil {
+		return nil, authz.ToConnectError(err)
+	}
 	retracted, err := h.deps.Service.RevokeLease(ctx, req.Msg.LeaseId)
 	if err != nil {
 		connectErr := exposure.ToConnectError(err)
@@ -107,7 +121,10 @@ func (h *connectHandler) IsExposed(ctx context.Context, req *connect.Request[exp
 	return connect.NewResponse(&exposurev1.IsExposedResponse{Exposed: exposed, PublicUrl: url}), nil
 }
 
-func (h *connectHandler) Reconcile(ctx context.Context, _ *connect.Request[exposurev1.ReconcileRequest]) (*connect.Response[exposurev1.ReconcileResponse], error) {
+func (h *connectHandler) Reconcile(ctx context.Context, req *connect.Request[exposurev1.ReconcileRequest]) (*connect.Response[exposurev1.ReconcileResponse], error) {
+	if err := h.deps.Authorizer.Authorize(ctx, authz.OperationExposureReconcile, req.Header()); err != nil {
+		return nil, authz.ToConnectError(err)
+	}
 	coreEnsured, reaped, err := h.deps.Service.Reconcile(ctx)
 	if err != nil {
 		h.deps.Logger.Printf("exposure.Reconcile: %v", err)

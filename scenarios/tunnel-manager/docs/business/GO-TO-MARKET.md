@@ -62,9 +62,9 @@ Mirrors the PRD launch sequencing (internal rollout):
 
 | Message | Audience | Evidence | Status |
 |---|---|---|---|
-| "Expose a scenario with one command — no Cloudflare dashboard." | Operators | RUNBOOK CLI procedures | planned |
-| "Request your own reachability via the API." | Other scenarios | Exposure-request API (OT-P0-005) | planned |
-| "The tunnel self-heals; core scenarios stay reachable." | Operators, infra agents | Auto-recovery + core-tier guarantee | planned |
+| "Expose a scenario with one command — no Cloudflare dashboard." | Operators | RUNBOOK CLI procedures | implemented |
+| "Request your own reachability via the API." | Other scenarios | Exposure-request API (OT-P0-005) | implemented |
+| "The tunnel self-heals; core scenarios stay reachable." | Operators, infra agents | Auto-recovery + core-tier guarantee | implemented; live Cloudflare validation remains operator-attended |
 
 ## Validation Experiments
 

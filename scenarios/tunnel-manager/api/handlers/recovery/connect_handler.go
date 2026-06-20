@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 
+	"tunnel-manager/internal/authz"
 	"tunnel-manager/internal/recovery"
 
 	"connectrpc.com/connect"
@@ -13,8 +14,9 @@ import (
 
 // Deps wires the seams the Connect recovery handler needs.
 type Deps struct {
-	Service recovery.Service
-	Logger  *log.Logger
+	Service    recovery.Service
+	Logger     *log.Logger
+	Authorizer authz.Authorizer
 }
 
 type connectHandler struct {
@@ -24,6 +26,9 @@ type connectHandler struct {
 func NewConnectHandler(d Deps) *connectHandler {
 	if d.Logger == nil {
 		d.Logger = log.Default()
+	}
+	if d.Authorizer == nil {
+		d.Authorizer = authz.AllowLocalOperator()
 	}
 	return &connectHandler{deps: d}
 }
@@ -54,6 +59,9 @@ func (h *connectHandler) ListEvents(ctx context.Context, req *connect.Request[re
 }
 
 func (h *connectHandler) Recover(ctx context.Context, req *connect.Request[recoveryv1.RecoverRequest]) (*connect.Response[recoveryv1.RecoverResponse], error) {
+	if err := h.deps.Authorizer.Authorize(ctx, authz.OperationRecoveryRecover, req.Header()); err != nil {
+		return nil, authz.ToConnectError(err)
+	}
 	outcome, event, err := h.deps.Service.Recover(ctx, req.Msg.Force)
 	if err != nil {
 		h.deps.Logger.Printf("recovery.Recover(force=%v): %v", req.Msg.Force, err)

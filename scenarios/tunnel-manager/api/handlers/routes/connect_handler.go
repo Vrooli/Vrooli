@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 
+	"tunnel-manager/internal/authz"
 	"tunnel-manager/internal/routes"
 
 	"connectrpc.com/connect"
@@ -13,8 +14,9 @@ import (
 
 // Deps wires the seams the Connect routes handler needs.
 type Deps struct {
-	Service routes.Service
-	Logger  *log.Logger
+	Service    routes.Service
+	Logger     *log.Logger
+	Authorizer authz.Authorizer
 }
 
 type connectHandler struct {
@@ -24,6 +26,9 @@ type connectHandler struct {
 func NewConnectHandler(d Deps) *connectHandler {
 	if d.Logger == nil {
 		d.Logger = log.Default()
+	}
+	if d.Authorizer == nil {
+		d.Authorizer = authz.AllowLocalOperator()
 	}
 	return &connectHandler{deps: d}
 }
@@ -54,6 +59,9 @@ func (h *connectHandler) GetRoute(ctx context.Context, req *connect.Request[rout
 }
 
 func (h *connectHandler) CreateRoute(ctx context.Context, req *connect.Request[routesv1.CreateRouteRequest]) (*connect.Response[routesv1.CreateRouteResponse], error) {
+	if err := h.deps.Authorizer.Authorize(ctx, authz.OperationRoutesCreate, req.Header()); err != nil {
+		return nil, authz.ToConnectError(err)
+	}
 	in := routes.CreateInput{
 		Subdomain:  req.Msg.Subdomain,
 		Scenario:   req.Msg.Scenario,
@@ -78,6 +86,9 @@ func (h *connectHandler) CreateRoute(ctx context.Context, req *connect.Request[r
 }
 
 func (h *connectHandler) UpdateRoute(ctx context.Context, req *connect.Request[routesv1.UpdateRouteRequest]) (*connect.Response[routesv1.UpdateRouteResponse], error) {
+	if err := h.deps.Authorizer.Authorize(ctx, authz.OperationRoutesUpdate, req.Header()); err != nil {
+		return nil, authz.ToConnectError(err)
+	}
 	in := routes.UpdateInput{
 		Subdomain:  req.Msg.Subdomain,
 		Scenario:   req.Msg.Scenario,
@@ -101,6 +112,9 @@ func (h *connectHandler) UpdateRoute(ctx context.Context, req *connect.Request[r
 }
 
 func (h *connectHandler) DeleteRoute(ctx context.Context, req *connect.Request[routesv1.DeleteRouteRequest]) (*connect.Response[routesv1.DeleteRouteResponse], error) {
+	if err := h.deps.Authorizer.Authorize(ctx, authz.OperationRoutesDelete, req.Header()); err != nil {
+		return nil, authz.ToConnectError(err)
+	}
 	deleted, err := h.deps.Service.Delete(ctx, req.Msg.Id)
 	if err != nil {
 		h.deps.Logger.Printf("routes.DeleteRoute(%q): %v", req.Msg.Id, err)

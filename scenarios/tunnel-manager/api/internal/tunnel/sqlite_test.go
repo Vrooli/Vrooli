@@ -94,3 +94,29 @@ func TestSQLite_QueryWindow(t *testing.T) {
 	// Round-trip the persisted timestamp survives.
 	require.True(t, all[0].ScrapedAt.Equal(first.UTC()))
 }
+
+func TestSQLite_StorePrunesExpiredMetrics(t *testing.T) {
+	repo, clk := newRepo(t)
+	ctx := context.Background()
+
+	_, err := repo.Store(ctx, sampleMetrics())
+	require.NoError(t, err)
+
+	clk.Advance(tunnel.MetricsRetentionWindow - time.Second)
+	_, err = repo.Store(ctx, sampleMetrics())
+	require.NoError(t, err)
+	all, err := repo.Query(ctx, time.Time{}, time.Time{})
+	require.NoError(t, err)
+	require.Len(t, all, 2, "cutoff is exclusive; still inside retention")
+
+	clk.Advance(2 * time.Second)
+	latest := sampleMetrics()
+	latest.HAConnections = 9
+	_, err = repo.Store(ctx, latest)
+	require.NoError(t, err)
+
+	all, err = repo.Query(ctx, time.Time{}, time.Time{})
+	require.NoError(t, err)
+	require.Len(t, all, 2, "oldest sample pruned once outside retention")
+	require.Equal(t, 9, all[1].HAConnections)
+}

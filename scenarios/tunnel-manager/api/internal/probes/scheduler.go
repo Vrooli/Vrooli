@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"time"
+
+	"tunnel-manager/internal/scheduler"
 )
 
 const DefaultProbeInterval = time.Minute
@@ -13,10 +15,8 @@ const DefaultProbeInterval = time.Minute
 // boot and then on each tick. It owns no persistence itself; the Service
 // remains the single probe policy and storage boundary.
 type Scheduler struct {
-	service  Service
-	interval time.Duration
-	logger   *log.Logger
-	ticks    <-chan time.Time
+	service Service
+	runner  *scheduler.Runner
 }
 
 type SchedulerConfig struct {
@@ -36,52 +36,24 @@ func NewScheduler(cfg SchedulerConfig) (*Scheduler, error) {
 	if cfg.Interval <= 0 {
 		cfg.Interval = DefaultProbeInterval
 	}
-	if cfg.Logger == nil {
-		cfg.Logger = log.Default()
-	}
-	return &Scheduler{
-		service:  cfg.Service,
-		interval: cfg.Interval,
-		logger:   cfg.Logger,
-		ticks:    cfg.Ticks,
-	}, nil
+	s := &Scheduler{service: cfg.Service}
+	s.runner = scheduler.NewRunner(cfg.Interval, cfg.Logger, cfg.Ticks, s.runProbes)
+	return s, nil
 }
 
 func (s *Scheduler) Run(ctx context.Context) {
-	s.runProbes(ctx, "boot")
-	if ctx.Err() != nil {
-		return
-	}
-
-	ticks := s.ticks
-	var ticker *time.Ticker
-	if ticks == nil {
-		ticker = time.NewTicker(s.interval)
-		ticks = ticker.C
-	}
-	if ticker != nil {
-		defer ticker.Stop()
-	}
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticks:
-			s.runProbes(ctx, "tick")
-		}
-	}
+	s.runner.Run(ctx)
 }
 
 func (s *Scheduler) runProbes(ctx context.Context, trigger string) {
 	results, err := s.service.RunProbes(ctx)
 	if err != nil {
 		if ctx.Err() == nil {
-			s.logger.Printf("[tunnel-manager] probe scheduler %s failed (will retry): %v", trigger, err)
+			s.runner.Logger.Printf("[tunnel-manager] probe scheduler %s failed (will retry): %v", trigger, err)
 		}
 		return
 	}
 	if len(results) > 0 {
-		s.logger.Printf("[tunnel-manager] probe scheduler %s recorded results=%d", trigger, len(results))
+		s.runner.Logger.Printf("[tunnel-manager] probe scheduler %s recorded results=%d", trigger, len(results))
 	}
 }

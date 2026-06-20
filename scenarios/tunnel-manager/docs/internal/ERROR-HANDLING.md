@@ -32,14 +32,13 @@ When you add a domain, keep the mapping file next to that domain's
 service layer. The handler should call the mapper instead of switching
 on domain error types inline.
 
-## Failure-Classification Model (planned)
+## Failure-Classification Model
 
-> **Status: planned, not built.** Implementation is Phase 2. This is the
-> failure taxonomy the `probes` and `recovery` domains
-> ([`../concepts/DOMAINS.md`](../concepts/DOMAINS.md)) will use — distinct
-> from the per-RPC error mapping above. A *classification* describes
-> **where** connectivity broke; the `recovery` engine maps each
-> classification to a targeted action (OT-P1-001, OT-P0-011).
+This is the failure taxonomy used by the `probes` and `recovery`
+domains ([`../concepts/DOMAINS.md`](../concepts/DOMAINS.md)). It is
+distinct from the per-RPC error mapping above. A *classification*
+describes **where** connectivity broke; the `recovery` engine maps each
+classification to a targeted action (OT-P1-001, OT-P0-011).
 
 Current classification is derived from the *pattern* of the latest
 internal-vs-external probe results. Tunnel health (HA connections,
@@ -71,11 +70,11 @@ persisted to the `recovery_events` table for post-incident review
 actuation (see [`SECURITY.md`](SECURITY.md) and the timings in
 [`PERFORMANCE.md`](PERFORMANCE.md)).
 
-## Connect Error Codes — Product Domains (planned)
+## Connect Error Codes — Product Domains
 
-> **Status: planned, not built.** The product domains follow the same
-> three-layer typed-sentinel → Connect-code → UI-i18n path as the
-> template above. Representative mappings:
+The product domains follow the same three-layer typed-sentinel →
+Connect-code → UI-i18n path as the template above. Representative
+mappings:
 
 | Condition | Connect code | Notes |
 |---|---|---|
@@ -90,14 +89,14 @@ actuation (see [`SECURITY.md`](SECURITY.md) and the timings in
 Keep each domain's mapping in `internal/<domain>/service_error_mapping.go`
 beside its service, as the template prescribes.
 
-## Operator-Facing Error Surfacing (planned)
+## Operator-Facing Error Surfacing
 
 Tunnel Manager is operator infrastructure, so errors must be legible at
 a glance:
 
 - **CLI**: `--json` everywhere emits the proto-typed error contract;
   human output renders the Connect code + message via cli-core. Failure
-  classifications and recovery outcomes appear in `status`/`recover`
+  classifications and recovery outcomes appear in `probes`/`recovery`
   output so an operator can see *why* a route is down, not just *that*
   it is.
 - **UI**: the 5-surface dashboard maps `ConnectError.code` to localized

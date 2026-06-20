@@ -65,7 +65,18 @@ func (s *sqliteRepository) Persist(ctx context.Context, r ProbeResult) (ProbeRes
 	if err != nil {
 		return ProbeResult{}, fmt.Errorf("insert probe %q: %w", r.ID, err)
 	}
+	if err := s.pruneBefore(ctx, r.CreatedAt.Add(-HistoryRetentionWindow)); err != nil {
+		return ProbeResult{}, err
+	}
 	return r, nil
+}
+
+func (s *sqliteRepository) pruneBefore(ctx context.Context, cutoff time.Time) error {
+	_, err := s.db.ExecContext(ctx, "DELETE FROM probes WHERE created_at < ?", cutoff.UTC().Format(probeTimeFormat))
+	if err != nil {
+		return fmt.Errorf("prune probes before %s: %w", cutoff.UTC().Format(probeTimeFormat), err)
+	}
+	return nil
 }
 
 func (s *sqliteRepository) List(ctx context.Context, subdomain string, limit int) ([]ProbeResult, error) {

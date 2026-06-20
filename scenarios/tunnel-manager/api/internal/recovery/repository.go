@@ -1,6 +1,14 @@
 package recovery
 
-import "context"
+import (
+	"context"
+	"time"
+)
+
+// EventRetentionWindow bounds the recovery event log. Ninety days keeps
+// incident history useful for postmortems while preventing unbounded local
+// growth on hosts that run unattended.
+const EventRetentionWindow = 90 * 24 * time.Hour
 
 // Repository is the persistence seam for the recovery_events log.
 // Production wires the sqlite-backed implementation from sqlite.go;

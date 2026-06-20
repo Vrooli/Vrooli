@@ -30,7 +30,7 @@ for the full policy.
 | Variable | Default | Purpose |
 |---|---|---|
 | `SQLITE_PATH` | `${SCENARIO_DATA_DIR}/tunnel-manager.db` | Override SQLite file location. The default routes through `api-core/storage` and resolves to a writable per-scenario data directory. |
-| `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth (only enforce in production deployments). |
+| `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth. Also used as the fallback privileged-mutation token when `TUNNEL_MANAGER_AUTHZ_ENFORCED=1` and `TUNNEL_MANAGER_OPERATOR_TOKEN` is unset. |
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
 
 The browser UI does not read `API_PORT` directly. It resolves API calls through
@@ -61,6 +61,8 @@ Fixed-port values (`UI_PORT`, `API_PORT` range) are declared in
 | `TUNNEL_MANAGER_RECOVERY_SCHEDULER_ENABLED` | unset / disabled | Set to `1`, `true`, or `yes` to enable background recovery evaluation. Recovery is opt-in because an acted evaluation can run `sudo systemctl restart cloudflared`; manual `tunnel-manager recovery run` remains available. |
 | `TUNNEL_MANAGER_RECOVERY_EVALUATE_INTERVAL` | `1m` | Recovery evaluation cadence when `TUNNEL_MANAGER_RECOVERY_SCHEDULER_ENABLED` is set. The scheduler runs once at boot, then on this interval, and delegates thresholds/backoff/circuit-breaker behavior to the recovery service. |
 | `TUNNEL_READY_URL` | `http://127.0.0.1:20241/ready` | cloudflared readiness endpoint checked by the recovery engine before and after restart attempts. |
+| `TUNNEL_MANAGER_AUTHZ_ENFORCED` | unset / disabled | Set to `1`, `true`, or `yes` to require an operator token for privileged mutation RPCs. Default is local/operator-open for lifecycle-managed local use. |
+| `TUNNEL_MANAGER_OPERATOR_TOKEN` | unset | Preferred privileged-mutation token when authz enforcement is enabled. Falls back to `API_TOKEN` if unset. |
 | Default domain | `itsagitime.com` | Per-route `domain` is a **manifest field**, not a constant; this is the default. `public_url` = `https://<subdomain>.<domain>`. |
 | Lease default TTL | ≈ 1 week | Default lifetime of a LEASED exposure; extendable/revocable, auto-reaped on expiry. |
 | Core set | `packages/api-core/coreset` | SSOT for CORE-tier scenarios that are always exposed and never auto-expired. |
@@ -82,6 +84,15 @@ remote mode without credentials it reports `setup_required` plus missing
 canonical fields rather than attempting a Cloudflare API call. Applying
 remote sync or switching to remote still requires the complete
 Cloudflare credential set.
+
+Privileged mutation RPCs are local/operator-open by default and can be
+fail-closed with `TUNNEL_MANAGER_AUTHZ_ENFORCED=1`. When enabled, the
+API requires `Authorization: Bearer <token>` or
+`X-Vrooli-Operator-Token: <token>` for config sync/mode changes, route
+create/update/delete, exposure expose/extend/revoke/reconcile, and
+manual recovery. The token must match `TUNNEL_MANAGER_OPERATOR_TOKEN`,
+falling back to `API_TOKEN`. Read RPCs remain available so operators
+and monitors can inspect state.
 
 The operator term "CLAP" is not a configuration key in this scenario. If
 it appears in future notes, resolve it before wiring product behavior:

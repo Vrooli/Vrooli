@@ -5,11 +5,11 @@ shape inherited from the `react-vite` template, then points to the
 specialized documents that own product domains, workflows, data,
 integrations, deployment, operations, and business strategy.
 
-> Status: documentation-first (Phase 1). No product code exists yet
-> beyond the template scaffold and the fenced `notes` example. Everything
-> below describes the **planned** shape; nothing here is built. See
-> [`PRD.md`](../../PRD.md), [`DOMAINS.md`](DOMAINS.md), and
-> [`../internal/DECISIONS.md`](../internal/DECISIONS.md) for ground truth.
+> Status: implemented and validation-green for the production-readiness
+> redesign. The proto/API/CLI/UI surfaces described here are built, with
+> `vrooli scenario test tunnel-manager` last recorded at 18/18 phases
+> green. Deferred items are called out explicitly instead of described as
+> scaffold gaps.
 
 ## What Tunnel Manager Is
 
@@ -230,15 +230,12 @@ temporal behavior, update [`FLOWS.md`](FLOWS.md).
 
 ## Architecture Maturity
 
-Generated scenarios start with a mature template shape and starter
-reference domains. Replace this table as the scenario becomes real.
-
 | Area | Maturity | Evidence | Remaining Drift |
 |---|---|---|---|
-| API | Planned | Template vertical-slice stack + `notes` example only. Seven product domains (`routes`/`exposure`/`config`/`audit`/`tunnel`/`probes`/`recovery`) are designed in [`DOMAINS.md`](DOMAINS.md) but not yet implemented (Phase 2). | All product domains, their schemas, seams, and outward integrations are unbuilt. |
-| UI | Planned | Template feature folders + `notes` example only. The reimagined 5-surface dashboard (Overview/Exposure/Recovery & Events/Metrics/Audit) is specified in [`UI-ARCHITECTURE.md`](UI-ARCHITECTURE.md) but not built. | All five surfaces and their feature folders are unbuilt. |
-| CLI | Planned | Template command groups + `notes` example only. The `status`/`routes`/`expose`/`lease`/`probe`/`audit`/`recover`/`config` groups are designed (OT-P0-012) but not built. | All product command groups are unbuilt. |
-| Docs | Contract-ready | Manifest v2 registers docs, maturity, stages, and validation hints; concept stubs filled in Phase 1. | Implementation-facing docs (SEAMS, TESTING, reference) firm up as Phase 2 lands code. |
+| API | Implemented | Seven product domains (`routes`/`exposure`/`config`/`audit`/`tunnel`/`probes`/`recovery`) expose Connect-RPC services backed by SQLite repositories, production seams, generated endpoint metadata, scheduler wiring where required, and optional service-layer operator-token authz for privileged mutation RPCs. | Scenario-authenticator aud-scoped tokens remain deferred before non-operator cross-scenario callers get direct privileged mutation access. Richer DNS/Cloudflare outage classification is deferred until additional signals exist. |
+| UI | Implemented | Overview, Settings/Setup, Exposure, Metrics/Diagnostics, Audit, and Recovery surfaces call generated clients and have component coverage for readiness, filtering, reconciliation, diagnostics, audit remediation, and recovery guidance. | BAS/e2e journey coverage and richer visual regression evidence can still improve confidence; P2 analytics/dashboard export remain future work. |
+| CLI | Implemented | `tunnel`, `routes`, `exposure`, `probes`, `audit`, `recovery`, and `config` command groups mirror the API and keep proto-shaped `--json` output. | Operator ergonomics can keep improving around hints and empty states, but command groups are no longer scaffold placeholders. |
+| Docs | Active | Docs now track implementation state, validation history, deferred work, and advisory gaps through `PROGRESS.md`/`PROBLEMS.md`; `docs/manifest.json` remains the validation contract. | Some docs-health warnings are advisory and remain tracked as cleanup, not blocking product readiness. |
 
 Use `docs/manifest.json` as the documentation contract. The declared
 `maturity` values are expected to be maintained by agents and later

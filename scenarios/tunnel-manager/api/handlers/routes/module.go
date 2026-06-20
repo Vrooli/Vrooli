@@ -3,6 +3,7 @@ package routes
 import (
 	"log"
 
+	"tunnel-manager/internal/authz"
 	"tunnel-manager/internal/clock"
 	"tunnel-manager/internal/module"
 
@@ -23,8 +24,9 @@ func Module(db *database.RoutedDB, clk clock.Clock, logger *log.Logger) module.M
 	repo := internalroutes.NewSQLiteRepository(db, clk)
 	svc := internalroutes.NewService(repo)
 	connectPath, connectHandler := routesconnect.NewRoutesServiceHandler(NewConnectHandler(Deps{
-		Service: svc,
-		Logger:  logger,
+		Service:    svc,
+		Logger:     logger,
+		Authorizer: authz.FromEnv(),
 	}))
 	return module.Module{
 		Name: "routes",

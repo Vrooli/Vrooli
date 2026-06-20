@@ -57,3 +57,33 @@ func TestSQLite_ListEventsNewestFirstAndLimit(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, limited, 1)
 }
+
+func TestSQLite_PersistPrunesExpiredEvents(t *testing.T) {
+	repo, clk := newRepo(t)
+	ctx := context.Background()
+
+	_, err := repo.PersistEvent(ctx, recovery.RecoveryEvent{
+		Trigger: recovery.TriggerManual, Outcome: recovery.OutcomeFailure, Attempt: 1,
+	})
+	require.NoError(t, err)
+
+	clk.Advance(recovery.EventRetentionWindow - time.Second)
+	_, err = repo.PersistEvent(ctx, recovery.RecoveryEvent{
+		Trigger: recovery.TriggerManual, Outcome: recovery.OutcomeSkipped, Attempt: 2,
+	})
+	require.NoError(t, err)
+	all, err := repo.ListEvents(ctx, 0)
+	require.NoError(t, err)
+	require.Len(t, all, 2)
+
+	clk.Advance(2 * time.Second)
+	_, err = repo.PersistEvent(ctx, recovery.RecoveryEvent{
+		Trigger: recovery.TriggerManual, Outcome: recovery.OutcomeSuccess, Attempt: 3,
+	})
+	require.NoError(t, err)
+	all, err = repo.ListEvents(ctx, 0)
+	require.NoError(t, err)
+	require.Len(t, all, 2, "oldest recovery event was outside retention and pruned")
+	require.Equal(t, 3, all[0].Attempt)
+	require.Equal(t, 2, all[1].Attempt)
+}

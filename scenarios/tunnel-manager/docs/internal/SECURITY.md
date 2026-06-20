@@ -33,7 +33,9 @@ no external store.
 
 ## Auth And Authorization
 
-> **Status: authn/authz planned, not built.**
+> **Status: local/operator-open by default, with an implemented
+> service-layer static-token gate for privileged mutation RPCs. Enable it
+> before exposing the API beyond lifecycle-managed local operator use.**
 
 The most security-relevant surface is the **exposure-request API**
 (OT-P0-005): other scenarios and the operator can ask Tunnel Manager to
@@ -43,10 +45,16 @@ opens an internet-facing route — so it must be authorized.
 - Authorization belongs at the **API/service layer**, never enforced
   locally in the CLI or UI (consistent with the template rule).
 - The exposure-request and recovery actuation RPCs are
-  operator/scenario-privileged, not anonymous. The concrete authn/authz
-  mechanism follows the platform's inter-scenario auth standard
-  (`scenario-authenticator` aud-scoped tokens) once Phase 2 wires it;
-  until then this is the explicit gap recorded below.
+  operator/scenario-privileged, not anonymous. Today they can be
+  fail-closed with `TUNNEL_MANAGER_AUTHZ_ENFORCED=1`; privileged
+  mutations then require `Authorization: Bearer <token>` or
+  `X-Vrooli-Operator-Token: <token>` matching
+  `TUNNEL_MANAGER_OPERATOR_TOKEN`, falling back to `API_TOKEN`.
+- The static-token gate covers config sync/mode changes, route
+  create/update/delete, exposure expose/extend/revoke/reconcile, and
+  manual recovery. The platform's future inter-scenario auth standard
+  (`scenario-authenticator` aud-scoped tokens) remains deferred for
+  non-operator cross-scenario callers.
 - Read surfaces (`status`, `routes`, manifest queries, the app-monitor
   `IsExposed`) are lower-risk reads but still pass through the API layer.
 - Port-audit reads of other scenarios' `service.json` are **read-only**
@@ -68,17 +76,16 @@ opens an internet-facing route — so it must be authorized.
 |---|---|---|---|
 | Cloudflare API token leakage | Full control of the tunnel's public ingress (expose/hijack any route). | Least-privilege token; credential **reference** only (never inline/SQLite/logs/UI/CLI); resolved in-memory at boot. | implemented for env-sourced credentials; vault/provider references deferred |
 | Live auto-recovery blast radius | A false-positive restart loop could take down remote access for the whole Vrooli instance (foundational infra). | **Circuit breaker** (cap attempts, exponential backoff) + **single-owner restart contract** (Tunnel Manager is the sole cloudflared-restart owner; vrooli-autoheal downgrades to alert-only). Recovery actuation is behind the `cmdrunner`/systemd seam and the background scheduler is opt-in via `TUNNEL_MANAGER_RECOVERY_SCHEDULER_ENABLED`; manual recovery remains available. | implemented, opt-in background actuation |
-| Unauthorized exposure request | An attacker/buggy caller exposes an internal scenario to the internet. | Authn/authz on the exposure-request API at the service layer; exposure is tiered + lease-bounded (auto-reaped). | authz planned; tiering/reaping implemented |
+| Unauthorized exposure request | An attacker/buggy caller exposes an internal scenario to the internet. | Service-layer static-token authz for privileged mutations; exposure is tiered + lease-bounded (auto-reaped). | implemented for operator-token boundary; aud-scoped inter-scenario tokens deferred |
 | Exposure as attack surface growth | Each leased route is a new internet-facing entry point. | Tiering (CORE vs LEASED), boot/periodic TTL auto-reaping, and (P2) hostname-budget/LRU eviction bound the live surface. | implemented except P2 budget/LRU |
 | Secret/PII capture in telemetry | Token or request payloads leak into metrics/probe/recovery rows or logs. | Telemetry stores only operational signals (HA, RTT, probe status, restart outcome); explicit no-secrets-in-SQLite/logs/UI/CLI rule. | partially implemented; continue validating as probe/recovery surfaces evolve |
-| Tampering via other scenarios' files | Audit reads could be abused to mutate another scenario. | `audit` reader is **read-only** by contract; no write path. | planned |
+| Tampering via other scenarios' files | Audit reads could be abused to mutate another scenario. | `audit` reader is **read-only** by contract; no write path. | implemented |
 
 ## Security Gaps
 
 | Gap | Severity | Revisit Trigger |
 |---|---|---|
-| Exposure-request authn/authz not yet wired | high | Required before the exposure-request API is reachable by non-operator callers (OT-P0-005). |
-| Recovery actuation authz not yet wired | medium | Required before recovery RPCs are exposed beyond the operator. |
+| Scenario-authenticator aud-scoped tokens not integrated | medium | Required before non-operator or cross-scenario callers get direct privileged mutation access without static operator-token coordination. |
 | Vault/provider credential-reference resolution not implemented | medium | Required if remote credentials need to come from a Vrooli credential provider instead of process env. |
 
 ## Cross-References

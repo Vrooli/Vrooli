@@ -120,6 +120,16 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `api-core/connectxtest::StartTestServer` is the canonical in-process server harness for handler tests. `connectxtest.NewLogger` is the canonical logger capture helper. Module tests can still mount the module on a mux router and issue real HTTP requests. No hand-written request JSON ribbon is needed in tests. |
 | **Why it exists** | The proto service descriptor becomes the single wire contract for UI, CLI, and API. Handler path, method, request type, response type, and Connect error envelope all come from generated code instead of parallel route tables. |
 
+### Operator authorizer (privileged mutation gate)
+
+| | |
+|---|---|
+| **Seam** | API/service-layer authorization for privileged mutation RPCs |
+| **Interface** | `internal/authz/authz.go::Authorizer` (`Authorize(ctx, operation, headers) error`) |
+| **Production wiring** | `handlers/{config,routes,exposure,recovery}/module.go` wires `authz.FromEnv()` into each Connect handler. Enforcement is disabled by default for lifecycle-managed local/operator use; `TUNNEL_MANAGER_AUTHZ_ENFORCED=1` requires `TUNNEL_MANAGER_OPERATOR_TOKEN` or fallback `API_TOKEN`. |
+| **Test fake** | Handler tests inject `authz.StaticTokenAuthorizer{Enforced: true, Token: "secret"}` to prove missing/wrong tokens fail before the domain service is called and bearer/header tokens pass. |
+| **Why it exists** | Privileged actions (config sync/mode switch, route mutation, exposure mutation/reconcile, manual recovery) must be enforced at the API boundary, not only in CLI or UI affordances. The seam keeps read RPCs usable while fail-closing internet-facing and restart-capable mutations before the scenario grows richer aud-scoped inter-scenario auth. |
+
 ### cliapp RunContext (CLI handler test context)
 
 | | |
@@ -200,7 +210,7 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `internal/testutil/mocks::FakeDoer` (canned `*http.Response` queue, recorded `*http.Request` log, atomic `Calls` counter). |
 | **Why it exists** | Network calls in handler tests would be flaky and slow. Defining the seam *before* the first consumer means the first scenario to call outward doesn't reinvent ad-hoc mocking. Pattern proven in `scenarios/agent-manager/api/internal/promptmanager/client.go`. See `internal/httpc/doer_test.go` for the substitution reference. |
 
-## Planned product seams (Phase 2)
+## Product Seams
 
 > **Status: REALIZED (all seven domains built and green).** The seams
 > below are the test-substitutable boundaries the seven product domains
@@ -258,14 +268,14 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `internal/testutil/mocks::FakeCmdRunner` records invocations and injects command errors. |
 | **Why it exists** | A test must NEVER restart real cloudflared — that is foundational infra for the whole host. The seam makes "on `/ready` failure → restart with backoff → circuit-break after N attempts" fully assertable against recorded fake invocations. Background recovery evaluation is opt-in with `TUNNEL_MANAGER_RECOVERY_SCHEDULER_ENABLED`; manual recovery remains available. OT-P0-008, OT-P0-011. |
 
-### Prometheus-scrape HTTP (`tunnel` domain — planned)
+### Prometheus-scrape HTTP (`tunnel` domain)
 
 | | |
 |---|---|
 | **Seam** | Read of cloudflared's Prometheus metrics endpoint (default `127.0.0.1:20241/metrics`) and the `/ready` endpoint |
-| **Interface** | Reuses the existing `internal/httpc.Doer` seam for the raw fetch; a planned `internal/tunnel/scrape.go::MetricsSource` (`Scrape(ctx) (Metrics, error)`, `Ready(ctx) error`) wraps parse logic over `Doer`. |
-| **Production wiring** | `handlers/tunnel/module.go::Module(...)` constructs the `MetricsSource` over the shared `Doer` (real `*http.Client`) bound to the configured Prometheus endpoint from `tunnel_config`. |
-| **Test fake** | `internal/testutil/mocks::FakeDoer` (existing) supplies canned Prometheus text-format bodies and `/ready` responses; `internal/tunnel/mocks::FakeMetricsSource` substitutes the parsed-result level for degraded-mode logic tests. |
+| **Interface** | The `internal/tunnel` service reads `/ready` and Prometheus text-format metrics through `internal/httpc.Doer`, then parses them into domain metrics. |
+| **Production wiring** | `handlers/tunnel/module.go::Module(...)` constructs the service over a timeout-bounded real HTTP client and the configured Prometheus endpoint from `tunnel_config`. |
+| **Test fake** | `internal/testutil/mocks::FakeDoer` supplies canned Prometheus text-format bodies and `/ready` responses. |
 | **Why it exists** | HA-connection / RTT / request-error parsing and degraded-mode detection (HA < 4, RTT spikes) must be deterministic. Canned scrape bodies pin the parse + threshold logic without a running cloudflared. OT-P0-008, OT-P1-003/006. |
 
 ### HTTP prober + probe scheduler (`probes` domain)
@@ -288,7 +298,7 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `internal/recovery/scheduler_test.go` uses a fake `Service` plus an injected tick channel to prove boot evaluation, periodic evaluation, retry-after-error, action logging, and context cancellation without sleeps or systemd. |
 | **Why it exists** | Recovery evaluation is temporal but potentially destructive. Keeping it behind the service seam makes the scheduler lifecycle-owned and testable while leaving all restart decisions to the engine's threshold/backoff/circuit policy. OT-P0-011. |
 
-### Clock (leases TTL + backoff — planned reuse)
+### Clock (leases TTL + backoff)
 
 | | |
 |---|---|
@@ -297,45 +307,45 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `internal/testutil/mocks::FakeClock` (existing) — `Advance(d)` drives lease expiry, reaper eligibility, scheduler ticks, and backoff windows. |
 | **Why it exists** | TTL ≈1-week leases, auto-reaping, probe cadence, and exponential-backoff timings are all time-dependent. With `FakeClock.Advance`, "lease expires after TTL", "reaper skips a CORE route", and "backoff doubles per attempt up to the cap" are exact, not sleep-and-hope. OT-P0-004, OT-P0-011. |
 
-### CoreSet provider (`exposure` domain — planned)
+### CoreSet provider (`exposure` domain)
 
 | | |
 |---|---|
 | **Seam** | The set of always-on CORE scenarios, sourced from `packages/api-core/coreset` |
-| **Interface** | `internal/exposure/coreset.go::CoreSetProvider` (planned) — e.g. `CoreSet(ctx) ([]string, error)`, wrapping the shared `api-core/coreset` query. |
-| **Production wiring** | `handlers/exposure/module.go::Module(...)` constructs the real provider over `api-core/coreset`. Reconciliation marks every member as a CORE route that never auto-expires. |
-| **Test fake** | `internal/exposure/mocks::FakeCoreSetProvider` (canned membership list + error knob). |
+| **Interface** | `internal/exposure/types.go::CoreSetProvider`, currently a function seam returning the configured CORE scenario ids. |
+| **Production wiring** | `handlers/exposure.NewProductionService(...)` wires the provider to `api-core/coreset`. Reconciliation marks every member as a CORE route that never auto-expires. |
+| **Test fake** | Service tests pass a canned provider function. |
 | **Why it exists** | CORE-tier reconciliation logic ("every coreset member is exposed and never reaped") must be tested against a fixed, controllable membership without depending on the live coreset (which changes). Decouples exposure policy tests from coreset contents. OT-P0-003. See [`DECISIONS.md`](DECISIONS.md) (CORE tier = coreset). |
 
-### Lifecycle ensure-running (`exposure` domain — planned)
+### Lifecycle ensure-running (`exposure` domain)
 
 | | |
 |---|---|
 | **Seam** | Ensure-a-scenario-is-running delegation to the platform `internal/lifecycle` seam |
-| **Interface** | `internal/exposure/lifecycle.go::LifecycleEnsurer` (planned) — e.g. `EnsureRunning(ctx, scenario string) error`, wrapping the platform `internal/lifecycle` API. |
-| **Production wiring** | `handlers/exposure/module.go::Module(...)` constructs a concrete adapter over `internal/lifecycle`. `Expose(scenario, ttl)` calls `EnsureRunning` before requesting ingress. |
-| **Test fake** | `internal/exposure/mocks::FakeLifecycleEnsurer` (records ensure calls, error knob for "scenario won't start"). |
+| **Interface** | `internal/exposure/types.go::Runner` with `EnsureRunning(ctx, scenario string) error`. |
+| **Production wiring** | `handlers/exposure.NewProductionService(...)` wires `exposure.CLIRunner` over `cmdrunner.Default` and delegates to `vrooli scenario start`. `Expose(scenario, ttl)` calls `EnsureRunning` before requesting ingress. |
+| **Test fake** | Service tests use a fake runner that records ensure calls and injects "scenario won't start" errors. |
 | **Why it exists** | Tunnel Manager **delegates** lifecycle, never reimplements it ([`DECISIONS.md`](DECISIONS.md), PRD non-goal). The seam keeps that delegation a one-line call the exposure flow asserts on, while keeping real process management — slow, stateful, host-mutating — entirely out of the test path. OT-P0-006. |
 
-### Filesystem service.json reader (`audit` domain — planned)
+### Filesystem service.json reader (`audit` domain)
 
 | | |
 |---|---|
 | **Seam** | Read-only reads of other scenarios' `service.json` for port-compliance auditing |
-| **Interface** | `internal/audit/servicejson.go::ServiceManifestReader` (planned) — e.g. `ReadPorts(ctx, scenario string) (Ports, error)`. **Read-only by contract** — never writes another scenario's files. |
-| **Production wiring** | `handlers/audit/module.go::Module(...)` constructs a concrete `os`-backed reader rooted at the scenarios directory. |
-| **Test fake** | `internal/audit/mocks::FakeServiceManifestReader` (in-memory map of scenario → ports, including missing-file and ranged-port cases). |
+| **Interface** | The audit service reads scenario `service.json` files from an injectable scenarios root. **Read-only by contract** — never writes another scenario's files. |
+| **Production wiring** | `handlers/audit/module.go::Module(...)` constructs the service rooted at the workspace scenarios directory. |
+| **Test fake** | Tests point the service at fixture directories containing controlled `service.json` shapes. |
 | **Why it exists** | Audit findings (port matches manifest / missing fixed port / non-fixed ranged port) must be tested against controlled `service.json` shapes without populating a real scenarios tree. The read-only contract is also a security boundary (see [`SECURITY.md`](SECURITY.md)). OT-P0-007. |
 
-### Per-domain SQLite store seams (`routes`/`exposure`/`config`/`tunnel`/`probes`/`recovery` — planned)
+### Per-domain SQLite store seams (`routes`/`exposure`/`config`/`tunnel`/`probes`/`recovery`)
 
 | | |
 |---|---|
-| **Seam** | Persistence boundary per data-owning domain, following the established Repository/Service pattern (see the `<domain>.Schema` and notes example seams above) |
+| **Seam** | Persistence boundary per data-owning domain, following the established Repository/Service pattern (see the `<domain>.Schema` registry seams above) |
 | **Interface** | One `Repository` interface per owning domain: `internal/routes/repository.go::Repository` (`routes` table), `internal/exposure/repository.go::Repository` (`leases` table), `internal/config/repository.go::Repository` (`tunnel_config`), `internal/tunnel/repository.go::Repository` (`metrics` time-series), `internal/probes/repository.go::Repository` (`probes` history), `internal/recovery/repository.go::Repository` (`recovery_events`). The `audit` domain owns no table (computed). |
 | **Production wiring** | Each `handlers/<domain>/module.go::Module(...)` constructs `<domain>.NewSQLiteRepository(db, clk)` and passes it into `<domain>.NewService(repo)`. Each domain contributes its `schema.sql` via the existing `<domain>.Schema` registry seam. **SQLite only** ([`DECISIONS.md`](DECISIONS.md)) — no external DB. |
 | **Test fake** | Per-domain co-located `internal/<domain>/mocks::FakeRepository` for service tests; real sqlite via `db.NewSQLite(t)` + `apidb.EnsureSchemas(...)` for repository tests (the canonical compose pattern in [`TESTING.md`](TESTING.md)). |
-| **Why it exists** | Domain-owned persistence keeps the manifest, leases, metrics, probe history, and recovery log independently testable and deletable. The two-mock split (FakeRepository for service tests, real sqlite for repository tests) is the same convention the notes example demonstrates. OT-P0-001/004, OT-P1-003/005. |
+| **Why it exists** | Domain-owned persistence keeps the manifest, leases, metrics, probe history, and recovery log independently testable and deletable. The two-path test split (service-level fakes where useful, real sqlite for repository tests) keeps domain logic isolated without depending on a live scenario database. OT-P0-001/004, OT-P1-003/005. |
 
 ## Adding a new seam
 

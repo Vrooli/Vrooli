@@ -240,9 +240,10 @@ and `cli/`) so the import paths resolve.
 
 ## Tunnel Manager operations
 
-> **Planned (not yet implemented).** These cover the Phase 2 exposure /
-> tunnel behavior. The commands referenced below are the planned CLI
-> surface; see [`../reference/cli-commands.md`](../reference/cli-commands.md).
+These checks cover the implemented exposure, tunnel, probe, and recovery
+behavior. Use lifecycle commands for process control and the
+`tunnel-manager ...` CLI for operator diagnostics; see
+[`../reference/cli-commands.md`](../reference/cli-commands.md).
 
 ### `cloudflared` not installed or not running
 

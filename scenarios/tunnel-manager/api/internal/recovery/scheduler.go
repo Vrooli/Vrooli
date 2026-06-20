@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"time"
+
+	"tunnel-manager/internal/scheduler"
 )
 
 const DefaultEvaluationInterval = time.Minute
@@ -13,10 +15,8 @@ const DefaultEvaluationInterval = time.Minute
 // flow through Service.Evaluate, which applies failure thresholds, backoff,
 // idempotency, and the circuit breaker before any cloudflared restart.
 type Scheduler struct {
-	service  Service
-	interval time.Duration
-	logger   *log.Logger
-	ticks    <-chan time.Time
+	service Service
+	runner  *scheduler.Runner
 }
 
 type SchedulerConfig struct {
@@ -36,52 +36,24 @@ func NewScheduler(cfg SchedulerConfig) (*Scheduler, error) {
 	if cfg.Interval <= 0 {
 		cfg.Interval = DefaultEvaluationInterval
 	}
-	if cfg.Logger == nil {
-		cfg.Logger = log.Default()
-	}
-	return &Scheduler{
-		service:  cfg.Service,
-		interval: cfg.Interval,
-		logger:   cfg.Logger,
-		ticks:    cfg.Ticks,
-	}, nil
+	s := &Scheduler{service: cfg.Service}
+	s.runner = scheduler.NewRunner(cfg.Interval, cfg.Logger, cfg.Ticks, s.evaluate)
+	return s, nil
 }
 
 func (s *Scheduler) Run(ctx context.Context) {
-	s.evaluate(ctx, "boot")
-	if ctx.Err() != nil {
-		return
-	}
-
-	ticks := s.ticks
-	var ticker *time.Ticker
-	if ticks == nil {
-		ticker = time.NewTicker(s.interval)
-		ticks = ticker.C
-	}
-	if ticker != nil {
-		defer ticker.Stop()
-	}
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticks:
-			s.evaluate(ctx, "tick")
-		}
-	}
+	s.runner.Run(ctx)
 }
 
 func (s *Scheduler) evaluate(ctx context.Context, trigger string) {
 	evt, acted, err := s.service.Evaluate(ctx)
 	if err != nil {
 		if ctx.Err() == nil {
-			s.logger.Printf("[tunnel-manager] recovery scheduler %s failed (will retry): %v", trigger, err)
+			s.runner.Logger.Printf("[tunnel-manager] recovery scheduler %s failed (will retry): %v", trigger, err)
 		}
 		return
 	}
 	if acted {
-		s.logger.Printf("[tunnel-manager] recovery scheduler %s action=%s outcome=%s attempt=%d", trigger, evt.Action, evt.Outcome, evt.Attempt)
+		s.runner.Logger.Printf("[tunnel-manager] recovery scheduler %s action=%s outcome=%s attempt=%d", trigger, evt.Action, evt.Outcome, evt.Attempt)
 	}
 }

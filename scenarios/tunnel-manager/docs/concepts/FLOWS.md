@@ -225,8 +225,8 @@ enforced. Plain CRUD with no ordering constraints does not appear here.
 
 | Domain/Flow | States | Illegal Transitions | Enforcement |
 |---|---|---|---|
-| `exposure` / Expose-on-demand | requested, route_ensured, running_ensured, ingress_pushed, lease_active, probed_ok, failed | ingress before route, lease_active before ingress, probe before ingress, terminal-state escape | Planned `*.flow.json` + generated Quint model + replay tests (Phase 2). |
-| `exposure` / lease lifecycle | active, extended, expired, revoked | extend after expired/revoked, reap a CORE-backed scenario's route, resurrect a revoked lease | Planned `*.flow.json` + replay tests (Phase 2). |
+| `exposure` / Expose-on-demand | requested, route_ensured, running_ensured, ingress_pushed, lease_active, probed_ok, failed | ingress before route, lease_active before ingress, probe before ingress, terminal-state escape | Implemented in `api/internal/exposure` with service, module, and scheduler tests; formal flow contract remains a maturity follow-up. |
+| `exposure` / lease lifecycle | active, extended, expired, revoked | extend after expired/revoked, reap a CORE-backed scenario's route, resurrect a revoked lease | Implemented in `api/internal/exposure` service/repository tests; formal flow contract remains a maturity follow-up. |
 | `recovery` / circuit breaker | closed, open | act while open unless forced; restart before threshold; restart during backoff window | Implemented in `api/internal/recovery` with service + scheduler tests; formal flow contract remains planned. |
 
 ## Maturity Ladder
@@ -361,8 +361,8 @@ To add or rename a state/event:
 
 | Flow | Risk | Next Step |
 |---|---|---|
-| All flows above | Documentation-first; no executable flow models exist yet. | Phase 2: scaffold `flow/` contracts for Expose-on-demand, lease lifecycle, and the recovery circuit breaker; reconcile/reap/exposure-query model only if they gain ordering risk beyond idempotent converge. |
-| Mode switch (remote↔local) | `config` migration has ordered steps but is P1. | Model when local-config mode (OT-P1-002) is implemented. |
+| Exposure/recovery formal models | Runtime code and unit tests enforce the rules, but no executable `flow/` contracts or Quint models exist yet. | Scaffold `flow/` contracts for Expose-on-demand, lease lifecycle, and the recovery circuit breaker if those workflows gain additional ordering risk or regressions. |
+| Mode switch (remote↔local) | Implemented and covered by service/API tests, but not yet promoted to a formal temporal model. | Model only if mode migration grows additional ordering risk beyond the current sync/switch service tests. |
 
 ## Cross-References
 

@@ -110,3 +110,29 @@ func TestSQLite_LatestPerRoute(t *testing.T) {
 	require.NotNil(t, bySub["b"].Internal)
 	require.Nil(t, bySub["b"].External, "no external probe for b yet")
 }
+
+func TestSQLite_PersistPrunesExpiredHistory(t *testing.T) {
+	repo, clk := newRepo(t)
+	ctx := context.Background()
+
+	_, err := repo.Persist(ctx, probes.ProbeResult{Subdomain: "a", Kind: probes.ProbeKindInternal, Status: probes.ProbeStatusDown})
+	require.NoError(t, err)
+
+	clk.Advance(probes.HistoryRetentionWindow - time.Second)
+	_, err = repo.Persist(ctx, probes.ProbeResult{Subdomain: "a", Kind: probes.ProbeKindExternal, Status: probes.ProbeStatusUp})
+	require.NoError(t, err)
+	all, err := repo.List(ctx, "", 0)
+	require.NoError(t, err)
+	require.Len(t, all, 2)
+
+	clk.Advance(2 * time.Second)
+	_, err = repo.Persist(ctx, probes.ProbeResult{Subdomain: "b", Kind: probes.ProbeKindInternal, Status: probes.ProbeStatusUp})
+	require.NoError(t, err)
+
+	all, err = repo.List(ctx, "", 0)
+	require.NoError(t, err)
+	require.Len(t, all, 2, "oldest probe was outside retention and pruned")
+	for _, got := range all {
+		require.NotEqual(t, probes.ProbeStatusDown, got.Status)
+	}
+}

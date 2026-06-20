@@ -4,11 +4,9 @@ This document is the canonical data ownership and storage map for the
 scenario. Update it when domains add tables, files, blobs, external
 records, retention rules, migrations, imports, or exports.
 
-> Status: documentation-first (Phase 1). The tables below describe the
-> **planned** schema. No product tables exist yet and no data is seeded;
-> only the template scaffold + the fenced `notes` example are present.
-> Column sketches are illustrative and will firm up in Phase 2. Domain
-> ownership is authoritative per [`DOMAINS.md`](DOMAINS.md).
+> Status: implemented. The product tables below are applied at API boot
+> from the domain-owned `schema.sql` files and are exercised by the API
+> repository/service tests. Retention gaps are called out explicitly.
 
 ## Why SQLite Only
 
@@ -46,26 +44,23 @@ domain needs them. Document those decisions in
 
 Each domain owns its own tables and is the source of truth for its data.
 The `health` domain owns no product data — it only probes configured
-database reachability. As you build real domains, add a row per data
-shape they persist: name it, name the owning domain, the storage backend,
-the schema file that is the source of truth, the retention rule, and any
-remarks. Keep blob/opaque bytes outside proto payloads, behind a seam
-such as BlobStore.
+database reachability. Keep blob/opaque bytes outside proto payloads,
+behind a seam such as BlobStore if a future domain introduces them.
 
 | Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
 |---|---|---|---|---|---|
 | `routes` (exposure manifest, SSOT) | `routes` | SQLite | `api/internal/routes/schema.sql` | Until route deleted/unexposed; CORE routes persist while in coreset. | The single source of truth other domains reconcile against. |
 | `leases` (on-demand exposure) | `exposure` | SQLite | `api/internal/exposure/schema.sql` | Until expired+reaped or revoked; default TTL ≈ 1 week. | Drives LEASED-tier reaping; CORE tier needs no lease. |
 | `tunnel_config` (mode + tunnel identity) | `config` | SQLite | `api/internal/config/schema.sql` | Long-lived; one active config. | Credential is referenced, not stored inline (see [`../internal/SECURITY.md`](../internal/SECURITY.md)). |
-| `metrics` (cloudflared time-series) | `tunnel` | SQLite | `api/internal/tunnel/schema.sql` | Rolling window (retention TBD in Phase 2). | Scraped from Prometheus endpoint; bounded growth. |
-| `probes` (liveness probe history) | `probes` | SQLite | `api/internal/probes/schema.sql` | Rolling window (retention TBD in Phase 2). | Internal + external probe results + failure class. |
-| `recovery_events` (recovery audit log) | `recovery` | SQLite | `api/internal/recovery/schema.sql` | Retained for post-incident review (retention TBD). | Append-only attempt log. |
+| `metrics` (cloudflared time-series) | `tunnel` | SQLite | `api/internal/tunnel/schema.sql` | Rolling 14-day window, pruned on metrics writes. | Scraped from Prometheus endpoint; bounded growth. |
+| `probes` (liveness probe history) | `probes` | SQLite | `api/internal/probes/schema.sql` | Rolling 14-day window, pruned on probe writes. | Internal + external probe results + failure class. |
+| `recovery_events` (recovery audit log) | `recovery` | SQLite | `api/internal/recovery/schema.sql` | Rolling 90-day incident window, pruned on event writes. | Append-only attempt log. |
 | _(audit findings)_ | `audit` | None (computed) | n/a | Not persisted. | Port-compliance is computed live from `service.json` vs the manifest. |
 
-## Column Sketches (planned)
+## Column Sketches
 
-Illustrative shapes consistent with [`DOMAINS.md`](DOMAINS.md). Exact
-types/constraints land in Phase 2.
+These sketches summarize the implemented schema shape. The exact
+constraints live in the linked `schema.sql` files.
 
 - **`routes`** — `subdomain` (DNS label, unique), `scenario`, `domain`
   (field, default `itsagitime.com`), `local_port` (fixed UI port), `tier`
@@ -79,12 +74,12 @@ types/constraints land in Phase 2.
   `127.0.0.1:20241`), `updated_at`.
 - **`metrics`** — `id`, `observed_at`, `ha_connections`, `request_errors`,
   `rtt_ms`, `active_streams`.
-- **`probes`** — `id`, `route_subdomain`, `kind` (`internal`|`external`),
-  `status`, `latency_ms`, `error`, `failure_class`
-  (`tunnel-down`|`scenario-down`|`cloudflare-outage`|`dns-failure`|`config-drift`),
-  `observed_at`.
-- **`recovery_events`** — `id`, `started_at`, `finished_at`, `trigger`,
-  `action`, `outcome`, `attempt`, `backoff_ms`, `breaker_state`.
+- **`probes`** — `id`, `subdomain`, `kind` (`internal`|`external`),
+  `status`, `latency_ms`, `status_code`, `error_msg`, `created_at`.
+  Failure classification is derived from latest internal/external probe
+  pairs rather than stored as a per-row enum.
+- **`recovery_events`** — `id`, `trigger`, `action`, `outcome`,
+  `details`, `attempt`, `created_at`.
 
 ## Schema Map
 
@@ -121,12 +116,12 @@ backfills, add a scenario-specific migration plan here and update
 
 | Data | Delete Trigger | Retention Rule | Current Gap |
 |---|---|---|---|
-| `routes` | Route deleted / scenario unexposed; CORE routes removed only when dropped from coreset. | Live while exposed. | Phase 2 must wire reconcile-driven removal. |
-| `leases` | Reaper removes expired leases; explicit revoke. | Default TTL ≈ 1 week; reaped after expiry unless scenario is also CORE. | Reaper + TTL not yet implemented. |
-| `tunnel_config` | Overwritten on mode switch / re-config. | One active config retained. | Mode-switch migration not yet built. |
-| `metrics` | Rolling-window prune. | Bounded time-series window (length TBD). | Prune policy undefined in Phase 1. |
-| `probes` | Rolling-window prune. | Bounded probe history (length TBD). | Prune policy undefined in Phase 1. |
-| `recovery_events` | Optional prune of old incidents. | Retained for post-incident review. | Prune policy undefined in Phase 1. |
+| `routes` | Route deleted / scenario unexposed; CORE routes removed only when dropped from coreset. | Live while exposed. | No automated historical archive; manifest is current state. |
+| `leases` | Explicit revoke or reconcile-driven expiry. | Default TTL ≈ 1 week; reaped after expiry unless scenario is also CORE. | Hostname-budget/LRU eviction is P2. |
+| `tunnel_config` | Overwritten on mode switch / re-config. | One active config retained. | Vault/provider credential references are deferred. |
+| `metrics` | Repository write prunes rows older than `tunnel.MetricsRetentionWindow`. | Rolling 14-day time-series window. | None. |
+| `probes` | Repository write prunes rows older than `probes.HistoryRetentionWindow`. | Rolling 14-day probe-history window. | None. |
+| `recovery_events` | Repository write prunes rows older than `recovery.EventRetentionWindow`. | Rolling 90-day incident-review window. | None. |
 
 ## Privacy Notes
 
