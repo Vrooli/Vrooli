@@ -129,6 +129,8 @@ func (h *Deps) submitHandler(w http.ResponseWriter, r *http.Request) {
 		InputKey:     inputKey,
 		MaskKey:      maskKey,
 		ModelID:      plan.ModelID,
+		Backend:      h.modelBackend(plan.ModelID),
+		Tier:         plan.Tier,
 		GPU:          plan.GPUViable,
 		AllowBYOK:    params.GetAllowByok(),
 		AutoScanNSFW: params.GetAutoScanNsfw() || forceScan,
@@ -161,6 +163,17 @@ func (h *Deps) submitHandler(w http.ResponseWriter, r *http.Request) {
 		Tier:             plan.Tier,
 		Warnings:         plan.Warnings,
 	})
+}
+
+func (h *Deps) modelBackend(modelID string) string {
+	if h.Engine == nil {
+		return ""
+	}
+	model, ok := h.Engine.ModelByID(modelID)
+	if !ok {
+		return ""
+	}
+	return model.Backend
 }
 
 func (h *Deps) parseParams(w http.ResponseWriter, raw string) (*aiv1.AIParams, bool) {

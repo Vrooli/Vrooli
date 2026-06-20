@@ -3,6 +3,7 @@ package ai
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -103,6 +104,13 @@ func TestSubmit_TextToImage_Accepted(t *testing.T) {
 	}
 	if sub.last.Lane != internaljobs.LaneGPU {
 		t.Errorf("AI ops should submit on the GPU lane, got %q", sub.last.Lane)
+	}
+	var payload internalai.Payload
+	if err := json.Unmarshal(sub.last.Payload, &payload); err != nil {
+		t.Fatalf("decode submitted payload: %v", err)
+	}
+	if payload.Backend == "" || payload.Tier == "" {
+		t.Fatalf("payload should carry trace backend/tier metadata: %+v", payload)
 	}
 }
 

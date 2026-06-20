@@ -965,6 +965,7 @@ feature-level coverage; that's what handler tests are for.
 | UI (`ui/`) | 85% lines / branches / functions / statements | `ui/vite.config.ts` `test.coverage`; CI runs `pnpm test:coverage` |
 | API (`api/`) | 75% total | `.github/workflows/test.yml` `api` job |
 | CLI (`cli/`) | 75% total | `.github/workflows/test.yml` `cli` job |
+| Model lifecycle packages | 85% each for `internal/models`, `internal/ai`, `internal/backends` | `.github/workflows/test.yml` `api` job; local `make coverage-model-lifecycle` |
 
 ### UI
 
@@ -994,9 +995,15 @@ test-utils package has its own self-test (see
 itself is still verified — it's just not what the production-coverage
 number tracks.
 
-Raise toward 80%/85% as scenarios stabilise. Tighten the threshold
-rather than loosening it when a new file lands without tests; that's
-the signal that drives the test-first habit.
+Tighten the threshold rather than loosening it when a new file lands
+without tests; that's the signal that drives the test-first habit.
+
+The model lifecycle package floors are package-local gates for the
+catalog/install/selection/backend substrate. They intentionally sit next
+to the total API gate: a broad handler test can keep total coverage over
+75% while a substrate package loses its own regression net. Current
+floors are the earned Phase 5 bars and should ratchet upward with real
+fixture-backed E2E coverage, not with tests that only exercise helpers.
 
 ### CI failure mode
 
@@ -1058,19 +1065,30 @@ standalone backend binaries (`sd`, `realesrgan-ncnn-vulkan`, `rembg`, `iopaint`,
 is the Phase-4 model-management concern. The headless tenet still holds — it is
 verified in two layers:
 
-1. **Automated (CI):** the full vertical (host probe → hardware-fit select →
+1. **No-download live gate:** on a running local scenario, `make headless-ai-e2e`
+   exercises the public CLI surfaces that require no model download or host AI
+   package: `analyze probe`, `analyze quality`, `analyze duplicate`, `ai
+   naturalize --wait`, and `ai normal-map --wait`. It generates its own PNG
+   fixture, asserts both durable AI outputs are non-empty, and exits non-zero on
+   any refusal/regression.
+
+2. **Automated (CI):** the full vertical (host probe → hardware-fit select →
    backend select → materialize → execute → persist → auto-scan) runs with
    **fake providers** — `api/internal/ai/{generation,enhancement,providers}_test.go`,
    `api/internal/analysis/*_test.go`, and the handler/CLI tests. Backend
    arg-builders are unit-tested for assembly. The pure-Go `analyze probe` is the
    one model-free op verified live end-to-end.
 
-2. **Attended acceptance gate (the real headless proof):** on a host where the
+3. **Attended acceptance gate (the provisioned headless proof):** on a host where the
    CPU default models are installed (Phase-4 `image-tools models install <id>`),
    run each AI op from the CLI with no GPU/ComfyUI and confirm completion:
 
    ```bash
    image-tools analyze probe  in.png                      # always works (pure-Go)
+   image-tools analyze quality in.png                      # pure-Go
+   image-tools analyze duplicate in.png                    # pure-Go
+   image-tools ai naturalize in.png --out n.png --wait     # built-in, no weights
+   image-tools ai normal-map  in.png --out normal.png --wait # computed, no weights
    image-tools ai generate    --prompt "a red bicycle" --out g.png --wait
    image-tools ai upscale     in.png --scale 4 --out up.png --wait
    image-tools ai bg-removal  in.png --out cut.png --wait
@@ -1084,6 +1102,24 @@ verified in two layers:
    no silent failure, no crash. Flip the IMG-P0-002/003/004 acceptance to "done"
    once an attended run exercises each op with a model installed (tracked in
    PROBLEMS.md).
+
+### GPU E2E gate (Phase 6)
+
+GPU execution is an attended proof, not part of default CI. Use:
+
+```bash
+cd scenarios/image-tools
+make gpu-e2e
+```
+
+The target composes the shipped operator surfaces instead of bypassing them:
+`models select text_to_image --json` verifies live free-VRAM fit,
+`backends doctor --json` verifies the GPU-capable `stable-diffusion.cpp`
+runtime, `models install <id> --wait` installs the selected model if needed, and
+`ai generate --wait` runs a small deterministic text-to-image job. If the host is
+busy or the runtime has not been provisioned through SDA yet, the target prints a
+single `SKIP gpu-e2e: ...` line and exits cleanly; when ready, it must produce a
+non-empty PNG and report the output path.
 
 ## Cross-references
 

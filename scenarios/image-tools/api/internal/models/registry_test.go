@@ -130,6 +130,24 @@ func TestParseValid(t *testing.T) {
 	if _, ok := r.IsBlocked("bad-model"); !ok {
 		t.Fatal("bad-model should be blocked")
 	}
+	if !r.IsOperation("upscale") || r.IsOperation("teleport") {
+		t.Fatalf("operation membership mismatch")
+	}
+	if got := r.Operations(); len(got) != 2 || got[0] != "upscale" || got[1] != "denoise" {
+		t.Fatalf("operations = %v", got)
+	}
+	models := r.ForOperation("upscale")
+	if len(models) != 1 || models[0].ID != "good-default" {
+		t.Fatalf("upscale models = %+v", models)
+	}
+	models[0].ID = "mutated"
+	if again := r.ForOperation("upscale"); again[0].ID != "good-default" {
+		t.Fatalf("ForOperation should return a copy, got %+v", again)
+	}
+	m, ok := r.ByID("good-default")
+	if !ok || !m.ServesOperation("upscale") || m.ServesOperation("denoise") || !m.IsDefaultFor("upscale") || m.IsDefaultFor("denoise") {
+		t.Fatalf("model operation/default helpers returned unexpected values: %+v ok=%v", m, ok)
+	}
 }
 
 // TestParseRejectsMalformed mutates the valid seed and asserts each defect is
@@ -166,6 +184,15 @@ func TestParseRejectsMalformed(t *testing.T) {
 		{"missing backend", "missing backend", mutate(func(d map[string]any) { firstModel(d)["backend"] = "" })},
 		{"op not in vocab", "not in vocabulary", mutate(func(d map[string]any) { firstModel(d)["operations"] = []any{"teleport"} })},
 		{"default_for not in ops", "not in this model", mutate(func(d map[string]any) { firstModel(d)["default_for"] = []any{"denoise"} })},
+		{"duplicate op on model", "listed twice", mutate(func(d map[string]any) {
+			firstModel(d)["operations"] = []any{"upscale", "upscale"}
+		})},
+		{"empty vocab entry", "empty entry", mutate(func(d map[string]any) {
+			d["operations_vocabulary"] = []any{"upscale", ""}
+		})},
+		{"negative figures", "negative", mutate(func(d map[string]any) {
+			firstModel(d)["size_mb_approx"] = -1
+		})},
 		{"bad commercial_use", "invalid commercial_use", mutate(func(d map[string]any) {
 			firstModel(d)["capability_labels"] = map[string]any{"commercial_use": "maybe"}
 		})},
@@ -216,5 +243,78 @@ func TestSeedInvariantCatchesComfyUI(t *testing.T) {
 	}
 	if err := r.validateSeedInvariants(); err == nil || !strings.Contains(err.Error(), "requires_comfyui") {
 		t.Fatalf("expected comfyui invariant failure, got %v", err)
+	}
+}
+
+func TestSeedInvariantPolicyFailures(t *testing.T) {
+	mutate := func(fn func(m map[string]any, doc map[string]any)) *Registry {
+		t.Helper()
+		var doc map[string]any
+		if err := json.Unmarshal([]byte(validSeed), &doc); err != nil {
+			t.Fatal(err)
+		}
+		model := doc["models"].([]any)[0].(map[string]any)
+		fn(model, doc)
+		out, err := json.Marshal(doc)
+		if err != nil {
+			t.Fatal(err)
+		}
+		r, err := Parse(out)
+		if err != nil {
+			t.Fatalf("Parse should pass structural validation: %v", err)
+		}
+		return r
+	}
+
+	cases := []struct {
+		name string
+		want string
+		reg  *Registry
+	}{
+		{
+			name: "commercial no",
+			want: "commercial_use=no",
+			reg: mutate(func(m map[string]any, _ map[string]any) {
+				m["capability_labels"] = map[string]any{"commercial_use": "no"}
+			}),
+		},
+		{
+			name: "enabled conditional",
+			want: "conditional",
+			reg: mutate(func(m map[string]any, _ map[string]any) {
+				m["capability_labels"] = map[string]any{"commercial_use": "conditional", "commercial_use_notes": "requires review"}
+			}),
+		},
+		{
+			name: "conditional missing notes",
+			want: "commercial_use_notes",
+			reg: mutate(func(m map[string]any, _ map[string]any) {
+				m["enabled"] = false
+				m["capability_labels"] = map[string]any{"commercial_use": "conditional"}
+			}),
+		},
+		{
+			name: "blocklist overlap",
+			want: "blocklist",
+			reg: mutate(func(m map[string]any, doc map[string]any) {
+				doc["blocklist"] = append(doc["blocklist"].([]any), map[string]any{
+					"id": m["id"], "operations": []any{"upscale"}, "license": "blocked", "reason": "test overlap",
+				})
+			}),
+		},
+		{
+			name: "missing default",
+			want: "no seeded default",
+			reg: mutate(func(m map[string]any, _ map[string]any) {
+				m["default_for"] = []any{}
+			}),
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := tc.reg.validateSeedInvariants(); err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("expected invariant error containing %q, got %v", tc.want, err)
+			}
+		})
 	}
 }

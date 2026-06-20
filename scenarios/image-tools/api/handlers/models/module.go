@@ -19,17 +19,18 @@ import (
 // ModelsService handler over the declarative registry. The registry (validated
 // seed catalog) is loaded once in main.go and shared; the enabled-state overlay
 // is persisted in SQLite via the models store.
-func Module(db *database.RoutedDB, reg *internalmodels.Registry, probe internalcaps.Probe, installer *internalmodels.Installer, backendReg *internalbackends.Registry, jobs JobSubmitter, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, reg *internalmodels.Registry, probe internalcaps.Probe, installer *internalmodels.Installer, backendReg *internalbackends.Registry, jobs JobSubmitter, estimateInstallSeconds EstimateInstallSecondsFunc, logger *log.Logger) module.Module {
 	store := internalmodels.NewStore(db)
 	connectPath, connectHandler := modelsconnect.NewModelsServiceHandler(NewConnectHandler(Deps{
-		Registry:   reg,
-		Store:      store,
-		Probe:      probe,
-		Installer:  installer,
-		Backends:   backendReg,
-		Jobs:       jobs,
-		OpDefaults: internalmodels.NewOpDefaultStore(db),
-		Logger:     logger,
+		Registry:               reg,
+		Store:                  store,
+		Probe:                  probe,
+		Installer:              installer,
+		Backends:               backendReg,
+		Jobs:                   jobs,
+		OpDefaults:             internalmodels.NewOpDefaultStore(db),
+		EstimateInstallSeconds: estimateInstallSeconds,
+		Logger:                 logger,
 	}))
 	return module.Module{
 		Name: "models",

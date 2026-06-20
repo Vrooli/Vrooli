@@ -22,6 +22,9 @@ type JobSubmitter interface {
 	Submit(ctx context.Context, spec internaljobs.Spec) (internaljobs.Job, error)
 }
 
+// EstimateInstallSecondsFunc estimates model-install ETA from catalog size.
+type EstimateInstallSecondsFunc func(sizeMBApprox int) int
+
 // Deps wires the seams the Connect models handler needs.
 type Deps struct {
 	// Registry is the loaded, validated seed catalog.
@@ -38,7 +41,10 @@ type Deps struct {
 	Jobs JobSubmitter
 	// OpDefaults persists per-operation default-model pins (settings surface).
 	OpDefaults *internalmodels.OpDefaultStore
-	Logger     *log.Logger
+	// EstimateInstallSeconds estimates model-download ETA for submitted jobs.
+	// Defaults to models.EstimateInstallSeconds.
+	EstimateInstallSeconds EstimateInstallSecondsFunc
+	Logger                 *log.Logger
 }
 
 type connectHandler struct {
@@ -50,6 +56,9 @@ type connectHandler struct {
 func NewConnectHandler(d Deps) *connectHandler {
 	if d.Logger == nil {
 		d.Logger = log.Default()
+	}
+	if d.EstimateInstallSeconds == nil {
+		d.EstimateInstallSeconds = internalmodels.EstimateInstallSeconds
 	}
 	return &connectHandler{deps: d}
 }
@@ -278,7 +287,7 @@ func (h *connectHandler) InstallModel(ctx context.Context, req *connect.Request[
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, errors.New("encode install request"))
 	}
-	eta := internalmodels.EstimateInstallSeconds(m.SizeMBApprox)
+	eta := h.deps.EstimateInstallSeconds(m.SizeMBApprox)
 	job, err := h.deps.Jobs.Submit(ctx, internaljobs.Spec{
 		Operation:        internalmodels.InstallJobOperation,
 		Lane:             internaljobs.LaneCPU,

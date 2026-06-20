@@ -67,6 +67,12 @@ func testBackendRegistry(t *testing.T) *internalbackends.Registry {
 	if err := reg.Register(testProvider{name: "builtin", ops: []string{"naturalize"}, available: true}); err != nil {
 		t.Fatalf("register backend: %v", err)
 	}
+	if err := reg.Register(testProvider{name: "python-sidecar", ops: []string{"colorize"}, available: true}); err != nil {
+		t.Fatalf("register backend: %v", err)
+	}
+	if err := reg.Register(testProvider{name: "python-sidecar", ops: []string{"face_restore", "old_photo_restore"}, available: false}); err != nil {
+		t.Fatalf("register backend: %v", err)
+	}
 	return reg
 }
 
@@ -238,7 +244,7 @@ func TestDoctorCatalogReportsGreenSeed(t *testing.T) {
 	}
 }
 
-func TestDoctorBackendsReportsCatalogDeclaredBackendGaps(t *testing.T) {
+func TestDoctorBackendsReportsCatalogDeclaredBackendReadiness(t *testing.T) {
 	h, _ := newTestHandler(t, cpuOnlyHost)
 	resp, err := h.DoctorBackends(context.Background(), connect.NewRequest(&modelsv1.DoctorBackendsRequest{}))
 	if err != nil {
@@ -257,8 +263,9 @@ func TestDoctorBackendsReportsCatalogDeclaredBackendGaps(t *testing.T) {
 			}
 		case "python-sidecar":
 			sawPythonSidecar = true
-			if b.Available || !containsStr(b.Operations, "colorize") {
-				t.Fatalf("python-sidecar row should be an unavailable catalog-declared gap: %+v", b)
+			ops := containsStr(b.Operations, "colorize") || containsStr(b.Operations, "face_restore")
+			if !ops || b.Detail != "test backend readiness" {
+				t.Fatalf("python-sidecar row should come from registered runtime providers: %+v", b)
 			}
 		case "llama.cpp":
 			sawLlama = true

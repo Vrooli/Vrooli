@@ -36,7 +36,8 @@ throughput, queue wait time, fallback-tier usage, and VRAM headroom.
 
 | Measurement | Value | Source | Date |
 |---|---|---|---|
-| None captured yet (pre-implementation). | n/a | n/a | 2026-06-16 |
+| ONNX warm-sidecar control benchmark, one-shot Python module load | 46.2 ms/op | `go test ./internal/ai -run '^$' -bench 'BenchmarkWarmSidecarRunner_AmortizesModuleLoad' -benchtime=10x -count=1` | 2026-06-20 |
+| ONNX warm-sidecar control benchmark, warm JSONL worker | 4.3 ms/op | same benchmark; synthetic module sleeps 25 ms at import time, proving load is paid once per worker process | 2026-06-20 |
 
 ## Known Constraints
 
@@ -52,6 +53,11 @@ throughput, queue wait time, fallback-tier usage, and VRAM headroom.
   substantial disk; disk-space awareness gates downloads and output writes.
 - Vite production builds may process thousands of modules and take
   several minutes (inherited template constraint).
+- The warm-sidecar benchmark above is a protocol/control benchmark, not a
+  real model-quality benchmark. It isolates Python process/module-load cost so
+  regressions in the persistent worker are caught without downloading weights.
+  Real per-model latency still needs fixture-backed E2E measurements as models
+  are provisioned on the host.
 
 ## Regression Procedure
 

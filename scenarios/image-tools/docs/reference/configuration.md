@@ -32,6 +32,8 @@ for the full policy.
 | `SQLITE_PATH` | `${SCENARIO_DATA_DIR}/image-tools.db` | Override SQLite file location. The default routes through `api-core/storage` and resolves to a writable per-scenario data directory. |
 | `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth (only enforce in production deployments). |
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
+| `IMAGE_TOOLS_CPU_WORKERS` | `4` | CPU-lane worker count for durable jobs. Valid range: `1`-`32`. Higher values improve throughput for independent CPU jobs but increase RAM pressure. GPU jobs remain serialized. |
+| `IMAGE_TOOLS_INSTALL_MB_PER_SECOND` | `15` | Assumed model-download throughput for install ETA calculation. Valid range: `1`-`10000` MB/s. Tune to measured host/network throughput; it affects ETA reporting only, not download behavior. |
 
 The browser UI does not read `API_PORT` directly. It resolves API calls through
 the UI origin, and `ui/server.js` proxies `/api/*` plus the scenario's Connect

@@ -139,6 +139,27 @@ func TestInstallModelSubmitsJob(t *testing.T) {
 	}
 }
 
+func TestInstallModelUsesConfiguredETA(t *testing.T) {
+	h, _, sub := newInstallHandler(t)
+	h.deps.EstimateInstallSeconds = func(sizeMBApprox int) int {
+		if sizeMBApprox != 16 {
+			t.Fatalf("ETA estimator saw size %d, want 16", sizeMBApprox)
+		}
+		return 123
+	}
+
+	resp, err := h.InstallModel(context.Background(), connect.NewRequest(&modelsv1.InstallModelRequest{Id: handlerInstallTestModelID}))
+	if err != nil {
+		t.Fatalf("install: %v", err)
+	}
+	if resp.Msg.EtaSeconds != 123 {
+		t.Fatalf("response eta = %d, want 123", resp.Msg.EtaSeconds)
+	}
+	if sub.last.EstimatedSeconds != 123 {
+		t.Fatalf("submitted eta = %d, want 123", sub.last.EstimatedSeconds)
+	}
+}
+
 func TestInstallModelAlreadyInstalledSkipsJob(t *testing.T) {
 	h, installer, sub := newInstallHandler(t)
 	ctx := context.Background()

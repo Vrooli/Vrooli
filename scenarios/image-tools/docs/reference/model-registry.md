@@ -26,6 +26,45 @@ Authored 2026-06-16 from license-verified research. Policy choices are recorded 
   installed. `library-cgo` remains a provisioned backend until its host/library
   assets are made explicit by the backend doctor work.
 
+## Adding or changing a model
+
+Use this checklist for every seed-catalog change. The catalog is a runtime
+contract, not just documentation: if a model is enabled, operators must be able
+to install it and understand which backend makes it runnable.
+
+1. Edit [`api/internal/models/registry.seed.json`](../../api/internal/models/registry.seed.json)
+   by hand. Do not mass-edit the seed.
+2. Choose the operation and tier deliberately:
+   - exactly one enabled default should serve each operation;
+   - quality tiers may be enabled only when their license, backend, and host
+     requirements are truthful;
+   - disabled quality tiers still need a clear reason in `io.notes` or
+     `capability_labels.known_risks`.
+3. For weight-backed models, add direct `source.assets[]` entries:
+   - use a direct artifact URL, not a model-card or HTML page;
+   - set `filename`, `kind`, and positive `min_bytes`;
+   - include a published `sha256` only when the upstream publishes one. Otherwise
+     leave `checksum.status` as capture-on-download so install records pin the
+     verified bytes.
+4. For weightless models, use only the backends the registry treats as explicit
+   no-weight providers (`builtin`, `computed`, `library-go`) unless backend
+   doctor has a registered runtime provider for the family.
+5. Confirm the backend row exists in [`backends.md`](backends.md). If the backend
+   needs host software, route provisioning through Scenario Dependency Analyzer;
+   never install with raw `pip`, `go get`, `npm`, or an OS package manager.
+6. Run the fast gates:
+
+```bash
+cd scenarios/image-tools/api && go test ./internal/models ./internal/ai ./internal/backends -count=1
+cd scenarios/image-tools && make coverage-model-lifecycle
+image-tools models doctor --json
+image-tools backends doctor --json
+```
+
+`models doctor` must be green before the model ships enabled. `backends doctor`
+may stay red for missing host provisioning, but it must identify a registered
+provider and concrete provisioning path rather than a catalog-only gap.
+
 ## Backend engines (what the Go API shells out to)
 
 | Engine | Used for | Notes |

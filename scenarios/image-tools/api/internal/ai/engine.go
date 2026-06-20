@@ -83,6 +83,11 @@ func NewEngine(deps Deps) (*Engine, error) {
 	return &Engine{deps: deps}, nil
 }
 
+// ModelByID returns a registry model by id for submit-edge trace enrichment.
+func (e *Engine) ModelByID(id string) (models.Model, bool) {
+	return e.deps.Registry.ByID(id)
+}
+
 // Payload is the JSON body submitted as a job's Payload. The runner re-reads it
 // to execute the op without re-running selection's host probe from scratch
 // (model id is pinned at submit time for determinism).
@@ -91,6 +96,8 @@ type Payload struct {
 	InputKey     string            `json:"input_key,omitempty"`
 	MaskKey      string            `json:"mask_key,omitempty"`
 	ModelID      string            `json:"model_id"`
+	Backend      string            `json:"backend,omitempty"`
+	Tier         string            `json:"tier,omitempty"`
 	GPU          bool              `json:"gpu"`
 	AllowBYOK    bool              `json:"allow_byok,omitempty"`
 	AutoScanNSFW bool              `json:"auto_scan_nsfw,omitempty"`

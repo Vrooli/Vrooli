@@ -76,6 +76,30 @@ func TestMaxVRAMBytes(t *testing.T) {
 	}
 }
 
+func TestMaxFreeVRAMBytes(t *testing.T) {
+	tests := []struct {
+		name      string
+		gpus      []GPU
+		wantMax   uint64
+		wantKnown bool
+	}{
+		{"none", nil, 0, false},
+		{"unknown-total", []GPU{{VRAMBytes: 0}}, 0, false},
+		{"single", []GPU{{VRAMBytes: 8 << 30, VRAMUsedBytes: 3 << 30}}, 5 << 30, true},
+		{"max-free-of-many", []GPU{{VRAMBytes: 8 << 30, VRAMUsedBytes: 1 << 30}, {VRAMBytes: 24 << 30, VRAMUsedBytes: 20 << 30}}, 7 << 30, true},
+		{"overcommitted", []GPU{{VRAMBytes: 8 << 30, VRAMUsedBytes: 9 << 30}}, 0, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := Host{GPUs: tt.gpus}
+			gotMax, gotKnown := h.MaxFreeVRAMBytes()
+			if gotMax != tt.wantMax || gotKnown != tt.wantKnown {
+				t.Fatalf("got %d/%v want %d/%v", gotMax, gotKnown, tt.wantMax, tt.wantKnown)
+			}
+		})
+	}
+}
+
 func TestVRAMFreeBytes(t *testing.T) {
 	if _, known := (GPU{VRAMBytes: 0}).VRAMFreeBytes(); known {
 		t.Fatal("unknown total must not report known free")

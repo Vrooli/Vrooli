@@ -64,14 +64,26 @@ type InstallPayload struct {
 	ModelID string `json:"model_id"`
 }
 
+// DefaultInstallMBPerSecond is the conservative throughput used for install
+// ETAs when the operator has not configured a host-specific value.
+const DefaultInstallMBPerSecond = 15
+
 // EstimateInstallSeconds is a rough ETA for downloading a model of the given
 // approximate size, assuming a conservative throughput. Surfaced as the job ETA.
 func EstimateInstallSeconds(sizeMBApprox int) int {
-	const assumedMBPerSec = 15
+	return EstimateInstallSecondsAt(sizeMBApprox, DefaultInstallMBPerSecond)
+}
+
+// EstimateInstallSecondsAt is EstimateInstallSeconds with an explicit measured
+// throughput. Non-positive throughput falls back to the default.
+func EstimateInstallSecondsAt(sizeMBApprox, mbPerSecond int) int {
+	if mbPerSecond <= 0 {
+		mbPerSecond = DefaultInstallMBPerSecond
+	}
 	if sizeMBApprox <= 0 {
 		return 0
 	}
-	if eta := sizeMBApprox / assumedMBPerSec; eta > 0 {
+	if eta := sizeMBApprox / mbPerSecond; eta > 0 {
 		return eta
 	}
 	return 1

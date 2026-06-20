@@ -20,3 +20,25 @@ CREATE TABLE IF NOT EXISTS op_measure (
 );
 
 CREATE INDEX IF NOT EXISTS idx_op_measure_operation ON op_measure (operation);
+
+-- Structured terminal job traces (Phase 5 observability). This table records
+-- one row per finalized job with enough context to answer "what ran, where, and
+-- how long did it wait/run?" without scraping logs. Additive table, separate
+-- from jobs so existing databases do not need an ALTER migration.
+CREATE TABLE IF NOT EXISTS job_trace (
+  job_id       TEXT PRIMARY KEY,
+  operation    TEXT NOT NULL,
+  model_id     TEXT NOT NULL DEFAULT '',
+  backend      TEXT NOT NULL DEFAULT '',
+  tier         TEXT NOT NULL DEFAULT '',
+  lane         TEXT NOT NULL DEFAULT '',
+  state        TEXT NOT NULL DEFAULT '',
+  duration_ms  INTEGER NOT NULL DEFAULT 0,
+  queue_wait_ms INTEGER NOT NULL DEFAULT 0,
+  result_ref   TEXT NOT NULL DEFAULT '',
+  error        TEXT NOT NULL DEFAULT '',
+  recorded_at  TEXT NOT NULL DEFAULT ''
+);
+
+CREATE INDEX IF NOT EXISTS idx_job_trace_operation ON job_trace (operation);
+CREATE INDEX IF NOT EXISTS idx_job_trace_model_id ON job_trace (model_id);

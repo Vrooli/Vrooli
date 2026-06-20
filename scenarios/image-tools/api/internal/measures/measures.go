@@ -36,6 +36,23 @@ type Sample struct {
 	FallbackUsed bool   // true when the chosen tier was not the preferred local-gpu
 }
 
+// JobTrace is one terminal job trace row. It is intentionally denormalized for
+// operator/debug reads: a single row answers what ran, which model/backend/tier
+// was selected, and how much time was spent queued vs running.
+type JobTrace struct {
+	JobID       string
+	Operation   string
+	ModelID     string
+	Backend     string
+	Tier        string
+	Lane        string
+	State       string
+	DurationMS  int64
+	QueueWaitMS int64
+	ResultRef   string
+	Error       string
+}
+
 // Recorder persists samples and answers aggregate queries.
 type Recorder struct {
 	db  SQLExecutor
@@ -63,6 +80,40 @@ func (r *Recorder) Record(ctx context.Context, s Sample) error {
 	return nil
 }
 
+const insertJobTraceSQL = `
+INSERT INTO job_trace (job_id, operation, model_id, backend, tier, lane, state, duration_ms, queue_wait_ms, result_ref, error, recorded_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(job_id) DO UPDATE SET
+  operation=excluded.operation,
+  model_id=excluded.model_id,
+  backend=excluded.backend,
+  tier=excluded.tier,
+  lane=excluded.lane,
+  state=excluded.state,
+  duration_ms=excluded.duration_ms,
+  queue_wait_ms=excluded.queue_wait_ms,
+  result_ref=excluded.result_ref,
+  error=excluded.error,
+  recorded_at=excluded.recorded_at`
+
+// RecordJobTrace persists one terminal job trace. It upserts by job id so replay
+// or recovery paths can safely re-observe a final job without duplicating rows.
+func (r *Recorder) RecordJobTrace(ctx context.Context, tr JobTrace) error {
+	if tr.JobID == "" {
+		return fmt.Errorf("measures: job trace id is required")
+	}
+	if tr.Operation == "" {
+		return fmt.Errorf("measures: job trace operation is required")
+	}
+	_, err := r.db.ExecContext(ctx, insertJobTraceSQL,
+		tr.JobID, tr.Operation, tr.ModelID, tr.Backend, tr.Tier, tr.Lane, tr.State,
+		tr.DurationMS, tr.QueueWaitMS, tr.ResultRef, tr.Error, r.now().UTC().Format(time.RFC3339Nano))
+	if err != nil {
+		return fmt.Errorf("measures: record job trace %q: %w", tr.JobID, err)
+	}
+	return nil
+}
+
 // JobLike is the subset of a finalized job the Observe path reads. internal/jobs'
 // Job satisfies it structurally via ObserveJob in the wiring layer.
 type JobLike struct {
@@ -81,6 +132,26 @@ func (r *Recorder) Observe(ctx context.Context, j JobLike) error {
 		DurationMS:  j.DurationMS,
 		QueueWaitMS: j.QueueMS,
 	})
+}
+
+// JobTraceByID returns the structured trace for one finalized job.
+func (r *Recorder) JobTraceByID(ctx context.Context, jobID string) (JobTrace, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT job_id, operation, model_id, backend, tier, lane, state, duration_ms, queue_wait_ms, result_ref, error FROM job_trace WHERE job_id = ?`, jobID)
+	if err != nil {
+		return JobTrace{}, fmt.Errorf("measures: query job trace %q: %w", jobID, err)
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return JobTrace{}, fmt.Errorf("measures: iterate job trace %q: %w", jobID, err)
+		}
+		return JobTrace{}, sql.ErrNoRows
+	}
+	var tr JobTrace
+	if err := rows.Scan(&tr.JobID, &tr.Operation, &tr.ModelID, &tr.Backend, &tr.Tier, &tr.Lane, &tr.State, &tr.DurationMS, &tr.QueueWaitMS, &tr.ResultRef, &tr.Error); err != nil {
+		return JobTrace{}, fmt.Errorf("measures: scan job trace %q: %w", jobID, err)
+	}
+	return tr, rows.Err()
 }
 
 // OpStat is the aggregated measure for one operation.

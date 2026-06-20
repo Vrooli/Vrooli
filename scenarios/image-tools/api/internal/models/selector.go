@@ -60,29 +60,31 @@ type HardwareFit struct {
 }
 
 // Fit computes how model m fits host h. The conservative rule (per plan): a GPU
-// whose VRAM is unknown is never counted as viable — selection falls back to a
-// CPU-capable tier rather than risk an OOM on an unmeasured device.
+// whose free VRAM is unknown or below the model's minimum is never counted as
+// viable — selection falls back to a CPU-capable tier rather than risk an OOM on
+// an unmeasured or currently busy device.
 func Fit(m Model, h capabilities.Host) HardwareFit {
 	needBytes := uint64(m.Hardware.MinVRAMGB) * bytesPerGB
 	var gpuViable bool
-	var bestKnownVRAM uint64
+	var bestKnownFreeVRAM uint64
 	var anyKnownGPU bool
 	for _, g := range h.GPUs {
-		if !g.VRAMKnown() {
+		free, known := g.VRAMFreeBytes()
+		if !known {
 			continue
 		}
 		anyKnownGPU = true
-		if g.VRAMBytes > bestKnownVRAM {
-			bestKnownVRAM = g.VRAMBytes
+		if free > bestKnownFreeVRAM {
+			bestKnownFreeVRAM = free
 		}
-		if g.VRAMBytes >= needBytes {
+		if needBytes > 0 && free >= needBytes {
 			gpuViable = true
 		}
 	}
 	fit := HardwareFit{GPUViable: gpuViable}
 	fit.Runnable = gpuViable || m.Hardware.CPUCapable
-	if !gpuViable && anyKnownGPU && needBytes > bestKnownVRAM {
-		shortfall := int((needBytes - bestKnownVRAM + bytesPerGB - 1) / bytesPerGB) // round up
+	if !gpuViable && anyKnownGPU && needBytes > bestKnownFreeVRAM {
+		shortfall := int((needBytes - bestKnownFreeVRAM + bytesPerGB - 1) / bytesPerGB) // round up
 		fit.VRAMShortfallGB = shortfall
 	}
 	return fit
@@ -148,7 +150,15 @@ func (r *Registry) Select(req SelectRequest, isEnabled EnabledFunc) (Selection, 
 	}
 
 	best := r.rankBest(runnable, req)
-	return r.buildSelection(best, req), nil
+	sel := r.buildSelection(best, req)
+	if !sel.GPUViable {
+		shortfall := Fit(best, req.Host).VRAMShortfallGB
+		if worstShortfall > shortfall {
+			shortfall = worstShortfall
+		}
+		appendFreeVRAMShortfallWarning(&sel, shortfall)
+	}
+	return sel, nil
 }
 
 func (r *Registry) selectOverride(req SelectRequest, isEnabled EnabledFunc) (Selection, error) {
@@ -170,6 +180,9 @@ func (r *Registry) selectOverride(req SelectRequest, isEnabled EnabledFunc) (Sel
 		return Selection{}, fmt.Errorf("%w: model %q cannot run on this host", ErrOverrideInvalid, req.OverrideID)
 	}
 	sel := r.buildSelection(m, req)
+	if !sel.GPUViable {
+		appendFreeVRAMShortfallWarning(&sel, fit.VRAMShortfallGB)
+	}
 	sel.Reason = fmt.Sprintf("model %q selected by explicit override", m.ID)
 	return sel, nil
 }
@@ -219,7 +232,7 @@ func (r *Registry) buildSelection(m Model, req SelectRequest) Selection {
 		}
 		sel.Warnings = append(sel.Warnings, warn)
 		if req.Host.HasGPU() {
-			if _, known := req.Host.MaxVRAMBytes(); !known {
+			if _, known := req.Host.MaxFreeVRAMBytes(); !known {
 				sel.Warnings = append(sel.Warnings, "GPU detected but VRAM is unknown; falling back to CPU conservatively")
 			}
 		}
@@ -230,4 +243,10 @@ func (r *Registry) buildSelection(m Model, req SelectRequest) Selection {
 		sel.Reason += "; " + m.IO.Notes
 	}
 	return sel
+}
+
+func appendFreeVRAMShortfallWarning(sel *Selection, shortfallGB int) {
+	if shortfallGB > 0 {
+		sel.Warnings = append(sel.Warnings, fmt.Sprintf("GPU detected but free VRAM is ~%d GB short; falling back to CPU to avoid OOM", shortfallGB))
+	}
 }

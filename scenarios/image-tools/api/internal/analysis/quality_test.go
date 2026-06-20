@@ -2,6 +2,7 @@ package analysis
 
 import (
 	"bytes"
+	"encoding/json"
 	"image"
 	"image/color"
 	"image/png"
@@ -100,6 +101,31 @@ func TestQualityAssess_DecodeError(t *testing.T) {
 	}
 }
 
+func TestQualityAssess_GoldenStructuredContract(t *testing.T) {
+	res, err := QualityAssess(solidPNGBytes(t, 16, 16, color.NRGBA{R: 128, G: 128, B: 128, A: 255}))
+	if err != nil {
+		t.Fatalf("QualityAssess: %v", err)
+	}
+	if res.Sharpness != 0 || res.Contrast != 0 || res.Brightness != 128 {
+		t.Fatalf("stable flat fixture metrics changed: %+v", res)
+	}
+	if !res.Blurry || res.Exposure != "well-exposed" || res.OverallScore != 0.3 {
+		t.Fatalf("stable flat fixture labels changed: %+v", res)
+	}
+	if len(res.Notes) != 2 || res.Notes[0] != "low contrast" || res.Notes[1] != "image appears soft / out of focus" {
+		t.Fatalf("stable flat fixture notes changed: %+v", res.Notes)
+	}
+	encoded, err := json.Marshal(res)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	for _, field := range []string{"Sharpness", "Blurry", "Brightness", "Contrast", "OverallScore", "Exposure", "Notes"} {
+		if !bytes.Contains(encoded, []byte(`"`+field+`"`)) {
+			t.Fatalf("quality JSON omitted %q: %s", field, encoded)
+		}
+	}
+}
+
 func TestDuplicateDetect_StableAndDistinct(t *testing.T) {
 	a := checkerPNG(t, 96, 96, 8)
 	res1, err := DuplicateDetect(a)
@@ -128,5 +154,27 @@ func TestDuplicateDetect_StableAndDistinct(t *testing.T) {
 func TestDuplicateDetect_DecodeError(t *testing.T) {
 	if _, err := DuplicateDetect([]byte("nope")); err == nil {
 		t.Error("expected a decode error")
+	}
+}
+
+func TestDuplicateDetect_GoldenStructuredContract(t *testing.T) {
+	res, err := DuplicateDetect(checkerPNG(t, 32, 32, 4))
+	if err != nil {
+		t.Fatalf("DuplicateDetect: %v", err)
+	}
+	if res.HashBits != 64 {
+		t.Fatalf("hash width changed: %+v", res)
+	}
+	if res.PhashHex != "55a0d595559855b5" || res.AhashHex != "aa55aa55aa55aa55" {
+		t.Fatalf("stable checker fixture fingerprints changed: %+v", res)
+	}
+	encoded, err := json.Marshal(res)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	for _, field := range []string{"PhashHex", "AhashHex", "HashBits"} {
+		if !bytes.Contains(encoded, []byte(`"`+field+`"`)) {
+			t.Fatalf("duplicate JSON omitted %q: %s", field, encoded)
+		}
 	}
 }

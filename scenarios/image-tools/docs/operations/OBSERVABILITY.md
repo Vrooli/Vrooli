@@ -36,6 +36,7 @@ hardware-aware (fallback tiers, GPU pressure).
 | API logs | lifecycle-managed API process | `make logs` | Includes provider-selection and fallback-tier transition messages. |
 | UI logs | lifecycle-managed UI server | `make logs` | Production bundle server logs only. |
 | Per-job logs | job queue / worker | `make logs` (filter by job-id) | Each async job records submission, ETA, tier chosen, progress, and terminal status. |
+| Structured job traces | SQLite `job_trace` table | Query by `job_id`, `operation`, or `model_id` | One terminal row per job: operation, model, backend, tier, lane, state, queue wait, run duration, result ref, and error. |
 | Resource logs | on-demand model / ComfyUI resources | `make logs` | Surface download progress, checksum, and `/ready` gating for opt-in resources. |
 
 ## Metrics
@@ -49,6 +50,7 @@ measure blocks, enforced by the test-genie measures phase (OT-P0-012).
 | Throughput | active | Completed jobs per interval. |
 | Queue wait time | active | Time from submission to start in the serialized GPU queue. |
 | Fallback-tier usage | active | Count of Local-GPU / Local-CPU / BYOK selections. |
+| Terminal job traces | active | `job_trace` records the exact model/backend/tier/lane and queue/run durations for each finalized job. |
 | VRAM headroom | active | Captured from the root `vrooli host inventory` probe (the shared `internal/hostinventory` collector, via the `capabilities` seam) at run time. |
 | Requirement coverage | active | Tracked through requirements + test-genie coverage artifacts. |
 | Product activation | deferred | Define after real PRD users/workflows exist. |

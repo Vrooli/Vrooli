@@ -69,6 +69,7 @@ var catalog = func() map[string]Op {
 		{Name: "naturalize", Category: CategoryEnhancement, Summary: "Reintroduce realistic texture/grain to over-smoothed (restored/upscaled) images", RequiresImage: true},
 		{Name: "colorize", Category: CategoryEnhancement, Summary: "Add realistic colour to a grayscale / black-and-white image", RequiresImage: true},
 		{Name: "depth_map", Category: CategoryEnhancement, Summary: "Estimate a per-pixel depth map from a single image", RequiresImage: true},
+		{Name: "normal_map", Category: CategoryEnhancement, Summary: "Convert image luminance/depth into a tangent-space normal map", RequiresImage: true},
 	}
 	m := make(map[string]Op, len(ops))
 	for _, o := range ops {

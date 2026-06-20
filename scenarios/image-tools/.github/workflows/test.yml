@@ -165,6 +165,25 @@ jobs:
             || { echo "::error::Go coverage $pct% < $threshold%"; exit 1; }
           echo "Go coverage $pct% >= $threshold%"
 
+      - name: Model lifecycle package coverage gates
+        # Phase-5 model lifecycle hardening keeps the substrate packages from
+        # regressing even when the module-wide API total remains above 75%.
+        # These floors are the current earned Phase-5 package-local bars; raise
+        # them as fixture-backed E2E coverage grows.
+        run: |
+          for spec in \
+            "./internal/models 85.0" \
+            "./internal/ai 85.0" \
+            "./internal/backends 85.0"; do
+            pkg=$(echo "$spec" | awk '{print $1}')
+            threshold=$(echo "$spec" | awk '{print $2}')
+            out=$(go test -cover -count=1 "$pkg")
+            echo "$out"
+            pct=$(echo "$out" | awk -F'coverage: |% of statements' '/coverage:/ {print $2}')
+            awk -v p="$pct" -v t="$threshold" 'BEGIN { exit (p+0 >= t+0) ? 0 : 1 }' \
+              || { echo "::error::$pkg coverage $pct% < $threshold%"; exit 1; }
+          done
+
       - name: Endpoints manifest is up to date
         # The endpoints.json is generated from each handler module's
         # Endpoints slice (see api/cmd/gen-endpoints). A drift here

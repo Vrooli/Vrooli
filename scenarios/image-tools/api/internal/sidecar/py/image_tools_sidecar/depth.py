@@ -27,6 +27,17 @@ def _normalize_depth(np, pred):
     return (depth * 255).astype(np.uint8)
 
 
+def _preprocess(np, image, size_hw):
+    """Resize and ImageNet-normalize RGB input for Depth-Anything exports."""
+    h, w = size_hw
+    resized = image.resize((w, h))
+    arr = np.array(resized).astype(np.float32) / 255.0
+    mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+    std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+    arr = (arr - mean) / std
+    return arr.transpose(2, 0, 1)[np.newaxis, :, :, :].astype(np.float32)
+
+
 def main() -> None:
     args = _common.parse_io_args("ONNX monocular depth estimation")
     np, _ort, Image = _common.require_deps()
@@ -40,13 +51,7 @@ def main() -> None:
     except Exception as exc:  # noqa: BLE001
         _common.fail(f"failed to open input image {args.image!r}: {exc}", code=6)
 
-    resized = image.resize((w, h))
-    arr = np.array(resized).astype(np.float32) / 255.0
-    # ImageNet normalization (Depth-Anything preprocessing).
-    mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
-    std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
-    arr = (arr - mean) / std
-    inp = arr.transpose(2, 0, 1)[np.newaxis, :, :, :].astype(np.float32)
+    inp = _preprocess(np, image, (h, w))
 
     input_name = session.get_inputs()[0].name
     outputs = session.run(None, {input_name: inp})

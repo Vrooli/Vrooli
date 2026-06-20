@@ -141,6 +141,29 @@ the manifest path in `register.go` and recorded in the manifest's
 image-tools jobs watch <job-id>
 ```
 
+## Scenario commands — `ai` and `analyze` (model lifecycle execution)
+
+AI commands submit durable jobs through the REST multipart edge and can block
+once with `--wait`. Analysis commands run synchronous image-to-data operations
+and record terminal jobs for observability.
+
+No-download model-lifecycle paths are intentionally exposed through the same
+CLI surface as provisioned model paths:
+
+```bash
+image-tools analyze probe in.png --json
+image-tools analyze quality in.png --json
+image-tools analyze duplicate in.png --json
+image-tools ai naturalize in.png --wait --out naturalized.png
+image-tools ai normal-map in.png --wait --out normal.png
+```
+
+`naturalize` uses the built-in provider and `normal-map` uses the computed
+provider, so neither command requires model downloads or host AI packages.
+Model-backed commands such as `generate`, `upscale`, `bg-removal`, `depth`, and
+`colorize` keep the same submit/wait shape but correctly refuse with actionable
+install/provisioning guidance until their weights and backend runtime are ready.
+
 ## Scenario commands — `models` (registry read + enable/disable)
 
 Inspect the declarative model registry and toggle which models are

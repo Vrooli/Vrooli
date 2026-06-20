@@ -69,6 +69,22 @@ func (h Host) MaxVRAMBytes() (max uint64, known bool) {
 	return max, known
 }
 
+// MaxFreeVRAMBytes returns the largest known free-VRAM value across detected
+// GPUs. This is the value selectors should use for OOM-safe scheduling.
+func (h Host) MaxFreeVRAMBytes() (max uint64, known bool) {
+	for _, g := range h.GPUs {
+		free, ok := g.VRAMFreeBytes()
+		if !ok {
+			continue
+		}
+		known = true
+		if free > max {
+			max = free
+		}
+	}
+	return max, known
+}
+
 // Probe reports host hardware facts for AI-tier model selection.
 type Probe interface {
 	Inventory(ctx context.Context) (Host, error)

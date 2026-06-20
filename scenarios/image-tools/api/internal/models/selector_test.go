@@ -47,6 +47,10 @@ func gpuHost(vramGB uint64) capabilities.Host {
 	return capabilities.Host{OS: "linux", Arch: "amd64", Cores: 16, GPUs: []capabilities.GPU{{Name: "test", VRAMBytes: vramGB * bytesPerGB}}}
 }
 
+func busyGPUHost(totalGB, usedGB uint64) capabilities.Host {
+	return capabilities.Host{OS: "linux", Arch: "amd64", Cores: 16, GPUs: []capabilities.GPU{{Name: "test", VRAMBytes: totalGB * bytesPerGB, VRAMUsedBytes: usedGB * bytesPerGB}}}
+}
+
 func cpuHost() capabilities.Host {
 	return capabilities.Host{OS: "linux", Arch: "amd64", Cores: 8}
 }
@@ -86,6 +90,69 @@ func TestSelectPrefersEnabledQualityOnGPU(t *testing.T) {
 	}
 	if !sel.GPUViable {
 		t.Fatal("expected GPU-viable")
+	}
+}
+
+// A GPU with enough total VRAM but insufficient free VRAM must not be treated as
+// GPU-viable; the selector should fall back to a CPU-capable default instead of
+// risking OOM on a busy shared host.
+func TestSelectFallsBackWhenFreeVRAMInsufficient(t *testing.T) {
+	r := testRegistry(t)
+	enabled := func(id string) bool { return true }
+	sel, err := r.Select(SelectRequest{Operation: "upscale", Host: busyGPUHost(12, 8)}, enabled)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sel.Model.ID != "cpu-default" {
+		t.Fatalf("got %s want cpu-default", sel.Model.ID)
+	}
+	if sel.GPUViable {
+		t.Fatal("busy GPU must not be GPU-viable")
+	}
+	var sawShortfallWarn bool
+	for _, w := range sel.Warnings {
+		if strings.Contains(w, "free VRAM") && strings.Contains(w, "short") {
+			sawShortfallWarn = true
+		}
+	}
+	if !sawShortfallWarn {
+		t.Fatalf("expected free-VRAM shortfall warning, got %v", sel.Warnings)
+	}
+}
+
+func TestSelectWarnsWhenSelectedCPUModelNeedsMoreFreeVRAM(t *testing.T) {
+	const seed = `{
+      "schema_version": "1.0.0",
+      "operations_vocabulary": ["inpaint"],
+      "models": [
+        {
+          "id": "cpu-gpu-preferred", "name": "CPU GPU Preferred", "operations": ["inpaint"],
+          "default_for": ["inpaint"], "tier": "default", "backend": "diffusers",
+          "hardware": {"cpu_capable": true, "gpu_required": false, "min_vram_gb": 8, "min_ram_gb": 8},
+          "capability_labels": {"commercial_use": "yes"}, "enabled": true
+        }
+      ],
+      "blocklist": []
+    }`
+	r, err := Parse([]byte(seed))
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	sel, err := r.Select(SelectRequest{Operation: "inpaint", Host: busyGPUHost(12, 8)}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sel.Model.ID != "cpu-gpu-preferred" || sel.GPUViable {
+		t.Fatalf("selection = %+v, want CPU fallback", sel)
+	}
+	var sawShortfallWarn bool
+	for _, w := range sel.Warnings {
+		if strings.Contains(w, "free VRAM") && strings.Contains(w, "4 GB short") {
+			sawShortfallWarn = true
+		}
+	}
+	if !sawShortfallWarn {
+		t.Fatalf("expected selected-model free-VRAM shortfall warning, got %v", sel.Warnings)
 	}
 }
 
@@ -136,6 +203,18 @@ func TestSelectNotRunnableShortfall(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "GB more VRAM") {
 		t.Fatalf("expected VRAM shortfall hint, got %v", err)
+	}
+}
+
+func TestSelectNotRunnableShortfallUsesFreeVRAM(t *testing.T) {
+	r := testRegistry(t)
+	onlyQuality := func(id string) bool { return id == "gpu-quality" }
+	_, err := r.Select(SelectRequest{Operation: "upscale", Host: busyGPUHost(12, 8)}, onlyQuality)
+	if !errors.Is(err, ErrNotRunnable) {
+		t.Fatalf("want ErrNotRunnable, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "4 GB more VRAM") {
+		t.Fatalf("expected free-VRAM shortfall hint, got %v", err)
 	}
 }
 
@@ -192,6 +271,9 @@ func TestFit(t *testing.T) {
 	gpuReq := Model{Hardware: Hardware{GPURequired: true, MinVRAMGB: 8}}
 	if f := Fit(gpuReq, gpuHost(12)); !f.GPUViable || !f.Runnable {
 		t.Fatalf("expected viable+runnable, got %+v", f)
+	}
+	if f := Fit(gpuReq, busyGPUHost(12, 8)); f.Runnable || f.VRAMShortfallGB != 4 {
+		t.Fatalf("expected busy-GPU shortfall 4 not runnable, got %+v", f)
 	}
 	if f := Fit(gpuReq, gpuHost(4)); f.Runnable || f.VRAMShortfallGB != 4 {
 		t.Fatalf("expected shortfall 4 not runnable, got %+v", f)

@@ -6,9 +6,12 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	apidb "github.com/vrooli/api-core/database"
 
@@ -76,6 +79,110 @@ func (fn downloaderFunc) Download(ctx context.Context, rawURL, dest string, emit
 func sha256Hex(b []byte) string {
 	sum := sha256.Sum256(b)
 	return hex.EncodeToString(sum[:])
+}
+
+func TestEstimateInstallSecondsAt(t *testing.T) {
+	tests := []struct {
+		name        string
+		sizeMB      int
+		mbPerSecond int
+		want        int
+	}{
+		{name: "unknown size", sizeMB: 0, mbPerSecond: 20, want: 0},
+		{name: "default throughput", sizeMB: 30, mbPerSecond: 0, want: 2},
+		{name: "minimum nonzero eta", sizeMB: 4, mbPerSecond: 20, want: 1},
+		{name: "custom measured throughput", sizeMB: 120, mbPerSecond: 30, want: 4},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := EstimateInstallSecondsAt(tt.sizeMB, tt.mbPerSecond); got != tt.want {
+				t.Fatalf("EstimateInstallSecondsAt(%d, %d) = %d, want %d", tt.sizeMB, tt.mbPerSecond, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestEstimateInstallSecondsDefault(t *testing.T) {
+	if got := EstimateInstallSeconds(30); got != 2 {
+		t.Fatalf("EstimateInstallSeconds(30) = %d, want 2", got)
+	}
+}
+
+func TestInstallStoreListAndDelete(t *testing.T) {
+	ctx := context.Background()
+	st := NewInstallStore(newStateDB(t))
+	at := time.Date(2026, 6, 20, 12, 0, 0, 0, time.UTC)
+	records := []InstallRecord{
+		{ID: "b", Installed: true, Path: "/models/b", Checksum: "sum-b", SizeBytes: 20, InstalledAt: at},
+		{ID: "a", Installed: true, Path: "/models/a", Checksum: "sum-a", SizeBytes: 10, InstalledAt: at},
+	}
+	for _, rec := range records {
+		if err := st.Set(ctx, rec); err != nil {
+			t.Fatalf("set %s: %v", rec.ID, err)
+		}
+	}
+	list, err := st.List(ctx)
+	if err != nil {
+		t.Fatalf("list installs: %v", err)
+	}
+	if len(list) != 2 || list[0].ID != "a" || list[1].ID != "b" {
+		t.Fatalf("installs should be ordered by id, got %+v", list)
+	}
+	if !list[0].InstalledAt.Equal(at) {
+		t.Fatalf("installed_at round trip mismatch: %v", list[0].InstalledAt)
+	}
+	if err := st.Delete(ctx, "a"); err != nil {
+		t.Fatalf("delete install: %v", err)
+	}
+	if _, ok, err := st.Get(ctx, "a"); err != nil || ok {
+		t.Fatalf("deleted install still present: ok=%v err=%v", ok, err)
+	}
+}
+
+func TestCustomStoreListUpsertAndDelete(t *testing.T) {
+	ctx := context.Background()
+	st := NewCustomStore(newStateDB(t))
+	first := Model{ID: "custom-a", Name: "A", Operations: []string{"upscale"}, Tier: TierNiceToHave, Backend: "onnxruntime", Hardware: Hardware{CPUCapable: true}}
+	second := first
+	second.Name = "A2"
+	if err := st.Add(ctx, first); err != nil {
+		t.Fatalf("add custom: %v", err)
+	}
+	if err := st.Add(ctx, second); err != nil {
+		t.Fatalf("upsert custom: %v", err)
+	}
+	list, err := st.List(ctx)
+	if err != nil {
+		t.Fatalf("list custom: %v", err)
+	}
+	if len(list) != 1 || list[0].Name != "A2" {
+		t.Fatalf("custom list after upsert = %+v", list)
+	}
+	if err := st.Delete(ctx, "custom-a"); err != nil {
+		t.Fatalf("delete custom: %v", err)
+	}
+	list, err = st.List(ctx)
+	if err != nil {
+		t.Fatalf("list after delete: %v", err)
+	}
+	if len(list) != 0 {
+		t.Fatalf("custom list after delete = %+v", list)
+	}
+}
+
+func TestInstallerResolveCustomAndMissing(t *testing.T) {
+	ctx := context.Background()
+	f := newInstallFixture(t)
+	m, err := f.in.Resolve(ctx, installTestModelID)
+	if err != nil {
+		t.Fatalf("resolve custom: %v", err)
+	}
+	if m.ID != installTestModelID {
+		t.Fatalf("resolved model id = %q", m.ID)
+	}
+	if _, err := f.in.Resolve(ctx, "missing-model"); !errors.Is(err, ErrModelNotFound) {
+		t.Fatalf("expected ErrModelNotFound, got %v", err)
+	}
 }
 
 // TestInstall_DownloadsPinsChecksumAndRecords proves the happy path: a seed model
@@ -217,6 +324,22 @@ func TestAddCustom_RoundTripAndLocalInstall(t *testing.T) {
 	}
 }
 
+func TestAddCustomValidationErrors(t *testing.T) {
+	ctx := context.Background()
+	f := newInstallFixture(t)
+	withoutStore := *f.in
+	withoutStore.Custom = nil
+	if err := withoutStore.AddCustom(ctx, Model{ID: "x"}); err == nil {
+		t.Fatal("expected unavailable custom store error")
+	}
+	if err := f.in.AddCustom(ctx, Model{}); err == nil {
+		t.Fatal("expected empty custom id error")
+	}
+	if err := f.in.AddCustom(ctx, Model{ID: "missing-local", Source: Source{LocalPath: filepath.Join(t.TempDir(), "missing.bin")}}); !errors.Is(err, ErrLocalPathMissing) {
+		t.Fatalf("expected ErrLocalPathMissing, got %v", err)
+	}
+}
+
 // TestInstall_WeightlessModelsAlwaysInstalled proves weightless models
 // (RequiresWeights == false) are reported installed without any download, and
 // Install no-ops to an installed record. This is what lets deterministic and
@@ -246,5 +369,49 @@ func TestInstall_WeightlessModelsAlwaysInstalled(t *testing.T) {
 				t.Fatalf("weightless model must not download anything; got %d downloads", f.downloads)
 			}
 		})
+	}
+}
+
+func TestHTTPDownloaderStreamsAndReportsProgress(t *testing.T) {
+	body := []byte("download-body")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", "13")
+		_, _ = w.Write(body)
+	}))
+	t.Cleanup(srv.Close)
+
+	var calls int
+	var finalDone, finalTotal int64
+	dest := filepath.Join(t.TempDir(), "model.bin")
+	err := HTTPDownloader{Client: srv.Client()}.Download(context.Background(), srv.URL+"/model.bin", dest, func(done, total int64) {
+		calls++
+		finalDone = done
+		finalTotal = total
+	})
+	if err != nil {
+		t.Fatalf("download: %v", err)
+	}
+	got, err := os.ReadFile(dest)
+	if err != nil {
+		t.Fatalf("read downloaded file: %v", err)
+	}
+	if !bytes.Equal(got, body) {
+		t.Fatalf("downloaded body = %q, want %q", got, body)
+	}
+	if calls == 0 || finalDone != int64(len(body)) || finalTotal != int64(len(body)) {
+		t.Fatalf("progress calls=%d done=%d total=%d", calls, finalDone, finalTotal)
+	}
+}
+
+func TestHTTPDownloaderRejectsBadRequestAndStatus(t *testing.T) {
+	dest := filepath.Join(t.TempDir(), "model.bin")
+	if err := (HTTPDownloader{}).Download(context.Background(), "://bad-url", dest, nil); err == nil {
+		t.Fatal("expected invalid URL error")
+	}
+
+	srv := httptest.NewServer(http.NotFoundHandler())
+	t.Cleanup(srv.Close)
+	if err := (HTTPDownloader{Client: srv.Client()}).Download(context.Background(), srv.URL, dest, nil); err == nil {
+		t.Fatal("expected non-200 status error")
 	}
 }

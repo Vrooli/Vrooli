@@ -115,3 +115,31 @@ func TestFallbackCounted(t *testing.T) {
 		t.Fatalf("fallback count = %d, want 1", stats[0].FallbackCount)
 	}
 }
+
+func TestRecordJobTracePersistsStructuredFacts(t *testing.T) {
+	ctx := context.Background()
+	r := newRecorder(t)
+	trace := JobTrace{
+		JobID:       "job-1",
+		Operation:   "text_to_image",
+		ModelID:     "sd-1.5",
+		Backend:     "stable-diffusion.cpp",
+		Tier:        "local-gpu",
+		Lane:        "gpu",
+		State:       "succeeded",
+		DurationMS:  812,
+		QueueWaitMS: 24,
+		ResultRef:   "out/1.png",
+	}
+	if err := r.RecordJobTrace(ctx, trace); err != nil {
+		t.Fatalf("record trace: %v", err)
+	}
+
+	got, err := r.JobTraceByID(ctx, "job-1")
+	if err != nil {
+		t.Fatalf("get trace: %v", err)
+	}
+	if got != trace {
+		t.Fatalf("trace = %+v, want %+v", got, trace)
+	}
+}

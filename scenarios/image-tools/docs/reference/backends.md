@@ -7,8 +7,8 @@ metadata, …) and `analyze probe` are pure-Go and need **none** of this.
 
 ## How an AI op becomes runnable
 
-Two independent things must be present, and the selector reports them
-distinctly:
+A backend program and model weights must both be present, and the selector
+reports them distinctly:
 
 1. **A backend program** — the engine that runs the model. The selector probes
    "is the program on PATH?" (`Provider.Available`).
@@ -20,6 +20,9 @@ A backend present but weights missing → `models install` hint. Weights present
 but backend program missing → "no available provider" / enable BYOK. Both must
 line up. The tier label (`local-gpu` / `local-cpu` / `byok-cloud`) reflects where
 the op *actually* ran — a CPU-only backend reports `local-cpu` even on a GPU host.
+GPU fit is based on live **free** VRAM from `vrooli host inventory --json`, not
+adapter total VRAM, so a busy shared GPU falls back to CPU instead of being
+optimistically scheduled into an OOM.
 
 Run the backend doctor before an attended AI run:
 
@@ -40,19 +43,57 @@ backend actually probeable/executable on this host?".
 
 | Backend | Program | Ops | GPU-capable | Management decision |
 |---|---|---|---|---|
-| `onnxruntime` (sidecar) | `python3` + onnxruntime | `background_removal`, `denoise`, `colorize`, `depth_map` | no (CPU) | Embedded sidecar code; Python runtime deps managed through Scenario Dependency Analyzer (SDA). |
-| `python-sidecar` | `python3` modules | restoration/color/depth quality tiers | mixed | Embedded sidecar pattern; Python runtime deps managed through SDA before enabling a vertical. |
+| `onnxruntime` (sidecar) | `python3` + onnxruntime | `background_removal`, `denoise`, `deblur`, `colorize`, `depth_map`, `object_detection`, `segment`, `tagging`, `nsfw_classify`, `embedding` | no (CPU) | Embedded sidecar code; Python runtime deps managed through Scenario Dependency Analyzer (SDA). The provider probes ONNX Runtime execution providers and requires `CPUExecutionProvider`; `CUDAExecutionProvider` presence is reported in doctor output, but this row stays CPU-labeled until a separate GPU-capable ONNX provider is promoted. The provider prefers the warm JSONL worker and falls back to one-shot `python3 -m image_tools_sidecar.<op>` if the worker dies. |
+| `python-sidecar` | `python3` modules | `colorize`, `face_restore`, `old_photo_restore` | no (CPU for registered rows) | Registered embedded sidecar providers. `colorize` uses the ONNX/Pillow/numpy sidecar path; restoration probes the heavier RestoreFormer++ stack (`torch`, `basicsr`, `facexlib`) and stays red until provisioned through SDA. |
 | `diffusers` (sidecar) | `python3` + diffusers | `edit_instruct`, `inpaint`, `outpaint`, `background_replace` | yes | Embedded sidecar pattern; `diffusers`/`torch` runtime deps managed through SDA. |
 | `stable-diffusion.cpp` | `sd` | `text_to_image`, `image_to_image` | yes | Standalone binary managed through SDA / host-tool provisioning. |
 | `iopaint` | `iopaint` | `object_removal` | yes (`--device cuda`) | Standalone CLI managed through SDA. |
 | `llama.cpp` | `llama-mtmd-cli` / compatible `llama-cli` | `caption` | yes | Registered runtime provider; standalone multimodal llama.cpp binary managed through SDA before caption E2E is promoted. |
-| `rembg` | `rembg` | `background_removal` (alt) | no (CPU) | Optional standalone CLI managed through SDA; ONNX sidecar remains the CPU floor. |
-| `realesrgan-ncnn-vulkan` | `realesrgan-ncnn-vulkan` | `upscale` | yes (Vulkan) | Standalone ncnn-vulkan release binary managed through SDA / host-tool provisioning. |
+| `rembg` | `rembg` | `background_removal` (alt), `background_replace` (solid-color replace) | no (CPU) | Optional standalone CLI managed through SDA; ONNX sidecar remains the CPU floor for removal. |
+| `realesrgan-ncnn-vulkan` | `realesrgan-ncnn-vulkan` | `upscale`, `denoise` (`-dn` mode) | yes (Vulkan) | Standalone ncnn-vulkan release binary managed through SDA / host-tool provisioning. |
 | `realcugan-ncnn-vulkan` | `realcugan-ncnn-vulkan` | anime upscale variants | yes (Vulkan) | Standalone ncnn-vulkan release binary managed through SDA before enabling. |
 | `builtin` | in-process Go | `naturalize` | no (CPU) | Shipped in the API binary; no provisioning. |
 | `computed` | in-process math | `normal_map`, `quality_assessment` | no (CPU) | Registered runtime provider shipped in the API binary; no provisioning. |
 | `library-go` | linked Go library | `duplicate_detect`, `qr_barcode_read` | no (CPU) | Registered runtime provider shipped in the API binary; no model weights. |
 | `library-cgo` | host C/C++ library / binary | `ocr`, `face_detection` | no (CPU) | Registered Tesseract OCR and OpenCV YuNet providers; host binaries/libraries/data are managed through SDA. |
+
+## Operation Support Matrix
+
+This matrix is the operator lookup for the enabled default path of each
+model-backed or AI-adjacent operation. It mirrors the seed catalog's
+`default_for` rows and should be updated in the same change as any default model
+or backend reassignment.
+
+| Operation | Default model | Backend | Tier | Host requirement |
+|---|---|---|---|---|
+| `background_removal` | `isnet-general-use` | `onnxruntime` | `default` | `python3` with `onnxruntime`, Pillow, and numpy; CPU-capable. |
+| `background_replace` | `birefnet-general` | `rembg` | `quality` | `rembg` CLI; CPU-capable but GPU preferred for throughput. |
+| `caption` | `moondream2` | `llama.cpp` | `default` | `llama-mtmd-cli` or compatible multimodal `llama-cli`; CPU-capable GGUF path. |
+| `colorize` | `ddcolor-tiny` | `python-sidecar` | `default` | Embedded sidecar plus ONNX/Pillow/numpy runtime; CPU-capable. |
+| `deblur` | `nafnet` | `onnxruntime` | `default` | Embedded ONNX sidecar; CPU-capable, GPU preferred for large images. |
+| `denoise` | `dncnn` | `onnxruntime` | `default` | Embedded ONNX sidecar; CPU-capable. |
+| `depth_map` | `depth-anything-v2-small` | `onnxruntime` | `default` | Embedded ONNX sidecar; CPU-capable. |
+| `duplicate_detect` | `goimagehash` | `library-go` | `default` | In-process pure Go; no host provisioning. |
+| `edit_instruct` | `instruct-pix2pix` | `diffusers` | `default` | `python3` with diffusers/torch/Pillow; GPU recommended, CPU-capable but slow. |
+| `embedding` | `nomic-embed-vision-v1.5` | `onnxruntime` | `default` | Embedded ONNX sidecar; CPU-capable. |
+| `face_detection` | `yunet` | `library-cgo` | `default` | `python3` with OpenCV (`cv2`) and numpy; CPU-capable. |
+| `face_restore` | `restoreformer-plus-plus` | `python-sidecar` | `default` | RestoreFormer++ Python stack (`torch`, `basicsr`, `facexlib`, Pillow, numpy); GPU-oriented, CPU slow. |
+| `image_to_image` | `sd-1.5` | `stable-diffusion.cpp` | `default` | `sd` binary; CPU-capable, GPU recommended. |
+| `inpaint` | `sd-1.5-inpainting` | `diffusers` | `default` | `python3` with diffusers/torch/Pillow; GPU recommended, CPU-capable but slow. |
+| `naturalize` | `naturalize-detail-v1` | `builtin` | `default` | In-process Go; no weights or host provisioning. |
+| `normal_map` | `normals-from-depth` | `computed` | `default` | In-process Go math; no weights or host provisioning. |
+| `nsfw_classify` | `adamcodd-vit-nsfw` | `onnxruntime` | `default` | Embedded ONNX sidecar; CPU-capable. |
+| `object_detection` | `yolox-tiny` | `onnxruntime` | `default` | Embedded ONNX sidecar; CPU-capable. |
+| `object_removal` | `mi-gan` | `iopaint` | `default` | `iopaint` CLI; CPU-capable, GPU recommended. |
+| `ocr` | `tesseract` | `library-cgo` | `default` | Tesseract binary and language data; CPU-capable. |
+| `old_photo_restore` | `restoreformer-plus-plus` | `python-sidecar` | `default` | RestoreFormer++ Python stack plus composed restoration pipeline; GPU-oriented, CPU slow. |
+| `outpaint` | `sd-1.5-inpainting` | `diffusers` | `default` | `python3` with diffusers/torch/Pillow; GPU recommended, CPU-capable but slow. |
+| `qr_barcode_read` | `gozxing` | `library-go` | `default` | In-process pure Go; no host provisioning. |
+| `quality_assessment` | `laplacian-blur` | `computed` | `default` | In-process Go analysis; no weights or host provisioning. |
+| `segment` | `mobilesam` | `onnxruntime` | `default` | Embedded ONNX sidecar; CPU-capable. |
+| `tagging` | `wd14-vit-v3` | `onnxruntime` | `default` | Embedded ONNX sidecar; CPU-capable. |
+| `text_to_image` | `sd-1.5` | `stable-diffusion.cpp` | `default` | `sd` binary; CPU-capable, GPU recommended. |
+| `upscale` | `real-esrgan` | `realesrgan-ncnn-vulkan` | `default` | `realesrgan-ncnn-vulkan` binary on a Vulkan-capable host; provision through SDA. |
 
 > Status (2026-06-19): Phase 1 catalog hardening has direct install assets for
 > every enabled weight-backed seed model. The final migrated slice added
@@ -66,15 +107,18 @@ backend actually probeable/executable on this host?".
 > `backends doctor` reports software readiness for registered runtime providers
 > (`stable-diffusion.cpp`, `diffusers`, `iopaint`, `realesrgan-ncnn-vulkan`,
 > `rembg`, `onnxruntime`, `llama.cpp`, `builtin`, `computed`, `library-go`,
-> `library-cgo`) and
+> `library-cgo`, `python-sidecar`) and
 > also emits red rows for enabled catalog-declared backend operations with no
-> runtime provider yet (currently `python-sidecar`, plus operation-level gaps
-> under otherwise registered families such as `onnxruntime`
-> classifiers/detectors, `realesrgan-ncnn-vulkan` `denoise`, and `rembg`
-> `background_replace`).
+> runtime provider yet.
 > Selection errors include the same provisioning details for registered
 > providers; the declared-but-unregistered rows become green as their operation
-> verticals are promoted.
+> verticals are promoted. The latest promotions add embedded ONNX sidecars for
+> `deblur`, `object_detection`, `segment`, `tagging`, `nsfw_classify`, and
+> `embedding`, registered operation coverage for `realesrgan-ncnn-vulkan`
+> `denoise` and `rembg` `background_replace`, and a registered
+> `python-sidecar` row for `colorize`, `face_restore`, and
+> `old_photo_restore`. RestoreFormer++ restoration still requires SDA-managed
+> Python packages before its E2E vertical can turn green.
 
 > Status (2026-06-19): The first in-process Phase 2 promotion is complete.
 > `computed` now has a CPU provider for `normal_map` (depth/luma to normal-map
@@ -84,6 +128,65 @@ backend actually probeable/executable on this host?".
 > QR/barcode read is a registered lightweight seam pending the full decoder
 > vertical. These rows require no host provisioning and should report available
 > in `image-tools backends doctor`.
+
+> Status (2026-06-19): Phase 3 golden-contract coverage has started with the
+> no-provisioning CPU rows. Tests now pin structural contracts for `normal_map`
+> (PNG, dimensions, opaque alpha, Z-dominant normal channels, nonblank X
+> gradients), `quality_assessment` (stable flat-fixture metrics and JSON field
+> shape), and `duplicate_detect` (stable checker-fixture hashes and JSON field
+> shape). The embedded ONNX sidecar also has structural helper contracts for
+> background-removal normalization families, ImageNet preprocessing for
+> depth/tagging/embedding/NSFW models, generic [0,1] tensor preprocessing for
+> detection/segmentation, depth scaling, segmentation masks, detector box
+> normalization, color/deblur output shaping, tag sigmoid scoring, and NSFW
+> payload labeling. Remaining model-backed sidecars still need full
+> fixture-backed E2E golden gates as their weights/provisioning become runnable.
+
+> Status (2026-06-20): Phase 4 warm-sidecar hardening has started for the
+> `onnxruntime` backend. Production ONNX sidecar calls now prefer a persistent
+> `image_tools_sidecar.worker` JSONL process, and `_common.make_session()` caches
+> ONNX Runtime sessions by model path inside that process so repeated requests do
+> not pay model-load cost every time. The existing one-shot sidecar path remains
+> the fallback when the worker exits or cannot start; this is an internal
+> reliability fallback, not a compatibility surface. Runtime performance levers
+> are now explicit: `IMAGE_TOOLS_CPU_WORKERS` bounds CPU-lane concurrency and
+> `IMAGE_TOOLS_INSTALL_MB_PER_SECOND` tunes model-install ETA math without
+> changing download behavior. A synthetic warm-worker benchmark now records the
+> control result in `docs/internal/PERFORMANCE.md`: one-shot Python sidecar calls
+> measured 46.2 ms/op versus 4.3 ms/op through the warm JSONL worker on
+> 2026-06-20, using `go test ./internal/ai -run '^$' -bench
+> 'BenchmarkWarmSidecarRunner_AmortizesModuleLoad' -benchtime=10x -count=1`.
+
+> Status (2026-06-20): Phase 5 observability hardening has started. Every
+> finalized durable job now records a structured `job_trace` row with operation,
+> model id, backend, tier, lane, terminal state, queue wait, run duration, result
+> ref, and error detail. AI submit payloads carry the selected backend/tier so
+> traces and aggregate measures no longer need to infer those facts from logs.
+
+> Status (2026-06-20): Phase 6 GPU-selection hardening has started. Model
+> hardware fit now compares `min_vram_gb` to the best known **free** VRAM from
+> the shared host-inventory probe (`vram_bytes - vram_used_bytes`), not total
+> adapter VRAM. If another process is occupying the GPU, image-tools chooses a
+> CPU-capable tier and emits a free-VRAM shortfall warning instead of claiming
+> `local-gpu`. The ONNX sidecar decision is also now explicit: `backends doctor`
+> reports the actual ONNX Runtime execution providers from host Python. On this
+> host the probe reports `AzureExecutionProvider,CPUExecutionProvider`, not
+> `CUDAExecutionProvider`, so ONNX jobs are honestly labeled `local-cpu`. GPU E2E
+> should use the GPU-capable `diffusers`, `stable-diffusion.cpp`, `iopaint`, or
+> ncnn-vulkan rows after SDA-managed runtime provisioning is present; a future
+> ONNX GPU row should only be promoted once `CUDAExecutionProvider` is available
+> and tested. `make gpu-e2e` is the attended Phase 6 proof gate for the
+> `stable-diffusion.cpp` text-to-image path: it verifies free-VRAM fit and
+> backend readiness, installs the selected model if needed, then runs a small
+> `ai generate --wait` job. On unprovisioned hosts it exits as a documented skip
+> with the missing backend detail rather than claiming a green GPU run.
+
+> Status (2026-06-20): A no-download headless AI E2E gate now complements the
+> attended GPU gate. `make headless-ai-e2e` generates a local PNG fixture and
+> exercises `analyze probe`, `analyze quality`, `analyze duplicate`, `ai
+> naturalize --wait`, and `ai normal-map --wait` through the public CLI. This
+> proves the built-in/computed/library-Go model-lifecycle paths stay runnable on
+> a clean local host without model downloads or external AI packages.
 
 > Status (2026-06-19): `llama.cpp` is promoted to a registered caption backend.
 > The provider probes `llama-mtmd-cli` first, then compatible `llama-cli`
@@ -115,6 +218,13 @@ materializes it under `<data-dir>/sidecar/` and prepends that directory to
 `PYTHONPATH`, so `python3 -m image_tools_sidecar.<op>` resolves regardless of the
 working directory. You do **not** install the sidecar code separately.
 
+For ONNX Runtime operations, the Go provider starts
+`python3 -m image_tools_sidecar.worker` and sends one JSON request per line. The
+worker invokes the same module entrypoints as the one-shot path but keeps the
+process alive, allowing ONNX sessions to be cached per model path. If the worker
+crashes or a request context is cancelled, the provider restarts on the next
+request and falls back to the one-shot command for the failed request.
+
 What you *do* provision is the Python runtime it imports. Use Scenario
 Dependency Analyzer rather than a raw package manager; the package names below
 are the runtime requirements the SDA action should install/approve for this
@@ -128,9 +238,15 @@ scenario-dependency-analyzer deps install pip/numpy --scenario image-tools --sur
 
 `bg_removal.py` runs a U^2-Net / IS-Net family ONNX model on
 `CPUExecutionProvider` and writes an RGBA PNG (subject over transparency).
-`denoise.py` is a classical Pillow denoise (no model needed). If a dependency is
-missing the sidecar exits non-zero with an actionable message (the job error
-surfaces it) — it never silently succeeds.
+`deblur.py` runs image-to-image restoration exports such as NAFNet and writes an
+RGB PNG. `detect.py` writes normalized bounding-box JSON for YOLOX-like detector
+exports. `segment.py` writes a single-channel PNG mask for generic mask-output
+ONNX exports and MobileSAM-style encoder/decoder directories. `tagging.py`
+writes tag-score JSON; when no model-specific label asset is installed it emits
+stable anonymous tag ids rather than pretending to know a vocabulary.
+`denoise.py` is a classical Pillow denoise (no model needed). If a
+dependency is missing the sidecar exits non-zero with an actionable message (the
+job error surfaces it) — it never silently succeeds.
 
 ## Model weights & artifact validation
 

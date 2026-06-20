@@ -86,6 +86,7 @@ func (h *handlers) submitCommands() []cliapp.Command {
 		cmd("denoise", "denoise", "Reduce noise / deblur an image", true, false),
 		cmd("colorize", "colorize", "Add realistic colour to a grayscale / black-and-white image", true, false),
 		cmd("depth", "depth_map", "Estimate a per-pixel depth map from a single image", true, false),
+		cmd("normal-map", "normal_map", "Convert image luminance/depth into a tangent-space normal map", true, false),
 		cmd("naturalize", "naturalize", "Reintroduce realistic texture/grain to an over-smoothed (restored/upscaled) image", true, false,
 			cliapp.Flag{Name: "realism", Description: "Fidelity↔realism knob 0..1 (default 0.5)"},
 			cliapp.Flag{Name: "face-aware", Bool: true, Description: "Bias texture/grain toward midtone (skin) regions"}),

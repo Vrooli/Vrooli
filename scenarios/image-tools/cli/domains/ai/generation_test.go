@@ -22,7 +22,7 @@ import (
 // IMG-P0-002/003 + IMG-P1-001/002 require).
 func TestSubmitCommandsCoverP0(t *testing.T) {
 	h := newHandlers(nil) // submitCommands only captures h in closures; not invoked here
-	want := []string{"background-replace", "bg-removal", "colorize", "denoise", "depth", "edit", "generate", "img2img", "inpaint", "naturalize", "object-removal", "outpaint", "upscale"}
+	want := []string{"background-replace", "bg-removal", "colorize", "denoise", "depth", "edit", "generate", "img2img", "inpaint", "naturalize", "normal-map", "object-removal", "outpaint", "upscale"}
 	got := make([]string, 0)
 	for _, c := range h.submitCommands() {
 		if c.RunCtx == nil {

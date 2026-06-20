@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	internalai "image-tools/internal/ai"
@@ -45,6 +46,48 @@ import (
 
 	internalstorage "image-tools/internal/storage"
 )
+
+const (
+	cpuWorkersEnv         = "IMAGE_TOOLS_CPU_WORKERS"
+	installMBPerSecondEnv = "IMAGE_TOOLS_INSTALL_MB_PER_SECOND"
+	defaultCPUWorkers     = 4
+	minCPUWorkers         = 1
+	maxCPUWorkers         = 32
+	minInstallMBPerSecond = 1
+	maxInstallMBPerSecond = 10000
+)
+
+type runtimeConfig struct {
+	CPUWorkers         int
+	InstallMBPerSecond int
+}
+
+func loadRuntimeConfig() (runtimeConfig, error) {
+	cpuWorkers, err := intFromEnv(cpuWorkersEnv, defaultCPUWorkers, minCPUWorkers, maxCPUWorkers)
+	if err != nil {
+		return runtimeConfig{}, err
+	}
+	installMBPerSecond, err := intFromEnv(installMBPerSecondEnv, internalmodels.DefaultInstallMBPerSecond, minInstallMBPerSecond, maxInstallMBPerSecond)
+	if err != nil {
+		return runtimeConfig{}, err
+	}
+	return runtimeConfig{CPUWorkers: cpuWorkers, InstallMBPerSecond: installMBPerSecond}, nil
+}
+
+func intFromEnv(name string, def, min, max int) (int, error) {
+	raw := strings.TrimSpace(os.Getenv(name))
+	if raw == "" {
+		return def, nil
+	}
+	v, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0, fmt.Errorf("%s must be an integer: %w", name, err)
+	}
+	if v < min || v > max {
+		return 0, fmt.Errorf("%s must be between %d and %d", name, min, max)
+	}
+	return v, nil
+}
 
 // sqliteDSN resolves the SQLite database file path and wraps it in a DSN
 // with the canonical pragma string. Resolution order:
@@ -125,6 +168,43 @@ func jobQueueMS(j internaljobs.Job) int64 {
 	return j.StartedAt.Sub(j.CreatedAt).Milliseconds()
 }
 
+func jobSampleAndTrace(j internaljobs.Job) (internalmeasures.Sample, internalmeasures.JobTrace) {
+	durationMS := jobDurationMS(j)
+	queueMS := jobQueueMS(j)
+	sample := internalmeasures.Sample{
+		Operation:   j.Operation,
+		State:       string(j.State),
+		DurationMS:  durationMS,
+		QueueWaitMS: queueMS,
+	}
+	trace := internalmeasures.JobTrace{
+		JobID:       j.ID,
+		Operation:   j.Operation,
+		Lane:        string(j.Lane),
+		State:       string(j.State),
+		DurationMS:  durationMS,
+		QueueWaitMS: queueMS,
+		ResultRef:   j.ResultRef,
+		Error:       j.Error,
+	}
+
+	var payload internalai.Payload
+	if err := json.Unmarshal(j.Payload, &payload); err == nil {
+		if payload.Operation != "" {
+			sample.Operation = payload.Operation
+			trace.Operation = payload.Operation
+		}
+		sample.ModelID = payload.ModelID
+		sample.Tier = payload.Tier
+		sample.FallbackUsed = payload.GPU && payload.Tier != "" && payload.Tier != backends.TierLocalGPU.String()
+		trace.ModelID = payload.ModelID
+		trace.Backend = payload.Backend
+		trace.Tier = payload.Tier
+	}
+
+	return sample, trace
+}
+
 func main() {
 	// Preflight checks must run first so the binary can re-exec itself
 	// after a stale-source rebuild before any listeners are opened.
@@ -158,6 +238,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("model registry load failed: %v", err)
 	}
+	runtimeCfg, err := loadRuntimeConfig()
+	if err != nil {
+		log.Fatalf("runtime configuration failed: %v", err)
+	}
 	probe := capabilities.NewCLIProbe()
 
 	// The durable job Manager runs under a server-lifetime context so a client
@@ -172,17 +256,16 @@ func main() {
 	// under the server-lifetime context so it is independent of any caller.
 	measureRec := internalmeasures.NewRecorder(db)
 	jobManager := internaljobs.New(db, internaljobs.Config{
-		Runner: dispatcher.Run,
-		Clock:  clock.System{},
+		Runner:     dispatcher.Run,
+		Clock:      clock.System{},
+		CPUWorkers: runtimeCfg.CPUWorkers,
 		OnComplete: func(job internaljobs.Job) {
-			sample := internalmeasures.JobLike{
-				Operation:  job.Operation,
-				State:      string(job.State),
-				DurationMS: jobDurationMS(job),
-				QueueMS:    jobQueueMS(job),
-			}
-			if err := measureRec.Observe(jobCtx, sample); err != nil {
+			sample, trace := jobSampleAndTrace(job)
+			if err := measureRec.Record(jobCtx, sample); err != nil {
 				log.Printf("measures: observe job %s: %v", job.ID, err)
+			}
+			if err := measureRec.RecordJobTrace(jobCtx, trace); err != nil {
+				log.Printf("measures: trace job %s: %v", job.ID, err)
 			}
 		},
 	})
@@ -328,7 +411,9 @@ func main() {
 		diffH.Module(blobStore, jobManager, log.Default()),
 		jobsH.Module(jobManager, log.Default()),
 		looksH.Module(db, blobStore, log.Default()),
-		modelsH.Module(db, registry, probe, installer, backendReg, jobManager, log.Default()),
+		modelsH.Module(db, registry, probe, installer, backendReg, jobManager, func(sizeMBApprox int) int {
+			return internalmodels.EstimateInstallSecondsAt(sizeMBApprox, runtimeCfg.InstallMBPerSecond)
+		}, log.Default()),
 		opsH.Module(blobStore, jobManager, log.Default()),
 		safetyH.Module(deployTier),
 		selectionH.Module(blobStore, jobManager, log.Default()),

@@ -8,6 +8,8 @@ import argparse
 import sys
 from typing import Tuple
 
+_SESSION_CACHE = {}
+
 
 def parse_io_args(description: str) -> argparse.Namespace:
     """Standard --model/--image/--out argument set shared by every op."""
@@ -60,10 +62,14 @@ def resolve_onnx_path(model_arg: str) -> str:
 
 
 def make_session(onnx_path: str):
-    """Create a CPU onnxruntime InferenceSession."""
+    """Create or reuse a CPU onnxruntime InferenceSession."""
+    if onnx_path in _SESSION_CACHE:
+        return _SESSION_CACHE[onnx_path]
     _np, ort, _Image = require_deps()
     try:
-        return ort.InferenceSession(onnx_path, providers=["CPUExecutionProvider"])
+        session = ort.InferenceSession(onnx_path, providers=["CPUExecutionProvider"])
+        _SESSION_CACHE[onnx_path] = session
+        return session
     except Exception as exc:  # noqa: BLE001 - surface any load error actionably
         fail(f"failed to load ONNX model {onnx_path!r}: {exc}", code=5)
         raise
