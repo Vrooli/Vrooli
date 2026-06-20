@@ -133,6 +133,27 @@ func BuildHandlers[C any](deps HandlerDeps[C]) map[CommandID]rootcli.Handler[C] 
 			},
 			RenderValidateEnvResponse,
 		),
+		CommandFreshness: bindGlobal(deps.Stdout,
+			func(ctx C, args []string) (FreshnessRequest, error) {
+				return ParseFreshnessRequest(deps.Globals(ctx).JSON, args)
+			},
+			func(ctx C, req FreshnessRequest) (cliout.Format, FreshnessResponse, error) {
+				format, err := deps.OutputFormat(ctx)
+				if err != nil {
+					return "", FreshnessResponse{}, err
+				}
+				runner, err := deps.LifecycleRunner(ctx)
+				if err != nil {
+					return "", FreshnessResponse{}, err
+				}
+				report, err := NewRunnerService(runner).Freshness(scenarioapp.FreshnessRequest{Name: req.Name, Path: req.Path, JSON: req.JSON})
+				if err != nil {
+					return format, FreshnessResponse{}, err
+				}
+				return format, FreshnessResponse{Report: report, Explain: req.Explain}, nil
+			},
+			RenderFreshnessResponse,
+		),
 		CommandRun: bindGlobal(deps.Stdout,
 			func(ctx C, args []string) (StartRequest, error) {
 				return ParseStartRequest(deps.Globals(ctx).JSON, args)

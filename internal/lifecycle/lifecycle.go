@@ -176,6 +176,36 @@ type hostProbeDeps struct {
 	getenv      func(string) string
 	userHomeDir func() (string, error)
 	walkDir     func(string, fs.WalkDirFunc) error
+	// goListJSON runs `go list -deps -json .` in dir and returns the raw JSON
+	// stream on stdout. It is the input-precision adapter seam: the freshness
+	// engine uses it to derive the exact import closure of a Go binary (only the
+	// packages it actually compiles), falling back to the static replace-dir walk
+	// when it is nil or returns an error. Tests inject canned JSON.
+	goListJSON func(dir string) ([]byte, error)
+	// goEnv resolves the named `go env` determinants to their effective values
+	// (toolchain defaults + overrides actually in effect), returning only keys
+	// with a non-empty value. It is the build-environment seam: the freshness
+	// engine keys output-determining vars (GOOS/GOARCH/CGO_ENABLED/…) so a
+	// byte-identical source tree cross-compiled or built with CGO flipped reads as
+	// stale. Unlike os.Getenv it reflects the value the toolchain will actually
+	// use (e.g. CGO_ENABLED=1 when unset). Returns an empty map when go is absent
+	// (omit-on-unknown). Tests inject canned values.
+	goEnv func(keys ...string) map[string]string
+	// nodeVersion returns the host Node.js major version (e.g. "20"), empty when
+	// node is absent. Keyed into the ui-bundle digest because Vite/esbuild output
+	// can differ across Node majors from identical source. Tests inject.
+	nodeVersion func() string
+	// recognizeArtifact is the OS artifact-recognition seam: given a stat'd path
+	// and its FileInfo, it reports capability-flagged evidence of whether the path
+	// is a runnable compiled build artifact (exec bit on Unix, executable
+	// extension on Windows). The freshness decision path consumes its evidence and
+	// degrades to "assume runnable" when the probe is unavailable, keeping
+	// runtime.GOOS out of decision logic. Tests inject canned evidence.
+	recognizeArtifact func(path string, info os.FileInfo) artifactEvidence
+	// volumeCaseEvidence reports whether the volume holding a path is
+	// case-insensitive, so manifest rel-path comparison can case-fold there. When
+	// unavailable it degrades to case-sensitive (correctness-safe). Tests inject.
+	volumeCaseEvidence func(path string) caseEvidence
 }
 
 func defaultLifecycleDeps() lifecycleDeps {
@@ -192,13 +222,35 @@ func defaultLifecycleDeps() lifecycleDeps {
 
 func defaultHostProbeDeps() hostProbeDeps {
 	return hostProbeDeps{
-		stat:        os.Stat,
-		readFile:    os.ReadFile,
-		lookPath:    exec.LookPath,
-		getenv:      os.Getenv,
-		userHomeDir: os.UserHomeDir,
-		walkDir:     filepath.WalkDir,
+		stat:               os.Stat,
+		readFile:           os.ReadFile,
+		lookPath:           exec.LookPath,
+		getenv:             os.Getenv,
+		userHomeDir:        os.UserHomeDir,
+		walkDir:            filepath.WalkDir,
+		goListJSON:         defaultGoListJSON,
+		goEnv:              defaultGoEnv,
+		nodeVersion:        defaultNodeVersion,
+		recognizeArtifact:  recognizeArtifact,
+		volumeCaseEvidence: hostVolumeCaseEvidence,
 	}
+}
+
+// defaultGoListJSON runs the Go toolchain's dependency lister for the package in
+// dir, matching how scenarios build (GOWORK=off). A bounded timeout keeps a wedged
+// toolchain from stalling a scenario start; on any failure the caller falls back
+// to the static input walk, so an error here is never fatal.
+func defaultGoListJSON(dir string) ([]byte, error) {
+	goBin, err := exec.LookPath("go")
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, goBin, "list", "-deps", "-json", ".")
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "GOWORK=off")
+	return cmd.Output()
 }
 
 type StartOptions struct {
@@ -396,7 +448,8 @@ func (r *Runner) startLocked(name string, opts StartOptions) (Result, error) {
 		"force_setup", opts.ForceSetup,
 	)
 	ready := make(map[string]struct{})
-	result, err := r.startWithState(name, opts, ready, nil)
+	setupCache := make(setupCheckCache)
+	result, err := r.startWithState(name, opts, ready, setupCache, nil)
 	if err != nil {
 		r.logError("Scenario start failed", err, logx.AttrScenario, name)
 		return Result{}, err
@@ -410,7 +463,7 @@ func (r *Runner) startLocked(name string, opts StartOptions) (Result, error) {
 	return result, nil
 }
 
-func (r *Runner) startWithState(name string, opts StartOptions, ready map[string]struct{}, stack []string) (Result, error) {
+func (r *Runner) startWithState(name string, opts StartOptions, ready map[string]struct{}, setupCache setupCheckCache, stack []string) (Result, error) {
 	item, err := r.loadScenario(name, opts.CustomPath)
 	if err != nil {
 		return Result{}, err
@@ -425,10 +478,10 @@ func (r *Runner) startWithState(name string, opts StartOptions, ready map[string
 	if err := scenario.ValidateManifestPorts(item.ServicePath, item.Manifest.Ports); err != nil {
 		return Result{}, err
 	}
-	return r.startScenario(item, opts, ready, stack)
+	return r.startScenario(item, opts, ready, setupCache, stack)
 }
 
-func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready map[string]struct{}, stack []string) (result Result, err error) {
+func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready map[string]struct{}, setupCache setupCheckCache, stack []string) (result Result, err error) {
 	deps := r.runtimeDeps()
 	cleanupOnError := false
 	runtimeSession := disabledRuntimeRegistrySession()
@@ -465,23 +518,25 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 			return Result{}, cleanErr
 		}
 	}
-	failedDeps, failedResources, err := r.bootstrapScenarioDependencies(item, opts, ready, stack)
+	failedDeps, failedResources, err := r.bootstrapScenarioDependencies(item, opts, ready, setupCache, stack)
 	if err != nil {
 		return Result{}, err
 	}
 
-	forceSetup := opts.ForceSetup && (opts.ForceSetupScenario == "" || opts.ForceSetupScenario == item.Slug)
+	forceSetup := forceSetupFor(opts, item.Slug)
 	registryView, err := r.lookupRegistryRuntime(context.Background(), item)
 	if err != nil {
 		return Result{}, err
 	}
 	if registryView.Authoritative {
-		setupNeeded, _, setupErr := r.SetupNeeded(item, forceSetup)
+		// Reuse is gated on FRESHNESS only (not provisioning): a healthy
+		// running instance is kept unless a binaries/ui-bundle check is stale.
+		freshnessStale, _, setupErr := r.freshnessStaleCached(item, forceSetup, setupCache)
 		if setupErr != nil {
 			return Result{}, setupErr
 		}
 		strictHealthy := r.isRegistryRuntimeHealthy(item, registryView)
-		if strictHealthy && !setupNeeded {
+		if strictHealthy && !freshnessStale {
 			health := scenario.EvaluateHealth(item.Manifest.HealthConfig(), registryView.Ports)
 			r.progressf("%s is already running", item.Slug)
 			r.logInfo("Scenario already running and healthy",
@@ -530,7 +585,7 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 	}
 	runtimeSession.injectEnv(env.EnvVars)
 
-	setupNeeded, _, err := r.SetupNeeded(item, forceSetup)
+	setupNeeded, _, err := r.setupNeededCached(item, forceSetup, setupCache)
 	if err != nil {
 		return Result{}, err
 	}
@@ -547,6 +602,11 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 		}); err != nil {
 			return Result{}, err
 		}
+		// Record the content-fingerprint manifest for every freshness-checked
+		// artifact now that setup has (re)built them. Subsequent checks become
+		// manifest-authoritative; the next freshness eval reads a stat-cache
+		// stamp instead of walking the source tree.
+		r.stampScenarioFreshness(item)
 		if err := runtimeSession.heartbeat(context.Background()); err != nil {
 			return Result{}, err
 		}
@@ -612,8 +672,8 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, ready 
 	return result, nil
 }
 
-func (r *Runner) bootstrapScenarioDependencies(item scenario.Scenario, opts StartOptions, ready map[string]struct{}, stack []string) ([]string, []string, error) {
-	failedDeps, err := r.ensureDependencies(item, opts, ready, append(stack, item.Slug))
+func (r *Runner) bootstrapScenarioDependencies(item scenario.Scenario, opts StartOptions, ready map[string]struct{}, setupCache setupCheckCache, stack []string) ([]string, []string, error) {
+	failedDeps, err := r.ensureDependencies(item, opts, ready, setupCache, append(stack, item.Slug))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1229,167 +1289,6 @@ func jsonPathExistsWithDeps(filePath, spec string, deps hostProbeDeps) (bool, er
 	return current != nil, nil
 }
 
-func binariesNeedSetup(appRoot string, check scenario.ConditionCheck) (bool, string, error) {
-	for _, target := range check.Targets {
-		path := resolveCheckPath(appRoot, target)
-		info, err := os.Stat(path)
-		if err != nil || info.Mode()&0o111 == 0 {
-			return true, "Missing binaries: " + strings.Join(check.Targets, ","), nil
-		}
-
-		binaryDir := filepath.Dir(path)
-		if anyFileNewer(binaryDir, path, func(path string, d fs.DirEntry) bool {
-			return strings.HasSuffix(path, ".go")
-		}) {
-			return true, "Missing binaries: " + strings.Join(check.Targets, ","), nil
-		}
-		for _, depFile := range []string{"go.mod", "go.sum"} {
-			depPath := filepath.Join(binaryDir, depFile)
-			if info, err := os.Stat(depPath); err == nil && info.ModTime().After(getModTime(path)) {
-				return true, "Missing binaries: " + strings.Join(check.Targets, ","), nil
-			}
-		}
-
-		replacePaths, err := localReplacePaths(filepath.Join(binaryDir, "go.mod"))
-		if err != nil {
-			return false, "", err
-		}
-		for _, replacePath := range replacePaths {
-			resolved := filepath.Join(binaryDir, replacePath)
-			if anyFileNewer(resolved, path, func(path string, d fs.DirEntry) bool {
-				return strings.HasSuffix(path, ".go") || filepath.Base(path) == "go.mod"
-			}) {
-				return true, "Missing binaries: " + strings.Join(check.Targets, ","), nil
-			}
-		}
-	}
-	return false, "", nil
-}
-
-func uiBundleNeedsSetup(appRoot string, check scenario.ConditionCheck) (bool, string, error) {
-	return uiBundleNeedsSetupWithDeps(appRoot, check, defaultHostProbeDeps())
-}
-
-func uiBundleNeedsSetupWithDeps(appRoot string, check scenario.ConditionCheck, deps hostProbeDeps) (bool, string, error) {
-	bundlePath := resolveCheckPath(appRoot, defaultIfEmpty(check.BundlePath, "ui/dist/index.html"))
-	sourceDir := resolveCheckPath(appRoot, defaultIfEmpty(check.SourceDir, "ui/src"))
-	if _, err := deps.stat(bundlePath); err != nil {
-		return true, "UI bundle outdated: " + defaultIfEmpty(check.BundlePath, "ui/dist/index.html"), nil
-	}
-
-	if anyFileNewerWithDeps(sourceDir, bundlePath, deps, func(path string, d fs.DirEntry) bool { return !d.IsDir() }) {
-		return true, "UI bundle outdated: " + defaultIfEmpty(check.BundlePath, "ui/dist/index.html"), nil
-	}
-
-	uiDir := filepath.Dir(filepath.Dir(bundlePath))
-	for _, file := range []string{"package.json", "vite.config.ts", "vite.config.js", "tsconfig.json", "index.html"} {
-		configPath := filepath.Join(uiDir, file)
-		if info, err := deps.stat(configPath); err == nil && info.ModTime().After(getModTimeWithDeps(bundlePath, deps)) {
-			return true, "UI bundle outdated: " + defaultIfEmpty(check.BundlePath, "ui/dist/index.html"), nil
-		}
-	}
-
-	watchDeps := true
-	if check.WatchFileDependencies != nil {
-		watchDeps = *check.WatchFileDependencies
-	}
-	if watchDeps {
-		packageJSON := filepath.Join(uiDir, "package.json")
-		specs, err := fileDependencySpecsWithDeps(packageJSON, deps)
-		if err != nil {
-			return false, "", err
-		}
-		excluded := make(map[string]struct{}, len(check.DependencyExcludes))
-		for _, path := range check.DependencyExcludes {
-			excluded[resolveCheckPath(uiDir, path)] = struct{}{}
-		}
-		for _, spec := range specs {
-			resolved := resolveCheckPath(uiDir, strings.TrimPrefix(spec, "file:"))
-			if _, skip := excluded[resolved]; skip {
-				continue
-			}
-			if _, err := deps.stat(resolved); err != nil {
-				return true, "UI bundle outdated: " + defaultIfEmpty(check.BundlePath, "ui/dist/index.html"), nil
-			}
-			if anyFileNewerWithDeps(resolved, bundlePath, deps, func(path string, d fs.DirEntry) bool {
-				return !d.IsDir() && !strings.Contains(path, string(filepath.Separator)+"node_modules"+string(filepath.Separator)) && !strings.Contains(path, string(filepath.Separator)+".git"+string(filepath.Separator))
-			}) {
-				return true, "UI bundle outdated: " + defaultIfEmpty(check.BundlePath, "ui/dist/index.html"), nil
-			}
-		}
-	}
-
-	return false, "", nil
-}
-
-func anyScenarioInputNewerWithDeps(appRoot string, inputs []string, targetPath string, deps hostProbeDeps) (bool, error) {
-	for _, input := range inputs {
-		input = strings.TrimSpace(input)
-		if input == "" {
-			continue
-		}
-		if hasGlobPattern(input) {
-			matches, err := filepath.Glob(filepath.Join(appRoot, filepath.FromSlash(input)))
-			if err != nil {
-				return false, err
-			}
-			for _, match := range matches {
-				newer, err := pathNewerThanTargetWithDeps(match, appRoot, targetPath, deps)
-				if err != nil {
-					return false, err
-				}
-				if newer {
-					return true, nil
-				}
-			}
-			continue
-		}
-		newer, err := pathNewerThanTargetWithDeps(resolveCheckPath(appRoot, input), appRoot, targetPath, deps)
-		if err != nil {
-			return false, err
-		}
-		if newer {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-func pathNewerThanTargetWithDeps(path, appRoot, targetPath string, deps hostProbeDeps) (bool, error) {
-	info, err := deps.stat(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return false, nil
-		}
-		return false, err
-	}
-	if !info.IsDir() {
-		return info.ModTime().After(getModTimeWithDeps(targetPath, deps)), nil
-	}
-	return anyFileNewerWithDeps(path, targetPath, deps, func(candidate string, d fs.DirEntry) bool {
-		rel, err := filepath.Rel(appRoot, candidate)
-		if err != nil {
-			return false
-		}
-		rel = filepath.ToSlash(rel)
-		return !shouldSkipLifecyclePath(rel)
-	}), nil
-}
-
-func shouldSkipLifecyclePath(path string) bool {
-	path = filepath.ToSlash(path)
-	for _, skip := range []string{".git", ".idea", ".vscode", "node_modules", "dist", "build", "coverage", "tmp", "data"} {
-		if path == skip || strings.HasPrefix(path, skip+"/") {
-			return true
-		}
-	}
-	return false
-}
-
-func hasGlobPattern(value string) bool {
-	return strings.ContainsAny(value, "*?[")
-}
-
 func resourcesNeedSetup(home, appRoot string, check scenario.ConditionCheck) bool {
 	locator, err := projectstate.NewLocator(home, appRoot)
 	if err != nil {
@@ -1469,10 +1368,6 @@ func directoriesNeedSetup(appRoot string, check scenario.ConditionCheck) bool {
 	return false
 }
 
-func localReplacePaths(goModPath string) ([]string, error) {
-	return localReplacePathsWithDeps(goModPath, defaultHostProbeDeps())
-}
-
 func localReplacePathsWithDeps(goModPath string, deps hostProbeDeps) ([]string, error) {
 	data, err := deps.readFile(goModPath)
 	if err != nil {
@@ -1519,25 +1414,32 @@ func localReplacePathsWithDeps(goModPath string, deps hostProbeDeps) ([]string, 
 	return paths, nil
 }
 
-func anyFileNewer(root, target string, include func(path string, d fs.DirEntry) bool) bool {
-	return anyFileNewerWithDeps(root, target, defaultHostProbeDeps(), include)
-}
-
-func anyFileNewerWithDeps(root, target string, deps hostProbeDeps, include func(path string, d fs.DirEntry) bool) bool {
+// firstFileNewerWithDeps walks root and returns the first file (in walk order)
+// whose mtime is strictly after target's and that passes the include filter.
+// Skip directories (.git, node_modules, dist, data, …) are pruned with
+// fs.SkipDir so the walk never descends into them — this both avoids the
+// 4400+-module node_modules sweep and keeps the result deterministic. The
+// returned path is the offending file, which callers thread into honest
+// "what changed" reason strings.
+func firstFileNewerWithDeps(root, target string, deps hostProbeDeps, include func(path string, d fs.DirEntry) bool) (string, bool) {
 	if _, err := deps.stat(root); err != nil {
-		return false
+		return "", false
 	}
 	targetInfo, err := deps.stat(target)
 	if err != nil {
-		return false
+		return "", false
 	}
 	targetTime := targetInfo.ModTime()
 
+	var offender string
 	walkErr := deps.walkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}
 		if d.IsDir() {
+			if path != root && isSkippableDirName(d.Name()) {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		if include != nil && !include(path, d) {
@@ -1548,31 +1450,43 @@ func anyFileNewerWithDeps(root, target string, deps hostProbeDeps, include func(
 			return nil
 		}
 		if info.ModTime().After(targetTime) {
+			offender = path
 			return errStopWalk
 		}
 		return nil
 	})
 
-	return errors.Is(walkErr, errStopWalk)
+	if errors.Is(walkErr, errStopWalk) {
+		return offender, true
+	}
+	return "", false
+}
+
+// isSkippableDirName reports whether a directory basename is a build/VCS/output
+// directory that the freshness walk should never descend into, applied at walk
+// time so the subtree is pruned (fs.SkipDir) rather than filtered file-by-file.
+func isSkippableDirName(name string) bool {
+	switch name {
+	case ".git", ".idea", ".vscode", "node_modules", "dist", "build", "coverage", "tmp", "data":
+		return true
+	}
+	return false
+}
+
+// relForReason renders path relative to base (slash-separated) for human-facing
+// reason strings, falling back to the absolute path when no clean relative form
+// exists.
+func relForReason(base, path string) string {
+	if base == "" {
+		return path
+	}
+	if rel, err := filepath.Rel(base, path); err == nil {
+		return filepath.ToSlash(rel)
+	}
+	return path
 }
 
 var errStopWalk = errors.New("stop walk")
-
-func getModTime(path string) time.Time {
-	return getModTimeWithDeps(path, defaultHostProbeDeps())
-}
-
-func getModTimeWithDeps(path string, deps hostProbeDeps) time.Time {
-	info, err := deps.stat(path)
-	if err != nil {
-		return time.Time{}
-	}
-	return info.ModTime()
-}
-
-func fileDependencySpecs(packageJSON string) ([]string, error) {
-	return fileDependencySpecsWithDeps(packageJSON, defaultHostProbeDeps())
-}
 
 func fileDependencySpecsWithDeps(packageJSON string, deps hostProbeDeps) ([]string, error) {
 	data, err := deps.readFile(packageJSON)

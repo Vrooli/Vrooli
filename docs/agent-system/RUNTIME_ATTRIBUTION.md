@@ -139,9 +139,9 @@ The header value is the standard base64 encoding (`package:encoding/base64` in G
 
 `X-Vrooli-Attribution` matches the existing `X-Vrooli-Error-Hop` header family used by prompt-manager's HTTP layer. The `X-` prefix is retained for consistency with the codebase's existing custom-header convention (`X-Dry-Run`, etc.) even though RFC 6648 deprecates it for new protocols — a single naming family is more valuable than RFC purity.
 
-### `X-Caller-ID` is gone
+### Legacy `X-Caller-ID`
 
-`X-Vrooli-Attribution` is the only attribution header. The legacy `X-Caller-ID` header (previously read by decision-status handlers to distinguish agents from human callers) is no longer read anywhere in the codebase; member id flows through `attribution.member_id` derived from the new header.
+`X-Vrooli-Attribution` is the canonical attribution header. The legacy `X-Caller-ID` header is retained only as a decision-approval compatibility fallback for older callers; new code must not use it as an engagement or identity signal. Member id flows through `attribution.member_id` derived from the new header.
 
 The mapping for callers that previously sent `X-Caller-ID`:
 - `X-Caller-ID: ui-user` → `attribution.kind: "operator-direct"`
@@ -158,13 +158,15 @@ The CLI never *constructs* `agent-member` attribution itself. If an operator at 
 
 ### Receiving side
 
-Every prompt-manager HTTP handler that mutates state (`POST /teams/{id}/knowledge`, `PATCH /teams/{id}/decisions/{id}`, etc.) MUST:
+Every prompt-manager HTTP handler that records attributed writes (`POST /teams/{id}/knowledge`, decision-status engagement detection on `PATCH /teams/{id}/decisions/{id}`, etc.) MUST:
 
 1. Read `X-Vrooli-Attribution` from the request.
-2. Reject with HTTP 400 if absent on a mutating endpoint.
+2. Reject with HTTP 400 if the endpoint requires attribution and the header is absent.
 3. Reject with HTTP 400 if the base64 doesn't decode, or the JSON doesn't parse, or the `kind` is unknown, or required fields for the `kind` are missing.
 4. Cross-check team consistency: if `attribution.team_id` is set and the URL path's team id is different, reject with HTTP 400 (see § Conflict policy).
 5. Populate the resulting `KnowledgeEntry`'s `attribution` field from the validated header, derive `caller`, and store both atomically.
+
+Decision status updates use `operator-direct` attribution as the heartbeat auto-pause engagement signal. Missing attribution preserves legacy behavior but does not reset the idle clock; malformed attribution is rejected.
 
 Read-only endpoints (`GET /teams/{id}/knowledge`, etc.) do not require the header. Idempotent metadata endpoints used by the heartbeat builder may declare themselves read-only-equivalent in their handler-level docs.
 

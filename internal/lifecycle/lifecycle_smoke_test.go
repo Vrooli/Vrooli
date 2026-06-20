@@ -122,8 +122,11 @@ func TestSetupNeededDetectsUpdatedSources(t *testing.T) {
 		t.Fatalf("Start: %v", err)
 	}
 
+	// Make a real content change to a source input. The content-fingerprint
+	// engine marks stale on changed content (not a bare mtime touch — a touch
+	// with identical content is intentionally fresh under the new engine).
 	sourcePath := filepath.Join(root, "scenarios", "alpha", "api", "handler.go")
-	testkitgo.WriteFile(t, sourcePath, "package main\n")
+	testkitgo.WriteFile(t, sourcePath, "package main\n\nvar changed = true\n")
 	future := time.Now().Add(2 * time.Second)
 	if err := os.Chtimes(sourcePath, future, future); err != nil {
 		t.Fatalf("chtimes %s: %v", sourcePath, err)
@@ -134,7 +137,7 @@ func TestSetupNeededDetectsUpdatedSources(t *testing.T) {
 		t.Fatalf("SetupNeeded: %v", err)
 	}
 	if !setupNeeded {
-		t.Fatalf("expected setup to be needed after touching source")
+		t.Fatalf("expected setup to be needed after changing source content")
 	}
 	if len(reasons) == 0 {
 		t.Fatalf("expected setup reasons to be populated")

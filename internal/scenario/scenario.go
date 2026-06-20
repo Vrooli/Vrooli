@@ -166,6 +166,7 @@ type Dependency struct {
 	Enabled          bool   `json:"enabled,omitempty"`
 	Required         bool   `json:"required,omitempty"`
 	StartupPolicy    string `json:"startup_policy,omitempty"`
+	FreshnessPolicy  string `json:"freshness_policy,omitempty"`
 	DegradedBehavior string `json:"degraded_behavior,omitempty"`
 	Purpose          string `json:"purpose,omitempty"`
 	Description      string `json:"description,omitempty"`
@@ -181,6 +182,24 @@ const (
 	DependencyStartupPolicyMustStart = "must_start"
 	DependencyStartupPolicyTryStart  = "try_start"
 	DependencyStartupPolicyIgnore    = "ignore"
+)
+
+// Freshness policy governs whether a running, healthy dependency whose sources
+// have changed (stale) is disrupted. It is orthogonal to startup_policy
+// (availability): startup_policy decides whether to start a dependency at all,
+// freshness_policy decides how aggressively to react when a started one is
+// stale. The default preserves historical behavior (restart on stale).
+const (
+	// DependencyFreshnessPolicyRestartWhenStale rebuilds AND restarts a stale
+	// dependency (gated by the artifact-digest check: a byte-identical rebuild
+	// does not restart). This is the default when unset.
+	DependencyFreshnessPolicyRestartWhenStale = "restart_when_stale"
+	// DependencyFreshnessPolicyReuseRunning keeps the running process even when
+	// stale (a warning is emitted); no rebuild, no restart.
+	DependencyFreshnessPolicyReuseRunning = "reuse_running"
+	// DependencyFreshnessPolicyRebuildOnly rebuilds the artifact when stale but
+	// never restarts the running process.
+	DependencyFreshnessPolicyRebuildOnly = "rebuild_only"
 )
 
 type rawDependencies struct {
@@ -637,6 +656,9 @@ func (dependency *Dependency) UnmarshalJSON(data []byte) error {
 	if err := takeString("startup_policy", &dependency.StartupPolicy); err != nil {
 		return err
 	}
+	if err := takeString("freshness_policy", &dependency.FreshnessPolicy); err != nil {
+		return err
+	}
 	if err := takeString("degraded_behavior", &dependency.DegradedBehavior); err != nil {
 		return err
 	}
@@ -663,6 +685,7 @@ func (dependency *Dependency) UnmarshalJSON(data []byte) error {
 
 	dependency.Type = strings.TrimSpace(dependency.Type)
 	dependency.StartupPolicy = strings.TrimSpace(dependency.StartupPolicy)
+	dependency.FreshnessPolicy = strings.TrimSpace(dependency.FreshnessPolicy)
 	dependency.DegradedBehavior = strings.TrimSpace(dependency.DegradedBehavior)
 	dependency.Purpose = strings.TrimSpace(dependency.Purpose)
 	dependency.Description = strings.TrimSpace(dependency.Description)
@@ -736,6 +759,9 @@ func (dependency Dependency) MarshalJSON() ([]byte, error) {
 	if err := emitIfNonEmpty("startup_policy", dependency.StartupPolicy); err != nil {
 		return nil, err
 	}
+	if err := emitIfNonEmpty("freshness_policy", dependency.FreshnessPolicy); err != nil {
+		return nil, err
+	}
 	if err := emitIfNonEmpty("degraded_behavior", dependency.DegradedBehavior); err != nil {
 		return nil, err
 	}
@@ -772,6 +798,19 @@ func (dependency Dependency) NormalizedStartupPolicy() string {
 	}
 }
 
+// NormalizedFreshnessPolicy returns the effective freshness policy, defaulting
+// to restart_when_stale when unset. Unlike startup_policy it is never derived
+// from another field — the two axes (availability vs disruption-tolerance) are
+// kept orthogonal so editing one never silently changes the other.
+func (dependency Dependency) NormalizedFreshnessPolicy() string {
+	switch strings.TrimSpace(dependency.FreshnessPolicy) {
+	case "":
+		return DependencyFreshnessPolicyRestartWhenStale
+	default:
+		return strings.TrimSpace(dependency.FreshnessPolicy)
+	}
+}
+
 func validateDependencyCollection(kind string, dependencies map[string]Dependency) error {
 	for name, dependency := range dependencies {
 		if err := dependency.Validate(kind, name); err != nil {
@@ -802,6 +841,24 @@ func (dependency Dependency) Validate(kind, name string) error {
 	}
 	if dependency.Required && policy == DependencyStartupPolicyTryStart && dependency.DegradedBehavior == "" {
 		return fmt.Errorf("%s.%s is required with startup_policy=%q and must declare degraded_behavior", kind, name, policy)
+	}
+	if raw := strings.TrimSpace(dependency.FreshnessPolicy); raw != "" {
+		switch raw {
+		case DependencyFreshnessPolicyRestartWhenStale, DependencyFreshnessPolicyReuseRunning, DependencyFreshnessPolicyRebuildOnly:
+		default:
+			return fmt.Errorf("%s.%s.freshness_policy must be one of %q, %q, or %q; got %q",
+				kind, name,
+				DependencyFreshnessPolicyRestartWhenStale,
+				DependencyFreshnessPolicyReuseRunning,
+				DependencyFreshnessPolicyRebuildOnly,
+				dependency.FreshnessPolicy,
+			)
+		}
+		// An ignore edge is never touched, so a freshness policy on it is a
+		// contradiction (and almost certainly a mistake).
+		if policy == DependencyStartupPolicyIgnore {
+			return fmt.Errorf("%s.%s sets freshness_policy=%q but resolves to startup_policy=%q (an ignored dependency is never started or restarted)", kind, name, raw, policy)
+		}
 	}
 	return nil
 }

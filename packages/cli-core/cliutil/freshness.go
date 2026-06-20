@@ -15,6 +15,20 @@ type FreshnessSpec struct {
 	ContextRoot string
 	Inputs      []string
 	SkipFiles   []string
+	// SkipSuffixes excludes files whose slash-path ends with any listed suffix
+	// from the freshness manifest (e.g. "_test.go" so test edits never mark a
+	// compiled artifact stale). It is honored by the manifest engine
+	// (ComputeFreshnessManifest / EvaluateFreshness) only; the legacy
+	// ComputeFreshnessFingerprint deliberately ignores it so installed-CLI
+	// fingerprints stay byte-stable.
+	SkipSuffixes []string
+	// CaseInsensitive case-folds rel-path comparison in EvaluateFreshness so a
+	// manifest recorded on a case-insensitive volume (NTFS, default APFS/HFS+)
+	// matches the live input set even when the OS reports a different casing.
+	// The lifecycle layer sets this from a capability-flagged volume probe; when
+	// the probe is unavailable it stays false (case-sensitive — correctness-safe,
+	// it can only over-report staleness, never merge two distinct files).
+	CaseInsensitive bool
 }
 
 // CanonicalScenarioGoModuleFreshnessSpec returns the freshness contract used by

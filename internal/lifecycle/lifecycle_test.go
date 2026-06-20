@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/vrooli/internal/hostreqrun"
 	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/process"
@@ -444,7 +445,7 @@ func TestEnsureDependenciesBestEffortMarksMissingRequiredDependencyAsFailed(t *t
 		t.Fatalf("Load(alpha): %v", err)
 	}
 
-	failed, err := runner.ensureDependencies(item, StartOptions{BestEffort: true}, map[string]struct{}{}, []string{"alpha"})
+	failed, err := runner.ensureDependencies(item, StartOptions{BestEffort: true}, map[string]struct{}{}, make(setupCheckCache), []string{"alpha"})
 	if err != nil {
 		t.Fatalf("ensureDependencies(best-effort): %v", err)
 	}
@@ -471,7 +472,7 @@ func TestEnsureDependenciesTryStartMarksMissingOptionalDependencyAsFailed(t *tes
 		t.Fatalf("Load(alpha): %v", err)
 	}
 
-	failed, err := runner.ensureDependencies(item, StartOptions{}, map[string]struct{}{}, []string{"alpha"})
+	failed, err := runner.ensureDependencies(item, StartOptions{}, map[string]struct{}{}, make(setupCheckCache), []string{"alpha"})
 	if err != nil {
 		t.Fatalf("ensureDependencies(try-start): %v", err)
 	}
@@ -498,7 +499,7 @@ func TestEnsureDependenciesIgnoreSkipsMissingOptionalDependency(t *testing.T) {
 		t.Fatalf("Load(alpha): %v", err)
 	}
 
-	failed, err := runner.ensureDependencies(item, StartOptions{}, map[string]struct{}{}, []string{"alpha"})
+	failed, err := runner.ensureDependencies(item, StartOptions{}, map[string]struct{}{}, make(setupCheckCache), []string{"alpha"})
 	if err != nil {
 		t.Fatalf("ensureDependencies(ignore): %v", err)
 	}
@@ -1398,7 +1399,7 @@ func TestFileDependencySpecsIgnoresNonDependencyTopLevelFields(t *testing.T) {
 		},
 	})
 
-	specs, err := fileDependencySpecs(packageJSON)
+	specs, err := fileDependencySpecsWithDeps(packageJSON, defaultHostProbeDeps())
 	if err != nil {
 		t.Fatalf("fileDependencySpecs: %v", err)
 	}
@@ -1928,40 +1929,60 @@ func TestSetupNeededIgnoresCLIChecksForRuntimeFreshness(t *testing.T) {
 	}
 }
 
-func TestUIBundleNeedsSetupTracksBundleFreshness(t *testing.T) {
-	appRoot := "/app"
-	probe := newFakeHostProbe()
-	sourceDir := filepath.Join(appRoot, "ui", "src")
-	bundlePath := filepath.Join(appRoot, "ui", "dist", "index.html")
-	packageJSON := filepath.Join(appRoot, "ui", "package.json")
-	sourcePath := filepath.Join(sourceDir, "main.tsx")
-	older := time.Unix(100, 0)
-	newer := time.Unix(200, 0)
-	future := time.Unix(300, 0)
-	probe.addDir(appRoot, older)
-	probe.addDir(filepath.Join(appRoot, "ui"), older)
-	probe.addDir(sourceDir, older)
-	probe.addDir(filepath.Dir(bundlePath), newer)
-	probe.addFile(sourcePath, older, 0o644, []byte("export default 'hi';\n"))
-	probe.addFile(bundlePath, newer, 0o644, []byte("<html></html>\n"))
-	probe.addFile(packageJSON, older, 0o644, []byte("{\"name\":\"fixture-ui\",\"dependencies\":{}}\n"))
-
-	needed, reason, err := uiBundleNeedsSetupWithDeps(appRoot, scenario.ConditionCheck{}, probe.deps())
-	if err != nil {
-		t.Fatalf("uiBundleNeedsSetup fresh bundle: %v", err)
+// TestUIBundleFreshnessTracksBundleFreshness exercises the live ui-bundle
+// freshness engine over the bootstrap mtime path (no recorded manifest yet): a
+// bundle newer than its source is fresh; a source edit newer than the bundle is
+// stale. Replaces the deleted fake-probe test of uiBundleNeedsSetupWithDeps.
+func TestUIBundleFreshnessTracksBundleFreshness(t *testing.T) {
+	repoRoot := t.TempDir()
+	appPath := filepath.Join(repoRoot, "scenarios", "alpha")
+	sourceDir := filepath.Join(appPath, "ui", "src")
+	uiDir := filepath.Join(appPath, "ui")
+	bundlePath := filepath.Join(uiDir, "dist", "index.html")
+	if err := os.MkdirAll(sourceDir, 0o755); err != nil {
+		t.Fatalf("mkdir src: %v", err)
 	}
-	if needed {
+	if err := os.MkdirAll(filepath.Dir(bundlePath), 0o755); err != nil {
+		t.Fatalf("mkdir dist: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(uiDir, "package.json"), []byte("{\"name\":\"fixture-ui\",\"dependencies\":{}}\n"), 0o644); err != nil {
+		t.Fatalf("write package.json: %v", err)
+	}
+	sourcePath := filepath.Join(sourceDir, "main.tsx")
+	if err := os.WriteFile(sourcePath, []byte("export default 'hi';\n"), 0o644); err != nil {
+		t.Fatalf("write src: %v", err)
+	}
+	if err := os.WriteFile(bundlePath, []byte("<html></html>\n"), 0o644); err != nil {
+		t.Fatalf("write bundle: %v", err)
+	}
+
+	old := time.Now().Add(-2 * time.Hour)
+	chtimes(t, sourcePath, old)
+	chtimes(t, bundlePath, time.Now()) // bundle newer than source -> fresh
+
+	r := &Runner{Root: repoRoot}
+	item := scenario.Scenario{Slug: "alpha", Path: appPath}
+	check := scenario.ConditionCheck{Type: "ui-bundle"}
+
+	stale, reason, err := r.uiBundleFreshness(item, check)
+	if err != nil {
+		t.Fatalf("uiBundleFreshness fresh: %v", err)
+	}
+	if stale {
 		t.Fatalf("expected fresh bundle to satisfy setup, reason=%q", reason)
 	}
 
-	probe.addFile(sourcePath, future, 0o644, []byte("export default 'hi';\n"))
+	// Remove the stamped manifest so the next check re-enters the bootstrap mtime
+	// path, then make the source newer than the bundle: must read stale.
+	_ = os.Remove(cliutil.FreshnessManifestPath(bundlePath))
+	chtimes(t, sourcePath, time.Now().Add(time.Hour))
 
-	needed, reason, err = uiBundleNeedsSetupWithDeps(appRoot, scenario.ConditionCheck{}, probe.deps())
+	stale, reason, err = r.uiBundleFreshness(item, check)
 	if err != nil {
-		t.Fatalf("uiBundleNeedsSetup stale bundle: %v", err)
+		t.Fatalf("uiBundleFreshness stale: %v", err)
 	}
-	if !needed || !strings.Contains(reason, "UI bundle outdated") {
-		t.Fatalf("stale bundle => needed=%v reason=%q", needed, reason)
+	if !stale {
+		t.Fatalf("stale bundle => stale=%v reason=%q", stale, reason)
 	}
 }
 
@@ -2765,7 +2786,7 @@ replace (
 `
 	testkitgo.WriteFile(t, goModPath, data)
 
-	paths, err := localReplacePaths(goModPath)
+	paths, err := localReplacePathsWithDeps(goModPath, defaultHostProbeDeps())
 	if err != nil {
 		t.Fatalf("localReplacePaths: %v", err)
 	}

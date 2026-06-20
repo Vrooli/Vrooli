@@ -1,7 +1,10 @@
 package assessment
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
@@ -35,6 +38,55 @@ func validSpec() Spec {
 			Dimension:        "measures",
 			SeverityDefault:  "WARNING",
 		},
+	}
+}
+
+func TestRepositoryProviderSpecsKeepCleanRequirementCompatibility(t *testing.T) {
+	repoRoot := filepath.Clean(filepath.Join("..", "..", ".."))
+	specPaths, err := filepath.Glob(filepath.Join(repoRoot, "scenarios", "*", ".vrooli", "maturity.json"))
+	if err != nil {
+		t.Fatalf("glob maturity specs: %v", err)
+	}
+	if len(specPaths) == 0 {
+		t.Fatal("no scenario maturity specs found")
+	}
+
+	for _, specPath := range specPaths {
+		specPath := specPath
+		scenario := filepath.Base(filepath.Dir(filepath.Dir(specPath)))
+		t.Run(scenario, func(t *testing.T) {
+			raw, err := os.ReadFile(specPath)
+			if err != nil {
+				t.Fatalf("read %s: %v", specPath, err)
+			}
+			specPtr, err := ParseSpec(raw)
+			if err != nil {
+				t.Fatalf("parse %s: %v", specPath, err)
+			}
+			spec := *specPtr
+			if err := ValidateSpec(spec); err != nil {
+				t.Fatalf("validate %s: %v", specPath, err)
+			}
+
+			counts := map[CleanRequirement]int{}
+			for _, mapping := range spec.Findings {
+				counts[normalizeCleanRequirement(mapping.CleanRequirement)]++
+			}
+			if spec.Provider == "proto-health" {
+				if counts[CleanRequirementRequired] == 0 || counts[CleanRequirementUncheckable] == 0 {
+					t.Fatalf("proto-health clean requirement counts = %#v, want required and uncheckable classifications", counts)
+				}
+				return
+			}
+			for code, mapping := range spec.Findings {
+				if strings.TrimSpace(mapping.CleanRequirement) != "" {
+					t.Fatalf("%s unexpectedly sets clean_requirement %q; only proto-health opts in during this migration", code, mapping.CleanRequirement)
+				}
+			}
+			if counts[CleanRequirementRequired] != 0 || counts[CleanRequirementUncheckable] != 0 {
+				t.Fatalf("unmigrated provider counts = %#v, want advisory defaults only", counts)
+			}
+		})
 	}
 }
 
@@ -109,13 +161,13 @@ func TestNormalizeFindingFallsBackBySourceAndDefaultSeverity(t *testing.T) {
 	}
 }
 
-func TestAdvisoryDoesNotBlockLocalMaturity(t *testing.T) {
+func TestAdvisoryWarningDoesNotBlockLocalMaturity(t *testing.T) {
 	spec := validSpec()
 	spec.Findings["measures.context"] = FindingMapping{
 		LocalLevelImpact: "L1",
 		GlobalImpact:     ImpactAdvisory,
 		Dimension:        "measures",
-		SeverityDefault:  "ERROR",
+		SeverityDefault:  "WARNING",
 	}
 	got := LocalMaturity(spec, []Finding{{Code: "measures.context"}})
 	if got.CurrentLevel != "L3" {
@@ -126,7 +178,69 @@ func TestAdvisoryDoesNotBlockLocalMaturity(t *testing.T) {
 	}
 }
 
-func TestDebtByLevelCountsOnlyNonBlockingFindings(t *testing.T) {
+func TestAdvisoryErrorStillBlocksLocalMaturity(t *testing.T) {
+	spec := validSpec()
+	spec.Findings["measures.context"] = FindingMapping{
+		LocalLevelImpact: "L1",
+		GlobalImpact:     ImpactAdvisory,
+		Dimension:        "measures",
+		SeverityDefault:  "ERROR",
+	}
+	got := LocalMaturity(spec, []Finding{{Code: "measures.context"}})
+	if got.CurrentLevel != "L0" {
+		t.Fatalf("CurrentLevel = %q, want L0", got.CurrentLevel)
+	}
+	if got.NextLevel != "L1" {
+		t.Fatalf("NextLevel = %q, want L1", got.NextLevel)
+	}
+}
+
+func TestRequiredWarningBlocksLocalMaturityAndClean(t *testing.T) {
+	spec := validSpec()
+	spec.Findings["measures.required-context"] = FindingMapping{
+		LocalLevelImpact: "L3",
+		GlobalImpact:     ImpactAdvisory,
+		Dimension:        "measures",
+		SeverityDefault:  "WARNING",
+		CleanRequirement: string(CleanRequirementRequired),
+	}
+	got := LocalMaturity(spec, []Finding{{Code: "measures.required-context"}})
+	if got.CurrentLevel != "L2" {
+		t.Fatalf("CurrentLevel = %q, want L2", got.CurrentLevel)
+	}
+	if got.NextLevel != "L3" {
+		t.Fatalf("NextLevel = %q, want L3", got.NextLevel)
+	}
+	if got.Clean {
+		t.Fatal("Clean = true, want false while REQUIRED findings remain")
+	}
+}
+
+func TestUncheckableFindingIsUnknownAndDoesNotBlockOrCountAsDebt(t *testing.T) {
+	spec := validSpec()
+	spec.Findings["measures.uncheckable"] = FindingMapping{
+		LocalLevelImpact: "L1",
+		GlobalImpact:     ImpactAdvisory,
+		Dimension:        "measures",
+		SeverityDefault:  "ERROR",
+		CleanRequirement: string(CleanRequirementUncheckable),
+	}
+	got := LocalMaturity(spec, []Finding{{Code: "measures.uncheckable"}})
+	if got.CurrentLevel != "L3" {
+		t.Fatalf("CurrentLevel = %q, want L3", got.CurrentLevel)
+	}
+	if got.UnknownCount != 1 {
+		t.Fatalf("UnknownCount = %d, want 1", got.UnknownCount)
+	}
+	if !got.Clean {
+		t.Fatal("Clean = false, want true because UNCHECKABLE findings are unknown, not required debt")
+	}
+	if DebtScore(got.Findings) != 0 {
+		t.Fatalf("DebtScore = %d, want 0", DebtScore(got.Findings))
+	}
+}
+
+func TestDebtByLevelExcludesPhaseErrorsAndUncheckableFindings(t *testing.T) {
 	spec := validSpec()
 	spec.Findings["measures.warning"] = FindingMapping{
 		LocalLevelImpact: "L3",
@@ -140,22 +254,31 @@ func TestDebtByLevelCountsOnlyNonBlockingFindings(t *testing.T) {
 		Dimension:        "measures",
 		SeverityDefault:  "INFO",
 	}
-	spec.Findings["measures.advisory-error"] = FindingMapping{
+	spec.Findings["measures.required-warning"] = FindingMapping{
 		LocalLevelImpact: "L1",
 		GlobalImpact:     ImpactAdvisory,
 		Dimension:        "measures",
-		SeverityDefault:  "ERROR",
+		SeverityDefault:  "WARNING",
+		CleanRequirement: string(CleanRequirementRequired),
+	}
+	spec.Findings["measures.uncheckable"] = FindingMapping{
+		LocalLevelImpact: "L1",
+		GlobalImpact:     ImpactAdvisory,
+		Dimension:        "measures",
+		SeverityDefault:  "WARNING",
+		CleanRequirement: string(CleanRequirementUncheckable),
 	}
 
 	local := LocalMaturity(spec, []Finding{
 		{Code: "measures.uncovered-domain"},
 		{Code: "measures.warning"},
 		{Code: "measures.info"},
-		{Code: "measures.advisory-error"},
+		{Code: "measures.required-warning"},
+		{Code: "measures.uncheckable"},
 	})
 
-	if local.CurrentLevel != "L1" {
-		t.Fatalf("CurrentLevel = %q, want L1", local.CurrentLevel)
+	if local.CurrentLevel != "L0" {
+		t.Fatalf("CurrentLevel = %q, want L0", local.CurrentLevel)
 	}
 	got := DebtByLevel(local.Findings)
 	if DebtScore(local.Findings) != 3 {
@@ -224,6 +347,9 @@ func TestBuildProtoAssessmentWithZeroFindings(t *testing.T) {
 	if got.GetLocal().GetCurrentLevel() != "L3" || got.GetLocal().GetNextLevel() != "" {
 		t.Fatalf("local maturity = current %q next %q, want L3/empty", got.GetLocal().GetCurrentLevel(), got.GetLocal().GetNextLevel())
 	}
+	if !got.GetLocal().GetClean() || got.GetLocal().GetUnknownCount() != 0 {
+		t.Fatalf("local clean/unknown = %v/%d, want true/0", got.GetLocal().GetClean(), got.GetLocal().GetUnknownCount())
+	}
 	if len(got.GetFindings()) != 0 {
 		t.Fatalf("findings = %d, want zero", len(got.GetFindings()))
 	}
@@ -259,6 +385,12 @@ func TestBuildProtoAssessmentIncludesBlockingFindingMetadata(t *testing.T) {
 	}
 	if got.GetFindingsByGlobalImpact()["capability_gap"] != 1 {
 		t.Fatalf("impact counts = %#v", got.GetFindingsByGlobalImpact())
+	}
+	if finding.GetMaturity().GetCleanRequirement() != commonv1.CleanRequirement_CLEAN_REQUIREMENT_ADVISORY {
+		t.Fatalf("clean requirement = %v, want ADVISORY default", finding.GetMaturity().GetCleanRequirement())
+	}
+	if got.GetFindingsByCleanRequirement()["advisory"] != 1 {
+		t.Fatalf("clean requirement counts = %#v", got.GetFindingsByCleanRequirement())
 	}
 }
 

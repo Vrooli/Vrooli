@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/logx"
-	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
 
@@ -68,14 +67,31 @@ func (r *Runner) isRegistryRuntimeHealthy(item scenario.Scenario, view registryR
 	if health == nil || len(health.Checks) == 0 {
 		return true
 	}
-	for _, check := range health.Checks {
-		if err := scenario.PerformHealthCheck(check, view.Ports); err != nil {
+	// Retry transient probe failures before condemning a running dependency:
+	// a single dropped/slow probe must not trigger a stop+rebuild+restart of a
+	// process that is actually fine. Mirrors WaitForHealth's poll loop but
+	// bounded to a few quick attempts (~3 over ~3s) since the registry already
+	// proved the instance is *running* — we are only confirming data-plane
+	// readiness. We fail toward reuse only after the probe is persistently bad.
+	deps := r.runtimeDeps()
+	const attempts = 3
+	const interval = 1 * time.Second
+	for attempt := 0; attempt < attempts; attempt++ {
+		if attempt > 0 {
+			deps.sleep(interval)
+		}
+		if allHealthChecksPass(health.Checks, view.Ports) {
+			return true
+		}
+	}
+	return false
+}
+
+func allHealthChecksPass(checks []scenario.HealthCheck, ports map[string]int) bool {
+	for _, check := range checks {
+		if err := scenario.PerformHealthCheck(check, ports); err != nil {
 			return false
 		}
 	}
 	return true
-}
-
-func (r *Runner) runtimePorts(manifest scenario.ServiceManifest, records []process.Record) map[string]int {
-	return scenario.RuntimePorts(manifest, records)
 }

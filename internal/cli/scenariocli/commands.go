@@ -42,6 +42,7 @@ const (
 	CommandInfo            CommandID = "info"
 	CommandStatus          CommandID = "status"
 	CommandValidateEnv     CommandID = "validate-env"
+	CommandFreshness       CommandID = "freshness"
 	CommandRun             CommandID = "run"
 	CommandStart           CommandID = "start"
 	CommandStartAll        CommandID = "start-all"
@@ -81,6 +82,13 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		{
 			Name: string(CommandValidateEnv), Group: "Read-only Commands", Summary: "Validate resource-derived environment injection for a scenario", Handler: CommandValidateEnv, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
 			Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}}, Options: []commandtree.OptionArg{commandtree.JSONOption()}},
+		},
+		{
+			Name: string(CommandFreshness), Group: "Read-only Commands", Summary: "Explain why a scenario's build artifacts are fresh or stale", Handler: CommandFreshness, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
+			Args: commandtree.ArgSchema{
+				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}},
+				Options:     []commandtree.OptionArg{commandtree.JSONOption(), {Name: "--explain", Description: "Print every check (fresh and stale) plus resolved dependency policies"}, {Name: "--path", ValueName: "path"}},
+			},
 		},
 		{Name: string(CommandRun), Group: "Lifecycle and Utility Commands", Summary: "Run a scenario directly (alias of start)", Handler: CommandRun, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 		{
@@ -398,6 +406,23 @@ func ParseStatusRequest(globalsJSON bool, args []string) (StatusRequest, error) 
 		return StatusRequest{}, clipolicy.UsageErrorf("scenario status", "scenario status --instance requires a scenario name")
 	}
 	return StatusRequest{Name: name, JSON: globalsJSON || parsed.HasFlag("--json")}, nil
+}
+
+func ParseFreshnessRequest(globalsJSON bool, args []string) (FreshnessRequest, error) {
+	spec := commandSpec(CommandFreshness)
+	parsed, err := commandtree.ParseArgs("scenario freshness", commandHelpText(CommandFreshness), spec.Args, args)
+	if err != nil {
+		return FreshnessRequest{}, err
+	}
+	if len(parsed.Positionals) == 0 {
+		return FreshnessRequest{}, clipolicy.UsageErrorf("scenario freshness", "scenario freshness requires a scenario name")
+	}
+	return FreshnessRequest{
+		Name:    parsed.Positionals[0],
+		Path:    parsed.FlagValue("--path"),
+		JSON:    globalsJSON || parsed.HasFlag("--json"),
+		Explain: parsed.HasFlag("--explain"),
+	}, nil
 }
 
 func ParseValidateEnvRequest(globalsJSON bool, args []string) (ValidateEnvRequest, error) {

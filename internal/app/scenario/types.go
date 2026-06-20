@@ -46,6 +46,12 @@ type StatusRequest struct {
 	JSON bool
 }
 
+type FreshnessRequest struct {
+	Name string
+	Path string
+	JSON bool
+}
+
 type ValidateEnvRequest struct {
 	Name string
 	JSON bool

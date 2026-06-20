@@ -37,6 +37,7 @@ type PhaseRunner interface {
 	Stop(name string, opts lifecycle.StopOptions) error
 	RunPhaseDetailed(name, phase string, opts lifecycle.PhaseOptions) (lifecycle.PhaseResult, error)
 	RunPhase(name, phase string, opts lifecycle.PhaseOptions) error
+	FreshnessReportByName(name, customPath string) (lifecycle.FreshnessReport, error)
 }
 
 type Service struct {
@@ -168,6 +169,12 @@ func (s Service) Info(req InfoRequest) (InfoOutput, error) {
 		Scenario: BuildInfoData(detail.Scenario),
 		Runtime:  BuildRuntimeDataFromDetail(detail),
 	}, nil
+}
+
+// Freshness returns the scenario's freshness report (per-check verdicts +
+// resolved dependency policies), the data behind `vrooli scenario freshness`.
+func (s Service) Freshness(req FreshnessRequest) (lifecycle.FreshnessReport, error) {
+	return s.Runner.FreshnessReportByName(req.Name, req.Path)
 }
 
 func (s Service) Status(req StatusRequest) (StatusResponse, error) {

@@ -109,8 +109,9 @@ func (r *Runner) RunPhaseDetailed(name, phaseName string, opts PhaseOptions) (Ph
 
 	if phaseRequiresBootstrap(phaseName) {
 		ready := make(map[string]struct{})
+		setupCache := make(setupCheckCache)
 		bootstrapOpts := StartOptions{CustomPath: opts.CustomPath}
-		if _, _, err := r.bootstrapScenarioDependencies(item, bootstrapOpts, ready, nil); err != nil {
+		if _, _, err := r.bootstrapScenarioDependencies(item, bootstrapOpts, ready, setupCache, nil); err != nil {
 			return PhaseResult{}, err
 		}
 	}

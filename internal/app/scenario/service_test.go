@@ -65,6 +65,9 @@ func (fakeRunner) RunPhaseDetailed(name, phase string, opts lifecycle.PhaseOptio
 	return lifecycle.PhaseResult{}, nil
 }
 func (fakeRunner) RunPhase(name, phase string, opts lifecycle.PhaseOptions) error { return nil }
+func (fakeRunner) FreshnessReportByName(name, customPath string) (lifecycle.FreshnessReport, error) {
+	return lifecycle.FreshnessReport{}, nil
+}
 
 func TestStartUsesScenarioOperationsInterface(t *testing.T) {
 	ops := &fakeScenarioOps{}

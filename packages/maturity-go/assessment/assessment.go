@@ -18,6 +18,7 @@ import (
 )
 
 type GlobalImpact string
+type CleanRequirement string
 
 const (
 	ImpactFoundationBlocker GlobalImpact = "foundation_blocker"
@@ -29,6 +30,12 @@ const (
 	ImpactUnknown           GlobalImpact = "unknown"
 )
 
+const (
+	CleanRequirementRequired    CleanRequirement = "required"
+	CleanRequirementAdvisory    CleanRequirement = "advisory"
+	CleanRequirementUncheckable CleanRequirement = "uncheckable"
+)
+
 var validImpacts = map[GlobalImpact]struct{}{
 	ImpactFoundationBlocker: {},
 	ImpactSafetyBlocker:     {},
@@ -37,6 +44,12 @@ var validImpacts = map[GlobalImpact]struct{}{
 	ImpactCapabilityGap:     {},
 	ImpactAdvisory:          {},
 	ImpactUnknown:           {},
+}
+
+var validCleanRequirements = map[CleanRequirement]struct{}{
+	CleanRequirementRequired:    {},
+	CleanRequirementAdvisory:    {},
+	CleanRequirementUncheckable: {},
 }
 
 var impactDimensions = map[GlobalImpact][]dimensions.Dimension{
@@ -72,6 +85,7 @@ type FindingMapping struct {
 	GlobalImpact        GlobalImpact `json:"global_impact"`
 	Dimension           string       `json:"dimension"`
 	SeverityDefault     string       `json:"severity_default"`
+	CleanRequirement    string       `json:"clean_requirement,omitempty"`
 	RecommendedSkillIDs []string     `json:"recommended_skill_ids"`
 }
 
@@ -80,6 +94,7 @@ type FallbackPolicy struct {
 	GlobalImpact     GlobalImpact `json:"global_impact"`
 	Dimension        string       `json:"dimension"`
 	SeverityDefault  string       `json:"severity_default"`
+	CleanRequirement string       `json:"clean_requirement,omitempty"`
 }
 
 type Finding struct {
@@ -106,6 +121,8 @@ type LocalResult struct {
 	NextLevel            string
 	BlockingFindingCodes []string
 	Findings             []FindingAssessment
+	Clean                bool
+	UnknownCount         int
 }
 
 type DebtCounts struct {
@@ -206,11 +223,19 @@ func validateMapping(mapping FindingMapping, levels map[string]int, path string)
 	if sev := strings.TrimSpace(mapping.SeverityDefault); sev != "" && normalizeSeverity(sev) == architecturev1.FindingSeverity_FINDING_SEVERITY_UNSPECIFIED {
 		return fmt.Errorf("%s.severity_default %q is not valid", path, sev)
 	}
+	if req := strings.TrimSpace(mapping.CleanRequirement); req != "" && !IsValidCleanRequirement(CleanRequirement(strings.ToLower(req))) {
+		return fmt.Errorf("%s.clean_requirement %q is not valid", path, req)
+	}
 	return nil
 }
 
 func IsValidImpact(impact GlobalImpact) bool {
 	_, ok := validImpacts[impact]
+	return ok
+}
+
+func IsValidCleanRequirement(requirement CleanRequirement) bool {
+	_, ok := validCleanRequirements[requirement]
 	return ok
 }
 
@@ -231,14 +256,21 @@ func BuildProtoAssessment(input BuildInput) (*commonv1.MaturityAssessment, error
 		Findings:               make([]*commonv1.AssessmentFinding, 0, len(input.Findings)),
 		FindingsByGlobalImpact: map[string]int32{},
 		FindingsBySeverity:     map[string]int32{},
+		FindingsByCleanRequirement: map[string]int32{
+			string(CleanRequirementAdvisory):    0,
+			string(CleanRequirementRequired):    0,
+			string(CleanRequirementUncheckable): 0,
+		},
 	}
 	skills := map[string]struct{}{}
 	for i, finding := range input.Findings {
 		assessed := local.Findings[i]
 		severity := assessed.Severity.String()
 		impact := string(assessed.Mapping.GlobalImpact)
+		cleanRequirement := normalizeCleanRequirement(assessed.Mapping.CleanRequirement)
 		out.FindingsByGlobalImpact[impact]++
 		out.FindingsBySeverity[severity]++
+		out.FindingsByCleanRequirement[string(cleanRequirement)]++
 		for _, skill := range assessed.Mapping.RecommendedSkillIDs {
 			skill = strings.TrimSpace(skill)
 			if skill != "" {
@@ -257,6 +289,7 @@ func BuildProtoAssessment(input BuildInput) (*commonv1.MaturityAssessment, error
 				GlobalImpact:        GlobalImpactToProto(assessed.Mapping.GlobalImpact),
 				Dimension:           assessed.Mapping.Dimension,
 				RecommendedSkillIds: append([]string(nil), assessed.Mapping.RecommendedSkillIDs...),
+				CleanRequirement:    CleanRequirementToProto(cleanRequirement),
 			},
 		})
 	}
@@ -430,6 +463,19 @@ func GlobalImpactToProto(impact GlobalImpact) commonv1.GlobalImpact {
 	}
 }
 
+func CleanRequirementToProto(requirement CleanRequirement) commonv1.CleanRequirement {
+	switch requirement {
+	case CleanRequirementRequired:
+		return commonv1.CleanRequirement_CLEAN_REQUIREMENT_REQUIRED
+	case CleanRequirementAdvisory:
+		return commonv1.CleanRequirement_CLEAN_REQUIREMENT_ADVISORY
+	case CleanRequirementUncheckable:
+		return commonv1.CleanRequirement_CLEAN_REQUIREMENT_UNCHECKABLE
+	default:
+		return commonv1.CleanRequirement_CLEAN_REQUIREMENT_ADVISORY
+	}
+}
+
 // DimensionsForImpact returns the current global maturity dimensions associated
 // with a semantic impact. Advisory and unknown impacts intentionally map to no
 // dimensions and rely on caller/fallback context.
@@ -456,6 +502,8 @@ func buildProtoLocal(spec Spec, local LocalResult) *commonv1.LocalMaturityAssess
 		NextLevel:            local.NextLevel,
 		Levels:               levels,
 		BlockingFindingCodes: append([]string(nil), local.BlockingFindingCodes...),
+		Clean:                local.Clean,
+		UnknownCount:         int32(local.UnknownCount),
 	}
 }
 
@@ -470,6 +518,7 @@ func NormalizeFinding(spec Spec, finding Finding) FindingAssessment {
 				GlobalImpact:     spec.Fallback.GlobalImpact,
 				Dimension:        spec.Fallback.Dimension,
 				SeverityDefault:  spec.Fallback.SeverityDefault,
+				CleanRequirement: spec.Fallback.CleanRequirement,
 			}
 		}
 	}
@@ -498,10 +547,18 @@ func LocalMaturity(spec Spec, findings []Finding) LocalResult {
 	}
 	lowestBlocked := len(spec.Levels)
 	var blocking []string
+	clean := true
+	unknownCount := 0
 	assessed := make([]FindingAssessment, 0, len(findings))
 	for _, finding := range findings {
 		item := NormalizeFinding(spec, finding)
 		assessed = append(assessed, item)
+		switch normalizeCleanRequirement(item.Mapping.CleanRequirement) {
+		case CleanRequirementRequired:
+			clean = false
+		case CleanRequirementUncheckable:
+			unknownCount++
+		}
 		if idx, ok := levelIndex[item.Mapping.LocalLevelImpact]; ok && idx < lowestBlocked && blocksLocalMaturity(item) {
 			lowestBlocked = idx
 		}
@@ -532,6 +589,8 @@ func LocalMaturity(spec Spec, findings []Finding) LocalResult {
 		NextLevel:            next,
 		BlockingFindingCodes: blocking,
 		Findings:             assessed,
+		Clean:                clean,
+		UnknownCount:         unknownCount,
 	}
 }
 
@@ -579,6 +638,7 @@ func AssessmentDebtByLevel(a *commonv1.MaturityAssessment) map[string]DebtCounts
 			mapping.LocalLevelImpact = maturity.GetLocalLevel()
 			mapping.GlobalImpact = ProtoToGlobalImpact(maturity.GetGlobalImpact())
 			mapping.Dimension = maturity.GetDimension()
+			mapping.CleanRequirement = string(ProtoToCleanRequirement(maturity.GetCleanRequirement()))
 			mapping.RecommendedSkillIDs = append([]string(nil), maturity.GetRecommendedSkillIds()...)
 		}
 		findings = append(findings, FindingAssessment{
@@ -599,15 +659,16 @@ func AssessmentDebtScore(a *commonv1.MaturityAssessment) int {
 }
 
 func blocksLocalMaturity(item FindingAssessment) bool {
-	if item.Mapping.GlobalImpact == ImpactAdvisory {
+	if normalizeCleanRequirement(item.Mapping.CleanRequirement) == CleanRequirementUncheckable {
 		return false
 	}
 	return item.Severity == architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR ||
-		item.Severity == architecturev1.FindingSeverity_FINDING_SEVERITY_BLOCKER
+		item.Severity == architecturev1.FindingSeverity_FINDING_SEVERITY_BLOCKER ||
+		normalizeCleanRequirement(item.Mapping.CleanRequirement) == CleanRequirementRequired
 }
 
 func isDebtFinding(item FindingAssessment) bool {
-	if blocksLocalMaturity(item) {
+	if normalizeCleanRequirement(item.Mapping.CleanRequirement) == CleanRequirementUncheckable {
 		return false
 	}
 	switch item.Severity {
@@ -616,7 +677,20 @@ func isDebtFinding(item FindingAssessment) bool {
 		architecturev1.FindingSeverity_FINDING_SEVERITY_UNSPECIFIED:
 		return true
 	default:
-		return item.Mapping.GlobalImpact == ImpactAdvisory
+		return false
+	}
+}
+
+func normalizeCleanRequirement(raw string) CleanRequirement {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case string(CleanRequirementRequired):
+		return CleanRequirementRequired
+	case string(CleanRequirementUncheckable):
+		return CleanRequirementUncheckable
+	case string(CleanRequirementAdvisory), "":
+		return CleanRequirementAdvisory
+	default:
+		return CleanRequirementAdvisory
 	}
 }
 
@@ -653,6 +727,20 @@ func ProtoToGlobalImpact(impact commonv1.GlobalImpact) GlobalImpact {
 		return ImpactUnknown
 	default:
 		return ImpactUnknown
+	}
+}
+
+func ProtoToCleanRequirement(requirement commonv1.CleanRequirement) CleanRequirement {
+	switch requirement {
+	case commonv1.CleanRequirement_CLEAN_REQUIREMENT_REQUIRED:
+		return CleanRequirementRequired
+	case commonv1.CleanRequirement_CLEAN_REQUIREMENT_UNCHECKABLE:
+		return CleanRequirementUncheckable
+	case commonv1.CleanRequirement_CLEAN_REQUIREMENT_ADVISORY,
+		commonv1.CleanRequirement_CLEAN_REQUIREMENT_UNSPECIFIED:
+		return CleanRequirementAdvisory
+	default:
+		return CleanRequirementAdvisory
 	}
 }
 

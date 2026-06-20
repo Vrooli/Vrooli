@@ -634,6 +634,77 @@ func TestDependencyNormalizedStartupPolicyUsesContractDefaults(t *testing.T) {
 	}
 }
 
+func TestDependencyNormalizedFreshnessPolicyDefaults(t *testing.T) {
+	if p := (Dependency{Enabled: true, Required: true}).NormalizedFreshnessPolicy(); p != DependencyFreshnessPolicyRestartWhenStale {
+		t.Fatalf("default freshness policy = %q, want %q", p, DependencyFreshnessPolicyRestartWhenStale)
+	}
+	if p := (Dependency{FreshnessPolicy: DependencyFreshnessPolicyReuseRunning}).NormalizedFreshnessPolicy(); p != DependencyFreshnessPolicyReuseRunning {
+		t.Fatalf("explicit freshness policy = %q, want %q", p, DependencyFreshnessPolicyReuseRunning)
+	}
+}
+
+func TestDependencyFreshnessPolicyRoundTrip(t *testing.T) {
+	dep := Dependency{Enabled: true, Required: true, StartupPolicy: DependencyStartupPolicyMustStart, FreshnessPolicy: DependencyFreshnessPolicyRebuildOnly}
+	data, err := json.Marshal(dep)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !strings.Contains(string(data), `"freshness_policy":"rebuild_only"`) {
+		t.Fatalf("marshaled dependency missing freshness_policy: %s", data)
+	}
+	var got Dependency
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if got.FreshnessPolicy != DependencyFreshnessPolicyRebuildOnly {
+		t.Fatalf("round-trip freshness_policy = %q", got.FreshnessPolicy)
+	}
+	if len(got.Config) != 0 {
+		t.Fatalf("freshness_policy must not leak into config: %s", got.Config)
+	}
+}
+
+func TestReadServiceRejectsFreshnessPolicyOnIgnoreEdge(t *testing.T) {
+	root := t.TempDir()
+	servicePath := filepath.Join(root, "service.json")
+	testkitgo.WriteJSON(t, servicePath, ServiceManifest{
+		Version: "1.0.0",
+		Service: ServiceMetadata{Name: "alpha"},
+		Dependencies: Dependencies{
+			Scenarios: map[string]Dependency{
+				"beta": {
+					StartupPolicy:   DependencyStartupPolicyIgnore,
+					FreshnessPolicy: DependencyFreshnessPolicyReuseRunning,
+				},
+			},
+		},
+	})
+	if _, err := ReadService(servicePath); err == nil || !strings.Contains(err.Error(), "freshness_policy") {
+		t.Fatalf("ReadService error = %v, want freshness_policy/ignore rejection", err)
+	}
+}
+
+func TestReadServiceRejectsInvalidFreshnessPolicy(t *testing.T) {
+	root := t.TempDir()
+	servicePath := filepath.Join(root, "service.json")
+	testkitgo.WriteJSON(t, servicePath, ServiceManifest{
+		Version: "1.0.0",
+		Service: ServiceMetadata{Name: "alpha"},
+		Dependencies: Dependencies{
+			Scenarios: map[string]Dependency{
+				"beta": {
+					Required:        true,
+					StartupPolicy:   DependencyStartupPolicyMustStart,
+					FreshnessPolicy: "bounce_always",
+				},
+			},
+		},
+	})
+	if _, err := ReadService(servicePath); err == nil || !strings.Contains(err.Error(), "freshness_policy must be one of") {
+		t.Fatalf("ReadService error = %v, want invalid-enum rejection", err)
+	}
+}
+
 func TestReadServiceRejectsRequiredDependencyWithIgnorePolicy(t *testing.T) {
 	root := t.TempDir()
 	servicePath := filepath.Join(root, "service.json")
