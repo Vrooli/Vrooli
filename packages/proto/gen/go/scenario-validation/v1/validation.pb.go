@@ -152,7 +152,10 @@ type ValidateScenarioResponse struct {
 	// Mandatory shared assessment. Findings live here.
 	Assessment *v1.MaturityAssessment `protobuf:"bytes,3,opt,name=assessment,proto3" json:"assessment,omitempty"`
 	// Optional provider-native response packed for provider-owned surfaces.
-	NativeDetail  *anypb.Any `protobuf:"bytes,4,opt,name=native_detail,json=nativeDetail,proto3" json:"native_detail,omitempty"`
+	NativeDetail *anypb.Any `protobuf:"bytes,4,opt,name=native_detail,json=nativeDetail,proto3" json:"native_detail,omitempty"`
+	// Optional execution metrics (timing, stages, resources, host environment)
+	// for this validation. Absent for providers that have not adopted metrics.
+	Metrics       *v1.ExecutionMetrics `protobuf:"bytes,5,opt,name=metrics,proto3" json:"metrics,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -215,22 +218,30 @@ func (x *ValidateScenarioResponse) GetNativeDetail() *anypb.Any {
 	return nil
 }
 
+func (x *ValidateScenarioResponse) GetMetrics() *v1.ExecutionMetrics {
+	if x != nil {
+		return x.Metrics
+	}
+	return nil
+}
+
 var File_scenario_validation_v1_validation_proto protoreflect.FileDescriptor
 
 const file_scenario_validation_v1_validation_proto_rawDesc = "" +
 	"\n" +
-	"'scenario-validation/v1/validation.proto\x12\x1dvrooli.scenario_validation.v1\x1a\x18common/v1/maturity.proto\x1a\x19google/protobuf/any.proto\"v\n" +
+	"'scenario-validation/v1/validation.proto\x12\x1dvrooli.scenario_validation.v1\x1a\x18common/v1/maturity.proto\x1a\x17common/v1/metrics.proto\x1a\x19google/protobuf/any.proto\"v\n" +
 	"\x17ValidateScenarioRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12+\n" +
-	"\x11include_execution\x18\x03 \x01(\bR\x10includeExecution\"\xf9\x01\n" +
+	"\x11include_execution\x18\x03 \x01(\bR\x10includeExecution\"\xb0\x02\n" +
 	"\x18ValidateScenarioResponse\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12G\n" +
 	"\x06status\x18\x02 \x01(\x0e2/.vrooli.scenario_validation.v1.ValidationStatusR\x06status\x12=\n" +
 	"\n" +
 	"assessment\x18\x03 \x01(\v2\x1d.common.v1.MaturityAssessmentR\n" +
 	"assessment\x129\n" +
-	"\rnative_detail\x18\x04 \x01(\v2\x14.google.protobuf.AnyR\fnativeDetail*\xcd\x01\n" +
+	"\rnative_detail\x18\x04 \x01(\v2\x14.google.protobuf.AnyR\fnativeDetail\x125\n" +
+	"\ametrics\x18\x05 \x01(\v2\x1b.common.v1.ExecutionMetricsR\ametrics*\xcd\x01\n" +
 	"\x10ValidationStatus\x12!\n" +
 	"\x1dVALIDATION_STATUS_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18VALIDATION_STATUS_PASSED\x10\x01\x12\x1c\n" +
@@ -261,18 +272,20 @@ var file_scenario_validation_v1_validation_proto_goTypes = []any{
 	(*ValidateScenarioResponse)(nil), // 2: vrooli.scenario_validation.v1.ValidateScenarioResponse
 	(*v1.MaturityAssessment)(nil),    // 3: common.v1.MaturityAssessment
 	(*anypb.Any)(nil),                // 4: google.protobuf.Any
+	(*v1.ExecutionMetrics)(nil),      // 5: common.v1.ExecutionMetrics
 }
 var file_scenario_validation_v1_validation_proto_depIdxs = []int32{
 	0, // 0: vrooli.scenario_validation.v1.ValidateScenarioResponse.status:type_name -> vrooli.scenario_validation.v1.ValidationStatus
 	3, // 1: vrooli.scenario_validation.v1.ValidateScenarioResponse.assessment:type_name -> common.v1.MaturityAssessment
 	4, // 2: vrooli.scenario_validation.v1.ValidateScenarioResponse.native_detail:type_name -> google.protobuf.Any
-	1, // 3: vrooli.scenario_validation.v1.ScenarioValidationService.ValidateScenario:input_type -> vrooli.scenario_validation.v1.ValidateScenarioRequest
-	2, // 4: vrooli.scenario_validation.v1.ScenarioValidationService.ValidateScenario:output_type -> vrooli.scenario_validation.v1.ValidateScenarioResponse
-	4, // [4:5] is the sub-list for method output_type
-	3, // [3:4] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	5, // 3: vrooli.scenario_validation.v1.ValidateScenarioResponse.metrics:type_name -> common.v1.ExecutionMetrics
+	1, // 4: vrooli.scenario_validation.v1.ScenarioValidationService.ValidateScenario:input_type -> vrooli.scenario_validation.v1.ValidateScenarioRequest
+	2, // 5: vrooli.scenario_validation.v1.ScenarioValidationService.ValidateScenario:output_type -> vrooli.scenario_validation.v1.ValidateScenarioResponse
+	5, // [5:6] is the sub-list for method output_type
+	4, // [4:5] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_scenario_validation_v1_validation_proto_init() }

@@ -23,10 +23,11 @@ _sym_db = _symbol_database.Default()
 
 
 from common.v1 import maturity_pb2 as common_dot_v1_dot_maturity__pb2
+from common.v1 import metrics_pb2 as common_dot_v1_dot_metrics__pb2
 from google.protobuf import any_pb2 as google_dot_protobuf_dot_any__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\'scenario-validation/v1/validation.proto\x12\x1dvrooli.scenario_validation.v1\x1a\x18\x63ommon/v1/maturity.proto\x1a\x19google/protobuf/any.proto\"v\n\x17ValidateScenarioRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x12\n\x04path\x18\x02 \x01(\tR\x04path\x12+\n\x11include_execution\x18\x03 \x01(\x08R\x10includeExecution\"\xf9\x01\n\x18ValidateScenarioResponse\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12G\n\x06status\x18\x02 \x01(\x0e\x32/.vrooli.scenario_validation.v1.ValidationStatusR\x06status\x12=\n\nassessment\x18\x03 \x01(\x0b\x32\x1d.common.v1.MaturityAssessmentR\nassessment\x12\x39\n\rnative_detail\x18\x04 \x01(\x0b\x32\x14.google.protobuf.AnyR\x0cnativeDetail*\xcd\x01\n\x10ValidationStatus\x12!\n\x1dVALIDATION_STATUS_UNSPECIFIED\x10\x00\x12\x1c\n\x18VALIDATION_STATUS_PASSED\x10\x01\x12\x1c\n\x18VALIDATION_STATUS_FAILED\x10\x02\x12\x1e\n\x1aVALIDATION_STATUS_DEGRADED\x10\x03\x12\x1b\n\x17VALIDATION_STATUS_ERROR\x10\x04\x12\x1d\n\x19VALIDATION_STATUS_SKIPPED\x10\x05\x32\xa1\x01\n\x19ScenarioValidationService\x12\x83\x01\n\x10ValidateScenario\x12\x36.vrooli.scenario_validation.v1.ValidateScenarioRequest\x1a\x37.vrooli.scenario_validation.v1.ValidateScenarioResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1;scenariovalidationv1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\'scenario-validation/v1/validation.proto\x12\x1dvrooli.scenario_validation.v1\x1a\x18\x63ommon/v1/maturity.proto\x1a\x17\x63ommon/v1/metrics.proto\x1a\x19google/protobuf/any.proto\"v\n\x17ValidateScenarioRequest\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12\x12\n\x04path\x18\x02 \x01(\tR\x04path\x12+\n\x11include_execution\x18\x03 \x01(\x08R\x10includeExecution\"\xb0\x02\n\x18ValidateScenarioResponse\x12\x1a\n\x08scenario\x18\x01 \x01(\tR\x08scenario\x12G\n\x06status\x18\x02 \x01(\x0e\x32/.vrooli.scenario_validation.v1.ValidationStatusR\x06status\x12=\n\nassessment\x18\x03 \x01(\x0b\x32\x1d.common.v1.MaturityAssessmentR\nassessment\x12\x39\n\rnative_detail\x18\x04 \x01(\x0b\x32\x14.google.protobuf.AnyR\x0cnativeDetail\x12\x35\n\x07metrics\x18\x05 \x01(\x0b\x32\x1b.common.v1.ExecutionMetricsR\x07metrics*\xcd\x01\n\x10ValidationStatus\x12!\n\x1dVALIDATION_STATUS_UNSPECIFIED\x10\x00\x12\x1c\n\x18VALIDATION_STATUS_PASSED\x10\x01\x12\x1c\n\x18VALIDATION_STATUS_FAILED\x10\x02\x12\x1e\n\x1aVALIDATION_STATUS_DEGRADED\x10\x03\x12\x1b\n\x17VALIDATION_STATUS_ERROR\x10\x04\x12\x1d\n\x19VALIDATION_STATUS_SKIPPED\x10\x05\x32\xa1\x01\n\x19ScenarioValidationService\x12\x83\x01\n\x10ValidateScenario\x12\x36.vrooli.scenario_validation.v1.ValidateScenarioRequest\x1a\x37.vrooli.scenario_validation.v1.ValidateScenarioResponseB\\ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1;scenariovalidationv1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -34,12 +35,12 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'scenario_validation.v1.vali
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'ZZgithub.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1;scenariovalidationv1'
-  _globals['_VALIDATIONSTATUS']._serialized_start=500
-  _globals['_VALIDATIONSTATUS']._serialized_end=705
-  _globals['_VALIDATESCENARIOREQUEST']._serialized_start=127
-  _globals['_VALIDATESCENARIOREQUEST']._serialized_end=245
-  _globals['_VALIDATESCENARIORESPONSE']._serialized_start=248
-  _globals['_VALIDATESCENARIORESPONSE']._serialized_end=497
-  _globals['_SCENARIOVALIDATIONSERVICE']._serialized_start=708
-  _globals['_SCENARIOVALIDATIONSERVICE']._serialized_end=869
+  _globals['_VALIDATIONSTATUS']._serialized_start=580
+  _globals['_VALIDATIONSTATUS']._serialized_end=785
+  _globals['_VALIDATESCENARIOREQUEST']._serialized_start=152
+  _globals['_VALIDATESCENARIOREQUEST']._serialized_end=270
+  _globals['_VALIDATESCENARIORESPONSE']._serialized_start=273
+  _globals['_VALIDATESCENARIORESPONSE']._serialized_end=577
+  _globals['_SCENARIOVALIDATIONSERVICE']._serialized_start=788
+  _globals['_SCENARIOVALIDATIONSERVICE']._serialized_end=949
 # @@protoc_insertion_point(module_scope)

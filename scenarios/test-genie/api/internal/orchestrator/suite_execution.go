@@ -1164,6 +1164,7 @@ func (o *SuiteOrchestrator) completePhaseRun(
 		Remediation:     remediation,
 		Observations:    report.Observations,
 		Findings:        report.Findings,
+		Metrics:         report.Metrics,
 	}
 	// Stamp the phase's finding-source token (empty for phases that emit no
 	// findings) so a downstream campaign reaudit can derive which sources

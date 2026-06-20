@@ -1,12 +1,58 @@
 package validation
 
 import (
+	"context"
+	"runtime"
 	"testing"
 
+	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/maturity-go/assessment"
+	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	"proto-health/internal/protosurface"
 	internal "proto-health/internal/validation"
 )
+
+type fakeValidator struct {
+	report internal.Report
+}
+
+func (f fakeValidator) ValidateScenario(context.Context, string) (internal.Report, error) {
+	return f.report, nil
+}
+
+func (f fakeValidator) DescribeScenarioProtos(context.Context, string) (protosurface.Surface, error) {
+	return protosurface.Surface{}, nil
+}
+
+func (f fakeValidator) DescribeScenariosProtos(context.Context, []string, int32, string) ([]internal.SurfaceResult, error) {
+	return nil, nil
+}
+
+func protoHealthSpec(t *testing.T) *assessment.Spec {
+	t.Helper()
+	spec, err := assessment.LoadSpecFromScenario("../../..")
+	require.NoError(t, err)
+	return spec
+}
+
+func TestValidateScenarioAttachesMetrics(t *testing.T) {
+	handler := NewConnectHandler(Deps{
+		Validator:    fakeValidator{report: internal.Report{Scenario: "demo", Passed: true}},
+		MaturitySpec: protoHealthSpec(t),
+	})
+
+	resp, err := handler.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: "demo"}))
+	require.NoError(t, err)
+
+	m := resp.Msg.GetMetrics()
+	require.NotNil(t, m, "metrics must be attached to the response")
+	require.GreaterOrEqual(t, m.GetWallClockMs(), int64(0))
+	require.NotNil(t, m.GetEnvironment())
+	require.Equal(t, runtime.GOOS, m.GetEnvironment().GetOs())
+	require.Equal(t, runtime.GOARCH, m.GetEnvironment().GetArch())
+	require.Equal(t, int32(runtime.NumCPU()), m.GetEnvironment().GetNumCpu())
+}
 
 func TestBuildMaturityAssessmentMapsProtoFindings(t *testing.T) {
 	spec := &assessment.Spec{

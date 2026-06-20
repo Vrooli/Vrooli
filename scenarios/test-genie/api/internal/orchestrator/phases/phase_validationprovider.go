@@ -11,6 +11,7 @@ import (
 	"test-genie/internal/shared"
 
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 const phaseSourceValidationProvider = "validation-provider"
@@ -87,11 +88,13 @@ func defaultDelegatedClient(ctx context.Context, env workspace.Environment, _ io
 func runValidationProviderPhase(ctx context.Context, env workspace.Environment, logWriter io.Writer, provider validationprovider.Provider, client DelegatedClient) RunReport {
 	var summary validationprovider.Summary
 	var findings []*architecturev1.ArchitectureFinding
+	var execMetrics *commonv1.ExecutionMetrics
 	report := RunPhase(ctx, logWriter, provider.Phase,
 		func() (*validationprovider.Result, error) {
 			result := client(ctx, env, logWriter, provider)
 			if result != nil {
 				findings = result.Findings
+				execMetrics = result.Metrics
 			}
 			return result, nil
 		},
@@ -119,6 +122,7 @@ func runValidationProviderPhase(ctx context.Context, env workspace.Environment, 
 	)
 
 	report.Findings = findings
+	report.Metrics = execMetrics
 	writePhasePointer(env, provider.Phase, report, map[string]any{"summary": summary}, logWriter)
 	logPhaseStep(logWriter, "%s summary: %s", provider.Phase, summary.String())
 	return report

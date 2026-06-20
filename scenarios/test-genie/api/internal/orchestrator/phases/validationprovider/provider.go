@@ -91,6 +91,10 @@ func (s Summary) String() string {
 type Result struct {
 	shared.RunResult[Summary]
 	Findings []*architecturev1.ArchitectureFinding
+	// Metrics is the provider's reported execution metrics (timing, stages,
+	// resources, host environment), present only when the provider has adopted
+	// the metrics contract. nil for un-migrated providers.
+	Metrics *commonv1.ExecutionMetrics
 }
 
 type Client interface {
@@ -155,6 +159,7 @@ func translate(provider Provider, fallbackScenario string, resp *scenariovalidat
 			Observations: observations(provider, resp.GetAssessment()),
 		},
 		Findings: findings,
+		Metrics:  resp.GetMetrics(),
 	}
 	switch resp.GetStatus() {
 	case scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED:
@@ -582,11 +587,8 @@ func failure(provider Provider, scenario string, class shared.FailureClass, err 
 }
 
 func requireAssessment(provider Provider, a *commonv1.MaturityAssessment) error {
-	if err := assessment.ValidateAssessment(a); err != nil {
+	if err := assessment.RequireIdentity(provider.ProviderScenario, provider.Phase, a); err != nil {
 		return fmt.Errorf("%s response violates maturity assessment contract: %w", provider.ProviderScenario, err)
-	}
-	if strings.TrimSpace(a.GetProvider()) == "" || strings.TrimSpace(a.GetPhase()) == "" {
-		return fmt.Errorf("%s response violates maturity assessment contract: provider and phase are required", provider.ProviderScenario)
 	}
 	return nil
 }

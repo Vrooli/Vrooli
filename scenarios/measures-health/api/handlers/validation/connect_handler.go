@@ -80,7 +80,7 @@ func (h *connectHandler) ValidateScenario(ctx context.Context, req *connect.Requ
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-	resp, err := assessment.BuildValidationResponse(native.GetScenario(), native.GetAssessment(), native)
+	resp, err := assessment.BuildValidationResponse(native.GetScenario(), native.GetAssessment(), native, nil)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build shared validation response: %w", err))
 	}

@@ -1,0 +1,111 @@
+syntax = "proto3";
+
+package common.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1;commonv1";
+
+// =============================================================================
+// SHARED EXECUTION METRICS
+// =============================================================================
+//
+// @layer 0
+// @domain common
+// @stability beta
+//
+// ExecutionMetrics is the measured cost of running ANY unit of work (a provider
+// validation, a build, a long-running async task). Generic by design — it lives
+// in common/v1 and is embedded by callers (e.g.
+// scenario_validation.v1.ValidateScenarioResponse.metrics). Resource fields are
+// best-effort and gated by a Reliability enum so consumers never mistake
+// "unavailable" for "zero".
+// =============================================================================
+
+// ExecutionMetrics captures timing, stage attribution, resource usage, and the
+// host environment for one unit of work.
+message ExecutionMetrics {
+  // --- Portable, always present (RELIABLE everywhere) ---
+  int64 wall_clock_ms = 1; // total elapsed milliseconds
+  google.protobuf.Timestamp started_at = 2;
+  google.protobuf.Timestamp completed_at = 3;
+
+  // --- Primary attribution carrier: stages (nestable). Add/nest stages to
+  //     pinpoint where time/CPU/GPU went; resources may hang off each one. ---
+  repeated Stage stages = 4;
+
+  // --- Whole-operation ROLLUP (optional): the total for un-staged tasks and
+  //     the process-level total. NOT required to equal the sum of stages. ---
+  ResourceUsage resources = 5;
+  // Whole-op domain numbers: io_bytes, gc_count, tokens, usd_cost…
+  map<string, double> gauges = 6;
+
+  // --- The machine/OS this ran on, so heterogeneous runs are comparable.
+  //     A property of the HOST, never of a stage. ---
+  CaptureEnvironment environment = 7;
+}
+
+// Stage is one measured scope of work — the profiling-span / flamegraph model.
+// Granularity is a PRODUCER choice: start flat (name+duration), enrich hot
+// stages with resources, and nest children only when drilling down further.
+message Stage {
+  string name = 1; // e.g. "discover", "compile", "validate"
+  int64 duration_ms = 2; // exact (RELIABLE)
+  ResourceUsage resources = 3; // OPTIONAL per-stage breakdown (best-effort; see Reliability)
+  map<string, double> gauges = 4; // OPTIONAL per-stage domain numbers (tokens, rows…)
+  repeated Stage children = 5; // nest to narrow down further
+}
+
+// Reliability distinguishes "measured and trustworthy" from "measured but
+// skewed" from "this environment can't measure it" — applied PER resource area.
+enum Reliability {
+  RELIABILITY_UNSPECIFIED = 0; // not attempted
+  RELIABILITY_RELIABLE = 1; // measured, trustworthy
+  RELIABILITY_BEST_EFFORT = 2; // measured but possibly skewed (process-wide under concurrency; device-level GPU)
+  RELIABILITY_UNAVAILABLE = 3; // not measurable on this OS / no probe tool
+}
+
+// ResourceUsage is best-effort CPU/memory/GPU usage for a window (whole-op or
+// per-stage). Each area carries its own Reliability.
+message ResourceUsage {
+  int64 cpu_user_ms = 1; // user CPU time consumed by the process
+  int64 cpu_sys_ms = 2; // system CPU time
+  Reliability cpu = 3;
+  int64 peak_rss_bytes = 4; // peak resident set size
+  Reliability memory = 5;
+  repeated GpuUsage gpus = 6; // per-device GPU usage during the window
+  Reliability gpu = 7;
+}
+
+// GpuUsage is device-level (and, when attributable, process-level) GPU usage.
+message GpuUsage {
+  int32 index = 1;
+  string name = 2; // e.g. "NVIDIA RTX 4090"
+  string vendor = 3; // nvidia | amd | apple | intel | unknown
+  double util_percent = 4; // 0–100, device-level during the window
+  int64 mem_used_bytes = 5;
+  int64 mem_total_bytes = 6;
+  bool process_scoped = 7; // true only if attributable to THIS process (e.g. nvidia-smi PID match)
+}
+
+// CaptureEnvironment is filled from `vrooli host inventory --json`
+// (cliv1.HostInventoryResponse) / internal/hostinventory. os/arch/num_cpu come
+// free from Go stdlib even with no host-inventory wiring.
+message CaptureEnvironment {
+  string os = 1; // linux | darwin | windows
+  string arch = 2; // amd64 | arm64
+  int32 num_cpu = 3; // logical cores
+  int64 total_mem_bytes = 4; // 0 + memory UNAVAILABLE if not wired
+  repeated GpuInfo gpus = 5; // GPUs PRESENT (capability), independent of usage sampling
+  string runtime_version = 6; // optional, e.g. go version
+  string host_id = 7; // optional stable runner id for cross-run normalization
+}
+
+// GpuInfo describes a GPU present on the host (capability), independent of any
+// usage sampling.
+message GpuInfo {
+  int32 index = 1;
+  string name = 2;
+  string vendor = 3;
+  int64 mem_total_bytes = 4;
+}

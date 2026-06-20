@@ -343,11 +343,15 @@ func ValidateAssessment(a *commonv1.MaturityAssessment) error {
 }
 
 // BuildValidationResponse wraps the shared maturity assessment in the common
-// scenario-validation response and optionally packs a provider-native payload.
+// scenario-validation response, optionally packs a provider-native payload, and
+// optionally attaches execution metrics. A nil metrics argument leaves the
+// response's metrics field unset (the contract for providers that have not yet
+// adopted metrics).
 func BuildValidationResponse(
 	scenario string,
 	a *commonv1.MaturityAssessment,
 	native proto.Message,
+	metrics *commonv1.ExecutionMetrics,
 	opts ...ValidationResponseOption,
 ) (*scenariovalidationv1.ValidateScenarioResponse, error) {
 	scenario = strings.TrimSpace(scenario)
@@ -383,6 +387,7 @@ func BuildValidationResponse(
 		Status:       status,
 		Assessment:   a,
 		NativeDetail: detail,
+		Metrics:      metrics,
 	}, nil
 }
 

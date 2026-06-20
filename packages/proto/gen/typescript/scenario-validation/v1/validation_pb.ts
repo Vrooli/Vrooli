@@ -6,6 +6,8 @@ import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobu
 import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { MaturityAssessment } from "../../common/v1/maturity_pb";
 import { file_common_v1_maturity } from "../../common/v1/maturity_pb";
+import type { ExecutionMetrics } from "../../common/v1/metrics_pb";
+import { file_common_v1_metrics } from "../../common/v1/metrics_pb";
 import type { Any } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_any } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
@@ -14,7 +16,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file scenario-validation/v1/validation.proto.
  */
 export const file_scenario_validation_v1_validation: GenFile = /*@__PURE__*/
-  fileDesc("CidzY2VuYXJpby12YWxpZGF0aW9uL3YxL3ZhbGlkYXRpb24ucHJvdG8SHXZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxIlQKF1ZhbGlkYXRlU2NlbmFyaW9SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBHBhdGgYAiABKAkSGQoRaW5jbHVkZV9leGVjdXRpb24YAyABKAgizQEKGFZhbGlkYXRlU2NlbmFyaW9SZXNwb25zZRIQCghzY2VuYXJpbxgBIAEoCRI/CgZzdGF0dXMYAiABKA4yLy52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5WYWxpZGF0aW9uU3RhdHVzEjEKCmFzc2Vzc21lbnQYAyABKAsyHS5jb21tb24udjEuTWF0dXJpdHlBc3Nlc3NtZW50EisKDW5hdGl2ZV9kZXRhaWwYBCABKAsyFC5nb29nbGUucHJvdG9idWYuQW55Ks0BChBWYWxpZGF0aW9uU3RhdHVzEiEKHVZBTElEQVRJT05fU1RBVFVTX1VOU1BFQ0lGSUVEEAASHAoYVkFMSURBVElPTl9TVEFUVVNfUEFTU0VEEAESHAoYVkFMSURBVElPTl9TVEFUVVNfRkFJTEVEEAISHgoaVkFMSURBVElPTl9TVEFUVVNfREVHUkFERUQQAxIbChdWQUxJREFUSU9OX1NUQVRVU19FUlJPUhAEEh0KGVZBTElEQVRJT05fU1RBVFVTX1NLSVBQRUQQBTKhAQoZU2NlbmFyaW9WYWxpZGF0aW9uU2VydmljZRKDAQoQVmFsaWRhdGVTY2VuYXJpbxI2LnZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxLlZhbGlkYXRlU2NlbmFyaW9SZXF1ZXN0GjcudnJvb2xpLnNjZW5hcmlvX3ZhbGlkYXRpb24udjEuVmFsaWRhdGVTY2VuYXJpb1Jlc3BvbnNlQlxaWmdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vc2NlbmFyaW8tdmFsaWRhdGlvbi92MTtzY2VuYXJpb3ZhbGlkYXRpb252MWIGcHJvdG8z", [file_common_v1_maturity, file_google_protobuf_any]);
+  fileDesc("CidzY2VuYXJpby12YWxpZGF0aW9uL3YxL3ZhbGlkYXRpb24ucHJvdG8SHXZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxIlQKF1ZhbGlkYXRlU2NlbmFyaW9SZXF1ZXN0EhAKCHNjZW5hcmlvGAEgASgJEgwKBHBhdGgYAiABKAkSGQoRaW5jbHVkZV9leGVjdXRpb24YAyABKAgi+wEKGFZhbGlkYXRlU2NlbmFyaW9SZXNwb25zZRIQCghzY2VuYXJpbxgBIAEoCRI/CgZzdGF0dXMYAiABKA4yLy52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5WYWxpZGF0aW9uU3RhdHVzEjEKCmFzc2Vzc21lbnQYAyABKAsyHS5jb21tb24udjEuTWF0dXJpdHlBc3Nlc3NtZW50EisKDW5hdGl2ZV9kZXRhaWwYBCABKAsyFC5nb29nbGUucHJvdG9idWYuQW55EiwKB21ldHJpY3MYBSABKAsyGy5jb21tb24udjEuRXhlY3V0aW9uTWV0cmljcyrNAQoQVmFsaWRhdGlvblN0YXR1cxIhCh1WQUxJREFUSU9OX1NUQVRVU19VTlNQRUNJRklFRBAAEhwKGFZBTElEQVRJT05fU1RBVFVTX1BBU1NFRBABEhwKGFZBTElEQVRJT05fU1RBVFVTX0ZBSUxFRBACEh4KGlZBTElEQVRJT05fU1RBVFVTX0RFR1JBREVEEAMSGwoXVkFMSURBVElPTl9TVEFUVVNfRVJST1IQBBIdChlWQUxJREFUSU9OX1NUQVRVU19TS0lQUEVEEAUyoQEKGVNjZW5hcmlvVmFsaWRhdGlvblNlcnZpY2USgwEKEFZhbGlkYXRlU2NlbmFyaW8SNi52cm9vbGkuc2NlbmFyaW9fdmFsaWRhdGlvbi52MS5WYWxpZGF0ZVNjZW5hcmlvUmVxdWVzdBo3LnZyb29saS5zY2VuYXJpb192YWxpZGF0aW9uLnYxLlZhbGlkYXRlU2NlbmFyaW9SZXNwb25zZUJcWlpnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3NjZW5hcmlvLXZhbGlkYXRpb24vdjE7c2NlbmFyaW92YWxpZGF0aW9udjFiBnByb3RvMw", [file_common_v1_maturity, file_common_v1_metrics, file_google_protobuf_any]);
 
 /**
  * @generated from message vrooli.scenario_validation.v1.ValidateScenarioRequest
@@ -78,6 +80,14 @@ export type ValidateScenarioResponse = Message<"vrooli.scenario_validation.v1.Va
    * @generated from field: google.protobuf.Any native_detail = 4;
    */
   nativeDetail?: Any | undefined;
+
+  /**
+   * Optional execution metrics (timing, stages, resources, host environment)
+   * for this validation. Absent for providers that have not adopted metrics.
+   *
+   * @generated from field: common.v1.ExecutionMetrics metrics = 5;
+   */
+  metrics?: ExecutionMetrics | undefined;
 };
 
 /**

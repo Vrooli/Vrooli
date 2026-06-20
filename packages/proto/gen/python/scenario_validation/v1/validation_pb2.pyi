@@ -1,4 +1,5 @@
 from common.v1 import maturity_pb2 as _maturity_pb2
+from common.v1 import metrics_pb2 as _metrics_pb2
 from google.protobuf import any_pb2 as _any_pb2
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -34,13 +35,15 @@ class ValidateScenarioRequest(_message.Message):
     def __init__(self, scenario: _Optional[str] = ..., path: _Optional[str] = ..., include_execution: _Optional[bool] = ...) -> None: ...
 
 class ValidateScenarioResponse(_message.Message):
-    __slots__ = ("scenario", "status", "assessment", "native_detail")
+    __slots__ = ("scenario", "status", "assessment", "native_detail", "metrics")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     ASSESSMENT_FIELD_NUMBER: _ClassVar[int]
     NATIVE_DETAIL_FIELD_NUMBER: _ClassVar[int]
+    METRICS_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     status: ValidationStatus
     assessment: _maturity_pb2.MaturityAssessment
     native_detail: _any_pb2.Any
-    def __init__(self, scenario: _Optional[str] = ..., status: _Optional[_Union[ValidationStatus, str]] = ..., assessment: _Optional[_Union[_maturity_pb2.MaturityAssessment, _Mapping]] = ..., native_detail: _Optional[_Union[_any_pb2.Any, _Mapping]] = ...) -> None: ...
+    metrics: _metrics_pb2.ExecutionMetrics
+    def __init__(self, scenario: _Optional[str] = ..., status: _Optional[_Union[ValidationStatus, str]] = ..., assessment: _Optional[_Union[_maturity_pb2.MaturityAssessment, _Mapping]] = ..., native_detail: _Optional[_Union[_any_pb2.Any, _Mapping]] = ..., metrics: _Optional[_Union[_metrics_pb2.ExecutionMetrics, _Mapping]] = ...) -> None: ...

@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package vrooli.cli.v1;
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1;cliv1";
+
+// =============================================================================
+// VROOLI CLI — scenario freshness output contract
+// =============================================================================
+//
+// @stability experimental
+//
+// Canonical wire shape for `vrooli scenario freshness <name> --json`. The
+// command reports, per freshness check (binaries/ui-bundle), whether the built
+// artifact is stale and why (the offending input file and the machine cause),
+// plus the resolved freshness_policy of each declared scenario dependency — the
+// permanent answer to "why did my dependency rebuild/restart?". Marshaled by the
+// root vrooli CLI with protojson (UseProtoNames=true, EmitUnpopulated=true).
+//
+// Bump @stability to `stable` once consumers are migrated and the golden locks.
+// =============================================================================
+
+// ScenarioFreshnessResponse is the envelope of `vrooli scenario freshness --json`.
+message ScenarioFreshnessResponse {
+  // Standard CLI success envelope.
+  bool success = 1;
+
+  // The scenario whose freshness was evaluated.
+  string scenario = 2;
+
+  // True when any freshness check reported stale.
+  bool stale = 3;
+
+  // Per-artifact freshness verdicts (binaries/ui-bundle checks).
+  repeated ScenarioFreshnessCheck checks = 4;
+
+  // Resolved freshness_policy of each declared scenario dependency.
+  repeated ScenarioFreshnessDependency dependencies = 5;
+}
+
+// ScenarioFreshnessCheck is one artifact's freshness verdict.
+message ScenarioFreshnessCheck {
+  // Setup-condition check type: "binaries" or "ui-bundle".
+  string check_type = 1;
+
+  // Artifact target path as declared in the check (e.g. "api/scenario-api").
+  string target = 2;
+
+  // True when the artifact is stale (missing, or an input/build-key changed).
+  bool stale = 3;
+
+  // Machine cause when stale: e.g. "content changed", "source newer",
+  // "build input changed: toolchain", "missing artifact". Empty when fresh.
+  string cause = 4;
+
+  // Offending input (repo-relative path) or the target name, when known.
+  // Empty when fresh.
+  string file = 5;
+}
+
+// ScenarioFreshnessDependency reports the resolved freshness_policy for one
+// declared scenario dependency edge. Runtime arbitration may further reduce
+// disruption (degrade restart_when_stale -> rebuild_only) when other live
+// consumers share the dependency.
+message ScenarioFreshnessDependency {
+  // Dependency scenario name.
+  string name = 1;
+
+  // Normalized freshness_policy: "restart_when_stale" (default),
+  // "reuse_running", or "rebuild_only".
+  string policy = 2;
+}

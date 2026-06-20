@@ -117,10 +117,16 @@ func testArchitectureResponseWithTypeAndClass(t *testing.T, findingType, severit
 	if err != nil {
 		t.Fatalf("pack native detail: %v", err)
 	}
+	// The architecture provider's assessment must carry the architecture identity
+	// so the consumer's unified RequireIdentity check (provider/phase match) is
+	// satisfied; testAssessment defaults to the proto-health identity.
+	arch := testAssessment(severity)
+	arch.Provider = "architecture-cartographer"
+	arch.Phase = "architecture"
 	return &scenariovalidationv1.ValidateScenarioResponse{
 		Scenario:     "demo",
 		Status:       scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED,
-		Assessment:   testAssessment(severity),
+		Assessment:   arch,
 		NativeDetail: detail,
 	}
 }

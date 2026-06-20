@@ -218,6 +218,20 @@ test-genie provider-contract check docs my-scenario
 test-genie provider-contract check tidiness-manager my-scenario --json
 ```
 
+### scan
+
+Sweep every delegated provider phase in the catalog and score how correctly each one adopts the shared contract. Unlike `check` (one provider, restart-and-probe), `scan` is a read-only fleet probe.
+
+```bash
+test-genie provider-contract scan [--json] [--target <fixture-scenario>] [--timeout <dur>]
+```
+
+Per provider it reports `reachable`, `contract_valid`, `identity_ok`, `spec_valid`, `metrics_adopted` (advisory), a `violations[]` list, and an `adoption_score`. The default target is `test-genie` with `include_execution=false` to bound probe cost. The command exits non-zero only for a mis-specified provider (`spec_valid=false`) or a contract/identity break among reachable providers; unreachability and missing metrics never fail the gate.
+
+```bash
+test-genie provider-contract scan --json
+```
+
 ---
 
 ## playbooks-seed

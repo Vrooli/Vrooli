@@ -3,7 +3,6 @@ package phases
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"test-genie/internal/shared"
 
@@ -31,19 +30,9 @@ func localMaturitySummary(assessment *commonv1.MaturityAssessment) (current stri
 	return assessment.GetLocal().GetCurrentLevel(), assessment.GetLocal().GetNextLevel()
 }
 
-func requireProtoProviderAssessment(provider string, phase string, assessment *commonv1.MaturityAssessment) error {
-	if err := assessmentpkgValidate(assessment); err != nil {
-		return providerMaturityContractError("%s %s assessment is invalid: %v", provider, phase, err)
-	}
-	if got := strings.TrimSpace(assessment.GetProvider()); got != provider {
-		return providerMaturityContractError("%s %s assessment.provider=%q, want %q", provider, phase, got, provider)
-	}
-	if got := strings.TrimSpace(assessment.GetPhase()); got != phase {
-		return providerMaturityContractError("%s %s assessment.phase=%q, want %q", provider, phase, got, phase)
+func requireProtoProviderAssessment(provider string, phase string, a *commonv1.MaturityAssessment) error {
+	if err := assessment.RequireIdentity(provider, phase, a); err != nil {
+		return providerMaturityContractError("%s %s %v", provider, phase, err)
 	}
 	return nil
-}
-
-func assessmentpkgValidate(a *commonv1.MaturityAssessment) error {
-	return assessment.ValidateAssessment(a)
 }

@@ -3,6 +3,7 @@ syntax = "proto3";
 package vrooli.scenario_validation.v1;
 
 import "common/v1/maturity.proto";
+import "common/v1/metrics.proto";
 import "google/protobuf/any.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1;scenariovalidationv1";
@@ -51,4 +52,7 @@ message ValidateScenarioResponse {
   common.v1.MaturityAssessment assessment = 3;
   // Optional provider-native response packed for provider-owned surfaces.
   google.protobuf.Any native_detail = 4;
+  // Optional execution metrics (timing, stages, resources, host environment)
+  // for this validation. Absent for providers that have not adopted metrics.
+  common.v1.ExecutionMetrics metrics = 5;
 }

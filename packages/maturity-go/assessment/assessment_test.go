@@ -449,7 +449,7 @@ func TestBuildValidationResponseDerivesStatusAndPacksNativeDetail(t *testing.T) 
 		t.Fatalf("BuildProtoAssessment returned error: %v", err)
 	}
 	native := &commonv1.LocalMaturityLevel{Id: "native"}
-	got, err := BuildValidationResponse("demo", assessment, native)
+	got, err := BuildValidationResponse("demo", assessment, native, nil)
 	if err != nil {
 		t.Fatalf("BuildValidationResponse returned error: %v", err)
 	}
@@ -476,6 +476,7 @@ func TestBuildValidationResponseCanOverrideDerivedStatus(t *testing.T) {
 	got, err := BuildValidationResponse(
 		"demo",
 		assessment,
+		nil,
 		nil,
 		WithValidationStatus(scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED),
 	)

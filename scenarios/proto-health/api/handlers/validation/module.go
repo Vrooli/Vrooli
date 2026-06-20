@@ -1,15 +1,15 @@
 package validation
 
 import (
-	"fmt"
+	"context"
 	"log"
 	"net/http"
-	"os"
 	"path/filepath"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/maturity-go/assessment"
+	vroolicli "github.com/vrooli/vrooli-cli-go"
 
 	"proto-health/internal/codefacts"
 	"proto-health/internal/module"
@@ -35,9 +35,17 @@ func Module(logger *log.Logger, repoRoot string) module.Module {
 	if err != nil {
 		logger.Fatalf("proto descriptor loader: %v", err)
 	}
-	spec, err := loadMaturitySpec(repoRoot)
+	spec, err := assessment.LoadSpecFromScenario(filepath.Join(repoRoot, "scenarios", "proto-health"))
 	if err != nil {
 		logger.Fatalf("validation: load maturity spec: %v", err)
+	}
+	// Capture host facts once; they do not change during the process lifetime.
+	// A failure (CLI unavailable) is non-fatal — the metrics collector backfills
+	// os/arch/num_cpu from the stdlib, leaving richer facts unset.
+	environment, err := vroolicli.New().HostCaptureEnvironment(context.Background())
+	if err != nil {
+		logger.Printf("validation: host inventory unavailable, metrics environment limited to stdlib baseline: %v", err)
+		environment = nil
 	}
 	catalog, err := internal.NewFindingCatalog(spec)
 	if err != nil {
@@ -54,6 +62,7 @@ func Module(logger *log.Logger, repoRoot string) module.Module {
 		Logger:       logger,
 		Validator:    validator,
 		MaturitySpec: spec,
+		Environment:  environment,
 	})
 	protoPath, protoHandler := validationconnect.NewProtoHealthServiceHandler(handler)
 	validationPath, validationHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(handler)
@@ -68,15 +77,6 @@ func Module(logger *log.Logger, repoRoot string) module.Module {
 		},
 		Endpoints: Endpoints,
 	}
-}
-
-func loadMaturitySpec(repoRoot string) (*assessment.Spec, error) {
-	path := filepath.Join(repoRoot, "scenarios", "proto-health", ".vrooli", "maturity.json")
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("read %s: %w", path, err)
-	}
-	return assessment.ParseSpec(raw)
 }
 
 func Schema() string { return "" }
@@ -100,6 +100,7 @@ var Endpoints = []module.EndpointDescriptor{
 				"status":        "scenario_validation.v1.ValidationStatus",
 				"assessment":    "common.v1.MaturityAssessment",
 				"native_detail": "google.protobuf.Any",
+				"metrics":       "common.v1.ExecutionMetrics",
 			},
 		},
 		Errors: []module.ErrorDesc{

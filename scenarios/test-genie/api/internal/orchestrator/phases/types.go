@@ -10,6 +10,7 @@ import (
 	"test-genie/internal/orchestrator/workspace"
 
 	architecturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture/v1"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 // Name identifies a single orchestrator phase.
@@ -173,6 +174,10 @@ type RunReport struct {
 	// tracker ingests and reconciles by stable ID. Pointers (not values)
 	// because proto messages embed a no-copy MessageState.
 	Findings []*architecturev1.ArchitectureFinding
+	// Metrics carries the delegated provider's execution metrics when present.
+	// nil for non-delegated phases and for providers that have not adopted the
+	// metrics contract.
+	Metrics *commonv1.ExecutionMetrics
 }
 
 // Runner is the function signature every Go-native phase must satisfy.
@@ -257,6 +262,11 @@ type ExecutionResult struct {
 	// can ingest it. Enum fields marshal as their proto integer values —
 	// a stable seam since both sides share this contract.
 	Findings []*architecturev1.ArchitectureFinding `json:"findings,omitempty"`
+	// Metrics is the delegated provider's reported execution metrics (timing,
+	// stages, resources, host environment), persisted into the per-run phase
+	// artifact and the SQLite phases blob. Absent for phases whose provider has
+	// not adopted the metrics contract. Proto JSON (snake_case) on the wire.
+	Metrics *commonv1.ExecutionMetrics `json:"metrics,omitempty"`
 }
 
 // NormalizeName standardizes arbitrary input into a canonical Name.

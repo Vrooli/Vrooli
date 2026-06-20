@@ -56,13 +56,21 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 	if s.loader == nil {
 		return Report{}, fmt.Errorf("proto surface loader is not configured")
 	}
+	collector := metricsFrom(ctx)
+
+	discover := collector.Stage("discover")
 	surface, err := s.loader.LoadScenario(scenario)
+	discover.End()
 	if err != nil {
 		return Report{}, err
 	}
 	fleetIndex := s.fleetReachability()
 
+	// analyze is the hot stage; its children separate CPU-bound static surface
+	// checks from the I/O-bound code-facts RPCs so the consumer can drill down.
+	analyze := collector.Stage("analyze")
 	var findings []Finding
+	static := analyze.Stage("static-checks")
 	findings = append(findings, checkCycles(surface)...)
 	findings = append(findings, s.checkGeneratedArtifacts(ctx, scenario)...)
 	findings = append(findings, checkPackages(scenario, surface)...)
@@ -79,13 +87,24 @@ func (s *Service) ValidateScenario(ctx context.Context, scenario string) (Report
 	findings = append(findings, checkMissingHealth(surface)...)
 	findings = append(findings, checkPossiblyUnused(surface, fleetIndex)...)
 	findings = append(findings, s.checkDomainMismatch(surface)...)
+	static.Gauge("findings", float64(len(findings)))
+	static.End()
+	codeFacts := analyze.Stage("code-facts")
 	findings = append(findings, s.checkCodeFacts(ctx, scenario, surface)...)
+	codeFacts.End()
+	analyze.Gauge("proto_files", float64(len(surface.Files)))
+	analyze.End()
+
+	resolve := collector.Stage("resolve")
 	findings, err = s.resolveSeverities(findings)
 	if err != nil {
+		resolve.End()
 		return Report{}, err
 	}
 	sortFindings(findings)
-	return finalize(scenario, findings), nil
+	report := finalize(scenario, findings)
+	resolve.End()
+	return report, nil
 }
 
 func (s *Service) resolveSeverities(findings []Finding) ([]Finding, error) {

@@ -24,7 +24,7 @@ import (
 	catalog "test-genie/internal/orchestrator/phases"
 )
 
-const usage = "usage: provider-contract check <phase|provider> <target-scenario> [--no-restart] [--json]"
+const usage = "usage: provider-contract <check|scan> ...\n  check <phase|provider> <target-scenario> [--no-restart] [--json]\n  scan [--json] [--target <fixture-scenario>] [--timeout <dur>]"
 
 var (
 	commandRunner          = runCommand
@@ -66,6 +66,9 @@ type Result struct {
 }
 
 func Run(args []string) error {
+	if len(args) > 0 && args[0] == "scan" {
+		return RunScan(args)
+	}
 	parsed, err := ParseArgs(args)
 	if err != nil {
 		return err
@@ -145,11 +148,8 @@ func Check(ctx context.Context, args Args, probe Probe) (Result, error) {
 	if err != nil {
 		return out, err
 	}
-	if got, want := strings.TrimSpace(assessmentMsg.GetProvider()), probe.Provider; got != "" && got != want {
-		return out, fmt.Errorf("provider maturity contract violation: assessment.provider=%q, want %q", got, want)
-	}
-	if got, want := strings.TrimSpace(assessmentMsg.GetPhase()), probe.Phase; got != "" && got != want {
-		return out, fmt.Errorf("provider maturity contract violation: assessment.phase=%q, want %q", got, want)
+	if err := assessment.RequireIdentity(probe.Provider, probe.Phase, assessmentMsg); err != nil {
+		return out, fmt.Errorf("provider maturity contract violation: %w", err)
 	}
 	out.Status = "ok"
 	out.Assessment.Scenario = assessmentMsg.GetScenario()

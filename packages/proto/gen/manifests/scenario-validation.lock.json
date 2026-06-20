@@ -1,9 +1,10 @@
 {
   "schema_version": 1,
   "scenario": "scenario-validation",
-  "input_digest": "sha256:6870ee5a340d0611951b495de3e0f081397d76b9a6169aa7528afe775ce1be03",
+  "input_digest": "sha256:a6aef69027b6bceef449f295fb4ed7bb4600b50730e3bfe703b2797b5bcd8fd5",
   "input_files": [
     "schemas/common/v1/maturity.proto",
+    "schemas/common/v1/metrics.proto",
     "schemas/scenario-validation/v1/validation.proto"
   ],
   "toolchain": {
@@ -18,12 +19,12 @@
   },
   "outputs": {
     "gen/go/scenario-validation/v1/scenariovalidationv1connect/validation.connect.go": "sha256:f7c828b79742432a4191c951d12c6ab1fd88e758dec905c441ce5897d8074775",
-    "gen/go/scenario-validation/v1/validation.pb.go": "sha256:c803ec184aa1a045b0e90dc74c0dffa290585ab1d1863164dfb3e2257af86fea",
+    "gen/go/scenario-validation/v1/validation.pb.go": "sha256:01fea607b02661907b2c847ee9b1d720e33ec287167973697181e7bd3e078134",
     "gen/python/scenario_validation/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/scenario_validation/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/scenario_validation/v1/validation_pb2.py": "sha256:3b800e4e8a0268bff57e3bb096a2253b48a89a25a5180d583c4dbd3a8a7b9372",
-    "gen/python/scenario_validation/v1/validation_pb2.pyi": "sha256:59fdd08d2553a563e3728611878cff047a730646605218dfc21a83fb30c825c4",
-    "gen/typescript/js/scenario-validation/v1/validation_pb.js": "sha256:c49feb8f43d08c1fd1c35bede9f9241973db53faac1aa3399d3d8b15a0ac5c1a",
-    "gen/typescript/scenario-validation/v1/validation_pb.ts": "sha256:b63e09125d3544a9124b78f7a59489d5cc4e0f76311280d2326151a56bbc3e8e"
+    "gen/python/scenario_validation/v1/validation_pb2.py": "sha256:23c8a72ea8adb00139e92c33b41e665e039f1f91bb07c09e9df609108c307ecc",
+    "gen/python/scenario_validation/v1/validation_pb2.pyi": "sha256:f6118c7c2c1e4e42228d2cf57814a877da6c08380131098321f80ebb6103193f",
+    "gen/typescript/js/scenario-validation/v1/validation_pb.js": "sha256:d27cc31748d7d369f602c0c751c86171e5e19c961c78fb6829498fc132996f1e",
+    "gen/typescript/scenario-validation/v1/validation_pb.ts": "sha256:88a47229effe875e136469457ec6116c6746cb1778092426bb5707a2b9d82d24"
   }
 }
